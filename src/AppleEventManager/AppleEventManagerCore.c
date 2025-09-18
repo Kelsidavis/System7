@@ -56,6 +56,10 @@ typedef struct AEMgrState {
 
 static AEMgrState g_aeMgrState = {0};
 
+/* Export global state for other modules */
+pthread_mutex_t g_aeMgrMutex;
+AECoercionHandlerEntry* g_coercionHandlers = NULL;
+
 /* Handle structure for Apple Event data */
 typedef struct AEHandle {
     Size size;
@@ -163,8 +167,13 @@ OSErr AEManagerInit(void) {
     g_aeMgrState.currentReply = NULL;
     g_aeMgrState.eventSuspended = false;
 
+    /* Export mutex for other modules */
+    g_aeMgrMutex = g_aeMgrState.mutex;
+    g_coercionHandlers = g_aeMgrState.coercionHandlers;
+
     /* Install built-in coercion handlers */
-    // Text coercions will be implemented in EventCoercion.c
+    extern OSErr InitBuiltinCoercionHandlers(void);
+    InitBuiltinCoercionHandlers();
 
     return noErr;
 }

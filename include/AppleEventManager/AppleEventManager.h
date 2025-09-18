@@ -31,6 +31,7 @@ typedef int16_t OSErr;
 typedef int32_t Size;
 typedef void* Handle;
 typedef void* Ptr;
+typedef unsigned char Boolean;
 
 /* Core Apple Event descriptor structure */
 typedef struct AEDesc {
@@ -172,6 +173,10 @@ typedef struct ProcessSerialNumber {
 /* Priority constants */
 #define kAENormalPriority 0x00000000
 
+/* Process constants */
+#define kCurrentProcess 2
+#define kNoProcess 0
+
 /* Error codes */
 #define errAECoercionFail -1700
 #define errAEDescNotFound -1701
@@ -193,6 +198,17 @@ typedef struct ProcessSerialNumber {
 #define errAEHandlerNotFound -1717
 #define errAEReplyNotArrived -1718
 #define errAEIllegalIndex -1719
+#define errAERecordingIsAlreadyOn -1732
+#define errAENotRecording -1733
+#define errAERecordingBufferFull -1734
+#define errAENoUserSelection -1743
+#define errAENetworkErr -1744
+#define connectionInvalid -609
+#define memFullErr -108
+#define paramErr -50
+#define userCanceledErr -128
+#define fnfErr -43
+#define ioErr -36
 
 #define noErr 0
 
@@ -201,6 +217,8 @@ typedef struct ProcessSerialNumber {
  * ======================================================================== */
 
 typedef OSErr (*EventHandlerProcPtr)(const AppleEvent* theAppleEvent, AppleEvent* reply, int32_t handlerRefcon);
+typedef OSErr (*AEEventHandlerUPP)(const AppleEvent* theAppleEvent, AppleEvent* reply, long handlerRefcon);
+typedef OSErr (*AECoercionHandlerUPP)(const AEDesc* fromDesc, DescType toType, long handlerRefcon, AEDesc* toDesc);
 typedef bool (*IdleProcPtr)(void);
 typedef bool (*EventFilterProcPtr)(void* eventRecord, int32_t returnID);
 typedef OSErr (*CoercionHandlerProcPtr)(const AEDesc* fromDesc, DescType toType, int32_t handlerRefcon, AEDesc* toDesc);
@@ -291,6 +309,54 @@ void AEManagerCleanup(void);
 /* Utility functions for process targeting */
 OSErr AECreateProcessDesc(const ProcessSerialNumber* psn, AEAddressDesc* addressDesc);
 OSErr AECreateApplicationDesc(const char* applicationName, AEAddressDesc* addressDesc);
+
+/* Additional functions for compatibility */
+OSErr AEProcessAppleEvent(const AppleEvent* event, AppleEvent* reply, AESendMode sendMode, long timeoutInTicks);
+OSErr AESendMessage(const AppleEvent* event, AppleEvent* reply, AESendMode sendMode, long timeoutInTicks);
+
+/* Required event handlers */
+OSErr AEInstallRequiredEventHandlers(void);
+OSErr AERemoveRequiredEventHandlers(void);
+
+/* Application callbacks */
+void AERegisterOpenApplicationCallback(void (*callback)(void));
+void AERegisterOpenDocumentCallback(void (*callback)(const char* path));
+void AERegisterPrintDocumentCallback(void (*callback)(const char* path));
+void AERegisterQuitApplicationCallback(Boolean (*callback)(void));
+void AESetHasUnsavedChanges(Boolean hasChanges);
+void AESetHasOpenDocuments(Boolean hasDocuments);
+
+/* Recording functions */
+OSErr AEStartRecording(const char* scriptName);
+OSErr AEStopRecording(void);
+OSErr AEPauseRecording(void);
+OSErr AEResumeRecording(void);
+Boolean AEIsRecording(void);
+OSErr AERecordAppleEvent(const AppleEvent* theEvent, const AppleEvent* reply, const ProcessSerialNumber* targetPSN);
+OSErr AEGenerateScriptFromRecording(char** scriptText, Size* scriptSize);
+OSErr AEPlaybackRecording(int startIndex, int endIndex);
+OSErr AESaveRecording(const char* filePath);
+OSErr AELoadRecording(const char* filePath);
+void AEClearRecording(void);
+
+/* HAL Functions */
+OSErr HAL_InitializeIPC(void);
+OSErr HAL_CleanupIPC(void);
+OSErr HAL_SendAppleEvent(const AppleEvent* event, AppleEvent* reply, const ProcessSerialNumber* targetPSN,
+                        AESendMode sendMode, AESendPriority sendPriority, long timeoutInTicks);
+OSErr HAL_ReceiveAppleEvent(AppleEvent* event, long timeoutInTicks);
+
+/* Internal handle functions */
+Handle AEAllocateHandle(Size size);
+void AEDisposeHandle(Handle h);
+OSErr AESetHandleSize(Handle h, Size newSize);
+Size AEGetHandleSize(Handle h);
+void AEHLock(Handle h);
+void AEHUnlock(Handle h);
+void* AEGetHandleData(Handle h);
+
+/* Coercion init */
+OSErr InitBuiltinCoercionHandlers(void);
 
 #ifdef __cplusplus
 }
