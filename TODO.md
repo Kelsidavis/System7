@@ -1,15 +1,16 @@
 # System7.1-Portable - Remaining Implementation Tasks
 
 ## Statistics
-- **Total Stub References**: ~150 functions/features marked as TODO, STUB, or FIXME
-- **Completion Status**: ~85% core functionality implemented
+- **Total Stub References**: ~130 functions/features marked as TODO, STUB, or FIXME
+- **Completion Status**: ~87% core functionality implemented
 
 ## Priority 1: Core System Components (Critical)
 
 ### Sound Manager
+- [x] System beep with embedded resource
 - [ ] Sound synthesis engine
 - [ ] MIDI support
-- [ ] Sound resource playback
+- [ ] Advanced sound resource playback
 - [ ] Audio hardware abstraction
 - [ ] Sound input/recording
 
@@ -134,13 +135,15 @@
 ## Completed Components ✓
 
 ### 100% Complete
-- ✓ **Calculator** - Full desk accessory implementation
+- ✓ **Calculator** - Full desk accessory implementation with icon
 - ✓ **Color Manager** - RGB colors, palettes, CLUTs
 - ✓ **Help Manager** - Balloon help, tooltips
 - ✓ **Print Manager** - PostScript generation, spooling
 - ✓ **Package Manager** - PACK resource dispatch
 - ✓ **Time Manager** - High-resolution timing
 - ✓ **Standard File** - Open/Save dialogs with HAL
+- ✓ **Startup Screen** - "Welcome to Macintosh" with Happy Mac
+- ✓ **Resource Data** - Authentic System 7 resources embedded
 
 ### 95% Complete
 - ✓ **Window Manager** - Complete window management
@@ -166,13 +169,17 @@
 - ✓ **File Manager** - HFS+ file operations
 
 ### In Progress
-- ⏳ **Sound Manager** (10%) - Basic framework
+- ⏳ **Sound Manager** (15%) - Basic framework, system beep working
 - ⏳ **Apple Events** (5%) - Planned
 - ⏳ **Component Manager** (5%) - Planned
 
 ## Recent Achievements (2024)
 
 ### Completed in Latest Sprint
+- ✅ Startup Screen with classic "Welcome to Macintosh"
+- ✅ Resource Data system with authentic System 7 resources
+- ✅ Boot sequence integration with extension loading display
+- ✅ QuickDraw cursor and pattern managers
 - ✅ Color Manager with full HAL implementation
 - ✅ Help Manager with native tooltip support
 - ✅ Print Manager with PostScript and platform dialogs

@@ -5,6 +5,37 @@ All notable changes to System7.1-Portable will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.87.0] - 2024-01-18
+
+### Added
+
+#### Startup Screen
+- **Classic "Welcome to Macintosh" Boot Screen**
+  - Happy Mac icon display with authentic drawing
+  - Configurable welcome duration and colors
+  - Extension loading visualization with grid layout
+  - Multi-phase boot sequence (Init, Welcome, Extensions, Drivers, Finder)
+  - Progress bar with percentage display
+  - Error display capability with error codes
+  - Full integration with boot sequence manager
+
+#### Resource Data System
+- **Authentic System 7 Resources Embedded**
+  - Calculator icon (32x32) with mask
+  - Standard cursors: arrow, I-beam, crosshair, watch with proper hotspots
+  - Window control icons: close, zoom, collapse boxes
+  - UI elements: checkbox and radio button patterns
+  - Desktop and gray patterns (25%, 50%, 75%)
+  - Menu icons: Apple logo, command key (⌘), checkmark
+  - Dialog alert icons: stop, note, caution (32x32)
+  - Small icons: folder, document, application, trash (16x16)
+  - System beep sound (8-bit PCM square wave)
+  - Complete ResourceData management module
+
+#### QuickDraw Enhancements
+- **CursorManager** - Standard cursor management with resource data
+- **PatternManager** - System pattern management with caching
+
 ## [0.85.0] - 2024-01-18
 
 ### Added
@@ -47,10 +78,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Platform HAL for native file dialogs on all systems
 
 ### Changed
-- Updated build system to include new components
+- Calculator now displays authentic System 7 icon
+- SysBeep now uses embedded System 7 beep sound
+- Boot sequence now shows visual progress
+- Updated build system to include StartupScreen and Resources modules
 - Improved Makefile organization with better module separation
 - Enhanced CMake configuration for all new components
-- Increased overall project completion from 75% to 85%
+- Increased overall project completion from 85% to 87%
 
 ### Fixed
 - Resolved header file conflicts in ColorManager

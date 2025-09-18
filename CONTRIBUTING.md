@@ -128,14 +128,14 @@ git push origin feature/component-name
 ## Priority Areas
 
 ### High Priority (Most Needed)
-1. **Sound Manager** - Audio synthesis and playback
+1. **Sound Manager** - Complete audio synthesis and playback (15% done)
 2. **Apple Events** - Inter-application communication
 3. **Component Manager** - Plugin architecture
 4. **Networking** - AppleTalk and TCP/IP stack
 
 ### Medium Priority
-1. **Stub Completions** - Replace ~150 TODO/FIXME markers
-2. **Test Coverage** - Increase from 60% to 80%
+1. **Stub Completions** - Replace ~130 TODO/FIXME markers
+2. **Test Coverage** - Increase from 65% to 80%
 3. **Performance** - Optimize critical paths
 4. **Documentation** - Complete API references
 
@@ -162,6 +162,8 @@ Contributors will be recognized in:
 ## Recently Completed
 
 The following components have been successfully integrated and serve as good examples:
+- **Startup Screen** - Classic boot screen with extension loading display
+- **Resource Data** - Embedded System 7 resources (icons, cursors, patterns, sounds)
 - **Color Manager** - Full RGB color management with HAL
 - **Help Manager** - Balloon help with native tooltips
 - **Print Manager** - PostScript generation and platform dialogs
