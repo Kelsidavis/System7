@@ -255,8 +255,131 @@ enum {
     kFontFormatBitmap = 0,     /* Classic Mac bitmap font */
     kFontFormatTrueType = 1,   /* TrueType outline font */
     kFontFormatPostScript = 2,  /* PostScript Type 1 font */
-    kFontFormatOpenType = 3     /* OpenType font */
+    kFontFormatOpenType = 3,    /* OpenType font (.otf/.ttf) */
+    kFontFormatWOFF = 4,        /* Web Open Font Format 1.0 */
+    kFontFormatWOFF2 = 5,       /* Web Open Font Format 2.0 */
+    kFontFormatSystem = 6,      /* Platform system font */
+    kFontFormatCollection = 7   /* Font collection (.ttc/.otc) */
 };
+
+/* Modern Font Format Structures */
+
+/* OpenType Font Structure */
+typedef struct OpenTypeFont {
+    void *fontData;             /* OpenType font data */
+    unsigned long dataSize;     /* Size of font data */
+    char *familyName;          /* Font family name */
+    char *styleName;           /* Font style name */
+    unsigned short unitsPerEm;  /* Units per EM */
+    short ascender;            /* Typographic ascender */
+    short descender;           /* Typographic descender */
+    short lineGap;             /* Typographic line gap */
+    unsigned short numGlyphs;   /* Number of glyphs */
+    void *cmapTable;           /* Character to glyph mapping */
+    void *hmtxTable;           /* Horizontal metrics table */
+    void *glyfTable;           /* Glyph data table */
+    void *locaTable;           /* Index to location table */
+    void *headTable;           /* Font header table */
+    void *hheaTable;           /* Horizontal header table */
+    void *maxpTable;           /* Maximum profile table */
+    void *nameTable;           /* Naming table */
+    void *postTable;           /* PostScript table */
+    void *os2Table;            /* OS/2 and Windows metrics */
+    Boolean isCollection;       /* TRUE if from TTC/OTC */
+    unsigned long collectionIndex; /* Index in collection */
+} OpenTypeFont;
+
+/* WOFF Font Structure */
+typedef struct WOFFFont {
+    void *originalData;        /* Decompressed OpenType data */
+    unsigned long originalSize; /* Size of decompressed data */
+    OpenTypeFont *otFont;      /* Parsed OpenType font */
+    unsigned long compressedSize; /* Original WOFF file size */
+    unsigned short majorVersion; /* WOFF major version */
+    unsigned short minorVersion; /* WOFF minor version */
+    unsigned long metaOffset;   /* Metadata block offset */
+    unsigned long metaLength;   /* Metadata block length */
+    unsigned long privOffset;   /* Private data offset */
+    unsigned long privLength;   /* Private data length */
+} WOFFFont;
+
+/* System Font Structure */
+typedef struct SystemFont {
+    char *systemName;          /* Platform font name */
+    char *displayName;         /* Display name */
+    char *filePath;            /* Path to font file */
+    unsigned long fileSize;    /* Font file size */
+    void *platformHandle;      /* Platform-specific handle */
+    Boolean isInstalled;       /* TRUE if system installed */
+    Boolean isVariable;        /* TRUE if variable font */
+    unsigned short weight;     /* Font weight (100-900) */
+    unsigned short width;      /* Font width (1-9) */
+    unsigned short slope;      /* Font slope (normal, italic, oblique) */
+} SystemFont;
+
+/* Font Collection Structure */
+typedef struct FontCollection {
+    void *collectionData;      /* TTC/OTC file data */
+    unsigned long dataSize;    /* Size of collection data */
+    unsigned long numFonts;    /* Number of fonts in collection */
+    unsigned long *fontOffsets; /* Offsets to individual fonts */
+    OpenTypeFont **fonts;      /* Array of parsed fonts */
+    char *collectionName;      /* Collection name */
+    Boolean isParsed;          /* TRUE if fonts are parsed */
+} FontCollection;
+
+/* Modern Font Structure (Union of all types) */
+typedef struct ModernFont {
+    unsigned short format;     /* Font format type */
+    short familyID;           /* Mac OS family ID */
+    char *familyName;         /* Font family name */
+    char *styleName;          /* Font style name */
+    unsigned long dataSize;    /* Size of font data */
+    Boolean isLoaded;         /* TRUE if font is loaded */
+    Boolean isValid;          /* TRUE if font is valid */
+
+    union {
+        OpenTypeFont *openType;
+        WOFFFont *woff;
+        SystemFont *system;
+        FontCollection *collection;
+    } data;
+} ModernFont;
+
+/* Web Font Metadata */
+typedef struct WebFontMetadata {
+    char *fontFamily;         /* CSS font-family name */
+    char *fontStyle;          /* CSS font-style */
+    char *fontWeight;         /* CSS font-weight */
+    char *fontStretch;        /* CSS font-stretch */
+    char *unicodeRange;       /* CSS unicode-range */
+    char *fontDisplay;        /* CSS font-display */
+    char *src;               /* CSS src URL */
+    unsigned long fileSize;   /* Font file size */
+    char *format;            /* Font format (woff, woff2, etc.) */
+    Boolean isValid;         /* TRUE if metadata is valid */
+} WebFontMetadata;
+
+/* Font Directory Entry */
+typedef struct FontDirectoryEntry {
+    char *filePath;           /* Path to font file */
+    unsigned short format;    /* Font format type */
+    char *familyName;        /* Font family name */
+    char *styleName;         /* Font style name */
+    unsigned long fileSize;   /* Font file size */
+    unsigned long modTime;    /* Last modification time */
+    Boolean isValid;         /* TRUE if font is valid */
+    Boolean isInstalled;     /* TRUE if font is installed */
+    short familyID;          /* Assigned family ID */
+} FontDirectoryEntry;
+
+/* Font Directory */
+typedef struct FontDirectory {
+    FontDirectoryEntry *entries; /* Array of font entries */
+    unsigned long count;       /* Number of entries */
+    unsigned long capacity;    /* Allocated capacity */
+    Boolean isDirty;          /* TRUE if needs refresh */
+} FontDirectory;
 
 #ifdef __cplusplus
 }

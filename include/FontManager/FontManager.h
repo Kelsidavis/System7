@@ -66,7 +66,11 @@ OSErr GetFontCacheStats(short *entries, unsigned long *size);
 short GetFontFormat(short familyID, short size);
 Boolean IsBitmapFont(short familyID, short size);
 Boolean IsTrueTypeFont(short familyID, short size);
+Boolean IsOpenTypeFont(short familyID, short size);
+Boolean IsWOFFFont(short familyID, short size);
+Boolean IsWOFF2Font(short familyID, short size);
 Boolean IsPostScriptFont(short familyID, short size);
+Boolean IsSystemFont(short familyID, short size);
 
 /* Font Substitution */
 OSErr SetFontSubstitution(short originalID, short substituteID);
@@ -100,15 +104,42 @@ OSErr GetFontLanguageSupport(short familyID, short **languages, short *count);
 
 /* Font Installation and Management */
 OSErr InstallFontFile(ConstStr255Param filePath, short *familyID);
+OSErr InstallOpenTypeFont(ConstStr255Param filePath, short *familyID);
+OSErr InstallWOFFFont(ConstStr255Param filePath, short *familyID);
+OSErr InstallWOFF2Font(ConstStr255Param filePath, short *familyID);
+OSErr InstallSystemFont(ConstStr255Param fontName, short *familyID);
 OSErr RemoveFontFile(short familyID);
 OSErr GetInstalledFonts(short **familyIDs, short *count);
 OSErr RefreshFontList(void);
+OSErr ScanModernFontDirectories(void);
 
 /* Modern Platform Font Support */
 OSErr InitializePlatformFonts(void);
 OSErr RegisterSystemFontDirectory(ConstStr255Param directoryPath);
 OSErr ScanForSystemFonts(void);
 OSErr LoadPlatformFont(ConstStr255Param fontName, short *familyID);
+
+/* Modern Font Format Support */
+OSErr InitializeOpenTypeFonts(void);
+OSErr InitializeWOFFSupport(void);
+OSErr InitializeSystemFontSupport(void);
+OSErr LoadOpenTypeFont(ConstStr255Param filePath, OpenTypeFont **font);
+OSErr LoadWOFFFont(ConstStr255Param filePath, WOFFFont **font);
+OSErr LoadSystemFont(ConstStr255Param fontName, SystemFont **font);
+OSErr UnloadOpenTypeFont(OpenTypeFont *font);
+OSErr UnloadWOFFFont(WOFFFont *font);
+OSErr UnloadSystemFont(SystemFont *font);
+
+/* Font Collection Support */
+OSErr LoadFontCollection(ConstStr255Param filePath, FontCollection **collection);
+OSErr UnloadFontCollection(FontCollection *collection);
+OSErr GetFontFromCollection(FontCollection *collection, short index, ModernFont **font);
+OSErr GetCollectionFontCount(FontCollection *collection, short *count);
+
+/* Web Font Support */
+OSErr DownloadWebFont(ConstStr255Param url, ConstStr255Param cachePath, short *familyID);
+OSErr ValidateWebFont(ConstStr255Param filePath);
+OSErr GetWebFontMetadata(ConstStr255Param filePath, WebFontMetadata *metadata);
 
 /* Font Hinting and Rasterization */
 OSErr SetFontHinting(Boolean enableHinting);

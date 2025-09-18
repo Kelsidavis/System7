@@ -9,6 +9,7 @@
 #include "../include/FontManager/BitmapFonts.h"
 #include "../include/FontManager/TrueTypeFonts.h"
 #include "../include/FontManager/FontMetrics.h"
+#include "../include/FontManager/ModernFonts.h"
 #include <Memory.h>
 #include <Resources.h>
 #include <Errors.h>
@@ -91,6 +92,13 @@ void InitFonts(void)
     if (error != noErr) {
         SetLastError(error, "Failed to initialize platform fonts");
         /* Don't fail completely - continue with basic support */
+    }
+
+    /* Initialize modern font support */
+    error = InitializeModernFontSupport();
+    if (error != noErr) {
+        SetLastError(error, "Failed to initialize modern font support");
+        /* Don't fail completely - continue without modern font support */
     }
 
     gFontManagerState.initialized = TRUE;
@@ -227,8 +235,28 @@ FMOutPtr FMSwapFont(const FMInput *inRec)
     /* Clear output structure */
     memset(&output, 0, sizeof(FMOutput));
 
-    /* Try to load TrueType font first if outline preferred */
+    /* Try to load modern fonts first if outline preferred */
     if (gFontManagerState.outlinePreferred || IsOutline(inRec->numer, inRec->denom)) {
+        /* Try OpenType font first */
+        if (IsOpenTypeFont(inRec->family, inRec->size)) {
+            OpenTypeFont *otFont = NULL;
+            Str255 fontName;
+            GetFontName(inRec->family, fontName);
+
+            error = LoadOpenTypeFont(fontName, &otFont);
+            if (error == noErr && otFont != NULL) {
+                /* Convert OpenType metrics to Mac format */
+                output.ascent = (unsigned char)(otFont->ascender / (otFont->unitsPerEm / inRec->size));
+                output.descent = (unsigned char)(-otFont->descender / (otFont->unitsPerEm / inRec->size));
+                output.widMax = (unsigned char)(otFont->unitsPerEm / 2 / (otFont->unitsPerEm / inRec->size));
+                output.leading = (char)(otFont->lineGap / (otFont->unitsPerEm / inRec->size));
+                output.fontHandle = (Handle)otFont;
+                output.errNum = noErr;
+                return &output;
+            }
+        }
+
+        /* Try TrueType font */
         error = LoadTrueTypeFont(inRec->family, &trueTypeFont);
         if (error == noErr && trueTypeFont != NULL) {
             /* Get TrueType font metrics */
