@@ -1,214 +1,181 @@
 /*
- * PackageManager.h
- * System 7.1 Portable Package Manager Implementation
+ * PackageManager.h - System 7.1 Package Manager Interface
  *
- * Main header file for the Package Manager system that provides Mac OS PACK resources
- * for essential functionality like SANE floating point, Standard File dialogs,
- * List Manager, International Utilities, and String utilities.
+ * The Package Manager provides a unified interface for loading and
+ * dispatching PACK resources. These packages contain code for various
+ * system services like Standard File, List Manager, and others.
  *
- * This is CRITICAL for application stability - without proper package support,
- * Mac applications may crash on floating point operations or file dialogs.
+ * Copyright (c) 2024 System7.1-Portable Project
+ * MIT License
  */
 
-#ifndef __PACKAGE_MANAGER_H__
-#define __PACKAGE_MANAGER_H__
+#ifndef PACKAGEMANAGER_H
+#define PACKAGEMANAGER_H
 
-#include <stdint.h>
-#include <stdbool.h>
-#include <stddef.h>
+#include "../DeskManager/Types.h"
+#include "../Memory.h"
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-/* Package IDs from original Mac OS */
-#define listMgr     0   /* List Manager Package */
-#define dskInit     2   /* Disk Initialization Package */
-#define stdFile     3   /* Standard File Package */
-#define flPoint     4   /* Floating-Point Arithmetic Package (SANE) */
-#define trFunc      5   /* Transcendental Functions Package */
-#define intUtil     6   /* International Utilities Package */
-#define bdConv      7   /* Binary/Decimal Conversion Package */
-#define editionMgr  11  /* Edition Manager Package */
+/* Package IDs (PACK resources) */
+enum {
+    kListManagerPack      = 0,   /* PACK 0: List Manager */
+    kUnusedPack1         = 1,   /* PACK 1: Reserved */
+    kDiskInitPack        = 2,   /* PACK 2: Disk Initialization */
+    kStandardFilePack    = 3,   /* PACK 3: Standard File Package */
+    kSANEPack           = 4,   /* PACK 4: SANE (Floating Point) */
+    kElemsPack          = 5,   /* PACK 5: Transcendental Functions */
+    kIntlUtilsPack      = 6,   /* PACK 6: International Utilities */
+    kBinaryDecimalPack  = 7,   /* PACK 7: Binary-Decimal Conversion */
+    kAppleEventPack     = 8,   /* PACK 8: Apple Event Manager */
+    kPPCToolboxPack     = 9,   /* PACK 9: PPC Toolbox */
+    kEditionMgrPack     = 10,  /* PACK 10: Edition Manager */
+    kColorPickerPack    = 11,  /* PACK 11: Color Picker */
+    kSoundManagerPack   = 12,  /* PACK 12: Sound Manager/StartSound */
+    kUnusedPack13       = 13,  /* PACK 13: Reserved */
+    kHelpManagerPack    = 14,  /* PACK 14: Help Manager */
+    kPictureUtilsPack   = 15   /* PACK 15: Picture Utilities */
+};
 
-/* Package error codes */
-#define noErr               0
-#define paramErr           -50
-#define memFullErr         -108
-#define unimpErr           -4
-#define packageNotFound    -192
+/* Package Manager error codes */
+enum {
+    packNotFound        = -2800, /* Package not found */
+    packNotInit         = -2801, /* Package not initialized */
+    packSelectorErr     = -2802, /* Invalid selector */
+    packMemErr          = -2803, /* Memory error loading package */
+    packResErr          = -2804  /* Resource error loading package */
+};
 
-/* Package manager status */
-typedef struct {
-    bool initialized;
-    uint32_t loadedPackages;    /* Bit mask of loaded packages */
-    void *packageHandles[16];   /* Package implementation handles */
-    uint32_t packageVersions[16]; /* Package version numbers */
-} PackageManagerState;
+/* Package flags */
+enum {
+    kPackLoaded         = 0x0001, /* Package is loaded */
+    kPackLocked         = 0x0002, /* Package is locked in memory */
+    kPackInit           = 0x0004, /* Package has been initialized */
+    kPackSystem         = 0x0008, /* System package (don't unload) */
+    kPackPreload        = 0x0010  /* Preload at startup */
+};
 
-/* Core Package Manager Functions */
+/* Package selectors for common packages */
 
-/**
- * Initialize the Package Manager system
- * Must be called before any package operations
- */
-int32_t InitPackageManager(void);
+/* Standard File Package (PACK 3) selectors */
+enum {
+    kSFPutFile          = 1,
+    kSFGetFile          = 2,
+    kSFPPutFile         = 3,
+    kSFPGetFile         = 4,
+    kStandardPutFile    = 5,
+    kStandardGetFile    = 6,
+    kCustomPutFile      = 7,
+    kCustomGetFile      = 8
+};
 
-/**
- * Initialize a specific package by ID
- * @param packID Package identifier (listMgr, stdFile, flPoint, etc.)
- */
-void InitPack(int16_t packID);
+/* List Manager (PACK 0) selectors */
+enum {
+    kLNew               = 0,
+    kLDispose           = 1,
+    kLSetSelect         = 2,
+    kLGetSelect         = 3,
+    kLAddRow            = 4,
+    kLDelRow            = 5,
+    kLAddColumn         = 6,
+    kLDelColumn         = 7,
+    kLSetCell           = 8,
+    kLGetCell           = 9,
+    kLClick             = 10,
+    kLUpdate            = 11,
+    kLDraw              = 12,
+    kLScroll            = 13
+};
 
-/**
- * Initialize all supported packages
- * Equivalent to calling InitPack for each package
- */
-void InitAllPacks(void);
+/* Package resource header structure */
+typedef struct PackageHeader {
+    short       version;        /* Package version */
+    short       packageID;      /* Package ID (0-15) */
+    long        entryPoint;     /* Offset to entry point */
+    long        initProc;       /* Offset to init procedure */
+    long        reserved1;      /* Reserved */
+    long        reserved2;      /* Reserved */
+} PackageHeader;
 
-/**
- * Check if a package is loaded and available
- * @param packID Package identifier
- * @return true if package is loaded, false otherwise
- */
-bool IsPackageLoaded(int16_t packID);
+/* Package dispatch table entry */
+typedef struct PackageEntry {
+    short       packageID;      /* Package ID */
+    Handle      packageHandle;  /* Handle to loaded package */
+    Ptr         entryPoint;     /* Entry point address */
+    short       refCount;       /* Reference count */
+    short       flags;          /* Package flags */
+    ProcPtr     dispatchProc;   /* Package dispatcher */
+} PackageEntry;
 
-/**
- * Get package version information
- * @param packID Package identifier
- * @return Package version number or 0 if not loaded
- */
-uint32_t GetPackageVersion(int16_t packID);
+/* Package parameter block */
+typedef struct PackageParams {
+    short       selector;       /* Function selector */
+    Ptr         paramPtr;       /* Parameters */
+    long        paramSize;      /* Parameter size */
+    Ptr         resultPtr;      /* Result buffer */
+    long        resultSize;     /* Result buffer size */
+} PackageParams;
 
-/**
- * Unload a specific package
- * @param packID Package identifier
- */
-void UnloadPackage(int16_t packID);
+/* Package Manager Functions */
 
-/**
- * Shutdown the Package Manager and unload all packages
- */
-void ShutdownPackageManager(void);
+/* Initialization */
+OSErr InitPacks(void);
+OSErr InitAllPacks(void);
+void ShutdownPacks(void);
 
-/* Package dispatch mechanism */
+/* Package loading and unloading */
+OSErr LoadPackage(short packID);
+OSErr UnloadPackage(short packID);
+OSErr ReloadPackage(short packID);
+Boolean IsPackageLoaded(short packID);
 
-/**
- * Generic package trap handler
- * Routes package calls to appropriate implementations
- * @param trapWord Trap instruction word containing package and selector
- * @param params Parameter block for the package call
- * @return Error code or function result
- */
-int32_t PackageTrap(uint16_t trapWord, void *params);
+/* Package information */
+Handle GetPackageHandle(short packID);
+OSErr GetPackageInfo(short packID, PackageHeader* info);
+OSErr GetPackageVersion(short packID, short* version);
+short GetPackageRefCount(short packID);
 
-/**
- * Call a specific package function
- * @param packID Package identifier
- * @param selector Function selector within package
- * @param params Parameter block
- * @return Function result
- */
-int32_t CallPackage(int16_t packID, int16_t selector, void *params);
+/* Package execution */
+OSErr CallPackage(short packID, short selector, void* params);
+OSErr CallPackageWithResult(short packID, short selector,
+                           void* params, void* result);
 
-/* Package manager debugging and diagnostics */
+/* Package trap dispatchers (A9E7-A9F6) */
+OSErr Pack0(short selector, void* params);  /* List Manager */
+OSErr Pack1(short selector, void* params);  /* Reserved */
+OSErr Pack2(short selector, void* params);  /* Disk Init */
+OSErr Pack3(short selector, void* params);  /* Standard File */
+OSErr Pack4(short selector, void* params);  /* SANE */
+OSErr Pack5(short selector, void* params);  /* ELEMS */
+OSErr Pack6(short selector, void* params);  /* Intl Utils */
+OSErr Pack7(short selector, void* params);  /* Binary-Decimal */
+OSErr Pack8(short selector, void* params);  /* Apple Events */
+OSErr Pack9(short selector, void* params);  /* PPC Toolbox */
+OSErr Pack10(short selector, void* params); /* Edition Manager */
+OSErr Pack11(short selector, void* params); /* Color Picker */
+OSErr Pack12(short selector, void* params); /* Sound Manager */
+OSErr Pack13(short selector, void* params); /* Reserved */
+OSErr Pack14(short selector, void* params); /* Help Manager */
+OSErr Pack15(short selector, void* params); /* Picture Utils */
 
-/**
- * Get current package manager state
- * @param state Pointer to state structure to fill
- */
-void GetPackageManagerState(PackageManagerState *state);
+/* Internal package initialization */
+OSErr InitPackage(short packID);
+void ReleasePackage(short packID);
 
-/**
- * Validate package integrity
- * @param packID Package to validate
- * @return true if package passes validation
- */
-bool ValidatePackage(int16_t packID);
+/* Package registration (for modern implementation) */
+OSErr RegisterPackage(short packID, ProcPtr dispatchProc);
+OSErr UnregisterPackage(short packID);
 
-/**
- * Enable/disable package debugging
- * @param enabled true to enable debug output
- */
-void SetPackageDebug(bool enabled);
-
-/* Package resource loading */
-
-/**
- * Load package from resource data
- * @param packID Package identifier
- * @param resourceData Package resource data
- * @param resourceSize Size of resource data
- * @return Error code
- */
-int32_t LoadPackageFromResource(int16_t packID, const void *resourceData, size_t resourceSize);
-
-/**
- * Load package from file
- * @param packID Package identifier
- * @param filename Path to package file
- * @return Error code
- */
-int32_t LoadPackageFromFile(int16_t packID, const char *filename);
-
-/* Math environment and precision control */
-
-/**
- * Set floating point environment for SANE package
- * @param precision Desired precision (single, double, extended)
- * @param rounding Rounding mode
- */
-void SetMathEnvironment(int precision, int rounding);
-
-/**
- * Get current math environment settings
- * @param precision Pointer to receive precision setting
- * @param rounding Pointer to receive rounding mode
- */
-void GetMathEnvironment(int *precision, int *rounding);
-
-/* Thread safety */
-
-/**
- * Enable thread-safe operation
- * Adds mutex protection to package calls
- * @param enabled true to enable thread safety
- */
-void SetPackageThreadSafe(bool enabled);
-
-/**
- * Lock package manager for exclusive access
- * Used internally for thread safety
- */
-void LockPackageManager(void);
-
-/**
- * Unlock package manager
- */
-void UnlockPackageManager(void);
-
-/* Platform integration */
-
-/**
- * Set platform-specific math library
- * @param mathLib Pointer to platform math functions
- */
-void SetPlatformMathLibrary(void *mathLib);
-
-/**
- * Set platform-specific file dialog handler
- * @param dialogHandler Pointer to platform file dialog functions
- */
-void SetPlatformFileDialogs(void *dialogHandler);
-
-/**
- * Set platform-specific sound system
- * @param soundSystem Pointer to platform sound functions
- */
-void SetPlatformSoundSystem(void *soundSystem);
+/* Utility functions */
+void LockPackage(short packID);
+void UnlockPackage(short packID);
+OSErr PurgePackages(void);
+long GetPackagesMemoryUsage(void);
 
 #ifdef __cplusplus
 }
 #endif
 
-#endif /* __PACKAGE_MANAGER_H__ */
+#endif /* PACKAGEMANAGER_H */

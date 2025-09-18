@@ -1,29 +1,21 @@
-# CMakeLists.txt for System 7.1 Package Manager
-# Builds the complete Mac OS Package Manager implementation
+# PackageManager CMake configuration
+# Copyright (c) 2024 System7.1-Portable Project
 
-cmake_minimum_required(VERSION 3.16)
-
-# Package Manager Library
-set(PACKAGE_MANAGER_SOURCES
-    PackageManagerCore.c
-    SANEPackage.c
-    StringPackage.c
-    StandardFilePackage.c
-    ListManagerPackage.c
-    PackageDispatch.c
+set(PACKAGEMANAGER_SOURCES
+    PackageManager.c
+    PackageManager_HAL.c
 )
 
-set(PACKAGE_MANAGER_HEADERS
+set(PACKAGEMANAGER_HEADERS
     ${CMAKE_SOURCE_DIR}/include/PackageManager/PackageManager.h
-    ${CMAKE_SOURCE_DIR}/include/PackageManager/PackageTypes.h
-    ${CMAKE_SOURCE_DIR}/include/PackageManager/SANEPackage.h
-    ${CMAKE_SOURCE_DIR}/include/PackageManager/StringPackage.h
-    ${CMAKE_SOURCE_DIR}/include/PackageManager/StandardFilePackage.h
-    ${CMAKE_SOURCE_DIR}/include/PackageManager/ListManagerPackage.h
+    ${CMAKE_SOURCE_DIR}/include/PackageManager/PackageManager_HAL.h
 )
 
-# Create Package Manager library
-add_library(PackageManager STATIC ${PACKAGE_MANAGER_SOURCES})
+# Create PackageManager library
+add_library(PackageManager STATIC
+    ${PACKAGEMANAGER_SOURCES}
+    ${PACKAGEMANAGER_HEADERS}
+)
 
 # Include directories
 target_include_directories(PackageManager PUBLIC
@@ -31,42 +23,48 @@ target_include_directories(PackageManager PUBLIC
     ${CMAKE_SOURCE_DIR}/include/PackageManager
 )
 
-# Compiler flags for Package Manager
-target_compile_options(PackageManager PRIVATE
-    -Wall -Wextra -Wpedantic
-    -fno-strict-aliasing
-    -D_GNU_SOURCE
+# Link dependencies
+target_link_libraries(PackageManager
+    PUBLIC
+        Types
+        Memory
+    PRIVATE
+        ${CMAKE_THREAD_LIBS_INIT}
+        m  # Math library
 )
 
-# Link math library for SANE package
-target_link_libraries(PackageManager PUBLIC m pthread)
+# Platform-specific configurations
+if(APPLE)
+    find_library(APPKIT AppKit)
+    find_library(CORE_FOUNDATION CoreFoundation)
+    target_link_libraries(PackageManager PRIVATE
+        ${APPKIT}
+        ${CORE_FOUNDATION}
+    )
+elseif(UNIX AND NOT APPLE)
+    # Find GTK for Linux
+    find_package(PkgConfig)
+    if(PkgConfig_FOUND)
+        pkg_check_modules(GTK3 gtk+-3.0)
+        if(GTK3_FOUND)
+            target_include_directories(PackageManager PRIVATE ${GTK3_INCLUDE_DIRS})
+            target_link_libraries(PackageManager PRIVATE ${GTK3_LIBRARIES})
+        endif()
+    endif()
+elseif(WIN32)
+    target_link_libraries(PackageManager PRIVATE
+        comdlg32
+        user32
+    )
+endif()
 
-# Set properties
+# Export target
 set_target_properties(PackageManager PROPERTIES
-    C_STANDARD 99
-    C_STANDARD_REQUIRED ON
-    POSITION_INDEPENDENT_CODE ON
+    PUBLIC_HEADER "${PACKAGEMANAGER_HEADERS}"
 )
 
-# Install headers
-install(FILES ${PACKAGE_MANAGER_HEADERS}
-    DESTINATION include/PackageManager
-)
-
-# Install library
+# Installation rules
 install(TARGETS PackageManager
     ARCHIVE DESTINATION lib
-    LIBRARY DESTINATION lib
-    RUNTIME DESTINATION bin
-)
-
-# Create package config file
-configure_file(
-    ${CMAKE_CURRENT_SOURCE_DIR}/PackageManagerConfig.cmake.in
-    ${CMAKE_CURRENT_BINARY_DIR}/PackageManagerConfig.cmake
-    @ONLY
-)
-
-install(FILES ${CMAKE_CURRENT_BINARY_DIR}/PackageManagerConfig.cmake
-    DESTINATION lib/cmake/PackageManager
+    PUBLIC_HEADER DESTINATION include/PackageManager
 )
