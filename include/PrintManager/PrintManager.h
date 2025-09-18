@@ -1,198 +1,168 @@
 /*
- * PrintManager.h
+ * PrintManager.h - System 7.1 Print Manager Interface
  *
- * Main Print Manager API for System 7.1 Portable
- * Provides complete Mac OS Print Manager compatibility with modern printing support
+ * This file provides the Print Manager interface for System 7.1 applications.
+ * The Print Manager provides a standard interface for printing documents
+ * through various printer drivers including PostScript printers.
  *
- * Based on Apple's Print Manager from Mac OS System 7.1
+ * Copyright (c) 2024 System7.1-Portable Project
+ * MIT License
  */
 
-#ifndef __PRINTMANAGER__
-#define __PRINTMANAGER__
+#ifndef PRINTMANAGER_H
+#define PRINTMANAGER_H
 
-#include "Types.h"
-#include "QuickDraw.h"
-#include "Dialogs.h"
-#include "PrintTypes.h"
+#include "../DeskManager/Types.h"
+#include "../QuickDraw/QuickDraw.h"
+#include "../DialogManager/Dialogs.h"
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
 /* Print Manager Constants */
+#define PRINT_DRAFT_LOOP    0
+#define PRINT_SPOOL_LOOP    1
+#define PRINT_USER1_LOOP    2
+#define PRINT_USER2_LOOP    3
+
+/* Paper feed constants */
+#define FEED_CUT_SHEET      0
+#define FEED_FANFOLD        1
+#define FEED_MECH_CUT       2
+#define FEED_OTHER          3
+
+/* Print orientation constants */
+#define PRINT_PORTRAIT      0
+#define PRINT_LANDSCAPE     1
+
+/* Print Manager error codes */
 enum {
-    iPFMaxPgs = 128,                    /* Maximum pages in print file */
-    iPrPgFract = 120,                   /* Page scale factor. ptPgSize is in units of 1/iPrPgFract */
-    iPrPgFst = 1,                       /* First page constant */
-    iPrPgMax = 9999,                    /* Maximum page number */
-    iPrRelease = 3,                     /* Current version number */
-    iPrSavPFil = -1,                    /* Save print file flag */
-    iPrAbort = 0x0080,                  /* Abort printing flag */
-    iPrDevCtl = 7,                      /* PrDevCtl procedure control number */
-    lPrReset = 0x00010000,              /* PrDevCtl reset parameter */
-    lPrLineFeed = 0x00030000,           /* PrDevCtl line feed parameter */
-    lPrLFStd = 0x0003FFFF,              /* Standard paper advance */
-    lPrLFSixth = 0x0003FFFF,            /* 1/6 inch paper advance */
-    lPrPageEnd = 0x00020000,            /* End page parameter */
-    lPrDocOpen = 0x00010000,            /* Document open parameter */
-    lPrPageOpen = 0x00040000,           /* Page open parameter */
-    lPrPageClose = 0x00020000,          /* Page close parameter */
-    lPrDocClose = 0x00050000,           /* Document close parameter */
-    iFMgrCtl = 8,                       /* Font Manager tail-hook control */
-    iMscCtl = 9,                        /* Miscellaneous control */
-    iPvtCtl = 10                        /* Private control */
+    noErr = 0,
+    iPrAbort = 128,
+    iPrSavPFil = -1,
+    controlErr = -17,
+    statusErr = -18,
+    readErr = -19,
+    writErr = -20,
+    badUnitErr = -21,
+    unitEmptyErr = -22,
+    openErr = -23,
+    closErr = -24,
+    dRemovErr = -25,
+    dInstErr = -26,
+    abortErr = -27,
+    iIOAbort = -28,
+    notActiveErr = -29,
+    noSuchRsl = -194,
+    badPrintRec = -195
 };
 
-/* Error Constants */
-enum {
-    iMemFullErr = -108,                 /* Out of memory error */
-    iIOAbort = -27,                     /* I/O abort error */
-    pPrGlobals = 0x00000944,            /* Print variables low memory area */
-    bDraftLoop = 0,                     /* Draft quality loop */
-    bSpoolLoop = 1,                     /* Spool quality loop */
-    bUser1Loop = 2,                     /* User loop 1 */
-    bUser2Loop = 3,                     /* User loop 2 */
-    fNewRunBit = 2,                     /* New run bit flag */
-    fHiResOK = 3,                       /* High resolution OK flag */
-    fWeOpenedRF = 4                     /* We opened resource file flag */
-};
+/* Print Information Record */
+typedef struct TPrInfo {
+    short iDev;              /* Device type identifier */
+    short iVRes;             /* Vertical resolution (dpi) */
+    short iHRes;             /* Horizontal resolution (dpi) */
+    Rect rPage;              /* Page rectangle */
+} TPrInfo;
 
-/* Driver Constants */
-enum {
-    iPrBitsCtl = 4,                     /* Bitmap control */
-    lScreenBits = 0,                    /* Screen bitmap parameter */
-    lPaintBits = 1,                     /* Paint bitmap parameter */
-    lHiScreenBits = 0x00000002,         /* High resolution screen bitmap */
-    lHiPaintBits = 0x00000003,          /* High resolution paint bitmap */
-    iPrIOCtl = 5,                       /* I/O control */
-    iPrEvtCtl = 6,                      /* Event control */
-    lPrEvtAll = 0x0002FFFD,             /* Event control for entire screen */
-    lPrEvtTop = 0x0001FFFD,             /* Event control for top folder */
-    iPrDrvrRef = -3                     /* Print driver reference number */
-};
+/* Print Style Record */
+typedef struct TPrStl {
+    short wDev;              /* Device number */
+    short iPageV;            /* Vertical page scaling */
+    short iPageH;            /* Horizontal page scaling */
+    signed char bPort;       /* Orientation */
+    signed char feed;        /* Paper feed method */
+} TPrStl;
 
-/* Print Driver Operations */
-enum {
-    getRslDataOp = 4,                   /* Get resolution data operation */
-    setRslOp = 5,                       /* Set resolution operation */
-    draftBitsOp = 6,                    /* Draft bits operation */
-    noDraftBitsOp = 7,                  /* No draft bits operation */
-    getRotnOp = 8,                      /* Get rotation operation */
-    NoSuchRsl = 1,                      /* No such resolution error */
-    OpNotImpl = 2,                      /* Operation not implemented */
-    RgType1 = 1                         /* Range type 1 */
-};
+/* Print Job Record */
+typedef struct TPrJob {
+    short iFstPage;          /* First page to print */
+    short iLstPage;          /* Last page to print */
+    short iCopies;           /* Number of copies */
+    signed char bJDocLoop;   /* Document loop method */
+    Boolean fFromUsr;        /* User specified settings */
+    ProcPtr pIdleProc;       /* Idle procedure */
+    Ptr pFileName;           /* File name for spooling */
+    short iFileVol;          /* Volume reference */
+    signed char bFileVers;   /* File version */
+    signed char bJobX;       /* Job extension */
+} TPrJob;
 
-/* Paper Feed Types */
-enum {
-    feedCut = 0,                        /* Cut sheet feed */
-    feedFanfold = 1,                    /* Fanfold feed */
-    feedMechCut = 2,                    /* Mechanical cut feed */
-    feedOther = 3                       /* Other feed type */
-};
-typedef unsigned char TFeed;
+/* Extended Print Information */
+typedef struct TPrXInfo {
+    short iRowBytes;         /* Row bytes for bitmap */
+    short iBandV;            /* Vertical band size */
+    short iBandH;            /* Horizontal band size */
+    short iDevBytes;         /* Device bytes per band */
+    short iBands;            /* Number of bands */
+    signed char bPatScale;   /* Pattern scale factor */
+    signed char bUlThick;    /* Underline thickness */
+    signed char bUlOffset;   /* Underline offset */
+    signed char bUlShadow;   /* Underline shadow */
+    signed char scan;        /* Scan direction */
+    signed char bXInfoX;     /* Extended info byte */
+} TPrXInfo;
 
-/* Scan Directions */
-enum {
-    scanTB = 0,                         /* Top to bottom scan */
-    scanBT = 1,                         /* Bottom to top scan */
-    scanLR = 2,                         /* Left to right scan */
-    scanRL = 3                          /* Right to left scan */
-};
-typedef unsigned char TScan;
+/* Print Status Record */
+typedef struct TPrStatus {
+    short iTotPages;         /* Total pages */
+    short iCurPage;          /* Current page */
+    short iTotCopies;        /* Total copies */
+    short iCurCopy;          /* Current copy */
+    short iTotBands;         /* Total bands */
+    short iCurBand;          /* Current band */
+    Boolean fPgDirty;        /* Page has been marked */
+    Boolean fImaging;        /* Currently imaging */
+} TPrStatus;
 
-/* State Constants */
-enum {
-    bPrDevOpen = 1,                     /* Device open state */
-    bPrDocOpen = 2,                     /* Document open state */
-    bPrPageOpen = 3,                    /* Page open state */
-    bPrPrinting = 4,                    /* Printing state */
-    bPrPageClose = 5,                   /* Page close state */
-    bPrDocClose = 6,                    /* Document close state */
-    bPrDevClose = 0                     /* Device close state */
-};
+/* Complete Print Record */
+typedef struct TPrint {
+    short iPrVersion;        /* Print record version */
+    TPrInfo prInfo;          /* Print information */
+    Rect rPaper;             /* Paper rectangle */
+    TPrStl prStl;            /* Print style */
+    TPrInfo prInfoPT;        /* PostScript print info */
+    TPrXInfo prXInfo;        /* Extended print info */
+    TPrJob prJob;            /* Print job settings */
+    short printX[19];        /* Extended settings */
+} TPrint, *TPPrint, **THPrint;
 
-/* Printer Types */
-enum {
-    bDevCItoh = 1,                      /* ImageWriter */
-    bDevDaisy = 2,                      /* Daisy wheel printer */
-    bDevLaser = 3                       /* LaserWriter */
-};
+/* Type definitions */
+typedef GrafPtr TPPrPort;
+typedef Rect* TPRect;
 
-/* Dialog Constants */
-enum {
-    iOK = 1,                            /* OK button */
-    iCancel = 2,                        /* Cancel button */
-    iPrStlDlg = 0xE000,                 /* Style dialog ID */
-    iPrJobDlg = 0xE001,                 /* Job dialog ID */
-    iPrCfgDlg = 0xE002,                 /* Configuration dialog ID */
-    iPgFeedAx = 0xE00A,                 /* Page feed dialog ID */
-    iPicSizAx = 0xE00B,                 /* Picture size alert ID */
-    iIOAbrtAx = 0xE00C                  /* I/O abort alert ID */
-};
+/* Print Manager Functions */
+void PrOpen(void);
+void PrClose(void);
+TPPrPort PrOpenDoc(THPrint hPrint, TPPrPort pPrPort, Ptr pIOBuf);
+void PrCloseDoc(TPPrPort pPrPort);
+void PrOpenPage(TPPrPort pPrPort, TPRect pPageFrame);
+void PrClosePage(TPPrPort pPrPort);
+void PrPicFile(THPrint hPrint, TPPrPort pPrPort, Ptr pIOBuf,
+               Ptr pDevBuf, TPrStatus* prStatus);
+Boolean PrJobDialog(THPrint hPrint);
+Boolean PrStlDialog(THPrint hPrint);
+void PrJobMerge(THPrint hPrintSrc, THPrint hPrintDst);
+Boolean PrValidate(THPrint hPrint);
 
-/* Print Manager API Functions */
-
-/* Core Print Manager Functions */
-pascal void PrOpen(void);
-pascal void PrClose(void);
-pascal void PrintDefault(THPrint hPrint);
-pascal Boolean PrValidate(THPrint hPrint);
-pascal void PrPurge(void);
-pascal void PrNoPurge(void);
-
-/* Print Dialog Functions */
-pascal Boolean PrStlDialog(THPrint hPrint);
-pascal Boolean PrJobDialog(THPrint hPrint);
-pascal TPPrDlg PrStlInit(THPrint hPrint);
-pascal TPPrDlg PrJobInit(THPrint hPrint);
-pascal Boolean PrDlgMain(THPrint hPrint, PDlgInitProcPtr pDlgInit);
-pascal void PrJobMerge(THPrint hPrintSrc, THPrint hPrintDst);
-
-/* Print Document Functions */
-pascal TPPrPort PrOpenDoc(THPrint hPrint, TPPrPort pPrPort, Ptr pIOBuf);
-pascal void PrCloseDoc(TPPrPort pPrPort);
-pascal void PrOpenPage(TPPrPort pPrPort, TPRect pPageFrame);
-pascal void PrClosePage(TPPrPort pPrPort);
-
-/* Print File Functions */
-pascal void PrPicFile(THPrint hPrint, TPPrPort pPrPort, Ptr pIOBuf,
-                     Ptr pDevBuf, TPrStatus *prStatus);
-
-/* Error Handling */
-pascal short PrError(void);
-pascal void PrSetError(short iErr);
-
-/* Driver Interface Functions */
-pascal void PrDrvrOpen(void);
-pascal void PrDrvrClose(void);
-pascal Handle PrDrvrDCE(void);
-pascal short PrDrvrVers(void);
-pascal void PrCtlCall(short iWhichCtl, long lParam1, long lParam2, long lParam3);
-
-/* General Purpose Function */
-pascal void PrGeneral(Ptr pData);
-
-/* Print Manager Globals Access */
-#define sPrDrvr ".Print"
-extern short gPrError;                  /* Current print error */
-extern Handle gPrDrvrDCE;              /* Print driver DCE handle */
-
-/* Utility Functions (System7.1-Portable Extensions) */
-OSErr InitPrintManager(void);
-void CleanupPrintManager(void);
-Boolean IsPrinterAvailable(void);
-OSErr GetPrinterList(StringPtr printerNames[], short *count);
-OSErr SetCurrentPrinter(StringPtr printerName);
-OSErr GetCurrentPrinter(StringPtr printerName);
-
-/* Modern Printing Extensions */
-OSErr ConvertToPDF(THPrint hPrint, PicHandle hPic, FSSpec *pdfFile);
-OSErr PrintToPDF(THPrint hPrint, PicHandle hPic, StringPtr fileName);
-OSErr ShowPrintPreview(THPrint hPrint, PicHandle hPic, WindowPtr window);
+/* Utility functions */
+THPrint PrNewPrintRecord(void);
+void PrDisposePrintRecord(THPrint hPrint);
+void PrDefault(THPrint hPrint);
+OSErr PrError(void);
+void PrSetError(OSErr err);
+Boolean PrGetDocInfo(const StringPtr docName, short vRefNum);
+void PrGeneral(Ptr pData);
+void PrDrvrOpen(void);
+void PrDrvrClose(void);
+Boolean PrDlgMain(THPrint hPrint, ProcPtr pDlgInit);
+TPPrPort PrOpenPictFile(short vRefNum, short dirID,
+                        const StringPtr fileName);
+void PrClosePictFile(TPPrPort pPrPort);
 
 #ifdef __cplusplus
 }
 #endif
 
-#endif /* __PRINTMANAGER__ */
+#endif /* PRINTMANAGER_H */
