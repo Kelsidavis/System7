@@ -51,7 +51,7 @@ CORE_MODULES = ADBManager DeviceManager DialogManager EditionManager \
                EventManager MenuManager WindowManager TrapDispatcher \
                HelpManager FileManager ResourceManager MemoryManager \
                FontManager SoundManager PrintManager ComponentManager \
-               Finder Datetime Chooser
+               Finder Datetime Chooser GestaltManager
 
 # Find all source files organized by module
 define find_module_sources
@@ -78,13 +78,14 @@ COMPONENT_SRCS = $(wildcard $(SRC_DIR)/ComponentManager/*.c)
 FINDER_SRCS = $(wildcard $(SRC_DIR)/Finder/*.c)
 DATETIME_SRCS = $(wildcard $(SRC_DIR)/Datetime/*.c)
 CHOOSER_SRCS = $(wildcard $(SRC_DIR)/Chooser/*.c)
+GESTALT_SRCS = $(wildcard $(SRC_DIR)/GestaltManager/*.c)
 
 # All core sources
 ALL_SRCS = $(ADB_SRCS) $(DEVICE_SRCS) $(DIALOG_SRCS) $(EDITION_SRCS) \
            $(EVENT_SRCS) $(MENU_SRCS) $(WINDOW_SRCS) $(TRAP_SRCS) \
            $(HELP_SRCS) $(RESOURCE_SRCS) $(MEMORY_SRCS) $(FILE_SRCS) \
            $(FONT_SRCS) $(SOUND_SRCS) $(PRINT_SRCS) $(COMPONENT_SRCS) \
-           $(FINDER_SRCS) $(DATETIME_SRCS) $(CHOOSER_SRCS)
+           $(FINDER_SRCS) $(DATETIME_SRCS) $(CHOOSER_SRCS) $(GESTALT_SRCS)
 
 # Object files
 ALL_OBJS = $(ALL_SRCS:$(SRC_DIR)/%.c=$(BUILD_DIR)/%.o)
