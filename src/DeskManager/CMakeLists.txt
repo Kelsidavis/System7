@@ -12,6 +12,8 @@ set(DESKMGR_SOURCES
     Calculator.c
     Chooser.c
     KeyCaps.c
+    Notepad.c
+    Notepad_HAL.c
 )
 
 set(DESKMGR_HEADERS
@@ -22,6 +24,7 @@ set(DESKMGR_HEADERS
     ${CMAKE_SOURCE_DIR}/include/DeskManager/Calculator.h
     ${CMAKE_SOURCE_DIR}/include/DeskManager/Chooser.h
     ${CMAKE_SOURCE_DIR}/include/DeskManager/KeyCaps.h
+    ${CMAKE_SOURCE_DIR}/include/DeskManager/Notepad.h
     ${CMAKE_SOURCE_DIR}/include/DeskManager/Types.h
 )
 
