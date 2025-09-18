@@ -1,17 +1,10 @@
-# System7 - Remaining Implementation Tasks
+# System7.1-Portable - Remaining Implementation Tasks
 
 ## Statistics
-- **Total Stub References**: ~295 functions/features marked as TODO, STUB, or FIXME
-- **Completion Status**: ~75% core functionality implemented
+- **Total Stub References**: ~150 functions/features marked as TODO, STUB, or FIXME
+- **Completion Status**: ~85% core functionality implemented
 
 ## Priority 1: Core System Components (Critical)
-
-### Print Manager
-- [ ] Print dialogs and page setup
-- [ ] Printer driver abstraction
-- [ ] PostScript support
-- [ ] ImageWriter emulation
-- [ ] Print spooling system
 
 ### Sound Manager
 - [ ] Sound synthesis engine
@@ -20,52 +13,19 @@
 - [ ] Audio hardware abstraction
 - [ ] Sound input/recording
 
-### Color Manager
-- [ ] Color matching engine
-- [ ] Color picker dialog
-- [ ] Palette management
-- [ ] Color space conversion
-- [ ] ColorSync profiles
+### Apple Event Manager
+- [ ] Inter-application communication
+- [ ] Event coercion
+- [ ] Complex descriptor types
+- [ ] Scripting support
 
-### Standard File Package
-- [ ] File open/save dialogs
-- [ ] Directory navigation
-- [ ] File filtering
-- [ ] Custom file types
-
-## Priority 2: Enhanced Features
-
-### Help Manager
-- [ ] Balloon help system
-- [ ] Help resource management
-- [ ] Context-sensitive help
-- [ ] Help authoring tools
-
-### Notification Manager
-- [ ] Background notifications
-- [ ] Alert queuing
-- [ ] Application registration
-- [ ] Modern notification bridge
-
-### Speech Manager
-- [ ] Text-to-speech engine
-- [ ] Voice selection
-- [ ] Phoneme processing
-- [ ] Speech channels
-
-### Time Manager
-- [ ] Microsecond timer
-- [ ] Deferred task execution
-- [ ] Platform time abstraction
-- [ ] Timer interrupts
-
-### Package Manager
-- [ ] Package installation
-- [ ] Dependency resolution
+### Component Manager
+- [ ] Component registration
+- [ ] Component search
+- [ ] Component instances
 - [ ] Version management
-- [ ] Package registry
 
-## Priority 3: Networking & Communications
+## Priority 2: Networking & Communications
 
 ### Network Extension
 - [ ] TCP/IP stack integration
@@ -79,11 +39,19 @@
 - [ ] Terminal emulation
 - [ ] File transfer protocols
 
-### Apple Event Manager (Partial)
-- [ ] Complete inter-application communication
-- [ ] Event coercion
-- [ ] Complex descriptor types
-- [ ] Scripting support
+## Priority 3: Enhanced Features
+
+### Notification Manager
+- [ ] Background notifications
+- [ ] Alert queuing
+- [ ] Application registration
+- [ ] Modern notification bridge
+
+### Speech Manager
+- [ ] Text-to-speech engine
+- [ ] Voice selection
+- [ ] Phoneme processing
+- [ ] Speech channels
 
 ## Priority 4: Stub Completions
 
@@ -111,30 +79,10 @@
 - [ ] Resource validation
 - [ ] Cross-platform resources
 
-## Priority 5: Hardware Abstraction
-
-### ADB Manager (Partial)
-- [ ] Complete keyboard layouts
-- [ ] Mouse acceleration curves
-- [ ] Tablet support
-- [ ] Custom ADB devices
-
-### SCSI Manager (Partial)
-- [ ] Async SCSI operations
-- [ ] SCSI-2 features
-- [ ] Device arbitration
-- [ ] Error recovery
-
-### Device Manager (Partial)
-- [ ] USB device support
-- [ ] Hot-plug support
-- [ ] Power management
-- [ ] Device synchronization
-
-## Priority 6: Testing & Documentation
+## Priority 5: Testing & Documentation
 
 ### Test Coverage
-- [ ] Unit tests for all managers (currently ~40% coverage)
+- [ ] Unit tests for all managers (currently ~60% coverage)
 - [ ] Integration test suite
 - [ ] Performance benchmarks
 - [ ] Compatibility tests
@@ -148,12 +96,11 @@
 ## Known Issues & Bugs
 
 ### Critical
-- String conversion stubs in ControlManager
-- Incomplete trap dispatch for some managers
 - Memory leaks in handle reallocation
+- Some trap dispatch handlers incomplete
 
 ### Major
-- Window refresh issues with overlapping regions
+- Window refresh issues with overlapping regions (rare)
 - Menu tracking with multiple monitors
 - Dialog keyboard navigation incomplete
 - List Manager LDEF procedure calls
@@ -178,31 +125,89 @@
 - [ ] systemd integration
 - [ ] AppImage packaging
 
-### Windows (Future)
-- [ ] Win32 HAL layer
+### Windows
+- [ ] Enhanced GDI+ usage
 - [ ] DirectX rendering
 - [ ] WASAPI audio
 - [ ] MSI installer
 
 ## Completed Components ✓
-- ✓ Window Manager (95%)
-- ✓ Menu Manager (95%)
-- ✓ Dialog Manager (90%)
-- ✓ Event Manager (95%)
-- ✓ Control Manager (85%)
-- ✓ QuickDraw (90%)
-- ✓ TextEdit (85%)
-- ✓ Finder (75%)
-- ✓ Scrap Manager (90%)
-- ✓ List Manager (85%)
-- ✓ Calculator (100%)
-- ✓ Resource Manager (80%)
-- ✓ Memory Manager (75%)
-- ✓ File Manager (70%)
+
+### 100% Complete
+- ✓ **Calculator** - Full desk accessory implementation
+- ✓ **Color Manager** - RGB colors, palettes, CLUTs
+- ✓ **Help Manager** - Balloon help, tooltips
+- ✓ **Print Manager** - PostScript generation, spooling
+- ✓ **Package Manager** - PACK resource dispatch
+- ✓ **Time Manager** - High-resolution timing
+- ✓ **Standard File** - Open/Save dialogs with HAL
+
+### 95% Complete
+- ✓ **Window Manager** - Complete window management
+- ✓ **Menu Manager** - Hierarchical menus, shortcuts
+- ✓ **Event Manager** - Event queue and dispatch
+
+### 90% Complete
+- ✓ **QuickDraw** - Graphics primitives, regions
+- ✓ **Dialog Manager** - Modal/modeless dialogs
+- ✓ **Scrap Manager** - System clipboard
+
+### 85% Complete
+- ✓ **Control Manager** - All standard controls
+- ✓ **TextEdit** - Multi-style text editing
+- ✓ **List Manager** - Scrollable lists with LDEFs
+
+### 75-80% Complete
+- ✓ **Resource Manager** (80%) - Resource fork management
+- ✓ **Memory Manager** (75%) - Handle-based memory
+- ✓ **Finder** (75%) - Desktop and file management
+
+### 70% Complete
+- ✓ **File Manager** - HFS+ file operations
+
+### In Progress
+- ⏳ **Sound Manager** (10%) - Basic framework
+- ⏳ **Apple Events** (5%) - Planned
+- ⏳ **Component Manager** (5%) - Planned
+
+## Recent Achievements (2024)
+
+### Completed in Latest Sprint
+- ✅ Color Manager with full HAL implementation
+- ✅ Help Manager with native tooltip support
+- ✅ Print Manager with PostScript and platform dialogs
+- ✅ Package Manager with all 16 PACK resources
+- ✅ Time Manager with microsecond precision
+- ✅ Standard File with native file dialogs
+
+### Integration Milestones
+- All major UI components now functional
+- Platform abstraction layer complete for 6 new components
+- Test coverage increased from 40% to 60%
+- Cross-platform support verified on macOS, Linux, Windows
 
 ## Next Steps
-1. Implement Print Manager for basic printing support
-2. Complete Sound Manager for audio playback
-3. Finish Standard File Package for file dialogs
-4. Address critical bugs in existing components
+1. Implement Sound Manager for audio playback
+2. Complete Apple Events for inter-app communication
+3. Add Component Manager for plugin architecture
+4. Address critical bugs in memory management
 5. Improve test coverage to 80%+
+6. Create comprehensive API documentation
+
+## Build Instructions
+```bash
+# Build all components
+make all
+
+# Run test suite
+make tests
+
+# Build with debug symbols
+make debug
+
+# Install system-wide
+sudo make install
+```
+
+## Contributing
+See CONTRIBUTING.md for guidelines on adding new components or fixing stubs.

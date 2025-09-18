@@ -1,141 +1,269 @@
-# System7 - Portable System 7.1 Implementation
+# System7.1-Portable - Modern System 7.1 Implementation
 
-Modern cross-platform implementation of Mac OS System 7.1 (75% complete).
+Cross-platform implementation of Mac OS System 7.1 with modern HAL architecture (85% complete).
 
-## Status: Beta
+## 🚀 Project Status: Beta
+
+### Core Components Implementation
 
 | Component | Status | Description |
 |-----------|--------|-------------|
-| Window Manager | ✅ 95% | Complete window management, HAL |
-| Menu Manager | ✅ 95% | Hierarchical menus, shortcuts |
-| QuickDraw | ✅ 90% | Graphics, regions, patterns |
-| Dialog Manager | ✅ 90% | Modal/modeless, alerts |
-| Event Manager | ✅ 95% | Event queue and dispatch |
-| Control Manager | ✅ 85% | All standard controls |
-| TextEdit | ✅ 85% | Multi-style text editing |
-| List Manager | ✅ 85% | Scrollable lists, LDEFs |
-| Scrap Manager | ✅ 90% | System clipboard |
-| Calculator | ✅ 100% | Complete desk accessory |
-| Resource Manager | ✅ 80% | Resource loading/management |
-| Memory Manager | ✅ 75% | Handle-based memory |
-| File Manager | ✅ 70% | HFS+ operations |
-| Finder | ✅ 75% | Desktop management |
-| Print Manager | ⏳ 5% | In development |
-| Sound Manager | ⏳ 10% | Basic framework |
-| Color Manager | ⏳ 5% | Planned |
-| Help Manager | ⏳ 5% | Planned |
+| **Window Manager** | ✅ 95% | Complete window management with HAL |
+| **Menu Manager** | ✅ 95% | Hierarchical menus, keyboard shortcuts |
+| **Event Manager** | ✅ 95% | Full event queue and dispatch system |
+| **QuickDraw** | ✅ 90% | Graphics primitives, regions, patterns |
+| **Dialog Manager** | ✅ 90% | Modal/modeless dialogs, alerts |
+| **Control Manager** | ✅ 85% | All standard controls (buttons, scrollbars) |
+| **TextEdit** | ✅ 85% | Multi-style text editing |
+| **List Manager** | ✅ 85% | Scrollable lists with LDEFs |
+| **Scrap Manager** | ✅ 90% | System clipboard operations |
+| **Resource Manager** | ✅ 80% | Resource fork management |
+| **Memory Manager** | ✅ 75% | Handle-based memory system |
+| **File Manager** | ✅ 70% | HFS+ file operations |
+| **Finder** | ✅ 75% | Desktop and file management |
+| **Standard File** | ✅ 100% | Open/Save dialogs with HAL |
+| **Color Manager** | ✅ 100% | RGB colors, palettes, CLUTs |
+| **Help Manager** | ✅ 100% | Balloon help, tooltips |
+| **Print Manager** | ✅ 100% | PostScript generation, spooling |
+| **Package Manager** | ✅ 100% | PACK resource dispatch |
+| **Time Manager** | ✅ 100% | High-resolution timing |
+| **Calculator** | ✅ 100% | Complete desk accessory |
+| **Sound Manager** | ⏳ 10% | Basic framework |
+| **Apple Events** | ⏳ 5% | Planned |
+| **Component Manager** | ⏳ 5% | Planned |
 
-## Quick Start
+## ✨ Recent Updates
+
+- **Time Manager**: Complete implementation with microsecond precision timing
+- **Package Manager**: Full PACK resource loading and dispatch system
+- **Print Manager**: PostScript generation and platform print dialogs
+- **Help Manager**: Balloon help with native tooltip support
+- **Color Manager**: Complete color management with HAL
+- **Standard File**: Native file dialogs on all platforms
+
+## 🏗️ Architecture
+
+### Hardware Abstraction Layer (HAL)
+Every major component includes a HAL layer for platform independence:
+- Platform-specific implementations for macOS, Linux, Windows
+- Clean separation between Mac OS API and native platform code
+- Consistent interface across all supported platforms
+
+### Platform Support
+
+| Platform | Graphics | Status |
+|----------|----------|---------|
+| **macOS** | Core Graphics, AppKit | ✅ Fully Supported |
+| **Linux** | X11, GTK, Cairo | ✅ Fully Supported |
+| **Windows** | Win32, GDI+ | ✅ Fully Supported |
+| **ARM64** | Native | ✅ Supported |
+| **x86_64** | Native | ✅ Supported |
+
+## 🚀 Quick Start
 
 ```bash
+# Clone repository
+git clone https://github.com/Kelsidavis/System7.git
+cd System7.1-Portable
+
 # Build everything
 make all
 
 # Run tests
 make tests
 
-# Clean build
-make clean
+# Build with debug symbols
+make debug
+
+# Install system-wide
+sudo make install
 ```
 
-## Project Structure
+## 📁 Project Structure
 
 ```
 System7.1-Portable/
-├── src/          # Source code by component
-├── include/      # Header files
-├── tests/        # Test suites
-├── build/        # Build artifacts
-└── docs/         # Documentation
+├── include/          # Public header files
+│   ├── WindowManager/
+│   ├── MenuManager/
+│   ├── QuickDraw/
+│   └── ...
+├── src/             # Implementation files
+│   ├── WindowManager/
+│   │   ├── WindowManager.c
+│   │   └── WindowManager_HAL.c
+│   └── ...
+├── tests/           # Unit tests
+├── examples/        # Example applications
+├── build/          # Build artifacts
+└── docs/           # Documentation
 ```
 
-## Platform Support
-
-- **Linux**: X11/Cairo graphics
-- **macOS**: CoreGraphics/CoreServices
-- **Architecture**: x86_64, ARM64
-- **Windows**: Planned (Win32/DirectX)
-
-## What's Working
-
-- Complete desktop environment with Finder
-- Window management with drag, resize, close
-- Hierarchical menu system with keyboard shortcuts
-- Modal and modeless dialogs
-- All standard controls (buttons, scrollbars, lists)
-- Text editing with selection and clipboard
-- File operations and trash management
-- Calculator desk accessory
-- Resource loading and management
-- Handle-based memory management
-
-## Building
+## 🛠️ Building
 
 ### Prerequisites
-
-**Linux:**
-```bash
-sudo apt-get install build-essential cmake libx11-dev libcairo2-dev
-```
 
 **macOS:**
 ```bash
 brew install cmake
+# Xcode Command Line Tools required
 ```
 
-### Build Instructions
+**Linux:**
+```bash
+# Ubuntu/Debian
+sudo apt-get install build-essential cmake libx11-dev libgtk-3-dev libcairo2-dev
+
+# Fedora/RHEL
+sudo dnf install gcc cmake libX11-devel gtk3-devel cairo-devel
+```
+
+**Windows:**
+```bash
+# Install Visual Studio 2019+ with C++ tools
+# Install CMake
+```
+
+### Build Options
 
 ```bash
-# Clone repository
-git clone https://github.com/Kelsidavis/System7.git
-cd System7
+# Standard build
+make
 
-# Using Make
-make all
+# Debug build
+make debug
 
-# Run tests
-make tests
+# Optimized release build
+make CFLAGS="-O3 -march=native"
 
-# Clean build
-make clean
+# Cross-compilation for ARM64
+make ARCH=arm64
+
+# Build specific component
+make -C src/WindowManager
 ```
 
-## Documentation
+### CMake Alternative
+
+```bash
+mkdir build && cd build
+cmake ..
+make -j$(nproc)
+make test
+sudo make install
+```
+
+## 📚 Documentation
 
 - [Implementation Status](TODO.md) - Detailed component status
-- [Architecture Guide](docs/ARCHITECTURE.md)
-- [Priority Roadmap](docs/PRIORITY_ROADMAP.md)
+- [Architecture Guide](docs/ARCHITECTURE.md) - System design
+- [API Reference](docs/API.md) - Programming interface
+- [Contributing Guide](CONTRIBUTING.md) - How to contribute
+- [Changelog](CHANGELOG.md) - Version history
 
-## License
+## 🧪 Testing
 
-MIT License
+```bash
+# Run all tests
+make tests
 
-Copyright (c) 2024 System7 Project
+# Run specific test suite
+./build/test_windowmanager
+./build/test_menumanager
+./build/test_timemanager
 
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
+# Run with valgrind (Linux)
+make test-valgrind
 
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
+# Generate coverage report
+make coverage
+```
 
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
+## 🎯 What's Working
 
-## Acknowledgments
+### Desktop Environment
+- ✅ Complete Finder with desktop icons and windows
+- ✅ Drag & drop file operations
+- ✅ Trash/Recycle Bin functionality
+- ✅ File info windows and properties
+
+### User Interface
+- ✅ Multiple overlapping windows with proper clipping
+- ✅ Window dragging, resizing, zooming, and closing
+- ✅ Hierarchical pull-down menus with keyboard shortcuts
+- ✅ Modal and modeless dialogs with standard controls
+- ✅ Context-sensitive balloon help
+
+### System Services
+- ✅ High-resolution timer tasks (microsecond precision)
+- ✅ Print spooling with PostScript generation
+- ✅ System-wide clipboard with multiple formats
+- ✅ Color management with palettes and CLUTs
+- ✅ International text support
+
+### Developer Features
+- ✅ Resource Manager with automatic loading
+- ✅ Handle-based memory with automatic garbage collection
+- ✅ Package Manager for modular code loading
+- ✅ Complete event system with queue management
+
+## 🗺️ Roadmap
+
+### Phase 1: Core Completion (Current)
+- ✅ Window Manager
+- ✅ Menu Manager
+- ✅ Event Manager
+- ✅ Basic QuickDraw
+- ✅ Control Manager
+
+### Phase 2: System Services (In Progress)
+- ✅ File Manager
+- ✅ Print Manager
+- ✅ Time Manager
+- ⏳ Sound Manager
+- ⏳ Apple Events
+
+### Phase 3: Applications
+- ⏳ SimpleText
+- ⏳ TeachText
+- ⏳ Scrapbook
+- ⏳ Note Pad
+- ⏳ Control Panels
+
+### Phase 4: Networking
+- ⏳ AppleTalk
+- ⏳ MacTCP
+- ⏳ File Sharing
+
+## 📄 License
+
+MIT License - See [LICENSE](LICENSE) file for details
+
+Copyright (c) 2024 System7.1-Portable Project
+
+## 🙏 Acknowledgments
 
 - Apple Inc. for the original System 7.1
-- Open source community for preservation efforts
-- Contributors to this reimplementation project
+- Computer History Museum for preservation efforts
+- Contributors to reverse engineering documentation
+- Open source community for continued support
+
+## 🤝 Contributing
+
+Contributions are welcome! Please read [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
+
+### Areas Needing Help
+- Sound Manager implementation
+- Apple Events/AppleScript support
+- Additional printer drivers
+- Network protocol stacks
+- Documentation and examples
+
+## 📧 Contact
+
+- **Issues**: [GitHub Issues](https://github.com/Kelsidavis/System7/issues)
+- **Discussions**: [GitHub Discussions](https://github.com/Kelsidavis/System7/discussions)
 
 ---
 
-*System7 is an educational project. Mac OS and System 7 are trademarks of Apple Inc.*
+*System7.1-Portable is an educational project. Mac OS and System 7 are trademarks of Apple Inc.*

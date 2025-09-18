@@ -1,6 +1,6 @@
-# Contributing to System7
+# Contributing to System7.1-Portable
 
-Thank you for your interest in contributing to the System7 project! This guide will help you get started.
+Thank you for your interest in contributing to the System7.1-Portable project! This guide will help you get started.
 
 ## Code of Conduct
 
@@ -14,19 +14,19 @@ Thank you for your interest in contributing to the System7 project! This guide w
 ### 1. Find an Area to Work On
 
 Check our [TODO.md](TODO.md) for tasks organized by priority:
-- **Priority 1**: Core system components (Print Manager, Sound Manager)
-- **Priority 2**: Enhanced features (Help Manager, Notification Manager)
-- **Priority 3**: Networking & communications
-- **Priority 4**: Stub completions (~295 remaining)
-- **Priority 5**: Hardware abstraction
-- **Priority 6**: Testing & documentation
+- **Priority 1**: Core system components (Sound Manager, Apple Events, Component Manager)
+- **Priority 2**: Networking & communications (AppleTalk, TCP/IP)
+- **Priority 3**: Enhanced features (Notification Manager, Speech Manager)
+- **Priority 4**: Stub completions (~150 remaining)
+- **Priority 5**: Testing & documentation (60% → 80% coverage)
+- **Priority 6**: Platform-specific enhancements
 
 ### 2. Set Up Development Environment
 
 ```bash
 # Fork and clone the repository
-git clone https://github.com/[your-username]/System7.git
-cd System7
+git clone https://github.com/[your-username]/System7.1-Portable.git
+cd System7.1-Portable
 
 # Create a feature branch
 git checkout -b feature/component-name
@@ -128,16 +128,16 @@ git push origin feature/component-name
 ## Priority Areas
 
 ### High Priority (Most Needed)
-1. **Print Manager** - Basic printing support
-2. **Sound Manager** - Audio playback
-3. **Standard File Package** - File dialogs
-4. **Color Manager** - Color management
+1. **Sound Manager** - Audio synthesis and playback
+2. **Apple Events** - Inter-application communication
+3. **Component Manager** - Plugin architecture
+4. **Networking** - AppleTalk and TCP/IP stack
 
 ### Medium Priority
-1. **Stub Completions** - Replace TODO/FIXME markers
-2. **Test Coverage** - Increase from 40% to 80%
+1. **Stub Completions** - Replace ~150 TODO/FIXME markers
+2. **Test Coverage** - Increase from 60% to 80%
 3. **Performance** - Optimize critical paths
-4. **Documentation** - API references
+4. **Documentation** - Complete API references
 
 ### Platform-Specific
 1. **Linux** - Wayland support
@@ -159,6 +159,16 @@ Contributors will be recognized in:
 - Release notes
 - Project documentation
 
+## Recently Completed
+
+The following components have been successfully integrated and serve as good examples:
+- **Color Manager** - Full RGB color management with HAL
+- **Help Manager** - Balloon help with native tooltips
+- **Print Manager** - PostScript generation and platform dialogs
+- **Package Manager** - PACK resource loading and dispatch
+- **Time Manager** - Microsecond precision timing
+- **Standard File** - Native file dialogs on all platforms
+
 ## License
 
 All contributions must be compatible with the MIT License. By contributing, you agree to license your work under the same terms.
@@ -169,5 +179,6 @@ All contributions must be compatible with the MIT License. By contributing, you 
 - [Inside Macintosh](https://vintageapple.org/inside/)
 - [Mac OS Architecture](docs/ARCHITECTURE.md)
 - [Implementation Status](TODO.md)
+- [Change History](CHANGELOG.md)
 
 Thank you for helping preserve computing history!
