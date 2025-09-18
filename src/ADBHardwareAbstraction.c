@@ -14,6 +14,8 @@
  * - Generic POSIX systems
  */
 
+#define _POSIX_C_SOURCE 199309L  /* For clock_gettime and nanosleep */
+
 #include "ADBManager.h"
 #include <stdio.h>
 #include <stdlib.h>
