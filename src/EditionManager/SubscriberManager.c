@@ -1,4 +1,8 @@
 /*
+ * Copyright (c) 2024 System7 Project
+ * MIT License - See LICENSE file
+ */
+/*
  * SubscriberManager.c
  *
  * Subscriber management for Edition Manager

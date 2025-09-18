@@ -1,4 +1,8 @@
 /*
+ * Copyright (c) 2024 System7 Project
+ * MIT License - See LICENSE file
+ */
+/*
  * ColorSpaces.c - Color Space Conversions Implementation
  *
  * Implementation of color space conversion algorithms including RGB, CMYK,

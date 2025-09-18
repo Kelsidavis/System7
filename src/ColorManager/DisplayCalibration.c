@@ -1,4 +1,8 @@
 /*
+ * Copyright (c) 2024 System7 Project
+ * MIT License - See LICENSE file
+ */
+/*
  * DisplayCalibration.c - Display Calibration and Gamma Correction Implementation
  *
  * Implementation of display calibration, gamma correction, and monitor profiling

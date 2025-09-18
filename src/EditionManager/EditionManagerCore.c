@@ -1,4 +1,8 @@
 /*
+ * Copyright (c) 2024 System7 Project
+ * MIT License - See LICENSE file
+ */
+/*
  * EditionManagerCore.c
  *
  * Core Edition Manager implementation for System 7 Publish/Subscribe functionality

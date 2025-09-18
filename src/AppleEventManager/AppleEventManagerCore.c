@@ -1,4 +1,8 @@
 /*
+ * Copyright (c) 2024 System7 Project
+ * MIT License - See LICENSE file
+ */
+/*
  * AppleEventManagerCore.c
  *
  * Core Apple Event Manager implementation

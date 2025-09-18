@@ -1,4 +1,8 @@
 /*
+ * Copyright (c) 2024 System7 Project
+ * MIT License - See LICENSE file
+ */
+/*
  * DeviceCalibration.c - Device Color Calibration and Profiling Implementation
  *
  * Implementation of device calibration and profiling for scanners, printers,

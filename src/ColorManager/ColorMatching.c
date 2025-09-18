@@ -1,4 +1,8 @@
 /*
+ * Copyright (c) 2024 System7 Project
+ * MIT License - See LICENSE file
+ */
+/*
  * ColorMatching.c - Color Matching and Gamut Mapping Implementation
  *
  * Implementation of professional color matching algorithms, gamut mapping,

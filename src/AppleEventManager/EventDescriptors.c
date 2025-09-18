@@ -1,4 +1,8 @@
 /*
+ * Copyright (c) 2024 System7 Project
+ * MIT License - See LICENSE file
+ */
+/*
  * EventDescriptors.c
  *
  * Apple Event descriptor handling and manipulation functions

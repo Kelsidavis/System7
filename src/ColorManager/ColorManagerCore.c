@@ -1,4 +1,8 @@
 /*
+ * Copyright (c) 2024 System7 Project
+ * MIT License - See LICENSE file
+ */
+/*
  * ColorManagerCore.c - Core Color Manager Implementation
  *
  * Main Color Manager implementation providing professional color management

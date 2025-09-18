@@ -1,4 +1,8 @@
 /*
+ * Copyright (c) 2024 System7 Project
+ * MIT License - See LICENSE file
+ */
+/*
  * ICCProfiles.c - ICC Profile Management Implementation
  *
  * Implementation of ICC profile loading, creation, validation, and management
