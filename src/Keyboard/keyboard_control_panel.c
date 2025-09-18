@@ -301,6 +301,34 @@ void KeyboardCP_HandleItemHit(ControlPanelData *cpData, short item)
             HandleLayoutChange(cpData, kLayoutInternational);
             break;
 
+        case kItemLayoutPopup:
+            /* Modern layout popup selection */
+            /* Evidence: Extended layout support for international keyboards */
+            printf("Layout popup activated - showing modern layout selection\n");
+            break;
+
+        case kItemLayoutDetect:
+            /* Auto-detect system layout */
+            /* Evidence: Modern systems can detect current layout */
+            {
+                KeyboardLayoutType detectedLayout = KeyboardCP_DetectSystemLayout();
+                HandleLayoutChange(cpData, detectedLayout);
+                printf("Auto-detected layout: %s\n", KeyboardCP_GetLayoutName(detectedLayout));
+            }
+            break;
+
+        case kItemLayoutSearch:
+            /* Layout search/filter functionality */
+            /* Evidence: Large layout list needs search capability */
+            printf("Layout search activated\n");
+            break;
+
+        case kItemDeadKeyIndicator:
+            /* Dead key status indicator */
+            /* Evidence: European layouts use dead keys */
+            printf("Dead key indicator clicked\n");
+            break;
+
         default:
             /* No action for other items */
             break;
@@ -519,9 +547,9 @@ OSErr KeyboardCP_SetKeyboardLayout(short layoutID)
     Handle newKCHR;
     OSErr err = noErr;
 
-    /* Validate layout ID */
+    /* Validate layout ID - now supports modern layouts */
     /* Evidence: Layout validation prevents invalid configurations */
-    if (layoutID != kLayoutDomestic && layoutID != kLayoutInternational) {
+    if (layoutID < 0 || layoutID > kLayoutAuto) {
         return paramErr;
     }
 
@@ -548,6 +576,248 @@ OSErr KeyboardCP_SetKeyboardLayout(short layoutID)
     /* Evidence: System integration for keyboard layout changes */
 
     return err;
+}
+
+/*
+ * Modern Layout Database and Functions
+ * Evidence: Extended layout support for international keyboards
+ */
+
+/* Static layout information database */
+static ExtendedLayoutInfo gLayoutDatabase[] = {
+    /* US English */
+    {kLayoutUS, kLayoutFeatureShift | kLayoutFeatureCapsLock, "US", "English (US)", "en", "US", 0, 0, NULL, {false, kDeadKeyNone, 0, 0}},
+
+    /* European layouts */
+    {kLayoutUK, kLayoutFeatureShift | kLayoutFeatureCapsLock, "UK", "English (UK)", "en", "GB", 1, 0, NULL, {false, kDeadKeyNone, 0, 0}},
+    {kLayoutGerman, kLayoutFeatureDeadKeys | kLayoutFeatureAltGr | kLayoutFeatureShift, "German", "Deutsch", "de", "DE", 2, 0, NULL, {false, kDeadKeyNone, 0, 0}},
+    {kLayoutFrench, kLayoutFeatureDeadKeys | kLayoutFeatureAltGr | kLayoutFeatureShift, "French", "Français", "fr", "FR", 3, 0, NULL, {false, kDeadKeyNone, 0, 0}},
+    {kLayoutItalian, kLayoutFeatureDeadKeys | kLayoutFeatureAltGr | kLayoutFeatureShift, "Italian", "Italiano", "it", "IT", 4, 0, NULL, {false, kDeadKeyNone, 0, 0}},
+    {kLayoutSpanish, kLayoutFeatureDeadKeys | kLayoutFeatureAltGr | kLayoutFeatureShift, "Spanish", "Español", "es", "ES", 5, 0, NULL, {false, kDeadKeyNone, 0, 0}},
+    {kLayoutSwiss, kLayoutFeatureDeadKeys | kLayoutFeatureAltGr | kLayoutFeatureShift, "Swiss", "Schweiz", "de", "CH", 6, 0, NULL, {false, kDeadKeyNone, 0, 0}},
+    {kLayoutDutch, kLayoutFeatureDeadKeys | kLayoutFeatureAltGr | kLayoutFeatureShift, "Dutch", "Nederlands", "nl", "NL", 7, 0, NULL, {false, kDeadKeyNone, 0, 0}},
+
+    /* Scandinavian layouts */
+    {kLayoutNorwegian, kLayoutFeatureDeadKeys | kLayoutFeatureAltGr | kLayoutFeatureShift, "Norwegian", "Norsk", "no", "NO", 8, 0, NULL, {false, kDeadKeyNone, 0, 0}},
+    {kLayoutSwedish, kLayoutFeatureDeadKeys | kLayoutFeatureAltGr | kLayoutFeatureShift, "Swedish", "Svenska", "sv", "SE", 9, 0, NULL, {false, kDeadKeyNone, 0, 0}},
+    {kLayoutDanish, kLayoutFeatureDeadKeys | kLayoutFeatureAltGr | kLayoutFeatureShift, "Danish", "Dansk", "da", "DK", 10, 0, NULL, {false, kDeadKeyNone, 0, 0}},
+    {kLayoutFinnish, kLayoutFeatureDeadKeys | kLayoutFeatureAltGr | kLayoutFeatureShift, "Finnish", "Suomi", "fi", "FI", 11, 0, NULL, {false, kDeadKeyNone, 0, 0}},
+
+    /* Alternative layouts */
+    {kLayoutDvorak, kLayoutFeatureShift | kLayoutFeatureCapsLock, "Dvorak", "Dvorak", "en", "US", 20, 0, NULL, {false, kDeadKeyNone, 0, 0}},
+    {kLayoutColemak, kLayoutFeatureShift | kLayoutFeatureCapsLock, "Colemak", "Colemak", "en", "US", 21, 0, NULL, {false, kDeadKeyNone, 0, 0}},
+
+    /* Eastern European */
+    {kLayoutRussian, kLayoutFeatureShift | kLayoutFeatureCapsLock, "Russian", "Русский", "ru", "RU", 40, 0, NULL, {false, kDeadKeyNone, 0, 0}},
+    {kLayoutPolish, kLayoutFeatureDeadKeys | kLayoutFeatureAltGr | kLayoutFeatureShift, "Polish", "Polski", "pl", "PL", 41, 0, NULL, {false, kDeadKeyNone, 0, 0}},
+    {kLayoutCzech, kLayoutFeatureDeadKeys | kLayoutFeatureAltGr | kLayoutFeatureShift, "Czech", "Čeština", "cs", "CZ", 42, 0, NULL, {false, kDeadKeyNone, 0, 0}},
+
+    /* Middle Eastern */
+    {kLayoutHebrew, kLayoutFeatureBidirectional | kLayoutFeatureShift, "Hebrew", "עברית", "he", "IL", 60, 0, NULL, {false, kDeadKeyNone, 0, 0}},
+    {kLayoutArabic, kLayoutFeatureBidirectional | kLayoutFeatureShift, "Arabic", "العربية", "ar", "SA", 61, 0, NULL, {false, kDeadKeyNone, 0, 0}},
+
+    /* Asian layouts */
+    {kLayoutJapanese, kLayoutFeatureIME | kLayoutFeatureShift, "Japanese", "日本語", "ja", "JP", 70, 0, NULL, {false, kDeadKeyNone, 0, 0}},
+    {kLayoutKorean, kLayoutFeatureIME | kLayoutFeatureShift, "Korean", "한국어", "ko", "KR", 71, 0, NULL, {false, kDeadKeyNone, 0, 0}},
+    {kLayoutChineseSimplified, kLayoutFeatureIME | kLayoutFeatureShift, "Chinese (Simplified)", "中文(简体)", "zh", "CN", 72, 0, NULL, {false, kDeadKeyNone, 0, 0}},
+    {kLayoutChineseTraditional, kLayoutFeatureIME | kLayoutFeatureShift, "Chinese (Traditional)", "中文(繁體)", "zh", "TW", 73, 0, NULL, {false, kDeadKeyNone, 0, 0}}
+};
+
+static const int gNumLayouts = sizeof(gLayoutDatabase) / sizeof(gLayoutDatabase[0]);
+
+/*
+ * KeyboardCP_GetExtendedLayoutInfo - Get comprehensive layout information
+ */
+ExtendedLayoutInfo* KeyboardCP_GetExtendedLayoutInfo(KeyboardLayoutType layoutID) {
+    for (int i = 0; i < gNumLayouts; i++) {
+        if (gLayoutDatabase[i].layoutID == layoutID) {
+            return &gLayoutDatabase[i];
+        }
+    }
+    return NULL;
+}
+
+/*
+ * KeyboardCP_GetAvailableLayouts - Get list of available layouts
+ */
+OSErr KeyboardCP_GetAvailableLayouts(KeyboardLayoutType* layouts, short* numLayouts, short maxLayouts) {
+    if (!layouts || !numLayouts) {
+        return paramErr;
+    }
+
+    short count = 0;
+    for (int i = 0; i < gNumLayouts && count < maxLayouts; i++) {
+        layouts[count] = gLayoutDatabase[i].layoutID;
+        count++;
+    }
+
+    *numLayouts = count;
+    return noErr;
+}
+
+/*
+ * KeyboardCP_GetLayoutName - Get layout name for UI display
+ */
+const char* KeyboardCP_GetLayoutName(KeyboardLayoutType layoutID) {
+    ExtendedLayoutInfo* info = KeyboardCP_GetExtendedLayoutInfo(layoutID);
+    return info ? info->layoutName : "Unknown";
+}
+
+/*
+ * KeyboardCP_GetLocalizedLayoutName - Get localized layout name
+ */
+const char* KeyboardCP_GetLocalizedLayoutName(KeyboardLayoutType layoutID) {
+    ExtendedLayoutInfo* info = KeyboardCP_GetExtendedLayoutInfo(layoutID);
+    return info ? info->localizedName : "Unknown";
+}
+
+/*
+ * KeyboardCP_SupportsDeadKeys - Check if layout supports dead key composition
+ */
+Boolean KeyboardCP_SupportsDeadKeys(KeyboardLayoutType layoutID) {
+    ExtendedLayoutInfo* info = KeyboardCP_GetExtendedLayoutInfo(layoutID);
+    return info && (info->features & kLayoutFeatureDeadKeys);
+}
+
+/*
+ * KeyboardCP_SupportsAltGr - Check if layout uses AltGr key
+ */
+Boolean KeyboardCP_SupportsAltGr(KeyboardLayoutType layoutID) {
+    ExtendedLayoutInfo* info = KeyboardCP_GetExtendedLayoutInfo(layoutID);
+    return info && (info->features & kLayoutFeatureAltGr);
+}
+
+/*
+ * KeyboardCP_ProcessDeadKey - Process dead key composition
+ */
+UnicodeChar KeyboardCP_ProcessDeadKey(DeadKeyType deadKey, UnicodeChar baseChar) {
+    /* Simple dead key composition table */
+    /* Evidence: European keyboards require accent composition */
+
+    switch (deadKey) {
+        case kDeadKeyAcute:
+            switch (baseChar) {
+                case 'a': return 0x00E1; /* á */
+                case 'e': return 0x00E9; /* é */
+                case 'i': return 0x00ED; /* í */
+                case 'o': return 0x00F3; /* ó */
+                case 'u': return 0x00FA; /* ú */
+                case 'A': return 0x00C1; /* Á */
+                case 'E': return 0x00C9; /* É */
+                case 'I': return 0x00CD; /* Í */
+                case 'O': return 0x00D3; /* Ó */
+                case 'U': return 0x00DA; /* Ú */
+                default: return baseChar;
+            }
+        case kDeadKeyGrave:
+            switch (baseChar) {
+                case 'a': return 0x00E0; /* à */
+                case 'e': return 0x00E8; /* è */
+                case 'i': return 0x00EC; /* ì */
+                case 'o': return 0x00F2; /* ò */
+                case 'u': return 0x00F9; /* ù */
+                case 'A': return 0x00C0; /* À */
+                case 'E': return 0x00C8; /* È */
+                case 'I': return 0x00CC; /* Ì */
+                case 'O': return 0x00D2; /* Ò */
+                case 'U': return 0x00D9; /* Ù */
+                default: return baseChar;
+            }
+        case kDeadKeyUmlaut:
+            switch (baseChar) {
+                case 'a': return 0x00E4; /* ä */
+                case 'e': return 0x00EB; /* ë */
+                case 'i': return 0x00EF; /* ï */
+                case 'o': return 0x00F6; /* ö */
+                case 'u': return 0x00FC; /* ü */
+                case 'A': return 0x00C4; /* Ä */
+                case 'E': return 0x00CB; /* Ë */
+                case 'I': return 0x00CF; /* Ï */
+                case 'O': return 0x00D6; /* Ö */
+                case 'U': return 0x00DC; /* Ü */
+                default: return baseChar;
+            }
+        case kDeadKeyTilde:
+            switch (baseChar) {
+                case 'a': return 0x00E3; /* ã */
+                case 'n': return 0x00F1; /* ñ */
+                case 'o': return 0x00F5; /* õ */
+                case 'A': return 0x00C3; /* Ã */
+                case 'N': return 0x00D1; /* Ñ */
+                case 'O': return 0x00D5; /* Õ */
+                default: return baseChar;
+            }
+        case kDeadKeyCircumflex:
+            switch (baseChar) {
+                case 'a': return 0x00E2; /* â */
+                case 'e': return 0x00EA; /* ê */
+                case 'i': return 0x00EE; /* î */
+                case 'o': return 0x00F4; /* ô */
+                case 'u': return 0x00FB; /* û */
+                case 'A': return 0x00C2; /* Â */
+                case 'E': return 0x00CA; /* Ê */
+                case 'I': return 0x00CE; /* Î */
+                case 'O': return 0x00D4; /* Ô */
+                case 'U': return 0x00DB; /* Û */
+                default: return baseChar;
+            }
+        default:
+            return baseChar;
+    }
+}
+
+/*
+ * KeyboardCP_DetectSystemLayout - Auto-detect current system layout
+ */
+KeyboardLayoutType KeyboardCP_DetectSystemLayout(void) {
+    /* Evidence: Modern systems can provide current layout information */
+    /* Note: In portable implementation, return US as default */
+    /* Real implementation would query system keyboard settings */
+    return kLayoutUS;
+}
+
+/*
+ * KeyboardCP_VirtualKeyToUnicode - Convert virtual key to Unicode
+ */
+UnicodeChar KeyboardCP_VirtualKeyToUnicode(short virtualKey, ModifierKeyFlags modifiers) {
+    (void)virtualKey; (void)modifiers;
+    /* Evidence: Modern layouts require Unicode character mapping */
+    /* Note: Simplified implementation - would use current layout's key mappings */
+    return 0; /* Return null character for now */
+}
+
+/*
+ * KeyboardCP_GetLayoutByCode - Find layout by ISO language/country codes
+ */
+KeyboardLayoutType KeyboardCP_GetLayoutByCode(const char* languageCode, const char* countryCode) {
+    if (!languageCode || !countryCode) {
+        return kLayoutUS;
+    }
+
+    for (int i = 0; i < gNumLayouts; i++) {
+        if (strcmp(gLayoutDatabase[i].languageCode, languageCode) == 0 &&
+            strcmp(gLayoutDatabase[i].countryCode, countryCode) == 0) {
+            return gLayoutDatabase[i].layoutID;
+        }
+    }
+
+    return kLayoutUS; /* Default fallback */
+}
+
+/*
+ * KeyboardCP_RequiresIME - Check if layout needs Input Method Editor
+ */
+Boolean KeyboardCP_RequiresIME(KeyboardLayoutType layoutID) {
+    ExtendedLayoutInfo* info = KeyboardCP_GetExtendedLayoutInfo(layoutID);
+    return info && (info->features & kLayoutFeatureIME);
+}
+
+/*
+ * KeyboardCP_IsRightToLeft - Check if layout is right-to-left
+ */
+Boolean KeyboardCP_IsRightToLeft(KeyboardLayoutType layoutID) {
+    ExtendedLayoutInfo* info = KeyboardCP_GetExtendedLayoutInfo(layoutID);
+    return info && (info->features & kLayoutFeatureBidirectional);
 }
 
 /*

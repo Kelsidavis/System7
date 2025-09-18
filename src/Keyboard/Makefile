@@ -30,15 +30,16 @@ BUILD_DIR = ../../build/Keyboard
 INCLUDE_DIR = ../../include/Keyboard
 
 # Source files
-SRCS = keyboard_control_panel.c keyboard_tests.c
+SRCS = keyboard_control_panel.c keyboard_tests.c ModernLayoutTest.c
 OBJS = $(SRCS:%.c=$(BUILD_DIR)/%.o)
 
 # Output library and executables
 TARGET_LIB = $(BUILD_DIR)/libkeyboard.a
 TEST_BIN = $(BUILD_DIR)/keyboard_test
+LAYOUT_TEST_BIN = $(BUILD_DIR)/layout_test
 
 # Default target
-all: $(TARGET_LIB) $(TEST_BIN)
+all: $(TARGET_LIB) $(TEST_BIN) $(LAYOUT_TEST_BIN)
 
 # Create build directory
 $(BUILD_DIR):
@@ -53,17 +54,24 @@ LIB_OBJS = $(BUILD_DIR)/keyboard_control_panel.o
 $(TARGET_LIB): $(LIB_OBJS)
 	ar rcs $@ $(LIB_OBJS)
 
-# Test executable
+# Test executables
 $(TEST_BIN): $(BUILD_DIR)/keyboard_tests.o $(TARGET_LIB)
+	$(CC) $(CFLAGS) $(RELEASE_FLAGS) $< -L$(BUILD_DIR) -lkeyboard -o $@
+
+$(LAYOUT_TEST_BIN): $(BUILD_DIR)/ModernLayoutTest.o $(TARGET_LIB)
 	$(CC) $(CFLAGS) $(RELEASE_FLAGS) $< -L$(BUILD_DIR) -lkeyboard -o $@
 
 # Debug build
 debug: CFLAGS += $(DEBUG_FLAGS)
-debug: clean $(TARGET_LIB) $(TEST_BIN)
+debug: clean $(TARGET_LIB) $(TEST_BIN) $(LAYOUT_TEST_BIN)
 
 # Run tests
 test: $(TEST_BIN)
 	$(TEST_BIN)
+
+# Run layout tests
+test-layouts: $(LAYOUT_TEST_BIN)
+	$(LAYOUT_TEST_BIN)
 
 # Clean
 clean:
