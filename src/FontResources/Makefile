@@ -30,15 +30,17 @@ BUILD_DIR = ../../build/FontResources
 INCLUDE_DIR = ../../include/FontResources
 
 # Source files
-SRCS = SystemFontData.c FontResourceConverter.c FontTest.c
+SRCS = SystemFontData.c FontResourceConverter.c FontTest.c ModernFontLoader.c FontDownloader.c ModernFontTest.c EmbeddedFonts.c
 OBJS = $(SRCS:%.c=$(BUILD_DIR)/%.o)
 
 # Output library and executables
 TARGET_LIB = $(BUILD_DIR)/libfonts.a
 TEST_BIN = $(BUILD_DIR)/font_test
+MODERN_TEST_BIN = $(BUILD_DIR)/modern_font_test
+DOWNLOADER_BIN = $(BUILD_DIR)/font_downloader
 
 # Default target
-all: $(TARGET_LIB) $(TEST_BIN)
+all: $(TARGET_LIB) $(TEST_BIN) $(MODERN_TEST_BIN) $(DOWNLOADER_BIN)
 
 # Create build directory
 $(BUILD_DIR):
@@ -48,22 +50,36 @@ $(BUILD_DIR):
 $(BUILD_DIR)/%.o: $(SRC_DIR)/%.c | $(BUILD_DIR)
 	$(CC) $(CFLAGS) $(RELEASE_FLAGS) -c $< -o $@
 
-# Static library (excluding test file)
-LIB_OBJS = $(BUILD_DIR)/SystemFontData.o $(BUILD_DIR)/FontResourceConverter.o
+# Static library (excluding test files)
+LIB_OBJS = $(BUILD_DIR)/SystemFontData.o $(BUILD_DIR)/FontResourceConverter.o $(BUILD_DIR)/ModernFontLoader.o $(BUILD_DIR)/EmbeddedFonts.o
 $(TARGET_LIB): $(LIB_OBJS)
 	ar rcs $@ $(LIB_OBJS)
 
-# Test executable
+# Test executables
 $(TEST_BIN): $(BUILD_DIR)/FontTest.o $(TARGET_LIB)
 	$(CC) $(CFLAGS) $(RELEASE_FLAGS) $< -L$(BUILD_DIR) -lfonts -o $@
 
+$(MODERN_TEST_BIN): $(BUILD_DIR)/ModernFontTest.o $(TARGET_LIB)
+	$(CC) $(CFLAGS) $(RELEASE_FLAGS) $< -L$(BUILD_DIR) -lfonts -o $@
+
+$(DOWNLOADER_BIN): $(BUILD_DIR)/FontDownloader.o $(TARGET_LIB)
+	$(CC) $(CFLAGS) $(RELEASE_FLAGS) $< -L$(BUILD_DIR) -lfonts -lcurl -o $@
+
 # Debug build
 debug: CFLAGS += $(DEBUG_FLAGS)
-debug: clean $(TARGET_LIB) $(TEST_BIN)
+debug: clean $(TARGET_LIB) $(TEST_BIN) $(MODERN_TEST_BIN) $(DOWNLOADER_BIN)
 
 # Run tests
 test: $(TEST_BIN)
 	$(TEST_BIN)
+
+# Run modern font tests
+test-modern: $(MODERN_TEST_BIN)
+	$(MODERN_TEST_BIN)
+
+# Setup font download system
+setup-fonts: $(DOWNLOADER_BIN)
+	$(DOWNLOADER_BIN) test
 
 # Clean
 clean:

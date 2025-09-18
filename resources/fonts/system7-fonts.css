@@ -1,0 +1,40 @@
+/*
+ * System 7.1 Font Mappings for Web
+ * CSS font family declarations for classic Mac OS fonts
+ */
+
+/* Chicago - System font - UI elements and menus */
+.font-Chicago {
+    font-family: "Chicago", "DejaVu Sans Mono", sans-serif;
+}
+
+/* Geneva - Application font - dialog text */
+.font-Geneva {
+    font-family: "Geneva", "Liberation Sans", sans-serif;
+}
+
+/* Monaco - Monospace font - code and terminal */
+.font-Monaco {
+    font-family: "Monaco", "DejaVu Sans Mono", monospace;
+}
+
+/* New York - Serif font - documents and reading */
+.font-New York {
+    font-family: "New York", "Liberation Serif", sans-serif;
+}
+
+/* Courier - Monospace serif - typewriter style */
+.font-Courier {
+    font-family: "Courier", "Liberation Mono", monospace;
+}
+
+/* Helvetica - Sans serif - clean text */
+.font-Helvetica {
+    font-family: "Helvetica", "Liberation Sans", sans-serif;
+}
+
+/* System 7.1 UI Classes */
+.system-font { font-family: "Chicago", "Monaco", monospace; }
+.application-font { font-family: "Geneva", "Liberation Sans", sans-serif; }
+.document-font { font-family: "New York", "Liberation Serif", serif; }
+.monospace-font { font-family: "Monaco", "DejaVu Sans Mono", monospace; }

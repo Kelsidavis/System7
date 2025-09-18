@@ -192,6 +192,11 @@ extern SystemFontPackage gHelveticaFont;
 extern SystemFontPackage gMonacoFont;
 extern SystemFontPackage gNewYorkFont;
 
+/* Modern font integration - include modern font loader for complete font system */
+#ifdef INCLUDE_MODERN_FONTS
+#include "ModernFontLoader.h"
+#endif
+
 /* Standard font name constants */
 extern const char kChicagoFontName[];
 extern const char kCourierFontName[];
