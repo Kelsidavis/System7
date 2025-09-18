@@ -86,6 +86,7 @@ QUICKDRAW_SRCS = $(wildcard $(SRC_DIR)/QuickDraw/*.c)
 TEXTEDIT_SRCS = $(wildcard $(SRC_DIR)/TextEdit/*.c)
 SCRAP_SRCS = $(wildcard $(SRC_DIR)/ScrapManager/*.c)
 LIST_SRCS = $(wildcard $(SRC_DIR)/ListManager/*.c)
+CALCULATOR_SRCS = $(wildcard $(SRC_DIR)/Calculator/*.c)
 
 # All core sources
 ALL_SRCS = $(ADB_SRCS) $(DEVICE_SRCS) $(DIALOG_SRCS) $(EDITION_SRCS) \
@@ -94,7 +95,7 @@ ALL_SRCS = $(ADB_SRCS) $(DEVICE_SRCS) $(DIALOG_SRCS) $(EDITION_SRCS) \
            $(FONT_SRCS) $(SOUND_SRCS) $(PRINT_SRCS) $(COMPONENT_SRCS) \
            $(FINDER_SRCS) $(DATETIME_SRCS) $(CHOOSER_SRCS) $(GESTALT_SRCS) \
            $(FONTRES_SRCS) $(CONTROL_SRCS) $(QUICKDRAW_SRCS) $(TEXTEDIT_SRCS) \
-           $(SCRAP_SRCS) $(LIST_SRCS)
+           $(SCRAP_SRCS) $(LIST_SRCS) $(CALCULATOR_SRCS)
 
 # Object files
 ALL_OBJS = $(ALL_SRCS:$(SRC_DIR)/%.c=$(BUILD_DIR)/%.o)
