@@ -49,7 +49,9 @@ DOCS_DIR = docs
 # Core System Components
 CORE_MODULES = ADBManager DeviceManager DialogManager EditionManager \
                EventManager MenuManager WindowManager TrapDispatcher \
-               HelpManager FileManager ResourceManager MemoryManager
+               HelpManager FileManager ResourceManager MemoryManager \
+               FontManager SoundManager PrintManager ComponentManager \
+               Finder
 
 # Find all source files organized by module
 define find_module_sources
@@ -69,11 +71,18 @@ HELP_SRCS = $(call find_module_sources,HelpManager)
 RESOURCE_SRCS = $(wildcard $(SRC_DIR)/Resource*.c) $(wildcard $(SRC_DIR)/HFS_*.c)
 MEMORY_SRCS = $(wildcard $(SRC_DIR)/*Mem*.c) $(wildcard $(SRC_DIR)/SystemInit.c)
 FILE_SRCS = $(wildcard $(SRC_DIR)/File*.c) $(wildcard $(SRC_DIR)/SCSI*.c)
+FONT_SRCS = $(wildcard $(SRC_DIR)/FontManager/*.c)
+SOUND_SRCS = $(wildcard $(SRC_DIR)/SoundManager/*.c)
+PRINT_SRCS = $(wildcard $(SRC_DIR)/PrintManager/*.c)
+COMPONENT_SRCS = $(wildcard $(SRC_DIR)/ComponentManager/*.c)
+FINDER_SRCS = $(wildcard $(SRC_DIR)/Finder/*.c)
 
 # All core sources
 ALL_SRCS = $(ADB_SRCS) $(DEVICE_SRCS) $(DIALOG_SRCS) $(EDITION_SRCS) \
            $(EVENT_SRCS) $(MENU_SRCS) $(WINDOW_SRCS) $(TRAP_SRCS) \
-           $(HELP_SRCS) $(RESOURCE_SRCS) $(MEMORY_SRCS) $(FILE_SRCS)
+           $(HELP_SRCS) $(RESOURCE_SRCS) $(MEMORY_SRCS) $(FILE_SRCS) \
+           $(FONT_SRCS) $(SOUND_SRCS) $(PRINT_SRCS) $(COMPONENT_SRCS) \
+           $(FINDER_SRCS)
 
 # Object files
 ALL_OBJS = $(ALL_SRCS:$(SRC_DIR)/%.c=$(BUILD_DIR)/%.o)

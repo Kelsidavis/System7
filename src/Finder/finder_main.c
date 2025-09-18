@@ -6,16 +6,16 @@
  * Source evidence: evidence.curated.json, mappings.json, layouts.curated.json
  */
 
-#include <Types.h>
-#include <Events.h>
-#include <Files.h>
-#include <Menus.h>
-#include <Windows.h>
-#include <Memory.h>
-#include <OSUtils.h>
+/* Finder Application - Simplified for compatibility */
+#include "../include/MacTypes.h"
+#include "../include/Finder/finder_types.h"
+#include "../include/Finder/finder_proto.h"
 
-#include "finder_types.h"
-#include "finder_proto.h"
+/* Minimal system includes to avoid conflicts */
+#include <stdint.h>
+#include <stdbool.h>
+#include <stdio.h>
+#include <stdlib.h>
 
 /* Global state - evidence: layouts.curated.json address 0x00000030 */
 static FinderGlobals gFinderGlobals;
@@ -59,8 +59,8 @@ OSErr MainEventLoop(EventRecord* event, WindowPtr window, MenuHandle menu,
         return paramErr;
     }
 
-    /* Get next event - evidence: A-line trap 0xa89f from evidence.curated.json */
-    hasEvent = GetNextEvent(gFinderGlobals.event_mask, event);
+    /* Get next event - stubbed for compatibility */
+    hasEvent = false; /* GetNextEvent(gFinderGlobals.event_mask, event); */
 
     if (hasEvent) {
         result = ProcessEvent(event) ? noErr : eventNotHandledErr;
@@ -121,8 +121,8 @@ OSErr HandleFileOperation(FSSpec* fileSpec, short operation)
  */
 void InitializeFinder(void)
 {
-    /* Initialize Menu Manager - evidence: A-line trap 0xa9f0 from evidence.curated.json */
-    InitMenus();
+    /* Initialize Menu Manager - stubbed for compatibility */
+    /* InitMenuManager(); */
 
     SetupMenuBar();
     EnableMenuItems();

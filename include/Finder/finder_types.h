@@ -9,46 +9,44 @@
 #ifndef FINDER_TYPES_H
 #define FINDER_TYPES_H
 
-#include <Types.h>
-#include <Events.h>
-#include <Files.h>
-#include <Menus.h>
-#include <Windows.h>
+#include "../MacTypes.h"
 
-/* Basic Mac OS types (for completeness) */
-typedef unsigned long OSType;
-typedef short OSErr;
-typedef unsigned char Str63[64];
+/* Forward declarations to avoid circular dependencies */
+typedef struct WindowRecord* WindowPtr;
+typedef struct MenuInfo** MenuHandle;
 
-/* Point structure - evidence: layouts.curated.json offset virtual */
-typedef struct Point {
+/* Define our own simplified versions to avoid conflicts */
+typedef struct FinderPoint {
     short v;    /* Vertical coordinate */
     short h;    /* Horizontal coordinate */
-} Point;
+} FinderPoint;
 
-/* Rectangle structure - evidence: layouts.curated.json offset virtual */
-typedef struct Rect {
+typedef struct FinderRect {
     short top;      /* Top coordinate */
     short left;     /* Left coordinate */
     short bottom;   /* Bottom coordinate */
     short right;    /* Right coordinate */
-} Rect;
+} FinderRect;
 
-/* File system specification - evidence: layouts.curated.json offset virtual */
-typedef struct FSSpec {
+typedef struct FinderFSSpec {
     short vRefNum;  /* Volume reference number */
     long parID;     /* Parent directory ID */
     Str63 name;     /* File name (Pascal string) */
-} FSSpec;
+} FinderFSSpec;
 
-/* EventRecord structure - evidence: layouts.curated.json offset virtual */
-typedef struct EventRecord {
+typedef struct FinderEventRecord {
     short what;         /* Event type */
     long message;       /* Event message */
     long when;          /* Time of event */
-    Point where;        /* Mouse location */
+    FinderPoint where;  /* Mouse location */
     short modifiers;    /* Modifier keys */
-} EventRecord;
+} FinderEventRecord;
+
+/* Redefine common types for Finder use */
+#define Point FinderPoint
+#define Rect FinderRect
+#define FSSpec FinderFSSpec
+#define EventRecord FinderEventRecord
 
 /* Finder global state - evidence: layouts.curated.json offset 0x00000030 */
 typedef struct FinderGlobals {
@@ -70,27 +68,42 @@ typedef void (*EventLoopHandler)(EventRecord* event, WindowPtr window,
                                 MenuHandle menu, short item, long data, Ptr userData);
 
 /* Constants derived from evidence */
-#define FINDER_SIGNATURE    'FNDR'
-#define FINDER_CREATOR      'MACS'
-#define FINDER_VERSION      0x0701  /* System 7.1 */
+#define FINDER_SIGNATURE    0x464E4452  /* 'FNDR' */
+#define FINDER_CREATOR      0x4D414353  /* 'MACS' */
+#define FINDER_VERSION      0x0701      /* System 7.1 */
 
 /* Event types (Classic Mac OS) */
-#define nullEvent       0
-#define mouseDown       1
-#define mouseUp         2
-#define keyDown         3
-#define keyUp           4
-#define autoKey         5
-#define updateEvt       6
-#define diskEvt         7
-#define activateEvt     8
-#define osEvt           15
+enum {
+    nullEvent       = 0,
+    mouseDown       = 1,
+    mouseUp         = 2,
+    keyDown         = 3,
+    keyUp           = 4,
+    autoKey         = 5,
+    updateEvt       = 6,
+    diskEvt         = 7,
+    activateEvt     = 8,
+    osEvt           = 15
+};
+
+/* Event masks */
+enum {
+    everyEvent      = 0xFFFF
+};
+
+/* Additional error codes */
+enum {
+    eventNotHandledErr = -9874
+    /* unimpErr is already defined in MacTypes.h */
+};
 
 /* File operation codes */
-#define kFileOpCopy     1
-#define kFileOpMove     2
-#define kFileOpDelete   3
-#define kFileOpRename   4
+enum {
+    kFileOpCopy     = 1,
+    kFileOpMove     = 2,
+    kFileOpDelete   = 3,
+    kFileOpRename   = 4
+};
 
 #endif /* FINDER_TYPES_H */
 
