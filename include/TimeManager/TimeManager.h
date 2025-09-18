@@ -1,230 +1,169 @@
 /*
- * TimeManager.h
+ * TimeManager.h - System 7.1 Time Manager Interface
  *
- * Main Time Manager API for System 7.1 - Portable C Implementation
+ * The Time Manager provides high-resolution timing services for Mac OS
+ * applications. It manages timer tasks, executes them at specified times,
+ * and provides VBL (Vertical Blanking) synchronization.
  *
- * This file provides the main Time Manager interface, converted from the original
- * 68k assembly implementation in OS/TimeMgr/TimeMgr.a
- *
- * The Time Manager provides high-precision timing services, task scheduling,
- * and time-based operations essential for System 7.1 operation.
+ * Copyright (c) 2024 System7.1-Portable Project
+ * MIT License
  */
 
 #ifndef TIMEMANAGER_H
 #define TIMEMANAGER_H
 
-#include <stdint.h>
-#include <stdbool.h>
-#include "TimerTypes.h"
-#include "MicrosecondTimer.h"
+#include "../DeskManager/Types.h"
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-/* ===== Time Manager Constants ===== */
+/* Time Manager Constants */
+#define tmType          1       /* Queue type for Time Manager tasks */
+#define vblType         16      /* Queue type for VBL tasks */
 
-/* Timer resolution and scaling constants from original implementation */
-#define TICKS_PER_SEC           783360      /* VIA Timer clock rate */
-#define TICK_SCALE              4           /* Internal time is VIA ticks >> TickScale */
-#define USECS_INC               0xFFF2E035  /* 65522.8758μsec (16.16 fixed point) */
-#define THRESH_INC              3208        /* = 3208 internal ticks */
+/* Timer task states */
+enum {
+    tmTaskActive    = 0x0001,  /* Task is active */
+    tmTaskPrimed    = 0x0002,  /* Task is primed and waiting */
+    tmTaskRecurring = 0x0004,  /* Task is recurring */
+    tmTaskExtended  = 0x0008   /* Task uses extended timing */
+};
 
-/* Time conversion multipliers (from original 68k constants) */
-#define MS_TO_INTERNAL          0xC3D70A3E  /* msec to internal time multiplier */
-#define US_TO_INTERNAL          0x0C88A47F  /* μsec to internal time multiplier */
-#define INTERNAL_TO_MS          0x053A8FE6  /* internal time to msec multiplier */
-#define INTERNAL_TO_US          0xA36610BC  /* internal time to μsec multiplier */
+/* Time units */
+enum {
+    kMicrosecondsPerMillisecond = 1000,
+    kMillisecondsPerSecond      = 1000,
+    kMicrosecondsPerSecond      = 1000000,
+    kTicksPerSecond            = 60        /* Classic Mac OS tick rate */
+};
 
-/* Fraction bits for time conversions */
-#define MS_TO_INT_FRACT_BITS    26          /* fraction bits in ms conversion */
-#define US_TO_INT_FRACT_BITS    32          /* fraction bits in μs conversion */
-#define INT_TO_MS_FRACT_BITS    32          /* fraction bits in ms output */
-#define INT_TO_US_FRACT_BITS    27          /* fraction bits in μs output */
+/* 64-bit wide integer for extended timing */
+typedef struct UnsignedWide {
+    UInt32 hi;          /* High 32 bits */
+    UInt32 lo;          /* Low 32 bits */
+} UnsignedWide;
 
-/* Task flags */
-#define TASK_ACTIVE_BIT         7           /* high bit of QType is active flag */
-#define EXTENDED_TMTASK_BIT     6           /* indicates extended TmTask record */
-#define T2_INT_BIT              5           /* VIA Timer 2 interrupt bit */
+typedef struct Int64Bit {
+    SInt32 hiLong;
+    UInt32 loLong;
+} Int64Bit;
 
-/* Error codes */
-#define NO_ERR                  0           /* no error */
+typedef Int64Bit SInt64;
+typedef UnsignedWide UInt64;
 
-/* Maximum timer values */
-#define MAX_TIMER_RANGE         0x0000FFFF  /* max range of VIA timer */
+/* Timer procedure pointer types */
+typedef void (*TimerProcPtr)(struct TMTask* tmTaskPtr);
+typedef TimerProcPtr TimerUPP;
 
-/* ===== Time Manager Core Functions ===== */
+/* Queue element structure */
+typedef struct QElem {
+    struct QElem*   qLink;      /* Next queue element */
+    short           qType;      /* Queue type */
+    short           qData[1];   /* Variable data */
+} QElem, *QElemPtr;
 
-/**
- * Initialize the Time Manager
- *
- * Sets up the Time Manager's global data structures, timer interrupt handling,
- * and runtime calibration for processor-speed independence.
- *
- * Must be called during system initialization before any timing services are used.
- *
- * @return OSErr - noErr on success
- */
-OSErr InitTimeMgr(void);
+/* Queue header structure */
+typedef struct QHdr {
+    volatile short  qFlags;     /* Queue flags */
+    volatile QElemPtr qHead;    /* First queue element */
+    volatile QElemPtr qTail;    /* Last queue element */
+} QHdr, *QHdrPtr;
 
-/**
- * Shutdown the Time Manager
- *
- * Cleans up Time Manager resources and stops all active timers.
- * Called during system shutdown.
- */
-void ShutdownTimeMgr(void);
+/* Classic Time Manager task record (22 bytes) */
+typedef struct TMTask {
+    QElemPtr        qLink;      /* Queue link (offset 0) */
+    short           qType;      /* Queue type (offset 4) */
+    TimerProcPtr    tmAddr;     /* Task procedure (offset 6) */
+    long            tmCount;    /* Timer count in milliseconds (offset 10) */
+    long            tmWakeUp;   /* Wake-up time (offset 14) */
+    long            tmReserved; /* Reserved (offset 18) */
+} TMTask, *TMTaskPtr;
 
-/**
- * Install Time Manager Task
- *
- * Initializes a Time Manager Task structure for use. In the original implementation,
- * this just marked the task as inactive. The actual queue management is handled
- * by PrimeTime.
- *
- * @param tmTaskPtr - Pointer to TMTask structure to initialize
- * @return OSErr - noErr on success
- */
-OSErr InsTime(TMTaskPtr tmTaskPtr);
+/* Extended Time Manager task record (58 bytes) */
+typedef struct ExtendedTimerRec {
+    QElemPtr        qLink;      /* Queue link */
+    short           qType;      /* Queue type */
+    TimerUPP        tmAddr;     /* Task procedure */
+    long            tmCount;    /* Timer count */
+    long            tmWakeUp;   /* Wake-up time */
+    long            tmReserved; /* Reserved */
+    long            tmRefCon;   /* Reference constant */
+    UnsignedWide    tmWakeUpTime; /* 64-bit wake-up time */
+    long            tmReserved2[6]; /* Reserved */
+} ExtendedTimerRec, *ExtendedTimerPtr;
 
-/**
- * Install Extended Time Manager Task
- *
- * Like InsTime, but for extended TMTask structures that support drift-free
- * fixed-frequency timing.
- *
- * @param tmTaskPtr - Pointer to extended TMTask structure to initialize
- * @return OSErr - noErr on success
- */
-OSErr InsXTime(TMTaskPtr tmTaskPtr);
+/* VBL task record */
+typedef struct VBLTask {
+    QElemPtr        qLink;      /* Queue link */
+    short           qType;      /* Queue type (vblType) */
+    ProcPtr         vblAddr;    /* VBL procedure */
+    short           vblCount;   /* VBL count */
+    short           vblPhase;   /* VBL phase */
+} VBLTask, *VBLTaskPtr;
 
-/**
- * Remove Time Manager Task
- *
- * Removes a Time Manager Task from active management. If the task was active
- * and had time remaining, that time is returned in the tmCount field in
- * negated microseconds or positive milliseconds.
- *
- * @param tmTaskPtr - Pointer to TMTask structure to remove
- * @return OSErr - noErr on success
- */
-OSErr RmvTime(TMTaskPtr tmTaskPtr);
+/* Time Manager API Functions */
 
-/**
- * Prime Time Manager Task
- *
- * Schedules a Time Manager Task to execute after a specified delay.
- * The delay can be specified in milliseconds (positive values) or
- * microseconds (negative values - negated).
- *
- * @param tmTaskPtr - Pointer to TMTask structure to schedule
- * @param count - Delay time: positive = milliseconds, negative = negated microseconds
- * @return OSErr - noErr on success
- */
-OSErr PrimeTime(TMTaskPtr tmTaskPtr, int32_t count);
+/* Initialization */
+OSErr InitTimeManager(void);
+void ShutdownTimeManager(void);
 
-/* ===== Time Manager Internal Functions ===== */
+/* Classic Time Manager functions */
+OSErr InsTime(QElemPtr tmTaskPtr);
+OSErr RmvTime(QElemPtr tmTaskPtr);
+OSErr PrimeTime(QElemPtr tmTaskPtr, long count);
 
-/**
- * Freeze Time Manager operations
- *
- * Disables interrupts and reads the current VIA timer state.
- * Used internally to provide atomic access to the timer queue.
- *
- * @param savedSR - Pointer to store saved interrupt state
- * @param timerLow - Pointer to store VIA timer low byte
- */
-void FreezeTime(uint16_t *savedSR, uint8_t *timerLow);
+/* Extended Time Manager functions */
+OSErr InstallTimeTask(QElemPtr tmTaskPtr);
+OSErr InstallXTimeTask(QElemPtr tmTaskPtr);
+OSErr RemoveTimeTask(QElemPtr tmTaskPtr);
+OSErr PrimeTimeTask(QElemPtr tmTaskPtr, long count);
+OSErr SetTimeBaseZero(void);
 
-/**
- * Thaw Time Manager operations
- *
- * Restarts timer operation and restores interrupt state.
- * Used internally after manipulating the timer queue.
- *
- * @param savedSR - Saved interrupt state to restore
- * @param timerLow - VIA timer low byte from FreezeTime
- */
-void ThawTime(uint16_t savedSR, uint8_t timerLow);
+/* Microsecond timing functions */
+void Microseconds(UnsignedWide* microTickCount);
+OSErr MicrosecondsToAbsolute(UnsignedWide* microSeconds);
+OSErr AbsoluteToMicroseconds(UnsignedWide* absolute);
+OSErr NanosecondsToAbsolute(UnsignedWide* nanoSeconds);
+OSErr AbsoluteToNanoseconds(UnsignedWide* absolute);
 
-/**
- * Timer 2 Interrupt Handler
- *
- * Services timer interrupts and executes completion routines for expired tasks.
- * This is the main timer interrupt service routine.
- */
-void Timer2Int(void);
+/* Utility functions */
+UInt32 TickCount(void);
+UInt32 GetTicks(void);
+void Delay(long numTicks, long* finalTicks);
+OSErr GetCurrentTime(UnsignedWide* currentTime);
 
-/**
- * Multiply and Merge utility
- *
- * Performs 32-bit by 32-bit multiplication with 64-bit intermediate result,
- * then merges selected bits to produce final 32-bit result.
- * Used for high-precision time conversions.
- *
- * @param multiplicand - First operand
- * @param multiplier - Second operand
- * @param mergeMask - Mask for selecting result bits
- * @return uint32_t - Merged result
- */
-uint32_t MultAndMerge(uint32_t multiplicand, uint32_t multiplier, uint32_t mergeMask);
+/* Time conversion utilities */
+long MillisecondsToTicks(long milliseconds);
+long TicksToMilliseconds(long ticks);
+long MicrosecondsToTicks(long microseconds);
+long TicksToMicroseconds(long ticks);
 
-/* ===== Time Manager Status Functions ===== */
+/* VBL task management */
+OSErr VInstall(QElemPtr vblTaskPtr);
+OSErr VRemove(QElemPtr vblTaskPtr);
+OSErr SetInterruptMask(short mask);
+OSErr GetInterruptMask(short* mask);
 
-/**
- * Get current Time Manager status
- *
- * @return bool - true if Time Manager is initialized and running
- */
-bool IsTimeMgrActive(void);
+/* Timer UPP creation and disposal */
+TimerUPP NewTimerUPP(TimerProcPtr userRoutine);
+void DisposeTimerUPP(TimerUPP userUPP);
+void InvokeTimerUPP(TMTaskPtr tmTaskPtr, TimerUPP userUPP);
 
-/**
- * Get number of active timer tasks
- *
- * @return int32_t - Number of tasks currently in the timer queue
- */
-int32_t GetActiveTaskCount(void);
+/* Drift-free timer functions */
+OSErr DriftFreeInstallTimeTask(ExtendedTimerPtr tmTaskPtr);
+OSErr DriftFreePrimeTimeTask(ExtendedTimerPtr tmTaskPtr,
+                             UnsignedWide* period);
 
-/**
- * Get current backlog time
- *
- * @return uint32_t - Current backlog in internal time units
- */
-uint32_t GetBacklogTime(void);
+/* Time Manager information */
+OSErr GetTimeManagerVersion(short* version);
+OSErr GetTimeManagerFeatures(long* features);
+Boolean TimeManagerAvailable(void);
 
-/* ===== Time Conversion Utilities ===== */
-
-/**
- * Convert milliseconds to internal time format
- *
- * @param milliseconds - Time in milliseconds
- * @return uint32_t - Time in internal format
- */
-uint32_t MillisecondsToInternal(uint32_t milliseconds);
-
-/**
- * Convert microseconds to internal time format
- *
- * @param microseconds - Time in microseconds
- * @return uint32_t - Time in internal format
- */
-uint32_t MicrosecondsToInternal(uint32_t microseconds);
-
-/**
- * Convert internal time to milliseconds
- *
- * @param internal - Time in internal format
- * @return uint32_t - Time in milliseconds
- */
-uint32_t InternalToMilliseconds(uint32_t internal);
-
-/**
- * Convert internal time to microseconds
- *
- * @param internal - Time in internal format
- * @return uint32_t - Time in microseconds
- */
-uint32_t InternalToMicroseconds(uint32_t internal);
+/* Debugging and statistics */
+long GetActiveTimerCount(void);
+OSErr GetTimerInfo(QElemPtr tmTaskPtr, long* timeRemaining);
+void DumpTimerQueue(void);
 
 #ifdef __cplusplus
 }
