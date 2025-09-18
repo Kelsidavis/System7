@@ -91,6 +91,7 @@ CALCULATOR_SRCS = $(wildcard $(SRC_DIR)/Calculator/*.c)
 DESKMGR_SRCS = $(wildcard $(SRC_DIR)/DeskManager/*.c)
 STANDARDFILE_SRCS = $(wildcard $(SRC_DIR)/StandardFile/*.c)
 COLORMANAGER_SRCS = $(wildcard $(SRC_DIR)/ColorManager/*.c)
+HELPMANAGER_SRCS = $(wildcard $(SRC_DIR)/HelpManager/*.c)
 
 # All core sources
 ALL_SRCS = $(ADB_SRCS) $(DEVICE_SRCS) $(DIALOG_SRCS) $(EDITION_SRCS) \
@@ -100,7 +101,7 @@ ALL_SRCS = $(ADB_SRCS) $(DEVICE_SRCS) $(DIALOG_SRCS) $(EDITION_SRCS) \
            $(FINDER_SRCS) $(DATETIME_SRCS) $(CHOOSER_SRCS) $(GESTALT_SRCS) \
            $(FONTRES_SRCS) $(CONTROL_SRCS) $(QUICKDRAW_SRCS) $(TEXTEDIT_SRCS) \
            $(SCRAP_SRCS) $(LIST_SRCS) $(CALCULATOR_SRCS) $(DESKMGR_SRCS) \
-           $(STANDARDFILE_SRCS) $(COLORMANAGER_SRCS)
+           $(STANDARDFILE_SRCS) $(COLORMANAGER_SRCS) $(HELPMANAGER_SRCS)
 
 # Object files
 ALL_OBJS = $(ALL_SRCS:$(SRC_DIR)/%.c=$(BUILD_DIR)/%.o)
