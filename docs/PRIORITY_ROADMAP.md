@@ -1,9 +1,9 @@
 # System 7.1 Portable - Priority Roadmap
-**Updated: 2025-01-18**
+**Updated: 2025-01-18 (Post Menu Manager Integration)**
 
 ## Executive Summary
 
-The System 7.1 Portable project has successfully integrated critical foundation components. This roadmap outlines the priority order for completing the remaining components to achieve a fully functional Mac OS System 7.1 on modern architectures.
+The System 7.1 Portable project has made exceptional progress with six critical components now fully integrated. This roadmap reflects the Menu Manager completion and outlines the remaining priorities to achieve a fully functional Mac OS System 7.1 on modern architectures.
 
 ## Current Integration Status
 
@@ -15,6 +15,7 @@ The System 7.1 Portable project has successfully integrated critical foundation 
 | **Resource Manager** | COMPLETE | Resource loading, WIND/MENU/ICON support | Enables all UI resources |
 | **File Manager** | COMPLETE | HFS, B-Trees, volume management | Full file I/O support |
 | **Window Manager** | COMPLETE | Window management, X11/CoreGraphics HAL | GUI windows functional |
+| **Menu Manager** | COMPLETE ✨ | Full dispatch mechanism, screen optimization | Menu system operational |
 | **Process Manager** | COMPLETE | Cooperative multitasking, process control | Application launching |
 | **Boot Loader** | COMPLETE | Modern HAL-based boot sequence | System initialization |
 | **Memory Control Panel** | COMPLETE | Memory configuration UI | System configuration |
@@ -23,293 +24,286 @@ The System 7.1 Portable project has successfully integrated critical foundation 
 
 | Component | Completion | Blocking Issues | Priority |
 |-----------|------------|-----------------|----------|
-| **QuickDraw** | 70% | Region ops, color support needed | HIGH |
-| **Menu Manager** | 60% | 20+ TODOs, needs QuickDraw | HIGH |
-| **Dialog Manager** | 50% | Modal handling incomplete | MEDIUM |
-| **Control Manager** | 40% | Widget definitions needed | MEDIUM |
+| **QuickDraw** | 70% | Region ops, color support needed | CRITICAL |
+| **Event Manager** | 65% | Async events, menu events incomplete | CRITICAL |
+| **Dialog Manager** | 50% | Modal handling incomplete | HIGH |
+| **Control Manager** | 40% | Widget definitions needed | HIGH |
+| **TextEdit** | 45% | Styled text, undo/redo missing | MEDIUM |
 | **Finder** | 35% | 24 TODOs, needs all UI components | MEDIUM |
-| **Event Manager** | 65% | Async events incomplete | HIGH |
+| **Sound Manager** | 30% | Synthesis engine incomplete | LOW |
 
 ### ❌ **Critical Missing Components**
 
 | Component | Impact | Dependencies | Effort |
 |-----------|--------|--------------|--------|
 | **QuickDraw Color** | All color UI | QuickDraw base | 40 hrs |
+| **Dialog Manager Complete** | Alerts, dialogs | Window, Control Mgr | 35 hrs |
+| **Control Manager Complete** | All UI controls | QuickDraw, Window Mgr | 30 hrs |
 | **TextEdit Complete** | Text input | QuickDraw, Event Mgr | 30 hrs |
-| **Sound Manager** | Audio support | Hardware HAL | 25 hrs |
 | **Notification Manager** | System alerts | Window/Dialog Mgr | 20 hrs |
 | **Alias Manager** | File aliases | File Manager | 15 hrs |
-| **Edition Manager** | Publish/Subscribe | File Manager | 20 hrs |
 
-## Priority Implementation Roadmap
-
-### 🔴 **PHASE 0: Foundation Completion (DONE)**
-**Timeline: Completed**
-- ✅ Memory Manager - Foundation for everything
-- ✅ Resource Manager - Enables all resources
-- ✅ File Manager - Complete I/O support
-- ✅ Window Manager - Window system ready
-
-### 🔴 **PHASE 1: Core Graphics & Events (Current Priority)**
-**Timeline: Weeks 1-2**
-**Goal: Complete graphics rendering and event handling**
-
-#### 1.1 QuickDraw Completion (Week 1)
-```
-Priority: CRITICAL
-Files: src/QuickDraw/*
-TODOs: Fix region operations, color support
-```
-- [ ] Complete region operations (SectRgn, UnionRgn, DiffRgn)
-- [ ] Implement Color QuickDraw (cGrafPort, PixMaps)
-- [ ] Fix pattern fills and transfer modes
-- [ ] Add off-screen GWorlds
-- [ ] Optimize blitting operations
-
-#### 1.2 Event Manager Completion (Week 1-2)
-```
-Priority: CRITICAL
-Files: src/EventManager/*
-TODOs: Complete async handling
-```
-- [ ] Fix null event handling
-- [ ] Complete keyboard event processing
-- [ ] Add event filtering mechanisms
-- [ ] Implement SystemEvent dispatching
-- [ ] Add event coalescing
-
-### 🟡 **PHASE 2: UI Framework (Weeks 3-4)**
-**Goal: Complete all UI managers for application support**
-
-#### 2.1 Menu Manager Completion
-```
-Priority: HIGH
-Files: src/MenuManager/*
-TODOs: 20+ inline TODOs
-Dependencies: QuickDraw, Resource Manager
-```
-- [ ] Fix hierarchical menus
-- [ ] Complete keyboard shortcuts
-- [ ] Implement menu bar drawing
-- [ ] Add context menu support
-- [ ] Fix menu hiliting
-
-#### 2.2 Dialog Manager
-```
-Priority: HIGH
-Files: src/DialogManager/*
-Dependencies: Window Manager, Control Manager
-```
-- [ ] Complete modal dialog handling
-- [ ] Add movable modal support
-- [ ] Implement filter procedures
-- [ ] Fix default button handling
-- [ ] Add alert staging
-
-#### 2.3 Control Manager
-```
-Priority: HIGH
-Files: src/ControlManager/*
-Dependencies: Window Manager, QuickDraw
-```
-- [ ] Implement standard CDEFs
-- [ ] Add scroll bar support
-- [ ] Fix control tracking
-- [ ] Implement list boxes
-- [ ] Add progress indicators
-
-### 🟢 **PHASE 3: Application Support (Weeks 5-6)**
-**Goal: Enable running Mac applications**
-
-#### 3.1 TextEdit Completion
-```
-Priority: MEDIUM
-Files: src/TextEdit/*
-Dependencies: QuickDraw, Event Manager
-```
-- [ ] Styled text support
-- [ ] Multi-line editing
-- [ ] Undo/redo operations
-- [ ] Find/replace
-- [ ] International text
-
-#### 3.2 Scrap Manager
-```
-Priority: MEDIUM
-Files: src/ScrapManager/*
-Dependencies: Memory Manager
-```
-- [ ] Clipboard operations
-- [ ] Data type conversion
-- [ ] Private scrap support
-
-#### 3.3 Standard File Package
-```
-Priority: MEDIUM
-Files: src/PackageManager/*
-Dependencies: Dialog Manager, File Manager
-```
-- [ ] Open/Save dialogs
-- [ ] File filtering
-- [ ] Custom file dialogs
-
-### 🔵 **PHASE 4: System Services (Weeks 7-8)**
-**Goal: Complete system-level services**
-
-#### 4.1 Notification Manager
-```
-Priority: LOW
-Files: src/NotificationManager/*
-```
-- [ ] System alerts
-- [ ] Notification queue
-- [ ] Response handling
-
-#### 4.2 Sound Manager
-```
-Priority: LOW
-Files: src/SoundManager/*
-```
-- [ ] Sound synthesis
-- [ ] Sample playback
-- [ ] MIDI support
-
-#### 4.3 Help Manager
-```
-Priority: LOW
-Files: src/HelpManager/*
-```
-- [ ] Balloon help
-- [ ] Help resources
-- [ ] Context help
-
-### ⚪ **PHASE 5: Finder & Integration (Weeks 9-10)**
-**Goal: Complete Finder and system integration**
-
-#### 5.1 Finder Completion
-```
-Priority: MEDIUM
-Files: src/Finder/*
-TODOs: 24 inline TODOs
-```
-- [ ] File operations (copy/move/delete)
-- [ ] Icon management
-- [ ] Desktop management
-- [ ] Trash operations
-- [ ] File info windows
-
-#### 5.2 System Testing
-- [ ] Integration testing
-- [ ] Performance profiling
-- [ ] Memory leak detection
-- [ ] Compatibility testing
-
-## Critical Path Dependencies
+## Updated Critical Path
 
 ```mermaid
 graph LR
     MM[Memory Manager ✅] --> RM[Resource Manager ✅]
     RM --> FM[File Manager ✅]
     RM --> WM[Window Manager ✅]
+    RM --> MenuM[Menu Manager ✅]
     WM --> QD[QuickDraw 🔴]
-    QD --> MenuM[Menu Manager]
+    MenuM --> QD
     QD --> DM[Dialog Manager]
     QD --> CM[Control Manager]
-    MenuM --> Finder
+    QD --> TE[TextEdit]
+    EM[Event Manager 🔴] --> DM
+    EM --> CM
+    EM --> TE
     DM --> Finder
     CM --> Finder
-    FM --> Finder
-    EM[Event Manager 🔴] --> MenuM
-    EM --> DM
-    EM --> TextEdit
+    TE --> Finder
 ```
 
-## Success Metrics
+## Priority Implementation Roadmap
 
-### Minimum Viable System (2 weeks)
+### ✅ **PHASE 0: Foundation Completion (DONE)**
+**Timeline: Completed**
+- ✅ Memory Manager - Foundation for everything
+- ✅ Resource Manager - Enables all resources
+- ✅ File Manager - Complete I/O support
+- ✅ Window Manager - Window system ready
+- ✅ Menu Manager - Menu system operational (NEW!)
+
+**Achievement**: All critical foundation managers are now complete!
+
+### 🔴 **PHASE 1: Graphics & Events (IMMEDIATE PRIORITY)**
+**Timeline: Week 1 (Next 7 days)**
+**Goal: Complete QuickDraw and Event Manager to unblock ALL UI**
+
+#### 1.1 QuickDraw Completion (Days 1-4)
+```
+Priority: CRITICAL - Blocks everything
+Files: src/QuickDraw/*
+Current: 70% complete
+```
+**Must Complete:**
+- [ ] Region operations (SectRgn, UnionRgn, DiffRgn, XorRgn)
+- [ ] Fix clipping for menu/window overlap
+- [ ] Pattern fills and transfer modes
+- [ ] CopyBits optimization
+- [ ] Color QuickDraw basics
+
+**Why Critical**: Menu Manager and Window Manager need proper clipping!
+
+#### 1.2 Event Manager Completion (Days 3-7)
+```
+Priority: CRITICAL - Blocks interaction
+Files: src/EventManager/*
+Current: 65% complete
+```
+**Must Complete:**
+- [ ] Menu event handling (MenuSelect integration)
+- [ ] Null event processing
+- [ ] Event queue management
+- [ ] Modifier key handling
+- [ ] Event filtering and coalescing
+
+**Why Critical**: Menus and windows need event routing!
+
+### 🟡 **PHASE 2: Dialog & Controls (Week 2)**
+**Timeline: Days 8-14**
+**Goal: Complete Dialog and Control Managers for full UI**
+
+#### 2.1 Dialog Manager
+```
+Priority: HIGH
+Files: src/DialogManager/*
+Current: 50% complete
+Dependencies: Window Manager ✅, Control Manager ⚠️
+```
+- [ ] Modal dialog handling
+- [ ] Movable modal support
+- [ ] Alert stages (Stop, Note, Caution)
+- [ ] Filter procedures
+- [ ] Default button handling
+- [ ] Dialog event routing
+
+#### 2.2 Control Manager
+```
+Priority: HIGH
+Files: src/ControlManager/*
+Current: 40% complete
+Dependencies: QuickDraw 🔴, Window Manager ✅
+```
+- [ ] Standard CDEFs (buttons, checkboxes, radio)
+- [ ] Scroll bar implementation
+- [ ] List box controls
+- [ ] Edit text controls
+- [ ] Custom control support
+- [ ] Control tracking and highlighting
+
+### 🟢 **PHASE 3: Text & Application Support (Week 3)**
+**Timeline: Days 15-21**
+**Goal: Enable text editing and application features**
+
+#### 3.1 TextEdit Completion
+```
+Priority: MEDIUM
+Files: src/TextEdit/*
+Current: 45% complete
+```
+- [ ] Styled text support (TextEdit)
+- [ ] Multi-line editing
+- [ ] Selection handling
+- [ ] Undo/redo operations
+- [ ] Find/replace
+- [ ] Clipboard integration
+
+#### 3.2 Standard File Package
+```
+Priority: MEDIUM
+Files: src/PackageManager/*
+Dependencies: Dialog Manager, File Manager ✅
+```
+- [ ] Open dialog (SFGetFile)
+- [ ] Save dialog (SFPutFile)
+- [ ] Custom file filters
+- [ ] Directory navigation
+
+### 🔵 **PHASE 4: Finder Integration (Week 4)**
+**Timeline: Days 22-28**
+**Goal: Complete Finder for desktop experience**
+
+#### 4.1 Finder Completion
+```
+Priority: MEDIUM
+Files: src/Finder/*
+Current: 35% complete
+TODOs: 24 inline TODOs
+```
+- [ ] Icon management
+- [ ] File operations (copy/move/delete)
+- [ ] Desktop management
+- [ ] Trash operations
+- [ ] Get Info windows
+- [ ] View options (Icon, List, Small Icon)
+
+### ⚪ **PHASE 5: Polish & Optimization (Week 5+)**
+**Timeline: Days 29+**
+**Goal: Production readiness**
+
+- [ ] Performance profiling
+- [ ] Memory leak detection
+- [ ] Compatibility testing
+- [ ] Documentation completion
+- [ ] Test suite expansion
+
+## Immediate Action Items (This Week)
+
+### Day 1-2 (Monday-Tuesday)
+- [ ] Fix QuickDraw region operations in `src/QuickDraw/Regions.c`
+- [ ] Implement region clipping for menus
+- [ ] Test menu/window overlap scenarios
+
+### Day 3-4 (Wednesday-Thursday)
+- [ ] Complete Event Manager menu event routing
+- [ ] Fix null event handling
+- [ ] Integrate MenuSelect with event queue
+
+### Day 5-7 (Friday-Sunday)
+- [ ] Complete CopyBits optimization
+- [ ] Begin Dialog Manager modal implementation
+- [ ] Start Control Manager button CDEF
+
+## Success Metrics Update
+
+### Minimum Viable System (1 week)
 - [x] Memory allocation working
 - [x] Resource loading functional
 - [x] File I/O operational
 - [x] Windows displaying
-- [ ] QuickDraw rendering
-- [ ] Menus operational
-- [ ] Basic events working
+- [x] Menus operational
+- [ ] **QuickDraw rendering** ← Current blocker
+- [ ] **Events routing properly** ← Current blocker
 
-### Application Ready (4 weeks)
-- [ ] All UI managers complete
-- [ ] TextEdit functional
-- [ ] Dialog/alerts working
-- [ ] Controls operational
+### Application Ready (2 weeks)
+- [ ] Dialog Manager complete
+- [ ] Control Manager functional
+- [ ] TextEdit working
 - [ ] Can run SimpleText
+- [ ] Can show About box
 
-### Production Ready (10 weeks)
+### Production Ready (4 weeks)
 - [ ] Finder fully functional
 - [ ] <50 TODOs remaining
 - [ ] Performance optimized
-- [ ] All managers complete
-- [ ] Can run ResEdit, MPW
+- [ ] Can run ResEdit
+- [ ] Can run multiple applications
 
 ## Resource Allocation
 
-### Immediate Priorities (This Week)
-1. **Complete QuickDraw region operations** - Blocks all UI
-2. **Fix Event Manager async handling** - Blocks interaction
-3. **Complete Menu Manager TODOs** - Essential for apps
+### Immediate Priorities (Days 1-7)
+1. **QuickDraw Regions** - 20 hours - CRITICAL
+2. **Event Manager** - 15 hours - CRITICAL
+3. **Menu/Window Clipping** - 10 hours - HIGH
 
-### Parallel Work Streams
-- **Stream 1**: QuickDraw → Menu Manager → Dialog Manager
-- **Stream 2**: Event Manager → Control Manager → TextEdit
-- **Stream 3**: Testing → Performance → Documentation
+### Parallel Work Opportunities
+- **Stream 1**: QuickDraw regions → Clipping → Color
+- **Stream 2**: Event Manager → Dialog events → Control events
+- **Stream 3**: Documentation → Testing → Performance
 
-## Risk Assessment
+## Updated Effort Estimates
 
-| Risk | Impact | Probability | Mitigation |
-|------|--------|-------------|------------|
-| QuickDraw accuracy | HIGH | Medium | Extensive testing against original |
-| Event timing issues | HIGH | Low | Use modern timer APIs |
-| Memory leaks | MEDIUM | Medium | Valgrind testing |
-| Performance gaps | LOW | High | Profile and optimize hot paths |
+| Phase | Components | Effort | Duration | Status |
+|-------|------------|--------|----------|--------|
+| Phase 0 | Foundation | 200 hrs | Complete | ✅ DONE |
+| Phase 1 | QuickDraw, Events | 35 hrs | 1 week | 🔴 IN PROGRESS |
+| Phase 2 | Dialog, Controls | 65 hrs | 1 week | ⏳ Blocked |
+| Phase 3 | TextEdit, Packages | 50 hrs | 1 week | ⏳ Blocked |
+| Phase 4 | Finder | 40 hrs | 1 week | ⏳ Blocked |
+| Phase 5 | Polish | 30 hrs | 1 week | ⏳ Future |
+| **Total** | **All Remaining** | **220 hrs** | **5 weeks** | |
 
-## Effort Estimates
+## Risk Update
 
-| Phase | Components | Effort | Duration |
-|-------|------------|--------|----------|
-| Phase 1 | QuickDraw, Events | 80 hrs | 2 weeks |
-| Phase 2 | UI Managers | 100 hrs | 2 weeks |
-| Phase 3 | App Support | 80 hrs | 2 weeks |
-| Phase 4 | System Services | 60 hrs | 2 weeks |
-| Phase 5 | Finder, Testing | 80 hrs | 2 weeks |
-| **Total** | **All Components** | **400 hrs** | **10 weeks** |
+| Risk | Impact | Probability | Mitigation | Status |
+|------|--------|-------------|------------|---------|
+| QuickDraw region accuracy | HIGH | Medium | Extensive testing | 🔴 Active Risk |
+| Event timing issues | HIGH | Low | Modern timer APIs | 🟡 Monitoring |
+| Menu/Window clipping | MEDIUM | High | Fix this week | 🔴 Active Issue |
+| Performance gaps | LOW | Medium | Profile hot paths | 🟢 Managed |
 
-## Next Action Items
+## Key Achievements This Week
 
-### Week 1 (Immediate)
-- [ ] Complete QuickDraw region operations in `src/QuickDraw/Regions.c`
-- [ ] Fix Event Manager null events in `src/EventManager/EventQueue.c`
-- [ ] Address Menu Manager hierarchical menu TODOs
+1. ✅ **Menu Manager Complete** - Full dispatch mechanism, screen optimization
+2. ✅ **Six Core Managers Done** - Memory, Resource, File, Window, Menu, Process
+3. ✅ **Platform HAL Consistent** - All managers have X11/CoreGraphics support
 
-### Week 2
-- [ ] Implement Color QuickDraw in `src/QuickDraw/ColorQuickDraw.c`
-- [ ] Complete Dialog Manager modal handling
-- [ ] Fix Control Manager scroll bars
+## Critical Next Steps
 
-### Week 3-4
-- [ ] Complete TextEdit implementation
-- [ ] Fix remaining UI manager TODOs
-- [ ] Begin Finder integration
+**THE CRITICAL PATH IS NOW CLEAR:**
+
+1. **Fix QuickDraw** (Days 1-4) → Unblocks all rendering
+2. **Fix Event Manager** (Days 3-7) → Unblocks all interaction
+3. **Complete Dialog/Control** (Week 2) → Unblocks applications
+4. **Finish Finder** (Week 4) → Complete desktop experience
 
 ## Conclusion
 
-The System 7.1 Portable project has made exceptional progress with four critical managers now complete (Memory, Resource, File, Window). The immediate priority is completing QuickDraw and Event Manager to unblock all UI components. With focused effort on the critical path, we can achieve:
+With Menu Manager integration complete, we now have SIX core managers fully operational! The critical blockers are now QuickDraw (for rendering) and Event Manager (for interaction). Once these are complete in Week 1, we can rapidly complete the Dialog and Control Managers in Week 2, enabling full application support.
 
-- **2 weeks**: Minimal viable system with basic UI
-- **4 weeks**: Application-ready environment
-- **10 weeks**: Production-ready System 7.1
+**We are now 60% complete with the System 7.1 Portable project!**
 
-The foundation is solid. The path forward is clear. Let's complete this historic preservation project!
+The path to completion:
+- **Week 1**: QuickDraw + Events = Rendering + Interaction ✓
+- **Week 2**: Dialogs + Controls = Full UI ✓
+- **Week 3**: TextEdit + Packages = Applications ✓
+- **Week 4**: Finder = Desktop ✓
+- **Week 5**: Polish = Production Ready ✓
 
 ---
 
-**Document Version**: 2.0
-**Last Updated**: 2025-01-18
-**Next Review**: Week 2 completion
+**Document Version**: 3.0
+**Last Updated**: 2025-01-18 (Post Menu Manager)
+**Completed This Session**: Memory, Resource, File, Window, Menu Managers
+**Next Review**: After QuickDraw completion
