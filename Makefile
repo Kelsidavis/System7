@@ -54,7 +54,7 @@ CORE_MODULES = ADBManager DeviceManager DialogManager EditionManager \
                Finder Datetime Chooser GestaltManager FontResources \
                ControlManager QuickDraw TextEdit ScrapManager ListManager \
                Calculator DeskManager StandardFile ColorManager PackageManager \
-               TimeManager
+               TimeManager Resources
 
 # Find all source files organized by module
 define find_module_sources
@@ -84,7 +84,9 @@ CHOOSER_SRCS = $(wildcard $(SRC_DIR)/Chooser/*.c)
 GESTALT_SRCS = $(wildcard $(SRC_DIR)/GestaltManager/*.c)
 FONTRES_SRCS = $(wildcard $(SRC_DIR)/FontResources/*.c)
 CONTROL_SRCS = $(wildcard $(SRC_DIR)/ControlManager/*.c)
-QUICKDRAW_SRCS = $(wildcard $(SRC_DIR)/QuickDraw/*.c)
+QUICKDRAW_SRCS = $(wildcard $(SRC_DIR)/QuickDraw/*.c) \
+                $(SRC_DIR)/QuickDraw/CursorManager.c \
+                $(SRC_DIR)/QuickDraw/PatternManager.c
 TEXTEDIT_SRCS = $(wildcard $(SRC_DIR)/TextEdit/*.c)
 SCRAP_SRCS = $(wildcard $(SRC_DIR)/ScrapManager/*.c)
 LIST_SRCS = $(wildcard $(SRC_DIR)/ListManager/*.c)
@@ -95,6 +97,7 @@ COLORMANAGER_SRCS = $(wildcard $(SRC_DIR)/ColorManager/*.c)
 HELPMANAGER_SRCS = $(wildcard $(SRC_DIR)/HelpManager/*.c)
 PACKAGEMANAGER_SRCS = $(wildcard $(SRC_DIR)/PackageManager/*.c)
 TIMEMANAGER_SRCS = $(wildcard $(SRC_DIR)/TimeManager/*.c)
+RESOURCES_SRCS = $(wildcard $(SRC_DIR)/Resources/*.c)
 
 # All core sources
 ALL_SRCS = $(ADB_SRCS) $(DEVICE_SRCS) $(DIALOG_SRCS) $(EDITION_SRCS) \
@@ -105,7 +108,7 @@ ALL_SRCS = $(ADB_SRCS) $(DEVICE_SRCS) $(DIALOG_SRCS) $(EDITION_SRCS) \
            $(FONTRES_SRCS) $(CONTROL_SRCS) $(QUICKDRAW_SRCS) $(TEXTEDIT_SRCS) \
            $(SCRAP_SRCS) $(LIST_SRCS) $(CALCULATOR_SRCS) $(DESKMGR_SRCS) \
            $(STANDARDFILE_SRCS) $(COLORMANAGER_SRCS) $(HELPMANAGER_SRCS) \
-           $(PACKAGEMANAGER_SRCS) $(TIMEMANAGER_SRCS)
+           $(PACKAGEMANAGER_SRCS) $(TIMEMANAGER_SRCS) $(RESOURCES_SRCS)
 
 # Object files
 ALL_OBJS = $(ALL_SRCS:$(SRC_DIR)/%.c=$(BUILD_DIR)/%.o)

@@ -25,6 +25,7 @@
 #include "../../include/SoundManager/SoundTypes.h"
 #include "../../include/SoundManager/SoundSynthesis.h"
 #include "../../include/SoundManager/SoundHardware.h"
+#include "../../include/Resources/ResourceData.h"
 
 /* Sound Manager Global State */
 static SoundManagerGlobals g_soundMgr = {
@@ -547,6 +548,41 @@ void GetDefaultOutputVolume(int32_t* level)
 OSErr SetDefaultOutputVolume(int32_t level)
 {
     return SetSysBeepVolume(level);
+}
+
+/*
+ * System Beep
+ * Plays the system beep sound from embedded resources
+ */
+void SysBeep(short duration)
+{
+    static Boolean resourcesInitialized = false;
+
+    /* Initialize resources if needed */
+    if (!resourcesInitialized) {
+        InitResourceData();
+        resourcesInitialized = true;
+    }
+
+    /* Try to play the embedded system beep */
+    OSErr err = PlayResourceSound(kSystemBeepID);
+
+    /* If resource sound fails, fall back to simple tone */
+    if (err != noErr && g_soundMgr.initialized) {
+        /* Generate a simple 1kHz beep */
+        SndCommand cmd;
+        cmd.cmd = freqCmd;
+        cmd.param1 = duration > 0 ? duration : 6;  /* Duration in ticks (60Hz) */
+        cmd.param2 = 0x0400;  /* 1kHz frequency */
+
+        if (g_legacyChannel == NULL) {
+            SndNewChannel(&g_legacyChannel, sampledSynth, 0, NULL);
+        }
+
+        if (g_legacyChannel != NULL) {
+            SndDoImmediate(g_legacyChannel, &cmd);
+        }
+    }
 }
 
 /*

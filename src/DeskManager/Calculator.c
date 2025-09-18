@@ -10,6 +10,7 @@
 
 #include "DeskManager/Calculator.h"
 #include "DeskManager/DeskManager.h"
+#include "Resources/ResourceData.h"
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
@@ -966,10 +967,16 @@ static int Calculator_DAOpen(DeskAccessory *da)
 {
     if (!da) return DESK_ERR_INVALID_PARAM;
 
+    /* Initialize resource data for icon access */
+    InitResourceData();
+
     /* Create window */
     DAWindowAttr attr;
     DA_LoadWindowTemplate(DA_RESID_CALCULATOR, &attr);
     strcpy(attr.title, "Calculator");
+
+    /* Set calculator icon for the window */
+    attr.iconID = kCalculatorIconID;
 
     return DA_CreateWindow(da, &attr);
 }
