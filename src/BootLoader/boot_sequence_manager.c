@@ -8,6 +8,7 @@
  */
 
 #include "../../include/BootLoader/boot_loader.h"
+#include "../../include/StartupScreen/StartupScreen.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -95,68 +96,116 @@ static StartupConfig gBootConfig = {0};
 void BootSequenceManager(void)
 {
     OSErr err = noErr;
+    StartupScreenConfig startupConfig = {0};
+    StartupProgress progress = {0};
+
+    /* Initialize startup screen with default config */
+    startupConfig.showWelcome = true;
+    startupConfig.showExtensions = true;
+    startupConfig.showProgress = true;
+    startupConfig.welcomeDuration = 120;  /* 2 seconds */
+    startupConfig.enableSound = true;
+
+    err = InitStartupScreen(&startupConfig);
+    if (err == noErr) {
+        ShowWelcomeScreen();
+    }
 
     /* Stage 1: Initialize system information
      * EVIDENCE: string@vaddr:49 "SystemS", string@vaddr:60 "ZSYSMACS1"
      */
+    progress.phase = kStartupPhaseInit;
+    progress.currentItem = 0;
+    progress.totalItems = 7;
+    progress.percentComplete = 10;
+    UpdateStartupProgress(&progress);
+
     err = InitializeSystemInfo(&gSystemInfo);
     if (err != noErr) {
         /* EVIDENCE: Boot dialog functionality from string evidence */
-        BootDialog dialog = {0};
-        dialog.dialog_type = kDialogTypeError;
-        dialog.message_text = "\pSystem initialization failed";
-        ShowBootDialog(&dialog);
+        ShowStartupError("\pSystem initialization failed", err);
+        CleanupStartupScreen();
         return;
     }
 
     /* Stage 2: Set up memory management
      * EVIDENCE: r2_aflj_system.rsrc@78281 (fcn.000131c9)
      */
+    progress.percentComplete = 20;
+    UpdateStartupProgress(&progress);
     MemorySetup();
 
     /* Stage 3: Validate system requirements
      * EVIDENCE: string@vaddr:8756 "System 6.0.7 requires version 1.2 or later"
      */
+    progress.percentComplete = 30;
+    UpdateStartupProgress(&progress);
+
     err = ValidateSystemRequirements();
     if (err != noErr) {
-        BootDialog dialog = {0};
-        dialog.dialog_type = kDialogTypeError;
-        dialog.message_text = "\pSystem requirements not met";
-        ShowBootDialog(&dialog);
+        ShowStartupError("\pSystem requirements not met", err);
+        CleanupStartupScreen();
         return;
     }
 
-    /* Stage 4: Initialize hardware devices
+    /* Stage 4: Initialize hardware devices and load extensions
      * EVIDENCE: r2_aflj_system.rsrc@11469 (fcn.00002ccd) - DeviceManager
      * Complex function with 4 parameters for device initialization
      */
+    progress.phase = kStartupPhaseExtensions;
+    progress.percentComplete = 40;
+    UpdateStartupProgress(&progress);
+
     if (gBootConfig.device_list != NULL) {
+        BeginExtensionLoading(gBootConfig.device_count);
+
         for (UInt16 i = 0; i < gBootConfig.device_count; i++) {
             DeviceSpec *device = &gBootConfig.device_list[i];
+
+            /* Show extension loading */
+            ExtensionInfo extInfo = {0};
+            sprintf((char*)&extInfo.name[1], "Device %d", i);
+            extInfo.name[0] = strlen((char*)&extInfo.name[1]);
+            extInfo.iconID = 0;  /* Generic icon */
+
             err = DeviceManager(device, device->device_type,
                               device->config_handle, device->user_data);
+            extInfo.error = err;
+            extInfo.loaded = (err == noErr);
+
+            ShowLoadingExtension(&extInfo);
+
             if (err != noErr) {
                 /* Continue with partial initialization - non-fatal */
                 continue;
             }
         }
+
+        EndExtensionLoading();
     }
 
     /* Stage 5: Load system resources
      * EVIDENCE: r2_aflj_system.rsrc@109086 (fcn.0001aa1e) - ResourceLoader
      */
+    progress.phase = kStartupPhaseDrivers;
+    progress.percentComplete = 60;
+    UpdateStartupProgress(&progress);
+
+    ShowStartupItem("\pLoading Resources", 0);
+
     Handle resourceHandle = ResourceLoader();
     if (resourceHandle == NULL) {
-        BootDialog dialog = {0};
-        dialog.dialog_type = kDialogTypeError;
-        dialog.message_text = "\pCould not load system resources";
-        ShowBootDialog(&dialog);
+        ShowStartupError("\pCould not load system resources", resNotFound);
+        CleanupStartupScreen();
         return;
     }
 
     /* Stage 6: Handle startup disk selection if needed
      * EVIDENCE: startup_disk.rsrc strings and UI functionality
      */
+    progress.percentComplete = 80;
+    UpdateStartupProgress(&progress);
+
     DiskInfo *availableDisks = NULL;
     UInt16 diskCount = 0;
     err = EnumerateStartupDisks(&availableDisks, &diskCount);
@@ -169,10 +218,26 @@ void BootSequenceManager(void)
         }
     }
 
-    /* Stage 7: Final system initialization complete
+    /* Stage 7: Final system initialization complete - Launch Finder
      * EVIDENCE: Complex 33-block structure suggests multi-stage init
      * At this point, system is ready for Finder launch
      */
+    progress.phase = kStartupPhaseFinder;
+    progress.percentComplete = 90;
+    UpdateStartupProgress(&progress);
+
+    ShowStartupItem("\pStarting Finder", kFolderIcon16ID);
+
+    /* Brief pause before hiding startup screen */
+    Delay(30, NULL);
+
+    /* Complete startup */
+    progress.phase = kStartupPhaseComplete;
+    progress.percentComplete = 100;
+    UpdateStartupProgress(&progress);
+
+    /* Cleanup startup screen */
+    CleanupStartupScreen();
 }
 
 /* PROVENANCE: mappings.boot_loader.json->SystemInitializer

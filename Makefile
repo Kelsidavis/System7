@@ -54,7 +54,7 @@ CORE_MODULES = ADBManager DeviceManager DialogManager EditionManager \
                Finder Datetime Chooser GestaltManager FontResources \
                ControlManager QuickDraw TextEdit ScrapManager ListManager \
                Calculator DeskManager StandardFile ColorManager PackageManager \
-               TimeManager Resources
+               TimeManager Resources StartupScreen BootLoader
 
 # Find all source files organized by module
 define find_module_sources
@@ -98,6 +98,8 @@ HELPMANAGER_SRCS = $(wildcard $(SRC_DIR)/HelpManager/*.c)
 PACKAGEMANAGER_SRCS = $(wildcard $(SRC_DIR)/PackageManager/*.c)
 TIMEMANAGER_SRCS = $(wildcard $(SRC_DIR)/TimeManager/*.c)
 RESOURCES_SRCS = $(wildcard $(SRC_DIR)/Resources/*.c)
+STARTUPSCREEN_SRCS = $(wildcard $(SRC_DIR)/StartupScreen/*.c)
+BOOTLOADER_SRCS = $(wildcard $(SRC_DIR)/BootLoader/*.c)
 
 # All core sources
 ALL_SRCS = $(ADB_SRCS) $(DEVICE_SRCS) $(DIALOG_SRCS) $(EDITION_SRCS) \
@@ -108,7 +110,8 @@ ALL_SRCS = $(ADB_SRCS) $(DEVICE_SRCS) $(DIALOG_SRCS) $(EDITION_SRCS) \
            $(FONTRES_SRCS) $(CONTROL_SRCS) $(QUICKDRAW_SRCS) $(TEXTEDIT_SRCS) \
            $(SCRAP_SRCS) $(LIST_SRCS) $(CALCULATOR_SRCS) $(DESKMGR_SRCS) \
            $(STANDARDFILE_SRCS) $(COLORMANAGER_SRCS) $(HELPMANAGER_SRCS) \
-           $(PACKAGEMANAGER_SRCS) $(TIMEMANAGER_SRCS) $(RESOURCES_SRCS)
+           $(PACKAGEMANAGER_SRCS) $(TIMEMANAGER_SRCS) $(RESOURCES_SRCS) \
+           $(STARTUPSCREEN_SRCS) $(BOOTLOADER_SRCS)
 
 # Object files
 ALL_OBJS = $(ALL_SRCS:$(SRC_DIR)/%.c=$(BUILD_DIR)/%.o)
