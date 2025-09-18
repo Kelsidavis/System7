@@ -1,0 +1,121 @@
+# System 7.1 Portable - Git Ignore Rules
+# =====================================
+
+# Build artifacts
+build/
+*.o
+*.obj
+*.a
+*.so
+*.dylib
+*.dll
+*.lib
+*.exe
+
+# Generated binaries
+test_*
+*_test
+example_*
+*_example
+
+# Temporary files
+*.tmp
+*.temp
+*~
+.#*
+\#*#
+
+# IDE and editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# Debug information
+*.dSYM/
+*.pdb
+*.map
+
+# Backup files
+*.bak
+*.backup
+*.orig
+*.save
+
+# Log files
+*.log
+*.out
+*.err
+
+# Resource compilation artifacts
+*.rsrc.o
+*.r.o
+
+# Platform-specific
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+Icon?
+._*
+
+# Linux
+*~
+.fuse_hidden*
+.directory
+.Trash-*
+.nfs*
+
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+
+# Documentation build artifacts
+docs/generated/
+*.pdf
+*.html
+
+# Package artifacts
+*.tar.gz
+*.zip
+*.dmg
+*.pkg
+*.deb
+*.rpm
+
+# Test results and coverage
+coverage.info
+*.gcda
+*.gcno
+*.lcov
+test_results/
+coverage/
+
+# Static analysis
+cppcheck.xml
+*.scan
+
+# Profiling data
+gmon.out
+*.prof
+
+# Memory debugging
+valgrind.log
+*.memcheck
+
+# Doxygen output (if used)
+docs/doxygen/
+
+# Local configuration
+.env
+local.mk
+config.local
+
+# Temporary build directories
+tmp/
+temp/
