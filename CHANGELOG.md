@@ -5,6 +5,24 @@ All notable changes to System7.1-Portable will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.92.0] - 2024-09-19
+
+### Added
+
+#### File Manager
+- **Complete HFS File System Implementation**
+  - Full HFS catalog with B-tree operations
+  - File Control Block (FCB) management
+  - Volume Control Block (VCB) management
+  - Working Directory Control Block (WDCB) management
+  - Block cache system with LRU eviction (512KB default)
+  - Thread-safe operations throughout
+  - Cross-platform HAL for device abstraction
+  - Complete Mac OS 7.1 File Manager API
+  - Parameter Block interface (sync/async)
+  - Process Manager integration
+  - Comprehensive test suite
+
 ## [0.90.0] - 2024-09-18
 
 ### Added

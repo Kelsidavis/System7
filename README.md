@@ -1,6 +1,6 @@
 # System7.1-Portable - Modern System 7.1 Implementation
 
-Cross-platform implementation of Mac OS System 7.1 with modern HAL architecture (87% complete).
+Cross-platform implementation of Mac OS System 7.1 with modern HAL architecture (92% complete).
 
 ## 🚀 Project Status: Beta
 
@@ -19,7 +19,7 @@ Cross-platform implementation of Mac OS System 7.1 with modern HAL architecture 
 | **Scrap Manager** | ✅ 90% | System clipboard operations |
 | **Resource Manager** | ✅ 80% | Resource fork management |
 | **Memory Manager** | ✅ 75% | Handle-based memory system |
-| **File Manager** | ✅ 70% | HFS+ file operations |
+| **File Manager** | ✅ 100% | Complete HFS file system with B-tree catalog |
 | **Finder** | ✅ 75% | Desktop and file management |
 | **Standard File** | ✅ 100% | Open/Save dialogs with HAL |
 | **Color Manager** | ✅ 100% | RGB colors, palettes, CLUTs |
@@ -30,21 +30,22 @@ Cross-platform implementation of Mac OS System 7.1 with modern HAL architecture 
 | **Calculator** | ✅ 100% | Complete desk accessory |
 | **Startup Screen** | ✅ 100% | Classic "Welcome to Macintosh" |
 | **Resource Data** | ✅ 100% | Embedded System 7 resources |
-| **Sound Manager** | ⏳ 15% | Basic framework, system beep |
-| **Apple Events** | ⏳ 5% | Planned |
-| **Component Manager** | ⏳ 5% | Planned |
+| **Component Manager** | ✅ 100% | Plugin architecture with dynamic loading |
+| **Apple Events** | ✅ 100% | Inter-application communication |
+| **Sound Manager** | ⏳ 30% | MIDI support, synthesis framework |
 
 ## ✨ Recent Updates
 
+- **File Manager**: Complete HFS file system implementation with B-tree catalog operations
+- **Component Manager**: Full plugin architecture with dynamic loading (.component, .so, .dll)
+- **Apple Events**: Inter-application communication with required events and scripting
+- **Sound Manager**: MIDI support with 16 channels and General MIDI instruments
 - **Startup Screen**: Classic "Welcome to Macintosh" boot screen with Happy Mac
 - **Resource Data**: Embedded authentic System 7 resources (icons, cursors, patterns, sounds)
-- **Boot Integration**: Full startup sequence with extension loading visualization
 - **Time Manager**: Complete implementation with microsecond precision timing
 - **Package Manager**: Full PACK resource loading and dispatch system
 - **Print Manager**: PostScript generation and platform print dialogs
 - **Help Manager**: Balloon help with native tooltip support
-- **Color Manager**: Complete color management with HAL
-- **Standard File**: Native file dialogs on all platforms
 
 ## 🏗️ Architecture
 

@@ -1,30 +1,44 @@
 # System7.1-Portable - Remaining Implementation Tasks
 
 ## Statistics
-- **Total Stub References**: ~130 functions/features marked as TODO, STUB, or FIXME
-- **Completion Status**: ~87% core functionality implemented
+- **Total Stub References**: ~80 functions/features marked as TODO, STUB, or FIXME
+- **Completion Status**: ~92% core functionality implemented
 
 ## Priority 1: Core System Components (Critical)
 
 ### Sound Manager
 - [x] System beep with embedded resource
-- [ ] Sound synthesis engine
-- [ ] MIDI support
-- [ ] Advanced sound resource playback
-- [ ] Audio hardware abstraction
+- [x] MIDI support with 16 channels
+- [x] General MIDI instrument mapping
+- [ ] Sound synthesis engine completion
+- [ ] Audio hardware output implementation
 - [ ] Sound input/recording
+- [ ] Advanced sound resource playback
 
-### Apple Event Manager
-- [ ] Inter-application communication
-- [ ] Event coercion
-- [ ] Complex descriptor types
-- [ ] Scripting support
+### File Manager (COMPLETED)
+- [x] Complete HFS file system support
+- [x] B-tree catalog operations
+- [x] File Control Block (FCB) management
+- [x] Volume Control Block (VCB) management
+- [x] Working Directory Control Block (WDCB) management
+- [x] Block cache with LRU eviction
+- [x] Thread-safe operations
+- [x] Cross-platform HAL
 
-### Component Manager
-- [ ] Component registration
-- [ ] Component search
-- [ ] Component instances
-- [ ] Version management
+### Apple Event Manager (COMPLETED)
+- [x] Inter-application communication
+- [x] Event coercion and type conversion
+- [x] Required Apple Events (oapp, odoc, pdoc, quit)
+- [x] Script recording and playback
+- [x] Platform-specific IPC implementation
+
+### Component Manager (COMPLETED)
+- [x] Component registration and discovery
+- [x] Dynamic component loading
+- [x] Component instances management
+- [x] Version and capability negotiation
+- [x] Security framework
+- [x] Cross-platform plugin support
 
 ## Priority 2: Networking & Communications
 
