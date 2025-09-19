@@ -1,4 +1,8 @@
 # System7.1-Portable - Modern System 7.1 Implementation
+![PXL_20250919_045959708](https://github.com/user-attachments/assets/96054568-1bcf-4c5a-8052-9aa2c2479435)
+
+
+
 
 Cross-platform implementation of Mac OS System 7.1 with modern HAL architecture (92% complete).
 
@@ -193,42 +197,6 @@ make test-valgrind
 
 make coverage
 ```
-
-## 🎯 What's Working
-
-### Authentic System 7 Experience
-- ✅ Classic "Welcome to Macintosh" startup screen with Happy Mac
-- ✅ Extension loading display during boot
-- ✅ Authentic System 7 cursors (arrow, I-beam, crosshair, watch)
-- ✅ Original desktop patterns and UI textures
-- ✅ System beep sound from actual System 7
-- ✅ Original icon resources (folders, documents, trash)
-
-### Desktop Environment
-- ✅ Complete Finder with desktop icons and windows
-- ✅ Drag & drop file operations
-- ✅ Trash/Recycle Bin functionality
-- ✅ File info windows and properties
-
-### User Interface
-- ✅ Multiple overlapping windows with proper clipping
-- ✅ Window dragging, resizing, zooming, and closing
-- ✅ Hierarchical pull-down menus with keyboard shortcuts
-- ✅ Modal and modeless dialogs with standard controls
-- ✅ Context-sensitive balloon help
-
-### System Services
-- ✅ High-resolution timer tasks (microsecond precision)
-- ✅ Print spooling with PostScript generation
-- ✅ System-wide clipboard with multiple formats
-- ✅ Color management with palettes and CLUTs
-- ✅ International text support
-
-### Developer Features
-- ✅ Resource Manager with automatic loading
-- ✅ Handle-based memory with automatic garbage collection
-- ✅ Package Manager for modular code loading
-- ✅ Complete event system with queue management
 
 ## 🗺️ Roadmap
 
