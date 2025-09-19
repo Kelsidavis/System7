@@ -5,6 +5,34 @@ All notable changes to System7.1-Portable will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.90.0] - 2024-09-18
+
+### Added
+
+#### Component Manager
+- **Complete Plugin Architecture Implementation**
+  - Dynamic component loading (.component, .so, .dll)
+  - Component registry and instance management
+  - Security framework with validation and sandboxing
+  - Resource management and capability negotiation
+  - Cross-platform HAL for macOS, Linux, Windows
+  - Comprehensive test suite with 10 test categories
+
+#### Apple Event Manager
+- **Inter-Application Communication System**
+  - Event coercion and type conversion
+  - Required Apple Events (oapp, odoc, pdoc, quit)
+  - Script recording and playback
+  - Platform-specific IPC implementation
+  - Full Mac OS 7.1 compatibility
+
+#### Sound Manager (Partial)
+- **MIDI Support**
+  - 16-channel MIDI processing
+  - General MIDI instrument mapping
+  - MIDI file parsing and playback
+  - Integration with synthesis engine
+
 ## [0.87.0] - 2024-01-18
 
 ### Added
@@ -153,13 +181,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Future Releases
 
-### [0.90.0] - Planned
-- Sound Manager implementation
-- Apple Events support
-- Component Manager architecture
-- Network extension basics
-
 ### [0.95.0] - Planned
+- Complete Sound Manager implementation
+- File Manager enhancements
+- Network extension implementation
 - Communication Toolbox
 - Notification Manager
 - Speech Manager
