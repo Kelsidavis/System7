@@ -119,3 +119,6 @@ config.local
 # Temporary build directories
 tmp/
 temp/
+
+# Docker
+Dockerfile
