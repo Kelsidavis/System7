@@ -14,6 +14,7 @@
 #include "ComponentManager/ComponentDispatch.h"
 #include "ComponentManager/ComponentInstances.h"
 #include "ComponentManager/ComponentRegistry.h"
+#include "ComponentManager/ComponentManager_HAL.h"
 #include <stdlib.h>
 #include <string.h>
 

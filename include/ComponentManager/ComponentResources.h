@@ -50,14 +50,14 @@ OSErr LoadExtThingResource(int16_t resRefNum, int16_t resID, ExtComponentResourc
 /* Component resource parsing */
 OSErr ParseComponentResource(Handle resourceHandle, ComponentResource** component);
 OSErr ParseExtComponentResource(Handle resourceHandle, ExtComponentResource** component);
-OSErr ExtractComponentDescription(ComponentResource* resource, ComponentDescription* description);
+OSErr ExtractComponentDescriptionFromResource(ComponentResource* resource, ComponentDescription* description);
 
 /* Component metadata extraction */
 OSErr GetComponentName(Component component, Handle* nameHandle, char** nameString);
-OSErr GetComponentInfo(Component component, Handle* infoHandle, char** infoString);
-OSErr GetComponentIcon(Component component, Handle* iconHandle);
-OSErr GetComponentIconFamily(Component component, Handle* iconFamilyHandle);
-OSErr GetComponentVersion(Component component, int32_t* version);
+OSErr GetComponentInfoFromResource(Component component, Handle* infoHandle, char** infoString);
+OSErr GetComponentIconFromResource(Component component, Handle* iconHandle);
+OSErr GetComponentIconFamilyFromResource(Component component, Handle* iconFamilyHandle);
+OSErr GetComponentVersionFromResource(Component component, int32_t* version);
 
 /* Platform information handling */
 OSErr GetComponentPlatformInfo(ExtComponentResource* resource, int16_t platformType, ComponentPlatformInfo** info);

@@ -168,7 +168,7 @@ typedef struct ComponentMutex {
     uint32_t ownerThread;
 } ComponentMutex;
 
-OSErr CreateComponentMutex(ComponentMutex* mutex);
+OSErr CreateComponentMutex(ComponentMutex** mutex);
 OSErr DestroyComponentMutex(ComponentMutex* mutex);
 OSErr LockComponentMutex(ComponentMutex* mutex);
 OSErr UnlockComponentMutex(ComponentMutex* mutex);

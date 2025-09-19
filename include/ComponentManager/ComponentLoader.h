@@ -10,6 +10,7 @@
 
 #include "ComponentManager.h"
 #include "ComponentRegistry.h"
+#include <sys/types.h>
 
 #ifdef __cplusplus
 extern "C" {

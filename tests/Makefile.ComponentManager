@@ -1,0 +1,83 @@
+# Component Manager Test Makefile
+# Build and run Component Manager tests
+
+CC = gcc
+CFLAGS = -Wall -Wextra -std=c99 -g -O0 -DDEBUG
+INCLUDES = -I../include
+LDFLAGS = -lpthread
+
+# Source directories
+SRC_DIR = ../src/ComponentManager
+TEST_DIR = .
+
+# Component Manager source files
+CM_SOURCES = \
+	$(SRC_DIR)/ComponentManagerCore.c \
+	$(SRC_DIR)/ComponentRegistry.c \
+	$(SRC_DIR)/ComponentInstances.c \
+	$(SRC_DIR)/ComponentDispatch.c \
+	$(SRC_DIR)/ComponentLoader.c \
+	$(SRC_DIR)/ComponentResources.c \
+	$(SRC_DIR)/ComponentNegotiation.c \
+	$(SRC_DIR)/ComponentSecurity.c \
+	$(SRC_DIR)/ComponentManager_HAL.c
+
+# Test source files
+TEST_SOURCES = \
+	$(TEST_DIR)/ComponentManagerTest.c
+
+# Object files
+CM_OBJECTS = $(CM_SOURCES:$(SRC_DIR)/%.c=build/%.o)
+TEST_OBJECTS = $(TEST_SOURCES:$(TEST_DIR)/%.c=build/%.o)
+
+# Targets
+TEST_EXECUTABLE = build/ComponentManagerTest
+BUILD_DIR = build
+
+.PHONY: all test clean check-types
+
+all: $(TEST_EXECUTABLE)
+
+# Create build directory
+$(BUILD_DIR):
+	mkdir -p $(BUILD_DIR)
+
+# Compile Component Manager sources
+build/%.o: $(SRC_DIR)/%.c | $(BUILD_DIR)
+	$(CC) $(CFLAGS) $(INCLUDES) -c $< -o $@
+
+# Compile test sources
+build/%.o: $(TEST_DIR)/%.c | $(BUILD_DIR)
+	$(CC) $(CFLAGS) $(INCLUDES) -c $< -o $@
+
+# Link test executable
+$(TEST_EXECUTABLE): $(CM_OBJECTS) $(TEST_OBJECTS)
+	$(CC) $(CFLAGS) $(CM_OBJECTS) $(TEST_OBJECTS) -o $@ $(LDFLAGS)
+
+# Run tests
+test: $(TEST_EXECUTABLE)
+	@echo "Running Component Manager Tests..."
+	@./$(TEST_EXECUTABLE)
+
+# Check compilation without linking
+check-types: | $(BUILD_DIR)
+	@echo "Checking Component Manager compilation..."
+	@for src in $(CM_SOURCES); do \
+		echo "Compiling $$src..."; \
+		$(CC) $(CFLAGS) $(INCLUDES) -c $$src -o /tmp/test_$$(basename $$src .c).o || exit 1; \
+	done
+	@echo "All Component Manager sources compile successfully!"
+
+# Clean build artifacts
+clean:
+	rm -rf $(BUILD_DIR)
+
+# Help target
+help:
+	@echo "Component Manager Test Makefile"
+	@echo "Available targets:"
+	@echo "  all         - Build test executable"
+	@echo "  test        - Build and run tests"
+	@echo "  check-types - Check compilation without linking"
+	@echo "  clean       - Remove build artifacts"
+	@echo "  help        - Show this help message"

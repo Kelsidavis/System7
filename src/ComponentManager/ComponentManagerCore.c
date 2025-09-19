@@ -8,14 +8,14 @@
  * Component Manager from System 7.1, adapted for modern platforms.
  */
 
-#include "ComponentManager.h"
-#include "ComponentRegistry.h"
-#include "ComponentLoader.h"
-#include "ComponentDispatch.h"
-#include "ComponentInstances.h"
-#include "ComponentResources.h"
-#include "ComponentNegotiation.h"
-#include "ComponentSecurity.h"
+#include "ComponentManager/ComponentManager.h"
+#include "ComponentManager/ComponentRegistry.h"
+#include "ComponentManager/ComponentLoader.h"
+#include "ComponentManager/ComponentDispatch.h"
+#include "ComponentManager/ComponentInstances.h"
+#include "ComponentManager/ComponentResources.h"
+#include "ComponentManager/ComponentNegotiation.h"
+#include "ComponentManager/ComponentSecurity.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -790,7 +790,7 @@ OSErr UncaptureComponent(Component aComponent)
  *
  * Register all components from a resource file.
  */
-int32_t RegisterComponentResourceFile(int16_t resRefNum, int16_t global)
+OSErr RegisterComponentResourceFile(int16_t resRefNum, int16_t global)
 {
     OSErr err;
     int32_t count = 0;

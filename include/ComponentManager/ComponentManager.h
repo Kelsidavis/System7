@@ -206,7 +206,7 @@ Component CaptureComponent(Component capturedComponent, Component capturingCompo
 OSErr UncaptureComponent(Component aComponent);
 
 /* Resource file management */
-int32_t RegisterComponentResourceFile(int16_t resRefNum, int16_t global);
+OSErr RegisterComponentResourceFile(int16_t resRefNum, int16_t global);
 OSErr GetComponentIconSuite(Component aComponent, Handle* iconSuite);
 
 /* Internal Component Manager initialization */

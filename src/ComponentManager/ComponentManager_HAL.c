@@ -11,10 +11,13 @@
  * Based on Mac OS 7.1 Component Manager
  */
 
-#include "ComponentManager/ComponentManager.h"
+#include "ComponentManager/ComponentManager_HAL.h"
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <pthread.h>
+#include <time.h>
+#include <sys/time.h>
 
 #ifdef __APPLE__
 #include <CoreFoundation/CoreFoundation.h>
@@ -39,7 +42,7 @@ struct ComponentMutex {
     Boolean initialized;
 };
 
-OSErr CreateComponentMutex(ComponentMutex** mutex) {
+OSErr HAL_CreateMutex(ComponentMutex** mutex) {
     if (!mutex) return paramErr;
 
     *mutex = malloc(sizeof(ComponentMutex));
@@ -55,22 +58,25 @@ OSErr CreateComponentMutex(ComponentMutex** mutex) {
     return noErr;
 }
 
-void DestroyComponentMutex(ComponentMutex* mutex) {
-    if (!mutex || !mutex->initialized) return;
+OSErr HAL_DestroyMutex(ComponentMutex* mutex) {
+    if (!mutex || !mutex->initialized) return paramErr;
 
     pthread_mutex_destroy(&mutex->mutex);
     mutex->initialized = false;
     free(mutex);
+    return noErr;
 }
 
-void LockComponentMutex(ComponentMutex* mutex) {
-    if (!mutex || !mutex->initialized) return;
-    pthread_mutex_lock(&mutex->mutex);
+OSErr HAL_LockMutex(ComponentMutex* mutex) {
+    if (!mutex || !mutex->initialized) return paramErr;
+    if (pthread_mutex_lock(&mutex->mutex) != 0) return componentSecurityErr;
+    return noErr;
 }
 
-void UnlockComponentMutex(ComponentMutex* mutex) {
-    if (!mutex || !mutex->initialized) return;
-    pthread_mutex_unlock(&mutex->mutex);
+OSErr HAL_UnlockMutex(ComponentMutex* mutex) {
+    if (!mutex || !mutex->initialized) return paramErr;
+    if (pthread_mutex_unlock(&mutex->mutex) != 0) return componentSecurityErr;
+    return noErr;
 }
 
 /* ========================================================================
@@ -244,29 +250,18 @@ OSErr HAL_ScanForComponents(const char* directory) {
  * Platform-Specific Component Info
  * ======================================================================== */
 
-OSErr HAL_GetPlatformInfo(ComponentPlatformInfo* info) {
-    if (!info) return paramErr;
+OSErr HAL_GetPlatformInfo(char* platformName, size_t maxLength) {
+    if (!platformName || maxLength == 0) return paramErr;
 
-    memset(info, 0, sizeof(ComponentPlatformInfo));
-
+    /* Fill platform name */
 #ifdef __APPLE__
-    #ifdef __arm64__
-    info->platformType = gestaltPowerPC;  /* Using PowerPC constant for ARM */
-    #else
-    info->platformType = gestalt68k;      /* Using 68k constant for x86 */
-    #endif
+    snprintf(platformName, maxLength, "macOS");
 #elif defined(__linux__)
-    #ifdef __aarch64__
-    info->platformType = gestaltPowerPC;
-    #else
-    info->platformType = gestalt68k;
-    #endif
+    snprintf(platformName, maxLength, "Linux");
 #elif defined(_WIN32)
-    #ifdef _M_ARM64
-    info->platformType = gestaltPowerPC;
-    #else
-    info->platformType = gestalt68k;
-    #endif
+    snprintf(platformName, maxLength, "Windows");
+#else
+    snprintf(platformName, maxLength, "Unknown");
 #endif
 
     return noErr;
@@ -392,4 +387,249 @@ void HAL_CleanupPlatform(void) {
 #ifdef _WIN32
     WSACleanup();
 #endif
+}
+
+/* ========================================================================
+ * Memory Management Functions
+ * ======================================================================== */
+
+void* HAL_AllocateMemory(size_t size) {
+    return malloc(size);
+}
+
+void HAL_FreeMemory(void* ptr) {
+    if (ptr) free(ptr);
+}
+
+void* HAL_ReallocateMemory(void* ptr, size_t newSize) {
+    return realloc(ptr, newSize);
+}
+
+void HAL_ZeroMemory(void* ptr, size_t size) {
+    if (ptr) memset(ptr, 0, size);
+}
+
+void HAL_CopyMemory(const void* src, void* dst, size_t size) {
+    if (src && dst) memcpy(dst, src, size);
+}
+
+/* ========================================================================
+ * Time and Date Functions
+ * ======================================================================== */
+
+uint64_t HAL_GetCurrentTime(void) {
+    struct timeval tv;
+    gettimeofday(&tv, NULL);
+    return (uint64_t)tv.tv_sec * 1000000ULL + tv.tv_usec;
+}
+
+OSErr HAL_TimeToString(uint64_t time, char* timeString, size_t maxLength) {
+    if (!timeString || maxLength == 0) return paramErr;
+
+    time_t seconds = (time_t)(time / 1000000ULL);
+    struct tm* tm_info = localtime(&seconds);
+
+    if (strftime(timeString, maxLength, "%Y-%m-%d %H:%M:%S", tm_info) == 0) {
+        return paramErr;
+    }
+
+    return noErr;
+}
+
+/* ========================================================================
+ * String Utilities
+ * ======================================================================== */
+
+OSErr HAL_StringCompare(const char* str1, const char* str2, int32_t* result) {
+    if (!str1 || !str2 || !result) return paramErr;
+    *result = strcmp(str1, str2);
+    return noErr;
+}
+
+OSErr HAL_StringCopy(const char* source, char* destination, size_t maxLength) {
+    if (!source || !destination || maxLength == 0) return paramErr;
+    strncpy(destination, source, maxLength - 1);
+    destination[maxLength - 1] = '\0';
+    return noErr;
+}
+
+OSErr HAL_StringLength(const char* string, size_t* length) {
+    if (!string || !length) return paramErr;
+    *length = strlen(string);
+    return noErr;
+}
+
+/* ========================================================================
+ * Component Instance Management
+ * ======================================================================== */
+
+static ComponentInstanceData* gInstanceDataList = NULL;
+static ComponentMutex* gInstanceMutex = NULL;
+
+ComponentInstanceData* GetInstanceData(ComponentInstance ci) {
+    if (!ci) return NULL;
+
+    if (!gInstanceMutex) {
+        HAL_CreateMutex(&gInstanceMutex);
+    }
+
+    HAL_LockMutex(gInstanceMutex);
+
+    /* Simple linear search for this implementation */
+    ComponentInstanceData* current = gInstanceDataList;
+    while (current) {
+        if ((ComponentInstance)current == ci) {
+            HAL_UnlockMutex(gInstanceMutex);
+            return current;
+        }
+        current = (ComponentInstanceData*)current; /* Simple approach */
+    }
+
+    HAL_UnlockMutex(gInstanceMutex);
+    return NULL;
+}
+
+OSErr SetInstanceData(ComponentInstance ci, ComponentInstanceData* data) {
+    if (!ci || !data) return paramErr;
+
+    if (!gInstanceMutex) {
+        HAL_CreateMutex(&gInstanceMutex);
+    }
+
+    HAL_LockMutex(gInstanceMutex);
+
+    /* Add to list */
+    data->component = NULL; /* Will be set by caller */
+
+    HAL_UnlockMutex(gInstanceMutex);
+    return noErr;
+}
+
+OSErr AllocateInstanceData(ComponentInstance ci) {
+    if (!ci) return paramErr;
+
+    ComponentInstanceData* data = HAL_AllocateMemory(sizeof(ComponentInstanceData));
+    if (!data) return memFullErr;
+
+    HAL_ZeroMemory(data, sizeof(ComponentInstanceData));
+    data->isOpen = false;
+    data->lastError = noErr;
+
+    return SetInstanceData(ci, data);
+}
+
+OSErr FreeInstanceData(ComponentInstance ci) {
+    ComponentInstanceData* data = GetInstanceData(ci);
+    if (data) {
+        if (data->storage) {
+            DisposeHandle(data->storage);
+        }
+        HAL_FreeMemory(data);
+    }
+    return noErr;
+}
+
+/* ========================================================================
+ * Component Dispatch Helper Functions
+ * ======================================================================== */
+
+ComponentResult DispatchOpen(ComponentInstance ci, ComponentRoutine entryPoint, Handle storage) {
+    if (!ci || !entryPoint) return paramErr;
+
+    ComponentParameters params;
+    params.flags = 0;
+    params.paramSize = sizeof(ComponentInstance);
+    params.what = kComponentOpenSelect;
+    params.params[0] = (int32_t)(uintptr_t)ci;
+
+    return entryPoint(&params, storage);
+}
+
+ComponentResult DispatchClose(ComponentInstance ci, ComponentRoutine entryPoint, Handle storage) {
+    if (!ci || !entryPoint) return paramErr;
+
+    ComponentParameters params;
+    params.flags = 0;
+    params.paramSize = sizeof(ComponentInstance);
+    params.what = kComponentCloseSelect;
+    params.params[0] = (int32_t)(uintptr_t)ci;
+
+    return entryPoint(&params, storage);
+}
+
+ComponentResult DispatchCanDo(ComponentInstance ci, ComponentRoutine entryPoint, Handle storage, ComponentParameters* params) {
+    if (!ci || !entryPoint || !params) return paramErr;
+
+    params->what = kComponentCanDoSelect;
+    return entryPoint(params, storage);
+}
+
+ComponentResult DispatchVersion(ComponentInstance ci, ComponentRoutine entryPoint, Handle storage) {
+    if (!ci || !entryPoint) return paramErr;
+
+    ComponentParameters params;
+    params.flags = 0;
+    params.paramSize = 0;
+    params.what = kComponentVersionSelect;
+
+    return entryPoint(&params, storage);
+}
+
+ComponentResult DispatchRegister(ComponentInstance ci, ComponentRoutine entryPoint, Handle storage) {
+    if (!ci || !entryPoint) return paramErr;
+
+    ComponentParameters params;
+    params.flags = 0;
+    params.paramSize = 0;
+    params.what = kComponentRegisterSelect;
+
+    return entryPoint(&params, storage);
+}
+
+ComponentResult DispatchTarget(ComponentInstance ci, ComponentRoutine entryPoint, Handle storage, ComponentParameters* params) {
+    if (!ci || !entryPoint || !params) return paramErr;
+
+    params->what = kComponentTargetSelect;
+    return entryPoint(params, storage);
+}
+
+ComponentResult DispatchUnregister(ComponentInstance ci, ComponentRoutine entryPoint, Handle storage) {
+    if (!ci || !entryPoint) return paramErr;
+
+    ComponentParameters params;
+    params.flags = 0;
+    params.paramSize = 0;
+    params.what = kComponentUnregisterSelect;
+
+    return entryPoint(&params, storage);
+}
+
+/* ========================================================================
+ * Additional Security Functions
+ * ======================================================================== */
+
+OSErr HAL_GetComponentSecurity(ComponentSecurityLevel* level) {
+    if (!level) return paramErr;
+    *level = kSecurityLevelStandard; /* Default security level */
+    return noErr;
+}
+
+/* ========================================================================
+ * Component Manager Mutex Wrapper Functions
+ * ======================================================================== */
+
+OSErr CreateComponentMutex(ComponentMutex** mutex) {
+    return HAL_CreateMutex(mutex);
+}
+
+OSErr DestroyComponentMutex(ComponentMutex* mutex) {
+    return HAL_DestroyMutex(mutex);
+}
+
+OSErr LockComponentMutex(ComponentMutex* mutex) {
+    return HAL_LockMutex(mutex);
+}
+
+OSErr UnlockComponentMutex(ComponentMutex* mutex) {
+    return HAL_UnlockMutex(mutex);
 }
