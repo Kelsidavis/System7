@@ -1,4 +1,3 @@
-<img width="646" height="405" alt="text" src="https://github.com/user-attachments/assets/f7fd55e1-73b5-4032-a3ae-910b86054994" />
 
 
 ![System7 prototype boot (QEMU)](https://github.com/user-attachments/assets/f7fd55e1-73b5-4032-a3ae-910b86054994)
