@@ -1,258 +1,132 @@
-# System7.1-Portable - Modern System 7.1 Implementation
-
 <img width="646" height="405" alt="text" src="https://github.com/user-attachments/assets/f7fd55e1-73b5-4032-a3ae-910b86054994" />
 
 
-Cross-platform implementation of Mac OS System 7.1 with modern HAL architecture (92% complete).
+![System7 prototype boot (QEMU)](https://github.com/user-attachments/assets/f7fd55e1-73b5-4032-a3ae-910b86054994)
 
-## 🚀 Project Status: Getting there
+# System7
 
-### Implementation Summary
-- **Components Complete (100%):** 12 of 27
-- **Components Nearly Complete (75-95%):** 12 of 27
-- **Components In Progress (10-30%):** 2 of 27
-- **Components Planned (< 10%):** 1 of 27
-- **Overall Completion:** ~92%
+**System7** is an educational, clean-room style re-implementation of Apple’s **System 7.1** operating environment for modern platforms.
 
-### Core Components Implementation
+## Purpose
 
-| Component | Status | Description |
-|-----------|--------|-------------|
-| **File Manager** | ✅ 100% | Complete HFS file system with B-tree catalog |
-| **Component Manager** | ✅ 100% | Plugin architecture with dynamic loading |
-| **Apple Events** | ✅ 100% | Inter-application communication |
-| **Standard File** | ✅ 100% | Open/Save dialogs with HAL |
-| **Color Manager** | ✅ 100% | RGB colors, palettes, CLUTs |
-| **Help Manager** | ✅ 100% | Balloon help, tooltips |
-| **Print Manager** | ✅ 100% | PostScript generation, spooling |
-| **Package Manager** | ✅ 100% | PACK resource dispatch |
-| **Time Manager** | ✅ 100% | High-resolution timing |
-| **Calculator** | ✅ 100% | Complete desk accessory |
-| **Startup Screen** | ✅ 100% | Classic "Welcome to Macintosh" |
-| **Resource Data** | ✅ 100% | Embedded System 7 resources |
-| **Window Manager** | ✅ 95% | Complete window management with HAL |
-| **Menu Manager** | ✅ 95% | Hierarchical menus, keyboard shortcuts |
-| **Event Manager** | ✅ 95% | Full event queue and dispatch system |
-| **QuickDraw** | ✅ 90% | Graphics primitives, regions, patterns |
-| **Dialog Manager** | ✅ 90% | Modal/modeless dialogs, alerts |
-| **Scrap Manager** | ✅ 90% | System clipboard operations |
-| **Control Manager** | ✅ 85% | All standard controls (buttons, scrollbars) |
-| **TextEdit** | ✅ 85% | Multi-style text editing |
-| **List Manager** | ✅ 85% | Scrollable lists with LDEFs |
-| **Resource Manager** | ✅ 80% | Resource fork management |
-| **Finder** | ✅ 75% | Desktop and file management |
-| **Memory Manager** | ✅ 75% | Handle-based memory system |
-| **Sound Manager** | ⏳ 30% | MIDI support, synthesis framework |
-| **Network Extension** | ⏳ 10% | Basic framework planned |
-| **Communications** | ⏳ 5% | Serial/modem support planned |
+* Explore and document the internals of a historically significant operating system.
+* Provide a modern, open-source re-creation of the System 7.1 experience.
+* Support research, teaching, and digital preservation.
 
-## ✨ Recent Updates
+## Methodology
 
-- **File Manager**: Complete HFS file system implementation with B-tree catalog operations
-- **Component Manager**: Full plugin architecture with dynamic loading (.component, .so, .dll)
-- **Apple Events**: Inter-application communication with required events and scripting
-- **Sound Manager**: MIDI support with 16 channels and General MIDI instruments
-- **Startup Screen**: Classic "Welcome to Macintosh" boot screen with Happy Mac
-- **Resource Data**: Embedded authentic System 7 resources (icons, cursors, patterns, sounds)
-- **Time Manager**: Complete implementation with microsecond precision timing
-- **Package Manager**: Full PACK resource loading and dispatch system
-- **Print Manager**: PostScript generation and platform print dialogs
-- **Help Manager**: Balloon help with native tooltip support
+Development was guided by:
 
-## 🏗️ Architecture
+* **Reverse engineering** of publicly available System 7.1 binaries.
+* Historical documentation, manuals, and community research.
+* Community-circulated disassemblies/decompilations used **only as orientation aids** to understand structure and flow.
 
-### Hardware Abstraction Layer (HAL)
-Every major component includes a HAL layer for platform independence:
-- Platform-specific implementations for macOS, Linux, Windows
-- Clean separation between Mac OS API and native platform code
-- Consistent interface across all supported platforms
+All code in this repository is an **original re-implementation**. No Apple source code or other copyrighted materials have been copied.
 
-### Platform Support
+## Technical Overview
 
-| Platform | Graphics | Status |
-|----------|----------|---------|
-| **macOS** | Core Graphics, AppKit | ✅ Fully Supported |
-| **Linux** | X11, GTK, Cairo | ✅ Fully Supported |
-| **Windows** | Win32, GDI+ | ✅ Fully Supported |
-| **ARM64** | Native | ✅ Supported |
-| **x86_64** | Native | ✅ Supported |
+Implemented/under way:
 
-## 🚀 Quick Start
+* **Bootloader & System Init** — low-level startup, memory map, basic device bring-up.
+* **Memory Manager (early)** — heap/handle primitives; block movement stubs.
+* **File System Layer (stubs)** — early HFS abstractions and path handling.
+* **Graphics (proto)** — early QuickDraw-style primitives and screen buffer handling.
+* **Event Manager (skeleton)** — structure for dispatching input and system events.
+* **UI Shell (very early)** — placeholders for menu/desktop constructs.
+
+## Current Status
+
+* ✅ **Boots in QEMU** to the early system shell with framebuffer output (development image).
+* 🛠️ Minimal demo path for verifying boot, drawing, and basic system loops.
+
+## Roadmap / Next Steps
+
+**Short-term targets**
+
+1. **SVGA Video (QEMU stdvga / VBE 2.0 LFB)**
+
+   * Implement VBE info & mode set (0x4F00/0x4F01/0x4F02).
+   * Prefer linear framebuffer modes (e.g., 800×600 or 1024×768, 32-bpp).
+   * Add pitch/stride-aware blitting; double-buffered present to reduce tearing.
+   * Hook drawing pipeline to QuickDraw-like primitives.
+
+2. **Keyboard Input (i8042 / PS/2)**
+
+   * Handle scan set 1 (QEMU default) via port 0x60/0x64.
+   * IRQ1 dispatch → translate make/break codes → enqueue to Event Manager.
+   * Key repeat and modifier state bookkeeping.
+
+3. **Mouse Input (PS/2 / IntelliMouse)**
+
+   * Enable streaming, parse 3- or 4-byte packets (IMPS/2 wheel optional).
+   * IRQ12 dispatch → delta aggregation, cursor update, click state → events.
+   * Basic acceleration and bounds clamping.
+
+**Milestones that follow**
+
+* **Window Manager pass 1** (move/resize, invalidation, region ops).
+* **Menu Manager pass 1** (menu bar, tracking, command dispatch).
+* **Disk I/O layer** (block driver abstraction; boot image tooling).
+* **Timer/WaitNextEvent** integration for cooperative scheduling.
+
+## Building & Running
 
 ```bash
-# Clone repository
-git clone https://github.com/Kelsidavis/System7.git
-cd System7.1-Portable
-
-# Build everything
-make all
-
-# Run tests
-make tests
-
-# Build with debug symbols
-make debug
-
-# Install system-wide
-sudo make install
-```
-
-## 📁 Project Structure
-
-```
-System7.1-Portable/
-├── include/          # Public header files
-│   ├── WindowManager/
-│   ├── MenuManager/
-│   ├── QuickDraw/
-│   └── ...
-├── src/             # Implementation files
-│   ├── WindowManager/
-│   │   ├── WindowManager.c
-│   │   └── WindowManager_HAL.c
-│   └── ...
-├── tests/           # Unit tests
-├── examples/        # Example applications
-├── build/          # Build artifacts
-└── docs/           # Documentation
-```
-
-## 🛠️ Building
-
-### Prerequisites
-
-**macOS:**
-```bash
-brew install cmake
-# Xcode Command Line Tools required
-```
-
-**Linux:**
-```bash
-# Ubuntu/Debian
-sudo apt-get install build-essential cmake libx11-dev libgtk-3-dev libcairo2-dev
-
-# Fedora/RHEL
-sudo dnf install gcc cmake libX11-devel gtk3-devel cairo-devel
-```
-
-**Windows:**
-```bash
-# Install Visual Studio 2019+ with C++ tools
-# Install CMake
-```
-
-### Build Options
-
-```bash
-# Standard build
+# Example (adjust paths/toolchain as needed)
 make
 
-# Debug build
-make debug
-
-# Optimized release build
-make CFLAGS="-O3 -march=native"
-
-# Cross-compilation for ARM64
-make ARCH=arm64
-
-# Build specific component
-make -C src/WindowManager
+# Run with QEMU (stdvga for upcoming VBE work)
+qemu-system-i386 \
+  -m 64M \
+  -vga std \
+  -drive file=build/system7.img,format=raw,if=ide \
+  -boot c \
+  -serial stdio \
+  -no-reboot
 ```
 
-### CMake Alternative
+**Dev tips**
 
-```bash
-mkdir build && cd build
-cmake ..
-make -j$(nproc)
-make test
-sudo make install
-```
+* Start with **640×480×32** or **800×600×32** VBE modes for simpler math.
+* Use `-d guest_errors` on QEMU when debugging port I/O.
+* Keep a hexdump of VBE control/mode info blocks for verification.
 
-## 📚 Documentation
+## Legal Notes
 
-- [Implementation Status](TODO.md) - Detailed component status
-- [Architecture Guide](docs/ARCHITECTURE.md) - System design
-- [API Reference](docs/API.md) - Programming interface
-- [Contributing Guide](CONTRIBUTING.md) - How to contribute
-- [Changelog](CHANGELOG.md) - Version history
+* **Apple, Macintosh, and System 7** are trademarks of Apple Inc.
+* This project is **not affiliated with or endorsed by Apple**.
+* All rights to the original System 7 software remain with Apple.
+* Provided **solely for educational and research purposes**.
 
-## 🧪 Testing
+## Contributing
 
-```bash
-# Run all tests
-make tests
-
-# Run specific test suite
-./build/test_windowmanager
-./build/test_menumanager
-./build/test_timemanager
-
-# Run with valgrind (Linux)
-make test-valgrind
-
-
-make coverage
-```
-
-## 🗺️ Roadmap
-
-### Phase 1: Core Completion (Current)
-- ✅ Window Manager
-- ✅ Menu Manager
-- ✅ Event Manager
-- ✅ Basic QuickDraw
-- ✅ Control Manager
-
-### Phase 2: System Services (In Progress)
-- ✅ File Manager
-- ✅ Print Manager
-- ✅ Time Manager
-- ⏳ Sound Manager
-- ⏳ Apple Events
-
-### Phase 3: Applications
-- ⏳ SimpleText
-- ⏳ TeachText
-- ⏳ Scrapbook
-- ⏳ Note Pad
-- ⏳ Control Panels
-
-### Phase 4: Networking
-- ⏳ AppleTalk
-- ⏳ MacTCP
-- ⏳ File Sharing
-
-## 📄 License
-
-MIT License - See [LICENSE](LICENSE) file for details
-
-Copyright (c) 2024 System7.1-Portable Project
-
-## 🙏 Acknowledgments
-
-- Apple Inc. for the original System 7.1
-- Contributors to reverse engineering documentation
-- Open source community for continued support
-
-## 🤝 Contributing
-
-Contributions are welcome! Please read [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
-
-### Areas Needing Help
-- Sound Manager implementation
-- Apple Events/AppleScript support
-- Additional printer drivers
-- Network protocol stacks
-- Documentation and examples
-
-## 📧 Contact
-
-- **Issues**: [GitHub Issues](https://github.com/Kelsidavis/System7/issues)
-- **Discussions**: [GitHub Discussions](https://github.com/Kelsidavis/System7/discussions)
+Issues, PRs, and historical references are welcome. Please keep contributions clean-room and avoid including third-party copyrighted code.
 
 ---
 
-*System7.1-Portable is an educational project. Mac OS and System 7 are trademarks of Apple Inc.*
+## License
+
+```
+MIT License
+
+Copyright (c) 2025 Kelsi Davis
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in
+all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+THE SOFTWARE.
+```
+
