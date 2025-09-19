@@ -180,7 +180,7 @@ make tests
 # Run with valgrind (Linux)
 make test-valgrind
 
-# Generate coverage report
+
 make coverage
 ```
 
@@ -257,7 +257,6 @@ Copyright (c) 2024 System7.1-Portable Project
 ## 🙏 Acknowledgments
 
 - Apple Inc. for the original System 7.1
-- Computer History Museum for preservation efforts
 - Contributors to reverse engineering documentation
 - Open source community for continued support
 
