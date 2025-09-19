@@ -1,7 +1,6 @@
 # System7.1-Portable - Modern System 7.1 Implementation
 
-
-<img width="3840" height="1600" alt="Screenshot from 2025-09-18 22-28-42" src="https://github.com/user-attachments/assets/f5a2eb2c-0710-4709-8895-0745e3201aac" />
+<img width="646" height="405" alt="text" src="https://github.com/user-attachments/assets/f7fd55e1-73b5-4032-a3ae-910b86054994" />
 
 
 Cross-platform implementation of Mac OS System 7.1 with modern HAL architecture (92% complete).
