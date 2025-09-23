@@ -392,7 +392,7 @@ void DrawMenuBar(void)
     InitMenuTitleTracking();
 
     /* Draw menu titles */
-    short x = 10;
+    short x = 0;  /* Start at left edge for Apple menu */
     /* serial_puts("DrawMenuBar: Checking menu state...\n"); */
     if (gMenuMgrState) {
         /* serial_puts("DrawMenuBar: gMenuMgrState exists\n"); */
@@ -444,8 +444,8 @@ void DrawMenuBar(void)
                         if (mptr->menuID == 128) {
                             /* Draw Apple icon instead of text */
                             /* serial_printf("Drawing Apple icon for menu %d at x=%d\n", mptr->menuID, x); */
-                            DrawAppleIcon(x, 2);
-                            menuWidth = 20;  /* Icon width + spacing */
+                            DrawAppleIcon(x + 6, 2);  /* Draw icon 6 pixels from left edge */
+                            menuWidth = 30;  /* Wider click region extending to left edge */
                             AddMenuTitle(mptr->menuID, x, menuWidth, "Apple");
                             x += menuWidth;
                         } else if (mptr->menuID == 1) {
@@ -607,6 +607,11 @@ MenuHandle NewMenu(short menuID, ConstStr255Param menuTitle)
         gMenuHandles[gNumMenuHandles].menuID = menuID;
         gMenuHandles[gNumMenuHandles].handle = theMenu;
         gNumMenuHandles++;
+
+        /* Debug output */
+        extern void serial_printf(const char* fmt, ...);
+        serial_printf("NewMenu: Created menu ID %d, title '%.*s' (handle %p, total menus: %d)\n",
+                      menuID, titleLen, &menuTitle[1], theMenu, gNumMenuHandles);
     }
 
     return theMenu;
@@ -719,6 +724,11 @@ void InsertMenu(MenuHandle theMenu, short beforeID)
     menuBar->menus[insertIndex].menuLeft = 0; /* Will be calculated */
     menuBar->menus[insertIndex].menuWidth = 0; /* Will be calculated */
     menuBar->numMenus++;
+
+    /* Debug output */
+    extern void serial_printf(const char* fmt, ...);
+    serial_printf("InsertMenu: Inserted menu ID %d at position %d (total in bar: %d)\n",
+                  (*theMenu)->menuID, insertIndex, menuBar->numMenus);
 
     /* Update layout and display */
     UpdateMenuBarLayout();
@@ -919,9 +929,15 @@ static MenuHandle FindMenuInList(short menuID)
     /* Look up in tracking array */
     for (int i = 0; i < gNumMenuHandles; i++) {
         if (gMenuHandles[i].menuID == menuID) {
+            extern void serial_printf(const char* fmt, ...);
+            serial_printf("FindMenuInList: Found menu ID %d at index %d (handle %p)\n",
+                          menuID, i, gMenuHandles[i].handle);
             return gMenuHandles[i].handle;
         }
     }
+    extern void serial_printf(const char* fmt, ...);
+    serial_printf("FindMenuInList: Menu ID %d not found (searched %d menus)\n",
+                  menuID, gNumMenuHandles);
     return NULL;
 }
 

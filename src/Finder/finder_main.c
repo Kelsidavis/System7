@@ -44,6 +44,7 @@ static OSErr SetupMenus(void);
 extern OSErr InitializeDesktopDB(void);  /* From desktop_manager.c */
 static OSErr InitializeWindowManager(void);
 static OSErr InitializeTrash(void);
+static OSErr HandleShutDown(void);
 static void HandleMenuChoice(long menuChoice);
 static void HandleMouseDown(EventRecord *event);
 static void HandleKeyDown(EventRecord *event);
@@ -157,9 +158,11 @@ static OSErr SetupMenus(void)
     /* Apple Menu - Evidence: "About The Finder" */
     static unsigned char appleTitle[] = {1, 0x14};  /* Pascal string: Apple symbol */
     gAppleMenu = NewMenu(128, appleTitle);
-    AppendMenu(gAppleMenu, "\pAbout The Finder");
+    AppendMenu(gAppleMenu, "\pAbout This Macintosh");
     AppendMenu(gAppleMenu, "\p(-");
     AddResMenu(gAppleMenu, 'DRVR');
+    AppendMenu(gAppleMenu, "\p(-");
+    AppendMenu(gAppleMenu, "\pShut Down");
 
     /* File Menu - Evidence: "Get Info", "Find", "Find Again" */
     static unsigned char fileTitle[] = {4, 'F', 'i', 'l', 'e'};  /* Pascal string: "File" */
@@ -224,15 +227,15 @@ static OSErr SetupMenus(void)
     AppendMenu(gSpecialMenu, "\pErase Disk");
     AppendMenu(gSpecialMenu, "\p(-");
     AppendMenu(gSpecialMenu, "\pRestart");
-    AppendMenu(gSpecialMenu, "\pShut Down");
 
-    /* Insert menus into menu bar */
-    InsertMenu(gAppleMenu, 0);
-    InsertMenu(gFileMenu, 0);
-    InsertMenu(gEditMenu, 0);
-    InsertMenu(gViewMenu, 0);
-    InsertMenu(gLabelMenu, 0);
-    InsertMenu(gSpecialMenu, 0);
+    /* Insert menus into menu bar in correct order: Apple, File, Edit, View, Label, Special */
+    /* InsertMenu with 0 adds to end, so insert in order */
+    InsertMenu(gAppleMenu, 0);    /* Apple at position 0 */
+    InsertMenu(gFileMenu, 0);      /* File at position 1 */
+    InsertMenu(gEditMenu, 0);      /* Edit at position 2 */
+    InsertMenu(gViewMenu, 0);      /* View at position 3 */
+    InsertMenu(gLabelMenu, 0);     /* Label at position 4 */
+    InsertMenu(gSpecialMenu, 0);   /* Special at position 5 */
 
     DrawMenuBar();
     return noErr;
@@ -349,10 +352,20 @@ static void HandleMenuChoice(long menuChoice)
             if (menuItem == 1) {
                 ShowAboutFinder();  /* Evidence: "About The Finder" */
             } else {
-                /* Handle desk accessories */
+                /* Get item text to check if it's Shut Down */
                 Str255 itemName;
                 GetMenuItemText(gAppleMenu, menuItem, itemName);
-                OpenDeskAcc(itemName);
+
+                /* Check if this is the Shut Down item */
+                if (itemName[0] == 9 &&
+                    itemName[1] == 'S' && itemName[2] == 'h' &&
+                    itemName[3] == 'u' && itemName[4] == 't') {
+                    /* Shut Down */
+                    err = HandleShutDown();
+                } else {
+                    /* Handle desk accessories */
+                    OpenDeskAcc(itemName);
+                }
             }
             break;
 
@@ -394,6 +407,21 @@ static void HandleMenuChoice(long menuChoice)
     }
 
     HiliteMenu(0);
+}
+
+/*
+ * HandleShutDown - Handle Shut Down menu command
+ */
+static OSErr HandleShutDown(void)
+{
+    /* Log shutdown request */
+    extern void serial_puts(const char* str);
+    serial_puts("Finder: Shutting down system\n");
+
+    /* Halt the CPU */
+    __asm__ volatile("cli; hlt");
+
+    return noErr;  /* Never reached */
 }
 
 /*

@@ -136,10 +136,20 @@ void HiliteMenuTitle(short menuID, Boolean hilite)
 {
     Rect titleRect;
 
-    /* Get menu title rectangle */
-    if (GetMenuTitleRect(menuID, &titleRect) == 0) {
+    /* Get menu title rectangle using the tracking system */
+    extern Boolean GetMenuTitleRectByID(short menuID, Rect* outRect);
+    if (GetMenuTitleRectByID(menuID, &titleRect)) {
         /* Draw highlighted or normal title */
         DrawMenuTitle(menuID, &titleRect, hilite);
+
+        /* Debug output */
+        /* serial_printf already declared above as void */
+        serial_printf("HiliteMenuTitle: menuID=%d hilite=%d rect=(%d,%d,%d,%d)\n",
+                      menuID, hilite, titleRect.left, titleRect.top,
+                      titleRect.right, titleRect.bottom);
+    } else {
+        /* serial_printf already declared above as void */
+        serial_printf("HiliteMenuTitle: GetMenuTitleRectByID failed for menuID=%d\n", menuID);
     }
 }
 
@@ -177,13 +187,20 @@ void DrawMenuTitle(short menuID, const Rect* titleRect, Boolean hilited)
 
     /* Set drawing colors based on hilite state */
     if (hilited) {
-        /* Highlighted state - inverse colors */
-        /* serial_printf("Drawing highlighted menu title: %.*s\n", titleLen, &titleText[1]); */
-        /* TODO: Set highlight colors */
+        /* Highlighted state - invert the title rect */
+        extern void InvertRect(const Rect* rect);
+        InvertRect(titleRect);
+
+        /* serial_printf already declared above as void */
+        serial_printf("Drew highlighted menu title: %.*s\n", titleLen, &titleText[1]);
     } else {
-        /* Normal state */
-        /* serial_printf("Drawing normal menu title: %.*s\n", titleLen, &titleText[1]); */
-        /* TODO: Set normal colors */
+        /* Normal state - erase with white background first to unhighlight */
+        extern void EraseRect(const Rect* rect);
+        EraseRect(titleRect);
+
+        /* Then draw the text normally */
+        /* serial_printf already declared above as void */
+        serial_printf("Drew normal menu title: %.*s\n", titleLen, &titleText[1]);
     }
 
     /* Draw the title text */
@@ -825,11 +842,20 @@ static void DrawMenuItemTextInternal(const Rect* itemRect, ConstStr255Param item
                                    Style textStyle, Boolean enabled, Boolean selected)
 {
     short textLen = itemText[0];
+    extern void serial_printf(const char* fmt, ...);
 
     /* serial_printf("Drawing item text: %.*s (enabled=%s, selected=%s)\n",
            textLen, &itemText[1], enabled ? "Yes" : "No", selected ? "Yes" : "No"); */
 
-    /* TODO: Draw actual text */
+    /* Draw menu title with highlighting if selected */
+    if (selected) {
+        /* Draw inverse video background for selected menu title */
+        extern void InvertRect(const Rect* rect);
+        InvertRect(itemRect);
+        serial_printf("Highlighted menu title: %.*s\n", textLen, &itemText[1]);
+    }
+
+    /* TODO: Draw actual text - for now just rely on existing text drawing */
 }
 
 /*

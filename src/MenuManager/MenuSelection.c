@@ -152,8 +152,23 @@ long MenuSelect(Point startPt)
         extern void HiliteMenu(short menuID);
         HiliteMenu(menuID);
 
+        /* Get the actual menu title position for proper dropdown placement */
+        Rect titleRect;
+        Point dropdownPt;
+
+        extern Boolean GetMenuTitleRectByID(short menuID, Rect* outRect);
+        if (GetMenuTitleRectByID(menuID, &titleRect)) {
+            /* Use the left edge of the menu title */
+            dropdownPt.h = titleRect.left;
+            dropdownPt.v = 20; /* Position below menu bar */
+        } else {
+            /* Fallback to mouse position if title rect not found */
+            dropdownPt.h = startPt.h;
+            dropdownPt.v = 20;
+        }
+
         /* Show dropdown and track item selection */
-        long trackResult = TrackMenu(menuID, startPt);
+        long trackResult = TrackMenu(menuID, dropdownPt);
 
         long result;
         if (trackResult != 0) {
@@ -959,10 +974,20 @@ static void ShowMenuAtPoint(short menuID, Point pt)
         return;
     }
 
-    /* Calculate menu position */
+    /* Get the actual menu title position */
+    Rect titleRect;
     Point menuLocation;
-    menuLocation.h = pt.h;
-    menuLocation.v = 20; /* Position below menu bar (standard height) */
+
+    extern Boolean GetMenuTitleRectByID(short menuID, Rect* outRect);
+    if (GetMenuTitleRectByID(menuID, &titleRect)) {
+        /* Use the left edge of the menu title */
+        menuLocation.h = titleRect.left;
+        menuLocation.v = 20; /* Position below menu bar (standard height) */
+    } else {
+        /* Fallback to mouse position if title rect not found */
+        menuLocation.h = pt.h;
+        menuLocation.v = 20;
+    }
 
     ShowMenu(theMenu, menuLocation, NULL);
 }

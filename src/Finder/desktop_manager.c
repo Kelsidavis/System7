@@ -211,9 +211,11 @@ void DrawDesktop(void)
     /* Register our DeskHook with Window Manager */
     SetDeskHook(Finder_DeskHook);
 
-    /* Create a region for the entire screen */
+    /* Create a region for the desktop (excluding menu bar) */
     desktopRgn = NewRgn();
-    RectRgn(desktopRgn, &qd.screenBits.bounds);
+    Rect desktopRect = qd.screenBits.bounds;
+    desktopRect.top = 20;  /* Start below menu bar */
+    RectRgn(desktopRgn, &desktopRect);
 
     /* Directly call our DeskHook to paint the desktop with the proper pattern */
     Finder_DeskHook(desktopRgn);  /* Pass the desktop region to paint */

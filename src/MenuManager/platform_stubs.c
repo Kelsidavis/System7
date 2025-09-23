@@ -85,11 +85,7 @@ void Platform_HiliteMenuItem(void* theMenu, short item, Boolean hilite)
     /* TODO: Highlight menu item */
 }
 
-short CountMItems(void* theMenu)
-{
-    /* TODO: Count menu items */
-    return 5; /* Default for testing */
-}
+/* CountMItems now implemented in MenuItems.c */
 
 Handle Platform_SaveScreenBits(const Rect* rect)
 {

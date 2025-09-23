@@ -73,20 +73,28 @@ static void DrawMenuItemText(const char* text, short x, short y) {
     serial_printf("Drawing menu item: %s at (%d,%d)\n", text, x, y);
 }
 
-/* --- Test menu items --- */
-static void GetItemText(short index, char* text) {
-    switch(index) {
-        case 1: simple_strcpy(text, "New"); break;
-        case 2: simple_strcpy(text, "Open..."); break;
-        case 3: simple_strcpy(text, "Close"); break;
-        case 4: simple_strcpy(text, "Save"); break;
-        case 5: simple_strcpy(text, "Quit"); break;
-        default: text[0] = 0;
+/* --- Get actual menu items from menu handle --- */
+static void GetItemText(MenuHandle theMenu, short index, char* text) {
+    if (!theMenu || !text) {
+        text[0] = 0;
+        return;
     }
+
+    /* Get item text from actual menu structure */
+    Str255 itemString;
+    GetMenuItemText(theMenu, index, itemString);
+
+    /* Convert Pascal string to C string */
+    short len = itemString[0];
+    if (len > 63) len = 63;  /* Limit to buffer size */
+    for (short i = 0; i < len; i++) {
+        text[i] = itemString[i + 1];
+    }
+    text[len] = 0;
 }
 
 /* Draw dropdown menu */
-static void DrawMenu(short left, short top, short itemCount, short menuWidth, short lineHeight) {
+static void DrawMenu(MenuHandle theMenu, short left, short top, short itemCount, short menuWidth, short lineHeight) {
     DrawMenuRect(left, top, left + menuWidth, top + itemCount * lineHeight + 4, 0xFFFFFFFF);
 
     /* Border */
@@ -98,7 +106,7 @@ static void DrawMenu(short left, short top, short itemCount, short menuWidth, sh
     /* Items */
     for (short i = 1; i <= itemCount; i++) {
         char itemText[64];
-        GetItemText(i, itemText);
+        GetItemText(theMenu, i, itemText);
         if (itemText[0] == 0) continue;
 
         short itemTop = top + 2 + (i - 1) * lineHeight;
@@ -115,13 +123,23 @@ long TrackMenu(short menuID, Point startPt) {
         return 0;
     }
 
+    /* Get the actual menu handle for this menu ID */
+    MenuHandle theMenu = GetMenuHandle(menuID);
+    if (!theMenu) {
+        serial_printf("TrackMenu: Menu %d not found\n", menuID);
+        return 0;
+    }
+
+    /* Get actual item count from menu */
+    short itemCount = CountMenuItems(theMenu);
+    if (itemCount == 0) itemCount = 5;  /* Fallback */
+
     short left = startPt.h;
     short top = 20;       /* below menubar */
     short menuWidth = 120;
-    short itemCount = 5;
     short lineHeight = 16;
 
-    DrawMenu(left, top, itemCount, menuWidth, lineHeight);
+    DrawMenu(theMenu, left, top, itemCount, menuWidth, lineHeight);
     serial_puts("TrackMenu: Dropdown drawn\n");
 
     /* Track mouse while button is held */
@@ -146,7 +164,7 @@ long TrackMenu(short menuID, Point startPt) {
                     DrawMenuRect(left + 2, oldTop, left + menuWidth - 2, oldTop + lineHeight - 1, 0xFFFFFFFF);
 
                     char itemText[64];
-                    GetItemText(lastHighlight, itemText);
+                    GetItemText(theMenu, lastHighlight, itemText);
                     DrawMenuItemText(itemText, left + 4, oldTop + 12);
                 }
 
@@ -155,7 +173,7 @@ long TrackMenu(short menuID, Point startPt) {
                 DrawMenuRect(left + 2, itemTop, left + menuWidth - 2, itemTop + lineHeight - 1, 0xFF000080);  /* Dark blue */
 
                 char itemText[64];
-                GetItemText(highlightIndex, itemText);
+                GetItemText(theMenu, highlightIndex, itemText);
                 /* Draw highlighted text in white */
                 DrawMenuItemText(itemText, left + 4, itemTop + 12);
 
@@ -168,7 +186,7 @@ long TrackMenu(short menuID, Point startPt) {
                 DrawMenuRect(left + 2, oldTop, left + menuWidth - 2, oldTop + lineHeight - 1, 0xFFFFFFFF);
 
                 char itemText[64];
-                GetItemText(lastHighlight, itemText);
+                GetItemText(theMenu, lastHighlight, itemText);
                 DrawMenuItemText(itemText, left + 4, oldTop + 12);
 
                 lastHighlight = -1;

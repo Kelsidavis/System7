@@ -51,9 +51,7 @@ void DrawControls(WindowPtr window) {
 
 /* Menu Manager - Most functions now provided by MenuManagerCore.c */
 
-void AppendMenu(MenuHandle menu, ConstStr255Param data) {
-    /* Stub implementation */
-}
+/* AppendMenu now implemented in MenuItems.c */
 
 /* TextEdit */
 void InitTE(void) {
@@ -877,11 +875,7 @@ UInt32 TickCount(void) {
     return ticks++;
 }
 
-void GetMenuItemText(MenuHandle menu, SInt16 item, Str255 itemString) {
-    if (itemString) {
-        itemString[0] = 0;  /* Empty string */
-    }
-}
+/* GetMenuItemText now implemented in MenuItems.c */
 
 /* OpenDeskAcc provided by DeskManagerCore.c */
 
