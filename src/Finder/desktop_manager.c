@@ -65,6 +65,12 @@ static Boolean gDesktopNeedsCleanup = false; /* Desktop needs reorganization */
 static VRefNum gBootVolumeRef = 0;          /* Boot volume reference */
 static Boolean gVolumeIconVisible = false;   /* Is volume icon shown on desktop */
 
+/* Icon selection and dragging state */
+static short gSelectedIcon = -1;             /* Index of selected icon (-1 = none) */
+static Boolean gDraggingIcon = false;        /* Currently dragging an icon */
+static Point gDragOffset = {0, 0};           /* Offset from icon origin to mouse */
+static Point gOriginalPos = {0, 0};          /* Original position before drag */
+
 /* Forward Declarations */
 static OSErr LoadDesktopDatabase(short vRefNum);
 static OSErr SaveDesktopDatabase(short vRefNum);
@@ -712,13 +718,21 @@ void DrawVolumeIcon(void)
 
     /* Get icon handle for volume - this will use the default HD icon */
     iconHandle.fam = IconSys_DefaultVolume();
-    iconHandle.selected = false;
+    /* Check if this icon is selected (find its index) */
+    Boolean isSelected = false;
+    for (int j = 0; j < gDesktopIconCount; j++) {
+        if (gDesktopIcons[j].iconID == 0xFFFFFFFF && gSelectedIcon == j) {
+            isSelected = true;
+            break;
+        }
+    }
+    iconHandle.selected = isSelected;
 
     /* Draw icon with label using universal system */
     Icon_DrawWithLabel(&iconHandle, volumeName,
                       volumePos.h + 16,  /* Center X (icon is 32px wide) */
                       volumePos.v,        /* Top Y */
-                      false);             /* Not selected */
+                      isSelected);        /* Selection state */
 
     /* Draw Trash icon in bottom-right corner */
     Point trashPos;
@@ -732,14 +746,15 @@ void DrawVolumeIcon(void)
 
     IconHandle trashHandle;
     trashHandle.fam = Trash_IsEmptyAll() ? IconSys_TrashEmpty() : IconSys_TrashFull();
-    trashHandle.selected = false;
+    /* Check if trash is selected (special index 999) */
+    trashHandle.selected = (gSelectedIcon == 999);
 
     /* Draw trash with label - using custom offset for trash */
     Icon_DrawWithLabelOffset(&trashHandle, "Trash",
                             trashPos.h + 16,    /* Center X */
                             trashPos.v,         /* Top Y */
                             48,                 /* Label offset - moved down 1 more pixel */
-                            false);             /* Not selected */
+                            trashHandle.selected);  /* Selection state */
 }
 
 /*
@@ -750,8 +765,12 @@ Boolean HandleDesktopClick(Point clickPoint, Boolean doubleClick)
 {
     Rect iconRect;
     Rect labelRect;
+    short prevSelected = gSelectedIcon;
 
     extern void serial_printf(const char* fmt, ...);
+
+    /* First deselect any previously selected icon */
+    gSelectedIcon = -1;
 
     /* Check volume icon first */
     for (int i = 0; i < gDesktopIconCount; i++) {
@@ -774,6 +793,14 @@ Boolean HandleDesktopClick(Point clickPoint, Boolean doubleClick)
                 serial_printf("Desktop: Click on volume icon at (%d,%d)\n",
                             clickPoint.h, clickPoint.v);
 
+                /* Select the icon */
+                gSelectedIcon = i;
+
+                /* Setup for potential drag */
+                gDragOffset.h = clickPoint.h - gDesktopIcons[i].position.h;
+                gDragOffset.v = clickPoint.v - gDesktopIcons[i].position.v;
+                gOriginalPos = gDesktopIcons[i].position;
+
                 if (doubleClick) {
                     /* Open volume window */
                     serial_printf("Desktop: Double-click on volume - opening window\n");
@@ -795,6 +822,11 @@ Boolean HandleDesktopClick(Point clickPoint, Boolean doubleClick)
                         SelectWindow(volumeWindow);
                         serial_printf("Desktop: Volume window created successfully\n");
                     }
+                }
+
+                /* Redraw if selection changed */
+                if (prevSelected != gSelectedIcon) {
+                    DrawVolumeIcon();  /* Redraw to show selection */
                 }
                 return true;
             }
@@ -822,6 +854,14 @@ Boolean HandleDesktopClick(Point clickPoint, Boolean doubleClick)
         serial_printf("Desktop: Click on trash icon at (%d,%d)\n",
                      clickPoint.h, clickPoint.v);
 
+        /* Select the trash (special index) */
+        gSelectedIcon = 999;  /* Special value for trash */
+
+        /* Redraw if selection changed */
+        if (prevSelected != gSelectedIcon) {
+            DrawVolumeIcon();  /* This also draws trash */
+        }
+
         if (doubleClick) {
             /* Open trash window */
             serial_printf("Desktop: Double-click on trash - opening window\n");
@@ -844,6 +884,11 @@ Boolean HandleDesktopClick(Point clickPoint, Boolean doubleClick)
             }
         }
         return true;
+    }
+
+    /* No icon clicked - deselect and redraw if needed */
+    if (prevSelected != -1) {
+        DrawVolumeIcon();  /* Redraw to clear selection */
     }
 
     return false;
@@ -883,4 +928,95 @@ OSErr HandleVolumeDoubleClick(Point clickPoint)
     }
 
     return fnfErr;
+}
+
+/*
+ * StartDragIcon - Begin dragging an icon
+ */
+void StartDragIcon(Point mousePt)
+{
+    extern void serial_printf(const char* fmt, ...);
+
+    if (gSelectedIcon >= 0 && gSelectedIcon < gDesktopIconCount) {
+        gDraggingIcon = true;
+        serial_printf("Started dragging icon %d\n", gSelectedIcon);
+    } else if (gSelectedIcon == 999) {
+        /* Can't drag trash */
+        serial_printf("Cannot drag trash icon\n");
+    }
+}
+
+/*
+ * DragIcon - Update icon position during drag
+ */
+void DragIcon(Point mousePt)
+{
+    if (!gDraggingIcon || gSelectedIcon < 0 || gSelectedIcon >= gDesktopIconCount) {
+        return;
+    }
+
+    /* Calculate new position based on mouse and offset */
+    Point newPos;
+    newPos.h = mousePt.h - gDragOffset.h;
+    newPos.v = mousePt.v - gDragOffset.v;
+
+    /* Constrain to screen bounds */
+    if (newPos.h < 10) newPos.h = 10;
+    if (newPos.v < 30) newPos.v = 30;  /* Below menu bar */
+    if (newPos.h > fb_width - 42) newPos.h = fb_width - 42;
+    if (newPos.v > fb_height - 60) newPos.v = fb_height - 60;
+
+    /* Update icon position */
+    gDesktopIcons[gSelectedIcon].position = newPos;
+
+    /* Redraw desktop to show new position */
+    DrawDesktop();
+    DrawVolumeIcon();
+}
+
+/*
+ * EndDragIcon - Finish dragging an icon
+ */
+void EndDragIcon(Point mousePt)
+{
+    extern void serial_printf(const char* fmt, ...);
+
+    if (!gDraggingIcon) {
+        return;
+    }
+
+    gDraggingIcon = false;
+
+    if (gSelectedIcon >= 0 && gSelectedIcon < gDesktopIconCount) {
+        serial_printf("Finished dragging icon %d to (%d,%d)\n",
+                     gSelectedIcon,
+                     gDesktopIcons[gSelectedIcon].position.h,
+                     gDesktopIcons[gSelectedIcon].position.v);
+
+        /* Save the new position */
+        SaveDesktopDatabase(0);
+    }
+}
+
+/*
+ * HandleDesktopDrag - Handle mouse drag on desktop
+ * Returns true if dragging an icon
+ */
+Boolean HandleDesktopDrag(Point mousePt, Boolean buttonDown)
+{
+    if (buttonDown && gSelectedIcon >= 0 && !gDraggingIcon) {
+        /* Start drag if we have a selected icon and button just went down */
+        StartDragIcon(mousePt);
+        return true;
+    } else if (gDraggingIcon && buttonDown) {
+        /* Continue dragging */
+        DragIcon(mousePt);
+        return true;
+    } else if (gDraggingIcon && !buttonDown) {
+        /* End drag */
+        EndDragIcon(mousePt);
+        return true;
+    }
+
+    return false;
 }

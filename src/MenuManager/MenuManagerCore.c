@@ -444,10 +444,10 @@ void DrawMenuBar(void)
                         if (mptr->menuID == 128) {
                             /* Draw Apple icon instead of text */
                             /* serial_printf("Drawing Apple icon for menu %d at x=%d\n", mptr->menuID, x); */
-                            DrawAppleIcon(x + 6, 2);  /* Draw icon 6 pixels from left edge */
-                            menuWidth = 30;  /* Wider click region extending to left edge */
-                            AddMenuTitle(mptr->menuID, x, menuWidth, "Apple");
-                            x += menuWidth;
+                            DrawAppleIcon(8, 2);  /* Draw icon at original position x=8 */
+                            menuWidth = 30;  /* Wider click region from left edge */
+                            AddMenuTitle(mptr->menuID, 0, 30, "Apple");  /* Click region from x=0 to x=30 */
+                            x = 30;  /* Next menu starts after Apple menu region */
                         } else if (mptr->menuID == 1) {
                             /* Skip menu ID 1 - it's a duplicate Apple menu */
                             /* serial_printf("Skipping duplicate Apple menu (ID 1)\n"); */

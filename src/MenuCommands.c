@@ -16,12 +16,12 @@ extern void serial_printf(const char* format, ...);
 static void ShowAboutBox(void);
 
 /* Menu IDs - Standard System 7.1 */
-#define kAppleMenuID    1
-#define kFileMenuID     128
-#define kEditMenuID     129
-#define kViewMenuID     130
-#define kLabelMenuID    131
-#define kSpecialMenuID  132
+#define kAppleMenuID    128  /* Apple menu is ID 128 in our system */
+#define kFileMenuID     129
+#define kEditMenuID     130
+#define kViewMenuID     131
+#define kLabelMenuID    132
+#define kSpecialMenuID  133
 
 /* Apple Menu Items */
 #define kAboutItem      1
@@ -125,15 +125,51 @@ static void ShowAboutBox(void)
 static void HandleAppleMenu(short item)
 {
     switch (item) {
-        case kAboutItem:
-            serial_printf("About System 7.1...\n");
+        case 1:  /* About This Macintosh */
+            serial_printf("About This Macintosh...\n");
             /* Show about box */
             ShowAboutBox();
             break;
 
+        case 2:  /* Separator */
+            break;
+
+        case 3:  /* Calculator (sample desk accessory) */
+            serial_printf("Launch Calculator DA\n");
+            break;
+
+        case 4:  /* Separator */
+            break;
+
+        case 5:  /* Shut Down */
+            serial_printf("Apple Menu > Shut Down\n");
+            serial_printf("System shutdown initiated...\n");
+            serial_printf("It is now safe to turn off your computer.\n");
+
+            /* Try QEMU shutdown via ACPI port first */
+            /* QEMU shutdown: write 0x2000 to port 0x604 */
+            __asm__ volatile(
+                "movw $0x2000, %%ax\n"
+                "movw $0x604, %%dx\n"
+                "outw %%ax, %%dx\n"
+                : : : "ax", "dx"
+            );
+
+            /* If that doesn't work, try legacy APM shutdown */
+            /* APM shutdown: write 0x53 to port 0xB004 */
+            __asm__ volatile(
+                "movb $0x53, %%al\n"
+                "movw $0xB004, %%dx\n"
+                "outb %%al, %%dx\n"
+                : : : "al", "dx"
+            );
+
+            /* Final fallback: halt the CPU */
+            __asm__ volatile("cli; hlt");
+            break;
+
         default:
-            /* Desk accessories would be launched here */
-            serial_printf("Launch desk accessory %d\n", item - kDeskAccItem + 1);
+            serial_printf("Unknown Apple menu item: %d\n", item);
             break;
     }
 }
@@ -365,7 +401,26 @@ static void HandleSpecialMenu(short item)
             /* System shutdown */
             serial_printf("System shutdown initiated...\n");
             serial_printf("It is now safe to turn off your computer.\n");
-            /* Halt the CPU */
+
+            /* Try QEMU shutdown via ACPI port first */
+            /* QEMU shutdown: write 0x2000 to port 0x604 */
+            __asm__ volatile(
+                "movw $0x2000, %%ax\n"
+                "movw $0x604, %%dx\n"
+                "outw %%ax, %%dx\n"
+                : : : "ax", "dx"
+            );
+
+            /* If that doesn't work, try legacy APM shutdown */
+            /* APM shutdown: write 0x53 to port 0xB004 */
+            __asm__ volatile(
+                "movb $0x53, %%al\n"
+                "movw $0xB004, %%dx\n"
+                "outb %%al, %%dx\n"
+                : : : "al", "dx"
+            );
+
+            /* Final fallback: halt the CPU */
             __asm__ volatile("cli; hlt");
             break;
 

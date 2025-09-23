@@ -49,10 +49,12 @@ static struct {
     WindowPtr activeWindow;
     UInt32 lastActivateTime;
     Boolean menuVisible;
+    Boolean trackingDesktop;  /* Tracking mouse on desktop */
 } g_dispatcher = {
     false,
     NULL,
     0,
+    false,
     false
 };
 
@@ -119,6 +121,23 @@ Boolean HandleNullEvent(EventRecord* event)
 {
     /* Null events are used for idle processing */
     /* Could be used for cursor animation, background tasks, etc. */
+
+    /* Check if we're tracking desktop drag */
+    if (g_dispatcher.trackingDesktop) {
+        /* Check if mouse button is still down */
+        extern Boolean Button(void);
+        Boolean buttonDown = Button();
+
+        /* Handle drag tracking */
+        extern Boolean HandleDesktopDrag(Point mousePt, Boolean buttonDown);
+        HandleDesktopDrag(event->where, buttonDown);
+
+        /* Stop tracking if button released */
+        if (!buttonDown) {
+            g_dispatcher.trackingDesktop = false;
+        }
+    }
+
     return true;
 }
 
@@ -220,6 +239,8 @@ Boolean HandleMouseDown(EventRecord* event)
                 extern Boolean HandleDesktopClick(Point clickPoint, Boolean doubleClick);
                 if (HandleDesktopClick(event->where, doubleClick)) {
                     serial_printf("Desktop icon clicked (count=%d)\n", clickCount);
+                    /* Start tracking for potential drag */
+                    g_dispatcher.trackingDesktop = true;
                     return true;
                 }
 
@@ -240,6 +261,14 @@ Boolean HandleMouseUp(EventRecord* event)
 {
     /* Mouse up events are often handled implicitly by tracking functions */
     /* But we can use them for drag completion, etc. */
+
+    /* End desktop tracking if active */
+    if (g_dispatcher.trackingDesktop) {
+        extern Boolean HandleDesktopDrag(Point mousePt, Boolean buttonDown);
+        HandleDesktopDrag(event->where, false);  /* Button up */
+        g_dispatcher.trackingDesktop = false;
+    }
+
     return true;
 }
 

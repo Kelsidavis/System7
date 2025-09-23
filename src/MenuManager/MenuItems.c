@@ -50,7 +50,7 @@ short CountMItems(MenuHandle theMenu) {
     short menuID = menu->menuID;
     switch (menuID) {
         case 128:  /* Apple Menu */
-            return 4;  /* About, separator, DRVR items, separator, Shut Down */
+            return 5;  /* About, separator, Calculator, separator, Shut Down */
         case 129:  /* File Menu */
             return 13; /* 13 items in File menu */
         case 130:  /* Edit Menu */

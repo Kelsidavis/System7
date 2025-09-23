@@ -114,6 +114,49 @@ static void DrawMenu(MenuHandle theMenu, short left, short top, short itemCount,
     }
 }
 
+/* Simple cursor drawing - arrow pointer */
+static void DrawCursor(short x, short y) {
+    if (!framebuffer) return;
+
+    uint32_t *fb = (uint32_t*)framebuffer;
+    int pitch = fb_pitch / 4;
+
+    /* Simple arrow cursor pattern (11x16) */
+    static const char arrow[16][11] = {
+        {1,0,0,0,0,0,0,0,0,0,0},
+        {1,1,0,0,0,0,0,0,0,0,0},
+        {1,2,1,0,0,0,0,0,0,0,0},
+        {1,2,2,1,0,0,0,0,0,0,0},
+        {1,2,2,2,1,0,0,0,0,0,0},
+        {1,2,2,2,2,1,0,0,0,0,0},
+        {1,2,2,2,2,2,1,0,0,0,0},
+        {1,2,2,2,2,2,2,1,0,0,0},
+        {1,2,2,2,2,2,2,2,1,0,0},
+        {1,2,2,2,2,1,1,1,1,1,0},
+        {1,2,2,1,2,1,0,0,0,0,0},
+        {1,2,1,0,1,2,1,0,0,0,0},
+        {1,1,0,0,1,2,1,0,0,0,0},
+        {1,0,0,0,0,1,2,1,0,0,0},
+        {0,0,0,0,0,1,2,1,0,0,0},
+        {0,0,0,0,0,0,1,1,0,0,0}
+    };
+
+    /* Draw arrow */
+    for (int row = 0; row < 16; row++) {
+        for (int col = 0; col < 11; col++) {
+            int px = x + col;
+            int py = y + row;
+            if (px >= 0 && px < (int)fb_width && py >= 0 && py < (int)fb_height) {
+                if (arrow[row][col] == 1) {
+                    fb[py * pitch + px] = 0xFF000000; /* Black outline */
+                } else if (arrow[row][col] == 2) {
+                    fb[py * pitch + px] = 0xFFFFFFFF; /* White fill */
+                }
+            }
+        }
+    }
+}
+
 /* Track menu selection */
 long TrackMenu(short menuID, Point startPt) {
     serial_puts("TrackMenu: ENTER\n");
@@ -136,7 +179,8 @@ long TrackMenu(short menuID, Point startPt) {
 
     short left = startPt.h;
     short top = 20;       /* below menubar */
-    short menuWidth = 120;
+    /* Apple menu needs more width for "About This Macintosh" */
+    short menuWidth = (menuID == 128) ? 150 : 120;
     short lineHeight = 16;
 
     DrawMenu(theMenu, left, top, itemCount, menuWidth, lineHeight);
@@ -145,6 +189,9 @@ long TrackMenu(short menuID, Point startPt) {
     /* Track mouse while button is held */
     Point currentPt;
     short lastHighlight = -1;
+
+    /* Don't draw cursor - it conflicts with the system cursor */
+    /* The proper solution would be to integrate with the global cursor system */
 
     while (Button()) {
         PollPS2Input();
