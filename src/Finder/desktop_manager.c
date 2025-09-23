@@ -793,13 +793,18 @@ Boolean HandleDesktopClick(Point clickPoint, Boolean doubleClick)
                 serial_printf("Desktop: Click on volume icon at (%d,%d)\n",
                             clickPoint.h, clickPoint.v);
 
-                /* Select the icon */
-                gSelectedIcon = i;
-
-                /* Setup for potential drag */
-                gDragOffset.h = clickPoint.h - gDesktopIcons[i].position.h;
-                gDragOffset.v = clickPoint.v - gDesktopIcons[i].position.v;
-                gOriginalPos = gDesktopIcons[i].position;
+                /* If already selected, start dragging immediately */
+                if (gSelectedIcon == i && !doubleClick) {
+                    /* Start drag */
+                    gDragOffset.h = clickPoint.h - gDesktopIcons[i].position.h;
+                    gDragOffset.v = clickPoint.v - gDesktopIcons[i].position.v;
+                    gOriginalPos = gDesktopIcons[i].position;
+                    gDraggingIcon = true;
+                    serial_printf("Started dragging volume icon\n");
+                } else {
+                    /* Select the icon */
+                    gSelectedIcon = i;
+                }
 
                 if (doubleClick) {
                     /* Open volume window */
@@ -1004,11 +1009,7 @@ void EndDragIcon(Point mousePt)
  */
 Boolean HandleDesktopDrag(Point mousePt, Boolean buttonDown)
 {
-    if (buttonDown && gSelectedIcon >= 0 && !gDraggingIcon) {
-        /* Start drag if we have a selected icon and button just went down */
-        StartDragIcon(mousePt);
-        return true;
-    } else if (gDraggingIcon && buttonDown) {
+    if (gDraggingIcon && buttonDown) {
         /* Continue dragging */
         DragIcon(mousePt);
         return true;
