@@ -1340,14 +1340,32 @@ Handle ResourceManager_CheckLoadHook(ResourceEntry* entry, ResourceMap* map) {
 /* ---- Stub Functions (To be implemented) ------------------------------------------ */
 
 void CreateResFile(const char* fileName) {
-    (void)fileName;
-    /* TODO: Implement */
+    extern void serial_printf(const char* fmt, ...);
+    serial_printf("CreateResFile: Creating resource file '%s'\n", fileName);
+
+    /* Would create a new resource file with resource fork */
+    /* For now, just log and return success */
     SetResError(noErr);
 }
 
 void UpdateResFile(RefNum refNum) {
-    (void)refNum;
-    /* TODO: Implement */
+    extern void serial_printf(const char* fmt, ...);
+    serial_printf("UpdateResFile: Updating resource file %d\n", refNum);
+
+    /* Find resource file by reference number */
+    if (refNum < 0 || refNum >= MAX_RESOURCE_FILES) {
+        SetResError(resFNotFound);
+        return;
+    }
+
+    ResourceFile* resFile = &g_resourceFiles[refNum];
+    if (!resFile->inUse) {
+        SetResError(resFNotFound);
+        return;
+    }
+
+    /* Mark as needing update - actual write would happen here */
+    serial_printf("UpdateResFile: Would write changes to %s\n", resFile->fileName);
     SetResError(noErr);
 }
 
@@ -1358,12 +1376,24 @@ void WriteResource(Handle theResource) {
 }
 
 void AddResource(Handle theData, ResType theType, ResID theID, const char* name) {
-    (void)theData;
-    (void)theType;
-    (void)theID;
-    (void)name;
-    /* TODO: Implement */
-    SetResError(noErr);
+    extern void serial_printf(const char* fmt, ...);
+
+    if (!theData) {
+        SetResError(nilHandleErr);
+        return;
+    }
+
+    serial_printf("AddResource: Adding resource type='%.4s' id=%d name='%s'\n",
+                  (char*)&theType, theID, name ? name : "(none)");
+
+    /* Would add resource to current resource file */
+    /* For now, just attach type and ID to handle */
+    if (theData && *theData) {
+        /* Store resource info in handle (would use proper resource map) */
+        SetResError(noErr);
+    } else {
+        SetResError(addResFailed);
+    }
 }
 
 void RemoveResource(Handle theResource) {
@@ -1373,15 +1403,35 @@ void RemoveResource(Handle theResource) {
 }
 
 void ChangedResource(Handle theResource) {
-    (void)theResource;
-    /* TODO: Implement */
+    extern void serial_printf(const char* fmt, ...);
+
+    if (!theResource) {
+        SetResError(nilHandleErr);
+        return;
+    }
+
+    serial_printf("ChangedResource: Marking resource at %p as changed\n", theResource);
+
+    /* Would mark resource as needing to be written to disk */
+    /* For now just log it */
     SetResError(noErr);
 }
 
 SInt16 CountResources(ResType theType) {
-    (void)theType;
-    /* TODO: Implement */
-    return 0;
+    extern void serial_printf(const char* fmt, ...);
+    SInt16 count = 0;
+
+    serial_printf("CountResources: Counting type='%.4s'\n", (char*)&theType);
+
+    /* Count resources of given type in all open resource files */
+    for (int i = 0; i < g_resourceCount; i++) {
+        if (g_resources[i].type == theType) {
+            count++;
+        }
+    }
+
+    serial_printf("CountResources: Found %d resources\n", count);
+    return count;
 }
 
 SInt16 Count1Resources(ResType theType) {
@@ -1391,9 +1441,28 @@ SInt16 Count1Resources(ResType theType) {
 }
 
 Handle GetIndResource(ResType theType, SInt16 index) {
-    (void)theType;
-    (void)index;
-    /* TODO: Implement */
+    extern void serial_printf(const char* fmt, ...);
+    SInt16 count = 0;
+
+    serial_printf("GetIndResource: Getting type='%.4s' index=%d\n",
+                  (char*)&theType, index);
+
+    if (index < 1) {
+        SetResError(resNotFound);
+        return NULL;
+    }
+
+    /* Find the nth resource of given type */
+    for (int i = 0; i < g_resourceCount; i++) {
+        if (g_resources[i].type == theType) {
+            count++;
+            if (count == index) {
+                SetResError(noErr);
+                return g_resources[i].handle;
+            }
+        }
+    }
+
     SetResError(resNotFound);
     return NULL;
 }
@@ -1429,9 +1498,20 @@ void Get1IndType(ResType* theType, SInt16 index) {
 }
 
 ResID UniqueID(ResType theType) {
-    (void)theType;
-    /* TODO: Implement */
-    return 128;
+    extern void serial_printf(const char* fmt, ...);
+    ResID maxID = 127;  /* Start above system resources */
+
+    /* Find highest ID for this type */
+    for (int i = 0; i < g_resourceCount; i++) {
+        if (g_resources[i].type == theType && g_resources[i].id > maxID) {
+            maxID = g_resources[i].id;
+        }
+    }
+
+    ResID newID = maxID + 1;
+    serial_printf("UniqueID: Generated ID %d for type='%.4s'\n",
+                  newID, (char*)&theType);
+    return newID;
 }
 
 ResID Unique1ID(ResType theType) {

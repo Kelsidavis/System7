@@ -624,3 +624,39 @@ void GetMouse(Point* mouseLoc) {
 Boolean Button(void) {
     return (g_mouseState.buttons & 0x01) != 0;
 }
+
+/* Get keyboard state for Event Manager */
+Boolean GetPS2KeyboardState(KeyMap keyMap) {
+    if (!keyMap) {
+        return false;
+    }
+
+    /* Initialize keymap to all zeros */
+    for (int i = 0; i < 16; i++) {
+        keyMap[i] = 0;
+    }
+
+    /* We don't have a full key state array, just modifier states */
+    /* Set modifier keys based on current state */
+    if (g_keyboardState.shift_pressed) keyMap[7] |= 0x02;     /* Shift */
+    if (g_keyboardState.ctrl_pressed) keyMap[7] |= 0x10;      /* Control */
+    if (g_keyboardState.alt_pressed) keyMap[7] |= 0x08;       /* Option/Alt */
+    if (g_keyboardState.caps_lock) keyMap[7] |= 0x04;         /* Caps Lock */
+
+    /* We can check the last scancode for recently pressed keys */
+    /* This is a simplified implementation */
+    uint8_t lastScan = g_keyboardState.last_scancode;
+    if (lastScan) {
+        /* Map some common scancodes to keymap bits */
+        switch (lastScan) {
+            case 0x1C: keyMap[0] |= 0x01; break;  /* A */
+            case 0x32: keyMap[1] |= 0x02; break;  /* B */
+            case 0x21: keyMap[1] |= 0x08; break;  /* C */
+            case 0x29: keyMap[6] |= 0x02; break;  /* Space */
+            case 0x5A: keyMap[4] |= 0x80; break;  /* Return */
+            case 0x76: keyMap[6] |= 0x80; break;  /* Escape */
+        }
+    }
+
+    return true;
+}

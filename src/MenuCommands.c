@@ -145,8 +145,8 @@ static void HandleFileMenu(short item)
         case kNewItem:
             serial_printf("File > New\n");
             /* Create new folder in Finder */
-            extern Boolean VFS_CreateFolder(VRefNum vref, DirID parent, const char* name, DirID* newID);
-            DirID newFolderID;
+            extern Boolean VFS_CreateFolder(SInt16 vref, SInt32 parent, const char* name, SInt32* newID);
+            SInt32 newFolderID;
             if (VFS_CreateFolder(0, 2, "New Folder", &newFolderID)) {
                 serial_printf("Created new folder with ID %ld\n", newFolderID);
             }

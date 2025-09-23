@@ -229,9 +229,9 @@ bool VFS_CreateFolder(VRefNum vref, DirID parent, const char* name, DirID* newID
         return false;
     }
 
-    /* Check volume */
-    if (!g_bootVolume) {
-        serial_printf("VFS_CreateFolder: No boot volume\n");
+    /* Check volume - for now just validate vref */
+    if (vref != 0 && vref != -1) {
+        serial_printf("VFS_CreateFolder: Invalid volume %d\n", vref);
         return false;
     }
 
@@ -255,9 +255,9 @@ bool VFS_CreateFile(VRefNum vref, DirID parent, const char* name,
         return false;
     }
 
-    /* Check volume */
-    if (!g_bootVolume) {
-        serial_printf("VFS_CreateFile: No boot volume\n");
+    /* Check volume - for now just validate vref */
+    if (vref != 0 && vref != -1) {
+        serial_printf("VFS_CreateFile: Invalid volume %d\n", vref);
         return false;
     }
 
@@ -279,9 +279,9 @@ bool VFS_Rename(VRefNum vref, FileID id, const char* newName) {
         return false;
     }
 
-    /* Check volume */
-    if (!g_bootVolume) {
-        serial_printf("VFS_Rename: No boot volume\n");
+    /* Check volume - for now just validate vref */
+    if (vref != 0 && vref != -1) {
+        serial_printf("VFS_Rename: Invalid volume %d\n", vref);
         return false;
     }
 
@@ -293,14 +293,14 @@ bool VFS_Rename(VRefNum vref, FileID id, const char* newName) {
 bool VFS_Delete(VRefNum vref, FileID id) {
     serial_printf("VFS_Delete: Deleting file/folder ID %ld\n", id);
 
-    /* Check volume */
-    if (!g_bootVolume) {
-        serial_printf("VFS_Delete: No boot volume\n");
+    /* Check volume - for now just validate vref */
+    if (vref != 0 && vref != -1) {
+        serial_printf("VFS_Delete: Invalid volume %d\n", vref);
         return false;
     }
 
     /* Check for special folders that shouldn't be deleted */
-    if (id == fsRtDirID || id == 2) {  /* Root or System folder */
+    if (id == 1 || id == 2) {  /* Root (1) or System folder (2) */
         serial_printf("VFS_Delete: Cannot delete system folder\n");
         return false;
     }

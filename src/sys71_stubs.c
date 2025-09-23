@@ -208,6 +208,9 @@ void GenerateSystemEvent(short eventType, int message, Point where, short modifi
 
 /* SystemTask provided by DeskManagerCore.c */
 
+/* External functions we use */
+extern void serial_printf(const char* fmt, ...);
+
 /* ExpandMem stubs for SystemInit */
 void ExpandMemInit(void) {
     serial_printf("ExpandMemInit: Initializing expanded memory\n");
@@ -257,6 +260,9 @@ Boolean ExpandMemValidate(void) { return true; }
 /* QuickDraw globals - defined in main.c */
 extern QDGlobals qd;
 
+/* Window manager globals */
+WindowPtr g_firstWindow = NULL;  /* Head of window chain */
+
 void FinderEventLoop(void) {
     /* Stub implementation */
 }
@@ -295,7 +301,73 @@ void InitWindows(void) {
 WindowPtr NewWindow(void* storage, const Rect* boundsRect, ConstStr255Param title,
                     Boolean visible, short procID, WindowPtr behind, Boolean goAwayFlag,
                     long refCon) {
-    return NULL;
+    serial_printf("NewWindow: Creating window procID=%d visible=%d\n", procID, visible);
+
+    /* Allocate window structure if no storage provided */
+    WindowPtr window;
+    if (storage) {
+        window = (WindowPtr)storage;
+    } else {
+        /* Would normally allocate from heap */
+        static WindowRecord tempWindow;  /* Static for now */
+        window = (WindowPtr)&tempWindow;
+    }
+
+    /* Initialize window fields */
+    GrafPort* port = (GrafPort*)window;
+    if (boundsRect) {
+        port->portRect = *boundsRect;
+    } else {
+        /* Default window size */
+        port->portRect.left = 100;
+        port->portRect.top = 100;
+        port->portRect.right = 500;
+        port->portRect.bottom = 400;
+    }
+
+    window->visible = visible;
+    window->windowKind = procID;  /* Use procID as window kind */
+    window->hilited = false;
+    window->goAwayFlag = goAwayFlag;
+    window->refCon = refCon;
+
+    /* Copy title if provided */
+    if (title && title[0] > 0) {
+        /* Would copy to window's title storage */
+        serial_printf("NewWindow: Title length = %d\n", title[0]);
+    }
+
+    /* Insert into window chain */
+    extern WindowPtr g_firstWindow;
+    if (behind == (WindowPtr)-1L) {
+        /* Add to end of chain */
+        WindowPtr last = g_firstWindow;
+        if (last) {
+            while (last->nextWindow) {
+                last = last->nextWindow;
+            }
+            last->nextWindow = window;
+        } else {
+            g_firstWindow = window;
+        }
+        window->nextWindow = NULL;
+    } else if (behind == NULL) {
+        /* Add to front */
+        window->nextWindow = g_firstWindow;
+        g_firstWindow = window;
+    } else {
+        /* Insert after specific window */
+        window->nextWindow = behind->nextWindow;
+        behind->nextWindow = window;
+    }
+
+    /* Set up graf port fields */
+    port->portBits.baseAddr = NULL;  /* Would point to window's pixels */
+    port->portBits.rowBytes = 0;
+    port->portBits.bounds = port->portRect;
+
+    serial_printf("NewWindow: Created window at %p\n", window);
+    return window;
 }
 void DisposeWindow(WindowPtr window) {
     if (!window) {
@@ -349,22 +421,23 @@ void DragWindow(WindowPtr window, Point startPt, const Rect* boundsRect) {
             short dv = currentPt.v - lastPt.v;
 
             /* Move window */
-            window->portRect.left += dh;
-            window->portRect.right += dh;
-            window->portRect.top += dv;
-            window->portRect.bottom += dv;
+            GrafPort* port = (GrafPort*)window;
+            port->portRect.left += dh;
+            port->portRect.right += dh;
+            port->portRect.top += dv;
+            port->portRect.bottom += dv;
 
             /* Constrain to bounds if provided */
             if (boundsRect) {
-                if (window->portRect.left < boundsRect->left) {
-                    short adjust = boundsRect->left - window->portRect.left;
-                    window->portRect.left += adjust;
-                    window->portRect.right += adjust;
+                if (port->portRect.left < boundsRect->left) {
+                    short adjust = boundsRect->left - port->portRect.left;
+                    port->portRect.left += adjust;
+                    port->portRect.right += adjust;
                 }
-                if (window->portRect.top < boundsRect->top) {
-                    short adjust = boundsRect->top - window->portRect.top;
-                    window->portRect.top += adjust;
-                    window->portRect.bottom += adjust;
+                if (port->portRect.top < boundsRect->top) {
+                    short adjust = boundsRect->top - port->portRect.top;
+                    port->portRect.top += adjust;
+                    port->portRect.bottom += adjust;
                 }
             }
 
@@ -407,7 +480,8 @@ void ShowWindow(WindowPtr window) {
 
     /* Invalidate window area to force redraw */
     extern void InvalRect(const Rect* rect);
-    InvalRect(&window->portRect);
+    GrafPort* port = (GrafPort*)window;
+    InvalRect(&port->portRect);
 }
 void HideWindow(WindowPtr window) {
     if (!window) {
@@ -421,7 +495,8 @@ void HideWindow(WindowPtr window) {
 
     /* Invalidate area behind window */
     extern void InvalRect(const Rect* rect);
-    InvalRect(&window->portRect);
+    GrafPort* port = (GrafPort*)window;
+    InvalRect(&port->portRect);
 }
 void SelectWindow(WindowPtr window) {
     if (!window) {
@@ -451,7 +526,20 @@ void SelectWindow(WindowPtr window) {
     /* Set as active window */
     window->hilited = true;
 }
-WindowPtr FrontWindow(void) { return NULL; }
+WindowPtr FrontWindow(void) {
+    extern WindowPtr g_firstWindow;
+
+    /* Find first visible window */
+    WindowPtr window = g_firstWindow;
+    while (window) {
+        if (window->visible) {
+            return window;
+        }
+        window = window->nextWindow;
+    }
+
+    return NULL;
+}
 void SetWTitle(WindowPtr window, ConstStr255Param title) {
     if (!window) {
         serial_printf("SetWTitle: NULL window\n");
@@ -479,7 +567,8 @@ void SetWTitle(WindowPtr window, ConstStr255Param title) {
     serial_printf("SetWTitle: Title = '%s'\n", titleBuf);
 
     /* Invalidate title bar area */
-    Rect titleBar = window->portRect;
+    GrafPort* port = (GrafPort*)window;
+    Rect titleBar = port->portRect;
     titleBar.bottom = titleBar.top + 20;  /* Standard title bar height */
     extern void InvalRect(const Rect* rect);
     InvalRect(&titleBar);
@@ -497,9 +586,10 @@ void DrawGrowIcon(WindowPtr window) {
     serial_printf("DrawGrowIcon: Drawing grow icon for window at %p\n", window);
 
     /* Draw grow icon in bottom-right corner */
+    GrafPort* port = (GrafPort*)window;
     Rect growRect;
-    growRect.right = window->portRect.right;
-    growRect.bottom = window->portRect.bottom;
+    growRect.right = port->portRect.right;
+    growRect.bottom = port->portRect.bottom;
     growRect.left = growRect.right - 15;
     growRect.top = growRect.bottom - 15;
 
@@ -519,7 +609,8 @@ void WM_UpdateWindowVisibility(WindowPtr window) {
     if (window->visible) {
         /* Ensure window is drawn */
         extern void InvalRect(const Rect* rect);
-        InvalRect(&window->portRect);
+        GrafPort* port = (GrafPort*)window;
+        InvalRect(&port->portRect);
     }
 }
 

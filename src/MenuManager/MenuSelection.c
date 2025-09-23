@@ -148,6 +148,10 @@ long MenuSelect(Point startPt)
         serial_printf("MenuSelect: Found menu ID %d at (h=%d,v=%d)\n",
                      menuID, startPt.h, startPt.v);
 
+        /* Highlight the menu title */
+        extern void HiliteMenu(short menuID);
+        HiliteMenu(menuID);
+
         /* Show dropdown and track item selection */
         long trackResult = TrackMenu(menuID, startPt);
 
@@ -162,6 +166,10 @@ long MenuSelect(Point startPt)
             result = 0;
             serial_printf("MenuSelect: User cancelled menu selection\n");
         }
+
+        /* Unhighlight the menu title */
+        extern void HiliteMenu(short menuID);
+        HiliteMenu(0);
 
         gLastMenuChoice = result;
         serial_printf("MenuSelect: Returning 0x%08lX\n", result);

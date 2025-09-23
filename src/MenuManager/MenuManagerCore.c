@@ -525,10 +525,20 @@ void HiliteMenu(short menuID)
         return;
     }
 
+    /* Unhighlight previous menu if any */
+    if (gMenuMgrState->hiliteMenu != 0 && gMenuMgrState->hiliteMenu != menuID) {
+        extern void HiliteMenuTitle(short menuID, Boolean hilite);
+        HiliteMenuTitle(gMenuMgrState->hiliteMenu, false);
+    }
+
+    /* Set new hilite menu */
     gMenuMgrState->hiliteMenu = menuID;
 
-    /* Update display */
-    DrawMenuBar();
+    /* Highlight new menu if not 0 */
+    if (menuID != 0) {
+        extern void HiliteMenuTitle(short menuID, Boolean hilite);
+        HiliteMenuTitle(menuID, true);
+    }
 }
 
 /* GetMBarHeight is defined as a macro in MenuManager.h */
