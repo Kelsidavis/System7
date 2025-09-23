@@ -844,16 +844,29 @@ OSErr SCSIBusInquirySync(SCSIBusInquiryPB *inquiry) {
     inquiry->scsiMaxTarget = bus->maxTarget;
     inquiry->scsiMaxLUN = bus->maxLUN;
 
-    /* Vendor strings */
-    strcpy(inquiry->scsiSIMVendor, "Apple Computer");
-    strcpy(inquiry->scsiHBAVendor, "Portable SCSI");
-    strcpy(inquiry->scsiControllerFamily, "Generic");
-    strcpy(inquiry->scsiControllerType, "Portable");
+    /* Safe string copy helper */
+    #define SAFE_STRCPY(dst, src, maxlen) do { \
+        const char* s = (src); \
+        char* d = (dst); \
+        size_t i; \
+        for (i = 0; i < (maxlen) - 1 && s[i]; i++) { \
+            d[i] = s[i]; \
+        } \
+        d[i] = '\0'; \
+    } while(0)
 
-    /* Version info */
-    strcpy(inquiry->scsiXPTversion, "4.3");
-    strcpy(inquiry->scsiSIMversion, "4.3");
-    strcpy(inquiry->scsiHBAversion, "1.0");
+    /* Vendor strings - assuming 16 byte fields based on typical SCSI inquiry */
+    SAFE_STRCPY(inquiry->scsiSIMVendor, "Apple Computer", 16);
+    SAFE_STRCPY(inquiry->scsiHBAVendor, "Portable SCSI", 16);
+    SAFE_STRCPY(inquiry->scsiControllerFamily, "Generic", 16);
+    SAFE_STRCPY(inquiry->scsiControllerType, "Portable", 16);
+
+    /* Version info - assuming 8 byte fields */
+    SAFE_STRCPY(inquiry->scsiXPTversion, "4.3", 8);
+    SAFE_STRCPY(inquiry->scsiSIMversion, "4.3", 8);
+    SAFE_STRCPY(inquiry->scsiHBAversion, "1.0", 8);
+
+    #undef SAFE_STRCPY
 
     return noErr;
 }

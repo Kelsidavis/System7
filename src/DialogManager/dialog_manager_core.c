@@ -197,9 +197,30 @@ void GetDialogItemText(Handle item, Str255 text) {
     /* Real implementation would extract text from item based on item type */
     text[0] = 0;  /* Empty string by default */
 
-    /* TODO: Extract actual text from dialog item handle */
-    /* Evidence suggests this involves examining item type and extracting */
-    /* text content from control or static text item */
+    /* Extract text from dialog item handle */
+    extern void serial_printf(const char* fmt, ...);
+
+    /* Check if item contains text data */
+    /* Dialog items store text after the item type/rect data */
+    if (GetHandleSize(item) > sizeof(DialogItem)) {
+        /* Text stored as Pascal string after item data */
+        unsigned char* itemData = (unsigned char*)*item;
+        unsigned char* textData = itemData + sizeof(DialogItem);
+
+        /* Copy Pascal string */
+        unsigned char len = textData[0];
+        if (len > 255) len = 255;
+
+        text[0] = len;
+        for (int i = 0; i < len; i++) {
+            text[i+1] = textData[i+1];
+        }
+
+        serial_printf("GetDialogItemText: Retrieved %d chars\n", len);
+    } else {
+        /* No text data */
+        text[0] = 0;
+    }
 }
 
 /*
@@ -213,9 +234,31 @@ void SetDialogItemText(Handle item, const Str255 text) {
     /* For this reverse engineering, implement basic text setting */
     /* Real implementation would set text in item based on item type */
 
-    /* TODO: Set actual text in dialog item handle */
-    /* Evidence suggests this involves examining item type and setting */
-    /* text content in control or static text item */
+    /* Set text in dialog item handle */
+    extern void serial_printf(const char* fmt, ...);
+
+    unsigned char len = text[0];
+    if (len > 255) len = 255;
+
+    /* Resize handle to accommodate new text */
+    Size newSize = sizeof(DialogItem) + len + 1;
+    SetHandleSize(item, newSize);
+
+    if (MemError() == noErr) {
+        /* Store text as Pascal string after item data */
+        unsigned char* itemData = (unsigned char*)*item;
+        unsigned char* textData = itemData + sizeof(DialogItem);
+
+        /* Copy Pascal string */
+        textData[0] = len;
+        for (int i = 0; i < len; i++) {
+            textData[i+1] = text[i+1];
+        }
+
+        serial_printf("SetDialogItemText: Set %d chars\n", len);
+    } else {
+        serial_printf("SetDialogItemText: Failed to resize handle\n");
+    }
 }
 
 /*
@@ -234,9 +277,40 @@ SInt16 FindDialogItem(DialogPtr theDialog, Point thePt) {
     /* For this reverse engineering, implement basic hit testing */
     /* Real implementation would iterate through DITL and test each item rect */
 
-    /* TODO: Implement actual hit testing against dialog item rectangles */
-    /* Evidence from assembly suggests iterating through item list and */
-    /* testing point against each item's rectangle */
+    /* Implement hit testing against dialog item rectangles */
+    extern void serial_printf(const char* fmt, ...);
+
+    /* DITL format: count word followed by items */
+    short* ditlData = (short*)*itemList;
+    short itemCount = ditlData[0] + 1;  /* Count is 0-based */
+
+    /* Start after count word */
+    unsigned char* itemPtr = (unsigned char*)&ditlData[1];
+
+    for (short i = 1; i <= itemCount; i++) {
+        /* Each item has: placeholder(4), rect(8), type(1), data... */
+        itemPtr += 4;  /* Skip placeholder */
+
+        /* Get item rectangle */
+        Rect* itemRect = (Rect*)itemPtr;
+        itemPtr += sizeof(Rect);
+
+        /* Check if point is in this item's rect */
+        if (thePt.h >= itemRect->left && thePt.h < itemRect->right &&
+            thePt.v >= itemRect->top && thePt.v < itemRect->bottom) {
+            serial_printf("FindDialogItem: Hit item %d at (%d,%d)\n", i, thePt.h, thePt.v);
+            return i;
+        }
+
+        /* Skip type byte and variable-length data */
+        unsigned char itemType = *itemPtr++;
+
+        /* Skip data based on type */
+        if (itemType & 0x04) {  /* Has text */
+            unsigned char textLen = *itemPtr;
+            itemPtr += textLen + 1;
+        }
+    }
 
     return 0;  /* No item found */
 }

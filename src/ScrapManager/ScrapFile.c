@@ -77,7 +77,11 @@ OSErr SetScrapFile(ConstStr255Param fileName, SInt16 vRefNum, SInt32 dirID)
         if (path[0] != '/') {
             char fullPath[256];
             snprintf(fullPath, sizeof(fullPath), "%s/%s", gScrapDirectory, path);
-            strcpy(path, fullPath);
+            /* Safe copy back to path buffer */
+            size_t len = strlen(fullPath);
+            if (len >= sizeof(path)) len = sizeof(path) - 1;
+            memcpy(path, fullPath, len);
+            path[len] = '\0';
         }
     } else {
         GetDefaultScrapPath(path, sizeof(path));
@@ -234,7 +238,11 @@ OSErr LoadScrapFromFile(ConstStr255Param fileName, SInt16 vRefNum, SInt32 dirID)
         if (path[0] != '/') {
             char fullPath[256];
             snprintf(fullPath, sizeof(fullPath), "%s/%s", gScrapDirectory, path);
-            strcpy(path, fullPath);
+            /* Safe copy back to path buffer */
+            size_t len = strlen(fullPath);
+            if (len >= sizeof(path)) len = sizeof(path) - 1;
+            memcpy(path, fullPath, len);
+            path[len] = '\0';
         }
 
         err = ConvertPathToFSSpec(path, &fileSpec);

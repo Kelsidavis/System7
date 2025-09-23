@@ -182,8 +182,12 @@ void ProcessModernInput(void)
     currentMousePos = g_mousePos;
     currentButtonState = g_mouseState.buttons;
 
-    /* TODO: Get keyboard state from PS2Controller */
-    memset(currentKeyMap, 0, sizeof(KeyMap));
+    /* Get keyboard state from PS2Controller */
+    extern Boolean GetPS2KeyboardState(KeyMap keyMap);
+    if (!GetPS2KeyboardState(currentKeyMap)) {
+        /* If no keyboard state available, clear the map */
+        memset(currentKeyMap, 0, sizeof(KeyMap));
+    }
 
     /* Check for mouse movement */
     if (currentMousePos.h != g_modernInput.lastMousePos.h ||

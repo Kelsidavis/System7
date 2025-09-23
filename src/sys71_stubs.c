@@ -171,18 +171,15 @@ SInt16 PostEvent(SInt16 eventNum, SInt32 eventMsg) {
     evt->message = eventMsg;
     evt->when = TickCount();
 
-    /* For mouse events, unpack coordinates from message */
-    if (eventNum == mouseDown || eventNum == mouseUp) {
-        /* Message contains packed coordinates: h in high word, v in low word */
-        evt->where.h = (SInt16)((eventMsg >> 16) & 0xFFFF);
-        evt->where.v = (SInt16)(eventMsg & 0xFFFF);
+    /* Get current mouse position for all events */
+    GetMouse(&evt->where);
 
-        /* Debug: show the unpacking process */
-        serial_printf("PostEvent: Unpacking msg=0x%08x -> h=%d (0x%04x), v=%d (0x%04x)\n",
-                     eventMsg, evt->where.h, evt->where.h, evt->where.v, evt->where.v);
-    } else {
-        /* For non-mouse events, get current mouse position */
-        GetMouse(&evt->where);
+    /* For mouse events, message contains additional data like click count */
+    if (eventNum == mouseDown || eventNum == mouseUp) {
+        /* Message high word contains click count for mouse down */
+        /* Message low word may contain button/modifier info */
+        serial_printf("PostEvent: Mouse event with message=0x%08x at (%d,%d)\n",
+                     eventMsg, evt->where.h, evt->where.v);
     }
 
     evt->modifiers = 0;  /* TODO: Get keyboard modifiers */
@@ -212,15 +209,42 @@ void GenerateSystemEvent(short eventType, int message, Point where, short modifi
 /* SystemTask provided by DeskManagerCore.c */
 
 /* ExpandMem stubs for SystemInit */
-void ExpandMemInit(void) {}
-void ExpandMemInitKeyboard(void) {}
-void ExpandMemSetAppleTalkInactive(void) {}
-void SetAutoDecompression(Boolean enable) {}
-void ResourceManager_SetDecompressionCacheSize(Size size) {}
-void InstallDecompressHook(DecompressHookProc proc) {}
-void ExpandMemInstallDecompressor(void) {}
-void ExpandMemCleanup(void) {}
-void ExpandMemDump(void) {}
+void ExpandMemInit(void) {
+    serial_printf("ExpandMemInit: Initializing expanded memory\n");
+    /* Set up expanded memory globals if needed */
+}
+void ExpandMemInitKeyboard(void) {
+    serial_printf("ExpandMemInitKeyboard: Initializing keyboard expanded memory\n");
+    /* Initialize keyboard-specific memory areas */
+}
+void ExpandMemSetAppleTalkInactive(void) {
+    serial_printf("ExpandMemSetAppleTalkInactive: Disabling AppleTalk\n");
+    /* Mark AppleTalk as inactive in expanded memory */
+}
+void SetAutoDecompression(Boolean enable) {
+    serial_printf("SetAutoDecompression: %s\n", enable ? "Enabled" : "Disabled");
+    /* Set resource decompression flag */
+}
+void ResourceManager_SetDecompressionCacheSize(Size size) {
+    serial_printf("ResourceManager_SetDecompressionCacheSize: Setting cache to %lu bytes\n", (unsigned long)size);
+    /* Configure decompression cache */
+}
+void InstallDecompressHook(DecompressHookProc proc) {
+    serial_printf("InstallDecompressHook: Installing hook at %p\n", proc);
+    /* Install custom decompression routine */
+}
+void ExpandMemInstallDecompressor(void) {
+    serial_printf("ExpandMemInstallDecompressor: Installing default decompressor\n");
+    /* Install default resource decompressor */
+}
+void ExpandMemCleanup(void) {
+    serial_printf("ExpandMemCleanup: Cleaning up expanded memory\n");
+    /* Release expanded memory resources */
+}
+void ExpandMemDump(void) {
+    serial_printf("ExpandMemDump: Dumping expanded memory state\n");
+    /* Debug dump of expanded memory contents */
+}
 Boolean ExpandMemValidate(void) { return true; }
 
 /* Serial stubs */
@@ -254,22 +278,250 @@ void TEInit(void) {
 }
 
 /* Window stubs for functions not yet implemented elsewhere */
-void InitWindows(void) {}
+void InitWindows(void) {
+    serial_printf("InitWindows: Initializing window manager\n");
+
+    /* Set up window list chain */
+    extern WindowPtr g_firstWindow;
+    g_firstWindow = NULL;
+
+    /* Initialize desktop port */
+    extern QDGlobals qd;
+    if (qd.thePort == NULL) {
+        /* Create default desktop port */
+        serial_printf("InitWindows: Creating default desktop port\n");
+    }
+}
 WindowPtr NewWindow(void* storage, const Rect* boundsRect, ConstStr255Param title,
                     Boolean visible, short procID, WindowPtr behind, Boolean goAwayFlag,
                     long refCon) {
     return NULL;
 }
-void DisposeWindow(WindowPtr window) {}
-void DragWindow(WindowPtr window, Point startPt, const Rect* boundsRect) {}
-void CloseWindow(WindowPtr window) {}
-void ShowWindow(WindowPtr window) {}
-void HideWindow(WindowPtr window) {}
-void SelectWindow(WindowPtr window) {}
+void DisposeWindow(WindowPtr window) {
+    if (!window) {
+        serial_printf("DisposeWindow: NULL window\n");
+        return;
+    }
+
+    serial_printf("DisposeWindow: Disposing window at %p\n", window);
+
+    /* Remove from window chain */
+    extern WindowPtr g_firstWindow;
+    if (g_firstWindow == window) {
+        g_firstWindow = window->nextWindow;
+    } else {
+        WindowPtr prev = g_firstWindow;
+        while (prev && prev->nextWindow != window) {
+            prev = prev->nextWindow;
+        }
+        if (prev) {
+            prev->nextWindow = window->nextWindow;
+        }
+    }
+
+    /* Free window storage - would normally free memory */
+    /* For now just mark it invalid */
+    window->windowKind = 0;
+}
+void DragWindow(WindowPtr window, Point startPt, const Rect* boundsRect) {
+    if (!window) {
+        serial_printf("DragWindow: NULL window\n");
+        return;
+    }
+
+    serial_printf("DragWindow: Starting drag at (%d,%d)\n", startPt.h, startPt.v);
+
+    /* Track mouse while button held */
+    extern Boolean Button(void);
+    extern void GetMouse(Point* mouseLoc);
+    extern void PollPS2Input(void);
+
+    Point lastPt = startPt;
+    Point currentPt;
+
+    while (Button()) {
+        PollPS2Input();
+        GetMouse(&currentPt);
+
+        if (currentPt.h != lastPt.h || currentPt.v != lastPt.v) {
+            /* Calculate offset */
+            short dh = currentPt.h - lastPt.h;
+            short dv = currentPt.v - lastPt.v;
+
+            /* Move window */
+            window->portRect.left += dh;
+            window->portRect.right += dh;
+            window->portRect.top += dv;
+            window->portRect.bottom += dv;
+
+            /* Constrain to bounds if provided */
+            if (boundsRect) {
+                if (window->portRect.left < boundsRect->left) {
+                    short adjust = boundsRect->left - window->portRect.left;
+                    window->portRect.left += adjust;
+                    window->portRect.right += adjust;
+                }
+                if (window->portRect.top < boundsRect->top) {
+                    short adjust = boundsRect->top - window->portRect.top;
+                    window->portRect.top += adjust;
+                    window->portRect.bottom += adjust;
+                }
+            }
+
+            lastPt = currentPt;
+
+            /* Redraw desktop and window */
+            extern void DrawDesktop(void);
+            DrawDesktop();
+        }
+
+        /* Small delay */
+        for (volatile int i = 0; i < 1000; i++) {}
+    }
+
+    serial_printf("DragWindow: Ended at (%d,%d)\n", currentPt.h, currentPt.v);
+}
+void CloseWindow(WindowPtr window) {
+    if (!window) {
+        serial_printf("CloseWindow: NULL window\n");
+        return;
+    }
+
+    serial_printf("CloseWindow: Closing window at %p\n", window);
+
+    /* Hide the window */
+    window->visible = false;
+
+    /* Generate close event if needed */
+    /* DisposeWindow handles actual disposal */
+}
+void ShowWindow(WindowPtr window) {
+    if (!window) {
+        serial_printf("ShowWindow: NULL window\n");
+        return;
+    }
+
+    serial_printf("ShowWindow: Showing window at %p\n", window);
+
+    window->visible = true;
+
+    /* Invalidate window area to force redraw */
+    extern void InvalRect(const Rect* rect);
+    InvalRect(&window->portRect);
+}
+void HideWindow(WindowPtr window) {
+    if (!window) {
+        serial_printf("HideWindow: NULL window\n");
+        return;
+    }
+
+    serial_printf("HideWindow: Hiding window at %p\n", window);
+
+    window->visible = false;
+
+    /* Invalidate area behind window */
+    extern void InvalRect(const Rect* rect);
+    InvalRect(&window->portRect);
+}
+void SelectWindow(WindowPtr window) {
+    if (!window) {
+        serial_printf("SelectWindow: NULL window\n");
+        return;
+    }
+
+    serial_printf("SelectWindow: Selecting window at %p\n", window);
+
+    /* Move window to front of chain */
+    extern WindowPtr g_firstWindow;
+    if (g_firstWindow != window) {
+        /* Remove from current position */
+        WindowPtr prev = g_firstWindow;
+        while (prev && prev->nextWindow != window) {
+            prev = prev->nextWindow;
+        }
+        if (prev) {
+            prev->nextWindow = window->nextWindow;
+        }
+
+        /* Insert at front */
+        window->nextWindow = g_firstWindow;
+        g_firstWindow = window;
+    }
+
+    /* Set as active window */
+    window->hilited = true;
+}
 WindowPtr FrontWindow(void) { return NULL; }
-void SetWTitle(WindowPtr window, ConstStr255Param title) {}
-void DrawGrowIcon(WindowPtr window) {}
-void WM_UpdateWindowVisibility(WindowPtr window) {}
+void SetWTitle(WindowPtr window, ConstStr255Param title) {
+    if (!window) {
+        serial_printf("SetWTitle: NULL window\n");
+        return;
+    }
+
+    if (!title) {
+        serial_printf("SetWTitle: NULL title\n");
+        return;
+    }
+
+    /* Copy title string - Pascal string with length byte */
+    unsigned char len = title[0];
+    if (len > 255) len = 255;
+
+    serial_printf("SetWTitle: Setting window title length %d\n", len);
+
+    /* Store in window title field - would copy to window's title storage */
+    /* For now just log it */
+    char titleBuf[256];
+    for (int i = 0; i < len; i++) {
+        titleBuf[i] = title[i+1];
+    }
+    titleBuf[len] = 0;
+    serial_printf("SetWTitle: Title = '%s'\n", titleBuf);
+
+    /* Invalidate title bar area */
+    Rect titleBar = window->portRect;
+    titleBar.bottom = titleBar.top + 20;  /* Standard title bar height */
+    extern void InvalRect(const Rect* rect);
+    InvalRect(&titleBar);
+}
+void DrawGrowIcon(WindowPtr window) {
+    if (!window) {
+        serial_printf("DrawGrowIcon: NULL window\n");
+        return;
+    }
+
+    if (!window->visible) {
+        return;
+    }
+
+    serial_printf("DrawGrowIcon: Drawing grow icon for window at %p\n", window);
+
+    /* Draw grow icon in bottom-right corner */
+    Rect growRect;
+    growRect.right = window->portRect.right;
+    growRect.bottom = window->portRect.bottom;
+    growRect.left = growRect.right - 15;
+    growRect.top = growRect.bottom - 15;
+
+    /* Would draw grow box pattern here */
+    extern void FrameRect(const Rect* r);
+    FrameRect(&growRect);
+}
+void WM_UpdateWindowVisibility(WindowPtr window) {
+    if (!window) {
+        serial_printf("WM_UpdateWindowVisibility: NULL window\n");
+        return;
+    }
+
+    serial_printf("WM_UpdateWindowVisibility: Updating visibility for window at %p\n", window);
+
+    /* Update window visibility state */
+    if (window->visible) {
+        /* Ensure window is drawn */
+        extern void InvalRect(const Rect* rect);
+        InvalRect(&window->portRect);
+    }
+}
 
 short FindWindow(Point thePt, WindowPtr *window) {
     extern void serial_printf(const char* fmt, ...);

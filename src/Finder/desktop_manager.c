@@ -171,6 +171,35 @@ static void Finder_DeskHook(RgnHandle invalidRgn)
     SetPort(savePort);
 }
 
+/* ArrangeDesktopIcons - Arrange desktop icons in a grid */
+void ArrangeDesktopIcons(void)
+{
+    const int gridSpacing = 80;  /* Spacing between icons */
+    const int startX = 700;       /* Start from right side */
+    const int startY = 50;        /* Start below menu bar */
+    int currentX = startX;
+    int currentY = startY;
+
+    serial_printf("ArrangeDesktopIcons: Arranging %d icons\n", gDesktopIconCount);
+
+    /* Arrange icons in a vertical column from top-right */
+    for (int i = 0; i < gDesktopIconCount; i++) {
+        gDesktopIcons[i].position.h = currentX;
+        gDesktopIcons[i].position.v = currentY;
+
+        currentY += gridSpacing;
+
+        /* Wrap to next column if too low */
+        if (currentY > 400) {
+            currentY = startY;
+            currentX -= gridSpacing;
+        }
+    }
+
+    /* Redraw desktop to show new arrangement */
+    DrawDesktop();
+}
+
 /*
  * DrawDesktop - Initial desktop drawing (called once at startup)
  * Also used to redraw desktop after menus or dialogs

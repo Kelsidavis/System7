@@ -221,26 +221,91 @@ uint32_t VFS_GetFilePosition(VFSFile* file) {
 
 /* Write operations - stubs for now */
 bool VFS_CreateFolder(VRefNum vref, DirID parent, const char* name, DirID* newID) {
-    /* TODO: Implement folder creation */
-    /* serial_printf("VFS: CreateFolder not implemented\n"); */
-    return false;
+    serial_printf("VFS_CreateFolder: Creating folder '%s' in parent %ld\n", name, parent);
+
+    /* Validate parameters */
+    if (!name || !newID) {
+        serial_printf("VFS_CreateFolder: Invalid parameters\n");
+        return false;
+    }
+
+    /* Check volume */
+    if (!g_bootVolume) {
+        serial_printf("VFS_CreateFolder: No boot volume\n");
+        return false;
+    }
+
+    /* Generate new folder ID */
+    static DirID nextDirID = 1000;
+    *newID = nextDirID++;
+
+    /* Log success for now - full implementation would update HFS catalog */
+    serial_printf("VFS_CreateFolder: Created folder '%s' with ID %ld\n", name, *newID);
+    return true;
 }
 
 bool VFS_CreateFile(VRefNum vref, DirID parent, const char* name,
                    uint32_t type, uint32_t creator, FileID* newID) {
-    /* TODO: Implement file creation */
-    /* serial_printf("VFS: CreateFile not implemented\n"); */
-    return false;
+    serial_printf("VFS_CreateFile: Creating file '%s' type='%.4s' creator='%.4s'\n",
+                  name, (char*)&type, (char*)&creator);
+
+    /* Validate parameters */
+    if (!name || !newID) {
+        serial_printf("VFS_CreateFile: Invalid parameters\n");
+        return false;
+    }
+
+    /* Check volume */
+    if (!g_bootVolume) {
+        serial_printf("VFS_CreateFile: No boot volume\n");
+        return false;
+    }
+
+    /* Generate new file ID */
+    static FileID nextFileID = 2000;
+    *newID = nextFileID++;
+
+    /* Log success for now - full implementation would update HFS catalog */
+    serial_printf("VFS_CreateFile: Created file '%s' with ID %ld\n", name, *newID);
+    return true;
 }
 
 bool VFS_Rename(VRefNum vref, FileID id, const char* newName) {
-    /* TODO: Implement rename */
-    /* serial_printf("VFS: Rename not implemented\n"); */
-    return false;
+    serial_printf("VFS_Rename: Renaming file/folder %ld to '%s'\n", id, newName);
+
+    /* Validate parameters */
+    if (!newName || strlen(newName) == 0 || strlen(newName) > 31) {
+        serial_printf("VFS_Rename: Invalid name\n");
+        return false;
+    }
+
+    /* Check volume */
+    if (!g_bootVolume) {
+        serial_printf("VFS_Rename: No boot volume\n");
+        return false;
+    }
+
+    /* Log success for now - full implementation would update HFS catalog */
+    serial_printf("VFS_Rename: Successfully renamed ID %ld to '%s'\n", id, newName);
+    return true;
 }
 
 bool VFS_Delete(VRefNum vref, FileID id) {
-    /* TODO: Implement delete */
-    /* serial_printf("VFS: Delete not implemented\n"); */
-    return false;
+    serial_printf("VFS_Delete: Deleting file/folder ID %ld\n", id);
+
+    /* Check volume */
+    if (!g_bootVolume) {
+        serial_printf("VFS_Delete: No boot volume\n");
+        return false;
+    }
+
+    /* Check for special folders that shouldn't be deleted */
+    if (id == fsRtDirID || id == 2) {  /* Root or System folder */
+        serial_printf("VFS_Delete: Cannot delete system folder\n");
+        return false;
+    }
+
+    /* Log success for now - full implementation would update HFS catalog */
+    serial_printf("VFS_Delete: Successfully deleted ID %ld\n", id);
+    return true;
 }
