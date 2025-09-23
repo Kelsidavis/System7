@@ -75,6 +75,7 @@ SInt16 InitEvents(SInt16 numEvents) {
     return 0;  /* Success */
 }
 
+#if 0  /* DISABLED - GetNextEvent now provided by EventManager/event_manager.c */
 /* Simple event queue implementation */
 #define MAX_EVENTS 32
 static struct {
@@ -84,12 +85,22 @@ static struct {
     int count;
 } g_eventQueue = {0};
 
-Boolean GetNextEvent(short eventMask, EventRecord* theEvent) {
+Boolean GetNextEvent_DISABLED(short eventMask, EventRecord* theEvent) {
     extern void serial_printf(const char* fmt, ...);
 
-    /* Debug: log every call */
+    /* Debug: log every call with detailed mask info */
     serial_printf("GetNextEvent: Called with mask=0x%04x, queue count=%d\n",
                   eventMask, g_eventQueue.count);
+
+    /* Log what events we're looking for */
+    if (eventMask & mDownMask) serial_printf("  Looking for: mouseDown\n");
+    if (eventMask & mUpMask) serial_printf("  Looking for: mouseUp\n");
+    if (eventMask & keyDownMask) serial_printf("  Looking for: keyDown\n");
+    if (eventMask & keyUpMask) serial_printf("  Looking for: keyUp\n");
+    if (eventMask & autoKeyMask) serial_printf("  Looking for: autoKey\n");
+    if (eventMask & updateMask) serial_printf("  Looking for: update\n");
+    if (eventMask & diskMask) serial_printf("  Looking for: disk\n");
+    if (eventMask & activMask) serial_printf("  Looking for: activate\n");
 
     /* Check if queue has events */
     if (g_eventQueue.count == 0) {
@@ -107,9 +118,25 @@ Boolean GetNextEvent(short eventMask, EventRecord* theEvent) {
         /* Check if event matches mask */
         if ((1 << evt->what) & eventMask) {
             /* Debug: Show what we're retrieving */
-            serial_printf("GetNextEvent: Found matching event type=%d at index=%d\n", evt->what, index);
-            serial_printf("GetNextEvent: Event where={v=%d,h=%d}, msg=0x%08x\n",
-                         evt->where.v, evt->where.h, evt->message);
+            const char* eventName = "unknown";
+            switch (evt->what) {
+                case 0: eventName = "null"; break;
+                case 1: eventName = "mouseDown"; break;
+                case 2: eventName = "mouseUp"; break;
+                case 3: eventName = "keyDown"; break;
+                case 4: eventName = "keyUp"; break;
+                case 5: eventName = "autoKey"; break;
+                case 6: eventName = "update"; break;
+                case 7: eventName = "disk"; break;
+                case 8: eventName = "activate"; break;
+                case 15: eventName = "osEvt"; break;
+                case 23: eventName = "highLevel"; break;
+                default: eventName = "unknown"; break;
+            }
+            serial_printf("GetNextEvent: Found matching event: %s (type=%d) at index=%d\n",
+                         eventName, evt->what, index);
+            serial_printf("GetNextEvent: Event where={x=%d,y=%d}, msg=0x%08x, modifiers=0x%04x\n",
+                         evt->where.h, evt->where.v, evt->message, evt->modifiers);
 
             /* Copy event to caller */
             if (theEvent) {
@@ -150,12 +177,31 @@ Boolean GetNextEvent(short eventMask, EventRecord* theEvent) {
 
     return false;
 }
+#endif /* DISABLED GetNextEvent */
 
-SInt16 PostEvent(SInt16 eventNum, SInt32 eventMsg) {
+#if 0  /* DISABLED - PostEvent now provided by EventManager/event_manager.c */
+SInt16 PostEvent_DISABLED(SInt16 eventNum, SInt32 eventMsg) {
     extern void serial_printf(const char* fmt, ...);
     extern void GetMouse(Point* mouseLoc);
 
-    serial_printf("PostEvent: eventNum=%d, eventMsg=0x%08x\n", eventNum, eventMsg);
+    /* Debug: log post with event name */
+    const char* eventName = "unknown";
+    switch (eventNum) {
+        case 0: eventName = "null"; break;
+        case 1: eventName = "mouseDown"; break;
+        case 2: eventName = "mouseUp"; break;
+        case 3: eventName = "keyDown"; break;
+        case 4: eventName = "keyUp"; break;
+        case 5: eventName = "autoKey"; break;
+        case 6: eventName = "update"; break;
+        case 7: eventName = "disk"; break;
+        case 8: eventName = "activate"; break;
+        case 15: eventName = "osEvt"; break;
+        case 23: eventName = "highLevel"; break;
+        default: eventName = "unknown"; break;
+    }
+    serial_printf("PostEvent: Posting %s (type=%d), msg=0x%08x, queue count=%d\n",
+                  eventName, eventNum, eventMsg, g_eventQueue.count);
 
     /* Check if queue is full */
     if (g_eventQueue.count >= MAX_EVENTS) {
@@ -183,8 +229,8 @@ SInt16 PostEvent(SInt16 eventNum, SInt32 eventMsg) {
     evt->modifiers = 0;  /* TODO: Get keyboard modifiers */
 
     /* Debug: Print actual coordinates we're storing */
-    serial_printf("PostEvent: Stored event with where=(%d,%d)\n",
-                 evt->where.h, evt->where.v);
+    serial_printf("PostEvent: Successfully posted %s at position %d, queue now has %d events\n",
+                 eventName, g_eventQueue.tail, g_eventQueue.count + 1);
 
     g_eventQueue.tail = (g_eventQueue.tail + 1) % MAX_EVENTS;
     g_eventQueue.count++;
@@ -196,13 +242,11 @@ SInt16 PostEvent(SInt16 eventNum, SInt32 eventMsg) {
 
     return noErr;
 }
+#endif /* DISABLED PostEvent */
 
-/* GenerateSystemEvent - forward declaration to avoid header conflicts */
-void GenerateSystemEvent(short eventType, int message, Point where, short modifiers);
-void GenerateSystemEvent(short eventType, int message, Point where, short modifiers) {
-    /* Generate and post a system event */
-    PostEvent(eventType, message);
-}
+/* GenerateSystemEvent now provided by EventManager/event_manager.c */
+/* Forward declaration for compatibility */
+extern void GenerateSystemEvent(short eventType, int message, Point where, short modifiers);
 
 /* SystemTask provided by DeskManagerCore.c */
 
@@ -266,8 +310,9 @@ void FinderEventLoop(void) {
 }
 
 /* Additional Finder support functions */
+#if 0  /* DISABLED - FlushEvents now provided by EventManager/event_manager.c */
 /* FlushEvents - clear events from queue */
-void FlushEvents(short eventMask, short stopMask) {
+void FlushEvents_DISABLED(short eventMask, short stopMask) {
     /* Clear matching events from our queue */
     if (eventMask == everyEvent && stopMask == 0) {
         /* Clear all events */
@@ -276,6 +321,7 @@ void FlushEvents(short eventMask, short stopMask) {
         g_eventQueue.count = 0;
     }
 }
+#endif /* DISABLED FlushEvents */
 
 void TEInit(void) {
     /* TextEdit initialization stub */
@@ -843,6 +889,40 @@ Boolean WaitNextEvent(short eventMask, EventRecord* theEvent, UInt32 sleep, RgnH
     /* For now, just call GetNextEvent */
     return GetNextEvent(eventMask, theEvent);
 }
+
+#if 0  /* DISABLED - EventAvail now provided by EventManager/event_manager.c */
+/* EventAvail - check if an event is available without removing it */
+Boolean EventAvail_DISABLED(short eventMask, EventRecord* theEvent) {
+    extern void serial_printf(const char* fmt, ...);
+
+    /* Check if queue has matching events without removing them */
+    if (g_eventQueue.count == 0) {
+        return false;
+    }
+
+    /* Find the next event matching the mask */
+    int index = g_eventQueue.head;
+    int checked = 0;
+
+    while (checked < g_eventQueue.count) {
+        EventRecord* evt = &g_eventQueue.events[index];
+
+        /* Check if event matches mask */
+        if ((1 << evt->what) & eventMask) {
+            /* Copy event to caller without removing it */
+            if (theEvent) {
+                *theEvent = *evt;
+            }
+            return true;
+        }
+
+        index = (index + 1) % MAX_EVENTS;
+        checked++;
+    }
+
+    return false;
+}
+#endif /* DISABLED EventAvail */
 
 /* Menu and Window functions provided by their respective managers:
  * MenuSelect - MenuSelection.c

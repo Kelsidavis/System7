@@ -1908,8 +1908,16 @@ void kernel_main(uint32_t magic, uint32_t* mb2_info) {
         extern Boolean DispatchEvent(EventRecord* event);
 
         EventRecord evt;
+        /* Debug: before GetNextEvent */
+        static int call_count = 0;
+        if ((call_count++ % 10000) == 0) {
+            serial_printf("MAIN: Calling GetNextEvent (call #%d)\n", call_count);
+        }
+
         if (GetNextEvent(everyEvent, &evt)) {
             /* Debug: show what events we're getting */
+            serial_printf("MAIN: Got event type=%d at (%d,%d)\n",
+                         evt.what, evt.where.h, evt.where.v);
             if (evt.what == mouseDown) {
                 serial_printf("MAIN: Got mouseDown at (%d,%d)\n", evt.where.h, evt.where.v);
             }

@@ -88,6 +88,7 @@ C_SOURCES = src/main.c \
             src/DialogManager/DialogManagerStubs.c \
             src/FileManager.c \
             src/FileManagerStubs.c \
+            src/EventManager/event_manager.c \
             src/EventManager/ModernInput.c \
             src/EventManager/EventDispatcher.c \
             src/EventManager/MouseEvents.c \

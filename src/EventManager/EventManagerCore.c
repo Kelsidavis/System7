@@ -372,10 +372,11 @@ SInt16 InitEvents(SInt16 numEvents)
     return noErr;
 }
 
+#if 0  /* DISABLED - GetNextEvent now provided by event_manager.c */
 /**
  * Get next event matching mask
  */
-Boolean GetNextEvent(SInt16 eventMask, EventRecord* theEvent)
+Boolean GetNextEvent_DISABLED(SInt16 eventMask, EventRecord* theEvent)
 {
     if (!theEvent || !g_eventMgrInitialized) {
         return false;
@@ -421,11 +422,13 @@ Boolean GetNextEvent(SInt16 eventMask, EventRecord* theEvent)
     FillEventRecord(theEvent);
     return false;
 }
+#endif /* DISABLED GetNextEvent */
 
+#if 0  /* DISABLED - EventAvail now provided by event_manager.c */
 /**
  * Check if event is available
  */
-Boolean EventAvail(SInt16 eventMask, EventRecord* theEvent)
+Boolean EventAvail_DISABLED(SInt16 eventMask, EventRecord* theEvent)
 {
     if (!theEvent || !g_eventMgrInitialized) {
         return false;
@@ -452,11 +455,13 @@ Boolean EventAvail(SInt16 eventMask, EventRecord* theEvent)
     FillEventRecord(theEvent);
     return false;
 }
+#endif /* DISABLED EventAvail */
 
+#if 0  /* DISABLED - PostEvent now provided by event_manager.c */
 /**
  * Post an event to the queue
  */
-SInt16 PostEvent(SInt16 eventNum, SInt32 eventMsg)
+SInt16 PostEvent_DISABLED(SInt16 eventNum, SInt32 eventMsg)
 {
     if (!g_eventMgrInitialized) {
         return evtNotEnb;
@@ -507,6 +512,7 @@ SInt16 PostEvent(SInt16 eventNum, SInt32 eventMsg)
 
     return noErr;
 }
+#endif /* DISABLED PostEvent */
 
 /**
  * Post event with queue element return
@@ -578,10 +584,11 @@ void FlushEvents(SInt16 whichMask, SInt16 stopMask)
     }
 }
 
+#if 0  /* DISABLED - WaitNextEvent now provided by event_manager.c */
 /**
  * Wait for next event with idle processing
  */
-Boolean WaitNextEvent(SInt16 eventMask, EventRecord* theEvent,
+Boolean WaitNextEvent_DISABLED(SInt16 eventMask, EventRecord* theEvent,
                    UInt32 sleep, RgnHandle mouseRgn)
 {
     if (!theEvent || !g_eventMgrInitialized) {
@@ -626,6 +633,7 @@ Boolean WaitNextEvent(SInt16 eventMask, EventRecord* theEvent,
     FillEventRecord(theEvent);
     return false;
 }
+#endif /* DISABLED WaitNextEvent */
 
 /*---------------------------------------------------------------------------
  * Mouse Event API

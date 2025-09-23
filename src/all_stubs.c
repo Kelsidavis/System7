@@ -251,9 +251,13 @@ void SetResFileAttrs(short refNum, short attrs) {}
 OSErr ResError(void) { return 0; }
 
 /* Event Manager */
-Boolean GetNextEvent(short eventMask, EventRecord* event) { return false; }
+/* DISABLED - Using real Event Manager implementation
+/* DISABLED - GetNextEvent now provided by EventManager/event_manager.c */
+/* Boolean GetNextEvent(short eventMask, EventRecord* event) { return false; } */
 Boolean WaitNextEvent(short eventMask, EventRecord* event, unsigned long sleep, RgnHandle mouseRgn) { return false; }
-Boolean EventAvail(short eventMask, EventRecord* event) { return false; }
+/* DISABLED - EventAvail now provided by EventManager/event_manager.c */
+/* Boolean EventAvail(short eventMask, EventRecord* event) { return false; } */
+*/
 void GetMouse(Point* mouseLoc) {}
 Boolean Button(void) { return false; }
 Boolean StillDown(void) { return false; }

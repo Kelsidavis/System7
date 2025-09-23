@@ -98,7 +98,7 @@ SInt16 InitEvents(SInt16 numEvents);
  * @param theEvent Pointer to event record to fill
  * @return true if event found, false if null event
  */
-Boolean GetNextEvent(SInt16 eventMask, EventRecord* theEvent);
+Boolean GetNextEvent(short eventMask, EventRecord* theEvent);
 
 /**
  * Wait for next event with idle processing
@@ -108,7 +108,7 @@ Boolean GetNextEvent(SInt16 eventMask, EventRecord* theEvent);
  * @param mouseRgn Region for mouse-moved events
  * @return true if event found, false if null event
  */
-Boolean WaitNextEvent(SInt16 eventMask, EventRecord* theEvent,
+Boolean WaitNextEvent(short eventMask, EventRecord* theEvent,
                    UInt32 sleep, RgnHandle mouseRgn);
 
 /**
@@ -117,7 +117,7 @@ Boolean WaitNextEvent(SInt16 eventMask, EventRecord* theEvent,
  * @param theEvent Pointer to event record to fill
  * @return true if event found, false if null event
  */
-Boolean EventAvail(SInt16 eventMask, EventRecord* theEvent);
+Boolean EventAvail(short eventMask, EventRecord* theEvent);
 
 /**
  * Post an event to the queue

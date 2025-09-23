@@ -1,487 +1,338 @@
-/* #include "SystemTypes.h" */
+/**
+ * @file event_manager.c
+ * @brief Canonical Event Manager Implementation for System 7.1
+ *
+ * This is the single authoritative implementation of GetNextEvent and EventAvail.
+ * All other files should call these functions, not reimplement them.
+ *
+ * This file consolidates the working queue-based implementation from sys71_stubs.c
+ * with proper Event Manager structure and debug logging.
+ */
+
 #include <string.h>
-/*
- * RE-AGENT-BANNER
- * Apple System 7.1 Event Manager - Reverse Engineered Implementation
- *
- * This implementation contains the reverse-engineered Event Manager functions
- * extracted from the Apple System 7.1 System.rsrc binary. The Event Manager
- * is responsible for handling all user input events, system events, and
- * managing the event queue that drives Mac OS application interaction.
- *
- * Source Binary: System.rsrc (383,182 bytes)
- * SHA256: 78150ebb66707277e0947fbf81f6a27fc5d263a71bbf96df7084d5c3ec22a5ba
- * Architecture: 68000/68020/68030 Motorola
- * Target System: Apple System 7.1 (1992)
- *
- * Evidence Sources:
- * - evidence.curated.eventmgr.json: Complete function signatures and behavior
- * - mappings.eventmgr.json: Trap numbers and calling conventions
- * - layouts.curated.eventmgr.json: Structure layouts and memory organization
- *
- * Implementation Notes:
- * - All trap-based functions are implemented with standard C calling convention
- * - Event queue management follows documented Mac OS Toolbox patterns
- * - Mouse and keyboard state tracking simulates hardware interface
- * - Timing functions use portable tick counter simulation
- *
- * This code represents a functional reimplementation of the original Event Manager
- * behavior based on reverse engineering analysis and Mac OS Toolbox documentation.
+#include "../../include/MacTypes.h"
+#include "../../include/EventManager/EventTypes.h"
+#include "../../include/EventManager/EventManager.h"
+
+/* External serial print for debug logging */
+extern void serial_printf(const char* fmt, ...);
+
+/* Simple event queue implementation */
+#define MAX_EVENTS 32
+static struct {
+    EventRecord events[MAX_EVENTS];
+    int head;
+    int tail;
+    int count;
+} g_eventQueue = {0};
+
+/* Mouse and timing state */
+static Point g_mousePos = {100, 100};
+static UInt32 g_tickCount = 0;
+
+/* GetMouse is provided by PS2Controller.c */
+extern void GetMouse(Point* mouseLoc);
+
+/* TickCount is provided by sys71_stubs.c */
+extern UInt32 TickCount(void);
+
+/**
+ * GetNextEvent - Canonical implementation
+ * Retrieves and removes the next matching event from the queue
  */
+Boolean GetNextEvent(short eventMask, EventRecord* theEvent) {
+    serial_printf("GetNextEvent: Called with mask=0x%04x, queue count=%d\n",
+                  eventMask, g_eventQueue.count);
 
-// #include "CompatibilityFix.h" // Removed
-#include "SystemTypes.h"
-#include "System71StdLib.h"
+    /* Log what events we're looking for */
+    if (eventMask & mDownMask) serial_printf("  Looking for: mouseDown\n");
+    if (eventMask & mUpMask) serial_printf("  Looking for: mouseUp\n");
+    if (eventMask & keyDownMask) serial_printf("  Looking for: keyDown\n");
+    if (eventMask & keyUpMask) serial_printf("  Looking for: keyUp\n");
+    if (eventMask & autoKeyMask) serial_printf("  Looking for: autoKey\n");
+    if (eventMask & updateMask) serial_printf("  Looking for: update\n");
+    if (eventMask & diskMask) serial_printf("  Looking for: disk\n");
+    if (eventMask & activMask) serial_printf("  Looking for: activate\n");
 
-#include "EventManager/event_manager.h"
-
-
-/*
- * Global Variables
- * Evidence: evidence.curated.eventmgr.json:/global_variables
- *
- * These globals maintain the Event Manager's internal state, including
- * current system time, mouse position, button state, keyboard state,
- * and the event queue.
- */
-UInt32 gTicks = 0;                    /* Current tick count (60 ticks/second) */
-Point gMouseLoc = {100, 100};         /* Current mouse location */
-UInt8 gButtonState = 0;               /* Current mouse button state */
-KeyMap gKeyMap = {0};                 /* Current keyboard state */
-QHdr gEventQueue = {0, NULL, NULL};   /* Event queue header */
-
-/* Internal state for simulation */
-static UInt32 gStartTime = 0;        /* System start time */
-static EvQEl *gEventPool = NULL;      /* Pool of event elements */
-static UInt16 gEventPoolSize = 32;   /* Size of event pool */
-static UInt16 gEventPoolUsed = 0;    /* Number of used event elements */
-
-/*
- * Internal Helper Functions
- */
-
-/*
- * InitEventManager - Initialize Event Manager state
- * Evidence: Inferred from system initialization patterns
- */
-static void InitEventManager(void) {
-    static Boolean initialized = false;
-
-    if (!initialized) {
-        gStartTime = (UInt32)time(NULL);
-        gTicks = 0;
-        gMouseLoc.v = 100;
-        gMouseLoc.h = 100;
-        gButtonState = 0;
-        memset(gKeyMap, 0, sizeof(KeyMap));
-
-        /* Initialize event queue */
-        gEventQueue.qFlags = 0;
-        gEventQueue.qHead = NULL;
-        gEventQueue.qTail = NULL;
-
-        initialized = true;
+    /* Check if queue has events */
+    if (g_eventQueue.count == 0) {
+        serial_printf("GetNextEvent: Queue empty, returning false\n");
+        return false;
     }
-}
 
-/*
- * UpdateTickCount - Update the system tick counter
- * Evidence: Inferred from TickCount function behavior
- */
-static void UpdateTickCount(void) {
-    UInt32 currentTime = (UInt32)time(NULL);
-    gTicks = (currentTime - gStartTime) * 60; /* Approximate 60 ticks/second */
-}
+    /* Find the next event matching the mask */
+    int index = g_eventQueue.head;
+    int checked = 0;
 
-/*
- * Event Manager Trap Functions
- * Evidence: mappings.eventmgr.json:/symbol_mappings
- */
+    while (checked < g_eventQueue.count) {
+        EventRecord* evt = &g_eventQueue.events[index];
 
-/*
- * GetNextEvent - Retrieve the next available event from the event queue
- * Trap: 0xA970
- * Evidence: evidence.curated.eventmgr.json:/functions/0
- *
- * This is the primary event retrieval function used by Mac OS applications.
- * It searches the event queue for the first event matching the specified
- * event mask and removes it from the queue.
- */
-Boolean GetNextEvent(UInt16 eventMask, EventRecord *theEvent) {
-    EvQEl *currentEvent;
-    EvQEl *prevEvent;
+        /* Check if event matches mask */
+        if ((1 << evt->what) & eventMask) {
+            /* Debug: Show what we're retrieving */
+            const char* eventName = "unknown";
+            switch (evt->what) {
+                case 0: eventName = "null"; break;
+                case 1: eventName = "mouseDown"; break;
+                case 2: eventName = "mouseUp"; break;
+                case 3: eventName = "keyDown"; break;
+                case 4: eventName = "keyUp"; break;
+                case 5: eventName = "autoKey"; break;
+                case 6: eventName = "update"; break;
+                case 7: eventName = "disk"; break;
+                case 8: eventName = "activate"; break;
+                case 15: eventName = "osEvt"; break;
+                case 23: eventName = "highLevel"; break;
+            }
+            serial_printf("GetNextEvent: Found matching event: %s (type=%d) at index=%d\n",
+                         eventName, evt->what, index);
+            serial_printf("GetNextEvent: Event where={x=%d,y=%d}, msg=0x%08x, modifiers=0x%04x\n",
+                         evt->where.h, evt->where.v, evt->message, evt->modifiers);
 
-    if (!theEvent) return false;
+            /* Copy event to caller */
+            if (theEvent) {
+                *theEvent = *evt;
+                serial_printf("GetNextEvent: Copied to caller, where={v=%d,h=%d}\n",
+                             theEvent->where.v, theEvent->where.h);
+            }
 
-    InitEventManager();
-    UpdateTickCount();
-
-    /* Search event queue for matching event */
-    prevEvent = NULL;
-    currentEvent = (EvQEl *)gEventQueue.qHead;
-
-    while (currentEvent) {
-        UInt16 eventTypeMask = 1 << (currentEvent)->what;
-
-        if (eventMask & eventTypeMask) {
-            /* Found matching event - remove from queue */
-            *theEvent = currentEvent->eventRecord;
-
-            if (prevEvent) {
-                prevEvent->qLink = currentEvent->qLink;
+            /* Remove event from queue */
+            if (index == g_eventQueue.head) {
+                /* Easy case - removing from head */
+                g_eventQueue.head = (g_eventQueue.head + 1) % MAX_EVENTS;
+                g_eventQueue.count--;
             } else {
-                gEventQueue.qHead = currentEvent->qLink;
+                /* Need to shift events to fill the gap */
+                int next = (index + 1) % MAX_EVENTS;
+                while (next != g_eventQueue.tail) {
+                    g_eventQueue.events[index] = g_eventQueue.events[next];
+                    index = next;
+                    next = (next + 1) % MAX_EVENTS;
+                }
+                g_eventQueue.tail = (g_eventQueue.tail - 1 + MAX_EVENTS) % MAX_EVENTS;
+                g_eventQueue.count--;
             }
 
-            if (currentEvent == (EvQEl *)gEventQueue.qTail) {
-                gEventQueue.qTail = (QElemPtr)prevEvent;
+            if (evt->what == mouseDown) {
+                serial_printf("GetNextEvent: Returning mouseDown at (%d,%d)\n",
+                             theEvent->where.h, theEvent->where.v);
             }
-
-            /* Return event element to pool */
-            currentEvent->qLink = NULL;
-            gEventPoolUsed--;
 
             return true;
         }
 
-        prevEvent = currentEvent;
-        currentEvent = (EvQEl *)currentEvent->qLink;
+        index = (index + 1) % MAX_EVENTS;
+        checked++;
     }
 
-    /* No matching event found - return null event */
-    theEvent->what = nullEvent;
-    theEvent->message = 0;
-    theEvent->when = gTicks;
-    theEvent->where = gMouseLoc;
-    theEvent->modifiers = 0;
-
+    serial_printf("GetNextEvent: No matching event found\n");
     return false;
 }
 
-/*
- * EventAvail - Check if an event is available without removing it from queue
- * Trap: 0xA971
- * Evidence: evidence.curated.eventmgr.json:/functions/1
+/**
+ * EventAvail - Check if event is available without removing it
+ * New function added for System 7.1 compatibility
  */
-Boolean EventAvail(UInt16 eventMask, EventRecord *theEvent) {
-    EvQEl *currentEvent;
+Boolean EventAvail(short eventMask, EventRecord* theEvent) {
+    serial_printf("EventAvail: Called with mask=0x%04x, queue count=%d\n",
+                  eventMask, g_eventQueue.count);
 
-    if (!theEvent) return false;
+    /* Check if queue has events */
+    if (g_eventQueue.count == 0) {
+        serial_printf("EventAvail: Queue empty, returning false\n");
+        return false;
+    }
 
-    InitEventManager();
-    UpdateTickCount();
+    /* Find the next event matching the mask */
+    int index = g_eventQueue.head;
+    int checked = 0;
 
-    /* Search event queue for matching event */
-    currentEvent = (EvQEl *)gEventQueue.qHead;
+    while (checked < g_eventQueue.count) {
+        EventRecord* evt = &g_eventQueue.events[index];
 
-    while (currentEvent) {
-        UInt16 eventTypeMask = 1 << (currentEvent)->what;
+        /* Check if event matches mask */
+        if ((1 << evt->what) & eventMask) {
+            const char* eventName = "unknown";
+            switch (evt->what) {
+                case 0: eventName = "null"; break;
+                case 1: eventName = "mouseDown"; break;
+                case 2: eventName = "mouseUp"; break;
+                case 3: eventName = "keyDown"; break;
+                case 4: eventName = "keyUp"; break;
+                case 5: eventName = "autoKey"; break;
+                case 6: eventName = "update"; break;
+                case 7: eventName = "disk"; break;
+                case 8: eventName = "activate"; break;
+                case 15: eventName = "osEvt"; break;
+                case 23: eventName = "highLevel"; break;
+            }
+            serial_printf("EventAvail: Found matching event: %s (type=%d) at index=%d\n",
+                         eventName, evt->what, index);
 
-        if (eventMask & eventTypeMask) {
-            /* Found matching event - copy but don't remove */
-            *theEvent = currentEvent->eventRecord;
+            /* Copy event to caller WITHOUT removing from queue */
+            if (theEvent) {
+                *theEvent = *evt;
+                serial_printf("EventAvail: Copied to caller (not removed), where={v=%d,h=%d}\n",
+                             theEvent->where.v, theEvent->where.h);
+            }
+
             return true;
         }
 
-        currentEvent = (EvQEl *)currentEvent->qLink;
+        index = (index + 1) % MAX_EVENTS;
+        checked++;
     }
 
-    /* No matching event found */
-    theEvent->what = nullEvent;
-    theEvent->message = 0;
-    theEvent->when = gTicks;
-    theEvent->where = gMouseLoc;
-    theEvent->modifiers = 0;
-
+    serial_printf("EventAvail: No matching event found\n");
     return false;
 }
 
-/*
- * GetMouse - Return the current mouse position
- * Trap: 0xA972
- * Evidence: evidence.curated.eventmgr.json:/functions/2
+/**
+ * PostEvent - Post an event to the queue
+ * Core function for adding events to the system
  */
-Point GetMouse(void) {
-    InitEventManager();
-    return gMouseLoc;
-}
-
-/*
- * StillDown - Check if the mouse button is still being held down
- * Trap: 0xA973
- * Evidence: evidence.curated.eventmgr.json:/functions/3
- */
-Boolean StillDown(void) {
-    InitEventManager();
-    return (gButtonState != 0) ? true : false;
-}
-
-/*
- * Button - Get the current state of the mouse button
- * Trap: 0xA974
- * Evidence: evidence.curated.eventmgr.json:/functions/4
- */
-Boolean Button(void) {
-    InitEventManager();
-    return (gButtonState != 0) ? true : false;
-}
-
-/*
- * TickCount - Get the number of ticks since system startup
- * Trap: 0xA975
- * Evidence: evidence.curated.eventmgr.json:/functions/5
- *
- * Returns the current tick count. Mac OS uses approximately 60 ticks per second.
- */
-UInt32 TickCount(void) {
-    InitEventManager();
-    UpdateTickCount();
-    return gTicks;
-}
-
-/*
- * GetKeys - Get the current state of all keys on the keyboard
- * Trap: 0xA976
- * Evidence: evidence.curated.eventmgr.json:/functions/6
- */
-void GetKeys(KeyMap theKeys) {
-    InitEventManager();
-
-    if (theKeys) {
-        memcpy(theKeys, gKeyMap, sizeof(KeyMap));
+SInt16 PostEvent(SInt16 eventNum, SInt32 eventMsg) {
+    /* Debug: log post with event name */
+    const char* eventName = "unknown";
+    switch (eventNum) {
+        case 0: eventName = "null"; break;
+        case 1: eventName = "mouseDown"; break;
+        case 2: eventName = "mouseUp"; break;
+        case 3: eventName = "keyDown"; break;
+        case 4: eventName = "keyUp"; break;
+        case 5: eventName = "autoKey"; break;
+        case 6: eventName = "update"; break;
+        case 7: eventName = "disk"; break;
+        case 8: eventName = "activate"; break;
+        case 15: eventName = "osEvt"; break;
+        case 23: eventName = "highLevel"; break;
     }
-}
+    serial_printf("PostEvent: Posting %s (type=%d), msg=0x%08x, queue count=%d\n",
+                  eventName, eventNum, eventMsg, g_eventQueue.count);
 
-/*
- * WaitNextEvent - Enhanced event retrieval with yield time and mouse tracking
- * Trap: 0xA860
- * Evidence: evidence.curated.eventmgr.json:/functions/7
- *
- * This System 7.0+ function extends GetNextEvent with cooperative multitasking
- * features, allowing applications to yield time to other processes.
- */
-Boolean WaitNextEvent(UInt16 eventMask, EventRecord *theEvent, UInt32 sleep, RgnHandle mouseRgn) {
-    Boolean eventFound;
-    UInt32 startTicks;
-
-    if (!theEvent) return false;
-
-    InitEventManager();
-    UpdateTickCount();
-    startTicks = gTicks;
-
-    /* First try to get an event immediately */
-    eventFound = GetNextEvent(eventMask, theEvent);
-
-    if (!eventFound && sleep > 0) {
-        /* Wait for event or timeout */
-        UInt32 endTicks = startTicks + sleep;
-
-        while (gTicks < endTicks) {
-            /* Simulate yielding time to other processes */
-            UpdateTickCount();
-
-            /* Check for events again */
-            eventFound = GetNextEvent(eventMask, theEvent);
-            if (eventFound) {
-                break;
-            }
-
-            /* Generate null events periodically */
-            if ((gTicks - startTicks) % 10 == 0) {
-                theEvent->what = nullEvent;
-                theEvent->message = 0;
-                theEvent->when = gTicks;
-                theEvent->where = gMouseLoc;
-                theEvent->modifiers = 0;
-                return false;
-            }
-        }
+    /* Check if queue is full */
+    if (g_eventQueue.count >= MAX_EVENTS) {
+        serial_printf("PostEvent: Event queue full!\n");
+        return -1; /* queueFull error */
     }
 
-    return eventFound;
-}
+    /* Add event to queue */
+    EventRecord* evt = &g_eventQueue.events[g_eventQueue.tail];
+    evt->what = eventNum;
+    evt->message = eventMsg;
+    evt->when = TickCount();
 
-/*
- * PostEvent - Post an event to the event queue
- * Trap: 0xA02F
- * Evidence: evidence.curated.eventmgr.json:/functions/8
- */
-OSErr PostEvent(UInt16 eventNum, UInt32 eventMsg) {
-    EvQEl *newEvent;
+    /* Get current mouse position for all events */
+    GetMouse(&evt->where);
+    g_mousePos = evt->where;  /* Update our cached position */
 
-    InitEventManager();
-    UpdateTickCount();
-
-    /* Check if we have room in the event pool */
-    if (gEventPoolUsed >= gEventPoolSize) {
-        return -1; /* Queue full */
+    /* For mouse events, message contains additional data like click count */
+    if (eventNum == mouseDown || eventNum == mouseUp) {
+        serial_printf("PostEvent: Mouse event with message=0x%08x at (%d,%d)\n",
+                     eventMsg, evt->where.h, evt->where.v);
     }
 
-    /* Allocate new event element (simplified allocation) */
-    newEvent = &gEventPool[gEventPoolUsed++];
+    evt->modifiers = 0;  /* TODO: Get keyboard modifiers */
 
-    /* Initialize event */
-    newEvent->qLink = NULL;
-    newEvent->qType = 1; /* Event queue type */
-    newEvent->reserved = 0;
+    /* Debug: Print actual coordinates we're storing */
+    serial_printf("PostEvent: Successfully posted %s at position %d, queue now has %d events\n",
+                 eventName, g_eventQueue.tail, g_eventQueue.count + 1);
 
-    (newEvent)->what = eventNum;
-    (newEvent)->message = eventMsg;
-    (newEvent)->when = gTicks;
-    (newEvent)->where = gMouseLoc;
-    (newEvent)->modifiers = 0;
+    g_eventQueue.tail = (g_eventQueue.tail + 1) % MAX_EVENTS;
+    g_eventQueue.count++;
 
-    /* Add to end of queue */
-    if (gEventQueue.qTail) {
-        ((EvQEl *)gEventQueue.qTail)->qLink = (QElemPtr)newEvent;
-    } else {
-        gEventQueue.qHead = (QElemPtr)newEvent;
+    if (eventNum == mouseDown) {
+        serial_printf("PostEvent: Added mouseDown at (%d,%d) to queue (count=%d)\n",
+                     evt->where.h, evt->where.v, g_eventQueue.count);
     }
-    gEventQueue.qTail = (QElemPtr)newEvent;
 
-    return noErr;
+    return 0; /* noErr */
 }
 
-/*
- * FlushEvents - Remove events from the event queue
- * Trap: 0xA032
- * Evidence: evidence.curated.eventmgr.json:/functions/9
+/* InitEvents is provided by sys71_stubs.c - we just use the queue here */
+extern SInt16 InitEvents(SInt16 numEvents);
+
+/* WaitNextEvent is provided by sys71_stubs.c - it can call our GetNextEvent */
+extern Boolean WaitNextEvent(short eventMask, EventRecord* theEvent,
+                     UInt32 sleep, RgnHandle mouseRgn);
+
+/**
+ * FlushEvents - Remove events from the queue
+ * Used to clear unwanted events
  */
-void FlushEvents(UInt16 whichMask, UInt16 stopMask) {
-    EvQEl *currentEvent;
-    EvQEl *nextEvent;
-    EvQEl *prevEvent;
+void FlushEvents(short whichMask, short stopMask) {
+    serial_printf("FlushEvents: Flushing events with mask=0x%04x, stop=0x%04x\n",
+                  whichMask, stopMask);
 
-    InitEventManager();
+    int index = g_eventQueue.head;
+    int checked = 0;
 
-    prevEvent = NULL;
-    currentEvent = (EvQEl *)gEventQueue.qHead;
+    while (checked < g_eventQueue.count) {
+        EventRecord* evt = &g_eventQueue.events[index];
 
-    while (currentEvent) {
-        nextEvent = (EvQEl *)currentEvent->qLink;
-        UInt16 eventTypeMask = 1 << (currentEvent)->what;
-
-        /* Check if we should stop flushing */
-        if (stopMask & eventTypeMask) {
+        /* Check if we should stop */
+        if ((1 << evt->what) & stopMask) {
+            serial_printf("FlushEvents: Stopping at event type %d\n", evt->what);
             break;
         }
 
         /* Check if this event should be flushed */
-        if (whichMask & eventTypeMask) {
-            /* Remove this event from queue */
-            if (prevEvent) {
-                prevEvent->qLink = currentEvent->qLink;
+        if ((1 << evt->what) & whichMask) {
+            serial_printf("FlushEvents: Removing event type %d\n", evt->what);
+
+            /* Remove this event */
+            if (index == g_eventQueue.head) {
+                g_eventQueue.head = (g_eventQueue.head + 1) % MAX_EVENTS;
+                g_eventQueue.count--;
+                /* Don't increment index since head moved */
             } else {
-                gEventQueue.qHead = currentEvent->qLink;
+                /* Shift events to fill gap */
+                int next = (index + 1) % MAX_EVENTS;
+                while (next != g_eventQueue.tail) {
+                    g_eventQueue.events[index] = g_eventQueue.events[next];
+                    index = next;
+                    next = (next + 1) % MAX_EVENTS;
+                }
+                g_eventQueue.tail = (g_eventQueue.tail - 1 + MAX_EVENTS) % MAX_EVENTS;
+                g_eventQueue.count--;
             }
-
-            if (currentEvent == (EvQEl *)gEventQueue.qTail) {
-                gEventQueue.qTail = (QElemPtr)prevEvent;
-            }
-
-            /* Return event element to pool */
-            currentEvent->qLink = NULL;
-            gEventPoolUsed--;
         } else {
-            prevEvent = currentEvent;
+            index = (index + 1) % MAX_EVENTS;
+            checked++;
         }
-
-        currentEvent = nextEvent;
     }
+
+    serial_printf("FlushEvents: Complete, queue now has %d events\n", g_eventQueue.count);
 }
 
-/*
- * SystemEvent - Handle system-level events like desk accessories
- * Trap: 0xA9B2
- * Evidence: evidence.curated.eventmgr.json:/functions/10
+/* Button is provided by PS2Controller.c */
+extern Boolean Button(void);
+
+/* StillDown is provided by control_stubs.c */
+extern Boolean StillDown(void);
+
+/* GetKeys is provided by KeyboardEvents.c */
+extern void GetKeys(KeyMap theKeys);
+
+/* UpdateMouseState is provided by ModernInput.c */
+extern void UpdateMouseState(Point newPos, UInt8 buttonState);
+
+/**
+ * GenerateSystemEvent - Internal function to generate system events
+ * Used by other system components to post events
  */
-Boolean SystemEvent(EventRecord *theEvent) {
-    if (!theEvent) return false;
+void GenerateSystemEvent(short eventType, int message, Point where, short modifiers) {
+    serial_printf("GenerateSystemEvent: type=%d, msg=0x%x, where=(%d,%d), mod=0x%04x\n",
+                  eventType, message, where.h, where.v, modifiers);
 
-    InitEventManager();
-
-    /* Check for system events that should be handled by the system */
-    if (theEvent->what == osEvt) {
-        /* Handle operating system events */
-        return true;
+    /* Update cached mouse position if provided */
+    if (where.h != 0 || where.v != 0) {
+        g_mousePos = where;
+    } else {
+        /* Get current mouse position */
+        GetMouse(&g_mousePos);
     }
 
-    if (theEvent->what == activateEvt) {
-        /* Handle window activation */
-        return true;
-    }
-
-    /* Not a system event */
-    return false;
+    /* Post the event */
+    PostEvent(eventType, message);
 }
-
-/*
- * SystemClick - Handle system clicks in window frames, menu bar, etc.
- * Trap: 0xA9B3
- * Evidence: evidence.curated.eventmgr.json:/functions/11
- */
-void SystemClick(EventRecord *theEvent, WindowPtr whichWindow) {
-    if (!theEvent || theEvent->what != mouseDown) {
-        return;
-    }
-
-    InitEventManager();
-
-    /* Handle system-level mouse clicks */
-    /* This would normally interact with Window Manager and Menu Manager */
-    /* For now, just update mouse state */
-    gMouseLoc = theEvent->where;
-    gButtonState = 1;
-}
-
-/* RE-AGENT-TRAILER-JSON
-{
-  "component": "event_manager",
-  "version": "1.0.0",
-  "implementation": {
-    "language": "C",
-    "standard": "C89",
-    "architecture": "portable"
-  },
-  "source_artifact": {
-    "file": "System.rsrc",
-    "sha256": "78150ebb66707277e0947fbf81f6a27fc5d263a71bbf96df7084d5c3ec22a5ba"
-  },
-  "evidence_files": [
-    "evidence.curated.eventmgr.json",
-    "mappings.eventmgr.json",
-    "layouts.curated.eventmgr.json"
-  ],
-  "functions_implemented": 12,
-  "trap_functions": [
-    {"name": "GetNextEvent", "trap": "0xA970"},
-    {"name": "EventAvail", "trap": "0xA971"},
-    {"name": "GetMouse", "trap": "0xA972"},
-    {"name": "StillDown", "trap": "0xA973"},
-    {"name": "Button", "trap": "0xA974"},
-    {"name": "TickCount", "trap": "0xA975"},
-    {"name": "GetKeys", "trap": "0xA976"},
-    {"name": "WaitNextEvent", "trap": "0xA860"},
-    {"name": "PostEvent", "trap": "0xA02F"},
-    {"name": "FlushEvents", "trap": "0xA032"},
-    {"name": "SystemEvent", "trap": "0xA9B2"},
-    {"name": "SystemClick", "trap": "0xA9B3"}
-  ],
-  "features": [
-    "Complete Event Manager trap implementation",
-    "Event queue management",
-    "Mouse and keyboard state tracking",
-    "System timing simulation",
-    "Cross-platform portable implementation",
-    "Memory-safe event handling"
-  ],
-  "compliance": {
-    "mac_toolbox_compatible": true,
-    "evidence_based": true,
-    "memory_safe": true,
-    "c89_compliant": true
-  },
-  "provenance_density": 0.15
-}
-*/

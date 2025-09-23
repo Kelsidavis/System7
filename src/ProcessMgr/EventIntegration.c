@@ -74,11 +74,12 @@ OSErr EventIntegration_Initialize(void)
     return noErr;
 }
 
+#if 0  /* DISABLED - GetNextEvent now provided by EventManager/event_manager.c */
 /*
  * Enhanced GetNextEvent with Process Switching
  * Evidence: Core cooperative multitasking through event handling
  */
-Boolean GetNextEvent(EventMask eventMask, EventRecord* theEvent)
+Boolean GetNextEvent_DISABLED(EventMask eventMask, EventRecord* theEvent)
 {
     Boolean eventFound = false;
     UInt32 startTime = TickCount();
@@ -135,7 +136,9 @@ Boolean GetNextEvent(EventMask eventMask, EventRecord* theEvent)
 
     return eventFound;
 }
+#endif /* DISABLED GetNextEvent */
 
+#if 0  /* DISABLED - WaitNextEvent now provided by EventManager/event_manager.c */
 /*
  * WaitNextEvent - The Heart of Cooperative Multitasking
  * Evidence: Primary yield point for cooperative scheduling
@@ -236,6 +239,7 @@ Boolean WaitNextEvent(EventMask eventMask, EventRecord* theEvent,
 
     return eventAvailable;
 }
+#endif /* DISABLED WaitNextEvent */
 
 /*
  * Post Event to Process Queue
