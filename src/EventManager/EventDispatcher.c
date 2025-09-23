@@ -238,7 +238,7 @@ Boolean HandleMouseDown(EventRecord* event)
                 /* Check if click was on a desktop icon */
                 extern Boolean HandleDesktopClick(Point clickPoint, Boolean doubleClick);
                 if (HandleDesktopClick(event->where, doubleClick)) {
-                    serial_printf("Desktop icon clicked (count=%d)\n", clickCount);
+                    serial_printf("Desktop icon clicked (doubleClick=%d)\n", doubleClick);
                     /* Start tracking for potential drag */
                     g_dispatcher.trackingDesktop = true;
                     return true;
@@ -282,6 +282,27 @@ Boolean HandleKeyDownEvent(EventRecord* event)
 
     serial_printf("HandleKeyDownEvent: key='%c' (0x%02x), cmd=%d\n",
                  (key >= 32 && key < 127) ? key : '?', key, cmdKeyDown);
+
+    /* Handle special keys without command modifier */
+    if (!cmdKeyDown) {
+        switch (key) {
+            case 0x09:  /* Tab key */
+                {
+                    extern void SelectNextDesktopIcon(void);
+                    SelectNextDesktopIcon();
+                    serial_printf("Tab pressed - selecting next desktop icon\n");
+                }
+                return true;
+
+            case 0x0D:  /* Enter/Return key */
+                {
+                    extern void OpenSelectedDesktopIcon(void);
+                    OpenSelectedDesktopIcon();
+                    serial_printf("Enter pressed - opening selected icon\n");
+                }
+                return true;
+        }
+    }
 
     if (cmdKeyDown) {
         /* Command key combinations often map to menu items */

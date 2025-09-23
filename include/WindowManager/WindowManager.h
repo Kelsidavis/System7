@@ -329,6 +329,14 @@ WindowPtr FrontWindow(void);
 void DrawGrowIcon(WindowPtr theWindow);
 
 /*
+ * DrawWindow - Draw window chrome (frame, title bar, controls)
+ *
+ * Draws the window's frame, title bar, and controls.
+ * Content drawing is the application's responsibility.
+ */
+void DrawWindow(WindowPtr theWindow);
+
+/*
  * DrawNew - Draw a newly created window
  *
  * Internal function to draw a window that has just been created or shown.

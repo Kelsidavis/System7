@@ -305,7 +305,34 @@ static void DrawWindowContent(WindowPtr window) {
         SetClip(window->contRgn);
     }
 
-    /* The actual content drawing happens via update events */
+    /* Call the Finder's content drawing for folder windows */
+    if (window->refCon == 'DISK' || window->refCon == 'TRSH') {
+        extern void FolderWindowProc(WindowPtr window, short message, long param);
+        FolderWindowProc(window, 0, 0);  /* wDraw = 0 */
+    }
+}
+
+/* ============================================================================
+ * Main Window Drawing Function - Draws Chrome Only
+ * ============================================================================ */
+
+void DrawWindow(WindowPtr window) {
+    if (!window || !window->visible) return;
+
+    serial_printf("WindowManager: Drawing chrome for window '%s'\n",
+                  window->titleHandle ? (char*)*window->titleHandle : "Untitled");
+
+    GrafPtr savePort;
+    GetPort(&savePort);
+    SetPort(&window->port);
+
+    /* Draw window chrome (frame, title bar, controls) */
+    DrawWindowFrame(window);
+    DrawWindowControls(window);
+
+    /* Do NOT draw content - that's the application's responsibility */
+
+    SetPort(savePort);
 }
 
 void DrawGrowIcon(WindowPtr window) {

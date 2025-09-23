@@ -306,9 +306,17 @@ WindowPtr NewWindow(void* storage, const Rect* boundsRect, ConstStr255Param titl
     if (storage) {
         window = (WindowPtr)storage;
     } else {
-        /* Would normally allocate from heap */
-        static WindowRecord tempWindow;  /* Static for now */
-        window = (WindowPtr)&tempWindow;
+        /* Allocate from heap - use multiple static windows for now */
+        static WindowRecord windows[10];  /* Support up to 10 windows */
+        static int nextWindow = 0;
+
+        if (nextWindow >= 10) {
+            serial_printf("NewWindow: Out of window slots!\n");
+            return NULL;
+        }
+
+        window = (WindowPtr)&windows[nextWindow++];
+        memset(window, 0, sizeof(WindowRecord));
     }
 
     /* Initialize window fields */

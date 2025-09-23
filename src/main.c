@@ -2081,8 +2081,18 @@ skip_cursor_drawing:
                         serial_puts("Update event\n");
                         WindowPtr w = (WindowPtr)event.message;
                         BeginUpdate(w);
-                        /* Application would draw window content here */
-                        /* DrawWindowContent(w); */
+
+                        /* Window Manager draws chrome first */
+                        extern void DrawWindow(WindowPtr window);
+                        DrawWindow(w);
+
+                        /* Then application draws content */
+                        /* Check if this is a Finder window and call its proc */
+                        if (w->refCon == 'DISK' || w->refCon == 'TRSH') {
+                            extern void FolderWindowProc(WindowPtr window, short message, long param);
+                            FolderWindowProc(w, 0, 0);  /* wDraw = 0 */
+                        }
+
                         EndUpdate(w);
                     }
                     break;

@@ -18,6 +18,7 @@
 // #include "CompatibilityFix.h" // Removed
 #include "SystemTypes.h"
 #include <string.h>
+#include <stdlib.h>  /* For abs() */
 
 #include "Finder/finder.h"
 #include "Finder/finder_types.h"
@@ -70,6 +71,8 @@ static short gSelectedIcon = -1;             /* Index of selected icon (-1 = non
 static Boolean gDraggingIcon = false;        /* Currently dragging an icon */
 static Point gDragOffset = {0, 0};           /* Offset from icon origin to mouse */
 static Point gOriginalPos = {0, 0};          /* Original position before drag */
+static UInt32 gLastClickTime = 0;            /* For double-click detection */
+static Point gLastClickPos = {0, 0};         /* Last click position */
 
 /* Forward Declarations */
 static OSErr LoadDesktopDatabase(short vRefNum);
@@ -670,8 +673,13 @@ OSErr InitializeVolumeIcon(void)
         gDesktopIcons[gDesktopIconCount].position.v = 60;
         /* Volume doesn't have a fileSpec - it uses special ID */
 
+        serial_printf("InitializeVolumeIcon: Added volume icon at index %d, pos=(%d,%d), ID=0x%X\n",
+                      gDesktopIconCount, fb_width - 100, 60, 0xFFFFFFFF);
+
         gDesktopIconCount++;
         gVolumeIconVisible = true;
+
+        serial_printf("InitializeVolumeIcon: gDesktopIconCount now = %d\n", gDesktopIconCount);
     }
 
     return noErr;
@@ -766,14 +774,32 @@ Boolean HandleDesktopClick(Point clickPoint, Boolean doubleClick)
     Rect iconRect;
     Rect labelRect;
     short prevSelected = gSelectedIcon;
+    UInt32 currentTime = TickCount();
+    Boolean isDoubleClick = false;
 
     extern void serial_printf(const char* fmt, ...);
+
+    /* Check for double-click based on timing and distance */
+    if ((currentTime - gLastClickTime) < 8) {  /* ~500ms at 60Hz tick rate */
+        int dx = abs(clickPoint.h - gLastClickPos.h);
+        int dy = abs(clickPoint.v - gLastClickPos.v);
+        if (dx < 5 && dy < 5) {
+            isDoubleClick = true;
+        }
+    }
+    gLastClickTime = currentTime;
+    gLastClickPos = clickPoint;
+
+    serial_printf("HandleDesktopClick: click at (%d,%d), isDoubleClick=%d, gDesktopIconCount=%d\n",
+                  clickPoint.h, clickPoint.v, isDoubleClick, gDesktopIconCount);
 
     /* First deselect any previously selected icon */
     gSelectedIcon = -1;
 
     /* Check volume icon first */
     for (int i = 0; i < gDesktopIconCount; i++) {
+        serial_printf("  Checking icon %d at pos (%d,%d)\n", i,
+                      gDesktopIcons[i].position.h, gDesktopIcons[i].position.v);
         if (gDesktopIcons[i].iconID == 0xFFFFFFFF) {
             /* Volume icon - check both icon and label area */
             SetRect(&iconRect,
@@ -806,11 +832,12 @@ Boolean HandleDesktopClick(Point clickPoint, Boolean doubleClick)
                     gSelectedIcon = i;
                 }
 
-                if (doubleClick) {
+                serial_printf("Desktop: Click on volume (isDoubleClick=%d)\n", isDoubleClick);
+                if (isDoubleClick) {
                     /* Open volume window */
-                    serial_printf("Desktop: Double-click on volume - opening window\n");
+                    serial_printf("Desktop: Double-click detected - opening window\n");
 
-                    /* Create a simple test window for the volume */
+                    /* Create a folder window for the volume */
                     Rect windowBounds;
                     SetRect(&windowBounds, 150, 80, 550, 380);
 
@@ -820,12 +847,18 @@ Boolean HandleDesktopClick(Point clickPoint, Boolean doubleClick)
                                                       0,     /* documentProc */
                                                       (WindowPtr)-1L,  /* frontmost */
                                                       true,  /* goAway box */
-                                                      0);    /* refCon */
+                                                      'DISK');    /* refCon to identify as disk window */
 
                     if (volumeWindow) {
+                        /* Window already has refCon='DISK' to identify it */
                         ShowWindow(volumeWindow);
                         SelectWindow(volumeWindow);
-                        serial_printf("Desktop: Volume window created successfully\n");
+
+                        /* Post an update event to trigger window drawing */
+                        extern OSErr PostEvent(SInt16 eventNum, SInt32 eventMsg);
+                        PostEvent(updateEvt, (SInt32)volumeWindow);
+
+                        serial_printf("Desktop: Volume window created successfully, posted update event\n");
                     }
                 }
 
@@ -867,9 +900,10 @@ Boolean HandleDesktopClick(Point clickPoint, Boolean doubleClick)
             DrawVolumeIcon();  /* This also draws trash */
         }
 
+        serial_printf("Desktop: Click on trash (doubleClick=%d)\n", doubleClick);
         if (doubleClick) {
             /* Open trash window */
-            serial_printf("Desktop: Double-click on trash - opening window\n");
+            serial_printf("Desktop: Double-click detected - opening trash window\n");
 
             Rect windowBounds;
             SetRect(&windowBounds, 200, 120, 600, 420);
@@ -880,11 +914,16 @@ Boolean HandleDesktopClick(Point clickPoint, Boolean doubleClick)
                                             0,     /* documentProc */
                                             (WindowPtr)-1L,  /* frontmost */
                                             true,  /* goAway box */
-                                            0);    /* refCon */
+                                            'TRSH');    /* refCon to identify as trash window */
 
             if (trashWindow) {
+                /* Window already has refCon='TRSH' to identify it */
                 ShowWindow(trashWindow);
                 SelectWindow(trashWindow);
+
+                /* Don't manually draw contents - ShowWindow already painted everything */
+                /* Content will be drawn via update events if needed */
+
                 serial_printf("Desktop: Trash window created successfully\n");
             }
         }
@@ -896,6 +935,7 @@ Boolean HandleDesktopClick(Point clickPoint, Boolean doubleClick)
         DrawVolumeIcon();  /* Redraw to clear selection */
     }
 
+    serial_printf("HandleDesktopClick: No icon matched, returning false\n");
     return false;
 }
 
@@ -1020,4 +1060,98 @@ Boolean HandleDesktopDrag(Point mousePt, Boolean buttonDown)
     }
 
     return false;
+}
+
+/*
+ * SelectNextDesktopIcon - Cycle through desktop icons with Tab key
+ */
+void SelectNextDesktopIcon(void)
+{
+    extern void serial_printf(const char* fmt, ...);
+
+    serial_printf("SelectNextDesktopIcon: current=%d, count=%d\n",
+                  gSelectedIcon, gDesktopIconCount);
+
+    if (gDesktopIconCount == 0) {
+        return;
+    }
+
+    /* Advance to next icon, wrapping around */
+    gSelectedIcon = (gSelectedIcon + 1) % gDesktopIconCount;
+
+    serial_printf("SelectNextDesktopIcon: selected icon %d\n", gSelectedIcon);
+
+    /* Redraw desktop to show selection */
+    DrawVolumeIcon();
+}
+
+/*
+ * OpenSelectedDesktopIcon - Open window for currently selected desktop icon
+ */
+void OpenSelectedDesktopIcon(void)
+{
+    extern void serial_printf(const char* fmt, ...);
+
+    serial_printf("OpenSelectedDesktopIcon: selected=%d, count=%d\n",
+                  gSelectedIcon, gDesktopIconCount);
+
+    if (gSelectedIcon < 0 || gSelectedIcon >= gDesktopIconCount) {
+        serial_printf("OpenSelectedDesktopIcon: No icon selected\n");
+        return;
+    }
+
+    /* Check if it's the volume icon */
+    if (gDesktopIcons[gSelectedIcon].iconID == 0xFFFFFFFF) {
+        serial_printf("OpenSelectedDesktopIcon: Opening volume window\n");
+
+        /* Create a folder window for the volume */
+        Rect windowBounds;
+        SetRect(&windowBounds, 100, 60, 500, 360);
+
+        WindowPtr volumeWindow = NewWindow(NULL, &windowBounds,
+                                          "\pMacintosh HD",
+                                          true,  /* visible */
+                                          0,     /* documentProc */
+                                          (WindowPtr)-1L,  /* frontmost */
+                                          true,  /* goAway box */
+                                          'DISK');  /* refCon to identify as disk window */
+
+        if (volumeWindow) {
+            ShowWindow(volumeWindow);
+            SelectWindow(volumeWindow);
+
+            /* Force update event */
+            InvalRect(&volumeWindow->port.portRect);
+
+            serial_printf("OpenSelectedDesktopIcon: Volume window created successfully\n");
+        } else {
+            serial_printf("OpenSelectedDesktopIcon: Failed to create window\n");
+        }
+    } else if (gDesktopIcons[gSelectedIcon].iconID == 'trsh') {
+        serial_printf("OpenSelectedDesktopIcon: Opening trash window\n");
+
+        /* Create a trash window */
+        Rect windowBounds;
+        SetRect(&windowBounds, 200, 120, 600, 420);
+
+        WindowPtr trashWindow = NewWindow(NULL, &windowBounds,
+                                         "\pTrash",
+                                         true,  /* visible */
+                                         0,     /* documentProc */
+                                         (WindowPtr)-1L,  /* frontmost */
+                                         true,  /* goAway box */
+                                         'TRSH');  /* refCon to identify as trash window */
+
+        if (trashWindow) {
+            ShowWindow(trashWindow);
+            SelectWindow(trashWindow);
+
+            /* Force update event */
+            InvalRect(&trashWindow->port.portRect);
+
+            serial_printf("OpenSelectedDesktopIcon: Trash window created successfully\n");
+        } else {
+            serial_printf("OpenSelectedDesktopIcon: Failed to create trash window\n");
+        }
+    }
 }

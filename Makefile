@@ -33,6 +33,7 @@ C_SOURCES = src/main.c \
             src/System71StdLib.c \
             src/Finder/finder_main.c \
             src/Finder/desktop_manager.c \
+            src/Finder/folder_window.c \
             src/Finder/alias_manager.c \
             src/Finder/trash_folder.c \
             src/QuickDraw/QuickDrawCore.c \
