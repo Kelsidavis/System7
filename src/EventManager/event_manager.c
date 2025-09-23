@@ -41,8 +41,14 @@ extern UInt32 TickCount(void);
  * Retrieves and removes the next matching event from the queue
  */
 Boolean GetNextEvent(short eventMask, EventRecord* theEvent) {
-    serial_printf("GetNextEvent: Called with mask=0x%04x, queue count=%d\n",
-                  eventMask, g_eventQueue.count);
+    static int gne_calls = 0;
+    gne_calls++;
+
+    /* Always log first few calls and then periodically */
+    if (gne_calls <= 5 || (gne_calls % 1000) == 0) {
+        serial_printf("GetNextEvent: Call #%d with mask=0x%04x, queue count=%d\n",
+                      gne_calls, eventMask, g_eventQueue.count);
+    }
 
     /* Log what events we're looking for */
     if (eventMask & mDownMask) serial_printf("  Looking for: mouseDown\n");

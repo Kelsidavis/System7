@@ -49,12 +49,21 @@ static void DrawRealChicagoChar(short x, short y, char ch, uint32_t color) {
 
 /* QuickDraw text functions using real Chicago font */
 void DrawChar(short ch) {
-    if (!framebuffer || ch < 32 || ch > 126) return;
+    extern void serial_printf(const char* fmt, ...);
+    if (!framebuffer || ch < 32 || ch > 126) {
+        serial_printf("DrawChar: skipping ch=%d (no fb=%d, out of range=%d)\n",
+                     ch, !framebuffer, (ch < 32 || ch > 126));
+        return;
+    }
 
     Point penPos = {0, 0};
     if (g_currentPort) penPos = g_currentPort->pnLoc;
 
-    DrawRealChicagoChar(penPos.h, penPos.v - CHICAGO_ASCENT, (char)ch, pack_color(0, 0, 0));
+    int draw_y = penPos.v - CHICAGO_ASCENT;
+    serial_printf("DrawChar '%c': pen=(%d,%d) -> draw at (%d,%d)\n",
+                 ch, penPos.h, penPos.v, penPos.h, draw_y);
+
+    DrawRealChicagoChar(penPos.h, draw_y, (char)ch, pack_color(0, 0, 0));
 
     /* Advance by NFNT metrics */
     if (g_currentPort) {
@@ -70,13 +79,48 @@ void DrawString(ConstStr255Param s) {
 }
 
 void DrawText(const void* textBuf, short firstByte, short byteCount) {
-    if (!textBuf || byteCount <= 0) return;
+    extern void serial_printf(const char* fmt, ...);
+    if (!textBuf || byteCount <= 0) {
+        serial_printf("DrawText: invalid params textBuf=%p, byteCount=%d\n", textBuf, byteCount);
+        return;
+    }
     const char* text = (const char*)textBuf;
 
+    /* Don't print if not in debug mode */
+    #if 0
+    serial_printf("DrawText called: firstByte=%d, byteCount=%d, text='", firstByte, byteCount);
     for (short i = 0; i < byteCount; i++) {
         char ch = text[firstByte + i];
-        if (ch == 0) break;
-        DrawChar(ch);
+        if (ch >= 32 && ch < 127) {
+            serial_printf("%c", ch);
+        } else {
+            serial_printf("\\x%02x", ch);
+        }
+    }
+    serial_printf("'\n");
+    #endif
+
+    if (!g_currentPort) {
+        serial_printf("DrawText: ERROR: g_currentPort is NULL!\n");
+        return;
+    }
+
+    /* Always draw directly if we have a framebuffer */
+    if (framebuffer) {
+        Point penPos = g_currentPort->pnLoc;
+        for (short i = 0; i < byteCount; i++) {
+            char ch = text[firstByte + i];
+            if (ch == 0 || ch < 32 || ch > 126) continue;
+
+            /* Draw character directly */
+            int draw_y = penPos.v - CHICAGO_ASCENT;
+            DrawRealChicagoChar(penPos.h, draw_y, ch, pack_color(0, 0, 0));
+
+            /* Advance pen position */
+            penPos.h += chicago_ascii[ch - 32].advance;
+        }
+        /* Update port's pen position */
+        g_currentPort->pnLoc = penPos;
     }
 }
 

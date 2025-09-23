@@ -224,7 +224,8 @@ Handle GetNewMBar(short menuBarID)
 
     /* TODO: Implement resource loading */
     /* For now, create an empty menu list */
-    MenuBarList* menuBar = (MenuBarList*)malloc(sizeof(MenuBarList));
+    size_t menuBarSize = sizeof(MenuBarList) + (MAX_MENUS - 1) * sizeof(MenuListEntry);
+    MenuBarList* menuBar = (MenuBarList*)malloc(menuBarSize);
     if (menuBar == NULL) {
         return NULL;
     }
@@ -276,6 +277,67 @@ void ClearMenuBar(void)
 
     /* Clear menu bar display */
     InvalidateMenuBar();
+}
+
+/*
+ * SetupDefaultMenus - Manually populate default menus for testing
+ * This is a temporary workaround to ensure menus display
+ */
+void SetupDefaultMenus(void)
+{
+    MenuBarList* menuBar;
+
+    if (!gMenuList) {
+        serial_printf("SetupDefaultMenus: gMenuList is NULL, cannot setup\n");
+        return;
+    }
+
+    menuBar = (MenuBarList*)gMenuList;
+
+    /* Manually populate the 6 standard menus */
+    menuBar->numMenus = 6;
+    menuBar->totalWidth = 0;
+    menuBar->lastRight = 10; /* Start after left margin */
+
+    /* Apple Menu (ID 128) */
+    menuBar->menus[0].menuID = 128;
+    menuBar->menus[0].menuLeft = 10;
+    menuBar->menus[0].menuWidth = 30;  /* Width for Apple symbol */
+
+    /* File Menu (ID 129) */
+    menuBar->menus[1].menuID = 129;
+    menuBar->menus[1].menuLeft = 40;
+    menuBar->menus[1].menuWidth = 40;  /* Width for "File" */
+
+    /* Edit Menu (ID 130) */
+    menuBar->menus[2].menuID = 130;
+    menuBar->menus[2].menuLeft = 80;
+    menuBar->menus[2].menuWidth = 40;  /* Width for "Edit" */
+
+    /* View Menu (ID 131) */
+    menuBar->menus[3].menuID = 131;
+    menuBar->menus[3].menuLeft = 120;
+    menuBar->menus[3].menuWidth = 45;  /* Width for "View" */
+
+    /* Label Menu (ID 132) */
+    menuBar->menus[4].menuID = 132;
+    menuBar->menus[4].menuLeft = 165;
+    menuBar->menus[4].menuWidth = 50;  /* Width for "Label" */
+
+    /* Special Menu (ID 133) */
+    menuBar->menus[5].menuID = 133;
+    menuBar->menus[5].menuLeft = 215;
+    menuBar->menus[5].menuWidth = 65;  /* Width for "Special" */
+
+    menuBar->lastRight = 280;
+    menuBar->totalWidth = 270;
+
+    /* Also update the menu bar in state */
+    if (gMenuMgrState) {
+        gMenuMgrState->menuBar = (Handle)menuBar;
+    }
+
+    serial_printf("SetupDefaultMenus: Manually set up %d menus\n", menuBar->numMenus);
 }
 
 /* Apple menu glyph, 16×16, MSB-first, with bite */
@@ -356,7 +418,7 @@ static void DrawAppleIcon(short x, short y) {
 void DrawMenuBar(void)
 {
     extern void serial_puts(const char* str);
-    /* serial_puts("DrawMenuBar called\n"); */
+    serial_puts("DrawMenuBar called\n");
 
     if (!gMenuMgrInitialized) {
         /* serial_puts("DrawMenuBar: MenuManager not initialized\n"); */
@@ -393,16 +455,18 @@ void DrawMenuBar(void)
 
     /* Draw menu titles */
     short x = 0;  /* Start at left edge for Apple menu */
-    /* serial_puts("DrawMenuBar: Checking menu state...\n"); */
+    serial_puts("DrawMenuBar: Checking menu state...\n");
     if (gMenuMgrState) {
-        /* serial_puts("DrawMenuBar: gMenuMgrState exists\n"); */
+        serial_puts("DrawMenuBar: gMenuMgrState exists\n");
         if (gMenuMgrState->menuBar) {
             MenuBarList* menuBar = (MenuBarList*)gMenuMgrState->menuBar;
-            /* serial_puts("DrawMenuBar: menuBar exists\n"); */
+            serial_puts("DrawMenuBar: menuBar exists\n");
             /* serial_printf might not be working, use serial_puts for now */
 
+            serial_printf("DrawMenuBar: numMenus = %d\n", menuBar->numMenus);
+
             for (int i = 0; i < menuBar->numMenus; i++) {
-                /* serial_puts("DrawMenuBar: Processing menu\n"); */
+                serial_printf("DrawMenuBar: Processing menu %d\n", i);
                 MenuHandle menu = GetMenuHandle(menuBar->menus[i].menuID);
                 if (menu) {
                     /* serial_puts("DrawMenuBar: Menu handle found\n"); */
@@ -468,17 +532,22 @@ void DrawMenuBar(void)
                                 hardcodedTitle = "View";
                                 titleLen = 4;
                             } else if (mptr->menuID == 132) {
+                                hardcodedTitle = "Label";
+                                titleLen = 5;
+                            } else if (mptr->menuID == 133) {
                                 hardcodedTitle = "Special";
                                 titleLen = 7;
                             }
 
                             if (hardcodedTitle) {
+                                serial_printf("DrawMenuBar: Drawing hardcoded title '%s' len=%d\n", hardcodedTitle, titleLen);
                                 DrawText(hardcodedTitle, 0, titleLen);
                             } else {
                                 /* Fall back to menu data if not a known menu */
+                                serial_puts("DrawMenuBar: Drawing from menu data\n");
                                 DrawText((char*)&(**menu).menuData[1], 0, titleLen);
                             }
-                            /* serial_puts("DrawText returned\n"); */
+                            serial_puts("DrawMenuBar: DrawText returned\n");
 
                             /* Track menu title position */
                             menuWidth = StringWidth(&(**menu).menuData) + 20;
@@ -676,7 +745,9 @@ void InsertMenu(MenuHandle theMenu, short beforeID)
 
     /* Create menu list if it doesn't exist */
     if (gMenuList == NULL) {
-        gMenuList = (Handle)malloc(sizeof(MenuBarList));
+        /* Allocate space for MenuBarList + room for MAX_MENUS menu entries */
+        size_t menuBarSize = sizeof(MenuBarList) + (MAX_MENUS - 1) * sizeof(MenuListEntry);
+        gMenuList = (Handle)malloc(menuBarSize);
         if (gMenuList == NULL) {
             return;
         }

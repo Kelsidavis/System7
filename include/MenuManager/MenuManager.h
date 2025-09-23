@@ -193,6 +193,7 @@ void ClearMenuBar(void);
  * Call this after making changes to menu titles or menu bar contents.
  */
 void DrawMenuBar(void);
+void SetupDefaultMenus(void);  /* Temporary workaround for menu display */
 
 /*
  * InvalMenuBar - Mark menu bar as needing redraw

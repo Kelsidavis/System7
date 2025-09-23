@@ -455,6 +455,17 @@ void DragWindow(WindowPtr window, Point startPt, const Rect* boundsRect) {
 
     serial_printf("DragWindow: Starting drag at (%d,%d)\n", startPt.h, startPt.v);
 
+    /* FIXED: Remove direct polling loop that bypasses event system */
+    /* This function should NOT poll directly - it should return and let */
+    /* the main event loop handle tracking via mouseUp/mouseMoved events */
+
+    /* For now, just move window to click point as stub */
+    /* Proper implementation will track via event system */
+    serial_printf("DragWindow: STUB - moving window to click point\n");
+    MoveWindow(window, startPt.h, startPt.v, false);
+    return;
+
+#if 0  /* DISABLED - This bypasses the event system! */
     /* Track mouse while button held */
     extern Boolean Button(void);
     extern void GetMouse(Point* mouseLoc);
@@ -505,7 +516,25 @@ void DragWindow(WindowPtr window, Point startPt, const Rect* boundsRect) {
     }
 
     serial_printf("DragWindow: Ended at (%d,%d)\n", currentPt.h, currentPt.v);
+#endif /* End of disabled polling loop */
 }
+void MoveWindow(WindowPtr window, short h, short v, Boolean front) {
+    if (!window) return;
+
+    GrafPort* port = (GrafPort*)window;
+    short width = port->portRect.right - port->portRect.left;
+    short height = port->portRect.bottom - port->portRect.top;
+
+    port->portRect.left = h;
+    port->portRect.top = v;
+    port->portRect.right = h + width;
+    port->portRect.bottom = v + height;
+
+    if (front) {
+        SelectWindow(window);
+    }
+}
+
 void CloseWindow(WindowPtr window) {
     if (!window) {
         serial_printf("CloseWindow: NULL window\n");

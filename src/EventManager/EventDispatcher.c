@@ -32,6 +32,12 @@ extern void DoMenuCommand(short menuID, short item);
 extern long MenuSelect(Point startPt);
 extern void HiliteMenu(short menuID);
 
+/* Menu tracking functions from MenuTrack.c */
+extern Boolean IsMenuTrackingNew(void);
+extern void UpdateMenuTrackingNew(Point mousePt);
+extern long EndMenuTrackingNew(void);
+extern void GetMouse(Point* mouseLoc);
+
 /* Forward declarations of event handler functions */
 Boolean HandleNullEvent(EventRecord* event);
 Boolean HandleMouseDown(EventRecord* event);
@@ -150,6 +156,14 @@ Boolean HandleMouseDown(EventRecord* event)
     short windowPart;
     Rect dragBounds;
 
+    /* If we're tracking a menu, handle it specially */
+    if (IsMenuTrackingNew()) {
+        /* Mouse down while tracking = potential selection */
+        UpdateMenuTrackingNew(event->where);
+        /* Don't end tracking yet - wait for mouse up */
+        return true;
+    }
+
     /* Find which window part was clicked */
     windowPart = FindWindow(event->where, &whichWindow);
 
@@ -259,6 +273,22 @@ Boolean HandleMouseDown(EventRecord* event)
  */
 Boolean HandleMouseUp(EventRecord* event)
 {
+    /* Check if we're tracking a menu */
+    if (IsMenuTrackingNew()) {
+        /* Update position one more time */
+        UpdateMenuTrackingNew(event->where);
+
+        /* End menu tracking and get selection */
+        long menuChoice = EndMenuTrackingNew();
+        if (menuChoice) {
+            short menuID = (menuChoice >> 16) & 0xFFFF;
+            short menuItem = menuChoice & 0xFFFF;
+            DoMenuCommand(menuID, menuItem);
+            HiliteMenu(0);  /* Unhighlight menu */
+        }
+        return true;
+    }
+
     /* Mouse up events are often handled implicitly by tracking functions */
     /* But we can use them for drag completion, etc. */
 

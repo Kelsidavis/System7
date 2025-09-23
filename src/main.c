@@ -125,6 +125,8 @@ static const uint8_t font5x7[][5] = {
     {0x44, 0x64, 0x54, 0x4C, 0x44}  // z
 };
 
+/* Arrow cursor is already defined in Resources/system7_resources.h */
+
 /* Multiboot2 header structures */
 
 
@@ -1708,8 +1710,9 @@ void create_system71_windows(void) {
     }
 
     /* Draw the menu bar */
+    serial_puts("MAIN: About to call DrawMenuBar\n");
     DrawMenuBar();
-    /* serial_puts("  Menu bar drawn\n"); */
+    serial_puts("MAIN: DrawMenuBar returned\n");
 
     /* Create first window */
     windowBounds.top = 60;
@@ -1797,7 +1800,9 @@ void kernel_main(uint32_t magic, uint32_t* mb2_info) {
     }
 
     /* Create windows and menus using real System 7.1 APIs */
+    serial_puts("MAIN: About to call create_system71_windows\n");
     create_system71_windows();
+    serial_puts("MAIN: create_system71_windows returned\n");
 
     /* Main event loop using real Event Manager */
     /* Don't use console_puts after graphics mode - it overwrites framebuffer! */
@@ -1807,14 +1812,15 @@ void kernel_main(uint32_t magic, uint32_t* mb2_info) {
     EventRecord event;
 
     /* Initial desktop draw */
-    /* serial_puts("Drawing initial desktop...\n"); */
+    serial_puts("MAIN: About to call WM_Update\n");
     WM_Update();    /* Draw the desktop directly */
+    serial_puts("MAIN: WM_Update returned\n");
 
     /* Draw the volume and trash icons */
     extern void DrawVolumeIcon(void);
+    serial_puts("MAIN: About to call DrawVolumeIcon\n");
     DrawVolumeIcon();
-
-    /* serial_puts("Desktop drawn\n"); */
+    serial_puts("MAIN: DrawVolumeIcon returned\n");
 
     /* Track mouse position for movement detection */
     extern struct {
@@ -1832,7 +1838,9 @@ void kernel_main(uint32_t magic, uint32_t* mb2_info) {
     static bool cursor_saved = false;
 
     /* Draw initial cursor */
-    {
+#if 1
+    /* Draw initial cursor with safety checks */
+    if (framebuffer && fb_width > 0 && fb_height > 0) {
         int16_t x = g_mouseState.x;
         int16_t y = g_mouseState.y;
 
@@ -1874,6 +1882,7 @@ void kernel_main(uint32_t magic, uint32_t* mb2_info) {
         cursor_old_y = y;
         cursor_saved = true;
     }
+#endif
 
     int16_t last_mouse_x = g_mouseState.x;
     int16_t last_mouse_y = g_mouseState.y;
@@ -1886,6 +1895,8 @@ void kernel_main(uint32_t magic, uint32_t* mb2_info) {
 
     /* Add cursor update counter to throttle cursor redraws */
     static uint32_t cursor_update_counter = 0;
+
+    serial_printf("MAIN: Entering main event loop NOW!\n");
 
     while (1) {
         /* Simple alive message every 1 million iterations */
@@ -1933,6 +1944,7 @@ void kernel_main(uint32_t magic, uint32_t* mb2_info) {
         cursor_update_counter = 0;
 
         /* Redraw cursor if mouse moved */
+#if 1
         if (g_mouseState.x != last_mouse_x || g_mouseState.y != last_mouse_y) {
             /* Clamp mouse position to screen bounds */
             int16_t x = g_mouseState.x;
@@ -1997,6 +2009,14 @@ void kernel_main(uint32_t magic, uint32_t* mb2_info) {
             last_mouse_x = g_mouseState.x;
             last_mouse_y = g_mouseState.y;
 
+            /* Update menu highlighting if tracking */
+            extern Boolean IsMenuTrackingNew(void);
+            extern void UpdateMenuTrackingNew(Point mousePt);
+            if (IsMenuTrackingNew()) {
+                Point currentPos = {y, x};  /* Point is {v, h} in QuickDraw */
+                UpdateMenuTrackingNew(currentPos);
+            }
+
             /* Only redraw desktop very rarely - the cursor handles its own drawing */
             static int movement_count = 0;
             movement_count++;
@@ -2008,6 +2028,7 @@ void kernel_main(uint32_t magic, uint32_t* mb2_info) {
                 cursor_saved = false;  /* Force redraw after WM_Update */
             }
         }
+#endif /* End of disabled cursor drawing */
 
         /* Mouse button tracking moved to EventManager - events are properly dispatched now */
 

@@ -227,9 +227,8 @@ void SystemClick(const EventRecord *event, WindowRecord *window)
  */
 void SystemTask(void)
 {
-    /* Poll PS/2 input on each system task */
-    extern void PollPS2Input(void);
-    PollPS2Input();
+    /* FIXED: Removed direct PollPS2Input call - this bypasses event system! */
+    /* PS/2 input polling should ONLY happen in main event loop via ProcessModernInput */
 
     if (!g_deskMgrInitialized) {
         return;

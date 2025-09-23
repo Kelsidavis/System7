@@ -237,7 +237,17 @@ static OSErr SetupMenus(void)
     InsertMenu(gLabelMenu, 0);     /* Label at position 4 */
     InsertMenu(gSpecialMenu, 0);   /* Special at position 5 */
 
+    extern void serial_puts(const char* str);
+    serial_puts("Finder: About to call DrawMenuBar\n");
     DrawMenuBar();
+    serial_puts("Finder: DrawMenuBar returned\n");
+
+    /* Temporary workaround: manually setup default menus */
+    extern void SetupDefaultMenus(void);
+    serial_puts("Finder: Calling SetupDefaultMenus\n");
+    SetupDefaultMenus();
+    serial_puts("Finder: SetupDefaultMenus returned\n");
+
     return noErr;
 }
 
