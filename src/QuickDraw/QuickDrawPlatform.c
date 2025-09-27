@@ -48,14 +48,43 @@ void QDPlatform_UnlockFramebuffer(PlatformFramebuffer* fb) {
     /* No locking needed in our simple implementation */
 }
 
+/* VGA status register port for vsync detection */
+#define VGA_INPUT_STATUS_1 0x3DA
+#define VGA_VRETRACE_BIT 0x08
+
+/* Inline assembly helpers for VGA I/O */
+static inline uint8_t inb_vga(uint16_t port) {
+    uint8_t value;
+    __asm__ volatile ("inb %1, %0" : "=a"(value) : "Nd"(port));
+    return value;
+}
+
+/* Wait for VGA vertical retrace (vsync) to ensure screen update */
+static void vga_wait_vsync(void) {
+    /* Wait for any current retrace to end */
+    while (inb_vga(VGA_INPUT_STATUS_1) & VGA_VRETRACE_BIT);
+    /* Wait for next retrace to begin */
+    while (!(inb_vga(VGA_INPUT_STATUS_1) & VGA_VRETRACE_BIT));
+}
+
 /* Update screen region */
 void QDPlatform_UpdateScreen(SInt32 left, SInt32 top, SInt32 right, SInt32 bottom) {
-    /* In our implementation, framebuffer is always visible */
+    /* Minimal delay to allow QEMU display refresh - faster than full vsync */
+    volatile int delay;
+    for (delay = 0; delay < 100; delay++) {
+        /* Read VGA status register to yield CPU time to QEMU */
+        (void)inb_vga(VGA_INPUT_STATUS_1);
+    }
 }
 
 /* Flush entire screen */
 void QDPlatform_FlushScreen(void) {
-    /* In our implementation, framebuffer is always visible */
+    /* Minimal delay to allow QEMU display refresh - faster than full vsync */
+    volatile int delay;
+    for (delay = 0; delay < 100; delay++) {
+        /* Read VGA status register to yield CPU time to QEMU */
+        (void)inb_vga(VGA_INPUT_STATUS_1);
+    }
 }
 
 /* Set a pixel */
@@ -148,11 +177,21 @@ void QDPlatform_DrawLine(GrafPtr port, Point startPt, Point endPt,
     SInt32 sy = (y1 < y2) ? 1 : -1;
     SInt32 err = dx - dy;
 
-    /* Use black for now - pattern support to be added */
-    UInt32 color = pack_color(0, 0, 0);
+    /* Use black for drawing */
+    UInt32 drawColor = pack_color(0, 0, 0);
 
     while (1) {
-        QDPlatform_SetPixel(x1, y1, color);
+        /* Handle XOR mode */
+        if (mode == patXor) {
+            /* Read current pixel */
+            UInt32 current = QDPlatform_GetPixel(x1, y1);
+            /* XOR with draw color */
+            UInt32 xored = current ^ drawColor;
+            QDPlatform_SetPixel(x1, y1, xored);
+        } else {
+            /* Normal copy mode */
+            QDPlatform_SetPixel(x1, y1, drawColor);
+        }
 
         if (x1 == x2 && y1 == y2) break;
 
@@ -221,16 +260,17 @@ void QDPlatform_DrawShape(GrafPtr port, GrafVerb verb, const Rect* rect,
                 }
             }
         } else if (verb == frame) {
-            /* Draw rectangle outline */
+            /* Draw rectangle outline using port's pen mode */
             Point tl = {rect->left, rect->top};
             Point tr = {rect->right - 1, rect->top};
             Point br = {rect->right - 1, rect->bottom - 1};
             Point bl = {rect->left, rect->bottom - 1};
 
-            QDPlatform_DrawLine(port, tl, tr, pat, patCopy);
-            QDPlatform_DrawLine(port, tr, br, pat, patCopy);
-            QDPlatform_DrawLine(port, br, bl, pat, patCopy);
-            QDPlatform_DrawLine(port, bl, tl, pat, patCopy);
+            SInt16 mode = port ? port->pnMode : patCopy;
+            QDPlatform_DrawLine(port, tl, tr, pat, mode);
+            QDPlatform_DrawLine(port, tr, br, pat, mode);
+            QDPlatform_DrawLine(port, br, bl, pat, mode);
+            QDPlatform_DrawLine(port, bl, tl, pat, mode);
         } else if (verb == erase) {
             /* Check for color pattern from Pattern Manager */
             uint32_t* colorPattern = NULL;

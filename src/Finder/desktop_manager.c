@@ -73,6 +73,9 @@ extern uint32_t pack_color(uint8_t r, uint8_t g, uint8_t b);
 /* Global tracking guard for modal drag loops */
 volatile Boolean gInMouseTracking = false;
 
+/* Index of icon being dragged (-1 if none) */
+static short gDraggingIconIndex = -1;
+
 /* Global Desktop State */
 static IconPosition *gDesktopIcons = nil;   /* Array of desktop icon positions */
 static short gDesktopIconCount = 0;         /* Number of icons on desktop */
@@ -176,6 +179,8 @@ static void Finder_DeskHook(RgnHandle invalidRgn)
 
     /* Draw desktop icons in invalid region */
     for (int i = 0; i < gDesktopIconCount; i++) {
+        if (i == gDraggingIconIndex) continue;
+
         Rect iconRect;
         SetRect(&iconRect,
                 gDesktopIcons[i].position.h,
@@ -193,7 +198,7 @@ static void Finder_DeskHook(RgnHandle invalidRgn)
     }
 
     /* Draw volume icon if visible */
-    if (gVolumeIconVisible) {
+    if (gVolumeIconVisible && gDraggingIconIndex != 0) {
         DrawVolumeIcon();
     }
 
@@ -615,6 +620,10 @@ static void InvertIconOutline(const Rect *r)
     FrameRect(&inner);
 
     SetPenState(&save);
+
+    /* Lightweight display update - just update the outline region */
+    extern void QDPlatform_UpdateScreen(SInt32 left, SInt32 top, SInt32 right, SInt32 bottom);
+    QDPlatform_UpdateScreen(r->left - 2, r->top - 2, r->right + 2, r->bottom + 2);
 }
 
 /*
@@ -652,8 +661,14 @@ static void TrackIconDragSync(short iconIndex, Point startPt)
     /* Set tracking guard to suppress queued mouse events */
     gInMouseTracking = true;
 
+    /* Mark this icon as being dragged */
+    gDraggingIconIndex = iconIndex;
+
     /* Prepare ghost rect */
     UpdateIconRect(iconIndex, &ghost);
+    ghost.left -= 20;
+    ghost.right += 20;
+    ghost.bottom += 16;
 
     /* Wait to see if this becomes a drag (threshold check) */
     GetMouse(&p);
@@ -670,24 +685,33 @@ static void TrackIconDragSync(short iconIndex, Point startPt)
     GetMouse(&p);
     if (!(abs(p.h - startPt.h) > kDragThreshold || abs(p.v - startPt.v) > kDragThreshold)) {
         serial_printf("TrackIconDragSync: no drag, threshold not exceeded\n");
+        gDraggingIconIndex = -1;
         gInMouseTracking = false;
         return;
     }
 
-    /* Enter drag: show XOR outline and move with mouse */
+    /* Enter drag: draw translucent icon following cursor (QEMU-compatible) */
     GetPort(&savePort);
     SetPort(&qd.thePort);
 
+    /* Draw initial ghost outline */
     InvertIconOutline(&ghost);
     ghostOn = true;
     serial_printf("TrackIconDragSync: drag started, ghost visible\n");
+
+    Rect prevGhost = ghost;
 
     while (StillDown()) {
         Point cur;
         GetMouse(&cur);
         if (cur.h != p.h || cur.v != p.v) {
-            /* Erase old ghost */
+            /* Erase old ghost outline */
             if (ghostOn) InvertIconOutline(&ghost);
+
+            /* Calculate dirty rect (union of old and new positions) */
+            Rect dirtyRect = prevGhost;
+            UnionRect(&dirtyRect, &ghost, &dirtyRect);
+            InsetRect(&dirtyRect, -4, -4);  /* Expand for outline */
 
             /* Move by delta */
             OffsetRect(&ghost, cur.h - p.h, cur.v - p.v);
@@ -701,14 +725,26 @@ static void TrackIconDragSync(short iconIndex, Point startPt)
             if (ghost.right > desk.right)   OffsetRect(&ghost, desk.right - ghost.right, 0);
             if (ghost.bottom > desk.bottom) OffsetRect(&ghost, 0, desk.bottom - ghost.bottom);
 
-            /* Draw new ghost */
+            /* Expand dirty rect to include new position */
+            UnionRect(&dirtyRect, &ghost, &dirtyRect);
+            InsetRect(&dirtyRect, -4, -4);
+
+            /* Erase dirty region - just redraw desktop for now */
+            DrawDesktop();
+
+            /* Draw dragged icon at new ghost position */
+            Point savedPos = gDesktopIcons[iconIndex].position;
+            gDesktopIcons[iconIndex].position.h = ghost.left;
+            gDesktopIcons[iconIndex].position.v = ghost.top;
+            DrawVolumeIcon();
+            gDesktopIcons[iconIndex].position = savedPos;
+
+            /* Draw new ghost outline on top */
             InvertIconOutline(&ghost);
             ghostOn = true;
 
+            prevGhost = ghost;
             p = cur;
-
-            /* Small delay to make outline visible */
-            for (volatile int i = 0; i < 5000; i++);
         }
         DesktopYield();
     }
@@ -731,7 +767,8 @@ static void TrackIconDragSync(short iconIndex, Point startPt)
     DrawDesktop();
     DrawVolumeIcon();
 
-    /* Clear tracking guard */
+    /* Clear tracking guard and drag flag */
+    gDraggingIconIndex = -1;
     gInMouseTracking = false;
 
     /* Drain any queued mouseUp that may have been posted anyway */
