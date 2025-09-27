@@ -23,6 +23,7 @@
 #include "WindowManager/WindowTypes.h"
 #include "FileMgr/file_manager.h"
 #include "QuickDraw/QuickDraw.h"
+#include "FS/hfs_types.h"  /* For VRefNum */
 
 #pragma pack(push, 2)  /* 68k alignment - even word boundaries */
 
@@ -46,6 +47,43 @@ typedef struct IconPosition {
     UInt32  iconID;      /* Unique identifier for the icon */
     Point   position;    /* Position on desktop or in window */
 } IconPosition;
+
+/* Desktop Item Type - Universal desktop icon system */
+typedef enum {
+    kDesktopItemVolume = 0,  /* Mounted volume/disk */
+    kDesktopItemTrash = 1,   /* Trash can */
+    kDesktopItemFile = 2,    /* File */
+    kDesktopItemFolder = 3,  /* Folder */
+    kDesktopItemAlias = 4    /* Alias/shortcut */
+} DesktopItemType;
+
+/* Desktop Item - Universal structure for all desktop icons */
+typedef struct DesktopItem {
+    DesktopItemType type;     /* Type of desktop item */
+    UInt32  iconID;           /* Unique identifier (0xFFFFFFFF = special) */
+    Point   position;         /* Position on desktop */
+    char    name[64];         /* Display name */
+    Boolean movable;          /* Can be repositioned (trash is not) */
+    union {
+        struct {
+            /* Volume-specific data */
+            VRefNum vRefNum;  /* Volume reference number */
+        } volume;
+        struct {
+            /* File-specific data */
+            OSType fileType;
+            OSType creator;
+        } file;
+        struct {
+            /* Folder-specific data */
+            long dirID;
+        } folder;
+        struct {
+            /* Alias-specific data */
+            long targetID;
+        } alias;
+    } data;
+} DesktopItem;
 
 /* View Preferences Record - Evidence: view mode switching */
 

@@ -71,7 +71,7 @@ static void vga_wait_vsync(void) {
 void QDPlatform_UpdateScreen(SInt32 left, SInt32 top, SInt32 right, SInt32 bottom) {
     /* Minimal delay to allow QEMU display refresh - faster than full vsync */
     volatile int delay;
-    for (delay = 0; delay < 100; delay++) {
+    for (delay = 0; delay < 50; delay++) {
         /* Read VGA status register to yield CPU time to QEMU */
         (void)inb_vga(VGA_INPUT_STATUS_1);
     }
@@ -81,7 +81,7 @@ void QDPlatform_UpdateScreen(SInt32 left, SInt32 top, SInt32 right, SInt32 botto
 void QDPlatform_FlushScreen(void) {
     /* Minimal delay to allow QEMU display refresh - faster than full vsync */
     volatile int delay;
-    for (delay = 0; delay < 100; delay++) {
+    for (delay = 0; delay < 50; delay++) {
         /* Read VGA status register to yield CPU time to QEMU */
         (void)inb_vga(VGA_INPUT_STATUS_1);
     }

@@ -77,7 +77,7 @@ volatile Boolean gInMouseTracking = false;
 static short gDraggingIconIndex = -1;
 
 /* Global Desktop State */
-static IconPosition *gDesktopIcons = nil;   /* Array of desktop icon positions */
+static DesktopItem *gDesktopIcons = nil;   /* Array of desktop items (universal system) */
 static short gDesktopIconCount = 0;         /* Number of icons on desktop */
 static Boolean gDesktopNeedsCleanup = false; /* Desktop needs reorganization */
 static VRefNum gBootVolumeRef = 0;          /* Boot volume reference */
@@ -197,8 +197,8 @@ static void Finder_DeskHook(RgnHandle invalidRgn)
         }
     }
 
-    /* Draw volume icon if visible */
-    if (gVolumeIconVisible && gDraggingIconIndex != 0) {
+    /* Draw volume icon if visible (DrawVolumeIcon also draws trash) */
+    if (gVolumeIconVisible) {
         DrawVolumeIcon();
     }
 
@@ -449,8 +449,8 @@ OSErr InitializeDesktopDB(void)
     /* Load existing desktop database */
     err = LoadDesktopDatabase(0); /* System volume */
     if (err != noErr) {
-        /* If load fails, initialize empty database */
-        gDesktopIconCount = 0;
+        /* If load fails, keep trash as the only item (gDesktopIconCount = 1) */
+        /* Don't reset to 0 - trash is already initialized at index 0 */
     }
 
     /* Register our DeskHook with Window Manager */
@@ -470,10 +470,19 @@ static OSErr AllocateDesktopIcons(void)
         return noErr; /* Already allocated */
     }
 
-    gDesktopIcons = (IconPosition*)NewPtr(sizeof(IconPosition) * kMaxDesktopIcons);
+    gDesktopIcons = (DesktopItem*)NewPtr(sizeof(DesktopItem) * kMaxDesktopIcons);
     if (gDesktopIcons == NULL) {
         return memFullErr;
     }
+
+    /* Initialize trash as the first desktop item */
+    gDesktopIcons[0].type = kDesktopItemTrash;
+    gDesktopIcons[0].iconID = 0xFFFFFFFF;
+    gDesktopIcons[0].position.h = 700;
+    gDesktopIcons[0].position.v = 500;
+    strcpy(gDesktopIcons[0].name, "Trash");
+    gDesktopIcons[0].movable = false;  /* Trash stays in place */
+    gDesktopIconCount = 1;  /* Start with trash */
 
     return noErr;
 }
@@ -545,56 +554,34 @@ static short IconAtPoint(Point where)
     serial_printf("IconAtPoint: checking (%d,%d), gDesktopIconCount=%d\n",
                  where.h, where.v, gDesktopIconCount);
 
-    /* Check volume icon manually (workaround for loop issues) */
-    if (gDesktopIconCount > 0 && gDesktopIcons[0].iconID == 0xFFFFFFFF) {
-        serial_printf("IconAtPoint: Checking volume at (%d,%d)\n",
-                     gDesktopIcons[0].position.h, gDesktopIcons[0].position.v);
+    /* Check all desktop items */
+    for (int i = 0; i < gDesktopIconCount; i++) {
+        serial_printf("IconAtPoint: Checking item %d (type=%d) at (%d,%d)\n",
+                     i, gDesktopIcons[i].type,
+                     gDesktopIcons[i].position.h, gDesktopIcons[i].position.v);
 
         SetRect(&iconRect,
-                gDesktopIcons[0].position.h,
-                gDesktopIcons[0].position.v,
-                gDesktopIcons[0].position.h + kIconW,
-                gDesktopIcons[0].position.v + kIconH);
+                gDesktopIcons[i].position.h,
+                gDesktopIcons[i].position.v,
+                gDesktopIcons[i].position.h + kIconW,
+                gDesktopIcons[i].position.v + kIconH);
 
+        /* Calculate label rect based on item type */
+        int labelOffset = (gDesktopIcons[i].type == kDesktopItemTrash) ? 48 : kIconH;
         SetRect(&labelRect,
-                gDesktopIcons[0].position.h - 20,
-                gDesktopIcons[0].position.v + kIconH,
-                gDesktopIcons[0].position.h + kIconW + 20,
-                gDesktopIcons[0].position.v + kIconH + 16);
+                gDesktopIcons[i].position.h - 20,
+                gDesktopIcons[i].position.v + labelOffset,
+                gDesktopIcons[i].position.h + kIconW + 20,
+                gDesktopIcons[i].position.v + labelOffset + 16);
 
-        serial_printf("IconAtPoint: Volume rects: icon=(%d,%d,%d,%d), label=(%d,%d,%d,%d)\n",
-                     iconRect.left, iconRect.top, iconRect.right, iconRect.bottom,
+        serial_printf("IconAtPoint: Item %d rects: icon=(%d,%d,%d,%d), label=(%d,%d,%d,%d)\n",
+                     i, iconRect.left, iconRect.top, iconRect.right, iconRect.bottom,
                      labelRect.left, labelRect.top, labelRect.right, labelRect.bottom);
 
         if (PtInRect(where, &iconRect) || PtInRect(where, &labelRect)) {
-            serial_printf("IconAtPoint: HIT volume icon!\n");
-            return 0;
+            serial_printf("IconAtPoint: HIT item %d!\n", i);
+            return i;
         }
-    }
-
-    /* Check trash icon (special position) */
-    Point trashPos = {700, 500};
-    serial_printf("IconAtPoint: Checking trash at (%d,%d)\n", trashPos.h, trashPos.v);
-
-    SetRect(&iconRect,
-            trashPos.h,
-            trashPos.v,
-            trashPos.h + kIconW,
-            trashPos.v + kIconH);
-
-    SetRect(&labelRect,
-            trashPos.h - 20,
-            trashPos.v + 48,
-            trashPos.h + kIconW + 20,
-            trashPos.v + 64);
-
-    serial_printf("IconAtPoint: Trash rects: icon=(%d,%d,%d,%d), label=(%d,%d,%d,%d)\n",
-                 iconRect.left, iconRect.top, iconRect.right, iconRect.bottom,
-                 labelRect.left, labelRect.top, labelRect.right, labelRect.bottom);
-
-    if (PtInRect(where, &iconRect) || PtInRect(where, &labelRect)) {
-        serial_printf("IconAtPoint: HIT trash icon!\n");
-        return 999;  /* Special trash index */
     }
 
     serial_printf("IconAtPoint: No icon hit, returning -1\n");
@@ -654,7 +641,6 @@ static void TrackIconDragSync(short iconIndex, Point startPt)
     extern void GetMouse(Point *pt);
 
     if (iconIndex < 0 || iconIndex >= gDesktopIconCount) return;
-    if (iconIndex == 999) return;  /* Can't drag trash */
 
     serial_printf("TrackIconDragSync ENTRY: starting modal drag for icon %d\n", iconIndex);
 
@@ -732,12 +718,16 @@ static void TrackIconDragSync(short iconIndex, Point startPt)
             /* Erase dirty region - just redraw desktop for now */
             DrawDesktop();
 
-            /* Draw dragged icon at new ghost position */
+            /* Draw dragged icon at new ghost position (adjust for label margins) */
             Point savedPos = gDesktopIcons[iconIndex].position;
-            gDesktopIcons[iconIndex].position.h = ghost.left;
+            gDesktopIcons[iconIndex].position.h = ghost.left + 20;
             gDesktopIcons[iconIndex].position.v = ghost.top;
             DrawVolumeIcon();
             gDesktopIcons[iconIndex].position = savedPos;
+
+            /* Force display update for smoother dragging */
+            extern void QDPlatform_FlushScreen(void);
+            QDPlatform_FlushScreen();
 
             /* Draw new ghost outline on top */
             InvertIconOutline(&ghost);
@@ -752,15 +742,19 @@ static void TrackIconDragSync(short iconIndex, Point startPt)
     /* Button released: erase ghost */
     if (ghostOn) InvertIconOutline(&ghost);
 
-    /* Commit new position (snap to grid) */
-    Point snapped;
-    snapped.h = ghost.left;
-    snapped.v = ghost.top;
-    snapped = SnapToGrid(snapped);
+    /* Commit new position (snap to grid) - only for movable items */
+    if (gDesktopIcons[iconIndex].movable) {
+        Point snapped;
+        snapped.h = ghost.left;
+        snapped.v = ghost.top;
+        snapped = SnapToGrid(snapped);
 
-    gDesktopIcons[iconIndex].position = snapped;
+        gDesktopIcons[iconIndex].position = snapped;
 
-    serial_printf("TrackIconDragSync: drag complete, new position (%d,%d)\n", snapped.h, snapped.v);
+        serial_printf("TrackIconDragSync: drag complete, new position (%d,%d)\n", snapped.h, snapped.v);
+    } else {
+        serial_printf("TrackIconDragSync: drag complete (non-movable item - no position save)\n");
+    }
 
     /* Redraw entire desktop to clear old position */
     SetPort(savePort);
@@ -815,9 +809,9 @@ static OSErr LoadDesktopDatabase(short vRefNum)
         gDesktopIconCount = kMaxDesktopIcons;
     }
 
-    /* Read icon positions */
+    /* Read desktop items */
     if (gDesktopIconCount > 0) {
-        dataSize = sizeof(IconPosition) * gDesktopIconCount;
+        dataSize = sizeof(DesktopItem) * gDesktopIconCount;
         err = FSRead(databaseRefNum, &dataSize, gDesktopIcons);
     }
 
@@ -862,9 +856,9 @@ static OSErr SaveDesktopDatabase(short vRefNum)
         return err;
     }
 
-    /* Write icon positions */
+    /* Write desktop items */
     if (gDesktopIconCount > 0) {
-        dataSize = sizeof(IconPosition) * gDesktopIconCount;
+        dataSize = sizeof(DesktopItem) * gDesktopIconCount;
         err = FSWrite(databaseRefNum, &dataSize, gDesktopIcons);
     }
 
@@ -958,16 +952,19 @@ OSErr InitializeVolumeIcon(void)
         if (err != noErr) return err;
     }
 
-    /* Add volume icon to desktop */
+    /* Add volume icon to desktop (note: trash is already at index 0) */
     if (gDesktopIconCount < kMaxDesktopIcons) {
         /* Position at top-right of desktop */
+        gDesktopIcons[gDesktopIconCount].type = kDesktopItemVolume;
         gDesktopIcons[gDesktopIconCount].iconID = 0xFFFFFFFF; /* Special ID for volume */
         gDesktopIcons[gDesktopIconCount].position.h = fb_width - 100;
         gDesktopIcons[gDesktopIconCount].position.v = 60;
-        /* Volume doesn't have a fileSpec - it uses special ID */
+        strcpy(gDesktopIcons[gDesktopIconCount].name, "Macintosh HD");
+        gDesktopIcons[gDesktopIconCount].movable = true;  /* Volumes can be moved */
+        gDesktopIcons[gDesktopIconCount].data.volume.vRefNum = gBootVolumeRef;
 
-        serial_printf("InitializeVolumeIcon: Added volume icon at index %d, pos=(%d,%d), ID=0x%X\n",
-                      gDesktopIconCount, fb_width - 100, 60, 0xFFFFFFFF);
+        serial_printf("InitializeVolumeIcon: Added volume icon at index %d, pos=(%d,%d)\n",
+                      gDesktopIconCount, fb_width - 100, 60);
 
         gDesktopIconCount++;
         gVolumeIconVisible = true;
@@ -1000,7 +997,7 @@ void DrawVolumeIcon(void)
     serial_printf("DrawVolumeIcon: Finding volume position\n");
     /* Find volume icon in desktop array */
     for (int i = 0; i < gDesktopIconCount; i++) {
-        if (gDesktopIcons[i].iconID == 0xFFFFFFFF) {
+        if (gDesktopIcons[i].type == kDesktopItemVolume) {
             volumePos = gDesktopIcons[i].position;
             break;
         }
@@ -1031,7 +1028,7 @@ void DrawVolumeIcon(void)
     /* Check if this icon is selected (find its index) */
     Boolean isSelected = false;
     for (int j = 0; j < gDesktopIconCount; j++) {
-        if (gDesktopIcons[j].iconID == 0xFFFFFFFF && gSelectedIcon == j) {
+        if (gDesktopIcons[j].type == kDesktopItemVolume && gSelectedIcon == j) {
             isSelected = true;
             break;
         }
@@ -1046,29 +1043,30 @@ void DrawVolumeIcon(void)
                       isSelected);        /* Selection state */
     serial_printf("DrawVolumeIcon: Icon_DrawWithLabel returned\n");
 
-    /* Draw Trash icon in bottom-right corner */
-    Point trashPos;
-    trashPos.h = 700;  /* Near right edge */
-    trashPos.v = 500;  /* Near bottom */
+    /* Draw all other desktop items */
+    serial_printf("DrawVolumeIcon: Drawing other desktop items\n");
+    for (int i = 0; i < gDesktopIconCount; i++) {
+        if (gDesktopIcons[i].type == kDesktopItemTrash) {
+            /* Draw trash icon */
+            extern const IconFamily* IconSys_TrashEmpty(void);
+            extern const IconFamily* IconSys_TrashFull(void);
+            extern bool Trash_IsEmptyAll(void);
 
-    serial_printf("DrawVolumeIcon: Getting trash icon\n");
-    /* Get appropriate trash icon */
-    extern const IconFamily* IconSys_TrashEmpty(void);
-    extern const IconFamily* IconSys_TrashFull(void);
-    extern bool Trash_IsEmptyAll(void);
+            IconHandle trashHandle;
+            trashHandle.fam = Trash_IsEmptyAll() ? IconSys_TrashEmpty() : IconSys_TrashFull();
+            trashHandle.selected = (gSelectedIcon == i);
 
-    IconHandle trashHandle;
-    trashHandle.fam = Trash_IsEmptyAll() ? IconSys_TrashEmpty() : IconSys_TrashFull();
-    /* Check if trash is selected (special index 999) */
-    trashHandle.selected = (gSelectedIcon == 999);
+            serial_printf("DrawVolumeIcon: Drawing trash at (%d,%d)\n",
+                         gDesktopIcons[i].position.h, gDesktopIcons[i].position.v);
 
-    serial_printf("DrawVolumeIcon: About to call Icon_DrawWithLabelOffset for trash\n");
-    /* Draw trash with label - using custom offset for trash */
-    Icon_DrawWithLabelOffset(&trashHandle, "Trash",
-                            trashPos.h + 16,    /* Center X */
-                            trashPos.v,         /* Top Y */
-                            48,                 /* Label offset - moved down 1 more pixel */
-                            trashHandle.selected);  /* Selection state */
+            Icon_DrawWithLabelOffset(&trashHandle, gDesktopIcons[i].name,
+                                    gDesktopIcons[i].position.h + 16,  /* Center X */
+                                    gDesktopIcons[i].position.v,        /* Top Y */
+                                    48,                                 /* Label offset */
+                                    trashHandle.selected);
+        }
+        /* Future: handle kDesktopItemFile, kDesktopItemFolder, etc. */
+    }
     serial_printf("DrawVolumeIcon: EXIT\n");
 }
 
@@ -1101,11 +1099,10 @@ Boolean HandleDesktopClick(Point clickPoint, Boolean doubleClick)
     serial_printf("Hit icon index %d, doubleClick=%d\n", hitIcon, doubleClick);
 
     /* Handle double-click first */
-    if (doubleClick && hitIcon < gDesktopIconCount) {
-        serial_printf("Checking if volume (hitIcon=%d, count=%d, ID=0x%X)\n",
-                     hitIcon, gDesktopIconCount,
-                     hitIcon >= 0 && hitIcon < gDesktopIconCount ? gDesktopIcons[hitIcon].iconID : 0);
-        if (gDesktopIcons[hitIcon].iconID == 0xFFFFFFFF) {
+    if (doubleClick && hitIcon >= 0 && hitIcon < gDesktopIconCount) {
+        serial_printf("Checking item type (hitIcon=%d, type=%d)\n",
+                     hitIcon, gDesktopIcons[hitIcon].type);
+        if (gDesktopIcons[hitIcon].type == kDesktopItemVolume) {
             /* Volume icon */
             serial_printf("Double-click on volume - opening window\n");
 
@@ -1124,23 +1121,23 @@ Boolean HandleDesktopClick(Point clickPoint, Boolean doubleClick)
                 PostEvent(updateEvt, (SInt32)volumeWindow);
             }
             return true;
+        } else if (gDesktopIcons[hitIcon].type == kDesktopItemTrash) {
+            /* Trash double-click */
+            serial_printf("Double-click on trash - opening window\n");
+
+            Rect windowBounds;
+            SetRect(&windowBounds, 200, 120, 600, 420);
+
+            WindowPtr trashWindow = NewWindow(NULL, &windowBounds,
+                                             "\pTrash",
+                                             true, 0, (WindowPtr)-1L, true, 'TRSH');
+
+            if (trashWindow) {
+                ShowWindow(trashWindow);
+                SelectWindow(trashWindow);
+            }
+            return true;
         }
-    } else if (doubleClick && hitIcon == 999) {
-        /* Trash double-click */
-        serial_printf("Double-click on trash - opening window\n");
-
-        Rect windowBounds;
-        SetRect(&windowBounds, 200, 120, 600, 420);
-
-        WindowPtr trashWindow = NewWindow(NULL, &windowBounds,
-                                         "\pTrash",
-                                         true, 0, (WindowPtr)-1L, true, 'TRSH');
-
-        if (trashWindow) {
-            ShowWindow(trashWindow);
-            SelectWindow(trashWindow);
-        }
-        return true;
     }
 
     /* Single click - select and potentially drag */
@@ -1154,7 +1151,7 @@ Boolean HandleDesktopClick(Point clickPoint, Boolean doubleClick)
     }
 
     /* Start synchronous modal drag tracking immediately (only for single clicks) */
-    if (!doubleClick && hitIcon < gDesktopIconCount && hitIcon != 999) {
+    if (!doubleClick && hitIcon >= 0 && hitIcon < gDesktopIconCount) {
         serial_printf("Starting TrackIconDragSync for icon %d\n", hitIcon);
         TrackIconDragSync(hitIcon, clickPoint);
     }
@@ -1173,7 +1170,7 @@ OSErr HandleVolumeDoubleClick(Point clickPoint)
 
     /* Check if click is on volume icon */
     for (int i = 0; i < gDesktopIconCount; i++) {
-        if (gDesktopIcons[i].iconID == 0xFFFFFFFF) {
+        if (gDesktopIcons[i].type == kDesktopItemVolume) {
             SetRect(&iconRect,
                     gDesktopIcons[i].position.h,
                     gDesktopIcons[i].position.v,
@@ -1206,11 +1203,12 @@ void StartDragIcon(Point mousePt)
     extern void serial_printf(const char* fmt, ...);
 
     if (gSelectedIcon >= 0 && gSelectedIcon < gDesktopIconCount) {
-        gDraggingIcon = true;
-        serial_printf("Started dragging icon %d\n", gSelectedIcon);
-    } else if (gSelectedIcon == 999) {
-        /* Can't drag trash */
-        serial_printf("Cannot drag trash icon\n");
+        if (gDesktopIcons[gSelectedIcon].movable) {
+            gDraggingIcon = true;
+            serial_printf("Started dragging icon %d\n", gSelectedIcon);
+        } else {
+            serial_printf("Cannot drag non-movable icon %d\n", gSelectedIcon);
+        }
     }
 }
 
@@ -1324,7 +1322,7 @@ void OpenSelectedDesktopIcon(void)
     }
 
     /* Check if it's the volume icon */
-    if (gDesktopIcons[gSelectedIcon].iconID == 0xFFFFFFFF) {
+    if (gDesktopIcons[gSelectedIcon].type == kDesktopItemVolume) {
         serial_printf("OpenSelectedDesktopIcon: Opening volume window\n");
 
         /* Create a folder window for the volume */
@@ -1350,7 +1348,7 @@ void OpenSelectedDesktopIcon(void)
         } else {
             serial_printf("OpenSelectedDesktopIcon: Failed to create window\n");
         }
-    } else if (gDesktopIcons[gSelectedIcon].iconID == 'trsh') {
+    } else if (gDesktopIcons[gSelectedIcon].type == kDesktopItemTrash) {
         serial_printf("OpenSelectedDesktopIcon: Opening trash window\n");
 
         /* Create a trash window */
