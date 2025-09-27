@@ -49,6 +49,10 @@ static void HandleMenuChoice(long menuChoice);
 static void HandleMouseDown(EventRecord *event);
 static void HandleKeyDown(EventRecord *event);
 static void MainEventLoop(void);
+static void DoUpdate(WindowPtr w);
+static void DoActivate(WindowPtr w, Boolean becomingActive);
+static void DoBackgroundTasks(void);
+extern void DrawFolderWindowContents(WindowPtr window, Boolean isTrash);
 
 #if 0  /* Disabled - Finder is now integrated into kernel, not standalone */
 /*
@@ -249,6 +253,55 @@ static OSErr SetupMenus(void)
     serial_puts("Finder: SetupDefaultMenus returned\n");
 
     return noErr;
+}
+
+/*
+ * DoUpdate - Handle window update events
+ * System 7 Finder style: Draw window contents inside BeginUpdate/EndUpdate
+ */
+static void DoUpdate(WindowPtr w)
+{
+    if (!w) return;
+
+    BeginUpdate(w);
+
+    /* Draw only the content; chrome is the window def's job */
+    /* We use the window refCon to decide what to render, like the Finder */
+    if (w->refCon == 'TRSH') {
+        DrawFolderWindowContents(w, true);
+    } else if (w->refCon == 'DISK') {
+        DrawFolderWindowContents(w, false);
+    } else {
+        /* Generic doc window: clear content so it doesn't tear */
+        Rect r = w->port.portRect;
+        InsetRect(&r, 1, 21); /* skip title bar area */
+        EraseRect(&r);
+    }
+
+    EndUpdate(w);
+}
+
+/*
+ * DoActivate - Handle window activation events
+ */
+static void DoActivate(WindowPtr w, Boolean becomingActive)
+{
+    if (!w) return;
+
+    /* Standard Finder activate handling */
+    if (becomingActive) {
+        /* Activate the window - highlight controls, etc. */
+    } else {
+        /* Deactivate - unhighlight */
+    }
+}
+
+/*
+ * DoBackgroundTasks - Perform idle-time tasks
+ */
+static void DoBackgroundTasks(void)
+{
+    /* Background tasks like checking for disk insertions */
 }
 
 /*

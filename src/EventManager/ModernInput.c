@@ -23,6 +23,9 @@ extern SInt16 PostEvent(SInt16 eventNum, SInt32 eventMsg);
 extern UInt32 TickCount(void);
 extern void serial_printf(const char* fmt, ...);
 
+/* Tracking guard to suppress events during modal drag loops */
+extern volatile Boolean gInMouseTracking;
+
 /* PS/2 Controller integration */
 extern Boolean InitPS2Controller(void);
 extern void PollPS2Input(void);
@@ -196,11 +199,6 @@ void ProcessModernInput(void)
         /* Update Event Manager mouse state */
         UpdateMouseState(currentMousePos, currentButtonState);
 
-        /* Generate mouse moved event if button is down (dragging) */
-        if (currentButtonState & 1) {
-            PostEvent(mouseDown, 0);  /* Mouse drag event */
-        }
-
         g_modernInput.lastMousePos = currentMousePos;
     }
 
@@ -227,8 +225,10 @@ void ProcessModernInput(void)
 
             /* Generate mouse down event - don't truncate coordinates! */
             /* Click count in high word, full position preserved elsewhere */
-            SInt32 message = ((SInt32)g_modernInput.clickCount << 16);
-            PostEvent(mouseDown, message);
+            if (!gInMouseTracking) {
+                SInt32 message = ((SInt32)g_modernInput.clickCount << 16);
+                PostEvent(mouseDown, message);
+            }
 
             g_modernInput.lastClickTime = currentTime;
             g_modernInput.lastClickPos = currentMousePos;
@@ -237,7 +237,9 @@ void ProcessModernInput(void)
             /* Mouse button released */
             /* Update position before posting event */
             UpdateMouseState(currentMousePos, currentButtonState);
-            PostEvent(mouseUp, 0);
+            if (!gInMouseTracking) {
+                PostEvent(mouseUp, 0);
+            }
         }
 
         g_modernInput.lastButtonState = currentButtonState;

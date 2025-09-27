@@ -274,12 +274,20 @@ void serial_printf(const char* fmt, ...) {
     /* Only output critical debug messages to avoid lag */
     if (!fmt) return;
 
-    /* Only output HandleMouseDown, MenuSelect, PostEvent, and HandleDesktopClick messages */
+    /* Only output HandleMouseDown, MenuSelect, PostEvent, HandleDesktopClick, and IconAtPoint messages */
     if (strstr(fmt, "HandleMouseDown") == NULL &&
         strstr(fmt, "MenuSelect") == NULL &&
         strstr(fmt, "PostEvent") == NULL &&
         strstr(fmt, "HandleDesktopClick") == NULL &&
-        strstr(fmt, "Desktop icon") == NULL) {
+        strstr(fmt, "Desktop icon") == NULL &&
+        strstr(fmt, "IconAtPoint") == NULL &&
+        strstr(fmt, "Hit icon") == NULL &&
+        strstr(fmt, "Single-click") == NULL &&
+        strstr(fmt, "Selection") == NULL &&
+        strstr(fmt, "Volume") == NULL &&
+        strstr(fmt, "Trash") == NULL &&
+        strstr(fmt, "DrawVolumeIcon") == NULL &&
+        strstr(fmt, "TrackIconDragSync") == NULL) {
         return;
     }
 

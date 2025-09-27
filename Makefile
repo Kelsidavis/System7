@@ -354,7 +354,7 @@ $(ISO): $(KERNEL)
 
 # Run with QEMU
 run: $(ISO)
-	qemu-system-i386 -cdrom $(ISO) -m 256 -vga std
+	qemu-system-i386 -cdrom $(ISO) -m 256 -vga std -serial file:/tmp/serial.log
 
 # Debug with QEMU
 debug: $(ISO)

@@ -257,13 +257,6 @@ static void process_keyboard_scancode(uint8_t scancode) {
     PostEvent(keyDown, message);
 
     /* SPACEBAR WORKAROUND: Simulate mouse click when spacebar pressed */
-    if (scancode == 0x39 && ascii == ' ') {
-        serial_printf("SPACEBAR WORKAROUND: Simulating mouse click at (%d, %d)\n",
-                     g_mouseState.x, g_mouseState.y);
-        /* Use PACK_POINT to pack coordinates correctly: h in high word, v in low word */
-        UInt32 mouseMsg = PACK_POINT(g_mouseState.x, g_mouseState.y);
-        PostEvent(mouseDown, (SInt32)mouseMsg);
-    }
 
     /* serial_printf("Key pressed: '%c' (scancode 0x%02x)\n", ascii, scancode); */
 }
@@ -314,19 +307,7 @@ static void process_mouse_packet(void) {
     /* Check button state changes */
     uint8_t new_buttons = status & 0x07;
     if (new_buttons != g_mouseState.buttons) {
-        /* Left button */
-        if ((new_buttons & 0x01) != (g_mouseState.buttons & 0x01)) {
-            /* Pack mouse position using PACK_POINT macro: h in high word, v in low word */
-            UInt32 message = PACK_POINT(g_mouseState.x, g_mouseState.y);
-
-            /* Debug: Show what we're packing */
-            serial_printf("PS2: Mouse %s at x=%d, y=%d, packed=0x%08x\n",
-                         (new_buttons & 0x01) ? "down" : "up",
-                         g_mouseState.x, g_mouseState.y, message);
-
-            PostEvent((new_buttons & 0x01) ? mouseDown : mouseUp, message);
-        }
-
+        /* Update button state only - let ModernInput handle event posting */
         g_mouseState.buttons = new_buttons;
     }
 

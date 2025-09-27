@@ -38,8 +38,8 @@ Handle NewHandleClear(Size byteCount) {
 
 /* Event Manager stub */
 Boolean StillDown(void) {
-    /* For now, return false to avoid infinite loops */
-    return false;
+    extern Boolean Button(void);
+    return Button();
 }
 
 /* Window Manager stubs */
