@@ -691,6 +691,15 @@ void SetWTitle(WindowPtr window, ConstStr255Param title) {
     titleBuf[len] = 0;
     serial_printf("SetWTitle: Title = '%s'\n", titleBuf);
 
+    /* Calculate title width for title bar rendering */
+    extern SInt16 StringWidth(ConstStr255Param s);
+    if (len > 0) {
+        window->titleWidth = StringWidth(title) + 40;  /* Add margins for close box and padding */
+    } else {
+        window->titleWidth = 0;
+    }
+    serial_printf("SetWTitle: titleWidth = %d\n", window->titleWidth);
+
     /* Invalidate title bar area */
     GrafPort* port = (GrafPort*)window;
     Rect titleBar = port->portRect;

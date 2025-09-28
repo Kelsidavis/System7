@@ -269,33 +269,15 @@ static void DrawWindowFrame(WindowPtr window) {
     /* Draw frame outline first */
     FrameRect(&frame);
 
-    /* Fill content area with white to make it opaque */
-    Rect contentRect = frame;
-    contentRect.left += 1;
-    contentRect.top += 1;
-    contentRect.right -= 1;
-    contentRect.bottom -= 1;
-    EraseRect(&contentRect);  /* EraseRect uses background pattern (typically white) */
-
-    serial_printf("WindowManager: Drew frame and filled content at (%d,%d,%d,%d)\n",
-                  contentRect.left, contentRect.top, contentRect.right, contentRect.bottom);
-
+    /* Draw title bar BEFORE filling content area */
     serial_printf("WindowManager: About to check titleWidth=%d\n", window->titleWidth);
 
-    /* Draw title bar */
     if (window->titleWidth > 0) {
         Rect titleBar = frame;
         titleBar.bottom = titleBar.top + 20;
 
-        if (window->hilited) {
-            /* Active window - draw with pattern */
-            Pattern stripes = {0xAA, 0x55, 0xAA, 0x55, 0xAA, 0x55, 0xAA, 0x55};
-            /* Would use FillRect with pattern */
-            PaintRect(&titleBar);
-        } else {
-            /* Inactive window - solid white */
-            EraseRect(&titleBar);
-        }
+        /* Always paint title bar to make it visible */
+        PaintRect(&titleBar);
 
         /* Draw title bar separator */
         MoveTo(frame.left, frame.top + 20);
