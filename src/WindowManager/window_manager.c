@@ -61,6 +61,11 @@ void InitWindows(void) {
         memset(g_wMgrPort, 0, sizeof(GrafPort));
         /* Initialize basic port settings */
         g_wMgrPort->device = -1;  /* Screen device */
+        /* CRITICAL: Set portRect to cover entire screen so ClipToPort doesn't clip everything away */
+        SetRect(&g_wMgrPort->portRect, 0, 0, 800, 600);  /* Standard VGA resolution */
+        /* CRITICAL: Ensure portBits.baseAddr is NULL so we draw to screen framebuffer, not a bitmap */
+        g_wMgrPort->portBits.baseAddr = NULL;
+        SetRect(&g_wMgrPort->portBits.bounds, 0, 0, 800, 600);
     }
 
     g_windowsInitialized = true;
@@ -189,6 +194,10 @@ void ShowWindow(WindowPtr window) {
 
     /* Bring to front when showing */
     BringToFront(window);
+
+    /* Paint the window to make it visible on screen */
+    extern void PaintOne(WindowPtr window, RgnHandle clobberedRgn);
+    PaintOne(window, NULL);
 }
 
 /**
@@ -358,6 +367,12 @@ void BringToFront(WindowPtr window) {
     window->nextWindow = g_windowList;
     g_windowList = window;
     g_frontWindow = window;
+
+    /* Repaint the window if it's visible */
+    if (window->visible) {
+        extern void PaintOne(WindowPtr window, RgnHandle clobberedRgn);
+        PaintOne(window, NULL);
+    }
 }
 
 WindowPtr FrontWindow(void) {

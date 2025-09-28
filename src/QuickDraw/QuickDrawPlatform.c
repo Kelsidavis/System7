@@ -261,10 +261,11 @@ void QDPlatform_DrawShape(GrafPtr port, GrafVerb verb, const Rect* rect,
             }
         } else if (verb == frame) {
             /* Draw rectangle outline using port's pen mode */
-            Point tl = {rect->left, rect->top};
-            Point tr = {rect->right - 1, rect->top};
-            Point br = {rect->right - 1, rect->bottom - 1};
-            Point bl = {rect->left, rect->bottom - 1};
+            /* CRITICAL: Point is {v, h} not {h, v}! */
+            Point tl = {rect->top, rect->left};
+            Point tr = {rect->top, rect->right - 1};
+            Point br = {rect->bottom - 1, rect->right - 1};
+            Point bl = {rect->bottom - 1, rect->left};
 
             SInt16 mode = port ? port->pnMode : patCopy;
             QDPlatform_DrawLine(port, tl, tr, pat, mode);
@@ -272,20 +273,8 @@ void QDPlatform_DrawShape(GrafPtr port, GrafVerb verb, const Rect* rect,
             QDPlatform_DrawLine(port, br, bl, pat, mode);
             QDPlatform_DrawLine(port, bl, tl, pat, mode);
         } else if (verb == erase) {
-            /* Check for color pattern from Pattern Manager */
-            uint32_t* colorPattern = NULL;
-            if (PM_GetColorPattern(&colorPattern)) {
-                /* Use color pattern - tile 8x8 across rectangle */
-                for (SInt32 y = rect->top; y < rect->bottom; y++) {
-                    for (SInt32 x = rect->left; x < rect->right; x++) {
-                        /* Get pattern pixel (8x8 repeating) */
-                        SInt32 patY = y % 8;  /* Use absolute position for desktop tiling */
-                        SInt32 patX = x % 8;
-                        UInt32 color = colorPattern[patY * 8 + patX];
-                        QDPlatform_SetPixel(x, y, color);
-                    }
-                }
-            } else if (pat) {
+            /* Erase should use port's background pattern, NOT desktop pattern */
+            if (pat) {
                 /* Use 1-bit pattern with background color */
                 for (SInt32 y = rect->top; y < rect->bottom; y++) {
                     for (SInt32 x = rect->left; x < rect->right; x++) {

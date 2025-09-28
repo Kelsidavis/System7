@@ -48,47 +48,59 @@ static void DrawWindowFrame(WindowPtr window);
 static void DrawWindowControls(WindowPtr window);
 
 void PaintOne(WindowPtr window, RgnHandle clobberedRgn) {
-    if (!window || !window->visible) return;
+    extern void serial_printf(const char* fmt, ...);
+    serial_printf("PaintOne: ENTRY, window=%p, visible=%d\n", window, window ? window->visible : -1);
+
+    if (!window || !window->visible) {
+        serial_printf("PaintOne: Early return\n");
+        return;
+    }
 
     WM_DEBUG("PaintOne: Painting window");
+    serial_printf("PaintOne: About to GetPort/SetPort\n");
 
     GrafPtr savePort;
     GetPort(&savePort);
     SetPort(&window->port);
 
-    /* Set port origin to map local (0,0) to global window position */
-    /* This ensures drawing at local coordinates lands at correct framebuffer position */
+    /* Get window's global position */
     SInt16 globalLeft = 0, globalTop = 0;
     if (window->strucRgn && *window->strucRgn) {
         globalLeft = (*window->strucRgn)->rgnBBox.left;
         globalTop = (*window->strucRgn)->rgnBBox.top;
     }
-    SetOrigin(-globalLeft, -globalTop);
+
+    serial_printf("PaintOne: global position = (%d,%d)\n", globalLeft, globalTop);
 
     /* Draw window frame */
+    serial_printf("PaintOne: About to call DrawWindowFrame\n");
     DrawWindowFrame(window);
+    serial_printf("PaintOne: DrawWindowFrame returned\n");
 
     /* Fill content area to make window opaque */
-    /* Content is portRect (local coords) inset by title bar and borders */
-    Rect contentRect = window->port.portRect;
-    contentRect.top += 20;  /* Title bar height */
-    contentRect.left += 1;   /* Border */
-    contentRect.right -= 1;  /* Border */
-    contentRect.bottom -= 1; /* Border */
+    /* Convert content rect from local to global coordinates */
+    Rect contentRect;
+    contentRect.left = globalLeft + 1;   /* Border */
+    contentRect.top = globalTop + 20;    /* Title bar height */
+    contentRect.right = globalLeft + (window->port.portRect.right - 1);  /* Width minus border */
+    contentRect.bottom = globalTop + (window->port.portRect.bottom - 1); /* Height minus border */
+
+    serial_printf("PaintOne: Content rect = (%d,%d,%d,%d)\n",
+        contentRect.left, contentRect.top, contentRect.right, contentRect.bottom);
 
     /* Fill with white to make opaque */
+    serial_printf("PaintOne: About to call EraseRect\n");
     EraseRect(&contentRect);
+    serial_printf("PaintOne: EraseRect returned\n");
 
     /* Draw window controls */
     DrawWindowControls(window);
-
-    /* Restore origin */
-    SetOrigin(0, 0);
 
     /* Window Manager draws chrome only - content is application's job */
     /* Application must draw content via BeginUpdate/EndUpdate in update event handler */
 
     SetPort(savePort);
+    serial_printf("PaintOne: EXIT\n");
 }
 
 void PaintBehind(WindowPtr startWindow, RgnHandle clobberedRgn) {
@@ -191,6 +203,9 @@ void SaveOld(WindowPtr window) {
 void DrawNew(WindowPtr window, Boolean update) {
     if (!window) return;
 
+    extern void serial_printf(const char* fmt, ...);
+    serial_printf("DrawNew: ENTRY, window=%p\n", window);
+
     WM_DEBUG("DrawNew: Drawing window");
 
     GrafPtr savePort;
@@ -202,17 +217,40 @@ void DrawNew(WindowPtr window, Boolean update) {
         SetClip(window->updateRgn);
     }
 
+    serial_printf("DrawNew: About to draw frame\n");
     DrawWindowFrame(window);
     DrawWindowControls(window);
 
-    /* Window Manager draws chrome only */
-    /* Application draws content via BeginUpdate/EndUpdate */
+    /* Fill content area to make window opaque */
+    SInt16 globalLeft = 0, globalTop = 0;
+    if (window->strucRgn && *window->strucRgn) {
+        globalLeft = (*window->strucRgn)->rgnBBox.left;
+        globalTop = (*window->strucRgn)->rgnBBox.top;
+    }
+
+    Rect contentRect;
+    contentRect.left = globalLeft + 1;
+    contentRect.top = globalTop + 20;
+    contentRect.right = globalLeft + (window->port.portRect.right - 1);
+    contentRect.bottom = globalTop + (window->port.portRect.bottom - 1);
+
+    serial_printf("DrawNew: Filling content rect (%d,%d,%d,%d)\n",
+        contentRect.left, contentRect.top, contentRect.right, contentRect.bottom);
+    EraseRect(&contentRect);
+    serial_printf("DrawNew: Content filled\n");
 
     SetPort(savePort);
+    serial_printf("DrawNew: EXIT\n");
 }
 
 static void DrawWindowFrame(WindowPtr window) {
     if (!window || !window->visible) return;
+
+    extern void GetWMgrPort(GrafPtr* port);
+    GrafPtr savePort, wmgrPort;
+    GetPort(&savePort);
+    GetWMgrPort(&wmgrPort);
+    SetPort(wmgrPort);
 
     serial_printf("WindowManager: DrawWindowFrame START\n");
 
@@ -228,9 +266,21 @@ static void DrawWindowFrame(WindowPtr window) {
     serial_printf("WindowManager: Frame rect (%d,%d,%d,%d)\n",
                   frame.left, frame.top, frame.right, frame.bottom);
 
-    /* Draw outer frame */
+    /* Draw frame outline first */
     FrameRect(&frame);
-    serial_printf("WindowManager: Drew frame rect\n");
+
+    /* Fill content area with white to make it opaque */
+    Rect contentRect = frame;
+    contentRect.left += 1;
+    contentRect.top += 1;
+    contentRect.right -= 1;
+    contentRect.bottom -= 1;
+    EraseRect(&contentRect);  /* EraseRect uses background pattern (typically white) */
+
+    serial_printf("WindowManager: Drew frame and filled content at (%d,%d,%d,%d)\n",
+                  contentRect.left, contentRect.top, contentRect.right, contentRect.bottom);
+
+    serial_printf("WindowManager: About to check titleWidth=%d\n", window->titleWidth);
 
     /* Draw title bar */
     if (window->titleWidth > 0) {
@@ -257,6 +307,8 @@ static void DrawWindowFrame(WindowPtr window) {
             DrawString((unsigned char*)*window->titleHandle);
         }
     }
+
+    SetPort(savePort);
 }
 
 static void DrawWindowControls(WindowPtr window) {
@@ -333,7 +385,7 @@ void DrawWindow(WindowPtr window) {
         return;
     }
 
-    serial_printf("WindowManager: Drawing chrome for window '%s'\n",
+    serial_printf("WindowManager: DrawWindow ENTRY for window '%s'\n",
                   window->titleHandle ? (char*)*window->titleHandle : "Untitled");
 
     GrafPtr savePort;
@@ -344,9 +396,26 @@ void DrawWindow(WindowPtr window) {
     DrawWindowFrame(window);
     DrawWindowControls(window);
 
-    /* Do NOT draw content - that's the application's responsibility */
+    /* Fill content area to make window opaque */
+    SInt16 globalLeft = 0, globalTop = 0;
+    if (window->strucRgn && *window->strucRgn) {
+        globalLeft = (*window->strucRgn)->rgnBBox.left;
+        globalTop = (*window->strucRgn)->rgnBBox.top;
+    }
+
+    Rect contentRect;
+    contentRect.left = globalLeft + 1;
+    contentRect.top = globalTop + 20;
+    contentRect.right = globalLeft + (window->port.portRect.right - 1);
+    contentRect.bottom = globalTop + (window->port.portRect.bottom - 1);
+
+    serial_printf("DrawWindow: Filling content rect (%d,%d,%d,%d)\n",
+        contentRect.left, contentRect.top, contentRect.right, contentRect.bottom);
+    EraseRect(&contentRect);
+    serial_printf("DrawWindow: Content filled\n");
 
     SetPort(savePort);
+    serial_printf("DrawWindow: EXIT\n");
 }
 
 void DrawGrowIcon(WindowPtr window) {
@@ -383,20 +452,31 @@ void DrawGrowIcon(WindowPtr window) {
 /*-----------------------------------------------------------------------*/
 
 void ShowWindow(WindowPtr window) {
-    if (!window || window->visible) return;
+    extern void serial_printf(const char* fmt, ...);
+    serial_printf("ShowWindow: ENTRY, window=%p\n", window);
+
+    if (!window || window->visible) {
+        serial_printf("ShowWindow: Early return (window=%p, visible=%d)\n", window, window ? window->visible : -1);
+        return;
+    }
 
     WM_DEBUG("ShowWindow: Making window visible");
+    serial_printf("ShowWindow: About to set visible=true\n");
 
     window->visible = true;
 
     /* Calculate visible region */
+    serial_printf("ShowWindow: About to call CalcVis\n");
     CalcVis(window);
 
     /* Paint the window */
+    serial_printf("ShowWindow: About to call PaintOne\n");
     PaintOne(window, NULL);
+    serial_printf("ShowWindow: PaintOne returned\n");
 
     /* Recalculate regions for windows behind */
     CalcVisBehind(window->nextWindow, window->strucRgn);
+    serial_printf("ShowWindow: EXIT\n");
 }
 
 void HideWindow(WindowPtr window) {
