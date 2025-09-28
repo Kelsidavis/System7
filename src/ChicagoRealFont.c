@@ -47,25 +47,33 @@ static void DrawRealChicagoChar(short x, short y, char ch, uint32_t color) {
     }
 }
 
+/* Helper: map local (x,y) to framebuffer pixel coords using current port */
+static inline void QD_LocalToPixel(int lx, int ly, int* px, int* py) {
+    if (!g_currentPort) {
+        *px = lx;
+        *py = ly;
+        return;
+    }
+    /* The port's portBits.bounds encodes the origin mapping */
+    *px = lx + g_currentPort->portBits.bounds.left;
+    *py = ly + g_currentPort->portBits.bounds.top;
+}
+
 /* QuickDraw text functions using real Chicago font */
 void DrawChar(short ch) {
     extern void serial_printf(const char* fmt, ...);
-    if (!framebuffer || ch < 32 || ch > 126) {
-        serial_printf("DrawChar: skipping ch=%d (no fb=%d, out of range=%d)\n",
-                     ch, !framebuffer, (ch < 32 || ch > 126));
-        return;
-    }
+    if (!framebuffer || ch < 32 || ch > 126) return;
 
-    Point penPos = {0, 0};
-    if (g_currentPort) penPos = g_currentPort->pnLoc;
+    Point pen = g_currentPort ? g_currentPort->pnLoc : (Point){0,0};
 
-    int draw_y = penPos.v - CHICAGO_ASCENT;
-    serial_printf("DrawChar '%c': pen=(%d,%d) -> draw at (%d,%d)\n",
-                 ch, penPos.h, penPos.v, penPos.h, draw_y);
+    int px, py;
+    QD_LocalToPixel(pen.h, pen.v - CHICAGO_ASCENT, &px, &py);
 
-    DrawRealChicagoChar(penPos.h, draw_y, (char)ch, pack_color(0, 0, 0));
+    serial_printf("DrawChar '%c': pen=(%d,%d) -> pixel=(%d,%d)\n",
+                 ch, pen.h, pen.v, px, py);
 
-    /* Advance by NFNT metrics */
+    DrawRealChicagoChar(px, py, (char)ch, pack_color(0, 0, 0));
+
     if (g_currentPort) {
         g_currentPort->pnLoc.h += chicago_ascii[ch - 32].advance;
     }
@@ -80,48 +88,21 @@ void DrawString(ConstStr255Param s) {
 
 void DrawText(const void* textBuf, short firstByte, short byteCount) {
     extern void serial_printf(const char* fmt, ...);
-    if (!textBuf || byteCount <= 0) {
-        serial_printf("DrawText: invalid params textBuf=%p, byteCount=%d\n", textBuf, byteCount);
-        return;
-    }
+    if (!framebuffer || !g_currentPort || !textBuf || byteCount <= 0) return;
+
     const char* text = (const char*)textBuf;
+    Point pen = g_currentPort->pnLoc;
 
-    /* Don't print if not in debug mode */
-    #if 0
-    serial_printf("DrawText called: firstByte=%d, byteCount=%d, text='", firstByte, byteCount);
     for (short i = 0; i < byteCount; i++) {
-        char ch = text[firstByte + i];
-        if (ch >= 32 && ch < 127) {
-            serial_printf("%c", ch);
-        } else {
-            serial_printf("\\x%02x", ch);
-        }
+        unsigned char ch = text[firstByte + i];
+        if (ch < 32 || ch > 126) continue;
+
+        int px, py;
+        QD_LocalToPixel(pen.h, pen.v - CHICAGO_ASCENT, &px, &py);
+        DrawRealChicagoChar(px, py, (char)ch, pack_color(0, 0, 0));
+        pen.h += chicago_ascii[ch - 32].advance;
     }
-    serial_printf("'\n");
-    #endif
-
-    if (!g_currentPort) {
-        serial_printf("DrawText: ERROR: g_currentPort is NULL!\n");
-        return;
-    }
-
-    /* Always draw directly if we have a framebuffer */
-    if (framebuffer) {
-        Point penPos = g_currentPort->pnLoc;
-        for (short i = 0; i < byteCount; i++) {
-            char ch = text[firstByte + i];
-            if (ch == 0 || ch < 32 || ch > 126) continue;
-
-            /* Draw character directly */
-            int draw_y = penPos.v - CHICAGO_ASCENT;
-            DrawRealChicagoChar(penPos.h, draw_y, ch, pack_color(0, 0, 0));
-
-            /* Advance pen position */
-            penPos.h += chicago_ascii[ch - 32].advance;
-        }
-        /* Update port's pen position */
-        g_currentPort->pnLoc = penPos;
-    }
+    g_currentPort->pnLoc = pen;  /* Still local */
 }
 
 /* Font measurement functions */

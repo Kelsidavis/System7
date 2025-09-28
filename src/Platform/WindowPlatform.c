@@ -31,7 +31,29 @@ Boolean Platform_InitializeWindowPort(WindowPtr window) {
     /* Initialize the GrafPort part of the window */
     window->port.portBits.baseAddr = (Ptr)framebuffer;
     window->port.portBits.rowBytes = fb_width * 4;  /* Assuming 32-bit color */
-    SetRect(&window->port.portBits.bounds, 0, 0, fb_width, fb_height);
+
+    /* CRITICAL: Set portBits.bounds to map local (0,0) to global content position
+     * This is the canonical QuickDraw way - local coords in the window port
+     * automatically map to the right global pixels */
+    const short kBorder = 1, kTitle = 20, kSeparator = 1;
+
+    if (window->strucRgn && *window->strucRgn) {
+        Rect gFrame = (*window->strucRgn)->rgnBBox;
+
+        /* Global top-left of CONTENT area */
+        short gx = gFrame.left + kBorder;
+        short gy = gFrame.top + kTitle + kSeparator;
+
+        /* Local size for content (already set in portRect) */
+        short w = window->port.portRect.right;
+        short h = window->port.portRect.bottom;
+
+        /* This mapping makes local (0,0) → global (gx,gy) */
+        SetRect(&window->port.portBits.bounds, gx, gy, gx + w, gy + h);
+    } else {
+        /* Fallback if strucRgn not set yet */
+        SetRect(&window->port.portBits.bounds, 0, 0, fb_width, fb_height);
+    }
 
     /* Regions already initialized by InitializeWindowRecord - don't overwrite */
     /* InitializeWindowRecord sets portRect to local coordinates (0,0,width,height) */
