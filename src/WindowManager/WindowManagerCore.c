@@ -623,8 +623,15 @@ static void InitializeWindowRecord(WindowPtr window, const Rect* bounds,
     window->windowPic = NULL;
     window->refCon = 0;
 
-    /* Set initial port bounds */
-    window->port.portRect = *bounds;
+    /* Set initial port bounds, clamping to avoid menu bar overlap */
+    #define kMenuBarHeight 20
+    Rect clampedBounds = *bounds;
+    if (clampedBounds.top < kMenuBarHeight) {
+        SInt16 delta = kMenuBarHeight - clampedBounds.top;
+        clampedBounds.top += delta;
+        clampedBounds.bottom += delta;
+    }
+    window->port.portRect = clampedBounds;
 }
 
 static void AddWindowToList(WindowPtr window, WindowPtr behind) {

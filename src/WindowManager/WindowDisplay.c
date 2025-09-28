@@ -35,6 +35,7 @@ extern void SetClip(RgnHandle rgn);
 extern void GetClip(RgnHandle rgn);
 extern RgnHandle NewRgn(void);
 extern void DisposeRgn(RgnHandle rgn);
+extern void SetOrigin(SInt16 h, SInt16 v);
 
 /*-----------------------------------------------------------------------*/
 /* Window Display Functions                                             */
@@ -55,11 +56,34 @@ void PaintOne(WindowPtr window, RgnHandle clobberedRgn) {
     GetPort(&savePort);
     SetPort(&window->port);
 
+    /* Set port origin to map local (0,0) to global window position */
+    /* This ensures drawing at local coordinates lands at correct framebuffer position */
+    SInt16 globalLeft = 0, globalTop = 0;
+    if (window->strucRgn && *window->strucRgn) {
+        globalLeft = (*window->strucRgn)->rgnBBox.left;
+        globalTop = (*window->strucRgn)->rgnBBox.top;
+    }
+    SetOrigin(-globalLeft, -globalTop);
+
     /* Draw window frame */
     DrawWindowFrame(window);
 
+    /* Fill content area to make window opaque */
+    /* Content is portRect (local coords) inset by title bar and borders */
+    Rect contentRect = window->port.portRect;
+    contentRect.top += 20;  /* Title bar height */
+    contentRect.left += 1;   /* Border */
+    contentRect.right -= 1;  /* Border */
+    contentRect.bottom -= 1; /* Border */
+
+    /* Fill with white to make opaque */
+    EraseRect(&contentRect);
+
     /* Draw window controls */
     DrawWindowControls(window);
+
+    /* Restore origin */
+    SetOrigin(0, 0);
 
     /* Window Manager draws chrome only - content is application's job */
     /* Application must draw content via BeginUpdate/EndUpdate in update event handler */
