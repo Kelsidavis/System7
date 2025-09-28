@@ -33,8 +33,21 @@ Boolean Platform_InitializeWindowPort(WindowPtr window) {
     window->port.portBits.rowBytes = fb_width * 4;  /* Assuming 32-bit color */
     SetRect(&window->port.portBits.bounds, 0, 0, fb_width, fb_height);
 
-    /* Set port rectangle to window bounds */
-    window->port.portRect = window->port.portBits.bounds;
+    /* Save global bounds to strucRgn before converting portRect to local */
+    /* portRect currently contains global bounds from InitializeWindowRecord */
+    if (window->strucRgn) {
+        RectRgn(window->strucRgn, &window->port.portRect);
+    }
+    if (window->contRgn) {
+        RectRgn(window->contRgn, &window->port.portRect);
+    }
+
+    /* Convert portRect from global to local coordinates */
+    /* portRect was set by InitializeWindowRecord to global bounds */
+    /* We need to make it relative to (0,0) for local coordinate system */
+    SInt16 width = window->port.portRect.right - window->port.portRect.left;
+    SInt16 height = window->port.portRect.bottom - window->port.portRect.top;
+    SetRect(&window->port.portRect, 0, 0, width, height);
 
     /* Initialize clipping regions */
     if (!window->port.clipRgn) {
@@ -54,7 +67,16 @@ Boolean Platform_InitializeWindowPort(WindowPtr window) {
 void Platform_CalculateWindowRegions(WindowPtr window) {
     if (!window) return;
 
-    /* For now, just use the window's portRect for all regions */
+    /* If regions are already set (e.g., by Platform_InitializeWindowPort), don't overwrite them */
+    /* strucRgn should contain global bounds, while portRect is in local coordinates */
+    /* Only recalculate if regions are not yet initialized */
+    if (window->strucRgn && !EmptyRgn(window->strucRgn)) {
+        /* Regions already set, don't overwrite */
+        return;
+    }
+
+    /* For initial setup or if regions are empty, use portRect */
+    /* Note: portRect might be in local coordinates at this point */
     RectRgn(window->strucRgn, &window->port.portRect);
     RectRgn(window->contRgn, &window->port.portRect);
 }
