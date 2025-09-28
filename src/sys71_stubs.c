@@ -594,14 +594,18 @@ void ShowWindow(WindowPtr window) {
         return;
     }
 
-    serial_printf("ShowWindow: Showing window at %p\n", window);
+    serial_printf("ShowWindow (sys71_stubs.c): Showing window at %p\n", window);
 
     window->visible = true;
 
-    /* Invalidate window area to force redraw */
-    extern void InvalRect(const Rect* rect);
-    GrafPort* port = (GrafPort*)window;
-    InvalRect(&port->portRect);
+    /* Call PaintOne to actually draw the window */
+    extern void PaintOne(WindowPtr window, RgnHandle clobberedRgn);
+    extern void CalcVis(WindowPtr window);
+    extern void CalcVisBehind(WindowPtr startWindow, RgnHandle clobberedRgn);
+
+    CalcVis(window);
+    PaintOne(window, NULL);
+    CalcVisBehind(window->nextWindow, window->strucRgn);
 }
 void HideWindow(WindowPtr window) {
     if (!window) {

@@ -9,7 +9,20 @@ WindowPtr NewWindow(void* storage, const Rect* boundsRect, const unsigned char* 
 }
 
 void DisposeWindow(WindowPtr window) {}
-void ShowWindow(WindowPtr window) {}
+void ShowWindow(WindowPtr window) {
+    extern void serial_printf(const char* fmt, ...);
+    extern void PaintOne(WindowPtr window, RgnHandle clobberedRgn);
+    extern void CalcVis(WindowPtr window);
+    extern void CalcVisBehind(WindowPtr startWindow, RgnHandle clobberedRgn);
+
+    if (!window) return;
+
+    serial_printf("ShowWindow (window_stubs_extra.c): window=%p\n", window);
+    window->visible = true;
+    CalcVis(window);
+    PaintOne(window, NULL);
+    CalcVisBehind(window->nextWindow, window->strucRgn);
+}
 void HideWindow(WindowPtr window) {}
 void SelectWindow(WindowPtr window) {}
 void BringToFront(WindowPtr window) {}

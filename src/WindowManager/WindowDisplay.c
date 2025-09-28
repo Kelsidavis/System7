@@ -314,7 +314,21 @@ static void DrawWindowFrame(WindowPtr window) {
 static void DrawWindowControls(WindowPtr window) {
     if (!window || !window->visible) return;
 
-    Rect frame = window->port.portRect;
+    /* Set up WMgr port for global coordinate drawing */
+    extern void GetWMgrPort(GrafPtr* port);
+    GrafPtr savePort, wmgrPort;
+    GetPort(&savePort);
+    GetWMgrPort(&wmgrPort);
+    SetPort(wmgrPort);
+
+    /* CRITICAL: Use global coordinates from strucRgn, not local portRect */
+    Rect frame;
+    if (window->strucRgn && *window->strucRgn) {
+        frame = (*window->strucRgn)->rgnBBox;
+    } else {
+        /* Fallback to portRect if strucRgn not set */
+        frame = window->port.portRect;
+    }
 
     /* Draw close box */
     if (window->goAwayFlag) {
@@ -372,6 +386,9 @@ static void DrawWindowControls(WindowPtr window) {
         }
         control = (*control)->nextControl;
     }
+
+    /* Restore previous port */
+    SetPort(savePort);
 }
 
 

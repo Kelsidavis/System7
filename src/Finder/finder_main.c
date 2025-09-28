@@ -332,8 +332,7 @@ WindowPtr Finder_OpenDesktopItem(Boolean isTrash, ConstStr255Param title)
         return NULL;
     }
 
-    serial_printf("[WIN_OPEN] NewWindow succeeded, calling ShowWindow\n");
-    ShowWindow(w);
+    serial_printf("[WIN_OPEN] NewWindow succeeded (already visible)\n");
 
     serial_printf("[WIN_OPEN] Calling SelectWindow\n");
     SelectWindow(w);

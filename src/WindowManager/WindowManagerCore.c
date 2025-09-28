@@ -193,8 +193,12 @@ WindowPtr NewWindow(void* wStorage, const Rect* boundsRect,
     Platform_CreateNativeWindow(window);
 
     /* Make visible if requested */
+    extern void serial_printf(const char* fmt, ...);
+    serial_printf("NewWindow: visible=%d, about to check if we should call ShowWindow\n", visible);
     if (visible) {
+        serial_printf("NewWindow: Calling ShowWindow now\n");
         ShowWindow(window);
+        serial_printf("NewWindow: ShowWindow returned\n");
     }
 
     #ifdef DEBUG_WINDOW_MANAGER
