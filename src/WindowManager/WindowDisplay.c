@@ -101,9 +101,12 @@ void PaintOne(WindowPtr window, RgnHandle clobberedRgn) {
     WM_DEBUG("PaintOne: Painting window");
     serial_printf("PaintOne: About to GetPort/SetPort\n");
 
-    GrafPtr savePort;
+    /* Use WMgr port for all window drawing to ensure global coordinates */
+    extern void GetWMgrPort(GrafPtr* port);
+    GrafPtr savePort, wmgrPort;
     GetPort(&savePort);
-    SetPort(&window->port);
+    GetWMgrPort(&wmgrPort);
+    SetPort(wmgrPort);
 
     /* Get window's global position */
     SInt16 globalLeft = 0, globalTop = 0;
@@ -120,13 +123,12 @@ void PaintOne(WindowPtr window, RgnHandle clobberedRgn) {
     serial_printf("PaintOne: DrawWindowFrame returned\n");
 
     /* Fill content area to make window opaque */
-    /* CRITICAL: After SetPort, all QuickDraw operations use LOCAL coordinates!
-     * contentRect must be in LOCAL port coordinates (0,0 origin), NOT global screen coordinates */
+    /* CRITICAL: Using WMgr port, so we need GLOBAL coordinates for the content area */
     Rect contentRect;
-    contentRect.left = 1;   /* Border */
-    contentRect.top = 21;    /* Title bar (20px) + separator (1px) */
-    contentRect.right = window->port.portRect.right - 1;  /* Width minus border */
-    contentRect.bottom = window->port.portRect.bottom - 1; /* Height minus border */
+    contentRect.left = globalLeft + 1;   /* Global position + border */
+    contentRect.top = globalTop + 21;    /* Global position + title bar (20px) + separator (1px) */
+    contentRect.right = globalLeft + window->port.portRect.right - 1;  /* Global position + width minus border */
+    contentRect.bottom = globalTop + window->port.portRect.bottom - 1; /* Global position + height minus border */
 
     serial_printf("PaintOne: Content rect = (%d,%d,%d,%d)\n",
         contentRect.left, contentRect.top, contentRect.right, contentRect.bottom);
@@ -251,9 +253,12 @@ void DrawNew(WindowPtr window, Boolean update) {
 
     WM_DEBUG("DrawNew: Drawing window");
 
-    GrafPtr savePort;
+    /* Use WMgr port for all window drawing to ensure global coordinates */
+    extern void GetWMgrPort(GrafPtr* port);
+    GrafPtr savePort, wmgrPort;
     GetPort(&savePort);
-    SetPort(&window->port);
+    GetWMgrPort(&wmgrPort);
+    SetPort(wmgrPort);
 
     if (update && window->updateRgn) {
         /* Only draw the update region */
@@ -265,17 +270,19 @@ void DrawNew(WindowPtr window, Boolean update) {
     DrawWindowControls(window);
 
     /* Fill content area to make window opaque */
+    /* Get window's global position */
     SInt16 globalLeft = 0, globalTop = 0;
     if (window->strucRgn && *window->strucRgn) {
         globalLeft = (*window->strucRgn)->rgnBBox.left;
         globalTop = (*window->strucRgn)->rgnBBox.top;
     }
 
+    /* CRITICAL: Using WMgr port, so we need GLOBAL coordinates for the content area */
     Rect contentRect;
-    contentRect.left = globalLeft + 1;
-    contentRect.top = globalTop + 20;
-    contentRect.right = globalLeft + (window->port.portRect.right - 1);
-    contentRect.bottom = globalTop + (window->port.portRect.bottom - 1);
+    contentRect.left = globalLeft + 1;   /* Global position + border */
+    contentRect.top = globalTop + 21;    /* Global position + title bar (20px) + separator (1px) */
+    contentRect.right = globalLeft + window->port.portRect.right - 1;  /* Global position + width minus border */
+    contentRect.bottom = globalTop + window->port.portRect.bottom - 1; /* Global position + height minus border */
 
     serial_printf("DrawNew: Filling content rect (%d,%d,%d,%d)\n",
         contentRect.left, contentRect.top, contentRect.right, contentRect.bottom);
@@ -437,26 +444,31 @@ void DrawWindow(WindowPtr window) {
     serial_printf("WindowManager: DrawWindow ENTRY for window '%s'\n",
                   window->titleHandle ? (char*)*window->titleHandle : "Untitled");
 
-    GrafPtr savePort;
+    /* Use WMgr port for all window drawing to ensure global coordinates */
+    extern void GetWMgrPort(GrafPtr* port);
+    GrafPtr savePort, wmgrPort;
     GetPort(&savePort);
-    SetPort(&window->port);
+    GetWMgrPort(&wmgrPort);
+    SetPort(wmgrPort);
 
     /* Draw window chrome (frame, title bar, controls) */
     DrawWindowFrame(window);
     DrawWindowControls(window);
 
     /* Fill content area to make window opaque */
+    /* Get window's global position */
     SInt16 globalLeft = 0, globalTop = 0;
     if (window->strucRgn && *window->strucRgn) {
         globalLeft = (*window->strucRgn)->rgnBBox.left;
         globalTop = (*window->strucRgn)->rgnBBox.top;
     }
 
+    /* CRITICAL: Using WMgr port, so we need GLOBAL coordinates for the content area */
     Rect contentRect;
-    contentRect.left = globalLeft + 1;
-    contentRect.top = globalTop + 20;
-    contentRect.right = globalLeft + (window->port.portRect.right - 1);
-    contentRect.bottom = globalTop + (window->port.portRect.bottom - 1);
+    contentRect.left = globalLeft + 1;   /* Global position + border */
+    contentRect.top = globalTop + 21;    /* Global position + title bar (20px) + separator (1px) */
+    contentRect.right = globalLeft + window->port.portRect.right - 1;  /* Global position + width minus border */
+    contentRect.bottom = globalTop + window->port.portRect.bottom - 1; /* Global position + height minus border */
 
     serial_printf("DrawWindow: Filling content rect (%d,%d,%d,%d)\n",
         contentRect.left, contentRect.top, contentRect.right, contentRect.bottom);
@@ -474,7 +486,7 @@ void DrawGrowIcon(WindowPtr window) {
 
     GrafPtr savePort;
     GetPort(&savePort);
-    SetPort(&window->port);
+    SetPort((GrafPtr)window);
 
     /* Draw grow icon in bottom-right corner */
     Rect frame = window->port.portRect;
@@ -596,7 +608,7 @@ void HiliteWindow(WindowPtr window, Boolean fHilite) {
     /* Redraw the window frame to show highlight state */
     GrafPtr savePort;
     GetPort(&savePort);
-    SetPort(&window->port);
+    SetPort((GrafPtr)window);
 
     DrawWindowFrame(window);
     DrawWindowControls(window);

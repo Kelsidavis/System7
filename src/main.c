@@ -1676,8 +1676,6 @@ void init_system71(void) {
 
 /* Create System 7.1 windows using real Window Manager */
 void create_system71_windows(void) {
-    Rect windowBounds;
-    WindowPtr window1, window2;
     MenuHandle appleMenu, fileMenu, editMenu;
 
     /* serial_puts("Creating System 7.1 windows...\n"); */
@@ -1714,46 +1712,7 @@ void create_system71_windows(void) {
     DrawMenuBar();
     serial_puts("MAIN: DrawMenuBar returned\n");
 
-    /* Create first window */
-    windowBounds.top = 60;
-    windowBounds.left = 40;
-    windowBounds.bottom = 250;
-    windowBounds.right = 400;
-
-    window1 = NewWindow(NULL, &windowBounds, "\pSystem 7.1 Window",
-                       true,  /* visible */
-                       0,     /* documentProc */
-                       (WindowPtr)-1L,  /* frontmost */
-                       true,  /* goAway box */
-                       0);    /* refCon */
-
-    if (window1) {
-        SetPort((GrafPtr)window1);
-        ShowWindow(window1);
-        /* serial_puts("  Window 1 created and shown\n"); */
-    }
-
-    /* Create second window */
-    windowBounds.top = 100;
-    windowBounds.left = 100;
-    windowBounds.bottom = 300;
-    windowBounds.right = 500;
-
-    window2 = NewWindow(NULL, &windowBounds, "\pAnother Window",
-                       true,  /* visible */
-                       0,     /* documentProc */
-                       (WindowPtr)-1L,  /* frontmost */
-                       true,  /* goAway box */
-                       0);    /* refCon */
-
-    if (window2) {
-        SetPort((GrafPtr)window2);
-        ShowWindow(window2);
-        SelectWindow(window2);
-        /* serial_puts("  Window 2 created and shown\n"); */
-    }
-
-    /* serial_puts("Windows created successfully\n"); */
+    /* Test windows removed - let Finder/applications create their own windows */
 }
 
 /* Kernel main entry point */
