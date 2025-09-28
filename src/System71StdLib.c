@@ -274,7 +274,7 @@ void serial_printf(const char* fmt, ...) {
     /* Only output critical debug messages to avoid lag */
     if (!fmt) return;
 
-    /* Only output HandleMouseDown, MenuSelect, PostEvent, HandleDesktopClick, and IconAtPoint messages */
+    /* Only output HandleMouseDown, MenuSelect, PostEvent, HandleDesktopClick, IconAtPoint, WindowManager, and Finder messages */
     if (strstr(fmt, "HandleMouseDown") == NULL &&
         strstr(fmt, "MenuSelect") == NULL &&
         strstr(fmt, "PostEvent") == NULL &&
@@ -290,7 +290,9 @@ void serial_printf(const char* fmt, ...) {
         strstr(fmt, "TrackIconDragSync") == NULL &&
         strstr(fmt, "[PRE-IF]") == NULL &&
         strstr(fmt, "[DBLCLK") == NULL &&
-        strstr(fmt, "[WIN_OPEN]") == NULL) {
+        strstr(fmt, "[WIN_OPEN]") == NULL &&
+        strstr(fmt, "WindowManager") == NULL &&
+        strstr(fmt, "Finder:") == NULL) {
         return;
     }
 

@@ -14,28 +14,29 @@ extern void MoveTo(short h, short v);
 extern void LineTo(short h, short v);
 extern void FrameRect(const Rect* r);
 extern void DrawText(const void* textBuf, short firstByte, short byteCount);
+extern void ClipRect(const Rect* r);
 
 /* Draw a simple file/folder icon */
 static void DrawFileIcon(short x, short y, Boolean isFolder)
 {
     Rect iconRect;
-    SetRect(&iconRect, y, x, y + 32, x + 32);
+    SetRect(&iconRect, x, y, x + 32, y + 32);
 
     if (isFolder) {
         /* Draw folder shape */
         FrameRect(&iconRect);
         /* Tab on top */
         Rect tabRect;
-        SetRect(&tabRect, y - 4, x, y, x + 12);
+        SetRect(&tabRect, x, y - 4, x + 12, y);
         FrameRect(&tabRect);
     } else {
         /* Draw document shape */
         FrameRect(&iconRect);
         /* Folded corner */
-        MoveTo(y, x + 24);
-        LineTo(y + 8, x + 32);
-        LineTo(y + 8, x + 24);
-        LineTo(y, x + 24);
+        MoveTo(x + 24, y);
+        LineTo(x + 32, y + 8);
+        LineTo(x + 24, y + 8);
+        LineTo(x + 24, y);
     }
 }
 
@@ -55,11 +56,14 @@ void DrawFolderWindowContents(WindowPtr window, Boolean isTrash)
     Rect contentRect;
     contentRect = window->port.portRect;
 
-    /* Adjust for title bar (20 pixels) and minimal left margin */
-    contentRect.top += 20;
-    contentRect.left += 0;
+    /* Adjust for title bar (21 pixels including separator) and borders */
+    contentRect.top += 21;
+    contentRect.left += 1;
     contentRect.right -= 1;
     contentRect.bottom -= 1;
+
+    /* Set clipping to content area to prevent drawing outside bounds */
+    ClipRect(&contentRect);
 
     /* Fill background with white (classic QuickDraw color index 30) */
     ForeColor(30);  /* white */
@@ -70,53 +74,56 @@ void DrawFolderWindowContents(WindowPtr window, Boolean isTrash)
 
     if (isTrash) {
         /* Draw trash contents */
-        MoveTo(contentRect.top + 30, contentRect.left + 10);
+        MoveTo(contentRect.left + 10, contentRect.top + 30);
         DrawText("Trash is empty", 0, 14);
 
-        MoveTo(contentRect.top + 50, contentRect.left + 10);
+        MoveTo(contentRect.left + 10, contentRect.top + 50);
         DrawText("Drag items here to delete them", 0, 30);
     } else {
-        /* Draw volume contents - sample items */
-        short x = contentRect.left + 70;
+        /* Draw volume contents - sample items in icon grid */
+        /* Ensure minimum margins: 20px left, 20px top */
+        short x = contentRect.left + 20;
         short y = contentRect.top + 20;
+        short iconSpacing = 100;
+        short rowHeight = 80;
 
-        /* System Folder */
+        /* System Folder - icon 32px wide, label ~78px wide */
         DrawFileIcon(x, y, true);
-        MoveTo(y + 45, x);
+        MoveTo(x - 23, y + 40);
         DrawText("System Folder", 0, 13);
 
-        x += 80;
+        x += iconSpacing;
 
-        /* Applications folder */
+        /* Applications folder - label ~72px wide */
         DrawFileIcon(x, y, true);
-        MoveTo(y + 45, x - 5);
+        MoveTo(x - 20, y + 40);
         DrawText("Applications", 0, 12);
 
-        x += 80;
+        x += iconSpacing;
 
-        /* Documents folder */
+        /* Documents folder - label ~54px wide */
         DrawFileIcon(x, y, true);
-        MoveTo(y + 45, x + 2);
+        MoveTo(x - 11, y + 40);
         DrawText("Documents", 0, 9);
 
         /* Second row */
-        x = contentRect.left + 70;
-        y += 70;
+        x = contentRect.left + 20;
+        y += rowHeight;
 
-        /* SimpleText document */
+        /* SimpleText document - label ~60px wide */
         DrawFileIcon(x, y, false);
-        MoveTo(y + 45, x - 8);
+        MoveTo(x - 14, y + 40);
         DrawText("ReadMe.txt", 0, 10);
 
-        x += 80;
+        x += iconSpacing;
 
-        /* TeachText document */
+        /* TeachText document - label ~84px wide */
         DrawFileIcon(x, y, false);
-        MoveTo(y + 45, x - 12);
+        MoveTo(x - 26, y + 40);
         DrawText("About System 7", 0, 14);
 
         /* Show disk space at bottom */
-        MoveTo(contentRect.bottom - 50, contentRect.left + 20);
+        MoveTo(contentRect.left + 10, contentRect.bottom - 10);
         DrawText("5 items     42.3 MB in disk     193.7 MB available", 0, 52);
     }
 
