@@ -192,8 +192,14 @@ static void DrawWindowFrame(WindowPtr window) {
 
     serial_printf("WindowManager: DrawWindowFrame START\n");
 
-    /* Draw window frame based on window definition */
-    Rect frame = window->port.portRect;
+    /* Get window's global bounds from structure region */
+    Rect frame;
+    if (window->strucRgn && *window->strucRgn) {
+        frame = (*window->strucRgn)->rgnBBox;
+    } else {
+        /* Fallback to portRect if strucRgn not set */
+        frame = window->port.portRect;
+    }
 
     serial_printf("WindowManager: Frame rect (%d,%d,%d,%d)\n",
                   frame.left, frame.top, frame.right, frame.bottom);

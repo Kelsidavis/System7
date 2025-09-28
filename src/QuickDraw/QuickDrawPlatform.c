@@ -329,10 +329,64 @@ void QDPlatform_NativeToRGB(UInt32 native, UInt16* red, UInt16* green, UInt16* b
     if (green) *green = ((native >> 8) & 0xFF) * 257;
     if (blue) *blue = (native & 0xFF) * 257;
 }
-/* QuickDraw Platform region drawing stub */
-/* Real implementation would render region outline/fill based on mode */
-void QDPlatform_DrawRegion(RgnHandle rgn, short mode) {
-    /* Stub - platform-specific region drawing */
-    (void)rgn;
-    (void)mode;
+/* QuickDraw Platform region drawing implementation */
+/* Renders region outline/fill based on mode */
+void QDPlatform_DrawRegion(RgnHandle rgn, short mode, const Pattern* pat) {
+    if (!rgn || !*rgn) return;
+
+    Region* region = (Region*)*rgn;
+    const Rect* r = &region->rgnBBox;
+
+    if (!framebuffer || !r) return;
+
+    /* Handle erase mode with Pattern Manager color patterns */
+    if (mode == erase) {
+        extern bool PM_GetColorPattern(uint32_t** patternData);
+        uint32_t* colorPattern = NULL;
+
+        if (PM_GetColorPattern(&colorPattern)) {
+            /* Use color pattern - tile 8x8 across region bounds */
+            int left = (r->left < 0) ? 0 : r->left;
+            int top = (r->top < 0) ? 0 : r->top;
+            int right = (r->right > fb_width) ? fb_width : r->right;
+            int bottom = (r->bottom > fb_height) ? fb_height : r->bottom;
+
+            for (int y = top; y < bottom; y++) {
+                for (int x = left; x < right; x++) {
+                    /* Get pattern pixel (8x8 tile) using absolute screen position */
+                    int patRow = y & 7;
+                    int patCol = x & 7;
+                    uint32_t patColor = colorPattern[patRow * 8 + patCol];
+
+                    /* Extract RGB from ARGB */
+                    uint8_t red = (patColor >> 16) & 0xFF;
+                    uint8_t green = (patColor >> 8) & 0xFF;
+                    uint8_t blue = patColor & 0xFF;
+
+                    uint32_t* pixel = (uint32_t*)((uint8_t*)framebuffer + y * fb_pitch + x * 4);
+                    *pixel = pack_color(red, green, blue);
+                }
+            }
+            return;
+        }
+    }
+
+    /* For other modes or if pattern not available, use simple rect operations */
+    if (mode == erase) {
+        extern void EraseRect(const Rect* r);
+        EraseRect(r);
+    } else if (mode == paint && pat) {
+        /* Simple paint with pattern */
+        for (int y = r->top; y < r->bottom; y++) {
+            for (int x = r->left; x < r->right; x++) {
+                int patY = (y - r->top) % 8;
+                int patX = (x - r->left) % 8;
+                uint8_t patByte = pat->pat[patY];
+                bool bit = (patByte >> (7 - patX)) & 1;
+                uint32_t color = bit ? pack_color(0, 0, 0) : pack_color(255, 255, 255);
+                QDPlatform_SetPixel(x, y, color);
+            }
+        }
+    }
+    /* frame, invert, fill modes not yet implemented */
 }

@@ -1090,7 +1090,7 @@ Boolean HandleDesktopClick(Point clickPoint, Boolean doubleClick)
         /* No icon hit - deselect */
         if (prevSelected != -1) {
             gSelectedIcon = -1;
-            DrawVolumeIcon();
+            /* Don't redraw here - let Window Manager handle it via DeskHook */
         }
         return false;
     }
@@ -1123,9 +1123,19 @@ Boolean HandleDesktopClick(Point clickPoint, Boolean doubleClick)
     gSelectedIcon = hitIcon;
 
     if (prevSelected != gSelectedIcon) {
-        serial_printf("Selection changed, redrawing icons\n");
-        DrawVolumeIcon();
-        serial_printf("DrawVolumeIcon completed\n");
+        serial_printf("Selection changed, invalidating icon regions\n");
+        /* Invalidate only the affected icon regions instead of redrawing entire desktop */
+        if (prevSelected >= 0 && prevSelected < gDesktopIconCount) {
+            Rect prevRect;
+            UpdateIconRect(prevSelected, &prevRect);
+            InvalRect(&prevRect);
+        }
+        if (gSelectedIcon >= 0 && gSelectedIcon < gDesktopIconCount) {
+            Rect newRect;
+            UpdateIconRect(gSelectedIcon, &newRect);
+            InvalRect(&newRect);
+        }
+        serial_printf("Icon regions invalidated\n");
     }
 
     /* Start synchronous modal drag tracking immediately (only for single clicks) */
@@ -1276,12 +1286,22 @@ void SelectNextDesktopIcon(void)
     }
 
     /* Advance to next icon, wrapping around */
+    short prevSelected = gSelectedIcon;
     gSelectedIcon = (gSelectedIcon + 1) % gDesktopIconCount;
 
     serial_printf("SelectNextDesktopIcon: selected icon %d\n", gSelectedIcon);
 
-    /* Redraw desktop to show selection */
-    DrawVolumeIcon();
+    /* Invalidate icon regions to show selection change */
+    if (prevSelected >= 0 && prevSelected < gDesktopIconCount) {
+        Rect prevRect;
+        UpdateIconRect(prevSelected, &prevRect);
+        InvalRect(&prevRect);
+    }
+    if (gSelectedIcon >= 0 && gSelectedIcon < gDesktopIconCount) {
+        Rect newRect;
+        UpdateIconRect(gSelectedIcon, &newRect);
+        InvalRect(&newRect);
+    }
 }
 
 /*
