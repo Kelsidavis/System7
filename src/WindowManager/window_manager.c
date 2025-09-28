@@ -101,7 +101,19 @@ WindowPtr NewWindow(void* wStorage, const Rect* boundsRect, ConstStr255Param tit
     /* Initialize embedded GrafPort (first 108 bytes) */
     (newWindow)->device = -1;
     if (boundsRect) {
-        (newWindow)->portRect = *boundsRect;
+        /* Window port uses LOCAL coordinates (0,0,width,height), not global */
+        SInt16 width = boundsRect->right - boundsRect->left;
+        SInt16 height = boundsRect->bottom - boundsRect->top;
+        SetRect(&(newWindow)->portRect, 0, 0, width, height);
+
+        /* Initialize strucRgn with global position */
+        extern RgnHandle NewRgn(void);
+        extern void SetRectRgn(RgnHandle rgn, SInt16 left, SInt16 top, SInt16 right, SInt16 bottom);
+        newWindow->strucRgn = NewRgn();
+        if (newWindow->strucRgn) {
+            SetRectRgn(newWindow->strucRgn, boundsRect->left, boundsRect->top,
+                       boundsRect->right, boundsRect->bottom);
+        }
     }
 
     /* Window-specific fields */

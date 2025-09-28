@@ -41,6 +41,48 @@ extern void SetOrigin(SInt16 h, SInt16 v);
 /* Window Display Functions                                             */
 /*-----------------------------------------------------------------------*/
 
+/* Check windows for update events (called by GetNextEvent) */
+void CheckWindowsNeedingUpdate(void) {
+    extern SInt16 PostEvent(SInt16 eventNum, SInt32 eventMsg);
+    extern WindowPtr FrontWindow(void);
+    extern Boolean EmptyRgn(RgnHandle rgn);
+    extern void serial_printf(const char* fmt, ...);
+
+    static int call_count = 0;
+    call_count++;
+
+    /* Walk all visible windows and post update events for windows with non-empty updateRgn */
+    WindowPtr window = FrontWindow();
+
+    if (call_count <= 10 || (call_count % 500) == 0) {
+        serial_printf("CheckWindowsNeedingUpdate: #%d, frontWindow=0x%08x\n", call_count, (unsigned int)window);
+    }
+
+    int windowCount = 0;
+    while (window) {
+        windowCount++;
+        Boolean hasUpdateRgn = (window->updateRgn != NULL);
+        Boolean isEmpty = hasUpdateRgn ? EmptyRgn(window->updateRgn) : true;
+
+        if (call_count <= 10 || (call_count % 500) == 0) {
+            serial_printf("CheckWindowsNeedingUpdate:   Window %d: 0x%08x, visible=%d, updateRgn=0x%08x, empty=%d\n",
+                         windowCount, (unsigned int)window, window->visible, (unsigned int)window->updateRgn, isEmpty);
+            if (hasUpdateRgn) {
+                Region* rgn = *(window->updateRgn);
+                serial_printf("CheckWindowsNeedingUpdate:     updateRgn bbox=(%d,%d,%d,%d)\n",
+                             rgn->rgnBBox.left, rgn->rgnBBox.top, rgn->rgnBBox.right, rgn->rgnBBox.bottom);
+            }
+        }
+
+        if (window->visible && window->updateRgn && !EmptyRgn(window->updateRgn)) {
+            serial_printf("CheckWindowsNeedingUpdate: Posting update event for window 0x%08x\n", (unsigned int)window);
+            PostEvent(6 /* updateEvt */, (SInt32)window);
+            /* Don't clear updateRgn here - BeginUpdate/EndUpdate will handle it */
+        }
+        window = window->nextWindow;
+    }
+}
+
 /* Internal helper to draw window frame */
 static void DrawWindowFrame(WindowPtr window);
 
@@ -78,12 +120,13 @@ void PaintOne(WindowPtr window, RgnHandle clobberedRgn) {
     serial_printf("PaintOne: DrawWindowFrame returned\n");
 
     /* Fill content area to make window opaque */
-    /* Convert content rect from local to global coordinates */
+    /* CRITICAL: After SetPort, all QuickDraw operations use LOCAL coordinates!
+     * contentRect must be in LOCAL port coordinates (0,0 origin), NOT global screen coordinates */
     Rect contentRect;
-    contentRect.left = globalLeft + 1;   /* Border */
-    contentRect.top = globalTop + 20;    /* Title bar height */
-    contentRect.right = globalLeft + (window->port.portRect.right - 1);  /* Width minus border */
-    contentRect.bottom = globalTop + (window->port.portRect.bottom - 1); /* Height minus border */
+    contentRect.left = 1;   /* Border */
+    contentRect.top = 21;    /* Title bar (20px) + separator (1px) */
+    contentRect.right = window->port.portRect.right - 1;  /* Width minus border */
+    contentRect.bottom = window->port.portRect.bottom - 1; /* Height minus border */
 
     serial_printf("PaintOne: Content rect = (%d,%d,%d,%d)\n",
         contentRect.left, contentRect.top, contentRect.right, contentRect.bottom);
@@ -246,6 +289,14 @@ void DrawNew(WindowPtr window, Boolean update) {
 static void DrawWindowFrame(WindowPtr window) {
     if (!window || !window->visible) return;
 
+    /* CRITICAL: strucRgn must be set to draw the window
+     * strucRgn contains GLOBAL screen coordinates
+     * portRect contains LOCAL coordinates (0,0,width,height) and must NEVER be used for positioning! */
+    if (!window->strucRgn || !*window->strucRgn) {
+        serial_printf("WindowManager: DrawWindowFrame - strucRgn not set, cannot draw\n");
+        return;
+    }
+
     extern void GetWMgrPort(GrafPtr* port);
     GrafPtr savePort, wmgrPort;
     GetPort(&savePort);
@@ -255,13 +306,7 @@ static void DrawWindowFrame(WindowPtr window) {
     serial_printf("WindowManager: DrawWindowFrame START\n");
 
     /* Get window's global bounds from structure region */
-    Rect frame;
-    if (window->strucRgn && *window->strucRgn) {
-        frame = (*window->strucRgn)->rgnBBox;
-    } else {
-        /* Fallback to portRect if strucRgn not set */
-        frame = window->port.portRect;
-    }
+    Rect frame = (*window->strucRgn)->rgnBBox;
 
     serial_printf("WindowManager: Frame rect (%d,%d,%d,%d)\n",
                   frame.left, frame.top, frame.right, frame.bottom);
@@ -276,12 +321,17 @@ static void DrawWindowFrame(WindowPtr window) {
         Rect titleBar = frame;
         titleBar.bottom = titleBar.top + 20;
 
-        /* Always paint title bar to make it visible */
-        PaintRect(&titleBar);
+        /* Fill title bar with white background */
+        EraseRect(&titleBar);
 
         /* Draw title bar separator */
         MoveTo(frame.left, frame.top + 20);
         LineTo(frame.right - 1, frame.top + 20);
+
+        /* Draw close box - simple square at left side */
+        Rect closeBox;
+        SetRect(&closeBox, frame.left + 4, frame.top + 4, frame.left + 14, frame.top + 14);
+        FrameRect(&closeBox);
 
         /* Draw window title */
         if (window->titleHandle) {
@@ -464,6 +514,11 @@ void ShowWindow(WindowPtr window) {
 
     window->visible = true;
 
+    /* Calculate window regions (structure and content) */
+    serial_printf("ShowWindow: Calculating window regions\n");
+    extern void WM_CalculateStandardWindowRegions(WindowPtr window, short varCode);
+    WM_CalculateStandardWindowRegions(window, 0);
+
     /* Calculate visible region */
     serial_printf("ShowWindow: About to call CalcVis\n");
     CalcVis(window);
@@ -472,6 +527,20 @@ void ShowWindow(WindowPtr window) {
     serial_printf("ShowWindow: About to call PaintOne\n");
     PaintOne(window, NULL);
     serial_printf("ShowWindow: PaintOne returned\n");
+
+    /* Invalidate content region to generate update event for application to draw content */
+    if (window->contRgn) {
+        serial_printf("ShowWindow: Invalidating content region to trigger update event\n");
+        extern void InvalRgn(RgnHandle badRgn);
+        extern void SetPort(GrafPtr port);
+
+        /* InvalRgn operates on current port, so set port to window first */
+        GrafPtr savePort;
+        GetPort(&savePort);
+        SetPort((GrafPtr)window);
+        InvalRgn(window->contRgn);
+        SetPort(savePort);
+    }
 
     /* Recalculate regions for windows behind */
     CalcVisBehind(window->nextWindow, window->strucRgn);
@@ -663,17 +732,43 @@ void SelectWindow(WindowPtr window) {
 
 WindowPtr FrontWindow(void) {
     WindowManagerState* wmState = GetWindowManagerState();
-    if (!wmState) return NULL;
+    if (!wmState) {
+        serial_printf("WindowManager: FrontWindow - wmState is NULL\n");
+        return NULL;
+    }
+
+    static int call_count = 0;
+    call_count++;
 
     /* Find first visible window */
     WindowPtr window = wmState->windowList;
+
+    if (call_count <= 5 || (call_count % 5000) == 0) {
+        serial_printf("WindowManager: FrontWindow #%d - list head=%p\n", call_count, window);
+    }
+
+    int count = 0;
     while (window) {
+        if (call_count <= 5 || (call_count % 5000) == 0) {
+            serial_printf("WindowManager: FrontWindow - checking window %p, visible=%d\n", window, window->visible);
+        }
         if (window->visible) {
+            if (call_count <= 5 || (call_count % 5000) == 0) {
+                serial_printf("WindowManager: FrontWindow - returning visible window %p\n", window);
+            }
             return window;
         }
         window = window->nextWindow;
+        count++;
+        if (count > 100) {
+            serial_printf("WindowManager: FrontWindow - LOOP DETECTED, breaking\n");
+            break;
+        }
     }
 
+    if (call_count <= 5 || (call_count % 5000) == 0) {
+        serial_printf("WindowManager: FrontWindow - returning NULL (no visible window found)\n");
+    }
     return NULL;
 }
 

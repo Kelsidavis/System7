@@ -443,11 +443,21 @@ void PaintRect(const Rect *r) {
 }
 
 void EraseRect(const Rect *r) {
+    extern void serial_printf(const char* fmt, ...);
+    serial_printf("EraseRect: ENTRY, rect=(%d,%d,%d,%d)\n",
+                  r ? r->left : -1, r ? r->top : -1, r ? r->right : -1, r ? r->bottom : -1);
+
     assert(g_currentPort != NULL);
     assert(r != NULL);
-    if (EmptyRect(r)) return;
 
+    if (EmptyRect(r)) {
+        serial_printf("EraseRect: EmptyRect returned TRUE, returning early\n");
+        return;
+    }
+
+    serial_printf("EraseRect: About to call DrawPrimitive\n");
     DrawPrimitive(erase, r, 0, &g_currentPort->bkPat);
+    serial_printf("EraseRect: DrawPrimitive returned\n");
 }
 
 void InvertRect(const Rect *r) {
@@ -541,10 +551,18 @@ QDErr QDError(void) {
 
 static void DrawPrimitive(GrafVerb verb, const void *shape, int shapeType,
                          ConstPatternParam pat) {
-    if (!PrepareDrawing(g_currentPort)) return;
+    extern void serial_printf(const char* fmt, ...);
+    serial_printf("DrawPrimitive: verb=%d ENTRY\n", verb);
+
+    if (!PrepareDrawing(g_currentPort)) {
+        serial_printf("DrawPrimitive: PrepareDrawing FAILED\n");
+        return;
+    }
 
     const Rect *rect = (const Rect *)shape;
     Rect drawRect = *rect;
+    serial_printf("DrawPrimitive: original rect=(%d,%d,%d,%d)\n",
+                  drawRect.left, drawRect.top, drawRect.right, drawRect.bottom);
 
     /* Apply pen size for frame operations */
     if (verb == frame) {
@@ -553,9 +571,13 @@ static void DrawPrimitive(GrafVerb verb, const void *shape, int shapeType,
 
     /* Clip to port and visible region */
     ClipToPort(g_currentPort, &drawRect);
+    serial_printf("DrawPrimitive: clipped rect=(%d,%d,%d,%d)\n",
+                  drawRect.left, drawRect.top, drawRect.right, drawRect.bottom);
 
     /* Call platform layer to do actual drawing */
+    serial_printf("DrawPrimitive: calling QDPlatform_DrawShape\n");
     QDPlatform_DrawShape(g_currentPort, verb, &drawRect, shapeType, pat);
+    serial_printf("DrawPrimitive: QDPlatform_DrawShape returned\n");
 }
 
 static void ClipToPort(GrafPtr port, Rect *rect) {

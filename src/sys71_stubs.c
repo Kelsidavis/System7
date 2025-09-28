@@ -374,10 +374,14 @@ void InitWindows(void) {
     }
 }
 
+#ifdef SYS71_PROVIDE_FINDER_TOOLBOX
+/* NewWindow stub - this old stub is DISABLED when SYS71_PROVIDE_FINDER_TOOLBOX=1 */
+/* The real implementation is in WindowManagerCore.c */
+#else
 WindowPtr NewWindow(void* storage, const Rect* boundsRect, ConstStr255Param title,
                     Boolean visible, short procID, WindowPtr behind, Boolean goAwayFlag,
                     long refCon) {
-    serial_printf("NewWindow: Creating window procID=%d visible=%d\n", procID, visible);
+    serial_printf("NewWindow (STUB): Creating window procID=%d visible=%d\n", procID, visible);
 
     /* Allocate window structure if no storage provided */
     WindowPtr window;
@@ -453,6 +457,7 @@ WindowPtr NewWindow(void* storage, const Rect* boundsRect, ConstStr255Param titl
     serial_printf("NewWindow: Created window at %p\n", window);
     return window;
 }
+#endif /* !SYS71_PROVIDE_FINDER_TOOLBOX */
 
 void DisposeWindow(WindowPtr window) {
     if (!window) {

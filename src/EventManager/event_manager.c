@@ -60,6 +60,10 @@ Boolean GetNextEvent(short eventMask, EventRecord* theEvent) {
     if (eventMask & diskMask) serial_printf("  Looking for: disk\n");
     if (eventMask & activMask) serial_printf("  Looking for: activate\n");
 
+    /* Generate update events for windows with non-empty updateRgn (System 7 way) */
+    extern void CheckWindowsNeedingUpdate(void);
+    CheckWindowsNeedingUpdate();
+
     /* Check if queue has events */
     if (g_eventQueue.count == 0) {
         serial_printf("GetNextEvent: Queue empty, returning false\n");

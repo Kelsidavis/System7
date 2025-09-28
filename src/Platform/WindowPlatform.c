@@ -33,21 +33,9 @@ Boolean Platform_InitializeWindowPort(WindowPtr window) {
     window->port.portBits.rowBytes = fb_width * 4;  /* Assuming 32-bit color */
     SetRect(&window->port.portBits.bounds, 0, 0, fb_width, fb_height);
 
-    /* Save global bounds to strucRgn before converting portRect to local */
-    /* portRect currently contains global bounds from InitializeWindowRecord */
-    if (window->strucRgn) {
-        RectRgn(window->strucRgn, &window->port.portRect);
-    }
-    if (window->contRgn) {
-        RectRgn(window->contRgn, &window->port.portRect);
-    }
-
-    /* Convert portRect from global to local coordinates */
-    /* portRect was set by InitializeWindowRecord to global bounds */
-    /* We need to make it relative to (0,0) for local coordinate system */
-    SInt16 width = window->port.portRect.right - window->port.portRect.left;
-    SInt16 height = window->port.portRect.bottom - window->port.portRect.top;
-    SetRect(&window->port.portRect, 0, 0, width, height);
+    /* Regions already initialized by InitializeWindowRecord - don't overwrite */
+    /* InitializeWindowRecord sets portRect to local coordinates (0,0,width,height) */
+    /* and strucRgn/contRgn to global bounds - these are already correct */
 
     /* Initialize clipping regions */
     if (!window->port.clipRgn) {
@@ -379,8 +367,15 @@ void Platform_GetWindowZoomBoxRect(WindowPtr window, Rect* rect) {
 void Platform_GetWindowFrameRect(WindowPtr window, Rect* rect) {
     if (!window || !rect) return;
 
-    /* Frame is the entire window structure */
-    *rect = window->port.portRect;
+    /* CRITICAL: Frame rect must be in GLOBAL screen coordinates, not local port coordinates!
+     * portRect is ALWAYS in LOCAL coordinates (0,0,width,height)
+     * strucRgn contains the GLOBAL screen position */
+    if (window->strucRgn && *window->strucRgn) {
+        *rect = (*window->strucRgn)->rgnBBox;
+    } else {
+        /* Fallback: if strucRgn not set, use portRect but this is wrong! */
+        *rect = window->port.portRect;
+    }
 }
 
 /* Window highlighting */
@@ -466,13 +461,31 @@ void Platform_SetEmptyRgn(RgnHandle rgn) {
 }
 
 void Platform_UnionRgn(RgnHandle src1, RgnHandle src2, RgnHandle dst) {
-    /* Simple union - just copy src1 for now */
-    if (dst) {
-        if (src1) {
-            Platform_CopyRgn(src1, dst);
-        } else if (src2) {
+    if (!dst || !(*dst)) return;
+
+    Region* dstRgn = *dst;
+
+    if (src1 && *src1 && src2 && *src2) {
+        Region* rgn1 = *src1;
+        Region* rgn2 = *src2;
+
+        Boolean rgn1Empty = (rgn1->rgnBBox.left >= rgn1->rgnBBox.right || rgn1->rgnBBox.top >= rgn1->rgnBBox.bottom);
+        Boolean rgn2Empty = (rgn2->rgnBBox.left >= rgn2->rgnBBox.right || rgn2->rgnBBox.top >= rgn2->rgnBBox.bottom);
+
+        if (rgn1Empty && !rgn2Empty) {
             Platform_CopyRgn(src2, dst);
+        } else if (rgn2Empty && !rgn1Empty) {
+            Platform_CopyRgn(src1, dst);
+        } else if (!rgn1Empty && !rgn2Empty) {
+            dstRgn->rgnBBox.left = (rgn1->rgnBBox.left < rgn2->rgnBBox.left) ? rgn1->rgnBBox.left : rgn2->rgnBBox.left;
+            dstRgn->rgnBBox.top = (rgn1->rgnBBox.top < rgn2->rgnBBox.top) ? rgn1->rgnBBox.top : rgn2->rgnBBox.top;
+            dstRgn->rgnBBox.right = (rgn1->rgnBBox.right > rgn2->rgnBBox.right) ? rgn1->rgnBBox.right : rgn2->rgnBBox.right;
+            dstRgn->rgnBBox.bottom = (rgn1->rgnBBox.bottom > rgn2->rgnBBox.bottom) ? rgn1->rgnBBox.bottom : rgn2->rgnBBox.bottom;
         }
+    } else if (src1 && *src1) {
+        Platform_CopyRgn(src1, dst);
+    } else if (src2 && *src2) {
+        Platform_CopyRgn(src2, dst);
     }
 }
 

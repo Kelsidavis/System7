@@ -324,7 +324,7 @@ WindowPtr Finder_OpenDesktopItem(Boolean isTrash, ConstStr255Param title)
     serial_printf("[WIN_OPEN] Starting, isTrash=%d\n", isTrash);
 
     WindowPtr w = NewWindow(NULL, &r, isTrash ? "\pTrash" : "\pMacintosh HD",
-                            true, 0, (WindowPtr)-1L, true,
+                            false, 0, (WindowPtr)-1L, true,
                             isTrash ? 'TRSH' : 'DISK');
 
     if (!w) {
@@ -332,15 +332,17 @@ WindowPtr Finder_OpenDesktopItem(Boolean isTrash, ConstStr255Param title)
         return NULL;
     }
 
-    serial_printf("[WIN_OPEN] NewWindow succeeded (already visible)\n");
+    serial_printf("[WIN_OPEN] NewWindow succeeded, calling ShowWindow\n");
+    ShowWindow(w);
+    serial_printf("[WIN_OPEN] ShowWindow returned\n");
 
     serial_printf("[WIN_OPEN] Calling SelectWindow\n");
     SelectWindow(w);
 
-    /* Window Manager draws chrome automatically via ShowWindow */
-    /* Content will be drawn via update event handled by DoUpdate() */
+    /* Window Manager will generate update event for content drawing */
+    /* Application's update event handler (main.c) will call FolderWindowProc */
 
-    serial_printf("[WIN_OPEN] Complete, window created\n");
+    serial_printf("[WIN_OPEN] Complete, window created - content will be drawn via update event\n");
     return w;
 }
 
@@ -373,6 +375,7 @@ static void DoBackgroundTasks(void)
  */
 static void MainEventLoop(void)
 {
+    extern void serial_printf(const char* fmt, ...);
     EventRecord event;
     Boolean gotEvent;
 
@@ -380,6 +383,7 @@ static void MainEventLoop(void)
         gotEvent = WaitNextEvent(everyEvent, &event, 0L, nil);
 
         if (gotEvent) {
+            serial_printf("Finder: Got event type=%d (updateEvt=%d)\n", event.what, updateEvt);
             switch (event.what) {
                 case mouseDown:
                     HandleMouseDown(&event);

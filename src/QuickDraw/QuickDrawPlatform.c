@@ -214,6 +214,15 @@ extern bool PM_GetColorPattern(uint32_t** patternData);
 void QDPlatform_DrawShape(GrafPtr port, GrafVerb verb, const Rect* rect,
                          SInt16 shapeType, const Pattern* pat) {
 
+    /* CRITICAL: Convert LOCAL coordinates to GLOBAL for SetPixel!
+     * rect is in port-relative (LOCAL) coords, but SetPixel expects GLOBAL screen coords */
+    SInt32 offsetX = port ? port->portBits.bounds.left : 0;
+    SInt32 offsetY = port ? port->portBits.bounds.top : 0;
+
+    extern void serial_printf(const char* fmt, ...);
+    serial_printf("QDPlatform_DrawShape: verb=%d, rect=(%d,%d,%d,%d), offset=(%d,%d)\n",
+                  verb, rect->left, rect->top, rect->right, rect->bottom, offsetX, offsetY);
+
     /* For now, just draw rectangles */
     if (shapeType == 0) {  /* Rectangle */
         if (verb == paint) {
@@ -230,7 +239,7 @@ void QDPlatform_DrawShape(GrafPtr port, GrafVerb verb, const Rect* rect,
 
                         /* Use black for 1 bits, white for 0 bits */
                         UInt32 color = bit ? pack_color(0, 0, 0) : pack_color(255, 255, 255);
-                        QDPlatform_SetPixel(x, y, color);
+                        QDPlatform_SetPixel(x + offsetX, y + offsetY, color);
                     }
                 }
             } else {
@@ -238,7 +247,7 @@ void QDPlatform_DrawShape(GrafPtr port, GrafVerb verb, const Rect* rect,
                 UInt32 color = pack_color(0, 0, 0);
                 for (SInt32 y = rect->top; y < rect->bottom; y++) {
                     for (SInt32 x = rect->left; x < rect->right; x++) {
-                        QDPlatform_SetPixel(x, y, color);
+                        QDPlatform_SetPixel(x + offsetX, y + offsetY, color);
                     }
                 }
             }
@@ -255,7 +264,7 @@ void QDPlatform_DrawShape(GrafPtr port, GrafVerb verb, const Rect* rect,
 
                         /* Use black for 1 bits, white for 0 bits */
                         UInt32 color = bit ? pack_color(0, 0, 0) : pack_color(255, 255, 255);
-                        QDPlatform_SetPixel(x, y, color);
+                        QDPlatform_SetPixel(x + offsetX, y + offsetY, color);
                     }
                 }
             }
@@ -286,7 +295,7 @@ void QDPlatform_DrawShape(GrafPtr port, GrafVerb verb, const Rect* rect,
 
                         /* Use black for 1 bits, white for 0 bits */
                         UInt32 color = bit ? pack_color(0, 0, 0) : pack_color(255, 255, 255);
-                        QDPlatform_SetPixel(x, y, color);
+                        QDPlatform_SetPixel(x + offsetX, y + offsetY, color);
                     }
                 }
             } else {
@@ -294,7 +303,7 @@ void QDPlatform_DrawShape(GrafPtr port, GrafVerb verb, const Rect* rect,
                 UInt32 color = pack_color(255, 255, 255);
                 for (SInt32 y = rect->top; y < rect->bottom; y++) {
                     for (SInt32 x = rect->left; x < rect->right; x++) {
-                        QDPlatform_SetPixel(x, y, color);
+                        QDPlatform_SetPixel(x + offsetX, y + offsetY, color);
                     }
                 }
             }

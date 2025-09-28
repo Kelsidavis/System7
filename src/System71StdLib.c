@@ -291,6 +291,14 @@ void serial_printf(const char* fmt, ...) {
         strstr(fmt, "[PRE-IF]") == NULL &&
         strstr(fmt, "[DBLCLK") == NULL &&
         strstr(fmt, "[WIN_OPEN]") == NULL &&
+        strstr(fmt, "[NEWWIN]") == NULL &&
+        strstr(fmt, "ShowWindow") == NULL &&
+        strstr(fmt, "CheckWindowsNeedingUpdate") == NULL &&
+        strstr(fmt, "GetNextEvent") == NULL &&
+        strstr(fmt, "WaitNextEvent") == NULL &&
+        strstr(fmt, "DoUpdate") == NULL &&
+        strstr(fmt, "PaintOne") == NULL &&
+        strstr(fmt, "DrawNew") == NULL &&
         strstr(fmt, "WindowManager") == NULL &&
         strstr(fmt, "Finder:") == NULL) {
         return;

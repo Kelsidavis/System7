@@ -175,7 +175,6 @@ Boolean EmptyRect(const Rect* r) { return true; }
 Boolean PtInRect(Point pt, const Rect* r) { return false; }
 void FrameRect(const Rect* r) {}
 void PaintRect(const Rect* r) {}
-void EraseRect(const Rect* r) {}
 void InvertRect(const Rect* r) {}
 void FillRect(const Rect* r, Pattern* pat) {}
 RgnHandle NewRgn(void) { return NULL; }

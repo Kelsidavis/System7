@@ -52,34 +52,33 @@ void DrawFolderWindowContents(WindowPtr window, Boolean isTrash)
     GetPort(&savePort);
     SetPort(window);
 
-    /* Get window content area - convert from global to local coordinates */
+    /* Use window's portRect which is in LOCAL (port-relative) coordinates */
+    /* In Mac Toolbox, portRect should always start at (0,0) */
+    Rect localBounds = window->port.portRect;
+
+    /* Calculate content area in LOCAL coordinates */
+    /* Content = full port minus title bar (20px) */
     Rect contentRect;
     contentRect.left = 0;
-    contentRect.top = 0;
-    contentRect.right = window->port.portRect.right - window->port.portRect.left;
-    contentRect.bottom = window->port.portRect.bottom - window->port.portRect.top;
+    contentRect.top = 20;  /* Skip title bar */
+    contentRect.right = localBounds.right - localBounds.left;
+    contentRect.bottom = localBounds.bottom - localBounds.top;
 
-    serial_printf("Finder: Window size = %dx%d\n",
-                  contentRect.right, contentRect.bottom);
+    serial_printf("Finder: portRect (local) = (%d,%d,%d,%d)\n",
+                  localBounds.left, localBounds.top, localBounds.right, localBounds.bottom);
 
-    /* Adjust for title bar (21 pixels including separator) and borders */
-    contentRect.top += 21;
-    contentRect.left += 1;
-    contentRect.right -= 1;
-    contentRect.bottom -= 1;
-
-    serial_printf("Finder: contentRect = (%d,%d,%d,%d)\n",
+    serial_printf("Finder: contentRect (local) = (%d,%d,%d,%d)\n",
                   contentRect.left, contentRect.top, contentRect.right, contentRect.bottom);
 
     /* Set clipping to content area to prevent drawing outside bounds */
     ClipRect(&contentRect);
 
-    /* Fill background with white (classic QuickDraw color index 30) */
-    ForeColor(30);  /* white */
-    PaintRect(&contentRect);
+    /* Fill background with white using EraseRect (uses port's background pattern) */
+    extern void EraseRect(const Rect* r);
+    EraseRect(&contentRect);
 
-    /* Reset to black for drawing text/icons (classic QuickDraw color index 33) */
-    ForeColor(33);  /* black */
+    serial_printf("Finder: Erased content rect (%d,%d,%d,%d)\n",
+                  contentRect.left, contentRect.top, contentRect.right, contentRect.bottom);
 
     if (isTrash) {
         /* Draw trash contents */

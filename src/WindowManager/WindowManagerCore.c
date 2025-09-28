@@ -144,63 +144,77 @@ WindowPtr NewWindow(void* wStorage, const Rect* boundsRect,
                    short theProc, WindowPtr behind,
                    Boolean goAwayFlag, long refCon) {
 
+    serial_printf("[NEWWIN] A - ENTERED\n");
+
     if (!g_wmState.initialized) {
+        serial_printf("[NEWWIN] B - calling InitWindows\n");
         InitWindows();
     }
 
     if (boundsRect == NULL) {
+        serial_printf("[NEWWIN] C - boundsRect NULL, returning\n");
         #ifdef DEBUG_WINDOW_MANAGER
         printf("NewWindow: boundsRect is NULL\n");
         #endif
         return NULL;
     }
 
+    serial_printf("[NEWWIN] D - after boundsRect check\n");
+
     WindowPtr window;
 
     /* Allocate window storage if not provided */
     if (wStorage == NULL) {
+        serial_printf("[NEWWIN] E - allocating storage\n");
         window = AllocateWindowRecord(false); /* Black & white window */
         if (window == NULL) {
+            serial_printf("[NEWWIN] F - allocation failed\n");
             #ifdef DEBUG_WINDOW_MANAGER
             printf("NewWindow: Failed to allocate window record\n");
             #endif
             return NULL;
         }
     } else {
+        serial_printf("[NEWWIN] G - using provided storage\n");
         window = (WindowPtr)wStorage;
         memset(window, 0, sizeof(WindowRecord));
     }
 
+    serial_printf("[NEWWIN] H - calling InitializeWindowRecord\n");
     /* Initialize the window record */
     InitializeWindowRecord(window, boundsRect, title, theProc, visible, goAwayFlag);
     window->refCon = refCon;
 
+    serial_printf("[NEWWIN] I - initializing port\n");
     /* Initialize the window's graphics port */
     if (!Platform_InitializeWindowPort(window)) {
+        serial_printf("[NEWWIN] J - port init failed\n");
         if (wStorage == NULL) {
             DeallocateWindowRecord(window);
         }
         return NULL;
     }
 
-    /* Calculate window regions */
-    Platform_CalculateWindowRegions(window);
+    /* Regions already initialized in InitializeWindowRecord - don't recalculate */
+    /* Platform_CalculateWindowRegions would overwrite with local coordinates */
 
+    serial_printf("[NEWWIN] K - adding to window list\n");
     /* Add window to the window list */
     AddWindowToList(window, behind);
 
+    serial_printf("[NEWWIN] L - creating native window\n");
     /* Create native platform window */
     Platform_CreateNativeWindow(window);
 
+    serial_printf("[NEWWIN] M - checking visible flag\n");
     /* Make visible if requested */
-    extern void serial_printf(const char* fmt, ...);
-    serial_printf("NewWindow: visible=%d, about to check if we should call ShowWindow\n", visible);
     if (visible) {
-        serial_printf("NewWindow: Calling ShowWindow now\n");
+        serial_printf("[NEWWIN] N - calling ShowWindow\n");
         ShowWindow(window);
-        serial_printf("NewWindow: ShowWindow returned\n");
+        serial_printf("[NEWWIN] O - ShowWindow returned\n");
     }
 
+    serial_printf("[NEWWIN] P - returning window\n");
     #ifdef DEBUG_WINDOW_MANAGER
     printf("NewWindow: Created window at (%d,%d) size (%d,%d)\n",
            boundsRect->left, boundsRect->top,
@@ -635,21 +649,59 @@ static void InitializeWindowRecord(WindowPtr window, const Rect* bounds,
         clampedBounds.top += delta;
         clampedBounds.bottom += delta;
     }
-    window->port.portRect = clampedBounds;
+
+    /* Window port uses LOCAL coordinates (0,0,width,height) */
+    SInt16 width = clampedBounds.right - clampedBounds.left;
+    SInt16 height = clampedBounds.bottom - clampedBounds.top;
+    SetRect(&window->port.portRect, 0, 0, width, height);
+
+    /* CRITICAL: portBits.bounds defines where local coords map to global screen coords!
+     * This must be set to the window's GLOBAL position so that drawing in local
+     * coordinates (0,0) maps to the window's screen position */
+    window->port.portBits.bounds = clampedBounds;
+
+    /* Initialize portBits to point to screen framebuffer */
+    extern void* framebuffer;
+    extern uint32_t fb_width;
+    window->port.portBits.baseAddr = (Ptr)framebuffer;
+    window->port.portBits.rowBytes = fb_width * 4;
+
+    serial_printf("InitializeWindowRecord: portRect = (%d,%d,%d,%d)\n",
+                  window->port.portRect.left, window->port.portRect.top,
+                  window->port.portRect.right, window->port.portRect.bottom);
+    serial_printf("InitializeWindowRecord: portBits.bounds = (%d,%d,%d,%d)\n",
+                  window->port.portBits.bounds.left, window->port.portBits.bounds.top,
+                  window->port.portBits.bounds.right, window->port.portBits.bounds.bottom);
+    serial_printf("InitializeWindowRecord: clampedBounds = (%d,%d,%d,%d)\n",
+                  clampedBounds.left, clampedBounds.top,
+                  clampedBounds.right, clampedBounds.bottom);
+
+    /* Initialize strucRgn with global bounds */
+    if (window->strucRgn) {
+        Platform_SetRectRgn(window->strucRgn, &clampedBounds);
+        serial_printf("InitializeWindowRecord: Set strucRgn to clampedBounds\n");
+    }
 }
 
 static void AddWindowToList(WindowPtr window, WindowPtr behind) {
+    extern void serial_printf(const char* fmt, ...);
+
     if (window == NULL) return;
+
+    serial_printf("WindowManager: AddWindowToList window=%p, behind=%p\n", window, behind);
 
     /* Remove from list if already in it */
     RemoveWindowFromList(window);
 
-    if (behind == NULL) {
+    if (behind == NULL || behind == (WindowPtr)-1L) {
         /* Add to front of list */
+        serial_printf("WindowManager: Adding window %p to FRONT (behind=%p is NULL or -1)\n", window, behind);
         window->nextWindow = g_wmState.windowList;
         g_wmState.windowList = window;
+        serial_printf("WindowManager: Window list head is now %p\n", g_wmState.windowList);
     } else {
         /* Insert after 'behind' window */
+        serial_printf("WindowManager: Inserting window %p AFTER behind=%p\n", window, behind);
         window->nextWindow = behind->nextWindow;
         behind->nextWindow = window;
     }

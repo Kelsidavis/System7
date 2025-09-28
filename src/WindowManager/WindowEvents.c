@@ -221,29 +221,50 @@ void InvalRect(const Rect* badRect) {
 }
 
 void InvalRgn(RgnHandle badRgn) {
-    if (badRgn == NULL) return;
+    extern void serial_printf(const char* fmt, ...);
 
-    WM_DEBUG("InvalRgn: Invalidating region");
+    if (badRgn == NULL) {
+        serial_printf("WindowManager: InvalRgn called with NULL region\n");
+        return;
+    }
 
     /* Get current graphics port */
     GrafPtr currentPort = WM_GetCurrentPort();
-    if (currentPort == NULL) return;
+    if (currentPort == NULL) {
+        serial_printf("WindowManager: InvalRgn - no current port\n");
+        return;
+    }
 
     /* Assume current port is a window */
     WindowPtr window = (WindowPtr)currentPort;
 
+    Region* badRgnData = *badRgn;
+    serial_printf("WindowManager: InvalRgn window=0x%08x, badRgn bbox=(%d,%d,%d,%d)\n",
+                 (unsigned int)window, badRgnData->rgnBBox.left, badRgnData->rgnBBox.top,
+                 badRgnData->rgnBBox.right, badRgnData->rgnBBox.bottom);
+
     /* Add region to window's update region */
     if (window->updateRgn) {
+        Region* updateBefore = *(window->updateRgn);
+        serial_printf("WindowManager: InvalRgn - BEFORE union, updateRgn bbox=(%d,%d,%d,%d)\n",
+                     updateBefore->rgnBBox.left, updateBefore->rgnBBox.top,
+                     updateBefore->rgnBBox.right, updateBefore->rgnBBox.bottom);
+
         Platform_UnionRgn(window->updateRgn, badRgn, window->updateRgn);
+
+        Region* updateAfter = *(window->updateRgn);
+        serial_printf("WindowManager: InvalRgn - AFTER union, updateRgn bbox=(%d,%d,%d,%d)\n",
+                     updateAfter->rgnBBox.left, updateAfter->rgnBBox.top,
+                     updateAfter->rgnBBox.right, updateAfter->rgnBBox.bottom);
 
         /* Schedule platform update */
         /* TODO: Convert region to rectangle for platform invalidation */
         Rect regionBounds;
         Platform_GetRegionBounds(badRgn, &regionBounds);
         Platform_InvalidateWindowRect(window, &regionBounds);
+    } else {
+        serial_printf("WindowManager: InvalRgn - window has NULL updateRgn!\n");
     }
-
-    WM_DEBUG("InvalRgn: Region invalidated");
 }
 
 void ValidRect(const Rect* goodRect) {
@@ -535,8 +556,10 @@ static Boolean WM_IsMouseDown(void) {
 /* [WM-050] Platform_* functions removed - implemented in WindowPlatform.c */
 
 static GrafPtr WM_GetCurrentPort(void) {
-    /* TODO: Implement platform-specific current port tracking */
-    return NULL;
+    extern void GetPort(GrafPtr* port);
+    GrafPtr currentPort;
+    GetPort(&currentPort);
+    return currentPort;
 }
 
 /* [WM-050] Platform port functions removed - stubs only */

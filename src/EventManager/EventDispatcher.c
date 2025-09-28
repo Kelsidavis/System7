@@ -167,11 +167,10 @@ Boolean HandleMouseDown(EventRecord* event)
     /* Find which window part was clicked */
     windowPart = FindWindow(event->where, &whichWindow);
 
-    /* Debug with explicit cast to ensure correct values */
-    serial_printf("HandleMouseDown: event=%p, where={v=%d,h=%d}, modifiers=0x%04x\n",
-                 event, (int)event->where.v, (int)event->where.h, event->modifiers);
-    serial_printf("HandleMouseDown: part=%d, window=%p at (%d,%d)\n",
-                 windowPart, whichWindow, (int)event->where.h, (int)event->where.v);
+    serial_printf("HandleMouseDown: event=0x%08x, where={v=%d,h=%d}, modifiers=0x%04x\n",
+                 (unsigned int)event, (int)event->where.v, (int)event->where.h, event->modifiers);
+    serial_printf("HandleMouseDown: part=%d, window=0x%08x at (%d,%d)\n",
+                 windowPart, (unsigned int)whichWindow, (int)event->where.h, (int)event->where.v);
 
     switch (windowPart) {
         case inMenuBar:
@@ -193,13 +192,20 @@ Boolean HandleMouseDown(EventRecord* event)
 
         case inContent:
             /* Click in window content */
-            if (whichWindow != FrontWindow()) {
+            serial_printf("HandleMouseDown: inContent case - whichWindow=0x%08x\n", (unsigned int)whichWindow);
+
+            WindowPtr frontWin = FrontWindow();
+            serial_printf("HandleMouseDown: FrontWindow returned 0x%08x\n", (unsigned int)frontWin);
+
+            if (whichWindow != frontWin) {
                 /* Bring window to front first */
+                serial_printf("HandleMouseDown: Calling SelectWindow(0x%08x)\n", (unsigned int)whichWindow);
                 SelectWindow(whichWindow);
+                serial_printf("HandleMouseDown: SelectWindow returned\n");
             } else {
                 /* Pass click to window content handler */
                 /* Application would handle this */
-                serial_printf("Click in content of window %p\n", whichWindow);
+                serial_printf("Click in content of window 0x%08x\n", (unsigned int)whichWindow);
             }
             return true;
 
@@ -220,7 +226,7 @@ Boolean HandleMouseDown(EventRecord* event)
             /* Resize window */
             if (whichWindow) {
                 /* TODO: Implement window resizing */
-                serial_printf("Grow window %p\n", whichWindow);
+                serial_printf("Grow window 0x%08x\n", (unsigned int)whichWindow);
             }
             return true;
 
@@ -238,7 +244,7 @@ Boolean HandleMouseDown(EventRecord* event)
             /* Zoom box clicked */
             if (whichWindow) {
                 /* TODO: Implement window zooming */
-                serial_printf("Zoom window %p\n", whichWindow);
+                serial_printf("Zoom window 0x%08x\n", (unsigned int)whichWindow);
             }
             return true;
 
@@ -378,7 +384,7 @@ Boolean HandleKeyDownEvent(EventRecord* event)
     WindowPtr frontWindow = FrontWindow();
     if (frontWindow) {
         /* Application would handle this */
-        serial_printf("Key '%c' to window %p\n", key, frontWindow);
+        serial_printf("Key '%c' to window 0x%08x\n", key, (unsigned int)frontWindow);
     }
 
     return true;
@@ -400,7 +406,7 @@ Boolean HandleUpdate(EventRecord* event)
 {
     WindowPtr updateWindow = (WindowPtr)(event->message);
 
-    serial_printf("HandleUpdate: window=%p\n", updateWindow);
+    serial_printf("HandleUpdate: window=0x%08x\n", (unsigned int)updateWindow);
 
     if (updateWindow) {
         /* Begin update to set up clipping */
@@ -430,8 +436,8 @@ Boolean HandleActivate(EventRecord* event)
     WindowPtr window = (WindowPtr)(event->message);
     Boolean activating = (event->modifiers & activeFlag) != 0;
 
-    serial_printf("HandleActivate: window=%p, activating=%d\n",
-                 window, activating);
+    serial_printf("HandleActivate: window=0x%08x, activating=%d\n",
+                 (unsigned int)window, activating);
 
     if (window) {
         if (activating) {

@@ -165,15 +165,28 @@ void PaintRect(const Rect* r) {
 void EraseRect(const Rect* r) {
     if (!framebuffer || !r) return;
 
+    extern GrafPtr g_currentPort;
+
+    /* CRITICAL: Convert from LOCAL port coordinates to GLOBAL screen coordinates!
+     * The input rect is in local (port-relative) coordinates, but framebuffer drawing
+     * needs global (screen-absolute) coordinates. Use portBits.bounds to translate. */
+    Rect globalRect = *r;
+    if (g_currentPort) {
+        globalRect.left += g_currentPort->portBits.bounds.left;
+        globalRect.top += g_currentPort->portBits.bounds.top;
+        globalRect.right += g_currentPort->portBits.bounds.left;
+        globalRect.bottom += g_currentPort->portBits.bounds.top;
+    }
+
     /* Check if we have a color pattern from Pattern Manager */
     uint32_t* colorPattern = NULL;
     if (PM_GetColorPattern(&colorPattern)) {
         /* Use color pattern - it's an 8x8 array of 32-bit ARGB values */
         /* Clip to screen bounds */
-        int left = (r->left < 0) ? 0 : r->left;
-        int top = (r->top < 0) ? 0 : r->top;
-        int right = (r->right > fb_width) ? fb_width : r->right;
-        int bottom = (r->bottom > fb_height) ? fb_height : r->bottom;
+        int left = (globalRect.left < 0) ? 0 : globalRect.left;
+        int top = (globalRect.top < 0) ? 0 : globalRect.top;
+        int right = (globalRect.right > fb_width) ? fb_width : globalRect.right;
+        int bottom = (globalRect.bottom > fb_height) ? fb_height : globalRect.bottom;
 
         for (int y = top; y < bottom; y++) {
             for (int x = left; x < right; x++) {
@@ -201,16 +214,16 @@ void EraseRect(const Rect* r) {
         );
 
         /* Clip to screen bounds */
-        int left = (r->left < 0) ? 0 : r->left;
-        int top = (r->top < 0) ? 0 : r->top;
-        int right = (r->right > fb_width) ? fb_width : r->right;
-        int bottom = (r->bottom > fb_height) ? fb_height : r->bottom;
+        int left = (globalRect.left < 0) ? 0 : globalRect.left;
+        int top = (globalRect.top < 0) ? 0 : globalRect.top;
+        int right = (globalRect.right > fb_width) ? fb_width : globalRect.right;
+        int bottom = (globalRect.bottom > fb_height) ? fb_height : globalRect.bottom;
 
         for (int y = top; y < bottom; y++) {
             for (int x = left; x < right; x++) {
                 /* Check pattern bit for this pixel */
-                int patRow = (y - r->top) & 7;  /* Wrap at 8 pixels */
-                int patCol = (x - r->left) & 7; /* Wrap at 8 pixels */
+                int patRow = (y - globalRect.top) & 7;  /* Wrap at 8 pixels */
+                int patCol = (x - globalRect.left) & 7; /* Wrap at 8 pixels */
                 int patBit = backPattern.pat[patRow] & (0x80 >> patCol);
 
                 /* Use foreground (black) for 1-bits, background color for 0-bits */

@@ -114,10 +114,20 @@ void MoveWindow(WindowPtr theWindow, short hGlobal, short vGlobal, Boolean front
     WM_DEBUG("MoveWindow: Moving window to (%d, %d), front = %s",
              hGlobal, vGlobal, front ? "true" : "false");
 
+    /* CRITICAL: Get current global position from strucRgn, NOT from portRect
+     * portRect is ALWAYS in LOCAL coordinates (0,0,width,height)
+     * strucRgn contains the GLOBAL screen position */
+    Rect currentGlobalBounds;
+    if (theWindow->strucRgn && *(theWindow->strucRgn)) {
+        currentGlobalBounds = (*(theWindow->strucRgn))->rgnBBox;
+    } else {
+        /* Fallback: use portRect but this is wrong if already corrupted */
+        currentGlobalBounds = theWindow->port.portRect;
+    }
+
     /* Calculate movement offset */
-    Rect currentBounds = theWindow->port.portRect;
-    short deltaH = hGlobal - currentBounds.left;
-    short deltaV = vGlobal - currentBounds.top;
+    short deltaH = hGlobal - currentGlobalBounds.left;
+    short deltaV = vGlobal - currentGlobalBounds.top;
 
     /* Check if window actually needs to move */
     if (deltaH == 0 && deltaV == 0) {
@@ -128,14 +138,14 @@ void MoveWindow(WindowPtr theWindow, short hGlobal, short vGlobal, Boolean front
     }
 
     /* Validate new position */
-    Rect newBounds = currentBounds;
+    Rect newBounds = currentGlobalBounds;
     WM_OffsetRect(&newBounds, deltaH, deltaV);
 
     if (!WM_ValidateWindowPosition(theWindow, &newBounds)) {
         WM_DEBUG("MoveWindow: Invalid window position, constraining");
         WM_ConstrainWindowPosition(theWindow, &newBounds);
-        deltaH = newBounds.left - currentBounds.left;
-        deltaV = newBounds.top - currentBounds.top;
+        deltaH = newBounds.left - currentGlobalBounds.left;
+        deltaV = newBounds.top - currentGlobalBounds.top;
     }
 
     /* Save old structure region for invalidation */
@@ -144,8 +154,8 @@ void MoveWindow(WindowPtr theWindow, short hGlobal, short vGlobal, Boolean front
         Platform_CopyRgn(theWindow->strucRgn, oldStrucRgn);
     }
 
-    /* Update window's port rectangle */
-    WM_OffsetRect(&theWindow->port.portRect, deltaH, deltaV);
+    /* CRITICAL: Do NOT modify portRect - it must stay in LOCAL coordinates!
+     * Only update the window regions which are in GLOBAL coordinates */
 
     /* Update window regions */
     if (theWindow->strucRgn) {
@@ -158,9 +168,18 @@ void MoveWindow(WindowPtr theWindow, short hGlobal, short vGlobal, Boolean front
         Platform_OffsetRgn(theWindow->updateRgn, deltaH, deltaV);
     }
 
-    /* Move native platform window */
-    Platform_MoveNativeWindow(theWindow, theWindow->port.portRect.left,
-                             theWindow->port.portRect.top);
+    /* CRITICAL: Update portBits.bounds to match new global position!
+     * portBits.bounds defines where local coords map to global screen coords */
+    theWindow->port.portBits.bounds.left += deltaH;
+    theWindow->port.portBits.bounds.top += deltaV;
+    theWindow->port.portBits.bounds.right += deltaH;
+    theWindow->port.portBits.bounds.bottom += deltaV;
+
+    /* Move native platform window using new global position from strucRgn */
+    if (theWindow->strucRgn && *(theWindow->strucRgn)) {
+        Rect newGlobalBounds = (*(theWindow->strucRgn))->rgnBBox;
+        Platform_MoveNativeWindow(theWindow, newGlobalBounds.left, newGlobalBounds.top);
+    }
 
     /* Bring to front if requested */
     if (front) {
@@ -185,8 +204,11 @@ void MoveWindow(WindowPtr theWindow, short hGlobal, short vGlobal, Boolean front
     /* Update window layering if needed */
     WM_UpdateWindowVisibility(theWindow);
 
-    WM_DEBUG("MoveWindow: Window moved successfully to (%d, %d)",
-             theWindow->port.portRect.left, theWindow->port.portRect.top);
+    if (theWindow->strucRgn && *(theWindow->strucRgn)) {
+        Rect finalPos = (*(theWindow->strucRgn))->rgnBBox;
+        WM_DEBUG("MoveWindow: Window moved successfully to (%d, %d)",
+                 finalPos.left, finalPos.top);
+    }
 }
 
 /* ============================================================================
