@@ -25,12 +25,7 @@ void SysBeep(SInt16 duration) {
 
 /* DrawDialog & UpdateDialog - provided by DialogManagerCore.c */
 
-/* ShowWindow/HideWindow - provided by WindowDisplay.c */
-
-void DrawWindow(WindowPtr window) {
-    if (!window) return;
-    serial_printf("DrawWindow: %p\n", window);
-}
+/* ShowWindow/HideWindow/DrawWindow - provided by WindowDisplay.c */
 
 /* GetNewControl - provided by ControlManagerCore.c */
 

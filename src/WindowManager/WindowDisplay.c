@@ -1,11 +1,8 @@
-/* #include "SystemTypes.h" */
-
+#include "SystemTypes.h"
 #include "WindowManager/WindowManager.h"
-/* #include "WindowManager/WindowManagerPrivate.h" */
+#include "WindowManager/WindowManagerInternal.h"
 #include "QuickDraw/QuickDraw.h"
-/* #include "QuickDraw/QuickDrawPrivate.h" */
-#include "Platform/WindowPlatform.h"
-#include "WindowManager/ControlManagerTypes.h"
+#include "ControlManager/ControlTypes.h"
 
 /* Debug macros */
 #ifdef DEBUG_WINDOW_MANAGER
@@ -35,7 +32,7 @@ extern void GetPort(GrafPtr* port);
 extern void SetPort(GrafPtr port);
 extern void ClipRect(const Rect* r);
 extern void SetClip(RgnHandle rgn);
-extern RgnHandle GetClip(void);
+extern void GetClip(RgnHandle rgn);
 extern RgnHandle NewRgn(void);
 extern void DisposeRgn(RgnHandle rgn);
 
@@ -48,9 +45,6 @@ static void DrawWindowFrame(WindowPtr window);
 
 /* Internal helper to draw window controls */
 static void DrawWindowControls(WindowPtr window);
-
-/* Internal helper to draw window content area */
-static void DrawWindowContent(WindowPtr window);
 
 void PaintOne(WindowPtr window, RgnHandle clobberedRgn) {
     if (!window || !window->visible) return;
@@ -67,8 +61,8 @@ void PaintOne(WindowPtr window, RgnHandle clobberedRgn) {
     /* Draw window controls */
     DrawWindowControls(window);
 
-    /* Draw window content */
-    DrawWindowContent(window);
+    /* Window Manager draws chrome only - content is application's job */
+    /* Application must draw content via BeginUpdate/EndUpdate in update event handler */
 
     SetPort(savePort);
 }
@@ -186,12 +180,9 @@ void DrawNew(WindowPtr window, Boolean update) {
 
     DrawWindowFrame(window);
     DrawWindowControls(window);
-    DrawWindowContent(window);
 
-    if (update && window->updateRgn) {
-        /* Clear the update region */
-        SetRectRgn(window->updateRgn, 0, 0, 0, 0);
-    }
+    /* Window Manager draws chrome only */
+    /* Application draws content via BeginUpdate/EndUpdate */
 
     SetPort(savePort);
 }
@@ -199,11 +190,17 @@ void DrawNew(WindowPtr window, Boolean update) {
 static void DrawWindowFrame(WindowPtr window) {
     if (!window || !window->visible) return;
 
+    serial_printf("WindowManager: DrawWindowFrame START\n");
+
     /* Draw window frame based on window definition */
     Rect frame = window->port.portRect;
 
+    serial_printf("WindowManager: Frame rect (%d,%d,%d,%d)\n",
+                  frame.left, frame.top, frame.right, frame.bottom);
+
     /* Draw outer frame */
     FrameRect(&frame);
+    serial_printf("WindowManager: Drew frame rect\n");
 
     /* Draw title bar */
     if (window->titleWidth > 0) {
@@ -295,29 +292,16 @@ static void DrawWindowControls(WindowPtr window) {
     }
 }
 
-static void DrawWindowContent(WindowPtr window) {
-    if (!window || !window->visible) return;
-
-    /* Content drawing is handled by the application */
-    /* Here we just ensure the content area is clipped properly */
-
-    if (window->contRgn) {
-        SetClip(window->contRgn);
-    }
-
-    /* Call the Finder's content drawing for folder windows */
-    if (window->refCon == 'DISK' || window->refCon == 'TRSH') {
-        extern void FolderWindowProc(WindowPtr window, short message, long param);
-        FolderWindowProc(window, 0, 0);  /* wDraw = 0 */
-    }
-}
 
 /* ============================================================================
  * Main Window Drawing Function - Draws Chrome Only
  * ============================================================================ */
 
 void DrawWindow(WindowPtr window) {
-    if (!window || !window->visible) return;
+    if (!window || !window->visible) {
+        serial_printf("WindowManager: DrawWindow - window NULL or not visible\n");
+        return;
+    }
 
     serial_printf("WindowManager: Drawing chrome for window '%s'\n",
                   window->titleHandle ? (char*)*window->titleHandle : "Untitled");
@@ -634,30 +618,4 @@ WindowPtr WM_GetPreviousWindow(WindowPtr window) {
 }
 
 /* FindWindow - Determine which part of the screen was clicked */
-short FindWindow(Point thePoint, WindowPtr* theWindow) {
-    extern void serial_printf(const char* fmt, ...);
-
-    if (theWindow) {
-        *theWindow = NULL;
-    }
-
-    /* Check menu bar first (top 20 pixels) */
-    if (thePoint.v >= 0 && thePoint.v < 20) {
-        serial_printf("FindWindow: Click in menu bar area at v=%d\n", thePoint.v);
-        return inMenuBar;
-    }
-
-    /* Check for window hits */
-    WindowPtr window = WM_FindWindowAt(thePoint);
-    if (window) {
-        if (theWindow) {
-            *theWindow = window;
-        }
-
-        /* For now, assume all window clicks are in content */
-        return inContent;
-    }
-
-    /* Default to desktop */
-    return inDesk;
-}
+/* [WM-050] FindWindow canonical implementation in WindowEvents.c - removed incomplete duplicate */

@@ -167,8 +167,6 @@ WindowPtr WM_GetPreviousWindow(WindowPtr window);
 /*
  * Window state management
  */
-void WM_SetWindowState(WindowPtr window, WindowState state);
-WindowState WM_GetWindowState(WindowPtr window);
 void WM_SaveWindowState(WindowPtr window);
 void WM_RestoreWindowState(WindowPtr window);
 
@@ -178,7 +176,6 @@ void WM_RestoreWindowState(WindowPtr window);
 void WM_InvalidateWindowsBelow(WindowPtr topWindow, const Rect* rect);
 void WM_UpdateWindowRegions(WindowPtr window);
 void WM_DrawWindowFrame(WindowPtr window);
-void WM_DrawWindowContent(WindowPtr window);
 void WM_DrawAllWindows(void);
 
 /*
@@ -201,6 +198,19 @@ void WM_ScheduleWindowUpdate(WindowPtr window, WindowUpdateFlags flags);
 void WM_CalculateWindowMetrics(WindowPtr window, short procID);
 void WM_AdjustWindowBounds(Rect* bounds, short procID);
 Boolean WM_ValidateWindowBounds(const Rect* bounds);
+
+/*
+ * Window parts and capabilities (WindowParts.c)
+ */
+Boolean WM_WindowHasGrowBox(WindowPtr window);
+Boolean WM_WindowHasZoomBox(WindowPtr window);
+Boolean WM_WindowIsZoomed(WindowPtr window);
+
+/*
+ * Window Definition Procedures (WDEF) (WindowParts.c)
+ */
+long WM_StandardWindowDefProc(short varCode, WindowPtr theWindow, short message, long param);
+long WM_DialogWindowDefProc(short varCode, WindowPtr theWindow, short message, long param);
 
 /*
  * Memory management helpers
@@ -241,6 +251,32 @@ void WM_Assert(Boolean condition, const char* message);
  * Internal Data Structures
  * ============================================================================ */
 
+/* Window Manager State - Full definition for internal use */
+struct WindowManagerState {
+    WMgrPort*       wMgrPort;          /* Window Manager graphics port */
+    CGrafPort*      wMgrCPort;         /* Window Manager color port */
+    WindowPtr       windowList;        /* Head of window list */
+    WindowPtr       activeWindow;      /* Currently active window */
+    AuxWinHandle    auxWinHead;        /* Auxiliary window list */
+    Pattern         desktopPattern;    /* Desktop pattern */
+    PixPatHandle    desktopPixPat;     /* Desktop pixel pattern (Color QD) */
+    short           nextWindowID;      /* Next window ID to assign */
+    Boolean         colorQDAvailable;  /* Color QuickDraw available */
+    Boolean         initialized;       /* Window Manager initialized */
+    void*           platformData;      /* Platform-specific data */
+    GrafPort        port;             /* Embedded GrafPort */
+    WindowPtr       ghostWindow;       /* Ghost window for dragging */
+    short           menuBarHeight;     /* Menu bar height */
+    RgnHandle       grayRgn;           /* Desktop gray region */
+    Pattern         deskPattern;       /* Alias for desktopPattern */
+    Boolean         isDragging;        /* Window drag in progress */
+    Point           dragOffset;        /* Drag offset from window origin */
+    Boolean         isGrowing;         /* Window resize in progress */
+};
+
+/* Access to Window Manager state */
+WindowManagerState* GetWindowManagerState(void);
+
 /* Extended window record for internal state tracking */
 
 /* Window update queue entry */
@@ -252,9 +288,6 @@ void WM_Assert(Boolean condition, const char* message);
  * ============================================================================ */
 
 /* Extended Window Manager state (internal) */
-
-/* Access to internal state */
-WindowManagerInternalState* WM_GetInternalState(void);
 
 /* ============================================================================
  * Utility Macros

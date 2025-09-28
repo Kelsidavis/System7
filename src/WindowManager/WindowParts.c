@@ -27,6 +27,15 @@
 #include "WindowManager/WindowManagerInternal.h"
 #include <math.h>
 
+/* [WM-031] File-local helpers; provenance: IM:Windows "Window Definition Procedures" */
+static short WM_DialogWindowHitTest(WindowPtr window, Point pt);
+
+/* [WM-038] WDEF Procedures from IM:Windows Vol I pp. 2-88 to 2-95 */
+long WM_StandardWindowDefProc(short varCode, WindowPtr theWindow, short message, long param);
+long WM_DialogWindowDefProc(short varCode, WindowPtr theWindow, short message, long param);
+
+/* [WM-054] WDEF constants now in canonical header */
+#include "WindowManager/WindowWDEF.h"
 
 /* ============================================================================
  * Window Part Geometry Constants
@@ -54,254 +63,13 @@ typedef enum {
  * Window Part Calculation Functions
  * ============================================================================ */
 
-void Platform_GetWindowFrameRect(WindowPtr window, Rect* frameRect) {
-    if (window == NULL || frameRect == NULL) return;
-
-    WM_DEBUG("Platform_GetWindowFrameRect: Calculating frame rectangle");
-
-    /* Start with content rectangle */
-    *frameRect = (window)->portRect;
-
-    /* Add title bar height */
-    frameRect->top -= TITLE_BAR_HEIGHT;
-
-    /* Add border width */
-    frameRect->left -= WINDOW_BORDER_WIDTH;
-    frameRect->right += WINDOW_BORDER_WIDTH;
-    frameRect->bottom += WINDOW_BORDER_WIDTH;
-
-    WM_DEBUG("Platform_GetWindowFrameRect: Frame = (%d, %d, %d, %d)",
-             frameRect->left, frameRect->top, frameRect->right, frameRect->bottom);
-}
-
-void Platform_GetWindowContentRect(WindowPtr window, Rect* contentRect) {
-    if (window == NULL || contentRect == NULL) return;
-
-    /* Content rectangle is the port rectangle */
-    *contentRect = (window)->portRect;
-
-    WM_DEBUG("Platform_GetWindowContentRect: Content = (%d, %d, %d, %d)",
-             contentRect->left, contentRect->top, contentRect->right, contentRect->bottom);
-}
-
-void Platform_GetWindowTitleBarRect(WindowPtr window, Rect* titleRect) {
-    if (window == NULL || titleRect == NULL) return;
-
-    WM_DEBUG("Platform_GetWindowTitleBarRect: Calculating title bar rectangle");
-
-    /* Title bar spans the full width above the content area */
-    titleRect->left = (window)->portRect.left - WINDOW_BORDER_WIDTH;
-    titleRect->right = (window)->portRect.right + WINDOW_BORDER_WIDTH;
-    titleRect->top = (window)->portRect.top - TITLE_BAR_HEIGHT;
-    titleRect->bottom = (window)->portRect.top;
-
-    WM_DEBUG("Platform_GetWindowTitleBarRect: Title bar = (%d, %d, %d, %d)",
-             titleRect->left, titleRect->top, titleRect->right, titleRect->bottom);
-}
-
-void Platform_GetWindowCloseBoxRect(WindowPtr window, Rect* closeRect) {
-    if (window == NULL || closeRect == NULL) return;
-
-    WM_DEBUG("Platform_GetWindowCloseBoxRect: Calculating close box rectangle");
-
-    if (!window->goAwayFlag) {
-        /* No close box - return empty rectangle */
-        WM_SetRect(closeRect, 0, 0, 0, 0);
-        return;
-    }
-
-    /* Close box is in the top-left of the title bar */
-    closeRect->left = (window)->portRect.left - WINDOW_BORDER_WIDTH + CLOSE_BOX_MARGIN;
-    closeRect->top = (window)->portRect.top - TITLE_BAR_HEIGHT +
-                     (TITLE_BAR_HEIGHT - CLOSE_BOX_SIZE) / 2;
-    closeRect->right = closeRect->left + CLOSE_BOX_SIZE;
-    closeRect->bottom = closeRect->top + CLOSE_BOX_SIZE;
-
-    WM_DEBUG("Platform_GetWindowCloseBoxRect: Close box = (%d, %d, %d, %d)",
-             closeRect->left, closeRect->top, closeRect->right, closeRect->bottom);
-}
-
-void Platform_GetWindowZoomBoxRect(WindowPtr window, Rect* zoomRect) {
-    if (window == NULL || zoomRect == NULL) return;
-
-    WM_DEBUG("Platform_GetWindowZoomBoxRect: Calculating zoom box rectangle");
-
-    /* Check if window supports zooming based on procID */
-    Boolean hasZoomBox = WM_WindowHasZoomBox(window);
-    if (!hasZoomBox) {
-        /* No zoom box - return empty rectangle */
-        WM_SetRect(zoomRect, 0, 0, 0, 0);
-        return;
-    }
-
-    /* Zoom box is in the top-right of the title bar */
-    zoomRect->right = (window)->portRect.right + WINDOW_BORDER_WIDTH - ZOOM_BOX_MARGIN;
-    zoomRect->left = zoomRect->right - ZOOM_BOX_SIZE;
-    zoomRect->top = (window)->portRect.top - TITLE_BAR_HEIGHT +
-                    (TITLE_BAR_HEIGHT - ZOOM_BOX_SIZE) / 2;
-    zoomRect->bottom = zoomRect->top + ZOOM_BOX_SIZE;
-
-    WM_DEBUG("Platform_GetWindowZoomBoxRect: Zoom box = (%d, %d, %d, %d)",
-             zoomRect->left, zoomRect->top, zoomRect->right, zoomRect->bottom);
-}
-
-void Platform_GetWindowGrowBoxRect(WindowPtr window, Rect* growRect) {
-    if (window == NULL || growRect == NULL) return;
-
-    WM_DEBUG("Platform_GetWindowGrowBoxRect: Calculating grow box rectangle");
-
-    /* Check if window supports growing based on procID */
-    Boolean hasGrowBox = WM_WindowHasGrowBox(window);
-    if (!hasGrowBox) {
-        /* No grow box - return empty rectangle */
-        WM_SetRect(growRect, 0, 0, 0, 0);
-        return;
-    }
-
-    /* Grow box is in the bottom-right corner of the content area */
-    growRect->right = (window)->portRect.right;
-    growRect->bottom = (window)->portRect.bottom;
-    growRect->left = growRect->right - GROW_BOX_SIZE;
-    growRect->top = growRect->bottom - GROW_BOX_SIZE;
-
-    WM_DEBUG("Platform_GetWindowGrowBoxRect: Grow box = (%d, %d, %d, %d)",
-             growRect->left, growRect->top, growRect->right, growRect->bottom);
-}
-
 /* ============================================================================
  * Window Part Hit Testing
  * ============================================================================ */
 
-short Platform_WindowHitTest(WindowPtr window, Point pt) {
-    if (window == NULL) return wNoHit;
-
-    WM_DEBUG("Platform_WindowHitTest: Testing point (%d, %d) in window", pt.h, pt.v);
-
-    /* Test window parts in order of precedence */
-
-    /* Check close box first */
-    if (window->goAwayFlag) {
-        Rect closeRect;
-        Platform_GetWindowCloseBoxRect(window, &closeRect);
-        if (WM_PtInRect(pt, &closeRect)) {
-            WM_DEBUG("Platform_WindowHitTest: Hit close box");
-            return wInGoAway;
-        }
-    }
-
-    /* Check zoom box */
-    if (WM_WindowHasZoomBox(window)) {
-        Rect zoomRect;
-        Platform_GetWindowZoomBoxRect(window, &zoomRect);
-        if (WM_PtInRect(pt, &zoomRect)) {
-            /* Determine zoom direction based on current window state */
-            if (WM_WindowIsZoomed(window)) {
-                WM_DEBUG("Platform_WindowHitTest: Hit zoom box (zoom out)");
-                return wInZoomOut;
-            } else {
-                WM_DEBUG("Platform_WindowHitTest: Hit zoom box (zoom in)");
-                return wInZoomIn;
-            }
-        }
-    }
-
-    /* Check grow box */
-    if (WM_WindowHasGrowBox(window)) {
-        Rect growRect;
-        Platform_GetWindowGrowBoxRect(window, &growRect);
-        if (WM_PtInRect(pt, &growRect)) {
-            WM_DEBUG("Platform_WindowHitTest: Hit grow box");
-            return wInGrow;
-        }
-    }
-
-    /* Check title bar (drag area) */
-    Rect titleRect;
-    Platform_GetWindowTitleBarRect(window, &titleRect);
-    if (WM_PtInRect(pt, &titleRect)) {
-        WM_DEBUG("Platform_WindowHitTest: Hit title bar");
-        return wInDrag;
-    }
-
-    /* Check content area */
-    if (window->contRgn && Platform_PtInRgn(pt, window->contRgn)) {
-        WM_DEBUG("Platform_WindowHitTest: Hit content area");
-        return wInContent;
-    }
-
-    /* Point is in structure but not in any specific part */
-    WM_DEBUG("Platform_WindowHitTest: Hit window frame");
-    return wInDrag; /* Default to drag for unknown areas */
-}
-
-Boolean Platform_PointInWindowPart(WindowPtr window, Point pt, short part) {
-    if (window == NULL) return false;
-
-    WM_DEBUG("Platform_PointInWindowPart: Testing point (%d, %d) for part %d",
-             pt.h, pt.v, part);
-
-    Rect partRect;
-    Boolean validPart = true;
-
-    switch (part) {
-        case wInGoAway:
-            Platform_GetWindowCloseBoxRect(window, &partRect);
-            break;
-        case wInZoomIn:
-        case wInZoomOut:
-            Platform_GetWindowZoomBoxRect(window, &partRect);
-            break;
-        case wInGrow:
-            Platform_GetWindowGrowBoxRect(window, &partRect);
-            break;
-        case wInDrag:
-            Platform_GetWindowTitleBarRect(window, &partRect);
-            break;
-        case wInContent:
-            Platform_GetWindowContentRect(window, &partRect);
-            break;
-        default:
-            validPart = false;
-            break;
-    }
-
-    if (!validPart) {
-        WM_DEBUG("Platform_PointInWindowPart: Invalid part %d", part);
-        return false;
-    }
-
-    Boolean result = WM_PtInRect(pt, &partRect);
-    WM_DEBUG("Platform_PointInWindowPart: Result = %s", result ? "true" : "false");
-    return result;
-}
-
 /* ============================================================================
  * Window Definition Procedure Support
  * ============================================================================ */
-
-Handle Platform_GetWindowDefProc(short procID) {
-    WM_DEBUG("Platform_GetWindowDefProc: Getting WDEF for procID %d", procID);
-
-    /* Return appropriate window definition procedure based on procID */
-    switch (procID) {
-        case documentProc:
-        case noGrowDocProc:
-        case zoomDocProc:
-        case zoomNoGrow:
-        case rDocProc:
-            return (Handle)WM_StandardWindowDefProc;
-
-        case dBoxProc:
-        case plainDBox:
-        case altDBoxProc:
-        case movableDBoxProc:
-            return (Handle)WM_DialogWindowDefProc;
-
-        default:
-            WM_DEBUG("Platform_GetWindowDefProc: Unknown procID %d, using standard", procID);
-            return (Handle)WM_StandardWindowDefProc;
-    }
-}
 
 /* ============================================================================
  * Window Definition Procedures
@@ -491,7 +259,7 @@ void WM_DrawDialogBorder(WindowPtr window) {
     if (window == NULL) return;
 
     /* Get content rectangle for dialog border */
-    Rect contentRect = (window)->portRect;
+    Rect contentRect = window->port.portRect;
 
     /* Dialogs have a simpler 3D-style border */
     /* TODO: Implement actual dialog border drawing when graphics system is available */
@@ -619,7 +387,8 @@ void WM_CalculateDialogWindowRegions(WindowPtr window, short varCode) {
     WM_DEBUG("WM_CalculateDialogWindowRegions: Calculating regions for dialog window");
 
     /* Dialogs have simpler region calculation */
-    Rect dialogRect = (window)->portRect;
+    /* [WM-032] IM:Windows p.2-13: WindowRecord embeds GrafPort; use port.portRect */
+    Rect dialogRect = window->port.portRect;
 
     /* Add border for structure region */
     Rect structRect = dialogRect;
@@ -679,10 +448,6 @@ void WM_CleanupWindowParts(WindowPtr window) {
  * Window Capability Queries
  * ============================================================================ */
 
-Boolean WM_WindowHasCloseBox(WindowPtr window) {
-    return (window != NULL && window->goAwayFlag);
-}
-
 Boolean WM_WindowHasZoomBox(WindowPtr window) {
     if (window == NULL) return false;
 
@@ -712,6 +477,7 @@ Boolean WM_WindowHasGrowBox(WindowPtr window) {
     return false;
 }
 
+/* [WM-035] Local zoom query; sources: IM:Windows "ZoomWindow" */
 Boolean WM_WindowIsZoomed(WindowPtr window) {
     if (window == NULL) return false;
 
@@ -724,7 +490,8 @@ Boolean WM_WindowIsZoomed(WindowPtr window) {
  * Dialog Window Hit Testing
  * ============================================================================ */
 
-short WM_DialogWindowHitTest(WindowPtr window, Point pt) {
+/* [WM-046] Used by WindowParts/WindowEvents; centralize later if shared */
+static short WM_DialogWindowHitTest(WindowPtr window, Point pt) {
     if (window == NULL) return wNoHit;
 
     WM_DEBUG("WM_DialogWindowHitTest: Testing point in dialog window");

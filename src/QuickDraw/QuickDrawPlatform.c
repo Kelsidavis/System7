@@ -329,3 +329,10 @@ void QDPlatform_NativeToRGB(UInt32 native, UInt16* red, UInt16* green, UInt16* b
     if (green) *green = ((native >> 8) & 0xFF) * 257;
     if (blue) *blue = (native & 0xFF) * 257;
 }
+/* QuickDraw Platform region drawing stub */
+/* Real implementation would render region outline/fill based on mode */
+void QDPlatform_DrawRegion(RgnHandle rgn, short mode) {
+    /* Stub - platform-specific region drawing */
+    (void)rgn;
+    (void)mode;
+}

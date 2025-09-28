@@ -79,7 +79,7 @@ void WM_IntersectRect(const Rect* src1, const Rect* src2, Rect* dst) {
 }
 
 /* Window validation helpers */
-Boolean WM_VALID_WINDOW(WindowPtr window) {
+Boolean WM_ValidateWindow(WindowPtr window) {
     if (!window) return false;
 
     /* Check if window is in the window list */
@@ -92,50 +92,25 @@ Boolean WM_VALID_WINDOW(WindowPtr window) {
     return false;
 }
 
-Boolean WM_VALID_RECT(const Rect* rect) {
+Boolean WM_ValidateRect(const Rect* rect) {
     if (!rect) return false;
     return (rect->right > rect->left && rect->bottom > rect->top);
 }
 
 /* Window geometry helpers */
-short WM_RECT_WIDTH(const Rect* rect) {
+short WM_GetRectWidth(const Rect* rect) {
     if (!rect) return 0;
     return rect->right - rect->left;
 }
 
-short WM_RECT_HEIGHT(const Rect* rect) {
+short WM_GetRectHeight(const Rect* rect) {
     if (!rect) return 0;
     return rect->bottom - rect->top;
 }
 
-/* Window state management */
-void* WM_CreateWindowStateData(WindowPtr window) {
-    /* Allocate window-specific state data if needed */
-    return NULL;
-}
-
-void* WM_GetWindowStateData(WindowPtr window) {
-    if (!window) return NULL;
-    /* Return window-specific state data */
-    return NULL;
-}
-
-void WM_UpdateWindowUserState(WindowPtr window) {
-    if (!window) return;
-    /* Update user state for window */
-}
-
-/* Window standard state calculation */
-void WM_CalculateStandardState(WindowPtr window, Rect* stdState) {
-    if (!window || !stdState) return;
-
-    /* Calculate standard (zoomed) state for window */
-    /* For now, just use screen bounds minus menu bar */
-    stdState->left = 10;
-    stdState->top = 30;  /* Below menu bar */
-    stdState->right = qd.screenBits.bounds.right - 10;
-    stdState->bottom = qd.screenBits.bounds.bottom - 10;
-}
+/* Window state management - Generic stubs */
+/* [WM-017] Note: These are generic stubs. WindowResizing.c has typed versions */
+/* These exist for compatibility but should not conflict with file-local implementations */
 
 /* Window constraints */
 void WM_ConstrainToScreen(Rect* rect) {
@@ -187,7 +162,7 @@ short GetPascalStringLength(const unsigned char* str) {
 extern void CopyPascalString(const unsigned char* src, unsigned char* dst);
 
 /* Debug output macros implementation */
-void WM_DEBUG(const char* fmt, ...) {
+void WM_DebugPrint(const char* fmt, ...) {
 #ifdef DEBUG_WINDOW_MANAGER
     serial_printf("WM_DEBUG: ");
     /* Would need proper varargs handling here */
@@ -195,7 +170,7 @@ void WM_DEBUG(const char* fmt, ...) {
 #endif
 }
 
-void WM_ERROR(const char* fmt, ...) {
+void WM_ErrorPrint(const char* fmt, ...) {
     serial_printf("WM_ERROR: ");
     /* Would need proper varargs handling here */
     serial_printf("%s\n", fmt);
@@ -504,21 +479,5 @@ void WM_DisableWindowsBehindModal(WindowPtr modalWindow) {
     }
 }
 
-void WM_EnableAllWindows(void) {
-    WindowManagerState* wmState = GetWindowManagerState();
-    WindowPtr window = wmState->windowList;
-
-    while (window) {
-        Platform_EnableWindow(window);
-        window = window->nextWindow;
-    }
-}
-
-/* Window definition procedures */
-Handle WM_StandardWindowDefProc(void) {
-    return Platform_GetWindowDefProc(documentProc);
-}
-
-Handle WM_DialogWindowDefProc(void) {
-    return Platform_GetWindowDefProc(dBoxProc);
-}
+/* [WM-050] WM_EnableAllWindows moved to WindowLayering.c to avoid duplication */
+/* [WM-050] WDEF procedures moved to WindowParts.c with proper signatures */

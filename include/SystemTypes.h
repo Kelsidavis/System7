@@ -475,6 +475,7 @@ typedef struct WindowRecord {
     struct WindowRecord* nextWindow;
     Handle        windowPic;
     SInt32        refCon;
+    RgnHandle     visRgn;
 } WindowRecord;
 
 typedef WindowRecord* WindowPeek;
@@ -484,7 +485,7 @@ typedef WindowRecord* WindowPeek;
 #define kUpdateAll      2
 #define kUpdateFrame    4
 #define kUpdateContent  8
-#define wDraw          0
+/* [WM-054] wDraw and other WDEF messages now in WindowManager/WindowWDEF.h */
 #define wNoHit         0
 #define wInContent     1
 #define wInDrag        2
@@ -1835,8 +1836,7 @@ typedef CWindowRecord* CWindowPtr;
 /* Window Manager port type */
 typedef GrafPort WMgrPort;
 
-/* Window kinds */
-#define userKind 8  /* User window */
+/* [WM-055] Window kind constants now in WindowManager/WindowKinds.h */
 
 /* Update flags for windows */
 #define kUpdateTitle    1

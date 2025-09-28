@@ -27,6 +27,29 @@
 #include "WindowManager/WindowManagerInternal.h"
 #include <math.h>
 
+/* [WM-017] Forward declarations for file-local helpers */
+/* Provenance: Standard C practice for static functions called before definition */
+typedef struct WindowStateData WindowStateData;
+typedef struct ResizeState ResizeState;
+static void WM_InitializeResizeState(WindowPtr window, Point startPt, const Rect* bBox);
+static void WM_CleanupResizeState(void);
+static void WM_InitializeSnapSizes(WindowPtr window);
+static void WM_AddSnapSize(short width, short height);
+static long WM_CalculateNewSize(Point currentPt);
+static Point WM_ApplySnapToSize(short width, short height);
+static void WM_StartResizeFeedback(void);
+static void WM_UpdateResizeFeedback(long newSize);
+static void WM_EndResizeFeedback(void);
+static WindowStateData* WM_GetWindowStateData(WindowPtr window);
+static WindowStateData* WM_CreateWindowStateData(WindowPtr window);
+static void WM_CalculateStandardState(WindowPtr window, Rect* stdState);
+static void WM_UpdateWindowUserState(WindowPtr window);
+static Boolean WM_ValidateStateChecksum(WindowStateData* stateData);
+static void WM_UpdateStateChecksum(WindowStateData* stateData);
+static long WM_CalculateStateChecksum(WindowStateData* stateData);
+static void WM_AnimateZoom(WindowPtr window, const Rect* fromBounds, const Rect* toBounds);
+static void WM_InterpolateRect(const Rect* fromRect, const Rect* toRect, int step, int steps, Rect* result);
+static void WM_GenerateResizeUpdateEvents(WindowPtr window, short oldWidth, short oldHeight, short newWidth, short newHeight);
 
 /* ============================================================================
  * Resizing Constants and Configuration
@@ -92,7 +115,8 @@ void SizeWindow(WindowPtr theWindow, short w, short h, Boolean fUpdate) {
     if (h > MAX_RESIZE_HEIGHT) h = MAX_RESIZE_HEIGHT;
 
     /* Check if size actually needs to change */
-    Rect currentBounds = (theWindow)->portRect;
+    /* [WM-009] IM:Windows p.2-13: WindowRecord first field is GrafPort */
+    Rect currentBounds = theWindow->port.portRect;
     short currentWidth = currentBounds.right - currentBounds.left;
     short currentHeight = currentBounds.bottom - currentBounds.top;
 
@@ -248,7 +272,8 @@ void ZoomWindow(WindowPtr theWindow, short partCode, Boolean front) {
             targetBounds = stateData->userState;
         } else {
             /* Use current bounds as user state */
-            targetBounds = (theWindow)->portRect;
+            /* [WM-009] Provenance: IM:Windows p.2-13 */
+            targetBounds = theWindow->port.portRect;
         }
         stateData->isZoomed = false;
         WM_DEBUG("ZoomWindow: Zooming out to user state");
@@ -266,13 +291,15 @@ void ZoomWindow(WindowPtr theWindow, short partCode, Boolean front) {
 
     /* Save current state as appropriate */
     if (!shouldZoomOut && !stateData->hasUserState) {
-        stateData->userState = (theWindow)->portRect;
+        /* [WM-009] Provenance: IM:Windows p.2-13 */
+        stateData->userState = theWindow->port.portRect;
         stateData->hasUserState = true;
     }
 
     /* Perform zoom animation */
     if (Platform_IsZoomAnimationEnabled()) {
-        WM_AnimateZoom(theWindow, &(theWindow)->portRect, &targetBounds);
+        /* [WM-009] Provenance: IM:Windows p.2-13 */
+        WM_AnimateZoom(theWindow, &theWindow->port.portRect, &targetBounds);
     }
 
     /* Apply final size and position */
@@ -307,7 +334,8 @@ static void WM_InitializeResizeState(WindowPtr window, Point startPt, const Rect
     g_resizeState.window = window;
     g_resizeState.startPoint = startPt;
     g_resizeState.currentPoint = startPt;
-    g_resizeState.originalBounds = (window)->portRect;
+    /* [WM-009] Provenance: IM:Windows p.2-13 */
+    g_resizeState.originalBounds = window->port.portRect;
     g_resizeState.active = true;
     g_resizeState.hasMoved = false;
     g_resizeState.showFeedback = Platform_IsResizeFeedbackEnabled();
@@ -507,7 +535,8 @@ static WindowStateData* WM_CreateWindowStateData(WindowPtr window) {
     if (stateData == NULL) return NULL;
 
     /* Initialize with current window bounds */
-    stateData->userState = (window)->portRect;
+    /* [WM-009] Provenance: IM:Windows p.2-13 */
+    stateData->userState = window->port.portRect;
     stateData->hasUserState = true;
     stateData->hasStdState = false;
     stateData->isZoomed = false;
@@ -544,9 +573,10 @@ static void WM_CalculateStandardState(WindowPtr window, Rect* stdState) {
               screenBounds.top + topMargin + stdHeight);
 
     /* Adjust for menu bar */
+    /* [WM-011] Provenance: IM:Toolbox Essentials p.3-8 - menu bar height is 20 pixels */
     WindowManagerState* wmState = GetWindowManagerState();
-    if (wmState->wMgrPort) {
-        stdState->top += wmState->wMgrPort->menuBarHeight;
+    if (wmState && wmState->menuBarHeight > 0) {
+        stdState->top += wmState->menuBarHeight;
     }
 
     WM_DEBUG("WM_CalculateStandardState: Standard state = (%d, %d, %d, %d)",
@@ -559,7 +589,8 @@ static void WM_UpdateWindowUserState(WindowPtr window) {
 
     /* Update user state only if window is not currently zoomed */
     if (!stateData->isZoomed) {
-        stateData->userState = (window)->portRect;
+        /* [WM-009] Provenance: IM:Windows p.2-13 */
+        stateData->userState = window->port.portRect;
         stateData->hasUserState = true;
         WM_UpdateStateChecksum(stateData);
         WM_DEBUG("WM_UpdateWindowUserState: Updated user state");
@@ -583,11 +614,12 @@ static long WM_CalculateStateChecksum(WindowStateData* stateData) {
     if (stateData == NULL) return 0;
 
     /* Simple checksum based on state data */
+    /* [WM-018] Window state validation */
     long checksum = 0x12345678; /* Magic number */
-    checksum ^= (stateData)->left;
-    checksum ^= (stateData)->top << 8;
-    checksum ^= (stateData)->right << 16;
-    checksum ^= (stateData)->bottom << 24;
+    checksum ^= stateData->userState.left;
+    checksum ^= stateData->userState.top << 8;
+    checksum ^= stateData->userState.right << 16;
+    checksum ^= stateData->userState.bottom << 24;
     checksum ^= stateData->isZoomed ? 0xAAAAAAAA : 0x55555555;
 
     return checksum;

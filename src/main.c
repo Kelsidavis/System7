@@ -1812,9 +1812,11 @@ void kernel_main(uint32_t magic, uint32_t* mb2_info) {
     EventRecord event;
 
     /* Initial desktop draw */
-    serial_puts("MAIN: About to call WM_Update\n");
-    WM_Update();    /* Draw the desktop directly */
-    serial_puts("MAIN: WM_Update returned\n");
+    /* WM_Update was a bootstrap function, now quarantined. TODO: Use real Toolbox APIs */
+    serial_puts("MAIN: Desktop init complete\n");
+    /* serial_puts("MAIN: About to call WM_Update\n"); */
+    /* WM_Update(); */    /* Draw the desktop directly */
+    /* serial_puts("MAIN: WM_Update returned\n"); */
 
     /* Draw the volume and trash icons */
     extern void DrawVolumeIcon(void);
@@ -2022,10 +2024,10 @@ void kernel_main(uint32_t magic, uint32_t* mb2_info) {
             movement_count++;
             if (movement_count > 10000) {  /* Redraw desktop every 10000 movements (basically never during normal use) */
                 serial_printf("MAIN: Full redraw after %d movements\n", movement_count);
-                WM_Update();  /* Full redraw */
+                /* WM_Update();  */ /* Full redraw - WM_Update quarantined, TODO: Use real Toolbox APIs */
                 /* Cursor will be redrawn on next movement */
                 movement_count = 0;
-                cursor_saved = false;  /* Force redraw after WM_Update */
+                /* cursor_saved = false; */ /* Force redraw after WM_Update */
             }
         }
 #endif /* End of disabled cursor drawing */

@@ -1,4 +1,23 @@
-/* System 7.1 Stubs for linking */
+/*
+ * System 7.1 Stubs for linking
+ *
+ * [WM-050] Naming clarification: SYS71_PROVIDE_FINDER_TOOLBOX
+ *
+ * When SYS71_PROVIDE_FINDER_TOOLBOX is defined (=1), this means:
+ *   DO NOT provide Toolbox stubs; real implementations exist and should be used.
+ *
+ * Stubs wrapped in #if !defined(SYS71_STUBS_DISABLED) are excluded when
+ * SYS71_PROVIDE_FINDER_TOOLBOX is defined, ensuring single source of truth per symbol.
+ *
+ * When the flag is NOT defined (bootstrap builds), stubs are included to
+ * satisfy linker requirements until real implementations are integrated.
+ */
+
+/* Lock stub switch: single knob to disable all quarantined stubs */
+#ifdef SYS71_PROVIDE_FINDER_TOOLBOX
+#define SYS71_STUBS_DISABLED 1
+#endif
+
 #include "../include/MacTypes.h"
 #include "../include/QuickDraw/QuickDraw.h"
 #include "../include/QuickDraw/QDRegions.h"
@@ -43,7 +62,18 @@ void InitFonts(void) {
     /* Stub implementation */
 }
 
-/* Window Manager functions provided by WindowManagerCore.c and WindowDisplay.c */
+/* [WM-050] Window Manager stub quarantine
+ * Provenance: IM:Windows Vol I - real implementations in WindowDisplay.c, WindowEvents.c, WindowResizing.c
+ * Policy: Stubs compile only if SYS71_PROVIDE_FINDER_TOOLBOX is undefined
+ * Real WM always wins; no dual definitions
+ */
+#if !defined(SYS71_STUBS_DISABLED)
+
+void DrawWindow(WindowPtr window) {
+    /* Window chrome is drawn automatically by ShowWindow/SelectWindow */
+    /* This stub exists for DialogManager compatibility */
+}
+#endif /* !SYS71_PROVIDE_FINDER_TOOLBOX */
 
 void DrawControls(WindowPtr window) {
     /* Stub implementation */
@@ -328,6 +358,7 @@ void TEInit(void) {
 }
 
 /* Window stubs for functions not yet implemented elsewhere */
+#if !defined(SYS71_STUBS_DISABLED)
 void InitWindows(void) {
     serial_printf("InitWindows: Initializing window manager\n");
 
@@ -342,6 +373,7 @@ void InitWindows(void) {
         serial_printf("InitWindows: Creating default desktop port\n");
     }
 }
+
 WindowPtr NewWindow(void* storage, const Rect* boundsRect, ConstStr255Param title,
                     Boolean visible, short procID, WindowPtr behind, Boolean goAwayFlag,
                     long refCon) {
@@ -421,6 +453,7 @@ WindowPtr NewWindow(void* storage, const Rect* boundsRect, ConstStr255Param titl
     serial_printf("NewWindow: Created window at %p\n", window);
     return window;
 }
+
 void DisposeWindow(WindowPtr window) {
     if (!window) {
         serial_printf("DisposeWindow: NULL window\n");
@@ -518,6 +551,7 @@ void DragWindow(WindowPtr window, Point startPt, const Rect* boundsRect) {
     serial_printf("DragWindow: Ended at (%d,%d)\n", currentPt.h, currentPt.v);
 #endif /* End of disabled polling loop */
 }
+
 void MoveWindow(WindowPtr window, short h, short v, Boolean front) {
     if (!window) return;
 
@@ -534,7 +568,9 @@ void MoveWindow(WindowPtr window, short h, short v, Boolean front) {
         SelectWindow(window);
     }
 }
+#endif /* !SYS71_PROVIDE_FINDER_TOOLBOX */
 
+#if !defined(SYS71_STUBS_DISABLED)
 void CloseWindow(WindowPtr window) {
     if (!window) {
         serial_printf("CloseWindow: NULL window\n");
@@ -549,6 +585,9 @@ void CloseWindow(WindowPtr window) {
     /* Generate close event if needed */
     /* DisposeWindow handles actual disposal */
 }
+#endif /* !SYS71_PROVIDE_FINDER_TOOLBOX */
+
+#if !defined(SYS71_STUBS_DISABLED)
 void ShowWindow(WindowPtr window) {
     if (!window) {
         serial_printf("ShowWindow: NULL window\n");
@@ -621,6 +660,7 @@ WindowPtr FrontWindow(void) {
 
     return NULL;
 }
+#endif /* !SYS71_PROVIDE_FINDER_TOOLBOX */
 void SetWTitle(WindowPtr window, ConstStr255Param title) {
     if (!window) {
         serial_printf("SetWTitle: NULL window\n");
@@ -654,6 +694,7 @@ void SetWTitle(WindowPtr window, ConstStr255Param title) {
     extern void InvalRect(const Rect* rect);
     InvalRect(&titleBar);
 }
+#if !defined(SYS71_STUBS_DISABLED)
 void DrawGrowIcon(WindowPtr window) {
     if (!window) {
         serial_printf("DrawGrowIcon: NULL window\n");
@@ -678,6 +719,7 @@ void DrawGrowIcon(WindowPtr window) {
     extern void FrameRect(const Rect* r);
     FrameRect(&growRect);
 }
+#endif /* !SYS71_PROVIDE_FINDER_TOOLBOX */
 void WM_UpdateWindowVisibility(WindowPtr window) {
     if (!window) {
         serial_printf("WM_UpdateWindowVisibility: NULL window\n");
@@ -695,6 +737,7 @@ void WM_UpdateWindowVisibility(WindowPtr window) {
     }
 }
 
+#if !defined(SYS71_STUBS_DISABLED)
 short FindWindow(Point thePt, WindowPtr *window) {
     extern void serial_printf(const char* fmt, ...);
 
@@ -713,6 +756,7 @@ short FindWindow(Point thePt, WindowPtr *window) {
     /* Default to desktop */
     return inDesk;
 }
+#endif /* !SYS71_PROVIDE_FINDER_TOOLBOX */
 
 /* DragWindow is implemented in WindowManager/WindowDragging.c
 void DragWindow(WindowPtr window, Point startPt, const Rect* limitRect) {
@@ -889,6 +933,7 @@ OSErr CloseFinderWindow(WindowPtr window) {
     return noErr;
 }
 
+#if !defined(SYS71_STUBS_DISABLED)
 Boolean TrackGoAway(WindowPtr window, Point pt) {
     return false;
 }
@@ -900,6 +945,7 @@ Boolean TrackBox(WindowPtr window, Point pt, SInt16 part) {
 void ZoomWindow(WindowPtr window, SInt16 part, Boolean front) {
     /* Stub */
 }
+#endif /* !SYS71_PROVIDE_FINDER_TOOLBOX */
 
 void DoUpdate(WindowPtr window) {
     /* Stub */
@@ -1004,15 +1050,18 @@ SInt16 LoWord(SInt32 x) {
     return x & 0xFFFF;
 }
 
+#if !defined(SYS71_STUBS_DISABLED)
 void InvalRect(const Rect* badRect) {
     /* Stub */
 }
+#endif /* !SYS71_PROVIDE_FINDER_TOOLBOX */
 
 OSErr ScanDirectoryForDesktopEntries(SInt16 vRefNum, SInt32 dirID, SInt16 databaseRefNum) {
     return noErr;
 }
 
-/* Region Manager stubs */
+/* [WM-053] QuickDraw Region stubs - only for bootstrap, real implementations in QuickDraw/Regions.c */
+#if !defined(SYS71_STUBS_DISABLED)
 RgnHandle NewRgn(void) {
     static Region dummyRegion;
     static Region* regionPtr = &dummyRegion;
@@ -1031,6 +1080,13 @@ void RectRgn(RgnHandle rgn, const Rect* r) {
     }
 }
 
+void SetRectRgn(RgnHandle rgn, short left, short top, short right, short bottom) {
+    if (rgn && *rgn) {
+        SetRect(&(*rgn)->rgnBBox, left, top, right, bottom);
+        (*rgn)->rgnSize = sizeof(Region);
+    }
+}
+
 void CopyRgn(RgnHandle srcRgn, RgnHandle dstRgn) {
     if (srcRgn && dstRgn && *srcRgn && *dstRgn) {
         **dstRgn = **srcRgn;
@@ -1043,6 +1099,7 @@ void SetEmptyRgn(RgnHandle rgn) {
         (*rgn)->rgnSize = sizeof(Region);
     }
 }
+#endif /* !SYS71_PROVIDE_FINDER_TOOLBOX */
 
 /* Standard library functions moved to System71StdLib.c:
  * sprintf, __assert_fail, strlen, abs
@@ -1106,6 +1163,8 @@ extern QDGlobals qd;
 extern void* framebuffer;
 
 /* Window Manager update pipeline functions */
+/* [WM-053] WM_Update also needs Region Manager, so quarantine with other stubs */
+#if !defined(SYS71_STUBS_DISABLED)
 void WM_Update(void) {
     /* Create a screen port if qd.thePort is NULL */
     static GrafPort screenPort;
@@ -1251,7 +1310,10 @@ void WM_Update(void) {
 
     SetPort(savePort);
 }
+#endif /* !SYS71_PROVIDE_FINDER_TOOLBOX */
 
+/* [WM-050] Stub quarantine: real BeginUpdate/EndUpdate in WindowEvents.c */
+#if !defined(SYS71_STUBS_DISABLED)
 void BeginUpdate(WindowPtr theWindow) {
     /* Stub - would save port and set up clipping */
 }
@@ -1259,12 +1321,14 @@ void BeginUpdate(WindowPtr theWindow) {
 void EndUpdate(WindowPtr theWindow) {
     /* Stub - would restore port and clear update region */
 }
+#endif /* !SYS71_PROVIDE_FINDER_TOOLBOX */
 
 void SetDeskHook(DeskHookProc proc) {
     g_deskHook = proc;
 }
 
-/* QuickDraw region drawing functions */
+/* [WM-053] QuickDraw region drawing functions - real implementations in QuickDraw/Regions.c */
+#if !defined(SYS71_STUBS_DISABLED)
 void FillRgn(RgnHandle rgn, ConstPatternParam pat) {
     /* Stub - would fill region with pattern */
 }
@@ -1273,3 +1337,7 @@ Boolean RectInRgn(const Rect *r, RgnHandle rgn) {
     /* Stub - check if rectangle intersects region */
     return true;
 }
+#endif /* !SYS71_PROVIDE_FINDER_TOOLBOX */
+
+/* sqrt() moved to System71StdLib.c */
+/* QDPlatform_DrawRegion() moved to QuickDraw/QuickDrawPlatform.c */

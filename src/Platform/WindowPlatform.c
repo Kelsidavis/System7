@@ -5,6 +5,7 @@
 
 #include "MacTypes.h"
 #include "WindowManager/WindowManager.h"
+#include "WindowManager/WindowManagerInternal.h"
 #include "QuickDraw/QuickDraw.h"
 
 /* External framebuffer and QuickDraw globals */
@@ -113,8 +114,8 @@ void Platform_UpdateWindowColors(WindowPtr window) {
 }
 
 /* Initialize port */
-void Platform_InitializePort(GrafPtr port) {
-    if (!port) return;
+Boolean Platform_InitializePort(GrafPtr port) {
+    if (!port) return false;
 
     /* Basic port initialization */
     port->portBits.baseAddr = (Ptr)framebuffer;
@@ -143,19 +144,21 @@ void Platform_InitializePort(GrafPtr port) {
     port->pnMode = 8; /* patCopy */
     port->pnPat = qd.black;
     port->pnVis = 0;
+    return false;
 }
 
 /* Get screen bounds */
-void Platform_GetScreenBounds(RgnHandle rgn) {
-    Rect screenBounds;
-    SetRect(&screenBounds, 0, 0, fb_width, fb_height);
-    RectRgn(rgn, &screenBounds);
+void Platform_GetScreenBounds(Rect* bounds) {
+    if (bounds) {
+        SetRect(bounds, 0, 0, fb_width, fb_height);
+    }
 }
 
 /* Initialize color port */
-void Platform_InitializeColorPort(CGrafPtr port) {
+Boolean Platform_InitializeColorPort(CGrafPtr port) {
     /* Just use regular port initialization */
     Platform_InitializePort((GrafPtr)port);
+    return false;
 }
 
 /* Create standard gray pattern */
@@ -170,9 +173,24 @@ RgnHandle Platform_NewRgn(void) {
 
 /* Get window definition procedure */
 Handle Platform_GetWindowDefProc(short procID) {
-    /* Window definition procedures not implemented yet */
-    static char dummy = 0;
-    return (Handle)&dummy;
+    /* [WM-039] WDEF dispatch - IM:Windows Vol I pp. 2-88 to 2-95 */
+    switch (procID) {
+        case documentProc:
+        case noGrowDocProc:
+        case zoomDocProc:
+        case zoomNoGrow:
+        case rDocProc:
+            return (Handle)WM_StandardWindowDefProc;
+
+        case dBoxProc:
+        case plainDBox:
+        case altDBoxProc:
+        case movableDBoxProc:
+            return (Handle)WM_DialogWindowDefProc;
+
+        default:
+            return (Handle)WM_StandardWindowDefProc;
+    }
 }
 
 /* WM_ScheduleWindowUpdate is now in WindowDisplay.c */
@@ -197,7 +215,7 @@ void Platform_EndWindowDraw(WindowPtr window) {
     /* Nothing to do in our implementation */
 }
 
-void Platform_PostWindowEvent(WindowPtr window, short eventType) {
+void Platform_PostWindowEvent(WindowPtr window, short eventType, long eventData) {
     /* Event posting not implemented yet */
 }
 
@@ -241,20 +259,11 @@ Boolean Platform_PtInRgn(Point pt, RgnHandle rgn) {
             pt.v >= (*rgn)->rgnBBox.top && pt.v < (*rgn)->rgnBBox.bottom);
 }
 
-void Platform_ShowNativeWindow(WindowPtr window) {
+void Platform_ShowNativeWindow(WindowPtr window, Boolean show) {
     /* No native window system - visibility handled by Window Manager */
 }
 
-void WM_InvalidateWindowsBelow(WindowPtr window) {
-    /* Mark windows below as needing redraw */
-    WindowPtr w = window ? window->nextWindow : NULL;
-    while (w) {
-        if (w->visible && w->updateRgn) {
-            RectRgn(w->updateRgn, &w->port.portRect);
-        }
-        w = w->nextWindow;
-    }
-}
+/* [WM-051] WM_InvalidateWindowsBelow moved to WindowLayering.c - no WM_ symbols in Platform */
 
 void Platform_BringNativeWindowToFront(WindowPtr window) {
     /* No native window system - ordering handled by Window Manager */
@@ -422,11 +431,9 @@ void Platform_CopyRgn(RgnHandle src, RgnHandle dst) {
     }
 }
 
-void Platform_SetRectRgn(RgnHandle rgn, short left, short top, short right, short bottom) {
-    if (rgn && *rgn) {
-        Rect r;
-        SetRect(&r, left, top, right, bottom);
-        RectRgn(rgn, &r);
+void Platform_SetRectRgn(RgnHandle rgn, const Rect* rect) {
+    if (rgn && *rgn && rect) {
+        RectRgn(rgn, rect);
     }
 }
 

@@ -316,9 +316,9 @@ WindowPtr Finder_OpenDesktopItem(Boolean isTrash, ConstStr255Param title)
     extern void DrawFolderWindowContents(WindowPtr w, Boolean isTrash);
 
     static Rect r;
-    r.left = 120;
+    r.left = 10;
     r.top = 80;
-    r.right = 600;
+    r.right = 490;
     r.bottom = 420;
 
     serial_printf("[WIN_OPEN] Starting, isTrash=%d\n", isTrash);
@@ -338,22 +338,8 @@ WindowPtr Finder_OpenDesktopItem(Boolean isTrash, ConstStr255Param title)
     serial_printf("[WIN_OPEN] Calling SelectWindow\n");
     SelectWindow(w);
 
-    /* Paint window contents immediately so user sees something */
-    GrafPtr savePort;
-    GetPort(&savePort);
-    SetPort(w);
-
-    serial_printf("[WIN_OPEN] Calling BeginUpdate\n");
-    /* Call BeginUpdate/EndUpdate to properly paint window */
-    BeginUpdate(w);
-
-    serial_printf("[WIN_OPEN] Calling DrawFolderWindowContents\n");
-    DrawFolderWindowContents(w, isTrash);
-
-    serial_printf("[WIN_OPEN] Calling EndUpdate\n");
-    EndUpdate(w);
-
-    SetPort(savePort);
+    /* Window Manager draws chrome automatically via ShowWindow */
+    /* Content will be drawn via update event handled by DoUpdate() */
 
     serial_printf("[WIN_OPEN] Complete, window created\n");
     return w;

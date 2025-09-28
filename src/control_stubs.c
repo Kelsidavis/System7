@@ -3,6 +3,11 @@
  * Provides minimal implementations for missing functions
  */
 
+/* Lock stub switch: single knob to disable all quarantined stubs */
+#ifdef SYS71_PROVIDE_FINDER_TOOLBOX
+#define SYS71_STUBS_DISABLED 1
+#endif
+
 #include "SystemTypes.h"
 #include "ControlManager/ControlManager.h"
 #include "WindowManager/WindowManager.h"
@@ -75,7 +80,8 @@ ControlHandle LoadControlFromResource(SInt16 controlID, WindowPtr owner) {
     return NULL;
 }
 
-/* QuickDraw stubs */
+/* [WM-053] QuickDraw region functions - real implementations in QuickDraw/Regions.c */
+#if !defined(SYS71_STUBS_DISABLED)
 void EraseRgn(RgnHandle rgn) {
     if (!rgn) return;
 
@@ -123,6 +129,7 @@ void EraseRgn(RgnHandle rgn) {
         EraseRect(r);
     }
 }
+#endif /* !SYS71_PROVIDE_FINDER_TOOLBOX */
 
 void RGBBackColor(const RGBColor* color) {
     /* Would set the RGB background color */

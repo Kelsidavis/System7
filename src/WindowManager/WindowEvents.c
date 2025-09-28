@@ -21,6 +21,12 @@
 #include "WindowManager/WindowManager.h"
 #include "WindowManager/WindowManagerInternal.h"
 
+/* Forward declarations for internal helpers */
+static Boolean WM_IsMouseDown(void);
+static GrafPtr WM_GetCurrentPort(void);
+static GrafPtr WM_GetUpdatePort(WindowPtr window);
+static Boolean WM_EmptyRgn(RgnHandle rgn);
+
 
 /* ============================================================================
  * Window Hit Testing and Finding
@@ -36,7 +42,7 @@ short FindWindow(Point thePoint, WindowPtr* theWindow) {
     WindowManagerState* wmState = GetWindowManagerState();
 
     /* Check menu bar first */
-    if (wmState->wMgrPort && thePoint.v < wmState->wMgrPort->menuBarHeight) {
+    if (wmState->wMgrPort && thePoint.v < 20) {  /* Menu bar height = 20 pixels */
         WM_DEBUG("FindWindow: Hit in menu bar");
         return inMenuBar;
     }
@@ -146,7 +152,7 @@ Boolean TrackBox(WindowPtr theWindow, Point thePt, short partCode) {
     while (mouseDown) {
         /* Get current mouse position and button state */
         /* TODO: Get actual mouse state from platform */
-        mouseDown = Platform_IsMouseDown();
+        mouseDown = WM_IsMouseDown();
         if (mouseDown) {
             Platform_GetMousePosition(&currentPt);
         }
@@ -192,7 +198,7 @@ void InvalRect(const Rect* badRect) {
              badRect->left, badRect->top, badRect->right, badRect->bottom);
 
     /* Get current graphics port */
-    GrafPtr currentPort = Platform_GetCurrentPort();
+    GrafPtr currentPort = WM_GetCurrentPort();
     if (currentPort == NULL) return;
 
     /* Assume current port is a window */
@@ -220,7 +226,7 @@ void InvalRgn(RgnHandle badRgn) {
     WM_DEBUG("InvalRgn: Invalidating region");
 
     /* Get current graphics port */
-    GrafPtr currentPort = Platform_GetCurrentPort();
+    GrafPtr currentPort = WM_GetCurrentPort();
     if (currentPort == NULL) return;
 
     /* Assume current port is a window */
@@ -247,7 +253,7 @@ void ValidRect(const Rect* goodRect) {
              goodRect->left, goodRect->top, goodRect->right, goodRect->bottom);
 
     /* Get current graphics port */
-    GrafPtr currentPort = Platform_GetCurrentPort();
+    GrafPtr currentPort = WM_GetCurrentPort();
     if (currentPort == NULL) return;
 
     /* Assume current port is a window */
@@ -272,7 +278,7 @@ void ValidRgn(RgnHandle goodRgn) {
     WM_DEBUG("ValidRgn: Validating region");
 
     /* Get current graphics port */
-    GrafPtr currentPort = Platform_GetCurrentPort();
+    GrafPtr currentPort = WM_GetCurrentPort();
     if (currentPort == NULL) return;
 
     /* Assume current port is a window */
@@ -296,7 +302,7 @@ void BeginUpdate(WindowPtr theWindow) {
     WM_DEBUG("BeginUpdate: Beginning window update");
 
     /* Save current port */
-    GrafPtr savePort = Platform_GetCurrentPort();
+    GrafPtr savePort = WM_GetCurrentPort();
     Platform_SetUpdatePort(theWindow, savePort);
 
     /* Set port to window */
@@ -306,10 +312,10 @@ void BeginUpdate(WindowPtr theWindow) {
     Platform_BeginWindowDraw(theWindow);
 
     /* Set clip region to intersection of visible and update regions */
-    if ((theWindow)->\2->visRgn && theWindow->updateRgn) {
+    if (theWindow->visRgn && theWindow->updateRgn) {
         RgnHandle updateClip = Platform_NewRgn();
         if (updateClip) {
-            Platform_IntersectRgn((theWindow)->\2->visRgn, theWindow->updateRgn, updateClip);
+            Platform_IntersectRgn(theWindow->visRgn, theWindow->updateRgn, updateClip);
             Platform_SetClipRgn(updateClip);
             Platform_DisposeRgn(updateClip);
         }
@@ -332,12 +338,12 @@ void EndUpdate(WindowPtr theWindow) {
     Platform_EndWindowDraw(theWindow);
 
     /* Restore normal clipping */
-    if ((theWindow)->\2->visRgn) {
-        Platform_SetClipRgn((theWindow)->\2->visRgn);
+    if (theWindow->visRgn) {
+        Platform_SetClipRgn(theWindow->visRgn);
     }
 
     /* Restore previous port */
-    GrafPtr savedPort = Platform_GetUpdatePort(theWindow);
+    GrafPtr savedPort = WM_GetUpdatePort(theWindow);
     if (savedPort) {
         Platform_SetCurrentPort(savedPort);
     }
@@ -353,7 +359,7 @@ Boolean CheckUpdate(EventRecord* theEvent) {
         return false;
     }
 
-    WM_DEBUG("CheckUpdate: Processing update event");
+    WM_DEBUG("CheckUpdate: Validating update event");
 
     /* Extract window from event message */
     WindowPtr window = (WindowPtr)(theEvent->message);
@@ -363,21 +369,13 @@ Boolean CheckUpdate(EventRecord* theEvent) {
     }
 
     /* Verify window needs updating */
-    if (window->updateRgn == NULL || Platform_EmptyRgn(window->updateRgn)) {
+    if (window->updateRgn == NULL || WM_EmptyRgn(window->updateRgn)) {
         WM_DEBUG("CheckUpdate: Window has no update region");
         return false;
     }
 
-    /* Begin update session */
-    BeginUpdate(window);
-
-    /* Draw window content */
-    WM_DrawWindowContent(window);
-
-    /* End update session */
-    EndUpdate(window);
-
-    WM_DEBUG("CheckUpdate: Update event processed");
+    /* Valid update event - application should handle via BeginUpdate/EndUpdate */
+    WM_DEBUG("CheckUpdate: Valid update event for window");
     return true;
 }
 
@@ -431,7 +429,7 @@ long DragGrayRgn(RgnHandle theRgn, Point startPt, const Rect* limitRect,
 
     while (mouseDown) {
         /* Get current mouse position and state */
-        mouseDown = Platform_IsMouseDown();
+        mouseDown = WM_IsMouseDown();
         if (mouseDown) {
             Platform_GetMousePosition(&currentPt);
         }
@@ -497,32 +495,7 @@ long DragGrayRgn(RgnHandle theRgn, Point startPt, const Rect* limitRect,
  * Internal Helper Functions
  * ============================================================================ */
 
-void WM_InvalidateWindowsBelow(WindowPtr topWindow, const Rect* rect) {
-    if (topWindow == NULL || rect == NULL) return;
-
-    WM_DEBUG("WM_InvalidateWindowsBelow: Invalidating windows below specified window");
-
-    /* Find windows below the top window and invalidate overlapping areas */
-    WindowPtr current = topWindow->nextWindow;
-    while (current) {
-        if (current->visible && current->strucRgn) {
-            /* Check if window intersects with invalid area */
-            Rect windowBounds;
-            Platform_GetRegionBounds(current->strucRgn, &windowBounds);
-
-            Rect intersection;
-            WM_IntersectRect(rect, &windowBounds, &intersection);
-
-            if (!WM_EmptyRect(&intersection)) {
-                /* Invalidate the intersecting area */
-                Platform_InvalidateWindowRect(current, &intersection);
-            }
-        }
-        current = current->nextWindow;
-    }
-
-    WM_DEBUG("WM_InvalidateWindowsBelow: Invalidation complete");
-}
+/* [WM-051] WM_InvalidateWindowsBelow moved to WindowLayering.c - canonical Z-order invalidation */
 
 Boolean WM_TrackWindowPart(WindowPtr window, Point startPt, short part) {
     if (window == NULL) return false;
@@ -554,83 +527,30 @@ Boolean WM_TrackWindowPart(WindowPtr window, Point startPt, short part) {
 
 /* These functions would be implemented by the platform layer */
 
-Boolean Platform_IsMouseDown(void) {
+static Boolean WM_IsMouseDown(void) {
     /* TODO: Implement platform-specific mouse state checking */
     return false;
 }
 
-void Platform_GetMousePosition(Point* pt) {
-    /* TODO: Implement platform-specific mouse position getting */
-    if (pt) {
-        pt->h = 0;
-        pt->v = 0;
-    }
-}
+/* [WM-050] Platform_* functions removed - implemented in WindowPlatform.c */
 
-void Platform_WaitTicks(short ticks) {
-    /* TODO: Implement platform-specific delay */
-    /* For now, just a brief pause */
-    #ifdef PLATFORM_REMOVED_WIN32
-    Sleep(ticks * 16); /* ~60 ticks per second */
-    #else
-    usleep(ticks * 16666); /* ~60 ticks per second */
-    #endif
-}
-
-void Platform_HighlightWindowPart(WindowPtr window, short part, Boolean highlight) {
-    /* TODO: Implement platform-specific part highlighting */
-    WM_DEBUG("Platform_HighlightWindowPart: %s part %d",
-             highlight ? "Highlighting" : "Unhighlighting", part);
-}
-
-GrafPtr Platform_GetCurrentPort(void) {
+static GrafPtr WM_GetCurrentPort(void) {
     /* TODO: Implement platform-specific current port tracking */
     return NULL;
 }
 
-void Platform_SetCurrentPort(GrafPtr port) {
-    /* TODO: Implement platform-specific port setting */
-}
+/* [WM-050] Platform port functions removed - stubs only */
 
-void Platform_SetUpdatePort(WindowPtr window, GrafPtr savePort) {
-    /* TODO: Implement platform-specific update port saving */
-}
-
-GrafPtr Platform_GetUpdatePort(WindowPtr window) {
+static GrafPtr WM_GetUpdatePort(WindowPtr window) {
     /* TODO: Implement platform-specific update port retrieval */
     return NULL;
 }
 
-void Platform_SetClipRgn(RgnHandle rgn) {
-    /* TODO: Implement platform-specific clipping */
-}
+/* [WM-050] Platform_SetClipRgn removed - stub only */
 
-Boolean Platform_EmptyRgn(RgnHandle rgn) {
+static Boolean WM_EmptyRgn(RgnHandle rgn) {
     /* TODO: Implement platform-specific empty region test */
     return true;
 }
 
-void Platform_SetEmptyRgn(RgnHandle rgn) {
-    /* TODO: Implement platform-specific empty region setting */
-}
-
-void Platform_GetRegionBounds(RgnHandle rgn, Rect* bounds) {
-    /* TODO: Implement platform-specific region bounds calculation */
-    if (bounds) {
-        WM_SetRect(bounds, 0, 0, 0, 0);
-    }
-}
-
-void Platform_ShowDragOutline(RgnHandle rgn, Point pt) {
-    /* TODO: Implement platform-specific drag outline display */
-    WM_DEBUG("Platform_ShowDragOutline: Showing drag outline at (%d, %d)", pt.h, pt.v);
-}
-
-void Platform_UpdateDragOutline(RgnHandle rgn, Point pt) {
-    /* TODO: Implement platform-specific drag outline update */
-}
-
-void Platform_HideDragOutline(void) {
-    /* TODO: Implement platform-specific drag outline hiding */
-    WM_DEBUG("Platform_HideDragOutline: Hiding drag outline");
-}
+/* [WM-050] Platform region/drag functions removed - implemented in WindowPlatform.c or stubs only */

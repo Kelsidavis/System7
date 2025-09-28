@@ -1,0 +1,66 @@
+{
+  "schema_version": "1.0",
+  "generated": "2025-09-27",
+  "authority": "Inside Macintosh: Windows Vol I + MPW Universal Interfaces 3.2",
+  "layouts": {
+    "WindowRecord": {
+      "authority": "IM:Windows Vol I pp. 2-13, MPW Windows.h:145-163",
+      "size_bytes": 156,
+      "alignment": 2,
+      "fields": [
+        { "name": "port", "offset": 0, "size": 108, "type": "GrafPort", "note": "IM:Windows p.2-13: First field" },
+        { "name": "windowKind", "offset": 108, "size": 2, "type": "SInt16" },
+        { "name": "visible", "offset": 110, "size": 1, "type": "Boolean" },
+        { "name": "hilited", "offset": 111, "size": 1, "type": "Boolean" },
+        { "name": "goAwayFlag", "offset": 112, "size": 1, "type": "Boolean" },
+        { "name": "spareFlag", "offset": 113, "size": 1, "type": "Boolean" },
+        { "name": "strucRgn", "offset": 114, "size": 4, "type": "RgnHandle" },
+        { "name": "contRgn", "offset": 118, "size": 4, "type": "RgnHandle" },
+        { "name": "updateRgn", "offset": 122, "size": 4, "type": "RgnHandle" },
+        { "name": "windowDefProc", "offset": 126, "size": 4, "type": "Handle" },
+        { "name": "dataHandle", "offset": 130, "size": 4, "type": "Handle" },
+        { "name": "titleHandle", "offset": 134, "size": 4, "type": "StringHandle" },
+        { "name": "titleWidth", "offset": 138, "size": 2, "type": "SInt16" },
+        { "name": "controlList", "offset": 140, "size": 4, "type": "ControlHandle" },
+        { "name": "nextWindow", "offset": 144, "size": 4, "type": "WindowPtr" },
+        { "name": "windowPic", "offset": 148, "size": 4, "type": "Handle" },
+        { "name": "refCon", "offset": 152, "size": 4, "type": "SInt32" },
+        { "name": "visRgn", "offset": 156, "size": 4, "type": "RgnHandle", "note": "WM-001: IM:Windows p.2-14" }
+      ],
+      "checksum": "sha256:pending_actual_layout_verification"
+    },
+    "GrafPort": {
+      "authority": "IM:QuickDraw pp. 4-8 to 4-10, MPW QuickDraw.h:200-220",
+      "size_bytes": 108,
+      "alignment": 2,
+      "fields": [
+        { "name": "device", "offset": 0, "size": 2, "type": "SInt16" },
+        { "name": "portBits", "offset": 2, "size": 14, "type": "BitMap" },
+        { "name": "portRect", "offset": 16, "size": 8, "type": "Rect", "note": "WM-009: Access via window->port.portRect" },
+        { "name": "visRgn", "offset": 24, "size": 4, "type": "RgnHandle" },
+        { "name": "clipRgn", "offset": 28, "size": 4, "type": "RgnHandle" }
+      ],
+      "checksum": "sha256:pending_actual_layout_verification"
+    },
+    "WindowManagerState": {
+      "authority": "Internal structure based on IM:Windows + ROM observations",
+      "size_bytes": "variable",
+      "alignment": 4,
+      "fields": [
+        { "name": "wMgrPort", "offset": 0, "size": 4, "type": "WMgrPort*", "note": "WM-002: IM:Windows p.2-24" },
+        { "name": "windowList", "offset": 8, "size": 4, "type": "WindowPtr", "note": "WM-002: Window list head" },
+        { "name": "activeWindow", "offset": 12, "size": 4, "type": "WindowPtr" },
+        { "name": "ghostWindow", "offset": 60, "size": 4, "type": "WindowPtr", "note": "WM-013: Drag/grow tracking" },
+        { "name": "menuBarHeight", "offset": 64, "size": 2, "type": "short", "note": "WM-011: Fixed at 20 pixels" },
+        { "name": "grayRgn", "offset": 66, "size": 4, "type": "RgnHandle", "note": "WM-014: Desktop region" }
+      ],
+      "checksum": "sha256:pending_actual_layout_verification"
+    }
+  },
+  "notes": [
+    "All offsets assume natural alignment (2-byte for shorts, 4-byte for pointers)",
+    "Boolean fields are 1 byte but may have padding",
+    "RgnHandle and all handles are 4-byte pointers",
+    "Checksums will be computed after verification against working System 7 build"
+  ]
+}

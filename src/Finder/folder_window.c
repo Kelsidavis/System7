@@ -52,15 +52,24 @@ void DrawFolderWindowContents(WindowPtr window, Boolean isTrash)
     GetPort(&savePort);
     SetPort(window);
 
-    /* Get window content area from window's port.portRect */
+    /* Get window content area - convert from global to local coordinates */
     Rect contentRect;
-    contentRect = window->port.portRect;
+    contentRect.left = 0;
+    contentRect.top = 0;
+    contentRect.right = window->port.portRect.right - window->port.portRect.left;
+    contentRect.bottom = window->port.portRect.bottom - window->port.portRect.top;
+
+    serial_printf("Finder: Window size = %dx%d\n",
+                  contentRect.right, contentRect.bottom);
 
     /* Adjust for title bar (21 pixels including separator) and borders */
     contentRect.top += 21;
     contentRect.left += 1;
     contentRect.right -= 1;
     contentRect.bottom -= 1;
+
+    serial_printf("Finder: contentRect = (%d,%d,%d,%d)\n",
+                  contentRect.left, contentRect.top, contentRect.right, contentRect.bottom);
 
     /* Set clipping to content area to prevent drawing outside bounds */
     ClipRect(&contentRect);
@@ -81,11 +90,11 @@ void DrawFolderWindowContents(WindowPtr window, Boolean isTrash)
         DrawText("Drag items here to delete them", 0, 30);
     } else {
         /* Draw volume contents - sample items in icon grid */
-        /* Ensure minimum margins: 20px left, 20px top */
-        short x = contentRect.left + 20;
-        short y = contentRect.top + 20;
+        /* Ensure margins: 80px left (room for labels), 30px top */
+        short x = contentRect.left + 80;
+        short y = contentRect.top + 30;
         short iconSpacing = 100;
-        short rowHeight = 80;
+        short rowHeight = 90;
 
         /* System Folder - icon 32px wide, label ~78px wide */
         DrawFileIcon(x, y, true);
@@ -107,7 +116,7 @@ void DrawFolderWindowContents(WindowPtr window, Boolean isTrash)
         DrawText("Documents", 0, 9);
 
         /* Second row */
-        x = contentRect.left + 20;
+        x = contentRect.left + 80;
         y += rowHeight;
 
         /* SimpleText document - label ~60px wide */

@@ -26,7 +26,8 @@
 
 #include "WindowManager/WindowManager.h"
 #include "WindowManager/WindowManagerInternal.h"
-
+#include "WindowManager/WindowKinds.h"
+#include "WindowManager/LayoutGuards.h"
 
 /* ============================================================================
  * Global Window Manager State
@@ -44,7 +45,15 @@ static WindowManagerState g_wmState = {
     1000,       /* nextWindowID */
     false,      /* colorQDAvailable */
     false,      /* initialized */
-    NULL        /* platformData */
+    NULL,       /* platformData */
+    {{0}},      /* port */
+    NULL,       /* ghostWindow */
+    20,         /* menuBarHeight */
+    NULL,       /* grayRgn */
+    {{0}},      /* deskPattern */
+    false,      /* isDragging */
+    {0, 0},     /* dragOffset */
+    false       /* isGrowing */
 };
 
 /* ============================================================================

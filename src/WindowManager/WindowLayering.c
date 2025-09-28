@@ -1,5 +1,5 @@
-/* #include "SystemTypes.h" */
-#include <stdio.h>
+/* [WM-019] Provenance: IM:Windows Vol I pp. 2-54 to 2-58 */
+/* stdio.h removed - not needed for Window Manager internals */
 /*
  * WindowLayering.c - Window Z-Order and Layering Management
  *
@@ -24,6 +24,22 @@
 
 #include "WindowManager/WindowManagerInternal.h"
 
+/* [WM-055] Window kind constants now in canonical header */
+#include "WindowManager/WindowKinds.h"
+
+/* [WM-019] Forward declarations for file-local Z-order helpers */
+/* Provenance: IM:Windows Vol I pp. 2-54 to 2-58 "Window Ordering" */
+static long WM_CalculateWindowStackLevel(WindowPtr window);
+static Boolean WM_IsFloatingWindow(WindowPtr window);
+static Boolean WM_IsAlertDialog(WindowPtr window);
+static void WM_RecalculateAllVisibleRegions(void);
+static void WM_ClipVisibleRegionsByHigherWindows(WindowPtr baseWindow);
+static void WM_UpdateWindowVisibilityStats(WindowPtr window, RgnHandle visibleRgn);
+static long WM_CalculateRegionArea(RgnHandle rgn);
+static void WM_DisableWindowsBehindModal(WindowPtr modalWindow);
+static void WM_UpdatePlatformWindowOrder(void);
+static void WM_CalculateWindowVisibility(WindowPtr window);
+static Boolean WM_WindowsOverlap(WindowPtr window1, WindowPtr window2);
 
 /* ============================================================================
  * Window Layer Constants and Types
@@ -82,10 +98,7 @@ static WindowLayer WM_GetWindowLayer(WindowPtr window) {
         case systemKind:
             return kLayerSystem;
 
-        case deskKind:
-            return kLayerDesktop;
-
-        case userKind:
+        case userKind:  /* deskKind and userKind are same value (8) */
         default:
             /* Check for floating window attribute */
             if (WM_IsFloatingWindow(window)) {
@@ -113,9 +126,9 @@ static Boolean WM_IsFloatingWindow(WindowPtr window) {
 static Boolean WM_IsAlertDialog(WindowPtr window) {
     if (window == NULL) return false;
 
-    /* Determine if this is an alert dialog based on window definition */
-    Handle wdef = window->windowDefProc;
-    return (wdef == (Handle)WM_DialogWindowDefProc);
+    /* [WM-021] Provenance: IM:Windows Vol I p.2-90 "Alert and Dialog WDEFs" */
+    /* Alert dialogs have dialogKind = 2 */
+    return (window->windowKind == dialogKind);
 }
 
 static void WM_SetWindowLayer(WindowPtr window, WindowLayer layer) {
@@ -569,28 +582,45 @@ void WM_UpdateWindowLayers(void) {
 }
 
 /* ============================================================================
+ * Window Invalidation for Z-Order Changes
+ * ============================================================================ */
+
+/* [WM-051] Canonical implementation: invalidate windows below topWindow
+ * Provenance: IM:Windows "Update Events" + "Window Ordering"
+ * When a window moves/changes, windows behind it may need repainting
+ */
+void WM_InvalidateWindowsBelow(WindowPtr topWindow, const Rect* rect) {
+    if (topWindow == NULL || rect == NULL) return;
+
+    WM_DEBUG("WM_InvalidateWindowsBelow: Invalidating windows below specified window");
+
+    /* Find windows below the top window and invalidate overlapping areas */
+    WindowPtr current = topWindow->nextWindow;
+    while (current) {
+        if (current->visible && current->strucRgn) {
+            /* Check if window intersects with invalid area */
+            Rect windowBounds;
+            Platform_GetRegionBounds(current->strucRgn, &windowBounds);
+
+            Rect intersection;
+            WM_IntersectRect(rect, &windowBounds, &intersection);
+
+            if (!WM_EmptyRect(&intersection)) {
+                /* Invalidate the intersecting area */
+                Platform_InvalidateWindowRect(current, &intersection);
+            }
+        }
+        current = current->nextWindow;
+    }
+
+    WM_DEBUG("WM_InvalidateWindowsBelow: Invalidation complete");
+}
+
+/* ============================================================================
  * Platform Abstraction Functions for Layering
  * ============================================================================ */
 
-void Platform_UpdateNativeWindowOrder(WindowPtr window) {
-    /* TODO: Implement platform-specific window ordering */
-    WM_DEBUG("Platform_UpdateNativeWindowOrder: Updating native window order");
-}
-
-void Platform_DisableWindow(WindowPtr window) {
-    /* TODO: Implement platform-specific window disabling */
-    WM_DEBUG("Platform_DisableWindow: Disabling window");
-}
-
-void Platform_EnableWindow(WindowPtr window) {
-    /* TODO: Implement platform-specific window enabling */
-    WM_DEBUG("Platform_EnableWindow: Enabling window");
-}
-
-void Platform_CopyRgn(RgnHandle srcRgn, RgnHandle dstRgn) {
-    /* TODO: Implement platform-specific region copying */
-    WM_DEBUG("Platform_CopyRgn: Copying region");
-}
+/* [WM-050] Platform_* functions removed - implemented in WindowPlatform.c */
 
 /* ============================================================================
  * Debug and Diagnostic Functions

@@ -18,7 +18,14 @@ LD = ld
 GRUB = grub-mkrescue
 
 # Flags
-CFLAGS = -ffreestanding -fno-builtin -fno-stack-protector -nostdlib -w -g -O0 -fno-inline -fno-optimize-sibling-calls -I./include -std=c99 -m32
+# [WM-050] SYS71_PROVIDE_FINDER_TOOLBOX=1 means: DO NOT provide Toolbox stubs; real implementations win.
+#          When defined, stubs in sys71_stubs.c are excluded via #ifndef guards.
+#          This ensures single source of truth per symbol (no duplicate definitions).
+# [WM-052] Warnings are errors - no papering over issues
+CFLAGS = -DSYS71_PROVIDE_FINDER_TOOLBOX=1 -ffreestanding -fno-builtin -fno-stack-protector -nostdlib \
+         -Wall -Wextra -Wmissing-prototypes -Wmissing-declarations -Wshadow -Wcast-qual \
+         -Wpointer-arith -Wstrict-prototypes -Wno-unused-parameter \
+         -g -O0 -fno-inline -fno-optimize-sibling-calls -I./include -std=c99 -m32
 ASFLAGS = --32
 LDFLAGS = -melf_i386 -nostdlib
 
@@ -39,6 +46,7 @@ C_SOURCES = src/main.c \
             src/QuickDraw/QuickDrawCore.c \
             src/QuickDraw/QuickDrawPlatform.c \
             src/QuickDraw/Coordinates.c \
+            src/QuickDraw/Regions.c \
             src/Platform/WindowPlatform.c \
             src/MenuManager/MenuManagerCore.c \
             src/MenuManager/MenuSelection.c \
@@ -93,7 +101,15 @@ C_SOURCES = src/main.c \
             src/EventManager/EventDispatcher.c \
             src/EventManager/MouseEvents.c \
             src/EventManager/KeyboardEvents.c \
-            src/EventManager/SystemEvents.c
+            src/EventManager/SystemEvents.c \
+            src/WindowManager/WindowDisplay.c \
+            src/WindowManager/WindowEvents.c \
+            src/WindowManager/WindowManagerCore.c \
+            src/WindowManager/WindowManagerHelpers.c \
+            src/WindowManager/WindowDragging.c \
+            src/WindowManager/WindowResizing.c \
+            src/WindowManager/WindowLayering.c \
+            src/WindowManager/WindowParts.c
 
 ASM_SOURCES = src/multiboot2.S
 
@@ -370,4 +386,8 @@ info:
 	@echo "Assembly Sources: $(words $(ASM_SOURCES)) files"
 	@echo "Total Objects: $(words $(OBJECTS)) files"
 
-.PHONY: all clean iso run debug info
+# Check exported symbols against allowlist
+check-exports: kernel.elf
+	@bash tools/check_exports.sh
+
+.PHONY: all clean iso run debug info check-exports
