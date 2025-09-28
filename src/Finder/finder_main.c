@@ -261,24 +261,102 @@ static OSErr SetupMenus(void)
  */
 static void DoUpdate(WindowPtr w)
 {
-    if (!w) return;
+    extern void serial_printf(const char* fmt, ...);
+    serial_printf("DoUpdate: called with window=%p\n", w);
 
+    if (!w) {
+        serial_printf("DoUpdate: window is NULL, returning\n");
+        return;
+    }
+
+    GrafPtr savePort;
+    GetPort(&savePort);
+    SetPort(w);
+
+    serial_printf("DoUpdate: calling BeginUpdate\n");
     BeginUpdate(w);
 
     /* Draw only the content; chrome is the window def's job */
     /* We use the window refCon to decide what to render, like the Finder */
+    serial_printf("DoUpdate: refCon='%c%c%c%c'\n",
+                 (char)(w->refCon >> 24), (char)(w->refCon >> 16),
+                 (char)(w->refCon >> 8), (char)w->refCon);
+
     if (w->refCon == 'TRSH') {
+        serial_printf("DoUpdate: drawing trash window contents\n");
         DrawFolderWindowContents(w, true);
     } else if (w->refCon == 'DISK') {
+        serial_printf("DoUpdate: drawing volume window contents\n");
         DrawFolderWindowContents(w, false);
     } else {
         /* Generic doc window: clear content so it doesn't tear */
+        serial_printf("DoUpdate: generic window, erasing content\n");
         Rect r = w->port.portRect;
         InsetRect(&r, 1, 21); /* skip title bar area */
         EraseRect(&r);
     }
 
+    serial_printf("DoUpdate: calling EndUpdate\n");
     EndUpdate(w);
+
+    SetPort(savePort);
+}
+
+/*
+ * Finder_OpenDesktopItem - Bulletproof window opener with immediate paint
+ * Opens a desktop item window and ensures it draws immediately
+ */
+WindowPtr Finder_OpenDesktopItem(Boolean isTrash, ConstStr255Param title)
+{
+    extern void serial_printf(const char* fmt, ...);
+    extern WindowPtr NewWindow(void *, const Rect *, ConstStr255Param, Boolean, short,
+                               WindowPtr, Boolean, long);
+    extern void ShowWindow(WindowPtr);
+    extern void SelectWindow(WindowPtr);
+    extern void DrawFolderWindowContents(WindowPtr w, Boolean isTrash);
+
+    static Rect r;
+    r.left = 120;
+    r.top = 80;
+    r.right = 600;
+    r.bottom = 420;
+
+    serial_printf("[WIN_OPEN] Starting, isTrash=%d\n", isTrash);
+
+    WindowPtr w = NewWindow(NULL, &r, isTrash ? "\pTrash" : "\pMacintosh HD",
+                            true, 0, (WindowPtr)-1L, true,
+                            isTrash ? 'TRSH' : 'DISK');
+
+    if (!w) {
+        serial_printf("[WIN_OPEN] NewWindow returned NULL!\n");
+        return NULL;
+    }
+
+    serial_printf("[WIN_OPEN] NewWindow succeeded, calling ShowWindow\n");
+    ShowWindow(w);
+
+    serial_printf("[WIN_OPEN] Calling SelectWindow\n");
+    SelectWindow(w);
+
+    /* Paint window contents immediately so user sees something */
+    GrafPtr savePort;
+    GetPort(&savePort);
+    SetPort(w);
+
+    serial_printf("[WIN_OPEN] Calling BeginUpdate\n");
+    /* Call BeginUpdate/EndUpdate to properly paint window */
+    BeginUpdate(w);
+
+    serial_printf("[WIN_OPEN] Calling DrawFolderWindowContents\n");
+    DrawFolderWindowContents(w, isTrash);
+
+    serial_printf("[WIN_OPEN] Calling EndUpdate\n");
+    EndUpdate(w);
+
+    SetPort(savePort);
+
+    serial_printf("[WIN_OPEN] Complete, window created\n");
+    return w;
 }
 
 /*

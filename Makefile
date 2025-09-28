@@ -18,7 +18,7 @@ LD = ld
 GRUB = grub-mkrescue
 
 # Flags
-CFLAGS = -ffreestanding -fno-builtin -fno-stack-protector -nostdlib -w -g -O0 -I./include -std=c99 -m32
+CFLAGS = -ffreestanding -fno-builtin -fno-stack-protector -nostdlib -w -g -O0 -fno-inline -fno-optimize-sibling-calls -I./include -std=c99 -m32
 ASFLAGS = --32
 LDFLAGS = -melf_i386 -nostdlib
 
@@ -362,7 +362,7 @@ debug: $(ISO)
 
 # Clean
 clean:
-	rm -rf $(BUILD_DIR)
+	rm -rf $(BUILD_DIR) obj isodir iso system71.iso kernel.elf
 
 # Show compilation info
 info:

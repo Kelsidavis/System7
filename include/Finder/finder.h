@@ -86,6 +86,7 @@ OSErr CleanUpWindow(WindowPtr window, short cleanupType);
 OSErr CloseAllWindows(void);
 OSErr ShowWindowContents(WindowPtr window, FSSpec *folder, short maxItems);
 Size FreeWindowMemory(void);
+WindowPtr Finder_OpenDesktopItem(Boolean isTrash, ConstStr255Param title);
 
 /* Trash Folder API - Evidence: "Empty Trash", "The Trash cannot be emptied" */
 OSErr EmptyTrash(Boolean force);

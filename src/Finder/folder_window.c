@@ -19,23 +19,23 @@ extern void DrawText(const void* textBuf, short firstByte, short byteCount);
 static void DrawFileIcon(short x, short y, Boolean isFolder)
 {
     Rect iconRect;
-    SetRect(&iconRect, x, y, x + 32, y + 32);
+    SetRect(&iconRect, y, x, y + 32, x + 32);
 
     if (isFolder) {
         /* Draw folder shape */
         FrameRect(&iconRect);
         /* Tab on top */
         Rect tabRect;
-        SetRect(&tabRect, x, y - 4, x + 12, y);
+        SetRect(&tabRect, y - 4, x, y, x + 12);
         FrameRect(&tabRect);
     } else {
         /* Draw document shape */
         FrameRect(&iconRect);
         /* Folded corner */
-        MoveTo(x + 24, y);
-        LineTo(x + 32, y + 8);
-        LineTo(x + 24, y + 8);
-        LineTo(x + 24, y);
+        MoveTo(y, x + 24);
+        LineTo(y + 8, x + 32);
+        LineTo(y + 8, x + 24);
+        LineTo(y, x + 24);
     }
 }
 
@@ -51,62 +51,72 @@ void DrawFolderWindowContents(WindowPtr window, Boolean isTrash)
     GetPort(&savePort);
     SetPort(window);
 
-    /* Get window content area (skip title bar area) */
+    /* Get window content area from window's port.portRect */
     Rect contentRect;
-    SetRect(&contentRect, 1, 21, 399, 299);  /* Content area only, inside frame */
+    contentRect = window->port.portRect;
 
-    /* Clear content area */
-    EraseRect(&contentRect);
+    /* Adjust for title bar (20 pixels) and minimal left margin */
+    contentRect.top += 20;
+    contentRect.left += 0;
+    contentRect.right -= 1;
+    contentRect.bottom -= 1;
+
+    /* Fill background with white (classic QuickDraw color index 30) */
+    ForeColor(30);  /* white */
+    PaintRect(&contentRect);
+
+    /* Reset to black for drawing text/icons (classic QuickDraw color index 33) */
+    ForeColor(33);  /* black */
 
     if (isTrash) {
         /* Draw trash contents */
-        MoveTo(contentRect.left + 10, contentRect.top + 30);
+        MoveTo(contentRect.top + 30, contentRect.left + 10);
         DrawText("Trash is empty", 0, 14);
 
-        MoveTo(contentRect.left + 10, contentRect.top + 50);
+        MoveTo(contentRect.top + 50, contentRect.left + 10);
         DrawText("Drag items here to delete them", 0, 30);
     } else {
         /* Draw volume contents - sample items */
-        short x = contentRect.left + 20;
+        short x = contentRect.left + 70;
         short y = contentRect.top + 20;
 
         /* System Folder */
         DrawFileIcon(x, y, true);
-        MoveTo(x, y + 45);
+        MoveTo(y + 45, x);
         DrawText("System Folder", 0, 13);
 
         x += 80;
 
         /* Applications folder */
         DrawFileIcon(x, y, true);
-        MoveTo(x - 5, y + 45);
+        MoveTo(y + 45, x - 5);
         DrawText("Applications", 0, 12);
 
         x += 80;
 
         /* Documents folder */
         DrawFileIcon(x, y, true);
-        MoveTo(x + 2, y + 45);
+        MoveTo(y + 45, x + 2);
         DrawText("Documents", 0, 9);
 
         /* Second row */
-        x = contentRect.left + 20;
+        x = contentRect.left + 70;
         y += 70;
 
         /* SimpleText document */
         DrawFileIcon(x, y, false);
-        MoveTo(x - 8, y + 45);
+        MoveTo(y + 45, x - 8);
         DrawText("ReadMe.txt", 0, 10);
 
         x += 80;
 
         /* TeachText document */
         DrawFileIcon(x, y, false);
-        MoveTo(x - 12, y + 45);
+        MoveTo(y + 45, x - 12);
         DrawText("About System 7", 0, 14);
 
         /* Show disk space at bottom */
-        MoveTo(contentRect.left + 10, contentRect.bottom - 20);
+        MoveTo(contentRect.bottom - 50, contentRect.left + 20);
         DrawText("5 items     42.3 MB in disk     193.7 MB available", 0, 52);
     }
 

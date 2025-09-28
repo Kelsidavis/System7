@@ -65,8 +65,7 @@ enum { kGridW = 8, kGridH = 12, kIconW = 32, kIconH = 32 };
 /* External globals */
 extern QDGlobals qd;  /* QuickDraw globals from main.c */
 extern void* framebuffer;
-extern uint32_t fb_width;
-extern uint32_t fb_height;
+extern uint32_t fb_width, fb_height;
 extern uint32_t fb_pitch;
 extern uint32_t pack_color(uint8_t r, uint8_t g, uint8_t b);
 
@@ -478,8 +477,8 @@ static OSErr AllocateDesktopIcons(void)
     /* Initialize trash as the first desktop item */
     gDesktopIcons[0].type = kDesktopItemTrash;
     gDesktopIcons[0].iconID = 0xFFFFFFFF;
-    gDesktopIcons[0].position.h = 700;
-    gDesktopIcons[0].position.v = 500;
+    gDesktopIcons[0].position.h = fb_width - 100;
+    gDesktopIcons[0].position.v = fb_height - 80;
     strcpy(gDesktopIcons[0].name, "Trash");
     gDesktopIcons[0].movable = false;  /* Trash stays in place */
     gDesktopIconCount = 1;  /* Start with trash */
@@ -1098,44 +1097,23 @@ Boolean HandleDesktopClick(Point clickPoint, Boolean doubleClick)
 
     serial_printf("Hit icon index %d, doubleClick=%d\n", hitIcon, doubleClick);
 
-    /* Handle double-click first */
+    /* DEBUG: Print condition components */
+    serial_printf("[PRE-IF] dbl=%d, hit=%d, count=%d, (hit>=0)=%d, (hit<count)=%d\n",
+                  doubleClick, hitIcon, gDesktopIconCount,
+                  (hitIcon >= 0), (hitIcon < gDesktopIconCount));
+
+    /* Handle double-click IMMEDIATELY after detection - no debug calls in between */
     if (doubleClick && hitIcon >= 0 && hitIcon < gDesktopIconCount) {
-        serial_printf("Checking item type (hitIcon=%d, type=%d)\n",
-                     hitIcon, gDesktopIcons[hitIcon].type);
-        if (gDesktopIcons[hitIcon].type == kDesktopItemVolume) {
-            /* Volume icon */
-            serial_printf("Double-click on volume - opening window\n");
+        serial_printf("[DBLCLK-IF] dbl=%d hit=%d count=%d\n", doubleClick, hitIcon, gDesktopIconCount);
+        extern WindowPtr Finder_OpenDesktopItem(Boolean isTrash, ConstStr255Param title);
+        DesktopItem *it = &gDesktopIcons[hitIcon];
+        serial_printf("[DBLCLK-ITEM] type=%d\n", it->type);
 
-            Rect windowBounds;
-            SetRect(&windowBounds, 150, 80, 550, 380);
-
-            WindowPtr volumeWindow = NewWindow(NULL, &windowBounds,
-                                              "\pMacintosh HD",
-                                              true, 0, (WindowPtr)-1L, true, 'DISK');
-
-            if (volumeWindow) {
-                ShowWindow(volumeWindow);
-                SelectWindow(volumeWindow);
-
-                extern OSErr PostEvent(SInt16 eventNum, SInt32 eventMsg);
-                PostEvent(updateEvt, (SInt32)volumeWindow);
-            }
+        if (it->type == kDesktopItemVolume) {
+            Finder_OpenDesktopItem(false, "\pMacintosh HD");
             return true;
-        } else if (gDesktopIcons[hitIcon].type == kDesktopItemTrash) {
-            /* Trash double-click */
-            serial_printf("Double-click on trash - opening window\n");
-
-            Rect windowBounds;
-            SetRect(&windowBounds, 200, 120, 600, 420);
-
-            WindowPtr trashWindow = NewWindow(NULL, &windowBounds,
-                                             "\pTrash",
-                                             true, 0, (WindowPtr)-1L, true, 'TRSH');
-
-            if (trashWindow) {
-                ShowWindow(trashWindow);
-                SelectWindow(trashWindow);
-            }
+        } else if (it->type == kDesktopItemTrash) {
+            Finder_OpenDesktopItem(true, "\pTrash");
             return true;
         }
     }

@@ -287,7 +287,10 @@ void serial_printf(const char* fmt, ...) {
         strstr(fmt, "Volume") == NULL &&
         strstr(fmt, "Trash") == NULL &&
         strstr(fmt, "DrawVolumeIcon") == NULL &&
-        strstr(fmt, "TrackIconDragSync") == NULL) {
+        strstr(fmt, "TrackIconDragSync") == NULL &&
+        strstr(fmt, "[PRE-IF]") == NULL &&
+        strstr(fmt, "[DBLCLK") == NULL &&
+        strstr(fmt, "[WIN_OPEN]") == NULL) {
         return;
     }
 
