@@ -650,15 +650,36 @@ static void InitializeWindowRecord(WindowPtr window, const Rect* bounds,
         clampedBounds.bottom += delta;
     }
 
-    /* Window port uses LOCAL coordinates (0,0,width,height) */
-    SInt16 width = clampedBounds.right - clampedBounds.left;
-    SInt16 height = clampedBounds.bottom - clampedBounds.top;
-    SetRect(&window->port.portRect, 0, 0, width, height);
+    /* Window port uses LOCAL coordinates (0,0,width,height)
+     * portRect should contain ONLY the content area dimensions, excluding chrome */
+    const SInt16 kBorder = 1;
+    const SInt16 kTitleBar = 20;
+    const SInt16 kSeparator = 1;
+
+    SInt16 fullWidth = clampedBounds.right - clampedBounds.left;
+    SInt16 fullHeight = clampedBounds.bottom - clampedBounds.top;
+    serial_printf("[NEWWIN] clampedBounds=(%d,%d,%d,%d) -> fullW=%d fullH=%d\n",
+                 clampedBounds.left, clampedBounds.top, clampedBounds.right, clampedBounds.bottom,
+                 fullWidth, fullHeight);
+
+    /* Content area is smaller than full window by the chrome dimensions
+     * Note: FrameRect draws inside the bounds, so we don't need to subtract for left/right borders */
+    SInt16 contentWidth = fullWidth;  /* Full width - borders are drawn inside */
+    SInt16 contentHeight = fullHeight - kTitleBar - kSeparator;  /* Just subtract title bar and separator */
+
+    SetRect(&window->port.portRect, 0, 0, contentWidth, contentHeight);
+    serial_printf("[NEWWIN] portRect set to (0,0,%d,%d) from content w=%d h=%d\n",
+                 window->port.portRect.right, window->port.portRect.bottom,
+                 contentWidth, contentHeight);
 
     /* CRITICAL: portBits.bounds defines where local coords map to global screen coords!
-     * This must be set to the window's GLOBAL position so that drawing in local
-     * coordinates (0,0) maps to the window's screen position */
-    window->port.portBits.bounds = clampedBounds;
+     * This must be set to the window's CONTENT area global position so that drawing in local
+     * coordinates (0,0) maps to the content area's screen position */
+    SetRect(&window->port.portBits.bounds,
+            clampedBounds.left,
+            clampedBounds.top + kTitleBar + kSeparator,
+            clampedBounds.left + contentWidth,
+            clampedBounds.top + kTitleBar + kSeparator + contentHeight);
 
     /* Initialize portBits to point to screen framebuffer */
     extern void* framebuffer;
@@ -680,6 +701,15 @@ static void InitializeWindowRecord(WindowPtr window, const Rect* bounds,
     if (window->strucRgn) {
         Platform_SetRectRgn(window->strucRgn, &clampedBounds);
         serial_printf("InitializeWindowRecord: Set strucRgn to clampedBounds\n");
+    }
+
+    /* Initialize contRgn with global content area bounds */
+    if (window->contRgn) {
+        Rect contentBounds = clampedBounds;
+        contentBounds.top += kTitleBar + kSeparator;
+        /* No need to inset left/right/bottom - frame is drawn inside bounds */
+        Platform_SetRectRgn(window->contRgn, &contentBounds);
+        serial_printf("InitializeWindowRecord: Set contRgn to content bounds\n");
     }
 }
 

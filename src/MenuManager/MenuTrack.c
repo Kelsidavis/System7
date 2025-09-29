@@ -116,6 +116,13 @@ static void GetItemText(MenuHandle theMenu, short index, char* text) {
 
 /* Draw dropdown menu */
 static void DrawMenu(MenuHandle theMenu, short left, short top, short itemCount, short menuWidth, short lineHeight) {
+    /* Save current port and ensure we're in screen port for menu drawing */
+    GrafPtr savePort;
+    GetPort(&savePort);
+    if (qd.thePort) {
+        SetPort(qd.thePort);  /* Use screen port for global coordinates */
+    }
+
     DrawMenuRect(left, top, left + menuWidth, top + itemCount * lineHeight + 4, 0xFFFFFFFF);
 
     /* Border */
@@ -133,6 +140,9 @@ static void DrawMenu(MenuHandle theMenu, short left, short top, short itemCount,
         short itemTop = top + 2 + (i - 1) * lineHeight;
         DrawMenuItemText(itemText, left + 4, itemTop + 12);
     }
+
+    /* Restore original port */
+    if (savePort) SetPort(savePort);
 }
 
 /* Simple cursor drawing - arrow pointer */
@@ -187,10 +197,18 @@ long BeginTrackMenu(short menuID, Point startPt) {
         return 0;
     }
 
+    /* Save current port and ensure we draw in screen port */
+    GrafPtr savePort;
+    GetPort(&savePort);
+    if (qd.thePort) {
+        SetPort(qd.thePort);  /* Draw menus in screen port for global coords */
+    }
+
     /* Get the actual menu handle for this menu ID */
     MenuHandle theMenu = GetMenuHandle(menuID);
     if (!theMenu) {
         serial_printf("BeginTrackMenu: Menu %d not found\n", menuID);
+        if (savePort) SetPort(savePort);
         return 0;
     }
 
@@ -251,6 +269,9 @@ long BeginTrackMenu(short menuID, Point startPt) {
     /* Draw the menu dropdown */
     DrawMenu(theMenu, left, top, itemCount, menuWidth, lineHeight);
     serial_puts("BeginTrackMenu: Dropdown drawn, tracking started\n");
+
+    /* Restore original port */
+    if (savePort) SetPort(savePort);
 
     /* Return 0 - actual selection will come from event handling */
     return 0;
@@ -402,10 +423,20 @@ long EndMenuTrackingNew(void) {
     g_menuTrackState.highlightedItem = 0;
     g_menuTrackState.menuID = 0;
 
+    /* Save current port and set screen port for redrawing */
+    GrafPtr savePort;
+    GetPort(&savePort);
+    if (qd.thePort) {
+        SetPort(qd.thePort);  /* Ensure we redraw in screen port */
+    }
+
     /* Redraw everything cleanly */
     DrawMenuBar();      /* This redraws menu bar without highlight */
     DrawDesktop();
     DrawVolumeIcon();
+
+    /* Restore original port */
+    if (savePort) SetPort(savePort);
 
     return result;
 }
@@ -465,13 +496,20 @@ static void DrawInvertedAppleIcon(short x, short y) {
 /* Draw menu bar with a specific menu title highlighted */
 void DrawMenuBarWithHighlight(short highlightMenuID) {
     static short lastHighlightMenuID = 0;
+    static Boolean menuBarDrawn = false;
 
-    /* Always redraw menu bar to ensure clean state */
-    DrawMenuBar();
+    /* Draw menu bar first time, or when clearing highlight */
+    if (!menuBarDrawn || (highlightMenuID == 0 && lastHighlightMenuID != 0)) {
+        DrawMenuBar();
+        menuBarDrawn = true;
+        if (highlightMenuID == 0) {
+            lastHighlightMenuID = 0;
+            return;
+        }
+    }
 
-    /* If no menu to highlight, we're done */
+    /* If no menu to highlight and nothing was highlighted, do nothing */
     if (highlightMenuID == 0) {
-        lastHighlightMenuID = 0;
         return;
     }
 

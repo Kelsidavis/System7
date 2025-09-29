@@ -118,7 +118,11 @@ void PaintOne(WindowPtr window, RgnHandle clobberedRgn) {
     serial_printf("PaintOne: Switched to window port for content\n");
 
     /* Fill content area - use LOCAL coords (0,0,width,height) */
-    Rect contentRect = {0, 0, window->port.portRect.right, window->port.portRect.bottom};
+    serial_printf("PaintOne: portRect raw = (%d,%d,%d,%d)\n",
+        window->port.portRect.left, window->port.portRect.top,
+        window->port.portRect.right, window->port.portRect.bottom);
+
+    Rect contentRect = {0, 0, window->port.portRect.bottom, window->port.portRect.right};
 
     serial_printf("PaintOne: Content rect (local) = (%d,%d,%d,%d)\n",
         contentRect.left, contentRect.top, contentRect.right, contentRect.bottom);
@@ -260,7 +264,7 @@ void DrawNew(WindowPtr window, Boolean update) {
     }
 
     /* Fill content area - LOCAL coords */
-    Rect contentRect = {0, 0, window->port.portRect.right, window->port.portRect.bottom};
+    Rect contentRect = {0, 0, window->port.portRect.bottom, window->port.portRect.right};
     serial_printf("DrawNew: Filling content rect (local) (%d,%d,%d,%d)\n",
         contentRect.left, contentRect.top, contentRect.right, contentRect.bottom);
     EraseRect(&contentRect);
@@ -436,7 +440,7 @@ void DrawWindow(WindowPtr window) {
     SetPort((GrafPtr)window);
 
     /* Fill content area - LOCAL coords */
-    Rect contentRect = {0, 0, window->port.portRect.right, window->port.portRect.bottom};
+    Rect contentRect = {0, 0, window->port.portRect.bottom, window->port.portRect.right};
     serial_printf("DrawWindow: Filling content rect (local) (%d,%d,%d,%d)\n",
         contentRect.left, contentRect.top, contentRect.right, contentRect.bottom);
     EraseRect(&contentRect);

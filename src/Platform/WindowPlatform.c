@@ -44,7 +44,7 @@ Boolean Platform_InitializeWindowPort(WindowPtr window) {
         short gx = gFrame.left + kBorder;
         short gy = gFrame.top + kTitle + kSeparator;
 
-        /* Local size for content (already set in portRect) */
+        /* Local size for content (already correctly set in portRect by InitializeWindowRecord) */
         short w = window->port.portRect.right;
         short h = window->port.portRect.bottom;
 
@@ -131,7 +131,14 @@ void Platform_DisposeRgn(RgnHandle rgn) {
 void Platform_InvalidateWindowContent(WindowPtr window) {
     /* Mark window as needing redraw */
     if (window && window->updateRgn) {
-        RectRgn(window->updateRgn, &window->port.portRect);
+        /* Use the content region (global coords) for the update region */
+        if (window->contRgn) {
+            CopyRgn(window->contRgn, window->updateRgn);
+        } else {
+            /* Fallback - use local content dimensions */
+            Rect localContent = {0, 0, window->port.portRect.bottom, window->port.portRect.right};
+            RectRgn(window->updateRgn, &localContent);
+        }
     }
 }
 
@@ -254,7 +261,10 @@ void Platform_PostWindowEvent(WindowPtr window, short eventType, long eventData)
 void Platform_InvalidateWindowFrame(WindowPtr window) {
     /* Mark window as needing redraw */
     if (window && window->updateRgn) {
-        RectRgn(window->updateRgn, &window->port.portRect);
+        /* Use the structure region (global coords) for the update region */
+        if (window->strucRgn) {
+            CopyRgn(window->strucRgn, window->updateRgn);
+        }
     }
 }
 
@@ -265,9 +275,10 @@ void Platform_SendNativeWindowBehind(WindowPtr window, WindowPtr behindWindow) {
 
 void Platform_GetWindowGrowBoxRect(WindowPtr window, Rect* rect) {
     if (!window || !rect) return;
-    /* Standard grow box in bottom right */
-    rect->right = window->port.portRect.right;
-    rect->bottom = window->port.portRect.bottom;
+    if (!window->strucRgn || !*window->strucRgn) return;
+
+    /* Standard grow box in bottom right of window structure (global coords) */
+    *rect = (*window->strucRgn)->rgnBBox;
     rect->left = rect->right - 15;
     rect->top = rect->bottom - 15;
 }
@@ -350,18 +361,21 @@ short Platform_WindowHitTest(WindowPtr window, Point pt) {
 /* Window rectangle calculations */
 void Platform_GetWindowTitleBarRect(WindowPtr window, Rect* rect) {
     if (!window || !rect) return;
+    if (!window->strucRgn || !*window->strucRgn) return;
 
-    /* Title bar is at top of window structure */
-    *rect = window->port.portRect;
+    /* Title bar is at top of window structure (global coords) */
+    *rect = (*window->strucRgn)->rgnBBox;
     rect->bottom = rect->top + 20;  /* Standard title bar height */
 }
 
 void Platform_GetWindowContentRect(WindowPtr window, Rect* rect) {
     if (!window || !rect) return;
+    if (!window->strucRgn || !*window->strucRgn) return;
 
-    /* Content is below title bar */
-    *rect = window->port.portRect;
-    rect->top += 20;  /* Skip title bar */
+    /* Content area in global coords - just below title bar */
+    *rect = (*window->strucRgn)->rgnBBox;
+    rect->top += 21;    /* Skip title bar (20) and separator (1) */
+    /* No need to inset left/right/bottom - frame is drawn inside bounds */
 }
 
 void Platform_GetWindowCloseBoxRect(WindowPtr window, Rect* rect) {
