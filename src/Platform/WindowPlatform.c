@@ -193,6 +193,40 @@ void Platform_GetScreenBounds(Rect* bounds) {
     }
 }
 
+/* Convert local point to global coordinates */
+Point Platform_LocalToGlobalPoint(WindowPtr window, Point localPt) {
+    Point globalPt = localPt;
+
+    if (window && window->strucRgn && *(window->strucRgn)) {
+        /* Get window's global position from strucRgn */
+        Rect globalBounds = (*(window->strucRgn))->rgnBBox;
+
+        /* Offset by content area position (skip border and title) */
+        const short kBorder = 1, kTitle = 20, kSeparator = 1;
+        globalPt.h = localPt.h + globalBounds.left + kBorder;
+        globalPt.v = localPt.v + globalBounds.top + kTitle + kSeparator;
+    }
+
+    return globalPt;
+}
+
+/* Convert global point to local coordinates */
+Point Platform_GlobalToLocalPoint(WindowPtr window, Point globalPt) {
+    Point localPt = globalPt;
+
+    if (window && window->strucRgn && *(window->strucRgn)) {
+        /* Get window's global position from strucRgn */
+        Rect globalBounds = (*(window->strucRgn))->rgnBBox;
+
+        /* Offset by content area position (skip border and title) */
+        const short kBorder = 1, kTitle = 20, kSeparator = 1;
+        localPt.h = globalPt.h - (globalBounds.left + kBorder);
+        localPt.v = globalPt.v - (globalBounds.top + kTitle + kSeparator);
+    }
+
+    return localPt;
+}
+
 /* Initialize color port */
 Boolean Platform_InitializeColorPort(CGrafPtr port) {
     /* Just use regular port initialization */

@@ -282,6 +282,8 @@ static void DoUpdate(WindowPtr w)
                  (char)(w->refCon >> 24), (char)(w->refCon >> 16),
                  (char)(w->refCon >> 8), (char)w->refCon);
 
+    /* Text drawing temporarily disabled until Font Manager is linked */
+
     if (w->refCon == 'TRSH') {
         serial_printf("DoUpdate: drawing trash window contents\n");
         DrawFolderWindowContents(w, true);
@@ -289,11 +291,13 @@ static void DoUpdate(WindowPtr w)
         serial_printf("DoUpdate: drawing volume window contents\n");
         DrawFolderWindowContents(w, false);
     } else {
-        /* Generic doc window: clear content so it doesn't tear */
-        serial_printf("DoUpdate: generic window, erasing content\n");
+        /* Generic doc window: clear content and draw sample text */
+        serial_printf("DoUpdate: generic window, drawing sample content\n");
         Rect r = w->port.portRect;
-        InsetRect(&r, 1, 21); /* skip title bar area */
         EraseRect(&r);
+
+        /* Text drawing disabled - would draw "Window Content Here" at (10,30) */
+        serial_printf("[TEXT] Text drawing disabled - Font Manager not linked\n");
     }
 
     serial_printf("DoUpdate: calling EndUpdate\n");

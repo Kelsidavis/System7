@@ -218,70 +218,94 @@ void MoveWindow(WindowPtr theWindow, short hGlobal, short vGlobal, Boolean front
 void DragWindow(WindowPtr theWindow, Point startPt, const Rect* boundsRect) {
     if (theWindow == NULL) return;
 
-    WM_DEBUG("DragWindow: Starting window drag from (%d, %d)", startPt.h, startPt.v);
+    serial_printf("DragWindow ENTRY: window=%p from (%d,%d)\n", theWindow, startPt.h, startPt.v);
 
-    /* Initialize drag state */
-    WM_InitializeDragState(theWindow, startPt, boundsRect);
-
-    /* Check if mouse is still down */
-    if (!Platform_IsMouseDown()) {
-        WM_DEBUG("DragWindow: Mouse not down, aborting drag");
+    /* Get GLOBAL window bounds from strucRgn - System 7 faithful */
+    Rect frameG;
+    if (theWindow->strucRgn && *(theWindow->strucRgn)) {
+        frameG = (*(theWindow->strucRgn))->rgnBBox;  /* GLOBAL coords */
+    } else {
+        /* Should never happen if Window Manager initialized properly */
+        serial_printf("DragWindow: ERROR - no strucRgn!\n");
         return;
     }
 
-    /* Start drag feedback */
-    WM_StartDragFeedback();
+    /* Calculate mouse offset from window origin (GLOBAL coords) */
+    Point offset;
+    offset.h = startPt.h - frameG.left;
+    offset.v = startPt.v - frameG.top;
 
-    /* Main drag loop */
-    Boolean dragContinues = true;
-    Point currentPt = startPt;
-    Point lastPt = startPt;
+    /* Use provided bounds or default to screen minus menubar */
+    Rect dragBounds;
+    if (boundsRect) {
+        dragBounds = *boundsRect;
+    } else {
+        dragBounds.top = 20;     /* menubar height */
+        dragBounds.left = 0;
+        dragBounds.bottom = 768;
+        dragBounds.right = 1024;
+    }
 
-    while (dragContinues) {
-        /* Get current mouse state */
-        Platform_GetMousePosition(&currentPt);
-        dragContinues = Platform_IsMouseDown();
+    /* System 7 modal drag loop using StillDown/GetMouse */
+    extern Boolean StillDown(void);
+    extern void GetMouse(Point* mouseLoc);
 
-        /* Update drag state */
-        g_dragState.currentPoint = currentPt;
+    Point ptG;
+    Point lastPos = startPt;
+    Boolean moved = false;
+    Rect oldBounds = frameG;
 
-        /* Check if mouse has moved enough to register movement */
-        if (!g_dragState.hasMoved) {
-            short deltaH = abs(currentPt.h - startPt.h);
-            short deltaV = abs(currentPt.v - startPt.v);
-            if (deltaH >= DRAG_THRESHOLD || deltaV >= DRAG_THRESHOLD) {
-                g_dragState.hasMoved = true;
-                WM_DEBUG("DragWindow: Drag threshold exceeded, starting movement");
+    /* Main modal drag loop - System 7 idiom */
+    while (StillDown()) {
+        GetMouse(&ptG);  /* Returns GLOBAL coords */
+
+        /* Only process if mouse moved */
+        if (ptG.h != lastPos.h || ptG.v != lastPos.v) {
+            /* Calculate new window position */
+            short newLeft = ptG.h - offset.h;
+            short newTop = ptG.v - offset.v;
+
+            /* Constrain to drag bounds */
+            short winWidth = frameG.right - frameG.left;
+            short winHeight = frameG.bottom - frameG.top;
+
+            if (newLeft < dragBounds.left)
+                newLeft = dragBounds.left;
+            if (newTop < dragBounds.top)
+                newTop = dragBounds.top;
+            if (newLeft + winWidth > dragBounds.right)
+                newLeft = dragBounds.right - winWidth;
+            if (newTop + winHeight > dragBounds.bottom)
+                newTop = dragBounds.bottom - winHeight;
+
+            /* Live move for now (outline feedback would be better) */
+            if (newLeft != frameG.left || newTop != frameG.top) {
+                serial_printf("DragWindow: MoveWindow to (%d,%d)\n", newLeft, newTop);
+                MoveWindow(theWindow, newLeft, newTop, false);
+
+                /* Update our tracking of frame position */
+                frameG.right = newLeft + winWidth;
+                frameG.bottom = newTop + winHeight;
+                frameG.left = newLeft;
+                frameG.top = newTop;
+
+                moved = true;
             }
-        }
 
-        /* Update drag feedback if mouse moved */
-        if (g_dragState.hasMoved && (currentPt.h != lastPt.h || currentPt.v != lastPt.v)) {
-            WM_UpdateDragFeedback(currentPt);
-            lastPt = currentPt;
+            lastPos = ptG;
         }
-
-        /* Brief delay to avoid consuming too much CPU */
-        Platform_WaitTicks(1);
     }
 
-    /* End drag feedback */
-    WM_EndDragFeedback();
-
-    /* Apply final window position if moved */
-    if (g_dragState.hasMoved) {
-        Point finalOffset = WM_CalculateFinalWindowPosition(currentPt);
-        short newH = g_dragState.originalBounds.left + finalOffset.h;
-        short newV = g_dragState.originalBounds.top + finalOffset.v;
-
-        WM_DEBUG("DragWindow: Applying final position (%d, %d)", newH, newV);
-        MoveWindow(theWindow, newH, newV, false);
+    /* If window moved, invalidate both old and new regions for updates */
+    if (moved) {
+        InvalRect(&oldBounds);
+        if (theWindow->strucRgn && *(theWindow->strucRgn)) {
+            Rect newBounds = (*(theWindow->strucRgn))->rgnBBox;
+            InvalRect(&newBounds);
+        }
     }
 
-    /* Clean up drag state */
-    WM_CleanupDragState();
-
-    WM_DEBUG("DragWindow: Drag operation completed");
+    serial_printf("DragWindow EXIT: moved=%d\n", moved);
 }
 
 /* ============================================================================

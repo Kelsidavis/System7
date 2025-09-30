@@ -1875,6 +1875,8 @@ void kernel_main(uint32_t magic, uint32_t* mb2_info) {
         extern void ProcessModernInput(void);
         ProcessModernInput();
 
+        /* DISABLED: Duplicate event processing - handled below at line 2008 */
+        #if 0
         /* Check for events and dispatch them - MUST happen on every iteration */
         extern Boolean GetNextEvent(short eventMask, EventRecord* theEvent);
         extern Boolean DispatchEvent(EventRecord* event);
@@ -1895,6 +1897,7 @@ void kernel_main(uint32_t magic, uint32_t* mb2_info) {
             }
             DispatchEvent(&evt);
         }
+        #endif
 
         /* Throttle ONLY cursor drawing, not event processing */
         cursor_update_counter++;
@@ -2006,14 +2009,17 @@ skip_cursor_drawing:
 
         /* Get and process events via DispatchEvent */
         if (GetNextEvent(everyEvent, &event)) {
-            /* Let DispatchEvent handle all events instead of duplicating here */
+            /* Log event retrieval */
+            serial_printf("MAIN: GetNextEvent -> 1, what=%d at (%d,%d)\n",
+                         event.what, event.where.h, event.where.v);
+            /* Let DispatchEvent handle all events */
             DispatchEvent(&event);
         }
 #endif /* #if 1 */
 
 #if 0
-        /* OLD CODE: Direct event handling - removed to avoid duplication */
-        if (GetNextEvent(mouseDown | mouseUp | keyDown | autoKey, &event)) {
+        /* Get ALL event types including updateEvt */
+        if (GetNextEvent(everyEvent, &event)) {
             switch (event.what) {
                 case mouseDown:
                     {
@@ -2034,7 +2040,39 @@ skip_cursor_drawing:
                             /* Redraw menu bar after selection */
                             DrawMenuBar();
                         } else {
-                            serial_puts("Mouse down outside menu bar\n");
+                            /* Handle clicks outside menu bar - window dragging, etc */
+                            WindowPtr window;
+                            short part = FindWindow(event.where, &window);
+
+                            serial_printf("MAIN: mouseDown part=%d, window=%p at (%d,%d)\n",
+                                         part, window, event.where.h, event.where.v);
+
+                            switch (part) {
+                                case inDrag:
+                                    if (window) {
+                                        Rect dragBounds = {20, 0, 768, 1024};
+                                        serial_printf("MAIN: Calling DragWindow\n");
+                                        DragWindow(window, event.where, &dragBounds);
+                                    }
+                                    break;
+
+                                case inContent:
+                                    if (window != FrontWindow()) {
+                                        SelectWindow(window);
+                                    }
+                                    /* Let application handle content clicks */
+                                    break;
+
+                                case inGoAway:
+                                    if (TrackGoAway(window, event.where)) {
+                                        /* Close window */
+                                    }
+                                    break;
+
+                                default:
+                                    serial_printf("Mouse down outside windows (part=%d)\n", part);
+                                    break;
+                            }
                         }
                     }
                     break;

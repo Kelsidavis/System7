@@ -19,8 +19,13 @@ extern void ClipRect(const Rect* r);
 /* Draw a simple file/folder icon */
 static void DrawFileIcon(short x, short y, Boolean isFolder)
 {
+    extern void serial_printf(const char* fmt, ...);
+
     Rect iconRect;
     SetRect(&iconRect, x, y, x + 32, y + 32);
+
+    serial_printf("[ICON] res=%d at(l)={%d,%d} port=%p\n",
+                  isFolder ? 1 : 2, x, y, NULL);
 
     if (isFolder) {
         /* Draw folder shape */
@@ -80,13 +85,19 @@ void DrawFolderWindowContents(WindowPtr window, Boolean isTrash)
     serial_printf("Finder: Erased content rect (%d,%d,%d,%d)\n",
                   contentRect.left, contentRect.top, contentRect.right, contentRect.bottom);
 
+    /* Text drawing disabled until Font Manager is linked */
+
     if (isTrash) {
         /* Draw trash contents */
         MoveTo(contentRect.left + 10, contentRect.top + 30);
         DrawText("Trash is empty", 0, 14);
+        serial_printf("[TEXT] 'Trash is empty' at(l)={%d,%d} font=%d size=%d\n",
+                      contentRect.left + 10, contentRect.top + 30, 0, 9);
 
         MoveTo(contentRect.left + 10, contentRect.top + 50);
         DrawText("Drag items here to delete them", 0, 30);
+        serial_printf("[TEXT] 'Drag items here to delete them' at(l)={%d,%d} font=%d size=%d\n",
+                      contentRect.left + 10, contentRect.top + 50, 0, 9);
     } else {
         /* Draw volume contents - sample items in icon grid */
         /* Ensure margins: 80px left (room for labels), 30px top */
@@ -99,6 +110,7 @@ void DrawFolderWindowContents(WindowPtr window, Boolean isTrash)
         DrawFileIcon(x, y, true);
         MoveTo(x - 23, y + 40);
         DrawText("System Folder", 0, 13);
+        serial_printf("[TEXT] 'System Folder' at(l)={%d,%d} font=%d size=%d\n", x - 23, y + 40, 0, 9);
 
         x += iconSpacing;
 
@@ -106,6 +118,7 @@ void DrawFolderWindowContents(WindowPtr window, Boolean isTrash)
         DrawFileIcon(x, y, true);
         MoveTo(x - 20, y + 40);
         DrawText("Applications", 0, 12);
+        serial_printf("[TEXT] 'Applications' at(l)={%d,%d} font=%d size=%d\n", x - 20, y + 40, 0, 9);
 
         x += iconSpacing;
 
@@ -113,6 +126,7 @@ void DrawFolderWindowContents(WindowPtr window, Boolean isTrash)
         DrawFileIcon(x, y, true);
         MoveTo(x - 11, y + 40);
         DrawText("Documents", 0, 9);
+        serial_printf("[TEXT] 'Documents' at(l)={%d,%d} font=%d size=%d\n", x - 11, y + 40, 0, 9);
 
         /* Second row */
         x = contentRect.left + 80;
@@ -122,6 +136,7 @@ void DrawFolderWindowContents(WindowPtr window, Boolean isTrash)
         DrawFileIcon(x, y, false);
         MoveTo(x - 14, y + 40);
         DrawText("ReadMe.txt", 0, 10);
+        serial_printf("[TEXT] 'ReadMe.txt' at(l)={%d,%d} font=%d size=%d\n", x - 14, y + 40, 0, 9);
 
         x += iconSpacing;
 
@@ -129,10 +144,13 @@ void DrawFolderWindowContents(WindowPtr window, Boolean isTrash)
         DrawFileIcon(x, y, false);
         MoveTo(x - 26, y + 40);
         DrawText("About System 7", 0, 14);
+        serial_printf("[TEXT] 'About System 7' at(l)={%d,%d} font=%d size=%d\n", x - 26, y + 40, 0, 9);
 
         /* Show disk space at bottom */
         MoveTo(contentRect.left + 10, contentRect.bottom - 10);
         DrawText("5 items     42.3 MB in disk     193.7 MB available", 0, 52);
+        serial_printf("[TEXT] 'disk info' at(l)={%d,%d} font=%d size=%d\n",
+                      contentRect.left + 10, contentRect.bottom - 10, 0, 9);
     }
 
     SetPort(savePort);

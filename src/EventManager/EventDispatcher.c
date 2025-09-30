@@ -86,6 +86,10 @@ Boolean DispatchEvent(EventRecord* event)
         return false;
     }
 
+    /* Entry log for all events */
+    serial_printf("DispatchEvent: type=%d at (%d,%d)\n",
+                  event->what, event->where.h, event->where.v);
+
     switch (event->what) {
         case nullEvent:
             return HandleNullEvent(event);
@@ -218,7 +222,13 @@ Boolean HandleMouseDown(EventRecord* event)
                 dragBounds.bottom = 768;  /* Screen height */
                 dragBounds.right = 1024;  /* Screen width */
 
+                serial_printf("HandleMouseDown: inDrag window=0x%08x bounds=(%d,%d,%d,%d)\n",
+                             (unsigned int)whichWindow, dragBounds.top, dragBounds.left,
+                             dragBounds.bottom, dragBounds.right);
                 DragWindow(whichWindow, event->where, &dragBounds);
+                serial_printf("HandleMouseDown: DragWindow returned\n");
+            } else {
+                serial_printf("HandleMouseDown: inDrag but whichWindow is NULL!\n");
             }
             return true;
 
@@ -413,8 +423,19 @@ Boolean HandleUpdate(EventRecord* event)
         BeginUpdate(updateWindow);
 
         /* Draw window contents */
-        /* Application would do the actual drawing */
         SetPort((GrafPtr)updateWindow);
+
+        /* Check if this is a Finder window and draw its content */
+        if (updateWindow->refCon == 'TRSH' || updateWindow->refCon == 'DISK') {
+            /* Call Finder's window drawing */
+            extern void DrawFolderWindowContents(WindowPtr window, Boolean isTrash);
+            DrawFolderWindowContents(updateWindow, updateWindow->refCon == 'TRSH');
+        } else {
+            /* Application would do the actual drawing */
+            /* For now, just fill with white to show content area */
+            Rect r = updateWindow->port.portRect;
+            EraseRect(&r);
+        }
 
         /* Draw grow icon if window has grow box */
         if (updateWindow->windowKind >= 0) {
@@ -423,6 +444,9 @@ Boolean HandleUpdate(EventRecord* event)
 
         /* End update to restore clipping */
         EndUpdate(updateWindow);
+
+        /* Log successful update */
+        serial_printf("UPDATE: drew content for window=%p\n", updateWindow);
     }
 
     return true;

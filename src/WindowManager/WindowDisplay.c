@@ -122,7 +122,11 @@ void PaintOne(WindowPtr window, RgnHandle clobberedRgn) {
         window->port.portRect.left, window->port.portRect.top,
         window->port.portRect.right, window->port.portRect.bottom);
 
-    Rect contentRect = {0, 0, window->port.portRect.bottom, window->port.portRect.right};
+    /* portRect is already local (0,0,width,height), copy it directly */
+    Rect contentRect = window->port.portRect;
+
+    serial_printf("[PAINT] port=%p rect={%d,%d,%d,%d}\n",
+        window, contentRect.top, contentRect.left, contentRect.bottom, contentRect.right);
 
     serial_printf("PaintOne: Content rect (local) = (%d,%d,%d,%d)\n",
         contentRect.left, contentRect.top, contentRect.right, contentRect.bottom);
@@ -130,6 +134,9 @@ void PaintOne(WindowPtr window, RgnHandle clobberedRgn) {
     /* Fill with white to make opaque */
     EraseRect(&contentRect);
     serial_printf("PaintOne: Content erased\n");
+
+    /* Test content drawing temporarily disabled until Font Manager is linked */
+    serial_printf("[TEXT] Text drawing disabled - Font Manager not linked\n");
 
     /* Window Manager draws chrome only - content is application's job */
     /* Application must draw content via BeginUpdate/EndUpdate in update event handler */
@@ -264,7 +271,7 @@ void DrawNew(WindowPtr window, Boolean update) {
     }
 
     /* Fill content area - LOCAL coords */
-    Rect contentRect = {0, 0, window->port.portRect.bottom, window->port.portRect.right};
+    Rect contentRect = window->port.portRect;
     serial_printf("DrawNew: Filling content rect (local) (%d,%d,%d,%d)\n",
         contentRect.left, contentRect.top, contentRect.right, contentRect.bottom);
     EraseRect(&contentRect);
@@ -440,7 +447,7 @@ void DrawWindow(WindowPtr window) {
     SetPort((GrafPtr)window);
 
     /* Fill content area - LOCAL coords */
-    Rect contentRect = {0, 0, window->port.portRect.bottom, window->port.portRect.right};
+    Rect contentRect = window->port.portRect;
     serial_printf("DrawWindow: Filling content rect (local) (%d,%d,%d,%d)\n",
         contentRect.left, contentRect.top, contentRect.right, contentRect.bottom);
     EraseRect(&contentRect);

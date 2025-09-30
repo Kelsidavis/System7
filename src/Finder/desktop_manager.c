@@ -1077,11 +1077,21 @@ Boolean HandleDesktopClick(Point clickPoint, Boolean doubleClick)
 {
     short prevSelected = gSelectedIcon;
     short hitIcon;
+    WindowPtr whichWindow;
 
     extern void serial_printf(const char* fmt, ...);
+    extern short FindWindow(Point thePoint, WindowPtr* theWindow);
 
     serial_printf("HandleDesktopClick: click at (%d,%d), doubleClick=%d\n",
                   clickPoint.h, clickPoint.v, doubleClick);
+
+    /* System 7 faithful: only handle if click is on desktop (not a window) */
+    short part = FindWindow(clickPoint, &whichWindow);
+    if (part != inDesk) {
+        /* Click was on a window, not desktop - let Window Manager handle it */
+        serial_printf("HandleDesktopClick: part=%d (not inDesk), ignoring\n", part);
+        return false;
+    }
 
     /* Find which icon was hit */
     hitIcon = IconAtPoint(clickPoint);
