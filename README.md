@@ -95,27 +95,27 @@ iteration2/
 
 ## Current Status
 
-✅ Boots successfully via GRUB2
-✅ Displays System 7 menu bar with rainbow Apple logo
-✅ Authentic Mac OS 7 HD icon on desktop
-✅ Chicago font rendering with proper spacing and kerning
-✅ Desktop icon text with white background
-✅ PS/2 keyboard and mouse support with improved polling
-✅ Event system framework in place
-✅ Pattern resources (PAT) loaded from JSON
-✅ Pixel pattern (ppat) backgrounds support
-✅ Small icons (SICN) rendering support
-✅ Color icon support (32-bit ARGB) for trash and HD icons
-✅ Fixed icon rendering with proper mask/image compositing
-✅ HFS virtual file system with B-tree implementation
-✅ Trash folder system integration
-✅ Full Memory Manager with System and App zones (8MB total)
-✅ DeskManager for desk accessories
-✅ DialogManager framework integrated
-✅ Control Manager with tracking and drawing
-✅ List Manager foundation
-✅ TextEdit system ready
-✅ File Manager with full HFS support integrated
+- [x] Boots successfully via GRUB2
+- [x] Displays System 7 menu bar with rainbow Apple logo
+- [x] Authentic Mac OS 7 HD icon on desktop
+- [x] Chicago font rendering with proper spacing and kerning
+- [x] Desktop icon text with white background
+- [x] PS/2 keyboard and mouse support with improved polling
+- [x] Event system framework in place
+- [x] Pattern resources (PAT) loaded from JSON
+- [x] Pixel pattern (ppat) backgrounds support
+- [x] Small icons (SICN) rendering support
+- [x] Color icon support (32-bit ARGB) for trash and HD icons
+- [x] Fixed icon rendering with proper mask/image compositing
+- [x] HFS virtual file system with B-tree implementation
+- [x] Trash folder system integration
+- [x] Full Memory Manager with System and App zones (8MB total)
+- [x] DeskManager for desk accessories
+- [x] DialogManager framework integrated
+- [x] Control Manager with tracking and drawing
+- [x] List Manager foundation
+- [x] TextEdit system ready
+- [x] File Manager with full HFS support integrated
 
 ## Future Development
 
