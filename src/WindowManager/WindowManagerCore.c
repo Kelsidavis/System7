@@ -755,7 +755,13 @@ static void DeallocateWindowRecord(WindowPtr window) {
 static void InitializeWindowRecord(WindowPtr window, const Rect* bounds,
                                  ConstStr255Param title, short procID,
                                  Boolean visible, Boolean goAwayFlag) {
+    extern void serial_puts(const char *str);
+
+    serial_puts("[WM] InitializeWindowRecord: ENTRY\n");
+
     if (window == NULL || bounds == NULL) return;
+
+    serial_puts("[WM] InitializeWindowRecord: Setting basic properties\n");
 
     /* Set basic window properties */
     window->windowKind = userKind;
@@ -764,14 +770,48 @@ static void InitializeWindowRecord(WindowPtr window, const Rect* bounds,
     window->goAwayFlag = goAwayFlag;
     window->spareFlag = false;
 
+    serial_puts("[WM] InitializeWindowRecord: About to create window regions\n");
+
     /* Create window regions */
+    serial_puts("[WM] InitializeWindowRecord: Creating strucRgn\n");
     window->strucRgn = Platform_NewRgn();
+    serial_puts("[WM] InitializeWindowRecord: Creating contRgn\n");
     window->contRgn = Platform_NewRgn();
+    serial_puts("[WM] InitializeWindowRecord: Creating updateRgn\n");
     window->updateRgn = Platform_NewRgn();
+    serial_puts("[WM] InitializeWindowRecord: Creating visRgn\n");
     window->visRgn = Platform_NewRgn();
 
+    serial_puts("[WM] InitializeWindowRecord: Getting window def proc\n");
+
+    /* DEBUG: Log procID value */
+    extern void hal_outb(uint16_t port, uint8_t value);
+    serial_puts("[WM] InitializeWindowRecord: procID=0x");
+    for (int i = 1; i >= 0; i--) {
+        uint8_t nibble = (procID >> (i*4)) & 0xF;
+        char hex = (nibble < 10) ? ('0' + nibble) : ('A' + nibble - 10);
+        hal_outb(0x3F8, hex);
+    }
+    serial_puts("\n");
+
     /* Set window definition procedure based on procID */
-    window->windowDefProc = Platform_GetWindowDefProc(procID);
+    serial_puts("[WM] InitializeWindowRecord: About to call Platform_GetWindowDefProc\n");
+    Handle defProc = Platform_GetWindowDefProc(procID);
+    serial_puts("[WM] InitializeWindowRecord: Platform_GetWindowDefProc returned\n");
+
+    /* DEBUG: Log returned value */
+    serial_puts("[WM] InitializeWindowRecord: defProc=0x");
+    for (int i = 7; i >= 0; i--) {
+        uint8_t nibble = ((uint32_t)defProc >> (i*4)) & 0xF;
+        char hex = (nibble < 10) ? ('0' + nibble) : ('A' + nibble - 10);
+        hal_outb(0x3F8, hex);
+    }
+    serial_puts("\n");
+
+    serial_puts("[WM] InitializeWindowRecord: About to assign windowDefProc\n");
+    window->windowDefProc = defProc;
+    serial_puts("[WM] InitializeWindowRecord: windowDefProc assigned\n");
+
     window->dataHandle = NULL;
 
     /* Set window title */

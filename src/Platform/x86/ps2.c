@@ -304,9 +304,43 @@ static void process_mouse_packet(void) {
     /* Check button state changes */
     uint8_t new_buttons = status & 0x07;
     if (new_buttons != g_mouseState.buttons) {
+        /* Log button state changes for debugging */
+        static int btnChangeCount = 0;
+        if (++btnChangeCount % 10 == 1) {  /* Log first and every 10th change */
+            PLATFORM_LOG_DEBUG("PS2: Button state change #%d: 0x%02x -> 0x%02x\n",
+                             btnChangeCount, g_mouseState.buttons, new_buttons);
+        }
         /* Update button state only - let ModernInput handle event posting */
         g_mouseState.buttons = new_buttons;
     }
+
+    /* Safety: Detect stuck button state
+     * Trigger if button held for > 2 seconds (regardless of movement)
+     * This catches cases where button release packet is dropped/delayed
+     */
+    static uint8_t last_buttons_for_timeout = 0;
+    static int timeout_counter = 0;
+    static int timeout_threshold = 2000 * 3; /* ~2 seconds at 3 packets per poll */
+
+    if (g_mouseState.buttons & 1) {
+        /* Button pressed - count time regardless of movement */
+        if (last_buttons_for_timeout == (g_mouseState.buttons & 1)) {
+            timeout_counter++;
+            if (timeout_counter >= timeout_threshold) {
+                /* Button stuck - force release */
+                PLATFORM_LOG_DEBUG("PS2: STUCK BUTTON DETECTED after %d packets! Forcing button release.\n", timeout_counter);
+                g_mouseState.buttons = 0;
+                new_buttons = 0;
+                timeout_counter = 0;
+            }
+        } else {
+            timeout_counter = 0;
+        }
+    } else {
+        /* Button released - reset timeout */
+        timeout_counter = 0;
+    }
+    last_buttons_for_timeout = g_mouseState.buttons & 1;
 
     /* Update global mouse position for GetMouse() */
     g_mousePos.h = g_mouseState.x;

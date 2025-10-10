@@ -174,6 +174,8 @@ extern void STMenu_Init(void);
 extern void STMenu_Dispose(void);
 extern void STMenu_Handle(long menuResult);
 extern void STMenu_Update(void);
+extern void STMenu_Install(void);   /* Install menus when window activates */
+extern void STMenu_Remove(void);    /* Remove menus when window deactivates */
 extern void STMenu_EnableItem(MenuHandle menu, short item, Boolean enable);
 extern void STMenu_CheckItem(MenuHandle menu, short item, Boolean check);
 

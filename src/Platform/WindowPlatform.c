@@ -245,6 +245,17 @@ RgnHandle Platform_NewRgn(void) {
 
 /* Get window definition procedure */
 Handle Platform_GetWindowDefProc(short procID) {
+    extern void serial_puts(const char *s);
+    extern void hal_outb(uint16_t port, uint8_t value);
+
+    serial_puts("[PLATFORM] Platform_GetWindowDefProc: ENTRY, procID=0x");
+    for (int i = 1; i >= 0; i--) {
+        uint8_t nibble = (procID >> (i*4)) & 0xF;
+        char hex = (nibble < 10) ? ('0' + nibble) : ('A' + nibble - 10);
+        hal_outb(0x3F8, hex);
+    }
+    serial_puts("\n");
+
     /* [WM-039] WDEF dispatch - IM:Windows Vol I pp. 2-88 to 2-95 */
     switch (procID) {
         case documentProc:
@@ -252,15 +263,21 @@ Handle Platform_GetWindowDefProc(short procID) {
         case zoomDocProc:
         case zoomNoGrow:
         case rDocProc:
+            serial_puts("[PLATFORM] Platform_GetWindowDefProc: Matched standard window proc\n");
+            serial_puts("[PLATFORM] Platform_GetWindowDefProc: About to return WM_StandardWindowDefProc\n");
             return (Handle)WM_StandardWindowDefProc;
 
         case dBoxProc:
         case plainDBox:
         case altDBoxProc:
         case movableDBoxProc:
+            serial_puts("[PLATFORM] Platform_GetWindowDefProc: Matched dialog proc\n");
+            serial_puts("[PLATFORM] Platform_GetWindowDefProc: About to return WM_DialogWindowDefProc\n");
             return (Handle)WM_DialogWindowDefProc;
 
         default:
+            serial_puts("[PLATFORM] Platform_GetWindowDefProc: Matched default (standard window proc)\n");
+            serial_puts("[PLATFORM] Platform_GetWindowDefProc: About to return WM_StandardWindowDefProc\n");
             return (Handle)WM_StandardWindowDefProc;
     }
 }

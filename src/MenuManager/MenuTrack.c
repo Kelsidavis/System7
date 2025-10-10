@@ -563,6 +563,7 @@ long TrackMenu(short menuID, Point *startPt) {
     } else {
     }
 
+    serial_puts("TrackMenu: After itemCount check\n");
 
     /* Validate geometry to prevent zero/negative sizes */
     if (itemCount <= 0) {
@@ -570,17 +571,20 @@ long TrackMenu(short menuID, Point *startPt) {
         itemCount = 5;
     }
 
+    serial_puts("TrackMenu: After itemCount validation\n");
 
     short menuWidth = 120;
     if (menuID == 128) menuWidth = 150;
     if (menuID == 131) menuWidth = 130;
 
+    serial_puts("TrackMenu: After menuWidth calculation\n");
 
     if (menuWidth <= 0) {
         serial_puts("TrackMenu: Invalid menuWidth, using default\n");
         menuWidth = 120;
     }
 
+    serial_puts("TrackMenu: After menuWidth validation\n");
 
     short lineHeight = 16;
     if (lineHeight <= 0) {
@@ -588,11 +592,16 @@ long TrackMenu(short menuID, Point *startPt) {
         lineHeight = 16;
     }
 
+    serial_puts("TrackMenu: After lineHeight setup\n");
+
     short menuHeight = itemCount * lineHeight + 4;
+    serial_puts("TrackMenu: After menuHeight calculation\n");
 
     /* Get coordinates from startPt (already validated non-NULL earlier) */
     short left = startPt->h;
     short top = 20;
+
+    serial_puts("TrackMenu: After reading startPt coordinates\n");
 
     /* Calculate menu rectangle */
     menuRect.left = left;
@@ -600,13 +609,18 @@ long TrackMenu(short menuID, Point *startPt) {
     menuRect.right = left + menuWidth;
     menuRect.bottom = top + menuHeight;
 
+    serial_puts("TrackMenu: After menuRect calculation\n");
+
     /* Clip to screen bounds to prevent out-of-bounds save/restore */
     #define SCREEN_WIDTH 640
     #define SCREEN_HEIGHT 480
+    serial_puts("TrackMenu: Before screen bounds clipping\n");
     if (menuRect.left < 0) menuRect.left = 0;
     if (menuRect.top < 0) menuRect.top = 0;
     if (menuRect.right > SCREEN_WIDTH) menuRect.right = SCREEN_WIDTH;
     if (menuRect.bottom > SCREEN_HEIGHT) menuRect.bottom = SCREEN_HEIGHT;
+
+    serial_puts("TrackMenu: After screen bounds clipping\n");
 
     /* Validate rect is non-empty after clipping */
     if (menuRect.right <= menuRect.left || menuRect.bottom <= menuRect.top) {
@@ -616,9 +630,14 @@ long TrackMenu(short menuID, Point *startPt) {
         return 0;
     }
 
+    serial_puts("TrackMenu: menuRect validation passed\n");
+
     extern Handle SaveMenuBits(const Rect *menuRect);
     extern OSErr RestoreMenuBits(Handle bitsHandle);
     extern OSErr DiscardMenuBits(Handle bitsHandle);
+
+    serial_puts("TrackMenu: About to call SaveMenuBits\n");
+    serial_puts("TrackMenu: menuRect validation passed\n");
 
     savedBits = SaveMenuBits(&menuRect);
     serial_puts("TrackMenu: SaveMenuBits returned\n");

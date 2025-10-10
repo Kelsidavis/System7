@@ -34,65 +34,68 @@ static void UpdateSizeMenu(void);
 static void UpdateStyleMenu(void);
 
 /*
- * STMenu_Init - Initialize all menus
+ * STMenu_Init - Initialize all menus (create but don't install)
+ *
+ * System 7 Design: Applications create menus during init but do NOT insert them.
+ * Menus are installed when the app's window becomes active, and removed when inactive.
  */
 void STMenu_Init(void) {
     Handle menuBar;
+    extern void serial_puts(const char*);
 
-    ST_Log("Initializing menus\n");
+    serial_puts("[ST] STMenu_Init: Creating menus (not yet installing)\n");
 
-    /* Create Apple menu */
+    /* Create Apple menu - but DON'T insert yet */
     static unsigned char appleTitle[] = {1, 0x14};  /* Apple symbol */
     g_ST.appleMenu = NewMenu(mApple, appleTitle);
     if (g_ST.appleMenu) {
         AppendMenu(g_ST.appleMenu, kAppleMenuItems);
-        InsertMenu(g_ST.appleMenu, 0);
+        /* DO NOT call InsertMenu here - menus installed on activate */
     }
 
-    /* Create File menu */
+    /* Create File menu - but DON'T insert yet */
     static unsigned char fileTitle[] = {4, 'F','i','l','e'};
     g_ST.fileMenu = NewMenu(mFile, fileTitle);
     if (g_ST.fileMenu) {
         AppendMenu(g_ST.fileMenu, kFileMenuItems);
-        InsertMenu(g_ST.fileMenu, 0);
+        /* DO NOT call InsertMenu here - menus installed on activate */
     }
 
-    /* Create Edit menu */
+    /* Create Edit menu - but DON'T insert yet */
     static unsigned char editTitle[] = {4, 'E','d','i','t'};
     g_ST.editMenu = NewMenu(mEdit, editTitle);
     if (g_ST.editMenu) {
         AppendMenu(g_ST.editMenu, kEditMenuItems);
-        InsertMenu(g_ST.editMenu, 0);
+        /* DO NOT call InsertMenu here - menus installed on activate */
     }
 
-    /* Create Font menu */
+    /* Create Font menu - but DON'T insert yet */
     static unsigned char fontTitle[] = {4, 'F','o','n','t'};
     g_ST.fontMenu = NewMenu(mFont, fontTitle);
     if (g_ST.fontMenu) {
         AppendMenu(g_ST.fontMenu, kFontMenuItems);
-        InsertMenu(g_ST.fontMenu, 0);
+        /* DO NOT call InsertMenu here - menus installed on activate */
     }
 
-    /* Create Size menu */
+    /* Create Size menu - but DON'T insert yet */
     static unsigned char sizeTitle[] = {4, 'S','i','z','e'};
     g_ST.sizeMenu = NewMenu(mSize, sizeTitle);
     if (g_ST.sizeMenu) {
         AppendMenu(g_ST.sizeMenu, kSizeMenuItems);
-        InsertMenu(g_ST.sizeMenu, 0);
+        /* DO NOT call InsertMenu here - menus installed on activate */
     }
 
-    /* Create Style menu */
+    /* Create Style menu - but DON'T insert yet */
     static unsigned char styleTitle[] = {5, 'S','t','y','l','e'};
     g_ST.styleMenu = NewMenu(mStyle, styleTitle);
     if (g_ST.styleMenu) {
         AppendMenu(g_ST.styleMenu, kStyleMenuItems);
-        InsertMenu(g_ST.styleMenu, 0);
+        /* DO NOT call InsertMenu here - menus installed on activate */
     }
 
-    /* Draw menu bar */
-    DrawMenuBar();
+    /* DO NOT call DrawMenuBar here - menus are drawn when installed on activate */
 
-    ST_Log("Menus initialized\n");
+    serial_puts("[ST] STMenu_Init: Menus created successfully (not yet installed)\n");
 }
 
 /*
@@ -158,6 +161,78 @@ void STMenu_Update(void) {
     UpdateFontMenu();
     UpdateSizeMenu();
     UpdateStyleMenu();
+}
+
+/*
+ * STMenu_Install - Install menus into the menu bar
+ *
+ * Called when a SimpleText window becomes active.
+ * This follows System 7 design: each app installs its menus when active.
+ */
+void STMenu_Install(void) {
+    extern void serial_puts(const char*);
+    serial_puts("[ST] STMenu_Install: Installing SimpleText menus into menu bar\n");
+
+    /* Insert menus in order: Apple, File, Edit, Font, Size, Style */
+    if (g_ST.appleMenu) {
+        InsertMenu(g_ST.appleMenu, 0);
+    }
+    if (g_ST.fileMenu) {
+        InsertMenu(g_ST.fileMenu, 0);
+    }
+    if (g_ST.editMenu) {
+        InsertMenu(g_ST.editMenu, 0);
+    }
+    if (g_ST.fontMenu) {
+        InsertMenu(g_ST.fontMenu, 0);
+    }
+    if (g_ST.sizeMenu) {
+        InsertMenu(g_ST.sizeMenu, 0);
+    }
+    if (g_ST.styleMenu) {
+        InsertMenu(g_ST.styleMenu, 0);
+    }
+
+    /* Redraw menu bar to show our menus */
+    DrawMenuBar();
+
+    serial_puts("[ST] STMenu_Install: Menus installed successfully\n");
+}
+
+/*
+ * STMenu_Remove - Remove menus from the menu bar
+ *
+ * Called when all SimpleText windows are deactivated.
+ * This allows Finder (or other apps) to show their own menus.
+ */
+void STMenu_Remove(void) {
+    extern void serial_puts(const char*);
+    serial_puts("[ST] STMenu_Remove: Removing SimpleText menus from menu bar\n");
+
+    /* Delete menus in reverse order */
+    if (g_ST.styleMenu) {
+        DeleteMenu(mStyle);
+    }
+    if (g_ST.sizeMenu) {
+        DeleteMenu(mSize);
+    }
+    if (g_ST.fontMenu) {
+        DeleteMenu(mFont);
+    }
+    if (g_ST.editMenu) {
+        DeleteMenu(mEdit);
+    }
+    if (g_ST.fileMenu) {
+        DeleteMenu(mFile);
+    }
+    if (g_ST.appleMenu) {
+        DeleteMenu(mApple);
+    }
+
+    /* Redraw menu bar (will show Finder's menus or be empty) */
+    DrawMenuBar();
+
+    serial_puts("[ST] STMenu_Remove: Menus removed successfully\n");
 }
 
 /*
