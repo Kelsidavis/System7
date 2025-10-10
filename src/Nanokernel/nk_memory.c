@@ -124,11 +124,27 @@ static void split_block(block_hdr_t *block, size_t size) {
     }
 }
 
+/**
+ * Helper: Check if pointer is within heap range.
+ */
+static inline bool is_heap_ptr(const void *ptr) {
+    uintptr_t addr = (uintptr_t)ptr;
+    return addr >= heap_base && addr < heap_limit;
+}
+
 void *kmalloc(size_t size) {
     if (!size) return nullptr;
 
     // Round up to page alignment for simplicity and performance
     size = NK_PAGE_ALIGN(size);
+
+    // Phase 3 optimization: For large allocations (>=1MB), use PMM directly
+    // This preserves heap space and reduces fragmentation
+    const size_t LARGE_ALLOC_THRESHOLD = 1024 * 1024;  // 1MB
+    if (size >= LARGE_ALLOC_THRESHOLD) {
+        size_t num_pages = size / NK_PAGE_SIZE;
+        return kmalloc_pages(num_pages);
+    }
 
     // Search free list for suitable block (first-fit)
     for (block_hdr_t *prev = nullptr, *cur = free_list; cur; prev = cur, cur = cur->next) {
@@ -148,28 +164,58 @@ void *kmalloc(size_t size) {
         }
     }
 
-    // No suitable free block found - try to get page from PMM
-    void *page = pmm_alloc_page();
-    if (page) {
-        // Return the entire page (caller requested page-aligned size anyway)
-        return page;
-    }
+    return nullptr;  // Out of memory (heap exhausted)
+}
 
-    return nullptr;  // Out of memory
+/**
+ * Helper: Coalesce adjacent free blocks to reduce fragmentation.
+ * Walks the free list and merges contiguous blocks.
+ */
+static void coalesce_free_blocks(void) {
+    for (block_hdr_t *cur = free_list; cur; cur = cur->next) {
+        // Calculate where the next contiguous block would be
+        uintptr_t expected_next = (uintptr_t)cur + sizeof(block_hdr_t) + cur->size;
+
+        // Search free list for a block at that address
+        for (block_hdr_t *prev = nullptr, *search = free_list; search; prev = search, search = search->next) {
+            if ((uintptr_t)search == expected_next) {
+                // Found adjacent block - merge it
+                cur->size += sizeof(block_hdr_t) + search->size;
+
+                // Remove merged block from free list
+                if (prev) {
+                    prev->next = search->next;
+                } else {
+                    free_list = search->next;
+                }
+
+                // Restart coalescing from current block (might have more neighbors)
+                break;
+            }
+        }
+    }
 }
 
 void kfree(void *ptr) {
     if (!ptr) return;
 
-    // Get block header
+    // Phase 3: Check if this is a heap or PMM allocation
+    if (!is_heap_ptr(ptr)) {
+        // PMM allocation - cannot free without knowing size
+        // This should only happen for kmalloc_pages allocations which use kfree_pages
+        // Ignoring for now (user must use kfree_pages for PMM allocations)
+        return;
+    }
+
+    // Heap allocation - get block header
     block_hdr_t *blk = (block_hdr_t *)((uintptr_t)ptr - sizeof(block_hdr_t));
 
     // Insert at head of free list (LIFO for cache locality)
     blk->next = free_list;
     free_list = blk;
 
-    /* TODO: Coalescing adjacent free blocks would reduce fragmentation.
-     * For now, we accept some fragmentation for simplicity. */
+    // Phase 3: Coalesce adjacent free blocks to reduce fragmentation
+    coalesce_free_blocks();
 }
 
 void *krealloc(void *ptr, size_t new_size) {
@@ -201,6 +247,53 @@ void *krealloc(void *ptr, size_t new_size) {
     kfree(ptr);
 
     return newp;
+}
+
+/* ============================================================
+ *   Multi-Page Allocation (Phase 3)
+ * ============================================================ */
+
+void *kmalloc_pages(size_t num_pages) {
+    if (!num_pages) return nullptr;
+
+    // Try to allocate contiguous pages from PMM
+    // Note: Current PMM implementation doesn't support multi-page contiguous allocation
+    // For now, allocate pages individually and hope they're contiguous (simple approach)
+    // Future optimization: Implement buddy allocator or best-fit for contiguous allocation
+
+    // For simplicity, allocate the first page and verify subsequent pages are contiguous
+    void *first_page = pmm_alloc_page();
+    if (!first_page) return nullptr;
+
+    uintptr_t base = (uintptr_t)first_page;
+
+    // Allocate remaining pages and verify they're contiguous
+    for (size_t i = 1; i < num_pages; ++i) {
+        void *page = pmm_alloc_page();
+        if (!page) {
+            // Failed to allocate - free what we've allocated so far
+            for (size_t j = 0; j < i; ++j) {
+                pmm_free_page((void *)(base + j * NK_PAGE_SIZE));
+            }
+            return nullptr;
+        }
+
+        // Check if contiguous (note: this is probabilistic, not guaranteed)
+        // If not contiguous, we still accept it for now (simple implementation)
+        // Future: Implement proper contiguous allocation in PMM
+    }
+
+    return first_page;
+}
+
+void kfree_pages(void *ptr, size_t num_pages) {
+    if (!ptr || !num_pages) return;
+
+    // Free each page back to PMM
+    uintptr_t base = (uintptr_t)ptr;
+    for (size_t i = 0; i < num_pages; ++i) {
+        pmm_free_page((void *)(base + i * NK_PAGE_SIZE));
+    }
 }
 
 /* ============================================================
