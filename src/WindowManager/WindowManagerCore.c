@@ -488,13 +488,10 @@ void CloseWindow(WindowPtr theWindow) {
     }
     WM_LOG_DEBUG("CloseWindow: Regions disposed\n");
 
-    /* Dispose of title */
+    /* Dispose of title using Memory Manager */
     WM_LOG_TRACE("CloseWindow: Disposing title\n");
     if (theWindow->titleHandle) {
-        if (*(theWindow->titleHandle)) {
-            free(*(theWindow->titleHandle));
-        }
-        free(theWindow->titleHandle);
+        DisposeHandle((Handle)theWindow->titleHandle);
         theWindow->titleHandle = NULL;
     }
     WM_LOG_TRACE("CloseWindow: Title disposed\n");

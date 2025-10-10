@@ -657,32 +657,33 @@ void SetWTitle(WindowPtr window, ConstStr255Param title) {
     titleBuf[len] = 0;
     SYSTEM_LOG_DEBUG("SetWTitle: Title = '%s'\n", titleBuf);
 
-    /* CRITICAL: Allocate and store title in titleHandle */
+    /* CRITICAL: Allocate and store title in titleHandle using Memory Manager */
     if (window->titleHandle) {
-        /* Free existing title */
-        if (*window->titleHandle) {
-            free(*window->titleHandle);
-            *window->titleHandle = NULL;
-        }
-        free(window->titleHandle);
+        /* Dispose existing title using Memory Manager */
+        SYSTEM_LOG_DEBUG("SetWTitle: Disposing existing titleHandle=%p\n", window->titleHandle);
+        DisposeHandle((Handle)window->titleHandle);
         window->titleHandle = NULL;
     }
 
     if (len > 0) {
-        /* Allocate handle */
-        window->titleHandle = (StringHandle)malloc(sizeof(Ptr));
+        /* Allocate handle using Memory Manager (not malloc!) */
+        window->titleHandle = (StringHandle)NewHandle(len + 1);
         if (window->titleHandle) {
-            /* Allocate title string (length byte + string) */
-            *window->titleHandle = (Ptr)malloc(len + 1);
-            if (*window->titleHandle) {
-                /* Copy Pascal string */
-                (*window->titleHandle)[0] = len;
-                for (int i = 0; i < len; i++) {
-                    (*window->titleHandle)[i + 1] = title[i + 1];
-                }
-                SYSTEM_LOG_DEBUG("SetWTitle: Allocated titleHandle=%p, string=%p\n",
-                             window->titleHandle, *window->titleHandle);
+            /* Lock handle for copying */
+            HLock((Handle)window->titleHandle);
+            Ptr titleStr = *window->titleHandle;
+
+            /* Copy Pascal string */
+            titleStr[0] = len;
+            for (int i = 0; i < len; i++) {
+                titleStr[i + 1] = title[i + 1];
             }
+
+            /* Unlock handle */
+            HUnlock((Handle)window->titleHandle);
+
+            SYSTEM_LOG_DEBUG("SetWTitle: Allocated titleHandle=%p (using NewHandle), string=%p\n",
+                         window->titleHandle, *window->titleHandle);
         }
     }
 
