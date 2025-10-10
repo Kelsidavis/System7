@@ -71,11 +71,24 @@ This document describes the migration strategy to integrate the C23 nanokernel m
 - Dynamic heap allocation based on `g_total_memory_kb`
 - Test run with 1GB RAM: Correctly allocated 32MB system + 128MB app heaps
 
-### Phase 3: Optimization (Future)
+### Phase 3: Optimization ✅
 
-1. Consider using PMM directly for large allocations
-2. Page-aligned allocations for better performance
-3. Memory protection integration
+1. Use PMM directly for large allocations (>=1MB bypass heap)
+2. Multi-page contiguous allocation API (kmalloc_pages/kfree_pages)
+3. Heap coalescing to reduce fragmentation
+
+**Implementation:**
+- Large allocations (>=1MB) bypass kernel heap and use PMM directly
+- Added `kmalloc_pages(num_pages)` for efficient multi-page allocations
+- Added `kfree_pages(ptr, num_pages)` for freeing multi-page allocations
+- Implemented `coalesce_free_blocks()` to merge adjacent free blocks
+- Added `is_heap_ptr()` helper to distinguish heap vs PMM allocations
+
+**Benefits:**
+- Large allocations don't consume kernel heap space
+- Reduced fragmentation through automatic coalescing
+- Better memory utilization for mixed allocation patterns
+- Prevents heap exhaustion from large temporary allocations
 
 ## Implementation Plan
 
@@ -187,9 +200,9 @@ static u8* gAppHeap = NULL;
 - [x] Performance is equal or better than static allocation
 - [x] C library functions use nanokernel directly (malloc/free/calloc/realloc)
 
-## Final Architecture (Phase 2 Complete)
+## Final Architecture (All Phases Complete)
 
-The migration is now complete with a clean separation of concerns:
+The migration is now complete with all optimizations in place and a clean separation of concerns:
 
 ### Memory Allocation Paths
 
@@ -251,11 +264,19 @@ The migration is now complete with a clean separation of concerns:
 - Successfully tested with 1GB RAM: 32MB system + 128MB app heaps
 - Memory usage adapts from 8MB (minimal) to 320MB (xlarge) total
 
+**Phase 3: Optimization** ✅
+- Large allocation bypass: allocations >=1MB use PMM directly (preserves heap space)
+- Multi-page API: `kmalloc_pages()`/`kfree_pages()` for efficient contiguous allocation
+- Heap coalescing: `coalesce_free_blocks()` merges adjacent free blocks automatically
+- Heap/PMM detection: `is_heap_ptr()` prevents corruption from mixed allocations
+- Files modified: `src/Nanokernel/nk_memory.c`, `include/Nanokernel/nk_memory.h`
+
 **Testing Results:** ✅
-- System boots successfully with all phases
+- System boots successfully with all phases (1, 1.5, 2, 3)
 - Nanokernel test suite: 5/5 tests passed
 - Windows, menus, dialogs all functional
 - Font rendering, desktop interaction working
 - No memory corruption or crashes observed
 - Performance improved for C allocations
 - Dynamic sizing working correctly across memory tiers
+- Heap coalescing visible in operation (DISPOSE logs show coalesce_forward/backward)

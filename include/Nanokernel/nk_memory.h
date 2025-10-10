@@ -115,6 +115,25 @@ void kfree(void *ptr);
  */
 void *krealloc(void *ptr, size_t new_size);
 
+/**
+ * Allocate multiple contiguous pages directly from PMM.
+ *
+ * @param num_pages Number of contiguous 4KB pages to allocate
+ * @return Pointer to first page, or nullptr on failure
+ *
+ * This is optimized for large allocations and bypasses the heap entirely.
+ * Use kfree_pages() to free allocations made with this function.
+ */
+void *kmalloc_pages(size_t num_pages);
+
+/**
+ * Free pages allocated by kmalloc_pages().
+ *
+ * @param ptr       Pointer returned by kmalloc_pages()
+ * @param num_pages Number of pages originally allocated
+ */
+void kfree_pages(void *ptr, size_t num_pages);
+
 /* ============================================================
  *   Diagnostics
  * ============================================================ */
