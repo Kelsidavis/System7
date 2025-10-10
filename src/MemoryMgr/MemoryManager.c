@@ -1144,9 +1144,13 @@ void InitMemoryManager(void) {
 
     /* Calculate heap sizes dynamically based on total system memory */
     size_t system_size, app_size;
+    serial_puts("MM: About to calculate heap sizes\n");
     calculate_heap_sizes(g_total_memory_kb, &system_size, &app_size);
+    serial_puts("MM: Heap sizes calculated\n");
 
+    serial_puts("MM: About to allocate system heap\n");
     gSystemHeap = (u8*)kmalloc(system_size);
+    serial_puts("MM: System heap allocated\n");
     if (!gSystemHeap) {
         serial_puts("MM: FATAL - Failed to allocate system heap!\n");
         return;

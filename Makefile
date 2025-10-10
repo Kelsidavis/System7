@@ -160,6 +160,15 @@ C_SOURCES = src/main.c \
             src/MemoryMgr/blockmove_optimization.c \
             src/Nanokernel/nk_memory.c \
             src/Nanokernel/nk_memory_test.c \
+            src/Nanokernel/nk_task.c \
+            src/Nanokernel/nk_thread.c \
+            src/Nanokernel/nk_sched.c \
+            src/Nanokernel/nk_timer.c \
+            src/Nanokernel/nk_test_threads.c \
+            src/Nanokernel/nk_pic.c \
+            src/Nanokernel/nk_idt.c \
+            src/Nanokernel/nk_irq_handlers.c \
+            src/Nanokernel/nk_resched.c \
             src/Resources/Icons/hd_icon.c \
             src/color_icons.c \
             src/DeskManager/DeskManagerCore.c \
@@ -283,7 +292,9 @@ ifeq ($(ALERT_SMOKE_TEST),1)
 CFLAGS += -DALERT_SMOKE_TEST=1
 endif
 
-ASM_SOURCES = $(HAL_DIR)/platform_boot.S
+ASM_SOURCES = $(HAL_DIR)/platform_boot.S \
+              src/Nanokernel/nk_context.S \
+              src/Nanokernel/nk_isr.S
 
 # Object files
 C_OBJECTS = $(patsubst %.c,$(OBJ_DIR)/%.o,$(notdir $(C_SOURCES)))
@@ -347,7 +358,7 @@ vpath %.c src:src/System:src/QuickDraw:src/WindowManager:src/MenuManager:src/Con
           src/GestaltManager:src/SpeechManager:src/BootLoader \
           src/SegmentLoader:src/CPU:src/CPU/m68k_interp:src/DeviceManager:src/Keyboard \
           src/Datetime:src/Calculator:src/Chooser:src/StartupScreen:src/OSUtils
-vpath %.S $(HAL_DIR)
+vpath %.S $(HAL_DIR):src/Nanokernel
 
 # Compile assembly files
 $(OBJ_DIR)/%.o: %.S | $(OBJ_DIR)
@@ -382,10 +393,10 @@ $(ISO): $(KERNEL) | $(ISO_DIR)/boot/grub
 	@echo '}' >> $(ISO_DIR)/boot/grub/grub.cfg
 	@$(GRUB) -d /usr/lib/grub/i386-pc -o $(ISO) $(ISO_DIR)
 
-# Run with QEMU (PC speaker with PulseAudio backend)
+# Run with QEMU (PC speaker with PulseAudio backend, SMP enabled for threading)
 run: $(ISO)
 	qemu-system-i386 -cdrom $(ISO) -drive file=test_disk.img,format=raw,if=ide -m 1024 -vga std -serial file:/tmp/serial.log \
-		-audiodev pa,id=snd0,server=/run/user/$(shell id -u)/pulse/native -machine pcspk-audiodev=snd0
+		-smp 2 -audiodev pa,id=snd0,server=/run/user/$(shell id -u)/pulse/native -machine pcspk-audiodev=snd0
 
 # Debug with QEMU
 debug: $(ISO)

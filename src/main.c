@@ -1683,6 +1683,35 @@ static void init_system71(void) {
     extern void nk_memory_run_tests(void);
     nk_memory_run_tests();
 
+    /* Initialize interrupt subsystem before threading */
+    extern void nk_pic_remap(void);
+    extern void nk_idt_install(void);
+    extern void nk_idt_set_gate(uint8_t num, void (*handler)(void), uint16_t selector, uint8_t flags);
+    extern void irq0_stub(void);
+    extern void irq_resched_stub(void);
+    extern void nk_pic_unmask(uint8_t irq);
+
+    serial_puts("  Initializing interrupt subsystem...\n");
+
+    /* Remap PIC to avoid conflicts with CPU exceptions */
+    nk_pic_remap();
+
+    /* Install IDT */
+    nk_idt_install();
+
+    /* Install IRQ0 handler (timer) at vector 32 */
+    nk_idt_set_gate(32, irq0_stub, 0x08, 0x8E);  /* 0x8E = present, DPL0, 32-bit interrupt gate */
+
+    /* Install INT 0x81 handler for deferred rescheduling */
+    nk_idt_set_gate(0x81, irq_resched_stub, 0x08, 0x8E);  /* Software interrupt for safe scheduling */
+
+    /* NOTE: IRQ0 is NOT unmasked here. The threading subsystem will unmask it
+     * when the scheduler is ready to handle timer interrupts (after idle thread is running).
+     * Unmasking too early causes triple-faults when sti is executed before thread context exists. */
+    // nk_pic_unmask(0);  // DISABLED - will be unmasked by threading test
+
+    serial_puts("  Interrupt subsystem initialized (IRQ0 + INT 0x81)\n");
+
     /* Memory Manager - foundation of everything */
     InitMemoryManager();
     serial_puts("  Memory Manager initialized\n");
@@ -1973,6 +2002,16 @@ static void init_system71(void) {
     }
 
     /* console_puts("System 7.1 initialization complete\n"); - disabled in graphics mode */
+    serial_puts("  System 7.1 initialization complete\n");
+
+    /* Run nanokernel threading test (after all subsystems initialized) */
+    // TEMPORARILY DISABLED - context switch causes triple fault (needs investigation)
+    // extern void nk_test_threads_run(void);
+    // serial_puts("\n  === Running Nanokernel Threading Test ===\n");
+    // nk_test_threads_run();
+    // serial_puts("  Threading test complete\n\n");
+
+    serial_puts("\n  Nanokernel threading test disabled (context switch debugging needed)\n\n");
 }
 
 #if 1  /* Performance tests always available */

@@ -43,8 +43,8 @@ extern void PlatformDrawRGBABitmap(const UInt8* rgba_data, int width, int height
 #define PROGRESS_BAR_WIDTH 300
 
 /* Timing constants */
-#define DEFAULT_WELCOME_DURATION 360  /* 6 seconds at 60Hz */
-#define EXTENSION_DISPLAY_TICKS 6     /* 0.1 second per extension */
+#define DEFAULT_WELCOME_DURATION 120  /* 2 seconds at 60Hz */
+#define EXTENSION_DISPLAY_TICKS 2     /* 0.1 second per extension */
 
 /* Global startup screen state */
 static StartupScreenState gStartupScreen = {0};
