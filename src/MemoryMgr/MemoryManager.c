@@ -92,9 +92,9 @@ static ZoneInfo gSystemZone;       /* System heap */
 static ZoneInfo gAppZone;          /* Application heap */
 static ZoneInfo* gCurrentZone = NULL;
 
-/* Static memory for zones - 8MB total */
-static u8 gSystemHeap[2 * 1024 * 1024];    /* 2MB system heap */
-static u8 gAppHeap[6 * 1024 * 1024];       /* 6MB app heap */
+/* Heap storage (allocated from nanokernel) */
+static u8* gSystemHeap = NULL;    /* System heap (allocated dynamically) */
+static u8* gAppHeap = NULL;       /* App heap (allocated dynamically) */
 
 /* Master pointer tables */
 static void* gSystemMasters[1024];         /* 1024 system handles */
@@ -1483,21 +1483,43 @@ void* realloc(void* ptr, size_t size) {
 void InitMemoryManager(void) {
     /* Use serial_puts for debugging */
     extern void serial_puts(const char* str);
+    extern void* kmalloc(size_t size);
+    extern uint32_t g_total_memory_kb;
+
     serial_puts("MM: InitMemoryManager started\n");
 
+    /* Allocate heaps from nanokernel */
+    const size_t system_size = 2 * 1024 * 1024;  /* 2MB system heap */
+    const size_t app_size = 6 * 1024 * 1024;     /* 6MB app heap */
+
+    gSystemHeap = (u8*)kmalloc(system_size);
+    if (!gSystemHeap) {
+        serial_puts("MM: FATAL - Failed to allocate system heap!\n");
+        return;
+    }
+
+    gAppHeap = (u8*)kmalloc(app_size);
+    if (!gAppHeap) {
+        serial_puts("MM: FATAL - Failed to allocate app heap!\n");
+        extern void kfree(void* ptr);
+        kfree(gSystemHeap);
+        gSystemHeap = NULL;
+        return;
+    }
+
     /* Initialize System Zone */
-    InitZone(&gSystemZone, gSystemHeap, sizeof(gSystemHeap),
+    InitZone(&gSystemZone, gSystemHeap, system_size,
              gSystemMasters, sizeof(gSystemMasters)/sizeof(void*));
     /* strcpy not available in kernel */
     gSystemZone.name[0] = 'S'; gSystemZone.name[1] = 0;
-    serial_puts("MM: System Zone initialized (2048 KB)\n");
+    serial_puts("MM: System Zone initialized (2048 KB from nanokernel)\n");
 
     /* Initialize Application Zone */
-    InitZone(&gAppZone, gAppHeap, sizeof(gAppHeap),
+    InitZone(&gAppZone, gAppHeap, app_size,
              gAppMasters, sizeof(gAppMasters)/sizeof(void*));
     /* strcpy not available in kernel */
     gAppZone.name[0] = 'A'; gAppZone.name[1] = 0;
-    serial_puts("MM: App Zone initialized (6144 KB)\n");
+    serial_puts("MM: App Zone initialized (6144 KB from nanokernel)\n");
 
     /* Set current zone to app zone */
     gCurrentZone = &gAppZone;
@@ -1505,7 +1527,6 @@ void InitMemoryManager(void) {
     serial_puts("MM: Current zone set to App Zone\n");
 
     /* Report detected memory (comes from multiboot2) */
-    extern uint32_t g_total_memory_kb;
     MEMORY_LOG_DEBUG("MM: Total memory: %u KB (%u MB)\n",
                  g_total_memory_kb, g_total_memory_kb / 1024);
 
@@ -1596,8 +1617,16 @@ void MemoryManager_SyncLowMemGlobals(void)
 bool MemoryManager_IsHeapPointer(const void* p)
 {
     if (!p) return false;
-    if (pointer_in_range(p, gSystemHeap, sizeof(gSystemHeap))) return true;
-    if (pointer_in_range(p, gAppHeap, sizeof(gAppHeap))) return true;
+    /* Check if pointer is within system zone */
+    if (gSystemZone.base && pointer_in_range(p, gSystemZone.base,
+                                             gSystemZone.limit - gSystemZone.base)) {
+        return true;
+    }
+    /* Check if pointer is within app zone */
+    if (gAppZone.base && pointer_in_range(p, gAppZone.base,
+                                          gAppZone.limit - gAppZone.base)) {
+        return true;
+    }
     return false;
 }
 
