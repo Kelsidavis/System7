@@ -63,4 +63,16 @@ void nk_idt_install(void);
  */
 uint16_t nk_idt_get_count(void);
 
+/**
+ * Verify an IDT entry matches expected handler address.
+ * @return 0 if match, 1 if mismatch
+ */
+int nk_idt_verify_entry(uint8_t vec, void *expected_handler);
+
+/**
+ * Check IDT guard patterns for memory corruption.
+ * @return 0 if OK, 1 if corrupted
+ */
+int nk_idt_check_guards(void);
+
 #endif /* NK_IDT_H */

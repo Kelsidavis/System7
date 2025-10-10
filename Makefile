@@ -165,10 +165,15 @@ C_SOURCES = src/main.c \
             src/Nanokernel/nk_sched.c \
             src/Nanokernel/nk_timer.c \
             src/Nanokernel/nk_test_threads.c \
+            src/Nanokernel/nk_debug.c \
+            src/Nanokernel/nk_stats.c \
             src/Nanokernel/nk_pic.c \
             src/Nanokernel/nk_idt.c \
             src/Nanokernel/nk_irq_handlers.c \
             src/Nanokernel/nk_resched.c \
+            src/Nanokernel/nk_fault_sentinel.c \
+            src/Nanokernel/nk_pre_sti_safety.c \
+            src/Nanokernel/platform/x86/nk_platform_init.c \
             src/Resources/Icons/hd_icon.c \
             src/color_icons.c \
             src/DeskManager/DeskManagerCore.c \
@@ -293,8 +298,9 @@ CFLAGS += -DALERT_SMOKE_TEST=1
 endif
 
 ASM_SOURCES = $(HAL_DIR)/platform_boot.S \
-              src/Nanokernel/nk_context.S \
-              src/Nanokernel/nk_isr.S
+              src/Nanokernel/platform/x86/nk_context.S \
+              src/Nanokernel/platform/x86/nk_isr.S \
+              src/Nanokernel/platform/x86/nk_thread_entry.S
 
 # Object files
 C_OBJECTS = $(patsubst %.c,$(OBJ_DIR)/%.o,$(notdir $(C_SOURCES)))
@@ -350,15 +356,15 @@ $(KERNEL): $(OBJECTS) | $(BUILD_DIR)
 vpath %.c src:src/System:src/QuickDraw:src/WindowManager:src/MenuManager:src/ControlManager \
           src/EventManager:src/DialogManager:src/StandardFile:src/TextEdit:src/ListManager \
           src/ScrapManager:src/ProcessMgr:src/TimeManager:src/SoundManager:src/FontManager \
-          src/Gestalt:src/MemoryMgr:src/Nanokernel:src/ResourceMgr:src/FileMgr:src/FS:src/Finder \
-          src/Finder/Icon:src/DeskManager:src/ControlPanels:src/PatternMgr:src/Resources \
-          src/Resources/Icons:src/Apps/SimpleText:src/Platform:src/Platform/x86:src/PrintManager \
-          src/HelpManager:src/ComponentManager:src/EditionManager:src/NotificationManager \
-          src/PackageManager:src/NetworkExtension:src/ColorManager:src/CommunicationToolbox \
-          src/GestaltManager:src/SpeechManager:src/BootLoader \
+          src/Gestalt:src/MemoryMgr:src/Nanokernel:src/Nanokernel/platform/x86:src/ResourceMgr \
+          src/FileMgr:src/FS:src/Finder:src/Finder/Icon:src/DeskManager:src/ControlPanels \
+          src/PatternMgr:src/Resources:src/Resources/Icons:src/Apps/SimpleText:src/Platform \
+          src/Platform/x86:src/PrintManager:src/HelpManager:src/ComponentManager:src/EditionManager \
+          src/NotificationManager:src/PackageManager:src/NetworkExtension:src/ColorManager \
+          src/CommunicationToolbox:src/GestaltManager:src/SpeechManager:src/BootLoader \
           src/SegmentLoader:src/CPU:src/CPU/m68k_interp:src/DeviceManager:src/Keyboard \
           src/Datetime:src/Calculator:src/Chooser:src/StartupScreen:src/OSUtils
-vpath %.S $(HAL_DIR):src/Nanokernel
+vpath %.S $(HAL_DIR):src/Nanokernel/platform/x86
 
 # Compile assembly files
 $(OBJ_DIR)/%.o: %.S | $(OBJ_DIR)
@@ -396,7 +402,7 @@ $(ISO): $(KERNEL) | $(ISO_DIR)/boot/grub
 # Run with QEMU (PC speaker with PulseAudio backend, SMP enabled for threading)
 run: $(ISO)
 	qemu-system-i386 -cdrom $(ISO) -drive file=test_disk.img,format=raw,if=ide -m 1024 -vga std -serial file:/tmp/serial.log \
-		-smp 2 -audiodev pa,id=snd0,server=/run/user/$(shell id -u)/pulse/native -machine pcspk-audiodev=snd0
+		-smp 1 -audiodev pa,id=snd0,server=/run/user/$(shell id -u)/pulse/native -machine pcspk-audiodev=snd0
 
 # Debug with QEMU
 debug: $(ISO)

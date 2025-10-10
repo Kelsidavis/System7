@@ -410,25 +410,12 @@ static Boolean init_mouse(void) {
     }
     /* PLATFORM_LOG_DEBUG("MOUSE: Data reporting enabled\n"); */
 
-    /* Verify port 2 is enabled in controller configuration */
-    ps2_send_command(PS2_CMD_READ_CONFIG);
-    uint8_t final_config = ps2_read_data();
-    /* PLATFORM_LOG_DEBUG("MOUSE: Final controller config: 0x%02x\n", final_config); */
-    /* PLATFORM_LOG_DEBUG("MOUSE: Port 2 enabled: %s\n", (final_config & 0x20) ? "NO (disabled!)" : "YES"); */
-    /* PLATFORM_LOG_DEBUG("MOUSE: Port 2 interrupt (bit 1): %s\n", (final_config & 0x02) ? "YES" : "NO (PROBLEM!)"); */
-
-    /* If bit 1 is not set, try to set it again */
-    if (!(final_config & 0x02)) {
-        /* PLATFORM_LOG_DEBUG("MOUSE: WARNING - IRQ12 not enabled! Attempting to fix...\n"); */
-        final_config |= 0x02;
-        ps2_send_command(PS2_CMD_WRITE_CONFIG);
-        ps2_send_data(final_config);
-
-        /* Verify again */
-        ps2_send_command(PS2_CMD_READ_CONFIG);
-        final_config = ps2_read_data();
-        /* PLATFORM_LOG_DEBUG("MOUSE: Config after fix attempt: 0x%02x\n", final_config); */
-    }
+    /* NOTE: POLLING MODE - Do NOT re-enable IRQs!
+     * Previously this code would check if IRQ12 (bit 1) was disabled and
+     * try to "fix" it by re-enabling the IRQ. This caused interrupt state
+     * corruption. We explicitly want IRQs disabled for polling mode.
+     */
+    /* PLATFORM_LOG_DEBUG("MOUSE: Using POLLING MODE - IRQs intentionally disabled\n"); */
 
     g_mouseEnabled = true;
     /* PLATFORM_LOG_DEBUG("PS/2 mouse initialized successfully\n"); */
@@ -441,21 +428,13 @@ Boolean InitPS2Controller(void) {
 
     /* PLATFORM_LOG_DEBUG("Initializing PS/2 controller...\n"); */
 
-    /* CRITICAL FIX #1: Unmask IRQ12 and IRQ2 in PIC */
-    /* PLATFORM_LOG_DEBUG("PS2: Unmasking IRQ12 and IRQ2 in PIC...\n"); */
-    uint8_t pic1_mask = inb(PIC1_DATA);
-    uint8_t pic2_mask = inb(PIC2_DATA);
-    /* PLATFORM_LOG_DEBUG("PS2: PIC1 mask before: 0x%02x, PIC2 mask before: 0x%02x\n", pic1_mask, pic2_mask); */
-
-    pic1_mask &= ~0x04;  /* Unmask IRQ2 (cascade) */
-    pic2_mask &= ~0x10;  /* Unmask IRQ12 (mouse) - bit 4 for IRQ12 */
-
-    outb(PIC1_DATA, pic1_mask);
-    outb(PIC2_DATA, pic2_mask);
-
-    pic1_mask = inb(PIC1_DATA);
-    pic2_mask = inb(PIC2_DATA);
-    /* PLATFORM_LOG_DEBUG("PS2: PIC1 mask after: 0x%02x, PIC2 mask after: 0x%02x\n", pic1_mask, pic2_mask); */
+    /* NOTE: PS/2 operates in POLLING MODE - IRQs must remain MASKED.
+     * Previously this code was unmasking IRQ2 (cascade) and IRQ12 (mouse),
+     * which corrupted the interrupt state and caused triple faults when
+     * nanokernel threading tried to enable interrupts. We use PollPS2Input()
+     * instead of interrupt-driven I/O, so these IRQs must stay disabled.
+     */
+    /* PLATFORM_LOG_DEBUG("PS2: Using POLLING MODE - IRQs remain masked\n"); */
 
     /* Disable both PS/2 ports during initialization */
     ps2_send_command(PS2_CMD_DISABLE_PORT1);
@@ -471,9 +450,9 @@ Boolean InitPS2Controller(void) {
     uint8_t config = ps2_read_data();
     /* PLATFORM_LOG_DEBUG("PS2: Initial config byte: 0x%02x\n", config); */
 
-    /* CRITICAL FIX #2: Set bit 1 to enable IRQ12 for mouse */
-    config |= 0x02;  /* Enable mouse IRQ (bit 1) */
-    config |= 0x01;  /* Enable keyboard IRQ (bit 0) */
+    /* Configure for POLLING MODE - disable controller IRQs */
+    config &= ~0x01; /* DISABLE keyboard IRQ (bit 0) */
+    config &= ~0x02; /* DISABLE mouse IRQ (bit 1) */
     config &= ~0x20; /* Enable AUX port (clear bit 5) */
     config &= ~0x40; /* Disable translation */
 

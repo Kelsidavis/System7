@@ -13,7 +13,7 @@
  * ============================================================ */
 
 /* Global task list */
-static nk_task_t *task_list_head = nullptr;
+nk_task_t *nk_task_list = nullptr;  /* Exposed for stats/debugging */
 static _Atomic uint32_t next_pid = 1;
 
 /* Task list lock */
@@ -40,8 +40,8 @@ nk_task_t *nk_task_create(void) {
 
     // Add to global task list
     nk_spinlock_acquire(&task_list_lock);
-    task->next = task_list_head;
-    task_list_head = task;
+    task->next = nk_task_list;
+    nk_task_list = task;
     nk_spinlock_release(&task_list_lock);
 
     return task;
@@ -110,10 +110,10 @@ void nk_task_destroy(nk_task_t *task) {
 
     // Remove from task list
     nk_spinlock_acquire(&task_list_lock);
-    if (task_list_head == task) {
-        task_list_head = task->next;
+    if (nk_task_list == task) {
+        nk_task_list = task->next;
     } else {
-        nk_task_t *prev = task_list_head;
+        nk_task_t *prev = nk_task_list;
         while (prev && prev->next != task) {
             prev = prev->next;
         }

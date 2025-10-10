@@ -5,42 +5,43 @@
 
 #include "../../include/Nanokernel/nk_pic.h"
 #include "../../include/Nanokernel/nk_timer.h"
+#include "../../include/Nanokernel/nk_thread.h"
+#include <stdatomic.h>
 
 /* Serial logging */
 extern void serial_puts(const char *s);
+
+/* Interrupt context tracking (defined in nk_sched.c) */
+extern _Atomic bool nk_in_interrupt;
+extern nk_interrupt_frame_t *nk_current_frame;
 
 /* Track timer ticks for debugging (32-bit is sufficient - wraps after ~49 days at 1000 Hz) */
 static volatile uint32_t debug_tick_count = 0;
 
 /**
- * IRQ0 handler - Timer interrupt (1000 Hz)
- * Called by irq0_stub in nk_isr.S
+ * IRQ0 handler - Timer interrupt (100 Hz)
+ * Called by irq0_stub in nk_isr.S with interrupt frame pointer.
+ *
+ * @param frame  Pointer to saved interrupt frame on stack
  */
-void irq0_handler(void) {
-    extern void nk_request_reschedule(void);
-    extern void serial_puts(const char *s);
+void irq0_handler(nk_interrupt_frame_t *frame) {
+    (void)frame;  /* Unused - timer tick doesn't need frame */
 
+    /* Diagnostic: Print to serial on first IRQ */
+    static int first_irq = 1;
+    if (first_irq) {
+        first_irq = 0;
+        serial_puts("[IRQ0] First timer interrupt!\n");
+    }
+
+    /* Send EOI to PIC before processing */
+    nk_pic_send_eoi(0);
+
+    /* Increment debug tick count */
     debug_tick_count++;
 
-    /* Debug: Print first few ticks to verify handler is called */
-    if (debug_tick_count <= 5) {
-        serial_puts("[IRQ0] Handler called\n");
-    }
-
-    /* Debug: Print tick count every 1000 ticks (once per second) */
-    if (debug_tick_count % 1000 == 0) {
-        extern void nk_printf(const char *fmt, ...);
-        nk_printf("[IRQ0] Timer tick %u\n", (unsigned)debug_tick_count);
-    }
-
-    /* Call timer tick handler (updates tick counter, wakes threads) */
+    /* Call timer tick handler - increments system ticks, wakes sleeping threads, triggers scheduling */
     nk_timer_tick();
-
-    /* Request deferred reschedule - scheduler will run in safe context */
-    nk_request_reschedule();
-
-    /* Send EOI to PIC */
-    nk_pic_send_eoi(0);
 }
 
 /**

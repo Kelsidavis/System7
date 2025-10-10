@@ -170,8 +170,8 @@ OSErr InitializeFinder(void)
 
     /* Play classic System 7 startup chime */
     extern void StartupChime(void);
-    serial_puts("Finder: Playing System 7 startup chime\n");
-    StartupChime();
+    serial_puts("Finder: SKIPPING startup chime (would trigger IRQ during delay)\n");
+    // StartupChime();  // DISABLED: causes triple-fault when IRQ0 fires during busy-wait
 
     gFinderInitialized = true;
     return noErr;

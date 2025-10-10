@@ -12,37 +12,13 @@
 /* External declarations */
 extern void nk_printf(const char *fmt, ...);
 extern void nk_sleep_until(nk_thread_t *thread, uint64_t wake_time);
+extern void nk_thread_entry_stub(void);  /* Assembly stub in nk_thread_entry.S */
 
 /* Thread ID counter */
 static _Atomic uint32_t next_tid = 1;
 
-/* ============================================================
- *   Thread Entry Wrapper
- * ============================================================ */
-
-/**
- * Thread entry wrapper - never returns.
- * This is the actual entry point for all threads.
- */
-[[noreturn]] static void thread_entry_wrapper(void) {
-    // Get current thread
-    nk_thread_t *self = nk_thread_current();
-    if (!self) {
-        for (;;);  // Should never happen
-    }
-
-    // Extract entry function and argument from stack
-    // Stack layout: sp[0]=ret_addr, sp[1]=entry, sp[2]=arg
-    uint32_t *sp = (uint32_t *)self->context.esp;
-    void (*entry)(void *) = (void (*)(void *))(sp[1]);
-    void *arg = (void *)(sp[2]);
-
-    // Call user entry function
-    entry(arg);
-
-    // Thread returned - exit
-    nk_thread_exit();
-}
+/* Global thread list (for stats/debugging) */
+nk_thread_t *nk_thread_list = nullptr;
 
 /* ============================================================
  *   Thread Creation
@@ -80,15 +56,21 @@ nk_thread_t *nk_thread_create(
         return nullptr;
     }
 
+    // Place guard canary at bottom of stack (lowest address)
+    // This helps detect stack overflow during debugging
+    *(uint32_t *)stack = 0xCAFECAFE;  // NK_STACK_CANARY
+
     // Initialize thread structure
     *thread = (nk_thread_t){
         .tid = atomic_fetch_add_explicit(&next_tid, 1, memory_order_seq_cst),
         .task = task,
         .stack_base = stack,
         .stack_size = aligned_stack_size,
+        .irq_frame = nullptr,  // No saved interrupt frame initially
         .state = NK_THREAD_READY,
         .priority = priority,
         .wake_time = 0,
+        .stats = {0},  // Initialize performance counters to zero
         .next = nullptr,
         .prev = nullptr
     };
@@ -99,24 +81,80 @@ nk_thread_t *nk_thread_create(
     // Align to 16 bytes (x86 ABI requirement)
     sp &= ~0xFUL;
 
-    // Push argument and entry function for wrapper
+    // Push argument and entry function for wrapper (IRET will jump to wrapper, no return address needed)
     sp -= sizeof(void *);
-    *(void **)sp = arg;
+    *(void **)sp = arg;           // sp[1] when wrapper starts
 
     sp -= sizeof(void *);
-    *(void **)sp = (void *)entry;
+    *(void **)sp = (void *)entry; // sp[0] when wrapper starts
 
-    sp -= sizeof(void *);
-    *(uint32_t *)sp = 0;  // Return address (should never be used)
+    // Save the desired ESP for when thread starts running
+    // After IRET, ESP will point here (at entry function pointer)
+    uintptr_t thread_start_esp = sp;
 
-    // Initialize context to start at wrapper
+    // Initialize context to start at assembly stub (used for regular context switch)
     thread->context.esp = (uint32_t)sp;
-    thread->context.eip = (uint32_t)thread_entry_wrapper;
+    thread->context.eip = (uint32_t)nk_thread_entry_stub;
     thread->context.ebp = 0;
     thread->context.ebx = 0;
     thread->context.esi = 0;
     thread->context.edi = 0;
     thread->context.eflags = 0x202;  // IF (interrupts enabled) + reserved bit
+
+    // Build pre-initialized interrupt frame ON THE STACK
+    // After IRET in ring 0, ESP will be: frame_ptr + 60 bytes
+    // So we position the frame such that after IRET, ESP = thread_start_esp
+    //
+    // NOTE: We calculate the frame position to ensure proper ESP restoration.
+    // After POP GS/FS/ES/DS (16 bytes) + POPA (32 bytes) + IRET (12 bytes) = 60 bytes,
+    // ESP will be at frame_ptr + 60. We want this to equal thread_start_esp.
+    // thread_start_esp now points to: sp[0]=entry, sp[1]=arg (no return address)
+    sp = thread_start_esp - 60;
+
+    // Verify frame is within stack bounds
+    if (sp < (uintptr_t)stack || sp >= (uintptr_t)stack + aligned_stack_size) {
+        extern void serial_puts(const char *s);
+        serial_puts("[THREAD] ERROR: IRQ frame outside stack bounds\n");
+        kfree(stack);
+        kfree(thread);
+        return nullptr;
+    }
+
+    // Now build the frame structure at this location
+    nk_interrupt_frame_t *frame = (nk_interrupt_frame_t *)sp;
+
+    // CPU-pushed values (will be popped by IRET)
+    frame->eip = thread->context.eip;
+    frame->cs = 0x10;  // Actual kernel code segment (CS=0x10)
+    frame->eflags = 0x202;  // IF (bit 9) + reserved bit 1 - match running context
+
+    // Ring 0 → Ring 0 IRET: CPU does NOT pop/push ESP and SS
+    // These fields exist in the struct but are NOT on the stack for ring 0 transitions
+    // CRITICAL: Do NOT write these - they overlap with entry/arg at thread_start_esp!
+    // frame->user_esp is at (sp + 60) = thread_start_esp (where entry is stored)
+    // frame->ss is at (sp + 64) = thread_start_esp + 4 (where arg is stored)
+    // Writing to these would overwrite entry/arg with zeros!
+    // frame->user_esp = 0;  // REMOVED: Would overwrite entry pointer!
+    // frame->ss = 0;        // REMOVED: Would overwrite arg pointer!
+
+    // Segment registers (will be popped by POP instructions)
+    frame->ds = 0x18;  // Actual kernel data segment (DS=0x18)
+    frame->es = 0x18;
+    frame->fs = 0x18;
+    frame->gs = 0x18;
+
+    // General-purpose registers (will be restored by POPA)
+    frame->edi = thread->context.edi;
+    frame->esi = thread->context.esi;
+    frame->ebp = thread->context.ebp;
+    frame->esp_dummy = 0;  // Not used by POPA (it skips this field)
+    frame->ebx = thread->context.ebx;
+    frame->edx = 0;  // Caller-saved, starts at zero
+    frame->ecx = 0;  // Caller-saved, starts at zero
+    frame->eax = 0;  // Caller-saved, starts at zero
+
+    // Store frame pointer in thread structure
+    thread->irq_frame = frame;
 
     // Add to parent task
     nk_task_add_thread(task, thread);

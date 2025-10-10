@@ -6,30 +6,50 @@
 
 .section .text
 
-/* IRQ0 (Timer) stub - called 1000 times per second */
+/* IRQ0 (Timer) stub - Build interrupt frame and call C handler */
 .global irq0_stub
 .type irq0_stub, @function
 irq0_stub:
-    /* Save all general-purpose registers */
-    pusha
+    /* CPU has already pushed: EIP, CS, EFLAGS (and possibly SS, ESP for ring change) */
 
-    /* Save data segments */
+    /* Save all general-purpose registers (creates bottom part of interrupt frame) */
+    pusha           /* Pushes: EAX, ECX, EDX, EBX, ESP, EBP, ESI, EDI */
+
+    /* Save segment registers (creates top part of interrupt frame) */
     push %ds
     push %es
     push %fs
     push %gs
 
-    /* Load kernel data segment */
-    mov $0x10, %ax
+    /* ESP now points to complete interrupt frame (gs is at lowest address) */
+
+    /* Set up kernel data segments */
+    mov $0x18, %ax
     mov %ax, %ds
     mov %ax, %es
     mov %ax, %fs
     mov %ax, %gs
 
-    /* Call C handler */
-    call irq0_handler
+    /* Output 'T' to serial to show timer interrupt fired */
+    mov $0x3F8, %dx
+    mov $'T', %al
+    out %al, %dx
 
-    /* Restore segments */
+    /* Set interrupt context flag: nk_in_interrupt = true */
+    movl $1, nk_in_interrupt
+
+    /* Save pointer to interrupt frame: nk_current_frame = ESP */
+    movl %esp, nk_current_frame
+
+    /* Call C handler with frame pointer as argument */
+    push %esp       /* Argument: pointer to interrupt frame */
+    call irq0_handler
+    add $4, %esp    /* Clean up argument */
+
+    /* Clear interrupt context flag: nk_in_interrupt = false */
+    movl $0, nk_in_interrupt
+
+    /* Restore segment registers */
     pop %gs
     pop %fs
     pop %es
@@ -38,7 +58,7 @@ irq0_stub:
     /* Restore general-purpose registers */
     popa
 
-    /* Return from interrupt */
+    /* Return from interrupt (pops EIP, CS, EFLAGS) */
     iret
 
 /* IRQ1 (Keyboard) stub - for future use */
@@ -51,7 +71,7 @@ irq1_stub:
     push %fs
     push %gs
 
-    mov $0x10, %ax
+    mov $0x18, %ax
     mov %ax, %ds
     mov %ax, %es
     mov %ax, %fs
@@ -76,7 +96,7 @@ irq7_stub:
     push %fs
     push %gs
 
-    mov $0x10, %ax
+    mov $0x18, %ax
     mov %ax, %ds
     mov %ax, %es
     mov %ax, %fs
@@ -101,7 +121,7 @@ irq_resched_stub:
     push %fs
     push %gs
 
-    mov $0x10, %ax
+    mov $0x18, %ax
     mov %ax, %ds
     mov %ax, %es
     mov %ax, %fs
@@ -114,6 +134,16 @@ irq_resched_stub:
     pop %es
     pop %ds
     popa
+    iret
+
+/* Default exception/interrupt handler - catches unhandled vectors */
+.global default_isr_stub
+.type default_isr_stub, @function
+default_isr_stub:
+    /* Just send EOI and return - don't call any C code */
+    /* Send EOI to master PIC */
+    mov $0x20, %al
+    out %al, $0x20
     iret
 
 /* C handlers are external - no need to declare them global here */

@@ -6,12 +6,25 @@
 #include "../../include/Nanokernel/nk_sched.h"
 #include "../../include/Nanokernel/nk_task.h"
 #include "../../include/Nanokernel/nk_memory.h"
+#include "../../include/Nanokernel/nk_stats.h"
+#include <stdatomic.h>
 
 /* External context switch from nk_context.S */
 extern void nk_switch_context(nk_context_t *old, nk_context_t *new);
+extern void nk_switch_context_irq(nk_thread_t *prev, nk_thread_t *next, nk_interrupt_frame_t *prev_frame);
 
 /* External printf for debugging */
 extern void nk_printf(const char *fmt, ...);
+
+/* ============================================================
+ *   Interrupt Context Detection
+ * ============================================================ */
+
+/* Tracks whether we're currently executing in interrupt context */
+_Atomic bool nk_in_interrupt = false;
+
+/* Points to the current interrupt frame when in interrupt context */
+nk_interrupt_frame_t *nk_current_frame = nullptr;
 
 /* ============================================================
  *   Scheduler State
@@ -40,17 +53,23 @@ static uint32_t ready_count = 0;
 static void idle_thread_entry(void *arg) {
     extern bool nk_reschedule_pending(void);
     extern void nk_clear_reschedule(void);
+    extern void serial_puts(const char *s);
 
     (void)arg;
+    serial_puts("[IDLE] Idle thread started\n");
+
     for (;;) {
         // Check for deferred reschedule requests from timer interrupt
         if (nk_reschedule_pending()) {
+            serial_puts("[IDLE] Reschedule pending\n");
             nk_clear_reschedule();
             nk_schedule();
         }
 
         // Halt CPU until next interrupt
+        serial_puts("[IDLE] Halting CPU\n");
         __asm__ volatile("hlt");
+        serial_puts("[IDLE] Resumed from HLT\n");
     }
 }
 
@@ -62,6 +81,9 @@ static void idle_thread_entry(void *arg) {
  * Initialize scheduler subsystem.
  */
 void nk_sched_init(void) {
+    // Initialize performance instrumentation
+    nk_stats_init();
+
     // Create idle task and thread
     auto idle_task = nk_task_create();
     if (!idle_task) {
@@ -203,28 +225,54 @@ void nk_schedule(void) {
     next->state = NK_THREAD_RUNNING;
     current_thread = next;
 
+    // Record context switch for performance instrumentation
+    nk_stats_record_switch(prev, next);
+
     // Context switch if different thread
     if (prev != next) {
-        // DEBUG: Simple context switch notification (NO serial_printf - it corrupts registers!)
         extern void serial_puts(const char *s);
-        if (!prev) {
-            serial_puts("[SCHED] First context switch to thread\n");
-        }
 
-        // Placeholder for page table switch
-        if (prev && next && prev->task != next->task) {
-            // Future: load_page_table(next->task->page_table_root);
-        }
+        // Check if we're in interrupt context
+        bool in_irq = atomic_load_explicit(&nk_in_interrupt, memory_order_acquire);
 
-        // Perform context switch
-        serial_puts("[SCHED] About to call nk_switch_context\n");
-        if (prev) {
-            nk_switch_context(&prev->context, &next->context);
+        if (in_irq && prev) {
+            // IRQ-safe context switch (uses IRET)
+            // NOTE: Only valid when switching between threads, not from kernel to first thread
+            // Cannot use serial_puts/nk_printf from IRQ context (not reentrant)
+
+            // Placeholder for page table switch
+            if (prev && next && prev->task != next->task) {
+                // Future: load_page_table(next->task->page_table_root);
+            }
+
+            // Perform IRQ-safe context switch
+            nk_switch_context_irq(prev, next, nk_current_frame);
+
+            // NOTE: We never return here! The context switch returns via IRET
+            // to the new thread's saved context.
         } else {
-            // First time - just jump to thread
-            nk_switch_context(nullptr, &next->context);
+            // Regular cooperative context switch (uses RET)
+            // Safe to use serial I/O here (not in IRQ context)
+            extern void serial_puts(const char *s);
+            if (!prev) {
+                serial_puts("[SCHED] First context switch to thread\n");
+            }
+
+            // Placeholder for page table switch
+            if (prev && next && prev->task != next->task) {
+                // Future: load_page_table(next->task->page_table_root);
+            }
+
+            // Perform regular context switch
+            serial_puts("[SCHED] About to call nk_switch_context\n");
+            if (prev) {
+                nk_switch_context(&prev->context, &next->context);
+            } else {
+                // First time - just jump to thread
+                nk_switch_context(nullptr, &next->context);
+            }
+            serial_puts("[SCHED] Returned from nk_switch_context\n");
         }
-        serial_puts("[SCHED] Returned from nk_switch_context\n");
     }
 }
 
@@ -261,11 +309,21 @@ void nk_thread_set_current(nk_thread_t *thread) {
  * This is the entry point from the timer interrupt handler.
  */
 void nk_sched_tick(void) {
+    // Update global tick counter for performance instrumentation
+    nk_stats_tick();
+
+    // Don't try to schedule if no thread is currently running
+    // (can't launch first thread from IRQ context)
+    nk_thread_t *curr = current_thread;
+    if (!curr) {
+        // Silent return - can't use serial_puts from IRQ context
+        return;
+    }
+
     // Future enhancements:
     // - Decrement time slices
     // - Handle deadline scheduling
-    // - Update CPU usage statistics
 
-    // For now, just trigger a reschedule
+    // Trigger preemptive reschedule
     nk_schedule();
 }

@@ -91,18 +91,25 @@ void nk_pic_mask(uint8_t irq) {
  * Unmask (enable) an IRQ line.
  */
 void nk_pic_unmask(uint8_t irq) {
+    serial_puts("[PIC] unmask: entry\n");
+
     uint16_t port;
     uint8_t value;
 
     if (irq < 8) {
         port = PIC1_DATA;
+        serial_puts("[PIC] unmask: IRQ<8, using master PIC\n");
     } else {
         port = PIC2_DATA;
         irq -= 8;
+        serial_puts("[PIC] unmask: IRQ>=8, using slave PIC\n");
     }
 
+    serial_puts("[PIC] unmask: about to read mask\n");
     value = inb(port) & ~(1 << irq);
+    serial_puts("[PIC] unmask: about to write mask\n");
     outb(port, value);
+    serial_puts("[PIC] unmask: exit\n");
 }
 
 /**

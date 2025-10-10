@@ -9,8 +9,8 @@
 #include <stdint.h>
 #include "nk_thread.h"
 
-/* Timer frequency in Hz */
-#define NK_TIMER_HZ 1000
+/* Timer frequency in Hz - reduced to 100 Hz for testing IRQ-safe context switch */
+#define NK_TIMER_HZ 100
 
 /* PIT (Programmable Interval Timer) base frequency */
 #define PIT_BASE_HZ 1193182

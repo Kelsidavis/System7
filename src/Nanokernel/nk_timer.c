@@ -132,11 +132,15 @@ void nk_timer_tick(void) {
     // Wake any threads whose sleep time has expired
     wake_sleeping_threads();
 
-    // TODO: Trigger preemptive scheduling via scheduler tick
-    // DISABLED: Cannot context switch from interrupt handler without proper setup
-    // Need to implement deferred scheduling or use a separate scheduling interrupt
-    // extern void nk_sched_tick(void);
-    // nk_sched_tick();
+    // Only trigger preemptive scheduling if the scheduler has been started
+    // (i.e., current_thread != NULL). This prevents premature scheduling
+    // before the test harness has created any threads.
+    extern nk_thread_t *nk_thread_current(void);
+    if (nk_thread_current() != nullptr) {
+        // Trigger preemptive scheduling
+        // This will call nk_switch_context_irq() if a thread switch is needed
+        nk_schedule();
+    }
 }
 
 /**
@@ -175,7 +179,7 @@ static void pit_init(uint32_t frequency) {
     outb(0x40, (uint8_t)(divisor & 0xFF));
     outb(0x40, (uint8_t)((divisor >> 8) & 0xFF));
 
-    serial_puts("[nk_timer] PIT programmed for 1000 Hz\n");
+    nk_printf("[nk_timer] PIT programmed for %u Hz\n", frequency);
 }
 
 /**

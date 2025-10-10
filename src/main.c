@@ -1684,8 +1684,8 @@ static void init_system71(void) {
     nk_memory_run_tests();
 
     /* Initialize interrupt subsystem before threading */
-    extern void nk_pic_remap(void);
-    extern void nk_idt_install(void);
+    extern void nk_platform_init(void);  /* Platform abstraction layer */
+    extern void nk_pic_disable_all(void);
     extern void nk_idt_set_gate(uint8_t num, void (*handler)(void), uint16_t selector, uint8_t flags);
     extern void irq0_stub(void);
     extern void irq_resched_stub(void);
@@ -1693,22 +1693,80 @@ static void init_system71(void) {
 
     serial_puts("  Initializing interrupt subsystem...\n");
 
-    /* Remap PIC to avoid conflicts with CPU exceptions */
-    nk_pic_remap();
+    /* Initialize platform-specific interrupt hardware (IDT + PIC) */
+    nk_platform_init();
 
-    /* Install IDT */
-    nk_idt_install();
+    /* Mask all IRQs initially - only IRQ0 will be explicitly unmasked later */
+    nk_pic_disable_all();
+
+    /* DEBUG: Verify PIC masks */
+    extern uint8_t hal_inb(uint16_t port);
+    extern void hal_outb(uint16_t port, uint8_t value);
+    uint8_t mask1 = hal_inb(0x21);  /* Master PIC data port */
+    uint8_t mask2 = hal_inb(0xA1);  /* Slave PIC data port */
+    if (mask1 == 0xFF && mask2 == 0xFF) {
+        serial_puts("[PIC] All IRQs masked correctly (Master=0xFF, Slave=0xFF)\n");
+    } else {
+        serial_puts("[PIC] ERROR: IRQs NOT fully masked!\n");
+    }
+
+    /* Send double EOI to clear any pending in-service bits from BIOS/firmware */
+    hal_outb(0x20, 0x20);  /* EOI to master PIC */
+    hal_outb(0xA0, 0x20);  /* EOI to slave PIC */
+    serial_puts("[PIC] Sent double EOI to clear pending IRQs\n");
+
+    /* IDT already installed by nk_platform_init() above */
+
+    /* Verify IDT was loaded by reading back IDTR */
+    struct {
+        uint16_t limit;
+        uint32_t base;
+    } __attribute__((packed)) idtr;
+    __asm__ volatile("sidt %0" : "=m"(idtr));
+
+    if (idtr.limit == 0x7FF && idtr.base != 0) {
+        serial_puts("[IDT] IDTR verified: limit=0x7FF, base!=0\n");
+    } else {
+        serial_puts("[IDT] ERROR: IDTR not loaded correctly!\n");
+    }
+
+    /* Install fault sentinel handlers for CPU exceptions (0x00-0x1F) */
+    extern void nk_fault_sentinel_install(void);
+    nk_fault_sentinel_install();
+
+    /* Install default handler for remaining vectors (0x20-0xFF) to catch spurious IRQs */
+    extern void default_isr_stub(void);
+    extern void nk_idt_set_gate(uint8_t num, void (*handler)(void), uint16_t selector, uint8_t flags);
+    for (int i = 0x20; i < 256; i++) {
+        nk_idt_set_gate(i, default_isr_stub, 0x10, 0x8E);  /* Use actual CS=0x10 */
+    }
+    serial_puts("[IDT] Default handlers installed for IRQ vectors 0x20-0xFF\n");
 
     /* Install IRQ0 handler (timer) at vector 32 */
-    nk_idt_set_gate(32, irq0_stub, 0x08, 0x8E);  /* 0x8E = present, DPL0, 32-bit interrupt gate */
+    extern void irq0_stub(void);
+    nk_idt_set_gate(32, irq0_stub, 0x10, 0x8E);  /* 0x10 = kernel code segment (actual CS), 0x8E = present, DPL0, 32-bit interrupt gate */
 
     /* Install INT 0x81 handler for deferred rescheduling */
-    nk_idt_set_gate(0x81, irq_resched_stub, 0x08, 0x8E);  /* Software interrupt for safe scheduling */
+    extern void irq_resched_stub(void);
+    nk_idt_set_gate(0x81, irq_resched_stub, 0x10, 0x8E);  /* Software interrupt for safe scheduling */
+
+    serial_puts("[IDT] Specific IRQ handlers installed\n");
 
     /* NOTE: IRQ0 is NOT unmasked here. The threading subsystem will unmask it
      * when the scheduler is ready to handle timer interrupts (after idle thread is running).
      * Unmasking too early causes triple-faults when sti is executed before thread context exists. */
     // nk_pic_unmask(0);  // DISABLED - will be unmasked by threading test
+
+    /* EARLY STI TEST: Try STI immediately after IDT setup, before any other subsystems */
+    serial_puts("[EARLY-TEST] About to test STI (all IRQs masked, NMI disabled)...\n");
+    __asm__ volatile(
+        "sti\n"
+        "nop\n"
+        "nop\n"
+        "nop\n"
+        "cli\n"  /* Disable interrupts again immediately */
+    );
+    serial_puts("[EARLY-TEST] STI SUCCESS! Interrupts work!\n");
 
     serial_puts("  Interrupt subsystem initialized (IRQ0 + INT 0x81)\n");
 
@@ -1716,10 +1774,31 @@ static void init_system71(void) {
     InitMemoryManager();
     serial_puts("  Memory Manager initialized\n");
 
+    /* DIAGNOSTIC: Verify interrupt state after Memory Manager */
+    extern void nk_pre_sti_safety_check(void);
+    extern int nk_idt_verify_entry(uint8_t vec, void *expected_handler);
+    extern int nk_idt_check_guards(void);
+    extern void irq0_stub(void);
+
+    serial_puts("[DIAG] Checking interrupt state after Memory Manager init...\n");
+    nk_pre_sti_safety_check();
+
+    serial_puts("[DIAG] Verifying IDT integrity after Memory Manager...\n");
+    nk_idt_check_guards();
+    nk_idt_verify_entry(32, irq0_stub);
+
     /* Time Manager - low-level timing services */
     OSErr tmErr = InitTimeManager();
     if (tmErr == noErr) {
         serial_puts("  Time Manager initialized\n");
+
+        /* DIAGNOSTIC: Verify interrupt state after Time Manager (PRIME SUSPECT) */
+        serial_puts("[DIAG] Checking interrupt state after Time Manager init...\n");
+        nk_pre_sti_safety_check();
+
+        serial_puts("[DIAG] Verifying IDT integrity after Time Manager...\n");
+        nk_idt_check_guards();
+        nk_idt_verify_entry(32, irq0_stub);
 
 #ifdef ENABLE_PROCESS_COOP
         /* Process Manager cooperative scheduling */
@@ -1957,6 +2036,14 @@ static void init_system71(void) {
         serial_puts("  WARNING: PS/2 controller initialization failed\n");
     }
 
+    /* DIAGNOSTIC: Verify interrupt state after PS/2 init (also suspect - keyboard IRQs) */
+    serial_puts("[DIAG] Checking interrupt state after PS/2 init...\n");
+    nk_pre_sti_safety_check();
+
+    serial_puts("[DIAG] Verifying IDT integrity after PS/2 init...\n");
+    nk_idt_check_guards();
+    nk_idt_verify_entry(32, irq0_stub);
+
     /* Initialize Sound Manager */
     extern OSErr SoundManagerInit(void);
     if (SoundManagerInit() == noErr) {
@@ -2005,13 +2092,10 @@ static void init_system71(void) {
     serial_puts("  System 7.1 initialization complete\n");
 
     /* Run nanokernel threading test (after all subsystems initialized) */
-    // TEMPORARILY DISABLED - context switch causes triple fault (needs investigation)
-    // extern void nk_test_threads_run(void);
-    // serial_puts("\n  === Running Nanokernel Threading Test ===\n");
-    // nk_test_threads_run();
-    // serial_puts("  Threading test complete\n\n");
-
-    serial_puts("\n  Nanokernel threading test disabled (context switch debugging needed)\n\n");
+    extern void nk_test_threads_run(void);
+    serial_puts("\n  === Running Nanokernel Threading Test (IRQ-safe context switch) ===\n");
+    nk_test_threads_run();
+    serial_puts("  Threading test complete\n\n");
 }
 
 #if 1  /* Performance tests always available */
