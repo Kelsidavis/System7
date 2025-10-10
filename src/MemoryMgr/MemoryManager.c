@@ -2,6 +2,8 @@
 #include "../../include/MemoryMgr/MemoryManager.h"
 #include <string.h>
 #include "MemoryMgr/MemoryLogging.h"
+#include "MemoryMgr/MemoryTelemetry.h"
+#include "System/Panic.h"
 #include "CPU/M68KInterp.h"
 #include "CPU/LowMemGlobals.h"
 #include "System71StdLib.h"
@@ -595,6 +597,10 @@ void* NewPtr(u32 byteCount) {
     z->bytesFree -= b->size;
 
     void* result = (u8*)b + BLKHDR_SZ;
+
+    /* Track allocation in telemetry */
+    TELEMETRY_ALLOC(result, byteCount, false);
+
     return result;
 }
 
@@ -614,6 +620,9 @@ void DisposePtr(void* p) {
         return;
     }
 
+    /* Track deallocation in telemetry (detects double-frees) */
+    TELEMETRY_FREE(p);
+
     ZoneInfo* z = gCurrentZone;
     serial_puts("[DISPOSE] gCurrentZone read\n");
 
@@ -624,12 +633,8 @@ void DisposePtr(void* p) {
 
     /* Validate freelist BEFORE disposal */
     if (!validate_freelist(z)) {
-        serial_puts("[DISPOSE] ERROR: Freelist already corrupted before disposal!\n");
-        /* Clear all freelists to prevent crashes */
-        for (u32 i = 0; i < NUM_SIZE_CLASSES; i++) {
-            z->freelists[i] = NULL;
-        }
-        return;
+        KERNEL_PANIC(PANIC_CODE_FREELIST_CORRUPT,
+                     "Freelist corrupted before DisposePtr - heap structure destroyed");
     }
 
     BlockHeader* b = (BlockHeader*)((u8*)p - BLKHDR_SZ);
@@ -665,11 +670,8 @@ void DisposePtr(void* p) {
 
     /* Validate freelist AFTER insertion */
     if (!validate_freelist(z)) {
-        serial_puts("[DISPOSE] ERROR: Freelist corrupted after freelist_insert!\n");
-        /* Clear all freelists to prevent crashes */
-        for (u32 i = 0; i < NUM_SIZE_CLASSES; i++) {
-            z->freelists[i] = NULL;
-        }
+        KERNEL_PANIC(PANIC_CODE_FREELIST_CORRUPT,
+                     "Freelist corrupted after freelist_insert in DisposePtr");
     }
 
     serial_puts("[DISPOSE] Complete\n");
@@ -736,6 +738,9 @@ Handle NewHandle(u32 byteCount) {
     z->bytesUsed += b->size;
     z->bytesFree -= b->size;
 
+    /* Track allocation in telemetry */
+    TELEMETRY_ALLOC(*mp, byteCount, true);
+
     return (Handle)mp;
 }
 
@@ -751,15 +756,16 @@ void DisposeHandle(Handle h) {
         return;
     }
 
+    /* Track deallocation in telemetry (detects double-frees) */
+    TELEMETRY_FREE(*h);
+
     ZoneInfo* z = gCurrentZone;
     if (!z) return;
 
     /* Validate freelist before disposal */
     if (!validate_freelist(z)) {
-        for (u32 i = 0; i < NUM_SIZE_CLASSES; i++) {
-            z->freelists[i] = NULL;
-        }
-        return;
+        KERNEL_PANIC(PANIC_CODE_FREELIST_CORRUPT,
+                     "Freelist corrupted before DisposeHandle - heap structure destroyed");
     }
 
     u8* p = (u8*)*h;
@@ -790,9 +796,8 @@ void DisposeHandle(Handle h) {
 
     /* Validate freelist after insertion */
     if (!validate_freelist(z)) {
-        for (u32 i = 0; i < NUM_SIZE_CLASSES; i++) {
-            z->freelists[i] = NULL;
-        }
+        KERNEL_PANIC(PANIC_CODE_FREELIST_CORRUPT,
+                     "Freelist corrupted after freelist_insert in DisposeHandle");
     }
 }
 
@@ -1141,6 +1146,9 @@ void InitMemoryManager(void) {
     extern uint32_t g_total_memory_kb;
 
     serial_puts("MM: InitMemoryManager started\n");
+
+    /* Initialize telemetry system for debugging heap corruption */
+    telemetry_init();
 
     /* Calculate heap sizes dynamically based on total system memory */
     size_t system_size, app_size;
