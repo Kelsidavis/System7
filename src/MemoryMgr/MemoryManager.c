@@ -1432,20 +1432,22 @@ void PurgeMem(u32 cbNeeded) {
 
 /* ======================== C Library Interface ======================== */
 
+/* C library memory functions now use nanokernel directly for better performance.
+ * This bypasses Classic MM overhead (block headers, segregated lists, coalescing).
+ * Mac-specific code should use NewPtr/NewHandle for Classic MM features.
+ */
+
 void* malloc(size_t size) {
-    /* NO LOGGING - serial_puts corrupts registers! */
-    return NewPtr((u32)size);
+    extern void* kmalloc(size_t size);
+    return kmalloc(size);
 }
 
 void free(void* ptr) {
-    extern void serial_puts(const char* str);
-    serial_puts("[FREE] ENTRY\n");
-    DisposePtr(ptr);
-    serial_puts("[FREE] Complete\n");
+    extern void kfree(void* ptr);
+    kfree(ptr);
 }
 
 void* calloc(size_t nmemb, size_t size) {
-    /* NO LOGGING - serial_puts corrupts registers! */
     size_t total = nmemb * size;
     void* p = malloc(total);
     if (p) {
@@ -1455,27 +1457,8 @@ void* calloc(size_t nmemb, size_t size) {
 }
 
 void* realloc(void* ptr, size_t size) {
-    if (!ptr) return malloc(size);
-    if (size == 0) {
-        free(ptr);
-        return NULL;
-    }
-
-    /* Get old size */
-    BlockHeader* b = (BlockHeader*)((u8*)ptr - BLKHDR_SZ);
-    u32 oldSize = b->size - BLKHDR_SZ;
-
-    /* Allocate new block */
-    void* newPtr = malloc(size);
-    if (!newPtr) return NULL;
-
-    /* Copy data */
-    memcpy(newPtr, ptr, (size < oldSize) ? size : oldSize);
-
-    /* Free old block */
-    free(ptr);
-
-    return newPtr;
+    extern void* krealloc(void* ptr, size_t new_size);
+    return krealloc(ptr, size);
 }
 
 /* ======================== Initialization ======================== */
