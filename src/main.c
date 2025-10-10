@@ -714,6 +714,10 @@ static void init_system71(void) {
     kheap_init(0x400000, 0x1400000);  /* 4MB to 20MB = 16MB heap */
     serial_puts("    Kernel heap initialized (16MB)\n");
 
+    /* Run nanokernel test suite to validate implementation */
+    extern void nk_memory_run_tests(void);
+    nk_memory_run_tests();
+
     /* Memory Manager - foundation of everything */
     InitMemoryManager();
     serial_puts("  Memory Manager initialized\n");
