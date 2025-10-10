@@ -6,6 +6,93 @@
 
 An open-source reimplementation of Apple Macintosh System 7 for modern x86 hardware, bootable via GRUB2/Multiboot2. This project aims to recreate the classic Mac OS experience while documenting the System 7 architecture through reverse engineering analysis.
 
+---
+
+# ⚠️ **FUTURE BRANCH - EXPERIMENTAL NANOKERNEL BUILD**
+
+**You are viewing the `future` branch** - This branch contains **experimental nanokernel threading infrastructure** and is **INCOMPATIBLE** with the stable `main` branch.
+
+## Key Differences from Main Branch
+
+### What Makes This Branch "Future"
+
+This branch contains a complete **System 7.1 Nanokernel** implementation with preemptive multitasking - a significant architectural departure from the stable `main` branch:
+
+**Threading & Scheduling** (7,700+ new lines):
+- ✅ Full preemptive threading with hardware timer interrupts (IRQ0)
+- ✅ Context switching with register save/restore (assembly ISRs)
+- ✅ Cooperative scheduler with priority-based task management
+- ✅ PIT (8254) timer integration for 100 Hz tick generation
+- ✅ Physical memory manager (PMM) providing heap backend
+- ✅ Complete Memory Manager integration with nanokernel allocations
+
+**Interrupt Infrastructure**:
+- ✅ IDT (Interrupt Descriptor Table) setup and management
+- ✅ PIC (8259) programmable interrupt controller support
+- ✅ IRQ0 handler with deferred scheduling for interrupt safety
+- ✅ NMI (Non-Maskable Interrupt) handling and diagnostics
+
+**Extensive Diagnostic Logging**:
+- ✅ Thread context switch tracing
+- ✅ IRQ handling instrumentation
+- ✅ PS/2 stuck button detection
+- ✅ Heap allocation tracking and validation
+- ✅ Window Manager/Menu Manager detailed event logs
+
+### Incompatibilities with Main
+
+**Memory Architecture**:
+- Main: Direct malloc/calloc for Memory Manager
+- Future: Nanokernel provides physical memory, Memory Manager sits on top
+
+**Boot Sequence**:
+- Main: Simple initialization → Finder
+- Future: Nanokernel init → Timer setup → IRQ0 enabled → Thread scheduler → Finder
+
+**Interrupt Handling**:
+- Main: Polled input (PS/2 status register checks)
+- Future: IRQ-driven with deferred scheduling and interrupt safety
+
+**Code Complexity**:
+- Main: ~57,500 lines
+- Future: ~65,200 lines (+7,700 lines of threading/scheduler/interrupt code)
+
+### Why "Future" Branch Exists
+
+This branch serves multiple purposes:
+
+1. **Research Platform**: Tests advanced Mac OS 7.1 features (Blue Box, nanokernel threading)
+2. **Architectural Experiments**: Explores preemptive vs cooperative multitasking trade-offs
+3. **Performance Testing**: Hardware interrupts vs polling for input handling
+4. **Educational Value**: Documents full System 7.1 nanokernel architecture
+
+### Should You Use This Branch?
+
+**Use `main` branch if you want**:
+- ✅ Stable, production-ready code
+- ✅ Clean, readable implementation
+- ✅ Easier to understand and modify
+- ✅ All critical bug fixes included
+
+**Use `future` branch if you want**:
+- 🔬 Experimental threading/scheduler implementation
+- 🔬 Research-grade nanokernel architecture
+- 🔬 IRQ-driven interrupt handling
+- ⚠️ More complex, harder to debug
+- ⚠️ Additional failure modes from interrupts
+
+### Documentation
+
+Extensive documentation for future branch features:
+- `docs/kernel/interrupts.md` - 856 lines on interrupt subsystem
+- `NANOKERNEL_THREADING.md` - Threading implementation details
+- `INTERRUPT_SAFE_CONTEXT_SWITCHING.md` - Context switching design
+- `IRQ_CONTEXT_SWITCH_FINAL.md` - IRQ handling architecture
+- `NANOKERNEL_MIGRATION.md` - Migration guide from classic to nanokernel
+- `src/Nanokernel/README.md` - Nanokernel API reference
+
+---
+
 ## 🎯 Project Status
 
 **Current State**: Active development, core functionality partially working
