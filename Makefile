@@ -160,6 +160,7 @@ C_SOURCES = src/main.c \
             src/MemoryMgr/blockmove_optimization.c \
             src/MemoryMgr/MemoryTelemetry.c \
             src/System/Panic.c \
+            src/System/Platform/x86/panic_platform.c \
             src/Nanokernel/nk_memory.c \
             src/Nanokernel/nk_memory_test.c \
             src/Nanokernel/nk_task.c \
@@ -355,7 +356,7 @@ $(KERNEL): $(OBJECTS) | $(BUILD_DIR)
 	@echo "✓ Kernel linked successfully ($(shell stat -c%s $(KERNEL) 2>/dev/null || stat -f%z $(KERNEL) 2>/dev/null) bytes)"
 
 # Define source directories for vpath search
-vpath %.c src:src/System:src/QuickDraw:src/WindowManager:src/MenuManager:src/ControlManager \
+vpath %.c src:src/System:src/System/Platform/x86:src/QuickDraw:src/WindowManager:src/MenuManager:src/ControlManager \
           src/EventManager:src/DialogManager:src/StandardFile:src/TextEdit:src/ListManager \
           src/ScrapManager:src/ProcessMgr:src/TimeManager:src/SoundManager:src/FontManager \
           src/Gestalt:src/MemoryMgr:src/Nanokernel:src/Nanokernel/platform/x86:src/ResourceMgr \
