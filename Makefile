@@ -158,6 +158,8 @@ C_SOURCES = src/main.c \
             src/MemoryMgr/memory_manager_core.c \
             src/MemoryMgr/heap_compaction.c \
             src/MemoryMgr/blockmove_optimization.c \
+            src/MemoryMgr/MemoryTelemetry.c \
+            src/System/Panic.c \
             src/Nanokernel/nk_memory.c \
             src/Nanokernel/nk_memory_test.c \
             src/Nanokernel/nk_task.c \
