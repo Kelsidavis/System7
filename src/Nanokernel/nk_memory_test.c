@@ -42,7 +42,7 @@ static uint32_t tests_passed = 0;
  *   Minimal printf implementation for testing
  * ============================================================ */
 
-extern void serial_putcharhar(char c);
+extern void serial_putchar(char c);
 extern void serial_puts(const char *s);
 
 void nk_printf(const char *fmt, ...) {

@@ -1084,6 +1084,56 @@ void* realloc(void* ptr, size_t size) {
 
 /* ======================== Initialization ======================== */
 
+/* Helper: Print decimal number to serial */
+static void serial_print_dec(uint32_t val) {
+    extern void serial_putchar(char c);
+    if (val == 0) {
+        serial_putchar('0');
+        return;
+    }
+    char buf[16];
+    int i = 0;
+    while (val > 0) {
+        buf[i++] = '0' + (val % 10);
+        val /= 10;
+    }
+    while (i > 0) {
+        serial_putchar(buf[--i]);
+    }
+}
+
+/* Helper: Calculate heap sizes based on total system memory
+ * Scaling strategy:
+ *   < 64MB:        2MB system,   6MB app   (minimal)
+ *   64-256MB:      4MB system,  16MB app   (small)
+ *   256-512MB:    16MB system,  64MB app   (medium)
+ *   512MB-1GB:    32MB system, 128MB app   (large)
+ *   >= 1GB:       64MB system, 256MB app   (xlarge)
+ */
+static void calculate_heap_sizes(uint32_t total_memory_kb, size_t* out_system_size, size_t* out_app_size) {
+    if (total_memory_kb < 64 * 1024) {
+        /* < 64MB: minimal */
+        *out_system_size = 2 * 1024 * 1024;   /* 2MB */
+        *out_app_size = 6 * 1024 * 1024;      /* 6MB */
+    } else if (total_memory_kb < 256 * 1024) {
+        /* 64-256MB: small */
+        *out_system_size = 4 * 1024 * 1024;   /* 4MB */
+        *out_app_size = 16 * 1024 * 1024;     /* 16MB */
+    } else if (total_memory_kb < 512 * 1024) {
+        /* 256-512MB: medium */
+        *out_system_size = 16 * 1024 * 1024;  /* 16MB */
+        *out_app_size = 64 * 1024 * 1024;     /* 64MB */
+    } else if (total_memory_kb < 1024 * 1024) {
+        /* 512MB-1GB: large */
+        *out_system_size = 32 * 1024 * 1024;  /* 32MB */
+        *out_app_size = 128 * 1024 * 1024;    /* 128MB */
+    } else {
+        /* >= 1GB: xlarge */
+        *out_system_size = 64 * 1024 * 1024;  /* 64MB */
+        *out_app_size = 256 * 1024 * 1024;    /* 256MB */
+    }
+}
+
 void InitMemoryManager(void) {
     /* Use serial_puts for debugging */
     extern void serial_puts(const char* str);
@@ -1092,9 +1142,9 @@ void InitMemoryManager(void) {
 
     serial_puts("MM: InitMemoryManager started\n");
 
-    /* Allocate heaps from nanokernel */
-    const size_t system_size = 2 * 1024 * 1024;  /* 2MB system heap */
-    const size_t app_size = 6 * 1024 * 1024;     /* 6MB app heap */
+    /* Calculate heap sizes dynamically based on total system memory */
+    size_t system_size, app_size;
+    calculate_heap_sizes(g_total_memory_kb, &system_size, &app_size);
 
     gSystemHeap = (u8*)kmalloc(system_size);
     if (!gSystemHeap) {
@@ -1116,14 +1166,18 @@ void InitMemoryManager(void) {
              gSystemMasters, sizeof(gSystemMasters)/sizeof(void*));
     /* strcpy not available in kernel */
     gSystemZone.name[0] = 'S'; gSystemZone.name[1] = 0;
-    serial_puts("MM: System Zone initialized (2048 KB from nanokernel)\n");
+    serial_puts("MM: System Zone initialized (");
+    serial_print_dec((uint32_t)(system_size / 1024));
+    serial_puts(" KB from nanokernel)\n");
 
     /* Initialize Application Zone */
     InitZone(&gAppZone, gAppHeap, app_size,
              gAppMasters, sizeof(gAppMasters)/sizeof(void*));
     /* strcpy not available in kernel */
     gAppZone.name[0] = 'A'; gAppZone.name[1] = 0;
-    serial_puts("MM: App Zone initialized (6144 KB from nanokernel)\n");
+    serial_puts("MM: App Zone initialized (");
+    serial_print_dec((uint32_t)(app_size / 1024));
+    serial_puts(" KB from nanokernel)\n");
 
     /* Set current zone to app zone */
     gCurrentZone = &gAppZone;
