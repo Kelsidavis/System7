@@ -957,34 +957,21 @@ void ShowWindow(WindowPtr window) {
 #define WM_DEBUG(...) do {} while(0)
 
 void HideWindow(WindowPtr window) {
-    WM_LOG_DEBUG("[WM] HideWindow: ENTRY\n");
+    /* NO LOGGING - creates infinite recursion via NewPtr! */
 
     if (!window) {
-        WM_LOG_DEBUG("[WM] HideWindow: NULL window, returning\n");
         return;
     }
 
-    WM_LOG_DEBUG("[WM] HideWindow: Setting visible=false\n");
     window->visible = false;
 
     /* Save the region that needs repainting */
-    WM_LOG_DEBUG("[WM] HideWindow: About to declare clobberedRgn\n");
     RgnHandle clobberedRgn = NULL;
-    WM_LOG_DEBUG("[WM] HideWindow: clobberedRgn declared\n");
-    WM_LOG_DEBUG("[WM] HideWindow: window pointer = 0x%08x\n", (unsigned int)P2UL(window));
-    WM_LOG_DEBUG("[WM] HideWindow: &(window->strucRgn) = 0x%08x\n", (unsigned int)P2UL(&(window->strucRgn)));
-    WM_LOG_DEBUG("[WM] HideWindow: About to read window->strucRgn value...\n");
     RgnHandle strucRgn_value = window->strucRgn;
-    WM_LOG_DEBUG("[WM] HideWindow: strucRgn value = 0x%08x\n", (unsigned int)P2UL(strucRgn_value));
-    WM_LOG_DEBUG("[WM] HideWindow: About to check if strucRgn is NULL\n");
     if (strucRgn_value) {
-        WM_LOG_DEBUG("[WM] HideWindow: strucRgn is NOT NULL, calling NewRgn()\n");
         clobberedRgn = NewRgn();
-        WM_LOG_DEBUG("[WM] HideWindow: NewRgn returned 0x%08x\n", (unsigned int)P2UL(clobberedRgn));
         if (clobberedRgn) {
-            WM_DEBUG("HideWindow: Calling CopyRgn()");
             CopyRgn(strucRgn_value, clobberedRgn);
-            WM_DEBUG("HideWindow: CopyRgn returned");
         }
     }
 

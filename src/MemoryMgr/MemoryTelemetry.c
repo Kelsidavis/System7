@@ -5,6 +5,7 @@
 
 #include "MemoryMgr/MemoryTelemetry.h"
 #include "System/Panic.h"
+#include "System/ExceptionHandlers.h"
 #include <string.h>
 
 /* Forward declarations */
@@ -61,6 +62,9 @@ void telemetry_init(void) {
     g_telemetry_initialized = true;
 
     serial_puts("[TELEMETRY] Memory telemetry system initialized\n");
+
+    /* Install CPU exception handlers to catch faults (page faults, GPF, etc.) */
+    exception_handlers_init();
 }
 
 /* === Allocation Tracking === */

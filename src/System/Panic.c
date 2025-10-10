@@ -137,8 +137,18 @@ void panic_display_context(const PanicContext* ctx) {
         case PANIC_CODE_BLOCK_OVERFLOW:   serial_puts("BLOCK_OVERFLOW"); break;
         case PANIC_CODE_FREELIST_CORRUPT: serial_puts("FREELIST_CORRUPT"); break;
         case PANIC_CODE_STACK_OVERFLOW:   serial_puts("STACK_OVERFLOW"); break;
+        case PANIC_CODE_STACK_UNDERFLOW:  serial_puts("STACK_UNDERFLOW"); break;
         case PANIC_CODE_NULL_DEREF:       serial_puts("NULL_DEREFERENCE"); break;
+        case PANIC_CODE_DIVIDE_BY_ZERO:   serial_puts("DIVIDE_BY_ZERO"); break;
+        case PANIC_CODE_PAGE_FAULT:       serial_puts("PAGE_FAULT"); break;
+        case PANIC_CODE_GPF:              serial_puts("GENERAL_PROTECTION_FAULT"); break;
+        case PANIC_CODE_INVALID_OPCODE:   serial_puts("INVALID_OPCODE"); break;
+        case PANIC_CODE_STACK_FAULT:      serial_puts("STACK_FAULT"); break;
+        case PANIC_CODE_ALIGNMENT_CHECK:  serial_puts("ALIGNMENT_CHECK"); break;
+        case PANIC_CODE_DOUBLE_FAULT:     serial_puts("DOUBLE_FAULT"); break;
         case PANIC_CODE_ASSERT_FAILED:    serial_puts("ASSERT_FAILED"); break;
+        case PANIC_CODE_UNREACHABLE:      serial_puts("UNREACHABLE"); break;
+        case PANIC_CODE_NANOKERNEL:       serial_puts("NANOKERNEL"); break;
         default:                          serial_puts("UNKNOWN"); break;
     }
     serial_puts(")\n");

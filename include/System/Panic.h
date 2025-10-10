@@ -31,17 +31,28 @@ typedef enum {
 /* Panic codes for categorization */
 typedef enum {
     PANIC_CODE_GENERAL          = 0x0000,
+    /* Memory errors (0x1xxx) */
     PANIC_CODE_HEAP_CORRUPTION  = 0x1000,
     PANIC_CODE_DOUBLE_FREE      = 0x1001,
     PANIC_CODE_BAD_POINTER      = 0x1002,
     PANIC_CODE_BLOCK_OVERFLOW   = 0x1003,
     PANIC_CODE_FREELIST_CORRUPT = 0x1004,
+    /* Stack errors (0x2xxx) */
     PANIC_CODE_STACK_OVERFLOW   = 0x2000,
     PANIC_CODE_STACK_UNDERFLOW  = 0x2001,
+    /* CPU exceptions (0x3xxx) */
     PANIC_CODE_NULL_DEREF       = 0x3000,
     PANIC_CODE_DIVIDE_BY_ZERO   = 0x3001,
+    PANIC_CODE_PAGE_FAULT       = 0x3002,
+    PANIC_CODE_GPF              = 0x3003,  /* General Protection Fault */
+    PANIC_CODE_INVALID_OPCODE   = 0x3004,
+    PANIC_CODE_STACK_FAULT      = 0x3005,
+    PANIC_CODE_ALIGNMENT_CHECK  = 0x3006,
+    PANIC_CODE_DOUBLE_FAULT     = 0x3007,
+    /* Logic errors (0x4xxx) */
     PANIC_CODE_ASSERT_FAILED    = 0x4000,
     PANIC_CODE_UNREACHABLE      = 0x4001,
+    /* Nanokernel errors (0x5xxx) */
     PANIC_CODE_NANOKERNEL       = 0x5000
 } PanicCode;
 

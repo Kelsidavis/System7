@@ -161,6 +161,7 @@ C_SOURCES = src/main.c \
             src/MemoryMgr/MemoryTelemetry.c \
             src/System/Panic.c \
             src/System/Platform/x86/panic_platform.c \
+            src/System/ExceptionHandlers.c \
             src/Nanokernel/nk_memory.c \
             src/Nanokernel/nk_memory_test.c \
             src/Nanokernel/nk_task.c \

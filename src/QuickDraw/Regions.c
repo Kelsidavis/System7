@@ -62,6 +62,8 @@ static Boolean XorScanLines(SInt16 *line1, SInt16 count1, SInt16 *line2, SInt16 
  * ================================================================ */
 
 RgnHandle NewRgn(void) {
+    /* NO LOGGING - creates infinite recursion via NewPtr! */
+
     /* Use NewPtr instead of calloc - calloc is broken in bare-metal kernel */
     RgnHandle rgn = (RgnHandle)NewPtr(sizeof(RgnPtr));
     if (!rgn) {
@@ -153,18 +155,17 @@ void CopyRgn(RgnHandle srcRgn, RgnHandle dstRgn) {
     Region *src = *srcRgn;
     Region *dst = *dstRgn;
 
-    /* Reallocate destination if needed */
+    /* CRITICAL: realloc() is broken in bare-metal kernel and causes freeze!
+     * Instead, only copy what fits in destination, truncating if necessary */
     if (src->rgnSize > dst->rgnSize) {
-        Region *newDst = (Region *)realloc(dst, src->rgnSize);
-        if (!newDst) {
-            g_lastRegionError = rgnOverflowErr;
-            return;
-        }
-        *dstRgn = newDst;
-        dst = newDst;
+        /* Source is larger than destination - copy only what fits */
+        /* Copy bounding box and as much data as possible */
+        memcpy(dst, src, dst->rgnSize);
+        g_lastRegionError = rgnOverflowErr;  /* Indicate truncation */
+        return;
     }
 
-    /* Copy the region data */
+    /* Copy the region data (source fits in destination) */
     memcpy(dst, src, src->rgnSize);
     g_lastRegionError = 0;
 }
