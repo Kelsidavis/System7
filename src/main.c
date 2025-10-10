@@ -1653,6 +1653,32 @@ static void init_system71(void) {
 
     /* Initialize in proper System 7.1 order per Inside Macintosh */
 
+    /* Nanokernel Memory Manager - low-level foundation */
+    extern void pmm_init(uint64_t mem_size_bytes, uintptr_t phys_base);
+    extern void kheap_init(uintptr_t heap_start, uintptr_t heap_end);
+
+    uint64_t total_bytes = (uint64_t)g_total_memory_kb * 1024;
+    serial_puts("  Initializing Nanokernel Memory Manager...\n");
+    serial_puts("    Total memory: ");
+    serial_print_hex(g_total_memory_kb);
+    serial_puts(" KB\n");
+
+    /* Memory layout:
+     * 0x000000 - 0x0FFFFF : Low memory (1MB, reserved for BIOS/kernel)
+     * 0x100000 - 0x1FFFFF : Kernel code/data/stack
+     * 0x200000 - 0x3FFFFF : PMM bitmap region (2MB, enough for 64GB)
+     * 0x400000 - 0x4FFFFFF: Kernel heap (12MB)
+     * 0x5000000+         : Available for PMM page allocation
+     */
+
+    /* Initialize PMM - it will place bitmap at phys_base */
+    pmm_init(total_bytes, 0x200000);  /* Bitmap at 2MB */
+    serial_puts("    PMM initialized\n");
+
+    /* Initialize kernel heap after PMM bitmap */
+    kheap_init(0x400000, 0x1400000);  /* 4MB to 20MB = 16MB heap */
+    serial_puts("    Kernel heap initialized (16MB)\n");
+
     /* Memory Manager - foundation of everything */
     InitMemoryManager();
     serial_puts("  Memory Manager initialized\n");
