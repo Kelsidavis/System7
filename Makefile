@@ -334,6 +334,8 @@ C_SOURCES = src/main.c \
             src/MemoryMgr/memory_manager_core.c \
             src/MemoryMgr/heap_compaction.c \
             src/MemoryMgr/blockmove_optimization.c \
+            src/Nanokernel/nk_memory.c \
+            src/Nanokernel/nk_memory_test.c \
             src/Resources/Icons/hd_icon.c \
             src/color_icons.c \
             src/DeskManager/DeskManagerCore.c \
@@ -556,7 +558,7 @@ $(KERNEL): $(OBJECTS) | $(BUILD_DIR)
 vpath %.c src:src/System:src/QuickDraw:src/WindowManager:src/MenuManager:src/ControlManager \
           src/EventManager:src/DialogManager:src/StandardFile:src/TextEdit:src/ListManager \
           src/ScrapManager:src/ProcessMgr:src/TimeManager:src/SoundManager:src/FontManager \
-          src/Gestalt:src/MemoryMgr:src/ResourceMgr:src/FileMgr:src/FS:src/Finder \
+          src/Gestalt:src/MemoryMgr:src/Nanokernel:src/ResourceMgr:src/FileMgr:src/FS:src/Finder \
           src/Finder/Icon:src/DeskManager:src/ControlPanels:src/PatternMgr:src/Resources \
           src/Resources/Icons:src/Apps/SimpleText:src/Apps/MacPaint:src/Platform:src/Platform/x86:src/Platform/arm:src/Platform/ppc:src/PrintManager \
           src/HelpManager:src/ComponentManager:src/EditionManager:src/NotificationManager \
