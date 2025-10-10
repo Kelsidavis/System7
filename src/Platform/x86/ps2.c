@@ -78,6 +78,10 @@
 /* GetNextEvent and PostEvent declared in EventManager.h */
 extern UInt32 TickCount(void);
 
+/* External framebuffer dimensions from main.c */
+extern uint32_t fb_width;
+extern uint32_t fb_height;
+
 /* I/O port functions */
 #include "Platform/include/io.h"
 
@@ -89,7 +93,9 @@ static Boolean g_ps2Initialized = false;
 static Boolean g_mouseEnabled = false;
 static Boolean g_keyboardEnabled = false;
 
-/* Global mouse position - shared with Event Manager */
+/* Global mouse position - shared with Event Manager
+ * Note: Initialized to center of default 800x600 screen, will be adjusted
+ * to actual screen center once framebuffer dimensions are known */
 Point g_mousePos = {400, 300};
 
 /* Mouse state - exported for cursor drawing */
@@ -293,11 +299,11 @@ static void process_mouse_packet(void) {
     g_mouseState.x += dx;
     g_mouseState.y -= dy; /* Y is inverted in PS/2 */
 
-    /* Clamp to screen bounds (assume 800x600 for now) */
+    /* Clamp to screen bounds (dynamically detected from framebuffer) */
     if (g_mouseState.x < 0) g_mouseState.x = 0;
-    if (g_mouseState.x > 799) g_mouseState.x = 799;
+    if (g_mouseState.x >= (int16_t)fb_width) g_mouseState.x = fb_width - 1;
     if (g_mouseState.y < 0) g_mouseState.y = 0;
-    if (g_mouseState.y > 599) g_mouseState.y = 599;
+    if (g_mouseState.y >= (int16_t)fb_height) g_mouseState.y = fb_height - 1;
 
     /* PLATFORM_LOG_DEBUG("MOUSE POS: old=(%d,%d) new=(%d,%d)\n", old_x, old_y, g_mouseState.x, g_mouseState.y); */
 
@@ -540,6 +546,14 @@ Boolean InitPS2Controller(void) {
     /* Initialize mouse */
     if (!init_mouse()) {
         /* PLATFORM_LOG_DEBUG("Warning: Mouse initialization failed\n"); */
+    }
+
+    /* Center mouse cursor at actual screen center (not hardcoded) */
+    if (fb_width > 0 && fb_height > 0) {
+        g_mouseState.x = fb_width / 2;
+        g_mouseState.y = fb_height / 2;
+        g_mousePos.h = g_mouseState.x;
+        g_mousePos.v = g_mouseState.y;
     }
 
     g_ps2Initialized = true;

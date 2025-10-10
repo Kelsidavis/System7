@@ -388,18 +388,15 @@ build/obj/ultimate_stubs.o: src/ultimate_stubs.c
 # ISO target
 iso: $(ISO)
 
-$(ISO): $(KERNEL) | $(ISO_DIR)/boot/grub
+$(ISO): $(KERNEL) grub.cfg | $(ISO_DIR)/boot/grub
 	@echo "Creating bootable ISO..."
 	@cp $(KERNEL) $(ISO_DIR)/boot/
-	@echo 'set timeout=0' > $(ISO_DIR)/boot/grub/grub.cfg
-	@echo '' >> $(ISO_DIR)/boot/grub/grub.cfg
-	@echo 'menuentry "System 7.1 Portable" {' >> $(ISO_DIR)/boot/grub/grub.cfg
-	@echo '    multiboot2 /boot/$(KERNEL)' >> $(ISO_DIR)/boot/grub/grub.cfg
-	@echo '    boot' >> $(ISO_DIR)/boot/grub/grub.cfg
-	@echo '}' >> $(ISO_DIR)/boot/grub/grub.cfg
+	@cp grub.cfg $(ISO_DIR)/boot/grub/grub.cfg
 	@$(GRUB) -d /usr/lib/grub/i386-pc -o $(ISO) $(ISO_DIR)
 
 # Run with QEMU (PC speaker with PulseAudio backend, SMP enabled for threading)
+# VGA: std (standard VGA, no corruption during boot)
+# Resolution: Detected automatically from GRUB/multiboot framebuffer
 run: $(ISO)
 	qemu-system-i386 -cdrom $(ISO) -drive file=test_disk.img,format=raw,if=ide -m 1024 -vga std -serial file:/tmp/serial.log \
 		-smp 1 -audiodev pa,id=snd0,server=/run/user/$(shell id -u)/pulse/native -machine pcspk-audiodev=snd0
