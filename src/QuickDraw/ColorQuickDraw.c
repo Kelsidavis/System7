@@ -26,6 +26,8 @@
 /* Platform abstraction layer */
 #include "QuickDraw/QuickDrawPlatform.h"
 
+/* QuickDraw globals from QuickDrawCore.c */
+extern QDGlobals qd;
 
 /* Color QuickDraw globals */
 static Boolean g_colorQDAvailable = false;
@@ -96,8 +98,8 @@ void InitCPort(CGrafPtr port) {
     port->portPixMap = NewPixMap();
     if (!port->portPixMap) return;
 
-    /* Initialize port rectangle */
-    SetRect(&port->portRect, 0, 0, 640, 480);
+    /* Initialize port rectangle to actual screen bounds */
+    port->portRect = qd.screenBits.bounds;
 
     /* Create regions */
     port->visRgn = NewRgn();
@@ -510,7 +512,8 @@ GDHandle NewGDevice(SInt16 refNum, SInt32 mode) {
     device->gdPMap = NewPixMap();
     device->gdRefCon = 0;
     device->gdNextGD = NULL;
-    SetRect(&device->gdRect, 0, 0, 640, 480);
+    /* Use actual screen bounds instead of hardcoding 640x480 */
+    device->gdRect = qd.screenBits.bounds;
     device->gdMode = mode;
     device->gdCCBytes = 0;
     device->gdCCDepth = 0;
