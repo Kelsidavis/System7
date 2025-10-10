@@ -2091,11 +2091,16 @@ static void init_system71(void) {
     /* console_puts("System 7.1 initialization complete\n"); - disabled in graphics mode */
     serial_puts("  System 7.1 initialization complete\n");
 
+    #if 0  /* Nanokernel threading test disabled - boot to desktop instead */
     /* Run nanokernel threading test (after all subsystems initialized) */
     extern void nk_test_threads_run(void);
     serial_puts("\n  === Running Nanokernel Threading Test (IRQ-safe context switch) ===\n");
     nk_test_threads_run();
     serial_puts("  Threading test complete\n\n");
+    #endif
+
+    /* Boot to desktop - fall through to event loop */
+    serial_puts("\n  ===  Booting to Finder Desktop ===\n");
 }
 
 #if 1  /* Performance tests always available */
