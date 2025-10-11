@@ -2000,6 +2000,47 @@ static void init_system71(void) {
     syscalls_init();
     serial_puts("  POSIX syscall layer initialized\n");
 
+    /* Phase 6.6a: Initialize VFS-Net and virtual filesystems */
+    extern bool VFSNet_Initialize(void);
+    extern bool VFSAuth_Initialize(void);
+    extern bool VFSMount_Initialize(void);
+    extern bool WebDAV_RegisterDriver(void);
+    extern bool SFTP_RegisterDriver(void);
+    extern bool ProcFS_Mount(void);
+    extern bool DevFS_Mount(void);
+    extern void VFSNet_IntegrationInit(void);
+
+    serial_puts("  Initializing VFS-Net core...\n");
+    bool vfsnet_ok = VFSNet_Initialize();
+    serial_printf("    VFSNet_Initialize returned: %d\n", vfsnet_ok);
+
+    bool vfsauth_ok = VFSAuth_Initialize();
+    serial_printf("    VFSAuth_Initialize returned: %d\n", vfsauth_ok);
+
+    bool vfsmount_ok = VFSMount_Initialize();
+    serial_printf("    VFSMount_Initialize returned: %d\n", vfsmount_ok);
+
+    VFSNet_IntegrationInit();
+    serial_puts("    Integration layer initialized\n");
+
+    /* Register network filesystem drivers */
+    serial_puts("  Registering network filesystem drivers...\n");
+    bool webdav_ok = WebDAV_RegisterDriver();
+    serial_printf("    WebDAV_RegisterDriver returned: %d\n", webdav_ok);
+
+    bool sftp_ok = SFTP_RegisterDriver();
+    serial_printf("    SFTP_RegisterDriver returned: %d\n", sftp_ok);
+
+    /* Mount virtual filesystems */
+    serial_puts("  Mounting virtual filesystems...\n");
+    bool procfs_ok = ProcFS_Mount();
+    serial_printf("    ProcFS_Mount returned: %d\n", procfs_ok);
+
+    bool devfs_ok = DevFS_Mount();
+    serial_printf("    DevFS_Mount returned: %d\n", devfs_ok);
+
+    serial_puts("  VFS-Net layer initialized\n");
+
     /* Mount boot volume - VFS will handle ATA vs. in-memory automatically */
     bool boot_from_ata = false;
     VRefNum boot_vref = 1;  /* Default to vRef 1 for in-memory volume */

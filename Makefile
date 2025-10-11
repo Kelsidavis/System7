@@ -186,12 +186,23 @@ C_SOURCES = src/main.c \
             src/Nanokernel/fs_daemon.c \
             src/Nanokernel/fd_table.c \
             src/Nanokernel/vfs/vfs_path.c \
+            src/Nanokernel/vfs/vfs_mount_table.c \
+            src/Nanokernel/vfs/vfs_net_integration.c \
+            src/Nanokernel/vfs/procfs.c \
+            src/Nanokernel/vfs/devfs.c \
             src/Nanokernel/syscalls/fs_syscalls.c \
+            src/Nanokernel/vfs_net/vfs_net_core.c \
+            src/Nanokernel/vfs_net/vfs_net_auth.c \
+            src/Nanokernel/vfs_net/webdav_driver.c \
+            src/Nanokernel/vfs_net/sftp_driver.c \
             src/fs/hfs/hfs_main.c \
             src/fs/fat32/fat32_main.c \
             src/Daemons/common/fs_daemon_common.c \
             src/Daemons/HFSd/hfs_daemon.c \
             src/Daemons/FATd/fat_daemon.c \
+            src/Daemons/VFSNetd/vfsnetd_common.c \
+            src/Daemons/VFSNetd/webdavd_daemon.c \
+            src/Daemons/VFSNetd/sftpd_daemon.c \
             src/Daemons/daemon_spawner.c \
             src/fs/fs_registry.c \
             src/Resources/Icons/hd_icon.c \
@@ -376,8 +387,8 @@ $(KERNEL): $(OBJECTS) | $(BUILD_DIR)
 
 # Define source directories for vpath search
 vpath %.c src:src/System:src/System/Platform/x86:src/QuickDraw:src/WindowManager:src/MenuManager:src/ControlManager \
-          src/Daemons:src/Daemons/common:src/Daemons/HFSd:src/Daemons/FATd \
-          src/Nanokernel/vfs:src/Nanokernel/syscalls \
+          src/Daemons:src/Daemons/common:src/Daemons/HFSd:src/Daemons/FATd:src/Daemons/VFSNetd \
+          src/Nanokernel/vfs:src/Nanokernel/syscalls:src/Nanokernel/vfs_net \
           src/EventManager:src/DialogManager:src/StandardFile:src/TextEdit:src/ListManager \
           src/ScrapManager:src/ProcessMgr:src/TimeManager:src/SoundManager:src/FontManager \
           src/Gestalt:src/MemoryMgr:src/Nanokernel:src/Nanokernel/platform/x86:src/ResourceMgr \
