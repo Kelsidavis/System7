@@ -15,6 +15,12 @@ PLATFORM ?= x86
 CONFIG ?= default
 -include config/$(CONFIG).mk
 
+# Filesystem driver defaults (can be overridden in config/*.mk or command line)
+ENABLE_FS_HFS ?= 1
+ENABLE_FS_FAT32 ?= 1
+ENABLE_FS_EXT4 ?= 1
+ENABLE_FS_EXFAT ?= 1
+
 # Directories
 BUILD_DIR = build
 OBJ_DIR = $(BUILD_DIR)/obj
@@ -69,6 +75,20 @@ ifeq ($(ENABLE_PROCESS_COOP),1)
 endif
 ifeq ($(MODERN_INPUT_ONLY),1)
   CFLAGS += -DMODERN_INPUT_ONLY=1
+endif
+
+# Add filesystem driver flags
+ifeq ($(ENABLE_FS_HFS),1)
+  CFLAGS += -DENABLE_FS_HFS=1
+endif
+ifeq ($(ENABLE_FS_FAT32),1)
+  CFLAGS += -DENABLE_FS_FAT32=1
+endif
+ifeq ($(ENABLE_FS_EXT4),1)
+  CFLAGS += -DENABLE_FS_EXT4=1
+endif
+ifeq ($(ENABLE_FS_EXFAT),1)
+  CFLAGS += -DENABLE_FS_EXFAT=1
 endif
 ASFLAGS = --32
 LDFLAGS = -melf_i386 -nostdlib -no-pie
@@ -195,13 +215,7 @@ C_SOURCES = src/main.c \
             src/Nanokernel/vfs_net/vfs_net_auth.c \
             src/Nanokernel/vfs_net/webdav_driver.c \
             src/Nanokernel/vfs_net/sftp_driver.c \
-            src/fs/hfs/hfs_main.c \
-            src/fs/fat32/fat32_main.c \
-            src/fs/ext4/ext4_main.c \
-            src/fs/exfat/exfat_main.c \
             src/Daemons/common/fs_daemon_common.c \
-            src/Daemons/HFSd/hfs_daemon.c \
-            src/Daemons/FATd/fat_daemon.c \
             src/Daemons/VFSNetd/vfsnetd_common.c \
             src/Daemons/VFSNetd/webdavd_daemon.c \
             src/Daemons/VFSNetd/sftpd_daemon.c \
@@ -276,6 +290,25 @@ C_SOURCES = src/main.c \
             src/Apps/SimpleText/STFileIO.c \
             src/Apps/SimpleText/STClipboard.c \
             src/StartupScreen/StartupScreen.c
+
+# Add filesystem driver sources and daemons if enabled
+ifeq ($(ENABLE_FS_HFS),1)
+C_SOURCES += src/fs/hfs/hfs_main.c \
+             src/Daemons/HFSd/hfs_daemon.c
+endif
+
+ifeq ($(ENABLE_FS_FAT32),1)
+C_SOURCES += src/fs/fat32/fat32_main.c \
+             src/Daemons/FATd/fat_daemon.c
+endif
+
+ifeq ($(ENABLE_FS_EXT4),1)
+C_SOURCES += src/fs/ext4/ext4_main.c
+endif
+
+ifeq ($(ENABLE_FS_EXFAT),1)
+C_SOURCES += src/fs/exfat/exfat_main.c
+endif
 
 # Add ResourceMgr sources if enabled
 ifeq ($(ENABLE_RESOURCES),1)
@@ -491,6 +524,10 @@ help: ## Show this help message
 	@echo "  ENABLE_GESTALT=1         Enable Gestalt Manager"
 	@echo "  ENABLE_SCRAP=1           Enable Scrap Manager"
 	@echo "  ENABLE_LIST=1            Enable List Manager"
+	@echo "  ENABLE_FS_HFS=0/1        Enable HFS filesystem (default: 1)"
+	@echo "  ENABLE_FS_FAT32=0/1      Enable FAT32 filesystem (default: 1)"
+	@echo "  ENABLE_FS_EXT4=0/1       Enable ext4 filesystem (default: 1)"
+	@echo "  ENABLE_FS_EXFAT=0/1      Enable exFAT filesystem (default: 1)"
 	@echo "  CTRL_SMOKE_TEST=1        Enable Control Manager tests"
 	@echo "  LIST_SMOKE_TEST=1        Enable List Manager tests"
 	@echo "  ALERT_SMOKE_TEST=1       Enable Alert Dialog tests"
@@ -504,6 +541,8 @@ help: ## Show this help message
 	@echo "  make CONFIG=release iso  Build optimized ISO"
 	@echo "  make clean all           Clean rebuild"
 	@echo "  make CTRL_SMOKE_TEST=1   Build with control tests enabled"
+	@echo "  make ENABLE_FS_EXT4=0    Build without ext4 support"
+	@echo "  make ENABLE_FS_FAT32=0 ENABLE_FS_EXFAT=0  HFS-only build"
 	@echo ""
 	@echo "PARALLEL BUILDS:"
 	@echo "  Use 'make -j<N>' for parallel compilation (recommended)"
