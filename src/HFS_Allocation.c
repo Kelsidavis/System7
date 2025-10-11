@@ -25,6 +25,8 @@ extern PlatformHooks g_PlatformHooks;
 #define BLOCKS_PER_WORD     16
 #define BITMAP_CACHE_SIZE   4096  /* Cache 4KB of bitmap at a time */
 
+/* DateTime_Current is now defined in FileManager implementation */
+
 /* ============================================================================
  * Allocation Bitmap Management
  * ============================================================================ */
@@ -43,7 +45,7 @@ OSErr Alloc_Init(VCB* vcb)
     }
 
     /* Calculate bitmap size */
-    bitmapBytes = (vcb->vcbNmAlBlks + 7) / 8;  /* Round up to byte boundary */
+    bitmapBytes = (vcb->base.vcbNmAlBlks + 7) / 8;  /* Round up to byte boundary */
     bitmapBlocks = (bitmapBytes + BLOCK_SIZE - 1) / BLOCK_SIZE;
 
     /* Allocate bitmap cache */
@@ -53,7 +55,7 @@ OSErr Alloc_Init(VCB* vcb)
     }
 
     /* Read bitmap from disk */
-    err = IO_ReadBlocks(vcb, vcb->vcbVBMSt, bitmapBlocks, vcb->vcbVBMCache);
+    err = IO_ReadBlocks(vcb, vcb->base.vcbVBMSt, bitmapBlocks, vcb->vcbVBMCache);
     if (err != noErr) {
         free(vcb->vcbVBMCache);
         vcb->vcbVBMCache = NULL;
@@ -186,21 +188,21 @@ OSErr Alloc_Blocks(VCB* vcb, UInt32 startHint, UInt32 minBlocks, UInt32 maxBlock
     }
 
     /* Check if enough free blocks available */
-    if (vcb->vcbFreeBks < minBlocks) {
+    if (vcb->base.vcbFreeBks < minBlocks) {
         FS_UnlockVolume(vcb);
         return dskFulErr;
     }
 
     /* Use allocation pointer as hint if no hint provided */
     if (startHint == 0) {
-        startHint = vcb->vcbAllocPtr;
+        startHint = vcb->base.vcbAllocPtr;
     }
 
     /* Find a run of free blocks */
-    foundStart = FindFreeRun(bitmap, vcb->vcbNmAlBlks, startHint, minBlocks);
+    foundStart = FindFreeRun(bitmap, vcb->base.vcbNmAlBlks, startHint, minBlocks);
     if (foundStart == 0xFFFFFFFF) {
         /* Try again from beginning */
-        foundStart = FindFreeRun(bitmap, vcb->vcbNmAlBlks, 0, minBlocks);
+        foundStart = FindFreeRun(bitmap, vcb->base.vcbNmAlBlks, 0, minBlocks);
         if (foundStart == 0xFFFFFFFF) {
             FS_UnlockVolume(vcb);
             return dskFulErr;
@@ -209,7 +211,7 @@ OSErr Alloc_Blocks(VCB* vcb, UInt32 startHint, UInt32 minBlocks, UInt32 maxBlock
 
     /* Count available blocks in the run */
     foundCount = 0;
-    for (i = foundStart; i < vcb->vcbNmAlBlks && foundCount < maxBlocks; i++) {
+    for (i = foundStart; i < vcb->base.vcbNmAlBlks && foundCount < maxBlocks; i++) {
         if (!TestBit(bitmap, i)) {
             foundCount++;
         } else {
@@ -223,12 +225,12 @@ OSErr Alloc_Blocks(VCB* vcb, UInt32 startHint, UInt32 minBlocks, UInt32 maxBlock
     }
 
     /* Update VCB */
-    vcb->vcbFreeBks -= (UInt16)foundCount;
-    vcb->vcbAllocPtr = (UInt16)(foundStart + foundCount);
-    if (vcb->vcbAllocPtr >= vcb->vcbNmAlBlks) {
-        vcb->vcbAllocPtr = 0;
+    vcb->base.vcbFreeBks -= (UInt16)foundCount;
+    vcb->base.vcbAllocPtr = (UInt16)(foundStart + foundCount);
+    if (vcb->base.vcbAllocPtr >= vcb->base.vcbNmAlBlks) {
+        vcb->base.vcbAllocPtr = 0;
     }
-    vcb->vcbFlags |= VCB_DIRTY;
+    vcb->base.vcbFlags |= VCB_DIRTY;
 
     *actualStart = foundStart;
     *actualCount = foundCount;
@@ -251,7 +253,7 @@ OSErr Alloc_Free(VCB* vcb, UInt32 startBlock, UInt32 blockCount)
     }
 
     /* Check bounds */
-    if (startBlock + blockCount > vcb->vcbNmAlBlks) {
+    if (startBlock + blockCount > vcb->base.vcbNmAlBlks) {
         return paramErr;
     }
 
@@ -267,16 +269,16 @@ OSErr Alloc_Free(VCB* vcb, UInt32 startBlock, UInt32 blockCount)
     for (i = 0; i < blockCount; i++) {
         if (TestBit(bitmap, startBlock + i)) {
             ClearBit(bitmap, startBlock + i);
-            vcb->vcbFreeBks++;
+            vcb->base.vcbFreeBks++;
         }
     }
 
     /* Update allocation pointer to freed area for next search */
-    if (startBlock < vcb->vcbAllocPtr) {
-        vcb->vcbAllocPtr = (UInt16)startBlock;
+    if (startBlock < vcb->base.vcbAllocPtr) {
+        vcb->base.vcbAllocPtr = (UInt16)startBlock;
     }
 
-    vcb->vcbFlags |= VCB_DIRTY;
+    vcb->base.vcbFlags |= VCB_DIRTY;
 
     FS_UnlockVolume(vcb);
 
@@ -301,7 +303,7 @@ UInt32 Alloc_CountFree(VCB* vcb)
     bitmap = (UInt8*)vcb->vcbVBMCache;
 
     /* Count free blocks */
-    for (i = 0; i < vcb->vcbNmAlBlks; i++) {
+    for (i = 0; i < vcb->base.vcbNmAlBlks; i++) {
         if (!TestBit(bitmap, i)) {
             count++;
         }
@@ -325,7 +327,7 @@ Boolean Alloc_Check(VCB* vcb, UInt32 startBlock, UInt32 blockCount)
     }
 
     /* Check bounds */
-    if (startBlock + blockCount > vcb->vcbNmAlBlks) {
+    if (startBlock + blockCount > vcb->base.vcbNmAlBlks) {
         return false;
     }
 
@@ -400,7 +402,7 @@ OSErr Ext_Close(VCB* vcb)
  */
 OSErr Ext_Map(VCB* vcb, FCB* fcb, UInt32 fileBlock, UInt32* physBlock, UInt32* contiguous)
 {
-    ExtDataRec* extents;
+    ExtentDescriptor* extents;
     UInt32 currentBlock = 0;
     UInt32 i;
 
@@ -409,34 +411,34 @@ OSErr Ext_Map(VCB* vcb, FCB* fcb, UInt32 fileBlock, UInt32* physBlock, UInt32* c
     }
 
     /* Use appropriate extent record based on fork */
-    if (fcb->fcbFlags & FCB_RESOURCE) {
+    if (fcb->base.fcbFlags & FCB_RESOURCE) {
         /* Resource fork - would need to look up resource extents */
         /* Simplified: not implemented */
         return fxRangeErr;
     } else {
-        /* Data fork */
-        extents = &fcb->fcbExtRec;
+        /* Data fork - use extent array */
+        extents = fcb->base.extent;
     }
 
     /* Search through extent records */
     for (i = 0; i < 3; i++) {
-        if ((*extents)[i].blockCount == 0) {
+        if (extents[i].blockCount == 0) {
             break;  /* End of extents */
         }
 
-        if (fileBlock < currentBlock + (*extents)[i].blockCount) {
+        if (fileBlock < currentBlock + extents[i].blockCount) {
             /* Found the extent containing the file block */
-            *physBlock = (*extents)[i].startBlock + (fileBlock - currentBlock);
+            *physBlock = extents[i].startBlock + (fileBlock - currentBlock);
 
             /* Calculate contiguous blocks if requested */
             if (contiguous) {
-                *contiguous = (*extents)[i].blockCount - (fileBlock - currentBlock);
+                *contiguous = extents[i].blockCount - (fileBlock - currentBlock);
             }
 
             return noErr;
         }
 
-        currentBlock += (*extents)[i].blockCount;
+        currentBlock += extents[i].blockCount;
     }
 
     /* File block is beyond extents in FCB */
@@ -463,19 +465,19 @@ OSErr Ext_Extend(VCB* vcb, FCB* fcb, UInt32 newSize)
     FS_LockFCB(fcb);
 
     /* Calculate current and needed blocks */
-    currentBlocks = (fcb->fcbPLen + vcb->vcbAlBlkSiz - 1) / vcb->vcbAlBlkSiz;
-    neededBlocks = (newSize + vcb->vcbAlBlkSiz - 1) / vcb->vcbAlBlkSiz;
+    currentBlocks = (fcb->base.fcbPLen + vcb->base.vcbAlBlkSiz - 1) / vcb->base.vcbAlBlkSiz;
+    neededBlocks = (newSize + vcb->base.vcbAlBlkSiz - 1) / vcb->base.vcbAlBlkSiz;
 
     if (neededBlocks <= currentBlocks) {
         /* No additional blocks needed */
-        fcb->fcbEOF = newSize;
+        fcb->base.fcbEOF = newSize;
         FS_UnlockFCB(fcb);
         return noErr;
     }
 
     /* Calculate allocation size using clump size */
-    clumpSize = fcb->fcbClmpSize ? fcb->fcbClmpSize : vcb->vcbClpSiz;
-    UInt32 clumpBlocks = (clumpSize + vcb->vcbAlBlkSiz - 1) / vcb->vcbAlBlkSiz;
+    clumpSize = fcb->base.fcbClpSiz ? fcb->base.fcbClpSiz : vcb->base.vcbClpSiz;
+    UInt32 clumpBlocks = (clumpSize + vcb->base.vcbAlBlkSiz - 1) / vcb->base.vcbAlBlkSiz;
     UInt32 blocksToAlloc = neededBlocks - currentBlocks;
     if (blocksToAlloc < clumpBlocks) {
         blocksToAlloc = clumpBlocks;
@@ -486,8 +488,8 @@ OSErr Ext_Extend(VCB* vcb, FCB* fcb, UInt32 newSize)
     if (currentBlocks > 0) {
         /* Find last allocated block */
         for (int i = 0; i < 3; i++) {
-            if (fcb->fcbExtRec[i].blockCount > 0) {
-                lastBlock = fcb->fcbExtRec[i].startBlock + fcb->fcbExtRec[i].blockCount;
+            if (fcb->base.extent[i].blockCount > 0) {
+                lastBlock = fcb->base.extent[i].startBlock + fcb->base.extent[i].blockCount;
             }
         }
     }
@@ -508,24 +510,24 @@ OSErr Ext_Extend(VCB* vcb, FCB* fcb, UInt32 newSize)
 
     /* Add to extent record (simplified - assumes fits in first 3 extents) */
     for (int i = 0; i < 3; i++) {
-        if (fcb->fcbExtRec[i].blockCount == 0) {
+        if (fcb->base.extent[i].blockCount == 0) {
             /* Empty extent slot */
-            fcb->fcbExtRec[i].startBlock = (UInt16)allocStart;
-            fcb->fcbExtRec[i].blockCount = (UInt16)allocCount;
+            fcb->base.extent[i].startBlock = (UInt16)allocStart;
+            fcb->base.extent[i].blockCount = (UInt16)allocCount;
             break;
-        } else if (fcb->fcbExtRec[i].startBlock + fcb->fcbExtRec[i].blockCount == allocStart) {
+        } else if (fcb->base.extent[i].startBlock + fcb->base.extent[i].blockCount == allocStart) {
             /* Can merge with existing extent */
-            fcb->fcbExtRec[i].blockCount += (UInt16)allocCount;
+            fcb->base.extent[i].blockCount += (UInt16)allocCount;
             break;
         }
     }
 
     /* Update FCB */
-    fcb->fcbPLen = (currentBlocks + allocCount) * vcb->vcbAlBlkSiz;
-    if (newSize > fcb->fcbEOF) {
-        fcb->fcbEOF = newSize;
+    fcb->base.fcbPLen = (currentBlocks + allocCount) * vcb->base.vcbAlBlkSiz;
+    if (newSize > fcb->base.fcbEOF) {
+        fcb->base.fcbEOF = newSize;
     }
-    fcb->fcbFlags |= FCB_DIRTY;
+    fcb->base.fcbFlags |= FCB_DIRTY;
 
     FS_UnlockFCB(fcb);
 
@@ -549,12 +551,12 @@ OSErr Ext_Truncate(VCB* vcb, FCB* fcb, UInt32 newSize)
     FS_LockFCB(fcb);
 
     /* Calculate current and needed blocks */
-    currentBlocks = (fcb->fcbPLen + vcb->vcbAlBlkSiz - 1) / vcb->vcbAlBlkSiz;
-    neededBlocks = (newSize + vcb->vcbAlBlkSiz - 1) / vcb->vcbAlBlkSiz;
+    currentBlocks = (fcb->base.fcbPLen + vcb->base.vcbAlBlkSiz - 1) / vcb->base.vcbAlBlkSiz;
+    neededBlocks = (newSize + vcb->base.vcbAlBlkSiz - 1) / vcb->base.vcbAlBlkSiz;
 
     if (neededBlocks >= currentBlocks) {
         /* No blocks to free */
-        fcb->fcbEOF = newSize;
+        fcb->base.fcbEOF = newSize;
         FS_UnlockFCB(fcb);
         return noErr;
     }
@@ -564,28 +566,28 @@ OSErr Ext_Truncate(VCB* vcb, FCB* fcb, UInt32 newSize)
     /* Free blocks from end of extents (simplified) */
     /* Would need to properly handle extent overflow */
     for (int i = 2; i >= 0; i--) {
-        if (fcb->fcbExtRec[i].blockCount > 0) {
-            if (blocksToFree >= fcb->fcbExtRec[i].blockCount) {
+        if (fcb->base.extent[i].blockCount > 0) {
+            if (blocksToFree >= fcb->base.extent[i].blockCount) {
                 /* Free entire extent */
-                err = Alloc_Free(vcb, fcb->fcbExtRec[i].startBlock,
-                               fcb->fcbExtRec[i].blockCount);
+                err = Alloc_Free(vcb, fcb->base.extent[i].startBlock,
+                               fcb->base.extent[i].blockCount);
                 if (err != noErr) {
                     FS_UnlockFCB(fcb);
                     return err;
                 }
-                blocksToFree -= fcb->fcbExtRec[i].blockCount;
-                fcb->fcbExtRec[i].startBlock = 0;
-                fcb->fcbExtRec[i].blockCount = 0;
+                blocksToFree -= fcb->base.extent[i].blockCount;
+                fcb->base.extent[i].startBlock = 0;
+                fcb->base.extent[i].blockCount = 0;
             } else {
                 /* Free partial extent */
-                UInt32 keepBlocks = fcb->fcbExtRec[i].blockCount - blocksToFree;
-                err = Alloc_Free(vcb, fcb->fcbExtRec[i].startBlock + keepBlocks,
+                UInt32 keepBlocks = fcb->base.extent[i].blockCount - blocksToFree;
+                err = Alloc_Free(vcb, fcb->base.extent[i].startBlock + keepBlocks,
                                blocksToFree);
                 if (err != noErr) {
                     FS_UnlockFCB(fcb);
                     return err;
                 }
-                fcb->fcbExtRec[i].blockCount = (UInt16)keepBlocks;
+                fcb->base.extent[i].blockCount = (UInt16)keepBlocks;
                 blocksToFree = 0;
             }
 
@@ -596,9 +598,9 @@ OSErr Ext_Truncate(VCB* vcb, FCB* fcb, UInt32 newSize)
     }
 
     /* Update FCB */
-    fcb->fcbPLen = neededBlocks * vcb->vcbAlBlkSiz;
-    fcb->fcbEOF = newSize;
-    fcb->fcbFlags |= FCB_DIRTY;
+    fcb->base.fcbPLen = neededBlocks * vcb->base.vcbAlBlkSiz;
+    fcb->base.fcbEOF = newSize;
+    fcb->base.fcbFlags |= FCB_DIRTY;
 
     FS_UnlockFCB(fcb);
 
@@ -899,7 +901,7 @@ void Cache_Invalidate(VCB* vcb)
             /* Add to free list */
             cb->cbFreeNext = g_FSGlobals.cacheFreeList;
             if (g_FSGlobals.cacheFreeList) {
-                (g_FSGlobals)->cbFreePrev = cb;
+                g_FSGlobals.cacheFreeList->cbFreePrev = cb;
             }
             g_FSGlobals.cacheFreeList = cb;
         }
@@ -957,7 +959,7 @@ OSErr IO_WriteBlocks(VCB* vcb, UInt32 startBlock, UInt32 blockCount, const void*
     }
 
     /* Check write protection */
-    if (vcb->vcbAtrb & kioVAtrbSoftwareLock) {
+    if (vcb->base.vcbAtrb & kioVAtrbSoftwareLock) {
         return wPrErr;
     }
 
@@ -970,8 +972,8 @@ OSErr IO_WriteBlocks(VCB* vcb, UInt32 startBlock, UInt32 blockCount, const void*
 
     if (err == noErr) {
         /* Update write count */
-        vcb->vcbWrCnt++;
-        vcb->vcbLsMod = DateTime_Current();
+        vcb->base.vcbWrCnt++;
+        vcb->base.vcbLsMod = DateTime_Current();
     }
 
     return err;
@@ -998,24 +1000,24 @@ OSErr IO_ReadFork(FCB* fcb, UInt32 offset, UInt32 count, void* buffer, UInt32* a
     }
 
     *actual = 0;
-    vcb = fcb->fcbVPtr;
+    vcb = (VCBExt*)fcb->base.fcbVPtr;
 
     /* Check bounds */
-    if (offset >= fcb->fcbEOF) {
+    if (offset >= fcb->base.fcbEOF) {
         return eofErr;
     }
 
     /* Limit read to EOF */
-    if (offset + count > fcb->fcbEOF) {
-        count = fcb->fcbEOF - offset;
+    if (offset + count > fcb->base.fcbEOF) {
+        count = fcb->base.fcbEOF - offset;
     }
 
     dest = (UInt8*)buffer;
 
     while (count > 0) {
         /* Calculate file block and offset within block */
-        fileBlock = offset / vcb->vcbAlBlkSiz;
-        blockOffset = offset % vcb->vcbAlBlkSiz;
+        fileBlock = offset / vcb->base.vcbAlBlkSiz;
+        blockOffset = offset % vcb->base.vcbAlBlkSiz;
 
         /* Map to physical block */
         err = Ext_Map(vcb, fcb, fileBlock, &physBlock, &contiguous);
@@ -1028,7 +1030,7 @@ OSErr IO_ReadFork(FCB* fcb, UInt32 offset, UInt32 count, void* buffer, UInt32* a
         }
 
         /* Calculate amount to read from this block */
-        toRead = vcb->vcbAlBlkSiz - blockOffset;
+        toRead = vcb->base.vcbAlBlkSiz - blockOffset;
         if (toRead > count) {
             toRead = count;
         }
@@ -1057,7 +1059,7 @@ OSErr IO_ReadFork(FCB* fcb, UInt32 offset, UInt32 count, void* buffer, UInt32* a
     }
 
     /* Update file position */
-    fcb->fcbCrPs = offset;
+    fcb->base.fcbCrPs = offset;
     *actual = totalRead;
 
     return noErr;
@@ -1084,15 +1086,15 @@ OSErr IO_WriteFork(FCB* fcb, UInt32 offset, UInt32 count, const void* buffer, UI
     }
 
     *actual = 0;
-    vcb = fcb->fcbVPtr;
+    vcb = (VCBExt*)fcb->base.fcbVPtr;
 
     /* Check write permission */
-    if (!(fcb->fcbFlags & FCB_WRITE_PERM)) {
+    if (!(fcb->base.fcbFlags & FCB_WRITE_PERM)) {
         return wrPermErr;
     }
 
     /* Extend file if necessary */
-    if (offset + count > fcb->fcbPLen) {
+    if (offset + count > fcb->base.fcbPLen) {
         err = Ext_Extend(vcb, fcb, offset + count);
         if (err != noErr) {
             return err;
@@ -1103,22 +1105,22 @@ OSErr IO_WriteFork(FCB* fcb, UInt32 offset, UInt32 count, const void* buffer, UI
 
     while (count > 0) {
         /* Calculate file block and offset within block */
-        fileBlock = offset / vcb->vcbAlBlkSiz;
-        blockOffset = offset % vcb->vcbAlBlkSiz;
+        fileBlock = offset / vcb->base.vcbAlBlkSiz;
+        blockOffset = offset % vcb->base.vcbAlBlkSiz;
 
         /* Map to physical block */
         err = Ext_Map(vcb, fcb, fileBlock, &physBlock, &contiguous);
         if (err != noErr) {
             if (totalWritten > 0) {
                 *actual = totalWritten;
-                fcb->fcbFlags |= FCB_DIRTY;
+                fcb->base.fcbFlags |= FCB_DIRTY;
                 return noErr;  /* Partial write */
             }
             return err;
         }
 
         /* Calculate amount to write to this block */
-        toWrite = vcb->vcbAlBlkSiz - blockOffset;
+        toWrite = vcb->base.vcbAlBlkSiz - blockOffset;
         if (toWrite > count) {
             toWrite = count;
         }
@@ -1128,7 +1130,7 @@ OSErr IO_WriteFork(FCB* fcb, UInt32 offset, UInt32 count, const void* buffer, UI
         if (err != noErr) {
             if (totalWritten > 0) {
                 *actual = totalWritten;
-                fcb->fcbFlags |= FCB_DIRTY;
+                fcb->base.fcbFlags |= FCB_DIRTY;
                 return noErr;  /* Partial write */
             }
             return err;
@@ -1148,13 +1150,13 @@ OSErr IO_WriteFork(FCB* fcb, UInt32 offset, UInt32 count, const void* buffer, UI
     }
 
     /* Update file position and EOF if extended */
-    fcb->fcbCrPs = offset;
-    if (offset > fcb->fcbEOF) {
-        fcb->fcbEOF = offset;
+    fcb->base.fcbCrPs = offset;
+    if (offset > fcb->base.fcbEOF) {
+        fcb->base.fcbEOF = offset;
     }
 
     /* Mark FCB as dirty */
-    fcb->fcbFlags |= FCB_DIRTY;
+    fcb->base.fcbFlags |= FCB_DIRTY;
 
     *actual = totalWritten;
 

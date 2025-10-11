@@ -51,6 +51,8 @@ extern "C" {
 #define tmwdoErr        -121   /* Too many working directories open */
 #define btNoErr         0      /* B-tree no error */
 #define btRecNotFnd     -1300  /* B-tree record not found */
+#define fxRangeErr      -1400  /* File position beyond mapped range */
+#define extFSErr        -1401  /* External file system error */
 #endif
 
 /* HFS Constants */

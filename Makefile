@@ -198,6 +198,8 @@ C_SOURCES = src/main.c \
             src/StandardFile/StandardFile.c \
             src/StandardFile/StandardFileHAL_Shims.c \
             src/FileManager.c \
+            src/HFS_Allocation.c \
+            src/Tests/HFS_AllocationTest.c \
             src/FileManagerStubs.c \
             src/EventManager/event_manager.c \
             src/EventManager/EventGlobals.c \
@@ -367,7 +369,7 @@ vpath %.c src:src/System:src/System/Platform/x86:src/QuickDraw:src/WindowManager
           src/NotificationManager:src/PackageManager:src/NetworkExtension:src/ColorManager \
           src/CommunicationToolbox:src/GestaltManager:src/SpeechManager:src/BootLoader \
           src/SegmentLoader:src/CPU:src/CPU/m68k_interp:src/DeviceManager:src/Keyboard \
-          src/Datetime:src/Calculator:src/Chooser:src/StartupScreen:src/OSUtils
+          src/Datetime:src/Calculator:src/Chooser:src/StartupScreen:src/OSUtils:src/Tests
 vpath %.S $(HAL_DIR):src/Nanokernel/platform/x86
 
 # Compile assembly files

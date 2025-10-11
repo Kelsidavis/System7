@@ -1683,6 +1683,11 @@ static void init_system71(void) {
     extern void nk_memory_run_tests(void);
     nk_memory_run_tests();
 
+    /* Run HFS allocation and I/O test suite */
+    // extern void HFS_AllocationTest_Run(void);
+    // serial_puts("  Running HFS Allocation & I/O Tests...\n");
+    // HFS_AllocationTest_Run();
+
     /* Initialize interrupt subsystem before threading */
     extern void nk_platform_init(void);  /* Platform abstraction layer */
     extern void nk_pic_disable_all(void);
@@ -1944,24 +1949,64 @@ static void init_system71(void) {
     VFS_Init();
     serial_puts("  Virtual File System initialized\n");
 
-    /* Mount boot volume */
-    if (VFS_MountBootVolume("Macintosh HD")) {
-        serial_puts("  Boot volume 'Macintosh HD' mounted\n");
+    /* Mount boot volume - VFS will handle ATA vs. in-memory automatically */
+    bool boot_from_ata = false;
+    VRefNum boot_vref = 1;  /* Default to vRef 1 for in-memory volume */
+    extern int hal_storage_get_drive_count(void);
+    extern bool VFS_MountATA(int ata_device_index, const char* volName, VRefNum* vref);
 
-        /* Initialize trash system for boot volume */
-        extern bool Trash_Init(void);
-        extern bool Trash_OnVolumeMount(uint32_t vref);
-        Trash_Init();
-        Trash_OnVolumeMount(1);  /* Boot volume is always vRef 1 */
-        serial_puts("  Trash system initialized\n");
-
-        /* Initial file system contents are now created during volume creation in HFS_CreateBlankVolume() */
-        serial_puts("  Initial file system contents created during volume initialization\n");
-    } else {
-        serial_puts("  WARNING: Failed to mount boot volume\n");
+    /* Strategy: Try ATA disk 0 first, format if needed, fall back to in-memory if unavailable */
+    if (hal_storage_get_drive_count() > 0) {
+        VRefNum vref = 0;
+        if (VFS_MountATA(0, "Macintosh HD", &vref)) {
+            serial_puts("  Boot volume 'Macintosh HD' mounted from ATA disk 0\n");
+            boot_vref = vref;  /* Save the actual vRef */
+            extern void VFS_SetBootVolume(VRefNum vref);
+            VFS_SetBootVolume(vref);  /* Tell VFS this is the boot volume */
+            boot_from_ata = true;
+        } else {
+            /* Mount failed - try formatting the disk */
+            serial_puts("  ATA disk 0 not formatted, formatting now...\n");
+            extern bool VFS_FormatATA(int ata_device_index, const char* volName);
+            if (VFS_FormatATA(0, "Macintosh HD")) {
+                serial_puts("  ATA disk 0 formatted successfully\n");
+                /* Try mounting again */
+                if (VFS_MountATA(0, "Macintosh HD", &vref)) {
+                    serial_puts("  Boot volume 'Macintosh HD' mounted from ATA disk 0\n");
+                    boot_vref = vref;  /* Save the actual vRef */
+                    extern void VFS_SetBootVolume(VRefNum vref);
+                    VFS_SetBootVolume(vref);  /* Tell VFS this is the boot volume */
+                    boot_from_ata = true;
+                } else {
+                    serial_puts("  Failed to mount after formatting\n");
+                }
+            } else {
+                serial_puts("  Failed to format ATA disk 0\n");
+            }
+        }
     }
 
-    /* ATA volumes will be mounted after Finder initializes */
+    if (!boot_from_ata) {
+        if (VFS_MountBootVolume("Macintosh HD")) {
+            serial_puts("  Boot volume 'Macintosh HD' (in-memory) mounted\n");
+        } else {
+            serial_puts("  FATAL: Failed to mount boot volume\n");
+        }
+    }
+
+    /* Initialize trash system for boot volume */
+    extern bool Trash_Init(void);
+    extern bool Trash_OnVolumeMount(uint32_t vref);
+    Trash_Init();
+    Trash_OnVolumeMount(boot_vref);  /* Use actual boot volume vRef */
+    serial_puts("  Trash system initialized\n");
+
+    /* Initial file system contents created during volume initialization */
+    if (boot_from_ata) {
+        serial_puts("  Boot volume ready (ATA-backed)\n");
+    } else {
+        serial_puts("  Boot volume ready (in-memory with initial contents)\n");
+    }
 
     /* Create minimal Apple menu for compatibility - Finder will add its own */
     static unsigned char appleMenuTitle[] = {1, 0x14};  /* Pascal string: Apple symbol */
@@ -2060,15 +2105,13 @@ static void init_system71(void) {
     if (err == noErr) {
         serial_puts("  Finder initialized\n");
 
-        /* Now mount ATA volumes (callback is registered) */
-        extern int hal_storage_get_drive_count(void);
-        extern bool VFS_MountATA(int ata_device_index, const char* volName, VRefNum* vref);
-        extern bool VFS_FormatATA(int ata_device_index, const char* volName);
-
+        /* Mount additional ATA volumes (skip disk 0 if it was used as boot volume) */
         int ata_count = hal_storage_get_drive_count();
-        if (ata_count > 0) {
-            serial_puts("  Mounting detected ATA volumes...\n");
-            for (int i = 0; i < ata_count; i++) {
+        int start_disk = boot_from_ata ? 1 : 0;  /* Skip disk 0 if already mounted as boot */
+
+        if (ata_count > start_disk) {
+            serial_printf("  Mounting additional ATA volumes (disks %d-%d)...\n", start_disk, ata_count - 1);
+            for (int i = start_disk; i < ata_count; i++) {
                 VRefNum vref = 0;
                 char volName[32];
                 volName[0] = 'A'; volName[1] = 'T'; volName[2] = 'A'; volName[3] = ' ';
@@ -2077,12 +2120,13 @@ static void init_system71(void) {
 
                 /* Try to mount - will fail if disk is not formatted */
                 if (VFS_MountATA(i, volName, &vref)) {
-                    serial_puts("  ATA volume mounted and added to desktop\n");
+                    serial_printf("  ATA disk %d mounted and added to desktop\n", i);
                 } else {
-                    serial_puts("  WARNING: ATA disk is not formatted with HFS\n");
-                    serial_puts("  Use VFS_FormatATA() to format this disk\n");
+                    serial_printf("  WARNING: ATA disk %d not formatted or mount failed\n", i);
                 }
             }
+        } else {
+            serial_puts("  No additional ATA volumes detected\n");
         }
     } else {
         serial_puts("  Finder initialization failed\n");

@@ -2277,6 +2277,7 @@ typedef struct VCB {
     UInt16 vcbSigWord;
     UInt32 vcbCrDate;
     UInt32 vcbLsMod;
+    UInt16 vcbWrCnt;        // Write count
     SInt16 vcbAtrb;
     UInt16 vcbNmFls;
     SInt16 vcbVBMSt;

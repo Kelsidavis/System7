@@ -237,16 +237,6 @@ CNodeID Cat_GetNextID(VCB* vcb) {
 }
 
 /* Extent Management */
-OSErr Ext_Open(VCB* vcb) {
-    FS_LOG_DEBUG("Ext_Open stub\n");
-    return noErr;
-}
-
-OSErr Ext_Close(VCB* vcb) {
-    FS_LOG_DEBUG("Ext_Close stub\n");
-    return noErr;
-}
-
 OSErr Ext_Allocate(VCB* vcb, UInt32 fileID, UInt8 forkType, UInt32 blocks, ExtDataRec extents) {
     FS_LOG_DEBUG("Ext_Allocate stub: fileID=%d, blocks=%d\n", fileID, blocks);
     return noErr;
@@ -257,113 +247,10 @@ OSErr Ext_Deallocate(VCB* vcb, UInt32 fileID, UInt8 forkType, UInt32 startBlock)
     return noErr;
 }
 
-OSErr Ext_Map(VCB* vcb, FCB* fcb, UInt32 fileBlock, UInt32* physBlock, UInt32* contiguous) {
-    FS_LOG_DEBUG("Ext_Map stub: fileBlock=%d\n", fileBlock);
-    return noErr;
-}
-
-OSErr Ext_Extend(VCB* vcb, FCB* fcb, UInt32 newSize) {
-    FS_LOG_DEBUG("Ext_Extend stub: newSize=%d\n", newSize);
-    return noErr;
-}
-
-OSErr Ext_Truncate(VCB* vcb, FCB* fcb, UInt32 newSize) {
-    FS_LOG_DEBUG("Ext_Truncate stub: newSize=%d\n", newSize);
-    return noErr;
-}
-
-/* Allocation Bitmap Management */
-OSErr Alloc_Init(VCB* vcb) {
-    FS_LOG_DEBUG("Alloc_Init stub\n");
-    return noErr;
-}
-
-OSErr Alloc_Close(VCB* vcb) {
-    FS_LOG_DEBUG("Alloc_Close stub\n");
-    return noErr;
-}
-
-OSErr Alloc_Blocks(VCB* vcb, UInt32 startHint, UInt32 minBlocks, UInt32 maxBlocks,
-                   UInt32* actualStart, UInt32* actualCount) {
-    FS_LOG_DEBUG("Alloc_Blocks stub: minBlocks=%d, maxBlocks=%d\n", minBlocks, maxBlocks);
-    return dskFulErr;
-}
-
-OSErr Alloc_Free(VCB* vcb, UInt32 startBlock, UInt32 blockCount) {
-    FS_LOG_DEBUG("Alloc_Free stub: startBlock=%d, count=%d\n", startBlock, blockCount);
-    return noErr;
-}
-
-UInt32 Alloc_CountFree(VCB* vcb) {
-    FS_LOG_DEBUG("Alloc_CountFree stub\n");
-    return 0;
-}
-
-Boolean Alloc_Check(VCB* vcb, UInt32 startBlock, UInt32 blockCount) {
-    FS_LOG_DEBUG("Alloc_Check stub\n");
-    return false;
-}
-
-/* Cache Management */
-OSErr Cache_Init(UInt32 cacheSize) {
-    FS_LOG_DEBUG("Cache_Init stub: size=%d\n", cacheSize);
-    return noErr;
-}
-
-void Cache_Shutdown(void) {
-    FS_LOG_DEBUG("Cache_Shutdown stub\n");
-}
-
-OSErr Cache_GetBlock(VCB* vcb, UInt32 blockNum, CacheBuffer** buffer) {
-    FS_LOG_DEBUG("Cache_GetBlock stub: blockNum=%d\n", blockNum);
-    return ioErr;
-}
-
-OSErr Cache_ReleaseBlock(CacheBuffer* buffer, Boolean dirty) {
-    FS_LOG_DEBUG("Cache_ReleaseBlock stub\n");
-    return noErr;
-}
-
-OSErr Cache_FlushVolume(VCB* vcb) {
-    FS_LOG_DEBUG("Cache_FlushVolume stub\n");
-    return noErr;
-}
-
-OSErr Cache_FlushAll(void) {
-    FS_LOG_DEBUG("Cache_FlushAll stub\n");
-    return noErr;
-}
-
-void Cache_Invalidate(VCB* vcb) {
-    FS_LOG_DEBUG("Cache_Invalidate stub\n");
-}
-
 /* I/O Operations */
-OSErr IO_ReadBlocks(VCB* vcb, UInt32 startBlock, UInt32 blockCount, void* buffer) {
-    FS_LOG_DEBUG("IO_ReadBlocks stub: start=%d, count=%d\n", startBlock, blockCount);
-    return ioErr;
-}
-
-OSErr IO_WriteBlocks(VCB* vcb, UInt32 startBlock, UInt32 blockCount, const void* buffer) {
-    FS_LOG_DEBUG("IO_WriteBlocks stub: start=%d, count=%d\n", startBlock, blockCount);
-    return ioErr;
-}
-
 OSErr IO_Format(UInt16 drvNum, const UInt8* volName, UInt32 volSize) {
     FS_LOG_DEBUG("IO_Format stub: drvNum=%d\n", drvNum);
     return noErr;
-}
-
-OSErr IO_ReadFork(FCB* fcb, UInt32 offset, UInt32 count, void* buffer, UInt32* actual) {
-    FS_LOG_DEBUG("IO_ReadFork stub: offset=%d, count=%d\n", offset, count);
-    if (actual) *actual = 0;
-    return ioErr;
-}
-
-OSErr IO_WriteFork(FCB* fcb, UInt32 offset, UInt32 count, const void* buffer, UInt32* actual) {
-    FS_LOG_DEBUG("IO_WriteFork stub: offset=%d, count=%d\n", offset, count);
-    if (actual) *actual = 0;
-    return ioErr;
 }
 
 /* All locking functions are now defined in FileManager.c */

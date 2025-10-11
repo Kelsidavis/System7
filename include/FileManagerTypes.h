@@ -40,9 +40,11 @@ typedef struct VCBExt {
     pthread_mutex_t vcbMutex;       /* Volume mutex */
     void*           vcbCatalogBTCB; /* Catalog B-tree control block */
     void*           vcbExtentsBTCB; /* Extents B-tree control block */
+    void*           vcbXTRef;       /* Extents overflow B-tree reference */
     UInt32          vcbFilCnt;      /* File count */
     UInt32          vcbDirCnt;      /* Directory count */
     UInt16          vcbDevice;      /* Device number */
+    void*           vcbVBMCache;    /* Volume bitmap cache */
 } VCBExt;
 
 /* Extended File Control Block for File Manager */
@@ -75,9 +77,17 @@ typedef struct BTCB {
 /* Cache Buffer */
 typedef struct CacheBuffer {
     VCBExt*         cbVCBPtr;       /* Volume control block pointer */
+    VCBExt*         cbVCB;          /* Alias for cbVCBPtr for compatibility */
     UInt32          cbBlockNum;     /* Block number */
+    UInt32          cbBlkNum;       /* Alias for cbBlockNum for compatibility */
     UInt8*          cbData;         /* Data buffer */
     UInt8           cbFlags;        /* Cache flags */
+    UInt32          cbRefCnt;       /* Reference count */
+    UInt32          cbLastUse;      /* Last use timestamp */
+    struct CacheBuffer* cbNext;     /* Next in hash chain */
+    struct CacheBuffer* cbPrev;     /* Previous in hash chain */
+    struct CacheBuffer* cbFreeNext; /* Next in free list */
+    struct CacheBuffer* cbFreePrev; /* Previous in free list */
 } CacheBuffer;
 
 /* File System Globals */
@@ -94,23 +104,30 @@ typedef struct FSGlobals {
     pthread_mutex_t globalMutex;    /* Global mutex */
     UInt64          bytesRead;      /* Statistics */
     UInt64          bytesWritten;
+    /* Cache management */
+    struct CacheBuffer* cacheBuffers;  /* Array of cache buffers */
+    UInt32          cacheSize;      /* Number of cache buffers */
+    struct CacheBuffer** cacheHash; /* Hash table for cache lookup */
+    UInt32          cacheHashSize;  /* Size of hash table */
+    struct CacheBuffer* cacheFreeList; /* Free list of cache buffers */
+    UInt64          cacheHits;      /* Cache hit statistics */
+    UInt64          cacheMisses;    /* Cache miss statistics */
 } FSGlobals;
 
 /* Platform Hooks */
 typedef OSErr (*DeviceEjectProc)(UInt16 device);
+typedef OSErr (*DeviceReadProc)(UInt16 device, uint64_t offset, UInt32 bytes, void* buffer);
+typedef OSErr (*DeviceWriteProc)(UInt16 device, uint64_t offset, UInt32 bytes, const void* buffer);
 
 typedef struct PlatformHooks {
     DeviceEjectProc DeviceEject;
+    DeviceReadProc DeviceRead;
+    DeviceWriteProc DeviceWrite;
 } PlatformHooks;
 
 /* Additional types */
 typedef UInt32 CNodeID;
-typedef struct {
-    UInt16 xdrStABN;    /* Start allocation block number */
-    UInt16 xdrNumABlks; /* Number of allocation blocks */
-} ExtDescriptor;
-
-typedef ExtDescriptor ExtDataRec[3];  /* Array of 3 extent descriptors */
+typedef ExtentDescriptor ExtDataRec[3];  /* Array of 3 extent descriptors */
 
 /* Catalog types */
 typedef struct {
@@ -149,6 +166,7 @@ typedef struct {
 #define kioFlAttribDir  0x10   /* Directory attribute */
 #define notAFileErr     -1302  /* Not a file error */
 #define kioVAtrbOffline 0x0001 /* Volume offline */
+#define kioVAtrbSoftwareLock 0x8000 /* Volume software-locked */
 #endif
 
 /* Unix error codes */

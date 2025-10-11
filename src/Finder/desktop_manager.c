@@ -1209,13 +1209,19 @@ OSErr InitializeVolumeIcon(void)
     OSErr err = noErr;
     VolumeControlBlock vcb;
 
+    FINDER_LOG_DEBUG("InitializeVolumeIcon: ENTRY\n");
+
     /* Get boot volume reference */
     gBootVolumeRef = VFS_GetBootVRef();
+    FINDER_LOG_DEBUG("InitializeVolumeIcon: boot vref = %d\n", gBootVolumeRef);
 
     /* Get volume info */
     if (!VFS_GetVolumeInfo(gBootVolumeRef, &vcb)) {
+        FINDER_LOG_DEBUG("InitializeVolumeIcon: VFS_GetVolumeInfo failed for vref %d\n", gBootVolumeRef);
         return ioErr;
     }
+
+    FINDER_LOG_DEBUG("InitializeVolumeIcon: Got volume info successfully\n");
 
     /* Ensure desktop icons array is allocated */
     if (gDesktopIcons == nil) {
