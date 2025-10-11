@@ -12,6 +12,7 @@
 extern FileSystemOps* HFS_GetOps(void);
 extern FileSystemOps* FAT32_GetOps(void);
 extern FileSystemOps* EXT4_GetOps(void);
+extern FileSystemOps* EXFAT_GetOps(void);
 
 /* Register all filesystem drivers */
 void FS_RegisterFilesystems(void) {
@@ -51,6 +52,18 @@ void FS_RegisterFilesystems(void) {
         }
     } else {
         serial_printf("[FS Registry] ERROR: ext4 driver not available\n");
+    }
+
+    /* Register exFAT driver */
+    FileSystemOps* exfat_ops = EXFAT_GetOps();
+    if (exfat_ops) {
+        if (MVFS_RegisterFilesystem(exfat_ops)) {
+            serial_printf("[FS Registry] exFAT driver registered successfully\n");
+        } else {
+            serial_printf("[FS Registry] WARNING: Failed to register exFAT driver\n");
+        }
+    } else {
+        serial_printf("[FS Registry] ERROR: exFAT driver not available\n");
     }
 
     /* Future filesystem drivers can be registered here:
