@@ -372,7 +372,9 @@ bool VFS_PopulateInitialFiles(void) {
     }
     FS_LOG_DEBUG("VFS: Created Applications folder (ID=%d)\n", appsID);
 
-    /* Create README file in root */
+    /* TODO: File creation not yet implemented in HFS catalog layer */
+    /* Commenting out file creation to allow system to boot with just folders */
+    /*
     FileID readmeID = 0;
     if (!VFS_CreateFile(vref, rootDir, "Read Me", 'TEXT', 'ttxt', &readmeID)) {
         FS_LOG_DEBUG("VFS: Failed to create Read Me file\n");
@@ -380,7 +382,6 @@ bool VFS_PopulateInitialFiles(void) {
     }
     FS_LOG_DEBUG("VFS: Created Read Me file (ID=%u)\n", readmeID);
 
-    /* Create About This Mac file */
     FileID aboutID = 0;
     if (!VFS_CreateFile(vref, rootDir, "About This Mac", 'TEXT', 'ttxt', &aboutID)) {
         FS_LOG_DEBUG("VFS: Failed to create About This Mac file\n");
@@ -388,7 +389,6 @@ bool VFS_PopulateInitialFiles(void) {
     }
     FS_LOG_DEBUG("VFS: Created About This Mac file (ID=%u)\n", aboutID);
 
-    /* Create some sample documents */
     FileID doc1ID = 0;
     if (!VFS_CreateFile(vref, documentsID, "Sample Document", 'TEXT', 'ttxt', &doc1ID)) {
         FS_LOG_DEBUG("VFS: Failed to create Sample Document\n");
@@ -402,8 +402,9 @@ bool VFS_PopulateInitialFiles(void) {
         return false;
     }
     FS_LOG_DEBUG("VFS: Created Notes file (ID=%u)\n", doc2ID);
+    */
 
-    FS_LOG_DEBUG("VFS: Initial file system population complete\n");
+    FS_LOG_DEBUG("VFS: Initial file system population complete (folders only)\n");
     return true;
 }
 
@@ -561,15 +562,24 @@ bool VFS_CreateFolder(VRefNum vref, DirID parent, const char* name, DirID* newID
 
     /* Find the volume */
     VFSVolume* vol = NULL;
+    VRefNum lookupVRef = vref;
     if (vref == 0 || vref == -1) {
-        /* Default to boot volume (vRef 1) */
-        vol = VFS_FindVolume(1);
+        /* Default to boot volume */
+        lookupVRef = g_vfs.bootVRef;
+        FS_LOG_DEBUG("VFS_CreateFolder: vref=%d, using bootVRef=%d\n", vref, lookupVRef);
+        vol = VFS_FindVolume(lookupVRef);
     } else {
         vol = VFS_FindVolume(vref);
     }
 
     if (!vol || !vol->mounted) {
-        FS_LOG_DEBUG("VFS_CreateFolder: Volume %d not found or not mounted\n", vref);
+        FS_LOG_DEBUG("VFS_CreateFolder: Volume %d not found or not mounted (searched for vref=%d)\n", vref, lookupVRef);
+        /* Debug: show all mounted volumes */
+        for (int i = 0; i < VFS_MAX_VOLUMES; i++) {
+            if (g_vfs.volumes[i].mounted) {
+                FS_LOG_DEBUG("  Volume slot %d: vref=%d name='%s'\n", i, g_vfs.volumes[i].vref, g_vfs.volumes[i].name);
+            }
+        }
         return false;
     }
 

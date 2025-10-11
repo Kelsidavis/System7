@@ -603,15 +603,15 @@ bool HFS_FormatVolume(HFS_BlockDev* bd, const char* volName) {
     be16_write(&catNodeDesc->numRecords, 3);
 
     HFS_BTHeaderRec* catHeader = (HFS_BTHeaderRec*)(sectorBuf + sizeof(HFS_BTNodeDesc));
-    be16_write(&catHeader->depth, 0);                /* Empty tree initially */
-    be32_write(&catHeader->rootNode, 0);
-    be32_write(&catHeader->leafRecords, 0);
-    be32_write(&catHeader->firstLeafNode, 0);
-    be32_write(&catHeader->lastLeafNode, 0);
+    be16_write(&catHeader->depth, 1);                /* One level - header + leaf */
+    be32_write(&catHeader->rootNode, 1);             /* Root is first leaf node */
+    be32_write(&catHeader->leafRecords, 0);          /* No records yet */
+    be32_write(&catHeader->firstLeafNode, 1);        /* First leaf at node 1 */
+    be32_write(&catHeader->lastLeafNode, 1);         /* Last leaf at node 1 */
     be16_write(&catHeader->nodeSize, 1024);
     be16_write(&catHeader->keyCompareType, 0);
     be32_write(&catHeader->totalNodes, 20);
-    be32_write(&catHeader->freeNodes, 20);
+    be32_write(&catHeader->freeNodes, 18);           /* Header + 1 leaf used */
 
     /* Write catalog header node */
     uint32_t catStart = alBlSt;  /* Allocation block 0 starts at sector alBlSt */
@@ -623,9 +623,47 @@ bool HFS_FormatVolume(HFS_BlockDev* bd, const char* volName) {
         }
     }
 
-    /* Write remaining catalog blocks as zeros */
+    /* Create first empty leaf node at node 1 (offset 1024 in catalog) */
     memset(sectorBuf, 0, alBlkSize);
-    for (uint32_t block = 1; block < 10; block++) {
+    HFS_BTNodeDesc* leafDesc = (HFS_BTNodeDesc*)sectorBuf;
+    leafDesc->fLink = 0;         /* No next leaf */
+    leafDesc->bLink = 0;         /* No previous leaf */
+    leafDesc->kind = kBTLeafNode;
+    leafDesc->height = 1;
+    be16_write(&leafDesc->numRecords, 0);  /* Empty initially */
+    leafDesc->reserved = 0;
+
+    /* Write leaf node at offset 1024 bytes (second 1K block in catalog) */
+    /* For 4096-byte allocation blocks, this is within the first allocation block */
+    /* For 512-byte blocks, this would span multiple sectors */
+    uint32_t leafOffset = 1024;  /* Node 1 at offset 1024 */
+    uint32_t leafSector = catStart + (leafOffset / 512);
+    uint32_t leafSectorOffset = leafOffset % 512;
+
+    if (alBlkSize >= 2048) {
+        /* Large allocation blocks - write complete 1024-byte node within first block */
+        for (uint32_t i = 0; i < 2; i++) {
+            if (!HFS_BD_WriteSector(bd, leafSector + i, sectorBuf + i * 512)) {
+                FS_LOG_DEBUG("HFS: Failed to write catalog leaf node\n");
+                free(sectorBuf);
+                return false;
+            }
+        }
+    } else {
+        /* Small allocation blocks - need to handle spanning */
+        for (uint32_t i = 0; i < 2; i++) {
+            if (!HFS_BD_WriteSector(bd, leafSector + i, sectorBuf + i * 512)) {
+                FS_LOG_DEBUG("HFS: Failed to write catalog leaf node\n");
+                free(sectorBuf);
+                return false;
+            }
+        }
+    }
+
+    /* Write remaining catalog blocks as zeros (starting from block that doesn't contain nodes 0-1) */
+    memset(sectorBuf, 0, alBlkSize);
+    uint32_t startBlock = (alBlkSize >= 2048) ? 1 : 2;  /* Skip first block(s) containing header+leaf */
+    for (uint32_t block = startBlock; block < 10; block++) {
         uint32_t blockStart = catStart + block * (alBlkSize / 512);
         for (uint32_t i = 0; i < alBlkSize / 512; i++) {
             if (!HFS_BD_WriteSector(bd, blockStart + i, sectorBuf + i * 512)) {
