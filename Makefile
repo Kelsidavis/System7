@@ -184,6 +184,9 @@ C_SOURCES = src/main.c \
             src/Nanokernel/vfs_autodetect.c \
             src/Nanokernel/ipc.c \
             src/Nanokernel/fs_daemon.c \
+            src/Nanokernel/fd_table.c \
+            src/Nanokernel/vfs/vfs_path.c \
+            src/Nanokernel/syscalls/fs_syscalls.c \
             src/fs/hfs/hfs_main.c \
             src/fs/fat32/fat32_main.c \
             src/Daemons/common/fs_daemon_common.c \
@@ -374,6 +377,7 @@ $(KERNEL): $(OBJECTS) | $(BUILD_DIR)
 # Define source directories for vpath search
 vpath %.c src:src/System:src/System/Platform/x86:src/QuickDraw:src/WindowManager:src/MenuManager:src/ControlManager \
           src/Daemons:src/Daemons/common:src/Daemons/HFSd:src/Daemons/FATd \
+          src/Nanokernel/vfs:src/Nanokernel/syscalls \
           src/EventManager:src/DialogManager:src/StandardFile:src/TextEdit:src/ListManager \
           src/ScrapManager:src/ProcessMgr:src/TimeManager:src/SoundManager:src/FontManager \
           src/Gestalt:src/MemoryMgr:src/Nanokernel:src/Nanokernel/platform/x86:src/ResourceMgr \

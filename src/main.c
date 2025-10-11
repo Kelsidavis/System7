@@ -1995,6 +1995,11 @@ static void init_system71(void) {
     FSD_ListDaemons();
     serial_puts("  Filesystem daemons initialized\n");
 
+    /* Phase 6.5: Initialize POSIX syscall layer */
+    extern void syscalls_init(void);
+    syscalls_init();
+    serial_puts("  POSIX syscall layer initialized\n");
+
     /* Mount boot volume - VFS will handle ATA vs. in-memory automatically */
     bool boot_from_ata = false;
     VRefNum boot_vref = 1;  /* Default to vRef 1 for in-memory volume */
