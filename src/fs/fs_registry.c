@@ -25,6 +25,10 @@ extern FileSystemOps* EXT4_GetOps(void);
 extern FileSystemOps* EXFAT_GetOps(void);
 #endif
 
+#ifdef ENABLE_FS_ISO9660
+extern FileSystemOps* ISO9660_GetOps(void);
+#endif
+
 /* Register all filesystem drivers */
 void FS_RegisterFilesystems(void) {
     serial_printf("[FS Registry] Registering filesystem drivers...\n");
@@ -85,9 +89,23 @@ void FS_RegisterFilesystems(void) {
     }
 #endif
 
+#ifdef ENABLE_FS_ISO9660
+    /* Register ISO 9660 driver */
+    FileSystemOps* iso9660_ops = ISO9660_GetOps();
+    if (iso9660_ops) {
+        if (MVFS_RegisterFilesystem(iso9660_ops)) {
+            serial_printf("[FS Registry] ISO 9660 driver registered successfully\n");
+        } else {
+            serial_printf("[FS Registry] WARNING: Failed to register ISO 9660 driver\n");
+        }
+    } else {
+        serial_printf("[FS Registry] ERROR: ISO 9660 driver not available\n");
+    }
+#endif
+
     /* Future filesystem drivers can be registered here:
-     * - iso9660_GetOps()
      * - ntfs_GetOps()
+     * - ufs_GetOps()
      * - etc.
      */
 
