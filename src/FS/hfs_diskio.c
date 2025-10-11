@@ -1,5 +1,6 @@
 /* HFS Disk I/O Implementation */
 #include "../../include/FS/hfs_diskio.h"
+#include "../../include/Nanokernel/vfs.h"  /* For VFS BlockDevice */
 #include "../../include/MemoryMgr/MemoryManager.h"
 #include "../../include/ATA_Driver.h"
 #include <string.h>
@@ -107,6 +108,36 @@ bool HFS_BD_Read(HFS_BlockDev* bd, uint64_t offset, void* buffer, uint32_t lengt
 
         free(temp_buffer);
         return true;
+    } else if (bd->type == HFS_BD_TYPE_VFS) {
+        /* VFS BlockDevice - read blocks */
+        BlockDevice* vfs_dev = (BlockDevice*)bd->data;
+        if (!vfs_dev) return false;
+
+        /* Calculate block alignment (cast to avoid 64-bit division) */
+        uint32_t offset32 = (uint32_t)offset;
+        uint32_t start_block = offset32 / vfs_dev->block_size;
+        uint32_t end_block = (offset32 + length + vfs_dev->block_size - 1) / vfs_dev->block_size;
+        uint32_t offset_in_block = offset32 % vfs_dev->block_size;
+
+        uint8_t* dest = (uint8_t*)buffer;
+        uint32_t bytes_remaining = length;
+
+        for (uint32_t blk = start_block; blk < end_block; blk++) {
+            uint8_t temp[512];
+            if (!vfs_dev->read_block(vfs_dev, (uint64_t)blk, temp)) {
+                return false;
+            }
+
+            uint32_t copy_offset = (blk == start_block) ? offset_in_block : 0;
+            uint32_t copy_size = (bytes_remaining < vfs_dev->block_size - copy_offset) ?
+                                 bytes_remaining : (vfs_dev->block_size - copy_offset);
+
+            memcpy(dest, temp + copy_offset, copy_size);
+            dest += copy_size;
+            bytes_remaining -= copy_size;
+        }
+
+        return true;
     } else {
         /* Memory or file-based device */
         if (!bd->data) return false;
@@ -159,6 +190,46 @@ bool HFS_BD_Write(HFS_BlockDev* bd, uint64_t offset, const void* buffer, uint32_
                      start_sector, sector_count, err);
 
         return (err == noErr);
+    } else if (bd->type == HFS_BD_TYPE_VFS) {
+        /* VFS BlockDevice - write blocks */
+        BlockDevice* vfs_dev = (BlockDevice*)bd->data;
+        if (!vfs_dev) return false;
+
+        /* Calculate block alignment (cast to avoid 64-bit division) */
+        uint32_t offset32 = (uint32_t)offset;
+        uint32_t start_block = offset32 / vfs_dev->block_size;
+        uint32_t end_block = (offset32 + length + vfs_dev->block_size - 1) / vfs_dev->block_size;
+        uint32_t offset_in_block = offset32 % vfs_dev->block_size;
+
+        const uint8_t* src = (const uint8_t*)buffer;
+        uint32_t bytes_remaining = length;
+
+        for (uint32_t blk = start_block; blk < end_block; blk++) {
+            uint8_t temp[512];
+
+            /* Read-modify-write for partial blocks */
+            if (offset_in_block != 0 || bytes_remaining < vfs_dev->block_size) {
+                if (!vfs_dev->read_block(vfs_dev, (uint64_t)blk, temp)) {
+                    return false;
+                }
+            }
+
+            uint32_t copy_offset = (blk == start_block) ? offset_in_block : 0;
+            uint32_t copy_size = (bytes_remaining < vfs_dev->block_size - copy_offset) ?
+                                 bytes_remaining : (vfs_dev->block_size - copy_offset);
+
+            memcpy(temp + copy_offset, src, copy_size);
+
+            if (!vfs_dev->write_block(vfs_dev, (uint64_t)blk, temp)) {
+                return false;
+            }
+
+            src += copy_size;
+            bytes_remaining -= copy_size;
+            offset_in_block = 0;  /* Only first block has offset */
+        }
+
+        return true;
     } else {
         /* Memory or file-based device */
         if (!bd->data) return false;
@@ -177,6 +248,13 @@ void HFS_BD_Close(HFS_BlockDev* bd) {
             ATA_FlushCache(ata_dev);
         }
         bd->ata_device = -1;
+    } else if (bd->type == HFS_BD_TYPE_VFS) {
+        /* VFS BlockDevice is managed by VFS layer - just flush */
+        BlockDevice* vfs_dev = (BlockDevice*)bd->data;
+        if (vfs_dev && vfs_dev->flush) {
+            vfs_dev->flush(vfs_dev);
+        }
+        bd->data = NULL;  /* Don't free - managed by VFS */
     } else if (bd->type == HFS_BD_TYPE_MEMORY || bd->type == HFS_BD_TYPE_FILE) {
         /* If we allocated memory, free it */
         if (bd->data) {
@@ -216,6 +294,13 @@ bool HFS_BD_Flush(HFS_BlockDev* bd) {
             return (err == noErr);
         }
         return false;
+    } else if (bd->type == HFS_BD_TYPE_VFS) {
+        /* Flush VFS BlockDevice */
+        BlockDevice* vfs_dev = (BlockDevice*)bd->data;
+        if (vfs_dev && vfs_dev->flush) {
+            return vfs_dev->flush(vfs_dev);
+        }
+        return true;
     }
 
     /* Memory/file devices don't need explicit flushing */

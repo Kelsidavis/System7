@@ -7,7 +7,8 @@
 typedef enum {
     HFS_BD_TYPE_MEMORY = 0,    /* Memory-based (RAM disk) */
     HFS_BD_TYPE_FILE,          /* File-based (hosted) */
-    HFS_BD_TYPE_ATA            /* ATA/IDE disk */
+    HFS_BD_TYPE_ATA,           /* ATA/IDE disk */
+    HFS_BD_TYPE_VFS            /* VFS BlockDevice wrapper */
 } HFS_BD_Type;
 
 /* Block device abstraction */

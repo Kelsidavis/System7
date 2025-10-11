@@ -33,11 +33,27 @@ static uint32_t be32_read(const uint8_t* buf) {
 typedef struct {
     HFS_Volume   volume;      /* Full HFS volume structure */
     HFS_Catalog  catalog;     /* Catalog B-tree */
+    BlockDevice* vfs_blockdev; /* VFS block device for reading */
     uint64_t     total_bytes;
     uint64_t     free_bytes;
     char         volume_name[32];
     bool         catalog_initialized;
 } HFSPrivate;
+
+/* Initialize HFS_BlockDev to wrap VFS BlockDevice */
+static bool hfs_bd_init_vfs(HFS_BlockDev* bd, BlockDevice* vfs_dev) {
+    if (!bd || !vfs_dev) return false;
+
+    memset(bd, 0, sizeof(HFS_BlockDev));
+    bd->type = HFS_BD_TYPE_VFS;  /* Use VFS block device type */
+    bd->data = vfs_dev;  /* Store VFS BlockDevice pointer */
+    bd->size = vfs_dev->total_blocks * vfs_dev->block_size;
+    bd->sectorSize = vfs_dev->block_size;
+    bd->readonly = false;
+    bd->ata_device = -1;
+
+    return true;
+}
 
 /* Probe: Detect HFS filesystem */
 static bool hfs_probe(BlockDevice* dev) {
@@ -60,7 +76,7 @@ static bool hfs_probe(BlockDevice* dev) {
 
 /* Mount: Initialize HFS volume */
 static void* hfs_mount(VFSVolume* vol, BlockDevice* dev) {
-    uint8_t sector[512];
+    uint8_t mdbBuffer[512];
 
     /* Allocate private data */
     HFSPrivate* priv = (HFSPrivate*)malloc(sizeof(HFSPrivate));
@@ -70,36 +86,103 @@ static void* hfs_mount(VFSVolume* vol, BlockDevice* dev) {
     }
 
     memset(priv, 0, sizeof(HFSPrivate));
+    priv->vfs_blockdev = dev;
 
-    /* Read MDB for basic volume info */
-    if (!dev->read_block(dev, HFS_MDB_SECTOR, sector)) {
+    /* Read MDB from sector 2 */
+    if (!dev->read_block(dev, HFS_MDB_SECTOR, mdbBuffer)) {
         serial_printf("[HFS] Failed to read MDB\n");
         free(priv);
         return NULL;
     }
 
-    /* Parse basic MDB fields for volume stats */
-    uint16_t num_alloc_blocks = be16_read(&sector[20]);
-    uint32_t alloc_block_size = be32_read(&sector[22]);
-    uint16_t free_blocks = be16_read(&sector[36]);
+    /* Verify HFS signature */
+    uint16_t sig = be16_read(&mdbBuffer[0]);
+    if (sig != HFS_SIGNATURE) {
+        serial_printf("[HFS] Invalid HFS signature: 0x%04x (expected 0x4244)\n", sig);
+        free(priv);
+        return NULL;
+    }
 
-    priv->total_bytes = (uint64_t)num_alloc_blocks * alloc_block_size;
-    priv->free_bytes = (uint64_t)free_blocks * alloc_block_size;
+    serial_printf("[HFS] Valid HFS signature detected\n");
 
-    /* Extract volume name (Pascal string at offset 38) */
-    uint8_t name_len = sector[38];
+    /* Initialize HFS_Volume structure manually by parsing MDB */
+    HFS_Volume* hfs_vol = &priv->volume;
+    memset(hfs_vol, 0, sizeof(HFS_Volume));
+
+    /* Initialize wrapped block device */
+    if (!hfs_bd_init_vfs(&hfs_vol->bd, dev)) {
+        serial_printf("[HFS] Failed to init block device wrapper\n");
+        free(priv);
+        return NULL;
+    }
+
+    /* Parse MDB fields into volume structure */
+    HFS_MDB* mdb = &hfs_vol->mdb;
+    mdb->drSigWord = sig;
+    mdb->drCrDate = be32_read(&mdbBuffer[4]);
+    mdb->drLsMod = be32_read(&mdbBuffer[8]);
+    mdb->drAtrb = be16_read(&mdbBuffer[12]);
+    mdb->drNmFls = be16_read(&mdbBuffer[14]);
+    mdb->drVBMSt = be16_read(&mdbBuffer[16]);
+    mdb->drAllocPtr = be16_read(&mdbBuffer[18]);
+    mdb->drNmAlBlks = be16_read(&mdbBuffer[20]);
+    mdb->drAlBlkSiz = be32_read(&mdbBuffer[22]);
+    mdb->drClpSiz = be32_read(&mdbBuffer[26]);
+    mdb->drAlBlSt = be16_read(&mdbBuffer[30]);
+    mdb->drNxtCNID = be32_read(&mdbBuffer[32]);
+    mdb->drFreeBks = be16_read(&mdbBuffer[36]);
+
+    /* Volume name */
+    uint8_t name_len = mdbBuffer[38];
     if (name_len > 27) name_len = 27;
-    memcpy(priv->volume_name, &sector[39], name_len);
+    memcpy(priv->volume_name, &mdbBuffer[39], name_len);
     priv->volume_name[name_len] = '\0';
+    memcpy(hfs_vol->volName, priv->volume_name, sizeof(hfs_vol->volName));
 
-    /* TODO: Initialize HFS_Volume and HFS_Catalog structures properly
-     * For now, catalog operations will not be available until
-     * full HFS volume initialization is implemented */
-    priv->catalog_initialized = false;
+    /* Catalog file extents */
+    mdb->drCTFlSize = be32_read(&mdbBuffer[142]);
+    for (int i = 0; i < 3; i++) {
+        mdb->drCTExtRec[i].startBlock = be16_read(&mdbBuffer[146 + i * 4]);
+        mdb->drCTExtRec[i].blockCount = be16_read(&mdbBuffer[148 + i * 4]);
+    }
 
-    serial_printf("[HFS] Mounted '%s' - %llu bytes (%llu free)\n",
-                  priv->volume_name, priv->total_bytes, priv->free_bytes);
-    serial_printf("[HFS] Note: Catalog operations require full HFS volume initialization\n");
+    /* Extents file */
+    mdb->drXTFlSize = be32_read(&mdbBuffer[126]);
+    for (int i = 0; i < 3; i++) {
+        mdb->drXTExtRec[i].startBlock = be16_read(&mdbBuffer[130 + i * 4]);
+        mdb->drXTExtRec[i].blockCount = be16_read(&mdbBuffer[132 + i * 4]);
+    }
+
+    /* Cache frequently used values in volume structure */
+    hfs_vol->alBlkSize = mdb->drAlBlkSiz;
+    hfs_vol->alBlSt = mdb->drAlBlSt;
+    hfs_vol->vbmStart = mdb->drVBMSt;
+    hfs_vol->numAlBlks = mdb->drNmAlBlks;
+    hfs_vol->catFileSize = mdb->drCTFlSize;
+    memcpy(hfs_vol->catExtents, mdb->drCTExtRec, sizeof(hfs_vol->catExtents));
+    hfs_vol->extFileSize = mdb->drXTFlSize;
+    memcpy(hfs_vol->extExtents, mdb->drXTExtRec, sizeof(hfs_vol->extExtents));
+    hfs_vol->rootDirID = 2;  /* Standard HFS root CNID */
+    hfs_vol->nextCNID = mdb->drNxtCNID;
+    hfs_vol->mounted = true;
+    hfs_vol->vRefNum = 0;  /* VFS layer manages volume IDs */
+
+    priv->total_bytes = (uint64_t)mdb->drNmAlBlks * mdb->drAlBlkSiz;
+    priv->free_bytes = (uint64_t)mdb->drFreeBks * mdb->drAlBlkSiz;
+
+    /* Try to initialize catalog B-tree */
+    if (HFS_CatalogInit(&priv->catalog, hfs_vol)) {
+        priv->catalog_initialized = true;
+        serial_printf("[HFS] Mounted '%s' - %llu bytes (%llu free)\n",
+                      priv->volume_name, priv->total_bytes, priv->free_bytes);
+        serial_printf("[HFS] Catalog B-tree initialized (%u blocks)\n",
+                      hfs_vol->catExtents[0].blockCount);
+    } else {
+        serial_printf("[HFS] Mounted '%s' - %llu bytes (%llu free)\n",
+                      priv->volume_name, priv->total_bytes, priv->free_bytes);
+        serial_printf("[HFS] WARNING: Catalog B-tree initialization failed - read-only mode\n");
+        priv->catalog_initialized = false;
+    }
 
     return priv;
 }
