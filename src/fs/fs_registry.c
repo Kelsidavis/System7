@@ -29,6 +29,10 @@ extern FileSystemOps* EXFAT_GetOps(void);
 extern FileSystemOps* ISO9660_GetOps(void);
 #endif
 
+#ifdef ENABLE_FS_UDF
+extern FileSystemOps* UDF_GetOps(void);
+#endif
+
 /* Register all filesystem drivers */
 void FS_RegisterFilesystems(void) {
     serial_printf("[FS Registry] Registering filesystem drivers...\n");
@@ -100,6 +104,20 @@ void FS_RegisterFilesystems(void) {
         }
     } else {
         serial_printf("[FS Registry] ERROR: ISO 9660 driver not available\n");
+    }
+#endif
+
+#ifdef ENABLE_FS_UDF
+    /* Register UDF driver */
+    FileSystemOps* udf_ops = UDF_GetOps();
+    if (udf_ops) {
+        if (MVFS_RegisterFilesystem(udf_ops)) {
+            serial_printf("[FS Registry] UDF driver registered successfully\n");
+        } else {
+            serial_printf("[FS Registry] WARNING: Failed to register UDF driver\n");
+        }
+    } else {
+        serial_printf("[FS Registry] ERROR: UDF driver not available\n");
     }
 #endif
 

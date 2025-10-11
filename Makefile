@@ -21,6 +21,7 @@ ENABLE_FS_FAT32 ?= 1
 ENABLE_FS_EXT4 ?= 1
 ENABLE_FS_EXFAT ?= 1
 ENABLE_FS_ISO9660 ?= 1
+ENABLE_FS_UDF ?= 1
 
 # Directories
 BUILD_DIR = build
@@ -93,6 +94,9 @@ ifeq ($(ENABLE_FS_EXFAT),1)
 endif
 ifeq ($(ENABLE_FS_ISO9660),1)
   CFLAGS += -DENABLE_FS_ISO9660=1
+endif
+ifeq ($(ENABLE_FS_UDF),1)
+  CFLAGS += -DENABLE_FS_UDF=1
 endif
 ASFLAGS = --32
 LDFLAGS = -melf_i386 -nostdlib -no-pie
@@ -318,6 +322,10 @@ ifeq ($(ENABLE_FS_ISO9660),1)
 C_SOURCES += src/fs/iso9660/iso9660_main.c
 endif
 
+ifeq ($(ENABLE_FS_UDF),1)
+C_SOURCES += src/fs/udf/udf_main.c
+endif
+
 # Add ResourceMgr sources if enabled
 ifeq ($(ENABLE_RESOURCES),1)
 C_SOURCES += src/ResourceMgr/ResourceMgr.c
@@ -442,7 +450,7 @@ vpath %.c src:src/System:src/System/Platform/x86:src/QuickDraw:src/WindowManager
           src/CommunicationToolbox:src/GestaltManager:src/SpeechManager:src/BootLoader \
           src/SegmentLoader:src/CPU:src/CPU/m68k_interp:src/DeviceManager:src/Keyboard \
           src/Datetime:src/Calculator:src/Chooser:src/StartupScreen:src/OSUtils:src/Tests \
-          src/fs:src/fs/hfs:src/fs/fat32:src/fs/ext4:src/fs/exfat:src/fs/iso9660
+          src/fs:src/fs/hfs:src/fs/fat32:src/fs/ext4:src/fs/exfat:src/fs/iso9660:src/fs/udf
 vpath %.S $(HAL_DIR):src/Nanokernel/platform/x86
 
 # Compile assembly files
@@ -537,6 +545,7 @@ help: ## Show this help message
 	@echo "  ENABLE_FS_EXT4=0/1       Enable ext4 filesystem (default: 1)"
 	@echo "  ENABLE_FS_EXFAT=0/1      Enable exFAT filesystem (default: 1)"
 	@echo "  ENABLE_FS_ISO9660=0/1    Enable ISO9660 filesystem (default: 1)"
+	@echo "  ENABLE_FS_UDF=0/1        Enable UDF filesystem (default: 1)"
 	@echo "  CTRL_SMOKE_TEST=1        Enable Control Manager tests"
 	@echo "  LIST_SMOKE_TEST=1        Enable List Manager tests"
 	@echo "  ALERT_SMOKE_TEST=1       Enable Alert Dialog tests"
