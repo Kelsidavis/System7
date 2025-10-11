@@ -340,6 +340,55 @@ bool FSD_GetStats(const char* fs_name, uint64_t* total_bytes, uint64_t* free_byt
     return true;
 }
 
+/* Get file info through daemon */
+bool FSD_GetFileInfo(const char* fs_name, uint64_t entry_id,
+                     uint64_t* size, bool* is_dir, uint64_t* mod_time) {
+    FSDaemon* daemon = FSD_Find(fs_name);
+    if (!daemon) {
+        return false;
+    }
+
+    /* Build request */
+    FSRequest req = {
+        .type = FS_MSG_GET_FILE_INFO,
+        .request_id = daemon->next_request_id++,
+        .file_id = entry_id,
+    };
+
+    /* Send request and get response */
+    FSResponse resp = { 0 };
+    if (!FSD_SendRequest(fs_name, &req, &resp)) {
+        return false;
+    }
+
+    /* Check result */
+    if (resp.result != 0) {
+        return false;
+    }
+
+    if (size) {
+        *size = resp.param1;
+    }
+
+    if (is_dir) {
+        *is_dir = (bool)(resp.param2 & 0x1);
+    }
+
+    if (mod_time) {
+        *mod_time = (resp.param2 >> 32);  /* Upper 32 bits */
+    }
+
+    return true;
+}
+
+/* Enumerate directory (wrapper around FSD_ListDir) */
+bool FSD_Enumerate(const char* fs_name, uint64_t dir_id,
+                   bool (*callback)(void* user_data, const char* name,
+                                    uint64_t id, bool is_dir),
+                   void* user_data) {
+    return FSD_ListDir(fs_name, dir_id, callback, user_data);
+}
+
 /* List all registered daemons */
 void FSD_ListDaemons(void) {
     serial_printf("[FSD] === Registered Daemons ===\n");

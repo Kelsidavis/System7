@@ -87,4 +87,12 @@ bool MVFS_WriteFile(VFSVolume* vol, uint64_t file_id, uint64_t offset,
 bool MVFS_Lookup(VFSVolume* vol, uint64_t dir_id, const char* name,
                  uint64_t* entry_id, bool* is_dir);
 
+bool MVFS_GetFileInfo(VFSVolume* vol, uint64_t entry_id,
+                      uint64_t* size, bool* is_dir, uint64_t* mod_time);
+
+bool MVFS_Enumerate(VFSVolume* vol, uint64_t dir_id,
+                    bool (*callback)(void* user_data, const char* name,
+                                     uint64_t id, bool is_dir),
+                    void* user_data);
+
 #endif /* NK_VFS_H */

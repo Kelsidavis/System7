@@ -24,6 +24,7 @@ typedef enum {
     FS_MSG_CREATE_FILE,
     FS_MSG_DELETE_FILE,
     FS_MSG_GET_STATS,
+    FS_MSG_GET_FILE_INFO,
     FS_MSG_MOUNT,
     FS_MSG_UNMOUNT,
     FS_MSG_SHUTDOWN,
@@ -97,6 +98,14 @@ bool FSD_Lookup(const char* fs_name, uint64_t dir_id, const char* name,
                 uint64_t* entry_id, bool* is_dir);
 
 bool FSD_GetStats(const char* fs_name, uint64_t* total_bytes, uint64_t* free_bytes);
+
+bool FSD_GetFileInfo(const char* fs_name, uint64_t entry_id,
+                     uint64_t* size, bool* is_dir, uint64_t* mod_time);
+
+bool FSD_Enumerate(const char* fs_name, uint64_t dir_id,
+                   bool (*callback)(void* user_data, const char* name,
+                                    uint64_t id, bool is_dir),
+                   void* user_data);
 
 /* Daemon management */
 void FSD_ListDaemons(void);

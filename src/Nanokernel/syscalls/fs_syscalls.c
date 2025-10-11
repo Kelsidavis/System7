@@ -173,11 +173,29 @@ off_t sys_lseek(int fd, off_t offset, int whence) {
             new_pos = entry->position + offset;
             break;
 
-        case SEEK_END:
-            /* TODO: Get file size from VFS */
-            serial_printf("[SYSCALL] lseek: SEEK_END not yet implemented\n");
-            errno = EINVAL;
-            return -1;
+        case SEEK_END: {
+            /* Get file size from VFS */
+            extern bool MVFS_GetFileInfo(VFSVolume* vol, uint64_t entry_id,
+                                          uint64_t* size, bool* is_dir, uint64_t* mod_time);
+
+            uint64_t file_size = 0;
+            bool is_dir = false;
+
+            if (!MVFS_GetFileInfo(entry->volume, entry->inode, &file_size, &is_dir, NULL)) {
+                serial_printf("[SYSCALL] lseek: Failed to get file size for SEEK_END\n");
+                errno = EIO;
+                return -1;
+            }
+
+            if (is_dir) {
+                serial_printf("[SYSCALL] lseek: SEEK_END not valid for directories\n");
+                errno = EINVAL;
+                return -1;
+            }
+
+            new_pos = (off_t)file_size + offset;
+            break;
+        }
 
         default:
             errno = EINVAL;
@@ -211,12 +229,24 @@ int sys_close(int fd) {
     return 0;
 }
 
+/* Directory entry cache for readdir */
+#define DIR_ENTRY_CACHE_MAX 64
+
+typedef struct {
+    char name[256];
+    uint64_t id;
+    bool is_dir;
+} CachedDirEntry;
+
 /* Directory handle */
 struct DIR {
     VFSVolume* volume;
     uint64_t dir_inode;
     uint64_t position;
     bool valid;
+    bool enumerated;
+    CachedDirEntry entries[DIR_ENTRY_CACHE_MAX];
+    int entry_count;
 };
 
 /* sys_opendir - Open directory */
@@ -251,6 +281,9 @@ DIR* sys_opendir(const char* path) {
     dir->dir_inode = resolved.inode;
     dir->position = 0;
     dir->valid = true;
+    dir->enumerated = false;
+    dir->entry_count = 0;
+    memset(dir->entries, 0, sizeof(dir->entries));
 
     serial_printf("[SYSCALL] opendir: volume='%s', inode=%llu\n",
                   dir->volume->name, dir->dir_inode);
@@ -259,6 +292,28 @@ DIR* sys_opendir(const char* path) {
     return dir;
 }
 
+/* Callback for MVFS_Enumerate to populate DIR cache */
+static bool readdir_enum_callback(void* user_data, const char* name,
+                                   uint64_t id, bool is_dir) {
+    DIR* dir = (DIR*)user_data;
+
+    if (dir->entry_count >= DIR_ENTRY_CACHE_MAX) {
+        serial_printf("[SYSCALL] readdir: cache full, skipping '%s'\n", name);
+        return true;  /* Continue but don't add more */
+    }
+
+    CachedDirEntry* entry = &dir->entries[dir->entry_count++];
+    strncpy(entry->name, name, sizeof(entry->name) - 1);
+    entry->name[sizeof(entry->name) - 1] = '\0';
+    entry->id = id;
+    entry->is_dir = is_dir;
+
+    return true;  /* Continue enumeration */
+}
+
+/* Static dirent for returning from readdir */
+static struct dirent g_readdir_dirent;
+
 /* sys_readdir - Read directory entry */
 struct dirent* sys_readdir(DIR* dir) {
     if (!dir || !dir->valid) {
@@ -266,11 +321,46 @@ struct dirent* sys_readdir(DIR* dir) {
         return NULL;
     }
 
-    /* TODO: Implement directory enumeration via VFS */
-    serial_printf("[SYSCALL] readdir: not yet fully implemented\n");
+    /* Enumerate directory on first call */
+    if (!dir->enumerated) {
+        serial_printf("[SYSCALL] readdir: enumerating directory inode=%llu\n", dir->dir_inode);
+
+        extern bool MVFS_Enumerate(VFSVolume* vol, uint64_t dir_id,
+                                    bool (*callback)(void* user_data, const char* name,
+                                                     uint64_t id, bool is_dir),
+                                    void* user_data);
+
+        dir->entry_count = 0;
+        if (!MVFS_Enumerate(dir->volume, dir->dir_inode, readdir_enum_callback, dir)) {
+            serial_printf("[SYSCALL] readdir: enumeration failed\n");
+            /* Mark as enumerated anyway to avoid retrying */
+            dir->enumerated = true;
+            errno = EIO;
+            return NULL;
+        }
+
+        dir->enumerated = true;
+        serial_printf("[SYSCALL] readdir: found %d entries\n", dir->entry_count);
+    }
+
+    /* Return next entry from cache */
+    if (dir->position >= (uint64_t)dir->entry_count) {
+        errno = 0;
+        return NULL;  /* End of directory */
+    }
+
+    CachedDirEntry* cached = &dir->entries[dir->position++];
+
+    /* Fill dirent structure */
+    memset(&g_readdir_dirent, 0, sizeof(struct dirent));
+    g_readdir_dirent.d_ino = cached->id;
+    g_readdir_dirent.d_off = (uint64_t)dir->position;
+    g_readdir_dirent.d_reclen = sizeof(struct dirent);
+    g_readdir_dirent.d_type = cached->is_dir ? 4 : 8;  /* DT_DIR=4, DT_REG=8 */
+    strncpy(g_readdir_dirent.d_name, cached->name, sizeof(g_readdir_dirent.d_name) - 1);
 
     errno = 0;
-    return NULL;  /* End of directory */
+    return &g_readdir_dirent;
 }
 
 /* sys_closedir - Close directory */
@@ -305,12 +395,34 @@ int sys_stat(const char* path, struct stat* buf) {
         return -1;
     }
 
+    /* Get file info from VFS */
+    extern bool MVFS_GetFileInfo(VFSVolume* vol, uint64_t entry_id,
+                                  uint64_t* size, bool* is_dir, uint64_t* mod_time);
+
+    uint64_t size = 0;
+    bool is_dir = false;
+    uint64_t mod_time = 0;
+
+    if (!MVFS_GetFileInfo(resolved.volume, resolved.inode, &size, &is_dir, &mod_time)) {
+        /* If get_file_info fails, fall back to resolved info */
+        serial_printf("[SYSCALL] Warning: MVFS_GetFileInfo failed, using resolved data\n");
+        size = 0;
+        is_dir = resolved.is_directory;
+        mod_time = 0;
+    }
+
     /* Fill stat structure */
     memset(buf, 0, sizeof(struct stat));
     buf->st_ino = resolved.inode;
-    buf->st_mode = resolved.is_directory ? 0040755 : 0100644;  /* S_IFDIR or S_IFREG */
+    buf->st_mode = is_dir ? 0040755 : 0100644;  /* S_IFDIR or S_IFREG */
     buf->st_nlink = 1;
-    buf->st_size = 0;  /* TODO: Get actual size from VFS */
+    buf->st_size = (int64_t)size;
+    buf->st_mtime = (int64_t)mod_time;
+    buf->st_atime = (int64_t)mod_time;
+    buf->st_ctime = (int64_t)mod_time;
+
+    serial_printf("[SYSCALL] stat: inode=%llu, size=%llu, is_dir=%d\n",
+                  resolved.inode, size, is_dir);
 
     errno = 0;
     return 0;
@@ -331,12 +443,31 @@ int sys_fstat(int fd, struct stat* buf) {
 
     serial_printf("[SYSCALL] fstat(fd=%d)\n", fd);
 
+    /* Get file info from VFS */
+    extern bool MVFS_GetFileInfo(VFSVolume* vol, uint64_t entry_id,
+                                  uint64_t* size, bool* is_dir, uint64_t* mod_time);
+
+    uint64_t size = 0;
+    bool is_dir = false;
+    uint64_t mod_time = 0;
+
+    if (!MVFS_GetFileInfo(entry->volume, entry->inode, &size, &is_dir, &mod_time)) {
+        /* If get_file_info fails, return minimal info */
+        serial_printf("[SYSCALL] Warning: MVFS_GetFileInfo failed\n");
+        size = 0;
+        is_dir = false;
+        mod_time = 0;
+    }
+
     /* Fill stat structure */
     memset(buf, 0, sizeof(struct stat));
     buf->st_ino = entry->inode;
-    buf->st_mode = 0100644;  /* Regular file */
+    buf->st_mode = is_dir ? 0040755 : 0100644;  /* S_IFDIR or S_IFREG */
     buf->st_nlink = 1;
-    buf->st_size = 0;  /* TODO: Get actual size from VFS */
+    buf->st_size = (int64_t)size;
+    buf->st_mtime = (int64_t)mod_time;
+    buf->st_atime = (int64_t)mod_time;
+    buf->st_ctime = (int64_t)mod_time;
 
     errno = 0;
     return 0;

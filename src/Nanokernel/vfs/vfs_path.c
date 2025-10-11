@@ -218,11 +218,62 @@ bool vfs_resolve_path(const char* path, ResolvedPath* resolved) {
     serial_printf("[VFS-PATH] Resolved '%s' → volume='%s', rel_path='%s'\n",
                   path, volume_name, rel_path);
 
-    /* TODO: Use VFS lookup to find inode */
-    /* For now, assume root directory (inode 1) */
-    resolved->inode = 1;
-    resolved->is_directory = true;
+    /* Start at root directory (inode/catalog node 1 for HFS, 2 for FAT32) */
+    uint64_t current_id = 1;  /* Root directory */
+    bool is_dir = true;
+
+    /* If relative path is "/" or empty, we're at root */
+    if (rel_path[0] == '\0' || (rel_path[0] == '/' && rel_path[1] == '\0')) {
+        resolved->inode = current_id;
+        resolved->is_directory = true;
+        resolved->exists = true;
+        return true;
+    }
+
+    /* Walk path components */
+    char path_copy[256];
+    strncpy(path_copy, rel_path, sizeof(path_copy) - 1);
+    path_copy[sizeof(path_copy) - 1] = '\0';
+
+    /* Remove leading slash */
+    char* walk = path_copy;
+    if (*walk == '/') walk++;
+
+    char* token = simple_strtok(walk, "/");
+    while (token) {
+        if (!is_dir) {
+            /* Can't traverse through non-directory */
+            serial_printf("[VFS-PATH] ERROR: '%s' is not a directory\n", token);
+            return false;
+        }
+
+        /* Look up this component */
+        extern bool MVFS_Lookup(VFSVolume* vol, uint64_t dir_id, const char* name,
+                                uint64_t* entry_id, bool* is_dir);
+
+        uint64_t next_id;
+        bool next_is_dir;
+
+        if (!MVFS_Lookup(resolved->volume, current_id, token, &next_id, &next_is_dir)) {
+            serial_printf("[VFS-PATH] ERROR: '%s' not found in directory %llu\n",
+                          token, current_id);
+            resolved->exists = false;
+            return false;
+        }
+
+        /* Move to next component */
+        current_id = next_id;
+        is_dir = next_is_dir;
+
+        token = simple_strtok(NULL, "/");
+    }
+
+    resolved->inode = current_id;
+    resolved->is_directory = is_dir;
     resolved->exists = true;
+
+    serial_printf("[VFS-PATH] Path resolved to inode=%llu, is_dir=%d\n",
+                  resolved->inode, resolved->is_directory);
 
     return true;
 }

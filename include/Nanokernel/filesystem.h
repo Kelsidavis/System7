@@ -98,6 +98,18 @@ typedef struct FileSystemOps {
      */
     bool (*get_stats)(VFSVolume* vol, uint64_t* total_bytes, uint64_t* free_bytes);
 
+    /* Get file/directory information
+     * Parameters:
+     *   vol       - Volume context
+     *   entry_id  - File or directory ID
+     *   size      - Output: file size in bytes (0 for directories)
+     *   is_dir    - Output: true if directory
+     *   mod_time  - Output: modification timestamp (Unix epoch, can be NULL)
+     * Returns: true if entry exists
+     */
+    bool (*get_file_info)(VFSVolume* vol, uint64_t entry_id,
+                          uint64_t* size, bool* is_dir, uint64_t* mod_time);
+
     /* Optional operations (can be NULL) */
 
     /* Format operation - create new filesystem on block device */

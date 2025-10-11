@@ -462,3 +462,49 @@ bool MVFS_Lookup(VFSVolume* vol, uint64_t dir_id, const char* name,
 
     return false;
 }
+
+/* Get file info through daemon (if available) */
+bool MVFS_GetFileInfo(VFSVolume* vol, uint64_t entry_id,
+                      uint64_t* size, bool* is_dir, uint64_t* mod_time) {
+    if (!vol || !vol->mounted) {
+        return false;
+    }
+
+    /* Try daemon routing first */
+    const char* daemon_name = VFS_GetDaemonName(vol->fs_ops->fs_name);
+    if (daemon_name && FSD_Find(daemon_name)) {
+        serial_printf("[VFS] Delegating GET_FILE_INFO entry_id=%llu → %s\n", entry_id, daemon_name);
+        return FSD_GetFileInfo(daemon_name, entry_id, size, is_dir, mod_time);
+    }
+
+    /* Fall back to direct call */
+    if (vol->fs_ops && vol->fs_ops->get_file_info) {
+        return vol->fs_ops->get_file_info(vol, entry_id, size, is_dir, mod_time);
+    }
+
+    return false;
+}
+
+/* Enumerate directory through daemon (if available) */
+bool MVFS_Enumerate(VFSVolume* vol, uint64_t dir_id,
+                    bool (*callback)(void* user_data, const char* name,
+                                     uint64_t id, bool is_dir),
+                    void* user_data) {
+    if (!vol || !vol->mounted || !callback) {
+        return false;
+    }
+
+    /* Try daemon routing first */
+    const char* daemon_name = VFS_GetDaemonName(vol->fs_ops->fs_name);
+    if (daemon_name && FSD_Find(daemon_name)) {
+        serial_printf("[VFS] Delegating ENUMERATE dir_id=%llu → %s\n", dir_id, daemon_name);
+        return FSD_Enumerate(daemon_name, dir_id, callback, user_data);
+    }
+
+    /* Fall back to direct call */
+    if (vol->fs_ops && vol->fs_ops->enumerate) {
+        return vol->fs_ops->enumerate(vol, dir_id, callback, user_data);
+    }
+
+    return false;
+}
