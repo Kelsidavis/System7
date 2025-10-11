@@ -183,9 +183,12 @@ static void HandleFileMenu(short item)
             MENU_LOG_DEBUG("File > New\n");
             /* Create new folder in Finder */
             extern Boolean VFS_CreateFolder(SInt16 vref, SInt32 parent, const char* name, SInt32* newID);
+            extern void DrawDesktop(void);
             SInt32 newFolderID;
             if (VFS_CreateFolder(0, 2, "New Folder", &newFolderID)) {
                 MENU_LOG_DEBUG("Created new folder with ID %d\n", (int)newFolderID);
+                /* Refresh desktop to show the new folder */
+                DrawDesktop();
             }
             break;
         }

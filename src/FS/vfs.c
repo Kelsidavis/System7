@@ -348,29 +348,47 @@ bool VFS_PopulateInitialFiles(void) {
     VRefNum vref = vol->vref;
     DirID rootDir = 2;  /* Root directory is always ID 2 in HFS */
 
-    /* Create System Folder */
+    /* Create System Folder (if it doesn't exist) */
     DirID systemID = 0;
-    if (!VFS_CreateFolder(vref, rootDir, "System Folder", &systemID)) {
-        FS_LOG_DEBUG("VFS: Failed to create System Folder\n");
-        return false;
+    CatEntry systemEntry;
+    if (VFS_Lookup(vref, rootDir, "System Folder", &systemEntry)) {
+        FS_LOG_DEBUG("VFS: System Folder already exists (ID=%d)\n", systemEntry.id);
+        systemID = systemEntry.id;
+    } else {
+        if (!VFS_CreateFolder(vref, rootDir, "System Folder", &systemID)) {
+            FS_LOG_DEBUG("VFS: Failed to create System Folder\n");
+            return false;
+        }
+        FS_LOG_DEBUG("VFS: Created System Folder (ID=%d)\n", systemID);
     }
-    FS_LOG_DEBUG("VFS: Created System Folder (ID=%d)\n", systemID);
 
-    /* Create Documents folder */
+    /* Create Documents folder (if it doesn't exist) */
     DirID documentsID = 0;
-    if (!VFS_CreateFolder(vref, rootDir, "Documents", &documentsID)) {
-        FS_LOG_DEBUG("VFS: Failed to create Documents folder\n");
-        return false;
+    CatEntry documentsEntry;
+    if (VFS_Lookup(vref, rootDir, "Documents", &documentsEntry)) {
+        FS_LOG_DEBUG("VFS: Documents folder already exists (ID=%d)\n", documentsEntry.id);
+        documentsID = documentsEntry.id;
+    } else {
+        if (!VFS_CreateFolder(vref, rootDir, "Documents", &documentsID)) {
+            FS_LOG_DEBUG("VFS: Failed to create Documents folder\n");
+            return false;
+        }
+        FS_LOG_DEBUG("VFS: Created Documents folder (ID=%d)\n", documentsID);
     }
-    FS_LOG_DEBUG("VFS: Created Documents folder (ID=%d)\n", documentsID);
 
-    /* Create Applications folder */
+    /* Create Applications folder (if it doesn't exist) */
     DirID appsID = 0;
-    if (!VFS_CreateFolder(vref, rootDir, "Applications", &appsID)) {
-        FS_LOG_DEBUG("VFS: Failed to create Applications folder\n");
-        return false;
+    CatEntry appsEntry;
+    if (VFS_Lookup(vref, rootDir, "Applications", &appsEntry)) {
+        FS_LOG_DEBUG("VFS: Applications folder already exists (ID=%d)\n", appsEntry.id);
+        appsID = appsEntry.id;
+    } else {
+        if (!VFS_CreateFolder(vref, rootDir, "Applications", &appsID)) {
+            FS_LOG_DEBUG("VFS: Failed to create Applications folder\n");
+            return false;
+        }
+        FS_LOG_DEBUG("VFS: Created Applications folder (ID=%d)\n", appsID);
     }
-    FS_LOG_DEBUG("VFS: Created Applications folder (ID=%d)\n", appsID);
 
     /* TODO: File creation not yet implemented in HFS catalog layer */
     /* Commenting out file creation to allow system to boot with just folders */
