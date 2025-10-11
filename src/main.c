@@ -29,6 +29,7 @@ extern void DoMenuCommand(short menuID, short item);
 #include "../include/FontManager/FontManager.h"
 #include "../include/PS2Controller.h"
 #include "../include/FS/vfs.h"
+#include "../include/Nanokernel/vfs.h"
 #include "../include/MemoryMgr/MemoryManager.h"
 
 #ifdef ENABLE_GESTALT
@@ -1945,9 +1946,42 @@ static void init_system71(void) {
         serial_puts("  Storage subsystem initialized\n");
     }
 
-    /* Virtual File System */
+    /* Virtual File System - Legacy layer */
     VFS_Init();
-    serial_puts("  Virtual File System initialized\n");
+    serial_puts("  Legacy VFS layer initialized\n");
+
+    /* Initialize modular VFS core */
+    extern void FS_RegisterFilesystems(void);
+    MVFS_Initialize();
+    FS_RegisterFilesystems();
+    serial_puts("  Modular VFS core initialized\n");
+
+    /* Initialize block device registry and auto-mount system */
+    extern void block_registry_init(void);
+    extern void vfs_autodetect_init(void);
+    extern void vfs_autodetect_mount(void);
+    extern bool block_register(void* dev, int type, const char* name);
+    extern int hal_storage_get_drive_count(void);
+
+    block_registry_init();
+    vfs_autodetect_init();
+    serial_puts("  Block registry and auto-mount initialized\n");
+
+    /* Register ATA devices with block registry */
+    if (hal_storage_get_drive_count() > 0) {
+        extern BlockDevice* MVFS_CreateATABlockDevice(int ata_device_index);
+
+        /* Create and register ATA0 */
+        BlockDevice* ata0 = MVFS_CreateATABlockDevice(0);
+        if (ata0) {
+            block_register(ata0, 0, "ata0");  /* 0 = BLOCK_TYPE_ATA */
+            serial_puts("  Registered ATA device 0\n");
+        }
+    }
+
+    /* Run automatic filesystem detection and mounting */
+    serial_puts("  Starting automatic filesystem detection...\n");
+    vfs_autodetect_mount();
 
     /* Mount boot volume - VFS will handle ATA vs. in-memory automatically */
     bool boot_from_ata = false;

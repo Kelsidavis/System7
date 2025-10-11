@@ -179,6 +179,12 @@ C_SOURCES = src/main.c \
             src/Nanokernel/nk_fault_sentinel.c \
             src/Nanokernel/nk_pre_sti_safety.c \
             src/Nanokernel/platform/x86/nk_platform_init.c \
+            src/Nanokernel/mvfs.c \
+            src/Nanokernel/block_registry.c \
+            src/Nanokernel/vfs_autodetect.c \
+            src/fs/hfs/hfs_main.c \
+            src/fs/fat32/fat32_main.c \
+            src/fs/fs_registry.c \
             src/Resources/Icons/hd_icon.c \
             src/color_icons.c \
             src/DeskManager/DeskManagerCore.c \
@@ -370,7 +376,8 @@ vpath %.c src:src/System:src/System/Platform/x86:src/QuickDraw:src/WindowManager
           src/NotificationManager:src/PackageManager:src/NetworkExtension:src/ColorManager \
           src/CommunicationToolbox:src/GestaltManager:src/SpeechManager:src/BootLoader \
           src/SegmentLoader:src/CPU:src/CPU/m68k_interp:src/DeviceManager:src/Keyboard \
-          src/Datetime:src/Calculator:src/Chooser:src/StartupScreen:src/OSUtils:src/Tests
+          src/Datetime:src/Calculator:src/Chooser:src/StartupScreen:src/OSUtils:src/Tests \
+          src/fs:src/fs/hfs:src/fs/fat32
 vpath %.S $(HAL_DIR):src/Nanokernel/platform/x86
 
 # Compile assembly files
