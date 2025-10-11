@@ -160,6 +160,30 @@ static bool hfs_lookup(VFSVolume* vol, uint64_t dir_id, const char* name,
     return false;
 }
 
+/* Get file/directory information */
+static bool hfs_get_file_info(VFSVolume* vol, uint64_t entry_id,
+                               uint64_t* size, bool* is_dir, uint64_t* mod_time) {
+    (void)vol;
+
+    /* Minimal implementation: root directory (CNID 1) exists */
+    if (entry_id == 1) {
+        if (size) *size = 0;
+        if (is_dir) *is_dir = true;
+        if (mod_time) *mod_time = 0;  /* TODO: Get from volume header */
+        serial_printf("[HFS] get_file_info: root directory (CNID 1)\n");
+        return true;
+    }
+
+    /* TODO: Implement via catalog B-tree lookup */
+    serial_printf("[HFS] get_file_info: CNID %llu not yet implemented\n", entry_id);
+
+    /* Return stub data for now to avoid breaking path resolution */
+    if (size) *size = 0;
+    if (is_dir) *is_dir = false;
+    if (mod_time) *mod_time = 0;
+    return true;
+}
+
 /* HFS Filesystem Operations */
 static FileSystemOps HFS_ops = {
     .fs_name = "HFS",
@@ -172,6 +196,7 @@ static FileSystemOps HFS_ops = {
     .enumerate = hfs_enumerate,
     .lookup = hfs_lookup,
     .get_stats = hfs_get_stats,
+    .get_file_info = hfs_get_file_info,
     /* Optional operations not implemented yet */
     .format = NULL,
     .mkdir = NULL,

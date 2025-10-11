@@ -155,6 +155,33 @@ void fsd_event_loop(const char* daemon_name,
                 }
                 break;
 
+            case FS_MSG_GET_FILE_INFO:
+                serial_printf("[%s] GET_FILE_INFO entry_id=%llu\n", daemon_name, req.file_id);
+
+                /* Call filesystem get_file_info function */
+                if (fs_ops && fs_ops->get_file_info) {
+                    uint64_t size = 0;
+                    bool is_dir = false;
+                    uint64_t mod_time = 0;
+                    bool success = fs_ops->get_file_info(NULL, req.file_id,
+                                                          &size, &is_dir, &mod_time);
+                    if (success) {
+                        resp.result = 0;
+                        resp.param1 = size;
+                        /* Pack is_dir (bit 0) and mod_time (upper 32 bits) into param2 */
+                        resp.param2 = (is_dir ? 1 : 0) | ((mod_time & 0xFFFFFFFF) << 32);
+                        serial_printf("[%s] GET_FILE_INFO OK (size=%llu, is_dir=%d, time=%llu)\n",
+                                      daemon_name, size, is_dir, mod_time);
+                    } else {
+                        resp.result = -1;
+                        serial_printf("[%s] GET_FILE_INFO FAILED\n", daemon_name);
+                    }
+                } else {
+                    serial_printf("[%s] GET_FILE_INFO not implemented\n", daemon_name);
+                    resp = fsd_make_error_response(req.request_id, -1);
+                }
+                break;
+
             case FS_MSG_UNMOUNT:
                 serial_printf("[%s] UNMOUNT\n", daemon_name);
                 resp = fsd_make_success_response(req.request_id);

@@ -175,6 +175,30 @@ static bool fat32_lookup(VFSVolume* vol, uint64_t dir_id, const char* name,
     return false;
 }
 
+/* Get file/directory information */
+static bool fat32_get_file_info(VFSVolume* vol, uint64_t entry_id,
+                                 uint64_t* size, bool* is_dir, uint64_t* mod_time) {
+    (void)vol;
+
+    /* Minimal implementation: root directory (cluster 2) exists */
+    if (entry_id == 2) {
+        if (size) *size = 0;
+        if (is_dir) *is_dir = true;
+        if (mod_time) *mod_time = 0;  /* TODO: Get from directory entry */
+        serial_printf("[FAT32] get_file_info: root directory (cluster 2)\n");
+        return true;
+    }
+
+    /* TODO: Implement via directory entry lookup */
+    serial_printf("[FAT32] get_file_info: cluster %llu not yet implemented\n", entry_id);
+
+    /* Return stub data for now to avoid breaking path resolution */
+    if (size) *size = 0;
+    if (is_dir) *is_dir = false;
+    if (mod_time) *mod_time = 0;
+    return true;
+}
+
 /* FAT32 Filesystem Operations */
 static FileSystemOps FAT32_ops = {
     .fs_name = "FAT32",
@@ -187,6 +211,7 @@ static FileSystemOps FAT32_ops = {
     .enumerate = fat32_enumerate,
     .lookup = fat32_lookup,
     .get_stats = fat32_get_stats,
+    .get_file_info = fat32_get_file_info,
     /* Optional operations not implemented yet */
     .format = NULL,
     .mkdir = NULL,
