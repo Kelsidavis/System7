@@ -11,6 +11,7 @@
 /* External filesystem driver initialization functions */
 extern FileSystemOps* HFS_GetOps(void);
 extern FileSystemOps* FAT32_GetOps(void);
+extern FileSystemOps* EXT4_GetOps(void);
 
 /* Register all filesystem drivers */
 void FS_RegisterFilesystems(void) {
@@ -40,9 +41,21 @@ void FS_RegisterFilesystems(void) {
         serial_printf("[FS Registry] ERROR: FAT32 driver not available\n");
     }
 
+    /* Register ext4 driver */
+    FileSystemOps* ext4_ops = EXT4_GetOps();
+    if (ext4_ops) {
+        if (MVFS_RegisterFilesystem(ext4_ops)) {
+            serial_printf("[FS Registry] ext4 driver registered successfully\n");
+        } else {
+            serial_printf("[FS Registry] WARNING: Failed to register ext4 driver\n");
+        }
+    } else {
+        serial_printf("[FS Registry] ERROR: ext4 driver not available\n");
+    }
+
     /* Future filesystem drivers can be registered here:
-     * - ext2_GetOps()
      * - iso9660_GetOps()
+     * - ntfs_GetOps()
      * - etc.
      */
 

@@ -197,6 +197,7 @@ C_SOURCES = src/main.c \
             src/Nanokernel/vfs_net/sftp_driver.c \
             src/fs/hfs/hfs_main.c \
             src/fs/fat32/fat32_main.c \
+            src/fs/ext4/ext4_main.c \
             src/Daemons/common/fs_daemon_common.c \
             src/Daemons/HFSd/hfs_daemon.c \
             src/Daemons/FATd/fat_daemon.c \
@@ -399,7 +400,7 @@ vpath %.c src:src/System:src/System/Platform/x86:src/QuickDraw:src/WindowManager
           src/CommunicationToolbox:src/GestaltManager:src/SpeechManager:src/BootLoader \
           src/SegmentLoader:src/CPU:src/CPU/m68k_interp:src/DeviceManager:src/Keyboard \
           src/Datetime:src/Calculator:src/Chooser:src/StartupScreen:src/OSUtils:src/Tests \
-          src/fs:src/fs/hfs:src/fs/fat32
+          src/fs:src/fs/hfs:src/fs/fat32:src/fs/ext4
 vpath %.S $(HAL_DIR):src/Nanokernel/platform/x86
 
 # Compile assembly files
