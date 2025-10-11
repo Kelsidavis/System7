@@ -7,6 +7,9 @@
 #include "../../../include/Nanokernel/vfs.h"
 #include "../../../include/Nanokernel/filesystem.h"
 #include "../../../include/FS/hfs_types.h"
+#include "../../../include/FS/hfs_volume.h"
+#include "../../../include/FS/hfs_catalog.h"
+#include "../../../include/FS/hfs_file.h"
 #include "../../../include/System71StdLib.h"
 #include <string.h>
 #include <stdlib.h>
@@ -28,11 +31,12 @@ static uint32_t be32_read(const uint8_t* buf) {
 
 /* HFS private volume data */
 typedef struct {
-    uint32_t total_blocks;
-    uint32_t block_size;
-    uint64_t total_bytes;
-    uint64_t free_bytes;
-    char     volume_name[32];
+    HFS_Volume   volume;      /* Full HFS volume structure */
+    HFS_Catalog  catalog;     /* Catalog B-tree */
+    uint64_t     total_bytes;
+    uint64_t     free_bytes;
+    char         volume_name[32];
+    bool         catalog_initialized;
 } HFSPrivate;
 
 /* Probe: Detect HFS filesystem */
@@ -58,12 +62,6 @@ static bool hfs_probe(BlockDevice* dev) {
 static void* hfs_mount(VFSVolume* vol, BlockDevice* dev) {
     uint8_t sector[512];
 
-    /* Read MDB */
-    if (!dev->read_block(dev, HFS_MDB_SECTOR, sector)) {
-        serial_printf("[HFS] Failed to read MDB\n");
-        return NULL;
-    }
-
     /* Allocate private data */
     HFSPrivate* priv = (HFSPrivate*)malloc(sizeof(HFSPrivate));
     if (!priv) {
@@ -71,13 +69,20 @@ static void* hfs_mount(VFSVolume* vol, BlockDevice* dev) {
         return NULL;
     }
 
-    /* Parse MDB fields */
+    memset(priv, 0, sizeof(HFSPrivate));
+
+    /* Read MDB for basic volume info */
+    if (!dev->read_block(dev, HFS_MDB_SECTOR, sector)) {
+        serial_printf("[HFS] Failed to read MDB\n");
+        free(priv);
+        return NULL;
+    }
+
+    /* Parse basic MDB fields for volume stats */
     uint16_t num_alloc_blocks = be16_read(&sector[20]);
     uint32_t alloc_block_size = be32_read(&sector[22]);
     uint16_t free_blocks = be16_read(&sector[36]);
 
-    priv->total_blocks = num_alloc_blocks;
-    priv->block_size = alloc_block_size;
     priv->total_bytes = (uint64_t)num_alloc_blocks * alloc_block_size;
     priv->free_bytes = (uint64_t)free_blocks * alloc_block_size;
 
@@ -87,8 +92,14 @@ static void* hfs_mount(VFSVolume* vol, BlockDevice* dev) {
     memcpy(priv->volume_name, &sector[39], name_len);
     priv->volume_name[name_len] = '\0';
 
+    /* TODO: Initialize HFS_Volume and HFS_Catalog structures properly
+     * For now, catalog operations will not be available until
+     * full HFS volume initialization is implemented */
+    priv->catalog_initialized = false;
+
     serial_printf("[HFS] Mounted '%s' - %llu bytes (%llu free)\n",
                   priv->volume_name, priv->total_bytes, priv->free_bytes);
+    serial_printf("[HFS] Note: Catalog operations require full HFS volume initialization\n");
 
     return priv;
 }
@@ -96,6 +107,13 @@ static void* hfs_mount(VFSVolume* vol, BlockDevice* dev) {
 /* Unmount: Cleanup HFS volume */
 static void hfs_unmount(VFSVolume* vol) {
     if (vol->fs_private) {
+        HFSPrivate* priv = (HFSPrivate*)vol->fs_private;
+
+        /* Close catalog if initialized */
+        if (priv->catalog_initialized) {
+            HFS_CatalogClose(&priv->catalog);
+        }
+
         free(vol->fs_private);
         vol->fs_private = NULL;
     }
@@ -112,16 +130,48 @@ static bool hfs_get_stats(VFSVolume* vol, uint64_t* total_bytes, uint64_t* free_
     return true;
 }
 
-/* Read operation - stub for now */
+/* Read operation */
 static bool hfs_read(VFSVolume* vol, uint64_t file_id, uint64_t offset,
                      void* buffer, size_t length, size_t* bytes_read) {
-    (void)vol; (void)file_id; (void)offset; (void)buffer; (void)length;
+    HFSPrivate* priv = (HFSPrivate*)vol->fs_private;
+    if (!priv || !priv->catalog_initialized) {
+        serial_printf("[HFS] Read: Catalog not initialized\n");
+        if (bytes_read) *bytes_read = 0;
+        return false;
+    }
 
-    /* TODO: Implement file reading via existing HFS code */
-    serial_printf("[HFS] Read operation not yet implemented\n");
+    /* Open file by CNID */
+    HFSFile* file = HFS_FileOpen(&priv->catalog, (FileID)file_id, false);
+    if (!file) {
+        serial_printf("[HFS] Read: Failed to open file CNID %llu\n", file_id);
+        if (bytes_read) *bytes_read = 0;
+        return false;
+    }
 
-    if (bytes_read) *bytes_read = 0;
-    return false;
+    /* Seek to offset */
+    if (offset > 0 && !HFS_FileSeek(file, (uint32_t)offset)) {
+        serial_printf("[HFS] Read: Failed to seek to offset %llu\n", offset);
+        HFS_FileClose(file);
+        if (bytes_read) *bytes_read = 0;
+        return false;
+    }
+
+    /* Read data */
+    uint32_t actual_read = 0;
+    bool success = HFS_FileRead(file, buffer, (uint32_t)length, &actual_read);
+
+    HFS_FileClose(file);
+
+    if (bytes_read) *bytes_read = actual_read;
+
+    if (success) {
+        serial_printf("[HFS] Read: Read %u bytes from CNID %llu at offset %llu\n",
+                      actual_read, file_id, offset);
+    } else {
+        serial_printf("[HFS] Read: Failed for CNID %llu\n", file_id);
+    }
+
+    return success;
 }
 
 /* Write operation - stub for now */
@@ -135,53 +185,94 @@ static bool hfs_write(VFSVolume* vol, uint64_t file_id, uint64_t offset,
     return false;
 }
 
-/* Enumerate operation - stub for now */
+/* Enumerate operation */
 static bool hfs_enumerate(VFSVolume* vol, uint64_t dir_id,
                           bool (*callback)(void* user_data, const char* name,
                                            uint64_t id, bool is_dir),
                           void* user_data) {
-    (void)vol; (void)dir_id; (void)callback; (void)user_data;
+    HFSPrivate* priv = (HFSPrivate*)vol->fs_private;
+    if (!priv || !priv->catalog_initialized) {
+        serial_printf("[HFS] Enumerate: Catalog not initialized\n");
+        return false;
+    }
 
-    /* TODO: Implement directory enumeration via existing HFS catalog */
-    serial_printf("[HFS] Enumerate operation not yet implemented\n");
-    return false;
+    /* Enumerate directory entries */
+    CatEntry entries[64];
+    int count = 0;
+
+    if (!HFS_CatalogEnumerate(&priv->catalog, (DirID)dir_id, entries, 64, &count)) {
+        serial_printf("[HFS] Enumerate: Failed for dir %llu\n", dir_id);
+        return false;
+    }
+
+    serial_printf("[HFS] Enumerate: Found %d entries in dir %llu\n", count, dir_id);
+
+    /* Call callback for each entry */
+    for (int i = 0; i < count; i++) {
+        bool is_dir = (entries[i].kind == kNodeDir);
+        if (callback && !callback(user_data, entries[i].name, entries[i].id, is_dir)) {
+            break; /* Callback requested stop */
+        }
+    }
+
+    return true;
 }
 
-/* Lookup operation - stub for now */
+/* Lookup operation */
 static bool hfs_lookup(VFSVolume* vol, uint64_t dir_id, const char* name,
                        uint64_t* entry_id, bool* is_dir) {
-    (void)vol; (void)dir_id; (void)name;
+    HFSPrivate* priv = (HFSPrivate*)vol->fs_private;
+    if (!priv || !priv->catalog_initialized) {
+        serial_printf("[HFS] Lookup: Catalog not initialized\n");
+        return false;
+    }
 
-    /* TODO: Implement lookup via existing HFS catalog */
-    serial_printf("[HFS] Lookup operation not yet implemented\n");
+    /* Use catalog lookup */
+    CatEntry entry;
+    if (HFS_CatalogLookup(&priv->catalog, (DirID)dir_id, name, &entry)) {
+        if (entry_id) *entry_id = entry.id;
+        if (is_dir) *is_dir = (entry.kind == kNodeDir);
+        serial_printf("[HFS] Lookup: Found '%s' (CNID %u, is_dir=%d)\n",
+                      name, entry.id, entry.kind == kNodeDir);
+        return true;
+    }
 
-    if (entry_id) *entry_id = 0;
-    if (is_dir) *is_dir = false;
+    serial_printf("[HFS] Lookup: Not found '%s' in dir %llu\n", name, dir_id);
     return false;
 }
 
 /* Get file/directory information */
 static bool hfs_get_file_info(VFSVolume* vol, uint64_t entry_id,
                                uint64_t* size, bool* is_dir, uint64_t* mod_time) {
-    (void)vol;
+    HFSPrivate* priv = (HFSPrivate*)vol->fs_private;
 
-    /* Minimal implementation: root directory (CNID 1) exists */
-    if (entry_id == 1) {
+    /* Handle root directory specially */
+    if (entry_id == 1 || entry_id == 2) {
         if (size) *size = 0;
         if (is_dir) *is_dir = true;
-        if (mod_time) *mod_time = 0;  /* TODO: Get from volume header */
-        serial_printf("[HFS] get_file_info: root directory (CNID 1)\n");
+        if (mod_time) *mod_time = 0;
+        serial_printf("[HFS] get_file_info: root directory (CNID %llu)\n", entry_id);
         return true;
     }
 
-    /* TODO: Implement via catalog B-tree lookup */
-    serial_printf("[HFS] get_file_info: CNID %llu not yet implemented\n", entry_id);
+    if (!priv || !priv->catalog_initialized) {
+        serial_printf("[HFS] get_file_info: Catalog not initialized\n");
+        return false;
+    }
 
-    /* Return stub data for now to avoid breaking path resolution */
-    if (size) *size = 0;
-    if (is_dir) *is_dir = false;
-    if (mod_time) *mod_time = 0;
-    return true;
+    /* Get entry by CNID */
+    CatEntry entry;
+    if (HFS_CatalogGetByID(&priv->catalog, (FileID)entry_id, &entry)) {
+        if (size) *size = entry.size;
+        if (is_dir) *is_dir = (entry.kind == kNodeDir);
+        if (mod_time) *mod_time = entry.modTime;
+        serial_printf("[HFS] get_file_info: CNID %llu '%s' (size=%u, is_dir=%d)\n",
+                      entry_id, entry.name, entry.size, entry.kind == kNodeDir);
+        return true;
+    }
+
+    serial_printf("[HFS] get_file_info: CNID %llu not found\n", entry_id);
+    return false;
 }
 
 /* HFS Filesystem Operations */
