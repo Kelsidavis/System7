@@ -5,10 +5,12 @@
  * - Filesystem driver registration
  * - Mount/unmount operations
  * - Block device abstraction
+ * - Daemon routing (Phase 6.4)
  */
 
 #include "../../include/Nanokernel/vfs.h"
 #include "../../include/Nanokernel/filesystem.h"
+#include "../../include/Nanokernel/fs_daemon.h"
 #include "../../include/System71StdLib.h"
 #include <string.h>
 #include <stdlib.h>
@@ -381,4 +383,82 @@ BlockDevice* MVFS_CreateMemoryBlockDevice(void* buffer, size_t size) {
 
     serial_printf("[VFS] Created memory block device (%zu bytes)\n", size);
     return dev;
+}
+
+/* === VFS Daemon Routing (Phase 6.4) === */
+
+/* Map filesystem name to daemon name */
+static const char* VFS_GetDaemonName(const char* fs_name) {
+    if (strcmp(fs_name, "HFS") == 0) {
+        return "HFSd";
+    } else if (strcmp(fs_name, "FAT32") == 0) {
+        return "FATd";
+    }
+    return NULL;
+}
+
+/* Read file through daemon (if available) */
+bool MVFS_ReadFile(VFSVolume* vol, uint64_t file_id, uint64_t offset,
+                   void* buffer, size_t length, size_t* bytes_read) {
+    if (!vol || !vol->mounted) {
+        return false;
+    }
+
+    /* Try daemon routing first */
+    const char* daemon_name = VFS_GetDaemonName(vol->fs_ops->fs_name);
+    if (daemon_name && FSD_Find(daemon_name)) {
+        serial_printf("[VFS] Delegating READ file_id=%llu → %s\n", file_id, daemon_name);
+        return FSD_ReadFile(daemon_name, file_id, offset, buffer, length, bytes_read);
+    }
+
+    /* Fall back to direct call */
+    if (vol->fs_ops && vol->fs_ops->read) {
+        return vol->fs_ops->read(vol, file_id, offset, buffer, length, bytes_read);
+    }
+
+    return false;
+}
+
+/* Write file through daemon (if available) */
+bool MVFS_WriteFile(VFSVolume* vol, uint64_t file_id, uint64_t offset,
+                    const void* buffer, size_t length, size_t* bytes_written) {
+    if (!vol || !vol->mounted) {
+        return false;
+    }
+
+    /* Try daemon routing first */
+    const char* daemon_name = VFS_GetDaemonName(vol->fs_ops->fs_name);
+    if (daemon_name && FSD_Find(daemon_name)) {
+        serial_printf("[VFS] Delegating WRITE file_id=%llu → %s\n", file_id, daemon_name);
+        return FSD_WriteFile(daemon_name, file_id, offset, buffer, length, bytes_written);
+    }
+
+    /* Fall back to direct call */
+    if (vol->fs_ops && vol->fs_ops->write) {
+        return vol->fs_ops->write(vol, file_id, offset, buffer, length, bytes_written);
+    }
+
+    return false;
+}
+
+/* Lookup file through daemon (if available) */
+bool MVFS_Lookup(VFSVolume* vol, uint64_t dir_id, const char* name,
+                 uint64_t* entry_id, bool* is_dir) {
+    if (!vol || !vol->mounted || !name) {
+        return false;
+    }
+
+    /* Try daemon routing first */
+    const char* daemon_name = VFS_GetDaemonName(vol->fs_ops->fs_name);
+    if (daemon_name && FSD_Find(daemon_name)) {
+        serial_printf("[VFS] Delegating LOOKUP '%s' → %s\n", name, daemon_name);
+        return FSD_Lookup(daemon_name, dir_id, name, entry_id, is_dir);
+    }
+
+    /* Fall back to direct call */
+    if (vol->fs_ops && vol->fs_ops->lookup) {
+        return vol->fs_ops->lookup(vol, dir_id, name, entry_id, is_dir);
+    }
+
+    return false;
 }

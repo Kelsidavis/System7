@@ -1983,6 +1983,18 @@ static void init_system71(void) {
     serial_puts("  Starting automatic filesystem detection...\n");
     vfs_autodetect_mount();
 
+    /* Phase 6.4: Initialize IPC and filesystem daemons */
+    extern void IPC_Initialize(void);
+    extern void FSD_Initialize(void);
+    extern void spawn_fs_daemons(void);
+    extern void FSD_ListDaemons(void);
+
+    IPC_Initialize();
+    FSD_Initialize();
+    spawn_fs_daemons();
+    FSD_ListDaemons();
+    serial_puts("  Filesystem daemons initialized\n");
+
     /* Mount boot volume - VFS will handle ATA vs. in-memory automatically */
     bool boot_from_ata = false;
     VRefNum boot_vref = 1;  /* Default to vRef 1 for in-memory volume */

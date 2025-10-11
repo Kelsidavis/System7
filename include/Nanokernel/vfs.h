@@ -77,4 +77,14 @@ BlockDevice* MVFS_CreateATABlockDevice(int ata_device_index);
 /* Helper: Create memory block device (for testing) */
 BlockDevice* MVFS_CreateMemoryBlockDevice(void* buffer, size_t size);
 
+/* VFS File Operations (Phase 6.4 - routed through daemons if available) */
+bool MVFS_ReadFile(VFSVolume* vol, uint64_t file_id, uint64_t offset,
+                   void* buffer, size_t length, size_t* bytes_read);
+
+bool MVFS_WriteFile(VFSVolume* vol, uint64_t file_id, uint64_t offset,
+                    const void* buffer, size_t length, size_t* bytes_written);
+
+bool MVFS_Lookup(VFSVolume* vol, uint64_t dir_id, const char* name,
+                 uint64_t* entry_id, bool* is_dir);
+
 #endif /* NK_VFS_H */
