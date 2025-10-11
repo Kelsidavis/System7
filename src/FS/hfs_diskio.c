@@ -120,6 +120,9 @@ bool HFS_BD_Write(HFS_BlockDev* bd, uint64_t offset, const void* buffer, uint32_
     if (bd->readonly) return false;
     if (offset + length > bd->size) return false;
 
+    FS_LOG_DEBUG("[HFS_BD] WRITE: offset=%u length=%u type=%d\n",
+                 (uint32_t)offset, length, bd->type);
+
     if (bd->type == HFS_BD_TYPE_ATA) {
         /* ATA device - write sectors */
         ATADevice* ata_dev = ATA_GetDevice(bd->ata_device);
@@ -151,6 +154,9 @@ bool HFS_BD_Write(HFS_BlockDev* bd, uint64_t offset, const void* buffer, uint32_
         /* Write sectors */
         OSErr err = ATA_WriteSectors(ata_dev, start_sector, sector_count, temp_buffer);
         free(temp_buffer);
+
+        FS_LOG_DEBUG("[HFS_BD] ATA_WriteSectors: sector=%u count=%u result=%d\n",
+                     start_sector, sector_count, err);
 
         return (err == noErr);
     } else {
@@ -199,11 +205,14 @@ bool HFS_BD_WriteSector(HFS_BlockDev* bd, uint32_t sector, const void* buffer) {
 bool HFS_BD_Flush(HFS_BlockDev* bd) {
     if (!bd) return false;
 
+    FS_LOG_DEBUG("[HFS_BD] FLUSH: type=%d\n", bd->type);
+
     if (bd->type == HFS_BD_TYPE_ATA) {
         /* Flush ATA device cache */
         ATADevice* ata_dev = ATA_GetDevice(bd->ata_device);
         if (ata_dev && ata_dev->present) {
             OSErr err = ATA_FlushCache(ata_dev);
+            FS_LOG_DEBUG("[HFS_BD] ATA_FlushCache result=%d\n", err);
             return (err == noErr);
         }
         return false;

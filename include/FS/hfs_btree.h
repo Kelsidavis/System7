@@ -38,6 +38,9 @@ void HFS_BT_Close(HFS_BTree* bt);
 /* Read a node from the B-tree */
 bool HFS_BT_ReadNode(HFS_BTree* bt, uint32_t nodeNum, void* buffer);
 
+/* Write a node to the B-tree */
+bool HFS_BT_WriteNode(HFS_BTree* bt, uint32_t nodeNum, const void* buffer);
+
 /* Get record from a node */
 bool HFS_BT_GetRecord(void* node, uint16_t nodeSize, uint16_t recordNum,
                       void** recordPtr, uint16_t* recordLen);
@@ -45,6 +48,10 @@ bool HFS_BT_GetRecord(void* node, uint16_t nodeSize, uint16_t recordNum,
 /* Find a record by key */
 bool HFS_BT_FindRecord(HFS_BTree* bt, const void* key, uint16_t keyLen,
                        void* recordBuffer, uint16_t* recordLen);
+
+/* Insert a record into the B-tree (simplified - assumes space available) */
+bool HFS_BT_InsertRecord(HFS_BTree* bt, const void* key, uint16_t keyLen,
+                         const void* data, uint16_t dataLen);
 
 /* Iterate through leaf nodes */
 typedef bool (*HFS_BT_IteratorFunc)(void* key, uint16_t keyLen,

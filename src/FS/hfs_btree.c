@@ -63,6 +63,77 @@ static bool read_btree_data(HFS_BTree* bt, uint32_t offset, void* buffer, uint32
     return bytesRead == length;
 }
 
+/* Write data to B-tree file using extents */
+static bool write_btree_data(HFS_BTree* bt, uint32_t offset, const void* buffer, uint32_t length) {
+    if (!bt || !buffer) return false;
+
+    FS_LOG_DEBUG("write_btree_data: offset=%d length=%d fileSize=%d\n",
+                 (int)offset, (int)length, (int)bt->fileSize);
+
+    uint32_t bytesWritten = 0;
+    uint32_t currentOffset = offset;
+
+    /* Write to first 3 extents */
+    for (int i = 0; i < 3 && bytesWritten < length; i++) {
+        if (bt->extents[i].blockCount == 0) {
+            break;
+        }
+
+        uint32_t extentBytes = bt->extents[i].blockCount * bt->vol->alBlkSize;
+
+        if (currentOffset >= extentBytes) {
+            currentOffset -= extentBytes;
+            continue;
+        }
+
+        uint32_t startBlock = bt->extents[i].startBlock;
+        uint32_t blockOffset = currentOffset / bt->vol->alBlkSize;
+        uint32_t byteOffset = currentOffset % bt->vol->alBlkSize;
+
+        uint32_t toWrite = extentBytes - currentOffset;
+        if (toWrite > (length - bytesWritten)) {
+            toWrite = length - bytesWritten;
+        }
+
+        /* If not block-aligned, need read-modify-write */
+        if (byteOffset != 0 || (toWrite % bt->vol->alBlkSize) != 0) {
+            uint8_t* tempBuffer = malloc(bt->vol->alBlkSize * 2);
+            if (!tempBuffer) return false;
+
+            uint32_t blocksToAccess = (toWrite + byteOffset + bt->vol->alBlkSize - 1) / bt->vol->alBlkSize;
+
+            /* Read existing blocks */
+            if (!HFS_ReadAllocBlocks(bt->vol, startBlock + blockOffset, blocksToAccess, tempBuffer)) {
+                free(tempBuffer);
+                return false;
+            }
+
+            /* Modify with new data */
+            memcpy(tempBuffer + byteOffset, (const uint8_t*)buffer + bytesWritten, toWrite);
+
+            /* Write back */
+            if (!HFS_WriteAllocBlocks(bt->vol, startBlock + blockOffset, blocksToAccess, tempBuffer)) {
+                free(tempBuffer);
+                return false;
+            }
+
+            free(tempBuffer);
+        } else {
+            /* Block-aligned write - direct */
+            uint32_t blocksToWrite = toWrite / bt->vol->alBlkSize;
+            if (!HFS_WriteAllocBlocks(bt->vol, startBlock + blockOffset, blocksToWrite,
+                                     (const uint8_t*)buffer + bytesWritten)) {
+                return false;
+            }
+        }
+
+        bytesWritten += toWrite;
+        currentOffset = 0;  /* Reset for next extent */
+    }
+
+    return bytesWritten == length;
+}
+
 bool HFS_BT_Init(HFS_BTree* bt, HFS_Volume* vol, HFS_BTreeType type) {
     /* FS_LOG_DEBUG("HFS_BT_Init: ENTER (bt=%p, vol=%p, type=%d)\n", bt, vol, type); */
 
@@ -116,8 +187,16 @@ bool HFS_BT_Init(HFS_BTree* bt, HFS_Volume* vol, HFS_BTreeType type) {
         return false;
     }
 
-    /* Parse header record (starts after node descriptor) */
+    /* For the header node, the header record always starts at offset 14 */
+    /* (immediately after the 14-byte node descriptor) */
     HFS_BTHeaderRec* header = (HFS_BTHeaderRec*)(headerNode + sizeof(HFS_BTNodeDesc));
+
+    /* Debug: dump first 32 bytes of header record */
+    FS_LOG_DEBUG("HFS_BT_Init: Header bytes: ");
+    for (int i = 0; i < 32 && i < sizeof(HFS_BTHeaderRec); i++) {
+        FS_LOG_DEBUG("%02x ", ((uint8_t*)header)[i]);
+    }
+    FS_LOG_DEBUG("\n");
 
     bt->treeDepth   = be16_read(&header->depth);
     bt->rootNode    = be32_read(&header->rootNode);
@@ -126,10 +205,13 @@ bool HFS_BT_Init(HFS_BTree* bt, HFS_Volume* vol, HFS_BTreeType type) {
     bt->nodeSize    = be16_read(&header->nodeSize);
     bt->totalNodes  = be32_read(&header->totalNodes);
 
+    FS_LOG_DEBUG("HFS_BT_Init: Read header - depth=%d root=%d firstLeaf=%d lastLeaf=%d nodeSize=%d totalNodes=%d\n",
+                 bt->treeDepth, bt->rootNode, bt->firstLeaf, bt->lastLeaf, bt->nodeSize, bt->totalNodes);
+
     /* Allocate node buffer */
     bt->nodeBuffer = malloc(bt->nodeSize);
     if (!bt->nodeBuffer) {
-        /* FS_LOG_DEBUG("HFS BTree: Failed to allocate node buffer\n"); */
+        FS_LOG_DEBUG("HFS BTree: Failed to allocate node buffer (nodeSize=%d)\n", bt->nodeSize);
         return false;
     }
 
@@ -156,6 +238,153 @@ bool HFS_BT_ReadNode(HFS_BTree* bt, uint32_t nodeNum, void* buffer) {
 
     uint32_t offset = nodeNum * bt->nodeSize;
     return read_btree_data(bt, offset, buffer, bt->nodeSize);
+}
+
+bool HFS_BT_WriteNode(HFS_BTree* bt, uint32_t nodeNum, const void* buffer) {
+    if (!bt || !buffer || nodeNum >= bt->totalNodes) return false;
+
+    FS_LOG_DEBUG("HFS_BT_WriteNode: writing node %d (nodeSize=%d)\n", nodeNum, bt->nodeSize);
+
+    uint32_t offset = nodeNum * bt->nodeSize;
+    return write_btree_data(bt, offset, buffer, bt->nodeSize);
+}
+
+/* Insert a record into a leaf node (simplified - assumes space available) */
+bool HFS_BT_InsertRecord(HFS_BTree* bt, const void* key, uint16_t keyLen,
+                         const void* data, uint16_t dataLen) {
+    FS_LOG_DEBUG("HFS_BT_InsertRecord: ENTRY bt=%08x key=%08x keyLen=%d data=%08x dataLen=%d\n",
+                 (unsigned int)bt, (unsigned int)key, keyLen, (unsigned int)data, dataLen);
+
+    if (!bt || !key || !data) {
+        FS_LOG_DEBUG("HFS_BT_InsertRecord: NULL parameter check failed\n");
+        return false;
+    }
+
+    /* For now, assume simple single-leaf tree structure */
+    /* In a real implementation, we'd navigate the tree to find the right leaf */
+
+    /* Use the root node as the leaf (depth=1 tree) */
+    uint32_t leafNodeNum = bt->rootNode;
+    FS_LOG_DEBUG("HFS_BT_InsertRecord: Using root/leaf node %d\n", leafNodeNum);
+
+    /* Allocate node buffer */
+    FS_LOG_DEBUG("HFS_BT_InsertRecord: About to malloc nodeSize=%d\n", bt->nodeSize);
+    uint8_t* nodeBuffer = malloc(bt->nodeSize);
+    if (!nodeBuffer) {
+        FS_LOG_DEBUG("HFS_BT_InsertRecord: Failed to allocate node buffer (size=%d)\n", bt->nodeSize);
+        return false;
+    }
+    FS_LOG_DEBUG("HFS_BT_InsertRecord: Successfully allocated node buffer\n");
+
+    /* Read the leaf node */
+    FS_LOG_DEBUG("HFS_BT_InsertRecord: About to read node %d\n", leafNodeNum);
+    if (!HFS_BT_ReadNode(bt, leafNodeNum, nodeBuffer)) {
+        FS_LOG_DEBUG("HFS_BT_InsertRecord: Failed to read node %d\n", leafNodeNum);
+        free(nodeBuffer);
+        return false;
+    }
+    FS_LOG_DEBUG("HFS_BT_InsertRecord: Successfully read node %d\n", leafNodeNum);
+
+    HFS_BTNodeDesc* nodeDesc = (HFS_BTNodeDesc*)nodeBuffer;
+    uint16_t numRecords = be16_read(&nodeDesc->numRecords);
+
+    /* Build full record (key + data) */
+    uint16_t recordSize = 1 + keyLen + dataLen;  /* 1 byte for keyLength + key + data */
+    uint8_t* fullRecord = malloc(recordSize);
+    if (!fullRecord) {
+        free(nodeBuffer);
+        return false;
+    }
+
+    /* Copy key and data into record */
+    memcpy(fullRecord, key, 1 + keyLen);  /* keyLength + key data */
+    memcpy(fullRecord + 1 + keyLen, data, dataLen);
+
+    /* Find insertion point using key comparison */
+    int insertPos = 0;
+    for (int i = 0; i < numRecords; i++) {
+        void* existingRec;
+        uint16_t existingLen;
+        if (!HFS_BT_GetRecord(nodeBuffer, bt->nodeSize, i, &existingRec, &existingLen)) {
+            continue;
+        }
+
+        /* Compare keys */
+        int cmp;
+        if (bt->type == kBTreeCatalog) {
+            cmp = HFS_CompareCatalogKeys(fullRecord, existingRec);
+        } else {
+            cmp = HFS_CompareExtentsKeys(fullRecord, existingRec);
+        }
+
+        if (cmp < 0) {
+            /* Found insertion point */
+            break;
+        }
+        insertPos++;
+    }
+
+    FS_LOG_DEBUG("HFS_BT_InsertRecord: inserting at position %d of %d\n", insertPos, numRecords);
+
+    /* Calculate offsets */
+    uint16_t* offsets = (uint16_t*)(nodeBuffer + bt->nodeSize - 2);
+
+    /* Get offset where new record should go */
+    uint16_t insertOffset;
+    if (insertPos == 0) {
+        insertOffset = sizeof(HFS_BTNodeDesc);
+    } else {
+        /* Get the end of the previous record */
+        void* prevRec;
+        uint16_t prevLen;
+        HFS_BT_GetRecord(nodeBuffer, bt->nodeSize, insertPos - 1, &prevRec, &prevLen);
+        insertOffset = ((uint8_t*)prevRec - nodeBuffer) + prevLen;
+    }
+
+    /* Calculate how much data needs to be shifted */
+    uint16_t lastOffset;
+    if (numRecords > 0) {
+        void* lastRec;
+        uint16_t lastLen;
+        HFS_BT_GetRecord(nodeBuffer, bt->nodeSize, numRecords - 1, &lastRec, &lastLen);
+        lastOffset = ((uint8_t*)lastRec - nodeBuffer) + lastLen;
+    } else {
+        lastOffset = sizeof(HFS_BTNodeDesc);
+    }
+
+    /* Shift existing records and offsets to make space */
+    if (insertPos < numRecords) {
+        /* Shift record data */
+        uint16_t bytesToShift = lastOffset - insertOffset;
+        memmove(nodeBuffer + insertOffset + recordSize,
+                nodeBuffer + insertOffset,
+                bytesToShift);
+
+        /* Shift offset table entries */
+        for (int i = numRecords; i > insertPos; i--) {
+            uint16_t offset = be16_read(&offsets[-(i-1)]);
+            be16_write(&offsets[-i], offset + recordSize);
+        }
+    }
+
+    /* Insert new record */
+    memcpy(nodeBuffer + insertOffset, fullRecord, recordSize);
+    be16_write(&offsets[-insertPos], insertOffset);
+
+    /* Update offset table for new record count */
+    be16_write(&offsets[-(numRecords)], insertOffset + recordSize);
+
+    /* Update node descriptor */
+    be16_write(&nodeDesc->numRecords, numRecords + 1);
+
+    /* Write node back */
+    bool success = HFS_BT_WriteNode(bt, leafNodeNum, nodeBuffer);
+
+    free(fullRecord);
+    free(nodeBuffer);
+
+    FS_LOG_DEBUG("HFS_BT_InsertRecord: %s\n", success ? "SUCCESS" : "FAILED");
+    return success;
 }
 
 bool HFS_BT_GetRecord(void* node, uint16_t nodeSize, uint16_t recordNum,

@@ -303,3 +303,57 @@ bool HFS_CatalogGetByID(HFS_Catalog* cat, FileID cnid, CatEntry* entry) {
 
     return ctx.found;
 }
+
+bool HFS_CatalogCreateFolder(HFS_Catalog* cat, DirID parentID, const char* name,
+                             FileID* newFolderID) {
+    if (!cat || !name || !newFolderID) {
+        FS_LOG_DEBUG("HFS_CatalogCreateFolder: Invalid parameters\n");
+        return false;
+    }
+
+    FS_LOG_DEBUG("HFS_CatalogCreateFolder: Creating folder '%s' in parent %d\n", name, parentID);
+
+    /* Allocate a new CNID */
+    FileID folderID = cat->vol->nextCNID++;
+
+    FS_LOG_DEBUG("HFS_CatalogCreateFolder: Allocated CNID %d\n", folderID);
+
+    /* Build catalog key */
+    HFS_CatKey key;
+    size_t nameLen = strlen(name);
+    if (nameLen > 31) nameLen = 31;
+
+    key.keyLength = 6 + nameLen;  /* reserved(1) + parentID(4) + nameLength(1) + name */
+    key.reserved = 0;
+    be32_write(&key.parentID, parentID);
+    key.nameLength = nameLen;
+    memcpy(key.name, name, nameLen);
+
+    /* Build folder record */
+    HFS_CatFolderRec folder;
+    memset(&folder, 0, sizeof(folder));
+
+    be16_write(&folder.recordType, kHFS_FolderRecord);
+    be16_write(&folder.flags, 0);
+    be16_write(&folder.valence, 0);  /* No items in folder yet */
+    be32_write(&folder.folderID, folderID);
+    be32_write(&folder.createDate, 0);  /* TODO: Get current time */
+    be32_write(&folder.modifyDate, 0);
+    be32_write(&folder.backupDate, 0);
+    memset(folder.finderInfo, 0, sizeof(folder.finderInfo));
+    memset(folder.reserved, 0, sizeof(folder.reserved));
+
+    /* Insert into catalog B-tree */
+    /* keyLen must include the keyLength byte itself + the rest of the key */
+    bool success = HFS_BT_InsertRecord(&cat->bt, &key, 1 + key.keyLength,
+                                       &folder, sizeof(HFS_CatFolderRec));
+
+    if (success) {
+        *newFolderID = folderID;
+        FS_LOG_DEBUG("HFS_CatalogCreateFolder: Successfully created folder with ID %d\n", folderID);
+    } else {
+        FS_LOG_DEBUG("HFS_CatalogCreateFolder: Failed to insert catalog record\n");
+    }
+
+    return success;
+}

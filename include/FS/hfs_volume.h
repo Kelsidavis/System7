@@ -51,6 +51,10 @@ uint64_t HFS_AllocBlockToByteOffset(const HFS_Volume* vol, uint32_t allocBlock);
 bool HFS_ReadAllocBlocks(const HFS_Volume* vol, uint32_t startBlock, uint32_t blockCount,
                          void* buffer);
 
+/* Write allocation blocks */
+bool HFS_WriteAllocBlocks(HFS_Volume* vol, uint32_t startBlock, uint32_t blockCount,
+                          const void* buffer);
+
 /* Get volume info */
 bool HFS_GetVolumeInfo(const HFS_Volume* vol, VolumeControlBlock* vcb);
 

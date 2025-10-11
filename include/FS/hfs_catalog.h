@@ -27,6 +27,10 @@ bool HFS_CatalogLookup(HFS_Catalog* cat, DirID parentID, const char* name,
 /* Get entry by CNID */
 bool HFS_CatalogGetByID(HFS_Catalog* cat, FileID cnid, CatEntry* entry);
 
+/* Create a new folder in the catalog */
+bool HFS_CatalogCreateFolder(HFS_Catalog* cat, DirID parentID, const char* name,
+                             FileID* newFolderID);
+
 /* Convert MacRoman to ASCII */
 void HFS_MacRomanToASCII(char* dst, const uint8_t* src, uint8_t len, size_t maxDst);
 

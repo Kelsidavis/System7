@@ -28,6 +28,9 @@ bool VFS_Unmount(VRefNum vref);
 typedef void (*VFS_MountCallback)(VRefNum vref, const char* volName);
 void VFS_SetMountCallback(VFS_MountCallback callback);
 
+/* Set the boot volume */
+void VFS_SetBootVolume(VRefNum vref);
+
 /* Populate initial file system contents */
 bool VFS_PopulateInitialFiles(void);
 

@@ -208,7 +208,8 @@ uint64_t HFS_AllocBlockToByteOffset(const HFS_Volume* vol, uint32_t allocBlock) 
     if (!vol || !vol->mounted) return 0;
 
     /* Calculate offset: allocation blocks start after system area */
-    uint64_t systemAreaBytes = (uint64_t)vol->alBlSt * vol->alBlkSize;
+    /* Note: alBlSt is in 512-byte logical blocks, NOT allocation blocks! */
+    uint64_t systemAreaBytes = (uint64_t)vol->alBlSt * 512;
     return systemAreaBytes + ((uint64_t)allocBlock * vol->alBlkSize);
 }
 
@@ -220,6 +221,16 @@ bool HFS_ReadAllocBlocks(const HFS_Volume* vol, uint32_t startBlock, uint32_t bl
     uint32_t length = blockCount * vol->alBlkSize;
 
     return HFS_BD_Read(&vol->bd, offset, buffer, length);
+}
+
+bool HFS_WriteAllocBlocks(HFS_Volume* vol, uint32_t startBlock, uint32_t blockCount,
+                          const void* buffer) {
+    if (!vol || !vol->mounted || !buffer) return false;
+
+    uint64_t offset = HFS_AllocBlockToByteOffset(vol, startBlock);
+    uint32_t length = blockCount * vol->alBlkSize;
+
+    return HFS_BD_Write(&vol->bd, offset, buffer, length);
 }
 
 bool HFS_GetVolumeInfo(const HFS_Volume* vol, VolumeControlBlock* vcb) {
@@ -603,7 +614,7 @@ bool HFS_FormatVolume(HFS_BlockDev* bd, const char* volName) {
     be32_write(&catHeader->freeNodes, 20);
 
     /* Write catalog header node */
-    uint32_t catStart = alBlSt * (alBlkSize / 512);
+    uint32_t catStart = alBlSt;  /* Allocation block 0 starts at sector alBlSt */
     for (uint32_t i = 0; i < alBlkSize / 512; i++) {
         if (!HFS_BD_WriteSector(bd, catStart + i, sectorBuf + i * 512)) {
             FS_LOG_DEBUG("HFS: Failed to write catalog header\n");
@@ -615,8 +626,9 @@ bool HFS_FormatVolume(HFS_BlockDev* bd, const char* volName) {
     /* Write remaining catalog blocks as zeros */
     memset(sectorBuf, 0, alBlkSize);
     for (uint32_t block = 1; block < 10; block++) {
+        uint32_t blockStart = catStart + block * (alBlkSize / 512);
         for (uint32_t i = 0; i < alBlkSize / 512; i++) {
-            if (!HFS_BD_WriteSector(bd, catStart + block * (alBlkSize / 512) + i, sectorBuf + i * 512)) {
+            if (!HFS_BD_WriteSector(bd, blockStart + i, sectorBuf + i * 512)) {
                 FS_LOG_DEBUG("HFS: Failed to write catalog blocks\n");
                 free(sectorBuf);
                 return false;
@@ -648,7 +660,8 @@ bool HFS_FormatVolume(HFS_BlockDev* bd, const char* volName) {
     be32_write(&extHeader->freeNodes, 6);
 
     /* Write extents header node */
-    uint32_t extStart = (alBlSt + 10) * (alBlkSize / 512);
+    /* Extents start at allocation block 10, which is at sector alBlSt + 10 * (alBlkSize / 512) */
+    uint32_t extStart = alBlSt + 10 * (alBlkSize / 512);
     for (uint32_t i = 0; i < alBlkSize / 512; i++) {
         if (!HFS_BD_WriteSector(bd, extStart + i, sectorBuf + i * 512)) {
             FS_LOG_DEBUG("HFS: Failed to write extents header\n");
@@ -660,8 +673,9 @@ bool HFS_FormatVolume(HFS_BlockDev* bd, const char* volName) {
     /* Write remaining extents blocks as zeros */
     memset(sectorBuf, 0, alBlkSize);
     for (uint32_t block = 1; block < 3; block++) {
+        uint32_t blockStart = extStart + block * (alBlkSize / 512);
         for (uint32_t i = 0; i < alBlkSize / 512; i++) {
-            if (!HFS_BD_WriteSector(bd, extStart + block * (alBlkSize / 512) + i, sectorBuf + i * 512)) {
+            if (!HFS_BD_WriteSector(bd, blockStart + i, sectorBuf + i * 512)) {
                 FS_LOG_DEBUG("HFS: Failed to write extents blocks\n");
                 free(sectorBuf);
                 return false;
