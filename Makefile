@@ -154,6 +154,7 @@ C_SOURCES = src/main.c \
             src/FS/vfs.c \
             src/FS/trash.c \
             src/FS/vfs_ops.c \
+            src/FS/fat32.c \
             src/MemoryMgr/MemoryManager.c \
             src/MemoryMgr/memory_manager_core.c \
             src/MemoryMgr/heap_compaction.c \
