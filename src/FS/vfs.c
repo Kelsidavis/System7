@@ -29,6 +29,7 @@ static struct {
     bool                initialized;
     VFSVolume          volumes[VFS_MAX_VOLUMES];
     VRefNum             nextVRef;
+    VRefNum             bootVRef;  /* Boot volume reference */
     VFS_MountCallback  mountCallback;
 } g_vfs = { 0 };
 
@@ -66,6 +67,7 @@ bool VFS_Init(void) {
 
     memset(&g_vfs, 0, sizeof(g_vfs));
     g_vfs.nextVRef = 1;  /* Start VRefs at 1 */
+    g_vfs.bootVRef = 0;  /* No boot volume yet */
 
     /* FS_LOG_DEBUG("VFS: Initialized\n"); */
     g_vfs.initialized = true;
@@ -74,6 +76,10 @@ bool VFS_Init(void) {
 
 void VFS_SetMountCallback(VFS_MountCallback callback) {
     g_vfs.mountCallback = callback;
+}
+
+void VFS_SetBootVolume(VRefNum vref) {
+    g_vfs.bootVRef = vref;
 }
 
 void VFS_Shutdown(void) {
@@ -142,6 +148,9 @@ bool VFS_MountBootVolume(const char* volName) {
     vol->mounted = true;
     strncpy(vol->name, volName, sizeof(vol->name) - 1);
     vol->name[sizeof(vol->name) - 1] = '\0';
+
+    /* Set as boot volume */
+    g_vfs.bootVRef = vol->vref;
 
     /* FS_LOG_DEBUG("VFS: Mounted boot volume successfully\n"); */
 
@@ -281,8 +290,9 @@ bool VFS_MountATA(int ata_device_index, const char* volName, VRefNum* vref) {
 
     /* Try to initialize catalog */
     if (!HFS_CatalogInit(&vol->catalog, &vol->volume)) {
-        FS_LOG_DEBUG("VFS: Warning - Failed to initialize catalog for ATA volume\n");
-        /* Continue anyway for empty formatted volumes */
+        FS_LOG_DEBUG("VFS: Failed to initialize catalog for ATA volume - disk may be unformatted\n");
+        HFS_BD_Close(&vol->volume.bd);
+        return false;
     }
 
     /* Mark as mounted */
@@ -409,8 +419,7 @@ bool VFS_GetVolumeInfo(VRefNum vref, VolumeControlBlock* vcb) {
 }
 
 VRefNum VFS_GetBootVRef(void) {
-    /* Boot volume is always vRef 1 */
-    return 1;
+    return g_vfs.bootVRef;
 }
 
 bool VFS_Enumerate(VRefNum vref, DirID dir, CatEntry* entries, int maxEntries, int* count) {
@@ -541,29 +550,44 @@ uint32_t VFS_GetFilePosition(VFSFile* file) {
     return HFS_FileTell(file->hfsFile);
 }
 
-/* Write operations - stubs for now */
+/* Write operations - Real HFS implementation */
 bool VFS_CreateFolder(VRefNum vref, DirID parent, const char* name, DirID* newID) {
-    FS_LOG_DEBUG("VFS_CreateFolder: Creating folder '%s' in parent %d\n", name, parent);
+    FS_LOG_DEBUG("VFS_CreateFolder: Creating folder '%s' in parent %d on vref %d\n", name, parent, vref);
 
-    /* Validate parameters */
-    if (!name || !newID) {
+    if (!g_vfs.initialized || !name || !newID) {
         FS_LOG_DEBUG("VFS_CreateFolder: Invalid parameters\n");
         return false;
     }
 
-    /* Check volume - for now just validate vref */
-    if (vref != 0 && vref != -1) {
-        FS_LOG_DEBUG("VFS_CreateFolder: Invalid volume %d\n", vref);
+    /* Find the volume */
+    VFSVolume* vol = NULL;
+    if (vref == 0 || vref == -1) {
+        /* Default to boot volume (vRef 1) */
+        vol = VFS_FindVolume(1);
+    } else {
+        vol = VFS_FindVolume(vref);
+    }
+
+    if (!vol || !vol->mounted) {
+        FS_LOG_DEBUG("VFS_CreateFolder: Volume %d not found or not mounted\n", vref);
         return false;
     }
 
-    /* Generate new folder ID */
-    static DirID nextDirID = 1000;
-    *newID = nextDirID++;
+    /* Call HFS catalog to create folder */
+    FileID folderID = 0;
+    bool success = HFS_CatalogCreateFolder(&vol->catalog, parent, name, &folderID);
 
-    /* Log success for now - full implementation would update HFS catalog */
-    FS_LOG_DEBUG("VFS_CreateFolder: Created folder '%s' with ID %d\n", name, *newID);
-    return true;
+    if (success) {
+        *newID = folderID;
+        FS_LOG_DEBUG("VFS_CreateFolder: Successfully created folder '%s' with ID %d\n", name, *newID);
+
+        /* Flush to disk */
+        HFS_BD_Flush(&vol->volume.bd);
+    } else {
+        FS_LOG_DEBUG("VFS_CreateFolder: HFS_CatalogCreateFolder failed\n");
+    }
+
+    return success;
 }
 
 bool VFS_CreateFile(VRefNum vref, DirID parent, const char* name,
