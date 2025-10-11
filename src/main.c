@@ -1994,6 +1994,14 @@ static void init_system71(void) {
         }
     }
 
+    /* Populate initial file system contents */
+    extern bool VFS_PopulateInitialFiles(void);
+    if (VFS_PopulateInitialFiles()) {
+        serial_puts("  Initial file system contents populated\n");
+    } else {
+        serial_puts("  Warning: Failed to populate initial file system contents\n");
+    }
+
     /* Initialize trash system for boot volume */
     extern bool Trash_Init(void);
     extern bool Trash_OnVolumeMount(uint32_t vref);
@@ -2001,7 +2009,7 @@ static void init_system71(void) {
     Trash_OnVolumeMount(boot_vref);  /* Use actual boot volume vRef */
     serial_puts("  Trash system initialized\n");
 
-    /* Initial file system contents created during volume initialization */
+    /* Boot volume ready message */
     if (boot_from_ata) {
         serial_puts("  Boot volume ready (ATA-backed)\n");
     } else {
