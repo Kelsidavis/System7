@@ -455,11 +455,13 @@ vpath %.S $(HAL_DIR):src/Nanokernel/platform/x86
 
 # Compile assembly files
 $(OBJ_DIR)/%.o: %.S | $(OBJ_DIR)
+	@mkdir -p $(dir $@)
 	@echo "AS $<"
 	@$(AS) $(ASFLAGS) $< -o $@
 
 # Compile C files (single rule for all directories via vpath)
 $(OBJ_DIR)/%.o: %.c | $(OBJ_DIR)
+	@mkdir -p $(dir $@)
 	@echo "CC $<"
 	@$(CC) $(CFLAGS) -c $< -o $@
 
