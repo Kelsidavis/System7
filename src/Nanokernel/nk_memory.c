@@ -14,6 +14,7 @@ static uint8_t  *pmm_bitmap = nullptr;   // Allocation bitmap
 static uint64_t  pmm_total  = 0;         // Total pages
 static uint64_t  pmm_free   = 0;         // Free pages
 static uintptr_t pmm_base   = 0;         // Physical base address
+static int       nk_active  = 0;         // Nanokernel active flag
 
 /* Bitmap manipulation macros */
 #define BITMAP_SET(b)   (pmm_bitmap[(b)/8u] |=  (1u << ((b)%8u)))
@@ -42,6 +43,9 @@ void pmm_init(uint64_t mem_size_bytes, uintptr_t phys_base) {
     }
 
     pmm_free -= bitmap_pages;
+
+    // Mark nanokernel as active
+    nk_active = 1;
 }
 
 void *pmm_alloc_page(void) {
@@ -311,4 +315,12 @@ void mem_print_stats(void) {
               pmm_free, free_mb);
     nk_printf("[nk_mem]   Used : %llu pages (%.2f MiB)\n",
               pmm_total - pmm_free, total_mb - free_mb);
+}
+
+/* ============================================================
+ *   Status and Control
+ * ============================================================ */
+
+int nk_is_active(void) {
+    return nk_active;
 }

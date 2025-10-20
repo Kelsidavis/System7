@@ -221,16 +221,16 @@ OSErr ShowWelcomeScreen(void) {
     /* Draw welcome screen */
     DrawWelcomeScreen();
 
-    /* Play startup sound if enabled */
-    if (gConfig.enableSound) {
-        PlayStartupSound();
-    }
-
     /* Show for configured duration */
     if (gConfig.welcomeDuration > 0) {
         /* Use simple delay instead of event loop during boot */
         UInt32 finalTicks;
         Delay(gConfig.welcomeDuration, &finalTicks);
+    }
+
+    /* Play startup sound if enabled */
+    if (gConfig.enableSound) {
+        PlayStartupSound();
     }
 
     return noErr;

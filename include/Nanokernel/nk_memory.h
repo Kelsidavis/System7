@@ -148,6 +148,20 @@ void kfree_pages(void *ptr, size_t num_pages);
 void mem_print_stats(void);
 
 /* ============================================================
+ *   Status and Control
+ * ============================================================ */
+
+/**
+ * Check if nanokernel memory manager is active.
+ *
+ * @return 1 if nanokernel is active and managing memory, 0 otherwise
+ *
+ * Used by system components to determine if they should use
+ * nanokernel memory allocation vs classic allocation.
+ */
+int nk_is_active(void);
+
+/* ============================================================
  *   Kernel Printf (must be provided externally)
  * ============================================================ */
 

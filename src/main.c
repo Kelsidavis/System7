@@ -994,10 +994,21 @@ static void init_system71(void) {
     extern OSErr ShowWelcomeScreen(void);
     extern OSErr SetStartupPhase(int phase);
     extern void HideStartupScreen(void);
-    if (InitStartupScreen(NULL) == noErr) {
-        serial_puts("  Startup Screen initialized\n");
-        ShowWelcomeScreen();
-        serial_puts("  Welcome screen displayed\n");
+    extern int nk_is_active(void);
+
+    /* Skip startup screen in nanokernel mode due to graphics memory incompatibility */
+    if (nk_is_active()) {
+        serial_puts("  Nanokernel active - skipping startup screen\n");
+    } else {
+        serial_puts("  About to call InitStartupScreen...\n");
+        if (InitStartupScreen(NULL) == noErr) {
+            serial_puts("  Startup Screen initialized\n");
+            serial_puts("  About to call ShowWelcomeScreen...\n");
+            ShowWelcomeScreen();
+            serial_puts("  Welcome screen displayed\n");
+        } else {
+            serial_puts("  InitStartupScreen failed!\n");
+        }
     }
 
     /* Storage HAL (ATA/IDE Driver) */
