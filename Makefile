@@ -341,7 +341,7 @@ C_SOURCES = src/main.c \
             src/Nanokernel/vfs_autodetect.c \
             src/fs/hfs/hfs_main.c \
             src/fs/fat32/fat32_main.c \
-            src/fs/fs_registry.c
+            src/fs/fs_registry.c \
             src/Resources/Icons/hd_icon.c \
             src/color_icons.c \
             src/DeskManager/DeskManagerCore.c \
