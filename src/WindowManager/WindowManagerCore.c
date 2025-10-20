@@ -862,8 +862,11 @@ static void InitializeWindowRecord(WindowPtr window, const Rect* bounds,
     /* Set bounds to LOCAL coordinates (0,0,width,height) for Direct approach */
     SetRect(&window->port.portBits.bounds, 0, 0, contentWidth, contentHeight);
 
-    /* Set PixMap flag (bit 15) to indicate 32-bit PixMap, not 1-bit BitMap */
-    window->port.portBits.rowBytes = (fb_width * 4) | 0x8000;
+    /* Set PixMap flag (bit 15) to indicate 32-bit PixMap, not 1-bit BitMap
+     * CRITICAL FIX: Must use fb_pitch, NOT fb_width*4!
+     * Framebuffer pitch may include alignment padding, so fb_pitch != fb_width*4
+     * Using wrong value causes row-by-row coordinate offset! */
+    window->port.portBits.rowBytes = fb_pitch | 0x8000;
 
     /* DEBUG: Log portBits initialization */
     extern void serial_puts(const char* str);
