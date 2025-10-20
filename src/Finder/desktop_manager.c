@@ -863,7 +863,8 @@ static OSErr AllocateDesktopIcons(void)
     gDesktopIcons[0].iconID = 0xFFFFFFFF;
     gDesktopIcons[0].position.h = fb_width - 100;
     gDesktopIcons[0].position.v = fb_height - 80;
-    strcpy(gDesktopIcons[0].name, "Trash");
+    strncpy(gDesktopIcons[0].name, "Trash", sizeof(gDesktopIcons[0].name) - 1);
+    gDesktopIcons[0].name[sizeof(gDesktopIcons[0].name) - 1] = '\0';
     gDesktopIcons[0].movable = false;  /* Trash stays in place */
     gDesktopIconCount = 1;  /* Start with trash */
     gVolumeIconVisible = true;  /* Ensure trash renders even if volume add fails */
@@ -1615,7 +1616,8 @@ OSErr InitializeVolumeIcon(void)
         gDesktopIcons[gDesktopIconCount].iconID = 0xFFFFFFFF; /* Special ID for volume */
         gDesktopIcons[gDesktopIconCount].position.h = fb_width - 100;
         gDesktopIcons[gDesktopIconCount].position.v = 60;
-        strcpy(gDesktopIcons[gDesktopIconCount].name, "Macintosh HD");
+        strncpy(gDesktopIcons[gDesktopIconCount].name, "Macintosh HD", sizeof(gDesktopIcons[gDesktopIconCount].name) - 1);
+        gDesktopIcons[gDesktopIconCount].name[sizeof(gDesktopIcons[gDesktopIconCount].name) - 1] = '\0';
         gDesktopIcons[gDesktopIconCount].movable = true;  /* Volumes can be moved */
         gDesktopIcons[gDesktopIconCount].data.volume.vRefNum = gBootVolumeRef;
 
