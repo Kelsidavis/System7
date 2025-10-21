@@ -757,3 +757,9 @@ Boolean GetPS2KeyboardState(KeyMap keyMap)
     memcpy(keyMap, g_keyboardState.keyMap, sizeof(KeyMap));
     return true;
 }
+
+/* Get current mouse button state */
+UInt8 GetMouseButtons(void)
+{
+    return g_mouseState.buttons;
+}

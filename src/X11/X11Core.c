@@ -169,9 +169,37 @@ static bool X11_PollMouseInput(MouseEvent* event) {
         return true;
     }
 
-    /* TODO: Handle mouse button changes by tracking button state
-     * This would require access to the PS/2 mouse button state which
-     * is currently internal to ps2.c - could expose via a new function */
+    /* Check for mouse button changes */
+    extern uint8_t GetMouseButtons(void);
+    uint8_t current_buttons = GetMouseButtons();
+
+    if (current_buttons != mouse_button_state) {
+        /* Detect button down (transition from 0 to 1 in any button) */
+        uint8_t pressed_buttons = current_buttons & ~mouse_button_state;
+
+        if (pressed_buttons) {
+            /* Button pressed */
+            event->type = EVENT_MOUSE_DOWN;
+            event->x = mouse_pos.h;
+            event->y = mouse_pos.v;
+            event->button = (pressed_buttons & 1) ? 1 : 0;  /* Bit 0 = left button */
+            mouse_button_state = current_buttons;
+            return true;
+        }
+
+        /* Detect button up (transition from 1 to 0 in any button) */
+        uint8_t released_buttons = mouse_button_state & ~current_buttons;
+
+        if (released_buttons) {
+            /* Button released */
+            event->type = EVENT_MOUSE_UP;
+            event->x = mouse_pos.h;
+            event->y = mouse_pos.v;
+            event->button = (released_buttons & 1) ? 1 : 0;
+            mouse_button_state = current_buttons;
+            return true;
+        }
+    }
 
     return false;
 }

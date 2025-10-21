@@ -25,6 +25,7 @@ void PollPS2Input(void);
 
 /* Mouse Functions */
 void GetMouse(Point* mouseLoc);
+UInt8 GetMouseButtons(void);  /* Get current mouse button state */
 
 /* Keyboard Functions */
 UInt16 GetPS2Modifiers(void);
