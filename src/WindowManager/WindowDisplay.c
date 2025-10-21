@@ -383,6 +383,7 @@ void DrawNew(WindowPtr window, Boolean update) {
 }
 
 static void DrawWindowFrame(WindowPtr window) {
+    serial_printf("[DWF] DrawWindowFrame ENTRY, window=%p\n", window);
     WM_LOG_TRACE("DrawWindowFrame: ENTRY, window=%p\n", window);
 
     if (!window) {
@@ -473,10 +474,18 @@ static void DrawWindowFrame(WindowPtr window) {
     }
 
     /* Draw title bar BEFORE filling content area */
-    WM_LOG_TRACE("WindowManager: About to check titleWidth=%d\n", window->titleWidth);
+    serial_printf("[TITLEBAR] About to check titleWidth=%d\n", window->titleWidth);
+
+    /* TEMPORARY FIX: Draw title bar regardless of titleWidth to fix transparent title bars.
+       The root cause is that titleWidth may not be set due to SetWTitle not being called.
+       For now, force titleWidth to 200 if it's 0 to ensure title bars render. */
+    if (window->titleWidth == 0) {
+        window->titleWidth = 200;  /* Temporary: Set a default width */
+        serial_printf("[TITLEBAR] Fixed titleWidth: was 0, now set to 200\n");
+    }
 
     if (window->titleWidth > 0) {
-        WM_LOG_TRACE("WindowManager: titleWidth > 0, drawing title bar\n");
+        serial_printf("[TITLEBAR] titleWidth > 0, drawing title bar\n");
         serial_printf("[TITLEBAR] Drawing title bar for window, hilited=%d\n", window->hilited);
         /* Title bar background should be INSIDE the frame, not overlap it */
         Rect titleBar;
@@ -960,9 +969,11 @@ void DrawGrowIcon(WindowPtr window) {
 /*-----------------------------------------------------------------------*/
 
 void ShowWindow(WindowPtr window) {
+    serial_printf("[SHOWWIN_ENTRY] ShowWindow called: window=%p visible=%d\n", window, window ? window->visible : -1);
     WM_LOG_TRACE("ShowWindow: ENTRY, window=%p\n", window);
 
     if (!window || window->visible) {
+        serial_printf("[SHOWWIN_EARLY] Early return: window=%p visible=%d\n", window, window ? window->visible : -1);
         WM_LOG_TRACE("ShowWindow: Early return (window=%p, visible=%d)\n", window, window ? window->visible : -1);
         return;
     }

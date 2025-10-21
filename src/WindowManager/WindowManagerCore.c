@@ -151,6 +151,7 @@ WindowPtr NewWindow(void* wStorage, const Rect* boundsRect,
                    short theProc, WindowPtr behind,
                    Boolean goAwayFlag, long refCon) {
 
+    serial_printf("[NEWWIN_ENTRY] ===== NewWindow called! visible=%d =====\n", visible);
     WM_LOG_TRACE("[NEWWIN] A - ENTERED\n");
 
     if (!g_wmState.initialized) {
@@ -205,23 +206,8 @@ WindowPtr NewWindow(void* wStorage, const Rect* boundsRect,
     /* Regions already initialized in InitializeWindowRecord - don't recalculate */
     /* Platform_CalculateWindowRegions would overwrite with local coordinates */
 
-    /* Create offscreen GWorld for double-buffering */
-    WM_LOG_TRACE("[NEWWIN] Creating offscreen GWorld for double-buffering\n");
-    Rect contentRect = window->port.portRect;
-    SInt16 width = contentRect.right - contentRect.left;
-    SInt16 height = contentRect.bottom - contentRect.top;
-
-    if (width > 0 && height > 0) {
-        OSErr err = NewGWorld(&window->offscreenGWorld, 32, &contentRect, NULL, NULL, 0);
-        if (err != noErr) {
-            WM_LOG_WARN("[NEWWIN] Failed to create offscreen GWorld (err=%d)\n", err);
-            window->offscreenGWorld = NULL;
-        } else {
-            WM_LOG_TRACE("[NEWWIN] Offscreen GWorld created successfully\n");
-        }
-    } else {
-        window->offscreenGWorld = NULL;
-    }
+    /* GWorld rendering disabled - using direct framebuffer instead */
+    window->offscreenGWorld = NULL;
 
     WM_LOG_TRACE("[NEWWIN] K - adding to window list\n");
     /* Add window to the window list */
@@ -232,11 +218,16 @@ WindowPtr NewWindow(void* wStorage, const Rect* boundsRect,
     Platform_CreateNativeWindow(window);
 
     WM_LOG_TRACE("[NEWWIN] M - checking visible flag\n");
+    serial_printf("[NEWWIN] visible=%d, about to check if should call ShowWindow\n", visible);
     /* Make visible if requested */
     if (visible) {
+        serial_printf("[NEWWIN] visible==true, calling ShowWindow now\n");
         WM_LOG_TRACE("[NEWWIN] N - calling ShowWindow\n");
         ShowWindow(window);
+        serial_printf("[NEWWIN] ShowWindow returned\n");
         WM_LOG_TRACE("[NEWWIN] O - ShowWindow returned\n");
+    } else {
+        serial_printf("[NEWWIN] visible==false, skipping ShowWindow\n");
     }
 
     WM_LOG_TRACE("[NEWWIN] P - returning window\n");
@@ -315,19 +306,8 @@ WindowPtr NewCWindow(void* wStorage, const Rect* boundsRect,
     /* Calculate window regions */
     Platform_CalculateWindowRegions((WindowPtr)window);
 
-    /* Create offscreen GWorld for double-buffering */
-    Rect contentRect = ((WindowPtr)window)->port.portRect;
-    SInt16 width = contentRect.right - contentRect.left;
-    SInt16 height = contentRect.bottom - contentRect.top;
-
-    if (width > 0 && height > 0) {
-        OSErr err = NewGWorld(&((WindowPtr)window)->offscreenGWorld, 32, &contentRect, NULL, NULL, 0);
-        if (err != noErr) {
-            ((WindowPtr)window)->offscreenGWorld = NULL;
-        }
-    } else {
-        ((WindowPtr)window)->offscreenGWorld = NULL;
-    }
+    /* GWorld rendering disabled - using direct framebuffer instead */
+    ((WindowPtr)window)->offscreenGWorld = NULL;
 
     /* Add window to the window list */
     AddWindowToList((WindowPtr)window, behind);
@@ -456,14 +436,7 @@ void CloseWindow(WindowPtr theWindow) {
         WM_LOG_DEBUG("CloseWindow: AuxWin disposed\n");
     }
 
-    /* Dispose of offscreen GWorld if it exists */
-    WM_LOG_DEBUG("CloseWindow: About to check offscreenGWorld\n");
-    if (theWindow->offscreenGWorld) {
-        WM_LOG_DEBUG("CloseWindow: Calling DisposeGWorld\n");
-        DisposeGWorld(theWindow->offscreenGWorld);
-        theWindow->offscreenGWorld = NULL;
-        WM_LOG_DEBUG("CloseWindow: DisposeGWorld completed\n");
-    }
+    /* GWorld rendering disabled - no offscreen buffer to dispose */
 
     /* Destroy native platform window */
     WM_LOG_DEBUG("CloseWindow: About to destroy native window\n");
@@ -752,6 +725,8 @@ static void DeallocateWindowRecord(WindowPtr window) {
 static void InitializeWindowRecord(WindowPtr window, const Rect* bounds,
                                  ConstStr255Param title, short procID,
                                  Boolean visible, Boolean goAwayFlag) {
+    serial_printf("[INIT_REC_ENTRY] InitializeWindowRecord called: window=%p, title=%p, title_len=%d\n",
+                 window, title, title ? title[0] : -1);
     if (window == NULL || bounds == NULL) return;
 
     /* Initialize embedded GrafPort so pattern/color state matches classic defaults */
@@ -777,12 +752,12 @@ static void InitializeWindowRecord(WindowPtr window, const Rect* bounds,
     /* Set window title */
     window->titleHandle = NULL;
     window->titleWidth = 0;
-    WM_LOG_TRACE("TITLE_INIT: title ptr=%p, len=%d\n", title, title ? title[0] : -1);
+    serial_printf("[TITLE_INIT] title ptr=%p, len=%d\n", title, title ? title[0] : -1);
     if (title && title[0] > 0) {
-        WM_LOG_TRACE("TITLE_INIT: Calling SetWTitle\n");
+        serial_printf("[TITLE_INIT] Calling SetWTitle\n");
         SetWTitle(window, title);
     } else {
-        WM_LOG_TRACE("TITLE_INIT: Skipping SetWTitle (NULL or empty title)\n");
+        serial_printf("[TITLE_INIT] Skipping SetWTitle (NULL or empty title)\n");
     }
 
     /* Initialize control list */

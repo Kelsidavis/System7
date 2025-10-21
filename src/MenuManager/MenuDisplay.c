@@ -53,9 +53,7 @@
  * Display State and Context
  * ============================================================================ */
 
-static MenuDrawContext gDrawingContext;
-static Boolean gColorMode = false;
-static Boolean gAntiAlias = true;
+/* GWorld rendering disabled - using direct framebuffer instead */
 static Handle gCurrentSavedBits = NULL;
 static MenuHandle gCurrentlyShownMenu = NULL;
 static Rect gCurrentMenuRect;
@@ -69,7 +67,6 @@ void RestoreMenuBits_Display(Handle savedBits, const Rect* menuRect);
 extern void Platform_FlashMenuBar(short menuID);
 
 /* Internal function prototypes */
-static void InitializeDrawingContext(MenuDrawContext* context);
 static void SetupMenuDrawingColors(short menuID, short itemID);
 static void DrawMenuFrameInternal(const Rect* menuRect, Boolean selected);
 static void DrawMenuBackgroundInternal(const Rect* menuRect, short menuID);
@@ -101,7 +98,6 @@ void DrawMenuBarEx(const MenuBarDrawInfo* drawInfo)
     }
 
     /* Set up drawing context */
-    InitializeDrawingContext(&gDrawingContext);
 
     /* Use platform-specific drawing if available */
     Platform_DrawMenuBar(drawInfo);
@@ -427,24 +423,30 @@ void DrawMenu(MenuHandle theMenu, const Rect* menuRect, short hiliteItem)
     Boolean cursorHidden = false;
 
     if (theMenu == NULL || menuRect == NULL) {
+        serial_puts("DrawMenu: ERROR - theMenu or menuRect is NULL\n");
         return;
     }
 
-    /* Initialize drawing context */
-    InitializeDrawingContext(&gDrawingContext);
+    /* GWorld rendering disabled */
 
     /* Hide cursor while drawing menu to prevent Z-ordering issues */
+    serial_puts("DrawMenu: Hiding cursor\n");
     HideCursor();
     cursorHidden = true;
 
     /* Draw menu frame */
+    serial_puts("DrawMenu: Calling DrawMenuFrame\n");
     DrawMenuFrame(menuRect, false);
+    serial_puts("DrawMenu: DrawMenuFrame returned\n");
 
     /* Draw menu background */
+    serial_puts("DrawMenu: Calling DrawMenuBackground\n");
     DrawMenuBackground(menuRect, (*(MenuInfo**)theMenu)->menuID);
+    serial_puts("DrawMenu: DrawMenuBackground returned\n");
 
     /* Draw menu items */
     short itemCount = CountMItems(theMenu);
+    serial_puts("DrawMenu: CountMItems returned\n");
 
     for (short i = 1; i <= itemCount; i++) {
         Rect itemRect;
@@ -459,7 +461,6 @@ void DrawMenu(MenuHandle theMenu, const Rect* menuRect, short hiliteItem)
         if (i == hiliteItem) {
             itemDrawInfo.itemFlags |= kMenuItemSelected;
         }
-        itemDrawInfo.context = &gDrawingContext;
 
         /* Get item properties */
         GetMenuItemText(theMenu, i, itemDrawInfo.itemText);
@@ -941,8 +942,6 @@ void GetMenuColors(short menuID, short itemID, short componentID,
  */
 void SetMenuDrawingMode(Boolean useColor, Boolean antiAlias, Boolean usePatterns)
 {
-    gColorMode = useColor;
-    gAntiAlias = antiAlias;
 
     /* MENU_LOG_TRACE("Set menu drawing mode: color=%s, antiAlias=%s, patterns=%s\n",
            useColor ? "Yes" : "No", antiAlias ? "Yes" : "No", usePatterns ? "Yes" : "No"); */
@@ -952,22 +951,7 @@ void SetMenuDrawingMode(Boolean useColor, Boolean antiAlias, Boolean usePatterns
  * Internal Helper Functions
  * ============================================================================ */
 
-/*
- * InitializeDrawingContext - Initialize drawing context
- */
-static void InitializeDrawingContext(MenuDrawContext* context)
-{
-    if (context == NULL) {
-        return;
-    }
-
-    memset(context, 0, sizeof(MenuDrawContext));
-    context->textFont = 0; /* System font */
-    context->textSize = 12; /* 12 point */
-    context->textStyle = normal;
-    context->colorMode = gColorMode;
-    context->antiAlias = gAntiAlias;
-}
+/* GWorld rendering disabled - removed unused helper functions */
 
 /*
  * SetupMenuDrawingColors - Set up colors for drawing
@@ -978,15 +962,8 @@ static void SetupMenuDrawingColors(short menuID, short itemID)
 
     GetMenuColors(menuID, itemID, 0, &foreColor, &backColor);
 
-    (void)itemID;
-
-    if (gColorMode) {
-        RGBForeColor(&foreColor);
-        RGBBackColor(&backColor);
-    } else {
-        ForeColor(blackColor);
-        BackColor(whiteColor);
-    }
+    RGBForeColor(&foreColor);
+    RGBBackColor(&backColor);
 }
 
 /*
@@ -1317,8 +1294,6 @@ static short GetMenuItemTextWidth(ConstStr255Param text, Style textStyle)
 void PrintMenuDisplayState(void)
 {
     /* MENU_LOG_TRACE("=== Menu Display State ===\n"); */
-    /* MENU_LOG_TRACE("Color mode: %s\n", gColorMode ? "Yes" : "No"); */
-    /* MENU_LOG_TRACE("Anti-alias: %s\n", gAntiAlias ? "Yes" : "No"); */
     /* MENU_LOG_TRACE("Current menu: %s\n", gCurrentlyShownMenu ? "Yes" : "No"); */
     if (gCurrentlyShownMenu != NULL) {
         /* MENU_LOG_TRACE("  Menu ID: %d\n", (*gCurrentlyShownMenu)->menuID); */

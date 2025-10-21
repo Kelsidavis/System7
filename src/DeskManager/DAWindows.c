@@ -76,16 +76,21 @@ static void DAWindow_InvalidateRect(DAWindow *window, const Rect *rect);
  */
 int DA_CreateWindow(DeskAccessory *da, const DAWindowAttr *attr)
 {
+    extern void serial_printf(const char *fmt, ...);
+    serial_printf("[DA_CREATEWINDOW] Entry: da=%p, title='%s'\n", da, attr ? attr->title : "NULL");
+
     if (!da || !attr) {
         return DESK_ERR_INVALID_PARAM;
     }
 
     /* Check if DA already has a window */
     if (da->window) {
+        serial_printf("[DA_CREATEWINDOW] Already open, returning DESK_ERR_ALREADY_OPEN\n");
         return DESK_ERR_ALREADY_OPEN;
     }
 
     /* Allocate window structure */
+    serial_printf("[DA_CREATEWINDOW] Calling DAWindow_Allocate\n");
     DAWindow *window = DAWindow_Allocate();
     if (!window) {
         return DESK_ERR_NO_MEMORY;
@@ -585,15 +590,38 @@ static int DAWindow_CreatePlatformWindow(DAWindow *window)
         return DESK_ERR_INVALID_PARAM;
     }
 
-    /* In a real implementation, this would create a platform-specific window */
-    /* For now, just allocate a dummy handle */
-    window->platformWindow = NewPtr(sizeof(WindowRecord));
+    /* Allocate WindowRecord properly via Window Manager */
+    extern WindowPtr NewWindow(void* wStorage, const Rect* boundsRect,
+                               ConstStr255Param title, Boolean visible,
+                               short theProc, WindowPtr behind,
+                               Boolean goAwayFlag, long refCon);
+
+    /* Convert C string title to Pascal string */
+    unsigned char pascalTitle[256];
+    if (window->title && window->title[0] != '\0') {
+        int len = strlen(window->title);
+        if (len > 255) len = 255;
+        pascalTitle[0] = (unsigned char)len;
+        strncpy((char*)&pascalTitle[1], window->title, len);
+    } else {
+        pascalTitle[0] = 0;  /* Empty title */
+    }
+
+    /* Create window through Window Manager to get proper initialization */
+    window->platformWindow = NewWindow(
+        NULL,                       /* Allocate storage */
+        &window->bounds,            /* Bounds rect */
+        (ConstStr255Param)pascalTitle,  /* Title */
+        window->visible,            /* Visible flag */
+        documentProc,               /* Window proc */
+        (WindowPtr)-1,              /* Behind (front) */
+        true,                       /* GoAway flag */
+        window->owner ? (long)window->owner : 0  /* RefCon */
+    );
+
     if (!window->platformWindow) {
         return DESK_ERR_NO_MEMORY;
     }
-
-    /* Initialize platform window */
-    memset(window->platformWindow, 0, sizeof(WindowRecord));
 
     return DESK_ERR_NONE;
 }

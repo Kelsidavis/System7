@@ -18,7 +18,7 @@
 /* For debug logging */
 extern void serial_printf(const char* fmt, ...);
 
-extern void DisposeGWorld(GWorldPtr offscreenGWorld);
+/* GWorld rendering disabled - using direct framebuffer */
 extern void* framebuffer;
 extern uint32_t fb_pitch;
 extern uint32_t fb_width;
@@ -426,12 +426,7 @@ static void AboutWindow_CreateIfNeeded(void)
 
     serial_puts("[ABOUT] CreateIfNeeded: Configuring direct framebuffer rendering\n");
 
-    /* Dispose of offscreenGWorld if it exists */
-    if (sAboutWin->offscreenGWorld) {
-        serial_puts("[ABOUT] Disposing offscreenGWorld\n");
-        DisposeGWorld((GWorldPtr)sAboutWin->offscreenGWorld);
-        sAboutWin->offscreenGWorld = NULL;
-    }
+    /* GWorld rendering disabled - using direct framebuffer instead */
 
     /* CRITICAL FIX: Configure direct framebuffer rendering
      * Since baseAddr will point to window's position in framebuffer,

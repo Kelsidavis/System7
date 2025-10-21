@@ -25,6 +25,9 @@ extern Boolean Button(void);          /* Check if mouse button is pressed */
 extern void GetMouse(Point* mouseLoc);
 extern void MoveTo(short h, short v);
 extern void DrawMenuBar(void);        /* Redraw the menu bar */
+extern void DrawMenu(MenuHandle theMenu, const Rect* menuRect, short hiliteItem);  /* Draw a menu dropdown */
+extern void* SaveMenuBits_Display(const Rect* menuRect);  /* Save menu background */
+extern void SetPort(GrafPtr thePort);  /* Set graphics port */
 
 /* Forward declarations for static functions */
 static void DrawHighlightRect(short left, short top, short right, short bottom, Boolean highlight);
@@ -88,10 +91,49 @@ static void DrawMenuRect(short left, short top, short right, short bottom, uint3
 
 /* Draw text */
 static void DrawMenuItemText(const char* text, short x, short y) {
-    MoveTo(x, y);
+    if (!text || !framebuffer) {
+        serial_printf("[MENU_TEXT] DrawMenuItemText: null text or framebuffer\n");
+        return;
+    }
+
     short len = 0;
-    while (text[len] != 0) len++;
-    if (len > 0) DrawText(text, 0, len);
+    while (text[len] != 0 && len < 64) len++;
+
+    if (len == 0) {
+        serial_printf("[MENU_TEXT] Empty text string\n");
+        return;
+    }
+
+    serial_printf("[MENU_TEXT] Drawing '%s' at (%d,%d), len=%d\n", text, x, y, len);
+
+    /* Draw text directly to framebuffer since QuickDraw may not work reliably */
+    extern void* framebuffer;
+    extern uint32_t fb_width, fb_height, fb_pitch;
+
+    uint32_t* fb = (uint32_t*)framebuffer;
+    int pitch = fb_pitch / 4;
+    uint32_t blackText = 0xFF000000;  /* Black text */
+
+    /* Simple monospace-style rendering: draw each character as a box outline */
+    int charWidth = 8;
+    int charHeight = 12;
+
+    for (int i = 0; i < len && (x + i * charWidth) < (int)fb_width; i++) {
+        char c = text[i];
+        int charX = x + i * charWidth;
+        int charY = y - charHeight;  /* DrawText y is baseline */
+
+        if (charX < 0 || charY < 0) continue;
+        if ((charX + charWidth) >= (int)fb_width) break;
+        if ((charY + charHeight) >= (int)fb_height) break;
+
+        /* Draw a simple character representation (filled rectangle for now) */
+        for (int cy = 0; cy < charHeight && (charY + cy) < (int)fb_height; cy++) {
+            for (int cx = 0; cx < charWidth && (charX + cx) < (int)fb_width; cx++) {
+                fb[(charY + cy) * pitch + (charX + cx)] = blackText;
+            }
+        }
+    }
 
     MENU_LOG_TRACE("Drawing menu item: %s at (%d,%d)\n", text, x, y);
 }
@@ -100,6 +142,7 @@ static void DrawMenuItemText(const char* text, short x, short y) {
 static void GetItemText(MenuHandle theMenu, short index, char* text) {
     if (!theMenu || !text) {
         text[0] = 0;
+        serial_printf("[MENU_GETITEM] NULL theMenu or text\n");
         return;
     }
 
@@ -109,46 +152,20 @@ static void GetItemText(MenuHandle theMenu, short index, char* text) {
 
     /* Convert Pascal string to C string */
     short len = itemString[0];
+    serial_printf("[MENU_GETITEM] index=%d, len=%d, first_byte=0x%02x\n",
+                 index, len, len > 0 ? (unsigned char)itemString[1] : 0);
+
     if (len > 63) len = 63;  /* Limit to buffer size */
     for (short i = 0; i < len; i++) {
         text[i] = itemString[i + 1];
     }
     text[len] = 0;
+
+    if (len > 0) {
+        serial_printf("[MENU_GETITEM] Got text: '%s'\n", text);
+    }
 }
 
-/* Draw dropdown menu */
-static void DrawMenuOld(MenuHandle theMenu, short left, short top, short itemCount, short menuWidth, short lineHeight) {
-    /* Save current port and ensure we're in screen port for menu drawing */
-    GrafPtr savePort;
-    GetPort(&savePort);
-    if (qd.thePort) {
-        SetPort(qd.thePort);  /* Use screen port for global coordinates */
-    }
-
-    /* Draw white background */
-    DrawMenuRect(left, top, left + menuWidth, top + itemCount * lineHeight + 4, 0xFFFFFFFF);
-    volatile int stack_align = 0;  /* Fix stack alignment issue */
-    stack_align++;  /* Prevent compiler optimization */
-
-    /* Draw border */
-    DrawMenuRect(left, top, left + menuWidth, top + 1, 0xFF000000);
-    DrawMenuRect(left, top + itemCount * lineHeight + 3, left + menuWidth, top + itemCount * lineHeight + 4, 0xFF000000);
-    DrawMenuRect(left, top, left + 1, top + itemCount * lineHeight + 4, 0xFF000000);
-    DrawMenuRect(left + menuWidth - 1, top, left + menuWidth, top + itemCount * lineHeight + 4, 0xFF000000);
-
-    /* Items */
-    for (short i = 1; i <= itemCount; i++) {
-        char itemText[64];
-        GetItemText(theMenu, i, itemText);
-        if (itemText[0] == 0) continue;
-
-        short itemTop = top + 2 + (i - 1) * lineHeight;
-        DrawMenuItemText(itemText, left + 4, itemTop + 12);
-    }
-
-    /* Restore original port */
-    if (savePort) SetPort(savePort);
-}
 
 /* Begin tracking a menu - draws it and sets up state */
 long BeginTrackMenu(short menuID, Point *startPt) {
@@ -237,13 +254,67 @@ long BeginTrackMenu(short menuID, Point *startPt) {
     DrawMenuBarWithHighlight(menuID);
     serial_puts("BeginTrackMenu: Returned from DrawMenuBarWithHighlight\n");
 
-    serial_puts("BeginTrackMenu: About to call DrawMenuOld\n");
-    /* Draw the menu dropdown */
-    DrawMenuOld(theMenu, left, top, itemCount, menuWidth, lineHeight);
-    serial_puts("BeginTrackMenu: Dropdown drawn, tracking started\n");
+    /* Draw the menu dropdown using direct framebuffer rendering */
+    serial_puts("BeginTrackMenu: About to draw menu with direct framebuffer\n");
 
-    /* Restore original port */
-    if (savePort) SetPort(savePort);
+    extern void* framebuffer;
+    extern uint32_t fb_width, fb_height, fb_pitch;
+
+    if (framebuffer) {
+        uint32_t* fb = (uint32_t*)framebuffer;
+        uint32_t pitch = fb_pitch / 4;
+        uint32_t white = 0xFFFFFFFF;
+        uint32_t black = 0xFF000000;
+
+        short menuHeight = itemCount * lineHeight + 4;
+
+        /* Draw white background */
+        for (int py = top; py < top + menuHeight && py < (int)fb_height; py++) {
+            for (int px = left; px < left + menuWidth && px < (int)fb_width; px++) {
+                fb[py * pitch + px] = white;
+            }
+        }
+
+        /* Draw black border */
+        for (int px = left; px < left + menuWidth && px < (int)fb_width; px++) {
+            if (top < (int)fb_height) fb[top * pitch + px] = black;
+            if (top + menuHeight - 1 < (int)fb_height) fb[(top + menuHeight - 1) * pitch + px] = black;
+        }
+        for (int py = top; py < top + menuHeight && py < (int)fb_height; py++) {
+            if (left < (int)fb_width) fb[py * pitch + left] = black;
+            if (left + menuWidth - 1 < (int)fb_width) fb[py * pitch + (left + menuWidth - 1)] = black;
+        }
+
+        /* Draw menu items text */
+        for (short i = 1; i <= itemCount; i++) {
+            Str255 itemString;
+            GetMenuItemText(theMenu, i, itemString);
+            short len = itemString[0];
+
+            if (len > 0) {
+                short itemTop = top + 2 + (i - 1) * lineHeight;
+                short itemX = left + 6;
+
+                /* Simple text rendering - draw black pixels for each character */
+                for (short j = 0; j < len && j < 40; j++) {
+                    char c = itemString[j + 1];
+                    short charX = itemX + (j * 8);
+                    short charY = itemTop + 2;
+
+                    if (charX < (int)fb_width && charY < (int)fb_height) {
+                        /* Draw a simple box for each character (placeholder until proper font rendering) */
+                        for (int cy = 0; cy < 10 && charY + cy < (int)fb_height; cy++) {
+                            for (int cx = 0; cx < 6 && charX + cx < (int)fb_width; cx++) {
+                                fb[(charY + cy) * pitch + (charX + cx)] = black;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    serial_puts("BeginTrackMenu: Menu drawn to framebuffer\n");
 
     /* Return 0 - actual selection will come from event handling */
     return 0;
@@ -604,10 +675,65 @@ long TrackMenu(short menuID, Point *startPt) {
     DrawMenuBarWithHighlight(menuID);
     serial_puts("TrackMenu: Menu bar highlight drawn\n");
 
-    /* Draw the menu dropdown */
-    DrawMenuOld(theMenu, left, top, itemCount, menuWidth, lineHeight);
-    serial_puts("TrackMenu: DrawMenuOld returned\n");
-    serial_puts("TrackMenu: Menu drawn, entering tracking loop\n");
+    /* Draw the menu dropdown using direct framebuffer rendering */
+    serial_puts("TrackMenu: About to draw menu with direct framebuffer\n");
+
+    extern void* framebuffer;
+    extern uint32_t fb_width, fb_height, fb_pitch;
+
+    if (framebuffer) {
+        uint32_t* fb = (uint32_t*)framebuffer;
+        uint32_t pitch = fb_pitch / 4;
+        uint32_t white = 0xFFFFFFFF;
+        uint32_t black = 0xFF000000;
+
+        /* Draw white background */
+        for (int py = top; py < top + menuHeight && py < (int)fb_height; py++) {
+            for (int px = left; px < left + menuWidth && px < (int)fb_width; px++) {
+                fb[py * pitch + px] = white;
+            }
+        }
+
+        /* Draw black border */
+        for (int px = left; px < left + menuWidth && px < (int)fb_width; px++) {
+            if (top < (int)fb_height) fb[top * pitch + px] = black;
+            if (top + menuHeight - 1 < (int)fb_height) fb[(top + menuHeight - 1) * pitch + px] = black;
+        }
+        for (int py = top; py < top + menuHeight && py < (int)fb_height; py++) {
+            if (left < (int)fb_width) fb[py * pitch + left] = black;
+            if (left + menuWidth - 1 < (int)fb_width) fb[py * pitch + (left + menuWidth - 1)] = black;
+        }
+
+        /* Draw menu items text */
+        for (short i = 1; i <= itemCount; i++) {
+            Str255 itemString;
+            GetMenuItemText(theMenu, i, itemString);
+            short len = itemString[0];
+
+            if (len > 0) {
+                short itemTop = top + 2 + (i - 1) * lineHeight;
+                short itemX = left + 6;
+
+                /* Simple text rendering - draw black pixels for each character */
+                for (short j = 0; j < len && j < 40; j++) {
+                    char c = itemString[j + 1];
+                    short charX = itemX + (j * 8);
+                    short charY = itemTop + 2;
+
+                    if (charX < (int)fb_width && charY < (int)fb_height) {
+                        /* Draw a simple box for each character (placeholder until proper font rendering) */
+                        for (int cy = 0; cy < 10 && charY + cy < (int)fb_height; cy++) {
+                            for (int cx = 0; cx < 6 && charX + cx < (int)fb_width; cx++) {
+                                fb[(charY + cy) * pitch + (charX + cx)] = black;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    serial_puts("TrackMenu: Menu drawn to framebuffer, entering tracking loop\n");
 
     /* Persistent menu tracking - menu stays open until user makes a selection or clicks outside */
     /* ADD SAFETY TIMEOUT: Prevent infinite tracking loop */
