@@ -261,17 +261,10 @@ void X11_EventLoop(void) {
             X11_HandleEvent(&event);
         }
 
-        /* Redraw screen when needed (on state change or periodically) */
-        if (needs_redraw || ++frame_counter >= 120) {
-            frame_counter = 0;
+        /* Redraw screen only on actual state changes (never clear during redraws) */
+        if (needs_redraw) {
             needs_redraw = false;
-
-            /* Full clear and redraw in atomic operation */
-            #define MAC_GRAY 0xC0C0C0
-            extern void X11_ClearDisplay(uint32_t color);
             extern void MacWM_DrawAll(void);
-
-            X11_ClearDisplay(MAC_GRAY);
             MacWM_DrawAll();
         }
 
