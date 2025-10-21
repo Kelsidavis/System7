@@ -239,6 +239,7 @@ static void X11_HandleEvent(MouseEvent* event) {
 void X11_EventLoop(void) {
     serial_puts("[X11] Event loop started\n");
     MouseEvent event;
+    static int frame_counter = 0;
 
     while (1) {
         /* Poll for mouse input */
@@ -246,7 +247,14 @@ void X11_EventLoop(void) {
             X11_HandleEvent(&event);
         }
 
-        /* Temporary: prevent busy loop with volatile loop */
+        /* Redraw screen periodically (every ~60 frames for smooth updates) */
+        if (++frame_counter >= 60) {
+            frame_counter = 0;
+            extern void MacWM_DrawAll(void);
+            MacWM_DrawAll();
+        }
+
+        /* Prevent busy loop with delay */
         volatile int i;
         for (i = 0; i < 500; i++) {
             __asm__("nop");
