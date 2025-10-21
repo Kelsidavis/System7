@@ -50,6 +50,7 @@ static X11Display* x11_display = &x11_display_static;
 static uint16_t last_mouse_x = 0;
 static uint16_t last_mouse_y = 0;
 static uint8_t mouse_button_state = 0;
+static bool needs_redraw = false;
 
 /**
  * Initialize X11 display
@@ -217,23 +218,28 @@ static void X11_HandleEvent(MouseEvent* event) {
     switch (event->type) {
         case EVENT_MOUSE_MOVE:
             /* Update mouse cursor position tracking */
-            last_mouse_x = event->x;
-            last_mouse_y = event->y;
+            if (event->x != last_mouse_x || event->y != last_mouse_y) {
+                last_mouse_x = event->x;
+                last_mouse_y = event->y;
+                needs_redraw = true;  /* Window may have moved */
 
-            /* Update window dragging if in progress */
-            MacWM_UpdateDrag(event->x, event->y);
+                /* Update window dragging if in progress */
+                MacWM_UpdateDrag(event->x, event->y);
+            }
             break;
 
         case EVENT_MOUSE_DOWN:
             serial_puts("[X11] Mouse button down\n");
             /* Dispatch to window manager for click handling */
             MacWM_HandleClick(event->x, event->y);
+            needs_redraw = true;
             break;
 
         case EVENT_MOUSE_UP:
             serial_puts("[X11] Mouse button up\n");
             /* End any active window dragging */
             MacWM_EndDrag();
+            needs_redraw = true;
             break;
 
         default:
@@ -255,10 +261,17 @@ void X11_EventLoop(void) {
             X11_HandleEvent(&event);
         }
 
-        /* Redraw screen periodically (every ~60 frames for smooth updates) */
-        if (++frame_counter >= 60) {
+        /* Redraw screen when needed (on state change or periodically) */
+        if (needs_redraw || ++frame_counter >= 120) {
             frame_counter = 0;
+            needs_redraw = false;
+
+            /* Full clear and redraw in atomic operation */
+            #define MAC_GRAY 0xC0C0C0
+            extern void X11_ClearDisplay(uint32_t color);
             extern void MacWM_DrawAll(void);
+
+            X11_ClearDisplay(MAC_GRAY);
             MacWM_DrawAll();
         }
 
