@@ -11,6 +11,7 @@
 #include <stdio.h>
 #include <stdint.h>
 #include <string.h>
+#include "X11.h"
 
 /* Menu bar structure */
 typedef struct {
@@ -31,7 +32,7 @@ static MacDE de_state;
  * Initialize desktop environment
  */
 void MacDE_Initialize(void) {
-    printf("[MacDE] Initializing Mac Classic desktop environment...\n");
+    serial_puts("[MacDE] Initializing Mac Classic desktop environment...\n");
 
     /* Initialize DE state */
     memset(&de_state, 0, sizeof(de_state));
@@ -39,14 +40,14 @@ void MacDE_Initialize(void) {
     /* Set up menu bar */
     MacDE_SetupMenuBar();
 
-    printf("[MacDE] Ready\n");
+    serial_puts("[MacDE] Ready\n");
 }
 
 /**
  * Set up menu bar menus
  */
 void MacDE_SetupMenuBar(void) {
-    printf("[MacDE] Setting up menu bar...\n");
+    serial_puts("[MacDE] Setting up menu bar...\n");
 
     /* TODO: Create File menu */
     /* TODO: Create Edit menu */
@@ -66,21 +67,21 @@ void MacDE_DrawMenuBar(uint32_t* framebuffer, uint32_t pitch, uint32_t width) {
         framebuffer[x] = 0xC0C0C0;  /* Light gray */
     }
 
-    printf("[MacDE] Menu bar drawn\n");
+    serial_puts("[MacDE] Menu bar drawn\n");
 }
 
 /**
  * Open file browser
  */
 void MacDE_OpenFinder(void) {
-    printf("[MacDE] Opening Finder...\n");
+    serial_puts("[MacDE] Opening Finder...\n");
 
     extern MacWindow* MacWM_CreateWindow(uint32_t x, uint32_t y, uint32_t width, uint32_t height,
                                          const char* title, bool has_close, bool has_zoom);
 
     MacWindow* finder = MacWM_CreateWindow(40, 40, 400, 300, "Finder", true, true);
     if (finder) {
-        printf("[MacDE] Finder opened\n");
+        serial_puts("[MacDE] Finder opened\n");
     }
 }
 
@@ -88,12 +89,12 @@ void MacDE_OpenFinder(void) {
  * Launch application
  */
 void MacDE_LaunchApp(const char* app_name) {
-    printf("[MacDE] Launching %s...\n", app_name);
+    serial_puts("[MacDE] Launching %s...\n", app_name);
 
     if (strcmp(app_name, "Finder") == 0) {
         MacDE_OpenFinder();
     } else if (strcmp(app_name, "Terminal") == 0) {
-        printf("[MacDE] Launching Terminal\n");
+        serial_puts("[MacDE] Launching Terminal\n");
         extern MacWindow* MacWM_CreateWindow(uint32_t x, uint32_t y, uint32_t width, uint32_t height,
                                              const char* title, bool has_close, bool has_zoom);
         MacWM_CreateWindow(60, 100, 480, 300, "Terminal", true, true);
@@ -104,7 +105,7 @@ void MacDE_LaunchApp(const char* app_name) {
  * Draw desktop
  */
 void MacDE_Redraw(void) {
-    printf("[MacDE] Redrawing desktop...\n");
+    serial_puts("[MacDE] Redrawing desktop...\n");
 
     /* TODO: Draw desktop icons */
     /* TODO: Draw menu bar */

@@ -11,6 +11,7 @@
 #include <stdio.h>
 #include <stdint.h>
 #include <string.h>
+#include "X11.h"
 
 /* Mac Classic colors */
 #define MAC_PLATINUM_GRAY   0xC0C0C0
@@ -18,17 +19,6 @@
 #define MAC_WHITE           0xFFFFFF
 #define MAC_BLACK           0x000000
 #define MAC_MENU_BLUE       0x0000CC
-
-/* Window structure */
-typedef struct {
-    uint32_t x, y;              /* Position */
-    uint32_t width, height;     /* Size */
-    char* title;                /* Title bar text */
-    bool has_close_button;
-    bool has_zoom_button;
-    bool is_active;
-    void* content;              /* Window content pointer */
-} MacWindow;
 
 #define MAX_WINDOWS 32
 static MacWindow windows[MAX_WINDOWS];
@@ -38,13 +28,13 @@ static int window_count = 0;
  * Initialize window manager
  */
 void MacWM_Initialize(void) {
-    printf("[MacWM] Initializing Mac Classic window manager...\n");
+    serial_puts("[MacWM] Initializing Mac Classic window manager...\n");
 
     /* Initialize window array */
     window_count = 0;
     memset(windows, 0, sizeof(windows));
 
-    printf("[MacWM] Ready\n");
+    serial_puts("[MacWM] Ready\n");
 }
 
 /**
@@ -53,7 +43,7 @@ void MacWM_Initialize(void) {
 MacWindow* MacWM_CreateWindow(uint32_t x, uint32_t y, uint32_t width, uint32_t height,
                                const char* title, bool has_close, bool has_zoom) {
     if (window_count >= MAX_WINDOWS) {
-        printf("[MacWM] ERROR: Maximum windows reached\n");
+        serial_puts("[MacWM] ERROR: Maximum windows reached\n");
         return NULL;
     }
 
@@ -67,8 +57,7 @@ MacWindow* MacWM_CreateWindow(uint32_t x, uint32_t y, uint32_t width, uint32_t h
     win->has_zoom_button = has_zoom;
     win->is_active = true;
 
-    printf("[MacWM] Created window: '%s' at (%d,%d) size %dx%d\n",
-           title, x, y, width, height);
+    serial_puts("[MacWM] Created window\n");
 
     return win;
 }

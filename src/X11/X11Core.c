@@ -10,7 +10,7 @@
 #include <stdbool.h>
 #include <string.h>
 
-/* X11 Display structure */
+/* X11 Display structure - static to avoid memory allocation before MM is ready */
 typedef struct {
     uint32_t width;
     uint32_t height;
@@ -18,33 +18,30 @@ typedef struct {
     void* framebuffer;
 } X11Display;
 
-static X11Display* x11_display = NULL;
+static X11Display x11_display_static = {640, 480, 32, NULL};
+static X11Display* x11_display = &x11_display_static;
 
 /**
  * Initialize X11 display
  */
 bool X11_InitDisplay(void) {
-    printf("[X11] Initializing X11 display...\n");
+    serial_puts("[X11] Initializing X11 display...\n");
 
-    /* Allocate display structure */
-    extern void* NewPtr(unsigned long size);
-    x11_display = (X11Display*)NewPtr(sizeof(X11Display));
-    if (!x11_display) {
-        printf("[X11] ERROR: Failed to allocate display\n");
+    /* Use existing framebuffer set up by bootloader */
+    extern void* framebuffer;
+
+    if (!framebuffer) {
+        serial_puts("[X11] ERROR: No framebuffer available\n");
         return false;
     }
 
-    /* Set display parameters (standard VGA 640x480) */
+    /* Set up display with framebuffer */
+    x11_display->framebuffer = framebuffer;
     x11_display->width = 640;
     x11_display->height = 480;
     x11_display->depth = 32;
 
-    /* Use existing framebuffer */
-    extern void* framebuffer;
-    x11_display->framebuffer = framebuffer;
-
-    printf("[X11] Display initialized: %dx%d@%d-bit\n",
-           x11_display->width, x11_display->height, x11_display->depth);
+    serial_puts("[X11] Display initialized\n");
 
     return true;
 }
@@ -74,11 +71,11 @@ void X11_ClearDisplay(uint32_t color) {
  * Main X11 initialization function
  */
 void X11_Initialize(void) {
-    printf("[X11] Starting X11 environment...\n");
+    serial_puts("[X11] Starting X11 environment...\n");
 
     /* Initialize display */
     if (!X11_InitDisplay()) {
-        printf("[X11] ERROR: Failed to initialize display\n");
+        serial_puts("[X11] ERROR: Failed to initialize display\n");
         return;
     }
 
@@ -86,22 +83,22 @@ void X11_Initialize(void) {
     #define MAC_GRAY 0xC0C0C0
     X11_ClearDisplay(MAC_GRAY);
 
-    printf("[X11] Display cleared\n");
+    serial_puts("[X11] Display cleared\n");
 
     /* Initialize window manager */
     extern void MacWM_Initialize(void);
     MacWM_Initialize();
 
-    printf("[X11] Window manager initialized\n");
+    serial_puts("[X11] Window manager initialized\n");
 
     /* Initialize desktop environment */
     extern void MacDE_Initialize(void);
     MacDE_Initialize();
 
-    printf("[X11] Desktop environment initialized\n");
+    serial_puts("[X11] Desktop environment initialized\n");
 
     /* Start event loop */
-    printf("[X11] Starting event loop...\n");
+    serial_puts("[X11] Starting event loop...\n");
     extern void X11_EventLoop(void);
     X11_EventLoop();
 }
@@ -110,15 +107,17 @@ void X11_Initialize(void) {
  * X11 Event Loop
  */
 void X11_EventLoop(void) {
-    printf("[X11] Event loop started\n");
+    serial_puts("[X11] Event loop started\n");
 
     while (1) {
         /* TODO: Process X11 events */
         /* TODO: Handle mouse/keyboard input */
         /* TODO: Update display */
 
-        /* Temporary: prevent busy loop */
-        extern void platform_sleep(uint32_t ms);
-        platform_sleep(10);
+        /* Temporary: prevent busy loop with volatile loop */
+        volatile int i;
+        for (i = 0; i < 1000; i++) {
+            __asm__("nop");
+        }
     }
 }

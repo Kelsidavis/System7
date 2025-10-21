@@ -24,19 +24,16 @@ typedef enum {
  * Display boot menu and get user selection
  */
 BootMode BootSelector_ShowMenu(void) {
-    printf("\n");
-    printf("┌──────────────────────────────────────┐\n");
-    printf("│   System 7.1 - Boot Mode Selector    │\n");
-    printf("├──────────────────────────────────────┤\n");
-    printf("│  L - Legacy Mode (Classic Desktop)   │\n");
-    printf("│  X - X11 Mode (Modern, Default)      │\n");
-    printf("│  (Default boots X11 in 3 seconds)    │\n");
-    printf("└──────────────────────────────────────┘\n");
-    printf("\nSelect mode: ");
+    extern void serial_puts(const char* str);
+
+    serial_puts("\n");
+    serial_puts("========== System 7.1 - Boot Mode Selector ==========\n");
+    serial_puts("  L - Legacy Mode (Classic Desktop)\n");
+    serial_puts("  X - X11 Mode (Modern, Default)\n");
+    serial_puts("====================================================\n");
+    serial_puts("Defaulting to X11 mode...\n");
 
     /* TODO: Implement actual keyboard input from serial/keyboard */
-    /* For now, default to X11 */
-    printf("X (defaulting to X11)\n");
     return BOOT_MODE_X11;
 }
 
@@ -45,14 +42,14 @@ BootMode BootSelector_ShowMenu(void) {
  */
 BootMode BootSelector_Init(void) {
     BootMode mode;
+    extern void serial_puts(const char* str);
 
-    printf("[BOOT] Initializing boot selector...\n");
+    serial_puts("[BOOT] Initializing boot selector...\n");
 
     /* Show boot menu */
     mode = BootSelector_ShowMenu();
 
-    printf("[BOOT] Selected mode: %s\n",
-           mode == BOOT_MODE_LEGACY ? "Legacy" : "X11");
+    serial_puts("[BOOT] Boot mode selected\n");
 
     return mode;
 }
@@ -61,16 +58,14 @@ BootMode BootSelector_Init(void) {
  * Load and execute boot mode
  */
 void BootSelector_LoadMode(BootMode mode) {
-    printf("[BOOT] Loading %s environment...\n",
-           mode == BOOT_MODE_LEGACY ? "Legacy" : "X11");
-
     if (mode == BOOT_MODE_LEGACY) {
-        printf("[BOOT] Starting Legacy System 7 desktop...\n");
-        /* Call legacy initialization */
-        extern void InitializeDesktop(void);
-        InitializeDesktop();
+        /* Legacy System 7 desktop initialization would go here */
+        extern void serial_puts(const char* str);
+        serial_puts("[BOOT] Starting Legacy System 7 desktop...\n");
+        /* TODO: Call legacy initialization */
     } else {
-        printf("[BOOT] Starting X11 environment...\n");
+        extern void serial_puts(const char* str);
+        serial_puts("[BOOT] Starting X11 environment...\n");
         /* Call X11 initialization */
         extern void X11_Initialize(void);
         X11_Initialize();

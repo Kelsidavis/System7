@@ -501,6 +501,16 @@ ifeq ($(ALERT_SMOKE_TEST),1)
 CFLAGS += -DALERT_SMOKE_TEST=1
 endif
 
+# X11 Environment - Mac Classic Desktop Environment
+C_SOURCES += src/X11/X11Core.c \
+             src/X11/MacWM.c \
+             src/X11/MacDE.c
+CFLAGS += -DENABLE_X11=1
+
+# Boot Selector - Choose between Legacy and X11 modes
+C_SOURCES += src/BootSelector/BootSelector.c
+CFLAGS += -DENABLE_BOOT_SELECTOR=1
+
 ASM_SOURCES = $(HAL_DIR)/platform_boot.S
 
 # Object files

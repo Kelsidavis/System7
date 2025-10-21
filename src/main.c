@@ -37,6 +37,10 @@ extern void DoMenuCommand(short menuID, short item);
 #ifdef ENABLE_GESTALT
 #include "../include/Gestalt/Gestalt.h"
 #endif
+
+#ifdef ENABLE_BOOT_SELECTOR
+#include "BootSelector/BootSelector.h"
+#endif
 #include "../include/Resources/system7_resources.h"
 #include "../include/TimeManager/TimeManager.h"
 #include "../include/ExtensionManager/DefLoader.h"
@@ -1562,6 +1566,18 @@ void kernel_main(uint32_t magic, uint32_t* mb2_info) {
         console_puts("No framebuffer available, continuing in text mode\n");
         serial_puts("No framebuffer available, continuing in text mode\n");
     }
+
+    /* Boot selector: Choose between X11 and Legacy System 7 modes */
+    #ifdef ENABLE_BOOT_SELECTOR
+    {
+        extern BootMode BootSelector_Init(void);
+        extern void BootSelector_LoadMode(BootMode mode);
+
+        BootMode selected_mode = BootSelector_Init();
+        BootSelector_LoadMode(selected_mode);
+        /* X11_Initialize runs its own event loop and never returns */
+    }
+    #endif
 
     /* Initialize System 7.1 */
     init_system71();
