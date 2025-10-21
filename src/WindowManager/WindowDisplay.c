@@ -477,12 +477,17 @@ static void DrawWindowFrame(WindowPtr window) {
 
     if (window->titleWidth > 0) {
         WM_LOG_TRACE("WindowManager: titleWidth > 0, drawing title bar\n");
+        serial_printf("[TITLEBAR] Drawing title bar for window, hilited=%d\n", window->hilited);
         /* Title bar background should be INSIDE the frame, not overlap it */
         Rect titleBar;
         titleBar.left = frame.left + 1;    /* Inset from left frame edge */
         titleBar.top = frame.top + 1;      /* Inset from top frame edge */
         titleBar.right = frame.right - 2;  /* Inset 2px from right to not overlap frame */
         titleBar.bottom = frame.top + 20;  /* Extends to separator line */
+
+        serial_printf("[TITLEBAR] titleBar rect=(%d,%d,%d,%d) frame=(%d,%d,%d,%d)\n",
+                      titleBar.left, titleBar.top, titleBar.right, titleBar.bottom,
+                      frame.left, frame.top, frame.right, frame.bottom);
 
         /* Fill title bar background */
         extern void* framebuffer;

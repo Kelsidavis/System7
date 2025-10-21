@@ -856,11 +856,13 @@ static void InitializeWindowRecord(WindowPtr window, const Rect* bounds,
     uint32_t bytes_per_pixel = 4;
     uint32_t fbOffset = contentTop * fb_pitch + contentLeft * bytes_per_pixel;
 
-    /* Set baseAddr to window's position in framebuffer (Direct approach) */
-    window->port.portBits.baseAddr = (Ptr)((char*)framebuffer + fbOffset);
+    /* Set baseAddr to framebuffer base (not offset!) */
+    window->port.portBits.baseAddr = (Ptr)framebuffer;
 
-    /* Set bounds to LOCAL coordinates (0,0,width,height) for Direct approach */
-    SetRect(&window->port.portBits.bounds, 0, 0, contentWidth, contentHeight);
+    /* Set bounds to GLOBAL coordinates for content area
+     * This maps local window coordinates to global screen position */
+    SetRect(&window->port.portBits.bounds, contentLeft, contentTop,
+            contentLeft + contentWidth, contentTop + contentHeight);
 
     /* Set PixMap flag (bit 15) to indicate 32-bit PixMap, not 1-bit BitMap
      * CRITICAL FIX: Must use fb_pitch, NOT fb_width*4!
@@ -869,17 +871,15 @@ static void InitializeWindowRecord(WindowPtr window, const Rect* bounds,
     window->port.portBits.rowBytes = fb_pitch | 0x8000;
 
     /* DEBUG: Log portBits initialization */
-    extern void serial_puts(const char* str);
-    extern int sprintf(char* buf, const char* fmt, ...);
     static int init_log = 0;
-    if (init_log < 20) {
-        char dbgbuf[256];
-        sprintf(dbgbuf, "[INITWIN] contentPos=(%d,%d) portBits.bounds=(%d,%d,%d,%d) fbOffset=%u refCon=0x%08x\n",
-                contentLeft, contentTop,
+    if (init_log < 5) {
+        serial_printf("[INITWIN] Window bounds=(%d,%d,%d,%d) contentPos=(%d,%d)\n",
+                clampedBounds.left, clampedBounds.top, clampedBounds.right, clampedBounds.bottom,
+                contentLeft, contentTop);
+        serial_printf("[INITWIN] portBits.bounds=(%d,%d,%d,%d) fbOffset=%u baseAddr=%p\n",
                 window->port.portBits.bounds.left, window->port.portBits.bounds.top,
                 window->port.portBits.bounds.right, window->port.portBits.bounds.bottom,
-                fbOffset, (unsigned int)window->refCon);
-        serial_puts(dbgbuf);
+                fbOffset, window->port.portBits.baseAddr);
         init_log++;
     }
 
@@ -1129,6 +1129,7 @@ void SetWTitle(WindowPtr window, ConstStr255Param title) {
         window->titleWidth = 0;
     }
     WM_LOG_DEBUG("SetWTitle: titleWidth = %d, titleHandle = %p\n", window->titleWidth, window->titleHandle);
+    serial_printf("[SETWT] SetWTitle called: len=%d titleWidth=%d\n", len, window->titleWidth);
 
     /* Invalidate title bar area */
     GrafPort* port = (GrafPort*)window;

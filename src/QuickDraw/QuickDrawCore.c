@@ -958,6 +958,21 @@ static void DrawPrimitive(GrafVerb verb, const Rect *shape, int shapeType,
                     g_currentPort->portBits.bounds.left, g_currentPort->portBits.bounds.top);
     }
 
+    /* DEBUG: Log coordinate transformation */
+    extern void serial_puts(const char* str);
+    extern int sprintf(char* buf, const char* fmt, ...);
+    static int draw_log = 0;
+    if (draw_log < 10) {
+        char dbgbuf[256];
+        sprintf(dbgbuf, "[DRAWPRIM] local=(%d,%d,%d,%d) global=(%d,%d,%d,%d) portBits.bounds=(%d,%d) colorPort=%d\n",
+                drawRect.left, drawRect.top, drawRect.right, drawRect.bottom,
+                globalRect.left, globalRect.top, globalRect.right, globalRect.bottom,
+                g_currentPort->portBits.bounds.left, g_currentPort->portBits.bounds.top,
+                isColorPort ? 1 : 0);
+        serial_puts(dbgbuf);
+        draw_log++;
+    }
+
     /* Call platform layer to do actual drawing */
     QD_LOG_TRACE("DrawPrimitive call QDPlatform_DrawShape\n");
     /* Clamp oval dimensions after clipping */

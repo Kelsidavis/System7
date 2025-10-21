@@ -144,10 +144,13 @@ void Platform_UpdateWindowColors(WindowPtr window) {
 Boolean Platform_InitializePort(GrafPtr port) {
     if (!port) return false;
 
+    extern uint32_t fb_pitch;
+
     /* Basic port initialization */
     port->portBits.baseAddr = (Ptr)framebuffer;
-    /* Set PixMap flag (bit 15) to indicate 32-bit PixMap, not 1-bit BitMap */
-    port->portBits.rowBytes = (fb_width * 4) | 0x8000;
+    /* Set PixMap flag (bit 15) to indicate 32-bit PixMap, not 1-bit BitMap
+     * CRITICAL FIX: Must use fb_pitch, NOT fb_width*4! */
+    port->portBits.rowBytes = fb_pitch | 0x8000;
     SetRect(&port->portBits.bounds, 0, 0, fb_width, fb_height);
     port->portRect = port->portBits.bounds;
 

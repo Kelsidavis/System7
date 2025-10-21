@@ -303,6 +303,18 @@ void QDPlatform_SetPixel(SInt32 x, SInt32 y, UInt32 color) {
             SInt16 localX = (SInt16)(x - boundsLeft);
             SInt16 localY = (SInt16)(y - boundsTop);
 
+            /* DEBUG: Log first few pixel draws to window ports */
+            extern void serial_puts(const char* str);
+            extern int sprintf(char* buf, const char* fmt, ...);
+            static int pixel_log = 0;
+            if (pixel_log < 20) {
+                char dbgbuf[256];
+                sprintf(dbgbuf, "[SETPIXEL] input=(%d,%d) bounds=(%d,%d) local=(%d,%d) rowBytes=%d baseAddr=%p\n",
+                        (int)x, (int)y, boundsLeft, boundsTop, localX, localY, rowBytes, baseAddr);
+                serial_puts(dbgbuf);
+                pixel_log++;
+            }
+
             SInt16 portWidth = g_currentPort->portRect.right - g_currentPort->portRect.left;
             SInt16 portHeight = g_currentPort->portRect.bottom - g_currentPort->portRect.top;
             if (localX < 0 || localY < 0 || localX >= portWidth || localY >= portHeight) {
