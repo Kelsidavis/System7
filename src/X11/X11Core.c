@@ -97,6 +97,12 @@ void X11_Initialize(void) {
 
     serial_puts("[X11] Desktop environment initialized\n");
 
+    /* Draw initial UI (menu bar) */
+    extern void MacWM_DrawAll(void);
+    MacWM_DrawAll();
+
+    serial_puts("[X11] Initial UI drawn\n");
+
     /* Start event loop */
     serial_puts("[X11] Starting event loop...\n");
     extern void X11_EventLoop(void);

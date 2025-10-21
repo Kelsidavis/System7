@@ -111,6 +111,43 @@ void MacWM_DrawWindowFrame(MacWindow* win, uint32_t* framebuffer, uint32_t pitch
 }
 
 /**
+ * Draw menu bar at top of screen
+ */
+void MacWM_DrawMenuBar(uint32_t* framebuffer, uint32_t width, uint32_t height, uint32_t pitch) {
+    if (!framebuffer) return;
+
+    /* Menu bar is 20 pixels tall at top */
+    uint32_t menu_height = 20;
+
+    /* Draw menu bar background (light gray with slight 3D effect) */
+    for (uint32_t y = 0; y < menu_height; y++) {
+        for (uint32_t x = 0; x < width; x++) {
+            uint32_t color;
+            if (y == 0) {
+                /* Top highlight */
+                color = 0xFFFFFF;
+            } else if (y == menu_height - 1) {
+                /* Bottom shadow */
+                color = 0x808080;
+            } else {
+                /* Main area */
+                color = MAC_PLATINUM_GRAY;
+            }
+            framebuffer[(y * pitch/4) + x] = color;
+        }
+    }
+
+    /* Draw Apple menu marker (simple rectangle for now) */
+    uint32_t apple_x = 5;
+    uint32_t apple_y = 2;
+    for (uint32_t dy = 0; dy < 16 && apple_y + dy < menu_height; dy++) {
+        for (uint32_t dx = 0; dx < 12 && apple_x + dx < width; dx++) {
+            framebuffer[((apple_y + dy) * pitch/4) + apple_x + dx] = MAC_BLACK;
+        }
+    }
+}
+
+/**
  * Draw all windows
  */
 void MacWM_DrawAll(void) {
@@ -121,6 +158,10 @@ void MacWM_DrawAll(void) {
 
     uint32_t pitch = display->width * 4;
 
+    /* Draw menu bar first */
+    MacWM_DrawMenuBar((uint32_t*)display->framebuffer, display->width, display->height, pitch);
+
+    /* Draw all windows */
     for (int i = 0; i < window_count; i++) {
         MacWM_DrawWindowFrame(&windows[i], (uint32_t*)display->framebuffer, pitch);
     }

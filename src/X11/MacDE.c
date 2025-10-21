@@ -40,6 +40,11 @@ void MacDE_Initialize(void) {
     /* Set up menu bar */
     MacDE_SetupMenuBar();
 
+    /* Create sample Finder window to demonstrate functionality */
+    extern MacWindow* MacWM_CreateWindow(uint32_t x, uint32_t y, uint32_t width, uint32_t height,
+                                         const char* title, bool has_close, bool has_zoom);
+    MacWM_CreateWindow(50, 50, 300, 250, "Finder", true, true);
+
     serial_puts("[MacDE] Ready\n");
 }
 
