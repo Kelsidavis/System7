@@ -199,27 +199,27 @@ void MoveWindow(WindowPtr theWindow, short hGlobal, short vGlobal, Boolean front
         Platform_OffsetRgn(theWindow->updateRgn, deltaH, deltaV);
     }
 
-    /* CRITICAL: Update portBits.baseAddr for Direct Framebuffer approach
+    /* CRITICAL: Update portBits for Direct Framebuffer approach
      *
-     * When using Direct Framebuffer coordinates (baseAddr = framebuffer + offset),
-     * baseAddr must be updated whenever the window moves to point to the new position.
+     * When window moves, we must update portBits.bounds to reflect the new GLOBAL position.
+     * portBits.bounds must be in GLOBAL screen coordinates for BeginUpdate to calculate
+     * the correct framebuffer fill region.
      *
-     * Calculate new framebuffer offset based on new content position.
+     * Architecture: baseAddr = framebuffer (full buffer), bounds = GLOBAL position
+     * When filling: fbOffset = bounds.top * pitch + bounds.left * 4
      */
     if (theWindow->contRgn && *(theWindow->contRgn)) {
         Rect newContentRect = (*(theWindow->contRgn))->rgnBBox;
 
+        /* Update portBits.bounds to GLOBAL screen coordinates */
+        SetRect(&theWindow->port.portBits.bounds,
+                newContentRect.left, newContentRect.top,
+                newContentRect.right, newContentRect.bottom);
+
+        /* Keep baseAddr pointing to full framebuffer (not offset) */
         extern void* framebuffer;
-        extern uint32_t fb_pitch;
-        uint32_t bytes_per_pixel = 4;
-        uint32_t fbOffset = newContentRect.top * fb_pitch + newContentRect.left * bytes_per_pixel;
-
-        theWindow->port.portBits.baseAddr = (Ptr)((char*)framebuffer + fbOffset);
+        theWindow->port.portBits.baseAddr = (Ptr)framebuffer;
     }
-
-    /* NOTE: Do NOT modify portBits.bounds - it must stay (0,0,width,height)!
-     * With Direct Framebuffer approach, portBits.bounds is always in LOCAL coordinates.
-     * Only baseAddr needs to be updated to point to the new window position. */
 
     /* Move native platform window using new global position from strucRgn */
     if (theWindow->strucRgn && *(theWindow->strucRgn)) {

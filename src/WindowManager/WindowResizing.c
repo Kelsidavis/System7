@@ -138,13 +138,6 @@ void SizeWindow(WindowPtr theWindow, short w, short h, Boolean fUpdate) {
     (theWindow)->port.portRect.right = (theWindow)->port.portRect.left + w;
     (theWindow)->port.portRect.bottom = (theWindow)->port.portRect.top + h;
 
-    /* CRITICAL: Update portBits.bounds for Direct Framebuffer approach
-     *
-     * With Direct Framebuffer, portBits.bounds must ALWAYS be (0,0,width,height).
-     * When window is resized, the LOCAL dimensions change, so update bounds. */
-    extern void SetRect(Rect* r, short left, short top, short right, short bottom);
-    SetRect(&(theWindow)->port.portBits.bounds, 0, 0, w, h);
-
     /* CRITICAL: Directly update window regions for resize
      *
      * Problem: Platform_CalculateWindowRegions has circular dependency - it uses
@@ -184,6 +177,18 @@ void SizeWindow(WindowPtr theWindow, short w, short h, Boolean fUpdate) {
         extern void Platform_SetRectRgn(RgnHandle rgn, const Rect* rect);
         Platform_SetRectRgn(theWindow->strucRgn, &newStrucRect);
         Platform_SetRectRgn(theWindow->contRgn, &newContRect);
+
+        /* CRITICAL: Update portBits.bounds to GLOBAL screen coordinates after resize
+         * portBits.bounds must reflect the content position in GLOBAL coordinates
+         * for BeginUpdate to calculate the correct framebuffer fill region */
+        extern void SetRect(Rect* r, short left, short top, short right, short bottom);
+        SetRect(&(theWindow)->port.portBits.bounds,
+                newContRect.left, newContRect.top,
+                newContRect.right, newContRect.bottom);
+
+        /* Keep baseAddr pointing to full framebuffer (not offset) */
+        extern void* framebuffer;
+        theWindow->port.portBits.baseAddr = (Ptr)framebuffer;
     }
 
     /* Resize native platform window */
