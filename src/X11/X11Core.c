@@ -9,6 +9,8 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include <string.h>
+#include "Platform/PS2Input.h"
+#include "SystemTypes.h"
 
 /* X11 Display structure - static to avoid memory allocation before MM is ready */
 typedef struct {
@@ -131,6 +133,13 @@ void X11_Initialize(void) {
 
     serial_puts("[X11] Initial UI drawn\n");
 
+    /* Initialize PS/2 controller for input */
+    if (InitPS2Controller()) {
+        serial_puts("[X11] PS/2 input initialized\n");
+    } else {
+        serial_puts("[X11] WARNING: PS/2 input initialization failed\n");
+    }
+
     /* Start event loop */
     serial_puts("[X11] Starting event loop...\n");
     extern void X11_EventLoop(void);
@@ -138,12 +147,32 @@ void X11_Initialize(void) {
 }
 
 /**
- * Poll for mouse input from system
+ * Poll for mouse input from system via PS/2 controller
  */
 static bool X11_PollMouseInput(MouseEvent* event) {
-    /* Platform-specific mouse input would be polled here */
-    /* For now, return false as input system is not fully implemented */
-    (void)event;
+    if (!event) return false;
+
+    /* Poll PS/2 controller for input */
+    PollPS2Input();
+
+    /* Get current mouse position from PS/2 controller */
+    Point mouse_pos;
+    GetMouse(&mouse_pos);
+
+    /* Check if mouse position has changed */
+    if (mouse_pos.h != last_mouse_x || mouse_pos.v != last_mouse_y) {
+        event->type = EVENT_MOUSE_MOVE;
+        event->x = mouse_pos.h;
+        event->y = mouse_pos.v;
+        last_mouse_x = mouse_pos.h;
+        last_mouse_y = mouse_pos.v;
+        return true;
+    }
+
+    /* TODO: Handle mouse button changes by tracking button state
+     * This would require access to the PS/2 mouse button state which
+     * is currently internal to ps2.c - could expose via a new function */
+
     return false;
 }
 
