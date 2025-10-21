@@ -18,8 +18,36 @@ typedef struct {
     void* framebuffer;
 } X11Display;
 
+/* Input event types */
+typedef enum {
+    EVENT_MOUSE_MOVE = 1,
+    EVENT_MOUSE_DOWN = 2,
+    EVENT_MOUSE_UP = 3,
+    EVENT_KEY_DOWN = 4,
+    EVENT_KEY_UP = 5,
+} EventType;
+
+/* Mouse event */
+typedef struct {
+    EventType type;
+    uint16_t x;
+    uint16_t y;
+    uint8_t button;
+} MouseEvent;
+
+/* Keyboard event */
+typedef struct {
+    EventType type;
+    uint8_t keycode;
+} KeyEvent;
+
 static X11Display x11_display_static = {640, 480, 32, NULL};
 static X11Display* x11_display = &x11_display_static;
+
+/* Input state tracking */
+static uint16_t last_mouse_x = 0;
+static uint16_t last_mouse_y = 0;
+static uint8_t mouse_button_state = 0;
 
 /**
  * Initialize X11 display
@@ -110,19 +138,60 @@ void X11_Initialize(void) {
 }
 
 /**
+ * Poll for mouse input from system
+ */
+static bool X11_PollMouseInput(MouseEvent* event) {
+    /* Platform-specific mouse input would be polled here */
+    /* For now, return false as input system is not fully implemented */
+    (void)event;
+    return false;
+}
+
+/**
+ * Handle input event
+ */
+static void X11_HandleEvent(MouseEvent* event) {
+    if (!event) return;
+
+    switch (event->type) {
+        case EVENT_MOUSE_MOVE:
+            /* Update mouse cursor position tracking */
+            last_mouse_x = event->x;
+            last_mouse_y = event->y;
+            break;
+
+        case EVENT_MOUSE_DOWN:
+            serial_puts("[X11] Mouse button down\n");
+            /* Dispatch to window manager for click handling */
+            extern void MacWM_HandleClick(uint16_t x, uint16_t y);
+            MacWM_HandleClick(event->x, event->y);
+            break;
+
+        case EVENT_MOUSE_UP:
+            serial_puts("[X11] Mouse button up\n");
+            break;
+
+        default:
+            break;
+    }
+}
+
+/**
  * X11 Event Loop
  */
 void X11_EventLoop(void) {
     serial_puts("[X11] Event loop started\n");
+    MouseEvent event;
 
     while (1) {
-        /* TODO: Process X11 events */
-        /* TODO: Handle mouse/keyboard input */
-        /* TODO: Update display */
+        /* Poll for mouse input */
+        if (X11_PollMouseInput(&event)) {
+            X11_HandleEvent(&event);
+        }
 
         /* Temporary: prevent busy loop with volatile loop */
         volatile int i;
-        for (i = 0; i < 1000; i++) {
+        for (i = 0; i < 500; i++) {
             __asm__("nop");
         }
     }

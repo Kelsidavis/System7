@@ -168,6 +168,46 @@ void MacWM_DrawAll(void) {
 }
 
 /**
+ * Handle mouse click
+ */
+void MacWM_HandleClick(uint16_t x, uint16_t y) {
+    /* Check if click is in menu bar area */
+    if (y < 20) {
+        serial_puts("[MacWM] Menu bar click\n");
+        return;
+    }
+
+    /* Check if click hits any window */
+    for (int i = 0; i < window_count; i++) {
+        MacWindow* win = &windows[i];
+        if (x >= win->x && x < win->x + win->width &&
+            y >= win->y && y < win->y + win->height) {
+
+            /* Check if close button clicked */
+            if (x < win->x + 20 && y < win->y + 20) {
+                serial_puts("[MacWM] Window close clicked\n");
+                return;
+            }
+
+            /* Check if title bar clicked (for dragging) */
+            if (y < win->y + 22) {
+                serial_puts("[MacWM] Window title bar clicked\n");
+                /* Window was clicked, make it active */
+                win->is_active = true;
+                return;
+            }
+
+            /* Window content area clicked */
+            serial_puts("[MacWM] Window content clicked\n");
+            return;
+        }
+    }
+
+    /* Desktop click */
+    serial_puts("[MacWM] Desktop clicked\n");
+}
+
+/**
  * Redraw window manager
  */
 void MacWM_Redraw(void) {
