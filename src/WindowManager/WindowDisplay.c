@@ -268,6 +268,18 @@ paint_windows:
     }
 
     WM_LOG_TRACE("[PaintBehind] Complete, painted %d windows back-to-front\n", count);
+
+    /* CRITICAL: Redraw desktop icons/background after repainting windows
+     * When windows close or are hidden, the desktop area needs to be redrawn.
+     * Call the desktop hook to redraw desktop icons in exposed areas. */
+    {
+        typedef void (*DeskHookProc)(RgnHandle invalidRgn);
+        extern DeskHookProc g_deskHook;
+        if (g_deskHook) {
+            WM_LOG_TRACE("[PaintBehind] Calling g_deskHook to redraw desktop icons\n");
+            g_deskHook(clobberedRgn);
+        }
+    }
 }
 
 void CalcVis(WindowPtr window) {

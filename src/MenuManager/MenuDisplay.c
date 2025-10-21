@@ -1024,7 +1024,11 @@ static void DrawMenuItemTextInternal(const Rect* itemRect, ConstStr255Param item
     /* Calculate text position (left-aligned with padding) */
     /* Always add 4 pixels for left padding - matches DrawMenuBar's MoveTo(x + 4, ...) */
     short textX = itemRect->left + 4;
-    short textY = itemRect->top + ((itemRect->bottom - itemRect->top) + 9) / 2; /* Vertically centered */
+    /* CRITICAL FIX: Correct Y coordinate formula for menu item text baseline
+     * Old formula was wrong: top + (height + 9) / 2 positioned text way too far down
+     * Correct formula: (top + bottom) / 2 + baseline_adjust centers text properly
+     * Menu items are typically 20 pixels tall, baseline adjustment of ~3 works well */
+    short textY = (itemRect->top + itemRect->bottom) / 2 + 3;
 
     /* Move to drawing position */
     if (selected) {
