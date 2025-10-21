@@ -542,11 +542,17 @@ void BeginUpdate(WindowPtr theWindow) {
         SInt16 width = portRect.right - portRect.left;
         SInt16 height = portRect.bottom - portRect.top;
 
-        /* Fill with opaque white (0xFFFFFFFF = ARGB white) */
-        UInt32* pixels = (UInt32*)theWindow->port.portBits.baseAddr;
+        /* CRITICAL FIX: Calculate offset to window's position in framebuffer
+         * portBits.bounds contains GLOBAL screen coordinates where window content is
+         * We must offset the framebuffer pointer to the window's actual position */
+        Rect bounds = theWindow->port.portBits.bounds;
+        uint32_t fbOffset = (uint32_t)bounds.top * fb_pitch + (uint32_t)bounds.left * bytes_per_pixel;
+        UInt32* windowPixels = (UInt32*)((uint8_t*)theWindow->port.portBits.baseAddr + fbOffset);
+
+        /* Fill window content area with opaque white (0xFFFFFFFF = ARGB white) */
         for (SInt16 y = 0; y < height; y++) {
             for (SInt16 x = 0; x < width; x++) {
-                pixels[y * (fb_pitch / bytes_per_pixel) + x] = 0xFFFFFFFF;
+                windowPixels[y * (fb_pitch / bytes_per_pixel) + x] = 0xFFFFFFFF;
             }
         }
     }
