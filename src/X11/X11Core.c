@@ -210,22 +210,30 @@ static bool X11_PollMouseInput(MouseEvent* event) {
 static void X11_HandleEvent(MouseEvent* event) {
     if (!event) return;
 
+    extern void MacWM_HandleClick(uint16_t x, uint16_t y);
+    extern void MacWM_UpdateDrag(uint16_t x, uint16_t y);
+    extern void MacWM_EndDrag(void);
+
     switch (event->type) {
         case EVENT_MOUSE_MOVE:
             /* Update mouse cursor position tracking */
             last_mouse_x = event->x;
             last_mouse_y = event->y;
+
+            /* Update window dragging if in progress */
+            MacWM_UpdateDrag(event->x, event->y);
             break;
 
         case EVENT_MOUSE_DOWN:
             serial_puts("[X11] Mouse button down\n");
             /* Dispatch to window manager for click handling */
-            extern void MacWM_HandleClick(uint16_t x, uint16_t y);
             MacWM_HandleClick(event->x, event->y);
             break;
 
         case EVENT_MOUSE_UP:
             serial_puts("[X11] Mouse button up\n");
+            /* End any active window dragging */
+            MacWM_EndDrag();
             break;
 
         default:

@@ -24,6 +24,11 @@
 static MacWindow windows[MAX_WINDOWS];
 static int window_count = 0;
 
+/* Window dragging state */
+static MacWindow* dragged_window = NULL;
+static int16_t drag_offset_x = 0;
+static int16_t drag_offset_y = 0;
+
 /**
  * Initialize window manager
  */
@@ -168,6 +173,43 @@ void MacWM_DrawAll(void) {
 }
 
 /**
+ * Start window dragging
+ */
+void MacWM_StartDrag(MacWindow* win, uint16_t x, uint16_t y) {
+    dragged_window = win;
+    drag_offset_x = x - win->x;
+    drag_offset_y = y - win->y;
+    serial_puts("[MacWM] Window drag started\n");
+}
+
+/**
+ * Update dragged window position
+ */
+void MacWM_UpdateDrag(uint16_t x, uint16_t y) {
+    if (!dragged_window) return;
+
+    int16_t new_x = x - drag_offset_x;
+    int16_t new_y = y - drag_offset_y;
+
+    /* Clamp to screen bounds - keep window visible */
+    if (new_x < 0) new_x = 0;
+    if (new_y < 20) new_y = 20;  /* Don't hide under menu bar */
+
+    dragged_window->x = new_x;
+    dragged_window->y = new_y;
+}
+
+/**
+ * End window dragging
+ */
+void MacWM_EndDrag(void) {
+    if (dragged_window) {
+        serial_puts("[MacWM] Window drag ended\n");
+        dragged_window = NULL;
+    }
+}
+
+/**
  * Handle mouse click
  */
 void MacWM_HandleClick(uint16_t x, uint16_t y) {
@@ -191,9 +233,10 @@ void MacWM_HandleClick(uint16_t x, uint16_t y) {
 
             /* Check if title bar clicked (for dragging) */
             if (y < win->y + 22) {
-                serial_puts("[MacWM] Window title bar clicked\n");
-                /* Window was clicked, make it active */
+                serial_puts("[MacWM] Window title bar clicked - starting drag\n");
+                /* Window was clicked, make it active and start dragging */
                 win->is_active = true;
+                MacWM_StartDrag(win, x, y);
                 return;
             }
 
