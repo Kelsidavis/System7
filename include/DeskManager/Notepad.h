@@ -27,7 +27,7 @@
 #define NOTEPAD_FILE_TYPE       'TEXT'
 #define NOTEPAD_CREATOR         'npad'
 #define NOTEPAD_SIGNATURE       'NPAD'
-#define NOTEPAD_FILE_NAME       "\pNote Pad File"
+#define NOTEPAD_FILE_NAME       "Note Pad File"
 
 /* Menu Item IDs */
 #define MENU_UNDO               1

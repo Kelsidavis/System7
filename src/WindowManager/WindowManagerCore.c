@@ -52,6 +52,7 @@ static WindowManagerState g_wmState = {
     false,      /* initialized */
     NULL,       /* platformData */
     {0},        /* port */
+    {0},        /* cPort */
     NULL,       /* ghostWindow */
     20,         /* menuBarHeight */
     NULL,       /* grayRgn */

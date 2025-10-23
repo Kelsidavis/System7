@@ -127,7 +127,7 @@ bool HFS_BD_InitSDHCI(HFS_BlockDev* bd, int drive_index, bool readonly) {
     #endif
 }
 
-bool HFS_BD_Read(HFS_BlockDev* bd, uint64_t offset, void* buffer, uint32_t length) {
+bool HFS_BD_Read(const HFS_BlockDev* bd, uint64_t offset, void* buffer, uint32_t length) {
     if (!bd || !buffer) return false;
     if (offset + length > bd->size) return false;
 

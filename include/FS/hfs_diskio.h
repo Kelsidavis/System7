@@ -34,7 +34,7 @@ bool HFS_BD_InitATA(HFS_BlockDev* bd, int device_index, bool readonly);
 bool HFS_BD_InitSDHCI(HFS_BlockDev* bd, int drive_index, bool readonly);
 
 /* Read from block device */
-bool HFS_BD_Read(HFS_BlockDev* bd, uint64_t offset, void* buffer, uint32_t length);
+bool HFS_BD_Read(const HFS_BlockDev* bd, uint64_t offset, void* buffer, uint32_t length);
 
 /* Write to block device (if not readonly) */
 bool HFS_BD_Write(HFS_BlockDev* bd, uint64_t offset, const void* buffer, uint32_t length);

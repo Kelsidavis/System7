@@ -251,7 +251,7 @@ SInt16 FM_FindBestMatch(const FONDResource *fond, SInt16 size, Style face) {
 
     /* Search for exact or closest match */
     for (SInt16 i = 0; i < fond->ffNumEntries; i++) {
-        FontAssocEntry *entry = &entries[i];
+        const FontAssocEntry *entry = &entries[i];
 
         /* Check style match */
         if ((entry->fontStyle & face) == face) {

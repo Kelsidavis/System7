@@ -498,13 +498,13 @@ static void Notepad_DrawPageIndicator(NotePadGlobals *notepad) {
     if (notepad->currentPage > 0) {
         /* Previous arrow */
         MoveTo(20, 20);
-        DrawString("\p<");  /* Simple < instead of unicode arrow */
+        DrawString("<");  /* Simple < instead of unicode arrow */
     }
 
     if (notepad->currentPage < NOTEPAD_MAX_PAGES - 1) {
         /* Next arrow */
         MoveTo(360, 20);
-        DrawString("\p>");  /* Simple > instead of unicode arrow */
+        DrawString(">");  /* Simple > instead of unicode arrow */
     }
 }
 

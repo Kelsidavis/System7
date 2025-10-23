@@ -96,13 +96,13 @@ void ParamText(const unsigned char* param0, const unsigned char* param1,
  * GetDialogItemText (GetIText) - Retrieve text from dialog item
  * Assembly signature: getdialogitemtext proc EXPORT with p2cstr conversion
  */
-void GetDialogItemText(Handle item, Str255 text);
+void GetDialogItemText(Handle item, unsigned char* text);
 
 /*
  * SetDialogItemText (SetIText) - Set text in dialog item
  * Assembly signature: setdialogitemtext proc EXPORT with c2pstr/p2cstr conversion
  */
-void SetDialogItemText(Handle item, const Str255 text);
+void SetDialogItemText(Handle item, const unsigned char* text);
 
 /*
  * FindDialogItem (FindDItem) - Find dialog item at point
