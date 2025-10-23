@@ -45,4 +45,11 @@ void PictureRecordInvertOval(const Rect* r);
 /* Platform coordinate conversion */
 void QD_LocalToPixel(GrafPtr port, Point localPt, SInt16* pixelX, SInt16* pixelY);
 
+/* Window-relative coordinate conversion */
+void GlobalToLocalWindow(WindowPtr window, Point *pt);
+void LocalToGlobalWindow(WindowPtr window, Point *pt);
+
+/* Invert tracking */
+void QD_GetLastInvertRect(short* left, short* right);
+
 #endif /* QUICKDRAW_INTERNAL_H */

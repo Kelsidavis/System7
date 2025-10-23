@@ -119,4 +119,22 @@ typedef struct FileSystemOps {
 
 } FileSystemOps;
 
+/* ============================================================
+ *   Filesystem Driver Getters
+ * ============================================================ */
+
+/**
+ * Get HFS filesystem operations structure.
+ *
+ * @return Pointer to HFS FileSystemOps, or NULL if not available
+ */
+FileSystemOps* HFS_GetOps(void);
+
+/**
+ * Get FAT32 filesystem operations structure.
+ *
+ * @return Pointer to FAT32 FileSystemOps, or NULL if not available
+ */
+FileSystemOps* FAT32_GetOps(void);
+
 #endif /* NK_FILESYSTEM_H */

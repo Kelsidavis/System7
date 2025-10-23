@@ -171,3 +171,21 @@ int nk_is_active(void);
  * Expected signature: void nk_printf(const char *fmt, ...);
  */
 extern void nk_printf(const char *fmt, ...);
+
+/* ============================================================
+ *   Testing and Examples
+ * ============================================================ */
+
+/**
+ * Run memory manager tests.
+ *
+ * Executes comprehensive unit tests on the memory manager.
+ */
+void nk_memory_run_tests(void);
+
+/**
+ * Run memory manager example usage.
+ *
+ * Demonstrates typical usage patterns of the memory manager.
+ */
+void nk_memory_example(void);

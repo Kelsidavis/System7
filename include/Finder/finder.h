@@ -189,6 +189,7 @@ void AboutWindow_CloseIf(WindowPtr w);
 Boolean AboutWindow_HandleUpdate(WindowPtr w);
 Boolean AboutWindow_HandleMouseDown(WindowPtr w, short part, Point localPt);
 Boolean AboutWindow_IsOurs(WindowPtr w);
+void AboutWindow_ProcessPendingCreation(void);
 
 /* Utility Functions */
 OSErr ShowErrorDialog(StringPtr message, OSErr errorCode);

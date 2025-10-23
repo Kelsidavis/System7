@@ -62,7 +62,7 @@ void AddMenuTitle(short menuID, short left, short width, const char* title)
                 gMenuTitles[i].titleText[255] = '\0';
             }
 
-            serial_printf("[ADDTITLE-UPDATE] ID=%d, titleRect=(%d,%d,%d,20), title='%s'\n",
+            serial_printf("[ADDTITLE-UPDATE] ID=%d, titleRect=(left=%d,right=%d,top=0,bottom=20), title='%s'\n",
                           menuID, left, left+width, title ? title : "");
             MENU_LOG_TRACE("Updated menu title: ID=%d, left=%d, width=%d, title='%s'\n",
                           menuID, left, width, title ? title : "");
@@ -90,7 +90,7 @@ void AddMenuTitle(short menuID, short left, short width, const char* title)
 
     gMenuTitleCount++;
 
-    serial_printf("[ADDTITLE-NEW] ID=%d, titleRect=(%d,%d,%d,20), title='%s'\n",
+    serial_printf("[ADDTITLE-NEW] ID=%d, titleRect=(left=%d,right=%d,top=0,bottom=20), title='%s'\n",
                   menuID, left, left+width, title ? title : "");
     MENU_LOG_TRACE("Added menu title: ID=%d, left=%d, width=%d, title='%s'\n",
                   menuID, left, width, title ? title : "");

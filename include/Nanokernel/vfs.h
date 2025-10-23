@@ -77,4 +77,16 @@ BlockDevice* MVFS_CreateATABlockDevice(int ata_device_index);
 /* Helper: Create memory block device (for testing) */
 BlockDevice* MVFS_CreateMemoryBlockDevice(void* buffer, size_t size);
 
+/* ============================================================
+ *   Filesystem Registration
+ * ============================================================ */
+
+/**
+ * Register all built-in filesystems.
+ *
+ * Initializes and registers all available filesystem drivers
+ * (HFS, FAT32, etc.) with the VFS layer.
+ */
+void FS_RegisterFilesystems(void);
+
 #endif /* NK_VFS_H */
