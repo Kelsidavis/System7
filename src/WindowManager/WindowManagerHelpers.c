@@ -163,6 +163,10 @@ void WM_CalculateWindowVisibility(WindowPtr window) {
     /* Calculate visible region based on windows above */
     if (!window->port.visRgn) {
         window->port.visRgn = NewRgn();
+        if (!window->port.visRgn) {
+            /* Out of memory - can't calculate visible region */
+            return;
+        }
     }
 
     /* Start with full window region */
@@ -247,12 +251,24 @@ void WM_InvalidateScreenRegion(RgnHandle rgn) {
         if (window->visible && window->strucRgn) {
             /* Check if window intersects region */
             RgnHandle tempRgn = NewRgn();
+            if (!tempRgn) {
+                /* Out of memory - skip this window */
+                window = window->nextWindow;
+                continue;
+            }
+
             Platform_IntersectRgn(window->strucRgn, rgn, tempRgn);
 
             if (!Platform_EmptyRgn(tempRgn)) {
                 /* Add to window's update region */
                 if (!window->updateRgn) {
                     window->updateRgn = NewRgn();
+                    if (!window->updateRgn) {
+                        /* Out of memory - dispose temp and skip */
+                        DisposeRgn(tempRgn);
+                        window = window->nextWindow;
+                        continue;
+                    }
                 }
                 Platform_UnionRgn(window->updateRgn, tempRgn, window->updateRgn);
             }
@@ -343,6 +359,10 @@ void WM_GenerateResizeUpdateEvents(WindowPtr window, const Rect* oldBounds, cons
     /* Generate update events for resized window */
     if (!window->updateRgn) {
         window->updateRgn = NewRgn();
+        if (!window->updateRgn) {
+            /* Out of memory - can't generate update events */
+            return;
+        }
     }
 
     /* Mark entire window as needing update */
