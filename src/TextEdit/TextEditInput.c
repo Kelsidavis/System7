@@ -333,7 +333,11 @@ static void TE_TrackMouse(TEHandle hTE, Point startPt) {
     TEI_LOG("TE_TrackMouse: starting drag from (%d,%d)\n", startPt.h, startPt.v);
 
     /* Track until mouse up */
-    while (StillDown()) {
+    const UInt32 MAX_DRAG_ITERATIONS = 100000;  /* Safety timeout: ~1666 seconds at 60Hz */
+    UInt32 loopCount = 0;
+
+    while (StillDown() && loopCount < MAX_DRAG_ITERATIONS) {
+        loopCount++;
         ProcessModernInput();  /* Update gCurrentButtons/g_mousePos */
         GetMouse(&pt);
 
@@ -355,6 +359,11 @@ static void TE_TrackMouse(TEHandle hTE, Point startPt) {
             /* Outside view - trigger autoscroll via TEIdle */
             TEIdle(hTE);
         }
+    }
+
+    if (loopCount >= MAX_DRAG_ITERATIONS) {
+        /* Safety timeout reached - log warning */
+        TEI_LOG("TE_TrackMouse: drag loop timeout after %u iterations\n", loopCount);
     }
 
     pTE->inDragSel = FALSE;

@@ -135,7 +135,11 @@ void DialogTrackButton(DialogPtr theDialog, SInt16 itemNo, Point startPt,
     }
 
     /* Track mouse until release */
-    while (StillDown()) {
+    const UInt32 MAX_TRACK_ITERATIONS = 100000;  /* Safety timeout: ~1666 seconds at 60Hz */
+    UInt32 loopCount = 0;
+
+    while (StillDown() && loopCount < MAX_TRACK_ITERATIONS) {
+        loopCount++;
         GetMouse(&pt);
         GlobalToLocalDialog(theDialog, &pt);
 
@@ -146,6 +150,11 @@ void DialogTrackButton(DialogPtr theDialog, SInt16 itemNo, Point startPt,
             InvertRect(&itemBounds);
             wasInside = inside;
         }
+    }
+
+    if (loopCount >= MAX_TRACK_ITERATIONS) {
+        /* Safety timeout reached - log warning */
+        // DIALOG_LOG_DEBUG("Dialog: item tracking loop timeout after %u iterations\n", loopCount);
     }
 
     /* If mouse released outside, unhighlight */

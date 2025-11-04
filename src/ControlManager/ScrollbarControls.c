@@ -353,7 +353,11 @@ short TrackScrollbar(ControlHandle c, Point startLocal, short startPart,
 
     if (startPart == inThumb) {
         /* Thumb drag tracking */
-        while (StillDown()) {
+        const UInt32 MAX_THUMB_ITERATIONS = 100000;  /* Safety timeout: ~1666 seconds at 60Hz */
+        UInt32 loopCount = 0;
+
+        while (StillDown() && loopCount < MAX_THUMB_ITERATIONS) {
+            loopCount++;
             GetMouse(&pt);
             newValue = CalcThumbValue(c, pt);
             if (newValue != (*c)->contrlValue) {
@@ -384,6 +388,11 @@ short TrackScrollbar(ControlHandle c, Point startLocal, short startPart,
                 /* Redraw just the affected area */
                 Draw1Control(c);
             }
+        }
+
+        if (loopCount >= MAX_THUMB_ITERATIONS) {
+            /* Safety timeout reached - log warning */
+            CTRL_LOG_DEBUG("ScrollbarControls: Thumb drag loop timeout after %u iterations\n", loopCount);
         }
     } else if (startPart == inUpButton || startPart == inDownButton ||
                startPart == inPageUp || startPart == inPageDown) {
@@ -416,7 +425,11 @@ short TrackScrollbar(ControlHandle c, Point startLocal, short startPart,
         SetControlValue(c, newValue);
 
         /* Track with repeat using part-specific timing */
-        while (StillDown()) {
+        const UInt32 MAX_REPEAT_ITERATIONS = 100000;  /* Safety timeout */
+        UInt32 loopCount = 0;
+
+        while (StillDown() && loopCount < MAX_REPEAT_ITERATIONS) {
+            loopCount++;
             GetMouse(&pt);
             stillInPart = (HitTestScrollbar(c, pt) == startPart);
 
@@ -459,6 +472,11 @@ short TrackScrollbar(ControlHandle c, Point startLocal, short startPart,
                     ScrollbarHilite(c, 0);
                 }
             }
+        }
+
+        if (loopCount >= MAX_REPEAT_ITERATIONS) {
+            /* Safety timeout reached - log warning */
+            CTRL_LOG_DEBUG("ScrollbarControls: Repeat tracking loop timeout after %u iterations\n", loopCount);
         }
     }
 
