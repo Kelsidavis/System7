@@ -459,6 +459,10 @@ void DragWindow(WindowPtr theWindow, Point startPt, const Rect* boundsRect) {
         RgnHandle oldRgn = NewRgn();
         MemoryManager_CheckSuspectBlock("post_NewRgn_old");
         WM_LOG_DEBUG("DragWindow: NewRgn() returned %p\n", oldRgn);
+        if (!oldRgn) {
+            WM_LOG_WARN("DragWindow: Failed to allocate oldRgn\n");
+            return;
+        }
         RectRgn(oldRgn, &oldBounds);
 
         WM_LOG_TRACE("DragWindow: Created oldRgn for bounds (%d,%d,%d,%d)\n",
@@ -476,6 +480,15 @@ void DragWindow(WindowPtr theWindow, Point startPt, const Rect* boundsRect) {
         MemoryManager_CheckSuspectBlock("post_NewRgn_uncovered");
         RgnHandle newRgn = NewRgn();
         MemoryManager_CheckSuspectBlock("post_NewRgn_new");
+
+        if (!uncoveredRgn || !newRgn) {
+            WM_LOG_WARN("DragWindow: Failed to allocate regions for uncovered area\n");
+            if (uncoveredRgn) DisposeRgn(uncoveredRgn);
+            if (newRgn) DisposeRgn(newRgn);
+            if (oldRgn) DisposeRgn(oldRgn);
+            return;
+        }
+
         if (theWindow->strucRgn && *theWindow->strucRgn) {
             CopyRgn(theWindow->strucRgn, newRgn);
         }
@@ -509,9 +522,11 @@ void DragWindow(WindowPtr theWindow, Point startPt, const Rect* boundsRect) {
         /* Reset clip */
         extern void SetRectRgn(RgnHandle rgn, short left, short top, short right, short bottom);
         RgnHandle fullClip = NewRgn();
-        SetRectRgn(fullClip, -32768, -32768, 32767, 32767);
-        SetClip(fullClip);
-        DisposeRgn(fullClip);
+        if (fullClip) {
+            SetRectRgn(fullClip, -32768, -32768, 32767, 32767);
+            SetClip(fullClip);
+            DisposeRgn(fullClip);
+        }
 
         SetPort(savePort);
         WM_LOG_TRACE("DragWindow: Desktop repainted in uncovered region\n");

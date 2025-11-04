@@ -686,6 +686,10 @@ static void InitializeWMgrPort(void) {
 
     /* Get screen bounds for gray region */
     g_wmState.grayRgn = NewRgn();
+    if (!g_wmState.grayRgn) {
+        WM_LOG_ERROR("InitializeWindowManager: Failed to allocate grayRgn\n");
+        return;
+    }
     Rect screenBounds;
     Platform_GetScreenBounds(&screenBounds);
     Platform_SetRectRgn(g_wmState.grayRgn, &screenBounds);
@@ -770,6 +774,33 @@ static void InitializeWindowRecord(WindowPtr window, const Rect* bounds,
     window->contRgn = Platform_NewRgn();
     window->updateRgn = Platform_NewRgn();
     window->visRgn = Platform_NewRgn();
+
+    /* Check if all regions were allocated successfully */
+    if (!window->strucRgn || !window->contRgn || !window->updateRgn || !window->visRgn) {
+        WM_LOG_ERROR("InitializeWindowRecord: Failed to allocate window regions\n");
+        /* Clean up any regions that were successfully allocated */
+        if (window->strucRgn) {
+            extern void DisposeRgn(RgnHandle rgn);
+            DisposeRgn(window->strucRgn);
+            window->strucRgn = NULL;
+        }
+        if (window->contRgn) {
+            extern void DisposeRgn(RgnHandle rgn);
+            DisposeRgn(window->contRgn);
+            window->contRgn = NULL;
+        }
+        if (window->updateRgn) {
+            extern void DisposeRgn(RgnHandle rgn);
+            DisposeRgn(window->updateRgn);
+            window->updateRgn = NULL;
+        }
+        if (window->visRgn) {
+            extern void DisposeRgn(RgnHandle rgn);
+            DisposeRgn(window->visRgn);
+            window->visRgn = NULL;
+        }
+        return;
+    }
 
     /* Set window definition procedure based on procID */
     window->windowDefProc = Platform_GetWindowDefProc(procID);

@@ -193,6 +193,9 @@ SInt32 ButtonCDEF(SInt16 varCode, ControlHandle theControl,
             /* Create button region */
             CTRL_LOG_DEBUG("ButtonCDEF initCntl: Creating button region\n");
             buttonData->buttonRegion = NewRgn();
+            if (!buttonData->buttonRegion) {
+                CTRL_LOG_WARN("ButtonCDEF initCntl: Failed to allocate button region\n");
+            }
             CTRL_LOG_DEBUG("ButtonCDEF initCntl: Button region created\n");
 
             /* Calculate button rectangles */

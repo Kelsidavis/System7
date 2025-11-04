@@ -124,9 +124,11 @@ void PaintOne(WindowPtr window, RgnHandle clobberedRgn) {
     extern void SetRectRgn(RgnHandle rgn, short left, short top, short right, short bottom);
     extern void DisposeRgn(RgnHandle rgn);
     RgnHandle fullClipWMgr = NewRgn();
-    SetRectRgn(fullClipWMgr, -32768, -32768, 32767, 32767);
-    SetClip(fullClipWMgr);
-    DisposeRgn(fullClipWMgr);
+    if (fullClipWMgr) {
+        SetRectRgn(fullClipWMgr, -32768, -32768, 32767, 32767);
+        SetClip(fullClipWMgr);
+        DisposeRgn(fullClipWMgr);
+    }
 
     /* CRITICAL: Fill content region with white background BEFORE drawing chrome
      * This prevents garbage/dotted patterns from appearing in the window content area
@@ -1571,10 +1573,12 @@ void WM_Update(void) {
     if (g_deskHook) {
         /* Create a region for the desktop */
         RgnHandle desktopRgn = NewRgn();
-        extern void RectRgn(RgnHandle rgn, const Rect* r);
-        RectRgn(desktopRgn, &desktopRect);
-        g_deskHook(desktopRgn);
-        DisposeRgn(desktopRgn);
+        if (desktopRgn) {
+            extern void RectRgn(RgnHandle rgn, const Rect* r);
+            RectRgn(desktopRgn, &desktopRect);
+            g_deskHook(desktopRgn);
+            DisposeRgn(desktopRgn);
+        }
     }
 
     /* 3. Draw all visible windows on top of desktop icons */
