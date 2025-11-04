@@ -79,6 +79,7 @@ typedef struct ScrollBarData {
 /* Forward declarations */
 static void CalcScrollbarRegions(ControlHandle c);
 static void CalcThumbRect(ControlHandle c);
+static void CalcThumbRectForValue(ControlHandle c, short value, Rect* thumbRect);
 static void DrawScrollbarArrow(GrafPtr port, const Rect* r, short direction, Boolean hilite);
 static void DrawScrollbarThumb(GrafPtr port, ControlHandle c, Boolean hilite);
 static void DrawScrollbarTrack(GrafPtr port, const Rect* r);
@@ -362,12 +363,13 @@ short TrackScrollbar(ControlHandle c, Point startLocal, short startPart,
                 Rect oldThumbRect, newThumbRect, updateRect;
 
                 /* Calculate old thumb position */
-                CalcThumbRect(c, oldValue, &oldThumbRect);
+                CalcThumbRectForValue(c, oldValue, &oldThumbRect);
 
                 /* Calculate new thumb position */
-                CalcThumbRect(c, newValue, &newThumbRect);
+                CalcThumbRectForValue(c, newValue, &newThumbRect);
 
                 /* Get union of old and new thumb rectangles */
+                extern void UnionRect(const Rect* src1, const Rect* src2, Rect* dstRect);
                 UnionRect(&oldThumbRect, &newThumbRect, &updateRect);
 
                 /* Update the control value without full redraw */
@@ -578,6 +580,58 @@ static void CalcThumbRect(ControlHandle c)
 
         data->pageDownRect = data->trackRect;
         data->pageDownRect.left = data->thumbRect.right;
+    }
+}
+
+/**
+ * CalcThumbRectForValue - Compute thumb rect for a specific value
+ * This is a helper function for optimized scrollbar dragging
+ */
+static void CalcThumbRectForValue(ControlHandle c, short value, Rect* thumbRect)
+{
+    ScrollBarData* data;
+    short range, trackLen, thumbLen, thumbPos;
+    short relValue;
+
+    if (!c || !(*c)->contrlData || !thumbRect) return;
+
+    data = (ScrollBarData*)(*(*c)->contrlData);
+    range = (*c)->contrlMax - (*c)->contrlMin;
+    relValue = value - (*c)->contrlMin;
+
+    if (data->vertical) {
+        trackLen = data->trackRect.bottom - data->trackRect.top;
+    } else {
+        trackLen = data->trackRect.right - data->trackRect.left;
+    }
+
+    if (range <= 0 || trackLen <= 0) {
+        /* Disabled or invalid - thumb fills track */
+        *thumbRect = data->trackRect;
+        return;
+    }
+
+    /* Proportional thumb: size = (visible / total) * trackLen */
+    thumbLen = (data->visibleSpan * trackLen) / (range + data->visibleSpan);
+    if (thumbLen < MIN_THUMB_SIZE) thumbLen = MIN_THUMB_SIZE;
+    if (thumbLen > trackLen) thumbLen = trackLen;
+
+    /* Thumb position */
+    if (range > 0) {
+        thumbPos = (relValue * (trackLen - thumbLen)) / range;
+    } else {
+        thumbPos = 0;
+    }
+
+    /* Build thumb rect */
+    if (data->vertical) {
+        *thumbRect = data->trackRect;
+        thumbRect->top += thumbPos;
+        thumbRect->bottom = thumbRect->top + thumbLen;
+    } else {
+        *thumbRect = data->trackRect;
+        thumbRect->left += thumbPos;
+        thumbRect->right = thumbRect->left + thumbLen;
     }
 }
 

@@ -270,19 +270,44 @@ Boolean FrontWindowIsDialog(void) {
 
 /* Center dialog on screen */
 void CenterDialogOnScreen(DialogPtr theDialog) {
-    Rect dialogBounds;
-    SInt16 screenWidth = 640;   /* Classic Mac screen */
-    SInt16 screenHeight = 480;
+    Rect dialogBounds, screenBounds;
     SInt16 dialogWidth, dialogHeight;
+    SInt16 newLeft, newTop;
 
     if (!theDialog) return;
 
+    /* Get screen bounds */
+    extern void Platform_GetScreenBounds(Rect* bounds);
+    Platform_GetScreenBounds(&screenBounds);
+
+    /* Account for menu bar at top (20 pixels) */
+    screenBounds.top += 20;
+
     /* Get dialog bounds from window */
-    dialogBounds = ((WindowPtr)theDialog)->port.portRect;
+    WindowPtr window = (WindowPtr)theDialog;
+    dialogBounds = window->port.portRect;
 
     dialogWidth = dialogBounds.right - dialogBounds.left;
     dialogHeight = dialogBounds.bottom - dialogBounds.top;
 
-    /* Move dialog (would call MoveWindow in full implementation) */
-    /* Would center at ((screenWidth - dialogWidth) / 2, (screenHeight - dialogHeight) / 3) */
+    /* Calculate centered position - use 1/3 from top for better visual balance */
+    SInt16 screenWidth = screenBounds.right - screenBounds.left;
+    SInt16 screenHeight = screenBounds.bottom - screenBounds.top;
+
+    newLeft = screenBounds.left + (screenWidth - dialogWidth) / 2;
+    newTop = screenBounds.top + (screenHeight - dialogHeight) / 3;
+
+    /* Ensure dialog stays on screen */
+    if (newLeft < screenBounds.left) newLeft = screenBounds.left;
+    if (newTop < screenBounds.top) newTop = screenBounds.top;
+    if (newLeft + dialogWidth > screenBounds.right) {
+        newLeft = screenBounds.right - dialogWidth;
+    }
+    if (newTop + dialogHeight > screenBounds.bottom) {
+        newTop = screenBounds.bottom - dialogHeight;
+    }
+
+    /* Move the dialog window */
+    extern void MoveWindow(WindowPtr window, short hGlobal, short vGlobal, Boolean front);
+    MoveWindow(window, newLeft, newTop, false);
 }
