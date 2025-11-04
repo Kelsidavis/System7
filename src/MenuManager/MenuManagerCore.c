@@ -1003,8 +1003,26 @@ void FlashMenuBar(short menuID)
 
     /* Flash the specified menu or entire menu bar */
     for (int i = 0; i < gMenuFlash; i++) {
-        /* TODO: Implement flashing animation */
-        /* Flash menu bar */
+        /* Get menu bar rectangle - standard Mac menu bar is full screen width, 20 pixels high */
+        Rect menuBarRect;
+        extern void Platform_GetScreenBounds(Rect* bounds);
+        Platform_GetScreenBounds(&menuBarRect);
+        menuBarRect.bottom = menuBarRect.top + 20; /* Menu bar height */
+
+        /* Invert the menu bar for flash effect */
+        InvertRect(&menuBarRect);
+
+        /* Brief delay for visual effect */
+        extern void Platform_WaitTicks(short ticks);
+        Platform_WaitTicks(2); /* ~33ms at 60 Hz */
+
+        /* Invert back to restore */
+        InvertRect(&menuBarRect);
+
+        /* Delay between flashes */
+        if (i < gMenuFlash - 1) {
+            Platform_WaitTicks(1);
+        }
     }
 }
 

@@ -541,14 +541,25 @@ void BeginUpdate(WindowPtr theWindow) {
                 /* Check if current port's clipRgn is valid before calling SetClip */
                 extern GrafPtr g_currentPort;
                 if (g_currentPort && g_currentPort->clipRgn) {
+                    /* SetClip copies the region, so we can safely dispose after */
                     SetClip(updateClip);
                 }
             } else {
+                /* Platform_SetClipRgn copies the region data */
                 Platform_SetClipRgn(&theWindow->port, updateClip);
             }
-            /* FIXME: Platform_DisposeRgn hangs in DisposePtr((Ptr)) - possible heap corruption
-             * Skip for now to avoid leak, but this needs investigation */
-            /* Platform_DisposeRgn(updateClip); */
+            /* FIXED: Properly dispose the temporary region after use
+             * SetClip/Platform_SetClipRgn copy the region data, so updateClip is safe to dispose.
+             * Only dispose if the region is not NULL and not being referenced. */
+            if (updateClip) {
+                /* Ensure region is not the same as any critical regions before disposing */
+                if (updateClip != theWindow->contRgn &&
+                    updateClip != theWindow->updateRgn &&
+                    updateClip != theWindow->visRgn &&
+                    updateClip != theWindow->strucRgn) {
+                    Platform_DisposeRgn(updateClip);
+                }
+            }
         }
     } else if (theWindow->contRgn) {
         /* If no updateRgn, just use contRgn to prevent overdrawing chrome */

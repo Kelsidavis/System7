@@ -894,7 +894,35 @@ void AnimateMenuShow(MenuHandle theMenu, const Rect* startRect,
     /* MENU_LOG_TRACE("Animating menu show for menu %d (duration: %d)\n",
            (*(MenuInfo**)theMenu)->menuID, duration); */
 
-    /* TODO: Implement animation */
+    /* Implement menu show animation by drawing expanding rectangles */
+    if (duration > 0) {
+        short steps = duration / 2; /* Number of animation steps */
+        if (steps < 1) steps = 1;
+        if (steps > 10) steps = 10; /* Cap at 10 steps for performance */
+
+        for (short step = 0; step <= steps; step++) {
+            /* Calculate intermediate rectangle by linear interpolation */
+            Rect currentRect;
+            currentRect.left = startRect->left +
+                ((endRect->left - startRect->left) * step) / steps;
+            currentRect.top = startRect->top +
+                ((endRect->top - startRect->top) * step) / steps;
+            currentRect.right = startRect->right +
+                ((endRect->right - startRect->right) * step) / steps;
+            currentRect.bottom = startRect->bottom +
+                ((endRect->bottom - startRect->bottom) * step) / steps;
+
+            /* Draw the expanding frame */
+            FrameRect(&currentRect);
+
+            /* Brief delay */
+            extern void Platform_WaitTicks(short ticks);
+            Platform_WaitTicks(1);
+
+            /* Erase the frame (redraw background or invert again) */
+            FrameRect(&currentRect);
+        }
+    }
 }
 
 /*
@@ -910,7 +938,35 @@ void AnimateMenuHide(MenuHandle theMenu, const Rect* startRect,
     /* MENU_LOG_TRACE("Animating menu hide for menu %d (duration: %d)\n",
            (*(MenuInfo**)theMenu)->menuID, duration); */
 
-    /* TODO: Implement animation */
+    /* Implement menu hide animation by drawing collapsing rectangles */
+    if (duration > 0) {
+        short steps = duration / 2; /* Number of animation steps */
+        if (steps < 1) steps = 1;
+        if (steps > 10) steps = 10; /* Cap at 10 steps for performance */
+
+        for (short step = 0; step <= steps; step++) {
+            /* Calculate intermediate rectangle by linear interpolation (reverse) */
+            Rect currentRect;
+            currentRect.left = startRect->left +
+                ((endRect->left - startRect->left) * step) / steps;
+            currentRect.top = startRect->top +
+                ((endRect->top - startRect->top) * step) / steps;
+            currentRect.right = startRect->right +
+                ((endRect->right - startRect->right) * step) / steps;
+            currentRect.bottom = startRect->bottom +
+                ((endRect->bottom - startRect->bottom) * step) / steps;
+
+            /* Draw the collapsing frame */
+            FrameRect(&currentRect);
+
+            /* Brief delay */
+            extern void Platform_WaitTicks(short ticks);
+            Platform_WaitTicks(1);
+
+            /* Erase the frame */
+            FrameRect(&currentRect);
+        }
+    }
 }
 
 /* ============================================================================
