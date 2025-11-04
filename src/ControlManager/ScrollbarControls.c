@@ -356,8 +356,31 @@ short TrackScrollbar(ControlHandle c, Point startLocal, short startPart,
             GetMouse(&pt);
             newValue = CalcThumbValue(c, pt);
             if (newValue != (*c)->contrlValue) {
-                /* TODO(perf): Consider invalidating union(oldThumb, newThumb) instead of redrawing whole control */
-                SetControlValue(c, newValue);
+                /* OPTIMIZATION: Invalidate only the region affected by thumb movement
+                 * instead of redrawing the entire scrollbar control */
+                short oldValue = (*c)->contrlValue;
+                Rect oldThumbRect, newThumbRect, updateRect;
+
+                /* Calculate old thumb position */
+                CalcThumbRect(c, oldValue, &oldThumbRect);
+
+                /* Calculate new thumb position */
+                CalcThumbRect(c, newValue, &newThumbRect);
+
+                /* Get union of old and new thumb rectangles */
+                UnionRect(&oldThumbRect, &newThumbRect, &updateRect);
+
+                /* Update the control value without full redraw */
+                (*c)->contrlValue = newValue;
+
+                /* Invalidate only the affected region for efficient redraw */
+                if ((*c)->contrlOwner) {
+                    extern void InvalRect(const Rect* badRect);
+                    InvalRect(&updateRect);
+                }
+
+                /* Redraw just the affected area */
+                Draw1Control(c);
             }
         }
     } else if (startPart == inUpButton || startPart == inDownButton ||

@@ -1347,11 +1347,38 @@ void SelectWindow(WindowPtr window) {
     WM_DEBUG("SelectWindow: Selecting window");
     DumpWindowList("SelectWindow - START");
 
+    WindowManagerState* wmState = GetWindowManagerState();
+    if (!wmState) return;
+
+    /* Deactivate current active window if different */
+    if (wmState->activeWindow && wmState->activeWindow != window) {
+        extern void WM_OnDeactivate(WindowPtr w);
+        WM_OnDeactivate(wmState->activeWindow);
+
+        /* Unhilite the previously active window */
+        HiliteWindow(wmState->activeWindow, false);
+
+        /* Post deactivate event */
+        extern void PostEvent(short eventCode, SInt32 eventMsg);
+        PostEvent(6, (SInt32)wmState->activeWindow);  /* activateEvt with activeFlag clear */
+    }
+
     /* Bring window to front */
     BringToFront(window);
 
-    /* Generate activate event */
-    /* This would post an activateEvt to the event queue */
+    /* Set as active window */
+    wmState->activeWindow = window;
+
+    /* Activate the new window */
+    extern void WM_OnActivate(WindowPtr w);
+    WM_OnActivate(window);
+
+    /* Hilite the newly active window */
+    HiliteWindow(window, true);
+
+    /* Generate activate event for the newly selected window */
+    extern void PostEvent(short eventCode, SInt32 eventMsg);
+    PostEvent(6, (SInt32)window | 0x0001);  /* activateEvt with activeFlag set */
 }
 
 /*-----------------------------------------------------------------------*/
