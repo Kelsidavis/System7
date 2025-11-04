@@ -360,16 +360,20 @@ void InvalRect(const Rect* badRect) {
     WindowPtr window = (WindowPtr)currentPort;
 
     /* Add rectangle to window's update region */
-    if (window->updateRgn) {
-        RgnHandle tempRgn = Platform_NewRgn();
-        if (tempRgn) {
-            Platform_SetRectRgn(tempRgn, badRect);
-            Platform_UnionRgn(window->updateRgn, tempRgn, window->updateRgn);
-            Platform_DisposeRgn(tempRgn);
+    if (!window->updateRgn) {
+        /* Create update region if it doesn't exist */
+        window->updateRgn = Platform_NewRgn();
+        if (!window->updateRgn) return; /* Out of memory */
+    }
 
-            /* Schedule platform update */
-            Platform_InvalidateWindowRect(window, badRect);
-        }
+    RgnHandle tempRgn = Platform_NewRgn();
+    if (tempRgn) {
+        Platform_SetRectRgn(tempRgn, badRect);
+        Platform_UnionRgn(window->updateRgn, tempRgn, window->updateRgn);
+        Platform_DisposeRgn(tempRgn);
+
+        /* Schedule platform update */
+        Platform_InvalidateWindowRect(window, badRect);
     }
 
     WM_DEBUG("InvalRect: Rectangle invalidated");
@@ -411,32 +415,37 @@ void InvalRgn(RgnHandle badRgn) {
                  badRgnData->rgnBBox.right, badRgnData->rgnBBox.bottom);
 
     /* Add region to window's update region */
-    if (window->updateRgn) {
-        /* Region* updateBefore = *(window->updateRgn); */
-        WM_LOG_TRACE("WindowManager: InvalRgn - BEFORE union, updateRgn bbox=(%d,%d,%d,%d)\n",
-                     updateBefore->rgnBBox.left, updateBefore->rgnBBox.top,
-                     updateBefore->rgnBBox.right, updateBefore->rgnBBox.bottom);
-
-        Platform_UnionRgn(window->updateRgn, badRgn, window->updateRgn);
-
-        /* Region* updateAfter = *(window->updateRgn); */
-        WM_LOG_TRACE("WindowManager: InvalRgn - AFTER union, updateRgn bbox=(%d,%d,%d,%d)\n",
-                     updateAfter->rgnBBox.left, updateAfter->rgnBBox.top,
-                     updateAfter->rgnBBox.right, updateAfter->rgnBBox.bottom);
-
-        /* Schedule platform update */
-        /* TODO: Convert region to rectangle for platform invalidation */
-        Rect regionBounds;
-        Platform_GetRegionBounds(badRgn, &regionBounds);
-        Platform_InvalidateWindowRect(window, &regionBounds);
-
-        /* Post update event to Event Manager so application can redraw */
-        /* PostEvent declared in EventManager.h */
-        PostEvent(6 /* updateEvt */, (SInt32)window);
-        WM_LOG_DEBUG("WindowManager: InvalRgn - Posted updateEvt for window=0x%08x\n", (unsigned int)window);
-    } else {
-        WM_LOG_WARN("WindowManager: InvalRgn - window has NULL updateRgn!\n");
+    if (!window->updateRgn) {
+        /* Create update region if it doesn't exist */
+        window->updateRgn = Platform_NewRgn();
+        if (!window->updateRgn) {
+            WM_LOG_WARN("WindowManager: InvalRgn - failed to create updateRgn (out of memory)!\n");
+            return; /* Out of memory */
+        }
     }
+
+    /* Region* updateBefore = *(window->updateRgn); */
+    WM_LOG_TRACE("WindowManager: InvalRgn - BEFORE union, updateRgn bbox=(%d,%d,%d,%d)\n",
+                 updateBefore->rgnBBox.left, updateBefore->rgnBBox.top,
+                 updateBefore->rgnBBox.right, updateBefore->rgnBBox.bottom);
+
+    Platform_UnionRgn(window->updateRgn, badRgn, window->updateRgn);
+
+    /* Region* updateAfter = *(window->updateRgn); */
+    WM_LOG_TRACE("WindowManager: InvalRgn - AFTER union, updateRgn bbox=(%d,%d,%d,%d)\n",
+                 updateAfter->rgnBBox.left, updateAfter->rgnBBox.top,
+                 updateAfter->rgnBBox.right, updateAfter->rgnBBox.bottom);
+
+    /* Schedule platform update */
+    /* TODO: Convert region to rectangle for platform invalidation */
+    Rect regionBounds;
+    Platform_GetRegionBounds(badRgn, &regionBounds);
+    Platform_InvalidateWindowRect(window, &regionBounds);
+
+    /* Post update event to Event Manager so application can redraw */
+    /* PostEvent declared in EventManager.h */
+    PostEvent(6 /* updateEvt */, (SInt32)window);
+    WM_LOG_DEBUG("WindowManager: InvalRgn - Posted updateEvt for window=0x%08x\n", (unsigned int)window);
 }
 
 void ValidRect(const Rect* goodRect) {
