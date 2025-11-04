@@ -296,9 +296,19 @@ Boolean TrackBox(WindowPtr theWindow, Point thePt, short partCode) {
     EndUpdate(theWindow);
     serial_puts("[TB] EndUpdate done\n");
 
-    /* TODO: Also need to invalidate desktop/background to clean up cursor ghosts
-     * that appear when moving mouse after close button tracking completes.
-     * For now, window redraw fixes ghosts within window bounds. */
+    /* Refresh desktop area around window to clean up cursor ghosts.
+     * Cursor can move anywhere during tracking, leaving artifacts on desktop. */
+    extern void RefreshDesktopRect(const Rect* rectToRefresh);
+    if (theWindow->strucRgn) {
+        Rect windowBounds;
+        Platform_GetRegionBounds(theWindow->strucRgn, &windowBounds);
+        /* Expand by cursor size to catch any cursor ghosts near window */
+        windowBounds.left -= 20;
+        windowBounds.top -= 20;
+        windowBounds.right += 20;
+        windowBounds.bottom += 20;
+        RefreshDesktopRect(&windowBounds);
+    }
 
     /* Manually erase the close box area to remove InvertRect artifacts.
      * We need to draw directly to framebuffer since the title bar chrome

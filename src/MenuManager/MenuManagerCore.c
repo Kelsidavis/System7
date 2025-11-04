@@ -1306,13 +1306,28 @@ void DisposeMCInfo(MCTableHandle menuCTbl)
     }
 }
 
+/* Global menu color table - simple implementation for basic color support */
+static MCTable* gMenuColorTable = NULL;
+
 /*
  * GetMCEntry - Get menu color entry
  */
 MCEntryPtr GetMCEntry(short menuID, short menuItem)
 {
-    /* TODO: Implement menu color lookup */
-    return NULL;
+    /* Return NULL if no color table exists (use default colors) */
+    if (gMenuColorTable == NULL) {
+        return NULL;
+    }
+
+    /* Search for matching menu color entry */
+    for (short i = 0; i < gMenuColorTable->mctSize; i++) {
+        MCEntry* entry = &gMenuColorTable->mctTable[i];
+        if (entry->mctID == menuID && entry->mctItem == menuItem) {
+            return entry;
+        }
+    }
+
+    return NULL;  /* No custom colors for this menu/item */
 }
 
 /*
@@ -1320,7 +1335,23 @@ MCEntryPtr GetMCEntry(short menuID, short menuItem)
  */
 void SetMCEntries(short numEntries, MCTablePtr menuCEntries)
 {
-    /* TODO: Implement menu color entry setting */
+    if (numEntries <= 0 || menuCEntries == NULL) {
+        return;
+    }
+
+    /* Allocate or reallocate color table */
+    if (gMenuColorTable == NULL) {
+        gMenuColorTable = (MCTable*)NewPtrClear(sizeof(MCTable) + (numEntries * sizeof(MCEntry)));
+        if (gMenuColorTable == NULL) {
+            return;  /* Allocation failed */
+        }
+        gMenuColorTable->mctSize = numEntries;
+    }
+
+    /* Copy color entries */
+    for (short i = 0; i < numEntries && i < gMenuColorTable->mctSize; i++) {
+        gMenuColorTable->mctTable[i] = menuCEntries->mctTable[i];
+    }
 }
 
 /*
@@ -1328,5 +1359,22 @@ void SetMCEntries(short numEntries, MCTablePtr menuCEntries)
  */
 void DeleteMCEntries(short menuID, short menuItem)
 {
-    /* TODO: Implement menu color entry deletion */
+    if (gMenuColorTable == NULL) {
+        return;
+    }
+
+    /* Find and remove matching entries by shifting array */
+    short writeIndex = 0;
+    for (short readIndex = 0; readIndex < gMenuColorTable->mctSize; readIndex++) {
+        MCEntry* entry = &gMenuColorTable->mctTable[readIndex];
+        /* Keep entry if it doesn't match the deletion criteria */
+        if (!(entry->mctID == menuID &&
+              (menuItem == 0 || entry->mctItem == menuItem))) {
+            if (writeIndex != readIndex) {
+                gMenuColorTable->mctTable[writeIndex] = gMenuColorTable->mctTable[readIndex];
+            }
+            writeIndex++;
+        }
+    }
+    gMenuColorTable->mctSize = writeIndex;
 }

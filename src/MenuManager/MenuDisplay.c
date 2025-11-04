@@ -1033,7 +1033,18 @@ void GetMenuColors(short menuID, short itemID, short componentID,
         backColor->blue = 0xFFFF;
     }
 
-    /* TODO: Look up colors in menu color table */
+    /* Look up colors in menu color table if available */
+    extern MCEntryPtr GetMCEntry(short menuID, short menuItem);
+    MCEntryPtr colorEntry = GetMCEntry(menuID, item);
+    if (colorEntry != NULL) {
+        /* Apply custom colors from menu color table */
+        if (foreColor != NULL && colorEntry->mctRGB2) {
+            *foreColor = *(colorEntry->mctRGB2);
+        }
+        if (backColor != NULL && colorEntry->mctRGB3) {
+            *backColor = *(colorEntry->mctRGB3);
+        }
+    }
 }
 
 /*
@@ -1191,7 +1202,52 @@ static void DrawMenuItemIconInternal(const Rect* iconRect, short iconID,
     /* MENU_LOG_TRACE("Drawing item icon %d (enabled=%s, selected=%s)\n",
            iconID, enabled ? "Yes" : "No", selected ? "Yes" : "No"); */
 
-    /* TODO: Draw actual icon */
+    /* Draw icon if iconID is specified */
+    if (iconID > 0 && iconRect != NULL) {
+        /* Save graphics state */
+        GrafPtr savePort;
+        GetPort(&savePort);
+
+        /* Set color based on enabled/selected state */
+        if (selected) {
+            ForeColor(whiteColor);  /* White for selected items */
+        } else if (!enabled) {
+            ForeColor(8);  /* Gray for disabled items */
+        } else {
+            ForeColor(blackColor);  /* Black for normal items */
+        }
+
+        /* Draw a simple icon placeholder - a small filled/framed rectangle
+         * In a full implementation, this would call PlotIconID or similar
+         * to render actual icon resources */
+        Rect smallIconRect = *iconRect;
+        /* Inset to make icon smaller (16x16 instead of full rect) */
+        InsetRect(&smallIconRect, 2, 2);
+
+        /* For standard Mac icons, draw appropriate symbol */
+        if (iconID == 1) {
+            /* Icon 1: Application icon - draw a small document-like shape */
+            FrameRect(&smallIconRect);
+            /* Draw folded corner */
+            MoveTo(smallIconRect.right - 4, smallIconRect.top);
+            LineTo(smallIconRect.right, smallIconRect.top + 4);
+        } else if (iconID == 2) {
+            /* Icon 2: Folder icon - draw folder shape */
+            FrameRect(&smallIconRect);
+            MoveTo(smallIconRect.left, smallIconRect.top + 3);
+            LineTo(smallIconRect.left + 6, smallIconRect.top);
+            LineTo(smallIconRect.right, smallIconRect.top);
+        } else {
+            /* Generic icon - just draw a filled square with frame */
+            PaintRect(&smallIconRect);
+            InvertRect(&smallIconRect);  /* Make it stand out */
+        }
+
+        /* Restore color */
+        if (selected || !enabled) {
+            ForeColor(blackColor);
+        }
+    }
 
     (void)iconRect;
     (void)iconID;
