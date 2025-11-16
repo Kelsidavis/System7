@@ -565,6 +565,28 @@ static void DisposeDialogStructure(DialogPtr dialog, Boolean closeOnly)
         dialogRec->textH = NULL;
     }
 
+    /* Dispose of all TEHandles created for edit-text items
+     * NOTE: teHandles array is global in DialogManagerState, so we dispose all
+     * TEHandles when disposing any dialog. GetOrCreateDialogTEHandle will recreate
+     * them on demand if other dialogs are still active. */
+    if (!closeOnly) {
+        DialogManagerState* dmState = GetDialogManagerState();
+        if (dmState) {
+            DialogManagerState_Extended* extState = GET_EXTENDED_DLG_STATE(dmState);
+            if (extState) {
+                extern void TEDispose(TEHandle hTE);
+
+                /* Dispose all TEHandles to prevent memory leaks */
+                for (int i = 0; i < 256; i++) {
+                    if (extState->teHandles[i] != NULL) {
+                        TEDispose((TEHandle)extState->teHandles[i]);
+                        extState->teHandles[i] = NULL;
+                    }
+                }
+            }
+        }
+    }
+
     /* Dispose of the underlying window */
     if (!closeOnly) {
         DisposeWindow((WindowPtr)dialog);
