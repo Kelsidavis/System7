@@ -448,6 +448,17 @@ void CloseWindow(WindowPtr theWindow) {
     RemoveWindowFromList(theWindow);
     WM_LOG_DEBUG("CloseWindow: RemoveWindowFromList returned\n");
 
+    /* Dispose of all controls in the window's control list */
+    WM_LOG_DEBUG("CloseWindow: Disposing controls\n");
+    while (theWindow->controlList != NULL) {
+        ControlHandle control = theWindow->controlList;
+        /* Remove from list before disposing to avoid issues */
+        theWindow->controlList = (*control)->nextControl ? (ControlHandle)(*(*control)->nextControl) : NULL;
+        extern void DisposeControl(ControlHandle theControl);
+        DisposeControl(control);
+    }
+    WM_LOG_DEBUG("CloseWindow: Controls disposed\n");
+
     /* Dispose of auxiliary window record if it exists */
     WM_LOG_DEBUG("CloseWindow: Checking for AuxWin\n");
     AuxWinHandle auxWin;
