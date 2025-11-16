@@ -207,9 +207,13 @@ void DragControl(ControlHandle theControl, Point startPt,
         GetWindowBounds((*theControl)->contrlOwner, &limit);
     }
 
-    /* Track mouse */
+    /* Track mouse with infinite loop guard */
+    const UInt32 MAX_DRAG_ITERATIONS = 100000;  /* Prevent infinite loop hang */
+    UInt32 loopCount = 0;
+
     lastPt = startPt;
-    while (StillDown()) {
+    while (StillDown() && loopCount < MAX_DRAG_ITERATIONS) {
+        loopCount++;
         GetMouse(&currentPt);
 
         /* Apply axis constraints */
@@ -235,6 +239,10 @@ void DragControl(ControlHandle theControl, Point startPt,
                 lastPt = currentPt;
             }
         }
+    }
+
+    if (loopCount >= MAX_DRAG_ITERATIONS) {
+        CTRL_LOG_WARN("DragControl: Hit iteration limit, possible UI hang prevented\n");
     }
 }
 
