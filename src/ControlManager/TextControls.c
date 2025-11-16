@@ -484,6 +484,10 @@ static void InitializeEditText(ControlHandle control) {
 
     /* Initialize text storage */
     editData->textHandle = NewHandle(256); /* Default size */
+    if (!editData->textHandle) {
+        CTRL_LOG_WARN("InitializeEditText: Failed to allocate text handle\n");
+        return;
+    }
 
     /* Set defaults */
     editData->isActive = false;
@@ -521,6 +525,10 @@ static void InitializeStaticText(ControlHandle control) {
 
     /* Initialize text storage */
     staticData->textHandle = NewHandle(256); /* Default size */
+    if (!staticData->textHandle) {
+        CTRL_LOG_WARN("InitializeStaticText: Failed to allocate text handle\n");
+        return;
+    }
 
     /* Set defaults */
     staticData->textAlign = teFlushLeft;
