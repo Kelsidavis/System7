@@ -5,13 +5,18 @@
 
 #include <stdint.h>
 #include <stddef.h>
+#include <stdbool.h>
 #include "uart.h"
 #include "timer.h"
 #include "dtb.h"
+#include "Platform/include/boot.h"
 
 #ifndef QEMU_BUILD
 #include "mailbox.h"
+#include "framebuffer.h"
 #include "gic.h"
+#else
+#include "virtio_gpu.h"
 #endif
 
 /* Minimal snprintf declaration */
@@ -28,6 +33,10 @@ typedef struct {
 } arm64_boot_info_t;
 
 static arm64_boot_info_t boot_info = {0};
+
+/* Framebuffer state */
+static hal_framebuffer_info_t g_fb_info = {0};
+static int g_fb_present = 0;
 
 /*
  * Early ARM64 boot entry from assembly
@@ -82,10 +91,15 @@ void arm64_boot_main(void *dtb_ptr) {
         uart_puts("[ARM64] DTB pointer provided, attempting init...\n");
         if (dtb_init(dtb_ptr)) {
             uart_puts("[ARM64] Device Tree initialized\n");
+            uart_flush();
 
             /* Skip model and memory parsing for now - just use defaults */
+            uart_puts("[ARM64] Setting memory defaults...\n");
+            uart_puts("[ARM64] 1\n");
             boot_info.memory_base = 0x00000000;
+            uart_puts("[ARM64] 2\n");
             boot_info.memory_size = 1024 * 1024 * 1024;  /* 1GB default */
+            uart_puts("[ARM64] 3 - Memory defaults set\n");
         } else {
             uart_puts("[ARM64] DTB init failed\n");
             boot_info.memory_base = 0x00000000;
@@ -159,14 +173,65 @@ void arm64_boot_main(void *dtb_ptr) {
         uart_puts("[ARM64] MMU init failed\n");
     }
 
+    /* Initialize framebuffer */
+    uart_puts("[ARM64] Initializing framebuffer...\n");
+#ifdef QEMU_BUILD
+    /* QEMU virt machine uses VirtIO GPU */
+    if (virtio_gpu_init()) {
+        g_fb_present = 1;
+        g_fb_info.framebuffer = virtio_gpu_get_buffer();
+        g_fb_info.width = virtio_gpu_get_width();
+        g_fb_info.height = virtio_gpu_get_height();
+        g_fb_info.pitch = g_fb_info.width * 4;
+        g_fb_info.depth = 32;
+        /* VirtIO GPU uses BGRX format */
+        g_fb_info.blue_offset = 0;
+        g_fb_info.blue_size = 8;
+        g_fb_info.green_offset = 8;
+        g_fb_info.green_size = 8;
+        g_fb_info.red_offset = 16;
+        g_fb_info.red_size = 8;
+        uart_puts("[ARM64] VirtIO GPU framebuffer initialized\n");
+
+        /* Clear to light gray (classic Mac desktop color) */
+        virtio_gpu_clear(0xFFCCCCCC);
+        virtio_gpu_flush();
+    } else {
+        uart_puts("[ARM64] VirtIO GPU init failed, continuing without graphics\n");
+    }
+#else
+    /* Raspberry Pi uses VideoCore mailbox framebuffer */
+    if (framebuffer_init(640, 480, 32)) {
+        g_fb_present = 1;
+        g_fb_info.framebuffer = framebuffer_get_buffer();
+        g_fb_info.width = framebuffer_get_width();
+        g_fb_info.height = framebuffer_get_height();
+        g_fb_info.pitch = framebuffer_get_pitch();
+        g_fb_info.depth = framebuffer_get_depth();
+        /* Pi framebuffer uses RGB format */
+        g_fb_info.red_offset = 16;
+        g_fb_info.red_size = 8;
+        g_fb_info.green_offset = 8;
+        g_fb_info.green_size = 8;
+        g_fb_info.blue_offset = 0;
+        g_fb_info.blue_size = 8;
+        uart_puts("[ARM64] Pi framebuffer initialized\n");
+
+        /* Clear to light gray */
+        framebuffer_clear(0xFFCCCCCC);
+    } else {
+        uart_puts("[ARM64] Pi framebuffer init failed, continuing without graphics\n");
+    }
+#endif
+
     uart_puts("[ARM64] Early boot complete, entering kernel...\n");
     uart_puts("[ARM64] ==========================================================\n");
 
-    /* Jump to main kernel entry point */
-    uart_puts("[ARM64] About to call main()...\n");
-    extern int main(int argc, char **argv);
-    main(0, NULL);
-    uart_puts("[ARM64] main() returned\n");
+    /* Jump to System7 boot entry point via HAL */
+    uart_puts("[ARM64] About to call boot_main()...\n");
+    extern void boot_main(uint32_t magic, uint32_t* mb2_info);
+    boot_main(0, NULL);  /* No multiboot on ARM64, pass NULL */
+    uart_puts("[ARM64] boot_main() returned\n");
 
     /* Should not return */
     while (1) {
@@ -175,10 +240,13 @@ void arm64_boot_main(void *dtb_ptr) {
 }
 
 /*
- * Get detected memory size
+ * Get detected memory size (returns uint32_t for HAL compatibility)
  */
-uint64_t hal_get_memory_size(void) {
-    return boot_info.memory_size;
+uint32_t hal_get_memory_size(void) {
+    if (boot_info.memory_size > UINT32_MAX) {
+        return UINT32_MAX;
+    }
+    return (uint32_t)boot_info.memory_size;
 }
 
 /*
@@ -186,4 +254,52 @@ uint64_t hal_get_memory_size(void) {
  */
 void *hal_get_dtb_address(void) {
     return (void *)boot_info.dtb_address;
+}
+
+/*
+ * HAL boot init - called by boot_main()
+ */
+void hal_boot_init(void *boot_arg) {
+    (void)boot_arg;
+    /* Framebuffer already initialized in arm64_boot_main */
+    uart_puts("[ARM64] hal_boot_init called\n");
+}
+
+/*
+ * Get framebuffer information for System7 GUI
+ */
+int hal_get_framebuffer_info(hal_framebuffer_info_t *info) {
+    if (!info || !g_fb_present) {
+        return -1;
+    }
+    *info = g_fb_info;
+    return 0;
+}
+
+/*
+ * Platform initialization
+ */
+int hal_platform_init(void) {
+    uart_puts("[ARM64] hal_platform_init called\n");
+    return 0;
+}
+
+/*
+ * Platform shutdown
+ */
+void hal_platform_shutdown(void) {
+    uart_puts("[ARM64] hal_platform_shutdown called\n");
+}
+
+/*
+ * Present framebuffer (flush to display)
+ */
+int hal_framebuffer_present(void) {
+#ifdef QEMU_BUILD
+    if (g_fb_present) {
+        virtio_gpu_flush();
+    }
+#endif
+    /* Pi framebuffer doesn't need explicit flush - writes go directly to VideoCore */
+    return g_fb_present;
 }

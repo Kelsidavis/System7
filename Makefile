@@ -156,11 +156,12 @@ ifeq ($(PLATFORM),arm)
     endif
 else ifeq ($(PLATFORM),arm64)
     # ARM 64-bit (AArch64) for QEMU virt machine
-    # Use aarch64-elf-gcc cross-compiler for bare-metal development
-    CC = aarch64-elf-gcc
-    AS = aarch64-elf-as
-    LD = aarch64-elf-ld
-    AR = aarch64-elf-ar
+    # Use aarch64 cross-compiler (prefer elf, fallback to linux-gnu)
+    AARCH64_PREFIX := $(shell command -v aarch64-elf-gcc >/dev/null 2>&1 && echo aarch64-elf || echo aarch64-linux-gnu)
+    CC = $(AARCH64_PREFIX)-gcc
+    AS = $(AARCH64_PREFIX)-as
+    LD = $(AARCH64_PREFIX)-ld
+    AR = $(AARCH64_PREFIX)-ar
     CFLAGS = $(COMMON_CFLAGS) -march=armv8-a -ffreestanding -DQEMU_BUILD
     ASFLAGS = -march=armv8-a
     LDFLAGS = -nostdlib -no-pie -Wl,--allow-multiple-definition -Wl,-z,execstack
@@ -264,7 +265,26 @@ C_SOURCES = src/main.c \
             src/OSUtils/MemoryUtilities.c \
             src/OSUtils/DebugUtils.c \
             src/Platform/WindowPlatform.c \
-            $(if $(filter arm arm64,$(PLATFORM)), \
+            $(if $(filter arm64,$(PLATFORM)), \
+              src/Platform/arm64/uart_qemu.c \
+              src/Platform/arm64/hal_boot.c \
+              src/Platform/arm64/serial.c \
+              src/Platform/arm64/timer.c \
+              src/Platform/arm64/dtb.c \
+              src/Platform/arm64/virtio_gpu.c \
+              src/Platform/arm64/virtio_pci.c \
+              src/Platform/arm64/virtio_input.c \
+              src/Platform/arm64/virtio_blk.c \
+              src/Platform/arm64/mmu.c \
+              src/Platform/arm64/cache.c \
+              src/Platform/arm64/exception_handlers.c \
+              src/Platform/arm64/string.c \
+              src/Platform/arm64/printf.c \
+              src/Platform/arm64/io.c \
+              src/Platform/arm64/hal_input.c \
+              src/Platform/arm64/platform_info.c \
+              src/Platform/arm64/storage.c, \
+            $(if $(filter arm,$(PLATFORM)), \
               src/Platform/arm/hal_boot.c \
               src/Platform/arm/io.c \
               src/Platform/arm/device_tree.c \
@@ -282,11 +302,8 @@ C_SOURCES = src/main.c \
               src/Platform/arm/dwcotg.c \
               src/Platform/arm/usb_controller.c \
               src/Platform/arm/hid_input.c \
-              src/Platform/arm/input_stubs.c \
-              $(if $(filter arm64,$(PLATFORM)), \
-                src/Platform/arm64/uart_qemu.c \
-                src/Platform/arm64/hal_boot.c,), \
-              $(if $(filter ppc,$(PLATFORM)), \
+              src/Platform/arm/input_stubs.c, \
+            $(if $(filter ppc,$(PLATFORM)), \
                 src/Platform/ppc/hal_boot.c \
                 src/Platform/ppc/io.c \
                 src/Platform/ppc/platform_info.c \
@@ -300,7 +317,7 @@ C_SOURCES = src/main.c \
                 src/Platform/x86/ps2.c \
                 src/Platform/x86/platform_info.c \
                 src/Platform/x86/hal_boot.c \
-                src/Platform/x86/hal_input.c)) \
+                src/Platform/x86/hal_input.c))) \
             src/SoundManager/SoundManagerBareMetal.c \
             src/SoundManager/SoundHardwarePC.c \
             src/SoundManager/SoundBackend.c \
@@ -579,6 +596,9 @@ CFLAGS += -DALERT_SMOKE_TEST=1
 endif
 
 ASM_SOURCES = $(HAL_DIR)/platform_boot.S
+ifeq ($(PLATFORM),arm64)
+ASM_SOURCES += $(HAL_DIR)/exceptions.S
+endif
 
 # Object files
 C_OBJECTS = $(patsubst src/%.c,$(OBJ_DIR)/%.o,$(C_SOURCES))
@@ -604,7 +624,7 @@ PYTHON_MIN_VERSION = 3.6
 # Check build tools (run once per make invocation)
 .PHONY: check-tools
 check-tools:
-	@scripts/check_tool_versions.sh $(GCC_MIN_VERSION) $(PYTHON_MIN_VERSION)
+	@PLATFORM=$(PLATFORM) scripts/check_tool_versions.sh $(GCC_MIN_VERSION) $(PYTHON_MIN_VERSION)
 
 # Default target
 all: check-tools $(RSRC_BIN) $(KERNEL)
@@ -645,7 +665,7 @@ vpath %.c src:src/System:src/QuickDraw:src/WindowManager:src/MenuManager:src/Con
           src/ScrapManager:src/ProcessMgr:src/TimeManager:src/SoundManager:src/FontManager \
           src/Gestalt:src/MemoryMgr:src/ResourceMgr:src/FileMgr:src/FS:src/Finder \
           src/Finder/Icon:src/DeskManager:src/ControlPanels:src/PatternMgr:src/Resources \
-          src/Resources/Icons:src/Apps/SimpleText:src/Apps/MacPaint:src/Platform:src/Platform/x86:src/Platform/arm:src/Platform/ppc:src/PrintManager \
+          src/Resources/Icons:src/Apps/SimpleText:src/Apps/MacPaint:src/Platform:src/Platform/x86:src/Platform/arm:src/Platform/arm64:src/Platform/ppc:src/PrintManager \
           src/HelpManager:src/ComponentManager:src/EditionManager:src/NotificationManager \
           src/PackageManager:src/NetworkExtension:src/ColorManager:src/CommunicationToolbox \
           src/GestaltManager:src/SpeechManager:src/BootLoader \
@@ -658,7 +678,7 @@ $(OBJ_DIR)/%.o: %.S | $(OBJ_DIR)
 	@mkdir -p $(dir $@)
 	@echo "AS $<"
 ifeq ($(PLATFORM),arm64)
-	@/opt/homebrew/bin/aarch64-elf-gcc -E -DQEMU_BUILD $< | /opt/homebrew/bin/aarch64-elf-as -march=armv8-a - -o $@
+	@$(CC) -E -DQEMU_BUILD $< | $(AS) -march=armv8-a - -o $@
 else
 	@$(AS) $(ASFLAGS) $< -o $@
 endif

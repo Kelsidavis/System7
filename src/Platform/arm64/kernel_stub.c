@@ -18,6 +18,19 @@
 /* External printf function */
 extern int snprintf(char *str, size_t size, const char *format, ...);
 
+/* Forward declaration */
+int main(int argc, char **argv);
+
+/*
+ * boot_main - Entry point called by hal_boot.c
+ * Bridges to main() for standalone testing
+ */
+void boot_main(uint32_t magic, uint32_t* mb2_info) {
+    (void)magic;
+    (void)mb2_info;
+    main(0, NULL);
+}
+
 /*
  * Main kernel entry point
  */

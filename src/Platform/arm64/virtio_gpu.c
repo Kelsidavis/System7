@@ -1,29 +1,16 @@
 /*
  * VirtIO GPU Driver for ARM64
- * Implements proper virtio-gpu device interface
+ * Supports both PCI and MMIO transports
  */
 
 #include <stdint.h>
 #include <stdbool.h>
 #include <stddef.h>
 #include "virtio_gpu.h"
+#include "virtio_pci.h"
 #include "uart.h"
 
-/* PCI configuration for QEMU virt machine */
-#define PCI_ECAM_BASE           0x4010000000UL  /* PCI ECAM base address */
-#define PCI_VENDOR_VIRTIO       0x1AF4
-#define PCI_DEVICE_VIRTIO_GPU   0x1050
-
-/* VirtIO PCI capability offsets */
-#define PCI_VENDOR_ID           0x00
-#define PCI_DEVICE_ID           0x02
-#define PCI_COMMAND             0x04
-#define PCI_STATUS              0x06
-#define PCI_BAR0                0x10
-
-static uintptr_t virtio_gpu_base = 0;
-
-/* VirtIO MMIO registers */
+/* VirtIO MMIO registers (fallback for non-PCI) */
 #define VIRTIO_MMIO_MAGIC           0x000
 #define VIRTIO_MMIO_VERSION         0x004
 #define VIRTIO_MMIO_DEVICE_ID       0x008
@@ -35,8 +22,6 @@ static uintptr_t virtio_gpu_base = 0;
 #define VIRTIO_MMIO_QUEUE_NUM       0x038
 #define VIRTIO_MMIO_QUEUE_READY     0x044
 #define VIRTIO_MMIO_QUEUE_NOTIFY    0x050
-#define VIRTIO_MMIO_INTERRUPT_STATUS 0x060
-#define VIRTIO_MMIO_INTERRUPT_ACK   0x064
 #define VIRTIO_MMIO_STATUS          0x070
 #define VIRTIO_MMIO_QUEUE_DESC_LOW  0x080
 #define VIRTIO_MMIO_QUEUE_DESC_HIGH 0x084
@@ -44,21 +29,10 @@ static uintptr_t virtio_gpu_base = 0;
 #define VIRTIO_MMIO_QUEUE_AVAIL_HIGH 0x094
 #define VIRTIO_MMIO_QUEUE_USED_LOW  0x0a0
 #define VIRTIO_MMIO_QUEUE_USED_HIGH 0x0a4
-#define VIRTIO_MMIO_CONFIG_GENERATION 0x0fc
 
-/* VirtIO MMIO device region (for QEMU virt machine) */
+/* VirtIO MMIO device region */
 #define VIRTIO_MMIO_BASE_START      0x0a000000
 #define VIRTIO_MMIO_SLOT_SIZE       0x00000200
-
-/* VirtIO device IDs */
-#define VIRTIO_ID_GPU       16
-
-/* VirtIO status bits */
-#define VIRTIO_STATUS_ACKNOWLEDGE   1
-#define VIRTIO_STATUS_DRIVER        2
-#define VIRTIO_STATUS_DRIVER_OK     4
-#define VIRTIO_STATUS_FEATURES_OK   8
-#define VIRTIO_STATUS_FAILED        128
 
 /* VirtIO GPU control types */
 #define VIRTIO_GPU_CMD_GET_DISPLAY_INFO         0x0100
@@ -79,6 +53,7 @@ static uintptr_t virtio_gpu_base = 0;
 /* Framebuffer configuration */
 #define FB_WIDTH    320
 #define FB_HEIGHT   240
+#define QUEUE_SIZE  32
 
 /* VirtIO GPU structures */
 struct virtio_gpu_ctrl_hdr {
@@ -139,411 +114,275 @@ struct virtio_gpu_resource_attach_backing {
     struct virtio_gpu_mem_entry entries[1];
 } __attribute__((packed));
 
-/* Virtqueue descriptor */
-struct virtq_desc {
-    uint64_t addr;
-    uint32_t len;
-    uint16_t flags;
-    uint16_t next;
-} __attribute__((packed));
-
-/* Virtqueue available ring */
-struct virtq_avail {
+/* Virtqueue structures with fixed size */
+struct gpu_virtq_avail {
     uint16_t flags;
     uint16_t idx;
-    uint16_t ring[32];
+    uint16_t ring[QUEUE_SIZE];
     uint16_t used_event;
 } __attribute__((packed));
 
-/* Virtqueue used element */
-struct virtq_used_elem {
-    uint32_t id;
-    uint32_t len;
-} __attribute__((packed));
-
-/* Virtqueue used ring */
-struct virtq_used {
+struct gpu_virtq_used {
     uint16_t flags;
     uint16_t idx;
-    struct virtq_used_elem ring[32];
+    struct virtq_used_elem ring[QUEUE_SIZE];
     uint16_t avail_event;
 } __attribute__((packed));
 
-/* Virtqueue structure */
-struct virtqueue {
-    struct virtq_desc desc[32];
-    struct virtq_avail avail;
-    uint8_t padding[4096 - sizeof(struct virtq_desc) * 32 - sizeof(struct virtq_avail)];
-    struct virtq_used used;
+struct gpu_virtqueue {
+    struct virtq_desc desc[QUEUE_SIZE];
+    struct gpu_virtq_avail avail;
+    uint8_t padding[4096 - sizeof(struct virtq_desc) * QUEUE_SIZE - sizeof(struct gpu_virtq_avail)];
+    struct gpu_virtq_used used;
 } __attribute__((aligned(4096)));
 
-/* Driver state - using static allocation with smaller buffers for testing */
-static volatile uint32_t *virtio_base = NULL;
-static struct virtqueue controlq __attribute__((aligned(4096)));
+/* Driver state */
+static bool use_pci = false;
+static virtio_pci_device_t pci_dev;
+static volatile uint32_t *mmio_base = NULL;
+static struct gpu_virtqueue controlq __attribute__((aligned(4096)));
 static uint32_t framebuffer[FB_WIDTH * FB_HEIGHT] __attribute__((aligned(4096)));
 static bool initialized = false;
 static uint16_t avail_idx = 0;
 static uint16_t used_idx = 0;
 
-/* Helper to read MMIO register */
-static inline uint32_t virtio_read32(uint32_t offset) {
-    return *(volatile uint32_t *)((uintptr_t)virtio_base + offset);
-}
-
-/* Helper to write MMIO register */
-static inline void virtio_write32(uint32_t offset, uint32_t value) {
-    *(volatile uint32_t *)((uintptr_t)virtio_base + offset) = value;
-}
-
-/* Helper to print hex digit */
-static char hex_digit(unsigned int value) {
-    value &= 0xF;
-    if (value < 10) return '0' + value;
-    return 'A' + (value - 10);
-}
-
 /* Helper to print hex value */
-static void uart_put_hex(uint32_t value) {
-    uart_putc(hex_digit(value >> 28));
-    uart_putc(hex_digit(value >> 24));
-    uart_putc(hex_digit(value >> 20));
-    uart_putc(hex_digit(value >> 16));
-    uart_putc(hex_digit(value >> 12));
-    uart_putc(hex_digit(value >> 8));
-    uart_putc(hex_digit(value >> 4));
-    uart_putc(hex_digit(value));
+static void print_hex(uint32_t value) {
+    static const char hex[] = "0123456789ABCDEF";
+    for (int i = 28; i >= 0; i -= 4) {
+        uart_putc(hex[(value >> i) & 0xF]);
+    }
 }
 
-/* PCI configuration space access helpers */
-static inline uint32_t pci_config_read32(uint32_t bus, uint32_t device, uint32_t function, uint32_t offset) {
-    uintptr_t addr = PCI_ECAM_BASE + ((uint64_t)bus << 20) + ((uint64_t)device << 15) +
-                     ((uint64_t)function << 12) + offset;
-    return *(volatile uint32_t *)addr;
+/* MMIO register access */
+static inline uint32_t mmio_read32(uint32_t offset) {
+    return *(volatile uint32_t *)((uintptr_t)mmio_base + offset);
 }
 
-static inline uint16_t pci_config_read16(uint32_t bus, uint32_t device, uint32_t function, uint32_t offset) {
-    uintptr_t addr = PCI_ECAM_BASE + ((uint64_t)bus << 20) + ((uint64_t)device << 15) +
-                     ((uint64_t)function << 12) + offset;
-    return *(volatile uint16_t *)addr;
+static inline void mmio_write32(uint32_t offset, uint32_t value) {
+    *(volatile uint32_t *)((uintptr_t)mmio_base + offset) = value;
 }
 
-static inline void pci_config_write16(uint32_t bus, uint32_t device, uint32_t function, uint32_t offset, uint16_t value) {
-    uintptr_t addr = PCI_ECAM_BASE + ((uint64_t)bus << 20) + ((uint64_t)device << 15) +
-                     ((uint64_t)function << 12) + offset;
-    *(volatile uint16_t *)addr = value;
+/* Notify the device about queue updates */
+static void notify_queue(uint16_t queue_idx) {
+    if (use_pci) {
+        virtio_pci_notify_queue(&pci_dev, queue_idx);
+    } else {
+        mmio_write32(VIRTIO_MMIO_QUEUE_NOTIFY, queue_idx);
+    }
 }
 
 /* Send GPU command and wait for response */
 static bool virtio_gpu_send_cmd(void *cmd, size_t cmd_len, void *resp, size_t resp_len) {
-    uint16_t desc_idx = avail_idx % 32;
+    uint16_t desc_idx = (avail_idx * 2) % QUEUE_SIZE;
 
     /* Setup command descriptor */
     controlq.desc[desc_idx].addr = (uint64_t)(uintptr_t)cmd;
     controlq.desc[desc_idx].len = cmd_len;
-    controlq.desc[desc_idx].flags = 1; /* NEXT */
-    controlq.desc[desc_idx].next = (desc_idx + 1) % 32;
+    controlq.desc[desc_idx].flags = VIRTQ_DESC_F_NEXT;
+    controlq.desc[desc_idx].next = (desc_idx + 1) % QUEUE_SIZE;
 
     /* Setup response descriptor */
-    controlq.desc[(desc_idx + 1) % 32].addr = (uint64_t)(uintptr_t)resp;
-    controlq.desc[(desc_idx + 1) % 32].len = resp_len;
-    controlq.desc[(desc_idx + 1) % 32].flags = 2; /* WRITE */
-    controlq.desc[(desc_idx + 1) % 32].next = 0;
+    controlq.desc[(desc_idx + 1) % QUEUE_SIZE].addr = (uint64_t)(uintptr_t)resp;
+    controlq.desc[(desc_idx + 1) % QUEUE_SIZE].len = resp_len;
+    controlq.desc[(desc_idx + 1) % QUEUE_SIZE].flags = VIRTQ_DESC_F_WRITE;
+    controlq.desc[(desc_idx + 1) % QUEUE_SIZE].next = 0;
 
     /* Add to available ring */
-    controlq.avail.ring[avail_idx % 32] = desc_idx;
+    controlq.avail.ring[avail_idx % QUEUE_SIZE] = desc_idx;
     __sync_synchronize();
     controlq.avail.idx = ++avail_idx;
     __sync_synchronize();
 
     /* Notify device */
-    virtio_write32(VIRTIO_MMIO_QUEUE_NOTIFY, 0);
+    notify_queue(0);
 
     /* Wait for completion */
-    while (controlq.used.idx == used_idx) {
-        __asm__ volatile("" ::: "memory");
+    int timeout = 100000;
+    volatile uint16_t *used_idx_ptr = &controlq.used.idx;
+    while (*used_idx_ptr == used_idx && --timeout > 0) {
+        __asm__ volatile("dsb sy" ::: "memory");
     }
-    used_idx++;
 
+    if (timeout <= 0) {
+        return false;
+    }
+
+    used_idx++;
     return true;
 }
 
-bool virtio_gpu_init(void) {
-    uart_puts("[VIRTIO-GPU] ENTRY\n");
+/* Initialize using PCI transport */
+static bool init_pci_transport(void) {
+    uart_puts("[VIRTIO-GPU] Trying PCI transport...\n");
 
-    uint32_t magic, version, device_id;
-    struct virtio_gpu_ctrl_hdr resp_hdr;
-
-    uart_puts("[VIRTIO-GPU] Initializing virtio-gpu driver\n");
-
-#ifdef USE_VIRTIO_PCI
-    /* PCI transport - requires MMU to access ECAM at 0x4010000000 */
-    uart_puts("[VIRTIO-GPU] Scanning PCI bus...\n");
-
-    for (uint32_t device = 0; device < 32; device++) {
-        uint16_t vendor_id = pci_config_read16(0, device, 0, PCI_VENDOR_ID);
-
-        /* No device present */
-        if (vendor_id == 0xFFFF) continue;
-
-        uint16_t device_id = pci_config_read16(0, device, 0, PCI_DEVICE_ID);
-
-        /* Debug output */
-        uart_puts("[VIRTIO-GPU] PCI ");
-        if (device < 10) {
-            uart_putc('0' + device);
-        } else {
-            uart_putc('0' + (device / 10));
-            uart_putc('0' + (device % 10));
-        }
-        uart_puts(": Vendor=0x");
-        uart_put_hex(vendor_id);
-        uart_puts(" Device=0x");
-        uart_put_hex(device_id);
-        uart_puts("\n");
-
-        /* Check for VirtIO GPU */
-        if (vendor_id == PCI_VENDOR_VIRTIO && device_id == PCI_DEVICE_VIRTIO_GPU) {
-            uart_puts("[VIRTIO-GPU] Found VirtIO GPU at PCI device ");
-            if (device < 10) {
-                uart_putc('0' + device);
-            } else {
-                uart_putc('0' + (device / 10));
-                uart_putc('0' + (device % 10));
-            }
-            uart_puts("!\n");
-
-            /* Read BAR0 to get MMIO base address */
-            uint32_t bar0 = pci_config_read32(0, device, 0, PCI_BAR0);
-            virtio_gpu_base = (uintptr_t)(bar0 & 0xFFFFFFF0); /* Clear flag bits */
-
-            uart_puts("[VIRTIO-GPU] BAR0: 0x");
-            uart_put_hex(bar0);
-            uart_puts("\n");
-            uart_puts("[VIRTIO-GPU] MMIO base: 0x");
-            uart_put_hex(virtio_gpu_base);
-            uart_puts("\n");
-
-            /* Enable PCI device (Memory Space Enable + Bus Master Enable) */
-            uint16_t command = pci_config_read16(0, device, 0, PCI_COMMAND);
-            command |= 0x0006; /* Memory Space + Bus Master */
-            pci_config_write16(0, device, 0, PCI_COMMAND, command);
-
-            uart_puts("[VIRTIO-GPU] PCI device enabled\n");
-            break;
-        }
+    /* Scan for VirtIO GPU on PCI */
+    if (!virtio_pci_find_device(VIRTIO_DEV_GPU, &pci_dev)) {
+        uart_puts("[VIRTIO-GPU] No PCI GPU device found\n");
+        return false;
     }
 
-    uart_puts("[VIRTIO-GPU] PCI scan complete\n");
-#else
-    /* MMIO transport - scan all slots with MMU enabled */
-    uart_puts("[VIRTIO-GPU] Scanning VirtIO MMIO devices...\n");
+    uart_puts("[VIRTIO-GPU] Found PCI GPU device\n");
 
-    /* Scan all 32 MMIO slots for GPU device */
+    /* Initialize device with no special features */
+    if (!virtio_pci_init_device(&pci_dev, 0)) {
+        uart_puts("[VIRTIO-GPU] PCI device init failed\n");
+        return false;
+    }
+
+    /* Setup control queue (queue 0) */
+    if (!virtio_pci_setup_queue(&pci_dev, 0,
+                                controlq.desc,
+                                (struct virtq_avail *)&controlq.avail,
+                                (struct virtq_used *)&controlq.used,
+                                QUEUE_SIZE)) {
+        uart_puts("[VIRTIO-GPU] Queue setup failed\n");
+        return false;
+    }
+
+    /* Mark device ready */
+    virtio_pci_device_ready(&pci_dev);
+
+    use_pci = true;
+    return true;
+}
+
+/* Initialize using MMIO transport */
+static bool init_mmio_transport(void) {
+    uart_puts("[VIRTIO-GPU] Trying MMIO transport...\n");
+
+    /* Scan MMIO slots */
     for (int slot = 0; slot < 32; slot++) {
         uintptr_t base = VIRTIO_MMIO_BASE_START + (slot * VIRTIO_MMIO_SLOT_SIZE);
-        virtio_base = (volatile uint32_t *)base;
+        mmio_base = (volatile uint32_t *)base;
 
-        magic = virtio_read32(VIRTIO_MMIO_MAGIC);
-
-        /* No device at this slot */
+        uint32_t magic = mmio_read32(VIRTIO_MMIO_MAGIC);
         if (magic != 0x74726976) continue;
 
-        /* Read device ID */
-        device_id = virtio_read32(VIRTIO_MMIO_DEVICE_ID);
-
-        uart_puts("[VIRTIO-GPU] Slot ");
-        if (slot < 10) {
-            uart_putc('0' + slot);
-        } else {
+        uint32_t device_id = mmio_read32(VIRTIO_MMIO_DEVICE_ID);
+        if (device_id == VIRTIO_DEV_GPU) {
+            uart_puts("[VIRTIO-GPU] Found MMIO GPU at slot ");
             uart_putc('0' + (slot / 10));
             uart_putc('0' + (slot % 10));
+            uart_puts("\n");
+
+            /* Reset device */
+            mmio_write32(VIRTIO_MMIO_STATUS, 0);
+
+            /* Acknowledge */
+            mmio_write32(VIRTIO_MMIO_STATUS, VIRTIO_STATUS_ACKNOWLEDGE);
+            mmio_write32(VIRTIO_MMIO_STATUS, VIRTIO_STATUS_ACKNOWLEDGE | VIRTIO_STATUS_DRIVER);
+
+            /* Features */
+            mmio_read32(VIRTIO_MMIO_DEVICE_FEATURES);
+            mmio_write32(VIRTIO_MMIO_DRIVER_FEATURES, 0);
+            mmio_write32(VIRTIO_MMIO_STATUS,
+                        VIRTIO_STATUS_ACKNOWLEDGE | VIRTIO_STATUS_DRIVER | VIRTIO_STATUS_FEATURES_OK);
+
+            /* Setup queue */
+            mmio_write32(VIRTIO_MMIO_QUEUE_SEL, 0);
+            uint32_t max_size = mmio_read32(VIRTIO_MMIO_QUEUE_NUM_MAX);
+            if (max_size < QUEUE_SIZE) {
+                uart_puts("[VIRTIO-GPU] Queue too small\n");
+                continue;
+            }
+
+            mmio_write32(VIRTIO_MMIO_QUEUE_NUM, QUEUE_SIZE);
+
+            uint64_t desc_addr = (uint64_t)(uintptr_t)&controlq.desc;
+            uint64_t avail_addr = (uint64_t)(uintptr_t)&controlq.avail;
+            uint64_t used_addr = (uint64_t)(uintptr_t)&controlq.used;
+
+            mmio_write32(VIRTIO_MMIO_QUEUE_DESC_LOW, desc_addr & 0xFFFFFFFF);
+            mmio_write32(VIRTIO_MMIO_QUEUE_DESC_HIGH, desc_addr >> 32);
+            mmio_write32(VIRTIO_MMIO_QUEUE_AVAIL_LOW, avail_addr & 0xFFFFFFFF);
+            mmio_write32(VIRTIO_MMIO_QUEUE_AVAIL_HIGH, avail_addr >> 32);
+            mmio_write32(VIRTIO_MMIO_QUEUE_USED_LOW, used_addr & 0xFFFFFFFF);
+            mmio_write32(VIRTIO_MMIO_QUEUE_USED_HIGH, used_addr >> 32);
+
+            mmio_write32(VIRTIO_MMIO_QUEUE_READY, 1);
+
+            /* Driver OK */
+            mmio_write32(VIRTIO_MMIO_STATUS,
+                        VIRTIO_STATUS_ACKNOWLEDGE | VIRTIO_STATUS_DRIVER |
+                        VIRTIO_STATUS_FEATURES_OK | VIRTIO_STATUS_DRIVER_OK);
+
+            use_pci = false;
+            return true;
         }
-        uart_puts(": DeviceID=");
-        uart_put_hex(device_id);
-        uart_puts("\n");
-
-        if (device_id == VIRTIO_ID_GPU) {
-            uart_puts("[VIRTIO-GPU] Found GPU at this slot!\n");
-            virtio_gpu_base = base;
-            break;
-        }
     }
 
-    uart_puts("[VIRTIO-GPU] MMIO scan complete\n");
-#endif
+    uart_puts("[VIRTIO-GPU] No MMIO GPU device found\n");
+    return false;
+}
 
-    if (virtio_gpu_base == 0) {
-        uart_puts("[VIRTIO-GPU] No GPU device found\n");
+bool virtio_gpu_init(void) {
+    struct virtio_gpu_ctrl_hdr resp_hdr;
+
+    uart_puts("[VIRTIO-GPU] Initializing...\n");
+
+    /* Try PCI first, then MMIO */
+    if (!init_pci_transport() && !init_mmio_transport()) {
+        uart_puts("[VIRTIO-GPU] No GPU device found on PCI or MMIO\n");
         return false;
     }
-
-    uart_puts("[VIRTIO-GPU] Using base: 0x");
-    uart_put_hex(virtio_gpu_base);
-    uart_puts("\n");
-
-    virtio_base = (volatile uint32_t *)virtio_gpu_base;
-
-    uart_puts("[VIRTIO-GPU] Reading magic...\n");
-    /* Check VirtIO magic */
-    magic = virtio_read32(VIRTIO_MMIO_MAGIC);
-    uart_puts("[VIRTIO-GPU] Magic read complete\n");
-    uart_puts("[VIRTIO-GPU] Magic: 0x");
-    uart_put_hex(magic);
-    uart_puts("\n");
-    if (magic != 0x74726976) {  /* 'virt' */
-        uart_puts("[VIRTIO-GPU] Invalid magic number\n");
-        return false;
-    }
-
-    version = virtio_read32(VIRTIO_MMIO_VERSION);
-    uart_puts("[VIRTIO-GPU] Version: 0x");
-    uart_put_hex(version);
-    uart_puts("\n");
-    if (version != 1 && version != 2) {
-        uart_puts("[VIRTIO-GPU] Unsupported version (expected 1 or 2)\n");
-        return false;
-    }
-
-    device_id = virtio_read32(VIRTIO_MMIO_DEVICE_ID);
-    uart_puts("[VIRTIO-GPU] Device ID: 0x");
-    uart_put_hex(device_id);
-    uart_puts("\n");
-    if (device_id != VIRTIO_ID_GPU) {
-        uart_puts("[VIRTIO-GPU] Not a GPU device\n");
-        return false;
-    }
-
-    uart_puts("[VIRTIO-GPU] Found virtio-gpu device\n");
-
-    /* Reset device */
-    virtio_write32(VIRTIO_MMIO_STATUS, 0);
-
-    /* Acknowledge device */
-    virtio_write32(VIRTIO_MMIO_STATUS, VIRTIO_STATUS_ACKNOWLEDGE);
-
-    /* Set driver status */
-    virtio_write32(VIRTIO_MMIO_STATUS,
-                   VIRTIO_STATUS_ACKNOWLEDGE | VIRTIO_STATUS_DRIVER);
-
-    /* Read and accept features */
-    virtio_read32(VIRTIO_MMIO_DEVICE_FEATURES);
-    virtio_write32(VIRTIO_MMIO_DRIVER_FEATURES, 0);
-
-    /* Features OK */
-    virtio_write32(VIRTIO_MMIO_STATUS,
-                   VIRTIO_STATUS_ACKNOWLEDGE | VIRTIO_STATUS_DRIVER |
-                   VIRTIO_STATUS_FEATURES_OK);
-
-    /* Setup control queue */
-    virtio_write32(VIRTIO_MMIO_QUEUE_SEL, 0);
-
-    uint32_t max_queue_size = virtio_read32(VIRTIO_MMIO_QUEUE_NUM_MAX);
-    if (max_queue_size < 32) {
-        uart_puts("[VIRTIO-GPU] Queue too small\n");
-        return false;
-    }
-
-    virtio_write32(VIRTIO_MMIO_QUEUE_NUM, 32);
-
-    /* Set queue addresses */
-    uint64_t desc_addr = (uint64_t)(uintptr_t)&controlq.desc;
-    uint64_t avail_addr = (uint64_t)(uintptr_t)&controlq.avail;
-    uint64_t used_addr = (uint64_t)(uintptr_t)&controlq.used;
-
-    virtio_write32(VIRTIO_MMIO_QUEUE_DESC_LOW, desc_addr & 0xFFFFFFFF);
-    virtio_write32(VIRTIO_MMIO_QUEUE_DESC_HIGH, desc_addr >> 32);
-    virtio_write32(VIRTIO_MMIO_QUEUE_AVAIL_LOW, avail_addr & 0xFFFFFFFF);
-    virtio_write32(VIRTIO_MMIO_QUEUE_AVAIL_HIGH, avail_addr >> 32);
-    virtio_write32(VIRTIO_MMIO_QUEUE_USED_LOW, used_addr & 0xFFFFFFFF);
-    virtio_write32(VIRTIO_MMIO_QUEUE_USED_HIGH, used_addr >> 32);
-
-    virtio_write32(VIRTIO_MMIO_QUEUE_READY, 1);
-
-    /* Driver OK */
-    virtio_write32(VIRTIO_MMIO_STATUS,
-                   VIRTIO_STATUS_ACKNOWLEDGE | VIRTIO_STATUS_DRIVER |
-                   VIRTIO_STATUS_FEATURES_OK | VIRTIO_STATUS_DRIVER_OK);
-
-    uart_puts("[VIRTIO-GPU] Device initialized\n");
 
     /* Create 2D resource */
-    struct virtio_gpu_resource_create_2d create_cmd = {
-        .hdr = {
-            .type = VIRTIO_GPU_CMD_RESOURCE_CREATE_2D,
-            .flags = 0,
-            .fence_id = 0,
-            .ctx_id = 0,
-            .padding = 0
-        },
-        .resource_id = 1,
-        .format = VIRTIO_GPU_FORMAT_B8G8R8X8_UNORM,
-        .width = FB_WIDTH,
-        .height = FB_HEIGHT
-    };
+    struct virtio_gpu_resource_create_2d create_cmd;
+    create_cmd.hdr.type = VIRTIO_GPU_CMD_RESOURCE_CREATE_2D;
+    create_cmd.hdr.flags = 0;
+    create_cmd.hdr.fence_id = 0;
+    create_cmd.hdr.ctx_id = 0;
+    create_cmd.hdr.padding = 0;
+    create_cmd.resource_id = 1;
+    create_cmd.format = VIRTIO_GPU_FORMAT_B8G8R8X8_UNORM;
+    create_cmd.width = FB_WIDTH;
+    create_cmd.height = FB_HEIGHT;
 
     if (!virtio_gpu_send_cmd(&create_cmd, sizeof(create_cmd), &resp_hdr, sizeof(resp_hdr))) {
         uart_puts("[VIRTIO-GPU] Failed to create resource\n");
         return false;
     }
 
-    uart_puts("[VIRTIO-GPU] Created 2D resource\n");
-
     /* Attach backing store */
-    struct {
-        struct virtio_gpu_resource_attach_backing attach;
-    } attach_cmd = {
-        .attach = {
-            .hdr = {
-                .type = VIRTIO_GPU_CMD_RESOURCE_ATTACH_BACKING,
-                .flags = 0,
-                .fence_id = 0,
-                .ctx_id = 0,
-                .padding = 0
-            },
-            .resource_id = 1,
-            .nr_entries = 1,
-            .entries = {{
-                .addr = (uint64_t)(uintptr_t)framebuffer,
-                .length = FB_WIDTH * FB_HEIGHT * 4,
-                .padding = 0
-            }}
-        }
-    };
+    struct virtio_gpu_resource_attach_backing attach_cmd;
+    attach_cmd.hdr.type = VIRTIO_GPU_CMD_RESOURCE_ATTACH_BACKING;
+    attach_cmd.hdr.flags = 0;
+    attach_cmd.hdr.fence_id = 0;
+    attach_cmd.hdr.ctx_id = 0;
+    attach_cmd.hdr.padding = 0;
+    attach_cmd.resource_id = 1;
+    attach_cmd.nr_entries = 1;
+    attach_cmd.entries[0].addr = (uint64_t)(uintptr_t)framebuffer;
+    attach_cmd.entries[0].length = FB_WIDTH * FB_HEIGHT * 4;
+    attach_cmd.entries[0].padding = 0;
 
     if (!virtio_gpu_send_cmd(&attach_cmd, sizeof(attach_cmd), &resp_hdr, sizeof(resp_hdr))) {
         uart_puts("[VIRTIO-GPU] Failed to attach backing\n");
         return false;
     }
 
-    uart_puts("[VIRTIO-GPU] Attached backing store\n");
-
     /* Set scanout */
-    struct virtio_gpu_set_scanout scanout_cmd = {
-        .hdr = {
-            .type = VIRTIO_GPU_CMD_SET_SCANOUT,
-            .flags = 0,
-            .fence_id = 0,
-            .ctx_id = 0,
-            .padding = 0
-        },
-        .r = {
-            .x = 0,
-            .y = 0,
-            .width = FB_WIDTH,
-            .height = FB_HEIGHT
-        },
-        .scanout_id = 0,
-        .resource_id = 1
-    };
+    struct virtio_gpu_set_scanout scanout_cmd;
+    scanout_cmd.hdr.type = VIRTIO_GPU_CMD_SET_SCANOUT;
+    scanout_cmd.hdr.flags = 0;
+    scanout_cmd.hdr.fence_id = 0;
+    scanout_cmd.hdr.ctx_id = 0;
+    scanout_cmd.hdr.padding = 0;
+    scanout_cmd.r.x = 0;
+    scanout_cmd.r.y = 0;
+    scanout_cmd.r.width = FB_WIDTH;
+    scanout_cmd.r.height = FB_HEIGHT;
+    scanout_cmd.scanout_id = 0;
+    scanout_cmd.resource_id = 1;
 
     if (!virtio_gpu_send_cmd(&scanout_cmd, sizeof(scanout_cmd), &resp_hdr, sizeof(resp_hdr))) {
         uart_puts("[VIRTIO-GPU] Failed to set scanout\n");
         return false;
     }
 
-    uart_puts("[VIRTIO-GPU] Set scanout complete\n");
-
     initialized = true;
+    uart_puts("[VIRTIO-GPU] Initialization complete!\n");
     return true;
 }
 
@@ -561,12 +400,7 @@ void virtio_gpu_flush(void) {
             .ctx_id = 0,
             .padding = 0
         },
-        .r = {
-            .x = 0,
-            .y = 0,
-            .width = FB_WIDTH,
-            .height = FB_HEIGHT
-        },
+        .r = { .x = 0, .y = 0, .width = FB_WIDTH, .height = FB_HEIGHT },
         .offset = 0,
         .resource_id = 1,
         .padding = 0
@@ -583,12 +417,7 @@ void virtio_gpu_flush(void) {
             .ctx_id = 0,
             .padding = 0
         },
-        .r = {
-            .x = 0,
-            .y = 0,
-            .width = FB_WIDTH,
-            .height = FB_HEIGHT
-        },
+        .r = { .x = 0, .y = 0, .width = FB_WIDTH, .height = FB_HEIGHT },
         .resource_id = 1,
         .padding = 0
     };
@@ -598,7 +427,6 @@ void virtio_gpu_flush(void) {
 
 void virtio_gpu_clear(uint32_t color) {
     if (!initialized) return;
-
     for (int i = 0; i < FB_WIDTH * FB_HEIGHT; i++) {
         framebuffer[i] = color;
     }
@@ -606,7 +434,6 @@ void virtio_gpu_clear(uint32_t color) {
 
 void virtio_gpu_draw_rect(uint32_t x, uint32_t y, uint32_t w, uint32_t h, uint32_t color) {
     if (!initialized) return;
-
     for (uint32_t py = y; py < y + h && py < FB_HEIGHT; py++) {
         for (uint32_t px = x; px < x + w && px < FB_WIDTH; px++) {
             framebuffer[py * FB_WIDTH + px] = color;
@@ -624,4 +451,8 @@ uint32_t virtio_gpu_get_width(void) {
 
 uint32_t virtio_gpu_get_height(void) {
     return FB_HEIGHT;
+}
+
+bool virtio_gpu_is_initialized(void) {
+    return initialized;
 }
