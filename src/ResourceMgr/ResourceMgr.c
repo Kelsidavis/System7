@@ -25,6 +25,16 @@ extern OSErr FSRead(FileRefNum refNum, UInt32* count, void* buffer);
 extern OSErr FSClose(FileRefNum refNum);
 extern OSErr FSSetFPos(FileRefNum refNum, UInt16 posMode, SInt32 posOffset);
 
+/* RM_DEBUG: Set to 1 to enable verbose Resource Manager debugging
+ * WARNING: Enabling causes severe performance impact on ARM64 */
+#define RM_DEBUG 0
+
+#if RM_DEBUG
+#define RM_LOG(msg) serial_puts(msg)
+#else
+#define RM_LOG(msg) ((void)0)
+#endif
+
 /* Resource index for fast lookups */
 typedef struct {
     ResType type;
@@ -140,22 +150,17 @@ static SInt32 FindTypeIndex(ResType type) {
 
 /* Binary search for resource in index */
 static SInt32 FindRefIndex(ResType type, ResID id) {
-    extern void serial_puts(const char* str);
-    extern void uart_flush(void);
     SInt32 left = 0, right = gRefIdxCount - 1;
 
-    serial_puts("[FRI] enter\n");
-    uart_flush();
+    RM_LOG("[FRI] enter\n");
 
     /* Safety check for NULL or huge index */
     if (!gRefIdx || gRefIdxCount <= 0 || gRefIdxCount > 100000) {
-        serial_puts("[FRI] bad index\n");
-        uart_flush();
+        RM_LOG("[FRI] bad index\n");
         return -1;
     }
 
-    serial_puts("[FRI] loop\n");
-    uart_flush();
+    RM_LOG("[FRI] loop\n");
 
     while (left <= right) {
         SInt32 mid = left + (right - left) / 2;  /* Avoid integer overflow */
@@ -166,13 +171,11 @@ static SInt32 FindRefIndex(ResType type, ResID id) {
                    (gRefIdx[mid].type == type && gRefIdx[mid].id > id)) {
             right = mid - 1;
         } else {
-            serial_puts("[FRI] found\n");
-            uart_flush();
+            RM_LOG("[FRI] found\n");
             return mid;  /* Found */
         }
     }
-    serial_puts("[FRI] not found\n");
-    uart_flush();
+    RM_LOG("[FRI] not found\n");
     return -1;  /* Not found */
 }
 
@@ -534,189 +537,147 @@ void UseResFile(SInt16 refNum) {
 
 /* Find type in resource map */
 TypeListEntry* ResMap_FindType(ResFile* file, ResType type) {
-    extern void serial_puts(const char* str);
-    extern void uart_flush(void);
     ResMapHeader* map;
     UInt16 typeListOff;
     UInt16 numTypes;
     UInt8* typeList;
     int i;
 
-    serial_puts("[FT] enter\n");
-    uart_flush();
+    RM_LOG("[FT] enter\n");
 
     if (!file || !file->map) {
-        serial_puts("[FT] bad file\n");
-        uart_flush();
+        RM_LOG("[FT] bad file\n");
         gResMgr.resError = mapReadErr;
         return NULL;
     }
 
-    serial_puts("[FT] get map\n");
-    uart_flush();
+    RM_LOG("[FT] get map\n");
     map = file->map;
-    serial_puts("[FT] check map ptr\n");
-    uart_flush();
+    RM_LOG("[FT] check map ptr\n");
     /* Safety check - if map is NULL or in invalid memory, skip */
     if (!map) {
-        serial_puts("[FT] map is NULL\n");
-        uart_flush();
+        RM_LOG("[FT] map is NULL\n");
         return NULL;
     }
-    serial_puts("[FT] read typeListOff\n");
-    uart_flush();
+    RM_LOG("[FT] read typeListOff\n");
     typeListOff = read_be16((UInt8*)&map->typeListOffset);
-    serial_puts("[FT] got typeListOff\n");
-    uart_flush();
+    RM_LOG("[FT] got typeListOff\n");
 
-    serial_puts("[FT] bounds check\n");
-    uart_flush();
+    RM_LOG("[FT] bounds check\n");
     /* Bounds check: validate type list offset */
     if (typeListOff == 0xFFFF || typeListOff >= file->mapSize) {
-        serial_puts("[FT] bad bounds\n");
-        uart_flush();
+        RM_LOG("[FT] bad bounds\n");
         gResMgr.resError = mapReadErr;
         return NULL;
     }
 
-    serial_puts("[FT] bounds2\n");
-    uart_flush();
+    RM_LOG("[FT] bounds2\n");
     /* Bounds check: ensure we can read the count */
     if (typeListOff + 2 > file->mapSize) {
-        serial_puts("[FT] bounds2 fail\n");
-        uart_flush();
+        RM_LOG("[FT] bounds2 fail\n");
         gResMgr.resError = mapReadErr;
         return NULL;
     }
 
-    serial_puts("[FT] get typeList ptr\n");
-    uart_flush();
+    RM_LOG("[FT] get typeList ptr\n");
     typeList = (UInt8*)map + typeListOff;
-    serial_puts("[FT] read numTypes\n");
-    uart_flush();
+    RM_LOG("[FT] read numTypes\n");
     numTypes = read_be16(typeList) + 1;  /* Count is stored as n-1 */
-    serial_puts("[FT] got numTypes\n");
-    uart_flush();
+    RM_LOG("[FT] got numTypes\n");
 
-    serial_puts("[FT] bounds3\n");
-    uart_flush();
+    RM_LOG("[FT] bounds3\n");
     /* Bounds check: ensure type list entries fit in map */
     UInt32 typeListSize = 2 + ((UInt32)numTypes * sizeof(TypeListEntry));
     if (typeListOff + typeListSize > file->mapSize) {
-        serial_puts("[FT] bounds3 fail\n");
-        uart_flush();
+        RM_LOG("[FT] bounds3 fail\n");
         gResMgr.resError = mapReadErr;
         return NULL;
     }
 
-    serial_puts("[FT] skip count\n");
-    uart_flush();
+    RM_LOG("[FT] skip count\n");
     typeList += 2;  /* Skip count */
 
-    serial_puts("[FT] loop\n");
-    uart_flush();
+    RM_LOG("[FT] loop\n");
     for (i = 0; i < numTypes; i++) {
         TypeListEntry* entry = (TypeListEntry*)(typeList + i * sizeof(TypeListEntry));
         ResType entryType = read_be32((UInt8*)&entry->resType);
         if (entryType == type) {
-            serial_puts("[FT] found\n");
-            uart_flush();
+            RM_LOG("[FT] found\n");
             return entry;
         }
     }
-    serial_puts("[FT] not found\n");
-    uart_flush();
+    RM_LOG("[FT] not found\n");
 
     return NULL;
 }
 
 /* Find resource by type and ID */
 RefListEntry* ResMap_FindResource(ResFile* file, ResType type, ResID id) {
-    extern void serial_puts(const char* str);
-    extern void uart_flush(void);
     TypeListEntry* typeEntry;
     UInt16 count;
     UInt16 refListOff;
     UInt8* refList;
     int i;
 
-    serial_puts("[RMF] enter\n");
-    uart_flush();
+    RM_LOG("[RMF] enter\n");
 
     if (!file || !file->map) {
-        serial_puts("[RMF] bad file\n");
-        uart_flush();
+        RM_LOG("[RMF] bad file\n");
         gResMgr.resError = mapReadErr;
         return NULL;
     }
 
-    serial_puts("[RMF] FindType\n");
-    uart_flush();
+    RM_LOG("[RMF] FindType\n");
     typeEntry = ResMap_FindType(file, type);
-    serial_puts("[RMF] FindType returned\n");
-    uart_flush();
+    RM_LOG("[RMF] FindType returned\n");
     if (!typeEntry) {
-        serial_puts("[RMF] typeEntry NULL\n");
-        uart_flush();
+        RM_LOG("[RMF] typeEntry NULL\n");
         return NULL;
     }
 
-    serial_puts("[RMF] read count\n");
-    uart_flush();
+    RM_LOG("[RMF] read count\n");
     count = read_be16((UInt8*)&typeEntry->count) + 1;  /* Count is stored as n-1 */
-    serial_puts("[RMF] read refListOff\n");
-    uart_flush();
+    RM_LOG("[RMF] read refListOff\n");
     refListOff = read_be16((UInt8*)&typeEntry->refListOffset);
-    serial_puts("[RMF] got offsets\n");
-    uart_flush();
+    RM_LOG("[RMF] got offsets\n");
 
     /* Reference list offset is from start of type list */
     ResMapHeader* map = file->map;
-    serial_puts("[RMF] read typeListOff\n");
-    uart_flush();
+    RM_LOG("[RMF] read typeListOff\n");
     UInt16 typeListOff = read_be16((UInt8*)&map->typeListOffset);
-    serial_puts("[RMF] check typeListOff\n");
-    uart_flush();
+    RM_LOG("[RMF] check typeListOff\n");
 
     /* Bounds check: ensure type list offset is valid */
     if (typeListOff == 0xFFFF || typeListOff >= file->mapSize) {
-        serial_puts("[RMF] bad typeListOff\n");
-        uart_flush();
+        RM_LOG("[RMF] bad typeListOff\n");
         gResMgr.resError = mapReadErr;
         return NULL;
     }
 
-    serial_puts("[RMF] calc refListStart\n");
-    uart_flush();
+    RM_LOG("[RMF] calc refListStart\n");
     /* Bounds check: ensure reference list is within map */
     UInt32 refListStart = typeListOff + refListOff;
     UInt32 refListSize = count * sizeof(RefListEntry);
-    serial_puts("[RMF] check refList bounds\n");
-    uart_flush();
+    RM_LOG("[RMF] check refList bounds\n");
     if (refListStart >= file->mapSize || refListStart + refListSize > file->mapSize) {
-        serial_puts("[RMF] bad refList bounds\n");
-        uart_flush();
+        RM_LOG("[RMF] bad refList bounds\n");
         gResMgr.resError = mapReadErr;
         return NULL;
     }
 
-    serial_puts("[RMF] get refList ptr\n");
-    uart_flush();
+    RM_LOG("[RMF] get refList ptr\n");
     refList = (UInt8*)map + refListStart;
 
-    serial_puts("[RMF] loop\n");
-    uart_flush();
+    RM_LOG("[RMF] loop\n");
     for (i = 0; i < count; i++) {
         RefListEntry* ref = (RefListEntry*)(refList + i * sizeof(RefListEntry));
         ResID refID = (ResID)read_be16((UInt8*)&ref->resID);
         if (refID == id) {
-            serial_puts("[RMF] found\n");
-            uart_flush();
+            RM_LOG("[RMF] found\n");
             return ref;
         }
     }
-    serial_puts("[RMF] not found\n");
-    uart_flush();
+    RM_LOG("[RMF] not found\n");
 
     return NULL;
 }
@@ -778,13 +739,11 @@ Handle ResFile_LoadResource(ResFile* file, RefListEntry* ref) {
 /* Get resource by type and ID */
 Handle GetResource(ResType theType, ResID theID) {
     extern void serial_puts(const char* str);
-    extern void uart_flush(void);
     int i;
     RefListEntry* ref = NULL;
     ResFile* file = NULL;
 
-    serial_puts("[GETRES] enter\n");
-    uart_flush();
+    RM_LOG("[GETRES] enter\n");
 
     RM_LOG_DEBUG("GetResource('%c%c%c%c', %d)",
                  (char)(theType >> 24), (char)(theType >> 16),
@@ -827,8 +786,7 @@ Handle GetResource(ResType theType, ResID theID) {
         return h;
     }
 
-    serial_puts("[GETRES] cache check\n");
-    uart_flush();
+    RM_LOG("[GETRES] cache check\n");
 
     /* Check cache first for fast hit */
     Handle cached = CacheLookup(theType, theID);
@@ -838,47 +796,36 @@ Handle GetResource(ResType theType, ResID theID) {
         return cached;
     }
 
-    serial_puts("[GETRES] cache miss, idx check\n");
-    uart_flush();
+    RM_LOG("[GETRES] cache miss, idx check\n");
 
     /* Try using index for O(log n) lookup if available */
-    serial_puts("[GETRES] gRefIdxCount check\n");
-    uart_flush();
+    RM_LOG("[GETRES] gRefIdxCount check\n");
     if (gRefIdxCount > 0) {
-        serial_puts("[GETRES] FindRefIndex\n");
-        uart_flush();
+        RM_LOG("[GETRES] FindRefIndex\n");
         SInt32 idx = FindRefIndex(theType, theID);
-        serial_puts("[GETRES] FindRefIndex returned\n");
-        uart_flush();
+        RM_LOG("[GETRES] FindRefIndex returned\n");
         if (idx >= 0) {
-            serial_puts("[GETRES] idx found, loop\n");
-            uart_flush();
+            RM_LOG("[GETRES] idx found, loop\n");
             /* Found in index - get the resource from any open file */
             for (i = gResMgr.curResFile; i >= 0; i--) {
                 if (!gResMgr.resFiles[i].inUse) continue;
 
-                serial_puts("[GETRES] ResMap_Find\n");
-                uart_flush();
+                RM_LOG("[GETRES] ResMap_Find\n");
                 /* Check if this file has the resource at the indexed offset */
                 ref = ResMap_FindResource(&gResMgr.resFiles[i], theType, theID);
-                serial_puts("[GETRES] ResMap_Find returned\n");
-                uart_flush();
+                RM_LOG("[GETRES] ResMap_Find returned\n");
                 if (ref) {
-                    serial_puts("[GETRES] ref found, set file\n");
-                    uart_flush();
+                    RM_LOG("[GETRES] ref found, set file\n");
                     file = &gResMgr.resFiles[i];
-                    serial_puts("[GETRES] break loop\n");
-                    uart_flush();
+                    RM_LOG("[GETRES] break loop\n");
                     break;
                 }
             }
-            serial_puts("[GETRES] idx loop done\n");
-            uart_flush();
+            RM_LOG("[GETRES] idx loop done\n");
         }
     }
 
-    serial_puts("[GETRES] after idx search\n");
-    uart_flush();
+    RM_LOG("[GETRES] after idx search\n");
     /* Fall back to linear search if not found via index */
     if (!ref) {
         /* Search all open resource files, starting with current */
@@ -906,18 +853,15 @@ Handle GetResource(ResType theType, ResID theID) {
         }
     }
 
-    serial_puts("[GETRES] ref check\n");
-    uart_flush();
+    RM_LOG("[GETRES] ref check\n");
     if (!ref) {
-        serial_puts("[GETRES] ref is NULL\n");
-        uart_flush();
+        RM_LOG("[GETRES] ref is NULL\n");
         RM_LOG_WARN("GetResource: not found");
         gResMgr.resError = resNotFound;
         return NULL;
     }
 
-    serial_puts("[GETRES] read reserved\n");
-    uart_flush();
+    RM_LOG("[GETRES] read reserved\n");
     /* Check if already loaded (stored in reserved field) */
     /* CRITICAL FIX: Use byte-by-byte read to avoid ARM64 misaligned access hang */
     UInt8* reservedPtr = (UInt8*)&ref->reserved;
@@ -926,11 +870,9 @@ Handle GetResource(ResType theType, ResID theID) {
                          ((UInt32)reservedPtr[2] << 16) |
                          ((UInt32)reservedPtr[3] << 24);
     Handle h = (Handle)(uintptr_t)reservedVal;
-    serial_puts("[GETRES] got reserved\n");
-    uart_flush();
+    RM_LOG("[GETRES] got reserved\n");
     if (h) {
-        serial_puts("[GETRES] already loaded\n");
-        uart_flush();
+        RM_LOG("[GETRES] already loaded\n");
         RM_LOG_DEBUG("GetResource: already loaded, handle=%p", h);
         gResMgr.resError = noErr;
         /* Update cache for next lookup */
@@ -938,12 +880,10 @@ Handle GetResource(ResType theType, ResID theID) {
         return h;
     }
 
-    serial_puts("[GETRES] need to load\n");
-    uart_flush();
+    RM_LOG("[GETRES] need to load\n");
     /* Load the resource */
     if (gResMgr.resLoad) {
-        serial_puts("[GETRES] calling LoadResource\n");
-        uart_flush();
+        RM_LOG("[GETRES] calling LoadResource\n");
         h = ResFile_LoadResource(file, ref);
         if (h) {
             RM_LOG_INFO("GetResource('%c%c%c%c', %d) = handle %p",

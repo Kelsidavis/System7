@@ -44,6 +44,16 @@
 extern const uint8_t g_HDIcon[128];
 extern const uint8_t g_HDIconMask[128];
 
+/* DVI_DEBUG: Set to 1 to enable verbose DrawVolumeIcon debugging
+ * WARNING: Enabling causes performance impact on ARM64 */
+#define DVI_DEBUG 0
+
+#if DVI_DEBUG
+#define DVI_LOG(msg) do { extern void serial_puts(const char*); extern void uart_flush(void); serial_puts(msg); uart_flush(); } while(0)
+#else
+#define DVI_LOG(msg) ((void)0)
+#endif
+
 /* Debug output */
 extern void serial_puts(const char* str);
 
@@ -2004,71 +2014,56 @@ void DrawVolumeIcon(void)
     RgnHandle savedClip = NULL;
     Boolean clipSaved = false;
 
-    serial_puts("[DVI] enter\n");
-    uart_flush();
+    DVI_LOG("[DVI] enter\n");
 
     FINDER_LOG_DEBUG("DrawVolumeIcon: ENTRY\n");
 
     /* Erase any active ghost outline before icon redraw */
-    serial_puts("[DVI] GhostEraseIf\n");
-    uart_flush();
+    DVI_LOG("[DVI] GhostEraseIf\n");
     GhostEraseIf();
-    serial_puts("[DVI] GhostEraseIf done\n");
-    uart_flush();
+    DVI_LOG("[DVI] GhostEraseIf done\n");
 
     /* Re-entrancy guard: prevent recursive painting */
     if (gInVolumeIconPaint) {
         FINDER_LOG_DEBUG("DrawVolumeIcon: re-entry detected, skipping to avoid freeze\n");
-        serial_puts("[DVI] reentry, return\n");
-        uart_flush();
+        DVI_LOG("[DVI] reentry, return\n");
         return;
     }
     gInVolumeIconPaint = true;
 
-    serial_puts("[DVI] GetPort\n");
-    uart_flush();
+    DVI_LOG("[DVI] GetPort\n");
     GetPort(&savePort);
-    serial_puts("[DVI] SetPort\n");
-    uart_flush();
+    DVI_LOG("[DVI] SetPort\n");
     SetPort(qd.thePort);
-    serial_puts("[DVI] check clipRgn\n");
-    uart_flush();
+    DVI_LOG("[DVI] check clipRgn\n");
 
     if (qd.thePort->clipRgn && *qd.thePort->clipRgn) {
-        serial_puts("[DVI] NewRgn\n");
-        uart_flush();
+        DVI_LOG("[DVI] NewRgn\n");
         savedClip = NewRgn();
         if (savedClip) {
-            serial_puts("[DVI] CopyRgn\n");
-            uart_flush();
+            DVI_LOG("[DVI] CopyRgn\n");
             CopyRgn(qd.thePort->clipRgn, savedClip);
-            serial_puts("[DVI] CopyRgn done\n");
-            uart_flush();
+            DVI_LOG("[DVI] CopyRgn done\n");
             clipSaved = true;
         }
     }
 
-    serial_puts("[DVI] get desktopBounds\n");
-    uart_flush();
+    DVI_LOG("[DVI] get desktopBounds\n");
     /* CRITICAL FIX: Use explicit field copy instead of struct assignment */
     Rect desktopBounds;
     desktopBounds.top = qd.screenBits.bounds.top;
     desktopBounds.left = qd.screenBits.bounds.left;
     desktopBounds.bottom = qd.screenBits.bounds.bottom;
     desktopBounds.right = qd.screenBits.bounds.right;
-    serial_puts("[DVI] desktopBounds copied\n");
-    uart_flush();
+    DVI_LOG("[DVI] desktopBounds copied\n");
     desktopBounds.top = 20; /* Keep menu bar clear */
-    serial_puts("[DVI] ClipRect\n");
-    uart_flush();
+    DVI_LOG("[DVI] ClipRect\n");
     ClipRect(&desktopBounds);
-    serial_puts("[DVI] ClipRect done\n");
-    uart_flush();
+    DVI_LOG("[DVI] ClipRect done\n");
 
     if (!gVolumeIconVisible) {
         FINDER_LOG_DEBUG("DrawVolumeIcon: not visible, returning\n");
-        serial_puts("[DVI] not visible\n");
-        uart_flush();
+        DVI_LOG("[DVI] not visible\n");
         gInVolumeIconPaint = false;
         if (clipSaved) {
             SetClip(savedClip);
@@ -2078,17 +2073,14 @@ void DrawVolumeIcon(void)
         return;
     }
 
-    serial_puts("[DVI] DrawIconsCommon\n");
-    uart_flush();
+    DVI_LOG("[DVI] DrawIconsCommon\n");
     FINDER_LOG_DEBUG("DrawVolumeIcon: Drawing desktop icon set\n");
     Desktop_DrawIconsCommon(NULL);
-    serial_puts("[DVI] DrawIconsCommon done\n");
-    uart_flush();
+    DVI_LOG("[DVI] DrawIconsCommon done\n");
     FINDER_LOG_DEBUG("DrawVolumeIcon: about to return\n");
     gInVolumeIconPaint = false;
 
-    serial_puts("[DVI] cleanup\n");
-    uart_flush();
+    DVI_LOG("[DVI] cleanup\n");
     if (clipSaved) {
         SetClip(savedClip);
         DisposeRgn(savedClip);
@@ -2097,8 +2089,7 @@ void DrawVolumeIcon(void)
         ClipRect(&qd.screenBits.bounds);
     }
     SetPort(savePort);
-    serial_puts("[DVI] done\n");
-    uart_flush();
+    DVI_LOG("[DVI] done\n");
     return;  /* Explicit return for debugging */
 }
 /* DrawVolumeIcon function ends here */
