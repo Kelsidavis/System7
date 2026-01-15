@@ -53,7 +53,9 @@ static uint32_t bswap32(uint32_t val) {
  * Initialize DTB parser
  */
 bool dtb_init(void *dtb) {
-    if (!dtb) return false;
+    if (!dtb) {
+        return false;
+    }
 
     dtb_ptr = dtb;
     dtb_header = (dtb_header_t *)dtb;
@@ -102,6 +104,12 @@ const void *dtb_get_property(const char *node_path, const char *property, uint32
     int depth = 0;
     bool in_target_node = false;
 
+    /* Target depth for matching:
+     * - Empty path ("") = root node, match at depth 0
+     * - Non-empty path = direct child of root, match at depth 1 */
+    int target_depth = (node_path[0] == '\0') ? 0 : 1;
+    int matched_depth = -1;
+
     while (1) {
         uint32_t token = bswap32(*struct_ptr++);
 
@@ -110,9 +118,10 @@ const void *dtb_get_property(const char *node_path, const char *property, uint32
                 const char *name = (const char *)struct_ptr;
                 int name_len = strlen(name);
 
-                /* Check if this is our target node */
-                if (depth == 0 && strcmp(name, node_path) == 0) {
+                /* Check if this is our target node (at depth 1 = direct child of root) */
+                if (depth == target_depth && strcmp(name, node_path) == 0) {
                     in_target_node = true;
+                    matched_depth = depth;
                 }
 
                 /* Align to 4-byte boundary */
@@ -123,8 +132,9 @@ const void *dtb_get_property(const char *node_path, const char *property, uint32
 
             case FDT_END_NODE:
                 depth--;
-                if (in_target_node && depth == 0) {
+                if (in_target_node && depth == matched_depth) {
                     in_target_node = false;
+                    matched_depth = -1;
                 }
                 break;
 
@@ -176,14 +186,19 @@ bool dtb_get_property_u32(const char *node_path, const char *property, uint32_t 
 bool dtb_get_memory(uint64_t *base, uint64_t *size) {
     if (!dtb_header) return false;
 
-    /* Look for memory node */
+    /* Look for memory node - try various common paths */
     uint32_t len;
     const uint32_t *reg = dtb_get_property("memory", "reg", &len);
 
     if (!reg || len < 8) {
-        /* Try memory@0 */
         reg = dtb_get_property("memory@0", "reg", &len);
-        if (!reg || len < 8) return false;
+    }
+    if (!reg || len < 8) {
+        /* QEMU virt machine uses memory@40000000 */
+        reg = dtb_get_property("memory@40000000", "reg", &len);
+    }
+    if (!reg || len < 8) {
+        return false;
     }
 
     /* Parse reg property (address-cells and size-cells are typically 2 for 64-bit) */

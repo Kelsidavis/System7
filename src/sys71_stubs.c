@@ -2046,20 +2046,29 @@ void exceptions_init(void) {
     /* Minimal stub - exception handlers setup deferred to actual platform implementation */
 }
 
-/* Device Tree Blob initialization */
-void dtb_init(void) {
+/* Device Tree Blob initialization - ARM64 has its own implementation */
+#ifndef QEMU_BUILD
+bool dtb_init(void *dtb) {
+    (void)dtb;
     /* Minimal stub - DTB parsing deferred to actual platform implementation */
+    return false;
 }
+#endif
 
-/* MMU (Memory Management Unit) initialization */
-void mmu_init(void) {
+/* MMU (Memory Management Unit) initialization - ARM64 has its own implementation */
+#ifndef QEMU_BUILD
+bool mmu_init(void) {
     /* Minimal stub - MMU setup deferred to actual platform implementation */
+    return false;
 }
+#endif
 
-/* MMU enable/activation */
+/* MMU enable/activation - ARM64 has its own implementation */
+#ifndef QEMU_BUILD
 void mmu_enable(void) {
     /* Minimal stub - MMU activation deferred to actual platform implementation */
 }
+#endif
 
 /*
  * InitControlManager_Sys7 - Initialize Control Manager for System 7.1

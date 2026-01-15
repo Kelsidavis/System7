@@ -43,8 +43,6 @@ static int g_fb_present = 0;
  * Called with DTB address in x0
  */
 void arm64_boot_main(void *dtb_ptr) {
-    char buf[256];
-
     /* Initialize UART for early serial output */
     uart_init();
 
@@ -75,11 +73,24 @@ void arm64_boot_main(void *dtb_ptr) {
     else if (current_el == 2) uart_puts("2\n");
     else uart_puts("3\n");
 
-    /* Report DTB location */
-    if (dtb_ptr) {
-        uart_puts("[ARM64] Device Tree Blob provided\n");
-    } else {
-        uart_puts("[ARM64] Warning: No Device Tree provided\n");
+    /* If no DTB passed in x0, scan for it at known locations */
+    if (!dtb_ptr) {
+        /* QEMU virt typically places DTB at fixed locations */
+        static const uint64_t dtb_scan_addrs[] = {
+            0x44000000,  /* Common offset from RAM start */
+            0x48000000,  /* Alternative location */
+            0x40000000 + (1024 * 1024 * 1024) - (1024 * 1024),  /* End of 1GB RAM - 1MB */
+            0
+        };
+        for (int i = 0; dtb_scan_addrs[i] != 0; i++) {
+            uint32_t *probe = (uint32_t *)dtb_scan_addrs[i];
+            /* Check for DTB magic (big-endian 0xD00DFEED) */
+            if (*probe == 0xEDFE0DD0) {  /* Little-endian check */
+                dtb_ptr = probe;
+                boot_info.dtb_address = (uint64_t)dtb_ptr;
+                break;
+            }
+        }
     }
 
     /* Report timer frequency */
@@ -93,13 +104,33 @@ void arm64_boot_main(void *dtb_ptr) {
             uart_puts("[ARM64] Device Tree initialized\n");
             uart_flush();
 
-            /* Skip model and memory parsing for now - just use defaults */
-            uart_puts("[ARM64] Setting memory defaults...\n");
-            uart_puts("[ARM64] 1\n");
-            boot_info.memory_base = 0x00000000;
-            uart_puts("[ARM64] 2\n");
-            boot_info.memory_size = 1024 * 1024 * 1024;  /* 1GB default */
-            uart_puts("[ARM64] 3 - Memory defaults set\n");
+            /* Get model string from DTB */
+            const char *model = dtb_get_model();
+            if (model) {
+                uart_puts("[ARM64] Model: ");
+                uart_puts(model);
+                uart_puts("\n");
+                strncpy(boot_info.board_model, model, sizeof(boot_info.board_model) - 1);
+                boot_info.board_model[sizeof(boot_info.board_model) - 1] = '\0';
+            }
+
+            /* Get memory information from DTB */
+            uint64_t mem_base, mem_size;
+            if (dtb_get_memory(&mem_base, &mem_size)) {
+                boot_info.memory_base = mem_base;
+                boot_info.memory_size = mem_size;
+                uart_puts("[ARM64] Memory from DTB: ");
+                /* Print size in MB */
+                uint32_t size_mb = (uint32_t)(mem_size / (1024 * 1024));
+                char size_buf[32];
+                snprintf(size_buf, sizeof(size_buf), "%u MB", size_mb);
+                uart_puts(size_buf);
+                uart_puts("\n");
+            } else {
+                uart_puts("[ARM64] DTB memory info unavailable, using 1GB default\n");
+                boot_info.memory_base = 0x00000000;
+                boot_info.memory_size = 1024 * 1024 * 1024;  /* 1GB default */
+            }
         } else {
             uart_puts("[ARM64] DTB init failed\n");
             boot_info.memory_base = 0x00000000;
