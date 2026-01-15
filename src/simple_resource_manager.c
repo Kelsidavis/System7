@@ -44,6 +44,11 @@ OSErr ResourceManagerInit(void) {
 /* Get a resource by type and ID from memory-based fork */
 Handle GetResource(ResType type, short id) {
     extern Handle NewHandle(Size byteCount);
+    extern void serial_puts(const char* str);
+    extern void uart_flush(void);
+
+    serial_puts("[SRM] GetResource enter\n");
+    uart_flush();
 
     if (!gMemoryResourceFork && patterns_rsrc_size > 0) {
         /* Auto-initialize with built-in resource fork */
@@ -84,16 +89,10 @@ Handle GetResource(ResType type, short id) {
         uint16_t numRes = ReadBE16(typeList + i * 8 + 4) + 1;
         uint16_t refListOffset = ReadBE16(typeList + i * 8 + 6);
 
-        /* Debug: Show what types we found */
+        /* Debug: ARM64 safe debug (no sprintf which can hang due to va_list) */
         if (type == 0x70706174) {  /* 'ppat' */
-            extern void serial_puts(const char* str);
-            char msg[80];
-            sprintf(msg, "Resource type %d: 0x%08x (%c%c%c%c), %d resources\n",
-                    i, resType,
-                    (resType >> 24) & 0xFF, (resType >> 16) & 0xFF,
-                    (resType >> 8) & 0xFF, resType & 0xFF,
-                    numRes);
-            serial_puts(msg);
+            serial_puts("[SRM] Searching ppat\n");
+            uart_flush();
         }
 
         if (resType == type) {

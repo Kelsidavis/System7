@@ -267,21 +267,26 @@ bool DecodePPAT8(const uint8_t* p, size_t n, uint32_t outRGBA[64]) {
 
 Handle LoadPPATResource(int16_t id) {
     extern void serial_puts(const char* str);
-    char msg[64];
-    sprintf(msg, "LoadPPATResource: Loading ppat ID %d\n", id);
-    serial_puts(msg);
+    extern void uart_flush(void);
+
+    /* CRITICAL FIX: Use serial_puts instead of sprintf to avoid ARM64 hang */
+    serial_puts("LoadPPATResource: Loading ppat\n");
+    uart_flush();
 
     Handle h = GetResource(kPixPatternResourceType, id);
     if (!h) {
-        sprintf(msg, "LoadPPATResource: Failed to get ppat %d\n", id);
-        serial_puts(msg);
+        serial_puts("LoadPPATResource: Failed to get ppat\n");
+        uart_flush();
         return NULL;
     }
 
+    serial_puts("LoadPPATResource: Got ppat handle\n");
+    uart_flush();
+
     /* Return a duplicate the caller owns; leave original in the resource map */
     Size sz = GetHandleSize(h);
-    sprintf(msg, "LoadPPATResource: ppat size = %ld\n", (long)sz);
-    serial_puts(msg);
+    serial_puts("LoadPPATResource: Got size\n");
+    uart_flush();
 
     Handle dup = NewHandle(sz);
     if (!dup) {

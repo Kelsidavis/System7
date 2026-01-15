@@ -140,7 +140,22 @@ static SInt32 FindTypeIndex(ResType type) {
 
 /* Binary search for resource in index */
 static SInt32 FindRefIndex(ResType type, ResID id) {
+    extern void serial_puts(const char* str);
+    extern void uart_flush(void);
     SInt32 left = 0, right = gRefIdxCount - 1;
+
+    serial_puts("[FRI] enter\n");
+    uart_flush();
+
+    /* Safety check for NULL or huge index */
+    if (!gRefIdx || gRefIdxCount <= 0 || gRefIdxCount > 100000) {
+        serial_puts("[FRI] bad index\n");
+        uart_flush();
+        return -1;
+    }
+
+    serial_puts("[FRI] loop\n");
+    uart_flush();
 
     while (left <= right) {
         SInt32 mid = left + (right - left) / 2;  /* Avoid integer overflow */
@@ -151,9 +166,13 @@ static SInt32 FindRefIndex(ResType type, ResID id) {
                    (gRefIdx[mid].type == type && gRefIdx[mid].id > id)) {
             right = mid - 1;
         } else {
+            serial_puts("[FRI] found\n");
+            uart_flush();
             return mid;  /* Found */
         }
     }
+    serial_puts("[FRI] not found\n");
+    uart_flush();
     return -1;  /* Not found */
 }
 
@@ -670,9 +689,14 @@ Handle ResFile_LoadResource(ResFile* file, RefListEntry* ref) {
 
 /* Get resource by type and ID */
 Handle GetResource(ResType theType, ResID theID) {
+    extern void serial_puts(const char* str);
+    extern void uart_flush(void);
     int i;
     RefListEntry* ref = NULL;
     ResFile* file = NULL;
+
+    serial_puts("[GETRES] enter\n");
+    uart_flush();
 
     RM_LOG_DEBUG("GetResource('%c%c%c%c', %d)",
                  (char)(theType >> 24), (char)(theType >> 16),
@@ -715,6 +739,9 @@ Handle GetResource(ResType theType, ResID theID) {
         return h;
     }
 
+    serial_puts("[GETRES] cache check\n");
+    uart_flush();
+
     /* Check cache first for fast hit */
     Handle cached = CacheLookup(theType, theID);
     if (cached) {
@@ -723,14 +750,27 @@ Handle GetResource(ResType theType, ResID theID) {
         return cached;
     }
 
+    serial_puts("[GETRES] cache miss, idx check\n");
+    uart_flush();
+
     /* Try using index for O(log n) lookup if available */
+    serial_puts("[GETRES] gRefIdxCount check\n");
+    uart_flush();
     if (gRefIdxCount > 0) {
+        serial_puts("[GETRES] FindRefIndex\n");
+        uart_flush();
         SInt32 idx = FindRefIndex(theType, theID);
+        serial_puts("[GETRES] FindRefIndex returned\n");
+        uart_flush();
         if (idx >= 0) {
+            serial_puts("[GETRES] idx found, loop\n");
+            uart_flush();
             /* Found in index - get the resource from any open file */
             for (i = gResMgr.curResFile; i >= 0; i--) {
                 if (!gResMgr.resFiles[i].inUse) continue;
 
+                serial_puts("[GETRES] ResMap_Find\n");
+                uart_flush();
                 /* Check if this file has the resource at the indexed offset */
                 ref = ResMap_FindResource(&gResMgr.resFiles[i], theType, theID);
                 if (ref) {
