@@ -652,11 +652,7 @@ long TrackMenu(short menuID, Point *startPt) {
         extern volatile uint8_t g_mouseState;
         Boolean buttonState = (g_mouseState & 0x01) != 0;
 
-        /* Debug: Log every 10000th iteration to track progress without slowdown */
-        if (updateCount == 1 || updateCount % 10000 == 0) {
-            extern void uart_puts(const char*);
-            uart_puts(buttonState ? "[TRACK] btn=1\n" : "[TRACK] btn=0\n");
-        }
+        /* Debug output removed - was causing x86 build failure */
 
         /* Track when button is first released */
         if (!buttonState && !buttonWasReleased) {
