@@ -9,7 +9,12 @@
 #include "QuickDraw/QuickDraw.h"
 #include "Finder/Icon/icon_port.h"
 
+/* CRITICAL FIX: Disable logging on ARM64 - serial_logf uses va_list which hangs */
+#if defined(__aarch64__) || defined(__arm64__)
+#define FINDER_ICON_LOG_DEBUG(fmt, ...) ((void)0)
+#else
 #define FINDER_ICON_LOG_DEBUG(fmt, ...) serial_logf(kLogModuleFinder, kLogLevelDebug, fmt, ##__VA_ARGS__)
+#endif
 
 /* Helper: Get bit from bitmap */
 static inline uint8_t GetBit(const uint8_t* row, int x) {

@@ -1815,6 +1815,9 @@ void kernel_main(uint32_t magic, uint32_t* mb2_info) {
     static uint32_t cursor_update_counter = 0;
 
     SYSTEM_LOG_DEBUG("MAIN: Entering main event loop NOW!\n");
+    serial_puts("MAIN: Entering event loop\n");
+    extern void uart_flush(void);
+    uart_flush();
 
     while (1) {
         /* IMPORTANT: Call TimerISR each iteration for high-cadence timer checking */

@@ -10,7 +10,12 @@
 #include "QuickDraw/QuickDraw.h"
 #include "Finder/Icon/icon_port.h"
 
+/* CRITICAL FIX: Disable logging on ARM64 - serial_logf uses va_list which hangs */
+#if defined(__aarch64__) || defined(__arm64__)
+#define FINDER_ICON_LOG_DEBUG(fmt, ...) ((void)0)
+#else
 #define FINDER_ICON_LOG_DEBUG(fmt, ...) serial_logf(kLogModuleFinder, kLogLevelDebug, fmt, ##__VA_ARGS__)
+#endif
 
 /* Import Chicago font - using the chicago_font_data structures */
 extern const uint8_t chicago_bitmap[];
@@ -172,27 +177,11 @@ void IconLabel_Measure(const char* name, int* outWidth, int* outHeight) {
 
 /* Draw label with white background */
 void IconLabel_Draw(const char* name, int cx, int topY, bool selected) {
-    /* Debug icon label rendering */
-    extern void serial_puts(const char* str);
-    static int label_debug = 0;
-    static char ldbg[256];
-
     if (!name) {
-        if (label_debug < 5) {
-            serial_puts("[LABEL] NULL name passed to IconLabel_Draw\n");
-            label_debug++;
-        }
         return;
     }
 
     int len = strlen(name);
-    if (label_debug < 5) {
-        sprintf(ldbg, "[LABEL] Drawing label: name='%s' len=%d cx=%d topY=%d sel=%d\n",
-               name, len, cx, topY, selected);
-        serial_puts(ldbg);
-        label_debug++;
-    }
-
     int textWidth, textHeight;
     IconLabel_Measure(name, &textWidth, &textHeight);
 
@@ -213,9 +202,10 @@ void IconLabel_Draw(const char* name, int cx, int topY, bool selected) {
     for (int i = 0; i < len; i++) {
         char ch = name[i];
         if (ch >= 32 && ch <= 126) {
-            ChicagoCharInfo info = chicago_ascii[ch - 32];
+            /* CRITICAL FIX: Access struct fields directly instead of struct assignment */
+            const ChicagoCharInfo* infoPtr = &chicago_ascii[ch - 32];
             DrawCharBitmap(ch, currentX, topY - textHeight + 3, fgColor);
-            currentX += info.bit_width + 1;
+            currentX += infoPtr->bit_width + 1;
             if (ch == ' ') currentX += 3;  /* Extra space between words */
         }
     }

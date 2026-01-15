@@ -244,38 +244,63 @@ static void Desktop_BuildFileKind(const DesktopItem* item, FileKind* outKind)
         return;
     }
 
-    FileKind fk = {0};
-    fk.path = NULL;
-    fk.hasCustomIcon = false;
+    /* CRITICAL FIX: Use memset instead of aggregate init to avoid ARM64 hang */
+    memset(outKind, 0, sizeof(FileKind));
+    outKind->path = NULL;
+    outKind->hasCustomIcon = false;
 
-    switch (item->type) {
+    /* CRITICAL FIX: Use safe byte-by-byte read for item->type */
+    UInt8* typePtr = (UInt8*)&item->type;
+    DesktopItemType itemType = (DesktopItemType)(
+        ((UInt32)typePtr[0]) |
+        ((UInt32)typePtr[1] << 8) |
+        ((UInt32)typePtr[2] << 16) |
+        ((UInt32)typePtr[3] << 24)
+    );
+
+    switch (itemType) {
         case kDesktopItemTrash:
-            fk.isTrash = true;
-            fk.isTrashFull = !Trash_IsEmptyAll();
-            fk.isFolder = true;
+            outKind->isTrash = true;
+            outKind->isTrashFull = !Trash_IsEmptyAll();
+            outKind->isFolder = true;
             break;
         case kDesktopItemVolume:
-            fk.isVolume = true;
+            outKind->isVolume = true;
             break;
         case kDesktopItemFolder:
-            fk.isFolder = true;
+            outKind->isFolder = true;
             break;
         case kDesktopItemApplication:
-            fk.type = item->data.file.fileType ? item->data.file.fileType : 'APPL';
-            fk.creator = item->data.file.creator;
+            /* CRITICAL FIX: Safe read for fileType/creator */
+            {
+                UInt8* ftPtr = (UInt8*)&item->data.file.fileType;
+                OSType ft = ((UInt32)ftPtr[0]) | ((UInt32)ftPtr[1] << 8) |
+                           ((UInt32)ftPtr[2] << 16) | ((UInt32)ftPtr[3] << 24);
+                UInt8* crPtr = (UInt8*)&item->data.file.creator;
+                OSType cr = ((UInt32)crPtr[0]) | ((UInt32)crPtr[1] << 8) |
+                           ((UInt32)crPtr[2] << 16) | ((UInt32)crPtr[3] << 24);
+                outKind->type = ft ? ft : 'APPL';
+                outKind->creator = cr;
+            }
             break;
         case kDesktopItemFile:
-            fk.type = item->data.file.fileType;
-            fk.creator = item->data.file.creator;
+            {
+                UInt8* ftPtr = (UInt8*)&item->data.file.fileType;
+                OSType ft = ((UInt32)ftPtr[0]) | ((UInt32)ftPtr[1] << 8) |
+                           ((UInt32)ftPtr[2] << 16) | ((UInt32)ftPtr[3] << 24);
+                UInt8* crPtr = (UInt8*)&item->data.file.creator;
+                OSType cr = ((UInt32)crPtr[0]) | ((UInt32)crPtr[1] << 8) |
+                           ((UInt32)crPtr[2] << 16) | ((UInt32)crPtr[3] << 24);
+                outKind->type = ft;
+                outKind->creator = cr;
+            }
             break;
         case kDesktopItemAlias:
-            fk.type = 'alis';
+            outKind->type = 'alis';
             break;
         default:
             break;
     }
-
-    *outKind = fk;
 }
 
 static int Desktop_LabelOffsetForItem(const DesktopItem* item)
@@ -284,7 +309,16 @@ static int Desktop_LabelOffsetForItem(const DesktopItem* item)
         return kIconH;
     }
 
-    switch (item->type) {
+    /* CRITICAL FIX: Use byte-by-byte read to avoid ARM64 misaligned access hang */
+    UInt8* typePtr = (UInt8*)&item->type;
+    DesktopItemType itemType = (DesktopItemType)(
+        ((UInt32)typePtr[0]) |
+        ((UInt32)typePtr[1] << 8) |
+        ((UInt32)typePtr[2] << 16) |
+        ((UInt32)typePtr[3] << 24)
+    );
+
+    switch (itemType) {
         case kDesktopItemTrash:
             return 48;
         case kDesktopItemVolume:
@@ -307,18 +341,33 @@ static void Desktop_DrawIconsCommon(RgnHandle clip)
             continue;
         }
 
-        if (gDesktopIcons[i].type == kDesktopItemVolume && !gVolumeIconVisible) {
+        /* CRITICAL FIX: Use byte-by-byte read to avoid ARM64 misaligned access */
+        UInt8* typePtr = (UInt8*)&gDesktopIcons[i].type;
+        DesktopItemType itemType = (DesktopItemType)(
+            ((UInt32)typePtr[0]) |
+            ((UInt32)typePtr[1] << 8) |
+            ((UInt32)typePtr[2] << 16) |
+            ((UInt32)typePtr[3] << 24)
+        );
+        if (itemType == kDesktopItemVolume && !gVolumeIconVisible) {
             continue;
         }
 
-        FileKind fk = {0};
+        /* CRITICAL FIX: Use memset instead of aggregate init to avoid ARM64 hang */
+        FileKind fk;
+        memset(&fk, 0, sizeof(FileKind));
         Desktop_BuildFileKind(&gDesktopIcons[i], &fk);
 
-        IconHandle handle = {0};
+        /* CRITICAL FIX: Use memset instead of aggregate init to avoid ARM64 hang */
+        IconHandle handle;
+        memset(&handle, 0, sizeof(IconHandle));
         bool resolved = Icon_ResolveForNode(&fk, &handle);
 
-        if (!resolved || !handle.fam) {
-            switch (gDesktopIcons[i].type) {
+        const IconFamily* famPtr = handle.fam;
+        bool needDefault = (!resolved || !famPtr);
+        if (needDefault) {
+            /* Reuse itemType from earlier read instead of accessing gDesktopIcons[i].type again */
+            switch (itemType) {
                 case kDesktopItemFolder:
                     handle.fam = IconSys_DefaultFolder();
                     break;
@@ -339,23 +388,14 @@ static void Desktop_DrawIconsCommon(RgnHandle clip)
 
         /* Desktop icons use global screen coordinates - no conversion needed
          * gDesktopIcons[i].position is already in global screen coordinates */
-        Point screenPos = gDesktopIcons[i].position;
+        /* CRITICAL FIX: Explicit field copy instead of struct assignment */
+        Point screenPos;
+        screenPos.h = gDesktopIcons[i].position.h;
+        screenPos.v = gDesktopIcons[i].position.v;
 
         int centerX = screenPos.h + (kIconW / 2);
         int topY = screenPos.v;
         int labelOffset = Desktop_LabelOffsetForItem(&gDesktopIcons[i]);
-
-        /* Debug icon names - C string, not Pascal */
-        extern void serial_puts(const char* str);
-        static int icon_debug = 0;
-        static char icdbg[256];
-        if (icon_debug < 5) {
-            int namelen = strlen(gDesktopIcons[i].name);
-            sprintf(icdbg, "[ICON] Icon %d: name='%s' len=%d pos=(%d,%d) type=%d\n",
-                   i, gDesktopIcons[i].name, namelen, screenPos.h, screenPos.v, gDesktopIcons[i].type);
-            serial_puts(icdbg);
-            icon_debug++;
-        }
 
         Icon_DrawWithLabelOffset(&handle,
                                  gDesktopIcons[i].name,
@@ -1941,40 +1981,78 @@ Boolean Desktop_IsOverTrash(Point where) {
  */
 void DrawVolumeIcon(void)
 {
+    extern void serial_puts(const char* str);
+    extern void uart_flush(void);
     static Boolean gInVolumeIconPaint = false;
     GrafPtr savePort;
     RgnHandle savedClip = NULL;
     Boolean clipSaved = false;
 
+    serial_puts("[DVI] enter\n");
+    uart_flush();
+
     FINDER_LOG_DEBUG("DrawVolumeIcon: ENTRY\n");
 
     /* Erase any active ghost outline before icon redraw */
+    serial_puts("[DVI] GhostEraseIf\n");
+    uart_flush();
     GhostEraseIf();
+    serial_puts("[DVI] GhostEraseIf done\n");
+    uart_flush();
 
     /* Re-entrancy guard: prevent recursive painting */
     if (gInVolumeIconPaint) {
         FINDER_LOG_DEBUG("DrawVolumeIcon: re-entry detected, skipping to avoid freeze\n");
+        serial_puts("[DVI] reentry, return\n");
+        uart_flush();
         return;
     }
     gInVolumeIconPaint = true;
 
+    serial_puts("[DVI] GetPort\n");
+    uart_flush();
     GetPort(&savePort);
+    serial_puts("[DVI] SetPort\n");
+    uart_flush();
     SetPort(qd.thePort);
+    serial_puts("[DVI] check clipRgn\n");
+    uart_flush();
 
     if (qd.thePort->clipRgn && *qd.thePort->clipRgn) {
+        serial_puts("[DVI] NewRgn\n");
+        uart_flush();
         savedClip = NewRgn();
         if (savedClip) {
+            serial_puts("[DVI] CopyRgn\n");
+            uart_flush();
             CopyRgn(qd.thePort->clipRgn, savedClip);
+            serial_puts("[DVI] CopyRgn done\n");
+            uart_flush();
             clipSaved = true;
         }
     }
 
-    Rect desktopBounds = qd.screenBits.bounds;
+    serial_puts("[DVI] get desktopBounds\n");
+    uart_flush();
+    /* CRITICAL FIX: Use explicit field copy instead of struct assignment */
+    Rect desktopBounds;
+    desktopBounds.top = qd.screenBits.bounds.top;
+    desktopBounds.left = qd.screenBits.bounds.left;
+    desktopBounds.bottom = qd.screenBits.bounds.bottom;
+    desktopBounds.right = qd.screenBits.bounds.right;
+    serial_puts("[DVI] desktopBounds copied\n");
+    uart_flush();
     desktopBounds.top = 20; /* Keep menu bar clear */
+    serial_puts("[DVI] ClipRect\n");
+    uart_flush();
     ClipRect(&desktopBounds);
+    serial_puts("[DVI] ClipRect done\n");
+    uart_flush();
 
     if (!gVolumeIconVisible) {
         FINDER_LOG_DEBUG("DrawVolumeIcon: not visible, returning\n");
+        serial_puts("[DVI] not visible\n");
+        uart_flush();
         gInVolumeIconPaint = false;
         if (clipSaved) {
             SetClip(savedClip);
@@ -1984,18 +2062,27 @@ void DrawVolumeIcon(void)
         return;
     }
 
+    serial_puts("[DVI] DrawIconsCommon\n");
+    uart_flush();
     FINDER_LOG_DEBUG("DrawVolumeIcon: Drawing desktop icon set\n");
     Desktop_DrawIconsCommon(NULL);
+    serial_puts("[DVI] DrawIconsCommon done\n");
+    uart_flush();
     FINDER_LOG_DEBUG("DrawVolumeIcon: about to return\n");
     gInVolumeIconPaint = false;
 
+    serial_puts("[DVI] cleanup\n");
+    uart_flush();
     if (clipSaved) {
         SetClip(savedClip);
         DisposeRgn(savedClip);
     } else {
+        /* CRITICAL FIX: Use pointer to avoid struct copy */
         ClipRect(&qd.screenBits.bounds);
     }
     SetPort(savePort);
+    serial_puts("[DVI] done\n");
+    uart_flush();
     return;  /* Explicit return for debugging */
 }
 /* DrawVolumeIcon function ends here */
