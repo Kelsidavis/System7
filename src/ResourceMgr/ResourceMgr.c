@@ -534,19 +534,40 @@ void UseResFile(SInt16 refNum) {
 
 /* Find type in resource map */
 TypeListEntry* ResMap_FindType(ResFile* file, ResType type) {
+    extern void serial_puts(const char* str);
+    extern void uart_flush(void);
     ResMapHeader* map;
     UInt16 typeListOff;
     UInt16 numTypes;
     UInt8* typeList;
     int i;
 
+    serial_puts("[FT] enter\n");
+    uart_flush();
+
     if (!file || !file->map) {
+        serial_puts("[FT] bad file\n");
+        uart_flush();
         gResMgr.resError = mapReadErr;
         return NULL;
     }
 
+    serial_puts("[FT] get map\n");
+    uart_flush();
     map = file->map;
+    serial_puts("[FT] check map ptr\n");
+    uart_flush();
+    /* Safety check - if map is NULL or in invalid memory, skip */
+    if (!map) {
+        serial_puts("[FT] map is NULL\n");
+        uart_flush();
+        return NULL;
+    }
+    serial_puts("[FT] read typeListOff\n");
+    uart_flush();
     typeListOff = read_be16((UInt8*)&map->typeListOffset);
+    serial_puts("[FT] got typeListOff\n");
+    uart_flush();
 
     /* Bounds check: validate type list offset */
     if (typeListOff == 0xFFFF || typeListOff >= file->mapSize) {
@@ -585,17 +606,26 @@ TypeListEntry* ResMap_FindType(ResFile* file, ResType type) {
 
 /* Find resource by type and ID */
 RefListEntry* ResMap_FindResource(ResFile* file, ResType type, ResID id) {
+    extern void serial_puts(const char* str);
+    extern void uart_flush(void);
     TypeListEntry* typeEntry;
     UInt16 count;
     UInt16 refListOff;
     UInt8* refList;
     int i;
 
+    serial_puts("[RMF] enter\n");
+    uart_flush();
+
     if (!file || !file->map) {
+        serial_puts("[RMF] bad file\n");
+        uart_flush();
         gResMgr.resError = mapReadErr;
         return NULL;
     }
 
+    serial_puts("[RMF] FindType\n");
+    uart_flush();
     typeEntry = ResMap_FindType(file, type);
     if (!typeEntry) return NULL;
 
