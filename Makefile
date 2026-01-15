@@ -165,7 +165,7 @@ else ifeq ($(PLATFORM),arm64)
     CFLAGS = $(COMMON_CFLAGS) -march=armv8-a -ffreestanding -DQEMU_BUILD
     ASFLAGS = -march=armv8-a
     LDFLAGS = -nostdlib -no-pie -Wl,--allow-multiple-definition -Wl,-z,execstack
-    LINKER_SCRIPT := $(HAL_DIR)/link.ld
+    LINKER_SCRIPT := $(HAL_DIR)/link_qemu.ld
     ifeq ($(strip $(GESTALT_MACHINE_TYPE)),)
       GESTALT_MACHINE_TYPE := arm64_virt
     endif

@@ -391,36 +391,36 @@ void virtio_gpu_flush(void) {
 
     struct virtio_gpu_ctrl_hdr resp_hdr;
 
-    /* Transfer to host */
-    struct virtio_gpu_transfer_to_host_2d transfer_cmd = {
-        .hdr = {
-            .type = VIRTIO_GPU_CMD_TRANSFER_TO_HOST_2D,
-            .flags = 0,
-            .fence_id = 0,
-            .ctx_id = 0,
-            .padding = 0
-        },
-        .r = { .x = 0, .y = 0, .width = FB_WIDTH, .height = FB_HEIGHT },
-        .offset = 0,
-        .resource_id = 1,
-        .padding = 0
-    };
+    /* Transfer to host - use explicit assignment to avoid ARM64 compound literal issues */
+    struct virtio_gpu_transfer_to_host_2d transfer_cmd;
+    transfer_cmd.hdr.type = VIRTIO_GPU_CMD_TRANSFER_TO_HOST_2D;
+    transfer_cmd.hdr.flags = 0;
+    transfer_cmd.hdr.fence_id = 0;
+    transfer_cmd.hdr.ctx_id = 0;
+    transfer_cmd.hdr.padding = 0;
+    transfer_cmd.r.x = 0;
+    transfer_cmd.r.y = 0;
+    transfer_cmd.r.width = FB_WIDTH;
+    transfer_cmd.r.height = FB_HEIGHT;
+    transfer_cmd.offset = 0;
+    transfer_cmd.resource_id = 1;
+    transfer_cmd.padding = 0;
 
     virtio_gpu_send_cmd(&transfer_cmd, sizeof(transfer_cmd), &resp_hdr, sizeof(resp_hdr));
 
-    /* Flush */
-    struct virtio_gpu_resource_flush flush_cmd = {
-        .hdr = {
-            .type = VIRTIO_GPU_CMD_RESOURCE_FLUSH,
-            .flags = 0,
-            .fence_id = 0,
-            .ctx_id = 0,
-            .padding = 0
-        },
-        .r = { .x = 0, .y = 0, .width = FB_WIDTH, .height = FB_HEIGHT },
-        .resource_id = 1,
-        .padding = 0
-    };
+    /* Flush - use explicit assignment */
+    struct virtio_gpu_resource_flush flush_cmd;
+    flush_cmd.hdr.type = VIRTIO_GPU_CMD_RESOURCE_FLUSH;
+    flush_cmd.hdr.flags = 0;
+    flush_cmd.hdr.fence_id = 0;
+    flush_cmd.hdr.ctx_id = 0;
+    flush_cmd.hdr.padding = 0;
+    flush_cmd.r.x = 0;
+    flush_cmd.r.y = 0;
+    flush_cmd.r.width = FB_WIDTH;
+    flush_cmd.r.height = FB_HEIGHT;
+    flush_cmd.resource_id = 1;
+    flush_cmd.padding = 0;
 
     virtio_gpu_send_cmd(&flush_cmd, sizeof(flush_cmd), &resp_hdr, sizeof(resp_hdr));
 }
