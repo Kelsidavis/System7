@@ -953,7 +953,12 @@ void QDPlatform_DrawRegion(RgnHandle rgn, short mode, const Pattern* pat) {
     if (!rgn || !*rgn) return;
 
     Region* region = (Region*)*rgn;
-    Rect r = region->rgnBBox;
+    /* Explicit field copy to avoid ARM64 struct assignment hang */
+    Rect r;
+    r.top = region->rgnBBox.top;
+    r.left = region->rgnBBox.left;
+    r.bottom = region->rgnBBox.bottom;
+    r.right = region->rgnBBox.right;
 
     if (!framebuffer) return;
 

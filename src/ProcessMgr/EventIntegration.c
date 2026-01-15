@@ -91,7 +91,9 @@ Boolean Proc_EventAvail(EventMask mask, EventRecord* evt) {
 
         if ((1 << qEvt->what) & mask) {
             /* Found matching event - copy but don't remove */
-            *evt = *qEvt;
+            /* Use memcpy to avoid struct assignment on ARM64 */
+            extern void* memcpy(void* dest, const void* src, size_t n);
+            memcpy(evt, qEvt, sizeof(EventRecord));
             return true;
         }
 
@@ -139,8 +141,9 @@ OSErr Proc_PostEvent(EventMask what, UInt32 message) {
     GetMouse(&evt.where);
     evt.modifiers = GetModifiers();
 
-    /* Add to queue */
-    gEventQueue[gQueueTail] = evt;
+    /* Add to queue - use memcpy to avoid struct assignment on ARM64 */
+    extern void* memcpy(void* dest, const void* src, size_t n);
+    memcpy(&gEventQueue[gQueueTail], &evt, sizeof(EventRecord));
     gQueueTail = (gQueueTail + 1) % EVENT_QUEUE_SIZE;
     gQueueCount++;
 
@@ -175,7 +178,9 @@ static void Proc_FlushEvents(EventMask whichMask, EventMask stopMask) {
         /* Keep event if not in flush mask */
         if (!(evtBit & whichMask)) {
             if (writeIdx != readIdx) {
-                gEventQueue[writeIdx] = *evt;
+                /* Use memcpy to avoid struct assignment on ARM64 */
+                extern void* memcpy(void* dest, const void* src, size_t n);
+                memcpy(&gEventQueue[writeIdx], evt, sizeof(EventRecord));
             }
             writeIdx = (writeIdx + 1) % EVENT_QUEUE_SIZE;
         } else {
@@ -210,7 +215,9 @@ static Boolean DequeueEvent(EventMask mask, EventRecord* evt) {
         /* Check if head matches mask */
         if ((1 << headEvt->what) & mask) {
             /* Found match at head - dequeue it */
-            *evt = *headEvt;
+            /* Use memcpy to avoid struct assignment on ARM64 */
+            extern void* memcpy(void* dest, const void* src, size_t n);
+            memcpy(evt, headEvt, sizeof(EventRecord));
             gQueueHead = (gQueueHead + 1) % EVENT_QUEUE_SIZE;
             gQueueCount--;
 
@@ -219,9 +226,10 @@ static Boolean DequeueEvent(EventMask mask, EventRecord* evt) {
         }
 
         /* No match - rotate this event to back */
-        EventRecord temp = *headEvt;
+        /* Use memcpy to avoid struct assignment on ARM64 */
+        extern void* memcpy(void* dest, const void* src, size_t n);
+        memcpy(&gEventQueue[gQueueTail], headEvt, sizeof(EventRecord));
         gQueueHead = (gQueueHead + 1) % EVENT_QUEUE_SIZE;
-        gEventQueue[gQueueTail] = temp;
         gQueueTail = (gQueueTail + 1) % EVENT_QUEUE_SIZE;
         rotations++;
     }

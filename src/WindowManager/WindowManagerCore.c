@@ -160,95 +160,104 @@ WindowPtr NewWindow(void* wStorage, const Rect* boundsRect,
                    short theProc, WindowPtr behind,
                    Boolean goAwayFlag, long refCon) {
 
-    WM_LOG_TRACE("[NEWWIN] A - ENTERED\n");
+    serial_puts("[NEWWIN] enter\n");
 
     if (!g_wmState.initialized) {
-        WM_LOG_TRACE("[NEWWIN] B - calling InitWindows\n");
+        serial_puts("[NEWWIN] InitWindows\n");
         InitWindows();
     }
 
     if (boundsRect == NULL) {
-        WM_LOG_TRACE("[NEWWIN] C - boundsRect NULL, returning\n");
-        #ifdef DEBUG_WINDOW_MANAGER
-        printf("NewWindow: boundsRect is NULL\n");
-        #endif
+        serial_puts("[NEWWIN] boundsRect NULL\n");
         return NULL;
     }
 
-    WM_LOG_TRACE("[NEWWIN] D - after boundsRect check\n");
+    serial_puts("[NEWWIN] bounds OK\n");
 
     WindowPtr window;
 
     /* Allocate window storage if not provided */
     if (wStorage == NULL) {
-        WM_LOG_TRACE("[NEWWIN] E - allocating storage\n");
+        serial_puts("[NEWWIN] alloc storage\n");
         window = AllocateWindowRecord(false); /* Black & white window */
         if (window == NULL) {
-            WM_LOG_ERROR("[NEWWIN] F - allocation failed\n");
-            #ifdef DEBUG_WINDOW_MANAGER
-            printf("NewWindow: Failed to allocate window record\n");
-            #endif
+            serial_puts("[NEWWIN] alloc FAILED\n");
             return NULL;
         }
+        serial_puts("[NEWWIN] alloc OK\n");
     } else {
-        WM_LOG_TRACE("[NEWWIN] G - using provided storage\n");
+        serial_puts("[NEWWIN] using provided storage\n");
         window = (WindowPtr)wStorage;
         memset(window, 0, sizeof(WindowRecord));
     }
 
-    WM_LOG_TRACE("[NEWWIN] H - calling InitializeWindowRecord\n");
+    serial_puts("[NEWWIN] InitializeWindowRecord\n");
     /* Initialize the window record */
     InitializeWindowRecord(window, boundsRect, title, theProc, visible, goAwayFlag);
     window->refCon = refCon;
+    serial_puts("[NEWWIN] InitializeWindowRecord done\n");
 
-    WM_LOG_TRACE("[NEWWIN] I - initializing port\n");
+    serial_puts("[NEWWIN] InitWindowPort\n");
     /* Initialize the window's graphics port */
     if (!Platform_InitializeWindowPort(window)) {
-        WM_LOG_ERROR("[NEWWIN] J - port init failed\n");
+        serial_puts("[NEWWIN] port init FAILED\n");
         if (wStorage == NULL) {
             DeallocateWindowRecord(window);
         }
         return NULL;
     }
+    serial_puts("[NEWWIN] InitWindowPort done\n");
 
     /* Regions already initialized in InitializeWindowRecord - don't recalculate */
     /* Platform_CalculateWindowRegions would overwrite with local coordinates */
 
     /* Create offscreen GWorld for double-buffering */
-    WM_LOG_TRACE("[NEWWIN] Creating offscreen GWorld for double-buffering\n");
-    Rect contentRect = window->port.portRect;
+    serial_puts("[NEWWIN] GWorld\n");
+    /* Use explicit field copy to avoid struct assignment on ARM64 */
+    Rect contentRect;
+    contentRect.top = window->port.portRect.top;
+    contentRect.left = window->port.portRect.left;
+    contentRect.bottom = window->port.portRect.bottom;
+    contentRect.right = window->port.portRect.right;
     SInt16 width = contentRect.right - contentRect.left;
     SInt16 height = contentRect.bottom - contentRect.top;
 
     if (width > 0 && height > 0) {
         OSErr err = NewGWorld(&window->offscreenGWorld, 32, &contentRect, NULL, NULL, 0);
         if (err != noErr) {
-            WM_LOG_WARN("[NEWWIN] Failed to create offscreen GWorld (err=%d)\n", err);
+            serial_puts("[NEWWIN] GWorld FAILED\n");
             window->offscreenGWorld = NULL;
         } else {
-            WM_LOG_TRACE("[NEWWIN] Offscreen GWorld created successfully\n");
+            serial_puts("[NEWWIN] GWorld OK\n");
         }
     } else {
         window->offscreenGWorld = NULL;
     }
 
-    WM_LOG_TRACE("[NEWWIN] K - adding to window list\n");
+    serial_puts("[NEWWIN] AddWindowToList\n");
+    extern void uart_flush(void);
+    uart_flush();
     /* Add window to the window list */
     AddWindowToList(window, behind);
 
-    WM_LOG_TRACE("[NEWWIN] L - creating native window\n");
+    serial_puts("[NEWWIN] Platform_CreateNativeWindow\n");
+    uart_flush();
     /* Create native platform window */
     Platform_CreateNativeWindow(window);
 
-    WM_LOG_TRACE("[NEWWIN] M - checking visible flag\n");
+    serial_puts("[NEWWIN] visible check\n");
+    uart_flush();
     /* Make visible if requested */
     if (visible) {
-        WM_LOG_TRACE("[NEWWIN] N - calling ShowWindow\n");
+        serial_puts("[NEWWIN] ShowWindow\n");
+        uart_flush();
         ShowWindow(window);
-        WM_LOG_TRACE("[NEWWIN] O - ShowWindow returned\n");
+        serial_puts("[NEWWIN] ShowWindow done\n");
+        uart_flush();
     }
 
-    WM_LOG_TRACE("[NEWWIN] P - returning window\n");
+    serial_puts("[NEWWIN] returning\n");
+    uart_flush();
     #ifdef DEBUG_WINDOW_MANAGER
     printf("NewWindow: Created window at (%d,%d) size (%d,%d)\n",
            boundsRect->left, boundsRect->top,

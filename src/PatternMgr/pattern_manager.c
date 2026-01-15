@@ -111,16 +111,25 @@ void PM_SetBackPixPat(Handle pixPatHandle) {
 
 void PM_SetBackColor(const RGBColor *rgb) {
     if (!rgb) return;
-    gPM.backColor = *rgb;
+    /* CRITICAL FIX: Explicit field copy to avoid ARM64 struct assignment hang */
+    gPM.backColor.red = rgb->red;
+    gPM.backColor.green = rgb->green;
+    gPM.backColor.blue = rgb->blue;
     RGBBackColor(rgb);
 }
 
 void PM_GetBackPat(Pattern *pat) {
-    if (pat) *pat = gPM.backPat;
+    /* CRITICAL FIX: Use memcpy to avoid ARM64 struct assignment hang */
+    if (pat) memcpy(pat, &gPM.backPat, sizeof(Pattern));
 }
 
 void PM_GetBackColor(RGBColor *rgb) {
-    if (rgb) *rgb = gPM.backColor;
+    /* CRITICAL FIX: Explicit field copy to avoid ARM64 struct assignment hang */
+    if (rgb) {
+        rgb->red = gPM.backColor.red;
+        rgb->green = gPM.backColor.green;
+        rgb->blue = gPM.backColor.blue;
+    }
 }
 
 bool PM_IsPixPatActive(void) {
@@ -128,7 +137,9 @@ bool PM_IsPixPatActive(void) {
 }
 
 DesktopPref PM_GetSavedDesktopPref(void) {
-    DesktopPref p = {0};
+    /* CRITICAL FIX: Use memset instead of aggregate init to avoid ARM64 hang */
+    DesktopPref p;
+    memset(&p, 0, sizeof(DesktopPref));
     if (!PRAM_LoadDesktopPref(&p)) {
         /* Fallback defaults */
         p.usePixPat = false;
@@ -168,7 +179,8 @@ bool PM_ApplyDesktopPref(const DesktopPref *p) {
         Pattern pat;
         if (!PM_LoadPAT(p->patID, &pat)) {
             /* Fall back to default gray pattern */
-            pat = qd.gray;
+            /* CRITICAL FIX: Use memcpy to avoid ARM64 struct assignment hang */
+            memcpy(&pat, &qd.gray, sizeof(Pattern));
         }
         PM_SetBackPat(&pat);
     }

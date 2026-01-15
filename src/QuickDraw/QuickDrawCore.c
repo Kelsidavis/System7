@@ -407,7 +407,8 @@ void PenNormal(void) {
     g_currentPort->pnSize.h = 1;
     g_currentPort->pnSize.v = 1;
     g_currentPort->pnMode = patCopy;
-    g_currentPort->pnPat = qd.black;
+    /* Use memcpy to avoid struct assignment on ARM64 */
+    memcpy(&g_currentPort->pnPat, &qd.black, sizeof(Pattern));
 }
 
 void PenSize(SInt16 width, SInt16 height) {
@@ -424,7 +425,8 @@ void PenMode(SInt16 mode) {
 void PenPat(ConstPatternParam pat) {
     assert(g_currentPort != NULL);
     assert(pat != NULL);
-    g_currentPort->pnPat = *pat;
+    /* Use memcpy to avoid struct assignment on ARM64 */
+    memcpy(&g_currentPort->pnPat, pat, sizeof(Pattern));
 }
 
 void GetPenPat(Pattern* pat) {
@@ -498,7 +500,10 @@ void LineTo(SInt16 h, SInt16 v) {
     assert(g_currentPort != NULL);
 
     /* Treat pen locations in LOCAL port coordinates */
-    Point startLocal = g_currentPort->pnLoc;
+    /* Explicit field copy to avoid ARM64 struct assignment hang */
+    Point startLocal;
+    startLocal.h = g_currentPort->pnLoc.h;
+    startLocal.v = g_currentPort->pnLoc.v;
     Point endLocal;
     endLocal.h = h;
     endLocal.v = v;
@@ -514,18 +519,27 @@ void LineTo(SInt16 h, SInt16 v) {
 
     Rect clippedBounds;
     if (!SectRect(&lineBounds, &g_currentPort->portRect, &clippedBounds)) {
-        g_currentPort->pnLoc = endLocal;
+        /* Explicit field copy to avoid ARM64 struct assignment hang */
+        g_currentPort->pnLoc.h = endLocal.h;
+        g_currentPort->pnLoc.v = endLocal.v;
         return;
     }
 
     if (g_currentPort->clipRgn && *g_currentPort->clipRgn) {
-        Rect clipBounds = (*g_currentPort->clipRgn)->rgnBBox;
+        /* Explicit field copy to avoid ARM64 struct assignment hang */
+        Rect clipBounds;
+        clipBounds.top = (*g_currentPort->clipRgn)->rgnBBox.top;
+        clipBounds.left = (*g_currentPort->clipRgn)->rgnBBox.left;
+        clipBounds.bottom = (*g_currentPort->clipRgn)->rgnBBox.bottom;
+        clipBounds.right = (*g_currentPort->clipRgn)->rgnBBox.right;
         /* clipRgn stored in GLOBAL coords; convert to LOCAL for comparison */
         OffsetRect(&clipBounds,
                    -g_currentPort->portBits.bounds.left,
                    -g_currentPort->portBits.bounds.top);
         if (!SectRect(&lineBounds, &clipBounds, &clippedBounds)) {
-            g_currentPort->pnLoc = endLocal;
+            /* Explicit field copy to avoid ARM64 struct assignment hang */
+            g_currentPort->pnLoc.h = endLocal.h;
+            g_currentPort->pnLoc.v = endLocal.v;
             return;
         }
     }
@@ -551,8 +565,13 @@ void LineTo(SInt16 h, SInt16 v) {
     /* Draw the line if pen should be visible and not recording polygon */
     if (!g_polyRecording && g_currentPort->pnVis <= 0 &&
         g_currentPort->pnSize.h > 0 && g_currentPort->pnSize.v > 0) {
-        Point startGlobal = startLocal;
-        Point endGlobal = endLocal;
+        /* Explicit field copy to avoid ARM64 struct assignment hang */
+        Point startGlobal;
+        startGlobal.h = startLocal.h;
+        startGlobal.v = startLocal.v;
+        Point endGlobal;
+        endGlobal.h = endLocal.h;
+        endGlobal.v = endLocal.v;
         LocalToGlobal(&startGlobal);
         LocalToGlobal(&endGlobal);
 
@@ -561,7 +580,9 @@ void LineTo(SInt16 h, SInt16 v) {
     }
 
     /* Update pen location in LOCAL coordinates */
-    g_currentPort->pnLoc = endLocal;
+    /* Explicit field copy to avoid ARM64 struct assignment hang */
+    g_currentPort->pnLoc.h = endLocal.h;
+    g_currentPort->pnLoc.v = endLocal.v;
 }
 
 void Line(SInt16 dh, SInt16 dv) {
@@ -607,9 +628,23 @@ void ColorBit(SInt16 whichBit) {
  * ================================================================ */
 
 void FrameRect(const Rect *r) {
-    if (!g_currentPort || !r || EmptyRect(r)) return;
+    extern void serial_puts(const char*);
+    extern void uart_flush(void);
+    serial_puts("[FRAMERECT] enter\n");
+    uart_flush();
+    if (!g_currentPort || !r || EmptyRect(r)) {
+        serial_puts("[FRAMERECT] early return\n");
+        uart_flush();
+        return;
+    }
+    serial_puts("[FRAMERECT] PictureRecordFrameRect\n");
+    uart_flush();
     PictureRecordFrameRect(r);
+    serial_puts("[FRAMERECT] DrawPrimitive\n");
+    uart_flush();
     DrawPrimitive(frame, r, 0, &g_currentPort->pnPat, 0, 0);
+    serial_puts("[FRAMERECT] done\n");
+    uart_flush();
 }
 
 void PaintRect(const Rect *r) {
@@ -676,10 +711,7 @@ void FillRect(const Rect *r, ConstPatternParam pat) {
     assert(pat != NULL);
     if (EmptyRect(r)) return;
 
-    extern void serial_printf(const char* fmt, ...);
-    serial_printf("[FILLRECT] rect=(%d,%d,%d,%d) portBits.bounds.left=%d\n",
-                  r->left, r->top, r->right, r->bottom,
-                  g_currentPort->portBits.bounds.left);
+    /* Debug removed - serial_printf can hang on ARM64 */
 
     DrawPrimitive(fill, r, 0, pat, 0, 0);
 }
@@ -954,24 +986,43 @@ QDErr QDError(void) {
 
 static void DrawPrimitive(GrafVerb verb, const Rect *shape, int shapeType,
                          ConstPatternParam pat, SInt16 ovalWidth, SInt16 ovalHeight) {
-    QD_LOG_TRACE("DrawPrimitive entry verb=%d\n", verb);
+    extern void serial_puts(const char*);
+    extern void uart_flush(void);
+    serial_puts("[DRAWPRIM] enter\n");
+    uart_flush();
 
     if (!PrepareDrawing(g_currentPort)) {
-        QD_LOG_WARN("DrawPrimitive PrepareDrawing failed\n");
+        serial_puts("[DRAWPRIM] PrepareDrawing failed\n");
+        uart_flush();
         return;
     }
+    serial_puts("[DRAWPRIM] PrepareDrawing ok\n");
+    uart_flush();
 
-    Rect drawRect = *shape;
-    QD_LOG_TRACE("DrawPrimitive original rect=(%d,%d,%d,%d)\n",
-                drawRect.left, drawRect.top, drawRect.right, drawRect.bottom);
+    /* Use explicit field copy to avoid struct assignment on ARM64 */
+    Rect drawRect;
+    drawRect.top = shape->top;
+    drawRect.left = shape->left;
+    drawRect.bottom = shape->bottom;
+    drawRect.right = shape->right;
+    serial_puts("[DRAWPRIM] drawRect ok\n");
+    uart_flush();
 
+    serial_puts("[DRAWPRIM] ApplyPen\n");
+    uart_flush();
     /* Apply pen size for frame operations */
     if (verb == frame) {
         ApplyPenToRect(g_currentPort, &drawRect);
     }
+    serial_puts("[DRAWPRIM] ApplyPen done\n");
+    uart_flush();
 
+    serial_puts("[DRAWPRIM] ClipToPort\n");
+    uart_flush();
     /* Clip to port and visible region */
     ClipToPort(g_currentPort, &drawRect);
+    serial_puts("[DRAWPRIM] ClipToPort done\n");
+    uart_flush();
     QD_LOG_TRACE("DrawPrimitive clipped rect=(%d,%d,%d,%d)\n",
                 drawRect.left, drawRect.top, drawRect.right, drawRect.bottom);
 
@@ -979,7 +1030,12 @@ static void DrawPrimitive(GrafVerb verb, const Rect *shape, int shapeType,
      * For basic GrafPort: use portBits.bounds
      * For CGrafPort/GWorld: use portPixMap bounds (which is already local 0,0)
      * Platform layer needs correct coords based on port type */
-    Rect globalRect = drawRect;
+    /* Use explicit field copy to avoid struct assignment on ARM64 */
+    Rect globalRect;
+    globalRect.top = drawRect.top;
+    globalRect.left = drawRect.left;
+    globalRect.bottom = drawRect.bottom;
+    globalRect.right = drawRect.right;
 
     /* Check if this is a color port (CGrafPtr/GWorld) */
     extern CGrafPtr g_currentCPort;  /* from ColorQuickDraw.c */
@@ -1049,18 +1105,31 @@ static void ClipToPort(GrafPtr port, Rect *rect) {
         SetRect(rect, 0, 0, 0, 0); /* Empty result */
         return;
     }
-    *rect = clippedRect;
+    /* Use explicit field copy to avoid struct assignment on ARM64 */
+    rect->top = clippedRect.top;
+    rect->left = clippedRect.left;
+    rect->bottom = clippedRect.bottom;
+    rect->right = clippedRect.right;
 
     /* CRITICAL: Also clip to clipRgn if set (e.g., content region to prevent overdrawing chrome) */
     if (port->clipRgn && *port->clipRgn) {
-        Rect clipBounds = (*port->clipRgn)->rgnBBox;
+        /* Use explicit field access to avoid struct assignment on ARM64 */
+        Rect* clipBoundsPtr = &((*port->clipRgn)->rgnBBox);
+        Rect clipBounds;
+        clipBounds.top = clipBoundsPtr->top;
+        clipBounds.left = clipBoundsPtr->left;
+        clipBounds.bottom = clipBoundsPtr->bottom;
+        clipBounds.right = clipBoundsPtr->right;
         /* clipRgn is in GLOBAL coords, convert to LOCAL */
         OffsetRect(&clipBounds, -port->portBits.bounds.left, -port->portBits.bounds.top);
         if (!SectRect(rect, &clipBounds, &clippedRect)) {
             SetRect(rect, 0, 0, 0, 0); /* Empty result */
             return;
         }
-        *rect = clippedRect;
+        rect->top = clippedRect.top;
+        rect->left = clippedRect.left;
+        rect->bottom = clippedRect.bottom;
+        rect->right = clippedRect.right;
     }
 }
 

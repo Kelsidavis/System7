@@ -207,13 +207,24 @@ OSErr InitStartupScreen(const StartupScreenConfig* config) {
  * Create startup window
  */
 static OSErr CreateStartupWindow(void) {
-    Rect windowBounds = gStartupScreen.screenBounds;
+    extern void serial_puts(const char*);
+    serial_puts("[STARTUP] CreateStartupWindow enter\n");
+
+    /* Use explicit field copy to avoid struct assignment on ARM64 */
+    Rect windowBounds;
+    windowBounds.top = gStartupScreen.screenBounds.top;
+    windowBounds.left = gStartupScreen.screenBounds.left;
+    windowBounds.bottom = gStartupScreen.screenBounds.bottom;
+    windowBounds.right = gStartupScreen.screenBounds.right;
+    serial_puts("[STARTUP] windowBounds set\n");
 
     /* Create plain window (no title bar) */
     static unsigned char emptyTitle[] = {0};  /* Empty Pascal string */
+    serial_puts("[STARTUP] NewWindow\n");
     gStartupScreen.window = NewWindow(NULL, &windowBounds,
                                       emptyTitle, true, plainDBox,
                                       (WindowPtr)-1, false, 0);
+    serial_puts("[STARTUP] NewWindow done\n");
 
     if (!gStartupScreen.window) {
         return memFullErr;
@@ -233,6 +244,12 @@ static OSErr CreateStartupWindow(void) {
  * Show welcome screen
  */
 OSErr ShowWelcomeScreen(void) {
+    extern void serial_puts(const char*);
+    extern void uart_flush(void);
+
+    serial_puts("[WELCOME] enter\n");
+    uart_flush();
+
     if (!gStartupScreen.initialized) {
         OSErr err = InitStartupScreen(NULL);
         if (err != noErr) {
@@ -245,25 +262,44 @@ OSErr ShowWelcomeScreen(void) {
     gStartupScreen.visible = true;
 
     /* Make window visible */
+    serial_puts("[WELCOME] ShowWindow\n");
+    uart_flush();
     ShowWindow(gStartupScreen.window);
+    serial_puts("[WELCOME] SelectWindow\n");
+    uart_flush();
     SelectWindow(gStartupScreen.window);
+    serial_puts("[WELCOME] SetPort\n");
+    uart_flush();
     SetPort((GrafPtr)gStartupScreen.window);
 
     /* Draw welcome screen */
+    serial_puts("[WELCOME] DrawWelcomeScreen\n");
+    uart_flush();
     DrawWelcomeScreen();
+    serial_puts("[WELCOME] DrawWelcomeScreen done\n");
+    uart_flush();
 
     /* Play startup sound if enabled */
     if (gConfig.enableSound) {
+        serial_puts("[WELCOME] PlayStartupSound\n");
+        uart_flush();
         PlayStartupSound();
+        serial_puts("[WELCOME] PlayStartupSound done\n");
+        uart_flush();
     }
 
     /* Show for configured duration */
     if (gConfig.welcomeDuration > 0) {
         /* Use simple delay instead of event loop during boot */
-        UInt32 finalTicks;
-        Delay(gConfig.welcomeDuration, &finalTicks);
+        /* SKIP DELAY FOR ARM64 DEBUGGING - Delay() hangs */
+        serial_puts("[WELCOME] Skipping Delay for ARM64 debug\n");
+        uart_flush();
+        /* UInt32 finalTicks;
+        Delay(gConfig.welcomeDuration, &finalTicks); */
     }
 
+    serial_puts("[WELCOME] complete\n");
+    uart_flush();
     return noErr;
 }
 

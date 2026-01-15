@@ -40,51 +40,63 @@ extern GrafPtr g_currentPort;
 OSErr NewGWorld(GWorldPtr *offscreenGWorld, SInt16 pixelDepth,
                 const Rect *boundsRect, CTabHandle cTable,
                 GDHandle aGDevice, GWorldFlags flags) {
-    extern void serial_logf(SystemLogModule module, SystemLogLevel level, const char* fmt, ...);
-    serial_logf((SystemLogModule)3, (SystemLogLevel)2, "[GWORLD] NewGWorld called: depth=%d bounds=(%d,%d,%d,%d)\n",
-               pixelDepth, boundsRect ? boundsRect->left : -1,
-               boundsRect ? boundsRect->top : -1,
-               boundsRect ? boundsRect->right : -1,
-               boundsRect ? boundsRect->bottom : -1);
+    extern void serial_puts(const char*);
+    serial_puts("[GWORLD] enter\n");
 
     if (!offscreenGWorld || !boundsRect) {
-        serial_logf((SystemLogModule)3, (SystemLogLevel)2, "[GWORLD] NewGWorld: paramErr (null params)\n");
+        serial_puts("[GWORLD] paramErr\n");
         return paramErr;
     }
+    serial_puts("[GWORLD] params OK\n");
 
     /* Calculate dimensions */
     SInt16 width = boundsRect->right - boundsRect->left;
     SInt16 height = boundsRect->bottom - boundsRect->top;
 
     if (width <= 0 || height <= 0) {
+        serial_puts("[GWORLD] bad dims\n");
         return paramErr;
     }
+    serial_puts("[GWORLD] dims OK\n");
 
     /* Validate pixel depth */
     if (pixelDepth != 1 && pixelDepth != 2 && pixelDepth != 4 &&
         pixelDepth != 8 && pixelDepth != 16 && pixelDepth != 32) {
+        serial_puts("[GWORLD] bad depth\n");
         return paramErr;
     }
+    serial_puts("[GWORLD] depth OK\n");
 
     /* Allocate CGrafPort structure */
+    serial_puts("[GWORLD] alloc CGraf\n");
     CGrafPtr gworld = (CGrafPtr)NewPtr(sizeof(CGrafPort));
     if (!gworld) {
-        serial_logf((SystemLogModule)3, (SystemLogLevel)2, "[GWORLD] NewGWorld: Failed to allocate CGrafPort\n");
+        serial_puts("[GWORLD] CGraf FAILED\n");
         return memFullErr;
     }
+    serial_puts("[GWORLD] CGraf OK\n");
 
     /* Initialize port structure */
+    serial_puts("[GWORLD] memset\n");
     memset(gworld, 0, sizeof(CGrafPort));
-    gworld->portRect = *boundsRect;
+    serial_puts("[GWORLD] memset done\n");
+    /* Explicit field copy to avoid struct assignment on ARM64 */
+    gworld->portRect.top = boundsRect->top;
+    gworld->portRect.left = boundsRect->left;
+    gworld->portRect.bottom = boundsRect->bottom;
+    gworld->portRect.right = boundsRect->right;
     gworld->portVersion = 0xC000;  /* Color port version */
+    serial_puts("[GWORLD] portRect done\n");
 
     /* Allocate PixMap */
+    serial_puts("[GWORLD] NewPixMap\n");
     PixMapHandle pmHandle = NewPixMap();
     if (!pmHandle || !*pmHandle) {
-        serial_logf((SystemLogModule)3, (SystemLogLevel)2, "[GWORLD] NewGWorld: Failed to allocate PixMap\n");
+        serial_puts("[GWORLD] NewPixMap FAILED\n");
         DisposePtr((Ptr)gworld);
         return memFullErr;
     }
+    serial_puts("[GWORLD] NewPixMap OK\n");
 
     /* CRITICAL: Lock handle before dereferencing to prevent heap compaction issues */
     HLock((Handle)pmHandle);
@@ -93,7 +105,11 @@ OSErr NewGWorld(GWorldPtr *offscreenGWorld, SInt16 pixelDepth,
     /* Calculate rowBytes (must be even, with high bit set for PixMap) */
     SInt16 rowBytes = ((width * pixelDepth + 15) / 16) * 2;
     pm->rowBytes = rowBytes | 0x8000;  /* Set high bit to indicate PixMap */
-    pm->bounds = *boundsRect;
+    /* Explicit field copy to avoid struct assignment on ARM64 */
+    pm->bounds.top = boundsRect->top;
+    pm->bounds.left = boundsRect->left;
+    pm->bounds.bottom = boundsRect->bottom;
+    pm->bounds.right = boundsRect->right;
     pm->pmVersion = 0;
     pm->packType = 0;
     pm->packSize = 0;
@@ -136,15 +152,21 @@ OSErr NewGWorld(GWorldPtr *offscreenGWorld, SInt16 pixelDepth,
 
     /* Unlock pmHandle now that we're done initializing it */
     HUnlock((Handle)pmHandle);
-
-    serial_logf((SystemLogModule)3, (SystemLogLevel)2, "[GWORLD] NewGWorld: GWorld created successfully at %p, buffer=%p\n",
-               gworld, pixelBuffer);
+    serial_puts("[GWORLD] pixmap done\n");
+    extern void uart_flush(void);
+    uart_flush();
 
     /* Initialize regions */
+    serial_puts("[GWORLD] visRgn\n");
+    uart_flush();
     gworld->visRgn = NewRgn();
+    serial_puts("[GWORLD] clipRgn\n");
+    uart_flush();
     gworld->clipRgn = NewRgn();
+    serial_puts("[GWORLD] regions done\n");
+    uart_flush();
     if (!gworld->visRgn || !gworld->clipRgn) {
-        serial_logf((SystemLogModule)3, (SystemLogLevel)2, "[GWORLD] NewGWorld: Failed to allocate regions\n");
+        serial_puts("[GWORLD] regions FAILED\n");
         if (gworld->visRgn) DisposeRgn(gworld->visRgn);
         if (gworld->clipRgn) DisposeRgn(gworld->clipRgn);
         DisposePtr(pixelBuffer);
@@ -154,8 +176,14 @@ OSErr NewGWorld(GWorldPtr *offscreenGWorld, SInt16 pixelDepth,
     }
 
     /* Set regions to full bounds */
+    serial_puts("[GWORLD] RectRgn1\n");
+    uart_flush();
     RectRgn(gworld->visRgn, boundsRect);
+    serial_puts("[GWORLD] RectRgn2\n");
+    uart_flush();
     RectRgn(gworld->clipRgn, boundsRect);
+    serial_puts("[GWORLD] RectRgn done\n");
+    uart_flush();
 
     /* Initialize color fields */
     gworld->rgbFgColor.red = 0x0000;
@@ -182,6 +210,8 @@ OSErr NewGWorld(GWorldPtr *offscreenGWorld, SInt16 pixelDepth,
     gworld->txSize = 12;
 
     *offscreenGWorld = gworld;
+    serial_puts("[GWORLD] NewGWorld COMPLETE\n");
+    uart_flush();
     return noErr;
 }
 

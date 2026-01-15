@@ -689,11 +689,22 @@ static Handle DecompressResourceData(Handle compressedHandle, ResourceEntry* ent
 /* ---- Resource Loading Functions -------------------------------------------------- */
 
 Handle GetResource(ResType theType, ResID theID) {
+    extern void serial_puts(const char* str);
+    extern void uart_flush(void);
+    serial_puts("[GetRes] enter\n");
+    uart_flush();
+
     SetResError(noErr);
 
+    serial_puts("[GetRes] GetMap\n");
+    uart_flush();
     ResourceMap* map = gResOneDeep ? gCurrentMap : gResourceChain;
 
+    serial_puts("[GetRes] Loop\n");
+    uart_flush();
     while (map) {
+        serial_puts("[GetRes] FindRes\n");
+        uart_flush();
         ResourceEntry* entry = FindResource(map, theType, theID);
         if (entry) {
             /* Check if already loaded */

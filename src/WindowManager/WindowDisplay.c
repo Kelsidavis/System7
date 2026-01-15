@@ -167,9 +167,10 @@ void PaintOne(WindowPtr window, RgnHandle clobberedRgn) {
                 extern void serial_puts(const char *str);
                 extern int sprintf(char* buf, const char* fmt, ...);
                 char dbgbuf[256];
-                Rect fillBBox = (*(window->contRgn))->rgnBBox;
+                /* Use pointer to avoid struct assignment on ARM64 */
+                Rect* fillBBoxPtr = &((*(window->contRgn))->rgnBBox);
                 sprintf(dbgbuf, "[FILLRGN] DISK: About to fill region bbox=(%d,%d,%d,%d)\n",
-                        fillBBox.left, fillBBox.top, fillBBox.right, fillBBox.bottom);
+                        fillBBoxPtr->left, fillBBoxPtr->top, fillBBoxPtr->right, fillBBoxPtr->bottom);
                 serial_puts(dbgbuf);
 
                 /* Log the current port state when filling */
@@ -438,60 +439,84 @@ void DrawNew(WindowPtr window, Boolean update) {
 }
 
 static void DrawWindowFrame(WindowPtr window) {
-    WM_LOG_TRACE("DrawWindowFrame: ENTRY, window=%p\n", window);
+    extern void serial_puts(const char*);
+    extern void uart_flush(void);
+    serial_puts("[DRAWFRAME] enter\n");
+    uart_flush();
 
     if (!window) {
-        WM_LOG_TRACE("DrawWindowFrame: window is NULL, returning\n");
+        serial_puts("[DRAWFRAME] null window\n");
+        uart_flush();
         return;
     }
 
-    WM_LOG_TRACE("DrawWindowFrame: window->visible=%d\n", window->visible);
+    serial_puts("[DRAWFRAME] visible check\n");
+    uart_flush();
     if (!window->visible) {
-        WM_LOG_TRACE("DrawWindowFrame: window not visible, returning\n");
+        serial_puts("[DRAWFRAME] not visible\n");
+        uart_flush();
         return;
     }
 
-    /* CRITICAL: strucRgn must be set to draw the window
-     * strucRgn contains GLOBAL screen coordinates
-     * portRect contains LOCAL coordinates (0,0,width,height) and must NEVER be used for positioning! */
-    WM_LOG_TRACE("DrawWindowFrame: Checking strucRgn=%p\n", window->strucRgn);
+    serial_puts("[DRAWFRAME] strucRgn check\n");
+    uart_flush();
     if (!window->strucRgn) {
-        WM_LOG_TRACE("WindowManager: DrawWindowFrame - strucRgn is NULL, cannot draw\n");
+        serial_puts("[DRAWFRAME] no strucRgn\n");
+        uart_flush();
         return;
     }
 
-    WM_LOG_TRACE("DrawWindowFrame: Checking *strucRgn=%p\n", *window->strucRgn);
     if (!*window->strucRgn) {
-        WM_LOG_TRACE("WindowManager: DrawWindowFrame - *strucRgn is NULL, cannot draw\n");
+        serial_puts("[DRAWFRAME] *strucRgn NULL\n");
+        uart_flush();
         return;
     }
 
+    serial_puts("[DRAWFRAME] GetWMgrPort\n");
+    uart_flush();
     extern void GetWMgrPort(GrafPtr* port);
     GrafPtr savePort, wmgrPort;
     GetPort(&savePort);
     GetWMgrPort(&wmgrPort);
     SetPort(wmgrPort);
+    serial_puts("[DRAWFRAME] SetPort done\n");
+    uart_flush();
 
-    WM_LOG_TRACE("WindowManager: DrawWindowFrame START\n");
+    serial_puts("[DRAWFRAME] pen setup\n");
+    uart_flush();
 
     /* Set up pen for drawing black frames */
     extern void PenNormal(void);
     extern void PenSize(short width, short height);
     static const Pattern blackPat = {{0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF}};
     PenNormal();  /* Reset pen to normal state */
+    serial_puts("[DRAWFRAME] PenPat\n");
+    uart_flush();
     PenPat(&blackPat);  /* Use black pattern for frames */
+    serial_puts("[DRAWFRAME] PenSize\n");
+    uart_flush();
     PenSize(1, 1);  /* 1-pixel pen */
 
-    /* Get window's global bounds from structure region */
-    Rect frame = (*window->strucRgn)->rgnBBox;
+    serial_puts("[DRAWFRAME] get frame rect\n");
+    uart_flush();
+    /* Get window's global bounds from structure region - use explicit field copy to avoid struct assignment on ARM64 */
+    Rect frame;
+    Rect* srcRect = &((*window->strucRgn)->rgnBBox);
+    frame.top = srcRect->top;
+    frame.left = srcRect->left;
+    frame.bottom = srcRect->bottom;
+    frame.right = srcRect->right;
 
-    WM_LOG_TRACE("WindowManager: Frame rect (%d,%d,%d,%d)\n",
-                  frame.left, frame.top, frame.right, frame.bottom);
+    serial_puts("[DRAWFRAME] FrameRect\n");
+    uart_flush();
 
     /* Draw frame outline using QuickDraw (not direct framebuffer) */
     FrameRect(&frame);
-    WM_LOG_TRACE("WindowManager: Drew frame using FrameRect\n");
+    serial_puts("[DRAWFRAME] FrameRect done\n");
+    uart_flush();
 
+    serial_puts("[DRAWFRAME] 3D highlights\n");
+    uart_flush();
     /* Add 3D black highlights for depth effect */
     extern void* framebuffer;
     extern uint32_t fb_width, fb_height, fb_pitch;
@@ -527,8 +552,9 @@ static void DrawWindowFrame(WindowPtr window) {
         }
     }
 
+    serial_puts("[DRAWFRAME] title bar\n");
+    uart_flush();
     /* Draw title bar BEFORE filling content area */
-    WM_LOG_TRACE("WindowManager: About to check titleWidth=%d\n", window->titleWidth);
 
     if (window->titleWidth > 0) {
         WM_LOG_TRACE("WindowManager: titleWidth > 0, drawing title bar\n");
@@ -828,14 +854,23 @@ static void DrawWindowFrame(WindowPtr window) {
             WM_LOG_TRACE("TITLE_DRAW: No titleHandle or empty\n");
         }
     } else {
-        WM_LOG_TRACE("WindowManager: titleWidth is 0, skipping title bar\n");
+        serial_puts("[DRAWFRAME] no titleWidth\n");
+        uart_flush();
     }
 
+    serial_puts("[DRAWFRAME] done\n");
+    uart_flush();
     SetPort(savePort);
 }
 
 static void DrawWindowControls(WindowPtr window) {
+    extern void uart_flush(void);
+    serial_puts("[CONTROLS] enter\n");
+    uart_flush();
     if (!window || !window->visible) return;
+
+    serial_puts("[CONTROLS] visible check passed\n");
+    uart_flush();
 
     /* Set up WMgr port for global coordinate drawing */
     extern void GetWMgrPort(GrafPtr* port);
@@ -843,23 +878,43 @@ static void DrawWindowControls(WindowPtr window) {
     GetPort(&savePort);
     GetWMgrPort(&wmgrPort);
     SetPort(wmgrPort);
+    serial_puts("[CONTROLS] port setup\n");
+    uart_flush();
 
     /* Set up pen for drawing black controls */
     extern void PenNormal(void);
     extern void PenSize(short width, short height);
     static const Pattern blackPat = {{0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF}};
+    serial_puts("[CONTROLS] pen calls\n");
+    uart_flush();
     PenNormal();
+    serial_puts("[CONTROLS] PenNormal done\n");
+    uart_flush();
     PenPat(&blackPat);
+    serial_puts("[CONTROLS] PenPat done\n");
+    uart_flush();
     PenSize(1, 1);
+    serial_puts("[CONTROLS] PenSize done\n");
+    uart_flush();
 
     /* CRITICAL: Use global coordinates from strucRgn, not local portRect */
+    /* Use explicit field copy to avoid struct assignment on ARM64 */
     Rect frame;
     if (window->strucRgn && *window->strucRgn) {
-        frame = (*window->strucRgn)->rgnBBox;
+        Rect* srcRect = &((*window->strucRgn)->rgnBBox);
+        frame.top = srcRect->top;
+        frame.left = srcRect->left;
+        frame.bottom = srcRect->bottom;
+        frame.right = srcRect->right;
     } else {
         /* Fallback to portRect if strucRgn not set */
-        frame = window->port.portRect;
+        frame.top = window->port.portRect.top;
+        frame.left = window->port.portRect.left;
+        frame.bottom = window->port.portRect.bottom;
+        frame.right = window->port.portRect.right;
     }
+    serial_puts("[CONTROLS] frame setup\n");
+    uart_flush();
 
     /* Close box is drawn in DrawWindowFrame, not here */
 
@@ -871,8 +926,12 @@ static void DrawWindowControls(WindowPtr window) {
         FrameRect(&zoomBox);
 
         if (window->hilited) {
-            /* Draw zoom box lines */
-            Rect innerBox = zoomBox;
+            /* Draw zoom box lines - use explicit field copy to avoid struct assignment on ARM64 */
+            Rect innerBox;
+            innerBox.top = zoomBox.top;
+            innerBox.left = zoomBox.left;
+            innerBox.bottom = zoomBox.bottom;
+            innerBox.right = zoomBox.right;
             InsetRect(&innerBox, 2, 2);
             FrameRect(&innerBox);
         }
@@ -935,6 +994,8 @@ static void DrawWindowControls(WindowPtr window) {
 
     /* Restore previous port */
     SetPort(savePort);
+    serial_puts("[CONTROLS] done\n");
+    uart_flush();
 }
 
 
@@ -965,8 +1026,12 @@ void DrawWindow(WindowPtr window) {
     /* Switch to window port for content */
     SetPort((GrafPtr)window);
 
-    /* Fill content area - LOCAL coords */
-    Rect contentRect = window->port.portRect;
+    /* Fill content area - LOCAL coords - use explicit field copy to avoid struct assignment on ARM64 */
+    Rect contentRect;
+    contentRect.top = window->port.portRect.top;
+    contentRect.left = window->port.portRect.left;
+    contentRect.bottom = window->port.portRect.bottom;
+    contentRect.right = window->port.portRect.right;
     WM_LOG_TRACE("DrawWindow: Filling content rect (local) (%d,%d,%d,%d)\n",
         contentRect.left, contentRect.top, contentRect.right, contentRect.bottom);
     EraseRect(&contentRect);
@@ -985,8 +1050,12 @@ void DrawGrowIcon(WindowPtr window) {
     GetPort(&savePort);
     SetPort((GrafPtr)window);
 
-    /* Draw grow icon in bottom-right corner */
-    Rect frame = window->port.portRect;
+    /* Draw grow icon in bottom-right corner - use explicit field copy to avoid struct assignment on ARM64 */
+    Rect frame;
+    frame.top = window->port.portRect.top;
+    frame.left = window->port.portRect.left;
+    frame.bottom = window->port.portRect.bottom;
+    frame.right = window->port.portRect.right;
     Rect growBox;
     SetRect(&growBox, frame.right - 16, frame.bottom - 16,
             frame.right, frame.bottom);
@@ -1010,26 +1079,35 @@ void DrawGrowIcon(WindowPtr window) {
 /*-----------------------------------------------------------------------*/
 
 void ShowWindow(WindowPtr window) {
-    WM_LOG_TRACE("ShowWindow: ENTRY, window=%p\n", window);
+    extern void serial_puts(const char*);
+    extern void uart_flush(void);
+    serial_puts("[SHOWWIN] enter\n");
+    uart_flush();
 
     if (!window || window->visible) {
-        WM_LOG_TRACE("ShowWindow: Early return (window=%p, visible=%d)\n", window, window ? window->visible : -1);
+        serial_puts("[SHOWWIN] early return\n");
+        uart_flush();
         return;
     }
 
-    WM_DEBUG("ShowWindow: Making window visible");
-    WM_LOG_TRACE("ShowWindow: About to set visible=true\n");
-
+    serial_puts("[SHOWWIN] set visible\n");
+    uart_flush();
     window->visible = true;
 
     /* Calculate window regions (structure and content) */
-    WM_LOG_TRACE("ShowWindow: Calculating window regions\n");
+    serial_puts("[SHOWWIN] CalcStdRgns\n");
+    uart_flush();
     extern void WM_CalculateStandardWindowRegions(WindowPtr window, short varCode);
     WM_CalculateStandardWindowRegions(window, 0);
+    serial_puts("[SHOWWIN] CalcStdRgns done\n");
+    uart_flush();
 
     /* Calculate visible region */
-    WM_LOG_TRACE("ShowWindow: About to call CalcVis\n");
+    serial_puts("[SHOWWIN] CalcVis\n");
+    uart_flush();
     CalcVis(window);
+    serial_puts("[SHOWWIN] CalcVis done\n");
+    uart_flush();
 
     /* CRITICAL: Redraw desktop icons BEFORE painting window to ensure icons appear behind window */
     extern DeskHookProc g_deskHook;
@@ -1111,19 +1189,30 @@ void ShowWindow(WindowPtr window) {
 #define WM_DEBUG(...) do {} while(0)
 
 void HideWindow(WindowPtr window) {
+    extern void serial_puts(const char*);
+    extern void uart_flush(void);
+    serial_puts("[HIDEW] enter\n");
+    uart_flush();
     WM_LOG_DEBUG("[WM] HideWindow: ENTRY\n");
 
     if (!window) {
+        serial_puts("[HIDEW] null window\n");
         WM_LOG_DEBUG("[WM] HideWindow: NULL window, returning\n");
         return;
     }
 
+    serial_puts("[HIDEW] set visible\n");
+    uart_flush();
     WM_LOG_DEBUG("[WM] HideWindow: Setting visible=false\n");
     window->visible = false;
 
     /* Save the region that needs repainting */
+    serial_puts("[HIDEW] NewAutoRgn\n");
+    uart_flush();
     WM_LOG_DEBUG("[WM] HideWindow: About to declare clobberedRgn\n");
     AutoRgnHandle clobberedRgn = WM_NewAutoRgn();
+    serial_puts("[HIDEW] NewAutoRgn done\n");
+    uart_flush();
     WM_LOG_DEBUG("[WM] HideWindow: clobberedRgn declared\n");
     WM_LOG_DEBUG("[WM] HideWindow: window pointer = 0x%08x\n", (unsigned int)P2UL(window));
     WM_LOG_DEBUG("[WM] HideWindow: &(window->strucRgn) = 0x%08x\n", (unsigned int)P2UL(&(window->strucRgn)));
@@ -1131,6 +1220,8 @@ void HideWindow(WindowPtr window) {
     RgnHandle strucRgn_value = window->strucRgn;
     WM_LOG_DEBUG("[WM] HideWindow: strucRgn value = 0x%08x\n", (unsigned int)P2UL(strucRgn_value));
     WM_LOG_DEBUG("[WM] HideWindow: About to check if strucRgn is NULL\n");
+    serial_puts("[HIDEW] CopyRgn\n");
+    uart_flush();
     if (strucRgn_value && clobberedRgn.rgn) {
         WM_LOG_DEBUG("[WM] HideWindow: strucRgn is NOT NULL, allocation succeeded\n");
         WM_LOG_DEBUG("[WM] HideWindow: NewRgn returned 0x%08x\n", (unsigned int)P2UL(clobberedRgn.rgn));
@@ -1138,8 +1229,12 @@ void HideWindow(WindowPtr window) {
         CopyRgn(strucRgn_value, clobberedRgn.rgn);
         WM_DEBUG("HideWindow: CopyRgn returned");
     }
+    serial_puts("[HIDEW] CopyRgn done\n");
+    uart_flush();
 
     /* Erase the window's area with desktop pattern FIRST */
+    serial_puts("[HIDEW] erase\n");
+    uart_flush();
     WM_DEBUG("HideWindow: About to erase region, clobberedRgn=0x%08x", (unsigned int)P2UL(clobberedRgn.rgn));
     if (clobberedRgn.rgn) {
         extern void EraseRgn(RgnHandle rgn);
@@ -1162,8 +1257,12 @@ void HideWindow(WindowPtr window) {
             WM_DEBUG("HideWindow: SetPort returned");
         }
 
+        serial_puts("[HIDEW] EraseRgn\n");
+        uart_flush();
         WM_DEBUG("HideWindow: Calling EraseRgn()");
         EraseRgn(clobberedRgn.rgn);
+        serial_puts("[HIDEW] EraseRgn done\n");
+        uart_flush();
         WM_DEBUG("HideWindow: EraseRgn returned");
 
         WM_DEBUG("HideWindow: Restoring port");
@@ -1172,17 +1271,27 @@ void HideWindow(WindowPtr window) {
     }
 
     /* Recalculate visible regions */
+    serial_puts("[HIDEW] CalcVisBehind\n");
+    uart_flush();
     WM_DEBUG("HideWindow: Calling CalcVisBehind()");
     CalcVisBehind(window->nextWindow, clobberedRgn.rgn);
+    serial_puts("[HIDEW] CalcVisBehind done\n");
+    uart_flush();
     WM_DEBUG("HideWindow: CalcVisBehind returned");
 
     /* Repaint windows behind */
+    serial_puts("[HIDEW] PaintBehind\n");
+    uart_flush();
     WM_DEBUG("HideWindow: Calling PaintBehind()");
     PaintBehind(window->nextWindow, clobberedRgn.rgn);
+    serial_puts("[HIDEW] PaintBehind done\n");
+    uart_flush();
     WM_DEBUG("HideWindow: PaintBehind returned");
 
     WM_DisposeAutoRgn(&clobberedRgn);
 
+    serial_puts("[HIDEW] done\n");
+    uart_flush();
     WM_DEBUG("HideWindow: RETURN");
 }
 
@@ -1270,7 +1379,12 @@ void BringToFront(WindowPtr window) {
     /* If already at front, just ensure it's hilited */
     if (prevFront == window) {
         WM_LOG_TRACE("[HILITE] Window already at front, ensuring hilited\n");
+        serial_puts("[BTF] Already at front, calling HiliteWindow\n");
+        extern void uart_flush(void);
+        uart_flush();
         HiliteWindow(window, true);
+        serial_puts("[BTF] HiliteWindow done, returning\n");
+        uart_flush();
         return;
     }
 
@@ -1307,18 +1421,33 @@ void BringToFront(WindowPtr window) {
 
     /* Now hilite and paint the new front window */
     MemoryManager_CheckSuspectBlock("BringToFront_pre_hilite_new");
+    serial_puts("[BTF] HiliteWindow new\n");
+    extern void uart_flush(void);
+    uart_flush();
     HiliteWindow(window, true);
+    serial_puts("[BTF] HiliteWindow done\n");
+    uart_flush();
     MemoryManager_CheckSuspectBlock("BringToFront_post_hilite_new");
 
     /* Recalculate visible regions */
+    serial_puts("[BTF] CalcVisBehind\n");
+    uart_flush();
     CalcVisBehind(window, NULL);
+    serial_puts("[BTF] CalcVisBehind done\n");
+    uart_flush();
     MemoryManager_CheckSuspectBlock("BringToFront_post_CalcVisBehind");
 
     /* CRITICAL: Repaint entire window stack from back to front to ensure proper z-order */
+    serial_puts("[BTF] PaintBehind\n");
+    uart_flush();
     PaintBehind(NULL, NULL);
+    serial_puts("[BTF] PaintBehind done\n");
+    uart_flush();
     MemoryManager_CheckSuspectBlock("BringToFront_post_PaintBehind");
 
     DumpWindowList("BringToFront - END");
+    serial_puts("[BTF] BringToFront done\n");
+    uart_flush();
 }
 
 void SendBehind(WindowPtr window, WindowPtr behindWindow) {
@@ -1388,6 +1517,10 @@ void SendBehind(WindowPtr window, WindowPtr behindWindow) {
 /*-----------------------------------------------------------------------*/
 
 void SelectWindow(WindowPtr window) {
+    serial_puts("[SELWIN] enter\n");
+    extern void uart_flush(void);
+    uart_flush();
+
     if (!window) return;
 
     WM_DEBUG("SelectWindow: Selecting window");
@@ -1399,9 +1532,13 @@ void SelectWindow(WindowPtr window) {
     /* Deactivate current active window if different */
     if (wmState->activeWindow && wmState->activeWindow != window) {
         extern void WM_OnDeactivate(WindowPtr w);
+        serial_puts("[SELWIN] OnDeactivate\n");
+        uart_flush();
         WM_OnDeactivate(wmState->activeWindow);
 
         /* Unhilite the previously active window */
+        serial_puts("[SELWIN] HiliteWindow(old, false)\n");
+        uart_flush();
         HiliteWindow(wmState->activeWindow, false);
 
         /* Post deactivate event */
@@ -1409,20 +1546,34 @@ void SelectWindow(WindowPtr window) {
     }
 
     /* Bring window to front */
+    serial_puts("[SELWIN] BringToFront\n");
+    uart_flush();
     BringToFront(window);
+    serial_puts("[SELWIN] BringToFront done\n");
+    uart_flush();
 
     /* Set as active window */
     wmState->activeWindow = window;
 
     /* Activate the new window */
     extern void WM_OnActivate(WindowPtr w);
+    serial_puts("[SELWIN] OnActivate\n");
+    uart_flush();
     WM_OnActivate(window);
+    serial_puts("[SELWIN] OnActivate done\n");
+    uart_flush();
 
     /* Hilite the newly active window */
+    serial_puts("[SELWIN] HiliteWindow(new, true)\n");
+    uart_flush();
     HiliteWindow(window, true);
+    serial_puts("[SELWIN] HiliteWindow done\n");
+    uart_flush();
 
     /* Generate activate event for the newly selected window */
     PostEvent(activateEvt, (UInt32)window | 0x0001);  /* activateEvt with activeFlag set */
+    serial_puts("[SELWIN] done\n");
+    uart_flush();
 }
 
 /*-----------------------------------------------------------------------*/

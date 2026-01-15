@@ -194,13 +194,13 @@ Point Platform_LocalToGlobalPoint(WindowPtr window, Point localPt) {
     Point globalPt = localPt;
 
     if (window && window->strucRgn && *(window->strucRgn)) {
-        /* Get window's global position from strucRgn */
-        Rect globalBounds = (*(window->strucRgn))->rgnBBox;
+        /* Get window's global position from strucRgn - use pointer to avoid struct copy on ARM64 */
+        Rect* globalBoundsPtr = &((*(window->strucRgn))->rgnBBox);
 
         /* Offset by content area position (skip border and title) */
         const short kBorder = 1, kTitle = 20, kSeparator = 1;
-        globalPt.h = localPt.h + globalBounds.left + kBorder;
-        globalPt.v = localPt.v + globalBounds.top + kTitle + kSeparator;
+        globalPt.h = localPt.h + globalBoundsPtr->left + kBorder;
+        globalPt.v = localPt.v + globalBoundsPtr->top + kTitle + kSeparator;
     }
 
     return globalPt;
@@ -211,13 +211,13 @@ Point Platform_GlobalToLocalPoint(WindowPtr window, Point globalPt) {
     Point localPt = globalPt;
 
     if (window && window->strucRgn && *(window->strucRgn)) {
-        /* Get window's global position from strucRgn */
-        Rect globalBounds = (*(window->strucRgn))->rgnBBox;
+        /* Get window's global position from strucRgn - use pointer to avoid struct copy on ARM64 */
+        Rect* globalBoundsPtr = &((*(window->strucRgn))->rgnBBox);
 
         /* Offset by content area position (skip border and title) */
         const short kBorder = 1, kTitle = 20, kSeparator = 1;
-        localPt.h = globalPt.h - (globalBounds.left + kBorder);
-        localPt.v = globalPt.v - (globalBounds.top + kTitle + kSeparator);
+        localPt.h = globalPt.h - (globalBoundsPtr->left + kBorder);
+        localPt.v = globalPt.v - (globalBoundsPtr->top + kTitle + kSeparator);
     }
 
     return localPt;
@@ -308,7 +308,12 @@ void Platform_GetWindowGrowBoxRect(WindowPtr window, Rect* rect) {
     if (!window->strucRgn || !*window->strucRgn) return;
 
     /* Standard grow box in bottom right of window structure (global coords) */
-    *rect = (*window->strucRgn)->rgnBBox;
+    /* Use explicit field copy to avoid struct assignment on ARM64 */
+    Rect* srcRect = &((*window->strucRgn)->rgnBBox);
+    rect->top = srcRect->top;
+    rect->left = srcRect->left;
+    rect->bottom = srcRect->bottom;
+    rect->right = srcRect->right;
     rect->left = rect->right - 15;
     rect->top = rect->bottom - 15;
 }
@@ -394,7 +399,12 @@ void Platform_GetWindowTitleBarRect(WindowPtr window, Rect* rect) {
     if (!window->strucRgn || !*window->strucRgn) return;
 
     /* Title bar is at top of window structure (global coords) */
-    *rect = (*window->strucRgn)->rgnBBox;
+    /* Use explicit field copy to avoid struct assignment on ARM64 */
+    Rect* srcRect = &((*window->strucRgn)->rgnBBox);
+    rect->top = srcRect->top;
+    rect->left = srcRect->left;
+    rect->bottom = srcRect->bottom;
+    rect->right = srcRect->right;
     rect->bottom = rect->top + 20;  /* Standard title bar height */
 }
 
@@ -414,14 +424,15 @@ void Platform_GetWindowContentRect(WindowPtr window, Rect* rect) {
         return;
     }
 
-    Rect strucRect = (**(window->strucRgn)).rgnBBox;
+    /* Use explicit field access to avoid struct assignment on ARM64 */
+    Rect* strucRectPtr = &((**(window->strucRgn)).rgnBBox);
 
     if (window->refCon == 0x4449534b) {
         extern void serial_puts(const char *str);
         extern int sprintf(char* buf, const char* fmt, ...);
         char dbgbuf[256];
         sprintf(dbgbuf, "[GETCONTENT] DISK: strucRgn rgnBBox=(%d,%d,%d,%d)\n",
-                strucRect.left, strucRect.top, strucRect.right, strucRect.bottom);
+                strucRectPtr->left, strucRectPtr->top, strucRectPtr->right, strucRectPtr->bottom);
         serial_puts(dbgbuf);
     }
 
@@ -431,10 +442,10 @@ void Platform_GetWindowContentRect(WindowPtr window, Rect* rect) {
     const SInt16 kSeparator = 1;
 
     /* Content is inside the frame */
-    rect->left = strucRect.left + kBorder;
-    rect->top = strucRect.top + kTitleBar + kSeparator;
-    rect->right = strucRect.right - (kBorder + 1);  /* Right border is 2px */
-    rect->bottom = strucRect.bottom - kBorder;
+    rect->left = strucRectPtr->left + kBorder;
+    rect->top = strucRectPtr->top + kTitleBar + kSeparator;
+    rect->right = strucRectPtr->right - (kBorder + 1);  /* Right border is 2px */
+    rect->bottom = strucRectPtr->bottom - kBorder;
 }
 
 void Platform_GetWindowCloseBoxRect(WindowPtr window, Rect* rect) {
@@ -476,14 +487,19 @@ void Platform_GetWindowFrameRect(WindowPtr window, Rect* rect) {
     if (window->refCon == 0x4449534b) {
         extern void serial_puts(const char *str);
         extern int sprintf(char* buf, const char* fmt, ...);
-        Rect before = (**(window->strucRgn)).rgnBBox;
+        Rect* beforePtr = &((**(window->strucRgn)).rgnBBox);
         char dbgbuf[256];
         sprintf(dbgbuf, "[GETFRAME] strucRgn->rgnBBox=(%d,%d,%d,%d)\n",
-                before.left, before.top, before.right, before.bottom);
+                beforePtr->left, beforePtr->top, beforePtr->right, beforePtr->bottom);
         serial_puts(dbgbuf);
     }
 
-    *rect = (**(window->strucRgn)).rgnBBox;
+    /* Use explicit field copy to avoid struct assignment on ARM64 */
+    Rect* srcRect = &((**(window->strucRgn)).rgnBBox);
+    rect->top = srcRect->top;
+    rect->left = srcRect->left;
+    rect->bottom = srcRect->bottom;
+    rect->right = srcRect->right;
 }
 
 /* Window highlighting */
@@ -691,7 +707,12 @@ void Platform_SetClipRgn(GrafPtr port, RgnHandle rgn) {
 
 void Platform_GetRegionBounds(RgnHandle rgn, Rect* bounds) {
     if (rgn && *rgn && bounds) {
-        *bounds = (*rgn)->rgnBBox;
+        /* Use explicit field copy to avoid struct assignment on ARM64 */
+        Rect* srcRect = &((*rgn)->rgnBBox);
+        bounds->top = srcRect->top;
+        bounds->left = srcRect->left;
+        bounds->bottom = srcRect->bottom;
+        bounds->right = srcRect->right;
     }
 }
 

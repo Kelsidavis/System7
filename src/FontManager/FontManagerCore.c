@@ -72,21 +72,13 @@ static inline uint8_t get_bit(const uint8_t *row, int bitOff) {
  * This is the core drawing function used by all Font Manager rendering
  */
 void FM_DrawChicagoCharInternal(short x, short y, char ch, uint32_t color) {
-    static int debug_count = 0;
-    extern void serial_puts(const char* str);
-
     if (ch < 32 || ch > 126) return;
 
-    ChicagoCharInfo info = chicago_ascii[ch - 32];
+    /* Use pointer access instead of struct copy to avoid ARM64 struct assignment hang */
+    const ChicagoCharInfo* info = &chicago_ascii[ch - 32];
+    /* Debug removed - serial_printf can hang on ARM64 */
 
-    /* Log menu title character positions */
-    if (y < 20) {
-        extern void serial_printf(const char* fmt, ...);
-        serial_printf("[DRAWCHAR-POS] ch='%c' x_before=%d left_offset=%d x_after=%d y=%d\n",
-                      ch, x, info.left_offset, x + info.left_offset, y);
-    }
-
-    x += info.left_offset;
+    x += info->left_offset;
 
     Ptr destBase = NULL;
     SInt16 destRowBytes = 0;
@@ -111,21 +103,13 @@ void FM_DrawChicagoCharInternal(short x, short y, char ch, uint32_t color) {
         destXOrigin = g_currentPort->portBits.bounds.left;  /* Should be 0 for offset baseAddr */
         destYOrigin = g_currentPort->portBits.bounds.top;   /* Should be 0 for offset baseAddr */
 
-        if (debug_count < 3) {
-            extern void serial_printf(const char* fmt, ...);
-            serial_printf("[CHICAGO] x=%d y=%d destWidth=%d destHeight=%d destXOrigin=%d destYOrigin=%d\n",
-                         x, y, destWidth, destHeight, destXOrigin, destYOrigin);
-            debug_count++;
-        }
+        /* Debug removed - serial_printf can hang on ARM64 */
     } else if (framebuffer) {
         destBase = (Ptr)framebuffer;
         destRowBytes = fb_pitch;
     }
 
     if (!destBase || destRowBytes <= 0 || destWidth <= 0 || destHeight <= 0) {
-        if (debug_count < 3) {
-            serial_puts("[CHICAGO] Invalid buffer parameters, returning\n");
-        }
         return;
     }
 
@@ -140,12 +124,12 @@ void FM_DrawChicagoCharInternal(short x, short y, char ch, uint32_t color) {
 
         const uint8_t *strike_row = chicago_bitmap + (row * CHICAGO_ROW_BYTES);
 
-        for (int col = 0; col < info.bit_width; col++) {
+        for (int col = 0; col < info->bit_width; col++) {
             int destX = x + col - destXOrigin;
             if (destX < 0 || destX >= destWidth) {
                 continue;
             }
-            int bit_position = info.bit_start + col;
+            int bit_position = info->bit_start + col;
             if (get_bit(strike_row, bit_position)) {
                 uint8_t* dstRow = (uint8_t*)destBase + destY * destRowBytes;
                 uint32_t* dstPixels = (uint32_t*)dstRow;
@@ -159,10 +143,10 @@ void FM_DrawChicagoCharInternal(short x, short y, char ch, uint32_t color) {
         }
     }
 
-    if (debug_count < 3 && pixels_drawn > 0) {
-        extern void serial_printf(const char* fmt, ...);
-        serial_printf("[CHICAGO] Drew %d pixels, first at (%d,%d)\n", pixels_drawn, first_pixel_x, first_pixel_y);
-    }
+    /* Debug removed - serial_printf can hang on ARM64 */
+    (void)pixels_drawn;
+    (void)first_pixel_x;
+    (void)first_pixel_y;
 }
 
 /* Built-in Chicago font strike (from chicago_font.h) */
@@ -787,17 +771,9 @@ void QD_LocalToPixel(short localX, short localY, short* pixelX, short* pixelY) {
 
     /* Convert from QuickDraw coordinates to framebuffer pixels */
     /* Account for the port's origin */
-    static int l2p_count = 0;
     *pixelX = localX - g_currentPort->portRect.left + g_currentPort->portBits.bounds.left;
     *pixelY = localY - g_currentPort->portRect.top + g_currentPort->portBits.bounds.top;
-
-    if (l2p_count < 20) {
-        extern void serial_printf(const char* fmt, ...);
-        serial_printf("[L2P] local=(%d,%d) pixel=(%d,%d) portRect.left=%d portBits.bounds.left=%d\n",
-                      localX, localY, *pixelX, *pixelY,
-                      g_currentPort->portRect.left, g_currentPort->portBits.bounds.left);
-        l2p_count++;
-    }
+    /* Debug removed - serial_printf can hang on ARM64 */
 }
 
 /* ============================================================================
@@ -810,50 +786,58 @@ void QD_LocalToPixel(short localX, short localY, short* pixelX, short* pixelY) {
  * is drawn via direct framebuffer rendering instead of glyph extraction
  */
 void DrawChar(short ch) {
-    extern void serial_printf(const char* fmt, ...);
+    extern void serial_puts(const char* str);
+    extern void uart_flush(void);
+    serial_puts("[DC] enter\n");
+    uart_flush();
+
+    /* Skip the serial_printf which may hang on ARM64 - just do simple debug */
     static int char_count = 0;
+    char_count++;
 
-    /* Log to verify THIS DrawChar (from FontManagerCore) is being called */
-    if (char_count < 200) {
-        serial_printf("[DRAWCHAR-FM] FONTMGR VERSION ch='%c' pnLoc=(%d,%d)\n",
-                     (ch >= 32 && ch < 127) ? ch : '?',
-                     g_currentPort ? g_currentPort->pnLoc.h : -1,
-                     g_currentPort ? g_currentPort->pnLoc.v : -1);
-        char_count++;
-    }
-
+    serial_puts("[DC] check port\n");
+    uart_flush();
     if (!g_currentPort) return;
 
+    serial_puts("[DC] get face\n");
+    uart_flush();
     Style face = g_currentPort->txFace;
     Boolean hasBold = (face & bold) != 0;
     Boolean hasItalic = (face & italic) != 0;
+    serial_puts("[DC] get strike\n");
+    uart_flush();
 
     /* Get current font strike */
     FontStrike *strike = FM_GetCurrentStrike();
+    serial_puts("[DC] check strike\n");
+    uart_flush();
 
     /* Check if strike has valid bitmap data */
+    serial_puts("[DC] strike check\n");
+    uart_flush();
     if (!strike || !strike->locTable || !strike->bitmapData) {
         /* Fallback to Chicago bitmap (direct framebuffer drawing) */
+        serial_puts("[DC] fallback\n");
+        uart_flush();
         extern UInt32 QDPlatform_MapQDColor(SInt32 qdColor);
-        Point pen = g_currentPort->pnLoc;
+        /* Use explicit field copy to avoid struct assignment on ARM64 */
+        Point pen;
+        pen.h = g_currentPort->pnLoc.h;
+        pen.v = g_currentPort->pnLoc.v;
+        serial_puts("[DC] localToPixel\n");
+        uart_flush();
         short px, py;
         QD_LocalToPixel(pen.h, pen.v - CHICAGO_ASCENT, &px, &py);
+        serial_puts("[DC] mapColor\n");
+        uart_flush();
         UInt32 color = QDPlatform_MapQDColor(g_currentPort->fgColor);
-
-        static int coord_debug = 0;
-        if (coord_debug < 30) {
-            extern void serial_printf(const char* fmt, ...);
-            serial_printf("[DRAWCHAR] ch='%c' pen=(%d,%d) pixel=(%d,%d) bounds=(%d,%d,%d,%d) portRect=(%d,%d,%d,%d)\n",
-                         (ch >= 32 && ch < 127) ? ch : '?',
-                         pen.h, pen.v, px, py,
-                         g_currentPort->portBits.bounds.left, g_currentPort->portBits.bounds.top,
-                         g_currentPort->portBits.bounds.right, g_currentPort->portBits.bounds.bottom,
-                         g_currentPort->portRect.left, g_currentPort->portRect.top,
-                         g_currentPort->portRect.right, g_currentPort->portRect.bottom);
-            coord_debug++;
-        }
+        serial_puts("[DC] draw\n");
+        uart_flush();
+        /* Debug removed - serial_printf can hang on ARM64 */
 
         /* Draw character with style synthesis */
+        serial_puts("[DC] FM_DrawChicagoCharInternal\n");
+        uart_flush();
         if (hasBold) {
             /* Bold: draw twice with 1 pixel offset */
             FM_DrawChicagoCharInternal(px, py, (char)ch, color);
@@ -861,13 +845,19 @@ void DrawChar(short ch) {
         } else {
             FM_DrawChicagoCharInternal(px, py, (char)ch, color);
         }
+        serial_puts("[DC] drawn\n");
+        uart_flush();
 
         if (hasItalic) {
             /* Italic: draw with slight right offset for shear effect */
             FM_DrawChicagoCharInternal(px + 1, py, (char)ch, color);
         }
 
+        serial_puts("[DC] advance\n");
+        uart_flush();
         g_currentPort->pnLoc.h += CharWidth(ch);
+        serial_puts("[DC] done\n");
+        uart_flush();
         return;
     }
 
@@ -876,7 +866,10 @@ void DrawChar(short ch) {
     UInt32 color = QDPlatform_MapQDColor(g_currentPort->fgColor);
 
     /* Calculate glyph position (baseline - ascent) */
-    Point pen = g_currentPort->pnLoc;
+    /* Use explicit field copy to avoid struct assignment on ARM64 */
+    Point pen;
+    pen.h = g_currentPort->pnLoc.h;
+    pen.v = g_currentPort->pnLoc.v;
     short glyphX = pen.h;
     short glyphY = pen.v - strike->ascent;
 
@@ -933,11 +926,16 @@ void DrawString(ConstStr255Param s) {
 
     /* Draw underline if needed */
     if (face & underline) {
-        Point oldPen = g_currentPort->pnLoc;
+        /* Use explicit field copy to avoid struct assignment on ARM64 */
+        Point oldPen;
+        oldPen.h = g_currentPort->pnLoc.h;
+        oldPen.v = g_currentPort->pnLoc.v;
         short underlineY = oldPen.v + 2;  /* 2 pixels below baseline */
         MoveTo(startX, underlineY);
         LineTo(oldPen.h, underlineY);
-        g_currentPort->pnLoc = oldPen;  /* Restore pen position */
+        /* Restore pen position with explicit field copy */
+        g_currentPort->pnLoc.h = oldPen.h;
+        g_currentPort->pnLoc.v = oldPen.v;
     }
 }
 

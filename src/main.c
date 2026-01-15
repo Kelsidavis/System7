@@ -1199,9 +1199,12 @@ static void init_system71(void) {
     }
 
     /* Hide startup screen before starting Finder */
+    serial_puts("  Hiding startup screen...\n");
     HideStartupScreen();
+    serial_puts("  Startup screen hidden\n");
 
     /* Initialize Finder */
+    serial_puts("  Initializing Finder...\n");
     OSErr err = InitializeFinder();
     if (err == noErr) {
         serial_puts("  Finder initialized\n");

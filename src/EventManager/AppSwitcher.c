@@ -116,7 +116,8 @@ static SInt16 GetAppAtPoint(Point pt, const Rect* windowBounds) {
  * Initialize application switcher
  */
 OSErr AppSwitcher_Init(void) {
-    serial_printf("[AppSwitcher] Initializing\n");
+    extern void serial_puts(const char*);
+    serial_puts("[AppSwitcher] Initializing\n");
 
     if (gSwitcherInitialized) {
         return noErr;
@@ -125,7 +126,7 @@ OSErr AppSwitcher_Init(void) {
     /* Allocate app list using Mac OS Memory Manager */
     gSwitcherState.apps = (SwitchableApp*)NewPtr(sizeof(SwitchableApp) * kAppSwitcher_MaxApps);
     if (!gSwitcherState.apps) {
-        serial_printf("[AppSwitcher] ERROR: Failed to allocate app list\n");
+        serial_puts("[AppSwitcher] ERROR: Failed to allocate app list\n");
         return memFullErr;
     }
 
@@ -137,12 +138,12 @@ OSErr AppSwitcher_Init(void) {
     /* Update app list */
     OSErr err = AppSwitcher_UpdateAppList();
     if (err != noErr) {
-        serial_printf("[AppSwitcher] WARNING: Failed to update app list\n");
+        serial_puts("[AppSwitcher] WARNING: Failed to update app list\n");
         /* Continue anyway - list may be empty initially */
     }
 
     gSwitcherInitialized = true;
-    serial_printf("[AppSwitcher] Initialized with %d apps\n", gSwitcherState.appCount);
+    serial_puts("[AppSwitcher] Initialized\n");
 
     return noErr;
 }
@@ -161,7 +162,7 @@ void AppSwitcher_Shutdown(void) {
     }
 
     gSwitcherInitialized = false;
-    serial_printf("[AppSwitcher] Shutdown\n");
+    serial_puts("[AppSwitcher] Shutdown\n");
 }
 
 /*---------------------------------------------------------------------------

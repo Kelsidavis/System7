@@ -394,11 +394,16 @@ void WM_DrawGrowImage(WindowPtr window) {
  * ============================================================================ */
 
 void WM_CalculateStandardWindowRegions(WindowPtr window, short varCode) {
+    extern void serial_puts(const char *str);
+    extern void uart_flush(void);
+    serial_puts("[CALCSTD] enter\n");
+    uart_flush();
+
     if (window == NULL) return;
 
-    WM_DEBUG("WM_CalculateStandardWindowRegions: Calculating regions for standard window");
+    serial_puts("[CALCSTD] GetFrameRect\n");
+    uart_flush();
 
-    extern void serial_puts(const char *str);
     extern int sprintf(char* buf, const char* fmt, ...);
     if (window->refCon == 0x4449534b) {  /* DISK window */
         char dbgbuf[256];
@@ -416,7 +421,11 @@ void WM_CalculateStandardWindowRegions(WindowPtr window, short varCode) {
 
     /* Calculate structure region (includes frame) */
     Rect structRect;
+    serial_puts("[CALCSTD] GetWindowFrameRect\n");
+    uart_flush();
     Platform_GetWindowFrameRect(window, &structRect);
+    serial_puts("[CALCSTD] GetWindowFrameRect done\n");
+    uart_flush();
 
     if (window->refCon == 0x4449534b) {  /* DISK window */
         char dbgbuf[256];
@@ -425,11 +434,19 @@ void WM_CalculateStandardWindowRegions(WindowPtr window, short varCode) {
         serial_puts(dbgbuf);
     }
 
+    serial_puts("[CALCSTD] SetRectRgn struc\n");
+    uart_flush();
     Platform_SetRectRgn(window->strucRgn, &structRect);
+    serial_puts("[CALCSTD] SetRectRgn struc done\n");
+    uart_flush();
 
     /* Calculate content region (excludes frame) */
     Rect contentRect;
+    serial_puts("[CALCSTD] GetWindowContentRect\n");
+    uart_flush();
     Platform_GetWindowContentRect(window, &contentRect);
+    serial_puts("[CALCSTD] GetWindowContentRect done\n");
+    uart_flush();
 
     /* DEBUG: Log detailed state before changing contRgn */
     extern void serial_puts(const char* str);
@@ -452,13 +469,18 @@ void WM_CalculateStandardWindowRegions(WindowPtr window, short varCode) {
         serial_puts(dbgbuf);
     }
 
+    serial_puts("[CALCSTD] SetRectRgn cont\n");
+    uart_flush();
     Platform_SetRectRgn(window->contRgn, &contentRect);
+    serial_puts("[CALCSTD] SetRectRgn cont done\n");
+    uart_flush();
 
     if (calc_log < 30 && window->refCon == 0x4449534b) {
         calc_log++;
     }
 
-    WM_DEBUG("WM_CalculateStandardWindowRegions: Regions calculated");
+    serial_puts("[CALCSTD] done\n");
+    uart_flush();
 }
 
 void WM_CalculateDialogWindowRegions(WindowPtr window, short varCode) {

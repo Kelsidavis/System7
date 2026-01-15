@@ -173,7 +173,9 @@ static void CursorManager_SetCursorInternal(const Cursor* crsr, Boolean watchAct
 
     CursorManager_CopyCursor(crsr, &gCursorState.currentImage);
     gCursorState.hasCursor = true;
-    gCursorState.hotSpot = crsr->hotSpot;
+    /* Explicit field copy to avoid ARM64 struct assignment hang */
+    gCursorState.hotSpot.h = crsr->hotSpot.h;
+    gCursorState.hotSpot.v = crsr->hotSpot.v;
     gCursorState.watchActive = watchActive;
     if (!watchActive) {
         gCursorState.watchPhase = 0;
@@ -193,7 +195,9 @@ static void CursorManager_BuildWatchFrames(void) {
     for (int frame = 1; frame < WATCH_SPIN_STEPS; ++frame) {
         Cursor* dest = &gCursorState.watchFrames[frame];
         memset(dest, 0, sizeof(Cursor));
-        dest->hotSpot = base->hotSpot;
+        /* Explicit field copy to avoid ARM64 struct assignment hang */
+        dest->hotSpot.h = base->hotSpot.h;
+        dest->hotSpot.v = base->hotSpot.v;
 
         float cosTheta = kWatchCosLUT[frame];
         float sinTheta = kWatchSinLUT[frame];
@@ -235,7 +239,9 @@ static OSErr InitStandardCursors(void) {
     gCrosshairCursor = &kCrosshairCursorResource;
     gWatchCursor = &kWatchCursorResource;
 
-    gCursorState.hotSpot = kArrowCursorResource.hotSpot;
+    /* Explicit field copy to avoid ARM64 struct assignment hang */
+    gCursorState.hotSpot.h = kArrowCursorResource.hotSpot.h;
+    gCursorState.hotSpot.v = kArrowCursorResource.hotSpot.v;
     gCursorState.watchFramesReady = false;
     gCursorState.watchPhase = 0;
 

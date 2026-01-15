@@ -43,7 +43,7 @@ void InitMenuTitleTracking(void)
 /* Add a menu title to tracking */
 void AddMenuTitle(short menuID, short left, short width, const char* title)
 {
-    extern void serial_printf(const char* fmt, ...);
+    /* serial_printf removed - can hang on ARM64 */
 
     /* CRITICAL FIX: Check if this menuID already exists
      * If it does, UPDATE the existing entry instead of creating a duplicate.
@@ -62,8 +62,7 @@ void AddMenuTitle(short menuID, short left, short width, const char* title)
                 gMenuTitles[i].titleText[255] = '\0';
             }
 
-            serial_printf("[ADDTITLE-UPDATE] ID=%d, titleRect=(left=%d,right=%d,top=0,bottom=20), title='%s'\n",
-                          menuID, left, left+width, title ? title : "");
+            /* Debug removed - serial_printf can hang on ARM64 */
             MENU_LOG_TRACE("Updated menu title: ID=%d, left=%d, width=%d, title='%s'\n",
                           menuID, left, width, title ? title : "");
             return;
@@ -72,7 +71,7 @@ void AddMenuTitle(short menuID, short left, short width, const char* title)
 
     /* No existing entry - create new one */
     if (gMenuTitleCount >= MAX_MENU_TITLES) {
-        serial_printf("[ADDTITLE] ERROR: Max menu titles reached (%d)\n", MAX_MENU_TITLES);
+        /* Debug removed - serial_printf can hang on ARM64 */
         return;
     }
 
@@ -90,8 +89,7 @@ void AddMenuTitle(short menuID, short left, short width, const char* title)
 
     gMenuTitleCount++;
 
-    serial_printf("[ADDTITLE-NEW] ID=%d, titleRect=(left=%d,right=%d,top=0,bottom=20), title='%s'\n",
-                  menuID, left, left+width, title ? title : "");
+    /* Debug removed - serial_printf can hang on ARM64 */
     MENU_LOG_TRACE("Added menu title: ID=%d, left=%d, width=%d, title='%s'\n",
                   menuID, left, width, title ? title : "");
 }
