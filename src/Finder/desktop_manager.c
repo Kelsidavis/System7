@@ -1616,54 +1616,136 @@ static OSErr ScanDirectoryForDesktopEntries(short vRefNum, long dirID, short dat
  */
 OSErr InitializeVolumeIcon(void)
 {
+    extern void serial_puts(const char* str);
+    extern void uart_flush(void);
     OSErr err = noErr;
     VolumeControlBlock vcb;
 
+    serial_puts("[IVI] enter\n");
+    uart_flush();
+
     /* Get boot volume reference */
+    serial_puts("[IVI] GetBootVRef\n");
+    uart_flush();
     gBootVolumeRef = VFS_GetBootVRef();
+    serial_puts("[IVI] got vref\n");
+    uart_flush();
 
     /* Get volume info */
+    serial_puts("[IVI] GetVolumeInfo\n");
+    uart_flush();
     if (!VFS_GetVolumeInfo(gBootVolumeRef, &vcb)) {
+        serial_puts("[IVI] GetVolumeInfo failed\n");
+        uart_flush();
         return ioErr;
     }
+    serial_puts("[IVI] got volume info\n");
+    uart_flush();
 
     /* Ensure desktop icons array is allocated */
+    serial_puts("[IVI] check icons\n");
+    uart_flush();
     if (gDesktopIcons == nil) {
+        serial_puts("[IVI] alloc icons\n");
+        uart_flush();
         err = AllocateDesktopIcons();
         if (err != noErr) return err;
     }
 
+    serial_puts("[IVI] add icon\n");
+    uart_flush();
     /* Add volume icon to desktop (note: trash is already at index 0) */
     if (gDesktopIconCount < kMaxDesktopIcons) {
+        serial_puts("[IVI] set type - check ptr\n");
+        uart_flush();
+        /* Check the pointer and index */
+        if (gDesktopIcons == nil) {
+            serial_puts("[IVI] gDesktopIcons is NULL!\n");
+            uart_flush();
+            return memFullErr;
+        }
+        serial_puts("[IVI] set type - calc item\n");
+        uart_flush();
+        /* Calculate the address we'll write to - use local pointer to avoid repeated complex indexing */
+        DesktopItem* item = &gDesktopIcons[gDesktopIconCount];
+        serial_puts("[IVI] set type - got item\n");
+        uart_flush();
+        /* CRITICAL FIX: Use memset to initialize the struct first to avoid ARM64 alignment issues */
+        extern void* memset(void*, int, unsigned long);
+        memset(item, 0, sizeof(DesktopItem));
+        serial_puts("[IVI] set type - memset done\n");
+        uart_flush();
+
         /* Position at top-right of desktop */
-        gDesktopIcons[gDesktopIconCount].type = kDesktopItemVolume;
-        gDesktopIcons[gDesktopIconCount].iconID = 0xFFFFFFFF; /* Special ID for volume */
-        gDesktopIcons[gDesktopIconCount].position.h = fb_width - 100;
-        gDesktopIcons[gDesktopIconCount].position.v = 60;
-        strcpy(gDesktopIcons[gDesktopIconCount].name, "Macintosh HD");
-        gDesktopIcons[gDesktopIconCount].movable = true;  /* Volumes can be moved */
-        gDesktopIcons[gDesktopIconCount].data.volume.vRefNum = gBootVolumeRef;
+        /* CRITICAL FIX: Use memcpy for type field to avoid potential alignment issues */
+        {
+            DesktopItemType t = kDesktopItemVolume;
+            UInt8* dst = (UInt8*)&item->type;
+            UInt8* src = (UInt8*)&t;
+            dst[0] = src[0];
+            dst[1] = src[1];
+            dst[2] = src[2];
+            dst[3] = src[3];
+        }
+        serial_puts("[IVI] set iconID\n");
+        uart_flush();
+        {
+            UInt32 id = 0xFFFFFFFF;
+            UInt8* dst = (UInt8*)&item->iconID;
+            dst[0] = (UInt8)(id);
+            dst[1] = (UInt8)(id >> 8);
+            dst[2] = (UInt8)(id >> 16);
+            dst[3] = (UInt8)(id >> 24);
+        }
+        serial_puts("[IVI] set pos.h\n");
+        uart_flush();
+        {
+            SInt16 h = fb_width - 100;
+            UInt8* dst = (UInt8*)&item->position.h;
+            dst[0] = (UInt8)(h);
+            dst[1] = (UInt8)(h >> 8);
+        }
+        serial_puts("[IVI] set pos.v\n");
+        uart_flush();
+        {
+            SInt16 v = 60;
+            UInt8* dst = (UInt8*)&item->position.v;
+            dst[0] = (UInt8)(v);
+            dst[1] = (UInt8)(v >> 8);
+        }
+        serial_puts("[IVI] strcpy name\n");
+        uart_flush();
+        strcpy(item->name, "Macintosh HD");
+        serial_puts("[IVI] set movable\n");
+        uart_flush();
+        item->movable = true;  /* Volumes can be moved - single byte, safe */
+        serial_puts("[IVI] set vRefNum\n");
+        uart_flush();
+        {
+            VRefNum vref = gBootVolumeRef;
+            UInt8* dst = (UInt8*)&item->data.volume.vRefNum;
+            dst[0] = (UInt8)(vref);
+            dst[1] = (UInt8)(vref >> 8);
+        }
+        serial_puts("[IVI] icon set done\n");
+        uart_flush();
 
         FINDER_LOG_DEBUG("InitializeVolumeIcon: Added volume icon at index %d, pos=(%d,%d)\n",
                       gDesktopIconCount, fb_width - 100, 60);
 
-        {
-            extern void serial_puts(const char* str);
-            static char dbg[256];
-            snprintf(dbg, sizeof(dbg), "[DESKTOP_INIT] Added boot volume icon: name='%s' pos=(%d,%d) index=%d\n",
-                   gDesktopIcons[gDesktopIconCount].name,
-                   gDesktopIcons[gDesktopIconCount].position.h,
-                   gDesktopIcons[gDesktopIconCount].position.v,
-                   gDesktopIconCount);
-            serial_puts(dbg);
-        }
+        /* CRITICAL FIX: Use serial_puts instead of snprintf to avoid ARM64 hang */
+        serial_puts("[DESKTOP_INIT] Added boot volume icon\n");
 
         gDesktopIconCount++;
         gVolumeIconVisible = true;
+        serial_puts("[IVI] count incremented\n");
+        uart_flush();
 
         FINDER_LOG_DEBUG("InitializeVolumeIcon: gDesktopIconCount now = %d\n", gDesktopIconCount);
     }
 
+    serial_puts("[IVI] done\n");
+    uart_flush();
     return noErr;
 }
 
