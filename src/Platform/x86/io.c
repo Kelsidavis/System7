@@ -35,3 +35,8 @@ uint32_t hal_inl(uint16_t port) {
     __asm__ volatile ("inl %1, %0" : "=a"(value) : "Nd"(port));
     return value;
 }
+
+/* Stub for uart_flush - used by ARM64 debugging but not needed on x86 */
+void uart_flush(void) {
+    /* No-op on x86 - serial output is not buffered */
+}
