@@ -235,10 +235,9 @@ void ProcessModernInput(void)
         return;
     }
 
-    /* Poll PS/2 devices if that's our platform */
-    if (g_modernInput.platform && strcmp(g_modernInput.platform, "PS2") == 0) {
-        PollPS2Input();
-    }
+    /* Poll input devices - PollPS2Input is platform-independent
+     * (on ARM64 it polls VirtIO input, on x86 it polls PS/2) */
+    PollPS2Input();
 
     /* Get current input state from hardware abstraction layer */
     /* For now, we'll use the global mouse state from PS2Controller */
