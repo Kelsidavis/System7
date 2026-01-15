@@ -514,7 +514,9 @@ long TrackMenu(short menuID, Point *startPt) {
 
     /* Test if theMenu pointer is safe to dereference */
     unsigned long menuPtr = (unsigned long)theMenu;
-    if (menuPtr < 0x1000 || menuPtr > 0x40000000) {
+    /* ARM64 heap addresses are typically in the 0x40000000+ range
+     * x86 addresses are typically lower. Accept a wide range. */
+    if (menuPtr < 0x1000 || menuPtr > 0x80000000) {
         serial_puts("TrackMenu: Menu handle looks invalid (bad address range)\n");
         if (savePort) SetPort(savePort);
         // s_inTrackMenu cleared
@@ -648,8 +650,10 @@ long TrackMenu(short menuID, Point *startPt) {
         /* Check button state */
         buttonCheckCount++;
         Boolean buttonState = Button();
-        if (buttonCheckCount <= 5 && !buttonWasReleased) {
-            MENU_LOG_TRACE("TrackMenu: Button check #%d = %d\n", buttonCheckCount, buttonState);
+
+        /* Debug: Log first few button states to diagnose tracking freeze */
+        if (buttonCheckCount <= 3) {
+            serial_puts(buttonState ? "[TRACK] Button=DOWN\n" : "[TRACK] Button=UP\n");
         }
 
         /* Track when button is first released */

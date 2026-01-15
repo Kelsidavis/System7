@@ -288,24 +288,15 @@ void ProcessModernInput(void)
     }
 
     /* Check for mouse button changes */
-    static int btnChangeCount = 0;
     if (currentButtonState != g_modernInput.lastButtonState) {
-        btnChangeCount++;
-        extern void serial_puts(const char* str);
-        char msg[96];
-        snprintf(msg, sizeof(msg), "[MI-BTN] Button change #%d: 0x%02x->0x%02x (down=%d->%d)\n",
-                 btnChangeCount, g_modernInput.lastButtonState, currentButtonState,
-                 (g_modernInput.lastButtonState & 1), (currentButtonState & 1));
-        serial_puts(msg);
-        EVT_LOG_TRACE("[MI] Button change #%d: curr=%d, last=%d\n",
-                     btnChangeCount, currentButtonState, g_modernInput.lastButtonState);
+        extern void uart_flush(void);
+        /* Debug prints removed - see git history for verbose version */
 
         UInt32 currentTime = TickCount();
 
         if ((currentButtonState & 1) && !(g_modernInput.lastButtonState & 1)) {
             /* Mouse button pressed - down transition */
             extern volatile Boolean gInMouseTracking;
-            EVT_LOG_TRACE("[MI] mouseDown detected, gInMouseTracking=%d\n", (int)gInMouseTracking);
 
 #if QEMU_JITTER_HACK
             /* QEMU PS/2 jitter: coalesce rapid downs in same tick AND same position */
@@ -313,8 +304,7 @@ void ProcessModernInput(void)
                 currentMousePos.h == g_modernInput.lastClickPos.h &&
                 currentMousePos.v == g_modernInput.lastClickPos.v) {
                 g_modernInput.coalescedPolls++;
-                EVT_LOG_TRACE("[MI] Coalesce down: sameTick=%u samePos polls=%u\n",
-                             (unsigned)currentTime, g_modernInput.coalescedPolls);
+                /* EVT_LOG_TRACE removed - can hang on ARM64 */
                 /* Skip duplicate down event - already posted */
                 g_modernInput.lastButtonState = currentButtonState;
                 return;
@@ -332,11 +322,6 @@ void ProcessModernInput(void)
             SInt16 dx = currentMousePos.h - g_modernInput.lastClickPos.h;
             SInt16 dy = currentMousePos.v - g_modernInput.lastClickPos.v;
 
-            EVT_LOG_TRACE("[MI] DELTA: curr=(%d,%d) last=(%d,%d) dx=%d dy=%d\n",
-                         (int)currentMousePos.h, (int)currentMousePos.v,
-                         (int)g_modernInput.lastClickPos.h, (int)g_modernInput.lastClickPos.v,
-                         (int)dx, (int)dy);
-
             if (dx < 0) dx = -dx;
             if (dy < 0) dy = -dy;
 
@@ -344,7 +329,6 @@ void ProcessModernInput(void)
             if (g_modernInput.lastClickTime == 0) {
                 /* First click since boot - always single click */
                 g_modernInput.clickCount = 1;
-                EVT_LOG_TRACE("[MI] First click since boot\n");
             } else {
                 UInt32 dt = currentTime - g_modernInput.lastClickTime;
 
@@ -356,23 +340,13 @@ void ProcessModernInput(void)
                 UInt32 effectiveThreshold = threshold;
 #endif
 
-                EVT_LOG_TRACE("[MI] Click timing: dt=%u, thresh=%u, dx=%d, dy=%d, slop=6\n",
-                             (unsigned)dt, (unsigned)effectiveThreshold, (int)dx, (int)dy);
-
                 if (dt <= effectiveThreshold && dx <= kClickSlop && dy <= kClickSlop) {
                     /* Within time and distance - increment click count (cap at 3) */
                     g_modernInput.clickCount = (g_modernInput.clickCount < 3)
                         ? (g_modernInput.clickCount + 1) : 3;
-                    EVT_LOG_TRACE("[MI] Multi-click: count=%d dt=%u dx=%d dy=%d\n",
-                                 g_modernInput.clickCount, (unsigned)dt, dx, dy);
                 } else {
                     /* Outside window - reset to single click */
                     g_modernInput.clickCount = 1;
-                    if (dt > effectiveThreshold) {
-                        EVT_LOG_TRACE("[MI] Reset: dt=%u > thresh=%u\n", (unsigned)dt, (unsigned)effectiveThreshold);
-                    } else {
-                        EVT_LOG_TRACE("[MI] Reset: dx=%d or dy=%d > slop=6\n", dx, dy);
-                    }
                 }
             }
 
@@ -387,8 +361,6 @@ void ProcessModernInput(void)
             if (!gInMouseTracking) {
                 SInt16 partCode = 0;  /* Desktop default; FindWindow may update later */
                 SInt32 message = ((SInt32)g_modernInput.clickCount << 16) | (SInt16)partCode;
-                EVT_LOG_TRACE("[MI] PostEvent mouseDown: clickCount=%d, msg=0x%08x\n",
-                             g_modernInput.clickCount, message);
                 PostEvent(mouseDown, message);
             }
 

@@ -137,7 +137,11 @@ Boolean GetMenuTitleRectByID(short menuID, Rect* outRect)
 
     for (short i = 0; i < gMenuTitleCount; i++) {
         if (gMenuTitles[i].menuID == menuID) {
-            *outRect = gMenuTitles[i].titleRect;
+            /* Explicit field copy to avoid ARM64 struct assignment hang */
+            outRect->top = gMenuTitles[i].titleRect.top;
+            outRect->left = gMenuTitles[i].titleRect.left;
+            outRect->bottom = gMenuTitles[i].titleRect.bottom;
+            outRect->right = gMenuTitles[i].titleRect.right;
             return true;
         }
     }
@@ -149,7 +153,11 @@ Boolean GetMenuTitleRectByID(short menuID, Rect* outRect)
 void GetMenuBarRect(Rect* outRect)
 {
     if (outRect) {
-        *outRect = gMenuBarRect;
+        /* Explicit field copy to avoid ARM64 struct assignment hang */
+        outRect->top = gMenuBarRect.top;
+        outRect->left = gMenuBarRect.left;
+        outRect->bottom = gMenuBarRect.bottom;
+        outRect->right = gMenuBarRect.right;
     }
 }
 

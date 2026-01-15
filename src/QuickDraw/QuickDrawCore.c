@@ -695,10 +695,6 @@ void InvertRect(const Rect *r) {
         g_lastInvertLeft = r->left;
         g_lastInvertRight = r->right;
         g_invertCallCount++;
-
-        extern void serial_printf(const char* fmt, ...);
-        serial_printf("[INVERT-COUNT] Call #%d for rect(%d,%d,%d,%d)\n",
-                      g_invertCallCount, r->left, r->top, r->right, r->bottom);
     }
 
     PictureRecordInvertRect(r);

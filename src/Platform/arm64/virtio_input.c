@@ -332,22 +332,9 @@ static uint8_t linux_to_mac_keycode(uint16_t linux_code) {
     }
 }
 
-/* Debug counter */
-static int event_count = 0;
-
 /* Process a single input event */
 static void virtio_input_process_event(struct virtio_input_event *evt) {
-    /* Debug: print first few events */
-    if (event_count < 10) {
-        uart_puts("[INPUT] evt type=");
-        uart_putc('0' + (evt->type % 10));
-        uart_puts(" code=");
-        uart_putc('0' + ((evt->code / 100) % 10));
-        uart_putc('0' + ((evt->code / 10) % 10));
-        uart_putc('0' + (evt->code % 10));
-        uart_puts("\n");
-        event_count++;
-    }
+    /* Debug output disabled - was causing slowdown */
 
     switch (evt->type) {
         case EV_REL:

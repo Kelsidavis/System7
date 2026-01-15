@@ -1190,9 +1190,11 @@ static void DesktopYield(void)
 {
     extern void SystemTask(void);
     extern void ProcessModernInput(void);
+    extern void uart_puts(const char *s);
     static int yieldCount = 0;
-    if (++yieldCount % 100 == 0) {
-        FINDER_LOG_DEBUG("[DesktopYield] Called %d times\n", yieldCount);
+    yieldCount++;
+    if (yieldCount % 1000 == 0) {
+        uart_puts("[YIELD] ");
     }
 
     /* Don't call EventPumpYield() here - it can cause re-entrancy issues during drag.

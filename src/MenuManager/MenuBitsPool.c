@@ -15,6 +15,9 @@
 #include "MenuManager/MenuBitsPool.h"
 #include <string.h>
 
+/* Disabled debug printf - was causing slowdown on ARM64 */
+static inline void serial_printf_disabled(const char* fmt, ...) { (void)fmt; }
+
 /*---------------------------------------------------------------------------
  * Pool Structure
  *---------------------------------------------------------------------------*/
@@ -60,7 +63,7 @@ extern uint32_t fb_pitch;
  * Initialize the menu bits pool with preallocated buffers
  */
 OSErr MenuBitsPool_Init(SInt16 numBuffers, SInt32 bufferSize) {
-    extern void serial_printf(const char* fmt, ...);
+    extern void serial_printf_disabled(const char* fmt, ...);
     extern void serial_puts(const char*);
     serial_puts("[MBPOOL] MenuBitsPool_Init enter\n");
 
@@ -136,13 +139,13 @@ OSErr MenuBitsPool_Init(SInt16 numBuffers, SInt32 bufferSize) {
  * Shutdown the pool and free all resources
  */
 OSErr MenuBitsPool_Shutdown(void) {
-    extern void serial_printf(const char* fmt, ...);
+    extern void serial_printf_disabled(const char* fmt, ...);
 
     if (!gMenuBitsPool.initialized) {
         return noErr;
     }
 
-    serial_printf("[MBPOOL] Shutting down pool\n");
+    serial_printf_disabled("[MBPOOL] Shutting down pool\n");
 
     if (gMenuBitsPool.entries) {
         for (SInt16 i = 0; i < gMenuBitsPool.numEntries; i++) {
@@ -156,7 +159,7 @@ OSErr MenuBitsPool_Shutdown(void) {
     }
 
     gMenuBitsPool.initialized = false;
-    serial_printf("[MBPOOL] Pool shutdown complete\n");
+    serial_printf_disabled("[MBPOOL] Pool shutdown complete\n");
 
     return noErr;
 }
@@ -170,7 +173,7 @@ OSErr MenuBitsPool_Shutdown(void) {
  * Returns pointer to pixel buffer or NULL if none available
  */
 static void* MenuBitsPool_GetBuffer(SInt16* outIndex) {
-    extern void serial_printf(const char* fmt, ...);
+    extern void serial_printf_disabled(const char* fmt, ...);
 
     if (!gMenuBitsPool.initialized) {
         return NULL;
@@ -189,13 +192,13 @@ static void* MenuBitsPool_GetBuffer(SInt16* outIndex) {
                 *outIndex = i;
             }
 
-            serial_printf("[MBPOOL] Got buffer %d at %p\n", i, entry->pixelBuffer);
+            serial_printf_disabled("[MBPOOL] Got buffer %d at %p\n", i, entry->pixelBuffer);
             return entry->pixelBuffer;
         }
     }
 
     /* No available buffers */
-    serial_printf("[MBPOOL] No available buffers (all %d in use)\n", gMenuBitsPool.numEntries);
+    serial_printf_disabled("[MBPOOL] No available buffers (all %d in use)\n", gMenuBitsPool.numEntries);
     return NULL;
 }
 
@@ -204,30 +207,30 @@ static void* MenuBitsPool_GetBuffer(SInt16* outIndex) {
  * Caller must create SavedBitsRec with NewHandle, with bitsData pointing to returned buffer
  */
 Handle MenuBitsPool_Allocate(const Rect* bounds) {
-    extern void serial_printf(const char* fmt, ...);
+    extern void serial_printf_disabled(const char* fmt, ...);
     SInt16 poolIndex = -1;
 
     if (!gMenuBitsPool.initialized) {
-        serial_printf("[MBPOOL] Pool not initialized\n");
+        serial_printf_disabled("[MBPOOL] Pool not initialized\n");
         return NULL;
     }
 
     if (!bounds) {
-        serial_printf("[MBPOOL] NULL bounds\n");
+        serial_printf_disabled("[MBPOOL] NULL bounds\n");
         return NULL;
     }
 
     /* Get a pool buffer */
     void* pixelBuffer = MenuBitsPool_GetBuffer(&poolIndex);
     if (!pixelBuffer) {
-        serial_printf("[MBPOOL] No pool buffers available\n");
+        serial_printf_disabled("[MBPOOL] No pool buffers available\n");
         return NULL;
     }
 
     /* Create a proper SavedBitsRec handle in the heap */
     SavedBitsHandle handle = (SavedBitsHandle)NewHandle(sizeof(SavedBitsRec));
     if (!handle) {
-        serial_printf("[MBPOOL] Failed to allocate SavedBitsRec handle\n");
+        serial_printf_disabled("[MBPOOL] Failed to allocate SavedBitsRec handle\n");
         gMenuBitsPool.entries[poolIndex].inUse = false;
         return NULL;
     }
@@ -248,7 +251,7 @@ Handle MenuBitsPool_Allocate(const Rect* bounds) {
 
     HUnlock((Handle)handle);
 
-    serial_printf("[MBPOOL] Allocated pool buffer %d, handle=%p\n", poolIndex, handle);
+    serial_printf_disabled("[MBPOOL] Allocated pool buffer %d, handle=%p\n", poolIndex, handle);
     return (Handle)handle;
 }
 
@@ -256,7 +259,7 @@ Handle MenuBitsPool_Allocate(const Rect* bounds) {
  * Return a buffer to the pool
  */
 OSErr MenuBitsPool_Free(Handle poolHandle) {
-    extern void serial_printf(const char* fmt, ...);
+    extern void serial_printf_disabled(const char* fmt, ...);
 
     if (!gMenuBitsPool.initialized || !poolHandle) {
         return paramErr;
@@ -275,7 +278,7 @@ OSErr MenuBitsPool_Free(Handle poolHandle) {
             entry->inUse = false;
             entry->owningHandle = NULL;
 
-            serial_printf("[MBPOOL] Freed buffer %d\n", i);
+            serial_printf_disabled("[MBPOOL] Freed buffer %d\n", i);
             found = true;
             break;
         }
@@ -287,7 +290,7 @@ OSErr MenuBitsPool_Free(Handle poolHandle) {
     DisposeHandle(poolHandle);
 
     if (!found) {
-        serial_printf("[MBPOOL] Warning: Freed handle didn't belong to pool\n");
+        serial_printf_disabled("[MBPOOL] Warning: Freed handle didn't belong to pool\n");
         return paramErr;
     }
 

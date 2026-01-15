@@ -1,6 +1,15 @@
 // #include "CompatibilityFix.h" // Removed
 #include <stdlib.h>
 #include <string.h>
+
+/* Debug output disabled - was causing major slowdown on ARM64 */
+#define SAVEBITS_DEBUG 0
+#if SAVEBITS_DEBUG
+#define SAVEBITS_LOG(msg) serial_puts(msg)
+#else
+#define SAVEBITS_LOG(msg) ((void)0)
+#endif
+
 /*
  * menu_savebits.c - Menu Manager Screen Bits Save/Restore
  *
@@ -47,10 +56,10 @@ Handle SaveBits(const Rect *bounds, SInt16 mode) {
     extern void serial_puts(const char* str);
     char buf[256];
 
-    serial_puts("[SAVEBITS] SaveBits: ENTRY\n");
+    SAVEBITS_LOG("[SAVEBITS] SaveBits: ENTRY\n");
 
     if (!bounds || !framebuffer) {
-        serial_puts("[SAVEBITS] SaveBits: NULL bounds or framebuffer\n");
+        SAVEBITS_LOG("[SAVEBITS] SaveBits: NULL bounds or framebuffer\n");
         return NULL;
     }
 
@@ -64,8 +73,10 @@ Handle SaveBits(const Rect *bounds, SInt16 mode) {
         return NULL;
     }
 
-    snprintf(buf, sizeof(buf), "[SAVEBITS] SaveBits: Allocating for %dx%d rect\n", width, height);
-    serial_puts(buf);
+    /* Reduced debug output - was causing slowdown */
+    extern void uart_flush(void);
+    SAVEBITS_LOG("[SAVEBITS] Allocating...\n");
+    uart_flush();
 
     /*
      * TRY POOL FIRST - This prevents heap fragmentation!
@@ -73,7 +84,8 @@ Handle SaveBits(const Rect *bounds, SInt16 mode) {
      */
     Handle poolBits = MenuBitsPool_Allocate(bounds);
     if (poolBits) {
-        serial_puts("[SAVEBITS] SaveBits: Using pooled buffer\n");
+        SAVEBITS_LOG("[SAVEBITS] Using pool\n");
+        uart_flush();
         HLock(poolBits);
         SavedBitsPtr savedBits = *((SavedBitsHandle)poolBits);
 
@@ -111,16 +123,16 @@ Handle SaveBits(const Rect *bounds, SInt16 mode) {
 
         savedBits->valid = true;
         HUnlock(poolBits);
-        serial_puts("[SAVEBITS] SaveBits: Pooled buffer ready\n");
+        SAVEBITS_LOG("[SAVEBITS] SaveBits: Pooled buffer ready\n");
         return poolBits;
     }
 
-    serial_puts("[SAVEBITS] SaveBits: Pool unavailable, using dynamic allocation\n");
+    SAVEBITS_LOG("[SAVEBITS] SaveBits: Pool unavailable, using dynamic allocation\n");
 
     /* FALLBACK: Allocate handle for saved bits record */
     SavedBitsHandle bitsHandle = (SavedBitsHandle)NewHandle(sizeof(SavedBitsRec));
     if (!bitsHandle) {
-        serial_puts("[SAVEBITS] SaveBits: NewHandle failed for SavedBitsRec\n");
+        SAVEBITS_LOG("[SAVEBITS] SaveBits: NewHandle failed for SavedBitsRec\n");
         return NULL;
     }
 
@@ -140,7 +152,7 @@ Handle SaveBits(const Rect *bounds, SInt16 mode) {
     /* Calculate data size (32 bits per pixel = 4 bytes) */
     /* Check for integer overflow in size calculation */
     if (width > 0x7FFFFFFF / height / 4) {
-        serial_puts("[SAVEBITS] SaveBits: Size calculation would overflow\n");
+        SAVEBITS_LOG("[SAVEBITS] SaveBits: Size calculation would overflow\n");
         HUnlock((Handle)bitsHandle);
         DisposeHandle((Handle)bitsHandle);
         return NULL;
@@ -154,7 +166,7 @@ Handle SaveBits(const Rect *bounds, SInt16 mode) {
     /* CRITICAL: Allocate memory for pixel data using Memory Manager (not malloc!) */
     savedBits->bitsData = (void*)NewPtr(savedBits->dataSize);
     if (!savedBits->bitsData) {
-        serial_puts("[SAVEBITS] SaveBits: NewPtr failed for pixel data\n");
+        SAVEBITS_LOG("[SAVEBITS] SaveBits: NewPtr failed for pixel data\n");
         HUnlock((Handle)bitsHandle);
         DisposeHandle((Handle)bitsHandle);
         return NULL;
@@ -284,12 +296,12 @@ OSErr DiscardBits(Handle bitsHandle) {
     extern void serial_puts(const char* str);
     char buf[256];
 
-    serial_puts("[SAVEBITS] DiscardBits: ENTRY\n");
+    SAVEBITS_LOG("[SAVEBITS] DiscardBits: ENTRY\n");
     snprintf(buf, sizeof(buf), "[SAVEBITS] DiscardBits: bitsHandle=%p\n", bitsHandle);
     serial_puts(buf);
 
     if (!bitsHandle || !*bitsHandle) {
-        serial_puts("[SAVEBITS] DiscardBits: NULL handle, returning paramErr\n");
+        SAVEBITS_LOG("[SAVEBITS] DiscardBits: NULL handle, returning paramErr\n");
         return paramErr;
     }
 
@@ -307,15 +319,15 @@ OSErr DiscardBits(Handle bitsHandle) {
     /* CHECK IF FROM POOL */
     if (savedBits->fromPool) {
         /* Return to pool - much simpler cleanup */
-        serial_puts("[SAVEBITS] DiscardBits: Returning buffer to pool\n");
+        SAVEBITS_LOG("[SAVEBITS] DiscardBits: Returning buffer to pool\n");
         HUnlock(bitsHandle);
         OSErr err = MenuBitsPool_Free(bitsHandle);
-        serial_puts("[SAVEBITS] DiscardBits: MenuBitsPool_Free completed\n");
+        SAVEBITS_LOG("[SAVEBITS] DiscardBits: MenuBitsPool_Free completed\n");
         return err;
     }
 
     /* FALLBACK: Handle dynamically allocated buffer */
-    serial_puts("[SAVEBITS] DiscardBits: Disposing dynamic allocation\n");
+    SAVEBITS_LOG("[SAVEBITS] DiscardBits: Disposing dynamic allocation\n");
 
     /* Validate bitsData pointer before freeing */
     if (savedBits->bitsData) {
@@ -332,7 +344,7 @@ OSErr DiscardBits(Handle bitsHandle) {
 
         /* CRITICAL: Use DisposePtr (not free!) since we allocated with NewPtr */
         DisposePtr((Ptr)savedBits->bitsData);
-        serial_puts("[SAVEBITS] DiscardBits: DisposePtr() completed\n");
+        SAVEBITS_LOG("[SAVEBITS] DiscardBits: DisposePtr() completed\n");
         savedBits->bitsData = NULL;
     }
 
@@ -342,7 +354,7 @@ OSErr DiscardBits(Handle bitsHandle) {
     /* Unlock handle before disposing */
     HUnlock(bitsHandle);
 
-    serial_puts("[SAVEBITS] DiscardBits: About to DisposeHandle\n");
+    SAVEBITS_LOG("[SAVEBITS] DiscardBits: About to DisposeHandle\n");
 
     /* Dispose the handle - after this call, bitsHandle is INVALID */
     DisposeHandle(bitsHandle);
@@ -350,8 +362,8 @@ OSErr DiscardBits(Handle bitsHandle) {
     /* IMPORTANT: bitsHandle is now invalid and must NOT be used.
      * Callers should NULL out their copy of the handle after this call. */
 
-    serial_puts("[SAVEBITS] DiscardBits: DisposeHandle completed - handle now INVALID\n");
-    serial_puts("[SAVEBITS] DiscardBits: EXIT\n");
+    SAVEBITS_LOG("[SAVEBITS] DiscardBits: DisposeHandle completed - handle now INVALID\n");
+    SAVEBITS_LOG("[SAVEBITS] DiscardBits: EXIT\n");
 
     return noErr;
 }

@@ -216,7 +216,7 @@ static bool virtio_gpu_send_cmd(void *cmd, size_t cmd_len, void *resp, size_t re
     }
 
     if (timeout <= 0) {
-        uart_puts("[VIRTIO-GPU] send_cmd timeout\n");
+        /* Timeout is common during heavy rendering - suppress spam */
         return false;
     }
 
@@ -236,11 +236,14 @@ static bool virtio_gpu_send_cmd(void *cmd, size_t cmd_len, void *resp, size_t re
 
     /* Check response */
     used_idx++;
-    if (gpu_resp_buffer.type != VIRTIO_GPU_RESP_OK_NODATA &&
-        gpu_resp_buffer.type != VIRTIO_GPU_RESP_OK_DISPLAY_INFO) {
-        uart_puts("[VIRTIO-GPU] send_cmd bad response: 0x");
-        print_hex(gpu_resp_buffer.type);
-        uart_puts("\n");
+    /* Accept any OK response type (0x1100-0x11FF range) */
+    if ((gpu_resp_buffer.type & 0xFF00) != 0x1100) {
+        static int errCount = 0;
+        if (++errCount <= 5) {  /* Only log first 5 errors */
+            uart_puts("[VIRTIO-GPU] send_cmd bad response: 0x");
+            print_hex(gpu_resp_buffer.type);
+            uart_puts("\n");
+        }
         return false;
     }
     return true;
