@@ -228,10 +228,13 @@ void arm64_boot_main(void *dtb_ptr) {
 #endif
 
     uart_puts("[ARM64] Early boot complete, entering kernel...\n");
+    uart_flush();
     uart_puts("[ARM64] ==========================================================\n");
+    uart_flush();
 
     /* Jump to System7 boot entry point via HAL */
     uart_puts("[ARM64] About to call boot_main()...\n");
+    uart_flush();
     extern void boot_main(uint32_t magic, uint32_t* mb2_info);
     boot_main(0, NULL);  /* No multiboot on ARM64, pass NULL */
     uart_puts("[ARM64] boot_main() returned\n");
@@ -275,7 +278,18 @@ int hal_get_framebuffer_info(hal_framebuffer_info_t *info) {
     if (!info || !g_fb_present) {
         return -1;
     }
-    *info = g_fb_info;
+    /* Use explicit field assignment to avoid memcpy on ARM64 */
+    info->framebuffer = g_fb_info.framebuffer;
+    info->width = g_fb_info.width;
+    info->height = g_fb_info.height;
+    info->pitch = g_fb_info.pitch;
+    info->depth = g_fb_info.depth;
+    info->red_offset = g_fb_info.red_offset;
+    info->red_size = g_fb_info.red_size;
+    info->green_offset = g_fb_info.green_offset;
+    info->green_size = g_fb_info.green_size;
+    info->blue_offset = g_fb_info.blue_offset;
+    info->blue_size = g_fb_info.blue_size;
     return 0;
 }
 

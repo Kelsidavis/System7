@@ -88,18 +88,26 @@ static void DisposeAuxiliaryWindowRecord(AuxWinHandle auxWin);
  * ============================================================================ */
 
 void InitWindows(void) {
+    extern void serial_puts(const char*);
+    serial_puts("[WM] InitWindows enter\n");
     if (g_wmState.initialized) {
         return; /* Already initialized */
     }
 
     /* Initialize platform windowing system */
+    serial_puts("[WM] Platform_InitWindowing\n");
     Platform_InitWindowing();
+    serial_puts("[WM] Platform_InitWindowing done\n");
 
     /* Initialize Window Manager port */
+    serial_puts("[WM] InitializeWMgrPort\n");
     InitializeWMgrPort();
+    serial_puts("[WM] InitializeWMgrPort done\n");
 
     /* Set up desktop pattern */
+    serial_puts("[WM] InitializeDesktopPattern\n");
     InitializeDesktopPattern();
+    serial_puts("[WM] InitializeDesktopPattern done\n");
 
     /* Initialize window list */
     g_wmState.windowList = NULL;

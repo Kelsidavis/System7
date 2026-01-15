@@ -962,14 +962,18 @@ static void init_system71(void) {
     serial_puts("  Menu Bits Pool initialized (4 × 160KB buffers)\n");
 
     /* Startup Screen - show "Welcome to Macintosh" */
+    serial_puts("  InitStartupScreen...\n");
     extern OSErr InitStartupScreen(const void* config);
     extern OSErr ShowWelcomeScreen(void);
     extern OSErr SetStartupPhase(int phase);
     extern void HideStartupScreen(void);
     if (InitStartupScreen(NULL) == noErr) {
         serial_puts("  Startup Screen initialized\n");
+        serial_puts("  ShowWelcomeScreen...\n");
         ShowWelcomeScreen();
         serial_puts("  Welcome screen displayed\n");
+    } else {
+        serial_puts("  Startup Screen FAILED\n");
     }
 
     /* Storage HAL (ATA/IDE Driver) */
@@ -1534,8 +1538,11 @@ void kernel_main(uint32_t magic, uint32_t* mb2_info) {
     serial_init();
     serial_puts("System 7.1 Portable - Serial Console Initialized\n");
 
+    serial_puts("KERNEL: After serial init\n");
+
     /* Clear screen and show startup message */
     console_clear();
+    serial_puts("KERNEL: After console_clear\n");
 
 #if defined(__i386__) || defined(__x86_64__)
     /* Parse Multiboot2 information */
@@ -1543,10 +1550,12 @@ void kernel_main(uint32_t magic, uint32_t* mb2_info) {
 #else
     (void)magic;
     (void)mb2_info;
+    serial_puts("KERNEL: Getting memory size\n");
     uint32_t mem_bytes = hal_get_memory_size();
+    serial_puts("KERNEL: Got memory size\n");
     if (mem_bytes != 0) {
         g_total_memory_kb = mem_bytes / 1024;
-        serial_printf("[SYS] HAL memory probe (bytes): %u\n", mem_bytes);
+        serial_puts("KERNEL: Memory detected\n");
     }
 #if defined(__powerpc__) || defined(__powerpc64__)
     log_ppc_memory_map();
@@ -1567,9 +1576,15 @@ void kernel_main(uint32_t magic, uint32_t* mb2_info) {
 #endif
 #endif
 
+    serial_puts("KERNEL: Checking framebuffer\n");
     if (!framebuffer) {
+        serial_puts("KERNEL: No framebuffer, getting from HAL\n");
         hal_framebuffer_info_t fb_info;
-        if (hal_get_framebuffer_info(&fb_info) == 0) {
+        serial_puts("KERNEL: Calling hal_get_framebuffer_info\n");
+        int fb_result = hal_get_framebuffer_info(&fb_info);
+        serial_puts("KERNEL: hal_get_framebuffer_info returned\n");
+        if (fb_result == 0) {
+            serial_puts("KERNEL: Got framebuffer from HAL\n");
             framebuffer = fb_info.framebuffer;
             fb_width = fb_info.width;
             fb_height = fb_info.height;
@@ -1593,7 +1608,9 @@ void kernel_main(uint32_t magic, uint32_t* mb2_info) {
     }
 
     /* Initialize System 7.1 */
+    serial_puts("KERNEL: About to call init_system71\n");
     init_system71();
+    serial_puts("KERNEL: init_system71 returned\n");
 
     /* Remove early test - let DrawDesktop do all the drawing */
     if (framebuffer) {

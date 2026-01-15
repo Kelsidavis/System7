@@ -111,20 +111,27 @@ static void ApplyPenToRect(GrafPtr port, Rect *rect);
  * ================================================================ */
 
 void InitGraf(void *globalPtr) {
+    extern void serial_puts(const char*);
+    serial_puts("[QD] InitGraf enter\n");
     assert(globalPtr != NULL);
+    serial_puts("[QD] InitGraf after assert\n");
 
     /* Initialize QuickDraw globals */
+    serial_puts("[QD] InitGraf memset start\n");
     memset(&qd, 0, sizeof(QDGlobals));
+    serial_puts("[QD] InitGraf memset done\n");
 
     /* Set up random seed */
     qd.randSeed = 1;
 
     /* Initialize standard patterns */
+    serial_puts("[QD] Copying patterns\n");
     memcpy(&qd.white, &g_standardPatterns[0], sizeof(Pattern));
     memcpy(&qd.black, &g_standardPatterns[1], sizeof(Pattern));
     memcpy(&qd.gray, &g_standardPatterns[2], sizeof(Pattern));
     memcpy(&qd.ltGray, &g_standardPatterns[3], sizeof(Pattern));
     memcpy(&qd.dkGray, &g_standardPatterns[4], sizeof(Pattern));
+    serial_puts("[QD] Patterns done\n");
 
     /* Initialize arrow cursor */
     static const UInt16 arrowData[16] = {
@@ -140,9 +147,12 @@ void InitGraf(void *globalPtr) {
     memcpy(qd.arrow.mask, arrowMask, sizeof(arrowMask));
     qd.arrow.hotSpot.h = 1;
     qd.arrow.hotSpot.v = 1;
+    serial_puts("[QD] Arrow done\n");
 
     /* Initialize platform layer first to get framebuffer info */
+    serial_puts("[QD] Platform init\n");
     QDPlatform_Initialize();
+    serial_puts("[QD] Platform done\n");
 
     /* Set up screen bitmap with actual framebuffer */
     extern void* framebuffer;
@@ -150,9 +160,11 @@ void InitGraf(void *globalPtr) {
     extern uint32_t fb_height;
     extern uint32_t fb_pitch;
 
+    serial_puts("[QD] Setting screenBits\n");
     qd.screenBits.baseAddr = (Ptr)framebuffer;
     qd.screenBits.rowBytes = fb_pitch;
     SetRect(&qd.screenBits.bounds, 0, 0, fb_width, fb_height);
+    serial_puts("[QD] screenBits done\n");
 
     g_qdInitialized = true;
     g_lastError = 0;
@@ -160,57 +172,89 @@ void InitGraf(void *globalPtr) {
     /* Create and initialize a default screen port */
     static GrafPort screenPort;
 
-    QD_LOG_TRACE("InitGraf creating screen port\n");
+    serial_puts("[QD] InitPort\n");
 
     InitPort(&screenPort);
+    serial_puts("[QD] InitPort returned\n");
 
-    /* Set the screen port to use the framebuffer */
-    screenPort.portBits = qd.screenBits;
-    screenPort.portRect = qd.screenBits.bounds;
+    /* Set the screen port to use the framebuffer - explicit assignment */
+    screenPort.portBits.baseAddr = qd.screenBits.baseAddr;
+    screenPort.portBits.rowBytes = qd.screenBits.rowBytes;
+    screenPort.portBits.bounds.top = qd.screenBits.bounds.top;
+    screenPort.portBits.bounds.left = qd.screenBits.bounds.left;
+    screenPort.portBits.bounds.bottom = qd.screenBits.bounds.bottom;
+    screenPort.portBits.bounds.right = qd.screenBits.bounds.right;
+    screenPort.portRect.top = qd.screenBits.bounds.top;
+    screenPort.portRect.left = qd.screenBits.bounds.left;
+    screenPort.portRect.bottom = qd.screenBits.bounds.bottom;
+    screenPort.portRect.right = qd.screenBits.bounds.right;
+    serial_puts("[QD] screenPort set\n");
 
     /* Make it the current port */
     qd.thePort = &screenPort;
     SetPort(&screenPort);
 
-    QD_LOG_TRACE("InitGraf port ready\n");
+    serial_puts("[QD] InitGraf complete\n");
 }
 
 void InitPort(GrafPtr port) {
+    extern void serial_puts(const char*);
+    serial_puts("[QD] InitPort enter\n");
     assert(port != NULL);
     assert(g_qdInitialized);
+    serial_puts("[QD] InitPort after asserts\n");
 
     /* Initialize basic port fields */
     port->device = 0;
 
-    /* Set up default port bitmap */
-    port->portBits = qd.screenBits;
+    /* Set up default port bitmap - use explicit assignment to avoid memcpy on ARM64 */
+    serial_puts("[QD] InitPort portBits\n");
+    port->portBits.baseAddr = qd.screenBits.baseAddr;
+    port->portBits.rowBytes = qd.screenBits.rowBytes;
+    port->portBits.bounds.top = qd.screenBits.bounds.top;
+    port->portBits.bounds.left = qd.screenBits.bounds.left;
+    port->portBits.bounds.bottom = qd.screenBits.bounds.bottom;
+    port->portBits.bounds.right = qd.screenBits.bounds.right;
+    serial_puts("[QD] InitPort portBits done\n");
 
-    /* Set up port rectangle to match screen */
-    port->portRect = qd.screenBits.bounds;
+    /* Set up port rectangle to match screen - explicit assignment */
+    port->portRect.top = qd.screenBits.bounds.top;
+    port->portRect.left = qd.screenBits.bounds.left;
+    port->portRect.bottom = qd.screenBits.bounds.bottom;
+    port->portRect.right = qd.screenBits.bounds.right;
+    serial_puts("[QD] InitPort portRect done\n");
 
     /* Create regions */
+    serial_puts("[QD] InitPort NewRgn 1\n");
     port->visRgn = NewRgn();
+    serial_puts("[QD] InitPort NewRgn 2\n");
     port->clipRgn = NewRgn();
+    serial_puts("[QD] InitPort regions done\n");
 
     if (!port->visRgn || !port->clipRgn) {
         g_lastError = memFullErr; /* Using memFullErr instead of insufficientStackErr */
         return;
     }
+    serial_puts("[QD] InitPort RectRgn 1\n");
 
     /* Set default visible region to port rect */
     RectRgn(port->visRgn, &port->portRect);
+    serial_puts("[QD] InitPort RectRgn 2\n");
 
     /* Set default clip region to very large rect */
     Rect bigRect;
     SetRect(&bigRect, -32768, -32768, 32767, 32767);
     RectRgn(port->clipRgn, &bigRect);
+    serial_puts("[QD] InitPort patterns\n");
 
-    /* Set up default patterns */
-    port->bkPat = qd.white;
-    port->fillPat = qd.black;
-    port->pnPat = qd.black;
+    /* Set up default patterns - use memcpy for Pattern which is 8 bytes */
+    memcpy(&port->bkPat, &qd.white, sizeof(Pattern));
+    memcpy(&port->fillPat, &qd.black, sizeof(Pattern));
+    memcpy(&port->pnPat, &qd.black, sizeof(Pattern));
+    serial_puts("[QD] InitPort patterns done\n");
 
     /* Initialize pen */
+    serial_puts("[QD] InitPort pen\n");
     port->pnLoc.h = 0;
     port->pnLoc.v = 0;
     port->pnSize.h = 1;
@@ -236,6 +280,7 @@ void InitPort(GrafPtr port) {
     port->rgnSave = NULL;
     port->polySave = NULL;
     port->grafProcs = NULL;
+    serial_puts("[QD] InitPort done\n");
 }
 
 void OpenPort(GrafPtr port) {

@@ -86,41 +86,59 @@ extern uint32_t fb_height;
  * Initialize startup screen system
  */
 OSErr InitStartupScreen(const StartupScreenConfig* config) {
+    extern void serial_puts(const char*);
+    serial_puts("[STARTUP] InitStartupScreen enter\n");
     OSErr err = noErr;
 
     if (gStartupScreen.initialized) {
+        serial_puts("[STARTUP] Already initialized\n");
         return noErr;
     }
+    serial_puts("[STARTUP] Config\n");
 
     /* Copy configuration */
     if (config) {
-        gConfig = *config;
+        /* Use memcpy to avoid struct assignment issues on ARM64 */
+        memcpy(&gConfig, config, sizeof(StartupScreenConfig));
     }
+    serial_puts("[STARTUP] Screen bounds\n");
 
     /* Determine screen bounds */
     short screenWidth = 0;
     short screenHeight = 0;
+    serial_puts("[STARTUP] GetMainDevice\n");
     GDHandle mainDevice = GetMainDevice();
+    serial_puts("[STARTUP] GetMainDevice done\n");
 
+    serial_puts("[STARTUP] fb check\n");
     if (fb_width > 0 && fb_height > 0) {
+        serial_puts("[STARTUP] Using fb dimensions\n");
         screenWidth = (fb_width > 32767U) ? 32767 : (short)fb_width;
         screenHeight = (fb_height > 32767U) ? 32767 : (short)fb_height;
         SetRect(&gStartupScreen.screenBounds, 0, 0, screenWidth, screenHeight);
     } else if (mainDevice) {
-        gStartupScreen.screenBounds = (**mainDevice).gdRect;
+        serial_puts("[STARTUP] Using mainDevice\n");
+        /* Use explicit field copy to avoid struct assignment on ARM64 */
+        gStartupScreen.screenBounds.top = (**mainDevice).gdRect.top;
+        gStartupScreen.screenBounds.left = (**mainDevice).gdRect.left;
+        gStartupScreen.screenBounds.bottom = (**mainDevice).gdRect.bottom;
+        gStartupScreen.screenBounds.right = (**mainDevice).gdRect.right;
         screenWidth = gStartupScreen.screenBounds.right - gStartupScreen.screenBounds.left;
         screenHeight = gStartupScreen.screenBounds.bottom - gStartupScreen.screenBounds.top;
     } else {
+        serial_puts("[STARTUP] Using defaults\n");
         screenWidth = 640;
         screenHeight = 480;
         SetRect(&gStartupScreen.screenBounds, 0, 0, screenWidth, screenHeight);
     }
+    serial_puts("[STARTUP] Bounds set\n");
 
     if (screenWidth <= 0 || screenHeight <= 0) {
         screenWidth = 640;
         screenHeight = 480;
         SetRect(&gStartupScreen.screenBounds, 0, 0, screenWidth, screenHeight);
     }
+    serial_puts("[STARTUP] SetRects\n");
 
     /* Logo rect (left side, centered vertically in upper portion) */
     SetRect(&gStartupScreen.logoRect,
@@ -128,6 +146,7 @@ OSErr InitStartupScreen(const StartupScreenConfig* config) {
             screenHeight / 4 - LOGO_SIZE / 2,
             60 + LOGO_SIZE,
             screenHeight / 4 + LOGO_SIZE / 2);
+    serial_puts("[STARTUP] logoRect done\n");
 
     /* Text rect (right side, aligned with logo vertically) */
     SetRect(&gStartupScreen.textRect,
@@ -135,6 +154,7 @@ OSErr InitStartupScreen(const StartupScreenConfig* config) {
             screenHeight / 4 - 20,  /* Vertically aligned with logo */
             screenWidth - STARTUP_MARGIN - 40,
             screenHeight / 4 + 20);
+    serial_puts("[STARTUP] textRect done\n");
 
     /* Extension rect (middle third) */
     SetRect(&gStartupScreen.extensionRect,
@@ -149,22 +169,33 @@ OSErr InitStartupScreen(const StartupScreenConfig* config) {
             screenHeight - 80,
             (screenWidth + PROGRESS_BAR_WIDTH) / 2,
             screenHeight - 60);
+    serial_puts("[STARTUP] progressRect done\n");
 
     /* Create startup window */
+    serial_puts("[STARTUP] CreateStartupWindow\n");
     err = CreateStartupWindow();
+    serial_puts("[STARTUP] CreateStartupWindow done\n");
     if (err != noErr) {
+        serial_puts("[STARTUP] CreateStartupWindow FAILED\n");
         return err;
     }
 
     /* Create offscreen bitmap for smooth drawing */
+    serial_puts("[STARTUP] Offscreen bitmap\n");
     Size bitmapSize = (screenWidth * screenHeight) / 8;
     gStartupScreen.offscreenBitmap.baseAddr = NewPtr(bitmapSize);
     if (!gStartupScreen.offscreenBitmap.baseAddr) {
+        serial_puts("[STARTUP] Offscreen alloc FAILED\n");
         return memFullErr;
     }
 
     gStartupScreen.offscreenBitmap.rowBytes = (screenWidth + 7) / 8;
-    gStartupScreen.offscreenBitmap.bounds = gStartupScreen.screenBounds;
+    /* Explicit bounds copy to avoid struct assignment on ARM64 */
+    gStartupScreen.offscreenBitmap.bounds.top = gStartupScreen.screenBounds.top;
+    gStartupScreen.offscreenBitmap.bounds.left = gStartupScreen.screenBounds.left;
+    gStartupScreen.offscreenBitmap.bounds.bottom = gStartupScreen.screenBounds.bottom;
+    gStartupScreen.offscreenBitmap.bounds.right = gStartupScreen.screenBounds.right;
+    serial_puts("[STARTUP] Offscreen done\n");
 
     gStartupScreen.initialized = true;
     gStartupScreen.currentPhase = kStartupPhaseInit;

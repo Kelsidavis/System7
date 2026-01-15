@@ -149,7 +149,11 @@ Boolean Platform_InitializePort(GrafPtr port) {
     /* Set PixMap flag (bit 15) to indicate 32-bit PixMap, not 1-bit BitMap */
     port->portBits.rowBytes = (fb_width * 4) | 0x8000;
     SetRect(&port->portBits.bounds, 0, 0, fb_width, fb_height);
-    port->portRect = port->portBits.bounds;
+    /* Explicit portRect assignment to avoid struct copy on ARM64 */
+    port->portRect.top = port->portBits.bounds.top;
+    port->portRect.left = port->portBits.bounds.left;
+    port->portRect.bottom = port->portBits.bounds.bottom;
+    port->portRect.right = port->portBits.bounds.right;
 
     /* Initialize regions */
     if (!port->clipRgn) {
@@ -161,16 +165,16 @@ Boolean Platform_InitializePort(GrafPtr port) {
     RectRgn(port->clipRgn, &port->portRect);
     RectRgn(port->visRgn, &port->portRect);
 
-    /* Initialize patterns */
+    /* Initialize patterns - use memcpy to avoid struct assignment */
     extern QDGlobals qd;
-    port->bkPat = qd.white;
-    port->fillPat = qd.black;
+    memcpy(&port->bkPat, &qd.white, sizeof(Pattern));
+    memcpy(&port->fillPat, &qd.black, sizeof(Pattern));
     port->pnLoc.h = 0;
     port->pnLoc.v = 0;
     port->pnSize.h = 1;
     port->pnSize.v = 1;
     port->pnMode = 8; /* patCopy */
-    port->pnPat = qd.black;
+    memcpy(&port->pnPat, &qd.black, sizeof(Pattern));
     port->pnVis = 0;
     return false;
 }

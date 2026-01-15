@@ -61,49 +61,52 @@ extern uint32_t fb_pitch;
  */
 OSErr MenuBitsPool_Init(SInt16 numBuffers, SInt32 bufferSize) {
     extern void serial_printf(const char* fmt, ...);
+    extern void serial_puts(const char*);
+    serial_puts("[MBPOOL] MenuBitsPool_Init enter\n");
 
     if (gMenuBitsPool.initialized) {
-        serial_printf("[MBPOOL] Pool already initialized\n");
+        serial_puts("[MBPOOL] Already initialized\n");
         return noErr;
     }
+    serial_puts("[MBPOOL] Param check\n");
 
     if (numBuffers <= 0 || bufferSize <= 0) {
-        serial_printf("[MBPOOL] Invalid pool parameters: %d buffers, %d bytes each\n",
-                     numBuffers, bufferSize);
+        serial_puts("[MBPOOL] Invalid params\n");
         return paramErr;
     }
 
     /* Validate parameters to prevent integer overflow */
     if (numBuffers > 1000 || bufferSize > 1024 * 1024) {
-        serial_printf("[MBPOOL] Pool parameters too large: %d buffers, %d bytes each\n",
-                     numBuffers, bufferSize);
+        serial_puts("[MBPOOL] Params too large\n");
         return paramErr;
     }
-
-    serial_printf("[MBPOOL] Initializing pool: %d buffers × %d bytes = %d KB total\n",
-                 numBuffers, bufferSize, (numBuffers * bufferSize) / 1024);
+    serial_puts("[MBPOOL] Params OK\n");
 
     /* Check for integer overflow in allocation size */
     if (numBuffers > SIZE_MAX / sizeof(PoolEntry)) {
-        serial_printf("[MBPOOL] Integer overflow in pool entries allocation\n");
+        serial_puts("[MBPOOL] Overflow\n");
         return memFullErr;
     }
+    serial_puts("[MBPOOL] NewPtr entries\n");
 
     /* Allocate pool entry array */
     gMenuBitsPool.entries = (PoolEntry*)NewPtr(numBuffers * sizeof(PoolEntry));
+    serial_puts("[MBPOOL] NewPtr entries done\n");
     if (!gMenuBitsPool.entries) {
-        serial_printf("[MBPOOL] Failed to allocate pool entries array\n");
+        serial_puts("[MBPOOL] entries alloc failed\n");
         return memFullErr;
     }
+    serial_puts("[MBPOOL] Starting buffer loop\n");
 
     /* Initialize each pool entry */
     for (SInt16 i = 0; i < numBuffers; i++) {
+        serial_puts("[MBPOOL] Buffer alloc\n");
         PoolEntry* entry = &gMenuBitsPool.entries[i];
 
         /* Allocate pixel buffer */
         entry->pixelBuffer = (void*)NewPtr(bufferSize);
         if (!entry->pixelBuffer) {
-            serial_printf("[MBPOOL] Failed to allocate buffer %d\n", i);
+            serial_puts("[MBPOOL] Buffer alloc failed\n");
 
             /* Free previously allocated buffers */
             for (SInt16 j = 0; j < i; j++) {
@@ -114,19 +117,18 @@ OSErr MenuBitsPool_Init(SInt16 numBuffers, SInt32 bufferSize) {
 
             return memFullErr;
         }
+        serial_puts("[MBPOOL] Buffer OK\n");
 
         /* Initialize entry */
         entry->inUse = false;
         entry->owningHandle = NULL;
-
-        serial_printf("[MBPOOL] Buffer %d allocated: %p\n", i, entry->pixelBuffer);
     }
 
     gMenuBitsPool.numEntries = numBuffers;
     gMenuBitsPool.bufferSize = bufferSize;
     gMenuBitsPool.initialized = true;
 
-    serial_printf("[MBPOOL] Pool initialized successfully\n");
+    serial_puts("[MBPOOL] Pool done\n");
     return noErr;
 }
 

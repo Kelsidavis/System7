@@ -208,14 +208,21 @@ static bool virtio_gpu_send_cmd(void *cmd, size_t cmd_len, void *resp, size_t re
     }
 
     if (timeout <= 0) {
+        uart_puts("[VIRTIO-GPU] send_cmd timeout\n");
         return false;
     }
 
     /* Check response */
     struct virtio_gpu_ctrl_hdr *resp_hdr = (struct virtio_gpu_ctrl_hdr *)resp;
     used_idx++;
-    return (resp_hdr->type == VIRTIO_GPU_RESP_OK_NODATA ||
-            resp_hdr->type == VIRTIO_GPU_RESP_OK_DISPLAY_INFO);
+    if (resp_hdr->type != VIRTIO_GPU_RESP_OK_NODATA &&
+        resp_hdr->type != VIRTIO_GPU_RESP_OK_DISPLAY_INFO) {
+        uart_puts("[VIRTIO-GPU] send_cmd bad response: 0x");
+        print_hex(resp_hdr->type);
+        uart_puts("\n");
+        return false;
+    }
+    return true;
 }
 
 /* Initialize using PCI transport */
