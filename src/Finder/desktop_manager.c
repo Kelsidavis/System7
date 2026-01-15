@@ -484,7 +484,12 @@ static void Finder_DeskHook(RgnHandle invalidRgn)
     /* Clip to the invalid region */
     RgnHandle desktopClip = NewRgn();
     if (desktopClip) {
-        Rect desktopRect = qd.screenBits.bounds;
+        /* CRITICAL FIX: Explicit field copy instead of struct assignment for ARM64 */
+        Rect desktopRect;
+        desktopRect.top = qd.screenBits.bounds.top;
+        desktopRect.left = qd.screenBits.bounds.left;
+        desktopRect.bottom = qd.screenBits.bounds.bottom;
+        desktopRect.right = qd.screenBits.bounds.right;
         desktopRect.top = 20;  /* Exclude menu bar */
         RectRgn(desktopClip, &desktopRect);
         if (invalidRgn) {
@@ -504,7 +509,12 @@ static void Finder_DeskHook(RgnHandle invalidRgn)
         } else if (desktopClip) {
             CopyRgn(desktopClip, paintRgn);
         } else {
-            Rect screenRect = qd.screenBits.bounds;
+            /* CRITICAL FIX: Explicit field copy instead of struct assignment for ARM64 */
+            Rect screenRect;
+            screenRect.top = qd.screenBits.bounds.top;
+            screenRect.left = qd.screenBits.bounds.left;
+            screenRect.bottom = qd.screenBits.bounds.bottom;
+            screenRect.right = qd.screenBits.bounds.right;
             RectRgn(paintRgn, &screenRect);
         }
 
@@ -648,7 +658,12 @@ void DrawDesktop(void)
         gInDesktopPaint = false;
         return;
     }
-    Rect desktopRect = qd.screenBits.bounds;
+    /* CRITICAL FIX: Explicit field copy instead of struct assignment for ARM64 */
+    Rect desktopRect;
+    desktopRect.top = qd.screenBits.bounds.top;
+    desktopRect.left = qd.screenBits.bounds.left;
+    desktopRect.bottom = qd.screenBits.bounds.bottom;
+    desktopRect.right = qd.screenBits.bounds.right;
     desktopRect.top = 20;  /* Start below menu bar */
     RectRgn(desktopRgn, &desktopRect);
 
