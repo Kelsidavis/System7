@@ -557,7 +557,6 @@ void DrawMenuBar(void)
                     short menuWidth = 0;
                     /* Use explicit memset to avoid ARM64 aggregate init hang */
                     char titleText[256];
-                    extern void* memset(void*, int, unsigned long);
                     memset(titleText, 0, 256);
                     serial_puts("DrawMenuBar: check menuID\n");
                     uart_flush();

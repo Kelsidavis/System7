@@ -182,23 +182,33 @@ struct input_virtqueue {
     struct input_virtq_used used;
 } __attribute__((aligned(4096)));
 
+/* Support up to 4 input devices (keyboard, mouse, tablet, etc.) */
+#define MAX_INPUT_DEVICES 4
+
+/* Per-device state */
+struct input_device {
+    bool active;
+    bool use_pci;
+    virtio_pci_device_t pci_dev;
+    volatile uint32_t *mmio_base;
+    struct input_virtqueue eventq __attribute__((aligned(4096)));
+    struct virtio_input_event event_buffers[64] __attribute__((aligned(16)));
+    uint16_t avail_idx;
+    uint16_t used_idx;
+};
+
 /* Driver state */
-static bool use_pci = false;
-static virtio_pci_device_t pci_dev;
-static volatile uint32_t *virtio_input_base = NULL;
-static struct input_virtqueue eventq __attribute__((aligned(4096)));
-static struct virtio_input_event event_buffers[64] __attribute__((aligned(16)));
+static struct input_device devices[MAX_INPUT_DEVICES];
+static int num_devices = 0;
 static bool input_initialized = false;
-static uint16_t avail_idx = 0;
-static uint16_t used_idx = 0;
 
 /* Input state - exported for hal_input.c */
 extern Point g_mousePos;
 extern uint8_t g_mouseState;
 
-/* Mouse bounds */
-#define MOUSE_MAX_X     319
-#define MOUSE_MAX_Y     239
+/* Mouse bounds - match GPU framebuffer resolution */
+#define MOUSE_MAX_X     639
+#define MOUSE_MAX_Y     479
 
 /* Modifier keys state */
 static uint16_t modifier_state = 0;
@@ -219,42 +229,42 @@ static struct {
 static volatile int key_queue_head = 0;
 static volatile int key_queue_tail = 0;
 
-/* Helper to read MMIO register */
-static inline uint32_t virtio_read32(uint32_t offset) {
-    return *(volatile uint32_t *)((uintptr_t)virtio_input_base + offset);
+/* Helper to read MMIO register for a device */
+static inline uint32_t mmio_read32(struct input_device *dev, uint32_t offset) {
+    return *(volatile uint32_t *)((uintptr_t)dev->mmio_base + offset);
 }
 
-/* Helper to write MMIO register */
-static inline void virtio_write32(uint32_t offset, uint32_t value) {
-    *(volatile uint32_t *)((uintptr_t)virtio_input_base + offset) = value;
+/* Helper to write MMIO register for a device */
+static inline void mmio_write32(struct input_device *dev, uint32_t offset, uint32_t value) {
+    *(volatile uint32_t *)((uintptr_t)dev->mmio_base + offset) = value;
 }
 
 /* Notify the device about queue updates */
-static void notify_queue(uint16_t queue_idx) {
-    if (use_pci) {
-        virtio_pci_notify_queue(&pci_dev, queue_idx);
+static void notify_queue_dev(struct input_device *dev, uint16_t queue_idx) {
+    if (dev->use_pci) {
+        virtio_pci_notify_queue(&dev->pci_dev, queue_idx);
     } else {
-        virtio_write32(VIRTIO_MMIO_QUEUE_NOTIFY, queue_idx);
+        *(volatile uint32_t *)((uintptr_t)dev->mmio_base + VIRTIO_MMIO_QUEUE_NOTIFY) = queue_idx;
     }
 }
 
-/* Add buffer to available ring */
-static void virtio_input_add_buffer(uint16_t desc_idx) {
-    eventq.avail.ring[avail_idx % 64] = desc_idx;
+/* Add buffer to available ring for a device */
+static void virtio_input_add_buffer_dev(struct input_device *dev, uint16_t desc_idx) {
+    dev->eventq.avail.ring[dev->avail_idx % 64] = desc_idx;
     __sync_synchronize();
-    eventq.avail.idx = ++avail_idx;
+    dev->eventq.avail.idx = ++dev->avail_idx;
     __sync_synchronize();
-    notify_queue(0);
+    notify_queue_dev(dev, 0);
 }
 
-/* Initialize all event buffers */
-static void virtio_input_setup_buffers(void) {
+/* Initialize all event buffers for a device */
+static void virtio_input_setup_buffers_dev(struct input_device *dev) {
     for (int i = 0; i < 64; i++) {
-        eventq.desc[i].addr = (uint64_t)(uintptr_t)&event_buffers[i];
-        eventq.desc[i].len = sizeof(struct virtio_input_event);
-        eventq.desc[i].flags = VIRTQ_DESC_F_WRITE;
-        eventq.desc[i].next = 0;
-        virtio_input_add_buffer(i);
+        dev->eventq.desc[i].addr = (uint64_t)(uintptr_t)&dev->event_buffers[i];
+        dev->eventq.desc[i].len = sizeof(struct virtio_input_event);
+        dev->eventq.desc[i].flags = VIRTQ_DESC_F_WRITE;
+        dev->eventq.desc[i].next = 0;
+        virtio_input_add_buffer_dev(dev, i);
     }
 }
 
@@ -322,8 +332,23 @@ static uint8_t linux_to_mac_keycode(uint16_t linux_code) {
     }
 }
 
+/* Debug counter */
+static int event_count = 0;
+
 /* Process a single input event */
 static void virtio_input_process_event(struct virtio_input_event *evt) {
+    /* Debug: print first few events */
+    if (event_count < 10) {
+        uart_puts("[INPUT] evt type=");
+        uart_putc('0' + (evt->type % 10));
+        uart_puts(" code=");
+        uart_putc('0' + ((evt->code / 100) % 10));
+        uart_putc('0' + ((evt->code / 10) % 10));
+        uart_putc('0' + (evt->code % 10));
+        uart_puts("\n");
+        event_count++;
+    }
+
     switch (evt->type) {
         case EV_REL:
             /* Relative mouse movement */
@@ -425,134 +450,186 @@ static void virtio_input_process_event(struct virtio_input_event *evt) {
     }
 }
 
-/* Initialize using PCI transport */
+/* Initialize using PCI transport - finds ALL input devices */
 static bool init_pci_transport(void) {
     uart_puts("[VIRTIO-INPUT] Trying PCI transport...\n");
 
-    /* Scan for VirtIO Input on PCI */
-    if (!virtio_pci_find_device(VIRTIO_DEV_INPUT, &pci_dev)) {
-        uart_puts("[VIRTIO-INPUT] No PCI input device found\n");
-        return false;
+    uint8_t start_slot = 0;
+    int found = 0;
+
+    /* Find all input devices on PCI bus */
+    while (num_devices < MAX_INPUT_DEVICES) {
+        struct input_device *dev = &devices[num_devices];
+
+        /* Find next input device starting from last slot + 1 */
+        if (!virtio_pci_find_device_from(VIRTIO_DEV_INPUT, &dev->pci_dev, start_slot)) {
+            break;  /* No more input devices */
+        }
+
+        uart_puts("[VIRTIO-INPUT] Found PCI input device at slot ");
+        uart_putc('0' + dev->pci_dev.device);
+        uart_puts("\n");
+
+        /* Initialize device with no special features */
+        if (!virtio_pci_init_device(&dev->pci_dev, 0)) {
+            uart_puts("[VIRTIO-INPUT] PCI device init failed, skipping\n");
+            start_slot = dev->pci_dev.device + 1;
+            continue;
+        }
+
+        /* Setup event queue (queue 0) */
+        if (!virtio_pci_setup_queue(&dev->pci_dev, 0,
+                                    dev->eventq.desc,
+                                    (struct virtq_avail *)&dev->eventq.avail,
+                                    (struct virtq_used *)&dev->eventq.used,
+                                    64)) {
+            uart_puts("[VIRTIO-INPUT] Queue setup failed, skipping\n");
+            start_slot = dev->pci_dev.device + 1;
+            continue;
+        }
+
+        /* Mark device ready */
+        virtio_pci_device_ready(&dev->pci_dev);
+
+        dev->active = true;
+        dev->use_pci = true;
+        dev->avail_idx = 0;
+        dev->used_idx = 0;
+
+        /* Setup event buffers for this device */
+        virtio_input_setup_buffers_dev(dev);
+
+        num_devices++;
+        found++;
+
+        /* Continue searching from next slot */
+        start_slot = dev->pci_dev.device + 1;
     }
 
-    uart_puts("[VIRTIO-INPUT] Found PCI input device\n");
+    uart_puts("[VIRTIO-INPUT] Initialized ");
+    uart_putc('0' + found);
+    uart_puts(" PCI input device(s)\n");
 
-    /* Initialize device with no special features */
-    if (!virtio_pci_init_device(&pci_dev, 0)) {
-        uart_puts("[VIRTIO-INPUT] PCI device init failed\n");
-        return false;
-    }
-
-    /* Setup event queue (queue 0) */
-    if (!virtio_pci_setup_queue(&pci_dev, 0,
-                                eventq.desc,
-                                (struct virtq_avail *)&eventq.avail,
-                                (struct virtq_used *)&eventq.used,
-                                64)) {
-        uart_puts("[VIRTIO-INPUT] Queue setup failed\n");
-        return false;
-    }
-
-    /* Mark device ready */
-    virtio_pci_device_ready(&pci_dev);
-
-    use_pci = true;
-    return true;
+    return found > 0;
 }
 
-/* Initialize using MMIO transport */
-static bool init_mmio_transport(void) {
-    uint32_t magic, version, device_id;
-
-    uart_puts("[VIRTIO-INPUT] Trying MMIO transport...\n");
-
-    /* Scan all 32 MMIO slots for input device */
-    for (int slot = 0; slot < 32; slot++) {
-        uintptr_t base = VIRTIO_MMIO_BASE_START + (slot * VIRTIO_MMIO_SLOT_SIZE);
-        virtio_input_base = (volatile uint32_t *)base;
-
-        magic = virtio_read32(VIRTIO_MMIO_MAGIC);
-        if (magic != 0x74726976) continue;
-
-        device_id = virtio_read32(VIRTIO_MMIO_DEVICE_ID);
-
-        if (device_id == VIRTIO_ID_INPUT) {
-            uart_puts("[VIRTIO-INPUT] Found MMIO input device at slot ");
-            if (slot < 10) {
-                uart_putc('0' + slot);
-            } else {
-                uart_putc('0' + (slot / 10));
-                uart_putc('0' + (slot % 10));
-            }
-            uart_puts("\n");
-            break;
-        }
-    }
-
-    if (virtio_read32(VIRTIO_MMIO_DEVICE_ID) != VIRTIO_ID_INPUT) {
-        uart_puts("[VIRTIO-INPUT] No MMIO input device found\n");
-        virtio_input_base = NULL;
-        return false;
-    }
+/* Initialize a single MMIO device */
+static bool init_mmio_device(struct input_device *dev) {
+    uint32_t version;
 
     /* Check version */
-    version = virtio_read32(VIRTIO_MMIO_VERSION);
+    version = mmio_read32(dev, VIRTIO_MMIO_VERSION);
     if (version != 1 && version != 2) {
-        uart_puts("[VIRTIO-INPUT] Unsupported version\n");
+        uart_puts("[VIRTIO-INPUT] Unsupported MMIO version\n");
         return false;
     }
 
     /* Reset device */
-    virtio_write32(VIRTIO_MMIO_STATUS, 0);
+    mmio_write32(dev, VIRTIO_MMIO_STATUS, 0);
 
     /* Acknowledge device */
-    virtio_write32(VIRTIO_MMIO_STATUS, VIRTIO_STATUS_ACKNOWLEDGE);
+    mmio_write32(dev, VIRTIO_MMIO_STATUS, VIRTIO_STATUS_ACKNOWLEDGE);
 
     /* Set driver status */
-    virtio_write32(VIRTIO_MMIO_STATUS,
-                   VIRTIO_STATUS_ACKNOWLEDGE | VIRTIO_STATUS_DRIVER);
+    mmio_write32(dev, VIRTIO_MMIO_STATUS,
+                 VIRTIO_STATUS_ACKNOWLEDGE | VIRTIO_STATUS_DRIVER);
 
     /* Read and accept features (none needed for basic input) */
-    virtio_read32(VIRTIO_MMIO_DEVICE_FEATURES);
-    virtio_write32(VIRTIO_MMIO_DRIVER_FEATURES, 0);
+    mmio_read32(dev, VIRTIO_MMIO_DEVICE_FEATURES);
+    mmio_write32(dev, VIRTIO_MMIO_DRIVER_FEATURES, 0);
 
     /* Features OK */
-    virtio_write32(VIRTIO_MMIO_STATUS,
-                   VIRTIO_STATUS_ACKNOWLEDGE | VIRTIO_STATUS_DRIVER |
-                   VIRTIO_STATUS_FEATURES_OK);
+    mmio_write32(dev, VIRTIO_MMIO_STATUS,
+                 VIRTIO_STATUS_ACKNOWLEDGE | VIRTIO_STATUS_DRIVER |
+                 VIRTIO_STATUS_FEATURES_OK);
 
     /* Setup event queue (queue 0) */
-    virtio_write32(VIRTIO_MMIO_QUEUE_SEL, 0);
+    mmio_write32(dev, VIRTIO_MMIO_QUEUE_SEL, 0);
 
-    uint32_t max_queue_size = virtio_read32(VIRTIO_MMIO_QUEUE_NUM_MAX);
+    uint32_t max_queue_size = mmio_read32(dev, VIRTIO_MMIO_QUEUE_NUM_MAX);
     if (max_queue_size < 64) {
         uart_puts("[VIRTIO-INPUT] Queue too small\n");
         return false;
     }
 
-    virtio_write32(VIRTIO_MMIO_QUEUE_NUM, 64);
+    mmio_write32(dev, VIRTIO_MMIO_QUEUE_NUM, 64);
 
     /* Set queue addresses */
-    uint64_t desc_addr = (uint64_t)(uintptr_t)&eventq.desc;
-    uint64_t avail_addr = (uint64_t)(uintptr_t)&eventq.avail;
-    uint64_t used_addr = (uint64_t)(uintptr_t)&eventq.used;
+    uint64_t desc_addr = (uint64_t)(uintptr_t)&dev->eventq.desc;
+    uint64_t avail_addr = (uint64_t)(uintptr_t)&dev->eventq.avail;
+    uint64_t used_addr = (uint64_t)(uintptr_t)&dev->eventq.used;
 
-    virtio_write32(VIRTIO_MMIO_QUEUE_DESC_LOW, desc_addr & 0xFFFFFFFF);
-    virtio_write32(VIRTIO_MMIO_QUEUE_DESC_HIGH, desc_addr >> 32);
-    virtio_write32(VIRTIO_MMIO_QUEUE_AVAIL_LOW, avail_addr & 0xFFFFFFFF);
-    virtio_write32(VIRTIO_MMIO_QUEUE_AVAIL_HIGH, avail_addr >> 32);
-    virtio_write32(VIRTIO_MMIO_QUEUE_USED_LOW, used_addr & 0xFFFFFFFF);
-    virtio_write32(VIRTIO_MMIO_QUEUE_USED_HIGH, used_addr >> 32);
+    mmio_write32(dev, VIRTIO_MMIO_QUEUE_DESC_LOW, desc_addr & 0xFFFFFFFF);
+    mmio_write32(dev, VIRTIO_MMIO_QUEUE_DESC_HIGH, desc_addr >> 32);
+    mmio_write32(dev, VIRTIO_MMIO_QUEUE_AVAIL_LOW, avail_addr & 0xFFFFFFFF);
+    mmio_write32(dev, VIRTIO_MMIO_QUEUE_AVAIL_HIGH, avail_addr >> 32);
+    mmio_write32(dev, VIRTIO_MMIO_QUEUE_USED_LOW, used_addr & 0xFFFFFFFF);
+    mmio_write32(dev, VIRTIO_MMIO_QUEUE_USED_HIGH, used_addr >> 32);
 
-    virtio_write32(VIRTIO_MMIO_QUEUE_READY, 1);
+    mmio_write32(dev, VIRTIO_MMIO_QUEUE_READY, 1);
 
     /* Driver OK */
-    virtio_write32(VIRTIO_MMIO_STATUS,
-                   VIRTIO_STATUS_ACKNOWLEDGE | VIRTIO_STATUS_DRIVER |
-                   VIRTIO_STATUS_FEATURES_OK | VIRTIO_STATUS_DRIVER_OK);
+    mmio_write32(dev, VIRTIO_MMIO_STATUS,
+                 VIRTIO_STATUS_ACKNOWLEDGE | VIRTIO_STATUS_DRIVER |
+                 VIRTIO_STATUS_FEATURES_OK | VIRTIO_STATUS_DRIVER_OK);
 
-    use_pci = false;
     return true;
+}
+
+/* Initialize using MMIO transport - finds ALL input devices */
+static bool init_mmio_transport(void) {
+    uint32_t magic, device_id;
+    int found = 0;
+
+    uart_puts("[VIRTIO-INPUT] Trying MMIO transport...\n");
+
+    /* Scan all 32 MMIO slots for input devices */
+    for (int slot = 0; slot < 32 && num_devices < MAX_INPUT_DEVICES; slot++) {
+        uintptr_t base = VIRTIO_MMIO_BASE_START + (slot * VIRTIO_MMIO_SLOT_SIZE);
+        volatile uint32_t *mmio_base = (volatile uint32_t *)base;
+
+        magic = *(volatile uint32_t *)((uintptr_t)mmio_base + VIRTIO_MMIO_MAGIC);
+        if (magic != 0x74726976) continue;
+
+        device_id = *(volatile uint32_t *)((uintptr_t)mmio_base + VIRTIO_MMIO_DEVICE_ID);
+        if (device_id != VIRTIO_ID_INPUT) continue;
+
+        uart_puts("[VIRTIO-INPUT] Found MMIO input device at slot ");
+        if (slot < 10) {
+            uart_putc('0' + slot);
+        } else {
+            uart_putc('0' + (slot / 10));
+            uart_putc('0' + (slot % 10));
+        }
+        uart_puts("\n");
+
+        /* Setup device structure */
+        struct input_device *dev = &devices[num_devices];
+        dev->mmio_base = mmio_base;
+        dev->use_pci = false;
+        dev->avail_idx = 0;
+        dev->used_idx = 0;
+
+        /* Initialize the device */
+        if (!init_mmio_device(dev)) {
+            uart_puts("[VIRTIO-INPUT] MMIO device init failed, skipping\n");
+            continue;
+        }
+
+        dev->active = true;
+
+        /* Setup event buffers for this device */
+        virtio_input_setup_buffers_dev(dev);
+
+        num_devices++;
+        found++;
+    }
+
+    uart_puts("[VIRTIO-INPUT] Initialized ");
+    uart_putc('0' + found);
+    uart_puts(" MMIO input device(s)\n");
+
+    return found > 0;
 }
 
 /*
@@ -561,14 +638,17 @@ static bool init_mmio_transport(void) {
 bool virtio_input_init(void) {
     uart_puts("[VIRTIO-INPUT] Initializing...\n");
 
+    /* Clear device array */
+    for (int i = 0; i < MAX_INPUT_DEVICES; i++) {
+        devices[i].active = false;
+    }
+    num_devices = 0;
+
     /* Try PCI first, then MMIO */
     if (!init_pci_transport() && !init_mmio_transport()) {
         uart_puts("[VIRTIO-INPUT] No input device found on PCI or MMIO\n");
         return false;
     }
-
-    /* Setup event buffers */
-    virtio_input_setup_buffers();
 
     input_initialized = true;
     uart_puts("[VIRTIO-INPUT] Initialized successfully\n");
@@ -576,23 +656,37 @@ bool virtio_input_init(void) {
 }
 
 /*
- * Poll for input events
+ * Poll for input events from all devices
  */
 void virtio_input_poll(void) {
     if (!input_initialized) return;
 
-    /* Process all pending events */
-    while (eventq.used.idx != used_idx) {
-        uint16_t idx = used_idx % 64;
-        uint32_t desc_idx = eventq.used.ring[idx].id;
+    extern void dcache_invalidate_range(void *start, size_t length);
 
-        /* Process the event */
-        virtio_input_process_event(&event_buffers[desc_idx]);
+    /* Poll all active devices */
+    for (int d = 0; d < num_devices; d++) {
+        struct input_device *dev = &devices[d];
+        if (!dev->active) continue;
 
-        /* Re-add buffer to available ring */
-        virtio_input_add_buffer(desc_idx);
+        /* Invalidate cache to see DMA-written events */
+        dcache_invalidate_range((void*)&dev->eventq.used, sizeof(dev->eventq.used));
 
-        used_idx++;
+        /* Process all pending events for this device */
+        while (dev->eventq.used.idx != dev->used_idx) {
+            uint16_t idx = dev->used_idx % 64;
+            uint32_t desc_idx = dev->eventq.used.ring[idx].id;
+
+            /* Invalidate the event buffer to see DMA data */
+            dcache_invalidate_range(&dev->event_buffers[desc_idx], sizeof(struct virtio_input_event));
+
+            /* Process the event */
+            virtio_input_process_event(&dev->event_buffers[desc_idx]);
+
+            /* Re-add buffer to available ring */
+            virtio_input_add_buffer_dev(dev, desc_idx);
+
+            dev->used_idx++;
+        }
     }
 }
 

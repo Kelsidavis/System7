@@ -226,15 +226,6 @@ static uint64_t program_bar(uint8_t bus, uint8_t device, uint8_t func, uint8_t b
     /* Re-enable memory decoding */
     pci_config_write16(bus, device, func, PCI_COMMAND, cmd | PCI_COMMAND_MEMORY);
 
-    uart_puts("[VIRTIO-PCI] Programmed BAR");
-    print_dec(bar);
-    uart_puts(" = 0x");
-    print_hex32((uint32_t)(addr >> 32));
-    print_hex32((uint32_t)addr);
-    uart_puts(" size=0x");
-    print_hex32((uint32_t)size);
-    uart_puts("\n");
-
     return addr;
 }
 
@@ -248,7 +239,7 @@ static uint64_t get_bar_address(uint8_t bus, uint8_t device, uint8_t func, uint8
  * VirtIO devices are present to avoid memory mapping conflicts.
  */
 void virtio_pci_init_bus(void) {
-    uart_puts("[VIRTIO-PCI] Initializing PCI bus (programming all BARs)...\n");
+    uart_puts("[VIRTIO-PCI] Initializing PCI bus...\n");
 
     for (uint8_t device = 0; device < 32; device++) {
         uint16_t vendor = pci_config_read16(0, device, 0, PCI_VENDOR_ID);
@@ -321,9 +312,9 @@ bool virtio_pci_scan(void) {
     return found > 0;
 }
 
-/* Find and initialize a VirtIO PCI device */
-bool virtio_pci_find_device(uint16_t device_id, virtio_pci_device_t *dev) {
-    for (uint8_t slot = 0; slot < 32; slot++) {
+/* Find and initialize a VirtIO PCI device, starting from a specific slot */
+bool virtio_pci_find_device_from(uint16_t device_id, virtio_pci_device_t *dev, uint8_t start_slot) {
+    for (uint8_t slot = start_slot; slot < 32; slot++) {
         uint16_t vendor = pci_config_read16(0, slot, 0, PCI_VENDOR_ID);
 
         if (vendor != PCI_VENDOR_VIRTIO) continue;
@@ -425,6 +416,11 @@ bool virtio_pci_find_device(uint16_t device_id, virtio_pci_device_t *dev) {
     }
 
     return false;
+}
+
+/* Find and initialize a VirtIO PCI device (wrapper for backward compatibility) */
+bool virtio_pci_find_device(uint16_t device_id, virtio_pci_device_t *dev) {
+    return virtio_pci_find_device_from(device_id, dev, 0);
 }
 
 /* Initialize VirtIO device (reset and negotiate features) */

@@ -128,6 +128,7 @@ void pci_config_write32(uint8_t bus, uint8_t device, uint8_t func, uint16_t offs
 void virtio_pci_init_bus(void);  /* Must be called before find_device when multiple devices present */
 bool virtio_pci_scan(void);
 bool virtio_pci_find_device(uint16_t device_id, virtio_pci_device_t *dev);
+bool virtio_pci_find_device_from(uint16_t device_id, virtio_pci_device_t *dev, uint8_t start_slot);
 bool virtio_pci_init_device(virtio_pci_device_t *dev, uint64_t supported_features);
 bool virtio_pci_setup_queue(virtio_pci_device_t *dev, uint16_t queue_idx,
                             struct virtq_desc *desc, struct virtq_avail *avail,
