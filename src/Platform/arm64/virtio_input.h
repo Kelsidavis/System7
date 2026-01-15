@@ -28,4 +28,8 @@ bool virtio_input_get_key(uint8_t *keycode, uint8_t *modifiers, bool *pressed);
 /* Check if input device is initialized */
 bool virtio_input_is_initialized(void);
 
+/* Get current keyboard state bitmap (16 bytes = 128 bits)
+ * Each bit represents whether that Mac keycode is currently pressed */
+void virtio_input_get_keyboard_state(uint8_t *state);
+
 #endif /* VIRTIO_INPUT_H */

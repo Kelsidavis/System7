@@ -52,16 +52,22 @@ uint16_t GetPS2Modifiers(void) {
 /*
  * Get PS2 keyboard state
  * Fills keyMap with current keyboard state, returns true on success
+ * KeyMap is 128 bits (16 bytes) where each bit represents a Mac keycode
  */
 Boolean GetPS2KeyboardState(KeyMap keyMap) {
     if (!keyMap) {
         return false;
     }
-    /* Clear the keymap - no keys pressed by default */
+    /* Clear the keymap first */
     for (int i = 0; i < 4; i++) {
         ((uint32_t*)keyMap)[i] = 0;
     }
-    /* TODO: Fill with actual key state from virtio_input */
+#ifdef QEMU_BUILD
+    if (g_virtio_input_available) {
+        /* Get keyboard state from VirtIO input driver */
+        virtio_input_get_keyboard_state((uint8_t*)keyMap);
+    }
+#endif
     return true;
 }
 

@@ -230,6 +230,10 @@ static struct {
 static volatile int key_queue_head = 0;
 static volatile int key_queue_tail = 0;
 
+/* Keyboard state bitmap - 128 bits (16 bytes) for Mac keycodes 0-127 */
+/* Each bit represents whether that Mac keycode is currently pressed */
+static volatile uint8_t keyboard_state[16] = {0};
+
 /* Helper to read MMIO register for a device */
 static inline uint32_t mmio_read32(struct input_device *dev, uint32_t offset) {
     return *(volatile uint32_t *)((uintptr_t)dev->mmio_base + offset);
@@ -418,9 +422,19 @@ static void virtio_input_process_event(struct virtio_input_event *evt) {
                         else modifier_state &= ~MOD_META;
                         break;
                     default: {
-                        /* Regular key - queue it */
+                        /* Regular key - queue it and update state bitmap */
                         uint8_t mac_key = linux_to_mac_keycode(evt->code);
-                        if (mac_key != 0xFF) {
+                        if (mac_key != 0xFF && mac_key < 128) {
+                            /* Update keyboard state bitmap */
+                            uint8_t byte_idx = mac_key / 8;
+                            uint8_t bit_idx = mac_key % 8;
+                            if (pressed) {
+                                keyboard_state[byte_idx] |= (1 << bit_idx);
+                            } else {
+                                keyboard_state[byte_idx] &= ~(1 << bit_idx);
+                            }
+
+                            /* Queue the key event */
                             int next_head = (key_queue_head + 1) % KEY_QUEUE_SIZE;
                             if (next_head != key_queue_tail) {
                                 key_queue[key_queue_head].keycode = mac_key;
@@ -717,4 +731,17 @@ bool virtio_input_get_key(uint8_t *keycode, uint8_t *modifiers, bool *pressed) {
  */
 bool virtio_input_is_initialized(void) {
     return input_initialized;
+}
+
+/*
+ * Get current keyboard state bitmap
+ * Copies 16 bytes (128 bits) of key state to the provided buffer
+ * Each bit represents whether that Mac keycode is currently pressed
+ */
+void virtio_input_get_keyboard_state(uint8_t *state) {
+    if (state) {
+        for (int i = 0; i < 16; i++) {
+            state[i] = keyboard_state[i];
+        }
+    }
 }
