@@ -188,10 +188,10 @@ void mmu_enable(void) {
     uint64_t sctlr;
     __asm__ volatile("mrs %0, sctlr_el1" : "=r"(sctlr));
 
-    /* Enable MMU only, keep data cache OFF to avoid cache coherency issues */
+    /* Enable MMU and caches */
     sctlr |= (1 << 0);   /* M: MMU enable */
+    sctlr |= (1 << 2);   /* C: Data cache enable */
     sctlr |= (1 << 12);  /* I: Instruction cache enable */
-    /* Note: Data cache (C bit) kept disabled for now */
 
     /* Write back SCTLR_EL1 */
     __asm__ volatile("msr sctlr_el1, %0" :: "r"(sctlr));

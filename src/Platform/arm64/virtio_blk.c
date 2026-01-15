@@ -175,6 +175,10 @@ static void notify_queue(uint16_t queue_idx) {
     }
 }
 
+/* Cache maintenance functions */
+extern void dcache_clean_range(void *start, size_t length);
+extern void dcache_invalidate_range(void *start, size_t length);
+
 /* Send block request and wait for completion */
 static bool virtio_blk_request(uint32_t type, uint64_t sector, void *buffer, uint32_t count) {
     if (!blk_initialized) return false;
@@ -218,15 +222,33 @@ static bool virtio_blk_request(uint32_t type, uint64_t sector, void *buffer, uin
     requestq.avail.idx = ++avail_idx;
     __sync_synchronize();
 
+    /* Clean cache before notifying device */
+    dcache_clean_range(&req_header, sizeof(req_header));
+    dcache_clean_range(&requestq, sizeof(requestq));
+    if (type == VIRTIO_BLK_T_OUT) {
+        /* Write: device will read from buffer, clean it */
+        dcache_clean_range(buffer, count * SECTOR_SIZE);
+    }
+
     /* Notify device */
     notify_queue(0);
 
     /* Wait for completion */
     int timeout = 100000;
-    while (requestq.used.idx == used_idx && --timeout > 0) {
+    while (1) {
+        dcache_invalidate_range((void*)&requestq.used, sizeof(requestq.used));
+        if (requestq.used.idx != used_idx) break;
+        if (--timeout <= 0) break;
         __asm__ volatile("dsb sy" ::: "memory");
     }
     used_idx++;
+
+    /* Invalidate cache after device wrote data */
+    dcache_invalidate_range(&req_status, sizeof(req_status));
+    if (type == VIRTIO_BLK_T_IN) {
+        /* Read: device wrote to buffer, invalidate it */
+        dcache_invalidate_range(buffer, count * SECTOR_SIZE);
+    }
 
     return (req_status == VIRTIO_BLK_S_OK);
 }
