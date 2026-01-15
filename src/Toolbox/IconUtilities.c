@@ -18,6 +18,7 @@
 #include "QuickDraw/QuickDraw.h"
 #include "QuickDrawConstants.h"
 #include "ResourceManager.h"
+#include "MemoryMgr/MemoryManager.h"
 
 /* Icon alignment types */
 typedef enum {
@@ -474,7 +475,6 @@ OSErr GetIconSuite(Handle* theIconSuite, short theResID, IconSelectorValue selec
     /* Allocate icon suite structure
      * (Simplified - full implementation would load all icon variants)
      */
-    extern Handle NewHandle(Size byteCount);
     Handle suite = NewHandle(sizeof(Ptr) * 16);  /* Placeholder for icon pointers */
 
     if (suite == NULL) {

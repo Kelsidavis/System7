@@ -42,13 +42,17 @@ else
     exit 1
 fi
 
-# Check for 32-bit support
-if ! gcc -m32 -x c -c /dev/null -o /dev/null 2>/dev/null; then
-    echo -e "${YELLOW}⚠ GCC 32-bit support not available${NC}"
-    echo "  Install: sudo apt-get install gcc-multilib"
-    exit 1
+# Check for 32-bit support (skip for non-x86 platforms)
+if [ "${PLATFORM:-x86}" = "x86" ]; then
+    if ! gcc -m32 -x c -c /dev/null -o /dev/null 2>/dev/null; then
+        echo -e "${YELLOW}⚠ GCC 32-bit support not available${NC}"
+        echo "  Install: sudo apt-get install gcc-multilib"
+        exit 1
+    else
+        echo -e "${GREEN}✓ GCC 32-bit support available${NC}"
+    fi
 else
-    echo -e "${GREEN}✓ GCC 32-bit support available${NC}"
+    echo -e "${GREEN}✓ Skipping 32-bit check for ${PLATFORM} platform${NC}"
 fi
 
 # Check Python
