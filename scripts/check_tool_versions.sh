@@ -47,7 +47,7 @@ if [ "${PLATFORM:-x86}" = "x86" ]; then
     if ! gcc -m32 -x c -c /dev/null -o /dev/null 2>/dev/null; then
         echo -e "${YELLOW}⚠ GCC 32-bit support not available${NC}"
         echo "  Install: sudo apt-get install gcc-multilib"
-        exit 1
+        # Don't exit - allow build to proceed, will fail later if 32-bit is actually needed
     else
         echo -e "${GREEN}✓ GCC 32-bit support available${NC}"
     fi

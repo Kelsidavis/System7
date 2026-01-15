@@ -1726,7 +1726,6 @@ OSErr InitializeVolumeIcon(void)
         serial_puts("[IVI] set type - got item\n");
         uart_flush();
         /* CRITICAL FIX: Use memset to initialize the struct first to avoid ARM64 alignment issues */
-        extern void* memset(void*, int, unsigned long);
         memset(item, 0, sizeof(DesktopItem));
         serial_puts("[IVI] set type - memset done\n");
         uart_flush();

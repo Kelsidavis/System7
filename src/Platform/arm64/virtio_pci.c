@@ -125,9 +125,10 @@ void pci_config_write32(uint8_t bus, uint8_t device, uint8_t func, uint16_t offs
     *(volatile uint32_t *)addr = value;
 }
 
-/* Find VirtIO PCI capability */
+/* Find VirtIO PCI capability
+ * Returns capability pointer offset in out_cap_ptr if non-NULL */
 static bool find_virtio_cap(uint8_t bus, uint8_t device, uint8_t func,
-                            uint8_t cap_type, virtio_pci_cap_t *cap) {
+                            uint8_t cap_type, virtio_pci_cap_t *cap, uint8_t *out_cap_ptr) {
     uint8_t cap_ptr = pci_config_read8(bus, device, func, PCI_CAP_PTR);
 
     while (cap_ptr != 0) {
@@ -145,6 +146,7 @@ static bool find_virtio_cap(uint8_t bus, uint8_t device, uint8_t func,
                 cap->bar = pci_config_read8(bus, device, func, cap_ptr + 4);
                 cap->offset = pci_config_read32(bus, device, func, cap_ptr + 8);
                 cap->length = pci_config_read32(bus, device, func, cap_ptr + 12);
+                if (out_cap_ptr) *out_cap_ptr = cap_ptr;
                 return true;
             }
         }
@@ -241,6 +243,39 @@ static uint64_t get_bar_address(uint8_t bus, uint8_t device, uint8_t func, uint8
     return program_bar(bus, device, func, bar);
 }
 
+/* Initialize PCI bus - program BARs for all devices
+ * This MUST be called before virtio_pci_find_device() when multiple
+ * VirtIO devices are present to avoid memory mapping conflicts.
+ */
+void virtio_pci_init_bus(void) {
+    uart_puts("[VIRTIO-PCI] Initializing PCI bus (programming all BARs)...\n");
+
+    for (uint8_t device = 0; device < 32; device++) {
+        uint16_t vendor = pci_config_read16(0, device, 0, PCI_VENDOR_ID);
+
+        if (vendor == 0xFFFF) continue;
+
+        /* Program BARs 0-5 for this device */
+        for (uint8_t bar = 0; bar < 6; bar++) {
+            uint64_t addr = program_bar(0, device, 0, bar);
+            /* Skip next BAR if this was a 64-bit BAR */
+            if (addr != 0) {
+                uint32_t bar_val = pci_config_read32(0, device, 0, PCI_BAR0 + bar * 4);
+                if ((bar_val & 0x6) == 0x4) {
+                    bar++;  /* 64-bit BAR uses two slots */
+                }
+            }
+        }
+
+        /* Enable memory access and bus mastering */
+        uint16_t cmd = pci_config_read16(0, device, 0, PCI_COMMAND);
+        cmd |= PCI_COMMAND_MEMORY | PCI_COMMAND_MASTER;
+        pci_config_write16(0, device, 0, PCI_COMMAND, cmd);
+    }
+
+    uart_puts("[VIRTIO-PCI] PCI bus initialization complete\n");
+}
+
 /* Scan PCI bus for VirtIO devices */
 bool virtio_pci_scan(void) {
     uart_puts("[VIRTIO-PCI] Scanning PCI bus...\n");
@@ -326,8 +361,9 @@ bool virtio_pci_find_device(uint16_t device_id, virtio_pci_device_t *dev) {
 
         /* Find VirtIO capabilities */
         virtio_pci_cap_t cap;
+        uint8_t notify_cap_ptr = 0;
 
-        if (find_virtio_cap(0, slot, 0, VIRTIO_PCI_CAP_COMMON_CFG, &cap)) {
+        if (find_virtio_cap(0, slot, 0, VIRTIO_PCI_CAP_COMMON_CFG, &cap, NULL)) {
             dev->common_cfg_bar = cap.bar;
             dev->common_cfg_offset = cap.offset;
             dev->common_cfg = (volatile virtio_pci_common_cfg_t *)
@@ -342,27 +378,28 @@ bool virtio_pci_find_device(uint16_t device_id, virtio_pci_device_t *dev) {
             return false;
         }
 
-        if (find_virtio_cap(0, slot, 0, VIRTIO_PCI_CAP_NOTIFY_CFG, &cap)) {
+        if (find_virtio_cap(0, slot, 0, VIRTIO_PCI_CAP_NOTIFY_CFG, &cap, &notify_cap_ptr)) {
             dev->notify_bar = cap.bar;
             dev->notify_offset = cap.offset;
-            /* Read notify_off_multiplier from capability */
-            dev->notify_off_multiplier = pci_config_read32(0, slot, 0,
-                pci_config_read8(0, slot, 0, PCI_CAP_PTR) + 16);
+            /* Read notify_off_multiplier from the NOTIFY capability at offset 16 */
+            dev->notify_off_multiplier = pci_config_read32(0, slot, 0, notify_cap_ptr + 16);
             dev->notify_base = (volatile uint16_t *)
                 (get_bar_address(0, slot, 0, cap.bar) + cap.offset);
             uart_puts("[VIRTIO-PCI] Notify at BAR");
             print_dec(cap.bar);
             uart_puts(" + 0x");
             print_hex32(cap.offset);
+            uart_puts(" multiplier=");
+            print_dec(dev->notify_off_multiplier);
             uart_puts("\n");
         }
 
-        if (find_virtio_cap(0, slot, 0, VIRTIO_PCI_CAP_ISR_CFG, &cap)) {
+        if (find_virtio_cap(0, slot, 0, VIRTIO_PCI_CAP_ISR_CFG, &cap, NULL)) {
             dev->isr = (volatile uint8_t *)
                 (get_bar_address(0, slot, 0, cap.bar) + cap.offset);
         }
 
-        if (find_virtio_cap(0, slot, 0, VIRTIO_PCI_CAP_DEVICE_CFG, &cap)) {
+        if (find_virtio_cap(0, slot, 0, VIRTIO_PCI_CAP_DEVICE_CFG, &cap, NULL)) {
             dev->device_cfg_bar = cap.bar;
             dev->device_cfg_offset = cap.offset;
             dev->device_cfg = (volatile void *)

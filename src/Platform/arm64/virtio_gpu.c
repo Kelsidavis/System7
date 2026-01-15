@@ -9,9 +9,7 @@
 #include "virtio_gpu.h"
 #include "virtio_pci.h"
 #include "uart.h"
-
-/* Cache operations */
-extern void dcache_clean_range(void *start, size_t length);
+#include "cache.h"
 
 /* VirtIO MMIO registers (fallback for non-PCI) */
 #define VIRTIO_MMIO_MAGIC           0x000
@@ -149,6 +147,9 @@ static bool initialized = false;
 static uint16_t avail_idx = 0;
 static uint16_t used_idx = 0;
 
+/* Static response buffer to avoid stack cache issues */
+static struct virtio_gpu_ctrl_hdr gpu_resp_buffer __attribute__((aligned(64)));
+
 /* Helper to print hex value */
 static void print_hex(uint32_t value) {
     static const char hex[] = "0123456789ABCDEF";
@@ -175,9 +176,13 @@ static void notify_queue(uint16_t queue_idx) {
     }
 }
 
-/* Send GPU command and wait for response */
+/* Send GPU command and wait for response
+ * Uses static buffer for DMA to avoid stack cache coherency issues */
 static bool virtio_gpu_send_cmd(void *cmd, size_t cmd_len, void *resp, size_t resp_len) {
     uint16_t desc_idx = (avail_idx * 2) % QUEUE_SIZE;
+
+    /* Clean command buffer to ensure GPU sees the data */
+    dcache_clean_range(cmd, cmd_len);
 
     /* Setup command descriptor */
     controlq.desc[desc_idx].addr = (uint64_t)(uintptr_t)cmd;
@@ -185,11 +190,14 @@ static bool virtio_gpu_send_cmd(void *cmd, size_t cmd_len, void *resp, size_t re
     controlq.desc[desc_idx].flags = VIRTQ_DESC_F_NEXT;
     controlq.desc[desc_idx].next = (desc_idx + 1) % QUEUE_SIZE;
 
-    /* Setup response descriptor */
-    controlq.desc[(desc_idx + 1) % QUEUE_SIZE].addr = (uint64_t)(uintptr_t)resp;
-    controlq.desc[(desc_idx + 1) % QUEUE_SIZE].len = resp_len;
+    /* Use static response buffer for DMA (avoids stack cache issues) */
+    controlq.desc[(desc_idx + 1) % QUEUE_SIZE].addr = (uint64_t)(uintptr_t)&gpu_resp_buffer;
+    controlq.desc[(desc_idx + 1) % QUEUE_SIZE].len = sizeof(gpu_resp_buffer);
     controlq.desc[(desc_idx + 1) % QUEUE_SIZE].flags = VIRTQ_DESC_F_WRITE;
     controlq.desc[(desc_idx + 1) % QUEUE_SIZE].next = 0;
+
+    /* Ensure descriptors are visible before notifying */
+    __sync_synchronize();
 
     /* Add to available ring */
     controlq.avail.ring[avail_idx % QUEUE_SIZE] = desc_idx;
@@ -212,13 +220,26 @@ static bool virtio_gpu_send_cmd(void *cmd, size_t cmd_len, void *resp, size_t re
         return false;
     }
 
+    /* Invalidate cache to see DMA-written response from GPU */
+    dcache_invalidate_range(&gpu_resp_buffer, sizeof(gpu_resp_buffer));
+    dsb();  /* Ensure invalidation completes */
+
+    /* Copy response to caller's buffer */
+    if (resp && resp_len >= sizeof(struct virtio_gpu_ctrl_hdr)) {
+        struct virtio_gpu_ctrl_hdr *resp_hdr = (struct virtio_gpu_ctrl_hdr *)resp;
+        resp_hdr->type = gpu_resp_buffer.type;
+        resp_hdr->flags = gpu_resp_buffer.flags;
+        resp_hdr->fence_id = gpu_resp_buffer.fence_id;
+        resp_hdr->ctx_id = gpu_resp_buffer.ctx_id;
+        resp_hdr->padding = gpu_resp_buffer.padding;
+    }
+
     /* Check response */
-    struct virtio_gpu_ctrl_hdr *resp_hdr = (struct virtio_gpu_ctrl_hdr *)resp;
     used_idx++;
-    if (resp_hdr->type != VIRTIO_GPU_RESP_OK_NODATA &&
-        resp_hdr->type != VIRTIO_GPU_RESP_OK_DISPLAY_INFO) {
+    if (gpu_resp_buffer.type != VIRTIO_GPU_RESP_OK_NODATA &&
+        gpu_resp_buffer.type != VIRTIO_GPU_RESP_OK_DISPLAY_INFO) {
         uart_puts("[VIRTIO-GPU] send_cmd bad response: 0x");
-        print_hex(resp_hdr->type);
+        print_hex(gpu_resp_buffer.type);
         uart_puts("\n");
         return false;
     }
@@ -228,6 +249,10 @@ static bool virtio_gpu_send_cmd(void *cmd, size_t cmd_len, void *resp, size_t re
 /* Initialize using PCI transport */
 static bool init_pci_transport(void) {
     uart_puts("[VIRTIO-GPU] Trying PCI transport...\n");
+
+    /* Initialize PCI bus first - programs BARs for all devices
+     * This is critical when multiple VirtIO devices are present */
+    virtio_pci_init_bus();
 
     /* Scan for VirtIO GPU on PCI */
     if (!virtio_pci_find_device(VIRTIO_DEV_GPU, &pci_dev)) {

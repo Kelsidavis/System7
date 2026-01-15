@@ -125,6 +125,7 @@ void pci_config_write16(uint8_t bus, uint8_t device, uint8_t func, uint16_t offs
 void pci_config_write32(uint8_t bus, uint8_t device, uint8_t func, uint16_t offset, uint32_t value);
 
 /* VirtIO PCI functions */
+void virtio_pci_init_bus(void);  /* Must be called before find_device when multiple devices present */
 bool virtio_pci_scan(void);
 bool virtio_pci_find_device(uint16_t device_id, virtio_pci_device_t *dev);
 bool virtio_pci_init_device(virtio_pci_device_t *dev, uint64_t supported_features);
