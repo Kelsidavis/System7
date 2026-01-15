@@ -368,7 +368,7 @@ static void virtio_input_process_event(struct virtio_input_event *evt) {
         case EV_ABS:
             /* Absolute positioning (tablet) */
             if (evt->code == ABS_X) {
-                /* Scale from tablet range to screen range */
+                /* Scale from tablet range (0-32767) to screen range */
                 int32_t x = (evt->value * MOUSE_MAX_X) / 32767;
                 if (x < 0) x = 0;
                 if (x > MOUSE_MAX_X) x = MOUSE_MAX_X;

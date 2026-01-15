@@ -102,6 +102,10 @@ struct {
     uint8_t packet_index;
 } g_mouseState = {400, 300, 0, {0, 0, 0}, 0};
 
+/* Get raw mouse button state - platform-independent interface */
+uint8_t GetMouseButtons(void) {
+    return g_mouseState.buttons;
+}
 
 /* Keyboard state */
 typedef struct {

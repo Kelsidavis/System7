@@ -242,16 +242,11 @@ void ProcessModernInput(void)
 
     /* Get current input state from hardware abstraction layer */
     /* For now, we'll use the global mouse state from PS2Controller */
-    extern struct {
-        int16_t x;
-        int16_t y;
-        uint8_t buttons;
-        uint8_t packet[3];
-        uint8_t packet_index;
-    } g_mouseState;
+    /* Use platform-independent GetMouseButtons() */
+    extern uint8_t GetMouseButtons(void);
 
     currentMousePos = g_mousePos;  /* Use file-scope extern */
-    currentButtonState = g_mouseState.buttons;
+    currentButtonState = GetMouseButtons();
 
     /* DEBUG: Check if g_mousePos is actually being read */
     static int posReadCount = 0;

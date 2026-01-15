@@ -1442,7 +1442,9 @@ void UpdateCursorDisplay(void) {
         return;
     }
 
-    Point mousePoint = { .v = g_mouseState.y, .h = g_mouseState.x };
+    /* Use GetMouse for platform-independent mouse position */
+    Point mousePoint;
+    GetMouse(&mousePoint);
     CursorManager_HandleMouseMotion(mousePoint);
 
     /* Check if cursor is hidden */
@@ -1764,8 +1766,10 @@ void kernel_main(uint32_t magic, uint32_t* mb2_info) {
 #if 1
     /* Draw initial cursor with safety checks */
     if (framebuffer && fb_width > 0 && fb_height > 0) {
-        int16_t x = g_mouseState.x;
-        int16_t y = g_mouseState.y;
+        Point initialMouse;
+        GetMouse(&initialMouse);
+        int16_t x = initialMouse.h;
+        int16_t y = initialMouse.v;
 
         /* Save pixels under cursor position */
         for (int row = 0; row < 16; row++) {
@@ -1807,8 +1811,10 @@ void kernel_main(uint32_t magic, uint32_t* mb2_info) {
     }
 #endif
 
-    int16_t last_mouse_x = g_mouseState.x;
-    int16_t last_mouse_y = g_mouseState.y;
+    Point lastMousePos;
+    GetMouse(&lastMousePos);
+    int16_t last_mouse_x = lastMousePos.h;
+    int16_t last_mouse_y = lastMousePos.v;
     volatile uint32_t debug_counter __attribute__((unused)) = 0;
 
     /* Add cursor update counter to throttle cursor redraws */
@@ -1864,7 +1870,7 @@ void kernel_main(uint32_t magic, uint32_t* mb2_info) {
 
         /* Throttle ONLY cursor drawing, not event processing */
         cursor_update_counter++;
-        if (cursor_update_counter < 500) {
+        if (cursor_update_counter < 50) {
             /* Skip only the cursor drawing, but continue to process events below */
             goto skip_cursor_drawing;
         }
@@ -1872,10 +1878,12 @@ void kernel_main(uint32_t magic, uint32_t* mb2_info) {
 
         /* Redraw cursor if mouse moved */
 #if 1
-        if (g_mouseState.x != last_mouse_x || g_mouseState.y != last_mouse_y) {
+        Point currentMouse;
+        GetMouse(&currentMouse);
+        if (currentMouse.h != last_mouse_x || currentMouse.v != last_mouse_y) {
             /* Clamp mouse position to screen bounds */
-            int16_t x = g_mouseState.x;
-            int16_t y = g_mouseState.y;
+            int16_t x = currentMouse.h;
+            int16_t y = currentMouse.v;
 
             if (x < 0) x = 0;
             if (x >= fb_width) x = fb_width - 1;
@@ -1933,8 +1941,8 @@ void kernel_main(uint32_t magic, uint32_t* mb2_info) {
             cursor_old_y = y;
             cursor_saved = true;
 
-            last_mouse_x = g_mouseState.x;
-            last_mouse_y = g_mouseState.y;
+            last_mouse_x = currentMouse.h;
+            last_mouse_y = currentMouse.v;
 
             /* Update menu highlighting if tracking */
             extern Boolean IsMenuTrackingNew(void);

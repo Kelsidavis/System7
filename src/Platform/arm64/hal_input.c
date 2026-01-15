@@ -70,8 +70,8 @@ Boolean GetPS2KeyboardState(KeyMap keyMap) {
  * Returns true on success
  */
 Boolean InitPS2Controller(void) {
-    g_mousePos.h = 160;  /* Center of 320-wide display */
-    g_mousePos.v = 120;  /* Center of 240-high display */
+    g_mousePos.h = 320;  /* Center of 640-wide display */
+    g_mousePos.v = 240;  /* Center of 480-high display */
     g_mouseState = 0;
     g_modifiers = 0;
 
@@ -121,6 +121,14 @@ void SetMouseButtons(uint8_t buttons) {
  */
 void SetModifiers(uint16_t mods) {
     g_modifiers = mods;
+}
+
+/*
+ * GetMouseButtons - Get raw mouse button state
+ * Returns button state byte (bit 0 = left, bit 1 = right, bit 2 = middle)
+ */
+uint8_t GetMouseButtons(void) {
+    return g_mouseState;
 }
 
 /*
