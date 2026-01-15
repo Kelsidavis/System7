@@ -786,58 +786,29 @@ void QD_LocalToPixel(short localX, short localY, short* pixelX, short* pixelY) {
  * is drawn via direct framebuffer rendering instead of glyph extraction
  */
 void DrawChar(short ch) {
-    extern void serial_puts(const char* str);
-    extern void uart_flush(void);
-    serial_puts("[DC] enter\n");
-    uart_flush();
-
-    /* Skip the serial_printf which may hang on ARM64 - just do simple debug */
-    static int char_count = 0;
-    char_count++;
-
-    serial_puts("[DC] check port\n");
-    uart_flush();
+    /* Debug output removed - was causing severe slowdown on ARM64 */
     if (!g_currentPort) return;
 
-    serial_puts("[DC] get face\n");
-    uart_flush();
     Style face = g_currentPort->txFace;
     Boolean hasBold = (face & bold) != 0;
     Boolean hasItalic = (face & italic) != 0;
-    serial_puts("[DC] get strike\n");
-    uart_flush();
 
     /* Get current font strike */
     FontStrike *strike = FM_GetCurrentStrike();
-    serial_puts("[DC] check strike\n");
-    uart_flush();
 
     /* Check if strike has valid bitmap data */
-    serial_puts("[DC] strike check\n");
-    uart_flush();
     if (!strike || !strike->locTable || !strike->bitmapData) {
         /* Fallback to Chicago bitmap (direct framebuffer drawing) */
-        serial_puts("[DC] fallback\n");
-        uart_flush();
         extern UInt32 QDPlatform_MapQDColor(SInt32 qdColor);
         /* Use explicit field copy to avoid struct assignment on ARM64 */
         Point pen;
         pen.h = g_currentPort->pnLoc.h;
         pen.v = g_currentPort->pnLoc.v;
-        serial_puts("[DC] localToPixel\n");
-        uart_flush();
         short px, py;
         QD_LocalToPixel(pen.h, pen.v - CHICAGO_ASCENT, &px, &py);
-        serial_puts("[DC] mapColor\n");
-        uart_flush();
         UInt32 color = QDPlatform_MapQDColor(g_currentPort->fgColor);
-        serial_puts("[DC] draw\n");
-        uart_flush();
-        /* Debug removed - serial_printf can hang on ARM64 */
 
         /* Draw character with style synthesis */
-        serial_puts("[DC] FM_DrawChicagoCharInternal\n");
-        uart_flush();
         if (hasBold) {
             /* Bold: draw twice with 1 pixel offset */
             FM_DrawChicagoCharInternal(px, py, (char)ch, color);
@@ -845,19 +816,13 @@ void DrawChar(short ch) {
         } else {
             FM_DrawChicagoCharInternal(px, py, (char)ch, color);
         }
-        serial_puts("[DC] drawn\n");
-        uart_flush();
 
         if (hasItalic) {
             /* Italic: draw with slight right offset for shear effect */
             FM_DrawChicagoCharInternal(px + 1, py, (char)ch, color);
         }
 
-        serial_puts("[DC] advance\n");
-        uart_flush();
         g_currentPort->pnLoc.h += CharWidth(ch);
-        serial_puts("[DC] done\n");
-        uart_flush();
         return;
     }
 
@@ -905,15 +870,10 @@ void DrawChar(short ch) {
  * DrawString - Draw a Pascal string at the current pen location
  */
 void DrawString(ConstStr255Param s) {
-    extern void serial_puts(const char* str);
-    serial_puts("[DRAWSTR-FM] DrawString called\n");
-
+    /* Debug output removed - was causing slowdown */
     if (!s || s[0] == 0 || !g_currentPort) {
-        serial_puts("[DRAWSTR-FM] Early return\n");
         return;
     }
-
-    serial_puts("[DRAWSTR-FM] Drawing characters\n");
 
     unsigned char len = s[0];
     Style face = g_currentPort->txFace;

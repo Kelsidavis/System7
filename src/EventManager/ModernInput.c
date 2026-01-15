@@ -290,7 +290,13 @@ void ProcessModernInput(void)
     /* Check for mouse button changes */
     if (currentButtonState != g_modernInput.lastButtonState) {
         extern void uart_flush(void);
-        /* Debug prints removed - see git history for verbose version */
+        extern void serial_puts(const char*);
+        /* Simple debug: log button state changes */
+        if (currentButtonState & 0x01) {
+            serial_puts("[CLICK] Button DOWN\n");
+        } else {
+            serial_puts("[CLICK] Button UP\n");
+        }
 
         UInt32 currentTime = TickCount();
 

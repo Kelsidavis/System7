@@ -647,13 +647,15 @@ long TrackMenu(short menuID, Point *startPt) {
         /* Update menu highlighting based on mouse position */
         UpdateMenuTrackingNew(mousePt);
 
-        /* Check button state */
+        /* Check button state - directly read g_mouseState for debugging */
         buttonCheckCount++;
-        Boolean buttonState = Button();
+        extern volatile uint8_t g_mouseState;
+        Boolean buttonState = (g_mouseState & 0x01) != 0;
 
-        /* Debug: Log first few button states to diagnose tracking freeze */
-        if (buttonCheckCount <= 3) {
-            serial_puts(buttonState ? "[TRACK] Button=DOWN\n" : "[TRACK] Button=UP\n");
+        /* Debug: Log every 10000th iteration to track progress without slowdown */
+        if (updateCount == 1 || updateCount % 10000 == 0) {
+            extern void uart_puts(const char*);
+            uart_puts(buttonState ? "[TRACK] btn=1\n" : "[TRACK] btn=0\n");
         }
 
         /* Track when button is first released */

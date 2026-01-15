@@ -33,6 +33,10 @@
 extern void serial_puts(const char* str);
 extern void serial_putchar(char ch);
 
+/* REGION_DEBUG: Set to 1 to enable verbose region logging
+ * WARNING: Enabling this causes SEVERE performance degradation on ARM64 */
+#define REGION_DEBUG 0
+
 
 /* Region constants */
 #define kMaxScanLines 4096
@@ -77,6 +81,7 @@ static void region_log_message(const char* context,
                                RgnHandle handle,
                                Region* region,
                                BlockHeader* header) {
+#if REGION_DEBUG
     serial_puts("[REGION] ");
     serial_puts(context);
     serial_puts(" handle=0x");
@@ -92,6 +97,9 @@ static void region_log_message(const char* context,
     serial_puts(" prev=0x");
     region_log_hex(header ? header->prevSize : 0, 8);
     serial_putchar('\n');
+#else
+    (void)context; (void)handle; (void)region; (void)header;
+#endif
 }
 
 static SInt16 sanitize_region_size(Region* region, const char* label) {
@@ -104,6 +112,7 @@ static SInt16 sanitize_region_size(Region* region, const char* label) {
         return (SInt16)size;
     }
 
+#if REGION_DEBUG
     serial_puts("[REGION] ");
     serial_puts(label);
     serial_puts(": invalid rgnSize=0x");
@@ -113,11 +122,15 @@ static SInt16 sanitize_region_size(Region* region, const char* label) {
     serial_puts(", clamping to 0x");
     region_log_hex((uint32_t)kMinRegionSize, 4);
     serial_putchar('\n');
+#else
+    (void)label;
+#endif
     region->rgnSize = kMinRegionSize;
     return kMinRegionSize;
 }
 
 static void region_dump_bytes(const char* context, Region* region, SInt16 byteCount) {
+#if REGION_DEBUG
     serial_puts("[REGION] ");
     serial_puts(context);
     serial_puts(" bytes:");
@@ -132,6 +145,9 @@ static void region_dump_bytes(const char* context, Region* region, SInt16 byteCo
         region_log_hex(data[i], 2);
     }
     serial_putchar('\n');
+#else
+    (void)context; (void)region; (void)byteCount;
+#endif
 }
 
 /* ================================================================

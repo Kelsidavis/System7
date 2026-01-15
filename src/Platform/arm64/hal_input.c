@@ -16,8 +16,9 @@
 #endif
 
 /* Mouse state globals - referenced by EventManager and virtio_input.c */
-Point g_mousePos = {0, 0};
-uint8_t g_mouseState = 0;
+/* MUST be volatile - modified by polling, read in tight loops */
+volatile Point g_mousePos = {0, 0};
+volatile uint8_t g_mouseState = 0;
 
 /* Keyboard state */
 static uint16_t g_modifiers = 0;

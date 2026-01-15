@@ -203,8 +203,9 @@ static int num_devices = 0;
 static bool input_initialized = false;
 
 /* Input state - exported for hal_input.c */
-extern Point g_mousePos;
-extern uint8_t g_mouseState;
+/* MUST match volatile declarations in hal_input.c */
+extern volatile Point g_mousePos;
+extern volatile uint8_t g_mouseState;
 
 /* Mouse bounds - match GPU framebuffer resolution */
 #define MOUSE_MAX_X     639
@@ -371,10 +372,13 @@ static void virtio_input_process_event(struct virtio_input_event *evt) {
         case EV_KEY:
             /* Button or key event */
             if (evt->code == BTN_LEFT) {
+                extern void serial_puts(const char*);
                 if (evt->value) {
                     g_mouseState |= 0x01;
+                    serial_puts("[CLICK] DOWN\n");
                 } else {
                     g_mouseState &= ~0x01;
+                    serial_puts("[CLICK] UP\n");
                 }
             } else if (evt->code == BTN_RIGHT) {
                 if (evt->value) {

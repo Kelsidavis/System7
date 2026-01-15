@@ -438,24 +438,15 @@ void SetupDefaultMenus(void)
  */
 void DrawMenuBar(void)
 {
-    extern void serial_puts(const char* str);
-    extern void uart_flush(void);
-    serial_puts("DrawMenuBar called\n");
-    uart_flush();
-
+    /* Debug output disabled - was causing severe performance issues on ARM64 */
     if (!gMenuMgrInitialized) {
-        /* serial_puts("DrawMenuBar: MenuManager not initialized\n"); */
         return;
     }
 
-    serial_puts("DrawMenuBar: GetPort\n");
-    uart_flush();
     GrafPtr savePort;
     GetPort(&savePort);
 
     /* Make sure we draw relative to the screen's coordinate space */
-    serial_puts("DrawMenuBar: GetWMgrPort\n");
-    uart_flush();
     GrafPtr menuPort = NULL;
     GetWMgrPort(&menuPort);
     if (menuPort && menuPort->portBits.baseAddr) {
@@ -465,25 +456,15 @@ void DrawMenuBar(void)
     }
 
     /* Menu bar rectangle */
-    serial_puts("DrawMenuBar: SetRect\n");
-    uart_flush();
     Rect menuBarRect;
     SetRect(&menuBarRect, 0, 0, qd.screenBits.bounds.right, 20);
 
     /* Clear menu bar area with white */
-    serial_puts("DrawMenuBar: colors\n");
-    uart_flush();
     BackColor(whiteColor);
     ForeColor(blackColor);
     PenNormal();
-    serial_puts("DrawMenuBar: ClipRect\n");
-    uart_flush();
     ClipRect(&menuBarRect);
-    serial_puts("DrawMenuBar: FillRect\n");
-    uart_flush();
     FillRect(&menuBarRect, &qd.white);  /* White background */
-    serial_puts("DrawMenuBar: FillRect done\n");
-    uart_flush();
 
     /* Set proper font for menu bar text */
     TextFont(0);   /* System font (Chicago) */
@@ -491,12 +472,8 @@ void DrawMenuBar(void)
     TextFace(0);   /* Plain text */
 
     /* Draw bottom line */
-    serial_puts("DrawMenuBar: LineTo\n");
-    uart_flush();
     MoveTo(0, 19);
     LineTo(qd.screenBits.bounds.right - 1, 19);
-    serial_puts("DrawMenuBar: LineTo done\n");
-    uart_flush();
 
     /* Initialize menu title tracking */
     extern void InitMenuTitleTracking(void);
@@ -507,50 +484,24 @@ void DrawMenuBar(void)
     short x = 0;
     UpdateMenuBarLayout();
 
-    serial_puts("DrawMenuBar: Checking menu state...\n");
+    /* Debug output removed from loop - was causing severe performance issues */
     if (gMenuMgrState) {
-        serial_puts("DrawMenuBar: gMenuMgrState exists\n");
         if (gMenuMgrState->menuBar) {
             MenuBarList* menuBar = (MenuBarList*)gMenuMgrState->menuBar;
-            serial_puts("DrawMenuBar: menuBar exists\n");
-            uart_flush();
-            /* MENU_LOG_TRACE used to debug drawing when serial IO is unstable */
-
             MENU_LOG_DEBUG("DrawMenuBar: numMenus = %d\n", menuBar->numMenus);
 
             for (int i = 0; i < menuBar->numMenus; i++) {
-                serial_puts("DrawMenuBar: menu loop\n");
-                uart_flush();
                 MENU_LOG_DEBUG("DrawMenuBar: Processing menu %d (ID=%d)\n", i, menuBar->menus[i].menuID);
                 short currentMenuID = menuBar->menus[i].menuID;
-                serial_puts("DrawMenuBar: GetMenuHandle\n");
-                uart_flush();
                 MenuHandle menu = GetMenuHandle(currentMenuID);
-                serial_puts("DrawMenuBar: GetMenuHandle done\n");
-                uart_flush();
                 if (menu) {
-                    serial_puts("DrawMenuBar: HLock\n");
-                    uart_flush();
-
                     /* CRITICAL: Lock handle before dereferencing to prevent heap compaction issues */
                     HLock((Handle)menu);
-                    serial_puts("DrawMenuBar: HLock done\n");
-                    uart_flush();
 
-                    /* Debug: show MenuInfo offsets */
-                    serial_puts("DrawMenuBar: access mptr\n");
-                    uart_flush();
                     MenuInfo* mptr = (MenuInfo*)*menu;
-                    serial_puts("DrawMenuBar: mptr accessed\n");
-                    uart_flush();
-                    /* MENU_LOG_TRACE("  MenuID: %d\n", mptr->menuID); */
-                    /* MENU_LOG_TRACE("  sizeof(MenuInfo): %d\n", sizeof(MenuInfo)); */
-                    /* MENU_LOG_TRACE("  offsetof menuData: %d\n", ((char*)&(mptr->menuData) - (char*)mptr)); */
 
                     /* Get menu title */
                     unsigned char titleLen = (**menu).menuData[0];
-                    serial_puts("DrawMenuBar: titleLen accessed\n");
-                    uart_flush();
 
                     /* Use precomputed left from layout for consistent placement */
                     x = menuBar->menus[i].menuLeft;
@@ -558,39 +509,20 @@ void DrawMenuBar(void)
                     /* Use explicit memset to avoid ARM64 aggregate init hang */
                     char titleText[256];
                     memset(titleText, 0, 256);
-                    serial_puts("DrawMenuBar: check menuID\n");
-                    uart_flush();
 
                     /* Skip duplicated placeholder menu */
                     if (mptr->menuID == 1) {
-                        serial_puts("DrawMenuBar: skip placeholder\n");
-                        uart_flush();
                         continue;
                     }
 
-                    serial_puts("DrawMenuBar: not placeholder\n");
-                    uart_flush();
-
                     /* Draw Apple glyph even when the menu title is blank */
                     if (mptr->menuID == 128) {
-                        serial_puts("DrawMenuBar: Apple menu\n");
-                        uart_flush();
                         menuWidth = 24;  /* Standard icon width */
                         /* Skip drawing if highlighted - same as text menus */
                         if (!(gMenuMgrState && gMenuMgrState->hiliteMenu == mptr->menuID)) {
-                            serial_puts("DrawMenuBar: AppleIcon_Draw\n");
-                            uart_flush();
                             menuWidth = MenuAppleIcon_Draw(qd.thePort, x, 0, false);
-                            serial_puts("[DRAWBAR] Drew Apple icon\n");
-                        } else {
-                            extern void serial_puts(const char* str);
-                            serial_puts("[DRAWBAR] SKIPPING Apple icon (highlighted)\n");
                         }
-                        serial_puts("[DRAWBAR] AddMenuTitle Apple\n");
-                        uart_flush();
                         AddMenuTitle(mptr->menuID, x, menuWidth, "Apple");
-                        serial_puts("[DRAWBAR] Apple continue\n");
-                        uart_flush();
                         x += menuWidth;
                         continue;
                     }
@@ -601,11 +533,6 @@ void DrawMenuBar(void)
                         /* Skip drawing if highlighted - same as text menus */
                         if (!(gMenuMgrState && gMenuMgrState->hiliteMenu == mptr->menuID)) {
                             menuWidth = MenuAppIcon_Draw(qd.thePort, x, 0, false);
-                            extern void serial_puts(const char* str);
-                            serial_puts("[DRAWBAR] Drew Finder icon\n");
-                        } else {
-                            extern void serial_puts(const char* str);
-                            serial_puts("[DRAWBAR] SKIPPING Finder icon (highlighted)\n");
                         }
                         AddMenuTitle(mptr->menuID, x, menuWidth, "Application");
                         x += menuWidth;
@@ -640,17 +567,7 @@ void DrawMenuBar(void)
                             ForeColor(blackColor);  /* Ensure black text */
                             MoveTo(x + 4, 14);  /* Shifted right 4px and down 1px */
 
-                            /* Use actual menu data for title, not hardcoded values */
-                            /* This allows custom menus to display their own titles */
                             MENU_LOG_DEBUG("DrawMenuBar: Drawing menu ID %d, title len=%d at x=%d\n", mptr->menuID, titleLen, x + 4);
-
-                            /* Draw title from menu data */
-                            extern void serial_puts(const char* str);
-
-                            /* CRITICAL FIX: Use DrawString (FontManager) instead of DrawText (QuickDraw)
-                             * to ensure consistent rendering path. Both DrawMenuBar and DrawMenuTitle
-                             * must use the SAME text rendering function to avoid position mismatches. */
-                            serial_puts("[DRAWBAR] Normal text being drawn via DrawString (FontManager)\n");
 
                             /* Create Pascal string for DrawString */
                             unsigned char pascalStr[256];
@@ -659,16 +576,6 @@ void DrawMenuBar(void)
                             DrawString((ConstStr255Param)pascalStr);
 
                             MENU_LOG_TRACE("DrawMenuBar: Drew title '%.*s' for menu ID %d\n", titleLen, titleText, mptr->menuID);
-
-                            /* Log the titleRect that will be recorded */
-                            static char buf[256];
-                            extern int snprintf(char*, size_t, const char*, ...);
-                            snprintf(buf, sizeof(buf), "[DRAWBAR] Recording AddMenuTitle: menuID=%d, left=%d, right=%d, width=%d (x=%d+4 for text)\n",
-                                     mptr->menuID, x, x+menuWidth, menuWidth, x);
-                            serial_puts(buf);
-                        } else {
-                            extern void serial_puts(const char* str);
-                            serial_puts("[DRAWBAR] SKIPPING text for highlighted menu, but updating tracking\n");
                         }
 
                         /* ALWAYS update titleRect tracking, even if menu is highlighted
@@ -1288,11 +1195,6 @@ static void UpdateMenuBarLayout(void)
             menuBar->menus[i].menuWidth = menuWidth;
             currentLeft += menuWidth + kMenuSpacing;
         }
-        char layoutBuf[128];
-        snprintf(layoutBuf, sizeof(layoutBuf),
-                 "UpdateMenuBarLayout: ID=%d left=%d width=%d systemRight=%d currentLeft=%d\n",
-                 id, menuBar->menus[i].menuLeft, menuBar->menus[i].menuWidth, systemRight, currentLeft);
-        serial_puts(layoutBuf);
     }
 
     if (currentLeft > 0 && currentLeft >= kMenuSpacing) {

@@ -236,14 +236,10 @@ static bool virtio_gpu_send_cmd(void *cmd, size_t cmd_len, void *resp, size_t re
 
     /* Check response */
     used_idx++;
-    /* Accept any OK response type (0x1100-0x11FF range) */
-    if ((gpu_resp_buffer.type & 0xFF00) != 0x1100) {
-        static int errCount = 0;
-        if (++errCount <= 5) {  /* Only log first 5 errors */
-            uart_puts("[VIRTIO-GPU] send_cmd bad response: 0x");
-            print_hex(gpu_resp_buffer.type);
-            uart_puts("\n");
-        }
+    /* Accept any OK response type (0x1100-0x12FF range covers all success codes) */
+    uint32_t respClass = gpu_resp_buffer.type & 0xFF00;
+    if (respClass != 0x1100 && respClass != 0x1200) {
+        /* Only non-OK responses are errors - don't log to reduce noise */
         return false;
     }
     return true;

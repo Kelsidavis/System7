@@ -982,18 +982,10 @@ QDErr QDError(void) {
 
 static void DrawPrimitive(GrafVerb verb, const Rect *shape, int shapeType,
                          ConstPatternParam pat, SInt16 ovalWidth, SInt16 ovalHeight) {
-    extern void serial_puts(const char*);
-    extern void uart_flush(void);
-    serial_puts("[DRAWPRIM] enter\n");
-    uart_flush();
-
+    /* Debug output disabled - was causing severe performance issues on ARM64 */
     if (!PrepareDrawing(g_currentPort)) {
-        serial_puts("[DRAWPRIM] PrepareDrawing failed\n");
-        uart_flush();
         return;
     }
-    serial_puts("[DRAWPRIM] PrepareDrawing ok\n");
-    uart_flush();
 
     /* Use explicit field copy to avoid struct assignment on ARM64 */
     Rect drawRect;
@@ -1001,24 +993,14 @@ static void DrawPrimitive(GrafVerb verb, const Rect *shape, int shapeType,
     drawRect.left = shape->left;
     drawRect.bottom = shape->bottom;
     drawRect.right = shape->right;
-    serial_puts("[DRAWPRIM] drawRect ok\n");
-    uart_flush();
 
-    serial_puts("[DRAWPRIM] ApplyPen\n");
-    uart_flush();
     /* Apply pen size for frame operations */
     if (verb == frame) {
         ApplyPenToRect(g_currentPort, &drawRect);
     }
-    serial_puts("[DRAWPRIM] ApplyPen done\n");
-    uart_flush();
 
-    serial_puts("[DRAWPRIM] ClipToPort\n");
-    uart_flush();
     /* Clip to port and visible region */
     ClipToPort(g_currentPort, &drawRect);
-    serial_puts("[DRAWPRIM] ClipToPort done\n");
-    uart_flush();
     QD_LOG_TRACE("DrawPrimitive clipped rect=(%d,%d,%d,%d)\n",
                 drawRect.left, drawRect.top, drawRect.right, drawRect.bottom);
 

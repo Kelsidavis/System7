@@ -1853,17 +1853,6 @@ void kernel_main(uint32_t magic, uint32_t* mb2_info) {
         }
 #endif /* ENABLE_PROCESS_COOP */
 
-        /* Simple alive message every 1 million iterations */
-        static uint32_t simple_counter = 0;
-        simple_counter++;
-        if ((simple_counter % 1000000) == 0) {
-            serial_puts(".");  /* Just print a dot to show we're alive */
-            if ((simple_counter % 10000000) == 0) {
-                SYSTEM_LOG_DEBUG("\nLOOP: counter=%u\n", simple_counter);
-                simple_counter = 0;
-            }
-        }
-
         /* Process modern input events (PS/2 keyboard and mouse) */
         extern void ProcessModernInput(void);
         ProcessModernInput();
@@ -1971,10 +1960,8 @@ skip_cursor_drawing:
         if (framebuffer) {
             hal_framebuffer_present();
         }
-
         /* System 7.1 cooperative multitasking */
         SystemTask();
-
         /* Update and render windows */
         extern void WM_Update(void);
         WM_Update();

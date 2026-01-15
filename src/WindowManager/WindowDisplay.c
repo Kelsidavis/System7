@@ -1701,13 +1701,6 @@ void WM_InvalidateDisplay_Public(void) {
 /* Window Manager update pipeline functions */
 /* WM_Update is needed by main.c even when other stubs are disabled */
 void WM_Update(void) {
-    /* DISABLE throttling to ensure immediate updates */
-    extern void serial_puts(const char* str);
-    static int update_count = 0;
-    if (update_count < 3) {
-        serial_puts("[WMUPDATE] WM_Update called\n");
-        update_count++;
-    }
 
     /* Throttle updates to reduce flashing - only update periodically */
     gUpdateThrottle++;

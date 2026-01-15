@@ -3,6 +3,20 @@
 /* This file implements the Memory Manager itself and needs malloc/free */
 #define MEMORY_MANAGER_INTERNAL
 
+/* DISPOSE_DEBUG: Set to 1 to enable verbose DisposePtr debugging
+ * WARNING: Enabling this causes SEVERE performance degradation on ARM64 */
+#define DISPOSE_DEBUG 0
+
+#if DISPOSE_DEBUG
+#define DISPOSE_LOG(msg) serial_puts(msg)
+#define DISPOSE_LOG_HEX(val) mm_print_hex(val)
+#define DISPOSE_LOG_CHAR(c) serial_putchar(c)
+#else
+#define DISPOSE_LOG(msg) ((void)0)
+#define DISPOSE_LOG_HEX(val) ((void)0)
+#define DISPOSE_LOG_CHAR(c) ((void)0)
+#endif
+
 #include "../../include/MemoryMgr/MemoryManager.h"
 #include <string.h>
 #include <stdint.h>
@@ -899,25 +913,25 @@ void* NewPtrClear(u32 byteCount) {
 void DisposePtr(void* p) {
     extern void serial_puts(const char* str);
 
-    serial_puts("[DISPOSE] ENTRY ptr=0x");
-    mm_print_hex((u32)(uintptr_t)p);
-    serial_putchar('\n');
+    DISPOSE_LOG("[DISPOSE] ENTRY ptr=0x");
+    DISPOSE_LOG_HEX((u32)(uintptr_t)p);
+    DISPOSE_LOG_CHAR('\n');
 
     if (!p) {
-        serial_puts("[DISPOSE] Early return: p is NULL\n");
+        DISPOSE_LOG("[DISPOSE] Early return: p is NULL\n");
         return;
     }
 
     ZoneInfo* z = gCurrentZone;
-    serial_puts("[DISPOSE] gCurrentZone read\n");
+    DISPOSE_LOG("[DISPOSE] gCurrentZone read\n");
 
     if (!z) {
-        serial_puts("[DISPOSE] Early return: gCurrentZone is NULL\n");
+        DISPOSE_LOG("[DISPOSE] Early return: gCurrentZone is NULL\n");
         return;
     }
 
     /* Validate freelist BEFORE disposal */
-    serial_puts("[DISPOSE] Validating freelist BEFORE disposal\n");
+    DISPOSE_LOG("[DISPOSE] Validating freelist BEFORE disposal\n");
     if (!validate_freelist(z)) {
         serial_puts("[DISPOSE] ERROR: Freelist already corrupted before disposal!\n");
         /* Clear all freelists to prevent crashes */
@@ -926,23 +940,17 @@ void DisposePtr(void* p) {
         }
         return;
     }
-    serial_puts("[DISPOSE] Freelist valid before disposal\n");
+    DISPOSE_LOG("[DISPOSE] Freelist valid before disposal\n");
 
     BlockHeader* b = (BlockHeader*)((u8*)p - BLKHDR_SZ);
-    serial_puts("[DISPOSE] BlockHeader calculated at 0x");
-    mm_print_hex((u32)(uintptr_t)b);
-    serial_puts(" size=0x");
-    mm_print_hex(b->size);
-    serial_puts(" flags=0x");
-    mm_print_hex(b->flags);
-    serial_putchar('\n');
+    DISPOSE_LOG("[DISPOSE] BlockHeader calculated\n");
 
     /* Validate the block being freed */
     if (!validate_block(z, b)) {
         serial_puts("[DISPOSE] ERROR: Invalid block being freed\n");
         return;
     }
-    serial_puts("[DISPOSE] Block header validated\n");
+    DISPOSE_LOG("[DISPOSE] Block header validated\n");
 
 #if MEM_DEBUG_CANARY
     /* Verify tail canary if present */
@@ -956,11 +964,7 @@ void DisposePtr(void* p) {
                 if (user[userSize + i] != (u8)CANARY_BYTE) { ok = false; break; }
             }
             if (!ok) {
-                serial_puts("[DISPOSE] ERROR: Tail canary corrupted for block at 0x");
-                mm_print_hex((u32)(uintptr_t)b);
-                serial_puts(" size=0x");
-                mm_print_hex(b->size);
-                serial_putchar('\n');
+                serial_puts("[DISPOSE] ERROR: Tail canary corrupted\n");
             }
         }
     }
@@ -971,13 +975,8 @@ void DisposePtr(void* p) {
     z->bytesFree += b->size;
 
     /* Coalesce and insert */
-    serial_puts("[DISPOSE] Calling coalesce_forward\n");
+    DISPOSE_LOG("[DISPOSE] Calling coalesce_forward\n");
     b = coalesce_forward(z, b);
-    serial_puts("[DISPOSE] After coalesce_forward b=0x");
-    mm_print_hex((u32)(uintptr_t)b);
-    serial_puts(" size=0x");
-    mm_print_hex(b->size);
-    serial_putchar('\n');
 
     /* Validate after coalesce_forward */
     if (!validate_block(z, b)) {
@@ -985,23 +984,18 @@ void DisposePtr(void* p) {
         return;
     }
 
-    serial_puts("[DISPOSE] Calling coalesce_backward\n");
+    DISPOSE_LOG("[DISPOSE] Calling coalesce_backward\n");
     b = coalesce_backward(z, b);
-    serial_puts("[DISPOSE] After coalesce_backward b=0x");
-    mm_print_hex((u32)(uintptr_t)b);
-    serial_puts(" size=0x");
-    mm_print_hex(b->size);
-    serial_putchar('\n');
 
     /* Validate coalesced block */
     if (!validate_block(z, b)) {
         serial_puts("[DISPOSE] ERROR: Coalesced block invalid after coalesce_backward\n");
         return;
     }
-    serial_puts("[DISPOSE] Coalesced block validated\n");
+    DISPOSE_LOG("[DISPOSE] Coalesced block validated\n");
 
     /* CRITICAL: Validate freelist is still intact BEFORE inserting */
-    serial_puts("[DISPOSE] Validating freelist BEFORE re-insertion\n");
+    DISPOSE_LOG("[DISPOSE] Validating freelist BEFORE re-insertion\n");
     if (!validate_freelist(z)) {
         serial_puts("[DISPOSE] ERROR: Freelist corrupted DURING coalescing!\n");
         /* Clear all freelists to prevent crashes */
@@ -1010,18 +1004,14 @@ void DisposePtr(void* p) {
         }
         return;
     }
-    serial_puts("[DISPOSE] Freelist still valid before insertion\n");
+    DISPOSE_LOG("[DISPOSE] Freelist still valid before insertion\n");
 
-    serial_puts("[DISPOSE] Calling freelist_insert on block at 0x");
-    mm_print_hex((u32)(uintptr_t)b);
-    serial_puts(" size=0x");
-    mm_print_hex(b->size);
-    serial_putchar('\n');
+    DISPOSE_LOG("[DISPOSE] Calling freelist_insert\n");
     freelist_insert(z, b);
-    serial_puts("[DISPOSE] freelist_insert completed\n");
+    DISPOSE_LOG("[DISPOSE] freelist_insert completed\n");
 
     /* Validate freelist AFTER insertion */
-    serial_puts("[DISPOSE] Validating freelist AFTER insertion\n");
+    DISPOSE_LOG("[DISPOSE] Validating freelist AFTER insertion\n");
     if (!validate_freelist(z)) {
         serial_puts("[DISPOSE] ERROR: Freelist corrupted after freelist_insert!\n");
         /* Clear all freelists to prevent crashes */
@@ -1031,7 +1021,7 @@ void DisposePtr(void* p) {
         return;
     }
 
-    serial_puts("[DISPOSE] Complete - freelist validated successfully\n");
+    DISPOSE_LOG("[DISPOSE] Complete - freelist validated successfully\n");
 }
 
 u32 GetPtrSize(void* p) {
