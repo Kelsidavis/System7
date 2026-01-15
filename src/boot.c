@@ -9,6 +9,9 @@ extern void kernel_main(uint32_t magic, uint32_t* mb2_info);
 void boot_main(uint32_t magic, uint32_t* mb2_info) {
     /* Use serial_puts directly to bypass logging system during early boot */
     extern void serial_puts(const char* str);
+#if defined(__aarch64__)
+    extern void uart_puts(const char *s);
+#endif
 
     /* Ensure PowerPC serial hardware is configured even if OF console is absent. */
     serial_init();
@@ -19,9 +22,7 @@ void boot_main(uint32_t magic, uint32_t* mb2_info) {
 
     serial_puts("BOOT:H\n");  /* After hal_boot_init */
 
-    Serial_WriteString("BOOT\n");
-
-    serial_puts("BOOT:S\n");  /* After Serial_WriteString ("BOOT") */
+    serial_puts("BOOT\n");
     serial_puts("BOOT:K\n");  /* Before kernel_main */
 
     /* Call the kernel main function */

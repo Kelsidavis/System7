@@ -1656,7 +1656,9 @@ void serial_puts(const char* str) {
     /* Direct serial output only - no framebuffer interaction */
     if (!str) return;
 #if defined(__arm__) || defined(__aarch64__)
-    (void)str;
+    /* ARM/ARM64: use UART driver */
+    extern void uart_puts(const char *s);
+    uart_puts(str);
 #elif defined(__powerpc__) || defined(__powerpc64__)
     /* Try OF console first, then fall back to MMIO or just return */
     if (ofw_console_available()) {
