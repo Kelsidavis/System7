@@ -194,8 +194,11 @@ void arm64_boot_main(void *dtb_ptr) {
         uart_puts("[ARM64] VirtIO GPU framebuffer initialized\n");
 
         /* Clear to light gray (classic Mac desktop color) */
+        uart_puts("[ARM64] Clearing framebuffer...\n");
         virtio_gpu_clear(0xFFCCCCCC);
+        uart_puts("[ARM64] Flushing framebuffer...\n");
         virtio_gpu_flush();
+        uart_puts("[ARM64] Framebuffer flush complete\n");
     } else {
         uart_puts("[ARM64] VirtIO GPU init failed, continuing without graphics\n");
     }

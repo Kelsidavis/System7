@@ -10,6 +10,9 @@
 #include "virtio_pci.h"
 #include "uart.h"
 
+/* Cache operations */
+extern void dcache_clean_range(void *start, size_t length);
+
 /* VirtIO MMIO registers (fallback for non-PCI) */
 #define VIRTIO_MMIO_MAGIC           0x000
 #define VIRTIO_MMIO_VERSION         0x004
@@ -51,8 +54,8 @@
 #define VIRTIO_GPU_FORMAT_B8G8R8X8_UNORM        2
 
 /* Framebuffer configuration */
-#define FB_WIDTH    320
-#define FB_HEIGHT   240
+#define FB_WIDTH    640
+#define FB_HEIGHT   480
 #define QUEUE_SIZE  32
 
 /* VirtIO GPU structures */
@@ -208,8 +211,11 @@ static bool virtio_gpu_send_cmd(void *cmd, size_t cmd_len, void *resp, size_t re
         return false;
     }
 
+    /* Check response */
+    struct virtio_gpu_ctrl_hdr *resp_hdr = (struct virtio_gpu_ctrl_hdr *)resp;
     used_idx++;
-    return true;
+    return (resp_hdr->type == VIRTIO_GPU_RESP_OK_NODATA ||
+            resp_hdr->type == VIRTIO_GPU_RESP_OK_DISPLAY_INFO);
 }
 
 /* Initialize using PCI transport */
@@ -345,6 +351,10 @@ bool virtio_gpu_init(void) {
     }
 
     /* Attach backing store */
+    uart_puts("[VIRTIO-GPU] Attaching backing at 0x");
+    print_hex((uint32_t)(uintptr_t)framebuffer);
+    uart_puts("\n");
+
     struct virtio_gpu_resource_attach_backing attach_cmd;
     attach_cmd.hdr.type = VIRTIO_GPU_CMD_RESOURCE_ATTACH_BACKING;
     attach_cmd.hdr.flags = 0;
@@ -361,6 +371,7 @@ bool virtio_gpu_init(void) {
         uart_puts("[VIRTIO-GPU] Failed to attach backing\n");
         return false;
     }
+    uart_puts("[VIRTIO-GPU] Attached backing store\n");
 
     /* Set scanout */
     struct virtio_gpu_set_scanout scanout_cmd;
@@ -381,6 +392,51 @@ bool virtio_gpu_init(void) {
         return false;
     }
 
+    /* Fill with light grey (classic Mac desktop) and do initial flush */
+    for (int i = 0; i < FB_WIDTH * FB_HEIGHT; i++) {
+        framebuffer[i] = 0xFFCCCCCC;
+    }
+
+    /* Flush cache to ensure GPU can see the data */
+    dcache_clean_range(framebuffer, FB_WIDTH * FB_HEIGHT * 4);
+
+    /* Transfer to host */
+    struct virtio_gpu_transfer_to_host_2d transfer_cmd;
+    transfer_cmd.hdr.type = VIRTIO_GPU_CMD_TRANSFER_TO_HOST_2D;
+    transfer_cmd.hdr.flags = 0;
+    transfer_cmd.hdr.fence_id = 0;
+    transfer_cmd.hdr.ctx_id = 0;
+    transfer_cmd.hdr.padding = 0;
+    transfer_cmd.r.x = 0;
+    transfer_cmd.r.y = 0;
+    transfer_cmd.r.width = FB_WIDTH;
+    transfer_cmd.r.height = FB_HEIGHT;
+    transfer_cmd.offset = 0;
+    transfer_cmd.resource_id = 1;
+    transfer_cmd.padding = 0;
+
+    if (!virtio_gpu_send_cmd(&transfer_cmd, sizeof(transfer_cmd), &resp_hdr, sizeof(resp_hdr))) {
+        uart_puts("[VIRTIO-GPU] Initial transfer failed\n");
+    }
+
+    /* Flush to display */
+    struct virtio_gpu_resource_flush flush_cmd;
+    flush_cmd.hdr.type = VIRTIO_GPU_CMD_RESOURCE_FLUSH;
+    flush_cmd.hdr.flags = 0;
+    flush_cmd.hdr.fence_id = 0;
+    flush_cmd.hdr.ctx_id = 0;
+    flush_cmd.hdr.padding = 0;
+    flush_cmd.r.x = 0;
+    flush_cmd.r.y = 0;
+    flush_cmd.r.width = FB_WIDTH;
+    flush_cmd.r.height = FB_HEIGHT;
+    flush_cmd.resource_id = 1;
+    flush_cmd.padding = 0;
+
+    if (!virtio_gpu_send_cmd(&flush_cmd, sizeof(flush_cmd), &resp_hdr, sizeof(resp_hdr))) {
+        uart_puts("[VIRTIO-GPU] Initial flush failed\n");
+    }
+
     initialized = true;
     uart_puts("[VIRTIO-GPU] Initialization complete!\n");
     return true;
@@ -388,6 +444,9 @@ bool virtio_gpu_init(void) {
 
 void virtio_gpu_flush(void) {
     if (!initialized) return;
+
+    /* Flush framebuffer from cache to memory so GPU can see it */
+    dcache_clean_range(framebuffer, FB_WIDTH * FB_HEIGHT * 4);
 
     struct virtio_gpu_ctrl_hdr resp_hdr;
 
@@ -406,7 +465,9 @@ void virtio_gpu_flush(void) {
     transfer_cmd.resource_id = 1;
     transfer_cmd.padding = 0;
 
-    virtio_gpu_send_cmd(&transfer_cmd, sizeof(transfer_cmd), &resp_hdr, sizeof(resp_hdr));
+    if (!virtio_gpu_send_cmd(&transfer_cmd, sizeof(transfer_cmd), &resp_hdr, sizeof(resp_hdr))) {
+        return;
+    }
 
     /* Flush - use explicit assignment */
     struct virtio_gpu_resource_flush flush_cmd;
