@@ -177,10 +177,9 @@ ControlHandle NewControl(WindowPtr theWindow, const Rect *boundsRect,
     ctlPtr->contrlMax = max;
     ctlPtr->contrlRfCon = refCon;
 
-    /* Copy title with bounds checking */
+    /* Copy title - unsigned char already limited to 255 max */
     if (title && title[0] > 0) {
         unsigned char len = title[0];
-        if (len > 255) len = 255;
         ctlPtr->contrlTitle[0] = len;
         memcpy(&ctlPtr->contrlTitle[1], &title[1], len);
     } else {
@@ -633,10 +632,9 @@ void SetControlTitle(ControlHandle theControl, ConstStr255Param title) {
         return;
     }
 
-    /* Copy new title with bounds checking */
+    /* Copy new title - unsigned char already limited to 255 max */
     if (title && title[0] > 0) {
         unsigned char len = title[0];
-        if (len > 255) len = 255;
         (*theControl)->contrlTitle[0] = len;
         memcpy(&(*theControl)->contrlTitle[1], &title[1], len);
     } else {
@@ -660,9 +658,8 @@ void GetControlTitle(ControlHandle theControl, Str255 title) {
         return;
     }
 
-    /* Copy title with bounds checking */
+    /* Copy title - unsigned char already limited to 255 max */
     unsigned char len = (*theControl)->contrlTitle[0];
-    if (len > 255) len = 255;
     title[0] = len;
     if (len > 0) {
         memcpy(&title[1], &(*theControl)->contrlTitle[1], len);

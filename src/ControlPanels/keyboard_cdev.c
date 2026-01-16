@@ -299,7 +299,7 @@ Boolean KeyboardPanel_HandleEvent(EventRecord *event)
     WindowPtr whichWindow = NULL;
     switch (event->what) {
         case updateEvt:
-            if ((WindowPtr)event->message != gKeyboardState.window) {
+            if ((WindowPtr)(uintptr_t)event->message != gKeyboardState.window) {
                 return false;
             }
             BeginUpdate(gKeyboardState.window);
@@ -310,7 +310,7 @@ Boolean KeyboardPanel_HandleEvent(EventRecord *event)
             return true;
 
         case activateEvt:
-            if ((WindowPtr)event->message == gKeyboardState.window) {
+            if ((WindowPtr)(uintptr_t)event->message == gKeyboardState.window) {
                 Boolean active = (event->modifiers & activeFlag) != 0;
                 if (gKeyboardState.repeatSlower) {
                     HiliteControl(gKeyboardState.repeatSlower, active ? noHilite : inactiveHilite);

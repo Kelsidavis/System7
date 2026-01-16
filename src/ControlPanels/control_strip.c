@@ -146,7 +146,7 @@ void ControlStrip_Show(void)
     draw_contents();
     ShowWindow(gControlStrip.window);
     SelectWindow(gControlStrip.window);
-    PostEvent(updateEvt, (UInt32)gControlStrip.window);
+    PostEvent(updateEvt, (UInt32)(uintptr_t)gControlStrip.window);
 }
 
 void ControlStrip_Hide(void)
@@ -194,7 +194,7 @@ Boolean ControlStrip_HandleEvent(EventRecord *event)
     Point localPt;
     switch (event->what) {
         case updateEvt:
-            if ((WindowPtr)event->message != gControlStrip.window) {
+            if ((WindowPtr)(uintptr_t)event->message != gControlStrip.window) {
                 return false;
             }
             BeginUpdate(gControlStrip.window);
@@ -203,7 +203,7 @@ Boolean ControlStrip_HandleEvent(EventRecord *event)
             return true;
 
         case activateEvt:
-            if ((WindowPtr)event->message == gControlStrip.window) {
+            if ((WindowPtr)(uintptr_t)event->message == gControlStrip.window) {
                 Boolean active = (event->modifiers & activeFlag) != 0;
                 for (int i = 0; i < 5; i++) {
                     if (gControlStrip.buttons[i]) {

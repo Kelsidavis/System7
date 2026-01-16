@@ -254,7 +254,7 @@ Boolean SoundPanel_HandleEvent(EventRecord *event)
     WindowPtr whichWindow = NULL;
     switch (event->what) {
         case updateEvt:
-            if ((WindowPtr)event->message != gSoundState.window) {
+            if ((WindowPtr)(uintptr_t)event->message != gSoundState.window) {
                 return false;
             }
             BeginUpdate(gSoundState.window);
@@ -265,7 +265,7 @@ Boolean SoundPanel_HandleEvent(EventRecord *event)
             return true;
 
         case activateEvt:
-            if ((WindowPtr)event->message == gSoundState.window) {
+            if ((WindowPtr)(uintptr_t)event->message == gSoundState.window) {
                 Boolean active = (event->modifiers & activeFlag) != 0;
                 if (gSoundState.volumeDownButton) {
                     HiliteControl(gSoundState.volumeDownButton, active ? noHilite : inactiveHilite);

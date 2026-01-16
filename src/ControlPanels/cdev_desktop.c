@@ -188,7 +188,7 @@ Boolean DesktopPatterns_HandleEvent(EventRecord *event) {
     switch (event->what) {
         case updateEvt:
             serial_puts("[CDEV-EVT] Update event\n");
-            if ((WindowPtr)event->message != gDesktopCdevWin) {
+            if ((WindowPtr)(uintptr_t)event->message != gDesktopCdevWin) {
                 return false;
             }
             BeginUpdate(gDesktopCdevWin);
@@ -281,7 +281,7 @@ Boolean DesktopPatterns_HandleEvent(EventRecord *event) {
             return true;
 
         case activateEvt:
-            if ((WindowPtr)event->message == gDesktopCdevWin) {
+            if ((WindowPtr)(uintptr_t)event->message == gDesktopCdevWin) {
                 /* Future: highlight controls if needed */
                 return true;
             }

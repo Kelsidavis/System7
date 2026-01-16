@@ -56,7 +56,7 @@ static const uint16_t dma2_page_ports[] = { 0x8F, 0x8B, 0x89, 0x8A };
 static int DMA_Setup8Bit(const void* buffer, uint32_t size) {
 
     const uint8_t channel = 1;  /* SB16 uses DMA channel 1 for 8-bit */
-    uint32_t addr = (uint32_t)buffer;
+    uint32_t addr = (uint32_t)(uintptr_t)buffer;
 
     SND_LOG_DEBUG("DMA: Setting up 8-bit DMA on channel %d\n", channel);
     SND_LOG_DEBUG("DMA: Buffer at 0x%08x, size %u bytes\n", addr, size);
@@ -102,7 +102,7 @@ static int DMA_Setup16Bit(const void* buffer, uint32_t size) {
 
     const uint8_t channel = 5;  /* SB16 uses DMA channel 5 for 16-bit */
     const uint8_t channel_offset = channel - 4;  /* DMA2 uses channels 4-7 */
-    uint32_t addr = (uint32_t)buffer;
+    uint32_t addr = (uint32_t)(uintptr_t)buffer;
 
     SND_LOG_DEBUG("DMA: Setting up 16-bit DMA on channel %d\n", channel);
     SND_LOG_DEBUG("DMA: Buffer at 0x%08x, size %u bytes\n", addr, size);

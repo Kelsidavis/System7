@@ -353,9 +353,8 @@ void GetMenuItemText(MenuHandle theMenu, short item, Str255 itemString) {
         return;
     }
 
-    /* Copy item text with bounds checking to prevent buffer overflow */
+    /* Copy item text - unsigned char already limited to 255 max */
     unsigned char textLen = extData->items[item - 1].text[0];
-    if (textLen > 255) textLen = 255; /* Clamp to Str255 maximum */
     itemString[0] = textLen;
     if (textLen > 0) {
         memcpy(&itemString[1], &extData->items[item - 1].text[1], textLen);
@@ -374,17 +373,15 @@ void SetMenuItemText(MenuHandle theMenu, short item, ConstStr255Param itemString
     extData = GetMenuExtData(theMenu);
     if (!extData || item > extData->itemCount) return;
 
-    /* Copy and parse with bounds checking */
+    /* Copy and parse - unsigned char already limited to 255 max */
     unsigned char textLen = itemString[0];
-    if (textLen > 255) textLen = 255; /* Clamp to Str255 maximum */
     itemText[0] = textLen;
     if (textLen > 0) {
         memcpy(&itemText[1], &itemString[1], textLen);
     }
     extData->items[item - 1].cmdKey = ParseItemText(itemText);
-    /* Copy parsed text with bounds check */
+    /* Copy parsed text - unsigned char already limited to 255 max */
     unsigned char parsedLen = itemText[0];
-    if (parsedLen > 255) parsedLen = 255;
     extData->items[item - 1].text[0] = parsedLen;
     if (parsedLen > 0) {
         memcpy(&extData->items[item - 1].text[1], &itemText[1], parsedLen);

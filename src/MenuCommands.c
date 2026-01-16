@@ -348,7 +348,7 @@ static void HandleFileMenu(short item)
                     InitializeFolderContentsEx(front, false, targetVRef, targetDir);
 
                     /* Trigger redraw */
-                    PostEvent(updateEvt, (UInt32)front);
+                    PostEvent(updateEvt, (UInt32)(uintptr_t)front);
                 } else {
                     DrawDesktop();
                 }
@@ -849,7 +849,7 @@ void MakeAliasOfSelectedItems(WindowPtr w) {
     InitializeFolderContentsEx(w, false, vref, dirID);
 
     /* Trigger redraw */
-    PostEvent(updateEvt, (UInt32)w);
+    PostEvent(updateEvt, (UInt32)(uintptr_t)w);
 
     MENU_LOG_DEBUG("MakeAliasOfSelectedItems: Complete\n");
 }
@@ -905,7 +905,7 @@ void PutAwaySelectedItems(WindowPtr w) {
         InitializeFolderContentsEx(w, false, vref, dirID);
 
         /* Trigger redraw */
-        PostEvent(updateEvt, (UInt32)w);
+        PostEvent(updateEvt, (UInt32)(uintptr_t)w);
     } else {
         MENU_LOG_DEBUG("PutAwaySelectedItems: MoveToTrash failed with error %d\n", err);
     }
@@ -1203,7 +1203,7 @@ void Finder_Paste(void) {
     DisposeHandle(scrapHandle);
 
     /* Refresh the folder window */
-    PostEvent(updateEvt, (UInt32)frontWin);
+    PostEvent(updateEvt, (UInt32)(uintptr_t)frontWin);
 
     MENU_LOG_DEBUG("Finder_Paste: Paste operation complete\n");
 }

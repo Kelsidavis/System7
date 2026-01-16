@@ -276,7 +276,7 @@ Boolean MousePanel_HandleEvent(EventRecord *event)
     WindowPtr whichWindow = NULL;
     switch (event->what) {
         case updateEvt:
-            if ((WindowPtr)event->message != gMouseState.window) {
+            if ((WindowPtr)(uintptr_t)event->message != gMouseState.window) {
                 return false;
             }
             BeginUpdate(gMouseState.window);
@@ -287,7 +287,7 @@ Boolean MousePanel_HandleEvent(EventRecord *event)
             return true;
 
         case activateEvt:
-            if ((WindowPtr)event->message == gMouseState.window) {
+            if ((WindowPtr)(uintptr_t)event->message == gMouseState.window) {
                 Boolean active = (event->modifiers & activeFlag) != 0;
                 if (gMouseState.slowerButton) {
                     HiliteControl(gMouseState.slowerButton, active ? noHilite : inactiveHilite);

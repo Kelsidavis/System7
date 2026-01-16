@@ -447,7 +447,7 @@ Boolean DateTimePanel_HandleEvent(EventRecord *event)
 
     switch (event->what) {
         case updateEvt:
-            if ((WindowPtr)event->message != gPanel.window) {
+            if ((WindowPtr)(uintptr_t)event->message != gPanel.window) {
                 return false;
             }
             BeginUpdate(gPanel.window);
@@ -501,7 +501,7 @@ Boolean DateTimePanel_HandleEvent(EventRecord *event)
             }
 
         case activateEvt:
-            if ((WindowPtr)event->message == gPanel.window) {
+            if ((WindowPtr)(uintptr_t)event->message == gPanel.window) {
                 Boolean becomingActive = (event->modifiers & activeFlag) != 0;
                 if (gPanel.use24HourCheck) {
                     HiliteControl(gPanel.use24HourCheck, becomingActive ? noHilite : inactiveHilite);
