@@ -38,28 +38,12 @@
  * Global Window Manager State
  * ============================================================================ */
 
-/* Single global instance of Window Manager state */
+/* Single global instance of Window Manager state
+ * Note: Static storage is zero-initialized by default.
+ * Explicit values set only for non-zero members. */
 static WindowManagerState g_wmState = {
-    .wMgrPort = NULL,
-    .wMgrCPort = NULL,
-    .windowList = NULL,
-    .activeWindow = NULL,
-    .auxWinHead = NULL,
-    .desktopPattern = {{0}},
-    .desktopPixPat = NULL,
     .nextWindowID = 1000,
-    .colorQDAvailable = false,
-    .initialized = false,
-    .platformData = NULL,
-    .port = {{0}},
-    .cPort = {{0}},
-    .ghostWindow = NULL,
-    .menuBarHeight = 20,
-    .grayRgn = NULL,
-    .deskPattern = {{0}},
-    .isDragging = false,
-    .dragOffset = {{0, 0}},
-    .isGrowing = false
+    .menuBarHeight = 20
 };
 
 /* Focus suspend/restore for window activation */

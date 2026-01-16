@@ -39,7 +39,7 @@ static void Local_InitializeSnapSizes(WindowPtr window);
 static void Local_AddSnapSize(short width, short height);
 /* Future use - resize feedback functions currently unused */
 /* static long Local_CalculateNewSize(Point currentPt); */
-static Point Local_ApplySnapToSize(short width, short height);
+/* static Point Local_ApplySnapToSize(short width, short height); */
 static void Local_StartResizeFeedback(void);
 /* static void Local_UpdateResizeFeedback(long newSize); */
 static void Local_EndResizeFeedback(void);
@@ -222,9 +222,6 @@ void SizeWindow(WindowPtr theWindow, short w, short h, Boolean fUpdate) {
                 newContentBounds.right, newContentBounds.bottom);
 
         if (theWindow->refCon == 0x4449534b) {
-            extern void serial_puts(const char *str);
-            extern int sprintf(char* buf, const char* fmt, ...);
-            char dbgbuf[256];
             snprintf(dbgbuf, sizeof(dbgbuf), "[SIZEWND] Updated bounds: contentRect=(%d,%d,%d,%d)\n",
                     newContentBounds.left, newContentBounds.top, newContentBounds.right, newContentBounds.bottom);
             serial_puts(dbgbuf);
