@@ -107,7 +107,9 @@ int usb_control_transfer(uint8_t dev_addr, usb_setup_t *setup,
             /* IN - copy data from DMA buffer */
             dcache_invalidate_range(dma_buffer, length);
             dwc2_channel_t *chan = dwc2_channel_get(ch);
-            memcpy(data, dma_buffer, chan ? chan->transferred : length);
+            uint32_t actual = chan ? chan->transferred : length;
+            if (actual > length) actual = length;  /* Bounds check */
+            memcpy(data, dma_buffer, actual);
         }
     }
 
@@ -368,6 +370,7 @@ int usb_interrupt_transfer(uint8_t dev_addr, uint8_t ep_addr,
             dcache_invalidate_range(dma_buffer, length);
             dwc2_channel_t *chan = dwc2_channel_get(ch);
             uint32_t actual = chan ? chan->transferred : length;
+            if (actual > length) actual = length;  /* Bounds check */
             memcpy(buffer, dma_buffer, actual);
             dwc2_channel_free(ch);
             return (int)actual;
