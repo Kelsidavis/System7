@@ -69,6 +69,9 @@
 /* Mailbox base address */
 static uint64_t mailbox_base = 0;
 
+/* Timeout for mailbox operations (iterations, not time) */
+#define MAILBOX_TIMEOUT     1000000
+
 /* Mailbox buffer - must be 16-byte aligned
  * Exposed globally for framebuffer driver */
 uint32_t __attribute__((aligned(16))) mailbox_buffer[256];
@@ -112,9 +115,10 @@ static bool mailbox_write(uint32_t channel, uint32_t data) {
     if (!mailbox_base) return false;
     if (channel > 15) return false;
 
-    /* Wait for mailbox to be not full */
+    /* Wait for mailbox to be not full (with timeout) */
+    uint32_t timeout = MAILBOX_TIMEOUT;
     while (mmio_read32(mailbox_base + MAILBOX_STATUS) & MAILBOX_FULL) {
-        /* Spin wait */
+        if (--timeout == 0) return false;
     }
 
     /* Write data with channel in low 4 bits */
@@ -125,14 +129,17 @@ static bool mailbox_write(uint32_t channel, uint32_t data) {
 
 /*
  * Read from mailbox
+ * Returns true on success, stores result in *result
  */
-static uint32_t mailbox_read(uint32_t channel) {
-    if (!mailbox_base) return 0;
+static bool mailbox_read(uint32_t channel, uint32_t *result) {
+    if (!mailbox_base) return false;
 
-    while (1) {
-        /* Wait for mailbox to be not empty */
+    uint32_t timeout = MAILBOX_TIMEOUT;
+    while (timeout > 0) {
+        /* Wait for mailbox to be not empty (with timeout) */
+        uint32_t wait = MAILBOX_TIMEOUT;
         while (mmio_read32(mailbox_base + MAILBOX_STATUS) & MAILBOX_EMPTY) {
-            /* Spin wait */
+            if (--wait == 0) return false;
         }
 
         /* Read data */
@@ -140,9 +147,12 @@ static uint32_t mailbox_read(uint32_t channel) {
 
         /* Check if it's for our channel */
         if ((data & 0xF) == channel) {
-            return data & 0xFFFFFFF0;
+            *result = data & 0xFFFFFFF0;
+            return true;
         }
+        timeout--;
     }
+    return false;
 }
 
 /*
@@ -173,7 +183,10 @@ bool mailbox_call(uint32_t channel) {
     }
 
     /* Read response */
-    uint32_t response = mailbox_read(channel);
+    uint32_t response;
+    if (!mailbox_read(channel, &response)) {
+        return false;
+    }
 
     /* Ensure data is read from memory */
     __asm__ volatile("dsb sy" ::: "memory");
@@ -275,12 +288,12 @@ bool mailbox_power_off(void) {
     mailbox_buffer[6] = 0;      /* State: off, don't wait */
     mailbox_buffer[7] = 0;      /* End tag */
 
-    mailbox_call(MBOX_CH_PROP);
+    bool usb_powered_off = mailbox_call(MBOX_CH_PROP);
 
     /* Note: There's no actual "power off the whole board" mailbox tag.
      * The best we can do is halt the CPU and let the watchdog
-     * or user power cycle the device. */
-    return true;
+     * or user power cycle the device. Return whether USB power-off succeeded. */
+    return usb_powered_off;
 }
 
 /*

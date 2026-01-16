@@ -134,6 +134,16 @@ int uart_getc(void) {
 }
 
 /*
+ * Check if data is available to read
+ */
+bool uart_data_ready(void) {
+    if (!uart_base) return false;
+
+    /* Check if RX FIFO is NOT empty */
+    return (mmio_read32(uart_base + UART_FR) & FR_RXFE) == 0;
+}
+
+/*
  * Write a string to UART
  */
 void uart_puts(const char *str) {

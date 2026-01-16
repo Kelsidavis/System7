@@ -43,6 +43,7 @@
 /* GIC base addresses */
 static uint64_t gicd_base = 0;
 static uint64_t gicc_base = 0;
+static uint32_t gic_num_irqs = 0;
 static bool gic_initialized = false;
 
 /*
@@ -94,6 +95,7 @@ bool gic_init(void) {
     /* Get number of interrupt lines */
     uint32_t typer = mmio_read32(gicd_base + GICD_TYPER);
     uint32_t num_lines = ((typer & 0x1F) + 1) * 32;
+    gic_num_irqs = num_lines;
 
     /* Disable all interrupts */
     for (uint32_t i = 0; i < num_lines; i += 32) {
@@ -133,6 +135,7 @@ bool gic_init(void) {
  */
 void gic_enable_interrupt(uint32_t irq) {
     if (!gic_initialized) return;
+    if (irq >= gic_num_irqs) return;
 
     uint32_t reg = irq / 32;
     uint32_t bit = irq % 32;
@@ -145,6 +148,7 @@ void gic_enable_interrupt(uint32_t irq) {
  */
 void gic_disable_interrupt(uint32_t irq) {
     if (!gic_initialized) return;
+    if (irq >= gic_num_irqs) return;
 
     uint32_t reg = irq / 32;
     uint32_t bit = irq % 32;
@@ -157,6 +161,7 @@ void gic_disable_interrupt(uint32_t irq) {
  */
 void gic_set_priority(uint32_t irq, uint8_t priority) {
     if (!gic_initialized) return;
+    if (irq >= gic_num_irqs) return;
 
     uint32_t reg = irq / 4;
     uint32_t offset = (irq % 4) * 8;
@@ -183,6 +188,7 @@ uint32_t gic_acknowledge_interrupt(void) {
  */
 void gic_end_interrupt(uint32_t irq) {
     if (!gic_initialized) return;
+    if (irq >= gic_num_irqs && irq != 1023) return;  /* 1023 = spurious */
 
     mmio_write32(gicc_base + GICC_EOIR, irq);
 }
@@ -192,6 +198,7 @@ void gic_end_interrupt(uint32_t irq) {
  */
 void gic_set_config(uint32_t irq, bool edge_triggered) {
     if (!gic_initialized) return;
+    if (irq >= gic_num_irqs) return;
 
     uint32_t reg = irq / 16;
     uint32_t offset = (irq % 16) * 2;
