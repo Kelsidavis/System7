@@ -96,13 +96,8 @@ void P2CStr(unsigned char* pString) {
         return;
     }
 
-    /* Get Pascal string length from first byte */
+    /* Get Pascal string length from first byte - unsigned char already limited to 255 */
     len = pString[0];
-
-    /* Clamp to reasonable maximum */
-    if (len > 255) {
-        len = 255;
-    }
 
     /* Move string data back by 1 byte */
     if (len > 0) {
@@ -176,13 +171,8 @@ void CopyP2CStr(const char* pString, char* cString) {
         return;
     }
 
-    /* Get Pascal string length from first byte */
+    /* Get Pascal string length from first byte - unsigned char already limited to 255 */
     len = (unsigned char)pString[0];
-
-    /* Clamp to reasonable maximum */
-    if (len > 255) {
-        len = 255;
-    }
 
     /* Copy string data */
     if (len > 0) {

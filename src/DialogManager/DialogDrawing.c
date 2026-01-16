@@ -253,11 +253,10 @@ void DrawDialogStaticText(DialogPtr theDialog, const Rect* bounds, const unsigne
     // DIALOG_LOG_DEBUG("Dialog: DrawStaticText '%.*s'\n", text[0], (const char*)&text[1]);
 
     /* Make a copy and perform parameter substitution (^0, ^1, ^2, ^3) */
-    if (text[0] < 256) {
-        memcpy(substitutedText, text, text[0] + 1);
-        SubstituteAlertParameters(substitutedText);
-        text = substitutedText;
-    }
+    /* Note: text[0] is unsigned char, always < 256 */
+    memcpy(substitutedText, text, text[0] + 1);
+    SubstituteAlertParameters(substitutedText);
+    text = substitutedText;
 
     /* Erase background */
     EraseRect(bounds);

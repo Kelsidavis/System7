@@ -360,7 +360,7 @@ SInt16 RequestWindowUpdate(WindowPtr window, RgnHandle updateRgn,
 
     /* Generate update event */
     Point where = {0, 0};
-    GenerateSystemEvent(updateEvt, (SInt32)window, where, 0);
+    GenerateSystemEvent(updateEvt, (SInt32)(uintptr_t)window, where, 0);
 
     return noErr;
 }
@@ -377,7 +377,7 @@ SInt16 ProcessUpdateEvents(void)
         UpdateRegion* next = region->next;
 
         /* Generate update event for this region */
-        PostEvent(updateEvt, (SInt32)region->window);
+        PostEvent(updateEvt, (SInt32)(uintptr_t)region->window);
         updatesProcessed++;
 
         /* Remove processed region */
@@ -518,7 +518,7 @@ EventRecord GenerateActivateEvent(WindowPtr window, Boolean isActivating, SInt16
     EventRecord event = {0};
 
     event.what = activateEvt;
-    event.message = (SInt32)window;
+    event.message = (SInt32)(uintptr_t)window;
     event.when = TickCount();
     event.where.h = 0;
     event.where.v = 0;

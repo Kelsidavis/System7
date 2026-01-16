@@ -251,10 +251,10 @@ OSErr Context_Switch(ProcessControlBlock* targetProcess)
      */
 
     /* Save A5 world */
-    currentContext->savedA5 = (UInt32)gCurrentProcess->processA5World;
+    currentContext->savedA5 = (UInt32)(uintptr_t)gCurrentProcess->processA5World;
 
     /* Save stack pointer */
-    currentContext->savedStackPointer = (UInt32)gCurrentProcess->processStackBase;
+    currentContext->savedStackPointer = (UInt32)(uintptr_t)gCurrentProcess->processStackBase;
 
     /*
      * Note: In actual 68k implementation, would save:
@@ -348,7 +348,7 @@ OSErr LaunchApplication(LaunchParamBlockRec* launchParams)
     }
 
     /* Set up stack (user stack pointer) */
-    CPUAddr stackTop = (CPUAddr)newProcess->processStackBase +
+    CPUAddr stackTop = (CPUAddr)(uintptr_t)newProcess->processStackBase +
                        newProcess->processStackSize - 16;
     err = segLoader->cpuBackend->SetStacks(segLoader->cpuAS, stackTop, 0);
     if (err != noErr) {

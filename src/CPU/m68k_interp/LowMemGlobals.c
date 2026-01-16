@@ -193,10 +193,10 @@ void LMSetApplZone(UInt32 value)
 
 void* LMGetThePort(void)
 {
-    return (void*)LMGetLong(LMG_ThePort);
+    return (void*)(uintptr_t)LMGetLong(LMG_ThePort);
 }
 
 void LMSetThePort(void* port)
 {
-    LMSetLong(LMG_ThePort, (UInt32)port);
+    LMSetLong(LMG_ThePort, (UInt32)(uintptr_t)port);
 }

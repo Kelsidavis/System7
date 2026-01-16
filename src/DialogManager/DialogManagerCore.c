@@ -416,10 +416,9 @@ void ParamText(const unsigned char* param0, const unsigned char* param1,
         return;
     }
 
-    /* Copy parameter strings (Pascal strings) with bounds checking */
+    /* Copy parameter strings (Pascal strings) - unsigned char already limited to 255 max */
     if (param0) {
         unsigned char len = param0[0];
-        if (len > 255) len = 255;
         gDialogManagerState.globals.paramText[0][0] = len;
         if (len > 0) {
             memcpy(&gDialogManagerState.globals.paramText[0][1], &param0[1], len);
@@ -430,7 +429,6 @@ void ParamText(const unsigned char* param0, const unsigned char* param1,
 
     if (param1) {
         unsigned char len = param1[0];
-        if (len > 255) len = 255;
         gDialogManagerState.globals.paramText[1][0] = len;
         if (len > 0) {
             memcpy(&gDialogManagerState.globals.paramText[1][1], &param1[1], len);
@@ -441,7 +439,6 @@ void ParamText(const unsigned char* param0, const unsigned char* param1,
 
     if (param2) {
         unsigned char len = param2[0];
-        if (len > 255) len = 255;
         gDialogManagerState.globals.paramText[2][0] = len;
         if (len > 0) {
             memcpy(&gDialogManagerState.globals.paramText[2][1], &param2[1], len);
@@ -452,7 +449,6 @@ void ParamText(const unsigned char* param0, const unsigned char* param1,
 
     if (param3) {
         unsigned char len = param3[0];
-        if (len > 255) len = 255;
         gDialogManagerState.globals.paramText[3][0] = len;
         if (len > 0) {
             memcpy(&gDialogManagerState.globals.paramText[3][1], &param3[1], len);
