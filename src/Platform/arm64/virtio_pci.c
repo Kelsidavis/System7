@@ -356,10 +356,14 @@ bool virtio_pci_find_device_from(uint16_t device_id, virtio_pci_device_t *dev, u
         uint8_t notify_cap_ptr = 0;
 
         if (find_virtio_cap(0, slot, 0, VIRTIO_PCI_CAP_COMMON_CFG, &cap, NULL)) {
+            uint64_t bar_addr = get_bar_address(0, slot, 0, cap.bar);
+            if (bar_addr == 0) {
+                uart_puts("[VIRTIO-PCI] Common config BAR not implemented\n");
+                return false;
+            }
             dev->common_cfg_bar = cap.bar;
             dev->common_cfg_offset = cap.offset;
-            dev->common_cfg = (volatile virtio_pci_common_cfg_t *)
-                (get_bar_address(0, slot, 0, cap.bar) + cap.offset);
+            dev->common_cfg = (volatile virtio_pci_common_cfg_t *)(bar_addr + cap.offset);
             uart_puts("[VIRTIO-PCI] Common config at BAR");
             print_dec(cap.bar);
             uart_puts(" + 0x");
@@ -371,36 +375,42 @@ bool virtio_pci_find_device_from(uint16_t device_id, virtio_pci_device_t *dev, u
         }
 
         if (find_virtio_cap(0, slot, 0, VIRTIO_PCI_CAP_NOTIFY_CFG, &cap, &notify_cap_ptr)) {
-            dev->notify_bar = cap.bar;
-            dev->notify_offset = cap.offset;
-            /* Read notify_off_multiplier from the NOTIFY capability at offset 16 */
-            dev->notify_off_multiplier = pci_config_read32(0, slot, 0, notify_cap_ptr + 16);
-            dev->notify_base = (volatile uint16_t *)
-                (get_bar_address(0, slot, 0, cap.bar) + cap.offset);
-            uart_puts("[VIRTIO-PCI] Notify at BAR");
-            print_dec(cap.bar);
-            uart_puts(" + 0x");
-            print_hex32(cap.offset);
-            uart_puts(" multiplier=");
-            print_dec(dev->notify_off_multiplier);
-            uart_puts("\n");
+            uint64_t bar_addr = get_bar_address(0, slot, 0, cap.bar);
+            if (bar_addr != 0) {
+                dev->notify_bar = cap.bar;
+                dev->notify_offset = cap.offset;
+                /* Read notify_off_multiplier from the NOTIFY capability at offset 16 */
+                dev->notify_off_multiplier = pci_config_read32(0, slot, 0, notify_cap_ptr + 16);
+                dev->notify_base = (volatile uint16_t *)(bar_addr + cap.offset);
+                uart_puts("[VIRTIO-PCI] Notify at BAR");
+                print_dec(cap.bar);
+                uart_puts(" + 0x");
+                print_hex32(cap.offset);
+                uart_puts(" multiplier=");
+                print_dec(dev->notify_off_multiplier);
+                uart_puts("\n");
+            }
         }
 
         if (find_virtio_cap(0, slot, 0, VIRTIO_PCI_CAP_ISR_CFG, &cap, NULL)) {
-            dev->isr = (volatile uint8_t *)
-                (get_bar_address(0, slot, 0, cap.bar) + cap.offset);
+            uint64_t bar_addr = get_bar_address(0, slot, 0, cap.bar);
+            if (bar_addr != 0) {
+                dev->isr = (volatile uint8_t *)(bar_addr + cap.offset);
+            }
         }
 
         if (find_virtio_cap(0, slot, 0, VIRTIO_PCI_CAP_DEVICE_CFG, &cap, NULL)) {
-            dev->device_cfg_bar = cap.bar;
-            dev->device_cfg_offset = cap.offset;
-            dev->device_cfg = (volatile void *)
-                (get_bar_address(0, slot, 0, cap.bar) + cap.offset);
-            uart_puts("[VIRTIO-PCI] Device config at BAR");
-            print_dec(cap.bar);
-            uart_puts(" + 0x");
-            print_hex32(cap.offset);
-            uart_puts("\n");
+            uint64_t bar_addr = get_bar_address(0, slot, 0, cap.bar);
+            if (bar_addr != 0) {
+                dev->device_cfg_bar = cap.bar;
+                dev->device_cfg_offset = cap.offset;
+                dev->device_cfg = (volatile void *)(bar_addr + cap.offset);
+                uart_puts("[VIRTIO-PCI] Device config at BAR");
+                print_dec(cap.bar);
+                uart_puts(" + 0x");
+                print_hex32(cap.offset);
+                uart_puts("\n");
+            }
         }
 
         /* Get BAR addresses for direct MMIO access if needed */
