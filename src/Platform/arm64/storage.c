@@ -9,6 +9,8 @@
 
 #ifdef QEMU_BUILD
 #include "virtio_blk.h"
+#else
+#include "sdhci.h"
 #endif
 
 /* Drive info structure (matches Platform/include/storage.h) */
@@ -42,7 +44,8 @@ void hal_storage_init(void) {
     /* Initialize VirtIO block device */
     virtio_blk_init();
 #else
-    /* TODO: Initialize SDHCI controller for Raspberry Pi */
+    /* Initialize SDHCI controller for Raspberry Pi */
+    sdhci_init();
 #endif
 
     storage_initialized = true;
@@ -54,6 +57,10 @@ void hal_storage_init(void) {
 int hal_storage_get_drive_count(void) {
 #ifdef QEMU_BUILD
     if (virtio_blk_is_initialized()) {
+        return 1;
+    }
+#else
+    if (sdhci_is_initialized() && sdhci_card_present()) {
         return 1;
     }
 #endif
@@ -78,6 +85,15 @@ int hal_storage_get_drive_info(int drive_num, hal_drive_info_t *info) {
         copy_string(info->name, "VirtIO Disk", sizeof(info->name));
         return 0;
     }
+#else
+    if (sdhci_is_initialized() && sdhci_card_present()) {
+        info->present = true;
+        info->sector_size = sdhci_get_sector_size();
+        info->total_sectors = sdhci_get_capacity();
+        info->writable = true;  /* SD cards are writable */
+        copy_string(info->name, "SD Card", sizeof(info->name));
+        return 0;
+    }
 #endif
 
     /* No storage device present */
@@ -99,7 +115,7 @@ bool hal_storage_is_ready(int drive_num) {
 #ifdef QEMU_BUILD
     return virtio_blk_is_initialized();
 #else
-    return false;
+    return sdhci_is_initialized() && sdhci_card_present();
 #endif
 }
 
@@ -117,8 +133,9 @@ int hal_storage_read_blocks(int drive_num, uint64_t start_block, uint32_t block_
         return virtio_blk_read(start_block, block_count, buffer);
     }
 #else
-    (void)start_block;
-    (void)block_count;
+    if (sdhci_is_initialized() && sdhci_card_present()) {
+        return sdhci_read_blocks(start_block, block_count, buffer);
+    }
 #endif
 
     return -1;
@@ -138,8 +155,9 @@ int hal_storage_write_blocks(int drive_num, uint64_t start_block, uint32_t block
         return virtio_blk_write(start_block, block_count, buffer);
     }
 #else
-    (void)start_block;
-    (void)block_count;
+    if (sdhci_is_initialized() && sdhci_card_present()) {
+        return sdhci_write_blocks(start_block, block_count, buffer);
+    }
 #endif
 
     return -1;
