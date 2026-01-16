@@ -10,6 +10,9 @@
 #include "EventManager/EventTypes.h"
 #include "Platform/PS2Input.h"
 
+/* Display driver for resolution info */
+#include "display.h"
+
 /* VirtIO input driver (QEMU) */
 #ifdef QEMU_BUILD
 #include "virtio_input.h"
@@ -118,8 +121,16 @@ Boolean GetPS2KeyboardState(KeyMap keyMap) {
  * Returns true on success
  */
 Boolean InitPS2Controller(void) {
-    g_mousePos.h = 320;  /* Center of 640-wide display */
-    g_mousePos.v = 240;  /* Center of 480-high display */
+    /* Center mouse on display - use actual display dimensions if available */
+    uint32_t disp_width = display_get_width();
+    uint32_t disp_height = display_get_height();
+
+    /* Fall back to defaults if display not yet initialized */
+    if (disp_width == 0) disp_width = 640;
+    if (disp_height == 0) disp_height = 480;
+
+    g_mousePos.h = (int16_t)(disp_width / 2);
+    g_mousePos.v = (int16_t)(disp_height / 2);
     g_mouseState = 0;
     g_modifiers = 0;
 

@@ -6,6 +6,7 @@
 #include "usb_hid.h"
 #include "usb_core.h"
 #include "dwc2.h"
+#include "display.h"
 #include "timer.h"
 #include "uart.h"
 #include <string.h>
@@ -282,11 +283,16 @@ static void hid_poll_device(hid_device_t *hid) {
             hid->mouse_x += hid->mouse_report.x_delta;
             hid->mouse_y += hid->mouse_report.y_delta;
 
-            /* Clamp to reasonable bounds */
+            /* Clamp to display bounds */
+            int16_t max_x = (int16_t)display_get_width();
+            int16_t max_y = (int16_t)display_get_height();
+            if (max_x == 0) max_x = 640;  /* Default if display not init */
+            if (max_y == 0) max_y = 480;
+
             if (hid->mouse_x < 0) hid->mouse_x = 0;
             if (hid->mouse_y < 0) hid->mouse_y = 0;
-            if (hid->mouse_x > 1024) hid->mouse_x = 1024;
-            if (hid->mouse_y > 768) hid->mouse_y = 768;
+            if (hid->mouse_x >= max_x) hid->mouse_x = max_x - 1;
+            if (hid->mouse_y >= max_y) hid->mouse_y = max_y - 1;
         }
     }
 }
