@@ -208,10 +208,9 @@ static bool virtio_gpu_send_cmd(void *cmd, size_t cmd_len, void *resp, size_t re
     /* Notify device */
     notify_queue(0);
 
-    /* Wait for completion */
+    /* Wait for completion - read used.idx with volatile semantics */
     int timeout = 100000;
-    volatile uint16_t *used_idx_ptr = &controlq.used.idx;
-    while (*used_idx_ptr == used_idx && --timeout > 0) {
+    while (*(volatile uint16_t *)((uintptr_t)&controlq.used + offsetof(struct gpu_virtq_used, idx)) == used_idx && --timeout > 0) {
         __asm__ volatile("dsb sy" ::: "memory");
     }
 
