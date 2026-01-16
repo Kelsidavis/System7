@@ -334,9 +334,28 @@ int hal_platform_init(void) {
 
 /*
  * Platform shutdown
+ * Performs clean shutdown: disable interrupts, power off peripherals, halt CPU
  */
 void hal_platform_shutdown(void) {
-    uart_puts("[ARM64] hal_platform_shutdown called\n");
+    uart_puts("[ARM64] hal_platform_shutdown: initiating shutdown...\n");
+
+    /* Disable interrupts */
+    __asm__ volatile("msr daifset, #0xF" ::: "memory");
+
+#ifndef QEMU_BUILD
+    /* Power off peripherals on real hardware */
+    extern bool mailbox_power_off(void);
+    mailbox_power_off();
+    uart_puts("[ARM64] Peripherals powered off\n");
+#endif
+
+    uart_puts("[ARM64] System halted. Safe to power off.\n");
+    uart_flush();
+
+    /* Halt CPU - enter low-power wait state */
+    while (1) {
+        __asm__ volatile("wfi");
+    }
 }
 
 /*

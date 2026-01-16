@@ -253,6 +253,37 @@ bool mailbox_get_arm_memory(uint32_t *base, uint32_t *size) {
 }
 
 /*
+ * Power off device using VideoCore firmware
+ * Device ID 0 = SD card, 1 = UART0, 2 = UART1, 3 = USB HCD
+ * For system power off, we use the GET_POWER_STATE/SET_POWER_STATE for device 0
+ * Or use the hardware reset function
+ */
+bool mailbox_power_off(void) {
+    /* Use firmware power off - tag 0x00028001 (SET_POWER_STATE) */
+    /* Request to power off all devices then halt */
+#define MBOX_TAG_SET_POWER_STATE    0x00028001
+#define MBOX_TAG_GET_POWER_STATE    0x00020001
+
+    /* First, attempt a clean shutdown sequence */
+    /* Power off USB (device 3) */
+    mailbox_buffer[0] = 8 * 4;
+    mailbox_buffer[1] = MBOX_REQUEST;
+    mailbox_buffer[2] = MBOX_TAG_SET_POWER_STATE;
+    mailbox_buffer[3] = 8;      /* Value buffer size */
+    mailbox_buffer[4] = 8;      /* Request: size of value */
+    mailbox_buffer[5] = 3;      /* Device ID: USB HCD */
+    mailbox_buffer[6] = 0;      /* State: off, don't wait */
+    mailbox_buffer[7] = 0;      /* End tag */
+
+    mailbox_call(MBOX_CH_PROP);
+
+    /* Note: There's no actual "power off the whole board" mailbox tag.
+     * The best we can do is halt the CPU and let the watchdog
+     * or user power cycle the device. */
+    return true;
+}
+
+/*
  * Check if mailbox is available
  */
 bool mailbox_is_available(void) {

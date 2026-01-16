@@ -23,6 +23,9 @@ bool mailbox_get_board_model(uint32_t *model);
 bool mailbox_get_board_revision(uint32_t *revision);
 bool mailbox_get_arm_memory(uint32_t *base, uint32_t *size);
 
+/* Power management */
+bool mailbox_power_off(void);
+
 /* Check if mailbox is available */
 bool mailbox_is_available(void);
 

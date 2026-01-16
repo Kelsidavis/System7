@@ -5,6 +5,7 @@
 
 #include <stdint.h>
 #include "Platform/include/io.h"
+#include "timer.h"
 
 /*
  * Port I/O functions - ARM64 doesn't have x86-style port I/O
@@ -46,9 +47,8 @@ uint32_t hal_inl(uint16_t port) {
 
 /*
  * I/O delay - used for timing on x86
- * On ARM64, we don't need this but provide it for compatibility
+ * On ARM64, we use the ARM timer for proper microsecond delay
  */
 void hal_io_wait(void) {
-    /* Small delay - could use ARM timer if needed */
-    for (volatile int i = 0; i < 100; i++);
+    timer_usleep(1);  /* 1 microsecond delay */
 }
