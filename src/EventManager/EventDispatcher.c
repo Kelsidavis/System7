@@ -259,10 +259,10 @@ Boolean HandleMouseDown(EventRecord* event)
     /* Find which window part was clicked */
     windowPart = FindWindow(event->where, &whichWindow);
 
-    EVT_LOG_DEBUG("HandleMouseDown: event=0x%08x, where={v=%d,h=%d}, modifiers=0x%04x\n",
-                 (unsigned int)event, (int)event->where.v, (int)event->where.h, event->modifiers);
-    EVT_LOG_DEBUG("HandleMouseDown: part=%d, window=0x%08x at (%d,%d)\n",
-                 windowPart, (unsigned int)whichWindow, (int)event->where.h, (int)event->where.v);
+    EVT_LOG_DEBUG("HandleMouseDown: event=%p, where={v=%d,h=%d}, modifiers=0x%04x\n",
+                 (void*)event, (int)event->where.v, (int)event->where.h, event->modifiers);
+    EVT_LOG_DEBUG("HandleMouseDown: part=%d, window=%p at (%d,%d)\n",
+                 windowPart, (void*)whichWindow, (int)event->where.h, (int)event->where.v);
 
     /* Check if this is the About This Macintosh window - handle specially */
     if (whichWindow && AboutWindow_IsOurs(whichWindow)) {
@@ -293,14 +293,14 @@ Boolean HandleMouseDown(EventRecord* event)
 
         case inContent: {
             /* Click in window content */
-            EVT_LOG_DEBUG("HandleMouseDown: inContent case - whichWindow=0x%08x\n", (unsigned int)whichWindow);
+            EVT_LOG_DEBUG("HandleMouseDown: inContent case - whichWindow=%p\n", (void*)whichWindow);
 
             WindowPtr frontWin = FrontWindow();
-            EVT_LOG_DEBUG("HandleMouseDown: FrontWindow returned 0x%08x\n", (unsigned int)frontWin);
+            EVT_LOG_DEBUG("HandleMouseDown: FrontWindow returned %p\n", (void*)frontWin);
 
             if (whichWindow != frontWin) {
                 /* Bring window to front first */
-                EVT_LOG_DEBUG("HandleMouseDown: Calling SelectWindow(0x%08x)\n", (unsigned int)whichWindow);
+                EVT_LOG_DEBUG("HandleMouseDown: Calling SelectWindow(%p)\n", (void*)whichWindow);
                 SelectWindow(whichWindow);
                 EVT_LOG_DEBUG("HandleMouseDown: SelectWindow returned\n");
                 return true;
@@ -312,8 +312,8 @@ Boolean HandleMouseDown(EventRecord* event)
             /* Route to centralized content click handler */
             extern OSErr HandleContentClick(WindowPtr window, EventRecord* event);
 
-            EVT_LOG_DEBUG("HandleMouseDown: Calling HandleContentClick for window=0x%08x, refCon=0x%08x\n",
-                         (unsigned int)whichWindow, (unsigned int)whichWindow->refCon);
+            EVT_LOG_DEBUG("HandleMouseDown: Calling HandleContentClick for window=%p, refCon=0x%08x\n",
+                         (void*)whichWindow, (unsigned int)whichWindow->refCon);
 
             OSErr err = HandleContentClick(whichWindow, event);
 
@@ -326,8 +326,8 @@ Boolean HandleMouseDown(EventRecord* event)
             if (whichWindow) {
                 /* CRITICAL: Select window first to bring it to front and activate it! */
                 SelectWindow(whichWindow);
-                EVT_LOG_DEBUG("HandleMouseDown: inDrag - called SelectWindow for window=0x%08x\n",
-                             (unsigned int)whichWindow);
+                EVT_LOG_DEBUG("HandleMouseDown: inDrag - called SelectWindow for window=%p\n",
+                             (void*)whichWindow);
 
                 /* Set up drag bounds (entire screen minus menu bar) */
                 extern QDGlobals qd;
@@ -336,8 +336,8 @@ Boolean HandleMouseDown(EventRecord* event)
                 dragBounds.bottom = qd.screenBits.bounds.bottom;
                 dragBounds.right = qd.screenBits.bounds.right;
 
-                EVT_LOG_DEBUG("HandleMouseDown: inDrag window=0x%08x bounds=(%d,%d,%d,%d)\n",
-                             (unsigned int)whichWindow, dragBounds.top, dragBounds.left,
+                EVT_LOG_DEBUG("HandleMouseDown: inDrag window=%p bounds=(%d,%d,%d,%d)\n",
+                             (void*)whichWindow, dragBounds.top, dragBounds.left,
                              dragBounds.bottom, dragBounds.right);
 
                 extern void serial_puts(const char *str);
