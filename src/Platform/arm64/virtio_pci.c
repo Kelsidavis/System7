@@ -289,13 +289,14 @@ bool virtio_pci_scan(void) {
 
         if (vendor == PCI_VENDOR_VIRTIO) {
             uart_puts(" (VirtIO");
-            if (dev_id == PCI_DEVICE_GPU || dev_id == 0x1040 + 16) {
+            /* Note: PCI_DEVICE_GPU == 0x1050 == 0x1040+16, PCI_DEVICE_INPUT == 0x1052 == 0x1040+18 */
+            if (dev_id == PCI_DEVICE_GPU) {
                 uart_puts(" GPU");
-            } else if (dev_id == PCI_DEVICE_INPUT || dev_id == 0x1040 + 18) {
+            } else if (dev_id == PCI_DEVICE_INPUT) {
                 uart_puts(" Input");
-            } else if (dev_id == PCI_DEVICE_BLK || dev_id == 0x1040 + 2) {
+            } else if (dev_id == PCI_DEVICE_BLK || dev_id == 0x1042) {  /* Legacy 0x1001 or Modern 0x1042 */
                 uart_puts(" Block");
-            } else if (dev_id == PCI_DEVICE_NET || dev_id == 0x1040 + 1) {
+            } else if (dev_id == PCI_DEVICE_NET || dev_id == 0x1041) {  /* Legacy 0x1000 or Modern 0x1041 */
                 uart_puts(" Network");
             }
             uart_puts(")");
@@ -322,14 +323,14 @@ bool virtio_pci_find_device_from(uint16_t device_id, virtio_pci_device_t *dev, u
         uint16_t dev_id = pci_config_read16(0, slot, 0, PCI_DEVICE_ID);
 
         /* Check for both legacy and modern device IDs */
-        /* Modern: 0x1040 + device_type, Legacy: varies */
+        /* Note: PCI_DEVICE_GPU/INPUT already are 0x1050/0x1052 (modern IDs) */
         bool match = false;
         if (device_id == VIRTIO_DEV_GPU) {
-            match = (dev_id == PCI_DEVICE_GPU || dev_id == 0x1040 + 16);
+            match = (dev_id == PCI_DEVICE_GPU);
         } else if (device_id == VIRTIO_DEV_INPUT) {
-            match = (dev_id == PCI_DEVICE_INPUT || dev_id == 0x1040 + 18);
+            match = (dev_id == PCI_DEVICE_INPUT);
         } else if (device_id == VIRTIO_DEV_BLK) {
-            match = (dev_id == PCI_DEVICE_BLK || dev_id == 0x1040 + 2);
+            match = (dev_id == PCI_DEVICE_BLK || dev_id == 0x1042);  /* Legacy or Modern */
         }
 
         if (!match) continue;

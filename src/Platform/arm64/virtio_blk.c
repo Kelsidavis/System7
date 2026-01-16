@@ -131,7 +131,7 @@ static uint16_t used_idx = 0;
 
 /* Device info */
 static uint64_t total_sectors = 0;
-static uint32_t block_size = SECTOR_SIZE;
+static uint32_t block_size __attribute__((unused)) = SECTOR_SIZE;
 static bool device_readonly = false;
 
 /* Request buffers - statically allocated for simplicity */

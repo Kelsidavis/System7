@@ -79,7 +79,7 @@ void arm64_boot_main(void *dtb_ptr) {
         static const uint64_t dtb_scan_addrs[] = {
             0x44000000,  /* Common offset from RAM start */
             0x48000000,  /* Alternative location */
-            0x40000000 + (1024 * 1024 * 1024) - (1024 * 1024),  /* End of 1GB RAM - 1MB */
+            0x40000000 + (1024ULL * 1024 * 1024) - (1024 * 1024),  /* End of 1GB RAM - 1MB */
             0
         };
         for (int i = 0; dtb_scan_addrs[i] != 0; i++) {
