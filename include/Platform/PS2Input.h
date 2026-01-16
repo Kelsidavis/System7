@@ -25,9 +25,16 @@ void PollPS2Input(void);
 
 /* Mouse Functions */
 void GetMouse(Point* mouseLoc);
+void SetMousePosition(SInt16 x, SInt16 y);
+void SetMouseButtons(UInt8 buttons);
+UInt8 GetMouseButtons(void);
+Boolean Button(void);
+Boolean StillDown(void);
+Boolean WaitMouseUp(void);
 
 /* Keyboard Functions */
 UInt16 GetPS2Modifiers(void);
+void SetModifiers(UInt16 mods);
 Boolean GetPS2KeyboardState(KeyMap keyMap);
 
 #ifdef __cplusplus

@@ -197,7 +197,7 @@ void PollPS2Input(void) {
  * Set mouse position
  * Called to update mouse position from input driver
  */
-void SetMousePosition(int16_t x, int16_t y) {
+void SetMousePosition(SInt16 x, SInt16 y) {
     g_mousePos.h = x;
     g_mousePos.v = y;
 }
@@ -206,7 +206,7 @@ void SetMousePosition(int16_t x, int16_t y) {
  * Set mouse button state
  * Called to update button state from input driver
  */
-void SetMouseButtons(uint8_t buttons) {
+void SetMouseButtons(UInt8 buttons) {
     g_mouseState = buttons;
 }
 
@@ -214,7 +214,7 @@ void SetMouseButtons(uint8_t buttons) {
  * Set modifier keys
  * Called to update modifier state from input driver
  */
-void SetModifiers(uint16_t mods) {
+void SetModifiers(UInt16 mods) {
     g_modifiers = mods;
 }
 
@@ -222,7 +222,7 @@ void SetModifiers(uint16_t mods) {
  * GetMouseButtons - Get raw mouse button state
  * Returns button state byte (bit 0 = left, bit 1 = right, bit 2 = middle)
  */
-uint8_t GetMouseButtons(void) {
+UInt8 GetMouseButtons(void) {
     return g_mouseState;
 }
 
@@ -230,7 +230,7 @@ uint8_t GetMouseButtons(void) {
  * Button - Check if mouse button is down
  * Returns true if button is pressed
  */
-bool Button(void) {
+Boolean Button(void) {
     return (g_mouseState & 0x01) != 0;
 }
 
@@ -238,7 +238,7 @@ bool Button(void) {
  * StillDown - Check if mouse button is still down
  * Returns true if button remains pressed
  */
-bool StillDown(void) {
+Boolean StillDown(void) {
     return (g_mouseState & 0x01) != 0;
 }
 
@@ -246,7 +246,7 @@ bool StillDown(void) {
  * WaitMouseUp - Wait for mouse button release
  * Returns true when button is released
  */
-bool WaitMouseUp(void) {
+Boolean WaitMouseUp(void) {
     /* Poll input until button is released */
     while (g_mouseState & 0x01) {
         PollPS2Input();
