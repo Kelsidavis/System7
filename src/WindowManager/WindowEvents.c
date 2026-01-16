@@ -442,8 +442,8 @@ void InvalRgn(RgnHandle badRgn) {
 
     /* Post update event to Event Manager so application can redraw */
     /* PostEvent declared in EventManager.h */
-    PostEvent(6 /* updateEvt */, (SInt32)window);
-    WM_LOG_DEBUG("WindowManager: InvalRgn - Posted updateEvt for window=0x%08x\n", (unsigned int)window);
+    PostEvent(6 /* updateEvt */, (SInt32)(uintptr_t)window);
+    WM_LOG_DEBUG("WindowManager: InvalRgn - Posted updateEvt for window=%p\n", (void*)window);
 }
 
 void ValidRect(const Rect* goodRect) {
@@ -873,7 +873,7 @@ Boolean CheckUpdate(EventRecord* theEvent) {
     WM_DEBUG("CheckUpdate: Validating update event");
 
     /* Extract window from event message */
-    WindowPtr window = (WindowPtr)(theEvent->message);
+    WindowPtr window = (WindowPtr)(uintptr_t)(theEvent->message);
     if (window == NULL || !WM_VALID_WINDOW(window)) {
         WM_DEBUG("CheckUpdate: Invalid window in update event");
         return false;

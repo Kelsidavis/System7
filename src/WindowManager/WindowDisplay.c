@@ -86,8 +86,8 @@ void CheckWindowsNeedingUpdate(void) {
         (void)isEmpty; /* Used only in WM_LOG_TRACE (debug builds) */
 
         if (window->visible && window->updateRgn && !EmptyRgn(window->updateRgn)) {
-            WM_LOG_TRACE("CheckWindowsNeedingUpdate: Posting update event for window 0x%08x\n", (unsigned int)window);
-            PostEvent(6 /* updateEvt */, (SInt32)window);
+            WM_LOG_TRACE("CheckWindowsNeedingUpdate: Posting update event for window %p\n", (void*)window);
+            PostEvent(6 /* updateEvt */, (SInt32)(uintptr_t)window);
             /* Don't clear updateRgn here - BeginUpdate/EndUpdate will handle it */
         }
         window = window->nextWindow;
@@ -1542,7 +1542,7 @@ void SelectWindow(WindowPtr window) {
         HiliteWindow(wmState->activeWindow, false);
 
         /* Post deactivate event */
-        PostEvent(activateEvt, (UInt32)wmState->activeWindow);  /* activateEvt with activeFlag clear */
+        PostEvent(activateEvt, (UInt32)(uintptr_t)wmState->activeWindow);  /* activateEvt with activeFlag clear */
     }
 
     /* Bring window to front */
@@ -1571,7 +1571,7 @@ void SelectWindow(WindowPtr window) {
     uart_flush();
 
     /* Generate activate event for the newly selected window */
-    PostEvent(activateEvt, (UInt32)window | 0x0001);  /* activateEvt with activeFlag set */
+    PostEvent(activateEvt, (UInt32)(uintptr_t)window | 0x0001);  /* activateEvt with activeFlag set */
     serial_puts("[SELWIN] done\n");
     uart_flush();
 }

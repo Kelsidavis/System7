@@ -733,7 +733,7 @@ void TextEdit_HandleEvent(EventRecord* evt) {
 
     /* Only handle events for our window */
     if (evt->what == updateEvt) {
-        if ((WindowPtr)evt->message == g_textEditWindow) {
+        if ((WindowPtr)(uintptr_t)evt->message == g_textEditWindow) {
             BeginUpdate(g_textEditWindow);
             EraseRect(&((GrafPtr)g_textEditWindow)->portRect);
             TEUpdate(&((GrafPtr)g_textEditWindow)->portRect, g_appTE);
@@ -760,7 +760,7 @@ void TextEdit_HandleEvent(EventRecord* evt) {
         /* Force update */
         InvalRect(&((GrafPtr)g_textEditWindow)->portRect);
     } else if (evt->what == activateEvt) {
-        if ((WindowPtr)evt->message == g_textEditWindow) {
+        if ((WindowPtr)(uintptr_t)evt->message == g_textEditWindow) {
             if (evt->modifiers & activeFlag) {
                 TEActivate(g_appTE);
             } else {

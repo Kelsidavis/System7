@@ -200,7 +200,7 @@ void TETestHandleEvent(EventRecord *event) {
 
         case updateEvt:
             /* Check if it's our window */
-            window = (WindowPtr)event->message;
+            window = (WindowPtr)(uintptr_t)event->message;
             if (window == g_testWindow) {
                 DrawTestWindow();
             }
@@ -208,7 +208,7 @@ void TETestHandleEvent(EventRecord *event) {
 
         case activateEvt:
             /* Handle activation */
-            if ((WindowPtr)event->message == g_testWindow) {
+            if ((WindowPtr)(uintptr_t)event->message == g_testWindow) {
                 if (event->modifiers & activeFlag) {
                     TEActivate(g_testTE);
                 } else {
