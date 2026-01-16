@@ -122,8 +122,8 @@ bool HFS_VolumeMount(HFS_Volume* vol, const char* imagePath, VRefNum vRefNum) {
 }
 
 bool HFS_VolumeMountMemory(HFS_Volume* vol, void* buffer, uint64_t size, VRefNum vRefNum) {
-    FS_LOG_DEBUG("HFS: VolumeMountMemory: ENTRY vol=%08x buffer=%08x size=%d\n",
-                 (unsigned int)vol, (unsigned int)buffer, (int)size);
+    FS_LOG_DEBUG("HFS: VolumeMountMemory: ENTRY vol=%p buffer=%p size=%d\n",
+                 (void*)vol, buffer, (int)size);
 
     if (!vol || !buffer || size < 1024 * 1024) {
         /* FS_LOG_DEBUG("HFS: Invalid parameters for mount\n"); */
@@ -134,14 +134,14 @@ bool HFS_VolumeMountMemory(HFS_Volume* vol, void* buffer, uint64_t size, VRefNum
     memset(vol, 0, sizeof(HFS_Volume));
 
     /* Initialize block device from memory */
-    FS_LOG_DEBUG("HFS: VolumeMountMemory: calling HFS_BD_InitMemory with vol=%08x buffer=%08x\n",
-                 (unsigned int)vol, (unsigned int)buffer);
+    FS_LOG_DEBUG("HFS: VolumeMountMemory: calling HFS_BD_InitMemory with vol=%p buffer=%p\n",
+                 (void*)vol, buffer);
     if (!HFS_BD_InitMemory(&vol->bd, buffer, size)) {
         /* FS_LOG_DEBUG("HFS: Failed to init block device\n"); */
         return false;
     }
-    FS_LOG_DEBUG("HFS: VolumeMountMemory: After BD_InitMemory, vol->bd.data=%08x\n",
-                 (unsigned int)vol->bd.data);
+    FS_LOG_DEBUG("HFS: VolumeMountMemory: After BD_InitMemory, vol->bd.data=%p\n",
+                 vol->bd.data);
 
     /* Try to read existing MDB */
     uint8_t mdbBuffer[512];

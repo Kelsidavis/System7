@@ -1653,13 +1653,13 @@ void DumpHeap(ZoneInfo* zone) {
             }
         }
 
-        MEMORY_LOG_DEBUG("  %08x: %s size=%5u prev=%5u",
-                      (u32)scan, type, b->size, b->prevSize);
+        MEMORY_LOG_DEBUG("  %p: %s size=%5u prev=%5u",
+                      (void*)scan, type, b->size, b->prevSize);
 
         if (b->flags & BF_HANDLE && b->masterPtr) {
-            MEMORY_LOG_DEBUG(" mp=%08x", (u32)b->masterPtr);
+            MEMORY_LOG_DEBUG(" mp=%p", (void*)b->masterPtr);
             if (*b->masterPtr) {
-                MEMORY_LOG_DEBUG(" *mp=%08x", (u32)*b->masterPtr);
+                MEMORY_LOG_DEBUG(" *mp=%p", (void*)*b->masterPtr);
             }
         }
         MEMORY_LOG_DEBUG("\n");

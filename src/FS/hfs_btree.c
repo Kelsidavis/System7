@@ -11,9 +11,9 @@
 static bool read_btree_data(HFS_BTree* bt, uint32_t offset, void* buffer, uint32_t length) {
     if (!bt || !buffer) return false;
 
-    FS_LOG_DEBUG("read_btree_data: offset=%d length=%d fileSize=%d vol=%08x bd.data=%08x\n",
+    FS_LOG_DEBUG("read_btree_data: offset=%d length=%d fileSize=%d vol=%p bd.data=%p\n",
                  (int)offset, (int)length, (int)bt->fileSize,
-                 (unsigned int)bt->vol, (unsigned int)bt->vol->bd.data);
+                 (void*)bt->vol, bt->vol->bd.data);
 
     uint32_t bytesRead = 0;
     uint32_t currentOffset = offset;
@@ -175,8 +175,8 @@ bool HFS_BT_GetRecord(void* node, uint16_t nodeSize, uint16_t recordNum,
 
     /* DEBUG: Show offset details for first few records */
     if (recordNum < 3) {
-        FS_LOG_DEBUG("HFS_BT_GetRecord: rec=%d offset=%d offsetAddr=%08x\n",
-                     recordNum, offset, (unsigned int)&offsets[-(recordNum)]);
+        FS_LOG_DEBUG("HFS_BT_GetRecord: rec=%d offset=%d offsetAddr=%p\n",
+                     recordNum, offset, (void*)&offsets[-(recordNum)]);
     }
 
     uint16_t nextOffset;

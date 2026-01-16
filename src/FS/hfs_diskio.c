@@ -17,15 +17,15 @@
 /* Later this can be extended to use real file I/O */
 
 bool HFS_BD_InitMemory(HFS_BlockDev* bd, void* buffer, uint64_t size) {
-    FS_LOG_DEBUG("HFS: BD_InitMemory: buffer=%08x size=%d\n",
-                 (unsigned int)buffer, (int)size);
+    FS_LOG_DEBUG("HFS: BD_InitMemory: buffer=%p size=%d\n",
+                 buffer, (int)size);
 
     if (!bd || !buffer || size == 0) return false;
 
     bd->type = HFS_BD_TYPE_MEMORY;
     bd->data = buffer;
     bd->device_index = -1;
-    FS_LOG_DEBUG("HFS: BD_InitMemory: stored bd->data=%08x\n", (unsigned int)bd->data);
+    FS_LOG_DEBUG("HFS: BD_InitMemory: stored bd->data=%p\n", bd->data);
     bd->size = size;
     bd->sectorSize = 512;
     bd->readonly = false;

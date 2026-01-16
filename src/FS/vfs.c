@@ -615,8 +615,8 @@ bool VFS_Enumerate(VRefNum vref, DirID dir, CatEntry* entries, int maxEntries, i
     FS_LOG_DEBUG("VFS_Enumerate: ENTRY vref=%d dir=%d maxEntries=%d\n", (int)vref, (int)dir, maxEntries);
 
     if (!g_vfs.initialized || !entries || !count) {
-        FS_LOG_DEBUG("VFS_Enumerate: Invalid params - init=%d entries=%08x count=%08x\n",
-                     g_vfs.initialized, (unsigned int)entries, (unsigned int)count);
+        FS_LOG_DEBUG("VFS_Enumerate: Invalid params - init=%d entries=%p count=%p\n",
+                     g_vfs.initialized, (void*)entries, (void*)count);
         return false;
     }
 
@@ -633,8 +633,8 @@ bool VFS_Enumerate(VRefNum vref, DirID dir, CatEntry* entries, int maxEntries, i
         return true;
     }
 
-    FS_LOG_DEBUG("VFS_Enumerate: Calling HFS_CatalogEnumerate, nodeBuffer=%08x\n",
-                 (unsigned int)vol->catalog.bt.nodeBuffer);
+    FS_LOG_DEBUG("VFS_Enumerate: Calling HFS_CatalogEnumerate, nodeBuffer=%p\n",
+                 vol->catalog.bt.nodeBuffer);
     bool result = HFS_CatalogEnumerate(&vol->catalog, dir, entries, maxEntries, count);
     FS_LOG_DEBUG("VFS_Enumerate: HFS_CatalogEnumerate returned %d, count=%d\n", result, *count);
     return result;
