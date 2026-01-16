@@ -1005,13 +1005,14 @@ void PLstrcat(unsigned char* dst, const unsigned char* src) {
 
     unsigned char dstLen = dst[0];
     unsigned char srcLen = src[0];
-    unsigned char newLen = dstLen + srcLen;
+    unsigned int totalLen = (unsigned int)dstLen + (unsigned int)srcLen;
 
     /* Limit to 255 characters */
-    if (newLen > 255) {
-        newLen = 255;
-        srcLen = newLen - dstLen;
+    if (totalLen > 255) {
+        totalLen = 255;
+        srcLen = (unsigned char)(totalLen - dstLen);
     }
+    unsigned char newLen = (unsigned char)totalLen;
 
     /* Copy source string data after destination */
     memcpy(dst + 1 + dstLen, src + 1, srcLen);
