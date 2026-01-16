@@ -36,7 +36,9 @@ static const OSType kSel_fpu_ = FOURCC('f','p','u',' ');
 static const OSType kSel_init = FOURCC('i','n','i','t');
 static const OSType kSel_evnt = FOURCC('e','v','n','t');
 static const OSType kSel_pcop = FOURCC('p','c','o','p');  /* Process coop */
+#if defined(__powerpc__) || defined(__powerpc64__)
 static const OSType kSel_mmap = FOURCC('m','m','a','p');
+#endif
 
 /* Global init bits for tracking subsystem initialization */
 static UInt32 gGestaltInitBits = 0;

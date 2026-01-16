@@ -12,7 +12,8 @@
 extern void serial_puts(const char *s);
 extern void serial_putchar(char c);
 
-/* Local hex print helper */
+/* Local hex print helper - used for debug output */
+__attribute__((unused))
 static void gestalt_print_hex(uint32_t value) {
     const char* hex = "0123456789ABCDEF";
     serial_puts("0x");
