@@ -666,7 +666,7 @@ MenuHandle NewMenu(short menuID, ConstStr255Param menuTitle)
 {
     MenuHandle theMenu;
     MenuInfo* menuPtr;
-    size_t titleLen;
+    int titleLen;
 
     if (!gMenuMgrInitialized) {
         return NULL;

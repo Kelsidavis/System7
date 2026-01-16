@@ -825,7 +825,7 @@ void TextEdit_LoadFile(const char* path) {
                         TESetText(*fileBuffer, bytesRead, g_appTE);
                         DisposeHandle(fileBuffer);
                         FSClose(refNum);
-                        TE_LOG("TextEdit_LoadFile: Loaded %lu bytes from %s\n", bytesRead, path);
+                        TE_LOG("TextEdit_LoadFile: Loaded %u bytes from %s\n", bytesRead, path);
                         goto update_title;
                     }
                     DisposeHandle(fileBuffer);

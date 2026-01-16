@@ -206,7 +206,7 @@ void TEStylePaste(TEHandle hTE) {
     /* Check if this is a styled TE record with style scrap */
     if (pTE->hStyles && g_TEStyleScrap && pasteLen > 0) {
         /* Apply styles from scrap */
-        TEC_LOG("TEStylePaste: styled paste - applying %ld bytes of styles\n", pasteLen);
+        TEC_LOG("TEStylePaste: styled paste - applying %d bytes of styles\n", (int)pasteLen);
 
         HLock(g_TEStyleScrap);
         SInt16 *scrapPtr = (SInt16*)*g_TEStyleScrap;
@@ -437,7 +437,7 @@ static OSErr TE_CopyToScrap(TEHandle hTE) {
     HUnlock(g_TEScrap);
     HUnlock(pTE->base.hText);
 
-    TEC_LOG("TE_CopyToScrap: copied %ld bytes\n", selLen);
+    TEC_LOG("TE_CopyToScrap: copied %d bytes\n", (int)selLen);
 
     /* Copy style information if styled */
     if (pTE->hStyles) {
@@ -538,8 +538,8 @@ static OSErr TE_CopyToScrap(TEHandle hTE) {
                         stylePtr[styleIndex++] = 0;  /* Reserved */
                         runCount++;
 
-                        TEC_LOG("TE_CopyToScrap: serialized run at offset %ld, style %d (font=%d, size=%d)\n",
-                                currentOffset, styleIdx, pStyle->tsFont, pStyle->tsSize);
+                        TEC_LOG("TE_CopyToScrap: serialized run at offset %d, style %d (font=%d, size=%d)\n",
+                                (int)currentOffset, styleIdx, pStyle->tsFont, pStyle->tsSize);
                     }
                 }
             }
@@ -580,7 +580,7 @@ static OSErr TE_CopyToScrap(TEHandle hTE) {
         SetHandleSize(styleHandle, styleIndex * sizeof(SInt16));
         g_TEStyleScrap = styleHandle;
 
-        TEC_LOG("TE_CopyToScrap: copied style scrap with %d runs for %ld bytes\n", runCount, selLen);
+        TEC_LOG("TE_CopyToScrap: copied style scrap with %d runs for %d bytes\n", runCount, (int)selLen);
     }
 
     HUnlock((Handle)hTE);

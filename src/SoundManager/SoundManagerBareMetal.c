@@ -378,7 +378,7 @@ static void SndProcessCommand(SndChannelPtr chan, const SndCommand* cmd) {
                 UInt32 noteFreq = SndMidiNoteToFreq((UInt8)cmd->param1);
                 UInt32 duration = cmd->param2 > 0 ? (UInt32)cmd->param2 : 200;
 
-                SND_LOG_DEBUG("SndProcessCommand: MIDI note %d -> %lu Hz, duration %lu ms\n",
+                SND_LOG_DEBUG("SndProcessCommand: MIDI note %d -> %u Hz, duration %u ms\n",
                               cmd->param1, noteFreq, duration);
 
                 PCSpkr_Beep(noteFreq, duration);
@@ -808,7 +808,7 @@ static OSErr SndPlay_Format1(const UInt8* sndData, Size dataSize) {
                     UInt32 noteFreq = SndMidiNoteToFreq((UInt8)param1);
                     currentDuration = 200;  /* Default duration if not specified */
 
-                    SND_LOG_DEBUG("SndPlay_Format1: MIDI note %d -> %lu Hz, duration %lu ms\n",
+                    SND_LOG_DEBUG("SndPlay_Format1: MIDI note %d -> %u Hz, duration %u ms\n",
                                   param1, noteFreq, currentDuration);
 
                     PCSpkr_Beep(noteFreq, currentDuration);
