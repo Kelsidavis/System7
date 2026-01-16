@@ -94,8 +94,16 @@ uint32_t dtb_get_size(void) {
 const void *dtb_get_property(const char *node_path, const char *property, uint32_t *len) {
     if (!dtb_header || !node_path || !property) return NULL;
 
-    uint32_t *struct_ptr = (uint32_t *)((uint8_t *)dtb_ptr + bswap32(dtb_header->off_dt_struct));
-    const char *strings = (const char *)dtb_ptr + bswap32(dtb_header->off_dt_strings);
+    uint32_t totalsize = bswap32(dtb_header->totalsize);
+    uint32_t off_struct = bswap32(dtb_header->off_dt_struct);
+    uint32_t off_strings = bswap32(dtb_header->off_dt_strings);
+    uint32_t size_strings = bswap32(dtb_header->size_dt_strings);
+
+    /* Validate offsets are within DTB bounds */
+    if (off_struct >= totalsize || off_strings >= totalsize) return NULL;
+
+    uint32_t *struct_ptr = (uint32_t *)((uint8_t *)dtb_ptr + off_struct);
+    const char *strings = (const char *)dtb_ptr + off_strings;
 
     /* Skip leading slash in path */
     if (node_path[0] == '/') node_path++;
@@ -141,6 +149,10 @@ const void *dtb_get_property(const char *node_path, const char *property, uint32
             case FDT_PROP: {
                 uint32_t prop_len = bswap32(*struct_ptr++);
                 uint32_t nameoff = bswap32(*struct_ptr++);
+
+                /* Validate nameoff is within strings block */
+                if (nameoff >= size_strings) return NULL;
+
                 const char *prop_name = strings + nameoff;
                 const void *prop_value = struct_ptr;
 

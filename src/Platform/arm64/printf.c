@@ -93,6 +93,7 @@ int snprintf(char *str, size_t size, const char *format, ...) {
             } else if (*src == 's') {
                 /* String */
                 const char *s = (const char *)value;
+                if (!s) s = "(null)";
                 while (*s && remaining > 0) {
                     *dst++ = *s++;
                     remaining--;
