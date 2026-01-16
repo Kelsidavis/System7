@@ -358,7 +358,7 @@ Boolean HandleMouseDown(EventRecord* event)
         case inGrow:
             /* Resize window using grow box */
             if (whichWindow) {
-                EVT_LOG_DEBUG("Grow window 0x%08x\n", (unsigned int)whichWindow);
+                EVT_LOG_DEBUG("Grow window %p\n", (void*)whichWindow);
                 /* Call GrowWindow directly instead of TrackBox to handle resize properly */
                 extern long GrowWindow(WindowPtr theWindow, Point startPt, const Rect* bBox);
                 long newSize = GrowWindow(whichWindow, event->where, NULL);
@@ -370,7 +370,7 @@ Boolean HandleMouseDown(EventRecord* event)
             /* Close box clicked - directly close without tracking (TrackGoAway not fully implemented) */
             if (whichWindow) {
                 extern void DisposeWindow(WindowPtr window);
-                EVT_LOG_DEBUG("DISP: Close box clicked, disposing window 0x%08x\n", (unsigned int)whichWindow);
+                EVT_LOG_DEBUG("DISP: Close box clicked, disposing window %p\n", (void*)whichWindow);
                 DisposeWindow(whichWindow);  /* Calls CloseWindow internally + frees memory */
             }
             return true;
@@ -380,7 +380,7 @@ Boolean HandleMouseDown(EventRecord* event)
             /* Zoom box clicked */
             if (whichWindow) {
                 extern void ZoomWindow(WindowPtr theWindow, short partCode, Boolean front);
-                EVT_LOG_DEBUG("Zoom window 0x%08x (partCode=%d)\n", (unsigned int)whichWindow, windowPart);
+                EVT_LOG_DEBUG("Zoom window %p (partCode=%d)\n", (void*)whichWindow, windowPart);
                 ZoomWindow(whichWindow, windowPart, true);
             }
             return true;
@@ -530,14 +530,14 @@ Boolean HandleKeyDownEvent(EventRecord* event)
         extern void TextEdit_HandleEvent(EventRecord* event);
 
         if (TextEdit_IsRunning()) {
-            EVT_LOG_DEBUG("Key '%c' (0x%02x) → TextEdit window 0x%08x\n",
-                         (key >= 32 && key < 127) ? key : '?', key, (unsigned int)frontWindow);
+            EVT_LOG_DEBUG("Key '%c' (0x%02x) → TextEdit window %p\n",
+                         (key >= 32 && key < 127) ? key : '?', key, (void*)frontWindow);
             TextEdit_HandleEvent(event);
             return true;
         }
 
         /* Other applications would handle their own keys */
-        EVT_LOG_DEBUG("Key '%c' to window 0x%08x (no handler)\n", key, (unsigned int)frontWindow);
+        EVT_LOG_DEBUG("Key '%c' to window %p (no handler)\n", key, (void*)frontWindow);
     }
 
     return true;
@@ -558,9 +558,9 @@ Boolean HandleKeyUp(EventRecord* event)
 Boolean HandleUpdate(EventRecord* event)
 {
     EVT_LOG_DEBUG("[HandleUpdate] ENTRY, event=%p\n", event);
-    WindowPtr updateWindow = (WindowPtr)(event->message);
+    WindowPtr updateWindow = (WindowPtr)(uintptr_t)(event->message);
 
-    EVT_LOG_DEBUG("HandleUpdate: window=0x%08x\n", (unsigned int)updateWindow);
+    EVT_LOG_DEBUG("HandleUpdate: window=%p\n", (void*)updateWindow);
 
     if (updateWindow) {
         if (SimpleText_HandleWindowUpdate(updateWindow)) {
@@ -638,15 +638,15 @@ Boolean HandleUpdate(EventRecord* event)
  */
 Boolean HandleActivate(EventRecord* event)
 {
-    WindowPtr window = (WindowPtr)(event->message);
+    WindowPtr window = (WindowPtr)(uintptr_t)(event->message);
     Boolean activating = (event->modifiers & activeFlag) != 0;
 
     if (SimpleText_DispatchEvent(event)) {
         return true;
     }
 
-    EVT_LOG_DEBUG("HandleActivate: window=0x%08x, activating=%d\n",
-                 (unsigned int)window, activating);
+    EVT_LOG_DEBUG("HandleActivate: window=%p, activating=%d\n",
+                 (void*)window, activating);
 
     if (window) {
         if (activating) {
@@ -739,7 +739,7 @@ void SetActiveWindow(WindowPtr window)
         if (g_dispatcher.activeWindow) {
             EventRecord deactivateEvent;
             deactivateEvent.what = activateEvt;
-            deactivateEvent.message = (SInt32)g_dispatcher.activeWindow;
+            deactivateEvent.message = (SInt32)(uintptr_t)g_dispatcher.activeWindow;
             deactivateEvent.when = TickCount();
             deactivateEvent.where.h = 0;
             deactivateEvent.where.v = 0;
@@ -752,7 +752,7 @@ void SetActiveWindow(WindowPtr window)
         if (window) {
             EventRecord activateEvent;
             activateEvent.what = activateEvt;
-            activateEvent.message = (SInt32)window;
+            activateEvent.message = (SInt32)(uintptr_t)window;
             activateEvent.when = TickCount();
             activateEvent.where.h = 0;
             activateEvent.where.v = 0;

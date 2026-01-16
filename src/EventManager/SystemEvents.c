@@ -158,7 +158,7 @@ static void ProcessPendingUpdates(void)
     while (region) {
         /* Generate update event for each region */
         Point where = {0, 0};
-        GenerateSystemEvent(updateEvt, (SInt32)region->window, where, 0);
+        GenerateSystemEvent(updateEvt, (SInt32)(uintptr_t)region->window, where, 0);
         region = region->next;
     }
 }
@@ -260,10 +260,10 @@ SInt16 GenerateSystemEventEx(SInt16 eventType, SInt16 eventSubtype,
 
     switch (eventType) {
         case updateEvt:
-            baseEvent.message = (SInt32)targetWindow;
+            baseEvent.message = (SInt32)(uintptr_t)targetWindow;
             break;
         case activateEvt:
-            baseEvent.message = (SInt32)targetWindow;
+            baseEvent.message = (SInt32)(uintptr_t)targetWindow;
             if (eventSubtype == kActivateEventWindow) {
                 baseEvent.modifiers |= activeFlag;
             }
