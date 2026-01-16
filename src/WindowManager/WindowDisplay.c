@@ -166,12 +166,12 @@ void PaintOne(WindowPtr window, RgnHandle clobberedRgn) {
             if (window->refCon == 0x4449534b && window->contRgn && *(window->contRgn)) {
                 extern void serial_puts(const char *str);
                 extern int sprintf(char* buf, const char* fmt, ...);
-                char dbgbuf[256];
+                char filldbg[256];
                 /* Use pointer to avoid struct assignment on ARM64 */
                 Rect* fillBBoxPtr = &((*(window->contRgn))->rgnBBox);
-                sprintf(dbgbuf, "[FILLRGN] DISK: About to fill region bbox=(%d,%d,%d,%d)\n",
+                sprintf(filldbg, "[FILLRGN] DISK: About to fill region bbox=(%d,%d,%d,%d)\n",
                         fillBBoxPtr->left, fillBBoxPtr->top, fillBBoxPtr->right, fillBBoxPtr->bottom);
-                serial_puts(dbgbuf);
+                serial_puts(filldbg);
 
                 /* Log the current port state when filling */
                 extern QDGlobals qd;
