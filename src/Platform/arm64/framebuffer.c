@@ -222,7 +222,7 @@ void *framebuffer_get_buffer(void) {
  * Clear framebuffer to color
  */
 void framebuffer_clear(uint32_t color) {
-    if (!fb.initialized) return;
+    if (!fb.initialized || !fb.buffer) return;
 
     uint32_t pixels = (fb.pitch / 4) * fb.height;
     for (uint32_t i = 0; i < pixels; i++) {
@@ -234,7 +234,7 @@ void framebuffer_clear(uint32_t color) {
  * Set pixel at (x, y) to color
  */
 void framebuffer_set_pixel(uint32_t x, uint32_t y, uint32_t color) {
-    if (!fb.initialized) return;
+    if (!fb.initialized || !fb.buffer) return;
     if (x >= fb.width || y >= fb.height) return;
 
     uint32_t offset = y * (fb.pitch / 4) + x;
@@ -245,7 +245,7 @@ void framebuffer_set_pixel(uint32_t x, uint32_t y, uint32_t color) {
  * Get pixel color at (x, y)
  */
 uint32_t framebuffer_get_pixel(uint32_t x, uint32_t y) {
-    if (!fb.initialized) return 0;
+    if (!fb.initialized || !fb.buffer) return 0;
     if (x >= fb.width || y >= fb.height) return 0;
 
     uint32_t offset = y * (fb.pitch / 4) + x;
@@ -256,7 +256,7 @@ uint32_t framebuffer_get_pixel(uint32_t x, uint32_t y) {
  * Draw horizontal line
  */
 void framebuffer_draw_hline(uint32_t x, uint32_t y, uint32_t width, uint32_t color) {
-    if (!fb.initialized) return;
+    if (!fb.initialized || !fb.buffer) return;
     if (y >= fb.height) return;
 
     uint32_t end_x = x + width;
@@ -272,7 +272,7 @@ void framebuffer_draw_hline(uint32_t x, uint32_t y, uint32_t width, uint32_t col
  * Draw vertical line
  */
 void framebuffer_draw_vline(uint32_t x, uint32_t y, uint32_t height, uint32_t color) {
-    if (!fb.initialized) return;
+    if (!fb.initialized || !fb.buffer) return;
     if (x >= fb.width) return;
 
     uint32_t end_y = y + height;

@@ -454,8 +454,10 @@ bool virtio_blk_init(void) {
  */
 int virtio_blk_read(uint64_t sector, uint32_t count, void *buffer) {
     if (!blk_initialized) return -1;
-    if (sector + count > total_sectors) return -1;
+    if (!buffer) return -1;
     if (count == 0) return 0;
+    /* Overflow-safe bounds check */
+    if (count > total_sectors || sector > total_sectors - count) return -1;
 
     /* Read in chunks if necessary */
     uint8_t *buf = (uint8_t *)buffer;
@@ -488,8 +490,10 @@ int virtio_blk_read(uint64_t sector, uint32_t count, void *buffer) {
 int virtio_blk_write(uint64_t sector, uint32_t count, const void *buffer) {
     if (!blk_initialized) return -1;
     if (device_readonly) return -1;
-    if (sector + count > total_sectors) return -1;
+    if (!buffer) return -1;
     if (count == 0) return 0;
+    /* Overflow-safe bounds check */
+    if (count > total_sectors || sector > total_sectors - count) return -1;
 
     /* Write in chunks if necessary */
     const uint8_t *buf = (const uint8_t *)buffer;
