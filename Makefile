@@ -283,7 +283,10 @@ C_SOURCES = src/main.c \
               src/Platform/arm64/io.c \
               src/Platform/arm64/hal_input.c \
               src/Platform/arm64/platform_info.c \
-              src/Platform/arm64/storage.c, \
+              src/Platform/arm64/storage.c \
+              src/Platform/arm64/dwc2.c \
+              src/Platform/arm64/usb_core.c \
+              src/Platform/arm64/usb_hid.c, \
             $(if $(filter arm,$(PLATFORM)), \
               src/Platform/arm/hal_boot.c \
               src/Platform/arm/io.c \
