@@ -456,7 +456,8 @@ OSErr SndDoCommand(SndChannelPtr chan, const SndCommand* cmd, Boolean noWait) {
             SndCallBackProcPtr callback = (SndCallBackProcPtr)chan->callBack;
             /* callBack parameter can be either the last command or NULL for general completion */
             SND_LOG_DEBUG("SndDoCommand: Invoking command queue completion callback\n");
-            callback(chan, cmd);  /* Pass the original command that triggered queue processing */
+            /* API requires non-const SndCommand* for callback */
+            callback(chan, (SndCommand*)(uintptr_t)cmd);
         }
     }
 
@@ -489,7 +490,8 @@ OSErr SndDoImmediate(SndChannelPtr chan, const SndCommand* cmd) {
     if (chan->callBack) {
         SndCallBackProcPtr callback = (SndCallBackProcPtr)chan->callBack;
         SND_LOG_DEBUG("SndDoImmediate: Invoking immediate command completion callback\n");
-        callback(chan, (SndCommand*)cmd);
+        /* API requires non-const SndCommand* for callback */
+        callback(chan, (SndCommand*)(uintptr_t)cmd);
     }
 
     return noErr;

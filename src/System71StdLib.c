@@ -79,7 +79,9 @@ void* memchr(const void* s, int c, size_t n) {
 
     while (n--) {
         if (*p == ch) {
-            return (void*)p;
+            /* Per C standard, memchr returns non-const pointer to allow
+             * modification if original buffer was non-const */
+            return (void*)(uintptr_t)p;
         }
         p++;
     }
@@ -1311,7 +1313,8 @@ long strtol(const char* str, char** endptr, int base) {
     }
 
     if (endptr) {
-        *endptr = (str == start) ? (char*)start : (char*)str;
+        /* Per C standard, endptr returns non-const pointer into const input */
+        *endptr = (char*)(uintptr_t)((str == start) ? start : str);
     }
 
     return result * sign;
@@ -1370,7 +1373,8 @@ unsigned long strtoul(const char* str, char** endptr, int base) {
     }
 
     if (endptr) {
-        *endptr = (str == start) ? (char*)start : (char*)str;
+        /* Per C standard, endptr returns non-const pointer into const input */
+        *endptr = (char*)(uintptr_t)((str == start) ? start : str);
     }
 
     return result;

@@ -783,7 +783,8 @@ void Platform_ShowDragOutline(const Rect* rect) {
     /* Use XOR mode for drag outline */
     /* patXor = 10, patCopy = 8 in QuickDraw */
     PenMode(10);  /* patXor */
-    FrameRect((Rect*)rect);
+    /* FrameRect API takes non-const Rect* for historical reasons */
+    FrameRect((Rect*)(uintptr_t)rect);
     PenMode(8);   /* patCopy */
 
     SetPort(savePort);

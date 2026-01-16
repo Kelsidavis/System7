@@ -317,9 +317,10 @@ void MacPaint_OpenFile(const char* path)
         } else {
             /* MacPaint will open this file when launched */
             int argc = 2;
-            const char *argv[3] = { "MacPaint", path, NULL };
+            /* Use already-copied buffer for MacPaintMain argv compatibility */
+            char *argv[3] = { (char*)"MacPaint", gMacPaintOpenFilePath, NULL };
             gMacPaintIsRunning = 1;
-            MacPaintMain(argc, (char **)argv);
+            MacPaintMain(argc, argv);
             gMacPaintIsRunning = 0;
         }
     }
