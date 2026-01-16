@@ -71,8 +71,8 @@
 #define GUSBCFG_HNPCAP          (1 << 9)
 #define GUSBCFG_USBTRDTIM(x)    (((x) & 0xF) << 10)
 #define GUSBCFG_PHYLPWRCLKSEL   (1 << 15)
-#define GUSBCFG_FORCEHSTMODE    (1 << 29)
-#define GUSBCFG_FORCEDEVMODE    (1 << 30)
+#define GUSBCFG_FORCEHSTMODE    (1U << 29)
+#define GUSBCFG_FORCEDEVMODE    (1U << 30)
 
 /* GRSTCTL bits */
 #define GRSTCTL_CSFTRST         (1 << 0)
@@ -82,8 +82,8 @@
 #define GRSTCTL_TXFFLSH         (1 << 5)
 #define GRSTCTL_TXFNUM(x)       (((x) & 0x1F) << 6)
 #define GRSTCTL_TXFNUM_ALL      GRSTCTL_TXFNUM(0x10)
-#define GRSTCTL_DMAREQ          (1 << 30)
-#define GRSTCTL_AHBIDLE         (1 << 31)
+#define GRSTCTL_DMAREQ          (1U << 30)
+#define GRSTCTL_AHBIDLE         (1U << 31)
 
 /* GINTSTS/GINTMSK bits */
 #define GINTSTS_CURMODE_HOST    (1 << 0)
@@ -105,9 +105,9 @@
 #define GINTSTS_HCHINT          (1 << 25)
 #define GINTSTS_PTXFEMP         (1 << 26)
 #define GINTSTS_PRTINT          (1 << 24)
-#define GINTSTS_DISCONNINT      (1 << 29)
-#define GINTSTS_SESSREQINT      (1 << 30)
-#define GINTSTS_WKUPINT         (1 << 31)
+#define GINTSTS_DISCONNINT      (1U << 29)
+#define GINTSTS_SESSREQINT      (1U << 30)
+#define GINTSTS_WKUPINT         (1U << 31)
 
 /* HPRT (Host Port) bits */
 #define HPRT_PRTCONNSTS         (1 << 0)   /* Port connect status (RO) */
@@ -145,8 +145,8 @@
 #define HCCHAR_DEVADDR_MASK     (0x7F << 22)
 #define HCCHAR_DEVADDR(x)       (((x) & 0x7F) << 22)
 #define HCCHAR_ODDFRM           (1 << 29)
-#define HCCHAR_CHDIS            (1 << 30)
-#define HCCHAR_CHEN             (1 << 31)
+#define HCCHAR_CHDIS            (1U << 30)
+#define HCCHAR_CHEN             (1U << 31)
 
 /* Endpoint types */
 #define EP_TYPE_CONTROL         0
@@ -164,8 +164,8 @@
 #define HCTSIZ_PID_DATA2        (1 << 29)
 #define HCTSIZ_PID_DATA1        (2 << 29)
 #define HCTSIZ_PID_MDATA        (3 << 29)
-#define HCTSIZ_PID_SETUP        (3 << 29)
-#define HCTSIZ_DOPNG            (1 << 31)
+#define HCTSIZ_PID_SETUP        (3U << 29)
+#define HCTSIZ_DOPNG            (1U << 31)
 
 /* HCINT (Host Channel Interrupt) bits */
 #define HCINT_XFERCOMP          (1 << 0)   /* Transfer complete */

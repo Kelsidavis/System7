@@ -23,6 +23,9 @@ void uart_puts(const char *str);
 /* Check if UART is available */
 bool uart_is_available(void);
 
+/* Check if data is available to read (non-blocking) */
+bool uart_data_ready(void);
+
 /* Flush UART output buffer */
 void uart_flush(void);
 

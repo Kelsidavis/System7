@@ -44,7 +44,8 @@ static inline uint8_t mmio_read8(uint64_t addr) {
 }
 
 /* DMA buffer - 4KB aligned for ARM64 cache coherency */
-static uint8_t __attribute__((aligned(4096))) dma_buffer[4096];
+/* Reserved for future DMA mode implementation */
+static uint8_t __attribute__((aligned(4096), unused)) dma_buffer[4096];
 
 /* SDHCI state */
 static uint64_t sdhci_base = 0;

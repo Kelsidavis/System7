@@ -114,6 +114,14 @@ bool uart_is_available(void) {
 }
 
 /*
+ * Check if data is available to read (non-blocking)
+ */
+bool uart_data_ready(void) {
+    /* Check if RX FIFO has data (not empty) */
+    return (mmio_read32(UART_BASE + UART_FR) & FR_RXFE) == 0;
+}
+
+/*
  * Flush UART output
  */
 void uart_flush(void) {

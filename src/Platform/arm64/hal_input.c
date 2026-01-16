@@ -236,6 +236,9 @@ bool StillDown(void) {
  * Returns true when button is released
  */
 bool WaitMouseUp(void) {
-    /* In a real implementation, this would poll and wait */
+    /* Poll input until button is released */
+    while (g_mouseState & 0x01) {
+        PollPS2Input();
+    }
     return true;
 }

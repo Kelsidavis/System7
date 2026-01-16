@@ -45,7 +45,7 @@ char serial_getchar(void) {
  * serial_data_ready - Check if data is available
  */
 int serial_data_ready(void) {
-    return uart_getc() >= 0 ? 1 : 0;
+    return uart_data_ready() ? 1 : 0;
 }
 
 /*
