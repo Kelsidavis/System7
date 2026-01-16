@@ -272,7 +272,7 @@ static void HandleKeyDown(EventRecord* event) {
  * HandleUpdate - Process update events
  */
 static void HandleUpdate(EventRecord* event) {
-    WindowPtr window = (WindowPtr)event->message;
+    WindowPtr window = (WindowPtr)(uintptr_t)event->message;
 
     SimpleText_HandleWindowUpdate(window);
 }
@@ -284,7 +284,7 @@ static void HandleUpdate(EventRecord* event) {
  * remove them when our last window deactivates (allowing Finder menus to show).
  */
 static void HandleActivate(EventRecord* event) {
-    WindowPtr window = (WindowPtr)event->message;
+    WindowPtr window = (WindowPtr)(uintptr_t)event->message;
     STDocument* doc = STDoc_FindByWindow(window);
     Boolean wasActive;
 
@@ -395,7 +395,7 @@ Boolean SimpleText_DispatchEvent(EventRecord* event)
         }
 
         case activateEvt: {
-            WindowPtr window = (WindowPtr)event->message;
+            WindowPtr window = (WindowPtr)(uintptr_t)event->message;
             if (window && STDoc_FindByWindow(window)) {
                 SimpleText_HandleEvent(event);
                 return true;
