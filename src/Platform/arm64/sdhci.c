@@ -509,6 +509,11 @@ int sdhci_read_blocks(uint64_t lba, uint32_t count, void *buffer) {
         return -1;
     }
 
+    /* Overflow-safe bounds check */
+    if (count > card_capacity || lba > card_capacity - count) {
+        return -1;
+    }
+
     uint8_t *dest = (uint8_t *)buffer;
     uint32_t blocks_read = 0;
 
@@ -592,6 +597,11 @@ int sdhci_write_blocks(uint64_t lba, uint32_t count, const void *buffer) {
     }
 
     if (!sdhci_card_present() || card_capacity == 0) {
+        return -1;
+    }
+
+    /* Overflow-safe bounds check */
+    if (count > card_capacity || lba > card_capacity - count) {
         return -1;
     }
 
