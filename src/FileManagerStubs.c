@@ -679,7 +679,7 @@ OSErr Ext_SearchOverflow(VCB* vcb, UInt32 fileID, UInt8 forkType, UInt32 startFA
 
     /* Search extents B-tree */
     recordSize = sizeof(ExtDataRec);
-    err = BTree_Search((BTCB*)vcb->base.vcbXTRef, &key, &record, &recordSize, NULL);
+    err = BTree_Search((BTCB*)(uintptr_t)vcb->base.vcbXTRef, &key, &record, &recordSize, NULL);
     if (err != noErr) {
         FS_LOG_DEBUG("Ext_SearchOverflow: not found for fileID=%u FABN=%u\n",
                     fileID, startFABN);
@@ -717,7 +717,7 @@ OSErr Ext_AddOverflow(VCB* vcb, UInt32 fileID, UInt8 forkType, UInt32 startFABN,
     key.xkrFABN = (UInt16)startFABN;
 
     /* Insert into extents B-tree */
-    err = BTree_Insert((BTCB*)vcb->base.vcbXTRef, &key, extents, sizeof(ExtDataRec));
+    err = BTree_Insert((BTCB*)(uintptr_t)vcb->base.vcbXTRef, &key, extents, sizeof(ExtDataRec));
     if (err != noErr) {
         FS_LOG_ERROR("Ext_AddOverflow: insert failed for fileID=%u FABN=%u: %d\n",
                     fileID, startFABN, err);
@@ -757,7 +757,7 @@ OSErr Ext_DeleteOverflow(VCB* vcb, UInt32 fileID, UInt8 forkType, UInt32 startFA
     key.xkrFABN = (UInt16)startFABN;
 
     /* Delete from extents B-tree */
-    err = BTree_Delete((BTCB*)vcb->base.vcbXTRef, &key);
+    err = BTree_Delete((BTCB*)(uintptr_t)vcb->base.vcbXTRef, &key);
     if (err != noErr) {
         FS_LOG_ERROR("Ext_DeleteOverflow: delete failed for fileID=%u FABN=%u: %d\n",
                     fileID, startFABN, err);

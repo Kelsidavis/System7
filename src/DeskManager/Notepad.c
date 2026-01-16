@@ -304,7 +304,7 @@ void Notepad_HandleEvent(EventRecord *event) {
             break;
 
         case updateEvt:
-            if ((WindowPtr)event->message == gNotepad->window) {
+            if ((WindowPtr)(uintptr_t)event->message == gNotepad->window) {
                 BeginUpdate(gNotepad->window);
                 Notepad_Draw();
                 EndUpdate(gNotepad->window);
@@ -312,7 +312,7 @@ void Notepad_HandleEvent(EventRecord *event) {
             break;
 
         case activateEvt:
-            if ((WindowPtr)event->message == gNotepad->window) {
+            if ((WindowPtr)(uintptr_t)event->message == gNotepad->window) {
                 if (event->modifiers & activeFlag) {
                     TEActivate(gNotepad->teRecord);
                 } else {

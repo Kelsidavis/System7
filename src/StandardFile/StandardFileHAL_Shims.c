@@ -125,6 +125,7 @@ OSErr StandardFile_HAL_Init(void) {
 
         gHALInitialized = true;
     }
+    return noErr;
 }
 
 /*
@@ -325,7 +326,7 @@ void StandardFile_HAL_RunDialog(DialogPtr dialog, short *itemHit) {
                 switch (event.what) {
                     case updateEvt: {
                         /* Redraw list when window is updated */
-                        if ((WindowPtr)dialog == (WindowPtr)event.message) {
+                        if ((WindowPtr)dialog == (WindowPtr)(uintptr_t)event.message) {
                             if (gFileListHandle) {
                                 LDraw(gFileListHandle);
                             }
