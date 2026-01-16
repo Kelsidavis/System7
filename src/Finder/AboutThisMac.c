@@ -449,7 +449,7 @@ void AboutWindow_ProcessPendingCreation(void)
     SelectWindow(sAboutWin);
 
     /* Request update */
-    PostEvent(updateEvt, (UInt32)sAboutWin);
+    PostEvent(updateEvt, (UInt32)(uintptr_t)sAboutWin);
 
     serial_puts("[ABOUT] ProcessPending: Window shown successfully\n");
 }
@@ -471,7 +471,7 @@ void AboutWindow_ShowOrToggle(void)
         serial_puts("[ABOUT] ShowOrToggle: Window exists, bringing to front\n");
         BringToFront(sAboutWin);
         SelectWindow(sAboutWin);
-        PostEvent(updateEvt, (UInt32)sAboutWin);
+        PostEvent(updateEvt, (UInt32)(uintptr_t)sAboutWin);
         FINDER_LOG_DEBUG("AboutThisMac: Window already shown\n");
         return;
     }

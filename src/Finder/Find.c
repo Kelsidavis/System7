@@ -141,7 +141,7 @@ static void Find_PerformSearch(void) {
 
     /* Update window to show results */
     if (sFindWin) {
-        PostEvent(updateEvt, (UInt32)sFindWin);
+        PostEvent(updateEvt, (UInt32)(uintptr_t)sFindWin);
     }
 }
 
@@ -202,7 +202,7 @@ OSErr ShowFind(void) {
     SelectWindow(sFindWin);
 
     /* Request update */
-    PostEvent(updateEvt, (UInt32)sFindWin);
+    PostEvent(updateEvt, (UInt32)(uintptr_t)sFindWin);
 
     FINDER_LOG_DEBUG("ShowFind: Window shown\n");
     return noErr;
@@ -367,7 +367,7 @@ Boolean Find_HandleKeyPress(WindowPtr w, char key) {
             sHasSearchTerm = true;
 
             /* Trigger redraw */
-            PostEvent(updateEvt, (UInt32)w);
+            PostEvent(updateEvt, (UInt32)(uintptr_t)w);
 
             FINDER_LOG_DEBUG("Find: Added char '%c', term now '%s'\n", key, sSearchTerm);
         }
@@ -381,7 +381,7 @@ Boolean Find_HandleKeyPress(WindowPtr w, char key) {
             sSearchTerm[len - 1] = '\0';
 
             /* Trigger redraw */
-            PostEvent(updateEvt, (UInt32)w);
+            PostEvent(updateEvt, (UInt32)(uintptr_t)w);
 
             FINDER_LOG_DEBUG("Find: Backspace, term now '%s'\n", sSearchTerm);
         }

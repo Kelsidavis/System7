@@ -130,7 +130,7 @@ void GetInfo_Show(VRefNum vref, FileID fileID) {
     SelectWindow(sGetInfoWin);
 
     /* Request update */
-    PostEvent(updateEvt, (UInt32)sGetInfoWin);
+    PostEvent(updateEvt, (UInt32)(uintptr_t)sGetInfoWin);
 
     FINDER_LOG_DEBUG("GetInfo: Window shown\n");
 }

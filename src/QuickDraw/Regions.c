@@ -785,6 +785,8 @@ RgnHandle EllipseToRegion(const Rect *bounds) {
     SInt16 radiusX = (bounds->right - bounds->left) / 2;
     SInt16 radiusY = (bounds->bottom - bounds->top) / 2;
 
+    (void)centerX;  /* Used in comment at line 820, reserved for full implementation */
+
     if (radiusX <= 0 || radiusY <= 0) {
         SetEmptyRgn(rgn);
         return rgn;

@@ -260,7 +260,7 @@ static void Desktop_BuildFileKind(const DesktopItem* item, FileKind* outKind)
     outKind->hasCustomIcon = false;
 
     /* CRITICAL FIX: Use safe byte-by-byte read for item->type */
-    UInt8* typePtr = (UInt8*)&item->type;
+    const UInt8* typePtr = (const UInt8*)&item->type;
     DesktopItemType itemType = (DesktopItemType)(
         ((UInt32)typePtr[0]) |
         ((UInt32)typePtr[1] << 8) |
@@ -283,10 +283,10 @@ static void Desktop_BuildFileKind(const DesktopItem* item, FileKind* outKind)
         case kDesktopItemApplication:
             /* CRITICAL FIX: Safe read for fileType/creator */
             {
-                UInt8* ftPtr = (UInt8*)&item->data.file.fileType;
+                const UInt8* ftPtr = (const UInt8*)&item->data.file.fileType;
                 OSType ft = ((UInt32)ftPtr[0]) | ((UInt32)ftPtr[1] << 8) |
                            ((UInt32)ftPtr[2] << 16) | ((UInt32)ftPtr[3] << 24);
-                UInt8* crPtr = (UInt8*)&item->data.file.creator;
+                const UInt8* crPtr = (const UInt8*)&item->data.file.creator;
                 OSType cr = ((UInt32)crPtr[0]) | ((UInt32)crPtr[1] << 8) |
                            ((UInt32)crPtr[2] << 16) | ((UInt32)crPtr[3] << 24);
                 outKind->type = ft ? ft : 'APPL';
@@ -295,10 +295,10 @@ static void Desktop_BuildFileKind(const DesktopItem* item, FileKind* outKind)
             break;
         case kDesktopItemFile:
             {
-                UInt8* ftPtr = (UInt8*)&item->data.file.fileType;
+                const UInt8* ftPtr = (const UInt8*)&item->data.file.fileType;
                 OSType ft = ((UInt32)ftPtr[0]) | ((UInt32)ftPtr[1] << 8) |
                            ((UInt32)ftPtr[2] << 16) | ((UInt32)ftPtr[3] << 24);
-                UInt8* crPtr = (UInt8*)&item->data.file.creator;
+                const UInt8* crPtr = (const UInt8*)&item->data.file.creator;
                 OSType cr = ((UInt32)crPtr[0]) | ((UInt32)crPtr[1] << 8) |
                            ((UInt32)crPtr[2] << 16) | ((UInt32)crPtr[3] << 24);
                 outKind->type = ft;
@@ -320,7 +320,7 @@ static int Desktop_LabelOffsetForItem(const DesktopItem* item)
     }
 
     /* CRITICAL FIX: Use byte-by-byte read to avoid ARM64 misaligned access hang */
-    UInt8* typePtr = (UInt8*)&item->type;
+    const UInt8* typePtr = (const UInt8*)&item->type;
     DesktopItemType itemType = (DesktopItemType)(
         ((UInt32)typePtr[0]) |
         ((UInt32)typePtr[1] << 8) |
@@ -2357,6 +2357,7 @@ void SelectNextDesktopIcon(void)
     short prevSelected = gSelectedIcon;
     gSelectedIcon = (gSelectedIcon + 1) % gDesktopIconCount;
 
+    (void)prevSelected;  /* Used only in debug logging */
     FINDER_LOG_DEBUG("SelectNextDesktopIcon: selected %d → %d, posting updateEvt\n",
                  prevSelected, gSelectedIcon);
 

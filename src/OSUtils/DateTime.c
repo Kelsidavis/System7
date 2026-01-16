@@ -122,6 +122,7 @@ void InitDateTime(void) {
     /* Get initial time from system */
     UInt32 currentTime = DateTime_Current();
 
+    (void)currentTime;  /* Used only in debug logging */
     DT_LOG("InitDateTime: System time initialized to %lu\n",
            (unsigned long)currentTime);
 }

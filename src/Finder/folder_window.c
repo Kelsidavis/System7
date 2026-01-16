@@ -964,7 +964,7 @@ static Boolean TrackFolderItemDrag(WindowPtr w, FolderWindowState* state, short 
                     FINDER_LOG_DEBUG("FW: Item removed from display, new itemCount=%d\n", state->itemCount);
 
                     /* Request window redraw */
-                    PostEvent(updateEvt, (UInt32)w);
+                    PostEvent(updateEvt, (UInt32)(uintptr_t)w);
                 } else {
                     FINDER_LOG_DEBUG("FW: ERROR: VFS_Delete failed\n");
                 }
@@ -1040,7 +1040,7 @@ Boolean HandleFolderWindowClick(WindowPtr w, EventRecord *ev, Boolean isDoubleCl
         if (state->selectedIndex != -1) {
             FINDER_LOG_DEBUG("FW: deselect (empty click)\n");
             state->selectedIndex = -1;
-            PostEvent(updateEvt, (UInt32)w);
+            PostEvent(updateEvt, (UInt32)(uintptr_t)w);
         }
         FINDER_LOG_DEBUG("FW: empty click - clearing lastClickIndex (was %d)\n", state->lastClickIndex);
         state->lastClickIndex = -1;
@@ -1085,8 +1085,8 @@ Boolean HandleFolderWindowClick(WindowPtr w, EventRecord *ev, Boolean isDoubleCl
                          (unsigned int)P2UL(newWin),
                          (int)state->items[hitIndex].fileID);
                 /* Post update for the new window and old window */
-                PostEvent(updateEvt, (UInt32)newWin);
-                PostEvent(updateEvt, (UInt32)w);
+                PostEvent(updateEvt, (UInt32)(uintptr_t)newWin);
+                PostEvent(updateEvt, (UInt32)(uintptr_t)w);
             }
         } else {
             /* Document/app: check if it's a text file */
@@ -1224,7 +1224,7 @@ Boolean HandleFolderWindowClick(WindowPtr w, EventRecord *ev, Boolean isDoubleCl
                 /* Check file extension for text files (.txt, README, etc.) */
                 if (!handled) {
                     int len = strlen(name);
-                    Boolean isTextFile = false;
+                    Boolean isTextDoc = false;
 
                     if (len >= 4) {
                         const char* ext = name + len - 4;
@@ -1232,11 +1232,11 @@ Boolean HandleFolderWindowClick(WindowPtr w, EventRecord *ev, Boolean isDoubleCl
                             (ext[1] == 't' || ext[1] == 'T') &&
                             (ext[2] == 'x' || ext[2] == 'X') &&
                             (ext[3] == 't' || ext[3] == 'T')) {
-                            isTextFile = true;
+                            isTextDoc = true;
                         }
                     }
 
-                    if (isTextFile) {
+                    if (isTextDoc) {
                         FINDER_LOG_DEBUG("FW: Opening text document with SimpleText\n");
                         extern void SimpleText_Launch(void);
                         extern Boolean SimpleText_IsRunning(void);
@@ -1281,7 +1281,7 @@ Boolean HandleFolderWindowClick(WindowPtr w, EventRecord *ev, Boolean isDoubleCl
         }
 
         if (oldSel != hitIndex) {
-            PostEvent(updateEvt, (UInt32)w);
+            PostEvent(updateEvt, (UInt32)(uintptr_t)w);
         }
     } else {
         /* SINGLE-CLICK: Track for potential drag, or select if just a click */
@@ -1304,11 +1304,12 @@ Boolean HandleFolderWindowClick(WindowPtr w, EventRecord *ev, Boolean isDoubleCl
                 }
             }
 
+            (void)oldSel;  /* Used only in debug logging */
             FINDER_LOG_DEBUG("FW: select %d -> %d, SET lastClickIndex=%d, lastClickTime=%lu\n",
                          oldSel, hitIndex, hitIndex, (unsigned long)currentTime);
 
             /* Post update to redraw selection */
-            PostEvent(updateEvt, (UInt32)w);
+            PostEvent(updateEvt, (UInt32)(uintptr_t)w);
         } else {
             /* Drag occurred - selection/timing was handled by drag tracking */
             FINDER_LOG_DEBUG("FW: drag completed, NOT setting lastClick values\n");
@@ -1455,7 +1456,7 @@ void FolderWindow_SelectAll(WindowPtr w) {
     }
 
     /* Trigger redraw */
-    PostEvent(updateEvt, (UInt32)w);
+    PostEvent(updateEvt, (UInt32)(uintptr_t)w);
 }
 
 /* Get selected item info from folder window */
@@ -1534,7 +1535,7 @@ void FolderWindow_DeleteSelected(WindowPtr w) {
     }
 
     /* Trigger redraw */
-    PostEvent(updateEvt, (UInt32)w);
+    PostEvent(updateEvt, (UInt32)(uintptr_t)w);
 }
 
 /*
@@ -1574,8 +1575,8 @@ void FolderWindow_OpenSelected(WindowPtr w) {
                            (unsigned int)P2UL(newWin),
                            (int)state->items[itemIndex].fileID);
             /* Post update for the new window and old window */
-            PostEvent(updateEvt, (UInt32)newWin);
-            PostEvent(updateEvt, (UInt32)w);
+            PostEvent(updateEvt, (UInt32)(uintptr_t)newWin);
+            PostEvent(updateEvt, (UInt32)(uintptr_t)w);
         }
     } else {
         /* Document/app: check if it's a text file */
@@ -1738,8 +1739,8 @@ void FolderWindow_DuplicateSelected(WindowPtr w) {
                 if (VFS_GetByID(state->vref, newID, &newEntry)) {
                     /* Add to items array - reallocate if needed */
                     /* Check for integer overflow: itemCount + 1 and sizeof multiplication */
-                    if (state->itemCount >= UINT16_MAX ||
-                        state->itemCount > SIZE_MAX / sizeof(FolderItem) - 1) {
+                    if (state->itemCount >= INT16_MAX ||
+                        (size_t)state->itemCount > SIZE_MAX / sizeof(FolderItem) - 1) {
                         FINDER_LOG_DEBUG("FolderWindow_DuplicateSelected: Integer overflow in items count\n");
                         continue;
                     }
@@ -1759,8 +1760,8 @@ void FolderWindow_DuplicateSelected(WindowPtr w) {
                     /* Reallocate selectedItems array too */
                     if (state->selectedItems) {
                         /* Check for integer overflow: itemCount + 1 and sizeof multiplication */
-                        if (state->itemCount >= UINT16_MAX ||
-                            state->itemCount > SIZE_MAX / sizeof(Boolean) - 1) {
+                        if (state->itemCount >= INT16_MAX ||
+                            (size_t)state->itemCount > SIZE_MAX / sizeof(Boolean) - 1) {
                             FINDER_LOG_DEBUG("FolderWindow_DuplicateSelected: Integer overflow in selectedItems count\n");
                             continue;
                         }
@@ -1799,7 +1800,7 @@ void FolderWindow_DuplicateSelected(WindowPtr w) {
     }
 
     /* Trigger redraw */
-    PostEvent(updateEvt, (UInt32)w);
+    PostEvent(updateEvt, (UInt32)(uintptr_t)w);
 }
 
 /*
@@ -2145,7 +2146,7 @@ void FolderWindow_SetLabelOnSelected(WindowPtr w, short labelIndex) {
     FINDER_LOG_DEBUG("FolderWindow_SetLabelOnSelected: Labeled %d items\n", labeledCount);
 
     /* Trigger redraw */
-    PostEvent(updateEvt, (UInt32)w);
+    PostEvent(updateEvt, (UInt32)(uintptr_t)w);
 }
 
 /*
@@ -2209,7 +2210,7 @@ void FolderWindow_CleanUp(WindowPtr w, Boolean selectedOnly) {
     }
 
     /* Trigger redraw */
-    PostEvent(updateEvt, (UInt32)w);
+    PostEvent(updateEvt, (UInt32)(uintptr_t)w);
 
     FINDER_LOG_DEBUG("FolderWindow_CleanUp: Complete\n");
 }
