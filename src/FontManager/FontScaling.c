@@ -138,6 +138,7 @@ static void FM_ScaleCharNearestNeighbor(short srcX, short srcY, char ch,
  * FM_ScaleCharBilinear - Scale character using bilinear interpolation
  * Provides smoother scaling for non-integer factors
  */
+__attribute__((unused))
 static void FM_ScaleCharBilinear(short srcX, short srcY, char ch,
                                  short scale, uint32_t color) {
     /* For System 7.1 compatibility, fall back to nearest-neighbor */
@@ -323,6 +324,7 @@ short FM_GetAvailableSizes(short fontID, short* sizes, short maxSizes) {
 /*
  * FM_CacheScaledFont - Add scaled font to cache
  */
+__attribute__((unused))
 static void FM_CacheScaledFont(short originalSize, short scaledSize,
                               Style face, short scaleFactor) {
     ScaledFont* entry = (ScaledFont*)NewPtr(sizeof(ScaledFont));
@@ -343,6 +345,7 @@ static void FM_CacheScaledFont(short originalSize, short scaledSize,
 /*
  * FM_FindCachedScale - Look up cached scale factor
  */
+__attribute__((unused))
 static Boolean FM_FindCachedScale(short originalSize, short scaledSize,
                                  Style face, short* scaleFactor) {
     ScaledFont* entry = g_scaledFontCache;

@@ -888,6 +888,7 @@ DeskAccessory *Calculator_CreateDA(void)
 /*
  * Clear display
  */
+__attribute__((unused))
 static void Calculator_ClearDisplay(Calculator *calc)
 {
     if (calc) {
@@ -985,6 +986,7 @@ static double Calculator_PerformScientific(double operand, CalcOperation operati
 /*
  * Perform bitwise operation
  */
+__attribute__((unused))
 static int64_t Calculator_PerformBitwise(int64_t op1, int64_t op2, CalcOperation operation)
 {
     switch (operation) {

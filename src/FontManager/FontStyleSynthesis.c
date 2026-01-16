@@ -309,6 +309,7 @@ short FM_GetStyledCharWidth(char ch, Style face) {
 /*
  * FM_DrawStyledString - Draw complete string with styles
  */
+__attribute__((unused))
 static void FM_DrawStyledString(ConstStr255Param s, Style face) {
     if (!s || s[0] == 0) return;
 

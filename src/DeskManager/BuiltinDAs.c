@@ -78,6 +78,7 @@ static DAInterface g_keyCapsInterface = {
     .wakeup = NULL
 };
 
+__attribute__((unused))
 static DAInterface g_alarmClockInterface = {
     .initialize = AlarmClock_DAInitialize,
     .terminate = AlarmClock_DATerminate,
@@ -95,6 +96,7 @@ static DAInterface g_alarmClockInterface = {
     .wakeup = NULL
 };
 
+__attribute__((unused))
 static DAInterface g_chooserInterface = {
     .initialize = Chooser_DAInitialize,
     .terminate = Chooser_DATerminate,

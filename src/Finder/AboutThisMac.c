@@ -245,6 +245,7 @@ static void GetMemorySnapshot(MemSnapshot* m)
 /*
  * FormatKBWithCommas - Format bytes as KB with thousands separators
  */
+__attribute__((unused))
 static void FormatKBWithCommas(UInt32 bytes, char* buf, size_t bufSize)
 {
     UInt32 kb = bytes / 1024;

@@ -261,6 +261,7 @@ static void coalesce_adjacent_free_blocks(ZonePtr zone, BlockPtr block) {
  * - Mark handle as purged
  * - Convert block to free block
  */
+__attribute__((unused))
 static OSErr purge_memory_block_24bit(ZonePtr zone, Handle h) {
     if (!zone || !h || !*h) {
         return nilHandleErr;
@@ -346,6 +347,7 @@ static OSErr call_purge_procedure(Handle h, PurgeProc purgeProc) {
  * - Attempt to grow zone when compaction is insufficient
  * - Handle zone growth and boundary updates
  */
+__attribute__((unused))
 static OSErr call_grow_zone_procedure(ZonePtr zone, Size bytesNeeded) {
     if (!zone || !zone->gzProc) {
         return memFullErr;  /* No grow zone procedure */

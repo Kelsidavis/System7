@@ -70,6 +70,7 @@ static Boolean XorScanLines(SInt16 *line1, SInt16 count1, SInt16 *line2, SInt16 
                         SInt16 *result, SInt16 *resultCount);
 #endif
 
+__attribute__((unused))
 static void region_log_hex(uint32_t value, int digits) {
     static const char hex[] = "0123456789ABCDEF";
     for (int i = digits - 1; i >= 0; --i) {

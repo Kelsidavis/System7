@@ -600,6 +600,7 @@ static void SetupDialogDefaults(DialogPtr dialog)
     dialogRec->editOpen = 0;
 }
 
+__attribute__((unused))
 static void PlaySystemBeep(SInt16 soundType)
 {
     /* Play appropriate system sound */
@@ -684,6 +685,7 @@ Boolean GetDialogTracksCursor(DialogPtr theDialog)
     return gDialogManagerState.globals.tracksCursor;
 }
 
+__attribute__((unused))
 static Boolean IsModalDialog_Core(DialogPtr theDialog)
 {
     if (!theDialog || ValidateDialogPtr(theDialog) != 0) {
