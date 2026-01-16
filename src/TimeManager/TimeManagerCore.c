@@ -315,19 +315,24 @@ OSErr Core_PrimeTask(TMTask *task, UInt32 delayUS) {
 OSErr Core_CancelTask(TMTask *task) {
     if (!gInitialized) return tmNotActive;
     if (!task) return tmParamErr;
-    
+
     UInt32 irq = DisableInterrupts();
-    
+
     TMEntry* entry = FindEntry(task);
-    if (!entry || !entry->inHeap) {
+    if (!entry) {
         RestoreInterrupts(irq);
         return tmNotActive;
     }
-    
-    HeapRemove(entry);
+
+    /* Always increment generation to invalidate any pending deferred callbacks,
+     * even if task already expired and was removed from heap */
     entry->gen++;
-    RearmNextInterrupt();
-    
+
+    if (entry->inHeap) {
+        HeapRemove(entry);
+        RearmNextInterrupt();
+    }
+
     RestoreInterrupts(irq);
     return noErr;
 }
