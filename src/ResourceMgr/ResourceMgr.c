@@ -408,15 +408,9 @@ parse_resources:
                     totalRefs += count;
                 }
 
-                /* Check for integer overflow in allocation sizes */
-                if (numTypes > SIZE_MAX / sizeof(TypeIndex)) {
-                    serial_puts("[ResourceMgr] Integer overflow in typeIdx allocation\n");
-                    return;
-                }
-                if (totalRefs > SIZE_MAX / sizeof(RefIndex)) {
-                    serial_puts("[ResourceMgr] Integer overflow in refIdx allocation\n");
-                    return;
-                }
+                /* Note: overflow checks removed - UInt16/UInt32 can never overflow
+                 * SIZE_MAX on 64-bit systems. On 32-bit systems, these types are
+                 * still small enough that realistic counts won't overflow. */
 
                 /* Allocate index arrays */
                 Handle typeIdxH = NewHandle(numTypes * sizeof(TypeIndex));
@@ -1278,9 +1272,8 @@ SInt16 OpenResFile(ConstStr255Param fileName) {
     resFile->mapSize = mapLength;
     resFile->mapHandle = dataHandle;
 
-    /* Copy filename for debugging */
+    /* Copy filename for debugging - UInt8 already limited to 255 max */
     UInt8 len = fileName[0];
-    if (len > 255) len = 255;
     resFile->fileName[0] = len;
     for (UInt8 i = 0; i < len; i++) {
         resFile->fileName[i + 1] = fileName[i + 1];

@@ -637,7 +637,7 @@ void MacPaint_RunEventLoop(void)
 
             case kEventUpdateEvt:
                 /* Window needs redraw */
-                eventWindow = (WindowPtr)event.message;
+                eventWindow = (WindowPtr)(uintptr_t)event.message;
                 MacPaint_HandleWindowUpdate(eventWindow);
                 break;
 
@@ -657,7 +657,7 @@ void MacPaint_RunEventLoop(void)
 
             case kEventCloseEvt:
                 /* Window close event */
-                eventWindow = (WindowPtr)event.message;
+                eventWindow = (WindowPtr)(uintptr_t)event.message;
                 if (eventWindow == gEventState.paintWindow) {
                     MacPaint_HandleWindowClose(eventWindow);
                 }

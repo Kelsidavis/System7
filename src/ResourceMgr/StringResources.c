@@ -74,13 +74,8 @@ void GetString(StringPtr theString, SInt16 stringID) {
         return;
     }
 
-    /* First byte is the length */
+    /* First byte is the length - UInt8 already limited to 255 max */
     len = (UInt8)strData[0];
-
-    /* Copy the Pascal string */
-    if (len > 255) {
-        len = 255;  /* Clamp to maximum Pascal string length */
-    }
 
     theString[0] = len;
     if (len > 0) {
@@ -167,11 +162,7 @@ void GetIndString(StringPtr theString, SInt16 strListID, SInt16 index) {
         len = (UInt8)*currentPtr;
 
         if (i == index) {
-            /* Found the requested string */
-            if (len > 255) {
-                len = 255;  /* Clamp to maximum Pascal string length */
-            }
-
+            /* Found the requested string - UInt8 len already limited to 255 max */
             theString[0] = len;
             if (len > 0) {
                 memcpy(&theString[1], currentPtr + 1, len);
