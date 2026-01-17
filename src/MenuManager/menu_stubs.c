@@ -12,8 +12,12 @@
  *
  * Remaining stubs are functions without implementations yet.
  */
-#include "MenuManager/menu_private.h"
-#include "../../include/SystemTypes.h"
+#include "MenuManager/MenuManager.h"
+#include "SystemTypes.h"
+
+/* Forward declarations */
+void AddResMenu(MenuHandle theMenu, ResType theType);
+void InsertResMenu(MenuHandle theMenu, ResType theType, short afterItem);
 
 /* Standard menu commands */
 
@@ -29,11 +33,11 @@
 void AddResMenu(MenuHandle theMenu, ResType theType) {
     if (!theMenu) return;
 
-    /* Resource Manager functions */
+    /* Resource Manager functions - declared in ResourceManager.h */
     extern SInt16 Count1Resources(ResType theType);
     extern Handle Get1IndResource(ResType theType, SInt16 index);
     extern void GetResInfo(Handle theResource, ResID* theID, ResType* theType, char* name);
-    extern void AppendMenu(MenuHandle menu, const unsigned char* data);
+    /* AppendMenu is declared in MenuManager.h */
 
     /* Count resources of specified type */
     SInt16 count = Count1Resources(theType);
@@ -69,11 +73,11 @@ void AddResMenu(MenuHandle theMenu, ResType theType) {
 void InsertResMenu(MenuHandle theMenu, ResType theType, short afterItem) {
     if (!theMenu) return;
 
-    /* Resource Manager functions */
+    /* Resource Manager functions - declared in ResourceManager.h */
     extern SInt16 Count1Resources(ResType theType);
     extern Handle Get1IndResource(ResType theType, SInt16 index);
     extern void GetResInfo(Handle theResource, ResID* theID, ResType* theType, char* name);
-    extern void InsertMenuItem(MenuHandle menu, const unsigned char* itemString, short afterItem);
+    /* InsertMenuItem is declared in MenuManager.h */
 
     /* Count resources of specified type */
     SInt16 count = Count1Resources(theType);
