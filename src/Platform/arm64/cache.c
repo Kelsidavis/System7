@@ -6,6 +6,7 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include <stddef.h>
+#include "cache.h"
 
 /*
  * Data cache clean by virtual address

@@ -15,5 +15,6 @@ void virtio_gpu_draw_rect(uint32_t x, uint32_t y, uint32_t w, uint32_t h, uint32
 uint32_t* virtio_gpu_get_buffer(void);
 uint32_t virtio_gpu_get_width(void);
 uint32_t virtio_gpu_get_height(void);
+bool virtio_gpu_is_initialized(void);
 
 #endif

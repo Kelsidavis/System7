@@ -6,21 +6,13 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include <stddef.h>
+#include "storage_arm64.h"
 
 #ifdef QEMU_BUILD
 #include "virtio_blk.h"
 #else
 #include "sdhci.h"
 #endif
-
-/* Drive info structure (matches Platform/include/storage.h) */
-typedef struct {
-    uint32_t sector_size;
-    uint64_t total_sectors;
-    bool     present;
-    bool     writable;
-    char     name[32];
-} hal_drive_info_t;
 
 /* Storage state */
 static bool storage_initialized = false;

@@ -6,6 +6,7 @@
 #include <stdint.h>
 #include <stddef.h>
 #include <stdarg.h>
+#include "printf.h"
 
 static void reverse_string(char *str, int length) {
     int start = 0;

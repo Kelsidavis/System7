@@ -10,4 +10,7 @@ uint16_t hal_inw(uint16_t port);
 void hal_outl(uint16_t port, uint32_t value);
 uint32_t hal_inl(uint16_t port);
 
+/* I/O delay for timing */
+void hal_io_wait(void);
+
 #endif /* HAL_IO_H */

@@ -6,6 +6,7 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include <stddef.h>
+#include "dtb.h"
 
 /* String function declarations */
 extern size_t strlen(const char *s);

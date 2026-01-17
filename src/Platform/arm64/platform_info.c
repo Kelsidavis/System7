@@ -6,6 +6,7 @@
 #include <stdint.h>
 #include <stddef.h>
 #include "System71StdLib.h"
+#include "platform_info.h"
 
 /* Forward declaration */
 extern uint32_t hal_get_memory_size(void);

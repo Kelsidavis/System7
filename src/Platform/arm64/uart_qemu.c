@@ -6,6 +6,7 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include "mmio.h"
+#include "uart.h"
 
 /* PL011 UART registers for QEMU virt machine
  * Base address: 0x09000000

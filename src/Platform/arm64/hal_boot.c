@@ -9,6 +9,7 @@
 #include "uart.h"
 #include "timer.h"
 #include "dtb.h"
+#include "hal_boot_arm64.h"
 #include "Platform/include/boot.h"
 
 #ifndef QEMU_BUILD

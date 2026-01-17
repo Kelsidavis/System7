@@ -1,5 +1,9 @@
 #include <signal.h>
 
+/* Stack protection stubs - provided by GCC runtime */
+void __stack_chk_fail(void);
+void __stack_chk_fail_local(void);
+
 int raise(int signum) {
     /* Send signal to current process
      * In kernel environment without process/signal infrastructure,

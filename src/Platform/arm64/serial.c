@@ -7,6 +7,7 @@
 #include <stddef.h>
 #include <stdarg.h>
 #include "uart.h"
+#include "serial.h"
 
 /*
  * serial_init - Initialize serial port

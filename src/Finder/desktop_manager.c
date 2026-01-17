@@ -48,6 +48,9 @@ extern const uint8_t g_HDIconMask[128];
  * WARNING: Enabling causes performance impact on ARM64 */
 #define DVI_DEBUG 0
 
+/* Forward declarations */
+void RefreshDesktopRect(const Rect* rectToRefresh);
+
 #if DVI_DEBUG
 #define DVI_LOG(msg) do { extern void serial_puts(const char*); extern void uart_flush(void); serial_puts(msg); uart_flush(); } while(0)
 #else
