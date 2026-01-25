@@ -5,6 +5,7 @@
  */
 
 #include "Platform/include/boot.h"
+#include "Platform/include/serial.h"
 
 /*
  * hal_boot_init - Initialize platform-specific boot components
