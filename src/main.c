@@ -43,6 +43,8 @@ extern void DoMenuCommand(short menuID, short item);
 #include "../include/ProcessMgr/ProcessTypes.h"
 #endif
 
+#include "Platform/include/network.h"
+
 /* Forward declaration for DispatchEvent (no header available yet) */
 extern Boolean DispatchEvent(EventRecord* evt);
 
@@ -1617,6 +1619,8 @@ void kernel_main(uint32_t magic, uint32_t* mb2_info) {
     init_system71();
     serial_puts("KERNEL: init_system71 returned\n");
 
+    platform_network_init();
+
     /* Remove early test - let DrawDesktop do all the drawing */
     if (framebuffer) {
         /* Create and open the desktop port */
@@ -1829,6 +1833,8 @@ void kernel_main(uint32_t magic, uint32_t* mb2_info) {
         /* IMPORTANT: Call TimerISR each iteration for high-cadence timer checking */
         TimeManager_TimerISR();  /* Poll timer (simulated ISR) - must be called each loop */
         TimeManager_DrainDeferred(16, 1000);  /* Process up to 16 tasks, max 1ms */
+
+        platform_network_poll();
 
 #ifdef ENABLE_PROCESS_COOP
         /* Cooperative yield point - let other processes run */
