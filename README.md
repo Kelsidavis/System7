@@ -1,5 +1,7 @@
 # System 7 - Portable Open-Source Reimplementation
 
+**[English](README.md)** | **[Fran&ccedil;ais](README.fr.md)** | **[Deutsch](README.de.md)** | **[Espa&ntilde;ol](README.es.md)** | **[日本語](README.ja.md)** | **[中文](README.zh.md)** | **[한국어](README.ko.md)**
+
 <img width="793" height="657" alt="System 7 running on modern hardware" src="https://github.com/user-attachments/assets/be84b83e-191c-4f9d-a786-11d0bd04203b" />
 <img width="801" height="662" alt="simpletextworks" src="https://github.com/user-attachments/assets/7c9ebe5b-22b4-4612-93a1-2076909d77cd" />
 <img width="803" height="661" alt="macpaint" src="https://github.com/user-attachments/assets/cd3ed04a-fdde-4dd5-88ef-5b19b3a13a54" />
@@ -42,7 +44,8 @@ An open-source reimplementation of Apple Macintosh System 7 for modern x86 hardw
 - **Serial Logging**: Module-based logging with runtime filtering (Error/Warn/Info/Debug/Trace)
 - **Graphics Foundation**: VESA framebuffer (800x600x32) with QuickDraw primitives including XOR mode
 - **Desktop Rendering**: System 7 menu bar with rainbow Apple logo, icons, and desktop patterns
-- **Typography**: Chicago bitmap font with pixel-perfect rendering and proper kerning
+- **Typography**: Chicago bitmap font with pixel-perfect rendering and proper kerning, extended Mac Roman (0x80-0xFF) for European accented characters
+- **Internationalization (i18n)**: Resource-based localization with 7 languages (English, French, German, Spanish, Japanese, Chinese, Korean), Locale Manager with boot-time language selection, CJK multi-byte encoding infrastructure
 - **Font Manager**: Multi-size support (9-24pt), style synthesis, FOND/NFNT parsing, LRU caching
 - **Input System**: PS/2 keyboard and mouse with complete event forwarding
 - **Event Manager**: Cooperative multitasking via WaitNextEvent with unified event queue
@@ -138,6 +141,12 @@ make PLATFORM=ppc        # experimental; requires PowerPC ELF toolchain
 # Create bootable ISO
 make iso
 
+# Build with all languages (French, German, Spanish, Japanese, Chinese, Korean)
+make LOCALE_FR=1 LOCALE_DE=1 LOCALE_ES=1 LOCALE_JA=1 LOCALE_ZH=1 LOCALE_KO=1
+
+# Build with a single additional language
+make LOCALE_FR=1
+
 # Build and run in QEMU
 make run
 
@@ -185,6 +194,12 @@ make debug
 - **Menu Manager**: `docs/components/MenuManager.md`
 - **Window Manager**: `docs/components/WindowManager.md`
 - **Resource Manager**: `docs/components/ResourceManager.md`
+
+### Internationalization
+- **Locale Manager**: `include/LocaleManager/` — runtime locale switching, boot-time language selection
+- **String Resources**: `resources/strings/` — per-language STR# resource files (en, fr, de, es, ja, zh, ko)
+- **Extended Fonts**: `include/chicago_font_extended.h` — Mac Roman 0x80-0xFF glyphs for European characters
+- **CJK Support**: `include/TextEncoding/CJKEncoding.h`, `include/FontManager/CJKFont.h` — multi-byte encoding and font infrastructure
 
 ### Implementation Status
 - **IMPLEMENTATION_PRIORITIES.md**: Planned work and completeness tracking
@@ -259,6 +274,7 @@ This is a **clean-room reimplementation** for educational and preservation purpo
 
 - Complete M68K interpreter execution loop
 - Add TrueType font support
+- CJK bitmap font resources for Japanese, Chinese, and Korean rendering
 - Implement additional controls (text fields, pop-ups, sliders)
 - Disk write-back for HFS file system
 - Advanced Sound Manager features (mixing, sampling)
