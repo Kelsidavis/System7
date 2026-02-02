@@ -57,6 +57,26 @@ Boolean GetPS2KeyboardState(KeyMap keyMap) {
     return true;
 }
 
+void SetMousePosition(SInt16 x, SInt16 y) {
+    g_mousePos.h = x;
+    g_mousePos.v = y;
+    g_mouseState.x = x;
+    g_mouseState.y = y;
+}
+
+void SetMouseButtons(UInt8 buttons) {
+    g_mouseState.buttons = buttons;
+    gCurrentButtons = buttons;
+}
+
+UInt8 GetMouseButtons(void) {
+    return g_mouseState.buttons;
+}
+
+void SetModifiers(UInt16 mods) {
+    (void)mods;
+}
+
 int event_post_key(uint8_t keycode, uint8_t modifiers, int key_down) {
     (void)keycode;
     (void)modifiers;

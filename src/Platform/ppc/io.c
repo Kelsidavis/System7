@@ -37,3 +37,8 @@ uint32_t hal_inl(uint16_t port) {
     (void)port;
     return 0;
 }
+
+/* Stub for uart_flush - called by debug logging throughout the codebase */
+void uart_flush(void) {
+    /* No-op on PowerPC until UART driver is integrated */
+}

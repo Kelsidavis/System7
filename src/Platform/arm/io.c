@@ -74,3 +74,14 @@ void hal_io_flush(void) {
     /* Data synchronization barrier */
     __asm__ __volatile__("dsb sy" ::: "memory");
 }
+
+/* Stub for uart_flush - called by debug logging throughout the codebase */
+void uart_flush(void) {
+    /* No-op on ARM until UART driver is integrated */
+}
+
+/* Stub for uart_puts - called by serial_puts() in System71StdLib.c */
+void uart_puts(const char* s) {
+    (void)s;
+    /* No-op on ARM until UART driver is integrated */
+}
