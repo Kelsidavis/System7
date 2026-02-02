@@ -26,10 +26,10 @@ jobs:
             python3 \
             vim-common
 
-      - name: Build kernel
+      - name: Build kernel (English)
         run: make PLATFORM=x86
 
-      - name: Build ISO
+      - name: Build ISO (English)
         run: make iso
 
       - name: Display build info
@@ -45,6 +45,44 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: system71-iso
+          path: system71.iso
+
+  build-locales:
+    name: Build All Locales
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            build-essential \
+            gcc-multilib \
+            grub-pc-bin \
+            xorriso \
+            python3 \
+            vim-common
+
+      - name: Verify resource generation
+        run: |
+          for lang in en fr de es ja zh ko; do
+            echo "Generating $lang resources..."
+            python3 gen_rsrc.py resources/strings/$lang.json /tmp/test_$lang.rsrc
+          done
+
+      - name: Build multi-language kernel
+        run: make PLATFORM=x86 LOCALE_FR=1 LOCALE_DE=1 LOCALE_ES=1 LOCALE_JA=1 LOCALE_ZH=1 LOCALE_KO=1
+
+      - name: Build multi-language ISO
+        run: make iso
+
+      - name: Upload multi-language ISO artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: system71-iso-all-languages
           path: system71.iso
 
   build-arm:

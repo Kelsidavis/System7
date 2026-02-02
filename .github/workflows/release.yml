@@ -57,11 +57,29 @@ jobs:
             python3 \
             vim-common
 
-      - name: Build kernel
+      - name: Build kernel (English)
         run: make PLATFORM=x86
 
-      - name: Build ISO
+      - name: Build ISO (English)
         run: make iso
+
+      - name: Save English artifacts
+        run: |
+          cp kernel.elf kernel-en.elf
+          cp system71.iso system71-en.iso
+
+      - name: Build multi-language kernel
+        run: |
+          make clean
+          make PLATFORM=x86 LOCALE_FR=1 LOCALE_DE=1 LOCALE_ES=1 LOCALE_JA=1 LOCALE_ZH=1 LOCALE_KO=1
+
+      - name: Build multi-language ISO
+        run: make iso
+
+      - name: Save multi-language artifacts
+        run: |
+          cp kernel.elf kernel-all-languages.elf
+          cp system71.iso system71-all-languages.iso
 
       - name: Generate version
         id: version
@@ -99,20 +117,33 @@ jobs:
           draft: false
           prerelease: false
           files: |
-            system71.iso
-            kernel.elf
+            system71-en.iso
+            kernel-en.elf
+            system71-all-languages.iso
+            kernel-all-languages.elf
           body: |
             ## System7 ${{ steps.version.outputs.VERSION }}
 
             **Commit:** ${{ steps.get_sha.outputs.SHA }}
 
             ### Downloads
-            - `system71.iso` - Bootable ISO image for x86
-            - `kernel.elf` - Kernel binary
+
+            **English only (smaller image):**
+            - `system71-en.iso` - Bootable ISO image (English)
+            - `kernel-en.elf` - Kernel binary (English)
+
+            **All languages (English, French, German, Spanish, Japanese, Chinese, Korean):**
+            - `system71-all-languages.iso` - Bootable ISO image (all languages)
+            - `kernel-all-languages.elf` - Kernel binary (all languages)
 
             ### Running
             ```bash
-            qemu-system-i386 -cdrom system71.iso -serial stdio -display sdl -m 256M
+            # English only
+            qemu-system-i386 -cdrom system71-en.iso -serial stdio -display sdl -m 256M
+
+            # Multi-language (select language via GRUB boot parameter)
+            # Available: en, fr, de, es, ja, zh, ko
+            qemu-system-i386 -cdrom system71-all-languages.iso -serial stdio -display sdl -m 256M
             ```
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
