@@ -1,0 +1,220 @@
+{
+  "resources": [
+    {
+      "type": "STR#",
+      "id": 128,
+      "name": "FinderMenuTitles",
+      "data": { "strings": [
+        "Fail",
+        "Redaguvannya",
+        "Vyglyad",
+        "Mitka",
+        "Spetsial'ne",
+        "Paneli keruvannya"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 129,
+      "name": "FinderAppleMenu",
+      "data": { "strings": [
+        "Pro tsey Macintosh",
+        "Paneli keruvannya>",
+        "Bloknot"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 130,
+      "name": "FinderFileMenu",
+      "data": { "strings": [
+        "Nova papka/N",
+        "Vidkryty/O",
+        "Druk/P",
+        "Zakryty/W",
+        "Vidomosti/I",
+        "Spil'nyy dostup...",
+        "Dublyuvaty/D",
+        "Stvoryty psevdonim",
+        "Povernuty na mistse/Y",
+        "Znayty.../F",
+        "Znayty znovu/G"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 131,
+      "name": "FinderEditMenu",
+      "data": { "strings": [
+        "Skasuvaty/Z",
+        "Vyrizaty/X",
+        "Kopiyuvaty/C",
+        "Vstavyty/V",
+        "Ochystyty",
+        "Vybraty vse/A"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 132,
+      "name": "FinderViewMenu",
+      "data": { "strings": [
+        "znachky",
+        "im'ya",
+        "rozmir",
+        "typ",
+        "mitka",
+        "data",
+        "Uporyadkuvaty vikno",
+        "Uporyadkuvaty vydilennya"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 133,
+      "name": "FinderLabelMenu",
+      "data": { "strings": [
+        "Nema",
+        "Vazhlyvo",
+        "Terminovo",
+        "V roboti",
+        "Normal'no",
+        "Osobyste",
+        "Proekt 1",
+        "Proekt 2"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 134,
+      "name": "FinderSpecialMenu",
+      "data": { "strings": [
+        "Uporyadkuvaty stil",
+        "Ochystyty koshyk",
+        "Vyluchyty/E",
+        "Sterty dysk",
+        "Perezavantazhyty",
+        "Vymknuty"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 135,
+      "name": "FinderControlPanels",
+      "data": { "strings": [
+        "Vizrunky robochogo stolu...",
+        "Data i chas...",
+        "Zvuk...",
+        "Mysha...",
+        "Klaviatura...",
+        "Panel' keruvannya..."
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 140,
+      "name": "FinderAbout",
+      "data": { "strings": [
+        "Pro tsey Macintosh",
+        "Vbudovana pam'yat'",
+        "Naybil'shyy vil'nyy blok",
+        "Systemne PZ",
+        "Vsyogo pam'yati",
+        "Pam'yat'",
+        "Systema",
+        "Programy",
+        "Vil'no"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 141,
+      "name": "FinderGetInfo",
+      "data": { "strings": [
+        "Vidomosti",
+        "Typ:",
+        "Rozmir:",
+        "De:",
+        "Stvoreno:",
+        "Zmineno:"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 142,
+      "name": "FinderFind",
+      "data": { "strings": [
+        "Znayty",
+        "Znayty:",
+        "Znayty"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 143,
+      "name": "FinderTrash",
+      "data": { "strings": [
+        "Koshyk",
+        "Vy vpevneni, shcho bazhaete bezpovorotno vydalyty vmist Koshyka?",
+        "ob'yektiv u Koshyku"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 150,
+      "name": "FinderDesktop",
+      "data": { "strings": [
+        "Macintosh HD",
+        "Koshyk",
+        "Programy",
+        "Dokumenty",
+        "Systemna papka"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 400,
+      "name": "WindowManager",
+      "data": { "strings": [
+        "Bez nazvy"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 500,
+      "name": "DialogManager",
+      "data": { "strings": [
+        "OK",
+        "Skasuvaty",
+        "Tak",
+        "Ni",
+        "Zberehty",
+        "Ne zberihaty"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 600,
+      "name": "StandardFile",
+      "data": { "strings": [
+        "Vidkryty",
+        "Zberehty",
+        "Skasuvaty",
+        "Vyluchyty",
+        "Robochyy stil",
+        "Bez nazvy"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 800,
+      "name": "SystemStrings",
+      "data": { "strings": [
+        "Perezavantazhyty",
+        "Vymknuty",
+        "Stalasya systemna pomylka.",
+        "Nedostatnyо pam'yati."
+      ]}
+    }
+  ]
+}

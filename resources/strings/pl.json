@@ -1,0 +1,220 @@
+{
+  "resources": [
+    {
+      "type": "STR#",
+      "id": 128,
+      "name": "FinderMenuTitles",
+      "data": { "strings": [
+        "Plik",
+        "Edycja",
+        "Widok",
+        "Etykieta",
+        "Specjalne",
+        "Panele sterowania"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 129,
+      "name": "FinderAppleMenu",
+      "data": { "strings": [
+        "Ten Macintosh",
+        "Panele sterowania>",
+        "Notatnik"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 130,
+      "name": "FinderFileMenu",
+      "data": { "strings": [
+        "Nowy folder/N",
+        "Otw\u00f3rz/O",
+        "Drukuj/P",
+        "Zamknij/W",
+        "Informacje/I",
+        "Udost\u0119pnianie...",
+        "Powiel/D",
+        "Utw\u00f3rz alias",
+        "Odle\u017c na miejsce/Y",
+        "Znajd\u017a.../F",
+        "Znajd\u017a ponownie/G"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 131,
+      "name": "FinderEditMenu",
+      "data": { "strings": [
+        "Cofnij/Z",
+        "Wytnij/X",
+        "Kopiuj/C",
+        "Wklej/V",
+        "Wyczy\u015b\u0107",
+        "Zaznacz wszystko/A"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 132,
+      "name": "FinderViewMenu",
+      "data": { "strings": [
+        "ikony",
+        "nazw\u0119",
+        "rozmiar",
+        "rodzaj",
+        "etykiet\u0119",
+        "dat\u0119",
+        "Uporz\u0105dkuj okno",
+        "Uporz\u0105dkuj zaznaczenie"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 133,
+      "name": "FinderLabelMenu",
+      "data": { "strings": [
+        "Brak",
+        "Istotne",
+        "Pilne",
+        "W toku",
+        "Spokojne",
+        "Osobiste",
+        "Projekt 1",
+        "Projekt 2"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 134,
+      "name": "FinderSpecialMenu",
+      "data": { "strings": [
+        "Uporz\u0105dkuj biurko",
+        "Opr\u00f3\u017cnij kosz",
+        "Wysu\u0144/E",
+        "Wyma\u017c dysk",
+        "Uruchom ponownie",
+        "Wy\u0142\u0105cz"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 135,
+      "name": "FinderControlPanels",
+      "data": { "strings": [
+        "Wzory biurka...",
+        "Data i czas...",
+        "D\u017awi\u0119k...",
+        "Mysz...",
+        "Klawiatura...",
+        "Pasek sterowania..."
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 140,
+      "name": "FinderAbout",
+      "data": { "strings": [
+        "Ten Macintosh",
+        "Pami\u0119\u0107 wbudowana",
+        "Najwi\u0119kszy wolny blok",
+        "Oprogramowanie systemowe",
+        "Ca\u0142kowita pami\u0119\u0107",
+        "Pami\u0119\u0107",
+        "System",
+        "Aplikacje",
+        "Wolne"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 141,
+      "name": "FinderGetInfo",
+      "data": { "strings": [
+        "Informacje",
+        "Rodzaj:",
+        "Rozmiar:",
+        "Gdzie:",
+        "Utworzono:",
+        "Zmodyfikowano:"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 142,
+      "name": "FinderFind",
+      "data": { "strings": [
+        "Znajd\u017a",
+        "Znajd\u017a:",
+        "Znajd\u017a"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 143,
+      "name": "FinderTrash",
+      "data": { "strings": [
+        "Kosz",
+        "Czy na pewno chcesz trwale usun\u0105\u0107 elementy z Kosza?",
+        "element\u00f3w w Koszu"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 150,
+      "name": "FinderDesktop",
+      "data": { "strings": [
+        "Macintosh HD",
+        "Kosz",
+        "Aplikacje",
+        "Dokumenty",
+        "Folder systemowy"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 400,
+      "name": "WindowManager",
+      "data": { "strings": [
+        "Bez tytu\u0142u"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 500,
+      "name": "DialogManager",
+      "data": { "strings": [
+        "OK",
+        "Anuluj",
+        "Tak",
+        "Nie",
+        "Zachowaj",
+        "Nie zachowuj"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 600,
+      "name": "StandardFile",
+      "data": { "strings": [
+        "Otw\u00f3rz",
+        "Zachowaj",
+        "Anuluj",
+        "Wysu\u0144",
+        "Biurko",
+        "Bez tytu\u0142u"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 800,
+      "name": "SystemStrings",
+      "data": { "strings": [
+        "Uruchom ponownie",
+        "Wy\u0142\u0105cz",
+        "Wyst\u0105pi\u0142 b\u0142\u0105d systemowy.",
+        "Brak pami\u0119ci."
+      ]}
+    }
+  ]
+}

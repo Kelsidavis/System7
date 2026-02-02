@@ -68,13 +68,13 @@ jobs:
 
       - name: Verify resource generation
         run: |
-          for lang in en fr de es ja zh ko; do
+          for lang in en fr de es ja zh ko ru uk pl cs; do
             echo "Generating $lang resources..."
             python3 gen_rsrc.py resources/strings/$lang.json /tmp/test_$lang.rsrc
           done
 
       - name: Build multi-language kernel
-        run: make PLATFORM=x86 LOCALE_FR=1 LOCALE_DE=1 LOCALE_ES=1 LOCALE_JA=1 LOCALE_ZH=1 LOCALE_KO=1
+        run: make PLATFORM=x86 LOCALE_FR=1 LOCALE_DE=1 LOCALE_ES=1 LOCALE_JA=1 LOCALE_ZH=1 LOCALE_KO=1 LOCALE_RU=1 LOCALE_UK=1 LOCALE_PL=1 LOCALE_CS=1
 
       - name: Build multi-language ISO
         run: make iso

@@ -1,0 +1,220 @@
+{
+  "resources": [
+    {
+      "type": "STR#",
+      "id": 128,
+      "name": "FinderMenuTitles",
+      "data": { "strings": [
+        "Soubor",
+        "\u00dapravy",
+        "Zobrazen\u00ed",
+        "\u0160t\u00edtek",
+        "Speci\u00e1ln\u00ed",
+        "Ovl\u00e1dac\u00ed panely"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 129,
+      "name": "FinderAppleMenu",
+      "data": { "strings": [
+        "O tomto Macintoshi",
+        "Ovl\u00e1dac\u00ed panely>",
+        "Pozn\u00e1mkov\u00fd blok"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 130,
+      "name": "FinderFileMenu",
+      "data": { "strings": [
+        "Nov\u00e1 slo\u017eka/N",
+        "Otev\u0159\u00edt/O",
+        "Tisknout/P",
+        "Zav\u0159\u00edt/W",
+        "Informace/I",
+        "Sd\u00edlen\u00ed...",
+        "Duplikovat/D",
+        "Vytvo\u0159it alias",
+        "Vr\u00e1tit na m\u00edsto/Y",
+        "Naj\u00edt.../F",
+        "Naj\u00edt znovu/G"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 131,
+      "name": "FinderEditMenu",
+      "data": { "strings": [
+        "Zp\u011bt/Z",
+        "Vyjmout/X",
+        "Kop\u00edrovat/C",
+        "Vlo\u017eit/V",
+        "Smazat",
+        "Vybrat v\u0161e/A"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 132,
+      "name": "FinderViewMenu",
+      "data": { "strings": [
+        "ikony",
+        "n\u00e1zev",
+        "velikost",
+        "druh",
+        "\u0161t\u00edtek",
+        "datum",
+        "Uklidit okno",
+        "Uklidit v\u00fdb\u011br"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 133,
+      "name": "FinderLabelMenu",
+      "data": { "strings": [
+        "\u017d\u00e1dn\u00fd",
+        "Z\u00e1sadn\u00ed",
+        "Nal\u00e9hav\u00e9",
+        "Prob\u00edh\u00e1",
+        "V klidu",
+        "Osobn\u00ed",
+        "Projekt 1",
+        "Projekt 2"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 134,
+      "name": "FinderSpecialMenu",
+      "data": { "strings": [
+        "Uklidit plochu",
+        "Vysypat ko\u0161",
+        "Vysunout/E",
+        "Smazat disk",
+        "Restartovat",
+        "Vypnout"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 135,
+      "name": "FinderControlPanels",
+      "data": { "strings": [
+        "Vzory plochy...",
+        "Datum a \u010das...",
+        "Zvuk...",
+        "My\u0161...",
+        "Kl\u00e1vesnice...",
+        "Ovl\u00e1dac\u00ed li\u0161ta..."
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 140,
+      "name": "FinderAbout",
+      "data": { "strings": [
+        "O tomto Macintoshi",
+        "Vestav\u011bn\u00e1 pam\u011b\u0165",
+        "Nejv\u011bt\u0161\u00ed voln\u00fd blok",
+        "Syst\u00e9mov\u00fd software",
+        "Celkov\u00e1 pam\u011b\u0165",
+        "Pam\u011b\u0165",
+        "Syst\u00e9m",
+        "Aplikace",
+        "Voln\u00e9"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 141,
+      "name": "FinderGetInfo",
+      "data": { "strings": [
+        "Informace",
+        "Druh:",
+        "Velikost:",
+        "Kde:",
+        "Vytvo\u0159eno:",
+        "Zm\u011bn\u011bno:"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 142,
+      "name": "FinderFind",
+      "data": { "strings": [
+        "Naj\u00edt",
+        "Naj\u00edt:",
+        "Naj\u00edt"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 143,
+      "name": "FinderTrash",
+      "data": { "strings": [
+        "Ko\u0161",
+        "Opravdu chcete trvale odstranit polo\u017eky z Ko\u0161e?",
+        "polo\u017eek v Ko\u0161i"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 150,
+      "name": "FinderDesktop",
+      "data": { "strings": [
+        "Macintosh HD",
+        "Ko\u0161",
+        "Aplikace",
+        "Dokumenty",
+        "Syst\u00e9mov\u00e1 slo\u017eka"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 400,
+      "name": "WindowManager",
+      "data": { "strings": [
+        "Bez n\u00e1zvu"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 500,
+      "name": "DialogManager",
+      "data": { "strings": [
+        "OK",
+        "Zru\u0161it",
+        "Ano",
+        "Ne",
+        "Ulo\u017eit",
+        "Neukl\u00e1dat"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 600,
+      "name": "StandardFile",
+      "data": { "strings": [
+        "Otev\u0159\u00edt",
+        "Ulo\u017eit",
+        "Zru\u0161it",
+        "Vysunout",
+        "Plocha",
+        "Bez n\u00e1zvu"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 800,
+      "name": "SystemStrings",
+      "data": { "strings": [
+        "Restartovat",
+        "Vypnout",
+        "Do\u0161lo k syst\u00e9mov\u00e9 chyb\u011b.",
+        "Nedostatek pam\u011bti."
+      ]}
+    }
+  ]
+}

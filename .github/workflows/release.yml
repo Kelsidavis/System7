@@ -71,7 +71,7 @@ jobs:
       - name: Build multi-language kernel
         run: |
           make clean
-          make PLATFORM=x86 LOCALE_FR=1 LOCALE_DE=1 LOCALE_ES=1 LOCALE_JA=1 LOCALE_ZH=1 LOCALE_KO=1
+          make PLATFORM=x86 LOCALE_FR=1 LOCALE_DE=1 LOCALE_ES=1 LOCALE_JA=1 LOCALE_ZH=1 LOCALE_KO=1 LOCALE_RU=1 LOCALE_UK=1 LOCALE_PL=1 LOCALE_CS=1
 
       - name: Build multi-language ISO
         run: make iso
@@ -132,7 +132,7 @@ jobs:
             - `system71-en.iso` - Bootable ISO image (English)
             - `kernel-en.elf` - Kernel binary (English)
 
-            **All languages (English, French, German, Spanish, Japanese, Chinese, Korean):**
+            **All languages (English, French, German, Spanish, Japanese, Chinese, Korean, Russian, Ukrainian, Polish, Czech):**
             - `system71-all-languages.iso` - Bootable ISO image (all languages)
             - `kernel-all-languages.elf` - Kernel binary (all languages)
 
@@ -142,7 +142,7 @@ jobs:
             qemu-system-i386 -cdrom system71-en.iso -serial stdio -display sdl -m 256M
 
             # Multi-language (select language via GRUB boot parameter)
-            # Available: en, fr, de, es, ja, zh, ko
+            # Available: en, fr, de, es, ja, zh, ko, ru, uk, pl, cs
             qemu-system-i386 -cdrom system71-all-languages.iso -serial stdio -display sdl -m 256M
             ```
         env:

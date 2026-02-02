@@ -753,6 +753,58 @@ src/strings_ko_rsrc.c: $(BUILD_DIR)/Strings_ko.rsrc
 	@echo 'const unsigned int strings_ko_rsrc_size = sizeof(strings_ko_rsrc_data);' >> $@
 endif
 
+ifeq ($(LOCALE_RU),1)
+CFLAGS += -DLOCALE_RU=1
+C_SOURCES += src/strings_ru_rsrc.c
+$(BUILD_DIR)/Strings_ru.rsrc: resources/strings/ru.json gen_rsrc.py | $(BUILD_DIR)
+	@python3 gen_rsrc.py resources/strings/ru.json $@
+src/strings_ru_rsrc.c: $(BUILD_DIR)/Strings_ru.rsrc
+	@echo '/* Auto-generated from Strings_ru.rsrc */' > $@
+	@echo 'const unsigned char strings_ru_rsrc_data[] = {' >> $@
+	@xxd -i < $< >> $@
+	@echo '};' >> $@
+	@echo 'const unsigned int strings_ru_rsrc_size = sizeof(strings_ru_rsrc_data);' >> $@
+endif
+
+ifeq ($(LOCALE_UK),1)
+CFLAGS += -DLOCALE_UK=1
+C_SOURCES += src/strings_uk_rsrc.c
+$(BUILD_DIR)/Strings_uk.rsrc: resources/strings/uk.json gen_rsrc.py | $(BUILD_DIR)
+	@python3 gen_rsrc.py resources/strings/uk.json $@
+src/strings_uk_rsrc.c: $(BUILD_DIR)/Strings_uk.rsrc
+	@echo '/* Auto-generated from Strings_uk.rsrc */' > $@
+	@echo 'const unsigned char strings_uk_rsrc_data[] = {' >> $@
+	@xxd -i < $< >> $@
+	@echo '};' >> $@
+	@echo 'const unsigned int strings_uk_rsrc_size = sizeof(strings_uk_rsrc_data);' >> $@
+endif
+
+ifeq ($(LOCALE_PL),1)
+CFLAGS += -DLOCALE_PL=1
+C_SOURCES += src/strings_pl_rsrc.c
+$(BUILD_DIR)/Strings_pl.rsrc: resources/strings/pl.json gen_rsrc.py | $(BUILD_DIR)
+	@python3 gen_rsrc.py resources/strings/pl.json $@
+src/strings_pl_rsrc.c: $(BUILD_DIR)/Strings_pl.rsrc
+	@echo '/* Auto-generated from Strings_pl.rsrc */' > $@
+	@echo 'const unsigned char strings_pl_rsrc_data[] = {' >> $@
+	@xxd -i < $< >> $@
+	@echo '};' >> $@
+	@echo 'const unsigned int strings_pl_rsrc_size = sizeof(strings_pl_rsrc_data);' >> $@
+endif
+
+ifeq ($(LOCALE_CS),1)
+CFLAGS += -DLOCALE_CS=1
+C_SOURCES += src/strings_cs_rsrc.c
+$(BUILD_DIR)/Strings_cs.rsrc: resources/strings/cs.json gen_rsrc.py | $(BUILD_DIR)
+	@python3 gen_rsrc.py resources/strings/cs.json $@
+src/strings_cs_rsrc.c: $(BUILD_DIR)/Strings_cs.rsrc
+	@echo '/* Auto-generated from Strings_cs.rsrc */' > $@
+	@echo 'const unsigned char strings_cs_rsrc_data[] = {' >> $@
+	@xxd -i < $< >> $@
+	@echo '};' >> $@
+	@echo 'const unsigned int strings_cs_rsrc_size = sizeof(strings_cs_rsrc_data);' >> $@
+endif
+
 # Link kernel
 $(KERNEL): $(OBJECTS) | $(BUILD_DIR)
 	@echo "LD $(KERNEL)"

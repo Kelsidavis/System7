@@ -1,0 +1,220 @@
+{
+  "resources": [
+    {
+      "type": "STR#",
+      "id": 128,
+      "name": "FinderMenuTitles",
+      "data": { "strings": [
+        "Fail",
+        "Pravka",
+        "Vid",
+        "Metka",
+        "Spetsial'no",
+        "Paneli upravleniya"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 129,
+      "name": "FinderAppleMenu",
+      "data": { "strings": [
+        "Ob etom Macintosh",
+        "Paneli upravleniya>",
+        "Bloknot"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 130,
+      "name": "FinderFileMenu",
+      "data": { "strings": [
+        "Novaya papka/N",
+        "Otkryt'/O",
+        "Pechat'/P",
+        "Zakryt'/W",
+        "Svedeniya/I",
+        "Obshchiy dostup...",
+        "Dublirovat'/D",
+        "Sozdat' psevdonim",
+        "Vernut' na mesto/Y",
+        "Naiti.../F",
+        "Naiti snova/G"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 131,
+      "name": "FinderEditMenu",
+      "data": { "strings": [
+        "Otmena/Z",
+        "Vyrezat'/X",
+        "Kopirovat'/C",
+        "Vstavit'/V",
+        "Ochistit'",
+        "Vybrat' vse/A"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 132,
+      "name": "FinderViewMenu",
+      "data": { "strings": [
+        "znachki",
+        "imya",
+        "razmer",
+        "tip",
+        "metka",
+        "data",
+        "Uporyadochit' okno",
+        "Uporyadochit' vydelennoe"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 133,
+      "name": "FinderLabelMenu",
+      "data": { "strings": [
+        "Net",
+        "Vazhno",
+        "Srochno",
+        "V rabote",
+        "Normal'no",
+        "Lichnoe",
+        "Proekt 1",
+        "Proekt 2"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 134,
+      "name": "FinderSpecialMenu",
+      "data": { "strings": [
+        "Uporyadochit' stol",
+        "Ochistit' korzinu",
+        "Izvlech'/E",
+        "Steret' disk",
+        "Perezagruzit'",
+        "Vyklyuchit'"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 135,
+      "name": "FinderControlPanels",
+      "data": { "strings": [
+        "Uzory rabochego stola...",
+        "Data i vremya...",
+        "Zvuk...",
+        "Mysh'...",
+        "Klaviatura...",
+        "Panel' upravleniya..."
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 140,
+      "name": "FinderAbout",
+      "data": { "strings": [
+        "Ob etom Macintosh",
+        "Vstroennaya pamyat'",
+        "Naibol'shiy svobodnyy blok",
+        "Sistemnoe PO",
+        "Vsego pamyati",
+        "Pamyat'",
+        "Sistema",
+        "Prilozheniya",
+        "Svobodno"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 141,
+      "name": "FinderGetInfo",
+      "data": { "strings": [
+        "Svedeniya",
+        "Tip:",
+        "Razmer:",
+        "Gde:",
+        "Sozdan:",
+        "Izmenen:"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 142,
+      "name": "FinderFind",
+      "data": { "strings": [
+        "Naiti",
+        "Naiti:",
+        "Naiti"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 143,
+      "name": "FinderTrash",
+      "data": { "strings": [
+        "Korzina",
+        "Vy uvereny, chto khotite bezvozvratno udalit' soderzhimoe Korziny?",
+        "ob\"ektov v Korzine"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 150,
+      "name": "FinderDesktop",
+      "data": { "strings": [
+        "Macintosh HD",
+        "Korzina",
+        "Prilozheniya",
+        "Dokumenty",
+        "Sistemnaya papka"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 400,
+      "name": "WindowManager",
+      "data": { "strings": [
+        "Bez nazvaniya"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 500,
+      "name": "DialogManager",
+      "data": { "strings": [
+        "OK",
+        "Otmena",
+        "Da",
+        "Net",
+        "Sokhranit'",
+        "Ne sokhranit'"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 600,
+      "name": "StandardFile",
+      "data": { "strings": [
+        "Otkryt'",
+        "Sokhranit'",
+        "Otmena",
+        "Izvlech'",
+        "Rabochiy stol",
+        "Bez nazvaniya"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 800,
+      "name": "SystemStrings",
+      "data": { "strings": [
+        "Perezagruzit'",
+        "Vyklyuchit'",
+        "Proizoshla sistemnaya oshibka.",
+        "Nedostatochno pamyati."
+      ]}
+    }
+  ]
+}
