@@ -1,0 +1,220 @@
+{
+  "resources": [
+    {
+      "type": "STR#",
+      "id": 128,
+      "name": "FinderMenuTitles",
+      "data": { "strings": [
+        "Archeio",
+        "Epexergasia",
+        "Provoli",
+        "Etiketa",
+        "Eidika",
+        "Pinakes Elegchou"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 129,
+      "name": "FinderAppleMenu",
+      "data": { "strings": [
+        "Peri Autou tou Macintosh",
+        "Pinakes Elegchou>",
+        "Simeiomatario"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 130,
+      "name": "FinderFileMenu",
+      "data": { "strings": [
+        "Neos Fakelos/N",
+        "Anoigma/O",
+        "Ektyposi/P",
+        "Kleisimo/W",
+        "Plirofories/I",
+        "Koinochronia...",
+        "Dipotypo/D",
+        "Dimiourgia Alias",
+        "Epistrofi/Y",
+        "Anazetisi.../F",
+        "Anazetisi Xana/G"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 131,
+      "name": "FinderEditMenu",
+      "data": { "strings": [
+        "Anairesi/Z",
+        "Apokopi/X",
+        "Antigrafi/C",
+        "Epikollisi/V",
+        "Katharismos",
+        "Epilogi Olon/A"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 132,
+      "name": "FinderViewMenu",
+      "data": { "strings": [
+        "kata Eikonidio",
+        "kata Onoma",
+        "kata Megethos",
+        "kata Eidos",
+        "kata Etiketa",
+        "kata Imerominia",
+        "Katharismos Parathyrou",
+        "Katharismos Epilogis"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 133,
+      "name": "FinderLabelMenu",
+      "data": { "strings": [
+        "Kanena",
+        "Aparaitito",
+        "Zesto",
+        "Se Exelixi",
+        "Drosero",
+        "Prosopiko",
+        "Ergo 1",
+        "Ergo 2"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 134,
+      "name": "FinderSpecialMenu",
+      "data": { "strings": [
+        "Katharismos Epifaneias",
+        "Adeiasma Kado",
+        "Exagogi/E",
+        "Diagrafi Diskou",
+        "Epanekkimisi",
+        "Termatismos"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 135,
+      "name": "FinderControlPanels",
+      "data": { "strings": [
+        "Schedia Epifaneias...",
+        "Imerominia kai Ora...",
+        "Ichos...",
+        "Pontiki...",
+        "Pliktrologio...",
+        "Tainia Elegchou..."
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 140,
+      "name": "FinderAbout",
+      "data": { "strings": [
+        "Peri Autou tou Macintosh",
+        "Ensomatomeni Mnimi",
+        "Megisto Adeio Tmima",
+        "Logismiko Systimatos",
+        "Synoliki Mnimi",
+        "Mnimi",
+        "Systima",
+        "Efarmoges",
+        "Achrisimopoiiti"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 141,
+      "name": "FinderGetInfo",
+      "data": { "strings": [
+        "Plirofories",
+        "Eidos:",
+        "Megethos:",
+        "Topothesia:",
+        "Dimiourgithike:",
+        "Tropopoiithike:"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 142,
+      "name": "FinderFind",
+      "data": { "strings": [
+        "Anazetisi",
+        "Anazetisi:",
+        "Anazetisi"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 143,
+      "name": "FinderTrash",
+      "data": { "strings": [
+        "Kados",
+        "Eiste sigouroi oti thelete na diagrapsete oristika ta antikeimena apo ton Kado?",
+        "antikeimena ston Kado"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 150,
+      "name": "FinderDesktop",
+      "data": { "strings": [
+        "Macintosh HD",
+        "Kados",
+        "Efarmoges",
+        "Engrafa",
+        "Fakelos Systimatos"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 400,
+      "name": "WindowManager",
+      "data": { "strings": [
+        "Choris Titlo"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 500,
+      "name": "DialogManager",
+      "data": { "strings": [
+        "OK",
+        "Akyrosi",
+        "Nai",
+        "Ochi",
+        "Apothikefsi",
+        "Mi Apothikefsi"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 600,
+      "name": "StandardFile",
+      "data": { "strings": [
+        "Anoigma",
+        "Apothikefsi",
+        "Akyrosi",
+        "Exagogi",
+        "Epifaneia",
+        "Choris Titlo"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 800,
+      "name": "SystemStrings",
+      "data": { "strings": [
+        "Epanekkimisi",
+        "Termatismos",
+        "Proekypse sfalma systimatos.",
+        "Den eparki i mnimi."
+      ]}
+    }
+  ]
+}

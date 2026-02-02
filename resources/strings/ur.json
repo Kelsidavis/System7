@@ -1,0 +1,221 @@
+{
+  "_comment": "Urdu - romanized placeholder",
+  "resources": [
+    {
+      "type": "STR#",
+      "id": 128,
+      "name": "FinderMenuTitles",
+      "data": { "strings": [
+        "Fayl",
+        "Tarteeb",
+        "Nazara",
+        "Lebel",
+        "Khaas",
+        "Kantrool Panel"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 129,
+      "name": "FinderAppleMenu",
+      "data": { "strings": [
+        "Is Macintosh Ke Baare Mein",
+        "Kantrool Panel>",
+        "Notpad"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 130,
+      "name": "FinderFileMenu",
+      "data": { "strings": [
+        "Naya Folder/N",
+        "Kholein/O",
+        "Chhapein/P",
+        "Band Karein/W",
+        "Ma\u2018lumat Hasil Karein/I",
+        "Shirakat...",
+        "Naql/D",
+        "Urfnaam Banayein",
+        "Wapas Rakhein/Y",
+        "Talaash.../F",
+        "Dobara Talaash/G"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 131,
+      "name": "FinderEditMenu",
+      "data": { "strings": [
+        "Wapas/Z",
+        "Kaatein/X",
+        "Naql/C",
+        "Chipkayein/V",
+        "Saaf",
+        "Sab Chunein/A"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 132,
+      "name": "FinderViewMenu",
+      "data": { "strings": [
+        "Aikon Se",
+        "Naam Se",
+        "Saiz Se",
+        "Qism Se",
+        "Lebel Se",
+        "Tarikh Se",
+        "Khidki Saaf Karein",
+        "Intikhab Saaf Karein"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 133,
+      "name": "FinderLabelMenu",
+      "data": { "strings": [
+        "Koi Nahin",
+        "Zaroori",
+        "Aham",
+        "Jaari Hai",
+        "Achchha",
+        "Zaati",
+        "Mansooba 1",
+        "Mansooba 2"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 134,
+      "name": "FinderSpecialMenu",
+      "data": { "strings": [
+        "Desktop Saaf Karein",
+        "Koodadaan Khaali Karein",
+        "Nikaalein/E",
+        "Disk Mitayein",
+        "Dobara Shuru",
+        "Band Karein"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 135,
+      "name": "FinderControlPanels",
+      "data": { "strings": [
+        "Desktop Naqshay...",
+        "Tarikh aur Waqt...",
+        "Awaz...",
+        "Maaus...",
+        "Kibord...",
+        "Kantrool Patti..."
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 140,
+      "name": "FinderAbout",
+      "data": { "strings": [
+        "Is Macintosh Ke Baare Mein",
+        "Dakhili Hafiza",
+        "Sab Se Bada Ghair Istemal Shuda Block",
+        "Nizam Software",
+        "Kull Hafiza",
+        "Hafiza",
+        "Nizam",
+        "Tatbeeqaat",
+        "Ghair Istemal Shuda"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 141,
+      "name": "FinderGetInfo",
+      "data": { "strings": [
+        "Ma\u2018lumat",
+        "Qism:",
+        "Saiz:",
+        "Jagah:",
+        "Banayi Gayi:",
+        "Tabdeel Shuda:"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 142,
+      "name": "FinderFind",
+      "data": { "strings": [
+        "Talaash",
+        "Talaash:",
+        "Talaash"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 143,
+      "name": "FinderTrash",
+      "data": { "strings": [
+        "Koodadaan",
+        "Kya aap yaqeen se Koodadaan ki cheezein hamesha ke liye hataana chaahte hain?",
+        "Koodadaan ki cheezein"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 150,
+      "name": "FinderDesktop",
+      "data": { "strings": [
+        "Macintosh HD",
+        "Koodadaan",
+        "Tatbeeqaat",
+        "Dastaveyzaat",
+        "Nizam Folder"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 400,
+      "name": "WindowManager",
+      "data": { "strings": [
+        "Bay Naam"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 500,
+      "name": "DialogManager",
+      "data": { "strings": [
+        "OK",
+        "Mansookh",
+        "Haan",
+        "Nahin",
+        "Mehfooz Karein",
+        "Mehfooz Na Karein"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 600,
+      "name": "StandardFile",
+      "data": { "strings": [
+        "Kholein",
+        "Mehfooz Karein",
+        "Mansookh",
+        "Nikaalein",
+        "Desktop",
+        "Bay Naam"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 800,
+      "name": "SystemStrings",
+      "data": { "strings": [
+        "Dobara Shuru",
+        "Band Karein",
+        "Nizam mein ek ghalti ho gayi hai.",
+        "Hafiza khatam ho gayi."
+      ]}
+    }
+  ]
+}

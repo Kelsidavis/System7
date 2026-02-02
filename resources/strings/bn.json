@@ -1,0 +1,221 @@
+{
+  "_comment": "Bengali - romanized placeholder",
+  "resources": [
+    {
+      "type": "STR#",
+      "id": 128,
+      "name": "FinderMenuTitles",
+      "data": { "strings": [
+        "File",
+        "Sampadona",
+        "Dekha",
+        "Lebel",
+        "Bishesh",
+        "Niyantran Panel"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 129,
+      "name": "FinderAppleMenu",
+      "data": { "strings": [
+        "Ei Macintosh Somporke",
+        "Niyantran Panel>",
+        "Notpad"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 130,
+      "name": "FinderFileMenu",
+      "data": { "strings": [
+        "Notun Folder/N",
+        "Kholo/O",
+        "Chhapa/P",
+        "Bondho Koro/W",
+        "Tothyo Nao/I",
+        "Bhagaabhagi...",
+        "Protilipi/D",
+        "Chhadmanaam Toiri",
+        "Pherat Rakho/Y",
+        "Khujo.../F",
+        "Abar Khujo/G"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 131,
+      "name": "FinderEditMenu",
+      "data": { "strings": [
+        "Pherat/Z",
+        "Kato/X",
+        "Nakal/C",
+        "Laga\u2019o/V",
+        "Mochho",
+        "Shob Bechhe Nao/A"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 132,
+      "name": "FinderViewMenu",
+      "data": { "strings": [
+        "Aikon Anusare",
+        "Naam Anusare",
+        "Aakar Anusare",
+        "Dhoron Anusare",
+        "Lebel Anusare",
+        "Tarikh Anusare",
+        "Janala Porishkar",
+        "Nirbachon Porishkar"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 133,
+      "name": "FinderLabelMenu",
+      "data": { "strings": [
+        "Kichhui Na",
+        "Atyabashoyk",
+        "Gorom",
+        "Choloman",
+        "Thanda",
+        "Byaktigoto",
+        "Prakalpa 1",
+        "Prakalpa 2"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 134,
+      "name": "FinderSpecialMenu",
+      "data": { "strings": [
+        "Desktop Porishkar",
+        "Abarjona Khali Koro",
+        "Ber Koro/E",
+        "Disk Mochho",
+        "Punray Chalu",
+        "Bondho Koro"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 135,
+      "name": "FinderControlPanels",
+      "data": { "strings": [
+        "Desktop Noksha...",
+        "Tarikh o Shomoy...",
+        "Shobdo...",
+        "Maush...",
+        "Kibord...",
+        "Niyantran Patti..."
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 140,
+      "name": "FinderAbout",
+      "data": { "strings": [
+        "Ei Macintosh Somporke",
+        "Antornihito Smriti",
+        "Shorbobrihat Byabohar-heen Block",
+        "System Software",
+        "Mout Smriti",
+        "Smriti",
+        "System",
+        "Anuprayog",
+        "Byabohar-heen"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 141,
+      "name": "FinderGetInfo",
+      "data": { "strings": [
+        "Tothyo",
+        "Dhoron:",
+        "Aakar:",
+        "Kothay:",
+        "Toiri:",
+        "Poriborton:"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 142,
+      "name": "FinderFind",
+      "data": { "strings": [
+        "Khujo",
+        "Khujo:",
+        "Khujo"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 143,
+      "name": "FinderTrash",
+      "data": { "strings": [
+        "Abarjona",
+        "Apni ki nishchit je Abarjonar jinishgulo shashwotobhabe mochhe phelte chan?",
+        "Abarjonar jinishgulo"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 150,
+      "name": "FinderDesktop",
+      "data": { "strings": [
+        "Macintosh HD",
+        "Abarjona",
+        "Anuprayog",
+        "Dolil",
+        "System Folder"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 400,
+      "name": "WindowManager",
+      "data": { "strings": [
+        "Naamheen"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 500,
+      "name": "DialogManager",
+      "data": { "strings": [
+        "OK",
+        "Baatil",
+        "Hyaa",
+        "Na",
+        "Shongrokkhon",
+        "Shongrokkhon Koro Na"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 600,
+      "name": "StandardFile",
+      "data": { "strings": [
+        "Kholo",
+        "Shongrokkhon",
+        "Baatil",
+        "Ber Koro",
+        "Desktop",
+        "Naamheen"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 800,
+      "name": "SystemStrings",
+      "data": { "strings": [
+        "Punray Chalu",
+        "Bondho Koro",
+        "Ekti system truti ghoteche.",
+        "Smriti phuriye geche."
+      ]}
+    }
+  ]
+}

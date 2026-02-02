@@ -1,0 +1,221 @@
+{
+  "_comment": "Arabic - romanized placeholder",
+  "resources": [
+    {
+      "type": "STR#",
+      "id": 128,
+      "name": "FinderMenuTitles",
+      "data": { "strings": [
+        "Milaf",
+        "Tahrir",
+        "Arad",
+        "Tasmiya",
+        "Khass",
+        "Lawhat at-Tahakkum"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 129,
+      "name": "FinderAppleMenu",
+      "data": { "strings": [
+        "Hawla Hadha al-Macintosh",
+        "Lawhat at-Tahakkum>",
+        "Mudhakkira"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 130,
+      "name": "FinderFileMenu",
+      "data": { "strings": [
+        "Mujallad Jadid/N",
+        "Iftah/O",
+        "Tiba\u2018a/P",
+        "Ighlaq/W",
+        "Ma\u2018lumat/I",
+        "Musharaka...",
+        "Naskh/D",
+        "Insha\u2019 Mustawda\u2018",
+        "I\u2018adat Wad\u2018/Y",
+        "Bahth.../F",
+        "Bahth Tani/G"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 131,
+      "name": "FinderEditMenu",
+      "data": { "strings": [
+        "Taraghu\u2018/Z",
+        "Qass/X",
+        "Naskh/C",
+        "Lasq/V",
+        "Mash",
+        "Ikhtar al-Kull/A"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 132,
+      "name": "FinderViewMenu",
+      "data": { "strings": [
+        "bil-Aiquna",
+        "bil-Ism",
+        "bil-Hajm",
+        "bil-Naw\u2018",
+        "bit-Tasmiya",
+        "bit-Tarikh",
+        "Tanzif an-Nafidha",
+        "Tanzif al-Ikhtiyar"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 133,
+      "name": "FinderLabelMenu",
+      "data": { "strings": [
+        "La Shay\u2019",
+        "Asasi",
+        "Hamm",
+        "Qaid at-Taqaddum",
+        "Mumtaz",
+        "Shakhsi",
+        "Mashru\u2018 1",
+        "Mashru\u2018 2"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 134,
+      "name": "FinderSpecialMenu",
+      "data": { "strings": [
+        "Tanzif Sath al-Maktab",
+        "Tafrigh Sallat al-Mahdhufat",
+        "Ikhraj/E",
+        "Mash al-Qurs",
+        "I\u2018adat at-Tashghil",
+        "Iqaf at-Tashghil"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 135,
+      "name": "FinderControlPanels",
+      "data": { "strings": [
+        "Anmat Sath al-Maktab...",
+        "at-Tarikh wal-Waqt...",
+        "as-Sawt...",
+        "al-Fa\u2019ra...",
+        "Lawhat al-Mafatih...",
+        "Sharit at-Tahakkum..."
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 140,
+      "name": "FinderAbout",
+      "data": { "strings": [
+        "Hawla Hadha al-Macintosh",
+        "Dhakira Mudmaja",
+        "Akbar Kutla Ghayr Mustakhdama",
+        "Barnamaj an-Nizam",
+        "Ijmali adh-Dhakira",
+        "Dhakira",
+        "Nizam",
+        "Tatbiqat",
+        "Ghayr Mustakhdama"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 141,
+      "name": "FinderGetInfo",
+      "data": { "strings": [
+        "Ma\u2018lumat",
+        "an-Naw\u2018:",
+        "al-Hajm:",
+        "al-Mawqi\u2018:",
+        "Tarikh al-Insha\u2019:",
+        "Tarikh at-Ta\u2018dil:"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 142,
+      "name": "FinderFind",
+      "data": { "strings": [
+        "Bahth",
+        "Bahth:",
+        "Bahth"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 143,
+      "name": "FinderTrash",
+      "data": { "strings": [
+        "Sallat al-Mahdhufat",
+        "Hal anta muta\u2019akkid annaka turid hadhf al-\u2018anasir fi Sallat al-Mahdhufat nihaa\u2019iyyan?",
+        "al-\u2018Anasir fi Sallat al-Mahdhufat"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 150,
+      "name": "FinderDesktop",
+      "data": { "strings": [
+        "Macintosh HD",
+        "Sallat al-Mahdhufat",
+        "Tatbiqat",
+        "Mustanadaat",
+        "Mujallad an-Nizam"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 400,
+      "name": "WindowManager",
+      "data": { "strings": [
+        "Bidun \u2018Unwan"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 500,
+      "name": "DialogManager",
+      "data": { "strings": [
+        "OK",
+        "Ilgha\u2019",
+        "Na\u2018am",
+        "La",
+        "Hifz",
+        "Adam al-Hifz"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 600,
+      "name": "StandardFile",
+      "data": { "strings": [
+        "Iftah",
+        "Hifz",
+        "Ilgha\u2019",
+        "Ikhraj",
+        "Sath al-Maktab",
+        "Bidun \u2018Unwan"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 800,
+      "name": "SystemStrings",
+      "data": { "strings": [
+        "I\u2018adat at-Tashghil",
+        "Iqaf at-Tashghil",
+        "Hadatha khata\u2019 fi an-nizam.",
+        "Nafidat adh-dhakira."
+      ]}
+    }
+  ]
+}

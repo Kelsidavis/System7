@@ -1,0 +1,220 @@
+{
+  "resources": [
+    {
+      "type": "STR#",
+      "id": 128,
+      "name": "FinderMenuTitles",
+      "data": { "strings": [
+        "Faail",
+        "Sampaadan",
+        "Dekhein",
+        "Laibal",
+        "Vishesh",
+        "Niyantran Panel"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 129,
+      "name": "FinderAppleMenu",
+      "data": { "strings": [
+        "Is Macintosh Ke Baare Mein",
+        "Niyantran Panel>",
+        "Notpad"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 130,
+      "name": "FinderFileMenu",
+      "data": { "strings": [
+        "Naya Foldar/N",
+        "Kholein/O",
+        "Chhaapein/P",
+        "Band Karein/W",
+        "Jaankaari Lein/I",
+        "Saajhedaari...",
+        "Pratilipi/D",
+        "Upnaam Banaayein",
+        "Vaapas Rakhein/Y",
+        "Khojein.../F",
+        "Phir Khojein/G"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 131,
+      "name": "FinderEditMenu",
+      "data": { "strings": [
+        "Vaapas/Z",
+        "Kaatein/X",
+        "Nakal/C",
+        "Chipakaayein/V",
+        "Saaf",
+        "Sab Chunein/A"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 132,
+      "name": "FinderViewMenu",
+      "data": { "strings": [
+        "Chihn se",
+        "Naam se",
+        "Aakar se",
+        "Prakaar se",
+        "Laibal se",
+        "Tithi se",
+        "Khidki Saaf Karein",
+        "Chayan Saaf Karein"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 133,
+      "name": "FinderLabelMenu",
+      "data": { "strings": [
+        "Koi Nahin",
+        "Aavashyak",
+        "Garam",
+        "Jaari Hai",
+        "Badhiya",
+        "Niji",
+        "Pariyojana 1",
+        "Pariyojana 2"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 134,
+      "name": "FinderSpecialMenu",
+      "data": { "strings": [
+        "Desktop Saaf Karein",
+        "Koodadaan Khaali Karein",
+        "Nikaalein/E",
+        "Disk Mitaayein",
+        "Punah Chalu",
+        "Band Karein"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 135,
+      "name": "FinderControlPanels",
+      "data": { "strings": [
+        "Desktop Naqshe...",
+        "Tithi aur Samay...",
+        "Dhvani...",
+        "Maoos...",
+        "Kiboard...",
+        "Niyantran Patti..."
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 140,
+      "name": "FinderAbout",
+      "data": { "strings": [
+        "Is Macintosh Ke Baare Mein",
+        "Antarnirhit Smriti",
+        "Sabase Bada Khalee Khand",
+        "Pranaalee Software",
+        "Kul Smriti",
+        "Smriti",
+        "Pranaalee",
+        "Anuprayog",
+        "Aprayukt"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 141,
+      "name": "FinderGetInfo",
+      "data": { "strings": [
+        "Jaankaari",
+        "Prakaar:",
+        "Aakar:",
+        "Sthaan:",
+        "Nirmit:",
+        "Sanshodhit:"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 142,
+      "name": "FinderFind",
+      "data": { "strings": [
+        "Khojein",
+        "Khojein:",
+        "Khojein"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 143,
+      "name": "FinderTrash",
+      "data": { "strings": [
+        "Koodadaan",
+        "Kya aap Koodadaan ki cheezon ko sthaayi roop se hataana chaahte hain?",
+        "Koodadaan mein cheezein"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 150,
+      "name": "FinderDesktop",
+      "data": { "strings": [
+        "Macintosh HD",
+        "Koodadaan",
+        "Anuprayog",
+        "Dastaavez",
+        "Pranaalee Foldar"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 400,
+      "name": "WindowManager",
+      "data": { "strings": [
+        "Anaamit"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 500,
+      "name": "DialogManager",
+      "data": { "strings": [
+        "OK",
+        "Radd Karein",
+        "Haan",
+        "Nahin",
+        "Surakshit Karein",
+        "Surakshit Na Karein"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 600,
+      "name": "StandardFile",
+      "data": { "strings": [
+        "Kholein",
+        "Surakshit Karein",
+        "Radd Karein",
+        "Nikaalein",
+        "Desktop",
+        "Anaamit"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 800,
+      "name": "SystemStrings",
+      "data": { "strings": [
+        "Punah Chalu",
+        "Band Karein",
+        "Pranaalee mein truti aa gayi hai.",
+        "Smriti khatm ho gayi."
+      ]}
+    }
+  ]
+}

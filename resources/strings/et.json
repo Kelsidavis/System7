@@ -1,0 +1,220 @@
+{
+  "resources": [
+    {
+      "type": "STR#",
+      "id": 128,
+      "name": "FinderMenuTitles",
+      "data": { "strings": [
+        "Fail",
+        "Redigeeri",
+        "Vaade",
+        "Silt",
+        "Eriline",
+        "Juhtpaneelid"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 129,
+      "name": "FinderAppleMenu",
+      "data": { "strings": [
+        "Sellest Macintoshist",
+        "Juhtpaneelid>",
+        "M\u00e4rkmik"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 130,
+      "name": "FinderFileMenu",
+      "data": { "strings": [
+        "Uus kaust/N",
+        "Ava/O",
+        "Prindi/P",
+        "Sulge/W",
+        "Hangi info/I",
+        "Jagamine...",
+        "Dubleeri/D",
+        "Loo alias",
+        "Pane tagasi/Y",
+        "Otsi.../F",
+        "Otsi uuesti/G"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 131,
+      "name": "FinderEditMenu",
+      "data": { "strings": [
+        "V\u00f5ta tagasi/Z",
+        "L\u00f5ika/X",
+        "Kopeeri/C",
+        "Aseta/V",
+        "Puhasta",
+        "Vali k\u00f5ik/A"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 132,
+      "name": "FinderViewMenu",
+      "data": { "strings": [
+        "ikoonide j\u00e4rgi",
+        "nime j\u00e4rgi",
+        "suuruse j\u00e4rgi",
+        "liigi j\u00e4rgi",
+        "sildi j\u00e4rgi",
+        "kuup\u00e4eva j\u00e4rgi",
+        "Korista aken",
+        "Korista valik"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 133,
+      "name": "FinderLabelMenu",
+      "data": { "strings": [
+        "Puudub",
+        "Oluline",
+        "Kuum",
+        "Pooleli",
+        "Lahe",
+        "Isiklik",
+        "Projekt 1",
+        "Projekt 2"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 134,
+      "name": "FinderSpecialMenu",
+      "data": { "strings": [
+        "Korista t\u00f6\u00f6laud",
+        "T\u00fchjenda pr\u00fcgikast",
+        "V\u00e4ljuta/E",
+        "Kustuta ketas",
+        "Taask\u00e4ivita",
+        "L\u00fclita v\u00e4lja"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 135,
+      "name": "FinderControlPanels",
+      "data": { "strings": [
+        "T\u00f6\u00f6laua mustrid...",
+        "Kuup\u00e4ev ja kellaaeg...",
+        "Heli...",
+        "Hiir...",
+        "Klaviatuur...",
+        "Juhtpaneel..."
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 140,
+      "name": "FinderAbout",
+      "data": { "strings": [
+        "Sellest Macintoshist",
+        "Sisseehitatud m\u00e4lu",
+        "Suurim vaba plokk",
+        "S\u00fcsteemitarkvara",
+        "M\u00e4lu kokku",
+        "M\u00e4lu",
+        "S\u00fcsteem",
+        "Rakendused",
+        "Kasutamata"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 141,
+      "name": "FinderGetInfo",
+      "data": { "strings": [
+        "Info",
+        "Liik:",
+        "Suurus:",
+        "Asukoht:",
+        "Loodud:",
+        "Muudetud:"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 142,
+      "name": "FinderFind",
+      "data": { "strings": [
+        "Otsi",
+        "Otsi:",
+        "Otsi"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 143,
+      "name": "FinderTrash",
+      "data": { "strings": [
+        "Pr\u00fcgikast",
+        "Kas soovite pr\u00fcgikasti sisu j\u00e4\u00e4davalt eemaldada?",
+        "\u00fcksused pr\u00fcgikastis"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 150,
+      "name": "FinderDesktop",
+      "data": { "strings": [
+        "Macintosh HD",
+        "Pr\u00fcgikast",
+        "Rakendused",
+        "Dokumendid",
+        "S\u00fcsteemikaust"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 400,
+      "name": "WindowManager",
+      "data": { "strings": [
+        "Nimetu"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 500,
+      "name": "DialogManager",
+      "data": { "strings": [
+        "OK",
+        "Loobu",
+        "Jah",
+        "Ei",
+        "Salvesta",
+        "\u00c4ra salvesta"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 600,
+      "name": "StandardFile",
+      "data": { "strings": [
+        "Ava",
+        "Salvesta",
+        "Loobu",
+        "V\u00e4ljuta",
+        "T\u00f6\u00f6laud",
+        "Nimetu"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 800,
+      "name": "SystemStrings",
+      "data": { "strings": [
+        "Taask\u00e4ivita",
+        "L\u00fclita v\u00e4lja",
+        "Ilmnes s\u00fcsteemiviga.",
+        "M\u00e4lu on otsas."
+      ]}
+    }
+  ]
+}

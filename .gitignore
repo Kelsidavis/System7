@@ -52,6 +52,8 @@ old_builds/
 # System resources (kept locally but not in repo)
 System_Resources_Extracted/
 resources/
+!resources/strings/
+!resources/strings/*.json
 
 # Local helper docs generated per-agent
 AGENTS.md

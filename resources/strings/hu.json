@@ -1,0 +1,220 @@
+{
+  "resources": [
+    {
+      "type": "STR#",
+      "id": 128,
+      "name": "FinderMenuTitles",
+      "data": { "strings": [
+        "F\u00e1jl",
+        "Szerkeszt\u00e9s",
+        "N\u00e9zet",
+        "C\u00edmke",
+        "Speci\u00e1lis",
+        "Vez\u00e9rl\u0151pultok"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 129,
+      "name": "FinderAppleMenu",
+      "data": { "strings": [
+        "Err\u0151l a Macintoshr\u00f3l",
+        "Vez\u00e9rl\u0151pultok>",
+        "Jegyzett\u00f6mb"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 130,
+      "name": "FinderFileMenu",
+      "data": { "strings": [
+        "\u00daj mappa/N",
+        "Megnyit\u00e1s/O",
+        "Nyomtat\u00e1s/P",
+        "Bez\u00e1r\u00e1s/W",
+        "Tulajdons\u00e1gok/I",
+        "Megoszt\u00e1s...",
+        "M\u00e1sol\u00e1s/D",
+        "\u00c1ln\u00e9v k\u00e9sz\u00edt\u00e9se",
+        "Visszarak\u00e1s/Y",
+        "Keres\u00e9s.../F",
+        "Keres\u00e9s ism\u00e9t/G"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 131,
+      "name": "FinderEditMenu",
+      "data": { "strings": [
+        "Visszavon\u00e1s/Z",
+        "Kiv\u00e1g\u00e1s/X",
+        "M\u00e1sol\u00e1s/C",
+        "Beilleszt\u00e9s/V",
+        "T\u00f6rl\u00e9s",
+        "Mindent kijel\u00f6l/A"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 132,
+      "name": "FinderViewMenu",
+      "data": { "strings": [
+        "ikon szerint",
+        "n\u00e9v szerint",
+        "m\u00e9ret szerint",
+        "t\u00edpus szerint",
+        "c\u00edmke szerint",
+        "d\u00e1tum szerint",
+        "Ablak rendez\u00e9se",
+        "Kijel\u00f6l\u00e9s rendez\u00e9se"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 133,
+      "name": "FinderLabelMenu",
+      "data": { "strings": [
+        "Nincs",
+        "L\u00e9nyeges",
+        "Forr\u00f3",
+        "Folyamatban",
+        "Mentes",
+        "Szem\u00e9lyes",
+        "Projekt 1",
+        "Projekt 2"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 134,
+      "name": "FinderSpecialMenu",
+      "data": { "strings": [
+        "\u00cdr\u00f3asztal rendez\u00e9se",
+        "Kuka \u00fcr\u00edt\u00e9se",
+        "Kiad\u00e1s/E",
+        "Lemez t\u00f6rl\u00e9se",
+        "\u00dajraind\u00edt\u00e1s",
+        "Kikapcsol\u00e1s"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 135,
+      "name": "FinderControlPanels",
+      "data": { "strings": [
+        "\u00cdr\u00f3asztal mint\u00e1k...",
+        "D\u00e1tum \u00e9s id\u0151...",
+        "Hang...",
+        "Eg\u00e9r...",
+        "Billenty\u0171zet...",
+        "Vez\u00e9rl\u0151s\u00e1v..."
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 140,
+      "name": "FinderAbout",
+      "data": { "strings": [
+        "Err\u0151l a Macintoshr\u00f3l",
+        "Be\u00e9p\u00edtett mem\u00f3ria",
+        "Legnagyobb szabad blokk",
+        "Rendszerszoftver",
+        "\u00d6sszes mem\u00f3ria",
+        "Mem\u00f3ria",
+        "Rendszer",
+        "Alkalmaz\u00e1sok",
+        "Szabad"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 141,
+      "name": "FinderGetInfo",
+      "data": { "strings": [
+        "Inform\u00e1ci\u00f3",
+        "T\u00edpus:",
+        "M\u00e9ret:",
+        "Hely:",
+        "L\u00e9trehozva:",
+        "M\u00f3dos\u00edtva:"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 142,
+      "name": "FinderFind",
+      "data": { "strings": [
+        "Keres\u00e9s",
+        "Keres\u00e9s:",
+        "Keres\u00e9s"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 143,
+      "name": "FinderTrash",
+      "data": { "strings": [
+        "Kuka",
+        "Biztosan v\u00e9glegesen t\u00f6r\u00f6lni szeretn\u00e9 a Kuka tartalm\u00e1t?",
+        "elemek a Kuk\u00e1ban"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 150,
+      "name": "FinderDesktop",
+      "data": { "strings": [
+        "Macintosh HD",
+        "Kuka",
+        "Alkalmaz\u00e1sok",
+        "Dokumentumok",
+        "Rendszermappa"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 400,
+      "name": "WindowManager",
+      "data": { "strings": [
+        "N\u00e9vtelen"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 500,
+      "name": "DialogManager",
+      "data": { "strings": [
+        "OK",
+        "M\u00e9gse",
+        "Igen",
+        "Nem",
+        "Ment\u00e9s",
+        "Ne mentse"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 600,
+      "name": "StandardFile",
+      "data": { "strings": [
+        "Megnyit\u00e1s",
+        "Ment\u00e9s",
+        "M\u00e9gse",
+        "Kiad\u00e1s",
+        "\u00cdr\u00f3asztal",
+        "N\u00e9vtelen"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 800,
+      "name": "SystemStrings",
+      "data": { "strings": [
+        "\u00dajraind\u00edt\u00e1s",
+        "Kikapcsol\u00e1s",
+        "Rendszerhiba t\u00f6rt\u00e9nt.",
+        "Elfogyott a mem\u00f3ria."
+      ]}
+    }
+  ]
+}

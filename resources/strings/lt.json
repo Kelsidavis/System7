@@ -1,0 +1,220 @@
+{
+  "resources": [
+    {
+      "type": "STR#",
+      "id": 128,
+      "name": "FinderMenuTitles",
+      "data": { "strings": [
+        "Failas",
+        "Redaguoti",
+        "Rodymas",
+        "Etiket\u0117",
+        "Specialus",
+        "Valdymo skydai"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 129,
+      "name": "FinderAppleMenu",
+      "data": { "strings": [
+        "Apie \u0161\u012f Macintosh",
+        "Valdymo skydai>",
+        "U\u017era\u0161\u0173 knygel\u0117"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 130,
+      "name": "FinderFileMenu",
+      "data": { "strings": [
+        "Naujas aplankas/N",
+        "Atidaryti/O",
+        "Spausdinti/P",
+        "U\u017edaryti/W",
+        "Gauti informacij\u0105/I",
+        "Bendrinimas...",
+        "Dubliuoti/D",
+        "Sukurti nuorod\u0105",
+        "Pad\u0117ti \u012f viet\u0105/Y",
+        "Ie\u0161koti.../F",
+        "Ie\u0161koti v\u0117l/G"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 131,
+      "name": "FinderEditMenu",
+      "data": { "strings": [
+        "At\u0161aukti/Z",
+        "I\u0161kirpti/X",
+        "Kopijuoti/C",
+        "\u012ed\u0117ti/V",
+        "I\u0161valyti",
+        "Pa\u017eym\u0117ti visk\u0105/A"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 132,
+      "name": "FinderViewMenu",
+      "data": { "strings": [
+        "pagal piktogram\u0105",
+        "pagal pavadinim\u0105",
+        "pagal dyd\u012f",
+        "pagal tip\u0105",
+        "pagal etiket\u0119",
+        "pagal dat\u0105",
+        "Sutvarkyti lang\u0105",
+        "Sutvarkyti pa\u017eym\u0117tus"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 133,
+      "name": "FinderLabelMenu",
+      "data": { "strings": [
+        "N\u0117ra",
+        "B\u016btinas",
+        "Skubus",
+        "Vykdomas",
+        "\u0160aunus",
+        "Asmeninis",
+        "Projektas 1",
+        "Projektas 2"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 134,
+      "name": "FinderSpecialMenu",
+      "data": { "strings": [
+        "Sutvarkyti darbastal\u012f",
+        "I\u0161tu\u0161tinti \u0161iuk\u0161lin\u0119",
+        "I\u0161stumti/E",
+        "I\u0161trinti disk\u0105",
+        "Paleisti i\u0161 naujo",
+        "I\u0161jungti"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 135,
+      "name": "FinderControlPanels",
+      "data": { "strings": [
+        "Darbastalio ra\u0161tai...",
+        "Data ir laikas...",
+        "Garsas...",
+        "Pel\u0117...",
+        "Klavier\u0161...",
+        "Valdymo juosta..."
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 140,
+      "name": "FinderAbout",
+      "data": { "strings": [
+        "Apie \u0161\u012f Macintosh",
+        "\u012emont\u0117ta atmintis",
+        "Did\u017eiausias laisvas blokas",
+        "Sistemos programin\u0117 \u012franga",
+        "Visa atmintis",
+        "Atmintis",
+        "Sistema",
+        "Programos",
+        "Nenaudojama"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 141,
+      "name": "FinderGetInfo",
+      "data": { "strings": [
+        "Informacija",
+        "Tipas:",
+        "Dydis:",
+        "Vieta:",
+        "Sukurta:",
+        "Pakeista:"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 142,
+      "name": "FinderFind",
+      "data": { "strings": [
+        "Ie\u0161koti",
+        "Ie\u0161koti:",
+        "Ie\u0161koti"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 143,
+      "name": "FinderTrash",
+      "data": { "strings": [
+        "\u0160iuk\u0161lin\u0117",
+        "Ar tikrai norite neatstatomai pa\u0161alinti elementus i\u0161 \u0160iuk\u0161lin\u0117s?",
+        "elementai \u0160iuk\u0161lin\u0117je"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 150,
+      "name": "FinderDesktop",
+      "data": { "strings": [
+        "Macintosh HD",
+        "\u0160iuk\u0161lin\u0117",
+        "Programos",
+        "Dokumentai",
+        "Sistemos aplankas"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 400,
+      "name": "WindowManager",
+      "data": { "strings": [
+        "Be pavadinimo"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 500,
+      "name": "DialogManager",
+      "data": { "strings": [
+        "OK",
+        "At\u0161aukti",
+        "Taip",
+        "Ne",
+        "I\u0161saugoti",
+        "Nei\u0161saugoti"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 600,
+      "name": "StandardFile",
+      "data": { "strings": [
+        "Atidaryti",
+        "I\u0161saugoti",
+        "At\u0161aukti",
+        "I\u0161stumti",
+        "Darbastal\u012f",
+        "Be pavadinimo"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 800,
+      "name": "SystemStrings",
+      "data": { "strings": [
+        "Paleisti i\u0161 naujo",
+        "I\u0161jungti",
+        "\u012evyko sistemos klaida.",
+        "Tr\u016bksta atminties."
+      ]}
+    }
+  ]
+}

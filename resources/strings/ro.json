@@ -1,0 +1,220 @@
+{
+  "resources": [
+    {
+      "type": "STR#",
+      "id": 128,
+      "name": "FinderMenuTitles",
+      "data": { "strings": [
+        "Fi\u0219ier",
+        "Editare",
+        "Vizualizare",
+        "Etichet\u0103",
+        "Special",
+        "Panouri de Control"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 129,
+      "name": "FinderAppleMenu",
+      "data": { "strings": [
+        "Despre acest Macintosh",
+        "Panouri de Control>",
+        "Bloc de Note"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 130,
+      "name": "FinderFileMenu",
+      "data": { "strings": [
+        "Dosar Nou/N",
+        "Deschide/O",
+        "Tip\u0103re\u0219te/P",
+        "\u00cenchide/W",
+        "Informa\u021bii/I",
+        "Partajare...",
+        "Duplic\u0103/D",
+        "Creeaz\u0103 Alias",
+        "Pune \u00cenapoi/Y",
+        "Caut\u0103.../F",
+        "Caut\u0103 Din Nou/G"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 131,
+      "name": "FinderEditMenu",
+      "data": { "strings": [
+        "Anuleaz\u0103/Z",
+        "Decupeaz\u0103/X",
+        "Copiaz\u0103/C",
+        "Lipe\u0219te/V",
+        "\u0218terge",
+        "Selecteaz\u0103 Tot/A"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 132,
+      "name": "FinderViewMenu",
+      "data": { "strings": [
+        "dup\u0103 Pictogram\u0103",
+        "dup\u0103 Nume",
+        "dup\u0103 Dimensiune",
+        "dup\u0103 Tip",
+        "dup\u0103 Etichet\u0103",
+        "dup\u0103 Dat\u0103",
+        "Cur\u0103\u021b\u0103 Fereastra",
+        "Cur\u0103\u021b\u0103 Selec\u021bia"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 133,
+      "name": "FinderLabelMenu",
+      "data": { "strings": [
+        "Nimic",
+        "Esen\u021bial",
+        "Urgent",
+        "\u00cen Curs",
+        "Interesant",
+        "Personal",
+        "Proiect 1",
+        "Proiect 2"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 134,
+      "name": "FinderSpecialMenu",
+      "data": { "strings": [
+        "Cur\u0103\u021b\u0103 Biroul",
+        "Gole\u0219te Co\u0219ul",
+        "Ejecteaz\u0103/E",
+        "\u0218terge Discul",
+        "Reporni\u021bi",
+        "\u00cenchide\u021bi"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 135,
+      "name": "FinderControlPanels",
+      "data": { "strings": [
+        "Modele Birou...",
+        "Dat\u0103 \u0219i Or\u0103...",
+        "Sunet...",
+        "Mouse...",
+        "Tastatur\u0103...",
+        "Band\u0103 de Control..."
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 140,
+      "name": "FinderAbout",
+      "data": { "strings": [
+        "Despre acest Macintosh",
+        "Memorie Incorporat\u0103",
+        "Cel Mai Mare Bloc Liber",
+        "Software de Sistem",
+        "Memorie Total\u0103",
+        "Memorie",
+        "Sistem",
+        "Aplica\u021bii",
+        "Nefolosit"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 141,
+      "name": "FinderGetInfo",
+      "data": { "strings": [
+        "Info",
+        "Tip:",
+        "Dimensiune:",
+        "Unde:",
+        "Creat:",
+        "Modificat:"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 142,
+      "name": "FinderFind",
+      "data": { "strings": [
+        "Caut\u0103",
+        "Caut\u0103:",
+        "Caut\u0103"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 143,
+      "name": "FinderTrash",
+      "data": { "strings": [
+        "Co\u0219",
+        "Sigur dori\u021bi s\u0103 elimina\u021bi permanent elementele din Co\u0219?",
+        "elemente \u00een Co\u0219"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 150,
+      "name": "FinderDesktop",
+      "data": { "strings": [
+        "Macintosh HD",
+        "Co\u0219",
+        "Aplica\u021bii",
+        "Documente",
+        "Dosar Sistem"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 400,
+      "name": "WindowManager",
+      "data": { "strings": [
+        "F\u0103r\u0103 Titlu"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 500,
+      "name": "DialogManager",
+      "data": { "strings": [
+        "OK",
+        "Anuleaz\u0103",
+        "Da",
+        "Nu",
+        "Salveaz\u0103",
+        "Nu Salva"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 600,
+      "name": "StandardFile",
+      "data": { "strings": [
+        "Deschide",
+        "Salveaz\u0103",
+        "Anuleaz\u0103",
+        "Ejecteaz\u0103",
+        "Birou",
+        "F\u0103r\u0103 Titlu"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 800,
+      "name": "SystemStrings",
+      "data": { "strings": [
+        "Reporni\u021bi",
+        "\u00cenchide\u021bi",
+        "A ap\u0103rut o eroare de sistem.",
+        "Memorie insuficient\u0103."
+      ]}
+    }
+  ]
+}

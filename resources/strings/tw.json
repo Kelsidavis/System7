@@ -1,0 +1,221 @@
+{
+  "_comment": "Chinese (Traditional) - placeholder with pinyin until CJK font support is added",
+  "resources": [
+    {
+      "type": "STR#",
+      "id": 128,
+      "name": "FinderMenuTitles",
+      "data": { "strings": [
+        "Dang'an",
+        "Bianji",
+        "Jianshi",
+        "Biaoqian",
+        "Tebie",
+        "Kongzhi Mianban"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 129,
+      "name": "FinderAppleMenu",
+      "data": { "strings": [
+        "Guanyu zhe tai Macintosh",
+        "Kongzhi Mianban>",
+        "Jishiben"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 130,
+      "name": "FinderFileMenu",
+      "data": { "strings": [
+        "Xinzeng wenjianjia/N",
+        "Dakai/O",
+        "Dayin/P",
+        "Guanbi/W",
+        "Qude zixun/I",
+        "Gongxiang...",
+        "Fuzhi/D",
+        "Zhizuo tishen",
+        "Fanghuiyuanchu/Y",
+        "Xunzhao.../F",
+        "Zaici xunzhao/G"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 131,
+      "name": "FinderEditMenu",
+      "data": { "strings": [
+        "Huanyuan/Z",
+        "Jianxia/X",
+        "Kaobei/C",
+        "Tieshang/V",
+        "Qingchu",
+        "Quanxuan/A"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 132,
+      "name": "FinderViewMenu",
+      "data": { "strings": [
+        "yi Tubiao",
+        "yi Mingcheng",
+        "yi Daxiao",
+        "yi Leixing",
+        "yi Biaoqian",
+        "yi Riqi",
+        "Zhengli Chuangkou",
+        "Zhengli Suoxuan"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 133,
+      "name": "FinderLabelMenu",
+      "data": { "strings": [
+        "Wu",
+        "Biyao",
+        "Jinji",
+        "Jinxingzhong",
+        "Youliang",
+        "Geren",
+        "Zhuang'an 1",
+        "Zhuang'an 2"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 134,
+      "name": "FinderSpecialMenu",
+      "data": { "strings": [
+        "Zhengli Zhuomian",
+        "Qingkong Lajitong",
+        "Tuichu/E",
+        "Qingchu Cipan",
+        "Chongxin Kaiji",
+        "Guanji"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 135,
+      "name": "FinderControlPanels",
+      "data": { "strings": [
+        "Zhuomian Tuyang...",
+        "Riqi yu Shijian...",
+        "Shengyin...",
+        "Huashu...",
+        "Jianpan...",
+        "Kongzhi Lieban..."
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 140,
+      "name": "FinderAbout",
+      "data": { "strings": [
+        "Guanyu zhe tai Macintosh",
+        "Neijian Jiyi",
+        "Zui da Weishiyong Qu",
+        "Xitong Ruanti",
+        "Zongji Jiyi",
+        "Jiyi",
+        "Xitong",
+        "Yingyong Chengshi",
+        "Weishiyong"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 141,
+      "name": "FinderGetInfo",
+      "data": { "strings": [
+        "Zixun",
+        "Leixing:",
+        "Daxiao:",
+        "Weizhi:",
+        "Jianli Riqi:",
+        "Xiugai Riqi:"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 142,
+      "name": "FinderFind",
+      "data": { "strings": [
+        "Xunzhao",
+        "Xunzhao:",
+        "Xunzhao"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 143,
+      "name": "FinderTrash",
+      "data": { "strings": [
+        "Lajitong",
+        "Nin queding yao yongjiu shanchu Lajitong zhong de xiangmu ma?",
+        "Lajitong zhong de xiangmu"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 150,
+      "name": "FinderDesktop",
+      "data": { "strings": [
+        "Macintosh HD",
+        "Lajitong",
+        "Yingyong Chengshi",
+        "Wenjian",
+        "Xitong Ziliaojia"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 400,
+      "name": "WindowManager",
+      "data": { "strings": [
+        "Weimingming"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 500,
+      "name": "DialogManager",
+      "data": { "strings": [
+        "OK",
+        "Quxiao",
+        "Shi",
+        "Fou",
+        "Chucun",
+        "Bu chucun"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 600,
+      "name": "StandardFile",
+      "data": { "strings": [
+        "Dakai",
+        "Chucun",
+        "Quxiao",
+        "Tuichu",
+        "Zhuomian",
+        "Weimingming"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 800,
+      "name": "SystemStrings",
+      "data": { "strings": [
+        "Chongxin Kaiji",
+        "Guanji",
+        "Xitong fasheng cuowu.",
+        "Jiyi buzu."
+      ]}
+    }
+  ]
+}

@@ -1,0 +1,220 @@
+{
+  "resources": [
+    {
+      "type": "STR#",
+      "id": 128,
+      "name": "FinderMenuTitles",
+      "data": { "strings": [
+        "Datoteka",
+        "Urejanje",
+        "Pogled",
+        "Oznaka",
+        "Posebno",
+        "Nadzorne plo\u0161\u010de"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 129,
+      "name": "FinderAppleMenu",
+      "data": { "strings": [
+        "O tem Macintoshu",
+        "Nadzorne plo\u0161\u010de>",
+        "Bele\u017enica"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 130,
+      "name": "FinderFileMenu",
+      "data": { "strings": [
+        "Nova mapa/N",
+        "Odpri/O",
+        "Natisni/P",
+        "Zapri/W",
+        "Prika\u017ei informacije/I",
+        "Skupna raba...",
+        "Podvoji/D",
+        "Ustvari vzdevek",
+        "Vrni nazaj/Y",
+        "Poi\u0161\u010di.../F",
+        "Poi\u0161\u010di znova/G"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 131,
+      "name": "FinderEditMenu",
+      "data": { "strings": [
+        "Razveljavi/Z",
+        "Izre\u017ei/X",
+        "Kopiraj/C",
+        "Prilepi/V",
+        "Po\u010disti",
+        "Izberi vse/A"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 132,
+      "name": "FinderViewMenu",
+      "data": { "strings": [
+        "po ikoni",
+        "po imenu",
+        "po velikosti",
+        "po vrsti",
+        "po oznaki",
+        "po datumu",
+        "Uredi okno",
+        "Uredi izbor"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 133,
+      "name": "FinderLabelMenu",
+      "data": { "strings": [
+        "Brez",
+        "Bistveno",
+        "Nujno",
+        "V teku",
+        "Zanimivo",
+        "Osebno",
+        "Projekt 1",
+        "Projekt 2"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 134,
+      "name": "FinderSpecialMenu",
+      "data": { "strings": [
+        "Uredi namizje",
+        "Izprazni ko\u0161",
+        "Izvrzi/E",
+        "Izbri\u0161i disk",
+        "Znova za\u017eeni",
+        "Zaustavi"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 135,
+      "name": "FinderControlPanels",
+      "data": { "strings": [
+        "Vzorci namizja...",
+        "Datum in ura...",
+        "Zvok...",
+        "Mi\u0161ka...",
+        "Tipkovnica...",
+        "Nadzorni trak..."
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 140,
+      "name": "FinderAbout",
+      "data": { "strings": [
+        "O tem Macintoshu",
+        "Vgrajeni pomnilnik",
+        "Najve\u010dji prosti blok",
+        "Sistemska programska oprema",
+        "Skupni pomnilnik",
+        "Pomnilnik",
+        "Sistem",
+        "Programi",
+        "Neuporabljeno"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 141,
+      "name": "FinderGetInfo",
+      "data": { "strings": [
+        "Info",
+        "Vrsta:",
+        "Velikost:",
+        "Kje:",
+        "Ustvarjeno:",
+        "Spremenjeno:"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 142,
+      "name": "FinderFind",
+      "data": { "strings": [
+        "Poi\u0161\u010di",
+        "Poi\u0161\u010di:",
+        "Poi\u0161\u010di"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 143,
+      "name": "FinderTrash",
+      "data": { "strings": [
+        "Ko\u0161",
+        "Ali ste prepri\u010dani, da \u017eelite trajno odstraniti predmete iz Ko\u0161a?",
+        "predmeti v Ko\u0161u"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 150,
+      "name": "FinderDesktop",
+      "data": { "strings": [
+        "Macintosh HD",
+        "Ko\u0161",
+        "Programi",
+        "Dokumenti",
+        "Sistemska mapa"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 400,
+      "name": "WindowManager",
+      "data": { "strings": [
+        "Neimenovano"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 500,
+      "name": "DialogManager",
+      "data": { "strings": [
+        "OK",
+        "Prekli\u010di",
+        "Da",
+        "Ne",
+        "Shrani",
+        "Ne shrani"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 600,
+      "name": "StandardFile",
+      "data": { "strings": [
+        "Odpri",
+        "Shrani",
+        "Prekli\u010di",
+        "Izvrzi",
+        "Namizje",
+        "Neimenovano"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 800,
+      "name": "SystemStrings",
+      "data": { "strings": [
+        "Znova za\u017eeni",
+        "Zaustavi",
+        "Pri\u0161lo je do sistemske napake.",
+        "Zmanjkalo je pomnilnika."
+      ]}
+    }
+  ]
+}

@@ -1,0 +1,220 @@
+{
+  "resources": [
+    {
+      "type": "STR#",
+      "id": 128,
+      "name": "FinderMenuTitles",
+      "data": { "strings": [
+        "S\u00fabor",
+        "\u00dapravy",
+        "Zobrazenie",
+        "\u0160t\u00edtok",
+        "\u0160peci\u00e1lne",
+        "Ovl\u00e1dacie panely"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 129,
+      "name": "FinderAppleMenu",
+      "data": { "strings": [
+        "O tomto Macintoshi",
+        "Ovl\u00e1dacie panely>",
+        "Pozn\u00e1mkov\u00fd blok"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 130,
+      "name": "FinderFileMenu",
+      "data": { "strings": [
+        "Nov\u00fd prie\u010dinok/N",
+        "Otvori\u0165/O",
+        "Tla\u010di\u0165/P",
+        "Zatvori\u0165/W",
+        "Vlastnosti/I",
+        "Zdie\u013eanie...",
+        "Duplikova\u0165/D",
+        "Vytvori\u0165 alias",
+        "Vr\u00e1ti\u0165 sp\u00e4\u0165/Y",
+        "H\u013eada\u0165.../F",
+        "H\u013eada\u0165 znovu/G"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 131,
+      "name": "FinderEditMenu",
+      "data": { "strings": [
+        "Sp\u00e4\u0165/Z",
+        "Vystrihn\u00fa\u0165/X",
+        "Kop\u00edrova\u0165/C",
+        "Vlo\u017ei\u0165/V",
+        "Vymaza\u0165",
+        "Vybra\u0165 v\u0161etko/A"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 132,
+      "name": "FinderViewMenu",
+      "data": { "strings": [
+        "pod\u013ea ikon",
+        "pod\u013ea n\u00e1zvu",
+        "pod\u013ea ve\u013ekosti",
+        "pod\u013ea typu",
+        "pod\u013ea \u0161t\u00edtku",
+        "pod\u013ea d\u00e1tumu",
+        "Usporiada\u0165 okno",
+        "Usporiada\u0165 v\u00fdber"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 133,
+      "name": "FinderLabelMenu",
+      "data": { "strings": [
+        "\u017diadny",
+        "D\u00f4le\u017eit\u00e9",
+        "Hor\u00face",
+        "Prebieha",
+        "Zauj\u00edmav\u00e9",
+        "Osobn\u00e9",
+        "Projekt 1",
+        "Projekt 2"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 134,
+      "name": "FinderSpecialMenu",
+      "data": { "strings": [
+        "Usporiada\u0165 plochu",
+        "Vypr\u00e1zdni\u0165 k\u00f4\u0161",
+        "Vysun\u00fa\u0165/E",
+        "Vymaza\u0165 disk",
+        "Re\u0161tartova\u0165",
+        "Vypn\u00fa\u0165"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 135,
+      "name": "FinderControlPanels",
+      "data": { "strings": [
+        "Vzory plochy...",
+        "D\u00e1tum a \u010das...",
+        "Zvuk...",
+        "My\u0161...",
+        "Kl\u00e1vesnica...",
+        "Ovl\u00e1dac\u00ed p\u00e1s..."
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 140,
+      "name": "FinderAbout",
+      "data": { "strings": [
+        "O tomto Macintoshi",
+        "Vstavan\u00e1 pam\u00e4\u0165",
+        "Najv\u00e4\u010d\u0161\u00ed vo\u013en\u00fd blok",
+        "Syst\u00e9mov\u00fd softv\u00e9r",
+        "Celkov\u00e1 pam\u00e4\u0165",
+        "Pam\u00e4\u0165",
+        "Syst\u00e9m",
+        "Aplik\u00e1cie",
+        "Nevyu\u017eit\u00e9"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 141,
+      "name": "FinderGetInfo",
+      "data": { "strings": [
+        "Info",
+        "Typ:",
+        "Ve\u013ekos\u0165:",
+        "Kde:",
+        "Vytvoren\u00e9:",
+        "Upraven\u00e9:"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 142,
+      "name": "FinderFind",
+      "data": { "strings": [
+        "H\u013eada\u0165",
+        "H\u013eada\u0165:",
+        "H\u013eada\u0165"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 143,
+      "name": "FinderTrash",
+      "data": { "strings": [
+        "K\u00f4\u0161",
+        "Naozaj chcete natrvalo odstr\u00e1ni\u0165 polo\u017eky z Ko\u0161a?",
+        "polo\u017eky v Ko\u0161i"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 150,
+      "name": "FinderDesktop",
+      "data": { "strings": [
+        "Macintosh HD",
+        "K\u00f4\u0161",
+        "Aplik\u00e1cie",
+        "Dokumenty",
+        "Syst\u00e9mov\u00fd prie\u010dinok"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 400,
+      "name": "WindowManager",
+      "data": { "strings": [
+        "Bez n\u00e1zvu"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 500,
+      "name": "DialogManager",
+      "data": { "strings": [
+        "OK",
+        "Zru\u0161i\u0165",
+        "\u00c1no",
+        "Nie",
+        "Ulo\u017ei\u0165",
+        "Neulo\u017ei\u0165"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 600,
+      "name": "StandardFile",
+      "data": { "strings": [
+        "Otvori\u0165",
+        "Ulo\u017ei\u0165",
+        "Zru\u0161i\u0165",
+        "Vysun\u00fa\u0165",
+        "Plocha",
+        "Bez n\u00e1zvu"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 800,
+      "name": "SystemStrings",
+      "data": { "strings": [
+        "Re\u0161tartova\u0165",
+        "Vypn\u00fa\u0165",
+        "Vyskytla sa syst\u00e9mov\u00e1 chyba.",
+        "Nedostatok pam\u00e4te."
+      ]}
+    }
+  ]
+}

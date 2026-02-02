@@ -1,0 +1,220 @@
+{
+  "resources": [
+    {
+      "type": "STR#",
+      "id": 128,
+      "name": "FinderMenuTitles",
+      "data": { "strings": [
+        "Arkisto",
+        "Muokkaa",
+        "N\u00e4yt\u00e4",
+        "Tunniste",
+        "Erikois",
+        "Ohjauspaneelit"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 129,
+      "name": "FinderAppleMenu",
+      "data": { "strings": [
+        "Tietoja t\u00e4st\u00e4 Macintoshista",
+        "Ohjauspaneelit>",
+        "Muistio"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 130,
+      "name": "FinderFileMenu",
+      "data": { "strings": [
+        "Uusi kansio/N",
+        "Avaa/O",
+        "Tulosta/P",
+        "Sulje/W",
+        "Lis\u00e4tiedot/I",
+        "Jakaminen...",
+        "Monista/D",
+        "Luo alias",
+        "Palauta/Y",
+        "Etsi.../F",
+        "Etsi seuraava/G"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 131,
+      "name": "FinderEditMenu",
+      "data": { "strings": [
+        "Kumoa/Z",
+        "Leikkaa/X",
+        "Kopioi/C",
+        "Liit\u00e4/V",
+        "Tyhjenn\u00e4",
+        "Valitse kaikki/A"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 132,
+      "name": "FinderViewMenu",
+      "data": { "strings": [
+        "kuvakkeittain",
+        "nimelt\u00e4",
+        "koolta",
+        "tyypilt\u00e4",
+        "tunnisteelta",
+        "p\u00e4iv\u00e4m\u00e4\u00e4r\u00e4lt\u00e4",
+        "Siivoa ikkuna",
+        "Siivoa valinta"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 133,
+      "name": "FinderLabelMenu",
+      "data": { "strings": [
+        "Ei mit\u00e4\u00e4n",
+        "T\u00e4rke\u00e4",
+        "Kuuma",
+        "Kesken",
+        "Hieno",
+        "Henkil\u00f6kohtainen",
+        "Projekti 1",
+        "Projekti 2"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 134,
+      "name": "FinderSpecialMenu",
+      "data": { "strings": [
+        "Siivoa ty\u00f6p\u00f6yt\u00e4",
+        "Tyhjenn\u00e4 roskakori",
+        "Poista levy/E",
+        "Tyhjenn\u00e4 levy",
+        "K\u00e4ynnist\u00e4 uudelleen",
+        "Sammuta"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 135,
+      "name": "FinderControlPanels",
+      "data": { "strings": [
+        "Ty\u00f6p\u00f6yt\u00e4kuviot...",
+        "P\u00e4iv\u00e4ys ja aika...",
+        "\u00c4\u00e4ni...",
+        "Hiiri...",
+        "N\u00e4pp\u00e4imist\u00f6...",
+        "Ohjauspalkki..."
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 140,
+      "name": "FinderAbout",
+      "data": { "strings": [
+        "Tietoja t\u00e4st\u00e4 Macintoshista",
+        "Sis\u00e4inen muisti",
+        "Suurin vapaa lohko",
+        "J\u00e4rjestelm\u00e4ohjelmisto",
+        "Muisti yhteens\u00e4",
+        "Muisti",
+        "J\u00e4rjestelm\u00e4",
+        "Ohjelmat",
+        "K\u00e4ytt\u00e4m\u00e4t\u00f6n"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 141,
+      "name": "FinderGetInfo",
+      "data": { "strings": [
+        "Tiedot",
+        "Tyyppi:",
+        "Koko:",
+        "Sijainti:",
+        "Luotu:",
+        "Muokattu:"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 142,
+      "name": "FinderFind",
+      "data": { "strings": [
+        "Etsi",
+        "Etsi:",
+        "Etsi"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 143,
+      "name": "FinderTrash",
+      "data": { "strings": [
+        "Roskakori",
+        "Haluatko varmasti poistaa roskakorin sis\u00e4ll\u00f6n pysyv\u00e4sti?",
+        "kohdetta roskakorissa"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 150,
+      "name": "FinderDesktop",
+      "data": { "strings": [
+        "Macintosh HD",
+        "Roskakori",
+        "Ohjelmat",
+        "Dokumentit",
+        "J\u00e4rjestelm\u00e4kansio"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 400,
+      "name": "WindowManager",
+      "data": { "strings": [
+        "Nimet\u00f6n"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 500,
+      "name": "DialogManager",
+      "data": { "strings": [
+        "OK",
+        "Kumoa",
+        "Kyll\u00e4",
+        "Ei",
+        "Tallenna",
+        "\u00c4l\u00e4 tallenna"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 600,
+      "name": "StandardFile",
+      "data": { "strings": [
+        "Avaa",
+        "Tallenna",
+        "Kumoa",
+        "Poista levy",
+        "Ty\u00f6p\u00f6yt\u00e4",
+        "Nimet\u00f6n"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 800,
+      "name": "SystemStrings",
+      "data": { "strings": [
+        "K\u00e4ynnist\u00e4 uudelleen",
+        "Sammuta",
+        "J\u00e4rjestelm\u00e4virhe on tapahtunut.",
+        "Muisti loppu."
+      ]}
+    }
+  ]
+}

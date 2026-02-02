@@ -1,0 +1,220 @@
+{
+  "resources": [
+    {
+      "type": "STR#",
+      "id": 128,
+      "name": "FinderMenuTitles",
+      "data": { "strings": [
+        "Fails",
+        "Redi\u0123\u0113t",
+        "Skats",
+        "Eti\u0137ete",
+        "Speci\u0101lais",
+        "Vad\u012bbas pane\u013ci"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 129,
+      "name": "FinderAppleMenu",
+      "data": { "strings": [
+        "Par \u0161o Macintosh",
+        "Vad\u012bbas pane\u013ci>",
+        "Piez\u012bmju bloks"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 130,
+      "name": "FinderFileMenu",
+      "data": { "strings": [
+        "Jauna mape/N",
+        "Atv\u0113rt/O",
+        "Druk\u0101t/P",
+        "Aizv\u0113rt/W",
+        "Ieg\u016bt inform\u0101ciju/I",
+        "Koplieto\u0161ana...",
+        "Dublic\u0113t/D",
+        "Izveidot aizst\u0101jv\u0101rdu",
+        "Nolikt viet\u0101/Y",
+        "Mekl\u0113t.../F",
+        "Mekl\u0113t v\u0113lreiz/G"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 131,
+      "name": "FinderEditMenu",
+      "data": { "strings": [
+        "Atsaukt/Z",
+        "Izgriezt/X",
+        "Kop\u0113t/C",
+        "Iel\u012bm\u0113t/V",
+        "Not\u012br\u012bt",
+        "Atlas\u012bt visu/A"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 132,
+      "name": "FinderViewMenu",
+      "data": { "strings": [
+        "p\u0113c ikonas",
+        "p\u0113c nosaukuma",
+        "p\u0113c izm\u0113ra",
+        "p\u0113c veida",
+        "p\u0113c eti\u0137etes",
+        "p\u0113c datuma",
+        "Sak\u0101rtot logu",
+        "Sak\u0101rtot atlas\u012bto"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 133,
+      "name": "FinderLabelMenu",
+      "data": { "strings": [
+        "Nav",
+        "B\u016btisks",
+        "Steidzams",
+        "Proces\u0101",
+        "Forss",
+        "Person\u012bgs",
+        "Projekts 1",
+        "Projekts 2"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 134,
+      "name": "FinderSpecialMenu",
+      "data": { "strings": [
+        "Sak\u0101rtot darbvirsmu",
+        "Iztuk\u0161ot atkritni",
+        "Izb\u012bd\u012bt/E",
+        "Dz\u0113st disku",
+        "P\u0101rstart\u0113t",
+        "Izsl\u0113gt"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 135,
+      "name": "FinderControlPanels",
+      "data": { "strings": [
+        "Darbvirsmas raksti...",
+        "Datums un laiks...",
+        "Ska\u0146a...",
+        "Pele...",
+        "Tastat\u016bra...",
+        "Vad\u012bbas josla..."
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 140,
+      "name": "FinderAbout",
+      "data": { "strings": [
+        "Par \u0161o Macintosh",
+        "Ieb\u016bv\u0113t\u0101 atmi\u0146a",
+        "Liel\u0101kais br\u012bvais bloks",
+        "Sist\u0113mas programmat\u016bra",
+        "Kop\u0113j\u0101 atmi\u0146a",
+        "Atmi\u0146a",
+        "Sist\u0113ma",
+        "Lietojumprogrammas",
+        "Neizmantota"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 141,
+      "name": "FinderGetInfo",
+      "data": { "strings": [
+        "Inform\u0101cija",
+        "Veids:",
+        "Izm\u0113rs:",
+        "Atra\u0161an\u0101s vieta:",
+        "Izveidots:",
+        "Main\u012bts:"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 142,
+      "name": "FinderFind",
+      "data": { "strings": [
+        "Mekl\u0113t",
+        "Mekl\u0113t:",
+        "Mekl\u0113t"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 143,
+      "name": "FinderTrash",
+      "data": { "strings": [
+        "Atkritne",
+        "Vai tie\u0161\u0101m v\u0113laties neatgriezeniski no\u0146emt vienumus no atkritnes?",
+        "vienumi atkritn\u0113"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 150,
+      "name": "FinderDesktop",
+      "data": { "strings": [
+        "Macintosh HD",
+        "Atkritne",
+        "Lietojumprogrammas",
+        "Dokumenti",
+        "Sist\u0113mas mape"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 400,
+      "name": "WindowManager",
+      "data": { "strings": [
+        "Bez nosaukuma"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 500,
+      "name": "DialogManager",
+      "data": { "strings": [
+        "OK",
+        "Atcelt",
+        "J\u0101",
+        "N\u0113",
+        "Saglab\u0101t",
+        "Nesaglab\u0101t"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 600,
+      "name": "StandardFile",
+      "data": { "strings": [
+        "Atv\u0113rt",
+        "Saglab\u0101t",
+        "Atcelt",
+        "Izb\u012bd\u012bt",
+        "Darbvirsma",
+        "Bez nosaukuma"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 800,
+      "name": "SystemStrings",
+      "data": { "strings": [
+        "P\u0101rstart\u0113t",
+        "Izsl\u0113gt",
+        "Ir notikusi sist\u0113mas k\u013c\u016bda.",
+        "Nepietiek atmi\u0146as."
+      ]}
+    }
+  ]
+}

@@ -1,0 +1,220 @@
+{
+  "resources": [
+    {
+      "type": "STR#",
+      "id": 128,
+      "name": "FinderMenuTitles",
+      "data": { "strings": [
+        "Arkiv",
+        "Rediger",
+        "Vis",
+        "Etikett",
+        "Spesial",
+        "Kontrollpaneler"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 129,
+      "name": "FinderAppleMenu",
+      "data": { "strings": [
+        "Om denne Macintosh",
+        "Kontrollpaneler>",
+        "Notisblokk"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 130,
+      "name": "FinderFileMenu",
+      "data": { "strings": [
+        "Ny mappe/N",
+        "\u00c5pne/O",
+        "Skriv ut/P",
+        "Lukk/W",
+        "Vis info/I",
+        "Deling...",
+        "Dupliser/D",
+        "Lag alias",
+        "Legg tilbake/Y",
+        "S\u00f8k.../F",
+        "S\u00f8k igjen/G"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 131,
+      "name": "FinderEditMenu",
+      "data": { "strings": [
+        "Angre/Z",
+        "Klipp ut/X",
+        "Kopier/C",
+        "Lim inn/V",
+        "Fjern",
+        "Velg alt/A"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 132,
+      "name": "FinderViewMenu",
+      "data": { "strings": [
+        "etter symbol",
+        "etter navn",
+        "etter st\u00f8rrelse",
+        "etter type",
+        "etter etikett",
+        "etter dato",
+        "Rydd opp vindu",
+        "Rydd opp utvalg"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 133,
+      "name": "FinderLabelMenu",
+      "data": { "strings": [
+        "Ingen",
+        "Viktig",
+        "Haster",
+        "Under arbeid",
+        "Kult",
+        "Personlig",
+        "Prosjekt 1",
+        "Prosjekt 2"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 134,
+      "name": "FinderSpecialMenu",
+      "data": { "strings": [
+        "Rydd opp skrivebord",
+        "T\u00f8m papirkurv",
+        "L\u00f8s ut/E",
+        "Slett disk",
+        "Start p\u00e5 nytt",
+        "Sl\u00e5 av"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 135,
+      "name": "FinderControlPanels",
+      "data": { "strings": [
+        "Skrivebordm\u00f8nstre...",
+        "Dato og tid...",
+        "Lyd...",
+        "Mus...",
+        "Tastatur...",
+        "Kontrollstripe..."
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 140,
+      "name": "FinderAbout",
+      "data": { "strings": [
+        "Om denne Macintosh",
+        "Innebygd minne",
+        "St\u00f8rste ubrukte blokk",
+        "Systemprogramvare",
+        "Totalt minne",
+        "Minne",
+        "System",
+        "Programmer",
+        "Ubrukt"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 141,
+      "name": "FinderGetInfo",
+      "data": { "strings": [
+        "Info",
+        "Type:",
+        "St\u00f8rrelse:",
+        "Hvor:",
+        "Opprettet:",
+        "Endret:"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 142,
+      "name": "FinderFind",
+      "data": { "strings": [
+        "S\u00f8k",
+        "S\u00f8k:",
+        "S\u00f8k"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 143,
+      "name": "FinderTrash",
+      "data": { "strings": [
+        "Papirkurv",
+        "Er du sikker p\u00e5 at du vil fjerne elementene i papirkurven for godt?",
+        "elementer i papirkurven"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 150,
+      "name": "FinderDesktop",
+      "data": { "strings": [
+        "Macintosh HD",
+        "Papirkurv",
+        "Programmer",
+        "Dokumenter",
+        "Systemmappe"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 400,
+      "name": "WindowManager",
+      "data": { "strings": [
+        "Uten navn"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 500,
+      "name": "DialogManager",
+      "data": { "strings": [
+        "OK",
+        "Avbryt",
+        "Ja",
+        "Nei",
+        "Lagre",
+        "Ikke lagre"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 600,
+      "name": "StandardFile",
+      "data": { "strings": [
+        "\u00c5pne",
+        "Lagre",
+        "Avbryt",
+        "L\u00f8s ut",
+        "Skrivebord",
+        "Uten navn"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 800,
+      "name": "SystemStrings",
+      "data": { "strings": [
+        "Start p\u00e5 nytt",
+        "Sl\u00e5 av",
+        "Det har oppst\u00e5tt en systemfeil.",
+        "Ikke nok minne."
+      ]}
+    }
+  ]
+}

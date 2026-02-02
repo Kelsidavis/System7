@@ -1,0 +1,220 @@
+{
+  "resources": [
+    {
+      "type": "STR#",
+      "id": 128,
+      "name": "FinderMenuTitles",
+      "data": { "strings": [
+        "Datoteka",
+        "Uredi",
+        "Pregled",
+        "Etiketa",
+        "Specijalno",
+        "Kontrolni paneli"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 129,
+      "name": "FinderAppleMenu",
+      "data": { "strings": [
+        "Za ovoj Macintosh",
+        "Kontrolni paneli>",
+        "Bele\u017enik"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 130,
+      "name": "FinderFileMenu",
+      "data": { "strings": [
+        "Nova fascikla/N",
+        "Otvori/O",
+        "Pe\u010dati/P",
+        "Zatvori/W",
+        "Dobi informacii/I",
+        "Spodeluvanje...",
+        "Dupliraj/D",
+        "Napravi pseudonim",
+        "Vrati na mesto/Y",
+        "Najdi.../F",
+        "Najdi povtorno/G"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 131,
+      "name": "FinderEditMenu",
+      "data": { "strings": [
+        "Vrati/Z",
+        "Iseci/X",
+        "Kopiraj/C",
+        "Zalepi/V",
+        "Izbri\u0161i",
+        "Selektiraj se/A"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 132,
+      "name": "FinderViewMenu",
+      "data": { "strings": [
+        "po Ikona",
+        "po Ime",
+        "po Golemina",
+        "po Tip",
+        "po Etiketa",
+        "po Datum",
+        "Sredi prozorec",
+        "Sredi selekcija"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 133,
+      "name": "FinderLabelMenu",
+      "data": { "strings": [
+        "Nema",
+        "Su\u0161tinsko",
+        "Itno",
+        "Vo tek",
+        "Dobro",
+        "Li\u010dno",
+        "Proekt 1",
+        "Proekt 2"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 134,
+      "name": "FinderSpecialMenu",
+      "data": { "strings": [
+        "Sredi rabotna povr\u0161ina",
+        "Isprazni korpa",
+        "Izbaci/E",
+        "Izbri\u0161i disk",
+        "Restartuvaj",
+        "Isklu\u010di"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 135,
+      "name": "FinderControlPanels",
+      "data": { "strings": [
+        "\u0160ari za rabotna povr\u0161ina...",
+        "Datum i vreme...",
+        "Zvuk...",
+        "Gluv\u010de...",
+        "Tastatura...",
+        "Kontrolna lenta..."
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 140,
+      "name": "FinderAbout",
+      "data": { "strings": [
+        "Za ovoj Macintosh",
+        "Vgradena memorija",
+        "Najgolem sloboden blok",
+        "Sistemen softver",
+        "Vkupna memorija",
+        "Memorija",
+        "Sistem",
+        "Aplikacii",
+        "Neiskoristena"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 141,
+      "name": "FinderGetInfo",
+      "data": { "strings": [
+        "Informacii",
+        "Tip:",
+        "Golemina:",
+        "Lokacija:",
+        "Kreirano:",
+        "Izmeneto:"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 142,
+      "name": "FinderFind",
+      "data": { "strings": [
+        "Najdi",
+        "Najdi:",
+        "Najdi"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 143,
+      "name": "FinderTrash",
+      "data": { "strings": [
+        "Korpa",
+        "Dali ste sigurni deka sakate trajno da gi otstranice elementite od Korpata?",
+        "elementi vo Korpata"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 150,
+      "name": "FinderDesktop",
+      "data": { "strings": [
+        "Macintosh HD",
+        "Korpa",
+        "Aplikacii",
+        "Dokumenti",
+        "Sistemska fascikla"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 400,
+      "name": "WindowManager",
+      "data": { "strings": [
+        "Bez naslov"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 500,
+      "name": "DialogManager",
+      "data": { "strings": [
+        "OK",
+        "Otkazi",
+        "Da",
+        "Ne",
+        "Zacuvaj",
+        "Ne zacuvuvaj"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 600,
+      "name": "StandardFile",
+      "data": { "strings": [
+        "Otvori",
+        "Zacuvaj",
+        "Otkazi",
+        "Izbaci",
+        "Rabotna povr\u0161ina",
+        "Bez naslov"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 800,
+      "name": "SystemStrings",
+      "data": { "strings": [
+        "Restartuvaj",
+        "Isklu\u010di",
+        "Nastana sistemska gre\u0161ka.",
+        "Nema dovolno memorija."
+      ]}
+    }
+  ]
+}

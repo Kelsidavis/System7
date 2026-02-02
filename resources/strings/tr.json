@@ -1,0 +1,220 @@
+{
+  "resources": [
+    {
+      "type": "STR#",
+      "id": 128,
+      "name": "FinderMenuTitles",
+      "data": { "strings": [
+        "Dosya",
+        "D\u00fczen",
+        "G\u00f6r\u00fcn\u00fcm",
+        "Etiket",
+        "\u00d6zel",
+        "Kontrol Panelleri"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 129,
+      "name": "FinderAppleMenu",
+      "data": { "strings": [
+        "Bu Macintosh Hakk\u0131nda",
+        "Kontrol Panelleri>",
+        "Not Defteri"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 130,
+      "name": "FinderFileMenu",
+      "data": { "strings": [
+        "Yeni Klas\u00f6r/N",
+        "A\u00e7/O",
+        "Yazd\u0131r/P",
+        "Kapat/W",
+        "Bilgi Al/I",
+        "Payla\u015f\u0131m...",
+        "\u00c7o\u011falt/D",
+        "Takma Ad Olu\u015ftur",
+        "Yerine Koy/Y",
+        "Bul.../F",
+        "Tekrar Bul/G"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 131,
+      "name": "FinderEditMenu",
+      "data": { "strings": [
+        "Geri Al/Z",
+        "Kes/X",
+        "Kopyala/C",
+        "Yap\u0131\u015ft\u0131r/V",
+        "Temizle",
+        "T\u00fcm\u00fcn\u00fc Se\u00e7/A"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 132,
+      "name": "FinderViewMenu",
+      "data": { "strings": [
+        "Simgeye g\u00f6re",
+        "Ada g\u00f6re",
+        "Boyuta g\u00f6re",
+        "T\u00fcre g\u00f6re",
+        "Etikete g\u00f6re",
+        "Tarihe g\u00f6re",
+        "Pencereyi D\u00fczenle",
+        "Se\u00e7imi D\u00fczenle"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 133,
+      "name": "FinderLabelMenu",
+      "data": { "strings": [
+        "Yok",
+        "Temel",
+        "S\u0131cak",
+        "Devam Ediyor",
+        "Harika",
+        "Ki\u015fisel",
+        "Proje 1",
+        "Proje 2"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 134,
+      "name": "FinderSpecialMenu",
+      "data": { "strings": [
+        "Masa\u00fcst\u00fcn\u00fc D\u00fczenle",
+        "\u00c7\u00f6p\u00fc Bo\u015falt",
+        "\u00c7\u0131kar/E",
+        "Diski Sil",
+        "Yeniden Ba\u015flat",
+        "Kapat"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 135,
+      "name": "FinderControlPanels",
+      "data": { "strings": [
+        "Masa\u00fcst\u00fc Desenleri...",
+        "Tarih ve Saat...",
+        "Ses...",
+        "Fare...",
+        "Klavye...",
+        "Kontrol \u015eeridi..."
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 140,
+      "name": "FinderAbout",
+      "data": { "strings": [
+        "Bu Macintosh Hakk\u0131nda",
+        "Dahili Bellek",
+        "En B\u00fcy\u00fck Bo\u015f Blok",
+        "Sistem Yaz\u0131l\u0131m\u0131",
+        "Toplam Bellek",
+        "Bellek",
+        "Sistem",
+        "Uygulamalar",
+        "Kullan\u0131lmayan"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 141,
+      "name": "FinderGetInfo",
+      "data": { "strings": [
+        "Bilgi",
+        "T\u00fcr:",
+        "Boyut:",
+        "Konum:",
+        "Olu\u015fturulma:",
+        "De\u011fi\u015ftirilme:"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 142,
+      "name": "FinderFind",
+      "data": { "strings": [
+        "Bul",
+        "Bul:",
+        "Bul"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 143,
+      "name": "FinderTrash",
+      "data": { "strings": [
+        "\u00c7\u00f6p",
+        "\u00c7\u00f6p kutusundaki \u00f6\u011feleri kal\u0131c\u0131 olarak silmek istedi\u011finizden emin misiniz?",
+        "\u00e7\u00f6p kutusundaki \u00f6\u011feler"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 150,
+      "name": "FinderDesktop",
+      "data": { "strings": [
+        "Macintosh HD",
+        "\u00c7\u00f6p",
+        "Uygulamalar",
+        "Belgeler",
+        "Sistem Klas\u00f6r\u00fc"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 400,
+      "name": "WindowManager",
+      "data": { "strings": [
+        "Ads\u0131z"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 500,
+      "name": "DialogManager",
+      "data": { "strings": [
+        "OK",
+        "\u0130ptal",
+        "Evet",
+        "Hay\u0131r",
+        "Kaydet",
+        "Kaydetme"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 600,
+      "name": "StandardFile",
+      "data": { "strings": [
+        "A\u00e7",
+        "Kaydet",
+        "\u0130ptal",
+        "\u00c7\u0131kar",
+        "Masa\u00fcst\u00fc",
+        "Ads\u0131z"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 800,
+      "name": "SystemStrings",
+      "data": { "strings": [
+        "Yeniden Ba\u015flat",
+        "Kapat",
+        "Bir sistem hatas\u0131 olu\u015ftu.",
+        "Bellek yetersiz."
+      ]}
+    }
+  ]
+}

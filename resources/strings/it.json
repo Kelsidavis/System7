@@ -1,0 +1,220 @@
+{
+  "resources": [
+    {
+      "type": "STR#",
+      "id": 128,
+      "name": "FinderMenuTitles",
+      "data": { "strings": [
+        "File",
+        "Composizione",
+        "Vista",
+        "Etichetta",
+        "Speciale",
+        "Pannelli di Controllo"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 129,
+      "name": "FinderAppleMenu",
+      "data": { "strings": [
+        "Informazioni su questo Macintosh",
+        "Pannelli di Controllo>",
+        "Blocco note"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 130,
+      "name": "FinderFileMenu",
+      "data": { "strings": [
+        "Nuova Cartella/N",
+        "Apri/O",
+        "Stampa/P",
+        "Chiudi/W",
+        "Ottieni informazioni/I",
+        "Condivisione...",
+        "Duplica/D",
+        "Crea alias",
+        "Rimetti a posto/Y",
+        "Cerca.../F",
+        "Cerca ancora/G"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 131,
+      "name": "FinderEditMenu",
+      "data": { "strings": [
+        "Annulla/Z",
+        "Taglia/X",
+        "Copia/C",
+        "Incolla/V",
+        "Cancella",
+        "Seleziona tutto/A"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 132,
+      "name": "FinderViewMenu",
+      "data": { "strings": [
+        "per Icona",
+        "per Nome",
+        "per Dimensione",
+        "per Tipo",
+        "per Etichetta",
+        "per Data",
+        "Riordina finestra",
+        "Riordina selezione"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 133,
+      "name": "FinderLabelMenu",
+      "data": { "strings": [
+        "Nessuna",
+        "Essenziale",
+        "Urgente",
+        "In corso",
+        "Interessante",
+        "Personale",
+        "Progetto 1",
+        "Progetto 2"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 134,
+      "name": "FinderSpecialMenu",
+      "data": { "strings": [
+        "Riordina Scrivania",
+        "Svuota Cestino",
+        "Espelli/E",
+        "Inizializza disco",
+        "Riavvia",
+        "Spegni"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 135,
+      "name": "FinderControlPanels",
+      "data": { "strings": [
+        "Motivi Scrivania...",
+        "Data e Ora...",
+        "Suono...",
+        "Mouse...",
+        "Tastiera...",
+        "Striscia di Controllo..."
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 140,
+      "name": "FinderAbout",
+      "data": { "strings": [
+        "Informazioni su questo Macintosh",
+        "Memoria integrata",
+        "Blocco libero pi\u00f9 grande",
+        "Software di Sistema",
+        "Memoria totale",
+        "Memoria",
+        "Sistema",
+        "Applicazioni",
+        "Non utilizzata"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 141,
+      "name": "FinderGetInfo",
+      "data": { "strings": [
+        "Informazioni",
+        "Tipo:",
+        "Dimensione:",
+        "Posizione:",
+        "Creato:",
+        "Modificato:"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 142,
+      "name": "FinderFind",
+      "data": { "strings": [
+        "Cerca",
+        "Cerca:",
+        "Cerca"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 143,
+      "name": "FinderTrash",
+      "data": { "strings": [
+        "Cestino",
+        "Sei sicuro di voler rimuovere definitivamente gli elementi nel Cestino?",
+        "elementi nel Cestino"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 150,
+      "name": "FinderDesktop",
+      "data": { "strings": [
+        "Macintosh HD",
+        "Cestino",
+        "Applicazioni",
+        "Documenti",
+        "Cartella Sistema"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 400,
+      "name": "WindowManager",
+      "data": { "strings": [
+        "Senza titolo"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 500,
+      "name": "DialogManager",
+      "data": { "strings": [
+        "OK",
+        "Annulla",
+        "S\u00ec",
+        "No",
+        "Salva",
+        "Non salvare"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 600,
+      "name": "StandardFile",
+      "data": { "strings": [
+        "Apri",
+        "Salva",
+        "Annulla",
+        "Espelli",
+        "Scrivania",
+        "Senza titolo"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 800,
+      "name": "SystemStrings",
+      "data": { "strings": [
+        "Riavvia",
+        "Spegni",
+        "Si \u00e8 verificato un errore di sistema.",
+        "Memoria esaurita."
+      ]}
+    }
+  ]
+}

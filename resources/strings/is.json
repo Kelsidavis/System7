@@ -1,0 +1,220 @@
+{
+  "resources": [
+    {
+      "type": "STR#",
+      "id": 128,
+      "name": "FinderMenuTitles",
+      "data": { "strings": [
+        "Skr\u00e1",
+        "Breyta",
+        "Birta",
+        "Merki",
+        "S\u00e9rst\u00f6k",
+        "Stj\u00f3rnbor\u00f0"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 129,
+      "name": "FinderAppleMenu",
+      "data": { "strings": [
+        "Um \u00feennan Macintosh",
+        "Stj\u00f3rnbor\u00f0>",
+        "Minnisbl\u00f6\u00f0"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 130,
+      "name": "FinderFileMenu",
+      "data": { "strings": [
+        "N\u00fd mappa/N",
+        "Opna/O",
+        "Prenta/P",
+        "Loka/W",
+        "N\u00e1nari uppl\u00fdsingar/I",
+        "Samn\u00fdting...",
+        "Afrita/D",
+        "B\u00faa til samv\u00edsan",
+        "Setja \u00ed sta\u00f0/Y",
+        "Leita.../F",
+        "Leita aftur/G"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 131,
+      "name": "FinderEditMenu",
+      "data": { "strings": [
+        "Afturkalla/Z",
+        "Klippa/X",
+        "Afrita/C",
+        "L\u00edma/V",
+        "Hreinsa",
+        "Velja allt/A"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 132,
+      "name": "FinderViewMenu",
+      "data": { "strings": [
+        "eftir t\u00e1kni",
+        "eftir nafni",
+        "eftir st\u00e6r\u00f0",
+        "eftir ger\u00f0",
+        "eftir merki",
+        "eftir dagsetningu",
+        "Hreinsa glugga",
+        "Hreinsa val"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 133,
+      "name": "FinderLabelMenu",
+      "data": { "strings": [
+        "Ekkert",
+        "Nau\u00f0synlegt",
+        "Heitt",
+        "\u00cd vinnslu",
+        "Fl\u00f3tt",
+        "Pers\u00f3nulegt",
+        "Verkefni 1",
+        "Verkefni 2"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 134,
+      "name": "FinderSpecialMenu",
+      "data": { "strings": [
+        "Hreinsa skj\u00e1bor\u00f0",
+        "T\u00e6ma ruslatunnu",
+        "Kasta \u00fat/E",
+        "Ey\u00f0a disk",
+        "Endurr\u00e6sa",
+        "Sl\u00f6kkva"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 135,
+      "name": "FinderControlPanels",
+      "data": { "strings": [
+        "Skj\u00e1bor\u00f0smynstur...",
+        "Dagsetning og t\u00edmi...",
+        "Hlj\u00f3\u00f0...",
+        "M\u00fas...",
+        "Lyklabor\u00f0...",
+        "Stj\u00f3rnsl\u00e1..."
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 140,
+      "name": "FinderAbout",
+      "data": { "strings": [
+        "Um \u00feennan Macintosh",
+        "Innbyggt minni",
+        "St\u00e6rsti lausi blokk",
+        "Kerfishugb\u00fana\u00f0ur",
+        "Heildarminni",
+        "Minni",
+        "Kerfi",
+        "Forrit",
+        "\u00d3nota\u00f0"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 141,
+      "name": "FinderGetInfo",
+      "data": { "strings": [
+        "Uppl\u00fdsingar",
+        "Ger\u00f0:",
+        "St\u00e6r\u00f0:",
+        "Sta\u00f0setning:",
+        "B\u00fai\u00f0 til:",
+        "Breytt:"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 142,
+      "name": "FinderFind",
+      "data": { "strings": [
+        "Leita",
+        "Leita:",
+        "Leita"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 143,
+      "name": "FinderTrash",
+      "data": { "strings": [
+        "Rusl",
+        "Ertu viss um a\u00f0 \u00fe\u00fa viljir ey\u00f0a hlutum \u00far ruslatunnunni varanlega?",
+        "hlutir \u00ed ruslatunnunni"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 150,
+      "name": "FinderDesktop",
+      "data": { "strings": [
+        "Macintosh HD",
+        "Rusl",
+        "Forrit",
+        "Skj\u00f6l",
+        "Kerfismappa"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 400,
+      "name": "WindowManager",
+      "data": { "strings": [
+        "\u00d3nafngrei\u00f0t"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 500,
+      "name": "DialogManager",
+      "data": { "strings": [
+        "OK",
+        "H\u00e6tta vi\u00f0",
+        "J\u00e1",
+        "Nei",
+        "Vista",
+        "Ekki vista"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 600,
+      "name": "StandardFile",
+      "data": { "strings": [
+        "Opna",
+        "Vista",
+        "H\u00e6tta vi\u00f0",
+        "Kasta \u00fat",
+        "Skj\u00e1bor\u00f0",
+        "\u00d3nafngrei\u00f0t"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 800,
+      "name": "SystemStrings",
+      "data": { "strings": [
+        "Endurr\u00e6sa",
+        "Sl\u00f6kkva",
+        "Kerfisvilla hefur komi\u00f0 upp.",
+        "Minni er fullt."
+      ]}
+    }
+  ]
+}
