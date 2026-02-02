@@ -26,6 +26,13 @@ struct multiboot_tag {
     uint32_t size;
 };
 
+/* Command line tag */
+struct multiboot_tag_string {
+    uint32_t type;
+    uint32_t size;
+    char string[0];  /* Null-terminated command line string */
+};
+
 /* Basic memory info tag */
 struct multiboot_tag_basic_meminfo {
     uint32_t type;

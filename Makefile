@@ -382,6 +382,11 @@ C_SOURCES = src/main.c \
             src/ControlPanels/control_strip.c \
             src/Datetime/datetime_cdev.c \
             src/patterns_rsrc.c \
+            src/strings_en_rsrc.c \
+            src/LocaleManager/LocaleManager.c \
+            src/chicago_font_extended_data.c \
+            src/TextEncoding/CJKEncoding.c \
+            src/FontManager/CJKFont.c \
             src/FS/hfs_diskio.c \
             src/FS/hfs_volume.c \
             src/FS/hfs_btree.c \
@@ -654,6 +659,98 @@ src/patterns_rsrc.c: $(RSRC_BIN)
 	@echo '};' >> $@
 	@echo 'const unsigned int patterns_rsrc_size = sizeof(patterns_rsrc_data);' >> $@
 
+# Generate locale string resources
+$(BUILD_DIR)/Strings_en.rsrc: resources/strings/en.json gen_rsrc.py | $(BUILD_DIR)
+	@echo "GEN Strings_en.rsrc"
+	@python3 gen_rsrc.py resources/strings/en.json $@
+
+src/strings_en_rsrc.c: $(BUILD_DIR)/Strings_en.rsrc
+	@echo "XXDC Strings_en.rsrc"
+	@echo '/* Auto-generated from Strings_en.rsrc */' > $@
+	@echo 'const unsigned char strings_en_rsrc_data[] = {' >> $@
+	@xxd -i < $< >> $@
+	@echo '};' >> $@
+	@echo 'const unsigned int strings_en_rsrc_size = sizeof(strings_en_rsrc_data);' >> $@
+
+# Optional locale resources (add LOCALE_XX=1 to build with additional languages)
+ifeq ($(LOCALE_FR),1)
+CFLAGS += -DLOCALE_FR=1
+C_SOURCES += src/strings_fr_rsrc.c
+$(BUILD_DIR)/Strings_fr.rsrc: resources/strings/fr.json gen_rsrc.py | $(BUILD_DIR)
+	@python3 gen_rsrc.py resources/strings/fr.json $@
+src/strings_fr_rsrc.c: $(BUILD_DIR)/Strings_fr.rsrc
+	@echo '/* Auto-generated from Strings_fr.rsrc */' > $@
+	@echo 'const unsigned char strings_fr_rsrc_data[] = {' >> $@
+	@xxd -i < $< >> $@
+	@echo '};' >> $@
+	@echo 'const unsigned int strings_fr_rsrc_size = sizeof(strings_fr_rsrc_data);' >> $@
+endif
+
+ifeq ($(LOCALE_DE),1)
+CFLAGS += -DLOCALE_DE=1
+C_SOURCES += src/strings_de_rsrc.c
+$(BUILD_DIR)/Strings_de.rsrc: resources/strings/de.json gen_rsrc.py | $(BUILD_DIR)
+	@python3 gen_rsrc.py resources/strings/de.json $@
+src/strings_de_rsrc.c: $(BUILD_DIR)/Strings_de.rsrc
+	@echo '/* Auto-generated from Strings_de.rsrc */' > $@
+	@echo 'const unsigned char strings_de_rsrc_data[] = {' >> $@
+	@xxd -i < $< >> $@
+	@echo '};' >> $@
+	@echo 'const unsigned int strings_de_rsrc_size = sizeof(strings_de_rsrc_data);' >> $@
+endif
+
+ifeq ($(LOCALE_ES),1)
+CFLAGS += -DLOCALE_ES=1
+C_SOURCES += src/strings_es_rsrc.c
+$(BUILD_DIR)/Strings_es.rsrc: resources/strings/es.json gen_rsrc.py | $(BUILD_DIR)
+	@python3 gen_rsrc.py resources/strings/es.json $@
+src/strings_es_rsrc.c: $(BUILD_DIR)/Strings_es.rsrc
+	@echo '/* Auto-generated from Strings_es.rsrc */' > $@
+	@echo 'const unsigned char strings_es_rsrc_data[] = {' >> $@
+	@xxd -i < $< >> $@
+	@echo '};' >> $@
+	@echo 'const unsigned int strings_es_rsrc_size = sizeof(strings_es_rsrc_data);' >> $@
+endif
+
+ifeq ($(LOCALE_JA),1)
+CFLAGS += -DLOCALE_JA=1
+C_SOURCES += src/strings_ja_rsrc.c
+$(BUILD_DIR)/Strings_ja.rsrc: resources/strings/ja.json gen_rsrc.py | $(BUILD_DIR)
+	@python3 gen_rsrc.py resources/strings/ja.json $@
+src/strings_ja_rsrc.c: $(BUILD_DIR)/Strings_ja.rsrc
+	@echo '/* Auto-generated from Strings_ja.rsrc */' > $@
+	@echo 'const unsigned char strings_ja_rsrc_data[] = {' >> $@
+	@xxd -i < $< >> $@
+	@echo '};' >> $@
+	@echo 'const unsigned int strings_ja_rsrc_size = sizeof(strings_ja_rsrc_data);' >> $@
+endif
+
+ifeq ($(LOCALE_ZH),1)
+CFLAGS += -DLOCALE_ZH=1
+C_SOURCES += src/strings_zh_rsrc.c
+$(BUILD_DIR)/Strings_zh.rsrc: resources/strings/zh.json gen_rsrc.py | $(BUILD_DIR)
+	@python3 gen_rsrc.py resources/strings/zh.json $@
+src/strings_zh_rsrc.c: $(BUILD_DIR)/Strings_zh.rsrc
+	@echo '/* Auto-generated from Strings_zh.rsrc */' > $@
+	@echo 'const unsigned char strings_zh_rsrc_data[] = {' >> $@
+	@xxd -i < $< >> $@
+	@echo '};' >> $@
+	@echo 'const unsigned int strings_zh_rsrc_size = sizeof(strings_zh_rsrc_data);' >> $@
+endif
+
+ifeq ($(LOCALE_KO),1)
+CFLAGS += -DLOCALE_KO=1
+C_SOURCES += src/strings_ko_rsrc.c
+$(BUILD_DIR)/Strings_ko.rsrc: resources/strings/ko.json gen_rsrc.py | $(BUILD_DIR)
+	@python3 gen_rsrc.py resources/strings/ko.json $@
+src/strings_ko_rsrc.c: $(BUILD_DIR)/Strings_ko.rsrc
+	@echo '/* Auto-generated from Strings_ko.rsrc */' > $@
+	@echo 'const unsigned char strings_ko_rsrc_data[] = {' >> $@
+	@xxd -i < $< >> $@
+	@echo '};' >> $@
+	@echo 'const unsigned int strings_ko_rsrc_size = sizeof(strings_ko_rsrc_data);' >> $@
+endif
+
 # Link kernel
 $(KERNEL): $(OBJECTS) | $(BUILD_DIR)
 	@echo "LD $(KERNEL)"
@@ -678,7 +775,8 @@ vpath %.c src:src/System:src/QuickDraw:src/WindowManager:src/MenuManager:src/Con
           src/PackageManager:src/NetworkExtension:src/ColorManager:src/CommunicationToolbox \
           src/GestaltManager:src/SpeechManager:src/BootLoader \
           src/SegmentLoader:src/CPU:src/CPU/m68k_interp:src/DeviceManager:src/Keyboard \
-          src/Datetime:src/Calculator:src/Chooser:src/StartupScreen:src/OSUtils
+          src/Datetime:src/Calculator:src/Chooser:src/StartupScreen:src/OSUtils \
+          src/LocaleManager:src/TextEncoding
 vpath %.S $(HAL_DIR)
 
 # Compile assembly files
@@ -859,7 +957,7 @@ endif
 
 # Clean
 clean:
-	rm -rf $(BUILD_DIR) obj isodir iso system71.iso kernel.elf src/patterns_rsrc.c
+	rm -rf $(BUILD_DIR) obj isodir iso system71.iso kernel.elf src/patterns_rsrc.c src/strings_*_rsrc.c
 
 # Show compilation info
 info:

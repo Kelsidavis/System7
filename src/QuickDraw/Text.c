@@ -3,6 +3,9 @@
 #include "../../include/QuickDraw/QuickDraw.h"
 #include "../../include/QuickDraw/QuickDrawPlatform.h"
 #include "../../include/chicago_font.h"
+#include "../../include/chicago_font_extended.h"
+#include "../../include/TextEncoding/CJKEncoding.h"
+#include "../../include/FontManager/CJKFont.h"
 #include <stddef.h>
 
 // Global current port
@@ -29,6 +32,50 @@ static FontMetricsCache g_fontCache = {0};
 SInt16 CharWidth(SInt16 ch);
 SInt16 StringWidth(ConstStr255Param s);
 SInt16 TextWidth(const void *textBuf, SInt16 firstByte, SInt16 byteCount);
+
+// Get the active script code for the current port's font
+static ScriptCode GetPortScript(void) {
+    if (g_currentPort == NULL) return kScriptRoman;
+    /* Font numbers 16384+ are CJK: Japanese=16384, Chinese=16385, Korean=16386 */
+    SInt16 font = g_currentPort->txFont;
+    if (font >= 16384 && font < 16384 + 3) {
+        static const ScriptCode fontScripts[] = {
+            kScriptJapanese, kScriptSimpChinese, kScriptKorean
+        };
+        return fontScripts[font - 16384];
+    }
+    return kScriptRoman;
+}
+
+// Draw a CJK double-byte character and advance pen
+static void DrawCJKChar(UInt8 lead, UInt8 trail) {
+    if (g_currentPort == NULL) return;
+
+    ScriptCode script = GetPortScript();
+    SInt16 width = CJKCharWidth(script, lead, trail);
+
+    /* Get glyph data */
+    const CJKFontData *cjkFont = GetCJKFont(script);
+    if (cjkFont != NULL) {
+        UInt32 glyphIndex = 0;
+        DecodeCJKChar(script, lead, trail, &glyphIndex);
+
+        UInt8 glyphBitmap[CJK_GLYPH_BYTES];
+        SInt16 gw, gh;
+        if (GetCJKGlyph(cjkFont, glyphIndex, glyphBitmap, &gw, &gh) == noErr) {
+            Point penLocal = g_currentPort->pnLoc;
+            Point penGlobal = penLocal;
+            LocalToGlobal(&penGlobal);
+
+            QDPlatform_DrawGlyphBitmap(g_currentPort, penGlobal, glyphBitmap,
+                                      gw, gh,
+                                      &g_currentPort->pnPat, g_currentPort->pnMode);
+        }
+    }
+
+    g_currentPort->pnLoc.h += width;
+    g_penPosition.h += width;
+}
 
 // Move pen position
 void Move(SInt16 h, SInt16 v) {
@@ -65,6 +112,12 @@ SInt16 CharWidth(SInt16 ch) {
         return info->advance;
     }
 
+    /* Use extended Chicago font for Mac Roman 0x80-0xFF */
+    if (ch >= 0x80 && ch <= 0xFF) {
+        const ChicagoCharInfo *info = &chicago_extended[ch - 0x80];
+        if (info->advance > 0) return info->advance;
+    }
+
     /* Fallback for non-printable characters */
     short fontSize = g_currentPort->txSize;
     if (fontSize == 0) fontSize = 12;
@@ -86,9 +139,18 @@ SInt16 TextWidth(const void *textBuf, SInt16 firstByte, SInt16 byteCount) {
 
     const UInt8 *text = (const UInt8 *)textBuf;
     SInt16 width = 0;
+    ScriptCode script = GetPortScript();
+    SInt16 end = firstByte + byteCount;
 
-    for (SInt16 i = firstByte; i < firstByte + byteCount && i < 255; i++) {
-        width += CharWidth(text[i]);
+    for (SInt16 i = firstByte; i < end; i++) {
+        if (IsMultiByteScript(script) && IsLeadByte(script, text[i])) {
+            if (i + 1 < end) {
+                width += CJKCharWidth(script, text[i], text[i + 1]);
+                i++; /* skip trail byte */
+            }
+        } else {
+            width += CharWidth(text[i]);
+        }
     }
 
     return width;
@@ -161,6 +223,39 @@ void QD_DrawChar(SInt16 ch) {
                                       &g_currentPort->pnPat, g_currentPort->pnMode);
         }
     }
+    /* Render extended Mac Roman characters (0x80-0xFF) */
+    else if (ch >= 0x80 && ch <= 0xFF) {
+        const ChicagoCharInfo *info = &chicago_extended[ch - 0x80];
+
+        width = info->advance;
+
+        if (info->bit_width > 0) {
+            Point penGlobal = penLocal;
+            LocalToGlobal(&penGlobal);
+
+            /* Extract glyph bitmap from extended strike */
+            uint8_t glyph_bitmap[CHICAGO_HEIGHT * 16];
+            memset(glyph_bitmap, 0, sizeof(glyph_bitmap));
+
+            for (int row = 0; row < CHICAGO_HEIGHT; row++) {
+                uint16_t src_bit = info->bit_start;
+                uint16_t src_byte = (row * CHICAGO_EXT_ROW_BYTES) + (src_bit / 8);
+                uint8_t src_bit_offset = src_bit % 8;
+
+                for (int bit = 0; bit < info->bit_width; bit++) {
+                    uint8_t bit_val = (chicago_ext_bitmap[src_byte + (src_bit_offset + bit) / 8]
+                                      >> (7 - ((src_bit_offset + bit) % 8))) & 1;
+                    if (bit_val) {
+                        glyph_bitmap[row * 2 + (bit / 8)] |= (0x80 >> (bit % 8));
+                    }
+                }
+            }
+
+            QDPlatform_DrawGlyphBitmap(g_currentPort, penGlobal, glyph_bitmap,
+                                      info->bit_width, CHICAGO_HEIGHT,
+                                      &g_currentPort->pnPat, g_currentPort->pnMode);
+        }
+    }
 
     /* Advance pen position in local coordinates */
     g_currentPort->pnLoc.h += width;
@@ -187,9 +282,19 @@ void DrawText(const void *textBuf, SInt16 firstByte, SInt16 byteCount) {
     if (g_currentPort == NULL || textBuf == NULL) return;
 
     const UInt8 *text = (const UInt8 *)textBuf;
+    ScriptCode script = GetPortScript();
+    SInt16 end = firstByte + byteCount;
 
-    for (SInt16 i = firstByte; i < firstByte + byteCount && i < 255; i++) {
-        QD_DrawChar(text[i]);
+    for (SInt16 i = firstByte; i < end; i++) {
+        if (IsMultiByteScript(script) && IsLeadByte(script, text[i])) {
+            /* Double-byte character: consume lead + trail */
+            if (i + 1 < end) {
+                DrawCJKChar(text[i], text[i + 1]);
+                i++; /* skip trail byte */
+            }
+        } else {
+            QD_DrawChar(text[i]);
+        }
     }
 }
 

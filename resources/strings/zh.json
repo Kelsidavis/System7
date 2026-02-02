@@ -1,0 +1,80 @@
+{
+  "_comment": "Chinese (Simplified) - placeholder with pinyin until CJK font support is added",
+  "resources": [
+    {
+      "type": "STR#",
+      "id": 128,
+      "name": "FinderMenuTitles",
+      "data": { "strings": [
+        "Wenjian",
+        "Bianji",
+        "Chakan",
+        "Biaoqian",
+        "Teshu",
+        "Kongzhi Mianban"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 129,
+      "name": "FinderAppleMenu",
+      "data": { "strings": [
+        "Guanyu ci Macintosh",
+        "Kongzhi Mianban>",
+        "Jishiben"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 130,
+      "name": "FinderFileMenu",
+      "data": { "strings": [
+        "Xinjian wenjianjia/N",
+        "Dakai/O",
+        "Dayin/P",
+        "Guanbi/W",
+        "Xianshi jianjie/I",
+        "Gongxiang...",
+        "Fuben/D",
+        "Jianli biemian",
+        "Fanghuiyuanchu/Y",
+        "Chazhao.../F",
+        "Zaici chazhao/G"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 131,
+      "name": "FinderEditMenu",
+      "data": { "strings": [
+        "Huifu/Z",
+        "Jianqie/X",
+        "Kaobei/C",
+        "Zhantie/V",
+        "Qingchu",
+        "Quanxuan/A"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 400,
+      "name": "WindowManager",
+      "data": { "strings": [
+        "Weimingming"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 500,
+      "name": "DialogManager",
+      "data": { "strings": [
+        "Queding",
+        "Quxiao",
+        "Shi",
+        "Fou",
+        "Baocun",
+        "Bu baocun"
+      ]}
+    }
+  ]
+}

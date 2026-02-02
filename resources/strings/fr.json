@@ -1,0 +1,220 @@
+{
+  "resources": [
+    {
+      "type": "STR#",
+      "id": 128,
+      "name": "FinderMenuTitles",
+      "data": { "strings": [
+        "Fichier",
+        "\u00c9dition",
+        "Pr\u00e9sentation",
+        "\u00c9tiquette",
+        "Rangement",
+        "Tableaux de bord"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 129,
+      "name": "FinderAppleMenu",
+      "data": { "strings": [
+        "\u00c0 propos de ce Macintosh",
+        "Tableaux de bord>",
+        "Bloc-notes"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 130,
+      "name": "FinderFileMenu",
+      "data": { "strings": [
+        "Nouveau dossier/N",
+        "Ouvrir/O",
+        "Imprimer/P",
+        "Fermer/W",
+        "Lire les informations/I",
+        "Partage...",
+        "Dupliquer/D",
+        "Cr\u00e9er un alias",
+        "Remettre en place/Y",
+        "Rechercher.../F",
+        "Rechercher \u00e0 nouveau/G"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 131,
+      "name": "FinderEditMenu",
+      "data": { "strings": [
+        "Annuler/Z",
+        "Couper/X",
+        "Copier/C",
+        "Coller/V",
+        "Effacer",
+        "Tout s\u00e9lectionner/A"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 132,
+      "name": "FinderViewMenu",
+      "data": { "strings": [
+        "par ic\u00f4ne",
+        "par nom",
+        "par taille",
+        "par type",
+        "par \u00e9tiquette",
+        "par date",
+        "Ranger la fen\u00eatre",
+        "Ranger la s\u00e9lection"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 133,
+      "name": "FinderLabelMenu",
+      "data": { "strings": [
+        "Aucune",
+        "Essentiel",
+        "Urgent",
+        "En cours",
+        "D\u00e9tendu",
+        "Personnel",
+        "Projet 1",
+        "Projet 2"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 134,
+      "name": "FinderSpecialMenu",
+      "data": { "strings": [
+        "Ranger le bureau",
+        "Vider la corbeille",
+        "\u00c9jecter/E",
+        "Effacer le disque",
+        "Red\u00e9marrer",
+        "\u00c9teindre"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 135,
+      "name": "FinderControlPanels",
+      "data": { "strings": [
+        "Motifs du bureau...",
+        "Date et heure...",
+        "Son...",
+        "Souris...",
+        "Clavier...",
+        "Barre de r\u00e9glages..."
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 140,
+      "name": "FinderAbout",
+      "data": { "strings": [
+        "\u00c0 propos de ce Macintosh",
+        "M\u00e9moire int\u00e9gr\u00e9e",
+        "Plus grand bloc inutilis\u00e9",
+        "Logiciel syst\u00e8me",
+        "M\u00e9moire totale",
+        "M\u00e9moire",
+        "Syst\u00e8me",
+        "Applications",
+        "Inutilis\u00e9"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 141,
+      "name": "FinderGetInfo",
+      "data": { "strings": [
+        "Informations",
+        "Type :",
+        "Taille :",
+        "Emplacement :",
+        "Cr\u00e9\u00e9 le :",
+        "Modifi\u00e9 le :"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 142,
+      "name": "FinderFind",
+      "data": { "strings": [
+        "Rechercher",
+        "Rechercher :",
+        "Rechercher"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 143,
+      "name": "FinderTrash",
+      "data": { "strings": [
+        "Corbeille",
+        "Voulez-vous vraiment supprimer d\u00e9finitivement les \u00e9l\u00e9ments de la Corbeille ?",
+        "\u00e9l\u00e9ments dans la Corbeille"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 150,
+      "name": "FinderDesktop",
+      "data": { "strings": [
+        "Macintosh HD",
+        "Corbeille",
+        "Applications",
+        "Documents",
+        "Dossier Syst\u00e8me"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 400,
+      "name": "WindowManager",
+      "data": { "strings": [
+        "Sans titre"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 500,
+      "name": "DialogManager",
+      "data": { "strings": [
+        "OK",
+        "Annuler",
+        "Oui",
+        "Non",
+        "Enregistrer",
+        "Ne pas enregistrer"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 600,
+      "name": "StandardFile",
+      "data": { "strings": [
+        "Ouvrir",
+        "Enregistrer",
+        "Annuler",
+        "\u00c9jecter",
+        "Bureau",
+        "Sans titre"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 800,
+      "name": "SystemStrings",
+      "data": { "strings": [
+        "Red\u00e9marrer",
+        "\u00c9teindre",
+        "Une erreur syst\u00e8me s'est produite.",
+        "M\u00e9moire insuffisante."
+      ]}
+    }
+  ]
+}

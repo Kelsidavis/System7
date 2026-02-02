@@ -1,0 +1,220 @@
+{
+  "resources": [
+    {
+      "type": "STR#",
+      "id": 128,
+      "name": "FinderMenuTitles",
+      "data": { "strings": [
+        "File",
+        "Edit",
+        "View",
+        "Label",
+        "Special",
+        "Control Panels"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 129,
+      "name": "FinderAppleMenu",
+      "data": { "strings": [
+        "About This Macintosh",
+        "Control Panels>",
+        "Notepad"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 130,
+      "name": "FinderFileMenu",
+      "data": { "strings": [
+        "New Folder/N",
+        "Open/O",
+        "Print/P",
+        "Close/W",
+        "Get Info/I",
+        "Sharing...",
+        "Duplicate/D",
+        "Make Alias",
+        "Put Away/Y",
+        "Find.../F",
+        "Find Again/G"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 131,
+      "name": "FinderEditMenu",
+      "data": { "strings": [
+        "Undo/Z",
+        "Cut/X",
+        "Copy/C",
+        "Paste/V",
+        "Clear",
+        "Select All/A"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 132,
+      "name": "FinderViewMenu",
+      "data": { "strings": [
+        "by Icon",
+        "by Name",
+        "by Size",
+        "by Kind",
+        "by Label",
+        "by Date",
+        "Clean Up Window",
+        "Clean Up Selection"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 133,
+      "name": "FinderLabelMenu",
+      "data": { "strings": [
+        "None",
+        "Essential",
+        "Hot",
+        "In Progress",
+        "Cool",
+        "Personal",
+        "Project 1",
+        "Project 2"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 134,
+      "name": "FinderSpecialMenu",
+      "data": { "strings": [
+        "Clean Up Desktop",
+        "Empty Trash",
+        "Eject/E",
+        "Erase Disk",
+        "Restart",
+        "Shut Down"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 135,
+      "name": "FinderControlPanels",
+      "data": { "strings": [
+        "Desktop Patterns...",
+        "Date & Time...",
+        "Sound...",
+        "Mouse...",
+        "Keyboard...",
+        "Control Strip..."
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 140,
+      "name": "FinderAbout",
+      "data": { "strings": [
+        "About This Macintosh",
+        "Built-in Memory",
+        "Largest Unused Block",
+        "System Software",
+        "Total Memory",
+        "Memory",
+        "System",
+        "Applications",
+        "Unused"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 141,
+      "name": "FinderGetInfo",
+      "data": { "strings": [
+        "Info",
+        "Kind:",
+        "Size:",
+        "Where:",
+        "Created:",
+        "Modified:"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 142,
+      "name": "FinderFind",
+      "data": { "strings": [
+        "Find",
+        "Find:",
+        "Find"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 143,
+      "name": "FinderTrash",
+      "data": { "strings": [
+        "Trash",
+        "Are you sure you want to permanently remove the items in the Trash?",
+        "items in the Trash"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 150,
+      "name": "FinderDesktop",
+      "data": { "strings": [
+        "Macintosh HD",
+        "Trash",
+        "Applications",
+        "Documents",
+        "System Folder"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 400,
+      "name": "WindowManager",
+      "data": { "strings": [
+        "Untitled"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 500,
+      "name": "DialogManager",
+      "data": { "strings": [
+        "OK",
+        "Cancel",
+        "Yes",
+        "No",
+        "Save",
+        "Don\u2019t Save"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 600,
+      "name": "StandardFile",
+      "data": { "strings": [
+        "Open",
+        "Save",
+        "Cancel",
+        "Eject",
+        "Desktop",
+        "Untitled"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 800,
+      "name": "SystemStrings",
+      "data": { "strings": [
+        "Restart",
+        "Shut Down",
+        "A system error has occurred.",
+        "Out of memory."
+      ]}
+    }
+  ]
+}

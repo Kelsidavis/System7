@@ -23,6 +23,8 @@
 /* Use local headers instead of system headers */
 #include "MemoryMgr/memory_manager_types.h"
 #include "ResourceManager.h"
+#include "LocaleManager/LocaleManager.h"
+#include "LocaleManager/StringIDs.h"
 #include "EventManager/EventTypes.h"
 #include "MenuManager/MenuTypes.h"
 #include "MenuManager/MenuManager.h"
@@ -186,94 +188,144 @@ OSErr InitializeFinder(void)
  */
 static OSErr SetupMenus(void)
 {
-    /* Apple Menu - Evidence: "About The Finder" */
+    Str255 menuStr;
+
+    /* Apple Menu */
     static unsigned char appleTitle[] = {1, 0x14};  /* Pascal string: Apple symbol */
     gAppleMenu = NewMenu(128, appleTitle);
-    AppendMenu(gAppleMenu, "\025About This Macintosh");
+    GetLocalizedString(menuStr, kSTRListFinderAppleMenu, kStrAboutThisMacintosh);
+    AppendMenu(gAppleMenu, menuStr);
     AppendMenu(gAppleMenu, "\002(-");
-    AppendMenu(gAppleMenu, "\020Control Panels>");
-    AppendMenu(gAppleMenu, "\007Notepad");
+    GetLocalizedString(menuStr, kSTRListFinderAppleMenu, kStrControlPanelsSubmenu);
+    AppendMenu(gAppleMenu, menuStr);
+    GetLocalizedString(menuStr, kSTRListFinderAppleMenu, kStrNotepad);
+    AppendMenu(gAppleMenu, menuStr);
     AppendMenu(gAppleMenu, "\002(-");
     AddResMenu(gAppleMenu, 'DRVR');
 
     /* Control Panels submenu - ID 134 */
-    static unsigned char cpTitle[] = {14, 'C', 'o', 'n', 't', 'r', 'o', 'l', ' ', 'P', 'a', 'n', 'e', 'l', 's'};
-    gControlPanelsMenu = NewMenu(134, cpTitle);
-    AppendMenu(gControlPanelsMenu, "\023Desktop Patterns...");
-    AppendMenu(gControlPanelsMenu, "\015Date & Time...");
-    AppendMenu(gControlPanelsMenu, "\007Sound...");
-    AppendMenu(gControlPanelsMenu, "\007Mouse...");
-    AppendMenu(gControlPanelsMenu, "\013Keyboard...");
-    AppendMenu(gControlPanelsMenu, "\016Control Strip...");
+    GetLocalizedString(menuStr, kSTRListFinderMenuTitles, kStrMenuControlPanels);
+    gControlPanelsMenu = NewMenu(134, menuStr);
+    GetLocalizedString(menuStr, kSTRListFinderControlPanels, kStrCPDesktopPatterns);
+    AppendMenu(gControlPanelsMenu, menuStr);
+    GetLocalizedString(menuStr, kSTRListFinderControlPanels, kStrCPDateTime);
+    AppendMenu(gControlPanelsMenu, menuStr);
+    GetLocalizedString(menuStr, kSTRListFinderControlPanels, kStrCPSound);
+    AppendMenu(gControlPanelsMenu, menuStr);
+    GetLocalizedString(menuStr, kSTRListFinderControlPanels, kStrCPMouse);
+    AppendMenu(gControlPanelsMenu, menuStr);
+    GetLocalizedString(menuStr, kSTRListFinderControlPanels, kStrCPKeyboard);
+    AppendMenu(gControlPanelsMenu, menuStr);
+    GetLocalizedString(menuStr, kSTRListFinderControlPanels, kStrCPControlStrip);
+    AppendMenu(gControlPanelsMenu, menuStr);
 
     /* Connect Control Panels submenu to Apple menu item 3 (Control Panels>) */
     /* Note: Do NOT insert into menu bar - keep as submenu only */
     SetItemSubmenu(gAppleMenu, 3, 134);
 
-    /* File Menu - Finder specific (System 7.1) */
-    static unsigned char fileTitle[] = {4, 'F', 'i', 'l', 'e'};  /* Pascal string: "File" */
-    gFileMenu = NewMenu(129, fileTitle);
-    AppendMenu(gFileMenu, "\015New Folder/N");
-    AppendMenu(gFileMenu, "\007Open/O");
-    AppendMenu(gFileMenu, "\010Print/P");
-    AppendMenu(gFileMenu, "\010Close/W");
+    /* File Menu */
+    GetLocalizedString(menuStr, kSTRListFinderMenuTitles, kStrMenuFile);
+    gFileMenu = NewMenu(129, menuStr);
+    GetLocalizedString(menuStr, kSTRListFinderFileMenu, kStrNewFolder);
+    AppendMenu(gFileMenu, menuStr);
+    GetLocalizedString(menuStr, kSTRListFinderFileMenu, kStrOpen);
+    AppendMenu(gFileMenu, menuStr);
+    GetLocalizedString(menuStr, kSTRListFinderFileMenu, kStrPrint);
+    AppendMenu(gFileMenu, menuStr);
+    GetLocalizedString(menuStr, kSTRListFinderFileMenu, kStrClose);
+    AppendMenu(gFileMenu, menuStr);
     AppendMenu(gFileMenu, "\002(-");
-    AppendMenu(gFileMenu, "\013Get Info/I");
-    AppendMenu(gFileMenu, "\013Sharing...");
-    AppendMenu(gFileMenu, "\014Duplicate/D");
-    AppendMenu(gFileMenu, "\012Make Alias");
-    AppendMenu(gFileMenu, "\012Put Away/Y");
+    GetLocalizedString(menuStr, kSTRListFinderFileMenu, kStrGetInfo);
+    AppendMenu(gFileMenu, menuStr);
+    GetLocalizedString(menuStr, kSTRListFinderFileMenu, kStrSharing);
+    AppendMenu(gFileMenu, menuStr);
+    GetLocalizedString(menuStr, kSTRListFinderFileMenu, kStrDuplicate);
+    AppendMenu(gFileMenu, menuStr);
+    GetLocalizedString(menuStr, kSTRListFinderFileMenu, kStrMakeAlias);
+    AppendMenu(gFileMenu, menuStr);
+    GetLocalizedString(menuStr, kSTRListFinderFileMenu, kStrPutAway);
+    AppendMenu(gFileMenu, menuStr);
     AppendMenu(gFileMenu, "\002(-");
-    AppendMenu(gFileMenu, "\011Find.../F");
-    AppendMenu(gFileMenu, "\015Find Again/G");
+    GetLocalizedString(menuStr, kSTRListFinderFileMenu, kStrFindEllipsis);
+    AppendMenu(gFileMenu, menuStr);
+    GetLocalizedString(menuStr, kSTRListFinderFileMenu, kStrFindAgain);
+    AppendMenu(gFileMenu, menuStr);
 
     /* Edit Menu */
-    static unsigned char editTitle[] = {4, 'E', 'd', 'i', 't'};  /* Pascal string: "Edit" */
-    gEditMenu = NewMenu(130, editTitle);
-    AppendMenu(gEditMenu, "\007Undo/Z");
+    GetLocalizedString(menuStr, kSTRListFinderMenuTitles, kStrMenuEdit);
+    gEditMenu = NewMenu(130, menuStr);
+    GetLocalizedString(menuStr, kSTRListFinderEditMenu, kStrUndo);
+    AppendMenu(gEditMenu, menuStr);
     AppendMenu(gEditMenu, "\002(-");
-    AppendMenu(gEditMenu, "\006Cut/X");
-    AppendMenu(gEditMenu, "\007Copy/C");
-    AppendMenu(gEditMenu, "\010Paste/V");
-    AppendMenu(gEditMenu, "\005Clear");
-    AppendMenu(gEditMenu, "\015Select All/A");
+    GetLocalizedString(menuStr, kSTRListFinderEditMenu, kStrCut);
+    AppendMenu(gEditMenu, menuStr);
+    GetLocalizedString(menuStr, kSTRListFinderEditMenu, kStrCopy);
+    AppendMenu(gEditMenu, menuStr);
+    GetLocalizedString(menuStr, kSTRListFinderEditMenu, kStrPaste);
+    AppendMenu(gEditMenu, menuStr);
+    GetLocalizedString(menuStr, kSTRListFinderEditMenu, kStrClear);
+    AppendMenu(gEditMenu, menuStr);
+    GetLocalizedString(menuStr, kSTRListFinderEditMenu, kStrSelectAll);
+    AppendMenu(gEditMenu, menuStr);
 
-    /* View Menu - Evidence: "Icon Views", "List Views", "Clean Up" */
-    static unsigned char viewTitle[] = {4, 'V', 'i', 'e', 'w'};  /* Pascal string: "View" */
-    gViewMenu = NewMenu(131, viewTitle);
-    AppendMenu(gViewMenu, "\007by Icon");
-    AppendMenu(gViewMenu, "\007by Name");
-    AppendMenu(gViewMenu, "\007by Size");
-    AppendMenu(gViewMenu, "\007by Kind");
-    AppendMenu(gViewMenu, "\010by Label");
-    AppendMenu(gViewMenu, "\007by Date");
+    /* View Menu */
+    GetLocalizedString(menuStr, kSTRListFinderMenuTitles, kStrMenuView);
+    gViewMenu = NewMenu(131, menuStr);
+    GetLocalizedString(menuStr, kSTRListFinderViewMenu, kStrByIcon);
+    AppendMenu(gViewMenu, menuStr);
+    GetLocalizedString(menuStr, kSTRListFinderViewMenu, kStrByName);
+    AppendMenu(gViewMenu, menuStr);
+    GetLocalizedString(menuStr, kSTRListFinderViewMenu, kStrBySize);
+    AppendMenu(gViewMenu, menuStr);
+    GetLocalizedString(menuStr, kSTRListFinderViewMenu, kStrByKind);
+    AppendMenu(gViewMenu, menuStr);
+    GetLocalizedString(menuStr, kSTRListFinderViewMenu, kStrByLabel);
+    AppendMenu(gViewMenu, menuStr);
+    GetLocalizedString(menuStr, kSTRListFinderViewMenu, kStrByDate);
+    AppendMenu(gViewMenu, menuStr);
     AppendMenu(gViewMenu, "\002(-");
-    AppendMenu(gViewMenu, "\017Clean Up Window");
-    AppendMenu(gViewMenu, "\022Clean Up Selection");
+    GetLocalizedString(menuStr, kSTRListFinderViewMenu, kStrCleanUpWindow);
+    AppendMenu(gViewMenu, menuStr);
+    GetLocalizedString(menuStr, kSTRListFinderViewMenu, kStrCleanUpSelection);
+    AppendMenu(gViewMenu, menuStr);
 
     /* Label Menu */
-    static unsigned char labelTitle[] = {5, 'L', 'a', 'b', 'e', 'l'};  /* Pascal string: "Label" */
-    gLabelMenu = NewMenu(132, labelTitle);
-    AppendMenu(gLabelMenu, "\004None");
-    AppendMenu(gLabelMenu, "\011Essential");
-    AppendMenu(gLabelMenu, "\003Hot");
-    AppendMenu(gLabelMenu, "\013In Progress");
-    AppendMenu(gLabelMenu, "\004Cool");
-    AppendMenu(gLabelMenu, "\010Personal");
-    AppendMenu(gLabelMenu, "\011Project 1");
-    AppendMenu(gLabelMenu, "\011Project 2");
+    GetLocalizedString(menuStr, kSTRListFinderMenuTitles, kStrMenuLabel);
+    gLabelMenu = NewMenu(132, menuStr);
+    GetLocalizedString(menuStr, kSTRListFinderLabelMenu, kStrLabelNone);
+    AppendMenu(gLabelMenu, menuStr);
+    GetLocalizedString(menuStr, kSTRListFinderLabelMenu, kStrLabelEssential);
+    AppendMenu(gLabelMenu, menuStr);
+    GetLocalizedString(menuStr, kSTRListFinderLabelMenu, kStrLabelHot);
+    AppendMenu(gLabelMenu, menuStr);
+    GetLocalizedString(menuStr, kSTRListFinderLabelMenu, kStrLabelInProgress);
+    AppendMenu(gLabelMenu, menuStr);
+    GetLocalizedString(menuStr, kSTRListFinderLabelMenu, kStrLabelCool);
+    AppendMenu(gLabelMenu, menuStr);
+    GetLocalizedString(menuStr, kSTRListFinderLabelMenu, kStrLabelPersonal);
+    AppendMenu(gLabelMenu, menuStr);
+    GetLocalizedString(menuStr, kSTRListFinderLabelMenu, kStrLabelProject1);
+    AppendMenu(gLabelMenu, menuStr);
+    GetLocalizedString(menuStr, kSTRListFinderLabelMenu, kStrLabelProject2);
+    AppendMenu(gLabelMenu, menuStr);
 
-    /* Special Menu - Evidence: "Empty Trash", "Clean Up Desktop", "Eject" */
-    static unsigned char specialTitle[] = {7, 'S', 'p', 'e', 'c', 'i', 'a', 'l'};  /* Pascal string: "Special" */
-    gSpecialMenu = NewMenu(133, specialTitle);
-    AppendMenu(gSpecialMenu, "\020Clean Up Desktop");
-    AppendMenu(gSpecialMenu, "\013Empty Trash");
+    /* Special Menu */
+    GetLocalizedString(menuStr, kSTRListFinderMenuTitles, kStrMenuSpecial);
+    gSpecialMenu = NewMenu(133, menuStr);
+    GetLocalizedString(menuStr, kSTRListFinderSpecialMenu, kStrCleanUpDesktop);
+    AppendMenu(gSpecialMenu, menuStr);
+    GetLocalizedString(menuStr, kSTRListFinderSpecialMenu, kStrEmptyTrash);
+    AppendMenu(gSpecialMenu, menuStr);
     AppendMenu(gSpecialMenu, "\002(-");
-    AppendMenu(gSpecialMenu, "\010Eject/E");
-    AppendMenu(gSpecialMenu, "\012Erase Disk");
+    GetLocalizedString(menuStr, kSTRListFinderSpecialMenu, kStrEject);
+    AppendMenu(gSpecialMenu, menuStr);
+    GetLocalizedString(menuStr, kSTRListFinderSpecialMenu, kStrEraseDisk);
+    AppendMenu(gSpecialMenu, menuStr);
     AppendMenu(gSpecialMenu, "\002(-");
-    AppendMenu(gSpecialMenu, "\007Restart");
-    AppendMenu(gSpecialMenu, "\011Shut Down");
+    GetLocalizedString(menuStr, kSTRListFinderSpecialMenu, kStrRestart);
+    AppendMenu(gSpecialMenu, menuStr);
+    GetLocalizedString(menuStr, kSTRListFinderSpecialMenu, kStrShutDown);
+    AppendMenu(gSpecialMenu, menuStr);
 
     /* Insert menus into menu bar in correct order: Apple, File, Edit, View, Label, Special */
     /* InsertMenu with 0 adds to end, so insert in order */

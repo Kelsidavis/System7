@@ -1607,3 +1607,88 @@ SInt16 UniqueID(ResType theType) {
 SInt16 Unique1ID(ResType theType) {
     return UniqueID(theType);
 }
+
+/*
+ * OpenResMemory - Register in-memory resource data as a resource file
+ *
+ * Opens a block of memory containing a valid .rsrc file as if it were
+ * an opened resource file. The data is not copied; the caller must
+ * ensure it remains valid for the lifetime of the resource file.
+ *
+ * Parameters:
+ *   data - Pointer to .rsrc file data in memory
+ *   size - Size of the data in bytes
+ *
+ * Returns:
+ *   Resource file reference number (>= 0), or -1 on error
+ */
+SInt16 OpenResMemory(const unsigned char* data, UInt32 size) {
+    SInt16 i;
+
+    if (!data || size < sizeof(ResourceHeader)) {
+        gResMgr.resError = paramErr;
+        return -1;
+    }
+
+    /* Find a free slot (skip slot 0 which is the system resource file) */
+    for (i = 1; i < MAX_RES_FILES; i++) {
+        if (!gResMgr.resFiles[i].inUse) {
+            break;
+        }
+    }
+    if (i >= MAX_RES_FILES) {
+        gResMgr.resError = tmfoErr;
+        return -1;
+    }
+
+    /* Parse resource header */
+    ResourceHeader* hdr = (ResourceHeader*)(uintptr_t)data;
+    UInt32 mapOffset = read_be32((UInt8*)&hdr->mapOffset);
+    UInt32 mapLength = read_be32((UInt8*)&hdr->mapLength);
+
+    if (mapOffset + sizeof(ResMapHeader) > size) {
+        gResMgr.resError = mapReadErr;
+        return -1;
+    }
+
+    /* Set up the ResFile entry */
+    ResFile* rf = &gResMgr.resFiles[i];
+    rf->inUse = true;
+    rf->refNum = i;
+    rf->data = (UInt8*)(uintptr_t)data;
+    rf->dataSize = size;
+    rf->map = (ResMapHeader*)(rf->data + mapOffset);
+    rf->mapSize = mapLength;
+    rf->mapHandle = NULL;  /* Not heap-allocated, don't free */
+    rf->fileName[0] = 0;
+
+    gResMgr.resError = noErr;
+    return i;
+}
+
+/*
+ * CloseResMemory - Close an in-memory resource file opened with OpenResMemory
+ *
+ * Parameters:
+ *   refNum - Reference number returned by OpenResMemory
+ */
+void CloseResMemory(SInt16 refNum) {
+    if (refNum <= 0 || refNum >= MAX_RES_FILES || !gResMgr.resFiles[refNum].inUse) {
+        gResMgr.resError = badRefNum;
+        return;
+    }
+
+    ResFile* rf = &gResMgr.resFiles[refNum];
+    rf->inUse = false;
+    rf->refNum = -1;
+    rf->data = NULL;
+    rf->map = NULL;
+    rf->mapHandle = NULL;
+
+    /* If this was current file, switch to system */
+    if (gResMgr.curResFile == refNum) {
+        gResMgr.curResFile = 0;
+    }
+
+    gResMgr.resError = noErr;
+}

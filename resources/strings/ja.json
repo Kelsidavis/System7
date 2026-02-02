@@ -1,0 +1,152 @@
+{
+  "_comment": "Japanese - placeholder with romanized text until CJK font support is added",
+  "resources": [
+    {
+      "type": "STR#",
+      "id": 128,
+      "name": "FinderMenuTitles",
+      "data": { "strings": [
+        "File",
+        "Edit",
+        "View",
+        "Label",
+        "Special",
+        "Control Panels"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 129,
+      "name": "FinderAppleMenu",
+      "data": { "strings": [
+        "Kono Macintosh ni tsuite",
+        "Control Panels>",
+        "Memo"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 130,
+      "name": "FinderFileMenu",
+      "data": { "strings": [
+        "Shin-ki Folder/N",
+        "Hiraku/O",
+        "Print/P",
+        "Tojiru/W",
+        "Jouhou wo miru/I",
+        "Kyouyuu...",
+        "Fukusei/D",
+        "Alias wo tsukuru",
+        "Moto ni modosu/Y",
+        "Kensaku.../F",
+        "Saido kensaku/G"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 131,
+      "name": "FinderEditMenu",
+      "data": { "strings": [
+        "Torikeshi/Z",
+        "Cut/X",
+        "Copy/C",
+        "Paste/V",
+        "Sakujo",
+        "Subete wo sentaku/A"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 132,
+      "name": "FinderViewMenu",
+      "data": { "strings": [
+        "Icon hyouji",
+        "Namae jun",
+        "Size jun",
+        "Shurui jun",
+        "Label jun",
+        "Hiduke jun",
+        "Window wo seiton",
+        "Sentaku wo seiton"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 133,
+      "name": "FinderLabelMenu",
+      "data": { "strings": [
+        "Nashi",
+        "Juuyou",
+        "Kinkyuu",
+        "Shinkouchuu",
+        "Cool",
+        "Kojin",
+        "Project 1",
+        "Project 2"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 134,
+      "name": "FinderSpecialMenu",
+      "data": { "strings": [
+        "Desktop wo seiton",
+        "Gomi-bako wo karani suru",
+        "Toridashi/E",
+        "Disk wo shoukyo",
+        "Saikidon",
+        "Shisutem shuryou"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 135,
+      "name": "FinderControlPanels",
+      "data": { "strings": [
+        "Desktop Pattern...",
+        "Hiduke to Jikoku...",
+        "Sound...",
+        "Mouse...",
+        "Keyboard...",
+        "Control Strip..."
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 140,
+      "name": "FinderAbout",
+      "data": { "strings": [
+        "Kono Macintosh ni tsuite",
+        "Naizou memory",
+        "Saidai misiyou block",
+        "System Software",
+        "Goukei memory",
+        "Memory",
+        "System",
+        "Applications",
+        "Misiyou"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 400,
+      "name": "WindowManager",
+      "data": { "strings": [
+        "Mudai"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 500,
+      "name": "DialogManager",
+      "data": { "strings": [
+        "OK",
+        "Cancel",
+        "Hai",
+        "Iie",
+        "Hozon",
+        "Hozon shinai"
+      ]}
+    }
+  ]
+}

@@ -1,0 +1,220 @@
+{
+  "resources": [
+    {
+      "type": "STR#",
+      "id": 128,
+      "name": "FinderMenuTitles",
+      "data": { "strings": [
+        "Ablage",
+        "Bearbeiten",
+        "Darstellung",
+        "Etikett",
+        "Extras",
+        "Kontrollfelder"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 129,
+      "name": "FinderAppleMenu",
+      "data": { "strings": [
+        "\u00dcber diesen Macintosh",
+        "Kontrollfelder>",
+        "Notizblock"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 130,
+      "name": "FinderFileMenu",
+      "data": { "strings": [
+        "Neuer Ordner/N",
+        "\u00d6ffnen/O",
+        "Drucken/P",
+        "Schlie\u00dfen/W",
+        "Information/I",
+        "Gemeinsam nutzen...",
+        "Duplizieren/D",
+        "Alias erzeugen",
+        "Zur\u00fccklegen/Y",
+        "Suchen.../F",
+        "Weitersuchen/G"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 131,
+      "name": "FinderEditMenu",
+      "data": { "strings": [
+        "Widerrufen/Z",
+        "Ausschneiden/X",
+        "Kopieren/C",
+        "Einsetzen/V",
+        "L\u00f6schen",
+        "Alles ausw\u00e4hlen/A"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 132,
+      "name": "FinderViewMenu",
+      "data": { "strings": [
+        "als Symbole",
+        "nach Name",
+        "nach Gr\u00f6\u00dfe",
+        "nach Art",
+        "nach Etikett",
+        "nach Datum",
+        "Fenster aufr\u00e4umen",
+        "Auswahl aufr\u00e4umen"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 133,
+      "name": "FinderLabelMenu",
+      "data": { "strings": [
+        "Ohne",
+        "Wichtig",
+        "Hei\u00df",
+        "In Bearbeitung",
+        "Cool",
+        "Pers\u00f6nlich",
+        "Projekt 1",
+        "Projekt 2"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 134,
+      "name": "FinderSpecialMenu",
+      "data": { "strings": [
+        "Schreibtisch aufr\u00e4umen",
+        "Papierkorb leeren",
+        "Auswerfen/E",
+        "Festplatte l\u00f6schen",
+        "Neustart",
+        "Ausschalten"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 135,
+      "name": "FinderControlPanels",
+      "data": { "strings": [
+        "Schreibtischmuster...",
+        "Datum & Uhrzeit...",
+        "Ton...",
+        "Maus...",
+        "Tastatur...",
+        "Kontrollstreifen..."
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 140,
+      "name": "FinderAbout",
+      "data": { "strings": [
+        "\u00dcber diesen Macintosh",
+        "Eingebauter Speicher",
+        "Gr\u00f6\u00dfter freier Block",
+        "Systemsoftware",
+        "Gesamtspeicher",
+        "Speicher",
+        "System",
+        "Programme",
+        "Frei"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 141,
+      "name": "FinderGetInfo",
+      "data": { "strings": [
+        "Information",
+        "Art:",
+        "Gr\u00f6\u00dfe:",
+        "Ort:",
+        "Erstellt:",
+        "Ge\u00e4ndert:"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 142,
+      "name": "FinderFind",
+      "data": { "strings": [
+        "Suchen",
+        "Suchen:",
+        "Suchen"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 143,
+      "name": "FinderTrash",
+      "data": { "strings": [
+        "Papierkorb",
+        "M\u00f6chten Sie die Objekte im Papierkorb wirklich endg\u00fcltig l\u00f6schen?",
+        "Objekte im Papierkorb"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 150,
+      "name": "FinderDesktop",
+      "data": { "strings": [
+        "Macintosh HD",
+        "Papierkorb",
+        "Programme",
+        "Dokumente",
+        "Systemordner"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 400,
+      "name": "WindowManager",
+      "data": { "strings": [
+        "Ohne Titel"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 500,
+      "name": "DialogManager",
+      "data": { "strings": [
+        "OK",
+        "Abbrechen",
+        "Ja",
+        "Nein",
+        "Sichern",
+        "Nicht sichern"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 600,
+      "name": "StandardFile",
+      "data": { "strings": [
+        "\u00d6ffnen",
+        "Sichern",
+        "Abbrechen",
+        "Auswerfen",
+        "Schreibtisch",
+        "Ohne Titel"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 800,
+      "name": "SystemStrings",
+      "data": { "strings": [
+        "Neustart",
+        "Ausschalten",
+        "Ein Systemfehler ist aufgetreten.",
+        "Nicht gen\u00fcgend Speicher."
+      ]}
+    }
+  ]
+}

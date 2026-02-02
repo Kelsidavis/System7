@@ -1,0 +1,80 @@
+{
+  "_comment": "Korean - placeholder with romanized text until CJK font support is added",
+  "resources": [
+    {
+      "type": "STR#",
+      "id": 128,
+      "name": "FinderMenuTitles",
+      "data": { "strings": [
+        "Pail",
+        "Pyeonjip",
+        "Bogi",
+        "Reibeol",
+        "Teukbyeol",
+        "Jeopan"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 129,
+      "name": "FinderAppleMenu",
+      "data": { "strings": [
+        "I Macintosh e daehayeo",
+        "Jeopan>",
+        "Meomojang"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 130,
+      "name": "FinderFileMenu",
+      "data": { "strings": [
+        "Sae poldeo/N",
+        "Yeolgi/O",
+        "Inswae/P",
+        "Datgi/W",
+        "Jeongbo bogi/I",
+        "Gongyu...",
+        "Bogsahagi/D",
+        "Byeolching mandeulgi",
+        "Wonrae jariro/Y",
+        "Chatgi.../F",
+        "Dasi chatgi/G"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 131,
+      "name": "FinderEditMenu",
+      "data": { "strings": [
+        "Silhaeng chwiso/Z",
+        "Jareugi/X",
+        "Boksahagi/C",
+        "Butigi/V",
+        "Jiungi",
+        "Modu sontaek/A"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 400,
+      "name": "WindowManager",
+      "data": { "strings": [
+        "Jemok eobseum"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 500,
+      "name": "DialogManager",
+      "data": { "strings": [
+        "Hwagyin",
+        "Chwiso",
+        "Ye",
+        "Aniyo",
+        "Jeojang",
+        "Jeojang an ham"
+      ]}
+    }
+  ]
+}

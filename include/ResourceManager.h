@@ -253,6 +253,14 @@ void* StripAddress(void* ptr);
 /* Initialize Resource Manager */
 void InitResourceManager(void);
 
+/* Open in-memory resource data as a resource file.
+ * Data must remain valid for lifetime of the resource file.
+ * Returns refNum >= 0 on success, -1 on error. */
+SInt16 OpenResMemory(const unsigned char* data, UInt32 size);
+
+/* Close an in-memory resource file opened with OpenResMemory */
+void CloseResMemory(SInt16 refNum);
+
 /* Cleanup Resource Manager */
 void CleanupResourceManager(void);
 

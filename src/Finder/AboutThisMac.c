@@ -14,6 +14,8 @@
 #include "Platform/platform_info.h"
 #include "Gestalt/Gestalt.h"
 #include "Platform/include/boot.h"
+#include "LocaleManager/LocaleManager.h"
+#include "LocaleManager/StringIDs.h"
 
 /* For debug logging */
 extern void serial_printf(const char* fmt, ...);
@@ -348,9 +350,7 @@ static void AboutWindow_CreateIfNeeded(void)
     bounds.right = bounds.left + 540;  /* Width: 540 pixels */
 
     /* Create window with movable dialog box proc, close box enabled */
-    const char* titleText = "About This Macintosh";
-    title[0] = (unsigned char)strlen(titleText);
-    strcpy((char*)&title[1], titleText);
+    GetLocalizedString(title, kSTRListFinderAbout, kStrAboutTitle);
 
     serial_puts("[ABOUT] CreateIfNeeded: About to call NewWindow\n");
 
@@ -662,7 +662,7 @@ Boolean AboutWindow_HandleUpdate(WindowPtr w)
 
     /* "Memory" label */
     Str255 memLbl;
-    ToPStr("Memory", memLbl);
+    GetLocalizedString(memLbl, kSTRListFinderAbout, kStrMemoryLabel);
     MoveTo(leftCol, box.top + 14);
     DrawString(memLbl);
     short y = box.top + 32;             /* first line baseline */
@@ -670,7 +670,7 @@ Boolean AboutWindow_HandleUpdate(WindowPtr w)
 
     /* Built-in Memory */
     Str255 l1, v1;
-    ToPStr("Built-in Memory", l1);
+    GetLocalizedString(l1, kSTRListFinderAbout, kStrBuiltInMemory);
     MoveTo(leftCol, y);
     DrawString(l1);
     FormatKB_PStr(mem.totalRAM, v1);
@@ -679,7 +679,7 @@ Boolean AboutWindow_HandleUpdate(WindowPtr w)
     /* Application Memory */
     y += dy;
     Str255 l2, v2;
-    ToPStr("Application Memory", l2);
+    GetLocalizedString(l2, kSTRListFinderAbout, kStrApplicationsLabel);
     MoveTo(leftCol, y);
     DrawString(l2);
     FormatKB_PStr(mem.appUsed, v2);
@@ -688,7 +688,7 @@ Boolean AboutWindow_HandleUpdate(WindowPtr w)
     /* Largest Unused Block */
     y += dy;
     Str255 l3, v3;
-    ToPStr("Largest Unused Block", l3);
+    GetLocalizedString(l3, kSTRListFinderAbout, kStrLargestUnusedBlock);
     MoveTo(leftCol, y);
     DrawString(l3);
     FormatKB_PStr(mem.largestFree, v3);
@@ -745,9 +745,9 @@ Boolean AboutWindow_HandleUpdate(WindowPtr w)
     TextFont(3);
     TextSize(9);
     Str255 sysS, appS, unusedS;
-    ToPStr("System", sysS);
-    ToPStr("Applications", appS);
-    ToPStr("Unused", unusedS);
+    GetLocalizedString(sysS, kSTRListFinderAbout, kStrSystemLabel);
+    GetLocalizedString(appS, kSTRListFinderAbout, kStrApplicationsLabel);
+    GetLocalizedString(unusedS, kSTRListFinderAbout, kStrUnusedLabel);
     MoveTo(bar.left,  bar.bottom + 12);
     DrawString(sysS);
     MoveTo(bar.left + 60, bar.bottom + 12);

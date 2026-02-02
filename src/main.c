@@ -530,6 +530,18 @@ static void parse_multiboot2(uint32_t magic, uint32_t* mb2_info) {
                 }
                 break;
 
+            case MULTIBOOT_TAG_TYPE_CMDLINE:
+                {
+                    struct multiboot_tag_string* cmdline_tag =
+                        (struct multiboot_tag_string*)tag;
+                    extern const char* g_boot_cmdline;
+                    g_boot_cmdline = cmdline_tag->string;
+                    serial_puts("Command line: ");
+                    serial_puts(cmdline_tag->string);
+                    serial_puts("\n");
+                }
+                break;
+
             case MULTIBOOT_TAG_TYPE_FRAMEBUFFER:
                 {
                     struct multiboot_tag_framebuffer* fb_tag =
@@ -759,6 +771,17 @@ static void init_system71(void) {
     /* Resource Manager - needed for loading resources */
     InitResourceManager();
     serial_puts("  Resource Manager initialized\n");
+
+    /* Locale Manager - internationalization support */
+    {
+        extern OSErr InitLocaleManager(void);
+        OSErr locErr = InitLocaleManager();
+        if (locErr == noErr) {
+            serial_puts("  Locale Manager initialized\n");
+        } else {
+            serial_puts("  Locale Manager init FAILED (non-fatal)\n");
+        }
+    }
 
 #ifdef ENABLE_GESTALT
     /* Mark Resource Manager as initialized */

@@ -1,0 +1,220 @@
+{
+  "resources": [
+    {
+      "type": "STR#",
+      "id": 128,
+      "name": "FinderMenuTitles",
+      "data": { "strings": [
+        "Archivo",
+        "Edici\u00f3n",
+        "Ver",
+        "Etiqueta",
+        "Especial",
+        "Paneles de control"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 129,
+      "name": "FinderAppleMenu",
+      "data": { "strings": [
+        "Acerca de este Macintosh",
+        "Paneles de control>",
+        "Bloc de notas"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 130,
+      "name": "FinderFileMenu",
+      "data": { "strings": [
+        "Nueva carpeta/N",
+        "Abrir/O",
+        "Imprimir/P",
+        "Cerrar/W",
+        "Obtener informaci\u00f3n/I",
+        "Compartir...",
+        "Duplicar/D",
+        "Crear alias",
+        "Devolver/Y",
+        "Buscar.../F",
+        "Buscar de nuevo/G"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 131,
+      "name": "FinderEditMenu",
+      "data": { "strings": [
+        "Deshacer/Z",
+        "Cortar/X",
+        "Copiar/C",
+        "Pegar/V",
+        "Borrar",
+        "Seleccionar todo/A"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 132,
+      "name": "FinderViewMenu",
+      "data": { "strings": [
+        "por icono",
+        "por nombre",
+        "por tama\u00f1o",
+        "por tipo",
+        "por etiqueta",
+        "por fecha",
+        "Ordenar ventana",
+        "Ordenar selecci\u00f3n"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 133,
+      "name": "FinderLabelMenu",
+      "data": { "strings": [
+        "Ninguna",
+        "Esencial",
+        "Urgente",
+        "En progreso",
+        "Relajado",
+        "Personal",
+        "Proyecto 1",
+        "Proyecto 2"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 134,
+      "name": "FinderSpecialMenu",
+      "data": { "strings": [
+        "Ordenar escritorio",
+        "Vaciar la Papelera",
+        "Expulsar/E",
+        "Borrar disco",
+        "Reiniciar",
+        "Apagar"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 135,
+      "name": "FinderControlPanels",
+      "data": { "strings": [
+        "Patrones del escritorio...",
+        "Fecha y hora...",
+        "Sonido...",
+        "Rat\u00f3n...",
+        "Teclado...",
+        "Barra de control..."
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 140,
+      "name": "FinderAbout",
+      "data": { "strings": [
+        "Acerca de este Macintosh",
+        "Memoria integrada",
+        "Bloque libre m\u00e1s grande",
+        "Software del sistema",
+        "Memoria total",
+        "Memoria",
+        "Sistema",
+        "Aplicaciones",
+        "Sin usar"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 141,
+      "name": "FinderGetInfo",
+      "data": { "strings": [
+        "Informaci\u00f3n",
+        "Tipo:",
+        "Tama\u00f1o:",
+        "Ubicaci\u00f3n:",
+        "Creado:",
+        "Modificado:"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 142,
+      "name": "FinderFind",
+      "data": { "strings": [
+        "Buscar",
+        "Buscar:",
+        "Buscar"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 143,
+      "name": "FinderTrash",
+      "data": { "strings": [
+        "Papelera",
+        "\u00bfEst\u00e1 seguro de que desea eliminar permanentemente los elementos de la Papelera?",
+        "elementos en la Papelera"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 150,
+      "name": "FinderDesktop",
+      "data": { "strings": [
+        "Macintosh HD",
+        "Papelera",
+        "Aplicaciones",
+        "Documentos",
+        "Carpeta del Sistema"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 400,
+      "name": "WindowManager",
+      "data": { "strings": [
+        "Sin t\u00edtulo"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 500,
+      "name": "DialogManager",
+      "data": { "strings": [
+        "OK",
+        "Cancelar",
+        "S\u00ed",
+        "No",
+        "Guardar",
+        "No guardar"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 600,
+      "name": "StandardFile",
+      "data": { "strings": [
+        "Abrir",
+        "Guardar",
+        "Cancelar",
+        "Expulsar",
+        "Escritorio",
+        "Sin t\u00edtulo"
+      ]}
+    },
+    {
+      "type": "STR#",
+      "id": 800,
+      "name": "SystemStrings",
+      "data": { "strings": [
+        "Reiniciar",
+        "Apagar",
+        "Ha ocurrido un error del sistema.",
+        "Memoria insuficiente."
+      ]}
+    }
+  ]
+}

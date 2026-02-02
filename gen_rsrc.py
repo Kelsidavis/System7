@@ -156,6 +156,33 @@ def parse_ppat8_data(entry):
 
     return bytes(out)
 
+def parse_str_data(entry):
+    """Parse STR (single string) resource data."""
+    d = entry.get("data", {})
+    s = d.get("string", "")
+    encoded = s.encode("mac_roman", errors="replace")
+    if len(encoded) > 255:
+        encoded = encoded[:255]
+    return bytes([len(encoded)]) + encoded
+
+def parse_str_list_data(entry):
+    """Parse STR# (string list) resource data.
+
+    Format: 2-byte big-endian count + sequence of Pascal strings.
+    """
+    d = entry.get("data", {})
+    strings = d.get("strings", [])
+    out = bytearray()
+    # 2-byte big-endian count of strings
+    out += struct.pack(">H", len(strings))
+    for s in strings:
+        encoded = s.encode("mac_roman", errors="replace")
+        if len(encoded) > 255:
+            encoded = encoded[:255]
+        out.append(len(encoded))  # Pascal length byte
+        out += encoded
+    return bytes(out)
+
 def parse_ppat_raw(entry):
     """Parse raw ppat hex data"""
     d = entry.get("data", {})
@@ -195,6 +222,10 @@ def parse_manifest(manifest):
             # Treat ppat_raw as ppat type
             data = parse_ppat_raw(ent)
             rtype = "ppat"  # Convert to standard ppat type
+        elif rtype == "STR#":
+            data = parse_str_list_data(ent)
+        elif rtype == "STR ":
+            data = parse_str_data(ent)
         else:
             raise NotImplementedError(f"Unsupported type: {rtype}")
         resources.append(Resource(FOURCC(rtype), rid, name, data))
