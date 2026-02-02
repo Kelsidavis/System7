@@ -39,45 +39,46 @@ void pci_write_config_dword(uint8_t bus, uint8_t slot, uint8_t func, uint8_t off
 
 int pci_scan(pci_device_t* devices, int max_devices) {
     int count = 0;
-    uint8_t bus = 0;  // QEMU: все устройства на bus 0
 
-    for (uint8_t slot = 0; slot < 32; slot++) {
-        // Проверяем, есть ли устройство в слоте 0
-        uint32_t vendor_device = pci_read_config_dword(bus, slot, 0, 0x00);
-        uint16_t vendor = vendor_device & 0xFFFF;
-        if (vendor == 0xFFFF) continue;
-
-        // Узнаём, многофункциональное ли устройство
-        uint32_t header = pci_read_config_dword(bus, slot, 0, 0x0C);
-        int multifunction = header & 0x00800000;
-
-        for (uint8_t func = 0; func < (multifunction ? 8 : 1); func++) {
-            vendor_device = pci_read_config_dword(bus, slot, func, 0x00);
-            vendor = vendor_device & 0xFFFF;
+    /* Scan all 256 PCI buses */
+    for (uint16_t bus = 0; bus < 256; bus++) {
+        for (uint8_t slot = 0; slot < 32; slot++) {
+            /* Check if a device is present in this slot */
+            uint32_t vendor_device = pci_read_config_dword((uint8_t)bus, slot, 0, 0x00);
+            uint16_t vendor = vendor_device & 0xFFFF;
             if (vendor == 0xFFFF) continue;
 
-            uint16_t device = (vendor_device >> 16) & 0xFFFF;
+            /* Check if this is a multi-function device */
+            uint32_t header = pci_read_config_dword((uint8_t)bus, slot, 0, 0x0C);
+            int multifunction = header & 0x00800000;
 
-            if (count < max_devices) {
-                devices[count].bus = bus;
-                devices[count].slot = slot;
-                devices[count].func = func;
-                devices[count].vendor_id = vendor;
-                devices[count].device_id = device;
+            for (uint8_t func = 0; func < (multifunction ? 8 : 1); func++) {
+                vendor_device = pci_read_config_dword((uint8_t)bus, slot, func, 0x00);
+                vendor = vendor_device & 0xFFFF;
+                if (vendor == 0xFFFF) continue;
 
-                uint32_t class_reg = pci_read_config_dword(bus, slot, func, 0x08);
-                devices[count].revision = class_reg & 0xFF;
-                devices[count].prog_if = (class_reg >> 8) & 0xFF;
-                devices[count].subclass = (class_reg >> 16) & 0xFF;
-                devices[count].class_code = (class_reg >> 24) & 0xFF;
+                uint16_t device = (vendor_device >> 16) & 0xFFFF;
 
-                devices[count].bar0 = pci_read_config_dword(bus, slot, func, 0x10);
+                if (count < max_devices) {
+                    devices[count].bus = (uint8_t)bus;
+                    devices[count].slot = slot;
+                    devices[count].func = func;
+                    devices[count].vendor_id = vendor;
+                    devices[count].device_id = device;
+
+                    uint32_t class_reg = pci_read_config_dword((uint8_t)bus, slot, func, 0x08);
+                    devices[count].revision = class_reg & 0xFF;
+                    devices[count].prog_if = (class_reg >> 8) & 0xFF;
+                    devices[count].subclass = (class_reg >> 16) & 0xFF;
+                    devices[count].class_code = (class_reg >> 24) & 0xFF;
+
+                    devices[count].bar0 = pci_read_config_dword((uint8_t)bus, slot, func, 0x10);
+                }
+
+                count++;
             }
-
-            count++;
         }
     }
 
     return count;
 }
-

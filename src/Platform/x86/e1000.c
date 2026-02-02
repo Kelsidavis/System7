@@ -3,10 +3,6 @@
 #include "Platform/include/serial.h"
 #include <string.h>
 
-/* ================= CONFIG ================= */
-
-#define MY_IP 0x0A00020F  /* 10.0.2.15 */
-
 /* ============== REGISTERS ================ */
 
 #define E1000_REG_CTRL   0x0000
@@ -22,6 +18,9 @@
 #define E1000_REG_TDLEN  0x3808
 #define E1000_REG_TDH    0x3810
 #define E1000_REG_TDT    0x3818
+
+#define E1000_REG_RAL    0x5400
+#define E1000_REG_RAH    0x5404
 
 #define E1000_RCTL_EN    (1 << 1)
 #define E1000_RCTL_BAM   (1 << 15)
@@ -72,14 +71,6 @@ static inline void mmio_write(uint32_t base, uint32_t reg, uint32_t val) {
 
 static inline uint32_t mmio_read(uint32_t base, uint32_t reg) {
     return *(volatile uint32_t*)(base + reg);
-}
-
-/* ============== PCI ======================= */
-
-static void pci_enable_bus_master(pci_device_t* d) {
-    uint32_t cmd = pci_read_config_dword(d->bus, d->slot, d->func, 0x04);
-    cmd |= (1 << 1) | (1 << 2);
-    pci_write_config_dword(d->bus, d->slot, d->func, 0x04, cmd);
 }
 
 /* ============== NET STRUCTS =============== */
@@ -141,7 +132,7 @@ static uint16_t checksum(void* data, int len) {
 static void e1000_send(e1000_t* dev, void* data, uint16_t len) {
     memcpy(tx_buf[tx_idx], data, len);
 
-    tx_ring[tx_idx].addr   = (uint64_t)tx_buf[tx_idx];
+    tx_ring[tx_idx].addr   = (uint64_t)(uint32_t)tx_buf[tx_idx];
     tx_ring[tx_idx].length = len;
     tx_ring[tx_idx].cmd    = 0x0B; /* EOP | IFCS | RS */
     tx_ring[tx_idx].status = 0;
@@ -157,7 +148,7 @@ static void handle_arp(e1000_t* dev, uint8_t* pkt) {
     arp_pkt_t* arp = (arp_pkt_t*)(pkt + sizeof(*eth));
 
     if (__builtin_bswap16(arp->oper) != 1) return;
-    if (__builtin_bswap32(arp->tpa) != MY_IP) return;
+    if (__builtin_bswap32(arp->tpa) != dev->ip) return;
 
     uint8_t out[64];
     eth_hdr_t* re = (eth_hdr_t*)out;
@@ -170,57 +161,90 @@ static void handle_arp(e1000_t* dev, uint8_t* pkt) {
     *ra = *arp;
     ra->oper = __builtin_bswap16(2);
     memcpy(ra->sha, dev->mac, 6);
-    ra->spa = __builtin_bswap32(MY_IP);
+    ra->spa = __builtin_bswap32(dev->ip);
     memcpy(ra->tha, arp->sha, 6);
     ra->tpa = arp->spa;
 
     e1000_send(dev, out, sizeof(*re) + sizeof(*ra));
 }
 
-/* ============== ICMP ====================== */
+/* ============== IP ======================== */
 
-static void handle_icmp(e1000_t* dev, uint8_t* pkt, uint16_t len) {
+static void handle_ip(e1000_t* dev, uint8_t* pkt, uint16_t len) {
     eth_hdr_t* eth = (eth_hdr_t*)pkt;
     ip_hdr_t* ip   = (ip_hdr_t*)(pkt + sizeof(*eth));
-    icmp_hdr_t* ic = (icmp_hdr_t*)((uint8_t*)ip + 20);
 
-    if (ic->type != 8) return;
+    if (ip->proto == 1) {
+        /* ICMP */
+        icmp_hdr_t* ic = (icmp_hdr_t*)((uint8_t*)ip + 20);
+        if (ic->type != 8) return; /* Only handle echo request */
 
-    uint8_t out[ETH_FRAME_SIZE];
-    memcpy(out, pkt, len);
+        uint8_t out[ETH_FRAME_SIZE];
+        memcpy(out, pkt, len);
 
-    eth_hdr_t* re = (eth_hdr_t*)out;
-    ip_hdr_t* rip = (ip_hdr_t*)(out + sizeof(*re));
-    icmp_hdr_t* ric = (icmp_hdr_t*)((uint8_t*)rip + 20);
+        eth_hdr_t* re = (eth_hdr_t*)out;
+        ip_hdr_t* rip = (ip_hdr_t*)(out + sizeof(*re));
+        icmp_hdr_t* ric = (icmp_hdr_t*)((uint8_t*)rip + 20);
 
-    memcpy(re->dst, eth->src, 6);
-    memcpy(re->src, dev->mac, 6);
+        memcpy(re->dst, eth->src, 6);
+        memcpy(re->src, dev->mac, 6);
 
-    uint32_t t = rip->src; rip->src = rip->dst; rip->dst = t;
+        uint32_t t = rip->src; rip->src = rip->dst; rip->dst = t;
 
-    ric->type = 0;
-    ric->csum = 0;
-    ric->csum = checksum(ric, len - sizeof(*re) - 20);
+        ric->type = 0; /* Echo reply */
+        ric->csum = 0;
+        ric->csum = checksum(ric, len - sizeof(*re) - 20);
 
-    rip->csum = 0;
-    rip->csum = checksum(rip, 20);
+        rip->csum = 0;
+        rip->csum = checksum(rip, 20);
 
-    e1000_send(dev, out, len);
+        e1000_send(dev, out, len);
+    }
 }
 
 /* ============== INIT ====================== */
 
 int e1000_init(e1000_t* dev, pci_device_t* pci) {
     dev->mmio_base = pci->bar0 & 0xFFFFFFF0;
-    pci_enable_bus_master(pci);
 
-    dev->mac[0]=0x52; dev->mac[1]=0x54; dev->mac[2]=0x00;
-    dev->mac[3]=0x12; dev->mac[4]=0x34; dev->mac[5]=0x56;
-
+    /* Device reset */
     mmio_write(dev->mmio_base, E1000_REG_CTRL, 1 << 26);
 
+    /* Brief delay for reset to begin */
+    for (volatile int i = 0; i < 10000; i++) { }
+
+    /* Wait for reset to self-clear (bit 26) */
+    {
+        int timeout = 100000;
+        while ((mmio_read(dev->mmio_base, E1000_REG_CTRL) & (1 << 26)) && --timeout > 0) {
+            for (volatile int i = 0; i < 100; i++) { }
+        }
+    }
+
+    /* Read MAC from RAL/RAH registers (populated by EEPROM auto-load after reset) */
+    uint32_t ral = mmio_read(dev->mmio_base, E1000_REG_RAL);
+    uint32_t rah = mmio_read(dev->mmio_base, E1000_REG_RAH);
+
+    if (ral != 0) {
+        dev->mac[0] = (uint8_t)(ral);
+        dev->mac[1] = (uint8_t)(ral >> 8);
+        dev->mac[2] = (uint8_t)(ral >> 16);
+        dev->mac[3] = (uint8_t)(ral >> 24);
+        dev->mac[4] = (uint8_t)(rah);
+        dev->mac[5] = (uint8_t)(rah >> 8);
+    } else {
+        /* Fallback: default QEMU MAC */
+        dev->mac[0]=0x52; dev->mac[1]=0x54; dev->mac[2]=0x00;
+        dev->mac[3]=0x12; dev->mac[4]=0x34; dev->mac[5]=0x56;
+    }
+
+    serial_printf("[E1000] MAC: %02x:%02x:%02x:%02x:%02x:%02x\n",
+        dev->mac[0], dev->mac[1], dev->mac[2],
+        dev->mac[3], dev->mac[4], dev->mac[5]);
+
+    /* Setup RX ring */
     for (int i = 0; i < RX_RING_SIZE; i++) {
-        rx_ring[i].addr = (uint64_t)rx_buf[i];
+        rx_ring[i].addr = (uint64_t)(uint32_t)rx_buf[i];
         rx_ring[i].status = 0;
     }
 
@@ -229,14 +253,17 @@ int e1000_init(e1000_t* dev, pci_device_t* pci) {
     mmio_write(dev->mmio_base, E1000_REG_RDH, 0);
     mmio_write(dev->mmio_base, E1000_REG_RDT, RX_RING_SIZE - 1);
 
+    /* Setup TX ring */
     mmio_write(dev->mmio_base, E1000_REG_TDBAL, (uint32_t)tx_ring);
     mmio_write(dev->mmio_base, E1000_REG_TDLEN, TX_RING_SIZE * sizeof(tx_desc_t));
     mmio_write(dev->mmio_base, E1000_REG_TDH, 0);
     mmio_write(dev->mmio_base, E1000_REG_TDT, 0);
 
+    /* Enable RX */
     mmio_write(dev->mmio_base, E1000_REG_RCTL,
         E1000_RCTL_EN | E1000_RCTL_BAM | E1000_RCTL_SECRC);
 
+    /* Enable TX */
     mmio_write(dev->mmio_base, E1000_REG_TCTL,
         E1000_TCTL_EN | E1000_TCTL_PSP | E1000_TCTL_CT | E1000_TCTL_COLD);
 
@@ -246,20 +273,23 @@ int e1000_init(e1000_t* dev, pci_device_t* pci) {
 /* ============== POLL ====================== */
 
 void e1000_poll(e1000_t* dev) {
-    rx_desc_t* d = &rx_ring[rx_idx];
+    int budget = 16;
 
-    if (!(d->status & 0x01)) return;
+    while (budget-- > 0) {
+        rx_desc_t* d = &rx_ring[rx_idx];
+        if (!(d->status & 0x01)) break;
 
-    uint8_t* pkt = rx_buf[rx_idx];
-    uint16_t len = d->length;
+        uint8_t* pkt = rx_buf[rx_idx];
+        uint16_t len = d->length;
 
-    eth_hdr_t* eth = (eth_hdr_t*)pkt;
-    uint16_t type = __builtin_bswap16(eth->type);
+        eth_hdr_t* eth = (eth_hdr_t*)pkt;
+        uint16_t type = __builtin_bswap16(eth->type);
 
-    if (type == 0x0806) handle_arp(dev, pkt);
-    if (type == 0x0800) handle_icmp(dev, pkt, len);
+        if (type == 0x0806) handle_arp(dev, pkt);
+        if (type == 0x0800) handle_ip(dev, pkt, len);
 
-    d->status = 0;
-    mmio_write(dev->mmio_base, E1000_REG_RDT, rx_idx);
-    rx_idx = (rx_idx + 1) % RX_RING_SIZE;
+        d->status = 0;
+        mmio_write(dev->mmio_base, E1000_REG_RDT, rx_idx);
+        rx_idx = (rx_idx + 1) % RX_RING_SIZE;
+    }
 }

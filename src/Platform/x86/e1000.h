@@ -1,4 +1,6 @@
-#pragma once
+#ifndef E1000_H
+#define E1000_H
+
 #include <stdint.h>
 #include "pci.h"
 
@@ -15,7 +17,10 @@ typedef struct {
     uint8_t  func;
     uint32_t mmio_base;
     uint8_t  mac[6];
+    uint32_t ip;
 } e1000_t;
 
 int  e1000_init(e1000_t* dev, pci_device_t* pci_dev);
 void e1000_poll(e1000_t* dev);
+
+#endif /* E1000_H */

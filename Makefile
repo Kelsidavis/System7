@@ -307,7 +307,8 @@ C_SOURCES = src/main.c \
               src/Platform/arm/dwcotg.c \
               src/Platform/arm/usb_controller.c \
               src/Platform/arm/hid_input.c \
-              src/Platform/arm/input_stubs.c, \
+              src/Platform/arm/input_stubs.c \
+              src/Platform/arm/network.c, \
             $(if $(filter ppc,$(PLATFORM)), \
                 src/Platform/ppc/hal_boot.c \
                 src/Platform/ppc/io.c \
@@ -316,7 +317,8 @@ C_SOURCES = src/main.c \
                 src/Platform/ppc/storage.c \
                 src/Platform/ppc/open_firmware.c \
                 src/Platform/ppc/escc_uart.c \
-                src/Platform/ppc/input_stubs.c, \
+                src/Platform/ppc/input_stubs.c \
+                src/Platform/ppc/network.c, \
                 src/Platform/x86/io.c \
                 src/Platform/x86/ata.c \
                 src/Platform/x86/ps2.c \

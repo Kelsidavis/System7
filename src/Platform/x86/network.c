@@ -41,6 +41,7 @@ int platform_network_init(void) {
             );
 
             e1000_init(&g_e1000, &devices[i]);
+            g_e1000.ip = 0x0A00020F; /* 10.0.2.15 - default for QEMU user-mode networking */
             return 0;
         }
     }
