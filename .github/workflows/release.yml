@@ -57,27 +57,25 @@ jobs:
             python3 \
             vim-common
 
-      - name: Build kernel (English)
-        run: make PLATFORM=x86
-
-      - name: Build ISO (English)
-        run: make iso
-
-      - name: Save English artifacts
+      - name: Build per-language artifacts
         run: |
-          cp kernel.elf kernel-en.elf
-          cp system71.iso system71-en.iso
-
-      - name: Build multi-language kernel
-        run: |
+          for lang in en fr de es ja zh ko ru uk pl cs sq bg hr da nl et fi el hu is it lv lt mk me no pt ro sk sl sv tr hi tw ar bn ur; do
+            echo "Building $lang..."
+            make clean
+            if [[ "$lang" == "en" ]]; then
+              make PLATFORM=x86
+            else
+              LANG_UPPER=$(echo "$lang" | tr '[:lower:]' '[:upper:]')
+              make PLATFORM=x86 "LOCALE_${LANG_UPPER}=1"
+            fi
+            make iso
+            cp kernel.elf "kernel-${lang}.elf"
+            cp system71.iso "system71-${lang}.iso"
+          done
+          echo "Building all-languages..."
           make clean
           make PLATFORM=x86 LOCALE_FR=1 LOCALE_DE=1 LOCALE_ES=1 LOCALE_JA=1 LOCALE_ZH=1 LOCALE_KO=1 LOCALE_RU=1 LOCALE_UK=1 LOCALE_PL=1 LOCALE_CS=1 LOCALE_SQ=1 LOCALE_BG=1 LOCALE_HR=1 LOCALE_DA=1 LOCALE_NL=1 LOCALE_ET=1 LOCALE_FI=1 LOCALE_EL=1 LOCALE_HU=1 LOCALE_IS=1 LOCALE_IT=1 LOCALE_LV=1 LOCALE_LT=1 LOCALE_MK=1 LOCALE_ME=1 LOCALE_NO=1 LOCALE_PT=1 LOCALE_RO=1 LOCALE_SK=1 LOCALE_SL=1 LOCALE_SV=1 LOCALE_TR=1 LOCALE_HI=1 LOCALE_TW=1 LOCALE_AR=1 LOCALE_BN=1 LOCALE_UR=1
-
-      - name: Build multi-language ISO
-        run: make iso
-
-      - name: Save multi-language artifacts
-        run: |
+          make iso
           cp kernel.elf kernel-all-languages.elf
           cp system71.iso system71-all-languages.iso
 
@@ -117,10 +115,8 @@ jobs:
           draft: false
           prerelease: false
           files: |
-            system71-en.iso
-            kernel-en.elf
-            system71-all-languages.iso
-            kernel-all-languages.elf
+            system71-*.iso
+            kernel-*.elf
           body: |
             ## System7 ${{ steps.version.outputs.VERSION }}
 
@@ -128,21 +124,22 @@ jobs:
 
             ### Downloads
 
-            **English only (smaller image):**
-            - `system71-en.iso` - Bootable ISO image (English)
-            - `kernel-en.elf` - Kernel binary (English)
+            **Per-language ISOs and kernels (one ISO per locale):**
+            - `system71-<lang>.iso` - Bootable ISO image for a single locale
+            - `kernel-<lang>.elf` - Kernel binary for a single locale
 
-            **All languages (34 locales including English, French, German, Spanish, Italian, Portuguese, Dutch, Danish, Norwegian, Swedish, Finnish, Icelandic, Greek, Turkish, Polish, Czech, Slovak, Slovenian, Croatian, Hungarian, Romanian, Bulgarian, Albanian, Estonian, Latvian, Lithuanian, Macedonian, Montenegrin, Russian, Ukrainian, Japanese, Chinese, Korean, Hindi):**
-            - `system71-all-languages.iso` - Bootable ISO image (all languages)
-            - `kernel-all-languages.elf` - Kernel binary (all languages)
+            Supported locales: `en`, `fr`, `de`, `es`, `ja`, `zh`, `ko`, `ru`, `uk`, `pl`, `cs`, `sq`, `bg`, `hr`, `da`, `nl`, `et`, `fi`, `el`, `hu`, `is`, `it`, `lv`, `lt`, `mk`, `me`, `no`, `pt`, `ro`, `sk`, `sl`, `sv`, `tr`, `hi`, `tw`, `ar`, `bn`, `ur`.
+
+            **All languages (single ISO containing every locale):**
+            - `system71-all-languages.iso` - Bootable ISO image (all locales)
+            - `kernel-all-languages.elf` - Kernel binary (all locales)
 
             ### Running
             ```bash
-            # English only
-            qemu-system-i386 -cdrom system71-en.iso -serial stdio -display sdl -m 256M
+            # Example: French
+            qemu-system-i386 -cdrom system71-fr.iso -serial stdio -display sdl -m 256M
 
-            # Multi-language (select language via GRUB boot parameter)
-            # Available: en, fr, de, es, it, pt, nl, da, no, sv, fi, is, el, tr, pl, cs, sk, sl, hr, hu, ro, bg, sq, et, lv, lt, mk, me, ru, uk, ja, zh, ko, hi
+            # All languages
             qemu-system-i386 -cdrom system71-all-languages.iso -serial stdio -display sdl -m 256M
             ```
         env:
