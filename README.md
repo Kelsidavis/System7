@@ -1,6 +1,6 @@
 # System 7 - Portable Open-Source Reimplementation
 
-**[English](README.md)** | **[Fran&ccedil;ais](README.fr.md)** | **[Deutsch](README.de.md)** | **[Espa&ntilde;ol](README.es.md)** | **[日本語](README.ja.md)** | **[中文](README.zh.md)** | **[한국어](README.ko.md)** | **[Русский](README.ru.md)** | **[Українська](README.uk.md)** | **[Polski](README.pl.md)** | **[Čeština](README.cs.md)**
+**[English](README.md)** | **[Fran&ccedil;ais](README.fr.md)** | **[Deutsch](README.de.md)** | **[Espa&ntilde;ol](README.es.md)** | **[Italiano](README.it.md)** | **[Portugu&ecirc;s](README.pt.md)** | **[Nederlands](README.nl.md)** | **[Dansk](README.da.md)** | **[Norsk](README.no.md)** | **[Svenska](README.sv.md)** | **[Suomi](README.fi.md)** | **[&Iacute;slenska](README.is.md)** | **[Ελληνικά](README.el.md)** | **[T&uuml;rk&ccedil;e](README.tr.md)** | **[Polski](README.pl.md)** | **[Čeština](README.cs.md)** | **[Slovenčina](README.sk.md)** | **[Slovenščina](README.sl.md)** | **[Hrvatski](README.hr.md)** | **[Magyar](README.hu.md)** | **[Rom&acirc;n&atilde;](README.ro.md)** | **[Български](README.bg.md)** | **[Shqip](README.sq.md)** | **[Eesti](README.et.md)** | **[Latviešu](README.lv.md)** | **[Lietuvių](README.lt.md)** | **[Македонски](README.mk.md)** | **[Crnogorski](README.me.md)** | **[Русский](README.ru.md)** | **[Українська](README.uk.md)** | **[العربية](README.ar.md)** | **[日本語](README.ja.md)** | **[简体中文](README.zh.md)** | **[繁體中文](README.tw.md)** | **[한국어](README.ko.md)** | **[हिन्दी](README.hi.md)** | **[বাংলা](README.bn.md)** | **[اردو](README.ur.md)**
 
 <img width="793" height="657" alt="System 7 running on modern hardware" src="https://github.com/user-attachments/assets/be84b83e-191c-4f9d-a786-11d0bd04203b" />
 <img width="801" height="662" alt="simpletextworks" src="https://github.com/user-attachments/assets/7c9ebe5b-22b4-4612-93a1-2076909d77cd" />
@@ -45,7 +45,7 @@ An open-source reimplementation of Apple Macintosh System 7 for modern x86 hardw
 - **Graphics Foundation**: VESA framebuffer (800x600x32) with QuickDraw primitives including XOR mode
 - **Desktop Rendering**: System 7 menu bar with rainbow Apple logo, icons, and desktop patterns
 - **Typography**: Chicago bitmap font with pixel-perfect rendering and proper kerning, extended Mac Roman (0x80-0xFF) for European accented characters
-- **Internationalization (i18n)**: Resource-based localization with 11 languages (English, French, German, Spanish, Japanese, Chinese, Korean, Russian, Ukrainian, Polish, Czech), Locale Manager with boot-time language selection, CJK multi-byte encoding infrastructure
+- **Internationalization (i18n)**: Resource-based localization with 38 languages (English, French, German, Spanish, Italian, Portuguese, Dutch, Danish, Norwegian, Swedish, Finnish, Icelandic, Greek, Turkish, Polish, Czech, Slovak, Slovenian, Croatian, Hungarian, Romanian, Bulgarian, Albanian, Estonian, Latvian, Lithuanian, Macedonian, Montenegrin, Russian, Ukrainian, Arabic, Japanese, Simplified Chinese, Traditional Chinese, Korean, Hindi, Bengali, Urdu), Locale Manager with boot-time language selection, CJK multi-byte encoding infrastructure
 - **Font Manager**: Multi-size support (9-24pt), style synthesis, FOND/NFNT parsing, LRU caching
 - **Input System**: PS/2 keyboard and mouse with complete event forwarding
 - **Event Manager**: Cooperative multitasking via WaitNextEvent with unified event queue
@@ -142,7 +142,7 @@ make PLATFORM=ppc        # experimental; requires PowerPC ELF toolchain
 make iso
 
 # Build with all languages
-make LOCALE_FR=1 LOCALE_DE=1 LOCALE_ES=1 LOCALE_JA=1 LOCALE_ZH=1 LOCALE_KO=1 LOCALE_RU=1 LOCALE_UK=1 LOCALE_PL=1 LOCALE_CS=1
+make LOCALE_FR=1 LOCALE_DE=1 LOCALE_ES=1 LOCALE_JA=1 LOCALE_ZH=1 LOCALE_KO=1 LOCALE_RU=1 LOCALE_UK=1 LOCALE_PL=1 LOCALE_CS=1 LOCALE_SQ=1 LOCALE_BG=1 LOCALE_HR=1 LOCALE_DA=1 LOCALE_NL=1 LOCALE_ET=1 LOCALE_FI=1 LOCALE_EL=1 LOCALE_HU=1 LOCALE_IS=1 LOCALE_IT=1 LOCALE_LV=1 LOCALE_LT=1 LOCALE_MK=1 LOCALE_ME=1 LOCALE_NO=1 LOCALE_PT=1 LOCALE_RO=1 LOCALE_SK=1 LOCALE_SL=1 LOCALE_SV=1 LOCALE_TR=1 LOCALE_HI=1 LOCALE_TW=1 LOCALE_AR=1 LOCALE_BN=1 LOCALE_UR=1
 
 # Build with a single additional language
 make LOCALE_FR=1
@@ -197,7 +197,7 @@ make debug
 
 ### Internationalization
 - **Locale Manager**: `include/LocaleManager/` — runtime locale switching, boot-time language selection
-- **String Resources**: `resources/strings/` — per-language STR# resource files (en, fr, de, es, ja, zh, ko, ru, uk, pl, cs)
+- **String Resources**: `resources/strings/` — per-language STR# resource files (34 languages)
 - **Extended Fonts**: `include/chicago_font_extended.h` — Mac Roman 0x80-0xFF glyphs for European characters
 - **CJK Support**: `include/TextEncoding/CJKEncoding.h`, `include/FontManager/CJKFont.h` — multi-byte encoding and font infrastructure
 

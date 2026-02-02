@@ -36,8 +36,35 @@ typedef struct LocaleRef {
 #define kLocaleIDUkrainian  8
 #define kLocaleIDPolish     9
 #define kLocaleIDCzech      10
+#define kLocaleIDAlbanian   11
+#define kLocaleIDBulgarian  12
+#define kLocaleIDCroatian   13
+#define kLocaleIDDanish     14
+#define kLocaleIDDutch      15
+#define kLocaleIDEstonian   16
+#define kLocaleIDFinnish    17
+#define kLocaleIDGreek      18
+#define kLocaleIDHungarian  19
+#define kLocaleIDIcelandic  20
+#define kLocaleIDItalian    21
+#define kLocaleIDLatvian    22
+#define kLocaleIDLithuanian 23
+#define kLocaleIDMacedonian 24
+#define kLocaleIDMontenegrin 25
+#define kLocaleIDNorwegian  26
+#define kLocaleIDPortuguese 27
+#define kLocaleIDRomanian   28
+#define kLocaleIDSlovak     29
+#define kLocaleIDSlovenian  30
+#define kLocaleIDSwedish    31
+#define kLocaleIDTurkish    32
+#define kLocaleIDHindi      33
+#define kLocaleIDTradChinese 34
+#define kLocaleIDArabic     35
+#define kLocaleIDBengali    36
+#define kLocaleIDUrdu       37
 
-#define kLocaleCount        11
+#define kLocaleCount        38
 
 /* ---- Initialization ----------------------------------------------------- */
 

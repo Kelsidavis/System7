@@ -805,6 +805,357 @@ src/strings_cs_rsrc.c: $(BUILD_DIR)/Strings_cs.rsrc
 	@echo 'const unsigned int strings_cs_rsrc_size = sizeof(strings_cs_rsrc_data);' >> $@
 endif
 
+ifeq ($(LOCALE_SQ),1)
+CFLAGS += -DLOCALE_SQ=1
+C_SOURCES += src/strings_sq_rsrc.c
+$(BUILD_DIR)/Strings_sq.rsrc: resources/strings/sq.json gen_rsrc.py | $(BUILD_DIR)
+	@python3 gen_rsrc.py resources/strings/sq.json $@
+src/strings_sq_rsrc.c: $(BUILD_DIR)/Strings_sq.rsrc
+	@echo '/* Auto-generated from Strings_sq.rsrc */' > $@
+	@echo 'const unsigned char strings_sq_rsrc_data[] = {' >> $@
+	@xxd -i < $< >> $@
+	@echo '};' >> $@
+	@echo 'const unsigned int strings_sq_rsrc_size = sizeof(strings_sq_rsrc_data);' >> $@
+endif
+
+ifeq ($(LOCALE_BG),1)
+CFLAGS += -DLOCALE_BG=1
+C_SOURCES += src/strings_bg_rsrc.c
+$(BUILD_DIR)/Strings_bg.rsrc: resources/strings/bg.json gen_rsrc.py | $(BUILD_DIR)
+	@python3 gen_rsrc.py resources/strings/bg.json $@
+src/strings_bg_rsrc.c: $(BUILD_DIR)/Strings_bg.rsrc
+	@echo '/* Auto-generated from Strings_bg.rsrc */' > $@
+	@echo 'const unsigned char strings_bg_rsrc_data[] = {' >> $@
+	@xxd -i < $< >> $@
+	@echo '};' >> $@
+	@echo 'const unsigned int strings_bg_rsrc_size = sizeof(strings_bg_rsrc_data);' >> $@
+endif
+
+ifeq ($(LOCALE_HR),1)
+CFLAGS += -DLOCALE_HR=1
+C_SOURCES += src/strings_hr_rsrc.c
+$(BUILD_DIR)/Strings_hr.rsrc: resources/strings/hr.json gen_rsrc.py | $(BUILD_DIR)
+	@python3 gen_rsrc.py resources/strings/hr.json $@
+src/strings_hr_rsrc.c: $(BUILD_DIR)/Strings_hr.rsrc
+	@echo '/* Auto-generated from Strings_hr.rsrc */' > $@
+	@echo 'const unsigned char strings_hr_rsrc_data[] = {' >> $@
+	@xxd -i < $< >> $@
+	@echo '};' >> $@
+	@echo 'const unsigned int strings_hr_rsrc_size = sizeof(strings_hr_rsrc_data);' >> $@
+endif
+
+ifeq ($(LOCALE_DA),1)
+CFLAGS += -DLOCALE_DA=1
+C_SOURCES += src/strings_da_rsrc.c
+$(BUILD_DIR)/Strings_da.rsrc: resources/strings/da.json gen_rsrc.py | $(BUILD_DIR)
+	@python3 gen_rsrc.py resources/strings/da.json $@
+src/strings_da_rsrc.c: $(BUILD_DIR)/Strings_da.rsrc
+	@echo '/* Auto-generated from Strings_da.rsrc */' > $@
+	@echo 'const unsigned char strings_da_rsrc_data[] = {' >> $@
+	@xxd -i < $< >> $@
+	@echo '};' >> $@
+	@echo 'const unsigned int strings_da_rsrc_size = sizeof(strings_da_rsrc_data);' >> $@
+endif
+
+ifeq ($(LOCALE_NL),1)
+CFLAGS += -DLOCALE_NL=1
+C_SOURCES += src/strings_nl_rsrc.c
+$(BUILD_DIR)/Strings_nl.rsrc: resources/strings/nl.json gen_rsrc.py | $(BUILD_DIR)
+	@python3 gen_rsrc.py resources/strings/nl.json $@
+src/strings_nl_rsrc.c: $(BUILD_DIR)/Strings_nl.rsrc
+	@echo '/* Auto-generated from Strings_nl.rsrc */' > $@
+	@echo 'const unsigned char strings_nl_rsrc_data[] = {' >> $@
+	@xxd -i < $< >> $@
+	@echo '};' >> $@
+	@echo 'const unsigned int strings_nl_rsrc_size = sizeof(strings_nl_rsrc_data);' >> $@
+endif
+
+ifeq ($(LOCALE_ET),1)
+CFLAGS += -DLOCALE_ET=1
+C_SOURCES += src/strings_et_rsrc.c
+$(BUILD_DIR)/Strings_et.rsrc: resources/strings/et.json gen_rsrc.py | $(BUILD_DIR)
+	@python3 gen_rsrc.py resources/strings/et.json $@
+src/strings_et_rsrc.c: $(BUILD_DIR)/Strings_et.rsrc
+	@echo '/* Auto-generated from Strings_et.rsrc */' > $@
+	@echo 'const unsigned char strings_et_rsrc_data[] = {' >> $@
+	@xxd -i < $< >> $@
+	@echo '};' >> $@
+	@echo 'const unsigned int strings_et_rsrc_size = sizeof(strings_et_rsrc_data);' >> $@
+endif
+
+ifeq ($(LOCALE_FI),1)
+CFLAGS += -DLOCALE_FI=1
+C_SOURCES += src/strings_fi_rsrc.c
+$(BUILD_DIR)/Strings_fi.rsrc: resources/strings/fi.json gen_rsrc.py | $(BUILD_DIR)
+	@python3 gen_rsrc.py resources/strings/fi.json $@
+src/strings_fi_rsrc.c: $(BUILD_DIR)/Strings_fi.rsrc
+	@echo '/* Auto-generated from Strings_fi.rsrc */' > $@
+	@echo 'const unsigned char strings_fi_rsrc_data[] = {' >> $@
+	@xxd -i < $< >> $@
+	@echo '};' >> $@
+	@echo 'const unsigned int strings_fi_rsrc_size = sizeof(strings_fi_rsrc_data);' >> $@
+endif
+
+ifeq ($(LOCALE_EL),1)
+CFLAGS += -DLOCALE_EL=1
+C_SOURCES += src/strings_el_rsrc.c
+$(BUILD_DIR)/Strings_el.rsrc: resources/strings/el.json gen_rsrc.py | $(BUILD_DIR)
+	@python3 gen_rsrc.py resources/strings/el.json $@
+src/strings_el_rsrc.c: $(BUILD_DIR)/Strings_el.rsrc
+	@echo '/* Auto-generated from Strings_el.rsrc */' > $@
+	@echo 'const unsigned char strings_el_rsrc_data[] = {' >> $@
+	@xxd -i < $< >> $@
+	@echo '};' >> $@
+	@echo 'const unsigned int strings_el_rsrc_size = sizeof(strings_el_rsrc_data);' >> $@
+endif
+
+ifeq ($(LOCALE_HU),1)
+CFLAGS += -DLOCALE_HU=1
+C_SOURCES += src/strings_hu_rsrc.c
+$(BUILD_DIR)/Strings_hu.rsrc: resources/strings/hu.json gen_rsrc.py | $(BUILD_DIR)
+	@python3 gen_rsrc.py resources/strings/hu.json $@
+src/strings_hu_rsrc.c: $(BUILD_DIR)/Strings_hu.rsrc
+	@echo '/* Auto-generated from Strings_hu.rsrc */' > $@
+	@echo 'const unsigned char strings_hu_rsrc_data[] = {' >> $@
+	@xxd -i < $< >> $@
+	@echo '};' >> $@
+	@echo 'const unsigned int strings_hu_rsrc_size = sizeof(strings_hu_rsrc_data);' >> $@
+endif
+
+ifeq ($(LOCALE_IS),1)
+CFLAGS += -DLOCALE_IS=1
+C_SOURCES += src/strings_is_rsrc.c
+$(BUILD_DIR)/Strings_is.rsrc: resources/strings/is.json gen_rsrc.py | $(BUILD_DIR)
+	@python3 gen_rsrc.py resources/strings/is.json $@
+src/strings_is_rsrc.c: $(BUILD_DIR)/Strings_is.rsrc
+	@echo '/* Auto-generated from Strings_is.rsrc */' > $@
+	@echo 'const unsigned char strings_is_rsrc_data[] = {' >> $@
+	@xxd -i < $< >> $@
+	@echo '};' >> $@
+	@echo 'const unsigned int strings_is_rsrc_size = sizeof(strings_is_rsrc_data);' >> $@
+endif
+
+ifeq ($(LOCALE_IT),1)
+CFLAGS += -DLOCALE_IT=1
+C_SOURCES += src/strings_it_rsrc.c
+$(BUILD_DIR)/Strings_it.rsrc: resources/strings/it.json gen_rsrc.py | $(BUILD_DIR)
+	@python3 gen_rsrc.py resources/strings/it.json $@
+src/strings_it_rsrc.c: $(BUILD_DIR)/Strings_it.rsrc
+	@echo '/* Auto-generated from Strings_it.rsrc */' > $@
+	@echo 'const unsigned char strings_it_rsrc_data[] = {' >> $@
+	@xxd -i < $< >> $@
+	@echo '};' >> $@
+	@echo 'const unsigned int strings_it_rsrc_size = sizeof(strings_it_rsrc_data);' >> $@
+endif
+
+ifeq ($(LOCALE_LV),1)
+CFLAGS += -DLOCALE_LV=1
+C_SOURCES += src/strings_lv_rsrc.c
+$(BUILD_DIR)/Strings_lv.rsrc: resources/strings/lv.json gen_rsrc.py | $(BUILD_DIR)
+	@python3 gen_rsrc.py resources/strings/lv.json $@
+src/strings_lv_rsrc.c: $(BUILD_DIR)/Strings_lv.rsrc
+	@echo '/* Auto-generated from Strings_lv.rsrc */' > $@
+	@echo 'const unsigned char strings_lv_rsrc_data[] = {' >> $@
+	@xxd -i < $< >> $@
+	@echo '};' >> $@
+	@echo 'const unsigned int strings_lv_rsrc_size = sizeof(strings_lv_rsrc_data);' >> $@
+endif
+
+ifeq ($(LOCALE_LT),1)
+CFLAGS += -DLOCALE_LT=1
+C_SOURCES += src/strings_lt_rsrc.c
+$(BUILD_DIR)/Strings_lt.rsrc: resources/strings/lt.json gen_rsrc.py | $(BUILD_DIR)
+	@python3 gen_rsrc.py resources/strings/lt.json $@
+src/strings_lt_rsrc.c: $(BUILD_DIR)/Strings_lt.rsrc
+	@echo '/* Auto-generated from Strings_lt.rsrc */' > $@
+	@echo 'const unsigned char strings_lt_rsrc_data[] = {' >> $@
+	@xxd -i < $< >> $@
+	@echo '};' >> $@
+	@echo 'const unsigned int strings_lt_rsrc_size = sizeof(strings_lt_rsrc_data);' >> $@
+endif
+
+ifeq ($(LOCALE_MK),1)
+CFLAGS += -DLOCALE_MK=1
+C_SOURCES += src/strings_mk_rsrc.c
+$(BUILD_DIR)/Strings_mk.rsrc: resources/strings/mk.json gen_rsrc.py | $(BUILD_DIR)
+	@python3 gen_rsrc.py resources/strings/mk.json $@
+src/strings_mk_rsrc.c: $(BUILD_DIR)/Strings_mk.rsrc
+	@echo '/* Auto-generated from Strings_mk.rsrc */' > $@
+	@echo 'const unsigned char strings_mk_rsrc_data[] = {' >> $@
+	@xxd -i < $< >> $@
+	@echo '};' >> $@
+	@echo 'const unsigned int strings_mk_rsrc_size = sizeof(strings_mk_rsrc_data);' >> $@
+endif
+
+ifeq ($(LOCALE_ME),1)
+CFLAGS += -DLOCALE_ME=1
+C_SOURCES += src/strings_me_rsrc.c
+$(BUILD_DIR)/Strings_me.rsrc: resources/strings/me.json gen_rsrc.py | $(BUILD_DIR)
+	@python3 gen_rsrc.py resources/strings/me.json $@
+src/strings_me_rsrc.c: $(BUILD_DIR)/Strings_me.rsrc
+	@echo '/* Auto-generated from Strings_me.rsrc */' > $@
+	@echo 'const unsigned char strings_me_rsrc_data[] = {' >> $@
+	@xxd -i < $< >> $@
+	@echo '};' >> $@
+	@echo 'const unsigned int strings_me_rsrc_size = sizeof(strings_me_rsrc_data);' >> $@
+endif
+
+ifeq ($(LOCALE_NO),1)
+CFLAGS += -DLOCALE_NO=1
+C_SOURCES += src/strings_no_rsrc.c
+$(BUILD_DIR)/Strings_no.rsrc: resources/strings/no.json gen_rsrc.py | $(BUILD_DIR)
+	@python3 gen_rsrc.py resources/strings/no.json $@
+src/strings_no_rsrc.c: $(BUILD_DIR)/Strings_no.rsrc
+	@echo '/* Auto-generated from Strings_no.rsrc */' > $@
+	@echo 'const unsigned char strings_no_rsrc_data[] = {' >> $@
+	@xxd -i < $< >> $@
+	@echo '};' >> $@
+	@echo 'const unsigned int strings_no_rsrc_size = sizeof(strings_no_rsrc_data);' >> $@
+endif
+
+ifeq ($(LOCALE_PT),1)
+CFLAGS += -DLOCALE_PT=1
+C_SOURCES += src/strings_pt_rsrc.c
+$(BUILD_DIR)/Strings_pt.rsrc: resources/strings/pt.json gen_rsrc.py | $(BUILD_DIR)
+	@python3 gen_rsrc.py resources/strings/pt.json $@
+src/strings_pt_rsrc.c: $(BUILD_DIR)/Strings_pt.rsrc
+	@echo '/* Auto-generated from Strings_pt.rsrc */' > $@
+	@echo 'const unsigned char strings_pt_rsrc_data[] = {' >> $@
+	@xxd -i < $< >> $@
+	@echo '};' >> $@
+	@echo 'const unsigned int strings_pt_rsrc_size = sizeof(strings_pt_rsrc_data);' >> $@
+endif
+
+ifeq ($(LOCALE_RO),1)
+CFLAGS += -DLOCALE_RO=1
+C_SOURCES += src/strings_ro_rsrc.c
+$(BUILD_DIR)/Strings_ro.rsrc: resources/strings/ro.json gen_rsrc.py | $(BUILD_DIR)
+	@python3 gen_rsrc.py resources/strings/ro.json $@
+src/strings_ro_rsrc.c: $(BUILD_DIR)/Strings_ro.rsrc
+	@echo '/* Auto-generated from Strings_ro.rsrc */' > $@
+	@echo 'const unsigned char strings_ro_rsrc_data[] = {' >> $@
+	@xxd -i < $< >> $@
+	@echo '};' >> $@
+	@echo 'const unsigned int strings_ro_rsrc_size = sizeof(strings_ro_rsrc_data);' >> $@
+endif
+
+ifeq ($(LOCALE_SK),1)
+CFLAGS += -DLOCALE_SK=1
+C_SOURCES += src/strings_sk_rsrc.c
+$(BUILD_DIR)/Strings_sk.rsrc: resources/strings/sk.json gen_rsrc.py | $(BUILD_DIR)
+	@python3 gen_rsrc.py resources/strings/sk.json $@
+src/strings_sk_rsrc.c: $(BUILD_DIR)/Strings_sk.rsrc
+	@echo '/* Auto-generated from Strings_sk.rsrc */' > $@
+	@echo 'const unsigned char strings_sk_rsrc_data[] = {' >> $@
+	@xxd -i < $< >> $@
+	@echo '};' >> $@
+	@echo 'const unsigned int strings_sk_rsrc_size = sizeof(strings_sk_rsrc_data);' >> $@
+endif
+
+ifeq ($(LOCALE_SL),1)
+CFLAGS += -DLOCALE_SL=1
+C_SOURCES += src/strings_sl_rsrc.c
+$(BUILD_DIR)/Strings_sl.rsrc: resources/strings/sl.json gen_rsrc.py | $(BUILD_DIR)
+	@python3 gen_rsrc.py resources/strings/sl.json $@
+src/strings_sl_rsrc.c: $(BUILD_DIR)/Strings_sl.rsrc
+	@echo '/* Auto-generated from Strings_sl.rsrc */' > $@
+	@echo 'const unsigned char strings_sl_rsrc_data[] = {' >> $@
+	@xxd -i < $< >> $@
+	@echo '};' >> $@
+	@echo 'const unsigned int strings_sl_rsrc_size = sizeof(strings_sl_rsrc_data);' >> $@
+endif
+
+ifeq ($(LOCALE_SV),1)
+CFLAGS += -DLOCALE_SV=1
+C_SOURCES += src/strings_sv_rsrc.c
+$(BUILD_DIR)/Strings_sv.rsrc: resources/strings/sv.json gen_rsrc.py | $(BUILD_DIR)
+	@python3 gen_rsrc.py resources/strings/sv.json $@
+src/strings_sv_rsrc.c: $(BUILD_DIR)/Strings_sv.rsrc
+	@echo '/* Auto-generated from Strings_sv.rsrc */' > $@
+	@echo 'const unsigned char strings_sv_rsrc_data[] = {' >> $@
+	@xxd -i < $< >> $@
+	@echo '};' >> $@
+	@echo 'const unsigned int strings_sv_rsrc_size = sizeof(strings_sv_rsrc_data);' >> $@
+endif
+
+ifeq ($(LOCALE_TR),1)
+CFLAGS += -DLOCALE_TR=1
+C_SOURCES += src/strings_tr_rsrc.c
+$(BUILD_DIR)/Strings_tr.rsrc: resources/strings/tr.json gen_rsrc.py | $(BUILD_DIR)
+	@python3 gen_rsrc.py resources/strings/tr.json $@
+src/strings_tr_rsrc.c: $(BUILD_DIR)/Strings_tr.rsrc
+	@echo '/* Auto-generated from Strings_tr.rsrc */' > $@
+	@echo 'const unsigned char strings_tr_rsrc_data[] = {' >> $@
+	@xxd -i < $< >> $@
+	@echo '};' >> $@
+	@echo 'const unsigned int strings_tr_rsrc_size = sizeof(strings_tr_rsrc_data);' >> $@
+endif
+
+ifeq ($(LOCALE_HI),1)
+CFLAGS += -DLOCALE_HI=1
+C_SOURCES += src/strings_hi_rsrc.c
+$(BUILD_DIR)/Strings_hi.rsrc: resources/strings/hi.json gen_rsrc.py | $(BUILD_DIR)
+	@python3 gen_rsrc.py resources/strings/hi.json $@
+src/strings_hi_rsrc.c: $(BUILD_DIR)/Strings_hi.rsrc
+	@echo '/* Auto-generated from Strings_hi.rsrc */' > $@
+	@echo 'const unsigned char strings_hi_rsrc_data[] = {' >> $@
+	@xxd -i < $< >> $@
+	@echo '};' >> $@
+	@echo 'const unsigned int strings_hi_rsrc_size = sizeof(strings_hi_rsrc_data);' >> $@
+endif
+
+ifeq ($(LOCALE_TW),1)
+CFLAGS += -DLOCALE_TW=1
+C_SOURCES += src/strings_tw_rsrc.c
+$(BUILD_DIR)/Strings_tw.rsrc: resources/strings/tw.json gen_rsrc.py | $(BUILD_DIR)
+	@python3 gen_rsrc.py resources/strings/tw.json $@
+src/strings_tw_rsrc.c: $(BUILD_DIR)/Strings_tw.rsrc
+	@echo '/* Auto-generated from Strings_tw.rsrc */' > $@
+	@echo 'const unsigned char strings_tw_rsrc_data[] = {' >> $@
+	@xxd -i < $< >> $@
+	@echo '};' >> $@
+	@echo 'const unsigned int strings_tw_rsrc_size = sizeof(strings_tw_rsrc_data);' >> $@
+endif
+
+ifeq ($(LOCALE_AR),1)
+CFLAGS += -DLOCALE_AR=1
+C_SOURCES += src/strings_ar_rsrc.c
+$(BUILD_DIR)/Strings_ar.rsrc: resources/strings/ar.json gen_rsrc.py | $(BUILD_DIR)
+	@python3 gen_rsrc.py resources/strings/ar.json $@
+src/strings_ar_rsrc.c: $(BUILD_DIR)/Strings_ar.rsrc
+	@echo '/* Auto-generated from Strings_ar.rsrc */' > $@
+	@echo 'const unsigned char strings_ar_rsrc_data[] = {' >> $@
+	@xxd -i < $< >> $@
+	@echo '};' >> $@
+	@echo 'const unsigned int strings_ar_rsrc_size = sizeof(strings_ar_rsrc_data);' >> $@
+endif
+
+ifeq ($(LOCALE_BN),1)
+CFLAGS += -DLOCALE_BN=1
+C_SOURCES += src/strings_bn_rsrc.c
+$(BUILD_DIR)/Strings_bn.rsrc: resources/strings/bn.json gen_rsrc.py | $(BUILD_DIR)
+	@python3 gen_rsrc.py resources/strings/bn.json $@
+src/strings_bn_rsrc.c: $(BUILD_DIR)/Strings_bn.rsrc
+	@echo '/* Auto-generated from Strings_bn.rsrc */' > $@
+	@echo 'const unsigned char strings_bn_rsrc_data[] = {' >> $@
+	@xxd -i < $< >> $@
+	@echo '};' >> $@
+	@echo 'const unsigned int strings_bn_rsrc_size = sizeof(strings_bn_rsrc_data);' >> $@
+endif
+
+ifeq ($(LOCALE_UR),1)
+CFLAGS += -DLOCALE_UR=1
+C_SOURCES += src/strings_ur_rsrc.c
+$(BUILD_DIR)/Strings_ur.rsrc: resources/strings/ur.json gen_rsrc.py | $(BUILD_DIR)
+	@python3 gen_rsrc.py resources/strings/ur.json $@
+src/strings_ur_rsrc.c: $(BUILD_DIR)/Strings_ur.rsrc
+	@echo '/* Auto-generated from Strings_ur.rsrc */' > $@
+	@echo 'const unsigned char strings_ur_rsrc_data[] = {' >> $@
+	@xxd -i < $< >> $@
+	@echo '};' >> $@
+	@echo 'const unsigned int strings_ur_rsrc_size = sizeof(strings_ur_rsrc_data);' >> $@
+endif
+
 # Link kernel
 $(KERNEL): $(OBJECTS) | $(BUILD_DIR)
 	@echo "LD $(KERNEL)"

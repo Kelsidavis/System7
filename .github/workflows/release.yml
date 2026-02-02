@@ -71,7 +71,7 @@ jobs:
       - name: Build multi-language kernel
         run: |
           make clean
-          make PLATFORM=x86 LOCALE_FR=1 LOCALE_DE=1 LOCALE_ES=1 LOCALE_JA=1 LOCALE_ZH=1 LOCALE_KO=1 LOCALE_RU=1 LOCALE_UK=1 LOCALE_PL=1 LOCALE_CS=1
+          make PLATFORM=x86 LOCALE_FR=1 LOCALE_DE=1 LOCALE_ES=1 LOCALE_JA=1 LOCALE_ZH=1 LOCALE_KO=1 LOCALE_RU=1 LOCALE_UK=1 LOCALE_PL=1 LOCALE_CS=1 LOCALE_SQ=1 LOCALE_BG=1 LOCALE_HR=1 LOCALE_DA=1 LOCALE_NL=1 LOCALE_ET=1 LOCALE_FI=1 LOCALE_EL=1 LOCALE_HU=1 LOCALE_IS=1 LOCALE_IT=1 LOCALE_LV=1 LOCALE_LT=1 LOCALE_MK=1 LOCALE_ME=1 LOCALE_NO=1 LOCALE_PT=1 LOCALE_RO=1 LOCALE_SK=1 LOCALE_SL=1 LOCALE_SV=1 LOCALE_TR=1 LOCALE_HI=1 LOCALE_TW=1 LOCALE_AR=1 LOCALE_BN=1 LOCALE_UR=1
 
       - name: Build multi-language ISO
         run: make iso
@@ -132,7 +132,7 @@ jobs:
             - `system71-en.iso` - Bootable ISO image (English)
             - `kernel-en.elf` - Kernel binary (English)
 
-            **All languages (English, French, German, Spanish, Japanese, Chinese, Korean, Russian, Ukrainian, Polish, Czech):**
+            **All languages (34 locales including English, French, German, Spanish, Italian, Portuguese, Dutch, Danish, Norwegian, Swedish, Finnish, Icelandic, Greek, Turkish, Polish, Czech, Slovak, Slovenian, Croatian, Hungarian, Romanian, Bulgarian, Albanian, Estonian, Latvian, Lithuanian, Macedonian, Montenegrin, Russian, Ukrainian, Japanese, Chinese, Korean, Hindi):**
             - `system71-all-languages.iso` - Bootable ISO image (all languages)
             - `kernel-all-languages.elf` - Kernel binary (all languages)
 
@@ -142,7 +142,7 @@ jobs:
             qemu-system-i386 -cdrom system71-en.iso -serial stdio -display sdl -m 256M
 
             # Multi-language (select language via GRUB boot parameter)
-            # Available: en, fr, de, es, ja, zh, ko, ru, uk, pl, cs
+            # Available: en, fr, de, es, it, pt, nl, da, no, sv, fi, is, el, tr, pl, cs, sk, sl, hr, hu, ro, bg, sq, et, lv, lt, mk, me, ru, uk, ja, zh, ko, hi
             qemu-system-i386 -cdrom system71-all-languages.iso -serial stdio -display sdl -m 256M
             ```
         env:
