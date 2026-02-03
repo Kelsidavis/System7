@@ -81,6 +81,7 @@ typedef struct __attribute__((packed)) {
 #define XHCI_TRB_TYPE_EVT_CMD_COMPLETE 33
 #define XHCI_TRB_TYPE_ENABLE_SLOT 9
 #define XHCI_TRB_TYPE_ADDRESS_DEVICE 11
+#define XHCI_TRB_TYPE_CONFIGURE_ENDPOINT 12
 #define XHCI_TRB_TYPE_SETUP_STAGE 2
 #define XHCI_TRB_TYPE_DATA_STAGE 3
 #define XHCI_TRB_TYPE_STATUS_STAGE 4
@@ -111,11 +112,13 @@ static uint64_t __attribute__((aligned(64))) g_dcbaa[256];
 static uint32_t __attribute__((aligned(64))) g_input_ctx[48];
 static uint32_t __attribute__((aligned(64))) g_dev_ctx[32];
 static xhci_trb_t __attribute__((aligned(64))) g_ep0_ring[32];
+static xhci_trb_t __attribute__((aligned(64))) g_hid_ring[32];
 static uint32_t __attribute__((aligned(64))) g_ep0_buf[64];
 static uint8_t g_hid_ep_addr = 0;
 static uint16_t g_hid_ep_mps = 0;
 static uint8_t g_hid_ep_interval = 0;
 static uint8_t g_hid_slot = 0;
+static uint8_t g_hid_ep_id = 0;
 static uint32_t g_ctx_size = 32;
 
 static uint32_t g_cmd_ring_index = 0;
@@ -124,6 +127,8 @@ static uint32_t g_evt_cycle = 1;
 static uint32_t g_evt_ring_index = 0;
 static uint32_t g_ep0_ring_index = 0;
 static uint32_t g_ep0_cycle = 1;
+static uint32_t g_hid_ring_index = 0;
+static uint32_t g_hid_cycle = 1;
 static uintptr_t g_xhci_base = 0;
 static uint32_t g_xhci_dboff = 0;
 static uintptr_t g_xhci_rt_base = 0;
@@ -141,6 +146,7 @@ static void xhci_ring_init(void) {
     memset(g_erst, 0, sizeof(g_erst));
     memset(g_dcbaa, 0, sizeof(g_dcbaa));
     memset(g_ep0_ring, 0, sizeof(g_ep0_ring));
+    memset(g_hid_ring, 0, sizeof(g_hid_ring));
     memset(g_ep0_buf, 0, sizeof(g_ep0_buf));
     g_cmd_ring_index = 0;
     g_cmd_cycle = 1;
@@ -148,6 +154,8 @@ static void xhci_ring_init(void) {
     g_evt_ring_index = 0;
     g_ep0_ring_index = 0;
     g_ep0_cycle = 1;
+    g_hid_ring_index = 0;
+    g_hid_cycle = 1;
 }
 
 static void xhci_cmd_ring_enqueue_noop(void) {
@@ -292,6 +300,20 @@ static void xhci_build_contexts(uint8_t slot_id, uint8_t port, uint32_t portsc) 
     g_dcbaa[slot_id] = (uint64_t)(uintptr_t)&g_dev_ctx[0];
 }
 
+static void xhci_build_hid_endpoint_context(uint8_t ep_id, uint16_t mps, uint8_t interval) {
+    uint32_t ctx_dwords = g_ctx_size / 4;
+    uint32_t *ictl = &g_input_ctx[0];
+    uint32_t *ep = &g_input_ctx[ctx_dwords * (1 + ep_id)];
+
+    ictl[0] |= (1u << ep_id);
+
+    /* EP context: interrupt IN (type 7). */
+    ep[0] = (7u << 3) | ((uint32_t)interval << 16);
+    ep[1] = ((uint32_t)mps << 16);
+    ep[2] = (uint32_t)((uintptr_t)&g_hid_ring[0] & 0xFFFFFFFFu);
+    ep[3] = 0;
+}
+
 static bool xhci_address_device(uintptr_t base, uint32_t dboff, uintptr_t rt_base,
                                 uint8_t slot_id, uint8_t port, uint32_t portsc) {
     xhci_build_contexts(slot_id, port, portsc);
@@ -312,6 +334,25 @@ static bool xhci_address_device(uintptr_t base, uint32_t dboff, uintptr_t rt_bas
     }
 
     serial_printf("[XHCI] Address Device timeout for slot %u\n", slot_id);
+    return false;
+}
+
+static bool xhci_configure_endpoint(uintptr_t base, uint32_t dboff, uintptr_t rt_base, uint8_t slot_id) {
+    xhci_trb_t *trb = &g_cmd_ring[g_cmd_ring_index++];
+    uintptr_t ictx = (uintptr_t)&g_input_ctx[0];
+    trb->dword0 = (uint32_t)(ictx & 0xFFFFFFFFu);
+    trb->dword1 = 0;
+    trb->dword2 = 0;
+    trb->dword3 = (XHCI_TRB_TYPE_CONFIGURE_ENDPOINT << XHCI_TRB_TYPE_SHIFT) |
+                  ((uint32_t)slot_id << 24) |
+                  (g_cmd_cycle ? XHCI_TRB_CYCLE : 0);
+
+    xhci_ring_doorbell(base, dboff, 0);
+    if (xhci_poll_cmd_complete(rt_base, NULL)) {
+        serial_printf("[XHCI] Configure Endpoint complete for slot %u\n", slot_id);
+        return true;
+    }
+    serial_printf("[XHCI] Configure Endpoint timeout for slot %u\n", slot_id);
     return false;
 }
 
@@ -426,6 +467,7 @@ static bool xhci_ep0_get_config_descriptor(uintptr_t base, uint32_t dboff, uintp
     g_hid_ep_addr = 0;
     g_hid_ep_mps = 0;
     g_hid_ep_interval = 0;
+    g_hid_ep_id = 0;
     while (off + 1 < 64) {
         uint8_t len = buf[off];
         uint8_t type = buf[off + 1];
@@ -448,6 +490,7 @@ static bool xhci_ep0_get_config_descriptor(uintptr_t base, uint32_t dboff, uintp
                 g_hid_ep_addr = ep_addr;
                 g_hid_ep_mps = mps;
                 g_hid_ep_interval = interval;
+                g_hid_ep_id = (uint8_t)(2 * (ep_addr & 0x0F) + 1);
                 serial_printf("[XHCI] HID INT IN ep=0x%02x mps=%u interval=%u\n",
                               ep_addr, mps, interval);
             }
@@ -460,17 +503,23 @@ static bool xhci_ep0_get_config_descriptor(uintptr_t base, uint32_t dboff, uintp
         xhci_ep0_set_configuration(base, dboff, rt_base, slot_id, config_value);
     }
 
+    if (g_hid_ep_id != 0) {
+        memset(g_input_ctx, 0, sizeof(g_input_ctx));
+        xhci_build_hid_endpoint_context(g_hid_ep_id, g_hid_ep_mps, g_hid_ep_interval);
+        xhci_configure_endpoint(base, dboff, rt_base, slot_id);
+    }
+
     return true;
 }
 
 static void xhci_hid_enqueue_interrupt_in(uintptr_t buf, uint32_t len) {
-    xhci_trb_t *trb = &g_ep0_ring[g_ep0_ring_index++];
+    xhci_trb_t *trb = &g_hid_ring[g_hid_ring_index++];
     trb->dword0 = (uint32_t)(buf & 0xFFFFFFFFu);
     trb->dword1 = 0;
     trb->dword2 = len;
     trb->dword3 = (XHCI_TRB_TYPE_NORMAL << XHCI_TRB_TYPE_SHIFT) |
                   XHCI_TRB_IOC |
-                  (g_ep0_cycle ? XHCI_TRB_CYCLE : 0);
+                  (g_hid_cycle ? XHCI_TRB_CYCLE : 0);
 }
 
 static void xhci_hid_poll(uintptr_t base, uint32_t dboff, uintptr_t rt_base) {
@@ -478,9 +527,11 @@ static void xhci_hid_poll(uintptr_t base, uint32_t dboff, uintptr_t rt_base) {
         return;
     }
 
-    /* Reuse EP0 ring for now (placeholder) */
     xhci_hid_enqueue_interrupt_in((uintptr_t)&g_ep0_buf[0], g_hid_ep_mps);
-    xhci_ep0_ring_doorbell(base, dboff, g_hid_slot);
+    if (g_hid_ep_id == 0) {
+        return;
+    }
+    mmio_write32(base + dboff, XHCI_DB0 + g_hid_slot, g_hid_ep_id);
 
     if (xhci_poll_transfer_complete(rt_base, g_hid_slot)) {
         uint8_t *data = (uint8_t *)&g_ep0_buf[0];
