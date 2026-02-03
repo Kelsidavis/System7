@@ -1403,25 +1403,24 @@ static void xhci_handle_hid_mouse(const uint8_t *report, uint32_t len) {
         return;
     }
     uint32_t offset = 0;
-    int16_t dx = (int8_t)report[1];
-    int16_t dy = (int8_t)report[2];
-    uint8_t buttons = report[0] & 0x1F;
-
-    if (len >= 4 && report[0] == 0 && report[3] == 0 && report[1] == 0 && report[2] == 0) {
-        /* Likely report ID 0 with 3-byte data: fall back to standard. */
-    } else if (len >= 4 && report[0] <= 4 && report[0] != 0) {
-        /* Heuristic: treat byte0 as report ID when movement is zero */
+    if (len >= 4) {
         uint8_t rid = report[0];
-        if (rid <= 4 && report[1] == 0 && report[2] == 0) {
+        uint8_t btn1 = report[1] & 0x1F;
+        bool looks_like_id = (rid != 0 && rid <= 8 &&
+                              (report[1] & 0xE0) == 0 &&
+                              (btn1 != 0 || report[2] != 0 || report[3] != 0));
+        if (looks_like_id) {
             offset = 1;
-            if (len < 3 + offset) {
-                return;
-            }
-            buttons = report[offset + 0] & 0x1F;
-            dx = (int8_t)report[offset + 1];
-            dy = (int8_t)report[offset + 2];
         }
     }
+
+    if (len < 3 + offset) {
+        return;
+    }
+
+    uint8_t buttons = report[offset + 0] & 0x1F;
+    int16_t dx = (int8_t)report[offset + 1];
+    int16_t dy = (int8_t)report[offset + 2];
     UpdateMouseStateDelta(dx, -dy, buttons);
 
     if (len >= 4 + offset) {
