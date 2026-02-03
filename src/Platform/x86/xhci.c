@@ -2652,8 +2652,8 @@ static UInt16 xhci_hid_to_mac_scan(uint8_t hid) {
     }
 }
 
-static bool xhci_hid_has_key(const uint8_t *report, uint8_t key) {
-    for (int i = 2; i < 8; i++) {
+static bool xhci_hid_has_key(const uint8_t *report, uint8_t key, uint8_t end) {
+    for (uint8_t i = 2; i < end; i++) {
         if (report[i] == key) {
             return true;
         }
@@ -2689,10 +2689,17 @@ static void xhci_handle_hid_keyboard(xhci_hid_dev_t *dev, const uint8_t *report)
 
     UInt16 modifiers = xhci_hid_modifiers(cur_mods);
     UInt32 ts = TickCount();
+    uint8_t end = dev->mps;
+    if (end > sizeof(dev->last_report)) {
+        end = (uint8_t)sizeof(dev->last_report);
+    }
+    if (end < 8) {
+        end = 8;
+    }
 
-    for (int i = 2; i < 8; i++) {
+    for (uint8_t i = 2; i < end; i++) {
         uint8_t key = dev->last_report[i];
-        if (key != 0 && !xhci_hid_has_key(report, key)) {
+        if (key != 0 && !xhci_hid_has_key(report, key, end)) {
             UInt16 sc = xhci_hid_to_mac_scan(key);
             if (sc != 0xFFFF) {
                 ProcessRawKeyboardEvent(sc, false, modifiers, ts);
@@ -2700,9 +2707,9 @@ static void xhci_handle_hid_keyboard(xhci_hid_dev_t *dev, const uint8_t *report)
         }
     }
 
-    for (int i = 2; i < 8; i++) {
+    for (uint8_t i = 2; i < end; i++) {
         uint8_t key = report[i];
-        if (key != 0 && !xhci_hid_has_key(dev->last_report, key)) {
+        if (key != 0 && !xhci_hid_has_key(dev->last_report, key, end)) {
             UInt16 sc = xhci_hid_to_mac_scan(key);
             if (sc != 0xFFFF) {
                 ProcessRawKeyboardEvent(sc, true, modifiers, ts);
