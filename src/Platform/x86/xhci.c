@@ -24,6 +24,7 @@
 #define XHCI_HCIVERSION   0x02
 #define XHCI_DBOFF        0x14
 #define XHCI_RTSOFF       0x18
+#define XHCI_HCCPARAMS1   0x10
 
 /* Operational registers (offset from operational base) */
 #define XHCI_USBCMD       0x00
@@ -88,19 +89,13 @@ typedef struct __attribute__((packed)) {
     uint32_t rsvd;
 } xhci_erst_entry_t;
 
-typedef struct __attribute__((packed)) {
-    uint32_t drop_flags;
-    uint32_t add_flags;
-    uint32_t reserved[5];
-    uint32_t slot_context[8];
-    uint32_t ep0_context[8];
-} xhci_input_context_t;
-
 static xhci_trb_t __attribute__((aligned(64))) g_cmd_ring[32];
 static xhci_trb_t __attribute__((aligned(64))) g_evt_ring[32];
 static xhci_erst_entry_t __attribute__((aligned(64))) g_erst[1];
 static uint64_t __attribute__((aligned(64))) g_dcbaa[256];
-static xhci_input_context_t __attribute__((aligned(64))) g_input_ctx;
+static uint32_t __attribute__((aligned(64))) g_input_ctx[48];
+static uint32_t __attribute__((aligned(64))) g_dev_ctx[32];
+static uint32_t g_ctx_size = 32;
 
 static uint32_t g_cmd_ring_index = 0;
 static uint32_t g_cmd_cycle = 1;
@@ -194,12 +189,64 @@ static void xhci_cmd_ring_enqueue_enable_slot(void) {
     }
 }
 
-static void xhci_address_device_stub(uint8_t slot_id, uint8_t port) {
-    (void)slot_id;
-    (void)port;
-    (void)g_input_ctx;
-    /* Phase-5 placeholder: build input context + issue Address Device */
-    serial_puts("[XHCI] Address Device not implemented yet\n");
+static uint16_t xhci_ep0_mps(uint32_t portsc) {
+    uint32_t speed = (portsc >> 10) & 0xF;
+    switch (speed) {
+        case 2: /* low */ return 8;
+        case 1: /* full */ return 8;
+        case 3: /* high */ return 64;
+        case 4: /* super */ return 512;
+        default: return 8;
+    }
+}
+
+static void xhci_build_contexts(uint8_t slot_id, uint8_t port, uint32_t portsc) {
+    memset(g_input_ctx, 0, sizeof(g_input_ctx));
+    memset(g_dev_ctx, 0, sizeof(g_dev_ctx));
+
+    uint32_t ctx_dwords = g_ctx_size / 4;
+    uint32_t *ictl = &g_input_ctx[0];
+    uint32_t *slot = &g_input_ctx[ctx_dwords * 1];
+    uint32_t *ep0  = &g_input_ctx[ctx_dwords * 2];
+
+    /* Input control context */
+    ictl[0] = (1u << 0) | (1u << 1); /* add slot + ep0 */
+
+    /* Slot context */
+    uint32_t speed = (portsc >> 10) & 0xF;
+    slot[0] = (1u << 27) | (speed << 20); /* context entries=1, speed */
+    slot[1] = port; /* root hub port */
+
+    /* EP0 context */
+    uint16_t mps = xhci_ep0_mps(portsc);
+    ep0[1] = ((uint32_t)mps << 16); /* Max Packet Size */
+    ep0[0] = (4u << 3); /* EP type = control (4) */
+
+    /* Device context placeholder */
+    g_dcbaa[slot_id] = (uint64_t)(uintptr_t)&g_dev_ctx[0];
+}
+
+static bool xhci_address_device(uintptr_t base, uint32_t dboff, uintptr_t rt_base,
+                                uint8_t slot_id, uint8_t port, uint32_t portsc) {
+    xhci_build_contexts(slot_id, port, portsc);
+
+    xhci_trb_t *trb = &g_cmd_ring[g_cmd_ring_index++];
+    uintptr_t ictx = (uintptr_t)&g_input_ctx[0];
+    trb->dword0 = (uint32_t)(ictx & 0xFFFFFFFFu);
+    trb->dword1 = 0;
+    trb->dword2 = 0;
+    trb->dword3 = (XHCI_TRB_TYPE_ADDRESS_DEVICE << XHCI_TRB_TYPE_SHIFT) |
+                  ((uint32_t)slot_id << 24) |
+                  (g_cmd_cycle ? XHCI_TRB_CYCLE : 0);
+
+    xhci_ring_doorbell(base, dboff, 0);
+    if (xhci_poll_cmd_complete(rt_base, NULL)) {
+        serial_printf("[XHCI] Address Device complete for slot %u\n", slot_id);
+        return true;
+    }
+
+    serial_printf("[XHCI] Address Device timeout for slot %u\n", slot_id);
+    return false;
 }
 
 static inline uint32_t mmio_read32(uintptr_t base, uint32_t off) {
@@ -319,12 +366,14 @@ bool xhci_init_x86(void) {
             uint8_t cap_len = (uint8_t)(mmio_read32(base, XHCI_CAPLENGTH) & 0xFF);
             uint16_t version = (uint16_t)((mmio_read32(base, XHCI_HCIVERSION)) & 0xFFFF);
             uint32_t params1 = mmio_read32(base, XHCI_HCSPARAMS1);
+            uint32_t hccparams1 = mmio_read32(base, XHCI_HCCPARAMS1);
             uint32_t dboff = mmio_read32(base, XHCI_DBOFF) & ~0x3u;
             uint32_t rtsoff = mmio_read32(base, XHCI_RTSOFF) & ~0x1Fu;
             uint8_t ports = (uint8_t)(params1 & 0xFF);
+            g_ctx_size = (hccparams1 & (1u << 2)) ? 64 : 32;
 
             serial_printf("[XHCI] caplen=%u version=%x ports=%u\n", cap_len, version, ports);
-            serial_printf("[XHCI] dboff=0x%08x rtsoff=0x%08x\n", dboff, rtsoff);
+            serial_printf("[XHCI] dboff=0x%08x rtsoff=0x%08x ctx=%u\n", dboff, rtsoff, g_ctx_size);
 
             if (!xhci_reset(base, cap_len)) {
                 serial_puts("[XHCI] reset timeout\n");
@@ -390,7 +439,7 @@ bool xhci_init_x86(void) {
                         uint8_t slot_id = 0;
                         if (xhci_poll_cmd_complete(rt_base, &slot_id)) {
                             serial_printf("[XHCI] Enable Slot complete, slot=%u\n", slot_id);
-                            xhci_address_device_stub(slot_id, (uint8_t)(p + 1));
+                            xhci_address_device(base, dboff, rt_base, slot_id, (uint8_t)(p + 1), portsc);
                         } else {
                             serial_puts("[XHCI] Enable Slot timeout\n");
                         }
