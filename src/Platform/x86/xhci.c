@@ -123,6 +123,11 @@ static xhci_trb_t __attribute__((aligned(64))) g_hid_kbd_ring[32];
 static xhci_trb_t __attribute__((aligned(64))) g_hid_mouse_ring[32];
 static uint32_t __attribute__((aligned(64))) g_hid_kbd_buf[64];
 static uint32_t __attribute__((aligned(64))) g_hid_mouse_buf[64];
+static xhci_trb_t __attribute__((aligned(64))) g_msc_in_ring[32];
+static xhci_trb_t __attribute__((aligned(64))) g_msc_out_ring[32];
+static uint32_t __attribute__((aligned(64))) g_msc_data_buf[512];
+static uint8_t __attribute__((aligned(64))) g_msc_cbw[32];
+static uint8_t __attribute__((aligned(64))) g_msc_csw[16];
 static uint32_t g_ctx_size = 32;
 
 typedef struct {
@@ -145,6 +150,24 @@ typedef struct {
 static xhci_hid_dev_t g_hid_kbd;
 static xhci_hid_dev_t g_hid_mouse;
 
+typedef struct {
+    uint8_t slot;
+    uint8_t bulk_in_ep;
+    uint8_t bulk_out_ep;
+    uint16_t bulk_in_mps;
+    uint16_t bulk_out_mps;
+    uint8_t bulk_in_ep_id;
+    uint8_t bulk_out_ep_id;
+    uint32_t in_ring_index;
+    uint32_t out_ring_index;
+    uint32_t in_cycle;
+    uint32_t out_cycle;
+    bool configured;
+    uint32_t tag;
+} xhci_msc_dev_t;
+
+static xhci_msc_dev_t g_msc;
+
 static uint32_t g_cmd_ring_index = 0;
 static uint32_t g_cmd_cycle = 1;
 static uint32_t g_evt_cycle = 1;
@@ -157,6 +180,7 @@ static uintptr_t g_xhci_rt_base = 0;
 
 static inline uint32_t mmio_read32(uintptr_t base, uint32_t off);
 static inline void mmio_write32(uintptr_t base, uint32_t off, uint32_t value);
+static void xhci_msc_smoke_test(uintptr_t base, uint32_t dboff, uintptr_t rt_base);
 
 static void xhci_ring_doorbell(uintptr_t base, uint32_t db_off, uint32_t target) {
     mmio_write32(base + db_off, XHCI_DB0 + target, 0);
@@ -173,8 +197,14 @@ static void xhci_ring_init(void) {
     memset(g_hid_mouse_ring, 0, sizeof(g_hid_mouse_ring));
     memset(g_hid_kbd_buf, 0, sizeof(g_hid_kbd_buf));
     memset(g_hid_mouse_buf, 0, sizeof(g_hid_mouse_buf));
+    memset(g_msc_in_ring, 0, sizeof(g_msc_in_ring));
+    memset(g_msc_out_ring, 0, sizeof(g_msc_out_ring));
+    memset(g_msc_data_buf, 0, sizeof(g_msc_data_buf));
+    memset(g_msc_cbw, 0, sizeof(g_msc_cbw));
+    memset(g_msc_csw, 0, sizeof(g_msc_csw));
     memset(&g_hid_kbd, 0, sizeof(g_hid_kbd));
     memset(&g_hid_mouse, 0, sizeof(g_hid_mouse));
+    memset(&g_msc, 0, sizeof(g_msc));
     g_cmd_ring_index = 0;
     g_cmd_cycle = 1;
     g_evt_cycle = 1;
@@ -191,6 +221,12 @@ static void xhci_ring_init(void) {
     g_hid_mouse.buf = g_hid_mouse_buf;
     g_hid_mouse.ring_index = 0;
     g_hid_mouse.cycle = 1;
+
+    g_msc.in_ring_index = 0;
+    g_msc.out_ring_index = 0;
+    g_msc.in_cycle = 1;
+    g_msc.out_cycle = 1;
+    g_msc.tag = 1;
 }
 
 static void xhci_cmd_ring_enqueue_noop(void) {
@@ -363,6 +399,20 @@ static void xhci_build_hid_endpoint_context(uint8_t ep_id, uint16_t mps, uint8_t
     ep[3] = 0;
 }
 
+static void xhci_build_bulk_endpoint_context(uint8_t ep_id, uint16_t mps, uint8_t type,
+                                             xhci_trb_t *ring) {
+    uint32_t ctx_dwords = g_ctx_size / 4;
+    uint32_t *ictl = &g_input_ctx[0];
+    uint32_t *ep = &g_input_ctx[ctx_dwords * (1 + ep_id)];
+
+    ictl[0] |= (1u << ep_id);
+
+    ep[0] = ((uint32_t)type << 3);
+    ep[1] = ((uint32_t)mps << 16);
+    ep[2] = (uint32_t)((uintptr_t)ring & 0xFFFFFFFFu);
+    ep[3] = 0;
+}
+
 static bool xhci_address_device(uintptr_t base, uint32_t dboff, uintptr_t rt_base,
                                 uint8_t slot_id, uint8_t port, uint32_t portsc) {
     xhci_build_contexts(slot_id, port, portsc);
@@ -514,6 +564,8 @@ static bool xhci_ep0_get_config_descriptor(uintptr_t base, uint32_t dboff, uintp
 
     uint32_t off = 0;
     uint8_t current_proto = 0;
+    uint8_t current_class = 0;
+    uint8_t current_sub = 0;
     if (g_hid_kbd.slot == slot_id) {
         g_hid_kbd.ep_addr = 0;
         g_hid_kbd.ep_id = 0;
@@ -531,6 +583,15 @@ static bool xhci_ep0_get_config_descriptor(uintptr_t base, uint32_t dboff, uintp
         g_hid_mouse.pending = false;
         g_hid_mouse.configured = false;
     }
+    if (g_msc.slot == slot_id) {
+        g_msc.bulk_in_ep = 0;
+        g_msc.bulk_out_ep = 0;
+        g_msc.bulk_in_ep_id = 0;
+        g_msc.bulk_out_ep_id = 0;
+        g_msc.bulk_in_mps = 0;
+        g_msc.bulk_out_mps = 0;
+        g_msc.configured = false;
+    }
     while (off + 1 < 64) {
         uint8_t len = buf[off];
         uint8_t type = buf[off + 1];
@@ -542,10 +603,15 @@ static bool xhci_ep0_get_config_descriptor(uintptr_t base, uint32_t dboff, uintp
             uint8_t sub = buf[off + 6];
             uint8_t proto = buf[off + 7];
             serial_printf("[XHCI] IF cls=0x%02x sub=0x%02x proto=0x%02x\n", cls, sub, proto);
+            current_class = cls;
+            current_sub = sub;
             if (cls == 0x03 && (proto == 1 || proto == 2)) {
                 current_proto = proto;
             } else {
                 current_proto = 0;
+            }
+            if (cls == 0x08 && proto == 0x50) {
+                g_msc.slot = slot_id;
             }
         }
         if (type == 5 && len >= 7) {
@@ -571,6 +637,19 @@ static bool xhci_ep0_get_config_descriptor(uintptr_t base, uint32_t dboff, uintp
                                   ep_addr, mps, interval);
                 }
             }
+            if (current_class == 0x08 && current_sub == 0x06 && ep_type == 2) {
+                if (ep_addr & 0x80) {
+                    g_msc.bulk_in_ep = ep_addr;
+                    g_msc.bulk_in_mps = mps;
+                    g_msc.bulk_in_ep_id = (uint8_t)(2 * (ep_addr & 0x0F) + 1);
+                } else {
+                    g_msc.bulk_out_ep = ep_addr;
+                    g_msc.bulk_out_mps = mps;
+                    g_msc.bulk_out_ep_id = (uint8_t)(2 * (ep_addr & 0x0F) + 0);
+                }
+                serial_printf("[XHCI] MSC bulk %s ep=0x%02x mps=%u\n",
+                              (ep_addr & 0x80) ? "IN" : "OUT", ep_addr, mps);
+            }
         }
         off += len;
     }
@@ -593,6 +672,19 @@ static bool xhci_ep0_get_config_descriptor(uintptr_t base, uint32_t dboff, uintp
         g_hid_mouse.configured = xhci_configure_endpoint(base, dboff, rt_base, slot_id);
     }
 
+    if (g_msc.bulk_in_ep_id != 0 && g_msc.bulk_out_ep_id != 0 && g_msc.slot == slot_id) {
+        memset(g_input_ctx, 0, sizeof(g_input_ctx));
+        xhci_build_bulk_endpoint_context(g_msc.bulk_out_ep_id, g_msc.bulk_out_mps, 2,
+                                         g_msc_out_ring);
+        xhci_build_bulk_endpoint_context(g_msc.bulk_in_ep_id, g_msc.bulk_in_mps, 6,
+                                         g_msc_in_ring);
+        g_msc.configured = xhci_configure_endpoint(base, dboff, rt_base, slot_id);
+        if (g_msc.configured) {
+            serial_puts("[XHCI] MSC endpoints configured\n");
+            xhci_msc_smoke_test(base, dboff, rt_base);
+        }
+    }
+
     return true;
 }
 
@@ -613,6 +705,46 @@ static void xhci_hid_enqueue_interrupt_in(xhci_hid_dev_t *dev, uintptr_t buf, ui
         link->dword3 = (6u << XHCI_TRB_TYPE_SHIFT) | XHCI_TRB_CYCLE | (1u << 1);
         dev->ring_index = 0;
         dev->cycle ^= 1;
+    }
+}
+
+static void xhci_msc_enqueue_out(uintptr_t buf, uint32_t len) {
+    xhci_trb_t *trb = &g_msc_out_ring[g_msc.out_ring_index++];
+    trb->dword0 = (uint32_t)(buf & 0xFFFFFFFFu);
+    trb->dword1 = 0;
+    trb->dword2 = len;
+    trb->dword3 = (XHCI_TRB_TYPE_NORMAL << XHCI_TRB_TYPE_SHIFT) |
+                  XHCI_TRB_IOC |
+                  (g_msc.out_cycle ? XHCI_TRB_CYCLE : 0);
+
+    if (g_msc.out_ring_index >= 31) {
+        xhci_trb_t *link = &g_msc_out_ring[g_msc.out_ring_index++];
+        link->dword0 = (uint32_t)((uintptr_t)&g_msc_out_ring[0] & 0xFFFFFFFFu);
+        link->dword1 = 0;
+        link->dword2 = 0;
+        link->dword3 = (6u << XHCI_TRB_TYPE_SHIFT) | XHCI_TRB_CYCLE | (1u << 1);
+        g_msc.out_ring_index = 0;
+        g_msc.out_cycle ^= 1;
+    }
+}
+
+static void xhci_msc_enqueue_in(uintptr_t buf, uint32_t len) {
+    xhci_trb_t *trb = &g_msc_in_ring[g_msc.in_ring_index++];
+    trb->dword0 = (uint32_t)(buf & 0xFFFFFFFFu);
+    trb->dword1 = 0;
+    trb->dword2 = len;
+    trb->dword3 = (XHCI_TRB_TYPE_NORMAL << XHCI_TRB_TYPE_SHIFT) |
+                  XHCI_TRB_IOC |
+                  (g_msc.in_cycle ? XHCI_TRB_CYCLE : 0);
+
+    if (g_msc.in_ring_index >= 31) {
+        xhci_trb_t *link = &g_msc_in_ring[g_msc.in_ring_index++];
+        link->dword0 = (uint32_t)((uintptr_t)&g_msc_in_ring[0] & 0xFFFFFFFFu);
+        link->dword1 = 0;
+        link->dword2 = 0;
+        link->dword3 = (6u << XHCI_TRB_TYPE_SHIFT) | XHCI_TRB_CYCLE | (1u << 1);
+        g_msc.in_ring_index = 0;
+        g_msc.in_cycle ^= 1;
     }
 }
 
@@ -721,6 +853,130 @@ static void xhci_hid_poll_events(uintptr_t rt_base) {
             xhci_handle_hid_mouse((const uint8_t *)g_hid_mouse.buf, g_hid_mouse.mps);
         }
     }
+}
+
+static bool xhci_msc_bulk_transfer(uintptr_t base, uint32_t dboff, uintptr_t rt_base,
+                                   bool in, void *buf, uint32_t len) {
+    if (!g_msc.configured) {
+        return false;
+    }
+    if (in) {
+        xhci_msc_enqueue_in((uintptr_t)buf, len);
+        mmio_write32(base + dboff, XHCI_DB0 + g_msc.slot, g_msc.bulk_in_ep_id);
+    } else {
+        xhci_msc_enqueue_out((uintptr_t)buf, len);
+        mmio_write32(base + dboff, XHCI_DB0 + g_msc.slot, g_msc.bulk_out_ep_id);
+    }
+    return xhci_poll_transfer_complete(rt_base, g_msc.slot);
+}
+
+static bool xhci_msc_send_cbw(uintptr_t base, uint32_t dboff, uintptr_t rt_base,
+                              uint8_t *cb, uint8_t cb_len, uint32_t data_len, bool data_in) {
+    memset(g_msc_cbw, 0, sizeof(g_msc_cbw));
+    g_msc_cbw[0] = 'U';
+    g_msc_cbw[1] = 'S';
+    g_msc_cbw[2] = 'B';
+    g_msc_cbw[3] = 'C';
+    uint32_t tag = g_msc.tag++;
+    g_msc_cbw[4] = (uint8_t)(tag & 0xFF);
+    g_msc_cbw[5] = (uint8_t)((tag >> 8) & 0xFF);
+    g_msc_cbw[6] = (uint8_t)((tag >> 16) & 0xFF);
+    g_msc_cbw[7] = (uint8_t)((tag >> 24) & 0xFF);
+    g_msc_cbw[8] = (uint8_t)(data_len & 0xFF);
+    g_msc_cbw[9] = (uint8_t)((data_len >> 8) & 0xFF);
+    g_msc_cbw[10] = (uint8_t)((data_len >> 16) & 0xFF);
+    g_msc_cbw[11] = (uint8_t)((data_len >> 24) & 0xFF);
+    g_msc_cbw[12] = data_in ? 0x80 : 0x00;
+    g_msc_cbw[13] = 0;
+    g_msc_cbw[14] = cb_len;
+    memcpy(&g_msc_cbw[15], cb, cb_len);
+
+    return xhci_msc_bulk_transfer(base, dboff, rt_base, false, g_msc_cbw, 31);
+}
+
+static bool xhci_msc_recv_csw(uintptr_t base, uint32_t dboff, uintptr_t rt_base) {
+    if (!xhci_msc_bulk_transfer(base, dboff, rt_base, true, g_msc_csw, 13)) {
+        return false;
+    }
+    if (g_msc_csw[0] != 'U' || g_msc_csw[1] != 'S' || g_msc_csw[2] != 'B' || g_msc_csw[3] != 'S') {
+        serial_puts("[XHCI] MSC CSW bad signature\n");
+        return false;
+    }
+    if (g_msc_csw[12] != 0) {
+        serial_printf("[XHCI] MSC CSW status=%u\n", g_msc_csw[12]);
+        return false;
+    }
+    return true;
+}
+
+static void xhci_msc_smoke_test(uintptr_t base, uint32_t dboff, uintptr_t rt_base) {
+    uint8_t cb[16];
+
+    memset(cb, 0, sizeof(cb));
+    cb[0] = 0x12; /* INQUIRY */
+    cb[4] = 36;
+    if (!xhci_msc_send_cbw(base, dboff, rt_base, cb, 6, 36, true)) {
+        serial_puts("[XHCI] MSC INQUIRY CBW failed\n");
+        return;
+    }
+    if (!xhci_msc_bulk_transfer(base, dboff, rt_base, true, g_msc_data_buf, 36)) {
+        serial_puts("[XHCI] MSC INQUIRY data failed\n");
+        return;
+    }
+    if (!xhci_msc_recv_csw(base, dboff, rt_base)) {
+        serial_puts("[XHCI] MSC INQUIRY CSW failed\n");
+        return;
+    }
+
+    serial_printf("[XHCI] MSC INQUIRY vendor=%.8s product=%.16s\n",
+                  (char *)&g_msc_data_buf[2], (char *)&g_msc_data_buf[6]);
+
+    memset(cb, 0, sizeof(cb));
+    cb[0] = 0x25; /* READ CAPACITY(10) */
+    if (!xhci_msc_send_cbw(base, dboff, rt_base, cb, 10, 8, true)) {
+        serial_puts("[XHCI] MSC READ CAPACITY CBW failed\n");
+        return;
+    }
+    if (!xhci_msc_bulk_transfer(base, dboff, rt_base, true, g_msc_data_buf, 8)) {
+        serial_puts("[XHCI] MSC READ CAPACITY data failed\n");
+        return;
+    }
+    if (!xhci_msc_recv_csw(base, dboff, rt_base)) {
+        serial_puts("[XHCI] MSC READ CAPACITY CSW failed\n");
+        return;
+    }
+
+    uint32_t last_lba = (g_msc_data_buf[0] << 24) | (g_msc_data_buf[1] << 16) |
+                        (g_msc_data_buf[2] << 8) | g_msc_data_buf[3];
+    uint32_t blk_size = (g_msc_data_buf[4] << 24) | (g_msc_data_buf[5] << 16) |
+                        (g_msc_data_buf[6] << 8) | g_msc_data_buf[7];
+    serial_printf("[XHCI] MSC capacity last_lba=%u block_size=%u\n", last_lba, blk_size);
+
+    if (blk_size == 0 || blk_size > sizeof(g_msc_data_buf)) {
+        serial_puts("[XHCI] MSC block size unsupported for smoke test\n");
+        return;
+    }
+
+    memset(cb, 0, sizeof(cb));
+    cb[0] = 0x28; /* READ(10) */
+    cb[7] = 0;
+    cb[8] = 1; /* 1 block */
+    if (!xhci_msc_send_cbw(base, dboff, rt_base, cb, 10, blk_size, true)) {
+        serial_puts("[XHCI] MSC READ10 CBW failed\n");
+        return;
+    }
+    if (!xhci_msc_bulk_transfer(base, dboff, rt_base, true, g_msc_data_buf, blk_size)) {
+        serial_puts("[XHCI] MSC READ10 data failed\n");
+        return;
+    }
+    if (!xhci_msc_recv_csw(base, dboff, rt_base)) {
+        serial_puts("[XHCI] MSC READ10 CSW failed\n");
+        return;
+    }
+
+    serial_printf("[XHCI] MSC LBA0: %02x %02x %02x %02x\n",
+                  ((uint8_t *)g_msc_data_buf)[0], ((uint8_t *)g_msc_data_buf)[1],
+                  ((uint8_t *)g_msc_data_buf)[2], ((uint8_t *)g_msc_data_buf)[3]);
 }
 
 static UInt16 xhci_hid_modifiers(uint8_t mods) {
