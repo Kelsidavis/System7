@@ -15,6 +15,7 @@
 #include "TimeManager/TimeManager.h"
 #include "xhci.h"
 #include "ehci.h"
+#include "uhci.h"
 
 extern void* framebuffer;
 extern uint32_t fb_width;
@@ -60,6 +61,7 @@ void hal_boot_init(void *boot_arg) {
     PS2_SetIRQDriven(true);
     xhci_init_x86();
     ehci_init_x86();
+    uhci_init_x86();
     idt_enable_interrupts();
 }
 
