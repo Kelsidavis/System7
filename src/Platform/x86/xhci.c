@@ -160,6 +160,7 @@ typedef struct {
     uint8_t interval;
     uint8_t ep_id;
     uint8_t interface_num;
+    uint8_t alt_setting;
     uint32_t ring_index;
     uint32_t cycle;
     bool pending;
@@ -329,6 +330,7 @@ static void xhci_ring_init(void) {
         g_hid_kbd[i].cycle = 1;
         g_hid_kbd[i].port = (uint8_t)(i + 1);
         g_hid_kbd[i].interface_num = 0xFF;
+        g_hid_kbd[i].alt_setting = 0xFF;
 
         g_hid_mouse[i].io = &g_hid_mouse_io[i];
         g_hid_mouse[i].ring = g_hid_mouse_io[i].ring;
@@ -337,6 +339,7 @@ static void xhci_ring_init(void) {
         g_hid_mouse[i].cycle = 1;
         g_hid_mouse[i].port = (uint8_t)(i + 1);
         g_hid_mouse[i].interface_num = 0xFF;
+        g_hid_mouse[i].alt_setting = 0xFF;
 
         g_msc[i].io = &g_msc_io[i];
         g_msc[i].in_ring_index = 0;
@@ -896,6 +899,7 @@ static bool xhci_ep0_get_config_descriptor(uintptr_t base, uint32_t dboff, uintp
     uint8_t current_class = 0;
     uint8_t current_sub = 0;
     uint8_t current_if_num = 0;
+    uint8_t current_alt = 0;
     uint8_t uasp_in_eps[2] = {0};
     uint8_t uasp_out_eps[2] = {0};
     uint16_t uasp_in_mps[2] = {0};
@@ -913,6 +917,7 @@ static bool xhci_ep0_get_config_descriptor(uintptr_t base, uint32_t dboff, uintp
     kbd->ring_index = 0;
     kbd->cycle = 1;
     kbd->interface_num = 0xFF;
+    kbd->alt_setting = 0xFF;
     kbd->interface_num = 0xFF;
     memset(kbd->last_report, 0, sizeof(kbd->last_report));
 
@@ -927,6 +932,7 @@ static bool xhci_ep0_get_config_descriptor(uintptr_t base, uint32_t dboff, uintp
     mouse->ring_index = 0;
     mouse->cycle = 1;
     mouse->interface_num = 0xFF;
+    mouse->alt_setting = 0xFF;
     mouse->interface_num = 0xFF;
 
     msc->slot = 0;
@@ -992,11 +998,13 @@ static bool xhci_ep0_get_config_descriptor(uintptr_t base, uint32_t dboff, uintp
             uint8_t sub = buf[off + 6];
             uint8_t proto = buf[off + 7];
             uint8_t if_num = buf[off + 2];
+            uint8_t alt = buf[off + 3];
             serial_printf("[XHCI] IF cls=0x%02x sub=0x%02x proto=0x%02x\n", cls, sub, proto);
             current_class = cls;
             current_sub = sub;
             current_proto = proto;
             current_if_num = if_num;
+            current_alt = alt;
             if (cls == 0x08 && (proto == 0x50 || proto == 0x62)) {
                 msc->slot = slot_id;
                 msc->uasp = (proto == 0x62);
@@ -1008,6 +1016,7 @@ static bool xhci_ep0_get_config_descriptor(uintptr_t base, uint32_t dboff, uintp
                 if (dev->ep_addr == 0 && dev->interface_num == 0xFF) {
                     dev->slot = slot_id;
                     dev->interface_num = if_num;
+                    dev->alt_setting = alt;
                     /* Boot protocol HID: force alt setting 0 and boot protocol. */
                     xhci_ep0_set_interface(base, dboff, rt_base, slot_id, if_num, 0);
                     xhci_ep0_set_protocol(base, dboff, rt_base, slot_id, if_num, 0);
@@ -1024,7 +1033,8 @@ static bool xhci_ep0_get_config_descriptor(uintptr_t base, uint32_t dboff, uintp
             if ((ep_addr & 0x80) && ep_type == 3 && (current_proto == 1 || current_proto == 2)) {
                 xhci_hid_dev_t *dev = (current_proto == 1) ? kbd : mouse;
                 if (dev->ep_addr == 0 && dev->slot == slot_id &&
-                    dev->interface_num == current_if_num) {
+                    dev->interface_num == current_if_num &&
+                    dev->alt_setting == current_alt) {
                     dev->slot = slot_id;
                     dev->ep_addr = ep_addr;
                     if (current_proto == 1 && mps > sizeof(dev->last_report)) {
@@ -1129,6 +1139,13 @@ static bool xhci_ep0_get_config_descriptor(uintptr_t base, uint32_t dboff, uintp
 
     if (config_value != 0) {
         xhci_ep0_set_configuration(base, dboff, rt_base, slot_id, config_value);
+    }
+
+    if (kbd->interface_num != 0xFF && kbd->alt_setting != 0xFF) {
+        xhci_ep0_set_interface(base, dboff, rt_base, slot_id, kbd->interface_num, kbd->alt_setting);
+    }
+    if (mouse->interface_num != 0xFF && mouse->alt_setting != 0xFF) {
+        xhci_ep0_set_interface(base, dboff, rt_base, slot_id, mouse->interface_num, mouse->alt_setting);
     }
 
     if (kbd->ep_id != 0 && kbd->slot == slot_id) {
