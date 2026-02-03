@@ -18,6 +18,8 @@
 #include "OSUtils/OSUtils.h"
 #include "SystemTypes.h"
 #include "FileManagerTypes.h"
+#include "Platform/include/storage.h"
+#include "EventManager/SystemEvents.h"
 #include <stdint.h>
 #include <string.h>
 #include <limits.h>
@@ -228,6 +230,13 @@ static uint32_t g_ep0_cycle = 1;
 static uintptr_t g_xhci_base = 0;
 static uint32_t g_xhci_dboff = 0;
 static uintptr_t g_xhci_rt_base = 0;
+static uint8_t g_xhci_cap_len = 0;
+static uint8_t g_xhci_ports = 0;
+static uint8_t g_xhci_enum_port = 0;
+static uint8_t g_msc_port = 0;
+static bool g_msc_present = false;
+static uint8_t g_msc_last_luns = 0;
+static int g_msc_drive_base = -1;
 
 static inline uint32_t mmio_read32(uintptr_t base, uint32_t off);
 static inline void mmio_write32(uintptr_t base, uint32_t off, uint32_t value);
@@ -239,6 +248,9 @@ static bool xhci_msc_test_unit_ready(uintptr_t base, uint32_t dboff, uintptr_t r
 static bool xhci_msc_configure_bot(uintptr_t base, uint32_t dboff, uintptr_t rt_base);
 static bool xhci_msc_get_max_lun(uintptr_t base, uint32_t dboff, uintptr_t rt_base, uint8_t slot_id);
 static bool xhci_msc_ensure_lun_info(uint8_t lun);
+static void xhci_poll_hotplug(void);
+static void xhci_msc_fire_events(bool inserted);
+static bool xhci_port_reset(uintptr_t op_base, uint8_t port);
 
 static void xhci_ring_doorbell(uintptr_t base, uint32_t db_off, uint32_t target) {
     mmio_write32(base + db_off, XHCI_DB0 + target, 0);
@@ -717,6 +729,9 @@ static bool xhci_ep0_get_config_descriptor(uintptr_t base, uint32_t dboff, uintp
                 g_msc.slot = slot_id;
                 g_msc.uasp = (proto == 0x62);
                 g_msc.interface_num = if_num;
+                if (g_xhci_enum_port != 0) {
+                    g_msc_port = g_xhci_enum_port;
+                }
             }
         }
         if (type == 5 && len >= 7) {
@@ -855,6 +870,13 @@ static bool xhci_ep0_get_config_descriptor(uintptr_t base, uint32_t dboff, uintp
             serial_puts("[XHCI] UASP endpoints configured\n");
             g_msc.max_lun = 1;
             xhci_msc_smoke_test(base, dboff, rt_base);
+            g_msc_present = true;
+            g_msc_last_luns = xhci_msc_get_lun_count();
+            g_msc_drive_base = hal_storage_get_drive_count() - g_msc_last_luns;
+            if (g_msc_drive_base < 0) {
+                g_msc_drive_base = 0;
+            }
+            xhci_msc_fire_events(true);
         }
     } else if (!g_msc.uasp && g_msc.bulk_in_ep_id != 0 && g_msc.bulk_out_ep_id != 0 &&
                g_msc.slot == slot_id) {
@@ -869,12 +891,26 @@ static bool xhci_ep0_get_config_descriptor(uintptr_t base, uint32_t dboff, uintp
             g_msc.max_lun = 1;
             xhci_msc_get_max_lun(base, dboff, rt_base, slot_id);
             xhci_msc_smoke_test(base, dboff, rt_base);
+            g_msc_present = true;
+            g_msc_last_luns = xhci_msc_get_lun_count();
+            g_msc_drive_base = hal_storage_get_drive_count() - g_msc_last_luns;
+            if (g_msc_drive_base < 0) {
+                g_msc_drive_base = 0;
+            }
+            xhci_msc_fire_events(true);
         }
     } else if (g_msc.bot_present && g_msc.slot == slot_id) {
         if (xhci_msc_configure_bot(base, dboff, rt_base)) {
             g_msc.max_lun = 1;
             xhci_msc_get_max_lun(base, dboff, rt_base, slot_id);
             xhci_msc_smoke_test(base, dboff, rt_base);
+            g_msc_present = true;
+            g_msc_last_luns = xhci_msc_get_lun_count();
+            g_msc_drive_base = hal_storage_get_drive_count() - g_msc_last_luns;
+            if (g_msc_drive_base < 0) {
+                g_msc_drive_base = 0;
+            }
+            xhci_msc_fire_events(true);
         }
     }
 
@@ -1449,6 +1485,77 @@ static bool xhci_msc_try_fallback_bot(void) {
         return false;
     }
     return true;
+}
+
+static void xhci_msc_fire_events(bool inserted) {
+    if (g_msc_last_luns == 0) {
+        return;
+    }
+    int base = g_msc_drive_base;
+    if (base < 0) {
+        base = 0;
+    }
+    for (uint8_t i = 0; i < g_msc_last_luns; i++) {
+        if (inserted) {
+            ProcessDiskInsertion((SInt16)(base + i), "USB");
+        } else {
+            ProcessDiskEjection((SInt16)(base + i));
+        }
+    }
+}
+
+static void xhci_poll_hotplug(void) {
+    if (!g_xhci_base || !g_xhci_cap_len || g_msc_port == 0) {
+        return;
+    }
+    uintptr_t op_base = g_xhci_base + g_xhci_cap_len;
+    uint32_t portsc = mmio_read32(op_base, XHCI_PORTSC_BASE + (g_msc_port - 1) * XHCI_PORTSC_STRIDE);
+    bool connected = (portsc & XHCI_PORTSC_CCS) != 0;
+
+    if (!connected && g_msc_present) {
+        g_msc_present = false;
+        g_msc.configured = false;
+        g_msc.bot_configured = false;
+        g_msc.uasp_failed = false;
+        g_msc.slot = 0;
+        g_msc.block_size = 0;
+        g_msc.block_count = 0;
+        memset(g_msc_lun_valid, 0, sizeof(g_msc_lun_valid));
+        xhci_msc_fire_events(false);
+        g_msc_last_luns = 0;
+        g_msc_drive_base = -1;
+        return;
+    }
+
+    if (connected && !g_msc_present && !g_msc.configured) {
+        if (!xhci_port_reset(op_base, (uint8_t)(g_msc_port - 1))) {
+            return;
+        }
+        xhci_cmd_ring_enqueue_enable_slot();
+        xhci_ring_doorbell(g_xhci_base, g_xhci_dboff, 0);
+        uint8_t slot_id = 0;
+        if (!xhci_poll_cmd_complete(g_xhci_rt_base, &slot_id)) {
+            return;
+        }
+        if (!xhci_address_device(g_xhci_base, g_xhci_dboff, g_xhci_rt_base, slot_id, g_msc_port, portsc)) {
+            return;
+        }
+        if (!xhci_ep0_get_device_descriptor(g_xhci_base, g_xhci_dboff, g_xhci_rt_base, slot_id)) {
+            return;
+        }
+        if (!xhci_ep0_get_config_descriptor(g_xhci_base, g_xhci_dboff, g_xhci_rt_base, slot_id)) {
+            return;
+        }
+        if (g_msc.configured) {
+            g_msc_present = true;
+            g_msc_last_luns = xhci_msc_get_lun_count();
+            g_msc_drive_base = hal_storage_get_drive_count() - g_msc_last_luns;
+            if (g_msc_drive_base < 0) {
+                g_msc_drive_base = 0;
+            }
+            xhci_msc_fire_events(true);
+        }
+    }
 }
 
 static bool xhci_msc_inquiry(uintptr_t base, uint32_t dboff, uintptr_t rt_base, uint8_t lun) {
@@ -2119,6 +2226,8 @@ bool xhci_init_x86(void) {
             uint32_t rtsoff = mmio_read32(base, XHCI_RTSOFF) & ~0x1Fu;
             uint8_t ports = (uint8_t)(params1 & 0xFF);
             g_ctx_size = (hccparams1 & (1u << 2)) ? 64 : 32;
+            g_xhci_cap_len = cap_len;
+            g_xhci_ports = ports;
 
             serial_printf("[XHCI] caplen=%u version=%x ports=%u\n", cap_len, version, ports);
             serial_printf("[XHCI] dboff=0x%08x rtsoff=0x%08x ctx=%u\n", dboff, rtsoff, g_ctx_size);
@@ -2179,6 +2288,7 @@ bool xhci_init_x86(void) {
                 serial_puts("[XHCI] NOOP command timeout\n");
             }
             for (uint8_t p = 0; p < ports; p++) {
+                g_xhci_enum_port = (uint8_t)(p + 1);
                 uint32_t portsc = mmio_read32(op_base, XHCI_PORTSC_BASE + p * XHCI_PORTSC_STRIDE);
                 if (portsc & XHCI_PORTSC_CCS) {
                     serial_printf("[XHCI] port %u connected (%s) PORTSC=0x%08x\n",
@@ -2220,4 +2330,5 @@ void xhci_poll_hid_x86(void) {
     xhci_hid_submit(g_xhci_base, g_xhci_dboff, &g_hid_kbd);
     xhci_hid_submit(g_xhci_base, g_xhci_dboff, &g_hid_mouse);
     xhci_hid_poll_events(g_xhci_rt_base);
+    xhci_poll_hotplug();
 }
