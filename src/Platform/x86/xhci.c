@@ -3,13 +3,14 @@
  *
  * Note: This is a minimal Phase-1 implementation that detects an xHCI
  * controller, enables MMIO + bus mastering, performs a controller reset,
- * and logs port connect status. HID transfers are not implemented yet.
+ * and logs port connect status. HID keyboard/mouse polling is supported.
  */
 
 #include "xhci.h"
 #include "pci.h"
 #include "usb_core.h"
 #include "Platform/include/serial.h"
+#include "PS2Controller.h"
 #include "EventManager/KeyboardEvents.h"
 #include "EventManager/EventTypes.h"
 #include "EventManager/EventManager.h"
@@ -116,15 +117,30 @@ static uint64_t __attribute__((aligned(64))) g_dcbaa[256];
 static uint32_t __attribute__((aligned(64))) g_input_ctx[48];
 static uint32_t __attribute__((aligned(64))) g_dev_ctx[32];
 static xhci_trb_t __attribute__((aligned(64))) g_ep0_ring[32];
-static xhci_trb_t __attribute__((aligned(64))) g_hid_ring[32];
 static uint32_t __attribute__((aligned(64))) g_ep0_buf[64];
-static uint8_t g_hid_ep_addr = 0;
-static uint16_t g_hid_ep_mps = 0;
-static uint8_t g_hid_ep_interval = 0;
-static uint8_t g_hid_slot = 0;
-static uint8_t g_hid_ep_id = 0;
-static uint8_t g_hid_last_report[8];
+static xhci_trb_t __attribute__((aligned(64))) g_hid_kbd_ring[32];
+static xhci_trb_t __attribute__((aligned(64))) g_hid_mouse_ring[32];
+static uint32_t __attribute__((aligned(64))) g_hid_kbd_buf[64];
+static uint32_t __attribute__((aligned(64))) g_hid_mouse_buf[64];
 static uint32_t g_ctx_size = 32;
+
+typedef struct {
+    uint8_t slot;
+    uint8_t ep_addr;
+    uint16_t mps;
+    uint8_t interval;
+    uint8_t ep_id;
+    uint32_t ring_index;
+    uint32_t cycle;
+    bool pending;
+    uint8_t last_report[8];
+    xhci_trb_t *ring;
+    uint32_t *buf;
+    bool configured;
+} xhci_hid_dev_t;
+
+static xhci_hid_dev_t g_hid_kbd;
+static xhci_hid_dev_t g_hid_mouse;
 
 static uint32_t g_cmd_ring_index = 0;
 static uint32_t g_cmd_cycle = 1;
@@ -132,8 +148,6 @@ static uint32_t g_evt_cycle = 1;
 static uint32_t g_evt_ring_index = 0;
 static uint32_t g_ep0_ring_index = 0;
 static uint32_t g_ep0_cycle = 1;
-static uint32_t g_hid_ring_index = 0;
-static uint32_t g_hid_cycle = 1;
 static uintptr_t g_xhci_base = 0;
 static uint32_t g_xhci_dboff = 0;
 static uintptr_t g_xhci_rt_base = 0;
@@ -151,16 +165,29 @@ static void xhci_ring_init(void) {
     memset(g_erst, 0, sizeof(g_erst));
     memset(g_dcbaa, 0, sizeof(g_dcbaa));
     memset(g_ep0_ring, 0, sizeof(g_ep0_ring));
-    memset(g_hid_ring, 0, sizeof(g_hid_ring));
     memset(g_ep0_buf, 0, sizeof(g_ep0_buf));
+    memset(g_hid_kbd_ring, 0, sizeof(g_hid_kbd_ring));
+    memset(g_hid_mouse_ring, 0, sizeof(g_hid_mouse_ring));
+    memset(g_hid_kbd_buf, 0, sizeof(g_hid_kbd_buf));
+    memset(g_hid_mouse_buf, 0, sizeof(g_hid_mouse_buf));
+    memset(&g_hid_kbd, 0, sizeof(g_hid_kbd));
+    memset(&g_hid_mouse, 0, sizeof(g_hid_mouse));
     g_cmd_ring_index = 0;
     g_cmd_cycle = 1;
     g_evt_cycle = 1;
     g_evt_ring_index = 0;
     g_ep0_ring_index = 0;
     g_ep0_cycle = 1;
-    g_hid_ring_index = 0;
-    g_hid_cycle = 1;
+
+    g_hid_kbd.ring = g_hid_kbd_ring;
+    g_hid_kbd.buf = g_hid_kbd_buf;
+    g_hid_kbd.ring_index = 0;
+    g_hid_kbd.cycle = 1;
+
+    g_hid_mouse.ring = g_hid_mouse_ring;
+    g_hid_mouse.buf = g_hid_mouse_buf;
+    g_hid_mouse.ring_index = 0;
+    g_hid_mouse.cycle = 1;
 }
 
 static void xhci_cmd_ring_enqueue_noop(void) {
@@ -221,26 +248,39 @@ static bool xhci_poll_transfer_complete(uintptr_t rt_base, uint8_t slot_id) {
             uint32_t type = (evt->dword3 & XHCI_TRB_TYPE_MASK) >> XHCI_TRB_TYPE_SHIFT;
             if (type == XHCI_TRB_TYPE_EVT_TRANSFER) {
                 uint8_t evt_slot = (uint8_t)((evt->dword3 >> 24) & 0xFF);
-                if (evt_slot == slot_id) {
-                    uint32_t comp = (evt->dword2 >> 24) & 0xFF;
-                    uint32_t len = evt->dword2 & 0xFFFFFF;
-                    serial_printf("[XHCI] Transfer complete slot=%u code=%u len=%u\n",
-                                  evt_slot, comp, len);
+                uint32_t comp = (evt->dword2 >> 24) & 0xFF;
+                uint32_t len = evt->dword2 & 0xFFFFFF;
+                serial_printf("[XHCI] Transfer complete slot=%u code=%u len=%u\n",
+                              evt_slot, comp, len);
 
-                    g_evt_ring_index++;
-                    if (g_evt_ring_index >= (sizeof(g_evt_ring) / sizeof(g_evt_ring[0]))) {
-                        g_evt_ring_index = 0;
-                        g_evt_cycle ^= 1;
-                    }
-                    uintptr_t erdp = (uintptr_t)&g_evt_ring[g_evt_ring_index];
-                    mmio_write32(rt_base, XHCI_RT_ERDP_LO, (uint32_t)(erdp & 0xFFFFFFFFu));
+                g_evt_ring_index++;
+                if (g_evt_ring_index >= (sizeof(g_evt_ring) / sizeof(g_evt_ring[0]))) {
+                    g_evt_ring_index = 0;
+                    g_evt_cycle ^= 1;
+                }
+                uintptr_t erdp = (uintptr_t)&g_evt_ring[g_evt_ring_index];
+                mmio_write32(rt_base, XHCI_RT_ERDP_LO, (uint32_t)(erdp & 0xFFFFFFFFu));
 #if UINTPTR_MAX > 0xFFFFFFFFu
-                    mmio_write32(rt_base, XHCI_RT_ERDP_HI, (uint32_t)(erdp >> 32));
+                mmio_write32(rt_base, XHCI_RT_ERDP_HI, (uint32_t)(erdp >> 32));
 #else
-                    mmio_write32(rt_base, XHCI_RT_ERDP_HI, 0);
+                mmio_write32(rt_base, XHCI_RT_ERDP_HI, 0);
 #endif
+                if (evt_slot == slot_id) {
                     return true;
                 }
+            } else {
+                g_evt_ring_index++;
+                if (g_evt_ring_index >= (sizeof(g_evt_ring) / sizeof(g_evt_ring[0]))) {
+                    g_evt_ring_index = 0;
+                    g_evt_cycle ^= 1;
+                }
+                uintptr_t erdp = (uintptr_t)&g_evt_ring[g_evt_ring_index];
+                mmio_write32(rt_base, XHCI_RT_ERDP_LO, (uint32_t)(erdp & 0xFFFFFFFFu));
+#if UINTPTR_MAX > 0xFFFFFFFFu
+                mmio_write32(rt_base, XHCI_RT_ERDP_HI, (uint32_t)(erdp >> 32));
+#else
+                mmio_write32(rt_base, XHCI_RT_ERDP_HI, 0);
+#endif
             }
         }
     }
@@ -305,7 +345,8 @@ static void xhci_build_contexts(uint8_t slot_id, uint8_t port, uint32_t portsc) 
     g_dcbaa[slot_id] = (uint64_t)(uintptr_t)&g_dev_ctx[0];
 }
 
-static void xhci_build_hid_endpoint_context(uint8_t ep_id, uint16_t mps, uint8_t interval) {
+static void xhci_build_hid_endpoint_context(uint8_t ep_id, uint16_t mps, uint8_t interval,
+                                            xhci_trb_t *ring) {
     uint32_t ctx_dwords = g_ctx_size / 4;
     uint32_t *ictl = &g_input_ctx[0];
     uint32_t *ep = &g_input_ctx[ctx_dwords * (1 + ep_id)];
@@ -315,7 +356,7 @@ static void xhci_build_hid_endpoint_context(uint8_t ep_id, uint16_t mps, uint8_t
     /* EP context: interrupt IN (type 7). */
     ep[0] = (7u << 3) | ((uint32_t)interval << 16);
     ep[1] = ((uint32_t)mps << 16);
-    ep[2] = (uint32_t)((uintptr_t)&g_hid_ring[0] & 0xFFFFFFFFu);
+    ep[2] = (uint32_t)((uintptr_t)ring & 0xFFFFFFFFu);
     ep[3] = 0;
 }
 
@@ -469,10 +510,24 @@ static bool xhci_ep0_get_config_descriptor(uintptr_t base, uint32_t dboff, uintp
     serial_printf("[XHCI] Config total length=%u\n", total);
 
     uint32_t off = 0;
-    g_hid_ep_addr = 0;
-    g_hid_ep_mps = 0;
-    g_hid_ep_interval = 0;
-    g_hid_ep_id = 0;
+    uint8_t current_proto = 0;
+    if (g_hid_kbd.slot == slot_id) {
+        g_hid_kbd.ep_addr = 0;
+        g_hid_kbd.ep_id = 0;
+        g_hid_kbd.mps = 0;
+        g_hid_kbd.interval = 0;
+        g_hid_kbd.pending = false;
+        g_hid_kbd.configured = false;
+        memset(g_hid_kbd.last_report, 0, sizeof(g_hid_kbd.last_report));
+    }
+    if (g_hid_mouse.slot == slot_id) {
+        g_hid_mouse.ep_addr = 0;
+        g_hid_mouse.ep_id = 0;
+        g_hid_mouse.mps = 0;
+        g_hid_mouse.interval = 0;
+        g_hid_mouse.pending = false;
+        g_hid_mouse.configured = false;
+    }
     while (off + 1 < 64) {
         uint8_t len = buf[off];
         uint8_t type = buf[off + 1];
@@ -484,6 +539,11 @@ static bool xhci_ep0_get_config_descriptor(uintptr_t base, uint32_t dboff, uintp
             uint8_t sub = buf[off + 6];
             uint8_t proto = buf[off + 7];
             serial_printf("[XHCI] IF cls=0x%02x sub=0x%02x proto=0x%02x\n", cls, sub, proto);
+            if (cls == 0x03 && (proto == 1 || proto == 2)) {
+                current_proto = proto;
+            } else {
+                current_proto = 0;
+            }
         }
         if (type == 5 && len >= 7) {
             uint8_t ep_addr = buf[off + 2];
@@ -491,60 +551,140 @@ static bool xhci_ep0_get_config_descriptor(uintptr_t base, uint32_t dboff, uintp
             uint16_t mps = (uint16_t)(buf[off + 4] | (buf[off + 5] << 8));
             uint8_t interval = buf[off + 6];
             uint8_t ep_type = attrs & 0x3;
-            if ((ep_addr & 0x80) && ep_type == 3 && g_hid_ep_addr == 0) {
-                g_hid_ep_addr = ep_addr;
-                g_hid_ep_mps = mps;
-                g_hid_ep_interval = interval;
-                g_hid_ep_id = (uint8_t)(2 * (ep_addr & 0x0F) + 1);
-                serial_printf("[XHCI] HID INT IN ep=0x%02x mps=%u interval=%u\n",
-                              ep_addr, mps, interval);
+            if ((ep_addr & 0x80) && ep_type == 3 && (current_proto == 1 || current_proto == 2)) {
+                xhci_hid_dev_t *dev = (current_proto == 1) ? &g_hid_kbd : &g_hid_mouse;
+                if (dev->ep_addr == 0 || dev->slot == slot_id) {
+                    dev->slot = slot_id;
+                    dev->ep_addr = ep_addr;
+                    dev->mps = mps;
+                    dev->interval = interval;
+                    dev->ep_id = (uint8_t)(2 * (ep_addr & 0x0F) + 1);
+                    dev->pending = false;
+                    if (current_proto == 1) {
+                        memset(dev->last_report, 0, sizeof(dev->last_report));
+                    }
+                    serial_printf("[XHCI] HID %s INT IN ep=0x%02x mps=%u interval=%u\n",
+                                  (current_proto == 1) ? "kbd" : "mouse",
+                                  ep_addr, mps, interval);
+                }
             }
         }
         off += len;
     }
 
-    g_hid_slot = slot_id;
     if (config_value != 0) {
         xhci_ep0_set_configuration(base, dboff, rt_base, slot_id, config_value);
     }
 
-    if (g_hid_ep_id != 0) {
+    if (g_hid_kbd.ep_id != 0 && g_hid_kbd.slot == slot_id) {
         memset(g_input_ctx, 0, sizeof(g_input_ctx));
-        xhci_build_hid_endpoint_context(g_hid_ep_id, g_hid_ep_mps, g_hid_ep_interval);
-        xhci_configure_endpoint(base, dboff, rt_base, slot_id);
+        xhci_build_hid_endpoint_context(g_hid_kbd.ep_id, g_hid_kbd.mps,
+                                        g_hid_kbd.interval, g_hid_kbd.ring);
+        g_hid_kbd.configured = xhci_configure_endpoint(base, dboff, rt_base, slot_id);
+    }
+
+    if (g_hid_mouse.ep_id != 0 && g_hid_mouse.slot == slot_id) {
+        memset(g_input_ctx, 0, sizeof(g_input_ctx));
+        xhci_build_hid_endpoint_context(g_hid_mouse.ep_id, g_hid_mouse.mps,
+                                        g_hid_mouse.interval, g_hid_mouse.ring);
+        g_hid_mouse.configured = xhci_configure_endpoint(base, dboff, rt_base, slot_id);
     }
 
     return true;
 }
 
-static void xhci_hid_enqueue_interrupt_in(uintptr_t buf, uint32_t len) {
-    xhci_trb_t *trb = &g_hid_ring[g_hid_ring_index++];
+static void xhci_hid_enqueue_interrupt_in(xhci_hid_dev_t *dev, uintptr_t buf, uint32_t len) {
+    xhci_trb_t *trb = &dev->ring[dev->ring_index++];
     trb->dword0 = (uint32_t)(buf & 0xFFFFFFFFu);
     trb->dword1 = 0;
     trb->dword2 = len;
     trb->dword3 = (XHCI_TRB_TYPE_NORMAL << XHCI_TRB_TYPE_SHIFT) |
                   XHCI_TRB_IOC |
-                  (g_hid_cycle ? XHCI_TRB_CYCLE : 0);
+                  (dev->cycle ? XHCI_TRB_CYCLE : 0);
+
+    if (dev->ring_index >= 31) {
+        xhci_trb_t *link = &dev->ring[dev->ring_index++];
+        link->dword0 = (uint32_t)((uintptr_t)&dev->ring[0] & 0xFFFFFFFFu);
+        link->dword1 = 0;
+        link->dword2 = 0;
+        link->dword3 = (6u << XHCI_TRB_TYPE_SHIFT) | XHCI_TRB_CYCLE | (1u << 1);
+        dev->ring_index = 0;
+        dev->cycle ^= 1;
+    }
 }
 
-static void xhci_handle_hid_keyboard(const uint8_t *report);
+static int xhci_poll_transfer_event(uintptr_t rt_base, uint8_t *out_slot) {
+    xhci_trb_t *evt = &g_evt_ring[g_evt_ring_index];
+    uint32_t cycle = evt->dword3 & XHCI_TRB_CYCLE;
+    if (cycle != (g_evt_cycle ? XHCI_TRB_CYCLE : 0)) {
+        return 0;
+    }
 
-static void xhci_hid_poll(uintptr_t base, uint32_t dboff, uintptr_t rt_base) {
-    if (g_hid_slot == 0 || g_hid_ep_addr == 0 || g_hid_ep_mps == 0) {
+    uint32_t type = (evt->dword3 & XHCI_TRB_TYPE_MASK) >> XHCI_TRB_TYPE_SHIFT;
+    if (type == XHCI_TRB_TYPE_EVT_TRANSFER) {
+        uint8_t evt_slot = (uint8_t)((evt->dword3 >> 24) & 0xFF);
+        uint32_t comp = (evt->dword2 >> 24) & 0xFF;
+        uint32_t len = evt->dword2 & 0xFFFFFF;
+        serial_printf("[XHCI] Transfer complete slot=%u code=%u len=%u\n",
+                      evt_slot, comp, len);
+        if (out_slot) {
+            *out_slot = evt_slot;
+        }
+    }
+
+    g_evt_ring_index++;
+    if (g_evt_ring_index >= (sizeof(g_evt_ring) / sizeof(g_evt_ring[0]))) {
+        g_evt_ring_index = 0;
+        g_evt_cycle ^= 1;
+    }
+    uintptr_t erdp = (uintptr_t)&g_evt_ring[g_evt_ring_index];
+    mmio_write32(rt_base, XHCI_RT_ERDP_LO, (uint32_t)(erdp & 0xFFFFFFFFu));
+#if UINTPTR_MAX > 0xFFFFFFFFu
+    mmio_write32(rt_base, XHCI_RT_ERDP_HI, (uint32_t)(erdp >> 32));
+#else
+    mmio_write32(rt_base, XHCI_RT_ERDP_HI, 0);
+#endif
+    return (type == XHCI_TRB_TYPE_EVT_TRANSFER) ? 1 : -1;
+}
+
+static void xhci_handle_hid_keyboard(xhci_hid_dev_t *dev, const uint8_t *report);
+static void xhci_handle_hid_mouse(const uint8_t *report, uint32_t len) {
+    if (len < 3) {
+        return;
+    }
+    int16_t dx = (int8_t)report[1];
+    int16_t dy = (int8_t)report[2];
+    uint8_t buttons = report[0] & 0x07;
+    UpdateMouseStateDelta(dx, -dy, buttons);
+}
+
+static void xhci_hid_submit(uintptr_t base, uint32_t dboff, xhci_hid_dev_t *dev) {
+    if (!dev->configured || dev->pending || dev->slot == 0 || dev->ep_id == 0 || dev->mps == 0) {
         return;
     }
 
-    xhci_hid_enqueue_interrupt_in((uintptr_t)&g_ep0_buf[0], g_hid_ep_mps);
-    if (g_hid_ep_id == 0) {
-        return;
-    }
-    mmio_write32(base + dboff, XHCI_DB0 + g_hid_slot, g_hid_ep_id);
+    xhci_hid_enqueue_interrupt_in(dev, (uintptr_t)dev->buf, dev->mps);
+    mmio_write32(base + dboff, XHCI_DB0 + dev->slot, dev->ep_id);
+    dev->pending = true;
+}
 
-    if (xhci_poll_transfer_complete(rt_base, g_hid_slot)) {
-        uint8_t *data = (uint8_t *)&g_ep0_buf[0];
-        serial_printf("[XHCI] HID data: %02x %02x %02x %02x\n",
-                      data[0], data[1], data[2], data[3]);
-        xhci_handle_hid_keyboard(data);
+static void xhci_hid_poll_events(uintptr_t rt_base) {
+    for (int i = 0; i < 4; i++) {
+        uint8_t slot = 0;
+        int res = xhci_poll_transfer_event(rt_base, &slot);
+        if (res == 0) {
+            break;
+        }
+        if (res < 0) {
+            continue;
+        }
+        if (slot == g_hid_kbd.slot && g_hid_kbd.pending) {
+            g_hid_kbd.pending = false;
+            xhci_handle_hid_keyboard(&g_hid_kbd, (const uint8_t *)g_hid_kbd.buf);
+        } else if (slot == g_hid_mouse.slot && g_hid_mouse.pending) {
+            g_hid_mouse.pending = false;
+            xhci_handle_hid_mouse((const uint8_t *)g_hid_mouse.buf, g_hid_mouse.mps);
+        }
     }
 }
 
@@ -638,8 +778,8 @@ static void xhci_hid_handle_modifiers(uint8_t current, uint8_t previous) {
     }
 }
 
-static void xhci_handle_hid_keyboard(const uint8_t *report) {
-    uint8_t prev_mods = g_hid_last_report[0];
+static void xhci_handle_hid_keyboard(xhci_hid_dev_t *dev, const uint8_t *report) {
+    uint8_t prev_mods = dev->last_report[0];
     uint8_t cur_mods = report[0];
     xhci_hid_handle_modifiers(cur_mods, prev_mods);
 
@@ -647,7 +787,7 @@ static void xhci_handle_hid_keyboard(const uint8_t *report) {
     UInt32 ts = TickCount();
 
     for (int i = 2; i < 8; i++) {
-        uint8_t key = g_hid_last_report[i];
+        uint8_t key = dev->last_report[i];
         if (key != 0 && !xhci_hid_has_key(report, key)) {
             UInt16 sc = xhci_hid_to_mac_scan(key);
             if (sc != 0xFFFF) {
@@ -658,7 +798,7 @@ static void xhci_handle_hid_keyboard(const uint8_t *report) {
 
     for (int i = 2; i < 8; i++) {
         uint8_t key = report[i];
-        if (key != 0 && !xhci_hid_has_key(g_hid_last_report, key)) {
+        if (key != 0 && !xhci_hid_has_key(dev->last_report, key)) {
             UInt16 sc = xhci_hid_to_mac_scan(key);
             if (sc != 0xFFFF) {
                 ProcessRawKeyboardEvent(sc, true, modifiers, ts);
@@ -666,7 +806,7 @@ static void xhci_handle_hid_keyboard(const uint8_t *report) {
         }
     }
 
-    memcpy(g_hid_last_report, report, sizeof(g_hid_last_report));
+    memcpy(dev->last_report, report, sizeof(dev->last_report));
 }
 
 static inline uint32_t mmio_read32(uintptr_t base, uint32_t off) {
@@ -876,7 +1016,7 @@ bool xhci_init_x86(void) {
                 }
             }
 
-            serial_puts("[XHCI] Phase-1 init complete (no HID transfers yet)\n");
+            serial_puts("[XHCI] Phase-1 init complete (HID keyboard/mouse enabled)\n");
             return true;
         }
     }
@@ -889,5 +1029,7 @@ void xhci_poll_hid_x86(void) {
     if (!g_xhci_base || !g_xhci_rt_base) {
         return;
     }
-    xhci_hid_poll(g_xhci_base, g_xhci_dboff, g_xhci_rt_base);
+    xhci_hid_submit(g_xhci_base, g_xhci_dboff, &g_hid_kbd);
+    xhci_hid_submit(g_xhci_base, g_xhci_dboff, &g_hid_mouse);
+    xhci_hid_poll_events(g_xhci_rt_base);
 }

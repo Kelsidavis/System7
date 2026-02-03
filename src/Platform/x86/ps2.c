@@ -109,6 +109,20 @@ uint8_t GetMouseButtons(void) {
     return g_mouseState.buttons;
 }
 
+void UpdateMouseStateDelta(SInt16 dx, SInt16 dy, UInt8 buttons) {
+    g_mouseState.x += dx;
+    g_mouseState.y += dy;
+
+    if (g_mouseState.x < 0) g_mouseState.x = 0;
+    if (g_mouseState.y < 0) g_mouseState.y = 0;
+    if (fb_width > 0 && g_mouseState.x >= (int16_t)fb_width) g_mouseState.x = fb_width - 1;
+    if (fb_height > 0 && g_mouseState.y >= (int16_t)fb_height) g_mouseState.y = fb_height - 1;
+
+    g_mouseState.buttons = buttons;
+    g_mousePos.h = g_mouseState.x;
+    g_mousePos.v = g_mouseState.y;
+}
+
 /* Keyboard state */
 typedef struct {
     UInt32 keyMap[4];
@@ -381,34 +395,23 @@ static void process_mouse_packet(void) {
 
     int16_t old_x = g_mouseState.x;
     int16_t old_y = g_mouseState.y;
+    uint8_t new_buttons = status & 0x07;
+    uint8_t old_buttons = g_mouseState.buttons;
 
-    /* Update mouse position */
-    g_mouseState.x += dx;
-    g_mouseState.y -= dy; /* Y is inverted in PS/2 */
-
-    /* Clamp to screen bounds (dynamically detected from framebuffer) */
-    if (g_mouseState.x < 0) g_mouseState.x = 0;
-    if (g_mouseState.x >= (int16_t)fb_width) g_mouseState.x = fb_width - 1;
-    if (g_mouseState.y < 0) g_mouseState.y = 0;
-    if (g_mouseState.y >= (int16_t)fb_height) g_mouseState.y = fb_height - 1;
+    UpdateMouseStateDelta(dx, -dy, new_buttons); /* PS/2 Y is inverted */
 
     PLATFORM_LOG_DEBUG("MOUSE POS: old=(%d,%d) new=(%d,%d) buttons=0x%02x\n",
                        old_x, old_y, g_mouseState.x, g_mouseState.y, g_mouseState.buttons);
 
     /* Check button state changes */
-    uint8_t new_buttons = status & 0x07;
-    if (new_buttons != g_mouseState.buttons) {
+    if (new_buttons != old_buttons) {
         /* Log button state changes */
         snprintf(msg, sizeof(msg), "[PS2-PKT] Button change: 0x%02x -> 0x%02x (packet[0]=0x%02x)\n",
-                 g_mouseState.buttons, new_buttons, status);
+                 old_buttons, new_buttons, status);
         serial_puts(msg);
         /* Update button state only - let ModernInput handle event posting */
         g_mouseState.buttons = new_buttons;
     }
-
-    /* Update global mouse position for GetMouse() */
-    g_mousePos.h = g_mouseState.x;
-    g_mousePos.v = g_mouseState.y;
 
     /* Reset packet index */
     g_mouseState.packet_index = 0;

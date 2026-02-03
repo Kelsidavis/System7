@@ -10,6 +10,7 @@
 Boolean InitPS2Controller(void);
 void PollPS2Input(void);
 void GetMouse(Point* pt);
+void UpdateMouseStateDelta(SInt16 dx, SInt16 dy, UInt8 buttons);
 UInt16 GetPS2Modifiers(void);
 Boolean GetPS2KeyboardState(KeyMap keyMap);
 void PS2_SetIRQDriven(Boolean enabled);
