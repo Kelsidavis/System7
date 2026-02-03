@@ -20,6 +20,7 @@
 #include "EventManager/KeyboardEvents.h"
 #include "EventManager/EventLogging.h"
 #include "Platform/PS2Input.h"
+#include "PS2Controller.h"
 #include <string.h>
 
 /* External functions */
@@ -235,9 +236,10 @@ void ProcessModernInput(void)
         return;
     }
 
-    /* Poll input devices - PollPS2Input is platform-independent
-     * (on ARM64 it polls VirtIO input, on x86 it polls PS/2) */
-    PollPS2Input();
+    /* Poll input devices unless IRQ-driven input is enabled */
+    if (!PS2_IsIRQDriven()) {
+        PollPS2Input();
+    }
 
     /* Get current input state from hardware abstraction layer */
     /* For now, we'll use the global mouse state from PS2Controller */

@@ -336,6 +336,25 @@ static void ATA_TestATAPI(ATADevice* device) {
     if (err == noErr && !is_dir) {
         PLATFORM_LOG_DEBUG("ATAPI: Found /boot/grub/grub.cfg at LBA %u size %u\n",
                            file_lba, file_size);
+        if (file_size > 0) {
+            uint8_t file_sector[ATAPI_SECTOR_SIZE];
+            OSErr read_err = ATA_ReadATAPISectors(device, file_lba, 1, file_sector);
+            if (read_err == noErr) {
+                char preview[65];
+                int max_bytes = (file_size < 64) ? (int)file_size : 64;
+                for (int i = 0; i < max_bytes; i++) {
+                    uint8_t c = file_sector[i];
+                    if (c < 0x20 || c > 0x7E) {
+                        c = '.';
+                    }
+                    preview[i] = (char)c;
+                }
+                preview[max_bytes] = '\0';
+                PLATFORM_LOG_DEBUG("ATAPI: grub.cfg preview: %s\n", preview);
+            } else {
+                PLATFORM_LOG_DEBUG("ATAPI: Failed to read grub.cfg data (err=%d)\n", (int)read_err);
+            }
+        }
     } else {
         PLATFORM_LOG_DEBUG("ATAPI: /boot/grub/grub.cfg not found (err=%d)\n", (int)err);
     }

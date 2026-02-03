@@ -1,9 +1,15 @@
 #include "pci.h"
+#include "pci_irq.h"
 #include "e1000.h"
 #include "Platform/include/serial.h"
 #include "Platform/include/network.h"
 
 static e1000_t g_e1000;
+
+static void e1000_irq_handler(uint8_t irq) {
+    (void)irq;
+    e1000_poll(&g_e1000);
+}
 
 int platform_network_init(void) {
     pci_device_t devices[32];
@@ -47,6 +53,7 @@ int platform_network_init(void) {
 
             e1000_init(&g_e1000, &devices[i]);
             g_e1000.ip = 0x0A00020F; /* 10.0.2.15 - default for QEMU user-mode networking */
+            pci_irq_register_handler(&devices[i], e1000_irq_handler);
             return 0;
         }
     }

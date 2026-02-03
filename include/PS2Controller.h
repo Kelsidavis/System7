@@ -12,5 +12,7 @@ void PollPS2Input(void);
 void GetMouse(Point* pt);
 UInt16 GetPS2Modifiers(void);
 Boolean GetPS2KeyboardState(KeyMap keyMap);
+void PS2_SetIRQDriven(Boolean enabled);
+Boolean PS2_IsIRQDriven(void);
 
 #endif /* PS2_CONTROLLER_H */

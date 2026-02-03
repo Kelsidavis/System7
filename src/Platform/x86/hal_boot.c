@@ -55,6 +55,7 @@ void hal_boot_init(void *boot_arg) {
     pic_unmask_irq(0);
     pic_unmask_irq(1);
     pic_unmask_irq(12);
+    PS2_SetIRQDriven(true);
     idt_enable_interrupts();
 }
 

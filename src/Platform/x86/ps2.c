@@ -9,6 +9,7 @@
 #include "EventManager/EventTypes.h"
 #include "EventManager/EventManager.h"
 #include "Platform/PS2Input.h"
+#include "PS2Controller.h"
 #include <stdint.h>
 #include "Platform/PlatformLogging.h"
 #include <string.h>
@@ -87,6 +88,7 @@ extern uint32_t fb_height;
 static Boolean g_ps2Initialized = false;
 static Boolean g_mouseEnabled = false;
 static Boolean g_keyboardEnabled = false;
+static Boolean g_irqDriven = false;
 
 /* Global mouse position - shared with Event Manager
  * Note: Initialized to center of default 800x600 screen, will be adjusted
@@ -754,4 +756,14 @@ Boolean GetPS2KeyboardState(KeyMap keyMap)
 
     memcpy(keyMap, g_keyboardState.keyMap, sizeof(KeyMap));
     return true;
+}
+
+void PS2_SetIRQDriven(Boolean enabled)
+{
+    g_irqDriven = enabled;
+}
+
+Boolean PS2_IsIRQDriven(void)
+{
+    return g_irqDriven;
 }
