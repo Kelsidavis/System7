@@ -2000,6 +2000,7 @@ static void xhci_poll_ports_hotplug(void) {
                 kbd->ep_addr = 0;
                 kbd->ep_id = 0;
                 kbd->pending = false;
+                kbd->last_submit_tick = 0;
                 serial_puts("[XHCI] HID keyboard disconnected\n");
             }
             xhci_hid_dev_t *mouse = &g_hid_mouse[p];
@@ -2010,6 +2011,7 @@ static void xhci_poll_ports_hotplug(void) {
                 mouse->ep_addr = 0;
                 mouse->ep_id = 0;
                 mouse->pending = false;
+                mouse->last_submit_tick = 0;
                 serial_puts("[XHCI] HID mouse disconnected\n");
             }
             continue;
