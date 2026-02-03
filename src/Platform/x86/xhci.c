@@ -78,6 +78,7 @@ typedef struct __attribute__((packed)) {
 #define XHCI_TRB_TYPE_MASK  (0x3F << XHCI_TRB_TYPE_SHIFT)
 #define XHCI_TRB_TYPE_NOOP  23
 #define XHCI_TRB_TYPE_EVT_CMD_COMPLETE 33
+#define XHCI_TRB_TYPE_ENABLE_SLOT 9
 #define XHCI_TRB_CYCLE      (1u << 0)
 
 typedef struct __attribute__((packed)) {
@@ -94,6 +95,7 @@ static uint64_t __attribute__((aligned(64))) g_dcbaa[256];
 static uint32_t g_cmd_ring_index = 0;
 static uint32_t g_cmd_cycle = 1;
 static uint32_t g_evt_cycle = 1;
+static uint32_t g_evt_ring_index = 0;
 
 static inline uint32_t mmio_read32(uintptr_t base, uint32_t off);
 static inline void mmio_write32(uintptr_t base, uint32_t off, uint32_t value);
@@ -110,6 +112,7 @@ static void xhci_ring_init(void) {
     g_cmd_ring_index = 0;
     g_cmd_cycle = 1;
     g_evt_cycle = 1;
+    g_evt_ring_index = 0;
 }
 
 static void xhci_cmd_ring_enqueue_noop(void) {
@@ -130,15 +133,25 @@ static void xhci_cmd_ring_enqueue_noop(void) {
     }
 }
 
-static bool xhci_poll_cmd_complete(uintptr_t rt_base) {
-    uintptr_t erdp = (uintptr_t)&g_evt_ring[0];
+static bool xhci_poll_cmd_complete(uintptr_t rt_base, uint8_t *out_slot_id) {
     for (uint32_t i = 0; i < 100000; i++) {
-        xhci_trb_t *evt = &g_evt_ring[0];
+        xhci_trb_t *evt = &g_evt_ring[g_evt_ring_index];
         uint32_t cycle = evt->dword3 & XHCI_TRB_CYCLE;
         if (cycle == (g_evt_cycle ? XHCI_TRB_CYCLE : 0)) {
             uint32_t type = (evt->dword3 & XHCI_TRB_TYPE_MASK) >> XHCI_TRB_TYPE_SHIFT;
             if (type == XHCI_TRB_TYPE_EVT_CMD_COMPLETE) {
+                if (out_slot_id) {
+                    *out_slot_id = (uint8_t)((evt->dword3 >> 24) & 0xFF);
+                }
+
                 /* advance dequeue */
+                g_evt_ring_index++;
+                if (g_evt_ring_index >= (sizeof(g_evt_ring) / sizeof(g_evt_ring[0]))) {
+                    g_evt_ring_index = 0;
+                    g_evt_cycle ^= 1;
+                }
+
+                uintptr_t erdp = (uintptr_t)&g_evt_ring[g_evt_ring_index];
                 mmio_write32(rt_base, XHCI_RT_ERDP_LO, (uint32_t)(erdp & 0xFFFFFFFFu));
 #if UINTPTR_MAX > 0xFFFFFFFFu
                 mmio_write32(rt_base, XHCI_RT_ERDP_HI, (uint32_t)(erdp >> 32));
@@ -150,6 +163,25 @@ static bool xhci_poll_cmd_complete(uintptr_t rt_base) {
         }
     }
     return false;
+}
+
+static void xhci_cmd_ring_enqueue_enable_slot(void) {
+    xhci_trb_t *trb = &g_cmd_ring[g_cmd_ring_index++];
+    trb->dword0 = 0;
+    trb->dword1 = 0;
+    trb->dword2 = 0;
+    trb->dword3 = (XHCI_TRB_TYPE_ENABLE_SLOT << XHCI_TRB_TYPE_SHIFT) |
+                  (g_cmd_cycle ? XHCI_TRB_CYCLE : 0);
+
+    if (g_cmd_ring_index >= 31) {
+        xhci_trb_t *link = &g_cmd_ring[g_cmd_ring_index++];
+        link->dword0 = (uint32_t)((uintptr_t)&g_cmd_ring[0] & 0xFFFFFFFFu);
+        link->dword1 = 0;
+        link->dword2 = 0;
+        link->dword3 = (6u << XHCI_TRB_TYPE_SHIFT) | XHCI_TRB_CYCLE | (1u << 1);
+        g_cmd_ring_index = 0;
+        g_cmd_cycle ^= 1;
+    }
 }
 
 static inline uint32_t mmio_read32(uintptr_t base, uint32_t off) {
@@ -323,7 +355,7 @@ bool xhci_init_x86(void) {
             /* Test: issue a NO-OP command */
             xhci_cmd_ring_enqueue_noop();
             xhci_ring_doorbell(base, dboff, 0);
-            if (xhci_poll_cmd_complete(rt_base)) {
+            if (xhci_poll_cmd_complete(rt_base, NULL)) {
                 serial_puts("[XHCI] NOOP command completed\n");
             } else {
                 serial_puts("[XHCI] NOOP command timeout\n");
@@ -335,6 +367,14 @@ bool xhci_init_x86(void) {
                                   (unsigned)p + 1, xhci_speed_name(portsc), portsc);
                     if (xhci_port_reset(op_base, p)) {
                         serial_printf("[XHCI] port %u reset ok\n", (unsigned)p + 1);
+                        xhci_cmd_ring_enqueue_enable_slot();
+                        xhci_ring_doorbell(base, dboff, 0);
+                        uint8_t slot_id = 0;
+                        if (xhci_poll_cmd_complete(rt_base, &slot_id)) {
+                            serial_printf("[XHCI] Enable Slot complete, slot=%u\n", slot_id);
+                        } else {
+                            serial_puts("[XHCI] Enable Slot timeout\n");
+                        }
                     } else {
                         serial_printf("[XHCI] port %u reset failed\n", (unsigned)p + 1);
                     }
