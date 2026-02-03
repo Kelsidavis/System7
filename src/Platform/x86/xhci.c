@@ -73,6 +73,34 @@ static bool xhci_reset(uintptr_t base, uint32_t cap_len) {
     return false;
 }
 
+static bool xhci_start(uintptr_t base, uint32_t cap_len) {
+    uintptr_t op_base = base + cap_len;
+    uint32_t cmd = mmio_read32(op_base, XHCI_USBCMD);
+    cmd |= XHCI_CMD_RUN;
+    mmio_write32(op_base, XHCI_USBCMD, cmd);
+
+    uint32_t timeout = 100000;
+    while (timeout-- > 0) {
+        uint32_t sts = mmio_read32(op_base, XHCI_USBSTS);
+        if ((sts & XHCI_STS_HCH) == 0) {
+            return true;
+        }
+    }
+    return false;
+}
+
+static const char *xhci_speed_name(uint32_t portsc) {
+    uint32_t speed = (portsc >> 10) & 0xF;
+    switch (speed) {
+        case 1: return "full";
+        case 2: return "low";
+        case 3: return "high";
+        case 4: return "super";
+        case 5: return "super+";
+        default: return "unknown";
+    }
+}
+
 bool xhci_init_x86(void) {
     pci_device_t devices[64];
     int found = pci_scan(devices, 64);
@@ -109,11 +137,17 @@ bool xhci_init_x86(void) {
                 return false;
             }
 
+            if (!xhci_start(base, cap_len)) {
+                serial_puts("[XHCI] start timeout\n");
+                return false;
+            }
+
             uintptr_t op_base = base + cap_len;
             for (uint8_t p = 0; p < ports; p++) {
                 uint32_t portsc = mmio_read32(op_base, XHCI_PORTSC_BASE + p * XHCI_PORTSC_STRIDE);
                 if (portsc & 0x1) {
-                    serial_printf("[XHCI] port %u connected (PORTSC=0x%08x)\n", (unsigned)p + 1, portsc);
+                    serial_printf("[XHCI] port %u connected (%s) PORTSC=0x%08x\n",
+                                  (unsigned)p + 1, xhci_speed_name(portsc), portsc);
                 }
             }
 
