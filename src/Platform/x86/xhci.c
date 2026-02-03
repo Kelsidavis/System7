@@ -10,6 +10,10 @@
 #include "pci.h"
 #include "usb_core.h"
 #include "Platform/include/serial.h"
+#include "EventManager/KeyboardEvents.h"
+#include "EventManager/EventTypes.h"
+#include "EventManager/EventManager.h"
+#include "OSUtils/OSUtils.h"
 #include <stdint.h>
 #include <string.h>
 #include <limits.h>
@@ -523,6 +527,8 @@ static void xhci_hid_enqueue_interrupt_in(uintptr_t buf, uint32_t len) {
                   (g_hid_cycle ? XHCI_TRB_CYCLE : 0);
 }
 
+static void xhci_handle_hid_keyboard(const uint8_t *report);
+
 static void xhci_hid_poll(uintptr_t base, uint32_t dboff, uintptr_t rt_base) {
     if (g_hid_slot == 0 || g_hid_ep_addr == 0 || g_hid_ep_mps == 0) {
         return;
@@ -538,23 +544,129 @@ static void xhci_hid_poll(uintptr_t base, uint32_t dboff, uintptr_t rt_base) {
         uint8_t *data = (uint8_t *)&g_ep0_buf[0];
         serial_printf("[XHCI] HID data: %02x %02x %02x %02x\n",
                       data[0], data[1], data[2], data[3]);
-        /* Minimal keyboard report decode: modifier + first key */
-        if (data[2] != g_hid_last_report[2]) {
-            if (data[2] >= 0x04 && data[2] <= 0x1D) {
-                char ch = (char)('a' + (data[2] - 0x04));
-                serial_printf("[XHCI] KEY: %c\n", ch);
-            } else if (data[2] >= 0x1E && data[2] <= 0x27) {
-                char ch = (char)('1' + (data[2] - 0x1E));
-                if (data[2] == 0x27) ch = '0';
-                serial_printf("[XHCI] KEY: %c\n", ch);
-            } else if (data[2] == 0x28) {
-                serial_puts("[XHCI] KEY: <ENTER>\n");
-            } else if (data[2] == 0x2C) {
-                serial_puts("[XHCI] KEY: <SPACE>\n");
+        xhci_handle_hid_keyboard(data);
+    }
+}
+
+static UInt16 xhci_hid_modifiers(uint8_t mods) {
+    UInt16 out = 0;
+    if (mods & 0x01) out |= controlKey;
+    if (mods & 0x02) out |= shiftKey;
+    if (mods & 0x04) out |= optionKey;
+    if (mods & 0x08) out |= cmdKey;
+    if (mods & 0x10) out |= controlKey;
+    if (mods & 0x20) out |= shiftKey;
+    if (mods & 0x40) out |= optionKey;
+    if (mods & 0x80) out |= cmdKey;
+    return out;
+}
+
+static UInt16 xhci_hid_to_mac_scan(uint8_t hid) {
+    switch (hid) {
+        case 0x04: return 0x00; /* A */
+        case 0x05: return 0x0B; /* B */
+        case 0x06: return 0x08; /* C */
+        case 0x07: return 0x02; /* D */
+        case 0x08: return 0x0E; /* E */
+        case 0x09: return 0x03; /* F */
+        case 0x0A: return 0x05; /* G */
+        case 0x0B: return 0x04; /* H */
+        case 0x0C: return 0x22; /* I */
+        case 0x0D: return 0x26; /* J */
+        case 0x0E: return 0x28; /* K */
+        case 0x0F: return 0x25; /* L */
+        case 0x10: return 0x2E; /* M */
+        case 0x11: return 0x2D; /* N */
+        case 0x12: return 0x1F; /* O */
+        case 0x13: return 0x23; /* P */
+        case 0x14: return 0x0C; /* Q */
+        case 0x15: return 0x0F; /* R */
+        case 0x16: return 0x01; /* S */
+        case 0x17: return 0x11; /* T */
+        case 0x18: return 0x20; /* U */
+        case 0x19: return 0x09; /* V */
+        case 0x1A: return 0x0D; /* W */
+        case 0x1B: return 0x07; /* X */
+        case 0x1C: return 0x10; /* Y */
+        case 0x1D: return 0x06; /* Z */
+        case 0x1E: return 0x12; /* 1 */
+        case 0x1F: return 0x13; /* 2 */
+        case 0x20: return 0x14; /* 3 */
+        case 0x21: return 0x15; /* 4 */
+        case 0x22: return 0x17; /* 5 */
+        case 0x23: return 0x16; /* 6 */
+        case 0x24: return 0x1A; /* 7 */
+        case 0x25: return 0x1C; /* 8 */
+        case 0x26: return 0x19; /* 9 */
+        case 0x27: return 0x1D; /* 0 */
+        case 0x28: return kScanReturn;
+        case 0x2A: return kScanDelete;
+        case 0x2B: return kScanTab;
+        case 0x2C: return kScanSpace;
+        case 0x29: return kScanEscape;
+        default: return 0xFFFF;
+    }
+}
+
+static bool xhci_hid_has_key(const uint8_t *report, uint8_t key) {
+    for (int i = 2; i < 8; i++) {
+        if (report[i] == key) {
+            return true;
+        }
+    }
+    return false;
+}
+
+static void xhci_hid_handle_modifiers(uint8_t current, uint8_t previous) {
+    struct {
+        uint8_t mask;
+        UInt16 scancode;
+    } mods[] = {
+        {0x01, kScanControl}, {0x02, kScanShift}, {0x04, kScanOption}, {0x08, kScanCommand},
+        {0x10, kScanRightControl}, {0x20, kScanRightShift}, {0x40, kScanRightOption}, {0x80, kScanCommand}
+    };
+
+    UInt16 modifiers = xhci_hid_modifiers(current);
+    UInt32 ts = TickCount();
+
+    for (unsigned i = 0; i < sizeof(mods)/sizeof(mods[0]); i++) {
+        bool now = (current & mods[i].mask) != 0;
+        bool prev = (previous & mods[i].mask) != 0;
+        if (now != prev) {
+            ProcessRawKeyboardEvent(mods[i].scancode, now, modifiers, ts);
+        }
+    }
+}
+
+static void xhci_handle_hid_keyboard(const uint8_t *report) {
+    uint8_t prev_mods = g_hid_last_report[0];
+    uint8_t cur_mods = report[0];
+    xhci_hid_handle_modifiers(cur_mods, prev_mods);
+
+    UInt16 modifiers = xhci_hid_modifiers(cur_mods);
+    UInt32 ts = TickCount();
+
+    for (int i = 2; i < 8; i++) {
+        uint8_t key = g_hid_last_report[i];
+        if (key != 0 && !xhci_hid_has_key(report, key)) {
+            UInt16 sc = xhci_hid_to_mac_scan(key);
+            if (sc != 0xFFFF) {
+                ProcessRawKeyboardEvent(sc, false, modifiers, ts);
             }
         }
-        memcpy(g_hid_last_report, data, sizeof(g_hid_last_report));
     }
+
+    for (int i = 2; i < 8; i++) {
+        uint8_t key = report[i];
+        if (key != 0 && !xhci_hid_has_key(g_hid_last_report, key)) {
+            UInt16 sc = xhci_hid_to_mac_scan(key);
+            if (sc != 0xFFFF) {
+                ProcessRawKeyboardEvent(sc, true, modifiers, ts);
+            }
+        }
+    }
+
+    memcpy(g_hid_last_report, report, sizeof(g_hid_last_report));
 }
 
 static inline uint32_t mmio_read32(uintptr_t base, uint32_t off) {
