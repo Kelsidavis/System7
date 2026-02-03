@@ -14,5 +14,13 @@ OSErr xhci_msc_read_blocks(uint64_t start_block, uint32_t block_count, void *buf
 OSErr xhci_msc_write_blocks(uint64_t start_block, uint32_t block_count, const void *buffer);
 OSErr xhci_msc_read_blocks_lun(uint8_t lun, uint64_t start_block, uint32_t block_count, void *buffer);
 OSErr xhci_msc_write_blocks_lun(uint8_t lun, uint64_t start_block, uint32_t block_count, const void *buffer);
+uint8_t xhci_msc_get_device_count(void);
+uint8_t xhci_msc_get_lun_count_device(uint8_t dev_index);
+OSErr xhci_msc_get_info_device_lun(uint8_t dev_index, uint8_t lun, uint32_t *block_size,
+                                   uint64_t *block_count, bool *read_only);
+OSErr xhci_msc_read_blocks_device_lun(uint8_t dev_index, uint8_t lun, uint64_t start_block,
+                                      uint32_t block_count, void *buffer);
+OSErr xhci_msc_write_blocks_device_lun(uint8_t dev_index, uint8_t lun, uint64_t start_block,
+                                       uint32_t block_count, const void *buffer);
 
 #endif /* X86_XHCI_H */

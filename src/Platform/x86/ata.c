@@ -546,28 +546,44 @@ OSErr hal_storage_shutdown(void) {
     return noErr;
 }
 
-static bool xhci_map_drive_lun(int drive_index, uint8_t *out_lun) {
-    if (drive_index < g_device_count || !out_lun) {
-        return false;
-    }
-    uint8_t luns = xhci_msc_get_lun_count();
-    if (luns == 0) {
+static bool xhci_map_drive_lun(int drive_index, uint8_t *out_dev, uint8_t *out_lun) {
+    if (drive_index < g_device_count || !out_dev || !out_lun) {
         return false;
     }
     int xidx = drive_index - g_device_count;
-    if (xidx < 0 || xidx >= (int)luns) {
+    if (xidx < 0) {
         return false;
     }
-    *out_lun = (uint8_t)xidx;
-    return true;
+    uint8_t dev_count = xhci_msc_get_device_count();
+    for (uint8_t dev = 0; dev < dev_count; dev++) {
+        uint8_t luns = xhci_msc_get_lun_count_device(dev);
+        if (luns == 0) {
+            continue;
+        }
+        if (xidx < luns) {
+            *out_dev = dev;
+            *out_lun = (uint8_t)xidx;
+            return true;
+        }
+        xidx -= luns;
+    }
+    return false;
 }
 
 /*
  * ATA_GetDeviceCount - Get number of detected devices
  */
 int hal_storage_get_drive_count(void) {
-    uint8_t luns = xhci_msc_get_lun_count();
-    return g_device_count + (luns ? (int)luns : 0);
+    int total = g_device_count;
+    uint8_t dev_count = xhci_msc_get_device_count();
+    for (uint8_t dev = 0; dev < dev_count; dev++) {
+        total += (int)xhci_msc_get_lun_count_device(dev);
+    }
+    return total;
+}
+
+int hal_storage_get_ata_count(void) {
+    return g_device_count;
 }
 
 /*
@@ -849,12 +865,13 @@ OSErr hal_storage_get_drive_info(int drive_index, hal_storage_info_t* info) {
     }
 
     if (drive_index >= g_device_count) {
+        uint8_t dev = 0;
         uint8_t lun = 0;
-        if (xhci_map_drive_lun(drive_index, &lun)) {
+        if (xhci_map_drive_lun(drive_index, &dev, &lun)) {
             uint32_t block_size = 0;
             uint64_t block_count = 0;
             bool read_only = false;
-            OSErr err = xhci_msc_get_info_lun(lun, &block_size, &block_count, &read_only);
+            OSErr err = xhci_msc_get_info_device_lun(dev, lun, &block_size, &block_count, &read_only);
             if (err != noErr) {
                 return err;
             }
@@ -880,9 +897,10 @@ OSErr hal_storage_get_drive_info(int drive_index, hal_storage_info_t* info) {
 
 OSErr hal_storage_read_blocks(int drive_index, uint64_t start_block, uint32_t block_count, void* buffer) {
     if (drive_index >= g_device_count) {
+        uint8_t dev = 0;
         uint8_t lun = 0;
-        if (xhci_map_drive_lun(drive_index, &lun)) {
-            return xhci_msc_read_blocks_lun(lun, start_block, block_count, buffer);
+        if (xhci_map_drive_lun(drive_index, &dev, &lun)) {
+            return xhci_msc_read_blocks_device_lun(dev, lun, start_block, block_count, buffer);
         }
         return paramErr;
     }
@@ -934,9 +952,10 @@ OSErr hal_storage_read_blocks(int drive_index, uint64_t start_block, uint32_t bl
 
 OSErr hal_storage_write_blocks(int drive_index, uint64_t start_block, uint32_t block_count, const void* buffer) {
     if (drive_index >= g_device_count) {
+        uint8_t dev = 0;
         uint8_t lun = 0;
-        if (xhci_map_drive_lun(drive_index, &lun)) {
-            return xhci_msc_write_blocks_lun(lun, start_block, block_count, buffer);
+        if (xhci_map_drive_lun(drive_index, &dev, &lun)) {
+            return xhci_msc_write_blocks_device_lun(dev, lun, start_block, block_count, buffer);
         }
         return paramErr;
     }

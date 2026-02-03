@@ -123,26 +123,31 @@ static uint32_t __attribute__((aligned(64))) g_input_ctx[48];
 static uint32_t __attribute__((aligned(64))) g_dev_ctx[32];
 static xhci_trb_t __attribute__((aligned(64))) g_ep0_ring[32];
 static uint32_t __attribute__((aligned(64))) g_ep0_buf[64];
-static xhci_trb_t __attribute__((aligned(64))) g_hid_kbd_ring[32];
-static xhci_trb_t __attribute__((aligned(64))) g_hid_mouse_ring[32];
-static uint32_t __attribute__((aligned(64))) g_hid_kbd_buf[64];
-static uint32_t __attribute__((aligned(64))) g_hid_mouse_buf[64];
-static xhci_trb_t __attribute__((aligned(64))) g_msc_in_ring[32];
-static xhci_trb_t __attribute__((aligned(64))) g_msc_out_ring[32];
-static uint32_t __attribute__((aligned(64))) g_msc_data_buf[512];
-static uint8_t __attribute__((aligned(64))) g_msc_cbw[32];
-static uint8_t __attribute__((aligned(64))) g_msc_csw[16];
-static xhci_trb_t __attribute__((aligned(64))) g_uasp_cmd_ring[32];
-static xhci_trb_t __attribute__((aligned(64))) g_uasp_data_in_ring[32];
-static xhci_trb_t __attribute__((aligned(64))) g_uasp_data_out_ring[32];
-static xhci_trb_t __attribute__((aligned(64))) g_uasp_status_ring[32];
-static uint8_t __attribute__((aligned(64))) g_uasp_cmd_iu[32];
-static uint8_t __attribute__((aligned(64))) g_uasp_status_iu[32];
-#define MAX_MSC_LUNS 8
-static uint32_t g_msc_lun_block_size[MAX_MSC_LUNS];
-static uint64_t g_msc_lun_block_count[MAX_MSC_LUNS];
-static bool g_msc_lun_valid[MAX_MSC_LUNS];
 #define MAX_XHCI_PORTS 32
+
+typedef struct {
+    xhci_trb_t ring[32] __attribute__((aligned(64)));
+    uint32_t buf[64] __attribute__((aligned(64)));
+} xhci_hid_io_t;
+
+typedef struct {
+    xhci_trb_t in_ring[32] __attribute__((aligned(64)));
+    xhci_trb_t out_ring[32] __attribute__((aligned(64)));
+    uint32_t data_buf[512] __attribute__((aligned(64)));
+    uint8_t cbw[32] __attribute__((aligned(64)));
+    uint8_t csw[16] __attribute__((aligned(64)));
+    xhci_trb_t uasp_cmd_ring[32] __attribute__((aligned(64)));
+    xhci_trb_t uasp_data_in_ring[32] __attribute__((aligned(64)));
+    xhci_trb_t uasp_data_out_ring[32] __attribute__((aligned(64)));
+    xhci_trb_t uasp_status_ring[32] __attribute__((aligned(64)));
+    uint8_t uasp_cmd_iu[32] __attribute__((aligned(64)));
+    uint8_t uasp_status_iu[32] __attribute__((aligned(64)));
+} xhci_msc_io_t;
+
+static xhci_hid_io_t g_hid_kbd_io[MAX_XHCI_PORTS];
+static xhci_hid_io_t g_hid_mouse_io[MAX_XHCI_PORTS];
+static xhci_msc_io_t g_msc_io[MAX_XHCI_PORTS];
+#define MAX_MSC_LUNS 8
 static bool g_port_connected[MAX_XHCI_PORTS];
 static uint32_t g_ctx_size = 32;
 
@@ -161,10 +166,13 @@ typedef struct {
     xhci_trb_t *ring;
     uint32_t *buf;
     bool configured;
+    uint8_t port;
+    xhci_hid_io_t *io;
+    bool present;
 } xhci_hid_dev_t;
 
-static xhci_hid_dev_t g_hid_kbd;
-static xhci_hid_dev_t g_hid_mouse;
+static xhci_hid_dev_t g_hid_kbd[MAX_XHCI_PORTS];
+static xhci_hid_dev_t g_hid_mouse[MAX_XHCI_PORTS];
 
 typedef struct {
     uint8_t slot;
@@ -219,9 +227,28 @@ typedef struct {
     bool uasp_failed;
     uint8_t max_lun;
     uint8_t interface_num;
+    uint8_t port;
+    uint32_t lun_block_size[MAX_MSC_LUNS];
+    uint64_t lun_block_count[MAX_MSC_LUNS];
+    bool lun_valid[MAX_MSC_LUNS];
+    xhci_msc_io_t *io;
+    bool present;
 } xhci_msc_dev_t;
 
-static xhci_msc_dev_t g_msc;
+static xhci_msc_dev_t g_msc[MAX_XHCI_PORTS];
+
+#define MSC_IO(dev) ((dev)->io)
+#define MSC_DATA(dev) ((dev)->io->data_buf)
+#define MSC_CBW(dev) ((dev)->io->cbw)
+#define MSC_CSW(dev) ((dev)->io->csw)
+#define MSC_UASP_CMD_IU(dev) ((dev)->io->uasp_cmd_iu)
+#define MSC_UASP_STATUS_IU(dev) ((dev)->io->uasp_status_iu)
+#define MSC_IN_RING(dev) ((dev)->io->in_ring)
+#define MSC_OUT_RING(dev) ((dev)->io->out_ring)
+#define MSC_UASP_CMD_RING(dev) ((dev)->io->uasp_cmd_ring)
+#define MSC_UASP_DATA_IN_RING(dev) ((dev)->io->uasp_data_in_ring)
+#define MSC_UASP_DATA_OUT_RING(dev) ((dev)->io->uasp_data_out_ring)
+#define MSC_UASP_STATUS_RING(dev) ((dev)->io->uasp_status_ring)
 
 static uint32_t g_cmd_ring_index = 0;
 static uint32_t g_cmd_cycle = 1;
@@ -235,28 +262,26 @@ static uintptr_t g_xhci_rt_base = 0;
 static uint8_t g_xhci_cap_len = 0;
 static uint8_t g_xhci_ports = 0;
 static uint8_t g_xhci_enum_port = 0;
-static uint8_t g_msc_port = 0;
-static bool g_msc_present = false;
-static uint8_t g_msc_last_luns = 0;
-static int g_msc_drive_base = -1;
-static uint8_t g_hid_kbd_port = 0;
-static uint8_t g_hid_mouse_port = 0;
-static bool g_hid_kbd_present = false;
-static bool g_hid_mouse_present = false;
+static uint8_t g_msc_last_luns[MAX_XHCI_PORTS];
 
 static inline uint32_t mmio_read32(uintptr_t base, uint32_t off);
 static inline void mmio_write32(uintptr_t base, uint32_t off, uint32_t value);
-static void xhci_msc_smoke_test(uintptr_t base, uint32_t dboff, uintptr_t rt_base);
-static bool xhci_uasp_exec_scsi(uint8_t lun, uint8_t *cdb, uint8_t cdb_len,
+static xhci_hid_dev_t *xhci_hid_find_by_slot(xhci_hid_dev_t *devs, uint8_t slot_id);
+static xhci_msc_dev_t *xhci_msc_get_present_by_index(uint8_t index, uint8_t *out_port_index);
+static void xhci_msc_smoke_test(xhci_msc_dev_t *dev, uintptr_t base, uint32_t dboff, uintptr_t rt_base);
+static bool xhci_uasp_exec_scsi(xhci_msc_dev_t *dev, uint8_t lun, uint8_t *cdb, uint8_t cdb_len,
                                 const void *data, uint32_t data_len, bool data_in);
 static void xhci_msc_delay_ticks(uint32_t ticks);
-static bool xhci_msc_test_unit_ready(uintptr_t base, uint32_t dboff, uintptr_t rt_base, uint8_t lun);
-static bool xhci_msc_configure_bot(uintptr_t base, uint32_t dboff, uintptr_t rt_base);
-static bool xhci_msc_get_max_lun(uintptr_t base, uint32_t dboff, uintptr_t rt_base, uint8_t slot_id);
-static bool xhci_msc_ensure_lun_info(uint8_t lun);
-static void xhci_msc_fire_events(bool inserted);
+static bool xhci_msc_test_unit_ready(xhci_msc_dev_t *dev, uintptr_t base, uint32_t dboff,
+                                     uintptr_t rt_base, uint8_t lun);
+static bool xhci_msc_configure_bot(xhci_msc_dev_t *dev, uintptr_t base, uint32_t dboff,
+                                   uintptr_t rt_base);
+static bool xhci_msc_get_max_lun(xhci_msc_dev_t *dev, uintptr_t base, uint32_t dboff,
+                                 uintptr_t rt_base, uint8_t slot_id);
+static bool xhci_msc_ensure_lun_info(xhci_msc_dev_t *dev, uint8_t lun);
+static void xhci_msc_fire_events(uint8_t port_index, bool inserted);
+static uint8_t xhci_msc_get_lun_count_dev(xhci_msc_dev_t *dev);
 static bool xhci_port_reset(uintptr_t op_base, uint8_t port);
-static void xhci_maybe_mark_hid_present(void);
 static void xhci_poll_ports_hotplug(void);
 static void xhci_enumerate_port(uint8_t port_index);
 static const char *xhci_speed_name(uint32_t portsc);
@@ -272,28 +297,14 @@ static void xhci_ring_init(void) {
     memset(g_dcbaa, 0, sizeof(g_dcbaa));
     memset(g_ep0_ring, 0, sizeof(g_ep0_ring));
     memset(g_ep0_buf, 0, sizeof(g_ep0_buf));
-    memset(g_hid_kbd_ring, 0, sizeof(g_hid_kbd_ring));
-    memset(g_hid_mouse_ring, 0, sizeof(g_hid_mouse_ring));
-    memset(g_hid_kbd_buf, 0, sizeof(g_hid_kbd_buf));
-    memset(g_hid_mouse_buf, 0, sizeof(g_hid_mouse_buf));
-    memset(g_msc_in_ring, 0, sizeof(g_msc_in_ring));
-    memset(g_msc_out_ring, 0, sizeof(g_msc_out_ring));
-    memset(g_msc_data_buf, 0, sizeof(g_msc_data_buf));
-    memset(g_msc_cbw, 0, sizeof(g_msc_cbw));
-    memset(g_msc_csw, 0, sizeof(g_msc_csw));
-    memset(g_uasp_cmd_ring, 0, sizeof(g_uasp_cmd_ring));
-    memset(g_uasp_data_in_ring, 0, sizeof(g_uasp_data_in_ring));
-    memset(g_uasp_data_out_ring, 0, sizeof(g_uasp_data_out_ring));
-    memset(g_uasp_status_ring, 0, sizeof(g_uasp_status_ring));
-    memset(g_uasp_cmd_iu, 0, sizeof(g_uasp_cmd_iu));
-    memset(g_uasp_status_iu, 0, sizeof(g_uasp_status_iu));
-    memset(g_msc_lun_block_size, 0, sizeof(g_msc_lun_block_size));
-    memset(g_msc_lun_block_count, 0, sizeof(g_msc_lun_block_count));
-    memset(g_msc_lun_valid, 0, sizeof(g_msc_lun_valid));
     memset(g_port_connected, 0, sizeof(g_port_connected));
-    memset(&g_hid_kbd, 0, sizeof(g_hid_kbd));
-    memset(&g_hid_mouse, 0, sizeof(g_hid_mouse));
-    memset(&g_msc, 0, sizeof(g_msc));
+    memset(g_hid_kbd_io, 0, sizeof(g_hid_kbd_io));
+    memset(g_hid_mouse_io, 0, sizeof(g_hid_mouse_io));
+    memset(g_msc_io, 0, sizeof(g_msc_io));
+    memset(g_hid_kbd, 0, sizeof(g_hid_kbd));
+    memset(g_hid_mouse, 0, sizeof(g_hid_mouse));
+    memset(g_msc, 0, sizeof(g_msc));
+    memset(g_msc_last_luns, 0, sizeof(g_msc_last_luns));
     g_cmd_ring_index = 0;
     g_cmd_cycle = 1;
     g_evt_cycle = 1;
@@ -301,33 +312,77 @@ static void xhci_ring_init(void) {
     g_ep0_ring_index = 0;
     g_ep0_cycle = 1;
 
-    g_hid_kbd.ring = g_hid_kbd_ring;
-    g_hid_kbd.buf = g_hid_kbd_buf;
-    g_hid_kbd.ring_index = 0;
-    g_hid_kbd.cycle = 1;
+    for (int i = 0; i < MAX_XHCI_PORTS; i++) {
+        g_hid_kbd[i].io = &g_hid_kbd_io[i];
+        g_hid_kbd[i].ring = g_hid_kbd_io[i].ring;
+        g_hid_kbd[i].buf = g_hid_kbd_io[i].buf;
+        g_hid_kbd[i].ring_index = 0;
+        g_hid_kbd[i].cycle = 1;
+        g_hid_kbd[i].port = (uint8_t)(i + 1);
 
-    g_hid_mouse.ring = g_hid_mouse_ring;
-    g_hid_mouse.buf = g_hid_mouse_buf;
-    g_hid_mouse.ring_index = 0;
-    g_hid_mouse.cycle = 1;
+        g_hid_mouse[i].io = &g_hid_mouse_io[i];
+        g_hid_mouse[i].ring = g_hid_mouse_io[i].ring;
+        g_hid_mouse[i].buf = g_hid_mouse_io[i].buf;
+        g_hid_mouse[i].ring_index = 0;
+        g_hid_mouse[i].cycle = 1;
+        g_hid_mouse[i].port = (uint8_t)(i + 1);
 
-    g_msc.in_ring_index = 0;
-    g_msc.out_ring_index = 0;
-    g_msc.in_cycle = 1;
-    g_msc.out_cycle = 1;
-    g_msc.tag = 1;
-    g_msc.bot_present = false;
-    g_msc.bot_configured = false;
-    g_msc.uasp_cmd_ring_index = 0;
-    g_msc.uasp_data_in_ring_index = 0;
-    g_msc.uasp_data_out_ring_index = 0;
-    g_msc.uasp_status_ring_index = 0;
-    g_msc.uasp_cmd_cycle = 1;
-    g_msc.uasp_data_in_cycle = 1;
-    g_msc.uasp_data_out_cycle = 1;
-    g_msc.uasp_status_cycle = 1;
-    g_msc.max_lun = 1;
-    g_msc.interface_num = 0;
+        g_msc[i].io = &g_msc_io[i];
+        g_msc[i].in_ring_index = 0;
+        g_msc[i].out_ring_index = 0;
+        g_msc[i].in_cycle = 1;
+        g_msc[i].out_cycle = 1;
+        g_msc[i].tag = 1;
+        g_msc[i].bot_present = false;
+        g_msc[i].bot_configured = false;
+        g_msc[i].uasp_cmd_ring_index = 0;
+        g_msc[i].uasp_data_in_ring_index = 0;
+        g_msc[i].uasp_data_out_ring_index = 0;
+        g_msc[i].uasp_status_ring_index = 0;
+        g_msc[i].uasp_cmd_cycle = 1;
+        g_msc[i].uasp_data_in_cycle = 1;
+        g_msc[i].uasp_data_out_cycle = 1;
+        g_msc[i].uasp_status_cycle = 1;
+        g_msc[i].max_lun = 1;
+        g_msc[i].interface_num = 0;
+        g_msc[i].port = (uint8_t)(i + 1);
+    }
+}
+
+static xhci_hid_dev_t *xhci_hid_find_by_slot(xhci_hid_dev_t *devs, uint8_t slot_id) {
+    if (!devs || slot_id == 0) {
+        return NULL;
+    }
+    uint8_t ports = g_xhci_ports ? g_xhci_ports : MAX_XHCI_PORTS;
+    if (ports > MAX_XHCI_PORTS) {
+        ports = MAX_XHCI_PORTS;
+    }
+    for (uint8_t i = 0; i < ports; i++) {
+        if (devs[i].slot == slot_id) {
+            return &devs[i];
+        }
+    }
+    return NULL;
+}
+
+static xhci_msc_dev_t *xhci_msc_get_present_by_index(uint8_t index, uint8_t *out_port_index) {
+    uint8_t count = 0;
+    uint8_t ports = g_xhci_ports ? g_xhci_ports : MAX_XHCI_PORTS;
+    if (ports > MAX_XHCI_PORTS) {
+        ports = MAX_XHCI_PORTS;
+    }
+    for (uint8_t i = 0; i < ports; i++) {
+        if (g_msc[i].present) {
+            if (count == index) {
+                if (out_port_index) {
+                    *out_port_index = i;
+                }
+                return &g_msc[i];
+            }
+            count++;
+        }
+    }
+    return NULL;
 }
 
 static void xhci_cmd_ring_enqueue_noop(void) {
@@ -663,6 +718,15 @@ static bool xhci_ep0_get_config_descriptor(uintptr_t base, uint32_t dboff, uintp
     uint8_t config_value = buf[5];
     serial_printf("[XHCI] Config total length=%u\n", total);
 
+    if (g_xhci_enum_port == 0) {
+        return false;
+    }
+
+    uint8_t port_index = (uint8_t)(g_xhci_enum_port - 1);
+    xhci_hid_dev_t *kbd = &g_hid_kbd[port_index];
+    xhci_hid_dev_t *mouse = &g_hid_mouse[port_index];
+    xhci_msc_dev_t *msc = &g_msc[port_index];
+
     uint32_t off = 0;
     uint8_t current_proto = 0;
     uint8_t current_class = 0;
@@ -673,53 +737,79 @@ static bool xhci_ep0_get_config_descriptor(uintptr_t base, uint32_t dboff, uintp
     uint16_t uasp_out_mps[2] = {0};
     uint8_t uasp_in_count = 0;
     uint8_t uasp_out_count = 0;
-    if (g_hid_kbd.slot == slot_id) {
-        g_hid_kbd.ep_addr = 0;
-        g_hid_kbd.ep_id = 0;
-        g_hid_kbd.mps = 0;
-        g_hid_kbd.interval = 0;
-        g_hid_kbd.pending = false;
-        g_hid_kbd.configured = false;
-        memset(g_hid_kbd.last_report, 0, sizeof(g_hid_kbd.last_report));
-    }
-    if (g_hid_mouse.slot == slot_id) {
-        g_hid_mouse.ep_addr = 0;
-        g_hid_mouse.ep_id = 0;
-        g_hid_mouse.mps = 0;
-        g_hid_mouse.interval = 0;
-        g_hid_mouse.pending = false;
-        g_hid_mouse.configured = false;
-    }
-    if (g_msc.slot == slot_id) {
-        g_msc.bulk_in_ep = 0;
-        g_msc.bulk_out_ep = 0;
-        g_msc.bulk_in_ep_id = 0;
-        g_msc.bulk_out_ep_id = 0;
-        g_msc.bulk_in_mps = 0;
-        g_msc.bulk_out_mps = 0;
-        g_msc.configured = false;
-        g_msc.bot_present = false;
-        g_msc.bot_configured = false;
-        g_msc.bot_in_ep = 0;
-        g_msc.bot_out_ep = 0;
-        g_msc.bot_in_ep_id = 0;
-        g_msc.bot_out_ep_id = 0;
-        g_msc.bot_in_mps = 0;
-        g_msc.bot_out_mps = 0;
-        g_msc.uasp = false;
-        g_msc.uasp_cmd_out_ep = 0;
-        g_msc.uasp_data_out_ep = 0;
-        g_msc.uasp_status_in_ep = 0;
-        g_msc.uasp_data_in_ep = 0;
-        g_msc.uasp_cmd_out_ep_id = 0;
-        g_msc.uasp_data_out_ep_id = 0;
-        g_msc.uasp_status_in_ep_id = 0;
-        g_msc.uasp_data_in_ep_id = 0;
-        g_msc.uasp_cmd_out_mps = 0;
-        g_msc.uasp_data_out_mps = 0;
-        g_msc.uasp_status_in_mps = 0;
-        g_msc.uasp_data_in_mps = 0;
-    }
+    kbd->slot = 0;
+    kbd->ep_addr = 0;
+    kbd->ep_id = 0;
+    kbd->mps = 0;
+    kbd->interval = 0;
+    kbd->pending = false;
+    kbd->configured = false;
+    kbd->present = false;
+    kbd->ring_index = 0;
+    kbd->cycle = 1;
+    memset(kbd->last_report, 0, sizeof(kbd->last_report));
+
+    mouse->slot = 0;
+    mouse->ep_addr = 0;
+    mouse->ep_id = 0;
+    mouse->mps = 0;
+    mouse->interval = 0;
+    mouse->pending = false;
+    mouse->configured = false;
+    mouse->present = false;
+    mouse->ring_index = 0;
+    mouse->cycle = 1;
+
+    msc->slot = 0;
+    msc->bulk_in_ep = 0;
+    msc->bulk_out_ep = 0;
+    msc->bulk_in_ep_id = 0;
+    msc->bulk_out_ep_id = 0;
+    msc->bulk_in_mps = 0;
+    msc->bulk_out_mps = 0;
+    msc->configured = false;
+    msc->bot_present = false;
+    msc->bot_configured = false;
+    msc->bot_in_ep = 0;
+    msc->bot_out_ep = 0;
+    msc->bot_in_ep_id = 0;
+    msc->bot_out_ep_id = 0;
+    msc->bot_in_mps = 0;
+    msc->bot_out_mps = 0;
+    msc->uasp = false;
+    msc->uasp_cmd_out_ep = 0;
+    msc->uasp_data_out_ep = 0;
+    msc->uasp_status_in_ep = 0;
+    msc->uasp_data_in_ep = 0;
+    msc->uasp_cmd_out_ep_id = 0;
+    msc->uasp_data_out_ep_id = 0;
+    msc->uasp_status_in_ep_id = 0;
+    msc->uasp_data_in_ep_id = 0;
+    msc->uasp_cmd_out_mps = 0;
+    msc->uasp_data_out_mps = 0;
+    msc->uasp_status_in_mps = 0;
+    msc->uasp_data_in_mps = 0;
+    msc->tag = 1;
+    msc->in_ring_index = 0;
+    msc->out_ring_index = 0;
+    msc->in_cycle = 1;
+    msc->out_cycle = 1;
+    msc->uasp_cmd_ring_index = 0;
+    msc->uasp_data_in_ring_index = 0;
+    msc->uasp_data_out_ring_index = 0;
+    msc->uasp_status_ring_index = 0;
+    msc->uasp_cmd_cycle = 1;
+    msc->uasp_data_in_cycle = 1;
+    msc->uasp_data_out_cycle = 1;
+    msc->uasp_status_cycle = 1;
+    msc->max_lun = 1;
+    msc->interface_num = 0;
+    msc->block_size = 0;
+    msc->block_count = 0;
+    msc->readonly = false;
+    msc->uasp_failed = false;
+    msc->present = false;
+    memset(msc->lun_valid, 0, sizeof(msc->lun_valid));
     while (off + 1 < 64) {
         uint8_t len = buf[off];
         uint8_t type = buf[off + 1];
@@ -736,12 +826,9 @@ static bool xhci_ep0_get_config_descriptor(uintptr_t base, uint32_t dboff, uintp
             current_sub = sub;
             current_proto = proto;
             if (cls == 0x08 && (proto == 0x50 || proto == 0x62)) {
-                g_msc.slot = slot_id;
-                g_msc.uasp = (proto == 0x62);
-                g_msc.interface_num = if_num;
-                if (g_xhci_enum_port != 0) {
-                    g_msc_port = g_xhci_enum_port;
-                }
+                msc->slot = slot_id;
+                msc->uasp = (proto == 0x62);
+                msc->interface_num = if_num;
             }
         }
         if (type == 5 && len >= 7) {
@@ -751,7 +838,7 @@ static bool xhci_ep0_get_config_descriptor(uintptr_t base, uint32_t dboff, uintp
             uint8_t interval = buf[off + 6];
             uint8_t ep_type = attrs & 0x3;
             if ((ep_addr & 0x80) && ep_type == 3 && (current_proto == 1 || current_proto == 2)) {
-                xhci_hid_dev_t *dev = (current_proto == 1) ? &g_hid_kbd : &g_hid_mouse;
+                xhci_hid_dev_t *dev = (current_proto == 1) ? kbd : mouse;
                 if (dev->ep_addr == 0 || dev->slot == slot_id) {
                     dev->slot = slot_id;
                     dev->ep_addr = ep_addr;
@@ -761,14 +848,6 @@ static bool xhci_ep0_get_config_descriptor(uintptr_t base, uint32_t dboff, uintp
                     dev->pending = false;
                     if (current_proto == 1) {
                         memset(dev->last_report, 0, sizeof(dev->last_report));
-                        if (g_xhci_enum_port) {
-                            g_hid_kbd_port = g_xhci_enum_port;
-                        }
-                    }
-                    if (current_proto == 2) {
-                        if (g_xhci_enum_port) {
-                            g_hid_mouse_port = g_xhci_enum_port;
-                        }
                     }
                     serial_printf("[XHCI] HID %s INT IN ep=0x%02x mps=%u interval=%u\n",
                                   (current_proto == 1) ? "kbd" : "mouse",
@@ -777,36 +856,36 @@ static bool xhci_ep0_get_config_descriptor(uintptr_t base, uint32_t dboff, uintp
             }
             if (current_class == 0x08 && current_sub == 0x06 && ep_type == 2) {
                 if (ep_addr & 0x80) {
-                    if (g_msc.uasp && uasp_in_count < 2) {
+                    if (msc->uasp && uasp_in_count < 2) {
                         uasp_in_eps[uasp_in_count] = ep_addr;
                         uasp_in_mps[uasp_in_count] = mps;
                         uasp_in_count++;
-                    } else if (!g_msc.uasp) {
-                        g_msc.bulk_in_ep = ep_addr;
-                        g_msc.bulk_in_mps = mps;
-                        g_msc.bulk_in_ep_id = (uint8_t)(2 * (ep_addr & 0x0F) + 1);
+                    } else if (!msc->uasp) {
+                        msc->bulk_in_ep = ep_addr;
+                        msc->bulk_in_mps = mps;
+                        msc->bulk_in_ep_id = (uint8_t)(2 * (ep_addr & 0x0F) + 1);
                     }
                     if (current_proto == 0x50) {
-                        g_msc.bot_present = true;
-                        g_msc.bot_in_ep = ep_addr;
-                        g_msc.bot_in_mps = mps;
-                        g_msc.bot_in_ep_id = (uint8_t)(2 * (ep_addr & 0x0F) + 1);
+                        msc->bot_present = true;
+                        msc->bot_in_ep = ep_addr;
+                        msc->bot_in_mps = mps;
+                        msc->bot_in_ep_id = (uint8_t)(2 * (ep_addr & 0x0F) + 1);
                     }
                 } else {
-                    if (g_msc.uasp && uasp_out_count < 2) {
+                    if (msc->uasp && uasp_out_count < 2) {
                         uasp_out_eps[uasp_out_count] = ep_addr;
                         uasp_out_mps[uasp_out_count] = mps;
                         uasp_out_count++;
-                    } else if (!g_msc.uasp) {
-                        g_msc.bulk_out_ep = ep_addr;
-                        g_msc.bulk_out_mps = mps;
-                        g_msc.bulk_out_ep_id = (uint8_t)(2 * (ep_addr & 0x0F) + 0);
+                    } else if (!msc->uasp) {
+                        msc->bulk_out_ep = ep_addr;
+                        msc->bulk_out_mps = mps;
+                        msc->bulk_out_ep_id = (uint8_t)(2 * (ep_addr & 0x0F) + 0);
                     }
                     if (current_proto == 0x50) {
-                        g_msc.bot_present = true;
-                        g_msc.bot_out_ep = ep_addr;
-                        g_msc.bot_out_mps = mps;
-                        g_msc.bot_out_ep_id = (uint8_t)(2 * (ep_addr & 0x0F) + 0);
+                        msc->bot_present = true;
+                        msc->bot_out_ep = ep_addr;
+                        msc->bot_out_mps = mps;
+                        msc->bot_out_ep_id = (uint8_t)(2 * (ep_addr & 0x0F) + 0);
                     }
                 }
                 serial_printf("[XHCI] MSC bulk %s ep=0x%02x mps=%u\n",
@@ -816,7 +895,7 @@ static bool xhci_ep0_get_config_descriptor(uintptr_t base, uint32_t dboff, uintp
         off += len;
     }
 
-    if (g_msc.uasp && uasp_in_count >= 2 && uasp_out_count >= 2) {
+    if (msc->uasp && uasp_in_count >= 2 && uasp_out_count >= 2) {
         uint8_t in0 = uasp_in_eps[0];
         uint8_t in1 = uasp_in_eps[1];
         uint16_t in0_mps = uasp_in_mps[0];
@@ -835,106 +914,96 @@ static bool xhci_ep0_get_config_descriptor(uintptr_t base, uint32_t dboff, uintp
             uint16_t tm = out0_mps; out0_mps = out1_mps; out1_mps = tm;
         }
 
-        g_msc.uasp_status_in_ep = in0;
-        g_msc.uasp_status_in_mps = in0_mps;
-        g_msc.uasp_data_in_ep = in1;
-        g_msc.uasp_data_in_mps = in1_mps;
-        g_msc.uasp_cmd_out_ep = out0;
-        g_msc.uasp_cmd_out_mps = out0_mps;
-        g_msc.uasp_data_out_ep = out1;
-        g_msc.uasp_data_out_mps = out1_mps;
+        msc->uasp_status_in_ep = in0;
+        msc->uasp_status_in_mps = in0_mps;
+        msc->uasp_data_in_ep = in1;
+        msc->uasp_data_in_mps = in1_mps;
+        msc->uasp_cmd_out_ep = out0;
+        msc->uasp_cmd_out_mps = out0_mps;
+        msc->uasp_data_out_ep = out1;
+        msc->uasp_data_out_mps = out1_mps;
 
-        g_msc.uasp_status_in_ep_id = (uint8_t)(2 * (g_msc.uasp_status_in_ep & 0x0F) + 1);
-        g_msc.uasp_data_in_ep_id = (uint8_t)(2 * (g_msc.uasp_data_in_ep & 0x0F) + 1);
-        g_msc.uasp_cmd_out_ep_id = (uint8_t)(2 * (g_msc.uasp_cmd_out_ep & 0x0F) + 0);
-        g_msc.uasp_data_out_ep_id = (uint8_t)(2 * (g_msc.uasp_data_out_ep & 0x0F) + 0);
+        msc->uasp_status_in_ep_id = (uint8_t)(2 * (msc->uasp_status_in_ep & 0x0F) + 1);
+        msc->uasp_data_in_ep_id = (uint8_t)(2 * (msc->uasp_data_in_ep & 0x0F) + 1);
+        msc->uasp_cmd_out_ep_id = (uint8_t)(2 * (msc->uasp_cmd_out_ep & 0x0F) + 0);
+        msc->uasp_data_out_ep_id = (uint8_t)(2 * (msc->uasp_data_out_ep & 0x0F) + 0);
 
         serial_printf("[XHCI] UASP cmd-out=0x%02x data-out=0x%02x status-in=0x%02x data-in=0x%02x\n",
-                      g_msc.uasp_cmd_out_ep, g_msc.uasp_data_out_ep,
-                      g_msc.uasp_status_in_ep, g_msc.uasp_data_in_ep);
+                      msc->uasp_cmd_out_ep, msc->uasp_data_out_ep,
+                      msc->uasp_status_in_ep, msc->uasp_data_in_ep);
     }
 
     if (config_value != 0) {
         xhci_ep0_set_configuration(base, dboff, rt_base, slot_id, config_value);
     }
 
-    if (g_hid_kbd.ep_id != 0 && g_hid_kbd.slot == slot_id) {
+    if (kbd->ep_id != 0 && kbd->slot == slot_id) {
         memset(g_input_ctx, 0, sizeof(g_input_ctx));
-        xhci_build_hid_endpoint_context(g_hid_kbd.ep_id, g_hid_kbd.mps,
-                                        g_hid_kbd.interval, g_hid_kbd.ring);
-        g_hid_kbd.configured = xhci_configure_endpoint(base, dboff, rt_base, slot_id);
-        if (g_hid_kbd.configured) {
-            xhci_maybe_mark_hid_present();
+        xhci_build_hid_endpoint_context(kbd->ep_id, kbd->mps,
+                                        kbd->interval, kbd->ring);
+        kbd->configured = xhci_configure_endpoint(base, dboff, rt_base, slot_id);
+        if (kbd->configured) {
+            kbd->present = true;
+            serial_printf("[XHCI] HID keyboard connected (port %u)\n", kbd->port);
         }
     }
 
-    if (g_hid_mouse.ep_id != 0 && g_hid_mouse.slot == slot_id) {
+    if (mouse->ep_id != 0 && mouse->slot == slot_id) {
         memset(g_input_ctx, 0, sizeof(g_input_ctx));
-        xhci_build_hid_endpoint_context(g_hid_mouse.ep_id, g_hid_mouse.mps,
-                                        g_hid_mouse.interval, g_hid_mouse.ring);
-        g_hid_mouse.configured = xhci_configure_endpoint(base, dboff, rt_base, slot_id);
-        if (g_hid_mouse.configured) {
-            xhci_maybe_mark_hid_present();
+        xhci_build_hid_endpoint_context(mouse->ep_id, mouse->mps,
+                                        mouse->interval, mouse->ring);
+        mouse->configured = xhci_configure_endpoint(base, dboff, rt_base, slot_id);
+        if (mouse->configured) {
+            mouse->present = true;
+            serial_printf("[XHCI] HID mouse connected (port %u)\n", mouse->port);
         }
     }
 
-    if (g_msc.uasp && g_msc.uasp_cmd_out_ep_id && g_msc.uasp_data_out_ep_id &&
-        g_msc.uasp_status_in_ep_id && g_msc.uasp_data_in_ep_id && g_msc.slot == slot_id) {
+    if (msc->uasp && msc->uasp_cmd_out_ep_id && msc->uasp_data_out_ep_id &&
+        msc->uasp_status_in_ep_id && msc->uasp_data_in_ep_id && msc->slot == slot_id) {
         memset(g_input_ctx, 0, sizeof(g_input_ctx));
-        xhci_build_bulk_endpoint_context(g_msc.uasp_cmd_out_ep_id, g_msc.uasp_cmd_out_mps, 2,
-                                         g_uasp_cmd_ring);
-        xhci_build_bulk_endpoint_context(g_msc.uasp_data_out_ep_id, g_msc.uasp_data_out_mps, 2,
-                                         g_uasp_data_out_ring);
-        xhci_build_bulk_endpoint_context(g_msc.uasp_status_in_ep_id, g_msc.uasp_status_in_mps, 6,
-                                         g_uasp_status_ring);
-        xhci_build_bulk_endpoint_context(g_msc.uasp_data_in_ep_id, g_msc.uasp_data_in_mps, 6,
-                                         g_uasp_data_in_ring);
-        g_msc.configured = xhci_configure_endpoint(base, dboff, rt_base, slot_id);
-        if (g_msc.configured) {
+        xhci_build_bulk_endpoint_context(msc->uasp_cmd_out_ep_id, msc->uasp_cmd_out_mps, 2,
+                                         MSC_UASP_CMD_RING(msc));
+        xhci_build_bulk_endpoint_context(msc->uasp_data_out_ep_id, msc->uasp_data_out_mps, 2,
+                                         MSC_UASP_DATA_OUT_RING(msc));
+        xhci_build_bulk_endpoint_context(msc->uasp_status_in_ep_id, msc->uasp_status_in_mps, 6,
+                                         MSC_UASP_STATUS_RING(msc));
+        xhci_build_bulk_endpoint_context(msc->uasp_data_in_ep_id, msc->uasp_data_in_mps, 6,
+                                         MSC_UASP_DATA_IN_RING(msc));
+        msc->configured = xhci_configure_endpoint(base, dboff, rt_base, slot_id);
+        if (msc->configured) {
             serial_puts("[XHCI] UASP endpoints configured\n");
-            g_msc.max_lun = 1;
-            xhci_msc_smoke_test(base, dboff, rt_base);
-            g_msc_present = true;
-            g_msc_last_luns = xhci_msc_get_lun_count();
-            g_msc_drive_base = hal_storage_get_drive_count() - g_msc_last_luns;
-            if (g_msc_drive_base < 0) {
-                g_msc_drive_base = 0;
-            }
-            xhci_msc_fire_events(true);
+            msc->max_lun = 1;
+            msc->present = true;
+            xhci_msc_smoke_test(msc, base, dboff, rt_base);
+            g_msc_last_luns[port_index] = xhci_msc_get_lun_count_dev(msc);
+            xhci_msc_fire_events(port_index, true);
         }
-    } else if (!g_msc.uasp && g_msc.bulk_in_ep_id != 0 && g_msc.bulk_out_ep_id != 0 &&
-               g_msc.slot == slot_id) {
+    } else if (!msc->uasp && msc->bulk_in_ep_id != 0 && msc->bulk_out_ep_id != 0 &&
+               msc->slot == slot_id) {
         memset(g_input_ctx, 0, sizeof(g_input_ctx));
-        xhci_build_bulk_endpoint_context(g_msc.bulk_out_ep_id, g_msc.bulk_out_mps, 2,
-                                         g_msc_out_ring);
-        xhci_build_bulk_endpoint_context(g_msc.bulk_in_ep_id, g_msc.bulk_in_mps, 6,
-                                         g_msc_in_ring);
-        g_msc.configured = xhci_configure_endpoint(base, dboff, rt_base, slot_id);
-        if (g_msc.configured) {
+        xhci_build_bulk_endpoint_context(msc->bulk_out_ep_id, msc->bulk_out_mps, 2,
+                                         MSC_OUT_RING(msc));
+        xhci_build_bulk_endpoint_context(msc->bulk_in_ep_id, msc->bulk_in_mps, 6,
+                                         MSC_IN_RING(msc));
+        msc->configured = xhci_configure_endpoint(base, dboff, rt_base, slot_id);
+        if (msc->configured) {
             serial_puts("[XHCI] MSC endpoints configured\n");
-            g_msc.max_lun = 1;
-            xhci_msc_get_max_lun(base, dboff, rt_base, slot_id);
-            xhci_msc_smoke_test(base, dboff, rt_base);
-            g_msc_present = true;
-            g_msc_last_luns = xhci_msc_get_lun_count();
-            g_msc_drive_base = hal_storage_get_drive_count() - g_msc_last_luns;
-            if (g_msc_drive_base < 0) {
-                g_msc_drive_base = 0;
-            }
-            xhci_msc_fire_events(true);
+            msc->max_lun = 1;
+            msc->present = true;
+            xhci_msc_get_max_lun(msc, base, dboff, rt_base, slot_id);
+            xhci_msc_smoke_test(msc, base, dboff, rt_base);
+            g_msc_last_luns[port_index] = xhci_msc_get_lun_count_dev(msc);
+            xhci_msc_fire_events(port_index, true);
         }
-    } else if (g_msc.bot_present && g_msc.slot == slot_id) {
-        if (xhci_msc_configure_bot(base, dboff, rt_base)) {
-            g_msc.max_lun = 1;
-            xhci_msc_get_max_lun(base, dboff, rt_base, slot_id);
-            xhci_msc_smoke_test(base, dboff, rt_base);
-            g_msc_present = true;
-            g_msc_last_luns = xhci_msc_get_lun_count();
-            g_msc_drive_base = hal_storage_get_drive_count() - g_msc_last_luns;
-            if (g_msc_drive_base < 0) {
-                g_msc_drive_base = 0;
-            }
-            xhci_msc_fire_events(true);
+    } else if (msc->bot_present && msc->slot == slot_id) {
+        if (xhci_msc_configure_bot(msc, base, dboff, rt_base)) {
+            msc->max_lun = 1;
+            msc->present = true;
+            xhci_msc_get_max_lun(msc, base, dboff, rt_base, slot_id);
+            xhci_msc_smoke_test(msc, base, dboff, rt_base);
+            g_msc_last_luns[port_index] = xhci_msc_get_lun_count_dev(msc);
+            xhci_msc_fire_events(port_index, true);
         }
     }
 
@@ -961,123 +1030,123 @@ static void xhci_hid_enqueue_interrupt_in(xhci_hid_dev_t *dev, uintptr_t buf, ui
     }
 }
 
-static void xhci_msc_enqueue_out(uintptr_t buf, uint32_t len) {
-    xhci_trb_t *trb = &g_msc_out_ring[g_msc.out_ring_index++];
+static void xhci_msc_enqueue_out(xhci_msc_dev_t *dev, uintptr_t buf, uint32_t len) {
+    xhci_trb_t *trb = &MSC_OUT_RING(dev)[dev->out_ring_index++];
     trb->dword0 = (uint32_t)(buf & 0xFFFFFFFFu);
     trb->dword1 = 0;
     trb->dword2 = len;
     trb->dword3 = (XHCI_TRB_TYPE_NORMAL << XHCI_TRB_TYPE_SHIFT) |
                   XHCI_TRB_IOC |
-                  (g_msc.out_cycle ? XHCI_TRB_CYCLE : 0);
+                  (dev->out_cycle ? XHCI_TRB_CYCLE : 0);
 
-    if (g_msc.out_ring_index >= 31) {
-        xhci_trb_t *link = &g_msc_out_ring[g_msc.out_ring_index++];
-        link->dword0 = (uint32_t)((uintptr_t)&g_msc_out_ring[0] & 0xFFFFFFFFu);
+    if (dev->out_ring_index >= 31) {
+        xhci_trb_t *link = &MSC_OUT_RING(dev)[dev->out_ring_index++];
+        link->dword0 = (uint32_t)((uintptr_t)&MSC_OUT_RING(dev)[0] & 0xFFFFFFFFu);
         link->dword1 = 0;
         link->dword2 = 0;
         link->dword3 = (6u << XHCI_TRB_TYPE_SHIFT) | XHCI_TRB_CYCLE | (1u << 1);
-        g_msc.out_ring_index = 0;
-        g_msc.out_cycle ^= 1;
+        dev->out_ring_index = 0;
+        dev->out_cycle ^= 1;
     }
 }
 
-static void xhci_msc_enqueue_in(uintptr_t buf, uint32_t len) {
-    xhci_trb_t *trb = &g_msc_in_ring[g_msc.in_ring_index++];
+static void xhci_msc_enqueue_in(xhci_msc_dev_t *dev, uintptr_t buf, uint32_t len) {
+    xhci_trb_t *trb = &MSC_IN_RING(dev)[dev->in_ring_index++];
     trb->dword0 = (uint32_t)(buf & 0xFFFFFFFFu);
     trb->dword1 = 0;
     trb->dword2 = len;
     trb->dword3 = (XHCI_TRB_TYPE_NORMAL << XHCI_TRB_TYPE_SHIFT) |
                   XHCI_TRB_IOC |
-                  (g_msc.in_cycle ? XHCI_TRB_CYCLE : 0);
+                  (dev->in_cycle ? XHCI_TRB_CYCLE : 0);
 
-    if (g_msc.in_ring_index >= 31) {
-        xhci_trb_t *link = &g_msc_in_ring[g_msc.in_ring_index++];
-        link->dword0 = (uint32_t)((uintptr_t)&g_msc_in_ring[0] & 0xFFFFFFFFu);
+    if (dev->in_ring_index >= 31) {
+        xhci_trb_t *link = &MSC_IN_RING(dev)[dev->in_ring_index++];
+        link->dword0 = (uint32_t)((uintptr_t)&MSC_IN_RING(dev)[0] & 0xFFFFFFFFu);
         link->dword1 = 0;
         link->dword2 = 0;
         link->dword3 = (6u << XHCI_TRB_TYPE_SHIFT) | XHCI_TRB_CYCLE | (1u << 1);
-        g_msc.in_ring_index = 0;
-        g_msc.in_cycle ^= 1;
+        dev->in_ring_index = 0;
+        dev->in_cycle ^= 1;
     }
 }
 
-static void xhci_uasp_enqueue_cmd(uintptr_t buf, uint32_t len) {
-    xhci_trb_t *trb = &g_uasp_cmd_ring[g_msc.uasp_cmd_ring_index++];
+static void xhci_uasp_enqueue_cmd(xhci_msc_dev_t *dev, uintptr_t buf, uint32_t len) {
+    xhci_trb_t *trb = &MSC_UASP_CMD_RING(dev)[dev->uasp_cmd_ring_index++];
     trb->dword0 = (uint32_t)(buf & 0xFFFFFFFFu);
     trb->dword1 = 0;
     trb->dword2 = len;
     trb->dword3 = (XHCI_TRB_TYPE_NORMAL << XHCI_TRB_TYPE_SHIFT) |
                   XHCI_TRB_IOC |
-                  (g_msc.uasp_cmd_cycle ? XHCI_TRB_CYCLE : 0);
+                  (dev->uasp_cmd_cycle ? XHCI_TRB_CYCLE : 0);
 
-    if (g_msc.uasp_cmd_ring_index >= 31) {
-        xhci_trb_t *link = &g_uasp_cmd_ring[g_msc.uasp_cmd_ring_index++];
-        link->dword0 = (uint32_t)((uintptr_t)&g_uasp_cmd_ring[0] & 0xFFFFFFFFu);
+    if (dev->uasp_cmd_ring_index >= 31) {
+        xhci_trb_t *link = &MSC_UASP_CMD_RING(dev)[dev->uasp_cmd_ring_index++];
+        link->dword0 = (uint32_t)((uintptr_t)&MSC_UASP_CMD_RING(dev)[0] & 0xFFFFFFFFu);
         link->dword1 = 0;
         link->dword2 = 0;
         link->dword3 = (6u << XHCI_TRB_TYPE_SHIFT) | XHCI_TRB_CYCLE | (1u << 1);
-        g_msc.uasp_cmd_ring_index = 0;
-        g_msc.uasp_cmd_cycle ^= 1;
+        dev->uasp_cmd_ring_index = 0;
+        dev->uasp_cmd_cycle ^= 1;
     }
 }
 
-static void xhci_uasp_enqueue_data_in(uintptr_t buf, uint32_t len) {
-    xhci_trb_t *trb = &g_uasp_data_in_ring[g_msc.uasp_data_in_ring_index++];
+static void xhci_uasp_enqueue_data_in(xhci_msc_dev_t *dev, uintptr_t buf, uint32_t len) {
+    xhci_trb_t *trb = &MSC_UASP_DATA_IN_RING(dev)[dev->uasp_data_in_ring_index++];
     trb->dword0 = (uint32_t)(buf & 0xFFFFFFFFu);
     trb->dword1 = 0;
     trb->dword2 = len;
     trb->dword3 = (XHCI_TRB_TYPE_NORMAL << XHCI_TRB_TYPE_SHIFT) |
                   XHCI_TRB_IOC |
-                  (g_msc.uasp_data_in_cycle ? XHCI_TRB_CYCLE : 0);
+                  (dev->uasp_data_in_cycle ? XHCI_TRB_CYCLE : 0);
 
-    if (g_msc.uasp_data_in_ring_index >= 31) {
-        xhci_trb_t *link = &g_uasp_data_in_ring[g_msc.uasp_data_in_ring_index++];
-        link->dword0 = (uint32_t)((uintptr_t)&g_uasp_data_in_ring[0] & 0xFFFFFFFFu);
+    if (dev->uasp_data_in_ring_index >= 31) {
+        xhci_trb_t *link = &MSC_UASP_DATA_IN_RING(dev)[dev->uasp_data_in_ring_index++];
+        link->dword0 = (uint32_t)((uintptr_t)&MSC_UASP_DATA_IN_RING(dev)[0] & 0xFFFFFFFFu);
         link->dword1 = 0;
         link->dword2 = 0;
         link->dword3 = (6u << XHCI_TRB_TYPE_SHIFT) | XHCI_TRB_CYCLE | (1u << 1);
-        g_msc.uasp_data_in_ring_index = 0;
-        g_msc.uasp_data_in_cycle ^= 1;
+        dev->uasp_data_in_ring_index = 0;
+        dev->uasp_data_in_cycle ^= 1;
     }
 }
 
-static void xhci_uasp_enqueue_data_out(uintptr_t buf, uint32_t len) {
-    xhci_trb_t *trb = &g_uasp_data_out_ring[g_msc.uasp_data_out_ring_index++];
+static void xhci_uasp_enqueue_data_out(xhci_msc_dev_t *dev, uintptr_t buf, uint32_t len) {
+    xhci_trb_t *trb = &MSC_UASP_DATA_OUT_RING(dev)[dev->uasp_data_out_ring_index++];
     trb->dword0 = (uint32_t)(buf & 0xFFFFFFFFu);
     trb->dword1 = 0;
     trb->dword2 = len;
     trb->dword3 = (XHCI_TRB_TYPE_NORMAL << XHCI_TRB_TYPE_SHIFT) |
                   XHCI_TRB_IOC |
-                  (g_msc.uasp_data_out_cycle ? XHCI_TRB_CYCLE : 0);
+                  (dev->uasp_data_out_cycle ? XHCI_TRB_CYCLE : 0);
 
-    if (g_msc.uasp_data_out_ring_index >= 31) {
-        xhci_trb_t *link = &g_uasp_data_out_ring[g_msc.uasp_data_out_ring_index++];
-        link->dword0 = (uint32_t)((uintptr_t)&g_uasp_data_out_ring[0] & 0xFFFFFFFFu);
+    if (dev->uasp_data_out_ring_index >= 31) {
+        xhci_trb_t *link = &MSC_UASP_DATA_OUT_RING(dev)[dev->uasp_data_out_ring_index++];
+        link->dword0 = (uint32_t)((uintptr_t)&MSC_UASP_DATA_OUT_RING(dev)[0] & 0xFFFFFFFFu);
         link->dword1 = 0;
         link->dword2 = 0;
         link->dword3 = (6u << XHCI_TRB_TYPE_SHIFT) | XHCI_TRB_CYCLE | (1u << 1);
-        g_msc.uasp_data_out_ring_index = 0;
-        g_msc.uasp_data_out_cycle ^= 1;
+        dev->uasp_data_out_ring_index = 0;
+        dev->uasp_data_out_cycle ^= 1;
     }
 }
 
-static void xhci_uasp_enqueue_status(uintptr_t buf, uint32_t len) {
-    xhci_trb_t *trb = &g_uasp_status_ring[g_msc.uasp_status_ring_index++];
+static void xhci_uasp_enqueue_status(xhci_msc_dev_t *dev, uintptr_t buf, uint32_t len) {
+    xhci_trb_t *trb = &MSC_UASP_STATUS_RING(dev)[dev->uasp_status_ring_index++];
     trb->dword0 = (uint32_t)(buf & 0xFFFFFFFFu);
     trb->dword1 = 0;
     trb->dword2 = len;
     trb->dword3 = (XHCI_TRB_TYPE_NORMAL << XHCI_TRB_TYPE_SHIFT) |
                   XHCI_TRB_IOC |
-                  (g_msc.uasp_status_cycle ? XHCI_TRB_CYCLE : 0);
+                  (dev->uasp_status_cycle ? XHCI_TRB_CYCLE : 0);
 
-    if (g_msc.uasp_status_ring_index >= 31) {
-        xhci_trb_t *link = &g_uasp_status_ring[g_msc.uasp_status_ring_index++];
-        link->dword0 = (uint32_t)((uintptr_t)&g_uasp_status_ring[0] & 0xFFFFFFFFu);
+    if (dev->uasp_status_ring_index >= 31) {
+        xhci_trb_t *link = &MSC_UASP_STATUS_RING(dev)[dev->uasp_status_ring_index++];
+        link->dword0 = (uint32_t)((uintptr_t)&MSC_UASP_STATUS_RING(dev)[0] & 0xFFFFFFFFu);
         link->dword1 = 0;
         link->dword2 = 0;
         link->dword3 = (6u << XHCI_TRB_TYPE_SHIFT) | XHCI_TRB_CYCLE | (1u << 1);
-        g_msc.uasp_status_ring_index = 0;
-        g_msc.uasp_status_cycle ^= 1;
+        dev->uasp_status_ring_index = 0;
+        dev->uasp_status_cycle ^= 1;
     }
 }
 
@@ -1162,11 +1231,17 @@ static void xhci_hid_submit(uintptr_t base, uint32_t dboff, xhci_hid_dev_t *dev)
 
 static void xhci_hid_poll_events(uintptr_t rt_base) {
     uint32_t now = TickCount();
-    if (g_hid_kbd.pending && (now - g_hid_kbd.pending_tick) > 10) {
-        g_hid_kbd.pending = false;
+    uint8_t ports = g_xhci_ports ? g_xhci_ports : MAX_XHCI_PORTS;
+    if (ports > MAX_XHCI_PORTS) {
+        ports = MAX_XHCI_PORTS;
     }
-    if (g_hid_mouse.pending && (now - g_hid_mouse.pending_tick) > 10) {
-        g_hid_mouse.pending = false;
+    for (uint8_t i = 0; i < ports; i++) {
+        if (g_hid_kbd[i].pending && (now - g_hid_kbd[i].pending_tick) > 10) {
+            g_hid_kbd[i].pending = false;
+        }
+        if (g_hid_mouse[i].pending && (now - g_hid_mouse[i].pending_tick) > 10) {
+            g_hid_mouse[i].pending = false;
+        }
     }
 
     for (int i = 0; i < 4; i++) {
@@ -1178,123 +1253,130 @@ static void xhci_hid_poll_events(uintptr_t rt_base) {
         if (res < 0) {
             continue;
         }
-        if (slot == g_hid_kbd.slot && g_hid_kbd.pending) {
-            g_hid_kbd.pending = false;
-            xhci_handle_hid_keyboard(&g_hid_kbd, (const uint8_t *)g_hid_kbd.buf);
-        } else if (slot == g_hid_mouse.slot && g_hid_mouse.pending) {
-            g_hid_mouse.pending = false;
-            xhci_handle_hid_mouse((const uint8_t *)g_hid_mouse.buf, g_hid_mouse.mps);
+        xhci_hid_dev_t *kbd = xhci_hid_find_by_slot(g_hid_kbd, slot);
+        if (kbd && kbd->pending) {
+            kbd->pending = false;
+            xhci_handle_hid_keyboard(kbd, (const uint8_t *)kbd->buf);
+            continue;
+        }
+        xhci_hid_dev_t *mouse = xhci_hid_find_by_slot(g_hid_mouse, slot);
+        if (mouse && mouse->pending) {
+            mouse->pending = false;
+            xhci_handle_hid_mouse((const uint8_t *)mouse->buf, mouse->mps);
         }
     }
 }
 
-static bool xhci_msc_bulk_transfer(uintptr_t base, uint32_t dboff, uintptr_t rt_base,
-                                   bool in, const void *buf, uint32_t len) {
-    if (!g_msc.configured) {
+static bool xhci_msc_bulk_transfer(xhci_msc_dev_t *dev, uintptr_t base, uint32_t dboff,
+                                   uintptr_t rt_base, bool in, const void *buf, uint32_t len) {
+    if (!dev || !dev->configured) {
         return false;
     }
     if (in) {
-        xhci_msc_enqueue_in((uintptr_t)buf, len);
-        mmio_write32(base + dboff, XHCI_DB0 + g_msc.slot, g_msc.bulk_in_ep_id);
+        xhci_msc_enqueue_in(dev, (uintptr_t)buf, len);
+        mmio_write32(base + dboff, XHCI_DB0 + dev->slot, dev->bulk_in_ep_id);
     } else {
-        xhci_msc_enqueue_out((uintptr_t)buf, len);
-        mmio_write32(base + dboff, XHCI_DB0 + g_msc.slot, g_msc.bulk_out_ep_id);
+        xhci_msc_enqueue_out(dev, (uintptr_t)buf, len);
+        mmio_write32(base + dboff, XHCI_DB0 + dev->slot, dev->bulk_out_ep_id);
     }
-    return xhci_poll_transfer_complete(rt_base, g_msc.slot);
+    return xhci_poll_transfer_complete(rt_base, dev->slot);
 }
 
-static bool xhci_uasp_transfer_cmd(uintptr_t base, uint32_t dboff, uintptr_t rt_base,
-                                  const void *buf, uint32_t len) {
-    if (!g_msc.configured || !g_msc.uasp_cmd_out_ep_id) {
+static bool xhci_uasp_transfer_cmd(xhci_msc_dev_t *dev, uintptr_t base, uint32_t dboff,
+                                   uintptr_t rt_base, const void *buf, uint32_t len) {
+    if (!dev || !dev->configured || !dev->uasp_cmd_out_ep_id) {
         return false;
     }
-    xhci_uasp_enqueue_cmd((uintptr_t)buf, len);
-    mmio_write32(base + dboff, XHCI_DB0 + g_msc.slot, g_msc.uasp_cmd_out_ep_id);
-    return xhci_poll_transfer_complete(rt_base, g_msc.slot);
+    xhci_uasp_enqueue_cmd(dev, (uintptr_t)buf, len);
+    mmio_write32(base + dboff, XHCI_DB0 + dev->slot, dev->uasp_cmd_out_ep_id);
+    return xhci_poll_transfer_complete(rt_base, dev->slot);
 }
 
-static bool xhci_uasp_transfer_data(uintptr_t base, uint32_t dboff, uintptr_t rt_base,
-                                   bool in, const void *buf, uint32_t len) {
-    if (!g_msc.configured) {
+static bool xhci_uasp_transfer_data(xhci_msc_dev_t *dev, uintptr_t base, uint32_t dboff,
+                                    uintptr_t rt_base, bool in, const void *buf, uint32_t len) {
+    if (!dev || !dev->configured) {
         return false;
     }
     if (in) {
-        if (!g_msc.uasp_data_in_ep_id) {
+        if (!dev->uasp_data_in_ep_id) {
             return false;
         }
-        xhci_uasp_enqueue_data_in((uintptr_t)buf, len);
-        mmio_write32(base + dboff, XHCI_DB0 + g_msc.slot, g_msc.uasp_data_in_ep_id);
+        xhci_uasp_enqueue_data_in(dev, (uintptr_t)buf, len);
+        mmio_write32(base + dboff, XHCI_DB0 + dev->slot, dev->uasp_data_in_ep_id);
     } else {
-        if (!g_msc.uasp_data_out_ep_id) {
+        if (!dev->uasp_data_out_ep_id) {
             return false;
         }
-        xhci_uasp_enqueue_data_out((uintptr_t)buf, len);
-        mmio_write32(base + dboff, XHCI_DB0 + g_msc.slot, g_msc.uasp_data_out_ep_id);
+        xhci_uasp_enqueue_data_out(dev, (uintptr_t)buf, len);
+        mmio_write32(base + dboff, XHCI_DB0 + dev->slot, dev->uasp_data_out_ep_id);
     }
-    return xhci_poll_transfer_complete(rt_base, g_msc.slot);
+    return xhci_poll_transfer_complete(rt_base, dev->slot);
 }
 
-static bool xhci_uasp_transfer_status(uintptr_t base, uint32_t dboff, uintptr_t rt_base,
-                                     void *buf, uint32_t len) {
-    if (!g_msc.configured || !g_msc.uasp_status_in_ep_id) {
+static bool xhci_uasp_transfer_status(xhci_msc_dev_t *dev, uintptr_t base, uint32_t dboff,
+                                      uintptr_t rt_base, void *buf, uint32_t len) {
+    if (!dev || !dev->configured || !dev->uasp_status_in_ep_id) {
         return false;
     }
-    xhci_uasp_enqueue_status((uintptr_t)buf, len);
-    mmio_write32(base + dboff, XHCI_DB0 + g_msc.slot, g_msc.uasp_status_in_ep_id);
-    return xhci_poll_transfer_complete(rt_base, g_msc.slot);
+    xhci_uasp_enqueue_status(dev, (uintptr_t)buf, len);
+    mmio_write32(base + dboff, XHCI_DB0 + dev->slot, dev->uasp_status_in_ep_id);
+    return xhci_poll_transfer_complete(rt_base, dev->slot);
 }
 
-static bool xhci_msc_send_cbw(uintptr_t base, uint32_t dboff, uintptr_t rt_base,
-                              uint8_t lun, uint8_t *cb, uint8_t cb_len,
+static bool xhci_msc_send_cbw(xhci_msc_dev_t *dev, uintptr_t base, uint32_t dboff,
+                              uintptr_t rt_base, uint8_t lun, uint8_t *cb, uint8_t cb_len,
                               uint32_t data_len, bool data_in) {
-    memset(g_msc_cbw, 0, sizeof(g_msc_cbw));
-    g_msc_cbw[0] = 'U';
-    g_msc_cbw[1] = 'S';
-    g_msc_cbw[2] = 'B';
-    g_msc_cbw[3] = 'C';
-    uint32_t tag = g_msc.tag++;
-    g_msc_cbw[4] = (uint8_t)(tag & 0xFF);
-    g_msc_cbw[5] = (uint8_t)((tag >> 8) & 0xFF);
-    g_msc_cbw[6] = (uint8_t)((tag >> 16) & 0xFF);
-    g_msc_cbw[7] = (uint8_t)((tag >> 24) & 0xFF);
-    g_msc_cbw[8] = (uint8_t)(data_len & 0xFF);
-    g_msc_cbw[9] = (uint8_t)((data_len >> 8) & 0xFF);
-    g_msc_cbw[10] = (uint8_t)((data_len >> 16) & 0xFF);
-    g_msc_cbw[11] = (uint8_t)((data_len >> 24) & 0xFF);
-    g_msc_cbw[12] = data_in ? 0x80 : 0x00;
-    g_msc_cbw[13] = lun;
-    g_msc_cbw[14] = cb_len;
-    memcpy(&g_msc_cbw[15], cb, cb_len);
+    uint8_t *cbw = MSC_CBW(dev);
+    memset(cbw, 0, 31);
+    cbw[0] = 'U';
+    cbw[1] = 'S';
+    cbw[2] = 'B';
+    cbw[3] = 'C';
+    uint32_t tag = dev->tag++;
+    cbw[4] = (uint8_t)(tag & 0xFF);
+    cbw[5] = (uint8_t)((tag >> 8) & 0xFF);
+    cbw[6] = (uint8_t)((tag >> 16) & 0xFF);
+    cbw[7] = (uint8_t)((tag >> 24) & 0xFF);
+    cbw[8] = (uint8_t)(data_len & 0xFF);
+    cbw[9] = (uint8_t)((data_len >> 8) & 0xFF);
+    cbw[10] = (uint8_t)((data_len >> 16) & 0xFF);
+    cbw[11] = (uint8_t)((data_len >> 24) & 0xFF);
+    cbw[12] = data_in ? 0x80 : 0x00;
+    cbw[13] = lun;
+    cbw[14] = cb_len;
+    memcpy(&cbw[15], cb, cb_len);
 
-    return xhci_msc_bulk_transfer(base, dboff, rt_base, false, g_msc_cbw, 31);
+    return xhci_msc_bulk_transfer(dev, base, dboff, rt_base, false, cbw, 31);
 }
 
-static bool xhci_msc_recv_csw(uintptr_t base, uint32_t dboff, uintptr_t rt_base) {
-    if (!xhci_msc_bulk_transfer(base, dboff, rt_base, true, g_msc_csw, 13)) {
+static bool xhci_msc_recv_csw(xhci_msc_dev_t *dev, uintptr_t base, uint32_t dboff,
+                              uintptr_t rt_base) {
+    uint8_t *csw = MSC_CSW(dev);
+    if (!xhci_msc_bulk_transfer(dev, base, dboff, rt_base, true, csw, 13)) {
         return false;
     }
-    if (g_msc_csw[0] != 'U' || g_msc_csw[1] != 'S' || g_msc_csw[2] != 'B' || g_msc_csw[3] != 'S') {
+    if (csw[0] != 'U' || csw[1] != 'S' || csw[2] != 'B' || csw[3] != 'S') {
         serial_puts("[XHCI] MSC CSW bad signature\n");
         return false;
     }
-    g_msc.last_status = g_msc_csw[12];
-    if (g_msc.last_status != 0) {
-        serial_printf("[XHCI] MSC CSW status=%u\n", g_msc.last_status);
+    dev->last_status = csw[12];
+    if (dev->last_status != 0) {
+        serial_printf("[XHCI] MSC CSW status=%u\n", dev->last_status);
         return false;
     }
     return true;
 }
 
-static void xhci_msc_parse_sense(const uint8_t *buf, uint32_t len) {
+static void xhci_msc_parse_sense(xhci_msc_dev_t *dev, const uint8_t *buf, uint32_t len) {
     if (!buf || len < 14) {
         return;
     }
     if ((buf[0] & 0x7F) != 0x70 && (buf[0] & 0x7F) != 0x71) {
         return;
     }
-    g_msc.last_sense_key = buf[2] & 0x0F;
-    g_msc.last_asc = buf[12];
-    g_msc.last_ascq = buf[13];
+    dev->last_sense_key = buf[2] & 0x0F;
+    dev->last_asc = buf[12];
+    dev->last_ascq = buf[13];
 }
 
 static void xhci_msc_delay_ticks(uint32_t ticks) {
@@ -1304,176 +1386,183 @@ static void xhci_msc_delay_ticks(uint32_t ticks) {
     }
 }
 
-static bool xhci_msc_request_sense_bot(uintptr_t base, uint32_t dboff, uintptr_t rt_base, uint8_t lun) {
+static bool xhci_msc_request_sense_bot(xhci_msc_dev_t *dev, uintptr_t base, uint32_t dboff,
+                                       uintptr_t rt_base, uint8_t lun) {
     uint8_t cb[16];
     memset(cb, 0, sizeof(cb));
     cb[0] = 0x03; /* REQUEST SENSE */
     cb[4] = 18;
-    if (!xhci_msc_send_cbw(base, dboff, rt_base, lun, cb, 6, 18, true)) {
+    if (!xhci_msc_send_cbw(dev, base, dboff, rt_base, lun, cb, 6, 18, true)) {
         return false;
     }
-    if (!xhci_msc_bulk_transfer(base, dboff, rt_base, true, g_msc_data_buf, 18)) {
+    if (!xhci_msc_bulk_transfer(dev, base, dboff, rt_base, true, MSC_DATA(dev), 18)) {
         return false;
     }
-    if (!xhci_msc_recv_csw(base, dboff, rt_base)) {
+    if (!xhci_msc_recv_csw(dev, base, dboff, rt_base)) {
         return false;
     }
-    xhci_msc_parse_sense((const uint8_t *)g_msc_data_buf, 18);
+    xhci_msc_parse_sense(dev, (const uint8_t *)MSC_DATA(dev), 18);
     return true;
 }
 
-static bool xhci_msc_request_sense_uasp(uint8_t lun) {
+static bool xhci_msc_request_sense_uasp(xhci_msc_dev_t *dev, uint8_t lun) {
     uint8_t cb[16];
     memset(cb, 0, sizeof(cb));
     cb[0] = 0x03; /* REQUEST SENSE */
     cb[4] = 18;
-    if (!xhci_uasp_exec_scsi(lun, cb, 6, g_msc_data_buf, 18, true)) {
+    if (!xhci_uasp_exec_scsi(dev, lun, cb, 6, MSC_DATA(dev), 18, true)) {
         return false;
     }
-    xhci_msc_parse_sense((const uint8_t *)g_msc_data_buf, 18);
+    xhci_msc_parse_sense(dev, (const uint8_t *)MSC_DATA(dev), 18);
     return true;
 }
 
-static void xhci_msc_log_sense(const char *prefix) {
+static void xhci_msc_log_sense(xhci_msc_dev_t *dev, const char *prefix) {
     if (!prefix) {
         prefix = "MSC";
     }
     serial_printf("[XHCI] %s sense key=0x%02x asc=0x%02x ascq=0x%02x\n",
-                  prefix, g_msc.last_sense_key, g_msc.last_asc, g_msc.last_ascq);
+                  prefix, dev->last_sense_key, dev->last_asc, dev->last_ascq);
 }
 
-static bool xhci_msc_retry_not_ready(bool uasp, uint8_t lun) {
-    if (g_msc.last_sense_key != 0x02) {
+static bool xhci_msc_retry_not_ready(xhci_msc_dev_t *dev, bool uasp, uint8_t lun) {
+    if (dev->last_sense_key != 0x02) {
         return false;
     }
     for (int i = 0; i < 3; i++) {
         xhci_msc_delay_ticks(5);
-        if (xhci_msc_test_unit_ready(g_xhci_base, g_xhci_dboff, g_xhci_rt_base, lun)) {
+        if (xhci_msc_test_unit_ready(dev, g_xhci_base, g_xhci_dboff, g_xhci_rt_base, lun)) {
             return true;
         }
     }
     return false;
 }
 
-static bool xhci_uasp_exec_scsi(uint8_t lun, uint8_t *cdb, uint8_t cdb_len,
+static bool xhci_uasp_exec_scsi(xhci_msc_dev_t *dev, uint8_t lun, uint8_t *cdb, uint8_t cdb_len,
                                 const void *data, uint32_t data_len, bool data_in) {
-    if (!g_msc.uasp) {
+    if (!dev || !dev->uasp) {
         return false;
     }
-    memset(g_uasp_cmd_iu, 0, sizeof(g_uasp_cmd_iu));
-    g_uasp_cmd_iu[0] = 0x01; /* Command IU */
-    g_uasp_cmd_iu[2] = (uint8_t)(g_msc.tag & 0xFF);
-    g_uasp_cmd_iu[3] = (uint8_t)((g_msc.tag >> 8) & 0xFF);
-    g_uasp_cmd_iu[4] = (uint8_t)(data_len & 0xFF);
-    g_uasp_cmd_iu[5] = (uint8_t)((data_len >> 8) & 0xFF);
-    g_uasp_cmd_iu[6] = (uint8_t)((data_len >> 16) & 0xFF);
-    g_uasp_cmd_iu[7] = (uint8_t)((data_len >> 24) & 0xFF);
-    g_uasp_cmd_iu[8] = lun;
-    memset(&g_uasp_cmd_iu[9], 0, 7);
-    memcpy(&g_uasp_cmd_iu[16], cdb, cdb_len);
+    uint8_t *cmd_iu = MSC_UASP_CMD_IU(dev);
+    memset(cmd_iu, 0, 32);
+    cmd_iu[0] = 0x01; /* Command IU */
+    cmd_iu[2] = (uint8_t)(dev->tag & 0xFF);
+    cmd_iu[3] = (uint8_t)((dev->tag >> 8) & 0xFF);
+    cmd_iu[4] = (uint8_t)(data_len & 0xFF);
+    cmd_iu[5] = (uint8_t)((data_len >> 8) & 0xFF);
+    cmd_iu[6] = (uint8_t)((data_len >> 16) & 0xFF);
+    cmd_iu[7] = (uint8_t)((data_len >> 24) & 0xFF);
+    cmd_iu[8] = lun;
+    memset(&cmd_iu[9], 0, 7);
+    memcpy(&cmd_iu[16], cdb, cdb_len);
 
-    g_msc.tag++;
+    dev->tag++;
 
-    if (!xhci_uasp_transfer_cmd(g_xhci_base, g_xhci_dboff, g_xhci_rt_base,
-                                g_uasp_cmd_iu, sizeof(g_uasp_cmd_iu))) {
+    if (!xhci_uasp_transfer_cmd(dev, g_xhci_base, g_xhci_dboff, g_xhci_rt_base,
+                                cmd_iu, 32)) {
         return false;
     }
 
     if (data_len > 0) {
-        if (!xhci_uasp_transfer_data(g_xhci_base, g_xhci_dboff, g_xhci_rt_base,
+        if (!xhci_uasp_transfer_data(dev, g_xhci_base, g_xhci_dboff, g_xhci_rt_base,
                                      data_in, data, data_len)) {
             return false;
         }
     }
 
-    memset(g_uasp_status_iu, 0, sizeof(g_uasp_status_iu));
-    if (!xhci_uasp_transfer_status(g_xhci_base, g_xhci_dboff, g_xhci_rt_base,
-                                   g_uasp_status_iu, 16)) {
+    uint8_t *status_iu = MSC_UASP_STATUS_IU(dev);
+    memset(status_iu, 0, 16);
+    if (!xhci_uasp_transfer_status(dev, g_xhci_base, g_xhci_dboff, g_xhci_rt_base,
+                                   status_iu, 16)) {
         return false;
     }
-    if (g_uasp_status_iu[0] != 0x03) {
-        serial_printf("[XHCI] UASP status IU id=0x%02x\n", g_uasp_status_iu[0]);
+    if (status_iu[0] != 0x03) {
+        serial_printf("[XHCI] UASP status IU id=0x%02x\n", status_iu[0]);
         return false;
     }
-    g_msc.last_status = g_uasp_status_iu[4];
-    if (g_msc.last_status != 0) {
-        serial_printf("[XHCI] UASP status=0x%02x\n", g_msc.last_status);
+    dev->last_status = status_iu[4];
+    if (dev->last_status != 0) {
+        serial_printf("[XHCI] UASP status=0x%02x\n", dev->last_status);
         return false;
     }
     return true;
 }
 
-static bool xhci_msc_read_capacity(uintptr_t base, uint32_t dboff, uintptr_t rt_base, uint8_t lun) {
+static bool xhci_msc_read_capacity(xhci_msc_dev_t *dev, uintptr_t base, uint32_t dboff,
+                                   uintptr_t rt_base, uint8_t lun) {
     uint8_t cb[16];
 
     memset(cb, 0, sizeof(cb));
     cb[0] = 0x25; /* READ CAPACITY(10) */
-    if (g_msc.uasp) {
-        if (!xhci_uasp_exec_scsi(lun, cb, 10, g_msc_data_buf, 8, true)) {
+    if (dev->uasp) {
+        if (!xhci_uasp_exec_scsi(dev, lun, cb, 10, MSC_DATA(dev), 8, true)) {
             serial_puts("[XHCI] UASP READ CAPACITY failed\n");
-            xhci_msc_request_sense_uasp(lun);
-            xhci_msc_log_sense("UASP");
+            xhci_msc_request_sense_uasp(dev, lun);
+            xhci_msc_log_sense(dev, "UASP");
             return false;
         }
     } else {
-        if (!xhci_msc_send_cbw(base, dboff, rt_base, lun, cb, 10, 8, true)) {
+        if (!xhci_msc_send_cbw(dev, base, dboff, rt_base, lun, cb, 10, 8, true)) {
             serial_puts("[XHCI] MSC READ CAPACITY CBW failed\n");
             return false;
         }
-        if (!xhci_msc_bulk_transfer(base, dboff, rt_base, true, g_msc_data_buf, 8)) {
+        if (!xhci_msc_bulk_transfer(dev, base, dboff, rt_base, true, MSC_DATA(dev), 8)) {
             serial_puts("[XHCI] MSC READ CAPACITY data failed\n");
-            xhci_msc_request_sense_bot(base, dboff, rt_base, lun);
-            xhci_msc_log_sense("MSC");
+            xhci_msc_request_sense_bot(dev, base, dboff, rt_base, lun);
+            xhci_msc_log_sense(dev, "MSC");
             return false;
         }
-        if (!xhci_msc_recv_csw(base, dboff, rt_base)) {
+        if (!xhci_msc_recv_csw(dev, base, dboff, rt_base)) {
             serial_puts("[XHCI] MSC READ CAPACITY CSW failed\n");
-            xhci_msc_request_sense_bot(base, dboff, rt_base, lun);
-            xhci_msc_log_sense("MSC");
+            xhci_msc_request_sense_bot(dev, base, dboff, rt_base, lun);
+            xhci_msc_log_sense(dev, "MSC");
             return false;
         }
     }
 
-    uint32_t last_lba = (g_msc_data_buf[0] << 24) | (g_msc_data_buf[1] << 16) |
-                        (g_msc_data_buf[2] << 8) | g_msc_data_buf[3];
-    uint32_t blk_size = (g_msc_data_buf[4] << 24) | (g_msc_data_buf[5] << 16) |
-                        (g_msc_data_buf[6] << 8) | g_msc_data_buf[7];
+    uint8_t *data_buf = (uint8_t *)MSC_DATA(dev);
+    uint32_t last_lba = (data_buf[0] << 24) | (data_buf[1] << 16) |
+                        (data_buf[2] << 8) | data_buf[3];
+    uint32_t blk_size = (data_buf[4] << 24) | (data_buf[5] << 16) |
+                        (data_buf[6] << 8) | data_buf[7];
     if (lun < MAX_MSC_LUNS) {
-        g_msc_lun_block_size[lun] = blk_size;
-        g_msc_lun_block_count[lun] = (uint64_t)last_lba + 1u;
-        g_msc_lun_valid[lun] = true;
+        dev->lun_block_size[lun] = blk_size;
+        dev->lun_block_count[lun] = (uint64_t)last_lba + 1u;
+        dev->lun_valid[lun] = true;
     }
     if (lun == 0) {
-        g_msc.block_size = blk_size;
-        g_msc.block_count = (uint64_t)last_lba + 1u;
+        dev->block_size = blk_size;
+        dev->block_count = (uint64_t)last_lba + 1u;
     }
     serial_printf("[XHCI] MSC capacity last_lba=%u block_size=%u\n", last_lba, blk_size);
     return (blk_size != 0);
 }
 
-static bool xhci_msc_configure_bot(uintptr_t base, uint32_t dboff, uintptr_t rt_base) {
-    if (!g_msc.bot_present || g_msc.bot_in_ep_id == 0 || g_msc.bot_out_ep_id == 0) {
+static bool xhci_msc_configure_bot(xhci_msc_dev_t *dev, uintptr_t base, uint32_t dboff,
+                                   uintptr_t rt_base) {
+    if (!dev || !dev->bot_present || dev->bot_in_ep_id == 0 || dev->bot_out_ep_id == 0) {
         return false;
     }
     memset(g_input_ctx, 0, sizeof(g_input_ctx));
-    xhci_build_bulk_endpoint_context(g_msc.bot_out_ep_id, g_msc.bot_out_mps, 2, g_msc_out_ring);
-    xhci_build_bulk_endpoint_context(g_msc.bot_in_ep_id, g_msc.bot_in_mps, 6, g_msc_in_ring);
-    if (!xhci_configure_endpoint(base, dboff, rt_base, g_msc.slot)) {
+    xhci_build_bulk_endpoint_context(dev->bot_out_ep_id, dev->bot_out_mps, 2, MSC_OUT_RING(dev));
+    xhci_build_bulk_endpoint_context(dev->bot_in_ep_id, dev->bot_in_mps, 6, MSC_IN_RING(dev));
+    if (!xhci_configure_endpoint(base, dboff, rt_base, dev->slot)) {
         return false;
     }
-    g_msc.configured = true;
-    g_msc.bot_configured = true;
-    g_msc.uasp = false;
+    dev->configured = true;
+    dev->bot_configured = true;
+    dev->uasp = false;
     serial_puts("[XHCI] BOT endpoints configured\n");
     return true;
 }
 
-static bool xhci_msc_get_max_lun(uintptr_t base, uint32_t dboff, uintptr_t rt_base, uint8_t slot_id) {
+static bool xhci_msc_get_max_lun(xhci_msc_dev_t *dev, uintptr_t base, uint32_t dboff,
+                                 uintptr_t rt_base, uint8_t slot_id) {
     usb_setup_packet_t setup = {
         .bmRequestType = 0xA1, /* IN | Class | Interface */
         .bRequest = 0xFE,      /* GET_MAX_LUN */
         .wValue = 0,
-        .wIndex = g_msc.interface_num,
+        .wIndex = dev->interface_num,
         .wLength = 1
     };
 
@@ -1487,55 +1576,56 @@ static bool xhci_msc_get_max_lun(uintptr_t base, uint32_t dboff, uintptr_t rt_ba
         return false;
     }
     uint8_t max_lun = ((uint8_t *)g_ep0_buf)[0];
-    g_msc.max_lun = (uint8_t)(max_lun + 1);
-    if (g_msc.max_lun == 0) {
-        g_msc.max_lun = 1;
+    dev->max_lun = (uint8_t)(max_lun + 1);
+    if (dev->max_lun == 0) {
+        dev->max_lun = 1;
     }
-    if (g_msc.max_lun > MAX_MSC_LUNS) {
-        g_msc.max_lun = MAX_MSC_LUNS;
+    if (dev->max_lun > MAX_MSC_LUNS) {
+        dev->max_lun = MAX_MSC_LUNS;
     }
-    serial_printf("[XHCI] MSC max LUN=%u\n", (unsigned)g_msc.max_lun - 1);
+    serial_printf("[XHCI] MSC max LUN=%u\n", (unsigned)dev->max_lun - 1);
     return true;
 }
 
-static bool xhci_msc_try_fallback_bot(void) {
+static bool xhci_msc_try_fallback_bot(xhci_msc_dev_t *dev) {
     if (!g_xhci_base || !g_xhci_rt_base) {
         return false;
     }
-    if (!g_msc.bot_present || g_msc.bot_configured) {
+    if (!dev || !dev->bot_present || dev->bot_configured) {
         return false;
     }
-    if (!xhci_msc_configure_bot(g_xhci_base, g_xhci_dboff, g_xhci_rt_base)) {
+    if (!xhci_msc_configure_bot(dev, g_xhci_base, g_xhci_dboff, g_xhci_rt_base)) {
         return false;
     }
     return true;
 }
 
-static void xhci_msc_fire_events(bool inserted) {
-    if (g_msc_last_luns == 0) {
+static int xhci_msc_compute_drive_base(uint8_t port_index) {
+    int base = hal_storage_get_ata_count();
+    uint8_t ports = g_xhci_ports ? g_xhci_ports : MAX_XHCI_PORTS;
+    if (ports > MAX_XHCI_PORTS) {
+        ports = MAX_XHCI_PORTS;
+    }
+    for (uint8_t i = 0; i < ports && i < port_index; i++) {
+        if (g_msc[i].present && g_msc_last_luns[i] > 0) {
+            base += g_msc_last_luns[i];
+        }
+    }
+    return base;
+}
+
+static void xhci_msc_fire_events(uint8_t port_index, bool inserted) {
+    if (port_index >= MAX_XHCI_PORTS || g_msc_last_luns[port_index] == 0) {
         return;
     }
-    int base = g_msc_drive_base;
-    if (base < 0) {
-        base = 0;
-    }
-    for (uint8_t i = 0; i < g_msc_last_luns; i++) {
+    int base = xhci_msc_compute_drive_base(port_index);
+    uint8_t luns = g_msc_last_luns[port_index];
+    for (uint8_t i = 0; i < luns; i++) {
         if (inserted) {
             ProcessDiskInsertion((SInt16)(base + i), "USB");
         } else {
             ProcessDiskEjection((SInt16)(base + i));
         }
-    }
-}
-
-static void xhci_maybe_mark_hid_present(void) {
-    if (g_hid_kbd.configured && !g_hid_kbd_present) {
-        g_hid_kbd_present = true;
-        serial_puts("[XHCI] HID keyboard connected\n");
-    }
-    if (g_hid_mouse.configured && !g_hid_mouse_present) {
-        g_hid_mouse_present = true;
-        serial_puts("[XHCI] HID mouse connected\n");
     }
 }
 
@@ -1555,36 +1645,46 @@ static void xhci_poll_ports_hotplug(void) {
 
         if (!connected && g_port_connected[p]) {
             g_port_connected[p] = false;
-            if (g_msc_port == (uint8_t)(p + 1) && g_msc_present) {
-                g_msc_present = false;
-                g_msc.configured = false;
-                g_msc.bot_configured = false;
-                g_msc.uasp_failed = false;
-                g_msc.slot = 0;
-                g_msc.block_size = 0;
-                g_msc.block_count = 0;
-                memset(g_msc_lun_valid, 0, sizeof(g_msc_lun_valid));
-                xhci_msc_fire_events(false);
-                g_msc_last_luns = 0;
-                g_msc_drive_base = -1;
-                g_msc_port = 0;
+            xhci_msc_dev_t *msc = &g_msc[p];
+            if (msc->present) {
+                msc->present = false;
+                msc->configured = false;
+                msc->bot_configured = false;
+                msc->uasp_failed = false;
+                msc->slot = 0;
+                msc->block_size = 0;
+                msc->block_count = 0;
+                msc->bulk_in_ep = 0;
+                msc->bulk_out_ep = 0;
+                msc->bulk_in_ep_id = 0;
+                msc->bulk_out_ep_id = 0;
+                msc->bot_present = false;
+                msc->bot_in_ep = 0;
+                msc->bot_out_ep = 0;
+                msc->bot_in_ep_id = 0;
+                msc->bot_out_ep_id = 0;
+                memset(msc->lun_valid, 0, sizeof(msc->lun_valid));
+                xhci_msc_fire_events(p, false);
+                g_msc_last_luns[p] = 0;
             }
-            if (g_hid_kbd_port == (uint8_t)(p + 1) && g_hid_kbd_present) {
-                g_hid_kbd_present = false;
-                g_hid_kbd.configured = false;
-                g_hid_kbd.slot = 0;
-                g_hid_kbd.ep_addr = 0;
-                g_hid_kbd.ep_id = 0;
-                g_hid_kbd_port = 0;
+            xhci_hid_dev_t *kbd = &g_hid_kbd[p];
+            if (kbd->present) {
+                kbd->present = false;
+                kbd->configured = false;
+                kbd->slot = 0;
+                kbd->ep_addr = 0;
+                kbd->ep_id = 0;
+                kbd->pending = false;
                 serial_puts("[XHCI] HID keyboard disconnected\n");
             }
-            if (g_hid_mouse_port == (uint8_t)(p + 1) && g_hid_mouse_present) {
-                g_hid_mouse_present = false;
-                g_hid_mouse.configured = false;
-                g_hid_mouse.slot = 0;
-                g_hid_mouse.ep_addr = 0;
-                g_hid_mouse.ep_id = 0;
-                g_hid_mouse_port = 0;
+            xhci_hid_dev_t *mouse = &g_hid_mouse[p];
+            if (mouse->present) {
+                mouse->present = false;
+                mouse->configured = false;
+                mouse->slot = 0;
+                mouse->ep_addr = 0;
+                mouse->ep_id = 0;
+                mouse->pending = false;
                 serial_puts("[XHCI] HID mouse disconnected\n");
             }
             continue;
@@ -1597,39 +1697,40 @@ static void xhci_poll_ports_hotplug(void) {
     }
 }
 
-static bool xhci_msc_inquiry(uintptr_t base, uint32_t dboff, uintptr_t rt_base, uint8_t lun) {
+static bool xhci_msc_inquiry(xhci_msc_dev_t *dev, uintptr_t base, uint32_t dboff,
+                             uintptr_t rt_base, uint8_t lun) {
     uint8_t cb[16];
     memset(cb, 0, sizeof(cb));
     cb[0] = 0x12; /* INQUIRY */
     cb[4] = 36;
-    if (g_msc.uasp) {
-        if (!xhci_uasp_exec_scsi(lun, cb, 6, g_msc_data_buf, 36, true)) {
+    if (dev->uasp) {
+        if (!xhci_uasp_exec_scsi(dev, lun, cb, 6, MSC_DATA(dev), 36, true)) {
             serial_puts("[XHCI] UASP INQUIRY failed\n");
-            xhci_msc_request_sense_uasp(lun);
-            xhci_msc_log_sense("UASP");
+            xhci_msc_request_sense_uasp(dev, lun);
+            xhci_msc_log_sense(dev, "UASP");
             return false;
         }
     } else {
-        if (!xhci_msc_send_cbw(base, dboff, rt_base, lun, cb, 6, 36, true)) {
+        if (!xhci_msc_send_cbw(dev, base, dboff, rt_base, lun, cb, 6, 36, true)) {
             serial_puts("[XHCI] MSC INQUIRY CBW failed\n");
             return false;
         }
-        if (!xhci_msc_bulk_transfer(base, dboff, rt_base, true, g_msc_data_buf, 36)) {
+        if (!xhci_msc_bulk_transfer(dev, base, dboff, rt_base, true, MSC_DATA(dev), 36)) {
             serial_puts("[XHCI] MSC INQUIRY data failed\n");
-            xhci_msc_request_sense_bot(base, dboff, rt_base, lun);
-            xhci_msc_log_sense("MSC");
+            xhci_msc_request_sense_bot(dev, base, dboff, rt_base, lun);
+            xhci_msc_log_sense(dev, "MSC");
             return false;
         }
-        if (!xhci_msc_recv_csw(base, dboff, rt_base)) {
+        if (!xhci_msc_recv_csw(dev, base, dboff, rt_base)) {
             serial_puts("[XHCI] MSC INQUIRY CSW failed\n");
-            xhci_msc_request_sense_bot(base, dboff, rt_base, lun);
-            xhci_msc_log_sense("MSC");
+            xhci_msc_request_sense_bot(dev, base, dboff, rt_base, lun);
+            xhci_msc_log_sense(dev, "MSC");
             return false;
         }
     }
 
     serial_printf("[XHCI] MSC INQUIRY vendor=%.8s product=%.16s\n",
-                  (char *)&g_msc_data_buf[2], (char *)&g_msc_data_buf[6]);
+                  (char *)&MSC_DATA(dev)[2], (char *)&MSC_DATA(dev)[6]);
     return true;
 }
 
@@ -1673,39 +1774,41 @@ static void xhci_enumerate_port(uint8_t port_index) {
     xhci_ep0_get_config_descriptor(g_xhci_base, g_xhci_dboff, g_xhci_rt_base, slot_id);
 }
 
-static bool xhci_msc_test_unit_ready(uintptr_t base, uint32_t dboff, uintptr_t rt_base, uint8_t lun) {
+static bool xhci_msc_test_unit_ready(xhci_msc_dev_t *dev, uintptr_t base, uint32_t dboff,
+                                     uintptr_t rt_base, uint8_t lun) {
     uint8_t cb[16];
     memset(cb, 0, sizeof(cb));
     cb[0] = 0x00; /* TEST UNIT READY */
-    if (g_msc.uasp) {
-        if (!xhci_uasp_exec_scsi(lun, cb, 6, NULL, 0, true)) {
-            xhci_msc_request_sense_uasp(lun);
-            xhci_msc_log_sense("UASP");
-            return xhci_msc_retry_not_ready(true, lun);
+    if (dev->uasp) {
+        if (!xhci_uasp_exec_scsi(dev, lun, cb, 6, NULL, 0, true)) {
+            xhci_msc_request_sense_uasp(dev, lun);
+            xhci_msc_log_sense(dev, "UASP");
+            return xhci_msc_retry_not_ready(dev, true, lun);
         }
         return true;
     }
-    if (!xhci_msc_send_cbw(base, dboff, rt_base, lun, cb, 6, 0, false)) {
+    if (!xhci_msc_send_cbw(dev, base, dboff, rt_base, lun, cb, 6, 0, false)) {
         return false;
     }
-    if (!xhci_msc_recv_csw(base, dboff, rt_base)) {
-        xhci_msc_request_sense_bot(base, dboff, rt_base, lun);
-        xhci_msc_log_sense("MSC");
-        return xhci_msc_retry_not_ready(false, lun);
+    if (!xhci_msc_recv_csw(dev, base, dboff, rt_base)) {
+        xhci_msc_request_sense_bot(dev, base, dboff, rt_base, lun);
+        xhci_msc_log_sense(dev, "MSC");
+        return xhci_msc_retry_not_ready(dev, false, lun);
     }
     return true;
 }
 
-static void xhci_msc_smoke_test(uintptr_t base, uint32_t dboff, uintptr_t rt_base) {
+static void xhci_msc_smoke_test(xhci_msc_dev_t *dev, uintptr_t base, uint32_t dboff,
+                                uintptr_t rt_base) {
     uint8_t cb[16];
-    if (!xhci_msc_inquiry(base, dboff, rt_base, 0)) {
+    if (!xhci_msc_inquiry(dev, base, dboff, rt_base, 0)) {
         return;
     }
-    if (!xhci_msc_read_capacity(base, dboff, rt_base, 0)) {
+    if (!xhci_msc_read_capacity(dev, base, dboff, rt_base, 0)) {
         return;
     }
 
-    if (g_msc.block_size == 0 || g_msc.block_size > sizeof(g_msc_data_buf)) {
+    if (dev->block_size == 0 || dev->block_size > sizeof(dev->io->data_buf)) {
         serial_puts("[XHCI] MSC block size unsupported for smoke test\n");
         return;
     }
@@ -1714,51 +1817,51 @@ static void xhci_msc_smoke_test(uintptr_t base, uint32_t dboff, uintptr_t rt_bas
     cb[0] = 0x28; /* READ(10) */
     cb[7] = 0;
     cb[8] = 1; /* 1 block */
-    if (!xhci_msc_send_cbw(base, dboff, rt_base, 0, cb, 10, g_msc.block_size, true)) {
+    if (!xhci_msc_send_cbw(dev, base, dboff, rt_base, 0, cb, 10, dev->block_size, true)) {
         serial_puts("[XHCI] MSC READ10 CBW failed\n");
         return;
     }
-    if (!xhci_msc_bulk_transfer(base, dboff, rt_base, true, g_msc_data_buf, g_msc.block_size)) {
+    if (!xhci_msc_bulk_transfer(dev, base, dboff, rt_base, true, MSC_DATA(dev), dev->block_size)) {
         serial_puts("[XHCI] MSC READ10 data failed\n");
         return;
     }
-    if (!xhci_msc_recv_csw(base, dboff, rt_base)) {
+    if (!xhci_msc_recv_csw(dev, base, dboff, rt_base)) {
         serial_puts("[XHCI] MSC READ10 CSW failed\n");
         return;
     }
 
     serial_printf("[XHCI] MSC LBA0: %02x %02x %02x %02x\n",
-                  ((uint8_t *)g_msc_data_buf)[0], ((uint8_t *)g_msc_data_buf)[1],
-                  ((uint8_t *)g_msc_data_buf)[2], ((uint8_t *)g_msc_data_buf)[3]);
+                  ((uint8_t *)MSC_DATA(dev))[0], ((uint8_t *)MSC_DATA(dev))[1],
+                  ((uint8_t *)MSC_DATA(dev))[2], ((uint8_t *)MSC_DATA(dev))[3]);
 }
 
-static bool xhci_msc_init_if_needed(void) {
-    if (!g_msc.configured || !g_xhci_base || !g_xhci_rt_base) {
+static bool xhci_msc_init_if_needed(xhci_msc_dev_t *dev) {
+    if (!dev || !dev->configured || !g_xhci_base || !g_xhci_rt_base) {
         return false;
     }
-    if (g_msc.block_size != 0 && g_msc.block_count != 0) {
+    if (dev->block_size != 0 && dev->block_count != 0) {
         return true;
     }
 
-    if (!xhci_msc_test_unit_ready(g_xhci_base, g_xhci_dboff, g_xhci_rt_base, 0)) {
+    if (!xhci_msc_test_unit_ready(dev, g_xhci_base, g_xhci_dboff, g_xhci_rt_base, 0)) {
         serial_puts("[XHCI] MSC not ready\n");
     }
 
-    if (!xhci_msc_inquiry(g_xhci_base, g_xhci_dboff, g_xhci_rt_base, 0)) {
-        if (g_msc.uasp) {
-            g_msc.uasp_failed = true;
-            if (xhci_msc_try_fallback_bot()) {
-                return xhci_msc_inquiry(g_xhci_base, g_xhci_dboff, g_xhci_rt_base, 0) &&
-                       xhci_msc_read_capacity(g_xhci_base, g_xhci_dboff, g_xhci_rt_base, 0);
+    if (!xhci_msc_inquiry(dev, g_xhci_base, g_xhci_dboff, g_xhci_rt_base, 0)) {
+        if (dev->uasp) {
+            dev->uasp_failed = true;
+            if (xhci_msc_try_fallback_bot(dev)) {
+                return xhci_msc_inquiry(dev, g_xhci_base, g_xhci_dboff, g_xhci_rt_base, 0) &&
+                       xhci_msc_read_capacity(dev, g_xhci_base, g_xhci_dboff, g_xhci_rt_base, 0);
             }
         }
         return false;
     }
-    if (!xhci_msc_read_capacity(g_xhci_base, g_xhci_dboff, g_xhci_rt_base, 0)) {
-        if (g_msc.uasp) {
-            g_msc.uasp_failed = true;
-            if (xhci_msc_try_fallback_bot()) {
-                return xhci_msc_read_capacity(g_xhci_base, g_xhci_dboff, g_xhci_rt_base, 0);
+    if (!xhci_msc_read_capacity(dev, g_xhci_base, g_xhci_dboff, g_xhci_rt_base, 0)) {
+        if (dev->uasp) {
+            dev->uasp_failed = true;
+            if (xhci_msc_try_fallback_bot(dev)) {
+                return xhci_msc_read_capacity(dev, g_xhci_base, g_xhci_dboff, g_xhci_rt_base, 0);
             }
         }
         return false;
@@ -1767,67 +1870,83 @@ static bool xhci_msc_init_if_needed(void) {
 }
 
 bool xhci_msc_available(void) {
-    return xhci_msc_init_if_needed();
+    xhci_msc_dev_t *dev = xhci_msc_get_present_by_index(0, NULL);
+    return dev ? xhci_msc_init_if_needed(dev) : false;
+}
+
+static uint8_t xhci_msc_get_lun_count_dev(xhci_msc_dev_t *dev) {
+    if (!dev || !xhci_msc_init_if_needed(dev)) {
+        return 0;
+    }
+    if (dev->max_lun == 0) {
+        return 1;
+    }
+    if (dev->max_lun > MAX_MSC_LUNS) {
+        return MAX_MSC_LUNS;
+    }
+    return dev->max_lun;
 }
 
 OSErr xhci_msc_get_info(uint32_t *block_size, uint64_t *block_count, bool *read_only) {
-    if (!xhci_msc_available()) {
+    xhci_msc_dev_t *dev = xhci_msc_get_present_by_index(0, NULL);
+    if (!dev || !xhci_msc_init_if_needed(dev)) {
         return paramErr;
     }
-    if (g_msc.uasp_failed) {
+    if (dev->uasp_failed) {
         serial_puts("[XHCI] UASP failed, device may require BOT fallback\n");
     }
     if (block_size) {
-        *block_size = g_msc.block_size;
+        *block_size = dev->block_size;
     }
     if (block_count) {
-        *block_count = g_msc.block_count;
+        *block_count = dev->block_count;
     }
     if (read_only) {
-        *read_only = g_msc.readonly;
+        *read_only = dev->readonly;
     }
     return noErr;
 }
 
 OSErr xhci_msc_get_info_lun(uint8_t lun, uint32_t *block_size, uint64_t *block_count, bool *read_only) {
-    if (!xhci_msc_ensure_lun_info(lun)) {
+    xhci_msc_dev_t *dev = xhci_msc_get_present_by_index(0, NULL);
+    if (!dev || !xhci_msc_ensure_lun_info(dev, lun)) {
         return paramErr;
     }
     if (block_size) {
-        *block_size = g_msc_lun_block_size[lun];
+        *block_size = dev->lun_block_size[lun];
     }
     if (block_count) {
-        *block_count = g_msc_lun_block_count[lun];
+        *block_count = dev->lun_block_count[lun];
     }
     if (read_only) {
-        *read_only = g_msc.readonly;
+        *read_only = dev->readonly;
     }
     return noErr;
 }
 
-static bool xhci_msc_ensure_lun_info(uint8_t lun) {
-    if (!xhci_msc_available()) {
+static bool xhci_msc_ensure_lun_info(xhci_msc_dev_t *dev, uint8_t lun) {
+    if (!dev || !xhci_msc_init_if_needed(dev)) {
         return false;
     }
-    if (lun >= g_msc.max_lun || lun >= MAX_MSC_LUNS) {
+    if (lun >= dev->max_lun || lun >= MAX_MSC_LUNS) {
         return false;
     }
-    if (g_msc_lun_valid[lun]) {
+    if (dev->lun_valid[lun]) {
         return true;
     }
-    return xhci_msc_read_capacity(g_xhci_base, g_xhci_dboff, g_xhci_rt_base, lun);
+    return xhci_msc_read_capacity(dev, g_xhci_base, g_xhci_dboff, g_xhci_rt_base, lun);
 }
 
-static OSErr xhci_msc_read_blocks_internal(uint8_t lun, uint64_t start_block,
+static OSErr xhci_msc_read_blocks_internal(xhci_msc_dev_t *dev, uint8_t lun, uint64_t start_block,
                                            uint32_t block_count, void *buffer) {
-    if (!xhci_msc_available() || !buffer) {
+    if (!dev || !xhci_msc_init_if_needed(dev) || !buffer) {
         return paramErr;
     }
-    if (!xhci_msc_ensure_lun_info(lun)) {
+    if (!xhci_msc_ensure_lun_info(dev, lun)) {
         return ioErr;
     }
-    uint32_t blk_size = g_msc_lun_block_size[lun];
-    uint64_t blk_count = g_msc_lun_block_count[lun];
+    uint32_t blk_size = dev->lun_block_size[lun];
+    uint64_t blk_count = dev->lun_block_count[lun];
     if (blk_size == 0 || blk_count == 0) {
         return ioErr;
     }
@@ -1840,12 +1959,12 @@ static OSErr xhci_msc_read_blocks_internal(uint8_t lun, uint64_t start_block,
     if (start_block + block_count > blk_count) {
         return paramErr;
     }
-    if (blk_size > sizeof(g_msc_data_buf)) {
+    if (blk_size > sizeof(dev->io->data_buf)) {
         return paramErr;
     }
 
     uint8_t *buf = (uint8_t *)buffer;
-    uint32_t max_blocks = (uint32_t)(sizeof(g_msc_data_buf) / blk_size);
+    uint32_t max_blocks = (uint32_t)(sizeof(dev->io->data_buf) / blk_size);
     if (max_blocks == 0) {
         return paramErr;
     }
@@ -1877,40 +1996,40 @@ static OSErr xhci_msc_read_blocks_internal(uint8_t lun, uint64_t start_block,
         cb[8] = (uint8_t)(chunk & 0xFF);
 
         uint32_t data_len = chunk * blk_size;
-        if (g_msc.uasp) {
-            if (!xhci_uasp_exec_scsi(lun, cb, 10, buf, data_len, true)) {
-                xhci_msc_request_sense_uasp(lun);
-                xhci_msc_log_sense("UASP");
-                if (xhci_msc_retry_not_ready(true, lun)) {
+        if (dev->uasp) {
+            if (!xhci_uasp_exec_scsi(dev, lun, cb, 10, buf, data_len, true)) {
+                xhci_msc_request_sense_uasp(dev, lun);
+                xhci_msc_log_sense(dev, "UASP");
+                if (xhci_msc_retry_not_ready(dev, true, lun)) {
                     continue;
                 }
-                g_msc.uasp_failed = true;
-                if (!tried_fallback && xhci_msc_try_fallback_bot()) {
+                dev->uasp_failed = true;
+                if (!tried_fallback && xhci_msc_try_fallback_bot(dev)) {
                     tried_fallback = true;
                     continue;
                 }
                 return ioErr;
             }
         } else {
-            if (!xhci_msc_send_cbw(g_xhci_base, g_xhci_dboff, g_xhci_rt_base,
+            if (!xhci_msc_send_cbw(dev, g_xhci_base, g_xhci_dboff, g_xhci_rt_base,
                                    lun, cb, 10, data_len, true)) {
                 return ioErr;
             }
 
-            if (!xhci_msc_bulk_transfer(g_xhci_base, g_xhci_dboff, g_xhci_rt_base,
+            if (!xhci_msc_bulk_transfer(dev, g_xhci_base, g_xhci_dboff, g_xhci_rt_base,
                                         true, buf, data_len)) {
-                xhci_msc_request_sense_bot(g_xhci_base, g_xhci_dboff, g_xhci_rt_base, lun);
-                xhci_msc_log_sense("MSC");
-                if (xhci_msc_retry_not_ready(false, lun)) {
+                xhci_msc_request_sense_bot(dev, g_xhci_base, g_xhci_dboff, g_xhci_rt_base, lun);
+                xhci_msc_log_sense(dev, "MSC");
+                if (xhci_msc_retry_not_ready(dev, false, lun)) {
                     continue;
                 }
                 return ioErr;
             }
 
-            if (!xhci_msc_recv_csw(g_xhci_base, g_xhci_dboff, g_xhci_rt_base)) {
-                xhci_msc_request_sense_bot(g_xhci_base, g_xhci_dboff, g_xhci_rt_base, lun);
-                xhci_msc_log_sense("MSC");
-                if (xhci_msc_retry_not_ready(false, lun)) {
+            if (!xhci_msc_recv_csw(dev, g_xhci_base, g_xhci_dboff, g_xhci_rt_base)) {
+                xhci_msc_request_sense_bot(dev, g_xhci_base, g_xhci_dboff, g_xhci_rt_base, lun);
+                xhci_msc_log_sense(dev, "MSC");
+                if (xhci_msc_retry_not_ready(dev, false, lun)) {
                     continue;
                 }
                 return ioErr;
@@ -1925,16 +2044,17 @@ static OSErr xhci_msc_read_blocks_internal(uint8_t lun, uint64_t start_block,
     return noErr;
 }
 
-static OSErr xhci_msc_write_blocks_internal(uint8_t lun, uint64_t start_block,
+static OSErr xhci_msc_write_blocks_internal(xhci_msc_dev_t *dev, uint8_t lun,
+                                            uint64_t start_block,
                                             uint32_t block_count, const void *buffer) {
-    if (!xhci_msc_available() || !buffer) {
+    if (!dev || !xhci_msc_init_if_needed(dev) || !buffer) {
         return paramErr;
     }
-    if (!xhci_msc_ensure_lun_info(lun)) {
+    if (!xhci_msc_ensure_lun_info(dev, lun)) {
         return ioErr;
     }
-    uint32_t blk_size = g_msc_lun_block_size[lun];
-    uint64_t blk_count = g_msc_lun_block_count[lun];
+    uint32_t blk_size = dev->lun_block_size[lun];
+    uint64_t blk_count = dev->lun_block_count[lun];
     if (blk_size == 0 || blk_count == 0) {
         return ioErr;
     }
@@ -1947,15 +2067,15 @@ static OSErr xhci_msc_write_blocks_internal(uint8_t lun, uint64_t start_block,
     if (start_block + block_count > blk_count) {
         return paramErr;
     }
-    if (g_msc.readonly) {
+    if (dev->readonly) {
         return wPrErr;
     }
-    if (blk_size > sizeof(g_msc_data_buf)) {
+    if (blk_size > sizeof(dev->io->data_buf)) {
         return paramErr;
     }
 
     const uint8_t *buf = (const uint8_t *)buffer;
-    uint32_t max_blocks = (uint32_t)(sizeof(g_msc_data_buf) / blk_size);
+    uint32_t max_blocks = (uint32_t)(sizeof(dev->io->data_buf) / blk_size);
     if (max_blocks == 0) {
         return paramErr;
     }
@@ -1987,38 +2107,38 @@ static OSErr xhci_msc_write_blocks_internal(uint8_t lun, uint64_t start_block,
         cb[8] = (uint8_t)(chunk & 0xFF);
 
         uint32_t data_len = chunk * blk_size;
-        if (g_msc.uasp) {
-            if (!xhci_uasp_exec_scsi(lun, cb, 10, buf, data_len, false)) {
-                xhci_msc_request_sense_uasp(lun);
-                xhci_msc_log_sense("UASP");
-                if (xhci_msc_retry_not_ready(true, lun)) {
+        if (dev->uasp) {
+            if (!xhci_uasp_exec_scsi(dev, lun, cb, 10, buf, data_len, false)) {
+                xhci_msc_request_sense_uasp(dev, lun);
+                xhci_msc_log_sense(dev, "UASP");
+                if (xhci_msc_retry_not_ready(dev, true, lun)) {
                     continue;
                 }
-                g_msc.uasp_failed = true;
-                if (!tried_fallback && xhci_msc_try_fallback_bot()) {
+                dev->uasp_failed = true;
+                if (!tried_fallback && xhci_msc_try_fallback_bot(dev)) {
                     tried_fallback = true;
                     continue;
                 }
                 return ioErr;
             }
         } else {
-            if (!xhci_msc_send_cbw(g_xhci_base, g_xhci_dboff, g_xhci_rt_base,
+            if (!xhci_msc_send_cbw(dev, g_xhci_base, g_xhci_dboff, g_xhci_rt_base,
                                    lun, cb, 10, data_len, false)) {
                 return ioErr;
             }
-            if (!xhci_msc_bulk_transfer(g_xhci_base, g_xhci_dboff, g_xhci_rt_base,
+            if (!xhci_msc_bulk_transfer(dev, g_xhci_base, g_xhci_dboff, g_xhci_rt_base,
                                         false, buf, data_len)) {
-                xhci_msc_request_sense_bot(g_xhci_base, g_xhci_dboff, g_xhci_rt_base, lun);
-                xhci_msc_log_sense("MSC");
-                if (xhci_msc_retry_not_ready(false, lun)) {
+                xhci_msc_request_sense_bot(dev, g_xhci_base, g_xhci_dboff, g_xhci_rt_base, lun);
+                xhci_msc_log_sense(dev, "MSC");
+                if (xhci_msc_retry_not_ready(dev, false, lun)) {
                     continue;
                 }
                 return ioErr;
             }
-            if (!xhci_msc_recv_csw(g_xhci_base, g_xhci_dboff, g_xhci_rt_base)) {
-                xhci_msc_request_sense_bot(g_xhci_base, g_xhci_dboff, g_xhci_rt_base, lun);
-                xhci_msc_log_sense("MSC");
-                if (xhci_msc_retry_not_ready(false, lun)) {
+            if (!xhci_msc_recv_csw(dev, g_xhci_base, g_xhci_dboff, g_xhci_rt_base)) {
+                xhci_msc_request_sense_bot(dev, g_xhci_base, g_xhci_dboff, g_xhci_rt_base, lun);
+                xhci_msc_log_sense(dev, "MSC");
+                if (xhci_msc_retry_not_ready(dev, false, lun)) {
                     continue;
                 }
                 return ioErr;
@@ -2034,32 +2154,78 @@ static OSErr xhci_msc_write_blocks_internal(uint8_t lun, uint64_t start_block,
 }
 
 OSErr xhci_msc_read_blocks(uint64_t start_block, uint32_t block_count, void *buffer) {
-    return xhci_msc_read_blocks_internal(0, start_block, block_count, buffer);
+    xhci_msc_dev_t *dev = xhci_msc_get_present_by_index(0, NULL);
+    return dev ? xhci_msc_read_blocks_internal(dev, 0, start_block, block_count, buffer) : paramErr;
 }
 
 OSErr xhci_msc_write_blocks(uint64_t start_block, uint32_t block_count, const void *buffer) {
-    return xhci_msc_write_blocks_internal(0, start_block, block_count, buffer);
+    xhci_msc_dev_t *dev = xhci_msc_get_present_by_index(0, NULL);
+    return dev ? xhci_msc_write_blocks_internal(dev, 0, start_block, block_count, buffer) : paramErr;
 }
 
 uint8_t xhci_msc_get_lun_count(void) {
-    if (!xhci_msc_available()) {
-        return 0;
-    }
-    if (g_msc.max_lun == 0) {
-        return 1;
-    }
-    if (g_msc.max_lun > MAX_MSC_LUNS) {
-        return MAX_MSC_LUNS;
-    }
-    return g_msc.max_lun;
+    xhci_msc_dev_t *dev = xhci_msc_get_present_by_index(0, NULL);
+    return dev ? xhci_msc_get_lun_count_dev(dev) : 0;
 }
 
 OSErr xhci_msc_read_blocks_lun(uint8_t lun, uint64_t start_block, uint32_t block_count, void *buffer) {
-    return xhci_msc_read_blocks_internal(lun, start_block, block_count, buffer);
+    xhci_msc_dev_t *dev = xhci_msc_get_present_by_index(0, NULL);
+    return dev ? xhci_msc_read_blocks_internal(dev, lun, start_block, block_count, buffer) : paramErr;
 }
 
 OSErr xhci_msc_write_blocks_lun(uint8_t lun, uint64_t start_block, uint32_t block_count, const void *buffer) {
-    return xhci_msc_write_blocks_internal(lun, start_block, block_count, buffer);
+    xhci_msc_dev_t *dev = xhci_msc_get_present_by_index(0, NULL);
+    return dev ? xhci_msc_write_blocks_internal(dev, lun, start_block, block_count, buffer) : paramErr;
+}
+
+uint8_t xhci_msc_get_device_count(void) {
+    uint8_t count = 0;
+    uint8_t ports = g_xhci_ports ? g_xhci_ports : MAX_XHCI_PORTS;
+    if (ports > MAX_XHCI_PORTS) {
+        ports = MAX_XHCI_PORTS;
+    }
+    for (uint8_t i = 0; i < ports; i++) {
+        if (g_msc[i].present) {
+            count++;
+        }
+    }
+    return count;
+}
+
+uint8_t xhci_msc_get_lun_count_device(uint8_t dev_index) {
+    xhci_msc_dev_t *dev = xhci_msc_get_present_by_index(dev_index, NULL);
+    return dev ? xhci_msc_get_lun_count_dev(dev) : 0;
+}
+
+OSErr xhci_msc_get_info_device_lun(uint8_t dev_index, uint8_t lun,
+                                   uint32_t *block_size, uint64_t *block_count,
+                                   bool *read_only) {
+    xhci_msc_dev_t *dev = xhci_msc_get_present_by_index(dev_index, NULL);
+    if (!dev || !xhci_msc_ensure_lun_info(dev, lun)) {
+        return paramErr;
+    }
+    if (block_size) {
+        *block_size = dev->lun_block_size[lun];
+    }
+    if (block_count) {
+        *block_count = dev->lun_block_count[lun];
+    }
+    if (read_only) {
+        *read_only = dev->readonly;
+    }
+    return noErr;
+}
+
+OSErr xhci_msc_read_blocks_device_lun(uint8_t dev_index, uint8_t lun, uint64_t start_block,
+                                      uint32_t block_count, void *buffer) {
+    xhci_msc_dev_t *dev = xhci_msc_get_present_by_index(dev_index, NULL);
+    return dev ? xhci_msc_read_blocks_internal(dev, lun, start_block, block_count, buffer) : paramErr;
+}
+
+OSErr xhci_msc_write_blocks_device_lun(uint8_t dev_index, uint8_t lun, uint64_t start_block,
+                                       uint32_t block_count, const void *buffer) {
+    xhci_msc_dev_t *dev = xhci_msc_get_present_by_index(dev_index, NULL);
+    return dev ? xhci_msc_write_blocks_internal(dev, lun, start_block, block_count, buffer) : paramErr;
 }
 
 static UInt16 xhci_hid_modifiers(uint8_t mods) {
@@ -2383,8 +2549,14 @@ void xhci_poll_hid_x86(void) {
     if (!g_xhci_base || !g_xhci_rt_base) {
         return;
     }
-    xhci_hid_submit(g_xhci_base, g_xhci_dboff, &g_hid_kbd);
-    xhci_hid_submit(g_xhci_base, g_xhci_dboff, &g_hid_mouse);
+    uint8_t ports = g_xhci_ports ? g_xhci_ports : MAX_XHCI_PORTS;
+    if (ports > MAX_XHCI_PORTS) {
+        ports = MAX_XHCI_PORTS;
+    }
+    for (uint8_t i = 0; i < ports; i++) {
+        xhci_hid_submit(g_xhci_base, g_xhci_dboff, &g_hid_kbd[i]);
+        xhci_hid_submit(g_xhci_base, g_xhci_dboff, &g_hid_mouse[i]);
+    }
     xhci_hid_poll_events(g_xhci_rt_base);
     xhci_poll_ports_hotplug();
 }
