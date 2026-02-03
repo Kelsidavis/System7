@@ -679,6 +679,44 @@ static void xhci_ep0_reset_ring(uint8_t slot_id) {
     g_ep0_cycle[slot_index] = 1;
 }
 
+static bool xhci_ep0_control_no_data(uintptr_t base, uint32_t dboff, uintptr_t rt_base,
+                                     uint8_t slot_id, const usb_setup_packet_t *setup) {
+    if (!setup) {
+        return false;
+    }
+    xhci_ep0_reset_ring(slot_id);
+    xhci_ep0_enqueue_setup(slot_id, setup);
+    xhci_ep0_enqueue_status(slot_id);
+    xhci_ep0_ring_doorbell(base, dboff, slot_id);
+    return xhci_poll_transfer_complete(rt_base, slot_id);
+}
+
+static bool xhci_ep0_clear_halt(uintptr_t base, uint32_t dboff, uintptr_t rt_base,
+                                uint8_t slot_id, uint8_t ep_addr) {
+    usb_setup_packet_t setup = {
+        .bmRequestType = 0x02, /* Host->Device | Standard | Endpoint */
+        .bRequest = 1,         /* CLEAR_FEATURE */
+        .wValue = 0,
+        .wIndex = ep_addr,
+        .wLength = 0
+    };
+    return xhci_ep0_control_no_data(base, dboff, rt_base, slot_id, &setup);
+}
+
+static bool xhci_ep0_mass_storage_reset(xhci_msc_dev_t *dev, uintptr_t base, uint32_t dboff,
+                                        uintptr_t rt_base) {
+    usb_setup_packet_t setup = {
+        .bmRequestType = 0x21, /* Host->Device | Class | Interface */
+        .bRequest = 0xFF,      /* Mass Storage Reset */
+        .wValue = 0,
+        .wIndex = dev ? dev->interface_num : 0,
+        .wLength = 0
+    };
+    if (!dev || dev->slot == 0) {
+        return false;
+    }
+    return xhci_ep0_control_no_data(base, dboff, rt_base, dev->slot, &setup);
+}
 static bool xhci_ep0_set_configuration(uintptr_t base, uint32_t dboff, uintptr_t rt_base,
                                        uint8_t slot_id, uint8_t config_value) {
     usb_setup_packet_t setup = {
@@ -1472,6 +1510,33 @@ static bool xhci_msc_request_sense_bot(xhci_msc_dev_t *dev, uintptr_t base, uint
     return true;
 }
 
+static bool xhci_msc_recover_bot(xhci_msc_dev_t *dev, uintptr_t base, uint32_t dboff,
+                                 uintptr_t rt_base) {
+    if (!dev || dev->slot == 0) {
+        return false;
+    }
+    if (!xhci_ep0_mass_storage_reset(dev, base, dboff, rt_base)) {
+        return false;
+    }
+    if (dev->bulk_in_ep) {
+        xhci_ep0_clear_halt(base, dboff, rt_base, dev->slot, dev->bulk_in_ep);
+    }
+    if (dev->bulk_out_ep) {
+        xhci_ep0_clear_halt(base, dboff, rt_base, dev->slot, dev->bulk_out_ep);
+    }
+    if (dev->bot_in_ep) {
+        xhci_ep0_clear_halt(base, dboff, rt_base, dev->slot, dev->bot_in_ep);
+    }
+    if (dev->bot_out_ep) {
+        xhci_ep0_clear_halt(base, dboff, rt_base, dev->slot, dev->bot_out_ep);
+    }
+    dev->in_ring_index = 0;
+    dev->out_ring_index = 0;
+    dev->in_cycle = 1;
+    dev->out_cycle = 1;
+    return true;
+}
+
 static bool xhci_msc_request_sense_uasp(xhci_msc_dev_t *dev, uint8_t lun) {
     uint8_t cb[16];
     memset(cb, 0, sizeof(cb));
@@ -1558,33 +1623,40 @@ static bool xhci_uasp_exec_scsi(xhci_msc_dev_t *dev, uint8_t lun, uint8_t *cdb, 
 static bool xhci_msc_read_capacity(xhci_msc_dev_t *dev, uintptr_t base, uint32_t dboff,
                                    uintptr_t rt_base, uint8_t lun) {
     uint8_t cb[16];
+    bool recovered = false;
 
-    memset(cb, 0, sizeof(cb));
-    cb[0] = 0x25; /* READ CAPACITY(10) */
-    if (dev->uasp) {
-        if (!xhci_uasp_exec_scsi(dev, lun, cb, 10, MSC_DATA(dev), 8, true)) {
-            serial_puts("[XHCI] UASP READ CAPACITY failed\n");
-            xhci_msc_request_sense_uasp(dev, lun);
-            xhci_msc_log_sense(dev, "UASP");
+    for (;;) {
+        memset(cb, 0, sizeof(cb));
+        cb[0] = 0x25; /* READ CAPACITY(10) */
+        if (dev->uasp) {
+            if (!xhci_uasp_exec_scsi(dev, lun, cb, 10, MSC_DATA(dev), 8, true)) {
+                serial_puts("[XHCI] UASP READ CAPACITY failed\n");
+                xhci_msc_request_sense_uasp(dev, lun);
+                xhci_msc_log_sense(dev, "UASP");
+                return false;
+            }
+        } else {
+            if (!xhci_msc_send_cbw(dev, base, dboff, rt_base, lun, cb, 10, 8, true)) {
+                serial_puts("[XHCI] MSC READ CAPACITY CBW failed\n");
+            } else if (!xhci_msc_bulk_transfer(dev, base, dboff, rt_base, true, MSC_DATA(dev), 8)) {
+                serial_puts("[XHCI] MSC READ CAPACITY data failed\n");
+                xhci_msc_request_sense_bot(dev, base, dboff, rt_base, lun);
+                xhci_msc_log_sense(dev, "MSC");
+            } else if (!xhci_msc_recv_csw(dev, base, dboff, rt_base)) {
+                serial_puts("[XHCI] MSC READ CAPACITY CSW failed\n");
+                xhci_msc_request_sense_bot(dev, base, dboff, rt_base, lun);
+                xhci_msc_log_sense(dev, "MSC");
+            } else {
+                break;
+            }
+
+            if (!recovered && xhci_msc_recover_bot(dev, base, dboff, rt_base)) {
+                recovered = true;
+                continue;
+            }
             return false;
         }
-    } else {
-        if (!xhci_msc_send_cbw(dev, base, dboff, rt_base, lun, cb, 10, 8, true)) {
-            serial_puts("[XHCI] MSC READ CAPACITY CBW failed\n");
-            return false;
-        }
-        if (!xhci_msc_bulk_transfer(dev, base, dboff, rt_base, true, MSC_DATA(dev), 8)) {
-            serial_puts("[XHCI] MSC READ CAPACITY data failed\n");
-            xhci_msc_request_sense_bot(dev, base, dboff, rt_base, lun);
-            xhci_msc_log_sense(dev, "MSC");
-            return false;
-        }
-        if (!xhci_msc_recv_csw(dev, base, dboff, rt_base)) {
-            serial_puts("[XHCI] MSC READ CAPACITY CSW failed\n");
-            xhci_msc_request_sense_bot(dev, base, dboff, rt_base, lun);
-            xhci_msc_log_sense(dev, "MSC");
-            return false;
-        }
+        break;
     }
 
     uint8_t *data_buf = (uint8_t *)MSC_DATA(dev);
@@ -1823,33 +1895,40 @@ static void xhci_poll_ports_hotplug(void) {
 static bool xhci_msc_inquiry(xhci_msc_dev_t *dev, uintptr_t base, uint32_t dboff,
                              uintptr_t rt_base, uint8_t lun) {
     uint8_t cb[16];
-    memset(cb, 0, sizeof(cb));
-    cb[0] = 0x12; /* INQUIRY */
-    cb[4] = 36;
-    if (dev->uasp) {
-        if (!xhci_uasp_exec_scsi(dev, lun, cb, 6, MSC_DATA(dev), 36, true)) {
-            serial_puts("[XHCI] UASP INQUIRY failed\n");
-            xhci_msc_request_sense_uasp(dev, lun);
-            xhci_msc_log_sense(dev, "UASP");
+    bool recovered = false;
+    for (;;) {
+        memset(cb, 0, sizeof(cb));
+        cb[0] = 0x12; /* INQUIRY */
+        cb[4] = 36;
+        if (dev->uasp) {
+            if (!xhci_uasp_exec_scsi(dev, lun, cb, 6, MSC_DATA(dev), 36, true)) {
+                serial_puts("[XHCI] UASP INQUIRY failed\n");
+                xhci_msc_request_sense_uasp(dev, lun);
+                xhci_msc_log_sense(dev, "UASP");
+                return false;
+            }
+        } else {
+            if (!xhci_msc_send_cbw(dev, base, dboff, rt_base, lun, cb, 6, 36, true)) {
+                serial_puts("[XHCI] MSC INQUIRY CBW failed\n");
+            } else if (!xhci_msc_bulk_transfer(dev, base, dboff, rt_base, true, MSC_DATA(dev), 36)) {
+                serial_puts("[XHCI] MSC INQUIRY data failed\n");
+                xhci_msc_request_sense_bot(dev, base, dboff, rt_base, lun);
+                xhci_msc_log_sense(dev, "MSC");
+            } else if (!xhci_msc_recv_csw(dev, base, dboff, rt_base)) {
+                serial_puts("[XHCI] MSC INQUIRY CSW failed\n");
+                xhci_msc_request_sense_bot(dev, base, dboff, rt_base, lun);
+                xhci_msc_log_sense(dev, "MSC");
+            } else {
+                break;
+            }
+
+            if (!recovered && xhci_msc_recover_bot(dev, base, dboff, rt_base)) {
+                recovered = true;
+                continue;
+            }
             return false;
         }
-    } else {
-        if (!xhci_msc_send_cbw(dev, base, dboff, rt_base, lun, cb, 6, 36, true)) {
-            serial_puts("[XHCI] MSC INQUIRY CBW failed\n");
-            return false;
-        }
-        if (!xhci_msc_bulk_transfer(dev, base, dboff, rt_base, true, MSC_DATA(dev), 36)) {
-            serial_puts("[XHCI] MSC INQUIRY data failed\n");
-            xhci_msc_request_sense_bot(dev, base, dboff, rt_base, lun);
-            xhci_msc_log_sense(dev, "MSC");
-            return false;
-        }
-        if (!xhci_msc_recv_csw(dev, base, dboff, rt_base)) {
-            serial_puts("[XHCI] MSC INQUIRY CSW failed\n");
-            xhci_msc_request_sense_bot(dev, base, dboff, rt_base, lun);
-            xhci_msc_log_sense(dev, "MSC");
-            return false;
-        }
+        break;
     }
 
     serial_printf("[XHCI] MSC INQUIRY vendor=%.8s product=%.16s\n",
@@ -1929,15 +2008,26 @@ static bool xhci_msc_test_unit_ready(xhci_msc_dev_t *dev, uintptr_t base, uint32
         }
         return true;
     }
-    if (!xhci_msc_send_cbw(dev, base, dboff, rt_base, lun, cb, 6, 0, false)) {
+    bool recovered = false;
+    for (;;) {
+        if (!xhci_msc_send_cbw(dev, base, dboff, rt_base, lun, cb, 6, 0, false)) {
+            /* fall through */
+        } else if (!xhci_msc_recv_csw(dev, base, dboff, rt_base)) {
+            xhci_msc_request_sense_bot(dev, base, dboff, rt_base, lun);
+            xhci_msc_log_sense(dev, "MSC");
+            if (xhci_msc_retry_not_ready(dev, false, lun)) {
+                return true;
+            }
+        } else {
+            return true;
+        }
+
+        if (!recovered && xhci_msc_recover_bot(dev, base, dboff, rt_base)) {
+            recovered = true;
+            continue;
+        }
         return false;
     }
-    if (!xhci_msc_recv_csw(dev, base, dboff, rt_base)) {
-        xhci_msc_request_sense_bot(dev, base, dboff, rt_base, lun);
-        xhci_msc_log_sense(dev, "MSC");
-        return xhci_msc_retry_not_ready(dev, false, lun);
-    }
-    return true;
 }
 
 static void xhci_msc_smoke_test(xhci_msc_dev_t *dev, uintptr_t base, uint32_t dboff,
@@ -2153,25 +2243,24 @@ static OSErr xhci_msc_read_blocks_internal(xhci_msc_dev_t *dev, uint8_t lun, uin
                 return ioErr;
             }
         } else {
-            if (!xhci_msc_send_cbw(dev, g_xhci_base, g_xhci_dboff, g_xhci_rt_base,
-                                   lun, cb, 10, data_len, true)) {
-                return ioErr;
-            }
-
-            if (!xhci_msc_bulk_transfer(dev, g_xhci_base, g_xhci_dboff, g_xhci_rt_base,
-                                        true, buf, data_len)) {
+            bool bot_ok = false;
+            if (xhci_msc_send_cbw(dev, g_xhci_base, g_xhci_dboff, g_xhci_rt_base,
+                                  lun, cb, 10, data_len, true) &&
+                xhci_msc_bulk_transfer(dev, g_xhci_base, g_xhci_dboff, g_xhci_rt_base,
+                                       true, buf, data_len) &&
+                xhci_msc_recv_csw(dev, g_xhci_base, g_xhci_dboff, g_xhci_rt_base)) {
+                bot_ok = true;
+            } else {
                 xhci_msc_request_sense_bot(dev, g_xhci_base, g_xhci_dboff, g_xhci_rt_base, lun);
                 xhci_msc_log_sense(dev, "MSC");
                 if (xhci_msc_retry_not_ready(dev, false, lun)) {
                     continue;
                 }
-                return ioErr;
             }
-
-            if (!xhci_msc_recv_csw(dev, g_xhci_base, g_xhci_dboff, g_xhci_rt_base)) {
-                xhci_msc_request_sense_bot(dev, g_xhci_base, g_xhci_dboff, g_xhci_rt_base, lun);
-                xhci_msc_log_sense(dev, "MSC");
-                if (xhci_msc_retry_not_ready(dev, false, lun)) {
+            if (!bot_ok) {
+                if (!tried_fallback && xhci_msc_recover_bot(dev, g_xhci_base,
+                                                           g_xhci_dboff, g_xhci_rt_base)) {
+                    tried_fallback = true;
                     continue;
                 }
                 return ioErr;
@@ -2264,23 +2353,24 @@ static OSErr xhci_msc_write_blocks_internal(xhci_msc_dev_t *dev, uint8_t lun,
                 return ioErr;
             }
         } else {
-            if (!xhci_msc_send_cbw(dev, g_xhci_base, g_xhci_dboff, g_xhci_rt_base,
-                                   lun, cb, 10, data_len, false)) {
-                return ioErr;
-            }
-            if (!xhci_msc_bulk_transfer(dev, g_xhci_base, g_xhci_dboff, g_xhci_rt_base,
-                                        false, buf, data_len)) {
+            bool bot_ok = false;
+            if (xhci_msc_send_cbw(dev, g_xhci_base, g_xhci_dboff, g_xhci_rt_base,
+                                  lun, cb, 10, data_len, false) &&
+                xhci_msc_bulk_transfer(dev, g_xhci_base, g_xhci_dboff, g_xhci_rt_base,
+                                       false, buf, data_len) &&
+                xhci_msc_recv_csw(dev, g_xhci_base, g_xhci_dboff, g_xhci_rt_base)) {
+                bot_ok = true;
+            } else {
                 xhci_msc_request_sense_bot(dev, g_xhci_base, g_xhci_dboff, g_xhci_rt_base, lun);
                 xhci_msc_log_sense(dev, "MSC");
                 if (xhci_msc_retry_not_ready(dev, false, lun)) {
                     continue;
                 }
-                return ioErr;
             }
-            if (!xhci_msc_recv_csw(dev, g_xhci_base, g_xhci_dboff, g_xhci_rt_base)) {
-                xhci_msc_request_sense_bot(dev, g_xhci_base, g_xhci_dboff, g_xhci_rt_base, lun);
-                xhci_msc_log_sense(dev, "MSC");
-                if (xhci_msc_retry_not_ready(dev, false, lun)) {
+            if (!bot_ok) {
+                if (!tried_fallback && xhci_msc_recover_bot(dev, g_xhci_base,
+                                                           g_xhci_dboff, g_xhci_rt_base)) {
+                    tried_fallback = true;
                     continue;
                 }
                 return ioErr;
