@@ -84,6 +84,7 @@ typedef struct __attribute__((packed)) {
 #define XHCI_TRB_TYPE_SETUP_STAGE 2
 #define XHCI_TRB_TYPE_DATA_STAGE 3
 #define XHCI_TRB_TYPE_STATUS_STAGE 4
+#define XHCI_TRB_TYPE_NORMAL 1
 #define XHCI_TRB_TYPE_EVT_TRANSFER 32
 #define XHCI_TRB_CYCLE      (1u << 0)
 #define XHCI_TRB_IOC        (1u << 5)
@@ -123,6 +124,9 @@ static uint32_t g_evt_cycle = 1;
 static uint32_t g_evt_ring_index = 0;
 static uint32_t g_ep0_ring_index = 0;
 static uint32_t g_ep0_cycle = 1;
+static uintptr_t g_xhci_base = 0;
+static uint32_t g_xhci_dboff = 0;
+static uintptr_t g_xhci_rt_base = 0;
 
 static inline uint32_t mmio_read32(uintptr_t base, uint32_t off);
 static inline void mmio_write32(uintptr_t base, uint32_t off, uint32_t value);
@@ -459,6 +463,32 @@ static bool xhci_ep0_get_config_descriptor(uintptr_t base, uint32_t dboff, uintp
     return true;
 }
 
+static void xhci_hid_enqueue_interrupt_in(uintptr_t buf, uint32_t len) {
+    xhci_trb_t *trb = &g_ep0_ring[g_ep0_ring_index++];
+    trb->dword0 = (uint32_t)(buf & 0xFFFFFFFFu);
+    trb->dword1 = 0;
+    trb->dword2 = len;
+    trb->dword3 = (XHCI_TRB_TYPE_NORMAL << XHCI_TRB_TYPE_SHIFT) |
+                  XHCI_TRB_IOC |
+                  (g_ep0_cycle ? XHCI_TRB_CYCLE : 0);
+}
+
+static void xhci_hid_poll(uintptr_t base, uint32_t dboff, uintptr_t rt_base) {
+    if (g_hid_slot == 0 || g_hid_ep_addr == 0 || g_hid_ep_mps == 0) {
+        return;
+    }
+
+    /* Reuse EP0 ring for now (placeholder) */
+    xhci_hid_enqueue_interrupt_in((uintptr_t)&g_ep0_buf[0], g_hid_ep_mps);
+    xhci_ep0_ring_doorbell(base, dboff, g_hid_slot);
+
+    if (xhci_poll_transfer_complete(rt_base, g_hid_slot)) {
+        uint8_t *data = (uint8_t *)&g_ep0_buf[0];
+        serial_printf("[XHCI] HID data: %02x %02x %02x %02x\n",
+                      data[0], data[1], data[2], data[3]);
+    }
+}
+
 static inline uint32_t mmio_read32(uintptr_t base, uint32_t off) {
     volatile uint32_t *ptr = (volatile uint32_t *)(base + off);
     return *ptr;
@@ -593,6 +623,9 @@ bool xhci_init_x86(void) {
             xhci_ring_init();
 
             uintptr_t op_base = base + cap_len;
+            g_xhci_base = base;
+            g_xhci_dboff = dboff;
+            g_xhci_rt_base = base + rtsoff;
             /* Program DCBAA */
             mmio_write32(op_base, XHCI_DCBAAP_LO, (uint32_t)((uintptr_t)&g_dcbaa[0] & 0xFFFFFFFFu));
             mmio_write32(op_base, XHCI_DCBAAP_HI, 0);
@@ -670,4 +703,11 @@ bool xhci_init_x86(void) {
 
     serial_puts("[XHCI] controller not found\n");
     return false;
+}
+
+void xhci_poll_hid_x86(void) {
+    if (!g_xhci_base || !g_xhci_rt_base) {
+        return;
+    }
+    xhci_hid_poll(g_xhci_base, g_xhci_dboff, g_xhci_rt_base);
 }

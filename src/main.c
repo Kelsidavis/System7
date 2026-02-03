@@ -1885,6 +1885,9 @@ void kernel_main(uint32_t magic, uint32_t* mb2_info) {
         /* Process modern input events (PS/2 keyboard and mouse) */
         extern void ProcessModernInput(void);
         ProcessModernInput();
+        /* Poll USB HID devices (xHCI) */
+        extern void xhci_poll_hid_x86(void);
+        xhci_poll_hid_x86();
 
         /* Throttle ONLY cursor drawing, not event processing */
         cursor_update_counter++;
