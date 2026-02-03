@@ -134,6 +134,8 @@ typedef struct {
     uint32_t ring_index;
     uint32_t cycle;
     bool pending;
+    uint32_t pending_tick;
+    uint32_t last_submit_tick;
     uint8_t last_report[8];
     xhci_trb_t *ring;
     uint32_t *buf;
@@ -626,8 +628,10 @@ static int xhci_poll_transfer_event(uintptr_t rt_base, uint8_t *out_slot) {
         uint8_t evt_slot = (uint8_t)((evt->dword3 >> 24) & 0xFF);
         uint32_t comp = (evt->dword2 >> 24) & 0xFF;
         uint32_t len = evt->dword2 & 0xFFFFFF;
-        serial_printf("[XHCI] Transfer complete slot=%u code=%u len=%u\n",
-                      evt_slot, comp, len);
+        if (comp != 1) {
+            serial_printf("[XHCI] Transfer complete slot=%u code=%u len=%u\n",
+                          evt_slot, comp, len);
+        }
         if (out_slot) {
             *out_slot = evt_slot;
         }
@@ -655,7 +659,7 @@ static void xhci_handle_hid_mouse(const uint8_t *report, uint32_t len) {
     }
     int16_t dx = (int8_t)report[1];
     int16_t dy = (int8_t)report[2];
-    uint8_t buttons = report[0] & 0x07;
+    uint8_t buttons = report[0] & 0x1F;
     UpdateMouseStateDelta(dx, -dy, buttons);
 
     if (len >= 4) {
@@ -665,6 +669,13 @@ static void xhci_handle_hid_mouse(const uint8_t *report, uint32_t len) {
             ProcessScrollWheelEvent(0, (SInt16)-wheel, mods, TickCount());
         }
     }
+    if (len >= 5) {
+        int8_t pan = (int8_t)report[4];
+        if (pan != 0) {
+            UInt16 mods = GetModifierState();
+            ProcessScrollWheelEvent((SInt16)pan, 0, mods, TickCount());
+        }
+    }
 }
 
 static void xhci_hid_submit(uintptr_t base, uint32_t dboff, xhci_hid_dev_t *dev) {
@@ -672,12 +683,27 @@ static void xhci_hid_submit(uintptr_t base, uint32_t dboff, xhci_hid_dev_t *dev)
         return;
     }
 
+    uint32_t now = TickCount();
+    if (dev->last_submit_tick == now) {
+        return;
+    }
+
     xhci_hid_enqueue_interrupt_in(dev, (uintptr_t)dev->buf, dev->mps);
     mmio_write32(base + dboff, XHCI_DB0 + dev->slot, dev->ep_id);
     dev->pending = true;
+    dev->pending_tick = now;
+    dev->last_submit_tick = now;
 }
 
 static void xhci_hid_poll_events(uintptr_t rt_base) {
+    uint32_t now = TickCount();
+    if (g_hid_kbd.pending && (now - g_hid_kbd.pending_tick) > 10) {
+        g_hid_kbd.pending = false;
+    }
+    if (g_hid_mouse.pending && (now - g_hid_mouse.pending_tick) > 10) {
+        g_hid_mouse.pending = false;
+    }
+
     for (int i = 0; i < 4; i++) {
         uint8_t slot = 0;
         int res = xhci_poll_transfer_event(rt_base, &slot);
