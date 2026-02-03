@@ -1944,6 +1944,8 @@ static void xhci_msc_fire_events(uint8_t port_index, bool inserted) {
     }
     int base = xhci_msc_compute_drive_base(port_index);
     uint8_t luns = g_msc_last_luns[port_index];
+    serial_printf("[XHCI] MSC port %u drive base=%d luns=%u\n",
+                  (unsigned)(port_index + 1), base, luns);
     for (uint8_t i = 0; i < luns; i++) {
         if (inserted) {
             ProcessDiskInsertion((SInt16)(base + i), "USB");
