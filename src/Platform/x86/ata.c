@@ -21,6 +21,147 @@ extern size_t strlen(const char* s);
 #define ATAPI_CMD_READ_10 0x28
 #define ATAPI_PACKET_SIZE 12
 
+static inline uint32_t iso_read_le32(const uint8_t *p) {
+    return (uint32_t)p[0] | ((uint32_t)p[1] << 8) | ((uint32_t)p[2] << 16) | ((uint32_t)p[3] << 24);
+}
+
+static inline int ascii_upper(int c) {
+    if (c >= 'a' && c <= 'z') return c - 32;
+    return c;
+}
+
+static OSErr ATA_ReadATAPISectors(ATADevice* device, uint32_t lba, uint16_t count, void* buffer);
+
+static int iso_name_match(const uint8_t *name, uint8_t name_len, const char *target) {
+    int i = 0;
+    while (i < name_len && name[i] != ';') {
+        int a = ascii_upper(name[i]);
+        int b = ascii_upper((unsigned char)target[i]);
+        if (b == 0) {
+            return 0;
+        }
+        if (a != b) {
+            return 0;
+        }
+        i++;
+    }
+    return target[i] == '\0';
+}
+
+static OSErr iso_read_dir_record(ATADevice *device, uint32_t dir_lba, uint32_t dir_size,
+                                 const char *target, uint32_t *out_lba, uint32_t *out_size,
+                                 Boolean *out_is_dir) {
+    if (!device || !target || !out_lba || !out_size || !out_is_dir) {
+        return paramErr;
+    }
+
+    uint32_t bytes_remaining = dir_size;
+    uint32_t sector_offset = 0;
+    uint8_t sector[ATAPI_SECTOR_SIZE];
+
+    while (bytes_remaining > 0) {
+        OSErr err = ATA_ReadATAPISectors(device, dir_lba + sector_offset, 1, sector);
+        if (err != noErr) {
+            return err;
+        }
+
+        uint32_t offset = 0;
+        while (offset < ATAPI_SECTOR_SIZE && bytes_remaining > 0) {
+            uint8_t len = sector[offset];
+            if (len == 0) {
+                uint32_t advance = ATAPI_SECTOR_SIZE - offset;
+                if (advance > bytes_remaining) {
+                    bytes_remaining = 0;
+                } else {
+                    bytes_remaining -= advance;
+                }
+                break;
+            }
+
+            if (offset + len > ATAPI_SECTOR_SIZE) {
+                break;
+            }
+
+            const uint8_t *record = &sector[offset];
+            uint32_t extent = iso_read_le32(record + 2);
+            uint32_t data_len = iso_read_le32(record + 10);
+            uint8_t flags = record[25];
+            uint8_t name_len = record[32];
+            const uint8_t *name = record + 33;
+
+            if (name_len == 1 && name[0] == 0) {
+                /* '.' */
+            } else if (name_len == 1 && name[0] == 1) {
+                /* '..' */
+            } else if (iso_name_match(name, name_len, target)) {
+                *out_lba = extent;
+                *out_size = data_len;
+                *out_is_dir = (flags & 0x02) != 0;
+                return noErr;
+            }
+
+            offset += len;
+            bytes_remaining -= len;
+        }
+
+        sector_offset++;
+    }
+
+    return fnfErr;
+}
+
+static OSErr iso_find_path(ATADevice *device, const char *path, uint32_t *out_lba, uint32_t *out_size,
+                           Boolean *out_is_dir) {
+    uint8_t pvd[ATAPI_SECTOR_SIZE];
+    OSErr err = ATA_ReadATAPISectors(device, 16, 1, pvd);
+    if (err != noErr) {
+        return err;
+    }
+
+    if (!(pvd[1] == 'C' && pvd[2] == 'D' && pvd[3] == '0' && pvd[4] == '0' && pvd[5] == '1')) {
+        return fnfErr;
+    }
+
+    const uint8_t *root = pvd + 156;
+    uint32_t root_lba = iso_read_le32(root + 2);
+    uint32_t root_size = iso_read_le32(root + 10);
+
+    char segment[64];
+    uint32_t seg_len = 0;
+    uint32_t cur_lba = root_lba;
+    uint32_t cur_size = root_size;
+    Boolean cur_is_dir = true;
+
+    for (const char *p = path; ; p++) {
+        if (*p == '/' || *p == '\0') {
+            if (seg_len > 0) {
+                segment[seg_len] = '\0';
+                err = iso_read_dir_record(device, cur_lba, cur_size, segment, &cur_lba, &cur_size, &cur_is_dir);
+                if (err != noErr) {
+                    return err;
+                }
+                if (!cur_is_dir && *p != '\0') {
+                    return fnfErr;
+                }
+                seg_len = 0;
+            }
+            if (*p == '\0') {
+                break;
+            }
+            continue;
+        }
+
+        if (seg_len + 1 < sizeof(segment)) {
+            segment[seg_len++] = *p;
+        }
+    }
+
+    *out_lba = cur_lba;
+    *out_size = cur_size;
+    *out_is_dir = cur_is_dir;
+    return noErr;
+}
+
 /* Global device table */
 static ATADevice g_ata_devices[ATA_MAX_DEVICES];
 static int g_device_count = 0;
@@ -165,8 +306,6 @@ static bool ATA_IdentifyDevice(uint16_t base_io, bool is_slave, uint16_t* buffer
     return true;
 }
 
-static OSErr ATA_ReadATAPISectors(ATADevice* device, uint32_t lba, uint16_t count, void* buffer);
-
 static void ATA_TestATAPI(ATADevice* device) {
     if (!device || !device->present) {
         return;
@@ -187,6 +326,18 @@ static void ATA_TestATAPI(ATADevice* device) {
         PLATFORM_LOG_DEBUG("ATAPI: ISO9660 PVD detected\n");
     } else {
         PLATFORM_LOG_DEBUG("ATAPI: PVD signature not found\n");
+        return;
+    }
+
+    uint32_t file_lba = 0;
+    uint32_t file_size = 0;
+    Boolean is_dir = false;
+    err = iso_find_path(device, "/boot/grub/grub.cfg", &file_lba, &file_size, &is_dir);
+    if (err == noErr && !is_dir) {
+        PLATFORM_LOG_DEBUG("ATAPI: Found /boot/grub/grub.cfg at LBA %u size %u\n",
+                           file_lba, file_size);
+    } else {
+        PLATFORM_LOG_DEBUG("ATAPI: /boot/grub/grub.cfg not found (err=%d)\n", (int)err);
     }
 }
 

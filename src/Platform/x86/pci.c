@@ -91,6 +91,8 @@ int pci_scan(pci_device_t* devices, int max_devices) {
                     for (int bar = 0; bar < 6; bar++) {
                         devices[count].bars[bar] = 0;
                         devices[count].bar_sizes[bar] = 0;
+                        devices[count].bar_addrs[bar] = 0;
+                        devices[count].bar_is_io[bar] = 0;
                     }
 
                     for (int bar = 0; bar < 6; bar++) {
@@ -117,9 +119,21 @@ int pci_scan(pci_device_t* devices, int max_devices) {
                                 devices[count].bar_sizes[bar] = (size64 > 0xFFFFFFFFu) ? 0xFFFFFFFFu : (uint32_t)size64;
                                 devices[count].bars[bar + 1] = bar_high;
                                 devices[count].bar_sizes[bar + 1] = 0;
+                                devices[count].bar_addrs[bar] = bar_val & 0xFFFFFFF0;
+                                devices[count].bar_is_io[bar] = 0;
+                                devices[count].bar_addrs[bar + 1] = bar_high;
+                                devices[count].bar_is_io[bar + 1] = 0;
                                 bar++;
                                 continue;
                             }
+                        }
+
+                        if (bar_val & 0x1) {
+                            devices[count].bar_is_io[bar] = 1;
+                            devices[count].bar_addrs[bar] = bar_val & 0xFFFFFFFC;
+                        } else {
+                            devices[count].bar_is_io[bar] = 0;
+                            devices[count].bar_addrs[bar] = bar_val & 0xFFFFFFF0;
                         }
 
                         devices[count].bar_sizes[bar] = pci_read_bar_size((uint8_t)bus, slot, func, offset, bar_val);

@@ -18,6 +18,8 @@ typedef struct {
     uint8_t revision;
     uint32_t bars[6];
     uint32_t bar_sizes[6];
+    uint32_t bar_addrs[6];
+    uint8_t bar_is_io[6];
     uint8_t irq_line;
     uint8_t irq_pin;
 } pci_device_t;
