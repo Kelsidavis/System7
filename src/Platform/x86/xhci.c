@@ -35,6 +35,12 @@
 #define XHCI_STS_HCH      (1u << 0)
 #define XHCI_STS_CNR      (1u << 11)
 
+#define XHCI_PORTSC_CCS   (1u << 0)
+#define XHCI_PORTSC_PED   (1u << 1)
+#define XHCI_PORTSC_PR    (1u << 4)
+#define XHCI_PORTSC_PRC   (1u << 21)
+#define XHCI_PORTSC_PEC   (1u << 19)
+
 static inline uint32_t mmio_read32(uintptr_t base, uint32_t off) {
     volatile uint32_t *ptr = (volatile uint32_t *)(base + off);
     return *ptr;
@@ -101,6 +107,30 @@ static const char *xhci_speed_name(uint32_t portsc) {
     }
 }
 
+static bool xhci_port_reset(uintptr_t op_base, uint8_t port) {
+    uintptr_t off = XHCI_PORTSC_BASE + port * XHCI_PORTSC_STRIDE;
+    uint32_t portsc = mmio_read32(op_base, off);
+    if ((portsc & XHCI_PORTSC_CCS) == 0) {
+        return false;
+    }
+
+    /* Set PR (port reset). Preserve RW1C bits by writing them as 0. */
+    mmio_write32(op_base, off, portsc | XHCI_PORTSC_PR);
+
+    uint32_t timeout = 100000;
+    while (timeout-- > 0) {
+        uint32_t now = mmio_read32(op_base, off);
+        if ((now & XHCI_PORTSC_PR) == 0) {
+            /* Clear PRC/PEC if set (RW1C) */
+            if (now & (XHCI_PORTSC_PRC | XHCI_PORTSC_PEC)) {
+                mmio_write32(op_base, off, now | XHCI_PORTSC_PRC | XHCI_PORTSC_PEC);
+            }
+            return (now & XHCI_PORTSC_PED) != 0;
+        }
+    }
+    return false;
+}
+
 bool xhci_init_x86(void) {
     pci_device_t devices[64];
     int found = pci_scan(devices, 64);
@@ -145,9 +175,14 @@ bool xhci_init_x86(void) {
             uintptr_t op_base = base + cap_len;
             for (uint8_t p = 0; p < ports; p++) {
                 uint32_t portsc = mmio_read32(op_base, XHCI_PORTSC_BASE + p * XHCI_PORTSC_STRIDE);
-                if (portsc & 0x1) {
+                if (portsc & XHCI_PORTSC_CCS) {
                     serial_printf("[XHCI] port %u connected (%s) PORTSC=0x%08x\n",
                                   (unsigned)p + 1, xhci_speed_name(portsc), portsc);
+                    if (xhci_port_reset(op_base, p)) {
+                        serial_printf("[XHCI] port %u reset ok\n", (unsigned)p + 1);
+                    } else {
+                        serial_printf("[XHCI] port %u reset failed\n", (unsigned)p + 1);
+                    }
                 }
             }
 
