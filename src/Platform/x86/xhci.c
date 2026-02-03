@@ -159,6 +159,7 @@ typedef struct {
     uint16_t mps;
     uint8_t interval;
     uint8_t ep_id;
+    uint8_t interface_num;
     uint32_t ring_index;
     uint32_t cycle;
     bool pending;
@@ -327,6 +328,7 @@ static void xhci_ring_init(void) {
         g_hid_kbd[i].ring_index = 0;
         g_hid_kbd[i].cycle = 1;
         g_hid_kbd[i].port = (uint8_t)(i + 1);
+        g_hid_kbd[i].interface_num = 0xFF;
 
         g_hid_mouse[i].io = &g_hid_mouse_io[i];
         g_hid_mouse[i].ring = g_hid_mouse_io[i].ring;
@@ -334,6 +336,7 @@ static void xhci_ring_init(void) {
         g_hid_mouse[i].ring_index = 0;
         g_hid_mouse[i].cycle = 1;
         g_hid_mouse[i].port = (uint8_t)(i + 1);
+        g_hid_mouse[i].interface_num = 0xFF;
 
         g_msc[i].io = &g_msc_io[i];
         g_msc[i].in_ring_index = 0;
@@ -892,6 +895,7 @@ static bool xhci_ep0_get_config_descriptor(uintptr_t base, uint32_t dboff, uintp
     uint8_t current_proto = 0;
     uint8_t current_class = 0;
     uint8_t current_sub = 0;
+    uint8_t current_if_num = 0;
     uint8_t uasp_in_eps[2] = {0};
     uint8_t uasp_out_eps[2] = {0};
     uint16_t uasp_in_mps[2] = {0};
@@ -908,6 +912,8 @@ static bool xhci_ep0_get_config_descriptor(uintptr_t base, uint32_t dboff, uintp
     kbd->present = false;
     kbd->ring_index = 0;
     kbd->cycle = 1;
+    kbd->interface_num = 0xFF;
+    kbd->interface_num = 0xFF;
     memset(kbd->last_report, 0, sizeof(kbd->last_report));
 
     mouse->slot = 0;
@@ -920,6 +926,8 @@ static bool xhci_ep0_get_config_descriptor(uintptr_t base, uint32_t dboff, uintp
     mouse->present = false;
     mouse->ring_index = 0;
     mouse->cycle = 1;
+    mouse->interface_num = 0xFF;
+    mouse->interface_num = 0xFF;
 
     msc->slot = 0;
     msc->bulk_in_ep = 0;
@@ -988,6 +996,7 @@ static bool xhci_ep0_get_config_descriptor(uintptr_t base, uint32_t dboff, uintp
             current_class = cls;
             current_sub = sub;
             current_proto = proto;
+            current_if_num = if_num;
             if (cls == 0x08 && (proto == 0x50 || proto == 0x62)) {
                 msc->slot = slot_id;
                 msc->uasp = (proto == 0x62);
@@ -995,9 +1004,15 @@ static bool xhci_ep0_get_config_descriptor(uintptr_t base, uint32_t dboff, uintp
                 found_supported = true;
             }
             if (cls == 0x03 && sub == 0x01 && (proto == 0x01 || proto == 0x02)) {
-                /* Boot protocol HID: force alt setting 0 and boot protocol. */
-                xhci_ep0_set_interface(base, dboff, rt_base, slot_id, if_num, 0);
-                xhci_ep0_set_protocol(base, dboff, rt_base, slot_id, if_num, 0);
+                xhci_hid_dev_t *dev = (proto == 0x01) ? kbd : mouse;
+                if (dev->ep_addr == 0 && dev->interface_num == 0xFF) {
+                    dev->slot = slot_id;
+                    dev->interface_num = if_num;
+                    /* Boot protocol HID: force alt setting 0 and boot protocol. */
+                    xhci_ep0_set_interface(base, dboff, rt_base, slot_id, if_num, 0);
+                    xhci_ep0_set_protocol(base, dboff, rt_base, slot_id, if_num, 0);
+                    found_supported = true;
+                }
             }
         }
         if (type == 5 && len >= 7) {
@@ -1008,7 +1023,8 @@ static bool xhci_ep0_get_config_descriptor(uintptr_t base, uint32_t dboff, uintp
             uint8_t ep_type = attrs & 0x3;
             if ((ep_addr & 0x80) && ep_type == 3 && (current_proto == 1 || current_proto == 2)) {
                 xhci_hid_dev_t *dev = (current_proto == 1) ? kbd : mouse;
-                if (dev->ep_addr == 0 || dev->slot == slot_id) {
+                if (dev->ep_addr == 0 && dev->slot == slot_id &&
+                    dev->interface_num == current_if_num) {
                     dev->slot = slot_id;
                     dev->ep_addr = ep_addr;
                     if (current_proto == 1 && mps > sizeof(dev->last_report)) {
