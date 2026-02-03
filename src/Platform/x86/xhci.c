@@ -237,6 +237,10 @@ static uint8_t g_msc_port = 0;
 static bool g_msc_present = false;
 static uint8_t g_msc_last_luns = 0;
 static int g_msc_drive_base = -1;
+static uint8_t g_hid_kbd_port = 0;
+static uint8_t g_hid_mouse_port = 0;
+static bool g_hid_kbd_present = false;
+static bool g_hid_mouse_present = false;
 
 static inline uint32_t mmio_read32(uintptr_t base, uint32_t off);
 static inline void mmio_write32(uintptr_t base, uint32_t off, uint32_t value);
@@ -251,6 +255,7 @@ static bool xhci_msc_ensure_lun_info(uint8_t lun);
 static void xhci_poll_hotplug(void);
 static void xhci_msc_fire_events(bool inserted);
 static bool xhci_port_reset(uintptr_t op_base, uint8_t port);
+static void xhci_maybe_mark_hid_present(void);
 
 static void xhci_ring_doorbell(uintptr_t base, uint32_t db_off, uint32_t target) {
     mmio_write32(base + db_off, XHCI_DB0 + target, 0);
@@ -751,6 +756,14 @@ static bool xhci_ep0_get_config_descriptor(uintptr_t base, uint32_t dboff, uintp
                     dev->pending = false;
                     if (current_proto == 1) {
                         memset(dev->last_report, 0, sizeof(dev->last_report));
+                        if (g_xhci_enum_port) {
+                            g_hid_kbd_port = g_xhci_enum_port;
+                        }
+                    }
+                    if (current_proto == 2) {
+                        if (g_xhci_enum_port) {
+                            g_hid_mouse_port = g_xhci_enum_port;
+                        }
                     }
                     serial_printf("[XHCI] HID %s INT IN ep=0x%02x mps=%u interval=%u\n",
                                   (current_proto == 1) ? "kbd" : "mouse",
@@ -845,6 +858,9 @@ static bool xhci_ep0_get_config_descriptor(uintptr_t base, uint32_t dboff, uintp
         xhci_build_hid_endpoint_context(g_hid_kbd.ep_id, g_hid_kbd.mps,
                                         g_hid_kbd.interval, g_hid_kbd.ring);
         g_hid_kbd.configured = xhci_configure_endpoint(base, dboff, rt_base, slot_id);
+        if (g_hid_kbd.configured) {
+            xhci_maybe_mark_hid_present();
+        }
     }
 
     if (g_hid_mouse.ep_id != 0 && g_hid_mouse.slot == slot_id) {
@@ -852,6 +868,9 @@ static bool xhci_ep0_get_config_descriptor(uintptr_t base, uint32_t dboff, uintp
         xhci_build_hid_endpoint_context(g_hid_mouse.ep_id, g_hid_mouse.mps,
                                         g_hid_mouse.interval, g_hid_mouse.ring);
         g_hid_mouse.configured = xhci_configure_endpoint(base, dboff, rt_base, slot_id);
+        if (g_hid_mouse.configured) {
+            xhci_maybe_mark_hid_present();
+        }
     }
 
     if (g_msc.uasp && g_msc.uasp_cmd_out_ep_id && g_msc.uasp_data_out_ep_id &&
@@ -1554,6 +1573,56 @@ static void xhci_poll_hotplug(void) {
                 g_msc_drive_base = 0;
             }
             xhci_msc_fire_events(true);
+        }
+    }
+}
+
+static void xhci_maybe_mark_hid_present(void) {
+    if (g_hid_kbd.configured && !g_hid_kbd_present) {
+        g_hid_kbd_present = true;
+        serial_puts("[XHCI] HID keyboard connected\n");
+    }
+    if (g_hid_mouse.configured && !g_hid_mouse_present) {
+        g_hid_mouse_present = true;
+        serial_puts("[XHCI] HID mouse connected\n");
+    }
+}
+
+static void xhci_poll_hid_hotplug(void) {
+    if (!g_xhci_base || !g_xhci_cap_len) {
+        return;
+    }
+    uintptr_t op_base = g_xhci_base + g_xhci_cap_len;
+
+    if (g_hid_kbd_port) {
+        uint32_t portsc = mmio_read32(op_base, XHCI_PORTSC_BASE + (g_hid_kbd_port - 1) * XHCI_PORTSC_STRIDE);
+        bool connected = (portsc & XHCI_PORTSC_CCS) != 0;
+        if (!connected && g_hid_kbd_present) {
+            g_hid_kbd_present = false;
+            g_hid_kbd.configured = false;
+            g_hid_kbd.slot = 0;
+            g_hid_kbd.ep_addr = 0;
+            g_hid_kbd.ep_id = 0;
+            serial_puts("[XHCI] HID keyboard disconnected\n");
+        } else if (connected && !g_hid_kbd_present && g_hid_kbd.configured) {
+            g_hid_kbd_present = true;
+            serial_puts("[XHCI] HID keyboard connected\n");
+        }
+    }
+
+    if (g_hid_mouse_port) {
+        uint32_t portsc = mmio_read32(op_base, XHCI_PORTSC_BASE + (g_hid_mouse_port - 1) * XHCI_PORTSC_STRIDE);
+        bool connected = (portsc & XHCI_PORTSC_CCS) != 0;
+        if (!connected && g_hid_mouse_present) {
+            g_hid_mouse_present = false;
+            g_hid_mouse.configured = false;
+            g_hid_mouse.slot = 0;
+            g_hid_mouse.ep_addr = 0;
+            g_hid_mouse.ep_id = 0;
+            serial_puts("[XHCI] HID mouse disconnected\n");
+        } else if (connected && !g_hid_mouse_present && g_hid_mouse.configured) {
+            g_hid_mouse_present = true;
+            serial_puts("[XHCI] HID mouse connected\n");
         }
     }
 }
@@ -2331,4 +2400,5 @@ void xhci_poll_hid_x86(void) {
     xhci_hid_submit(g_xhci_base, g_xhci_dboff, &g_hid_mouse);
     xhci_hid_poll_events(g_xhci_rt_base);
     xhci_poll_hotplug();
+    xhci_poll_hid_hotplug();
 }
