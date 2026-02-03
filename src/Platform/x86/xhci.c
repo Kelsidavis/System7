@@ -266,6 +266,7 @@ static uint8_t g_xhci_ports = 0;
 static uint8_t g_xhci_max_slots = 0;
 static uint8_t g_xhci_enum_port = 0;
 static uint8_t g_msc_last_luns[MAX_XHCI_PORTS];
+static uint8_t g_slot_num_configs[MAX_XHCI_SLOTS];
 
 static inline uint32_t mmio_read32(uintptr_t base, uint32_t off);
 static inline void mmio_write32(uintptr_t base, uint32_t off, uint32_t value);
@@ -720,17 +721,18 @@ static bool xhci_ep0_get_device_descriptor(uintptr_t base, uint32_t dboff, uintp
     uint8_t *desc = (uint8_t *)&g_ep0_buf[slot_id - 1][0];
     uint16_t vid = (uint16_t)(desc[8] | (desc[9] << 8));
     uint16_t pid = (uint16_t)(desc[10] | (desc[11] << 8));
+    g_slot_num_configs[slot_id - 1] = desc[17];
     serial_printf("[XHCI] Device descriptor: VID=0x%04x PID=0x%04x class=0x%02x\n",
                   vid, pid, desc[4]);
     return true;
 }
 
 static bool xhci_ep0_get_config_descriptor(uintptr_t base, uint32_t dboff, uintptr_t rt_base,
-                                           uint8_t slot_id) {
+                                           uint8_t slot_id, uint8_t config_index) {
     usb_setup_packet_t setup = {
         .bmRequestType = 0x80,
         .bRequest = 6,
-        .wValue = 0x0200,
+        .wValue = (uint16_t)(0x0200 | config_index),
         .wIndex = 0,
         .wLength = 9
     };
@@ -866,6 +868,8 @@ static bool xhci_ep0_get_config_descriptor(uintptr_t base, uint32_t dboff, uintp
     msc->uasp_failed = false;
     msc->present = false;
     memset(msc->lun_valid, 0, sizeof(msc->lun_valid));
+
+    bool found_supported = false;
     while (off + 1 < total) {
         uint8_t len = buf[off];
         uint8_t type = buf[off + 1];
@@ -885,6 +889,7 @@ static bool xhci_ep0_get_config_descriptor(uintptr_t base, uint32_t dboff, uintp
                 msc->slot = slot_id;
                 msc->uasp = (proto == 0x62);
                 msc->interface_num = if_num;
+                found_supported = true;
             }
         }
         if (type == 5 && len >= 7) {
@@ -908,9 +913,11 @@ static bool xhci_ep0_get_config_descriptor(uintptr_t base, uint32_t dboff, uintp
                     serial_printf("[XHCI] HID %s INT IN ep=0x%02x mps=%u interval=%u\n",
                                   (current_proto == 1) ? "kbd" : "mouse",
                                   ep_addr, mps, interval);
+                    found_supported = true;
                 }
             }
             if (current_class == 0x08 && current_sub == 0x06 && ep_type == 2) {
+                found_supported = true;
                 if (ep_addr & 0x80) {
                     if (msc->uasp && uasp_in_count < 2) {
                         uasp_in_eps[uasp_in_count] = ep_addr;
@@ -987,6 +994,10 @@ static bool xhci_ep0_get_config_descriptor(uintptr_t base, uint32_t dboff, uintp
         serial_printf("[XHCI] UASP cmd-out=0x%02x data-out=0x%02x status-in=0x%02x data-in=0x%02x\n",
                       msc->uasp_cmd_out_ep, msc->uasp_data_out_ep,
                       msc->uasp_status_in_ep, msc->uasp_data_in_ep);
+    }
+
+    if (!found_supported) {
+        return false;
     }
 
     if (config_value != 0) {
@@ -1887,7 +1898,22 @@ static void xhci_enumerate_port(uint8_t port_index) {
     if (!xhci_ep0_get_device_descriptor(g_xhci_base, g_xhci_dboff, g_xhci_rt_base, slot_id)) {
         return;
     }
-    xhci_ep0_get_config_descriptor(g_xhci_base, g_xhci_dboff, g_xhci_rt_base, slot_id);
+    uint8_t configs = g_slot_num_configs[slot_id - 1];
+    if (configs == 0) {
+        configs = 1;
+    }
+    bool configured = false;
+    for (uint8_t cfg = 0; cfg < configs; cfg++) {
+        if (xhci_ep0_get_config_descriptor(g_xhci_base, g_xhci_dboff, g_xhci_rt_base,
+                                           slot_id, cfg)) {
+            configured = true;
+            break;
+        }
+    }
+    if (!configured) {
+        serial_printf("[XHCI] No supported configuration found for slot %u\n", slot_id);
+        return;
+    }
 }
 
 static bool xhci_msc_test_unit_ready(xhci_msc_dev_t *dev, uintptr_t base, uint32_t dboff,
