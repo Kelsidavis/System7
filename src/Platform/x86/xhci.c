@@ -119,6 +119,7 @@ static uint16_t g_hid_ep_mps = 0;
 static uint8_t g_hid_ep_interval = 0;
 static uint8_t g_hid_slot = 0;
 static uint8_t g_hid_ep_id = 0;
+static uint8_t g_hid_last_report[8];
 static uint32_t g_ctx_size = 32;
 
 static uint32_t g_cmd_ring_index = 0;
@@ -537,6 +538,22 @@ static void xhci_hid_poll(uintptr_t base, uint32_t dboff, uintptr_t rt_base) {
         uint8_t *data = (uint8_t *)&g_ep0_buf[0];
         serial_printf("[XHCI] HID data: %02x %02x %02x %02x\n",
                       data[0], data[1], data[2], data[3]);
+        /* Minimal keyboard report decode: modifier + first key */
+        if (data[2] != g_hid_last_report[2]) {
+            if (data[2] >= 0x04 && data[2] <= 0x1D) {
+                char ch = (char)('a' + (data[2] - 0x04));
+                serial_printf("[XHCI] KEY: %c\n", ch);
+            } else if (data[2] >= 0x1E && data[2] <= 0x27) {
+                char ch = (char)('1' + (data[2] - 0x1E));
+                if (data[2] == 0x27) ch = '0';
+                serial_printf("[XHCI] KEY: %c\n", ch);
+            } else if (data[2] == 0x28) {
+                serial_puts("[XHCI] KEY: <ENTER>\n");
+            } else if (data[2] == 0x2C) {
+                serial_puts("[XHCI] KEY: <SPACE>\n");
+            }
+        }
+        memcpy(g_hid_last_report, data, sizeof(g_hid_last_report));
     }
 }
 
