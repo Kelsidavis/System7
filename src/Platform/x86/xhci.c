@@ -732,24 +732,46 @@ static bool xhci_ep0_get_config_descriptor(uintptr_t base, uint32_t dboff, uintp
         .bRequest = 6,
         .wValue = 0x0200,
         .wIndex = 0,
-        .wLength = 64
+        .wLength = 9
     };
 
-    memset(g_ep0_buf[slot_id - 1], 0, sizeof(g_ep0_buf[slot_id - 1]));
+    uint8_t slot_index = (uint8_t)(slot_id - 1);
+    memset(g_ep0_buf[slot_index], 0, sizeof(g_ep0_buf[slot_index]));
     xhci_ep0_reset_ring(slot_id);
     xhci_ep0_enqueue_setup(slot_id, &setup);
-    xhci_ep0_enqueue_data_in(slot_id, (uintptr_t)&g_ep0_buf[slot_id - 1][0], 64);
+    xhci_ep0_enqueue_data_in(slot_id, (uintptr_t)&g_ep0_buf[slot_index][0], 9);
     xhci_ep0_enqueue_status(slot_id);
     xhci_ep0_ring_doorbell(base, dboff, slot_id);
 
-    serial_printf("[XHCI] GET_CONFIG issued for slot %u\n", slot_id);
+    serial_printf("[XHCI] GET_CONFIG header for slot %u\n", slot_id);
     if (!xhci_poll_transfer_complete(rt_base, slot_id)) {
         return false;
     }
 
-    uint8_t *buf = (uint8_t *)&g_ep0_buf[slot_id - 1][0];
+    uint8_t *buf = (uint8_t *)&g_ep0_buf[slot_index][0];
     uint16_t total = (uint16_t)(buf[2] | (buf[3] << 8));
     uint8_t config_value = buf[5];
+    uint16_t max_len = (uint16_t)sizeof(g_ep0_buf[slot_index]);
+    if (total > max_len) {
+        total = max_len;
+    }
+
+    if (total > 9) {
+        setup.wLength = total;
+        memset(g_ep0_buf[slot_index], 0, sizeof(g_ep0_buf[slot_index]));
+        xhci_ep0_reset_ring(slot_id);
+        xhci_ep0_enqueue_setup(slot_id, &setup);
+        xhci_ep0_enqueue_data_in(slot_id, (uintptr_t)&g_ep0_buf[slot_index][0], total);
+        xhci_ep0_enqueue_status(slot_id);
+        xhci_ep0_ring_doorbell(base, dboff, slot_id);
+
+        serial_printf("[XHCI] GET_CONFIG full len=%u for slot %u\n", total, slot_id);
+        if (!xhci_poll_transfer_complete(rt_base, slot_id)) {
+            return false;
+        }
+        buf = (uint8_t *)&g_ep0_buf[slot_index][0];
+    }
+
     serial_printf("[XHCI] Config total length=%u\n", total);
 
     if (g_xhci_enum_port == 0) {
@@ -844,7 +866,7 @@ static bool xhci_ep0_get_config_descriptor(uintptr_t base, uint32_t dboff, uintp
     msc->uasp_failed = false;
     msc->present = false;
     memset(msc->lun_valid, 0, sizeof(msc->lun_valid));
-    while (off + 1 < 64) {
+    while (off + 1 < total) {
         uint8_t len = buf[off];
         uint8_t type = buf[off + 1];
         if (len < 2) {
@@ -1559,6 +1581,61 @@ static bool xhci_msc_read_capacity(xhci_msc_dev_t *dev, uintptr_t base, uint32_t
                         (data_buf[2] << 8) | data_buf[3];
     uint32_t blk_size = (data_buf[4] << 24) | (data_buf[5] << 16) |
                         (data_buf[6] << 8) | data_buf[7];
+
+    if (last_lba == 0xFFFFFFFFu) {
+        memset(cb, 0, sizeof(cb));
+        cb[0] = 0x9E; /* READ CAPACITY(16) */
+        cb[1] = 0x10; /* service action */
+        cb[13] = 16;  /* allocation length */
+        if (dev->uasp) {
+            if (!xhci_uasp_exec_scsi(dev, lun, cb, 16, MSC_DATA(dev), 16, true)) {
+                serial_puts("[XHCI] UASP READ CAPACITY(16) failed\n");
+                xhci_msc_request_sense_uasp(dev, lun);
+                xhci_msc_log_sense(dev, "UASP");
+                return false;
+            }
+        } else {
+            if (!xhci_msc_send_cbw(dev, base, dboff, rt_base, lun, cb, 16, 16, true)) {
+                serial_puts("[XHCI] MSC READ CAPACITY(16) CBW failed\n");
+                return false;
+            }
+            if (!xhci_msc_bulk_transfer(dev, base, dboff, rt_base, true, MSC_DATA(dev), 16)) {
+                serial_puts("[XHCI] MSC READ CAPACITY(16) data failed\n");
+                xhci_msc_request_sense_bot(dev, base, dboff, rt_base, lun);
+                xhci_msc_log_sense(dev, "MSC");
+                return false;
+            }
+            if (!xhci_msc_recv_csw(dev, base, dboff, rt_base)) {
+                serial_puts("[XHCI] MSC READ CAPACITY(16) CSW failed\n");
+                xhci_msc_request_sense_bot(dev, base, dboff, rt_base, lun);
+                xhci_msc_log_sense(dev, "MSC");
+                return false;
+            }
+        }
+
+        uint64_t last_lba64 = ((uint64_t)data_buf[0] << 56) |
+                              ((uint64_t)data_buf[1] << 48) |
+                              ((uint64_t)data_buf[2] << 40) |
+                              ((uint64_t)data_buf[3] << 32) |
+                              ((uint64_t)data_buf[4] << 24) |
+                              ((uint64_t)data_buf[5] << 16) |
+                              ((uint64_t)data_buf[6] << 8) |
+                              (uint64_t)data_buf[7];
+        blk_size = (data_buf[8] << 24) | (data_buf[9] << 16) |
+                   (data_buf[10] << 8) | data_buf[11];
+        if (lun < MAX_MSC_LUNS) {
+            dev->lun_block_size[lun] = blk_size;
+            dev->lun_block_count[lun] = last_lba64 + 1u;
+            dev->lun_valid[lun] = true;
+        }
+        if (lun == 0) {
+            dev->block_size = blk_size;
+            dev->block_count = last_lba64 + 1u;
+        }
+        serial_printf("[XHCI] MSC capacity last_lba=%llu block_size=%u\n",
+                      (unsigned long long)last_lba64, blk_size);
+        return (blk_size != 0);
+    }
     if (lun < MAX_MSC_LUNS) {
         dev->lun_block_size[lun] = blk_size;
         dev->lun_block_count[lun] = (uint64_t)last_lba + 1u;
