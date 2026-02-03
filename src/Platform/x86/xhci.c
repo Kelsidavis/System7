@@ -358,7 +358,16 @@ static bool xhci_ep0_get_device_descriptor(uintptr_t base, uint32_t dboff, uintp
     xhci_ep0_ring_doorbell(base, dboff, slot_id);
 
     serial_printf("[XHCI] GET_DESCRIPTOR issued for slot %u\n", slot_id);
-    return xhci_poll_transfer_complete(rt_base, slot_id);
+    if (!xhci_poll_transfer_complete(rt_base, slot_id)) {
+        return false;
+    }
+
+    uint8_t *desc = (uint8_t *)&g_ep0_buf[0];
+    uint16_t vid = (uint16_t)(desc[8] | (desc[9] << 8));
+    uint16_t pid = (uint16_t)(desc[10] | (desc[11] << 8));
+    serial_printf("[XHCI] Device descriptor: VID=0x%04x PID=0x%04x class=0x%02x\n",
+                  vid, pid, desc[4]);
+    return true;
 }
 
 static inline uint32_t mmio_read32(uintptr_t base, uint32_t off) {
