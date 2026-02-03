@@ -86,6 +86,8 @@ typedef struct __attribute__((packed)) {
 #define XHCI_TRB_TYPE_STATUS_STAGE 4
 #define XHCI_TRB_TYPE_EVT_TRANSFER 32
 #define XHCI_TRB_CYCLE      (1u << 0)
+#define XHCI_TRB_IOC        (1u << 5)
+#define XHCI_TRB_IDT        (1u << 6)
 
 typedef struct __attribute__((packed)) {
     uint64_t seg_base;
@@ -190,6 +192,40 @@ static bool xhci_poll_cmd_complete(uintptr_t rt_base, uint8_t *out_slot_id) {
     return false;
 }
 
+static bool xhci_poll_transfer_complete(uintptr_t rt_base, uint8_t slot_id) {
+    for (uint32_t i = 0; i < 100000; i++) {
+        xhci_trb_t *evt = &g_evt_ring[g_evt_ring_index];
+        uint32_t cycle = evt->dword3 & XHCI_TRB_CYCLE;
+        if (cycle == (g_evt_cycle ? XHCI_TRB_CYCLE : 0)) {
+            uint32_t type = (evt->dword3 & XHCI_TRB_TYPE_MASK) >> XHCI_TRB_TYPE_SHIFT;
+            if (type == XHCI_TRB_TYPE_EVT_TRANSFER) {
+                uint8_t evt_slot = (uint8_t)((evt->dword3 >> 24) & 0xFF);
+                if (evt_slot == slot_id) {
+                    uint32_t comp = (evt->dword2 >> 24) & 0xFF;
+                    uint32_t len = evt->dword2 & 0xFFFFFF;
+                    serial_printf("[XHCI] Transfer complete slot=%u code=%u len=%u\n",
+                                  evt_slot, comp, len);
+
+                    g_evt_ring_index++;
+                    if (g_evt_ring_index >= (sizeof(g_evt_ring) / sizeof(g_evt_ring[0]))) {
+                        g_evt_ring_index = 0;
+                        g_evt_cycle ^= 1;
+                    }
+                    uintptr_t erdp = (uintptr_t)&g_evt_ring[g_evt_ring_index];
+                    mmio_write32(rt_base, XHCI_RT_ERDP_LO, (uint32_t)(erdp & 0xFFFFFFFFu));
+#if UINTPTR_MAX > 0xFFFFFFFFu
+                    mmio_write32(rt_base, XHCI_RT_ERDP_HI, (uint32_t)(erdp >> 32));
+#else
+                    mmio_write32(rt_base, XHCI_RT_ERDP_HI, 0);
+#endif
+                    return true;
+                }
+            }
+        }
+    }
+    return false;
+}
+
 static void xhci_cmd_ring_enqueue_enable_slot(void) {
     xhci_trb_t *trb = &g_cmd_ring[g_cmd_ring_index++];
     trb->dword0 = 0;
@@ -278,6 +314,7 @@ static void xhci_ep0_enqueue_setup(const usb_setup_packet_t *setup) {
     trb->dword2 = 8;
     trb->dword3 = (XHCI_TRB_TYPE_SETUP_STAGE << XHCI_TRB_TYPE_SHIFT) |
                   (2u << 16) | /* transfer type: IN data stage */
+                  XHCI_TRB_IDT |
                   (g_ep0_cycle ? XHCI_TRB_CYCLE : 0);
 }
 
@@ -288,6 +325,7 @@ static void xhci_ep0_enqueue_data_in(uintptr_t buf, uint32_t len) {
     trb->dword2 = len;
     trb->dword3 = (XHCI_TRB_TYPE_DATA_STAGE << XHCI_TRB_TYPE_SHIFT) |
                   (1u << 16) | /* IN */
+                  XHCI_TRB_IOC |
                   (g_ep0_cycle ? XHCI_TRB_CYCLE : 0);
 }
 
@@ -297,6 +335,7 @@ static void xhci_ep0_enqueue_status(void) {
     trb->dword1 = 0;
     trb->dword2 = 0;
     trb->dword3 = (XHCI_TRB_TYPE_STATUS_STAGE << XHCI_TRB_TYPE_SHIFT) |
+                  XHCI_TRB_IOC |
                   (g_ep0_cycle ? XHCI_TRB_CYCLE : 0);
 }
 
@@ -304,7 +343,7 @@ static void xhci_ep0_ring_doorbell(uintptr_t base, uint32_t dboff, uint8_t slot_
     mmio_write32(base + dboff, XHCI_DB0 + slot_id, 1);
 }
 
-static bool xhci_ep0_get_device_descriptor(uintptr_t base, uint32_t dboff, uint8_t slot_id) {
+static bool xhci_ep0_get_device_descriptor(uintptr_t base, uint32_t dboff, uintptr_t rt_base, uint8_t slot_id) {
     usb_setup_packet_t setup = {
         .bmRequestType = 0x80,
         .bRequest = 6,
@@ -319,7 +358,7 @@ static bool xhci_ep0_get_device_descriptor(uintptr_t base, uint32_t dboff, uint8
     xhci_ep0_ring_doorbell(base, dboff, slot_id);
 
     serial_printf("[XHCI] GET_DESCRIPTOR issued for slot %u\n", slot_id);
-    return true;
+    return xhci_poll_transfer_complete(rt_base, slot_id);
 }
 
 static inline uint32_t mmio_read32(uintptr_t base, uint32_t off) {
@@ -513,7 +552,7 @@ bool xhci_init_x86(void) {
                         if (xhci_poll_cmd_complete(rt_base, &slot_id)) {
                             serial_printf("[XHCI] Enable Slot complete, slot=%u\n", slot_id);
                             if (xhci_address_device(base, dboff, rt_base, slot_id, (uint8_t)(p + 1), portsc)) {
-                                xhci_ep0_get_device_descriptor(base, dboff, slot_id);
+                                xhci_ep0_get_device_descriptor(base, dboff, rt_base, slot_id);
                             }
                         } else {
                             serial_puts("[XHCI] Enable Slot timeout\n");
