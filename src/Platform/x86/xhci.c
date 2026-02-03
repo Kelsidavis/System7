@@ -111,6 +111,10 @@ static uint32_t __attribute__((aligned(64))) g_input_ctx[48];
 static uint32_t __attribute__((aligned(64))) g_dev_ctx[32];
 static xhci_trb_t __attribute__((aligned(64))) g_ep0_ring[32];
 static uint32_t __attribute__((aligned(64))) g_ep0_buf[64];
+static uint8_t g_hid_ep_addr = 0;
+static uint16_t g_hid_ep_mps = 0;
+static uint8_t g_hid_ep_interval = 0;
+static uint8_t g_hid_slot = 0;
 static uint32_t g_ctx_size = 32;
 
 static uint32_t g_cmd_ring_index = 0;
@@ -343,6 +347,24 @@ static void xhci_ep0_ring_doorbell(uintptr_t base, uint32_t dboff, uint8_t slot_
     mmio_write32(base + dboff, XHCI_DB0 + slot_id, 1);
 }
 
+static bool xhci_ep0_set_configuration(uintptr_t base, uint32_t dboff, uintptr_t rt_base,
+                                       uint8_t slot_id, uint8_t config_value) {
+    usb_setup_packet_t setup = {
+        .bmRequestType = 0x00,
+        .bRequest = 9,
+        .wValue = config_value,
+        .wIndex = 0,
+        .wLength = 0
+    };
+
+    xhci_ep0_enqueue_setup(&setup);
+    xhci_ep0_enqueue_status();
+    xhci_ep0_ring_doorbell(base, dboff, slot_id);
+
+    serial_printf("[XHCI] SET_CONFIGURATION %u for slot %u\n", config_value, slot_id);
+    return xhci_poll_transfer_complete(rt_base, slot_id);
+}
+
 static bool xhci_ep0_get_device_descriptor(uintptr_t base, uint32_t dboff, uintptr_t rt_base, uint8_t slot_id) {
     usb_setup_packet_t setup = {
         .bmRequestType = 0x80,
@@ -393,9 +415,13 @@ static bool xhci_ep0_get_config_descriptor(uintptr_t base, uint32_t dboff, uintp
 
     uint8_t *buf = (uint8_t *)&g_ep0_buf[0];
     uint16_t total = (uint16_t)(buf[2] | (buf[3] << 8));
+    uint8_t config_value = buf[5];
     serial_printf("[XHCI] Config total length=%u\n", total);
 
     uint32_t off = 0;
+    g_hid_ep_addr = 0;
+    g_hid_ep_mps = 0;
+    g_hid_ep_interval = 0;
     while (off + 1 < 64) {
         uint8_t len = buf[off];
         uint8_t type = buf[off + 1];
@@ -408,7 +434,26 @@ static bool xhci_ep0_get_config_descriptor(uintptr_t base, uint32_t dboff, uintp
             uint8_t proto = buf[off + 7];
             serial_printf("[XHCI] IF cls=0x%02x sub=0x%02x proto=0x%02x\n", cls, sub, proto);
         }
+        if (type == 5 && len >= 7) {
+            uint8_t ep_addr = buf[off + 2];
+            uint8_t attrs = buf[off + 3];
+            uint16_t mps = (uint16_t)(buf[off + 4] | (buf[off + 5] << 8));
+            uint8_t interval = buf[off + 6];
+            uint8_t ep_type = attrs & 0x3;
+            if ((ep_addr & 0x80) && ep_type == 3 && g_hid_ep_addr == 0) {
+                g_hid_ep_addr = ep_addr;
+                g_hid_ep_mps = mps;
+                g_hid_ep_interval = interval;
+                serial_printf("[XHCI] HID INT IN ep=0x%02x mps=%u interval=%u\n",
+                              ep_addr, mps, interval);
+            }
+        }
         off += len;
+    }
+
+    g_hid_slot = slot_id;
+    if (config_value != 0) {
+        xhci_ep0_set_configuration(base, dboff, rt_base, slot_id, config_value);
     }
 
     return true;
