@@ -11,6 +11,8 @@
 #include "usb_core.h"
 #include "Platform/include/serial.h"
 #include <stdint.h>
+#include <string.h>
+#include <limits.h>
 
 #define XHCI_CLASS_CODE 0x0C
 #define XHCI_SUBCLASS   0x03
@@ -20,26 +22,135 @@
 #define XHCI_CAPLENGTH    0x00
 #define XHCI_HCSPARAMS1   0x04
 #define XHCI_HCIVERSION   0x02
+#define XHCI_DBOFF        0x14
+#define XHCI_RTSOFF       0x18
 
 /* Operational registers (offset from operational base) */
 #define XHCI_USBCMD       0x00
 #define XHCI_USBSTS       0x04
+#define XHCI_CONFIG       0x38
+#define XHCI_DNCTRL       0x14
+#define XHCI_DCBAAP_LO    0x30
+#define XHCI_DCBAAP_HI    0x34
+#define XHCI_CRCR_LO      0x18
+#define XHCI_CRCR_HI      0x1C
 #define XHCI_PORTSC_BASE  0x400
 #define XHCI_PORTSC_STRIDE 0x10
 
 /* USBCMD bits */
 #define XHCI_CMD_RUN      (1u << 0)
 #define XHCI_CMD_RESET    (1u << 1)
+#define XHCI_CMD_INTE     (1u << 2)
 
 /* USBSTS bits */
 #define XHCI_STS_HCH      (1u << 0)
 #define XHCI_STS_CNR      (1u << 11)
+#define XHCI_STS_CE       (1u << 2)
+#define XHCI_STS_EINT     (1u << 3)
 
 #define XHCI_PORTSC_CCS   (1u << 0)
 #define XHCI_PORTSC_PED   (1u << 1)
 #define XHCI_PORTSC_PR    (1u << 4)
 #define XHCI_PORTSC_PRC   (1u << 21)
 #define XHCI_PORTSC_PEC   (1u << 19)
+
+/* Runtime registers (offset from runtime base) */
+#define XHCI_RT_IMAN      0x20
+#define XHCI_RT_IMOD      0x24
+#define XHCI_RT_ERSTSZ    0x28
+#define XHCI_RT_ERSTBA_LO 0x30
+#define XHCI_RT_ERSTBA_HI 0x34
+#define XHCI_RT_ERDP_LO   0x38
+#define XHCI_RT_ERDP_HI   0x3C
+
+/* Doorbell */
+#define XHCI_DB0          0x00
+
+/* TRB */
+typedef struct __attribute__((packed)) {
+    uint32_t dword0;
+    uint32_t dword1;
+    uint32_t dword2;
+    uint32_t dword3;
+} xhci_trb_t;
+
+#define XHCI_TRB_TYPE_SHIFT 10
+#define XHCI_TRB_TYPE_MASK  (0x3F << XHCI_TRB_TYPE_SHIFT)
+#define XHCI_TRB_TYPE_NOOP  23
+#define XHCI_TRB_TYPE_EVT_CMD_COMPLETE 33
+#define XHCI_TRB_CYCLE      (1u << 0)
+
+typedef struct __attribute__((packed)) {
+    uint64_t seg_base;
+    uint32_t seg_size;
+    uint32_t rsvd;
+} xhci_erst_entry_t;
+
+static xhci_trb_t __attribute__((aligned(64))) g_cmd_ring[32];
+static xhci_trb_t __attribute__((aligned(64))) g_evt_ring[32];
+static xhci_erst_entry_t __attribute__((aligned(64))) g_erst[1];
+static uint64_t __attribute__((aligned(64))) g_dcbaa[256];
+
+static uint32_t g_cmd_ring_index = 0;
+static uint32_t g_cmd_cycle = 1;
+static uint32_t g_evt_cycle = 1;
+
+static inline uint32_t mmio_read32(uintptr_t base, uint32_t off);
+static inline void mmio_write32(uintptr_t base, uint32_t off, uint32_t value);
+
+static void xhci_ring_doorbell(uintptr_t base, uint32_t db_off, uint32_t target) {
+    mmio_write32(base + db_off, XHCI_DB0 + target, 0);
+}
+
+static void xhci_ring_init(void) {
+    memset(g_cmd_ring, 0, sizeof(g_cmd_ring));
+    memset(g_evt_ring, 0, sizeof(g_evt_ring));
+    memset(g_erst, 0, sizeof(g_erst));
+    memset(g_dcbaa, 0, sizeof(g_dcbaa));
+    g_cmd_ring_index = 0;
+    g_cmd_cycle = 1;
+    g_evt_cycle = 1;
+}
+
+static void xhci_cmd_ring_enqueue_noop(void) {
+    xhci_trb_t *trb = &g_cmd_ring[g_cmd_ring_index++];
+    trb->dword0 = 0;
+    trb->dword1 = 0;
+    trb->dword2 = 0;
+    trb->dword3 = (XHCI_TRB_TYPE_NOOP << XHCI_TRB_TYPE_SHIFT) | (g_cmd_cycle ? XHCI_TRB_CYCLE : 0);
+
+    if (g_cmd_ring_index >= 31) {
+        xhci_trb_t *link = &g_cmd_ring[g_cmd_ring_index++];
+        link->dword0 = (uint32_t)((uintptr_t)&g_cmd_ring[0] & 0xFFFFFFFFu);
+        link->dword1 = 0;
+        link->dword2 = 0;
+        link->dword3 = (6u << XHCI_TRB_TYPE_SHIFT) | XHCI_TRB_CYCLE | (1u << 1);
+        g_cmd_ring_index = 0;
+        g_cmd_cycle ^= 1;
+    }
+}
+
+static bool xhci_poll_cmd_complete(uintptr_t rt_base) {
+    uintptr_t erdp = (uintptr_t)&g_evt_ring[0];
+    for (uint32_t i = 0; i < 100000; i++) {
+        xhci_trb_t *evt = &g_evt_ring[0];
+        uint32_t cycle = evt->dword3 & XHCI_TRB_CYCLE;
+        if (cycle == (g_evt_cycle ? XHCI_TRB_CYCLE : 0)) {
+            uint32_t type = (evt->dword3 & XHCI_TRB_TYPE_MASK) >> XHCI_TRB_TYPE_SHIFT;
+            if (type == XHCI_TRB_TYPE_EVT_CMD_COMPLETE) {
+                /* advance dequeue */
+                mmio_write32(rt_base, XHCI_RT_ERDP_LO, (uint32_t)(erdp & 0xFFFFFFFFu));
+#if UINTPTR_MAX > 0xFFFFFFFFu
+                mmio_write32(rt_base, XHCI_RT_ERDP_HI, (uint32_t)(erdp >> 32));
+#else
+                mmio_write32(rt_base, XHCI_RT_ERDP_HI, 0);
+#endif
+                return true;
+            }
+        }
+    }
+    return false;
+}
 
 static inline uint32_t mmio_read32(uintptr_t base, uint32_t off) {
     volatile uint32_t *ptr = (volatile uint32_t *)(base + off);
@@ -158,21 +269,65 @@ bool xhci_init_x86(void) {
             uint8_t cap_len = (uint8_t)(mmio_read32(base, XHCI_CAPLENGTH) & 0xFF);
             uint16_t version = (uint16_t)((mmio_read32(base, XHCI_HCIVERSION)) & 0xFFFF);
             uint32_t params1 = mmio_read32(base, XHCI_HCSPARAMS1);
+            uint32_t dboff = mmio_read32(base, XHCI_DBOFF) & ~0x3u;
+            uint32_t rtsoff = mmio_read32(base, XHCI_RTSOFF) & ~0x1Fu;
             uint8_t ports = (uint8_t)(params1 & 0xFF);
 
             serial_printf("[XHCI] caplen=%u version=%x ports=%u\n", cap_len, version, ports);
+            serial_printf("[XHCI] dboff=0x%08x rtsoff=0x%08x\n", dboff, rtsoff);
 
             if (!xhci_reset(base, cap_len)) {
                 serial_puts("[XHCI] reset timeout\n");
                 return false;
             }
 
+            xhci_ring_init();
+
+            uintptr_t op_base = base + cap_len;
+            /* Program DCBAA */
+            mmio_write32(op_base, XHCI_DCBAAP_LO, (uint32_t)((uintptr_t)&g_dcbaa[0] & 0xFFFFFFFFu));
+            mmio_write32(op_base, XHCI_DCBAAP_HI, 0);
+
+            /* Program command ring */
+            uintptr_t cmd_ring_ptr = (uintptr_t)&g_cmd_ring[0];
+            mmio_write32(op_base, XHCI_CRCR_LO, (uint32_t)(cmd_ring_ptr & 0xFFFFFFFFu) | XHCI_TRB_CYCLE);
+#if UINTPTR_MAX > 0xFFFFFFFFu
+            mmio_write32(op_base, XHCI_CRCR_HI, (uint32_t)(cmd_ring_ptr >> 32));
+#else
+            mmio_write32(op_base, XHCI_CRCR_HI, 0);
+#endif
+
+            /* Event ring (interrupter 0) */
+            g_erst[0].seg_base = (uint64_t)(uintptr_t)&g_evt_ring[0];
+            g_erst[0].seg_size = (uint32_t)(sizeof(g_evt_ring) / sizeof(g_evt_ring[0]));
+
+            uintptr_t rt_base = base + rtsoff;
+            mmio_write32(rt_base, XHCI_RT_ERSTSZ, 1);
+            mmio_write32(rt_base, XHCI_RT_ERSTBA_LO, (uint32_t)((uintptr_t)&g_erst[0] & 0xFFFFFFFFu));
+            mmio_write32(rt_base, XHCI_RT_ERSTBA_HI, 0);
+            mmio_write32(rt_base, XHCI_RT_ERDP_LO, (uint32_t)((uintptr_t)&g_evt_ring[0] & 0xFFFFFFFFu));
+            mmio_write32(rt_base, XHCI_RT_ERDP_HI, 0);
+
+            /* Enable interrupter */
+            mmio_write32(rt_base, XHCI_RT_IMAN, 1);
+            mmio_write32(rt_base, XHCI_RT_IMOD, 0);
+
+            /* Set max device slots enabled */
+            mmio_write32(op_base, XHCI_CONFIG, 1);
+
             if (!xhci_start(base, cap_len)) {
                 serial_puts("[XHCI] start timeout\n");
                 return false;
             }
 
-            uintptr_t op_base = base + cap_len;
+            /* Test: issue a NO-OP command */
+            xhci_cmd_ring_enqueue_noop();
+            xhci_ring_doorbell(base, dboff, 0);
+            if (xhci_poll_cmd_complete(rt_base)) {
+                serial_puts("[XHCI] NOOP command completed\n");
+            } else {
+                serial_puts("[XHCI] NOOP command timeout\n");
+            }
             for (uint8_t p = 0; p < ports; p++) {
                 uint32_t portsc = mmio_read32(op_base, XHCI_PORTSC_BASE + p * XHCI_PORTSC_STRIDE);
                 if (portsc & XHCI_PORTSC_CCS) {
