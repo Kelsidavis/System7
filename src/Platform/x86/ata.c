@@ -9,6 +9,7 @@
 #include "Platform/include/storage.h"
 #include "Platform/include/io.h"
 #include "FileManagerTypes.h"
+#include "xhci.h"
 #include <stddef.h>
 #include "Platform/PlatformLogging.h"
 
@@ -549,7 +550,7 @@ OSErr hal_storage_shutdown(void) {
  * ATA_GetDeviceCount - Get number of detected devices
  */
 int hal_storage_get_drive_count(void) {
-    return g_device_count;
+    return g_device_count + (xhci_msc_available() ? 1 : 0);
 }
 
 /*
@@ -830,10 +831,23 @@ OSErr hal_storage_get_drive_info(int drive_index, hal_storage_info_t* info) {
         return paramErr;
     }
 
-    ATADevice* device = ATA_GetDevice(drive_index);
-    if (!device) {
+    if (drive_index >= g_device_count) {
+        if (drive_index == g_device_count && xhci_msc_available()) {
+            uint32_t block_size = 0;
+            uint64_t block_count = 0;
+            bool read_only = false;
+            OSErr err = xhci_msc_get_info(&block_size, &block_count, &read_only);
+            if (err != noErr) {
+                return err;
+            }
+            info->block_size = block_size;
+            info->block_count = block_count;
+            return noErr;
+        }
         return paramErr;
     }
+
+    ATADevice* device = ATA_GetDevice(drive_index);
 
     if (device->type == ATA_DEVICE_PATAPI || device->type == ATA_DEVICE_SATAPI) {
         info->block_size = ATAPI_SECTOR_SIZE;
@@ -847,10 +861,14 @@ OSErr hal_storage_get_drive_info(int drive_index, hal_storage_info_t* info) {
 }
 
 OSErr hal_storage_read_blocks(int drive_index, uint64_t start_block, uint32_t block_count, void* buffer) {
-    ATADevice* device = ATA_GetDevice(drive_index);
-    if (!device) {
+    if (drive_index >= g_device_count) {
+        if (drive_index == g_device_count && xhci_msc_available()) {
+            return xhci_msc_read_blocks(start_block, block_count, buffer);
+        }
         return paramErr;
     }
+
+    ATADevice* device = ATA_GetDevice(drive_index);
 
     if (device->type == ATA_DEVICE_PATAPI || device->type == ATA_DEVICE_SATAPI) {
         uint8_t* buf = (uint8_t*)buffer;
@@ -896,10 +914,14 @@ OSErr hal_storage_read_blocks(int drive_index, uint64_t start_block, uint32_t bl
 }
 
 OSErr hal_storage_write_blocks(int drive_index, uint64_t start_block, uint32_t block_count, const void* buffer) {
-    ATADevice* device = ATA_GetDevice(drive_index);
-    if (!device) {
+    if (drive_index >= g_device_count) {
+        if (drive_index == g_device_count && xhci_msc_available()) {
+            return xhci_msc_write_blocks(start_block, block_count, buffer);
+        }
         return paramErr;
     }
+
+    ATADevice* device = ATA_GetDevice(drive_index);
 
     if (device->type == ATA_DEVICE_PATAPI || device->type == ATA_DEVICE_SATAPI) {
         return wPrErr;

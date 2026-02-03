@@ -16,6 +16,8 @@
 #include "EventManager/EventTypes.h"
 #include "EventManager/EventManager.h"
 #include "OSUtils/OSUtils.h"
+#include "SystemTypes.h"
+#include "FileManagerTypes.h"
 #include <stdint.h>
 #include <string.h>
 #include <limits.h>
@@ -164,6 +166,9 @@ typedef struct {
     uint32_t out_cycle;
     bool configured;
     uint32_t tag;
+    uint32_t block_size;
+    uint64_t block_count;
+    bool readonly;
 } xhci_msc_dev_t;
 
 static xhci_msc_dev_t g_msc;
@@ -856,7 +861,7 @@ static void xhci_hid_poll_events(uintptr_t rt_base) {
 }
 
 static bool xhci_msc_bulk_transfer(uintptr_t base, uint32_t dboff, uintptr_t rt_base,
-                                   bool in, void *buf, uint32_t len) {
+                                   bool in, const void *buf, uint32_t len) {
     if (!g_msc.configured) {
         return false;
     }
@@ -909,50 +914,77 @@ static bool xhci_msc_recv_csw(uintptr_t base, uint32_t dboff, uintptr_t rt_base)
     return true;
 }
 
-static void xhci_msc_smoke_test(uintptr_t base, uint32_t dboff, uintptr_t rt_base) {
+static bool xhci_msc_read_capacity(uintptr_t base, uint32_t dboff, uintptr_t rt_base) {
     uint8_t cb[16];
-
-    memset(cb, 0, sizeof(cb));
-    cb[0] = 0x12; /* INQUIRY */
-    cb[4] = 36;
-    if (!xhci_msc_send_cbw(base, dboff, rt_base, cb, 6, 36, true)) {
-        serial_puts("[XHCI] MSC INQUIRY CBW failed\n");
-        return;
-    }
-    if (!xhci_msc_bulk_transfer(base, dboff, rt_base, true, g_msc_data_buf, 36)) {
-        serial_puts("[XHCI] MSC INQUIRY data failed\n");
-        return;
-    }
-    if (!xhci_msc_recv_csw(base, dboff, rt_base)) {
-        serial_puts("[XHCI] MSC INQUIRY CSW failed\n");
-        return;
-    }
-
-    serial_printf("[XHCI] MSC INQUIRY vendor=%.8s product=%.16s\n",
-                  (char *)&g_msc_data_buf[2], (char *)&g_msc_data_buf[6]);
 
     memset(cb, 0, sizeof(cb));
     cb[0] = 0x25; /* READ CAPACITY(10) */
     if (!xhci_msc_send_cbw(base, dboff, rt_base, cb, 10, 8, true)) {
         serial_puts("[XHCI] MSC READ CAPACITY CBW failed\n");
-        return;
+        return false;
     }
     if (!xhci_msc_bulk_transfer(base, dboff, rt_base, true, g_msc_data_buf, 8)) {
         serial_puts("[XHCI] MSC READ CAPACITY data failed\n");
-        return;
+        return false;
     }
     if (!xhci_msc_recv_csw(base, dboff, rt_base)) {
         serial_puts("[XHCI] MSC READ CAPACITY CSW failed\n");
-        return;
+        return false;
     }
 
     uint32_t last_lba = (g_msc_data_buf[0] << 24) | (g_msc_data_buf[1] << 16) |
                         (g_msc_data_buf[2] << 8) | g_msc_data_buf[3];
     uint32_t blk_size = (g_msc_data_buf[4] << 24) | (g_msc_data_buf[5] << 16) |
                         (g_msc_data_buf[6] << 8) | g_msc_data_buf[7];
+    g_msc.block_size = blk_size;
+    g_msc.block_count = (uint64_t)last_lba + 1u;
     serial_printf("[XHCI] MSC capacity last_lba=%u block_size=%u\n", last_lba, blk_size);
+    return (blk_size != 0);
+}
 
-    if (blk_size == 0 || blk_size > sizeof(g_msc_data_buf)) {
+static bool xhci_msc_inquiry(uintptr_t base, uint32_t dboff, uintptr_t rt_base) {
+    uint8_t cb[16];
+    memset(cb, 0, sizeof(cb));
+    cb[0] = 0x12; /* INQUIRY */
+    cb[4] = 36;
+    if (!xhci_msc_send_cbw(base, dboff, rt_base, cb, 6, 36, true)) {
+        serial_puts("[XHCI] MSC INQUIRY CBW failed\n");
+        return false;
+    }
+    if (!xhci_msc_bulk_transfer(base, dboff, rt_base, true, g_msc_data_buf, 36)) {
+        serial_puts("[XHCI] MSC INQUIRY data failed\n");
+        return false;
+    }
+    if (!xhci_msc_recv_csw(base, dboff, rt_base)) {
+        serial_puts("[XHCI] MSC INQUIRY CSW failed\n");
+        return false;
+    }
+
+    serial_printf("[XHCI] MSC INQUIRY vendor=%.8s product=%.16s\n",
+                  (char *)&g_msc_data_buf[2], (char *)&g_msc_data_buf[6]);
+    return true;
+}
+
+static bool xhci_msc_test_unit_ready(uintptr_t base, uint32_t dboff, uintptr_t rt_base) {
+    uint8_t cb[16];
+    memset(cb, 0, sizeof(cb));
+    cb[0] = 0x00; /* TEST UNIT READY */
+    if (!xhci_msc_send_cbw(base, dboff, rt_base, cb, 6, 0, false)) {
+        return false;
+    }
+    return xhci_msc_recv_csw(base, dboff, rt_base);
+}
+
+static void xhci_msc_smoke_test(uintptr_t base, uint32_t dboff, uintptr_t rt_base) {
+    uint8_t cb[16];
+    if (!xhci_msc_inquiry(base, dboff, rt_base)) {
+        return;
+    }
+    if (!xhci_msc_read_capacity(base, dboff, rt_base)) {
+        return;
+    }
+
+    if (g_msc.block_size == 0 || g_msc.block_size > sizeof(g_msc_data_buf)) {
         serial_puts("[XHCI] MSC block size unsupported for smoke test\n");
         return;
     }
@@ -961,11 +993,11 @@ static void xhci_msc_smoke_test(uintptr_t base, uint32_t dboff, uintptr_t rt_bas
     cb[0] = 0x28; /* READ(10) */
     cb[7] = 0;
     cb[8] = 1; /* 1 block */
-    if (!xhci_msc_send_cbw(base, dboff, rt_base, cb, 10, blk_size, true)) {
+    if (!xhci_msc_send_cbw(base, dboff, rt_base, cb, 10, g_msc.block_size, true)) {
         serial_puts("[XHCI] MSC READ10 CBW failed\n");
         return;
     }
-    if (!xhci_msc_bulk_transfer(base, dboff, rt_base, true, g_msc_data_buf, blk_size)) {
+    if (!xhci_msc_bulk_transfer(base, dboff, rt_base, true, g_msc_data_buf, g_msc.block_size)) {
         serial_puts("[XHCI] MSC READ10 data failed\n");
         return;
     }
@@ -977,6 +1009,201 @@ static void xhci_msc_smoke_test(uintptr_t base, uint32_t dboff, uintptr_t rt_bas
     serial_printf("[XHCI] MSC LBA0: %02x %02x %02x %02x\n",
                   ((uint8_t *)g_msc_data_buf)[0], ((uint8_t *)g_msc_data_buf)[1],
                   ((uint8_t *)g_msc_data_buf)[2], ((uint8_t *)g_msc_data_buf)[3]);
+}
+
+static bool xhci_msc_init_if_needed(void) {
+    if (!g_msc.configured || !g_xhci_base || !g_xhci_rt_base) {
+        return false;
+    }
+    if (g_msc.block_size != 0 && g_msc.block_count != 0) {
+        return true;
+    }
+
+    if (!xhci_msc_test_unit_ready(g_xhci_base, g_xhci_dboff, g_xhci_rt_base)) {
+        serial_puts("[XHCI] MSC not ready\n");
+    }
+
+    if (!xhci_msc_inquiry(g_xhci_base, g_xhci_dboff, g_xhci_rt_base)) {
+        return false;
+    }
+    return xhci_msc_read_capacity(g_xhci_base, g_xhci_dboff, g_xhci_rt_base);
+}
+
+bool xhci_msc_available(void) {
+    return xhci_msc_init_if_needed();
+}
+
+OSErr xhci_msc_get_info(uint32_t *block_size, uint64_t *block_count, bool *read_only) {
+    if (!xhci_msc_available()) {
+        return paramErr;
+    }
+    if (block_size) {
+        *block_size = g_msc.block_size;
+    }
+    if (block_count) {
+        *block_count = g_msc.block_count;
+    }
+    if (read_only) {
+        *read_only = g_msc.readonly;
+    }
+    return noErr;
+}
+
+static OSErr xhci_msc_read_blocks_internal(uint64_t start_block, uint32_t block_count, void *buffer) {
+    if (!xhci_msc_available() || !buffer) {
+        return paramErr;
+    }
+    if (g_msc.block_size == 0 || g_msc.block_count == 0) {
+        return ioErr;
+    }
+    if (start_block >= g_msc.block_count) {
+        return paramErr;
+    }
+    if (block_count == 0) {
+        return noErr;
+    }
+    if (start_block + block_count > g_msc.block_count) {
+        return paramErr;
+    }
+    if (g_msc.block_size > sizeof(g_msc_data_buf)) {
+        return paramErr;
+    }
+
+    uint8_t *buf = (uint8_t *)buffer;
+    uint32_t max_blocks = (uint32_t)(sizeof(g_msc_data_buf) / g_msc.block_size);
+    if (max_blocks == 0) {
+        return paramErr;
+    }
+
+    uint64_t lba = start_block;
+    uint32_t remaining = block_count;
+
+    while (remaining > 0) {
+        uint32_t chunk = remaining;
+        if (chunk > max_blocks) {
+            chunk = max_blocks;
+        }
+        if (chunk > 0xFFFFu) {
+            chunk = 0xFFFFu;
+        }
+        if (lba > 0xFFFFFFFFu) {
+            return paramErr;
+        }
+
+        uint8_t cb[16];
+        memset(cb, 0, sizeof(cb));
+        cb[0] = 0x28; /* READ(10) */
+        cb[2] = (uint8_t)((lba >> 24) & 0xFF);
+        cb[3] = (uint8_t)((lba >> 16) & 0xFF);
+        cb[4] = (uint8_t)((lba >> 8) & 0xFF);
+        cb[5] = (uint8_t)(lba & 0xFF);
+        cb[7] = (uint8_t)((chunk >> 8) & 0xFF);
+        cb[8] = (uint8_t)(chunk & 0xFF);
+
+        uint32_t data_len = chunk * g_msc.block_size;
+        if (!xhci_msc_send_cbw(g_xhci_base, g_xhci_dboff, g_xhci_rt_base,
+                               cb, 10, data_len, true)) {
+            return ioErr;
+        }
+
+        if (!xhci_msc_bulk_transfer(g_xhci_base, g_xhci_dboff, g_xhci_rt_base,
+                                    true, buf, data_len)) {
+            return ioErr;
+        }
+
+        if (!xhci_msc_recv_csw(g_xhci_base, g_xhci_dboff, g_xhci_rt_base)) {
+            return ioErr;
+        }
+
+        remaining -= chunk;
+        lba += chunk;
+        buf += data_len;
+    }
+
+    return noErr;
+}
+
+static OSErr xhci_msc_write_blocks_internal(uint64_t start_block, uint32_t block_count, const void *buffer) {
+    if (!xhci_msc_available() || !buffer) {
+        return paramErr;
+    }
+    if (g_msc.block_size == 0 || g_msc.block_count == 0) {
+        return ioErr;
+    }
+    if (start_block >= g_msc.block_count) {
+        return paramErr;
+    }
+    if (block_count == 0) {
+        return noErr;
+    }
+    if (start_block + block_count > g_msc.block_count) {
+        return paramErr;
+    }
+    if (g_msc.readonly) {
+        return wPrErr;
+    }
+    if (g_msc.block_size > sizeof(g_msc_data_buf)) {
+        return paramErr;
+    }
+
+    const uint8_t *buf = (const uint8_t *)buffer;
+    uint32_t max_blocks = (uint32_t)(sizeof(g_msc_data_buf) / g_msc.block_size);
+    if (max_blocks == 0) {
+        return paramErr;
+    }
+
+    uint64_t lba = start_block;
+    uint32_t remaining = block_count;
+
+    while (remaining > 0) {
+        uint32_t chunk = remaining;
+        if (chunk > max_blocks) {
+            chunk = max_blocks;
+        }
+        if (chunk > 0xFFFFu) {
+            chunk = 0xFFFFu;
+        }
+        if (lba > 0xFFFFFFFFu) {
+            return paramErr;
+        }
+
+        uint8_t cb[16];
+        memset(cb, 0, sizeof(cb));
+        cb[0] = 0x2A; /* WRITE(10) */
+        cb[2] = (uint8_t)((lba >> 24) & 0xFF);
+        cb[3] = (uint8_t)((lba >> 16) & 0xFF);
+        cb[4] = (uint8_t)((lba >> 8) & 0xFF);
+        cb[5] = (uint8_t)(lba & 0xFF);
+        cb[7] = (uint8_t)((chunk >> 8) & 0xFF);
+        cb[8] = (uint8_t)(chunk & 0xFF);
+
+        uint32_t data_len = chunk * g_msc.block_size;
+        if (!xhci_msc_send_cbw(g_xhci_base, g_xhci_dboff, g_xhci_rt_base,
+                               cb, 10, data_len, false)) {
+            return ioErr;
+        }
+        if (!xhci_msc_bulk_transfer(g_xhci_base, g_xhci_dboff, g_xhci_rt_base,
+                                    false, buf, data_len)) {
+            return ioErr;
+        }
+        if (!xhci_msc_recv_csw(g_xhci_base, g_xhci_dboff, g_xhci_rt_base)) {
+            return ioErr;
+        }
+
+        remaining -= chunk;
+        lba += chunk;
+        buf += data_len;
+    }
+
+    return noErr;
+}
+
+OSErr xhci_msc_read_blocks(uint64_t start_block, uint32_t block_count, void *buffer) {
+    return xhci_msc_read_blocks_internal(start_block, block_count, buffer);
+}
+
+OSErr xhci_msc_write_blocks(uint64_t start_block, uint32_t block_count, const void *buffer) {
+    return xhci_msc_write_blocks_internal(start_block, block_count, buffer);
 }
 
 static UInt16 xhci_hid_modifiers(uint8_t mods) {
