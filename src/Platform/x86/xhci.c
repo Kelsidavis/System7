@@ -267,6 +267,7 @@ static uint8_t g_xhci_max_slots = 0;
 static uint8_t g_xhci_enum_port = 0;
 static uint8_t g_msc_last_luns[MAX_XHCI_PORTS];
 static uint8_t g_slot_num_configs[MAX_XHCI_SLOTS];
+static uint32_t g_ep0_tmp_buf[(1024 + 3) / 4] __attribute__((aligned(64)));
 
 static inline uint32_t mmio_read32(uintptr_t base, uint32_t off);
 static inline void mmio_write32(uintptr_t base, uint32_t off, uint32_t value);
@@ -767,6 +768,7 @@ static bool xhci_ep0_get_device_descriptor(uintptr_t base, uint32_t dboff, uintp
 
 static bool xhci_ep0_get_config_descriptor(uintptr_t base, uint32_t dboff, uintptr_t rt_base,
                                            uint8_t slot_id, uint8_t config_index) {
+    const uint16_t max_len = (uint16_t)sizeof(g_ep0_tmp_buf);
     usb_setup_packet_t setup = {
         .bmRequestType = 0x80,
         .bRequest = 6,
@@ -775,11 +777,10 @@ static bool xhci_ep0_get_config_descriptor(uintptr_t base, uint32_t dboff, uintp
         .wLength = 9
     };
 
-    uint8_t slot_index = (uint8_t)(slot_id - 1);
-    memset(g_ep0_buf[slot_index], 0, sizeof(g_ep0_buf[slot_index]));
+    memset(g_ep0_tmp_buf, 0, sizeof(g_ep0_tmp_buf));
     xhci_ep0_reset_ring(slot_id);
     xhci_ep0_enqueue_setup(slot_id, &setup);
-    xhci_ep0_enqueue_data_in(slot_id, (uintptr_t)&g_ep0_buf[slot_index][0], 9);
+    xhci_ep0_enqueue_data_in(slot_id, (uintptr_t)&g_ep0_tmp_buf[0], 9);
     xhci_ep0_enqueue_status(slot_id);
     xhci_ep0_ring_doorbell(base, dboff, slot_id);
 
@@ -788,20 +789,19 @@ static bool xhci_ep0_get_config_descriptor(uintptr_t base, uint32_t dboff, uintp
         return false;
     }
 
-    uint8_t *buf = (uint8_t *)&g_ep0_buf[slot_index][0];
+    uint8_t *buf = (uint8_t *)&g_ep0_tmp_buf[0];
     uint16_t total = (uint16_t)(buf[2] | (buf[3] << 8));
     uint8_t config_value = buf[5];
-    uint16_t max_len = (uint16_t)sizeof(g_ep0_buf[slot_index]);
     if (total > max_len) {
         total = max_len;
     }
 
     if (total > 9) {
         setup.wLength = total;
-        memset(g_ep0_buf[slot_index], 0, sizeof(g_ep0_buf[slot_index]));
+        memset(g_ep0_tmp_buf, 0, sizeof(g_ep0_tmp_buf));
         xhci_ep0_reset_ring(slot_id);
         xhci_ep0_enqueue_setup(slot_id, &setup);
-        xhci_ep0_enqueue_data_in(slot_id, (uintptr_t)&g_ep0_buf[slot_index][0], total);
+        xhci_ep0_enqueue_data_in(slot_id, (uintptr_t)&g_ep0_tmp_buf[0], total);
         xhci_ep0_enqueue_status(slot_id);
         xhci_ep0_ring_doorbell(base, dboff, slot_id);
 
@@ -809,7 +809,7 @@ static bool xhci_ep0_get_config_descriptor(uintptr_t base, uint32_t dboff, uintp
         if (!xhci_poll_transfer_complete(rt_base, slot_id)) {
             return false;
         }
-        buf = (uint8_t *)&g_ep0_buf[slot_index][0];
+        buf = (uint8_t *)&g_ep0_tmp_buf[0];
     }
 
     serial_printf("[XHCI] Config total length=%u\n", total);
