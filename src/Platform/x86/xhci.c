@@ -81,6 +81,10 @@ typedef struct __attribute__((packed)) {
 #define XHCI_TRB_TYPE_EVT_CMD_COMPLETE 33
 #define XHCI_TRB_TYPE_ENABLE_SLOT 9
 #define XHCI_TRB_TYPE_ADDRESS_DEVICE 11
+#define XHCI_TRB_TYPE_SETUP_STAGE 2
+#define XHCI_TRB_TYPE_DATA_STAGE 3
+#define XHCI_TRB_TYPE_STATUS_STAGE 4
+#define XHCI_TRB_TYPE_EVT_TRANSFER 32
 #define XHCI_TRB_CYCLE      (1u << 0)
 
 typedef struct __attribute__((packed)) {
@@ -89,18 +93,30 @@ typedef struct __attribute__((packed)) {
     uint32_t rsvd;
 } xhci_erst_entry_t;
 
+typedef struct __attribute__((packed)) {
+    uint8_t bmRequestType;
+    uint8_t bRequest;
+    uint16_t wValue;
+    uint16_t wIndex;
+    uint16_t wLength;
+} usb_setup_packet_t;
+
 static xhci_trb_t __attribute__((aligned(64))) g_cmd_ring[32];
 static xhci_trb_t __attribute__((aligned(64))) g_evt_ring[32];
 static xhci_erst_entry_t __attribute__((aligned(64))) g_erst[1];
 static uint64_t __attribute__((aligned(64))) g_dcbaa[256];
 static uint32_t __attribute__((aligned(64))) g_input_ctx[48];
 static uint32_t __attribute__((aligned(64))) g_dev_ctx[32];
+static xhci_trb_t __attribute__((aligned(64))) g_ep0_ring[32];
+static uint32_t __attribute__((aligned(64))) g_ep0_buf[64];
 static uint32_t g_ctx_size = 32;
 
 static uint32_t g_cmd_ring_index = 0;
 static uint32_t g_cmd_cycle = 1;
 static uint32_t g_evt_cycle = 1;
 static uint32_t g_evt_ring_index = 0;
+static uint32_t g_ep0_ring_index = 0;
+static uint32_t g_ep0_cycle = 1;
 
 static inline uint32_t mmio_read32(uintptr_t base, uint32_t off);
 static inline void mmio_write32(uintptr_t base, uint32_t off, uint32_t value);
@@ -114,10 +130,14 @@ static void xhci_ring_init(void) {
     memset(g_evt_ring, 0, sizeof(g_evt_ring));
     memset(g_erst, 0, sizeof(g_erst));
     memset(g_dcbaa, 0, sizeof(g_dcbaa));
+    memset(g_ep0_ring, 0, sizeof(g_ep0_ring));
+    memset(g_ep0_buf, 0, sizeof(g_ep0_buf));
     g_cmd_ring_index = 0;
     g_cmd_cycle = 1;
     g_evt_cycle = 1;
     g_evt_ring_index = 0;
+    g_ep0_ring_index = 0;
+    g_ep0_cycle = 1;
 }
 
 static void xhci_cmd_ring_enqueue_noop(void) {
@@ -221,6 +241,8 @@ static void xhci_build_contexts(uint8_t slot_id, uint8_t port, uint32_t portsc) 
     uint16_t mps = xhci_ep0_mps(portsc);
     ep0[1] = ((uint32_t)mps << 16); /* Max Packet Size */
     ep0[0] = (4u << 3); /* EP type = control (4) */
+    ep0[2] = (uint32_t)((uintptr_t)&g_ep0_ring[0] & 0xFFFFFFFFu);
+    ep0[3] = 0;
 
     /* Device context placeholder */
     g_dcbaa[slot_id] = (uint64_t)(uintptr_t)&g_dev_ctx[0];
@@ -247,6 +269,57 @@ static bool xhci_address_device(uintptr_t base, uint32_t dboff, uintptr_t rt_bas
 
     serial_printf("[XHCI] Address Device timeout for slot %u\n", slot_id);
     return false;
+}
+
+static void xhci_ep0_enqueue_setup(const usb_setup_packet_t *setup) {
+    xhci_trb_t *trb = &g_ep0_ring[g_ep0_ring_index++];
+    trb->dword0 = *(const uint32_t *)setup;
+    trb->dword1 = *((const uint32_t *)setup + 1);
+    trb->dword2 = 8;
+    trb->dword3 = (XHCI_TRB_TYPE_SETUP_STAGE << XHCI_TRB_TYPE_SHIFT) |
+                  (2u << 16) | /* transfer type: IN data stage */
+                  (g_ep0_cycle ? XHCI_TRB_CYCLE : 0);
+}
+
+static void xhci_ep0_enqueue_data_in(uintptr_t buf, uint32_t len) {
+    xhci_trb_t *trb = &g_ep0_ring[g_ep0_ring_index++];
+    trb->dword0 = (uint32_t)(buf & 0xFFFFFFFFu);
+    trb->dword1 = 0;
+    trb->dword2 = len;
+    trb->dword3 = (XHCI_TRB_TYPE_DATA_STAGE << XHCI_TRB_TYPE_SHIFT) |
+                  (1u << 16) | /* IN */
+                  (g_ep0_cycle ? XHCI_TRB_CYCLE : 0);
+}
+
+static void xhci_ep0_enqueue_status(void) {
+    xhci_trb_t *trb = &g_ep0_ring[g_ep0_ring_index++];
+    trb->dword0 = 0;
+    trb->dword1 = 0;
+    trb->dword2 = 0;
+    trb->dword3 = (XHCI_TRB_TYPE_STATUS_STAGE << XHCI_TRB_TYPE_SHIFT) |
+                  (g_ep0_cycle ? XHCI_TRB_CYCLE : 0);
+}
+
+static void xhci_ep0_ring_doorbell(uintptr_t base, uint32_t dboff, uint8_t slot_id) {
+    mmio_write32(base + dboff, XHCI_DB0 + slot_id, 1);
+}
+
+static bool xhci_ep0_get_device_descriptor(uintptr_t base, uint32_t dboff, uint8_t slot_id) {
+    usb_setup_packet_t setup = {
+        .bmRequestType = 0x80,
+        .bRequest = 6,
+        .wValue = 0x0100,
+        .wIndex = 0,
+        .wLength = 18
+    };
+
+    xhci_ep0_enqueue_setup(&setup);
+    xhci_ep0_enqueue_data_in((uintptr_t)&g_ep0_buf[0], 18);
+    xhci_ep0_enqueue_status();
+    xhci_ep0_ring_doorbell(base, dboff, slot_id);
+
+    serial_printf("[XHCI] GET_DESCRIPTOR issued for slot %u\n", slot_id);
+    return true;
 }
 
 static inline uint32_t mmio_read32(uintptr_t base, uint32_t off) {
@@ -439,7 +512,9 @@ bool xhci_init_x86(void) {
                         uint8_t slot_id = 0;
                         if (xhci_poll_cmd_complete(rt_base, &slot_id)) {
                             serial_printf("[XHCI] Enable Slot complete, slot=%u\n", slot_id);
-                            xhci_address_device(base, dboff, rt_base, slot_id, (uint8_t)(p + 1), portsc);
+                            if (xhci_address_device(base, dboff, rt_base, slot_id, (uint8_t)(p + 1), portsc)) {
+                                xhci_ep0_get_device_descriptor(base, dboff, slot_id);
+                            }
                         } else {
                             serial_puts("[XHCI] Enable Slot timeout\n");
                         }
