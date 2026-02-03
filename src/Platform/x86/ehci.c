@@ -7,6 +7,7 @@
 
 #include "ehci.h"
 #include "pci.h"
+#include "usb_core.h"
 #include "Platform/include/serial.h"
 #include <stdint.h>
 
@@ -91,6 +92,7 @@ bool ehci_init_x86(void) {
             uintptr_t base = (uintptr_t)devices[i].bar_addrs[0];
             serial_printf("[EHCI] MMIO base=0x%08x size=0x%08x\n",
                           (uint32_t)base, devices[i].bar_sizes[0]);
+            usb_core_x86_register_controller(USB_CTRL_EHCI, base, true);
 
             uint8_t cap_len = (uint8_t)(mmio_read32(base, EHCI_CAPLENGTH) & 0xFF);
             uint16_t version = (uint16_t)((mmio_read32(base, EHCI_HCIVERSION)) & 0xFFFF);

@@ -7,6 +7,7 @@
 
 #include "uhci.h"
 #include "pci.h"
+#include "usb_core.h"
 #include "Platform/include/serial.h"
 #include "Platform/include/io.h"
 #include <stdint.h>
@@ -69,6 +70,7 @@ bool uhci_init_x86(void) {
 
             uint16_t io_base = (uint16_t)(devices[i].bar_addrs[0] & 0xFFFF);
             serial_printf("[UHCI] IO base=0x%04x\n", io_base);
+            usb_core_x86_register_controller(USB_CTRL_UHCI, (uintptr_t)io_base, false);
 
             if (!uhci_reset(io_base)) {
                 serial_puts("[UHCI] reset timeout\n");
