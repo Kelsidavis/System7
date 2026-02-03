@@ -737,6 +737,40 @@ static bool xhci_ep0_set_configuration(uintptr_t base, uint32_t dboff, uintptr_t
     return xhci_poll_transfer_complete(rt_base, slot_id);
 }
 
+static bool xhci_ep0_set_interface(uintptr_t base, uint32_t dboff, uintptr_t rt_base,
+                                   uint8_t slot_id, uint8_t interface_num, uint8_t alt_setting) {
+    usb_setup_packet_t setup = {
+        .bmRequestType = 0x01, /* Host->Device | Standard | Interface */
+        .bRequest = 11,        /* SET_INTERFACE */
+        .wValue = alt_setting,
+        .wIndex = interface_num,
+        .wLength = 0
+    };
+
+    xhci_ep0_reset_ring(slot_id);
+    xhci_ep0_enqueue_setup(slot_id, &setup);
+    xhci_ep0_enqueue_status(slot_id);
+    xhci_ep0_ring_doorbell(base, dboff, slot_id);
+    return xhci_poll_transfer_complete(rt_base, slot_id);
+}
+
+static bool xhci_ep0_set_protocol(uintptr_t base, uint32_t dboff, uintptr_t rt_base,
+                                  uint8_t slot_id, uint8_t interface_num, uint8_t protocol) {
+    usb_setup_packet_t setup = {
+        .bmRequestType = 0x21, /* Host->Device | Class | Interface */
+        .bRequest = 0x0B,      /* SET_PROTOCOL */
+        .wValue = protocol,
+        .wIndex = interface_num,
+        .wLength = 0
+    };
+
+    xhci_ep0_reset_ring(slot_id);
+    xhci_ep0_enqueue_setup(slot_id, &setup);
+    xhci_ep0_enqueue_status(slot_id);
+    xhci_ep0_ring_doorbell(base, dboff, slot_id);
+    return xhci_poll_transfer_complete(rt_base, slot_id);
+}
+
 static bool xhci_ep0_get_device_descriptor(uintptr_t base, uint32_t dboff, uintptr_t rt_base, uint8_t slot_id) {
     usb_setup_packet_t setup = {
         .bmRequestType = 0x80,
@@ -929,6 +963,11 @@ static bool xhci_ep0_get_config_descriptor(uintptr_t base, uint32_t dboff, uintp
                 msc->interface_num = if_num;
                 found_supported = true;
             }
+            if (cls == 0x03 && sub == 0x01 && (proto == 0x01 || proto == 0x02)) {
+                /* Boot protocol HID: force alt setting 0 and boot protocol. */
+                xhci_ep0_set_interface(base, dboff, rt_base, slot_id, if_num, 0);
+                xhci_ep0_set_protocol(base, dboff, rt_base, slot_id, if_num, 0);
+            }
         }
         if (type == 5 && len >= 7) {
             uint8_t ep_addr = buf[off + 2];
@@ -941,6 +980,9 @@ static bool xhci_ep0_get_config_descriptor(uintptr_t base, uint32_t dboff, uintp
                 if (dev->ep_addr == 0 || dev->slot == slot_id) {
                     dev->slot = slot_id;
                     dev->ep_addr = ep_addr;
+                    if (current_proto == 1 && mps > sizeof(dev->last_report)) {
+                        mps = (uint16_t)sizeof(dev->last_report);
+                    }
                     dev->mps = mps;
                     dev->interval = interval;
                     dev->ep_id = (uint8_t)(2 * (ep_addr & 0x0F) + 1);
