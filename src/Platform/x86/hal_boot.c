@@ -62,7 +62,6 @@ void hal_boot_init(void *boot_arg) {
     xhci_init_x86();
     ehci_init_x86();
     uhci_init_x86();
-    idt_enable_interrupts();
 }
 
 int hal_get_framebuffer_info(hal_framebuffer_info_t *info) {

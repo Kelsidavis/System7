@@ -44,6 +44,9 @@ extern void DoMenuCommand(short menuID, short item);
 #endif
 
 #include "Platform/include/network.h"
+#if defined(__i386__) || defined(__x86_64__)
+#include "Platform/x86/idt.h"
+#endif
 
 /* Forward declaration for DispatchEvent (no header available yet) */
 extern Boolean DispatchEvent(EventRecord* evt);
@@ -1641,6 +1644,11 @@ void kernel_main(uint32_t magic, uint32_t* mb2_info) {
     serial_puts("KERNEL: About to call init_system71\n");
     init_system71();
     serial_puts("KERNEL: init_system71 returned\n");
+
+#if defined(__i386__) || defined(__x86_64__)
+    serial_puts("KERNEL: Enabling interrupts\n");
+    idt_enable_interrupts();
+#endif
 
     platform_network_init();
 
