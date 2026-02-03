@@ -325,6 +325,7 @@ C_SOURCES = src/main.c \
                 src/Platform/x86/pci.c \
                 src/Platform/x86/pci_irq.c \
                 src/Platform/x86/xhci.c \
+                src/Platform/x86/ehci.c \
                 src/Platform/x86/e1000.c \
                 src/Platform/x86/network.c \
                 src/Platform/x86/idt.c \
