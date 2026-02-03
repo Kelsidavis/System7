@@ -79,6 +79,7 @@ typedef struct __attribute__((packed)) {
 #define XHCI_TRB_TYPE_NOOP  23
 #define XHCI_TRB_TYPE_EVT_CMD_COMPLETE 33
 #define XHCI_TRB_TYPE_ENABLE_SLOT 9
+#define XHCI_TRB_TYPE_ADDRESS_DEVICE 11
 #define XHCI_TRB_CYCLE      (1u << 0)
 
 typedef struct __attribute__((packed)) {
@@ -87,10 +88,19 @@ typedef struct __attribute__((packed)) {
     uint32_t rsvd;
 } xhci_erst_entry_t;
 
+typedef struct __attribute__((packed)) {
+    uint32_t drop_flags;
+    uint32_t add_flags;
+    uint32_t reserved[5];
+    uint32_t slot_context[8];
+    uint32_t ep0_context[8];
+} xhci_input_context_t;
+
 static xhci_trb_t __attribute__((aligned(64))) g_cmd_ring[32];
 static xhci_trb_t __attribute__((aligned(64))) g_evt_ring[32];
 static xhci_erst_entry_t __attribute__((aligned(64))) g_erst[1];
 static uint64_t __attribute__((aligned(64))) g_dcbaa[256];
+static xhci_input_context_t __attribute__((aligned(64))) g_input_ctx;
 
 static uint32_t g_cmd_ring_index = 0;
 static uint32_t g_cmd_cycle = 1;
@@ -182,6 +192,14 @@ static void xhci_cmd_ring_enqueue_enable_slot(void) {
         g_cmd_ring_index = 0;
         g_cmd_cycle ^= 1;
     }
+}
+
+static void xhci_address_device_stub(uint8_t slot_id, uint8_t port) {
+    (void)slot_id;
+    (void)port;
+    (void)g_input_ctx;
+    /* Phase-5 placeholder: build input context + issue Address Device */
+    serial_puts("[XHCI] Address Device not implemented yet\n");
 }
 
 static inline uint32_t mmio_read32(uintptr_t base, uint32_t off) {
@@ -372,6 +390,7 @@ bool xhci_init_x86(void) {
                         uint8_t slot_id = 0;
                         if (xhci_poll_cmd_complete(rt_base, &slot_id)) {
                             serial_printf("[XHCI] Enable Slot complete, slot=%u\n", slot_id);
+                            xhci_address_device_stub(slot_id, (uint8_t)(p + 1));
                         } else {
                             serial_puts("[XHCI] Enable Slot timeout\n");
                         }
