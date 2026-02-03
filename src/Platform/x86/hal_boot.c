@@ -55,9 +55,8 @@ void hal_boot_init(void *boot_arg) {
     irq_register_handler(0, irq_timer_handler);
     irq_register_handler(1, irq_ps2_handler);
     irq_register_handler(12, irq_ps2_handler);
-    pic_unmask_irq(0);
-    pic_unmask_irq(1);
-    pic_unmask_irq(12);
+    pic_mask_irq(1);
+    pic_mask_irq(12);
     PS2_SetIRQDriven(true);
     xhci_init_x86();
     ehci_init_x86();

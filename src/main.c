@@ -46,6 +46,7 @@ extern void DoMenuCommand(short menuID, short item);
 #include "Platform/include/network.h"
 #if defined(__i386__) || defined(__x86_64__)
 #include "Platform/x86/idt.h"
+#include "Platform/x86/pic.h"
 #endif
 
 /* Forward declaration for DispatchEvent (no header available yet) */
@@ -1647,6 +1648,9 @@ void kernel_main(uint32_t magic, uint32_t* mb2_info) {
 
 #if defined(__i386__) || defined(__x86_64__)
     serial_puts("KERNEL: Enabling interrupts\n");
+    pic_mask_irq(1);
+    pic_mask_irq(12);
+    pic_unmask_irq(0);
     idt_enable_interrupts();
 #endif
 
