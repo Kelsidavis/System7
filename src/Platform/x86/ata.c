@@ -17,6 +17,10 @@ extern void* memset(void* s, int c, size_t n);
 extern void* memcpy(void* dest, const void* src, size_t n);
 extern size_t strlen(const char* s);
 
+#define ATAPI_SECTOR_SIZE 2048
+#define ATAPI_CMD_READ_10 0x28
+#define ATAPI_PACKET_SIZE 12
+
 /* Global device table */
 static ATADevice g_ata_devices[ATA_MAX_DEVICES];
 static int g_device_count = 0;
@@ -125,15 +129,21 @@ static void ATA_SoftReset(uint16_t control_io) {
 /*
  * ATA_IdentifyDevice - Execute IDENTIFY DEVICE command
  */
-static bool ATA_IdentifyDevice(uint16_t base_io, bool is_slave, uint16_t* buffer) {
+static bool ATA_IdentifyDevice(uint16_t base_io, bool is_slave, uint16_t* buffer, uint8_t cmd) {
     uint16_t control_io = (base_io == ATA_PRIMARY_IO) ? ATA_PRIMARY_CONTROL : ATA_SECONDARY_CONTROL;
 
     /* Select drive */
     ATA_SelectDrive(base_io, is_slave);
     ATA_WaitReady(base_io);
 
-    /* Send IDENTIFY command */
-    hal_outb(base_io + ATA_REG_COMMAND, ATA_CMD_IDENTIFY);
+    /* Clear registers */
+    hal_outb(base_io + ATA_REG_SECCOUNT, 0);
+    hal_outb(base_io + ATA_REG_LBA_LOW, 0);
+    hal_outb(base_io + ATA_REG_LBA_MID, 0);
+    hal_outb(base_io + ATA_REG_LBA_HIGH, 0);
+
+    /* Send IDENTIFY/IDENTIFY PACKET command */
+    hal_outb(base_io + ATA_REG_COMMAND, cmd);
     ata_io_delay(control_io);
 
     /* Check if drive exists */
@@ -149,10 +159,35 @@ static bool ATA_IdentifyDevice(uint16_t base_io, bool is_slave, uint16_t* buffer
 
     /* Read 256 words (512 bytes) of identification data */
     for (int i = 0; i < 256; i++) {
-        hal_inw(base_io + ATA_REG_DATA);
+        buffer[i] = hal_inw(base_io + ATA_REG_DATA);
     }
 
     return true;
+}
+
+static OSErr ATA_ReadATAPISectors(ATADevice* device, uint32_t lba, uint16_t count, void* buffer);
+
+static void ATA_TestATAPI(ATADevice* device) {
+    if (!device || !device->present) {
+        return;
+    }
+    if (device->type != ATA_DEVICE_PATAPI && device->type != ATA_DEVICE_SATAPI) {
+        return;
+    }
+
+    uint8_t sector[ATAPI_SECTOR_SIZE];
+    OSErr err = ATA_ReadATAPISectors(device, 16, 1, sector);
+    if (err != noErr) {
+        PLATFORM_LOG_DEBUG("ATAPI: Failed to read PVD from device\n");
+        return;
+    }
+
+    if (sector[1] == 'C' && sector[2] == 'D' && sector[3] == '0' &&
+        sector[4] == '0' && sector[5] == '1') {
+        PLATFORM_LOG_DEBUG("ATAPI: ISO9660 PVD detected\n");
+    } else {
+        PLATFORM_LOG_DEBUG("ATAPI: PVD signature not found\n");
+    }
 }
 
 /*
@@ -220,14 +255,23 @@ bool ATA_DetectDevice(uint16_t base_io, bool is_slave, ATADevice* device) {
     device->control_io = control_io;
     device->is_slave = is_slave;
 
-    /* Try to identify the device */
-    if (!ATA_IdentifyDevice(base_io, is_slave, id_buffer)) {
-        return false;
-    }
+    /* Try to identify the device (ATA) */
+    bool identify_ok = ATA_IdentifyDevice(base_io, is_slave, id_buffer, ATA_CMD_IDENTIFY);
 
     /* Check device type based on signature */
     uint8_t cl = hal_inb(base_io + ATA_REG_LBA_MID);
     uint8_t ch = hal_inb(base_io + ATA_REG_LBA_HIGH);
+
+    if (!identify_ok) {
+        /* Try ATAPI identify if signature matches */
+        if ((cl == 0x14 && ch == 0xEB) || (cl == 0x69 && ch == 0x96)) {
+            identify_ok = ATA_IdentifyDevice(base_io, is_slave, id_buffer, ATA_CMD_IDENTIFY_PACKET);
+        }
+    }
+
+    if (!identify_ok) {
+        return false;
+    }
 
     if (cl == 0x14 && ch == 0xEB) {
         device->type = ATA_DEVICE_PATAPI;
@@ -302,6 +346,10 @@ OSErr hal_storage_init(void) {
     }
 
     PLATFORM_LOG_DEBUG("ATA: Detected %d device(s)\n", g_device_count);
+
+    for (int i = 0; i < g_device_count; i++) {
+        ATA_TestATAPI(&g_ata_devices[i]);
+    }
 
     g_ata_initialized = true;
     return noErr;
@@ -470,6 +518,78 @@ OSErr ATA_WriteSectors(ATADevice* device, uint32_t lba, uint8_t count, const voi
 }
 
 /*
+ * ATA_ReadATAPISectors - Read sectors from ATAPI device (PIO, READ(10))
+ */
+static OSErr ATA_ReadATAPISectors(ATADevice* device, uint32_t lba, uint16_t count, void* buffer) {
+    if (!device || !device->present) {
+        return paramErr;
+    }
+
+    if (count == 0) {
+        return noErr;
+    }
+
+    uint16_t base_io = device->base_io;
+    uint16_t control_io = device->control_io;
+    uint16_t* buf16 = (uint16_t*)buffer;
+
+    /* Select drive */
+    ATA_SelectDrive(base_io, device->is_slave);
+    ATA_WaitReady(base_io);
+
+    /* Set expected transfer size (2048 bytes per sector) */
+    hal_outb(base_io + ATA_REG_FEATURES, 0);
+    hal_outb(base_io + ATA_REG_LBA_MID, (uint8_t)(ATAPI_SECTOR_SIZE & 0xFF));
+    hal_outb(base_io + ATA_REG_LBA_HIGH, (uint8_t)((ATAPI_SECTOR_SIZE >> 8) & 0xFF));
+
+    /* Send PACKET command */
+    hal_outb(base_io + ATA_REG_COMMAND, ATA_CMD_PACKET);
+    ata_io_delay(control_io);
+
+    if (!ATA_WaitDRQ(base_io)) {
+        return ioErr;
+    }
+
+    /* Build READ(10) packet */
+    uint8_t packet[ATAPI_PACKET_SIZE] = {0};
+    packet[0] = ATAPI_CMD_READ_10;
+    packet[2] = (uint8_t)((lba >> 24) & 0xFF);
+    packet[3] = (uint8_t)((lba >> 16) & 0xFF);
+    packet[4] = (uint8_t)((lba >> 8) & 0xFF);
+    packet[5] = (uint8_t)(lba & 0xFF);
+    packet[7] = (uint8_t)((count >> 8) & 0xFF);
+    packet[8] = (uint8_t)(count & 0xFF);
+
+    /* Send packet (12 bytes = 6 words) */
+    for (int i = 0; i < (ATAPI_PACKET_SIZE / 2); i++) {
+        uint16_t word = (uint16_t)packet[i * 2] | ((uint16_t)packet[i * 2 + 1] << 8);
+        hal_outw(base_io + ATA_REG_DATA, word);
+    }
+
+    uint32_t total_words = (uint32_t)count * (ATAPI_SECTOR_SIZE / 2);
+    uint32_t words_read = 0;
+
+    while (words_read < total_words) {
+        if (!ATA_WaitDRQ(base_io)) {
+            return ioErr;
+        }
+
+        uint32_t chunk_words = ATAPI_SECTOR_SIZE / 2;
+        for (uint32_t i = 0; i < chunk_words; i++) {
+            buf16[words_read + i] = hal_inw(base_io + ATA_REG_DATA);
+        }
+        words_read += chunk_words;
+
+        uint8_t status = ATA_ReadStatus(base_io);
+        if (status & ATA_STATUS_ERR) {
+            return ioErr;
+        }
+    }
+
+    return noErr;
+}
+
+/*
  * ATA_FlushCache - Flush write cache
  */
 OSErr ATA_FlushCache(ATADevice* device) {
@@ -545,8 +665,13 @@ OSErr hal_storage_get_drive_info(int drive_index, hal_storage_info_t* info) {
         return paramErr;
     }
 
-    info->block_size = 512;  /* ATA sectors are always 512 bytes */
-    info->block_count = device->sectors;
+    if (device->type == ATA_DEVICE_PATAPI || device->type == ATA_DEVICE_SATAPI) {
+        info->block_size = ATAPI_SECTOR_SIZE;
+        info->block_count = device->sectors;
+    } else {
+        info->block_size = 512;  /* ATA sectors are always 512 bytes */
+        info->block_count = device->sectors;
+    }
 
     return noErr;
 }
@@ -555,6 +680,24 @@ OSErr hal_storage_read_blocks(int drive_index, uint64_t start_block, uint32_t bl
     ATADevice* device = ATA_GetDevice(drive_index);
     if (!device) {
         return paramErr;
+    }
+
+    if (device->type == ATA_DEVICE_PATAPI || device->type == ATA_DEVICE_SATAPI) {
+        uint8_t* buf = (uint8_t*)buffer;
+        uint32_t remaining = block_count;
+        uint32_t current_lba = (uint32_t)start_block;
+
+        while (remaining > 0) {
+            uint16_t count = (remaining > 0xFFFFu) ? 0xFFFFu : (uint16_t)remaining;
+            OSErr err = ATA_ReadATAPISectors(device, current_lba, count, buf);
+            if (err != noErr) {
+                return err;
+            }
+            remaining -= count;
+            current_lba += count;
+            buf += (count * ATAPI_SECTOR_SIZE);
+        }
+        return noErr;
     }
 
     /* ATA uses LBA28, so we can only address 28 bits */
@@ -586,6 +729,10 @@ OSErr hal_storage_write_blocks(int drive_index, uint64_t start_block, uint32_t b
     ATADevice* device = ATA_GetDevice(drive_index);
     if (!device) {
         return paramErr;
+    }
+
+    if (device->type == ATA_DEVICE_PATAPI || device->type == ATA_DEVICE_SATAPI) {
+        return wPrErr;
     }
 
     /* ATA uses LBA28, so we can only address 28 bits */

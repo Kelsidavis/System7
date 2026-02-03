@@ -15,6 +15,9 @@
 #include <string.h>
 #include <time.h>
 #include <sched.h>
+#if defined(__i386__) || defined(__x86_64__)
+#include "Platform/x86/rtc.h"
+#endif
 #include "System71StdLib.h"
 #include "FileManager_Internal.h"
 #include "FS/FSLogging.h"
@@ -1591,6 +1594,30 @@ void FS_UnlockFCB(FCB* fcb)
 
 UInt32 DateTime_Current(void)
 {
+#if defined(__i386__) || defined(__x86_64__)
+    rtc_datetime_t dt;
+    if (rtc_read_datetime(&dt)) {
+        int y = (int)dt.year;
+        int m = (int)dt.month;
+        int d = (int)dt.day;
+        int hour = (int)dt.hour;
+        int minute = (int)dt.minute;
+        int second = (int)dt.second;
+
+        int adj_y = y - (m <= 2);
+        int era = (adj_y >= 0 ? adj_y : adj_y - 399) / 400;
+        unsigned yoe = (unsigned)(adj_y - era * 400);
+        unsigned doy = (153 * (m + (m > 2 ? -3 : 9)) + 2) / 5 + (unsigned)d - 1;
+        unsigned doe = yoe * 365 + yoe / 4 - yoe / 100 + doy;
+        int64_t days = (int64_t)(era * 146097 + (int)doe) - 719468;
+
+        int64_t unix_time = days * 86400 + hour * 3600 + minute * 60 + second;
+        if (unix_time < 0) {
+            unix_time = 0;
+        }
+        return DateTime_FromUnix((time_t)unix_time);
+    }
+#endif
     time_t now = time(NULL);
     return DateTime_FromUnix(now);
 }

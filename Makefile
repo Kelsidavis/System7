@@ -325,6 +325,10 @@ C_SOURCES = src/main.c \
                 src/Platform/x86/pci.c \
                 src/Platform/x86/e1000.c \
                 src/Platform/x86/network.c \
+                src/Platform/x86/idt.c \
+                src/Platform/x86/pic.c \
+                src/Platform/x86/pit.c \
+                src/Platform/x86/rtc.c \
                 src/Platform/x86/platform_info.c \
                 src/Platform/x86/hal_boot.c \
                 src/Platform/x86/hal_input.c))) \
@@ -611,6 +615,9 @@ CFLAGS += -DALERT_SMOKE_TEST=1
 endif
 
 ASM_SOURCES = $(HAL_DIR)/platform_boot.S
+ifeq ($(PLATFORM),x86)
+ASM_SOURCES += $(HAL_DIR)/idt.S
+endif
 ifeq ($(PLATFORM),arm64)
 ASM_SOURCES += $(HAL_DIR)/exceptions.S
 endif

@@ -59,7 +59,7 @@ jobs:
 
       - name: Build per-language artifacts
         run: |
-          for lang in en fr de es ja zh ko ru uk pl cs sq bg hr da nl et fi el hu is it lv lt mk me no pt ro sk sl sv tr hi tw ar bn ur; do
+          for lang in en es fr de zh tw; do
             echo "Building $lang..."
             make clean
             if [[ "$lang" == "en" ]]; then
@@ -128,7 +128,7 @@ jobs:
             - `system71-<lang>.iso` - Bootable ISO image for a single locale
             - `kernel-<lang>.elf` - Kernel binary for a single locale
 
-            Supported locales: `en`, `fr`, `de`, `es`, `ja`, `zh`, `ko`, `ru`, `uk`, `pl`, `cs`, `sq`, `bg`, `hr`, `da`, `nl`, `et`, `fi`, `el`, `hu`, `is`, `it`, `lv`, `lt`, `mk`, `me`, `no`, `pt`, `ro`, `sk`, `sl`, `sv`, `tr`, `hi`, `tw`, `ar`, `bn`, `ur`.
+            Supported locales: `en`, `es`, `fr`, `de`, `zh`, `tw`.
 
             **All languages (single ISO containing every locale):**
             - `system71-all-languages.iso` - Bootable ISO image (all locales)
@@ -141,6 +141,7 @@ jobs:
 
             # All languages
             qemu-system-i386 -cdrom system71-all-languages.iso -serial stdio -display sdl -m 256M
+
             ```
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

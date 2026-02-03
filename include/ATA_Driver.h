@@ -54,6 +54,8 @@
 #define ATA_CMD_READ_SECTORS    0x20    /* Read sectors with retry */
 #define ATA_CMD_WRITE_SECTORS   0x30    /* Write sectors with retry */
 #define ATA_CMD_IDENTIFY        0xEC    /* Identify device */
+#define ATA_CMD_IDENTIFY_PACKET 0xA1    /* Identify packet device */
+#define ATA_CMD_PACKET          0xA0    /* Packet command (ATAPI) */
 #define ATA_CMD_FLUSH_CACHE     0xE7    /* Flush write cache */
 
 /* Drive Selection Bits (for ATA_REG_DRIVE_HEAD) */

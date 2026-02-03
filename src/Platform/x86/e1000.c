@@ -205,7 +205,7 @@ static void handle_ip(e1000_t* dev, uint8_t* pkt, uint16_t len) {
 /* ============== INIT ====================== */
 
 int e1000_init(e1000_t* dev, pci_device_t* pci) {
-    dev->mmio_base = pci->bar0 & 0xFFFFFFF0;
+    dev->mmio_base = pci->bars[0] & 0xFFFFFFF0;
 
     /* Device reset */
     mmio_write(dev->mmio_base, E1000_REG_CTRL, 1 << 26);

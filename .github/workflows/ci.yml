@@ -55,43 +55,11 @@ jobs:
       matrix:
         lang:
           - en
-          - fr
           - de
           - es
-          - ja
+          - fr
           - zh
-          - ko
-          - ru
-          - uk
-          - pl
-          - cs
-          - sq
-          - bg
-          - hr
-          - da
-          - nl
-          - et
-          - fi
-          - el
-          - hu
-          - is
-          - it
-          - lv
-          - lt
-          - mk
-          - me
-          - no
-          - pt
-          - ro
-          - sk
-          - sl
-          - sv
-          - tr
-          - hi
           - tw
-          - ar
-          - bn
-          - ur
 
     steps:
       - name: Checkout repository
@@ -165,6 +133,7 @@ jobs:
         with:
           name: system71-iso-all-languages
           path: system71.iso
+
 
   build-arm:
     name: Build ARM

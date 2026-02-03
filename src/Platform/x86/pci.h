@@ -16,7 +16,10 @@ typedef struct {
     uint8_t subclass;
     uint8_t prog_if;
     uint8_t revision;
-    uint32_t bar0;
+    uint32_t bars[6];
+    uint32_t bar_sizes[6];
+    uint8_t irq_line;
+    uint8_t irq_pin;
 } pci_device_t;
 
 uint32_t pci_read_config_dword(uint8_t bus, uint8_t slot, uint8_t func, uint8_t offset);
