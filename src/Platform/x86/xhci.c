@@ -130,6 +130,12 @@ static xhci_trb_t __attribute__((aligned(64))) g_msc_out_ring[32];
 static uint32_t __attribute__((aligned(64))) g_msc_data_buf[512];
 static uint8_t __attribute__((aligned(64))) g_msc_cbw[32];
 static uint8_t __attribute__((aligned(64))) g_msc_csw[16];
+static xhci_trb_t __attribute__((aligned(64))) g_uasp_cmd_ring[32];
+static xhci_trb_t __attribute__((aligned(64))) g_uasp_data_in_ring[32];
+static xhci_trb_t __attribute__((aligned(64))) g_uasp_data_out_ring[32];
+static xhci_trb_t __attribute__((aligned(64))) g_uasp_status_ring[32];
+static uint8_t __attribute__((aligned(64))) g_uasp_cmd_iu[32];
+static uint8_t __attribute__((aligned(64))) g_uasp_status_iu[32];
 static uint32_t g_ctx_size = 32;
 
 typedef struct {
@@ -160,6 +166,27 @@ typedef struct {
     uint16_t bulk_out_mps;
     uint8_t bulk_in_ep_id;
     uint8_t bulk_out_ep_id;
+    bool uasp;
+    uint8_t uasp_cmd_out_ep;
+    uint8_t uasp_data_out_ep;
+    uint8_t uasp_status_in_ep;
+    uint8_t uasp_data_in_ep;
+    uint16_t uasp_cmd_out_mps;
+    uint16_t uasp_data_out_mps;
+    uint16_t uasp_status_in_mps;
+    uint16_t uasp_data_in_mps;
+    uint8_t uasp_cmd_out_ep_id;
+    uint8_t uasp_data_out_ep_id;
+    uint8_t uasp_status_in_ep_id;
+    uint8_t uasp_data_in_ep_id;
+    uint32_t uasp_cmd_ring_index;
+    uint32_t uasp_data_in_ring_index;
+    uint32_t uasp_data_out_ring_index;
+    uint32_t uasp_status_ring_index;
+    uint32_t uasp_cmd_cycle;
+    uint32_t uasp_data_in_cycle;
+    uint32_t uasp_data_out_cycle;
+    uint32_t uasp_status_cycle;
     uint32_t in_ring_index;
     uint32_t out_ring_index;
     uint32_t in_cycle;
@@ -207,6 +234,12 @@ static void xhci_ring_init(void) {
     memset(g_msc_data_buf, 0, sizeof(g_msc_data_buf));
     memset(g_msc_cbw, 0, sizeof(g_msc_cbw));
     memset(g_msc_csw, 0, sizeof(g_msc_csw));
+    memset(g_uasp_cmd_ring, 0, sizeof(g_uasp_cmd_ring));
+    memset(g_uasp_data_in_ring, 0, sizeof(g_uasp_data_in_ring));
+    memset(g_uasp_data_out_ring, 0, sizeof(g_uasp_data_out_ring));
+    memset(g_uasp_status_ring, 0, sizeof(g_uasp_status_ring));
+    memset(g_uasp_cmd_iu, 0, sizeof(g_uasp_cmd_iu));
+    memset(g_uasp_status_iu, 0, sizeof(g_uasp_status_iu));
     memset(&g_hid_kbd, 0, sizeof(g_hid_kbd));
     memset(&g_hid_mouse, 0, sizeof(g_hid_mouse));
     memset(&g_msc, 0, sizeof(g_msc));
@@ -232,6 +265,14 @@ static void xhci_ring_init(void) {
     g_msc.in_cycle = 1;
     g_msc.out_cycle = 1;
     g_msc.tag = 1;
+    g_msc.uasp_cmd_ring_index = 0;
+    g_msc.uasp_data_in_ring_index = 0;
+    g_msc.uasp_data_out_ring_index = 0;
+    g_msc.uasp_status_ring_index = 0;
+    g_msc.uasp_cmd_cycle = 1;
+    g_msc.uasp_data_in_cycle = 1;
+    g_msc.uasp_data_out_cycle = 1;
+    g_msc.uasp_status_cycle = 1;
 }
 
 static void xhci_cmd_ring_enqueue_noop(void) {
@@ -571,6 +612,12 @@ static bool xhci_ep0_get_config_descriptor(uintptr_t base, uint32_t dboff, uintp
     uint8_t current_proto = 0;
     uint8_t current_class = 0;
     uint8_t current_sub = 0;
+    uint8_t uasp_in_eps[2] = {0};
+    uint8_t uasp_out_eps[2] = {0};
+    uint16_t uasp_in_mps[2] = {0};
+    uint16_t uasp_out_mps[2] = {0};
+    uint8_t uasp_in_count = 0;
+    uint8_t uasp_out_count = 0;
     if (g_hid_kbd.slot == slot_id) {
         g_hid_kbd.ep_addr = 0;
         g_hid_kbd.ep_id = 0;
@@ -596,6 +643,19 @@ static bool xhci_ep0_get_config_descriptor(uintptr_t base, uint32_t dboff, uintp
         g_msc.bulk_in_mps = 0;
         g_msc.bulk_out_mps = 0;
         g_msc.configured = false;
+        g_msc.uasp = false;
+        g_msc.uasp_cmd_out_ep = 0;
+        g_msc.uasp_data_out_ep = 0;
+        g_msc.uasp_status_in_ep = 0;
+        g_msc.uasp_data_in_ep = 0;
+        g_msc.uasp_cmd_out_ep_id = 0;
+        g_msc.uasp_data_out_ep_id = 0;
+        g_msc.uasp_status_in_ep_id = 0;
+        g_msc.uasp_data_in_ep_id = 0;
+        g_msc.uasp_cmd_out_mps = 0;
+        g_msc.uasp_data_out_mps = 0;
+        g_msc.uasp_status_in_mps = 0;
+        g_msc.uasp_data_in_mps = 0;
     }
     while (off + 1 < 64) {
         uint8_t len = buf[off];
@@ -610,13 +670,10 @@ static bool xhci_ep0_get_config_descriptor(uintptr_t base, uint32_t dboff, uintp
             serial_printf("[XHCI] IF cls=0x%02x sub=0x%02x proto=0x%02x\n", cls, sub, proto);
             current_class = cls;
             current_sub = sub;
-            if (cls == 0x03 && (proto == 1 || proto == 2)) {
-                current_proto = proto;
-            } else {
-                current_proto = 0;
-            }
-            if (cls == 0x08 && proto == 0x50) {
+            current_proto = proto;
+            if (cls == 0x08 && (proto == 0x50 || proto == 0x62)) {
                 g_msc.slot = slot_id;
+                g_msc.uasp = (proto == 0x62);
             }
         }
         if (type == 5 && len >= 7) {
@@ -644,19 +701,69 @@ static bool xhci_ep0_get_config_descriptor(uintptr_t base, uint32_t dboff, uintp
             }
             if (current_class == 0x08 && current_sub == 0x06 && ep_type == 2) {
                 if (ep_addr & 0x80) {
-                    g_msc.bulk_in_ep = ep_addr;
-                    g_msc.bulk_in_mps = mps;
-                    g_msc.bulk_in_ep_id = (uint8_t)(2 * (ep_addr & 0x0F) + 1);
+                    if (g_msc.uasp && uasp_in_count < 2) {
+                        uasp_in_eps[uasp_in_count] = ep_addr;
+                        uasp_in_mps[uasp_in_count] = mps;
+                        uasp_in_count++;
+                    } else if (!g_msc.uasp) {
+                        g_msc.bulk_in_ep = ep_addr;
+                        g_msc.bulk_in_mps = mps;
+                        g_msc.bulk_in_ep_id = (uint8_t)(2 * (ep_addr & 0x0F) + 1);
+                    }
                 } else {
-                    g_msc.bulk_out_ep = ep_addr;
-                    g_msc.bulk_out_mps = mps;
-                    g_msc.bulk_out_ep_id = (uint8_t)(2 * (ep_addr & 0x0F) + 0);
+                    if (g_msc.uasp && uasp_out_count < 2) {
+                        uasp_out_eps[uasp_out_count] = ep_addr;
+                        uasp_out_mps[uasp_out_count] = mps;
+                        uasp_out_count++;
+                    } else if (!g_msc.uasp) {
+                        g_msc.bulk_out_ep = ep_addr;
+                        g_msc.bulk_out_mps = mps;
+                        g_msc.bulk_out_ep_id = (uint8_t)(2 * (ep_addr & 0x0F) + 0);
+                    }
                 }
                 serial_printf("[XHCI] MSC bulk %s ep=0x%02x mps=%u\n",
                               (ep_addr & 0x80) ? "IN" : "OUT", ep_addr, mps);
             }
         }
         off += len;
+    }
+
+    if (g_msc.uasp && uasp_in_count >= 2 && uasp_out_count >= 2) {
+        uint8_t in0 = uasp_in_eps[0];
+        uint8_t in1 = uasp_in_eps[1];
+        uint16_t in0_mps = uasp_in_mps[0];
+        uint16_t in1_mps = uasp_in_mps[1];
+        uint8_t out0 = uasp_out_eps[0];
+        uint8_t out1 = uasp_out_eps[1];
+        uint16_t out0_mps = uasp_out_mps[0];
+        uint16_t out1_mps = uasp_out_mps[1];
+
+        if ((in1 & 0x0F) < (in0 & 0x0F)) {
+            uint8_t t = in0; in0 = in1; in1 = t;
+            uint16_t tm = in0_mps; in0_mps = in1_mps; in1_mps = tm;
+        }
+        if ((out1 & 0x0F) < (out0 & 0x0F)) {
+            uint8_t t = out0; out0 = out1; out1 = t;
+            uint16_t tm = out0_mps; out0_mps = out1_mps; out1_mps = tm;
+        }
+
+        g_msc.uasp_status_in_ep = in0;
+        g_msc.uasp_status_in_mps = in0_mps;
+        g_msc.uasp_data_in_ep = in1;
+        g_msc.uasp_data_in_mps = in1_mps;
+        g_msc.uasp_cmd_out_ep = out0;
+        g_msc.uasp_cmd_out_mps = out0_mps;
+        g_msc.uasp_data_out_ep = out1;
+        g_msc.uasp_data_out_mps = out1_mps;
+
+        g_msc.uasp_status_in_ep_id = (uint8_t)(2 * (g_msc.uasp_status_in_ep & 0x0F) + 1);
+        g_msc.uasp_data_in_ep_id = (uint8_t)(2 * (g_msc.uasp_data_in_ep & 0x0F) + 1);
+        g_msc.uasp_cmd_out_ep_id = (uint8_t)(2 * (g_msc.uasp_cmd_out_ep & 0x0F) + 0);
+        g_msc.uasp_data_out_ep_id = (uint8_t)(2 * (g_msc.uasp_data_out_ep & 0x0F) + 0);
+
+        serial_printf("[XHCI] UASP cmd-out=0x%02x data-out=0x%02x status-in=0x%02x data-in=0x%02x\n",
+                      g_msc.uasp_cmd_out_ep, g_msc.uasp_data_out_ep,
+                      g_msc.uasp_status_in_ep, g_msc.uasp_data_in_ep);
     }
 
     if (config_value != 0) {
@@ -677,7 +784,24 @@ static bool xhci_ep0_get_config_descriptor(uintptr_t base, uint32_t dboff, uintp
         g_hid_mouse.configured = xhci_configure_endpoint(base, dboff, rt_base, slot_id);
     }
 
-    if (g_msc.bulk_in_ep_id != 0 && g_msc.bulk_out_ep_id != 0 && g_msc.slot == slot_id) {
+    if (g_msc.uasp && g_msc.uasp_cmd_out_ep_id && g_msc.uasp_data_out_ep_id &&
+        g_msc.uasp_status_in_ep_id && g_msc.uasp_data_in_ep_id && g_msc.slot == slot_id) {
+        memset(g_input_ctx, 0, sizeof(g_input_ctx));
+        xhci_build_bulk_endpoint_context(g_msc.uasp_cmd_out_ep_id, g_msc.uasp_cmd_out_mps, 2,
+                                         g_uasp_cmd_ring);
+        xhci_build_bulk_endpoint_context(g_msc.uasp_data_out_ep_id, g_msc.uasp_data_out_mps, 2,
+                                         g_uasp_data_out_ring);
+        xhci_build_bulk_endpoint_context(g_msc.uasp_status_in_ep_id, g_msc.uasp_status_in_mps, 6,
+                                         g_uasp_status_ring);
+        xhci_build_bulk_endpoint_context(g_msc.uasp_data_in_ep_id, g_msc.uasp_data_in_mps, 6,
+                                         g_uasp_data_in_ring);
+        g_msc.configured = xhci_configure_endpoint(base, dboff, rt_base, slot_id);
+        if (g_msc.configured) {
+            serial_puts("[XHCI] UASP endpoints configured\n");
+            xhci_msc_smoke_test(base, dboff, rt_base);
+        }
+    } else if (!g_msc.uasp && g_msc.bulk_in_ep_id != 0 && g_msc.bulk_out_ep_id != 0 &&
+               g_msc.slot == slot_id) {
         memset(g_input_ctx, 0, sizeof(g_input_ctx));
         xhci_build_bulk_endpoint_context(g_msc.bulk_out_ep_id, g_msc.bulk_out_mps, 2,
                                          g_msc_out_ring);
@@ -750,6 +874,86 @@ static void xhci_msc_enqueue_in(uintptr_t buf, uint32_t len) {
         link->dword3 = (6u << XHCI_TRB_TYPE_SHIFT) | XHCI_TRB_CYCLE | (1u << 1);
         g_msc.in_ring_index = 0;
         g_msc.in_cycle ^= 1;
+    }
+}
+
+static void xhci_uasp_enqueue_cmd(uintptr_t buf, uint32_t len) {
+    xhci_trb_t *trb = &g_uasp_cmd_ring[g_msc.uasp_cmd_ring_index++];
+    trb->dword0 = (uint32_t)(buf & 0xFFFFFFFFu);
+    trb->dword1 = 0;
+    trb->dword2 = len;
+    trb->dword3 = (XHCI_TRB_TYPE_NORMAL << XHCI_TRB_TYPE_SHIFT) |
+                  XHCI_TRB_IOC |
+                  (g_msc.uasp_cmd_cycle ? XHCI_TRB_CYCLE : 0);
+
+    if (g_msc.uasp_cmd_ring_index >= 31) {
+        xhci_trb_t *link = &g_uasp_cmd_ring[g_msc.uasp_cmd_ring_index++];
+        link->dword0 = (uint32_t)((uintptr_t)&g_uasp_cmd_ring[0] & 0xFFFFFFFFu);
+        link->dword1 = 0;
+        link->dword2 = 0;
+        link->dword3 = (6u << XHCI_TRB_TYPE_SHIFT) | XHCI_TRB_CYCLE | (1u << 1);
+        g_msc.uasp_cmd_ring_index = 0;
+        g_msc.uasp_cmd_cycle ^= 1;
+    }
+}
+
+static void xhci_uasp_enqueue_data_in(uintptr_t buf, uint32_t len) {
+    xhci_trb_t *trb = &g_uasp_data_in_ring[g_msc.uasp_data_in_ring_index++];
+    trb->dword0 = (uint32_t)(buf & 0xFFFFFFFFu);
+    trb->dword1 = 0;
+    trb->dword2 = len;
+    trb->dword3 = (XHCI_TRB_TYPE_NORMAL << XHCI_TRB_TYPE_SHIFT) |
+                  XHCI_TRB_IOC |
+                  (g_msc.uasp_data_in_cycle ? XHCI_TRB_CYCLE : 0);
+
+    if (g_msc.uasp_data_in_ring_index >= 31) {
+        xhci_trb_t *link = &g_uasp_data_in_ring[g_msc.uasp_data_in_ring_index++];
+        link->dword0 = (uint32_t)((uintptr_t)&g_uasp_data_in_ring[0] & 0xFFFFFFFFu);
+        link->dword1 = 0;
+        link->dword2 = 0;
+        link->dword3 = (6u << XHCI_TRB_TYPE_SHIFT) | XHCI_TRB_CYCLE | (1u << 1);
+        g_msc.uasp_data_in_ring_index = 0;
+        g_msc.uasp_data_in_cycle ^= 1;
+    }
+}
+
+static void xhci_uasp_enqueue_data_out(uintptr_t buf, uint32_t len) {
+    xhci_trb_t *trb = &g_uasp_data_out_ring[g_msc.uasp_data_out_ring_index++];
+    trb->dword0 = (uint32_t)(buf & 0xFFFFFFFFu);
+    trb->dword1 = 0;
+    trb->dword2 = len;
+    trb->dword3 = (XHCI_TRB_TYPE_NORMAL << XHCI_TRB_TYPE_SHIFT) |
+                  XHCI_TRB_IOC |
+                  (g_msc.uasp_data_out_cycle ? XHCI_TRB_CYCLE : 0);
+
+    if (g_msc.uasp_data_out_ring_index >= 31) {
+        xhci_trb_t *link = &g_uasp_data_out_ring[g_msc.uasp_data_out_ring_index++];
+        link->dword0 = (uint32_t)((uintptr_t)&g_uasp_data_out_ring[0] & 0xFFFFFFFFu);
+        link->dword1 = 0;
+        link->dword2 = 0;
+        link->dword3 = (6u << XHCI_TRB_TYPE_SHIFT) | XHCI_TRB_CYCLE | (1u << 1);
+        g_msc.uasp_data_out_ring_index = 0;
+        g_msc.uasp_data_out_cycle ^= 1;
+    }
+}
+
+static void xhci_uasp_enqueue_status(uintptr_t buf, uint32_t len) {
+    xhci_trb_t *trb = &g_uasp_status_ring[g_msc.uasp_status_ring_index++];
+    trb->dword0 = (uint32_t)(buf & 0xFFFFFFFFu);
+    trb->dword1 = 0;
+    trb->dword2 = len;
+    trb->dword3 = (XHCI_TRB_TYPE_NORMAL << XHCI_TRB_TYPE_SHIFT) |
+                  XHCI_TRB_IOC |
+                  (g_msc.uasp_status_cycle ? XHCI_TRB_CYCLE : 0);
+
+    if (g_msc.uasp_status_ring_index >= 31) {
+        xhci_trb_t *link = &g_uasp_status_ring[g_msc.uasp_status_ring_index++];
+        link->dword0 = (uint32_t)((uintptr_t)&g_uasp_status_ring[0] & 0xFFFFFFFFu);
+        link->dword1 = 0;
+        link->dword2 = 0;
+        link->dword3 = (6u << XHCI_TRB_TYPE_SHIFT) | XHCI_TRB_CYCLE | (1u << 1);
+        g_msc.uasp_status_ring_index = 0;
+        g_msc.uasp_status_cycle ^= 1;
     }
 }
 
@@ -875,6 +1079,47 @@ static bool xhci_msc_bulk_transfer(uintptr_t base, uint32_t dboff, uintptr_t rt_
     return xhci_poll_transfer_complete(rt_base, g_msc.slot);
 }
 
+static bool xhci_uasp_transfer_cmd(uintptr_t base, uint32_t dboff, uintptr_t rt_base,
+                                  const void *buf, uint32_t len) {
+    if (!g_msc.configured || !g_msc.uasp_cmd_out_ep_id) {
+        return false;
+    }
+    xhci_uasp_enqueue_cmd((uintptr_t)buf, len);
+    mmio_write32(base + dboff, XHCI_DB0 + g_msc.slot, g_msc.uasp_cmd_out_ep_id);
+    return xhci_poll_transfer_complete(rt_base, g_msc.slot);
+}
+
+static bool xhci_uasp_transfer_data(uintptr_t base, uint32_t dboff, uintptr_t rt_base,
+                                   bool in, const void *buf, uint32_t len) {
+    if (!g_msc.configured) {
+        return false;
+    }
+    if (in) {
+        if (!g_msc.uasp_data_in_ep_id) {
+            return false;
+        }
+        xhci_uasp_enqueue_data_in((uintptr_t)buf, len);
+        mmio_write32(base + dboff, XHCI_DB0 + g_msc.slot, g_msc.uasp_data_in_ep_id);
+    } else {
+        if (!g_msc.uasp_data_out_ep_id) {
+            return false;
+        }
+        xhci_uasp_enqueue_data_out((uintptr_t)buf, len);
+        mmio_write32(base + dboff, XHCI_DB0 + g_msc.slot, g_msc.uasp_data_out_ep_id);
+    }
+    return xhci_poll_transfer_complete(rt_base, g_msc.slot);
+}
+
+static bool xhci_uasp_transfer_status(uintptr_t base, uint32_t dboff, uintptr_t rt_base,
+                                     void *buf, uint32_t len) {
+    if (!g_msc.configured || !g_msc.uasp_status_in_ep_id) {
+        return false;
+    }
+    xhci_uasp_enqueue_status((uintptr_t)buf, len);
+    mmio_write32(base + dboff, XHCI_DB0 + g_msc.slot, g_msc.uasp_status_in_ep_id);
+    return xhci_poll_transfer_complete(rt_base, g_msc.slot);
+}
+
 static bool xhci_msc_send_cbw(uintptr_t base, uint32_t dboff, uintptr_t rt_base,
                               uint8_t *cb, uint8_t cb_len, uint32_t data_len, bool data_in) {
     memset(g_msc_cbw, 0, sizeof(g_msc_cbw));
@@ -914,22 +1159,74 @@ static bool xhci_msc_recv_csw(uintptr_t base, uint32_t dboff, uintptr_t rt_base)
     return true;
 }
 
+static bool xhci_uasp_exec_scsi(uint8_t *cdb, uint8_t cdb_len,
+                                const void *data, uint32_t data_len, bool data_in) {
+    if (!g_msc.uasp) {
+        return false;
+    }
+    memset(g_uasp_cmd_iu, 0, sizeof(g_uasp_cmd_iu));
+    g_uasp_cmd_iu[0] = 0x01; /* Command IU */
+    g_uasp_cmd_iu[2] = (uint8_t)(g_msc.tag & 0xFF);
+    g_uasp_cmd_iu[3] = (uint8_t)((g_msc.tag >> 8) & 0xFF);
+    g_uasp_cmd_iu[4] = (uint8_t)(data_len & 0xFF);
+    g_uasp_cmd_iu[5] = (uint8_t)((data_len >> 8) & 0xFF);
+    g_uasp_cmd_iu[6] = (uint8_t)((data_len >> 16) & 0xFF);
+    g_uasp_cmd_iu[7] = (uint8_t)((data_len >> 24) & 0xFF);
+    memcpy(&g_uasp_cmd_iu[16], cdb, cdb_len);
+
+    g_msc.tag++;
+
+    if (!xhci_uasp_transfer_cmd(g_xhci_base, g_xhci_dboff, g_xhci_rt_base,
+                                g_uasp_cmd_iu, sizeof(g_uasp_cmd_iu))) {
+        return false;
+    }
+
+    if (data_len > 0) {
+        if (!xhci_uasp_transfer_data(g_xhci_base, g_xhci_dboff, g_xhci_rt_base,
+                                     data_in, data, data_len)) {
+            return false;
+        }
+    }
+
+    memset(g_uasp_status_iu, 0, sizeof(g_uasp_status_iu));
+    if (!xhci_uasp_transfer_status(g_xhci_base, g_xhci_dboff, g_xhci_rt_base,
+                                   g_uasp_status_iu, 16)) {
+        return false;
+    }
+    if (g_uasp_status_iu[0] != 0x03) {
+        serial_printf("[XHCI] UASP status IU id=0x%02x\n", g_uasp_status_iu[0]);
+        return false;
+    }
+    if (g_uasp_status_iu[4] != 0) {
+        serial_printf("[XHCI] UASP status=0x%02x\n", g_uasp_status_iu[4]);
+        return false;
+    }
+    return true;
+}
+
 static bool xhci_msc_read_capacity(uintptr_t base, uint32_t dboff, uintptr_t rt_base) {
     uint8_t cb[16];
 
     memset(cb, 0, sizeof(cb));
     cb[0] = 0x25; /* READ CAPACITY(10) */
-    if (!xhci_msc_send_cbw(base, dboff, rt_base, cb, 10, 8, true)) {
-        serial_puts("[XHCI] MSC READ CAPACITY CBW failed\n");
-        return false;
-    }
-    if (!xhci_msc_bulk_transfer(base, dboff, rt_base, true, g_msc_data_buf, 8)) {
-        serial_puts("[XHCI] MSC READ CAPACITY data failed\n");
-        return false;
-    }
-    if (!xhci_msc_recv_csw(base, dboff, rt_base)) {
-        serial_puts("[XHCI] MSC READ CAPACITY CSW failed\n");
-        return false;
+    if (g_msc.uasp) {
+        if (!xhci_uasp_exec_scsi(cb, 10, g_msc_data_buf, 8, true)) {
+            serial_puts("[XHCI] UASP READ CAPACITY failed\n");
+            return false;
+        }
+    } else {
+        if (!xhci_msc_send_cbw(base, dboff, rt_base, cb, 10, 8, true)) {
+            serial_puts("[XHCI] MSC READ CAPACITY CBW failed\n");
+            return false;
+        }
+        if (!xhci_msc_bulk_transfer(base, dboff, rt_base, true, g_msc_data_buf, 8)) {
+            serial_puts("[XHCI] MSC READ CAPACITY data failed\n");
+            return false;
+        }
+        if (!xhci_msc_recv_csw(base, dboff, rt_base)) {
+            serial_puts("[XHCI] MSC READ CAPACITY CSW failed\n");
+            return false;
+        }
     }
 
     uint32_t last_lba = (g_msc_data_buf[0] << 24) | (g_msc_data_buf[1] << 16) |
@@ -947,17 +1244,24 @@ static bool xhci_msc_inquiry(uintptr_t base, uint32_t dboff, uintptr_t rt_base) 
     memset(cb, 0, sizeof(cb));
     cb[0] = 0x12; /* INQUIRY */
     cb[4] = 36;
-    if (!xhci_msc_send_cbw(base, dboff, rt_base, cb, 6, 36, true)) {
-        serial_puts("[XHCI] MSC INQUIRY CBW failed\n");
-        return false;
-    }
-    if (!xhci_msc_bulk_transfer(base, dboff, rt_base, true, g_msc_data_buf, 36)) {
-        serial_puts("[XHCI] MSC INQUIRY data failed\n");
-        return false;
-    }
-    if (!xhci_msc_recv_csw(base, dboff, rt_base)) {
-        serial_puts("[XHCI] MSC INQUIRY CSW failed\n");
-        return false;
+    if (g_msc.uasp) {
+        if (!xhci_uasp_exec_scsi(cb, 6, g_msc_data_buf, 36, true)) {
+            serial_puts("[XHCI] UASP INQUIRY failed\n");
+            return false;
+        }
+    } else {
+        if (!xhci_msc_send_cbw(base, dboff, rt_base, cb, 6, 36, true)) {
+            serial_puts("[XHCI] MSC INQUIRY CBW failed\n");
+            return false;
+        }
+        if (!xhci_msc_bulk_transfer(base, dboff, rt_base, true, g_msc_data_buf, 36)) {
+            serial_puts("[XHCI] MSC INQUIRY data failed\n");
+            return false;
+        }
+        if (!xhci_msc_recv_csw(base, dboff, rt_base)) {
+            serial_puts("[XHCI] MSC INQUIRY CSW failed\n");
+            return false;
+        }
     }
 
     serial_printf("[XHCI] MSC INQUIRY vendor=%.8s product=%.16s\n",
@@ -969,6 +1273,9 @@ static bool xhci_msc_test_unit_ready(uintptr_t base, uint32_t dboff, uintptr_t r
     uint8_t cb[16];
     memset(cb, 0, sizeof(cb));
     cb[0] = 0x00; /* TEST UNIT READY */
+    if (g_msc.uasp) {
+        return xhci_uasp_exec_scsi(cb, 6, NULL, 0, true);
+    }
     if (!xhci_msc_send_cbw(base, dboff, rt_base, cb, 6, 0, false)) {
         return false;
     }
@@ -1101,18 +1408,24 @@ static OSErr xhci_msc_read_blocks_internal(uint64_t start_block, uint32_t block_
         cb[8] = (uint8_t)(chunk & 0xFF);
 
         uint32_t data_len = chunk * g_msc.block_size;
-        if (!xhci_msc_send_cbw(g_xhci_base, g_xhci_dboff, g_xhci_rt_base,
-                               cb, 10, data_len, true)) {
-            return ioErr;
-        }
+        if (g_msc.uasp) {
+            if (!xhci_uasp_exec_scsi(cb, 10, buf, data_len, true)) {
+                return ioErr;
+            }
+        } else {
+            if (!xhci_msc_send_cbw(g_xhci_base, g_xhci_dboff, g_xhci_rt_base,
+                                   cb, 10, data_len, true)) {
+                return ioErr;
+            }
 
-        if (!xhci_msc_bulk_transfer(g_xhci_base, g_xhci_dboff, g_xhci_rt_base,
-                                    true, buf, data_len)) {
-            return ioErr;
-        }
+            if (!xhci_msc_bulk_transfer(g_xhci_base, g_xhci_dboff, g_xhci_rt_base,
+                                        true, buf, data_len)) {
+                return ioErr;
+            }
 
-        if (!xhci_msc_recv_csw(g_xhci_base, g_xhci_dboff, g_xhci_rt_base)) {
-            return ioErr;
+            if (!xhci_msc_recv_csw(g_xhci_base, g_xhci_dboff, g_xhci_rt_base)) {
+                return ioErr;
+            }
         }
 
         remaining -= chunk;
@@ -1178,16 +1491,22 @@ static OSErr xhci_msc_write_blocks_internal(uint64_t start_block, uint32_t block
         cb[8] = (uint8_t)(chunk & 0xFF);
 
         uint32_t data_len = chunk * g_msc.block_size;
-        if (!xhci_msc_send_cbw(g_xhci_base, g_xhci_dboff, g_xhci_rt_base,
-                               cb, 10, data_len, false)) {
-            return ioErr;
-        }
-        if (!xhci_msc_bulk_transfer(g_xhci_base, g_xhci_dboff, g_xhci_rt_base,
-                                    false, buf, data_len)) {
-            return ioErr;
-        }
-        if (!xhci_msc_recv_csw(g_xhci_base, g_xhci_dboff, g_xhci_rt_base)) {
-            return ioErr;
+        if (g_msc.uasp) {
+            if (!xhci_uasp_exec_scsi(cb, 10, buf, data_len, false)) {
+                return ioErr;
+            }
+        } else {
+            if (!xhci_msc_send_cbw(g_xhci_base, g_xhci_dboff, g_xhci_rt_base,
+                                   cb, 10, data_len, false)) {
+                return ioErr;
+            }
+            if (!xhci_msc_bulk_transfer(g_xhci_base, g_xhci_dboff, g_xhci_rt_base,
+                                        false, buf, data_len)) {
+                return ioErr;
+            }
+            if (!xhci_msc_recv_csw(g_xhci_base, g_xhci_dboff, g_xhci_rt_base)) {
+                return ioErr;
+            }
         }
 
         remaining -= chunk;
