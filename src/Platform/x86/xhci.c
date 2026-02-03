@@ -136,6 +136,10 @@ static xhci_trb_t __attribute__((aligned(64))) g_uasp_data_out_ring[32];
 static xhci_trb_t __attribute__((aligned(64))) g_uasp_status_ring[32];
 static uint8_t __attribute__((aligned(64))) g_uasp_cmd_iu[32];
 static uint8_t __attribute__((aligned(64))) g_uasp_status_iu[32];
+#define MAX_MSC_LUNS 8
+static uint32_t g_msc_lun_block_size[MAX_MSC_LUNS];
+static uint64_t g_msc_lun_block_count[MAX_MSC_LUNS];
+static bool g_msc_lun_valid[MAX_MSC_LUNS];
 static uint32_t g_ctx_size = 32;
 
 typedef struct {
@@ -209,6 +213,8 @@ typedef struct {
     uint8_t last_ascq;
     uint8_t last_status;
     bool uasp_failed;
+    uint8_t max_lun;
+    uint8_t interface_num;
 } xhci_msc_dev_t;
 
 static xhci_msc_dev_t g_msc;
@@ -226,11 +232,13 @@ static uintptr_t g_xhci_rt_base = 0;
 static inline uint32_t mmio_read32(uintptr_t base, uint32_t off);
 static inline void mmio_write32(uintptr_t base, uint32_t off, uint32_t value);
 static void xhci_msc_smoke_test(uintptr_t base, uint32_t dboff, uintptr_t rt_base);
-static bool xhci_uasp_exec_scsi(uint8_t *cdb, uint8_t cdb_len,
+static bool xhci_uasp_exec_scsi(uint8_t lun, uint8_t *cdb, uint8_t cdb_len,
                                 const void *data, uint32_t data_len, bool data_in);
 static void xhci_msc_delay_ticks(uint32_t ticks);
-static bool xhci_msc_test_unit_ready(uintptr_t base, uint32_t dboff, uintptr_t rt_base);
+static bool xhci_msc_test_unit_ready(uintptr_t base, uint32_t dboff, uintptr_t rt_base, uint8_t lun);
 static bool xhci_msc_configure_bot(uintptr_t base, uint32_t dboff, uintptr_t rt_base);
+static bool xhci_msc_get_max_lun(uintptr_t base, uint32_t dboff, uintptr_t rt_base, uint8_t slot_id);
+static bool xhci_msc_ensure_lun_info(uint8_t lun);
 
 static void xhci_ring_doorbell(uintptr_t base, uint32_t db_off, uint32_t target) {
     mmio_write32(base + db_off, XHCI_DB0 + target, 0);
@@ -258,6 +266,9 @@ static void xhci_ring_init(void) {
     memset(g_uasp_status_ring, 0, sizeof(g_uasp_status_ring));
     memset(g_uasp_cmd_iu, 0, sizeof(g_uasp_cmd_iu));
     memset(g_uasp_status_iu, 0, sizeof(g_uasp_status_iu));
+    memset(g_msc_lun_block_size, 0, sizeof(g_msc_lun_block_size));
+    memset(g_msc_lun_block_count, 0, sizeof(g_msc_lun_block_count));
+    memset(g_msc_lun_valid, 0, sizeof(g_msc_lun_valid));
     memset(&g_hid_kbd, 0, sizeof(g_hid_kbd));
     memset(&g_hid_mouse, 0, sizeof(g_hid_mouse));
     memset(&g_msc, 0, sizeof(g_msc));
@@ -293,6 +304,8 @@ static void xhci_ring_init(void) {
     g_msc.uasp_data_in_cycle = 1;
     g_msc.uasp_data_out_cycle = 1;
     g_msc.uasp_status_cycle = 1;
+    g_msc.max_lun = 1;
+    g_msc.interface_num = 0;
 }
 
 static void xhci_cmd_ring_enqueue_noop(void) {
@@ -695,6 +708,7 @@ static bool xhci_ep0_get_config_descriptor(uintptr_t base, uint32_t dboff, uintp
             uint8_t cls = buf[off + 5];
             uint8_t sub = buf[off + 6];
             uint8_t proto = buf[off + 7];
+            uint8_t if_num = buf[off + 2];
             serial_printf("[XHCI] IF cls=0x%02x sub=0x%02x proto=0x%02x\n", cls, sub, proto);
             current_class = cls;
             current_sub = sub;
@@ -702,6 +716,7 @@ static bool xhci_ep0_get_config_descriptor(uintptr_t base, uint32_t dboff, uintp
             if (cls == 0x08 && (proto == 0x50 || proto == 0x62)) {
                 g_msc.slot = slot_id;
                 g_msc.uasp = (proto == 0x62);
+                g_msc.interface_num = if_num;
             }
         }
         if (type == 5 && len >= 7) {
@@ -838,6 +853,7 @@ static bool xhci_ep0_get_config_descriptor(uintptr_t base, uint32_t dboff, uintp
         g_msc.configured = xhci_configure_endpoint(base, dboff, rt_base, slot_id);
         if (g_msc.configured) {
             serial_puts("[XHCI] UASP endpoints configured\n");
+            g_msc.max_lun = 1;
             xhci_msc_smoke_test(base, dboff, rt_base);
         }
     } else if (!g_msc.uasp && g_msc.bulk_in_ep_id != 0 && g_msc.bulk_out_ep_id != 0 &&
@@ -850,10 +866,14 @@ static bool xhci_ep0_get_config_descriptor(uintptr_t base, uint32_t dboff, uintp
         g_msc.configured = xhci_configure_endpoint(base, dboff, rt_base, slot_id);
         if (g_msc.configured) {
             serial_puts("[XHCI] MSC endpoints configured\n");
+            g_msc.max_lun = 1;
+            xhci_msc_get_max_lun(base, dboff, rt_base, slot_id);
             xhci_msc_smoke_test(base, dboff, rt_base);
         }
     } else if (g_msc.bot_present && g_msc.slot == slot_id) {
         if (xhci_msc_configure_bot(base, dboff, rt_base)) {
+            g_msc.max_lun = 1;
+            xhci_msc_get_max_lun(base, dboff, rt_base, slot_id);
             xhci_msc_smoke_test(base, dboff, rt_base);
         }
     }
@@ -1165,7 +1185,8 @@ static bool xhci_uasp_transfer_status(uintptr_t base, uint32_t dboff, uintptr_t 
 }
 
 static bool xhci_msc_send_cbw(uintptr_t base, uint32_t dboff, uintptr_t rt_base,
-                              uint8_t *cb, uint8_t cb_len, uint32_t data_len, bool data_in) {
+                              uint8_t lun, uint8_t *cb, uint8_t cb_len,
+                              uint32_t data_len, bool data_in) {
     memset(g_msc_cbw, 0, sizeof(g_msc_cbw));
     g_msc_cbw[0] = 'U';
     g_msc_cbw[1] = 'S';
@@ -1181,7 +1202,7 @@ static bool xhci_msc_send_cbw(uintptr_t base, uint32_t dboff, uintptr_t rt_base,
     g_msc_cbw[10] = (uint8_t)((data_len >> 16) & 0xFF);
     g_msc_cbw[11] = (uint8_t)((data_len >> 24) & 0xFF);
     g_msc_cbw[12] = data_in ? 0x80 : 0x00;
-    g_msc_cbw[13] = 0;
+    g_msc_cbw[13] = lun;
     g_msc_cbw[14] = cb_len;
     memcpy(&g_msc_cbw[15], cb, cb_len);
 
@@ -1223,12 +1244,12 @@ static void xhci_msc_delay_ticks(uint32_t ticks) {
     }
 }
 
-static bool xhci_msc_request_sense_bot(uintptr_t base, uint32_t dboff, uintptr_t rt_base) {
+static bool xhci_msc_request_sense_bot(uintptr_t base, uint32_t dboff, uintptr_t rt_base, uint8_t lun) {
     uint8_t cb[16];
     memset(cb, 0, sizeof(cb));
     cb[0] = 0x03; /* REQUEST SENSE */
     cb[4] = 18;
-    if (!xhci_msc_send_cbw(base, dboff, rt_base, cb, 6, 18, true)) {
+    if (!xhci_msc_send_cbw(base, dboff, rt_base, lun, cb, 6, 18, true)) {
         return false;
     }
     if (!xhci_msc_bulk_transfer(base, dboff, rt_base, true, g_msc_data_buf, 18)) {
@@ -1241,12 +1262,12 @@ static bool xhci_msc_request_sense_bot(uintptr_t base, uint32_t dboff, uintptr_t
     return true;
 }
 
-static bool xhci_msc_request_sense_uasp(void) {
+static bool xhci_msc_request_sense_uasp(uint8_t lun) {
     uint8_t cb[16];
     memset(cb, 0, sizeof(cb));
     cb[0] = 0x03; /* REQUEST SENSE */
     cb[4] = 18;
-    if (!xhci_uasp_exec_scsi(cb, 6, g_msc_data_buf, 18, true)) {
+    if (!xhci_uasp_exec_scsi(lun, cb, 6, g_msc_data_buf, 18, true)) {
         return false;
     }
     xhci_msc_parse_sense((const uint8_t *)g_msc_data_buf, 18);
@@ -1261,26 +1282,20 @@ static void xhci_msc_log_sense(const char *prefix) {
                   prefix, g_msc.last_sense_key, g_msc.last_asc, g_msc.last_ascq);
 }
 
-static bool xhci_msc_retry_not_ready(bool uasp) {
+static bool xhci_msc_retry_not_ready(bool uasp, uint8_t lun) {
     if (g_msc.last_sense_key != 0x02) {
         return false;
     }
     for (int i = 0; i < 3; i++) {
         xhci_msc_delay_ticks(5);
-        if (uasp) {
-            if (xhci_msc_test_unit_ready(g_xhci_base, g_xhci_dboff, g_xhci_rt_base)) {
-                return true;
-            }
-        } else {
-            if (xhci_msc_test_unit_ready(g_xhci_base, g_xhci_dboff, g_xhci_rt_base)) {
-                return true;
-            }
+        if (xhci_msc_test_unit_ready(g_xhci_base, g_xhci_dboff, g_xhci_rt_base, lun)) {
+            return true;
         }
     }
     return false;
 }
 
-static bool xhci_uasp_exec_scsi(uint8_t *cdb, uint8_t cdb_len,
+static bool xhci_uasp_exec_scsi(uint8_t lun, uint8_t *cdb, uint8_t cdb_len,
                                 const void *data, uint32_t data_len, bool data_in) {
     if (!g_msc.uasp) {
         return false;
@@ -1293,6 +1308,8 @@ static bool xhci_uasp_exec_scsi(uint8_t *cdb, uint8_t cdb_len,
     g_uasp_cmd_iu[5] = (uint8_t)((data_len >> 8) & 0xFF);
     g_uasp_cmd_iu[6] = (uint8_t)((data_len >> 16) & 0xFF);
     g_uasp_cmd_iu[7] = (uint8_t)((data_len >> 24) & 0xFF);
+    g_uasp_cmd_iu[8] = lun;
+    memset(&g_uasp_cmd_iu[9], 0, 7);
     memcpy(&g_uasp_cmd_iu[16], cdb, cdb_len);
 
     g_msc.tag++;
@@ -1326,32 +1343,32 @@ static bool xhci_uasp_exec_scsi(uint8_t *cdb, uint8_t cdb_len,
     return true;
 }
 
-static bool xhci_msc_read_capacity(uintptr_t base, uint32_t dboff, uintptr_t rt_base) {
+static bool xhci_msc_read_capacity(uintptr_t base, uint32_t dboff, uintptr_t rt_base, uint8_t lun) {
     uint8_t cb[16];
 
     memset(cb, 0, sizeof(cb));
     cb[0] = 0x25; /* READ CAPACITY(10) */
     if (g_msc.uasp) {
-        if (!xhci_uasp_exec_scsi(cb, 10, g_msc_data_buf, 8, true)) {
+        if (!xhci_uasp_exec_scsi(lun, cb, 10, g_msc_data_buf, 8, true)) {
             serial_puts("[XHCI] UASP READ CAPACITY failed\n");
-            xhci_msc_request_sense_uasp();
+            xhci_msc_request_sense_uasp(lun);
             xhci_msc_log_sense("UASP");
             return false;
         }
     } else {
-        if (!xhci_msc_send_cbw(base, dboff, rt_base, cb, 10, 8, true)) {
+        if (!xhci_msc_send_cbw(base, dboff, rt_base, lun, cb, 10, 8, true)) {
             serial_puts("[XHCI] MSC READ CAPACITY CBW failed\n");
             return false;
         }
         if (!xhci_msc_bulk_transfer(base, dboff, rt_base, true, g_msc_data_buf, 8)) {
             serial_puts("[XHCI] MSC READ CAPACITY data failed\n");
-            xhci_msc_request_sense_bot(base, dboff, rt_base);
+            xhci_msc_request_sense_bot(base, dboff, rt_base, lun);
             xhci_msc_log_sense("MSC");
             return false;
         }
         if (!xhci_msc_recv_csw(base, dboff, rt_base)) {
             serial_puts("[XHCI] MSC READ CAPACITY CSW failed\n");
-            xhci_msc_request_sense_bot(base, dboff, rt_base);
+            xhci_msc_request_sense_bot(base, dboff, rt_base, lun);
             xhci_msc_log_sense("MSC");
             return false;
         }
@@ -1361,8 +1378,15 @@ static bool xhci_msc_read_capacity(uintptr_t base, uint32_t dboff, uintptr_t rt_
                         (g_msc_data_buf[2] << 8) | g_msc_data_buf[3];
     uint32_t blk_size = (g_msc_data_buf[4] << 24) | (g_msc_data_buf[5] << 16) |
                         (g_msc_data_buf[6] << 8) | g_msc_data_buf[7];
-    g_msc.block_size = blk_size;
-    g_msc.block_count = (uint64_t)last_lba + 1u;
+    if (lun < MAX_MSC_LUNS) {
+        g_msc_lun_block_size[lun] = blk_size;
+        g_msc_lun_block_count[lun] = (uint64_t)last_lba + 1u;
+        g_msc_lun_valid[lun] = true;
+    }
+    if (lun == 0) {
+        g_msc.block_size = blk_size;
+        g_msc.block_count = (uint64_t)last_lba + 1u;
+    }
     serial_printf("[XHCI] MSC capacity last_lba=%u block_size=%u\n", last_lba, blk_size);
     return (blk_size != 0);
 }
@@ -1384,6 +1408,36 @@ static bool xhci_msc_configure_bot(uintptr_t base, uint32_t dboff, uintptr_t rt_
     return true;
 }
 
+static bool xhci_msc_get_max_lun(uintptr_t base, uint32_t dboff, uintptr_t rt_base, uint8_t slot_id) {
+    usb_setup_packet_t setup = {
+        .bmRequestType = 0xA1, /* IN | Class | Interface */
+        .bRequest = 0xFE,      /* GET_MAX_LUN */
+        .wValue = 0,
+        .wIndex = g_msc.interface_num,
+        .wLength = 1
+    };
+
+    memset(g_ep0_buf, 0, sizeof(g_ep0_buf));
+    xhci_ep0_enqueue_setup(&setup);
+    xhci_ep0_enqueue_data_in((uintptr_t)&g_ep0_buf[0], 1);
+    xhci_ep0_enqueue_status();
+    xhci_ep0_ring_doorbell(base, dboff, slot_id);
+
+    if (!xhci_poll_transfer_complete(rt_base, slot_id)) {
+        return false;
+    }
+    uint8_t max_lun = ((uint8_t *)g_ep0_buf)[0];
+    g_msc.max_lun = (uint8_t)(max_lun + 1);
+    if (g_msc.max_lun == 0) {
+        g_msc.max_lun = 1;
+    }
+    if (g_msc.max_lun > MAX_MSC_LUNS) {
+        g_msc.max_lun = MAX_MSC_LUNS;
+    }
+    serial_printf("[XHCI] MSC max LUN=%u\n", (unsigned)g_msc.max_lun - 1);
+    return true;
+}
+
 static bool xhci_msc_try_fallback_bot(void) {
     if (!g_xhci_base || !g_xhci_rt_base) {
         return false;
@@ -1397,32 +1451,32 @@ static bool xhci_msc_try_fallback_bot(void) {
     return true;
 }
 
-static bool xhci_msc_inquiry(uintptr_t base, uint32_t dboff, uintptr_t rt_base) {
+static bool xhci_msc_inquiry(uintptr_t base, uint32_t dboff, uintptr_t rt_base, uint8_t lun) {
     uint8_t cb[16];
     memset(cb, 0, sizeof(cb));
     cb[0] = 0x12; /* INQUIRY */
     cb[4] = 36;
     if (g_msc.uasp) {
-        if (!xhci_uasp_exec_scsi(cb, 6, g_msc_data_buf, 36, true)) {
+        if (!xhci_uasp_exec_scsi(lun, cb, 6, g_msc_data_buf, 36, true)) {
             serial_puts("[XHCI] UASP INQUIRY failed\n");
-            xhci_msc_request_sense_uasp();
+            xhci_msc_request_sense_uasp(lun);
             xhci_msc_log_sense("UASP");
             return false;
         }
     } else {
-        if (!xhci_msc_send_cbw(base, dboff, rt_base, cb, 6, 36, true)) {
+        if (!xhci_msc_send_cbw(base, dboff, rt_base, lun, cb, 6, 36, true)) {
             serial_puts("[XHCI] MSC INQUIRY CBW failed\n");
             return false;
         }
         if (!xhci_msc_bulk_transfer(base, dboff, rt_base, true, g_msc_data_buf, 36)) {
             serial_puts("[XHCI] MSC INQUIRY data failed\n");
-            xhci_msc_request_sense_bot(base, dboff, rt_base);
+            xhci_msc_request_sense_bot(base, dboff, rt_base, lun);
             xhci_msc_log_sense("MSC");
             return false;
         }
         if (!xhci_msc_recv_csw(base, dboff, rt_base)) {
             serial_puts("[XHCI] MSC INQUIRY CSW failed\n");
-            xhci_msc_request_sense_bot(base, dboff, rt_base);
+            xhci_msc_request_sense_bot(base, dboff, rt_base, lun);
             xhci_msc_log_sense("MSC");
             return false;
         }
@@ -1433,35 +1487,35 @@ static bool xhci_msc_inquiry(uintptr_t base, uint32_t dboff, uintptr_t rt_base) 
     return true;
 }
 
-static bool xhci_msc_test_unit_ready(uintptr_t base, uint32_t dboff, uintptr_t rt_base) {
+static bool xhci_msc_test_unit_ready(uintptr_t base, uint32_t dboff, uintptr_t rt_base, uint8_t lun) {
     uint8_t cb[16];
     memset(cb, 0, sizeof(cb));
     cb[0] = 0x00; /* TEST UNIT READY */
     if (g_msc.uasp) {
-        if (!xhci_uasp_exec_scsi(cb, 6, NULL, 0, true)) {
-            xhci_msc_request_sense_uasp();
+        if (!xhci_uasp_exec_scsi(lun, cb, 6, NULL, 0, true)) {
+            xhci_msc_request_sense_uasp(lun);
             xhci_msc_log_sense("UASP");
-            return xhci_msc_retry_not_ready(true);
+            return xhci_msc_retry_not_ready(true, lun);
         }
         return true;
     }
-    if (!xhci_msc_send_cbw(base, dboff, rt_base, cb, 6, 0, false)) {
+    if (!xhci_msc_send_cbw(base, dboff, rt_base, lun, cb, 6, 0, false)) {
         return false;
     }
     if (!xhci_msc_recv_csw(base, dboff, rt_base)) {
-        xhci_msc_request_sense_bot(base, dboff, rt_base);
+        xhci_msc_request_sense_bot(base, dboff, rt_base, lun);
         xhci_msc_log_sense("MSC");
-        return xhci_msc_retry_not_ready(false);
+        return xhci_msc_retry_not_ready(false, lun);
     }
     return true;
 }
 
 static void xhci_msc_smoke_test(uintptr_t base, uint32_t dboff, uintptr_t rt_base) {
     uint8_t cb[16];
-    if (!xhci_msc_inquiry(base, dboff, rt_base)) {
+    if (!xhci_msc_inquiry(base, dboff, rt_base, 0)) {
         return;
     }
-    if (!xhci_msc_read_capacity(base, dboff, rt_base)) {
+    if (!xhci_msc_read_capacity(base, dboff, rt_base, 0)) {
         return;
     }
 
@@ -1474,7 +1528,7 @@ static void xhci_msc_smoke_test(uintptr_t base, uint32_t dboff, uintptr_t rt_bas
     cb[0] = 0x28; /* READ(10) */
     cb[7] = 0;
     cb[8] = 1; /* 1 block */
-    if (!xhci_msc_send_cbw(base, dboff, rt_base, cb, 10, g_msc.block_size, true)) {
+    if (!xhci_msc_send_cbw(base, dboff, rt_base, 0, cb, 10, g_msc.block_size, true)) {
         serial_puts("[XHCI] MSC READ10 CBW failed\n");
         return;
     }
@@ -1500,25 +1554,25 @@ static bool xhci_msc_init_if_needed(void) {
         return true;
     }
 
-    if (!xhci_msc_test_unit_ready(g_xhci_base, g_xhci_dboff, g_xhci_rt_base)) {
+    if (!xhci_msc_test_unit_ready(g_xhci_base, g_xhci_dboff, g_xhci_rt_base, 0)) {
         serial_puts("[XHCI] MSC not ready\n");
     }
 
-    if (!xhci_msc_inquiry(g_xhci_base, g_xhci_dboff, g_xhci_rt_base)) {
+    if (!xhci_msc_inquiry(g_xhci_base, g_xhci_dboff, g_xhci_rt_base, 0)) {
         if (g_msc.uasp) {
             g_msc.uasp_failed = true;
             if (xhci_msc_try_fallback_bot()) {
-                return xhci_msc_inquiry(g_xhci_base, g_xhci_dboff, g_xhci_rt_base) &&
-                       xhci_msc_read_capacity(g_xhci_base, g_xhci_dboff, g_xhci_rt_base);
+                return xhci_msc_inquiry(g_xhci_base, g_xhci_dboff, g_xhci_rt_base, 0) &&
+                       xhci_msc_read_capacity(g_xhci_base, g_xhci_dboff, g_xhci_rt_base, 0);
             }
         }
         return false;
     }
-    if (!xhci_msc_read_capacity(g_xhci_base, g_xhci_dboff, g_xhci_rt_base)) {
+    if (!xhci_msc_read_capacity(g_xhci_base, g_xhci_dboff, g_xhci_rt_base, 0)) {
         if (g_msc.uasp) {
             g_msc.uasp_failed = true;
             if (xhci_msc_try_fallback_bot()) {
-                return xhci_msc_read_capacity(g_xhci_base, g_xhci_dboff, g_xhci_rt_base);
+                return xhci_msc_read_capacity(g_xhci_base, g_xhci_dboff, g_xhci_rt_base, 0);
             }
         }
         return false;
@@ -1549,28 +1603,63 @@ OSErr xhci_msc_get_info(uint32_t *block_size, uint64_t *block_count, bool *read_
     return noErr;
 }
 
-static OSErr xhci_msc_read_blocks_internal(uint64_t start_block, uint32_t block_count, void *buffer) {
+OSErr xhci_msc_get_info_lun(uint8_t lun, uint32_t *block_size, uint64_t *block_count, bool *read_only) {
+    if (!xhci_msc_ensure_lun_info(lun)) {
+        return paramErr;
+    }
+    if (block_size) {
+        *block_size = g_msc_lun_block_size[lun];
+    }
+    if (block_count) {
+        *block_count = g_msc_lun_block_count[lun];
+    }
+    if (read_only) {
+        *read_only = g_msc.readonly;
+    }
+    return noErr;
+}
+
+static bool xhci_msc_ensure_lun_info(uint8_t lun) {
+    if (!xhci_msc_available()) {
+        return false;
+    }
+    if (lun >= g_msc.max_lun || lun >= MAX_MSC_LUNS) {
+        return false;
+    }
+    if (g_msc_lun_valid[lun]) {
+        return true;
+    }
+    return xhci_msc_read_capacity(g_xhci_base, g_xhci_dboff, g_xhci_rt_base, lun);
+}
+
+static OSErr xhci_msc_read_blocks_internal(uint8_t lun, uint64_t start_block,
+                                           uint32_t block_count, void *buffer) {
     if (!xhci_msc_available() || !buffer) {
         return paramErr;
     }
-    if (g_msc.block_size == 0 || g_msc.block_count == 0) {
+    if (!xhci_msc_ensure_lun_info(lun)) {
         return ioErr;
     }
-    if (start_block >= g_msc.block_count) {
+    uint32_t blk_size = g_msc_lun_block_size[lun];
+    uint64_t blk_count = g_msc_lun_block_count[lun];
+    if (blk_size == 0 || blk_count == 0) {
+        return ioErr;
+    }
+    if (start_block >= blk_count) {
         return paramErr;
     }
     if (block_count == 0) {
         return noErr;
     }
-    if (start_block + block_count > g_msc.block_count) {
+    if (start_block + block_count > blk_count) {
         return paramErr;
     }
-    if (g_msc.block_size > sizeof(g_msc_data_buf)) {
+    if (blk_size > sizeof(g_msc_data_buf)) {
         return paramErr;
     }
 
     uint8_t *buf = (uint8_t *)buffer;
-    uint32_t max_blocks = (uint32_t)(sizeof(g_msc_data_buf) / g_msc.block_size);
+    uint32_t max_blocks = (uint32_t)(sizeof(g_msc_data_buf) / blk_size);
     if (max_blocks == 0) {
         return paramErr;
     }
@@ -1601,12 +1690,12 @@ static OSErr xhci_msc_read_blocks_internal(uint64_t start_block, uint32_t block_
         cb[7] = (uint8_t)((chunk >> 8) & 0xFF);
         cb[8] = (uint8_t)(chunk & 0xFF);
 
-        uint32_t data_len = chunk * g_msc.block_size;
+        uint32_t data_len = chunk * blk_size;
         if (g_msc.uasp) {
-            if (!xhci_uasp_exec_scsi(cb, 10, buf, data_len, true)) {
-                xhci_msc_request_sense_uasp();
+            if (!xhci_uasp_exec_scsi(lun, cb, 10, buf, data_len, true)) {
+                xhci_msc_request_sense_uasp(lun);
                 xhci_msc_log_sense("UASP");
-                if (xhci_msc_retry_not_ready(true)) {
+                if (xhci_msc_retry_not_ready(true, lun)) {
                     continue;
                 }
                 g_msc.uasp_failed = true;
@@ -1618,24 +1707,24 @@ static OSErr xhci_msc_read_blocks_internal(uint64_t start_block, uint32_t block_
             }
         } else {
             if (!xhci_msc_send_cbw(g_xhci_base, g_xhci_dboff, g_xhci_rt_base,
-                                   cb, 10, data_len, true)) {
+                                   lun, cb, 10, data_len, true)) {
                 return ioErr;
             }
 
             if (!xhci_msc_bulk_transfer(g_xhci_base, g_xhci_dboff, g_xhci_rt_base,
                                         true, buf, data_len)) {
-                xhci_msc_request_sense_bot(g_xhci_base, g_xhci_dboff, g_xhci_rt_base);
+                xhci_msc_request_sense_bot(g_xhci_base, g_xhci_dboff, g_xhci_rt_base, lun);
                 xhci_msc_log_sense("MSC");
-                if (xhci_msc_retry_not_ready(false)) {
+                if (xhci_msc_retry_not_ready(false, lun)) {
                     continue;
                 }
                 return ioErr;
             }
 
             if (!xhci_msc_recv_csw(g_xhci_base, g_xhci_dboff, g_xhci_rt_base)) {
-                xhci_msc_request_sense_bot(g_xhci_base, g_xhci_dboff, g_xhci_rt_base);
+                xhci_msc_request_sense_bot(g_xhci_base, g_xhci_dboff, g_xhci_rt_base, lun);
                 xhci_msc_log_sense("MSC");
-                if (xhci_msc_retry_not_ready(false)) {
+                if (xhci_msc_retry_not_ready(false, lun)) {
                     continue;
                 }
                 return ioErr;
@@ -1650,31 +1739,37 @@ static OSErr xhci_msc_read_blocks_internal(uint64_t start_block, uint32_t block_
     return noErr;
 }
 
-static OSErr xhci_msc_write_blocks_internal(uint64_t start_block, uint32_t block_count, const void *buffer) {
+static OSErr xhci_msc_write_blocks_internal(uint8_t lun, uint64_t start_block,
+                                            uint32_t block_count, const void *buffer) {
     if (!xhci_msc_available() || !buffer) {
         return paramErr;
     }
-    if (g_msc.block_size == 0 || g_msc.block_count == 0) {
+    if (!xhci_msc_ensure_lun_info(lun)) {
         return ioErr;
     }
-    if (start_block >= g_msc.block_count) {
+    uint32_t blk_size = g_msc_lun_block_size[lun];
+    uint64_t blk_count = g_msc_lun_block_count[lun];
+    if (blk_size == 0 || blk_count == 0) {
+        return ioErr;
+    }
+    if (start_block >= blk_count) {
         return paramErr;
     }
     if (block_count == 0) {
         return noErr;
     }
-    if (start_block + block_count > g_msc.block_count) {
+    if (start_block + block_count > blk_count) {
         return paramErr;
     }
     if (g_msc.readonly) {
         return wPrErr;
     }
-    if (g_msc.block_size > sizeof(g_msc_data_buf)) {
+    if (blk_size > sizeof(g_msc_data_buf)) {
         return paramErr;
     }
 
     const uint8_t *buf = (const uint8_t *)buffer;
-    uint32_t max_blocks = (uint32_t)(sizeof(g_msc_data_buf) / g_msc.block_size);
+    uint32_t max_blocks = (uint32_t)(sizeof(g_msc_data_buf) / blk_size);
     if (max_blocks == 0) {
         return paramErr;
     }
@@ -1705,12 +1800,12 @@ static OSErr xhci_msc_write_blocks_internal(uint64_t start_block, uint32_t block
         cb[7] = (uint8_t)((chunk >> 8) & 0xFF);
         cb[8] = (uint8_t)(chunk & 0xFF);
 
-        uint32_t data_len = chunk * g_msc.block_size;
+        uint32_t data_len = chunk * blk_size;
         if (g_msc.uasp) {
-            if (!xhci_uasp_exec_scsi(cb, 10, buf, data_len, false)) {
-                xhci_msc_request_sense_uasp();
+            if (!xhci_uasp_exec_scsi(lun, cb, 10, buf, data_len, false)) {
+                xhci_msc_request_sense_uasp(lun);
                 xhci_msc_log_sense("UASP");
-                if (xhci_msc_retry_not_ready(true)) {
+                if (xhci_msc_retry_not_ready(true, lun)) {
                     continue;
                 }
                 g_msc.uasp_failed = true;
@@ -1722,22 +1817,22 @@ static OSErr xhci_msc_write_blocks_internal(uint64_t start_block, uint32_t block
             }
         } else {
             if (!xhci_msc_send_cbw(g_xhci_base, g_xhci_dboff, g_xhci_rt_base,
-                                   cb, 10, data_len, false)) {
+                                   lun, cb, 10, data_len, false)) {
                 return ioErr;
             }
             if (!xhci_msc_bulk_transfer(g_xhci_base, g_xhci_dboff, g_xhci_rt_base,
                                         false, buf, data_len)) {
-                xhci_msc_request_sense_bot(g_xhci_base, g_xhci_dboff, g_xhci_rt_base);
+                xhci_msc_request_sense_bot(g_xhci_base, g_xhci_dboff, g_xhci_rt_base, lun);
                 xhci_msc_log_sense("MSC");
-                if (xhci_msc_retry_not_ready(false)) {
+                if (xhci_msc_retry_not_ready(false, lun)) {
                     continue;
                 }
                 return ioErr;
             }
             if (!xhci_msc_recv_csw(g_xhci_base, g_xhci_dboff, g_xhci_rt_base)) {
-                xhci_msc_request_sense_bot(g_xhci_base, g_xhci_dboff, g_xhci_rt_base);
+                xhci_msc_request_sense_bot(g_xhci_base, g_xhci_dboff, g_xhci_rt_base, lun);
                 xhci_msc_log_sense("MSC");
-                if (xhci_msc_retry_not_ready(false)) {
+                if (xhci_msc_retry_not_ready(false, lun)) {
                     continue;
                 }
                 return ioErr;
@@ -1753,11 +1848,32 @@ static OSErr xhci_msc_write_blocks_internal(uint64_t start_block, uint32_t block
 }
 
 OSErr xhci_msc_read_blocks(uint64_t start_block, uint32_t block_count, void *buffer) {
-    return xhci_msc_read_blocks_internal(start_block, block_count, buffer);
+    return xhci_msc_read_blocks_internal(0, start_block, block_count, buffer);
 }
 
 OSErr xhci_msc_write_blocks(uint64_t start_block, uint32_t block_count, const void *buffer) {
-    return xhci_msc_write_blocks_internal(start_block, block_count, buffer);
+    return xhci_msc_write_blocks_internal(0, start_block, block_count, buffer);
+}
+
+uint8_t xhci_msc_get_lun_count(void) {
+    if (!xhci_msc_available()) {
+        return 0;
+    }
+    if (g_msc.max_lun == 0) {
+        return 1;
+    }
+    if (g_msc.max_lun > MAX_MSC_LUNS) {
+        return MAX_MSC_LUNS;
+    }
+    return g_msc.max_lun;
+}
+
+OSErr xhci_msc_read_blocks_lun(uint8_t lun, uint64_t start_block, uint32_t block_count, void *buffer) {
+    return xhci_msc_read_blocks_internal(lun, start_block, block_count, buffer);
+}
+
+OSErr xhci_msc_write_blocks_lun(uint8_t lun, uint64_t start_block, uint32_t block_count, const void *buffer) {
+    return xhci_msc_write_blocks_internal(lun, start_block, block_count, buffer);
 }
 
 static UInt16 xhci_hid_modifiers(uint8_t mods) {
