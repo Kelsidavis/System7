@@ -200,6 +200,7 @@ typedef struct {
     uint8_t last_asc;
     uint8_t last_ascq;
     uint8_t last_status;
+    bool uasp_failed;
 } xhci_msc_dev_t;
 
 static xhci_msc_dev_t g_msc;
@@ -219,6 +220,8 @@ static inline void mmio_write32(uintptr_t base, uint32_t off, uint32_t value);
 static void xhci_msc_smoke_test(uintptr_t base, uint32_t dboff, uintptr_t rt_base);
 static bool xhci_uasp_exec_scsi(uint8_t *cdb, uint8_t cdb_len,
                                 const void *data, uint32_t data_len, bool data_in);
+static void xhci_msc_delay_ticks(uint32_t ticks);
+static bool xhci_msc_test_unit_ready(uintptr_t base, uint32_t dboff, uintptr_t rt_base);
 
 static void xhci_ring_doorbell(uintptr_t base, uint32_t db_off, uint32_t target) {
     mmio_write32(base + db_off, XHCI_DB0 + target, 0);
@@ -1178,6 +1181,13 @@ static void xhci_msc_parse_sense(const uint8_t *buf, uint32_t len) {
     g_msc.last_ascq = buf[13];
 }
 
+static void xhci_msc_delay_ticks(uint32_t ticks) {
+    uint32_t start = TickCount();
+    while ((TickCount() - start) < ticks) {
+        /* busy wait */
+    }
+}
+
 static bool xhci_msc_request_sense_bot(uintptr_t base, uint32_t dboff, uintptr_t rt_base) {
     uint8_t cb[16];
     memset(cb, 0, sizeof(cb));
@@ -1214,6 +1224,25 @@ static void xhci_msc_log_sense(const char *prefix) {
     }
     serial_printf("[XHCI] %s sense key=0x%02x asc=0x%02x ascq=0x%02x\n",
                   prefix, g_msc.last_sense_key, g_msc.last_asc, g_msc.last_ascq);
+}
+
+static bool xhci_msc_retry_not_ready(bool uasp) {
+    if (g_msc.last_sense_key != 0x02) {
+        return false;
+    }
+    for (int i = 0; i < 3; i++) {
+        xhci_msc_delay_ticks(5);
+        if (uasp) {
+            if (xhci_msc_test_unit_ready(g_xhci_base, g_xhci_dboff, g_xhci_rt_base)) {
+                return true;
+            }
+        } else {
+            if (xhci_msc_test_unit_ready(g_xhci_base, g_xhci_dboff, g_xhci_rt_base)) {
+                return true;
+            }
+        }
+    }
+    return false;
 }
 
 static bool xhci_uasp_exec_scsi(uint8_t *cdb, uint8_t cdb_len,
@@ -1347,7 +1376,7 @@ static bool xhci_msc_test_unit_ready(uintptr_t base, uint32_t dboff, uintptr_t r
         if (!xhci_uasp_exec_scsi(cb, 6, NULL, 0, true)) {
             xhci_msc_request_sense_uasp();
             xhci_msc_log_sense("UASP");
-            return false;
+            return xhci_msc_retry_not_ready(true);
         }
         return true;
     }
@@ -1357,7 +1386,7 @@ static bool xhci_msc_test_unit_ready(uintptr_t base, uint32_t dboff, uintptr_t r
     if (!xhci_msc_recv_csw(base, dboff, rt_base)) {
         xhci_msc_request_sense_bot(base, dboff, rt_base);
         xhci_msc_log_sense("MSC");
-        return false;
+        return xhci_msc_retry_not_ready(false);
     }
     return true;
 }
@@ -1411,9 +1440,18 @@ static bool xhci_msc_init_if_needed(void) {
     }
 
     if (!xhci_msc_inquiry(g_xhci_base, g_xhci_dboff, g_xhci_rt_base)) {
+        if (g_msc.uasp) {
+            g_msc.uasp_failed = true;
+        }
         return false;
     }
-    return xhci_msc_read_capacity(g_xhci_base, g_xhci_dboff, g_xhci_rt_base);
+    if (!xhci_msc_read_capacity(g_xhci_base, g_xhci_dboff, g_xhci_rt_base)) {
+        if (g_msc.uasp) {
+            g_msc.uasp_failed = true;
+        }
+        return false;
+    }
+    return true;
 }
 
 bool xhci_msc_available(void) {
@@ -1423,6 +1461,9 @@ bool xhci_msc_available(void) {
 OSErr xhci_msc_get_info(uint32_t *block_size, uint64_t *block_count, bool *read_only) {
     if (!xhci_msc_available()) {
         return paramErr;
+    }
+    if (g_msc.uasp_failed) {
+        serial_puts("[XHCI] UASP failed, device may require BOT fallback\n");
     }
     if (block_size) {
         *block_size = g_msc.block_size;
@@ -1492,6 +1533,10 @@ static OSErr xhci_msc_read_blocks_internal(uint64_t start_block, uint32_t block_
             if (!xhci_uasp_exec_scsi(cb, 10, buf, data_len, true)) {
                 xhci_msc_request_sense_uasp();
                 xhci_msc_log_sense("UASP");
+                if (xhci_msc_retry_not_ready(true)) {
+                    continue;
+                }
+                g_msc.uasp_failed = true;
                 return ioErr;
             }
         } else {
@@ -1504,12 +1549,18 @@ static OSErr xhci_msc_read_blocks_internal(uint64_t start_block, uint32_t block_
                                         true, buf, data_len)) {
                 xhci_msc_request_sense_bot(g_xhci_base, g_xhci_dboff, g_xhci_rt_base);
                 xhci_msc_log_sense("MSC");
+                if (xhci_msc_retry_not_ready(false)) {
+                    continue;
+                }
                 return ioErr;
             }
 
             if (!xhci_msc_recv_csw(g_xhci_base, g_xhci_dboff, g_xhci_rt_base)) {
                 xhci_msc_request_sense_bot(g_xhci_base, g_xhci_dboff, g_xhci_rt_base);
                 xhci_msc_log_sense("MSC");
+                if (xhci_msc_retry_not_ready(false)) {
+                    continue;
+                }
                 return ioErr;
             }
         }
@@ -1581,6 +1632,10 @@ static OSErr xhci_msc_write_blocks_internal(uint64_t start_block, uint32_t block
             if (!xhci_uasp_exec_scsi(cb, 10, buf, data_len, false)) {
                 xhci_msc_request_sense_uasp();
                 xhci_msc_log_sense("UASP");
+                if (xhci_msc_retry_not_ready(true)) {
+                    continue;
+                }
+                g_msc.uasp_failed = true;
                 return ioErr;
             }
         } else {
@@ -1592,11 +1647,17 @@ static OSErr xhci_msc_write_blocks_internal(uint64_t start_block, uint32_t block
                                         false, buf, data_len)) {
                 xhci_msc_request_sense_bot(g_xhci_base, g_xhci_dboff, g_xhci_rt_base);
                 xhci_msc_log_sense("MSC");
+                if (xhci_msc_retry_not_ready(false)) {
+                    continue;
+                }
                 return ioErr;
             }
             if (!xhci_msc_recv_csw(g_xhci_base, g_xhci_dboff, g_xhci_rt_base)) {
                 xhci_msc_request_sense_bot(g_xhci_base, g_xhci_dboff, g_xhci_rt_base);
                 xhci_msc_log_sense("MSC");
+                if (xhci_msc_retry_not_ready(false)) {
+                    continue;
+                }
                 return ioErr;
             }
         }
