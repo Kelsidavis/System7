@@ -166,6 +166,14 @@ typedef struct {
     uint16_t bulk_out_mps;
     uint8_t bulk_in_ep_id;
     uint8_t bulk_out_ep_id;
+    bool bot_present;
+    bool bot_configured;
+    uint8_t bot_in_ep;
+    uint8_t bot_out_ep;
+    uint16_t bot_in_mps;
+    uint16_t bot_out_mps;
+    uint8_t bot_in_ep_id;
+    uint8_t bot_out_ep_id;
     bool uasp;
     uint8_t uasp_cmd_out_ep;
     uint8_t uasp_data_out_ep;
@@ -222,6 +230,7 @@ static bool xhci_uasp_exec_scsi(uint8_t *cdb, uint8_t cdb_len,
                                 const void *data, uint32_t data_len, bool data_in);
 static void xhci_msc_delay_ticks(uint32_t ticks);
 static bool xhci_msc_test_unit_ready(uintptr_t base, uint32_t dboff, uintptr_t rt_base);
+static bool xhci_msc_configure_bot(uintptr_t base, uint32_t dboff, uintptr_t rt_base);
 
 static void xhci_ring_doorbell(uintptr_t base, uint32_t db_off, uint32_t target) {
     mmio_write32(base + db_off, XHCI_DB0 + target, 0);
@@ -274,6 +283,8 @@ static void xhci_ring_init(void) {
     g_msc.in_cycle = 1;
     g_msc.out_cycle = 1;
     g_msc.tag = 1;
+    g_msc.bot_present = false;
+    g_msc.bot_configured = false;
     g_msc.uasp_cmd_ring_index = 0;
     g_msc.uasp_data_in_ring_index = 0;
     g_msc.uasp_data_out_ring_index = 0;
@@ -652,6 +663,14 @@ static bool xhci_ep0_get_config_descriptor(uintptr_t base, uint32_t dboff, uintp
         g_msc.bulk_in_mps = 0;
         g_msc.bulk_out_mps = 0;
         g_msc.configured = false;
+        g_msc.bot_present = false;
+        g_msc.bot_configured = false;
+        g_msc.bot_in_ep = 0;
+        g_msc.bot_out_ep = 0;
+        g_msc.bot_in_ep_id = 0;
+        g_msc.bot_out_ep_id = 0;
+        g_msc.bot_in_mps = 0;
+        g_msc.bot_out_mps = 0;
         g_msc.uasp = false;
         g_msc.uasp_cmd_out_ep = 0;
         g_msc.uasp_data_out_ep = 0;
@@ -719,6 +738,12 @@ static bool xhci_ep0_get_config_descriptor(uintptr_t base, uint32_t dboff, uintp
                         g_msc.bulk_in_mps = mps;
                         g_msc.bulk_in_ep_id = (uint8_t)(2 * (ep_addr & 0x0F) + 1);
                     }
+                    if (current_proto == 0x50) {
+                        g_msc.bot_present = true;
+                        g_msc.bot_in_ep = ep_addr;
+                        g_msc.bot_in_mps = mps;
+                        g_msc.bot_in_ep_id = (uint8_t)(2 * (ep_addr & 0x0F) + 1);
+                    }
                 } else {
                     if (g_msc.uasp && uasp_out_count < 2) {
                         uasp_out_eps[uasp_out_count] = ep_addr;
@@ -728,6 +753,12 @@ static bool xhci_ep0_get_config_descriptor(uintptr_t base, uint32_t dboff, uintp
                         g_msc.bulk_out_ep = ep_addr;
                         g_msc.bulk_out_mps = mps;
                         g_msc.bulk_out_ep_id = (uint8_t)(2 * (ep_addr & 0x0F) + 0);
+                    }
+                    if (current_proto == 0x50) {
+                        g_msc.bot_present = true;
+                        g_msc.bot_out_ep = ep_addr;
+                        g_msc.bot_out_mps = mps;
+                        g_msc.bot_out_ep_id = (uint8_t)(2 * (ep_addr & 0x0F) + 0);
                     }
                 }
                 serial_printf("[XHCI] MSC bulk %s ep=0x%02x mps=%u\n",
@@ -819,6 +850,10 @@ static bool xhci_ep0_get_config_descriptor(uintptr_t base, uint32_t dboff, uintp
         g_msc.configured = xhci_configure_endpoint(base, dboff, rt_base, slot_id);
         if (g_msc.configured) {
             serial_puts("[XHCI] MSC endpoints configured\n");
+            xhci_msc_smoke_test(base, dboff, rt_base);
+        }
+    } else if (g_msc.bot_present && g_msc.slot == slot_id) {
+        if (xhci_msc_configure_bot(base, dboff, rt_base)) {
             xhci_msc_smoke_test(base, dboff, rt_base);
         }
     }
@@ -1332,6 +1367,36 @@ static bool xhci_msc_read_capacity(uintptr_t base, uint32_t dboff, uintptr_t rt_
     return (blk_size != 0);
 }
 
+static bool xhci_msc_configure_bot(uintptr_t base, uint32_t dboff, uintptr_t rt_base) {
+    if (!g_msc.bot_present || g_msc.bot_in_ep_id == 0 || g_msc.bot_out_ep_id == 0) {
+        return false;
+    }
+    memset(g_input_ctx, 0, sizeof(g_input_ctx));
+    xhci_build_bulk_endpoint_context(g_msc.bot_out_ep_id, g_msc.bot_out_mps, 2, g_msc_out_ring);
+    xhci_build_bulk_endpoint_context(g_msc.bot_in_ep_id, g_msc.bot_in_mps, 6, g_msc_in_ring);
+    if (!xhci_configure_endpoint(base, dboff, rt_base, g_msc.slot)) {
+        return false;
+    }
+    g_msc.configured = true;
+    g_msc.bot_configured = true;
+    g_msc.uasp = false;
+    serial_puts("[XHCI] BOT endpoints configured\n");
+    return true;
+}
+
+static bool xhci_msc_try_fallback_bot(void) {
+    if (!g_xhci_base || !g_xhci_rt_base) {
+        return false;
+    }
+    if (!g_msc.bot_present || g_msc.bot_configured) {
+        return false;
+    }
+    if (!xhci_msc_configure_bot(g_xhci_base, g_xhci_dboff, g_xhci_rt_base)) {
+        return false;
+    }
+    return true;
+}
+
 static bool xhci_msc_inquiry(uintptr_t base, uint32_t dboff, uintptr_t rt_base) {
     uint8_t cb[16];
     memset(cb, 0, sizeof(cb));
@@ -1442,12 +1507,19 @@ static bool xhci_msc_init_if_needed(void) {
     if (!xhci_msc_inquiry(g_xhci_base, g_xhci_dboff, g_xhci_rt_base)) {
         if (g_msc.uasp) {
             g_msc.uasp_failed = true;
+            if (xhci_msc_try_fallback_bot()) {
+                return xhci_msc_inquiry(g_xhci_base, g_xhci_dboff, g_xhci_rt_base) &&
+                       xhci_msc_read_capacity(g_xhci_base, g_xhci_dboff, g_xhci_rt_base);
+            }
         }
         return false;
     }
     if (!xhci_msc_read_capacity(g_xhci_base, g_xhci_dboff, g_xhci_rt_base)) {
         if (g_msc.uasp) {
             g_msc.uasp_failed = true;
+            if (xhci_msc_try_fallback_bot()) {
+                return xhci_msc_read_capacity(g_xhci_base, g_xhci_dboff, g_xhci_rt_base);
+            }
         }
         return false;
     }
@@ -1506,6 +1578,7 @@ static OSErr xhci_msc_read_blocks_internal(uint64_t start_block, uint32_t block_
     uint64_t lba = start_block;
     uint32_t remaining = block_count;
 
+    bool tried_fallback = false;
     while (remaining > 0) {
         uint32_t chunk = remaining;
         if (chunk > max_blocks) {
@@ -1537,6 +1610,10 @@ static OSErr xhci_msc_read_blocks_internal(uint64_t start_block, uint32_t block_
                     continue;
                 }
                 g_msc.uasp_failed = true;
+                if (!tried_fallback && xhci_msc_try_fallback_bot()) {
+                    tried_fallback = true;
+                    continue;
+                }
                 return ioErr;
             }
         } else {
@@ -1605,6 +1682,7 @@ static OSErr xhci_msc_write_blocks_internal(uint64_t start_block, uint32_t block
     uint64_t lba = start_block;
     uint32_t remaining = block_count;
 
+    bool tried_fallback = false;
     while (remaining > 0) {
         uint32_t chunk = remaining;
         if (chunk > max_blocks) {
@@ -1636,6 +1714,10 @@ static OSErr xhci_msc_write_blocks_internal(uint64_t start_block, uint32_t block
                     continue;
                 }
                 g_msc.uasp_failed = true;
+                if (!tried_fallback && xhci_msc_try_fallback_bot()) {
+                    tried_fallback = true;
+                    continue;
+                }
                 return ioErr;
             }
         } else {
