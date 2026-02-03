@@ -7,6 +7,8 @@
 
 #include <stdint.h>
 
+static irq_handler_t g_irq_handlers[16] = {0};
+
 typedef struct __attribute__((packed)) {
     uint16_t offset_low;
     uint16_t selector;
@@ -83,5 +85,20 @@ void idt_enable_interrupts(void) {
 }
 
 void irq_dispatch(uint32_t irq) {
+    if (irq < 16 && g_irq_handlers[irq]) {
+        g_irq_handlers[irq]((uint8_t)irq);
+    }
     pic_send_eoi((uint8_t)irq);
+}
+
+void irq_register_handler(uint8_t irq, irq_handler_t handler) {
+    if (irq < 16) {
+        g_irq_handlers[irq] = handler;
+    }
+}
+
+void irq_unregister_handler(uint8_t irq) {
+    if (irq < 16) {
+        g_irq_handlers[irq] = 0;
+    }
 }

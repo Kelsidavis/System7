@@ -11,6 +11,8 @@
 #include "rtc.h"
 #include "idt.h"
 #include <stddef.h>
+#include "PS2Controller.h"
+#include "TimeManager/TimeManager.h"
 
 extern void* framebuffer;
 extern uint32_t fb_width;
@@ -25,6 +27,16 @@ extern uint8_t fb_blue_pos;
 extern uint8_t fb_blue_size;
 extern uint32_t g_total_memory_kb;
 
+static void irq_timer_handler(uint8_t irq) {
+    (void)irq;
+    TimeManager_TimerISR();
+}
+
+static void irq_ps2_handler(uint8_t irq) {
+    (void)irq;
+    PollPS2Input();
+}
+
 /*
  * hal_boot_init - Initialize platform-specific boot components
  *
@@ -37,6 +49,12 @@ void hal_boot_init(void *boot_arg) {
     pit_init_hz(1000);
     rtc_init();
     idt_init();
+    irq_register_handler(0, irq_timer_handler);
+    irq_register_handler(1, irq_ps2_handler);
+    irq_register_handler(12, irq_ps2_handler);
+    pic_unmask_irq(0);
+    pic_unmask_irq(1);
+    pic_unmask_irq(12);
     idt_enable_interrupts();
 }
 
