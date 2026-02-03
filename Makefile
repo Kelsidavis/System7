@@ -1364,6 +1364,12 @@ run: $(ISO)
 	qemu-system-i386 -cdrom $(ISO) -drive file=test_disk.img,format=raw,if=ide -m 1024 -vga std -serial file:/tmp/serial.log \
 		-audiodev pa,id=snd0,server=/run/user/$(shell id -u)/pulse/native -machine pcspk-audiodev=snd0 -device sb16,audiodev=snd0
 
+# Run with QEMU + xHCI + USB HID (mouse/keyboard) for USB input testing
+run-usb: $(ISO)
+	qemu-system-i386 -cdrom $(ISO) -drive file=test_disk.img,format=raw,if=ide -m 1024 -vga std -serial file:/tmp/serial.log \
+		-device qemu-xhci,id=xhci -device usb-kbd,bus=xhci.0 -device usb-tablet,bus=xhci.0 \
+		-audiodev pa,id=snd0,server=/run/user/$(shell id -u)/pulse/native -machine pcspk-audiodev=snd0 -device sb16,audiodev=snd0
+
 # Debug with QEMU
 debug: $(ISO)
 	qemu-system-i386 -cdrom $(ISO) -drive file=test_disk.img,format=raw,if=ide -m 1024 -vga std -s -S

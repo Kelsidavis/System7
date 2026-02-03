@@ -24,6 +24,9 @@
 #include <string.h>
 #include <limits.h>
 
+extern uint32_t fb_width;
+extern uint32_t fb_height;
+
 #define XHCI_CLASS_CODE 0x0C
 #define XHCI_SUBCLASS   0x03
 #define XHCI_PROG_IF    0x30
@@ -62,6 +65,7 @@
 #define XHCI_PORTSC_CCS   (1u << 0)
 #define XHCI_PORTSC_PED   (1u << 1)
 #define XHCI_PORTSC_PR    (1u << 4)
+#define XHCI_PORTSC_PP    (1u << 9)
 #define XHCI_PORTSC_PRC   (1u << 21)
 #define XHCI_PORTSC_PEC   (1u << 19)
 
@@ -173,6 +177,7 @@ typedef struct {
     uint8_t port;
     xhci_hid_io_t *io;
     bool present;
+    bool absolute_pointer;
 } xhci_hid_dev_t;
 
 static xhci_hid_dev_t g_hid_kbd[MAX_XHCI_PORTS];
@@ -418,7 +423,7 @@ static void xhci_cmd_ring_enqueue_noop(void) {
 }
 
 static bool xhci_poll_cmd_complete(uintptr_t rt_base, uint8_t *out_slot_id) {
-    for (uint32_t i = 0; i < 100000; i++) {
+    for (uint32_t i = 0; i < 2000000; i++) {
         xhci_trb_t *evt = &g_evt_ring[g_evt_ring_index];
         uint32_t cycle = evt->dword3 & XHCI_TRB_CYCLE;
         if (cycle == (g_evt_cycle ? XHCI_TRB_CYCLE : 0)) {
@@ -443,6 +448,20 @@ static bool xhci_poll_cmd_complete(uintptr_t rt_base, uint8_t *out_slot_id) {
                 mmio_write32(rt_base, XHCI_RT_ERDP_HI, 0);
 #endif
                 return true;
+            } else {
+                /* Advance past unrelated events (e.g., port status change) */
+                g_evt_ring_index++;
+                if (g_evt_ring_index >= (sizeof(g_evt_ring) / sizeof(g_evt_ring[0]))) {
+                    g_evt_ring_index = 0;
+                    g_evt_cycle ^= 1;
+                }
+                uintptr_t erdp = (uintptr_t)&g_evt_ring[g_evt_ring_index];
+                mmio_write32(rt_base, XHCI_RT_ERDP_LO, (uint32_t)(erdp & 0xFFFFFFFFu));
+#if UINTPTR_MAX > 0xFFFFFFFFu
+                mmio_write32(rt_base, XHCI_RT_ERDP_HI, (uint32_t)(erdp >> 32));
+#else
+                mmio_write32(rt_base, XHCI_RT_ERDP_HI, 0);
+#endif
             }
         }
     }
@@ -450,7 +469,7 @@ static bool xhci_poll_cmd_complete(uintptr_t rt_base, uint8_t *out_slot_id) {
 }
 
 static bool xhci_poll_transfer_complete(uintptr_t rt_base, uint8_t slot_id) {
-    for (uint32_t i = 0; i < 100000; i++) {
+    for (uint32_t i = 0; i < 2000000; i++) {
         xhci_trb_t *evt = &g_evt_ring[g_evt_ring_index];
         uint32_t cycle = evt->dword3 & XHCI_TRB_CYCLE;
         if (cycle == (g_evt_cycle ? XHCI_TRB_CYCLE : 0)) {
@@ -900,6 +919,7 @@ static bool xhci_ep0_get_config_descriptor(uintptr_t base, uint32_t dboff, uintp
     uint8_t current_sub = 0;
     uint8_t current_if_num = 0;
     uint8_t current_alt = 0;
+    uint8_t current_hid_role = 0; /* 1=keyboard, 2=pointer */
     uint8_t uasp_in_eps[2] = {0};
     uint8_t uasp_out_eps[2] = {0};
     uint16_t uasp_in_mps[2] = {0};
@@ -919,6 +939,7 @@ static bool xhci_ep0_get_config_descriptor(uintptr_t base, uint32_t dboff, uintp
     kbd->interface_num = 0xFF;
     kbd->alt_setting = 0xFF;
     kbd->interface_num = 0xFF;
+    kbd->absolute_pointer = false;
     memset(kbd->last_report, 0, sizeof(kbd->last_report));
 
     mouse->slot = 0;
@@ -934,6 +955,7 @@ static bool xhci_ep0_get_config_descriptor(uintptr_t base, uint32_t dboff, uintp
     mouse->interface_num = 0xFF;
     mouse->alt_setting = 0xFF;
     mouse->interface_num = 0xFF;
+    mouse->absolute_pointer = false;
 
     msc->slot = 0;
     msc->bulk_in_ep = 0;
@@ -1005,21 +1027,27 @@ static bool xhci_ep0_get_config_descriptor(uintptr_t base, uint32_t dboff, uintp
             current_proto = proto;
             current_if_num = if_num;
             current_alt = alt;
+            current_hid_role = 0;
             if (cls == 0x08 && (proto == 0x50 || proto == 0x62)) {
                 msc->slot = slot_id;
                 msc->uasp = (proto == 0x62);
                 msc->interface_num = if_num;
                 found_supported = true;
             }
-            if (cls == 0x03 && sub == 0x01 && (proto == 0x01 || proto == 0x02)) {
-                xhci_hid_dev_t *dev = (proto == 0x01) ? kbd : mouse;
+            if (cls == 0x03 && ((sub == 0x01 && (proto == 0x01 || proto == 0x02)) || proto == 0x00)) {
+                bool is_keyboard = (sub == 0x01 && proto == 0x01);
+                xhci_hid_dev_t *dev = is_keyboard ? kbd : mouse;
                 if (dev->ep_addr == 0 && dev->interface_num == 0xFF) {
                     dev->slot = slot_id;
                     dev->interface_num = if_num;
                     dev->alt_setting = alt;
-                    /* Boot protocol HID: force alt setting 0 and boot protocol. */
+                    dev->absolute_pointer = !is_keyboard && (proto == 0x00);
+                    /* Boot protocol HID: force alt setting 0 and boot protocol when supported. */
                     xhci_ep0_set_interface(base, dboff, rt_base, slot_id, if_num, 0);
-                    xhci_ep0_set_protocol(base, dboff, rt_base, slot_id, if_num, 0);
+                    if (sub == 0x01) {
+                        xhci_ep0_set_protocol(base, dboff, rt_base, slot_id, if_num, 0);
+                    }
+                    current_hid_role = is_keyboard ? 1 : 2;
                     found_supported = true;
                 }
             }
@@ -1030,25 +1058,26 @@ static bool xhci_ep0_get_config_descriptor(uintptr_t base, uint32_t dboff, uintp
             uint16_t mps = (uint16_t)(buf[off + 4] | (buf[off + 5] << 8));
             uint8_t interval = buf[off + 6];
             uint8_t ep_type = attrs & 0x3;
-            if ((ep_addr & 0x80) && ep_type == 3 && (current_proto == 1 || current_proto == 2)) {
-                xhci_hid_dev_t *dev = (current_proto == 1) ? kbd : mouse;
+            if ((ep_addr & 0x80) && ep_type == 3 && current_hid_role != 0) {
+                xhci_hid_dev_t *dev = (current_hid_role == 1) ? kbd : mouse;
                 if (dev->ep_addr == 0 && dev->slot == slot_id &&
                     dev->interface_num == current_if_num &&
                     dev->alt_setting == current_alt) {
                     dev->slot = slot_id;
                     dev->ep_addr = ep_addr;
-                    if (current_proto == 1 && mps > sizeof(dev->last_report)) {
+                    if (current_hid_role == 1 && mps > sizeof(dev->last_report)) {
                         mps = (uint16_t)sizeof(dev->last_report);
                     }
                     dev->mps = mps;
                     dev->interval = interval;
                     dev->ep_id = (uint8_t)(2 * (ep_addr & 0x0F) + 1);
                     dev->pending = false;
-                    if (current_proto == 1) {
+                    if (current_hid_role == 1) {
                         memset(dev->last_report, 0, sizeof(dev->last_report));
                     }
-                    serial_printf("[XHCI] HID %s INT IN ep=0x%02x mps=%u interval=%u\n",
-                                  (current_proto == 1) ? "kbd" : "mouse",
+                    serial_printf("[XHCI] HID %s%s INT IN ep=0x%02x mps=%u interval=%u\n",
+                                  (current_hid_role == 1) ? "kbd" : "mouse",
+                                  (dev->absolute_pointer ? "(abs)" : ""),
                                   ep_addr, mps, interval);
                     found_supported = true;
                 }
@@ -1398,7 +1427,7 @@ static int xhci_poll_transfer_event(uintptr_t rt_base, uint8_t *out_slot) {
 }
 
 static void xhci_handle_hid_keyboard(xhci_hid_dev_t *dev, const uint8_t *report);
-static void xhci_handle_hid_mouse(const uint8_t *report, uint32_t len) {
+static void xhci_handle_hid_mouse(xhci_hid_dev_t *dev, const uint8_t *report, uint32_t len) {
     if (len < 3) {
         return;
     }
@@ -1419,9 +1448,18 @@ static void xhci_handle_hid_mouse(const uint8_t *report, uint32_t len) {
     }
 
     uint8_t buttons = report[offset + 0] & 0x1F;
-    int16_t dx = (int8_t)report[offset + 1];
-    int16_t dy = (int8_t)report[offset + 2];
-    UpdateMouseStateDelta(dx, -dy, buttons);
+    if (dev && dev->absolute_pointer && len >= 5 + offset && fb_width > 0 && fb_height > 0) {
+        uint16_t x_raw = (uint16_t)(report[offset + 1] | ((uint16_t)report[offset + 2] << 8));
+        uint16_t y_raw = (uint16_t)(report[offset + 3] | ((uint16_t)report[offset + 4] << 8));
+        uint32_t max_coord = (x_raw > 0x7FFF || y_raw > 0x7FFF) ? 0xFFFFu : 0x7FFFu;
+        SInt16 x = (SInt16)((uint32_t)x_raw * (fb_width - 1) / max_coord);
+        SInt16 y = (SInt16)((uint32_t)y_raw * (fb_height - 1) / max_coord);
+        UpdateMouseStateAbsolute(x, y, buttons);
+    } else {
+        int16_t dx = (int8_t)report[offset + 1];
+        int16_t dy = (int8_t)report[offset + 2];
+        UpdateMouseStateDelta(dx, -dy, buttons);
+    }
 
     if (len >= 4 + offset) {
         int8_t wheel = (int8_t)report[3 + offset];
@@ -1489,7 +1527,7 @@ static void xhci_hid_poll_events(uintptr_t rt_base) {
         xhci_hid_dev_t *mouse = xhci_hid_find_by_slot(g_hid_mouse, slot);
         if (mouse && mouse->pending) {
             mouse->pending = false;
-            xhci_handle_hid_mouse((const uint8_t *)mouse->buf, mouse->mps);
+            xhci_handle_hid_mouse(mouse, (const uint8_t *)mouse->buf, mouse->mps);
         }
     }
 }
@@ -1960,17 +1998,31 @@ static void xhci_poll_ports_hotplug(void) {
         return;
     }
     uintptr_t op_base = g_xhci_base + g_xhci_cap_len;
-    uint8_t ports = g_xhci_ports;
+    uint8_t ports = g_xhci_ports ? g_xhci_ports : MAX_XHCI_PORTS;
     if (ports > MAX_XHCI_PORTS) {
         ports = MAX_XHCI_PORTS;
     }
+    static bool logged_ports = false;
+    static uint8_t retry_budget[MAX_XHCI_PORTS];
+    static uint16_t retry_cooldown[MAX_XHCI_PORTS];
 
     for (uint8_t p = 0; p < ports; p++) {
-        uint32_t portsc = mmio_read32(op_base, XHCI_PORTSC_BASE + p * XHCI_PORTSC_STRIDE);
+        uint32_t off = XHCI_PORTSC_BASE + p * XHCI_PORTSC_STRIDE;
+        uint32_t portsc = mmio_read32(op_base, off);
+        if ((portsc & XHCI_PORTSC_PP) == 0) {
+            mmio_write32(op_base, off, portsc | XHCI_PORTSC_PP);
+            portsc = mmio_read32(op_base, off);
+        }
         bool connected = (portsc & XHCI_PORTSC_CCS) != 0;
+        if (!logged_ports) {
+            serial_printf("[XHCI] port %u PORTSC=0x%08x CCS=%u\n",
+                          (unsigned)(p + 1), portsc, connected ? 1u : 0u);
+        }
 
         if (!connected && g_port_connected[p]) {
             g_port_connected[p] = false;
+            retry_budget[p] = 0;
+            retry_cooldown[p] = 0;
             xhci_msc_dev_t *msc = &g_msc[p];
             if (msc->present) {
                 msc->present = false;
@@ -2013,6 +2065,7 @@ static void xhci_poll_ports_hotplug(void) {
                 mouse->ep_id = 0;
                 mouse->pending = false;
                 mouse->last_submit_tick = 0;
+                mouse->absolute_pointer = false;
                 serial_puts("[XHCI] HID mouse disconnected\n");
             }
             continue;
@@ -2020,9 +2073,22 @@ static void xhci_poll_ports_hotplug(void) {
 
         if (connected && !g_port_connected[p]) {
             g_port_connected[p] = true;
+            retry_budget[p] = 5;
+            retry_cooldown[p] = 0;
             xhci_enumerate_port(p);
         }
+        if (connected && g_port_connected[p] &&
+            !g_hid_mouse[p].configured && !g_hid_kbd[p].configured && !g_msc[p].configured) {
+            if (retry_cooldown[p] > 0) {
+                retry_cooldown[p]--;
+            } else if (retry_budget[p] > 0) {
+                retry_budget[p]--;
+                retry_cooldown[p] = 300;
+                xhci_enumerate_port(p);
+            }
+        }
     }
+    logged_ports = true;
 }
 
 static bool xhci_msc_inquiry(xhci_msc_dev_t *dev, uintptr_t base, uint32_t dboff,
@@ -2073,7 +2139,11 @@ static void xhci_enumerate_port(uint8_t port_index) {
     if (!g_xhci_base || !g_xhci_rt_base || !g_xhci_cap_len) {
         return;
     }
-    if (port_index >= g_xhci_ports) {
+    uint8_t ports = g_xhci_ports ? g_xhci_ports : MAX_XHCI_PORTS;
+    if (ports > MAX_XHCI_PORTS) {
+        ports = MAX_XHCI_PORTS;
+    }
+    if (port_index >= ports) {
         return;
     }
     uintptr_t op_base = g_xhci_base + g_xhci_cap_len;
@@ -2237,6 +2307,20 @@ static bool xhci_msc_init_if_needed(xhci_msc_dev_t *dev) {
 bool xhci_msc_available(void) {
     xhci_msc_dev_t *dev = xhci_msc_get_present_by_index(0, NULL);
     return dev ? xhci_msc_init_if_needed(dev) : false;
+}
+
+bool xhci_hid_available(void) {
+    uint8_t ports = g_xhci_ports ? g_xhci_ports : MAX_XHCI_PORTS;
+    if (ports > MAX_XHCI_PORTS) {
+        ports = MAX_XHCI_PORTS;
+    }
+
+    for (uint8_t i = 0; i < ports; i++) {
+        if (g_hid_kbd[i].present || g_hid_mouse[i].present) {
+            return true;
+        }
+    }
+    return false;
 }
 
 static uint8_t xhci_msc_get_lun_count_dev(xhci_msc_dev_t *dev) {
@@ -2737,7 +2821,7 @@ static bool xhci_reset(uintptr_t base, uint32_t cap_len) {
     cmd &= ~XHCI_CMD_RUN;
     mmio_write32(op_base, XHCI_USBCMD, cmd);
 
-    uint32_t timeout = 100000;
+    uint32_t timeout = 500000;
     while (timeout-- > 0) {
         uint32_t sts = mmio_read32(op_base, XHCI_USBSTS);
         if (sts & XHCI_STS_HCH) {
@@ -2762,7 +2846,7 @@ static bool xhci_reset(uintptr_t base, uint32_t cap_len) {
 static bool xhci_start(uintptr_t base, uint32_t cap_len) {
     uintptr_t op_base = base + cap_len;
     uint32_t cmd = mmio_read32(op_base, XHCI_USBCMD);
-    cmd |= XHCI_CMD_RUN;
+    cmd |= XHCI_CMD_RUN | XHCI_CMD_INTE;
     mmio_write32(op_base, XHCI_USBCMD, cmd);
 
     uint32_t timeout = 100000;
@@ -2843,6 +2927,9 @@ bool xhci_init_x86(void) {
             uint32_t rtsoff = mmio_read32(base, XHCI_RTSOFF) & ~0x1Fu;
             uint8_t max_slots = (uint8_t)(params1 & 0xFF);
             uint8_t ports = (uint8_t)((params1 >> 24) & 0xFF);
+            if (ports == 0) {
+                ports = MAX_XHCI_PORTS;
+            }
             g_ctx_size = (hccparams1 & (1u << 2)) ? 64 : 32;
             g_xhci_cap_len = cap_len;
             g_xhci_ports = ports;
@@ -2887,8 +2974,8 @@ bool xhci_init_x86(void) {
             mmio_write32(rt_base, XHCI_RT_ERDP_LO, (uint32_t)((uintptr_t)&g_evt_ring[0] & 0xFFFFFFFFu));
             mmio_write32(rt_base, XHCI_RT_ERDP_HI, 0);
 
-            /* Enable interrupter */
-            mmio_write32(rt_base, XHCI_RT_IMAN, 1);
+            /* Enable interrupter (IE bit) */
+            mmio_write32(rt_base, XHCI_RT_IMAN, 0x2);
             mmio_write32(rt_base, XHCI_RT_IMOD, 0);
 
             /* Set max device slots enabled */
@@ -2904,6 +2991,15 @@ bool xhci_init_x86(void) {
             if (!xhci_start(base, cap_len)) {
                 serial_puts("[XHCI] start timeout\n");
                 return false;
+            }
+
+            /* Power on ports if needed */
+            for (uint8_t p = 0; p < ports; p++) {
+                uint32_t portsc = mmio_read32(op_base, XHCI_PORTSC_BASE + p * XHCI_PORTSC_STRIDE);
+                if ((portsc & XHCI_PORTSC_PP) == 0) {
+                    mmio_write32(op_base, XHCI_PORTSC_BASE + p * XHCI_PORTSC_STRIDE,
+                                 portsc | XHCI_PORTSC_PP);
+                }
             }
 
             /* Test: issue a NO-OP command */

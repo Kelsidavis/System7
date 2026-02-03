@@ -47,6 +47,7 @@ extern void DoMenuCommand(short menuID, short item);
 #if defined(__i386__) || defined(__x86_64__)
 #include "Platform/x86/idt.h"
 #include "Platform/x86/pic.h"
+#include "Platform/x86/xhci.h"
 #endif
 
 /* Forward declaration for DispatchEvent (no header available yet) */
@@ -1196,19 +1197,19 @@ static void init_system71(void) {
     serial_puts("\n");
 #endif
 
+    /* Initialize PS/2 input devices before Modern Input */
+    if (InitPS2Controller()) {
+        serial_puts("  PS/2 controller initialized\n");
+    } else {
+        serial_puts("  WARNING: PS/2 controller initialization failed\n");
+    }
+
     /* Initialize Modern Input System for PS/2 devices */
     extern SInt16 InitModernInput(const char* platform);
     if (InitModernInput("PS2") == noErr) {
         serial_puts("  Modern Input System initialized for PS/2\n");
     } else {
         serial_puts("  WARNING: Modern Input System initialization failed\n");
-    }
-
-    /* Initialize PS/2 input devices */
-    if (InitPS2Controller()) {
-        serial_puts("  PS/2 controller initialized\n");
-    } else {
-        serial_puts("  WARNING: PS/2 controller initialization failed\n");
     }
 
     /* Initialize Sound Manager */
@@ -1646,14 +1647,6 @@ void kernel_main(uint32_t magic, uint32_t* mb2_info) {
     init_system71();
     serial_puts("KERNEL: init_system71 returned\n");
 
-#if defined(__i386__) || defined(__x86_64__)
-    serial_puts("KERNEL: Enabling interrupts\n");
-    pic_mask_irq(1);
-    pic_mask_irq(12);
-    pic_unmask_irq(0);
-    idt_enable_interrupts();
-#endif
-
     platform_network_init();
 
     /* Remove early test - let DrawDesktop do all the drawing */
@@ -1864,6 +1857,19 @@ void kernel_main(uint32_t magic, uint32_t* mb2_info) {
     extern void uart_flush(void);
     uart_flush();
 
+#if defined(__i386__) || defined(__x86_64__)
+    if (!xhci_hid_available()) {
+        serial_puts("KERNEL: Late xHCI reinit (no HID found yet)\n");
+        xhci_init_x86();
+    } else {
+        serial_puts("KERNEL: xHCI HID already present\n");
+    }
+
+    /* Keep IRQs disabled for now; polling paths are stable. */
+    serial_puts("KERNEL: IRQs disabled (polling mode)\n");
+    PS2_SetIRQDriven(false);
+#endif
+
     while (1) {
         /* IMPORTANT: Call TimerISR each iteration for high-cadence timer checking */
         TimeManager_TimerISR();  /* Poll timer (simulated ISR) - must be called each loop */
@@ -1894,12 +1900,11 @@ void kernel_main(uint32_t magic, uint32_t* mb2_info) {
         }
 #endif /* ENABLE_PROCESS_COOP */
 
+        /* Poll USB HID devices (xHCI) */
+        xhci_poll_hid_x86();
         /* Process modern input events (PS/2 keyboard and mouse) */
         extern void ProcessModernInput(void);
         ProcessModernInput();
-        /* Poll USB HID devices (xHCI) */
-        extern void xhci_poll_hid_x86(void);
-        xhci_poll_hid_x86();
 
         /* Throttle ONLY cursor drawing, not event processing */
         cursor_update_counter++;

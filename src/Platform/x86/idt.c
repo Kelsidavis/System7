@@ -4,6 +4,7 @@
 
 #include "idt.h"
 #include "pic.h"
+#include "Platform/include/serial.h"
 
 #include <stdint.h>
 
@@ -85,6 +86,13 @@ void idt_enable_interrupts(void) {
 }
 
 void irq_dispatch(uint32_t irq) {
+    static uint32_t irq_counts[16] = {0};
+    if (irq < 16) {
+        irq_counts[irq]++;
+        if (irq_counts[irq] <= 5 || (irq_counts[irq] % 1000u) == 0) {
+            serial_printf("[IRQ] %u count=%u\n", (unsigned)irq, (unsigned)irq_counts[irq]);
+        }
+    }
     if (irq < 16 && g_irq_handlers[irq]) {
         g_irq_handlers[irq]((uint8_t)irq);
     }

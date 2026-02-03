@@ -174,12 +174,14 @@ SInt16 InitModernInput(const char* platform)
 
     /* Initialize platform-specific input */
     if (platform && strcmp(platform, "PS2") == 0) {
-        /* Initialize PS/2 controller for keyboard and mouse */
-        if (!InitPS2Controller()) {
-            EVT_LOG_ERROR("ModernInput failed to initialize PS/2 controller\n");
-            return -1;
+        /* Initialize PS/2 controller for keyboard and mouse if needed */
+        if (!PS2_IsInitialized()) {
+            if (!InitPS2Controller()) {
+                EVT_LOG_ERROR("ModernInput failed to initialize PS/2 controller\n");
+                return -1;
+            }
         }
-        EVT_LOG_INFO("ModernInput PS/2 controller initialized\n");
+        EVT_LOG_INFO("ModernInput PS/2 controller ready\n");
     }
     /* Add other platform initializations here (USB, etc.) */
 

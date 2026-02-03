@@ -123,6 +123,20 @@ void UpdateMouseStateDelta(SInt16 dx, SInt16 dy, UInt8 buttons) {
     g_mousePos.v = g_mouseState.y;
 }
 
+void UpdateMouseStateAbsolute(SInt16 x, SInt16 y, UInt8 buttons) {
+    g_mouseState.x = x;
+    g_mouseState.y = y;
+
+    if (g_mouseState.x < 0) g_mouseState.x = 0;
+    if (g_mouseState.y < 0) g_mouseState.y = 0;
+    if (fb_width > 0 && g_mouseState.x >= (int16_t)fb_width) g_mouseState.x = fb_width - 1;
+    if (fb_height > 0 && g_mouseState.y >= (int16_t)fb_height) g_mouseState.y = fb_height - 1;
+
+    g_mouseState.buttons = buttons;
+    g_mousePos.h = g_mouseState.x;
+    g_mousePos.v = g_mouseState.y;
+}
+
 /* Keyboard state */
 typedef struct {
     UInt32 keyMap[4];
@@ -164,7 +178,7 @@ static void ResetKeyboardState(void)
 
 /* Wait for PS/2 controller ready for input */
 static Boolean ps2_wait_input(void) {
-    int timeout = 10000;
+    int timeout = 100000;
     while (timeout--) {
         if ((inb(PS2_STATUS_PORT) & PS2_STATUS_INPUT_FULL) == 0) {
             return true;
@@ -175,7 +189,7 @@ static Boolean ps2_wait_input(void) {
 
 /* Wait for PS/2 controller output available */
 static Boolean ps2_wait_output(void) {
-    int timeout = 10000;
+    int timeout = 100000;
     while (timeout--) {
         if (inb(PS2_STATUS_PORT) & PS2_STATUS_OUTPUT_FULL) {
             return true;
@@ -363,14 +377,7 @@ static void process_keyboard_scancode(uint8_t scancode)
 
 /* Process mouse packet */
 static void process_mouse_packet(void) {
-    extern void serial_puts(const char* str);
-    char msg[128];
-
     uint8_t status = g_mouseState.packet[0];
-
-    /* Enable to see actual PS/2 packets */
-    PLATFORM_LOG_DEBUG("MOUSE PACKET: [0x%02x, 0x%02x, 0x%02x]\n",
-                       g_mouseState.packet[0], g_mouseState.packet[1], g_mouseState.packet[2]);
 
     /* Check sync bit (bit 3 must be 1) for proper packet alignment */
     if (!(status & 0x08)) {
@@ -383,9 +390,6 @@ static void process_mouse_packet(void) {
     int16_t dx = (int8_t)g_mouseState.packet[1];
     int16_t dy = (int8_t)g_mouseState.packet[2];
 
-    PLATFORM_LOG_DEBUG("MOUSE PACKET: [0x%02X, 0x%02X, 0x%02X] -> Δ(%d,%d)\n",
-                       status, g_mouseState.packet[1], g_mouseState.packet[2], dx, dy);
-
     /* Check for overflow */
     if (status & 0x40 || status & 0x80) {
         g_mouseState.packet_index = 0;
@@ -393,22 +397,13 @@ static void process_mouse_packet(void) {
         return;
     }
 
-    int16_t old_x = g_mouseState.x;
-    int16_t old_y = g_mouseState.y;
     uint8_t new_buttons = status & 0x07;
     uint8_t old_buttons = g_mouseState.buttons;
 
     UpdateMouseStateDelta(dx, -dy, new_buttons); /* PS/2 Y is inverted */
 
-    PLATFORM_LOG_DEBUG("MOUSE POS: old=(%d,%d) new=(%d,%d) buttons=0x%02x\n",
-                       old_x, old_y, g_mouseState.x, g_mouseState.y, g_mouseState.buttons);
-
     /* Check button state changes */
     if (new_buttons != old_buttons) {
-        /* Log button state changes */
-        snprintf(msg, sizeof(msg), "[PS2-PKT] Button change: 0x%02x -> 0x%02x (packet[0]=0x%02x)\n",
-                 old_buttons, new_buttons, status);
-        serial_puts(msg);
         /* Update button state only - let ModernInput handle event posting */
         g_mouseState.buttons = new_buttons;
     }
@@ -769,4 +764,9 @@ void PS2_SetIRQDriven(Boolean enabled)
 Boolean PS2_IsIRQDriven(void)
 {
     return g_irqDriven;
+}
+
+Boolean PS2_IsInitialized(void)
+{
+    return g_ps2Initialized;
 }

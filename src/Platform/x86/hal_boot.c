@@ -30,9 +30,15 @@ extern uint8_t fb_blue_pos;
 extern uint8_t fb_blue_size;
 extern uint32_t g_total_memory_kb;
 
+static volatile uint32_t g_irq0_ticks = 0;
+
+uint32_t hal_get_irq0_ticks(void) {
+    return g_irq0_ticks;
+}
+
 static void irq_timer_handler(uint8_t irq) {
     (void)irq;
-    TimeManager_TimerISR();
+    g_irq0_ticks++;
 }
 
 static void irq_ps2_handler(uint8_t irq) {

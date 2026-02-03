@@ -20,6 +20,7 @@ typedef struct {
 void hal_boot_init(void *boot_arg);
 int hal_get_framebuffer_info(hal_framebuffer_info_t *info);
 uint32_t hal_get_memory_size(void);
+uint32_t hal_get_irq0_ticks(void);
 int hal_platform_init(void);
 void hal_platform_shutdown(void);
 int hal_framebuffer_present(void);
