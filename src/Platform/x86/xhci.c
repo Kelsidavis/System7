@@ -12,6 +12,7 @@
 #include "Platform/include/serial.h"
 #include "PS2Controller.h"
 #include "EventManager/KeyboardEvents.h"
+#include "EventManager/MouseEvents.h"
 #include "EventManager/EventTypes.h"
 #include "EventManager/EventManager.h"
 #include "OSUtils/OSUtils.h"
@@ -656,6 +657,14 @@ static void xhci_handle_hid_mouse(const uint8_t *report, uint32_t len) {
     int16_t dy = (int8_t)report[2];
     uint8_t buttons = report[0] & 0x07;
     UpdateMouseStateDelta(dx, -dy, buttons);
+
+    if (len >= 4) {
+        int8_t wheel = (int8_t)report[3];
+        if (wheel != 0) {
+            UInt16 mods = GetModifierState();
+            ProcessScrollWheelEvent(0, (SInt16)-wheel, mods, TickCount());
+        }
+    }
 }
 
 static void xhci_hid_submit(uintptr_t base, uint32_t dboff, xhci_hid_dev_t *dev) {
