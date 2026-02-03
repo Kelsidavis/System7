@@ -718,6 +718,37 @@ static bool xhci_ep0_mass_storage_reset(xhci_msc_dev_t *dev, uintptr_t base, uin
     }
     return xhci_ep0_control_no_data(base, dboff, rt_base, dev->slot, &setup);
 }
+
+static bool xhci_uasp_recover(xhci_msc_dev_t *dev, uintptr_t base, uint32_t dboff,
+                              uintptr_t rt_base) {
+    if (!dev || dev->slot == 0) {
+        return false;
+    }
+    if (!xhci_ep0_mass_storage_reset(dev, base, dboff, rt_base)) {
+        return false;
+    }
+    if (dev->uasp_cmd_out_ep) {
+        xhci_ep0_clear_halt(base, dboff, rt_base, dev->slot, dev->uasp_cmd_out_ep);
+    }
+    if (dev->uasp_data_out_ep) {
+        xhci_ep0_clear_halt(base, dboff, rt_base, dev->slot, dev->uasp_data_out_ep);
+    }
+    if (dev->uasp_status_in_ep) {
+        xhci_ep0_clear_halt(base, dboff, rt_base, dev->slot, dev->uasp_status_in_ep);
+    }
+    if (dev->uasp_data_in_ep) {
+        xhci_ep0_clear_halt(base, dboff, rt_base, dev->slot, dev->uasp_data_in_ep);
+    }
+    dev->uasp_cmd_ring_index = 0;
+    dev->uasp_data_in_ring_index = 0;
+    dev->uasp_data_out_ring_index = 0;
+    dev->uasp_status_ring_index = 0;
+    dev->uasp_cmd_cycle = 1;
+    dev->uasp_data_in_cycle = 1;
+    dev->uasp_data_out_cycle = 1;
+    dev->uasp_status_cycle = 1;
+    return true;
+}
 static bool xhci_ep0_set_configuration(uintptr_t base, uint32_t dboff, uintptr_t rt_base,
                                        uint8_t slot_id, uint8_t config_value) {
     usb_setup_packet_t setup = {
@@ -1617,49 +1648,56 @@ static bool xhci_uasp_exec_scsi(xhci_msc_dev_t *dev, uint8_t lun, uint8_t *cdb, 
     if (!dev || !dev->uasp) {
         return false;
     }
-    uint8_t *cmd_iu = MSC_UASP_CMD_IU(dev);
-    memset(cmd_iu, 0, 32);
-    cmd_iu[0] = 0x01; /* Command IU */
-    cmd_iu[2] = (uint8_t)(dev->tag & 0xFF);
-    cmd_iu[3] = (uint8_t)((dev->tag >> 8) & 0xFF);
-    cmd_iu[4] = (uint8_t)(data_len & 0xFF);
-    cmd_iu[5] = (uint8_t)((data_len >> 8) & 0xFF);
-    cmd_iu[6] = (uint8_t)((data_len >> 16) & 0xFF);
-    cmd_iu[7] = (uint8_t)((data_len >> 24) & 0xFF);
-    cmd_iu[8] = lun;
-    memset(&cmd_iu[9], 0, 7);
-    memcpy(&cmd_iu[16], cdb, cdb_len);
+    bool recovered = false;
+    for (;;) {
+        uint8_t *cmd_iu = MSC_UASP_CMD_IU(dev);
+        memset(cmd_iu, 0, 32);
+        cmd_iu[0] = 0x01; /* Command IU */
+        cmd_iu[2] = (uint8_t)(dev->tag & 0xFF);
+        cmd_iu[3] = (uint8_t)((dev->tag >> 8) & 0xFF);
+        cmd_iu[4] = (uint8_t)(data_len & 0xFF);
+        cmd_iu[5] = (uint8_t)((data_len >> 8) & 0xFF);
+        cmd_iu[6] = (uint8_t)((data_len >> 16) & 0xFF);
+        cmd_iu[7] = (uint8_t)((data_len >> 24) & 0xFF);
+        cmd_iu[8] = lun;
+        memset(&cmd_iu[9], 0, 7);
+        memcpy(&cmd_iu[16], cdb, cdb_len);
 
-    dev->tag++;
+        dev->tag++;
 
-    if (!xhci_uasp_transfer_cmd(dev, g_xhci_base, g_xhci_dboff, g_xhci_rt_base,
-                                cmd_iu, 32)) {
-        return false;
-    }
-
-    if (data_len > 0) {
-        if (!xhci_uasp_transfer_data(dev, g_xhci_base, g_xhci_dboff, g_xhci_rt_base,
-                                     data_in, data, data_len)) {
-            return false;
+        if (!xhci_uasp_transfer_cmd(dev, g_xhci_base, g_xhci_dboff, g_xhci_rt_base,
+                                    cmd_iu, 32)) {
+            /* fall through to recovery */
+        } else if (data_len > 0 &&
+                   !xhci_uasp_transfer_data(dev, g_xhci_base, g_xhci_dboff, g_xhci_rt_base,
+                                            data_in, data, data_len)) {
+            /* fall through to recovery */
+        } else {
+            uint8_t *status_iu = MSC_UASP_STATUS_IU(dev);
+            memset(status_iu, 0, 16);
+            if (!xhci_uasp_transfer_status(dev, g_xhci_base, g_xhci_dboff, g_xhci_rt_base,
+                                           status_iu, 16)) {
+                /* fall through to recovery */
+            } else if (status_iu[0] != 0x03) {
+                serial_printf("[XHCI] UASP status IU id=0x%02x\n", status_iu[0]);
+                /* fall through to recovery */
+            } else {
+                dev->last_status = status_iu[4];
+                if (dev->last_status != 0) {
+                    serial_printf("[XHCI] UASP status=0x%02x\n", dev->last_status);
+                    /* fall through to recovery */
+                } else {
+                    return true;
+                }
+            }
         }
-    }
 
-    uint8_t *status_iu = MSC_UASP_STATUS_IU(dev);
-    memset(status_iu, 0, 16);
-    if (!xhci_uasp_transfer_status(dev, g_xhci_base, g_xhci_dboff, g_xhci_rt_base,
-                                   status_iu, 16)) {
+        if (!recovered && xhci_uasp_recover(dev, g_xhci_base, g_xhci_dboff, g_xhci_rt_base)) {
+            recovered = true;
+            continue;
+        }
         return false;
     }
-    if (status_iu[0] != 0x03) {
-        serial_printf("[XHCI] UASP status IU id=0x%02x\n", status_iu[0]);
-        return false;
-    }
-    dev->last_status = status_iu[4];
-    if (dev->last_status != 0) {
-        serial_printf("[XHCI] UASP status=0x%02x\n", dev->last_status);
-        return false;
-    }
-    return true;
 }
 
 static bool xhci_msc_read_capacity(xhci_msc_dev_t *dev, uintptr_t base, uint32_t dboff,
