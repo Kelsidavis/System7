@@ -370,6 +370,50 @@ static bool xhci_ep0_get_device_descriptor(uintptr_t base, uint32_t dboff, uintp
     return true;
 }
 
+static bool xhci_ep0_get_config_descriptor(uintptr_t base, uint32_t dboff, uintptr_t rt_base,
+                                           uint8_t slot_id) {
+    usb_setup_packet_t setup = {
+        .bmRequestType = 0x80,
+        .bRequest = 6,
+        .wValue = 0x0200,
+        .wIndex = 0,
+        .wLength = 64
+    };
+
+    memset(g_ep0_buf, 0, sizeof(g_ep0_buf));
+    xhci_ep0_enqueue_setup(&setup);
+    xhci_ep0_enqueue_data_in((uintptr_t)&g_ep0_buf[0], 64);
+    xhci_ep0_enqueue_status();
+    xhci_ep0_ring_doorbell(base, dboff, slot_id);
+
+    serial_printf("[XHCI] GET_CONFIG issued for slot %u\n", slot_id);
+    if (!xhci_poll_transfer_complete(rt_base, slot_id)) {
+        return false;
+    }
+
+    uint8_t *buf = (uint8_t *)&g_ep0_buf[0];
+    uint16_t total = (uint16_t)(buf[2] | (buf[3] << 8));
+    serial_printf("[XHCI] Config total length=%u\n", total);
+
+    uint32_t off = 0;
+    while (off + 1 < 64) {
+        uint8_t len = buf[off];
+        uint8_t type = buf[off + 1];
+        if (len < 2) {
+            break;
+        }
+        if (type == 4 && len >= 9) {
+            uint8_t cls = buf[off + 5];
+            uint8_t sub = buf[off + 6];
+            uint8_t proto = buf[off + 7];
+            serial_printf("[XHCI] IF cls=0x%02x sub=0x%02x proto=0x%02x\n", cls, sub, proto);
+        }
+        off += len;
+    }
+
+    return true;
+}
+
 static inline uint32_t mmio_read32(uintptr_t base, uint32_t off) {
     volatile uint32_t *ptr = (volatile uint32_t *)(base + off);
     return *ptr;
@@ -561,7 +605,9 @@ bool xhci_init_x86(void) {
                         if (xhci_poll_cmd_complete(rt_base, &slot_id)) {
                             serial_printf("[XHCI] Enable Slot complete, slot=%u\n", slot_id);
                             if (xhci_address_device(base, dboff, rt_base, slot_id, (uint8_t)(p + 1), portsc)) {
-                                xhci_ep0_get_device_descriptor(base, dboff, rt_base, slot_id);
+                                if (xhci_ep0_get_device_descriptor(base, dboff, rt_base, slot_id)) {
+                                    xhci_ep0_get_config_descriptor(base, dboff, rt_base, slot_id);
+                                }
                             }
                         } else {
                             serial_puts("[XHCI] Enable Slot timeout\n");
