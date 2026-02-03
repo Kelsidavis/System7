@@ -12,6 +12,9 @@
 #include "SystemTypes.h"
 #include "System71StdLib.h"
 #include <time.h>
+#if defined(__i386__) || defined(__x86_64__)
+#include "Platform/x86/rtc.h"
+#endif
 
 /* Debug logging */
 #define DATETIME_DEBUG 0
@@ -125,4 +128,18 @@ void InitDateTime(void) {
     (void)currentTime;  /* Used only in debug logging */
     DT_LOG("InitDateTime: System time initialized to %lu\n",
            (unsigned long)currentTime);
+
+#if defined(__i386__) || defined(__x86_64__)
+    static Boolean logged_rtc = false;
+    if (!logged_rtc) {
+        rtc_datetime_t dt;
+        if (rtc_read_datetime(&dt)) {
+            serial_printf("[RTC] %04u-%02u-%02u %02u:%02u:%02u\n",
+                          dt.year, dt.month, dt.day, dt.hour, dt.minute, dt.second);
+        } else {
+            serial_puts("[RTC] read failed\n");
+        }
+        logged_rtc = true;
+    }
+#endif
 }
