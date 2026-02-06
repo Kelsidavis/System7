@@ -178,6 +178,7 @@ typedef struct {
     xhci_hid_io_t *io;
     bool present;
     bool absolute_pointer;
+    bool has_report_id;
 } xhci_hid_dev_t;
 
 static xhci_hid_dev_t g_hid_kbd[MAX_XHCI_PORTS];
@@ -940,6 +941,7 @@ static bool xhci_ep0_get_config_descriptor(uintptr_t base, uint32_t dboff, uintp
     kbd->alt_setting = 0xFF;
     kbd->interface_num = 0xFF;
     kbd->absolute_pointer = false;
+    kbd->has_report_id = false;
     memset(kbd->last_report, 0, sizeof(kbd->last_report));
 
     mouse->slot = 0;
@@ -956,6 +958,7 @@ static bool xhci_ep0_get_config_descriptor(uintptr_t base, uint32_t dboff, uintp
     mouse->alt_setting = 0xFF;
     mouse->interface_num = 0xFF;
     mouse->absolute_pointer = false;
+    mouse->has_report_id = false;
 
     msc->slot = 0;
     msc->bulk_in_ep = 0;
@@ -1042,6 +1045,7 @@ static bool xhci_ep0_get_config_descriptor(uintptr_t base, uint32_t dboff, uintp
                     dev->interface_num = if_num;
                     dev->alt_setting = alt;
                     dev->absolute_pointer = !is_keyboard && (proto == 0x00);
+                    dev->has_report_id = dev->absolute_pointer;
                     /* Boot protocol HID: force alt setting 0 and boot protocol when supported. */
                     xhci_ep0_set_interface(base, dboff, rt_base, slot_id, if_num, 0);
                     if (sub == 0x01) {
@@ -1432,7 +1436,9 @@ static void xhci_handle_hid_mouse(xhci_hid_dev_t *dev, const uint8_t *report, ui
         return;
     }
     uint32_t offset = 0;
-    if (len >= 4) {
+    if (dev && dev->has_report_id) {
+        offset = 1;
+    } else if (len >= 4) {
         uint8_t rid = report[0];
         uint8_t btn1 = report[1] & 0x1F;
         bool looks_like_id = (rid != 0 && rid <= 8 &&
@@ -1455,6 +1461,12 @@ static void xhci_handle_hid_mouse(xhci_hid_dev_t *dev, const uint8_t *report, ui
         SInt16 x = (SInt16)((uint32_t)x_raw * (fb_width - 1) / max_coord);
         SInt16 y = (SInt16)((uint32_t)y_raw * (fb_height - 1) / max_coord);
         UpdateMouseStateAbsolute(x, y, buttons);
+        static int abs_log_count = 0;
+        if (abs_log_count < 3) {
+            serial_printf("[XHCI] abs mouse: x=%d y=%d btn=0x%02x (raw %04x,%04x off=%u)\n",
+                          x, y, buttons, x_raw, y_raw, offset);
+            abs_log_count++;
+        }
     } else {
         int16_t dx = (int8_t)report[offset + 1];
         int16_t dy = (int8_t)report[offset + 2];
@@ -1525,7 +1537,7 @@ static void xhci_hid_poll_events(uintptr_t rt_base) {
             continue;
         }
         xhci_hid_dev_t *mouse = xhci_hid_find_by_slot(g_hid_mouse, slot);
-        if (mouse && mouse->pending) {
+        if (mouse && (mouse->pending || mouse->configured)) {
             mouse->pending = false;
             xhci_handle_hid_mouse(mouse, (const uint8_t *)mouse->buf, mouse->mps);
         }
@@ -2317,6 +2329,20 @@ bool xhci_hid_available(void) {
 
     for (uint8_t i = 0; i < ports; i++) {
         if (g_hid_kbd[i].present || g_hid_mouse[i].present) {
+            return true;
+        }
+    }
+    return false;
+}
+
+bool xhci_has_absolute_pointer(void) {
+    uint8_t ports = g_xhci_ports ? g_xhci_ports : MAX_XHCI_PORTS;
+    if (ports > MAX_XHCI_PORTS) {
+        ports = MAX_XHCI_PORTS;
+    }
+
+    for (uint8_t i = 0; i < ports; i++) {
+        if (g_hid_mouse[i].present && g_hid_mouse[i].absolute_pointer) {
             return true;
         }
     }
