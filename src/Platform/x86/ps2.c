@@ -10,6 +10,7 @@
 #include "EventManager/EventManager.h"
 #include "Platform/PS2Input.h"
 #include "PS2Controller.h"
+#include "Platform/include/input.h"
 #include <stdint.h>
 #include "Platform/PlatformLogging.h"
 #include <string.h>
@@ -669,6 +670,9 @@ void PollPS2Input(void) {
         uint8_t data = inb(PS2_DATA_PORT);
 
         if (status & PS2_STATUS_AUX) {
+            if (!hal_input_ps2_mouse_active()) {
+                continue;
+            }
             /* --- Mouse byte --- */
             mouse_byte_count++;
             /* PLATFORM_LOG_DEBUG("POLL: Got mouse byte 0x%02x (status=0x%02x) idx=%d enabled=%d count=%d\n",

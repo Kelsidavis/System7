@@ -7,6 +7,7 @@
 bool xhci_init_x86(void);
 void xhci_poll_hid_x86(void);
 bool xhci_hid_available(void);
+bool xhci_has_absolute_pointer(void);
 bool xhci_msc_available(void);
 OSErr xhci_msc_get_info(uint32_t *block_size, uint64_t *block_count, bool *read_only);
 OSErr xhci_msc_get_info_lun(uint8_t lun, uint32_t *block_size, uint64_t *block_count, bool *read_only);
