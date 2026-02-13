@@ -1257,6 +1257,20 @@ static bool xhci_ep0_get_config_descriptor(uintptr_t base, uint32_t dboff, uintp
 }
 
 static void xhci_hid_enqueue_interrupt_in(xhci_hid_dev_t *dev, uintptr_t buf, uint32_t len) {
+    /* Insert Link TRB to wrap around before writing data at end of ring */
+    if (dev->ring_index >= 31) {
+        xhci_trb_t *link = &dev->ring[dev->ring_index];
+        link->dword0 = (uint32_t)((uintptr_t)&dev->ring[0] & 0xFFFFFFFFu);
+        link->dword1 = 0;
+        link->dword2 = 0;
+        link->dword3 = (6u << XHCI_TRB_TYPE_SHIFT) |
+                       (dev->cycle ? XHCI_TRB_CYCLE : 0) |
+                       (1u << 1); /* Toggle Cycle bit */
+        dev->ring_index = 0;
+        dev->cycle ^= 1;
+    }
+
+    /* Enqueue the actual Normal TRB */
     xhci_trb_t *trb = &dev->ring[dev->ring_index++];
     trb->dword0 = (uint32_t)(buf & 0xFFFFFFFFu);
     trb->dword1 = 0;
@@ -1264,16 +1278,6 @@ static void xhci_hid_enqueue_interrupt_in(xhci_hid_dev_t *dev, uintptr_t buf, ui
     trb->dword3 = (XHCI_TRB_TYPE_NORMAL << XHCI_TRB_TYPE_SHIFT) |
                   XHCI_TRB_IOC |
                   (dev->cycle ? XHCI_TRB_CYCLE : 0);
-
-    if (dev->ring_index >= 31) {
-        xhci_trb_t *link = &dev->ring[dev->ring_index++];
-        link->dword0 = (uint32_t)((uintptr_t)&dev->ring[0] & 0xFFFFFFFFu);
-        link->dword1 = 0;
-        link->dword2 = 0;
-        link->dword3 = (6u << XHCI_TRB_TYPE_SHIFT) | XHCI_TRB_CYCLE | (1u << 1);
-        dev->ring_index = 0;
-        dev->cycle ^= 1;
-    }
 }
 
 static void xhci_msc_enqueue_out(xhci_msc_dev_t *dev, uintptr_t buf, uint32_t len) {
