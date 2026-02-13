@@ -127,7 +127,7 @@ static xhci_trb_t __attribute__((aligned(64))) g_evt_ring[32];
 static xhci_erst_entry_t __attribute__((aligned(64))) g_erst[1];
 static uint64_t __attribute__((aligned(64))) g_dcbaa[256];
 static uint32_t __attribute__((aligned(64))) g_input_ctx[48];
-static uint32_t __attribute__((aligned(64))) g_dev_ctx[MAX_XHCI_SLOTS][32];
+static uint32_t __attribute__((aligned(64))) g_dev_ctx[MAX_XHCI_SLOTS][256];
 static xhci_trb_t __attribute__((aligned(64))) g_ep0_ring[MAX_XHCI_SLOTS][32];
 static uint32_t __attribute__((aligned(64))) g_ep0_buf[MAX_XHCI_SLOTS][64];
 
@@ -558,19 +558,19 @@ static void xhci_build_contexts(uint8_t slot_id, uint8_t port, uint32_t portsc) 
     uint32_t *slot = &g_input_ctx[ctx_dwords * 1];
     uint32_t *ep0  = &g_input_ctx[ctx_dwords * 2];
 
-    /* Input control context */
-    ictl[0] = (1u << 0) | (1u << 1); /* add slot + ep0 */
+    /* Input control context: DWord0=Drop, DWord1=Add */
+    ictl[1] = (1u << 0) | (1u << 1); /* add slot + ep0 */
 
     /* Slot context */
     uint32_t speed = (portsc >> 10) & 0xF;
-    slot[0] = (1u << 27) | (speed << 20); /* context entries=1, speed */
-    slot[1] = port; /* root hub port */
+    slot[0] = (2u << 27) | (speed << 20); /* context entries=2 (slot+EP0), speed */
+    slot[1] = ((uint32_t)port << 16); /* root hub port number [23:16] */
 
     /* EP0 context */
     uint16_t mps = xhci_ep0_mps(portsc);
-    ep0[1] = ((uint32_t)mps << 16); /* Max Packet Size */
-    ep0[0] = (4u << 3); /* EP type = control (4) */
-    ep0[2] = (uint32_t)((uintptr_t)&g_ep0_ring[slot_index][0] & 0xFFFFFFFFu);
+    ep0[0] = 0;
+    ep0[1] = (4u << 3) | (3u << 1) | ((uint32_t)mps << 16); /* EP type=control, CErr=3, MPS */
+    ep0[2] = (uint32_t)(((uintptr_t)&g_ep0_ring[slot_index][0] & 0xFFFFFFFEu) | 1u); /* DCS=1 */
     ep0[3] = 0;
 
     /* Device context placeholder */
@@ -581,14 +581,21 @@ static void xhci_build_hid_endpoint_context(uint8_t ep_id, uint16_t mps, uint8_t
                                             xhci_trb_t *ring) {
     uint32_t ctx_dwords = g_ctx_size / 4;
     uint32_t *ictl = &g_input_ctx[0];
+    uint32_t *slot = &g_input_ctx[ctx_dwords * 1];
     uint32_t *ep = &g_input_ctx[ctx_dwords * (1 + ep_id)];
 
-    ictl[0] |= (1u << ep_id);
+    ictl[1] |= (1u << 0) | (1u << ep_id); /* Add Slot Context + EP */
+
+    /* Update Slot Context: Context Entries must cover this ep_id */
+    uint32_t cur_entries = (slot[0] >> 27) & 0x1F;
+    if (ep_id > cur_entries) {
+        slot[0] = (slot[0] & ~(0x1Fu << 27)) | ((uint32_t)ep_id << 27);
+    }
 
     /* EP context: interrupt IN (type 7). */
-    ep[0] = (7u << 3) | ((uint32_t)interval << 16);
-    ep[1] = ((uint32_t)mps << 16);
-    ep[2] = (uint32_t)((uintptr_t)ring & 0xFFFFFFFFu);
+    ep[0] = ((uint32_t)interval << 16);
+    ep[1] = (7u << 3) | (3u << 1) | ((uint32_t)mps << 16); /* EP type=7, CErr=3, MPS */
+    ep[2] = (uint32_t)(((uintptr_t)ring & 0xFFFFFFFEu) | 1u); /* DCS=1 */
     ep[3] = 0;
 }
 
@@ -596,13 +603,20 @@ static void xhci_build_bulk_endpoint_context(uint8_t ep_id, uint16_t mps, uint8_
                                              xhci_trb_t *ring) {
     uint32_t ctx_dwords = g_ctx_size / 4;
     uint32_t *ictl = &g_input_ctx[0];
+    uint32_t *slot = &g_input_ctx[ctx_dwords * 1];
     uint32_t *ep = &g_input_ctx[ctx_dwords * (1 + ep_id)];
 
-    ictl[0] |= (1u << ep_id);
+    ictl[1] |= (1u << 0) | (1u << ep_id); /* Add Slot Context + EP */
 
-    ep[0] = ((uint32_t)type << 3);
-    ep[1] = ((uint32_t)mps << 16);
-    ep[2] = (uint32_t)((uintptr_t)ring & 0xFFFFFFFFu);
+    /* Update Slot Context: Context Entries must cover this ep_id */
+    uint32_t cur_entries = (slot[0] >> 27) & 0x1F;
+    if (ep_id > cur_entries) {
+        slot[0] = (slot[0] & ~(0x1Fu << 27)) | ((uint32_t)ep_id << 27);
+    }
+
+    ep[0] = 0;
+    ep[1] = ((uint32_t)type << 3) | (3u << 1) | ((uint32_t)mps << 16); /* EP type, CErr=3, MPS */
+    ep[2] = (uint32_t)(((uintptr_t)ring & 0xFFFFFFFEu) | 1u); /* DCS=1 */
     ep[3] = 0;
 }
 
