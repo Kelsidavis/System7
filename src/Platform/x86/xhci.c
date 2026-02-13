@@ -1507,52 +1507,38 @@ static void xhci_hid_submit(uintptr_t base, uint32_t dboff, xhci_hid_dev_t *dev)
         return;
     }
 
-    uint32_t now = TickCount();
-    if (dev->last_submit_tick == now) {
-        return;
-    }
-
     xhci_hid_enqueue_interrupt_in(dev, (uintptr_t)dev->buf, dev->mps);
     mmio_write32(base + dboff, XHCI_DB0 + (uint32_t)dev->slot * 4, dev->ep_id);
     dev->pending = true;
-    dev->pending_tick = now;
-    dev->last_submit_tick = now;
+    dev->pending_tick = TickCount();
 }
 
 static void xhci_hid_poll_events(uintptr_t rt_base) {
-    uint32_t now = TickCount();
     uint8_t ports = g_xhci_ports ? g_xhci_ports : MAX_XHCI_PORTS;
-    if (ports > MAX_XHCI_PORTS) {
-        ports = MAX_XHCI_PORTS;
-    }
-    for (uint8_t i = 0; i < ports; i++) {
-        if (g_hid_kbd[i].pending && (now - g_hid_kbd[i].pending_tick) > 10) {
-            g_hid_kbd[i].pending = false;
-        }
-        if (g_hid_mouse[i].pending && (now - g_hid_mouse[i].pending_tick) > 10) {
-            g_hid_mouse[i].pending = false;
-        }
-    }
 
-    for (int i = 0; i < 4; i++) {
+    /* Process up to 32 events to clear any backlog */
+    for (int i = 0; i < 32; i++) {
         uint8_t slot = 0;
         int res = xhci_poll_transfer_event(rt_base, &slot);
-        if (res == 0) {
-            break;
-        }
-        if (res < 0) {
-            continue;
-        }
+
+        if (res == 0) break;
+        if (res < 0) continue;
+
         xhci_hid_dev_t *kbd = xhci_hid_find_by_slot(g_hid_kbd, slot);
         if (kbd && kbd->pending) {
             kbd->pending = false;
             xhci_handle_hid_keyboard(kbd, (const uint8_t *)kbd->buf);
+            /* Re-submit immediately so the pipe never goes dry */
+            xhci_hid_submit(g_xhci_base, g_xhci_dboff, kbd);
             continue;
         }
+
         xhci_hid_dev_t *mouse = xhci_hid_find_by_slot(g_hid_mouse, slot);
-        if (mouse && mouse->pending) {
+        if (mouse && (mouse->pending || mouse->configured)) {
             mouse->pending = false;
             xhci_handle_hid_mouse(mouse, (const uint8_t *)mouse->buf, mouse->mps);
+            /* Re-submit immediately */
+            xhci_hid_submit(g_xhci_base, g_xhci_dboff, mouse);
         }
     }
 }
