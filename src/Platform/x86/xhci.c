@@ -688,7 +688,6 @@ static void xhci_ep0_enqueue_data_in(uint8_t slot_id, uintptr_t buf, uint32_t le
     trb->dword2 = len;
     trb->dword3 = (XHCI_TRB_TYPE_DATA_STAGE << XHCI_TRB_TYPE_SHIFT) |
                   (1u << 16) | /* IN */
-                  XHCI_TRB_IOC |
                   (g_ep0_cycle[slot_index] ? XHCI_TRB_CYCLE : 0);
 }
 
@@ -724,7 +723,6 @@ static bool xhci_ep0_control_no_data(uintptr_t base, uint32_t dboff, uintptr_t r
     if (!setup) {
         return false;
     }
-    xhci_ep0_reset_ring(slot_id);
     xhci_ep0_enqueue_setup(slot_id, setup);
     xhci_ep0_enqueue_status(slot_id);
     xhci_ep0_ring_doorbell(base, dboff, slot_id);
@@ -798,7 +796,6 @@ static bool xhci_ep0_set_configuration(uintptr_t base, uint32_t dboff, uintptr_t
         .wLength = 0
     };
 
-    xhci_ep0_reset_ring(slot_id);
     xhci_ep0_enqueue_setup(slot_id, &setup);
     xhci_ep0_enqueue_status(slot_id);
     xhci_ep0_ring_doorbell(base, dboff, slot_id);
@@ -817,7 +814,6 @@ static bool xhci_ep0_set_interface(uintptr_t base, uint32_t dboff, uintptr_t rt_
         .wLength = 0
     };
 
-    xhci_ep0_reset_ring(slot_id);
     xhci_ep0_enqueue_setup(slot_id, &setup);
     xhci_ep0_enqueue_status(slot_id);
     xhci_ep0_ring_doorbell(base, dboff, slot_id);
@@ -834,7 +830,6 @@ static bool xhci_ep0_set_protocol(uintptr_t base, uint32_t dboff, uintptr_t rt_b
         .wLength = 0
     };
 
-    xhci_ep0_reset_ring(slot_id);
     xhci_ep0_enqueue_setup(slot_id, &setup);
     xhci_ep0_enqueue_status(slot_id);
     xhci_ep0_ring_doorbell(base, dboff, slot_id);
@@ -850,7 +845,6 @@ static bool xhci_ep0_get_device_descriptor(uintptr_t base, uint32_t dboff, uintp
         .wLength = 18
     };
 
-    xhci_ep0_reset_ring(slot_id);
     xhci_ep0_enqueue_setup(slot_id, &setup);
     xhci_ep0_enqueue_data_in(slot_id, (uintptr_t)&g_ep0_buf[slot_id - 1][0], 18);
     xhci_ep0_enqueue_status(slot_id);
@@ -882,7 +876,6 @@ static bool xhci_ep0_get_config_descriptor(uintptr_t base, uint32_t dboff, uintp
     };
 
     memset(g_ep0_tmp_buf, 0, sizeof(g_ep0_tmp_buf));
-    xhci_ep0_reset_ring(slot_id);
     xhci_ep0_enqueue_setup(slot_id, &setup);
     xhci_ep0_enqueue_data_in(slot_id, (uintptr_t)&g_ep0_tmp_buf[0], 9);
     xhci_ep0_enqueue_status(slot_id);
@@ -903,7 +896,6 @@ static bool xhci_ep0_get_config_descriptor(uintptr_t base, uint32_t dboff, uintp
     if (total > 9) {
         setup.wLength = total;
         memset(g_ep0_tmp_buf, 0, sizeof(g_ep0_tmp_buf));
-        xhci_ep0_reset_ring(slot_id);
         xhci_ep0_enqueue_setup(slot_id, &setup);
         xhci_ep0_enqueue_data_in(slot_id, (uintptr_t)&g_ep0_tmp_buf[0], total);
         xhci_ep0_enqueue_status(slot_id);
@@ -1942,7 +1934,6 @@ static bool xhci_msc_get_max_lun(xhci_msc_dev_t *dev, uintptr_t base, uint32_t d
     };
 
     memset(g_ep0_buf[slot_id - 1], 0, sizeof(g_ep0_buf[slot_id - 1]));
-    xhci_ep0_reset_ring(slot_id);
     xhci_ep0_enqueue_setup(slot_id, &setup);
     xhci_ep0_enqueue_data_in(slot_id, (uintptr_t)&g_ep0_buf[slot_id - 1][0], 1);
     xhci_ep0_enqueue_status(slot_id);
