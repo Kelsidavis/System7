@@ -1048,11 +1048,6 @@ static bool xhci_ep0_get_config_descriptor(uintptr_t base, uint32_t dboff, uintp
                     dev->interface_num = if_num;
                     dev->alt_setting = alt;
                     dev->absolute_pointer = !is_keyboard && (proto == 0x00);
-                    /* Boot protocol HID: force alt setting 0 and boot protocol when supported. */
-                    xhci_ep0_set_interface(base, dboff, rt_base, slot_id, if_num, 0);
-                    if (sub == 0x01) {
-                        xhci_ep0_set_protocol(base, dboff, rt_base, slot_id, if_num, 0);
-                    }
                     current_hid_role = is_keyboard ? 1 : 2;
                     found_supported = true;
                 }
@@ -1178,6 +1173,8 @@ static bool xhci_ep0_get_config_descriptor(uintptr_t base, uint32_t dboff, uintp
 
     if (kbd->interface_num != 0xFF && kbd->alt_setting != 0xFF) {
         xhci_ep0_set_interface(base, dboff, rt_base, slot_id, kbd->interface_num, kbd->alt_setting);
+        /* Request boot protocol for keyboards */
+        xhci_ep0_set_protocol(base, dboff, rt_base, slot_id, kbd->interface_num, 0);
     }
     if (mouse->interface_num != 0xFF && mouse->alt_setting != 0xFF) {
         xhci_ep0_set_interface(base, dboff, rt_base, slot_id, mouse->interface_num, mouse->alt_setting);
@@ -1185,6 +1182,15 @@ static bool xhci_ep0_get_config_descriptor(uintptr_t base, uint32_t dboff, uintp
 
     if (kbd->ep_id != 0 && kbd->slot == slot_id) {
         memset(g_input_ctx, 0, sizeof(g_input_ctx));
+        /* Copy output Slot Context into input context so speed/port are preserved */
+        {
+            uint32_t ctx_dwords = g_ctx_size / 4;
+            uint32_t *out_slot = &g_dev_ctx[slot_id - 1][0];
+            uint32_t *in_slot = &g_input_ctx[ctx_dwords * 1];
+            for (uint32_t ci = 0; ci < ctx_dwords; ci++) {
+                in_slot[ci] = out_slot[ci];
+            }
+        }
         xhci_build_hid_endpoint_context(kbd->ep_id, kbd->mps,
                                         kbd->interval, kbd->ring);
         kbd->configured = xhci_configure_endpoint(base, dboff, rt_base, slot_id);
@@ -1196,6 +1202,15 @@ static bool xhci_ep0_get_config_descriptor(uintptr_t base, uint32_t dboff, uintp
 
     if (mouse->ep_id != 0 && mouse->slot == slot_id) {
         memset(g_input_ctx, 0, sizeof(g_input_ctx));
+        /* Copy output Slot Context into input context so speed/port are preserved */
+        {
+            uint32_t ctx_dwords = g_ctx_size / 4;
+            uint32_t *out_slot = &g_dev_ctx[slot_id - 1][0];
+            uint32_t *in_slot = &g_input_ctx[ctx_dwords * 1];
+            for (uint32_t ci = 0; ci < ctx_dwords; ci++) {
+                in_slot[ci] = out_slot[ci];
+            }
+        }
         xhci_build_hid_endpoint_context(mouse->ep_id, mouse->mps,
                                         mouse->interval, mouse->ring);
         mouse->configured = xhci_configure_endpoint(base, dboff, rt_base, slot_id);
