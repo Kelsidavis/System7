@@ -512,6 +512,8 @@ static bool xhci_poll_transfer_complete(uintptr_t rt_base, uint8_t slot_id) {
             }
         }
     }
+    serial_printf("[XHCI] Transfer poll timeout for slot %u (evt_idx=%u)\n",
+                  slot_id, g_evt_ring_index);
     return false;
 }
 
@@ -1043,6 +1045,8 @@ static bool xhci_ep0_get_config_descriptor(uintptr_t base, uint32_t dboff, uintp
             if (cls == 0x03 && ((sub == 0x01 && (proto == 0x01 || proto == 0x02)) || proto == 0x00)) {
                 bool is_keyboard = (sub == 0x01 && proto == 0x01);
                 xhci_hid_dev_t *dev = is_keyboard ? kbd : mouse;
+                serial_printf("[XHCI] HID iface cls=0x%02x sub=0x%02x proto=0x%02x kbd=%d abs=%d\n",
+                              cls, sub, proto, is_keyboard, !is_keyboard && (proto == 0x00));
                 if (dev->ep_addr == 0 && dev->interface_num == 0xFF) {
                     dev->slot = slot_id;
                     dev->interface_num = if_num;
@@ -1201,6 +1205,8 @@ static bool xhci_ep0_get_config_descriptor(uintptr_t base, uint32_t dboff, uintp
     }
 
     if (mouse->ep_id != 0 && mouse->slot == slot_id) {
+        serial_printf("[XHCI] Configuring mouse ep_id=%u slot=%u abs=%d\n",
+                      mouse->ep_id, mouse->slot, mouse->absolute_pointer);
         memset(g_input_ctx, 0, sizeof(g_input_ctx));
         /* Copy output Slot Context into input context so speed/port are preserved */
         {
@@ -1216,8 +1222,13 @@ static bool xhci_ep0_get_config_descriptor(uintptr_t base, uint32_t dboff, uintp
         mouse->configured = xhci_configure_endpoint(base, dboff, rt_base, slot_id);
         if (mouse->configured) {
             mouse->present = true;
-            serial_printf("[XHCI] HID mouse connected (port %u)\n", mouse->port);
+            serial_printf("[XHCI] HID mouse connected (port %u) abs=%d\n",
+                          mouse->port, mouse->absolute_pointer);
+        } else {
+            serial_puts("[XHCI] HID mouse configure_endpoint FAILED\n");
         }
+    } else if (mouse->ep_id == 0) {
+        serial_printf("[XHCI] No mouse endpoint found for slot %u\n", slot_id);
     }
 
     if (msc->uasp && msc->uasp_cmd_out_ep_id && msc->uasp_data_out_ep_id &&
@@ -2149,9 +2160,11 @@ static void xhci_enumerate_port(uint8_t port_index) {
     uintptr_t op_base = g_xhci_base + g_xhci_cap_len;
     uint32_t portsc = mmio_read32(op_base, XHCI_PORTSC_BASE + port_index * XHCI_PORTSC_STRIDE);
     if ((portsc & XHCI_PORTSC_CCS) == 0) {
+        serial_printf("[XHCI] port %u: no device (PORTSC=0x%08x)\n", port_index + 1, portsc);
         return;
     }
     g_xhci_enum_port = (uint8_t)(port_index + 1);
+    g_port_connected[port_index] = true;
     serial_printf("[XHCI] port %u connected (%s) PORTSC=0x%08x\n",
                   (unsigned)g_xhci_enum_port, xhci_speed_name(portsc), portsc);
 
@@ -3014,6 +3027,12 @@ bool xhci_init_x86(void) {
                     mmio_write32(op_base, XHCI_PORTSC_BASE + p * XHCI_PORTSC_STRIDE,
                                  portsc | XHCI_PORTSC_PP);
                 }
+            }
+
+            /* Wait for devices to signal connection after port power-on */
+            serial_puts("[XHCI] Waiting for port power settle...\n");
+            for (volatile int dly = 0; dly < 2000000; dly++) {
+                __asm__ volatile("pause");
             }
 
             /* Test: issue a NO-OP command */
