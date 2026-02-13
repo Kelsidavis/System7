@@ -299,7 +299,7 @@ static void xhci_enumerate_port(uint8_t port_index);
 static const char *xhci_speed_name(uint32_t portsc);
 
 static void xhci_ring_doorbell(uintptr_t base, uint32_t db_off, uint32_t target) {
-    mmio_write32(base + db_off, XHCI_DB0 + target, 0);
+    mmio_write32(base + db_off, XHCI_DB0 + target * 4, 0);
 }
 
 static void xhci_ring_init(void) {
@@ -693,7 +693,7 @@ static void xhci_ep0_enqueue_status(uint8_t slot_id) {
 }
 
 static void xhci_ep0_ring_doorbell(uintptr_t base, uint32_t dboff, uint8_t slot_id) {
-    mmio_write32(base + dboff, XHCI_DB0 + slot_id, 1);
+    mmio_write32(base + dboff, XHCI_DB0 + (uint32_t)slot_id * 4, 1);
 }
 
 static void xhci_ep0_reset_ring(uint8_t slot_id) {
@@ -1488,7 +1488,7 @@ static void xhci_hid_submit(uintptr_t base, uint32_t dboff, xhci_hid_dev_t *dev)
     }
 
     xhci_hid_enqueue_interrupt_in(dev, (uintptr_t)dev->buf, dev->mps);
-    mmio_write32(base + dboff, XHCI_DB0 + dev->slot, dev->ep_id);
+    mmio_write32(base + dboff, XHCI_DB0 + (uint32_t)dev->slot * 4, dev->ep_id);
     dev->pending = true;
     dev->pending_tick = now;
     dev->last_submit_tick = now;
@@ -1539,10 +1539,10 @@ static bool xhci_msc_bulk_transfer(xhci_msc_dev_t *dev, uintptr_t base, uint32_t
     }
     if (in) {
         xhci_msc_enqueue_in(dev, (uintptr_t)buf, len);
-        mmio_write32(base + dboff, XHCI_DB0 + dev->slot, dev->bulk_in_ep_id);
+        mmio_write32(base + dboff, XHCI_DB0 + (uint32_t)dev->slot * 4, dev->bulk_in_ep_id);
     } else {
         xhci_msc_enqueue_out(dev, (uintptr_t)buf, len);
-        mmio_write32(base + dboff, XHCI_DB0 + dev->slot, dev->bulk_out_ep_id);
+        mmio_write32(base + dboff, XHCI_DB0 + (uint32_t)dev->slot * 4, dev->bulk_out_ep_id);
     }
     return xhci_poll_transfer_complete(rt_base, dev->slot);
 }
@@ -1553,7 +1553,7 @@ static bool xhci_uasp_transfer_cmd(xhci_msc_dev_t *dev, uintptr_t base, uint32_t
         return false;
     }
     xhci_uasp_enqueue_cmd(dev, (uintptr_t)buf, len);
-    mmio_write32(base + dboff, XHCI_DB0 + dev->slot, dev->uasp_cmd_out_ep_id);
+    mmio_write32(base + dboff, XHCI_DB0 + (uint32_t)dev->slot * 4, dev->uasp_cmd_out_ep_id);
     return xhci_poll_transfer_complete(rt_base, dev->slot);
 }
 
@@ -1567,13 +1567,13 @@ static bool xhci_uasp_transfer_data(xhci_msc_dev_t *dev, uintptr_t base, uint32_
             return false;
         }
         xhci_uasp_enqueue_data_in(dev, (uintptr_t)buf, len);
-        mmio_write32(base + dboff, XHCI_DB0 + dev->slot, dev->uasp_data_in_ep_id);
+        mmio_write32(base + dboff, XHCI_DB0 + (uint32_t)dev->slot * 4, dev->uasp_data_in_ep_id);
     } else {
         if (!dev->uasp_data_out_ep_id) {
             return false;
         }
         xhci_uasp_enqueue_data_out(dev, (uintptr_t)buf, len);
-        mmio_write32(base + dboff, XHCI_DB0 + dev->slot, dev->uasp_data_out_ep_id);
+        mmio_write32(base + dboff, XHCI_DB0 + (uint32_t)dev->slot * 4, dev->uasp_data_out_ep_id);
     }
     return xhci_poll_transfer_complete(rt_base, dev->slot);
 }
@@ -1584,7 +1584,7 @@ static bool xhci_uasp_transfer_status(xhci_msc_dev_t *dev, uintptr_t base, uint3
         return false;
     }
     xhci_uasp_enqueue_status(dev, (uintptr_t)buf, len);
-    mmio_write32(base + dboff, XHCI_DB0 + dev->slot, dev->uasp_status_in_ep_id);
+    mmio_write32(base + dboff, XHCI_DB0 + (uint32_t)dev->slot * 4, dev->uasp_status_in_ep_id);
     return xhci_poll_transfer_complete(rt_base, dev->slot);
 }
 
