@@ -440,10 +440,10 @@ static bool xhci_poll_cmd_complete(uintptr_t rt_base, uint8_t *out_slot_id) {
                     g_evt_cycle ^= 1;
                 }
 
-                uintptr_t erdp = (uintptr_t)&g_evt_ring[g_evt_ring_index];
-                mmio_write32(rt_base, XHCI_RT_ERDP_LO, (uint32_t)(erdp & 0xFFFFFFFFu));
+                uintptr_t erdp_addr = (uintptr_t)&g_evt_ring[g_evt_ring_index];
+                mmio_write32(rt_base, XHCI_RT_ERDP_LO, (uint32_t)(erdp_addr & ~0xFu) | (1u << 3));
 #if UINTPTR_MAX > 0xFFFFFFFFu
-                mmio_write32(rt_base, XHCI_RT_ERDP_HI, (uint32_t)(erdp >> 32));
+                mmio_write32(rt_base, XHCI_RT_ERDP_HI, (uint32_t)(erdp_addr >> 32));
 #else
                 mmio_write32(rt_base, XHCI_RT_ERDP_HI, 0);
 #endif
@@ -456,7 +456,7 @@ static bool xhci_poll_cmd_complete(uintptr_t rt_base, uint8_t *out_slot_id) {
                     g_evt_cycle ^= 1;
                 }
                 uintptr_t erdp = (uintptr_t)&g_evt_ring[g_evt_ring_index];
-                mmio_write32(rt_base, XHCI_RT_ERDP_LO, (uint32_t)(erdp & 0xFFFFFFFFu));
+                mmio_write32(rt_base, XHCI_RT_ERDP_LO, (uint32_t)(erdp & 0xFFFFFFFFu) | (1u << 3));
 #if UINTPTR_MAX > 0xFFFFFFFFu
                 mmio_write32(rt_base, XHCI_RT_ERDP_HI, (uint32_t)(erdp >> 32));
 #else
@@ -486,10 +486,10 @@ static bool xhci_poll_transfer_complete(uintptr_t rt_base, uint8_t slot_id) {
                     g_evt_ring_index = 0;
                     g_evt_cycle ^= 1;
                 }
-                uintptr_t erdp = (uintptr_t)&g_evt_ring[g_evt_ring_index];
-                mmio_write32(rt_base, XHCI_RT_ERDP_LO, (uint32_t)(erdp & 0xFFFFFFFFu));
+                uintptr_t erdp_addr = (uintptr_t)&g_evt_ring[g_evt_ring_index];
+                mmio_write32(rt_base, XHCI_RT_ERDP_LO, (uint32_t)(erdp_addr & ~0xFu) | (1u << 3));
 #if UINTPTR_MAX > 0xFFFFFFFFu
-                mmio_write32(rt_base, XHCI_RT_ERDP_HI, (uint32_t)(erdp >> 32));
+                mmio_write32(rt_base, XHCI_RT_ERDP_HI, (uint32_t)(erdp_addr >> 32));
 #else
                 mmio_write32(rt_base, XHCI_RT_ERDP_HI, 0);
 #endif
@@ -503,7 +503,7 @@ static bool xhci_poll_transfer_complete(uintptr_t rt_base, uint8_t slot_id) {
                     g_evt_cycle ^= 1;
                 }
                 uintptr_t erdp = (uintptr_t)&g_evt_ring[g_evt_ring_index];
-                mmio_write32(rt_base, XHCI_RT_ERDP_LO, (uint32_t)(erdp & 0xFFFFFFFFu));
+                mmio_write32(rt_base, XHCI_RT_ERDP_LO, (uint32_t)(erdp & 0xFFFFFFFFu) | (1u << 3));
 #if UINTPTR_MAX > 0xFFFFFFFFu
                 mmio_write32(rt_base, XHCI_RT_ERDP_HI, (uint32_t)(erdp >> 32));
 #else
@@ -1416,10 +1416,10 @@ static int xhci_poll_transfer_event(uintptr_t rt_base, uint8_t *out_slot) {
         g_evt_ring_index = 0;
         g_evt_cycle ^= 1;
     }
-    uintptr_t erdp = (uintptr_t)&g_evt_ring[g_evt_ring_index];
-    mmio_write32(rt_base, XHCI_RT_ERDP_LO, (uint32_t)(erdp & 0xFFFFFFFFu));
+    uintptr_t erdp_addr = (uintptr_t)&g_evt_ring[g_evt_ring_index];
+    mmio_write32(rt_base, XHCI_RT_ERDP_LO, (uint32_t)(erdp_addr & ~0xFu) | (1u << 3));
 #if UINTPTR_MAX > 0xFFFFFFFFu
-    mmio_write32(rt_base, XHCI_RT_ERDP_HI, (uint32_t)(erdp >> 32));
+    mmio_write32(rt_base, XHCI_RT_ERDP_HI, (uint32_t)(erdp_addr >> 32));
 #else
     mmio_write32(rt_base, XHCI_RT_ERDP_HI, 0);
 #endif
