@@ -1457,16 +1457,6 @@ static void xhci_handle_hid_mouse(xhci_hid_dev_t *dev, const uint8_t *report, ui
         return;
     }
     uint32_t offset = 0;
-    if (len >= 4) {
-        uint8_t rid = report[0];
-        uint8_t btn1 = report[1] & 0x1F;
-        bool looks_like_id = (rid != 0 && rid <= 8 &&
-                              (report[1] & 0xE0) == 0 &&
-                              (btn1 != 0 || report[2] != 0 || report[3] != 0));
-        if (looks_like_id) {
-            offset = 1;
-        }
-    }
 
     if (len < 3 + offset) {
         return;
@@ -1477,8 +1467,8 @@ static void xhci_handle_hid_mouse(xhci_hid_dev_t *dev, const uint8_t *report, ui
         uint16_t x_raw = (uint16_t)(report[offset + 1] | ((uint16_t)report[offset + 2] << 8));
         uint16_t y_raw = (uint16_t)(report[offset + 3] | ((uint16_t)report[offset + 4] << 8));
         uint32_t max_coord = (x_raw > 0x7FFF || y_raw > 0x7FFF) ? 0xFFFFu : 0x7FFFu;
-        SInt16 x = (SInt16)((uint32_t)x_raw * (fb_width - 1) / max_coord);
-        SInt16 y = (SInt16)((uint32_t)y_raw * (fb_height - 1) / max_coord);
+        SInt16 x = (SInt16)(((uint32_t)x_raw * (fb_width - 1) + (max_coord / 2)) / max_coord);
+        SInt16 y = (SInt16)(((uint32_t)y_raw * (fb_height - 1) + (max_coord / 2)) / max_coord);
         UpdateMouseStateAbsolute(x, y, buttons);
     } else {
         int16_t dx = (int8_t)report[offset + 1];
@@ -2327,6 +2317,20 @@ bool xhci_hid_available(void) {
 
     for (uint8_t i = 0; i < ports; i++) {
         if (g_hid_kbd[i].present || g_hid_mouse[i].present) {
+            return true;
+        }
+    }
+    return false;
+}
+
+bool xhci_has_absolute_pointer(void) {
+    uint8_t ports = g_xhci_ports ? g_xhci_ports : MAX_XHCI_PORTS;
+    if (ports > MAX_XHCI_PORTS) {
+        ports = MAX_XHCI_PORTS;
+    }
+
+    for (uint8_t i = 0; i < ports; i++) {
+        if (g_hid_mouse[i].present && g_hid_mouse[i].absolute_pointer) {
             return true;
         }
     }

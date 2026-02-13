@@ -44,6 +44,7 @@ extern void DoMenuCommand(short menuID, short item);
 #endif
 
 #include "Platform/include/network.h"
+#include "Platform/include/input.h"
 #if defined(__i386__) || defined(__x86_64__)
 #include "Platform/x86/idt.h"
 #include "Platform/x86/pic.h"
@@ -1863,6 +1864,13 @@ void kernel_main(uint32_t magic, uint32_t* mb2_info) {
         xhci_init_x86();
     } else {
         serial_puts("KERNEL: xHCI HID already present\n");
+    }
+
+    if (xhci_has_absolute_pointer()) {
+        serial_puts("KERNEL: USB tablet detected — switching mouse source\n");
+        hal_input_set_mouse_source(kMouseSourceUSBTablet);
+    } else {
+        serial_puts("KERNEL: No USB tablet found — using PS/2 mouse\n");
     }
 
     /* Keep IRQs disabled for now; polling paths are stable. */
