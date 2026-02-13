@@ -1916,7 +1916,7 @@ void kernel_main(uint32_t magic, uint32_t* mb2_info) {
 
         /* Throttle ONLY cursor drawing, not event processing */
         cursor_update_counter++;
-        if (cursor_update_counter < 50) {
+        if (cursor_update_counter < 2) {
             /* Skip only the cursor drawing, but continue to process events below */
             goto skip_cursor_drawing;
         }
