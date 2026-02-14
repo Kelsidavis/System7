@@ -7,6 +7,24 @@
 #include "Platform/include/input.h"
 #include "PS2Controller.h"
 
+extern void serial_puts(const char* str);
+
+/* Mouse source selection — defaults to PS/2, set once at init */
+static MouseSource g_mouseSource = kMouseSourcePS2;
+
+void hal_input_set_mouse_source(MouseSource src) {
+    g_mouseSource = src;
+    if (src == kMouseSourceUSBTablet) {
+        serial_puts("[INPUT] Mouse source set to USB tablet — PS/2 mouse discarded\n");
+    } else {
+        serial_puts("[INPUT] Mouse source set to PS/2\n");
+    }
+}
+
+Boolean hal_input_ps2_mouse_active(void) {
+    return g_mouseSource == kMouseSourcePS2;
+}
+
 /*
  * hal_input_poll - Poll for input events
  *

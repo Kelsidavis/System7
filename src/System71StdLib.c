@@ -1831,7 +1831,8 @@ static const SysLogTag kLogTagTable[] = {
     { "PaintBehind", kLogModuleWindow, kLogLevelTrace },
     { "MEM", kLogModuleMemory, kLogLevelInfo },
     { "FM", kLogModuleFont, kLogLevelDebug },
-    { "M68K", kLogModuleCPU, kLogLevelDebug }
+    { "M68K", kLogModuleCPU, kLogLevelDebug },
+    { "XHCI", kLogModulePlatform, kLogLevelWarn }
 };
 
 
@@ -1956,6 +1957,14 @@ static void SysLogFormatAndSend(const char* fmt, va_list args) {
                 const char* hex_digits = "0123456789abcdef";
                 buffer[buf_idx++] = hex_digits[(val >> 4) & 0xF];
                 if (buf_idx < 255) buffer[buf_idx++] = hex_digits[val & 0xF];
+                p += 3;
+            }
+            else if (*p == '0' && *(p + 1) == '4' && *(p + 2) == 'x') {
+                unsigned int val = va_arg(args, unsigned int);
+                const char* hex_digits = "0123456789abcdef";
+                for (int i = 3; i >= 0 && buf_idx < 255; --i) {
+                    buffer[buf_idx++] = hex_digits[(val >> (i * 4)) & 0xF];
+                }
                 p += 3;
             }
             else if (*p == '0' && *(p + 1) == '8' && *(p + 2) == 'x') {

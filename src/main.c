@@ -44,6 +44,7 @@ extern void DoMenuCommand(short menuID, short item);
 #endif
 
 #include "Platform/include/network.h"
+#include "Platform/include/input.h"
 #if defined(__i386__) || defined(__x86_64__)
 #include "Platform/x86/idt.h"
 #include "Platform/x86/pic.h"
@@ -1865,6 +1866,13 @@ void kernel_main(uint32_t magic, uint32_t* mb2_info) {
         serial_puts("KERNEL: xHCI HID already present\n");
     }
 
+    if (xhci_has_absolute_pointer()) {
+        serial_puts("KERNEL: USB tablet detected — switching mouse source\n");
+        hal_input_set_mouse_source(kMouseSourceUSBTablet);
+    } else {
+        serial_puts("KERNEL: No USB tablet found — using PS/2 mouse\n");
+    }
+
     /* Keep IRQs disabled for now; polling paths are stable. */
     serial_puts("KERNEL: IRQs disabled (polling mode)\n");
     PS2_SetIRQDriven(false);
@@ -1908,7 +1916,7 @@ void kernel_main(uint32_t magic, uint32_t* mb2_info) {
 
         /* Throttle ONLY cursor drawing, not event processing */
         cursor_update_counter++;
-        if (cursor_update_counter < 50) {
+        if (cursor_update_counter < 2) {
             /* Skip only the cursor drawing, but continue to process events below */
             goto skip_cursor_drawing;
         }
