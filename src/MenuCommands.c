@@ -272,15 +272,19 @@ void Finder_AdjustMenus(void) {
         }
     }
 
-    /* Adjust Special menu — Empty Trash grayed when trash is empty */
+    /* Adjust Special menu */
     MenuHandle specialMenu = GetMenuHandle(kSpecialMenuID);
     if (specialMenu) {
+        /* Empty Trash grayed when trash is empty */
         extern bool Trash_IsEmptyAll(void);
         if (Trash_IsEmptyAll()) {
-            DisableItem(specialMenu, 2);  /* Empty Trash */
+            DisableItem(specialMenu, 2);
         } else {
             EnableItem(specialMenu, 2);
         }
+        /* Eject and Erase Disk always disabled (no removable volumes) */
+        DisableItem(specialMenu, 4);  /* Eject */
+        DisableItem(specialMenu, 5);  /* Erase Disk */
     }
 }
 
