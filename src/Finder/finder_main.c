@@ -131,6 +131,12 @@ OSErr InitializeFinder(void)
     /* InitDialogs(nil); -- already done */
     InitCursor();
 
+    /* Initialize Desk Manager so DAs are registered before menu setup */
+    {
+        extern int DeskManager_Initialize(void);
+        DeskManager_Initialize();
+    }
+
     /* Set up menus - Evidence: Menu structure from string analysis */
     extern void serial_puts(const char* str);
     serial_puts("Finder: Before SetupMenus\n");
@@ -234,6 +240,25 @@ static OSErr SetupMenus(void)
     AppendMenu(gAppleMenu, menuStr);
     AppendMenu(gAppleMenu, "\002(-");
     AddResMenu(gAppleMenu, 'DRVR');
+
+    /* Add registered desk accessories to Apple menu */
+    {
+        extern int DA_GetRegisteredDAs(void **entries, int maxEntries);
+        typedef struct { char name[64]; /* ... */ } DARegEntry;
+        void* daEntries[16];
+        int daCount = DA_GetRegisteredDAs(daEntries, 16);
+        for (int d = 0; d < daCount; d++) {
+            DARegEntry* dae = (DARegEntry*)daEntries[d];
+            if (dae && dae->name[0]) {
+                /* Convert C string to Pascal string for AppendMenu */
+                unsigned char pName[64];
+                int len = 0;
+                while (dae->name[len] && len < 63) { pName[len + 1] = dae->name[len]; len++; }
+                pName[0] = (unsigned char)len;
+                AppendMenu(gAppleMenu, pName);
+            }
+        }
+    }
 
     /* Control Panels submenu - ID 134 */
     GetLocalizedString(menuStr, kSTRListFinderMenuTitles, kStrMenuControlPanels);
