@@ -842,6 +842,56 @@ void HandleKeyDown(EventRecord* event) {
             return;
         }
 
+        /* Cmd+Up Arrow = Navigate to parent folder */
+        /* Cmd+Down Arrow = Open selected item */
+        if (charCode == 0x1E || charCode == 0x1F) {
+            extern WindowPtr FrontWindow(void);
+            extern Boolean IsFolderWindow(WindowPtr w);
+
+            WindowPtr front = FrontWindow();
+            if (front && IsFolderWindow(front)) {
+                if (charCode == 0x1F) {
+                    /* Cmd+Down = Open selected (same as Return/Enter) */
+                    extern void FolderWindow_OpenSelected(WindowPtr w);
+                    FolderWindow_OpenSelected(front);
+                } else {
+                    /* Cmd+Up = Navigate to parent folder */
+                    extern DirID FolderWindow_GetCurrentDir(WindowPtr w);
+                    extern VRefNum FolderWindow_GetVRef(WindowPtr w);
+                    extern WindowPtr FolderWindow_OpenFolder(VRefNum vref, DirID dirID,
+                                                              ConstStr255Param title);
+                    extern bool VFS_GetParentDir(VRefNum vref, DirID dirID, DirID* parentID);
+
+                    VRefNum vref = FolderWindow_GetVRef(front);
+                    DirID currentDir = FolderWindow_GetCurrentDir(front);
+
+                    if (currentDir > 2) {  /* Not already at root */
+                        DirID parentDir = 0;
+                        if (VFS_GetParentDir(vref, currentDir, &parentDir) && parentDir >= 2) {
+                            /* Build parent folder title */
+                            extern const char* VFS_GetNameByID(VRefNum vref, DirID dir, FileID id);
+                            const char* parentName = VFS_GetNameByID(vref, parentDir, parentDir);
+                            unsigned char pTitle[256];
+                            if (parentName) {
+                                int len = 0;
+                                while (parentName[len] && len < 255) len++;
+                                pTitle[0] = (unsigned char)len;
+                                memcpy(&pTitle[1], parentName, len);
+                            } else {
+                                pTitle[0] = 12;
+                                memcpy(&pTitle[1], "Macintosh HD", 12);
+                            }
+                            FolderWindow_OpenFolder(vref, parentDir, pTitle);
+                        }
+                    } else {
+                        extern void SysBeep(short duration);
+                        SysBeep(1);  /* Already at root */
+                    }
+                }
+                return;
+            }
+        }
+
         /* Cmd+Option+W = Close all windows (power-user shortcut) */
         if ((charCode == 'w' || charCode == 'W') && (event->modifiers & optionKey)) {
             extern WindowPtr FrontWindow(void);
