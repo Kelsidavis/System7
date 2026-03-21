@@ -1656,6 +1656,15 @@ void kernel_main(uint32_t magic, uint32_t* mb2_info) {
         static GrafPort desktopPort;
         OpenPort(&desktopPort);
 
+        /* Apply desktop background pattern to the port so EraseRgn draws gray, not white */
+        {
+            extern void PM_GetBackPat(Pattern *pat);
+            extern void BackPat(const Pattern *pat);
+            Pattern deskPat;
+            PM_GetBackPat(&deskPat);
+            BackPat(&deskPat);
+        }
+
         DrawDesktop();
         hal_framebuffer_present();
     }

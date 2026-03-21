@@ -513,7 +513,16 @@ static void Finder_DeskHook(RgnHandle invalidRgn)
         SetClip(invalidRgn);
     }
 
-    /* Draw desktop pattern using current background pattern */
+    /* Set the desktop background pattern from Pattern Manager before erasing.
+     * PM_SetBackPat intentionally keeps port bkPat as white (for windows),
+     * but the desktop needs the actual gray/custom pattern. */
+    extern void PM_GetBackPat(Pattern *pat);
+    extern void BackPat(const Pattern *pat);
+    Pattern desktopPat;
+    PM_GetBackPat(&desktopPat);
+    BackPat(&desktopPat);
+
+    /* Draw desktop pattern using the desktop background pattern */
     /* Build a paint region that excludes the frontmost window so we don't wipe its content */
     RgnHandle paintRgn = NewRgn();
     if (paintRgn) {
@@ -546,6 +555,11 @@ static void Finder_DeskHook(RgnHandle invalidRgn)
     } else if (desktopClip) {
         EraseRgn(desktopClip);
     }
+
+    /* Restore white background pattern so windows erase white, not gray */
+    Pattern whitePat;
+    memset(&whitePat, 0x00, sizeof(Pattern));
+    BackPat(&whitePat);
 
     QD_DrawCRTBezel();
 
