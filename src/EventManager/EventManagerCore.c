@@ -652,12 +652,12 @@ Boolean WaitNextEvent(SInt16 eventMask, EventRecord* theEvent,
             }
         }
 
-        /* Brief sleep to avoid busy waiting */
-        #ifdef PLATFORM_REMOVED_WIN32
-        Sleep(1);
-        #else
-        /* Brief delay - would use usleep(1000) in user space */
-        #endif
+        /* Yield CPU until next interrupt to avoid busy-waiting.
+         * On x86, HLT halts until the next interrupt (timer, keyboard, mouse).
+         * This dramatically reduces CPU usage in QEMU from 100% to near 0%. */
+#if defined(__i386__) || defined(__x86_64__)
+        __asm__ volatile("hlt");
+#endif
     }
 
     /* Timeout - return null event */
