@@ -2183,6 +2183,36 @@ void FolderWindow_SelectAll(WindowPtr w) {
 
 /*
 /*
+/*
+ * FolderWindow_FindItemByName - Find item index by name, or -1 if not found.
+ */
+short FolderWindow_FindItemByName(WindowPtr w, const char* name) {
+    if (!w || !IsFolderWindow(w) || !name) return -1;
+    FolderWindowState* state = GetFolderState(w);
+    if (!state || !state->items) return -1;
+    for (short i = 0; i < state->itemCount; i++) {
+        if (strcmp(state->items[i].name, name) == 0) return i;
+    }
+    return -1;
+}
+
+/*
+ * FolderWindow_SelectByName - Select an item by name.
+ */
+void FolderWindow_SelectByName(WindowPtr w, const char* name) {
+    short idx = FolderWindow_FindItemByName(w, name);
+    if (idx < 0) return;
+    FolderWindowState* state = GetFolderState(w);
+    if (!state) return;
+    if (state->selectedItems) {
+        for (short i = 0; i < state->itemCount; i++)
+            state->selectedItems[i] = false;
+        state->selectedItems[idx] = true;
+    }
+    state->selectedIndex = idx;
+}
+
+/*
  * FolderWindow_HasSelection - Check if any items are selected.
  */
 Boolean FolderWindow_HasSelection(WindowPtr w) {

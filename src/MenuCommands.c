@@ -478,7 +478,18 @@ static void HandleFileMenu(short item)
                     extern void InitializeFolderContentsEx(WindowPtr w, Boolean isTrash, VRefNum vref, DirID dirID);
                     InitializeFolderContentsEx(front, false, targetVRef, targetDir);
 
-                    /* Trigger redraw */
+                    /* Select the new folder and initiate rename.
+                     * In System 7, New Folder creates the item selected
+                     * with its name ready for editing. */
+                    extern void FolderWindow_SelectByName(WindowPtr w, const char* name);
+                    extern void FolderWindow_RenameItem(WindowPtr w, short itemIndex);
+                    extern short FolderWindow_FindItemByName(WindowPtr w, const char* name);
+                    FolderWindow_SelectByName(front, folderName);
+                    short newIdx = FolderWindow_FindItemByName(front, folderName);
+                    if (newIdx >= 0) {
+                        FolderWindow_RenameItem(front, newIdx);
+                    }
+
                     PostEvent(updateEvt, (UInt32)(uintptr_t)front);
                 } else {
                     DrawDesktop();
