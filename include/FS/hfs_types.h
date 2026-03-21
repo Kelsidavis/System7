@@ -26,7 +26,8 @@ typedef struct {
     uint32_t type;          /* OSType - 4-char code */
     uint32_t size;          /* Data fork size */
     uint16_t flags;         /* Finder flags */
-    uint32_t modTime;       /* Seconds since 1904 */
+    uint32_t modTime;       /* Modification time - seconds since 1904 */
+    uint32_t createTime;    /* Creation time - seconds since 1904 */
     DirID    parent;        /* Parent directory CNID */
     FileID   id;            /* This node's CNID */
 } CatEntry;

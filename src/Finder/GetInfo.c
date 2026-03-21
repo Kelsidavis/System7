@@ -51,6 +51,59 @@ static void FormatFileSize(uint32_t bytes, char* out, size_t outSize) {
 }
 
 /*
+ * FormatMacDate - Format a Mac OS date (seconds since Jan 1, 1904) as a
+ * human-readable string matching classic Finder style: "Mon, Jan 1, 1904, 12:00 AM"
+ */
+static void FormatMacDate(uint32_t macTime, char* out, size_t outSize) {
+    if (macTime == 0) {
+        snprintf(out, outSize, "-");
+        return;
+    }
+
+    /* Mac epoch is Jan 1, 1904. Convert to year/month/day manually. */
+    uint32_t secs = macTime;
+
+    /* Extract time of day */
+    uint32_t secsInDay = secs % 86400;
+    uint32_t totalDays = secs / 86400;
+    short hour = secsInDay / 3600;
+    short minute = (secsInDay % 3600) / 60;
+
+    /* AM/PM */
+    const char* ampm = (hour < 12) ? "AM" : "PM";
+    short hour12 = hour % 12;
+    if (hour12 == 0) hour12 = 12;
+
+    /* Calculate year/month/day from days since 1904-01-01 */
+    short year = 1904;
+    while (1) {
+        short daysInYear = 365;
+        if ((year % 4 == 0 && year % 100 != 0) || year % 400 == 0)
+            daysInYear = 366;
+        if (totalDays < (uint32_t)daysInYear) break;
+        totalDays -= daysInYear;
+        year++;
+    }
+
+    static const short daysInMonth[] = {31,28,31,30,31,30,31,31,30,31,30,31};
+    static const char* monthNames[] = {
+        "Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"
+    };
+    short month = 0;
+    for (month = 0; month < 12; month++) {
+        short dim = daysInMonth[month];
+        if (month == 1 && ((year % 4 == 0 && year % 100 != 0) || year % 400 == 0))
+            dim = 29;
+        if (totalDays < (uint32_t)dim) break;
+        totalDays -= dim;
+    }
+    short day = totalDays + 1;
+
+    snprintf(out, outSize, "%s %d, %d, %d:%02d %s",
+             monthNames[month], day, year, hour12, minute, ampm);
+}
+
+/*
  * FormatOSType - Format OSType (4-char code) as string
  */
 static void FormatOSType(uint32_t type, char* out) {
@@ -202,6 +255,29 @@ Boolean GetInfo_HandleUpdate(WindowPtr w) {
 
         MoveTo(20, y);
         snprintf(buf, sizeof(buf), "     (%u bytes)", (unsigned int)sCurrentEntry.size);
+        DrawText(buf, 0, strlen(buf));
+        y += 20;
+    }
+
+    /* Separator */
+    y += 10;
+
+    /* Created date */
+    if (sCurrentEntry.createTime != 0) {
+        MoveTo(20, y);
+        char dateStr[64];
+        FormatMacDate(sCurrentEntry.createTime, dateStr, sizeof(dateStr));
+        snprintf(buf, sizeof(buf), "Created: %s", dateStr);
+        DrawText(buf, 0, strlen(buf));
+        y += 20;
+    }
+
+    /* Modified date */
+    if (sCurrentEntry.modTime != 0) {
+        MoveTo(20, y);
+        char dateStr[64];
+        FormatMacDate(sCurrentEntry.modTime, dateStr, sizeof(dateStr));
+        snprintf(buf, sizeof(buf), "Modified: %s", dateStr);
         DrawText(buf, 0, strlen(buf));
         y += 20;
     }

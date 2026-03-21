@@ -66,6 +66,7 @@ bool HFS_ParseCatalogRecord(const HFS_CatKey* key, const void* data, uint16_t da
         entry->id = be32_read(&folder->folderID);
         entry->flags = be16_read(&folder->flags);
         entry->modTime = be32_read(&folder->modifyDate);
+        entry->createTime = be32_read(&folder->createDate);
         entry->size = 0;  /* Folders don't have size */
         entry->type = make_ostype('f', 'l', 'd', 'r');
         entry->creator = make_ostype('M', 'A', 'C', 'S');
@@ -78,6 +79,7 @@ bool HFS_ParseCatalogRecord(const HFS_CatKey* key, const void* data, uint16_t da
         entry->id = be32_read(&file->fileID);
         entry->flags = file->flags;
         entry->modTime = be32_read(&file->modifyDate);
+        entry->createTime = be32_read(&file->createDate);
         entry->size = be32_read(&file->dataLogicalSize);
 
         /* Get type and creator from Finder info */
