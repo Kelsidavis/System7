@@ -857,14 +857,21 @@ void HandleKeyDown(EventRecord* event) {
         }
 
         /* Arrow keys - navigate selection in folder windows */
-        if (charCode == 0x1E || charCode == 0x1F) {  /* Up/Down arrows */
+        if (charCode >= 0x1C && charCode <= 0x1F) {  /* Left/Right/Up/Down arrows */
             extern WindowPtr FrontWindow(void);
             extern Boolean IsFolderWindow(WindowPtr w);
             extern void FolderWindow_ArrowKey(WindowPtr w, Boolean isDown);
+            extern void FolderWindow_ArrowKeyLR(WindowPtr w, Boolean isRight);
 
             WindowPtr front = FrontWindow();
             if (front && IsFolderWindow(front)) {
-                FolderWindow_ArrowKey(front, charCode == 0x1F);
+                if (charCode == 0x1E || charCode == 0x1F) {
+                    /* Up/Down arrows */
+                    FolderWindow_ArrowKey(front, charCode == 0x1F);
+                } else {
+                    /* Left (0x1C) / Right (0x1D) arrows — icon view grid navigation */
+                    FolderWindow_ArrowKeyLR(front, charCode == 0x1D);
+                }
                 return;
             }
         }

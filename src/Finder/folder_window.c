@@ -2187,6 +2187,52 @@ void FolderWindow_ArrowKey(WindowPtr w, Boolean isDown) {
 }
 
 /*
+ * FolderWindow_ArrowKeyLR - Handle left/right arrow keys in icon view.
+ * Navigates the icon grid horizontally. In list view, does nothing
+ * since list layout is single-column.
+ */
+void FolderWindow_ArrowKeyLR(WindowPtr w, Boolean isRight) {
+    if (!w || !IsFolderWindow(w)) return;
+
+    FolderWindowState* state = GetFolderState(w);
+    if (!state || !state->items || state->itemCount == 0) return;
+
+    /* In list view, left/right arrows do nothing */
+    if (state->viewMode >= kViewByName) return;
+
+    /* Icon view: calculate grid columns to navigate horizontally */
+    short windowWidth = w->port.portRect.right - w->port.portRect.left;
+    short maxCols = (windowWidth - 20) / (80 + 10);  /* LEFT_MARGIN / (ICON_WIDTH + SPACING) */
+    if (maxCols < 1) maxCols = 1;
+
+    short newIndex = state->selectedIndex;
+    if (newIndex < 0) newIndex = 0;
+
+    if (isRight) {
+        short currentCol = newIndex % maxCols;
+        if (currentCol < maxCols - 1 && newIndex + 1 < state->itemCount) {
+            newIndex++;
+        }
+    } else {
+        short currentCol = newIndex % maxCols;
+        if (currentCol > 0 && newIndex > 0) {
+            newIndex--;
+        }
+    }
+
+    if (newIndex == state->selectedIndex) return;
+
+    if (state->selectedItems) {
+        for (short i = 0; i < state->itemCount; i++)
+            state->selectedItems[i] = false;
+        state->selectedItems[newIndex] = true;
+    }
+    state->selectedIndex = newIndex;
+
+    PostEvent(updateEvt, (UInt32)(uintptr_t)w);
+}
+
+/*
  * FolderWindow_TypeAhead - Handle type-ahead selection in folder windows.
 /*
  * FolderWindow_TabKey - Cycle selection to next/previous item.
