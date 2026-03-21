@@ -181,6 +181,10 @@ static int Chooser_DAInitialize(DeskAccessory *da, const DADriverHeader *header)
 static int Chooser_DATerminate(DeskAccessory *da);
 static int Chooser_DAProcessEvent(DeskAccessory *da, const DAEventInfo *event);
 
+static int Notepad_DAInitialize(DeskAccessory *da, const DADriverHeader *header);
+static int Notepad_DATerminate(DeskAccessory *da);
+static int Notepad_DAProcessEvent(DeskAccessory *da, const DAEventInfo *event);
+
 /* DA Interface implementations */
 static DAInterface g_calculatorInterface = {
     .initialize = Calculator_DAInitialize,
@@ -226,6 +230,22 @@ static DAInterface g_alarmClockInterface = {
     .updateCursor = NULL,
     .activate = NULL,
     .update = NULL,
+    .resize = NULL,
+    .suspend = NULL,
+    .resume = NULL,
+    .sleep = NULL,
+    .wakeup = NULL
+};
+
+static DAInterface g_notepadInterface = {
+    .initialize = Notepad_DAInitialize,
+    .terminate = Notepad_DATerminate,
+    .processEvent = Notepad_DAProcessEvent,
+    .handleMenu = NULL,
+    .doEdit = NULL,
+    .idle = NULL,
+    .updateCursor = NULL,
+    .activate = NULL,
     .resize = NULL,
     .suspend = NULL,
     .resume = NULL,
@@ -309,6 +329,20 @@ int DeskManager_RegisterBuiltinDAs(void)
     chooserEntry.interface = &g_chooserInterface;
 
     result = DA_Register(&chooserEntry);
+    if (result != 0) {
+        return result;
+    }
+
+    /* Register Note Pad DA */
+    DARegistryEntry notepadEntry = {0};
+    strncpy(notepadEntry.name, "Note Pad", sizeof(notepadEntry.name) - 1);
+    notepadEntry.name[sizeof(notepadEntry.name) - 1] = '\0';
+    notepadEntry.type = DA_TYPE_NOTEPAD;
+    notepadEntry.resourceID = DA_RESID_NOTEPAD;
+    notepadEntry.flags = DA_FLAG_NEEDS_EVENTS;
+    notepadEntry.interface = &g_notepadInterface;
+
+    result = DA_Register(&notepadEntry);
     if (result != 0) {
         return result;
     }
@@ -747,6 +781,62 @@ static int Chooser_DAProcessEvent(DeskAccessory *da, const DAEventInfo *event)
 
         default:
             break;
+    }
+
+    return DESK_ERR_NONE;
+}
+
+/* Note Pad DA Interface Wrappers */
+
+extern OSErr Notepad_Initialize(void);
+extern void Notepad_Shutdown(void);
+extern OSErr Notepad_Open(WindowPtr *window);
+extern void Notepad_Close(void);
+extern void Notepad_HandleEvent(EventRecord *event);
+extern void Notepad_Draw(void);
+
+static int Notepad_DAInitialize(DeskAccessory *da, const DADriverHeader *header)
+{
+    (void)header;
+    if (!da) return DESK_ERR_INVALID_PARAM;
+
+    OSErr err = Notepad_Initialize();
+    if (err != noErr) return DESK_ERR_NO_MEMORY;
+
+    WindowPtr noteWindow = NULL;
+    err = Notepad_Open(&noteWindow);
+    if (err != noErr) return DESK_ERR_NO_MEMORY;
+
+    da->driverData = (void*)noteWindow;
+    return DESK_ERR_NONE;
+}
+
+static int Notepad_DATerminate(DeskAccessory *da)
+{
+    if (!da) return DESK_ERR_INVALID_PARAM;
+    Notepad_Close();
+    Notepad_Shutdown();
+    da->driverData = NULL;
+    return DESK_ERR_NONE;
+}
+
+static int Notepad_DAProcessEvent(DeskAccessory *da, const DAEventInfo *event)
+{
+    if (!da || !event) return DESK_ERR_INVALID_PARAM;
+
+    /* Convert DAEventInfo to EventRecord for Notepad */
+    EventRecord er;
+    er.what = event->what;
+    er.message = event->message;
+    er.when = event->when;
+    er.where.h = event->h;
+    er.where.v = event->v;
+    er.modifiers = event->modifiers;
+
+    Notepad_HandleEvent(&er);
+
+    if (event->what == 6) { /* updateEvt */
+        Notepad_Draw();
     }
 
     return DESK_ERR_NONE;
