@@ -4266,7 +4266,7 @@ void PPC_Op_MCRFS(PPCAddressSpace* as, UInt32 insn)
 
     /* Clear the exception bits in FPSCR (FX, OX, UX, ZX, XX, VXSNAN, VXISI, VXIDI, VXZDZ, VXIMZ, VXVC, VXSOFT, VXSQRT, VXCVI)
      * when copying from fields that contain exception bits */
-    if (crfs >= 0 && crfs <= 5) {
+    if (crfs <= 5) {
         /* Clear exception bits for this field */
         UInt32 fpscr_clear_mask = 0xF << (28 - (crfs * 4));
         as->regs.fpscr &= ~fpscr_clear_mask;
@@ -6330,9 +6330,7 @@ void PPC_Op_VSUM4SBS(PPCAddressSpace* as, UInt32 insn)
         for (j = 0; j < 4; j++) {
             sum += (SInt8)VR_GetByte(as, va, i * 4 + j);
         }
-        /* Saturate to signed 32-bit range */
-        if (sum > 2147483647) sum = 2147483647;
-        if (sum < -2147483648) sum = -2147483648;
+        /* sum is SInt32 — already in 32-bit range, saturation is implicit */
         as->regs.vr[vd][i] = (UInt32)sum;
     }
 }

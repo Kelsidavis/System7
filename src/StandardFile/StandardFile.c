@@ -202,7 +202,8 @@ void StandardGetFile(FileFilterProcPtr fileFilter,
                     ConstSFTypeListPtr typeList,
                     StandardFileReply *reply) {
 
-    CustomGetFile((FileFilterYDProcPtr)fileFilter, numTypes, typeList, reply, 0, (Point){-1, -1},
+    /* Cast via void* to avoid -Wcast-function-type between different filter signatures */
+    CustomGetFile((FileFilterYDProcPtr)(void*)fileFilter, numTypes, typeList, reply, 0, (Point){-1, -1},
                  NULL, NULL, NULL, NULL, NULL);
 }
 

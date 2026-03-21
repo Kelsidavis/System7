@@ -216,11 +216,8 @@ OSErr BuildRelocationTable(const void* codeData, Size size, SInt16 segID,
 
     /* Allocate relocation entries */
     if (count > 0) {
-        /* Check for integer overflow in allocation size */
-        if (count > SIZE_MAX / sizeof(RelocEntry)) {
-            return memFullErr;
-        }
-        relocTable->entries = (RelocEntry*)NewPtr(count * sizeof(RelocEntry));
+        /* UInt16 count can't overflow size_t multiplication */
+        relocTable->entries = (RelocEntry*)NewPtr((Size)count * sizeof(RelocEntry));
         if (!relocTable->entries) {
             return memFullErr;
         }
