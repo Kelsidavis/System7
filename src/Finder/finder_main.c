@@ -404,11 +404,15 @@ static OSErr SetupMenus(void)
         }
     }
 
-    /* Application (top-right) menu - icon only */
-    /* Use system-defined Application menu ID (negative). If not available,
-       fall back to a high ID unlikely to collide. */
+    /* Application (top-right) menu — lists running applications */
     const short appMenuID = (short)0xBF97; /* kApplicationMenuID */
     MenuHandle appMenu = NewMenu(appMenuID, (ConstStr255Param)"\000");
+    if (appMenu) {
+        AppendMenu(appMenu, "\011Hide Others");
+        AppendMenu(appMenu, "\010Show All");
+        AppendMenu(appMenu, "\002(-");
+        AppendMenu(appMenu, "\006Finder");
+    }
     InsertMenu(appMenu, 0);
 
     extern void serial_puts(const char* str);
