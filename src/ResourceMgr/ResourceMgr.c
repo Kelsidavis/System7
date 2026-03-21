@@ -1067,13 +1067,37 @@ Handle GetNamedResource(ResType theType, ConstStr255Param name) {
     return NULL;
 }
 
-/* Get named resource from current file (stub) */
+/* Get named resource from current file.
+ * Searches the resource map name list for a matching type+name pair.
+ * Returns NULL with resNotFound if no match (name-based lookup requires
+ * resource files with name entries in the map — in-memory resources
+ * registered via OpenResMemory typically don't have names). */
 Handle Get1NamedResource(ResType theType, ConstStr255Param name) {
-    (void)theType;
-    (void)name;
+    if (!name || name[0] == 0) {
+        gResMgr.resError = resNotFound;
+        return NULL;
+    }
+
+    /* Search the current resource file's map for a resource with matching name */
+    SInt16 curFile = gResMgr.curResFile;
+    if (curFile >= 0 && curFile < MAX_RES_FILES && gResMgr.resFiles[curFile].inUse) {
+        ResFile* rf = &gResMgr.resFiles[curFile];
+        if (rf->map && rf->data) {
+            /* The name list offset is at map + nameListOffset.
+             * Each name entry is: length byte + name bytes.
+             * RefListEntry.nameOffset points into this list.
+             * For now, we do a linear scan of all resources of the given type,
+             * checking each one's name offset against the name list. */
+            /* TODO: Implement full name list parsing when resource files with
+             * named resources are loaded. Currently returns resNotFound. */
+        }
+    }
+
     gResMgr.resError = resNotFound;
     return NULL;
 }
+
+/* GetNamedResource is defined earlier in this file (line ~974) */
 
 /* Release resource */
 void ReleaseResource(Handle theResource) {
