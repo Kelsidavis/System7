@@ -113,6 +113,9 @@ typedef struct FolderWindowState {
     short draggingIndex;   /* Index of item being dragged (-1 = none) */
     short viewMode;        /* Current view mode (kViewByIcon..kViewByDate) */
     short scrollOffset;    /* Scroll offset in items for list view */
+    char typeAheadBuf[16]; /* Type-ahead search buffer */
+    short typeAheadLen;    /* Characters in type-ahead buffer */
+    UInt32 typeAheadTime;  /* Tick count of last type-ahead keystroke */
 } FolderWindowState;
 
 /* Global folder window states (indexed by window pointer for now) */
@@ -331,6 +334,8 @@ FolderWindowState* GetFolderState(WindowPtr w) {
             gFolderWindows[i].state.draggingIndex = -1;
             gFolderWindows[i].state.viewMode = kViewByIcon;
             gFolderWindows[i].state.scrollOffset = 0;
+            gFolderWindows[i].state.typeAheadLen = 0;
+            gFolderWindows[i].state.typeAheadTime = 0;
 
             /* Initialize folder contents */
             FINDER_LOG_DEBUG("GetFolderState: About to call InitializeFolderContents\n");
@@ -2085,6 +2090,79 @@ void FolderWindow_ArrowKey(WindowPtr w, Boolean isDown) {
     }
 
     PostEvent(updateEvt, (UInt32)(uintptr_t)w);
+}
+
+/*
+ * FolderWindow_TypeAhead - Handle type-ahead selection in folder windows.
+ * Typing letters jumps to the first item whose name starts with the typed
+ * prefix. If more than 30 ticks (~0.5s) pass between keystrokes, the
+ * buffer resets and a new prefix search begins.
+ */
+void FolderWindow_TypeAhead(WindowPtr w, char ch) {
+    if (!w || !IsFolderWindow(w)) return;
+
+    FolderWindowState* state = GetFolderState(w);
+    if (!state || !state->items || state->itemCount == 0) return;
+
+    /* Only handle printable ASCII */
+    if (ch < 0x20 || ch > 0x7E) return;
+
+    UInt32 now = TickCount();
+
+    /* Reset buffer if too much time has passed (30 ticks = 0.5s) */
+    if (now - state->typeAheadTime > 30 || state->typeAheadLen >= 15) {
+        state->typeAheadLen = 0;
+    }
+
+    /* Append character to buffer (case-insensitive: store as lowercase) */
+    char lower = ch;
+    if (lower >= 'A' && lower <= 'Z') lower += 32;
+    state->typeAheadBuf[state->typeAheadLen++] = lower;
+    state->typeAheadBuf[state->typeAheadLen] = '\0';
+    state->typeAheadTime = now;
+
+    /* Search for first item matching the prefix */
+    for (short i = 0; i < state->itemCount; i++) {
+        /* Case-insensitive prefix match */
+        Boolean match = true;
+        for (short j = 0; j < state->typeAheadLen; j++) {
+            char c = state->items[i].name[j];
+            if (c >= 'A' && c <= 'Z') c += 32;
+            if (c != state->typeAheadBuf[j]) {
+                match = false;
+                break;
+            }
+        }
+
+        if (match) {
+            /* Select this item */
+            if (state->selectedItems) {
+                for (short k = 0; k < state->itemCount; k++)
+                    state->selectedItems[k] = false;
+                state->selectedItems[i] = true;
+            }
+            state->selectedIndex = i;
+
+            /* Auto-scroll in list view */
+            if (state->viewMode >= kViewByName) {
+                short contentHeight = w->port.portRect.bottom - w->port.portRect.top - kListHeaderHeight;
+                short visibleRows = contentHeight / kListRowHeight;
+                if (visibleRows < 1) visibleRows = 1;
+                if (i < state->scrollOffset) {
+                    state->scrollOffset = i;
+                } else if (i >= state->scrollOffset + visibleRows) {
+                    state->scrollOffset = i - visibleRows + 1;
+                }
+            }
+
+            PostEvent(updateEvt, (UInt32)(uintptr_t)w);
+            return;
+        }
+    }
+
+    /* No match found - beep */
+    extern void SysBeep(short duration);
+    SysBeep(1);
 }
 
 /* Get selected item info from folder window */

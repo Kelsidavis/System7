@@ -845,6 +845,19 @@ void HandleKeyDown(EventRecord* event) {
                 return;
             }
         }
+
+        /* Type-ahead selection: typing letters jumps to matching file */
+        if (charCode >= 0x20 && charCode <= 0x7E) {
+            extern WindowPtr FrontWindow(void);
+            extern Boolean IsFolderWindow(WindowPtr w);
+            extern void FolderWindow_TypeAhead(WindowPtr w, char ch);
+
+            WindowPtr front = FrontWindow();
+            if (front && IsFolderWindow(front)) {
+                FolderWindow_TypeAhead(front, charCode);
+                return;
+            }
+        }
     }
 
     /* If we get here, key was not handled */
