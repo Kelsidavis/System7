@@ -2123,6 +2123,52 @@ void FolderWindow_ArrowKey(WindowPtr w, Boolean isDown) {
 
 /*
  * FolderWindow_TypeAhead - Handle type-ahead selection in folder windows.
+/*
+ * FolderWindow_TabKey - Cycle selection to next/previous item.
+ * Tab selects the next item, Shift+Tab selects the previous.
+ * Wraps around at the ends. Auto-scrolls in list view.
+ */
+void FolderWindow_TabKey(WindowPtr w, Boolean reverse) {
+    if (!w || !IsFolderWindow(w)) return;
+
+    FolderWindowState* state = GetFolderState(w);
+    if (!state || !state->items || state->itemCount == 0) return;
+
+    short newIndex;
+    if (reverse) {
+        newIndex = (state->selectedIndex <= 0)
+                   ? state->itemCount - 1
+                   : state->selectedIndex - 1;
+    } else {
+        newIndex = (state->selectedIndex >= state->itemCount - 1)
+                   ? 0
+                   : state->selectedIndex + 1;
+    }
+
+    /* Update selection */
+    if (state->selectedItems) {
+        for (short i = 0; i < state->itemCount; i++)
+            state->selectedItems[i] = false;
+        state->selectedItems[newIndex] = true;
+    }
+    state->selectedIndex = newIndex;
+
+    /* Auto-scroll in list view */
+    if (state->viewMode >= kViewByName) {
+        short contentHeight = w->port.portRect.bottom - w->port.portRect.top - kListHeaderHeight;
+        short visibleRows = contentHeight / kListRowHeight;
+        if (visibleRows < 1) visibleRows = 1;
+        if (newIndex < state->scrollOffset) {
+            state->scrollOffset = newIndex;
+        } else if (newIndex >= state->scrollOffset + visibleRows) {
+            state->scrollOffset = newIndex - visibleRows + 1;
+        }
+    }
+
+    PostEvent(updateEvt, (UInt32)(uintptr_t)w);
+}
+
+/*
  * Typing letters jumps to the first item whose name starts with the typed
  * prefix. If more than 30 ticks (~0.5s) pass between keystrokes, the
  * buffer resets and a new prefix search begins.

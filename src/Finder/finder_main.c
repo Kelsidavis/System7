@@ -846,6 +846,19 @@ void HandleKeyDown(EventRecord* event) {
             }
         }
 
+        /* Tab/Shift+Tab - cycle selection to next/previous item */
+        if (charCode == 0x09) {  /* Tab */
+            extern WindowPtr FrontWindow(void);
+            extern Boolean IsFolderWindow(WindowPtr w);
+            extern void FolderWindow_TabKey(WindowPtr w, Boolean reverse);
+
+            WindowPtr front = FrontWindow();
+            if (front && IsFolderWindow(front)) {
+                FolderWindow_TabKey(front, (event->modifiers & shiftKey) != 0);
+                return;
+            }
+        }
+
         /* Type-ahead selection: typing letters jumps to matching file */
         if (charCode >= 0x20 && charCode <= 0x7E) {
             extern WindowPtr FrontWindow(void);
