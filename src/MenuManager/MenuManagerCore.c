@@ -602,6 +602,51 @@ void DrawMenuBar(void)
     /* NOTE: Finder icon is drawn as part of the menu list loop above (Application menu).
      * Do NOT draw it again here - that was causing a double-draw artifact. */
 
+    /* Draw menu bar clock (right-aligned) - classic System 7 feature */
+    {
+#if defined(__i386__) || defined(__x86_64__)
+        extern bool rtc_read_datetime(void *out);
+        /* rtc_datetime_t: year(u16), month(u8), day(u8), hour(u8), minute(u8), second(u8) */
+        struct { uint16_t year; uint8_t month, day, hour, minute, second; } rtcTime;
+        if (rtc_read_datetime(&rtcTime)) {
+            /* Format as "H:MM AM/PM" */
+            uint8_t hour = rtcTime.hour;
+            const char* ampm = (hour < 12) ? "AM" : "PM";
+            uint8_t hour12 = hour % 12;
+            if (hour12 == 0) hour12 = 12;
+
+            char clockBuf[16];
+            int clockLen;
+            if (hour12 >= 10) {
+                clockBuf[0] = '1';
+                clockBuf[1] = '0' + (hour12 - 10);
+                clockBuf[2] = ':';
+                clockBuf[3] = '0' + (rtcTime.minute / 10);
+                clockBuf[4] = '0' + (rtcTime.minute % 10);
+                clockBuf[5] = ' ';
+                clockBuf[6] = ampm[0];
+                clockBuf[7] = ampm[1];
+                clockLen = 8;
+            } else {
+                clockBuf[0] = '0' + hour12;
+                clockBuf[1] = ':';
+                clockBuf[2] = '0' + (rtcTime.minute / 10);
+                clockBuf[3] = '0' + (rtcTime.minute % 10);
+                clockBuf[4] = ' ';
+                clockBuf[5] = ampm[0];
+                clockBuf[6] = ampm[1];
+                clockLen = 7;
+            }
+
+            /* Right-align in menu bar (approx 7px per char, 8px right margin) */
+            short clockX = qd.screenBits.bounds.right - (clockLen * 7) - 8;
+            ForeColor(blackColor);
+            MoveTo(clockX, 14);
+            DrawText(clockBuf, 0, clockLen);
+        }
+#endif
+    }
+
     QD_DrawCRTBezel();
 
     SetPort(savePort);
