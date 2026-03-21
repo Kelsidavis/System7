@@ -129,18 +129,113 @@ OSErr StandardFile_HAL_Init(void) {
 }
 
 /*
+ * BuildOpenDITL - Build a binary DITL (Dialog Item List) for the Open dialog.
+ *
+ * DITL binary format: 2-byte count-1, then per item:
+ *   4 bytes placeholder, 8 bytes bounds (top/left/bottom/right as big-endian shorts),
+ *   1 byte type, 1 byte data length, N bytes data.
+ *
+ * Items: 1=Open button, 2=Cancel button, 3-6=placeholder user items,
+ *        7=file list user item, 11=prompt static text.
+ */
+static Handle BuildOpenDITL(ConstStr255Param prompt) {
+    Handle h = NewHandleClear(512);
+    if (!h) return NULL;
+
+    HLock(h);
+    unsigned char* p = (unsigned char*)*h;
+
+    /* We define items 1..11 but leave gaps as disabled user items */
+    /* Item count - 1 = 10 (11 items total, indices 1-11) */
+    *p++ = 0; *p++ = 10;
+
+    /* Item 1: Open button (bottom-right) */
+    *p++ = 0; *p++ = 0; *p++ = 0; *p++ = 0;  /* placeholder */
+    *p++ = 1; *p++ = 4;   /* top = 260 */
+    *p++ = 1; *p++ = 20;  /* left = 276 */
+    *p++ = 1; *p++ = 24;  /* bottom = 280 */
+    *p++ = 1; *p++ = 120; /* right = 376 */
+    *p++ = 4;              /* ctrlItem + btnCtrl */
+    *p++ = 4; *p++ = 'O'; *p++ = 'p'; *p++ = 'e'; *p++ = 'n';
+
+    /* Item 2: Cancel button */
+    *p++ = 0; *p++ = 0; *p++ = 0; *p++ = 0;
+    *p++ = 1; *p++ = 4;   /* top = 260 */
+    *p++ = 0; *p++ = 140; /* left = 140 */
+    *p++ = 1; *p++ = 24;  /* bottom = 280 */
+    *p++ = 0; *p++ = 240; /* right = 240 */
+    *p++ = 4;              /* ctrlItem + btnCtrl */
+    *p++ = 6; *p++ = 'C'; *p++ = 'a'; *p++ = 'n'; *p++ = 'c'; *p++ = 'e'; *p++ = 'l';
+
+    /* Items 3-6: placeholder disabled user items (minimal) */
+    for (int i = 3; i <= 6; i++) {
+        *p++ = 0; *p++ = 0; *p++ = 0; *p++ = 0;  /* placeholder */
+        *p++ = 0; *p++ = 0; *p++ = 0; *p++ = 0;   /* top=0, left=0 */
+        *p++ = 0; *p++ = 0; *p++ = 0; *p++ = 0;   /* bottom=0, right=0 */
+        *p++ = 128;  /* userItem + disabled */
+        *p++ = 0;    /* no data */
+    }
+
+    /* Item 7: File list user item (the list area) */
+    *p++ = 0; *p++ = 0; *p++ = 0; *p++ = 0;
+    *p++ = 0; *p++ = 30;  /* top = 30 */
+    *p++ = 0; *p++ = 10;  /* left = 10 */
+    *p++ = 0; *p++ = 250; /* bottom = 250 (was LIST_BOTTOM area) */
+    *p++ = 1; *p++ = 120; /* right = 376 */
+    *p++ = 0;              /* userItem */
+    *p++ = 0;              /* no data */
+
+    /* Items 8-10: placeholder disabled user items */
+    for (int i = 8; i <= 10; i++) {
+        *p++ = 0; *p++ = 0; *p++ = 0; *p++ = 0;
+        *p++ = 0; *p++ = 0; *p++ = 0; *p++ = 0;
+        *p++ = 0; *p++ = 0; *p++ = 0; *p++ = 0;
+        *p++ = 128;
+        *p++ = 0;
+    }
+
+    /* Item 11: Prompt static text */
+    *p++ = 0; *p++ = 0; *p++ = 0; *p++ = 0;
+    *p++ = 0; *p++ = 10;  /* top = 10 */
+    *p++ = 0; *p++ = 10;  /* left = 10 */
+    *p++ = 0; *p++ = 26;  /* bottom = 26 */
+    *p++ = 1; *p++ = 120; /* right = 376 */
+    *p++ = 8;              /* statText */
+    /* Write prompt text (Pascal string) */
+    if (prompt && prompt[0] > 0) {
+        *p++ = prompt[0];
+        for (int i = 1; i <= prompt[0]; i++) *p++ = prompt[i];
+    } else {
+        *p++ = 13;
+        memcpy(p, "Select a file:", 13); p += 13;
+    }
+
+    HUnlock(h);
+    return h;
+}
+
+/*
  * StandardFile_HAL_CreateOpenDialog - Create an open file dialog
  */
 OSErr StandardFile_HAL_CreateOpenDialog(DialogPtr *outDialog, ConstStr255Param prompt) {
     SF_HAL_LOG_DEBUG("StandardFile HAL: CreateOpenDialog prompt='%s'\n", prompt ? prompt : "(null)");
 
-    /* Create a modal dialog with list area */
-    Rect bounds = {100, 100, 400, 500};
+    /* Build the DITL (Dialog Item List) for the open dialog */
+    Handle ditl = BuildOpenDITL(prompt);
+    if (!ditl) {
+        SF_HAL_LOG_WARN("StandardFile HAL: Failed to build Open DITL\n");
+        return memFullErr;
+    }
+
+    /* Create a modal dialog with the item list */
+    Rect bounds = {60, 60, 360, 460};
     static unsigned char title[] = {9, 'O','p','e','n',' ','F','i','l','e'};
     *outDialog = NewDialog(NULL, &bounds, title, true, dBoxProc,
-                           (WindowPtr)-1, false, 0, NULL);
+                           (WindowPtr)-1, false, 0, ditl);
 
     if (*outDialog == NULL) {
+        DisposeHandle(ditl);
+        SF_HAL_LOG_WARN("StandardFile HAL: NewDialog returned NULL\n");
         return memFullErr;
     }
 
@@ -161,6 +256,101 @@ OSErr StandardFile_HAL_CreateOpenDialog(DialogPtr *outDialog, ConstStr255Param p
 }
 
 /*
+ * BuildSaveDITL - Build a binary DITL for the Save dialog.
+ * Same structure as Open but item 1 is "Save" and item 10 is a text edit field
+ * for the filename.
+ */
+static Handle BuildSaveDITL(ConstStr255Param prompt, ConstStr255Param defaultName) {
+    Handle h = NewHandleClear(512);
+    if (!h) return NULL;
+
+    HLock(h);
+    unsigned char* p = (unsigned char*)*h;
+
+    /* 11 items total, count-1 = 10 */
+    *p++ = 0; *p++ = 10;
+
+    /* Item 1: Save button (bottom-right) */
+    *p++ = 0; *p++ = 0; *p++ = 0; *p++ = 0;
+    *p++ = 1; *p++ = 4;   /* top = 260 */
+    *p++ = 1; *p++ = 20;  /* left = 276 */
+    *p++ = 1; *p++ = 24;  /* bottom = 280 */
+    *p++ = 1; *p++ = 120; /* right = 376 */
+    *p++ = 4;              /* ctrlItem + btnCtrl */
+    *p++ = 4; *p++ = 'S'; *p++ = 'a'; *p++ = 'v'; *p++ = 'e';
+
+    /* Item 2: Cancel button */
+    *p++ = 0; *p++ = 0; *p++ = 0; *p++ = 0;
+    *p++ = 1; *p++ = 4;   /* top = 260 */
+    *p++ = 0; *p++ = 140; /* left = 140 */
+    *p++ = 1; *p++ = 24;  /* bottom = 280 */
+    *p++ = 0; *p++ = 240; /* right = 240 */
+    *p++ = 4;              /* ctrlItem + btnCtrl */
+    *p++ = 6; *p++ = 'C'; *p++ = 'a'; *p++ = 'n'; *p++ = 'c'; *p++ = 'e'; *p++ = 'l';
+
+    /* Items 3-6: placeholder disabled user items */
+    for (int i = 3; i <= 6; i++) {
+        *p++ = 0; *p++ = 0; *p++ = 0; *p++ = 0;
+        *p++ = 0; *p++ = 0; *p++ = 0; *p++ = 0;
+        *p++ = 0; *p++ = 0; *p++ = 0; *p++ = 0;
+        *p++ = 128;
+        *p++ = 0;
+    }
+
+    /* Item 7: File list user item */
+    *p++ = 0; *p++ = 0; *p++ = 0; *p++ = 0;
+    *p++ = 0; *p++ = 50;  /* top = 50 */
+    *p++ = 0; *p++ = 10;  /* left = 10 */
+    *p++ = 0; *p++ = 220; /* bottom = 220 */
+    *p++ = 1; *p++ = 120; /* right = 376 */
+    *p++ = 0;              /* userItem */
+    *p++ = 0;
+
+    /* Items 8-9: placeholder disabled user items */
+    for (int i = 8; i <= 9; i++) {
+        *p++ = 0; *p++ = 0; *p++ = 0; *p++ = 0;
+        *p++ = 0; *p++ = 0; *p++ = 0; *p++ = 0;
+        *p++ = 0; *p++ = 0; *p++ = 0; *p++ = 0;
+        *p++ = 128;
+        *p++ = 0;
+    }
+
+    /* Item 10: Filename text edit field */
+    *p++ = 0; *p++ = 0; *p++ = 0; *p++ = 0;
+    *p++ = 0; *p++ = 230; /* top = 230 */
+    *p++ = 0; *p++ = 10;  /* left = 10 */
+    *p++ = 0; *p++ = 248; /* bottom = 248 */
+    *p++ = 1; *p++ = 120; /* right = 376 */
+    *p++ = 16;             /* editText */
+    /* Default filename as Pascal string */
+    if (defaultName && defaultName[0] > 0) {
+        *p++ = defaultName[0];
+        for (int i = 1; i <= defaultName[0]; i++) *p++ = defaultName[i];
+    } else {
+        *p++ = 8;
+        memcpy(p, "Untitled", 8); p += 8;
+    }
+
+    /* Item 11: Prompt static text ("Save as:") */
+    *p++ = 0; *p++ = 0; *p++ = 0; *p++ = 0;
+    *p++ = 0; *p++ = 10;  /* top = 10 */
+    *p++ = 0; *p++ = 10;  /* left = 10 */
+    *p++ = 0; *p++ = 26;  /* bottom = 26 */
+    *p++ = 1; *p++ = 120; /* right = 376 */
+    *p++ = 8;              /* statText */
+    if (prompt && prompt[0] > 0) {
+        *p++ = prompt[0];
+        for (int i = 1; i <= prompt[0]; i++) *p++ = prompt[i];
+    } else {
+        *p++ = 8;
+        memcpy(p, "Save as:", 8); p += 8;
+    }
+
+    HUnlock(h);
+    return h;
+}
+
+/*
  * StandardFile_HAL_CreateSaveDialog - Create a save file dialog
  */
 OSErr StandardFile_HAL_CreateSaveDialog(DialogPtr *outDialog, ConstStr255Param prompt,
@@ -168,13 +358,22 @@ OSErr StandardFile_HAL_CreateSaveDialog(DialogPtr *outDialog, ConstStr255Param p
     SF_HAL_LOG_DEBUG("StandardFile HAL: CreateSaveDialog prompt='%s' default='%s'\n",
            prompt ? prompt : "(null)", defaultName ? defaultName : "(null)");
 
-    /* Create a modal dialog with list area */
-    Rect bounds = {100, 100, 400, 500};
+    /* Build the DITL for the save dialog */
+    Handle ditl = BuildSaveDITL(prompt, defaultName);
+    if (!ditl) {
+        SF_HAL_LOG_WARN("StandardFile HAL: Failed to build Save DITL\n");
+        return memFullErr;
+    }
+
+    /* Create a modal dialog with the item list */
+    Rect bounds = {60, 60, 360, 460};
     static unsigned char title[] = {9, 'S','a','v','e',' ','F','i','l','e'};
     *outDialog = NewDialog(NULL, &bounds, title, true, dBoxProc,
-                           (WindowPtr)-1, false, 0, NULL);
+                           (WindowPtr)-1, false, 0, ditl);
 
     if (*outDialog == NULL) {
+        DisposeHandle(ditl);
+        SF_HAL_LOG_WARN("StandardFile HAL: NewDialog returned NULL for save\n");
         return memFullErr;
     }
 

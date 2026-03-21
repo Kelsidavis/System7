@@ -619,33 +619,50 @@ Boolean STIO_SaveDialog(STDocument* doc, char* pathOut)
         return false;
     }
 
-    /* For now, return a test path with bounds checking */
     #define MAX_DIALOG_PATH 512
-    if (doc->untitled) {
-        const char* defaultPath = "/Documents/Untitled.txt";
-        if (strlen(defaultPath) >= MAX_DIALOG_PATH) {
-            return false;
-        }
-        strncpy(pathOut, defaultPath, MAX_DIALOG_PATH - 1);
-        pathOut[MAX_DIALOG_PATH - 1] = '\0';
-    } else if (doc->filePath[0]) {
-        if (strlen(doc->filePath) >= MAX_DIALOG_PATH) {
-            return false;
-        }
-        strncpy(pathOut, doc->filePath, MAX_DIALOG_PATH - 1);
-        pathOut[MAX_DIALOG_PATH - 1] = '\0';
+
+    /* Build prompt and default name as Pascal strings */
+    static unsigned char prompt[] = {8, 'S','a','v','e',' ','a','s',':'};
+    unsigned char defaultName[256];
+
+    if (doc->untitled || !doc->filePath[0]) {
+        static const char* defName = "Untitled";
+        int len = strlen(defName);
+        defaultName[0] = (unsigned char)len;
+        memcpy(&defaultName[1], defName, len);
     } else {
-        const char* defaultPath = "/Documents/Document.txt";
-        if (strlen(defaultPath) >= MAX_DIALOG_PATH) {
-            return false;
-        }
-        strncpy(pathOut, defaultPath, MAX_DIALOG_PATH - 1);
-        pathOut[MAX_DIALOG_PATH - 1] = '\0';
+        /* Extract leaf name from path */
+        const char* lastSlash = STIO_LastSlash(doc->filePath);
+        const char* name = lastSlash ? lastSlash + 1 : doc->filePath;
+        int len = strlen(name);
+        if (len > 255) len = 255;
+        defaultName[0] = (unsigned char)len;
+        memcpy(&defaultName[1], name, len);
     }
 
-    ST_Log("Save dialog would return: %s", pathOut);
+    /* Show the Standard File save dialog */
+    StandardFileReply reply;
+    extern void StandardPutFile(const unsigned char* prompt,
+                                const unsigned char* defaultName,
+                                StandardFileReply* reply);
+    StandardPutFile(prompt, defaultName, &reply);
 
-    /* In real implementation, would show StandardPutFile dialog */
+    if (!reply.sfGood) {
+        ST_Log("Save dialog cancelled");
+        return false;
+    }
+
+    /* Convert FSSpec name (Pascal) to C path */
+    /* Build path: /<name> */
+    int nameLen = reply.sfFile.name[0];
+    if (nameLen <= 0 || nameLen >= MAX_DIALOG_PATH - 2) {
+        return false;
+    }
+    pathOut[0] = '/';
+    memcpy(&pathOut[1], &reply.sfFile.name[1], nameLen);
+    pathOut[1 + nameLen] = '\0';
+
+    ST_Log("Save dialog returned: %s", pathOut);
     return true;
 }
 
@@ -658,17 +675,28 @@ Boolean STIO_OpenDialog(char* pathOut)
         return false;
     }
 
-    /* For now, return a test path with bounds checking */
-    const char* defaultPath = "/Documents/Sample.txt";
-    if (strlen(defaultPath) >= MAX_DIALOG_PATH) {
+    /* Show the Standard File open dialog - accept TEXT files */
+    StandardFileReply reply;
+    OSType typeList[1] = { 'TEXT' };
+    extern void StandardGetFile(void* fileFilter, short numTypes,
+                                const OSType* typeList, StandardFileReply* reply);
+    StandardGetFile(NULL, 1, typeList, &reply);
+
+    if (!reply.sfGood) {
+        ST_Log("Open dialog cancelled");
         return false;
     }
-    strncpy(pathOut, defaultPath, MAX_DIALOG_PATH - 1);
-    pathOut[MAX_DIALOG_PATH - 1] = '\0';
 
-    ST_Log("Open dialog would return: %s", pathOut);
+    /* Convert FSSpec name (Pascal) to C path */
+    int nameLen = reply.sfFile.name[0];
+    if (nameLen <= 0 || nameLen >= MAX_DIALOG_PATH - 2) {
+        return false;
+    }
+    pathOut[0] = '/';
+    memcpy(&pathOut[1], &reply.sfFile.name[1], nameLen);
+    pathOut[1 + nameLen] = '\0';
 
-    /* In real implementation, would show StandardGetFile dialog */
+    ST_Log("Open dialog returned: %s", pathOut);
     return true;
 }
 
