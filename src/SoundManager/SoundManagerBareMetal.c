@@ -1159,6 +1159,47 @@ OSErr SndControl(SInt16 id, SndCommand* cmd) {
     return unimpErr;
 }
 
+OSErr SndChannelStatus(SndChannelPtr chan, SInt16 theLength, SCStatus *theStatus) {
+    if (!chan || !theStatus || theLength < (SInt16)sizeof(SCStatus)) {
+        return paramErr;
+    }
+    /* In bare-metal mode, sounds play synchronously so channels are never busy */
+    theStatus->sampleRate = 0x56220000UL;  /* 22.254 kHz fixed-point */
+    theStatus->sampleSize = 8;
+    theStatus->numChannels = 1;
+    theStatus->synthType = 0;
+    theStatus->init = 0;
+    return noErr;
+}
+
+OSErr SndStartFilePlay(SndChannelPtr chan, SInt16 fRefNum, SInt16 resNum,
+                       SInt32 bufferSize, void *theBuffer,
+                       AudioSelectionPtr theSelection,
+                       FilePlayCompletionUPP theCompletion, Boolean async) {
+    (void)chan; (void)fRefNum; (void)resNum; (void)bufferSize;
+    (void)theBuffer; (void)theSelection; (void)theCompletion; (void)async;
+    return unimpErr;  /* File-based playback not supported in bare-metal */
+}
+
+OSErr SndPauseFilePlay(SndChannelPtr chan) {
+    (void)chan;
+    return unimpErr;
+}
+
+OSErr SndStopFilePlay(SndChannelPtr chan, Boolean quietNow) {
+    (void)chan; (void)quietNow;
+    return unimpErr;
+}
+
+void GetSoundHeaderOffset(SndListHandle sndHandle, SInt32 *offset) {
+    if (!offset) return;
+    *offset = 0;
+    if (!sndHandle || !*sndHandle) return;
+    /* For Format 2 resources, the sound header follows the command list.
+     * A full implementation would parse the resource to find the exact offset.
+     * Return 0 as a safe default (beginning of resource). */
+}
+
 /* Sound Manager version - apps check this for feature support */
 NumVersion SndSoundManagerVersion(void) {
     NumVersion version;
