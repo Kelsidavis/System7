@@ -826,6 +826,24 @@ void HandleKeyDown(EventRecord* event) {
             return;
         }
 
+        /* Cmd+` = Cycle to next window (standard Mac OS shortcut) */
+        if (charCode == '`' || charCode == '~') {
+            extern WindowPtr FrontWindow(void);
+            extern void SelectWindow(WindowPtr w);
+            extern void SendBehind(WindowPtr window, WindowPtr behindWindow);
+
+            WindowPtr front = FrontWindow();
+            if (front && front->nextWindow) {
+                /* Send the front window to the back, bringing the next one forward */
+                SendBehind(front, NULL);  /* NULL = send to very back */
+                WindowPtr newFront = FrontWindow();
+                if (newFront) {
+                    SelectWindow(newFront);
+                }
+            }
+            return;
+        }
+
         extern long MenuKey(short ch);
 
         /* Convert to uppercase for menu matching */
