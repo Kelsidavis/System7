@@ -2169,41 +2169,52 @@ void FolderWindow_Draw(WindowPtr w) {
         int pos = 0;
 
         if (selectedCount > 0) {
-            /* Show selection info — System 7 shows count, then disk space */
+            /* Selection: show count and total size of selected items */
             if (selectedCount == 1) {
                 pos += sprintf(&statusBuf[pos], "1 of %d selected", state->itemCount);
             } else {
                 pos += sprintf(&statusBuf[pos], "%d of %d selected", selectedCount, state->itemCount);
             }
+
+            /* Show total size of selected items */
+            pos += sprintf(&statusBuf[pos], "     ");
+            if (selectedSize < 1024) {
+                pos += sprintf(&statusBuf[pos], "%u bytes", (unsigned)selectedSize);
+            } else if (selectedSize < 1048576) {
+                pos += sprintf(&statusBuf[pos], "%uK", (unsigned)(selectedSize / 1024));
+            } else {
+                unsigned mb10 = (unsigned)((selectedSize * 10 + 524288) / 1048576);
+                pos += sprintf(&statusBuf[pos], "%u.%u MB", mb10 / 10, mb10 % 10);
+            }
         } else {
-            /* No selection: show total item count */
+            /* No selection: show item count and disk space */
             if (state->itemCount == 1) {
                 pos += sprintf(&statusBuf[pos], "1 item");
             } else {
                 pos += sprintf(&statusBuf[pos], "%d items", state->itemCount);
             }
-        }
 
-        /* Disk used */
-        pos += sprintf(&statusBuf[pos], "     ");
-        if (diskUsed < 1048576) {
-            pos += sprintf(&statusBuf[pos], "%uK in disk",
-                          (unsigned)(diskUsed / 1024));
-        } else {
-            unsigned mb10 = (unsigned)((diskUsed * 10 + 524288) / 1048576);
-            pos += sprintf(&statusBuf[pos], "%u.%u MB in disk",
-                          mb10 / 10, mb10 % 10);
-        }
+            /* Disk used */
+            pos += sprintf(&statusBuf[pos], "     ");
+            if (diskUsed < 1048576) {
+                pos += sprintf(&statusBuf[pos], "%uK in disk",
+                              (unsigned)(diskUsed / 1024));
+            } else {
+                unsigned mb10 = (unsigned)((diskUsed * 10 + 524288) / 1048576);
+                pos += sprintf(&statusBuf[pos], "%u.%u MB in disk",
+                              mb10 / 10, mb10 % 10);
+            }
 
-        /* Disk free */
-        pos += sprintf(&statusBuf[pos], "     ");
-        if (diskFree < 1048576) {
-            pos += sprintf(&statusBuf[pos], "%uK available",
-                          (unsigned)(diskFree / 1024));
-        } else {
-            unsigned mb10 = (unsigned)((diskFree * 10 + 524288) / 1048576);
-            pos += sprintf(&statusBuf[pos], "%u.%u MB available",
-                          mb10 / 10, mb10 % 10);
+            /* Disk free */
+            pos += sprintf(&statusBuf[pos], "     ");
+            if (diskFree < 1048576) {
+                pos += sprintf(&statusBuf[pos], "%uK available",
+                              (unsigned)(diskFree / 1024));
+            } else {
+                unsigned mb10 = (unsigned)((diskFree * 10 + 524288) / 1048576);
+                pos += sprintf(&statusBuf[pos], "%u.%u MB available",
+                              mb10 / 10, mb10 % 10);
+            }
         }
 
         MoveTo(left + 8, bottom - 4);
