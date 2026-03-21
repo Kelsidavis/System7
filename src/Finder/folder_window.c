@@ -1996,15 +1996,48 @@ void FolderWindow_Draw(WindowPtr w) {
             }
         }
 
-        /* Format status text: "X items     Y MB in disk     Z MB available" */
+        /* Count selected items and their total size */
+        short selectedCount = 0;
+        uint64_t selectedSize = 0;
+        for (short i = 0; i < state->itemCount; i++) {
+            Boolean isSel = (state->selectedItems && state->selectedItems[i]) ||
+                            (i == state->selectedIndex);
+            if (isSel) {
+                selectedCount++;
+                selectedSize += state->items[i].size;
+            }
+        }
+
+        /* Format status text:
+         * No selection: "X items     Y MB in disk     Z MB available"
+         * With selection: "X of Y selected     Z K used" */
         char statusBuf[128];
         int pos = 0;
 
-        /* Item count */
-        if (state->itemCount == 1) {
-            pos += sprintf(&statusBuf[pos], "1 item");
+        if (selectedCount > 0) {
+            /* Show selection info (classic System 7 style) */
+            if (selectedCount == 1) {
+                pos += sprintf(&statusBuf[pos], "1 of %d selected", state->itemCount);
+            } else {
+                pos += sprintf(&statusBuf[pos], "%d of %d selected", selectedCount, state->itemCount);
+            }
+            /* Show selected size */
+            pos += sprintf(&statusBuf[pos], "     ");
+            if (selectedSize < 1024) {
+                pos += sprintf(&statusBuf[pos], "%u bytes", (unsigned)selectedSize);
+            } else if (selectedSize < 1048576) {
+                pos += sprintf(&statusBuf[pos], "%uK", (unsigned)(selectedSize / 1024));
+            } else {
+                unsigned mb10 = (unsigned)((selectedSize * 10 + 524288) / 1048576);
+                pos += sprintf(&statusBuf[pos], "%u.%u MB", mb10 / 10, mb10 % 10);
+            }
         } else {
-            pos += sprintf(&statusBuf[pos], "%d items", state->itemCount);
+            /* No selection: show total item count */
+            if (state->itemCount == 1) {
+                pos += sprintf(&statusBuf[pos], "1 item");
+            } else {
+                pos += sprintf(&statusBuf[pos], "%d items", state->itemCount);
+            }
         }
 
         /* Disk used */
