@@ -245,7 +245,7 @@ Boolean GetInfo_HandleUpdate(WindowPtr w) {
     DrawText(buf, 0, strlen(buf));
     y += 20;
 
-    /* Size (for files) */
+    /* Size (for files) or Contents (for folders) */
     if (sCurrentEntry.kind == kNodeFile) {
         MoveTo(20, y);
         char sizeStr[64];
@@ -256,6 +256,23 @@ Boolean GetInfo_HandleUpdate(WindowPtr w) {
 
         MoveTo(20, y);
         snprintf(buf, sizeof(buf), "     (%u bytes)", (unsigned int)sCurrentEntry.size);
+        DrawText(buf, 0, strlen(buf));
+        y += 20;
+    } else if (sCurrentEntry.kind == kNodeDir) {
+        /* For folders, show item count */
+        extern bool VFS_Enumerate(VRefNum vref, DirID dirID,
+                                  CatEntry* entries, int maxEntries, int* count);
+        CatEntry countEntries[1];
+        int folderItemCount = 0;
+        /* Quick count via enumerate with small buffer — count tells us total */
+        VFS_Enumerate(0, sCurrentEntry.id, countEntries, 0, &folderItemCount);
+
+        MoveTo(20, y);
+        if (folderItemCount == 1) {
+            snprintf(buf, sizeof(buf), "Contains: 1 item");
+        } else {
+            snprintf(buf, sizeof(buf), "Contains: %d items", folderItemCount);
+        }
         DrawText(buf, 0, strlen(buf));
         y += 20;
     }
