@@ -2108,21 +2108,11 @@ void FolderWindow_Draw(WindowPtr w) {
         int pos = 0;
 
         if (selectedCount > 0) {
-            /* Show selection info (classic System 7 style) */
+            /* Show selection info — System 7 shows count, then disk space */
             if (selectedCount == 1) {
                 pos += sprintf(&statusBuf[pos], "1 of %d selected", state->itemCount);
             } else {
                 pos += sprintf(&statusBuf[pos], "%d of %d selected", selectedCount, state->itemCount);
-            }
-            /* Show selected size */
-            pos += sprintf(&statusBuf[pos], "     ");
-            if (selectedSize < 1024) {
-                pos += sprintf(&statusBuf[pos], "%u bytes", (unsigned)selectedSize);
-            } else if (selectedSize < 1048576) {
-                pos += sprintf(&statusBuf[pos], "%uK", (unsigned)(selectedSize / 1024));
-            } else {
-                unsigned mb10 = (unsigned)((selectedSize * 10 + 524288) / 1048576);
-                pos += sprintf(&statusBuf[pos], "%u.%u MB", mb10 / 10, mb10 % 10);
             }
         } else {
             /* No selection: show total item count */
