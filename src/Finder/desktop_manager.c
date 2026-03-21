@@ -2478,6 +2478,13 @@ void Desktop_RefreshTrashIcon(void) {
 }
 
 /*
+ * Desktop_HasSelectedIcon - Check if a desktop icon is selected.
+ */
+Boolean Desktop_HasSelectedIcon(void) {
+    return (gSelectedIcon >= 0 && gSelectedIcon < gDesktopIconCount);
+}
+
+/*
  * Desktop_OpenSelectedIcon - Open the currently selected desktop icon.
  * Called when Return/Enter is pressed with no folder window front.
  */

@@ -173,10 +173,15 @@ void Finder_AdjustMenus(void) {
     Boolean hasFolderWindow = (front && IsFolderWindow(front));
     Boolean hasSelection = false;
 
-    /* Check if any items are selected in the front folder window */
+    /* Check if any items are selected in the front folder window
+     * or if a desktop icon is selected when no window is front */
     if (hasFolderWindow) {
         extern Boolean FolderWindow_HasSelection(WindowPtr w);
         hasSelection = FolderWindow_HasSelection(front);
+    } else {
+        /* Check for selected desktop icon */
+        extern Boolean Desktop_HasSelectedIcon(void);
+        hasSelection = Desktop_HasSelectedIcon();
     }
 
     /* Adjust Edit menu */
