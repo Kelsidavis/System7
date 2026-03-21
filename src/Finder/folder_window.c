@@ -3001,6 +3001,17 @@ void FolderWindow_DuplicateSelected(WindowPtr w) {
         }
     }
 
+    /* Select the last duplicated item (matches System 7 behavior) */
+    if (state->itemCount > 0) {
+        short lastIdx = state->itemCount - 1;
+        if (state->selectedItems) {
+            for (short i = 0; i < state->itemCount; i++)
+                state->selectedItems[i] = false;
+            state->selectedItems[lastIdx] = true;
+        }
+        state->selectedIndex = lastIdx;
+    }
+
     /* Restore cursor and trigger redraw */
     InitCursor();
     PostEvent(updateEvt, (UInt32)(uintptr_t)w);
