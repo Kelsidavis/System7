@@ -451,7 +451,7 @@ void InitializeFolderContentsEx(WindowPtr w, Boolean isTrash, VRefNum vref, DirI
             state->items[i].isFolder = (entries[i].kind == kNodeDir);
             state->items[i].size = entries[i].size;
             state->items[i].modTime = entries[i].modTime;
-            state->items[i].label = 0;
+            state->items[i].label = (entries[i].flags >> 1) & 0x07;  /* HFS label bits */
             state->items[i].fileID = entries[i].id;
             state->items[i].parentID = entries[i].parent;
             state->items[i].type = entries[i].type;
@@ -698,7 +698,7 @@ void InitializeFolderContentsEx(WindowPtr w, Boolean isTrash, VRefNum vref, DirI
             state->items[i].isFolder = (entries[i].kind == kNodeDir);
             state->items[i].size = entries[i].size;
             state->items[i].modTime = entries[i].modTime;
-            state->items[i].label = 0;  /* Default: no label */
+            state->items[i].label = (entries[i].flags >> 1) & 0x07;  /* HFS label bits */
             state->items[i].fileID = entries[i].id;
             state->items[i].parentID = entries[i].parent;
             state->items[i].type = entries[i].type;
@@ -3432,6 +3432,20 @@ void FolderWindow_SetLabelOnSelected(WindowPtr w, short labelIndex) {
         if (isSelected) {
             state->items[i].label = labelIndex;
             labeledCount++;
+
+            /* Persist label to VFS overlay via Finder flags bits 1-3 */
+            {
+                extern bool VFS_GetByID(VRefNum vref, FileID id, CatEntry* entry);
+                extern bool VFS_SetCatEntryInfo(VRefNum vref, FileID id,
+                                                 uint32_t type, uint32_t creator, uint16_t flags);
+                CatEntry ce;
+                if (VFS_GetByID(state->vref, state->items[i].fileID, &ce)) {
+                    uint16_t newFlags = (ce.flags & ~0x000E) | ((labelIndex & 0x07) << 1);
+                    VFS_SetCatEntryInfo(state->vref, state->items[i].fileID,
+                                        ce.type, ce.creator, newFlags);
+                }
+            }
+
             FINDER_LOG_DEBUG("FolderWindow_SetLabelOnSelected: Set label %d on item %d '%s'\n",
                            labelIndex, i, state->items[i].name);
         }
