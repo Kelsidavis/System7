@@ -1136,10 +1136,14 @@ Boolean HandleFolderWindowClick(WindowPtr w, EventRecord *ev, Boolean isDoubleCl
     short hitIndex = FW_IconAtPoint(w, localPt);
 
     if (hitIndex == -1) {
-        /* Clicked empty space - deselect */
+        /* Clicked empty space - deselect all */
         if (state->selectedIndex != -1) {
             FINDER_LOG_DEBUG("FW: deselect (empty click)\n");
             state->selectedIndex = -1;
+            if (state->selectedItems) {
+                for (short i = 0; i < state->itemCount; i++)
+                    state->selectedItems[i] = false;
+            }
             PostEvent(updateEvt, (UInt32)(uintptr_t)w);
         }
         FINDER_LOG_DEBUG("FW: empty click - clearing lastClickIndex (was %d)\n", state->lastClickIndex);
@@ -1147,6 +1151,9 @@ Boolean HandleFolderWindowClick(WindowPtr w, EventRecord *ev, Boolean isDoubleCl
         SetPort(savePort);
         return true;
     }
+
+    /* Check for Shift key modifier for multi-select */
+    Boolean shiftHeld = (ev->modifiers & 0x0200) != 0;  /* shiftKey */
 
     /* Clicked an icon */
     UInt32 currentTime = TickCount();
@@ -1366,7 +1373,7 @@ Boolean HandleFolderWindowClick(WindowPtr w, EventRecord *ev, Boolean isDoubleCl
     } else if (couldBeDoubleClick && !isDoubleClick) {
         /* This is potentially the second click of a double-click but the event
          * system hasn't flagged it as a double-click yet. Just select and track timing. */
-        FINDER_LOG_DEBUG("FW: potential double-click (waiting for confirmation), selecting icon %d\n", hitIndex);
+        FINDER_LOG_DEBUG("FW: potential double-click (waiting for confirmation), selecting icon %d shift=%d\n", hitIndex, shiftHeld);
 
         short oldSel = state->selectedIndex;
         state->selectedIndex = hitIndex;
@@ -1375,8 +1382,13 @@ Boolean HandleFolderWindowClick(WindowPtr w, EventRecord *ev, Boolean isDoubleCl
 
         /* Update multi-selection array */
         if (state->selectedItems) {
-            for (short i = 0; i < state->itemCount; i++) {
-                state->selectedItems[i] = (i == hitIndex);
+            if (shiftHeld) {
+                /* Shift-click: toggle this item's selection */
+                state->selectedItems[hitIndex] = !state->selectedItems[hitIndex];
+            } else {
+                /* Normal click: select only this item */
+                for (short i = 0; i < state->itemCount; i++)
+                    state->selectedItems[i] = (i == hitIndex);
             }
         }
 
@@ -1399,14 +1411,19 @@ Boolean HandleFolderWindowClick(WindowPtr w, EventRecord *ev, Boolean isDoubleCl
 
             /* Update multi-selection array */
             if (state->selectedItems) {
-                for (short i = 0; i < state->itemCount; i++) {
-                    state->selectedItems[i] = (i == hitIndex);
+                if (shiftHeld) {
+                    /* Shift-click: toggle this item, keep others */
+                    state->selectedItems[hitIndex] = !state->selectedItems[hitIndex];
+                } else {
+                    /* Normal click: select only this item */
+                    for (short i = 0; i < state->itemCount; i++)
+                        state->selectedItems[i] = (i == hitIndex);
                 }
             }
 
-            (void)oldSel;  /* Used only in debug logging */
-            FINDER_LOG_DEBUG("FW: select %d -> %d, SET lastClickIndex=%d, lastClickTime=%lu\n",
-                         oldSel, hitIndex, hitIndex, (unsigned long)currentTime);
+            (void)oldSel;
+            FINDER_LOG_DEBUG("FW: select %d -> %d, shift=%d, SET lastClickIndex=%d, lastClickTime=%lu\n",
+                         oldSel, hitIndex, shiftHeld, hitIndex, (unsigned long)currentTime);
 
             /* Post update to redraw selection */
             PostEvent(updateEvt, (UInt32)(uintptr_t)w);

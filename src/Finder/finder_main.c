@@ -237,6 +237,7 @@ static OSErr SetupMenus(void)
     AppendMenu(gFileMenu, "\002(-");
     GetLocalizedString(menuStr, kSTRListFinderFileMenu, kStrGetInfo);
     AppendMenu(gFileMenu, menuStr);
+    SetItemCmd(gFileMenu, 6, 'I');  /* Cmd+I for Get Info */
     GetLocalizedString(menuStr, kSTRListFinderFileMenu, kStrSharing);
     AppendMenu(gFileMenu, menuStr);
     GetLocalizedString(menuStr, kSTRListFinderFileMenu, kStrDuplicate);
