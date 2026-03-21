@@ -1740,9 +1740,18 @@ OSErr InitializeVolumeIcon(void)
             dst[0] = (UInt8)(v);
             dst[1] = (UInt8)(v >> 8);
         }
-        serial_puts("[IVI] strcpy name\n");
-        uart_flush();
-        strcpy(item->name, "Macintosh HD");
+        /* Use actual volume name from VFS instead of hardcoded "Macintosh HD" */
+        {
+            extern bool VFS_GetVolumeInfo(VRefNum vref, VolumeControlBlock* vcb);
+            VolumeControlBlock vcb;
+            memset(&vcb, 0, sizeof(vcb));
+            if (VFS_GetVolumeInfo(gBootVolumeRef, &vcb) && vcb.name[0]) {
+                strncpy(item->name, vcb.name, sizeof(item->name) - 1);
+                item->name[sizeof(item->name) - 1] = '\0';
+            } else {
+                strcpy(item->name, "Macintosh HD");  /* Fallback */
+            }
+        }
         serial_puts("[IVI] set movable\n");
         uart_flush();
         item->movable = true;  /* Volumes can be moved - single byte, safe */
