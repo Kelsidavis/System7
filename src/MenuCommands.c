@@ -229,8 +229,14 @@ void Finder_AdjustMenus(void) {
         if (hasSelection) {
             EnableItem(fileMenu, kOpenItem);
             EnableItem(fileMenu, kGetInfoItem);
-            EnableItem(fileMenu, kDuplicateItem);
-            EnableItem(fileMenu, kMakeAliasItem);
+            /* Duplicate and Make Alias disabled in Trash window */
+            if (!isTrashWindow) {
+                EnableItem(fileMenu, kDuplicateItem);
+                EnableItem(fileMenu, kMakeAliasItem);
+            } else {
+                DisableItem(fileMenu, kDuplicateItem);
+                DisableItem(fileMenu, kMakeAliasItem);
+            }
         } else {
             DisableItem(fileMenu, kOpenItem);
             DisableItem(fileMenu, kGetInfoItem);
