@@ -233,7 +233,6 @@ static DAInterface g_alarmClockInterface = {
     .wakeup = NULL
 };
 
-__attribute__((unused))
 static DAInterface g_chooserInterface = {
     .initialize = Chooser_DAInitialize,
     .terminate = Chooser_DATerminate,
@@ -300,7 +299,7 @@ int DeskManager_RegisterBuiltinDAs(void)
         return result;
     }
 
-    /* TODO: Register Chooser - requires network/device enumeration
+    /* Register Chooser DA */
     DARegistryEntry chooserEntry = {0};
     strncpy(chooserEntry.name, "Chooser", sizeof(chooserEntry.name) - 1);
     chooserEntry.name[sizeof(chooserEntry.name) - 1] = '\0';
@@ -313,7 +312,6 @@ int DeskManager_RegisterBuiltinDAs(void)
     if (result != 0) {
         return result;
     }
-    */
 
     return DESK_ERR_NONE;
 }

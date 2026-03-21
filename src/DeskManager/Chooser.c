@@ -1,8 +1,6 @@
 #include "MemoryMgr/MemoryManager.h"
 // #include "CompatibilityFix.h" // Removed
-#include <stdlib.h>
 #include <string.h>
-#include <time.h>
 /*
  * Chooser.c - Chooser Desk Accessory Implementation
  *
@@ -18,6 +16,12 @@
 
 #include "DeskManager/Chooser.h"
 #include "DeskManager/DeskManager.h"
+
+static SInt32 Chooser_GetTime(void) {
+    extern void GetDateTime(UInt32* secs);
+    UInt32 now; GetDateTime(&now);
+    return (SInt32)now;
+}
 
 
 /*
@@ -167,7 +171,7 @@ int Chooser_ScanDevices(Chooser *chooser, DeviceType deviceType)
             printer->supportsDuplex = true;
             strncpy(printer->status, "Ready", sizeof(printer->status) - 1);
             printer->status[sizeof(printer->status) - 1] = '\0';
-            printer->lastSeen = (SInt32)time(NULL);
+            printer->lastSeen = Chooser_GetTime();
             printer->isSelected = false;
             printer->iconID = 1;
             printer->icon = NULL;
@@ -199,7 +203,7 @@ int Chooser_ScanDevices(Chooser *chooser, DeviceType deviceType)
             server->canShare = true;
             strncpy(server->status, "Available", sizeof(server->status) - 1);
             server->status[sizeof(server->status) - 1] = '\0';
-            server->lastSeen = (SInt32)time(NULL);
+            server->lastSeen = Chooser_GetTime();
             server->isSelected = false;
             server->iconID = 2;
             server->icon = NULL;
@@ -211,7 +215,7 @@ int Chooser_ScanDevices(Chooser *chooser, DeviceType deviceType)
         }
     }
 
-    chooser->lastScan = (SInt32)time(NULL);
+    chooser->lastScan = Chooser_GetTime();
     return devicesFound;
 }
 
