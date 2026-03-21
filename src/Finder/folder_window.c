@@ -94,6 +94,7 @@ typedef struct FolderItem {
 #define kListSizeColWidth   60  /* Width of the Size column */
 #define kListKindColWidth  100  /* Width of the Kind column */
 #define kListDateColWidth  100  /* Width of the Date column */
+#define kListScrollBarWidth 15  /* Width of vertical scrollbar track */
 
 /* Folder window state (per window) */
 typedef struct FolderWindowState {
@@ -110,6 +111,7 @@ typedef struct FolderWindowState {
     Point dragStartGlobal; /* Global coordinates where drag started */
     short draggingIndex;   /* Index of item being dragged (-1 = none) */
     short viewMode;        /* Current view mode (kViewByIcon..kViewByDate) */
+    short scrollOffset;    /* Scroll offset in items for list view */
 } FolderWindowState;
 
 /* Global folder window states (indexed by window pointer for now) */
@@ -313,6 +315,7 @@ FolderWindowState* GetFolderState(WindowPtr w) {
             gFolderWindows[i].state.dragStartGlobal.v = 0;
             gFolderWindows[i].state.draggingIndex = -1;
             gFolderWindows[i].state.viewMode = kViewByIcon;
+            gFolderWindows[i].state.scrollOffset = 0;
 
             /* Initialize folder contents */
             FINDER_LOG_DEBUG("GetFolderState: About to call InitializeFolderContents\n");
@@ -784,16 +787,60 @@ static short FW_IconAtPoint(WindowPtr w, Point localPt) {
     FINDER_LOG_DEBUG("FW: hit test at local (%d,%d), itemCount=%d, viewMode=%d\n",
                  localPt.h, localPt.v, state->itemCount, state->viewMode);
 
-    /* List view hit testing: simple row-based calculation */
+    /* List view hit testing with scroll offset and scrollbar handling */
     if (state->viewMode >= kViewByName) {
         short top = w->port.portRect.top;
+        short right = w->port.portRect.right;
+        short bottom = w->port.portRect.bottom;
+        short contentHeight = bottom - top - kListHeaderHeight;
+        short visibleRows = contentHeight / kListRowHeight;
+        if (visibleRows < 1) visibleRows = 1;
+
+        /* Check if click is in scrollbar area */
+        if (localPt.h >= right - kListScrollBarWidth && state->itemCount > visibleRows) {
+            short sbTop = top + kListHeaderHeight;
+            /* Up arrow click */
+            if (localPt.v >= sbTop && localPt.v < sbTop + kListScrollBarWidth) {
+                if (state->scrollOffset > 0) {
+                    state->scrollOffset--;
+                    PostEvent(updateEvt, (UInt32)(uintptr_t)w);
+                }
+            }
+            /* Down arrow click */
+            else if (localPt.v >= bottom - kListScrollBarWidth && localPt.v < bottom) {
+                short maxScroll = state->itemCount - visibleRows;
+                if (state->scrollOffset < maxScroll) {
+                    state->scrollOffset++;
+                    PostEvent(updateEvt, (UInt32)(uintptr_t)w);
+                }
+            }
+            /* Page up/down in track area */
+            else {
+                short trackTop = sbTop + kListScrollBarWidth;
+                short trackBottom = bottom - kListScrollBarWidth;
+                short trackMid = (trackTop + trackBottom) / 2;
+                short maxScroll = state->itemCount - visibleRows;
+                if (localPt.v < trackMid) {
+                    /* Page up */
+                    state->scrollOffset -= visibleRows;
+                    if (state->scrollOffset < 0) state->scrollOffset = 0;
+                } else {
+                    /* Page down */
+                    state->scrollOffset += visibleRows;
+                    if (state->scrollOffset > maxScroll) state->scrollOffset = maxScroll;
+                }
+                PostEvent(updateEvt, (UInt32)(uintptr_t)w);
+            }
+            return -1;  /* Scrollbar click, not an item */
+        }
+
         short contentY = localPt.v - top - kListHeaderHeight;
 
         if (contentY < 0) {
             return -1;  /* Click in header area */
         }
 
-        short rowIndex = contentY / kListRowHeight;
+        short rowIndex = (contentY / kListRowHeight) + state->scrollOffset;
         if (rowIndex >= 0 && rowIndex < state->itemCount) {
             FINDER_LOG_DEBUG("FW: list hit row %d name='%s'\n", rowIndex, state->items[rowIndex].name);
             return rowIndex;
@@ -1482,61 +1529,145 @@ static void FolderWindow_DrawListHeader(const Rect* portRect) {
  * Draw the list view for a folder window.
  * Renders items as text rows with small icons, columns for Name/Size/Kind/Date.
  */
+/*
+ * Draw a vertical scrollbar for list view.
+ * Renders a classic System 7 style scrollbar with up/down arrows and
+ * a proportional thumb indicating scroll position.
+ */
+static void FolderWindow_DrawListScrollbar(WindowPtr w, FolderWindowState* state,
+                                            short visibleRows) {
+    short right = w->port.portRect.right;
+    short top = w->port.portRect.top + kListHeaderHeight;
+    short bottom = w->port.portRect.bottom;
+    short sbLeft = right - kListScrollBarWidth;
+
+    /* Scrollbar track background */
+    Rect trackRect;
+    SetRect(&trackRect, sbLeft, top, right, bottom);
+    Pattern ltGray;
+    for (int i = 0; i < 8; i++) ltGray.pat[i] = (i & 1) ? 0xAA : 0x55;
+    FillRect(&trackRect, &ltGray);
+    FrameRect(&trackRect);
+
+    /* Up arrow area */
+    Rect upArrow;
+    SetRect(&upArrow, sbLeft, top, right, top + kListScrollBarWidth);
+    Pattern whitePat;
+    for (int i = 0; i < 8; i++) whitePat.pat[i] = 0x00;
+    FillRect(&upArrow, &whitePat);
+    FrameRect(&upArrow);
+    /* Draw up triangle */
+    short midX = sbLeft + kListScrollBarWidth / 2;
+    MoveTo(midX, top + 3);
+    LineTo(sbLeft + 3, top + kListScrollBarWidth - 4);
+    LineTo(right - 4, top + kListScrollBarWidth - 4);
+    LineTo(midX, top + 3);
+
+    /* Down arrow area */
+    Rect downArrow;
+    SetRect(&downArrow, sbLeft, bottom - kListScrollBarWidth, right, bottom);
+    FillRect(&downArrow, &whitePat);
+    FrameRect(&downArrow);
+    /* Draw down triangle */
+    MoveTo(midX, bottom - 4);
+    LineTo(sbLeft + 3, bottom - kListScrollBarWidth + 3);
+    LineTo(right - 4, bottom - kListScrollBarWidth + 3);
+    LineTo(midX, bottom - 4);
+
+    /* Thumb (proportional) */
+    if (state->itemCount > visibleRows && visibleRows > 0) {
+        short trackHeight = bottom - top - 2 * kListScrollBarWidth;
+        short thumbHeight = (visibleRows * trackHeight) / state->itemCount;
+        if (thumbHeight < 16) thumbHeight = 16;
+        if (thumbHeight > trackHeight) thumbHeight = trackHeight;
+
+        short maxScroll = state->itemCount - visibleRows;
+        if (maxScroll < 1) maxScroll = 1;
+        short thumbTop = top + kListScrollBarWidth +
+                         (state->scrollOffset * (trackHeight - thumbHeight)) / maxScroll;
+
+        Rect thumbRect;
+        SetRect(&thumbRect, sbLeft + 1, thumbTop, right - 1, thumbTop + thumbHeight);
+        FillRect(&thumbRect, &whitePat);
+        FrameRect(&thumbRect);
+
+        /* Thumb grip lines */
+        short gripY = thumbTop + thumbHeight / 2;
+        MoveTo(sbLeft + 4, gripY - 2);
+        LineTo(right - 5, gripY - 2);
+        MoveTo(sbLeft + 4, gripY);
+        LineTo(right - 5, gripY);
+        MoveTo(sbLeft + 4, gripY + 2);
+        LineTo(right - 5, gripY + 2);
+    }
+}
+
 static void FolderWindow_DrawListView(WindowPtr w, FolderWindowState* state) {
     short top = w->port.portRect.top;
     short left = w->port.portRect.left;
+    short contentRight = w->port.portRect.right - kListScrollBarWidth;
+    short contentHeight = w->port.portRect.bottom - top - kListHeaderHeight;
 
-    /* Draw column headers */
-    FolderWindow_DrawListHeader(&w->port.portRect);
+    /* Calculate visible rows */
+    short visibleRows = contentHeight / kListRowHeight;
+    if (visibleRows < 1) visibleRows = 1;
 
-    /* Draw each item as a row */
+    /* Clamp scroll offset */
+    short maxScroll = state->itemCount - visibleRows;
+    if (maxScroll < 0) maxScroll = 0;
+    if (state->scrollOffset > maxScroll) state->scrollOffset = maxScroll;
+    if (state->scrollOffset < 0) state->scrollOffset = 0;
+
+    /* Draw column headers (adjusted for scrollbar) */
+    Rect headerPortRect = w->port.portRect;
+    headerPortRect.right = contentRight;
+    FolderWindow_DrawListHeader(&headerPortRect);
+
+    /* Draw visible items starting from scrollOffset */
     short rowY = top + kListHeaderHeight;
+    short firstVisible = state->scrollOffset;
+    short lastVisible = firstVisible + visibleRows;
+    if (lastVisible > state->itemCount) lastVisible = state->itemCount;
 
-    for (short i = 0; i < state->itemCount; i++) {
+    for (short i = firstVisible; i < lastVisible; i++) {
         Boolean selected = (state->selectedItems && state->selectedItems[i]) ||
                            (i == state->selectedIndex);
 
         Rect rowRect;
-        SetRect(&rowRect, left, rowY, w->port.portRect.right, rowY + kListRowHeight);
+        SetRect(&rowRect, left, rowY, contentRight, rowY + kListRowHeight);
 
         if (selected) {
-            /* Draw selection highlight (inverted/dark background) */
             Pattern blackPat;
             for (int j = 0; j < 8; j++) blackPat.pat[j] = 0xFF;
             FillRect(&rowRect, &blackPat);
-
-            /* Draw text in white (use XOR mode for inverted text) */
             PenMode(10);  /* patXor */
         }
 
-        /* Draw small icon (simple representation: folder or document) */
+        /* Draw small icon */
         short iconX = left + kListLeftMargin;
         short iconY = rowY + 1;
         Rect miniIconRect;
         SetRect(&miniIconRect, iconX, iconY, iconX + 12, iconY + 12);
 
         if (state->items[i].isFolder) {
-            /* Simple folder icon: filled rect with tab */
             Rect tabRect;
             SetRect(&tabRect, iconX, iconY, iconX + 5, iconY + 3);
             FrameRect(&tabRect);
             miniIconRect.top = iconY + 2;
             FrameRect(&miniIconRect);
         } else {
-            /* Simple document icon: rect with folded corner */
             FrameRect(&miniIconRect);
             MoveTo(iconX + 8, iconY);
             LineTo(iconX + 12, iconY + 4);
         }
 
         /* Draw file name */
-        short textY = rowY + 12;  /* Baseline */
+        short textY = rowY + 12;
         short nameX = left + kListLeftMargin + kListIconSize + 4;
         MoveTo(nameX, textY);
 
         int nameLen = 0;
         while (state->items[i].name[nameLen] && nameLen < 255) nameLen++;
-        /* Truncate name to fit column */
         int maxNameChars = (kListNameColWidth - kListIconSize - kListLeftMargin - 8) / 7;
         if (nameLen > maxNameChars) nameLen = maxNameChars;
         DrawText(state->items[i].name, 0, nameLen);
@@ -1548,7 +1679,6 @@ static void FolderWindow_DrawListView(WindowPtr w, FolderWindowState* state) {
             FormatFileSize(state->items[i].size, sizeBuf, sizeof(sizeBuf));
             int sizeLen = 0;
             while (sizeBuf[sizeLen]) sizeLen++;
-            /* Right-align size within column */
             short sizeTextX = sizeX + kListSizeColWidth - 4 - (sizeLen * 7);
             if (sizeTextX < sizeX + 4) sizeTextX = sizeX + 4;
             MoveTo(sizeTextX, textY);
@@ -1563,11 +1693,11 @@ static void FolderWindow_DrawListView(WindowPtr w, FolderWindowState* state) {
         const char* kindStr = GetFileKindString(&state->items[i]);
         int kindLen = 0;
         while (kindStr[kindLen]) kindLen++;
-        if (kindLen > 14) kindLen = 14;  /* Truncate to fit */
+        if (kindLen > 14) kindLen = 14;
         MoveTo(kindX + 4, textY);
         DrawText(kindStr, 0, kindLen);
 
-        /* Draw separator lines between columns on this row */
+        /* Column separators */
         MoveTo(sizeX, rowY);
         LineTo(sizeX, rowY + kListRowHeight - 1);
         MoveTo(kindX, rowY);
@@ -1577,15 +1707,19 @@ static void FolderWindow_DrawListView(WindowPtr w, FolderWindowState* state) {
         LineTo(dateX, rowY + kListRowHeight - 1);
 
         if (selected) {
-            /* Restore normal drawing mode */
             PenMode(8);  /* patCopy */
         }
 
-        /* Draw row separator */
+        /* Row separator */
         MoveTo(left, rowY + kListRowHeight - 1);
-        LineTo(w->port.portRect.right, rowY + kListRowHeight - 1);
+        LineTo(contentRight, rowY + kListRowHeight - 1);
 
         rowY += kListRowHeight;
+    }
+
+    /* Draw vertical scrollbar if content exceeds visible area */
+    if (state->itemCount > visibleRows) {
+        FolderWindow_DrawListScrollbar(w, state, visibleRows);
     }
 }
 
@@ -1715,6 +1849,51 @@ void FolderWindow_SelectAll(WindowPtr w) {
     }
 
     /* Trigger redraw */
+    PostEvent(updateEvt, (UInt32)(uintptr_t)w);
+}
+
+/*
+ * FolderWindow_ArrowKey - Handle up/down arrow key for selection navigation.
+ * Moves selection and auto-scrolls list view to keep selection visible.
+ */
+void FolderWindow_ArrowKey(WindowPtr w, Boolean isDown) {
+    if (!w || !IsFolderWindow(w)) return;
+
+    FolderWindowState* state = GetFolderState(w);
+    if (!state || !state->items || state->itemCount == 0) return;
+
+    short newIndex = state->selectedIndex;
+
+    if (isDown) {
+        if (newIndex < state->itemCount - 1) newIndex++;
+    } else {
+        if (newIndex > 0) newIndex--;
+        else if (newIndex < 0) newIndex = 0;
+    }
+
+    if (newIndex == state->selectedIndex) return;
+
+    /* Clear old multi-select and set new single selection */
+    if (state->selectedItems) {
+        for (short i = 0; i < state->itemCount; i++)
+            state->selectedItems[i] = false;
+        state->selectedItems[newIndex] = true;
+    }
+    state->selectedIndex = newIndex;
+
+    /* Auto-scroll in list view to keep selection visible */
+    if (state->viewMode >= kViewByName) {
+        short contentHeight = w->port.portRect.bottom - w->port.portRect.top - kListHeaderHeight;
+        short visibleRows = contentHeight / kListRowHeight;
+        if (visibleRows < 1) visibleRows = 1;
+
+        if (newIndex < state->scrollOffset) {
+            state->scrollOffset = newIndex;
+        } else if (newIndex >= state->scrollOffset + visibleRows) {
+            state->scrollOffset = newIndex - visibleRows + 1;
+        }
+    }
+
     PostEvent(updateEvt, (UInt32)(uintptr_t)w);
 }
 
@@ -2333,8 +2512,9 @@ void FolderWindow_SortAndArrange(WindowPtr w, short sortType) {
     FINDER_LOG_DEBUG("FolderWindow_SortAndArrange: sortType=%d, itemCount=%d\n",
                      sortType, state->itemCount);
 
-    /* Store the view mode */
+    /* Store the view mode and reset scroll */
     state->viewMode = sortType;
+    state->scrollOffset = 0;
 
     /* Sort the items array */
     switch (sortType) {

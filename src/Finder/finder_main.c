@@ -831,6 +831,19 @@ void HandleKeyDown(EventRecord* event) {
             OpenSelectedItems();
             return;
         }
+
+        /* Arrow keys - navigate selection in folder windows */
+        if (charCode == 0x1E || charCode == 0x1F) {  /* Up/Down arrows */
+            extern WindowPtr FrontWindow(void);
+            extern Boolean IsFolderWindow(WindowPtr w);
+            extern void FolderWindow_ArrowKey(WindowPtr w, Boolean isDown);
+
+            WindowPtr front = FrontWindow();
+            if (front && IsFolderWindow(front)) {
+                FolderWindow_ArrowKey(front, charCode == 0x1F);
+                return;
+            }
+        }
     }
 
     /* If we get here, key was not handled */
