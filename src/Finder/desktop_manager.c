@@ -1377,6 +1377,9 @@ static void TrackIconDragSync(short iconIndex, Point startPt)
                 }
                 gDesktopIconCount--;
                 gSelectedIcon = -1;
+
+                /* Refresh trash icon to show full state */
+                Desktop_RefreshTrashIcon();
             } else {
                 FINDER_LOG_DEBUG("TrackIconDragSync: Trash operation failed\n");
             }
@@ -2450,6 +2453,28 @@ void OpenSelectedDesktopIcon(void)
             FINDER_LOG_DEBUG("OpenSelectedDesktopIcon: Failed to create trash window\n");
         }
     }
+}
+
+/*
+ * Desktop_RefreshTrashIcon - Refresh the trash icon to reflect full/empty state.
+ * Called after items are moved to or removed from trash.
+ */
+void Desktop_RefreshTrashIcon(void) {
+    if (gDesktopIconCount == 0 || gDesktopIcons[0].type != kDesktopItemTrash) {
+        return;
+    }
+
+    /* Invalidate the area around the trash icon to trigger redraw */
+    Rect trashRect;
+    short ix = gDesktopIcons[0].position.h;
+    short iy = gDesktopIcons[0].position.v;
+    SetRect(&trashRect, ix - 20, iy - 5, ix + 52, iy + 60);
+
+    /* Post an update event to redraw the desktop (which includes icons) */
+    PostEvent(updateEvt, 0);  /* 0 = desktop update */
+
+    FINDER_LOG_DEBUG("Desktop_RefreshTrashIcon: invalidated trash area, empty=%d\n",
+                     Trash_IsEmptyAll());
 }
 
 /*

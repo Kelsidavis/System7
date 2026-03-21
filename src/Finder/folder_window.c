@@ -2280,8 +2280,12 @@ void FolderWindow_DeleteSelected(WindowPtr w) {
         }
     }
 
-    /* Trigger redraw */
+    /* Trigger redraw of folder window and refresh trash icon on desktop */
     PostEvent(updateEvt, (UInt32)(uintptr_t)w);
+    {
+        extern void Desktop_RefreshTrashIcon(void);
+        Desktop_RefreshTrashIcon();
+    }
 }
 
 /*

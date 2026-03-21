@@ -122,6 +122,12 @@ OSErr EmptyTrash(Boolean force)
         /* ShowErrorDialog("\pSome items could not be deleted because they are locked.", noErr); */
     }
 
+    /* Refresh trash icon on desktop to show empty state */
+    {
+        extern void Desktop_RefreshTrashIcon(void);
+        Desktop_RefreshTrashIcon();
+    }
+
     return (err == fnfErr) ? noErr : err; /* fnfErr is expected when done */
 }
 
