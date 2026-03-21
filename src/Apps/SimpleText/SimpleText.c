@@ -357,6 +357,41 @@ void SimpleText_Idle(void) {
     if (g_ST.activeDoc && g_ST.activeDoc->hTE) {
         TEIdle(g_ST.activeDoc->hTE);
     }
+
+    /* Adjust cursor: I-beam over text area, arrow elsewhere.
+     * This is classic Mac behavior — the cursor changes shape based on context. */
+    {
+        extern void GetMouse(Point* pt);
+        extern void SetCursor(const Cursor* crsr);
+        extern void InitCursor(void);
+        extern const Cursor* CursorManager_GetIBeamCursor(void);
+        extern WindowPtr FrontWindow(void);
+
+        WindowPtr front = FrontWindow();
+        STDocument* doc = front ? STDoc_FindByWindow(front) : NULL;
+
+        if (doc && doc->hTE) {
+            Point mouse;
+            GetMouse(&mouse);
+
+            /* Convert global to local */
+            extern void GlobalToLocalWindow(WindowPtr window, Point *pt);
+            GlobalToLocalWindow(front, &mouse);
+
+            /* Check if mouse is in the text view rect */
+            TERec* te = *doc->hTE;
+            if (mouse.h >= te->viewRect.left && mouse.h < te->viewRect.right &&
+                mouse.v >= te->viewRect.top  && mouse.v < te->viewRect.bottom) {
+                /* Set I-beam cursor */
+                const Cursor* ibeam = CursorManager_GetIBeamCursor();
+                if (ibeam) {
+                    SetCursor(ibeam);
+                }
+            } else {
+                InitCursor();  /* Reset to arrow */
+            }
+        }
+    }
 }
 
 Boolean SimpleText_DispatchEvent(EventRecord* event)

@@ -285,6 +285,10 @@ CursHandle GetCursor(short cursorID) {
     return (CursHandle)GetResource(0x43555253, cursorID);
 }
 
+const Cursor* CursorManager_GetIBeamCursor(void) {
+    return gIBeamCursor;
+}
+
 const Cursor* CursorManager_GetCurrentCursorImage(void) {
     return gCursorState.hasCursor ? &gCursorState.currentImage : NULL;
 }
