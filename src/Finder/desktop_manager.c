@@ -579,8 +579,8 @@ static void Finder_DeskHook(RgnHandle invalidRgn)
 void ArrangeDesktopIcons(void)
 {
     const int gridSpacing = 80;
-    const int startX = 700;   /* Start from right side */
-    const int startY = 50;    /* Start below menu bar */
+    int startX = fb_width - 100;  /* 100px from right edge, adapts to screen width */
+    const int startY = 50;        /* Start below menu bar */
     int currentX = startX;
     int currentY = startY;
 
@@ -592,7 +592,7 @@ void ArrangeDesktopIcons(void)
         currentY += gridSpacing;
 
         /* Wrap to next column if too low */
-        if (currentY > 400) {
+        if (currentY > (int)fb_height - 80) {
             currentY = startY;
             currentX -= gridSpacing;
         }
