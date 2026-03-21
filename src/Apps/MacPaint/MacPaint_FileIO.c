@@ -240,7 +240,7 @@ OSErr MacPaint_SaveDocument(const char *filename)
     }
 
     /* Build file header */
-    MacPaintFileHeader header = {0};
+    MacPaintFileHeader header __attribute__((unused)) = {0};
     header.magic = MACPAINT_MAGIC;
     header.version = MACPAINT_FILE_VERSION;
     header.width = gPaintBuffer.bounds.right - gPaintBuffer.bounds.left;

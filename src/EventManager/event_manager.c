@@ -27,7 +27,7 @@ static struct {
     int head;
     int tail;
     int count;
-} g_eventQueue = {0};
+} g_eventQueue __attribute__((unused)) = {0};
 
 /* Mouse and timing state */
 static Point g_mousePos = {100, 100};

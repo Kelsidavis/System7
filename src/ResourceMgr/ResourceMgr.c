@@ -1669,12 +1669,9 @@ SInt16 OpenResMemory(const unsigned char* data, UInt32 size) {
 
 /*
  * CloseResMemory - Close an in-memory resource file opened with OpenResMemory
- *
- * Parameters:
- *   refNum - Reference number returned by OpenResMemory
  */
-void CloseResMemory(SInt16 refNum) {
 void CloseResMemory(SInt16 refNum); /* prototype */
+void CloseResMemory(SInt16 refNum) {
     if (refNum <= 0 || refNum >= MAX_RES_FILES || !gResMgr.resFiles[refNum].inUse) {
         gResMgr.resError = badRefNum;
         return;
