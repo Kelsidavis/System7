@@ -39,7 +39,7 @@
 /* UI and Window State */
 WindowPtr gPaintWindow = NULL;             /* Exposed for window management */
 static GrafPtr gPaintPort = NULL;
-static Rect gPaintRect;
+static Rect gPaintRect __attribute__((unused));
 
 /* Document State */
 char gDocName[64];              /* Exposed for file I/O */

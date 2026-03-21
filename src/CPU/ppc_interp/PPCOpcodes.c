@@ -6621,7 +6621,7 @@ void PPC_Op_VSUM2SWS(PPCAddressSpace* as, UInt32 insn)
     UInt8 vd = PPC_RD(insn);
     UInt8 va = PPC_RA(insn);
     UInt8 vb = PPC_RB(insn);
-    int i;
+    int i; (void)i;
 
     /* Sum elements 0,1 into result[1] */
     SInt64 sum0 = (SInt32)as->regs.vr[vb][1];
