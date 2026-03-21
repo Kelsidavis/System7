@@ -396,8 +396,7 @@ static OSErr TE_CopyToScrap(TEHandle hTE) {
     SInt32 selLen;
     char *pText;
     SInt16 runCount;
-    TextStyle currentStyle, checkStyle;
-    SInt32 curOffset;
+    TextStyle currentStyle;
     Handle styleHandle;
     SInt16 *stylePtr;
     SInt16 styleIndex;
@@ -463,7 +462,7 @@ static OSErr TE_CopyToScrap(TEHandle hTE) {
         StyleTable *styleTab;
         RunArray *runArr;
         SInt16 runIndex;
-        SInt32 currentOffset, nextOffset;
+        SInt32 currentOffset;
         SInt32 selStart = (**teRec).selStart;
         SInt32 selEnd = (**teRec).selEnd;
 
@@ -519,7 +518,7 @@ static OSErr TE_CopyToScrap(TEHandle hTE) {
 
                 /* Calculate offset relative to selection start */
                 currentOffset = (runStart >= selStart) ? (runStart - selStart) : 0;
-                nextOffset = (nextRunStart > selEnd) ? (selEnd - selStart) : (nextRunStart - selStart);
+                (void)((nextRunStart > selEnd) ? (selEnd - selStart) : (nextRunStart - selStart));
 
                 /* Get style for this run */
                 SInt16 styleIdx = runArr->runs[runIndex].styleIndex;

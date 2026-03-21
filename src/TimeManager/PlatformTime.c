@@ -71,7 +71,7 @@ static inline uint64_t read_counter(void) {
 }
 
 static uint64_t gBootCounter = 0;
-static uint64_t gCounterFreq = 2000000000ULL; /* Default 2GHz, calibrated in TimeBase */
+static uint64_t gCounterFreq __attribute__((unused)) = 2000000000ULL; /* Default 2GHz, calibrated in TimeBase */
 
 OSErr InitPlatformTimer(void) {
     gBootCounter = read_counter();

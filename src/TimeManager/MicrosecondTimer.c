@@ -53,9 +53,6 @@ OSErr MicrosecondDelay(UInt32 microseconds) {
     Microseconds(&start);
 
     uint64_t targetUs = ((uint64_t)start.hi << 32 | start.lo) + microseconds;
-    UnsignedWide target;
-    target.hi = (UInt32)(targetUs >> 32);
-    target.lo = (UInt32)(targetUs & 0xFFFFFFFF);
     
     if (microseconds < 1000) {
         /* Busy wait for short delays */

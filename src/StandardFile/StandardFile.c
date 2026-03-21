@@ -68,16 +68,11 @@ typedef struct {
 static SFDialogState gSFState = {0};
 
 /* Forward declarations */
-static OSErr SF_InitDialog(Boolean isOpen, Point where, ConstStr255Param prompt);
 static void SF_DisposeDialog(void);
 static void SF_PopulateFileList(void);
-static Boolean SF_FilterFile(CInfoPBRec *cpb);
-static void SF_HandleItemHit(short item);
 static void SF_SelectFile(short index);
 static void SF_NavigateToFolder(FSSpec *folder);
-static void SF_NavigateUp(void);
 static OSErr SF_GetCurrentLocation(short *vRefNum, long *dirID);
-static void SF_UpdatePrompt(ConstStr255Param prompt);
 
 /* Keyboard focus helpers */
 static void SF_PrimeInitialFocus(DialogPtr d)
