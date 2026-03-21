@@ -77,6 +77,24 @@ typedef struct FolderItem {
     uint32_t creator;      /* Creator code (OSType) */
 } FolderItem;
 
+/* View mode constants matching System 7 Finder view menu */
+#define kViewByIcon     1   /* Icon view (default) */
+#define kViewByName     2   /* List sorted by name */
+#define kViewBySize     3   /* List sorted by size */
+#define kViewByKind     4   /* List sorted by kind */
+#define kViewByLabel    5   /* List sorted by label */
+#define kViewByDate     6   /* List sorted by date */
+
+/* List view layout constants matching classic Mac OS Finder */
+#define kListRowHeight      16  /* Height of each row in list view */
+#define kListHeaderHeight   16  /* Height of the column header bar */
+#define kListIconSize       16  /* Small icon size in list view */
+#define kListLeftMargin      4  /* Left margin before icon */
+#define kListNameColWidth  180  /* Width of the Name column */
+#define kListSizeColWidth   60  /* Width of the Size column */
+#define kListKindColWidth  100  /* Width of the Kind column */
+#define kListDateColWidth  100  /* Width of the Date column */
+
 /* Folder window state (per window) */
 typedef struct FolderWindowState {
     FolderItem* items;     /* Array of items in this folder */
@@ -91,6 +109,7 @@ typedef struct FolderWindowState {
     DirID currentDir;      /* Directory ID being displayed */
     Point dragStartGlobal; /* Global coordinates where drag started */
     short draggingIndex;   /* Index of item being dragged (-1 = none) */
+    short viewMode;        /* Current view mode (kViewByIcon..kViewByDate) */
 } FolderWindowState;
 
 /* Global folder window states (indexed by window pointer for now) */
@@ -293,6 +312,7 @@ FolderWindowState* GetFolderState(WindowPtr w) {
             gFolderWindows[i].state.dragStartGlobal.h = 0;
             gFolderWindows[i].state.dragStartGlobal.v = 0;
             gFolderWindows[i].state.draggingIndex = -1;
+            gFolderWindows[i].state.viewMode = kViewByIcon;
 
             /* Initialize folder contents */
             FINDER_LOG_DEBUG("GetFolderState: About to call InitializeFolderContents\n");
@@ -761,9 +781,27 @@ static short FW_IconAtPoint(WindowPtr w, Point localPt) {
     FolderWindowState* state = GetFolderState(w);
     if (!state || !state->items) return -1;
 
-    FINDER_LOG_DEBUG("FW: hit test at local (%d,%d), itemCount=%d\n",
-                 localPt.h, localPt.v, state->itemCount);
+    FINDER_LOG_DEBUG("FW: hit test at local (%d,%d), itemCount=%d, viewMode=%d\n",
+                 localPt.h, localPt.v, state->itemCount, state->viewMode);
 
+    /* List view hit testing: simple row-based calculation */
+    if (state->viewMode >= kViewByName) {
+        short top = w->port.portRect.top;
+        short contentY = localPt.v - top - kListHeaderHeight;
+
+        if (contentY < 0) {
+            return -1;  /* Click in header area */
+        }
+
+        short rowIndex = contentY / kListRowHeight;
+        if (rowIndex >= 0 && rowIndex < state->itemCount) {
+            FINDER_LOG_DEBUG("FW: list hit row %d name='%s'\n", rowIndex, state->items[rowIndex].name);
+            return rowIndex;
+        }
+        return -1;
+    }
+
+    /* Icon view hit testing */
     for (short i = 0; i < state->itemCount; i++) {
         /* Icon rect (32x32 centered at position.h+16) */
         Rect iconRect;
@@ -1334,6 +1372,223 @@ static bool FolderWindow_EnsureIconSystemInitialized(void) {
     return sIconInitResult;
 }
 
+/*
+ * Format a file size in bytes into a human-readable string (K or MB).
+ * System 7 Finder shows: folders as "--", small files as "xK", large as "x.x MB"
+ */
+static void FormatFileSize(uint32_t size, char* buf, int bufLen) {
+    if (size == 0) {
+        /* Folders or empty files */
+        buf[0] = '-'; buf[1] = '-'; buf[2] = '\0';
+        return;
+    }
+
+    if (size < 1024) {
+        /* Show as 1K minimum (Finder convention) */
+        buf[0] = '1'; buf[1] = 'K'; buf[2] = '\0';
+    } else if (size < 1048576) {
+        /* Show as xK */
+        uint32_t kb = (size + 1023) / 1024;  /* Round up */
+        int pos = 0;
+        if (kb >= 100) { buf[pos++] = '0' + (kb / 100) % 10; }
+        if (kb >= 10) { buf[pos++] = '0' + (kb / 10) % 10; }
+        buf[pos++] = '0' + kb % 10;
+        buf[pos++] = 'K';
+        buf[pos] = '\0';
+    } else {
+        /* Show as x.x MB */
+        uint32_t mb10 = (uint32_t)(((uint64_t)size * 10 + 524288) / 1048576);
+        uint32_t whole = mb10 / 10;
+        uint32_t frac = mb10 % 10;
+        int pos = 0;
+        if (whole >= 100) { buf[pos++] = '0' + (whole / 100) % 10; }
+        if (whole >= 10) { buf[pos++] = '0' + (whole / 10) % 10; }
+        buf[pos++] = '0' + whole % 10;
+        buf[pos++] = '.';
+        buf[pos++] = '0' + frac;
+        buf[pos++] = ' ';
+        buf[pos++] = 'M';
+        buf[pos++] = 'B';
+        buf[pos] = '\0';
+    }
+}
+
+/*
+ * Get a human-readable "Kind" string from file type/creator/folder flag.
+ * Matches classic System 7 Finder kind strings.
+ */
+static const char* GetFileKindString(const FolderItem* item) {
+    if (item->isFolder) return "folder";
+    if (item->type == 0x4150504C) return "application";  /* 'APPL' */
+    if (item->type == 0x54455854) return "document";      /* 'TEXT' */
+    if (item->type == 0x50494354) return "picture";       /* 'PICT' */
+    if (item->type == 0x73637462) return "color table";   /* 'sctb' */
+    if (item->type == 0x73746E72) return "stationery";    /* 'stnr' */
+    if (item->type == 0x616C6973) return "alias";         /* 'alis' */
+    return "document";  /* Default kind for unknown types */
+}
+
+/*
+ * Draw the column header bar for list view.
+ * Renders "Name", "Size", "Kind", "Date" headers with separator lines.
+ */
+static void FolderWindow_DrawListHeader(const Rect* portRect) {
+    short y = portRect->top;
+    short left = portRect->left;
+
+    /* Draw header background (light gray fill) */
+    Rect headerRect;
+    SetRect(&headerRect, left, y, portRect->right, y + kListHeaderHeight);
+    Pattern grayPat;
+    for (int i = 0; i < 8; i++) grayPat.pat[i] = 0xAA;  /* 50% gray */
+    FillRect(&headerRect, &grayPat);
+
+    /* Draw header text */
+    short textY = y + 12;  /* Baseline within header */
+
+    /* Name column */
+    MoveTo(left + kListLeftMargin + kListIconSize + 4, textY);
+    DrawText("Name", 0, 4);
+
+    /* Size column */
+    short sizeX = left + kListNameColWidth;
+    MoveTo(sizeX + 4, textY);
+    DrawText("Size", 0, 4);
+
+    /* Kind column */
+    short kindX = sizeX + kListSizeColWidth;
+    MoveTo(kindX + 4, textY);
+    DrawText("Kind", 0, 4);
+
+    /* Date column */
+    short dateX = kindX + kListKindColWidth;
+    MoveTo(dateX + 4, textY);
+    DrawText("Last Modified", 0, 13);
+
+    /* Draw bottom separator line */
+    MoveTo(left, y + kListHeaderHeight - 1);
+    LineTo(portRect->right, y + kListHeaderHeight - 1);
+
+    /* Draw column separator lines */
+    MoveTo(sizeX, y);
+    LineTo(sizeX, y + kListHeaderHeight - 1);
+    MoveTo(kindX, y);
+    LineTo(kindX, y + kListHeaderHeight - 1);
+    MoveTo(dateX, y);
+    LineTo(dateX, y + kListHeaderHeight - 1);
+}
+
+/*
+ * Draw the list view for a folder window.
+ * Renders items as text rows with small icons, columns for Name/Size/Kind/Date.
+ */
+static void FolderWindow_DrawListView(WindowPtr w, FolderWindowState* state) {
+    short top = w->port.portRect.top;
+    short left = w->port.portRect.left;
+
+    /* Draw column headers */
+    FolderWindow_DrawListHeader(&w->port.portRect);
+
+    /* Draw each item as a row */
+    short rowY = top + kListHeaderHeight;
+
+    for (short i = 0; i < state->itemCount; i++) {
+        Boolean selected = (state->selectedItems && state->selectedItems[i]) ||
+                           (i == state->selectedIndex);
+
+        Rect rowRect;
+        SetRect(&rowRect, left, rowY, w->port.portRect.right, rowY + kListRowHeight);
+
+        if (selected) {
+            /* Draw selection highlight (inverted/dark background) */
+            Pattern blackPat;
+            for (int j = 0; j < 8; j++) blackPat.pat[j] = 0xFF;
+            FillRect(&rowRect, &blackPat);
+
+            /* Draw text in white (use XOR mode for inverted text) */
+            PenMode(10);  /* patXor */
+        }
+
+        /* Draw small icon (simple representation: folder or document) */
+        short iconX = left + kListLeftMargin;
+        short iconY = rowY + 1;
+        Rect miniIconRect;
+        SetRect(&miniIconRect, iconX, iconY, iconX + 12, iconY + 12);
+
+        if (state->items[i].isFolder) {
+            /* Simple folder icon: filled rect with tab */
+            Rect tabRect;
+            SetRect(&tabRect, iconX, iconY, iconX + 5, iconY + 3);
+            FrameRect(&tabRect);
+            miniIconRect.top = iconY + 2;
+            FrameRect(&miniIconRect);
+        } else {
+            /* Simple document icon: rect with folded corner */
+            FrameRect(&miniIconRect);
+            MoveTo(iconX + 8, iconY);
+            LineTo(iconX + 12, iconY + 4);
+        }
+
+        /* Draw file name */
+        short textY = rowY + 12;  /* Baseline */
+        short nameX = left + kListLeftMargin + kListIconSize + 4;
+        MoveTo(nameX, textY);
+
+        int nameLen = 0;
+        while (state->items[i].name[nameLen] && nameLen < 255) nameLen++;
+        /* Truncate name to fit column */
+        int maxNameChars = (kListNameColWidth - kListIconSize - kListLeftMargin - 8) / 7;
+        if (nameLen > maxNameChars) nameLen = maxNameChars;
+        DrawText(state->items[i].name, 0, nameLen);
+
+        /* Draw size */
+        short sizeX = left + kListNameColWidth;
+        if (!state->items[i].isFolder) {
+            char sizeBuf[16];
+            FormatFileSize(state->items[i].size, sizeBuf, sizeof(sizeBuf));
+            int sizeLen = 0;
+            while (sizeBuf[sizeLen]) sizeLen++;
+            /* Right-align size within column */
+            short sizeTextX = sizeX + kListSizeColWidth - 4 - (sizeLen * 7);
+            if (sizeTextX < sizeX + 4) sizeTextX = sizeX + 4;
+            MoveTo(sizeTextX, textY);
+            DrawText(sizeBuf, 0, sizeLen);
+        } else {
+            MoveTo(sizeX + kListSizeColWidth - 4 - 14, textY);
+            DrawText("--", 0, 2);
+        }
+
+        /* Draw kind */
+        short kindX = sizeX + kListSizeColWidth;
+        const char* kindStr = GetFileKindString(&state->items[i]);
+        int kindLen = 0;
+        while (kindStr[kindLen]) kindLen++;
+        if (kindLen > 14) kindLen = 14;  /* Truncate to fit */
+        MoveTo(kindX + 4, textY);
+        DrawText(kindStr, 0, kindLen);
+
+        /* Draw separator lines between columns on this row */
+        MoveTo(sizeX, rowY);
+        LineTo(sizeX, rowY + kListRowHeight - 1);
+        MoveTo(kindX, rowY);
+        LineTo(kindX, rowY + kListRowHeight - 1);
+        short dateX = kindX + kListKindColWidth;
+        MoveTo(dateX, rowY);
+        LineTo(dateX, rowY + kListRowHeight - 1);
+
+        if (selected) {
+            /* Restore normal drawing mode */
+            PenMode(8);  /* patCopy */
+        }
+
+        /* Draw row separator */
+        MoveTo(left, rowY + kListRowHeight - 1);
+        LineTo(w->port.portRect.right, rowY + kListRowHeight - 1);
+
+        rowY += kListRowHeight;
+    }
+}
+
 void FolderWindow_Draw(WindowPtr w) {
     static Boolean gInFolderPaint = false;
 
@@ -1382,7 +1637,11 @@ void FolderWindow_Draw(WindowPtr w) {
         MoveTo(10, 50);
         DrawText("Drag items here to delete them", 0, 30);
     }
-    /* If we have state, draw icons with selection highlighting */
+    /* If we have state and in list view mode, draw list view */
+    else if (state && state->items && state->viewMode >= kViewByName) {
+        FolderWindow_DrawListView(w, state);
+    }
+    /* If we have state, draw icons with selection highlighting (icon view) */
     else if (state && state->items) {
         bool iconSystemReady = FolderWindow_EnsureIconSystemInitialized();
 
@@ -2074,41 +2333,49 @@ void FolderWindow_SortAndArrange(WindowPtr w, short sortType) {
     FINDER_LOG_DEBUG("FolderWindow_SortAndArrange: sortType=%d, itemCount=%d\n",
                      sortType, state->itemCount);
 
+    /* Store the view mode */
+    state->viewMode = sortType;
+
     /* Sort the items array */
     switch (sortType) {
-        case 2:  /* by Name */
+        case kViewByName:
             SortFolderItemsByName(state->items, state->itemCount);
             FINDER_LOG_DEBUG("FolderWindow_SortAndArrange: Sorted by name\n");
             break;
 
-        case 3:  /* by Size */
+        case kViewBySize:
             SortFolderItemsBySize(state->items, state->itemCount);
             FINDER_LOG_DEBUG("FolderWindow_SortAndArrange: Sorted by size\n");
             break;
 
-        case 4:  /* by Kind */
+        case kViewByKind:
             SortFolderItemsByKind(state->items, state->itemCount);
             FINDER_LOG_DEBUG("FolderWindow_SortAndArrange: Sorted by kind\n");
             break;
 
-        case 5:  /* by Label */
+        case kViewByLabel:
             SortFolderItemsByLabel(state->items, state->itemCount);
             FINDER_LOG_DEBUG("FolderWindow_SortAndArrange: Sorted by label\n");
             break;
 
-        case 6:  /* by Date */
+        case kViewByDate:
             SortFolderItemsByDate(state->items, state->itemCount);
             FINDER_LOG_DEBUG("FolderWindow_SortAndArrange: Sorted by date\n");
             break;
 
-        case 1:  /* by Icon - just arrange, don't sort */
+        case kViewByIcon:
         default:
             FINDER_LOG_DEBUG("FolderWindow_SortAndArrange: No sorting, just arranging\n");
             break;
     }
 
-    /* Arrange all items in grid after sorting */
-    FolderWindow_CleanUp(w, false);  /* false = arrange all items */
+    /* For icon view, arrange in grid; for list view, just redraw */
+    if (sortType <= kViewByIcon) {
+        FolderWindow_CleanUp(w, false);  /* false = arrange all items */
+    } else {
+        /* List view: just trigger a redraw, no icon grid needed */
+        PostEvent(updateEvt, (UInt32)(uintptr_t)w);
+    }
 }
 
 /*
