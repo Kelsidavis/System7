@@ -15,6 +15,20 @@
 /* Maximum mounted volumes */
 #define VFS_MAX_VOLUMES 8
 
+/* In-memory overlay for filesystem mutations */
+#define VFS_MAX_OVERLAY 256
+
+typedef struct {
+    FileID  id;
+    bool    active;         /* Slot in use */
+    bool    deleted;        /* Entry was deleted */
+    bool    created;        /* Entry was created (not from catalog) */
+    bool    moved;          /* Parent directory changed */
+    bool    renamed;        /* Name changed */
+    DirID   newParent;      /* New parent dir if moved */
+    CatEntry entry;         /* Full entry (for created entries, or modified state) */
+} VFSOverlayEntry;
+
 /* Mounted volume entry */
 typedef struct {
     bool         mounted;
@@ -22,6 +36,10 @@ typedef struct {
     HFS_Volume   volume;
     HFS_Catalog  catalog;
     char         name[256];
+    /* In-memory overlay for create/delete/move/rename */
+    VFSOverlayEntry overlay[VFS_MAX_OVERLAY];
+    int             overlayCount;
+    FileID          nextCNID;      /* Next catalog node ID for new entries */
 } VFSVolume;
 
 /* VFS state */
@@ -43,6 +61,29 @@ static VFSVolume* VFS_FindVolume(VRefNum vref) {
     for (int i = 0; i < VFS_MAX_VOLUMES; i++) {
         if (g_vfs.volumes[i].mounted && g_vfs.volumes[i].vref == vref) {
             return &g_vfs.volumes[i];
+        }
+    }
+    return NULL;
+}
+
+/* Helper: Find overlay entry by ID */
+static VFSOverlayEntry* VFS_FindOverlay(VFSVolume* vol, FileID id) {
+    for (int i = 0; i < VFS_MAX_OVERLAY; i++) {
+        if (vol->overlay[i].active && vol->overlay[i].id == id) {
+            return &vol->overlay[i];
+        }
+    }
+    return NULL;
+}
+
+/* Helper: Allocate overlay entry */
+static VFSOverlayEntry* VFS_AllocOverlay(VFSVolume* vol) {
+    for (int i = 0; i < VFS_MAX_OVERLAY; i++) {
+        if (!vol->overlay[i].active) {
+            memset(&vol->overlay[i], 0, sizeof(VFSOverlayEntry));
+            vol->overlay[i].active = true;
+            vol->overlayCount++;
+            return &vol->overlay[i];
         }
     }
     return NULL;
@@ -154,8 +195,11 @@ bool VFS_MountBootVolume(const char* volName) {
         return false;
     }
 
-    /* Mark as mounted */
+    /* Mark as mounted and initialize overlay */
     vol->mounted = true;
+    memset(vol->overlay, 0, sizeof(vol->overlay));
+    vol->overlayCount = 0;
+    vol->nextCNID = 5000;  /* Start above typical HFS CNIDs */
     strncpy(vol->name, volName, sizeof(vol->name) - 1);
     vol->name[sizeof(vol->name) - 1] = '\0';
 
@@ -302,8 +346,11 @@ bool VFS_MountATA(int ata_device_index, const char* volName, VRefNum* vref) {
         /* Continue anyway for empty formatted volumes */
     }
 
-    /* Mark as mounted */
+    /* Mark as mounted and initialize overlay */
     vol->mounted = true;
+    memset(vol->overlay, 0, sizeof(vol->overlay));
+    vol->overlayCount = 0;
+    vol->nextCNID = 5000;
     strncpy(vol->name, volName, sizeof(vol->name) - 1);
     vol->name[sizeof(vol->name) - 1] = '\0';
 
@@ -460,8 +507,11 @@ bool VFS_MountSDHCI(int drive_index, const char* volName, VRefNum* vref) {
         /* Continue anyway for empty formatted volumes */
     }
 
-    /* Mark as mounted */
+    /* Mark as mounted and initialize overlay */
     vol->mounted = true;
+    memset(vol->overlay, 0, sizeof(vol->overlay));
+    vol->overlayCount = 0;
+    vol->nextCNID = 5000;
     strncpy(vol->name, volName, sizeof(vol->name) - 1);
     vol->name[sizeof(vol->name) - 1] = '\0';
 
@@ -615,8 +665,7 @@ bool VFS_Enumerate(VRefNum vref, DirID dir, CatEntry* entries, int maxEntries, i
     FS_LOG_DEBUG("VFS_Enumerate: ENTRY vref=%d dir=%d maxEntries=%d\n", (int)vref, (int)dir, maxEntries);
 
     if (!g_vfs.initialized || !entries || !count) {
-        FS_LOG_DEBUG("VFS_Enumerate: Invalid params - init=%d entries=%p count=%p\n",
-                     g_vfs.initialized, (void*)entries, (void*)count);
+        FS_LOG_DEBUG("VFS_Enumerate: Invalid params\n");
         return false;
     }
 
@@ -626,37 +675,110 @@ bool VFS_Enumerate(VRefNum vref, DirID dir, CatEntry* entries, int maxEntries, i
         return false;
     }
 
-    /* Check if B-tree is initialized */
-    if (!vol->catalog.bt.nodeBuffer) {
-        FS_LOG_DEBUG("VFS_Enumerate: nodeBuffer is NULL - returning empty list\n");
-        *count = 0;
-        return true;
+    int n = 0;
+
+    /* First: get catalog entries (if B-tree available) */
+    if (vol->catalog.bt.nodeBuffer) {
+        int catCount = 0;
+        HFS_CatalogEnumerate(&vol->catalog, dir, entries, maxEntries, &catCount);
+
+        /* Filter out deleted and moved-away entries, apply renames */
+        for (int i = 0; i < catCount && n < maxEntries; i++) {
+            FileID eid = entries[i].id;
+            VFSOverlayEntry* oe = VFS_FindOverlay(vol, eid);
+            if (oe) {
+                if (oe->deleted) continue;  /* Skip deleted */
+                if (oe->moved && oe->newParent != dir) continue;  /* Moved away */
+                /* Apply renames */
+                if (oe->renamed) {
+                    strncpy(entries[n].name, oe->entry.name, 31);
+                    entries[n].name[31] = '\0';
+                }
+                if (i != n) entries[n] = entries[i];
+            } else {
+                if (i != n) entries[n] = entries[i];
+            }
+            n++;
+        }
     }
 
-    FS_LOG_DEBUG("VFS_Enumerate: Calling HFS_CatalogEnumerate, nodeBuffer=%p\n",
-                 vol->catalog.bt.nodeBuffer);
-    bool result = HFS_CatalogEnumerate(&vol->catalog, dir, entries, maxEntries, count);
-    FS_LOG_DEBUG("VFS_Enumerate: HFS_CatalogEnumerate returned %d, count=%d\n", result, *count);
-    return result;
+    /* Second: add entries moved INTO this directory from elsewhere */
+    for (int i = 0; i < VFS_MAX_OVERLAY && n < maxEntries; i++) {
+        VFSOverlayEntry* oe = &vol->overlay[i];
+        if (!oe->active || oe->deleted) continue;
+        if (oe->moved && !oe->created && oe->newParent == dir) {
+            /* Check it wasn't already in catalog results for this dir */
+            bool alreadyListed = false;
+            for (int j = 0; j < n; j++) {
+                if (entries[j].id == oe->id) { alreadyListed = true; break; }
+            }
+            if (!alreadyListed) {
+                entries[n++] = oe->entry;
+            }
+        }
+    }
+
+    /* Third: add overlay-created entries in this directory */
+    for (int i = 0; i < VFS_MAX_OVERLAY && n < maxEntries; i++) {
+        VFSOverlayEntry* oe = &vol->overlay[i];
+        if (!oe->active || oe->deleted || !oe->created) continue;
+        if (oe->entry.parent == dir) {
+            entries[n++] = oe->entry;
+        }
+    }
+
+    *count = n;
+    FS_LOG_DEBUG("VFS_Enumerate: returned %d entries\n", n);
+    return true;
 }
 
 bool VFS_Lookup(VRefNum vref, DirID dir, const char* name, CatEntry* entry) {
     if (!g_vfs.initialized || !name || !entry) return false;
 
     VFSVolume* vol = VFS_FindVolume(vref);
-    if (!vol || !vol->mounted) {
-        return false;
+    if (!vol || !vol->mounted) return false;
+
+    /* Check overlay first — created entries and renamed entries */
+    for (int i = 0; i < VFS_MAX_OVERLAY; i++) {
+        VFSOverlayEntry* oe = &vol->overlay[i];
+        if (!oe->active || oe->deleted) continue;
+
+        DirID effectiveParent = oe->moved ? oe->newParent : oe->entry.parent;
+        if (effectiveParent == dir && strcmp(oe->entry.name, name) == 0) {
+            *entry = oe->entry;
+            return true;
+        }
     }
 
-    return HFS_CatalogLookup(&vol->catalog, dir, name, entry);
+    /* Fall through to catalog */
+    if (!HFS_CatalogLookup(&vol->catalog, dir, name, entry)) return false;
+
+    /* Check if catalog result was deleted or moved away */
+    VFSOverlayEntry* oe = VFS_FindOverlay(vol, entry->id);
+    if (oe) {
+        if (oe->deleted) return false;
+        if (oe->moved && oe->newParent != dir) return false;
+        if (oe->renamed) {
+            strncpy(entry->name, oe->entry.name, 31);
+            entry->name[31] = '\0';
+        }
+    }
+
+    return true;
 }
 
 bool VFS_GetByID(VRefNum vref, FileID id, CatEntry* entry) {
     if (!g_vfs.initialized || !entry) return false;
 
     VFSVolume* vol = VFS_FindVolume(vref);
-    if (!vol || !vol->mounted) {
-        return false;
+    if (!vol || !vol->mounted) return false;
+
+    /* Check overlay first */
+    VFSOverlayEntry* oe = VFS_FindOverlay(vol, id);
+    if (oe) {
+        if (oe->deleted) return false;
+        *entry = oe->entry;
+        return true;
     }
 
     return HFS_CatalogGetByID(&vol->catalog, id, entry);
@@ -738,73 +860,132 @@ uint32_t VFS_GetFilePosition(VFSFile* file) {
     return HFS_FileTell(file->hfsFile);
 }
 
-/* Write operations - stubs for now */
+/* Move entry to a new parent directory (overlay-based) */
+bool VFS_MoveOverlay(VRefNum vref, FileID id, DirID newParent,
+                     const char* newName, const CatEntry* current) {
+    VFSVolume* vol = VFS_FindVolume(vref);
+    if (!vol || !vol->mounted || !current) return false;
+
+    /* Check if already in overlay */
+    VFSOverlayEntry* oe = VFS_FindOverlay(vol, id);
+    if (oe) {
+        oe->moved = true;
+        oe->newParent = newParent;
+        oe->entry.parent = newParent;
+        if (newName) {
+            strncpy(oe->entry.name, newName, 31);
+            oe->entry.name[31] = '\0';
+            oe->renamed = true;
+        }
+        return true;
+    }
+
+    /* Create new overlay entry */
+    oe = VFS_AllocOverlay(vol);
+    if (!oe) return false;
+
+    oe->id = id;
+    oe->moved = true;
+    oe->newParent = newParent;
+    oe->entry = *current;
+    oe->entry.parent = newParent;
+    if (newName) {
+        strncpy(oe->entry.name, newName, 31);
+        oe->entry.name[31] = '\0';
+        oe->renamed = true;
+    }
+
+    FS_LOG_DEBUG("VFS_MoveOverlay: Moved ID %u to parent %u\n", id, newParent);
+    return true;
+}
+
+/* Write operations */
 bool VFS_CreateFolder(VRefNum vref, DirID parent, const char* name, DirID* newID) {
     FS_LOG_DEBUG("VFS_CreateFolder: Creating folder '%s' in parent %d\n", name, parent);
 
-    /* Validate parameters */
-    if (!name || !newID) {
-        FS_LOG_DEBUG("VFS_CreateFolder: Invalid parameters\n");
-        return false;
-    }
+    if (!name || !newID) return false;
 
-    /* Check volume - for now just validate vref */
-    if (vref != 0 && vref != -1) {
-        FS_LOG_DEBUG("VFS_CreateFolder: Invalid volume %d\n", vref);
-        return false;
-    }
+    VFSVolume* vol = VFS_FindVolume(vref);
+    if (!vol || !vol->mounted) return false;
 
-    /* Generate new folder ID */
-    static DirID nextDirID = 1000;
-    *newID = nextDirID++;
+    VFSOverlayEntry* oe = VFS_AllocOverlay(vol);
+    if (!oe) return false;
 
-    /* Log success for now - full implementation would update HFS catalog */
-    FS_LOG_DEBUG("VFS_CreateFolder: Created folder '%s' with ID %d\n", name, *newID);
+    FileID id = vol->nextCNID++;
+    oe->id = id;
+    oe->created = true;
+    strncpy(oe->entry.name, name, 31);
+    oe->entry.name[31] = '\0';
+    oe->entry.kind = kNodeDir;
+    oe->entry.parent = parent;
+    oe->entry.id = id;
+
+    *newID = id;
+    FS_LOG_DEBUG("VFS_CreateFolder: Created folder '%s' with ID %u\n", name, id);
     return true;
 }
 
 bool VFS_CreateFile(VRefNum vref, DirID parent, const char* name,
                    uint32_t type, uint32_t creator, FileID* newID) {
-    FS_LOG_DEBUG("VFS_CreateFile: Creating file '%s' type='%.4s' creator='%.4s'\n",
-                  name, (char*)&type, (char*)&creator);
+    FS_LOG_DEBUG("VFS_CreateFile: Creating file '%s'\n", name);
 
-    /* Validate parameters */
-    if (!name || !newID) {
-        FS_LOG_DEBUG("VFS_CreateFile: Invalid parameters\n");
-        return false;
-    }
+    if (!name || !newID) return false;
 
-    /* Check volume - for now just validate vref */
-    if (vref != 0 && vref != -1) {
-        FS_LOG_DEBUG("VFS_CreateFile: Invalid volume %d\n", vref);
-        return false;
-    }
+    VFSVolume* vol = VFS_FindVolume(vref);
+    if (!vol || !vol->mounted) return false;
 
-    /* Generate new file ID */
-    static FileID nextFileID = 2000;
-    *newID = nextFileID++;
+    VFSOverlayEntry* oe = VFS_AllocOverlay(vol);
+    if (!oe) return false;
 
-    /* Log success for now - full implementation would update HFS catalog */
-    FS_LOG_DEBUG("VFS_CreateFile: Created file '%s' with ID %u\n", name, *newID);
+    FileID id = vol->nextCNID++;
+    oe->id = id;
+    oe->created = true;
+    strncpy(oe->entry.name, name, 31);
+    oe->entry.name[31] = '\0';
+    oe->entry.kind = kNodeFile;
+    oe->entry.type = type;
+    oe->entry.creator = creator;
+    oe->entry.parent = parent;
+    oe->entry.id = id;
+
+    *newID = id;
+    FS_LOG_DEBUG("VFS_CreateFile: Created file '%s' with ID %u\n", name, id);
     return true;
 }
 
 bool VFS_Rename(VRefNum vref, FileID id, const char* newName) {
     FS_LOG_DEBUG("VFS_Rename: Renaming file/folder %u to '%s'\n", id, newName);
 
-    /* Validate parameters */
-    if (!newName || strlen(newName) == 0 || strlen(newName) > 31) {
-        FS_LOG_DEBUG("VFS_Rename: Invalid name\n");
+    if (!newName || strlen(newName) == 0 || strlen(newName) > 31) return false;
+
+    VFSVolume* vol = VFS_FindVolume(vref);
+    if (!vol || !vol->mounted) return false;
+
+    /* Check if already in overlay */
+    VFSOverlayEntry* oe = VFS_FindOverlay(vol, id);
+    if (oe) {
+        /* Update existing overlay entry */
+        strncpy(oe->entry.name, newName, 31);
+        oe->entry.name[31] = '\0';
+        oe->renamed = true;
+        return true;
+    }
+
+    /* Create new overlay entry from catalog data */
+    CatEntry catEntry;
+    if (!HFS_CatalogGetByID(&vol->catalog, id, &catEntry)) {
         return false;
     }
 
-    /* Check volume - for now just validate vref */
-    if (vref != 0 && vref != -1) {
-        FS_LOG_DEBUG("VFS_Rename: Invalid volume %d\n", vref);
-        return false;
-    }
+    oe = VFS_AllocOverlay(vol);
+    if (!oe) return false;
 
-    /* Log success for now - full implementation would update HFS catalog */
+    oe->id = id;
+    oe->renamed = true;
+    oe->entry = catEntry;
+    strncpy(oe->entry.name, newName, 31);
+    oe->entry.name[31] = '\0';
+
     FS_LOG_DEBUG("VFS_Rename: Successfully renamed ID %u to '%s'\n", id, newName);
     return true;
 }
@@ -812,19 +993,33 @@ bool VFS_Rename(VRefNum vref, FileID id, const char* newName) {
 bool VFS_Delete(VRefNum vref, FileID id) {
     FS_LOG_DEBUG("VFS_Delete: Deleting file/folder ID %u\n", id);
 
-    /* Check volume - for now just validate vref */
-    if (vref != 0 && vref != -1) {
-        FS_LOG_DEBUG("VFS_Delete: Invalid volume %d\n", vref);
-        return false;
+    /* Protect root and system folders */
+    if (id <= 2) return false;
+
+    VFSVolume* vol = VFS_FindVolume(vref);
+    if (!vol || !vol->mounted) return false;
+
+    /* Check if it's an overlay-created entry */
+    VFSOverlayEntry* oe = VFS_FindOverlay(vol, id);
+    if (oe) {
+        if (oe->created) {
+            /* Was created in overlay — just remove the slot */
+            oe->active = false;
+            vol->overlayCount--;
+        } else {
+            /* Mark catalog entry as deleted */
+            oe->deleted = true;
+        }
+        return true;
     }
 
-    /* Check for special folders that shouldn't be deleted */
-    if (id == 1 || id == 2) {  /* Root (1) or System folder (2) */
-        FS_LOG_DEBUG("VFS_Delete: Cannot delete system folder\n");
-        return false;
-    }
+    /* Mark catalog entry as deleted via new overlay slot */
+    oe = VFS_AllocOverlay(vol);
+    if (!oe) return false;
 
-    /* Log success for now - full implementation would update HFS catalog */
-    FS_LOG_DEBUG("VFS_Delete: Successfully deleted ID %u\n", id);
+    oe->id = id;
+    oe->deleted = true;
+
+    FS_LOG_DEBUG("VFS_Delete: Marked ID %u as deleted\n", id);
     return true;
 }

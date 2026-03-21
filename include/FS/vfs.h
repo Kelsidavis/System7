@@ -57,9 +57,11 @@ bool VFS_SeekFile(VFSFile* file, uint32_t position);
 uint32_t VFS_GetFileSize(VFSFile* file);
 uint32_t VFS_GetFilePosition(VFSFile* file);
 
-/* Future write operations (stubs for now) */
+/* Write operations (overlay-based, in-memory mutations) */
 bool VFS_CreateFolder(VRefNum vref, DirID parent, const char* name, DirID* newID);
 bool VFS_CreateFile(VRefNum vref, DirID parent, const char* name,
                    uint32_t type, uint32_t creator, FileID* newID);
 bool VFS_Rename(VRefNum vref, FileID id, const char* newName);
 bool VFS_Delete(VRefNum vref, FileID id);
+bool VFS_MoveOverlay(VRefNum vref, FileID id, DirID newParent,
+                     const char* newName, const CatEntry* currentEntry);

@@ -3,83 +3,131 @@
  */
 
 #include "FS/vfs_ops.h"
+#include "FS/vfs.h"
+#include "FS/hfs_types.h"
 #include <string.h>
 #include "FS/FSLogging.h"
 
-/* Stub implementations - will connect to actual HFS later */
-
 bool VFS_EnsureHiddenFolder(VRefNum vref, const char* name, DirID* outDir) {
-    /* For now, return a fake directory ID */
-    static DirID nextDir = 1000;
+    if (!outDir) return false;
 
-    /* In real implementation:
-     * 1. Check if folder exists at root of volume
-     * 2. If not, create it
-     * 3. Set hidden/system flags
-     */
+    /* Check if folder already exists at volume root (dirID=2) */
+    CatEntry entry;
+    if (VFS_Lookup(vref, 2, name, &entry) && entry.kind == kNodeDir) {
+        *outDir = entry.id;
+        return true;
+    }
 
-    *outDir = nextDir++;
-    return true;
+    /* Create it via VFS (uses overlay) */
+    return VFS_CreateFolder(vref, 2, name, outDir);
 }
 
 bool VFS_Move(VRefNum vref, DirID fromDir, FileID id, DirID toDir, const char* newName) {
-    /* In real implementation:
-     * 1. Update catalog B-tree entry
-     * 2. Change parent directory ID
-     * 3. Optionally rename
-     */
     FS_LOG_DEBUG("VFS_Move: id=%u from dir=%u to dir=%u, newName=%s\n",
                  id, fromDir, toDir, newName ? newName : "(null)");
-    return true;
+
+    /* Get current entry data */
+    CatEntry entry;
+    if (!VFS_GetByID(vref, id, &entry)) {
+        FS_LOG_DEBUG("VFS_Move: entry %u not found\n", id);
+        return false;
+    }
+
+    /* Use internal overlay access — VFS_MoveOverlay updates parent */
+    extern bool VFS_MoveOverlay(VRefNum vref, FileID id, DirID newParent,
+                                const char* newName, const CatEntry* current);
+    return VFS_MoveOverlay(vref, id, toDir, newName, &entry);
 }
 
-bool VFS_Copy(VRefNum vref, DirID fromDir, FileID id, DirID toDir, const char* newName, FileID* newID) {
-    /* In real implementation:
-     * 1. Read source file data and metadata
-     * 2. Create new catalog entry in destination
-     * 3. Copy file data blocks
-     * 4. Copy resource fork if present
-     */
-    static FileID nextCopyID = 10000;
+bool VFS_Copy(VRefNum vref, DirID fromDir, FileID id, DirID toDir,
+              const char* newName, FileID* newID) {
+    FS_LOG_DEBUG("VFS_Copy: id=%u from dir=%u to dir=%u\n", id, fromDir, toDir);
 
-    FS_LOG_DEBUG("VFS_Copy: id=%u from dir=%u to dir=%u, newName=%s\n",
-                 id, fromDir, toDir, newName ? newName : "(null)");
+    /* Read source entry */
+    CatEntry src;
+    if (!VFS_GetByID(vref, id, &src)) return false;
 
-    if (newID) {
-        *newID = nextCopyID++;
+    /* Create new entry in destination */
+    char copyName[32];
+    if (newName) {
+        strncpy(copyName, newName, 31);
+    } else {
+        strncpy(copyName, src.name, 31);
     }
+    copyName[31] = '\0';
+
+    if (src.kind == kNodeDir) {
+        DirID dirID;
+        if (!VFS_CreateFolder(vref, toDir, copyName, &dirID)) return false;
+        if (newID) *newID = dirID;
+    } else {
+        FileID fid;
+        if (!VFS_CreateFile(vref, toDir, copyName, src.type, src.creator, &fid)) return false;
+        if (newID) *newID = fid;
+    }
+
     return true;
 }
 
 bool VFS_DeleteTree(VRefNum vref, DirID parent, FileID id) {
-    /* In real implementation:
-     * 1. If folder, recursively delete contents
-     * 2. Remove catalog entry
-     * 3. Free allocation blocks
-     */
-    return true;
+    FS_LOG_DEBUG("VFS_DeleteTree: id=%u parent=%u\n", id, parent);
+
+    /* Get entry info */
+    CatEntry entry;
+    if (!VFS_GetByID(vref, id, &entry)) return true;  /* Already gone */
+
+    /* If directory, recursively delete contents first */
+    if (entry.kind == kNodeDir) {
+        CatEntry children[64];
+        int count = 0;
+        if (VFS_Enumerate(vref, id, children, 64, &count)) {
+            for (int i = 0; i < count; i++) {
+                VFS_DeleteTree(vref, id, children[i].id);
+            }
+        }
+    }
+
+    /* Delete this entry */
+    return VFS_Delete(vref, id);
 }
 
-/* VFS_Enumerate is already defined in vfs.c */
-
 bool VFS_GetDirItemCount(VRefNum vref, DirID dir, uint32_t* outCount, bool recursive) {
-    /* Count items in directory */
-    *outCount = 0;
+    if (!outCount) return false;
+
+    CatEntry entries[128];
+    int count = 0;
+    if (!VFS_Enumerate(vref, dir, entries, 128, &count)) {
+        *outCount = 0;
+        return false;
+    }
+
+    uint32_t total = (uint32_t)count;
+    if (recursive) {
+        for (int i = 0; i < count; i++) {
+            if (entries[i].kind == kNodeDir) {
+                uint32_t sub = 0;
+                VFS_GetDirItemCount(vref, entries[i].id, &sub, true);
+                total += sub;
+            }
+        }
+    }
+
+    *outCount = total;
     return true;
 }
 
 bool VFS_IsOpenByAnyProcess(FileID id) {
-    /* Check if file is open */
+    /* No process tracking yet */
     return false;
 }
 
 bool VFS_IsLocked(FileID id) {
-    /* Check Finder info locked flag */
+    /* Check Finder info locked flag - no lock tracking yet */
     return false;
 }
 
 bool VFS_SetFinderFlags(FileID id, uint16_t setMask, uint16_t clearMask) {
-    /* Update Finder info flags */
+    /* Update Finder info flags - no metadata tracking yet */
     return true;
 }
 
@@ -92,14 +140,12 @@ bool VFS_GenerateUniqueName(VRefNum vref, DirID dir, const char* base, char* out
     }
 
     for (int i = 2; i < 1000; i++) {
-        /* Manual string formatting to avoid stdio dependency */
         char tmp[40];
         int base_len = strlen(base);
-        if (base_len > 25) base_len = 25;  /* Leave room for " NNN" */
+        if (base_len > 25) base_len = 25;
         memcpy(tmp, base, base_len);
         tmp[base_len] = ' ';
 
-        /* Convert number to string manually */
         int num = i;
         int digits = 0;
         char numbuf[10];
@@ -108,7 +154,6 @@ bool VFS_GenerateUniqueName(VRefNum vref, DirID dir, const char* base, char* out
             num /= 10;
         } while (num > 0);
 
-        /* Copy digits in reverse order */
         for (int d = 0; d < digits; d++) {
             tmp[base_len + 1 + d] = numbuf[digits - 1 - d];
         }
@@ -125,28 +170,36 @@ bool VFS_GenerateUniqueName(VRefNum vref, DirID dir, const char* base, char* out
 }
 
 bool VFS_Exists(VRefNum vref, DirID dir, const char* name) {
-    /* Check if name exists in directory */
-    return false;  /* For now, assume nothing exists */
+    CatEntry entry;
+    return VFS_Lookup(vref, dir, name, &entry);
 }
 
 const char* VFS_GetNameByID(VRefNum vref, DirID parent, FileID id) {
-    /* Look up name from catalog */
-    static char nameBuf[32] = "Item";
+    static char nameBuf[32];
+    CatEntry entry;
+    if (VFS_GetByID(vref, id, &entry)) {
+        strncpy(nameBuf, entry.name, 31);
+        nameBuf[31] = '\0';
+        return nameBuf;
+    }
+    strncpy(nameBuf, "Item", 5);
     return nameBuf;
 }
 
 VRefNum VFS_GetVRefByID(FileID id) {
-    /* In real implementation: look up volume ref from catalog */
     extern VRefNum VFS_GetBootVRef(void);
-    return VFS_GetBootVRef();  /* For now, assume all files on boot volume */
+    return VFS_GetBootVRef();
 }
 
 bool VFS_GetParentDir(VRefNum vref, FileID id, DirID* parentDir) {
-    /* In real implementation: read catalog entry to get parent dirID */
-    if (parentDir) {
-        *parentDir = 2;  /* HFS_ROOT_CNID - For now, assume root */
-        FS_LOG_DEBUG("VFS_GetParentDir: id=%u -> parent=%u\n", id, *parentDir);
+    if (!parentDir) return false;
+
+    CatEntry entry;
+    if (VFS_GetByID(vref, id, &entry)) {
+        *parentDir = entry.parent;
         return true;
     }
-    return false;
+
+    *parentDir = 2;  /* Fallback to root */
+    return true;
 }
