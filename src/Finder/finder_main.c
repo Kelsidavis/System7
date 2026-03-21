@@ -186,9 +186,25 @@ OSErr InitializeFinder(void)
                                                   ConstStr255Param title);
         extern VRefNum VFS_GetBootVRef(void);
 
+        extern bool VFS_GetVolumeInfo(VRefNum vref, VolumeControlBlock* vcb);
         VRefNum bootVref = VFS_GetBootVRef();
-        static unsigned char hdTitle[] = {12, 'M','a','c','i','n','t','o','s','h',' ','H','D'};
-        WindowPtr diskWin = FolderWindow_OpenFolder(bootVref, 2, hdTitle);  /* dirID 2 = root */
+
+        /* Get actual volume name from VFS instead of hardcoding "Macintosh HD" */
+        unsigned char hdTitle[256];
+        VolumeControlBlock vcb;
+        memset(&vcb, 0, sizeof(vcb));
+        if (VFS_GetVolumeInfo(bootVref, &vcb) && vcb.name[0]) {
+            int len = 0;
+            while (vcb.name[len] && len < 255) len++;
+            hdTitle[0] = (unsigned char)len;
+            memcpy(&hdTitle[1], vcb.name, len);
+        } else {
+            /* Fallback to default name */
+            static const unsigned char defaultTitle[] = {12, 'M','a','c','i','n','t','o','s','h',' ','H','D'};
+            memcpy(hdTitle, defaultTitle, sizeof(defaultTitle));
+        }
+
+        WindowPtr diskWin = FolderWindow_OpenFolder(bootVref, 2, hdTitle);
         if (diskWin) {
             serial_puts("Finder: Opened startup disk window\n");
         }
