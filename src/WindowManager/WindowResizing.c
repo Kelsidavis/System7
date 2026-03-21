@@ -510,6 +510,13 @@ long GrowWindow(WindowPtr theWindow, Point startPt, const Rect* bBox) {
         Boolean isFolderWindow = (theWindow->refCon == 0x4449534b || theWindow->refCon == 0x54525348);  /* 'DISK' or 'TRSH' */
 
         if (isFolderWindow) {
+            /* Rearrange icons to fit new window width (icon view only) */
+            extern short FolderWindow_GetViewMode(WindowPtr w);
+            extern void FolderWindow_CleanUp(WindowPtr w, Boolean selectedOnly);
+            if (FolderWindow_GetViewMode(theWindow) <= 1) {
+                FolderWindow_CleanUp(theWindow, false);
+            }
+
             /* Folder windows have special drawing code for the file list */
             serial_puts("[GW] Drawing folder window content\n");
             BeginUpdate(theWindow);
