@@ -713,7 +713,31 @@ static void HandleSpecialMenu(short item)
 
         case 7: {  /* Restart */
             MENU_LOG_INFO("Special > Restart\n");
-            MENU_LOG_INFO("System restart initiated...\n");
+
+            /* Display restart message before rebooting */
+            {
+                extern void hal_framebuffer_present(void);
+                extern QDGlobals qd;
+
+                Pattern grayPat;
+                for (int i = 0; i < 8; i++)
+                    grayPat.pat[i] = (i & 1) ? 0xAA : 0x55;
+                FillRect(&qd.screenBits.bounds, &grayPat);
+
+                ForeColor(blackColor);
+                TextFont(0);
+                TextSize(12);
+
+                const char* msg = "Your Macintosh is restarting.";
+                int msgLen = 28;
+                short textX = (qd.screenBits.bounds.right - msgLen * 7) / 2;
+                short textY = qd.screenBits.bounds.bottom / 2;
+                MoveTo(textX, textY);
+                DrawText(msg, 0, msgLen);
+
+                hal_framebuffer_present();
+            }
+
             perform_restart();
             break;
         }
