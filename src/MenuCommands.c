@@ -1115,18 +1115,27 @@ void MakeAliasOfSelectedItems(WindowPtr w) {
 
     /* Create alias for each selected item */
     for (short i = 0; i < count; i++) {
+        /* Extract C string from Pascal name */
+        unsigned char nameLen = specs[i].name[0];
+        char cName[256];
+        if (nameLen > 0) {
+            memcpy(cName, &specs[i].name[1], nameLen);
+        }
+        cName[nameLen] = '\0';
+
         /* Build alias file name: "<original name> alias" */
         char aliasName[256];
-        snprintf(aliasName, sizeof(aliasName), "%s alias", specs[i].name);
+        snprintf(aliasName, sizeof(aliasName), "%s alias", cName);
 
         /* Create FSSpec for the alias file in the same folder */
         FSSpec aliasSpec;
 
-        /* Convert C string to Pascal string for FSMakeFSSpec */
+        /* Convert back to Pascal string for FSMakeFSSpec */
         unsigned char pascalName[256];
-        pascalName[0] = (unsigned char)strlen(aliasName);
-        strncpy((char*)&pascalName[1], aliasName, sizeof(pascalName) - 2);
-        pascalName[sizeof(pascalName) - 1] = '\0';
+        int aLen = strlen(aliasName);
+        if (aLen > 255) aLen = 255;
+        pascalName[0] = (unsigned char)aLen;
+        memcpy(&pascalName[1], aliasName, aLen);
 
         OSErr err = FSMakeFSSpec(vref, dirID, pascalName, &aliasSpec);
         if (err != noErr && err != fnfErr) {
@@ -1141,7 +1150,7 @@ void MakeAliasOfSelectedItems(WindowPtr w) {
 
         if (err == noErr) {
             MENU_LOG_DEBUG("MakeAliasOfSelectedItems: Created alias '%s' for '%s'\n",
-                         aliasName, specs[i].name);
+                         aliasName, cName);
         } else {
             MENU_LOG_DEBUG("MakeAliasOfSelectedItems: CreateAlias failed with error %d for item %d\n", err, i);
         }
