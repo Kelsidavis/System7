@@ -143,3 +143,100 @@ void InitDateTime(void) {
     }
 #endif
 }
+
+/*
+ * DateTimeRec structure (matches Inside Macintosh):
+ *   short year, month, day, hour, minute, second, dayOfWeek
+ * dayOfWeek: 1=Sunday ... 7=Saturday
+ */
+typedef struct {
+    SInt16 year;
+    SInt16 month;
+    SInt16 day;
+    SInt16 hour;
+    SInt16 minute;
+    SInt16 second;
+    SInt16 dayOfWeek;
+} DateTimeRec;
+
+/*
+ * Secs2Date - Convert Mac epoch seconds to DateTimeRec
+ * (Also known as SecondsToDate in some headers)
+ */
+void Secs2Date(UInt32 secs, DateTimeRec *d) {
+    if (!d) return;
+
+    UInt32 totalDays = secs / 86400;
+    UInt32 secsInDay = secs % 86400;
+
+    d->hour = (SInt16)(secsInDay / 3600);
+    d->minute = (SInt16)((secsInDay % 3600) / 60);
+    d->second = (SInt16)(secsInDay % 60);
+
+    /* Day of week: Jan 1, 1904 was a Friday (dayOfWeek=6) */
+    d->dayOfWeek = (SInt16)((totalDays + 6) % 7) + 1;
+
+    /* Calculate year from days since 1904-01-01 */
+    SInt16 year = 1904;
+    for (;;) {
+        SInt16 diy = 365;
+        if ((year % 4 == 0 && year % 100 != 0) || year % 400 == 0) diy = 366;
+        if (totalDays < (UInt32)diy) break;
+        totalDays -= (UInt32)diy;
+        year++;
+    }
+    d->year = year;
+
+    /* Calculate month and day */
+    static const SInt16 daysInMonth[] = {31,28,31,30,31,30,31,31,30,31,30,31};
+    SInt16 month;
+    for (month = 0; month < 12; month++) {
+        SInt16 dim = daysInMonth[month];
+        if (month == 1 && ((year % 4 == 0 && year % 100 != 0) || year % 400 == 0))
+            dim = 29;
+        if (totalDays < (UInt32)dim) break;
+        totalDays -= (UInt32)dim;
+    }
+    d->month = month + 1;
+    d->day = (SInt16)totalDays + 1;
+}
+
+/* Alias for compatibility */
+void SecondsToDate(UInt32 secs, DateTimeRec *d) {
+    Secs2Date(secs, d);
+}
+
+/*
+ * Date2Secs - Convert DateTimeRec to Mac epoch seconds
+ * (Also known as DateToSeconds in some headers)
+ */
+void Date2Secs(const DateTimeRec *d, UInt32 *secs) {
+    if (!d || !secs) return;
+
+    static const SInt16 daysInMonth[] = {31,28,31,30,31,30,31,31,30,31,30,31};
+
+    UInt32 totalDays = 0;
+
+    /* Count days from 1904 to target year */
+    for (SInt16 y = 1904; y < d->year; y++) {
+        totalDays += 365;
+        if ((y % 4 == 0 && y % 100 != 0) || y % 400 == 0) totalDays++;
+    }
+
+    /* Add days for months in target year */
+    for (SInt16 m = 0; m < d->month - 1 && m < 12; m++) {
+        totalDays += daysInMonth[m];
+        if (m == 1 && ((d->year % 4 == 0 && d->year % 100 != 0) || d->year % 400 == 0))
+            totalDays++;
+    }
+
+    /* Add days within month */
+    totalDays += (d->day - 1);
+
+    *secs = totalDays * 86400 + d->hour * 3600 + d->minute * 60 + d->second;
+}
+
+/* Alias for compatibility */
+void DateToSeconds(const DateTimeRec *d, UInt32 *secs) {
+    Date2Secs(d, secs);
+}
