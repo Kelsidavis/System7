@@ -262,6 +262,10 @@ static void HandleKeyDown(EventRecord* event) {
     } else {
         /* Regular key - pass to active document */
         if (g_ST.activeDoc) {
+            /* Hide cursor while typing — classic Mac behavior */
+            extern void ObscureCursor(void);
+            ObscureCursor();
+
             STView_Key(g_ST.activeDoc, event);
             STDoc_SetDirty(g_ST.activeDoc, true);
         }
