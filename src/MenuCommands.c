@@ -13,6 +13,8 @@
 #include "Finder/AboutThisMac.h"
 #include "Finder/GetInfo.h"
 #include "Finder/finder.h"
+#include "QuickDraw/QuickDraw.h"
+#include "QuickDrawConstants.h"
 #include "FS/hfs_types.h"
 #include "ControlPanels/DesktopPatterns.h"
 #include "ControlPanels/Sound.h"
@@ -718,8 +720,39 @@ static void HandleSpecialMenu(short item)
 
         case 8: {  /* Shut Down */
             MENU_LOG_INFO("Special > Shut Down\n");
-            MENU_LOG_INFO("System shutdown initiated...\n");
-            MENU_LOG_INFO("It is now safe to turn off your computer.\n");
+
+            /* Display the classic "It is now safe to turn off your Macintosh"
+             * shutdown screen before halting. In real System 7, this fills the
+             * screen with a gray pattern and shows the message centered. */
+            {
+                extern void hal_framebuffer_present(void);
+                extern QDGlobals qd;
+
+                /* Fill entire screen with gray pattern */
+                Pattern grayPat;
+                for (int i = 0; i < 8; i++)
+                    grayPat.pat[i] = (i & 1) ? 0xAA : 0x55;
+                FillRect(&qd.screenBits.bounds, &grayPat);
+
+                /* Draw the shutdown message centered on screen */
+                ForeColor(blackColor);
+                TextFont(0);   /* Chicago */
+                TextSize(12);
+
+                const char* msg = "It is now safe to turn off your Macintosh.";
+                int msgLen = 42;
+                short screenW = qd.screenBits.bounds.right;
+                short screenH = qd.screenBits.bounds.bottom;
+                short textX = (screenW - msgLen * 7) / 2;
+                short textY = screenH / 2;
+
+                MoveTo(textX, textY);
+                DrawText(msg, 0, msgLen);
+
+                /* Present framebuffer so user sees the message */
+                hal_framebuffer_present();
+            }
+
             perform_power_off();
             break;
         }
