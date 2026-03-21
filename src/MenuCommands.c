@@ -337,19 +337,25 @@ static void HandleAppleMenu(short item)
 
     if (strcmp(itemName, "Notepad") == 0) {
         MENU_LOG_DEBUG("Apple Menu > Notepad\n");
-        serial_puts("[MENU] Opening Notepad...\n");
-        /* Open Notepad desk accessory */
         WindowPtr notepadWin;
-        OSErr err = Notepad_Open(&notepadWin);
-        char buf[80];
-        snprintf(buf, sizeof(buf), "[MENU] Notepad_Open returned %d, window=%p\n", err, (void*)notepadWin);
-        serial_puts(buf);
+        Notepad_Open(&notepadWin);
         return;
     }
 
     if (strcmp(itemName, "-") == 0) {
-        /* Separator */
         return;
+    }
+
+    /* Try to open as a desk accessory via OpenDeskAcc.
+     * This handles Calculator, Key Caps, Alarm Clock, and any
+     * other DAs registered with the Desk Manager. */
+    {
+        extern SInt16 OpenDeskAcc(const char* name);
+        SInt16 refNum = OpenDeskAcc(itemName);
+        if (refNum >= 0) {
+            MENU_LOG_DEBUG("Apple Menu: Opened DA '%s' (refNum=%d)\n", itemName, refNum);
+            return;
+        }
     }
 
     MENU_LOG_WARN("Unknown Apple menu item: '%s' (index %d)\n", itemName, item);
