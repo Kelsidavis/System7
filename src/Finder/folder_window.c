@@ -1454,6 +1454,77 @@ Boolean HandleFolderWindowClick(WindowPtr w, EventRecord *ev, Boolean isDoubleCl
 
                 if (!handled) {
                     FINDER_LOG_DEBUG("FW: No application associated with document \"%s\"\n", name);
+
+                    /* System 7 alert: "application not found" */
+                    extern DialogPtr NewDialog(void*, const Rect*, const unsigned char*,
+                                               Boolean, SInt16, WindowPtr, Boolean, SInt32, Handle);
+                    extern void DisposeDialog(DialogPtr);
+                    extern Boolean IsDialogEvent(const EventRecord*);
+                    extern Boolean DialogSelect(const EventRecord*, DialogPtr*, short*);
+                    extern void ShowWindow(WindowPtr);
+                    extern Boolean GetNextEvent(unsigned int, EventRecord*);
+                    extern void SystemTask(void);
+                    extern void SysBeep(short duration);
+
+                    SysBeep(1);
+
+                    Handle ditl = NewHandleClear(256);
+                    if (ditl) {
+                        HLock(ditl);
+                        unsigned char* p = (unsigned char*)*ditl;
+                        *p++ = 0; *p++ = 1;  /* 2 items */
+
+                        /* Item 1: Alert text */
+                        *p++ = 0; *p++ = 0; *p++ = 0; *p++ = 0;
+                        *p++ = 0; *p++ = 10; *p++ = 0; *p++ = 10;
+                        *p++ = 0; *p++ = 50; *p++ = 1; *p++ = 20;
+                        *p++ = 8;  /* statText */
+                        {
+                            char msg[200];
+                            int mlen = snprintf(msg, sizeof(msg),
+                                "The document \"%s\" could not be opened, "
+                                "because the application that created it "
+                                "could not be found.", name);
+                            if (mlen > 200) mlen = 200;
+                            *p++ = (unsigned char)mlen;
+                            memcpy(p, msg, mlen); p += mlen;
+                        }
+
+                        /* Item 2: OK button */
+                        *p++ = 0; *p++ = 0; *p++ = 0; *p++ = 0;
+                        *p++ = 0; *p++ = 60; *p++ = 0; *p++ = 200;
+                        *p++ = 0; *p++ = 80; *p++ = 1; *p++ = 20;
+                        *p++ = 4;
+                        *p++ = 2; *p++ = 'O'; *p++ = 'K';
+                        HUnlock(ditl);
+
+                        Rect bounds = {140, 100, 240, 400};
+                        static unsigned char noTitle[] = {0};
+                        DialogPtr dlg = NewDialog(NULL, &bounds, noTitle, true, 1,
+                                                  (WindowPtr)-1, false, 0, ditl);
+                        if (dlg) {
+                            ShowWindow((WindowPtr)dlg);
+                            Boolean done = false;
+                            while (!done) {
+                                EventRecord ev;
+                                if (GetNextEvent(0xFFFF, &ev)) {
+                                    if (IsDialogEvent(&ev)) {
+                                        DialogPtr wd; short it;
+                                        if (DialogSelect(&ev, &wd, &it) && wd == dlg && it == 2)
+                                            done = true;
+                                    }
+                                    if (ev.what == 3) {
+                                        char ch = ev.message & 0xFF;
+                                        if (ch == '\r' || ch == 0x03 || ch == 0x1B) done = true;
+                                    }
+                                }
+                                SystemTask();
+                            }
+                            DisposeDialog(dlg);
+                        } else {
+                            DisposeHandle(ditl);
+                        }
+                    }
                 }
             }
         }
