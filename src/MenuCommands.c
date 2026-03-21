@@ -243,6 +243,8 @@ void Finder_AdjustMenus(void) {
             DisableItem(fileMenu, kDuplicateItem);
             DisableItem(fileMenu, kMakeAliasItem);
         }
+        /* Sharing always disabled (no AppleTalk/network stack) */
+        DisableItem(fileMenu, kSharingItem);
         /* Put Away: only enabled in Trash window with items selected.
          * In System 7, Put Away restores items from Trash to original location. */
         if (isTrashWindow && hasSelection) {
