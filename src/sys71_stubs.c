@@ -513,24 +513,12 @@ OSErr FSpCreate(const FSSpec* spec, OSType creator, OSType fileType, SInt16 scri
     if (!spec) {
         return paramErr;
     }
-
-    /* Create a new file with specified creator and type */
-
-    /* In a full implementation, this would:
-     * 1. Validate the FSSpec (volume and parent directory exist)
-     * 2. Check if file already exists (return dupFNErr if so)
-     * 3. Create directory entry with name, creator, type
-     * 4. Set file dates (creation, modification)
-     * 5. Initialize empty data fork
-     */
-
-    /* For now, return success */
-    /* Real implementation would call File Manager PBHCreate */
-    (void)creator;
-    (void)fileType;
     (void)scriptTag;
 
-    return noErr;
+    /* Route through FSCreate which creates a file in the File Manager */
+    extern OSErr FSCreate(const unsigned char* fileName, SInt16 vRefNum,
+                          UInt32 creator, UInt32 fileType);
+    return FSCreate(spec->name, spec->vRefNum, creator, fileType);
 }
 
 OSErr FSpOpenDF(const FSSpec* spec, SInt16 permission, SInt16* refNum) {
@@ -576,18 +564,9 @@ OSErr FSpDelete(const FSSpec* spec) {
         return paramErr;
     }
 
-    /* Delete a file or empty directory */
-
-    /* In a full implementation, this would:
-     * 1. Validate the FSSpec points to an existing file or directory
-     * 2. Check if item is a directory - if so, verify it's empty
-     * 3. Remove the item from its parent directory
-     * 4. Release disk space allocated to the item
-     * 5. Update the volume's free space count
-     */
-
-    /* For now, return success */
-    return noErr;
+    /* Route through FSDelete which removes the file via File Manager */
+    extern OSErr FSDelete(const unsigned char* fileName, SInt16 vRefNum);
+    return FSDelete(spec->name, spec->vRefNum);
 }
 
 OSErr FSpDirDelete(const FSSpec* spec) {
