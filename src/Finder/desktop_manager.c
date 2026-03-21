@@ -575,73 +575,19 @@ static void Finder_DeskHook(RgnHandle invalidRgn)
     }
 }
 
-/* ArrangeDesktopIcons - Arrange desktop icons in a grid */
+/* ArrangeDesktopIcons - Arrange desktop icons in a vertical column from top-right */
 void ArrangeDesktopIcons(void)
 {
-    extern void serial_puts(const char* str);
-    static char dbg[256];
-
-    const int gridSpacing = 80;  /* Spacing between icons */
-    const int startX = 700;       /* Start from right side */
-    const int startY = 50;        /* Start below menu bar */
+    const int gridSpacing = 80;
+    const int startX = 700;   /* Start from right side */
+    const int startY = 50;    /* Start below menu bar */
     int currentX = startX;
     int currentY = startY;
 
-    snprintf(dbg, sizeof(dbg), "[ARRANGE] ArrangeDesktopIcons called, count=%d\n", gDesktopIconCount);
-    serial_puts(dbg);
-    snprintf(dbg, sizeof(dbg), "[ARRANGE] gDesktopIcons pointer = 0x%08X\n", (unsigned int)(uintptr_t)gDesktopIcons);
-    serial_puts(dbg);
-    snprintf(dbg, sizeof(dbg), "[ARRANGE] gDesktopIconStatic pointer = 0x%08X\n", (unsigned int)(uintptr_t)gDesktopIconStatic);
-    serial_puts(dbg);
-    snprintf(dbg, sizeof(dbg), "[ARRANGE] Using static storage? %d\n", gDesktopIconStaticInUse);
-    serial_puts(dbg);
-
-    /* Memory dump of icon 0 to check for corruption */
-    serial_puts("[ARRANGE] Icon 0 memory dump (first 96 bytes):\n");
-    unsigned char* ptr = (unsigned char*)&gDesktopIcons[0];
-    for (int i = 0; i < 96; i++) {
-        snprintf(dbg, sizeof(dbg), "%02X ", ptr[i]);
-        serial_puts(dbg);
-        if ((i + 1) % 16 == 0) serial_puts("\n");
-    }
-    serial_puts("\n");
-
-    FINDER_LOG_DEBUG("ArrangeDesktopIcons: Arranging %d icons\n", gDesktopIconCount);
-
     /* Arrange icons in a vertical column from top-right */
     for (int i = 0; i < gDesktopIconCount; i++) {
-        /* Safe logging - validate name field first */
-        snprintf(dbg, sizeof(dbg), "[ARRANGE] Icon %d: type=%d iconID=0x%08X\n",
-                 i, (int)gDesktopIcons[i].type, (unsigned int)gDesktopIcons[i].iconID);
-        serial_puts(dbg);
-
-        snprintf(dbg, sizeof(dbg), "[ARRANGE] Icon %d: BEFORE pos=(%d,%d)\n",
-                 i, gDesktopIcons[i].position.h, gDesktopIcons[i].position.v);
-        serial_puts(dbg);
-
-        /* Print name byte-by-byte to debug corruption */
-        serial_puts("[ARRANGE] Icon name bytes: ");
-        for (int j = 0; j < 16 && gDesktopIcons[i].name[j] != '\0'; j++) {
-            snprintf(dbg, sizeof(dbg), "%02X ", (unsigned char)gDesktopIcons[i].name[j]);
-            serial_puts(dbg);
-        }
-        serial_puts("\n");
-
-        /* Print name as string with length limit */
-        {
-            char nameBuf[65];
-            memcpy(nameBuf, gDesktopIcons[i].name, 64);
-            nameBuf[64] = '\0';
-            snprintf(dbg, sizeof(dbg), "[ARRANGE] Icon %d: name='%s' (first 64 chars)\n", i, nameBuf);
-            serial_puts(dbg);
-        }
-
         gDesktopIcons[i].position.h = currentX;
         gDesktopIcons[i].position.v = currentY;
-
-        snprintf(dbg, sizeof(dbg), "[ARRANGE] Icon %d: AFTER arrange pos=(%d,%d)\n",
-                 i, currentX, currentY);
-        serial_puts(dbg);
 
         currentY += gridSpacing;
 
