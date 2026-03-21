@@ -529,17 +529,16 @@ void InitializeFolderContentsEx(WindowPtr w, Boolean isTrash, VRefNum vref, DirI
         macPaint->type = 'APPL';
         macPaint->creator = 'MAPP';
 
-        const int startX = 80;
-        const int startY = 30;
-        const int colSpacing = 100;
-        const int rowHeight = 90;
-        const int maxCols = 3;
-
-        for (int i = 0; i < state->itemCount; i++) {
-            int col = i % maxCols;
-            int row = i / maxCols;
-            state->items[i].position.h = startX + (col * colSpacing);
-            state->items[i].position.v = startY + (row * rowHeight);
+        /* Use the same grid constants as FolderWindow_CleanUp */
+        {
+            const int IW = 80, IH = 64, LM = 20, TM = 40, SH = 10, SV = 10;
+            short ww = w->port.portRect.right - w->port.portRect.left;
+            int mc = (ww - LM) / (IW + SH);
+            if (mc < 1) mc = 1;
+            for (int i = 0; i < state->itemCount; i++) {
+                state->items[i].position.h = LM + (i % mc) * (IW + SH);
+                state->items[i].position.v = TM + (i / mc) * (IH + SV);
+            }
         }
 
         /* Allocate selection array */
@@ -625,17 +624,16 @@ void InitializeFolderContentsEx(WindowPtr w, Boolean isTrash, VRefNum vref, DirI
         strip->type = 'APPL';
         strip->creator = 'cdev';
 
-        const int startX = 80;
-        const int startY = 30;
-        const int colSpacing = 100;
-        const int rowHeight = 90;
-        const int maxCols = 3;
-
-        for (int i = 0; i < state->itemCount; i++) {
-            int col = i % maxCols;
-            int row = i / maxCols;
-            state->items[i].position.h = startX + (col * colSpacing);
-            state->items[i].position.v = startY + (row * rowHeight);
+        /* Use the same grid constants as FolderWindow_CleanUp */
+        {
+            const int IW = 80, IH = 64, LM = 20, TM = 40, SH = 10, SV = 10;
+            short ww = w->port.portRect.right - w->port.portRect.left;
+            int mc = (ww - LM) / (IW + SH);
+            if (mc < 1) mc = 1;
+            for (int i = 0; i < state->itemCount; i++) {
+                state->items[i].position.h = LM + (i % mc) * (IW + SH);
+                state->items[i].position.v = TM + (i / mc) * (IH + SV);
+            }
         }
 
         /* Allocate selection array */
@@ -721,22 +719,16 @@ void InitializeFolderContentsEx(WindowPtr w, Boolean isTrash, VRefNum vref, DirI
             FINDER_LOG_DEBUG("FW: Added virtual 'Control Panels' folder entry\n");
         }
 
-        const int startX = 80;
-        const int startY = 30;
-        const int colSpacing = 100;
-        const int rowHeight = 90;
-        const int maxCols = 3;
-
-        for (int i = 0; i < state->itemCount; i++) {
-            int col = i % maxCols;
-            int row = i / maxCols;
-            state->items[i].position.h = startX + (col * colSpacing);
-            state->items[i].position.v = startY + (row * rowHeight);
-            FINDER_LOG_DEBUG("FW: Item %d: '%s' %s id=%d pos=(%d,%d)\n",
-                         i, state->items[i].name,
-                         state->items[i].isFolder ? "DIR" : "FILE",
-                         state->items[i].fileID,
-                         state->items[i].position.h, state->items[i].position.v);
+        /* Use the same grid constants as FolderWindow_CleanUp */
+        {
+            const int IW = 80, IH = 64, LM = 20, TM = 40, SH = 10, SV = 10;
+            short ww = w->port.portRect.right - w->port.portRect.left;
+            int mc = (ww - LM) / (IW + SH);
+            if (mc < 1) mc = 1;
+            for (int i = 0; i < state->itemCount; i++) {
+                state->items[i].position.h = LM + (i % mc) * (IW + SH);
+                state->items[i].position.v = TM + (i / mc) * (IH + SV);
+            }
         }
 
         /* Allocate selection array */
