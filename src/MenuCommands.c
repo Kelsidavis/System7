@@ -241,6 +241,17 @@ void Finder_AdjustMenus(void) {
             DisableItem(fileMenu, kCloseItem);
         }
     }
+
+    /* Adjust Special menu — Empty Trash grayed when trash is empty */
+    MenuHandle specialMenu = GetMenuHandle(kSpecialMenuID);
+    if (specialMenu) {
+        extern bool Trash_IsEmptyAll(void);
+        if (Trash_IsEmptyAll()) {
+            DisableItem(specialMenu, 2);  /* Empty Trash */
+        } else {
+            EnableItem(specialMenu, 2);
+        }
+    }
 }
 
 /* Apple Menu Handler */
