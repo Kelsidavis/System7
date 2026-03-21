@@ -98,7 +98,7 @@ static void SF_PrimeInitialFocus(DialogPtr d)
     }
 }
 
-static SInt16 SF_ItemFromControl(ControlHandle c)
+static SInt16 __attribute__((unused)) SF_ItemFromControl(ControlHandle c)
 {
     /* refCon is item number */
     return (c && *c) ? (SInt16)(*c)->contrlRfCon : 0;

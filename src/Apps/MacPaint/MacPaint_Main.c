@@ -160,8 +160,8 @@ OSErr MacPaint_PromptSave(void)
  */
 void MacPaint_CheckMemory(void)
 {
-    Size freeBytes = FreeMem();
-    Size totalBytes = 0;
+    Size freeBytes __attribute__((unused)) = FreeMem();
+    Size totalBytes __attribute__((unused)) = 0;
     /* TODO: Report memory statistics */
 }
 

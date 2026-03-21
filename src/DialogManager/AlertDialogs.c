@@ -61,9 +61,9 @@ static const BuiltInAlertSpec kFallbackGeneric = {{160, 180, 320, 460}, 3, 4, 0,
 static SInt16 RunAlertDialog(SInt16 alertID, ModalFilterProcPtr filterProc, SInt16 alertType);
 static DialogPtr CreateAlertDialogFromTemplate(const AlertTemplate* alertTemplate);
 static void PlayAlertSoundForStage(SInt16 alertType, SInt16 stage);
-static void PositionAlertDialog(DialogPtr alertDialog);
+static void __attribute__((unused)) PositionAlertDialog(DialogPtr alertDialog);
 /* Forward declarations */
-static void DrawAlertIcon(DialogPtr alertDialog, SInt16 iconType);
+static void __attribute__((unused)) DrawAlertIcon(DialogPtr alertDialog, SInt16 iconType);
 static OSErr BuildFallbackDLOG(const BuiltInAlertSpec* spec, DialogTemplate** outDLOG);
 static OSErr BuildFallbackDITL(SInt16 pseudoId, SInt16 iconKind, Handle* outDITL);
 static Boolean LoadAlertWithFallback(SInt16 alertID, SInt16 alertType,
@@ -760,7 +760,7 @@ static void PlayAlertSoundForStage(SInt16 alertType, SInt16 stage)
     SoundEffects_Play(effect);
 }
 
-static void PositionAlertDialog(DialogPtr alertDialog)
+static void __attribute__((unused)) PositionAlertDialog(DialogPtr alertDialog)
 {
     if (!alertDialog) {
         return;
@@ -821,7 +821,7 @@ void SubstituteAlertParameters(unsigned char* text)
     memcpy(text, result, resultLen + 1);
 }
 
-static void DrawAlertIcon(DialogPtr alertDialog, SInt16 iconType)
+static void __attribute__((unused)) DrawAlertIcon(DialogPtr alertDialog, SInt16 iconType)
 {
     if (!alertDialog) {
         return;

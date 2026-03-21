@@ -43,9 +43,9 @@ static Rect gPaintRect __attribute__((unused));
 
 /* Document State */
 char gDocName[64];              /* Exposed for file I/O */
-static int gDocDrive = 0;
+static int gDocDrive __attribute__((unused)) = 0;
 int gDocDirty = 0;             /* Exposed for file I/O */
-static UInt32 gWorkSize = 0;
+static UInt32 gWorkSize __attribute__((unused)) = 0;
 
 /* Tool State */
 int gCurrentTool = TOOL_PENCIL;  /* Exposed for menus and event handlers */

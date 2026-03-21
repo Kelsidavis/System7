@@ -334,7 +334,7 @@ OSErr BTFlush(void* btcb_ptr) {
  * Calculate space needed for a record
 
  */
-static UInt16 CalculateRecordSize(UInt16 key_len, UInt16 data_len) {
+static UInt16 __attribute__((unused)) CalculateRecordSize(UInt16 key_len, UInt16 data_len) {
     /* Record format: key_length + key_data + data_length + data */
     return sizeof(UInt16) + key_len + sizeof(UInt16) + data_len;
 }
@@ -343,7 +343,7 @@ static UInt16 CalculateRecordSize(UInt16 key_len, UInt16 data_len) {
  * Check if node has space for new record
 
  */
-static Boolean NodeHasSpace(BTNode* node, UInt16 record_size) {
+static Boolean __attribute__((unused)) NodeHasSpace(BTNode* node, UInt16 record_size) {
     if (node == NULL) return false;
 
     /* Calculate used space in node */

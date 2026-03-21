@@ -180,7 +180,7 @@ static UInt32 M68K_Pop32(M68KAddressSpace* as)
     return value;
 }
 
-static void M68K_Push16(M68KAddressSpace* as, UInt16 value)
+static void __attribute__((unused)) M68K_Push16(M68KAddressSpace* as, UInt16 value)
 {
     as->regs.a[7] -= 2;
     M68K_Write16(as, as->regs.a[7], value);
