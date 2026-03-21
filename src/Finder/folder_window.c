@@ -857,7 +857,31 @@ static short FW_IconAtPoint(WindowPtr w, Point localPt) {
         short contentY = localPt.v - top - kListHeaderHeight;
 
         if (contentY < 0) {
-            return -1;  /* Click in header area */
+            /* Click in column header area — sort by that column */
+            short left = w->port.portRect.left;
+            short clickX = localPt.h - left;
+            short sortMode = 0;
+
+            /* Determine which column was clicked based on cumulative widths */
+            short nameEnd = kListNameColWidth;
+            short sizeEnd = nameEnd + kListSizeColWidth;
+            short kindEnd = sizeEnd + kListKindColWidth;
+            short labelEnd = kindEnd + kListLabelColWidth;
+
+            if (clickX < nameEnd)         sortMode = kViewByName;
+            else if (clickX < sizeEnd)    sortMode = kViewBySize;
+            else if (clickX < kindEnd)    sortMode = kViewByKind;
+            else if (clickX < labelEnd)   sortMode = kViewByLabel;
+            else                          sortMode = kViewByDate;
+
+            if (sortMode > 0) {
+                extern void FolderWindow_SortAndArrange(WindowPtr w, short sortType);
+                extern void Finder_UpdateViewMenuForWindow(WindowPtr w);
+                FolderWindow_SortAndArrange(w, sortMode);
+                Finder_UpdateViewMenuForWindow(w);
+                FINDER_LOG_DEBUG("FW: column header click -> sort mode %d\n", sortMode);
+            }
+            return -1;
         }
 
         short rowIndex = (contentY / kListRowHeight) + state->scrollOffset;
