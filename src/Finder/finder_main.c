@@ -360,14 +360,24 @@ static OSErr SetupMenus(void)
     GetLocalizedString(menuStr, kSTRListFinderSpecialMenu, kStrShutDown);
     AppendMenu(gSpecialMenu, menuStr);
 
-    /* Insert menus into menu bar in correct order: Apple, File, Edit, View, Label, Special */
-    /* InsertMenu with 0 adds to end, so insert in order */
+    /* Insert menus into menu bar in correct order: Apple, File, Edit, View, Label, Special, Help */
     InsertMenu(gAppleMenu, 0);    /* Apple at position 0 */
     InsertMenu(gFileMenu, 0);      /* File at position 1 */
     InsertMenu(gEditMenu, 0);      /* Edit at position 2 */
     InsertMenu(gViewMenu, 0);      /* View at position 3 */
     InsertMenu(gLabelMenu, 0);     /* Label at position 4 */
     InsertMenu(gSpecialMenu, 0);   /* Special at position 5 */
+
+    /* Help Menu (balloon help "?" icon) — System 7 standard */
+    {
+        unsigned char helpTitle[] = {1, '?'};
+        MenuHandle helpMenu = NewMenu((short)0xBF96, (ConstStr255Param)helpTitle);
+        if (helpMenu) {
+            AppendMenu(helpMenu, "\020About Balloon Help\311");
+            AppendMenu(helpMenu, "\014Show Balloons");
+            InsertMenu(helpMenu, 0);
+        }
+    }
 
     /* Application (top-right) menu - icon only */
     /* Use system-defined Application menu ID (negative). If not available,

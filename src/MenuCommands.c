@@ -25,6 +25,7 @@
 #include "ControlPanels/ControlStrip.h"
 #include "Datetime/datetime_cdev.h"
 #include "DeskManager/Notepad.h"
+#include "DialogManager/DialogManager.h"
 #include "Platform/Halt.h"
 #include "Platform/include/io.h"
 
@@ -44,6 +45,7 @@ static void perform_power_off(void);
 #define kViewMenuID     131
 #define kLabelMenuID    132
 #define kSpecialMenuID  133
+#define kHelpMenuIDLocal ((short)0xBF96)  /* Help menu "?" = -16490 */
 
 /* Apple Menu Items */
 #define kAboutItem      1
@@ -151,7 +153,18 @@ void DoMenuCommand(short menuID, short item)
             break;
 
         default:
-            MENU_LOG_WARN("Unknown menu ID: %d\n", menuID);
+            if (menuID == kHelpMenuIDLocal) {
+                /* Help menu: item 1 = About Balloon Help, item 2 = Show Balloons */
+                if (item == 1) {
+                    ParamText("\030About Balloon Help\311",
+                              "\060Point at items on the screen to\rsee help balloons.",
+                              "\000", "\000");
+                    NoteAlert(128, NULL);
+                }
+                /* item 2 (Show Balloons) is a toggle — balloon help not implemented */
+            } else {
+                MENU_LOG_WARN("Unknown menu ID: %d\n", menuID);
+            }
             break;
     }
 

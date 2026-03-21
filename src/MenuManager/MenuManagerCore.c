@@ -383,8 +383,8 @@ void SetupDefaultMenus(void)
         return;
     }
 
-    /* Manually populate the 7 standard menus (Apple, File, Edit, View, Label, Special, Application) */
-    menuBar->numMenus = 7;
+    /* Manually populate the 8 standard menus (Apple, File, Edit, View, Label, Special, Help, Application) */
+    menuBar->numMenus = 8;
     menuBar->totalWidth = 0;
     menuBar->lastRight = 10; /* Start after left margin */
 
@@ -418,13 +418,18 @@ void SetupDefaultMenus(void)
     menuBar->menus[5].menuLeft = 215;
     menuBar->menus[5].menuWidth = 65;  /* Width for "Special" */
 
-    /* Application Menu (Finder icon) */
-    menuBar->menus[6].menuID = (short)kApplicationMenuID;
+    /* Help Menu (ID 0xBF96 = -16490) — System 7 "?" balloon help */
+    menuBar->menus[6].menuID = (short)kHelpMenuID;
     menuBar->menus[6].menuLeft = 280;
-    menuBar->menus[6].menuWidth = 20;  /* Icon-only */
+    menuBar->menus[6].menuWidth = 20;  /* Width for "?" */
 
-    menuBar->lastRight = 300;
-    menuBar->totalWidth = 290;
+    /* Application Menu (Finder icon) */
+    menuBar->menus[7].menuID = (short)kApplicationMenuID;
+    menuBar->menus[7].menuLeft = 300;
+    menuBar->menus[7].menuWidth = 20;  /* Icon-only */
+
+    menuBar->lastRight = 320;
+    menuBar->totalWidth = 310;
 
     if (gMenuMgrState) {
         gMenuMgrState->menuBar = (Ptr)menuBar;
