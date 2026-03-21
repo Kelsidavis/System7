@@ -895,15 +895,12 @@ void OpenSelectedItems(void) {
     /* Get front window */
     extern WindowPtr FrontWindow(void);
     WindowPtr frontWin = FrontWindow();
-    if (!frontWin) {
-        MENU_LOG_DEBUG("OpenSelectedItems: No front window\n");
-        return;
-    }
 
-    /* Check if it's a folder window */
+    /* If no folder window is front, try to open the selected desktop icon */
     extern Boolean IsFolderWindow(WindowPtr w);
-    if (!IsFolderWindow(frontWin)) {
-        MENU_LOG_DEBUG("OpenSelectedItems: Front window is not a folder window\n");
+    if (!frontWin || !IsFolderWindow(frontWin)) {
+        extern void Desktop_OpenSelectedIcon(void);
+        Desktop_OpenSelectedIcon();
         return;
     }
 

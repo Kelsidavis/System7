@@ -2478,6 +2478,48 @@ void Desktop_RefreshTrashIcon(void) {
 }
 
 /*
+ * Desktop_OpenSelectedIcon - Open the currently selected desktop icon.
+ * Called when Return/Enter is pressed with no folder window front.
+ */
+void Desktop_OpenSelectedIcon(void) {
+    if (gSelectedIcon < 0 || gSelectedIcon >= gDesktopIconCount) {
+        return;
+    }
+
+    DesktopItem* icon = &gDesktopIcons[gSelectedIcon];
+
+    /* Use byte-by-byte read for ARM64 safety */
+    UInt8* typePtr = (UInt8*)&icon->type;
+    DesktopItemType itemType = (DesktopItemType)(
+        ((UInt32)typePtr[0]) | ((UInt32)typePtr[1] << 8) |
+        ((UInt32)typePtr[2] << 16) | ((UInt32)typePtr[3] << 24)
+    );
+
+    switch (itemType) {
+        case kDesktopItemVolume: {
+            /* Open the volume (disk) window */
+            extern WindowPtr Finder_OpenDesktopItem(Boolean isTrash, ConstStr255Param title);
+            unsigned char pTitle[256];
+            int len = 0;
+            while (icon->name[len] && len < 255) len++;
+            pTitle[0] = (unsigned char)len;
+            memcpy(&pTitle[1], icon->name, len);
+            Finder_OpenDesktopItem(false, pTitle);
+            break;
+        }
+        case kDesktopItemTrash: {
+            /* Open the Trash window */
+            extern WindowPtr Finder_OpenDesktopItem(Boolean isTrash, ConstStr255Param title);
+            static unsigned char trashTitle[] = {5, 'T','r','a','s','h'};
+            Finder_OpenDesktopItem(true, trashTitle);
+            break;
+        }
+        default:
+            break;
+    }
+}
+
+/*
  * RefreshDesktopRect - Refresh a specific rectangular area of the desktop
  *
  * This function redraws a specific region of the desktop to clean up
