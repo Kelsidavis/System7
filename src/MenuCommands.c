@@ -895,6 +895,11 @@ static void HandleSpecialMenu(short item)
         case 7: {  /* Restart */
             MENU_LOG_INFO("Special > Restart\n");
 
+            /* Confirmation dialog — real System 7 asks before restarting */
+            ParamText("\034Are you sure you want to\rrestart your computer?",
+                      "\000", "\000", "\000");
+            if (CautionAlert(128, NULL) != 1) break;  /* Cancel */
+
             /* Display restart message before rebooting */
             {
                 extern void hal_framebuffer_present(void);
@@ -926,9 +931,13 @@ static void HandleSpecialMenu(short item)
         case 8: {  /* Shut Down */
             MENU_LOG_INFO("Special > Shut Down\n");
 
+            /* Confirmation dialog — real System 7 asks before shutting down */
+            ParamText("\035Are you sure you want to shut\rdown your computer?",
+                      "\000", "\000", "\000");
+            if (CautionAlert(128, NULL) != 1) break;  /* Cancel */
+
             /* Display the classic "It is now safe to turn off your Macintosh"
-             * shutdown screen before halting. In real System 7, this fills the
-             * screen with a gray pattern and shows the message centered. */
+             * shutdown screen before halting. */
             {
                 extern void hal_framebuffer_present(void);
                 extern QDGlobals qd;
