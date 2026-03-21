@@ -288,19 +288,22 @@ OSErr SndDisposeChannel(SndChannelPtr chan, Boolean quietNow) {
  * Sound Command Definitions
  * ============================================================================ */
 
-/* Sound command opcodes - legacy internal IDs for Format 1 synthesis */
-#define freqCmd         1       /* Set frequency (param2 = frequency in Hz) */
-#define ampCmd          2       /* Set amplitude */
-#define timbreCmd       3       /* Set timbre */
-#define waveCmd         4       /* Set waveform */
-#define quietCmd        5       /* Turn off sound */
-#define restCmd         6       /* Rest for duration (param2 = duration in ms) */
-#define noteCmd         7       /* Play note (param1 = MIDI note, param2 = amplitude) */
-
-/* Mac OS Sound Manager command opcodes for sampled sound */
+/* Sound command opcodes per Inside Macintosh: Sound Manager Reference */
+#define quietCmd        3       /* Stop sound */
+#define flushCmd        4       /* Flush sound channel */
+#define reInitCmd       5       /* Reinitialize sound channel */
+#define freqDurationCmd 40      /* Frequency with duration (param1=dur, param2=freq) */
+#define restCmd         41      /* Rest for duration (param2 = duration in ms) */
+#define freqCmd         42      /* Set frequency (param2 = frequency in Hz) */
+#define ampCmd          43      /* Set amplitude */
+#define timbreCmd       44      /* Set timbre */
+#define waveTableCmd    60      /* Set wave table */
 #define kSndCmdSound    80      /* soundCmd - play sampled sound from sound header */
 #define kSndCmdBuffer   81      /* bufferCmd - play from buffer (sound header ptr) */
 #define kDataOffsetFlag 0x8000  /* High bit: param2 is offset into resource, not ptr */
+
+/* noteCmd is freqDurationCmd in standard Mac OS (param1=MIDI note, param2=duration) */
+#define noteCmd         freqDurationCmd
 
 /*
  * Convert MIDI note number to frequency in Hz
@@ -410,7 +413,7 @@ static void SndProcessCommand(SndChannelPtr chan, const SndCommand* cmd) {
 
         case ampCmd:
         case timbreCmd:
-        case waveCmd:
+        case waveTableCmd:
             /* Amplitude/timbre/waveform commands - not implemented for PC speaker */
             SND_LOG_DEBUG("SndDoCommand: Unsupported command %d (amplitude/timbre/waveform)\n", cmd->cmd);
             break;
