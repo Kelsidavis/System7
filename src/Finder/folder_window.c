@@ -1389,10 +1389,9 @@ Boolean HandleFolderWindowClick(WindowPtr w, EventRecord *ev, Boolean isDoubleCl
                     FSSpec appSpec;
                     OSErr err;
 
-                    /* Build FSSpec for the application file */
-                    /* For now, use simple path - in full implementation would resolve full path */
-                    appSpec.vRefNum = 0;  /* Default volume */
-                    appSpec.parID = 0;     /* Root directory for now */
+                    /* Build FSSpec with actual volume and directory */
+                    appSpec.vRefNum = state->vref;
+                    appSpec.parID = state->currentDir;
 
                     /* Convert name to Pascal string */
                     UInt8 nameLen = strlen(name);
