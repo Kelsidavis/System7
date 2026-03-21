@@ -182,6 +182,23 @@ void Finder_AdjustMenus(void) {
     /* Adjust Edit menu */
     MenuHandle editMenu = GetMenuHandle(kEditMenuID);
     if (editMenu) {
+        extern void SetMenuItemText(MenuHandle theMenu, short item,
+                                     ConstStr255Param itemString);
+
+        /* Dynamic Undo text based on undo state.
+         * g_finderUndo is defined later in this file — use extern-like access
+         * via a helper to avoid forward-reference issues. */
+        extern short Finder_GetUndoType(void);
+        if (Finder_GetUndoType() == 1 /* kFinderUndoTrash */) {
+            static unsigned char undoMove[] = {9, 'U','n','d','o',' ','M','o','v','e'};
+            SetMenuItemText(editMenu, kUndoItem, undoMove);
+            EnableItem(editMenu, kUndoItem);
+        } else {
+            static unsigned char cantUndo[] = {10, 'C','a','n','\'','t',' ','U','n','d','o'};
+            SetMenuItemText(editMenu, kUndoItem, cantUndo);
+            DisableItem(editMenu, kUndoItem);
+        }
+
         if (hasSelection) {
             EnableItem(editMenu, kCutItem);
             EnableItem(editMenu, kCopyItem);
@@ -1096,6 +1113,14 @@ static struct {
     FileID  fileIDs[kMaxUndoItems];     /* IDs of trashed items */
     short   count;                      /* Number of trashed items */
 } g_finderUndo = { kFinderUndoNone, 0, 0, {0}, 0 };
+
+/*
+ * Finder_GetUndoType - Return the current undo type for menu text adjustment.
+ */
+short Finder_GetUndoType(void) {
+    return (g_finderUndo.type == kFinderUndoTrash && g_finderUndo.count > 0)
+           ? kFinderUndoTrash : kFinderUndoNone;
+}
 
 /*
  * Finder_RecordTrashUndo - Record items that were moved to Trash.
