@@ -656,8 +656,9 @@ Boolean HandleActivate(EventRecord* event)
             /* Restore keyboard focus and show focus ring */
             WM_OnActivate(window);
 
-            /* Highlight window controls, enable menus, etc. */
-            /* Application would handle this */
+            /* Update View menu checkmarks for the newly activated window */
+            extern void Finder_UpdateViewMenuForWindow(WindowPtr w);
+            Finder_UpdateViewMenuForWindow(window);
         } else {
             /* Window is being deactivated */
             if (g_dispatcher.activeWindow == window) {

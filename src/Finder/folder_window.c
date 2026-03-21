@@ -1853,6 +1853,17 @@ void FolderWindow_SelectAll(WindowPtr w) {
 }
 
 /*
+ * FolderWindow_GetViewMode - Return the current view mode for a folder window.
+ * Returns 0 if window is not a folder window.
+ */
+short FolderWindow_GetViewMode(WindowPtr w) {
+    if (!w || !IsFolderWindow(w)) return 0;
+    FolderWindowState* state = GetFolderState(w);
+    if (!state) return 0;
+    return state->viewMode;
+}
+
+/*
  * FolderWindow_ArrowKey - Handle up/down arrow key for selection navigation.
  * Moves selection and auto-scrolls list view to keep selection visible.
  */

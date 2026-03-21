@@ -525,6 +525,23 @@ static void HandleEditMenu(short item)
 }
 
 /* View Menu Handler - System 7.1 Finder views */
+/*
+ * UpdateViewMenuCheckmarks - Sync View menu checkmarks with current window's view mode.
+ * Called when switching views and when the front window changes.
+ */
+static void UpdateViewMenuCheckmarks(short activeViewMode) {
+    extern MenuHandle GetMenuHandle(short menuID);
+    extern void CheckItem(MenuHandle theMenu, short item, Boolean checked);
+
+    MenuHandle viewMenu = GetMenuHandle(kViewMenuID);
+    if (!viewMenu) return;
+
+    /* Items 1-6 are view modes; uncheck all, then check the active one */
+    for (short i = 1; i <= 6; i++) {
+        CheckItem(viewMenu, i, (i == activeViewMode));
+    }
+}
+
 static void HandleViewMenu(short item)
 {
     extern WindowPtr FrontWindow(void);
@@ -537,31 +554,37 @@ static void HandleViewMenu(short item)
         case 1:  /* by Icon */
             MENU_LOG_INFO("View > by Icon\n");
             if (front) SetWindowViewMode(front, 1);
+            UpdateViewMenuCheckmarks(1);
             break;
 
         case 2:  /* by Name */
             MENU_LOG_INFO("View > by Name\n");
             if (front) SetWindowViewMode(front, 2);
+            UpdateViewMenuCheckmarks(2);
             break;
 
         case 3:  /* by Size */
             MENU_LOG_INFO("View > by Size\n");
             if (front) SetWindowViewMode(front, 3);
+            UpdateViewMenuCheckmarks(3);
             break;
 
         case 4:  /* by Kind */
             MENU_LOG_INFO("View > by Kind\n");
             if (front) SetWindowViewMode(front, 4);
+            UpdateViewMenuCheckmarks(4);
             break;
 
         case 5:  /* by Label */
             MENU_LOG_INFO("View > by Label\n");
             if (front) SetWindowViewMode(front, 5);
+            UpdateViewMenuCheckmarks(5);
             break;
 
         case 6:  /* by Date */
             MENU_LOG_INFO("View > by Date\n");
             if (front) SetWindowViewMode(front, 6);
+            UpdateViewMenuCheckmarks(6);
             break;
 
         case 7:  /* separator */
@@ -580,6 +603,22 @@ static void HandleViewMenu(short item)
         default:
             MENU_LOG_WARN("Unknown View menu item: %d\n", item);
             break;
+    }
+}
+
+/*
+ * Finder_UpdateViewMenuForWindow - Update View menu checkmarks for the given window.
+ * Called when a window becomes frontmost (window activation).
+ */
+void Finder_UpdateViewMenuForWindow(WindowPtr w) {
+    extern Boolean IsFolderWindow(WindowPtr w);
+    extern short FolderWindow_GetViewMode(WindowPtr w);
+
+    if (w && IsFolderWindow(w)) {
+        short mode = FolderWindow_GetViewMode(w);
+        if (mode >= 1 && mode <= 6) {
+            UpdateViewMenuCheckmarks(mode);
+        }
     }
 }
 
