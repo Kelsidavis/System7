@@ -145,9 +145,7 @@ void InitDateTime(void) {
 }
 
 /*
- * DateTimeRec structure (matches Inside Macintosh):
- *   short year, month, day, hour, minute, second, dayOfWeek
- * dayOfWeek: 1=Sunday ... 7=Saturday
+ * DateTimeRec structure (matches Inside Macintosh)
  */
 typedef struct {
     SInt16 year;
@@ -159,10 +157,12 @@ typedef struct {
     SInt16 dayOfWeek;
 } DateTimeRec;
 
-/*
- * Secs2Date - Convert Mac epoch seconds to DateTimeRec
- * (Also known as SecondsToDate in some headers)
- */
+/* Forward declarations */
+void Secs2Date(UInt32 secs, DateTimeRec *d);
+void SecondsToDate(UInt32 secs, DateTimeRec *d);
+void Date2Secs(const DateTimeRec *d, UInt32 *secs);
+void DateToSeconds(const DateTimeRec *d, UInt32 *secs);
+
 void Secs2Date(UInt32 secs, DateTimeRec *d) {
     if (!d) return;
 
