@@ -334,8 +334,20 @@ Boolean GetInfo_HandleUpdate(WindowPtr w) {
         y += 20;
     }
 
+    /* Locked status — shown as checkbox indicator */
+    if (y + 20 < contentRect.bottom) {
+        MoveTo(20, y);
+        Boolean isLocked = (sCurrentEntry.flags & 0x01) != 0;  /* Bit 0 = locked */
+        snprintf(buf, sizeof(buf), "Locked: %s", isLocked ? "\xC3 Yes" : "\xA0 No");
+        DrawText(buf, 0, strlen(buf));
+        y += 20;
+    }
+
     /* File ID */
     if (y + 20 < contentRect.bottom) {
+        y += 4;
+        MoveTo(20, y);
+        LineTo(contentRect.right - 20, y);
         y += 10;
         MoveTo(20, y);
         snprintf(buf, sizeof(buf), "File ID: %u", (unsigned int)sCurrentEntry.id);
