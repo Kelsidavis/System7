@@ -2165,6 +2165,35 @@ void FolderWindow_TypeAhead(WindowPtr w, char ch) {
     SysBeep(1);
 }
 
+/*
+ * FolderWindow_ScrollWheel - Handle mouse scroll wheel input.
+ * Called from the PS/2 driver when scroll wheel delta is detected.
+ * Positive delta = scroll up, negative = scroll down (PS/2 convention).
+ */
+void FolderWindow_ScrollWheel(int8_t delta) {
+    extern WindowPtr FrontWindow(void);
+    WindowPtr front = FrontWindow();
+    if (!front || !IsFolderWindow(front)) return;
+
+    FolderWindowState* state = GetFolderState(front);
+    if (!state || !state->items || state->viewMode < kViewByName) return;
+
+    /* Each scroll notch moves 3 rows */
+    short scrollAmount = (delta > 0) ? -3 : 3;
+    state->scrollOffset += scrollAmount;
+
+    /* Clamp */
+    short contentHeight = front->port.portRect.bottom - front->port.portRect.top - kListHeaderHeight;
+    short visibleRows = contentHeight / kListRowHeight;
+    if (visibleRows < 1) visibleRows = 1;
+    short maxScroll = state->itemCount - visibleRows;
+    if (maxScroll < 0) maxScroll = 0;
+    if (state->scrollOffset > maxScroll) state->scrollOffset = maxScroll;
+    if (state->scrollOffset < 0) state->scrollOffset = 0;
+
+    PostEvent(updateEvt, (UInt32)(uintptr_t)front);
+}
+
 /* Get selected item info from folder window */
 Boolean FolderWindow_GetSelectedItem(WindowPtr w, VRefNum* outVref, FileID* outFileID) {
     if (!w || !IsFolderWindow(w) || !outVref || !outFileID) return false;

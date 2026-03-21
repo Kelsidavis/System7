@@ -66,6 +66,7 @@
 #define PS2_MOUSE_SET_DEFAULTS  0xF6
 #define PS2_MOUSE_SET_SCALING   0xE6
 #define PS2_MOUSE_SET_RESOLUTION 0xE8
+#define PS2_MOUSE_GET_ID        0xF2
 
 /* Keyboard scan code sets */
 #define SCAN_CODE_SET_1         1
@@ -101,9 +102,11 @@ struct {
     int16_t x;
     int16_t y;
     uint8_t buttons;
-    uint8_t packet[3];
+    uint8_t packet[4];      /* 4 bytes for Intellimouse (3 for standard) */
     uint8_t packet_index;
-} g_mouseState = {400, 300, 0, {0, 0, 0}, 0};
+    uint8_t packet_size;    /* 3 = standard, 4 = Intellimouse with scroll */
+    int8_t  scrollDelta;    /* Z-axis scroll delta from last packet */
+} g_mouseState = {400, 300, 0, {0, 0, 0, 0}, 0, 3, 0};
 
 /* Get raw mouse button state - platform-independent interface */
 uint8_t GetMouseButtons(void) {
@@ -232,6 +235,46 @@ static Boolean ps2_mouse_command(uint8_t cmd) {
         return (response == 0xFA); /* ACK */
     }
     /* PLATFORM_LOG_DEBUG("MOUSE CMD 0x%02x: NO RESPONSE\n", cmd); */
+    return false;
+}
+
+/* Send a mouse command followed by a data byte (e.g., set sample rate) */
+static Boolean ps2_mouse_command_data(uint8_t cmd, uint8_t data) {
+    if (!ps2_mouse_command(cmd)) return false;
+    /* Send the data byte through the aux port */
+    ps2_wait_input();
+    outb(PS2_COMMAND_PORT, 0xD4);
+    ps2_wait_input();
+    outb(PS2_DATA_PORT, data);
+    if (ps2_wait_output()) {
+        uint8_t response = ps2_read_data();
+        return (response == 0xFA);
+    }
+    return false;
+}
+
+/*
+ * Enable Intellimouse scroll wheel extension.
+ * The magic sequence: set sample rate 200, 100, 80, then read device ID.
+ * If the mouse supports scroll, its ID changes from 0 to 3.
+ */
+static Boolean ps2_enable_intellimouse(void) {
+    /* Magic knock sequence */
+    if (!ps2_mouse_command_data(PS2_MOUSE_SET_SAMPLE, 200)) return false;
+    if (!ps2_mouse_command_data(PS2_MOUSE_SET_SAMPLE, 100)) return false;
+    if (!ps2_mouse_command_data(PS2_MOUSE_SET_SAMPLE, 80))  return false;
+
+    /* Read device ID */
+    if (!ps2_mouse_command(PS2_MOUSE_GET_ID)) return false;
+    if (ps2_wait_output()) {
+        uint8_t id = ps2_read_data();
+        if (id == 3) {
+            /* Intellimouse detected — packets are now 4 bytes */
+            g_mouseState.packet_size = 4;
+            PLATFORM_LOG_DEBUG("PS2: Intellimouse scroll wheel enabled (ID=%d)\n", id);
+            return true;
+        }
+    }
     return false;
 }
 
@@ -403,9 +446,20 @@ static void process_mouse_packet(void) {
 
     UpdateMouseStateDelta(dx, -dy, new_buttons); /* PS/2 Y is inverted */
 
+    /* Extract scroll wheel delta from 4th byte (Intellimouse) */
+    if (g_mouseState.packet_size == 4) {
+        int8_t dz = (int8_t)g_mouseState.packet[3];
+        g_mouseState.scrollDelta = dz;
+        if (dz != 0) {
+            /* Post scroll as key events: up arrow for scroll-up, down for scroll-down */
+            /* This integrates with the existing folder window arrow key handler */
+            extern void FolderWindow_ScrollWheel(int8_t delta);
+            FolderWindow_ScrollWheel(dz);
+        }
+    }
+
     /* Check button state changes */
     if (new_buttons != old_buttons) {
-        /* Update button state only - let ModernInput handle event posting */
         g_mouseState.buttons = new_buttons;
     }
 
@@ -503,13 +557,13 @@ static Boolean init_mouse(void) {
     }
     /* PLATFORM_LOG_DEBUG("MOUSE: Defaults set\n"); */
 
+    /* Try to enable Intellimouse scroll wheel extension */
+    ps2_enable_intellimouse();
+
     /* Enable data reporting */
-    /* PLATFORM_LOG_DEBUG("MOUSE: Enabling data reporting (0xF4)...\n"); */
     if (!ps2_mouse_command(PS2_MOUSE_ENABLE_DATA)) {
-        /* PLATFORM_LOG_DEBUG("MOUSE: Failed to enable data reporting - no ACK\n"); */
         return false;
     }
-    /* PLATFORM_LOG_DEBUG("MOUSE: Data reporting enabled\n"); */
 
     /* Verify port 2 is enabled in controller configuration */
     ps2_send_command(PS2_CMD_READ_CONFIG);
@@ -696,7 +750,7 @@ void PollPS2Input(void) {
 
             g_mouseState.packet[g_mouseState.packet_index++] = data;
 
-            if (g_mouseState.packet_index >= 3) {
+            if (g_mouseState.packet_index >= g_mouseState.packet_size) {
                 packet_count++;
                 process_mouse_packet(); /* resets packet_index to 0 */
             }
