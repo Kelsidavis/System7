@@ -44,7 +44,7 @@ extern void PlatformDrawRGBABitmap(const UInt8* rgba_data, int width, int height
 #define PROGRESS_BAR_WIDTH 300
 
 /* Timing constants */
-#define DEFAULT_WELCOME_DURATION 360  /* 6 seconds at 60Hz */
+#define DEFAULT_WELCOME_DURATION 180  /* 3 seconds at 60Hz */
 #define EXTENSION_DISPLAY_TICKS 6     /* 0.1 second per extension */
 
 /* Global startup screen state */
@@ -288,14 +288,15 @@ OSErr ShowWelcomeScreen(void) {
         uart_flush();
     }
 
-    /* Show for configured duration */
+    /* Show for configured duration using TSC-based delay (not Delay() which
+     * depends on timer interrupt and hangs during early boot on some platforms) */
     if (gConfig.welcomeDuration > 0) {
-        /* Use simple delay instead of event loop during boot */
-        /* SKIP DELAY FOR ARM64 DEBUGGING - Delay() hangs */
-        serial_puts("[WELCOME] Skipping Delay for ARM64 debug\n");
+        extern OSErr MicrosecondDelay(UInt32 microseconds);
+        /* Convert ticks (1/60s) to microseconds. Default is 180 ticks = 3 seconds */
+        UInt32 usDelay = (UInt32)gConfig.welcomeDuration * 16667;  /* ~1/60 sec per tick */
+        serial_puts("[WELCOME] Showing welcome screen...\n");
         uart_flush();
-        /* UInt32 finalTicks;
-        Delay(gConfig.welcomeDuration, &finalTicks); */
+        MicrosecondDelay(usDelay);
     }
 
     serial_puts("[WELCOME] complete\n");
