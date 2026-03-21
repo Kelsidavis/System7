@@ -23,11 +23,149 @@
 #include "DeskManager/Chooser.h"
 
 
+/* QuickDraw drawing for DAs */
+extern void MoveTo(short h, short v);
+extern void LineTo(short h, short v);
+extern void FrameRect(const Rect* r);
+extern void EraseRect(const Rect* r);
+extern void InvertRect(const Rect* r);
+extern void DrawText(const void* textBuf, SInt16 firstByte, SInt16 byteCount);
+extern void FillRect(const Rect* r, const Pattern* pat);
+extern void GetPort(GrafPtr* port);
+extern void SetPort(GrafPtr port);
+extern void PenSize(short width, short height);
+
 /* Forward declarations for DA interfaces */
 static int Calculator_DAInitialize(DeskAccessory *da, const DADriverHeader *header);
 static int Calculator_DATerminate(DeskAccessory *da);
 static int Calculator_DAProcessEvent(DeskAccessory *da, const DAEventInfo *event);
 static int Calculator_DAHandleMenu(DeskAccessory *da, const DAMenuInfo *menu);
+
+/* ============================================================================
+ * Calculator Button Layout & Rendering
+ *
+ * Classic System 7 Calculator: 200 x 300 window
+ * Display area at top, 5 rows x 4 columns of buttons below.
+ * Layout matches the real Mac Calculator DA.
+ * ============================================================================ */
+
+/* Calculator button geometry */
+#define CALC_DISPLAY_TOP    8
+#define CALC_DISPLAY_LEFT   8
+#define CALC_DISPLAY_RIGHT  192
+#define CALC_DISPLAY_BOTTOM 36
+#define CALC_BTN_COLS       4
+#define CALC_BTN_ROWS       5
+#define CALC_BTN_W          42
+#define CALC_BTN_H          28
+#define CALC_BTN_GAP        4
+#define CALC_BTN_START_X    10
+#define CALC_BTN_START_Y    44
+
+/* Button layout: 5 rows x 4 columns, matching classic Mac Calculator */
+typedef struct {
+    CalcButtonID id;
+    const char*  label;
+} CalcBtnDef;
+
+static const CalcBtnDef kCalcButtons[CALC_BTN_ROWS][CALC_BTN_COLS] = {
+    /* Row 0: C  =  /  * */
+    { {CALC_BTN_CLEAR, "C"}, {CALC_BTN_EQUALS, "="}, {CALC_BTN_DIVIDE, "/"}, {CALC_BTN_MULTIPLY, "*"} },
+    /* Row 1: 7  8  9  - */
+    { {CALC_BTN_7, "7"}, {CALC_BTN_8, "8"}, {CALC_BTN_9, "9"}, {CALC_BTN_SUBTRACT, "-"} },
+    /* Row 2: 4  5  6  + */
+    { {CALC_BTN_4, "4"}, {CALC_BTN_5, "5"}, {CALC_BTN_6, "6"}, {CALC_BTN_ADD, "+"} },
+    /* Row 3: 1  2  3  (unused placeholder for tall = button) */
+    { {CALC_BTN_1, "1"}, {CALC_BTN_2, "2"}, {CALC_BTN_3, "3"}, {CALC_BTN_CLEAR_ALL, "AC"} },
+    /* Row 4: 0 (wide)   .   (placeholder) */
+    { {CALC_BTN_0, "0"}, {CALC_BTN_0, ""}, {CALC_BTN_DECIMAL, "."}, {CALC_BTN_NEGATE, "+/-"} },
+};
+
+/* Get the rectangle for a button at grid position (row, col) */
+static void CalcDA_GetButtonRect(int row, int col, Rect* r) {
+    r->left   = CALC_BTN_START_X + col * (CALC_BTN_W + CALC_BTN_GAP);
+    r->top    = CALC_BTN_START_Y + row * (CALC_BTN_H + CALC_BTN_GAP);
+    r->right  = r->left + CALC_BTN_W;
+    r->bottom = r->top + CALC_BTN_H;
+
+    /* Row 4, col 0: "0" button is double-wide */
+    if (row == 4 && col == 0) {
+        r->right = r->left + CALC_BTN_W * 2 + CALC_BTN_GAP;
+    }
+}
+
+/* Hit-test: convert local coordinates to CalcButtonID, or -1 if no hit */
+static CalcButtonID CalcDA_HitTest(short localH, short localV) {
+    for (int row = 0; row < CALC_BTN_ROWS; row++) {
+        for (int col = 0; col < CALC_BTN_COLS; col++) {
+            /* Skip the second cell of the wide "0" button */
+            if (row == 4 && col == 1) continue;
+
+            Rect r;
+            CalcDA_GetButtonRect(row, col, &r);
+
+            if (localH >= r.left && localH < r.right &&
+                localV >= r.top  && localV < r.bottom) {
+                return kCalcButtons[row][col].id;
+            }
+        }
+    }
+    return (CalcButtonID)-1;
+}
+
+/* Draw the full calculator UI: display + buttons */
+static void CalcDA_Draw(DeskAccessory *da) {
+    if (!da || !da->driverData) return;
+    Calculator *calc = (Calculator *)da->driverData;
+
+    /* Draw display area */
+    Rect displayRect = { CALC_DISPLAY_TOP, CALC_DISPLAY_LEFT,
+                         CALC_DISPLAY_BOTTOM, CALC_DISPLAY_RIGHT };
+    EraseRect(&displayRect);
+    FrameRect(&displayRect);
+
+    /* Draw display text (right-aligned) */
+    const char* dispStr = Calculator_GetDisplay(calc);
+    int len = 0;
+    while (dispStr[len]) len++;
+    /* Right-align: approx 7px per char */
+    short textX = CALC_DISPLAY_RIGHT - 6 - (len * 7);
+    if (textX < CALC_DISPLAY_LEFT + 4) textX = CALC_DISPLAY_LEFT + 4;
+    MoveTo(textX, CALC_DISPLAY_BOTTOM - 8);
+    DrawText(dispStr, 0, len);
+
+    /* Draw buttons */
+    for (int row = 0; row < CALC_BTN_ROWS; row++) {
+        for (int col = 0; col < CALC_BTN_COLS; col++) {
+            if (row == 4 && col == 1) continue;  /* Skip wide-0 placeholder */
+
+            const CalcBtnDef* btn = &kCalcButtons[row][col];
+            if (btn->label[0] == '\0') continue;  /* Skip empty */
+
+            Rect r;
+            CalcDA_GetButtonRect(row, col, &r);
+
+            /* Draw button frame */
+            EraseRect(&r);
+            FrameRect(&r);
+
+            /* Draw 3D shadow effect (bottom-right edges) */
+            PenSize(1, 1);
+            MoveTo(r.left + 1, r.bottom);
+            LineTo(r.right, r.bottom);
+            MoveTo(r.right, r.top + 1);
+            LineTo(r.right, r.bottom);
+
+            /* Draw button label (centered) */
+            int labelLen = 0;
+            while (btn->label[labelLen]) labelLen++;
+            short labelX = r.left + (r.right - r.left - labelLen * 7) / 2;
+            short labelY = r.top + (r.bottom - r.top + 10) / 2;
+            MoveTo(labelX, labelY);
+            DrawText(btn->label, 0, labelLen);
+        }
+    }
+}
 static int Calculator_DAIdle(DeskAccessory *da);
 
 static int KeyCaps_DAInitialize(DeskAccessory *da, const DADriverHeader *header);
@@ -210,8 +348,8 @@ static int Calculator_DAInitialize(DeskAccessory *da, const DADriverHeader *head
     DAWindowAttr attr;
     attr.bounds.left = 100;
     attr.bounds.top = 100;
-    attr.bounds.right = 300;
-    attr.bounds.bottom = 400;
+    attr.bounds.right = 300;     /* 200px wide */
+    attr.bounds.bottom = 320;    /* 220px tall - fits display + 5x4 button grid */
     attr.procID = 0;
     attr.visible = true;
     attr.hasGoAway = true;
@@ -247,18 +385,46 @@ static int Calculator_DAProcessEvent(DeskAccessory *da, const DAEventInfo *event
     /* Convert event to calculator input */
     switch (event->what) {
         case 1: /* mouseDown */
-            /* Handle button clicks */
-            /* This would need coordinate-to-button mapping */
+            {
+                /* Hit-test against calculator buttons using local coordinates */
+                CalcButtonID hitBtn = CalcDA_HitTest(event->h, event->v);
+                if ((int)hitBtn >= 0) {
+                    /* Visual feedback: briefly invert the button */
+                    int row = -1, col = -1;
+                    for (int r = 0; r < CALC_BTN_ROWS && row < 0; r++) {
+                        for (int c = 0; c < CALC_BTN_COLS; c++) {
+                            if (r == 4 && c == 1) continue;
+                            if (kCalcButtons[r][c].id == hitBtn) {
+                                row = r; col = c; break;
+                            }
+                        }
+                    }
+                    if (row >= 0) {
+                        Rect r;
+                        CalcDA_GetButtonRect(row, col, &r);
+                        InvertRect(&r);
+                    }
+
+                    /* Process the button press */
+                    Calculator_PressButton(calc, hitBtn);
+
+                    /* Redraw the calculator to show updated display */
+                    CalcDA_Draw(da);
+                }
+            }
             break;
 
         case 3: /* keyDown */
             {
                 char key = (char)(event->message & 0xFF);
-                return Calculator_KeyPress(calc, key);
+                Calculator_KeyPress(calc, key);
+                /* Redraw after key input */
+                CalcDA_Draw(da);
             }
+            break;
 
         case 6: /* updateEvt */
-            Calculator_UpdateDisplay(calc);
+            CalcDA_Draw(da);
             break;
 
         default:
