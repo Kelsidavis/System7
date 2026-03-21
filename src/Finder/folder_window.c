@@ -90,10 +90,11 @@ typedef struct FolderItem {
 #define kListHeaderHeight   16  /* Height of the column header bar */
 #define kListIconSize       16  /* Small icon size in list view */
 #define kListLeftMargin      4  /* Left margin before icon */
-#define kListNameColWidth  180  /* Width of the Name column */
-#define kListSizeColWidth   60  /* Width of the Size column */
-#define kListKindColWidth  100  /* Width of the Kind column */
-#define kListDateColWidth  100  /* Width of the Date column */
+#define kListNameColWidth  160  /* Width of the Name column */
+#define kListSizeColWidth   55  /* Width of the Size column */
+#define kListKindColWidth   80  /* Width of the Kind column */
+#define kListLabelColWidth  60  /* Width of the Label column */
+#define kListDateColWidth   80  /* Width of the Date column */
 #define kListScrollBarWidth 15  /* Width of vertical scrollbar track */
 
 /* Folder window state (per window) */
@@ -1475,6 +1476,19 @@ static void FormatFileSize(uint32_t size, char* buf, int bufLen) {
 }
 
 /*
+ * GetLabelName - Return the System 7 Finder label name for a label index (0-7).
+ * These match the default labels in the Labels control panel.
+ */
+static const char* GetLabelName(short label) {
+    static const char* kLabelNames[] = {
+        "None", "Essential", "Hot", "In Progress",
+        "Cool", "Personal", "Project 1", "Project 2"
+    };
+    if (label >= 0 && label <= 7) return kLabelNames[label];
+    return "";
+}
+
+/*
  * FormatMacDateShort - Format a Mac OS date (seconds since Jan 1, 1904)
  * as a compact string for list view: "Mon/DD/YYYY" or "M/D/YY".
  * Uses Finder-style short date format.
@@ -1558,10 +1572,15 @@ static void FolderWindow_DrawListHeader(const Rect* portRect) {
     MoveTo(kindX + 4, textY);
     DrawText("Kind", 0, 4);
 
+    /* Label column */
+    short labelX = kindX + kListKindColWidth;
+    MoveTo(labelX + 4, textY);
+    DrawText("Label", 0, 5);
+
     /* Date column */
-    short dateX = kindX + kListKindColWidth;
+    short dateX = labelX + kListLabelColWidth;
     MoveTo(dateX + 4, textY);
-    DrawText("Last Modified", 0, 13);
+    DrawText("Date", 0, 4);
 
     /* Draw bottom separator line */
     MoveTo(left, y + kListHeaderHeight - 1);
@@ -1572,6 +1591,8 @@ static void FolderWindow_DrawListHeader(const Rect* portRect) {
     LineTo(sizeX, y + kListHeaderHeight - 1);
     MoveTo(kindX, y);
     LineTo(kindX, y + kListHeaderHeight - 1);
+    MoveTo(labelX, y);
+    LineTo(labelX, y + kListHeaderHeight - 1);
     MoveTo(dateX, y);
     LineTo(dateX, y + kListHeaderHeight - 1);
 }
@@ -1748,8 +1769,19 @@ static void FolderWindow_DrawListView(WindowPtr w, FolderWindowState* state) {
         MoveTo(kindX + 4, textY);
         DrawText(kindStr, 0, kindLen);
 
+        /* Draw label */
+        short labelX = kindX + kListKindColWidth;
+        if (state->items[i].label > 0) {
+            const char* labelStr = GetLabelName(state->items[i].label);
+            int labelLen = 0;
+            while (labelStr[labelLen]) labelLen++;
+            if (labelLen > 8) labelLen = 8;  /* Truncate to fit */
+            MoveTo(labelX + 4, textY);
+            DrawText(labelStr, 0, labelLen);
+        }
+
         /* Draw last modified date */
-        short dateX = kindX + kListKindColWidth;
+        short dateX = labelX + kListLabelColWidth;
         if (state->items[i].modTime != 0) {
             char dateBuf[16];
             FormatMacDateShort(state->items[i].modTime, dateBuf, sizeof(dateBuf));
@@ -1764,6 +1796,8 @@ static void FolderWindow_DrawListView(WindowPtr w, FolderWindowState* state) {
         LineTo(sizeX, rowY + kListRowHeight - 1);
         MoveTo(kindX, rowY);
         LineTo(kindX, rowY + kListRowHeight - 1);
+        MoveTo(labelX, rowY);
+        LineTo(labelX, rowY + kListRowHeight - 1);
         MoveTo(dateX, rowY);
         LineTo(dateX, rowY + kListRowHeight - 1);
 
