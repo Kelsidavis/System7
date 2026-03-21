@@ -1480,13 +1480,7 @@ Boolean HandleFolderWindowClick(WindowPtr w, EventRecord *ev, Boolean isDoubleCl
             }
         }
 
-        if (oldSel == hitIndex && !shiftHeld) {
-            /* Click on already-selected item — initiate rename after delay.
-             * In real System 7, this starts inline text editing. We use a
-             * modal dialog as a simpler approach. */
-            extern void FolderWindow_RenameItem(WindowPtr w, short itemIndex);
-            FolderWindow_RenameItem(w, hitIndex);
-        } else if (oldSel != hitIndex) {
+        if (oldSel != hitIndex) {
             PostEvent(updateEvt, (UInt32)(uintptr_t)w);
         }
     } else {
@@ -1515,12 +1509,16 @@ Boolean HandleFolderWindowClick(WindowPtr w, EventRecord *ev, Boolean isDoubleCl
                 }
             }
 
-            (void)oldSel;
             FINDER_LOG_DEBUG("FW: select %d -> %d, shift=%d, SET lastClickIndex=%d, lastClickTime=%lu\n",
                          oldSel, hitIndex, shiftHeld, hitIndex, (unsigned long)currentTime);
 
-            /* Post update to redraw selection */
-            PostEvent(updateEvt, (UInt32)(uintptr_t)w);
+            /* Slow re-click on already-selected item = initiate rename */
+            if (oldSel == hitIndex && !shiftHeld) {
+                extern void FolderWindow_RenameItem(WindowPtr w, short itemIndex);
+                FolderWindow_RenameItem(w, hitIndex);
+            } else {
+                PostEvent(updateEvt, (UInt32)(uintptr_t)w);
+            }
         } else {
             /* Drag occurred - selection/timing was handled by drag tracking */
             FINDER_LOG_DEBUG("FW: drag completed, NOT setting lastClick values\n");
