@@ -23,5 +23,7 @@
 #define posErr -40
 #define wPrErr -44
 #define fLckdErr -45
+#define dirNFErr -120
+#define nsvErr -35
 
 #endif

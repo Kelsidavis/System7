@@ -54,6 +54,8 @@ OSErr FSpCreate(const FSSpec* spec, OSType creator, OSType fileType, SInt16 scri
 OSErr FSpOpenDF(const FSSpec* spec, SInt16 permission, SInt16* refNum);
 OSErr FSpOpenResFile(const FSSpec* spec, SInt16 permission);
 OSErr FSpDelete(const FSSpec *spec);
+OSErr FSpGetFInfo(const FSSpec* spec, FInfo* fndrInfo);
+OSErr FSpSetFInfo(const FSSpec* spec, const FInfo* fndrInfo);
 OSErr FSpDirDelete(const FSSpec *spec);
 OSErr FSpCatMove(const FSSpec *source, const FSSpec *dest);
 

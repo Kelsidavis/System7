@@ -55,6 +55,8 @@
 #define ioErr                   -36
 #define fnfErr                  -43
 #define permErr                 -54
+#define dirNFErr                -120
+#define nsvErr                  -35
 
 /* Basic Mac OS Types */
 /* Ptr is defined in MacTypes.h */

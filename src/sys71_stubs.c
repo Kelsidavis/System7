@@ -43,6 +43,7 @@
 #include "../include/MemoryMgr/MemoryManager.h"
 #include "../include/FileMgr/file_manager.h"
 #include "../include/Finder/finder.h"
+#include "../include/FS/hfs_types.h"
 
 /* DeskHook type definition if not in headers */
 typedef void (*DeskHookProc)(RgnHandle invalidRgn);
@@ -608,17 +609,51 @@ OSErr FSpCatMove(const FSSpec* source, const FSSpec* dest) {
         return paramErr;
     }
 
-    /* Move or rename a file or directory */
+    /* Cross-volume moves not supported */
+    if (source->vRefNum != dest->vRefNum) {
+        return paramErr;
+    }
 
-    /* In a full implementation, this would:
-     * 1. Validate source exists and dest doesn't exist
-     * 2. Check if moving to different volume (requires copy+delete)
-     * 3. If same volume, update directory entry
-     * 4. If different volume, copy data then delete source
-     * 5. Preserve file metadata (creator, type, dates)
-     */
+    extern bool VFS_Lookup(VRefNum vref, DirID dir, const char* name, CatEntry* entry);
+    extern bool VFS_Move(VRefNum vref, DirID fromDir, FileID id, DirID toDir, const char* newName);
 
-    /* For now, return success */
+    /* Convert source Pascal name to C string */
+    CatEntry srcEntry;
+    char srcName[32];
+    unsigned char srcLen = source->name[0];
+    if (srcLen > 31) srcLen = 31;
+    for (int i = 0; i < srcLen; i++) srcName[i] = source->name[i + 1];
+    srcName[srcLen] = '\0';
+
+    /* Look up source to get its FileID */
+    if (!VFS_Lookup(source->vRefNum, source->parID, srcName, &srcEntry)) {
+        return fnfErr;
+    }
+
+    /* dest FSSpec identifies the destination folder — resolve its DirID */
+    DirID targetDir;
+    unsigned char dstLen = dest->name[0];
+    if (dstLen == 0) {
+        /* Empty name means dest->parID is the target directory itself */
+        targetDir = dest->parID;
+    } else {
+        CatEntry dstEntry;
+        char dstName[32];
+        if (dstLen > 31) dstLen = 31;
+        for (int i = 0; i < dstLen; i++) dstName[i] = dest->name[i + 1];
+        dstName[dstLen] = '\0';
+
+        if (!VFS_Lookup(dest->vRefNum, dest->parID, dstName, &dstEntry)) {
+            return dirNFErr;
+        }
+        targetDir = dstEntry.id;
+    }
+
+    /* Move the file/folder */
+    if (!VFS_Move(source->vRefNum, source->parID, srcEntry.id, targetDir, NULL)) {
+        return ioErr;
+    }
+
     return noErr;
 }
 
@@ -630,21 +665,21 @@ OSErr PBHGetVInfoSync(void *paramBlock) {
 
     HParamBlockRec* pb = (HParamBlockRec*)paramBlock;
 
-    /* Get volume information synchronously */
+    /* Try to get real volume info from VFS */
+    extern bool VFS_GetVolumeInfo(VRefNum vref, VolumeControlBlock* vcb);
+    VolumeControlBlock vcb;
+    VRefNum vref = pb->ioVRefNum;
 
-    /* In a full implementation, this would:
-     * 1. Validate the volume reference number
-     * 2. Retrieve actual volume parameters from the volume control block
-     * 3. Fill in allocation block size, total blocks, free blocks
-     * 4. Set volume name, creation date, modification date
-     * 5. Return volume attributes (locked, ejectable, etc.)
-     */
-
-    /* Fill in simulated volume info for 400K floppy disk */
-    pb->u.volumeParam.ioVAlBlkSiz = 512;     /* Allocation block size in bytes */
-    pb->u.volumeParam.ioVNmAlBlks = 800;     /* Total allocation blocks (400K) */
-    /* pb->u.volumeParam.ioVFrBlk = 400; */  /* Free blocks (50% free) */
-    /* Commented out: ioVFrBlk member doesn't exist in volumeParam struct */
+    if (VFS_GetVolumeInfo(vref, &vcb)) {
+        /* Use real volume data */
+        UInt32 allocBlkSize = 512;
+        pb->u.volumeParam.ioVAlBlkSiz = allocBlkSize;
+        pb->u.volumeParam.ioVNmAlBlks = (UInt32)(vcb.totalBytes / allocBlkSize);
+    } else {
+        /* Fallback: reasonable defaults */
+        pb->u.volumeParam.ioVAlBlkSiz = 512;
+        pb->u.volumeParam.ioVNmAlBlks = 800;
+    }
 
     return noErr;
 }
