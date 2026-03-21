@@ -842,6 +842,21 @@ void HandleKeyDown(EventRecord* event) {
             return;
         }
 
+        /* Cmd+Option+W = Close all windows (power-user shortcut) */
+        if ((charCode == 'w' || charCode == 'W') && (event->modifiers & optionKey)) {
+            extern WindowPtr FrontWindow(void);
+            extern OSErr CloseFinderWindow(WindowPtr w);
+            extern Boolean IsFolderWindow(WindowPtr w);
+
+            /* Close all folder windows */
+            WindowPtr w;
+            while ((w = FrontWindow()) != NULL) {
+                if (!IsFolderWindow(w)) break;  /* Stop at non-folder windows */
+                CloseFinderWindow(w);
+            }
+            return;
+        }
+
         /* Cmd+` = Cycle to next window (standard Mac OS shortcut) */
         if (charCode == '`' || charCode == '~') {
             extern WindowPtr FrontWindow(void);
