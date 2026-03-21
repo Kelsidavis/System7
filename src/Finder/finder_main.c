@@ -18,6 +18,7 @@
 #include "SystemTypes.h"
 
 #include "Finder/finder.h"
+#include "DeskManager/DeskAccessory.h"
 #include "Platform/Halt.h"
 #include "Finder/finder_types.h"
 /* Use local headers instead of system headers */
@@ -243,17 +244,15 @@ static OSErr SetupMenus(void)
 
     /* Add registered desk accessories to Apple menu */
     {
-        extern int DA_GetRegisteredDAs(void **entries, int maxEntries);
-        typedef struct { char name[64]; /* ... */ } DARegEntry;
-        void* daEntries[16];
+        DARegistryEntry* daEntries[16];
         int daCount = DA_GetRegisteredDAs(daEntries, 16);
         for (int d = 0; d < daCount; d++) {
-            DARegEntry* dae = (DARegEntry*)daEntries[d];
-            if (dae && dae->name[0]) {
+            if (daEntries[d] && daEntries[d]->name[0]) {
                 /* Convert C string to Pascal string for AppendMenu */
                 unsigned char pName[64];
                 int len = 0;
-                while (dae->name[len] && len < 63) { pName[len + 1] = dae->name[len]; len++; }
+                const char* src = daEntries[d]->name;
+                while (src[len] && len < 63) { pName[len + 1] = src[len]; len++; }
                 pName[0] = (unsigned char)len;
                 AppendMenu(gAppleMenu, pName);
             }
