@@ -64,7 +64,8 @@ OSErr FSpCatMove(const FSSpec *source, const FSSpec *dest);
 OSErr PBSetCatInfoSync(void *paramBlock);
 
 /* File Manager */
-/* Note: FSMakeFSSpec, FSRead, FSWrite, FSClose, SetEOF declared in FileMgr/file_manager.h */
+OSErr SetEOF(short refNum, long logEOF);
+OSErr GetEOF(short refNum, long* logEOF);
 
 /* Memory Manager */
 /* Note: BlockMoveData, NewPtr, NewHandle, DisposeHandle, GetHandleSize declared in MemoryMgr/MemoryManager.h */

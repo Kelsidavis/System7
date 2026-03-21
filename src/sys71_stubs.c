@@ -586,22 +586,26 @@ OSErr FSpSetFInfo(const FSSpec* spec, const FInfo* fndrInfo) {
 }
 
 OSErr FSpDirDelete(const FSSpec* spec) {
-    if (!spec) {
-        return paramErr;
+    if (!spec) return paramErr;
+
+    /* Resolve FSSpec to FileID via VFS_Lookup, then recursively delete */
+    extern bool VFS_Lookup(VRefNum vref, DirID dir, const char* name, CatEntry* entry);
+    extern bool VFS_DeleteTree(VRefNum vref, DirID parent, FileID id);
+
+    char cName[32];
+    unsigned char len = spec->name[0];
+    if (len > 31) len = 31;
+    for (int i = 0; i < len; i++) cName[i] = spec->name[i + 1];
+    cName[len] = '\0';
+
+    CatEntry entry;
+    if (!VFS_Lookup(spec->vRefNum, spec->parID, cName, &entry)) {
+        return fnfErr;
     }
 
-    /* Delete a directory and all its contents recursively */
+    if (entry.kind != kNodeDir) return paramErr;
 
-    /* In a full implementation, this would:
-     * 1. Validate the FSSpec points to a directory
-     * 2. Recursively delete all files and subdirectories
-     * 3. Delete the directory itself after emptying
-     * 4. Return appropriate errors for locked or busy files
-     */
-
-    /* This is more dangerous than FSpDelete which requires empty directory */
-    /* For now, return success */
-    return noErr;
+    return VFS_DeleteTree(spec->vRefNum, spec->parID, entry.id) ? noErr : ioErr;
 }
 
 OSErr FSpCatMove(const FSSpec* source, const FSSpec* dest) {
@@ -686,26 +690,23 @@ OSErr PBHGetVInfoSync(void *paramBlock) {
 
 
 OSErr SetEOF(short refNum, long logEOF) {
-    if (refNum <= 0) {
-        return paramErr;
-    }
+    if (refNum <= 0) return paramErr;
+    if (logEOF < 0) return paramErr;
 
-    if (logEOF < 0) {
-        return paramErr;
-    }
+    /* Route to real File Manager implementation */
+    extern OSErr FSSetEOF(short refNum, UInt32 eof);
+    return FSSetEOF(refNum, (UInt32)logEOF);
+}
 
-    /* Set the logical end-of-file for an open file */
+OSErr GetEOF(short refNum, long* logEOF) {
+    if (refNum <= 0 || !logEOF) return paramErr;
 
-    /* In a full implementation, this would:
-     * 1. Validate the file reference number
-     * 2. If growing file, allocate additional disk blocks
-     * 3. If shrinking file, release unused disk blocks
-     * 4. Update the file control block with new EOF
-     * 5. Update directory entry if needed
-     */
-
-    /* For now, return success */
-    return noErr;
+    /* Route to real File Manager implementation */
+    extern OSErr FSGetEOF(short refNum, UInt32* eof);
+    UInt32 eof;
+    OSErr err = FSGetEOF(refNum, &eof);
+    if (err == noErr) *logEOF = (long)eof;
+    return err;
 }
 
 /* Resource Manager stubs */
