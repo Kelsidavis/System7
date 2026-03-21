@@ -1045,13 +1045,15 @@ static Boolean TrackFolderItemDrag(WindowPtr w, FolderWindowState* state, short 
 
             /* Phase 4: Check for drop-to-trash first */
             if (Desktop_IsOverTrash(cur)) {
-                FINDER_LOG_DEBUG("FW: DROP TO TRASH detected - deleting '%s' (fileID=%d, vref=%d)\n",
-                             item->name, item->fileID, state->vref);
+                FINDER_LOG_DEBUG("FW: DROP TO TRASH detected - moving '%s' to Trash\n",
+                             item->name);
 
-                bool deleted = VFS_Delete(state->vref, item->fileID);
+                /* Move to Trash (not permanent delete) — matches System 7 behavior */
+                extern bool Trash_MoveNode(VRefNum vref, DirID parent, FileID id);
+                bool moved = Trash_MoveNode(state->vref, state->currentDir, item->fileID);
 
-                if (deleted) {
-                    FINDER_LOG_DEBUG("FW: File deleted successfully from VFS\n");
+                if (moved) {
+                    FINDER_LOG_DEBUG("FW: Moved to Trash successfully\n");
 
                     /* Remove item from folder window display by shifting array */
                     for (int i = itemIndex; i < state->itemCount - 1; i++) {
@@ -1059,19 +1061,18 @@ static Boolean TrackFolderItemDrag(WindowPtr w, FolderWindowState* state, short 
                     }
                     state->itemCount--;
 
-                    /* Clear selection if we deleted the selected item */
                     if (state->selectedIndex == itemIndex) {
                         state->selectedIndex = -1;
                     } else if (state->selectedIndex > itemIndex) {
-                        state->selectedIndex--;  /* Adjust index after shift */
+                        state->selectedIndex--;
                     }
 
-                    FINDER_LOG_DEBUG("FW: Item removed from display, new itemCount=%d\n", state->itemCount);
-
-                    /* Request window redraw */
+                    /* Refresh trash icon and folder window */
                     PostEvent(updateEvt, (UInt32)(uintptr_t)w);
+                    extern void Desktop_RefreshTrashIcon(void);
+                    Desktop_RefreshTrashIcon();
                 } else {
-                    FINDER_LOG_DEBUG("FW: ERROR: VFS_Delete failed\n");
+                    FINDER_LOG_DEBUG("FW: ERROR: Trash_MoveNode failed\n");
                 }
             } else {
                 /* Phase 3: Check for drop-to-desktop and create alias */
