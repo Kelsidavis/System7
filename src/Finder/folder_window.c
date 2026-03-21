@@ -1085,6 +1085,10 @@ static Boolean TrackFolderItemDrag(WindowPtr w, FolderWindowState* state, short 
                 if (moved) {
                     FINDER_LOG_DEBUG("FW: Moved to Trash successfully\n");
 
+                    /* Record for Undo */
+                    extern void Finder_RecordTrashUndo(VRefNum vref, DirID parentDir, FileID fileID);
+                    Finder_RecordTrashUndo(state->vref, state->currentDir, item->fileID);
+
                     /* Remove item from folder window display by shifting array */
                     for (int i = itemIndex; i < state->itemCount - 1; i++) {
                         state->items[i] = state->items[i + 1];
@@ -2478,6 +2482,11 @@ void FolderWindow_DeleteSelected(WindowPtr w) {
                 FINDER_LOG_DEBUG("FolderWindow_DeleteSelected: Moving '%s' to Trash\n",
                                item->name);
                 success = Trash_MoveNode(state->vref, state->currentDir, item->fileID);
+                if (success) {
+                    /* Record for Undo */
+                    extern void Finder_RecordTrashUndo(VRefNum vref, DirID parentDir, FileID fileID);
+                    Finder_RecordTrashUndo(state->vref, state->currentDir, item->fileID);
+                }
             }
 
             if (success) {

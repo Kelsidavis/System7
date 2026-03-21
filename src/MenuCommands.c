@@ -1080,9 +1080,102 @@ void PutAwaySelectedItems(WindowPtr w) {
     DisposePtr((Ptr)specs);
 }
 
+/* ============================================================================
+ * Finder Undo State — tracks the last undoable operation
+ * Currently supports "Undo Move to Trash" (restore from Trash)
+ * ============================================================================ */
+
+#define kFinderUndoNone     0
+#define kFinderUndoTrash    1   /* Last operation was move-to-trash */
+#define kMaxUndoItems       32
+
+static struct {
+    short   type;                       /* kFinderUndoNone or kFinderUndoTrash */
+    VRefNum vref;                       /* Volume of original location */
+    DirID   parentDir;                  /* Original parent directory */
+    FileID  fileIDs[kMaxUndoItems];     /* IDs of trashed items */
+    short   count;                      /* Number of trashed items */
+} g_finderUndo = { kFinderUndoNone, 0, 0, {0}, 0 };
+
+/*
+ * Finder_RecordTrashUndo - Record items that were moved to Trash.
+ * Called from FolderWindow_DeleteSelected after successful Trash_MoveNode.
+ */
+void Finder_RecordTrashUndo(VRefNum vref, DirID parentDir, FileID fileID) {
+    /* If this is a new undo batch (different parent or first item), reset */
+    if (g_finderUndo.type != kFinderUndoTrash ||
+        g_finderUndo.vref != vref ||
+        g_finderUndo.parentDir != parentDir) {
+        g_finderUndo.type = kFinderUndoTrash;
+        g_finderUndo.vref = vref;
+        g_finderUndo.parentDir = parentDir;
+        g_finderUndo.count = 0;
+    }
+
+    if (g_finderUndo.count < kMaxUndoItems) {
+        g_finderUndo.fileIDs[g_finderUndo.count++] = fileID;
+    }
+}
+
 /* Edit Operations */
 void Finder_Undo(void) {
-    MENU_LOG_DEBUG("[STUB] Finder_Undo called\n");
+    extern void SysBeep(short duration);
+
+    if (g_finderUndo.type == kFinderUndoNone || g_finderUndo.count == 0) {
+        SysBeep(1);  /* Nothing to undo */
+        return;
+    }
+
+    if (g_finderUndo.type == kFinderUndoTrash) {
+        /* Undo Move to Trash: move items back from Trash to original location */
+        extern bool Trash_GetDir(VRefNum vref, DirID* trashDir);
+        extern bool VFS_Move(VRefNum vref, DirID fromDir, FileID id,
+                             DirID toDir, const char* newName);
+        extern const char* VFS_GetNameByID(VRefNum vref, DirID dir, FileID id);
+
+        DirID trashDir = 0;
+        if (!Trash_GetDir(g_finderUndo.vref, &trashDir)) {
+            SysBeep(1);
+            g_finderUndo.type = kFinderUndoNone;
+            return;
+        }
+
+        short restored = 0;
+        for (short i = 0; i < g_finderUndo.count; i++) {
+            FileID id = g_finderUndo.fileIDs[i];
+            const char* name = VFS_GetNameByID(g_finderUndo.vref, trashDir, id);
+            if (name && VFS_Move(g_finderUndo.vref, trashDir, id,
+                                 g_finderUndo.parentDir, name)) {
+                restored++;
+            }
+        }
+
+        MENU_LOG_INFO("Finder_Undo: Restored %d of %d items from Trash\n",
+                      restored, g_finderUndo.count);
+
+        /* Refresh the front window to show restored items */
+        extern WindowPtr FrontWindow(void);
+        extern Boolean IsFolderWindow(WindowPtr w);
+        WindowPtr front = FrontWindow();
+        if (front && IsFolderWindow(front)) {
+            extern void InitializeFolderContentsEx(WindowPtr w, Boolean isTrash,
+                                                    VRefNum vref, DirID dirID);
+            extern VRefNum FolderWindow_GetVRef(WindowPtr w);
+            extern DirID FolderWindow_GetCurrentDir(WindowPtr w);
+            InitializeFolderContentsEx(front, false,
+                                       FolderWindow_GetVRef(front),
+                                       FolderWindow_GetCurrentDir(front));
+            PostEvent(updateEvt, (UInt32)(uintptr_t)front);
+        }
+
+        /* Refresh trash icon */
+        extern void Desktop_RefreshTrashIcon(void);
+        Desktop_RefreshTrashIcon();
+
+        /* Clear undo state */
+        g_finderUndo.type = kFinderUndoNone;
+        g_finderUndo.count = 0;
+    }
 }
 
 void Finder_Cut(void) {
