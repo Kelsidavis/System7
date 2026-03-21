@@ -7,6 +7,9 @@
 #include <string.h>
 #include "Apps/SimpleText.h"
 #include "MemoryMgr/MemoryManager.h"
+#include "EventManager/EventManager.h"
+#include "DialogManager/DialogManager.h"
+#include "SoundManager/SoundManager.h"
 
 /* Utility macros for packing/unpacking longs */
 #define HiWord(x) ((short)(((unsigned long)(x) >> 16) & 0xFFFF))
@@ -15,7 +18,7 @@
 /* Menu item strings */
 static const unsigned char kAppleMenuItems[] = {22, 'A','b','o','u','t',' ','S','i','m','p','l','e','T','e','x','t','.','.','.', ';','-'};
 static const unsigned char kFileMenuItems[] = {89, 'N','e','w','/','N',';','O','p','e','n','.','.','.','/','O',';','-',';','C','l','o','s','e','/','W',';','S','a','v','e','/','S',';','S','a','v','e',' ','A','s','.','.','.','/','S',';','-',';','P','a','g','e',' ','S','e','t','u','p','.','.','.',';','P','r','i','n','t','.','.','.','/','P',';','-',';','Q','u','i','t','/','Q'};
-static const unsigned char kEditMenuItems[] = {47, 'U','n','d','o','/','Z',';','-',';','C','u','t','/','X',';','C','o','p','y','/','C',';','P','a','s','t','e','/','V',';','C','l','e','a','r',';','-',';','S','e','l','e','c','t',' ','A','l','l','/','A'};
+static const unsigned char kEditMenuItems[] = {74, 'U','n','d','o','/','Z',';','-',';','C','u','t','/','X',';','C','o','p','y','/','C',';','P','a','s','t','e','/','V',';','C','l','e','a','r',';','-',';','S','e','l','e','c','t',' ','A','l','l','/','A',';','-',';','F','i','n','d','.','.','.','/','F',';','F','i','n','d',' ','A','g','a','i','n','/','G'};
 static const unsigned char kFontMenuItems[] = {22, 'M','o','n','a','c','o',';','G','e','n','e','v','a',';','C','h','i','c','a','g','o'};
 static const unsigned char kSizeMenuItems[] = {62, '9',' ','P','o','i','n','t',';','1','0',' ','P','o','i','n','t',';','1','2',' ','P','o','i','n','t',';','1','4',' ','P','o','i','n','t',';','1','8',' ','P','o','i','n','t',';','2','4',' ','P','o','i','n','t'};
 static const unsigned char kStyleMenuItems[] = {28, 'P','l','a','i','n',';','B','o','l','d',';','I','t','a','l','i','c',';','U','n','d','e','r','l','i','n','e'};
@@ -355,6 +358,226 @@ static void HandleEditMenu(short item) {
         case iSelectAll:
             STClip_SelectAll(doc);
             break;
+
+        case iFind:
+            STFind_ShowDialog(doc);
+            break;
+
+        case iFindAgain:
+            STFind_Again(doc);
+            break;
+    }
+}
+
+/*
+ * STFind_ShowDialog - Show a simple Find dialog and search for text.
+ * Uses a modal dialog with a text prompt. On OK, searches forward from
+ * the current selection end and highlights the match.
+ */
+void STFind_ShowDialog(STDocument* doc) {
+    if (!doc || !doc->hTE) return;
+
+    extern void ShowWindow(WindowPtr);
+    extern void SystemTask(void);
+
+    /* Build a minimal DITL: OK button (1), Cancel button (2), edit text (3), prompt (4) */
+    Handle ditl = NewHandleClear(256);
+    if (!ditl) return;
+    HLock(ditl);
+    unsigned char* p = (unsigned char*)*ditl;
+
+    /* 4 items, count-1 = 3 */
+    *p++ = 0; *p++ = 3;
+
+    /* Item 1: Find button */
+    *p++ = 0; *p++ = 0; *p++ = 0; *p++ = 0;
+    *p++ = 0; *p++ = 70;  /* top */
+    *p++ = 0; *p++ = 180; /* left */
+    *p++ = 0; *p++ = 90;  /* bottom */
+    *p++ = 1; *p++ = 10;  /* right = 266 */
+    *p++ = 4;              /* btnCtrl */
+    *p++ = 4; *p++ = 'F'; *p++ = 'i'; *p++ = 'n'; *p++ = 'd';
+
+    /* Item 2: Cancel button */
+    *p++ = 0; *p++ = 0; *p++ = 0; *p++ = 0;
+    *p++ = 0; *p++ = 70;
+    *p++ = 0; *p++ = 90;
+    *p++ = 0; *p++ = 90;
+    *p++ = 0; *p++ = 170;
+    *p++ = 4;
+    *p++ = 6; *p++ = 'C'; *p++ = 'a'; *p++ = 'n'; *p++ = 'c'; *p++ = 'e'; *p++ = 'l';
+
+    /* Item 3: Edit text field for search string */
+    *p++ = 0; *p++ = 0; *p++ = 0; *p++ = 0;
+    *p++ = 0; *p++ = 32;  /* top */
+    *p++ = 0; *p++ = 10;  /* left */
+    *p++ = 0; *p++ = 52;  /* bottom */
+    *p++ = 1; *p++ = 10;  /* right = 266 */
+    *p++ = 16;             /* editText */
+    /* Pre-fill with previous search text */
+    {
+        int slen = 0;
+        while (g_ST.searchText[slen] && slen < 250) slen++;
+        *p++ = (unsigned char)slen;
+        for (int i = 0; i < slen; i++) *p++ = (unsigned char)g_ST.searchText[i];
+    }
+
+    /* Item 4: Static text prompt */
+    *p++ = 0; *p++ = 0; *p++ = 0; *p++ = 0;
+    *p++ = 0; *p++ = 10;
+    *p++ = 0; *p++ = 10;
+    *p++ = 0; *p++ = 26;
+    *p++ = 1; *p++ = 10;
+    *p++ = 8;  /* statText */
+    *p++ = 5; *p++ = 'F'; *p++ = 'i'; *p++ = 'n'; *p++ = 'd'; *p++ = ':';
+
+    HUnlock(ditl);
+
+    Rect bounds = {120, 120, 230, 400};
+    static unsigned char title[] = {4, 'F','i','n','d'};
+    DialogPtr dlg = NewDialog(NULL, &bounds, title, true, 1 /* dBoxProc */,
+                              (WindowPtr)-1, false, 0, ditl);
+    if (!dlg) {
+        DisposeHandle(ditl);
+        return;
+    }
+
+    ShowWindow((WindowPtr)dlg);
+
+    /* Modal dialog event loop */
+    Boolean done = false;
+    short itemHit = 0;
+    while (!done) {
+        EventRecord event;
+        if (GetNextEvent(everyEvent, &event)) {
+            if (IsDialogEvent(&event)) {
+                DialogPtr whichDlg;
+                short item;
+                if (DialogSelect(&event, &whichDlg, &item)) {
+                    if (whichDlg == dlg) {
+                        itemHit = item;
+                        done = (item == 1 || item == 2);  /* Find or Cancel */
+                    }
+                }
+            }
+            if (event.what == 3 /* keyDown */) {
+                char ch = event.message & 0xFF;
+                if (ch == '\r' || ch == 0x03) { itemHit = 1; done = true; }
+                if (ch == 0x1B) { itemHit = 2; done = true; }
+            }
+        }
+        SystemTask();
+    }
+
+    /* Extract search text from edit field (item 3) */
+    if (itemHit == 1) {
+        SInt16 itemType;
+        Handle itemH;
+        Rect itemBox;
+        extern void GetDialogItem(DialogPtr, SInt16, SInt16*, Handle*, Rect*);
+        extern void GetDialogItemText(Handle, unsigned char*);
+        GetDialogItem(dlg, 3, &itemType, &itemH, &itemBox);
+        if (itemH) {
+            unsigned char pstr[256];
+            GetDialogItemText(itemH, pstr);
+            int len = pstr[0];
+            if (len > 255) len = 255;
+            memcpy(g_ST.searchText, &pstr[1], len);
+            g_ST.searchText[len] = '\0';
+            g_ST.searchOffset = 0;
+        }
+    }
+
+    DisposeDialog(dlg);
+
+    /* Perform the search if Find was clicked */
+    if (itemHit == 1 && g_ST.searchText[0]) {
+        /* Start searching from current selection end */
+        TERec* te = *doc->hTE;
+        g_ST.searchOffset = te->selEnd;
+        STFind_Again(doc);
+    }
+}
+
+/*
+ * STFind_Again - Find next occurrence of the search text.
+ * Searches forward from searchOffset, wrapping to beginning if needed.
+ */
+void STFind_Again(STDocument* doc) {
+    if (!doc || !doc->hTE || !g_ST.searchText[0]) {
+        SysBeep(10);
+        return;
+    }
+
+    TERec* te = *doc->hTE;
+    Handle hText = te->hText;
+    if (!hText || !*hText) {
+        SysBeep(10);
+        return;
+    }
+
+    const char* text = (const char*)*hText;
+    SInt16 textLen = te->teLength;
+    int searchLen = 0;
+    while (g_ST.searchText[searchLen]) searchLen++;
+
+    if (searchLen == 0 || searchLen > textLen) {
+        SysBeep(10);
+        return;
+    }
+
+    /* Search forward from current offset */
+    SInt16 startPos = g_ST.searchOffset;
+    if (startPos < 0) startPos = 0;
+    if (startPos > textLen) startPos = 0;
+
+    Boolean found = false;
+    SInt16 foundPos = -1;
+
+    /* Search from startPos to end */
+    for (SInt16 i = startPos; i <= textLen - searchLen; i++) {
+        Boolean match = true;
+        for (int j = 0; j < searchLen; j++) {
+            if (text[i + j] != g_ST.searchText[j]) {
+                match = false;
+                break;
+            }
+        }
+        if (match) {
+            foundPos = i;
+            found = true;
+            break;
+        }
+    }
+
+    /* Wrap around: search from beginning to startPos */
+    if (!found && startPos > 0) {
+        SInt16 limit = startPos - 1;
+        if (limit > textLen - searchLen) limit = textLen - searchLen;
+        for (SInt16 i = 0; i <= limit; i++) {
+            Boolean match = true;
+            for (int j = 0; j < searchLen; j++) {
+                if (text[i + j] != g_ST.searchText[j]) {
+                    match = false;
+                    break;
+                }
+            }
+            if (match) {
+                foundPos = i;
+                found = true;
+                break;
+            }
+        }
+    }
+
+    if (found) {
+        TESetSelect(foundPos, foundPos + searchLen, doc->hTE);
+        g_ST.searchOffset = foundPos + searchLen;
+        /* Scroll to show selection */
+        extern void TESelView(TEHandle hTE);
+        TESelView(doc->hTE);
+    } else {
+        SysBeep(10);  /* Not found beep */
     }
 }
 

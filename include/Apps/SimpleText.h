@@ -61,6 +61,8 @@ enum {
     iPaste = 5,
     iClear = 6,
     iSelectAll = 8,
+    iFind = 10,       /* After separator at 9 */
+    iFindAgain = 11,
 
     /* Font Menu - dynamic */
     iMonaco = 1,
@@ -131,6 +133,8 @@ typedef struct STGlobals {
     SInt16          currentFont;    /* Current font ID */
     SInt16          currentSize;    /* Current font size */
     Style           currentStyle;   /* Current style flags */
+    char            searchText[256]; /* Last Find search string */
+    SInt16          searchOffset;    /* Offset to resume Find Again from */
 } STGlobals;
 
 /* Function prototypes */
@@ -198,6 +202,10 @@ extern void STClip_SelectAll(STDocument* doc);
 extern Boolean STClip_HasText(void);
 extern void STClip_Undo(STDocument* doc);
 extern void STClip_SaveUndo(STDocument* doc);
+
+/* STFind - Find operations */
+extern void STFind_ShowDialog(STDocument* doc);
+extern void STFind_Again(STDocument* doc);
 
 /* Utility functions */
 extern void ST_Log(const char* fmt, ...);
