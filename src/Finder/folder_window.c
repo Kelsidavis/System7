@@ -269,11 +269,25 @@ void DrawFolderWindowContents(WindowPtr window, Boolean isTrash)
         DrawText("About System 7", 0, 14);
         FINDER_LOG_DEBUG("[TEXT] 'About System 7' at(l)={%d,%d} font=%d size=%d\n", x - 26, y + 40, 0, 9);
 
-        /* Show disk space at bottom */
-        MoveTo(contentRect.left + 10, contentRect.bottom - 10);
-        DrawText("5 items     42.3 MB in disk     193.7 MB available", 0, 52);
-        FINDER_LOG_DEBUG("[TEXT] 'disk info' at(l)={%d,%d} font=%d size=%d\n",
-                      contentRect.left + 10, contentRect.bottom - 10, 0, 9);
+        /* Show disk space at bottom - query real VFS volume info */
+        {
+            extern bool VFS_GetVolumeInfo(VRefNum vref, VolumeControlBlock* vcb);
+            VRefNum bootVref = VFS_GetBootVRef();
+            VolumeControlBlock vcb;
+            memset(&vcb, 0, sizeof(vcb));
+            char infoBuf[80];
+            if (VFS_GetVolumeInfo(bootVref, &vcb)) {
+                unsigned usedMB10 = (unsigned)(((vcb.totalBytes - vcb.freeBytes) * 10 + 524288) / 1048576);
+                unsigned freeMB10 = (unsigned)((vcb.freeBytes * 10 + 524288) / 1048576);
+                int len = sprintf(infoBuf, "5 items     %u.%u MB in disk     %u.%u MB available",
+                                  usedMB10 / 10, usedMB10 % 10, freeMB10 / 10, freeMB10 % 10);
+                MoveTo(contentRect.left + 10, contentRect.bottom - 10);
+                DrawText(infoBuf, 0, len);
+            } else {
+                MoveTo(contentRect.left + 10, contentRect.bottom - 10);
+                DrawText("5 items", 0, 7);
+            }
+        }
     }
 
     SetPort(savePort);
@@ -1818,6 +1832,73 @@ void FolderWindow_Draw(WindowPtr w) {
                               localY,        /* top Y (local) */
                               selected);
         }
+    }
+
+    /* Draw status bar at bottom of window with item count and disk space */
+    if (state && state->items) {
+        short bottom = w->port.portRect.bottom;
+        short left = w->port.portRect.left;
+        short right = w->port.portRect.right;
+
+        /* Draw separator line above status bar */
+        short statusY = bottom - 16;
+        MoveTo(left, statusY);
+        LineTo(right, statusY);
+
+        /* Calculate total size of items in this folder */
+        uint64_t totalSize = 0;
+        for (short i = 0; i < state->itemCount; i++) {
+            totalSize += state->items[i].size;
+        }
+
+        /* Query disk space from VFS */
+        uint64_t diskUsed = 0;
+        uint64_t diskFree = 0;
+        {
+            extern bool VFS_GetVolumeInfo(VRefNum vref, VolumeControlBlock* vcb);
+            VolumeControlBlock vcb;
+            memset(&vcb, 0, sizeof(vcb));
+            if (VFS_GetVolumeInfo(state->vref, &vcb)) {
+                diskUsed = vcb.totalBytes - vcb.freeBytes;
+                diskFree = vcb.freeBytes;
+            }
+        }
+
+        /* Format status text: "X items     Y MB in disk     Z MB available" */
+        char statusBuf[128];
+        int pos = 0;
+
+        /* Item count */
+        if (state->itemCount == 1) {
+            pos += sprintf(&statusBuf[pos], "1 item");
+        } else {
+            pos += sprintf(&statusBuf[pos], "%d items", state->itemCount);
+        }
+
+        /* Disk used */
+        pos += sprintf(&statusBuf[pos], "     ");
+        if (diskUsed < 1048576) {
+            pos += sprintf(&statusBuf[pos], "%uK in disk",
+                          (unsigned)(diskUsed / 1024));
+        } else {
+            unsigned mb10 = (unsigned)((diskUsed * 10 + 524288) / 1048576);
+            pos += sprintf(&statusBuf[pos], "%u.%u MB in disk",
+                          mb10 / 10, mb10 % 10);
+        }
+
+        /* Disk free */
+        pos += sprintf(&statusBuf[pos], "     ");
+        if (diskFree < 1048576) {
+            pos += sprintf(&statusBuf[pos], "%uK available",
+                          (unsigned)(diskFree / 1024));
+        } else {
+            unsigned mb10 = (unsigned)((diskFree * 10 + 524288) / 1048576);
+            pos += sprintf(&statusBuf[pos], "%u.%u MB available",
+                          mb10 / 10, mb10 % 10);
+        }
+
+        MoveTo(left + 8, bottom - 4);
+        DrawText(statusBuf, 0, pos);
     }
 
     SetPort(savePort);
