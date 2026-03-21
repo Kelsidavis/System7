@@ -364,10 +364,24 @@ Boolean HandleMouseDown(EventRecord* event)
             /* Resize window using grow box */
             if (whichWindow) {
                 EVT_LOG_DEBUG("Grow window %p\n", (void*)whichWindow);
-                /* Call GrowWindow directly instead of TrackBox to handle resize properly */
                 extern long GrowWindow(WindowPtr theWindow, Point startPt, const Rect* bBox);
-                long newSize = GrowWindow(whichWindow, event->where, NULL);
-                EVT_LOG_DEBUG("GrowWindow returned size=0x%08lX\n", newSize);
+                extern void SizeWindow(WindowPtr theWindow, short w, short h, Boolean fUpdate);
+
+                /* Set minimum/maximum size bounds for resize */
+                Rect sizeRect;
+                sizeRect.left = 200;   /* Min width */
+                sizeRect.top = 150;    /* Min height */
+                sizeRect.right = 2000; /* Max width */
+                sizeRect.bottom = 2000;/* Max height */
+
+                long newSize = GrowWindow(whichWindow, event->where, &sizeRect);
+                if (newSize != 0) {
+                    short newWidth = newSize & 0xFFFF;
+                    short newHeight = (newSize >> 16) & 0xFFFF;
+                    SizeWindow(whichWindow, newWidth, newHeight, true);
+                    EVT_LOG_DEBUG("SizeWindow(%p, %d, %d)\n",
+                                 (void*)whichWindow, newWidth, newHeight);
+                }
             }
             return true;
 
