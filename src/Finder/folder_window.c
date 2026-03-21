@@ -1480,7 +1480,13 @@ Boolean HandleFolderWindowClick(WindowPtr w, EventRecord *ev, Boolean isDoubleCl
             }
         }
 
-        if (oldSel != hitIndex) {
+        if (oldSel == hitIndex && !shiftHeld) {
+            /* Click on already-selected item — initiate rename after delay.
+             * In real System 7, this starts inline text editing. We use a
+             * modal dialog as a simpler approach. */
+            extern void FolderWindow_RenameItem(WindowPtr w, short itemIndex);
+            FolderWindow_RenameItem(w, hitIndex);
+        } else if (oldSel != hitIndex) {
             PostEvent(updateEvt, (UInt32)(uintptr_t)w);
         }
     } else {
@@ -2487,6 +2493,133 @@ Boolean FolderWindow_GetSelectedItem(WindowPtr w, VRefNum* outVref, FileID* outF
 }
 
 /* Delete selected items from folder window */
+/*
+ * FolderWindow_RenameItem - Show a rename dialog for the specified item.
+ * In real System 7, this would be inline text editing on the icon label.
+ * We use a modal dialog as a simpler implementation.
+ */
+void FolderWindow_RenameItem(WindowPtr w, short itemIndex) {
+    if (!w || !IsFolderWindow(w)) return;
+    FolderWindowState* state = GetFolderState(w);
+    if (!state || !state->items || itemIndex < 0 || itemIndex >= state->itemCount) return;
+
+    extern DialogPtr NewDialog(void*, const Rect*, const unsigned char*, Boolean, SInt16,
+                               WindowPtr, Boolean, SInt32, Handle);
+    extern void DisposeDialog(DialogPtr);
+    extern Boolean IsDialogEvent(const EventRecord*);
+    extern Boolean DialogSelect(const EventRecord*, DialogPtr*, short*);
+    extern void ShowWindow(WindowPtr);
+    extern Boolean GetNextEvent(unsigned int, EventRecord*);
+    extern void SystemTask(void);
+    extern void GetDialogItem(DialogPtr, SInt16, SInt16*, Handle*, Rect*);
+    extern void GetDialogItemText(Handle, unsigned char*);
+    extern Boolean FSRename(VRefNum vref, DirID dirID, const char* oldName, const char* newName);
+
+    /* Build DITL: prompt(1), OK(2), Cancel(3), edit text(4) */
+    Handle ditl = NewHandleClear(512);
+    if (!ditl) return;
+    HLock(ditl);
+    unsigned char* p = (unsigned char*)*ditl;
+
+    *p++ = 0; *p++ = 3;  /* 4 items, count-1 = 3 */
+
+    /* Item 1: Prompt */
+    *p++ = 0; *p++ = 0; *p++ = 0; *p++ = 0;
+    *p++ = 0; *p++ = 10; *p++ = 0; *p++ = 10;
+    *p++ = 0; *p++ = 26; *p++ = 1; *p++ = 20;
+    *p++ = 8;
+    *p++ = 16; memcpy(p, "Enter new name:", 15); p[15] = ' '; p += 16;
+
+    /* Item 2: OK button */
+    *p++ = 0; *p++ = 0; *p++ = 0; *p++ = 0;
+    *p++ = 0; *p++ = 70; *p++ = 0; *p++ = 200;
+    *p++ = 0; *p++ = 90; *p++ = 1; *p++ = 20;
+    *p++ = 4;
+    *p++ = 6; *p++ = 'R'; *p++ = 'e'; *p++ = 'n'; *p++ = 'a'; *p++ = 'm'; *p++ = 'e';
+
+    /* Item 3: Cancel button */
+    *p++ = 0; *p++ = 0; *p++ = 0; *p++ = 0;
+    *p++ = 0; *p++ = 70; *p++ = 0; *p++ = 100;
+    *p++ = 0; *p++ = 90; *p++ = 0; *p++ = 190;
+    *p++ = 4;
+    *p++ = 6; *p++ = 'C'; *p++ = 'a'; *p++ = 'n'; *p++ = 'c'; *p++ = 'e'; *p++ = 'l';
+
+    /* Item 4: Edit text with current name */
+    *p++ = 0; *p++ = 0; *p++ = 0; *p++ = 0;
+    *p++ = 0; *p++ = 34; *p++ = 0; *p++ = 10;
+    *p++ = 0; *p++ = 54; *p++ = 1; *p++ = 20;
+    *p++ = 16;  /* editText */
+    {
+        int nameLen = 0;
+        while (state->items[itemIndex].name[nameLen] && nameLen < 250) nameLen++;
+        *p++ = (unsigned char)nameLen;
+        memcpy(p, state->items[itemIndex].name, nameLen);
+        p += nameLen;
+    }
+
+    HUnlock(ditl);
+
+    Rect bounds = {130, 110, 240, 400};
+    static unsigned char title[] = {0};
+    DialogPtr dlg = NewDialog(NULL, &bounds, title, true, 1,
+                              (WindowPtr)-1, false, 0, ditl);
+    if (!dlg) { DisposeHandle(ditl); return; }
+
+    ShowWindow((WindowPtr)dlg);
+
+    /* Modal event loop */
+    short itemHit = 0;
+    Boolean done = false;
+    while (!done) {
+        EventRecord event;
+        if (GetNextEvent(0xFFFF, &event)) {
+            if (IsDialogEvent(&event)) {
+                DialogPtr whichDlg; short item;
+                if (DialogSelect(&event, &whichDlg, &item)) {
+                    if (whichDlg == dlg && (item == 2 || item == 3)) {
+                        itemHit = item; done = true;
+                    }
+                }
+            }
+            if (event.what == 3) {
+                char ch = event.message & 0xFF;
+                if (ch == '\r' || ch == 0x03) { itemHit = 2; done = true; }
+                if (ch == 0x1B) { itemHit = 3; done = true; }
+            }
+        }
+        SystemTask();
+    }
+
+    if (itemHit == 2) {
+        /* Get new name from edit field */
+        SInt16 iType; Handle iH; Rect iBox;
+        GetDialogItem(dlg, 4, &iType, &iH, &iBox);
+        if (iH) {
+            unsigned char pstr[256];
+            GetDialogItemText(iH, pstr);
+            int newLen = pstr[0];
+            if (newLen > 0 && newLen < 256) {
+                char newName[256];
+                memcpy(newName, &pstr[1], newLen);
+                newName[newLen] = '\0';
+
+                /* Only rename if name actually changed */
+                if (strcmp(newName, state->items[itemIndex].name) != 0) {
+                    extern bool VFS_Rename(VRefNum vref, FileID id, const char* newName);
+                    if (VFS_Rename(state->vref,
+                                   state->items[itemIndex].fileID, newName)) {
+                        strncpy(state->items[itemIndex].name, newName, 255);
+                        state->items[itemIndex].name[255] = '\0';
+                        PostEvent(updateEvt, (UInt32)(uintptr_t)w);
+                    }
+                }
+            }
+        }
+    }
+
+    DisposeDialog(dlg);
+}
+
 void FolderWindow_DeleteSelected(WindowPtr w) {
     extern void SetWatchCursor(void);
     extern void InitCursor(void);
