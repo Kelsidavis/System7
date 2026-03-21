@@ -1636,12 +1636,36 @@ static void FormatMacDateShort(uint32_t macTime, char* out, int outSize) {
  */
 static const char* GetFileKindString(const FolderItem* item) {
     if (item->isFolder) return "folder";
-    if (item->type == 0x4150504C) return "application";  /* 'APPL' */
-    if (item->type == 0x54455854) return "document";      /* 'TEXT' */
-    if (item->type == 0x50494354) return "picture";       /* 'PICT' */
-    if (item->type == 0x73637462) return "color table";   /* 'sctb' */
-    if (item->type == 0x73746E72) return "stationery";    /* 'stnr' */
-    if (item->type == 0x616C6973) return "alias";         /* 'alis' */
+
+    /* Match by type code — common Mac OS file types */
+    switch (item->type) {
+        case 0x4150504C: return "application";      /* 'APPL' */
+        case 0x54455854: return "text document";     /* 'TEXT' */
+        case 0x50494354: return "picture";           /* 'PICT' */
+        case 0x73637462: return "color table";       /* 'sctb' */
+        case 0x73746E72: return "stationery pad";    /* 'stnr' */
+        case 0x616C6973: return "alias";             /* 'alis' */
+        case 0x41494646: return "AIFF sound";        /* 'AIFF' */
+        case 0x4D6F6F56: return "QuickTime movie";  /* 'MooV' */
+        case 0x47494666: return "GIF image";         /* 'GIFf' */
+        case 0x4A504547: return "JPEG image";        /* 'JPEG' */
+        case 0x50445620: return "Preferences";       /* 'PDV ' */
+        case 0x63646576: return "control panel";     /* 'cdev' */
+        case 0x46445256: return "desk accessory";    /* 'FDRV' */
+        case 0x44525652: return "driver";            /* 'DRVR' */
+        case 0x494E4954: return "extension";         /* 'INIT' */
+        case 0x7A737973: return "system file";       /* 'zsys' */
+        case 0x74686E67: return "clipping";          /* 'thng' */
+        case 0x736E6420: return "sound";             /* 'snd ' */
+        case 0x464F4E54: return "font";              /* 'FONT' */
+        case 0x73756974: return "font suitcase";     /* 'suit' */
+        default: break;
+    }
+
+    /* Match by creator for specific apps */
+    if (item->creator == 0x74747874) return "SimpleText doc";  /* 'ttxt' */
+    if (item->creator == 0x4D414353) return "system document";  /* 'MACS' */
+
     return "document";  /* Default kind for unknown types */
 }
 
