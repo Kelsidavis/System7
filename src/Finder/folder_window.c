@@ -768,12 +768,18 @@ WindowPtr FolderWindow_OpenFolder(VRefNum vref, DirID dirID, ConstStr255Param ti
 
     FINDER_LOG_DEBUG("FolderWindow_OpenFolder: vref=%d dirID=%d\n", (int)vref, (int)dirID);
 
-    /* Create window with same geometry as generic folder windows */
+    /* Cascade window positions — each new window offsets by 20px so they
+     * don't stack directly on top of each other (classic System 7 behavior) */
+    static short sCascadeOffset = 0;
     static Rect r;
-    r.left = 10;
-    r.top = 80;
-    r.right = 490;
-    r.bottom = 420;
+    r.left = 10 + sCascadeOffset;
+    r.top = 80 + sCascadeOffset;
+    r.right = 490 + sCascadeOffset;
+    r.bottom = 420 + sCascadeOffset;
+
+    /* Advance cascade, wrap around if windows would go off screen */
+    sCascadeOffset += 20;
+    if (sCascadeOffset > 120) sCascadeOffset = 0;
 
     WindowPtr w = NewWindow(NULL, &r, title, true, 0 /* documentProc */, (WindowPtr)-1, true, 'DISK');
 
