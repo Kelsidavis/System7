@@ -551,13 +551,147 @@ void ST_Beep(void) {
 }
 
 /*
- * ST_ConfirmClose - Show close confirmation dialog
+ * ST_ConfirmClose - Show "Save changes?" confirmation dialog.
+ *
+ * Classic Mac OS dialog with three buttons:
+ *   Save (1) - save then close
+ *   Cancel (2) - abort close
+ *   Don't Save (3) - discard changes and close
+ *
+ * Returns true if close should proceed, false if cancelled.
  */
 Boolean ST_ConfirmClose(STDocument* doc) {
-    /* TODO: Show proper dialog */
-    /* For now, always allow close */
-    ST_Log("Close confirmation for %s\n", doc->fileName);
-    return true;
+    extern DialogPtr NewDialog(void*, const Rect*, const unsigned char*, Boolean, SInt16,
+                               WindowPtr, Boolean, SInt32, Handle);
+    extern void DisposeDialog(DialogPtr);
+    extern Boolean IsDialogEvent(const EventRecord*);
+    extern Boolean DialogSelect(const EventRecord*, DialogPtr*, short*);
+    extern void ShowWindow(WindowPtr);
+    extern Boolean GetNextEvent(unsigned int, EventRecord*);
+    extern void SystemTask(void);
+
+    if (!doc) return true;
+
+    ST_Log("Confirm close for '%s' (dirty=%d)\n", doc->fileName, doc->dirty);
+
+    /* Build DITL: prompt (1=statText), Save (2=btn), Cancel (3=btn), Don't Save (4=btn) */
+    Handle ditl = NewHandleClear(512);
+    if (!ditl) return true;  /* Can't show dialog, allow close */
+
+    HLock(ditl);
+    unsigned char* p = (unsigned char*)*ditl;
+
+    /* 4 items, count-1 = 3 */
+    *p++ = 0; *p++ = 3;
+
+    /* Item 1: Prompt static text */
+    *p++ = 0; *p++ = 0; *p++ = 0; *p++ = 0;
+    *p++ = 0; *p++ = 10;  /* top */
+    *p++ = 0; *p++ = 10;  /* left */
+    *p++ = 0; *p++ = 50;  /* bottom */
+    *p++ = 1; *p++ = 30;  /* right = 286 */
+    *p++ = 8;              /* statText */
+    /* Build prompt: "Save changes to 'name' before closing?" */
+    {
+        char msg[200];
+        int mlen = snprintf(msg, sizeof(msg),
+                           "Save changes to \"%s\" before closing?", doc->fileName);
+        if (mlen > 200) mlen = 200;
+        *p++ = (unsigned char)mlen;
+        memcpy(p, msg, mlen);
+        p += mlen;
+    }
+
+    /* Item 2: Save button (default - bottom right) */
+    *p++ = 0; *p++ = 0; *p++ = 0; *p++ = 0;
+    *p++ = 0; *p++ = 60;  /* top */
+    *p++ = 0; *p++ = 210; /* left */
+    *p++ = 0; *p++ = 80;  /* bottom */
+    *p++ = 1; *p++ = 30;  /* right = 286 */
+    *p++ = 4;              /* ctrlItem + btnCtrl */
+    *p++ = 4; *p++ = 'S'; *p++ = 'a'; *p++ = 'v'; *p++ = 'e';
+
+    /* Item 3: Cancel button (bottom center) */
+    *p++ = 0; *p++ = 0; *p++ = 0; *p++ = 0;
+    *p++ = 0; *p++ = 60;
+    *p++ = 0; *p++ = 110;
+    *p++ = 0; *p++ = 80;
+    *p++ = 0; *p++ = 200;
+    *p++ = 4;
+    *p++ = 6; *p++ = 'C'; *p++ = 'a'; *p++ = 'n'; *p++ = 'c'; *p++ = 'e'; *p++ = 'l';
+
+    /* Item 4: Don't Save button (bottom left) */
+    *p++ = 0; *p++ = 0; *p++ = 0; *p++ = 0;
+    *p++ = 0; *p++ = 60;
+    *p++ = 0; *p++ = 10;
+    *p++ = 0; *p++ = 80;
+    *p++ = 0; *p++ = 100;
+    *p++ = 4;
+    *p++ = 10;
+    memcpy(p, "Don\xD5t Save", 10);  /* 0xD5 = curly apostrophe in Mac Roman */
+    p += 10;
+
+    HUnlock(ditl);
+
+    Rect bounds = {140, 120, 240, 420};
+    static unsigned char title[] = {0};  /* No title for alert-style dialog */
+    DialogPtr dlg = NewDialog(NULL, &bounds, title, true, 1 /* dBoxProc */,
+                              (WindowPtr)-1, false, 0, ditl);
+    if (!dlg) {
+        DisposeHandle(ditl);
+        return true;
+    }
+
+    ShowWindow((WindowPtr)dlg);
+
+    /* Modal event loop */
+    short itemHit = 0;
+    Boolean done = false;
+    while (!done) {
+        EventRecord event;
+        if (GetNextEvent(0xFFFF, &event)) {
+            if (IsDialogEvent(&event)) {
+                DialogPtr whichDlg;
+                short item;
+                if (DialogSelect(&event, &whichDlg, &item)) {
+                    if (whichDlg == dlg) {
+                        itemHit = item;
+                        done = (item >= 2 && item <= 4);
+                    }
+                }
+            }
+            /* Keyboard shortcuts */
+            if (event.what == 3 /* keyDown */) {
+                char ch = event.message & 0xFF;
+                if (ch == '\r' || ch == 0x03) { itemHit = 2; done = true; }  /* Return = Save */
+                if (ch == 0x1B) { itemHit = 3; done = true; }  /* Escape = Cancel */
+                if (ch == 'd' || ch == 'D') { itemHit = 4; done = true; }  /* D = Don't Save */
+            }
+        }
+        SystemTask();
+    }
+
+    DisposeDialog(dlg);
+
+    ST_Log("Confirm close result: item=%d\n", itemHit);
+
+    switch (itemHit) {
+        case 2: {
+            /* Save - save the document then proceed with close */
+            extern void STDoc_Save(STDocument* doc);
+            STDoc_Save(doc);
+            return true;  /* Proceed with close */
+        }
+        case 3:
+            /* Cancel - abort the close */
+            return false;
+        case 4:
+            /* Don't Save - discard changes, proceed with close */
+            doc->dirty = false;
+            return true;
+        default:
+            return false;  /* Unknown = cancel */
+    }
 }
 
 /*
