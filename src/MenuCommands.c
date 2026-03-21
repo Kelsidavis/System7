@@ -157,6 +157,65 @@ void DoMenuCommand(short menuID, short item)
     HiliteMenu(0);
 }
 
+/*
+ * Finder_AdjustMenus - Enable/disable menu items based on current context.
+ * Called before MenuSelect to ensure grayed items reflect selection state.
+ * This is the standard System 7 menu adjustment pattern.
+ */
+void Finder_AdjustMenus(void) {
+    extern WindowPtr FrontWindow(void);
+    extern Boolean IsFolderWindow(WindowPtr w);
+    extern MenuHandle GetMenuHandle(short menuID);
+    extern void EnableItem(MenuHandle theMenu, short item);
+    extern void DisableItem(MenuHandle theMenu, short item);
+
+    WindowPtr front = FrontWindow();
+    Boolean hasFolderWindow = (front && IsFolderWindow(front));
+    Boolean hasSelection = false;
+
+    /* Check if any items are selected in the front folder window */
+    if (hasFolderWindow) {
+        extern Boolean FolderWindow_HasSelection(WindowPtr w);
+        hasSelection = FolderWindow_HasSelection(front);
+    }
+
+    /* Adjust Edit menu */
+    MenuHandle editMenu = GetMenuHandle(kEditMenuID);
+    if (editMenu) {
+        if (hasSelection) {
+            EnableItem(editMenu, kCutItem);
+            EnableItem(editMenu, kCopyItem);
+            EnableItem(editMenu, kClearItem);
+        } else {
+            DisableItem(editMenu, kCutItem);
+            DisableItem(editMenu, kCopyItem);
+            DisableItem(editMenu, kClearItem);
+        }
+    }
+
+    /* Adjust File menu */
+    MenuHandle fileMenu = GetMenuHandle(kFileMenuID);
+    if (fileMenu) {
+        if (hasSelection) {
+            EnableItem(fileMenu, kOpenItem);
+            EnableItem(fileMenu, kGetInfoItem);
+            EnableItem(fileMenu, kDuplicateItem);
+            EnableItem(fileMenu, kMakeAliasItem);
+        } else {
+            DisableItem(fileMenu, kOpenItem);
+            DisableItem(fileMenu, kGetInfoItem);
+            DisableItem(fileMenu, kDuplicateItem);
+            DisableItem(fileMenu, kMakeAliasItem);
+        }
+        /* Close is always enabled when a window is front */
+        if (front) {
+            EnableItem(fileMenu, kCloseItem);
+        } else {
+            DisableItem(fileMenu, kCloseItem);
+        }
+    }
+}
+
 /* Apple Menu Handler */
 static Boolean GetMenuItemCString(short menuID, short item, char *out, size_t outSize)
 {

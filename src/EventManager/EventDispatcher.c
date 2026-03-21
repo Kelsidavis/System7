@@ -275,6 +275,11 @@ Boolean HandleMouseDown(EventRecord* event)
 
     switch (windowPart) {
         case inMenuBar:
+            /* Adjust menu enable states before showing menus */
+            {
+                extern void Finder_AdjustMenus(void);
+                Finder_AdjustMenus();
+            }
             /* Handle menu selection */
             {
                 long menuChoice = MenuSelect(event->where);

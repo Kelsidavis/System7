@@ -2131,6 +2131,23 @@ void FolderWindow_SelectAll(WindowPtr w) {
 }
 
 /*
+/*
+ * FolderWindow_HasSelection - Check if any items are selected.
+ */
+Boolean FolderWindow_HasSelection(WindowPtr w) {
+    if (!w || !IsFolderWindow(w)) return false;
+    FolderWindowState* state = GetFolderState(w);
+    if (!state) return false;
+    if (state->selectedIndex >= 0) return true;
+    if (state->selectedItems) {
+        for (short i = 0; i < state->itemCount; i++) {
+            if (state->selectedItems[i]) return true;
+        }
+    }
+    return false;
+}
+
+/*
  * FolderWindow_GetViewMode - Return the current view mode for a folder window.
  * Returns 0 if window is not a folder window.
  */
