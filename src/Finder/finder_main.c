@@ -813,10 +813,16 @@ void HandleKeyDown(EventRecord* event) {
 
     /* Check for command key shortcuts */
     if (event->modifiers & cmdKey) {
-        /* Cmd+Delete = Move to Trash (standard System 7 shortcut) */
+        /* Cmd+Shift+Delete = Empty Trash (power-user shortcut) */
+        /* Cmd+Delete = Move selected to Trash */
         if (charCode == kDeleteKey) {
-            extern void Finder_Clear(void);
-            Finder_Clear();
+            if (event->modifiers & shiftKey) {
+                extern OSErr EmptyTrash(Boolean force);
+                EmptyTrash(false);  /* false = show confirmation dialog */
+            } else {
+                extern void Finder_Clear(void);
+                Finder_Clear();
+            }
             return;
         }
 
