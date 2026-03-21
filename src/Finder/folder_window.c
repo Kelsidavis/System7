@@ -3331,12 +3331,13 @@ FINDER_LOG_DEBUG("CleanupFolderWindow: cleaning up window 0x%08x\n", (unsigned i
             gFolderWindows[i].window = NULL;
             FINDER_LOG_DEBUG("CleanupFolderWindow: window pointer now=0x%08x\n",
                           (unsigned int)P2UL(gFolderWindows[i].window));
-            FINDER_LOG_DEBUG("CleanupFolderWindow: clearing items pointer\n");
             gFolderWindows[i].state.items = NULL;
-            FINDER_LOG_DEBUG("CleanupFolderWindow: clearing itemCount\n");
+            gFolderWindows[i].state.selectedItems = NULL;
             gFolderWindows[i].state.itemCount = 0;
-            FINDER_LOG_DEBUG("CleanupFolderWindow: clearing selectedIndex\n");
             gFolderWindows[i].state.selectedIndex = -1;
+            gFolderWindows[i].state.viewMode = kViewByIcon;
+            gFolderWindows[i].state.scrollOffset = 0;
+            gFolderWindows[i].state.typeAheadLen = 0;
 
             FINDER_LOG_DEBUG("CleanupFolderWindow: slot %d cleared\n", i);
             FINDER_LOG_DEBUG("CleanupFolderWindow: about to return\n");
