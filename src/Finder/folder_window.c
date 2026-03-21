@@ -2152,12 +2152,26 @@ void FolderWindow_ArrowKey(WindowPtr w, Boolean isDown) {
     if (!state || !state->items || state->itemCount == 0) return;
 
     short newIndex = state->selectedIndex;
+    if (newIndex < 0) newIndex = 0;
 
-    if (isDown) {
-        if (newIndex < state->itemCount - 1) newIndex++;
+    if (state->viewMode >= kViewByName) {
+        /* List view: up/down moves by one row */
+        if (isDown) {
+            if (newIndex < state->itemCount - 1) newIndex++;
+        } else {
+            if (newIndex > 0) newIndex--;
+        }
     } else {
-        if (newIndex > 0) newIndex--;
-        else if (newIndex < 0) newIndex = 0;
+        /* Icon view: up/down moves vertically by one grid row (maxCols items) */
+        short windowWidth = w->port.portRect.right - w->port.portRect.left;
+        short maxCols = (windowWidth - 20) / (80 + 10);
+        if (maxCols < 1) maxCols = 1;
+
+        if (isDown) {
+            if (newIndex + maxCols < state->itemCount) newIndex += maxCols;
+        } else {
+            if (newIndex - maxCols >= 0) newIndex -= maxCols;
+        }
     }
 
     if (newIndex == state->selectedIndex) return;
