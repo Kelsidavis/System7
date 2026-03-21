@@ -276,6 +276,17 @@ void SetCursor(const Cursor* crsr) {
     CursorManager_SetCursorInternal(crsr, false);
 }
 
+/*
+ * SetWatchCursor - Show the animated watch (busy) cursor.
+ * Call SpinCursor() periodically during long operations to animate it.
+ * Call InitCursor() when the operation finishes to restore the arrow.
+ */
+void SetWatchCursor(void) {
+    if (gWatchCursor) {
+        CursorManager_SetCursorInternal(gWatchCursor, true);
+    }
+}
+
 /* Get cursor from resource */
 CursHandle GetCursor(short cursorID) {
     /* Load CURS resource from Resource Manager */

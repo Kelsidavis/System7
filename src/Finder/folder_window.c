@@ -2444,7 +2444,13 @@ Boolean FolderWindow_GetSelectedItem(WindowPtr w, VRefNum* outVref, FileID* outF
 
 /* Delete selected items from folder window */
 void FolderWindow_DeleteSelected(WindowPtr w) {
+    extern void SetWatchCursor(void);
+    extern void InitCursor(void);
+
     if (!w || !IsFolderWindow(w)) return;
+
+    /* Show watch cursor during file operations */
+    SetWatchCursor();
 
     FolderWindowState* state = GetFolderState(w);
     if (!state || !state->items) return;
@@ -2511,6 +2517,9 @@ void FolderWindow_DeleteSelected(WindowPtr w) {
             }
         }
     }
+
+    /* Restore arrow cursor */
+    InitCursor();
 
     /* Trigger redraw of folder window and refresh trash icon on desktop */
     PostEvent(updateEvt, (UInt32)(uintptr_t)w);
@@ -2669,10 +2678,16 @@ void FolderWindow_OpenSelected(WindowPtr w) {
  * FolderWindow_DuplicateSelected - Duplicate selected items in current folder
  */
 void FolderWindow_DuplicateSelected(WindowPtr w) {
+    extern void SetWatchCursor(void);
+    extern void InitCursor(void);
+
     if (!w || !IsFolderWindow(w)) return;
 
     FolderWindowState* state = GetFolderState(w);
     if (!state || !state->items) return;
+
+    /* Show watch cursor during duplication */
+    SetWatchCursor();
 
     extern bool VFS_GenerateUniqueName(VRefNum vref, DirID dir, const char* base, char* out);
     extern bool VFS_Copy(VRefNum vref, DirID fromDir, FileID id, DirID toDir, const char* newName, FileID* newID);
@@ -2781,7 +2796,8 @@ void FolderWindow_DuplicateSelected(WindowPtr w) {
         }
     }
 
-    /* Trigger redraw */
+    /* Restore cursor and trigger redraw */
+    InitCursor();
     PostEvent(updateEvt, (UInt32)(uintptr_t)w);
 }
 
