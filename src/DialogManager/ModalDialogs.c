@@ -131,7 +131,9 @@ void ModalDialog(ModalFilterProcPtr filterProc, SInt16* itemHit)
 {
     DialogPtr dlg;
     EventRecord evt;
-    SInt16 eventMask = 0xFFFF;
+    /* Modal dialogs only accept mouse, keyboard, and update events —
+     * block activate, disk, and OS events to prevent background window focus */
+    SInt16 eventMask = mDownMask | mUpMask | keyDownMask | autoKeyMask | updateMask;
 
     if (itemHit) *itemHit = 0;
 
