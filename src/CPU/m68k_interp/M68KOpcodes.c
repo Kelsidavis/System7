@@ -90,10 +90,8 @@ void M68K_Fault(M68KAddressSpace* as, const char* reason)
         M68K_RaiseException(as, M68K_VEC_ADDRESS_ERROR, reason);
     } else if (strstr(reason, "out of bounds") || strstr(reason, "unmapped")) {
         M68K_RaiseException(as, M68K_VEC_BUS_ERROR, reason);
-    } else if (strstr(reason, "Illegal") || strstr(reason, "ILLEGAL")) {
-        M68K_RaiseException(as, M68K_VEC_ILLEGAL, reason);
     } else {
-        /* Generic fault - use ILLEGAL */
+        /* Illegal instruction or generic fault */
         M68K_RaiseException(as, M68K_VEC_ILLEGAL, reason);
     }
 }

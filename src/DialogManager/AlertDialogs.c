@@ -596,14 +596,7 @@ static void Alert_RealizeButtons(DialogPtr d)
                 // DIALOG_LOG_DEBUG("[ALERT] Realized button item=%d, rect=(%d,%d,%d,%d)\n", i, r.left, r.top, r.right, r.bottom);
 
                 /* Verify control was linked to window */
-                {
-                    ControlHandle first = _GetFirstControl((WindowPtr)d);
-                    if (first) {
-                        // DIALOG_LOG_DEBUG("[ALERT] _GetFirstControl after NewControl: found control\n");
-                    } else {
-                        // DIALOG_LOG_DEBUG("[ALERT] _GetFirstControl after NewControl: NULL\n");
-                    }
-                }
+                (void)_GetFirstControl((WindowPtr)d);
             } else {
                 // DIALOG_LOG_DEBUG("[ALERT] Failed to realize button item=%d\n", i);
             }

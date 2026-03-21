@@ -102,11 +102,15 @@ void DrawDialogButton(DialogPtr theDialog, const Rect* bounds, const unsigned ch
         textV = btnRect.top + ((btnHeight - textHeight) / 2) + fontAscent;
 
         MoveTo(textH, textV);
+        DrawString(title);
         if (isPressed) {
-            /* Invert for pressed look */
-            DrawString(title);
-        } else {
-            DrawString(title);
+            /* Invert text area for pressed look */
+            Rect textRect;
+            textRect.left = textH - 1;
+            textRect.top = textV - fontAscent;
+            textRect.right = textH + StringWidth(title) + 1;
+            textRect.bottom = textV + 2;
+            InvertRect(&textRect);
         }
     }
 

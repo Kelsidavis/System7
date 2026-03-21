@@ -88,14 +88,10 @@ void MoreMasters(void) {
 
     Size blockSize = kMasterPointerBlockSize * sizeof(Ptr);
     Ptr block = NewPtr(blockSize);
+    (void)block;  /* Result unused — MoreMasters is best-effort */
 
-    if (block != NULL) {
-        MINIT_LOG("MoreMasters: Allocated %lu bytes at %p\n",
-                  (unsigned long)blockSize, (void*)block);
-    } else {
-        MINIT_LOG("MoreMasters: Failed to allocate master pointer block\n");
-        /* Not a fatal error - handle allocation will work but may fragment */
-    }
+    MINIT_LOG("MoreMasters: %s (%lu bytes)\n",
+              block ? "allocated" : "failed", (unsigned long)blockSize);
 }
 
 /*
@@ -233,12 +229,10 @@ void SetGrowZone(GrowZoneProc growZone) {
      * that doesn't rely on grow zone functions. This is a compatibility stub.
      */
 
-    if (growZone != NULL) {
-        MINIT_LOG("SetGrowZone: Grow zone function requested at %p (not implemented)\n",
-                  (void*)growZone);
-    } else {
-        MINIT_LOG("SetGrowZone: Removing grow zone function (stub)\n");
-    }
+    MINIT_LOG("SetGrowZone: %s (%p)\n",
+              growZone ? "requested (not implemented)" : "removing (stub)",
+              (void*)growZone);
+    (void)growZone;
 }
 
 /*
