@@ -433,13 +433,67 @@ void AlarmClock_FlashMenuBar(int duration)
  */
 void AlarmClock_Draw(AlarmClock *clock, const Rect *updateRect)
 {
+    extern void MoveTo(short h, short v);
+    extern void LineTo(short h, short v);
+    extern void DrawText(const void* textBuf, short firstByte, short byteCount);
+    extern void EraseRect(const Rect* r);
+    extern void FrameRect(const Rect* r);
+    extern void FillRect(const Rect* r, const Pattern* pat);
+    extern void PenSize(short w, short h);
+    extern void TextFont(short font);
+    extern void TextSize(short size);
+
     if (!clock) {
         return;
     }
 
-    /* In a real implementation, this would draw the clock display */
-    /* For now, just update the time strings */
+    /* Update the time first */
     AlarmClock_UpdateTime(clock);
+
+    /* Draw the classic Alarm Clock DA display:
+     * - Digital time in large font centered in the window
+     * - Date below in smaller font
+     * - Simple clock face appearance */
+
+    /* Clear the drawing area */
+    Rect drawRect = {0, 0, 100, 200};
+    EraseRect(&drawRect);
+
+    /* Draw border */
+    Rect borderRect = {2, 2, 98, 198};
+    FrameRect(&borderRect);
+
+    /* Draw time in large font */
+    TextFont(0);   /* Chicago */
+    TextSize(18);  /* Large for time display */
+
+    int timeLen = 0;
+    while (clock->timeString[timeLen]) timeLen++;
+
+    /* Center the time text */
+    short timeX = 100 - (timeLen * 9) / 2;  /* Approximate centering for 18pt */
+    if (timeX < 10) timeX = 10;
+    MoveTo(timeX, 45);
+    DrawText(clock->timeString, 0, timeLen);
+
+    /* Draw date in smaller font */
+    TextSize(10);
+
+    int dateLen = 0;
+    while (clock->dateString[dateLen]) dateLen++;
+
+    short dateX = 100 - (dateLen * 6) / 2;  /* Approximate centering for 10pt */
+    if (dateX < 10) dateX = 10;
+    MoveTo(dateX, 70);
+    DrawText(clock->dateString, 0, dateLen);
+
+    /* Draw separator line between time and date */
+    PenSize(1, 1);
+    MoveTo(20, 55);
+    LineTo(180, 55);
+
+    /* Restore default text size */
+    TextSize(12);
 }
 
 /*

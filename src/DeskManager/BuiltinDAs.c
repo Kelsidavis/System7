@@ -655,6 +655,17 @@ static int AlarmClock_DAIdle(DeskAccessory *da)
     AlarmClock_UpdateTime(clock);
     AlarmClock_CheckAlarms(clock);
 
+    /* Redraw clock display every idle cycle to keep time current */
+    if (da->window) {
+        extern void GetPort(GrafPtr* port);
+        extern void SetPort(GrafPtr port);
+        GrafPtr savePort;
+        GetPort(&savePort);
+        SetPort((GrafPtr)da->window);
+        AlarmClock_Draw(clock, NULL);
+        SetPort(savePort);
+    }
+
     return DESK_ERR_NONE;
 }
 
