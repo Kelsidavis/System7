@@ -238,11 +238,31 @@ Boolean GetInfo_HandleUpdate(WindowPtr w) {
     DrawText(buf, 0, strlen(buf));
     y += 20;
 
-    /* Kind */
-    MoveTo(20, y);
-    snprintf(buf, sizeof(buf), "Kind: %s",
-             sCurrentEntry.kind == kNodeDir ? "Folder" : "Document");
-    DrawText(buf, 0, strlen(buf));
+    /* Kind — use type code for more specific descriptions */
+    {
+        const char* kindStr = "document";
+        if (sCurrentEntry.kind == kNodeDir) {
+            kindStr = "folder";
+        } else {
+            switch (sCurrentEntry.type) {
+                case 0x4150504C: kindStr = "application"; break;
+                case 0x54455854: kindStr = "text document"; break;
+                case 0x50494354: kindStr = "picture"; break;
+                case 0x41494646: kindStr = "AIFF sound"; break;
+                case 0x4D6F6F56: kindStr = "QuickTime movie"; break;
+                case 0x63646576: kindStr = "control panel"; break;
+                case 0x494E4954: kindStr = "extension"; break;
+                case 0x736E6420: kindStr = "sound"; break;
+                case 0x464F4E54: kindStr = "font"; break;
+                case 0x73756974: kindStr = "font suitcase"; break;
+                case 0x616C6973: kindStr = "alias"; break;
+                default: break;
+            }
+        }
+        MoveTo(20, y);
+        snprintf(buf, sizeof(buf), "Kind: %s", kindStr);
+        DrawText(buf, 0, strlen(buf));
+    }
     y += 20;
 
     /* Size (for files) or Contents (for folders) */
