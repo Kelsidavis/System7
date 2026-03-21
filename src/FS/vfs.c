@@ -883,8 +883,12 @@ void VFS_CloseFile(VFSFile* file) {
                 if (oe->fileData) {
                     memcpy(oe->fileData, file->memData, file->memSize);
                     oe->fileDataSize = file->memSize;
-                    /* Update CatEntry size */
+                    /* Update CatEntry size and modification time */
                     oe->entry.size = file->memSize;
+                    extern void GetDateTime(uint32_t* secs);
+                    uint32_t now = 0;
+                    GetDateTime(&now);
+                    oe->entry.modTime = now;
                 }
             }
         }
@@ -1020,6 +1024,11 @@ bool VFS_CreateFolder(VRefNum vref, DirID parent, const char* name, DirID* newID
     VFSOverlayEntry* oe = VFS_AllocOverlay(vol);
     if (!oe) return false;
 
+    /* Get current time for timestamps */
+    extern void GetDateTime(uint32_t* secs);
+    uint32_t now = 0;
+    GetDateTime(&now);
+
     FileID id = vol->nextCNID++;
     oe->id = id;
     oe->created = true;
@@ -1028,6 +1037,8 @@ bool VFS_CreateFolder(VRefNum vref, DirID parent, const char* name, DirID* newID
     oe->entry.kind = kNodeDir;
     oe->entry.parent = parent;
     oe->entry.id = id;
+    oe->entry.createTime = now;
+    oe->entry.modTime = now;
 
     *newID = id;
     FS_LOG_DEBUG("VFS_CreateFolder: Created folder '%s' with ID %u\n", name, id);
@@ -1046,6 +1057,11 @@ bool VFS_CreateFile(VRefNum vref, DirID parent, const char* name,
     VFSOverlayEntry* oe = VFS_AllocOverlay(vol);
     if (!oe) return false;
 
+    /* Get current time for timestamps */
+    extern void GetDateTime(uint32_t* secs);
+    uint32_t now = 0;
+    GetDateTime(&now);
+
     FileID id = vol->nextCNID++;
     oe->id = id;
     oe->created = true;
@@ -1056,6 +1072,8 @@ bool VFS_CreateFile(VRefNum vref, DirID parent, const char* name,
     oe->entry.creator = creator;
     oe->entry.parent = parent;
     oe->entry.id = id;
+    oe->entry.createTime = now;
+    oe->entry.modTime = now;
 
     *newID = id;
     FS_LOG_DEBUG("VFS_CreateFile: Created file '%s' with ID %u\n", name, id);
