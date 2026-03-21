@@ -2115,15 +2115,19 @@ void FolderWindow_DeleteSelected(WindowPtr w) {
     FolderWindowState* state = GetFolderState(w);
     if (!state || !state->items) return;
 
+    extern bool Trash_MoveNode(VRefNum vref, DirID parent, FileID id);
     extern bool VFS_Delete(VRefNum vref, FileID id);
 
-    FINDER_LOG_DEBUG("FolderWindow_DeleteSelected: itemCount=%d\n", state->itemCount);
+    /* Check if this window IS the trash - if so, permanently delete */
+    Boolean isTrashWindow = (w->refCon == 'TRSH');
 
-    /* Delete items in reverse order to avoid index shifting issues */
+    FINDER_LOG_DEBUG("FolderWindow_DeleteSelected: itemCount=%d isTrash=%d\n",
+                     state->itemCount, isTrashWindow);
+
+    /* Process items in reverse order to avoid index shifting issues */
     for (short i = state->itemCount - 1; i >= 0; i--) {
         Boolean shouldDelete = false;
 
-        /* Check if this item is selected */
         if (state->selectedItems) {
             shouldDelete = state->selectedItems[i];
         } else if (i == state->selectedIndex) {
@@ -2132,14 +2136,22 @@ void FolderWindow_DeleteSelected(WindowPtr w) {
 
         if (shouldDelete) {
             FolderItem* item = &state->items[i];
-            FINDER_LOG_DEBUG("FolderWindow_DeleteSelected: Deleting '%s' (fileID=%d)\n",
-                           item->name, item->fileID);
+            bool success;
 
-            /* Delete from VFS */
-            bool deleted = VFS_Delete(state->vref, item->fileID);
+            if (isTrashWindow) {
+                /* Already in Trash - permanently delete */
+                FINDER_LOG_DEBUG("FolderWindow_DeleteSelected: Permanently deleting '%s'\n",
+                               item->name);
+                success = VFS_Delete(state->vref, item->fileID);
+            } else {
+                /* Move to Trash (System 7 behavior) */
+                FINDER_LOG_DEBUG("FolderWindow_DeleteSelected: Moving '%s' to Trash\n",
+                               item->name);
+                success = Trash_MoveNode(state->vref, state->currentDir, item->fileID);
+            }
 
-            if (deleted) {
-                FINDER_LOG_DEBUG("FolderWindow_DeleteSelected: VFS_Delete succeeded\n");
+            if (success) {
+                FINDER_LOG_DEBUG("FolderWindow_DeleteSelected: Success for '%s'\n", item->name);
 
                 /* Remove from items array by shifting */
                 for (int j = i; j < state->itemCount - 1; j++) {
@@ -2150,14 +2162,13 @@ void FolderWindow_DeleteSelected(WindowPtr w) {
                 }
                 state->itemCount--;
 
-                /* Clear selection for removed item */
                 if (state->selectedIndex == i) {
                     state->selectedIndex = -1;
                 } else if (state->selectedIndex > i) {
                     state->selectedIndex--;
                 }
             } else {
-                FINDER_LOG_DEBUG("FolderWindow_DeleteSelected: VFS_Delete failed\n");
+                FINDER_LOG_DEBUG("FolderWindow_DeleteSelected: Failed for '%s'\n", item->name);
             }
         }
     }
