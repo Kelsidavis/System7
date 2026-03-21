@@ -590,6 +590,15 @@ Boolean STIO_WriteFile(STDocument* doc, const char* path)
                     entryExists = true;
                 }
             }
+
+            /* Write file data to VFS */
+            if (entryExists && newData && textLen > 0) {
+                VFSFile* vf = VFS_OpenFile(vcb.vRefNum, leafEntry.id, false);
+                if (vf) {
+                    VFS_WriteFile(vf, newData, (uint32_t)textLen, NULL);
+                    VFS_CloseFile(vf);
+                }
+            }
         } else {
             /* Fallback: derive leaf name for metadata */
             const char* lastSlash = STIO_LastSlash(path);

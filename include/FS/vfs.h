@@ -53,6 +53,7 @@ VFSFile* VFS_OpenFile(VRefNum vref, FileID id, bool resourceFork);
 VFSFile* VFS_OpenByPath(VRefNum vref, const char* path, bool resourceFork);
 void VFS_CloseFile(VFSFile* file);
 bool VFS_ReadFile(VFSFile* file, void* buffer, uint32_t length, uint32_t* bytesRead);
+bool VFS_WriteFile(VFSFile* file, const void* buffer, uint32_t length, uint32_t* bytesWritten);
 bool VFS_SeekFile(VFSFile* file, uint32_t position);
 uint32_t VFS_GetFileSize(VFSFile* file);
 uint32_t VFS_GetFilePosition(VFSFile* file);

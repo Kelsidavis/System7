@@ -27,6 +27,9 @@ typedef struct {
     bool    renamed;        /* Name changed */
     DirID   newParent;      /* New parent dir if moved */
     CatEntry entry;         /* Full entry (for created entries, or modified state) */
+    /* File data storage for overlay-created files */
+    uint8_t* fileData;      /* Persisted file content */
+    uint32_t fileDataSize;  /* Size of file content */
 } VFSOverlayEntry;
 
 /* Mounted volume entry */
@@ -50,10 +53,16 @@ static struct {
     VFS_MountCallback  mountCallback;
 } g_vfs = { 0 };
 
-/* VFS file wrapper */
+/* VFS file wrapper — supports both HFS-backed and overlay-backed files */
 struct VFSFile {
-    HFSFile* hfsFile;
+    HFSFile* hfsFile;      /* HFS backing (NULL for overlay files) */
     VRefNum  vref;
+    FileID   fileID;        /* For overlay files: ID to persist on close */
+    /* In-memory data for overlay-created files */
+    uint8_t* memData;       /* Malloc'd buffer (NULL if HFS-backed) */
+    uint32_t memSize;       /* Current data size */
+    uint32_t memCapacity;   /* Buffer capacity */
+    uint32_t memPosition;   /* Read/write position */
 };
 
 /* Helper: Find volume by vref */
@@ -788,10 +797,32 @@ VFSFile* VFS_OpenFile(VRefNum vref, FileID id, bool resourceFork) {
     if (!g_vfs.initialized) return NULL;
 
     VFSVolume* vol = VFS_FindVolume(vref);
-    if (!vol || !vol->mounted) {
-        return NULL;
+    if (!vol || !vol->mounted) return NULL;
+
+    /* Check if this is an overlay-created file (no HFS backing) */
+    VFSOverlayEntry* oe = VFS_FindOverlay(vol, id);
+    if (oe && oe->created && !oe->deleted) {
+        /* Overlay-backed file — use in-memory buffer */
+        VFSFile* vfsFile = (VFSFile*)NewPtr(sizeof(VFSFile));
+        if (!vfsFile) return NULL;
+        memset(vfsFile, 0, sizeof(VFSFile));
+        vfsFile->vref = vref;
+        vfsFile->fileID = id;
+
+        /* Load any previously persisted data */
+        if (oe->fileData && oe->fileDataSize > 0) {
+            uint32_t cap = (oe->fileDataSize + 4095) & ~4095u;
+            vfsFile->memData = (uint8_t*)NewPtr(cap);
+            if (vfsFile->memData) {
+                memcpy(vfsFile->memData, oe->fileData, oe->fileDataSize);
+                vfsFile->memSize = oe->fileDataSize;
+                vfsFile->memCapacity = cap;
+            }
+        }
+        return vfsFile;
     }
 
+    /* HFS-backed file */
     HFSFile* hfsFile = HFS_FileOpen(&vol->catalog, id, resourceFork);
     if (!hfsFile) return NULL;
 
@@ -800,7 +831,7 @@ VFSFile* VFS_OpenFile(VRefNum vref, FileID id, bool resourceFork) {
         HFS_FileClose(hfsFile);
         return NULL;
     }
-
+    memset(vfsFile, 0, sizeof(VFSFile));
     vfsFile->hfsFile = hfsFile;
     vfsFile->vref = vref;
 
@@ -837,26 +868,104 @@ void VFS_CloseFile(VFSFile* file) {
         HFS_FileClose(file->hfsFile);
     }
 
+    /* Persist in-memory data to overlay entry on close */
+    if (file->memData && file->memSize > 0 && file->fileID != 0) {
+        VFSVolume* vol = VFS_FindVolume(file->vref);
+        if (vol) {
+            VFSOverlayEntry* oe = VFS_FindOverlay(vol, file->fileID);
+            if (oe && oe->created) {
+                /* Free old persisted data */
+                if (oe->fileData) {
+                    DisposePtr((Ptr)oe->fileData);
+                }
+                /* Copy current buffer to overlay */
+                oe->fileData = (uint8_t*)NewPtr(file->memSize);
+                if (oe->fileData) {
+                    memcpy(oe->fileData, file->memData, file->memSize);
+                    oe->fileDataSize = file->memSize;
+                    /* Update CatEntry size */
+                    oe->entry.size = file->memSize;
+                }
+            }
+        }
+    }
+
+    if (file->memData) {
+        DisposePtr((Ptr)file->memData);
+    }
+
     DisposePtr((Ptr)file);
 }
 
 bool VFS_ReadFile(VFSFile* file, void* buffer, uint32_t length, uint32_t* bytesRead) {
-    if (!file || !file->hfsFile) return false;
+    if (!file || !buffer) return false;
+
+    /* In-memory file */
+    if (file->memData) {
+        uint32_t avail = (file->memPosition < file->memSize) ?
+                          file->memSize - file->memPosition : 0;
+        uint32_t toRead = (length < avail) ? length : avail;
+        if (toRead > 0) {
+            memcpy(buffer, file->memData + file->memPosition, toRead);
+            file->memPosition += toRead;
+        }
+        if (bytesRead) *bytesRead = toRead;
+        return true;
+    }
+
+    /* HFS-backed file */
+    if (!file->hfsFile) return false;
     return HFS_FileRead(file->hfsFile, buffer, length, bytesRead);
 }
 
+bool VFS_WriteFile(VFSFile* file, const void* buffer, uint32_t length, uint32_t* bytesWritten) {
+    if (!file || !buffer) return false;
+
+    /* Ensure we have an in-memory buffer */
+    uint32_t endPos = file->memPosition + length;
+
+    if (endPos > file->memCapacity) {
+        /* Grow buffer — round up to 4KB blocks */
+        uint32_t newCap = (endPos + 4095) & ~4095u;
+        uint8_t* newBuf = (uint8_t*)NewPtr(newCap);
+        if (!newBuf) return false;
+        memset(newBuf, 0, newCap);
+        if (file->memData && file->memSize > 0) {
+            memcpy(newBuf, file->memData, file->memSize);
+            DisposePtr((Ptr)file->memData);
+        }
+        file->memData = newBuf;
+        file->memCapacity = newCap;
+    }
+
+    memcpy(file->memData + file->memPosition, buffer, length);
+    file->memPosition += length;
+    if (file->memPosition > file->memSize) {
+        file->memSize = file->memPosition;
+    }
+
+    if (bytesWritten) *bytesWritten = length;
+    return true;
+}
+
 bool VFS_SeekFile(VFSFile* file, uint32_t position) {
-    if (!file || !file->hfsFile) return false;
+    if (!file) return false;
+    if (file->memData || !file->hfsFile) {
+        file->memPosition = position;
+        return true;
+    }
     return HFS_FileSeek(file->hfsFile, position);
 }
 
 uint32_t VFS_GetFileSize(VFSFile* file) {
-    if (!file || !file->hfsFile) return 0;
+    if (!file) return 0;
+    if (file->memData || !file->hfsFile) return file->memSize;
     return HFS_FileGetSize(file->hfsFile);
 }
 
 uint32_t VFS_GetFilePosition(VFSFile* file) {
-    if (!file || !file->hfsFile) return 0;
+    if (!file) return 0;
+    if (file->memData || !file->hfsFile) return file->memPosition;
     return HFS_FileTell(file->hfsFile);
 }
 
@@ -1003,7 +1112,11 @@ bool VFS_Delete(VRefNum vref, FileID id) {
     VFSOverlayEntry* oe = VFS_FindOverlay(vol, id);
     if (oe) {
         if (oe->created) {
-            /* Was created in overlay — just remove the slot */
+            /* Was created in overlay — free data and remove the slot */
+            if (oe->fileData) {
+                DisposePtr((Ptr)oe->fileData);
+                oe->fileData = NULL;
+            }
             oe->active = false;
             vol->overlayCount--;
         } else {
