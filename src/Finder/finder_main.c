@@ -829,6 +829,30 @@ void HandleKeyDown(EventRecord* event) {
 
     /* Check for command key shortcuts */
     if (event->modifiers & cmdKey) {
+        /* Cmd+Shift+3 = Screenshot (classic Mac shortcut, FKEY 3) */
+        if (charCode == '3' && (event->modifiers & shiftKey)) {
+            extern void SysBeep(short duration);
+            extern void InvertRect(const Rect* r);
+            extern QDGlobals qd;
+            extern void hal_framebuffer_present(void);
+
+            /* Flash the screen white (visual feedback for screenshot) */
+            InvertRect(&qd.screenBits.bounds);
+            hal_framebuffer_present();
+
+            /* Brief pause for visual effect */
+            extern OSErr MicrosecondDelay(UInt32 microseconds);
+            MicrosecondDelay(100000);  /* 100ms flash */
+
+            /* Restore screen */
+            InvertRect(&qd.screenBits.bounds);
+            hal_framebuffer_present();
+
+            /* Camera shutter sound */
+            SysBeep(1);
+            return;
+        }
+
         /* Cmd+Shift+Delete = Empty Trash (power-user shortcut) */
         /* Cmd+Delete = Move selected to Trash */
         if (charCode == kDeleteKey) {
