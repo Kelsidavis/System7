@@ -2220,7 +2220,7 @@ short FolderWindow_GetViewMode(WindowPtr w) {
  * FolderWindow_ArrowKey - Handle up/down arrow key for selection navigation.
  * Moves selection and auto-scrolls list view to keep selection visible.
  */
-void FolderWindow_ArrowKey(WindowPtr w, Boolean isDown) {
+void FolderWindow_ArrowKey(WindowPtr w, Boolean isDown, Boolean extend) {
     if (!w || !IsFolderWindow(w)) return;
 
     FolderWindowState* state = GetFolderState(w);
@@ -2230,14 +2230,12 @@ void FolderWindow_ArrowKey(WindowPtr w, Boolean isDown) {
     if (newIndex < 0) newIndex = 0;
 
     if (state->viewMode >= kViewByName) {
-        /* List view: up/down moves by one row */
         if (isDown) {
             if (newIndex < state->itemCount - 1) newIndex++;
         } else {
             if (newIndex > 0) newIndex--;
         }
     } else {
-        /* Icon view: up/down moves vertically by one grid row (maxCols items) */
         short windowWidth = w->port.portRect.right - w->port.portRect.left;
         short maxCols = (windowWidth - 20) / (80 + 10);
         if (maxCols < 1) maxCols = 1;
@@ -2251,11 +2249,20 @@ void FolderWindow_ArrowKey(WindowPtr w, Boolean isDown) {
 
     if (newIndex == state->selectedIndex) return;
 
-    /* Clear old multi-select and set new single selection */
     if (state->selectedItems) {
-        for (short i = 0; i < state->itemCount; i++)
-            state->selectedItems[i] = false;
-        state->selectedItems[newIndex] = true;
+        if (extend) {
+            /* Shift+arrow: extend selection to include all items between
+             * old selectedIndex and new index (contiguous range) */
+            short from = (state->selectedIndex < newIndex) ? state->selectedIndex : newIndex;
+            short to = (state->selectedIndex > newIndex) ? state->selectedIndex : newIndex;
+            for (short i = from; i <= to; i++)
+                state->selectedItems[i] = true;
+        } else {
+            /* Normal arrow: single selection */
+            for (short i = 0; i < state->itemCount; i++)
+                state->selectedItems[i] = false;
+            state->selectedItems[newIndex] = true;
+        }
     }
     state->selectedIndex = newIndex;
 

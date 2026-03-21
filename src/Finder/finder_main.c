@@ -989,20 +989,20 @@ void HandleKeyDown(EventRecord* event) {
             return;
         }
 
-        /* Arrow keys - navigate selection in folder windows */
-        if (charCode >= 0x1C && charCode <= 0x1F) {  /* Left/Right/Up/Down arrows */
+        /* Arrow keys - navigate selection in folder windows.
+         * Shift+arrow extends selection (System 7 behavior). */
+        if (charCode >= 0x1C && charCode <= 0x1F) {
             extern WindowPtr FrontWindow(void);
             extern Boolean IsFolderWindow(WindowPtr w);
-            extern void FolderWindow_ArrowKey(WindowPtr w, Boolean isDown);
+            extern void FolderWindow_ArrowKey(WindowPtr w, Boolean isDown, Boolean extend);
             extern void FolderWindow_ArrowKeyLR(WindowPtr w, Boolean isRight);
 
             WindowPtr front = FrontWindow();
+            Boolean shiftExtend = (event->modifiers & shiftKey) != 0;
             if (front && IsFolderWindow(front)) {
                 if (charCode == 0x1E || charCode == 0x1F) {
-                    /* Up/Down arrows */
-                    FolderWindow_ArrowKey(front, charCode == 0x1F);
+                    FolderWindow_ArrowKey(front, charCode == 0x1F, shiftExtend);
                 } else {
-                    /* Left (0x1C) / Right (0x1D) arrows — icon view grid navigation */
                     FolderWindow_ArrowKeyLR(front, charCode == 0x1D);
                 }
                 return;
