@@ -20,6 +20,7 @@
 
 /* Forward declarations */
 extern void MoveTo(short h, short v);
+extern void LineTo(short h, short v);
 extern void DrawText(const void* textBuf, short firstByte, short byteCount);
 extern void EraseRect(const Rect* r);
 extern void GetPort(GrafPtr* port);
@@ -259,7 +260,15 @@ Boolean GetInfo_HandleUpdate(WindowPtr w) {
         y += 20;
     }
 
-    /* Separator */
+    /* Where (location path) */
+    MoveTo(20, y);
+    DrawText("Where: Macintosh HD", 0, 19);
+    y += 20;
+
+    /* Separator line */
+    y += 4;
+    MoveTo(20, y);
+    LineTo(contentRect.right - 20, y);
     y += 10;
 
     /* Created date */
@@ -282,7 +291,10 @@ Boolean GetInfo_HandleUpdate(WindowPtr w) {
         y += 20;
     }
 
-    /* Separator */
+    /* Separator line */
+    y += 4;
+    MoveTo(20, y);
+    LineTo(contentRect.right - 20, y);
     y += 10;
 
     /* Type (for files) */
