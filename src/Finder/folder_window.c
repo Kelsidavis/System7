@@ -3171,6 +3171,27 @@ short FolderWindow_GetSelectedAsSpecs(WindowPtr w, FSSpec** outSpecs) {
 }
 
 /*
+ * FolderWindow_GetSelectedFileIDs - Get FileIDs of selected items
+ */
+void FolderWindow_GetSelectedFileIDs(WindowPtr w, FileID* ids, short* count) {
+    if (!w || !IsFolderWindow(w) || !ids || !count) { if (count) *count = 0; return; }
+
+    FolderWindowState* state = GetFolderState(w);
+    if (!state || !state->items) { *count = 0; return; }
+
+    short n = 0;
+    short max = *count > 0 ? *count : 32;
+    for (short i = 0; i < state->itemCount && n < max; i++) {
+        Boolean isSel = (state->selectedItems && state->selectedItems[i]) ||
+                        (i == state->selectedIndex);
+        if (isSel) {
+            ids[n++] = state->items[i].fileID;
+        }
+    }
+    *count = n;
+}
+
+/*
  * FolderWindow_GetVRef - Get volume reference for folder window
  */
 VRefNum FolderWindow_GetVRef(WindowPtr w) {

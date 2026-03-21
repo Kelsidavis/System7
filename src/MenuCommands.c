@@ -1163,61 +1163,59 @@ void MakeAliasOfSelectedItems(WindowPtr w) {
 void PutAwaySelectedItems(WindowPtr w) {
     MENU_LOG_DEBUG("PutAwaySelectedItems called\n");
 
-    if (!w) {
-        /* Get front window if not specified */
-        extern WindowPtr FrontWindow(void);
-        w = FrontWindow();
-    }
-
-    if (!w) {
-        MENU_LOG_DEBUG("PutAwaySelectedItems: No window\n");
-        return;
-    }
-
-    /* Check if it's a folder window */
+    /* Put Away restores selected items from Trash to their original location.
+     * This mirrors Finder_Undo's trash restore logic. */
+    extern WindowPtr FrontWindow(void);
     extern Boolean IsFolderWindow(WindowPtr w);
-    if (!IsFolderWindow(w)) {
-        MENU_LOG_DEBUG("PutAwaySelectedItems: Window is not a folder window\n");
+    extern bool Trash_GetDir(VRefNum vref, DirID* trashDir);
+    extern bool VFS_Move(VRefNum vref, DirID fromDir, FileID id,
+                         DirID toDir, const char* newName);
+    extern bool VFS_GetByID(VRefNum vref, FileID id, CatEntry* entry);
+    extern VRefNum VFS_GetBootVRef(void);
+
+    if (!w) w = FrontWindow();
+    if (!w || !IsFolderWindow(w)) return;
+
+    /* Only works in Trash window */
+    if (w->refCon != 'TRSH') {
+        MENU_LOG_DEBUG("PutAwaySelectedItems: Not a trash window\n");
         return;
     }
 
-    /* Get selected items as FSSpec array */
-    extern short FolderWindow_GetSelectedAsSpecs(WindowPtr w, FSSpec** outSpecs);
-    FSSpec* specs = NULL;
-    short count = FolderWindow_GetSelectedAsSpecs(w, &specs);
+    extern VRefNum FolderWindow_GetVRef(WindowPtr w);
+    extern void FolderWindow_GetSelectedFileIDs(WindowPtr w, FileID* ids, short* count);
 
-    if (count == 0 || !specs) {
-        MENU_LOG_DEBUG("PutAwaySelectedItems: No items selected\n");
-        return;
+    VRefNum vref = FolderWindow_GetVRef(w);
+    if (vref == 0) vref = VFS_GetBootVRef();
+
+    DirID trashDir = 0;
+    if (!Trash_GetDir(vref, &trashDir)) return;
+
+    FileID selectedIDs[32];
+    short count = 0;
+    FolderWindow_GetSelectedFileIDs(w, selectedIDs, &count);
+
+    if (count == 0) return;
+
+    short restored = 0;
+    for (short i = 0; i < count; i++) {
+        /* Get entry to find its original parent (stored in CatEntry.parent) */
+        CatEntry entry;
+        if (VFS_GetByID(vref, selectedIDs[i], &entry)) {
+            /* Move back to root directory (original parent tracking not yet available) */
+            DirID destDir = 2;  /* Root directory as fallback */
+            if (VFS_Move(vref, trashDir, selectedIDs[i], destDir, NULL)) {
+                restored++;
+            }
+        }
     }
 
-    MENU_LOG_DEBUG("PutAwaySelectedItems: Moving %d items to trash\n", count);
+    MENU_LOG_DEBUG("PutAwaySelectedItems: Restored %d of %d items\n", restored, count);
 
-    /* Move to trash */
-    extern OSErr MoveToTrash(FSSpec *items, short count);
-    OSErr err = MoveToTrash(specs, count);
-
-    if (err == noErr) {
-        MENU_LOG_DEBUG("PutAwaySelectedItems: Successfully moved %d items to trash\n", count);
-
-        /* Reload the folder to reflect the changes */
-        extern void InitializeFolderContentsEx(WindowPtr w, Boolean isTrash, VRefNum vref, DirID dirID);
-        extern VRefNum FolderWindow_GetVRef(WindowPtr w);
-        extern DirID FolderWindow_GetCurrentDir(WindowPtr w);
-
-        VRefNum vref = FolderWindow_GetVRef(w);
-        DirID dirID = FolderWindow_GetCurrentDir(w);
-
-        InitializeFolderContentsEx(w, false, vref, dirID);
-
-        /* Trigger redraw */
-        PostEvent(updateEvt, (UInt32)(uintptr_t)w);
-    } else {
-        MENU_LOG_DEBUG("PutAwaySelectedItems: MoveToTrash failed with error %d\n", err);
-    }
-
-    /* Free the specs array */
-    DisposePtr((Ptr)specs);
+    /* Reload trash window */
+    extern void InitializeFolderContentsEx(WindowPtr w, Boolean isTrash, VRefNum vref, DirID dirID);
+    InitializeFolderContentsEx(w, true, vref, trashDir);
+    PostEvent(updateEvt, (UInt32)(uintptr_t)w);
 }
 
 /* ============================================================================

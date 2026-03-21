@@ -140,6 +140,7 @@ void FolderWindow_DeleteSelected(WindowPtr w);
 void FolderWindow_OpenSelected(WindowPtr w);
 void FolderWindow_DuplicateSelected(WindowPtr w);
 short FolderWindow_GetSelectedAsSpecs(WindowPtr w, FSSpec** outSpecs);
+void FolderWindow_GetSelectedFileIDs(WindowPtr w, FileID* ids, short* count);
 VRefNum FolderWindow_GetVRef(WindowPtr w);
 DirID FolderWindow_GetCurrentDir(WindowPtr w);
 void FolderWindow_CleanUp(WindowPtr w, Boolean selectedOnly);
