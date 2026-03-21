@@ -768,6 +768,18 @@ WindowPtr FolderWindow_OpenFolder(VRefNum vref, DirID dirID, ConstStr255Param ti
 
     FINDER_LOG_DEBUG("FolderWindow_OpenFolder: vref=%d dirID=%d\n", (int)vref, (int)dirID);
 
+    /* Check if a window for this directory is already open — System 7
+     * enforces one window per folder. Bring existing window to front. */
+    for (int i = 0; i < MAX_FOLDER_WINDOWS; i++) {
+        if (gFolderWindows[i].window != NULL &&
+            gFolderWindows[i].state.vref == vref &&
+            gFolderWindows[i].state.currentDir == dirID) {
+            FINDER_LOG_DEBUG("FolderWindow_OpenFolder: Window already open, bringing to front\n");
+            SelectWindow(gFolderWindows[i].window);
+            return gFolderWindows[i].window;
+        }
+    }
+
     /* Cascade window positions — each new window offsets by 20px so they
      * don't stack directly on top of each other (classic System 7 behavior) */
     static short sCascadeOffset = 0;
