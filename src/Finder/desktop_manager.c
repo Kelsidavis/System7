@@ -2129,10 +2129,12 @@ Boolean HandleDesktopClick(Point clickPoint, Boolean doubleClick)
         GhostEraseIf();
 
         if (it->type == kDesktopItemVolume) {
-            /* Build Pascal string for HD title */
+            /* Build Pascal string from the icon's actual name */
             static unsigned char hdTitle[256];
-            strcpy((char*)&hdTitle[1], "Macintosh HD");
-            hdTitle[0] = (unsigned char)strlen("Macintosh HD");
+            int nlen = 0;
+            while (it->name[nlen] && nlen < 255) nlen++;
+            hdTitle[0] = (unsigned char)nlen;
+            memcpy(&hdTitle[1], it->name, nlen);
             Finder_OpenDesktopItem(false, hdTitle);
         } else if (it->type == kDesktopItemTrash) {
             /* Build Pascal string for Trash title */
