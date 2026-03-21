@@ -407,33 +407,16 @@ void InvalRgn(RgnHandle badRgn) {
     /* Assume current port is a window */
     WindowPtr window = (WindowPtr)currentPort;
 
-    /* Debug: badRgnData, updateBefore/After retained for instrumentation if needed */
-    /* Region* badRgnData = *badRgn; */
-    WM_LOG_TRACE("WindowManager: InvalRgn window=0x%08x, badRgn bbox=(%d,%d,%d,%d)\n",
-                 (unsigned int)window, badRgnData->rgnBBox.left, badRgnData->rgnBBox.top,
-                 badRgnData->rgnBBox.right, badRgnData->rgnBBox.bottom);
-
     /* Add region to window's update region */
     if (!window->updateRgn) {
-        /* Create update region if it doesn't exist */
         window->updateRgn = Platform_NewRgn();
         if (!window->updateRgn) {
             WM_LOG_WARN("WindowManager: InvalRgn - failed to create updateRgn (out of memory)!\n");
-            return; /* Out of memory */
+            return;
         }
     }
 
-    /* Region* updateBefore = *(window->updateRgn); */
-    WM_LOG_TRACE("WindowManager: InvalRgn - BEFORE union, updateRgn bbox=(%d,%d,%d,%d)\n",
-                 updateBefore->rgnBBox.left, updateBefore->rgnBBox.top,
-                 updateBefore->rgnBBox.right, updateBefore->rgnBBox.bottom);
-
     Platform_UnionRgn(window->updateRgn, badRgn, window->updateRgn);
-
-    /* Region* updateAfter = *(window->updateRgn); */
-    WM_LOG_TRACE("WindowManager: InvalRgn - AFTER union, updateRgn bbox=(%d,%d,%d,%d)\n",
-                 updateAfter->rgnBBox.left, updateAfter->rgnBBox.top,
-                 updateAfter->rgnBBox.right, updateAfter->rgnBBox.bottom);
 
     /* Schedule platform update - convert region to rectangle for platform invalidation */
     Rect regionBounds;
