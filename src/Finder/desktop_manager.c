@@ -2485,6 +2485,20 @@ Boolean Desktop_HasSelectedIcon(void) {
 }
 
 /*
+ * Desktop_SelectAllIcons - Select all desktop icons.
+ * Called by Cmd+A when the desktop is frontmost.
+ */
+void Desktop_SelectAllIcons(void) {
+    /* In System 7, there's only single-select for desktop icons.
+     * Select the first icon (typically Macintosh HD). */
+    if (gDesktopIconCount > 0) {
+        gSelectedIcon = 0;
+        /* Trigger desktop redraw to show selection */
+        DrawDesktop();
+    }
+}
+
+/*
  * Desktop_OpenSelectedIcon - Open the currently selected desktop icon.
  * Called when Return/Enter is pressed with no folder window front.
  */

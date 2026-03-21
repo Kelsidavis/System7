@@ -1542,25 +1542,22 @@ void Finder_Clear(void) {
 void Finder_SelectAll(void) {
     MENU_LOG_DEBUG("Finder_SelectAll called\n");
 
-    /* Get front window */
     extern WindowPtr FrontWindow(void);
-    WindowPtr frontWin = FrontWindow();
-    if (!frontWin) {
-        MENU_LOG_DEBUG("Finder_SelectAll: No front window\n");
-        return;
-    }
-
-    /* Check if it's a folder window */
     extern Boolean IsFolderWindow(WindowPtr w);
-    if (!IsFolderWindow(frontWin)) {
-        MENU_LOG_DEBUG("Finder_SelectAll: Front window is not a folder window\n");
-        return;
-    }
 
-    /* Select all items in the folder window */
-    extern void FolderWindow_SelectAll(WindowPtr w);
-    FolderWindow_SelectAll(frontWin);
-    MENU_LOG_DEBUG("Finder_SelectAll: Selected all items in folder window\n");
+    WindowPtr frontWin = FrontWindow();
+
+    if (frontWin && IsFolderWindow(frontWin)) {
+        /* Select all items in the folder window */
+        extern void FolderWindow_SelectAll(WindowPtr w);
+        FolderWindow_SelectAll(frontWin);
+        MENU_LOG_DEBUG("Finder_SelectAll: Selected all items in folder window\n");
+    } else {
+        /* No folder window front — select all desktop icons */
+        extern void Desktop_SelectAllIcons(void);
+        Desktop_SelectAllIcons();
+        MENU_LOG_DEBUG("Finder_SelectAll: Selected all desktop icons\n");
+    }
 }
 
 /* View Operations */
