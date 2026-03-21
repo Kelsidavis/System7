@@ -711,7 +711,7 @@ static void xhci_ep0_ring_doorbell(uintptr_t base, uint32_t dboff, uint8_t slot_
     mmio_write32(base + dboff, XHCI_DB0 + (uint32_t)slot_id * 4, 1);
 }
 
-static void xhci_ep0_reset_ring(uint8_t slot_id) {
+static void __attribute__((unused)) xhci_ep0_reset_ring(uint8_t slot_id) {
     if (slot_id == 0 || slot_id > MAX_XHCI_SLOTS) {
         return;
     }
@@ -1515,7 +1515,7 @@ static void xhci_hid_submit(uintptr_t base, uint32_t dboff, xhci_hid_dev_t *dev)
 }
 
 static void xhci_hid_poll_events(uintptr_t rt_base) {
-    uint8_t ports = g_xhci_ports ? g_xhci_ports : MAX_XHCI_PORTS;
+    uint8_t ports __attribute__((unused)) = g_xhci_ports ? g_xhci_ports : MAX_XHCI_PORTS;
 
     /* Process up to 32 events to clear any backlog */
     for (int i = 0; i < 32; i++) {

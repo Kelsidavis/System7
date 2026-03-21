@@ -58,7 +58,7 @@ static void CenterRectOnScreen(Rect* rect, SInt16 width, SInt16 height) {
 /**
  * Calculate layout position for app at index
  */
-static Rect GetAppIconRect(SInt16 index, const Rect* windowBounds) {
+static Rect __attribute__((unused)) GetAppIconRect(SInt16 index, const Rect* windowBounds) {
     Rect rect = {0, 0, 0, 0};
 
     if (!windowBounds) return rect;
@@ -84,7 +84,7 @@ static Rect GetAppIconRect(SInt16 index, const Rect* windowBounds) {
 /**
  * Get index of app at point
  */
-static SInt16 GetAppAtPoint(Point pt, const Rect* windowBounds) {
+static SInt16 __attribute__((unused)) GetAppAtPoint(Point pt, const Rect* windowBounds) {
     if (!windowBounds) return -1;
 
     const SInt16 iconsPerRow = 4;

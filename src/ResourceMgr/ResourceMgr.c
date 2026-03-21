@@ -132,7 +132,7 @@ static void SortRefIndex(RefIndex* arr, UInt32 n) {
 }
 
 /* Binary search for type in index */
-static SInt32 FindTypeIndex(ResType type) {
+static SInt32 __attribute__((unused)) FindTypeIndex(ResType type) {
     SInt32 left = 0, right = gTypeIdxCount - 1;
 
     while (left <= right) {
@@ -1622,6 +1622,7 @@ SInt16 Unique1ID(ResType theType) {
  * Returns:
  *   Resource file reference number (>= 0), or -1 on error
  */
+SInt16 OpenResMemory(const unsigned char* data, UInt32 size); /* prototype */
 SInt16 OpenResMemory(const unsigned char* data, UInt32 size) {
     SInt16 i;
 
@@ -1673,6 +1674,7 @@ SInt16 OpenResMemory(const unsigned char* data, UInt32 size) {
  *   refNum - Reference number returned by OpenResMemory
  */
 void CloseResMemory(SInt16 refNum) {
+void CloseResMemory(SInt16 refNum); /* prototype */
     if (refNum <= 0 || refNum >= MAX_RES_FILES || !gResMgr.resFiles[refNum].inUse) {
         gResMgr.resError = badRefNum;
         return;

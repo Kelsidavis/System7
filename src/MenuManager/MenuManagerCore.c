@@ -503,6 +503,9 @@ static void MenuBar_DrawClock(void) {
  * Called periodically from SystemTask or the main event loop.
  * Only redraws when the minute changes — very lightweight.
  */
+void MenuBar_UpdateClock(void); /* prototype */
+/* Forward declaration */
+void MenuBar_UpdateClock(void);
 void MenuBar_UpdateClock(void) {
 #if defined(__i386__) || defined(__x86_64__)
     if (!gMenuMgrInitialized) return;
