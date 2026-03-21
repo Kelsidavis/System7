@@ -423,6 +423,7 @@ C_SOURCES = src/main.c \
             src/DeskManager/KeyCaps.c \
             src/DeskManager/Notepad.c \
             src/DeskManager/Calculator.c \
+            src/DeskManager/AlarmClock.c \
             src/DialogManager/DialogManagerCore.c \
             src/DialogManager/DialogManagerStubs.c \
             src/DialogManager/ModalDialogs.c \

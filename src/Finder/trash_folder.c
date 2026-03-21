@@ -29,6 +29,7 @@
 #include "EventManager/EventManager.h"
 #include "Finder/FinderLogging.h"
 #include "sys71_stubs.h"
+#include "FS/hfs_types.h"
 
 
 /* Trash Folder Constants */
@@ -371,30 +372,30 @@ static OSErr CountTrashItems(UInt32 *itemCount, UInt32 *totalSize)
  */
 static OSErr DeleteTrashItem(FSSpec *item)
 {
-    OSErr err;
-    CInfoPBRec pb;
+    /* Convert FSSpec name to C string for VFS lookup */
+    extern bool VFS_Lookup(VRefNum vref, DirID dir, const char* name, CatEntry* entry);
+    extern bool VFS_Delete(VRefNum vref, FileID id);
+    extern bool VFS_DeleteTree(VRefNum vref, DirID parent, FileID id);
 
-    /* Get item info to check if it's a folder */
-    pb.ioCompletion = nil;
-    pb.ioNamePtr = item->name;
-    pb.ioVRefNum = item->vRefNum;
-    pb.u.hFileInfo.ioDirID = item->parID;
-    pb.u.hFileInfo.ioFDirIndex = 0;
+    char cName[32];
+    unsigned char len = item->name[0];
+    if (len > 31) len = 31;
+    for (int i = 0; i < len; i++) cName[i] = item->name[i + 1];
+    cName[len] = '\0';
 
-    err = PBGetCatInfoSync(&pb);
-    if (err != noErr) {
-        return err;
+    CatEntry entry;
+    if (!VFS_Lookup(item->vRefNum, item->parID, cName, &entry)) {
+        return fnfErr;
     }
 
-    if (pb.u.hFileInfo.ioFlAttrib & ioDirMask) {
-        /* It's a folder - delete recursively */
-        err = FSpDirDelete(item);
+    bool ok;
+    if (entry.kind == kNodeDir) {
+        ok = VFS_DeleteTree(item->vRefNum, item->parID, entry.id);
     } else {
-        /* It's a file - delete it */
-        err = FSpDelete(item);
+        ok = VFS_Delete(item->vRefNum, entry.id);
     }
 
-    return err;
+    return ok ? noErr : ioErr;
 }
 
 /*

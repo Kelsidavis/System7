@@ -1,10 +1,6 @@
 #include "MemoryMgr/MemoryManager.h"
-#include <time.h>
 // #include "CompatibilityFix.h" // Removed
-#include <stdlib.h>
 #include <string.h>
-#include <stdio.h>
-#include <ctype.h>
 /*
  * AlarmClock.c - Alarm Clock Desk Accessory Implementation
  *
@@ -21,13 +17,17 @@
 #include "DeskManager/DeskManager.h"
 #include "SoundManager/SoundEffects.h"
 
+static inline int ac_tolower(int c) {
+    return (c >= 'A' && c <= 'Z') ? c + 32 : c;
+}
+
 static int AlarmClock_StrEqualsIgnoreCase(const char* a, const char* b)
 {
     if (!a || !b) return 0;
     while (*a && *b) {
         unsigned char ca = (unsigned char)*a++;
         unsigned char cb = (unsigned char)*b++;
-        if (tolower(ca) != tolower(cb)) {
+        if (ac_tolower(ca) != ac_tolower(cb)) {
             return 0;
         }
     }
@@ -352,22 +352,32 @@ void AlarmClock_GetCurrentTime(DateTime *dateTime)
         return;
     }
 
-    time_t now = time(NULL);
-    struct tm *tm_info = localtime(&now);
+    /* Use Mac OS GetDateTime + Secs2Date instead of Unix time functions */
+    extern void GetDateTime(UInt32* secs);
+    typedef struct {
+        SInt16 year; SInt16 month; SInt16 day;
+        SInt16 hour; SInt16 minute; SInt16 second;
+        SInt16 dayOfWeek;
+    } DateTimeRec;
+    extern void Secs2Date(UInt32 secs, DateTimeRec *d);
 
-    (dateTime)->year = tm_info->tm_year + 1900;
-    (dateTime)->month = tm_info->tm_mon + 1;
-    (dateTime)->day = tm_info->tm_mday;
-    (dateTime)->weekday = tm_info->tm_wday;
+    UInt32 macSecs;
+    GetDateTime(&macSecs);
 
-    (dateTime)->hour = tm_info->tm_hour;
-    (dateTime)->minute = tm_info->tm_min;
-    (dateTime)->second = tm_info->tm_sec;
-    (dateTime)->millisecond = 0;
+    DateTimeRec rec;
+    Secs2Date(macSecs, &rec);
 
-    dateTime->timestamp = (SInt32)now;
-    dateTime->timezone = 0;  /* UTC offset in minutes */
-    dateTime->dstActive = tm_info->tm_isdst > 0;
+    dateTime->year = (UInt16)rec.year;
+    dateTime->month = (UInt8)rec.month;
+    dateTime->day = (UInt8)rec.day;
+    dateTime->weekday = (UInt8)rec.dayOfWeek;
+    dateTime->hour = (UInt8)rec.hour;
+    dateTime->minute = (UInt8)rec.minute;
+    dateTime->second = (UInt8)rec.second;
+    dateTime->millisecond = 0;
+    dateTime->timestamp = (SInt32)macSecs;
+    dateTime->timezone = 0;
+    dateTime->dstActive = false;
 }
 
 /*
@@ -545,15 +555,26 @@ SInt32 AlarmClock_DateTimeToTimestamp(const DateTime *dateTime)
         return 0;
     }
 
-    struct tm tm_info = {0};
-    tm_info.tm_year = (dateTime)->year - 1900;
-    tm_info.tm_mon = (dateTime)->month - 1;
-    tm_info.tm_mday = (dateTime)->day;
-    tm_info.tm_hour = (dateTime)->hour;
-    tm_info.tm_min = (dateTime)->minute;
-    tm_info.tm_sec = (dateTime)->second;
+    /* Use Mac OS Date2Secs instead of Unix mktime */
+    typedef struct {
+        SInt16 year; SInt16 month; SInt16 day;
+        SInt16 hour; SInt16 minute; SInt16 second;
+        SInt16 dayOfWeek;
+    } DateTimeRec;
+    extern void Date2Secs(const DateTimeRec *d, UInt32 *secs);
 
-    return (SInt32)mktime(&tm_info);
+    DateTimeRec rec;
+    rec.year = (SInt16)dateTime->year;
+    rec.month = (SInt16)dateTime->month;
+    rec.day = (SInt16)dateTime->day;
+    rec.hour = (SInt16)dateTime->hour;
+    rec.minute = (SInt16)dateTime->minute;
+    rec.second = (SInt16)dateTime->second;
+    rec.dayOfWeek = 0;
+
+    UInt32 secs;
+    Date2Secs(&rec, &secs);
+    return (SInt32)secs;
 }
 
 /*

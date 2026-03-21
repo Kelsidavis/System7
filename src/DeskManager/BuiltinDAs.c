@@ -216,7 +216,6 @@ static DAInterface g_keyCapsInterface = {
     .wakeup = NULL
 };
 
-__attribute__((unused))
 static DAInterface g_alarmClockInterface = {
     .initialize = AlarmClock_DAInitialize,
     .terminate = AlarmClock_DATerminate,
@@ -287,7 +286,7 @@ int DeskManager_RegisterBuiltinDAs(void)
         return result;
     }
 
-    /* TODO: Register Alarm Clock - requires system time library
+    /* Register Alarm Clock DA */
     DARegistryEntry alarmEntry = {0};
     strncpy(alarmEntry.name, "Alarm Clock", sizeof(alarmEntry.name) - 1);
     alarmEntry.name[sizeof(alarmEntry.name) - 1] = '\0';
@@ -300,7 +299,6 @@ int DeskManager_RegisterBuiltinDAs(void)
     if (result != 0) {
         return result;
     }
-    */
 
     /* TODO: Register Chooser - requires network/device enumeration
     DARegistryEntry chooserEntry = {0};
