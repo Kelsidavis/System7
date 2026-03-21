@@ -468,11 +468,27 @@ static void HandleFileMenu(short item)
 static void HandleEditMenu(short item)
 {
     extern WindowPtr FrontWindow(void);
+    extern Boolean SystemEdit(SInt16 editCmd);
+
+    /*
+     * System 7 Edit menu routing: Always call SystemEdit() first.
+     * If a desk accessory is active, it handles the edit command and
+     * SystemEdit returns true. If no DA is active, it returns false
+     * and we fall through to the Finder's own edit handling.
+     *
+     * SystemEdit uses the same item codes: 1=Undo, 3=Cut, 4=Copy,
+     * 5=Paste, 6=Clear.
+     */
+    if (item >= kUndoItem && item <= kClearItem) {
+        if (SystemEdit(item)) {
+            MENU_LOG_DEBUG("Edit item %d handled by desk accessory\n", item);
+            return;  /* DA handled it */
+        }
+    }
 
     switch (item) {
         case kUndoItem: {
             MENU_LOG_INFO("Edit > Undo\n");
-            /* Undo last action - handled by active document/window */
             extern void Finder_Undo(void);
             Finder_Undo();
             break;
@@ -480,7 +496,6 @@ static void HandleEditMenu(short item)
 
         case kCutItem: {
             MENU_LOG_INFO("Edit > Cut\n");
-            /* Cut selection to clipboard - context dependent */
             extern void Finder_Cut(void);
             Finder_Cut();
             break;
@@ -488,7 +503,6 @@ static void HandleEditMenu(short item)
 
         case kCopyItem: {
             MENU_LOG_INFO("Edit > Copy\n");
-            /* Copy selection to clipboard */
             extern void Finder_Copy(void);
             Finder_Copy();
             break;
@@ -496,7 +510,6 @@ static void HandleEditMenu(short item)
 
         case kPasteItem: {
             MENU_LOG_INFO("Edit > Paste\n");
-            /* Paste from clipboard */
             extern void Finder_Paste(void);
             Finder_Paste();
             break;
@@ -504,7 +517,6 @@ static void HandleEditMenu(short item)
 
         case kClearItem: {
             MENU_LOG_INFO("Edit > Clear\n");
-            /* Clear/delete selection */
             extern void Finder_Clear(void);
             Finder_Clear();
             break;
@@ -512,7 +524,6 @@ static void HandleEditMenu(short item)
 
         case kSelectAllItem: {
             MENU_LOG_INFO("Edit > Select All\n");
-            /* Select all items in current context */
             extern void Finder_SelectAll(void);
             Finder_SelectAll();
             break;
