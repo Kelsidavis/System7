@@ -282,10 +282,10 @@ Boolean GetInfo_HandleUpdate(WindowPtr w) {
         /* For folders, show item count */
         extern bool VFS_Enumerate(VRefNum vref, DirID dirID,
                                   CatEntry* entries, int maxEntries, int* count);
-        CatEntry countEntries[1];
+        extern VRefNum VFS_GetBootVRef(void);
+        CatEntry countEntries[128];
         int folderItemCount = 0;
-        /* Quick count via enumerate with small buffer — count tells us total */
-        VFS_Enumerate(0, sCurrentEntry.id, countEntries, 0, &folderItemCount);
+        VFS_Enumerate(VFS_GetBootVRef(), sCurrentEntry.id, countEntries, 128, &folderItemCount);
 
         MoveTo(20, y);
         if (folderItemCount == 1) {
