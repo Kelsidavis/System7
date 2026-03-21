@@ -178,6 +178,22 @@ OSErr InitializeFinder(void)
     serial_puts("Finder: Playing System 7 startup chime\n");
     StartupChime();
 
+    /* Auto-open startup disk window — classic System 7 behavior.
+     * The boot volume window opens automatically so users can see
+     * their files immediately without double-clicking the disk icon. */
+    {
+        extern WindowPtr FolderWindow_OpenFolder(VRefNum vref, DirID dirID,
+                                                  ConstStr255Param title);
+        extern VRefNum VFS_GetBootVRef(void);
+
+        VRefNum bootVref = VFS_GetBootVRef();
+        static unsigned char hdTitle[] = {12, 'M','a','c','i','n','t','o','s','h',' ','H','D'};
+        WindowPtr diskWin = FolderWindow_OpenFolder(bootVref, 2, hdTitle);  /* dirID 2 = root */
+        if (diskWin) {
+            serial_puts("Finder: Opened startup disk window\n");
+        }
+    }
+
     gFinderInitialized = true;
     return noErr;
 }
