@@ -421,15 +421,102 @@ static Boolean IsItemLocked(FSSpec *item)
  */
 static OSErr ConfirmEmptyTrash(Boolean *confirmed)
 {
-    /* System 7 behavior: Always auto-confirm empty trash */
-    /* In a real implementation with a GUI, this would show an alert dialog:
-     * "Are you sure you want to permanently remove the items in the Trash?"
-     * with OK and Cancel buttons.
-     * For this implementation, we auto-confirm since this is a system operation.
-     */
+    extern void ShowWindow(WindowPtr);
+    extern void SystemTask(void);
 
-    FINDER_LOG_DEBUG("Trash: Emptying trash (auto-confirmed)\n");
-    *confirmed = true;
+    if (!confirmed) return paramErr;
+    *confirmed = false;
+
+    /* Build DITL: prompt (1), OK button (2), Cancel button (3) */
+    Handle ditl = NewHandleClear(256);
+    if (!ditl) {
+        *confirmed = true;  /* Can't show dialog, proceed anyway */
+        return noErr;
+    }
+
+    HLock(ditl);
+    unsigned char* p = (unsigned char*)*ditl;
+
+    /* 3 items, count-1 = 2 */
+    *p++ = 0; *p++ = 2;
+
+    /* Item 1: Warning text */
+    *p++ = 0; *p++ = 0; *p++ = 0; *p++ = 0;
+    *p++ = 0; *p++ = 10;  /* top */
+    *p++ = 0; *p++ = 10;  /* left */
+    *p++ = 0; *p++ = 50;  /* bottom */
+    *p++ = 1; *p++ = 20;  /* right = 276 */
+    *p++ = 8;              /* statText */
+    {
+        const char* msg = "Are you sure you want to permanently remove the items in the Trash?";
+        unsigned char len = 66;
+        *p++ = len;
+        memcpy(p, msg, len);
+        p += len;
+    }
+
+    /* Item 2: OK button */
+    *p++ = 0; *p++ = 0; *p++ = 0; *p++ = 0;
+    *p++ = 0; *p++ = 60;  /* top */
+    *p++ = 0; *p++ = 190; /* left */
+    *p++ = 0; *p++ = 80;  /* bottom */
+    *p++ = 1; *p++ = 20;  /* right = 276 */
+    *p++ = 4;              /* btnCtrl */
+    *p++ = 2; *p++ = 'O'; *p++ = 'K';
+
+    /* Item 3: Cancel button */
+    *p++ = 0; *p++ = 0; *p++ = 0; *p++ = 0;
+    *p++ = 0; *p++ = 60;
+    *p++ = 0; *p++ = 90;
+    *p++ = 0; *p++ = 80;
+    *p++ = 0; *p++ = 180;
+    *p++ = 4;
+    *p++ = 6; *p++ = 'C'; *p++ = 'a'; *p++ = 'n'; *p++ = 'c'; *p++ = 'e'; *p++ = 'l';
+
+    HUnlock(ditl);
+
+    Rect bounds = {140, 100, 240, 400};
+    static unsigned char title[] = {0};
+    DialogPtr dlg = NewDialog(NULL, &bounds, title, true, 1 /* dBoxProc */,
+                              (WindowPtr)-1, false, 0, ditl);
+    if (!dlg) {
+        DisposeHandle(ditl);
+        *confirmed = true;
+        return noErr;
+    }
+
+    ShowWindow((WindowPtr)dlg);
+
+    /* Modal event loop */
+    short itemHit = 0;
+    Boolean done = false;
+    while (!done) {
+        EventRecord event;
+        if (GetNextEvent(everyEvent, &event)) {
+            if (IsDialogEvent(&event)) {
+                DialogPtr whichDlg;
+                short item;
+                if (DialogSelect(&event, &whichDlg, &item)) {
+                    if (whichDlg == dlg) {
+                        itemHit = item;
+                        done = (item == 2 || item == 3);
+                    }
+                }
+            }
+            if (event.what == keyDown || event.what == autoKey) {
+                char ch = event.message & 0xFF;
+                if (ch == '\r' || ch == 0x03) { itemHit = 2; done = true; }
+                if (ch == 0x1B) { itemHit = 3; done = true; }
+            }
+        }
+        SystemTask();
+    }
+
+    DisposeDialog(dlg);
+
+    *confirmed = (itemHit == 2);  /* OK = confirmed */
+    FINDER_LOG_DEBUG("Trash: Empty trash %s by user\n",
+                     *confirmed ? "confirmed" : "cancelled");
     return noErr;
 }
 
