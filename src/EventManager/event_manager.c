@@ -336,6 +336,12 @@ Boolean WaitNextEvent(short eventMask, EventRecord* theEvent, UInt32 sleep, RgnH
             break;
         }
 
+        /* Run system tasks (clock update, DA idle) during wait */
+        {
+            extern void SystemTask(void);
+            SystemTask();
+        }
+
         /* Yield to other processes during wait */
         if (gMultiFinderActive) {
             Scheduler_GetNextProcess(&nextProcess);
