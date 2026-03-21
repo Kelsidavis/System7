@@ -74,6 +74,7 @@ typedef struct {
     UInt16 nameOffset;
     UInt32 dataLen;
     SInt16 homeFile;
+    UInt8 attributes;   /* Resource attributes (resPurgeable, resLocked, etc.) */
 } HandleInfo;
 
 static HandleInfo gHandleInfo[RM_HANDLE_CAP];
@@ -216,7 +217,7 @@ static void CacheInsert(ResType type, ResID id, Handle h) {
 }
 
 /* Handle info operations */
-static void RecordHandleInfo(Handle h, ResType type, ResID id, UInt16 nameOff, UInt32 dataLen, SInt16 homeFile) {
+static void RecordHandleInfo(Handle h, ResType type, ResID id, UInt16 nameOff, UInt32 dataLen, SInt16 homeFile, UInt8 attrs) {
     if (gHandleCount >= RM_HANDLE_CAP) return;
 
     /* Linear probe hash table */
@@ -232,6 +233,7 @@ static void RecordHandleInfo(Handle h, ResType type, ResID id, UInt16 nameOff, U
             gHandleInfo[idx].nameOffset = nameOff;
             gHandleInfo[idx].dataLen = dataLen;
             gHandleInfo[idx].homeFile = homeFile;
+            gHandleInfo[idx].attributes = attrs;
             gHandleCount++;
             break;
         }
@@ -912,7 +914,7 @@ Handle GetResource(ResType theType, ResID theID) {
 
             /* Insert into cache and record handle info */
             CacheInsert(theType, theID, h);
-            RecordHandleInfo(h, theType, theID, nameOff, dataLength, file->refNum);
+            RecordHandleInfo(h, theType, theID, nameOff, dataLength, file->refNum, ref->attributes);
         }
         return h;
     }
@@ -1360,7 +1362,7 @@ void AddResource(Handle theData, ResType theType, ResID theID, ConstStr255Param 
     UInt16 nameOff = (name && name[0] > 0) ? 1 : 0;  /* Simplified name handling */
     extern Size GetHandleSize(Handle h);
     UInt32 dataLen = GetHandleSize(theData);
-    RecordHandleInfo(theData, theType, theID, nameOff, dataLen, gResMgr.curResFile);
+    RecordHandleInfo(theData, theType, theID, nameOff, dataLen, gResMgr.curResFile, 0);
 
     gResMgr.resError = noErr;
 }
@@ -1387,13 +1389,34 @@ void ChangedResource(Handle theResource) {
 
 /* Get/set resource attributes */
 SInt16 GetResAttrs(Handle theResource) {
-    (void)theResource;
+    if (!theResource) {
+        gResMgr.resError = resNotFound;
+        return 0;
+    }
+
+    HandleInfo* info = FindHandleInfo(theResource);
+    if (info) {
+        gResMgr.resError = noErr;
+        return info->attributes;
+    }
+
+    gResMgr.resError = resNotFound;
     return 0;
 }
 
 void SetResAttrs(Handle theResource, SInt16 attrs) {
-    (void)theResource; (void)attrs;
-    gResMgr.resError = resAttrErr;
+    if (!theResource) {
+        gResMgr.resError = resNotFound;
+        return;
+    }
+
+    HandleInfo* info = FindHandleInfo(theResource);
+    if (info) {
+        info->attributes = (UInt8)attrs;
+        gResMgr.resError = noErr;
+    } else {
+        gResMgr.resError = resNotFound;
+    }
 }
 
 /* Count resources */
