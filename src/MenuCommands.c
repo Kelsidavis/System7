@@ -218,6 +218,14 @@ void Finder_AdjustMenus(void) {
     /* Adjust File menu */
     MenuHandle fileMenu = GetMenuHandle(kFileMenuID);
     if (fileMenu) {
+        /* New Folder: disabled in Trash window (can't create folders there) */
+        Boolean isTrashWindow = (front && front->refCon == 'TRSH');
+        if (isTrashWindow) {
+            DisableItem(fileMenu, kNewFolderItem);
+        } else {
+            EnableItem(fileMenu, kNewFolderItem);
+        }
+
         if (hasSelection) {
             EnableItem(fileMenu, kOpenItem);
             EnableItem(fileMenu, kGetInfoItem);
