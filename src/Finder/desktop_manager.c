@@ -1712,14 +1712,8 @@ OSErr InitializeVolumeIcon(void)
 
         gDesktopIconCount++;
         gVolumeIconVisible = true;
-        serial_puts("[IVI] count incremented\n");
-        uart_flush();
-
-        FINDER_LOG_DEBUG("InitializeVolumeIcon: gDesktopIconCount now = %d\n", gDesktopIconCount);
     }
 
-    serial_puts("[IVI] done\n");
-    uart_flush();
     return noErr;
 }
 

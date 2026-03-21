@@ -198,6 +198,44 @@ OSErr ShowConfirmDialog(StringPtr message, Boolean *confirmed);
 /* Volume Mount Callback */
 void OnVolumeMount(VRefNum vref, const char* volName);
 
+/* ============================================================================
+ * Folder Window Functions (folder_window.c)
+ * ============================================================================ */
+void FolderWindow_ArrowKey(WindowPtr w, Boolean isDown, Boolean extendSel);
+void FolderWindow_ArrowKeyLR(WindowPtr w, Boolean isRight);
+void FolderWindow_TabKey(WindowPtr w, Boolean reverse);
+void FolderWindow_TypeAhead(WindowPtr w, char ch);
+void FolderWindow_ScrollWheel(int8_t delta);
+void FolderWindow_RenameItem(WindowPtr w, short itemIndex);
+short FolderWindow_GetViewMode(WindowPtr w);
+Boolean FolderWindow_HasSelection(WindowPtr w);
+short FolderWindow_GetSelectedLabel(WindowPtr w);
+short FolderWindow_FindItemByName(WindowPtr w, const char* name);
+void FolderWindow_SelectByName(WindowPtr w, const char* name);
+
+/* ============================================================================
+ * Desktop Functions (desktop_manager.c)
+ * ============================================================================ */
+void Desktop_RefreshTrashIcon(void);
+Boolean Desktop_HasSelectedIcon(void);
+Boolean Desktop_GetSelectedIconInfo(VRefNum* vref, FileID* fileID);
+void Desktop_SelectAllIcons(void);
+void Desktop_OpenSelectedIcon(void);
+
+/* ============================================================================
+ * Menu Functions (MenuCommands.c)
+ * ============================================================================ */
+void Finder_AdjustMenus(void);
+void Finder_UpdateViewMenuForWindow(WindowPtr w);
+void Finder_RecordTrashUndo(VRefNum vref, DirID parentDir, FileID fileID);
+short Finder_GetUndoType(void);
+
+/* ============================================================================
+ * Cursor Functions (CursorManager.c)
+ * ============================================================================ */
+void SetWatchCursor(void);
+const Cursor* CursorManager_GetIBeamCursor(void);
+
 #endif /* __FINDER_H__ */
 
 /*

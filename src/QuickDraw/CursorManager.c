@@ -276,6 +276,10 @@ void SetCursor(const Cursor* crsr) {
     CursorManager_SetCursorInternal(crsr, false);
 }
 
+/* Forward declarations for functions used externally */
+void SetWatchCursor(void);
+const Cursor* CursorManager_GetIBeamCursor(void);
+
 /*
  * SetWatchCursor - Show the animated watch (busy) cursor.
  * Call SpinCursor() periodically during long operations to animate it.

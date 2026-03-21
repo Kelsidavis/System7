@@ -15,6 +15,8 @@
 #include "Finder/finder.h"
 #include "QuickDraw/QuickDraw.h"
 #include "QuickDrawConstants.h"
+#include "FontManager/FontManager.h"
+#include "SoundManager/SoundManager.h"
 #include "FS/hfs_types.h"
 #include "ControlPanels/DesktopPatterns.h"
 #include "ControlPanels/Sound.h"

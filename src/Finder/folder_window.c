@@ -27,6 +27,8 @@
 #include "System71StdLib.h"
 #include "Finder/FinderLogging.h"
 #include "EventManager/EventManager.h"
+#include "SoundManager/SoundManager.h"
+#include "DialogManager/DialogManager.h"
 #include "ControlPanels/DesktopPatterns.h"
 #include "ControlPanels/Sound.h"
 #include "ControlPanels/Mouse.h"
@@ -1464,7 +1466,6 @@ Boolean HandleFolderWindowClick(WindowPtr w, EventRecord *ev, Boolean isDoubleCl
                     extern void ShowWindow(WindowPtr);
                     extern Boolean GetNextEvent(unsigned int, EventRecord*);
                     extern void SystemTask(void);
-                    extern void SysBeep(short duration);
 
                     SysBeep(1);
 
@@ -1506,15 +1507,15 @@ Boolean HandleFolderWindowClick(WindowPtr w, EventRecord *ev, Boolean isDoubleCl
                             ShowWindow((WindowPtr)dlg);
                             Boolean done = false;
                             while (!done) {
-                                EventRecord ev;
-                                if (GetNextEvent(0xFFFF, &ev)) {
-                                    if (IsDialogEvent(&ev)) {
+                                EventRecord dlgEvent;
+                                if (GetNextEvent(0xFFFF, &dlgEvent)) {
+                                    if (IsDialogEvent(&dlgEvent)) {
                                         DialogPtr wd; short it;
-                                        if (DialogSelect(&ev, &wd, &it) && wd == dlg && it == 2)
+                                        if (DialogSelect(&dlgEvent, &wd, &it) && wd == dlg && it == 2)
                                             done = true;
                                     }
-                                    if (ev.what == 3) {
-                                        char ch = ev.message & 0xFF;
+                                    if (dlgEvent.what == 3) {
+                                        char ch = dlgEvent.message & 0xFF;
                                         if (ch == '\r' || ch == 0x03 || ch == 0x1B) done = true;
                                     }
                                 }
@@ -2253,9 +2254,6 @@ void FolderWindow_SelectAll(WindowPtr w) {
 }
 
 /*
-/*
-/*
-/*
  * FolderWindow_GetSelectedLabel - Get the label of the first selected item.
  * Returns -1 if nothing selected or label is "None" (0).
  */
@@ -2330,7 +2328,7 @@ short FolderWindow_GetViewMode(WindowPtr w) {
  * FolderWindow_ArrowKey - Handle up/down arrow key for selection navigation.
  * Moves selection and auto-scrolls list view to keep selection visible.
  */
-void FolderWindow_ArrowKey(WindowPtr w, Boolean isDown, Boolean extend) {
+void FolderWindow_ArrowKey(WindowPtr w, Boolean isDown, Boolean extendSel) {
     if (!w || !IsFolderWindow(w)) return;
 
     FolderWindowState* state = GetFolderState(w);
@@ -2360,7 +2358,7 @@ void FolderWindow_ArrowKey(WindowPtr w, Boolean isDown, Boolean extend) {
     if (newIndex == state->selectedIndex) return;
 
     if (state->selectedItems) {
-        if (extend) {
+        if (extendSel) {
             /* Shift+arrow: extend selection to include all items between
              * old selectedIndex and new index (contiguous range) */
             short from = (state->selectedIndex < newIndex) ? state->selectedIndex : newIndex;
@@ -2438,8 +2436,6 @@ void FolderWindow_ArrowKeyLR(WindowPtr w, Boolean isRight) {
     PostEvent(updateEvt, (UInt32)(uintptr_t)w);
 }
 
-/*
- * FolderWindow_TypeAhead - Handle type-ahead selection in folder windows.
 /*
  * FolderWindow_TabKey - Cycle selection to next/previous item.
  * Tab selects the next item, Shift+Tab selects the previous.
@@ -2553,7 +2549,6 @@ void FolderWindow_TypeAhead(WindowPtr w, char ch) {
     }
 
     /* No match found - beep */
-    extern void SysBeep(short duration);
     SysBeep(1);
 }
 
