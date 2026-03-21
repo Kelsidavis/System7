@@ -3300,61 +3300,25 @@ static void GhostEraseIf(void) {
 }
 
 /*
- * CleanupFolderWindow - Clean up state when a folder window is closed
- * This prevents crashes when the window is closed and then File > Close is used
+ * CleanupFolderWindow - Clean up state when a folder window is closed.
+ * Frees items/selection arrays and clears the window slot for reuse.
  */
-
-/* Temporarily disable ALL FINDER logging to prevent heap corruption from variadic serial_logf */
-#undef FINDER_LOG_DEBUG
-#undef FINDER_LOG_WARN
-#undef FINDER_LOG_ERROR
-#define FINDER_LOG_DEBUG(...) do {} while(0)
-#define FINDER_LOG_WARN(...) do {} while(0)
-#define FINDER_LOG_ERROR(...) do {} while(0)
-
 void CleanupFolderWindow(WindowPtr w) {
     if (!w) return;
 
-FINDER_LOG_DEBUG("CleanupFolderWindow: cleaning up window 0x%08x\n", (unsigned int)P2UL(w));
-
-    /* Debug: Show all window slots before search */
-    for (int j = 0; j < MAX_FOLDER_WINDOWS; j++) {
-        if (gFolderWindows[j].window != NULL) {
-            FINDER_LOG_DEBUG("CleanupFolderWindow: slot[%d] = 0x%08x\n", j,
-                          (unsigned int)P2UL(gFolderWindows[j].window));
-        }
-    }
-
-    /* Find and clear this window's state */
     for (int i = 0; i < MAX_FOLDER_WINDOWS; i++) {
         if (gFolderWindows[i].window == w) {
-            FINDER_LOG_DEBUG("CleanupFolderWindow: found slot %d, freeing items\n", i);
-            FINDER_LOG_DEBUG("CleanupFolderWindow: items ptr=0x%08x, count=%d\n",
-                          (unsigned int)gFolderWindows[i].state.items,
-                          gFolderWindows[i].state.itemCount);
-
-            /* Sanity check before free - itemCount should be reasonable */
-            if (gFolderWindows[i].state.itemCount > 1000) {
-                FINDER_LOG_WARN("CleanupFolderWindow: CORRUPTED itemCount=%d, skipping free\n",
-                             gFolderWindows[i].state.itemCount);
-            } else if (gFolderWindows[i].state.items) {
-                /* Free the items array if allocated */
-                FINDER_LOG_DEBUG("CleanupFolderWindow: calling DisposePtr((Ptr))\n");
+            /* Free allocated arrays (with corruption guard) */
+            if (gFolderWindows[i].state.itemCount <= 1000 &&
+                gFolderWindows[i].state.items) {
                 DisposePtr((Ptr)gFolderWindows[i].state.items);
-                FINDER_LOG_DEBUG("CleanupFolderWindow: DisposePtr((Ptr)) returned\n");
             }
-
-            /* Free the selection array if allocated */
             if (gFolderWindows[i].state.selectedItems) {
-                FINDER_LOG_DEBUG("CleanupFolderWindow: freeing selectedItems\n");
                 DisposePtr((Ptr)gFolderWindows[i].state.selectedItems);
             }
 
-            /* Clear the slot */
-            FINDER_LOG_DEBUG("CleanupFolderWindow: clearing window pointer\n");
+            /* Reset slot for reuse */
             gFolderWindows[i].window = NULL;
-            FINDER_LOG_DEBUG("CleanupFolderWindow: window pointer now=0x%08x\n",
-                          (unsigned int)P2UL(gFolderWindows[i].window));
             gFolderWindows[i].state.items = NULL;
             gFolderWindows[i].state.selectedItems = NULL;
             gFolderWindows[i].state.itemCount = 0;
@@ -3362,14 +3326,7 @@ FINDER_LOG_DEBUG("CleanupFolderWindow: cleaning up window 0x%08x\n", (unsigned i
             gFolderWindows[i].state.viewMode = kViewByIcon;
             gFolderWindows[i].state.scrollOffset = 0;
             gFolderWindows[i].state.typeAheadLen = 0;
-
-            FINDER_LOG_DEBUG("CleanupFolderWindow: slot %d cleared\n", i);
-            FINDER_LOG_DEBUG("CleanupFolderWindow: about to return\n");
-            FINDER_LOG_DEBUG("CleanupFolderWindow: RETURN NOW\n");
             return;
         }
     }
-
-    /* Window not found - this is OK if it was already closed, but warn about potential double-close */
-    FINDER_LOG_WARN("CleanupFolderWindow: window 0x%08x not found in state table (already cleaned up or never registered)\n", (unsigned int)P2UL(w));
 }
