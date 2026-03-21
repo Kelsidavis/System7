@@ -224,9 +224,19 @@ void Finder_AdjustMenus(void) {
             DisableItem(fileMenu, kDuplicateItem);
             DisableItem(fileMenu, kMakeAliasItem);
         }
-        /* Close is always enabled when a window is front */
+        /* Close: enabled when a window is front, text changes based on context.
+         * System 7 shows "Close Window" for Finder windows, "Close" for others. */
         if (front) {
             EnableItem(fileMenu, kCloseItem);
+            extern void SetMenuItemText(MenuHandle theMenu, short item,
+                                         ConstStr255Param itemString);
+            if (hasFolderWindow) {
+                static unsigned char closeWin[] = {12, 'C','l','o','s','e',' ','W','i','n','d','o','w'};
+                SetMenuItemText(fileMenu, kCloseItem, closeWin);
+            } else {
+                static unsigned char closeStr[] = {5, 'C','l','o','s','e'};
+                SetMenuItemText(fileMenu, kCloseItem, closeStr);
+            }
         } else {
             DisableItem(fileMenu, kCloseItem);
         }
