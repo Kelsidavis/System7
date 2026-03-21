@@ -1617,9 +1617,10 @@ static const char* GetFileKindString(const FolderItem* item) {
 
 /*
  * Draw the column header bar for list view.
- * Renders "Name", "Size", "Kind", "Date" headers with separator lines.
+ * Renders column headers with the active sort column in bold.
  */
-static void FolderWindow_DrawListHeader(const Rect* portRect) {
+static void FolderWindow_DrawListHeader(const Rect* portRect, short viewMode) {
+    extern void TextFace(short style);
     short y = portRect->top;
     short left = portRect->left;
 
@@ -1630,32 +1631,39 @@ static void FolderWindow_DrawListHeader(const Rect* portRect) {
     for (int i = 0; i < 8; i++) grayPat.pat[i] = 0xAA;  /* 50% gray */
     FillRect(&headerRect, &grayPat);
 
-    /* Draw header text */
-    short textY = y + 12;  /* Baseline within header */
+    /* Draw header text — active sort column is bold */
+    short textY = y + 12;
 
     /* Name column */
+    TextFace(viewMode == kViewByName ? 1 : 0);  /* 1 = bold */
     MoveTo(left + kListLeftMargin + kListIconSize + 4, textY);
     DrawText("Name", 0, 4);
 
     /* Size column */
     short sizeX = left + kListNameColWidth;
+    TextFace(viewMode == kViewBySize ? 1 : 0);
     MoveTo(sizeX + 4, textY);
     DrawText("Size", 0, 4);
 
     /* Kind column */
     short kindX = sizeX + kListSizeColWidth;
+    TextFace(viewMode == kViewByKind ? 1 : 0);
     MoveTo(kindX + 4, textY);
     DrawText("Kind", 0, 4);
 
     /* Label column */
     short labelX = kindX + kListKindColWidth;
+    TextFace(viewMode == kViewByLabel ? 1 : 0);
     MoveTo(labelX + 4, textY);
     DrawText("Label", 0, 5);
 
     /* Date column */
     short dateX = labelX + kListLabelColWidth;
+    TextFace(viewMode == kViewByDate ? 1 : 0);
     MoveTo(dateX + 4, textY);
     DrawText("Date", 0, 4);
+
+    TextFace(0);  /* Reset to plain */
 
     /* Draw bottom separator line */
     MoveTo(left, y + kListHeaderHeight - 1);
@@ -1768,7 +1776,7 @@ static void FolderWindow_DrawListView(WindowPtr w, FolderWindowState* state) {
     /* Draw column headers (adjusted for scrollbar) */
     Rect headerPortRect = w->port.portRect;
     headerPortRect.right = contentRight;
-    FolderWindow_DrawListHeader(&headerPortRect);
+    FolderWindow_DrawListHeader(&headerPortRect, state->viewMode);
 
     /* Draw visible items starting from scrollOffset */
     short rowY = top + kListHeaderHeight;
