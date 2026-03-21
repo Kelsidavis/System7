@@ -1475,6 +1475,43 @@ static void FormatFileSize(uint32_t size, char* buf, int bufLen) {
 }
 
 /*
+ * FormatMacDateShort - Format a Mac OS date (seconds since Jan 1, 1904)
+ * as a compact string for list view: "Mon/DD/YYYY" or "M/D/YY".
+ * Uses Finder-style short date format.
+ */
+static void FormatMacDateShort(uint32_t macTime, char* out, int outSize) {
+    if (macTime == 0) {
+        out[0] = '-'; out[1] = '\0';
+        return;
+    }
+
+    uint32_t totalDays = macTime / 86400;
+
+    /* Calculate year from days since 1904-01-01 */
+    short year = 1904;
+    while (1) {
+        short diy = 365;
+        if ((year % 4 == 0 && year % 100 != 0) || year % 400 == 0) diy = 366;
+        if (totalDays < (uint32_t)diy) break;
+        totalDays -= diy;
+        year++;
+    }
+
+    static const short dim[] = {31,28,31,30,31,30,31,31,30,31,30,31};
+    short month = 0;
+    for (month = 0; month < 12; month++) {
+        short d = dim[month];
+        if (month == 1 && ((year % 4 == 0 && year % 100 != 0) || year % 400 == 0))
+            d = 29;
+        if (totalDays < (uint32_t)d) break;
+        totalDays -= d;
+    }
+    short day = (short)totalDays + 1;
+
+    snprintf(out, outSize, "%d/%d/%02d", month + 1, day, year % 100);
+}
+
+/*
  * Get a human-readable "Kind" string from file type/creator/folder flag.
  * Matches classic System 7 Finder kind strings.
  */
@@ -1711,12 +1748,22 @@ static void FolderWindow_DrawListView(WindowPtr w, FolderWindowState* state) {
         MoveTo(kindX + 4, textY);
         DrawText(kindStr, 0, kindLen);
 
+        /* Draw last modified date */
+        short dateX = kindX + kListKindColWidth;
+        if (state->items[i].modTime != 0) {
+            char dateBuf[16];
+            FormatMacDateShort(state->items[i].modTime, dateBuf, sizeof(dateBuf));
+            int dateLen = 0;
+            while (dateBuf[dateLen]) dateLen++;
+            MoveTo(dateX + 4, textY);
+            DrawText(dateBuf, 0, dateLen);
+        }
+
         /* Column separators */
         MoveTo(sizeX, rowY);
         LineTo(sizeX, rowY + kListRowHeight - 1);
         MoveTo(kindX, rowY);
         LineTo(kindX, rowY + kListRowHeight - 1);
-        short dateX = kindX + kListKindColWidth;
         MoveTo(dateX, rowY);
         LineTo(dateX, rowY + kListRowHeight - 1);
 
