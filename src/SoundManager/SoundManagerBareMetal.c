@@ -1159,6 +1159,26 @@ OSErr SndControl(SInt16 id, SndCommand* cmd) {
     return unimpErr;
 }
 
+/* Sound Manager version - apps check this for feature support */
+NumVersion SndSoundManagerVersion(void) {
+    NumVersion version;
+    version.majorRev = 3;       /* Sound Manager 3.0 */
+    version.minorAndBugRev = 0;
+    version.stage = 0x80;       /* Final */
+    version.nonRelRev = 0;
+    return version;
+}
+
+OSErr SndManagerStatus(SInt16 theLength, SMStatus *theStatus) {
+    if (!theStatus || theLength < (SInt16)sizeof(SMStatus)) {
+        return paramErr;
+    }
+    theStatus->smMaxCPULoad = 0;
+    theStatus->smNumChannels = g_channelCount;
+    theStatus->smCurCPULoad = 0;
+    return noErr;
+}
+
 /* Legacy Sound Manager 1.0 stubs */
 void StartSound(const void* soundPtr, SInt32 numBytes, SoundCompletionUPP completionRtn) {
     /* No-op */
