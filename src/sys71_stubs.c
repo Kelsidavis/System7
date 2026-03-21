@@ -579,9 +579,25 @@ OSErr FSpGetFInfo(const FSSpec* spec, FInfo* fndrInfo) {
 
 OSErr FSpSetFInfo(const FSSpec* spec, const FInfo* fndrInfo) {
     if (!spec || !fndrInfo) return paramErr;
-    /* HSetFInfo not yet implemented — return noErr to not break callers
-     * that set file type/creator after creation */
-    (void)spec; (void)fndrInfo;
+
+    /* Look up the file in VFS to update its type/creator in the overlay */
+    extern bool VFS_Lookup(VRefNum vref, DirID dir, const char* name, CatEntry* entry);
+    extern bool VFS_SetCatEntryInfo(VRefNum vref, FileID id,
+                                     uint32_t type, uint32_t creator, uint16_t flags);
+
+    char cName[32];
+    unsigned char len = spec->name[0];
+    if (len > 31) len = 31;
+    for (int i = 0; i < len; i++) cName[i] = spec->name[i + 1];
+    cName[len] = '\0';
+
+    CatEntry entry;
+    if (!VFS_Lookup(spec->vRefNum, spec->parID, cName, &entry)) {
+        return fnfErr;
+    }
+
+    VFS_SetCatEntryInfo(spec->vRefNum, entry.id,
+                        fndrInfo->fdType, fndrInfo->fdCreator, fndrInfo->fdFlags);
     return noErr;
 }
 

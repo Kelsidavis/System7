@@ -1136,3 +1136,32 @@ bool VFS_Delete(VRefNum vref, FileID id) {
     FS_LOG_DEBUG("VFS_Delete: Marked ID %u as deleted\n", id);
     return true;
 }
+
+bool VFS_SetCatEntryInfo(VRefNum vref, FileID id,
+                         uint32_t type, uint32_t creator, uint16_t flags) {
+    VFSVolume* vol = VFS_FindVolume(vref);
+    if (!vol || !vol->mounted) return false;
+
+    /* Check if already in overlay */
+    VFSOverlayEntry* oe = VFS_FindOverlay(vol, id);
+    if (oe) {
+        oe->entry.type = type;
+        oe->entry.creator = creator;
+        oe->entry.flags = flags;
+        return true;
+    }
+
+    /* Create overlay entry from catalog */
+    CatEntry catEntry;
+    if (!HFS_CatalogGetByID(&vol->catalog, id, &catEntry)) return false;
+
+    oe = VFS_AllocOverlay(vol);
+    if (!oe) return false;
+
+    oe->id = id;
+    oe->entry = catEntry;
+    oe->entry.type = type;
+    oe->entry.creator = creator;
+    oe->entry.flags = flags;
+    return true;
+}

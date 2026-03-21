@@ -66,3 +66,5 @@ bool VFS_Rename(VRefNum vref, FileID id, const char* newName);
 bool VFS_Delete(VRefNum vref, FileID id);
 bool VFS_MoveOverlay(VRefNum vref, FileID id, DirID newParent,
                      const char* newName, const CatEntry* currentEntry);
+bool VFS_SetCatEntryInfo(VRefNum vref, FileID id,
+                         uint32_t type, uint32_t creator, uint16_t flags);
