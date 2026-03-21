@@ -372,11 +372,24 @@ Boolean HandleMouseDown(EventRecord* event)
             return true;
 
         case inGoAway:
-            /* Close box clicked - directly close without tracking (TrackGoAway not fully implemented) */
+            /* Close box clicked. Option+click = close ALL windows (System 7 behavior) */
             if (whichWindow) {
                 extern void DisposeWindow(WindowPtr window);
-                EVT_LOG_DEBUG("DISP: Close box clicked, disposing window %p\n", (void*)whichWindow);
-                DisposeWindow(whichWindow);  /* Calls CloseWindow internally + frees memory */
+
+                if (event->modifiers & optionKey) {
+                    /* Option+click close box = close all Finder folder windows */
+                    extern Boolean IsFolderWindow(WindowPtr w);
+                    extern OSErr CloseFinderWindow(WindowPtr w);
+                    EVT_LOG_DEBUG("DISP: Option+close = closing all folder windows\n");
+                    WindowPtr w;
+                    while ((w = FrontWindow()) != NULL) {
+                        if (!IsFolderWindow(w)) break;
+                        CloseFinderWindow(w);
+                    }
+                } else {
+                    EVT_LOG_DEBUG("DISP: Close box clicked, disposing window %p\n", (void*)whichWindow);
+                    DisposeWindow(whichWindow);
+                }
             }
             return true;
 
