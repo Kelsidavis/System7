@@ -361,11 +361,12 @@ Boolean HandleMouseDown(EventRecord* event)
             return true;
 
         case inGrow:
-            /* Resize window using grow box */
+            /* Resize window using grow box.
+             * GrowWindow tracks the drag outline and calls SizeWindow internally,
+             * so we only need to call GrowWindow with size bounds. */
             if (whichWindow) {
                 EVT_LOG_DEBUG("Grow window %p\n", (void*)whichWindow);
                 extern long GrowWindow(WindowPtr theWindow, Point startPt, const Rect* bBox);
-                extern void SizeWindow(WindowPtr theWindow, short w, short h, Boolean fUpdate);
 
                 /* Set minimum/maximum size bounds for resize */
                 Rect sizeRect;
@@ -374,14 +375,7 @@ Boolean HandleMouseDown(EventRecord* event)
                 sizeRect.right = 2000; /* Max width */
                 sizeRect.bottom = 2000;/* Max height */
 
-                long newSize = GrowWindow(whichWindow, event->where, &sizeRect);
-                if (newSize != 0) {
-                    short newWidth = newSize & 0xFFFF;
-                    short newHeight = (newSize >> 16) & 0xFFFF;
-                    SizeWindow(whichWindow, newWidth, newHeight, true);
-                    EVT_LOG_DEBUG("SizeWindow(%p, %d, %d)\n",
-                                 (void*)whichWindow, newWidth, newHeight);
-                }
+                GrowWindow(whichWindow, event->where, &sizeRect);
             }
             return true;
 
