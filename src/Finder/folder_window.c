@@ -802,10 +802,18 @@ WindowPtr FolderWindow_OpenFolder(VRefNum vref, DirID dirID, ConstStr255Param ti
 
     /* Initialize folder state with specific directory */
     FolderWindowState* state = GetFolderState(w);
-    if (state) {
-        /* Override the default initialization with specific directory */
-        InitializeFolderContentsEx(w, false, vref, dirID);
+    if (!state) {
+        /* No folder window slots available — close the empty window and alert */
+        FINDER_LOG_WARN("FolderWindow_OpenFolder: No window slots (limit=%d)\n",
+                        MAX_FOLDER_WINDOWS);
+        extern void DisposeWindow(WindowPtr window);
+        DisposeWindow(w);
+        SysBeep(10);  /* Audible feedback */
+        return NULL;
     }
+
+    /* Override the default initialization with specific directory */
+    InitializeFolderContentsEx(w, false, vref, dirID);
 
     ShowWindow(w);
     SelectWindow(w);
