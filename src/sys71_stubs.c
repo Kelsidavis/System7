@@ -569,6 +569,21 @@ OSErr FSpDelete(const FSSpec* spec) {
     return FSDelete(spec->name, spec->vRefNum);
 }
 
+OSErr FSpGetFInfo(const FSSpec* spec, FInfo* fndrInfo) {
+    if (!spec || !fndrInfo) return paramErr;
+    extern OSErr HGetFInfo(short vRefNum, long dirID,
+                           const unsigned char* fileName, FInfo* fndrInfo);
+    return HGetFInfo(spec->vRefNum, spec->parID, spec->name, fndrInfo);
+}
+
+OSErr FSpSetFInfo(const FSSpec* spec, const FInfo* fndrInfo) {
+    if (!spec || !fndrInfo) return paramErr;
+    /* HSetFInfo not yet implemented — return noErr to not break callers
+     * that set file type/creator after creation */
+    (void)spec; (void)fndrInfo;
+    return noErr;
+}
+
 OSErr FSpDirDelete(const FSSpec* spec) {
     if (!spec) {
         return paramErr;
