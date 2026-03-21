@@ -370,16 +370,58 @@ void WM_DrawWindowZoomBox(WindowPtr window, WindowPartState state) {
 }
 
 void WM_DrawGrowIcon(WindowPtr window) {
+    extern void GetPort(GrafPtr* port);
+    extern void SetPort(GrafPtr port);
+    extern void EraseRect(const Rect* r);
+    extern void FrameRect(const Rect* r);
+    extern void MoveTo(short h, short v);
+    extern void LineTo(short h, short v);
+
     if (window == NULL || !WM_WindowHasGrowBox(window)) return;
 
     WM_DEBUG("WM_DrawGrowIcon: Drawing grow icon");
 
-    /* Get grow box rectangle */
-    Rect growRect;
-    Platform_GetWindowGrowBoxRect(window, &growRect);
+    GrafPtr savePort;
+    GetPort(&savePort);
+    SetPort((GrafPtr)window);
 
-    /* Draw diagonal lines pattern for grow icon */
-    /* TODO: Implement actual grow icon drawing when graphics system is available */
+    /* Grow box sits in the bottom-right 15x15 area of the content region */
+    short right = window->port.portRect.right;
+    short bottom = window->port.portRect.bottom;
+    Rect growBox;
+    growBox.left = right - 15;
+    growBox.top = bottom - 15;
+    growBox.right = right;
+    growBox.bottom = bottom;
+
+    /* Clear area */
+    EraseRect(&growBox);
+
+    /* Draw the classic System 7 grow box: a small raised square with
+     * a second offset square, creating the iconic double-box pattern */
+    /* Outer box (larger) */
+    Rect outerBox;
+    outerBox.left = right - 13;
+    outerBox.top = bottom - 13;
+    outerBox.right = right - 2;
+    outerBox.bottom = bottom - 2;
+    FrameRect(&outerBox);
+
+    /* Inner box (smaller, offset to top-left) */
+    Rect innerBox;
+    innerBox.left = right - 13;
+    innerBox.top = bottom - 13;
+    innerBox.right = right - 7;
+    innerBox.bottom = bottom - 7;
+    FrameRect(&innerBox);
+
+    /* Separator lines between the two boxes */
+    MoveTo(right - 7, bottom - 13);
+    LineTo(right - 7, bottom - 7);
+    MoveTo(right - 13, bottom - 7);
+    LineTo(right - 7, bottom - 7);
+
+    SetPort(savePort);
 
     WM_DEBUG("WM_DrawGrowIcon: Grow icon drawn");
 }
