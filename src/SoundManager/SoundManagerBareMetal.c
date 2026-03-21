@@ -32,6 +32,9 @@ extern int PCSpkr_Init(void);
 extern void PCSpkr_Shutdown(void);
 extern void PCSpkr_Beep(uint32_t frequency, uint32_t duration_ms);
 
+/* Forward declaration for sound header playback */
+static OSErr SndPlaySoundHeader(const UInt8* hdr, Size hdrMaxLen);
+
 /* Sound Manager state */
 static bool g_soundManagerInitialized = false;
 static const SoundBackendOps* g_soundBackendOps = NULL;
@@ -285,7 +288,7 @@ OSErr SndDisposeChannel(SndChannelPtr chan, Boolean quietNow) {
  * Sound Command Definitions
  * ============================================================================ */
 
-/* Sound command opcodes */
+/* Sound command opcodes - legacy internal IDs for Format 1 synthesis */
 #define freqCmd         1       /* Set frequency (param2 = frequency in Hz) */
 #define ampCmd          2       /* Set amplitude */
 #define timbreCmd       3       /* Set timbre */
@@ -293,6 +296,11 @@ OSErr SndDisposeChannel(SndChannelPtr chan, Boolean quietNow) {
 #define quietCmd        5       /* Turn off sound */
 #define restCmd         6       /* Rest for duration (param2 = duration in ms) */
 #define noteCmd         7       /* Play note (param1 = MIDI note, param2 = amplitude) */
+
+/* Mac OS Sound Manager command opcodes for sampled sound */
+#define kSndCmdSound    80      /* soundCmd - play sampled sound from sound header */
+#define kSndCmdBuffer   81      /* bufferCmd - play from buffer (sound header ptr) */
+#define kDataOffsetFlag 0x8000  /* High bit: param2 is offset into resource, not ptr */
 
 /*
  * Convert MIDI note number to frequency in Hz
@@ -384,6 +392,21 @@ static void SndProcessCommand(SndChannelPtr chan, const SndCommand* cmd) {
                 PCSpkr_Beep(noteFreq, duration);
             }
             break;
+
+        case kSndCmdSound:
+        case kSndCmdBuffer: {
+            /* soundCmd/bufferCmd - param2 is a pointer to a sound header in memory */
+            if (cmd->param2 != 0) {
+                const UInt8* hdr = (const UInt8*)(uintptr_t)cmd->param2;
+                /*
+                 * We don't know the exact buffer size, but sound headers are
+                 * self-describing via their length/numFrames fields. Pass a
+                 * generous max to the parser which will clamp internally.
+                 */
+                SndPlaySoundHeader(hdr, 0x7FFFFFFF);
+            }
+            break;
+        }
 
         case ampCmd:
         case timbreCmd:
@@ -741,6 +764,249 @@ typedef struct SndFormat1 {
  * Sound Playback Implementation
  * ============================================================================ */
 
+/* ============================================================================
+ * Sound Header Parsing for Format 2 (Sampled Sound) Resources
+ * ============================================================================ */
+
+/*
+ * Sound header encoding types
+ *   stdSH  (0x00) - Standard 8-bit mono sound header
+ *   extSH  (0xFF) - Extended sound header (multi-channel, 8/16-bit)
+ *   cmpSH  (0xFE) - Compressed sound header (not yet supported)
+ */
+#define kStdSH  0x00
+#define kExtSH  0xFF
+#define kCmpSH  0xFE
+
+/*
+ * Parse a standard sound header (encode == 0x00) and play via SB16 backend.
+ *
+ * Standard header layout (22 bytes + sample data):
+ *   Offset  0: Ptr     samplePtr      (4 bytes, 0 = data follows inline)
+ *   Offset  4: UInt32  length         (number of bytes of sample data)
+ *   Offset  8: Fixed   sampleRate     (16.16 fixed-point Hz)
+ *   Offset 12: UInt32  loopStart
+ *   Offset 16: UInt32  loopEnd
+ *   Offset 20: UInt8   encode         (0x00)
+ *   Offset 21: UInt8   baseFrequency
+ *   Offset 22: UInt8[] sampleData     (8-bit unsigned mono PCM)
+ */
+static OSErr SndPlaySoundHeader_Std(const UInt8* hdr, Size hdrMaxLen) {
+    if (hdrMaxLen < 22) {
+        SND_LOG_ERROR("SndPlaySoundHeader_Std: header too small (%d)\n", (int)hdrMaxLen);
+        return paramErr;
+    }
+
+    UInt32 length = ((UInt32)hdr[4] << 24) | ((UInt32)hdr[5] << 16) |
+                    ((UInt32)hdr[6] << 8)  | (UInt32)hdr[7];
+
+    UInt32 sampleRateFixed = ((UInt32)hdr[8] << 24) | ((UInt32)hdr[9] << 16) |
+                             ((UInt32)hdr[10] << 8) | (UInt32)hdr[11];
+    UInt32 sampleRate = sampleRateFixed >> 16;  /* Integer part of 16.16 fixed */
+
+    if (sampleRate == 0) sampleRate = 22050;  /* Sensible default */
+
+    const UInt8* samples = hdr + 22;
+    Size availData = hdrMaxLen - 22;
+
+    if (length > (UInt32)availData) {
+        SND_LOG_WARN("SndPlaySoundHeader_Std: length %u exceeds available %d, clamping\n",
+                     length, (int)availData);
+        length = (UInt32)availData;
+    }
+
+    if (length == 0) {
+        return noErr;  /* Nothing to play */
+    }
+
+    SND_LOG_INFO("SndPlaySoundHeader_Std: %u bytes, %u Hz, 8-bit mono\n", length, sampleRate);
+
+    return SoundManager_PlayPCM(samples, length, sampleRate, 1, 8);
+}
+
+/*
+ * Parse an extended sound header (encode == 0xFF) and play via SB16 backend.
+ *
+ * Extended header layout (64 bytes + sample data):
+ *   Offset  0: Ptr     samplePtr      (4 bytes, 0 = data follows inline)
+ *   Offset  4: UInt32  numChannels    (1 = mono, 2 = stereo)
+ *   Offset  8: Fixed   sampleRate     (16.16 fixed-point Hz)
+ *   Offset 12: UInt32  loopStart
+ *   Offset 16: UInt32  loopEnd
+ *   Offset 20: UInt8   encode         (0xFF)
+ *   Offset 21: UInt8   baseFrequency
+ *   Offset 22: UInt32  numFrames      (number of sample frames)
+ *   Offset 26: 10 bytes AIFF-C 80-bit extended sample rate (ignored, use fixed)
+ *   Offset 36: Ptr     markerChunk    (4 bytes)
+ *   Offset 40: Ptr     instrumentChunks (4 bytes)
+ *   Offset 44: Ptr     AESRecording   (4 bytes)
+ *   Offset 48: UInt16  sampleSize     (bits per sample: 8 or 16)
+ *   Offset 50: UInt16  futureUse1
+ *   Offset 52: UInt32  futureUse2
+ *   Offset 56: UInt32  futureUse3
+ *   Offset 60: UInt32  futureUse4
+ *   Offset 64: UInt8[] sampleData
+ */
+static OSErr SndPlaySoundHeader_Ext(const UInt8* hdr, Size hdrMaxLen) {
+    if (hdrMaxLen < 64) {
+        SND_LOG_ERROR("SndPlaySoundHeader_Ext: header too small (%d)\n", (int)hdrMaxLen);
+        return paramErr;
+    }
+
+    UInt32 numChannels = ((UInt32)hdr[4] << 24) | ((UInt32)hdr[5] << 16) |
+                         ((UInt32)hdr[6] << 8)  | (UInt32)hdr[7];
+
+    UInt32 sampleRateFixed = ((UInt32)hdr[8] << 24) | ((UInt32)hdr[9] << 16) |
+                             ((UInt32)hdr[10] << 8) | (UInt32)hdr[11];
+    UInt32 sampleRate = sampleRateFixed >> 16;
+
+    UInt32 numFrames = ((UInt32)hdr[22] << 24) | ((UInt32)hdr[23] << 16) |
+                       ((UInt32)hdr[24] << 8)  | (UInt32)hdr[25];
+
+    UInt16 sampleSize = ((UInt16)hdr[48] << 8) | (UInt16)hdr[49];
+
+    if (sampleRate == 0) sampleRate = 22050;
+    if (numChannels == 0) numChannels = 1;
+    if (numChannels > 2) numChannels = 2;  /* Clamp to stereo */
+    if (sampleSize != 8 && sampleSize != 16) sampleSize = 8;
+
+    UInt32 bytesPerFrame = numChannels * (sampleSize / 8);
+    UInt32 totalBytes = numFrames * bytesPerFrame;
+
+    const UInt8* samples = hdr + 64;
+    Size availData = hdrMaxLen - 64;
+
+    if (totalBytes > (UInt32)availData) {
+        SND_LOG_WARN("SndPlaySoundHeader_Ext: data %u exceeds available %d, clamping\n",
+                     totalBytes, (int)availData);
+        totalBytes = (UInt32)availData;
+        /* Re-align to frame boundary */
+        if (bytesPerFrame > 0) {
+            totalBytes -= totalBytes % bytesPerFrame;
+        }
+    }
+
+    if (totalBytes == 0) {
+        return noErr;
+    }
+
+    SND_LOG_INFO("SndPlaySoundHeader_Ext: %u frames, %u Hz, %u-bit, %u ch (%u bytes)\n",
+                 numFrames, sampleRate, sampleSize, numChannels, totalBytes);
+
+    return SoundManager_PlayPCM(samples, totalBytes, sampleRate,
+                                (uint8_t)numChannels, (uint8_t)sampleSize);
+}
+
+/*
+ * Dispatch to the right sound header parser based on the encode byte at offset 20.
+ */
+static OSErr SndPlaySoundHeader(const UInt8* hdr, Size hdrMaxLen) {
+    if (hdrMaxLen < 22) {
+        return paramErr;
+    }
+
+    UInt8 encode = hdr[20];
+
+    switch (encode) {
+        case kStdSH:
+            return SndPlaySoundHeader_Std(hdr, hdrMaxLen);
+        case kExtSH:
+            return SndPlaySoundHeader_Ext(hdr, hdrMaxLen);
+        case kCmpSH:
+            SND_LOG_WARN("SndPlaySoundHeader: Compressed sound header (0xFE) not supported\n");
+            PCSpkr_Beep(1000, 200);  /* Fallback beep */
+            return noErr;
+        default:
+            SND_LOG_WARN("SndPlaySoundHeader: Unknown encode type 0x%02x\n", encode);
+            return paramErr;
+    }
+}
+
+/*
+ * Parse and play a format 2 'snd ' resource (sampled sound).
+ *
+ * Format 2 layout:
+ *   Offset 0: UInt16  format (== 2)
+ *   Offset 2: UInt16  refCount (number of data type references, usually 1)
+ *   For each reference:
+ *     UInt16  dataFormatID (5 = sampledSynth)
+ *     UInt32  initBits
+ *   After references:
+ *     UInt16  numCmds
+ *     SndCommand_Res cmds[]  (8 bytes each)
+ *
+ * Commands typically contain a soundCmd (80) or bufferCmd (81) with the
+ * dataOffsetFlag (0x8000) set, meaning param2 is an offset from the start
+ * of the resource to the sound header data.
+ */
+static OSErr SndPlay_Format2(const UInt8* sndData, Size dataSize) {
+    if (!sndData || dataSize < 6) {
+        return paramErr;
+    }
+
+    const UInt8* ptr = sndData + 2;  /* Skip format field */
+
+    /* Read number of data format references */
+    UInt16 refCount = (ptr[0] << 8) | ptr[1];
+    ptr += 2;
+
+    SND_LOG_DEBUG("SndPlay_Format2: refCount=%d\n", refCount);
+
+    /* Skip reference descriptors (6 bytes each: 2-byte ID + 4-byte initBits) */
+    Size refSize = (Size)refCount * 6;
+    if ((Size)(ptr - sndData) + refSize + 2 > (Size)dataSize) {
+        SND_LOG_ERROR("SndPlay_Format2: resource too small for ref descriptors\n");
+        return paramErr;
+    }
+    ptr += refSize;
+
+    /* Read number of commands */
+    UInt16 numCmds = (ptr[0] << 8) | ptr[1];
+    ptr += 2;
+
+    SND_LOG_DEBUG("SndPlay_Format2: numCmds=%d\n", numCmds);
+
+    /* Process commands looking for soundCmd/bufferCmd */
+    for (UInt16 i = 0; i < numCmds && (ptr + 8) <= (sndData + dataSize); i++) {
+        UInt16 cmd = (ptr[0] << 8) | ptr[1];
+        SInt16 param1 = (SInt16)((ptr[2] << 8) | ptr[3]);
+        SInt32 param2 = (SInt32)(((UInt32)ptr[4] << 24) | ((UInt32)ptr[5] << 16) |
+                                 ((UInt32)ptr[6] << 8)  | (UInt32)ptr[7]);
+        ptr += 8;
+
+        /* Check for data offset flag */
+        UInt16 rawCmd = cmd & ~kDataOffsetFlag;
+        bool hasOffset = (cmd & kDataOffsetFlag) != 0;
+
+        SND_LOG_DEBUG("SndPlay_Format2: cmd=0x%04x raw=%d param1=%d param2=%d offset=%d\n",
+                      cmd, rawCmd, param1, param2, hasOffset);
+
+        if ((rawCmd == kSndCmdSound || rawCmd == kSndCmdBuffer) && hasOffset) {
+            /* param2 is offset from start of resource to sound header */
+            SInt32 hdrOffset = param2;
+            if (hdrOffset < 0 || hdrOffset >= (SInt32)dataSize) {
+                SND_LOG_ERROR("SndPlay_Format2: sound header offset %d out of range\n", hdrOffset);
+                continue;
+            }
+
+            const UInt8* hdr = sndData + hdrOffset;
+            Size hdrMaxLen = dataSize - (Size)hdrOffset;
+
+            OSErr err = SndPlaySoundHeader(hdr, hdrMaxLen);
+            if (err != noErr) {
+                SND_LOG_WARN("SndPlay_Format2: sound header playback failed (err=%d)\n", err);
+                return err;
+            }
+            return noErr;  /* Played successfully */
+        }
+    }
+
+    /* No playable sound command found - fall back to beep */
+    SND_LOG_WARN("SndPlay_Format2: no soundCmd/bufferCmd found, falling back to beep\n");
+    PCSpkr_Beep(1000, 200);
+    return noErr;
+}
+
 /* Parse and play a format 1 'snd ' resource (square wave synthesis) */
 static OSErr SndPlay_Format1(const UInt8* sndData, Size dataSize) {
     if (!sndData || dataSize < 10) {
@@ -860,11 +1126,8 @@ OSErr SndPlay(SndChannelPtr chan, SndListHandle sndHandle, Boolean async) {
             break;
 
         case 2:
-            /* Format 2: Sampled sound - not implemented yet */
-            SND_LOG_WARN("SndPlay: Format 2 (sampled sound) not yet implemented\n");
-            /* Fall back to simple beep */
-            PCSpkr_Beep(1000, 200);
-            result = noErr;
+            /* Format 2: Sampled sound - parse sound header and play via SB16 */
+            result = SndPlay_Format2(sndData, dataSize);
             break;
 
         default:
