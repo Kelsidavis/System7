@@ -1178,17 +1178,37 @@ Size GetMaxResourceSize(Handle theResource) {
 
 /* Get home file of resource */
 SInt16 HomeResFile(Handle theResource) {
-    /* Stub - would need to track handle->resource mapping */
-    (void)theResource;
+    if (!theResource) {
+        gResMgr.resError = resNotFound;
+        return -1;
+    }
+
+    HandleInfo* info = FindHandleInfo(theResource);
+    if (info) {
+        gResMgr.resError = noErr;
+        return info->homeFile;
+    }
+
     gResMgr.resError = resNotFound;
     return -1;
 }
 
-/* Detach resource from file */
+/* Detach resource from file — makes it an ordinary memory handle */
 void DetachResource(Handle theResource) {
-    /* In read-only mode, this is a no-op */
-    (void)theResource;
-    gResMgr.resError = noErr;
+    if (!theResource) {
+        gResMgr.resError = resNotFound;
+        return;
+    }
+
+    /* Remove from handle tracking so it's no longer a "resource" */
+    HandleInfo* info = FindHandleInfo(theResource);
+    if (info) {
+        info->h = NULL;  /* Clear the slot */
+        gHandleCount--;
+        gResMgr.resError = noErr;
+    } else {
+        gResMgr.resError = resNotFound;
+    }
 }
 
 /* Load resource data */
