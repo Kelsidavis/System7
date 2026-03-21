@@ -789,9 +789,12 @@ WindowPtr FolderWindow_OpenFolder(VRefNum vref, DirID dirID, ConstStr255Param ti
     r.right = 490 + sCascadeOffset;
     r.bottom = 420 + sCascadeOffset;
 
-    /* Advance cascade, wrap around if windows would go off screen */
+    /* Advance cascade, wrap before windows go off screen */
+    extern uint32_t fb_width, fb_height;
     sCascadeOffset += 20;
-    if (sCascadeOffset > 120) sCascadeOffset = 0;
+    if (r.bottom > (short)fb_height - 40 || r.right > (short)fb_width - 40) {
+        sCascadeOffset = 0;
+    }
 
     WindowPtr w = NewWindow(NULL, &r, title, true, 0 /* documentProc */, (WindowPtr)-1, true, 'DISK');
 
