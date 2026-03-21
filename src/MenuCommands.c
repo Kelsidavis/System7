@@ -237,6 +237,13 @@ void Finder_AdjustMenus(void) {
             DisableItem(fileMenu, kDuplicateItem);
             DisableItem(fileMenu, kMakeAliasItem);
         }
+        /* Put Away: only enabled in Trash window with items selected.
+         * In System 7, Put Away restores items from Trash to original location. */
+        if (isTrashWindow && hasSelection) {
+            EnableItem(fileMenu, kPutAwayItem);
+        } else {
+            DisableItem(fileMenu, kPutAwayItem);
+        }
         /* Close: enabled when a window is front, text changes based on context.
          * System 7 shows "Close Window" for Finder windows, "Close" for others. */
         if (front) {
