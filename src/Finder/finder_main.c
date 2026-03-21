@@ -813,6 +813,13 @@ void HandleKeyDown(EventRecord* event) {
 
     /* Check for command key shortcuts */
     if (event->modifiers & cmdKey) {
+        /* Cmd+Delete = Move to Trash (standard System 7 shortcut) */
+        if (charCode == kDeleteKey) {
+            extern void Finder_Clear(void);
+            Finder_Clear();
+            return;
+        }
+
         extern long MenuKey(short ch);
 
         /* Convert to uppercase for menu matching */
