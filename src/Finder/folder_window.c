@@ -1092,8 +1092,36 @@ static Boolean TrackFolderItemDrag(WindowPtr w, FolderWindowState* state, short 
                     } else {
                         FINDER_LOG_DEBUG("FW: ERROR: Desktop_AddAliasIcon failed with error %d\n", err);
                     }
+                } else if (hitWindow == w && state->viewMode <= kViewByIcon) {
+                    /* Dropped within the same folder window in icon view —
+                     * reposition the icon at the drop location */
+                    FINDER_LOG_DEBUG("FW: DROP WITHIN WINDOW - repositioning '%s'\n", item->name);
+
+                    /* Convert global drop position to local window coordinates */
+                    Point dropLocal = cur;
+                    extern void GlobalToLocalWindow(WindowPtr window, Point *pt);
+                    GlobalToLocalWindow(w, &dropLocal);
+
+                    /* Snap to grid for cleaner alignment */
+                    const short GRID_W = 80 + 10;  /* ICON_WIDTH + SPACING_H */
+                    const short GRID_H = 64 + 10;  /* ICON_HEIGHT + SPACING_V */
+                    short gridCol = (dropLocal.h - 20) / GRID_W;  /* LEFT_MARGIN = 20 */
+                    short gridRow = (dropLocal.v - 40) / GRID_H;  /* TOP_MARGIN = 40 */
+                    if (gridCol < 0) gridCol = 0;
+                    if (gridRow < 0) gridRow = 0;
+
+                    short newX = 20 + gridCol * GRID_W;
+                    short newY = 40 + gridRow * GRID_H;
+
+                    item->position.h = newX;
+                    item->position.v = newY;
+
+                    FINDER_LOG_DEBUG("FW: Icon repositioned to (%d,%d) grid(%d,%d)\n",
+                                 newX, newY, gridCol, gridRow);
+
+                    PostEvent(updateEvt, (UInt32)(uintptr_t)w);
                 } else {
-                    FINDER_LOG_DEBUG("FW: Dropped over window (partCode=%d) - no action\n", partCode);
+                    FINDER_LOG_DEBUG("FW: Dropped over other window (partCode=%d) - no action\n", partCode);
                 }
             }
 
