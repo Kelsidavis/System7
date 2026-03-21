@@ -2485,6 +2485,29 @@ Boolean Desktop_HasSelectedIcon(void) {
 }
 
 /*
+ * Desktop_GetSelectedIconInfo - Get VRefNum and FileID for the selected desktop icon.
+ * Returns false if no icon is selected.
+ */
+Boolean Desktop_GetSelectedIconInfo(VRefNum* outVref, FileID* outFileID) {
+    if (gSelectedIcon < 0 || gSelectedIcon >= gDesktopIconCount) return false;
+    if (!outVref || !outFileID) return false;
+
+    extern VRefNum VFS_GetBootVRef(void);
+    *outVref = VFS_GetBootVRef();
+    *outFileID = gDesktopIcons[gSelectedIcon].iconID;
+
+    /* Trash icon doesn't have a real file ID */
+    UInt8* typePtr = (UInt8*)&gDesktopIcons[gSelectedIcon].type;
+    DesktopItemType itemType = (DesktopItemType)(
+        ((UInt32)typePtr[0]) | ((UInt32)typePtr[1] << 8) |
+        ((UInt32)typePtr[2] << 16) | ((UInt32)typePtr[3] << 24)
+    );
+    if (itemType == kDesktopItemTrash) return false;  /* Can't Get Info on Trash */
+
+    return (*outFileID != 0 && *outFileID != 0xFFFFFFFF);
+}
+
+/*
  * Desktop_SelectAllIcons - Select all desktop icons.
  * Called by Cmd+A when the desktop is frontmost.
  */
