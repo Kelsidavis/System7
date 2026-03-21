@@ -2892,11 +2892,13 @@ void FolderWindow_CleanUp(WindowPtr w, Boolean selectedOnly) {
     const short SPACING_H = 10;    /* Horizontal spacing between icons */
     const short SPACING_V = 10;    /* Vertical spacing between icons */
 
-    /* Calculate grid dimensions */
+    /* Calculate grid dimensions dynamically from window width */
+    short windowWidth = w->port.portRect.right - w->port.portRect.left;
     short gridX = LEFT_MARGIN;
     short gridY = TOP_MARGIN;
     short col = 0;
-    short maxCols = 5;  /* Maximum icons per row */
+    short maxCols = (windowWidth - LEFT_MARGIN) / (ICON_WIDTH + SPACING_H);
+    if (maxCols < 1) maxCols = 1;
 
     FINDER_LOG_DEBUG("FolderWindow_CleanUp: Arranging %d items, selectedOnly=%d\n",
                      state->itemCount, selectedOnly);
