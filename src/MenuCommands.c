@@ -245,6 +245,8 @@ void Finder_AdjustMenus(void) {
         }
         /* Sharing always disabled (no AppleTalk/network stack) */
         DisableItem(fileMenu, kSharingItem);
+        /* Print always disabled (no Print Manager) */
+        DisableItem(fileMenu, kPrintItem);
         /* Put Away: only enabled in Trash window with items selected.
          * In System 7, Put Away restores items from Trash to original location. */
         if (isTrashWindow && hasSelection) {
