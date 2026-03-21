@@ -733,8 +733,81 @@ Boolean ST_ConfirmClose(STDocument* doc) {
  * ST_ShowAbout - Show About dialog
  */
 void ST_ShowAbout(void) {
-    ST_Log("About SimpleText\n");
-    /* TODO: Show proper About dialog */
+    extern DialogPtr NewDialog(void*, const Rect*, const unsigned char*, Boolean, SInt16,
+                               WindowPtr, Boolean, SInt32, Handle);
+    extern void DisposeDialog(DialogPtr);
+    extern Boolean IsDialogEvent(const EventRecord*);
+    extern Boolean DialogSelect(const EventRecord*, DialogPtr*, short*);
+    extern void ShowWindow(WindowPtr);
+    extern Boolean GetNextEvent(unsigned int, EventRecord*);
+    extern void SystemTask(void);
+
+    /* Build DITL: app info text (1), OK button (2) */
+    Handle ditl = NewHandleClear(256);
+    if (!ditl) return;
+
+    HLock(ditl);
+    unsigned char* p = (unsigned char*)*ditl;
+
+    /* 2 items, count-1 = 1 */
+    *p++ = 0; *p++ = 1;
+
+    /* Item 1: About text */
+    *p++ = 0; *p++ = 0; *p++ = 0; *p++ = 0;
+    *p++ = 0; *p++ = 10;  /* top */
+    *p++ = 0; *p++ = 10;  /* left */
+    *p++ = 0; *p++ = 70;  /* bottom */
+    *p++ = 1; *p++ = 20;  /* right = 276 */
+    *p++ = 8;              /* statText */
+    {
+        const char* msg = "SimpleText 1.0\n\nA simple text editor for System 7.\n"
+                          "\xa9 System 7 Portable Project";
+        int len = 0;
+        while (msg[len]) len++;
+        *p++ = (unsigned char)len;
+        memcpy(p, msg, len);
+        p += len;
+    }
+
+    /* Item 2: OK button */
+    *p++ = 0; *p++ = 0; *p++ = 0; *p++ = 0;
+    *p++ = 0; *p++ = 80;  /* top */
+    *p++ = 0; *p++ = 200; /* left */
+    *p++ = 0; *p++ = 100; /* bottom */
+    *p++ = 1; *p++ = 20;  /* right = 276 */
+    *p++ = 4;              /* btnCtrl */
+    *p++ = 2; *p++ = 'O'; *p++ = 'K';
+
+    HUnlock(ditl);
+
+    Rect bounds = {120, 100, 240, 400};
+    static unsigned char title[] = {15, 'A','b','o','u','t',' ','S','i','m','p','l','e','T','e','x','t'};
+    DialogPtr dlg = NewDialog(NULL, &bounds, title, true, 1,
+                              (WindowPtr)-1, false, 0, ditl);
+    if (!dlg) { DisposeHandle(ditl); return; }
+
+    ShowWindow((WindowPtr)dlg);
+
+    Boolean done = false;
+    while (!done) {
+        EventRecord event;
+        if (GetNextEvent(0xFFFF, &event)) {
+            if (IsDialogEvent(&event)) {
+                DialogPtr whichDlg;
+                short item;
+                if (DialogSelect(&event, &whichDlg, &item)) {
+                    if (whichDlg == dlg && item == 2) done = true;
+                }
+            }
+            if (event.what == 3) {
+                char ch = event.message & 0xFF;
+                if (ch == '\r' || ch == 0x03 || ch == 0x1B) done = true;
+            }
+        }
+        SystemTask();
+    }
+
+    DisposeDialog(dlg);
 }
 
 /*
