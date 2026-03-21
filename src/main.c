@@ -2061,7 +2061,12 @@ skip_cursor_drawing:
         TimeManager_TimerISR(); /* Poll timer (simulated ISR) - must be called each loop */
 #endif /* #if 1 */
 
-        /* Yield CPU when no events - but don't halt, it blocks PS/2 polling! */
-        /* __asm__ volatile ("hlt"); */
+        /* Yield CPU hint - PAUSE reduces power in spin-wait loops and signals
+         * the hypervisor that we're idle. Unlike HLT, PAUSE doesn't block
+         * execution — it just adds a brief delay (~10-100 cycles) and lets
+         * QEMU's host CPU breathe. */
+#if defined(__i386__) || defined(__x86_64__)
+        __asm__ volatile("pause");
+#endif
     }
 }
