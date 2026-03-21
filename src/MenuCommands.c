@@ -570,12 +570,9 @@ static void HandleFileMenu(short item)
 
         case kGetInfoItem: {
             MENU_LOG_INFO("File > Get Info\n");
-            /* Show Get Info dialog for selected item(s) */
+            /* Show Get Info for selected item — works from folder windows and desktop */
             extern void ShowGetInfoDialog(WindowPtr w);
-            WindowPtr front = FrontWindow();
-            if (front) {
-                ShowGetInfoDialog(front);
-            }
+            ShowGetInfoDialog(FrontWindow());  /* NULL = desktop selection */
             break;
         }
 
