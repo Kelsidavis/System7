@@ -461,18 +461,16 @@ void InitializeFolderContentsEx(WindowPtr w, Boolean isTrash, VRefNum vref, DirI
                          i, state->items[i].name, (int)state->items[i].fileID, state->items[i].isFolder);
         }
 
-        /* Layout in grid (same as other folders) */
-        const int startX = 80;
-        const int startY = 30;
-        const int colSpacing = 100;
-        const int rowHeight = 90;
-        const int numCols = 3;
-
-        for (int i = 0; i < count; i++) {
-            int col = i % numCols;
-            int row = i / numCols;
-            state->items[i].position.h = startX + (col * colSpacing);
-            state->items[i].position.v = startY + (row * rowHeight);
+        /* Layout in grid using dynamic calculation matching CleanUp */
+        {
+            const int IW = 80, IH = 64, LM = 20, TM = 40, SH = 10, SV = 10;
+            short ww = w->port.portRect.right - w->port.portRect.left;
+            int mc = (ww - LM) / (IW + SH);
+            if (mc < 1) mc = 1;
+            for (int i = 0; i < count; i++) {
+                state->items[i].position.h = LM + (i % mc) * (IW + SH);
+                state->items[i].position.v = TM + (i / mc) * (IH + SV);
+            }
         }
 
         /* Allocate selection array */
