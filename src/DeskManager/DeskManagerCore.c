@@ -235,6 +235,10 @@ void SystemTask(void)
         return;
     }
 
+    /* Update menu bar clock (lightweight - only redraws if minute changed) */
+    extern void MenuBar_UpdateClock(void);
+    MenuBar_UpdateClock();
+
     /* Call idle routine for all open DAs */
     DeskAccessory *da = g_deskMgr.firstDA;
     while (da) {

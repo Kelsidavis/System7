@@ -433,6 +433,105 @@ void SetupDefaultMenus(void)
     MENU_LOG_INFO("SetupDefaultMenus: Manually set up %d menus\n", menuBar->numMenus);
 }
 
+/* ============================================================================
+ * Menu Bar Clock
+ * ============================================================================ */
+
+/* Track the last displayed minute to avoid redundant redraws */
+static uint8_t g_lastClockHour = 0xFF;
+static uint8_t g_lastClockMinute = 0xFF;
+
+/*
+ * MenuBar_DrawClock - Draw the current time in the upper-right of the menu bar.
+ * Called from DrawMenuBar and from the periodic update check.
+ */
+static void MenuBar_DrawClock(void) {
+#if defined(__i386__) || defined(__x86_64__)
+    extern bool rtc_read_datetime(void *out);
+    struct { uint16_t year; uint8_t month, day, hour, minute, second; } rtcTime;
+    if (!rtc_read_datetime(&rtcTime)) return;
+
+    uint8_t hour = rtcTime.hour;
+    const char* ampm = (hour < 12) ? "AM" : "PM";
+    uint8_t hour12 = hour % 12;
+    if (hour12 == 0) hour12 = 12;
+
+    char clockBuf[16];
+    int clockLen;
+    if (hour12 >= 10) {
+        clockBuf[0] = '1';
+        clockBuf[1] = '0' + (hour12 - 10);
+        clockBuf[2] = ':';
+        clockBuf[3] = '0' + (rtcTime.minute / 10);
+        clockBuf[4] = '0' + (rtcTime.minute % 10);
+        clockBuf[5] = ' ';
+        clockBuf[6] = ampm[0];
+        clockBuf[7] = ampm[1];
+        clockLen = 8;
+    } else {
+        clockBuf[0] = '0' + hour12;
+        clockBuf[1] = ':';
+        clockBuf[2] = '0' + (rtcTime.minute / 10);
+        clockBuf[3] = '0' + (rtcTime.minute % 10);
+        clockBuf[4] = ' ';
+        clockBuf[5] = ampm[0];
+        clockBuf[6] = ampm[1];
+        clockLen = 7;
+    }
+
+    /* Right-align in menu bar (approx 7px per char, 8px right margin) */
+    short clockX = qd.screenBits.bounds.right - (clockLen * 7) - 8;
+
+    /* Clear the clock area first to avoid overwriting */
+    Rect clockRect;
+    SetRect(&clockRect, clockX - 4, 0, qd.screenBits.bounds.right, 19);
+    FillRect(&clockRect, &qd.white);
+
+    ForeColor(blackColor);
+    TextFont(0);
+    TextSize(12);
+    MoveTo(clockX, 14);
+    DrawText(clockBuf, 0, clockLen);
+
+    g_lastClockHour = rtcTime.hour;
+    g_lastClockMinute = rtcTime.minute;
+#endif
+}
+
+/*
+ * MenuBar_UpdateClock - Check if the minute has changed and redraw clock.
+ * Called periodically from SystemTask or the main event loop.
+ * Only redraws when the minute changes — very lightweight.
+ */
+void MenuBar_UpdateClock(void) {
+#if defined(__i386__) || defined(__x86_64__)
+    if (!gMenuMgrInitialized) return;
+
+    extern bool rtc_read_datetime(void *out);
+    struct { uint16_t year; uint8_t month, day, hour, minute, second; } rtcTime;
+    if (!rtc_read_datetime(&rtcTime)) return;
+
+    /* Only redraw if the minute has changed */
+    if (rtcTime.hour == g_lastClockHour && rtcTime.minute == g_lastClockMinute) {
+        return;
+    }
+
+    /* Save/restore port for safe drawing from any context */
+    GrafPtr savePort;
+    GetPort(&savePort);
+
+    GrafPtr menuPort = NULL;
+    GetWMgrPort(&menuPort);
+    if (menuPort) {
+        SetPort(menuPort);
+    }
+
+    MenuBar_DrawClock();
+
+    SetPort(savePort);
+#endif
+}
+
 /*
  * DrawMenuBar - Redraw the menu bar
  */
@@ -602,50 +701,8 @@ void DrawMenuBar(void)
     /* NOTE: Finder icon is drawn as part of the menu list loop above (Application menu).
      * Do NOT draw it again here - that was causing a double-draw artifact. */
 
-    /* Draw menu bar clock (right-aligned) - classic System 7 feature */
-    {
-#if defined(__i386__) || defined(__x86_64__)
-        extern bool rtc_read_datetime(void *out);
-        /* rtc_datetime_t: year(u16), month(u8), day(u8), hour(u8), minute(u8), second(u8) */
-        struct { uint16_t year; uint8_t month, day, hour, minute, second; } rtcTime;
-        if (rtc_read_datetime(&rtcTime)) {
-            /* Format as "H:MM AM/PM" */
-            uint8_t hour = rtcTime.hour;
-            const char* ampm = (hour < 12) ? "AM" : "PM";
-            uint8_t hour12 = hour % 12;
-            if (hour12 == 0) hour12 = 12;
-
-            char clockBuf[16];
-            int clockLen;
-            if (hour12 >= 10) {
-                clockBuf[0] = '1';
-                clockBuf[1] = '0' + (hour12 - 10);
-                clockBuf[2] = ':';
-                clockBuf[3] = '0' + (rtcTime.minute / 10);
-                clockBuf[4] = '0' + (rtcTime.minute % 10);
-                clockBuf[5] = ' ';
-                clockBuf[6] = ampm[0];
-                clockBuf[7] = ampm[1];
-                clockLen = 8;
-            } else {
-                clockBuf[0] = '0' + hour12;
-                clockBuf[1] = ':';
-                clockBuf[2] = '0' + (rtcTime.minute / 10);
-                clockBuf[3] = '0' + (rtcTime.minute % 10);
-                clockBuf[4] = ' ';
-                clockBuf[5] = ampm[0];
-                clockBuf[6] = ampm[1];
-                clockLen = 7;
-            }
-
-            /* Right-align in menu bar (approx 7px per char, 8px right margin) */
-            short clockX = qd.screenBits.bounds.right - (clockLen * 7) - 8;
-            ForeColor(blackColor);
-            MoveTo(clockX, 14);
-            DrawText(clockBuf, 0, clockLen);
-        }
-#endif
-    }
+    /* Draw menu bar clock */
+    MenuBar_DrawClock();
 
     QD_DrawCRTBezel();
 
