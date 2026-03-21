@@ -272,6 +272,24 @@ void Finder_AdjustMenus(void) {
         }
     }
 
+    /* Adjust Label menu — checkmark the selected item's label */
+    MenuHandle labelMenu = GetMenuHandle(kLabelMenuID);
+    if (labelMenu) {
+        extern void CheckItem(MenuHandle theMenu, short item, Boolean checked);
+        short activeLabel = -1;
+
+        /* Get the label of the first selected item */
+        if (hasFolderWindow && hasSelection) {
+            extern short FolderWindow_GetSelectedLabel(WindowPtr w);
+            activeLabel = FolderWindow_GetSelectedLabel(front);
+        }
+
+        /* Update checkmarks (items 1-8 correspond to labels 0-7) */
+        for (short i = 1; i <= 8; i++) {
+            CheckItem(labelMenu, i, (i - 1 == activeLabel));
+        }
+    }
+
     /* Adjust Special menu */
     MenuHandle specialMenu = GetMenuHandle(kSpecialMenuID);
     if (specialMenu) {

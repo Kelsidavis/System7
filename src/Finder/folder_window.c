@@ -2255,6 +2255,22 @@ void FolderWindow_SelectAll(WindowPtr w) {
 /*
 /*
 /*
+/*
+ * FolderWindow_GetSelectedLabel - Get the label of the first selected item.
+ * Returns -1 if nothing selected or label is "None" (0).
+ */
+short FolderWindow_GetSelectedLabel(WindowPtr w) {
+    if (!w || !IsFolderWindow(w)) return -1;
+    FolderWindowState* state = GetFolderState(w);
+    if (!state || !state->items) return -1;
+
+    if (state->selectedIndex >= 0 && state->selectedIndex < state->itemCount) {
+        return state->items[state->selectedIndex].label;
+    }
+    return -1;
+}
+
+/*
  * FolderWindow_FindItemByName - Find item index by name, or -1 if not found.
  */
 short FolderWindow_FindItemByName(WindowPtr w, const char* name) {
