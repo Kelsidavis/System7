@@ -925,6 +925,10 @@ void HandleKeyDown(EventRecord* event) {
             return;
         }
 
+        /* Adjust menu states before MenuKey so disabled items don't trigger */
+        extern void Finder_AdjustMenus(void);
+        Finder_AdjustMenus();
+
         extern long MenuKey(short ch);
 
         /* Convert to uppercase for menu matching */
