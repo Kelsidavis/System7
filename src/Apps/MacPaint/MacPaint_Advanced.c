@@ -635,7 +635,39 @@ OSErr MacPaint_FlipSelectionHorizontal(void)
         return paramErr;
     }
 
-    /* TODO: Reverse pixel order horizontally within selection */
+    unsigned char *bits = (unsigned char *)gPaintBuffer.baseAddr;
+    int rowBytes = gPaintBuffer.rowBytes;
+    int width = gSelection.bounds.right - gSelection.bounds.left;
+    int height = gSelection.bounds.bottom - gSelection.bounds.top;
+
+    for (int y = 0; y < height; y++) {
+        int srcY = gSelection.bounds.top + y;
+        /* Swap pixels from left and right edges inward */
+        for (int x = 0; x < width / 2; x++) {
+            int leftX = gSelection.bounds.left + x;
+            int rightX = gSelection.bounds.right - 1 - x;
+
+            /* Read left pixel */
+            int lByte = srcY * rowBytes + (leftX / 8);
+            int lBit = 7 - (leftX % 8);
+            int leftVal = (bits[lByte] >> lBit) & 1;
+
+            /* Read right pixel */
+            int rByte = srcY * rowBytes + (rightX / 8);
+            int rBit = 7 - (rightX % 8);
+            int rightVal = (bits[rByte] >> rBit) & 1;
+
+            /* Write left pixel with right value */
+            if (rightVal) bits[lByte] |= (1 << lBit);
+            else          bits[lByte] &= ~(1 << lBit);
+
+            /* Write right pixel with left value */
+            if (leftVal) bits[rByte] |= (1 << rBit);
+            else         bits[rByte] &= ~(1 << rBit);
+        }
+    }
+
+    gDocDirty = 1;
     return noErr;
 }
 
@@ -648,7 +680,38 @@ OSErr MacPaint_FlipSelectionVertical(void)
         return paramErr;
     }
 
-    /* TODO: Reverse pixel order vertically within selection */
+    unsigned char *bits = (unsigned char *)gPaintBuffer.baseAddr;
+    int rowBytes = gPaintBuffer.rowBytes;
+    int width = gSelection.bounds.right - gSelection.bounds.left;
+    int height = gSelection.bounds.bottom - gSelection.bounds.top;
+
+    for (int y = 0; y < height / 2; y++) {
+        int topY = gSelection.bounds.top + y;
+        int botY = gSelection.bounds.bottom - 1 - y;
+
+        for (int x = 0; x < width; x++) {
+            int px = gSelection.bounds.left + x;
+
+            /* Read top pixel */
+            int tByte = topY * rowBytes + (px / 8);
+            int tBit = 7 - (px % 8);
+            int topVal = (bits[tByte] >> tBit) & 1;
+
+            /* Read bottom pixel */
+            int bByte = botY * rowBytes + (px / 8);
+            int bBit = 7 - (px % 8);
+            int botVal = (bits[bByte] >> bBit) & 1;
+
+            /* Swap */
+            if (botVal) bits[tByte] |= (1 << tBit);
+            else        bits[tByte] &= ~(1 << tBit);
+
+            if (topVal) bits[bByte] |= (1 << bBit);
+            else        bits[bByte] &= ~(1 << bBit);
+        }
+    }
+
+    gDocDirty = 1;
     return noErr;
 }
 
@@ -661,10 +724,74 @@ OSErr MacPaint_RotateSelectionCW(void)
         return paramErr;
     }
 
-    /* TODO: Rotate pixels 90° clockwise
-     * Note: May change selection bounds
-     */
+    unsigned char *bits = (unsigned char *)gPaintBuffer.baseAddr;
+    int rowBytes = gPaintBuffer.rowBytes;
+    int width = gSelection.bounds.right - gSelection.bounds.left;
+    int height = gSelection.bounds.bottom - gSelection.bounds.top;
 
+    /* Allocate temp buffer for the rotated pixels */
+    int tmpRowBytes = (height + 7) / 8;
+    int tmpSize = tmpRowBytes * width;
+    Ptr tmpBuf = NewPtr(tmpSize);
+    if (!tmpBuf) return memFullErr;
+    memset(tmpBuf, 0, tmpSize);
+
+    /* Copy pixels into rotated positions: dst(x,y) = src(y, width-1-x) */
+    for (int sy = 0; sy < height; sy++) {
+        for (int sx = 0; sx < width; sx++) {
+            int srcPx = gSelection.bounds.left + sx;
+            int srcPy = gSelection.bounds.top + sy;
+            int sByte = srcPy * rowBytes + (srcPx / 8);
+            int sBit = 7 - (srcPx % 8);
+            int val = (bits[sByte] >> sBit) & 1;
+
+            /* Rotated CW: new_x = height-1-sy, new_y = sx */
+            int dx = height - 1 - sy;
+            int dy = sx;
+            int dByte = dy * tmpRowBytes + (dx / 8);
+            int dBit = 7 - (dx % 8);
+            if (val) ((unsigned char *)tmpBuf)[dByte] |= (1 << dBit);
+        }
+    }
+
+    /* Clear original selection area */
+    for (int sy = 0; sy < height; sy++) {
+        for (int sx = 0; sx < width; sx++) {
+            int px = gSelection.bounds.left + sx;
+            int py = gSelection.bounds.top + sy;
+            int byteOff = py * rowBytes + (px / 8);
+            int bitOff = 7 - (px % 8);
+            bits[byteOff] &= ~(1 << bitOff);
+        }
+    }
+
+    /* Write rotated pixels back (new dimensions: height x width) */
+    int newWidth = height;
+    int newHeight = width;
+    for (int dy = 0; dy < newHeight; dy++) {
+        for (int dx = 0; dx < newWidth; dx++) {
+            int px = gSelection.bounds.left + dx;
+            int py = gSelection.bounds.top + dy;
+            /* Bounds check against canvas */
+            if (px >= gPaintBuffer.bounds.right || py >= gPaintBuffer.bounds.bottom)
+                continue;
+            int dByte = dy * tmpRowBytes + (dx / 8);
+            int dBit = 7 - (dx % 8);
+            int val = (((unsigned char *)tmpBuf)[dByte] >> dBit) & 1;
+            if (val) {
+                int byteOff = py * rowBytes + (px / 8);
+                int bitOff = 7 - (px % 8);
+                bits[byteOff] |= (1 << bitOff);
+            }
+        }
+    }
+
+    /* Update selection bounds */
+    gSelection.bounds.right = gSelection.bounds.left + newWidth;
+    gSelection.bounds.bottom = gSelection.bounds.top + newHeight;
+
+    DisposePtr(tmpBuf);
+    gDocDirty = 1;
     return noErr;
 }
 
@@ -677,7 +804,73 @@ OSErr MacPaint_RotateSelectionCCW(void)
         return paramErr;
     }
 
-    /* TODO: Rotate pixels 90° counter-clockwise */
+    unsigned char *bits = (unsigned char *)gPaintBuffer.baseAddr;
+    int rowBytes = gPaintBuffer.rowBytes;
+    int width = gSelection.bounds.right - gSelection.bounds.left;
+    int height = gSelection.bounds.bottom - gSelection.bounds.top;
+
+    /* Allocate temp buffer for the rotated pixels */
+    int tmpRowBytes = (height + 7) / 8;
+    int tmpSize = tmpRowBytes * width;
+    Ptr tmpBuf = NewPtr(tmpSize);
+    if (!tmpBuf) return memFullErr;
+    memset(tmpBuf, 0, tmpSize);
+
+    /* Copy pixels into rotated positions: dst(x,y) = src(width-1-y, x) */
+    for (int sy = 0; sy < height; sy++) {
+        for (int sx = 0; sx < width; sx++) {
+            int srcPx = gSelection.bounds.left + sx;
+            int srcPy = gSelection.bounds.top + sy;
+            int sByte = srcPy * rowBytes + (srcPx / 8);
+            int sBit = 7 - (srcPx % 8);
+            int val = (bits[sByte] >> sBit) & 1;
+
+            /* Rotated CCW: new_x = sy, new_y = width-1-sx */
+            int dx = sy;
+            int dy = width - 1 - sx;
+            int dByte = dy * tmpRowBytes + (dx / 8);
+            int dBit = 7 - (dx % 8);
+            if (val) ((unsigned char *)tmpBuf)[dByte] |= (1 << dBit);
+        }
+    }
+
+    /* Clear original selection area */
+    for (int sy = 0; sy < height; sy++) {
+        for (int sx = 0; sx < width; sx++) {
+            int px = gSelection.bounds.left + sx;
+            int py = gSelection.bounds.top + sy;
+            int byteOff = py * rowBytes + (px / 8);
+            int bitOff = 7 - (px % 8);
+            bits[byteOff] &= ~(1 << bitOff);
+        }
+    }
+
+    /* Write rotated pixels back (new dimensions: height x width) */
+    int newWidth = height;
+    int newHeight = width;
+    for (int dy = 0; dy < newHeight; dy++) {
+        for (int dx = 0; dx < newWidth; dx++) {
+            int px = gSelection.bounds.left + dx;
+            int py = gSelection.bounds.top + dy;
+            if (px >= gPaintBuffer.bounds.right || py >= gPaintBuffer.bounds.bottom)
+                continue;
+            int dByte = dy * tmpRowBytes + (dx / 8);
+            int dBit = 7 - (dx % 8);
+            int val = (((unsigned char *)tmpBuf)[dByte] >> dBit) & 1;
+            if (val) {
+                int byteOff = py * rowBytes + (px / 8);
+                int bitOff = 7 - (px % 8);
+                bits[byteOff] |= (1 << bitOff);
+            }
+        }
+    }
+
+    /* Update selection bounds */
+    gSelection.bounds.right = gSelection.bounds.left + newWidth;
+    gSelection.bounds.bottom = gSelection.bounds.top + newHeight;
+
+    DisposePtr(tmpBuf);
+    gDocDirty = 1;
     return noErr;
 }
 
@@ -690,10 +883,79 @@ OSErr MacPaint_ScaleSelection(int newWidth, int newHeight)
         return paramErr;
     }
 
-    /* TODO: Nearest-neighbor or bilinear scaling of selection
-     * Update bounds to reflect new size
-     */
+    unsigned char *bits = (unsigned char *)gPaintBuffer.baseAddr;
+    int rowBytes = gPaintBuffer.rowBytes;
+    int srcWidth = gSelection.bounds.right - gSelection.bounds.left;
+    int srcHeight = gSelection.bounds.bottom - gSelection.bounds.top;
 
+    /* Allocate temp buffer for scaled result */
+    int tmpRowBytes = (newWidth + 7) / 8;
+    int tmpSize = tmpRowBytes * newHeight;
+    Ptr tmpBuf = NewPtr(tmpSize);
+    if (!tmpBuf) return memFullErr;
+    memset(tmpBuf, 0, tmpSize);
+
+    /* Nearest-neighbor scaling */
+    for (int dy = 0; dy < newHeight; dy++) {
+        int sy = (dy * srcHeight) / newHeight;
+        int srcPy = gSelection.bounds.top + sy;
+
+        for (int dx = 0; dx < newWidth; dx++) {
+            int sx = (dx * srcWidth) / newWidth;
+            int srcPx = gSelection.bounds.left + sx;
+
+            /* Read source pixel */
+            int sByte = srcPy * rowBytes + (srcPx / 8);
+            int sBit = 7 - (srcPx % 8);
+            int val = (bits[sByte] >> sBit) & 1;
+
+            if (val) {
+                int dByte = dy * tmpRowBytes + (dx / 8);
+                int dBit = 7 - (dx % 8);
+                ((unsigned char *)tmpBuf)[dByte] |= (1 << dBit);
+            }
+        }
+    }
+
+    /* Clear the larger of old and new areas */
+    int clearW = (newWidth > srcWidth) ? newWidth : srcWidth;
+    int clearH = (newHeight > srcHeight) ? newHeight : srcHeight;
+    for (int y = 0; y < clearH; y++) {
+        int py = gSelection.bounds.top + y;
+        if (py >= gPaintBuffer.bounds.bottom) break;
+        for (int x = 0; x < clearW; x++) {
+            int px = gSelection.bounds.left + x;
+            if (px >= gPaintBuffer.bounds.right) break;
+            int byteOff = py * rowBytes + (px / 8);
+            int bitOff = 7 - (px % 8);
+            bits[byteOff] &= ~(1 << bitOff);
+        }
+    }
+
+    /* Write scaled result back */
+    for (int dy = 0; dy < newHeight; dy++) {
+        int py = gSelection.bounds.top + dy;
+        if (py >= gPaintBuffer.bounds.bottom) break;
+        for (int dx = 0; dx < newWidth; dx++) {
+            int px = gSelection.bounds.left + dx;
+            if (px >= gPaintBuffer.bounds.right) break;
+            int dByte = dy * tmpRowBytes + (dx / 8);
+            int dBit = 7 - (dx % 8);
+            int val = (((unsigned char *)tmpBuf)[dByte] >> dBit) & 1;
+            if (val) {
+                int byteOff = py * rowBytes + (px / 8);
+                int bitOff = 7 - (px % 8);
+                bits[byteOff] |= (1 << bitOff);
+            }
+        }
+    }
+
+    /* Update selection bounds */
+    gSelection.bounds.right = gSelection.bounds.left + newWidth;
+    gSelection.bounds.bottom = gSelection.bounds.top + newHeight;
+
+    DisposePtr(tmpBuf);
+    gDocDirty = 1;
     return noErr;
 }
 
@@ -710,10 +972,29 @@ OSErr MacPaint_FillSelectionWithPattern(void)
         return paramErr;
     }
 
-    /* TODO: Fill selection rectangle with current pattern
-     * Tile pattern across entire selection
-     */
+    extern Pattern gCurrentPattern;
+    unsigned char *bits = (unsigned char *)gPaintBuffer.baseAddr;
+    int rowBytes = gPaintBuffer.rowBytes;
+    int width = gSelection.bounds.right - gSelection.bounds.left;
+    int height = gSelection.bounds.bottom - gSelection.bounds.top;
 
+    for (int y = 0; y < height; y++) {
+        int py = gSelection.bounds.top + y;
+        unsigned char patRow = gCurrentPattern.pat[py % 8];
+
+        for (int x = 0; x < width; x++) {
+            int px = gSelection.bounds.left + x;
+            int patBit = 7 - (px % 8);
+            int val = (patRow >> patBit) & 1;
+
+            int byteOff = py * rowBytes + (px / 8);
+            int bitOff = 7 - (px % 8);
+            if (val) bits[byteOff] |= (1 << bitOff);
+            else     bits[byteOff] &= ~(1 << bitOff);
+        }
+    }
+
+    gDocDirty = 1;
     return noErr;
 }
 
@@ -726,10 +1007,41 @@ OSErr MacPaint_GradientFill(void)
         return paramErr;
     }
 
-    /* TODO: Create dithered gradient from white to black
-     * Useful for shading effects
-     */
+    unsigned char *bits = (unsigned char *)gPaintBuffer.baseAddr;
+    int rowBytes = gPaintBuffer.rowBytes;
+    int width = gSelection.bounds.right - gSelection.bounds.left;
+    int height = gSelection.bounds.bottom - gSelection.bounds.top;
 
+    if (height <= 0) return paramErr;
+
+    /* Create top-to-bottom dithered gradient using ordered dithering */
+    /* 4x4 Bayer matrix for ordered dithering */
+    static const int bayer4[4][4] = {
+        { 0,  8,  2, 10},
+        {12,  4, 14,  6},
+        { 3, 11,  1,  9},
+        {15,  7, 13,  5}
+    };
+
+    for (int y = 0; y < height; y++) {
+        int py = gSelection.bounds.top + y;
+        /* Gradient intensity: 0 (white/top) to 15 (black/bottom) */
+        int intensity = (y * 16) / height;
+        if (intensity > 15) intensity = 15;
+
+        for (int x = 0; x < width; x++) {
+            int px = gSelection.bounds.left + x;
+            int threshold = bayer4[y % 4][x % 4];
+            int val = (intensity > threshold) ? 1 : 0;
+
+            int byteOff = py * rowBytes + (px / 8);
+            int bitOff = 7 - (px % 8);
+            if (val) bits[byteOff] |= (1 << bitOff);
+            else     bits[byteOff] &= ~(1 << bitOff);
+        }
+    }
+
+    gDocDirty = 1;
     return noErr;
 }
 
@@ -742,10 +1054,61 @@ OSErr MacPaint_SmoothSelection(void)
         return paramErr;
     }
 
-    /* TODO: Apply simple box filter to selection edges
-     * Reduces jagged pixel appearance
-     */
+    unsigned char *bits = (unsigned char *)gPaintBuffer.baseAddr;
+    int rowBytes = gPaintBuffer.rowBytes;
+    int width = gSelection.bounds.right - gSelection.bounds.left;
+    int height = gSelection.bounds.bottom - gSelection.bounds.top;
 
+    /* Allocate temp buffer for smoothed result */
+    int tmpRowBytes = (width + 7) / 8;
+    int tmpSize = tmpRowBytes * height;
+    Ptr tmpBuf = NewPtr(tmpSize);
+    if (!tmpBuf) return memFullErr;
+    memset(tmpBuf, 0, tmpSize);
+
+    /* 3x3 box filter: pixel is set if majority of neighbors are set */
+    for (int y = 0; y < height; y++) {
+        for (int x = 0; x < width; x++) {
+            int count = 0;
+            /* Count set pixels in 3x3 neighborhood */
+            for (int dy = -1; dy <= 1; dy++) {
+                for (int dx = -1; dx <= 1; dx++) {
+                    int nx = x + dx;
+                    int ny = y + dy;
+                    if (nx < 0 || nx >= width || ny < 0 || ny >= height) continue;
+                    int px = gSelection.bounds.left + nx;
+                    int py = gSelection.bounds.top + ny;
+                    int byteOff = py * rowBytes + (px / 8);
+                    int bitOff = 7 - (px % 8);
+                    if ((bits[byteOff] >> bitOff) & 1) count++;
+                }
+            }
+            /* Threshold: 5 or more of 9 neighbors set → pixel on */
+            if (count >= 5) {
+                int dByte = y * tmpRowBytes + (x / 8);
+                int dBit = 7 - (x % 8);
+                ((unsigned char *)tmpBuf)[dByte] |= (1 << dBit);
+            }
+        }
+    }
+
+    /* Write smoothed result back to canvas */
+    for (int y = 0; y < height; y++) {
+        int py = gSelection.bounds.top + y;
+        for (int x = 0; x < width; x++) {
+            int px = gSelection.bounds.left + x;
+            int sByte = y * tmpRowBytes + (x / 8);
+            int sBit = 7 - (x % 8);
+            int val = (((unsigned char *)tmpBuf)[sByte] >> sBit) & 1;
+            int byteOff = py * rowBytes + (px / 8);
+            int bitOff = 7 - (px % 8);
+            if (val) bits[byteOff] |= (1 << bitOff);
+            else     bits[byteOff] &= ~(1 << bitOff);
+        }
+    }
+
+    DisposePtr(tmpBuf);
+    gDocDirty = 1;
     return noErr;
 }
 

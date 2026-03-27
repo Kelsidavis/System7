@@ -19,6 +19,7 @@
 #include "System71StdLib.h"
 #include "MemoryMgr/MemoryManager.h"
 #include "FileManagerTypes.h"
+#include "FS/vfs.h"
 #include <string.h>
 
 /*
@@ -240,7 +241,7 @@ OSErr MacPaint_SaveDocument(const char *filename)
     }
 
     /* Build file header */
-    MacPaintFileHeader header __attribute__((unused)) = {0};
+    MacPaintFileHeader header = {0};
     header.magic = MACPAINT_MAGIC;
     header.version = MACPAINT_FILE_VERSION;
     header.width = gPaintBuffer.bounds.right - gPaintBuffer.bounds.left;
@@ -248,8 +249,41 @@ OSErr MacPaint_SaveDocument(const char *filename)
     header.reserved = 0;
     header.compressedSize = compressedSize;
 
-    /* TODO: Write to file using System 7.1 File Manager
-     * For now, just update document state */
+    /* Write to file using VFS */
+    VRefNum vref = VFS_GetBootVRef();
+    FileID fid = 0;
+
+    /* Try to create the file in root directory */
+    if (!VFS_CreateFile(vref, 2, filename, 'PNTG', 'MPNT', &fid)) {
+        /* File may already exist — try looking it up */
+        CatEntry entry;
+        if (VFS_Lookup(vref, 2, filename, &entry)) {
+            fid = entry.id;
+        } else {
+            DisposePtr((Ptr)compBuffer);
+            return ioErr;
+        }
+    }
+
+    VFSFile *file = VFS_OpenFile(vref, fid, false);
+    if (!file) {
+        DisposePtr((Ptr)compBuffer);
+        return ioErr;
+    }
+
+    /* Write header */
+    uint32_t written = 0;
+    bool ok = VFS_WriteFile(file, &header, sizeof(header), &written);
+    if (ok) {
+        /* Write compressed bitmap data */
+        ok = VFS_WriteFile(file, compBuffer, compressedSize, &written);
+    }
+    VFS_CloseFile(file);
+
+    if (!ok) {
+        DisposePtr((Ptr)compBuffer);
+        return ioErr;
+    }
 
     strncpy(gDocName, filename, 63);
     gDocName[63] = '\0';
@@ -287,15 +321,82 @@ OSErr MacPaint_OpenDocument(const char *filename)
         return paramErr;
     }
 
-    /* TODO: Read from file using System 7.1 File Manager
-     * For now, just update document state */
+    /* Look up and open the file via VFS */
+    VRefNum vref = VFS_GetBootVRef();
+    CatEntry entry;
+    if (!VFS_Lookup(vref, 2, filename, &entry)) {
+        return fnfErr;
+    }
+
+    VFSFile *file = VFS_OpenFile(vref, entry.id, false);
+    if (!file) {
+        return ioErr;
+    }
+
+    /* Read header */
+    MacPaintFileHeader header = {0};
+    uint32_t bytesRead = 0;
+    if (!VFS_ReadFile(file, &header, sizeof(header), &bytesRead) ||
+        bytesRead < sizeof(header)) {
+        VFS_CloseFile(file);
+        return ioErr;
+    }
+
+    /* Validate header */
+    if (header.magic != MACPAINT_MAGIC || header.version != MACPAINT_FILE_VERSION) {
+        VFS_CloseFile(file);
+        return paramErr;
+    }
+
+    /* Read compressed bitmap data */
+    if (header.compressedSize == 0 || header.compressedSize > 256 * 1024) {
+        VFS_CloseFile(file);
+        return ioErr;
+    }
+
+    Ptr compBuffer = NewPtr(header.compressedSize);
+    if (!compBuffer) {
+        VFS_CloseFile(file);
+        return memFullErr;
+    }
+
+    if (!VFS_ReadFile(file, compBuffer, header.compressedSize, &bytesRead) ||
+        bytesRead < header.compressedSize) {
+        DisposePtr(compBuffer);
+        VFS_CloseFile(file);
+        return ioErr;
+    }
+    VFS_CloseFile(file);
+
+    /* Decompress bitmap into paint buffer */
+    int uncompressedSize = gPaintBuffer.rowBytes *
+                          (gPaintBuffer.bounds.bottom - gPaintBuffer.bounds.top);
+
+    int decompressedSize = MacPaint_UnpackBits(
+        (unsigned char *)compBuffer,
+        (int)header.compressedSize,
+        (unsigned char *)gPaintBuffer.baseAddr,
+        uncompressedSize
+    );
+
+    DisposePtr(compBuffer);
+
+    if (decompressedSize != uncompressedSize) {
+        /* Clear buffer on decompression failure */
+        memset(gPaintBuffer.baseAddr, 0, uncompressedSize);
+        return ioErr;
+    }
 
     strncpy(gDocName, filename, 63);
     gDocName[63] = '\0';
 
-    /* Mark as not dirty after load */
-    gDocDirty = 0;
+    /* Calculate CRC for dirty detection */
+    gDocState.savedCrc = MacPaint_CalcCRC(
+        (unsigned char *)gPaintBuffer.baseAddr,
+        uncompressedSize
+    );
     gDocState.modCount++;
+    gDocDirty = 0;
 
     return noErr;
 }

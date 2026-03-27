@@ -19,6 +19,7 @@
 #include "Apps/MacPaint.h"
 #include "QuickDraw/QuickDraw.h"
 #include "FontManager/FontManager.h"
+#include "chicago_font.h"
 #include "System71StdLib.h"
 #include "MemoryMgr/MemoryManager.h"
 #include <string.h>
@@ -521,6 +522,182 @@ void MacPaint_ToolRectSelect(int x, int y, int down)
 }
 
 /*
+ * LASSO TOOL - Freeform selection by tracking bounding box of drawn path
+ */
+
+/* Lasso state tracks the bounding box of the freeform stroke */
+static struct {
+    int tracking;
+    int minX, minY, maxX, maxY;
+} gLassoState = {0};
+
+/**
+ * MacPaint_ToolLasso - Freeform selection tool
+ * Tracks the bounding box of the mouse path to create a selection
+ */
+void MacPaint_ToolLasso(int x, int y, int down)
+{
+    extern Rect gSelectionRect;
+    extern int gSelectionActive;
+
+    if (down) {
+        if (!gLassoState.tracking) {
+            /* Start tracking on first mouse-down */
+            gLassoState.tracking = 1;
+            gLassoState.minX = x;
+            gLassoState.minY = y;
+            gLassoState.maxX = x;
+            gLassoState.maxY = y;
+        } else {
+            /* Expand bounding box as mouse moves */
+            if (x < gLassoState.minX) gLassoState.minX = x;
+            if (y < gLassoState.minY) gLassoState.minY = y;
+            if (x > gLassoState.maxX) gLassoState.maxX = x;
+            if (y > gLassoState.maxY) gLassoState.maxY = y;
+        }
+    } else {
+        if (gLassoState.tracking) {
+            /* Mouse up - finalize selection from bounding box */
+            gLassoState.tracking = 0;
+
+            if (gLassoState.maxX > gLassoState.minX &&
+                gLassoState.maxY > gLassoState.minY) {
+                gSelectionRect.left = gLassoState.minX;
+                gSelectionRect.top = gLassoState.minY;
+                gSelectionRect.right = gLassoState.maxX;
+                gSelectionRect.bottom = gLassoState.maxY;
+                gSelectionActive = 1;
+            }
+        }
+    }
+}
+
+/*
+ * GRABBER TOOL - Move selected region
+ */
+
+/* Grabber state for tracking drag offset */
+static struct {
+    int dragging;
+    int origX, origY;       /* Mouse-down position */
+    int selLeft, selTop;    /* Original selection position */
+    Ptr savedBits;          /* Saved pixel data from selection */
+    int savedW, savedH;
+    int savedRowBytes;
+} gGrabberState = {0};
+
+/**
+ * MacPaint_ToolGrabber - Move the current selection
+ * Picks up selected pixels and moves them with the mouse
+ */
+void MacPaint_ToolGrabber(int x, int y, int down)
+{
+    extern Rect gSelectionRect;
+    extern int gSelectionActive;
+
+    if (!gSelectionActive) return;
+
+    if (down) {
+        if (!gGrabberState.dragging) {
+            /* Check if click is inside selection */
+            if (x < gSelectionRect.left || x > gSelectionRect.right ||
+                y < gSelectionRect.top || y > gSelectionRect.bottom) {
+                return;
+            }
+
+            int w = gSelectionRect.right - gSelectionRect.left;
+            int h = gSelectionRect.bottom - gSelectionRect.top;
+            int saveRowBytes = (w + 7) / 8;
+            int saveSize = saveRowBytes * h;
+
+            /* Save the selected pixels */
+            if (gGrabberState.savedBits) {
+                DisposePtr(gGrabberState.savedBits);
+            }
+            gGrabberState.savedBits = NewPtr(saveSize);
+            if (!gGrabberState.savedBits) return;
+            memset(gGrabberState.savedBits, 0, saveSize);
+
+            unsigned char *bits = (unsigned char *)gPaintBuffer.baseAddr;
+            int rowBytes = gPaintBuffer.rowBytes;
+
+            /* Copy selected pixels to saved buffer and clear from canvas */
+            for (int sy = 0; sy < h; sy++) {
+                int py = gSelectionRect.top + sy;
+                for (int sx = 0; sx < w; sx++) {
+                    int px = gSelectionRect.left + sx;
+                    int sByte = py * rowBytes + (px / 8);
+                    int sBit = 7 - (px % 8);
+                    int val = (bits[sByte] >> sBit) & 1;
+
+                    if (val) {
+                        int dByte = sy * saveRowBytes + (sx / 8);
+                        int dBit = 7 - (sx % 8);
+                        ((unsigned char *)gGrabberState.savedBits)[dByte] |= (1 << dBit);
+                    }
+                    /* Clear source pixel */
+                    bits[sByte] &= ~(1 << sBit);
+                }
+            }
+
+            gGrabberState.dragging = 1;
+            gGrabberState.origX = x;
+            gGrabberState.origY = y;
+            gGrabberState.selLeft = gSelectionRect.left;
+            gGrabberState.selTop = gSelectionRect.top;
+            gGrabberState.savedW = w;
+            gGrabberState.savedH = h;
+            gGrabberState.savedRowBytes = saveRowBytes;
+        }
+    } else {
+        if (gGrabberState.dragging && gGrabberState.savedBits) {
+            /* Mouse up - place pixels at new location */
+            int dx = x - gGrabberState.origX;
+            int dy = y - gGrabberState.origY;
+            int newLeft = gGrabberState.selLeft + dx;
+            int newTop = gGrabberState.selTop + dy;
+
+            unsigned char *bits = (unsigned char *)gPaintBuffer.baseAddr;
+            int rowBytes = gPaintBuffer.rowBytes;
+            int w = gGrabberState.savedW;
+            int h = gGrabberState.savedH;
+            int saveRowBytes = gGrabberState.savedRowBytes;
+
+            /* Stamp saved pixels at new position */
+            for (int sy = 0; sy < h; sy++) {
+                int py = newTop + sy;
+                if (py < 0 || py >= gPaintBuffer.bounds.bottom) continue;
+                for (int sx = 0; sx < w; sx++) {
+                    int px = newLeft + sx;
+                    if (px < 0 || px >= gPaintBuffer.bounds.right) continue;
+
+                    int sByte = sy * saveRowBytes + (sx / 8);
+                    int sBit = 7 - (sx % 8);
+                    int val = (((unsigned char *)gGrabberState.savedBits)[sByte] >> sBit) & 1;
+
+                    int dByte = py * rowBytes + (px / 8);
+                    int dBit = 7 - (px % 8);
+                    if (val) bits[dByte] |= (1 << dBit);
+                }
+            }
+
+            /* Update selection rect to new position */
+            gSelectionRect.left = newLeft;
+            gSelectionRect.top = newTop;
+            gSelectionRect.right = newLeft + w;
+            gSelectionRect.bottom = newTop + h;
+
+            DisposePtr(gGrabberState.savedBits);
+            gGrabberState.savedBits = NULL;
+            gGrabberState.dragging = 0;
+
+            extern int gDocDirty;
+            gDocDirty = 1;
+        }
+    }
+}
+
+/*
  * TEXT TOOL
  */
 
@@ -562,48 +739,57 @@ void MacPaint_ToolText(int x, int y, int down)
 void MacPaint_RenderTextAtPosition(const char *text, int x, int y)
 {
     if (!text || !*text) {
-        return;  /* Empty string */
+        return;
     }
 
-    /* Simple implementation: draw text characters one by one to the bitmap
-     * Each character in Chicago font is monospaced, approximately 6-8 pixels wide
-     * We'll render each character as a small bitmap by drawing lines forming letters
-     * This is a simplified text rendering without full font metrics
-     */
+    /* Render text using Chicago font bitmap strike directly to 1bpp paint buffer */
+    extern const uint8_t chicago_bitmap[];
+    extern const ChicagoCharInfo chicago_ascii[];
 
-    /* For a more complete implementation, we would:
-     * 1. Get the current port from QuickDraw
-     * 2. Use FontManager to calculate string width
-     * 3. Draw each character using appropriate font rendering
-     * 4. Handle text baseline positioning
-     *
-     * For now, we render simple text using line drawing
-     */
-
-    /* TODO: Full text rendering implementation
-     * Real approach:
-     * - Get current GrafPort
-     * - Set font and size via FontManager
-     * - Use DrawString or character-level rendering
-     * - Update document dirty flag
-     */
-
-    /* Placeholder: Draw a simple box around where text would go
-     * This provides visual feedback that text was placed
-     */
     unsigned char *bits = (unsigned char *)gPaintBuffer.baseAddr;
     int rowBytes = gPaintBuffer.rowBytes;
+    int canvasW = gPaintBuffer.bounds.right;
+    int canvasH = gPaintBuffer.bounds.bottom;
 
-    /* Draw a text cursor/box at the position */
-    for (int i = 0; i < 16 && x + i < gPaintBuffer.bounds.right; i++) {
-        for (int j = 0; j < 10 && y + j < gPaintBuffer.bounds.bottom; j++) {
-            if (i == 0 || i == 15 || j == 0 || j == 9) {
-                int byteOffset = (y + j) * rowBytes + ((x + i) / 8);
-                int bitOffset = 7 - ((x + i) % 8);
-                bits[byteOffset] |= (1 << bitOffset);
+    /* Position y at baseline - ascent to get top of glyphs */
+    int penX = x;
+    int topY = y - CHICAGO_ASCENT;
+
+    for (const char *p = text; *p; p++) {
+        char ch = *p;
+        if (ch < 32 || ch > 126) continue;
+
+        const ChicagoCharInfo *info = &chicago_ascii[ch - 32];
+        int glyphX = penX + info->left_offset;
+
+        /* Render each row of the glyph */
+        for (int row = 0; row < CHICAGO_HEIGHT; row++) {
+            int destY = topY + row;
+            if (destY < 0 || destY >= canvasH) continue;
+
+            const uint8_t *strikeRow = chicago_bitmap + (row * CHICAGO_ROW_BYTES);
+
+            for (int col = 0; col < info->bit_width; col++) {
+                int destX = glyphX + col;
+                if (destX < 0 || destX >= canvasW) continue;
+
+                int bitPos = info->bit_start + col;
+                /* Extract pixel from strike bitmap */
+                int pixel = (strikeRow[bitPos >> 3] >> (7 - (bitPos & 7))) & 1;
+
+                if (pixel) {
+                    int byteOff = destY * rowBytes + (destX / 8);
+                    int bitOff = 7 - (destX % 8);
+                    bits[byteOff] |= (1 << bitOff);
+                }
             }
         }
+
+        penX += info->advance;
     }
+
+    extern int gDocDirty;
+    gDocDirty = 1;
 }
 
 /*
@@ -644,11 +830,10 @@ void MacPaint_HandleToolMouseEvent(int toolID, int x, int y, int down)
             MacPaint_ToolRectSelect(x, y, down);
             break;
         case TOOL_LASSO:
-            /* TODO: Implement lasso selection */
-            MacPaint_ToolPencil(x, y, down);
+            MacPaint_ToolLasso(x, y, down);
             break;
         case TOOL_GRABBER:
-            /* TODO: Implement move/copy tool */
+            MacPaint_ToolGrabber(x, y, down);
             break;
         case TOOL_TEXT:
             MacPaint_ToolText(x, y, down);

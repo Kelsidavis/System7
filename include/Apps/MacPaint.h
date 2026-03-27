@@ -103,6 +103,8 @@ void MacPaint_ToolOval(int x, int y, int down);
 void MacPaint_ToolFill(int x, int y, int down);
 void MacPaint_ToolSpray(int x, int y, int down);
 void MacPaint_ToolRectSelect(int x, int y, int down);
+void MacPaint_ToolLasso(int x, int y, int down);
+void MacPaint_ToolGrabber(int x, int y, int down);
 void MacPaint_ToolText(int x, int y, int down);
 void MacPaint_RenderTextAtPosition(const char *text, int x, int y);
 void MacPaint_GetToolState(int *isDrawing, int *startX, int *startY, int *currentX, int *currentY);

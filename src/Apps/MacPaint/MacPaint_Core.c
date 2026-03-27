@@ -50,7 +50,7 @@ static UInt32 gWorkSize __attribute__((unused)) = 0;
 /* Tool State */
 int gCurrentTool = TOOL_PENCIL;  /* Exposed for menus and event handlers */
 static int gLineSize = 1;
-static Pattern gCurrentPattern;
+Pattern gCurrentPattern;
 Rect gSelectionRect;             /* Exposed for tools module */
 int gSelectionActive = 0;         /* Exposed for tools module */
 
@@ -467,7 +467,8 @@ void MacPaint_Render(void)
         return;
     }
 
-    /* TODO: Copy gPaintBuffer to screen via CopyBits or similar */
+    extern void MacPaint_RenderPaintBuffer(void);
+    MacPaint_RenderPaintBuffer();
 }
 
 /**
@@ -477,5 +478,14 @@ void MacPaint_InvalidateRect(Rect *rect)
 {
     if (!gPaintWindow) return;
 
-    /* TODO: Queue for redraw */
+    if (rect) {
+        InvalRect(rect);
+    } else {
+        /* Invalidate entire paint area */
+        GrafPtr savePort;
+        GetPort(&savePort);
+        SetPort(gPaintPort);
+        InvalRect(&gPaintPort->portRect);
+        SetPort(savePort);
+    }
 }

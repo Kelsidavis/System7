@@ -121,14 +121,8 @@ void MacPaint_DrawPaintWindow(void)
         return;
     }
 
-    /* TODO: Render paint buffer to window
-     * - Get current GrafPort for window
-     * - Set drawing parameters (mode, pen size)
-     * - Use CopyBits or similar to draw bitmap
-     * - Draw selection rectangle if active
-     * - Draw grid if enabled
-     * - Draw toolbox if visible
-     */
+    extern void MacPaint_RenderPaintBuffer(void);
+    MacPaint_RenderPaintBuffer();
 }
 
 /**
@@ -894,17 +888,22 @@ void MacPaint_ProcessIdleTime(void)
  */
 int MacPaint_PasteFromSystemClipboard(void)
 {
-    /* TODO: Use Scrap Manager
-     * Handle h = NewHandle(0);
-     * GetScrap(h, 'PICT', &offset);
-     * if (h):
-     *     MacPaint_PasteFromClipboard(0, 0)
-     *     DisposeHandle(h)
-     *     return 1
-     * return 0
-     */
+    extern long GetScrap(Handle hDest, OSType theType, long* offset);
 
-    return 0;  /* Placeholder */
+    Handle h = NewHandle(0);
+    if (!h) return 0;
+
+    long offset = 0;
+    long size = GetScrap(h, 'PICT', &offset);
+    if (size > 0) {
+        /* We have PICT data on the clipboard - paste it */
+        MacPaint_PasteFromClipboard(0, 0);
+        DisposeHandle(h);
+        return 1;
+    }
+
+    DisposeHandle(h);
+    return 0;
 }
 
 /**
@@ -912,15 +911,51 @@ int MacPaint_PasteFromSystemClipboard(void)
  */
 int MacPaint_CopyToSystemClipboard(void)
 {
-    /* TODO: Use Scrap Manager
-     * if (MacPaint_IsSelectionActive()):
-     *     ZeroScrap()
-     *     // Copy selection bitmap to PICT on scrap
-     *     return 1
-     * return 0
-     */
+    extern void ZeroScrap(void);
+    extern void PutScrap(long byteCount, OSType theType, const void* sourcePtr);
 
-    return 0;  /* Placeholder */
+    if (!MacPaint_IsSelectionActive()) return 0;
+
+    /* Copy selection to internal clipboard first */
+    OSErr err = MacPaint_CopySelectionToClipboard();
+    if (err != noErr) return 0;
+
+    /* Get the copied bitmap data and put on system scrap */
+    extern BitMap gPaintBuffer;
+    extern Rect gSelectionRect;
+    int width = gSelectionRect.right - gSelectionRect.left;
+    int height = gSelectionRect.bottom - gSelectionRect.top;
+    int rowBytes = (width + 7) / 8;
+    int dataSize = rowBytes * height;
+
+    /* Pack selection pixels into a contiguous buffer */
+    Ptr scrapData = NewPtr(dataSize);
+    if (!scrapData) return 0;
+    memset(scrapData, 0, dataSize);
+
+    unsigned char *srcBits = (unsigned char *)gPaintBuffer.baseAddr;
+    int srcRowBytes = gPaintBuffer.rowBytes;
+
+    for (int y = 0; y < height; y++) {
+        int srcY = gSelectionRect.top + y;
+        for (int x = 0; x < width; x++) {
+            int srcX = gSelectionRect.left + x;
+            int sByte = srcY * srcRowBytes + (srcX / 8);
+            int sBit = 7 - (srcX % 8);
+            int val = (srcBits[sByte] >> sBit) & 1;
+            if (val) {
+                int dByte = y * rowBytes + (x / 8);
+                int dBit = 7 - (x % 8);
+                ((unsigned char *)scrapData)[dByte] |= (1 << dBit);
+            }
+        }
+    }
+
+    ZeroScrap();
+    PutScrap(dataSize, 'PNTG', scrapData);
+    DisposePtr(scrapData);
+
+    return 1;
 }
 
 /*
@@ -936,17 +971,37 @@ void MacPaint_HandleError(OSErr err, const char *context)
         return;
     }
 
-    /* TODO: Show error alert
-     * char errorMsg[256];
-     * snprintf(errorMsg, sizeof(errorMsg),
-     *          "Error %d in %s", err, context);
-     *
-     * AlertStdAlertParamRec params = {};
-     * DialogItemIndex itemHit;
-     * StandardAlert(kAlertStopAlert,
-     *              CFSTR(errorMsg),
-     *              NULL, &params, &itemHit);
-     */
+    /* Build error message and show alert */
+    extern int snprintf(char* buf, size_t size, const char* fmt, ...);
+    extern void serial_puts(const char *str);
+
+    char errorMsg[128];
+    snprintf(errorMsg, sizeof(errorMsg), "MacPaint Error %d", (int)err);
+    char detailMsg[128];
+    snprintf(detailMsg, sizeof(detailMsg), "An error occurred in %s.", context ? context : "unknown");
+
+    /* Log to serial for debugging */
+    serial_puts(errorMsg);
+    serial_puts(": ");
+    serial_puts(detailMsg);
+    serial_puts("\n");
+
+    /* Convert to Pascal strings for ParamText */
+    unsigned char pErr[130], pDetail[130], pEmpty[1];
+    int errLen = 0;
+    while (errorMsg[errLen] && errLen < 128) errLen++;
+    pErr[0] = (unsigned char)errLen;
+    memcpy(&pErr[1], errorMsg, errLen);
+
+    int detLen = 0;
+    while (detailMsg[detLen] && detLen < 128) detLen++;
+    pDetail[0] = (unsigned char)detLen;
+    memcpy(&pDetail[1], detailMsg, detLen);
+
+    pEmpty[0] = 0;
+
+    ParamText(pErr, pDetail, pEmpty, pEmpty);
+    StopAlert(129, NULL);
 }
 
 /*

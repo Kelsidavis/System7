@@ -15,6 +15,7 @@
 #include "SystemTypes.h"
 #include "Apps/MacPaint.h"
 #include "MenuManager/MenuManager.h"
+#include "WindowManager/WindowManager.h"
 #include "System71StdLib.h"
 #include <string.h>
 
@@ -259,8 +260,12 @@ void MacPaint_FileQuit(void)
         MacPaint_SaveDocument(gDocName);
     }
 
-    /* Exit application */
-    /* TODO: Clean up and return to Finder */
+    /* Close the paint window to signal exit */
+    extern WindowPtr gPaintWindow;
+    if (gPaintWindow) {
+        DisposeWindow(gPaintWindow);
+        gPaintWindow = NULL;
+    }
 }
 
 /*
@@ -357,7 +362,20 @@ void MacPaint_EditClear(void)
 void MacPaint_EditInvert(void)
 {
     if (gMenuState.selectionActive) {
-        /* TODO: Invert within selection rectangle */
+        /* Invert pixels within selection rectangle */
+        extern Rect gSelectionRect;
+        unsigned char *bits = (unsigned char *)gPaintBuffer.baseAddr;
+        int rowBytes = gPaintBuffer.rowBytes;
+
+        for (int y = gSelectionRect.top; y < gSelectionRect.bottom; y++) {
+            for (int x = gSelectionRect.left; x < gSelectionRect.right; x++) {
+                int byteOff = y * rowBytes + (x / 8);
+                int bitOff = 7 - (x % 8);
+                bits[byteOff] ^= (1 << bitOff);
+            }
+        }
+        gDocDirty = 1;
+        MacPaint_InvalidatePaintArea();
     } else {
         /* Invert entire document */
         MacPaint_InvertBuf(&gPaintBuffer);
@@ -370,7 +388,26 @@ void MacPaint_EditInvert(void)
 void MacPaint_EditFill(void)
 {
     if (gMenuState.selectionActive) {
-        /* TODO: Fill entire selection rectangle */
+        /* Fill selection rectangle with current pattern */
+        extern Rect gSelectionRect;
+        extern Pattern gCurrentPattern;
+        unsigned char *bits = (unsigned char *)gPaintBuffer.baseAddr;
+        int rowBytes = gPaintBuffer.rowBytes;
+
+        for (int y = gSelectionRect.top; y < gSelectionRect.bottom; y++) {
+            unsigned char patRow = gCurrentPattern.pat[y % 8];
+            for (int x = gSelectionRect.left; x < gSelectionRect.right; x++) {
+                int patBit = 7 - (x % 8);
+                int val = (patRow >> patBit) & 1;
+
+                int byteOff = y * rowBytes + (x / 8);
+                int bitOff = 7 - (x % 8);
+                if (val) bits[byteOff] |= (1 << bitOff);
+                else     bits[byteOff] &= ~(1 << bitOff);
+            }
+        }
+        gDocDirty = 1;
+        MacPaint_InvalidatePaintArea();
     }
 }
 
@@ -395,7 +432,7 @@ void MacPaint_EditSelectAll(void)
 void MacPaint_AidsToggleGrid(void)
 {
     gMenuState.showGrid = !gMenuState.showGrid;
-    /* TODO: Redraw canvas with/without grid overlay */
+    MacPaint_ToggleGridDisplay();
 }
 
 /**
@@ -404,7 +441,7 @@ void MacPaint_AidsToggleGrid(void)
 void MacPaint_AidsToggleFatBits(void)
 {
     gMenuState.fatBitsMode = !gMenuState.fatBitsMode;
-    /* TODO: Create/destroy Fat Bits window and zoom view */
+    MacPaint_SetFatBitsMode(gMenuState.fatBitsMode, 8);
 }
 
 /**
