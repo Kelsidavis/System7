@@ -479,24 +479,33 @@ static PatternEditor gPatternEditor = {0};
 OSErr MacPaint_OpenPatternEditor(void)
 {
     if (gPatternEditor.open) {
-        return noErr;  /* Already open */
+        return noErr;
     }
 
-    /* TODO: Create modeless dialog window
-     * Show 8x8 pixel grid with current pattern
-     * Add OK/Cancel buttons
-     */
-
+    /* Copy current pattern into editor for editing */
+    extern Pattern gCurrentPattern;
+    gPatternEditor.editPattern = gCurrentPattern;
     gPatternEditor.open = 1;
+
+    /* Set editor bounds (8x8 grid at 8x magnification = 64x64 pixels) */
+    gPatternEditor.editorBounds.left = 200;
+    gPatternEditor.editorBounds.top = 100;
+    gPatternEditor.editorBounds.right = 200 + 64;
+    gPatternEditor.editorBounds.bottom = 100 + 64;
+
     return noErr;
 }
 
 /**
- * MacPaint_ClosePatternEditor - Close pattern editor
+ * MacPaint_ClosePatternEditor - Close pattern editor and apply
  */
 void MacPaint_ClosePatternEditor(void)
 {
-    /* TODO: Destroy dialog window */
+    if (gPatternEditor.open) {
+        /* Apply edited pattern as current pattern */
+        extern Pattern gCurrentPattern;
+        gCurrentPattern = gPatternEditor.editPattern;
+    }
     gPatternEditor.open = 0;
 }
 
@@ -507,7 +516,9 @@ void MacPaint_SetPatternEditorPattern(int patternIndex)
 {
     if (patternIndex >= 0 && patternIndex < 38) {
         gPatternEditor.selectedPattern = patternIndex;
-        /* TODO: Render pattern in editor grid */
+        /* Load the current active pattern into editor */
+        extern Pattern gCurrentPattern;
+        gPatternEditor.editPattern = gCurrentPattern;
     }
 }
 
@@ -520,17 +531,25 @@ Pattern MacPaint_GetPatternEditorPattern(void)
 }
 
 /**
- * MacPaint_PatternEditorPixelClick - Handle pixel click in editor
+ * MacPaint_PatternEditorPixelClick - Toggle pixel in pattern grid
+ * x, y: pixel coordinates within the 8x8 pattern (0-7 each)
  */
 void MacPaint_PatternEditorPixelClick(int x, int y)
 {
-    if (!gPatternEditor.open) {
-        return;
-    }
+    if (!gPatternEditor.open) return;
+    if (x < 0 || x > 7 || y < 0 || y > 7) return;
 
-    /* TODO: Toggle pixel at (x, y) in pattern grid
-     * Update both edit pattern and preview
-     */
+    /* Toggle the bit at (x, y) in the pattern */
+    int bitOff = 7 - x;
+    gPatternEditor.editPattern.pat[y] ^= (1 << bitOff);
+}
+
+/**
+ * MacPaint_IsPatternEditorOpen - Check if pattern editor is active
+ */
+int MacPaint_IsPatternEditorOpen(void)
+{
+    return gPatternEditor.open;
 }
 
 /*
@@ -552,28 +571,28 @@ static BrushEditor gBrushEditor = {0};
 OSErr MacPaint_OpenBrushEditor(void)
 {
     if (gBrushEditor.open) {
-        return noErr;  /* Already open */
+        return noErr;
     }
 
-    /* TODO: Create modeless dialog window
-     * Show available brush shapes:
-     * - Circle (filled)
-     * - Square (filled)
-     * - Diamond
-     * - Spray pattern
-     * - Custom pattern selection
-     */
-
+    /* Initialize with defaults */
+    if (gBrushEditor.brushSize == 0) {
+        gBrushEditor.brushSize = 1;
+    }
     gBrushEditor.open = 1;
+
     return noErr;
 }
 
 /**
- * MacPaint_CloseBrushEditor - Close brush editor
+ * MacPaint_CloseBrushEditor - Close brush editor and apply
  */
 void MacPaint_CloseBrushEditor(void)
 {
-    /* TODO: Destroy dialog window */
+    if (gBrushEditor.open) {
+        /* Apply selected brush size to the line size */
+        extern void MacPaint_SetLineSize(int size);
+        MacPaint_SetLineSize(gBrushEditor.brushSize);
+    }
     gBrushEditor.open = 0;
 }
 
@@ -584,7 +603,6 @@ void MacPaint_SetBrushSize(int diameter)
 {
     if (diameter >= 1 && diameter <= 64) {
         gBrushEditor.brushSize = diameter;
-        /* TODO: Update brush preview */
     }
 }
 
@@ -1115,14 +1133,6 @@ OSErr MacPaint_SmoothSelection(void)
 /*
  * STATE QUERIES
  */
-
-/**
- * MacPaint_IsPatternEditorOpen - Check if pattern editor is open
- */
-int MacPaint_IsPatternEditorOpen(void)
-{
-    return gPatternEditor.open;
-}
 
 /**
  * MacPaint_IsBrushEditorOpen - Check if brush editor is open
