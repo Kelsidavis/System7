@@ -72,7 +72,7 @@ static void InitializePopupData(ControlHandle popup, SInt16 varCode);
 static void CalculatePopupRects(ControlHandle popup);
 static void DrawPopupFrame(ControlHandle popup);
 static void DrawPopupLabel(ControlHandle popup);
-static void DrawPopupMenu(ControlHandle popup);
+static void DrawPopupMenuContent(ControlHandle popup);
 static void DrawPopupTriangle(ControlHandle popup);
 static SInt16 CalcPopupPart(ControlHandle popup, Point pt);
 static void HandlePopupTracking(ControlHandle popup, Point startPt);
@@ -225,7 +225,7 @@ void SetPopupMenu(ControlHandle popup, MenuHandle menu) {
     }
 
     /* Update selection */
-    if ((*popup)->contrlValue > 0 && (*popup)->contrlValue <= CountMenuItems(menu)) {
+    if (menu && (*popup)->contrlValue > 0 && (*popup)->contrlValue <= CountMenuItems(menu)) {
         popupData->selectedItem = (*popup)->contrlValue;
     } else {
         popupData->selectedItem = 1;
@@ -439,9 +439,9 @@ static void InitializePopupData(ControlHandle popup, SInt16 varCode) {
     popupData->useNativePopup = false;
 
     /* Set title color */
-    (popupData)->red = 0;
-    (popupData)->green = 0;
-    (popupData)->blue = 0;
+    popupData->titleColor.red = 0;
+    popupData->titleColor.green = 0;
+    popupData->titleColor.blue = 0;
 
     /* Calculate title width if present */
     if (popupData->hasTitle) {
@@ -466,25 +466,26 @@ static void CalculatePopupRects(ControlHandle popup) {
     if (popupData->hasTitle && popupData->titleWidth > 0) {
         /* Popup with title label */
         popupData->labelRect = bounds;
-        (popupData)->right = (popupData)->left + popupData->titleWidth;
+        popupData->labelRect.right = popupData->labelRect.left + popupData->titleWidth;
 
         popupData->menuRect = bounds;
-        (popupData)->left = (popupData)->right;
-        (popupData)->right -= POPUP_ARROW_WIDTH;
+        popupData->menuRect.left = popupData->labelRect.right;
+        popupData->menuRect.right = bounds.right - POPUP_ARROW_WIDTH;
 
         popupData->triangleRect = bounds;
-        (popupData)->left = (popupData)->right - POPUP_ARROW_WIDTH;
+        popupData->triangleRect.left = bounds.right - POPUP_ARROW_WIDTH;
     } else {
-        /* Popup without title */
-        (popupData)->left = (popupData)->right = bounds.left;
-        (popupData)->top = bounds.top;
-        (popupData)->bottom = bounds.bottom;
+        /* Popup without title - label rect is empty */
+        popupData->labelRect.left = bounds.left;
+        popupData->labelRect.right = bounds.left;
+        popupData->labelRect.top = bounds.top;
+        popupData->labelRect.bottom = bounds.bottom;
 
         popupData->menuRect = bounds;
-        (popupData)->right -= POPUP_ARROW_WIDTH;
+        popupData->menuRect.right = bounds.right - POPUP_ARROW_WIDTH;
 
         popupData->triangleRect = bounds;
-        (popupData)->left = (popupData)->right - POPUP_ARROW_WIDTH;
+        popupData->triangleRect.left = bounds.right - POPUP_ARROW_WIDTH;
     }
 }
 
@@ -503,7 +504,7 @@ void DrawPopupMenu(ControlHandle popup) {
     DrawPopupLabel(popup);
 
     /* Draw menu area */
-    DrawPopupMenu(popup);
+    DrawPopupMenuContent(popup);
 
     /* Draw triangle */
     DrawPopupTriangle(popup);
@@ -608,9 +609,9 @@ static void DrawPopupLabel(ControlHandle popup) {
 }
 
 /**
- * Draw popup menu content
+ * Draw popup menu content (selected item text in the menu area)
  */
-static void DrawPopupMenu(ControlHandle popup) {
+static void DrawPopupMenuContent(ControlHandle popup) {
     PopupData *popupData;
     Str255 itemText;
     FontInfo fontInfo;
@@ -760,7 +761,7 @@ static void UpdatePopupSelection(ControlHandle popup, SInt16 item) {
 
     popupData = (PopupData *)*(*popup)->contrlData;
 
-    if (item > 0 && item <= CountMenuItems(popupData->popupMenu)) {
+    if (popupData->popupMenu && item > 0 && item <= CountMenuItems(popupData->popupMenu)) {
         popupData->selectedItem = item;
         SetControlValue(popup, item);
 

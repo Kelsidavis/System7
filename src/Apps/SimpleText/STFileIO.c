@@ -595,8 +595,12 @@ Boolean STIO_WriteFile(STDocument* doc, const char* path)
             if (entryExists && newData && textLen > 0) {
                 VFSFile* vf = VFS_OpenFile(vcb.vRefNum, leafEntry.id, false);
                 if (vf) {
-                    VFS_WriteFile(vf, newData, (uint32_t)textLen, NULL);
+                    uint32_t bytesWritten = 0;
+                    Boolean writeOk = VFS_WriteFile(vf, newData, (uint32_t)textLen, &bytesWritten);
                     VFS_CloseFile(vf);
+                    if (!writeOk || bytesWritten != (uint32_t)textLen) {
+                        ST_Log("STIO_WriteFile: VFS write incomplete (wrote %u of %d bytes)", bytesWritten, (int)textLen);
+                    }
                 }
             }
         } else {

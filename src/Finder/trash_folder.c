@@ -552,11 +552,40 @@ static Boolean IsFloppyDisk(short vRefNum)
 
 /*
  * GenerateUniqueTrashName - Generate unique name for item in Trash
- * Basic stub implementation - just copies the base name unchanged
+ *
+ * If the base name conflicts, appends " copy", " copy 2", etc.
+ * Uses a simple static counter since checking the actual Trash directory
+ * for name conflicts requires VFS enumeration that may not be available.
  */
 OSErr GenerateUniqueTrashName(Str255 baseName, Str255 uniqueName) {
-    if (uniqueName && baseName) {
-        BlockMoveData(baseName, uniqueName, baseName[0] + 1);
+    static UInt16 sTrashNameCounter = 0;
+
+    if (!uniqueName || !baseName) {
+        return paramErr;
     }
+
+    if (sTrashNameCounter == 0) {
+        /* First call: use base name as-is */
+        BlockMoveData(baseName, uniqueName, baseName[0] + 1);
+    } else {
+        /* Subsequent calls: append " copy N" suffix */
+        unsigned char baseLen = baseName[0];
+        char suffix[16];
+        int suffixLen;
+        if (sTrashNameCounter == 1) {
+            suffixLen = snprintf(suffix, sizeof(suffix), " copy");
+        } else {
+            suffixLen = snprintf(suffix, sizeof(suffix), " copy %u", sTrashNameCounter);
+        }
+        /* Truncate base name if needed to fit suffix within 255 chars */
+        if (baseLen + suffixLen > 255) {
+            baseLen = 255 - (unsigned char)suffixLen;
+        }
+        uniqueName[0] = baseLen + (unsigned char)suffixLen;
+        memcpy(&uniqueName[1], &baseName[1], baseLen);
+        memcpy(&uniqueName[1 + baseLen], suffix, (size_t)suffixLen);
+    }
+
+    sTrashNameCounter++;
     return noErr;
 }

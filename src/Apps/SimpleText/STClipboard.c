@@ -110,6 +110,16 @@ void STClip_Paste(STDocument* doc)
         return;
     }
 
+    /* Check if paste would exceed TextEdit 32K limit */
+    SInt32 currentLen = (*doc->hTE)->teLength;
+    SInt32 selLen = (*doc->hTE)->selEnd - (*doc->hTE)->selStart;
+    SInt32 newLen = currentLen - selLen + scrapLen;
+    if (newLen > kMaxFileSize) {
+        ST_Log("STClip_Paste: Would exceed 32K limit (%d bytes)", (int)newLen);
+        ST_Beep();
+        return;
+    }
+
     /* Save for undo */
     STClip_SaveUndo(doc);
 

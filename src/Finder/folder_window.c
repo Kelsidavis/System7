@@ -477,6 +477,8 @@ void InitializeFolderContentsEx(WindowPtr w, Boolean isTrash, VRefNum vref, DirI
         state->selectedItems = (Boolean*)NewPtr(count * sizeof(Boolean));
         if (!state->selectedItems) {
             FINDER_LOG_DEBUG("InitializeFolderContentsEx: Failed to allocate selectedItems for trash folder\n");
+            DisposePtr((Ptr)state->items);
+            state->items = NULL;
             state->itemCount = 0;
             return;
         }
@@ -543,6 +545,8 @@ void InitializeFolderContentsEx(WindowPtr w, Boolean isTrash, VRefNum vref, DirI
         state->selectedItems = (Boolean*)NewPtr(sizeof(Boolean) * state->itemCount);
         if (!state->selectedItems) {
             FINDER_LOG_DEBUG("InitializeFolderContentsEx: Failed to allocate selectedItems for Applications folder\n");
+            DisposePtr((Ptr)state->items);
+            state->items = NULL;
             state->itemCount = 0;
             return;
         }
@@ -638,6 +642,8 @@ void InitializeFolderContentsEx(WindowPtr w, Boolean isTrash, VRefNum vref, DirI
         state->selectedItems = (Boolean*)NewPtr(sizeof(Boolean) * state->itemCount);
         if (!state->selectedItems) {
             FINDER_LOG_DEBUG("InitializeFolderContentsEx: Failed to allocate selectedItems for Control Panels folder\n");
+            DisposePtr((Ptr)state->items);
+            state->items = NULL;
             state->itemCount = 0;
             return;
         }
@@ -733,6 +739,8 @@ void InitializeFolderContentsEx(WindowPtr w, Boolean isTrash, VRefNum vref, DirI
         state->selectedItems = (Boolean*)NewPtr(sizeof(Boolean) * state->itemCount);
         if (!state->selectedItems) {
             FINDER_LOG_DEBUG("InitializeFolderContentsEx: Failed to allocate selectedItems for VFS directory\n");
+            DisposePtr((Ptr)state->items);
+            state->items = NULL;
             state->itemCount = 0;
             return;
         }
