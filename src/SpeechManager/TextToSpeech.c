@@ -363,7 +363,7 @@ OSErr CreateTextProcessingContext(TextProcessingContext **context) {
     (*context)->flags = kTextFlag_ProcessNumbers | kTextFlag_ProcessAbbrev | kTextFlag_ProcessPunctuation;
     (*context)->language = 0; /* Default language */
     (*context)->region = 0;   /* Default region */
-    strcpy((*context)->commandDelimiters, DEFAULT_START_DELIMITER DEFAULT_END_DELIMITER);
+    memcpy((*context)->commandDelimiters, "[[]]", 5);
 
     return noErr;
 }

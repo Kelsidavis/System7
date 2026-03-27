@@ -133,9 +133,8 @@ static void GetInfo_CreateWindow(void) {
     bounds.right = bounds.left + 400;  /* Width: 400 pixels */
 
     /* Create window title */
-    const char* titleText = "Info";
-    title[0] = (unsigned char)strlen(titleText);
-    strcpy((char*)&title[1], titleText);
+    title[0] = 4;
+    memcpy(&title[1], "Info", 4);
 
     sGetInfoWin = NewWindow(NULL, &bounds, title,
                            1,  /* visible */

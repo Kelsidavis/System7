@@ -694,8 +694,8 @@ void TextEdit_InitApp(void) {
         Rect windowBounds = {50, 50, 450, 650};
         Str255 title;
         /* Build Pascal string for "SimpleText" */
-        strcpy((char*)&title[1], "SimpleText");
-        title[0] = 10;  /* Pascal string length */
+        memcpy(&title[1], "SimpleText", 10);
+        title[0] = 10;
         g_textEditWindow = NewWindow(NULL, &windowBounds, title, TRUE,
                                      documentProc, (WindowPtr)-1L, TRUE, 0L);
 

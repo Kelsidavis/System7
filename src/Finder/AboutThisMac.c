@@ -285,7 +285,7 @@ static void FormatKBWithCommas(UInt32 bytes, char* buf, size_t bufSize)
         temp[i++] = '0' + (char)(remainder % 10);
         temp[i++] = 'K';
         temp[i] = '\0';
-        strcpy(buf, temp);
+        memcpy(buf, temp, i + 1);
     }
 }
 

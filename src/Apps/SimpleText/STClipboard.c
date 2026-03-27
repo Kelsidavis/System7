@@ -206,11 +206,11 @@ void STClip_Undo(STDocument* doc)
         DisposeHandle(doc->undoText);
         doc->undoText = NULL;
     }
-    /* Otherwise, it might have been an insertion - delete from undo position */
+    /* Otherwise, it was an insertion (paste/typing) - delete the inserted range */
     else if (doc->undoEnd > doc->undoStart) {
-        /* This would be for undoing pastes/typing */
-        /* For simplicity, we only support undoing deletions */
-        ST_Log("Undo of insertions not fully implemented");
+        TESetSelect(doc->undoStart, doc->undoEnd, doc->hTE);
+        TEDelete(doc->hTE);
+        doc->undoEnd = doc->undoStart;
     }
 
     /* Mark document as modified */

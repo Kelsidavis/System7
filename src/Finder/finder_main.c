@@ -508,8 +508,11 @@ WindowPtr Finder_OpenDesktopItem(Boolean isTrash, ConstStr255Param title)
     if (!windowTitle || windowTitle[0] == 0) {
         /* Build default title as Pascal string */
         const char* titleText = isTrash ? "Trash" : "Macintosh HD";
-        strcpy((char*)&windowTitleBuf[1], titleText);
-        windowTitleBuf[0] = (unsigned char)strlen(titleText);
+        int tLen = 0;
+        while (titleText[tLen]) tLen++;
+        if (tLen > 254) tLen = 254;
+        memcpy(&windowTitleBuf[1], titleText, tLen);
+        windowTitleBuf[0] = (unsigned char)tLen;
         windowTitle = windowTitleBuf;
         FINDER_LOG_DEBUG("[WIN_OPEN] Built title: len=%d, first_char=0x%02x\n",
                       windowTitleBuf[0], windowTitleBuf[1]);

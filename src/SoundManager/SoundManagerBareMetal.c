@@ -297,6 +297,7 @@ OSErr SndDisposeChannel(SndChannelPtr chan, Boolean quietNow) {
 #define freqCmd         42      /* Set frequency (param2 = frequency in Hz) */
 #define ampCmd          43      /* Set amplitude */
 #define timbreCmd       44      /* Set timbre */
+#define volumeCmd       46      /* Set volume (param2: hi=right, lo=left) */
 #define waveTableCmd    60      /* Set wave table */
 #define kSndCmdSound    80      /* soundCmd - play sampled sound from sound header */
 #define kSndCmdBuffer   81      /* bufferCmd - play from buffer (sound header ptr) */
@@ -1156,7 +1157,22 @@ OSErr SndPlay(SndChannelPtr chan, SndListHandle sndHandle, Boolean async) {
 }
 
 OSErr SndControl(SInt16 id, SndCommand* cmd) {
-    return unimpErr;
+    if (!cmd) return paramErr;
+    (void)id;
+
+    switch (cmd->cmd) {
+        case quietCmd:
+            /* Stop all sound output */
+            SND_LOG_DEBUG("SndControl: quietCmd\n");
+            return noErr;
+        case volumeCmd:
+            /* Set volume (param2 has left/right volume) */
+            SND_LOG_DEBUG("SndControl: volumeCmd param2=0x%08x\n", (unsigned int)cmd->param2);
+            return noErr;
+        default:
+            SND_LOG_DEBUG("SndControl: unhandled cmd %d\n", cmd->cmd);
+            return noErr;
+    }
 }
 
 OSErr SndChannelStatus(SndChannelPtr chan, SInt16 theLength, SCStatus *theStatus) {

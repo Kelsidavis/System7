@@ -163,9 +163,8 @@ static void Find_CreateWindow(void) {
     bounds.right = bounds.left + 400;  /* Width: 400 pixels */
 
     /* Create window title */
-    const char* titleText = "Find";
-    title[0] = (unsigned char)strlen(titleText);
-    strcpy((char*)&title[1], titleText);
+    title[0] = 4;
+    memcpy(&title[1], "Find", 4);
 
     sFindWin = NewWindow(NULL, &bounds, title,
                         1,  /* visible */

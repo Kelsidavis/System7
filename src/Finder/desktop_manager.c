@@ -2073,8 +2073,8 @@ Boolean HandleDesktopClick(Point clickPoint, Boolean doubleClick)
         } else if (it->type == kDesktopItemTrash) {
             /* Build Pascal string for Trash title */
             static unsigned char trashTitle[256];
-            strcpy((char*)&trashTitle[1], "Trash");
-            trashTitle[0] = (unsigned char)strlen("Trash");
+            memcpy(&trashTitle[1], "Trash", 5);
+            trashTitle[0] = 5;
             Finder_OpenDesktopItem(true, trashTitle);
         }
 
