@@ -446,14 +446,14 @@ void WM_CalculateStandardWindowRegions(WindowPtr window, short varCode) {
     serial_puts("[CALCSTD] GetFrameRect\n");
     uart_flush();
 
-    extern int sprintf(char* buf, const char* fmt, ...);
+    extern int snprintf(char* buf, size_t size, const char* fmt, ...);
     if (window->refCon == 0x4449534b) {  /* DISK window */
         char dbgbuf[256];
-        sprintf(dbgbuf, "[CALCRGN-CALLER] Called from caller - about to recalculate regions\n");
+        snprintf(dbgbuf, sizeof(dbgbuf), "[CALCRGN-CALLER] Called from caller - about to recalculate regions\n");
         serial_puts(dbgbuf);
         if (window->strucRgn && *(window->strucRgn)) {
             Rect oldStrucRgn = (*(window->strucRgn))->rgnBBox;
-            sprintf(dbgbuf, "[CALCRGN] OLD strucRgn rgnBBox=(%d,%d,%d,%d) portRect=(%d,%d,%d,%d)\n",
+            snprintf(dbgbuf, sizeof(dbgbuf), "[CALCRGN] OLD strucRgn rgnBBox=(%d,%d,%d,%d) portRect=(%d,%d,%d,%d)\n",
                     oldStrucRgn.left, oldStrucRgn.top, oldStrucRgn.right, oldStrucRgn.bottom,
                     window->port.portRect.left, window->port.portRect.top,
                     window->port.portRect.right, window->port.portRect.bottom);
@@ -471,7 +471,7 @@ void WM_CalculateStandardWindowRegions(WindowPtr window, short varCode) {
 
     if (window->refCon == 0x4449534b) {  /* DISK window */
         char dbgbuf[256];
-        sprintf(dbgbuf, "[CALCRGN] NEW structRect from GetWindowFrameRect=(%d,%d,%d,%d)\n",
+        snprintf(dbgbuf, sizeof(dbgbuf), "[CALCRGN] NEW structRect from GetWindowFrameRect=(%d,%d,%d,%d)\n",
                 structRect.left, structRect.top, structRect.right, structRect.bottom);
         serial_puts(dbgbuf);
     }
@@ -492,19 +492,19 @@ void WM_CalculateStandardWindowRegions(WindowPtr window, short varCode) {
 
     /* DEBUG: Log detailed state before changing contRgn */
     extern void serial_puts(const char* str);
-    extern int sprintf(char* buf, const char* fmt, ...);
+    extern int snprintf(char* buf, size_t size, const char* fmt, ...);
     static int calc_log = 0;
     if (calc_log < 30 && window->refCon == 0x4449534b) {
         char dbgbuf[256];
         if (window->contRgn && *(window->contRgn)) {
             Rect oldContent = (*(window->contRgn))->rgnBBox;
-            sprintf(dbgbuf, "[CALCSTD-OLD] DISK: oldContRgn=(%d,%d,%d,%d) strucRgn=(%d,%d,%d,%d)\n",
+            snprintf(dbgbuf, sizeof(dbgbuf), "[CALCSTD-OLD] DISK: oldContRgn=(%d,%d,%d,%d) strucRgn=(%d,%d,%d,%d)\n",
                     oldContent.left, oldContent.top, oldContent.right, oldContent.bottom,
                     (*(window->strucRgn))->rgnBBox.left, (*(window->strucRgn))->rgnBBox.top,
                     (*(window->strucRgn))->rgnBBox.right, (*(window->strucRgn))->rgnBBox.bottom);
             serial_puts(dbgbuf);
         }
-        sprintf(dbgbuf, "[CALCSTD-NEW] DISK: newContentRect=(%d,%d,%d,%d) portBits=(%d,%d,%d,%d)\n",
+        snprintf(dbgbuf, sizeof(dbgbuf), "[CALCSTD-NEW] DISK: newContentRect=(%d,%d,%d,%d) portBits=(%d,%d,%d,%d)\n",
                 contentRect.left, contentRect.top, contentRect.right, contentRect.bottom,
                 window->port.portBits.bounds.left, window->port.portBits.bounds.top,
                 window->port.portBits.bounds.right, window->port.portBits.bounds.bottom);

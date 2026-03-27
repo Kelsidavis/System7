@@ -126,6 +126,13 @@ bool HFS_BT_Init(HFS_BTree* bt, HFS_Volume* vol, HFS_BTreeType type) {
     bt->nodeSize    = be16_read(&header->nodeSize);
     bt->totalNodes  = be32_read(&header->totalNodes);
 
+    /* Validate node size - must be power of 2 between 512 and 32768 */
+    if (bt->nodeSize < 512 || bt->nodeSize > 32768 ||
+        (bt->nodeSize & (bt->nodeSize - 1)) != 0) {
+        FS_LOG_DEBUG("HFS BTree: Invalid node size %u\n", bt->nodeSize);
+        return false;
+    }
+
     /* Allocate node buffer */
     bt->nodeBuffer = NewPtr(bt->nodeSize);
     if (!bt->nodeBuffer) {

@@ -261,31 +261,31 @@ static Handle CreateDefaultIntl2(void) {
     intlPtr->longDateFormat = 0;
 
     /* Day names (Sunday = 0) */
-    strncpy(intlPtr->dayNames[0], "Sunday", 16);
-    strncpy(intlPtr->dayNames[1], "Monday", 16);
-    strncpy(intlPtr->dayNames[2], "Tuesday", 16);
-    strncpy(intlPtr->dayNames[3], "Wednesday", 16);
-    strncpy(intlPtr->dayNames[4], "Thursday", 16);
-    strncpy(intlPtr->dayNames[5], "Friday", 16);
-    strncpy(intlPtr->dayNames[6], "Saturday", 16);
+    strncpy(intlPtr->dayNames[0], "Sunday", 15);    intlPtr->dayNames[0][15] = '\0';
+    strncpy(intlPtr->dayNames[1], "Monday", 15);    intlPtr->dayNames[1][15] = '\0';
+    strncpy(intlPtr->dayNames[2], "Tuesday", 15);   intlPtr->dayNames[2][15] = '\0';
+    strncpy(intlPtr->dayNames[3], "Wednesday", 15); intlPtr->dayNames[3][15] = '\0';
+    strncpy(intlPtr->dayNames[4], "Thursday", 15);  intlPtr->dayNames[4][15] = '\0';
+    strncpy(intlPtr->dayNames[5], "Friday", 15);    intlPtr->dayNames[5][15] = '\0';
+    strncpy(intlPtr->dayNames[6], "Saturday", 15);  intlPtr->dayNames[6][15] = '\0';
 
     /* Month names (January = 0) */
-    strncpy(intlPtr->monthNames[0], "January", 16);
-    strncpy(intlPtr->monthNames[1], "February", 16);
-    strncpy(intlPtr->monthNames[2], "March", 16);
-    strncpy(intlPtr->monthNames[3], "April", 16);
-    strncpy(intlPtr->monthNames[4], "May", 16);
-    strncpy(intlPtr->monthNames[5], "June", 16);
-    strncpy(intlPtr->monthNames[6], "July", 16);
-    strncpy(intlPtr->monthNames[7], "August", 16);
-    strncpy(intlPtr->monthNames[8], "September", 16);
-    strncpy(intlPtr->monthNames[9], "October", 16);
-    strncpy(intlPtr->monthNames[10], "November", 16);
-    strncpy(intlPtr->monthNames[11], "December", 16);
+    strncpy(intlPtr->monthNames[0], "January", 15);   intlPtr->monthNames[0][15] = '\0';
+    strncpy(intlPtr->monthNames[1], "February", 15);  intlPtr->monthNames[1][15] = '\0';
+    strncpy(intlPtr->monthNames[2], "March", 15);     intlPtr->monthNames[2][15] = '\0';
+    strncpy(intlPtr->monthNames[3], "April", 15);     intlPtr->monthNames[3][15] = '\0';
+    strncpy(intlPtr->monthNames[4], "May", 15);       intlPtr->monthNames[4][15] = '\0';
+    strncpy(intlPtr->monthNames[5], "June", 15);      intlPtr->monthNames[5][15] = '\0';
+    strncpy(intlPtr->monthNames[6], "July", 15);      intlPtr->monthNames[6][15] = '\0';
+    strncpy(intlPtr->monthNames[7], "August", 15);    intlPtr->monthNames[7][15] = '\0';
+    strncpy(intlPtr->monthNames[8], "September", 15); intlPtr->monthNames[8][15] = '\0';
+    strncpy(intlPtr->monthNames[9], "October", 15);   intlPtr->monthNames[9][15] = '\0';
+    strncpy(intlPtr->monthNames[10], "November", 15); intlPtr->monthNames[10][15] = '\0';
+    strncpy(intlPtr->monthNames[11], "December", 15); intlPtr->monthNames[11][15] = '\0';
 
     /* AM/PM strings */
-    strncpy(intlPtr->amString, "AM", 8);
-    strncpy(intlPtr->pmString, "PM", 8);
+    strncpy(intlPtr->amString, "AM", 7);  intlPtr->amString[7] = '\0';
+    strncpy(intlPtr->pmString, "PM", 7);  intlPtr->pmString[7] = '\0';
 
     /* Version */
     intlPtr->intl2Vers = 0;

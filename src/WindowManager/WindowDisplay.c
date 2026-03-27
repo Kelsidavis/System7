@@ -142,13 +142,13 @@ void PaintOne(WindowPtr window, RgnHandle clobberedRgn) {
      * created with NewWindow(nil,...,0), using refCon to distinguish it from regular windows.
      * This is a standard Mac OS pattern; refCon values are application-specific window identifiers. */
     extern void serial_puts(const char* str);
-    static char dbgbuf[128];
+    static char dbgbuf[256];
     static int fill_log = 0;
 
     if (window->contRgn && *(window->contRgn)) {
         Region* rgn = *(window->contRgn);
         if (fill_log < 10) {
-            sprintf(dbgbuf, "[PAINTONE] window=%p refCon=0x%08x fill=%d strucRgn=(%d,%d,%d,%d) contRgn=(%d,%d,%d,%d)\n",
+            snprintf(dbgbuf, sizeof(dbgbuf), "[PAINTONE] window=%p refCon=0x%08x fill=%d strucRgn=(%d,%d,%d,%d) contRgn=(%d,%d,%d,%d)\n",
                    window, (unsigned int)window->refCon, (window->refCon != 0),
                    (*(window->strucRgn))->rgnBBox.left, (*(window->strucRgn))->rgnBBox.top,
                    (*(window->strucRgn))->rgnBBox.right, (*(window->strucRgn))->rgnBBox.bottom,
@@ -165,11 +165,11 @@ void PaintOne(WindowPtr window, RgnHandle clobberedRgn) {
 
             if (window->refCon == 0x4449534b && window->contRgn && *(window->contRgn)) {
                 extern void serial_puts(const char *str);
-                extern int sprintf(char* buf, const char* fmt, ...);
+                extern int snprintf(char* buf, size_t size, const char* fmt, ...);
                 char filldbg[256];
                 /* Use pointer to avoid struct assignment on ARM64 */
                 Rect* fillBBoxPtr = &((*(window->contRgn))->rgnBBox);
-                sprintf(filldbg, "[FILLRGN] DISK: About to fill region bbox=(%d,%d,%d,%d)\n",
+                snprintf(filldbg, sizeof(filldbg), "[FILLRGN] DISK: About to fill region bbox=(%d,%d,%d,%d)\n",
                         fillBBoxPtr->left, fillBBoxPtr->top, fillBBoxPtr->right, fillBBoxPtr->bottom);
                 serial_puts(filldbg);
 
@@ -181,7 +181,7 @@ void PaintOne(WindowPtr window, RgnHandle clobberedRgn) {
                     uint8_t* fbStart = (uint8_t*)framebuffer;
                     uint8_t* baseAddr = (uint8_t*)currentPort->portBits.baseAddr;
                     int offset = baseAddr - fbStart;
-                    sprintf(dbgbuf, "[FILLRGN] Port state: baseAddr=%p (offset=%d from fb), portRect=(%d,%d,%d,%d)\n",
+                    snprintf(dbgbuf, sizeof(dbgbuf), "[FILLRGN] Port state: baseAddr=%p (offset=%d from fb), portRect=(%d,%d,%d,%d)\n",
                             currentPort->portBits.baseAddr, offset,
                             currentPort->portRect.left, currentPort->portRect.top,
                             currentPort->portRect.right, currentPort->portRect.bottom);

@@ -994,9 +994,9 @@ void QDPlatform_DrawRegion(RgnHandle rgn, short mode, const Pattern* pat) {
         int globalX = (byteOffset % fb_pitch) / 4;  /* 4 bytes per pixel */
 
         extern void serial_puts(const char *str);
-        extern int sprintf(char* buf, const char* fmt, ...);
+        extern int snprintf(char* buf, size_t size, const char* fmt, ...);
         char dbgbuf[256];
-        sprintf(dbgbuf, "[QDRAW-COORD] BEFORE: global_region=(%d,%d,%d,%d) window_at=(%d,%d) local_size=%dx%d\n",
+        snprintf(dbgbuf, sizeof(dbgbuf), "[QDRAW-COORD] BEFORE: global_region=(%d,%d,%d,%d) window_at=(%d,%d) local_size=%dx%d\n",
                 r.left, r.top, r.right, r.bottom, globalX, globalY, localWidth, localHeight);
         serial_puts(dbgbuf);
 
@@ -1006,7 +1006,7 @@ void QDPlatform_DrawRegion(RgnHandle rgn, short mode, const Pattern* pat) {
         r.right = r.right - globalX;
         r.bottom = r.bottom - globalY;
 
-        sprintf(dbgbuf, "[QDRAW-COORD] AFTER:  local_region=(%d,%d,%d,%d)\n",
+        snprintf(dbgbuf, sizeof(dbgbuf), "[QDRAW-COORD] AFTER:  local_region=(%d,%d,%d,%d)\n",
                 r.left, r.top, r.right, r.bottom);
         serial_puts(dbgbuf);
 
@@ -1031,9 +1031,9 @@ void QDPlatform_DrawRegion(RgnHandle rgn, short mode, const Pattern* pat) {
         }
         if (allWhite) {
             extern void serial_puts(const char *str);
-            extern int sprintf(char* buf, const char* fmt, ...);
+            extern int snprintf(char* buf, size_t size, const char* fmt, ...);
             char dbgbuf[256];
-            sprintf(dbgbuf, "[QDRAW-FILL] Filling region at bbox=(%d,%d,%d,%d) white pattern\n",
+            snprintf(dbgbuf, sizeof(dbgbuf), "[QDRAW-FILL] Filling region at bbox=(%d,%d,%d,%d) white pattern\n",
                     r.left, r.top, r.right, r.bottom);
             serial_puts(dbgbuf);
         }

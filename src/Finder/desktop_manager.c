@@ -822,7 +822,7 @@ OSErr InitializeDesktopDB(void)
     bool found_working = false;
     for (int i = 0; i < num_ppats; i++) {
         char msg[80];
-        sprintf(msg, "Desktop: Trying ppat ID %d\n", ppat_ids[i]);
+        snprintf(msg, sizeof(msg), "Desktop: Trying ppat ID %d\n", ppat_ids[i]);
         serial_puts(msg);
 
         pref.usePixPat = true;
@@ -833,12 +833,12 @@ OSErr InitializeDesktopDB(void)
         pref.backColor.blue = 0xC000;
 
         if (PM_ApplyDesktopPref(&pref)) {
-            sprintf(msg, "Desktop: SUCCESS - ppat ID %d loaded!\n", ppat_ids[i]);
+            snprintf(msg, sizeof(msg), "Desktop: SUCCESS - ppat ID %d loaded!\n", ppat_ids[i]);
             serial_puts(msg);
             found_working = true;
             break;  /* Use the first one that works */
         } else {
-            sprintf(msg, "Desktop: Failed ppat ID %d\n", ppat_ids[i]);
+            snprintf(msg, sizeof(msg), "Desktop: Failed ppat ID %d\n", ppat_ids[i]);
             serial_puts(msg);
         }
     }
@@ -1531,7 +1531,8 @@ static OSErr LoadDesktopDatabase(short vRefNum)
         gDesktopIcons[0].iconID = 0xFFFFFFFF;
         gDesktopIcons[0].position.h = fb_width - 100;
         gDesktopIcons[0].position.v = fb_height - 80;
-        strcpy(gDesktopIcons[0].name, "Trash");
+        strncpy(gDesktopIcons[0].name, "Trash", sizeof(gDesktopIcons[0].name) - 1);
+        gDesktopIcons[0].name[sizeof(gDesktopIcons[0].name) - 1] = '\0';
         gDesktopIcons[0].movable = false;
     }
 
@@ -1696,7 +1697,8 @@ OSErr InitializeVolumeIcon(void)
                 strncpy(item->name, vcb2.name, sizeof(item->name) - 1);
                 item->name[sizeof(item->name) - 1] = '\0';
             } else {
-                strcpy(item->name, "Macintosh HD");
+                strncpy(item->name, "Macintosh HD", sizeof(item->name) - 1);
+                item->name[sizeof(item->name) - 1] = '\0';
             }
         }
 

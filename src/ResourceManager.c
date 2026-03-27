@@ -884,7 +884,8 @@ void GetResInfo(Handle theResource, ResID* theID, ResType* theType, char* name) 
                     if (theType) *theType = type->resType;
                     if (name) {
                         if (entry->name) {
-                            strcpy(name, entry->name);
+                            strncpy(name, entry->name, 255);
+                            name[255] = '\0';
                         } else {
                             name[0] = '\0';
                         }

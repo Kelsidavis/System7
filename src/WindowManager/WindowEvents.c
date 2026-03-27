@@ -496,11 +496,11 @@ void BeginUpdate(WindowPtr theWindow) {
 
     /* DEBUG: Log portBits.bounds for control panel windows */
     extern void serial_puts(const char* str);
-    extern int sprintf(char* buf, const char* fmt, ...);
+    extern int snprintf(char* buf, size_t size, const char* fmt, ...);
     static int beginupd_log = 0;
     if (beginupd_log < 20) {
         char dbgbuf[256];
-        sprintf(dbgbuf, "[BEGINUPD] refCon=0x%08x portBits.bounds=(%d,%d,%d,%d) portRect=(%d,%d,%d,%d)\n",
+        snprintf(dbgbuf, sizeof(dbgbuf), "[BEGINUPD] refCon=0x%08x portBits.bounds=(%d,%d,%d,%d) portRect=(%d,%d,%d,%d)\n",
                 (unsigned int)theWindow->refCon,
                 theWindow->port.portBits.bounds.left, theWindow->port.portBits.bounds.top,
                 theWindow->port.portBits.bounds.right, theWindow->port.portBits.bounds.bottom,

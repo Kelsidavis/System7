@@ -155,9 +155,9 @@ void MoveWindow(WindowPtr theWindow, short hGlobal, short vGlobal, Boolean front
 
     if (theWindow->refCon == 0x4449534b) {
         extern void serial_puts(const char *str);
-        extern int sprintf(char* buf, const char* fmt, ...);
+        extern int snprintf(char* buf, size_t size, const char* fmt, ...);
         char dbgbuf[256];
-        sprintf(dbgbuf, "[MOVECALL] hGlobal=%d vGlobal=%d\n", hGlobal, vGlobal);
+        snprintf(dbgbuf, sizeof(dbgbuf), "[MOVECALL] hGlobal=%d vGlobal=%d\n", hGlobal, vGlobal);
         serial_puts(dbgbuf);
     }
 
@@ -178,9 +178,9 @@ void MoveWindow(WindowPtr theWindow, short hGlobal, short vGlobal, Boolean front
 
     if (theWindow->refCon == 0x4449534b) {
         extern void serial_puts(const char *str);
-        extern int sprintf(char* buf, const char* fmt, ...);
+        extern int snprintf(char* buf, size_t size, const char* fmt, ...);
         char dbgbuf[256];
-        sprintf(dbgbuf, "[MOVECALL] current bounds=(%d,%d,%d,%d) deltaH=%d deltaV=%d\n",
+        snprintf(dbgbuf, sizeof(dbgbuf), "[MOVECALL] current bounds=(%d,%d,%d,%d) deltaH=%d deltaV=%d\n",
                 currentGlobalBounds.left, currentGlobalBounds.top,
                 currentGlobalBounds.right, currentGlobalBounds.bottom,
                 deltaH, deltaV);
@@ -224,9 +224,9 @@ void MoveWindow(WindowPtr theWindow, short hGlobal, short vGlobal, Boolean front
 
         if (theWindow->refCon == 0x4449534b) {
             extern void serial_puts(const char *str);
-            extern int sprintf(char* buf, const char* fmt, ...);
+            extern int snprintf(char* buf, size_t size, const char* fmt, ...);
             char dbgbuf[256];
-            sprintf(dbgbuf, "[MOVEWIN] Before offset: computed newBounds=(%d,%d,%d,%d)\n",
+            snprintf(dbgbuf, sizeof(dbgbuf), "[MOVEWIN] Before offset: computed newBounds=(%d,%d,%d,%d)\n",
                     newBounds.left, newBounds.top, newBounds.right, newBounds.bottom);
             serial_puts(dbgbuf);
         }
@@ -234,9 +234,9 @@ void MoveWindow(WindowPtr theWindow, short hGlobal, short vGlobal, Boolean front
         /* Instead of offsetting the existing region, recalculate it properly */
         if (theWindow->refCon == 0x4449534b) {
             extern void serial_puts(const char *str);
-            extern int sprintf(char* buf, const char* fmt, ...);
+            extern int snprintf(char* buf, size_t size, const char* fmt, ...);
             char dbgbuf[256];
-            sprintf(dbgbuf, "[MOVEWIN] Calling SetRectRgn with (%d,%d,%d,%d)\n",
+            snprintf(dbgbuf, sizeof(dbgbuf), "[MOVEWIN] Calling SetRectRgn with (%d,%d,%d,%d)\n",
                     newBounds.left, newBounds.top, newBounds.right, newBounds.bottom);
             serial_puts(dbgbuf);
         }
@@ -248,9 +248,9 @@ void MoveWindow(WindowPtr theWindow, short hGlobal, short vGlobal, Boolean front
             if (*(theWindow->strucRgn)) {
                 Rect afterUpdate = (*(theWindow->strucRgn))->rgnBBox;
                 extern void serial_puts(const char *str);
-                extern int sprintf(char* buf, const char* fmt, ...);
+                extern int snprintf(char* buf, size_t size, const char* fmt, ...);
                 char dbgbuf[256];
-                sprintf(dbgbuf, "[MOVEWIN] After SetRectRgn: strucRgn=(%d,%d,%d,%d)\n",
+                snprintf(dbgbuf, sizeof(dbgbuf), "[MOVEWIN] After SetRectRgn: strucRgn=(%d,%d,%d,%d)\n",
                         afterUpdate.left, afterUpdate.top, afterUpdate.right, afterUpdate.bottom);
                 serial_puts(dbgbuf);
             } else {
@@ -288,9 +288,9 @@ void MoveWindow(WindowPtr theWindow, short hGlobal, short vGlobal, Boolean front
 
         if (theWindow->refCon == 0x4449534b) {
             extern void serial_puts(const char *str);
-            extern int sprintf(char* buf, const char* fmt, ...);
+            extern int snprintf(char* buf, size_t size, const char* fmt, ...);
             char dbgbuf[256];
-            sprintf(dbgbuf, "[MOVWIN] strucRgn was (%d,%d,%d,%d) contRgn new bounds=(%d,%d,%d,%d)\n",
+            snprintf(dbgbuf, sizeof(dbgbuf), "[MOVWIN] strucRgn was (%d,%d,%d,%d) contRgn new bounds=(%d,%d,%d,%d)\n",
                     (theWindow->strucRgn && *(theWindow->strucRgn)) ? (*(theWindow->strucRgn))->rgnBBox.left : -1,
                     (theWindow->strucRgn && *(theWindow->strucRgn)) ? (*(theWindow->strucRgn))->rgnBBox.top : -1,
                     (theWindow->strucRgn && *(theWindow->strucRgn)) ? (*(theWindow->strucRgn))->rgnBBox.right : -1,
@@ -306,9 +306,9 @@ void MoveWindow(WindowPtr theWindow, short hGlobal, short vGlobal, Boolean front
 
         if (theWindow->refCon == 0x4449534b) {
             extern void serial_puts(const char *str);
-            extern int sprintf(char* buf, const char* fmt, ...);
+            extern int snprintf(char* buf, size_t size, const char* fmt, ...);
             char dbgbuf[256];
-            sprintf(dbgbuf, "[MOVWIN] portBits.bounds updated to (%d,%d,%d,%d)\n",
+            snprintf(dbgbuf, sizeof(dbgbuf), "[MOVWIN] portBits.bounds updated to (%d,%d,%d,%d)\n",
                     theWindow->port.portBits.bounds.left, theWindow->port.portBits.bounds.top,
                     theWindow->port.portBits.bounds.right, theWindow->port.portBits.bounds.bottom);
             serial_puts(dbgbuf);

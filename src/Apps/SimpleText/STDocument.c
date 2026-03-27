@@ -43,12 +43,12 @@ STDocument* STDoc_New(void) {
 
     /* Build untitled name */
     if (g_untitledCount == 1) {
-        strcpy((char*)&doc->fileName[1], "Untitled");
+        memcpy((char*)&doc->fileName[1], "Untitled", 8);
         doc->fileName[0] = 8;
     } else {
         char numStr[16];
         int len, i;
-        strcpy((char*)&doc->fileName[1], "Untitled ");
+        memcpy((char*)&doc->fileName[1], "Untitled ", 9);
 
         /* Convert number to string manually */
         i = g_untitledCount;

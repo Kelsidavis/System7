@@ -316,8 +316,18 @@ bool VFS_MountATA(int ata_device_index, const char* volName, VRefNum* vref) {
     mdb->drNxtCNID    = be32_read(&mdbSector[32]);
     mdb->drFreeBks    = be16_read(&mdbSector[36]);
 
-    /* Volume name */
+    /* Volume name - Pascal string: first byte is length */
     memcpy(mdb->drVN, &mdbSector[38], 28);
+    if ((unsigned char)mdb->drVN[0] > 27) {
+        mdb->drVN[0] = 27;
+    }
+
+    /* Validate allocation block size - must be non-zero and power of 2 */
+    if (mdb->drAlBlkSiz == 0 || mdb->drAlBlkSiz > 65536 ||
+        (mdb->drAlBlkSiz & (mdb->drAlBlkSiz - 1)) != 0) {
+        FS_LOG_DEBUG("VFS: Invalid allocation block size %u on ATA volume\n", mdb->drAlBlkSiz);
+        return false;
+    }
 
     /* Catalog file */
     mdb->drCTFlSize = be32_read(&mdbSector[142]);
@@ -477,8 +487,18 @@ bool VFS_MountSDHCI(int drive_index, const char* volName, VRefNum* vref) {
     mdb->drNxtCNID    = be32_read(&mdbSector[32]);
     mdb->drFreeBks    = be16_read(&mdbSector[36]);
 
-    /* Volume name */
+    /* Volume name - Pascal string: first byte is length */
     memcpy(mdb->drVN, &mdbSector[38], 28);
+    if ((unsigned char)mdb->drVN[0] > 27) {
+        mdb->drVN[0] = 27;
+    }
+
+    /* Validate allocation block size - must be non-zero and power of 2 */
+    if (mdb->drAlBlkSiz == 0 || mdb->drAlBlkSiz > 65536 ||
+        (mdb->drAlBlkSiz & (mdb->drAlBlkSiz - 1)) != 0) {
+        FS_LOG_DEBUG("VFS: Invalid allocation block size %u on SDHCI volume\n", mdb->drAlBlkSiz);
+        return false;
+    }
 
     /* Catalog file */
     mdb->drCTFlSize = be32_read(&mdbSector[142]);
@@ -813,11 +833,14 @@ VFSFile* VFS_OpenFile(VRefNum vref, FileID id, bool resourceFork) {
         if (oe->fileData && oe->fileDataSize > 0) {
             uint32_t cap = (oe->fileDataSize + 4095) & ~4095u;
             vfsFile->memData = (uint8_t*)NewPtr(cap);
-            if (vfsFile->memData) {
-                memcpy(vfsFile->memData, oe->fileData, oe->fileDataSize);
-                vfsFile->memSize = oe->fileDataSize;
-                vfsFile->memCapacity = cap;
+            if (!vfsFile->memData) {
+                /* Allocation failed - cannot open file with existing data */
+                DisposePtr((Ptr)vfsFile);
+                return NULL;
             }
+            memcpy(vfsFile->memData, oe->fileData, oe->fileDataSize);
+            vfsFile->memSize = oe->fileDataSize;
+            vfsFile->memCapacity = cap;
         }
         return vfsFile;
     }
@@ -924,6 +947,9 @@ bool VFS_ReadFile(VFSFile* file, void* buffer, uint32_t length, uint32_t* bytesR
 
 bool VFS_WriteFile(VFSFile* file, const void* buffer, uint32_t length, uint32_t* bytesWritten) {
     if (!file || !buffer) return false;
+
+    /* Check for integer overflow in position + length */
+    if (length > (uint32_t)0xFFFFFFFF - file->memPosition) return false;
 
     /* Ensure we have an in-memory buffer */
     uint32_t endPos = file->memPosition + length;
