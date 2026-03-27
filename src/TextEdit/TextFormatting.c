@@ -70,12 +70,14 @@ typedef struct STRec_Internal {
 
 static TEStyleHandle TEGetStyleHandleInternal(TEHandle hTE)
 {
-    TEExtPtr pTE;
+    TEStyleHandle result;
 
     if (!hTE || !*hTE) return NULL;
 
-    pTE = (TEExtPtr)*hTE;
-    return (TEStyleHandle)pTE->hStyles;
+    HLock((Handle)hTE);
+    result = (TEStyleHandle)((TEExtPtr)*hTE)->hStyles;
+    HUnlock((Handle)hTE);
+    return result;
 }
 
 static OSErr TECreateDefaultStyle(TEHandle hTE, TextStyle *style)
@@ -438,7 +440,13 @@ pascal void TESetStyle(short mode, const TextStyle *newStyle, Boolean fRedraw,
                 runArr->runs[j] = runArr->runs[j + 1];
             }
             runArr->nRuns--;
-            SetHandleSize(stRec->runArray, sizeof(RunArray) + runArr->nRuns * sizeof(StyleRun));
+            Size newSize = sizeof(RunArray) + runArr->nRuns * sizeof(StyleRun);
+            SetHandleSize(stRec->runArray, newSize);
+            if (MemError() != noErr) {
+                break;  /* Stop merging if resize fails - array is still consistent */
+            }
+            /* Re-dereference after handle resize since memory may have moved */
+            runArr = (RunArray *)*stRec->runArray;
         } else {
             i++;
         }

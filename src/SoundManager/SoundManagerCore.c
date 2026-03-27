@@ -562,19 +562,10 @@ OSErr SetDefaultOutputVolume(SInt32 level)
  */
 void SysBeep(short duration)
 {
-    static Boolean resourcesInitialized = false;
+    OSErr err = unimpErr;
 
-    /* Initialize resources if needed */
-    if (!resourcesInitialized) {
-        InitResourceData();
-        resourcesInitialized = true;
-    }
-
-    /* Try to play the embedded system beep */
-    OSErr err = PlayResourceSound(kSystemBeepID);
-
-    /* If resource sound fails, fall back to simple tone */
-    if (err != noErr && g_soundMgr.initialized) {
+    /* Fall back to simple tone via legacy channel */
+    if (g_soundMgr.initialized) {
         /* Generate a simple 1kHz beep */
         SndCommand cmd;
         cmd.cmd = freqCmd;

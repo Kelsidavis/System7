@@ -653,21 +653,56 @@ pascal void TEKey(short key, TEHandle hTE)
             }
             break;
 
-        case upArrowChar:
-            /* Move to previous line - simplified implementation */
-            if ((**teRec).selStart > 0) {
-                (**teRec).selStart--;
-                (**teRec).selEnd = (**teRec).selStart;
+        case upArrowChar: {
+            /* Move to same horizontal position on previous line */
+            SInt16 curLine = 0;
+            for (SInt16 i = 0; i < (**teRec).nLines; i++) {
+                if ((**teRec).selStart >= (**teRec).lineStarts[i]) {
+                    curLine = i;
+                } else {
+                    break;
+                }
+            }
+            if (curLine > 0) {
+                SInt16 colOffset = (**teRec).selStart - (**teRec).lineStarts[curLine];
+                SInt16 prevLineStart = (**teRec).lineStarts[curLine - 1];
+                SInt16 prevLineEnd = (**teRec).lineStarts[curLine] - 1;
+                SInt16 newPos = prevLineStart + colOffset;
+                if (newPos > prevLineEnd) newPos = prevLineEnd;
+                if (newPos < prevLineStart) newPos = prevLineStart;
+                (**teRec).selStart = newPos;
+                (**teRec).selEnd = newPos;
             }
             break;
+        }
 
-        case downArrowChar:
-            /* Move to next line - simplified implementation */
-            if ((**teRec).selEnd < (**teRec).teLength) {
-                (**teRec).selEnd++;
-                (**teRec).selStart = (**teRec).selEnd;
+        case downArrowChar: {
+            /* Move to same horizontal position on next line */
+            SInt16 curLine = 0;
+            for (SInt16 i = 0; i < (**teRec).nLines; i++) {
+                if ((**teRec).selEnd >= (**teRec).lineStarts[i]) {
+                    curLine = i;
+                } else {
+                    break;
+                }
+            }
+            if (curLine < (**teRec).nLines - 1) {
+                SInt16 colOffset = (**teRec).selEnd - (**teRec).lineStarts[curLine];
+                SInt16 nextLineStart = (**teRec).lineStarts[curLine + 1];
+                SInt16 nextLineEnd = (curLine + 2 < (**teRec).nLines)
+                                    ? (**teRec).lineStarts[curLine + 2] - 1
+                                    : (**teRec).teLength;
+                SInt16 newPos = nextLineStart + colOffset;
+                if (newPos > nextLineEnd) newPos = nextLineEnd;
+                (**teRec).selStart = newPos;
+                (**teRec).selEnd = newPos;
+            } else {
+                /* On last line, move to end of text */
+                (**teRec).selStart = (**teRec).teLength;
+                (**teRec).selEnd = (**teRec).teLength;
             }
             break;
+        }
 
         default:
             /* Regular character - insert it */
@@ -747,16 +782,46 @@ pascal void TESetJust(short just, TEHandle hTE)
 pascal short TEGetOffset(Point pt, TEHandle hTE)
 {
     TERec **teRec;
+    SInt16 lineHeight, fontAscent;
+    SInt16 line, charOffset;
+    char *textPtr;
 
     if (TEValidateHandle(hTE) != noErr) return 0;
 
     teRec = (TERec **)hTE;
+    lineHeight = (**teRec).lineHeight;
+    fontAscent = (**teRec).fontAscent;
 
-    /* Simplified implementation - returns 0 or text length */
-    if (pt.h < (**teRec).destRect.left || pt.v < (**teRec).destRect.top) {
-        return 0;
+    if (lineHeight <= 0) lineHeight = 12;  /* Safe default */
+
+    /* Determine which line the point falls on */
+    SInt16 relY = pt.v - (**teRec).destRect.top;
+    if (relY < 0) return 0;
+
+    line = relY / lineHeight;
+    if (line >= (**teRec).nLines) {
+        return (**teRec).teLength;
     }
-    return (**teRec).teLength;
+
+    /* Get the character range for this line */
+    SInt16 lineStart = (**teRec).lineStarts[line];
+    SInt16 lineEnd = (line < (**teRec).nLines - 1)
+                     ? (**teRec).lineStarts[line + 1]
+                     : (**teRec).teLength;
+
+    /* Simple horizontal offset: estimate character position from x coordinate */
+    SInt16 relX = pt.h - (**teRec).destRect.left;
+    if (relX <= 0) return lineStart;
+
+    /* Use average character width (lineHeight * 0.6 is a reasonable approximation for Chicago 12) */
+    SInt16 avgCharWidth = (lineHeight * 3) / 5;
+    if (avgCharWidth <= 0) avgCharWidth = 7;
+
+    charOffset = lineStart + (relX / avgCharWidth);
+    if (charOffset > lineEnd) charOffset = lineEnd;
+    if (charOffset < lineStart) charOffset = lineStart;
+
+    return charOffset;
 }
 
 pascal Point TEGetPoint(short offset, TEHandle hTE)
@@ -768,9 +833,35 @@ pascal Point TEGetPoint(short offset, TEHandle hTE)
 
     teRec = (TERec **)hTE;
 
-    /* Simplified implementation */
-    pt.h = (**teRec).destRect.left;
-    pt.v = (**teRec).destRect.top;
+    SInt16 lineHeight = (**teRec).lineHeight;
+    if (lineHeight <= 0) lineHeight = 12;
+
+    /* Clamp offset */
+    if (offset < 0) offset = 0;
+    if (offset > (**teRec).teLength) offset = (**teRec).teLength;
+
+    /* Find which line this offset falls on */
+    SInt16 line = 0;
+    for (SInt16 i = 0; i < (**teRec).nLines; i++) {
+        SInt16 nextStart = (i < (**teRec).nLines - 1)
+                          ? (**teRec).lineStarts[i + 1]
+                          : (**teRec).teLength + 1;
+        if (offset < nextStart) {
+            line = i;
+            break;
+        }
+        line = i;
+    }
+
+    /* Vertical position: top of destRect + line * lineHeight + fontAscent */
+    pt.v = (**teRec).destRect.top + line * lineHeight + (**teRec).fontAscent;
+
+    /* Horizontal: approximate from character offset within line */
+    SInt16 lineStart = (**teRec).lineStarts[line];
+    SInt16 charsIntoLine = offset - lineStart;
+    SInt16 avgCharWidth = (lineHeight * 3) / 5;
+    if (avgCharWidth <= 0) avgCharWidth = 7;
+    pt.h = (**teRec).destRect.left + charsIntoLine * avgCharWidth;
 
     return pt;
 }

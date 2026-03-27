@@ -57,12 +57,14 @@ short PopUpMenuSelectEx(const PopupMenuInfo* popupInfo, PopupMenuResult* result)
 Boolean ShowPopupMenu(MenuHandle theMenu, Point location, short positionMode, short alignItem) {
     if (!theMenu) return false;
 
-    printf("Showing popup menu at (%d,%d)\n", location.h, location.v);
-    return true;
+    /* Use PopUpMenuSelect to display the menu at the specified location */
+    long result = PopUpMenuSelect(theMenu, location.v, location.h, alignItem);
+    return (result != 0);
 }
 
 void HidePopupMenu(void) {
-    printf("Hiding popup menu\n");
+    extern void HiliteMenu(short menuID);
+    HiliteMenu(0);
 }
 
 /* Context menu support */
