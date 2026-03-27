@@ -314,6 +314,11 @@ PixPatHandle NewPixPat(void) {
     /* Initialize with default values */
     pixPat->patType = 0; /* Bitmap pattern */
     pixPat->patMap = NewPixMap();
+    if (!pixPat->patMap) {
+        DisposePtr((Ptr)pixPat);
+        DisposePtr((Ptr)pp);
+        return NULL;
+    }
     pixPat->patData = NULL;
     pixPat->patXData = NULL;
     pixPat->patXValid = 0;

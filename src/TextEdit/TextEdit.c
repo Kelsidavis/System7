@@ -194,14 +194,28 @@ TEHandle TEStyleNew(const Rect *destRect, const Rect *viewRect) {
         return NULL;
     }
 
-    /* Initialize style record */
+    /* Initialize style record - validate each sub-allocation */
     HLock(hStyles);
     pStyles = (STRec*)*hStyles;
     pStyles->nRuns = 0;
     pStyles->nStyles = 0;
-    pStyles->styleTab = NewHandle(sizeof(TextStyle) * 16);  /* Initial style table */
-    pStyles->runArray = NewHandle(sizeof(StyleRun) * 16);   /* Initial run array */
-    pStyles->lineHeights = NewHandle(sizeof(LHElement) * 32); /* Line heights */
+    pStyles->styleTab = NewHandle(sizeof(TextStyle) * 16);
+    pStyles->runArray = NewHandle(sizeof(StyleRun) * 16);
+    pStyles->lineHeights = NewHandle(sizeof(LHElement) * 32);
+    HUnlock(hStyles);
+
+    /* Verify all sub-allocations succeeded */
+    HLock(hStyles);
+    pStyles = (STRec*)*hStyles;
+    if (!pStyles->styleTab || !pStyles->runArray || !pStyles->lineHeights) {
+        if (pStyles->styleTab) DisposeHandle(pStyles->styleTab);
+        if (pStyles->runArray) DisposeHandle(pStyles->runArray);
+        if (pStyles->lineHeights) DisposeHandle(pStyles->lineHeights);
+        HUnlock(hStyles);
+        DisposeHandle(hStyles);
+        TEDispose(hTE);
+        return NULL;
+    }
     HUnlock(hStyles);
 
     /* Attach to TE record */

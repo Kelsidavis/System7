@@ -447,6 +447,11 @@ void CustomGetFile(FileFilterYDProcPtr fileFilter,
     /* Create dialog through HAL */
     err = StandardFile_HAL_CreateOpenDialog(&gSFState.dialog, prompt);
     if (err != noErr) {
+        if (gSFState.typeList) {
+            DisposePtr((Ptr)gSFState.typeList);
+            gSFState.typeList = NULL;
+            gSFState.numTypes = 0;
+        }
         return;
     }
 

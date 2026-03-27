@@ -33,7 +33,24 @@
 
 /* Color constants */
 #define blackColor 33
+#define whiteColor 30
 #include "WindowManager/WMLogging.h"
+
+/* QuickDraw drawing primitives used by window chrome */
+extern void EraseRect(const Rect* r);
+extern void FrameRect(const Rect* r);
+extern void PaintRect(const Rect* r);
+extern void InsetRect(Rect* r, short dh, short dv);
+extern void MoveTo(short h, short v);
+extern void LineTo(short h, short v);
+extern void ForeColor(SInt32 color);
+extern void GetPort(GrafPtr* port);
+extern void SetPort(GrafPtr port);
+extern void TextFont(short);
+extern void TextSize(short);
+extern void TextFace(Style);
+extern short StringWidth(ConstStr255Param);
+extern void DrawString(ConstStr255Param);
 
 /* [WM-031] File-local helpers; provenance: IM:Windows "Window Definition Procedures" */
 static short WM_DialogWindowHitTest(WindowPtr window, Point pt);
@@ -247,22 +264,67 @@ void WM_DrawDialogWindowFrame(WindowPtr window, short varCode) {
 void WM_DrawWindowBorder(WindowPtr window) {
     if (window == NULL) return;
 
-    /* Get frame rectangle */
     Rect frameRect;
     Platform_GetWindowFrameRect(window, &frameRect);
 
-    /* Draw outer border */
-    /* TODO: Implement actual border drawing when graphics system is available */
-    WM_DEBUG("WM_DrawWindowBorder: Drawing border at (%d, %d, %d, %d)",
+    GrafPtr savePort;
+    GetPort(&savePort);
+    SetPort((GrafPtr)window);
+
+    /* Draw 1-pixel black border */
+    ForeColor(blackColor);
+    FrameRect(&frameRect);
+
+    /* Draw inner white highlight on top and left edges for 3D effect */
+    ForeColor(whiteColor);
+    MoveTo(frameRect.left + 1, frameRect.top + 1);
+    LineTo(frameRect.right - 2, frameRect.top + 1);
+    MoveTo(frameRect.left + 1, frameRect.top + 1);
+    LineTo(frameRect.left + 1, frameRect.bottom - 2);
+
+    /* Shadow on bottom and right edges */
+    ForeColor(blackColor);
+    MoveTo(frameRect.right - 1, frameRect.top + 1);
+    LineTo(frameRect.right - 1, frameRect.bottom - 1);
+    MoveTo(frameRect.left + 1, frameRect.bottom - 1);
+    LineTo(frameRect.right - 1, frameRect.bottom - 1);
+
+    ForeColor(blackColor);
+    SetPort(savePort);
+
+    WM_DEBUG("WM_DrawWindowBorder: Border drawn at (%d, %d, %d, %d)",
              frameRect.left, frameRect.top, frameRect.right, frameRect.bottom);
 }
 
 void WM_DrawDialogBorder(WindowPtr window) {
     if (window == NULL) return;
 
-    /* Dialogs have a simpler 3D-style border */
-    /* TODO: Implement actual dialog border drawing when graphics system is available */
-    WM_DEBUG("WM_DrawDialogBorder: Drawing dialog border");
+    GrafPtr savePort;
+    GetPort(&savePort);
+    SetPort((GrafPtr)window);
+
+    /* Dialog border: outer black frame + inner white frame for 3D look */
+    Rect frameRect;
+    Platform_GetWindowFrameRect(window, &frameRect);
+
+    ForeColor(blackColor);
+    FrameRect(&frameRect);
+
+    /* Inner highlight border */
+    Rect innerRect = frameRect;
+    InsetRect(&innerRect, 1, 1);
+    ForeColor(whiteColor);
+    FrameRect(&innerRect);
+
+    /* Second inner black border for double-border dialog style */
+    InsetRect(&innerRect, 1, 1);
+    ForeColor(blackColor);
+    FrameRect(&innerRect);
+
+    ForeColor(blackColor);
+    SetPort(savePort);
+
+    WM_DEBUG("WM_DrawDialogBorder: Dialog border drawn");
 }
 
 void WM_DrawWindowTitleBar(WindowPtr window) {
@@ -271,14 +333,32 @@ void WM_DrawWindowTitleBar(WindowPtr window) {
     WM_LOG_TRACE("*** WM_DrawWindowTitleBar called in WindowParts.c ***\n");
     WM_DEBUG("WM_DrawWindowTitleBar: Drawing title bar");
 
-    /* Get title bar rectangle */
     Rect titleRect;
     Platform_GetWindowTitleBarRect(window, &titleRect);
 
-    /* Draw title bar background */
-    /* TODO: Implement actual title bar drawing when graphics system is available */
+    GrafPtr savePort;
+    GetPort(&savePort);
+    SetPort((GrafPtr)window);
 
-    /* Draw window title text */
+    /* Fill title bar background with white */
+    EraseRect(&titleRect);
+
+    /* Draw horizontal stripes for active window (classic System 7 look) */
+    if (window->hilited) {
+        ForeColor(blackColor);
+        for (short y = titleRect.top + 2; y < titleRect.bottom - 1; y += 2) {
+            MoveTo(titleRect.left + 2, y);
+            LineTo(titleRect.right - 3, y);
+        }
+    }
+
+    /* Frame the title bar */
+    ForeColor(blackColor);
+    FrameRect(&titleRect);
+
+    SetPort(savePort);
+
+    /* Draw window title text (centered, with white gap behind text) */
     if (window->titleHandle && *(window->titleHandle)) {
         WM_DrawWindowTitle(window, &titleRect);
     }
@@ -287,13 +367,6 @@ void WM_DrawWindowTitleBar(WindowPtr window) {
 }
 
 void WM_DrawWindowTitle(WindowPtr window, const Rect* titleRect) {
-    extern void TextFont(short);
-    extern void TextSize(short);
-    extern void TextFace(Style);
-    extern short StringWidth(ConstStr255Param);
-    extern void DrawString(ConstStr255Param);
-    extern void MoveTo(short, short);
-
     if (window == NULL || titleRect == NULL) return;
     if (window->titleHandle == NULL || *(window->titleHandle) == NULL) return;
 
@@ -312,19 +385,25 @@ void WM_DrawWindowTitle(WindowPtr window, const Rect* titleRect) {
         TextFont(chicagoFont);
         TextSize(12);
         TextFace(normal);
-        ForeColor(blackColor);  /* Ensure black text */
 
         /* Calculate title width for centering */
         short titleWidth = StringWidth(title);
 
         /* Calculate centered position in title bar */
         short centerX = titleRect->left + ((titleRect->right - titleRect->left) - titleWidth) / 2;
-        short centerY = titleRect->top + ((titleRect->bottom - titleRect->top) + 9) / 2; /* 9 = Chicago font ascent */
+        short centerY = titleRect->top + ((titleRect->bottom - titleRect->top) + 9) / 2;
 
-        /* Move to drawing position */
+        /* Erase a white rectangle behind the title text to clear stripes */
+        Rect textBg;
+        textBg.left = centerX - 4;
+        textBg.top = titleRect->top + 1;
+        textBg.right = centerX + titleWidth + 4;
+        textBg.bottom = titleRect->bottom - 1;
+        EraseRect(&textBg);
+
+        /* Draw title text in black */
+        ForeColor(blackColor);
         MoveTo(centerX, centerY);
-
-        /* Draw the title string using Font Manager */
         DrawString(title);
 
         /* Log the title being drawn */
@@ -343,12 +422,32 @@ void WM_DrawWindowCloseBox(WindowPtr window, WindowPartState state) {
 
     WM_DEBUG("WM_DrawWindowCloseBox: Drawing close box, state = %d", state);
 
-    /* Get close box rectangle */
     Rect closeRect;
     Platform_GetWindowCloseBoxRect(window, &closeRect);
 
-    /* Draw close box based on state */
-    /* TODO: Implement actual close box drawing when graphics system is available */
+    GrafPtr savePort;
+    GetPort(&savePort);
+    SetPort((GrafPtr)window);
+
+    /* Clear the close box area */
+    EraseRect(&closeRect);
+
+    if (state == kPartStateDisabled) {
+        /* Inactive: just draw empty square */
+        ForeColor(blackColor);
+        FrameRect(&closeRect);
+    } else if (state == kPartStatePressed) {
+        /* Pressed: filled black square */
+        ForeColor(blackColor);
+        PaintRect(&closeRect);
+    } else {
+        /* Normal: empty square frame */
+        ForeColor(blackColor);
+        FrameRect(&closeRect);
+    }
+
+    ForeColor(blackColor);
+    SetPort(savePort);
 
     WM_DEBUG("WM_DrawWindowCloseBox: Close box drawn");
 }
@@ -358,25 +457,51 @@ void WM_DrawWindowZoomBox(WindowPtr window, WindowPartState state) {
 
     WM_DEBUG("WM_DrawWindowZoomBox: Drawing zoom box, state = %d", state);
 
-    /* Get zoom box rectangle */
     Rect zoomRect;
     Platform_GetWindowZoomBoxRect(window, &zoomRect);
 
-    /* Draw zoom box based on state and zoom direction */
+    GrafPtr savePort;
+    GetPort(&savePort);
+    SetPort((GrafPtr)window);
 
-    /* TODO: Implement actual zoom box drawing when graphics system is available */
+    EraseRect(&zoomRect);
+
+    if (state == kPartStateDisabled) {
+        /* Inactive: empty square */
+        ForeColor(blackColor);
+        FrameRect(&zoomRect);
+    } else if (state == kPartStatePressed) {
+        /* Pressed: filled square */
+        ForeColor(blackColor);
+        Rect outerBox = zoomRect;
+        FrameRect(&outerBox);
+        /* Inner offset box indicating zoom direction */
+        Rect innerBox;
+        innerBox.left = zoomRect.left + 2;
+        innerBox.top = zoomRect.top + 2;
+        innerBox.right = zoomRect.right - 2;
+        innerBox.bottom = zoomRect.bottom - 2;
+        FrameRect(&innerBox);
+    } else {
+        /* Normal: outer frame with smaller inner frame (System 7 zoom icon) */
+        ForeColor(blackColor);
+        FrameRect(&zoomRect);
+        /* Small inner box offset toward bottom-right */
+        Rect innerBox;
+        innerBox.left = zoomRect.left + 3;
+        innerBox.top = zoomRect.top + 3;
+        innerBox.right = zoomRect.right - 1;
+        innerBox.bottom = zoomRect.bottom - 1;
+        FrameRect(&innerBox);
+    }
+
+    ForeColor(blackColor);
+    SetPort(savePort);
 
     WM_DEBUG("WM_DrawWindowZoomBox: Zoom box drawn");
 }
 
 void WM_DrawGrowIcon(WindowPtr window) {
-    extern void GetPort(GrafPtr* port);
-    extern void SetPort(GrafPtr port);
-    extern void EraseRect(const Rect* r);
-    extern void FrameRect(const Rect* r);
-    extern void MoveTo(short h, short v);
-    extern void LineTo(short h, short v);
-
     if (window == NULL || !WM_WindowHasGrowBox(window)) return;
 
     WM_DEBUG("WM_DrawGrowIcon: Drawing grow icon");
