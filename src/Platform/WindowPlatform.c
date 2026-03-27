@@ -132,7 +132,9 @@ void Platform_InvalidateWindowContent(WindowPtr window) {
 
 /* Dispose color table */
 void Platform_DisposeCTable(CTabHandle ctab) {
-    /* Color tables not implemented yet */
+    if (ctab) {
+        DisposeHandle((Handle)ctab);
+    }
 }
 
 /* Update window colors */
@@ -232,7 +234,23 @@ Boolean Platform_InitializeColorPort(CGrafPtr port) {
 
 /* Create standard gray pattern */
 PixPatHandle Platform_CreateStandardGrayPixPat(void) {
-    return NULL;  /* Pixel patterns not implemented yet */
+    /* Allocate a PixPat handle with a simple 50% gray pattern */
+    PixPatHandle ppat = (PixPatHandle)NewHandleClear(sizeof(PixPat));
+    if (!ppat) return NULL;
+
+    PixPat *p = *ppat;
+    p->patType = 0;  /* Old-style pattern (1-bit) */
+    /* Standard 50% gray checkerboard: 0xAA, 0x55 alternating */
+    p->pat1Data.pat[0] = 0xAA;
+    p->pat1Data.pat[1] = 0x55;
+    p->pat1Data.pat[2] = 0xAA;
+    p->pat1Data.pat[3] = 0x55;
+    p->pat1Data.pat[4] = 0xAA;
+    p->pat1Data.pat[5] = 0x55;
+    p->pat1Data.pat[6] = 0xAA;
+    p->pat1Data.pat[7] = 0x55;
+
+    return ppat;
 }
 
 /* Create new region */
@@ -285,7 +303,9 @@ void Platform_EndWindowDraw(WindowPtr window) {
 }
 
 void Platform_PostWindowEvent(WindowPtr window, short eventType, long eventData) {
-    /* Event posting not implemented yet */
+    if (!window) return;
+    extern OSErr PostEvent(short eventNum, long eventMsg);
+    PostEvent(eventType, eventData);
 }
 
 void Platform_InvalidateWindowFrame(WindowPtr window) {

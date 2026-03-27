@@ -331,10 +331,7 @@ int Calculator_PerformOperation(Calculator *calc, CalcOperation operation)
                 }
 
                 (calc)->value = result;
-                (calc)->value = result;
                 Calculator_UpdateDisplay(calc);
-            } else {
-                (calc)->value = (calc)->value;
             }
 
             calc->pendingOp = operation;

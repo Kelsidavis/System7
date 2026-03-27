@@ -294,6 +294,9 @@ void DrawPicture(PicHandle myPicture, const Rect* dstRect) {
 
     SInt16 dstWidth = (SInt16)(dstRect->right - dstRect->left);
     SInt16 dstHeight = (SInt16)(dstRect->bottom - dstRect->top);
+    if (dstWidth <= 0 || dstHeight <= 0) {
+        return;
+    }
 
     SInt32 scaleX = ((SInt32)dstWidth << 16) / picWidth;
     SInt32 scaleY = ((SInt32)dstHeight << 16) / picHeight;

@@ -311,14 +311,24 @@ static void HandleFileMenu(short item) {
             break;
 
         case iPageSetup:
-            /* TODO: Page setup dialog */
-            ST_Log("Page Setup not implemented\n");
+        {
+            /* Show page setup info alert */
+            unsigned char msg[] = "\x2APage Setup: US Letter, Portrait, 1\" margins";
+            unsigned char empty[] = "\x00";
+            ParamText(msg, empty, empty, empty);
+            NoteAlert(130, NULL);
             break;
+        }
 
         case iPrint:
-            /* TODO: Print dialog */
-            ST_Log("Print not implemented\n");
+        {
+            /* Show print info alert - printing not available on bare metal */
+            unsigned char msg[] = "\x22Printing is not available on this system.";
+            unsigned char empty[] = "\x00";
+            ParamText(msg, empty, empty, empty);
+            NoteAlert(130, NULL);
             break;
+        }
 
         case iQuit:
             SimpleText_Quit();
