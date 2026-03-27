@@ -102,12 +102,16 @@ OSErr FM_ParseOWTTable(const NFNTResource *nfnt, OWTEntry **owtOut) {
 
     /* Calculate where OWT starts in the resource */
     /* After bitmap: rowWords * fRectHeight * 2 bytes */
-    Size bitmapSize = nfnt->rowWords * nfnt->fRectHeight * 2;
+    Size bitmapSize = (Size)nfnt->rowWords * nfnt->fRectHeight * 2;
     const UInt8 *resourceBase = (const UInt8*)nfnt;
     const UInt8 *owtPtr = resourceBase + sizeof(NFNTResource) + bitmapSize;
 
+    /* Sanity check: resource values should be within reasonable bounds */
+    if (numChars > 256 || nfnt->rowWords > 1024 || nfnt->fRectHeight > 256) {
+        return paramErr;  /* Unreasonable values from malformed resource */
+    }
+
     /* Allocate OWT array (+1 for the extra entry that defines last char's width) */
-    /* Check for integer overflow in allocation size */
     if (numChars > SIZE_MAX / sizeof(OWTEntry) - 1) {
         return memFullErr;
     }
@@ -245,6 +249,11 @@ OSErr FM_LoadFONDResource(Handle fondHandle, FONDResource **fondOut) {
 SInt16 FM_FindBestMatch(const FONDResource *fond, SInt16 size, Style face) {
     if (!fond) {
         return -1;
+    }
+
+    /* Validate entry count from resource data */
+    if (fond->ffNumEntries <= 0 || fond->ffNumEntries > 256) {
+        return -1;  /* Unreasonable count from malformed FOND resource */
     }
 
     /* Get pointer to font association table */

@@ -428,12 +428,13 @@ Boolean HandleModalMouse(DialogPtr theDialog, EventRecord* theEvent, SInt16* ite
  */
 void BringModalToFront(DialogPtr theDialog)
 {
+    extern void SelectWindow(WindowPtr theWindow);
+
     if (!theDialog) {
         return;
     }
 
-    /* In a full implementation, this would call SelectWindow or similar */
-    // DIALOG_LOG_DEBUG("Bringing modal dialog at %p to front\n", (void*)theDialog);
+    SelectWindow((WindowPtr)theDialog);
 }
 
 /*

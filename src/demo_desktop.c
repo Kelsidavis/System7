@@ -10,17 +10,9 @@ extern void* framebuffer;
 extern uint32_t fb_width;
 extern uint32_t fb_height;
 extern uint32_t fb_pitch;
-extern uint32_t fb_bpp;
-extern uint8_t red_shift;
-extern uint8_t green_shift;
-extern uint8_t blue_shift;
-extern uint8_t red_size;
-extern uint8_t green_size;
-extern uint8_t blue_size;
 
 /* External functions */
 extern uint32_t pack_color(uint8_t r, uint8_t g, uint8_t b);
-extern void draw_char(uint32_t x, uint32_t y, char c, uint32_t color);
 extern void draw_text_string(uint32_t x, uint32_t y, const char* str, uint32_t color);
 extern void serial_puts(const char* str);
 extern void console_puts(const char* str);

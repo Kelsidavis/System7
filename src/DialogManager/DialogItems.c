@@ -241,15 +241,24 @@ SInt16 FindDialogItem(DialogPtr theDialog, Point thePt)
 void GetDialogItemText(Handle item, unsigned char* text)
 {
     if (!item || !text) {
-        if (text) text[0] = 0; /* Empty Pascal string */
+        if (text) text[0] = 0;
         return;
     }
 
-    /* In a full implementation, this would extract text from the item handle */
-    /* For now, just return empty string */
-    text[0] = 0;
+    if (!*item) {
+        text[0] = 0;
+        return;
+    }
 
-    // DIALOG_LOG_DEBUG("GetDialogItemText: retrieved text from item handle\n");
+    /* Item handle contains a Pascal string - copy it out */
+    HLock(item);
+    unsigned char *src = (unsigned char *)*item;
+    unsigned char len = src[0];
+    text[0] = len;
+    if (len > 0) {
+        memcpy(&text[1], &src[1], len);
+    }
+    HUnlock(item);
 }
 
 /*
@@ -261,8 +270,16 @@ void SetDialogItemText(Handle item, const unsigned char* text)
         return;
     }
 
-    /* In a full implementation, this would set text in the item handle */
-    // DIALOG_LOG_DEBUG("SetDialogItemText: set text '%.*s'\n", text[0], &text[1]);
+    /* Resize handle to fit the Pascal string */
+    unsigned char len = text[0];
+    SetHandleSize(item, (Size)(len + 1));
+    if (MemError() != noErr) {
+        return;
+    }
+
+    HLock(item);
+    memcpy(*item, text, len + 1);
+    HUnlock(item);
 }
 
 /*
