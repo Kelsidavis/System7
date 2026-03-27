@@ -424,7 +424,8 @@ SInt16 Control(SInt16 refNum, SInt16 csCode, const void *csParamPtr)
     pb.csCode = csCode;
 
     if (csParamPtr != NULL) {
-        /* Copy parameters (up to 22 bytes) */
+        /* Copy parameters - csParam is always 22 bytes per Mac OS API contract.
+         * Callers must pass a buffer of at least sizeof(pb.csParam) bytes. */
         memcpy(pb.csParam, csParamPtr, sizeof(pb.csParam));
     }
 
@@ -454,7 +455,7 @@ SInt16 Status(SInt16 refNum, SInt16 csCode, void *csParamPtr)
 
     if (error == noErr) {
         if (csParamPtr != NULL) {
-            /* Copy results back */
+            /* Copy results back - caller must provide at least sizeof(pb.csParam) bytes */
             memcpy(csParamPtr, pb.csParam, sizeof(pb.csParam));
         }
         g_deviceManagerStats.statusOperations++;

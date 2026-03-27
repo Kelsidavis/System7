@@ -686,6 +686,11 @@ void MacPaint_HandleMouseUp(int x, int y)
  */
 void MacPaint_HandleKeyDown(int keyCode, int modifiers)
 {
+    /* If text tool is active, route printable keys to text input */
+    if (gCurrentTool == TOOL_TEXT && MacPaint_TextToolHandleKey(keyCode, modifiers)) {
+        return;
+    }
+
     /* Handle keyboard shortcuts */
     if (modifiers & 0x100) {  /* Command key */
         switch (keyCode) {

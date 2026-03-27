@@ -716,20 +716,105 @@ static TextToolState gTextToolState = {0};
 
 void MacPaint_ToolText(int x, int y, int down)
 {
-    if (!down || gTextToolState.active) {
-        return;  /* Only process on mouse down, and only if not already entering text */
+    if (!down) return;
+
+    /* If already entering text, commit current text and start new */
+    if (gTextToolState.active && gTextToolState.textBuffer[0]) {
+        MacPaint_RenderTextAtPosition(gTextToolState.textBuffer,
+                                       gTextToolState.textX, gTextToolState.textY);
     }
 
-    /* Store the click position - where text will be placed */
+    /* Start new text entry at click position */
     gTextToolState.textX = x;
     gTextToolState.textY = y;
     gTextToolState.active = 1;
+    gTextToolState.textBuffer[0] = '\0';
+}
 
-    /* TODO: Show text input dialog
-     * In a full implementation, this would open a modeless dialog
-     * For now, we store the position and wait for keyboard input
-     * A simple approach: click to place text insertion point, then type
-     */
+/**
+ * MacPaint_TextToolHandleKey - Handle keyboard input for text tool
+ * Returns 1 if the key was consumed, 0 if not
+ */
+int MacPaint_TextToolHandleKey(int keyCode, int modifiers)
+{
+    if (!gTextToolState.active) return 0;
+    if (modifiers & 0x100) return 0;  /* Don't consume Cmd shortcuts */
+
+    /* Convert Mac keycode to ASCII character */
+    /* Mac keycodes: 0x24=Return, 0x35=Escape, 0x33=Delete */
+    if (keyCode == 0x24 || keyCode == 0x4C) {
+        /* Return/Enter - commit text to canvas */
+        if (gTextToolState.textBuffer[0]) {
+            MacPaint_RenderTextAtPosition(gTextToolState.textBuffer,
+                                           gTextToolState.textX, gTextToolState.textY);
+        }
+        gTextToolState.active = 0;
+        gTextToolState.textBuffer[0] = '\0';
+        return 1;
+    }
+
+    if (keyCode == 0x35) {
+        /* Escape - cancel text entry */
+        gTextToolState.active = 0;
+        gTextToolState.textBuffer[0] = '\0';
+        return 1;
+    }
+
+    if (keyCode == 0x33) {
+        /* Delete/Backspace - remove last character */
+        int len = 0;
+        while (gTextToolState.textBuffer[len]) len++;
+        if (len > 0) {
+            gTextToolState.textBuffer[len - 1] = '\0';
+        }
+        return 1;
+    }
+
+    /* Map common keycodes to ASCII characters */
+    static const char keyMap[128] = {
+        'a','s','d','f','h','g','z','x', 'c','v', 0 ,'b','q','w','e','r',  /* 0x00-0x0F */
+        'y','t','1','2','3','4','6','5', '=','9','7','-','8','0',']','o',  /* 0x10-0x1F */
+        'u','[','i','p', 0 ,'l','j','\'','k',';','\\',',','/','n','m','.',  /* 0x20-0x2F */
+         0 ,' ', 0 , 0 , 0 , 0 , 0 , 0 ,  0 , 0 , 0 , 0 , 0 , 0 , 0 , 0 ,  /* 0x30-0x3F */
+    };
+
+    char ch = 0;
+    if (keyCode >= 0 && keyCode < 64) {
+        ch = keyMap[keyCode];
+    } else if (keyCode == 0x31) {
+        ch = ' ';
+    }
+
+    if (ch == 0) return 0;
+
+    /* Apply shift modifier */
+    if (modifiers & 0x200) {  /* Shift key */
+        if (ch >= 'a' && ch <= 'z') ch -= 32;
+        else {
+            switch (ch) {
+                case '1': ch = '!'; break; case '2': ch = '@'; break;
+                case '3': ch = '#'; break; case '4': ch = '$'; break;
+                case '5': ch = '%'; break; case '6': ch = '^'; break;
+                case '7': ch = '&'; break; case '8': ch = '*'; break;
+                case '9': ch = '('; break; case '0': ch = ')'; break;
+                case '-': ch = '_'; break; case '=': ch = '+'; break;
+                case '[': ch = '{'; break; case ']': ch = '}'; break;
+                case ';': ch = ':'; break; case '\'': ch = '"'; break;
+                case ',': ch = '<'; break; case '.': ch = '>'; break;
+                case '/': ch = '?'; break; case '\\': ch = '|'; break;
+            }
+        }
+    }
+
+    /* Append character to buffer */
+    int len = 0;
+    while (gTextToolState.textBuffer[len]) len++;
+    if (len < 254) {
+        gTextToolState.textBuffer[len] = ch;
+        gTextToolState.textBuffer[len + 1] = '\0';
+    }
+
+    return 1;
 }
 
 /**

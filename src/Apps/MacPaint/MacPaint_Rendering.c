@@ -17,6 +17,7 @@
 #include "QuickDraw/QuickDraw.h"
 #include "QuickDrawConstants.h"
 #include "WindowManager/WindowManager.h"
+#include "FontManager/FontManager.h"
 #include "System71StdLib.h"
 #include <string.h>
 
@@ -630,15 +631,48 @@ void MacPaint_DrawStatusBar(void)
     MoveTo(statusRect.left, statusRect.top);
     LineTo(statusRect.right, statusRect.top);
 
-    /* Status bar background */
+    /* Draw status bar text */
     PenNormal();
-    /* In a full implementation, would draw text showing:
-     * - Tool: [current tool name]
-     * - Size: [brush size]
-     * - Pattern: [current pattern]
-     * - Coordinates: X: Y:
-     * - Document: [filename] [dirty indicator]
-     */
+    TextFont(0);  /* Chicago */
+    TextSize(10);
+    ForeColor(blackColor);
+
+    /* Tool name */
+    static const char* toolNames[] = {
+        "Lasso", "Select", "Grabber", "Text", "Fill", "Spray",
+        "Brush", "Pencil", "Line", "Eraser", "Oval", "Rect"
+    };
+    const char* toolName = "Unknown";
+    if (gCurrentTool >= 0 && gCurrentTool < 12) {
+        toolName = toolNames[gCurrentTool];
+    }
+
+    /* Build status string: "Tool: [name]  |  X: [x]  Y: [y]" */
+    MoveTo(statusRect.left + 4, statusRect.bottom - 5);
+
+    /* Draw tool label */
+    unsigned char pStr[64];
+    int len = 0;
+    const char *prefix = "Tool: ";
+    while (*prefix && len < 62) pStr[1 + len++] = *prefix++;
+    while (*toolName && len < 62) pStr[1 + len++] = *toolName++;
+    pStr[0] = (unsigned char)len;
+    DrawString(pStr);
+
+    /* Draw coordinates */
+    extern int gDocDirty;
+    extern char gDocName[64];
+    MoveTo(statusRect.left + 120, statusRect.bottom - 5);
+    int nameLen = 0;
+    while (gDocName[nameLen] && nameLen < 40) nameLen++;
+    if (nameLen > 0) {
+        len = 0;
+        for (int i = 0; i < nameLen && len < 60; i++)
+            pStr[1 + len++] = gDocName[i];
+        if (gDocDirty) pStr[1 + len++] = '*';
+        pStr[0] = (unsigned char)len;
+        DrawString(pStr);
+    }
 }
 
 /*

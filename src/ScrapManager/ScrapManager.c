@@ -60,6 +60,8 @@ static void InitScrapIfNeeded(void);
 static ScrapItem* FindScrapItem(ResType type);
 static ScrapItem* AllocateScrapItem(ResType type);
 static OSErr ScrapGestaltProc(long *response);
+static void Scrap_SaveToVFS(void);
+static void Scrap_LoadFromVFS(void);
 
 /*
  * ScrapGestaltProc - Gestalt function for scrap manager capabilities
@@ -116,6 +118,9 @@ static void InitScrapIfNeeded(void)
     }
 
     gScrap.inited = true;
+
+    /* Try to load persisted scrap data from VFS */
+    Scrap_LoadFromVFS();
 }
 
 /*
@@ -247,6 +252,9 @@ OSErr Scrap_Put(Size size, ResType type, const void* src)
              (char)(type >> 8), (char)type,
              (long)size, (unsigned long)gScrap.changeCnt);
 
+    /* Persist to VFS */
+    Scrap_SaveToVFS();
+
     return noErr;
 }
 
@@ -314,9 +322,118 @@ ProcessID Scrap_GetOwner(void)
 }
 
 /* ============================================================================
- * File I/O Helper Functions - Stubbed for kernel environment
- * TODO: Implement using VFS when available
+ * File I/O - Scrap persistence via VFS
  * ============================================================================ */
+
+#include "FS/vfs.h"
+
+/**
+ * Scrap_SaveToVFS - Persist scrap data to VFS
+ * Format: [magic:4][version:2][count:2] then per item [type:4][size:4][data:size]
+ */
+static void Scrap_SaveToVFS(void)
+{
+    if (!gScrap.dirty || gScrap.count == 0) return;
+
+    VRefNum vref = VFS_GetBootVRef();
+    FileID fid = 0;
+
+    /* Create or open the clipboard file */
+    if (!VFS_CreateFile(vref, 2, "Clipboard", 'CLIP', 'MACS', &fid)) {
+        CatEntry entry;
+        if (VFS_Lookup(vref, 2, "Clipboard", &entry)) {
+            fid = entry.id;
+        } else {
+            return;
+        }
+    }
+
+    VFSFile *file = VFS_OpenFile(vref, fid, false);
+    if (!file) return;
+
+    /* Write header */
+    uint32_t magic = SCRAP_FILE_MAGIC;
+    uint16_t version = SCRAP_FILE_VERSION;
+    uint16_t count = (uint16_t)gScrap.count;
+    uint32_t written;
+    VFS_WriteFile(file, &magic, 4, &written);
+    VFS_WriteFile(file, &version, 2, &written);
+    VFS_WriteFile(file, &count, 2, &written);
+
+    /* Write each scrap item */
+    for (int i = 0; i < MAX_SCRAP_ITEMS; i++) {
+        if (gScrap.items[i].type == 0 || gScrap.items[i].data == NULL) continue;
+
+        uint32_t type = gScrap.items[i].type;
+        uint32_t size = (uint32_t)GetHandleSize(gScrap.items[i].data);
+        VFS_WriteFile(file, &type, 4, &written);
+        VFS_WriteFile(file, &size, 4, &written);
+
+        if (size > 0) {
+            HLock(gScrap.items[i].data);
+            VFS_WriteFile(file, *gScrap.items[i].data, size, &written);
+            HUnlock(gScrap.items[i].data);
+        }
+    }
+
+    VFS_CloseFile(file);
+    gScrap.dirty = false;
+}
+
+/**
+ * Scrap_LoadFromVFS - Load scrap data from VFS on startup
+ */
+static void Scrap_LoadFromVFS(void)
+{
+    VRefNum vref = VFS_GetBootVRef();
+    CatEntry entry;
+    if (!VFS_Lookup(vref, 2, "Clipboard", &entry)) return;
+
+    VFSFile *file = VFS_OpenFile(vref, entry.id, false);
+    if (!file) return;
+
+    /* Read and validate header */
+    uint32_t magic = 0;
+    uint16_t version = 0, count = 0;
+    uint32_t bytesRead;
+
+    if (!VFS_ReadFile(file, &magic, 4, &bytesRead) || magic != SCRAP_FILE_MAGIC) {
+        VFS_CloseFile(file);
+        return;
+    }
+    VFS_ReadFile(file, &version, 2, &bytesRead);
+    VFS_ReadFile(file, &count, 2, &bytesRead);
+
+    if (version != SCRAP_FILE_VERSION || count > MAX_SCRAP_ITEMS) {
+        VFS_CloseFile(file);
+        return;
+    }
+
+    /* Read each item */
+    for (uint16_t i = 0; i < count; i++) {
+        uint32_t type = 0, size = 0;
+        if (!VFS_ReadFile(file, &type, 4, &bytesRead) || bytesRead < 4) break;
+        if (!VFS_ReadFile(file, &size, 4, &bytesRead) || bytesRead < 4) break;
+
+        if (size > 1024 * 1024) break;  /* Sanity limit: 1MB per item */
+
+        ScrapItem *item = AllocateScrapItem(type);
+        if (!item) break;
+
+        item->data = NewHandle(size);
+        if (!item->data) break;
+
+        if (size > 0) {
+            HLock(item->data);
+            VFS_ReadFile(file, *item->data, size, &bytesRead);
+            HUnlock(item->data);
+        }
+        gScrap.count++;
+    }
+
+    VFS_CloseFile(file);
+    gScrap.dirty = false;
+}
 
 /* ============================================================================
  * Mac OS Classic API Compatibility Functions
