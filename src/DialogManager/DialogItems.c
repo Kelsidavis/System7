@@ -405,7 +405,7 @@ void AppendDITL(DialogPtr theDialog, Handle theHandle, DITLMethod method)
     /* Parse the new item list */
     err = ParseDialogItemList(theHandle, &newItems, &newItemCount);
     if (err != 0 || !newItems || newItemCount == 0) {
-        // DIALOG_LOG_DEBUG("Error: Failed to parse DITL for append (error %d)\n", err);
+        if (newItems) DisposePtr((Ptr)newItems);
         return;
     }
 

@@ -16,6 +16,7 @@
 #include "Apps/MacPaint.h"
 #include "MenuManager/MenuManager.h"
 #include "WindowManager/WindowManager.h"
+#include "DialogManager/DialogManager.h"
 #include "StandardFile/StandardFile.h"
 #include "System71StdLib.h"
 #include "MemoryMgr/MemoryManager.h"
@@ -139,9 +140,7 @@ void MacPaint_RegisterMainWindow(WindowPtr window)
 void MacPaint_InvalidateWindow(void)
 {
     if (gDocWindow.window) {
-        /* TODO: Use WindowManager to invalidate/redraw
-         * InvalRect(&gDocWindow.paintRect);
-         */
+        InvalRect(&gDocWindow.paintRect);
     }
 }
 
@@ -151,9 +150,7 @@ void MacPaint_InvalidateWindow(void)
 void MacPaint_CloseWindow(void)
 {
     if (gDocWindow.window) {
-        /* TODO: Dispose window
-         * DisposeWindow(gDocWindow.window);
-         */
+        DisposeWindow(gDocWindow.window);
         gDocWindow.window = NULL;
     }
 
@@ -169,9 +166,17 @@ void MacPaint_UpdateWindowTitle(void)
         return;
     }
 
-    /* TODO: Use WindowManager to set window title
-     * SetWTitle(gDocWindow.window, (ConstStr255Param)title);
-     */
+    /* Build Pascal string title from document name */
+    const char *name = gDocWindow.documentName;
+    if (!name || !name[0]) {
+        name = "Untitled";
+    }
+    Str255 title;
+    size_t len = strlen(name);
+    if (len > 255) len = 255;
+    title[0] = (unsigned char)len;
+    memcpy(&title[1], name, len);
+    SetWTitle(gDocWindow.window, title);
 }
 
 /*
@@ -549,9 +554,7 @@ int MacPaint_PatternEditorEventHandler(int itemHit)
 void MacPaint_ClosePatternEditorDialog(void)
 {
     if (gPatternDlg.dialog) {
-        /* TODO: Use DialogManager to dispose dialog
-         * DisposeDialog(gPatternDlg.dialog);
-         */
+        DisposeDialog(gPatternDlg.dialog);
         gPatternDlg.dialog = NULL;
     }
 
@@ -598,11 +601,8 @@ int MacPaint_BrushEditorEventHandler(int itemHit)
             return 1;
 
         default:
-            /* TODO: Handle brush shape selection, size adjustment */
             return 0;
     }
-
-    return 0;
 }
 
 /**
@@ -611,9 +611,7 @@ int MacPaint_BrushEditorEventHandler(int itemHit)
 void MacPaint_CloseBrushEditorDialog(void)
 {
     if (gBrushDlg.dialog) {
-        /* TODO: Use DialogManager to dispose dialog
-         * DisposeDialog(gBrushDlg.dialog);
-         */
+        DisposeDialog(gBrushDlg.dialog);
         gBrushDlg.dialog = NULL;
     }
 

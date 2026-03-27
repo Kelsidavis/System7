@@ -1090,6 +1090,27 @@ RefNum OpenRFPerm(const char* fileName, UInt8 vRefNum, SInt8 permission) {
     RESOURCE_LOG_DEBUG("OpenRFPerm: Fork header - dataOffset=%u mapOffset=%u dataLen=%u mapLen=%u\n",
                   map->dataOffset, map->mapOffset, dataLength, mapLength);
 
+    /* Validate file-provided offsets against actual file size */
+    long savedPos = ftell(file);
+    if (fseek(file, 0, SEEK_END) != 0) {
+        DisposePtr((Ptr)map);
+        fclose(file);
+        SetResError(ioErr);
+        return -1;
+    }
+    long fileSize = ftell(file);
+    if (fileSize < 0 ||
+        map->mapOffset >= (UInt32)fileSize ||
+        (UInt32)fileSize - map->mapOffset < 30 ||
+        (dataLength > 0 && map->dataOffset >= (UInt32)fileSize)) {
+        RESOURCE_LOG_DEBUG("OpenRFPerm: Invalid offsets (fileSize=%ld, mapOffset=%u, dataOffset=%u)\n",
+                      fileSize, map->mapOffset, map->dataOffset);
+        DisposePtr((Ptr)map);
+        fclose(file);
+        SetResError(mapReadErr);
+        return -1;
+    }
+
     /* Seek to resource map */
     if (fseek(file, map->mapOffset, SEEK_SET) != 0) {
         RESOURCE_LOG_DEBUG("OpenRFPerm: Failed to seek to map offset\n");

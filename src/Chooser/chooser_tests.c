@@ -253,7 +253,7 @@ Boolean test_validate_selection(void) {
     Boolean result;
 
     /* Setup test data */
-    strcpy((char*)&printer.nodeInfo.zoneName[1], "TestZone");
+    memcpy((char*)&printer.nodeInfo.zoneName[1], "TestZone", 8);
     printer.nodeInfo.zoneName[0] = 8; /* Length byte */
 
     /* Call function under test */

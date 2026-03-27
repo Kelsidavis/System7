@@ -425,7 +425,13 @@ static void Scrap_LoadFromVFS(void)
 
         if (size > 0) {
             HLock(item->data);
-            VFS_ReadFile(file, *item->data, size, &bytesRead);
+            if (!VFS_ReadFile(file, *item->data, size, &bytesRead) || bytesRead != size) {
+                HUnlock(item->data);
+                DisposeHandle(item->data);
+                item->data = NULL;
+                item->type = 0;  /* Release the slot */
+                break;  /* Incomplete read - stop loading */
+            }
             HUnlock(item->data);
         }
         gScrap.count++;

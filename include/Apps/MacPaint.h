@@ -213,6 +213,7 @@ void MacPaint_StyleToggleBold(void);
 void MacPaint_StyleToggleItalic(void);
 void MacPaint_StyleToggleUnderline(void);
 void MacPaint_StylePlain(void);
+void MacPaint_GetTextStyle(short *font, short *size, Style *face);
 
 /*
  * File Menu Operations

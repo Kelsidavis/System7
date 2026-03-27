@@ -274,6 +274,13 @@ OSErr GetNativeClipboardData(UInt32 platformFormat, Handle *data)
     }
 
     HLock(*data);
+    if (!**data) {
+        HUnlock(*data);
+        DisposeHandle(*data);
+        *data = NULL;
+        DisposePtr((Ptr)nativeData);
+        return memFullErr;
+    }
     memcpy(**data, nativeData, dataSize);
     HUnlock(*data);
 

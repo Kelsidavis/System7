@@ -1761,18 +1761,20 @@ int getchar(void) {
 }
 
 char* gets(char* str) {
-    /* gets() is deprecated and unsafe - but provided for compatibility
-     * Reads until newline or EOF, discards newline, null-terminates
-     * NOTE: No buffer overflow protection - caller must ensure adequate buffer */
+    /* gets() is inherently unsafe - impose a hard limit to prevent unbounded writes.
+     * Real callers should use fgets() or a sized alternative instead. */
     if (!str) return NULL;
 
+    const size_t MAX_GETS_LEN = 4095;  /* Hard safety limit */
     char* p = str;
-    while (1) {
+    size_t count = 0;
+    while (count < MAX_GETS_LEN) {
         int c = getchar();
         if (c == '\n' || c == '\r' || c == 0) {
             break;
         }
         *p++ = (char)c;
+        count++;
     }
     *p = '\0';
     return str;

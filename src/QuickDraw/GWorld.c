@@ -122,7 +122,13 @@ OSErr NewGWorld(GWorldPtr *offscreenGWorld, SInt16 pixelDepth,
     pm->pmTable = NULL;
     pm->pmReserved = 0;
 
-    /* Allocate pixel buffer */
+    /* Allocate pixel buffer - check for integer overflow */
+    if (height > 0 && rowBytes > 0 && (UInt32)rowBytes > UINT32_MAX / (UInt32)height) {
+        serial_logf((SystemLogModule)3, (SystemLogLevel)2, "[GWORLD] NewGWorld: Pixel buffer size overflow (height=%d, rowBytes=%d)\n", height, rowBytes);
+        DisposePixMap(pmHandle);
+        DisposePtr((Ptr)gworld);
+        return memFullErr;
+    }
     UInt32 bufferSize = (UInt32)height * (UInt32)rowBytes;
     Ptr pixelBuffer = NewPtr(bufferSize);
     if (!pixelBuffer) {

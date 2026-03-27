@@ -23,6 +23,7 @@ extern void Proc_UnblockEvent(EventRecord* evt);
 extern UInt32 TickCount(void);
 extern void GetMouse(Point* pt);
 extern Boolean Button(void);
+extern UInt16 GetModifierState(void);  /* From KeyboardEvents.c */
 
 /* String function from System71StdLib */
 extern void* memset(void* s, int c, size_t n);
@@ -298,12 +299,10 @@ static UInt16 GetModifiers(void) {
 
 /*
  * GetCurrentModifiers - Get current keyboard modifier state
- * Stub implementation for bare-metal environment
+ * Delegates to the keyboard driver's tracked modifier state.
  */
 UInt16 GetCurrentModifiers(void) {
-    /* TODO: Integrate with actual keyboard driver when available
-     * For now, return no modifiers (0) as we don't have keyboard input in bare-metal */
-    return 0;
+    return GetModifierState();
 }
 
 /*
