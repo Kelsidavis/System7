@@ -842,24 +842,68 @@ void DisposeCCursor(CCrsrHandle cCrsr) {
 }
 
 CIconHandle GetCIcon(SInt16 iconID) {
-    /* Placeholder for loading color icon from resources */
-    return NULL;
+    /* Load color icon from resources. Try 'cicn' first, fall back to 'ICN#' */
+    extern Handle GetResource(ResType theType, ResID theID);
+
+    Handle h = GetResource('cicn', iconID);
+    if (!h) {
+        h = GetResource('ICN#', iconID);
+    }
+    return (CIconHandle)h;
 }
 
 void PlotCIcon(const Rect *theRect, CIconHandle theIcon) {
-    if (theRect && theIcon) {
-        /* Placeholder for plotting color icon */
+    if (!theRect || !theIcon) return;
+
+    /* Plot icon at the specified rectangle using CopyBits-style rendering */
+    Handle h = (Handle)theIcon;
+    if (!h || !*h) return;
+
+    /* For ICN# resources: 32x32 1-bit icon (128 bytes image + 128 bytes mask)
+     * Render to current port using direct pixel setting */
+    extern QDGlobals qd;
+    GrafPtr port = qd.thePort;
+    if (!port) return;
+
+    uint8_t *iconData = (uint8_t *)*h;
+    SInt32 iconSize = GetHandleSize(h);
+    if (iconSize < 128) return;
+
+    int dstW = theRect->right - theRect->left;
+    int dstH = theRect->bottom - theRect->top;
+    int iconW = 32, iconH = 32;
+
+    /* Render 32x32 1bpp icon scaled to destination rect */
+    for (int y = 0; y < dstH && y < iconH; y++) {
+        int srcY = (iconH > 0) ? (y * iconH / dstH) : 0;
+        uint8_t *row = iconData + srcY * 4;  /* 32 pixels = 4 bytes per row */
+
+        for (int x = 0; x < dstW && x < iconW; x++) {
+            int srcX = (iconW > 0) ? (x * iconW / dstW) : 0;
+            int bit = (row[srcX / 8] >> (7 - (srcX % 8))) & 1;
+
+            if (bit) {
+                /* Set pixel in port at destination position */
+                int px = theRect->left + x;
+                int py = theRect->top + y;
+                MoveTo(px, py);
+                LineTo(px, py);
+            }
+        }
     }
 }
 
 void DisposeCIcon(CIconHandle theIcon) {
     if (theIcon) {
-        DisposePtr((Ptr)theIcon);
+        extern void ReleaseResource(Handle h);
+        ReleaseResource((Handle)theIcon);
     }
 }
 
 void SetStdCProcs(CQDProcs *procs) {
-    /* Placeholder for setting standard color QuickDraw procedures */
+    if (!procs) return;
+    /* Initialize color QD procs with defaults (NULL = use standard) */
+    memset(procs, 0, sizeof(CQDProcs));
 }
 
 GDHandle GetMaxDevice(const Rect *globalRect) {

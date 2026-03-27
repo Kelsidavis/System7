@@ -266,54 +266,6 @@ void SystemMenu_SetItemChecked(SInt16 itemID, Boolean checked)
     }
 }
 
-/*
- * Get menu item count
- */
-__attribute__((unused))
-static SInt16 SystemMenu_GetItemCount(void)
-{
-    return g_systemMenuInitialized ? g_systemMenu.itemCount : 0;
-}
-
-/*
- * Get menu item by index
- */
-__attribute__((unused))
-static const MenuItem *SystemMenu_GetItem(SInt16 index)
-{
-    if (!g_systemMenuInitialized || index < 0) {
-        return NULL;
-    }
-
-    MenuItem *item = g_systemMenu.firstItem;
-    for (SInt16 i = 0; i < index && item; i++) {
-        item = item->next;
-    }
-
-    return item;
-}
-
-/*
- * Check if menu is enabled
- */
-__attribute__((unused))
-static Boolean SystemMenu_IsEnabled(void)
-{
-    return g_systemMenuInitialized ? g_systemMenu.menuEnabled : false;
-}
-
-/*
- * Set menu enabled state
- */
-__attribute__((unused))
-static void SystemMenu_SetEnabled(Boolean enabled)
-{
-    if (g_systemMenuInitialized) {
-        g_systemMenu.menuEnabled = enabled;
-        SystemMenu_UpdatePlatformMenu();
-    }
-}
-
 /* Internal Functions */
 
 /*

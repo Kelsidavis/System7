@@ -66,11 +66,11 @@ static Calculator g_calculator = {0};
 static Boolean g_calculatorInitialized = false;
 
 /* Internal Function Prototypes */
-static void Calculator_ClearDisplay(Calculator *calc);
+/* Calculator_ClearDisplay removed - Calculator_Clear/ClearAll used instead */
 static void Calculator_SetError(Calculator *calc, int errorCode, const char *message);
 static double Calculator_PerformArithmetic(double op1, double op2, CalcOperation operation);
 static double Calculator_PerformScientific(double operand, CalcOperation operation);
-static int64_t Calculator_PerformBitwise(int64_t op1, int64_t op2, CalcOperation operation);
+/* Calculator_PerformBitwise removed - bitwise ops handled in main dispatch */
 static void Calculator_ConvertToBase(Calculator *calc, CalcBase newBase);
 static Boolean Calculator_IsValidDigitForBase(int digit, CalcBase base);
 
@@ -883,20 +883,6 @@ DeskAccessory *Calculator_CreateDA(void)
 /* Internal Functions */
 
 /*
- * Clear display
- */
-__attribute__((unused))
-static void Calculator_ClearDisplay(Calculator *calc)
-{
-    if (calc) {
-        (calc)->value = 0.0;
-        (calc)->intValue = 0;
-        strncpy((calc)->display, "0", sizeof((calc)->display) - 1);
-        (calc)->display[sizeof((calc)->display) - 1] = '\0';
-    }
-}
-
-/*
  * Set error state
  */
 static void Calculator_SetError(Calculator *calc, int errorCode, const char *message)
@@ -977,33 +963,6 @@ static double Calculator_PerformScientific(double operand, CalcOperation operati
             }
         default:
             return NAN;
-    }
-}
-
-/*
- * Perform bitwise operation
- */
-__attribute__((unused))
-static int64_t Calculator_PerformBitwise(int64_t op1, int64_t op2, CalcOperation operation)
-{
-    switch (operation) {
-        case CALC_OP_AND:
-            return op1 & op2;
-        case CALC_OP_OR:
-            return op1 | op2;
-        case CALC_OP_XOR:
-            return op1 ^ op2;
-        case CALC_OP_NOT:
-            return ~op1;
-        case CALC_OP_SHIFT_LEFT:
-            return op1 << op2;
-        case CALC_OP_SHIFT_RIGHT:
-            return op1 >> op2;
-        case CALC_OP_MOD:
-            if (op2 == 0) return 0;
-            return op1 % op2;
-        default:
-            return 0;
     }
 }
 
