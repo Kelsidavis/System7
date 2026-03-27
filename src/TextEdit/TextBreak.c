@@ -197,6 +197,7 @@ static SInt32 TE_FindBreakPoint(TEHandle hTE, SInt32 start, SInt32 end, SInt16 m
             charWidth = TE_GetTabStop(hTE, width) - width;
         } else {
             charWidth = CharWidth(pText[pos]);
+            if (charWidth <= 0) charWidth = 1;
         }
 
         /* Check if we exceed width */

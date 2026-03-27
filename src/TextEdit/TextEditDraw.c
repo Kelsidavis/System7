@@ -557,6 +557,7 @@ SInt16 TEGetOffset(Point pt, TEHandle hTE) {
 
         /* Measure next character */
         SInt16 charWidth = CharWidth(pText[offset]);
+        if (charWidth <= 0) charWidth = 1;  /* Prevent zero/negative width */
 
         /* Check if we've passed the point */
         if (x + charWidth/2 > pt.h) {

@@ -453,6 +453,7 @@ OSErr LAddColumn(ListHandle lh, short count, short afterCol)
 
     /* Update each row to accommodate new columns */
     if (list->rows) {
+        HLock((Handle)list->rows);  /* Lock handle before dereferencing */
         rowArray = *(list->rows);
 
         for (i = 0; i < list->rowCount; i++) {
@@ -462,6 +463,8 @@ OSErr LAddColumn(ListHandle lh, short count, short afterCol)
             /* Allocate new cells array */
             newCells = (CellData*)NewPtrClear((Size)(newColCount * sizeof(CellData)));
             if (!newCells) {
+                /* Clean up already-processed rows on allocation failure */
+                HUnlock((Handle)list->rows);
                 HUnlock((Handle)lh);
                 LIST_LOG_ERROR("LAddColumn: failed to allocate cells for row %d\n", i);
                 return memFullErr;
@@ -488,6 +491,7 @@ OSErr LAddColumn(ListHandle lh, short count, short afterCol)
             rowArray[i].cells = newCells;
             rowArray[i].colCount = newColCount;
         }
+        HUnlock((Handle)list->rows);
     }
 
     /* Update list column count */
