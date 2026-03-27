@@ -2049,7 +2049,7 @@ void FolderWindow_Draw(WindowPtr w) {
     /* Debug: log portBits bounds at draw time */
     if (w->refCon == 0x4449534b) {
         extern void serial_puts(const char *str);
-        extern int sprintf(char* buf, const char* fmt, ...);
+        extern int snprintf(char* buf, size_t size, const char* fmt, ...);
         char dbgbuf[256];
         snprintf(dbgbuf, sizeof(dbgbuf), "[FLDRAW] portBits.bounds at draw time: (%d,%d,%d,%d) portRect: (%d,%d,%d,%d)\n",
                 w->port.portBits.bounds.left, w->port.portBits.bounds.top,

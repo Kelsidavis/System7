@@ -449,7 +449,7 @@ void Platform_GetWindowContentRect(WindowPtr window, Rect* rect) {
 
     if (window->refCon == 0x4449534b) {
         extern void serial_puts(const char *str);
-        extern int sprintf(char* buf, const char* fmt, ...);
+        extern int snprintf(char* buf, size_t size, const char* fmt, ...);
         char dbgbuf[256];
         snprintf(dbgbuf, sizeof(dbgbuf), "[GETCONTENT] DISK: strucRgn rgnBBox=(%d,%d,%d,%d)\n",
                 strucRectPtr->left, strucRectPtr->top, strucRectPtr->right, strucRectPtr->bottom);
@@ -506,7 +506,7 @@ void Platform_GetWindowFrameRect(WindowPtr window, Rect* rect) {
 
     if (window->refCon == 0x4449534b) {
         extern void serial_puts(const char *str);
-        extern int sprintf(char* buf, const char* fmt, ...);
+        extern int snprintf(char* buf, size_t size, const char* fmt, ...);
         Rect* beforePtr = &((**(window->strucRgn)).rgnBBox);
         char dbgbuf[256];
         snprintf(dbgbuf, sizeof(dbgbuf), "[GETFRAME] strucRgn->rgnBBox=(%d,%d,%d,%d)\n",
@@ -754,7 +754,7 @@ void Platform_SizeNativeWindow(WindowPtr window, short width, short height) {
     if (window) {
         if (window->refCon == 0x4449534b) {
             extern void serial_puts(const char *str);
-            extern int sprintf(char* buf, const char* fmt, ...);
+            extern int snprintf(char* buf, size_t size, const char* fmt, ...);
             char dbgbuf[256];
             snprintf(dbgbuf, sizeof(dbgbuf), "[SIZENATIVE] DISK: width=%d height=%d oldPortRect=(%d,%d,%d,%d)\n",
                     width, height,
@@ -779,7 +779,7 @@ void Platform_SizeNativeWindow(WindowPtr window, short width, short height) {
 
         if (window->refCon == 0x4449534b) {
             extern void serial_puts(const char *str);
-            extern int sprintf(char* buf, const char* fmt, ...);
+            extern int snprintf(char* buf, size_t size, const char* fmt, ...);
             char dbgbuf[256];
             snprintf(dbgbuf, sizeof(dbgbuf), "[SIZENATIVE] DISK: newPortRect=(%d,%d,%d,%d)\n",
                     window->port.portRect.left, window->port.portRect.top,

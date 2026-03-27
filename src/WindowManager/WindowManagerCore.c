@@ -910,7 +910,7 @@ static void InitializeWindowRecord(WindowPtr window, const Rect* bounds,
 
     /* DEBUG: Log portBits initialization */
     extern void serial_puts(const char* str);
-    extern int sprintf(char* buf, const char* fmt, ...);
+    extern int snprintf(char* buf, size_t size, const char* fmt, ...);
     static int init_log = 0;
     if (init_log < 20) {
         char dbgbuf[256];

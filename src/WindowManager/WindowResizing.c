@@ -126,7 +126,7 @@ void SizeWindow(WindowPtr theWindow, short w, short h, Boolean fUpdate) {
 
     /* Log detailed info for debugging caller */
     extern void serial_puts(const char *str);
-    extern int sprintf(char* buf, const char* fmt, ...);
+    extern int snprintf(char* buf, size_t size, const char* fmt, ...);
     char dbgbuf[256];
     unsigned long refCon = (unsigned long)theWindow->refCon;
     /* Format refCon as printable ASCII or hex to avoid null byte truncation */
@@ -465,7 +465,7 @@ long GrowWindow(WindowPtr theWindow, Point startPt, const Rect* bBox) {
 
     /* Log the size comparison for debugging */
     extern void serial_puts(const char *str);
-    extern int sprintf(char* buf, const char* fmt, ...);
+    extern int snprintf(char* buf, size_t size, const char* fmt, ...);
     char dbgbuf[256];
     snprintf(dbgbuf, sizeof(dbgbuf), "[GW] Size check: final=%dx%d actual=%dx%d original=%dx%d\n",
             finalWidth, finalHeight, actualWidth, actualHeight, originalWidth, originalHeight);
@@ -876,7 +876,7 @@ static void WM_CalculateStandardState(WindowPtr window, Rect* stdState) {
     Platform_GetScreenBounds(&screenBounds);
 
     extern void serial_puts(const char *str);
-    extern int sprintf(char* buf, const char* fmt, ...);
+    extern int snprintf(char* buf, size_t size, const char* fmt, ...);
     char dbgbuf[256];
     snprintf(dbgbuf, sizeof(dbgbuf), "[ZW] screenBounds=(%d,%d,%d,%d)\n",
             screenBounds.left, screenBounds.top, screenBounds.right, screenBounds.bottom);

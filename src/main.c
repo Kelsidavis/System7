@@ -64,7 +64,6 @@ static void console_puts(const char* str);
 static void console_clear(void);
 static void print_hex(uint32_t value);
 static void parse_multiboot2(uint32_t magic, uint32_t* mb2_info);
-static void test_framebuffer(void);
 static void init_system71(void);
 static void run_performance_tests(void);
 static void create_system71_windows(void);
@@ -73,8 +72,9 @@ void kernel_main(uint32_t magic, uint32_t* mb2_info);
 static void log_ppc_memory_map(void);
 #endif
 
-/* Simple 5x7 font for basic ASCII characters */
-static const uint8_t font5x7[][5] __attribute__((unused)) = {
+/* 5x7 bitmap font removed - Chicago font via FontManager is used instead */
+#if 0
+static const uint8_t font5x7_removed[][5] = {
     {0x00, 0x00, 0x00, 0x00, 0x00}, // Space
     {0x00, 0x00, 0x5F, 0x00, 0x00}, // !
     {0x00, 0x07, 0x00, 0x07, 0x00}, // "
@@ -167,6 +167,7 @@ static const uint8_t font5x7[][5] __attribute__((unused)) = {
     {0x0C, 0x50, 0x50, 0x50, 0x3C}, // y
     {0x44, 0x64, 0x54, 0x4C, 0x44}  // z
 };
+#endif
 
 /* Arrow cursor is already defined in Resources/system7_resources.h */
 
@@ -344,9 +345,6 @@ uint8_t fb_blue_size = 0;
 
 /* System memory globals */
 uint32_t g_total_memory_kb = 8 * 1024;  /* Default 8MB if not detected */
-
-/* Window management */
-static int window_count __attribute__((unused)) = 0;
 
 /* QuickDraw globals structure */
 QDGlobals qd;
@@ -645,13 +643,6 @@ static void parse_multiboot2(uint32_t magic, uint32_t* mb2_info) {
     }
 }
 
-
-/* Test framebuffer - now handled by Finder */
-static void test_framebuffer(void) __attribute__((unused));
-static void test_framebuffer(void) {
-    /* Desktop drawing is now done by Finder */
-    serial_puts("Desktop rendering delegated to Finder\n");
-}
 
 /* External System 7.1 component initialization functions */
 extern void InitMemoryManager(void);
