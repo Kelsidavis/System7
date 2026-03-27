@@ -61,7 +61,6 @@ void RefreshDesktopRect(const Rect* rectToRefresh);
 extern void serial_puts(const char* str);
 
 /* External function declarations */
-extern int sprintf(char* str, const char* format, ...);
 extern int snprintf(char* str, size_t size, const char* format, ...);
 extern bool Trash_IsEmptyAll(void);
 /* NewPtr now provided by MemoryManager.h */

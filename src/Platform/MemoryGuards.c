@@ -9,7 +9,6 @@
 
 /* External serial logging function */
 extern void serial_puts(const char* str);
-extern int sprintf(char* buf, const char* fmt, ...);
 
 Boolean MemGuard_ValidateBufferNotInStruct(const void* bufferPtr,
                                            const void* structPtr,

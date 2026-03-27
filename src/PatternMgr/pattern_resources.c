@@ -15,7 +15,6 @@
 #include <stdlib.h>
 
 /* External functions */
-extern int sprintf(char* str, const char* format, ...);
 extern int snprintf(char* str, size_t size, const char* format, ...);
 extern uint32_t pack_color(uint8_t r, uint8_t g, uint8_t b);
 

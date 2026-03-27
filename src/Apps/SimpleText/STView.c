@@ -630,23 +630,15 @@ static void ApplyStyleToSelection(STDocument* doc, SInt16 font, SInt16 size, Sty
     selStart = (*doc->hTE)->selStart;
     selEnd = (*doc->hTE)->selEnd;
 
-    /* If no TESetStyle available, use basic TE style setting */
-    if (selStart == selEnd) {
-        /* Set style for next typed characters */
-        (*doc->hTE)->txFont = font;
-        (*doc->hTE)->txSize = size;
-        (*doc->hTE)->txFace = style;
-    } else {
-        /* For selection, we'd need TESetStyle or custom implementation */
-        /* For now, just set the default style */
-        (*doc->hTE)->txFont = font;
-        (*doc->hTE)->txSize = size;
-        (*doc->hTE)->txFace = style;
+    /* Set the default style for the TE record.
+     * System 7 TextEdit applies font/face/size uniformly to the entire record.
+     * Per-range styling requires TESetStyle from TextFormatting (not yet in build). */
+    (*doc->hTE)->txFont = font;
+    (*doc->hTE)->txSize = size;
+    (*doc->hTE)->txFace = style;
 
-        /* TODO: Implement proper styled text support */
-        /* Would need to maintain style runs and apply during drawing */
-
-        /* Recalculate and redraw */
+    if (selStart != selEnd) {
+        /* Recalculate line breaks and redraw with new style */
         TECalText(doc->hTE);
         InvalRect(&(*doc->hTE)->viewRect);
     }
@@ -661,10 +653,10 @@ static void ApplyStyleToSelection(STDocument* doc, SInt16 font, SInt16 size, Sty
  * GetSelectionStyle - Get style at current selection
  */
 static void GetSelectionStyle(STDocument* doc, SInt16* font, SInt16* size, Style* style) {
-    /* For basic TE, return the default style */
+    if (!doc || !doc->hTE) return;
+
+    /* Return the current TE record default style */
     if (font) *font = (*doc->hTE)->txFont;
     if (size) *size = (*doc->hTE)->txSize;
     if (style) *style = (*doc->hTE)->txFace;
-
-    /* TODO: For styled text, would need to examine style runs */
 }

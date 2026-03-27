@@ -762,7 +762,17 @@ const FSSpec* StandardFile_HAL_GetSelectedFileSpec(void) {
  */
 void StandardFile_HAL_SetSaveFileName(DialogPtr dialog, ConstStr255Param name) {
     SF_HAL_LOG_DEBUG("StandardFile HAL: SetSaveFileName name='%s'\n", name ? name : "(null)");
-    /* Stub: would set TEHandle text in dialog */
+    if (!dialog || !name || name[0] == 0) return;
+
+    /* Set text of the filename edit text item (item 7 by convention) */
+    short itemType;
+    Handle itemHandle;
+    Rect itemBox;
+    GetDialogItem(dialog, 7, &itemType, &itemHandle, &itemBox);
+
+    if (itemHandle) {
+        SetDialogItemText(itemHandle, (ConstStr255Param)name);
+    }
 }
 
 /*
@@ -789,8 +799,29 @@ void StandardFile_HAL_GetSaveFileName(DialogPtr dialog, Str255 name) {
  */
 Boolean StandardFile_HAL_ConfirmReplace(ConstStr255Param fileName) {
     SF_HAL_LOG_DEBUG("StandardFile HAL: ConfirmReplace file='%s'\n", fileName ? fileName : "(null)");
-    /* Stub: auto-confirm for now */
-    return true;
+
+    /* Show confirmation alert: "Replace existing file?" */
+
+    unsigned char msg[128];
+    unsigned char empty[] = "\x00";
+    int len = 0;
+    const char *prefix = "Replace existing \xD2";
+    while (*prefix && len < 100) msg[1 + len++] = *prefix++;
+    if (fileName) {
+        int nameLen = fileName[0];
+        if (nameLen > 60) nameLen = 60;
+        for (int i = 0; i < nameLen && len < 120; i++)
+            msg[1 + len++] = fileName[1 + i];
+    }
+    msg[1 + len++] = '\xD3';
+    msg[1 + len++] = '?';
+    msg[0] = (unsigned char)len;
+
+    ParamText(msg, empty, empty, empty);
+    short result = CautionAlert(131, NULL);
+
+    /* Button 1 = Replace, Button 2 = Cancel */
+    return (result == 1);
 }
 
 /*
@@ -798,8 +829,8 @@ Boolean StandardFile_HAL_ConfirmReplace(ConstStr255Param fileName) {
  */
 OSErr StandardFile_HAL_GetDefaultLocation(short *vRefNum, long *dirID) {
     SF_HAL_LOG_DEBUG("StandardFile HAL: GetDefaultLocation\n");
-    /* Stub: return root directory */
-    if (vRefNum) *vRefNum = 0;
+    extern short VFS_GetBootVRef(void);
+    if (vRefNum) *vRefNum = VFS_GetBootVRef();
     if (dirID) *dirID = 2;  /* Root directory */
     return noErr;
 }
@@ -818,9 +849,9 @@ OSErr StandardFile_HAL_EjectVolume(short vRefNum) {
  */
 OSErr StandardFile_HAL_NavigateToDesktop(short *vRefNum, long *dirID) {
     SF_HAL_LOG_DEBUG("StandardFile HAL: NavigateToDesktop\n");
-    /* Stub: return desktop location */
-    if (vRefNum) *vRefNum = 0;
-    if (dirID) *dirID = 2;
+    extern short VFS_GetBootVRef(void);
+    if (vRefNum) *vRefNum = VFS_GetBootVRef();
+    if (dirID) *dirID = 2;  /* Root directory (desktop level) */
     return noErr;
 }
 
