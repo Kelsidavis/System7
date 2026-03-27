@@ -245,51 +245,6 @@ static void GetMemorySnapshot(MemSnapshot* m)
 }
 
 /*
- * FormatKBWithCommas - Format bytes as KB with thousands separators
- */
-__attribute__((unused))
-static void FormatKBWithCommas(UInt32 bytes, char* buf, size_t bufSize)
-{
-    UInt32 kb = bytes / 1024;
-    UInt32 thousands, remainder;
-    char temp[32];
-    int i, j;
-
-    if (!buf || bufSize < 16) return;
-
-    if (kb < 1000) {
-        /* Simple format */
-        FINDER_LOG_DEBUG("FormatKB: %uK\n", (unsigned int)kb);
-        temp[0] = '0' + (char)((kb / 100) % 10);
-        temp[1] = '0' + (char)((kb / 10) % 10);
-        temp[2] = '0' + (char)(kb % 10);
-        temp[3] = 'K';
-        temp[4] = '\0';
-        /* Copy non-leading zeros */
-        j = 0;
-        for (i = 0; temp[i] == '0' && i < 2; i++);
-        for (; temp[i]; i++) buf[j++] = temp[i];
-        buf[j] = '\0';
-    } else {
-        /* Format with comma separator */
-        thousands = kb / 1000;
-        remainder = kb % 1000;
-        /* Manual formatting to avoid sprintf */
-        i = 0;
-        if (thousands >= 100) temp[i++] = '0' + (char)(thousands / 100);
-        if (thousands >= 10) temp[i++] = '0' + (char)((thousands / 10) % 10);
-        temp[i++] = '0' + (char)(thousands % 10);
-        temp[i++] = ',';
-        temp[i++] = '0' + (char)(remainder / 100);
-        temp[i++] = '0' + (char)((remainder / 10) % 10);
-        temp[i++] = '0' + (char)(remainder % 10);
-        temp[i++] = 'K';
-        temp[i] = '\0';
-        memcpy(buf, temp, i + 1);
-    }
-}
-
-/*
  * DrawLabeledValue - Draw "Label: XXX,XXXK" line
  *
  * Calculates colon position for proper alignment and separation of

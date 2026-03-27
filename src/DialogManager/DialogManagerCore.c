@@ -54,7 +54,6 @@ static void InitializeDialogRecord(DialogPtr dialog, const Rect* bounds,
 static void DisposeDialogStructure(DialogPtr dialog, Boolean closeOnly);
 static OSErr ValidateDialogPtr(DialogPtr dialog);
 static void SetupDialogDefaults(DialogPtr dialog);
-static void PlaySystemBeep(SInt16 soundType);
 
 /*
  * InitDialogs - Initialize the Dialog Manager
@@ -600,20 +599,7 @@ static void SetupDialogDefaults(DialogPtr dialog)
     dialogRec->editOpen = 0;
 }
 
-__attribute__((unused))
-static void PlaySystemBeep(SInt16 soundType)
-{
-    /* Play appropriate system sound */
-    if (gDialogManagerState.globals.soundProc) {
-        /* Cast void* to function pointer and call it */
-        typedef void (*SoundProc)(SInt16);
-        SoundProc proc = (SoundProc)gDialogManagerState.globals.soundProc;
-        proc(soundType);
-    } else {
-        /* Default system beep */
-        // printf("BEEP (sound type %d)\n", soundType);
-    }
-}
+
 
 /*
  * Internal utility functions for other modules
@@ -683,23 +669,6 @@ Boolean GetDialogTracksCursor(DialogPtr theDialog)
     }
 
     return gDialogManagerState.globals.tracksCursor;
-}
-
-__attribute__((unused))
-static Boolean IsModalDialog_Core(DialogPtr theDialog)
-{
-    if (!theDialog || ValidateDialogPtr(theDialog) != 0) {
-        return false;
-    }
-
-    /* Check if this dialog is in the modal stack */
-    for (int i = 0; i < gDialogManagerState.modalLevel; i++) {
-        if (gDialogManagerState.modalStack[i] == (WindowPtr)theDialog) {
-            return true;
-        }
-    }
-
-    return false;
 }
 
 Boolean IsDialogVisible(DialogPtr theDialog)
