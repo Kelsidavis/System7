@@ -87,6 +87,11 @@ extern char gDocName[64];
 extern int gDocDirty;
 extern int gCurrentTool;
 
+/* Text tool font/style state */
+static short gTextFont = 0;        /* Chicago */
+static short gTextSize = 12;       /* 12 point */
+static Style gTextStyle = 0;       /* Plain */
+
 /*
  * MENU INITIALIZATION
  */
@@ -488,9 +493,8 @@ void MacPaint_AidsHelp(void)
  */
 void MacPaint_FontSelect(int menuItem)
 {
-    /* TODO: Set current font for text tool
-     * Update menu checkmark
-     */
+    /* Map menu item to font ID */
+    gTextFont = (short)menuItem;
 }
 
 /**
@@ -498,7 +502,7 @@ void MacPaint_FontSelect(int menuItem)
  */
 void MacPaint_StyleToggleBold(void)
 {
-    /* TODO: Toggle bold bit in text style flags */
+    gTextStyle ^= bold;
 }
 
 /**
@@ -506,7 +510,7 @@ void MacPaint_StyleToggleBold(void)
  */
 void MacPaint_StyleToggleItalic(void)
 {
-    /* TODO: Toggle italic bit in text style flags */
+    gTextStyle ^= italic;
 }
 
 /**
@@ -514,7 +518,7 @@ void MacPaint_StyleToggleItalic(void)
  */
 void MacPaint_StyleToggleUnderline(void)
 {
-    /* TODO: Toggle underline bit in text style flags */
+    gTextStyle ^= underline;
 }
 
 /**
@@ -522,7 +526,17 @@ void MacPaint_StyleToggleUnderline(void)
  */
 void MacPaint_StylePlain(void)
 {
-    /* TODO: Clear all text style flags */
+    gTextStyle = 0;
+}
+
+/**
+ * MacPaint_GetTextStyle - Get current text tool font/style
+ */
+void MacPaint_GetTextStyle(short *font, short *size, Style *face)
+{
+    if (font) *font = gTextFont;
+    if (size) *size = gTextSize;
+    if (face) *face = gTextStyle;
 }
 
 /*

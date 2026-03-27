@@ -147,8 +147,35 @@ OSErr MacPaint_LoadResources(void)
  */
 OSErr MacPaint_PromptSave(void)
 {
-    /* TODO: Implement save prompt dialog */
-    return noErr;
+    extern int gDocDirty;
+    extern char gDocName[64];
+
+    if (!gDocDirty) {
+        return noErr;  /* Document not modified */
+    }
+
+    /* Show "Save changes?" alert using CautionAlert */
+    extern void ParamText(const unsigned char*, const unsigned char*,
+                          const unsigned char*, const unsigned char*);
+    extern short CautionAlert(short alertID, void *filterProc);
+
+    unsigned char msg[] = "\x30Save changes to the current document before closing?";
+    unsigned char empty[] = "\x00";
+    ParamText(msg, empty, empty, empty);
+
+    short result = CautionAlert(131, NULL);
+
+    /* Alert button mapping: 1=Save, 2=Cancel, 3=Don't Save */
+    switch (result) {
+        case 1:  /* Save */
+            MacPaint_SaveDocument(gDocName);
+            return noErr;
+        case 2:  /* Cancel */
+            return userCanceledErr;
+        case 3:  /* Don't Save */
+        default:
+            return noErr;
+    }
 }
 
 /*
@@ -160,9 +187,13 @@ OSErr MacPaint_PromptSave(void)
  */
 void MacPaint_CheckMemory(void)
 {
-    Size freeBytes __attribute__((unused)) = FreeMem();
-    Size totalBytes __attribute__((unused)) = 0;
-    /* TODO: Report memory statistics */
+    extern void serial_puts(const char *str);
+    extern int snprintf(char *buf, size_t size, const char *fmt, ...);
+
+    Size freeBytes = FreeMem();
+    char buf[80];
+    snprintf(buf, sizeof(buf), "[MACPAINT] Memory: %ld bytes free\n", (long)freeBytes);
+    serial_puts(buf);
 }
 
 /*

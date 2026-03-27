@@ -22,8 +22,8 @@
  * UNDO/REDO SYSTEM - Circular Buffer Implementation
  */
 
-#define MAX_UNDO_BUFFERS 8      /* Maximum undo levels */
-#define UNDO_BUFFER_SIZE 65536  /* Size of each undo buffer (64KB) */
+#define MAX_UNDO_BUFFERS 3      /* Maximum undo levels (reduced for memory) */
+#define UNDO_BUFFER_SIZE 32768  /* Size of each undo buffer (32KB) */
 
 typedef struct {
     Ptr data;                   /* Bitmap snapshot */

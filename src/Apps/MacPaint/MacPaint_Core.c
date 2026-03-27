@@ -113,16 +113,13 @@ OSErr MacPaint_Initialize(void)
     gPaintBuffer.bounds.bottom = MACPAINT_DOC_HEIGHT;
     gPaintBuffer.bounds.right = MACPAINT_DOC_WIDTH;
 
-    /* Initialize undo/redo system */
-    /* TODO: Fix undo system initialization - currently returns -108 (memFullErr)
-     * For now, skip undo to allow MacPaint to launch */
-    /* serial_logf(kLogModuleGeneral, kLogLevelInfo, "[MACPAINT] MacPaint_Initialize: Calling MacPaint_InitializeUndo\n");
-    err = MacPaint_InitializeUndo();
-    serial_logf(kLogModuleGeneral, kLogLevelInfo, "[MACPAINT] MacPaint_Initialize: MacPaint_InitializeUndo returned %d\n", err);
+    /* Initialize undo/redo system (reduced to 3 levels × 32KB to fit in memory) */
+    OSErr err = MacPaint_InitializeUndo();
     if (err != noErr) {
-        serial_logf(kLogModuleGeneral, kLogLevelError, "[MACPAINT] MacPaint_Initialize: InitializeUndo failed\n");
-        return err;
-    } */
+        /* Non-fatal: MacPaint works without undo, just log and continue */
+        serial_logf(kLogModuleGeneral, kLogLevelInfo,
+                    "[MACPAINT] Undo init failed (err=%d), continuing without undo\n", err);
+    }
 
     serial_logf(kLogModuleGeneral, kLogLevelInfo, "[MACPAINT] MacPaint_Initialize: SUCCESS\n");
     return noErr;
@@ -155,7 +152,8 @@ void MacPaint_Shutdown(void)
 void MacPaint_SelectTool(int toolID)
 {
     gCurrentTool = toolID;
-    /* TODO: Update cursor and UI */
+    MacPaint_SetToolCursor();
+    MacPaint_InvalidatePaintArea();
 }
 
 /**

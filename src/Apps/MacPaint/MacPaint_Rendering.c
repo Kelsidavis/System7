@@ -701,25 +701,44 @@ void MacPaint_SetToolCursor(void)
      * Full implementation would load CURS resources from application file.
      */
 
+    /* Use built-in system cursors for each tool category.
+     * CursHandle is void*, cast to Cursor** for dereferencing. */
     switch (gCurrentTool) {
+        case TOOL_TEXT:
+        {
+            Cursor **ibeam = (Cursor **)GetCursor(1);  /* iBeamCursor */
+            if (ibeam && *ibeam) SetCursor(*ibeam);
+            else InitCursor();
+            break;
+        }
+
         case TOOL_PENCIL:
         case TOOL_LINE:
         case TOOL_RECT:
         case TOOL_OVAL:
         case TOOL_BRUSH:
-        case TOOL_ERASE:
-        case TOOL_FILL:
         case TOOL_SPRAY:
+        {
+            Cursor **cross = (Cursor **)GetCursor(2);  /* crossCursor */
+            if (cross && *cross) SetCursor(*cross);
+            else InitCursor();
+            break;
+        }
+
+        case TOOL_GRABBER:
+        {
+            Cursor **hand = (Cursor **)GetCursor(4);  /* plusCursor */
+            if (hand && *hand) SetCursor(*hand);
+            else InitCursor();
+            break;
+        }
+
+        case TOOL_FILL:
+        case TOOL_ERASE:
         case TOOL_LASSO:
         case TOOL_SELECT:
-        case TOOL_GRABBER:
-        case TOOL_TEXT:
-            /* TODO: Load CURS resource for each tool and call SetCursor() */
-            InitCursor();  /* Reset to default arrow cursor */
-            break;
-
         default:
-            InitCursor();  /* Default arrow cursor */
+            InitCursor();
             break;
     }
 }
