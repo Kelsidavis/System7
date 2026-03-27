@@ -67,13 +67,13 @@ const char* platform_format_memory_gb(void) {
     if (mb_remainder > 512) {
         /* Round up if >= 512 MB */
         gb++;
-        sprintf(g_memory_gb_str, "%u GB", gb);
+        snprintf(g_memory_gb_str, sizeof(g_memory_gb_str), "%u GB", gb);
     } else if (mb_remainder > 0) {
         /* Show decimal if there's remainder */
         uint32_t decimal = (mb_remainder * 10) / 1024;
-        sprintf(g_memory_gb_str, "%u.%u GB", gb, decimal);
+        snprintf(g_memory_gb_str, sizeof(g_memory_gb_str), "%u.%u GB", gb, decimal);
     } else {
-        sprintf(g_memory_gb_str, "%u GB", gb);
+        snprintf(g_memory_gb_str, sizeof(g_memory_gb_str), "%u GB", gb);
     }
 
     return g_memory_gb_str;

@@ -594,7 +594,7 @@ Boolean AboutWindow_HandleUpdate(WindowPtr w)
     /* Version and Memory: "System 7 - X GB" - Chicago 11, normal */
     Str255 ver;
     char ver_buf[64];
-    sprintf(ver_buf, "System 7.1 - %s", memory_gb);
+    snprintf(ver_buf, sizeof(ver_buf), "System 7.1 - %s", memory_gb);
     TextSize(11);
     TextFace(0);            /* normal */
     ToPStr(ver_buf, ver);
@@ -615,9 +615,9 @@ Boolean AboutWindow_HandleUpdate(WindowPtr w)
 
             char map_buf[80];
             if (base_hi != 0) {
-                sprintf(map_buf, "FW range0: 0x%08x%08x (%u MB)", base_hi, base_lo, size_mb);
+                snprintf(map_buf, sizeof(map_buf), "FW range0: 0x%08x%08x (%u MB)", base_hi, base_lo, size_mb);
             } else {
-                sprintf(map_buf, "FW range0: 0x%08x (%u MB)", base_lo, size_mb);
+                snprintf(map_buf, sizeof(map_buf), "FW range0: 0x%08x (%u MB)", base_lo, size_mb);
             }
             Str255 extra;
             TextSize(10);
@@ -626,7 +626,7 @@ Boolean AboutWindow_HandleUpdate(WindowPtr w)
             CenterPStringInRect(extra, &contentRect, contentRect.top + 60);
 
             char count_buf[40];
-            sprintf(count_buf, "Firmware ranges: %u", range_count);
+            snprintf(count_buf, sizeof(count_buf), "Firmware ranges: %u", range_count);
             ToPStr(count_buf, extra);
             CenterPStringInRect(extra, &contentRect, contentRect.top + 72);
         }

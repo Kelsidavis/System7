@@ -87,7 +87,8 @@ int DA_LoadWindowTemplate(SInt16 resourceID, DAWindowAttr *attr)
     attr->procID = 0;  /* Standard window */
     attr->visible = true;
     attr->hasGoAway = true;
-    strcpy(attr->title, "Desk Accessory");
+    strncpy(attr->title, "Desk Accessory", sizeof(attr->title) - 1);
+    attr->title[sizeof(attr->title) - 1] = '\0';
 
     DA_FreeResourceData(data);
     return DESK_ERR_NONE;

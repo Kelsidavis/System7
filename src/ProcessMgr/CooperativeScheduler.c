@@ -100,7 +100,8 @@ OSErr Proc_Init(void) {
     idle->priority = 0;
     idle->aging = 0;
     idle->pid = 0;
-    strcpy(idle->name, "Idle");
+    strncpy(idle->name, "Idle", sizeof(idle->name) - 1);
+    idle->name[sizeof(idle->name) - 1] = '\0';
 
     /* Set as current and only ready process */
     gCurrentProcess = idle;

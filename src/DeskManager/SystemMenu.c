@@ -485,7 +485,8 @@ static void SystemMenu_AddBuiltinItems(void)
     if (aboutItem) {
         aboutItem->itemID = ABOUT_ITEM_ID;
         aboutItem->type = MENU_ITEM_ABOUT;
-        strcpy(aboutItem->text, "About This Macintosh");
+        strncpy(aboutItem->text, "About This Macintosh", sizeof(aboutItem->text) - 1);
+        aboutItem->text[sizeof(aboutItem->text) - 1] = '\0';
         aboutItem->enabled = true;
         SystemMenu_AddItem(aboutItem);
     }
@@ -495,7 +496,8 @@ static void SystemMenu_AddBuiltinItems(void)
     if (separator) {
         separator->itemID = SEPARATOR_ITEM_ID;
         separator->type = MENU_ITEM_SEPARATOR;
-        strcpy(separator->text, "-");
+        strncpy(separator->text, "-", sizeof(separator->text) - 1);
+        separator->text[sizeof(separator->text) - 1] = '\0';
         separator->enabled = false;
         SystemMenu_AddItem(separator);
     }

@@ -28,7 +28,7 @@ Boolean MemGuard_ValidateBufferNotInStruct(const void* bufferPtr,
         }
 
         char buf[128];
-        sprintf(buf, "[MEMGUARD] struct=0x%08x buffer=0x%08x offset=0x%x size=0x%x\n",
+        snprintf(buf, sizeof(buf), "[MEMGUARD] struct=0x%08x buffer=0x%08x offset=0x%x size=0x%x\n",
                 (unsigned int)(uintptr_t)structPtr,
                 (unsigned int)(uintptr_t)bufferPtr,
                 (unsigned int)((uintptr_t)bufferPtr - (uintptr_t)structPtr),

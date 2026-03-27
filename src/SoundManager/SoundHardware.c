@@ -86,22 +86,23 @@ OSErr SoundHardwareInit(SoundHardwarePtr* hardware, AudioAPIType apiType)
     /* Set API name based on type */
     switch (selectedAPI) {
         case AUDIO_API_ALSA:
-            strcpy(hw->apiName, "ALSA Audio");
+            strncpy(hw->apiName, "ALSA Audio", sizeof(hw->apiName) - 1);
             break;
         case AUDIO_API_PULSE:
-            strcpy(hw->apiName, "PulseAudio");
+            strncpy(hw->apiName, "PulseAudio", sizeof(hw->apiName) - 1);
             break;
         case AUDIO_API_COREAUDIO:
-            strcpy(hw->apiName, "CoreAudio");
+            strncpy(hw->apiName, "CoreAudio", sizeof(hw->apiName) - 1);
             break;
         case AUDIO_API_WASAPI:
-            strcpy(hw->apiName, "WASAPI");
+            strncpy(hw->apiName, "WASAPI", sizeof(hw->apiName) - 1);
             break;
         case AUDIO_API_DUMMY:
         default:
-            strcpy(hw->apiName, "Dummy Audio (No Hardware)");
+            strncpy(hw->apiName, "Dummy Audio (No Hardware)", sizeof(hw->apiName) - 1);
             break;
     }
+    hw->apiName[sizeof(hw->apiName) - 1] = '\0';
 
     hw->initialized = true;
 
@@ -133,8 +134,10 @@ OSErr SoundHardwareEnumerateDevices(SoundHardwarePtr hardware)
         return memFullErr;
     }
 
-    strcpy(hardware->devices[0].name, "Default Audio Device");
-    strcpy(hardware->devices[0].description, "System default audio device");
+    strncpy(hardware->devices[0].name, "Default Audio Device", sizeof(hardware->devices[0].name) - 1);
+    hardware->devices[0].name[sizeof(hardware->devices[0].name) - 1] = '\0';
+    strncpy(hardware->devices[0].description, "System default audio device", sizeof(hardware->devices[0].description) - 1);
+    hardware->devices[0].description[sizeof(hardware->devices[0].description) - 1] = '\0';
     hardware->devices[0].type = AUDIO_DEVICE_DUPLEX;
     hardware->devices[0].isDefault = true;
     hardware->defaultOutput = &hardware->devices[0];

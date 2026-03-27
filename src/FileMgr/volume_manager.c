@@ -74,8 +74,8 @@ OSErr MountVol(void* param_block) {
     mdb->drNmAlBlks = 1000;          /* 1000 allocation blocks */
     mdb->drFreeBks = 950;            /* 950 free blocks */
     mdb->drNxtCNID = 100;            /* Next catalog node ID */
-    strcpy((char*)mdb->drVN + 1, "TestVolume");  /* Pascal string */
-    mdb->drVN[0] = strlen("TestVolume");
+    strncpy((char*)mdb->drVN + 1, "TestVolume", sizeof(mdb->drVN) - 2);
+    mdb->drVN[0] = 10;  /* Length of "TestVolume" */
 
     /* Validate HFS signature - Evidence: ROM HFS volume code signature check */
     if (!IsValidHFSSignature(mdb->drSigWord)) {

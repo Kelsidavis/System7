@@ -285,7 +285,7 @@ void DrawFolderWindowContents(WindowPtr window, Boolean isTrash)
             if (VFS_GetVolumeInfo(bootVref, &vcb)) {
                 unsigned usedMB10 = (unsigned)(((vcb.totalBytes - vcb.freeBytes) * 10 + 524288) / 1048576);
                 unsigned freeMB10 = (unsigned)((vcb.freeBytes * 10 + 524288) / 1048576);
-                int len = sprintf(infoBuf, "5 items     %u.%u MB in disk     %u.%u MB available",
+                int len = snprintf(infoBuf, sizeof(infoBuf), "5 items     %u.%u MB in disk     %u.%u MB available",
                                   usedMB10 / 10, usedMB10 % 10, freeMB10 / 10, freeMB10 % 10);
                 MoveTo(contentRect.left + 10, contentRect.bottom - 10);
                 DrawText(infoBuf, 0, len);
@@ -2051,7 +2051,7 @@ void FolderWindow_Draw(WindowPtr w) {
         extern void serial_puts(const char *str);
         extern int sprintf(char* buf, const char* fmt, ...);
         char dbgbuf[256];
-        sprintf(dbgbuf, "[FLDRAW] portBits.bounds at draw time: (%d,%d,%d,%d) portRect: (%d,%d,%d,%d)\n",
+        snprintf(dbgbuf, sizeof(dbgbuf), "[FLDRAW] portBits.bounds at draw time: (%d,%d,%d,%d) portRect: (%d,%d,%d,%d)\n",
                 w->port.portBits.bounds.left, w->port.portBits.bounds.top,
                 w->port.portBits.bounds.right, w->port.portBits.bounds.bottom,
                 w->port.portRect.left, w->port.portRect.top,
@@ -2167,55 +2167,58 @@ void FolderWindow_Draw(WindowPtr w) {
          * With selection: "X of Y selected     Z K used" */
         char statusBuf[128];
         int pos = 0;
+        int rem = (int)sizeof(statusBuf);
+
+#define STATUS_APPEND(...) do { \
+    int n = snprintf(&statusBuf[pos], rem, __VA_ARGS__); \
+    if (n > 0 && n < rem) { pos += n; rem -= n; } \
+} while(0)
 
         if (selectedCount > 0) {
             /* Selection: show count and total size of selected items */
             if (selectedCount == 1) {
-                pos += sprintf(&statusBuf[pos], "1 of %d selected", state->itemCount);
+                STATUS_APPEND("1 of %d selected", state->itemCount);
             } else {
-                pos += sprintf(&statusBuf[pos], "%d of %d selected", selectedCount, state->itemCount);
+                STATUS_APPEND("%d of %d selected", selectedCount, state->itemCount);
             }
 
             /* Show total size of selected items */
-            pos += sprintf(&statusBuf[pos], "     ");
+            STATUS_APPEND("     ");
             if (selectedSize < 1024) {
-                pos += sprintf(&statusBuf[pos], "%u bytes", (unsigned)selectedSize);
+                STATUS_APPEND("%u bytes", (unsigned)selectedSize);
             } else if (selectedSize < 1048576) {
-                pos += sprintf(&statusBuf[pos], "%uK", (unsigned)(selectedSize / 1024));
+                STATUS_APPEND("%uK", (unsigned)(selectedSize / 1024));
             } else {
                 unsigned mb10 = (unsigned)((selectedSize * 10 + 524288) / 1048576);
-                pos += sprintf(&statusBuf[pos], "%u.%u MB", mb10 / 10, mb10 % 10);
+                STATUS_APPEND("%u.%u MB", mb10 / 10, mb10 % 10);
             }
         } else {
             /* No selection: show item count and disk space */
             if (state->itemCount == 1) {
-                pos += sprintf(&statusBuf[pos], "1 item");
+                STATUS_APPEND("1 item");
             } else {
-                pos += sprintf(&statusBuf[pos], "%d items", state->itemCount);
+                STATUS_APPEND("%d items", state->itemCount);
             }
 
             /* Disk used */
-            pos += sprintf(&statusBuf[pos], "     ");
+            STATUS_APPEND("     ");
             if (diskUsed < 1048576) {
-                pos += sprintf(&statusBuf[pos], "%uK in disk",
-                              (unsigned)(diskUsed / 1024));
+                STATUS_APPEND("%uK in disk", (unsigned)(diskUsed / 1024));
             } else {
                 unsigned mb10 = (unsigned)((diskUsed * 10 + 524288) / 1048576);
-                pos += sprintf(&statusBuf[pos], "%u.%u MB in disk",
-                              mb10 / 10, mb10 % 10);
+                STATUS_APPEND("%u.%u MB in disk", mb10 / 10, mb10 % 10);
             }
 
             /* Disk free */
-            pos += sprintf(&statusBuf[pos], "     ");
+            STATUS_APPEND("     ");
             if (diskFree < 1048576) {
-                pos += sprintf(&statusBuf[pos], "%uK available",
-                              (unsigned)(diskFree / 1024));
+                STATUS_APPEND("%uK available", (unsigned)(diskFree / 1024));
             } else {
                 unsigned mb10 = (unsigned)((diskFree * 10 + 524288) / 1048576);
-                pos += sprintf(&statusBuf[pos], "%u.%u MB available",
-                              mb10 / 10, mb10 % 10);
+                STATUS_APPEND("%u.%u MB available", mb10 / 10, mb10 % 10);
             }
         }
+#undef STATUS_APPEND
 
         MoveTo(left + 8, bottom - 4);
         DrawText(statusBuf, 0, pos);
@@ -2951,10 +2954,43 @@ void FolderWindow_OpenSelected(WindowPtr w) {
                 extern void ControlStrip_Toggle(void);
                 ControlStrip_Toggle();
             } else {
-                FINDER_LOG_DEBUG("FW: OPEN app \"%s\" not implemented\n", name);
+                /* Generic app launch via LaunchApplication */
+                FINDER_LOG_DEBUG("FW: Launching app \"%s\" via LaunchApplication\n", name);
+                FSSpec appSpec;
+                LaunchParamBlockRec launchParams;
+                OSErr err;
+
+                appSpec.vRefNum = state->vref;
+                appSpec.parID = state->currentDir;
+                UInt8 nameLen = strlen(name);
+                if (nameLen > 63) nameLen = 63;
+                appSpec.name[0] = nameLen;
+                memcpy(&appSpec.name[1], name, nameLen);
+
+                memset(&launchParams, 0, sizeof(launchParams));
+                launchParams.launchAppSpec = &appSpec;
+                launchParams.launchPreferredSize = 512 * 1024;
+                launchParams.launchControlFlags = 0;
+
+                err = LaunchApplication(&launchParams);
+                if (err != noErr) {
+                    FINDER_LOG_DEBUG("FW: Failed to launch \"%s\" (err=%d)\n", name, err);
+                }
             }
         } else {
-            FINDER_LOG_DEBUG("FW: OPEN doc \"%s\" not implemented\n", name);
+            /* Unknown document type - try to open with SimpleText as fallback */
+            FINDER_LOG_DEBUG("FW: Opening document \"%s\" with SimpleText (fallback)\n", name);
+            extern void SimpleText_Launch(void);
+            extern Boolean SimpleText_IsRunning(void);
+            extern void SimpleText_OpenFile(const char* path);
+
+            if (!SimpleText_IsRunning()) {
+                SimpleText_Launch();
+            }
+
+            char fullPath[512];
+            snprintf(fullPath, sizeof(fullPath), "/%s", name);
+            SimpleText_OpenFile(fullPath);
         }
     }
 

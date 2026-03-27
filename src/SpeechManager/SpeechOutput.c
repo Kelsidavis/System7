@@ -144,7 +144,8 @@ static const AudioOutputDevice kBuiltinDevices[] = {
 static void InitializeDefaultConfig(AudioOutputConfig *config) {
     memset(config, 0, sizeof(AudioOutputConfig));
 
-    strcpy(config->deviceID, "default");
+    strncpy(config->deviceID, "default", sizeof(config->deviceID) - 1);
+    config->deviceID[sizeof(config->deviceID) - 1] = '\0';
     config->format.sampleRate = DEFAULT_SAMPLE_RATE;
     config->format.channels = 1;
     config->format.bitsPerSample = 16;
@@ -304,7 +305,8 @@ OSErr InitializeAudioOutput(void) {
     }
 
     /* Set default device */
-    strcpy(gAudioManager.defaultDeviceID, "default");
+    strncpy(gAudioManager.defaultDeviceID, "default", sizeof(gAudioManager.defaultDeviceID) - 1);
+    gAudioManager.defaultDeviceID[sizeof(gAudioManager.defaultDeviceID) - 1] = '\0';
 
     /* Initialize default configuration */
     InitializeDefaultConfig(&gAudioManager.defaultConfig);
@@ -448,7 +450,8 @@ OSErr CreateAudioOutputStream(const AudioOutputConfig *config, AudioOutputStream
 
     /* Initialize stream */
     newStream->config = *config;
-    strcpy(newStream->deviceID, config->deviceID);
+    strncpy(newStream->deviceID, config->deviceID, sizeof(newStream->deviceID) - 1);
+    newStream->deviceID[sizeof(newStream->deviceID) - 1] = '\0';
     newStream->format = config->format;
 
     /* Calculate frame size */

@@ -111,12 +111,15 @@ int AlarmClock_Initialize(AlarmClock *clock)
 
     /* Set default sound settings */
     clock->soundEnabled = true;
-    strcpy(clock->defaultSound, "Beep");
+    strncpy(clock->defaultSound, "Beep", sizeof(clock->defaultSound) - 1);
+    clock->defaultSound[sizeof(clock->defaultSound) - 1] = '\0';
     clock->defaultVolume = 50;
 
     /* Set default format strings */
-    strcpy(clock->timeFormat, "%I:%M:%S %p");
-    strcpy(clock->dateFormat, "%m/%d/%Y");
+    strncpy(clock->timeFormat, "%I:%M:%S %p", sizeof(clock->timeFormat) - 1);
+    clock->timeFormat[sizeof(clock->timeFormat) - 1] = '\0';
+    strncpy(clock->dateFormat, "%m/%d/%Y", sizeof(clock->dateFormat) - 1);
+    clock->dateFormat[sizeof(clock->dateFormat) - 1] = '\0';
 
     clock->nextAlarmID = 1;
 
@@ -322,13 +325,14 @@ Alarm *AlarmClock_CreateAlarm(AlarmClock *clock, const char *name,
 
     /* Set alarm properties */
     alarm->id = clock->nextAlarmID++;
-    strncpy(alarm->name, name, ALARM_NAME_LENGTH);
-    alarm->name[ALARM_NAME_LENGTH] = '\0';
+    strncpy(alarm->name, name, ALARM_NAME_LENGTH - 1);
+    alarm->name[ALARM_NAME_LENGTH - 1] = '\0';
     alarm->type = type;
     alarm->state = ALARM_STATE_ENABLED;
     alarm->triggerTime = *triggerTime;
     alarm->notifyType = NOTIFY_SOUND | NOTIFY_DIALOG;
-    strcpy(alarm->soundName, clock->defaultSound);
+    strncpy(alarm->soundName, clock->defaultSound, sizeof(alarm->soundName) - 1);
+    alarm->soundName[sizeof(alarm->soundName) - 1] = '\0';
     alarm->volume = clock->defaultVolume;
     alarm->canSnooze = true;
     alarm->snoozeMinutes = 5;

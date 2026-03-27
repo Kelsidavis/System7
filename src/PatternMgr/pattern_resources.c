@@ -16,6 +16,7 @@
 
 /* External functions */
 extern int sprintf(char* str, const char* format, ...);
+extern int snprintf(char* str, size_t size, const char* format, ...);
 extern uint32_t pack_color(uint8_t r, uint8_t g, uint8_t b);
 
 /*
@@ -97,7 +98,7 @@ static uint16_t ReadBE16(const uint8_t* p) {
 static bool DecodeNativePPAT(const uint8_t* data, size_t size, uint32_t outRGBA[64]) {
     extern void serial_puts(const char* str);
     char msg[128];
-    sprintf(msg, "DecodeNativePPAT: called with size %d (0x%x)\n", (int)size, (int)size);
+    snprintf(msg, sizeof(msg), "DecodeNativePPAT: called with size %d (0x%x)\n", (int)size, (int)size);
     serial_puts(msg);
 
     /* The ppat data from our JSON is 134 bytes, structured as:
@@ -107,7 +108,7 @@ static bool DecodeNativePPAT(const uint8_t* data, size_t size, uint32_t outRGBA[
      * 0x5E+: Color table
      */
     if (size < 0x5E + 16) {
-        sprintf(msg, "DecodeNativePPAT: too small (%d < minimum)\n", (int)size);
+        snprintf(msg, sizeof(msg), "DecodeNativePPAT: too small (%d < minimum)\n", (int)size);
         serial_puts(msg);
         return false;
     }
@@ -115,18 +116,18 @@ static bool DecodeNativePPAT(const uint8_t* data, size_t size, uint32_t outRGBA[
     /* Check ppat version (0x0001) */
     uint16_t version = ReadBE16(data);
     if (version != 0x0001) {
-        sprintf(msg, "DecodeNativePPAT: wrong version 0x%04x\n", version);
+        snprintf(msg, sizeof(msg), "DecodeNativePPAT: wrong version 0x%04x\n", version);
         serial_puts(msg);
         return false;
     }
 
     /* Get pixel depth from offset 0x40 */
     uint16_t pixelDepth = ReadBE16(data + 0x40);
-    sprintf(msg, "DecodeNativePPAT: pixel depth = %d\n", pixelDepth);
+    snprintf(msg, sizeof(msg), "DecodeNativePPAT: pixel depth = %d\n", pixelDepth);
     serial_puts(msg);
 
     /* Debug: show some raw data */
-    sprintf(msg, "Data at 0x4C: %02x %02x %02x %02x\n",
+    snprintf(msg, sizeof(msg), "Data at 0x4C: %02x %02x %02x %02x\n",
             data[0x4C], data[0x4D], data[0x4E], data[0x4F]);
     serial_puts(msg);
 
@@ -161,7 +162,7 @@ static bool DecodeNativePPAT(const uint8_t* data, size_t size, uint32_t outRGBA[
 
             /* Debug first row to see the pattern */
             if (y == 0) {
-                sprintf(msg, "Row 0 data: 0x%04x\n", row);
+                snprintf(msg, sizeof(msg), "Row 0 data: 0x%04x\n", row);
                 serial_puts(msg);
             }
 
@@ -178,7 +179,7 @@ static bool DecodeNativePPAT(const uint8_t* data, size_t size, uint32_t outRGBA[
         return true;
     }
 
-    sprintf(msg, "DecodeNativePPAT: Unsupported pixel depth %d\n", pixelDepth);
+    snprintf(msg, sizeof(msg), "DecodeNativePPAT: Unsupported pixel depth %d\n", pixelDepth);
     serial_puts(msg);
     return false;
 }
@@ -186,8 +187,8 @@ static bool DecodeNativePPAT(const uint8_t* data, size_t size, uint32_t outRGBA[
 /* Decode PPAT8 format into RGBA pixels */
 bool DecodePPAT8(const uint8_t* p, size_t n, uint32_t outRGBA[64]) {
     extern void serial_puts(const char* str);
-    char msg[80];
-    sprintf(msg, "DecodePPAT8: called with size %d\n", (int)n);
+    char msg[128];
+    snprintf(msg, sizeof(msg), "DecodePPAT8: called with size %d\n", (int)n);
     serial_puts(msg);
 
     /* First try native ppat format */
@@ -199,18 +200,18 @@ bool DecodePPAT8(const uint8_t* p, size_t n, uint32_t outRGBA[64]) {
     serial_puts("DecodePPAT8: DecodeNativePPAT failed, trying PPAT8 format\n");
 
     /* Debug: show first 10 bytes of data */
-    sprintf(msg, "DecodePPAT8: First 10 bytes: %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x\n",
+    snprintf(msg, sizeof(msg), "DecodePPAT8: First 10 bytes: %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x\n",
             p[0], p[1], p[2], p[3], p[4], p[5], p[6], p[7], p[8], p[9]);
     serial_puts(msg);
 
     /* Check if data starts with 4-byte length prefix from Resource Manager */
     if (n >= 10) { /* At least 4-byte length + 6-byte "PPAT8\0" magic */
         uint32_t beLen = ((uint32_t)p[0]<<24) | ((uint32_t)p[1]<<16) | ((uint32_t)p[2]<<8) | p[3];
-        sprintf(msg, "DecodePPAT8: Checking for length prefix: beLen=0x%08x, n=%d\n", beLen, (int)n);
+        snprintf(msg, sizeof(msg), "DecodePPAT8: Checking for length prefix: beLen=0x%08x, n=%d\n", beLen, (int)n);
         serial_puts(msg);
 
         if (beLen + 4 == n && memcmp(p + 4, "PPAT8\0", 6) == 0) {
-            sprintf(msg, "DecodePPAT8: Found and skipping 4-byte length prefix (0x%08x)\n", beLen);
+            snprintf(msg, sizeof(msg), "DecodePPAT8: Found and skipping 4-byte length prefix (0x%08x)\n", beLen);
             serial_puts(msg);
             p += 4;
             n -= 4;
@@ -219,12 +220,12 @@ bool DecodePPAT8(const uint8_t* p, size_t n, uint32_t outRGBA[64]) {
 
     /* Then try our custom PPAT8 format */
     if (n < 6+2+2+2) {
-        sprintf(msg, "DecodePPAT8: too small n=%d\n", (int)n);
+        snprintf(msg, sizeof(msg), "DecodePPAT8: too small n=%d\n", (int)n);
         serial_puts(msg);
         return false;
     }
     if (memcmp(p, "PPAT8\0", 6) != 0) {
-        sprintf(msg, "DecodePPAT8: bad header %02x %02x %02x %02x %02x %02x\n",
+        snprintf(msg, sizeof(msg), "DecodePPAT8: bad header %02x %02x %02x %02x %02x %02x\n",
                 p[0], p[1], p[2], p[3], p[4], p[5]);
         serial_puts(msg);
         return false;
@@ -235,7 +236,7 @@ bool DecodePPAT8(const uint8_t* p, size_t n, uint32_t outRGBA[64]) {
     uint16_t h = ReadBE16(q); q += 2;
     uint16_t N = ReadBE16(q); q += 2;
 
-    sprintf(msg, "DecodePPAT8: w=%d h=%d N=%d\n", w, h, N);
+    snprintf(msg, sizeof(msg), "DecodePPAT8: w=%d h=%d N=%d\n", w, h, N);
     serial_puts(msg);
 
     if (w != 8 || h != 8 || N == 0 || N > 256) {
@@ -243,7 +244,7 @@ bool DecodePPAT8(const uint8_t* p, size_t n, uint32_t outRGBA[64]) {
         return false;
     }
     if ((size_t)(q - p) + 4*N + 64 > n) {
-        sprintf(msg, "DecodePPAT8: size fail need %d have %d\n",
+        snprintf(msg, sizeof(msg), "DecodePPAT8: size fail need %d have %d\n",
                 (int)((q - p) + 4*N + 64), (int)n);
         serial_puts(msg);
         return false;

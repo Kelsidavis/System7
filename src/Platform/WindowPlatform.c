@@ -431,7 +431,7 @@ void Platform_GetWindowContentRect(WindowPtr window, Rect* rect) {
         extern void serial_puts(const char *str);
         extern int sprintf(char* buf, const char* fmt, ...);
         char dbgbuf[256];
-        sprintf(dbgbuf, "[GETCONTENT] DISK: strucRgn rgnBBox=(%d,%d,%d,%d)\n",
+        snprintf(dbgbuf, sizeof(dbgbuf), "[GETCONTENT] DISK: strucRgn rgnBBox=(%d,%d,%d,%d)\n",
                 strucRectPtr->left, strucRectPtr->top, strucRectPtr->right, strucRectPtr->bottom);
         serial_puts(dbgbuf);
     }
@@ -489,7 +489,7 @@ void Platform_GetWindowFrameRect(WindowPtr window, Rect* rect) {
         extern int sprintf(char* buf, const char* fmt, ...);
         Rect* beforePtr = &((**(window->strucRgn)).rgnBBox);
         char dbgbuf[256];
-        sprintf(dbgbuf, "[GETFRAME] strucRgn->rgnBBox=(%d,%d,%d,%d)\n",
+        snprintf(dbgbuf, sizeof(dbgbuf), "[GETFRAME] strucRgn->rgnBBox=(%d,%d,%d,%d)\n",
                 beforePtr->left, beforePtr->top, beforePtr->right, beforePtr->bottom);
         serial_puts(dbgbuf);
     }
@@ -596,7 +596,7 @@ void Platform_WaitTicks(short ticks) {
         pwt_call_count++;
         if (pwt_call_count % 50 == 0) {  /* Log every 50 calls */
             char msg[80];
-            sprintf(msg, "[PWT] Call #%d: ticks=%d iterations=%d\n", pwt_call_count, ticks, iterations);
+            snprintf(msg, sizeof(msg), "[PWT] Call #%d: ticks=%d iterations=%d\n", pwt_call_count, ticks, iterations);
             serial_puts(msg);
         }
     }
@@ -736,7 +736,7 @@ void Platform_SizeNativeWindow(WindowPtr window, short width, short height) {
             extern void serial_puts(const char *str);
             extern int sprintf(char* buf, const char* fmt, ...);
             char dbgbuf[256];
-            sprintf(dbgbuf, "[SIZENATIVE] DISK: width=%d height=%d oldPortRect=(%d,%d,%d,%d)\n",
+            snprintf(dbgbuf, sizeof(dbgbuf), "[SIZENATIVE] DISK: width=%d height=%d oldPortRect=(%d,%d,%d,%d)\n",
                     width, height,
                     window->port.portRect.left, window->port.portRect.top,
                     window->port.portRect.right, window->port.portRect.bottom);
@@ -761,7 +761,7 @@ void Platform_SizeNativeWindow(WindowPtr window, short width, short height) {
             extern void serial_puts(const char *str);
             extern int sprintf(char* buf, const char* fmt, ...);
             char dbgbuf[256];
-            sprintf(dbgbuf, "[SIZENATIVE] DISK: newPortRect=(%d,%d,%d,%d)\n",
+            snprintf(dbgbuf, sizeof(dbgbuf), "[SIZENATIVE] DISK: newPortRect=(%d,%d,%d,%d)\n",
                     window->port.portRect.left, window->port.portRect.top,
                     window->port.portRect.right, window->port.portRect.bottom);
             serial_puts(dbgbuf);

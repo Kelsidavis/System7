@@ -133,13 +133,20 @@ bool IconRes_LoadCustomIconForPath(const char* path, IconFamily* out) {
     }
 
     /* Build path to Icon\r file */
-    strcpy(iconPath, path);
-    if (iconPath[pathLen - 1] != '/') {
-        strcat(iconPath, "/");
+    strncpy(iconPath, path, sizeof(iconPath) - 1);
+    iconPath[sizeof(iconPath) - 1] = '\0';
+    {
+        size_t len = strlen(iconPath);
+        if (len > 0 && iconPath[len - 1] != '/') {
+            iconPath[len++] = '/';
+            iconPath[len] = '\0';
+        }
+        /* Append "Icon\r" */
+        if (len + 5 < sizeof(iconPath)) {
+            memcpy(&iconPath[len], "Icon\r", 5);
+            iconPath[len + 5] = '\0';
+        }
     }
-    strcat(iconPath, "Icon");
-    iconPath[strlen(iconPath)] = '\r';  /* Append carriage return */
-    iconPath[strlen(iconPath) + 1] = '\0';
 
     /* Try to open the Icon\r file's resource fork */
     /* Convert to unsigned char* for OpenResFile */

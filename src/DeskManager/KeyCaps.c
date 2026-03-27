@@ -45,12 +45,14 @@ int KeyCaps_Initialize(KeyCaps *keyCaps)
     }
 
     KeyboardLayout *layout = keyCaps->currentLayout;
-    strcpy(layout->name, "US");
+    strncpy(layout->name, "US", sizeof(layout->name) - 1);
+    layout->name[sizeof(layout->name) - 1] = '\0';
     layout->layoutID = KBD_LAYOUT_US;
     layout->scriptCode = 0;
     layout->languageCode = 0;
     layout->numKeys = 47;  /* Basic QWERTY keys */
-    strcpy(layout->fontName, "Monaco");
+    strncpy(layout->fontName, "Monaco", sizeof(layout->fontName) - 1);
+    layout->fontName[sizeof(layout->fontName) - 1] = '\0';
     layout->fontSize = KEYCAPS_FONT_SIZE;
 
     /* Initialize key mappings */

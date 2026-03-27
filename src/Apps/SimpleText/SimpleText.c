@@ -820,7 +820,28 @@ void ST_ShowAbout(void) {
 void ST_ErrorAlert(const char* message) {
     ST_Log("Error: %s\n", message);
     ST_Beep();
-    /* TODO: Show proper error dialog */
+
+    /* Show a NoteAlert with the error message */
+    extern void ParamText(const unsigned char*, const unsigned char*,
+                          const unsigned char*, const unsigned char*);
+    extern void ClearParamText(void);
+
+    /* Convert C string to Pascal string for ParamText */
+    unsigned char pMsg[256];
+    size_t len = 0;
+    if (message) {
+        while (message[len] && len < 255) len++;
+    }
+    pMsg[0] = (unsigned char)len;
+    for (size_t i = 0; i < len; i++) pMsg[i + 1] = (unsigned char)message[i];
+
+    ClearParamText();
+    ParamText(pMsg,
+              (const unsigned char *)"\001 ",
+              (const unsigned char *)"\001 ",
+              (const unsigned char *)"\001 ");
+    extern SInt16 Alert(SInt16 alertID, ModalFilterProcPtr filterProc);
+    Alert(130, NULL);
 }
 
 /*
