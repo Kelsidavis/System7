@@ -348,8 +348,11 @@ FLineTrapHandler TrapDispatcher_SetFLineHandler(FLineTrapHandler handler) {
  */
 SInt32 TrapDispatcher_BadTrap(TrapContext *context) {
     /* Save all registers in debugger space - this would be system-specific */
-    printf("BadTrap: Unimplemented trap at PC=0x%08X, trap_word=0x%04X\n",
-           context->pc - 2, *(UInt16*)(uintptr_t)(context->pc - 2));
+    {
+        extern void serial_printf(const char* fmt, ...);
+        serial_printf("BadTrap: Unimplemented trap at PC=0x%08X, trap_word=0x%04X\n",
+                      context->pc - 2, *(UInt16*)(uintptr_t)(context->pc - 2));
+    }
 
     /* In original Mac OS, this would call SysError with DS_CORE_ERR */
     SysError(DS_CORE_ERR);
@@ -466,7 +469,8 @@ static SInt32 unimplemented_trap_handler(TrapContext *context) {
 
 /* Weak symbol definitions for system functions that should be provided externally */
 __attribute__((weak)) void SysError(int error_code) {
-    fprintf(stderr, "SYSTEM ERROR %d: Unimplemented trap or critical failure\n", error_code);
+    extern void serial_printf(const char* fmt, ...);
+    serial_printf("SYSTEM ERROR %d: Unimplemented trap or critical failure\n", error_code);
     abort();
 }
 

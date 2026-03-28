@@ -19,7 +19,8 @@
 
 /* Menu bar management */
 void InitMenuBar(void) {
-    printf("Initializing menu bar\n");
+    extern void serial_puts(const char* str);
+    serial_puts("Initializing menu bar\n");
     InitMenus();
 }
 

@@ -335,7 +335,10 @@ OSErr GetAudioOutputVolume(Fixed *volume) {
 
 OSErr GetAudioOutputDeviceCapabilities(const char *deviceID, AudioOutputFormat **formats,
                                        short *formatCount, AudioOutputFlags *supportedFlags) {
+    (void)deviceID;
+    if (formats) *formats = NULL;
     if (formatCount) *formatCount = 0;
+    if (supportedFlags) *supportedFlags = 0;
     return noErr;
 }
 
@@ -413,6 +416,8 @@ OSErr SetAudioStreamProperty(AudioOutputStream *stream, OSType property, const v
 
 OSErr GetAudioStreamProperty(AudioOutputStream *stream, OSType property, void *value,
                              long *valueSize) {
+    (void)stream; (void)property; (void)value;
+    if (valueSize) *valueSize = 0;
     return noErr;
 }
 

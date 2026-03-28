@@ -240,10 +240,8 @@ OSErr GetSpeechRate(SpeechChannel chan, Fixed *rate) {
         }
     }
 
-    if (rate) {
-        *rate = 0x00010000;
-    }
-    return noErr;  // Stub
+    *rate = 0x00010000;  /* Fixed 1.0 = normal rate */
+    return noErr;
 }
 
 /*
@@ -281,10 +279,8 @@ OSErr GetSpeechPitch(SpeechChannel chan, Fixed *pitch) {
         }
     }
 
-    if (pitch) {
-        *pitch = 0x00010000;
-    }
-    return noErr;  // Stub
+    *pitch = 0x00010000;  /* Fixed 1.0 = normal pitch */
+    return noErr;
 }
 
 /*
