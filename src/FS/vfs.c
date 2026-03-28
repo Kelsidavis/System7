@@ -896,10 +896,12 @@ void VFS_CloseFile(VFSFile* file) {
         VFSVolume* vol = VFS_FindVolume(file->vref);
         if (vol) {
             VFSOverlayEntry* oe = VFS_FindOverlay(vol, file->fileID);
-            if (oe && oe->created) {
+            if (oe) {
                 /* Free old persisted data */
                 if (oe->fileData) {
                     DisposePtr((Ptr)oe->fileData);
+                    oe->fileData = NULL;
+                    oe->fileDataSize = 0;
                 }
                 /* Copy current buffer to overlay */
                 oe->fileData = (uint8_t*)NewPtr(file->memSize);
@@ -911,7 +913,9 @@ void VFS_CloseFile(VFSFile* file) {
                     extern void GetDateTime(uint32_t* secs);
                     uint32_t now = 0;
                     GetDateTime(&now);
-                    oe->entry.modTime = now;
+                    if (now != 0) {
+                        oe->entry.modTime = now;
+                    }
                 }
             }
         }
@@ -955,7 +959,8 @@ bool VFS_WriteFile(VFSFile* file, const void* buffer, uint32_t length, uint32_t*
     uint32_t endPos = file->memPosition + length;
 
     if (endPos > file->memCapacity) {
-        /* Grow buffer — round up to 4KB blocks */
+        /* Grow buffer — round up to 4KB blocks (check for overflow in rounding) */
+        if (endPos > (uint32_t)0xFFFFF000) return false;  /* Would overflow when rounding up */
         uint32_t newCap = (endPos + 4095) & ~4095u;
         uint8_t* newBuf = (uint8_t*)NewPtr(newCap);
         if (!newBuf) return false;

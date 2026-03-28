@@ -241,6 +241,10 @@ bool HFS_CatalogLookup(HFS_Catalog* cat, DirID parentID, const char* name,
 
     /* Find matching name (case-insensitive) */
     for (int i = 0; i < count; i++) {
+        /* Verify entry name length matches before comparing */
+        size_t entryLen = strlen(entries[i].name);
+        if (entryLen != len) continue;
+
         bool match = true;
         for (size_t j = 0; j < len; j++) {
             char c1 = entries[i].name[j];
@@ -252,7 +256,7 @@ bool HFS_CatalogLookup(HFS_Catalog* cat, DirID parentID, const char* name,
                 break;
             }
         }
-        if (match && entries[i].name[len] == '\0') {
+        if (match) {
             *entry = entries[i];
             return true;
         }
