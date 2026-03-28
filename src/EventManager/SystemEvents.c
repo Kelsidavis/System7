@@ -933,6 +933,7 @@ SInt16 FormatSystemEvent(const EventRecord* event, char* buffer, SInt16 bufferSi
     }
 
     SInt16 len = snprintf(buffer, bufferSize, "%s Event (0x%04X)", eventName, event->what);
+    if (len < 0) return 0;
     return (len < bufferSize) ? len : bufferSize - 1;
 }
 

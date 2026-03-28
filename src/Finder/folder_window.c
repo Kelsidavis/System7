@@ -1483,7 +1483,8 @@ Boolean HandleFolderWindowClick(WindowPtr w, EventRecord *ev, Boolean isDoubleCl
                                 "The document \"%s\" could not be opened, "
                                 "because the application that created it "
                                 "could not be found.", name);
-                            if (mlen > 200) mlen = 200;
+                            if (mlen < 0) mlen = 0;
+                            else if (mlen > 200) mlen = 200;
                             *p++ = (unsigned char)mlen;
                             memcpy(p, msg, mlen); p += mlen;
                         }

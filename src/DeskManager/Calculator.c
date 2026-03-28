@@ -153,9 +153,7 @@ void Calculator_Reset(Calculator *calc)
     if (!calc) return;
 
     calc->state = CALC_STATE_ENTRY;
-    (calc)->value = 0.0;
-    (calc)->value = 0.0;
-    (calc)->value = 0.0;
+    calc->value = 0.0;
     calc->pendingOp = CALC_OP_NONE;
     calc->newNumber = true;
     calc->decimalEntered = false;
@@ -374,8 +372,7 @@ int Calculator_PerformOperation(Calculator *calc, CalcOperation operation)
                 Calculator_AddToHistory(calc, &op1, &op2,
                                       calc->pendingOp, &resultNum);
 
-                (calc)->value = result;
-                (calc)->value = result;
+                calc->value = result;
                 calc->pendingOp = CALC_OP_NONE;
                 calc->state = CALC_STATE_RESULT;
                 calc->newNumber = true;
@@ -1020,8 +1017,39 @@ static int Calculator_DAEvent(DeskAccessory *da, const EventRecord *event)
 {
     if (!da || !event) return DESK_ERR_INVALID_PARAM;
 
-    /* Handle calculator events */
-    /* This would need to be implemented based on the event system */
+    Calculator *calc = (Calculator *)da->driverData;
+    if (!calc) return DESK_ERR_INVALID_PARAM;
+
+    switch (event->what) {
+        case keyDown:
+        case autoKey: {
+            /* Map key presses to calculator buttons */
+            char ch = (char)(event->message & charCodeMask);
+            CalcButtonID btn = -1;
+            if (ch >= '0' && ch <= '9') btn = CALC_BTN_0 + (ch - '0');
+            else if (ch == '+') btn = CALC_BTN_ADD;
+            else if (ch == '-') btn = CALC_BTN_SUBTRACT;
+            else if (ch == '*') btn = CALC_BTN_MULTIPLY;
+            else if (ch == '/') btn = CALC_BTN_DIVIDE;
+            else if (ch == '=' || ch == '\r') btn = CALC_BTN_EQUALS;
+            else if (ch == '.') btn = CALC_BTN_DECIMAL;
+            else if (ch == 'c' || ch == 'C') btn = CALC_BTN_CLEAR;
+            else if (ch == 0x1B) btn = CALC_BTN_CLEAR_ALL;  /* Escape */
+
+            if (btn >= 0) {
+                Calculator_PressButton(calc, btn);
+            }
+            break;
+        }
+
+        case updateEvt:
+            Calculator_UpdateDisplay(calc);
+            break;
+
+        default:
+            break;
+    }
+
     return DESK_ERR_NONE;
 }
 

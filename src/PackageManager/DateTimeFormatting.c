@@ -176,8 +176,10 @@ void IUDateString(UInt32 dateTime, DateForm longFlag, char *result) {
             break;
     }
 
-    /* Clamp length to Pascal string maximum */
-    if (len > 255) {
+    /* Clamp length to Pascal string maximum (check for snprintf error too) */
+    if (len < 0) {
+        len = 0;
+    } else if (len > 255) {
         len = 255;
     }
 
@@ -253,8 +255,10 @@ void IUTimeString(UInt32 dateTime, Boolean wantSeconds, char *result) {
                       hour12, minute, ampm);
     }
 
-    /* Clamp length to Pascal string maximum */
-    if (len > 255) {
+    /* Clamp length to Pascal string maximum (check for snprintf error too) */
+    if (len < 0) {
+        len = 0;
+    } else if (len > 255) {
         len = 255;
     }
 

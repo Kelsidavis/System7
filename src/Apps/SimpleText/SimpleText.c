@@ -635,7 +635,8 @@ Boolean ST_ConfirmClose(STDocument* doc) {
         char msg[200];
         int mlen = snprintf(msg, sizeof(msg),
                            "Save changes to \"%s\" before closing?", doc->fileName);
-        if (mlen > 200) mlen = 200;
+        if (mlen < 0) mlen = 0;
+        else if (mlen > 200) mlen = 200;
         *p++ = (unsigned char)mlen;
         memcpy(p, msg, mlen);
         p += mlen;

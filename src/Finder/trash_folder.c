@@ -577,6 +577,8 @@ OSErr GenerateUniqueTrashName(Str255 baseName, Str255 uniqueName) {
         } else {
             suffixLen = snprintf(suffix, sizeof(suffix), " copy %u", sTrashNameCounter);
         }
+        if (suffixLen < 0) suffixLen = 0;
+        if (suffixLen > (int)sizeof(suffix) - 1) suffixLen = (int)sizeof(suffix) - 1;
         /* Truncate base name if needed to fit suffix within 255 chars */
         if (baseLen + suffixLen > 255) {
             baseLen = 255 - (unsigned char)suffixLen;
