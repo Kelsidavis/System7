@@ -301,22 +301,26 @@ void SetTextControlText(ControlHandle control, ConstStr255Param text) {
             TESetText((Ptr)(text + 1), textLen, editData->textEdit);
         }
 
-        /* Update text handle */
+        /* Update text handle (lock to prevent compaction during copy) */
         if (editData->textHandle) {
             SetHandleSize(editData->textHandle, textLen + 1);
             if (MemError() == noErr) {
+                HLock(editData->textHandle);
                 BlockMove(text, *editData->textHandle, textLen + 1);
+                HUnlock(editData->textHandle);
             }
         }
     } else if (IsStaticTextControl(control)) {
         staticData = (StaticTextData *)*(*control)->contrlData;
         if (!staticData) return;
 
-        /* Update text handle */
+        /* Update text handle (lock to prevent compaction during copy) */
         if (staticData->textHandle) {
             SetHandleSize(staticData->textHandle, textLen + 1);
             if (MemError() == noErr) {
+                HLock(staticData->textHandle);
                 BlockMove(text, *staticData->textHandle, textLen + 1);
+                HUnlock(staticData->textHandle);
             }
         }
 

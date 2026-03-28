@@ -196,7 +196,7 @@ OSErr InitTimeBase(void) {
         }
 
         /* Use median to reduce outliers */
-        /* Simple selection sort to find median */
+        /* Simple selection sort on K-1 delta entries (deltas[0..K-2]) */
         for (int i = 0; i < K-2; i++) {
             for (int j = i+1; j < K-1; j++) {
                 if (deltas[i] > deltas[j]) {

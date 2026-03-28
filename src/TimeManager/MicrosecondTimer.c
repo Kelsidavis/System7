@@ -58,16 +58,21 @@ OSErr MicrosecondDelay(UInt32 microseconds) {
         /* Busy wait for short delays */
         uint64_t startCycles = PlatformCounterNow();
         TimeBaseInfo info;
-        GetTimeBaseInfo(&info);
+        if (GetTimeBaseInfo(&info) != noErr || info.counterFrequency == 0) {
+            return -1;  /* Timer not active */
+        }
         uint64_t targetCycles = startCycles +
             udiv64(microseconds * info.counterFrequency, MICROSECONDS_PER_SECOND);
-        while (PlatformCounterNow() < targetCycles) {
+        UInt32 maxSpins = microseconds * 10;  /* Safety limit */
+        while (PlatformCounterNow() < targetCycles && maxSpins-- > 0) {
             /* Spin */
         }
     } else {
-        /* Poll Microseconds for longer delays */
+        /* Poll Microseconds for longer delays with timeout */
+        UInt32 maxIters = (microseconds / 100) + 10000;  /* Safety limit */
         do {
             Microseconds(&now);
+            if (maxIters-- == 0) break;
         } while (((uint64_t)now.hi << 32 | now.lo) < targetUs);
     }
     
