@@ -111,8 +111,13 @@ OSErr DRVRLoader_LoadDriver(SInt16 resourceID, SInt16 *outUnitNumber)
         return extBadResource;
     }
 
-    /* Load resource data */
+    /* Load resource data into memory */
     LoadResource(resourceHandle);
+    if (!*resourceHandle) {
+        DRVR_LOG("Failed to load DRVR resource %d into memory\n", resourceID);
+        ReleaseResource(resourceHandle);
+        return extBadResource;
+    }
 
     /* Get resource info */
     ResID resID = 0;

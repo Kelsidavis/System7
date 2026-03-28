@@ -305,11 +305,13 @@ void Scrap_Info(short* count, short* state)
 }
 
 /*
- * Scrap_Unload - Unload scrap from memory (no-op for MVP)
+ * Scrap_Unload - Write scrap data to persistent storage
  */
 void Scrap_Unload(void)
 {
-    /* No-op for now - could write to disk in future */
+    if (gScrap.dirty) {
+        Scrap_SaveToVFS();
+    }
 }
 
 /*

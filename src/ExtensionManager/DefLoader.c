@@ -115,8 +115,13 @@ OSErr DefLoader_LoadDefinition(ResType defType, SInt16 resourceID)
         return extBadResource;
     }
 
-    /* Load resource data */
+    /* Load resource data into memory */
     LoadResource(resourceHandle);
+    if (!*resourceHandle) {
+        DEF_LOG("Failed to load %s resource %d into memory\n", DefTypeToString(defType), resourceID);
+        ReleaseResource(resourceHandle);
+        return extBadResource;
+    }
 
     /* Get resource info */
     ResID resID = 0;

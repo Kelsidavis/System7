@@ -109,8 +109,13 @@ OSErr CDEFLoader_LoadCDEF(SInt16 resourceID, SInt16 *outProcID)
         return extBadResource;
     }
 
-    /* Load resource data */
+    /* Load resource data into memory */
     LoadResource(resourceHandle);
+    if (!*resourceHandle) {
+        CDEF_LOG("Failed to load CDEF resource %d into memory\n", resourceID);
+        ReleaseResource(resourceHandle);
+        return extBadResource;
+    }
 
     /* Get resource info */
     ResID resID = 0;

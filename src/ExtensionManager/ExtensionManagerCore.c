@@ -355,8 +355,15 @@ OSErr ExtensionManager_LoadByID(OSType resourceType, SInt16 resourceID,
         return extBadResource;
     }
 
-    /* Load resource data */
+    /* Load resource data into memory */
     LoadResource(resourceHandle);
+    if (!*resourceHandle) {
+        EXT_LOG("Failed to load resource data for type=%c%c%c%c id=%d\n",
+                (char)(resourceType >> 24), (char)(resourceType >> 16),
+                (char)(resourceType >> 8), (char)resourceType, resourceID);
+        ReleaseResource(resourceHandle);
+        return extBadResource;
+    }
 
     /* Get resource info */
     ResID resID = 0;

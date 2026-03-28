@@ -103,8 +103,13 @@ OSErr FKEYLoader_LoadFKEY(SInt16 resourceID)
         return extBadResource;
     }
 
-    /* Load resource data */
+    /* Load resource data into memory */
     LoadResource(resourceHandle);
+    if (!*resourceHandle) {
+        FKEY_LOG("Failed to load FKEY resource %d into memory\n", resourceID);
+        ReleaseResource(resourceHandle);
+        return extBadResource;
+    }
 
     /* Get resource info */
     ResID resID = 0;
