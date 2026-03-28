@@ -842,11 +842,52 @@ StringPtr GetFinderVersion(void)
 
 /*
  * FindFolder - Locate system folders
- * Basic stub implementation - returns root directory
+ * Maps standard Mac OS folder type codes to directory IDs.
+ * Directory IDs follow HFS convention: 1=root parent, 2=root, 3+=subdirs.
  */
 OSErr FindFolder(SInt16 vRefNum, OSType folderType, Boolean createFolder, SInt16* foundVRefNum, SInt32* foundDirID) {
+    (void)createFolder;  /* Not creating folders in this implementation */
+
     if (foundVRefNum) *foundVRefNum = vRefNum;
-    if (foundDirID) *foundDirID = 2;  /* Root directory */
+
+    SInt32 dirID = 2;  /* Default: root directory */
+    switch (folderType) {
+        case 'macs':  /* kSystemFolderType */
+            dirID = 3;  /* System Folder */
+            break;
+        case 'trsh':  /* kTrashFolderType */
+            dirID = 4;  /* Trash */
+            break;
+        case 'desk':  /* kDesktopFolderType */
+            dirID = 2;  /* Desktop = root */
+            break;
+        case 'pref':  /* kPreferencesFolderType */
+            dirID = 5;  /* Preferences */
+            break;
+        case 'extn':  /* kExtensionsFolderType */
+            dirID = 6;  /* Extensions */
+            break;
+        case 'ctrl':  /* kControlPanelFolderType */
+            dirID = 7;  /* Control Panels */
+            break;
+        case 'font':  /* kFontsFolderType */
+            dirID = 8;  /* Fonts */
+            break;
+        case 'strt':  /* kStartupFolderType */
+            dirID = 9;  /* Startup Items */
+            break;
+        case 'amnu':  /* kAppleMenuFolderType */
+            dirID = 10; /* Apple Menu Items */
+            break;
+        case 'temp':  /* kTemporaryFolderType */
+            dirID = 11; /* Temporary Items */
+            break;
+        default:
+            dirID = 2;  /* Unknown folder type: return root */
+            break;
+    }
+
+    if (foundDirID) *foundDirID = dirID;
     return noErr;
 }
 

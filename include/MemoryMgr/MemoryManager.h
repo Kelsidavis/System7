@@ -28,7 +28,7 @@ enum {
 typedef struct BlockHeader {
     u32     size;           /* Total size including header (aligned) */
     u16     flags;          /* BF_* flags */
-    u16     reserved;       /* Padding/future use */
+    u16     lockCount;      /* Handles: lock nesting depth; Ptrs: canary size */
     u32     prevSize;       /* Size of previous block (0 if first) */
     Handle  masterPtr;      /* For handles: backpointer to master pointer */
     /* Data follows immediately after */

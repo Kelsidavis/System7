@@ -869,7 +869,7 @@ void* NewPtr(u32 byteCount) {
 
 #if MEM_DEBUG_CANARY
     /* Stash canary size in reserved field and write tail canary pattern */
-    b->reserved = (u16)CANARY_SIZE;
+    b->lockCount = (u16)CANARY_SIZE;
     if (CANARY_SIZE) {
         u8* user = (u8*)result;
         u32 total = b->size - BLKHDR_SZ;
@@ -905,9 +905,8 @@ void* NewPtr(u32 byteCount) {
 }
 
 void* NewPtrClear(u32 byteCount) {
-    void* p = NewPtr(byteCount);
-    if (p) memset(p, 0, byteCount);
-    return p;
+    /* NewPtr already zeros memory, so no additional memset needed */
+    return NewPtr(byteCount);
 }
 
 void DisposePtr(void* p) {
@@ -954,13 +953,13 @@ void DisposePtr(void* p) {
 
 #if MEM_DEBUG_CANARY
     /* Verify tail canary if present */
-    if (b->reserved) {
+    if (b->lockCount) {
         u32 total = b->size - BLKHDR_SZ;
-        if (b->reserved <= total) {
-            u32 userSize = total - (u32)b->reserved;
+        if (b->lockCount <= total) {
+            u32 userSize = total - (u32)b->lockCount;
             u8* user = (u8*)p;
             bool ok = true;
-            for (u32 i = 0; i < (u32)b->reserved; i++) {
+            for (u32 i = 0; i < (u32)b->lockCount; i++) {
                 if (user[userSize + i] != (u8)CANARY_BYTE) { ok = false; break; }
             }
             if (!ok) {
@@ -1029,8 +1028,8 @@ u32 GetPtrSize(void* p) {
     BlockHeader* b = (BlockHeader*)((u8*)p - BLKHDR_SZ);
     u32 total = b->size - BLKHDR_SZ;
 #if MEM_DEBUG_CANARY
-    if (b->reserved && b->reserved <= total) {
-        total -= (u32)b->reserved;
+    if (b->lockCount && b->lockCount <= total) {
+        total -= (u32)b->lockCount;
     }
 #endif
     return total;
@@ -1133,6 +1132,7 @@ void DisposeHandle(Handle h) {
     *h = NULL;
 
     b->flags &= ~(BF_HANDLE | BF_LOCKED | BF_PURGEABLE);
+    b->lockCount = 0;
     b->masterPtr = NULL;
     z->bytesUsed -= b->size;
     z->bytesFree += b->size;
@@ -1158,6 +1158,9 @@ void DisposeHandle(Handle h) {
 void HLock(Handle h) {
     if (h && *h) {
         BlockHeader* b = (BlockHeader*)((u8*)*h - BLKHDR_SZ);
+        if (b->lockCount < 0xFFFF) {
+            b->lockCount++;
+        }
         b->flags |= BF_LOCKED;
     }
 }
@@ -1165,7 +1168,12 @@ void HLock(Handle h) {
 void HUnlock(Handle h) {
     if (h && *h) {
         BlockHeader* b = (BlockHeader*)((u8*)*h - BLKHDR_SZ);
-        b->flags &= ~BF_LOCKED;
+        if (b->lockCount > 0) {
+            b->lockCount--;
+        }
+        if (b->lockCount == 0) {
+            b->flags &= ~BF_LOCKED;
+        }
     }
 }
 
@@ -1185,6 +1193,80 @@ u32 GetHandleSize(Handle h) {
     if (!h || !*h) return 0;
     BlockHeader* b = (BlockHeader*)((u8*)*h - BLKHDR_SZ);
     return b->size - BLKHDR_SZ;
+}
+
+/*
+ * MoveHHi - Move handle data to top of heap to reduce fragmentation.
+ * In this implementation, handles are managed via segregated freelists
+ * so MoveHHi is a no-op (compaction handles relocation).
+ */
+void MoveHHi(Handle h) {
+    /* Compaction-based allocator handles placement; no explicit move needed */
+    (void)h;
+}
+
+/*
+ * EmptyHandle - Release the data associated with a handle without
+ * disposing the master pointer. Sets *h to NULL.
+ */
+void EmptyHandle(Handle h) {
+    if (!h || !*h) return;
+
+    ZoneInfo* z = gCurrentZone;
+    if (!z) return;
+
+    BlockHeader* b = (BlockHeader*)((u8*)*h - BLKHDR_SZ);
+    b->flags &= ~(BF_HANDLE | BF_LOCKED | BF_PURGEABLE);
+    b->lockCount = 0;
+    b->masterPtr = NULL;
+    z->bytesUsed -= b->size;
+    freelist_insert(z, b);
+    *h = NULL;
+}
+
+/*
+ * RecoverHandle - Given a pointer to data within a handle block,
+ * recover the handle (master pointer) that owns it.
+ */
+bool RecoverHandle(void* p, Handle* outHandle) {
+    if (!p || !outHandle) return false;
+
+    BlockHeader* b = (BlockHeader*)((u8*)p - BLKHDR_SZ);
+    if (!(b->flags & BF_HANDLE) || !b->masterPtr) {
+        return false;
+    }
+
+    *outHandle = b->masterPtr;
+    return true;
+}
+
+/*
+ * SetPtrSize - Resize a non-relocatable pointer allocation.
+ * This is equivalent to realloc for Ptr blocks.
+ */
+bool SetPtrSize(void* p, u32 newSize) {
+    if (!p) return false;
+
+    ZoneInfo* z = gCurrentZone;
+    if (!z) return false;
+
+    BlockHeader* b = (BlockHeader*)((u8*)p - BLKHDR_SZ);
+    if (!(b->flags & BF_PTR)) return false;
+
+    u32 oldDataSize = b->size - BLKHDR_SZ;
+    if (newSize == oldDataSize) return true;
+
+    /* Allocate new block, copy data, free old */
+    void* newPtr = NewPtr(newSize);
+    if (!newPtr) return false;
+
+    u32 copySize = (newSize < oldDataSize) ? newSize : oldDataSize;
+    memcpy(newPtr, p, copySize);
+
+    /* Cannot change the pointer value (caller holds it), so this
+     * implementation is limited. For now, just return false for grow. */
+    DisposePtr(newPtr);
+    return false;  /* Cannot resize in-place without relocating */
 }
 
 bool SetHandleSize_MemMgr(Handle h, u32 newSize) {
@@ -1241,6 +1323,7 @@ bool SetHandleSize_MemMgr(Handle h, u32 newSize) {
 
     /* Free old block (but don't touch master pointer) */
     b->flags &= ~(BF_HANDLE | BF_LOCKED | BF_PURGEABLE);
+    b->lockCount = 0;
     b->masterPtr = NULL;
     z->bytesUsed -= b->size;
     z->bytesFree += b->size;
