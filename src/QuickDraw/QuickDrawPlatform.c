@@ -477,14 +477,8 @@ void QDPlatform_DrawShape(GrafPtr port, GrafVerb verb, const Rect* rect,
                 /* Draw with pattern */
                 for (SInt32 y = rect->top; y < rect->bottom; y++) {
                     for (SInt32 x = rect->left; x < rect->right; x++) {
-                        /* Get pattern bit (8x8 repeating) */
-                        SInt32 patY = (y - rect->top) % 8;
-                        SInt32 patX = (x - rect->left) % 8;
-                        UInt8 patByte = pat->pat[patY];
-                        Boolean bit = (patByte >> (7 - patX)) & 1;
-
-                        /* Use black for 1 bits, white for 0 bits */
-                        UInt32 color = bit ? pack_color(0, 0, 0) : pack_color(255, 255, 255);
+                        UInt32 color = QDPlatform_SelectPatternColor(port, pat, x, y,
+                                                                      pack_color(0, 0, 0));
                         QDPlatform_SetPixel(x + offsetX, y + offsetY, color);
                     }
                 }
@@ -524,17 +518,11 @@ void QDPlatform_DrawShape(GrafPtr port, GrafVerb verb, const Rect* rect,
         } else if (verb == erase) {
             /* Erase should use port's background pattern, NOT desktop pattern */
             if (pat) {
-                /* Use 1-bit pattern with background color */
+                /* Use 1-bit pattern with port background color */
                 for (SInt32 y = rect->top; y < rect->bottom; y++) {
                     for (SInt32 x = rect->left; x < rect->right; x++) {
-                        /* Get pattern bit (8x8 repeating) */
-                        SInt32 patY = y % 8;  /* Use absolute position for desktop pattern */
-                        SInt32 patX = x % 8;
-                        UInt8 patByte = pat->pat[patY];
-                        Boolean bit = (patByte >> (7 - patX)) & 1;
-
-                        /* Use black for 1 bits, white for 0 bits */
-                        UInt32 color = bit ? pack_color(0, 0, 0) : pack_color(255, 255, 255);
+                        UInt32 color = QDPlatform_SelectPatternColor(port, pat, x, y,
+                                                                      pack_color(255, 255, 255));
                         QDPlatform_SetPixel(x + offsetX, y + offsetY, color);
                     }
                 }
@@ -593,13 +581,21 @@ void QDPlatform_DrawShape(GrafPtr port, GrafVerb verb, const Rect* rect,
                         !QDPointInEllipse(x, y + 1, rect);
 
                     if (neighborOutside) {
-                        UInt32 color = pack_color(0, 0, 0);
-                        if (pat) {
-                            UInt8 patByte = pat->pat[(y - rect->top) & 7];
-                            Boolean bit = (patByte >> (7 - ((x - rect->left) & 7))) & 1;
-                            color = bit ? pack_color(0, 0, 0) : pack_color(255, 255, 255);
+                        UInt32 color = QDPlatform_SelectPatternColor(port, pat, x, y,
+                                                                      pack_color(0, 0, 0));
+                        /* Apply pen size: also fill nearby pixels for thick outlines */
+                        SInt16 penW = port ? (port->pnSize.h > 1 ? port->pnSize.h : 1) : 1;
+                        SInt16 penH = port ? (port->pnSize.v > 1 ? port->pnSize.v : 1) : 1;
+                        for (SInt16 py = 0; py < penH; py++) {
+                            for (SInt16 px = 0; px < penW; px++) {
+                                SInt32 dx = x + px + offsetX;
+                                SInt32 dy = y + py + offsetY;
+                                if (dx >= 0 && dx < (SInt32)fb_width &&
+                                    dy >= 0 && dy < (SInt32)fb_height) {
+                                    QDPlatform_SetPixel(dx, dy, color);
+                                }
+                            }
                         }
-                        QDPlatform_SetPixel(x + offsetX, y + offsetY, color);
                     }
                 }
             }
@@ -643,14 +639,8 @@ void QDPlatform_DrawShape(GrafPtr port, GrafVerb verb, const Rect* rect,
                         continue;
                     }
 
-                    UInt32 color = fallbackColor;
-                    if (pat) {
-                        SInt32 patY = (verb == paint) ? ((y - rect->top) & 7) : (y & 7);
-                        SInt32 patX = (verb == paint) ? ((x - rect->left) & 7) : (x & 7);
-                        UInt8 patByte = pat->pat[patY];
-                        Boolean bit = (patByte >> (7 - patX)) & 1;
-                        color = bit ? pack_color(0, 0, 0) : pack_color(255, 255, 255);
-                    }
+                    UInt32 color = pat ? QDPlatform_SelectPatternColor(port, pat, x, y, fallbackColor)
+                                       : fallbackColor;
 
                     if (verb == erase && pat == NULL) {
                         color = pack_color(255, 255, 255);
@@ -681,14 +671,8 @@ void QDPlatform_DrawShape(GrafPtr port, GrafVerb verb, const Rect* rect,
 
                     if (!neighborOutside) continue;
 
-                    UInt32 color = pack_color(0, 0, 0);
-                    if (pat) {
-                        SInt32 patY = (y - rect->top) & 7;
-                        SInt32 patX = (x - rect->left) & 7;
-                        UInt8 patByte = pat->pat[patY];
-                        Boolean bit = (patByte >> (7 - patX)) & 1;
-                        color = bit ? pack_color(0, 0, 0) : pack_color(255, 255, 255);
-                    }
+                    UInt32 color = QDPlatform_SelectPatternColor(port, pat, x, y,
+                                                                  pack_color(0, 0, 0));
 
                     if (mode == patXor) {
                         UInt32 current = QDPlatform_GetPixel(x + offsetX, y + offsetY);
@@ -731,14 +715,8 @@ void QDPlatform_DrawShape(GrafPtr port, GrafVerb verb, const Rect* rect,
                         continue;
                     }
 
-                    UInt32 color = fallbackColor;
-                    if (pat) {
-                        SInt32 patY = (verb == paint) ? ((y - rect->top) & 7) : (y & 7);
-                        SInt32 patX = (verb == paint) ? ((x - rect->left) & 7) : (x & 7);
-                        UInt8 patByte = pat->pat[patY];
-                        Boolean bit = (patByte >> (7 - patX)) & 1;
-                        color = bit ? pack_color(0, 0, 0) : pack_color(255, 255, 255);
-                    }
+                    UInt32 color = pat ? QDPlatform_SelectPatternColor(port, pat, x, y, fallbackColor)
+                                       : fallbackColor;
 
                     if (verb == erase && pat == NULL) {
                         color = pack_color(255, 255, 255);
@@ -775,14 +753,8 @@ void QDPlatform_DrawShape(GrafPtr port, GrafVerb verb, const Rect* rect,
 
                     if (!isEdge) continue;
 
-                    UInt32 color = pack_color(0, 0, 0);
-                    if (pat) {
-                        SInt32 patY = (y - rect->top) & 7;
-                        SInt32 patX = (x - rect->left) & 7;
-                        UInt8 patByte = pat->pat[patY];
-                        Boolean bit = (patByte >> (7 - patX)) & 1;
-                        color = bit ? pack_color(0, 0, 0) : pack_color(255, 255, 255);
-                    }
+                    UInt32 color = QDPlatform_SelectPatternColor(port, pat, x, y,
+                                                                  pack_color(0, 0, 0));
 
                     if (mode == patXor) {
                         UInt32 current = QDPlatform_GetPixel(x + offsetX, y + offsetY);
@@ -896,17 +868,11 @@ void QDPlatform_FillPoly(GrafPtr port, PolyHandle poly, const Pattern* pat,
                         UInt32 current = QDPlatform_GetPixel(x, y);
                         color = current ^ 0x00FFFFFF;
                     } else {
-                        /* Apply pattern */
-                        if (pat) {
-                            SInt32 patY = y & 7;
-                            SInt32 patX = x & 7;
-                            UInt8 patByte = pat->pat[patY];
-                            Boolean bit = (patByte >> (7 - patX)) & 1;
-                            color = bit ? pack_color(0, 0, 0) : pack_color(255, 255, 255);
-                        } else {
-                            color = (verb == erase) ? pack_color(255, 255, 255)
-                                                   : pack_color(0, 0, 0);
-                        }
+                        /* Apply pattern with port colors */
+                        UInt32 fallback = (verb == erase) ? pack_color(255, 255, 255)
+                                                          : pack_color(0, 0, 0);
+                        color = pat ? QDPlatform_SelectPatternColor(port, pat, x, y, fallback)
+                                    : fallback;
 
                         if (mode == patXor) {
                             UInt32 current = QDPlatform_GetPixel(x, y);
@@ -1066,14 +1032,11 @@ void QDPlatform_DrawRegion(RgnHandle rgn, short mode, const Pattern* pat) {
         extern void EraseRect(const Rect* r);
         EraseRect(&r);
     } else if (mode == paint && pat) {
-        /* Simple paint with pattern */
+        /* Simple paint with pattern using port colors */
         for (int y = r.top; y < r.bottom; y++) {
             for (int x = r.left; x < r.right; x++) {
-                int patY = (y - r.top) % 8;
-                int patX = (x - r.left) % 8;
-                uint8_t patByte = pat->pat[patY];
-                bool bit = (patByte >> (7 - patX)) & 1;
-                uint32_t color = bit ? pack_color(0, 0, 0) : pack_color(255, 255, 255);
+                uint32_t color = QDPlatform_SelectPatternColor(port, pat, x, y,
+                                                                pack_color(0, 0, 0));
                 QDPlatform_SetPixel(x, y, color);
             }
         }
@@ -1100,12 +1063,8 @@ void QDPlatform_DrawRegion(RgnHandle rgn, short mode, const Pattern* pat) {
         for (int y = top; y < bottom; y++) {
             for (int x = left; x < right; x++) {
                 /* Use position for pattern tiling (8x8 repeat) */
-                int patY = y % 8;
-                int patX = x % 8;
-                uint8_t patByte = pat->pat[patY];
-                bool bit = (patByte >> (7 - patX)) & 1;
-                /* Pattern: 0=white, 1=black */
-                uint32_t color = bit ? pack_color(0, 0, 0) : pack_color(255, 255, 255);
+                uint32_t color = QDPlatform_SelectPatternColor(port, pat, x, y,
+                                                              pack_color(0, 0, 0));
 
                 /* Write to appropriate location */
                 if (isDirectFB) {
