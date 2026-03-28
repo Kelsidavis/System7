@@ -298,6 +298,7 @@ Boolean HandleMouseDown(EventRecord* event)
 
         case inContent: {
             /* Click in window content */
+            if (!whichWindow) return true;  /* Safety: window may have been closed */
             EVT_LOG_DEBUG("HandleMouseDown: inContent case - whichWindow=%p\n", (void*)whichWindow);
 
             WindowPtr frontWin = FrontWindow();
@@ -345,15 +346,7 @@ Boolean HandleMouseDown(EventRecord* event)
                              (void*)whichWindow, dragBounds.top, dragBounds.left,
                              dragBounds.bottom, dragBounds.right);
 
-                extern void serial_puts(const char *str);
-                serial_puts("[EVT] ABOUT TO CALL DragWindow\n");
-                serial_puts("[EVT] DragWindow function ptr logged\n");
-
-                serial_puts("[MEM] before DragWindow\n");
-                MemoryManager_CheckSuspectBlock("before_DragWindow");
                 DragWindow(whichWindow, event->where, &dragBounds);
-                serial_puts("[MEM] after DragWindow\n");
-                MemoryManager_CheckSuspectBlock("after_DragWindow");
                 EVT_LOG_DEBUG("HandleMouseDown: DragWindow returned\n");
             } else {
                 EVT_LOG_DEBUG("HandleMouseDown: inDrag but whichWindow is NULL!\n");

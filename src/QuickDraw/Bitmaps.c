@@ -642,10 +642,16 @@ static void CopyBitsUnscaled(const BitMap *srcBits, const BitMap *dstBits,
             for (SInt16 line = 0; line < height; line++) {
                 SInt16 srcOffsetY = (srcRect->top + line - srcBits->bounds.top);
                 SInt16 dstOffsetY = (dstRect->top + line - dstBits->bounds.top);
+                SInt16 srcOffsetX = srcRect->left - srcBits->bounds.left;
+                SInt16 dstOffsetX = dstRect->left - dstBits->bounds.left;
+
+                /* Skip lines with negative offsets to prevent unsigned wraparound */
+                if (srcOffsetY < 0 || dstOffsetY < 0 || srcOffsetX < 0 || dstOffsetX < 0) continue;
+
                 UInt32 srcStart = (UInt32)srcOffsetY * (UInt32)srcRowBytes +
-                                  (UInt32)(srcRect->left - srcBits->bounds.left) * 4u;
+                                  (UInt32)srcOffsetX * 4u;
                 UInt32 dstStart = (UInt32)dstOffsetY * (UInt32)dstRowBytes +
-                                  (UInt32)(dstRect->left - dstBits->bounds.left) * 4u;
+                                  (UInt32)dstOffsetX * 4u;
                 UInt32 copyBytes = (UInt32)width * 4u;
 
                 /* Bounds safety: if pmReserved holds buffer size, clamp copy */

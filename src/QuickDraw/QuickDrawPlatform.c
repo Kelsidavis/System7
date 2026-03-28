@@ -498,18 +498,12 @@ void QDPlatform_DrawShape(GrafPtr port, GrafVerb verb, const Rect* rect,
                 }
             }
         } else if (verb == fill) {
-            /* Fill with pattern (used by FillRect) */
+            /* Fill with pattern using port foreground/background colors */
             if (pat) {
                 for (SInt32 y = rect->top; y < rect->bottom; y++) {
                     for (SInt32 x = rect->left; x < rect->right; x++) {
-                        /* Get pattern bit (8x8 repeating) */
-                        SInt32 patY = y % 8;  /* Use absolute position for desktop pattern */
-                        SInt32 patX = x % 8;
-                        UInt8 patByte = pat->pat[patY];
-                        Boolean bit = (patByte >> (7 - patX)) & 1;
-
-                        /* Use black for 1 bits, white for 0 bits */
-                        UInt32 color = bit ? pack_color(0, 0, 0) : pack_color(255, 255, 255);
+                        UInt32 color = QDPlatform_SelectPatternColor(port, pat, x, y,
+                                                                      pack_color(0, 0, 0));
                         QDPlatform_SetPixel(x + offsetX, y + offsetY, color);
                     }
                 }
@@ -579,11 +573,7 @@ void QDPlatform_DrawShape(GrafPtr port, GrafVerb verb, const Rect* rect,
 
                     UInt32 color = fallbackColor;
                     if (pat) {
-                        SInt32 patY = (verb == paint) ? ((y - rect->top) & 7) : (y & 7);
-                        SInt32 patX = (verb == paint) ? ((x - rect->left) & 7) : (x & 7);
-                        UInt8 patByte = pat->pat[patY];
-                        Boolean bit = (patByte >> (7 - patX)) & 1;
-                        color = bit ? pack_color(0, 0, 0) : pack_color(255, 255, 255);
+                        color = QDPlatform_SelectPatternColor(port, pat, x, y, fallbackColor);
                     }
 
                     QDPlatform_SetPixel(x + offsetX, y + offsetY, color);
@@ -1324,12 +1314,12 @@ void QDPlatform_DrawGlyphBitmap(GrafPtr port, Point pen,
     SInt16 destHeight = destBits->bounds.bottom - destBits->bounds.top;
     SInt16 destRowBytes = destBits->rowBytes & 0x3FFF;
 
-    /* Determine foreground color from pattern */
-    uint32_t fgColor = 0xFF000000;  /* Black default */
-    if (pattern) {
-        /* Use first byte of pattern to determine intensity */
-        uint8_t intensity = 255 - pattern->pat[0];
-        fgColor = pack_color(intensity, intensity, intensity);
+    /* Determine foreground color from port's foreground color setting */
+    uint32_t fgColor;
+    if (port) {
+        fgColor = QDPlatform_MapQDColor(port->fgColor);
+    } else {
+        fgColor = pack_color(0, 0, 0);  /* Black default */
     }
 
     /* Get framebuffer pointer */
