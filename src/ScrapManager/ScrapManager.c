@@ -504,9 +504,16 @@ long GetScrap(Handle hDest, OSType theType, long* offset) {
     HLock(item->data);
     HLock(hDest);
 
-    /* Copy data at offset */
+    /* Copy data at offset - validate offset is within bounds */
     srcPtr = *item->data;
-    destPtr = *hDest + (offset ? *offset : 0);
+    Size destOffset = (offset && *offset >= 0) ? (Size)*offset : 0;
+    Size newSize = currentSize + flavorSize;
+    if (destOffset + flavorSize > newSize) {
+        HUnlock(item->data);
+        HUnlock(hDest);
+        return 0;
+    }
+    destPtr = *hDest + destOffset;
     BlockMoveData(srcPtr, destPtr, flavorSize);
 
     /* Unlock handles */

@@ -70,19 +70,26 @@ OSErr FXMAllocateExtent(VCB* vcb, FCB* fcb, UInt32 bytes_needed, ExtentRecord* e
     /* In real implementation, would scan volume allocation bitmap */
     start_block = vcb->vcbAllocPtr;  /* Start search at allocation pointer */
 
-    /* Simple allocation - find contiguous free blocks */
-    if (start_block + blocks_needed <= vcb->vcbNmAlBlks) {
+    /* Simple allocation - find contiguous free blocks (overflow-safe comparisons) */
+    if (blocks_needed <= vcb->vcbNmAlBlks &&
+        start_block <= vcb->vcbNmAlBlks - blocks_needed) {
         blocks_found = blocks_needed;
     } else {
         /* Not enough contiguous space at allocation pointer */
         start_block = vcb->vcbAlBlSt;  /* Start from beginning */
-        if (start_block + blocks_needed <= vcb->vcbNmAlBlks) {
+        if (blocks_needed <= vcb->vcbNmAlBlks &&
+            start_block <= vcb->vcbNmAlBlks - blocks_needed) {
             blocks_found = blocks_needed;
         }
     }
 
     if (blocks_found < blocks_needed) {
         return memFullErr;  /* Not enough contiguous space */
+    }
+
+    /* Validate values fit in UInt16 for extent descriptor */
+    if (start_block > 0xFFFF || blocks_found > 0xFFFF) {
+        return paramErr;
     }
 
     /* Create extent record - Evidence: extent record creation pattern */
@@ -94,10 +101,8 @@ OSErr FXMAllocateExtent(VCB* vcb, FCB* fcb, UInt32 bytes_needed, ExtentRecord* e
     vcb->vcbFreeBks -= (UInt16)blocks_found;
 
     /* Update allocation pointer - Evidence: allocation pointer advancement */
-    vcb->vcbAllocPtr = (UInt16)(start_block + blocks_found);
-    if (vcb->vcbAllocPtr >= vcb->vcbNmAlBlks) {
-        vcb->vcbAllocPtr = vcb->vcbAlBlSt;  /* Wrap around */
-    }
+    UInt32 newAllocPtr = start_block + blocks_found;
+    vcb->vcbAllocPtr = (newAllocPtr < vcb->vcbNmAlBlks) ? (UInt16)newAllocPtr : vcb->vcbAlBlSt;
 
     return noErr;
 }

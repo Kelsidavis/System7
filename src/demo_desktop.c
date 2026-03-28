@@ -225,25 +225,6 @@ void draw_demo_desktop(void) {
 
     serial_puts("Drawing System 7.1 desktop...\n");
 
-    /* Report actual framebuffer settings */
-    serial_puts("Actual framebuffer resolution: ");
-    serial_puts("0x");
-    serial_puts("x");
-    serial_puts(" @ ");
-    serial_puts("\n");
-
-    serial_puts("BPP: ");
-    serial_puts(" Pitch: ");
-    serial_puts("\n");
-
-    serial_puts("Color format: R");
-    serial_puts("@");
-    serial_puts(" G");
-    serial_puts("@");
-    serial_puts(" B");
-    serial_puts("@");
-    serial_puts("\n");
-
     /* Classic Mac desktop pattern - 8x8 teal/blue checkerboard */
     uint32_t teal = pack_color(0, 128, 128);
     uint32_t blue = pack_color(0, 100, 150);

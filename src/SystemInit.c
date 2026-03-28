@@ -211,10 +211,7 @@ SystemError SystemInitToStage(SystemInitStage target_stage) {
                 break;
         }
 
-        /* Report stage completion */
-        /* if (err == SYS_OK && g_system.callbacks.stage_complete) {
-            g_system.callbacks.stage_complete(g_system.init_stage);
-        } */
+        /* Report stage completion (callback support removed) */
     }
 
     if (err != SYS_OK) {
@@ -324,8 +321,7 @@ static SystemError InitializeExpandMem(void) {
         return SYS_ERR_NO_MEMORY;
     }
 
-    /* Set system version in ExpandMem */
-    /* g_system.expand_mem->emVersion = EM_CURRENT_VERSION; */
+    /* ExpandMem version is set during ExpandMemInit */
 
     /* Initialize keyboard support */
     if (!ExpandMemInitKeyboard(g_system.expand_mem, 0)) {
@@ -441,10 +437,7 @@ static SystemError InitializeInputSystem(void) {
     /* In the portable version, we map modern keyboard/mouse events
      * to classic Mac OS ADB events */
 
-    /* Set up keyboard driver globals in ExpandMem */
-    if (g_system.expand_mem) {
-        /* g_system.expand_mem->emKeyboardType = 2; */  /* Extended keyboard */
-    }
+    /* Keyboard type is detected by PS/2 driver at runtime */
 
     /* Initialize mouse tracking */
     /* Will be handled by platform-specific event loop */

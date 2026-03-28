@@ -1,6 +1,5 @@
 /* #include "SystemTypes.h" */
 #include "MenuManager/menu_private.h"
-#include <stdio.h>
 /*
  * PopupMenus.c - Popup Menu Implementation
  *
@@ -50,8 +49,12 @@ long PopUpMenuSelect(MenuHandle menu, short top, short left, short popUpItem) {
 short PopUpMenuSelectEx(const PopupMenuInfo* popupInfo, PopupMenuResult* result) {
     if (!popupInfo || !result) return -1;
 
-    printf("Extended popup menu select\n");
-    return 0;
+    /* Delegate to standard popup menu select */
+    long menuResult = PopUpMenuSelect(popupInfo->menu, popupInfo->popupRect.top,
+                                       popupInfo->popupRect.left, popupInfo->defaultItem);
+    result->menuID = (menuResult >> 16) & 0xFFFF;
+    result->menuItem = menuResult & 0xFFFF;
+    return (menuResult != 0) ? 0 : -1;
 }
 
 Boolean ShowPopupMenu(MenuHandle theMenu, Point location, short positionMode, short alignItem) {
@@ -71,8 +74,14 @@ void HidePopupMenu(void) {
 short ShowContextMenu(const ContextMenuInfo* contextInfo, PopupMenuResult* result) {
     if (!contextInfo || !result) return -1;
 
-    printf("Showing context menu\n");
-    return 0;
+    /* Display context menu at the trigger location */
+    if (!contextInfo->menu) return -1;
+    long menuResult = PopUpMenuSelect(contextInfo->menu,
+                                       contextInfo->triggerPoint.v,
+                                       contextInfo->triggerPoint.h, 0);
+    result->menuID = (menuResult >> 16) & 0xFFFF;
+    result->menuItem = menuResult & 0xFFFF;
+    return (menuResult != 0) ? 0 : -1;
 }
 
 Boolean IsContextMenuTrigger(Point mousePoint, unsigned long modifiers, short clickType) {
