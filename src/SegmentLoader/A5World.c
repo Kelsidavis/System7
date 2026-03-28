@@ -30,7 +30,7 @@
 OSErr InstallA5World(SegmentLoaderContext* ctx, const CODE0Info* info)
 {
     OSErr err;
-    CPUAddr belowBase, aboveBase, a5;
+    CPUAddr belowBase = 0, aboveBase = 0, a5;
 
     if (!ctx || !info) {
         return paramErr;
@@ -63,6 +63,8 @@ OSErr InstallA5World(SegmentLoaderContext* ctx, const CODE0Info* info)
                                              kCPUMapA5World,
                                              &aboveBase);
         if (err != noErr) {
+            /* Below-A5 was allocated but above-A5 failed.
+             * DestroyAddressSpace will reclaim all allocations. */
             return err;
         }
     } else {

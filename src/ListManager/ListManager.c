@@ -549,6 +549,7 @@ OSErr LDelColumn(ListHandle lh, short count, short fromCol)
 
     /* Update each row to remove columns */
     if (list->rows) {
+        HLock((Handle)list->rows);
         rowArray = *(list->rows);
 
         for (i = 0; i < list->rowCount; i++) {
@@ -580,6 +581,7 @@ OSErr LDelColumn(ListHandle lh, short count, short fromCol)
             rowArray[i].cells = newCells;
             rowArray[i].colCount = newColCount;
         }
+        HUnlock((Handle)list->rows);
     }
 
     /* Update list column count */
@@ -747,11 +749,21 @@ void LGetCellRect(ListHandle lh, Cell cell, Rect* outCellRect)
 {
     ListMgrRec* list;
     short rowOffset, colOffset;
-    
+
     if (!lh || !outCellRect) return;
-    
+
     list = *LIST_MGR_HANDLE(lh);
-    
+
+    /* Validate cell indices */
+    if (cell.v < 0 || cell.v >= list->rowCount ||
+        cell.h < 0 || cell.h >= list->colCount) {
+        outCellRect->top = 0;
+        outCellRect->left = 0;
+        outCellRect->bottom = 0;
+        outCellRect->right = 0;
+        return;
+    }
+
     rowOffset = (cell.v - list->topRow) * list->cellHeight;
     colOffset = (cell.h - list->leftCol) * list->cellWidth;
     
@@ -827,25 +839,36 @@ void LScroll(ListHandle lh, short dRows, short dCols)
 
 Boolean LClick(ListHandle lh, Point localWhere, unsigned short mods, short* outItem)
 {
+    extern UInt32 GetDblTime(void);
     ListMgrRec* list;
     Cell hitCell;
     Boolean selChanged = false;
     Boolean wasSelected;
-    
+    Boolean isDoubleClick = false;
+
     if (!lh) return false;
-    
+
     HLock((Handle)lh);
     list = *LIST_MGR_HANDLE(lh);
-    
+
     /* Hit test */
     if (!List_HitTest(list, localWhere, &hitCell)) {
         HUnlock((Handle)lh);
         return false;
     }
-    
-    /* Record last click */
+
+    /* Detect double-click: same cell within GetDblTime threshold */
+    UInt32 now = TickCount();
+    if (list->lastClick.valid &&
+        hitCell.v == list->lastClick.cell.v &&
+        hitCell.h == list->lastClick.cell.h &&
+        (now - list->lastClick.when) < GetDblTime()) {
+        isDoubleClick = true;
+    }
+
+    /* Record this click */
     list->lastClick.cell = hitCell;
-    list->lastClick.when = TickCount();
+    list->lastClick.when = now;
     list->lastClick.mods = mods;
     list->lastClick.valid = true;
     
@@ -907,11 +930,12 @@ Boolean LClick(ListHandle lh, Point localWhere, unsigned short mods, short* outI
     }
     
     HUnlock((Handle)lh);
-    
-    LIST_LOG("LClick: cell(%d,%d) mods=0x%x sel=%d\n",
-             hitCell.v, hitCell.h, mods, selChanged);
-    
-    return selChanged;
+
+    LIST_LOG("LClick: cell(%d,%d) mods=0x%x sel=%d dblClick=%d\n",
+             hitCell.v, hitCell.h, mods, selChanged, isDoubleClick);
+
+    /* Mac API: LClick returns true on double-click (item activation) */
+    return isDoubleClick;
 }
 
 Boolean LGetSelect(ListHandle lh, Cell* outCell)

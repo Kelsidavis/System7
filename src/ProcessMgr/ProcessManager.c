@@ -71,6 +71,7 @@ OSErr ProcessManager_Initialize(void)
     /* Initialize process queue */
     gProcessQueue = (ProcessQueue*)NewPtr(sizeof(ProcessQueue));
     if (!gProcessQueue) {
+        /* M68K backend already initialized - non-fatal, just return error */
         return memFullErr;
     }
 
