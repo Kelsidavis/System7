@@ -220,6 +220,13 @@ static uint8_t ps2_read_data(void) {
     return inb(PS2_DATA_PORT);
 }
 
+/* Safe read: returns false on timeout instead of stale data */
+static Boolean ps2_read_data_safe(uint8_t *out) {
+    if (!ps2_wait_output()) return false;
+    *out = inb(PS2_DATA_PORT);
+    return true;
+}
+
 /* Send command to mouse (via second PS/2 port) */
 static Boolean ps2_mouse_command(uint8_t cmd) {
     /* CRITICAL FIX: Use 0xD4 prefix for ALL mouse commands */
@@ -320,7 +327,11 @@ static const ScanMapEntry g_set1ExtendedMap[] = {
 static UInt8 map_set1_scancode_to_mac(uint8_t scanCode, Boolean extended)
 {
     const ScanMapEntry* table = extended ? g_set1ExtendedMap : g_set1BaseMap;
-    for (size_t i = 0; table[i].scan != 0xFF; ++i) {
+    size_t maxEntries = extended
+        ? (sizeof(g_set1ExtendedMap) / sizeof(ScanMapEntry))
+        : (sizeof(g_set1BaseMap) / sizeof(ScanMapEntry));
+
+    for (size_t i = 0; i < maxEntries && table[i].scan != 0xFF; ++i) {
         if (table[i].scan == scanCode) {
             return table[i].mac;
         }
@@ -567,22 +578,22 @@ static Boolean init_mouse(void) {
 
     /* Verify port 2 is enabled in controller configuration */
     ps2_send_command(PS2_CMD_READ_CONFIG);
-    uint8_t final_config = ps2_read_data();
-    /* PLATFORM_LOG_DEBUG("MOUSE: Final controller config: 0x%02x\n", final_config); */
-    /* PLATFORM_LOG_DEBUG("MOUSE: Port 2 enabled: %s\n", (final_config & 0x20) ? "NO (disabled!)" : "YES"); */
-    /* PLATFORM_LOG_DEBUG("MOUSE: Port 2 interrupt (bit 1): %s\n", (final_config & 0x02) ? "YES" : "NO (PROBLEM!)"); */
+    uint8_t final_config = 0;
+    if (!ps2_read_data_safe(&final_config)) {
+        /* Timeout reading config - proceed with mouse enabled anyway */
+        g_mouseEnabled = true;
+        return true;
+    }
 
-    /* If bit 1 is not set, try to set it again */
+    /* If bit 1 (IRQ12) is not set, try to set it again */
     if (!(final_config & 0x02)) {
-        /* PLATFORM_LOG_DEBUG("MOUSE: WARNING - IRQ12 not enabled! Attempting to fix...\n"); */
         final_config |= 0x02;
         ps2_send_command(PS2_CMD_WRITE_CONFIG);
         ps2_send_data(final_config);
 
         /* Verify again */
         ps2_send_command(PS2_CMD_READ_CONFIG);
-        final_config = ps2_read_data();
-        /* PLATFORM_LOG_DEBUG("MOUSE: Config after fix attempt: 0x%02x\n", final_config); */
+        ps2_read_data_safe(&final_config);  /* Best-effort, ignore timeout */
     }
 
     g_mouseEnabled = true;
@@ -746,6 +757,12 @@ void PollPS2Input(void) {
             if (g_mouseState.packet_index == 0 && !(data & 0x08)) {
                 /* Not a valid first byte; wait for one that has sync bit set */
                 continue; /* (was 'return' before; that aborted the drain) */
+            }
+
+            /* Buffer overflow guard: packet[] is 4 bytes */
+            if (g_mouseState.packet_index >= 4) {
+                g_mouseState.packet_index = 0;  /* Reset on overflow */
+                continue;
             }
 
             g_mouseState.packet[g_mouseState.packet_index++] = data;
