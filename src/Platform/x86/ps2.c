@@ -650,7 +650,15 @@ Boolean InitPS2Controller(void) {
     /* PLATFORM_LOG_DEBUG("PS2: PIC1 mask before: 0x%02x, PIC2 mask before: 0x%02x\n", pic1_mask, pic2_mask); */
 
     pic1_mask &= ~0x04;  /* Unmask IRQ2 (cascade) */
+    pic1_mask &= ~0x02;  /* Unmask IRQ1 (keyboard) - bit 1 */
     pic2_mask &= ~0x10;  /* Unmask IRQ12 (mouse) - bit 4 for IRQ12 */
+
+    /* IRQ1 has to be unmasked for the same reason IRQ12 is. main.c turns on
+     * IRQ-driven mode, which stops ProcessModernInput from calling
+     * PollPS2Input, so the controller is only drained from the PS/2 interrupt
+     * handler. With IRQ12 alone, keyboard bytes sat in the output buffer until
+     * the next mouse packet happened to drain them - so typing did nothing
+     * unless you moved the mouse at the same time. */
 
     outb(PIC1_DATA, pic1_mask);
     outb(PIC2_DATA, pic2_mask);

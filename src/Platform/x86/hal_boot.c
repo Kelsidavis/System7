@@ -54,10 +54,8 @@ static void irq_timer_handler(uint8_t irq) {
     }
 }
 
-/* Registered but currently unreachable: IRQ1/IRQ12 are left masked because
- * PollPS2Input() is not reentrancy-safe (see hal_boot_init). Kept so that
- * enabling interrupt-driven input later is a one-line unmask once that path is
- * made safe. */
+/* Services both the keyboard (IRQ1) and the mouse (IRQ12). Both lines are
+ * unmasked by InitPS2Controller, not here - see hal_boot_init. */
 static void irq_ps2_handler(uint8_t irq) {
     (void)irq;
     PollPS2Input();
@@ -83,18 +81,20 @@ void hal_boot_init(void *boot_arg) {
     irq_register_handler(1, irq_ps2_handler);
     irq_register_handler(12, irq_ps2_handler);
 
-    /* pic_init() leaves every line masked, so unmask exactly what we handle.
+    /* pic_init() leaves every line masked, so unmask exactly what we handle
+     * here. PS/2 is not one of them: InitPS2Controller unmasks IRQ1, IRQ2 and
+     * IRQ12 itself, once it knows the controller is actually there.
      *
-     * PS/2 deliberately stays on the polled path. PollPS2Input() drains the
-     * controller to empty while mutating the shared mouse-packet state machine
-     * and posting to the event queue, none of which is guarded against
-     * reentrancy - running it from IRQ1/IRQ12 while the main loop is reading
-     * that same state loses mouse-moved events (breaking window drags, which
-     * need an unbroken stream) and eventually wedges the queue. Making input
-     * interrupt-driven means making that path reentrancy-safe first; until
-     * then IRQ2 is left masked too, since nothing on the slave PIC is used. */
-    pic_unmask_irq(0);   /* PIT timer - the only line we currently service */
-    serial_puts("[HAL] IRQ0 (timer) unmasked; PS/2 stays on the polled path\n");
+     * This comment used to claim PS/2 stayed on the polled path, which had not
+     * been true for a while - main.c calls PS2_SetIRQDriven(true), which stops
+     * ProcessModernInput from polling, and InitPS2Controller had already
+     * unmasked IRQ12. PollPS2Input is still not reentrancy-safe; it drains the
+     * controller while mutating the mouse packet state machine and posting to
+     * the event queue, with no guard against the main loop reading the same
+     * state. That is a real hazard, but it is one the mouse has been living
+     * with, not a reason to leave the keyboard dead. */
+    pic_unmask_irq(0);   /* PIT timer */
+    serial_puts("[HAL] IRQ0 (timer) unmasked; PS/2 lines unmasked by InitPS2Controller\n");
     PS2_SetIRQDriven(false);
     xhci_init_x86();
     ehci_init_x86();
