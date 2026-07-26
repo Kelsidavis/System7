@@ -42,9 +42,9 @@ An open-source reimplementation of Apple Macintosh System 7 for modern x86 hardw
 
 This started as a disciplined AI-assisted reverse engineering research project (published to Zenodo in 2025) that proved you could reconstruct a bootable System 7 prototype in days. We then asked: **"What if we just kept building?"**
 
-**What happened**: We kept building. Faster. With less testing. Mostly in QEMU. Almost no bare metal validation. Result: A System 7 that boots in the emulator and looks great in a demo, but is fundamentally untested on real hardware. Features exist everywhere, but edge cases crash constantly.
+**What happened**: We kept building. Faster. With less testing. Mostly in QEMU. Almost no bare metal validation — which caught up with us the moment someone put it on real hardware and it froze on every machine. Features exist everywhere, but edge cases crash constantly.
 
-**Honest assessment**: This is a **sloperating system**™ — a QEMU toy that's more useful for learning *about* System 7 than for *running* it. The code is readable and teaches you things, but most subsystems are partially done and tested only under emulation.
+**Honest assessment**: This is a **sloperating system**™. It now boots to a responsive desktop on real hardware, which it did not do a week ago, but it is still far more useful for learning *about* System 7 than for *running* it. The code is readable and teaches you things; most subsystems are partially done, and hardware coverage is one confirmed machine deep.
 
 **Why it matters anyway**: It's still the most complete open-source System 7 implementation. Real code. Real architecture. Real bugs that teach you something.
 
@@ -64,20 +64,36 @@ chasing those symptoms turned up five genuine bare-metal bugs:
 | Froze with no explanation | CPU exception vectors all pointed at a bare `iret`, so any fault reset the machine with **zero diagnostics**. Now prints the fault name, `eip`, error code and `cr2` | ✅ Fixed |
 | "Mouse does nothing" | IRQ2 (the slave-PIC cascade) was never unmasked — so IRQ12 could **never** reach the CPU no matter what. IRQ0 was never unmasked either, so the timer never ticked | ✅ Fixed |
 | Hung before printing anything | `serial_putchar` spun **forever** waiting on the UART, deadlocking the boot on machines whose port never reports ready | ✅ Fixed |
+| Wouldn't start on a modern ThinkPad at all | The ISO was built **BIOS-only** (`grub-mkrescue -d i386-pc`) — one El Torito entry, no EFI payload. On UEFI-only machines there was nothing for the firmware to execute | ✅ Fixed |
 
-Verified in QEMU: 5,000 timer ticks at 1 kHz, interrupts dispatching, zero
-exceptions, no reset. Previously it triple-faulted the instant interrupts were
-enabled.
+### ✅ It now boots to a responsive desktop on real hardware
 
-**Still true:** the 68K interpreter is not wired up, so real Mac apps still
-don't run, and none of this is confirmed on physical hardware yet. If you have a
-vintage machine and a serial cable, [we would love your test results](docs/TEST_PLAN_FIXES.md).
+Confirmed on a physical ThinkPad booting via UEFI — **not** an emulator. Every
+machine in the video froze; this one doesn't. The missing GDT was the real
+culprit behind the freezes, and the BIOS-only ISO was why newer machines
+wouldn't start at all.
+
+Also verified headless in QEMU on both firmware paths — 5,000 timer ticks at
+1 kHz, interrupts dispatching, zero exceptions, no reset:
+
+| Firmware | Result |
+|---|---|
+| BIOS (SeaBIOS, `qemu-system-i386`) | ✅ reaches event loop, interrupts live |
+| UEFI (OVMF, `qemu-system-x86_64`) | ✅ reaches event loop, interrupts live |
+
+**Still true:** the 68K interpreter is not wired up, so real Mac applications
+still don't run. Broader hardware coverage is thin — one confirmed machine is
+not a compatibility matrix. If you have a vintage or modern box to try it on,
+[we would love your test results](docs/TEST_PLAN_FIXES.md).
+
+> **Secure Boot must be off.** The GRUB image is unsigned, so a machine with
+> Secure Boot enabled will refuse the stick before GRUB ever appears.
 
 Full roadmap: [BARE_METAL_IMPROVEMENTS.md](docs/BARE_METAL_IMPROVEMENTS.md)
 
 ## 🎯 Project Status
 
-**Current State**: Active experimental development. ~94% of core subsystems have *something* implemented. Most work in QEMU. Bare metal? Unknown. Stability? Low. Edge cases crash.
+**Current State**: Active experimental development. ~94% of core subsystems have *something* implemented. Most work in QEMU. Bare metal now boots to a responsive desktop on one confirmed machine (UEFI ThinkPad) — broader hardware coverage is untested. Stability? Low. Edge cases crash.
 
 ### Latest Updates (November 2025)
 
@@ -181,6 +197,10 @@ The following have source code but aren't integrated into the kernel:
 - **GCC** with 32-bit support (`gcc-multilib` on 64-bit)
 - **GNU Make**
 - **GRUB tools**: `grub-mkrescue` (from `grub2-common` or `grub-pc-bin`)
+- **GRUB EFI modules** (`grub-efi-amd64-bin`) and **mtools** — required for the
+  UEFI half of the ISO. Without them `grub-mkrescue` still exits 0 but silently
+  emits a BIOS-only image that will not boot any modern machine; `make iso`
+  now fails loudly if that happens
 - **QEMU** for testing (`qemu-system-i386`)
 - **Python 3** for resource processing
 - **xxd** for binary conversion
@@ -189,7 +209,7 @@ The following have source code but aren't integrated into the kernel:
 ### Ubuntu/Debian Installation
 
 ```bash
-sudo apt-get install build-essential gcc-multilib grub-pc-bin xorriso qemu-system-x86 python3 vim-common
+sudo apt-get install build-essential gcc-multilib grub-pc-bin grub-efi-amd64-bin mtools xorriso qemu-system-x86 python3 vim-common
 ```
 
 ### Build Commands

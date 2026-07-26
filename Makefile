@@ -1364,6 +1364,31 @@ $(ISO): $(KERNEL) grub.cfg | $(ISO_DIR)/boot/grub
 	@# Letting grub-mkrescue auto-detect emits every installed platform, giving
 	@# a hybrid ISO that boots via both BIOS and UEFI.
 	@$(GRUB) -o $(ISO) $(ISO_DIR)
+	@# grub-mkrescue does not fail when the EFI modules or mtools are missing -
+	@# it just drops the UEFI boot image and exits 0. The result still boots in
+	@# QEMU and on older PCs, so the regression is invisible until someone tries
+	@# a UEFI-only machine. Assert both entries are actually present.
+	@$(MAKE) --no-print-directory verify-iso
+
+# Verify the ISO carries boot images for both firmware types.
+.PHONY: verify-iso
+verify-iso:
+	@if ! command -v xorriso >/dev/null 2>&1; then \
+		echo "⚠ xorriso not found - skipping ISO boot-catalog verification"; \
+		exit 0; \
+	fi; \
+	catalog=$$(xorriso -indev $(ISO) -report_el_torito plain 2>/dev/null); \
+	if ! echo "$$catalog" | grep -q 'boot img.*BIOS'; then \
+		echo "✗ ISO has no BIOS boot image - it will not boot legacy/CSM machines"; \
+		exit 1; \
+	fi; \
+	if ! echo "$$catalog" | grep -q 'boot img.*UEFI'; then \
+		echo "✗ ISO has no UEFI boot image - it will NOT boot modern machines."; \
+		echo "  Install the missing pieces and rebuild:"; \
+		echo "    sudo apt-get install grub-efi-amd64-bin mtools"; \
+		exit 1; \
+	fi; \
+	echo "✓ ISO is hybrid: bootable via both BIOS and UEFI"
 
 # Run with QEMU (PC speaker with PulseAudio backend)
 # VGA: std (standard VGA, no corruption during boot)

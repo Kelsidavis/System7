@@ -22,6 +22,8 @@ jobs:
             build-essential \
             gcc-multilib \
             grub-pc-bin \
+            grub-efi-amd64-bin \
+            mtools \
             xorriso \
             python3 \
             vim-common
@@ -72,6 +74,8 @@ jobs:
             build-essential \
             gcc-multilib \
             grub-pc-bin \
+            grub-efi-amd64-bin \
+            mtools \
             xorriso \
             python3 \
             vim-common
@@ -118,6 +122,8 @@ jobs:
             build-essential \
             gcc-multilib \
             grub-pc-bin \
+            grub-efi-amd64-bin \
+            mtools \
             xorriso \
             python3 \
             vim-common
@@ -183,12 +189,73 @@ jobs:
         with:
           name: system71-iso
 
-      - name: Test QEMU boot (headless)
+      # This step used to pipe everything to `|| true` and echo success
+      # unconditionally, so it passed even when the kernel never started at all.
+      # It now asserts on the serial log, which is what makes it a real test.
+      - name: Test QEMU boot (headless, BIOS)
         run: |
-          timeout 30s qemu-system-i386 \
+          set -euo pipefail
+          timeout 60s qemu-system-i386 \
             -cdrom system71.iso \
             -display none \
-            -serial stdio \
-            -m 256M \
+            -serial file:bios-serial.log \
+            -m 1024 -vga std \
             -no-reboot || true
-          echo "QEMU boot test completed"
+
+          echo "--- last 20 lines of serial ---"
+          tail -20 bios-serial.log || true
+
+          if ! grep -q "Entering event loop" bios-serial.log; then
+            echo "::error::Kernel never reached the event loop"
+            exit 1
+          fi
+          if grep -q "CPU EXCEPTION" bios-serial.log; then
+            echo "::error::Kernel took a CPU exception during boot"
+            grep -A3 "CPU EXCEPTION" bios-serial.log
+            exit 1
+          fi
+          if ! grep -q "timer heartbeat" bios-serial.log; then
+            echo "::error::Timer IRQ0 never fired - interrupts are not being delivered"
+            exit 1
+          fi
+          echo "BIOS boot OK: reached event loop, timer live, no exceptions"
+
+      # Guards the UEFI half of the hybrid ISO. Losing it is invisible under a
+      # BIOS-only test, and that regression is exactly what stopped the image
+      # booting on modern machines.
+      - name: Test QEMU boot (headless, UEFI/OVMF)
+        run: |
+          set -euo pipefail
+          sudo apt-get install -y ovmf
+          cp /usr/share/OVMF/OVMF_VARS_4M.fd ./vars.fd 2>/dev/null \
+            || cp /usr/share/OVMF/OVMF_VARS.fd ./vars.fd
+
+          timeout 90s qemu-system-x86_64 \
+            -drive if=pflash,format=raw,unit=0,readonly=on,file=/usr/share/OVMF/OVMF_CODE_4M.fd \
+            -drive if=pflash,format=raw,unit=1,file=./vars.fd \
+            -cdrom system71.iso \
+            -display none \
+            -serial file:uefi-serial.log \
+            -m 1024 -vga std \
+            -no-reboot || true
+
+          echo "--- last 20 lines of serial ---"
+          tail -20 uefi-serial.log || true
+
+          if ! grep -q "Entering event loop" uefi-serial.log; then
+            echo "::error::Kernel never reached the event loop under UEFI"
+            exit 1
+          fi
+          if grep -q "CPU EXCEPTION" uefi-serial.log; then
+            echo "::error::Kernel took a CPU exception during UEFI boot"
+            grep -A3 "CPU EXCEPTION" uefi-serial.log
+            exit 1
+          fi
+          echo "UEFI boot OK: reached event loop, no exceptions"
+
+      - name: Upload serial logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: boot-serial-logs
+          path: "*-serial.log"

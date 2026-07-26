@@ -38,7 +38,7 @@ Thank you for your interest in the System 7 reimplementation project! This is an
 ### Prerequisites
 ```bash
 # Ubuntu/Debian
-sudo apt-get install build-essential gcc-multilib grub-pc-bin xorriso qemu-system-x86 python3 vim-common
+sudo apt-get install build-essential gcc-multilib grub-pc-bin grub-efi-amd64-bin mtools xorriso qemu-system-x86 python3 vim-common
 
 # Other distros - install equivalent packages
 ```

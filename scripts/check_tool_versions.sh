@@ -89,10 +89,33 @@ fi
 # Check grub-mkrescue
 if ! command -v grub-mkrescue >/dev/null 2>&1; then
     echo -e "${YELLOW}⚠ grub-mkrescue not found${NC}"
-    echo "  Install: sudo apt-get install grub-pc-bin xorriso"
+    echo "  Install: sudo apt-get install grub-pc-bin grub-efi-amd64-bin xorriso mtools"
     echo "  (Optional: only needed for ISO creation)"
 else
     echo -e "${GREEN}✓ grub-mkrescue available${NC}"
+fi
+
+# Check UEFI ISO prerequisites.
+# grub-mkrescue does not fail when these are missing - it quietly emits a
+# BIOS-only image instead. That still boots under QEMU and on older PCs, so the
+# gap goes unnoticed until someone tries a UEFI-only machine and gets nothing.
+if command -v grub-mkrescue >/dev/null 2>&1; then
+    if [ ! -d /usr/lib/grub/x86_64-efi ]; then
+        echo -e "${YELLOW}⚠ GRUB x86_64-efi modules not found${NC}"
+        echo "  Install: sudo apt-get install grub-efi-amd64-bin"
+        echo "  Without these the ISO is BIOS-only and will NOT boot UEFI machines"
+    else
+        echo -e "${GREEN}✓ GRUB x86_64-efi modules available${NC}"
+    fi
+
+    if ! command -v mformat >/dev/null 2>&1; then
+        echo -e "${YELLOW}⚠ mtools not found${NC}"
+        echo "  Install: sudo apt-get install mtools"
+        echo "  grub-mkrescue needs it to build the EFI FAT image; without it"
+        echo "  the ISO is BIOS-only and will NOT boot UEFI machines"
+    else
+        echo -e "${GREEN}✓ mtools available (EFI image support)${NC}"
+    fi
 fi
 
 # Check xxd

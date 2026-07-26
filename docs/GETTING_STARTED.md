@@ -14,7 +14,7 @@ This is an open-source reimplementation of Apple's classic Macintosh System 7 op
 
 **Ubuntu/Debian**:
 ```bash
-sudo apt-get install build-essential gcc-multilib grub-pc-bin xorriso qemu-system-x86 python3 vim-common
+sudo apt-get install build-essential gcc-multilib grub-pc-bin grub-efi-amd64-bin mtools xorriso qemu-system-x86 python3 vim-common
 ```
 
 **macOS**:

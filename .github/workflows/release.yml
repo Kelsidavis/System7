@@ -53,6 +53,8 @@ jobs:
             build-essential \
             gcc-multilib \
             grub-pc-bin \
+            grub-efi-amd64-bin \
+            mtools \
             xorriso \
             python3 \
             vim-common
