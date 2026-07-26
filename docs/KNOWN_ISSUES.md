@@ -2,6 +2,57 @@
 
 This document tracks known issues, workarounds, and technical debt in the System 7.1 reimplementation codebase.
 
+## Open Issues
+
+### ⛔ Regions are rectangles: DiffRgn and XorRgn are stubs (REGION-001)
+
+`struct Region` (include/SystemTypes.h) carries only `rgnSize` and `rgnBBox`, so
+a region cannot represent anything but a rectangle. Consequently in
+`src/QuickDraw/Regions.c`:
+
+- `DiffRgn()` ends in `CopyRgn(srcRgnA, dstRgn)` — it returns the first operand
+  unchanged and **subtracts nothing**.
+- `XorRgn()` returns the bounding box of the union.
+
+This is representational, not a missing few lines: the difference of two
+rectangles is not a rectangle. A real fix needs a scanline or rectangle-list
+region representation plus rendering and clipping that honour it.
+
+**Known consequences:**
+
+1. `DragWindow()` computes its uncovered-desktop area as
+   `DiffRgn(oldRgn, newRgn, uncoveredRgn)`, which yields the window's **entire**
+   former rectangle instead of just the newly exposed part.
+2. `Finder_DeskHook()` can only hold back one window from the desktop erase
+   (via rectangle strips in `Finder_EraseRegionExcludingRect`), so a second
+   overlapping window can be painted over and left damaged.
+
+**Do not** "fix" this by building on `DiffRgn` — doing so erases the whole
+desktop including every window, which then never gets repainted.
+
+### ⛔ Stale content left on the desktop after dragging a window (REDRAW-002)
+
+**Reproduced** in QEMU. Drag the "Macintosh HD" window down and right: the window
+itself moves correctly and its title bar, close box and content all render at the
+new position, but a fragment of the old content — the status line, e.g.
+`7 items   1016K in disk` — remains painted on the bare desktop at the old
+location.
+
+Diagnostic detail: the stranded fragment is **truncated** at roughly the new
+window's left edge (it loses `0K available`), so it is being drawn or preserved
+under a clip tied to the uncovered region rather than simply being un-erased
+background. The window's port bounds do update correctly on the move
+(`portBits.bounds` goes to `(171,281,648,598)`), so this is not a stale
+coordinate mapping in the content draw.
+
+Likely related to REGION-001, but not yet proven — the rectangle-strip erase in
+`Finder_EraseRegionExcludingRect` should already cover the area where the
+fragment survives, so the ordering of erase versus redraw needs instrumenting.
+
+To reproduce, see `scripts/screenshot.sh` and drive a drag through the QEMU
+monitor; note PS/2 mouse deltas are 9-bit signed, so large jumps are clamped and
+the cursor must be walked in steps of ≤100 px.
+
 ## Critical Issues
 
 ### ✅ 1. Mouse Button Tracking May Get Stuck (TIMEOUT-001) - FIXED
