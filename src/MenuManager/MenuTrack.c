@@ -26,6 +26,7 @@ extern void GetMouse(Point* mouseLoc);
 extern void MoveTo(short h, short v);
 extern void DrawMenuBar(void);        /* Redraw the menu bar */
 extern Boolean CheckMenuItemSeparator(MenuHandle theMenu, short item);
+extern Boolean CheckMenuItemEnabled(MenuHandle theMenu, short item);
 extern void GetItemCmd(MenuHandle theMenu, short item, short* cmdChar);
 extern void GetItemSubmenu(MenuHandle theMenu, short item, short* submenuID);
 
@@ -197,6 +198,75 @@ static short CalcMenuWidth(MenuHandle theMenu, short itemCount) {
     return widest;
 }
 
+/*
+ * DrawMenuItemRow - draw one menu item, normal or highlighted.
+ *
+ * Shared by the initial menu draw and by highlight tracking. Tracking used to
+ * redraw only the item's text, so moving the mouse across "New Folder <cmd>N"
+ * erased its command key and left the row half drawn; going through one routine
+ * means whatever an item is made of gets restored.
+ */
+static void DrawMenuItemRow(MenuHandle theMenu, short i, short left, short itemTop,
+                            short menuWidth, short lineHeight, Boolean highlighted) {
+    char itemText[64];
+    short cmdChar = 0;
+    short subID = 0;
+    uint32_t ink = highlighted ? 0xFFFFFFFF : 0xFF000000;
+
+    /* A divider is a grey line across the menu, not its text. This renderer
+     * previously drew every item as plain text, so the Finder's dividers
+     * appeared as a literal "-" (and, before the metacharacter fix, as "(-",
+     * which reads on screen as a left arrow). MenuDisplay.c has a full item
+     * renderer with dividers, marks and icons, but nothing calls it; this is
+     * the live path. */
+    if (CheckMenuItemSeparator(theMenu, i)) {
+        DrawMenuRect(left + 1, itemTop + lineHeight / 2,
+                     left + menuWidth - 1, itemTop + lineHeight / 2 + 1,
+                     0xFF808080);
+        return;
+    }
+
+    GetItemText(theMenu, i, itemText);
+    if (itemText[0] == 0) return;
+
+    if (highlighted) {
+        DrawInvertedText(itemText, left + 4, itemTop + 12, true);
+    } else {
+        DrawMenuItemText(itemText, left + 4, itemTop + 12);
+    }
+
+    /* A hierarchical item gets a filled right-pointing triangle at the right
+     * edge, as the System 7 MDEF draws - not a literal '>'. */
+    GetItemSubmenu(theMenu, i, &subID);
+    if (subID != 0) {
+        short tx = left + menuWidth - 12;
+        short cy = itemTop + lineHeight / 2;
+        for (short r = 0; r < 9; r++) {
+            short d = r - 4;
+            if (d < 0) d = -d;
+            short w = 5 - d;
+            if (w <= 0) continue;
+            DrawMenuRect(tx, cy - 4 + r, tx + w, cy - 3 + r, ink);
+        }
+        return;   /* hierarchical items carry no command key */
+    }
+
+    /* Command-key equivalent, right aligned as in System 7 */
+    GetItemCmd(theMenu, i, &cmdChar);
+    if (cmdChar != 0) {
+        char cmdBuf[2];
+        cmdBuf[0] = (char)((cmdChar >= 'a' && cmdChar <= 'z')
+                           ? cmdChar - 'a' + 'A' : cmdChar);
+        cmdBuf[1] = 0;
+        DrawCommandGlyph(left + menuWidth - 30, itemTop + 2, ink);
+        if (highlighted) {
+            DrawInvertedText(cmdBuf, left + menuWidth - 16, itemTop + 12, true);
+        } else {
+            DrawMenuItemText(cmdBuf, left + menuWidth - 16, itemTop + 12);
+        }
+    }
+}
+
 /* Draw dropdown menu */
 static void DrawMenuOld(MenuHandle theMenu, short left, short top, short itemCount, short menuWidth, short lineHeight) {
     /* Save current port and ensure we're in screen port for menu drawing */
@@ -220,56 +290,8 @@ static void DrawMenuOld(MenuHandle theMenu, short left, short top, short itemCou
     /* Items - clamp iteration to prevent runaway loops */
     short maxItems = itemCount > 64 ? 64 : itemCount;
     for (short i = 1; i <= maxItems; i++) {
-        char itemText[64];
-        GetItemText(theMenu, i, itemText);
-
-        short itemTop = top + 2 + (i - 1) * lineHeight;
-
-        /* A divider is drawn as a grey line across the menu, not as its text.
-         * This renderer previously drew every item as plain text, so the
-         * Finder's dividers appeared as a literal "-" (and, before the
-         * metacharacter fix, as "(-" - which reads on screen as a left arrow).
-         * MenuDisplay.c has a full item renderer with dividers, marks, icons
-         * and command keys, but nothing calls it; this is the live path. */
-        if (CheckMenuItemSeparator(theMenu, i)) {
-            DrawMenuRect(left + 1, itemTop + lineHeight / 2,
-                         left + menuWidth - 1, itemTop + lineHeight / 2 + 1,
-                         0xFF808080);
-            continue;
-        }
-
-        if (itemText[0] == 0) continue;
-
-        DrawMenuItemText(itemText, left + 4, itemTop + 12);
-
-        /* A hierarchical item gets a filled right-pointing triangle at the
-         * right edge, as the System 7 MDEF draws - not a literal '>'. */
-        short subID = 0;
-        GetItemSubmenu(theMenu, i, &subID);
-        if (subID != 0) {
-            short tx = left + menuWidth - 12;
-            short cy = itemTop + lineHeight / 2;
-            for (short r = 0; r < 9; r++) {
-                short d = r - 4;
-                if (d < 0) d = -d;
-                short w = 5 - d;
-                if (w <= 0) continue;
-                DrawMenuRect(tx, cy - 4 + r, tx + w, cy - 3 + r, 0xFF000000);
-            }
-            continue;   /* hierarchical items carry no command key */
-        }
-
-        /* Command-key equivalent, right aligned as in System 7 */
-        short cmdChar = 0;
-        GetItemCmd(theMenu, i, &cmdChar);
-        if (cmdChar != 0) {
-            char cmdBuf[2];
-            cmdBuf[0] = (char)((cmdChar >= 'a' && cmdChar <= 'z')
-                               ? cmdChar - 'a' + 'A' : cmdChar);
-            cmdBuf[1] = 0;
-            DrawCommandGlyph(left + menuWidth - 30, itemTop + 2, 0xFF000000);
-            DrawMenuItemText(cmdBuf, left + menuWidth - 16, itemTop + 12);
-        }
+        DrawMenuItemRow(theMenu, i, left, top + 2 + (i - 1) * lineHeight,
+                        menuWidth, lineHeight, false);
     }
 
     /* Restore original port */
@@ -490,10 +512,14 @@ void UpdateMenuTrackingNew(Point mousePt) {
 
             /* Check if mouse is vertically within this item */
             if (mousePt.v >= itemTop && mousePt.v < itemBottom) {
-                /* Check if this item has text (not a separator/empty) */
+                /* Dividers and disabled items never highlight in System 7.
+                 * Testing only for non-empty text let dividers highlight,
+                 * since a divider's text is "-". */
                 char itemText[64];
                 GetItemText(theMenu, i, itemText);
-                if (itemText[0] != 0) {
+                if (itemText[0] != 0 &&
+                    !CheckMenuItemSeparator(theMenu, i) &&
+                    CheckMenuItemEnabled(theMenu, i)) {
                     newHighlight = i;
                     MENU_LOG_TRACE("UpdateMenu: Mouse at (%d,%d) is over item %d\n",
                                  mousePt.h, mousePt.v, i);
@@ -516,13 +542,9 @@ void UpdateMenuTrackingNew(Point mousePt) {
             /* Draw white background to clear the highlight */
             DrawHighlightRect(left + 2, oldTop, left + menuWidth - 2, oldTop + lineHeight - 1, false);
 
-            /* Redraw text in normal black on white */
-            char oldText[64];
-            GetItemText(theMenu, g_menuTrackState.highlightedItem, oldText);
-            if (oldText[0] != 0) {
-                /* Use DrawMenuItemText for consistent normal rendering */
-                DrawMenuItemText(oldText, left + 4, oldTop + 12);
-            }
+            /* Restore the whole row, not just its text */
+            DrawMenuItemRow(theMenu, g_menuTrackState.highlightedItem,
+                            left, oldTop, menuWidth, lineHeight, false);
         }
 
         /* Draw new highlight and text */
@@ -533,12 +555,9 @@ void UpdateMenuTrackingNew(Point mousePt) {
             /* Draw black background for highlight */
             DrawHighlightRect(left + 2, itemTop, left + menuWidth - 2, itemTop + lineHeight - 1, true);
 
-            /* Redraw text in white on black using inverted text */
-            char newText[64];
-            GetItemText(theMenu, newHighlight, newText);
-            if (newText[0] != 0) {
-                DrawInvertedText(newText, left + 4, itemTop + 12, true);  /* true = white inverted text */
-            }
+            /* Redraw the whole row in white on black */
+            DrawMenuItemRow(theMenu, newHighlight, left, itemTop,
+                            menuWidth, lineHeight, true);
         }
 
         g_menuTrackState.highlightedItem = newHighlight;
