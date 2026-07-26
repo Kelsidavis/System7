@@ -8,6 +8,7 @@ Welcome to the System 7 documentation. This index will help you find what you're
 - [Getting Started](GETTING_STARTED.md) — 5-minute quick start guide
 - [Project Evolution](PROJECT_EVOLUTION.md) — Understanding this project's journey
 - [Featured In](FEATURED_IN.md) — YouTube feature and real hardware testing results
+- [Session Handoff](SESSION_HANDOFF.md) — current state of the bare-metal/redraw work, open leads, and debugging traps
 - [README (main)](../README.md) — Project overview
 
 ## 📚 Understanding the System
