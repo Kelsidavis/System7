@@ -39,7 +39,19 @@ WANTED = [
     'strspn', 'strcspn', 'strpbrk',
     # support routines the above call
     'toupper', 'tolower', 'isupper', 'islower',
+    # formatted output, plus its two helpers
+    'vsnprintf', 'fmt_emit', 'fmt_pad', 'fmt_number',
 ]
+
+# Types the extracted formatter needs that live in the kernel headers.
+PREAMBLE_EXTRA = '''
+#include <stdarg.h>
+typedef struct {
+    char*  buf;
+    size_t size;
+    size_t count;
+} FmtSink;
+'''
 
 
 def extract(text, name):
@@ -96,7 +108,7 @@ def build_source():
     protos = [re.sub(r'^static inline\b', 'static', p) for p in protos]
 
     return ('#include <stddef.h>\n#include <stdint.h>\n'
-            '#include <stdbool.h>\n\ntypedef int OSErr;\n\n'
+            '#include <stdbool.h>\n' + PREAMBLE_EXTRA + '\ntypedef int OSErr;\n\n'
             + '\n'.join(protos) + '\n\n' + src)
 
 
@@ -157,6 +169,16 @@ static void cmp_int(const char *what, const char *detail, long a, long b) {
         printf("FAIL %-12s returned %ld, libc %ld  (%s)\n", what, a, b, detail);
         failures++;
     }
+}
+
+/* Variadic wrapper so the tests can call the extracted vsnprintf directly. */
+static int s7_vsnprintf_wrap(char *buf, size_t size, const char *fmt, ...) {
+    va_list ap;
+    int r;
+    va_start(ap, fmt);
+    r = s7_vsnprintf(buf, size, fmt, ap);
+    va_end(ap);
+    return r;
 }
 
 static const char *SAMPLES[] = {
@@ -343,6 +365,102 @@ int main(void) {
         }
     }
 
+    /* ---- formatted output ---------------------------------------------
+       Every case is compared against the host libc: the produced text, the
+       return value (C99: what WOULD have been written), and the guard bytes.
+       A %lx used to print literally and consume no argument, shifting every
+       following one. */
+    {
+        struct { const char *fmt; int kind; } cases[] = {
+            {"%d",      0}, {"%5d",   0}, {"%-5d|", 0}, {"%05d",  0},
+            {"%+d",     0}, {"% d",   0}, {"%.3d",  0}, {"%8.3d", 0},
+            {"%u",      1}, {"%x",    1}, {"%X",    1}, {"%o",    1},
+            {"%#x",     1}, {"%08x",  1}, {"%-8x|", 1}, {"%.5x",  1},
+            {"%ld",     2}, {"%lu",   3}, {"%lx",   3}, {"%08lx", 3},
+            {"%lld",    4}, {"%llu",  5}, {"%llx",  5},
+            {"%zu",     6}, {"%zx",   6},
+            {"%hd",     0}, {"%hhd",  0}, {"%hu",   1}, {"%hhx",  1},
+            {"%s",      7}, {"%10s|", 7}, {"%-10s|",7}, {"%.3s",  7},
+            {"%c",      8}, {"%5c|",  8},
+            {"%%",      9}, {"a%%b",  9}, {"plain text", 9},
+            {"[%d,%s,%x]", 10},
+            {"%lx then %d", 11},
+        };
+        int ints[]              = {0, 1, -1, 42, -42, 255, 2147483647, -2147483647 - 1};
+        unsigned uints[]        = {0u, 1u, 42u, 255u, 4294967295u};
+        long longs[]            = {0L, -1L, 123456789L};
+        unsigned long ulongs[]  = {0uL, 1uL, 0xDEADBEEFuL};
+        long long llongs[]      = {0LL, -1LL, -9223372036854775807LL - 1};
+        unsigned long long ulls[]= {0uLL, 0xFFFFFFFFFFFFuLL};
+        size_t zs[]             = {0u, 4096u, 605348u};
+        const char *strs[]      = {"", "a", "Note Pad", "About This Macintosh"};
+
+        for (size_t k = 0; k < sizeof cases / sizeof cases[0]; k++) {
+            const char *f = cases[k].fmt;
+            int kind = cases[k].kind;
+            #define TRY(...) do {                                        \
+                Guarded ga, gb;                                               \
+                char *A = gbuf(&ga), *B = gbuf(&gb);                          \
+                int ra = s7_vsnprintf_wrap(A, BUF, __VA_ARGS__);                 \
+                int rb = snprintf(B, BUF, __VA_ARGS__);                          \
+                snprintf(detail, sizeof detail, "fmt=\"%s\"", f);             \
+                if (guards_intact(&ga, "vsnprintf", detail)) {                \
+                    checks++;                                                 \
+                    if (strcmp(A, B) != 0) {                                  \
+                        printf("FAIL vsnprintf   \"%s\" -> \"%s\" want \"%s\"\n", f, A, B); \
+                        failures++;                                           \
+                    }                                                         \
+                    checks++;                                                 \
+                    if (ra != rb) {                                           \
+                        printf("FAIL vsnprintf   \"%s\" returned %d want %d\n", f, ra, rb); \
+                        failures++;                                           \
+                    }                                                         \
+                }                                                             \
+            } while (0)
+
+            switch (kind) {
+            case 0: for (size_t i=0;i<sizeof ints/sizeof*ints;i++)     TRY(f, ints[i]);   break;
+            case 1: for (size_t i=0;i<sizeof uints/sizeof*uints;i++)   TRY(f, uints[i]);  break;
+            case 2: for (size_t i=0;i<sizeof longs/sizeof*longs;i++)   TRY(f, longs[i]);  break;
+            case 3: for (size_t i=0;i<sizeof ulongs/sizeof*ulongs;i++) TRY(f, ulongs[i]); break;
+            case 4: for (size_t i=0;i<sizeof llongs/sizeof*llongs;i++) TRY(f, llongs[i]); break;
+            case 5: for (size_t i=0;i<sizeof ulls/sizeof*ulls;i++)     TRY(f, ulls[i]);   break;
+            case 6: for (size_t i=0;i<sizeof zs/sizeof*zs;i++)         TRY(f, zs[i]);     break;
+            case 7: for (size_t i=0;i<sizeof strs/sizeof*strs;i++)     TRY(f, strs[i]);   break;
+            case 8: TRY(f, 'M'); TRY(f, 'z'); break;
+            case 9: TRY(f); break;
+            case 10: TRY(f, 42, "Chooser", 0xBEEF); break;
+            case 11: TRY(f, 0xCAFEuL, 7); break;
+            }
+            #undef TRY
+        }
+
+        /* Truncation: the return value must still be the full length, which is
+           what vasprintf relies on to decide whether to grow its buffer. */
+        for (size_t cap = 1; cap <= 24; cap++) {
+            Guarded ga;
+            char *A = gbuf(&ga);
+            char B[64];
+            int ra = s7_vsnprintf_wrap(A, cap, "%s-%d", "truncate", 12345);
+            int rb = snprintf(B, cap, "%s-%d", "truncate", 12345);
+            snprintf(detail, sizeof detail, "cap=%zu", cap);
+            if (guards_intact(&ga, "vsnprintf", detail)) {
+                checks++;
+                if (ra != rb) {
+                    printf("FAIL vsnprintf   truncated return %d want %d (%s)\n",
+                           ra, rb, detail);
+                    failures++;
+                }
+                checks++;
+                if (strcmp(A, B) != 0) {
+                    printf("FAIL vsnprintf   truncated \"%s\" want \"%s\" (%s)\n",
+                           A, B, detail);
+                    failures++;
+                }
+            }
+        }
+    }
+
     printf("\n%d checks, %d failures\n", checks, failures);
     return failures ? 1 : 0;
 }
@@ -351,6 +469,12 @@ int main(void) {
 
 def main():
     generated = build_source()
+    keep = os.environ.get('KEEP_GENERATED')
+    if keep:
+        with open(keep, 'w') as fh:
+            fh.write(generated)
+            fh.write(HARNESS)
+        print('wrote %s' % keep)
     with tempfile.TemporaryDirectory() as tmp:
         cfile = os.path.join(tmp, 'stdlib_test.c')
         binf = os.path.join(tmp, 'stdlib_test')
@@ -359,7 +483,10 @@ def main():
             fh.write(HARNESS)
 
         cc = subprocess.run(
-            ['gcc', '-O1', '-fno-builtin', '-Wall', '-o', binf, cfile],
+            # -Wno-format-security: the harness deliberately passes non-literal
+            # format strings, which is the whole point of the comparison.
+            ['gcc', '-O1', '-fno-builtin', '-Wall', '-Wno-format-security',
+             '-o', binf, cfile],
             capture_output=True, text=True)
         if cc.returncode != 0:
             print(cc.stderr, file=sys.stderr)

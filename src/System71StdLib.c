@@ -2207,173 +2207,268 @@ int printf(const char* format, ...) {
     return result;
 }
 
-/* Internal vsnprintf implementation */
-static int vsnprintf(char* str, size_t size, const char* format, va_list args) {
-    if (!str || size == 0 || !format) return 0;
+/*
+ * vsnprintf - formatted output.
+ *
+ * The previous version understood only %s %d %i %u %x %X %c %p %%, and any
+ * other specifier fell through to an "unknown format, just copy it" branch
+ * that emitted the text WITHOUT consuming a va_arg. A single %lx therefore
+ * printed the literal "%lx" and shifted every following argument by one,
+ * which made anything logged after it read from the wrong slot - the sort of
+ * thing that looks like memory corruption when it is really a printf bug.
+ *
+ * It also parsed the field width and then discarded it (leftAlign and zeroPad
+ * were explicitly voided), so %02d never padded; negated INT_MIN, which is
+ * undefined; and returned the truncated length rather than the length that
+ * would have been written. That last one is what vasprintf below relies on to
+ * decide whether to grow its buffer, so it silently truncated at 255
+ * characters, and callers that check "if (n >= remaining)" for overflow could
+ * never see it.
+ *
+ * This version handles flags - 0 + space #, field width, precision, the length
+ * modifiers hh h l ll z j t, and conversions d i u o x X c s p %. It counts
+ * every character it would have written and returns that, per C99, while never
+ * storing more than size - 1 plus the terminator.
+ */
 
-    size_t written = 0;
-    const char* p = format;
+typedef struct {
+    char*  buf;    /* may be NULL when only the length is wanted */
+    size_t size;   /* capacity including the NUL */
+    size_t count;  /* characters that would have been written */
+} FmtSink;
 
-    while (*p && written < size - 1) {
-        if (*p == '%') {
-            p++;
+static void fmt_emit(FmtSink* sink, char c) {
+    if (sink->buf && sink->size && sink->count + 1 < sink->size) {
+        sink->buf[sink->count] = c;
+    }
+    sink->count++;
+}
 
-            /* Handle format flags and width (simplified) */
-            int width = 0;
-            int leftAlign = 0;
-            int zeroPad = 0;
+static void fmt_pad(FmtSink* sink, char c, int n) {
+    while (n-- > 0) {
+        fmt_emit(sink, c);
+    }
+}
 
-            /* Check for flags */
-            if (*p == '-') {
-                leftAlign = 1;
-                p++;
-            }
-            if (*p == '0') {
-                zeroPad = 1;
-                p++;
-            }
+/* Format an already-signed-adjusted magnitude into digits, most significant
+ * first, and emit it with the requested padding. */
+static void fmt_number(FmtSink* sink, unsigned long long value, unsigned base,
+                       int upper, const char* sign, int width, int precision,
+                       int leftAlign, int zeroPad, int altForm)
+{
+    char digits[64];
+    int  len = 0;
+    int  isZero = (value == 0);
+    const char* alphabet = upper ? "0123456789ABCDEF" : "0123456789abcdef";
 
-            /* Suppress unused variable warnings - these are placeholders for future implementation */
-            (void)leftAlign;
-            (void)zeroPad;
-
-            /* Parse width */
-            while (*p >= '0' && *p <= '9') {
-                width = width * 10 + (*p - '0');
-                p++;
-            }
-
-            /* Handle format specifiers */
-            if (*p == 's') {
-                /* Handle %s - string argument */
-                const char* s = va_arg(args, const char*);
-                if (s) {
-                    while (*s && written < size - 1) {
-                        str[written++] = *s++;
-                    }
-                }
-                p++;
-            } else if (*p == 'd' || *p == 'i') {
-                /* Handle %d/%i - signed integer */
-                int val = va_arg(args, int);
-                char numBuf[32];
-                int numLen = 0;
-                int isNeg = 0;
-
-                if (val < 0) {
-                    isNeg = 1;
-                    val = -val;
-                }
-
-                if (val == 0) {
-                    numBuf[numLen++] = '0';
-                } else {
-                    while (val > 0 && numLen < 31) {
-                        numBuf[numLen++] = '0' + (val % 10);
-                        val /= 10;
-                    }
-                }
-
-                if (isNeg && written < size - 1) {
-                    str[written++] = '-';
-                }
-
-                /* Reverse the digits */
-                for (int i = numLen - 1; i >= 0 && written < size - 1; i--) {
-                    str[written++] = numBuf[i];
-                }
-                p++;
-            } else if (*p == 'u') {
-                /* Handle %u - unsigned integer */
-                unsigned int val = va_arg(args, unsigned int);
-                char numBuf[32];
-                int numLen = 0;
-
-                if (val == 0) {
-                    numBuf[numLen++] = '0';
-                } else {
-                    while (val > 0 && numLen < 31) {
-                        numBuf[numLen++] = '0' + (val % 10);
-                        val /= 10;
-                    }
-                }
-
-                for (int i = numLen - 1; i >= 0 && written < size - 1; i--) {
-                    str[written++] = numBuf[i];
-                }
-                p++;
-            } else if (*p == 'x' || *p == 'X') {
-                /* Handle %x/%X - hexadecimal */
-                unsigned int val = va_arg(args, unsigned int);
-                char numBuf[32];
-                int numLen = 0;
-                char hexBase = (*p == 'X') ? 'A' : 'a';
-
-                if (val == 0) {
-                    numBuf[numLen++] = '0';
-                } else {
-                    while (val > 0 && numLen < 31) {
-                        int digit = val % 16;
-                        numBuf[numLen++] = (digit < 10) ? ('0' + digit) : (hexBase + digit - 10);
-                        val /= 16;
-                    }
-                }
-
-                for (int i = numLen - 1; i >= 0 && written < size - 1; i--) {
-                    str[written++] = numBuf[i];
-                }
-                p++;
-            } else if (*p == 'c') {
-                /* Handle %c - character */
-                char c = (char)va_arg(args, int);
-                if (written < size - 1) {
-                    str[written++] = c;
-                }
-                p++;
-            } else if (*p == 'p') {
-                /* Handle %p - pointer */
-                void* ptr = va_arg(args, void*);
-                unsigned long val = (unsigned long)ptr;
-
-                /* Add 0x prefix */
-                if (written < size - 1) str[written++] = '0';
-                if (written < size - 1) str[written++] = 'x';
-
-                /* Convert to hex */
-                char numBuf[32];
-                int numLen = 0;
-                if (val == 0) {
-                    numBuf[numLen++] = '0';
-                } else {
-                    while (val > 0 && numLen < 31) {
-                        int digit = val % 16;
-                        numBuf[numLen++] = (digit < 10) ? ('0' + digit) : ('a' + digit - 10);
-                        val /= 16;
-                    }
-                }
-
-                for (int i = numLen - 1; i >= 0 && written < size - 1; i--) {
-                    str[written++] = numBuf[i];
-                }
-                p++;
-            } else if (*p == '%') {
-                /* Handle %% - literal % */
-                if (written < size - 1) {
-                    str[written++] = '%';
-                }
-                p++;
-            } else {
-                /* Unknown format - just copy it */
-                if (written < size - 1) str[written++] = '%';
-                if (*p && written < size - 1) str[written++] = *p++;
-            }
-        } else {
-            str[written++] = *p++;
+    if (value == 0) {
+        if (precision != 0) {
+            digits[len++] = '0';
+        }
+    } else {
+        while (value > 0 && len < (int)sizeof(digits)) {
+            digits[len++] = alphabet[value % base];
+            value /= base;
         }
     }
 
-    str[written] = '\0';
-    return written;
+    int prefixLen = 0;
+    char prefix[3];
+    for (const char* s = sign; *s; s++) {
+        prefix[prefixLen++] = *s;
+    }
+    /* C99: only a NONZERO x/X result gets the 0x prefix */
+    if (altForm && base == 16 && !isZero) {
+        prefix[prefixLen++] = '0';
+        prefix[prefixLen++] = upper ? 'X' : 'x';
+    }
+
+    int zeros = (precision > len) ? precision - len : 0;
+    int body  = prefixLen + zeros + len;
+
+    /* "0" is ignored when a precision is given, per C99 */
+    if (zeroPad && !leftAlign && precision < 0 && width > body) {
+        zeros += width - body;
+        body = width;
+    }
+
+    if (!leftAlign) {
+        fmt_pad(sink, ' ', width - body);
+    }
+    for (int i = 0; i < prefixLen; i++) {
+        fmt_emit(sink, prefix[i]);
+    }
+    fmt_pad(sink, '0', zeros);
+    for (int i = len - 1; i >= 0; i--) {
+        fmt_emit(sink, digits[i]);
+    }
+    if (leftAlign) {
+        fmt_pad(sink, ' ', width - body);
+    }
+}
+
+static int vsnprintf(char* str, size_t size, const char* format, va_list args) {
+    FmtSink sink;
+    sink.buf   = str;
+    sink.size  = size;
+    sink.count = 0;
+
+    if (!format) {
+        if (str && size) str[0] = '\0';
+        return 0;
+    }
+
+    for (const char* p = format; *p; ) {
+        if (*p != '%') {
+            fmt_emit(&sink, *p++);
+            continue;
+        }
+        p++;
+
+        /* Flags */
+        int leftAlign = 0, zeroPad = 0, altForm = 0;
+        char signChar = 0;
+        for (;;) {
+            if      (*p == '-') { leftAlign = 1; p++; }
+            else if (*p == '0') { zeroPad   = 1; p++; }
+            else if (*p == '#') { altForm   = 1; p++; }
+            else if (*p == '+') { signChar  = '+'; p++; }
+            else if (*p == ' ') { if (!signChar) signChar = ' '; p++; }
+            else break;
+        }
+
+        /* Field width */
+        int width = 0;
+        if (*p == '*') {
+            width = va_arg(args, int);
+            if (width < 0) { leftAlign = 1; width = -width; }
+            p++;
+        } else {
+            while (*p >= '0' && *p <= '9') {
+                width = width * 10 + (*p++ - '0');
+            }
+        }
+
+        /* Precision */
+        int precision = -1;
+        if (*p == '.') {
+            p++;
+            precision = 0;
+            if (*p == '*') {
+                precision = va_arg(args, int);
+                p++;
+            } else {
+                while (*p >= '0' && *p <= '9') {
+                    precision = precision * 10 + (*p++ - '0');
+                }
+            }
+        }
+
+        /* Length modifier */
+        enum { LEN_INT, LEN_CHAR, LEN_SHORT, LEN_LONG, LEN_LLONG, LEN_SIZET };
+        int lenMod = LEN_INT;
+        if      (*p == 'h') { p++; if (*p == 'h') { p++; lenMod = LEN_CHAR; } else lenMod = LEN_SHORT; }
+        else if (*p == 'l') { p++; if (*p == 'l') { p++; lenMod = LEN_LLONG; } else lenMod = LEN_LONG; }
+        else if (*p == 'z') { p++; lenMod = LEN_SIZET; }
+        else if (*p == 'j') { p++; lenMod = LEN_LLONG; }
+        else if (*p == 't') { p++; lenMod = LEN_LONG; }
+        else if (*p == 'L') { p++; lenMod = LEN_LLONG; }
+
+        char conv = *p;
+        if (conv) p++;
+
+        switch (conv) {
+        case 'd':
+        case 'i': {
+            long long v;
+            switch (lenMod) {
+            case LEN_CHAR:  v = (signed char)va_arg(args, int);  break;
+            case LEN_SHORT: v = (short)va_arg(args, int);        break;
+            case LEN_LONG:  v = va_arg(args, long);              break;
+            case LEN_LLONG: v = va_arg(args, long long);         break;
+            case LEN_SIZET: v = (long long)va_arg(args, size_t); break;
+            default:        v = va_arg(args, int);               break;
+            }
+            /* Negate in the unsigned domain so LLONG_MIN is not UB */
+            unsigned long long mag = (v < 0)
+                ? (unsigned long long)0 - (unsigned long long)v
+                : (unsigned long long)v;
+            const char* sign = (v < 0) ? "-" : (signChar == '+' ? "+"
+                                             : (signChar == ' ' ? " " : ""));
+            fmt_number(&sink, mag, 10, 0, sign, width, precision,
+                       leftAlign, zeroPad, 0);
+            break;
+        }
+        case 'u':
+        case 'o':
+        case 'x':
+        case 'X': {
+            unsigned long long v;
+            switch (lenMod) {
+            case LEN_CHAR:  v = (unsigned char)va_arg(args, unsigned int);  break;
+            case LEN_SHORT: v = (unsigned short)va_arg(args, unsigned int); break;
+            case LEN_LONG:  v = va_arg(args, unsigned long);                break;
+            case LEN_LLONG: v = va_arg(args, unsigned long long);           break;
+            case LEN_SIZET: v = va_arg(args, size_t);                       break;
+            default:        v = va_arg(args, unsigned int);                 break;
+            }
+            unsigned base = (conv == 'u') ? 10u : (conv == 'o' ? 8u : 16u);
+            fmt_number(&sink, v, base, (conv == 'X'), "", width, precision,
+                       leftAlign, zeroPad, altForm);
+            break;
+        }
+        case 'c': {
+            char c = (char)va_arg(args, int);
+            if (!leftAlign) fmt_pad(&sink, ' ', width - 1);
+            fmt_emit(&sink, c);
+            if (leftAlign)  fmt_pad(&sink, ' ', width - 1);
+            break;
+        }
+        case 's': {
+            const char* s = va_arg(args, const char*);
+            if (!s) s = "(null)";
+            int len = 0;
+            while (s[len] && (precision < 0 || len < precision)) len++;
+            if (!leftAlign) fmt_pad(&sink, ' ', width - len);
+            for (int i = 0; i < len; i++) fmt_emit(&sink, s[i]);
+            if (leftAlign)  fmt_pad(&sink, ' ', width - len);
+            break;
+        }
+        case 'p': {
+            void* ptr = va_arg(args, void*);
+            if (!ptr) {
+                const char* s = "(nil)";
+                int len = 5;
+                if (!leftAlign) fmt_pad(&sink, ' ', width - len);
+                while (*s) fmt_emit(&sink, *s++);
+                if (leftAlign)  fmt_pad(&sink, ' ', width - len);
+            } else {
+                fmt_number(&sink, (unsigned long long)(uintptr_t)ptr, 16, 0,
+                           "0x", width, precision, leftAlign, zeroPad, 0);
+            }
+            break;
+        }
+        case '%':
+            fmt_emit(&sink, '%');
+            break;
+        case '\0':
+            /* Trailing '%' at end of format - emit it and stop */
+            fmt_emit(&sink, '%');
+            break;
+        default:
+            /* Unknown conversion: emit it verbatim. No argument is consumed,
+             * which matches the old behaviour, but with the length modifiers
+             * above this should now be unreachable for anything in the tree. */
+            fmt_emit(&sink, '%');
+            fmt_emit(&sink, conv);
+            break;
+        }
+    }
+
+    if (str && size) {
+        str[(sink.count < size) ? sink.count : size - 1] = '\0';
+    }
+    return (int)sink.count;
 }
 
 /* Standard I/O functions */
