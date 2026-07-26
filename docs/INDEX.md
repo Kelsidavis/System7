@@ -16,6 +16,10 @@ Welcome to the System 7 documentation. This index will help you find what you're
 - [MEMORY_MANAGEMENT.md](MEMORY_MANAGEMENT.md) — Zone-based allocation, how memory works
 - [MALLOC_PREVENTION.md](MALLOC_PREVENTION.md) — Why we don't use malloc/free in kernel
 
+### Bare Metal & Hardware
+- [BARE_METAL_IMPROVEMENTS.md](BARE_METAL_IMPROVEMENTS.md) — Plan for real hardware support
+- Details: Current QEMU-only limitations and roadmap for bare metal improvements
+
 ### Known Issues & Limitations
 - [KNOWN_ISSUES.md](KNOWN_ISSUES.md) — Current bugs and workarounds
 - [System7_Compatibility_Gaps.md](components/Compatibility/System7_Compatibility_Gaps.md) — Differences from real System 7
