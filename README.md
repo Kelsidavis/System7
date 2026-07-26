@@ -1,6 +1,6 @@
 # System 7 - Portable Open-Source Reimplementation
 
-**[English](README.md)** | **[Fran&ccedil;ais](README.fr.md)** | **[Deutsch](README.de.md)** | **[Espa&ntilde;ol](README.es.md)** | **[Italiano](README.it.md)** | **[Portugu&ecirc;s](README.pt.md)** | **[Nederlands](README.nl.md)** | **[Dansk](README.da.md)** | **[Norsk](README.no.md)** | **[Svenska](README.sv.md)** | **[Suomi](README.fi.md)** | **[&Iacute;slenska](README.is.md)** | **[Ελληνικά](README.el.md)** | **[T&uuml;rk&ccedil;e](README.tr.md)** | **[Polski](README.pl.md)** | **[Čeština](README.cs.md)** | **[Slovenčina](README.sk.md)** | **[Slovenščina](README.sl.md)** | **[Hrvatski](README.hr.md)** | **[Magyar](README.hu.md)** | **[Rom&acirc;n&atilde;](README.ro.md)** | **[Български](README.bg.md)** | **[Shqip](README.sq.md)** | **[Eesti](README.et.md)** | **[Latviešu](README.lv.md)** | **[Lietuvių](README.lt.md)** | **[Македонски](README.mk.md)** | **[Crnogorski](README.me.md)** | **[Русский](README.ru.md)** | **[Українська](README.uk.md)** | **[العربية](README.ar.md)** | **[日本語](README.ja.md)** | **[简体中文](README.zh.md)** | **[繁體中文](README.tw.md)** | **[한국어](README.ko.md)** | **[हिन्दी](README.hi.md)** | **[বাংলা](README.bn.md)** | **[اردو](README.ur.md)**
+**[View in 37 Languages](docs/TRANSLATIONS.md)** | English (Main)
 
 <img width="793" height="657" alt="System 7 running on modern hardware" src="https://github.com/user-attachments/assets/be84b83e-191c-4f9d-a786-11d0bd04203b" />
 <img width="801" height="662" alt="simpletextworks" src="https://github.com/user-attachments/assets/7c9ebe5b-22b4-4612-93a1-2076909d77cd" />
@@ -9,6 +9,10 @@
 > ⚠️ **PROOF OF CONCEPT** - This is an experimental, educational reimplementation of Apple's Macintosh System 7. This is NOT a finished product and should not be considered production-ready software.
 
 An open-source reimplementation of Apple Macintosh System 7 for modern x86 hardware, bootable via GRUB2/Multiboot2. This project aims to recreate the classic Mac OS experience while documenting the System 7 architecture through reverse engineering analysis.
+
+## 📖 Quick Links
+
+**New here?** Start with [Getting Started](docs/GETTING_STARTED.md) | **Want to help?** See [Contributing](docs/CONTRIBUTING.md) | **In other languages?** [View 37 translations](docs/TRANSLATIONS.md)
 
 ## 🎯 Project Status
 
@@ -185,25 +189,25 @@ make debug
 
 ## 📚 Documentation
 
-### Component Guides
-- **Control Manager**: `docs/components/ControlManager/`
-- **Dialog Manager**: `docs/components/DialogManager/`
-- **Font Manager**: `docs/components/FontManager/`
-- **Serial Logging**: `docs/components/System/`
-- **Event Manager**: `docs/components/EventManager.md`
-- **Menu Manager**: `docs/components/MenuManager.md`
-- **Window Manager**: `docs/components/WindowManager.md`
-- **Resource Manager**: `docs/components/ResourceManager.md`
+### Getting Started
+- **[Getting Started Guide](docs/GETTING_STARTED.md)** — Step-by-step setup and first run
+- **[Known Issues](docs/KNOWN_ISSUES.md)** — Current limitations and workarounds
+- **[Contributing Guide](docs/CONTRIBUTING.md)** — How to help with development
 
-### Internationalization
-- **Locale Manager**: `include/LocaleManager/` — runtime locale switching, boot-time language selection
-- **String Resources**: `resources/strings/` — per-language STR# resource files (34 languages)
-- **Extended Fonts**: `include/chicago_font_extended.h` — Mac Roman 0x80-0xFF glyphs for European characters
-- **CJK Support**: `include/TextEncoding/CJKEncoding.h`, `include/FontManager/CJKFont.h` — multi-byte encoding and font infrastructure
+### Deep Dives
+- **[Implementation Status](docs/IMPLEMENTATION_STATUS_AUDIT.md)** — Complete subsystem audit
+- **[Implementation Priorities](IMPLEMENTATION_PRIORITIES.md)** — Planned work roadmap
+- **[Component Guides](docs/components/)** — Detailed technical documentation:
+  - Control Manager, Dialog Manager, Font Manager, Event Manager
+  - Menu Manager, Window Manager, Resource Manager, Serial Logging
+- **[Memory Management](docs/MEMORY_MANAGEMENT.md)** — Zone-based allocation system
+- **[Project Architecture](docs/)** — Full documentation index
 
-### Implementation Status
-- **IMPLEMENTATION_PRIORITIES.md**: Planned work and completeness tracking
-- **IMPLEMENTATION_STATUS_AUDIT.md**: Detailed audit of all subsystems
+### Localization & Internationalization
+- **[Available Translations](docs/TRANSLATIONS.md)** — READMEs in 37 languages
+- **[Locale Manager](include/LocaleManager/)** — Runtime language switching
+- **[String Resources](resources/strings/)** — Per-language localization files
+- **[CJK Support](include/TextEncoding/)** — Chinese, Japanese, Korean font support
 
 ### Project Philosophy
 

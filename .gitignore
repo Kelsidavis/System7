@@ -13,6 +13,7 @@ iso/
 # Log files
 *.log
 serial.log
+serial_output.txt
 debug*.log
 
 # Editor files
@@ -49,11 +50,15 @@ old_tests/
 old_docs/
 old_builds/
 
-# System resources (kept locally but not in repo)
+# System resources (most kept locally but not in repo)
 System_Resources_Extracted/
-resources/
+resources/*
 !resources/strings/
+resources/strings/*
 !resources/strings/*.json
+!resources/device-tree/
+resources/device-tree/*
+!resources/device-tree/*.dtb
 
 # Local helper docs generated per-agent
 AGENTS.md
