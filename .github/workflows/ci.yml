@@ -107,6 +107,21 @@ jobs:
           name: system71-iso-${{ matrix.lang }}
           path: system71-${{ matrix.lang }}.iso
 
+  test-stdlib:
+    name: C Library Differential Test
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # Compares the in-tree string/memory routines against the host libc with
+      # guard bytes around every destination buffer. Needs no kernel build.
+      # strncpy shipped for a long time writing one byte past its destination
+      # for every caller in the tree; this is the check that would have caught it.
+      - name: Run C library differential test
+        run: make test-stdlib
+
   build-all-locales:
     name: Build All Locales ISO
     runs-on: ubuntu-latest

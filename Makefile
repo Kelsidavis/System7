@@ -1439,6 +1439,15 @@ info:
 check-exports: kernel.elf
 	@bash tools/check_exports.sh
 
+# Differential test of the in-tree C string/memory routines against the host
+# libc, with guard bytes around every destination buffer. Needs no kernel
+# build - it extracts the pure routines from src/System71StdLib.c and compiles
+# them natively. Catches the class of bug where strncpy wrote one byte past
+# its destination for every caller in the tree.
+.PHONY: test-stdlib
+test-stdlib:
+	@python3 tests/stdlib/extract_and_test.py
+
 # Help target - show available commands
 .PHONY: help
 help: ## Show this help message
