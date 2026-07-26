@@ -457,10 +457,18 @@ static OSErr ConfirmEmptyTrash(Boolean *confirmed)
     *p++ = 8;              /* statText */
     {
         const char* msg = "Are you sure you want to permanently remove the items in the Trash?";
-        unsigned char len = 66;
+        /* Measured, not hand-counted: the literal 66 that used to be here was
+         * one short and swallowed the question mark. */
+        unsigned char len = (unsigned char)strlen(msg);
         *p++ = len;
         memcpy(p, msg, len);
         p += len;
+        /* DITL items start on even offsets, and ParseDITL skips a byte to
+         * realign after odd-length data. This list is built by hand and did not
+         * pad, which went unnoticed only because every length happened to be
+         * even; the first odd one put the parser a byte out and it read the
+         * next item's header from the wrong place, losing both buttons. */
+        if (len & 1) *p++ = 0;
     }
 
     /* Item 2: OK button */

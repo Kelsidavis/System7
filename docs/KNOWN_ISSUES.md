@@ -241,10 +241,22 @@ Measured through the chain: the click arrives at the loop, `isDlgEvt=1`, and
 `global=(335,225)` converts to `local=(234,64)` giving `hit=2` — the OK button.
 The dialog dismisses and the window behind repaints.
 
+**Fixed since:** the prompt now reads from its first character and wraps inside
+its item rectangle, and the buttons are labelled. Three more bugs were behind
+that — the DITL parser dropped the Pascal length byte, it never matched control
+item types at all (a button is `ctrlItem|btnCtrl` = 4, not `btnCtrl` = 0), and
+`DrawDialogStaticText` drew one unwrapped line.
+
 **Still cosmetic, not fixed:** the window is created with `procID = 1`
 (`dBoxProc`), a plain modal box with no title bar in System 7, but the frame
-code gives it one anyway, leaving an unpainted strip above the content. The
-prompt is clipped at both ends and the buttons have no labels.
+code gives it one anyway, leaving an unpainted strip above the content.
+
+⚠️ **DITL items must start on even offsets.** `ParseDITL` skips a byte to
+realign after odd-length data, but the list `ConfirmEmptyTrash` builds by hand
+did not pad. That went unnoticed while every length happened to be even;
+correcting the prompt length from 66 to 67 made one odd and the parser read the
+next item header a byte out, losing both buttons. Any hand-built DITL needs the
+pad.
 
 **Also still true:** `NewDialog` `memcpy`s the window record into the dialog
 struct, leaving the Window Manager's list and the dialog holding separate

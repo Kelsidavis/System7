@@ -270,18 +270,59 @@ void DrawDialogStaticText(DialogPtr theDialog, const Rect* bounds, const unsigne
     TextSize(12);
     TextFace(isEnabled ? 0 : 0x80);
 
-    textV = bounds->top + 12;  /* Baseline */
-
-    /* Debug: Check current port's coordinate mapping */
+    /*
+     * Wrap the text inside its item rectangle.
+     *
+     * It used to be drawn as a single DrawString call, so anything wider than
+     * the item was simply cut off at the right edge - the Empty Trash prompt is
+     * 66 characters in a 266 pixel rect and lost its second half. System 7 wraps
+     * static text within the rect the DITL gives it.
+     *
+     * Breaks at the last space that still fits; a word longer than the whole
+     * line is broken mid-word rather than dropped. Stops when the next line
+     * would fall outside the item.
+     */
     {
-        GrafPtr currentPort;
-        GetPort(&currentPort);
-        if (currentPort) {
+        const SInt16 kLineHeight = 13;
+        SInt16 maxWidth = bounds->right - bounds->left - 4;
+        SInt16 len = text[0];
+        SInt16 start = 1;
+
+        textV = bounds->top + 12;  /* first baseline */
+
+        while (start <= len && textV <= bounds->bottom) {
+            unsigned char line[256];
+            SInt16 fit = 0;
+            SInt16 lastSpace = 0;
+            SInt16 i;
+
+            /* Longest prefix that fits */
+            for (i = start; i <= len; i++) {
+                line[0] = (unsigned char)(i - start + 1);
+                memcpy(&line[1], &text[start], i - start + 1);
+                if (StringWidth(line) > maxWidth) break;
+                fit = i;
+                if (text[i] == ' ') lastSpace = i;
+            }
+
+            if (fit == 0) {           /* not even one character fits */
+                break;
+            }
+            if (i <= len && lastSpace > start) {
+                fit = lastSpace;      /* break at the space instead */
+            }
+
+            line[0] = (unsigned char)(fit - start + 1);
+            memcpy(&line[1], &text[start], fit - start + 1);
+
+            MoveTo(bounds->left + 2, textV);
+            DrawString(line);
+
+            textV += kLineHeight;
+            start = fit + 1;
+            while (start <= len && text[start] == ' ') start++;  /* eat the break */
         }
     }
-
-    MoveTo(bounds->left + 2, textV);
-    DrawString(text);
 
     SetPort(savePort);
 }
