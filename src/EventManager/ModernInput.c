@@ -115,6 +115,23 @@ static Boolean KeyMapHasKey(const KeyMap map, UInt16 scanCode)
     return (words[arrayIndex] & (1U << bitIndex)) != 0;
 }
 
+static void KeyMapSetKey(KeyMap map, UInt16 scanCode, Boolean isDown)
+{
+    if (scanCode >= 128) {
+        return;
+    }
+
+    UInt32 *words = (UInt32 *)map;
+    UInt16 arrayIndex = scanCode / 32;
+    UInt32 mask = (1U << (scanCode % 32));
+
+    if (isDown) {
+        words[arrayIndex] |= mask;
+    } else {
+        words[arrayIndex] &= ~mask;
+    }
+}
+
 static UInt16 ComputeModifiersFromKeyMap(const KeyMap map, UInt8 buttonState)
 {
     UInt16 mods = 0;
@@ -407,15 +424,30 @@ void ProcessModernInput(void)
     {
         UInt8 macCode;
         Boolean isPressed;
+        KeyMap running;
+
+        /* Replay the transitions against a running key map rather than reading
+         * the modifier state off a single sample.
+         *
+         * currentKeyMap is one snapshot taken at the top of this function, but
+         * the ring can hold a whole chord that opened and closed since the last
+         * call. Command-N arrives as four transitions - command down, N down, N
+         * up, command up - and by sampling time nothing is held, so the N would
+         * be reported with no modifiers and the menu equivalent never fired.
+         * Rebuilding the map as each transition is applied gives each key the
+         * modifier state that was actually in effect when it was pressed. */
+        memcpy(running, g_modernInput.lastKeyMap, sizeof(KeyMap));
 
         while (PS2_DequeueKeyTransition(&macCode, &isPressed)) {
             UInt16 keyCode = macCode;
+
+            KeyMapSetKey(running, keyCode, isPressed);
 
             if (isPressed && keyCode == kScanCapsLock) {
                 g_modernInput.capsLockLatched = !g_modernInput.capsLockLatched;
             }
 
-            UInt16 modifiers = ComputeModifiersFromKeyMap(currentKeyMap, currentButtonState);
+            UInt16 modifiers = ComputeModifiersFromKeyMap(running, currentButtonState);
             UInt32 timestamp = TickCount();
 
             SInt16 eventsGenerated = ProcessRawKeyboardEvent(keyCode, isPressed, modifiers, timestamp);
@@ -428,12 +460,13 @@ void ProcessModernInput(void)
                      * in the next. Masking the char to 16 bits let it bleed
                      * into the key-code byte. */
                     SInt32 message = (SInt32)(charCode & 0xFF) | ((SInt32)(keyCode & 0xFF) << 8);
-                    PostEvent(isPressed ? keyDown : keyUp, message);
+                    extern OSErr PostEventWithModifiers(EventMask what, UInt32 message, UInt16 modifiers);
+                    PostEventWithModifiers(isPressed ? keyDown : keyUp, message, modifiers);
                 }
             }
         }
 
-        memcpy(g_modernInput.lastKeyMap, currentKeyMap, sizeof(KeyMap));
+        memcpy(g_modernInput.lastKeyMap, running, sizeof(KeyMap));
     }
 }
 

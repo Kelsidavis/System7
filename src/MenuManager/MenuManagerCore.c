@@ -239,6 +239,26 @@ Handle GetMenuBar(void)
 }
 
 /*
+ * MenuMgr_GetMenuBarList - the menu list, as what it actually is
+ *
+ * gMenuList is a NewPtr block, but GetMenuBar hands it back cast to Handle,
+ * and every caller then dereferenced it - reading the first four bytes of the
+ * MenuBarList as if they were a master pointer. FindMenuCommand did this and
+ * came away with numMenus == 0, so no command-key equivalent has ever
+ * resolved: Command-N, Command-O and Command-W were silently ignored while
+ * the same menus tracked correctly with the mouse, because menu tracking
+ * reaches the list by a different route.
+ */
+MenuBarList* MenuMgr_GetMenuBarList(void)
+{
+    if (!gMenuMgrInitialized) {
+        return NULL;
+    }
+
+    return (MenuBarList*)gMenuList;
+}
+
+/*
  * GetNewMBar - Create menu list from MBAR resource
  *
  * Loads an MBAR resource by ID and creates menu list with MENU resources

@@ -560,7 +560,6 @@ short TrackPullDownMenu(MenuHandle theMenu, const Rect* menuRect,
  */
 Boolean FindMenuCommand(short cmdChar, unsigned long modifiers, MenuCmdSearch* search)
 {
-    Handle menuBarHandle;
     MenuBarList* menuBar;
     int m, i;
     char searchChar;
@@ -579,21 +578,20 @@ Boolean FindMenuCommand(short cmdChar, unsigned long modifiers, MenuCmdSearch* s
     search->foundItem = 0;
     search->enabled = false;
 
-    /* Get menu bar */
-    menuBarHandle = GetMenuBar();
-    if (menuBarHandle == NULL) {
+    /* Get menu bar. The list is a non-relocatable block, so there is nothing
+     * to lock and nothing to dereference - see MenuMgr_GetMenuBarList. */
+    extern MenuBarList* MenuMgr_GetMenuBarList(void);
+    menuBar = MenuMgr_GetMenuBarList();
+    if (menuBar == NULL) {
         return false;
     }
-
-    /* CRITICAL: Lock handle before dereferencing to prevent heap compaction issues */
-    HLock(menuBarHandle);
-    menuBar = (MenuBarList*)*menuBarHandle;
 
     /* Convert command key to lowercase for comparison (our storage is lowercase) */
     searchChar = cmdChar;
     if (searchChar >= 'A' && searchChar <= 'Z') {
         searchChar = searchChar - 'A' + 'a';
     }
+
 
     /* Search through all menus in menu bar */
     for (m = 0; m < menuBar->numMenus; m++) {
@@ -616,14 +614,12 @@ Boolean FindMenuCommand(short cmdChar, unsigned long modifiers, MenuCmdSearch* s
                 search->enabled = CheckMenuItemEnabled(theMenu, i);
 
                 /* Unlock handle before returning */
-                HUnlock(menuBarHandle);
                 return true;
             }
         }
     }
 
     /* Unlock handle before returning */
-    HUnlock(menuBarHandle);
     return false;
 }
 

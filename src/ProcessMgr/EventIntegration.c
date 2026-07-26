@@ -130,7 +130,7 @@ Boolean Proc_EventAvail(EventMask mask, EventRecord* evt) {
  * NOTE: This is a process-aware version that unblocks waiting processes.
  * It can be called in addition to the standard PostEvent.
  */
-OSErr Proc_PostEvent(EventMask what, UInt32 message) {
+OSErr Proc_PostEventWithModifiers(EventMask what, UInt32 message, UInt16 modifiers) {
     EventRecord evt;
 
     if (gQueueCount >= EVENT_QUEUE_SIZE) {
@@ -145,7 +145,7 @@ OSErr Proc_PostEvent(EventMask what, UInt32 message) {
     evt.where.h = 0;
     evt.where.v = 0;
     GetMouse(&evt.where);
-    evt.modifiers = GetModifiers();
+    evt.modifiers = modifiers;
 
     /* Add to queue - use memcpy to avoid struct assignment on ARM64 */
     extern void* memcpy(void* dest, const void* src, size_t n);
@@ -159,6 +159,19 @@ OSErr Proc_PostEvent(EventMask what, UInt32 message) {
     Proc_UnblockEvent(&evt);
 
     return noErr;
+}
+
+/*
+ * Post with the modifier state that was in effect when the event happened.
+ *
+ * Reading the live modifiers here is wrong for keys. The keyboard IRQ has
+ * already processed the whole chord by the time the input layer turns it into
+ * events, so a Command-N that was pressed and released between two polls
+ * reports no modifiers at all and the menu equivalent never fires. The input
+ * layer knows the state at each keystroke and passes it in.
+ */
+OSErr Proc_PostEvent(EventMask what, UInt32 message) {
+    return Proc_PostEventWithModifiers(what, message, GetModifiers());
 }
 
 /*
@@ -416,6 +429,10 @@ Boolean EventAvail(EventMask mask, EventRecord* evt) {
 /* Override the canonical PostEvent */
 OSErr PostEvent(EventMask what, UInt32 message) {
     return Proc_PostEvent(what, message);
+}
+
+OSErr PostEventWithModifiers(EventMask what, UInt32 message, UInt16 modifiers) {
+    return Proc_PostEventWithModifiers(what, message, modifiers);
 }
 
 /* Override the canonical FlushEvents */

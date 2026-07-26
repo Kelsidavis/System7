@@ -66,8 +66,9 @@ OSErr GetAppMenusRect(Rect *appRect) {
         return paramErr;
     }
 
-    Handle menuList = GetMenuBar();
-    if (!menuList || !*menuList) {
+    extern MenuBarList* MenuMgr_GetMenuBarList(void);
+    MenuList *menuListPtr = (MenuList *)MenuMgr_GetMenuBarList();
+    if (!menuListPtr) {
         /* No menus - empty rectangle */
         appRect->top = 0;
         appRect->left = 0;
@@ -76,7 +77,7 @@ OSErr GetAppMenusRect(Rect *appRect) {
         return noErr;
     }
 
-    MenuList *list = (MenuList *)*menuList;
+    MenuList *list = menuListPtr;
     SInt16 leftmost = GetScreenWidth();
     SInt16 rightmost = 0;
     Boolean foundApp = false;
@@ -127,9 +128,10 @@ OSErr GetSysMenusRect(Rect *sysRect) {
     SInt16 rightmost = screenWidth;
 
     /* Look for system menus and calculate their total width */
-    Handle menuList = GetMenuBar();
-    if (menuList && *menuList) {
-        MenuList *list = (MenuList *)*menuList;
+    extern MenuBarList* MenuMgr_GetMenuBarList(void);
+    MenuList *menuListPtr = (MenuList *)MenuMgr_GetMenuBarList();
+    if (menuListPtr) {
+        MenuList *list = menuListPtr;
         MenuHandle menu = list->firstMenu;
 
         while (menu && *menu) {
@@ -227,12 +229,13 @@ Boolean IsSystemMenu(SInt16 menuID) {
  * CalcMenuBar - Calculate menu bar layout
  */
 OSErr CalcMenuBar(void) {
-    Handle menuList = GetMenuBar();
-    if (!menuList || !*menuList) {
+    extern MenuBarList* MenuMgr_GetMenuBarList(void);
+    MenuList *menuListPtr = (MenuList *)MenuMgr_GetMenuBarList();
+    if (!menuListPtr) {
         return noErr;
     }
 
-    MenuList *list = (MenuList *)*menuList;
+    MenuList *list = menuListPtr;
     SInt16 currentLeft = 0;
     SInt16 screenWidth = GetScreenWidth();
 
