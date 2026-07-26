@@ -168,26 +168,28 @@ Verified in QEMU: PS/2 boot with no input now shows both icons (342 and 194 dark
 pixels, matching a tablet boot exactly), and they survive opening a folder and
 opening a menu. Tablet boot unchanged.
 
-### ⚠️ A menu bar title stays highlighted after its menu closes (MENU-002)
+### ✅ A menu bar title stayed highlighted after its menu closed (MENU-002) — FIXED
 
-Open a menu and pick an item, and the title keeps its black highlight. Open a
-second menu and the first one is still inverted too — opening Apple then File
-leaves the Apple icon inverted as well as File.
+Pick an item from a menu and the title kept its black highlight; open a second
+menu and the first stayed inverted too.
 
-Not a position problem: the highlight now lands exactly on its title (see the
-menu bar layout fix below). The sequence in the log is right as far as it goes —
+**Cause: an inherited clip.** `DrawMenuTitle` set the port but not the clip, so
+it ran with whatever clip the last drawing left behind. That is harmless while a
+menu is being tracked, but choosing an item runs the command, the command
+redraws a window, and the clip is then narrowed to that window - so the
+unhighlight that followed was clipped away entirely. The log looked correct
+throughout (`FillRect` for the normal state ran *last*); the drawing simply
+never reached the screen. It now clips to the menu bar explicitly and restores
+the previous clip afterwards.
 
-```
-[DRAWTITLE] HIGHLIGHTED   FillRect + InvertRect
-[DRAWTITLE] NORMAL        FillRect
-```
-
-`DrawMenuTitle` fills the rect white before drawing, and the unhighlight runs
-*last*, so the black should be gone. Something re-inverts the title after that,
-or paints the menu bar again from stale state. `DrawMenuBarWithHighlight` keeps
-a `lastHighlightMenuID` and `DrawMenuBar` skips drawing a title it believes is
-highlighted (`gMenuMgrState->hiliteMenu`), so those two pieces of state are the
-place to look — one of them is probably not being cleared on dismissal.
+**Follow-on this exposed.** With the unhighlight actually running, selecting the
+Apple menu and then another one left a blank gap where the apple had been.
+`DrawMenuTitle` drew every title through `DrawMenuItemTextInternal`, but the
+Apple and Application menus have an *icon* for a title - their `menuData` is
+blank and the Apple symbol is outside the ASCII strike regardless. Previously
+the erase was clipped away so the stale icon survived, inverted. Both now
+redraw through `MenuAppleIcon_Draw` / `MenuAppIcon_Draw`, the same renderers
+`DrawMenuBar` uses.
 
 ### ✅ The menu bar highlight was drawn from a third, wrong layout — FIXED
 

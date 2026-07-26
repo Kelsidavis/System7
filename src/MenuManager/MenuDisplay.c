@@ -186,13 +186,38 @@ void DrawMenuTitle(short menuID, const Rect* titleRect, Boolean hilited)
     extern QDGlobals qd;
     QD_SetScreenPort();  /* bounds (0,0,w,h), matching the global titleRect */
 
+    /*
+     * Clip to the menu bar explicitly rather than inheriting whatever clip
+     * happens to be set. This ran with the clip left over from the last thing
+     * drawn, which is fine while a menu is being tracked but not afterwards:
+     * choosing an item runs the command, that redraws a window and narrows the
+     * clip to it, and the unhighlight that follows was then clipped away
+     * entirely. The title kept its black highlight even though DrawMenuTitle
+     * had dutifully filled it white (MENU-002).
+     */
+    extern GrafPtr QD_GetScreenPort(void);
+    GrafPtr menuPort = QD_GetScreenPort();
+    RgnHandle saveClip = NULL;
+    if (menuPort) {
+        if (menuPort->clipRgn && *(menuPort->clipRgn)) {
+            saveClip = NewRgn();
+            if (saveClip) CopyRgn(menuPort->clipRgn, saveClip);
+        }
+        Rect barRect;
+        barRect.left = 0;
+        barRect.top = 0;
+        barRect.right = qd.screenBits.bounds.right;
+        barRect.bottom = 20;
+        ClipRect(&barRect);
+    }
+
     /* CRITICAL FIX: Reset pnLoc before drawing
      * pnLoc may be left in a bad state (e.g., 321,146) from previous dropdown menu
      * drawing or other operations. This causes text to be drawn at wrong position.
      * Reset to (0,0) to ensure DrawChar positioning is correct. */
-    if (qd.thePort) {
-        qd.thePort->pnLoc.h = 0;
-        qd.thePort->pnLoc.v = 0;
+    if (menuPort) {
+        menuPort->pnLoc.h = 0;
+        menuPort->pnLoc.v = 0;
     }
 
     /* Get menu title */
@@ -259,12 +284,28 @@ void DrawMenuTitle(short menuID, const Rect* titleRect, Boolean hilited)
              g_currentPort->pnLoc.h, g_currentPort->pnLoc.v, titleRect->left);
     serial_puts(pnLocBuf);
 
-    if (hilited) {
-        serial_puts("[MENU] Drawing HIGHLIGHTED menu title, calling DrawMenuItemTextInternal\n");
+    /*
+     * The Apple and Application menus have an icon for a title, not text.
+     * Drawing them through DrawMenuItemTextInternal erased the icon and put
+     * nothing in its place: their menuData is blank, and the Apple symbol lives
+     * outside the ASCII strike anyway. Selecting the Apple menu and then
+     * another one used to leave a blank gap where the apple had been.
+     */
+    extern short MenuAppleIcon_Draw(GrafPtr port, short x, short y, Boolean inverted);
+    extern short MenuAppIcon_Draw(GrafPtr port, short x, short y, Boolean inverted);
+
+    if (menuID == 128) {
+        MenuAppleIcon_Draw(menuPort, titleRect->left, titleRect->top, hilited);
+    } else if (menuID == (short)kApplicationMenuID) {
+        MenuAppIcon_Draw(menuPort, titleRect->left, titleRect->top, hilited);
     } else {
-        serial_puts("[MENU] Drawing NORMAL menu title, calling DrawMenuItemTextInternal\n");
+        if (hilited) {
+            serial_puts("[MENU] Drawing HIGHLIGHTED menu title, calling DrawMenuItemTextInternal\n");
+        } else {
+            serial_puts("[MENU] Drawing NORMAL menu title, calling DrawMenuItemTextInternal\n");
+        }
+        DrawMenuItemTextInternal(&textRect, titleText, normal, true, hilited, true);  /* true = isMenuTitle */
     }
-    DrawMenuItemTextInternal(&textRect, titleText, normal, true, hilited, true);  /* true = isMenuTitle */
 
     snprintf(pnLocBuf, sizeof(pnLocBuf), "[MENU-PNLOC-AFTER] pnLoc=(%d,%d)\n",
              g_currentPort->pnLoc.h, g_currentPort->pnLoc.v);
@@ -282,7 +323,11 @@ void DrawMenuTitle(short menuID, const Rect* titleRect, Boolean hilited)
         serial_puts(invBuf);
     }
 
-    /* Restore original port */
+    /* Restore the clip we narrowed to the menu bar, then the original port */
+    if (saveClip) {
+        SetClip(saveClip);
+        DisposeRgn(saveClip);
+    }
     if (savePort) {
         SetPort(savePort);
     }
