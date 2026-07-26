@@ -8,6 +8,14 @@
 
 > ⚠️ **PROOF OF CONCEPT** - This is an experimental, educational reimplementation of Apple's Macintosh System 7. This is NOT a finished product and should not be considered production-ready software.
 
+## 🎥 Featured In
+
+[![Featured on YouTube](https://img.shields.io/badge/Featured-YouTube-red?style=for-the-badge&logo=youtube)](https://www.youtube.com/results?search_query=system+7+ai+cursed)
+
+This project was featured on a major tech YouTube channel as **"the world's most cursed operating system"** — an AI-assisted reverse engineering project that actually boots on real hardware. [Watch the feature](https://www.youtube.com/results?search_query=system+7+ai+cursed) to see System 7 running on vintage hardware.
+
+---
+
 An open-source reimplementation of Apple Macintosh System 7 for modern x86 hardware, bootable via GRUB2/Multiboot2. This project aims to recreate the classic Mac OS experience while documenting the System 7 architecture through reverse engineering analysis.
 
 ## 📖 Quick Links
@@ -27,6 +35,17 @@ This started as a disciplined AI-assisted reverse engineering research project (
 **Why it matters anyway**: It's still the most complete open-source System 7 implementation. Real code. Real architecture. Real bugs that teach you something.
 
 **Read [Project Evolution](docs/PROJECT_EVOLUTION.md)** for the detailed honest story about how this went from rigorous research to the sloppy experiment you're looking at.
+
+### What YouTube Testing Revealed
+
+Recent real-world testing on actual hardware showed:
+- ✅ **Boots successfully** on multiple systems (Pentium 3, ThinkPad X1, MacBook Air)
+- ✅ **Graphics render** correctly (desktop, menu bar visible)
+- ❌ **Freezes after boot** on most hardware (input/timing issues)
+- ❌ **Mouse/keyboard unresponsive** (interrupt handling broken)
+- ❌ **Applications crash** when launched
+
+This confirms what our documentation states: **QEMU-only testing masked real hardware issues.** The bare metal problems are now documented in [BARE_METAL_IMPROVEMENTS.md](docs/BARE_METAL_IMPROVEMENTS.md) with a roadmap to fix them.
 
 ## 🎯 Project Status
 
