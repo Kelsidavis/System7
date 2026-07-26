@@ -89,6 +89,44 @@ static void DrawMenuRect(short left, short top, short right, short bottom, uint3
 }
 
 
+/*
+ * The command ("cloverleaf") symbol shown beside command-key equivalents.
+ *
+ * Chicago carries this at character 0x11, but the strike extracted into this
+ * tree only covers ASCII 32-126 and FM_DrawChicagoCharInternal rejects
+ * ch < 32, so the character drew as nothing and menus showed a bare "N" where
+ * System 7 shows the symbol followed by N. Rather than fabricate font data,
+ * the glyph is drawn geometrically - the standard looped square (U+2318): a
+ * 5x5 centre square with a loop wrapped around each corner.
+ */
+#define kCmdGlyphWidth  11
+#define kCmdGlyphHeight 11
+
+static const uint16_t kCommandGlyph[kCmdGlyphHeight] = {
+    0x306,  /* .##.....##. */
+    0x489,  /* #..#...#..# */
+    0x489,  /* #..#...#..# */
+    0x3FE,  /* .#########. */
+    0x088,  /* ...#...#... */
+    0x088,  /* ...#...#... */
+    0x088,  /* ...#...#... */
+    0x3FE,  /* .#########. */
+    0x489,  /* #..#...#..# */
+    0x489,  /* #..#...#..# */
+    0x306,  /* .##.....##. */
+};
+
+static void DrawCommandGlyph(short x, short y, uint32_t color) {
+    for (short row = 0; row < kCmdGlyphHeight; row++) {
+        uint16_t bits = kCommandGlyph[row];
+        for (short col = 0; col < kCmdGlyphWidth; col++) {
+            if (bits & (1 << (kCmdGlyphWidth - 1 - col))) {
+                DrawMenuRect(x + col, y + row, x + col + 1, y + row + 1, color);
+            }
+        }
+    }
+}
+
 /* Draw text */
 static void DrawMenuItemText(const char* text, short x, short y) {
     MoveTo(x, y);
@@ -117,6 +155,46 @@ static void GetItemText(MenuHandle theMenu, short index, char* text) {
         text[i] = itemString[i + 1];
     }
     text[len] = 0;
+}
+
+/*
+ * CalcMenuWidth - size a menu to its widest item, as System 7 does.
+ *
+ * The widths used to be hardcoded per menu ID (120, or 150 for the Apple menu),
+ * which left no room for the command-key column: once command keys were drawn,
+ * "Close Window" ran straight into its own glyph. Measuring the items also means
+ * a translated menu sizes itself instead of being clipped to an English width.
+ */
+static short CalcMenuWidth(MenuHandle theMenu, short itemCount) {
+    short widest = 0;
+
+    for (short i = 1; i <= itemCount; i++) {
+        char itemText[64];
+        short w = 0;
+        short cmdChar = 0;
+        short subID = 0;
+
+        if (CheckMenuItemSeparator(theMenu, i)) continue;
+
+        GetItemText(theMenu, i, itemText);
+        for (short c = 0; itemText[c]; c++) {
+            w += CharWidth((short)(unsigned char)itemText[c]);
+        }
+
+        GetItemSubmenu(theMenu, i, &subID);
+        GetItemCmd(theMenu, i, &cmdChar);
+        if (subID != 0) {
+            w += 20;                                     /* triangle column */
+        } else if (cmdChar != 0) {
+            w += kCmdGlyphWidth + 4 + CharWidth('W') + 8;
+        }
+
+        if (w > widest) widest = w;
+    }
+
+    widest += 4 + 12;    /* text inset, plus right margin */
+    if (widest < 100) widest = 100;
+    return widest;
 }
 
 /* Draw dropdown menu */
@@ -185,12 +263,12 @@ static void DrawMenuOld(MenuHandle theMenu, short left, short top, short itemCou
         short cmdChar = 0;
         GetItemCmd(theMenu, i, &cmdChar);
         if (cmdChar != 0) {
-            char cmdBuf[3];
-            cmdBuf[0] = 0x11;                    /* Chicago cloverleaf glyph */
-            cmdBuf[1] = (char)((cmdChar >= 'a' && cmdChar <= 'z')
+            char cmdBuf[2];
+            cmdBuf[0] = (char)((cmdChar >= 'a' && cmdChar <= 'z')
                                ? cmdChar - 'a' + 'A' : cmdChar);
-            cmdBuf[2] = 0;
-            DrawMenuItemText(cmdBuf, left + menuWidth - 28, itemTop + 12);
+            cmdBuf[1] = 0;
+            DrawCommandGlyph(left + menuWidth - 30, itemTop + 2, 0xFF000000);
+            DrawMenuItemText(cmdBuf, left + menuWidth - 16, itemTop + 12);
         }
     }
 
@@ -234,10 +312,7 @@ long BeginTrackMenu(short menuID, Point *startPt) {
 
     short left = startPt->h;
     short top = 20;       /* below menubar */
-    /* Different menus need different widths */
-    short menuWidth = 120;  /* Default width */
-    if (menuID == 128) menuWidth = 150;  /* Apple menu - "About This Macintosh" */
-    if (menuID == 131) menuWidth = 130;  /* View menu - "Clean Up Selection" */
+    short menuWidth = CalcMenuWidth(theMenu, itemCount);
     short lineHeight = 16;
 
     /* Save menu tracking state */
@@ -587,10 +662,7 @@ long TrackMenu(short menuID, Point *startPt) {
     }
 
 
-    short menuWidth = 120;
-    if (menuID == 128) menuWidth = 150;
-    if (menuID == 131) menuWidth = 130;
-
+    short menuWidth = CalcMenuWidth(theMenu, itemCount);
 
     if (menuWidth <= 0) {
         serial_puts("TrackMenu: Invalid menuWidth, using default\n");

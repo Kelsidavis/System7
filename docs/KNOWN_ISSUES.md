@@ -104,10 +104,11 @@ Still outstanding:
   is to route menu drawing through them rather than keep extending
   `DrawMenuOld`. Their `itemFlags` are now populated correctly, so they are
   ready to use.
-- **The ⌘ cloverleaf does not render.** Command keys draw as the bare letter
-  because `FM_DrawChicagoCharInternal` rejects `ch < 32` and the bundled Chicago
-  font only covers ASCII 32–126. Char 0x11 is the cloverleaf in the real font;
-  adding that glyph would complete it.
+- The ⌘ symbol is drawn **geometrically**, not from the font. Chicago carries it
+  at char 0x11, but the extracted strike only covers ASCII 32–126 and
+  `FM_DrawChicagoCharInternal` rejects `ch < 32`. `DrawCommandGlyph` in
+  `MenuTrack.c` draws the standard looped square instead of fabricating font
+  data. If an authentic Chicago NFNT is ever imported, prefer the real glyph.
 - Disabled and separator items may still highlight during tracking.
 - The Control Panels submenu is linked and drawn as hierarchical, but selecting
   it does not open the submenu yet.
