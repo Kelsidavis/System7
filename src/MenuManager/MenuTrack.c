@@ -637,6 +637,7 @@ long TrackMenu(short menuID, Point *startPt) {
     extern UInt32 TickCount(void);
     const UInt32 MAX_TRACKING_TICKS = 60 * 120;  /* 2 minutes */
     const UInt32 trackStartTick = TickCount();
+    UInt32 releaseStartTick = 0;  /* 0 = button not currently released */
 
     serial_puts("TrackMenu: Starting persistent menu tracking\n");
 
@@ -678,14 +679,39 @@ long TrackMenu(short menuID, Point *startPt) {
 
         /* Debug output removed - was causing x86 build failure */
 
-        /* Track when button is first released */
-        if (!buttonState && !buttonWasReleased) {
-            buttonWasReleased = true;
-            serial_puts("TrackMenu: Button released, menu stays open for selection\n");
+        /* Arm the menu for selection only once the button has been steadily up
+         * for a short window AND the menu has been open a moment.
+         *
+         * The menu is opened by a click, so the very release that ends that
+         * click arrives immediately afterwards. Arming on the first sample that
+         * reads "up" meant the opening click's own release armed the menu, and
+         * any bounce in the same physical gesture then read as the selecting
+         * click - the menu appeared and vanished in one motion. That is the
+         * normal case for a laptop touchpad, where a tap is a press and release
+         * a few milliseconds apart, and where tap emulation is prone to
+         * chattering around the transition.
+         *
+         * Both gates are in ticks, so they describe real time rather than however
+         * fast this loop happens to spin. */
+        const UInt32 MENU_ARM_TICKS     = 12; /* ~200ms open before selectable */
+        const UInt32 RELEASE_DEBOUNCE   = 2;  /* ~33ms of steady release */
+
+        if (!buttonState) {
+            if (releaseStartTick == 0) {
+                releaseStartTick = TickCount();
+                if (releaseStartTick == 0) releaseStartTick = 1;  /* 0 means "not released" */
+            }
+            if (!buttonWasReleased &&
+                (TickCount() - releaseStartTick) >= RELEASE_DEBOUNCE &&
+                (TickCount() - trackStartTick) >= MENU_ARM_TICKS) {
+                buttonWasReleased = true;
+                serial_puts("TrackMenu: Button released, menu armed for selection\n");
+            }
+        } else {
+            releaseStartTick = 0;  /* button down again - restart release timing */
         }
 
-        /* After button is released, wait for next click to make selection */
-        /* Detect when button goes from released (false) to pressed (true) again */
+        /* After the menu is armed, the next press makes the selection. */
         if (buttonWasReleased && buttonState) {
             /* User clicked again while menu is open - check what they clicked on */
             serial_puts("TrackMenu: Second click detected\n");
