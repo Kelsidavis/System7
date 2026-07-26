@@ -76,6 +76,48 @@ Verified in QEMU on all four paths: boot draw (direct framebuffer), the
 post-selection redraw (GWorld — byte-identical to the pre-fix build), the About
 window, and the Apple menu. Untested on hardware.
 
+### ⛔ Opening a folder leaves the new window behind its parent (WIN-001)
+
+Double-clicking a folder **does** open it — the window is created, sized,
+cascaded (+20,+20), painted and brought to front. Then the parent window
+repaints over it, so all you see of the new window is the sliver of frame
+sticking out past the parent's right and bottom edges.
+
+Tell-tale: the parent's title bar is drawn **inactive** (no racing stripes)
+while its content is on top. Activation and z-order disagree.
+
+Traced from the serial log of a double-click on System Folder:
+
+| line | event |
+|---|---|
+| 1705 | second `[CLICK] Button DOWN` |
+| 1727 | new window `(31,121,508,438)` created |
+| 1815, 1965, 2310 | `FolderWindow_Draw` for the new window |
+| 2655 | `FolderWindow_Draw` for the **parent** `(11,101,488,418)` |
+
+The parent's repaint goes through `BeginUpdate`/`EndUpdate`, i.e. the update
+event path, so it should have been deferred by the
+`WM_RegionCoveredByFrontWindow` guard in `WM_FindWindowNeedingUpdate`. It was
+not, and a probe shows why:
+
+```
+[FINDUPD] ret=0x6f98b0 bounds=(11,101,488,418) | front=0x6f98b0 vis=1 ...
+```
+
+At that moment `FrontWindow()` returns the **parent**. But `BringToFront` on the
+new window had logged `[BTF] Already at front`, which only prints when
+`wmState->windowList == window`. So `FrontWindow()` and `wmState->windowList`
+disagree about which window is frontmost.
+
+`FrontWindow()` returns the first *visible* window walking `wmState->windowList`.
+Nothing in the log disposes or hides the new window between those two points.
+**Next step: find what reorders the list, or whether `GetWindowManagerState()`
+is handing out more than one state.** That is the actual defect; the deferral
+guard is behaving correctly given what `FrontWindow()` tells it.
+
+Only reachable since the lost-click fix below — before that the second click of
+a double-click was being dropped, so folders never opened at all.
+
 ### ⚠️ The full menu item renderer is dead code (MENU-001) — PARTLY ADDRESSED
 
 `MenuDisplay.c` has a complete System 7 item renderer — `DrawMenu` →

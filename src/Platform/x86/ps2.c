@@ -108,9 +108,42 @@ struct {
     int8_t  scrollDelta;    /* Z-axis scroll delta from last packet */
 } g_mouseState = {400, 300, 0, {0, 0, 0, 0}, 0, 3, 0};
 
+/*
+ * A press that is also released before the input layer next polls would
+ * otherwise vanish. The packet handler stores only the current button level,
+ * and ModernInput detects clicks by comparing that level against the previous
+ * poll - so buttons going 0 -> 1 -> 0 between two polls reads as 0 both times
+ * and the click is never seen at all.
+ *
+ * The event loop normally polls far faster than a human can click, so this
+ * needs a stall (a long repaint, say) to bite. Latching each press means it is
+ * reported at least once whatever the poll timing.
+ *
+ * Only ModernInput consumes the latch, via GetMouseButtonsLatched. Callers that
+ * want the instantaneous level - menu tracking polling for button-still-down -
+ * keep using GetMouseButtons and are unaffected.
+ */
+static volatile uint8_t g_pendingPress = 0;
+
 /* Get raw mouse button state - platform-independent interface */
 uint8_t GetMouseButtons(void) {
     return g_mouseState.buttons;
+}
+
+/*
+ * Current button level, with any press seen since the last call OR'd in.
+ * Reporting a latched press clears it, so the following call sees the real
+ * level and the click completes as a normal down-then-up.
+ */
+uint8_t GetMouseButtonsLatched(void) {
+    uint8_t level = g_mouseState.buttons;
+    uint8_t pending = g_pendingPress;
+
+    if (pending) {
+        g_pendingPress = 0;
+        return (uint8_t)(level | pending);
+    }
+    return level;
 }
 
 void UpdateMouseStateDelta(SInt16 dx, SInt16 dy, UInt8 buttons) {
@@ -472,6 +505,9 @@ static void process_mouse_packet(void) {
     /* Check button state changes */
     if (new_buttons != old_buttons) {
         g_mouseState.buttons = new_buttons;
+        /* Latch newly pressed buttons so a press that is released again before
+         * the next poll is still reported - see GetMouseButtonsLatched. */
+        g_pendingPress |= (uint8_t)(new_buttons & ~old_buttons);
     }
 
     /* Reset packet index */

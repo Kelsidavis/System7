@@ -245,11 +245,12 @@ void ProcessModernInput(void)
 
     /* Get current input state from hardware abstraction layer */
     /* For now, we'll use the global mouse state from PS2Controller */
-    /* Use platform-independent GetMouseButtons() */
-    extern uint8_t GetMouseButtons(void);
+    /* Latched variant: a press that was also released between two polls would
+     * be invisible to level comparison and the click lost entirely. */
+    extern uint8_t GetMouseButtonsLatched(void);
 
     currentMousePos = g_mousePos;  /* Use file-scope extern */
-    currentButtonState = GetMouseButtons();
+    currentButtonState = GetMouseButtonsLatched();
 
     /* DEBUG: Check if g_mousePos is actually being read */
     static int posReadCount = 0;
