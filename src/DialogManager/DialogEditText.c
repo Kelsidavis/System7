@@ -13,6 +13,7 @@
 #include "System71StdLib.h"
 #include "DialogManager/DialogManager.h"
 #include "DialogManager/DialogEditText.h"
+#include "DialogManager/DialogItems.h"
 #include "DialogManager/DialogInternal.h"
 #include "DialogManager/DialogTypes.h"
 #include "DialogManager/DialogManagerInternal.h"
@@ -319,6 +320,10 @@ TEHandle GetOrCreateDialogTEHandle(DialogPtr theDialog, SInt16 itemNo) {
         if (itemText && itemText[0] > 0) {
             /* Pascal string to C text */
             TESetText(&itemText[1], itemText[0], hTE);
+            /* System 7 opens a field with its existing text selected, so the
+             * first thing you type replaces the old name rather than being
+             * inserted in front of it. */
+            TESetSelect(0, itemText[0], hTE);
         }
         HUnlock(itemHandle);
     }
@@ -374,12 +379,15 @@ Boolean HandleDialogEditTextKey(DialogPtr theDialog, SInt16 itemNo, CharParamete
         return false;
     }
 
-    /* Handle special keys */
+    /* Tab, Return and Escape belong to the dialog, not the field. Backspace
+     * does not - TEKey deletes the selection or the character before the
+     * insertion point, and refusing it here made the field uneditable once
+     * you had typed something wrong. */
     switch (key) {
-        case '\t':          /* Tab - handled by dialog, not TextEdit */
-        case 0x08:          /* Backspace */
-        case 0x0D:          /* Return */
-        case 0x1B:          /* Escape */
+        case '\t':          /* Tab - moves focus between fields */
+        case 0x0D:          /* Return - default button */
+        case 0x03:          /* Enter - default button */
+        case 0x1B:          /* Escape - cancel */
             return false;
         default:
             break;
@@ -401,20 +409,38 @@ Boolean HandleDialogEditTextKey(DialogPtr theDialog, SInt16 itemNo, CharParamete
         if (hText) {
             GetDialogItem(theDialog, itemNo, &itemType, &itemHandle, &itemBox);
             HLock(hText);
-            textLen = GetHandleSize(hText);
+            /* teLength, not the handle size: TENew allocates a fixed buffer
+             * and TextEdit tracks how much of it is in use, so GetHandleSize
+             * reports the capacity. Using it here copied the whole buffer -
+             * the typed characters plus a kilobyte of uninitialised memory -
+             * and set the item's Pascal length to 255. */
+            textLen = (SInt32)(**hTE).teLength;
+            if (textLen < 0) textLen = 0;
             if (textLen > 255) textLen = 255;
 
-            /* Convert to Pascal string */
+            /* Convert to Pascal string. The item handle was sized for the
+             * text the list was built with, so it has to grow before longer
+             * text is copied in - otherwise typing past the initial length
+             * writes off the end of the block. */
             if (itemHandle) {
-                HLock(itemHandle);
-                pText = (unsigned char*)*itemHandle;
-                pText[0] = (unsigned char)textLen;
-                if (textLen > 0) {
-                    memcpy(&pText[1], *hText, textLen);
+                if (GetHandleSize(itemHandle) < textLen + 1) {
+                    SetHandleSize(itemHandle, textLen + 1);
                 }
-                HUnlock(itemHandle);
+                if (GetHandleSize(itemHandle) >= textLen + 1) {
+                    HLock(itemHandle);
+                    pText = (unsigned char*)*itemHandle;
+                    pText[0] = (unsigned char)textLen;
+                    if (textLen > 0) {
+                        memcpy(&pText[1], *hText, textLen);
+                    }
+                    HUnlock(itemHandle);
+                }
             }
             HUnlock(hText);
+
+            /* The handle may have moved when it grew, so refresh the cached
+             * pointer the drawing code reads before asking for a redraw. */
+            DialogItem_SyncText(theDialog, itemNo);
 
             /* Redraw item */
             InvalDialogItem(theDialog, itemNo);

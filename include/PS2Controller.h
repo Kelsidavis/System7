@@ -18,4 +18,9 @@ Boolean GetPS2KeyboardState(KeyMap keyMap);
 void PS2_SetIRQDriven(Boolean enabled);
 Boolean PS2_IsIRQDriven(void);
 
+/* Drain one key press/release recorded by the scancode handler. Returns false
+ * when the ring is empty. See the ring's comment in ps2.c for why key events
+ * are queued rather than derived from KeyMap snapshots. */
+Boolean PS2_DequeueKeyTransition(UInt8* macCode, Boolean* isPressed);
+
 #endif /* PS2_CONTROLLER_H */

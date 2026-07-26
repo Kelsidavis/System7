@@ -196,6 +196,15 @@ DialogPtr NewDialog(void* wStorage, const Rect* boundsRect, const unsigned char*
      */
     gDialogManagerState.currentDialog = dialog;
 
+    /* Give the first edit-text item the keyboard focus. System 7 opens a
+     * dialog with its first field already active and its text selected, so
+     * you can type straight into a rename or Find box; here nothing set focus
+     * until the field was clicked, and even then the keys went to a stub. */
+    {
+        extern void InitDialogEditTextFocus(DialogPtr theDialog);
+        InitDialogEditTextFocus(dialog);
+    }
+
     /* Show the dialog if requested */
     if (visible) {
         ShowWindow((WindowPtr)dialog);

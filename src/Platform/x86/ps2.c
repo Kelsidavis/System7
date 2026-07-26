@@ -207,6 +207,51 @@ static Ps2KeyboardState g_keyboardState = {
     false
 };
 
+/*
+ * Key transition ring, written by the scancode handler and drained by
+ * ProcessModernInput.
+ *
+ * The event layer used to derive key events by comparing successive snapshots
+ * of the KeyMap. That loses any key pressed and released between two polls -
+ * and worse, two different keys pressed and released in the same gap can
+ * cancel out and produce nothing at all, which is why typing "Rep" into a
+ * dialog delivered one character. The mouse hit the same problem and solved it
+ * with GetMouseButtonsLatched; this is the same idea for keys, except that a
+ * ring is needed rather than a latch because keystrokes have an order.
+ *
+ * Single producer (the IRQ1 handler) and single consumer (the main loop), so
+ * the volatile head/tail pair needs no lock: the producer only advances head
+ * after the slot is written, the consumer only advances tail after reading.
+ */
+#define kKeyRingSize 64
+static volatile UInt8 g_keyRing[kKeyRingSize];
+static volatile UInt8 g_keyRingHead = 0;
+static volatile UInt8 g_keyRingTail = 0;
+
+static void PushKeyTransition(UInt8 macCode, Boolean isPressed)
+{
+    UInt8 head = g_keyRingHead;
+    UInt8 next = (UInt8)((head + 1) % kKeyRingSize);
+    if (next == g_keyRingTail) {
+        return; /* full - drop the oldest-but-one rather than corrupt the ring */
+    }
+    g_keyRing[head] = (UInt8)((macCode & 0x7F) | (isPressed ? 0x80 : 0x00));
+    g_keyRingHead = next;
+}
+
+Boolean PS2_DequeueKeyTransition(UInt8* macCode, Boolean* isPressed)
+{
+    UInt8 tail = g_keyRingTail;
+    if (tail == g_keyRingHead) {
+        return false;
+    }
+    UInt8 v = g_keyRing[tail];
+    if (macCode) *macCode = (UInt8)(v & 0x7F);
+    if (isPressed) *isPressed = (v & 0x80) != 0;
+    g_keyRingTail = (UInt8)((tail + 1) % kKeyRingSize);
+    return true;
+}
+
 static void ResetKeyboardState(void)
 {
     memset(&g_keyboardState, 0, sizeof(g_keyboardState));
@@ -427,6 +472,7 @@ static void process_keyboard_scancode(uint8_t scancode)
 
     Boolean isPressed = !isRelease;
     UpdateKeyMapState(macCode, isPressed);
+    PushKeyTransition(macCode, isPressed);
 
     switch (macCode) {
         case kScanShift:

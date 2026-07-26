@@ -395,41 +395,40 @@ void ProcessModernInput(void)
         g_modernInput.lastButtonState = currentButtonState;
     }
 
-    /* Check for keyboard state changes */
-    if (memcmp(currentKeyMap, g_modernInput.lastKeyMap, sizeof(KeyMap)) != 0) {
-        UInt16 newModifiers = ComputeModifiersFromKeyMap(currentKeyMap, currentButtonState);
-        UInt16 oldModifiers = ComputeModifiersFromKeyMap(g_modernInput.lastKeyMap, g_modernInput.lastButtonState);
+    /* Drain queued key transitions.
+     *
+     * This used to diff currentKeyMap against the previous snapshot. A key
+     * pressed and released between two polls left no trace, and two such keys
+     * could cancel out entirely - typing three characters into a dialog field
+     * delivered one. The scancode handler now records every transition in
+     * order and this drains the ring, so nothing depends on poll timing.
+     * currentKeyMap is still maintained for GetKeys and for the modifier
+     * state, which is a level, not an edge. */
+    {
+        UInt8 macCode;
+        Boolean isPressed;
 
-        for (int i = 0; i < 16; i++) {
-            UInt8 oldByte = g_modernInput.lastKeyMap[i];
-            UInt8 newByte = currentKeyMap[i];
-            UInt8 changed = oldByte ^ newByte;
+        while (PS2_DequeueKeyTransition(&macCode, &isPressed)) {
+            UInt16 keyCode = macCode;
 
-            if (changed) {
-                for (int bit = 0; bit < 8; bit++) {
-                    if (changed & (1 << bit)) {
-                        UInt16 keyCode = (i * 8) + bit;
-                        Boolean isPressed = (newByte & (1 << bit)) != 0;
+            if (isPressed && keyCode == kScanCapsLock) {
+                g_modernInput.capsLockLatched = !g_modernInput.capsLockLatched;
+            }
 
-                        if (isPressed && keyCode == kScanCapsLock) {
-                            g_modernInput.capsLockLatched = !g_modernInput.capsLockLatched;
-                            newModifiers = ComputeModifiersFromKeyMap(currentKeyMap, currentButtonState);
-                        }
+            UInt16 modifiers = ComputeModifiersFromKeyMap(currentKeyMap, currentButtonState);
+            UInt32 timestamp = TickCount();
 
-                        UInt16 modifiers = isPressed ? newModifiers : oldModifiers;
-                        UInt32 timestamp = TickCount();
+            SInt16 eventsGenerated = ProcessRawKeyboardEvent(keyCode, isPressed, modifiers, timestamp);
 
-                        SInt16 eventsGenerated = ProcessRawKeyboardEvent(keyCode, isPressed, modifiers, timestamp);
-
-                        if (eventsGenerated == 0) {
-                            UInt32 charCode = GetKeyCharacter(keyCode, modifiers);
-                            if (charCode != 0 || keyCode == kScanReturn || keyCode == kScanSpace ||
-                                keyCode == kScanTab || keyCode == kScanDelete) {
-                                SInt32 message = (charCode & 0xFFFF) | ((SInt32)keyCode << 8);
-                                PostEvent(isPressed ? keyDown : keyUp, message);
-                            }
-                        }
-                    }
+            if (eventsGenerated == 0) {
+                UInt32 charCode = GetKeyCharacter(keyCode, modifiers);
+                if (charCode != 0 || keyCode == kScanReturn || keyCode == kScanSpace ||
+                    keyCode == kScanTab || keyCode == kScanDelete) {
+                    /* Event message layout: charCode in the low byte, key code
+                     * in the next. Masking the char to 16 bits let it bleed
+                     * into the key-code byte. */
+                    SInt32 message = (SInt32)(charCode & 0xFF) | ((SInt32)(keyCode & 0xFF) << 8);
+                    PostEvent(isPressed ? keyDown : keyUp, message);
                 }
             }
         }

@@ -124,6 +124,31 @@ void GetDialogItem(DialogPtr theDialog, SInt16 itemNo, SInt16* itemType,
 }
 
 /*
+ * DialogItem_SyncText - refresh an item's cached text pointer
+ *
+ * item->data is a cached pointer into item->handle so that drawing does not
+ * have to lock a handle on every redraw. Anything that writes the handle -
+ * SetDialogItemText, the TextEdit glue - has to call this afterwards, because
+ * a write that grew the block may have moved it.
+ */
+void DialogItem_SyncText(DialogPtr theDialog, SInt16 itemNo)
+{
+    DialogItemEx* itemEx;
+
+    if (!theDialog || !ValidateItemNumber(theDialog, itemNo)) {
+        return;
+    }
+
+    itemEx = GetDialogItemEx(theDialog, itemNo);
+    if (!itemEx || !itemEx->handle) {
+        return;
+    }
+
+    HLock(itemEx->handle);
+    itemEx->data = (void*)*itemEx->handle;
+}
+
+/*
  * SetDialogItem - Set information about a dialog item
  */
 void SetDialogItem(DialogPtr theDialog, SInt16 itemNo, SInt16 itemType,

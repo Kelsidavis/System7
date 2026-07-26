@@ -433,4 +433,7 @@ void RemoveDialogItemCache(DialogPtr theDialog);
 }
 #endif
 
+/* Refresh an item's cached text pointer after its handle has been written. */
+void DialogItem_SyncText(DialogPtr theDialog, SInt16 itemNo);
+
 #endif /* DIALOG_ITEMS_H */

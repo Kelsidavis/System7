@@ -192,11 +192,31 @@ OSErr ParseDITL(Handle ditlHandle, DialogItemEx** items, SInt16* itemCount) {
                         return -1;
                     }
                     SInt16 pascalLen = (dataLen > 255) ? 255 : dataLen;
-                    unsigned char* textData = (unsigned char*)NewPtr(pascalLen + 2);
-                    if (textData) {
+                    /*
+                     * The text lives in a Handle, not a Ptr, and `data` is just
+                     * a cached pointer into it.
+                     *
+                     * GetDialogItem is documented to hand back a Handle, and
+                     * that is what GetDialogItemText, SetDialogItemText and the
+                     * TextEdit glue all write through - but the parser only
+                     * ever filled in `data`, leaving `handle` NULL, while
+                     * DrawDialogItemByType drew from `data`. So the read side
+                     * and the write side were looking at different storage:
+                     * typing into a dialog updated a handle nobody had, and the
+                     * field redrew from text nobody had changed.
+                     *
+                     * The block is locked for the life of the dialog, so the
+                     * cached pointer stays valid; DialogItem_SyncText refreshes
+                     * it after any write that may have resized the handle.
+                     */
+                    Handle textHandle = NewHandle(pascalLen + 2);
+                    if (textHandle) {
+                        HLock(textHandle);
+                        unsigned char* textData = (unsigned char*)*textHandle;
                         textData[0] = (unsigned char)pascalLen;
                         memcpy(textData + 1, p, pascalLen);
                         textData[pascalLen + 1] = 0;   /* also usable as a C string */
+                        itemArray[i].handle = textHandle;
                         itemArray[i].data = textData;
                     }
                 }
@@ -245,7 +265,15 @@ void FreeParsedDITL(DialogItemEx* items, SInt16 itemCount) {
     if (!items) return;
 
     for (i = 0; i < itemCount; i++) {
-        if (items[i].data) {
+        /* data points into handle for text items; free the handle, not the
+         * pointer. Items whose handle is something else (a user item's proc)
+         * carry no data pointer, so this stays in step. */
+        if (items[i].handle && items[i].data) {
+            HUnlock(items[i].handle);
+            DisposeHandle(items[i].handle);
+            items[i].handle = NULL;
+            items[i].data = NULL;
+        } else if (items[i].data) {
             DisposePtr((Ptr)items[i].data);
             items[i].data = NULL;
         }

@@ -17,6 +17,8 @@
 #include "DialogManager/DialogHelpers.h"
 #include "DialogManager/DialogItems.h"
 #include "DialogManager/DialogLogging.h"
+#include "DialogManager/DialogEditText.h"
+#include "EventManager/EventTypes.h"
 
 /* External Window Manager dependencies */
 extern void BeginUpdate(WindowPtr window);
@@ -131,23 +133,33 @@ Boolean DialogSelect(const EventRecord* evt, DialogPtr* which, SInt16* itemHit)
             return true;
         }
 
-        /* Set edit field focus */
+        /* Set edit field focus, and let TextEdit place the insertion point */
         if (DialogItemIsEditText(dlg, hit)) {
-            SetDialogEditFocus(dlg, hit);
+            if (!HandleDialogEditTextClick(dlg, hit, local)) {
+                SetDialogEditTextFocus(dlg, hit);
+            }
             InvalDialogItem(dlg, hit);
+            DrawDialogItem(dlg, hit);
             return false;
         }
     }
 
     /* Handle key down / auto key */
     if (evt->what == keyDown || evt->what == autoKey) {
-        /* Type into focused edit field */
-        if (HasEditFocus(dlg)) {
-            char ch = (char)(evt->message & 0xFF);
-            if (DialogEditKey(dlg, ch)) {
-                SInt16 focus = GetEditFocusItem(dlg);
-                InvalDialogItem(dlg, focus);
-            }
+        char ch = (char)(evt->message & 0xFF);
+
+        /* Tab moves between edit-text items, as in System 7. */
+        if (ch == '\t') {
+            AdvanceDialogEditTextFocus(dlg, (evt->modifiers & shiftKey) != 0);
+            return false;
+        }
+
+        /* Type into the focused edit field. This goes through TextEdit rather
+         * than the placeholder in DialogHelpers.c, which never touched the
+         * item's text - which is why typing into a dialog did nothing even
+         * after the field had been clicked. */
+        SInt16 focus = GetDialogEditTextFocus(dlg);
+        if (focus > 0 && HandleDialogEditTextKey(dlg, focus, ch)) {
             return false;
         }
     }
