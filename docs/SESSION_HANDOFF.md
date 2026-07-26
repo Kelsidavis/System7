@@ -153,8 +153,16 @@ Boots headless, dumps the framebuffer as PNG plus its serial log. Attaches a
 - **`serial_printf` is filtered** through `SysLogClassifyMessage`/`SysLogEmit` —
   messages can vanish entirely. Use `serial_puts` for boot-critical or
   fault-path diagnostics.
-- **The in-tree `snprintf` does not support `%lx`** — it prints the literal text
-  and silently shifts every following argument.
+- ~~**The in-tree `snprintf` does not support `%lx`**~~ — **fixed.** It used to
+  print the literal text and silently shift every following argument. The
+  formatter now handles the full set of flags, width, precision and the length
+  modifiers (`hh h l ll z j t`), and returns the C99 would-have-written length.
+  `make test-stdlib` compares it against the host libc.
+- **Run `make test-stdlib` after touching `src/System71StdLib.c`.** It extracts
+  the pure string/memory/format routines, compiles them natively and diffs them
+  against the host libc with guard bytes around every destination. Two shipped
+  bugs came out of that file — `strncpy` writing one byte past its destination
+  for all 211 callers, and the `%lx` argument shift.
 - **Never log from interrupt context** — `serial_puts` busy-waits at 38400 baud
   (~¼ ms/char); a 20-char line stalls a 1 kHz handler for milliseconds.
 - Allocator poison bytes: `0xCD` = inter-size padding fill, `0xAB` = `CANARY_BYTE`.
