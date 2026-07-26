@@ -188,6 +188,32 @@ void IconLabel_Draw(const char* name, int cx, int topY, bool selected) {
     int textX = cx - (textWidth / 2);
     int padding = 2;
 
+    /* Keep the label inside the port.
+     *
+     * Centring on the icon alone lets a wide name start at a negative x. In a
+     * folder window the first column's icon centre sits at about x=36 while a
+     * name like "System Folder" is nearly 90px wide, so the label began off the
+     * left edge and rendered as "ystem Folder" with the leading character cut
+     * off by the window frame. The same applies at the right edge and to
+     * desktop icons near a screen border.
+     *
+     * Nudging the label back inside is the lesser evil: slightly off-centre
+     * beats truncated and unreadable. */
+    {
+        extern QDGlobals qd;
+        GrafPtr port = qd.thePort;
+        if (port) {
+            int minX = port->portRect.left + padding;
+            int maxX = port->portRect.right - padding;
+            if (textX + textWidth > maxX) {
+                textX = maxX - textWidth;
+            }
+            if (textX < minX) {
+                textX = minX;  /* label wider than the port: favour the start */
+            }
+        }
+    }
+
     /* Draw background rectangle behind text */
     uint32_t bgColor = selected ? 0xFF000000 : 0xFFFFFFFF;  /* Black if selected, white otherwise */
     uint32_t fgColor = selected ? 0xFFFFFFFF : 0xFF000000;  /* White text if selected, black otherwise */

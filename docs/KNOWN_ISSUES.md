@@ -45,9 +45,24 @@ background. The window's port bounds do update correctly on the move
 (`portBits.bounds` goes to `(171,281,648,598)`), so this is not a stale
 coordinate mapping in the content draw.
 
-Likely related to REGION-001, but not yet proven — the rectangle-strip erase in
-`Finder_EraseRegionExcludingRect` should already cover the area where the
-fragment survives, so the ordering of erase versus redraw needs instrumenting.
+**Instrumented, and it rules out the erase geometry.** Tracing the actual rects
+during a drag from (10,80,490,420) to (170,260,650,600) gives:
+
+```
+uncovered = (10,80,490,420)      <- whole old rect, per REGION-001
+[ERASE] rect = (10,80,490,260)   <- top strip
+[ERASE] rect = (10,260,170,420)  <- left strip
+```
+
+The stranded fragment sits at roughly y=308, x=8..168 — **inside** the left
+strip that is demonstrably erased. The surrounding desktop pattern in that area
+is correct in the screenshot, so the erase does reach the framebuffer. The
+fragment must therefore be **repainted after** the erase, not left behind by it.
+
+So this is *not* simply a consequence of REGION-001. Candidates not yet
+eliminated: `PaintBehind(theWindow->nextWindow, uncoveredRgn)`, which repaints
+windows behind clipped to the uncovered region, and any second window whose
+stale content overlaps the old position.
 
 To reproduce, see `scripts/screenshot.sh` and drive a drag through the QEMU
 monitor; note PS/2 mouse deltas are 9-bit signed, so large jumps are clamped and

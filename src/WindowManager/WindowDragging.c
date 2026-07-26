@@ -688,6 +688,7 @@ void DragWindow(WindowPtr theWindow, Point startPt, const Rect* boundsRect) {
         /* Set clip to only the uncovered region */
         SetClip(uncoveredRgn);
 
+
         /* Call the desk hook to paint the desktop pattern in the uncovered region */
         if (g_deskHook) {
             WM_LOG_TRACE("DragWindow: Calling DeskHook for uncovered region\n");
