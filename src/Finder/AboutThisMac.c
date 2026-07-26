@@ -136,32 +136,40 @@ static void ToPStr(const char* c, Str255 dst) {
     }
 }
 
-/* Clean KB formatter (no stdio, no junk) */
+/*
+ * Clean KB formatter (no stdio, no junk).
+ *
+ * Groups digits in threes, for any magnitude. The previous version handled
+ * exactly one comma - it split into thousands and a remainder and emitted the
+ * thousands part with at most three digits - so anything past 999,999K wrapped:
+ * on a 1 GB machine 1,048,063K printed as "048,063K", dropping the leading
+ * "1,". A UInt32 of bytes reaches 4,194,303K, so two groups are always needed.
+ */
 static void FormatKB_PStr(UInt32 bytes, Str255 outP) {
     UInt32 kb = bytes >> 10;
-    char tmp[16];
+    char digits[12];
+    char tmp[20];
+    int nd = 0;
     int n = 0;
 
-    if (kb < 1000) {
-        /* e.g., 638 for 638K */
-        if (kb >= 100) tmp[n++] = '0' + (kb / 100) % 10;
-        if (kb >= 10)  tmp[n++] = '0' + (kb / 10) % 10;
-        tmp[n++] = '0' + (kb % 10);
-        tmp[n++] = 'K';
+    if (kb == 0) {
+        digits[nd++] = '0';
     } else {
-        /* e.g., 3,584K */
-        UInt32 thousands = kb / 1000;
-        UInt32 rem = kb % 1000;
-        /* thousands (no leading zeros) */
-        if (thousands >= 100) tmp[n++] = '0' + (thousands / 100) % 10;
-        if (thousands >= 10)  tmp[n++] = '0' + (thousands / 10) % 10;
-        tmp[n++] = '0' + (thousands % 10);
-        tmp[n++] = ',';
-        tmp[n++] = '0' + (rem / 100) % 10;
-        tmp[n++] = '0' + (rem / 10) % 10;
-        tmp[n++] = '0' + (rem % 10);
-        tmp[n++] = 'K';
+        while (kb > 0 && nd < (int)sizeof(digits)) {
+            digits[nd++] = (char)('0' + (kb % 10));
+            kb /= 10;
+        }
     }
+
+    /* Most significant first, comma after every third digit from the right */
+    for (int i = nd - 1; i >= 0; i--) {
+        tmp[n++] = digits[i];
+        if (i > 0 && (i % 3) == 0) {
+            tmp[n++] = ',';
+        }
+    }
+    tmp[n++] = 'K';
+
     outP[0] = (unsigned char)n;
     for (int i = 0; i < n; i++) {
         outP[1 + i] = (unsigned char)tmp[i];
