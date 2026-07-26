@@ -299,10 +299,22 @@ paint_windows:
             GetPort(&savePort);
             SetPort((GrafPtr)w);
 
-            /* CRITICAL: Calculate visible region and clip to it to prevent overdraw! */
+            /* CRITICAL: Calculate visible region and clip to it to prevent overdraw!
+             *
+             * COPY visRgn into clipRgn - do not ALIAS the handles. This is the
+             * same defect that was already found and fixed further down this
+             * file (see the CopyRgn(window->contRgn, window->port.clipRgn) call
+             * and its comment): assigning the handle leaves two owners for one
+             * region, so a later ClipRect() writes through clipRgn and silently
+             * destroys visRgn, while CalcVis() writing visRgn silently changes
+             * the active clip. Whichever handle is disposed first leaves the
+             * other dangling, and the freed block then reads back as the
+             * allocator's poison - which is exactly what showed up during a
+             * resize as portRect (-12851,-12851,-21589,-21589), i.e. 0xCDCD and
+             * 0xABAB, the padding fill and the canary byte. */
             CalcVis(w);
-            if (w->visRgn) {
-                w->port.clipRgn = w->visRgn;
+            if (w->visRgn && *w->visRgn && w->port.clipRgn && *w->port.clipRgn) {
+                CopyRgn(w->visRgn, w->port.clipRgn);
             }
 
             InvalRgn(w->contRgn);

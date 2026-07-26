@@ -2055,6 +2055,7 @@ void FolderWindow_Draw(WindowPtr w) {
     GetPort(&savePort);
     SetPort((GrafPtr)w);
 
+
     /* Debug: log portBits bounds at draw time */
     if (w->refCon == 0x4449534b) {
         extern void serial_puts(const char *str);

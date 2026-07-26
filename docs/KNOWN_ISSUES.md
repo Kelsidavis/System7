@@ -81,6 +81,43 @@ To reproduce, see `scripts/screenshot.sh` and drive a drag through the QEMU
 monitor; note PS/2 mouse deltas are 9-bit signed, so large jumps are clamped and
 the cursor must be walked in steps of ≤100 px.
 
+### ⛔ Window resize corrupts the window's GrafPort (REDRAW-003)
+
+**Reported on bare metal:** resizing a folder window draws its icons to the left
+of the window with no labels, leaves the rest of the window blank, fails to
+refresh the cursor background, and then freezes.
+
+**Reproduced in QEMU.** Tracing `FolderWindow_Draw` across a resize:
+
+```
+portBits.bounds=(11,101,488,418) portRect=(0,0,477,317)   <- before resize
+portBits.bounds=(11,101,545,483) portRect=(0,0,534,382)   <- after resize, correct
+portBits.bounds=(0,0,545,0)      portRect=(-12851,-12851,-21589,-21589)  <- corrupt
+```
+
+`-12851` is `0xCDCD` and `-21589` is `0xABAB`. Both are allocator poison:
+`MemoryManager.c` fills inter-size padding with `0xCD`, and `CANARY_BYTE` is
+`0xAB`. So the draw is reading a GrafPort that overlaps freed or
+past-the-end heap, which fully explains the symptoms — garbage coordinates put
+the icons anywhere, labels land off-port, and the subsequent drawing with wild
+bounds is a strong freeze candidate.
+
+**Localised:** the corrupt draw is dispatched from `EventDispatcher.c:617`, the
+update-event path. The `WindowPtr` itself is *not* stale — `refCon` still
+decodes to `'DISK'` and the pointer matches the live window. Only the GrafPort
+contents are poisoned, and `port` is the first member of `WindowRecord` while
+`refCon` sits later and survives. That points at heap corruption over the start
+of the window record rather than a dangling window pointer.
+
+Not yet identified: which allocation overruns into it, or whether the record is
+being handed out twice. Next step is to watch the block containing the
+`WindowRecord` across the resize — `MemoryManager_CheckSuspectBlock()` already
+exists for this and is used in `DragWindow`.
+
+Note while debugging here: the in-tree `snprintf` does **not** support `%lx`; a
+format using it prints the literal text and silently shifts every following
+argument.
+
 ## Critical Issues
 
 ### ✅ 1. Mouse Button Tracking May Get Stuck (TIMEOUT-001) - FIXED
