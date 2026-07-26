@@ -161,10 +161,17 @@ static Boolean Finder_GetWindowBounds(WindowPtr window, Rect* outBounds)
         return false;
     }
 
-    if (window->visRgn && *window->visRgn) {
-        *outBounds = (*window->visRgn)->rgnBBox;
-    } else if (window->strucRgn && *window->strucRgn) {
+    /* Prefer strucRgn - the window's STRUCTURE, which includes the title bar
+     * and frame. This used to prefer visRgn, the visible CONTENT region, which
+     * stops below the title bar. Callers use this rect to decide which part of
+     * the screen to keep clear when repainting the desktop, so taking the
+     * content rect meant the desktop pattern was painted straight over the
+     * title bar: content survived, chrome was wiped, and the window rendered as
+     * a bare white box with no title bar or close box. */
+    if (window->strucRgn && *window->strucRgn) {
         *outBounds = (*window->strucRgn)->rgnBBox;
+    } else if (window->visRgn && *window->visRgn) {
+        *outBounds = (*window->visRgn)->rgnBBox;
     } else {
         *outBounds = window->port.portBits.bounds;
     }
