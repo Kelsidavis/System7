@@ -687,10 +687,8 @@ long TrackMenu(short menuID, Point *startPt) {
 
     /* Save current port */
     GetPort(&savePort);
-    if (qd.thePort) {
-        SetPort(qd.thePort);
-        serial_puts("TrackMenu: SetPort done\n");
-    }
+    QD_SetScreenPort();
+    serial_puts("TrackMenu: SetPort done\n");
 
     /* Get the menu */
     MenuHandle theMenu = GetMenuHandle(menuID);

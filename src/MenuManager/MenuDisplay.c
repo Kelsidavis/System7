@@ -3,6 +3,8 @@
 #include "MenuManager/menu_private.h"
 #include "MemoryMgr/MemoryManager.h"
 #include <string.h>
+
+extern void QD_SetScreenPort(void);
 /*
  * MenuDisplay.c - Menu Drawing and Visual Management
  *
@@ -182,9 +184,7 @@ void DrawMenuTitle(short menuID, const Rect* titleRect, Boolean hilited)
      * portBits.bounds=(0,0,width,height) to avoid coordinate offset issues */
     GetPort(&savePort);
     extern QDGlobals qd;
-    if (qd.thePort) {
-        SetPort(qd.thePort);  /* WMgrPort */
-    }
+    QD_SetScreenPort();  /* bounds (0,0,w,h), matching the global titleRect */
 
     /* CRITICAL FIX: Reset pnLoc before drawing
      * pnLoc may be left in a bad state (e.g., 321,146) from previous dropdown menu

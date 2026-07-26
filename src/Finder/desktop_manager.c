@@ -2019,7 +2019,7 @@ void DrawVolumeIcon(void)
     DVI_LOG("[DVI] GetPort\n");
     GetPort(&savePort);
     DVI_LOG("[DVI] SetPort\n");
-    SetPort(qd.thePort);
+    QD_SetScreenPort();
     DVI_LOG("[DVI] check clipRgn\n");
 
     if (qd.thePort->clipRgn && *qd.thePort->clipRgn) {
@@ -2106,7 +2106,7 @@ Boolean HandleDesktopClick(Point clickPoint, Boolean doubleClick)
     extern QDGlobals qd;
     GrafPtr savePort;
     GetPort(&savePort);
-    SetPort(qd.thePort);
+    QD_SetScreenPort();
 
     /* Find which icon was hit */
     hitIcon = IconAtPoint(clickPoint);

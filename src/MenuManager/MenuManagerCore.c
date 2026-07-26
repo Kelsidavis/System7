@@ -1,6 +1,8 @@
 #include <stdlib.h>
 #include <string.h>
 #include "MenuManager/menu_private.h"
+
+extern void QD_SetScreenPort(void);
 /*
  * MenuManagerCore.c - Core Menu Manager Implementation
  *
@@ -558,8 +560,8 @@ void DrawMenuBar(void)
     GetWMgrPort(&menuPort);
     if (menuPort && menuPort->portBits.baseAddr) {
         SetPort(menuPort);  /* Draw into Window Manager port */
-    } else if (qd.thePort) {
-        SetPort(qd.thePort);  /* Fallback */
+    } else {
+        QD_SetScreenPort();  /* fallback: the menu bar is in global coordinates */
     }
 
     /* Menu bar rectangle */
@@ -1257,9 +1259,7 @@ static short MeasureMenuTitleWidth(short menuID)
 
     GrafPtr savePort;
     GetPort(&savePort);
-    if (qd.thePort) {
-        SetPort(qd.thePort);
-    }
+    QD_SetScreenPort();
 
     short textWidth = StringWidth((ConstStr255Param)title);
 

@@ -7,6 +7,8 @@
  */
 #include "MemoryMgr/MemoryManager.h"
 
+extern void QD_SetScreenPort(void);
+
 #include "MemoryMgr/MemoryManager.h"
 #include "MacTypes.h"
 #include "MemoryMgr/MemoryManager.h"
@@ -797,8 +799,7 @@ void Platform_ShowDragOutline(const Rect* rect) {
     GrafPtr savePort;
     GetPort(&savePort);
 
-    extern QDGlobals qd;
-    SetPort(qd.thePort);
+    QD_SetScreenPort();  /* the drag outline is in global coordinates */
 
     /* Use XOR mode for drag outline */
     /* patXor = 10, patCopy = 8 in QuickDraw */
