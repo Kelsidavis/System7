@@ -211,39 +211,45 @@ handle rather than a hardcoded table, so a translated build highlights and
 labels the right thing — previously it would have computed English widths and
 drawn English text regardless of locale.
 
-### ⛔ Dialogs draw their items but not their background (DLG-001)
+### ⛔ The Empty Trash dialog draws but does not work (DLG-001)
 
-Special > Empty Trash puts up its confirmation, and the dialog is transparent:
-the prompt text and the two buttons are drawn straight over whatever was on
-screen, so the Finder window's icons show through the middle of it. The prompt
-is also clipped at both ends ("re you sure you want to permanently rem...") and
-the buttons have no labels — only their rounded outlines appear.
+Special > Empty Trash puts up its confirmation. The prompt and both buttons are
+drawn — that part is fixed; nothing was calling `DrawDialog` at all, and a
+hand-rolled modal loop has to paint its own dialog. What remains:
 
-Half of this is now fixed: nothing was calling `DrawDialog` at all, so the
-dialog was an empty framed box with no prompt and no buttons. `ConfirmEmptyTrash`
-runs a hand-rolled modal loop that relies on `DialogSelect` to handle an update
-event, and no update event arrives for a window that was just created. It draws
-itself once before the loop now, and the items appear.
+1. **The buttons do nothing.** Clicking OK does not dismiss the dialog, so the
+   trash is never actually emptied. The modal loop matches on
+   `whichDlg == dlg` after `DialogSelect`.
+2. **A title bar strip is drawn.** The window is created with `procID = 1`
+   (`dBoxProc`), which in System 7 is a plain double-bordered modal box with no
+   title bar. The frame code gives it one anyway: the dialog was asked for
+   bounds `{140,100,240,400}` and its content starts at y=161, leaving an
+   unpainted strip from 133 to 161 that shows the Finder window behind it.
+3. **The prompt is clipped** at both ends ("re you sure you want to permanently
+   rem…") and the **buttons have no labels**, only their rounded outlines.
 
-**What is left looks structural.** `NewDialog` creates the window with
-`NewWindow` and then does:
+⚠️ **Corrected diagnosis.** An earlier revision of this entry said the dialog was
+transparent and its background never erased. That was a misreading of the
+screenshot: the content area *is* painted white, and the text and buttons sit on
+white. Only the spurious title-bar strip shows through. Two attempts to erase the
+content — `EraseRect` and an explicit `FillRect` with white — changed nothing,
+which is exactly what you would expect for an area that was already white.
 
-```c
-memcpy(&dialogRec->window, window, sizeof(struct WindowRecord));
-```
+**On the duplicated window record.** `NewDialog` creates the window with
+`NewWindow` and then `memcpy`s the whole record into the dialog struct, so the
+Window Manager's list holds one record and the dialog holds a copy.
+`DialogRecord` starts with a `WindowRecord` specifically so this is unnecessary,
+and `NewWindow` honours caller-supplied storage, so it can be built in place.
+That was tried: it made **no observable difference** to any of the three symptoms
+above, and it could not be validated end-to-end because the dialog never
+dismisses, which left the matching disposal change (`CloseWindow` instead of
+`DisposeWindow`, to avoid a double free) untested. It was reverted rather than
+shipped unverified. The aliasing is still worth fixing, but it is not what is
+breaking this dialog.
 
-So there are two window records: the one the Window Manager registered in its
-window list, and a copy inside the dialog. `ShowWindow((WindowPtr)dialog)` and
-`SetPort((GrafPtr)theDialog)` operate on the copy, which is not the record the
-Window Manager knows about, and the two share region handles. Adding an
-`EraseRect` of the dialog's `portRect` inside `DrawDialog` changed nothing at
-all, which fits: drawing through the copied port does not land where the real
-window is.
-
-**Next step:** make the dialog record *reference* the window rather than copy
-it, or have `NewDialog` allocate the dialog as the window's storage so there is
-only ever one record. Until then the clipping and missing button labels are not
-worth chasing individually — they are probably all the same aliasing.
+**Next step:** find out why `DialogSelect` never reports the button hit. That
+gates everything else — until the dialog can be dismissed, no change to
+creation or disposal can be tested properly.
 
 ### ⚠️ The full menu item renderer is dead code (MENU-001) — PARTLY ADDRESSED
 
