@@ -389,18 +389,21 @@ static void Desktop_DrawIconsCommon(RgnHandle clip)
      * desktop redraw the tablet boot never reaches, which is why the volume and
      * Trash icons were missing there and present with a tablet attached.
      */
+    extern GrafPtr QD_GetScreenPort(void);
+    GrafPtr screenPort = QD_GetScreenPort();
     GrafPtr iconSavePort;
     RgnHandle iconSaveClip = NULL;
+
     GetPort(&iconSavePort);
-    if (qd.thePort && iconSavePort != qd.thePort) {
-        SetPort(qd.thePort);
+    if (screenPort && iconSavePort != screenPort) {
+        SetPort(screenPort);
     }
     /* And the clip: arriving from a window repaint leaves it narrowed to that
      * window, which would discard icons that sit outside it. */
-    if (qd.thePort && qd.thePort->clipRgn && *(qd.thePort->clipRgn)) {
+    if (screenPort && screenPort->clipRgn && *(screenPort->clipRgn)) {
         iconSaveClip = NewRgn();
         if (iconSaveClip) {
-            CopyRgn(qd.thePort->clipRgn, iconSaveClip);
+            CopyRgn(screenPort->clipRgn, iconSaveClip);
         }
     }
     {

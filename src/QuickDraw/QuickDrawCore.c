@@ -110,6 +110,22 @@ static void ApplyPenToRect(GrafPtr port, Rect *rect);
  * INITIALIZATION AND SETUP
  * ================================================================ */
 
+/*
+ * The screen port itself, as distinct from whatever port happens to be current.
+ *
+ * qd.thePort starts out pointing here but is the *current* port, so it follows
+ * SetPort and ends up on whichever window drew last. Code that means "draw on
+ * the screen" - the desktop pattern, desktop icons - cannot use qd.thePort for
+ * that, and doing so is what left the desktop icons undrawn: reached from a
+ * window repaint, SetPort(qd.thePort) was a no-op that kept the window's port,
+ * and the icons were mapped through that window's origin.
+ */
+GrafPtr g_screenPort = NULL;
+
+GrafPtr QD_GetScreenPort(void) {
+    return g_screenPort;
+}
+
 void InitGraf(void *globalPtr) {
     extern void serial_puts(const char*);
     serial_puts("[QD] InitGraf enter\n");
@@ -171,6 +187,7 @@ void InitGraf(void *globalPtr) {
 
     /* Create and initialize a default screen port */
     static GrafPort screenPort;
+    g_screenPort = &screenPort;
 
     serial_puts("[QD] InitPort\n");
 

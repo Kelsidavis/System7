@@ -125,47 +125,48 @@ An empty folder window also draws no status line at all, where System 7 shows
 "0 items" — `FolderWindow_Draw` gates the status bar on `state->items` being
 non-NULL.
 
-### ⚠️ Desktop volume and Trash icons never appear on an input-free boot (REDRAW-005)
+### ✅ Desktop volume and Trash icons never appeared on an input-free boot (REDRAW-005) — FIXED
 
-Same signature as REDRAW-004, which was the Finder window doing this. Measured
-by counting dark pixels in the two icon regions:
+**`qd.thePort` is the *current* port, not the screen port.** Desktop drawing
+assumed otherwise. `SetPort(qd.thePort)` reads as "switch to the screen" but is a
+no-op that keeps whatever port is already current — and when the desktop redraw
+is reached from a window repaint, that is the *window's* port. Desktop icon
+positions are global screen coordinates, so they were mapped through the
+window's origin and landed nowhere useful.
 
-| boot | volume icon | Trash icon |
-|---|---|---|
-| USB tablet attached | 342 px | 194 px |
-| PS/2 only, no input, 28 s | 0 | 0 |
-| PS/2 only, no input, 55 s | 0 | 0 |
+The screen port existed but was a file-static in `QuickDrawCore.c` with no way to
+reach it. `QD_GetScreenPort()` now exposes it, and `Desktop_DrawIconsCommon`
+switches to it explicitly (saving and restoring port and clip).
 
-So they never arrive, rather than arriving late.
+Why only without input: a boot with no input runs an extra desktop redraw, via
+`ShowWindow`'s `g_deskHook`, that a tablet boot never reaches. That redraw erased
+the desktop and then failed to repaint the icons. With a tablet the erase never
+happened, so the icons drawn at startup simply survived — the bug was there in
+both cases, but only visible in one.
 
-**They are never drawn, not drawn-then-erased.** Sampled at 10 s, 14 s, 18 s,
-24 s, 28 s and 55 s of a single PS/2 boot: zero at every point.
+Found by reading the framebuffer back around the draw rather than reasoning
+about it. Checksumming the 32×28 icon box before and after each
+`Icon_DrawWithLabelOffset` gave, on the broken build:
 
-Ruled out, each by measurement rather than reading:
+```
+call 2  before=52abfe00 after=c079d2f2 changed=1   <- drawn
+call 3  before=c079d2f2 after=c079d2f2 changed=0   <- correct no-op
+call 4  before=52abfe00 after=52abfe00 changed=0   <- erased, and redraw did nothing
+```
 
-- **The draw does run.** `DrawVolumeIcon` reports `visible=1 count=2` with both
-  icons at their correct positions (700,60) and (700,520) and a full-desktop
-  clip, identically on both boots.
-- **The icon system is ready.** `Desktop_DrawIconsCommon` reports
-  `iconSysReady=1 count=2` on every call.
-- **Not double buffering.** `hal_framebuffer_present()` on x86 is
-  `return framebuffer != NULL;` — drawing goes straight to the screen.
-- **Not the extra desktop redraw.** A PS/2 boot makes *four* calls to
-  `Desktop_DrawIconsCommon` where a tablet boot makes three; the extra one comes
-  from `ShowWindow`'s `g_deskHook` and arrives with the Finder **window's** port
-  current (bounds `11,101,488,418`) rather than the screen port. That is wrong
-  and is fixed, but it is not the cause: disabling the `g_deskHook` call
-  outright still leaves the icons missing.
-- **Not the window repaint cascade.** Every `EndUpdate` blit in the boot lands
-  within rows 101–417, columns 11–488. Nothing written anywhere near (700,60) or
-  (700,520). 634 blits checked.
+Call 4's "before" being call 2's "before" is what pinned it: the pixels had
+reverted, and the redraw changed nothing. After the fix call 4 reads
+`before=52abfe00 after=c079d2f2 changed=1`.
 
-So the same three draw calls that produce visible icons on a tablet boot produce
-nothing on a PS/2 boot, with identical port, clip, count and readiness.
+⚠️ **`SetPort(qd.thePort)` is a no-op.** It appears in several places meaning
+"draw on the screen" — `DrawVolumeIcon` and `Finder_DeskHook` both do it. They
+happen to work when reached during startup, because `qd.thePort` is still the
+screen port then. Any of them reached later from a window repaint has the same
+bug. Use `QD_GetScreenPort()`.
 
-**Next step:** probe inside `Icon_Draw32` / `IconLabel_Draw` and count pixels
-actually written, to find where the drawing evaporates. Everything upstream of
-the rasteriser has now been eliminated.
+Verified in QEMU: PS/2 boot with no input now shows both icons (342 and 194 dark
+pixels, matching a tablet boot exactly), and they survive opening a folder and
+opening a menu. Tablet boot unchanged.
 
 ### ⚠️ The full menu item renderer is dead code (MENU-001) — PARTLY ADDRESSED
 
