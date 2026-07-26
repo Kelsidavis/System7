@@ -12,11 +12,19 @@ An open-source reimplementation of Apple Macintosh System 7 for modern x86 hardw
 
 ## 📖 Quick Links
 
-**New here?** Start with [Getting Started](docs/GETTING_STARTED.md) | **Want to help?** See [Contributing](docs/CONTRIBUTING.md) | **In other languages?** [View 37 translations](docs/TRANSLATIONS.md)
+**New here?** Start with [Getting Started](docs/GETTING_STARTED.md) | **Want context?** Read [Project Evolution](docs/PROJECT_EVOLUTION.md) | **Want to help?** See [Contributing](docs/CONTRIBUTING.md) | **In other languages?** [View 37 translations](docs/TRANSLATIONS.md)
+
+## 💡 About This Project
+
+This started as a disciplined AI-assisted reverse engineering research project (published to Zenodo in 2025) that proved you could reconstruct a bootable System 7 prototype in days. We then asked: **"What if we just kept building?"**
+
+**Result**: A working, experimental System 7 with ~94% core functionality. It's not production-ready, not exhaustively tested, and parts are "good enough" rather than "perfect"—but it *works*, it's *real*, and it actually runs.
+
+**Read [Project Evolution](docs/PROJECT_EVOLUTION.md)** for the honest story about how this went from research paper to the productive mess you see today.
 
 ## 🎯 Project Status
 
-**Current State**: Active development with ~94% core functionality complete
+**Current State**: Active experimental development with ~94% core functionality implemented
 
 ### Latest Updates (November 2025)
 
