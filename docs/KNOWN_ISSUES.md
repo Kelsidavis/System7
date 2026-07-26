@@ -4,49 +4,48 @@ This document tracks known issues, workarounds, and technical debt in the System
 
 ## Open Issues
 
-### ⛔ Window content has many competing redraw paths (ARCH-001)
+### ⚠️ Window content had many competing redraw paths (ARCH-001) — MOSTLY FIXED
 
-This is the structural problem underneath most of the redraw bugs below, and it
-makes every one of them harder to diagnose than it should be.
+The structural problem underneath most of the redraw bugs, and what made them
+expensive to diagnose.
 
-Folder window content is redrawn from **nine** call sites across seven files:
+**Root cause, now fixed.** `CheckWindowsNeedingUpdate()` called
+`PostEvent(updateEvt)` for every dirty window on every `GetNextEvent` call.
+`GetNextEvent` runs continuously and `PostEvent` does not deduplicate, so one
+persistently-dirty window filled the 32-entry queue within microseconds. Once
+full, `PostEvent` rejected *everything* — including mouse and keyboard events.
+So update delivery did not merely fail; it starved input.
 
-```
-src/WindowManager/WindowDisplay.c      x2   (PaintBehind phase 2, ShowWindow)
-src/WindowManager/WindowDragging.c     x1   (after a drag)
-src/WindowManager/WindowResizing.c     x1   (after a resize)
-src/WindowManager/WindowEvents.c       x1
-src/EventManager/EventDispatcher.c     x1   (the update event - the real one)
-src/Finder/finder_main.c               x2
-src/Finder/folder_window.c             x1
-```
+`GetNextEvent` now synthesises an update event on demand, after draining the
+queue, which is how Classic Mac OS reports them. It cannot accumulate or go
+stale.
 
-Several are explicitly labelled workarounds in the source, with comments like
-*"WORKAROUND: Directly redraw window content since update events aren't flowing
-through"*. So the update-event mechanism does not work, and instead of that
-being fixed once, each caller that noticed added its own direct call.
+**Direct redraws removed** (each was a workaround for the above):
 
-There are also **two different content renderers**:
+- `WindowDragging.c` — labelled *"WORKAROUND: Directly redraw window content
+  since update events aren't flowing through"*. Removing it **fixed REDRAW-002**.
+- `WindowResizing.c` — wrapped its draw in `BeginUpdate`/`EndUpdate`, consuming
+  the update region so the event path could never run for a resize.
+- `WindowDisplay.c` `PaintBehind` phase 2 — redrew content from inside a
+  chrome-painting routine.
 
-- `FolderWindow_Draw()` — the real one, driven by `FolderWindowState`.
-- `DrawFolderWindowContents()` — hardcoded placeholder content ("System Folder",
-  "Applications", a "5 items … MB in disk" status line), called from
-  `Finder_OpenDesktopItem` at window-open time.
+**Dead code removed:** `DrawFolderWindowContents()` rendered a hardcoded
+placeholder folder with a layout disagreeing with `FolderWindow_Draw`. It had
+**no callers** — only two stale `extern` declarations. It cost real debugging
+time by looking like a live second renderer; an earlier revision of this entry
+wrongly blamed it for a layout discrepancy.
 
-They do not agree on layout. Chasing REDRAW-002 cost real time precisely because
-of this: instrumenting the status line in `FolderWindow_Draw` showed every draw
-landing at global y=414, while the stranded fragment on screen sits at y≈308 —
-because the two renderers position it differently.
+**Still open:** `WindowEvents.c`, `finder_main.c` ×2, `folder_window.c` retain
+direct `FolderWindow_Draw` calls. These are the legitimate update-event handlers
+plus the Finder's own paths, so they need individual review rather than
+deletion.
 
-**Consequences:** any repaint bug has to be chased across nine call sites; a fix
-in one path leaves the others stale; and it is not knowable from the code which
-path actually painted a given pixel without instrumenting all of them.
-
-**The real fix** is to repair update-event delivery so `BeginUpdate`/`EndUpdate`
-is the single route content is drawn through, then delete the direct calls and
-the placeholder renderer. That is a refactor, not a patch, and it should
-probably happen before more time goes into individual redraw bugs.
-
+**Unexplained:** `FolderWindow_Draw` instruments its status line at local
+(8,313) → global y=414, but on screen the status line renders at y≈304–312 with
+its first character clipped at the window's left edge, and **nothing** is drawn
+at y=414. Since the placeholder renderer is dead, some other path or coordinate
+mapping accounts for this. Worth resolving before trusting content-layout
+reasoning in this area.
 
 ### ⛔ Regions are rectangles: DiffRgn and XorRgn are stubs (REGION-001)
 
@@ -74,67 +73,27 @@ region representation plus rendering and clipping that honour it.
 **Do not** "fix" this by building on `DiffRgn` — doing so erases the whole
 desktop including every window, which then never gets repainted.
 
-### ⛔ Stale content left on the desktop after dragging a window (REDRAW-002)
+### ✅ Stale content left on the desktop after dragging a window (REDRAW-002) — FIXED
 
-**Reproduced** in QEMU. Drag the "Macintosh HD" window down and right: the window
-itself moves correctly and its title bar, close box and content all render at the
-new position, but a fragment of the old content — the status line, e.g.
-`7 items   1016K in disk` — remains painted on the bare desktop at the old
-location.
+Dragging a window left a fragment of its old content — the status line, e.g.
+`7 items   1016K in disk` — painted on the bare desktop at the old position.
 
-Diagnostic detail: the stranded fragment is **truncated** at roughly the new
-window's left edge (it loses `0K available`), so it is being drawn or preserved
-under a clip tied to the uncovered region rather than simply being un-erased
-background. The window's port bounds do update correctly on the move
-(`portBits.bounds` goes to `(171,281,648,598)`), so this is not a stale
-coordinate mapping in the content draw.
+**Cause:** the direct `FolderWindow_Draw()` call in `DragWindow`, added as a
+workaround for update events not being delivered (see ARCH-001). It repainted
+content outside the update-event flow, at coordinates that no longer matched.
 
-**Instrumented, and it rules out the erase geometry.** Tracing the actual rects
-during a drag from (10,80,490,420) to (170,260,650,600) gives:
+**Fix:** update-event delivery repaired (events are synthesised in
+`GetNextEvent` rather than posted into a queue they overflowed), and the direct
+call removed.
 
-```
-uncovered = (10,80,490,420)      <- whole old rect, per REGION-001
-[ERASE] rect = (10,80,490,260)   <- top strip
-[ERASE] rect = (10,260,170,420)  <- left strip
-```
+**Verified** by pixel-measuring the post-drag framebuffer: dark pixels left of
+the moved window go from rows 304–312 to nothing but 4–5 pixels in the
+bottom-left screen corner. The status line also now renders at the window's
+bottom edge, where the renderer places it.
 
-The stranded fragment sits at roughly y=308, x=8..168 — **inside** the left
-strip that is demonstrably erased. The surrounding desktop pattern in that area
-is correct in the screenshot, so the erase does reach the framebuffer. The
-fragment must therefore be **repainted after** the erase, not left behind by it.
-
-So this is *not* simply a consequence of REGION-001.
-
-**`PaintBehind` has been eliminated.** Compiling out the post-erase
-`PaintBehind(theWindow->nextWindow, uncoveredRgn)` call in `DragWindow` and
-repeating the drag leaves the fragment exactly as before, so it is not the
-source.
-
-**The fragment is pre-existing content, not a fresh draw.** Comparing
-screenshots pixel-by-pixel: the dark text at y=304..312, x=9..165 is present in
-the *pre-drag* frame too. So the erase genuinely fails to remove it, despite the
-traced strips covering that exact area — which contradicts the earlier reading
-of this and is the current puzzle.
-
-Also relevant, and an instance of ARCH-001: instrumenting the status line inside
-`FolderWindow_Draw` shows every draw landing at global y=414, never at y≈308
-where the fragment sits. The two content renderers place it differently, so
-tracing the wrong one proves nothing. Any further work here should first
-establish *which* renderer painted the surviving pixels.
-
-Still to eliminate: `PaintOne(theWindow, NULL)` and the direct
-`FolderWindow_Draw(theWindow)` that follow the erase, and the repaint that
-`MoveWindow` performs internally via `Local_InvalidateScreenRegion`.
-
-Worth noting while in this code: `PaintBehind` phase 2 does
-`w->port.clipRgn = w->visRgn;` — assigning one region handle to another without
-copying. That aliases `clipRgn` to `visRgn`, leaks whatever `clipRgn` held, and
-leaves `clipRgn` dangling if `visRgn` is later recalculated or disposed. Not
-proven to cause REDRAW-002, but wrong on its own terms.
-
-To reproduce, see `scripts/screenshot.sh` and drive a drag through the QEMU
-monitor; note PS/2 mouse deltas are 9-bit signed, so large jumps are clamped and
-the cursor must be walked in steps of ≤100 px.
+To reproduce drags for testing, see `scripts/screenshot.sh`; note PS/2 mouse
+deltas are 9-bit signed, so large monitor `mouse_move` jumps are clamped and the
+cursor must be walked in steps of ≤100 px.
 
 ### ✅ Window resize corrupted the heap (REDRAW-003) — FIXED
 

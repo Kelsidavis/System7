@@ -57,7 +57,6 @@ static OSErr InitializeWindowManager(void);
 /* HandleShutDown, HandleMenuChoice, HandleMouseDown, HandleKeyDown declared in #if 0 block below */
 /* DoUpdate, DoActivate, DoBackgroundTasks declared in #if 0 block below */
 /* MainEventLoop declared in #if 0 block below */
-extern void DrawFolderWindowContents(WindowPtr window, Boolean isTrash);
 
 #if 0  /* Disabled - Finder is now integrated into kernel, not standalone */
 /*
@@ -491,7 +490,6 @@ WindowPtr Finder_OpenDesktopItem(Boolean isTrash, ConstStr255Param title)
                                WindowPtr, Boolean, long);
     extern void ShowWindow(WindowPtr);
     extern void SelectWindow(WindowPtr);
-    extern void DrawFolderWindowContents(WindowPtr w, Boolean isTrash);
 
     static Rect r;
     r.left = 10;

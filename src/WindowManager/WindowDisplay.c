@@ -350,15 +350,14 @@ paint_windows:
                 CopyRgn(w->visRgn, w->port.clipRgn);
             }
 
+            /* Marking the content dirty is all that is needed. The direct
+             * FolderWindow_Draw call that used to follow was a workaround for
+             * update events not being delivered; that is fixed (they are now
+             * synthesised in GetNextEvent rather than posted into a queue they
+             * overflowed), so the update event repaints this. Redrawing content
+             * from inside a chrome-painting routine is also what let repaints
+             * from different callers disagree - see ARCH-001. */
             InvalRgn(w->contRgn);
-
-            /* WORKAROUND: Directly redraw folder window content since update events may not flow */
-            if (w->refCon == 0x4449534b || w->refCon == 0x54525348) {  /* 'DISK' or 'TRSH' */
-                extern void FolderWindow_Draw(WindowPtr window);
-                WM_LOG_TRACE("[PaintBehind] Drawing content for window %p (index %d of %d), refCon=0x%08x\n",
-                             w, i, count, (unsigned int)w->refCon);
-                FolderWindow_Draw(w);
-            }
 
             SetPort(savePort);
 
