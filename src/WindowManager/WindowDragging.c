@@ -731,21 +731,14 @@ void DragWindow(WindowPtr theWindow, Point startPt, const Rect* boundsRect) {
             WM_LOG_TRACE("DragWindow: Invalidated window content region\n");
         }
 
-        /* WORKAROUND: Directly redraw window content since update events aren't flowing through */
-        WM_LOG_TRACE("DragWindow: Checking refCon=0x%08lx (DISK=0x%08x, TRSH=0x%08x)\n",
-                     (unsigned long)theWindow->refCon, 'DISK', 'TRSH');
-        if (theWindow->refCon == 'DISK' || theWindow->refCon == 'TRSH') {
-            extern void FolderWindow_Draw(WindowPtr w);
-            WM_LOG_TRACE("DragWindow: Calling FolderWindow_Draw\n");
-            FolderWindow_Draw(theWindow);
-            WM_LOG_TRACE("DragWindow: Direct content redraw complete\n");
-        } else if (AboutWindow_IsOurs(theWindow)) {
-            WM_LOG_TRACE("DragWindow: About window detected, forcing redraw\n");
-            AboutWindow_HandleUpdate(theWindow);
-            WM_LOG_TRACE("DragWindow: About window redraw complete\n");
-        } else {
-            WM_LOG_TRACE("DragWindow: refCon doesn't match, skipping content redraw\n");
-        }
+        /* Content is repainted by the update event generated from the InvalRgn
+         * above. The direct FolderWindow_Draw / AboutWindow_HandleUpdate calls
+         * that used to sit here were a workaround for update events not being
+         * delivered; that delivery is fixed (update events are now synthesised
+         * in GetNextEvent rather than posted into a queue they overflowed), so
+         * having each caller redraw content itself is no longer needed - and
+         * having several of them do it is what made repaint bugs so hard to
+         * attribute. See ARCH-001 in docs/KNOWN_ISSUES.md. */
 
         /* Clean up new regions */
         DisposeRgn(uncoveredRgn);

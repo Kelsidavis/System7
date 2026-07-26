@@ -66,12 +66,30 @@ Boolean GetNextEvent(short eventMask, EventRecord* theEvent) {
     if (eventMask & diskMask) EVT_LOG_DEBUG("  Looking for: disk\n");
     if (eventMask & activMask) EVT_LOG_DEBUG("  Looking for: activate\n");
 
-    /* Generate update events for windows with non-empty updateRgn (System 7 way) */
-    extern void CheckWindowsNeedingUpdate(void);
-    CheckWindowsNeedingUpdate();
-
-    /* Check if queue has events */
+    /* Synthesise an update event for a window with a dirty updateRgn.
+     *
+     * Queued events are drained first so that input is never starved by a
+     * window that stays dirty. This used to PostEvent() one update per dirty
+     * window on every call; since GetNextEvent runs continuously and PostEvent
+     * does not deduplicate, that filled the 32-entry queue almost immediately
+     * and every subsequent mouse or key event was rejected as queueFull.
+     * Generating the event here instead means it can never accumulate, and it
+     * matches how Classic Mac OS reports update events. */
     if (g_eventQueue.count == 0) {
+        if (eventMask & updateMask) {
+            extern WindowPtr WM_FindWindowNeedingUpdate(void);
+            WindowPtr needy = WM_FindWindowNeedingUpdate();
+            if (needy && theEvent) {
+                theEvent->what = updateEvt;
+                theEvent->message = (SInt32)(uintptr_t)needy;
+                theEvent->when = TickCount();
+                theEvent->where = g_lastMousePos;
+                theEvent->modifiers = 0;
+                EVT_LOG_DEBUG("GetNextEvent: synthesised updateEvt for window %p\n",
+                              (void*)needy);
+                return true;
+            }
+        }
         EVT_LOG_DEBUG("GetNextEvent: Queue empty, returning false\n");
         return false;
     }

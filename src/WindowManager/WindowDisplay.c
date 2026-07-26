@@ -86,12 +86,45 @@ void CheckWindowsNeedingUpdate(void) {
         (void)isEmpty; /* Used only in WM_LOG_TRACE (debug builds) */
 
         if (window->visible && window->updateRgn && !EmptyRgn(window->updateRgn)) {
-            WM_LOG_TRACE("CheckWindowsNeedingUpdate: Posting update event for window %p\n", (void*)window);
-            PostEvent(6 /* updateEvt */, (SInt32)(uintptr_t)window);
-            /* Don't clear updateRgn here - BeginUpdate/EndUpdate will handle it */
+            /* Deliberately does NOT post an event here - see
+             * WM_FindWindowNeedingUpdate() below and its use in GetNextEvent. */
+            WM_LOG_TRACE("CheckWindowsNeedingUpdate: window %p needs update\n", (void*)window);
         }
         window = window->nextWindow;
     }
+}
+
+/*
+ * WM_FindWindowNeedingUpdate - front-most visible window with a dirty updateRgn.
+ *
+ * Update events are SYNTHESISED on demand, not queued.
+ *
+ * This routine used to PostEvent(updateEvt) for every dirty window on every
+ * GetNextEvent call. GetNextEvent runs continuously from the main loop and
+ * PostEvent does not deduplicate, so a window whose updateRgn stayed dirty
+ * filled the 32-entry event queue within microseconds. Once full, PostEvent
+ * rejects everything with queueFull - including mouse and keyboard events. The
+ * symptom was "update events aren't flowing", which is what the direct
+ * FolderWindow_Draw calls scattered around the Window Manager were added to work
+ * around, but the damage was wider than that.
+ *
+ * Classic Mac OS never queues update events either: GetNextEvent reports one
+ * when a window has a non-empty updateRgn, and BeginUpdate/EndUpdate clears it.
+ * Generating them on demand cannot flood the queue and cannot go stale.
+ */
+WindowPtr WM_FindWindowNeedingUpdate(void) {
+    extern WindowPtr FrontWindow(void);
+    extern Boolean EmptyRgn(RgnHandle rgn);
+
+    WindowPtr window = FrontWindow();
+    int guard = 0;
+    while (window && guard++ < 64) {
+        if (window->visible && window->updateRgn && !EmptyRgn(window->updateRgn)) {
+            return window;
+        }
+        window = window->nextWindow;
+    }
+    return NULL;
 }
 
 /* Internal helper to draw window frame */

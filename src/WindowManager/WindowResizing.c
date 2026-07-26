@@ -554,11 +554,11 @@ long GrowWindow(WindowPtr theWindow, Point startPt, const Rect* bBox) {
                 FolderWindow_CleanUp(theWindow, false);
             }
 
-            /* Folder windows have special drawing code for the file list */
-            serial_puts("[GW] Drawing folder window content\n");
-            BeginUpdate(theWindow);
-            FolderWindow_Draw(theWindow);
-            EndUpdate(theWindow);
+            /* Content itself is repainted from the update event that
+             * Local_GenerateResizeUpdateEvents() queued into updateRgn above.
+             * Drawing it synchronously here as well consumed that region, so
+             * the event-driven path could never run - one of the duplicate
+             * repaint routes described in ARCH-001. */
         }
 
         /* Flush screen to ensure all updates are visible */
