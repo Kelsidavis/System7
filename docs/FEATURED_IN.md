@@ -2,9 +2,17 @@
 
 System 7 has been featured in major tech media, showcasing the project's unique approach to OS reverse engineering and its real-world capabilities.
 
-## YouTube Feature - "The World's Most Cursed Operating System"
+## Action Retro — "The World's Most Cursed Operating System"
 
-A prominent tech YouTuber tested System 7 on real hardware and documented the results.
+**Video:** https://www.youtube.com/watch?v=rJRlHKQqX2M
+
+Action Retro tested System 7 on real hardware and documented the results.
+
+> *"It's more cursed than ReactOS. It's more cursed than Hannah Montana Linux."*
+
+> *"This is literally the AI sloperating system."*
+
+> *"No freaking way. This abomination is booting."*
 
 ### Video Highlights
 

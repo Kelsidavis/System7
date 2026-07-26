@@ -8,11 +8,25 @@
 
 > ⚠️ **PROOF OF CONCEPT** - This is an experimental, educational reimplementation of Apple's Macintosh System 7. This is NOT a finished product and should not be considered production-ready software.
 
-## 🎥 Featured In
+## 🎥 As Seen On Action Retro
 
-[![Featured on YouTube](https://img.shields.io/badge/Featured-YouTube-red?style=for-the-badge&logo=youtube)](https://www.youtube.com/results?search_query=system+7+ai+cursed)
+[![Watch on YouTube](https://img.shields.io/badge/Watch-Action%20Retro-red?style=for-the-badge&logo=youtube)](https://www.youtube.com/watch?v=rJRlHKQqX2M)
 
-This project was featured on a major tech YouTube channel as **"the world's most cursed operating system"** — an AI-assisted reverse engineering project that actually boots on real hardware. [Watch the feature](https://www.youtube.com/results?search_query=system+7+ai+cursed) to see System 7 running on vintage hardware.
+> *"I've finally done it. I have discovered the world's most cursed operating system. It's more cursed than ReactOS. It's more cursed than **Hannah Montana Linux**."*
+
+> *"This is literally the AI **sloperating system**."*
+
+> *"No freaking way. This abomination is booting."*
+
+> *"It works at all is just absolutely insane."*
+>
+> — [Action Retro](https://www.youtube.com/watch?v=rJRlHKQqX2M), installing it on a Pentium 3, a ThinkPad X1 Carbon, and an 11" Intel MacBook Air
+
+We are choosing to take "sloperating system" as a compliment. It is now the
+project's official genre. Rude? Absolutely. Accurate? ...Also yes.
+
+He booted it on real metal, it froze on nearly every machine, and he was right
+about why. So we went and fixed it — see [what got fixed](#-what-action-retro-found-and-what-we-fixed) below.
 
 ---
 
@@ -30,22 +44,36 @@ This started as a disciplined AI-assisted reverse engineering research project (
 
 **What happened**: We kept building. Faster. With less testing. Mostly in QEMU. Almost no bare metal validation. Result: A System 7 that boots in the emulator and looks great in a demo, but is fundamentally untested on real hardware. Features exist everywhere, but edge cases crash constantly.
 
-**Honest assessment**: This is a **sloppy operating system**—a QEMU toy that's more useful for learning *about* System 7 than for *running* it. The code is readable and teaches you things, but most subsystems are partially done and tested only under emulation.
+**Honest assessment**: This is a **sloperating system**™ — a QEMU toy that's more useful for learning *about* System 7 than for *running* it. The code is readable and teaches you things, but most subsystems are partially done and tested only under emulation.
 
 **Why it matters anyway**: It's still the most complete open-source System 7 implementation. Real code. Real architecture. Real bugs that teach you something.
 
 **Read [Project Evolution](docs/PROJECT_EVOLUTION.md)** for the detailed honest story about how this went from rigorous research to the sloppy experiment you're looking at.
 
-### What YouTube Testing Revealed
+### 🔧 What Action Retro Found — And What We Fixed
 
-Recent real-world testing on actual hardware showed:
-- ✅ **Boots successfully** on multiple systems (Pentium 3, ThinkPad X1, MacBook Air)
-- ✅ **Graphics render** correctly (desktop, menu bar visible)
-- ❌ **Freezes after boot** on most hardware (input/timing issues)
-- ❌ **Mouse/keyboard unresponsive** (interrupt handling broken)
-- ❌ **Applications crash** when launched
+He booted it on a Pentium 3, a ThinkPad X1 Carbon, and an 11" Intel MacBook Air.
+It booted on all three. It then froze on all three, the mouse did nothing, and
+GRUB was "goofy" on every single machine. He was right on every count, and
+chasing those symptoms turned up five genuine bare-metal bugs:
 
-This confirms what our documentation states: **QEMU-only testing masked real hardware issues.** The bare metal problems are now documented in [BARE_METAL_IMPROVEMENTS.md](docs/BARE_METAL_IMPROVEMENTS.md) with a roadmap to fix them.
+| What he saw | What was actually wrong | Status |
+|---|---|---|
+| "We've got the same goofy grub issue" | `set timeout=-1` — GRUB waited **forever** for a keypress, so headless/serial-only machines never booted the kernel at all | ✅ Fixed |
+| Froze right after the desktop appeared | **No GDT was ever installed.** Multiboot2 leaves GDTR undefined; the kernel borrowed GRUB's temporary GDT and later allocated over it. The first interrupt then resolved a dead selector → #GP → #DF → silent triple-fault reset | ✅ Fixed |
+| Froze with no explanation | CPU exception vectors all pointed at a bare `iret`, so any fault reset the machine with **zero diagnostics**. Now prints the fault name, `eip`, error code and `cr2` | ✅ Fixed |
+| "Mouse does nothing" | IRQ2 (the slave-PIC cascade) was never unmasked — so IRQ12 could **never** reach the CPU no matter what. IRQ0 was never unmasked either, so the timer never ticked | ✅ Fixed |
+| Hung before printing anything | `serial_putchar` spun **forever** waiting on the UART, deadlocking the boot on machines whose port never reports ready | ✅ Fixed |
+
+Verified in QEMU: 5,000 timer ticks at 1 kHz, interrupts dispatching, zero
+exceptions, no reset. Previously it triple-faulted the instant interrupts were
+enabled.
+
+**Still true:** the 68K interpreter is not wired up, so real Mac apps still
+don't run, and none of this is confirmed on physical hardware yet. If you have a
+vintage machine and a serial cable, [we would love your test results](docs/TEST_PLAN_FIXES.md).
+
+Full roadmap: [BARE_METAL_IMPROVEMENTS.md](docs/BARE_METAL_IMPROVEMENTS.md)
 
 ## 🎯 Project Status
 
