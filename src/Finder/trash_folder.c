@@ -28,6 +28,7 @@
 #include "DialogManager/DialogManager.h"
 #include "EventManager/EventManager.h"
 #include "Finder/FinderLogging.h"
+#include "DialogManager/DITLBuilder.h"
 #include "sys71_stubs.h"
 #include "FS/hfs_types.h"
 
@@ -436,60 +437,21 @@ static OSErr ConfirmEmptyTrash(Boolean *confirmed)
     *confirmed = false;
 
     /* Build DITL: prompt (1), OK button (2), Cancel button (3) */
-    Handle ditl = NewHandleClear(256);
-    if (!ditl) {
+    DITLBuilder ditlb;
+    if (!DITL_Begin(&ditlb, 256)) {
         *confirmed = true;  /* Can't show dialog, proceed anyway */
         return noErr;
     }
+    DITL_AddText(&ditlb, 10, 10, 50, 276,
+                 "Are you sure you want to permanently remove the items in the Trash?");
+    DITL_AddButton(&ditlb, 60, 190, 80, 276, "OK");
+    DITL_AddButton(&ditlb, 60, 90, 80, 180, "Cancel");
 
-    HLock(ditl);
-    unsigned char* p = (unsigned char*)*ditl;
-
-    /* 3 items, count-1 = 2 */
-    *p++ = 0; *p++ = 2;
-
-    /* Item 1: Warning text */
-    *p++ = 0; *p++ = 0; *p++ = 0; *p++ = 0;
-    *p++ = 0; *p++ = 10;  /* top */
-    *p++ = 0; *p++ = 10;  /* left */
-    *p++ = 0; *p++ = 50;  /* bottom */
-    *p++ = 1; *p++ = 20;  /* right = 276 */
-    *p++ = 8;              /* statText */
-    {
-        const char* msg = "Are you sure you want to permanently remove the items in the Trash?";
-        /* Measured, not hand-counted: the literal 66 that used to be here was
-         * one short and swallowed the question mark. */
-        unsigned char len = (unsigned char)strlen(msg);
-        *p++ = len;
-        memcpy(p, msg, len);
-        p += len;
-        /* DITL items start on even offsets, and ParseDITL skips a byte to
-         * realign after odd-length data. This list is built by hand and did not
-         * pad, which went unnoticed only because every length happened to be
-         * even; the first odd one put the parser a byte out and it read the
-         * next item's header from the wrong place, losing both buttons. */
-        if (len & 1) *p++ = 0;
+    Handle ditl = DITL_Finish(&ditlb);
+    if (!ditl) {
+        *confirmed = true;
+        return noErr;
     }
-
-    /* Item 2: OK button */
-    *p++ = 0; *p++ = 0; *p++ = 0; *p++ = 0;
-    *p++ = 0; *p++ = 60;  /* top */
-    *p++ = 0; *p++ = 190; /* left */
-    *p++ = 0; *p++ = 80;  /* bottom */
-    *p++ = 1; *p++ = 20;  /* right = 276 */
-    *p++ = 4;              /* btnCtrl */
-    *p++ = 2; *p++ = 'O'; *p++ = 'K';
-
-    /* Item 3: Cancel button */
-    *p++ = 0; *p++ = 0; *p++ = 0; *p++ = 0;
-    *p++ = 0; *p++ = 60;
-    *p++ = 0; *p++ = 90;
-    *p++ = 0; *p++ = 80;
-    *p++ = 0; *p++ = 180;
-    *p++ = 4;
-    *p++ = 6; *p++ = 'C'; *p++ = 'a'; *p++ = 'n'; *p++ = 'c'; *p++ = 'e'; *p++ = 'l';
-
-    HUnlock(ditl);
 
     Rect bounds = {140, 100, 240, 400};
     static unsigned char title[] = {0};
@@ -503,53 +465,7 @@ static OSErr ConfirmEmptyTrash(Boolean *confirmed)
 
     ShowWindow((WindowPtr)dlg);
 
-    /* Draw the dialog once before entering the loop.
-     *
-     * The loop below relies on DialogSelect to handle update events, but
-     * nothing guarantees one arrives for a window that was just created - the
-     * dialog appeared as an empty framed box with no prompt and no buttons. A
-     * hand-rolled modal loop has to paint its dialog itself. */
-    {
-        extern void DrawDialog(DialogPtr theDialog);
-        DrawDialog(dlg);
-    }
-
-    /* Modal event loop */
-    short itemHit = 0;
-    Boolean done = false;
-    while (!done) {
-        EventRecord event;
-        if (GetNextEvent(everyEvent, &event)) {
-            if (IsDialogEvent(&event)) {
-                DialogPtr whichDlg;
-                short item;
-                if (DialogSelect(&event, &whichDlg, &item)) {
-                    if (whichDlg == dlg) {
-                        itemHit = item;
-                        done = (item == 2 || item == 3);
-                    }
-                }
-            }
-            if (event.what == keyDown || event.what == autoKey) {
-                char ch = event.message & 0xFF;
-                if (ch == '\r' || ch == 0x03) { itemHit = 2; done = true; }
-                if (ch == 0x1B) { itemHit = 3; done = true; }
-            }
-        }
-        /*
-         * Pump the input devices.
-         *
-         * This loop runs inside a menu command, so the main event loop - the
-         * only thing that normally calls ProcessModernInput - is blocked behind
-         * us. SystemTask deliberately does not poll (its comment says polling
-         * "should ONLY happen in main event loop"), so without this no mouse or
-         * key event is ever generated and the dialog can never be dismissed:
-         * clicking OK did nothing at all. EventPumpYield exists for exactly
-         * this case and is what the menu and drag tracking loops use.
-         */
-        EventPumpYield();
-        SystemTask();
-    }
+    short itemHit = RunModalDialogBox(dlg, 2 /* OK */, 3 /* Cancel */);
 
     DisposeDialog(dlg);
 

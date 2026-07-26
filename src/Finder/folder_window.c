@@ -26,6 +26,7 @@
 #include "FS/hfs_types.h"
 #include "System71StdLib.h"
 #include "Finder/FinderLogging.h"
+#include "DialogManager/DITLBuilder.h"
 #include "EventManager/EventManager.h"
 #include "SoundManager/SoundManager.h"
 #include "DialogManager/DialogManager.h"
@@ -1332,69 +1333,32 @@ Boolean HandleFolderWindowClick(WindowPtr w, EventRecord *ev, Boolean isDoubleCl
                     extern DialogPtr NewDialog(void*, const Rect*, const unsigned char*,
                                                Boolean, SInt16, WindowPtr, Boolean, SInt32, Handle);
                     extern void DisposeDialog(DialogPtr);
-                    extern Boolean IsDialogEvent(const EventRecord*);
-                    extern Boolean DialogSelect(const EventRecord*, DialogPtr*, short*);
                     extern void ShowWindow(WindowPtr);
-                    extern Boolean GetNextEvent(unsigned int, EventRecord*);
-                    extern void SystemTask(void);
 
                     SysBeep(1);
 
-                    Handle ditl = NewHandleClear(256);
-                    if (ditl) {
-                        HLock(ditl);
-                        unsigned char* p = (unsigned char*)*ditl;
-                        *p++ = 0; *p++ = 1;  /* 2 items */
+                    char msg[256];
+                    snprintf(msg, sizeof(msg),
+                             "The document \"%s\" could not be opened, "
+                             "because the application that created it "
+                             "could not be found.", name);
 
-                        /* Item 1: Alert text */
-                        *p++ = 0; *p++ = 0; *p++ = 0; *p++ = 0;
-                        *p++ = 0; *p++ = 10; *p++ = 0; *p++ = 10;
-                        *p++ = 0; *p++ = 50; *p++ = 1; *p++ = 20;
-                        *p++ = 8;  /* statText */
-                        {
-                            char msg[200];
-                            int mlen = snprintf(msg, sizeof(msg),
-                                "The document \"%s\" could not be opened, "
-                                "because the application that created it "
-                                "could not be found.", name);
-                            if (mlen < 0) mlen = 0;
-                            else if (mlen > 200) mlen = 200;
-                            *p++ = (unsigned char)mlen;
-                            memcpy(p, msg, mlen); p += mlen;
-                        }
-
-                        /* Item 2: OK button */
-                        *p++ = 0; *p++ = 0; *p++ = 0; *p++ = 0;
-                        *p++ = 0; *p++ = 60; *p++ = 0; *p++ = 200;
-                        *p++ = 0; *p++ = 80; *p++ = 1; *p++ = 20;
-                        *p++ = 4;
-                        *p++ = 2; *p++ = 'O'; *p++ = 'K';
-                        HUnlock(ditl);
+                    DITLBuilder ditlb;
+                    if (DITL_Begin(&ditlb, 384)) {
+                        DITL_AddText(&ditlb, 10, 10, 50, 276, msg);
+                        DITL_AddButton(&ditlb, 60, 200, 80, 276, "OK");
+                        Handle ditl = DITL_Finish(&ditlb);
 
                         Rect bounds = {140, 100, 240, 400};
                         static unsigned char noTitle[] = {0};
-                        DialogPtr dlg = NewDialog(NULL, &bounds, noTitle, true, 1,
-                                                  (WindowPtr)-1, false, 0, ditl);
+                        DialogPtr dlg = ditl ? NewDialog(NULL, &bounds, noTitle, true, 1,
+                                                         (WindowPtr)-1, false, 0, ditl)
+                                             : NULL;
                         if (dlg) {
                             ShowWindow((WindowPtr)dlg);
-                            Boolean done = false;
-                            while (!done) {
-                                EventRecord dlgEvent;
-                                if (GetNextEvent(0xFFFF, &dlgEvent)) {
-                                    if (IsDialogEvent(&dlgEvent)) {
-                                        DialogPtr wd; short it;
-                                        if (DialogSelect(&dlgEvent, &wd, &it) && wd == dlg && it == 2)
-                                            done = true;
-                                    }
-                                    if (dlgEvent.what == 3) {
-                                        char ch = dlgEvent.message & 0xFF;
-                                        if (ch == '\r' || ch == 0x03 || ch == 0x1B) done = true;
-                                    }
-                                }
-                                SystemTask();
-                            }
+                            RunModalDialogBox(dlg, 2 /* OK */, 0);
                             DisposeDialog(dlg);
-                        } else {
+                        } else if (ditl) {
                             DisposeHandle(ditl);
                         }
                     }
@@ -2511,58 +2475,21 @@ void FolderWindow_RenameItem(WindowPtr w, short itemIndex) {
     extern DialogPtr NewDialog(void*, const Rect*, const unsigned char*, Boolean, SInt16,
                                WindowPtr, Boolean, SInt32, Handle);
     extern void DisposeDialog(DialogPtr);
-    extern Boolean IsDialogEvent(const EventRecord*);
-    extern Boolean DialogSelect(const EventRecord*, DialogPtr*, short*);
     extern void ShowWindow(WindowPtr);
-    extern Boolean GetNextEvent(unsigned int, EventRecord*);
-    extern void SystemTask(void);
     extern void GetDialogItem(DialogPtr, SInt16, SInt16*, Handle*, Rect*);
     extern void GetDialogItemText(Handle, unsigned char*);
     extern Boolean FSRename(VRefNum vref, DirID dirID, const char* oldName, const char* newName);
 
-    /* Build DITL: prompt(1), OK(2), Cancel(3), edit text(4) */
-    Handle ditl = NewHandleClear(512);
+    /* Build DITL: prompt(1), Rename(2), Cancel(3), edit text(4) */
+    DITLBuilder ditlb;
+    if (!DITL_Begin(&ditlb, 512)) return;
+    DITL_AddText(&ditlb, 10, 10, 26, 276, "Enter new name:");
+    DITL_AddButton(&ditlb, 70, 200, 90, 276, "Rename");
+    DITL_AddButton(&ditlb, 70, 100, 90, 190, "Cancel");
+    DITL_AddEditText(&ditlb, 34, 10, 54, 276, state->items[itemIndex].name);
+
+    Handle ditl = DITL_Finish(&ditlb);
     if (!ditl) return;
-    HLock(ditl);
-    unsigned char* p = (unsigned char*)*ditl;
-
-    *p++ = 0; *p++ = 3;  /* 4 items, count-1 = 3 */
-
-    /* Item 1: Prompt */
-    *p++ = 0; *p++ = 0; *p++ = 0; *p++ = 0;
-    *p++ = 0; *p++ = 10; *p++ = 0; *p++ = 10;
-    *p++ = 0; *p++ = 26; *p++ = 1; *p++ = 20;
-    *p++ = 8;
-    *p++ = 16; memcpy(p, "Enter new name:", 15); p[15] = ' '; p += 16;
-
-    /* Item 2: OK button */
-    *p++ = 0; *p++ = 0; *p++ = 0; *p++ = 0;
-    *p++ = 0; *p++ = 70; *p++ = 0; *p++ = 200;
-    *p++ = 0; *p++ = 90; *p++ = 1; *p++ = 20;
-    *p++ = 4;
-    *p++ = 6; *p++ = 'R'; *p++ = 'e'; *p++ = 'n'; *p++ = 'a'; *p++ = 'm'; *p++ = 'e';
-
-    /* Item 3: Cancel button */
-    *p++ = 0; *p++ = 0; *p++ = 0; *p++ = 0;
-    *p++ = 0; *p++ = 70; *p++ = 0; *p++ = 100;
-    *p++ = 0; *p++ = 90; *p++ = 0; *p++ = 190;
-    *p++ = 4;
-    *p++ = 6; *p++ = 'C'; *p++ = 'a'; *p++ = 'n'; *p++ = 'c'; *p++ = 'e'; *p++ = 'l';
-
-    /* Item 4: Edit text with current name */
-    *p++ = 0; *p++ = 0; *p++ = 0; *p++ = 0;
-    *p++ = 0; *p++ = 34; *p++ = 0; *p++ = 10;
-    *p++ = 0; *p++ = 54; *p++ = 1; *p++ = 20;
-    *p++ = 16;  /* editText */
-    {
-        int nameLen = 0;
-        while (state->items[itemIndex].name[nameLen] && nameLen < 250) nameLen++;
-        *p++ = (unsigned char)nameLen;
-        memcpy(p, state->items[itemIndex].name, nameLen);
-        p += nameLen;
-    }
-
-    HUnlock(ditl);
 
     Rect bounds = {130, 110, 240, 400};
     static unsigned char title[] = {0};
@@ -2572,28 +2499,7 @@ void FolderWindow_RenameItem(WindowPtr w, short itemIndex) {
 
     ShowWindow((WindowPtr)dlg);
 
-    /* Modal event loop */
-    short itemHit = 0;
-    Boolean done = false;
-    while (!done) {
-        EventRecord event;
-        if (GetNextEvent(0xFFFF, &event)) {
-            if (IsDialogEvent(&event)) {
-                DialogPtr whichDlg; short item;
-                if (DialogSelect(&event, &whichDlg, &item)) {
-                    if (whichDlg == dlg && (item == 2 || item == 3)) {
-                        itemHit = item; done = true;
-                    }
-                }
-            }
-            if (event.what == 3) {
-                char ch = event.message & 0xFF;
-                if (ch == '\r' || ch == 0x03) { itemHit = 2; done = true; }
-                if (ch == 0x1B) { itemHit = 3; done = true; }
-            }
-        }
-        SystemTask();
-    }
+    short itemHit = RunModalDialogBox(dlg, 2 /* Rename */, 3 /* Cancel */);
 
     if (itemHit == 2) {
         /* Get new name from edit field */
