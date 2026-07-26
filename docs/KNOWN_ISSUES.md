@@ -138,24 +138,34 @@ by counting dark pixels in the two icon regions:
 
 So they never arrive, rather than arriving late.
 
-Established so far:
+**They are never drawn, not drawn-then-erased.** Sampled at 10 s, 14 s, 18 s,
+24 s, 28 s and 55 s of a single PS/2 boot: zero at every point.
 
-- `DrawVolumeIcon()` **is** called, just before the event loop
-  (`MAIN: About to call DrawVolumeIcon` / `returned` in the log). The icons are
-  drawn and then lost.
-- Not a double-buffering problem: `hal_framebuffer_present()` on x86 is
+Ruled out, each by measurement rather than reading:
+
+- **The draw does run.** `DrawVolumeIcon` reports `visible=1 count=2` with both
+  icons at their correct positions (700,60) and (700,520) and a full-desktop
+  clip, identically on both boots.
+- **The icon system is ready.** `Desktop_DrawIconsCommon` reports
+  `iconSysReady=1 count=2` on every call.
+- **Not double buffering.** `hal_framebuffer_present()` on x86 is
   `return framebuffer != NULL;` — drawing goes straight to the screen.
-- `HandleUpdate` has a desktop branch — when the update event's window is NULL it
-  calls `DrawDesktop()` then `DrawVolumeIcon()`. That is the path that would put
-  them back, so the question is what erases them and why only the tablet boot
-  reaches the redraw.
-- `PaintOne` deliberately skips the desktop window (`refCon == 0`) so it neither
-  fills nor invalidates it — meaning the desktop never acquires an update region
-  of its own and cannot self-heal the way REDRAW-004's fix let windows.
+- **Not the extra desktop redraw.** A PS/2 boot makes *four* calls to
+  `Desktop_DrawIconsCommon` where a tablet boot makes three; the extra one comes
+  from `ShowWindow`'s `g_deskHook` and arrives with the Finder **window's** port
+  current (bounds `11,101,488,418`) rather than the screen port. That is wrong
+  and is fixed, but it is not the cause: disabling the `g_deskHook` call
+  outright still leaves the icons missing.
+- **Not the window repaint cascade.** Every `EndUpdate` blit in the boot lands
+  within rows 101–417, columns 11–488. Nothing written anywhere near (700,60) or
+  (700,520). 634 blits checked.
 
-**Next step:** find what paints over the icons after `DrawVolumeIcon`, then
-either stop it or give the desktop window an update region so the NULL-window
-branch runs.
+So the same three draw calls that produce visible icons on a tablet boot produce
+nothing on a PS/2 boot, with identical port, clip, count and readiness.
+
+**Next step:** probe inside `Icon_Draw32` / `IconLabel_Draw` and count pixels
+actually written, to find where the drawing evaporates. Everything upstream of
+the rasteriser has now been eliminated.
 
 ### ⚠️ The full menu item renderer is dead code (MENU-001) — PARTLY ADDRESSED
 

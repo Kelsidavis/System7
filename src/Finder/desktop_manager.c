@@ -378,6 +378,40 @@ static void Desktop_DrawIconsCommon(RgnHandle clip)
         return;
     }
 
+    /*
+     * Desktop icon positions are global screen coordinates, so this has to draw
+     * in the screen port. One caller reaches here with a window's port current
+     * - ShowWindow redraws the desktop icons before painting the window - and
+     * the icons were then mapped through that window's origin and landed
+     * somewhere else entirely, wiping the correctly drawn ones.
+     *
+     * It only showed up on a boot with no input: that path runs an extra
+     * desktop redraw the tablet boot never reaches, which is why the volume and
+     * Trash icons were missing there and present with a tablet attached.
+     */
+    GrafPtr iconSavePort;
+    RgnHandle iconSaveClip = NULL;
+    GetPort(&iconSavePort);
+    if (qd.thePort && iconSavePort != qd.thePort) {
+        SetPort(qd.thePort);
+    }
+    /* And the clip: arriving from a window repaint leaves it narrowed to that
+     * window, which would discard icons that sit outside it. */
+    if (qd.thePort && qd.thePort->clipRgn && *(qd.thePort->clipRgn)) {
+        iconSaveClip = NewRgn();
+        if (iconSaveClip) {
+            CopyRgn(qd.thePort->clipRgn, iconSaveClip);
+        }
+    }
+    {
+        Rect deskClip;
+        deskClip.left   = qd.screenBits.bounds.left;
+        deskClip.top    = 20;    /* keep the menu bar clear */
+        deskClip.right  = qd.screenBits.bounds.right;
+        deskClip.bottom = qd.screenBits.bounds.bottom;
+        ClipRect(&deskClip);
+    }
+
     (void)clip;  /* Clipping handled by QuickDraw port */
 
     for (int i = 0; i < gDesktopIconCount; i++) {
@@ -457,6 +491,14 @@ static void Desktop_DrawIconsCommon(RgnHandle clip)
         };
         FrameRect(&outline);
 #endif
+    }
+
+    if (iconSaveClip) {
+        SetClip(iconSaveClip);
+        DisposeRgn(iconSaveClip);
+    }
+    if (iconSavePort) {
+        SetPort(iconSavePort);
     }
 }
 
