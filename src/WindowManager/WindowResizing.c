@@ -396,7 +396,7 @@ long GrowWindow(WindowPtr theWindow, Point startPt, const Rect* bBox) {
 
         /* Update visual feedback if size changed */
         if (newOutline.right != outlineRect.right || newOutline.bottom != outlineRect.bottom) {
-            serial_puts("[GW] Outline size changed\n");
+            /* trace removed: blocking UART write on every resize frame */
 
             /* Erase old outline (XOR twice = erase) */
             if (outlineDrawn) {
@@ -404,7 +404,7 @@ long GrowWindow(WindowPtr theWindow, Point startPt, const Rect* bBox) {
                 extern void QDPlatform_FlushScreen(void);
                 InvertRect(&outlineRect);
                 QDPlatform_FlushScreen();
-                serial_puts("[GW] Old outline erased\n");
+                /* trace removed: blocking UART write on every resize frame */
             }
 
             /* Draw new outline */
@@ -412,7 +412,7 @@ long GrowWindow(WindowPtr theWindow, Point startPt, const Rect* bBox) {
             extern void QDPlatform_FlushScreen(void);
             InvertRect(&newOutline);
             QDPlatform_FlushScreen();
-            serial_puts("[GW] New outline drawn\n");
+            /* trace removed: blocking UART write on every resize frame */
 
             outlineRect = newOutline;
             outlineDrawn = true;

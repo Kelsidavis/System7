@@ -624,12 +624,24 @@ long TrackMenu(short menuID, Point *startPt) {
     Boolean buttonWasReleased = false;
     int updateCount = 0;
     int buttonCheckCount = 0;
-    const int MAX_TRACKING_UPDATES = 1000000;  /* Increased: menu can stay open longer */
+
+    /* Safety stop measured in ticks (1/60 s), not iterations.
+     *
+     * This loop is not paced: its body is SystemTask() plus an input pump that
+     * returns immediately once the controller buffer is drained, so it runs
+     * hundreds of thousands of times a second. A 1,000,000-iteration cap that
+     * was meant to let "the menu stay open longer" actually expired after a
+     * couple of seconds of real time - and on a faster machine, sooner - which
+     * closed open menus out from under the user. Two minutes of wall time is a
+     * genuine runaway; a fast loop is not. */
+    extern UInt32 TickCount(void);
+    const UInt32 MAX_TRACKING_TICKS = 60 * 120;  /* 2 minutes */
+    const UInt32 trackStartTick = TickCount();
 
     serial_puts("TrackMenu: Starting persistent menu tracking\n");
 
     /* Track menu - menu stays open even after button is released */
-    while (tracking && updateCount < MAX_TRACKING_UPDATES) {
+    while (tracking && (TickCount() - trackStartTick) < MAX_TRACKING_TICKS) {
         /* Pump events for responsive UI */
         SystemTask();          /* House-keeping tasks */
         EventPumpYield();      /* Platform's input pump */
@@ -750,8 +762,9 @@ long TrackMenu(short menuID, Point *startPt) {
         }
     }
 
-    if (updateCount >= MAX_TRACKING_UPDATES) {
-        MENU_LOG_WARN("TrackMenu: Tracking timeout! Escaped loop after %d updates\n", updateCount);
+    if ((TickCount() - trackStartTick) >= MAX_TRACKING_TICKS) {
+        MENU_LOG_WARN("TrackMenu: Tracking timeout after %u ticks (%d updates)\n",
+                      (unsigned)(TickCount() - trackStartTick), updateCount);
     }
 
     serial_puts("TrackMenu: Menu tracking complete\n");

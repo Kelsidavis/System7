@@ -6,20 +6,48 @@
 #include "SystemTypes.h"
 #include "TimeManager/TimeBase.h"
 #include "TimeManager/TimeManager.h"
+#ifdef __i386__
+#include "Platform/include/io.h"  /* hal_inb/hal_outb for PIT calibration */
+#endif
 
 /* Simple 64-bit division for 32-bit builds */
+/* 64-bit unsigned division.
+ *
+ * Needed because a freestanding 32-bit build has no libgcc __udivdi3.
+ *
+ * The previous implementation positioned its quotient bit at the divisor's
+ * most-significant bit and then only ever shifted the divisor right. Restoring
+ * division requires first shifting the divisor LEFT until it aligns with the
+ * dividend; without that step the quotient is capped near the divisor's own
+ * magnitude, so any division where the result is large silently saturates.
+ * 100/3 returned 3, and 1000000/16667 returned 32767 instead of 59.
+ *
+ * Everything time-related runs through this: TickCount() is
+ * udiv64(elapsed_us, 16667), so the tick counter saturated instead of counting,
+ * which in turn broke frequency calibration, the ns/us conversion factors, and
+ * every timeout expressed in ticks.
+ */
 static uint64_t udiv64(uint64_t num, uint64_t den) {
     if (den == 0) return 0;
+    if (num < den) return 0;
+
     uint64_t quot = 0;
-    uint64_t bit = 1ULL << 63;
-    while (bit && !(den & bit)) bit >>= 1;
-    while (bit) {
+    int shift = 0;
+
+    /* Align the divisor with the dividend. The num>>1 guard keeps the shift
+     * from overflowing den. */
+    while (den <= (num >> 1) && shift < 63) {
+        den <<= 1;
+        shift++;
+    }
+
+    while (shift >= 0) {
         if (num >= den) {
             num -= den;
-            quot |= bit;
+            quot |= (1ULL << shift);
         }
         den >>= 1;
-        bit >>= 1;
+        shift--;
     }
     return quot;
 }
@@ -93,7 +121,76 @@ static void CalibrateFrequencyAccurate(void) {
     }
 #endif
 
-    /* Last resort: calibrate against TickCount (60 Hz) */
+#ifdef __i386__
+    /* Calibrate against PIT channel 2.
+     *
+     * CPUID leaves 0x15 and 0x16 only exist from Skylake onwards, so every
+     * older machine - a Pentium 3 or a Core 2, precisely the hardware this
+     * project targets - falls straight past both. What used to catch them was a
+     * circular fallback that calibrated the time base against TickCount(), even
+     * though TickCount() is derived from Microseconds(), which needs the very
+     * time base being calibrated. It could never advance, so it always timed out
+     * and fabricated 1 MHz. The real TSC runs at 1-3 GHz, so every derived
+     * measurement was then wrong by three orders of magnitude, silently: not
+     * just TickCount, but Time Manager delays and every timeout expressed in
+     * ticks.
+     *
+     * PIT channel 2 avoids the circularity entirely. It is driven by a fixed
+     * 1.193182 MHz crystal, is present on every x86, and can be gated by hand
+     * without interrupts - so it works this early in boot and needs nothing
+     * already calibrated. */
+    if (freq == 0) {
+        serial_puts("[TimeBase] Calibrating TSC against PIT channel 2...\n");
+
+        const uint32_t PIT_HZ = 1193182u;
+        const uint16_t count  = 59659u;   /* ~50ms: 0.05 * 1193182 */
+
+        /* Port 0x61: bit 0 gates channel 2 on, bit 1 would route it to the
+         * speaker - keep that clear so calibration stays silent. */
+        uint8_t port61 = hal_inb(0x61);
+        hal_outb(0x61, (uint8_t)((port61 & ~0x02) | 0x01));
+
+        /* Channel 2, lobyte/hibyte, mode 0 (interrupt on terminal count) */
+        hal_outb(0x43, 0xB0);
+        hal_outb(0x42, (uint8_t)(count & 0xFF));
+        hal_outb(0x42, (uint8_t)(count >> 8));
+
+        /* Restart the counter by toggling its gate */
+        port61 = hal_inb(0x61);
+        hal_outb(0x61, (uint8_t)(port61 & ~0x01));
+        hal_outb(0x61, (uint8_t)(port61 | 0x01));
+
+        uint64_t startCounter = PlatformCounterNow();
+
+        /* Bit 5 of port 0x61 is channel 2's output: it goes high at terminal
+         * count. Bound the wait so a machine that never raises it cannot hang
+         * the boot. */
+        uint32_t guard = 0;
+        while (!(hal_inb(0x61) & 0x20)) {
+            if (++guard > 100000000u) {
+                serial_puts("[TimeBase] PIT calibration timed out\n");
+                break;
+            }
+        }
+
+        uint64_t endCounter = PlatformCounterNow();
+
+        /* Leave the gate as we found it */
+        hal_outb(0x61, (uint8_t)(port61 & ~0x01));
+
+        if (guard <= 100000000u && endCounter > startCounter) {
+            uint64_t delta = endCounter - startCounter;
+            /* freq = delta / (count / PIT_HZ) = delta * PIT_HZ / count.
+             * Divide first to keep the intermediate away from 64-bit overflow. */
+            freq = udiv64(delta, count) * PIT_HZ;
+            serial_puts("[TimeBase] TSC frequency calibrated from PIT\n");
+        }
+    }
+#endif
+
+    /* Last resort: calibrate against TickCount (60 Hz).
+     * Retained only as a final fallback for platforms with no PIT; it is
+     * self-referential and expected to time out where it is reached. */
     if (freq == 0) {
         serial_puts("[TimeBase] Calibrating against TickCount...\n");
 
@@ -139,6 +236,27 @@ static void CalibrateFrequencyAccurate(void) {
                 }
             }
         }
+    }
+
+    /* Report the calibrated rate unconditionally. On unfamiliar hardware a
+     * wrong time base is invisible in behaviour but poisons every timeout in
+     * the system, so the number itself needs to be on the wire. */
+    {
+        uint32_t mhz = (uint32_t)udiv64(freq, 1000000u);
+        char buf[16];
+        int i = 0;
+        if (mhz == 0) {
+            buf[i++] = '0';
+        } else {
+            char tmp[12];
+            int n = 0;
+            while (mhz > 0 && n < 11) { tmp[n++] = (char)('0' + (mhz % 10)); mhz /= 10; }
+            while (n > 0) buf[i++] = tmp[--n];
+        }
+        buf[i] = '\0';
+        serial_puts("[TimeBase] counter frequency = ");
+        serial_puts(buf);
+        serial_puts(" MHz\n");
     }
 
     /* Validate and clamp frequency */

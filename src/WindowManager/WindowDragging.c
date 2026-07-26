@@ -455,25 +455,39 @@ void DragWindow(WindowPtr theWindow, Point startPt, const Rect* boundsRect) {
      * With safety timeout to prevent infinite loop if StillDown() gets stuck */
     extern void EventPumpYield(void);
     extern void UpdateCursorDisplay(void);
-    UInt32 loopCount = 0;
-    const UInt32 MAX_DRAG_ITERATIONS = 100000;  /* Safety timeout: ~1666 seconds at 60Hz */
+    extern UInt32 TickCount(void);
 
-    /* Track iterations without movement to detect stuck loop */
-    UInt32 noMovementCount = 0;
-    const UInt32 MAX_NO_MOVEMENT_ITERS = 60;  /* ~1 second at 60Hz */
+    /* Every threshold here is measured in ticks (1/60 s) rather than loop
+     * iterations.
+     *
+     * The previous version counted iterations while documenting them as time -
+     * "~1 second at 60Hz" for 60 iterations - but nothing paces this loop at
+     * 60Hz. The body is EventPumpYield() plus a couple of reads, and
+     * PollPS2Input() returns immediately once the controller buffer is drained,
+     * so it runs on the order of a hundred thousand iterations per second. The
+     * "1 second" stuck-loop timeout therefore expired in well under a
+     * millisecond, and the "83ms" minimum drag duration in about fifty
+     * microseconds.
+     *
+     * That is fatal for a laptop touchpad specifically: a touchpad reports
+     * nothing at all while your finger is stationary, and there is always a
+     * short gap between the button going down and the first motion packet. The
+     * no-movement timeout fired during that gap and aborted the drag before it
+     * began. A real mouse hides the problem because it emits motion almost
+     * continuously. */
+    const UInt32 MAX_DRAG_TICKS        = 60 * 60; /* 60s hard safety stop */
+    const UInt32 NO_MOVEMENT_TIMEOUT   = 60;      /* 1s without any motion */
+    const UInt32 BUTTON_DEBOUNCE_TICKS = 2;       /* ~33ms of steady release */
+    const UInt32 MIN_DRAG_TICKS        = 5;       /* ~83ms before honouring release */
 
-    /* Button state debouncing: filter out spurious release-press transitions
-     * Track how many consecutive iterations reported button released */
-    UInt32 buttonReleasedCount = 0;
-    const UInt32 BUTTON_DEBOUNCE_THRESHOLD = 3;  /* Require 3 consecutive releases */
+    const UInt32 dragStartTick = TickCount();
+    UInt32 lastMovementTick    = dragStartTick;
+    UInt32 releaseStartTick    = 0;      /* tick the button first read released */
+    Boolean releaseInProgress  = false;
+    UInt32 loopCount           = 0;
 
-    /* Minimum drag duration to filter accidental clicks
-     * Require at least 5 iterations (~83ms at 60Hz) before honoring a release */
-    const UInt32 MIN_DRAG_ITERATIONS = 5;
-
-    while (loopCount < MAX_DRAG_ITERATIONS) {
+    while ((TickCount() - dragStartTick) < MAX_DRAG_TICKS) {
         loopCount++;
-        noMovementCount++;
 
         /* Poll hardware for new input events (mouse button state) */
         EventPumpYield();
@@ -489,42 +503,49 @@ void DragWindow(WindowPtr theWindow, Point startPt, const Rect* boundsRect) {
         Boolean isButtonDown = StillDown();
 
         if (!isButtonDown) {
-            /* Button reports released - increment debounce counter */
-            buttonReleasedCount++;
+            /* Button reads released - start (or continue) timing the release.
+             * Debouncing by elapsed time rather than by consecutive samples
+             * means the filter is unaffected by how fast this loop happens to
+             * spin on a given machine. */
+            if (!releaseInProgress) {
+                releaseInProgress = true;
+                releaseStartTick = TickCount();
+            }
 
-            /* Only exit if:
-             * 1. Button has been released consistently (debounce threshold)
-             * 2. AND we've been dragging for minimum duration (avoid accidental clicks) */
-            if (buttonReleasedCount >= BUTTON_DEBOUNCE_THRESHOLD &&
-                loopCount >= MIN_DRAG_ITERATIONS) {
-                WM_LOG_DEBUG("DragWindow: Debounced button release after %u iterations (debounce count: %u)\n",
-                             loopCount, buttonReleasedCount);
+            /* Exit once the button has read released steadily for the debounce
+             * window AND the drag has lasted the minimum duration. */
+            if ((TickCount() - releaseStartTick) >= BUTTON_DEBOUNCE_TICKS &&
+                (TickCount() - dragStartTick) >= MIN_DRAG_TICKS) {
+                WM_LOG_DEBUG("DragWindow: Debounced button release after %u ticks (%u iterations)\n",
+                             (unsigned)(TickCount() - dragStartTick), loopCount);
                 break;  /* Exit drag loop normally */
             }
         } else {
-            /* Button reports held - reset debounce counter */
-            buttonReleasedCount = 0;
+            /* Button reads held - any bounce is over, restart the release timer. */
+            releaseInProgress = false;
         }
 
-        /* Check if stuck in loop without any StillDown() returning false */
-        if (noMovementCount > MAX_NO_MOVEMENT_ITERS) {
-            /* Force exit if button tracking is completely broken */
+        /* Stuck-loop detection. Only meaningful once a genuine amount of wall
+         * time has passed with no cursor motion at all - which is normal for a
+         * touchpad whenever the finger is resting, so it must never be reached
+         * merely because the loop spun quickly. */
+        UInt32 idleTicks = TickCount() - lastMovementTick;
+        if (idleTicks > NO_MOVEMENT_TIMEOUT) {
             if (!Button()) {
-                /* Button was actually released, break out */
-                WM_LOG_WARN("DragWindow: Breaking out of stuck loop - button actually released after %u iterations\n", loopCount);
+                /* Button really is released - StillDown() was lying. */
+                WM_LOG_WARN("DragWindow: Breaking out of stuck loop - button actually released after %u ticks\n",
+                            (unsigned)idleTicks);
                 break;
-            } else {
-                /* Still reporting button down after many iterations - might be stuck for real */
-                if (noMovementCount > MAX_NO_MOVEMENT_ITERS * 10) {
-                    WM_LOG_ERROR("DragWindow: Force exiting stuck loop after %u iterations with no release\n", loopCount);
-                    break;  /* Force exit to prevent infinite timeout */
-                }
+            } else if (idleTicks > NO_MOVEMENT_TIMEOUT * 10) {
+                WM_LOG_ERROR("DragWindow: Force exiting stuck loop after %u ticks with no release\n",
+                             (unsigned)idleTicks);
+                break;  /* Force exit to prevent an unbounded modal loop */
             }
         }
 
         /* Only process if mouse moved */
         if (ptG.h != lastPos.h || ptG.v != lastPos.v) {
-            noMovementCount = 0;  /* Reset counter on movement */
+            lastMovementTick = TickCount();  /* Restart the idle timer on motion */
 
             /* Calculate new window position */
             short newLeft = ptG.h - offset.h;
@@ -576,11 +597,13 @@ void DragWindow(WindowPtr theWindow, Point startPt, const Rect* boundsRect) {
     }
 
     /* Check if we hit the safety timeout */
-    if (loopCount >= MAX_DRAG_ITERATIONS) {
-        WM_LOG_ERROR("DragWindow: TIMEOUT! Loop iterated %u times, StillDown() never returned false!\n", loopCount);
+    if ((TickCount() - dragStartTick) >= MAX_DRAG_TICKS) {
+        WM_LOG_ERROR("DragWindow: TIMEOUT after %u ticks (%u iterations); StillDown() never returned false!\n",
+                     (unsigned)(TickCount() - dragStartTick), loopCount);
         WM_LOG_ERROR("DragWindow: This indicates mouse button tracking is broken.\n");
     } else {
-        WM_LOG_DEBUG("DragWindow: Exited drag loop normally after %u iterations\n", loopCount);
+        WM_LOG_DEBUG("DragWindow: Exited drag loop normally after %u ticks (%u iterations)\n",
+                     (unsigned)(TickCount() - dragStartTick), loopCount);
     }
 
     /* Erase final outline before moving window (XOR erases by redrawing) */

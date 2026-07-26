@@ -10,17 +10,25 @@
 
 /* Simple 64-bit division helper (duplicated for freestanding) */
 static uint64_t udiv64(uint64_t num, uint64_t den) {
+    /* Restoring division. The divisor must be shifted LEFT to align with the
+     * dividend before iterating; without that the quotient saturates near the
+     * divisor's own magnitude (100/3 returned 3). Kept in sync with the copy in
+     * TimeManager/TimeBase.c. */
     if (den == 0) return 0;
+    if (num < den) return 0;
     uint64_t quot = 0;
-    uint64_t bit = 1ULL << 63;
-    while (bit && !(den & bit)) bit >>= 1;
-    while (bit) {
+    int shift = 0;
+    while (den <= (num >> 1) && shift < 63) {
+        den <<= 1;
+        shift++;
+    }
+    while (shift >= 0) {
         if (num >= den) {
             num -= den;
-            quot |= bit;
+            quot |= (1ULL << shift);
         }
         den >>= 1;
-        bit >>= 1;
+        shift--;
     }
     return quot;
 }
