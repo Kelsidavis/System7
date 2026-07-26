@@ -330,6 +330,7 @@ C_SOURCES = src/main.c \
                 src/Platform/x86/usb_core.c \
                 src/Platform/x86/e1000.c \
                 src/Platform/x86/network.c \
+                src/Platform/x86/gdt.c \
                 src/Platform/x86/idt.c \
                 src/Platform/x86/pic.c \
                 src/Platform/x86/pit.c \

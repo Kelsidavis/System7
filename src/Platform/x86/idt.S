@@ -83,4 +83,65 @@ irq_common:
 isr_default:
     iret
 
+/* CPU exception stubs (vectors 0-31).
+ *
+ * A bare `iret` is wrong for exceptions: the ones that push an error code
+ * (8, 10-14, 17, 21) leave it on the stack, so `iret` reads the wrong frame and
+ * the machine triple-faults with no diagnostic at all. Each stub below
+ * normalises the frame to <vector, error-code> and reports it, which turns a
+ * silent reset into a printable fault - the difference between "it froze" and
+ * "it took a #GP at 0x...".
+ */
+.macro EXCEPTION_NOERR vec
+    .globl exc\vec
+exc\vec:
+    pushl $0
+    pushl $\vec
+    jmp exc_common
+.endm
+
+.macro EXCEPTION_ERR vec
+    .globl exc\vec
+exc\vec:
+    /* CPU already pushed the error code */
+    pushl $\vec
+    jmp exc_common
+.endm
+
+    EXCEPTION_NOERR 0
+    EXCEPTION_NOERR 1
+    EXCEPTION_NOERR 2
+    EXCEPTION_NOERR 3
+    EXCEPTION_NOERR 4
+    EXCEPTION_NOERR 5
+    EXCEPTION_NOERR 6
+    EXCEPTION_NOERR 7
+    EXCEPTION_ERR   8
+    EXCEPTION_NOERR 9
+    EXCEPTION_ERR   10
+    EXCEPTION_ERR   11
+    EXCEPTION_ERR   12
+    EXCEPTION_ERR   13
+    EXCEPTION_ERR   14
+    EXCEPTION_NOERR 15
+    EXCEPTION_NOERR 16
+    EXCEPTION_ERR   17
+    EXCEPTION_NOERR 18
+    EXCEPTION_NOERR 19
+
+exc_common:
+    pusha
+    /* After pusha: esp+32 = vector, esp+36 = error code, esp+40 = faulting EIP */
+    mov 40(%esp), %eax      /* EIP */
+    push %eax
+    mov 40(%esp), %eax      /* error code (stack shifted by the push above) */
+    push %eax
+    mov 40(%esp), %eax      /* vector (shifted by two pushes) */
+    push %eax
+    call exception_dispatch
+    add $12, %esp
+    popa
+    add $8, %esp            /* drop vector + error code */
+    iret
+
     .section .note.GNU-stack,"",@progbits

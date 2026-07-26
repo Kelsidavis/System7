@@ -18,9 +18,6 @@ static inline void io_wait(void) {
 }
 
 void pic_init(void) {
-    uint8_t mask1 = hal_inb(PIC1_DATA);
-    uint8_t mask2 = hal_inb(PIC2_DATA);
-
     /* Start initialization sequence (ICW1) */
     hal_outb(PIC1_COMMAND, 0x11);
     io_wait();
@@ -46,9 +43,14 @@ void pic_init(void) {
     hal_outb(PIC2_DATA, 0x01);
     io_wait();
 
-    /* Restore saved masks */
-    hal_outb(PIC1_DATA, mask1);
-    hal_outb(PIC2_DATA, mask2);
+    /* Start from a known-good state: everything masked.
+     *
+     * This used to save the firmware's masks on entry and restore them here,
+     * which made the interrupt configuration depend on whatever the BIOS
+     * happened to leave behind - fine under QEMU, arbitrary on real machines.
+     * Callers now unmask exactly the lines they have handlers for. */
+    hal_outb(PIC1_DATA, 0xFF);
+    hal_outb(PIC2_DATA, 0xFF);
 }
 
 void pic_send_eoi(uint8_t irq) {

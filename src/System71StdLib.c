@@ -1557,6 +1557,12 @@ int rand(void) {
 
 #define COM1 0x3F8
 
+/* Upper bound on how long any single UART write may spin waiting for the
+ * transmitter to drain. Generous enough that a healthy 38400-baud port never
+ * hits it, small enough that a dead port costs microseconds instead of the
+ * whole boot. */
+#define SERIAL_TX_SPIN_LIMIT 100000
+
 #include "Platform/include/io.h"
 
 #define inb(port) hal_inb(port)
@@ -1586,6 +1592,20 @@ void serial_set_pl011_base(uintptr_t base) {
     if (base != 0) {
         g_pl011_uart_base = base;
     }
+}
+#endif
+
+#if !defined(__arm__) && !defined(__aarch64__) && !defined(__powerpc__) && !defined(__powerpc64__)
+/* Write one byte to COM1, giving up after SERIAL_TX_SPIN_LIMIT polls.
+ * Returns 1 if the byte went out, 0 if the port never reported THR-empty. */
+static int com1_tx_byte(uint8_t b) {
+    for (int spin = 0; spin < SERIAL_TX_SPIN_LIMIT; spin++) {
+        if (inb(COM1 + 5) & 0x20) {
+            outb(COM1, b);
+            return 1;
+        }
+    }
+    return 0;
 }
 #endif
 
@@ -1650,8 +1670,11 @@ void serial_putchar(char c) {
     escc_putchar(c);
     return;
 #else
-    while ((inb(COM1 + 5) & 0x20) == 0);
-    outb(COM1, c);
+    /* Bounded wait for THR-empty. An unbounded spin here hangs the whole kernel
+     * on any machine whose UART never raises bit 5 (wedged by firmware, held off
+     * by flow control, or simply absent-but-not-floating). Dropping a character
+     * is always better than deadlocking the boot. */
+    com1_tx_byte((uint8_t)c);
 #endif
 }
 
@@ -1681,13 +1704,13 @@ void serial_puts(const char* str) {
     escc_puts(str);
     return;
 #else
+    /* Bounded per-byte wait - see serial_putchar for why this must not spin
+     * forever. */
     while (*str) {
         if (*str == '\n') {
-            while ((inb(COM1 + 5) & 0x20) == 0);
-            outb(COM1, '\r');
+            com1_tx_byte('\r');
         }
-        while ((inb(COM1 + 5) & 0x20) == 0);
-        outb(COM1, *str);
+        com1_tx_byte((uint8_t)*str);
         str++;
     }
 #endif
