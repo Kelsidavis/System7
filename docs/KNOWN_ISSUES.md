@@ -4,6 +4,50 @@ This document tracks known issues, workarounds, and technical debt in the System
 
 ## Open Issues
 
+### ⛔ Window content has many competing redraw paths (ARCH-001)
+
+This is the structural problem underneath most of the redraw bugs below, and it
+makes every one of them harder to diagnose than it should be.
+
+Folder window content is redrawn from **nine** call sites across seven files:
+
+```
+src/WindowManager/WindowDisplay.c      x2   (PaintBehind phase 2, ShowWindow)
+src/WindowManager/WindowDragging.c     x1   (after a drag)
+src/WindowManager/WindowResizing.c     x1   (after a resize)
+src/WindowManager/WindowEvents.c       x1
+src/EventManager/EventDispatcher.c     x1   (the update event - the real one)
+src/Finder/finder_main.c               x2
+src/Finder/folder_window.c             x1
+```
+
+Several are explicitly labelled workarounds in the source, with comments like
+*"WORKAROUND: Directly redraw window content since update events aren't flowing
+through"*. So the update-event mechanism does not work, and instead of that
+being fixed once, each caller that noticed added its own direct call.
+
+There are also **two different content renderers**:
+
+- `FolderWindow_Draw()` — the real one, driven by `FolderWindowState`.
+- `DrawFolderWindowContents()` — hardcoded placeholder content ("System Folder",
+  "Applications", a "5 items … MB in disk" status line), called from
+  `Finder_OpenDesktopItem` at window-open time.
+
+They do not agree on layout. Chasing REDRAW-002 cost real time precisely because
+of this: instrumenting the status line in `FolderWindow_Draw` showed every draw
+landing at global y=414, while the stranded fragment on screen sits at y≈308 —
+because the two renderers position it differently.
+
+**Consequences:** any repaint bug has to be chased across nine call sites; a fix
+in one path leaves the others stale; and it is not knowable from the code which
+path actually painted a given pixel without instrumenting all of them.
+
+**The real fix** is to repair update-event delivery so `BeginUpdate`/`EndUpdate`
+is the single route content is drawn through, then delete the direct calls and
+the placeholder renderer. That is a refactor, not a patch, and it should
+probably happen before more time goes into individual redraw bugs.
+
+
 ### ⛔ Regions are rectangles: DiffRgn and XorRgn are stubs (REGION-001)
 
 `struct Region` (include/SystemTypes.h) carries only `rgnSize` and `rgnBBox`, so
@@ -66,10 +110,21 @@ So this is *not* simply a consequence of REGION-001.
 repeating the drag leaves the fragment exactly as before, so it is not the
 source.
 
+**The fragment is pre-existing content, not a fresh draw.** Comparing
+screenshots pixel-by-pixel: the dark text at y=304..312, x=9..165 is present in
+the *pre-drag* frame too. So the erase genuinely fails to remove it, despite the
+traced strips covering that exact area — which contradicts the earlier reading
+of this and is the current puzzle.
+
+Also relevant, and an instance of ARCH-001: instrumenting the status line inside
+`FolderWindow_Draw` shows every draw landing at global y=414, never at y≈308
+where the fragment sits. The two content renderers place it differently, so
+tracing the wrong one proves nothing. Any further work here should first
+establish *which* renderer painted the surviving pixels.
+
 Still to eliminate: `PaintOne(theWindow, NULL)` and the direct
-`FolderWindow_Draw(theWindow)` that follow the erase; the repaint that
-`MoveWindow` performs internally via `Local_InvalidateScreenRegion` before the
-erase runs; and any second window holding stale content over the old position.
+`FolderWindow_Draw(theWindow)` that follow the erase, and the repaint that
+`MoveWindow` performs internally via `Local_InvalidateScreenRegion`.
 
 Worth noting while in this code: `PaintBehind` phase 2 does
 `w->port.clipRgn = w->visRgn;` — assigning one region handle to another without
