@@ -398,6 +398,15 @@ static OSErr SetupMenus(void)
     GetLocalizedString(menuStr, kSTRListFinderViewMenu, kStrCleanUpSelection);
     AppendMenu(gViewMenu, menuStr);
 
+    /* System 7 shows a check against the current view. Folder windows open in
+     * icon view, so item 1 starts checked; HandleViewMenu moves it from there.
+     * CheckItem was already being called on selection - nothing had set the
+     * initial state, so the menu opened with no view marked at all. */
+    {
+        extern void CheckItem(MenuHandle theMenu, short item, Boolean checked);
+        CheckItem(gViewMenu, 1, true);
+    }
+
     /* Label Menu */
     GetLocalizedString(menuStr, kSTRListFinderMenuTitles, kStrMenuLabel);
     gLabelMenu = NewMenu(132, menuStr);

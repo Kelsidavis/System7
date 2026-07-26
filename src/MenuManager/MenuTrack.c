@@ -29,6 +29,7 @@ extern void DrawMenuBar(void);        /* Redraw the menu bar */
 extern Boolean CheckMenuItemSeparator(MenuHandle theMenu, short item);
 extern Boolean CheckMenuItemEnabled(MenuHandle theMenu, short item);
 extern void GetItemCmd(MenuHandle theMenu, short item, short* cmdChar);
+extern void GetItemMark(MenuHandle theMenu, short item, short* markChar);
 extern void GetItemSubmenu(MenuHandle theMenu, short item, short* submenuID);
 
 /* Forward declarations for static functions */
@@ -118,6 +119,42 @@ static const uint16_t kCommandGlyph[kCmdGlyphHeight] = {
     0x306,  /* .##.....##. */
 };
 
+/*
+ * The check mark shown against a chosen item - the View menu's current view,
+ * for instance. Chicago carries it at character 18, which is outside the ASCII
+ * strike extracted into this tree, so it is drawn geometrically for the same
+ * reason as the command symbol above.
+ */
+/* System 7 reserves a column on the left of every menu for the item mark, so
+ * text starts clear of it and a check does not collide with the name. */
+#define kMenuMarkColumn 16
+
+#define kCheckGlyphWidth  9
+#define kCheckGlyphHeight 9
+
+static const uint16_t kCheckGlyph[kCheckGlyphHeight] = {
+    0x001,  /* ........# */
+    0x003,  /* .......## */
+    0x006,  /* ......##. */
+    0x00C,  /* .....##.. */
+    0x098,  /* #..##.... */
+    0x0F0,  /* .####.... */
+    0x060,  /* ..##..... */
+    0x040,  /* ...#..... */
+    0x000,  /* ......... */
+};
+
+static void DrawCheckGlyph(short x, short y, uint32_t color) {
+    for (short row = 0; row < kCheckGlyphHeight; row++) {
+        uint16_t bits = kCheckGlyph[row];
+        for (short col = 0; col < kCheckGlyphWidth; col++) {
+            if (bits & (1 << (kCheckGlyphWidth - 1 - col))) {
+                DrawMenuRect(x + col, y + row, x + col + 1, y + row + 1, color);
+            }
+        }
+    }
+}
+
 static void DrawCommandGlyph(short x, short y, uint32_t color) {
     for (short row = 0; row < kCmdGlyphHeight; row++) {
         uint16_t bits = kCommandGlyph[row];
@@ -194,7 +231,7 @@ static short CalcMenuWidth(MenuHandle theMenu, short itemCount) {
         if (w > widest) widest = w;
     }
 
-    widest += 4 + 12;    /* text inset, plus right margin */
+    widest += kMenuMarkColumn + 12;   /* mark column, plus right margin */
     if (widest < 100) widest = 100;
     return widest;
 }
@@ -231,9 +268,19 @@ static void DrawMenuItemRow(MenuHandle theMenu, short i, short left, short itemT
     if (itemText[0] == 0) return;
 
     if (highlighted) {
-        DrawInvertedText(itemText, left + 4, itemTop + 12, true);
+        DrawInvertedText(itemText, left + kMenuMarkColumn, itemTop + 12, true);
     } else {
-        DrawMenuItemText(itemText, left + 4, itemTop + 12);
+        DrawMenuItemText(itemText, left + kMenuMarkColumn, itemTop + 12);
+    }
+
+    /* Item mark - the View menu checks its current view. CheckItem has always
+     * maintained this; nothing drew it. */
+    {
+        short markChar = 0;
+        GetItemMark(theMenu, i, &markChar);
+        if (markChar != 0) {
+            DrawCheckGlyph(left + 4, itemTop + 4, ink);
+        }
     }
 
     /* A hierarchical item gets a filled right-pointing triangle at the right
