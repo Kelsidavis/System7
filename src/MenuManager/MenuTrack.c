@@ -401,28 +401,20 @@ long BeginTrackMenu(short menuID, Point *startPt) {
     g_menuTrackState.lineHeight = lineHeight;
     MENU_LOG_TRACE("BeginTrackMenu: Initial highlightedItem = %d\n", g_menuTrackState.highlightedItem);
 
-    /* Calculate and store menu title position */
-    /* For now, estimate based on menu ID and typical widths */
+    /* Store the menu title position, taken from what the menu bar actually
+     * measured rather than a table of guesses. The estimates that used to live
+     * here - Apple 0/30, File 30/32, Edit 62/32, View 94/36, Label 130/40,
+     * Special 170/50 - did not match the real layout at all: Special sits at
+     * 247..305. They were also fixed English widths. */
     short titleX = 0;
-    short titleW = 30;  /* Default width */
-    if (menuID == 128) {  /* Apple menu */
-        titleX = 0;
-        titleW = 30;
-    } else if (menuID == 129) {  /* File menu */
-        titleX = 30;
-        titleW = 32;
-    } else if (menuID == 130) {  /* Edit menu */
-        titleX = 62;
-        titleW = 32;
-    } else if (menuID == 131) {  /* View menu */
-        titleX = 94;
-        titleW = 36;
-    } else if (menuID == 132) {  /* Label menu */
-        titleX = 130;
-        titleW = 40;
-    } else if (menuID == 133) {  /* Special menu */
-        titleX = 170;
-        titleW = 50;
+    short titleW = 30;
+    {
+        extern Boolean GetMenuTitleRectByID(short menuID, Rect* outRect);
+        Rect tr;
+        if (GetMenuTitleRectByID(menuID, &tr)) {
+            titleX = tr.left;
+            titleW = tr.right - tr.left;
+        }
     }
 
     g_menuTrackState.titleLeft = titleX;
@@ -1078,72 +1070,43 @@ void DrawMenuBarWithHighlight(short highlightMenuID) {
         return;
     }
 
-    /* Calculate actual menu positions based on string widths */
-    /* These match the calculations in DrawMenuBar */
-    short x = 0;
-    short titleX = 0;
-    short titleW = 0;
-
-    /* Apple menu - always first at x=0 */
-    if (highlightMenuID == 128) {
-        titleX = 0;
-        titleW = 30;  /* Apple icon width + padding */
-    } else {
-        /* Skip past Apple menu */
-        x = 30;
-
-        /* File menu */
-        if (highlightMenuID == 129) {
-            titleX = x;
-            titleW = TextWidth("File", 0, 4) + 20;
-        } else {
-            x += TextWidth("File", 0, 4) + 20;
-
-            /* Edit menu */
-            if (highlightMenuID == 130) {
-                titleX = x;
-                titleW = TextWidth("Edit", 0, 4) + 20;
-            } else {
-                x += TextWidth("Edit", 0, 4) + 20;
-
-                /* View menu */
-                if (highlightMenuID == 131) {
-                    titleX = x;
-                    titleW = TextWidth("View", 0, 4) + 20;
-                } else {
-                    x += TextWidth("View", 0, 4) + 20;
-
-                    /* Label menu */
-                    if (highlightMenuID == 132) {
-                        titleX = x;
-                        titleW = TextWidth("Label", 0, 5) + 20;
-                    } else {
-                        x += TextWidth("Label", 0, 5) + 20;
-
-                        /* Special menu */
-                        if (highlightMenuID == 133) {
-                            titleX = x;
-                            titleW = TextWidth("Special", 0, 7) + 20;
-                        }
-                    }
-                }
-            }
-        }
+    /*
+     * Use the title rectangle the menu bar actually measured when it drew
+     * itself. DrawMenuBar records each one through AddMenuTitle, so it is the
+     * only layout that matches what is on screen.
+     *
+     * This used to recompute the layout here from hardcoded English strings -
+     * TextWidth("File",0,4) + 20, TextWidth("Label",0,5) + 20 and so on - which
+     * was a third independent copy of the menu bar layout and disagreed with
+     * the real one: selecting Special highlighted x=225..290 while the title
+     * actually sat at 247..305, so the black box landed across "Label". It also
+     * meant a translated build highlighted a region computed from English
+     * widths, and drew English text into it.
+     */
+    extern Boolean GetMenuTitleRectByID(short menuID, Rect* outRect);
+    Rect titleRect;
+    if (!GetMenuTitleRectByID(highlightMenuID, &titleRect)) {
+        return;
     }
+    short titleX = titleRect.left;
+    short titleW = titleRect.right - titleRect.left;
 
     /* Draw black background for the title */
     DrawHighlightRect(titleX, 0, titleX + titleW, 19, true);
 
-    /* Redraw the title text in white */
-    const char* titleText = "";
-    if (highlightMenuID == 129) { titleText = "File"; }
-    else if (highlightMenuID == 130) { titleText = "Edit"; }
-    else if (highlightMenuID == 131) { titleText = "View"; }
-    else if (highlightMenuID == 132) { titleText = "Label"; }
-    else if (highlightMenuID == 133) { titleText = "Special"; }
-
-    if (highlightMenuID != 128) {  /* Not Apple menu - draw text */
-        DrawInvertedText(titleText, titleX + 4, 14, true);
+    if (highlightMenuID != 128) {
+        /* Title text comes from the menu itself, not a hardcoded table */
+        MenuHandle theMenu = GetMenuHandle(highlightMenuID);
+        if (theMenu) {
+            char titleText[64];
+            short len = (*(MenuInfo**)theMenu)->menuData[0];
+            if (len > 63) len = 63;
+            for (short i = 0; i < len; i++) {
+                titleText[i] = (char)(*(MenuInfo**)theMenu)->menuData[1 + i];
+            }
+            titleText[len] = '\0';
+            DrawInvertedText(titleText, titleX + 4, 14, true);
+        }
     } else {
         /* For Apple menu, draw inverted Apple icon */
         DrawInvertedAppleIcon(8, 2);

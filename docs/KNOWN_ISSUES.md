@@ -168,6 +168,47 @@ Verified in QEMU: PS/2 boot with no input now shows both icons (342 and 194 dark
 pixels, matching a tablet boot exactly), and they survive opening a folder and
 opening a menu. Tablet boot unchanged.
 
+### ⚠️ A menu bar title stays highlighted after its menu closes (MENU-002)
+
+Open a menu and pick an item, and the title keeps its black highlight. Open a
+second menu and the first one is still inverted too — opening Apple then File
+leaves the Apple icon inverted as well as File.
+
+Not a position problem: the highlight now lands exactly on its title (see the
+menu bar layout fix below). The sequence in the log is right as far as it goes —
+
+```
+[DRAWTITLE] HIGHLIGHTED   FillRect + InvertRect
+[DRAWTITLE] NORMAL        FillRect
+```
+
+`DrawMenuTitle` fills the rect white before drawing, and the unhighlight runs
+*last*, so the black should be gone. Something re-inverts the title after that,
+or paints the menu bar again from stale state. `DrawMenuBarWithHighlight` keeps
+a `lastHighlightMenuID` and `DrawMenuBar` skips drawing a title it believes is
+highlighted (`gMenuMgrState->hiliteMenu`), so those two pieces of state are the
+place to look — one of them is probably not being cleared on dismissal.
+
+### ✅ The menu bar highlight was drawn from a third, wrong layout — FIXED
+
+`DrawMenuBarWithHighlight` recomputed the menu bar layout itself, from
+hardcoded English strings: `TextWidth("File",0,4) + 20`,
+`TextWidth("Label",0,5) + 20`, and so on. That was a third independent copy of
+the layout — after `DrawMenuBar`'s own measurement and the tracked rects
+`AddMenuTitle` records — and it disagreed with reality. Choosing Special
+highlighted x=225..290 while the title actually sat at 247..305, so the black
+box landed across "Label" and the text drew over it, reading as garbage.
+
+`BeginTrackMenu` had a fourth copy: a table of guesses (Apple 0/30, File 30/32,
+Edit 62/32, View 94/36, Label 130/40, Special 170/50) under the comment "for
+now, estimate based on menu ID and typical widths".
+
+Both now use `GetMenuTitleRectByID`, which returns what the menu bar actually
+measured when it drew itself. The highlighted title's text is read from the menu
+handle rather than a hardcoded table, so a translated build highlights and
+labels the right thing — previously it would have computed English widths and
+drawn English text regardless of locale.
+
 ### ⚠️ The full menu item renderer is dead code (MENU-001) — PARTLY ADDRESSED
 
 `MenuDisplay.c` has a complete System 7 item renderer — `DrawMenu` →
