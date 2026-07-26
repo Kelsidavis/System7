@@ -2004,8 +2004,14 @@ void FolderWindow_Draw(WindowPtr w) {
         }
     }
 
-    /* Draw status bar at bottom of window with item count and disk space */
-    if (state && state->items) {
+    /* Draw status bar at bottom of window with item count and disk space.
+     *
+     * Gated on `state` alone, not `state->items`: an empty folder has no item
+     * array, and requiring one meant an empty window drew no status line at all
+     * - not even the separator. System 7 always shows the bar, reading
+     * "0 items" for an empty folder. The size loop below runs itemCount times,
+     * so it is naturally a no-op when there is nothing to total. */
+    if (state) {
         short bottom = w->port.portRect.bottom;
         short left = w->port.portRect.left;
         short right = w->port.portRect.right;
@@ -2017,8 +2023,10 @@ void FolderWindow_Draw(WindowPtr w) {
 
         /* Calculate total size of items in this folder */
         uint64_t totalSize = 0;
-        for (short i = 0; i < state->itemCount; i++) {
-            totalSize += state->items[i].size;
+        if (state->items) {
+            for (short i = 0; i < state->itemCount; i++) {
+                totalSize += state->items[i].size;
+            }
         }
 
         /* Query disk space from VFS */
