@@ -59,10 +59,23 @@ strip that is demonstrably erased. The surrounding desktop pattern in that area
 is correct in the screenshot, so the erase does reach the framebuffer. The
 fragment must therefore be **repainted after** the erase, not left behind by it.
 
-So this is *not* simply a consequence of REGION-001. Candidates not yet
-eliminated: `PaintBehind(theWindow->nextWindow, uncoveredRgn)`, which repaints
-windows behind clipped to the uncovered region, and any second window whose
-stale content overlaps the old position.
+So this is *not* simply a consequence of REGION-001.
+
+**`PaintBehind` has been eliminated.** Compiling out the post-erase
+`PaintBehind(theWindow->nextWindow, uncoveredRgn)` call in `DragWindow` and
+repeating the drag leaves the fragment exactly as before, so it is not the
+source.
+
+Still to eliminate: `PaintOne(theWindow, NULL)` and the direct
+`FolderWindow_Draw(theWindow)` that follow the erase; the repaint that
+`MoveWindow` performs internally via `Local_InvalidateScreenRegion` before the
+erase runs; and any second window holding stale content over the old position.
+
+Worth noting while in this code: `PaintBehind` phase 2 does
+`w->port.clipRgn = w->visRgn;` — assigning one region handle to another without
+copying. That aliases `clipRgn` to `visRgn`, leaks whatever `clipRgn` held, and
+leaves `clipRgn` dangling if `visRgn` is later recalculated or disposed. Not
+proven to cause REDRAW-002, but wrong on its own terms.
 
 To reproduce, see `scripts/screenshot.sh` and drive a drag through the QEMU
 monitor; note PS/2 mouse deltas are 9-bit signed, so large jumps are clamped and
