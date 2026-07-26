@@ -211,6 +211,40 @@ handle rather than a hardcoded table, so a translated build highlights and
 labels the right thing — previously it would have computed English widths and
 drawn English text regardless of locale.
 
+### ⛔ Dialogs draw their items but not their background (DLG-001)
+
+Special > Empty Trash puts up its confirmation, and the dialog is transparent:
+the prompt text and the two buttons are drawn straight over whatever was on
+screen, so the Finder window's icons show through the middle of it. The prompt
+is also clipped at both ends ("re you sure you want to permanently rem...") and
+the buttons have no labels — only their rounded outlines appear.
+
+Half of this is now fixed: nothing was calling `DrawDialog` at all, so the
+dialog was an empty framed box with no prompt and no buttons. `ConfirmEmptyTrash`
+runs a hand-rolled modal loop that relies on `DialogSelect` to handle an update
+event, and no update event arrives for a window that was just created. It draws
+itself once before the loop now, and the items appear.
+
+**What is left looks structural.** `NewDialog` creates the window with
+`NewWindow` and then does:
+
+```c
+memcpy(&dialogRec->window, window, sizeof(struct WindowRecord));
+```
+
+So there are two window records: the one the Window Manager registered in its
+window list, and a copy inside the dialog. `ShowWindow((WindowPtr)dialog)` and
+`SetPort((GrafPtr)theDialog)` operate on the copy, which is not the record the
+Window Manager knows about, and the two share region handles. Adding an
+`EraseRect` of the dialog's `portRect` inside `DrawDialog` changed nothing at
+all, which fits: drawing through the copied port does not land where the real
+window is.
+
+**Next step:** make the dialog record *reference* the window rather than copy
+it, or have `NewDialog` allocate the dialog as the window's storage so there is
+only ever one record. Until then the clipping and missing button labels are not
+worth chasing individually — they are probably all the same aliasing.
+
 ### ⚠️ The full menu item renderer is dead code (MENU-001) — PARTLY ADDRESSED
 
 `MenuDisplay.c` has a complete System 7 item renderer — `DrawMenu` →

@@ -494,6 +494,17 @@ static OSErr ConfirmEmptyTrash(Boolean *confirmed)
 
     ShowWindow((WindowPtr)dlg);
 
+    /* Draw the dialog once before entering the loop.
+     *
+     * The loop below relies on DialogSelect to handle update events, but
+     * nothing guarantees one arrives for a window that was just created - the
+     * dialog appeared as an empty framed box with no prompt and no buttons. A
+     * hand-rolled modal loop has to paint its dialog itself. */
+    {
+        extern void DrawDialog(DialogPtr theDialog);
+        DrawDialog(dlg);
+    }
+
     /* Modal event loop */
     short itemHit = 0;
     Boolean done = false;
