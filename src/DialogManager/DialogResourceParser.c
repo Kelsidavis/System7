@@ -160,9 +160,30 @@ OSErr ParseDITL(Handle ditlHandle, DialogItemEx** items, SInt16* itemCount) {
         {
             SInt16 baseType = itemType & itemTypeMask;
 
-            if (baseType == btnCtrl || baseType == chkCtrl || baseType == radCtrl ||
+            /*
+             * A control's DITL type is ctrlItem (4) plus the control kind, so a
+             * push button is 4, a checkbox 5, a radio 6. This tested
+             * baseType against btnCtrl/chkCtrl/radCtrl - 0, 1 and 2 - which are
+             * the control kinds on their own and never appear as an item type,
+             * so no control ever had its title copied and every button reached
+             * DrawDialogButton with data == NULL. Static text (8) matched, which
+             * is why the Empty Trash prompt drew and its OK and Cancel buttons
+             * came out as empty outlines. Testing 0 also collided with userItem,
+             * which is 0.
+             */
+            if ((baseType >= ctrlItem && baseType <= ctrlItem + resCtrl) ||
                 baseType == statText || baseType == editText) {
-                /* Text-based item - copy string data */
+                /* Text-based item - keep the string in Pascal form.
+                 *
+                 * The length byte has already been consumed into dataLen above,
+                 * so it has to be put back: every consumer treats item->data as
+                 * a Pascal string. DrawDialogButton tests title[0] > 0 and calls
+                 * StringWidth(title); DrawDialogStaticText does the same. Storing
+                 * the bare text meant the first character was read as the length
+                 * and the text drawn from the second, so "Are you sure you want
+                 * to permanently remove the items in the Trash?" - 66 characters
+                 * - rendered as "re you sure..." with a length of 'A', 65, and
+                 * "OK" became a 79-character string starting at 'K'. */
                 if (dataLen > 0) {
                     /* Validate we have enough bytes available */
                     if (p + dataLen > pEnd) {
@@ -170,10 +191,12 @@ OSErr ParseDITL(Handle ditlHandle, DialogItemEx** items, SInt16* itemCount) {
                         HUnlock(ditlHandle);
                         return -1;
                     }
-                    unsigned char* textData = (unsigned char*)NewPtr(dataLen + 1);
+                    SInt16 pascalLen = (dataLen > 255) ? 255 : dataLen;
+                    unsigned char* textData = (unsigned char*)NewPtr(pascalLen + 2);
                     if (textData) {
-                        memcpy(textData, p, dataLen);
-                        textData[dataLen] = 0;
+                        textData[0] = (unsigned char)pascalLen;
+                        memcpy(textData + 1, p, pascalLen);
+                        textData[pascalLen + 1] = 0;   /* also usable as a C string */
                         itemArray[i].data = textData;
                     }
                 }
