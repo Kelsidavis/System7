@@ -18,13 +18,17 @@ An open-source reimplementation of Apple Macintosh System 7 for modern x86 hardw
 
 This started as a disciplined AI-assisted reverse engineering research project (published to Zenodo in 2025) that proved you could reconstruct a bootable System 7 prototype in days. We then asked: **"What if we just kept building?"**
 
-**Result**: A working, experimental System 7 with ~94% core functionality. It's not production-ready, not exhaustively tested, and parts are "good enough" rather than "perfect"—but it *works*, it's *real*, and it actually runs.
+**What happened**: We kept building. Faster. With less testing. Mostly in QEMU. Almost no bare metal validation. Result: A System 7 that boots in the emulator and looks great in a demo, but is fundamentally untested on real hardware. Features exist everywhere, but edge cases crash constantly.
 
-**Read [Project Evolution](docs/PROJECT_EVOLUTION.md)** for the honest story about how this went from research paper to the productive mess you see today.
+**Honest assessment**: This is a **sloppy operating system**—a QEMU toy that's more useful for learning *about* System 7 than for *running* it. The code is readable and teaches you things, but most subsystems are partially done and tested only under emulation.
+
+**Why it matters anyway**: It's still the most complete open-source System 7 implementation. Real code. Real architecture. Real bugs that teach you something.
+
+**Read [Project Evolution](docs/PROJECT_EVOLUTION.md)** for the detailed honest story about how this went from rigorous research to the sloppy experiment you're looking at.
 
 ## 🎯 Project Status
 
-**Current State**: Active experimental development with ~94% core functionality implemented
+**Current State**: Active experimental development. ~94% of core subsystems have *something* implemented. Most work in QEMU. Bare metal? Unknown. Stability? Low. Edge cases crash.
 
 ### Latest Updates (November 2025)
 

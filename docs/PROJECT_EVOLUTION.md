@@ -39,110 +39,136 @@ The project shifted from **"Can we do this rigorously?"** to **"How far can we a
 
 ### What Changed Dramatically
 
-❌ **The discipline relaxed**
-- Evidence ledgers no longer maintained for every function
-- Some "reasonable implementations" added without binary proof
-- Code added faster than provenance tracking could keep up
-- Partial implementations left in-place hoping to complete later
-- "TODO" comments accumulated faster than fixes
+❌ **The discipline completely relaxed**
+- Evidence ledgers abandoned
+- "Reasonable implementations" added without any binary verification
+- Code added way faster than testing or understanding
+- Partial implementations left half-done, hoping to complete "later"
+- "TODO: fix this" and "HACK:" comments everywhere
+- Testing was: "does it boot in QEMU?" not "does it actually work?"
 
-✅ **But the scope exploded**
-- M68K interpreter with 84 opcode handlers (not in original scope)
-- Segment loader for running actual Mac applications
-- Sound Manager with MIDI synthesis
-- Dialog Manager with keyboard navigation
-- Text editing with clipboard support
-- SimpleText application (working MDI editor)
-- HFS file system with virtual folder windows
-- Multi-language support (37 languages!)
-- Time Manager with microsecond precision
-- Device Manager with driver support
-- Control Manager with scrollbars
+❓ **Scope exploded (but much of it is rough)**
+- M68K interpreter with 84 opcode handlers → mostly untested
+- Segment loader for Mac applications → can load, probably breaks on execution
+- Sound Manager → MIDI conversion works, actual audio output is iffy
+- Dialog Manager → exists, but keyboard handling is incomplete
+- Text editing → SimpleText works *in QEMU*, probably breaks elsewhere
+- SimpleText application → functional in emulation, edge cases unknown
+- HFS file system → works in QEMU, real performance/robustness unknown
+- Multi-language support → 37 languages, all tested only in emulation
+- Time Manager → has microsecond precision in QEMU abstractions
+- Device Manager → driver framework exists, actual drivers are skeletal
+- Control Manager → scrollbars render, might not work correctly
 
-### Why It Got "Messy"
+**The honest version**: Got excited about capabilities and built a lot. Most of it works in the emulator. Most of it is untested elsewhere.
 
-1. **Research mindset → Development mindset**
-   - Research: "Prove one thing rigorously"
-   - Development: "Make it work end-to-end"
-   - These are different games with different rules
+### Why It Got "Sloppy"
 
-2. **Speed over documentation**
-   - Early research had extensive evidence comments
-   - Now: Just make the next feature work
-   - Comments often say WHAT, not WHY
+1. **QEMU made it too easy**
+   - QEMU abstracts hardware → easy to ignore real hardware issues
+   - Serial logging works → no need to debug real video output
+   - Emulated interrupts → no need to handle real interrupt timing
+   - Emulated mouse/keyboard → untested on real devices
+   - Result: "It works in QEMU" became the only test
 
-3. **Ambition outpaced rigor**
-   - Research: ~6,000 LOC, fully traced
-   - Now: ~57,500 LOC, many paths partially explored
-   - Some subsystems "stubbed but functional"
+2. **One person, no code review**
+   - No one to say "wait, this is incomplete"
+   - No pressure to finish things properly
+   - Can hack and move on to the next feature
+   - Technical debt accumulated silently
 
-4. **"Good enough" became acceptable**
-   - Rendering at 800×600 @ 32-bit instead of faithful era recreation
-   - PC speaker synthesis instead of multi-channel audio mixing
-   - Simplified HFS instead of full read-write support
-   - M68K interpreter instead of full JIT
+3. **Excitement beat discipline**
+   - "Hey, we can make an M68K interpreter!" → built it
+   - "Hey, we can add multi-language support!" → added 37 languages
+   - "Hey, we can implement Sound Manager!" → started it
+   - No one saying "is this actually working or just rendering?"
 
-5. **Real-world constraints**
-   - No team, just one person's free time
-   - Trade-off: "Ship it working" vs. "Make it perfect"
-   - Ship won, and that's OK
+4. **Testing was minimal**
+   - Early research: QEMU boots and tests passed
+   - Later: if it boots, ship it
+   - Edge cases? "We'll fix that later"
+   - Bare metal? "Untested, probably broken"
+
+5. **The distance between QEMU and reality**
+   - QEMU hides so much complexity
+   - Real hardware interrupt timing? Unknown
+   - Real device I/O? Not tested
+   - Real memory pressure? Never happens in emulation
+   - Result: Code that looks like it works but might not
 
 ---
 
-## The Current State: A Productive Mess
+## The Current State: A Sloppy But Functional Operating System
 
-What you have now is **not** the research prototype anymore. It's:
+What you have now is **not** the research prototype anymore. It's more honest to call it:
 
-### ✅ What Actually Works Well
-- **94% core system functionality** (by our best estimate, not rigorous audit)
-- Desktop rendering, menus, windows, dialogs
-- File browsing and SimpleText editor
-- Bootable, runnable, *actually usable* OS
-- Multi-language support that genuinely works
-- Real applications can load and theoretically run
+**A proof-of-concept that works in QEMU but is rough around the edges everywhere.**
 
-### ⚠️ What's Partially Done
-- M68K execution framework exists, needs testing on real apps
-- Sound Manager has command processing but limited mixing
-- Speech Manager API-complete but synthesis stubbed
-- Many controls/dialogs exist but edge cases untested
-- HFS file system works but read-only
+### ✅ What Actually Works (In QEMU)
+- Desktop rendering, menus, windows, dialogs *in the emulator*
+- File browsing and SimpleText editor *in QEMU*
+- Boots to a usable desktop *under emulation*
+- Multi-language support works *during QEMU sessions*
+- Real 68K applications can theoretically load
+- **Reality check**: ~94% sounds polished. It's not. It's *functional* in QEMU. Bare metal? Very different story.
 
-### ❌ What's Intentionally Missing
-- Printing (never started)
-- Networking (out of scope)
-- TrueType fonts (bitmap-only)
-- Stability guarantees (crashes happen)
-- Complete test coverage
+### ⚠️ What's Partially Done & Rough
+- **M68K execution**: Framework exists, but untested on real apps. Probably breaks.
+- **Sound Manager**: Has MIDI conversion, but no real mixing or audio output on bare metal.
+- **Speech Manager**: API skeleton, synthesis is stubbed. Does nothing.
+- **Controls/Dialogs**: Exist, but edge cases crash constantly. Keyboard handling is incomplete.
+- **HFS file system**: Works in QEMU, read-only, likely has bugs under stress.
+- **Hardware abstraction**: Designed for QEMU. Bare metal support is minimal/missing.
+- **Device drivers**: DCE framework exists but actual driver support is skeletal.
+- **Exception handling**: Partially implemented. What happens when something crashes? Unpredictable.
+
+### ❌ What's Actually Broken or Missing
+- **Bare metal hardware support**: Most testing was QEMU. Real hardware? Unknown.
+- **Real device I/O**: PS/2 keyboard/mouse work in QEMU. Real hardware? Untested.
+- **Memory management**: Zone-based allocation, but tested only in the emulator.
+- **VESA framebuffer**: Works in QEMU. Real graphics card? Might not.
+- **Interrupt handling**: QEMU abstracts this. Real hardware interrupts? Unknown.
+- **Printing**: Never started
+- **Networking**: Out of scope
+- **TrueType fonts**: Bitmap-only
+- **Stability guarantees**: Crashes are frequent and expected
 
 ### 🤔 The Honest Assessment
-- **Proof of concept?** ✅ Yes—proves AI-assisted reverse engineering works
-- **Production-ready?** ❌ No—explicitly not stable
-- **Educational?** ✅✅ Absolutely—most complete System 7 source ever assembled
-- **Usable?** Surprisingly, yes—SimpleText works, desktop is responsive, visually impressive
-- **Maintainable?** Getting harder as complexity grows without documentation
+- **Proof of concept?** ✅ Yes—proves AI-assisted reverse engineering can work
+- **Production-ready?** ❌❌ Hell no. It's a QEMU toy.
+- **Educational?** ✅✅ Yes—most complete System 7 source code + can study how it works in emulation
+- **Actually usable for retro computing?** ❌ Not really. SimpleText works in QEMU, but that's not the same as a real system.
+- **Will it run on real Mac hardware?** Unknown. Probably not without significant work.
+- **Maintainable?** Getting harder. Code grew faster than understanding.
 
 ---
 
-## Why This Evolution Matters
+## Why This Evolution Matters (Even Though It's Sloppy)
 
 ### For Research
-The initial discipline showed **how** to reverse-engineer systematically with AI. That methodology is published. The current state shows **what happens next**—what does a reconstructed OS look like when you keep building?
+The initial discipline showed **how** to reverse-engineer systematically with AI. That methodology is published and valuable. The current state shows **what happens when you stop being disciplined**—which is also valuable as a cautionary tale.
 
-### For Preservation
+### For Understanding System 7
 We now have:
-- 225+ source files documenting System 7 internals
-- Extracted resources (fonts, patterns, icons) in modern formats
-- A bootable, interactive System 7 that runs code
-- A living reference implementation
+- 225+ source files documenting System 7 internals (even if incomplete/rough)
+- Extracted resources (fonts, patterns, icons) that are historically accurate
+- A running System 7 in QEMU showing how it actually behaves
+- Proof that you can build a recognizable OS from reverse engineering
 
-This isn't just a paper artifact anymore. It's a working system that teaches through exploration.
+This is the closest thing to "open source System 7" that exists. It's not perfect, but it's real.
 
-### For Learning
-- Study the architecture by reading real code
-- Understand constraints of the 1990s through working implementations
-- See how classic Mac OS solved problems without modern abstractions
-- Experiment with modifications and see results in QEMU
+### For Education
+- Read the code to understand classic Mac architecture
+- See what a 1990s OS actually needed (not what we imagined)
+- Study mistakes: how QEMU-only testing created blind spots
+- Learn why bare metal testing is non-negotiable
+- Observe how one person's project becomes unmaintainable at scale
+
+### For Learning What NOT to Do
+- Don't let emulation be your only test environment
+- Don't add features faster than you understand them
+- Don't trust "works in emulation" without real hardware validation
+- Don't accumulate technical debt without documenting it
 
 ---
 
@@ -261,12 +287,17 @@ All of these are valid.
 
 ## TL;DR: The Story
 
-| Phase | Goal | Method | Status | Focus |
-|-------|------|--------|--------|-------|
-| **Research** (3 days) | Prove AI-assisted RE works | Disciplined, evidence-first | ✅ Complete | Methodology |
-| **Experiment** (ongoing) | Build a working System 7 | Rapid development, feature-driven | 🔧 In progress | Capability |
-| **Legacy** (future?) | Preserve Mac OS history | Community-driven? | ❓ TBD | Impact |
+| Phase | Goal | Method | Reality | Status |
+|-------|------|--------|---------|--------|
+| **Research** (3 days) | Prove AI-assisted RE works | Disciplined, audited, evidence-first | ✅ Worked perfectly | Complete |
+| **Experiment** (ongoing) | See how far we can push it | Build fast, test in QEMU only | ⚠️ Works in emulation, untested bare metal | Sloppy |
+| **Legacy** (future?) | Preserve/educate about Mac OS | Documentation + community? | ❓ Too early to say | TBD |
 
-We're in Phase 2. We have no idea when Phase 3 starts. But we're still learning what System 7 *can be* in code.
+**The honest progression:**
+- Phase 1: "Can we do this carefully?" → Yes, and we proved it
+- Phase 2: "What if we don't have to be so careful?" → More features, less testing, more problems
+- Phase 3: "Do we fix this or keep building?" → Unknown
 
-That's the honest story. That's why it got messy. And that's why it still matters.
+We're solidly in Phase 2. Got excited. Built too much. Tested too little. QEMU is not hardware. All the warnings applied.
+
+**That's the real story.** And it matters because it's honest.
