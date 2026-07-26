@@ -112,6 +112,44 @@ void CheckWindowsNeedingUpdate(void) {
  * when a window has a non-empty updateRgn, and BeginUpdate/EndUpdate clears it.
  * Generating them on demand cannot flood the queue and cannot go stale.
  */
+/*
+ * WM_RegionCoveredByFrontWindow - is any part of rgn hidden by a window in front?
+ *
+ * Guard for REGION-001: a Region here holds only a bounding box, so visRgn
+ * cannot express "my content minus the window sitting on top of me", and
+ * BeginUpdate cannot clip a repaint to the parts that are actually exposed.
+ * Repainting a covered window therefore draws straight over the window above
+ * it - servicing a pending Finder update after About This Macintosh opened
+ * painted the Finder's icons on top of the About box.
+ *
+ * The window list runs front to back, so everything reached before `window` is
+ * in front of it. Rectangle intersection is all we can do until regions become
+ * real. It errs toward deferring: the damage stays recorded in updateRgn and is
+ * repainted once the covering window goes away.
+ */
+static Boolean WM_RegionCoveredByFrontWindow(WindowPtr window, RgnHandle rgn) {
+    extern WindowPtr FrontWindow(void);
+
+    if (!window || !rgn || !*rgn) return false;
+
+    Rect area = (*rgn)->rgnBBox;
+    WindowPtr w = FrontWindow();
+    int guard = 0;
+
+    while (w && w != window && guard++ < 64) {
+        if (w->visible && w->strucRgn && *(w->strucRgn)) {
+            Rect s = (*(w->strucRgn))->rgnBBox;
+            if (s.left < area.right && s.right > area.left &&
+                s.top < area.bottom && s.bottom > area.top) {
+                return true;
+            }
+        }
+        w = w->nextWindow;
+    }
+
+    return false;
+}
+
 WindowPtr WM_FindWindowNeedingUpdate(void) {
     extern WindowPtr FrontWindow(void);
     extern Boolean EmptyRgn(RgnHandle rgn);
@@ -119,12 +157,35 @@ WindowPtr WM_FindWindowNeedingUpdate(void) {
     WindowPtr window = FrontWindow();
     int guard = 0;
     while (window && guard++ < 64) {
-        if (window->visible && window->updateRgn && !EmptyRgn(window->updateRgn)) {
+        if (window->visible && window->updateRgn && !EmptyRgn(window->updateRgn) &&
+            !WM_RegionCoveredByFrontWindow(window, window->updateRgn)) {
             return window;
         }
         window = window->nextWindow;
     }
     return NULL;
+}
+
+/*
+ * WM_AccumulateUpdateRgn - add a region to a window's update region.
+ *
+ * Unlike InvalRgn/InvalRect this takes the window explicitly rather than
+ * inferring it from the current port, because callers that erase a window
+ * (PaintOne) do so from the Window Manager port, not the window's own.
+ *
+ * rgn is in global coordinates, matching contRgn and updateRgn.
+ */
+static void WM_AccumulateUpdateRgn(WindowPtr window, RgnHandle rgn) {
+    extern void UnionRgn(RgnHandle srcRgnA, RgnHandle srcRgnB, RgnHandle dstRgn);
+
+    if (!window || !rgn || !*rgn) return;
+
+    if (!window->updateRgn) {
+        window->updateRgn = NewRgn();
+        if (!window->updateRgn) return;   /* out of memory - drop the update */
+    }
+
+    UnionRgn(window->updateRgn, rgn, window->updateRgn);
 }
 
 /* Internal helper to draw window frame */
@@ -225,24 +286,52 @@ void PaintOne(WindowPtr window, RgnHandle clobberedRgn) {
             /* OPTIMIZATION: Use dirty region to only fill/erase necessary areas
              * If clobberedRgn is provided, intersect with window content region to minimize fill operations.
              * This reduces framebuffer writes for incremental updates. */
+            RgnHandle erasedRgn = NULL;
+            AutoRgnHandle dirtyContent = { NULL, false };
+
             if (clobberedRgn && *clobberedRgn) {
                 /* Calculate intersection of clobbered region with content region */
                 extern void SectRgn(RgnHandle srcRgnA, RgnHandle srcRgnB, RgnHandle dstRgn);
-                AutoRgnHandle dirtyContent = WM_NewAutoRgn();
+                dirtyContent = WM_NewAutoRgn();
                 if (dirtyContent.rgn) {
                     SectRgn(clobberedRgn, window->contRgn, dirtyContent.rgn);
                     if (dirtyContent.rgn && *(dirtyContent.rgn)) {
                         FillRgn(dirtyContent.rgn, &qd.white);
+                        erasedRgn = dirtyContent.rgn;
                     }
-                    WM_DisposeAutoRgn(&dirtyContent);
                 } else {
                     /* Fallback: if dirty region calculation fails, fill entire content region */
                     FillRgn(window->contRgn, &qd.white);
+                    erasedRgn = window->contRgn;
                 }
             } else {
                 /* No dirty region provided, fill entire content region */
                 FillRgn(window->contRgn, &qd.white);
+                erasedRgn = window->contRgn;
             }
+
+            /* The content we just erased is the application's to redraw, so it
+             * has to go into the window's update region. Without this the erase
+             * is silently destructive and whether content survives depends on
+             * pure ordering: if PaintOne runs before the app's draw the content
+             * appears, if it runs after, the window is left permanently blank.
+             *
+             * Both orderings occur in practice. Booting with a USB tablet
+             * attached paints the Finder window before PaintOne and looks fine;
+             * booting with only a PS/2 mouse and no input paints it after, and
+             * the Macintosh HD window stays blank forever (REDRAW-004) - which
+             * is what users see on real hardware.
+             *
+             * Note this over-invalidates: with regions still being rectangles
+             * (REGION-001) the union is a bounding box, so we may repaint more
+             * than was erased. That is safe - it costs a redraw, never content.
+             * EndUpdate empties updateRgn, so this cannot loop.
+             *
+             * The damage is always recorded here; whether it is safe to repaint
+             * yet is decided at service time in WM_FindWindowNeedingUpdate,
+             * which defers windows that something is stacked on top of. */
+            WM_AccumulateUpdateRgn(window, erasedRgn);
+            WM_DisposeAutoRgn(&dirtyContent);
         }
     }
 

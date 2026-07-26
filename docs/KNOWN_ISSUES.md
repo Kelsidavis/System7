@@ -102,30 +102,59 @@ region representation plus rendering and clipping that honour it.
 **Do not** "fix" this by building on `DiffRgn` — doing so erases the whole
 desktop including every window, which then never gets repainted.
 
-### ⚠️ Macintosh HD window can boot with completely blank content (REDRAW-004)
+### ✅ Macintosh HD window booted with completely blank content (REDRAW-004) — FIXED
 
-The user reports the system *"loads with a blank Macintosh HD window"*. This
-reproduces in QEMU, and it is **not** the status-line coordinate bug above — that
-one misplaced text but never suppressed it.
+The user reported the system *"loads with a blank Macintosh HD window"*. It was
+**two** bugs: a destructive erase, and an update event that could never be
+delivered because the code generating it was not linked.
 
-Reproduction (`scripts/screenshot.sh` vs. a PS/2-only harness, both at 28 s):
+**Reproduction.** With a **USB tablet** attached the window painted fully; with
+**only a PS/2 mouse and no input at all** the content area was empty (18 dark
+pixels — just the grow box). The content *was* being drawn and blitted; the
+serial log ordering shows why the two differ:
 
-- With a **USB tablet attached**, the window paints fully — icons, labels and
-  status line.
-- With **only a PS/2 mouse and no input events at all**, the content area is
-  entirely blank: no icons, no status line, and no separator line either. The
-  frame, title bar and grow box still draw.
+| harness | order | result |
+|---|---|---|
+| tablet | `PaintOne` → `FolderWindow_Draw` | content visible |
+| PS/2 | `FolderWindow_Draw` → `EndUpdate` blit → `PaintOne` | **blank** |
 
-Confirmed pre-existing: a baseline build and the status-line fix both leave
-exactly 18 dark pixels (the grow box) in the content area, so the two are
-independent.
+**Bug 1 — `PaintOne` erased content without invalidating it.** It fills the
+content region white and then draws chrome only, correctly leaving content to
+the application ("Application must draw content via BeginUpdate/EndUpdate").
+But it never added the erased area to `updateRgn`, so no update was ever
+requested. Whether content survived was pure luck of ordering. `PaintOne` now
+accumulates the erased region into the window's update region.
 
-That the *separator line* is missing too means `FolderWindow_Draw`'s status-bar
-block never ran — this is a missing/never-delivered update, not a drawing bug.
-The correlation with input activity suggests the initial content paint is
-waiting on an event that only arrives once the mouse moves. Likely related to
-ARCH-001; a good next lead is why the first update for a newly opened folder
-window is not serviced without input.
+**Bug 2 — the update synthesis was in a function that does not link.** The fix
+in 293388f added on-demand update synthesis to `GetNextEvent` in
+`EventManager/event_manager.c`. With `ENABLE_PROCESS_COOP`, the override in
+`ProcessMgr/EventIntegration.c` wins and routes `GetNextEvent` to
+`Proc_GetNextEvent` — which had **no update synthesis at all**. Its own comment
+still claims "the canonical GetNextEvent is in EventManager/event_manager.c".
+`WM_FindWindowNeedingUpdate` was never called once during a whole boot. The
+synthesis now lives in the path that actually runs.
+
+⚠️ **When touching the event path, check which `GetNextEvent` links** —
+`nm build/obj/**/*.o | grep " T GetNextEvent"`. Two definitions exist and the
+non-obvious one wins. The same trap exists for `DrawText` (see the Font Manager
+entry) and `PaintOne`-adjacent code.
+
+**REGION-001 fallout.** Invalidating covered windows made them repaint over the
+window on top — opening About This Macintosh drew the Finder's icons across the
+About box — because a rectangle `visRgn` cannot express "content minus the
+window above me", so `BeginUpdate` cannot clip the repaint. Deciding this at
+*invalidate* time was not enough: the Finder is invalidated while the menu is
+open, and About appears before the update is serviced. So
+`WM_FindWindowNeedingUpdate` now defers any window whose update region
+intersects a window in front of it. The damage stays recorded and repaints once
+the cover goes away.
+
+**Verified in QEMU** on: PS/2 boot with no input (18 → 3767 content pixels),
+stability over 55 s (3 draws total, no repaint storm), USB tablet boot
+(byte-identical to before), window drag, Apple menu, and About This Macintosh.
+A side effect worth noting: opening a menu no longer blanks the window beneath
+it, and a dragged window now repaints its content at the new position.
+Untested on hardware.
 
 ### ✅ Stale content left on the desktop after dragging a window (REDRAW-002) — FIXED
 

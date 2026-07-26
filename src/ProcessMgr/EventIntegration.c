@@ -257,6 +257,38 @@ static Boolean CheckSystemEvents(EventMask mask, EventRecord* evt) {
      * But NOT for mouse/keyboard hardware polling.
      */
 
+    /* Synthesise an update event for a window with a dirty updateRgn.
+     *
+     * This mirrors the logic in EventManager/event_manager.c. That copy is the
+     * one the comment above Proc_GetNextEvent calls "canonical", but its
+     * GetNextEvent is not what links - with ENABLE_PROCESS_COOP the override at
+     * the bottom of this file wins, so this is the only GetNextEvent that runs
+     * and update events were never generated here at all.
+     *
+     * Synthesising rather than PostEvent()ing matters: GetNextEvent is called
+     * continuously and PostEvent does not deduplicate, so posting would fill
+     * the 32-entry queue in microseconds and every subsequent mouse and key
+     * event would be rejected as queueFull. Generating on demand can never
+     * accumulate, and it matches how Classic Mac OS reports update events.
+     *
+     * Checked before the null event below, because a null event is returned
+     * unconditionally whenever nullEvent is in the mask and would starve the
+     * update forever. */
+    if (mask & updateMask) {
+        extern WindowPtr WM_FindWindowNeedingUpdate(void);
+        extern UInt32 TickCount(void);
+
+        WindowPtr needy = WM_FindWindowNeedingUpdate();
+        if (needy) {
+            evt->what = updateEvt;
+            evt->message = (SInt32)(uintptr_t)needy;
+            evt->when = TickCount();
+            evt->modifiers = GetModifiers();
+            GetMouse(&evt->where);
+            return true;
+        }
+    }
+
     /* Generate null/idle events when no other events are pending */
     /* Null events allow applications to perform background tasks */
     if (mask & nullEvent) {

@@ -95,13 +95,20 @@ them. See REDRAW-004's predecessor entry in `docs/KNOWN_ISSUES.md` for the table
 Note this did **not** explain the *"blank Macintosh HD window"* report — that is
 now filed separately as **REDRAW-004**, with a reproduction.
 
-### REDRAW-004 — blank window content at boot — best next lead
-The Macintosh HD window can boot with a completely blank content area. It
-reproduces when **no input events occur**: with a USB tablet attached the window
-paints fully, with PS/2 only and no mouse movement it stays empty. The separator
-line is missing too, so `FolderWindow_Draw`'s status-bar block never ran — a
-missing update, not a drawing bug. Verified pre-existing (identical on a
-baseline build).
+### ~~REDRAW-004 — blank window content at boot~~ — FIXED
+This was the user's *"blank Macintosh HD window"*. Two bugs: `PaintOne` erased
+content without ever adding it to `updateRgn`, so whether content survived
+depended purely on whether the erase ran before or after the app's draw; and the
+update synthesis added in 293388f went into `event_manager.c`'s `GetNextEvent`,
+**which is not the one that links** — `ENABLE_PROCESS_COOP` routes it to
+`Proc_GetNextEvent` in `ProcessMgr/EventIntegration.c`, which had no synthesis at
+all. Also had to defer repaints of covered windows (REGION-001 fallout). Full
+detail in `docs/KNOWN_ISSUES.md`.
+
+⚠️ **Two `GetNextEvent` definitions exist and the non-obvious one wins.** Check
+`nm build/obj/**/*.o | grep " T GetNextEvent"` before editing the event path.
+Same trap as `DrawText` (`QuickDraw/Text.c` is dead; `FontManagerCore.c` links).
+Assume nothing in this tree is the only copy — verify against the linked symbol.
 
 ### Not started
 - **68K interpreter is not wired up** — real Mac apps still don't run. Exists in
@@ -167,9 +174,11 @@ Boots headless, dumps the framebuffer as PNG plus its serial log. Attaches a
 
 ## 5. Suggested next steps, in order
 
-1. **Chase REDRAW-004** (blank window content at boot) — now the best lead, and
-   it is the symptom the user actually reported. Start with why the first update
-   for a newly opened folder window is not serviced until input arrives.
+1. **Audit for other dead-copy functions.** Two `GetNextEvent`s and two
+   `DrawText`s have now each cost a debugging session, and in both cases a fix
+   had been written into the copy that does not link. Sweep for duplicate
+   definitions and delete or clearly mark the dead ones — this is the single
+   highest-leverage cleanup left.
 2. **Ask the user to re-flash and retest.** Several fixes are unconfirmed on
    hardware: menu timing, title bar, icon labels, resize, update events. The
    input-starvation fix in particular may change behaviour broadly.
