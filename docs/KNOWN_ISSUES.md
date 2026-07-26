@@ -76,47 +76,54 @@ Verified in QEMU on all four paths: boot draw (direct framebuffer), the
 post-selection redraw (GWorld — byte-identical to the pre-fix build), the About
 window, and the Apple menu. Untested on hardware.
 
-### ⛔ Opening a folder leaves the new window behind its parent (WIN-001)
+### ✅ Opening a folder left the new window behind its parent (WIN-001) — FIXED
 
-Double-clicking a folder **does** open it — the window is created, sized,
-cascaded (+20,+20), painted and brought to front. Then the parent window
-repaints over it, so all you see of the new window is the sliver of frame
-sticking out past the parent's right and bottom edges.
+Double-clicking a folder created the window, sized it, cascaded it (+20,+20),
+painted it and brought it to front — and then the parent repainted over it, so
+all you saw of the new window was the sliver of frame sticking out past the
+parent's right and bottom edges. The tell was the parent drawing its title bar
+**inactive** while its content sat on top: activation and z-order disagreed.
 
-Tell-tale: the parent's title bar is drawn **inactive** (no racing stripes)
-while its content is on top. Activation and z-order disagree.
+**Cause: a stale queued update event.** Selecting the icon posted
+`PostEvent(updateEvt, parent)` so the parent could redraw its selection. The
+double-click then opened the folder. By the time that queued event was
+dispatched, the new window was already on top — and `HandleUpdate` repainted the
+parent straight over it. There are about ten `PostEvent(updateEvt, w)` sites, and
+any of them can go stale the same way: the event records "w needs redrawing" at
+post time and is acted on later.
 
-Traced from the serial log of a double-click on System Folder:
+Real QuickDraw does not have this problem because `BeginUpdate` clips to
+`visRgn`, which excludes whatever is stacked above. Ours is a bounding box
+(REGION-001) and cannot express that.
 
-| line | event |
-|---|---|
-| 1705 | second `[CLICK] Button DOWN` |
-| 1727 | new window `(31,121,508,438)` created |
-| 1815, 1965, 2310 | `FolderWindow_Draw` for the new window |
-| 2655 | `FolderWindow_Draw` for the **parent** `(11,101,488,418)` |
+`HandleUpdate` now calls `WM_DeferUpdateIfObscured` first: if a window in front
+overlaps, the damage is re-recorded in the window's update region and the repaint
+is skipped. `WM_FindWindowNeedingUpdate` already defers covered windows, so
+nothing repaints until the cover moves — and then it does, automatically.
+Verified self-healing: opening About over the Finder window leaves it blank while
+covered, and closing About restores it in full (3767 content pixels).
 
-The parent's repaint goes through `BeginUpdate`/`EndUpdate`, i.e. the update
-event path, so it should have been deferred by the
-`WM_RegionCoveredByFrontWindow` guard in `WM_FindWindowNeedingUpdate`. It was
-not, and a probe shows why:
+The trade-off is that a *partially* covered window defers wholesale rather than
+repainting its exposed part, so it can sit blank until the cover moves. That
+costs a delayed repaint and never wrong pixels. Real regions (REGION-001) would
+remove the need for the guard entirely.
 
-```
-[FINDUPD] ret=0x6f98b0 bounds=(11,101,488,418) | front=0x6f98b0 vis=1 ...
-```
+⚠️ **Corrected diagnosis.** An earlier revision of this entry blamed
+`FrontWindow()` and `wmState->windowList` disagreeing about the frontmost window.
+That was wrong: the probe it was based on fired *once, before the click*, so it
+was sampling the pre-click state. Update events are almost all posted directly
+rather than synthesised, so `WM_FindWindowNeedingUpdate` was barely being reached
+at all.
 
-At that moment `FrontWindow()` returns the **parent**. But `BringToFront` on the
-new window had logged `[BTF] Already at front`, which only prints when
-`wmState->windowList == window`. So `FrontWindow()` and `wmState->windowList`
-disagree about which window is frontmost.
+Only reachable since the lost-click fix (see the input latch) — before that the
+second click of a double-click was dropped and folders never opened.
 
-`FrontWindow()` returns the first *visible* window walking `wmState->windowList`.
-Nothing in the log disposes or hides the new window between those two points.
-**Next step: find what reorders the list, or whether `GetWindowManagerState()`
-is handing out more than one state.** That is the actual defect; the deferral
-guard is behaving correctly given what `FrontWindow()` tells it.
-
-Only reachable since the lost-click fix below — before that the second click of
-a double-click was being dropped, so folders never opened at all.
+**Still open:** the System Folder window opens empty because nothing is created
+inside it in the VFS (`src/FS/vfs.c` creates the folder but no contents). Real
+System 7.1 has System, Finder, Extensions, Preferences, Control Panels and so on.
+An empty folder window also draws no status line at all, where System 7 shows
+"0 items" — `FolderWindow_Draw` gates the status bar on `state->items` being
+non-NULL.
 
 ### ⚠️ The full menu item renderer is dead code (MENU-001) — PARTLY ADDRESSED
 

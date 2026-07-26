@@ -150,6 +150,37 @@ static Boolean WM_RegionCoveredByFrontWindow(WindowPtr window, RgnHandle rgn) {
     return false;
 }
 
+static void WM_AccumulateUpdateRgn(WindowPtr window, RgnHandle rgn);
+
+/*
+ * WM_DeferUpdateIfObscured - can this window safely repaint right now?
+ *
+ * Returns true if something is stacked on top of it, having first re-recorded
+ * the damage in its update region so it repaints once the cover goes away.
+ *
+ * Needed because update events can be queued: PostEvent(updateEvt, w) captures
+ * "w needs redrawing" at one moment and the event is dispatched at another. Open
+ * a folder and the parent's selection-redraw event, posted while the parent was
+ * frontmost, is dispatched after the new window is already sitting on top of it
+ * - and the parent paints straight over the window it just opened (WIN-001).
+ *
+ * Real QuickDraw does not need this: BeginUpdate clips to visRgn, which excludes
+ * whatever is above. Ours is a bounding box (REGION-001) and cannot express
+ * that, so obscured windows are deferred wholesale instead. That over-defers a
+ * partially covered window until the cover moves, which costs a delayed repaint
+ * and never wrong pixels.
+ */
+Boolean WM_DeferUpdateIfObscured(WindowPtr window) {
+    if (!window || !window->contRgn || !*(window->contRgn)) return false;
+
+    if (!WM_RegionCoveredByFrontWindow(window, window->contRgn)) {
+        return false;
+    }
+
+    WM_AccumulateUpdateRgn(window, window->contRgn);
+    return true;
+}
+
 WindowPtr WM_FindWindowNeedingUpdate(void) {
     extern WindowPtr FrontWindow(void);
     extern Boolean EmptyRgn(RgnHandle rgn);
