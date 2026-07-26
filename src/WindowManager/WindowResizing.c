@@ -212,6 +212,43 @@ void SizeWindow(WindowPtr theWindow, short w, short h, Boolean fUpdate) {
     /* Resize native platform window */
     Platform_SizeNativeWindow(theWindow, w, h);
 
+    /* Reallocate the offscreen buffer for the new size.
+     *
+     * NewGWorld was only ever called when the window was created, and
+     * DisposeGWorld only when it was closed - nothing resized the buffer. After
+     * a window grew, drawing continued into a GWorld still dimensioned for the
+     * ORIGINAL content size, so every update wrote past the end of that
+     * allocation and corrupted whatever followed it on the heap.
+     *
+     * Growing 477x317 to 534x382 overruns by (534*382 - 477*317) pixels, about
+     * 211 KB at 32bpp. The damage showed up as the window's own GrafPort coming
+     * back full of allocator poison - portRect reading (-12851,-12851,...),
+     * i.e. 0xCDCD padding fill and the 0xABAB canary - which then placed icons
+     * outside the window, pushed labels off-port, blanked the content and
+     * eventually hung. */
+    if (theWindow->offscreenGWorld) {
+        DisposeGWorld(theWindow->offscreenGWorld);
+        theWindow->offscreenGWorld = NULL;
+
+        Rect gwRect;
+        gwRect.top = 0;
+        gwRect.left = 0;
+        gwRect.right = w;
+        gwRect.bottom = h;
+
+        if (w > 0 && h > 0) {
+            GWorldPtr newWorld = NULL;
+            if (NewGWorld(&newWorld, 32, &gwRect, NULL, NULL, 0) == noErr) {
+                theWindow->offscreenGWorld = newWorld;
+            } else {
+                /* Leave it NULL rather than keeping an undersized buffer -
+                 * drawing falls back to the screen port, which is correct if
+                 * less smooth. */
+                serial_puts("[SIZEWND] GWorld realloc failed; double-buffering disabled\n");
+            }
+        }
+    }
+
     /* With Global Framebuffer approach, update portBits.bounds to content area's new GLOBAL position */
     if (theWindow->contRgn && *(theWindow->contRgn)) {
         Rect newContentBounds = (*(theWindow->contRgn))->rgnBBox;

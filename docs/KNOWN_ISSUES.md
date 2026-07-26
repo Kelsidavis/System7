@@ -81,42 +81,41 @@ To reproduce, see `scripts/screenshot.sh` and drive a drag through the QEMU
 monitor; note PS/2 mouse deltas are 9-bit signed, so large jumps are clamped and
 the cursor must be walked in steps of ≤100 px.
 
-### ⛔ Window resize corrupts the window's GrafPort (REDRAW-003)
+### ✅ Window resize corrupted the heap (REDRAW-003) — FIXED
 
-**Reported on bare metal:** resizing a folder window draws its icons to the left
-of the window with no labels, leaves the rest of the window blank, fails to
-refresh the cursor background, and then freezes.
+**Reported on bare metal:** resizing a folder window drew its icons to the left
+of the window with no labels, left the rest blank, failed to refresh the cursor
+background, and then froze.
 
-**Reproduced in QEMU.** Tracing `FolderWindow_Draw` across a resize:
+**Root cause:** the window's offscreen GWorld was never resized. `NewGWorld()`
+was called only when a window was created and `DisposeGWorld()` only when it was
+closed — no resize path existed. After a window grew, drawing continued into a
+buffer still dimensioned for the *original* content size, so every update wrote
+past the end of that allocation.
+
+Growing 477×317 to 534×382 overruns by `534*382 - 477*317` pixels — about 211 KB
+at 32bpp. The evidence was in the buffer clear itself:
 
 ```
-portBits.bounds=(11,101,488,418) portRect=(0,0,477,317)   <- before resize
-portBits.bounds=(11,101,545,483) portRect=(0,0,534,382)   <- after resize, correct
-portBits.bounds=(0,0,545,0)      portRect=(-12851,-12851,-21589,-21589)  <- corrupt
+[GWorld] memset len=0x00093AA4    <- 604,836 bytes = 151,209 px = 477x317 (OLD)
+window is now 534x382             =  203,988 px
 ```
 
-`-12851` is `0xCDCD` and `-21589` is `0xABAB`. Both are allocator poison:
-`MemoryManager.c` fills inter-size padding with `0xCD`, and `CANARY_BYTE` is
-`0xAB`. So the draw is reading a GrafPort that overlaps freed or
-past-the-end heap, which fully explains the symptoms — garbage coordinates put
-the icons anywhere, labels land off-port, and the subsequent drawing with wild
-bounds is a strong freeze candidate.
+The damage landed on the window's own `WindowRecord`, whose GrafPort came back
+full of allocator poison — `portRect` reading `(-12851,-12851,-21589,-21589)`,
+i.e. `0xCDCD` padding fill and the `0xABAB` canary. Every reported symptom
+follows from those garbage coordinates: icons placed outside the window, labels
+pushed off-port and so invisible, blank content, and a hang once drawing
+proceeded with wild bounds.
 
-**Localised:** the corrupt draw is dispatched from `EventDispatcher.c:617`, the
-update-event path. The `WindowPtr` itself is *not* stale — `refCon` still
-decodes to `'DISK'` and the pointer matches the live window. Only the GrafPort
-contents are poisoned, and `port` is the first member of `WindowRecord` while
-`refCon` sits later and survives. That points at heap corruption over the start
-of the window record rather than a dangling window pointer.
+**Fix:** `SizeWindow()` now disposes and reallocates the GWorld at the new size,
+leaving it NULL (drawing falls back to the screen port) if allocation fails
+rather than keeping an undersized buffer.
 
-Not yet identified: which allocation overruns into it, or whether the record is
-being handed out twice. Next step is to watch the block containing the
-`WindowRecord` across the resize — `MemoryManager_CheckSuspectBlock()` already
-exists for this and is used in `DragWindow`.
-
-Note while debugging here: the in-tree `snprintf` does **not** support `%lx`; a
-format using it prints the literal text and silently shifts every following
-argument.
+**Verified:** the buffer clear now reports `len=0x000C7350` — 815,952 bytes =
+534×382×4, the new size — the port stays `(0,0,534,382)`, no poison values
+appear anywhere in the log, zero CPU exceptions, and a screenshot shows the
+resized window with its title bar, complete icon labels and status line intact.
 
 ## Critical Issues
 
