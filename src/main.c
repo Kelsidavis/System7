@@ -927,6 +927,14 @@ static void init_system71(void) {
         Trash_OnVolumeMount(1);  /* Boot volume is always vRef 1 */
         serial_puts("  Trash system initialized\n");
 
+        /* The root of the volume is built into the on-disk catalog, but the
+         * System Folder's contents go in the RAM overlay - the hand-built
+         * catalog leaf node has no room left. */
+        extern bool VFS_PopulateSystemFolder(void);
+        if (VFS_PopulateSystemFolder()) {
+            serial_puts("  System Folder populated\n");
+        }
+
         /* Initial file system contents are now created during volume creation in HFS_CreateBlankVolume() */
         serial_puts("  Initial file system contents created during volume initialization\n");
     } else {

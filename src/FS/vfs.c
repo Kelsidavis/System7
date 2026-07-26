@@ -582,94 +582,100 @@ bool VFS_Unmount(VRefNum vref) {
     return true;
 }
 
-/* Populate initial file system contents */
-bool VFS_PopulateInitialFiles(void) {
-    FS_LOG_DEBUG("VFS: Populating initial file system...\n");
-
-    /* Find boot volume (vRef 1) */
+/*
+ * VFS_PopulateSystemFolder - fill in the System Folder.
+ *
+ * The root of the boot volume is built by hand in HFS_CreateBlankVolume, as a
+ * single catalog leaf node that is already close to full, so extra entries
+ * cannot go there. They go in the volume's RAM overlay instead, which is what
+ * VFS_CreateFolder and VFS_CreateFile write to.
+ *
+ * This replaces VFS_PopulateInitialFiles, which had sat here with no callers
+ * since the on-disk bootstrap superseded it - and which could not simply be
+ * revived, because it created Read Me, About This Mac, Sample Document and
+ * Notes without checking whether they already existed, so calling it would have
+ * duplicated every one of them.
+ *
+ * Contents follow a clean System 7.1 install. The Fonts folder is 7.1's
+ * headline change; before it, fonts lived inside the System suitcase. Only
+ * documented type codes are used - the Clipboard and Note Pad File are left out
+ * rather than guess at theirs.
+ */
+bool VFS_PopulateSystemFolder(void) {
     VFSVolume* vol = VFS_FindVolume(1);
     if (!vol || !vol->mounted) {
-        FS_LOG_DEBUG("VFS: Cannot populate - boot volume not mounted\n");
+        FS_LOG_DEBUG("VFS: Cannot populate System Folder - boot volume not mounted\n");
         return false;
     }
 
     VRefNum vref = vol->vref;
-    DirID rootDir = 2;  /* Root directory is always ID 2 in HFS */
+    CatEntry sysEntry;
+    if (!VFS_Lookup(vref, 2, "System Folder", &sysEntry)) {
+        FS_LOG_DEBUG("VFS: System Folder not found on boot volume\n");
+        return false;
+    }
+    DirID systemID = sysEntry.id;
 
-    /* Create System Folder (if it doesn't exist) */
-    DirID systemID = 0;
-    CatEntry systemEntry;
-    if (VFS_Lookup(vref, rootDir, "System Folder", &systemEntry)) {
-        FS_LOG_DEBUG("VFS: System Folder already exists (ID=%d)\n", systemEntry.id);
-        systemID = systemEntry.id;
-    } else {
-        if (!VFS_CreateFolder(vref, rootDir, "System Folder", &systemID)) {
-            FS_LOG_DEBUG("VFS: Failed to create System Folder\n");
-            return false;
+    static const char* kSystemFolders[] = {
+        "Apple Menu Items",
+        "Control Panels",
+        "Extensions",
+        "Fonts",
+        "Preferences",
+        "PrintMonitor Documents",
+        "Shutdown Items",
+        "Startup Items",
+    };
+    DirID controlPanelsID = 0;
+
+    for (unsigned i = 0; i < sizeof(kSystemFolders) / sizeof(kSystemFolders[0]); i++) {
+        CatEntry existing;
+        DirID madeID = 0;
+        if (VFS_Lookup(vref, systemID, kSystemFolders[i], &existing)) {
+            madeID = existing.id;
+        } else if (!VFS_CreateFolder(vref, systemID, kSystemFolders[i], &madeID)) {
+            FS_LOG_DEBUG("VFS: Failed to create System Folder/%s\n", kSystemFolders[i]);
+            madeID = 0;
         }
-        FS_LOG_DEBUG("VFS: Created System Folder (ID=%d)\n", systemID);
+        if (i == 1) controlPanelsID = madeID;   /* "Control Panels" */
     }
 
-    /* Create Documents folder (if it doesn't exist) */
-    DirID documentsID = 0;
-    CatEntry documentsEntry;
-    if (VFS_Lookup(vref, rootDir, "Documents", &documentsEntry)) {
-        FS_LOG_DEBUG("VFS: Documents folder already exists (ID=%d)\n", documentsEntry.id);
-        documentsID = documentsEntry.id;
-    } else {
-        if (!VFS_CreateFolder(vref, rootDir, "Documents", &documentsID)) {
-            FS_LOG_DEBUG("VFS: Failed to create Documents folder\n");
-            return false;
+    /* 'zsys'/'MACS' and 'FNDR'/'MACS' are the real type and creator pairs. */
+    {
+        CatEntry existing;
+        FileID madeID = 0;
+        if (!VFS_Lookup(vref, systemID, "System", &existing)) {
+            VFS_CreateFile(vref, systemID, "System", 'zsys', 'MACS', &madeID);
         }
-        FS_LOG_DEBUG("VFS: Created Documents folder (ID=%d)\n", documentsID);
-    }
-
-    /* Create Applications folder (if it doesn't exist) */
-    DirID appsID = 0;
-    CatEntry appsEntry;
-    if (VFS_Lookup(vref, rootDir, "Applications", &appsEntry)) {
-        FS_LOG_DEBUG("VFS: Applications folder already exists (ID=%d)\n", appsEntry.id);
-        appsID = appsEntry.id;
-    } else {
-        if (!VFS_CreateFolder(vref, rootDir, "Applications", &appsID)) {
-            FS_LOG_DEBUG("VFS: Failed to create Applications folder\n");
-            return false;
+        if (!VFS_Lookup(vref, systemID, "Finder", &existing)) {
+            VFS_CreateFile(vref, systemID, "Finder", 'FNDR', 'MACS', &madeID);
         }
-        FS_LOG_DEBUG("VFS: Created Applications folder (ID=%d)\n", appsID);
+        if (!VFS_Lookup(vref, systemID, "Scrapbook File", &existing)) {
+            VFS_CreateFile(vref, systemID, "Scrapbook File", 'scrp', 'MACS', &madeID);
+        }
     }
 
-    /* Create README file in root */
-    FileID readmeID = 0;
-    if (!VFS_CreateFile(vref, rootDir, "Read Me", 'TEXT', 'ttxt', &readmeID)) {
-        FS_LOG_DEBUG("VFS: Failed to create Read Me file\n");
-        return false;
+    /* The control panels this build actually implements, so the folder shows
+     * what the Control Panels menu can really open. */
+    if (controlPanelsID) {
+        static const char* kControlPanels[] = {
+            "Date & Time",
+            "Desktop Patterns",
+            "Keyboard",
+            "Mouse",
+            "Sound",
+        };
+        for (unsigned i = 0; i < sizeof(kControlPanels) / sizeof(kControlPanels[0]); i++) {
+            CatEntry existing;
+            FileID madeID = 0;
+            if (!VFS_Lookup(vref, controlPanelsID, kControlPanels[i], &existing)) {
+                VFS_CreateFile(vref, controlPanelsID, kControlPanels[i],
+                               'cdev', 'MACS', &madeID);
+            }
+        }
     }
-    FS_LOG_DEBUG("VFS: Created Read Me file (ID=%u)\n", readmeID);
 
-    /* Create About This Mac file */
-    FileID aboutID = 0;
-    if (!VFS_CreateFile(vref, rootDir, "About This Mac", 'TEXT', 'ttxt', &aboutID)) {
-        FS_LOG_DEBUG("VFS: Failed to create About This Mac file\n");
-        return false;
-    }
-    FS_LOG_DEBUG("VFS: Created About This Mac file (ID=%u)\n", aboutID);
-
-    /* Create some sample documents */
-    FileID doc1ID = 0;
-    if (!VFS_CreateFile(vref, documentsID, "Sample Document", 'TEXT', 'ttxt', &doc1ID)) {
-        FS_LOG_DEBUG("VFS: Failed to create Sample Document\n");
-        return false;
-    }
-    FS_LOG_DEBUG("VFS: Created Sample Document (ID=%u)\n", doc1ID);
-
-    FileID doc2ID = 0;
-    if (!VFS_CreateFile(vref, documentsID, "Notes", 'TEXT', 'ttxt', &doc2ID)) {
-        FS_LOG_DEBUG("VFS: Failed to create Notes file\n");
-        return false;
-    }
-    FS_LOG_DEBUG("VFS: Created Notes file (ID=%u)\n", doc2ID);
-
-    FS_LOG_DEBUG("VFS: Initial file system population complete\n");
+    FS_LOG_DEBUG("VFS: System Folder populated\n");
     return true;
 }
 

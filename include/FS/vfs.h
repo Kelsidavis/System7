@@ -35,7 +35,7 @@ typedef void (*VFS_MountCallback)(VRefNum vref, const char* volName);
 void VFS_SetMountCallback(VFS_MountCallback callback);
 
 /* Populate initial file system contents */
-bool VFS_PopulateInitialFiles(void);
+bool VFS_PopulateSystemFolder(void);
 
 /* Get volume info */
 bool VFS_GetVolumeInfo(VRefNum vref, VolumeControlBlock* vcb);
