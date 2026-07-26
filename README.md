@@ -12,7 +12,9 @@ An open-source reimplementation of Apple Macintosh System 7 for modern x86 hardw
 
 ## 📖 Quick Links
 
-**New here?** Start with [Getting Started](docs/GETTING_STARTED.md) | **Want context?** Read [Project Evolution](docs/PROJECT_EVOLUTION.md) | **Want to help?** See [Contributing](docs/CONTRIBUTING.md) | **In other languages?** [View 37 translations](docs/TRANSLATIONS.md)
+**New here?** Start with [Getting Started](docs/GETTING_STARTED.md) | **All docs?** See [Documentation Index](docs/INDEX.md) | **Context?** Read [Project Evolution](docs/PROJECT_EVOLUTION.md) | **Contribute?** See [Contributing](docs/CONTRIBUTING.md) | **Languages?** [37 translations](docs/TRANSLATIONS.md)
+
+**Using Claude Code?** See [CLAUDE.md](CLAUDE.md) for project-specific guidance
 
 ## 💡 About This Project
 
