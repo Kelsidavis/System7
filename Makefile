@@ -1358,7 +1358,12 @@ $(ISO): $(KERNEL) grub.cfg | $(ISO_DIR)/boot/grub
 	@echo "Creating bootable ISO..."
 	@cp $(KERNEL) $(ISO_DIR)/boot/
 	@cp grub.cfg $(ISO_DIR)/boot/grub/grub.cfg
-	@$(GRUB) -d /usr/lib/grub/i386-pc -o $(ISO) $(ISO_DIR)
+	@# No -d flag: pinning to i386-pc built a BIOS-only ISO with no EFI boot
+	@# image, so it simply would not start on any UEFI-only machine (most
+	@# ThinkPads and Macs made after ~2015, where CSM is disabled or absent).
+	@# Letting grub-mkrescue auto-detect emits every installed platform, giving
+	@# a hybrid ISO that boots via both BIOS and UEFI.
+	@$(GRUB) -o $(ISO) $(ISO_DIR)
 
 # Run with QEMU (PC speaker with PulseAudio backend)
 # VGA: std (standard VGA, no corruption during boot)
