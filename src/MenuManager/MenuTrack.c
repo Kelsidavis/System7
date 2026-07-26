@@ -18,6 +18,7 @@ extern SInt16 CountMenuItems(MenuHandle theMenu);
 /* External functions */
 extern void serial_puts(const char* str);
 extern QDGlobals qd;
+extern void QD_SetScreenPort(void);
 extern void DrawDesktop(void);
 extern void DrawText(const void* textBuf, short firstByte, short byteCount);
 extern void DrawVolumeIcon(void);
@@ -273,7 +274,7 @@ static void DrawMenuOld(MenuHandle theMenu, short left, short top, short itemCou
     GrafPtr savePort;
     GetPort(&savePort);
     if (qd.thePort) {
-        SetPort(qd.thePort);  /* Use screen port for global coordinates */
+        QD_SetScreenPort();  /* menus use global coordinates */
     }
 
     /* Draw white background */
@@ -317,7 +318,7 @@ long BeginTrackMenu(short menuID, Point *startPt) {
     GrafPtr savePort;
     GetPort(&savePort);
     if (qd.thePort) {
-        SetPort(qd.thePort);  /* Draw menus in screen port for global coords */
+        QD_SetScreenPort();  /* menus use global coordinates */
     }
 
     /* Get the actual menu handle for this menu ID */
@@ -599,7 +600,7 @@ long EndMenuTrackingNew(void) {
     GrafPtr savePort;
     GetPort(&savePort);
     if (qd.thePort) {
-        SetPort(qd.thePort);  /* Ensure we redraw in screen port */
+        QD_SetScreenPort();
     }
 
     /* Redraw everything cleanly */

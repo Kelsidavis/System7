@@ -88,7 +88,8 @@ enum { kGridW = 8, kGridH = 12, kIconW = 32, kIconH = 32 };
 #define kDragThreshold 4
 
 /* External globals */
-extern QDGlobals qd;  /* QuickDraw globals from main.c */
+extern QDGlobals qd;
+extern void QD_SetScreenPort(void);  /* QuickDraw globals from main.c */
 extern void* framebuffer;
 extern uint32_t fb_width, fb_height;
 extern uint32_t fb_pitch;
@@ -568,7 +569,7 @@ static void Finder_DeskHook(RgnHandle invalidRgn)
 {
     GrafPtr savePort;
     GetPort(&savePort);
-    SetPort(qd.thePort);  /* Draw to screen port - FIX: qd.thePort is already a GrafPtr */
+    QD_SetScreenPort();  /* the desktop is drawn in global coordinates */
 
     /* Clip to the invalid region */
     RgnHandle desktopClip = NewRgn();
@@ -1317,7 +1318,7 @@ static void TrackIconDragSync(short iconIndex, Point startPt)
 
     /* Enter drag: draw XOR ghost outline following cursor */
     GetPort(&savePort);
-    SetPort(qd.thePort);  /* use screen port */
+    QD_SetScreenPort();
     ClipRect(&qd.screenBits.bounds);
     GhostShowAt(&ghost);  /* visible immediately */
     FINDER_LOG_DEBUG("TrackIconDragSync: ghost visible, entering drag loop\n");

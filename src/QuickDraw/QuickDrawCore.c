@@ -126,6 +126,19 @@ GrafPtr QD_GetScreenPort(void) {
     return g_screenPort;
 }
 
+/*
+ * Switch to the screen port. Use this wherever the intent is "draw on the
+ * screen" - the desktop pattern, desktop icons, menus - rather than
+ * SetPort(qd.thePort), which only ever means "stay where you are".
+ *
+ * Falls back to leaving the port alone before InitGraf has run.
+ */
+void QD_SetScreenPort(void) {
+    if (g_screenPort) {
+        SetPort(g_screenPort);
+    }
+}
+
 void InitGraf(void *globalPtr) {
     extern void serial_puts(const char*);
     serial_puts("[QD] InitGraf enter\n");

@@ -23,6 +23,7 @@ extern void PaintRect(const Rect* r);
 
 /* External globals */
 extern QDGlobals qd;
+extern void QD_SetScreenPort(void);
 extern void EraseRect(const Rect* r);
 extern void InsetRect(Rect* r, short dh, short dv);
 extern void SetRect(Rect* r, short left, short top, short right, short bottom);
@@ -1905,7 +1906,7 @@ void WM_Update(void) {
     /* Use QuickDraw to draw desktop */
     GrafPtr savePort;
     GetPort(&savePort);
-    SetPort(qd.thePort);  /* Draw to screen port */
+    QD_SetScreenPort();  /* the desktop is drawn in global coordinates */
 
     /* 1. Draw desktop pattern first */
     Rect desktopRect;
