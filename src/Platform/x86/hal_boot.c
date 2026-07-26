@@ -45,22 +45,21 @@ static void irq_timer_handler(uint8_t irq) {
     (void)irq;
     g_irq0_ticks++;
 
-    /* Heartbeat: one line per ~1000 ticks (1s at 1 kHz) for the first few
-     * seconds, then stay quiet so the log stays readable. */
-    if ((g_irq0_ticks % 1000u) == 0 && g_irq0_ticks <= 5000u) {
+    /* Three heartbeats, then silence forever. Enough to prove on an unfamiliar
+     * machine that IRQ0 is actually being delivered, without leaving a
+     * multi-millisecond blocking UART write on a 1 kHz interrupt path - that
+     * alone is enough to make the desktop stutter. */
+    if (g_irq0_ticks <= 3000u && (g_irq0_ticks % 1000u) == 0) {
         serial_puts("[HAL] timer heartbeat: IRQ0 alive\n");
     }
 }
 
-static volatile uint32_t g_ps2_irq_count = 0;
-
+/* Registered but currently unreachable: IRQ1/IRQ12 are left masked because
+ * PollPS2Input() is not reentrancy-safe (see hal_boot_init). Kept so that
+ * enabling interrupt-driven input later is a one-line unmask once that path is
+ * made safe. */
 static void irq_ps2_handler(uint8_t irq) {
     (void)irq;
-    /* Announce only the first delivery - enough to prove the line is wired,
-     * without flooding the log on every keystroke. */
-    if (++g_ps2_irq_count == 1) {
-        serial_puts("[HAL] first PS/2 interrupt delivered\n");
-    }
     PollPS2Input();
 }
 
@@ -85,14 +84,18 @@ void hal_boot_init(void *boot_arg) {
     irq_register_handler(12, irq_ps2_handler);
 
     /* pic_init() leaves every line masked, so unmask exactly what we handle.
-     * IRQ2 is the master<-slave cascade: without it, nothing on the second PIC
-     * (including the IRQ12 mouse) can ever reach the CPU. */
-    pic_unmask_irq(0);   /* PIT timer */
-    pic_unmask_irq(1);   /* PS/2 keyboard */
-    pic_unmask_irq(2);   /* slave PIC cascade - required for IRQ8-15 */
-    pic_unmask_irq(12);  /* PS/2 mouse */
-    serial_puts("[HAL] IRQs unmasked: 0 timer, 1 kbd, 2 cascade, 12 mouse\n");
-    PS2_SetIRQDriven(true);
+     *
+     * PS/2 deliberately stays on the polled path. PollPS2Input() drains the
+     * controller to empty while mutating the shared mouse-packet state machine
+     * and posting to the event queue, none of which is guarded against
+     * reentrancy - running it from IRQ1/IRQ12 while the main loop is reading
+     * that same state loses mouse-moved events (breaking window drags, which
+     * need an unbroken stream) and eventually wedges the queue. Making input
+     * interrupt-driven means making that path reentrancy-safe first; until
+     * then IRQ2 is left masked too, since nothing on the slave PIC is used. */
+    pic_unmask_irq(0);   /* PIT timer - the only line we currently service */
+    serial_puts("[HAL] IRQ0 (timer) unmasked; PS/2 stays on the polled path\n");
+    PS2_SetIRQDriven(false);
     xhci_init_x86();
     ehci_init_x86();
     uhci_init_x86();

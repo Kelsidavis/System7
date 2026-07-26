@@ -156,12 +156,19 @@ void exception_dispatch(uint32_t vector, uint32_t error_code, uint32_t eip) {
 }
 
 void irq_dispatch(uint32_t irq) {
-    static uint32_t irq_counts[16] = {0};
-    if (irq < 16) {
-        irq_counts[irq]++;
-        if (irq_counts[irq] <= 5 || (irq_counts[irq] % 1000u) == 0) {
-            serial_puts("[IRQ] line active\n");
-        }
+    /* Announce each line once, then never again.
+     *
+     * This previously also logged every 1000th interrupt, forever. serial_puts
+     * busy-waits on the UART at 38400 baud - roughly a quarter of a millisecond
+     * per character - so a ~20 character line stalls the handler for several
+     * milliseconds. Doing that from interrupt context at a 1 kHz tick rate
+     * steals a large slice of every second and makes the UI visibly stutter.
+     * Diagnostics that cost more than the work they measure do not belong on
+     * the interrupt path. */
+    static uint16_t announced = 0;
+    if (irq < 16 && !(announced & (1u << irq))) {
+        announced |= (uint16_t)(1u << irq);
+        serial_puts("[IRQ] line active\n");
     }
     if (irq < 16 && g_irq_handlers[irq]) {
         g_irq_handlers[irq]((uint8_t)irq);
