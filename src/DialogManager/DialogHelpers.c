@@ -41,12 +41,24 @@ static Boolean __attribute__((unused)) DlgPtInRect(Point pt, const Rect* r) {
 void GlobalToLocalDialog(DialogPtr theDialog, Point* pt) {
     if (!theDialog || !pt) return;
 
-    /* Dialog coordinates are same as window content coordinates */
-    /* In our simplified model, global = local for now */
-    /* In full implementation, would subtract window origin */
+    /*
+     * Subtract the window origin.
+     *
+     * This was a stub - "in our simplified model, global = local for now" - so
+     * every click arrived at DialogHitTest still in global coordinates and fell
+     * outside the dialog's portRect, which starts at (0,0). The hit test
+     * returned 0 for every point inside the dialog, so DialogSelect never
+     * reported an item and no dialog button could ever be clicked. Clicking OK
+     * on the Empty Trash confirmation did nothing at all (DLG-001).
+     *
+     * portBits.bounds carries the window's global rect in this tree (see the
+     * note on the same convention in FM_DrawChicagoCharInternal), so the
+     * window origin is its top-left.
+     */
+    GrafPtr port = &((WindowPtr)theDialog)->port;
 
-    /* For now, just log the conversion */
-    // DIALOG_LOG_DEBUG("Dialog: GlobalToLocal (%d,%d)\n", pt->h, pt->v);
+    pt->h -= port->portBits.bounds.left;
+    pt->v -= port->portBits.bounds.top;
 }
 
 /* Hit test dialog - returns item number or 0 */

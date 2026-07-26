@@ -182,6 +182,20 @@ DialogPtr NewDialog(void* wStorage, const Rect* boundsRect, const unsigned char*
     /* Set up dialog defaults */
     SetupDialogDefaults(dialog);
 
+    /*
+     * Record it as the current dialog.
+     *
+     * FrontDialog() looks at globals.frontModal and then falls back to
+     * currentDialog - but nothing anywhere assigned currentDialog, so the
+     * fallback was dead and only dialogs put up through BeginModalDialog were
+     * ever findable. IsDialogEvent asks FrontWindowIsDialog(), which asks
+     * FrontDialog(), so for a dialog created here and driven by its own event
+     * loop every mouse click was rejected before it reached DialogSelect: the
+     * Empty Trash confirmation drew correctly and then ignored its buttons
+     * entirely (DLG-001).
+     */
+    gDialogManagerState.currentDialog = dialog;
+
     /* Show the dialog if requested */
     if (visible) {
         ShowWindow((WindowPtr)dialog);
@@ -548,6 +562,11 @@ static void DisposeDialogStructure(DialogPtr dialog, Boolean closeOnly)
 {
     if (!dialog) {
         return;
+    }
+
+    /* Stop reporting a dialog that is going away as the current one */
+    if (gDialogManagerState.currentDialog == dialog) {
+        gDialogManagerState.currentDialog = NULL;
     }
 
     /* Dispose of dialog items if not just closing */

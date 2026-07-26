@@ -430,6 +430,7 @@ static OSErr ConfirmEmptyTrash(Boolean *confirmed)
 {
     extern void ShowWindow(WindowPtr);
     extern void SystemTask(void);
+    extern void EventPumpYield(void);
 
     if (!confirmed) return paramErr;
     *confirmed = false;
@@ -527,6 +528,18 @@ static OSErr ConfirmEmptyTrash(Boolean *confirmed)
                 if (ch == 0x1B) { itemHit = 3; done = true; }
             }
         }
+        /*
+         * Pump the input devices.
+         *
+         * This loop runs inside a menu command, so the main event loop - the
+         * only thing that normally calls ProcessModernInput - is blocked behind
+         * us. SystemTask deliberately does not poll (its comment says polling
+         * "should ONLY happen in main event loop"), so without this no mouse or
+         * key event is ever generated and the dialog can never be dismissed:
+         * clicking OK did nothing at all. EventPumpYield exists for exactly
+         * this case and is what the menu and drag tracking loops use.
+         */
+        EventPumpYield();
         SystemTask();
     }
 

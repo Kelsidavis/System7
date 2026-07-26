@@ -211,45 +211,47 @@ handle rather than a hardcoded table, so a translated build highlights and
 labels the right thing — previously it would have computed English widths and
 drawn English text regardless of locale.
 
-### ⛔ The Empty Trash dialog draws but does not work (DLG-001)
+### ✅ The Empty Trash dialog drew but did not work (DLG-001) — FIXED
 
-Special > Empty Trash puts up its confirmation. The prompt and both buttons are
-drawn — that part is fixed; nothing was calling `DrawDialog` at all, and a
-hand-rolled modal loop has to paint its own dialog. What remains:
+Special > Empty Trash put up a confirmation whose buttons did nothing, so the
+trash could never actually be emptied. Three independent bugs stacked, each
+hiding the next:
 
-1. **The buttons do nothing.** Clicking OK does not dismiss the dialog, so the
-   trash is never actually emptied. The modal loop matches on
-   `whichDlg == dlg` after `DialogSelect`.
-2. **A title bar strip is drawn.** The window is created with `procID = 1`
-   (`dBoxProc`), which in System 7 is a plain double-bordered modal box with no
-   title bar. The frame code gives it one anyway: the dialog was asked for
-   bounds `{140,100,240,400}` and its content starts at y=161, leaving an
-   unpainted strip from 133 to 161 that shows the Finder window behind it.
-3. **The prompt is clipped** at both ends ("re you sure you want to permanently
-   rem…") and the **buttons have no labels**, only their rounded outlines.
+1. **The modal loop starved input.** `ConfirmEmptyTrash` runs its own event loop
+   inside a menu command, so the main event loop — the only caller of
+   `ProcessModernInput` — is blocked behind it. `SystemTask` deliberately does
+   not poll ("polling should ONLY happen in main event loop"), so no mouse or
+   key event was ever generated. `EventPumpYield()` exists for exactly this and
+   is what the menu and drag loops use; the dialog loop now calls it too.
+2. **`currentDialog` was never assigned.** `FrontDialog()` checks
+   `globals.frontModal`, then falls back to `currentDialog` — but nothing in the
+   tree ever set that field, so the fallback was dead code and only dialogs put
+   up through `BeginModalDialog` were findable. `IsDialogEvent` asks
+   `FrontWindowIsDialog()`, which asks `FrontDialog()`, so every click was
+   rejected before reaching `DialogSelect`. `NewDialog` now records it, and
+   disposal clears it.
+3. **`GlobalToLocalDialog` was a stub.** Its body was a comment — "in our
+   simplified model, global = local for now". Clicks reached `DialogHitTest`
+   still in global coordinates and fell outside a `portRect` starting at (0,0),
+   so the hit test returned 0 for every point inside the dialog. It now
+   subtracts the window origin from `portBits.bounds`, which is where this tree
+   keeps the global rect.
 
-⚠️ **Corrected diagnosis.** An earlier revision of this entry said the dialog was
-transparent and its background never erased. That was a misreading of the
-screenshot: the content area *is* painted white, and the text and buttons sit on
-white. Only the spurious title-bar strip shows through. Two attempts to erase the
-content — `EraseRect` and an explicit `FillRect` with white — changed nothing,
-which is exactly what you would expect for an area that was already white.
+Measured through the chain: the click arrives at the loop, `isDlgEvt=1`, and
+`global=(335,225)` converts to `local=(234,64)` giving `hit=2` — the OK button.
+The dialog dismisses and the window behind repaints.
 
-**On the duplicated window record.** `NewDialog` creates the window with
-`NewWindow` and then `memcpy`s the whole record into the dialog struct, so the
-Window Manager's list holds one record and the dialog holds a copy.
-`DialogRecord` starts with a `WindowRecord` specifically so this is unnecessary,
-and `NewWindow` honours caller-supplied storage, so it can be built in place.
-That was tried: it made **no observable difference** to any of the three symptoms
-above, and it could not be validated end-to-end because the dialog never
-dismisses, which left the matching disposal change (`CloseWindow` instead of
-`DisposeWindow`, to avoid a double free) untested. It was reverted rather than
-shipped unverified. The aliasing is still worth fixing, but it is not what is
-breaking this dialog.
+**Still cosmetic, not fixed:** the window is created with `procID = 1`
+(`dBoxProc`), a plain modal box with no title bar in System 7, but the frame
+code gives it one anyway, leaving an unpainted strip above the content. The
+prompt is clipped at both ends and the buttons have no labels.
 
-**Next step:** find out why `DialogSelect` never reports the button hit. That
-gates everything else — until the dialog can be dismissed, no change to
-creation or disposal can be tested properly.
+**Also still true:** `NewDialog` `memcpy`s the window record into the dialog
+struct, leaving the Window Manager's list and the dialog holding separate
+copies. `DialogRecord` starts with a `WindowRecord` so it can be built in place,
+and that was tried — it changed none of the symptoms above and could not be
+validated end to end at the time, so it was reverted. Worth revisiting now that
+the dialog can actually be dismissed.
 
 ### ⚠️ The full menu item renderer is dead code (MENU-001) — PARTLY ADDRESSED
 
