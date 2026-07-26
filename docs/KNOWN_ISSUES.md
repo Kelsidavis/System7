@@ -125,6 +125,38 @@ An empty folder window also draws no status line at all, where System 7 shows
 "0 items" — `FolderWindow_Draw` gates the status bar on `state->items` being
 non-NULL.
 
+### ⚠️ Desktop volume and Trash icons never appear on an input-free boot (REDRAW-005)
+
+Same signature as REDRAW-004, which was the Finder window doing this. Measured
+by counting dark pixels in the two icon regions:
+
+| boot | volume icon | Trash icon |
+|---|---|---|
+| USB tablet attached | 342 px | 194 px |
+| PS/2 only, no input, 28 s | 0 | 0 |
+| PS/2 only, no input, 55 s | 0 | 0 |
+
+So they never arrive, rather than arriving late.
+
+Established so far:
+
+- `DrawVolumeIcon()` **is** called, just before the event loop
+  (`MAIN: About to call DrawVolumeIcon` / `returned` in the log). The icons are
+  drawn and then lost.
+- Not a double-buffering problem: `hal_framebuffer_present()` on x86 is
+  `return framebuffer != NULL;` — drawing goes straight to the screen.
+- `HandleUpdate` has a desktop branch — when the update event's window is NULL it
+  calls `DrawDesktop()` then `DrawVolumeIcon()`. That is the path that would put
+  them back, so the question is what erases them and why only the tablet boot
+  reaches the redraw.
+- `PaintOne` deliberately skips the desktop window (`refCon == 0`) so it neither
+  fills nor invalidates it — meaning the desktop never acquires an update region
+  of its own and cannot self-heal the way REDRAW-004's fix let windows.
+
+**Next step:** find what paints over the icons after `DrawVolumeIcon`, then
+either stop it or give the desktop window an update region so the NULL-window
+branch runs.
+
 ### ⚠️ The full menu item renderer is dead code (MENU-001) — PARTLY ADDRESSED
 
 `MenuDisplay.c` has a complete System 7 item renderer — `DrawMenu` →
