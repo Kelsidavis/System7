@@ -31,6 +31,7 @@ extern uint8_t fb_blue_size;
 extern uint32_t g_total_memory_kb;
 
 static volatile uint32_t g_irq0_ticks = 0;
+static volatile uint32_t g_irq0_debug_count = 0;
 
 uint32_t hal_get_irq0_ticks(void) {
     return g_irq0_ticks;
@@ -39,10 +40,26 @@ uint32_t hal_get_irq0_ticks(void) {
 static void irq_timer_handler(uint8_t irq) {
     (void)irq;
     g_irq0_ticks++;
+    g_irq0_debug_count++;
+
+    /* Debug: Print every 1000 ticks (~1 second at 1000Hz) */
+    if ((g_irq0_debug_count % 1000) == 0) {
+        extern void serial_printf(const char *fmt, ...);
+        serial_printf("IRQ0: %u ticks received\n", g_irq0_ticks);
+    }
 }
 
+static volatile uint32_t g_ps2_irq_debug_count = 0;
+
 static void irq_ps2_handler(uint8_t irq) {
-    (void)irq;
+    g_ps2_irq_debug_count++;
+
+    /* Debug: Print every 50 PS/2 events */
+    if ((g_ps2_irq_debug_count % 50) == 0) {
+        extern void serial_printf(const char *fmt, ...);
+        serial_printf("PS/2 IRQ%d: %u events received\n", irq, g_ps2_irq_debug_count);
+    }
+
     PollPS2Input();
 }
 
@@ -61,8 +78,11 @@ void hal_boot_init(void *boot_arg) {
     irq_register_handler(0, irq_timer_handler);
     irq_register_handler(1, irq_ps2_handler);
     irq_register_handler(12, irq_ps2_handler);
-    pic_mask_irq(1);
-    pic_mask_irq(12);
+
+    /* Unmask PS/2 interrupts (keyboard on IRQ1, mouse on IRQ12) */
+    pic_unmask_irq(1);   /* Enable keyboard interrupt */
+    pic_unmask_irq(12);  /* Enable mouse interrupt */
+    serial_printf("Platform: PS/2 IRQs unmasked (IRQ1, IRQ12)\n");
     PS2_SetIRQDriven(true);
     xhci_init_x86();
     ehci_init_x86();

@@ -1777,14 +1777,15 @@ void kernel_main(uint32_t magic, uint32_t* mb2_info) {
         serial_puts("KERNEL: No USB tablet found — using PS/2 mouse\n");
     }
 
-    /* Keep IRQs disabled for now; polling paths are stable. */
-    serial_puts("KERNEL: IRQs disabled (polling mode)\n");
-    PS2_SetIRQDriven(false);
+    /* Enable interrupt-driven mode (fixes freeze on real hardware) */
+    serial_puts("KERNEL: Enabling hardware interrupts...\n");
+    PS2_SetIRQDriven(true);
+    __asm__ volatile("sti");  /* Enable interrupts globally */
+    serial_puts("KERNEL: Interrupts ENABLED (IRQ-driven mode)\n");
 #endif
 
     while (1) {
-        /* IMPORTANT: Call TimerISR each iteration for high-cadence timer checking */
-        TimeManager_TimerISR();  /* Poll timer (simulated ISR) - must be called each loop */
+        /* Timer ISR is now called via hardware interrupt (IRQ0), not manual polling */
         TimeManager_DrainDeferred(16, 1000);  /* Process up to 16 tasks, max 1ms */
 
         platform_network_poll();
