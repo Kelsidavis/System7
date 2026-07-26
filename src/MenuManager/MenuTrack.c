@@ -659,10 +659,22 @@ long TrackMenu(short menuID, Point *startPt) {
         /* Update menu highlighting based on mouse position */
         UpdateMenuTrackingNew(mousePt);
 
-        /* Check button state - directly read g_mouseState for debugging */
+        /* Check button state.
+         *
+         * This used to declare `extern volatile uint8_t g_mouseState` and test
+         * bit 0 of it. g_mouseState is not a byte - it is a struct in
+         * Platform/x86/ps2.c whose first member is `int16_t x`, the cursor's
+         * horizontal position. The mismatched extern is invisible to the
+         * compiler (separate translation units) and to the linker, so this read
+         * was fetching the low byte of the cursor X coordinate and testing its
+         * least-significant bit. "Is the button down" was really "is the cursor
+         * on an odd X pixel": menu selection either never fired or fired at
+         * random depending on where the pointer happened to sit.
+         *
+         * GetMouseButtons() is the accessor ps2.c exports for exactly this. */
         buttonCheckCount++;
-        extern volatile uint8_t g_mouseState;
-        Boolean buttonState = (g_mouseState & 0x01) != 0;
+        extern uint8_t GetMouseButtons(void);
+        Boolean buttonState = (GetMouseButtons() & 0x01) != 0;
 
         /* Debug output removed - was causing x86 build failure */
 
