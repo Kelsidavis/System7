@@ -40,12 +40,41 @@ direct `FolderWindow_Draw` calls. These are the legitimate update-event handlers
 plus the Finder's own paths, so they need individual review rather than
 deletion.
 
-**Unexplained:** `FolderWindow_Draw` instruments its status line at local
-(8,313) → global y=414, but on screen the status line renders at y≈304–312 with
-its first character clipped at the window's left edge, and **nothing** is drawn
-at y=414. Since the placeholder renderer is dead, some other path or coordinate
-mapping accounts for this. Worth resolving before trusting content-layout
-reasoning in this area.
+**Resolved — it was a double coordinate conversion in the glyph rasteriser.**
+`FolderWindow_Draw` instruments its status line at local (8,313) → global y=414,
+but it rendered at y≈304–312 with the first character clipped at the window's
+left edge. This was never a Finder or redraw-path problem:
+
+- `DrawChar`'s fallback maps the pen with `QD_LocalToPixel` (`local - portRect
+  origin + portBits.bounds origin`), correctly producing global (19,402).
+- `FM_DrawChicagoCharInternal` then subtracted `portBits.bounds` **again**,
+  landing the glyph back at raw local (8,301) — and since a folder window's
+  `portBits.baseAddr` *is* the framebuffer base, that wrote to screen (8,301).
+
+Only text was affected, which is why the separator line one row above it
+(`MoveTo`/`LineTo`, correctly offset) landed at y=402 as intended while the
+caption drawn from the same pen did not.
+
+The subtraction was not simply wrong: the tree uses `portBits` two ways, and the
+correct origin depends on **where `baseAddr` points**, not on the bounds alone.
+
+| `baseAddr` | `bounds` | incoming coords | origin to subtract |
+|---|---|---|---|
+| framebuffer base (window drawn direct to screen) | window's global rect | global | **(0,0)** |
+| window's offscreen GWorld | window's global rect | global | `bounds.topLeft` |
+| framebuffer + window offset (About window) | `(0,0,w,h)` | local | `bounds.topLeft`, i.e. (0,0) |
+
+The old code always subtracted `bounds.topLeft`, so it was right for the two
+offscreen cases and wrong for the direct-to-screen one. `FM_DrawChicagoCharInternal`
+now clips against `portBits.bounds` (always in the incoming space) and subtracts
+the origin only when `baseAddr` is not the framebuffer base.
+
+The About window's `portBits` rewrite in `AboutThisMac.c` was a local workaround
+for this same bug — it is now redundant, though still harmless and left in place.
+
+Verified in QEMU on all four paths: boot draw (direct framebuffer), the
+post-selection redraw (GWorld — byte-identical to the pre-fix build), the About
+window, and the Apple menu. Untested on hardware.
 
 ### ⛔ Regions are rectangles: DiffRgn and XorRgn are stubs (REGION-001)
 
@@ -72,6 +101,31 @@ region representation plus rendering and clipping that honour it.
 
 **Do not** "fix" this by building on `DiffRgn` — doing so erases the whole
 desktop including every window, which then never gets repainted.
+
+### ⚠️ Macintosh HD window can boot with completely blank content (REDRAW-004)
+
+The user reports the system *"loads with a blank Macintosh HD window"*. This
+reproduces in QEMU, and it is **not** the status-line coordinate bug above — that
+one misplaced text but never suppressed it.
+
+Reproduction (`scripts/screenshot.sh` vs. a PS/2-only harness, both at 28 s):
+
+- With a **USB tablet attached**, the window paints fully — icons, labels and
+  status line.
+- With **only a PS/2 mouse and no input events at all**, the content area is
+  entirely blank: no icons, no status line, and no separator line either. The
+  frame, title bar and grow box still draw.
+
+Confirmed pre-existing: a baseline build and the status-line fix both leave
+exactly 18 dark pixels (the grow box) in the content area, so the two are
+independent.
+
+That the *separator line* is missing too means `FolderWindow_Draw`'s status-bar
+block never ran — this is a missing/never-delivered update, not a drawing bug.
+The correlation with input activity suggests the initial content paint is
+waiting on an event that only arrives once the mouse moves. Likely related to
+ARCH-001; a good next lead is why the first update for a newly opened folder
+window is not serviced without input.
 
 ### ✅ Stale content left on the desktop after dragging a window (REDRAW-002) — FIXED
 

@@ -80,36 +80,71 @@ void FM_DrawChicagoCharInternal(short x, short y, char ch, uint32_t color) {
 
     x += info->left_offset;
 
+    /* Callers hand us coordinates that QD_LocalToPixel has already mapped out of
+     * local space (local - portRect origin + portBits.bounds origin), so (x, y)
+     * arrives in whatever space portBits.bounds is expressed in. Two things
+     * still have to be decided here, and they are NOT the same question:
+     *
+     *   clip   - always portBits.bounds, which is already in that same space.
+     *   origin - the coordinate that baseAddr itself points at, which has to be
+     *            subtracted to get a buffer index.
+     *
+     * The origin depends on where baseAddr points, and the tree has both:
+     *
+     *   baseAddr == framebuffer  A window rendering straight to the screen.
+     *                            bounds is the window's GLOBAL rect, and the
+     *                            incoming coordinates are already global, so the
+     *                            origin is (0,0) - subtracting bounds here is
+     *                            what dropped the Finder status line from its
+     *                            computed global (19,402) down to (8,301).
+     *
+     *   baseAddr != framebuffer  An offscreen buffer - either a window's GWorld
+     *                            (bounds still the global rect, buffer origin
+     *                            corresponding to bounds.topLeft) or the About
+     *                            window, which points baseAddr into the
+     *                            framebuffer and zeroes bounds to (0,0,w,h).
+     *                            Both want bounds.topLeft subtracted; for About
+     *                            that is (0,0) and the coordinates stay local. */
     Ptr destBase = NULL;
     SInt16 destRowBytes = 0;
-    SInt32 destWidth = fb_width;
-    SInt32 destHeight = fb_height;
-    SInt32 destXOrigin = 0;
-    SInt32 destYOrigin = 0;
+    SInt32 clipLeft = 0, clipTop = 0;
+    SInt32 clipRight = fb_width, clipBottom = fb_height;
+    SInt32 destXOrigin = 0, destYOrigin = 0;
 
     if (g_currentPort && g_currentPort->portBits.baseAddr) {
         destBase = g_currentPort->portBits.baseAddr;
         destRowBytes = g_currentPort->portBits.rowBytes & 0x3FFF;
 
-        /* For About window with direct framebuffer rendering:
-         * - baseAddr points to window position in framebuffer (framebuffer + offset)
-         * - bounds is (0,0,width,height) in local coordinates
-         * - We need destXOrigin=0, destYOrigin=0 since baseAddr is already offset
-         * This is the "direct framebuffer" case, which is actually correct! */
+        const Rect *b = &g_currentPort->portBits.bounds;
+        if (b->right > b->left && b->bottom > b->top) {
+            clipLeft = b->left;   clipTop = b->top;
+            clipRight = b->right; clipBottom = b->bottom;
 
-        /* Use window dimensions from portRect */
-        destWidth = g_currentPort->portRect.right - g_currentPort->portRect.left;
-        destHeight = g_currentPort->portRect.bottom - g_currentPort->portRect.top;
-        destXOrigin = g_currentPort->portBits.bounds.left;  /* Should be 0 for offset baseAddr */
-        destYOrigin = g_currentPort->portBits.bounds.top;   /* Should be 0 for offset baseAddr */
-
-        /* Debug removed - serial_printf can hang on ARM64 */
+            if (destBase != (Ptr)framebuffer) {
+                destXOrigin = b->left;
+                destYOrigin = b->top;
+            }
+        }
     } else if (framebuffer) {
         destBase = (Ptr)framebuffer;
         destRowBytes = fb_pitch;
     }
 
-    if (!destBase || destRowBytes <= 0 || destWidth <= 0 || destHeight <= 0) {
+    if (!destBase || destRowBytes <= 0) {
+        return;
+    }
+
+    /* Never let a bogus bounds walk us off the end of a scanline. The cap is
+     * applied in the incoming space, so it has to account for the origin. */
+    if (clipLeft < destXOrigin) clipLeft = destXOrigin;
+    if (clipTop < destYOrigin) clipTop = destYOrigin;
+    if (clipRight - destXOrigin > destRowBytes / 4) {
+        clipRight = destXOrigin + destRowBytes / 4;
+    }
+    if (destBase == (Ptr)framebuffer && clipBottom > (SInt32)fb_height) {
+        clipBottom = fb_height;
+    }
+    if (clipRight <= clipLeft || clipBottom <= clipTop) {
         return;
     }
 
@@ -117,23 +152,24 @@ void FM_DrawChicagoCharInternal(short x, short y, char ch, uint32_t color) {
     int first_pixel_x = -1, first_pixel_y = -1;
 
     for (int row = 0; row < CHICAGO_HEIGHT; row++) {
-        int destY = y + row - destYOrigin;
-        if (destY < 0 || destY >= destHeight) {
+        int destY = y + row;
+        if (destY < clipTop || destY >= clipBottom) {
             continue;
         }
 
         const uint8_t *strike_row = chicago_bitmap + (row * CHICAGO_ROW_BYTES);
 
         for (int col = 0; col < info->bit_width; col++) {
-            int destX = x + col - destXOrigin;
-            if (destX < 0 || destX >= destWidth) {
+            int destX = x + col;
+            if (destX < clipLeft || destX >= clipRight) {
                 continue;
             }
             int bit_position = info->bit_start + col;
             if (get_bit(strike_row, bit_position)) {
-                uint8_t* dstRow = (uint8_t*)destBase + destY * destRowBytes;
+                uint8_t* dstRow = (uint8_t*)destBase +
+                                  (destY - destYOrigin) * destRowBytes;
                 uint32_t* dstPixels = (uint32_t*)dstRow;
-                dstPixels[destX] = color;
+                dstPixels[destX - destXOrigin] = color;
                 if (first_pixel_x < 0) {
                     first_pixel_x = destX;
                     first_pixel_y = destY;

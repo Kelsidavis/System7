@@ -80,14 +80,28 @@ Root cause fixed (the PostEvent flood). Three direct redraws removed; the dead
 These are the genuine update handlers and Finder paths — they need individual
 review, **not** blind deletion.
 
-### Unexplained layout discrepancy — best next lead
-`FolderWindow_Draw` instruments its status line at local `(8,313)` → global
-**y=414**, but on screen it renders at **y≈304–312** with the first character
-clipped at the window's left edge, and **nothing** is at y=414.
+### ~~Unexplained layout discrepancy~~ — RESOLVED
+The status line rendering at y≈304–312 instead of y=414 was a **double
+coordinate conversion in the glyph rasteriser**, not a Finder or redraw problem:
+`DrawChar` mapped the pen local→global with `QD_LocalToPixel`, then
+`FM_DrawChicagoCharInternal` subtracted `portBits.bounds` a second time. Only
+text was affected, which is why the separator line drawn from the same pen one
+row above landed correctly.
 
-The placeholder renderer is proven dead, so something else accounts for this.
-This may be what's behind the user's *"loads with a blank Macintosh HD window"*
-report. **Resolve this before trusting content-layout reasoning in that area.**
+The correct origin depends on **where `baseAddr` points**, not on bounds alone —
+the tree has three port configurations and the old code was right for two of
+them. See REDRAW-004's predecessor entry in `docs/KNOWN_ISSUES.md` for the table.
+
+Note this did **not** explain the *"blank Macintosh HD window"* report — that is
+now filed separately as **REDRAW-004**, with a reproduction.
+
+### REDRAW-004 — blank window content at boot — best next lead
+The Macintosh HD window can boot with a completely blank content area. It
+reproduces when **no input events occur**: with a USB tablet attached the window
+paints fully, with PS/2 only and no mouse movement it stays empty. The separator
+line is missing too, so `FolderWindow_Draw`'s status-bar block never ran — a
+missing update, not a drawing bug. Verified pre-existing (identical on a
+baseline build).
 
 ### Not started
 - **68K interpreter is not wired up** — real Mac apps still don't run. Exists in
@@ -116,7 +130,14 @@ Boots headless, dumps the framebuffer as PNG plus its serial log. Attaches a
   the cursor must be walked in steps of ≤100 px. This silently defeated several
   of my early drag tests (they opened the Apple menu instead).
 - A **USB tablet** gives absolute positioning, but clicks did not register
-  through that path in my harness — PS/2 clicks did. Unresolved.
+  through that path in my harness — PS/2 clicks did. Unresolved, and since
+  confirmed again: a tablet `mouse_button` on the Apple menu does nothing, while
+  the same click over PS/2 opens it. Drop the `-device usb-tablet` and walk the
+  cursor with relative `mouse_move` deltas (≤80 px per step, tracking the
+  position yourself) to drive menus and icons reliably.
+- Whether the tablet is attached also changes whether the Finder window paints
+  its content at all — see **REDRAW-004**. Capture both ways before concluding
+  anything about a missing redraw.
 - Reproduce a drag: walk to the title bar (~250,91), `mouse_button 1`, several
   small moves, `mouse_button 0`.
 - Reproduce a resize: walk to the grow box (~483,413), same pattern.
@@ -146,8 +167,9 @@ Boots headless, dumps the framebuffer as PNG plus its serial log. Attaches a
 
 ## 5. Suggested next steps, in order
 
-1. **Resolve the y=414 vs y≈308 status-line discrepancy** — likely explains the
-   blank-window-at-boot report and unblocks layout reasoning.
+1. **Chase REDRAW-004** (blank window content at boot) — now the best lead, and
+   it is the symptom the user actually reported. Start with why the first update
+   for a newly opened folder window is not serviced until input arrives.
 2. **Ask the user to re-flash and retest.** Several fixes are unconfirmed on
    hardware: menu timing, title bar, icon labels, resize, update events. The
    input-starvation fix in particular may change behaviour broadly.
