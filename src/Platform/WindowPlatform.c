@@ -463,9 +463,31 @@ void Platform_GetWindowContentRect(WindowPtr window, Rect* rect) {
     const SInt16 kTitleBar = 20;
     const SInt16 kSeparator = 1;
 
+    /*
+     * A modal dialog box has no title bar, so its content starts just inside
+     * the border. dBoxProc, plainDBox and altDBoxProc are all plain boxes;
+     * movableDBoxProc is the one dialog variant that does have a title bar, and
+     * document windows always do.
+     *
+     * This used to subtract the title bar unconditionally, so the Empty Trash
+     * confirmation - a dBoxProc - had its content start 21px below the top of
+     * its own frame. Nothing painted that strip, and the Finder window showed
+     * through the top of the dialog.
+     */
+    SInt16 chromeTop = kTitleBar + kSeparator;
+    switch (window->windowProcID) {
+        case dBoxProc:
+        case plainDBox:
+        case altDBoxProc:
+            chromeTop = kBorder;
+            break;
+        default:
+            break;
+    }
+
     /* Content is inside the frame */
     rect->left = strucRectPtr->left + kBorder;
-    rect->top = strucRectPtr->top + kTitleBar + kSeparator;
+    rect->top = strucRectPtr->top + chromeTop;
     rect->right = strucRectPtr->right - (kBorder + 1);  /* Right border is 2px */
     rect->bottom = strucRectPtr->bottom - kBorder;
 }

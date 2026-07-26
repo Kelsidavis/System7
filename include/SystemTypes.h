@@ -484,7 +484,17 @@ typedef struct WindowRecord {
     SInt32        refCon;
     RgnHandle     visRgn;
     GWorldPtr     offscreenGWorld;  /* Offscreen buffer for double-buffering */
+    SInt16        windowProcID;     /* procID NewWindow was given - see below */
 } WindowRecord;
+
+/*
+ * windowProcID keeps the procID because the variant is otherwise lost.
+ * Platform_GetWindowDefProc maps documentProc and friends to one WDEF and every
+ * dialog variant to another, so the resolved windowDefProc cannot tell dBoxProc
+ * from movableDBoxProc - and only one of those has a title bar. Chrome geometry
+ * needs to know which. Appended at the end of the record so no existing field
+ * offset moves.
+ */
 
 typedef WindowRecord* WindowPeek;
 

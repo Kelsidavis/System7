@@ -805,6 +805,7 @@ static void InitializeWindowRecord(WindowPtr window, const Rect* bounds,
 
     /* Set window definition procedure based on procID */
     window->windowDefProc = Platform_GetWindowDefProc(procID);
+    window->windowProcID = procID;   /* the variant, which the WDEF pointer loses */
     window->dataHandle = NULL;
 
     /* Set window title */
@@ -843,6 +844,18 @@ static void InitializeWindowRecord(WindowPtr window, const Rect* bounds,
     const SInt16 kTitleBar = 20;
     const SInt16 kSeparator = 1;
 
+    /* A modal dialog box has no title bar, so its content fills the frame.
+     * dBoxProc, plainDBox and altDBoxProc are plain boxes; movableDBoxProc is
+     * the one dialog variant that keeps a title bar, and document windows
+     * always have one. The chrome above the content was subtracted
+     * unconditionally, so the Empty Trash confirmation - a dBoxProc - had its
+     * content start 21px below the top of its own frame, and nothing ever
+     * painted the strip that left. */
+    SInt16 kChromeTop = kTitleBar + kSeparator;
+    if (procID == dBoxProc || procID == plainDBox || procID == altDBoxProc) {
+        kChromeTop = kBorder;
+    }
+
     SInt16 fullWidth = clampedBounds.right - clampedBounds.left;
     SInt16 fullHeight = clampedBounds.bottom - clampedBounds.top;
     WM_LOG_TRACE("[NEWWIN] clampedBounds=(%d,%d,%d,%d) -> fullW=%d fullH=%d\n",
@@ -852,7 +865,7 @@ static void InitializeWindowRecord(WindowPtr window, const Rect* bounds,
     /* Content area is smaller than full window by the chrome dimensions
      * Subtract 3px width (1px left border + 2px right for 3D effect) and extra height for bottom border */
     SInt16 contentWidth = fullWidth - 3;  /* Subtract left border and right 3D highlight */
-    SInt16 contentHeight = fullHeight - kTitleBar - kSeparator - 2;  /* Subtract title bar, separator, and bottom border */
+    SInt16 contentHeight = fullHeight - kChromeTop - 2;  /* chrome above content, plus bottom border */
 
     SetRect(&window->port.portRect, 0, 0, contentWidth, contentHeight);
     WM_LOG_TRACE("[NEWWIN] portRect set to (0,0,%d,%d) from content w=%d h=%d\n",
@@ -883,7 +896,7 @@ static void InitializeWindowRecord(WindowPtr window, const Rect* bounds,
     extern uint32_t fb_pitch;
 
     SInt16 contentLeft = clampedBounds.left + kBorder;
-    SInt16 contentTop = clampedBounds.top + kTitleBar + kSeparator;
+    SInt16 contentTop = clampedBounds.top + kChromeTop;
 
     /* Calculate framebuffer offset to window's content area */
     uint32_t bytes_per_pixel = 4;
