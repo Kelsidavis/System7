@@ -40,7 +40,12 @@ static Boolean CheckSystemEvents(EventMask mask, EventRecord* evt);
  * they're saying "I'm idle, let others run"
  *
  * NOTE: This is a process-aware version that integrates with the scheduler.
- * The canonical GetNextEvent is in EventManager/event_manager.c
+ *
+ * With ENABLE_PROCESS_COOP=1 (the default, see config/default.mk) THIS is the
+ * GetNextEvent that runs - the override at the bottom of this file routes the
+ * public symbol here, and EventManager/event_manager.c's copy is compiled out.
+ * Event-delivery changes belong here; a fix written only in the other file
+ * cannot execute (see REDRAW-004).
  */
 Boolean Proc_GetNextEvent(EventMask mask, EventRecord* evt) {
     if (!evt) return false;

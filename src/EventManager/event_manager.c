@@ -42,8 +42,15 @@ extern UInt16 GetPS2Modifiers(void);
 extern UInt32 TickCount(void);
 
 /**
- * GetNextEvent - Canonical implementation
+ * GetNextEvent - non-cooperative build only
  * Retrieves and removes the next matching event from the queue
+ *
+ * ⚠️ NOT the implementation that normally runs. config/default.mk sets
+ * ENABLE_PROCESS_COOP=1, which compiles this out and routes GetNextEvent to
+ * Proc_GetNextEvent in ProcessMgr/EventIntegration.c. This was labelled the
+ * "canonical implementation" and a fix to update-event delivery was written
+ * here, where it could never execute (see REDRAW-004). Change both copies, and
+ * confirm with: nm --defined-only build/obj/**\/*.o | grep " T GetNextEvent"
  */
 #ifndef ENABLE_PROCESS_COOP
 Boolean GetNextEvent(short eventMask, EventRecord* theEvent) {

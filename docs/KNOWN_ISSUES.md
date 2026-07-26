@@ -76,40 +76,48 @@ Verified in QEMU on all four paths: boot draw (direct framebuffer), the
 post-selection redraw (GWorld — byte-identical to the pre-fix build), the About
 window, and the Apple menu. Untested on hardware.
 
-### ⛔ 42 functions are defined twice, and the dead copy is often the obvious one (ARCH-002)
+### ⛔ 34 source files are never compiled, and one live file lies about it (ARCH-002)
 
-Editing a shadowed definition changes nothing about the running system. This has
-already burned two debugging sessions:
+Editing code that isn't built changes nothing about the running system. This has
+cost two debugging sessions. Run `python3 scripts/find-shadowed-defs.py` after a
+build for the current list.
 
-- `DrawText` — `QuickDraw/Text.c` is **not compiled**; `FontManager/FontManagerCore.c`
-  is what links.
-- `GetNextEvent` — `EventManager/event_manager.c` is compiled but **loses**;
-  `ENABLE_PROCESS_COOP` routes it to `Proc_GetNextEvent` in
-  `ProcessMgr/EventIntegration.c`. The update-event synthesis in 293388f was
-  written into the dead copy and never ran (see REDRAW-004).
+**Dead files (34).** Never compiled by any configuration, yet they define
+functions whose live copy lives elsewhere. Whole subsystems sit in this state:
 
-Run `python3 scripts/find-shadowed-defs.py` after a build for the current list.
-It separates same-platform shadowing (42, worth acting on) from per-platform
-alternates (54 — arm/arm64/ppc versions when building x86, expected and fine).
+| dead file | defines (live copy elsewhere) |
+|---|---|
+| `QuickDraw/Text.c` | `DrawText` — the live one is `FontManager/FontManagerCore.c` |
+| `TextEdit/TextEditCore.c`, `TextDisplay.c`, `TextClipboard.c`, … | `TEClick`, `TEUpdate`, `TECopy`, … |
+| `DialogManager/dialog_manager_core.c`, `DialogResources.c` | `InitDialogs`, `NewDialog`, `LoadDialogTemplate`, … |
+| `SoundManager/SoundManagerCore.c` | `SndPlay`, `SetSoundVol`, … |
+| `HFS_Catalog.c`, `HFS_Volume.c` | `BTree_*`, `FCB_*`, `VCB_*` |
+| `ResourceManager.c` | `AddResource`, `CountResources`, … |
+| `lib/string.c` | `memcpy`, `strcmp`, … |
 
-Some that stand out:
+These are the real hazard: nothing in the file says it is dead, and grep finds
+it first.
 
-| function | links from | dead copy |
-|---|---|---|
-| `main` | `sys71_stubs.o` | `Finder/finder_main.c` |
-| `LoadSeg_TrapHandler` | `SegmentLoader/SegmentLoaderTest.o` | `SegmentLoader/SegmentLoader.c` |
-| `HandleMouseDown` | `EventManager/EventDispatcher.o` | `Finder/finder_main.c`, `Apps/SimpleText/SimpleText.c` |
-| `GetNextEvent`, `EventAvail`, `PostEvent`, `FlushEvents` | `ProcessMgr/EventIntegration.o` | `EventManager/event_manager.c` |
-| `Get1Resource`, `AddResource`, `ResError`, … (7 total) | `ResourceMgr/ResourceMgr.o` | `sys71_stubs.c` |
-| `HLock`, `HUnlock`, `NewHandleClear` | `MemoryMgr/MemoryManager.o` | `control_stubs.c` |
-| `HandleUpdate`, `HandleActivate`, `HandleKeyDown`, `HandleOSEvent` | `EventManager/EventDispatcher.o` | `Apps/SimpleText/SimpleText.c` |
+**Unbuilt copies (133).** A function defined in a *compiled* file whose
+definition doesn't survive into its `.o` — excluded by `static`, `#if 0`, or a
+feature-flag `#ifdef`. Almost all are **intentional** mutually-exclusive
+alternates and need no action.
 
-`LoadSeg_TrapHandler` resolving to the **test** object rather than the real
-segment loader is worth checking before any 68K interpreter work — that is the
-trap the segment loader is supposed to install.
+**The one that misleads (1 SUSPECT).** `GetNextEvent` in
+`EventManager/event_manager.c` was labelled *"Canonical implementation"* while
+being compiled out — `config/default.mk` sets `ENABLE_PROCESS_COOP ?= 1`, which
+routes the symbol to `Proc_GetNextEvent` in `ProcessMgr/EventIntegration.c`.
+`EventIntegration.c`'s own comment pointed back at the dead file. The
+update-event fix in 293388f was written there and never ran (see REDRAW-004).
+Both comments are now corrected; the script flags any future recurrence.
 
 ⚠️ **Before editing any Toolbox-looking function, confirm which copy links:**
 `nm --defined-only build/obj/**/*.o | grep " T <name>"`.
+
+> An earlier revision of this entry claimed 42 shadowed definitions and singled
+> out `main`, `LoadSeg_TrapHandler` and `HandleMouseDown`. That was wrong: those
+> are `static` or `#if 0` definitions, which cannot shadow anything. The audit
+> script did not account for either, and now does.
 
 ### ⛔ Regions are rectangles: DiffRgn and XorRgn are stubs (REGION-001)
 

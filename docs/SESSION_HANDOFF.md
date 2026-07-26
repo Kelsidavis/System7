@@ -174,11 +174,12 @@ Boots headless, dumps the framebuffer as PNG plus its serial log. Attaches a
 
 ## 5. Suggested next steps, in order
 
-1. **Audit for other dead-copy functions.** Two `GetNextEvent`s and two
-   `DrawText`s have now each cost a debugging session, and in both cases a fix
-   had been written into the copy that does not link. Sweep for duplicate
-   definitions and delete or clearly mark the dead ones — this is the single
-   highest-leverage cleanup left.
+1. **Deal with the 34 never-compiled source files (ARCH-002).** Whole subsystems
+   — all of `TextEdit/`, most of `DialogManager/`, `SoundManager/`,
+   `HFS_Catalog.c`, `HFS_Volume.c`, `QuickDraw/Text.c` — are never built, yet
+   define functions whose live copy is elsewhere. Nothing marks them as dead and
+   grep finds them first. Delete or clearly mark them; run
+   `python3 scripts/find-shadowed-defs.py` for the list.
 2. **Ask the user to re-flash and retest.** Several fixes are unconfirmed on
    hardware: menu timing, title bar, icon labels, resize, update events. The
    input-starvation fix in particular may change behaviour broadly.
