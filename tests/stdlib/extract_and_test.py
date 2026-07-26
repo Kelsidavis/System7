@@ -41,6 +41,8 @@ WANTED = [
     'toupper', 'tolower', 'isupper', 'islower',
     # formatted output, plus its two helpers
     'vsnprintf', 'fmt_emit', 'fmt_pad', 'fmt_number',
+    # 64-bit division - the freestanding build has no libgcc __udivdi3
+    'udiv64',
 ]
 
 # Types the extracted formatter needs that live in the kernel headers.
@@ -459,6 +461,65 @@ int main(void) {
                 }
             }
         }
+    }
+
+    /* ---- udiv64 --------------------------------------------------------
+       Compared against the host's native 64-bit division. The original
+       omitted the left-shift that aligns the divisor and saturated instead of
+       dividing: 100/3 gave 3 and 1000000/16667 gave 32767, which stopped
+       TickCount advancing since it is udiv64(microseconds, 16667). */
+    {
+        static uint64_t rng = 88172645463325252ULL;
+        #define XS() (rng ^= rng << 13, rng ^= rng >> 7, rng ^= rng << 17, rng)
+
+        struct { unsigned long long a, b; } known[] = {
+            {100, 3}, {1000000, 16667}, {0, 1}, {1, 1},
+            {~0ULL, 1}, {~0ULL, ~0ULL}, {~0ULL, 2}, {1ULL << 63, 3},
+            {16667, 16667}, {16666, 16667},
+        };
+        for (size_t i = 0; i < sizeof known / sizeof known[0]; i++) {
+            checks++;
+            unsigned long long got = s7_udiv64(known[i].a, known[i].b);
+            unsigned long long want = known[i].a / known[i].b;
+            if (got != want) {
+                printf("FAIL udiv64      %llu/%llu = %llu want %llu\n",
+                       known[i].a, known[i].b, got, want);
+                failures++;
+            }
+        }
+
+        for (unsigned long long a = 0; a < 200; a++) {
+            for (unsigned long long b = 1; b < 200; b++) {
+                checks++;
+                if (s7_udiv64(a, b) != a / b) {
+                    printf("FAIL udiv64      %llu/%llu = %llu want %llu\n",
+                           a, b, (unsigned long long)s7_udiv64(a, b), a / b);
+                    failures++;
+                }
+            }
+        }
+
+        for (long i = 0; i < 200000; i++) {
+            unsigned long long a = XS() >> (XS() % 64);
+            unsigned long long b = XS() >> (XS() % 64);
+            if (b == 0) b = 1;
+            checks++;
+            if (s7_udiv64(a, b) != a / b) {
+                if (failures < 8) {
+                    printf("FAIL udiv64      %llu/%llu = %llu want %llu\n",
+                           a, b, (unsigned long long)s7_udiv64(a, b), a / b);
+                }
+                failures++;
+            }
+        }
+
+        /* Division by zero must not hang or trap; the kernel copies return 0. */
+        checks++;
+        if (s7_udiv64(12345, 0) != 0) {
+            printf("FAIL udiv64      x/0 should return 0\n");
+            failures++;
+        }
+        #undef XS
     }
 
     printf("\n%d checks, %d failures\n", checks, failures);

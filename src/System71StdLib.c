@@ -18,6 +18,44 @@ int toupper(int c);
 /* Global memory error variable */
 static OSErr gMemError = noErr;
 
+/*
+ * udiv64 - 64-bit unsigned division by restoring division.
+ *
+ * The 32-bit freestanding build links no libgcc, so a plain `a / b` on
+ * uint64_t would need __udivdi3. This is the one copy; it used to be duplicated
+ * into main.c and three TimeManager files, each asking the reader to keep it in
+ * sync with the others.
+ *
+ * The divisor has to be shifted LEFT to align with the dividend before
+ * iterating. The original omitted that and the quotient saturated near the
+ * divisor's own magnitude - 100/3 returned 3 and 1000000/16667 returned 32767,
+ * so TickCount, which is udiv64(microseconds, 16667), stopped advancing.
+ */
+uint64_t udiv64(uint64_t num, uint64_t den) {
+    if (den == 0) return 0;
+    if (num < den) return 0;
+
+    uint64_t quot = 0;
+    int shift = 0;
+
+    /* den <= num >> 1 guarantees den << 1 <= num, so this cannot overflow */
+    while (den <= (num >> 1) && shift < 63) {
+        den <<= 1;
+        shift++;
+    }
+
+    while (shift >= 0) {
+        if (num >= den) {
+            num -= den;
+            quot |= (1ULL << shift);
+        }
+        den >>= 1;
+        shift--;
+    }
+
+    return quot;
+}
+
 /* Memory Manager Error Function */
 OSErr MemError(void) {
     return gMemError;

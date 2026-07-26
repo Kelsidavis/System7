@@ -4,6 +4,7 @@
  */
 
 #include "SystemTypes.h"
+#include "System71StdLib.h"   /* udiv64 - no libgcc in the freestanding build */
 #include "TimeManager/TimeBase.h"
 #include "TimeManager/TimeManager.h"
 #ifdef __i386__
@@ -11,47 +12,6 @@
 #endif
 
 /* Simple 64-bit division for 32-bit builds */
-/* 64-bit unsigned division.
- *
- * Needed because a freestanding 32-bit build has no libgcc __udivdi3.
- *
- * The previous implementation positioned its quotient bit at the divisor's
- * most-significant bit and then only ever shifted the divisor right. Restoring
- * division requires first shifting the divisor LEFT until it aligns with the
- * dividend; without that step the quotient is capped near the divisor's own
- * magnitude, so any division where the result is large silently saturates.
- * 100/3 returned 3, and 1000000/16667 returned 32767 instead of 59.
- *
- * Everything time-related runs through this: TickCount() is
- * udiv64(elapsed_us, 16667), so the tick counter saturated instead of counting,
- * which in turn broke frequency calibration, the ns/us conversion factors, and
- * every timeout expressed in ticks.
- */
-static uint64_t udiv64(uint64_t num, uint64_t den) {
-    if (den == 0) return 0;
-    if (num < den) return 0;
-
-    uint64_t quot = 0;
-    int shift = 0;
-
-    /* Align the divisor with the dividend. The num>>1 guard keeps the shift
-     * from overflowing den. */
-    while (den <= (num >> 1) && shift < 63) {
-        den <<= 1;
-        shift++;
-    }
-
-    while (shift >= 0) {
-        if (num >= den) {
-            num -= den;
-            quot |= (1ULL << shift);
-        }
-        den >>= 1;
-        shift--;
-    }
-    return quot;
-}
-
 /* Time base state */
 static struct {
     uint64_t bootCounter;

@@ -249,6 +249,18 @@ void PLstrcat(unsigned char* dst, const unsigned char* src);
 /* Pointer-to-unsigned-long helper to avoid %p format pitfalls */
 #define P2UL(p) ((unsigned long)(uintptr_t)(p))
 
+/*
+ * udiv64 - 64-bit unsigned division.
+ *
+ * The 32-bit freestanding build has no libgcc __udivdi3, so 64-bit division is
+ * done by hand. This used to be copy-pasted into four files, each carrying a
+ * comment asking the reader to keep it in sync with the others; the original
+ * version forgot to shift the divisor left to align it and so saturated instead
+ * of dividing (100/3 gave 3, 1000000/16667 gave 32767), which meant TickCount
+ * stopped counting. Keep one copy, and keep it covered by make test-stdlib.
+ */
+uint64_t udiv64(uint64_t num, uint64_t den);
+
 /* System utility functions */
 #include "SystemTypes.h"
 #ifndef HiWord
