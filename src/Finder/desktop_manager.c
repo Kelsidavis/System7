@@ -245,6 +245,31 @@ static void Finder_EraseRegionExcludingRect(RgnHandle baseRgn, const Rect* exclu
     }
 }
 
+/*
+ * NOTE on why the desktop erase can only hold back one window.
+ *
+ * The obvious implementation is to copy the paint region and subtract each
+ * visible window's structure region with DiffRgn, leaving the genuinely exposed
+ * desktop. That does not work here: QuickDraw/Regions.c DiffRgn is a stub whose
+ * final statement is CopyRgn(srcRgnA, dstRgn), so it returns the first operand
+ * unchanged and subtracts nothing. Attempting it erases the whole desktop
+ * including the windows, which then never get repainted.
+ *
+ * The underlying reason is that struct Region here carries only rgnSize and
+ * rgnBBox - regions are effectively rectangles, and the difference of two
+ * rectangles is not a rectangle, so it cannot be represented. Fixing this needs
+ * a real region representation (scanline or rectangle-list) plus matching
+ * rendering, not a patch to DiffRgn.
+ *
+ * Consequences worth knowing about:
+ *   - Only the frontmost window can be protected from the desktop erase, so a
+ *     second overlapping window can still be painted over.
+ *   - DragWindow computes its uncovered-desktop region with
+ *     DiffRgn(oldRgn, newRgn, uncoveredRgn), which therefore yields the entire
+ *     old window rectangle rather than just the newly exposed part. That is a
+ *     strong candidate for the desktop artifacts seen after dragging a window.
+ */
+
 static bool EnsureIconSystemInitialized(void)
 {
     static bool sIconInitAttempted = false;
@@ -547,6 +572,10 @@ static void Finder_DeskHook(RgnHandle invalidRgn)
         }
 
         if (!EmptyRgn(paintRgn)) {
+            /* Only the frontmost window is held back, because rectangle
+             * arithmetic is all that is available here - see the note on
+             * DiffRgn in Finder_EraseDesktopExcludingWindows. A second visible
+             * window overlapping the erase region will still be painted over. */
             Rect excludeBounds;
             WindowPtr front = Finder_GetFrontVisibleWindow();
             if (Finder_GetWindowBounds(front, &excludeBounds)) {
