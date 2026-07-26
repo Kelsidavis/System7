@@ -76,6 +76,42 @@ Verified in QEMU on all four paths: boot draw (direct framebuffer), the
 post-selection redraw (GWorld — byte-identical to the pre-fix build), the About
 window, and the Apple menu. Untested on hardware.
 
+### ⚠️ The full menu item renderer is dead code (MENU-001) — PARTLY ADDRESSED
+
+`MenuDisplay.c` has a complete System 7 item renderer — `DrawMenu` →
+`DrawMenuItem`, with `DrawMenuSeparator`, marks, icons, command keys and
+disabled styling. **Nothing calls `DrawMenu`.** The menus you see are drawn by
+`MenuTrack.c`'s `DrawMenuOld`, a hand-rolled framebuffer routine that drew every
+item as plain left-aligned text and nothing else.
+
+Two bugs fell out of this, both now fixed:
+
+- **Dividers rendered as text.** `AppendMenu`'s metacharacters were unimplemented
+  except for a trailing `/X`, so the Finder's `"\002(-"` dividers kept the `(`
+  and were stored as the two-character item `"(-"` rather than `"-"`.
+  `IsSeparatorText` (which requires a length-1 `-`) failed, and the Apple menu
+  drew a literal `(` and `-` side by side — which reads on screen as a **left
+  arrow**. `ParseItemMeta` now implements the documented set: `(` disable,
+  `^n` icon, `!c` mark, `<B/I/U/O/S` style, `/c` command key. Per Inside
+  Macintosh, `SetMenuItemText` deliberately does *not* parse these.
+- **`DrawMenuOld` had no divider or command-key drawing.** It now draws dividers
+  as a grey line across the menu and right-aligns command keys, matching
+  System 7.1.
+
+Still outstanding:
+
+- `DrawMenu`/`DrawMenuItem` in `MenuDisplay.c` remain unreachable. The real fix
+  is to route menu drawing through them rather than keep extending
+  `DrawMenuOld`. Their `itemFlags` are now populated correctly, so they are
+  ready to use.
+- **The ⌘ cloverleaf does not render.** Command keys draw as the bare letter
+  because `FM_DrawChicagoCharInternal` rejects `ch < 32` and the bundled Chicago
+  font only covers ASCII 32–126. Char 0x11 is the cloverleaf in the real font;
+  adding that glyph would complete it.
+- Submenu items show a literal `>` (`Control Panels>`) instead of the filled
+  right-pointing triangle System 7 draws at the right edge.
+- Disabled and separator items may still highlight during tracking.
+
 ### ⛔ 34 source files are never compiled, and one live file lies about it (ARCH-002)
 
 Editing code that isn't built changes nothing about the running system. This has

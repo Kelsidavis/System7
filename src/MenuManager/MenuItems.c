@@ -118,36 +118,80 @@ static MenuExtData* GetMenuExtData(MenuHandle theMenu) {
 }
 
 /*
- * ParseItemText - Parse item text and extract command key
+ * ParseItemMeta - Parse AppendMenu metacharacters out of an item string
  *
- * Parses "/X" suffix where X is the command key.
- * Modifies itemText to remove suffix, returns lowercase command key.
+ * Inside Macintosh: Toolbox Essentials defines these for AppendMenu and
+ * InsertMenuItem. They may appear anywhere in the item and are stripped from
+ * the displayed text:
+ *
+ *   (       disable the item
+ *   ^n      item icon (n is the icon number)
+ *   !c      item mark character
+ *   <B<I<U<O<S   style: bold, italic, underline, outline, shadow
+ *   /c      command-key equivalent
+ *
+ * Only "/c" used to be handled, and only as a trailing suffix. That left "("
+ * sitting in the text, so the Finder's "\002(-" dividers were stored as the
+ * two-character item "(-" instead of the one-character "-". IsSeparatorText
+ * then failed and the Apple menu drew a literal "(" and "-" side by side, which
+ * reads on screen as a left arrow where System 7's dashed divider belongs.
+ *
+ * Fills in item fields; caller must have set the defaults first.
  */
-static char ParseItemText(Str255 itemText) {
-    short len;
-    char cmdKey = 0;
+static void ParseItemMeta(Str255 itemText, MenuItemRec* item) {
+    unsigned char out[256];
+    short len = itemText[0];
+    short outLen = 0;
+    short i;
 
-    len = itemText[0];
+    for (i = 1; i <= len; i++) {
+        unsigned char c = itemText[i];
 
-    /* Check for /X suffix (minimum length 2: "X/Y") */
-    /* In Pascal strings: itemText[len] is last char, itemText[len-1] is second-to-last */
-    if (len >= 2 && itemText[len] != '/' && itemText[len - 1] == '/') {
-        /* Extract command key (last character after the slash) */
-        cmdKey = itemText[len];
+        switch (c) {
+        case '(':
+            item->enabled = 0;
+            continue;
 
-        /* Convert to lowercase */
-        if (cmdKey >= 'A' && cmdKey <= 'Z') {
-            cmdKey = cmdKey - 'A' + 'a';
+        case '^':
+            if (i < len) item->iconID = itemText[++i];
+            continue;
+
+        case '!':
+            if (i < len) item->mark = (char)itemText[++i];
+            continue;
+
+        case '<':
+            if (i < len) {
+                switch (itemText[++i]) {
+                case 'B': item->style |= bold;      break;
+                case 'I': item->style |= italic;    break;
+                case 'U': item->style |= underline; break;
+                case 'O': item->style |= outline;   break;
+                case 'S': item->style |= shadow;    break;
+                default: break;
+                }
+            }
+            continue;
+
+        case '/':
+            if (i < len) {
+                char key = (char)itemText[++i];
+                if (key >= 'A' && key <= 'Z') key = key - 'A' + 'a';
+                item->cmdKey = key;
+            }
+            continue;
+
+        default:
+            break;
         }
 
-        /* Remove /X from text */
-        itemText[0] = len - 2;
-
-        MENU_LOG_TRACE("Parsed command key: '%c' from item '%.*s'\n",
-                     cmdKey, len - 2, &itemText[1]);
+        if (outLen < 255) {
+            out[++outLen] = c;
+        }
     }
 
-    return cmdKey;
+    out[0] = (unsigned char)outLen;
+    memcpy(itemText, out, (size_t)outLen + 1);
 }
 
 /*
@@ -203,22 +247,27 @@ void AppendMenu(MenuHandle menu, ConstStr255Param data) {
             if (extData->itemCount < MAX_MENU_ITEMS) {
                 item = &extData->items[extData->itemCount];
 
-                /* Parse command key and remove /X suffix */
-                item->cmdKey = ParseItemText(itemText);
+                /* Defaults first - ParseItemMeta only overrides what the
+                 * metacharacters actually specify. */
+                item->cmdKey = 0;
+                item->enabled = 1;
+                item->checked = 0;
+                item->mark = 0;
+                item->iconID = 0;
+                item->style = normal;
+                item->submenuID = 0;
+
+                /* Strip metacharacters, filling in the fields they set */
+                ParseItemMeta(itemText, item);
 
                 /* Copy cleaned text */
                 memcpy(item->text, itemText, itemText[0] + 1);
 
                 /* Check for separator */
                 item->isSeparator = IsSeparatorText(itemText);
-
-                /* Default properties */
-                item->enabled = !item->isSeparator; /* Separators disabled */
-                item->checked = 0;
-                item->mark = 0;
-                item->iconID = 0;
-                item->style = normal;
-                item->submenuID = 0;
+                if (item->isSeparator) {
+                    item->enabled = 0;  /* dividers are never selectable */
+                }
 
                 extData->itemCount++;
 
@@ -268,15 +317,20 @@ void InsertMenuItem(MenuHandle theMenu, ConstStr255Param itemString, short after
 
     /* Insert new item */
     item = &extData->items[afterItem];
-    item->cmdKey = ParseItemText(itemText);
-    memcpy(item->text, itemText, itemText[0] + 1);
-    item->isSeparator = IsSeparatorText(itemText);
-    item->enabled = !item->isSeparator;
+    item->cmdKey = 0;
+    item->enabled = 1;
     item->checked = 0;
     item->mark = 0;
     item->iconID = 0;
     item->style = normal;
     item->submenuID = 0;
+
+    ParseItemMeta(itemText, item);
+    memcpy(item->text, itemText, itemText[0] + 1);
+    item->isSeparator = IsSeparatorText(itemText);
+    if (item->isSeparator) {
+        item->enabled = 0;
+    }
 
     extData->itemCount++;
 
@@ -363,33 +417,32 @@ void GetMenuItemText(MenuHandle theMenu, short item, Str255 itemString) {
 
 /*
  * SetMenuItemText - Set item text
+ *
+ * Deliberately does NOT interpret metacharacters. Inside Macintosh is explicit
+ * that SetItem takes the string literally, which is how an application safely
+ * sets an item to text containing '(' or '/' - a filename, say. Only
+ * AppendMenu and InsertMenuItem parse. Command key, mark and style already set
+ * on the item are left alone.
  */
 void SetMenuItemText(MenuHandle theMenu, short item, ConstStr255Param itemString) {
     MenuExtData* extData;
-    Str255 itemText;
 
     if (!theMenu || !itemString || item < 1) return;
 
     extData = GetMenuExtData(theMenu);
     if (!extData || item > extData->itemCount) return;
 
-    /* Copy and parse - unsigned char already limited to 255 max */
+    /* unsigned char already limited to 255 max */
     unsigned char textLen = itemString[0];
-    itemText[0] = textLen;
+    extData->items[item - 1].text[0] = textLen;
     if (textLen > 0) {
-        memcpy(&itemText[1], &itemString[1], textLen);
+        memcpy(&extData->items[item - 1].text[1], &itemString[1], textLen);
     }
-    extData->items[item - 1].cmdKey = ParseItemText(itemText);
-    /* Copy parsed text - unsigned char already limited to 255 max */
-    unsigned char parsedLen = itemText[0];
-    extData->items[item - 1].text[0] = parsedLen;
-    if (parsedLen > 0) {
-        memcpy(&extData->items[item - 1].text[1], &itemText[1], parsedLen);
-    }
-    extData->items[item - 1].isSeparator = IsSeparatorText(itemText);
+    extData->items[item - 1].isSeparator =
+        IsSeparatorText(extData->items[item - 1].text);
 
     MENU_LOG_TRACE("SetMenuItemText: item %d = '%.*s'\n",
-                 item, itemText[0], &itemText[1]);
+                 item, textLen, &itemString[1]);
 }
 
 /*

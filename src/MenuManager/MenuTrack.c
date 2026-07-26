@@ -25,6 +25,8 @@ extern Boolean Button(void);          /* Check if mouse button is pressed */
 extern void GetMouse(Point* mouseLoc);
 extern void MoveTo(short h, short v);
 extern void DrawMenuBar(void);        /* Redraw the menu bar */
+extern Boolean CheckMenuItemSeparator(MenuHandle theMenu, short item);
+extern void GetItemCmd(MenuHandle theMenu, short item, short* cmdChar);
 
 /* Forward declarations for static functions */
 static void DrawHighlightRect(short left, short top, short right, short bottom, Boolean highlight);
@@ -141,10 +143,37 @@ static void DrawMenuOld(MenuHandle theMenu, short left, short top, short itemCou
     for (short i = 1; i <= maxItems; i++) {
         char itemText[64];
         GetItemText(theMenu, i, itemText);
-        if (itemText[0] == 0) continue;
 
         short itemTop = top + 2 + (i - 1) * lineHeight;
+
+        /* A divider is drawn as a grey line across the menu, not as its text.
+         * This renderer previously drew every item as plain text, so the
+         * Finder's dividers appeared as a literal "-" (and, before the
+         * metacharacter fix, as "(-" - which reads on screen as a left arrow).
+         * MenuDisplay.c has a full item renderer with dividers, marks, icons
+         * and command keys, but nothing calls it; this is the live path. */
+        if (CheckMenuItemSeparator(theMenu, i)) {
+            DrawMenuRect(left + 1, itemTop + lineHeight / 2,
+                         left + menuWidth - 1, itemTop + lineHeight / 2 + 1,
+                         0xFF808080);
+            continue;
+        }
+
+        if (itemText[0] == 0) continue;
+
         DrawMenuItemText(itemText, left + 4, itemTop + 12);
+
+        /* Command-key equivalent, right aligned as in System 7 */
+        short cmdChar = 0;
+        GetItemCmd(theMenu, i, &cmdChar);
+        if (cmdChar != 0) {
+            char cmdBuf[3];
+            cmdBuf[0] = 0x11;                    /* Chicago cloverleaf glyph */
+            cmdBuf[1] = (char)((cmdChar >= 'a' && cmdChar <= 'z')
+                               ? cmdChar - 'a' + 'A' : cmdChar);
+            cmdBuf[2] = 0;
+            DrawMenuItemText(cmdBuf, left + menuWidth - 28, itemTop + 12);
+        }
     }
 
     /* Restore original port */

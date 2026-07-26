@@ -469,6 +469,26 @@ void DrawMenu(MenuHandle theMenu, const Rect* menuRect, short hiliteItem)
         GetItemStyle(theMenu, i, &tempStyle);
         itemDrawInfo.textStyle = tempStyle;
 
+        /* Describe the item to DrawMenuItem. Only kMenuItemSelected was ever
+         * set, so every other branch in DrawMenuItem was unreachable: dividers
+         * drew as a literal "-" instead of the grey line, disabled items drew
+         * in solid black, and marks and icons never appeared at all. */
+        if (CheckMenuItemSeparator(theMenu, i)) {
+            itemDrawInfo.itemFlags |= kMenuItemIsSeparator;
+        }
+        if (!CheckMenuItemEnabled(theMenu, i)) {
+            itemDrawInfo.itemFlags |= kMenuItemDisabled;
+        }
+        if (itemDrawInfo.markChar != 0) {
+            itemDrawInfo.itemFlags |= kMenuItemChecked;
+        }
+        if (itemDrawInfo.iconID != 0) {
+            itemDrawInfo.itemFlags |= kMenuItemHasIcon;
+        }
+        if (itemDrawInfo.cmdChar != 0) {
+            itemDrawInfo.itemFlags |= kMenuItemHasCmdKey;
+        }
+
         DrawMenuItem(&itemDrawInfo);
     }
 
