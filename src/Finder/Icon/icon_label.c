@@ -175,16 +175,36 @@ void IconLabel_Measure(const char* name, int* outWidth, int* outHeight) {
     *outHeight = 15;  /* Chicago font actual height */
 }
 
-/* Draw label with white background */
-void IconLabel_Draw(const char* name, int cx, int topY, bool selected) {
-    if (!name) {
-        return;
+/*
+ * The widest a label may be before it wraps.
+ *
+ * The folder icon grid uses an 80px cell with a 10px gutter (IW/SH in
+ * folder_window.c), so a label wider than the cell runs into its neighbour -
+ * "Apple Menu Items" and "PrintMonitor Documents" in the System Folder ran
+ * straight through the names either side of them. System 7 wraps an icon name
+ * onto a second line rather than letting it collide.
+ */
+#define kIconLabelMaxWidth 80
+#define kIconLabelLineStep 13
+
+/* Width of the first `len` characters, using the same metrics as
+ * IconLabel_Measure. */
+static int MeasureRun(const char* s, int len) {
+    int width = 0;
+    for (int i = 0; i < len; i++) {
+        char ch = s[i];
+        if (ch >= 32 && ch <= 126) {
+            width += chicago_ascii[ch - 32].bit_width + 1;
+            if (ch == ' ') width += 3;
+        }
     }
+    return width;
+}
 
-    int len = strlen(name);
-    int textWidth, textHeight;
-    IconLabel_Measure(name, &textWidth, &textHeight);
-
+/* Draw one line of label text, centred on cx and clamped inside the port. */
+static void DrawLabelLine(const char* s, int len, int cx, int topY, bool selected) {
+    int textWidth = MeasureRun(s, len);
+    int textHeight = 15;
     int textX = cx - (textWidth / 2);
     int padding = 2;
 
@@ -226,7 +246,7 @@ void IconLabel_Draw(const char* name, int cx, int topY, bool selected) {
     int currentX = textX;
 
     for (int i = 0; i < len; i++) {
-        char ch = name[i];
+        char ch = s[i];
         if (ch >= 32 && ch <= 126) {
             /* CRITICAL FIX: Access struct fields directly instead of struct assignment */
             const ChicagoCharInfo* infoPtr = &chicago_ascii[ch - 32];
@@ -235,6 +255,70 @@ void IconLabel_Draw(const char* name, int cx, int topY, bool selected) {
             if (ch == ' ') currentX += 3;  /* Extra space between words */
         }
     }
+}
+
+/*
+ * Draw an icon label, wrapping onto a second line when it is too wide.
+ *
+ * System 7 breaks a long icon name at a space and centres both halves under the
+ * icon. If there is no space to break at - or a half is still too wide - the
+ * line is cut and given a trailing ellipsis, which is what the Finder does for
+ * a single long word.
+ */
+void IconLabel_Draw(const char* name, int cx, int topY, bool selected) {
+    if (!name) {
+        return;
+    }
+
+    int len = strlen(name);
+    if (MeasureRun(name, len) <= kIconLabelMaxWidth) {
+        DrawLabelLine(name, len, cx, topY, selected);
+        return;
+    }
+
+    /* Break at the last space that still fits on the first line - ordinary
+     * greedy wrapping, so "Apple Menu Items" becomes "Apple Menu" / "Items"
+     * rather than being balanced across the two lines. */
+    int best = -1;
+    for (int i = 1; i < len; i++) {
+        if (name[i] != ' ') continue;
+        if (MeasureRun(name, i) > kIconLabelMaxWidth) break;
+        best = i;
+    }
+
+    if (best < 0) {
+        /* One long word: cut it and mark the cut with an ellipsis. */
+        char cut[64];
+        int n = 0;
+        while (n < len && n < (int)sizeof(cut) - 4 &&
+               MeasureRun(name, n + 1) <= kIconLabelMaxWidth - 12) {
+            cut[n] = name[n];
+            n++;
+        }
+        cut[n++] = '.'; cut[n++] = '.'; cut[n++] = '.';
+        DrawLabelLine(cut, n, cx, topY, selected);
+        return;
+    }
+
+    /* Second line may still be too long for one line; cut it the same way. */
+    const char* second = name + best + 1;
+    int secondLen = len - best - 1;
+    if (MeasureRun(second, secondLen) > kIconLabelMaxWidth) {
+        char cut[64];
+        int n = 0;
+        while (n < secondLen && n < (int)sizeof(cut) - 4 &&
+               MeasureRun(second, n + 1) <= kIconLabelMaxWidth - 12) {
+            cut[n] = second[n];
+            n++;
+        }
+        cut[n++] = '.'; cut[n++] = '.'; cut[n++] = '.';
+        DrawLabelLine(name, best, cx, topY, selected);
+        DrawLabelLine(cut, n, cx, topY + kIconLabelLineStep, selected);
+        return;
+    }
+
+    DrawLabelLine(name, best, cx, topY, selected);
+    DrawLabelLine(second, secondLen, cx, topY + kIconLabelLineStep, selected);
 }
 
 /* Draw icon with label - main entry point for icon+label rendering */
