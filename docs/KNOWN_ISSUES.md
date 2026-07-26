@@ -108,9 +108,9 @@ Still outstanding:
   because `FM_DrawChicagoCharInternal` rejects `ch < 32` and the bundled Chicago
   font only covers ASCII 32–126. Char 0x11 is the cloverleaf in the real font;
   adding that glyph would complete it.
-- Submenu items show a literal `>` (`Control Panels>`) instead of the filled
-  right-pointing triangle System 7 draws at the right edge.
 - Disabled and separator items may still highlight during tracking.
+- The Control Panels submenu is linked and drawn as hierarchical, but selecting
+  it does not open the submenu yet.
 
 ### ⛔ 34 source files are never compiled, and one live file lies about it (ARCH-002)
 

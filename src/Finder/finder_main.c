@@ -236,6 +236,25 @@ static OSErr SetupMenus(void)
     AppendMenu(gAppleMenu, "\002(-");
     GetLocalizedString(menuStr, kSTRListFinderAppleMenu, kStrControlPanelsSubmenu);
     AppendMenu(gAppleMenu, menuStr);
+    {
+        /* System 7 marks a hierarchical item by linking it to a submenu; the
+         * MDEF then draws a filled right-pointing triangle at the right edge.
+         * The localized strings carry a trailing '>' as a stand-in for that
+         * triangle, which showed up literally on screen ("Control Panels>").
+         * Strip it here rather than in 38 translation files, and set the real
+         * link so the triangle is drawn from the menu data. */
+        extern SInt16 CountMenuItems(MenuHandle theMenu);
+        extern void SetItemSubmenu(MenuHandle theMenu, short item, short submenuID);
+        Str255 cpText;
+        short cpItem = CountMenuItems(gAppleMenu);
+
+        GetMenuItemText(gAppleMenu, cpItem, cpText);
+        if (cpText[0] > 0 && cpText[cpText[0]] == '>') {
+            cpText[0]--;
+            SetMenuItemText(gAppleMenu, cpItem, cpText);
+        }
+        SetItemSubmenu(gAppleMenu, cpItem, 134);
+    }
     GetLocalizedString(menuStr, kSTRListFinderAppleMenu, kStrNotepad);
     AppendMenu(gAppleMenu, menuStr);
     AppendMenu(gAppleMenu, "\002(-");

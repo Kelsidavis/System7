@@ -27,6 +27,7 @@ extern void MoveTo(short h, short v);
 extern void DrawMenuBar(void);        /* Redraw the menu bar */
 extern Boolean CheckMenuItemSeparator(MenuHandle theMenu, short item);
 extern void GetItemCmd(MenuHandle theMenu, short item, short* cmdChar);
+extern void GetItemSubmenu(MenuHandle theMenu, short item, short* submenuID);
 
 /* Forward declarations for static functions */
 static void DrawHighlightRect(short left, short top, short right, short bottom, Boolean highlight);
@@ -162,6 +163,23 @@ static void DrawMenuOld(MenuHandle theMenu, short left, short top, short itemCou
         if (itemText[0] == 0) continue;
 
         DrawMenuItemText(itemText, left + 4, itemTop + 12);
+
+        /* A hierarchical item gets a filled right-pointing triangle at the
+         * right edge, as the System 7 MDEF draws - not a literal '>'. */
+        short subID = 0;
+        GetItemSubmenu(theMenu, i, &subID);
+        if (subID != 0) {
+            short tx = left + menuWidth - 12;
+            short cy = itemTop + lineHeight / 2;
+            for (short r = 0; r < 9; r++) {
+                short d = r - 4;
+                if (d < 0) d = -d;
+                short w = 5 - d;
+                if (w <= 0) continue;
+                DrawMenuRect(tx, cy - 4 + r, tx + w, cy - 3 + r, 0xFF000000);
+            }
+            continue;   /* hierarchical items carry no command key */
+        }
 
         /* Command-key equivalent, right aligned as in System 7 */
         short cmdChar = 0;
