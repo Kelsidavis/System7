@@ -455,14 +455,27 @@ char* strcpy(char* dest, const char* src) {
     return dest;
 }
 
+/*
+ * strncpy - copy at most n bytes, NUL-padding to exactly n.
+ *
+ * The previous version wrote n+1 bytes whenever src was shorter than n: the
+ * copy loop exited on the terminator without decrementing n, so the padding
+ * loop then wrote n more bytes *after* the NUL it had just stored. A
+ * strncpy(buf, "AB", 64) therefore ran one byte past a 64-byte buffer and
+ * cleared the first byte of whatever followed - which, for an array of name
+ * buffers, silently emptied the next entry.
+ */
 char* strncpy(char* dest, const char* src, size_t n) {
-    char* d = dest;
-    while (n && (*d++ = *src++)) {
-        n--;
+    size_t i = 0;
+
+    while (i < n && src[i]) {
+        dest[i] = src[i];
+        i++;
     }
-    while (n--) {
-        *d++ = '\0';
+    while (i < n) {
+        dest[i++] = '\0';
     }
+
     return dest;
 }
 
