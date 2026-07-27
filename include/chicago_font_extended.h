@@ -77,10 +77,14 @@ static inline unsigned char Chicago_AsciiFallback(unsigned char ch)
         case 0xDF: return '.';              /* middle dot */
         case 0xD6: return '/';              /* division sign */
         case 0xF3: return 'i';              /* dotless i */
-        case 0xCE: return 'O';              /* OE ligature */
-        case 0xCF: return 'o';              /* oe ligature */
-        case 0xA0: return '+';              /* dagger */
-        case 0xC1: return '!';              /* inverted exclamation */
+
+        /*
+         * Nothing else gets one. A dagger is not a plus sign and an OE
+         * ligature is not the letter O; substituting them would put a
+         * character on screen that the string never asked for, which is a
+         * worse lie than the gap it replaces. Those still draw as nothing
+         * until Chicago's own glyphs are available.
+         */
         default:   return 0;
     }
 }
