@@ -352,15 +352,19 @@ static OSErr M68K_InstallTrap(CPUAddressSpace as, TrapNumber trapNum,
                               CPUTrapHandler handler, void* context)
 {
     M68KAddressSpace* mas = (M68KAddressSpace*)as;
-
-    trapNum &= 0x00FF;
+    int slot;
 
     if (!mas) {
         return paramErr;
     }
 
-    mas->trapHandlers[trapNum] = handler;
-    mas->trapContexts[trapNum] = context;
+    slot = M68K_TrapSlot((UInt16)trapNum);
+    if (slot < 0) {
+        return paramErr;
+    }
+
+    mas->trapHandlers[slot] = handler;
+    mas->trapContexts[slot] = context;
 
     return noErr;
 }
@@ -1238,7 +1242,7 @@ static const M68KTestCase kM68KTests[] = {
 };
 
 
-/* The A-line trap the test installs, and proof that it ran. */
+/* The A-line traps the test installs, and proof of which one ran. */
 static Boolean gM68KTrapFired = false;
 
 static OSErr M68K_TestTrapHandler(void* context, CPUAddr* pc, CPUAddr* registers)
@@ -1247,6 +1251,15 @@ static OSErr M68K_TestTrapHandler(void* context, CPUAddr* pc, CPUAddr* registers
     (void)pc;                      /* leave the PC where the trap left it */
     gM68KTrapFired = true;
     registers[3] = 0x5A5A5A5A;     /* a handler can change the registers */
+    return noErr;
+}
+
+/* Installed on a second Toolbox trap sharing the first one's low byte. */
+static OSErr M68K_TestOtherTrapHandler(void* context, CPUAddr* pc, CPUAddr* registers)
+{
+    (void)context;
+    (void)pc;
+    registers[4] = 0xC3C3C3C3;
     return noErr;
 }
 
@@ -1260,8 +1273,12 @@ static void M68K_SelfTestTrap(const ICPUBackend* be, UInt32 base)
 {
     extern void serial_puts(const char*);
 
-    /* MOVEQ #7,D0 ; _Debugger ($A9FF) */
-    static const UInt8 prog[] = { 0x70, 0x07, 0xA9, 0xFF };
+    /* MOVEQ #7,D0 ; $A9FF ; $A8FF
+     *
+     * The two traps share a low byte and differ only above it. They used to
+     * be the same table slot, so the second would have run the first's
+     * handler. */
+    static const UInt8 prog[] = { 0x70, 0x07, 0xA9, 0xFF, 0xA8, 0xFF };
 
     CPUAddressSpace as = NULL;
     M68KAddressSpace* mas;
@@ -1272,7 +1289,8 @@ static void M68K_SelfTestTrap(const ICPUBackend* be, UInt32 base)
     gM68KTrapFired = false;
 
     if (be->WriteMemory(as, base, prog, sizeof(prog)) != noErr ||
-        be->InstallTrap(as, 0xA9FF, M68K_TestTrapHandler, NULL) != noErr) {
+        be->InstallTrap(as, 0xA9FF, M68K_TestTrapHandler, NULL) != noErr ||
+        be->InstallTrap(as, 0xA8FF, M68K_TestOtherTrapHandler, NULL) != noErr) {
         serial_puts("[M68K] a-line trap: could not set up\n");
         be->DestroyAddressSpace(as);
         return;
@@ -1283,14 +1301,19 @@ static void M68K_SelfTestTrap(const ICPUBackend* be, UInt32 base)
     mas->halted = false;
 
     M68K_Step(mas);   /* MOVEQ */
-    M68K_Step(mas);   /* the trap */
+    M68K_Step(mas);   /* $A9FF */
+    M68K_Step(mas);   /* $A8FF */
 
     if (!gM68KTrapFired) {
         serial_puts("[M68K] a-line trap FAILED: handler never ran\n");
-    } else if (mas->regs.d[3] != 0x5A5A5A5A || mas->regs.d[0] != 7) {
+    } else if (mas->regs.d[0] != 7 ||
+               mas->regs.d[3] != 0x5A5A5A5A ||
+               mas->regs.d[4] != 0xC3C3C3C3) {
         snprintf(b, sizeof(b),
-                 "[M68K] a-line trap FAILED: D0=%08x D3=%08x (want 00000007 5a5a5a5a)\n",
-                 (unsigned)mas->regs.d[0], (unsigned)mas->regs.d[3]);
+                 "[M68K] a-line trap FAILED: D0=%08x D3=%08x D4=%08x"
+                 " (want 00000007 5a5a5a5a c3c3c3c3)\n",
+                 (unsigned)mas->regs.d[0], (unsigned)mas->regs.d[3],
+                 (unsigned)mas->regs.d[4]);
         serial_puts(b);
     }
 

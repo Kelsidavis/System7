@@ -753,11 +753,11 @@ void M68K_Op_TRAP(M68KAddressSpace* as, UInt16 opcode)
 
     serial_printf("[M68K] TRAP $A%03X at PC=0x%08X\n", trap_num, saved_pc - 2);
 
-    /* Look up trap handler */
-    if (as->trapHandlers[trap_num & 0xFF]) {
-        /* Call handler */
-        err = as->trapHandlers[trap_num & 0xFF](
-            as->trapContexts[trap_num & 0xFF],
+    /* Look up trap handler, through the same slot mapping that installed it */
+    int slot = M68K_TrapSlot(opcode);
+    if (slot >= 0 && as->trapHandlers[slot]) {
+        err = as->trapHandlers[slot](
+            as->trapContexts[slot],
             &as->regs.pc,
             as->regs.d  /* Pass registers array */
         );

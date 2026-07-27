@@ -64,6 +64,27 @@ typedef struct M68KRegs {
 #define M68K_LOW_MEM_SIZE   0x10000     /* 64KB low memory (always present) */
 #define M68K_LOW_MEM_PAGES  16          /* 64KB / 4KB */
 
+/* Trap dispatch table sizes - see trapHandlers below. */
+#define M68K_OS_TRAP_SLOTS       256    /* $A000-$A7FF, low 8 bits */
+#define M68K_TOOLBOX_TRAP_SLOTS  1024   /* $A800-$AFFF, low 10 bits */
+#define M68K_TRAP_SLOTS   (M68K_OS_TRAP_SLOTS + M68K_TOOLBOX_TRAP_SLOTS)
+
+/*
+ * Which slot a trap word dispatches through, or -1 if it is not a trap.
+ * Installing a handler and reaching it both go through this, so the two
+ * cannot disagree about where a trap lives.
+ */
+static inline int M68K_TrapSlot(UInt16 trapWord)
+{
+    if ((trapWord & 0xF000) != 0xA000) {
+        return -1;
+    }
+    if (trapWord & 0x0800) {
+        return M68K_OS_TRAP_SLOTS + (trapWord & 0x03FF);
+    }
+    return trapWord & 0x00FF;
+}
+
 /*
  * M68K Address Space Implementation
  */
@@ -74,8 +95,16 @@ typedef struct M68KAddressSpace {
     M68KRegs regs;            /* CPU registers */
 
     /* Trap table (A-line traps 0xA000-0xAFFF) */
-    CPUTrapHandler trapHandlers[256];
-    void* trapContexts[256];
+    /* Trap dispatch tables.
+     *
+     * Bit 11 of the trap word selects the space: OS traps ($A000-$A7FF) are
+     * dispatched on their low eight bits, Toolbox traps ($A800-$AFFF) on
+     * their low ten, as on a real Macintosh. Both used to share one table of
+     * 256 indexed by the low eight bits of either, so $A9FF and $A8FF - two
+     * different Toolbox calls - were the same slot, and an OS trap could take
+     * a Toolbox trap's handler. */
+    CPUTrapHandler trapHandlers[M68K_TRAP_SLOTS];
+    void* trapContexts[M68K_TRAP_SLOTS];
 
     /* Segment tracking */
     void* codeSegments[256];
