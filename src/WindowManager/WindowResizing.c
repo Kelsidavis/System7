@@ -309,6 +309,22 @@ void SizeWindow(WindowPtr theWindow, short w, short h, Boolean fUpdate) {
         if (theWindow->strucRgn) {
             WM_InvalidateScreenRegion(theWindow->strucRgn);
         }
+
+        /*
+         * Redraw the frame at its new size.
+         *
+         * WM_InvalidateScreenRegion above adds to each window's updateRgn,
+         * which is what update events redraw - and an update event redraws
+         * content. The frame is the Window Manager's to draw, so nothing
+         * above puts it back: a resized window kept its old content and lost
+         * its title bar, its border and its grow box, with whatever had been
+         * behind it still showing through where the frame used to be.
+         *
+         * PaintOne draws the frame and erases the content area under it; the
+         * update events just queued then fill the content back in.
+         */
+        extern void PaintOne(WindowPtr window, RgnHandle clobberedRgn);
+        PaintOne(theWindow, theWindow->strucRgn);
     }
 
     /* Update window visibility */

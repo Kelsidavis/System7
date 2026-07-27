@@ -4,23 +4,25 @@ This document tracks known issues, workarounds, and technical debt in the System
 
 ## Open Issues
 
-### 🐞 Resizing a document window loses its frame
+### ⚠️ A window behind a resized one does not repaint where it is exposed
 
-Dragging the grow box on SimpleText's window enlarges the content and
-leaves the window with no title bar, no border and no grow box - fragments
-of the old frame stay behind on the desktop. Reproduce with the window
-open and `goto 511 411; down; goto 600 470; up`.
+Resizing a window that overlaps another leaves fragments of the other
+window's frame on screen. The window being resized is now correct - it
+keeps its title bar, border and grow box - but the one behind it is not
+asked to repaint the parts of itself that are still visible, so pieces of
+its old chrome stay where they were.
 
-**It is not the ambient-port bug.** Verified by A/B: the same drag against
-the tree without the `InvalWindowRect` change produces a pixel-identical
-result, so this predates that work and is its own defect.
+Reproduce: open Read Me, click the Macintosh HD title bar to bring it
+forward, then drag its grow box from `481,411` to `620,500`. The Read Me
+window's right edge survives as a stray outline.
 
-The likely direction is that only the content is invalidated on resize -
-`STView_Resize` invalidates the window's `portRect`, which is the content
-rect and never includes the frame - so nothing asks the Window Manager to
-redraw the chrome at the new size. That is a guess and has not been
-confirmed.
-
+Half of this was the resized window's own frame never being redrawn, which
+is fixed - `SizeWindow` calls `PaintOne` now. What remains is the other
+windows: `WM_InvalidateScreenRegion` adds the resized window's old and new
+structure regions to every intersecting window's `updateRgn`, which queues
+a content update for them, and content updates do not redraw chrome. The
+same reasoning that explains the first half explains the second, so the
+fix is likely to be of the same shape.
 
 ### 🐞 Type/creator icon mapping names icons that do not exist
 
