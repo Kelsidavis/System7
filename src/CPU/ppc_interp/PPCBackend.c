@@ -37,9 +37,9 @@ static OSErr PPC_SetStacks(CPUAddressSpace as, CPUAddr usp, CPUAddr ssp);
 static OSErr PPC_InstallTrap(CPUAddressSpace as, TrapNumber trapNum,
                              CPUTrapHandler handler, void* context);
 static OSErr PPC_WriteJumpTableSlot(CPUAddressSpace as, CPUAddr slotAddr,
-                                    CPUAddr target);
+                                    SInt16 segID, CPUAddr target);
 static OSErr PPC_MakeLazyJTStub(CPUAddressSpace as, CPUAddr slotAddr,
-                                SInt16 segID, SInt16 entryIndex);
+                                SInt16 segID, UInt16 routineOffset);
 static OSErr PPC_EnterAt(CPUAddressSpace as, CPUAddr entry, CPUEnterFlags flags);
 static OSErr PPC_Relocate(CPUAddressSpace as, CPUCodeHandle code,
                           const RelocTable* relocs, CPUAddr segBase,
@@ -348,8 +348,10 @@ static OSErr PPC_InstallTrap(CPUAddressSpace as, TrapNumber trapNum,
  * WriteJumpTableSlot - Patch jump table entry
  */
 static OSErr PPC_WriteJumpTableSlot(CPUAddressSpace as, CPUAddr slotAddr,
-                                    CPUAddr target)
+                                    SInt16 segID, CPUAddr target)
 {
+    (void)segID; /* PowerPC entries have no room to keep it; 68K ones do */
+
     PPCAddressSpace* pas = (PPCAddressSpace*)as;
     extern void PPC_Write32(PPCAddressSpace* as, UInt32 addr, UInt32 value);
 
@@ -381,7 +383,7 @@ static OSErr PPC_WriteJumpTableSlot(CPUAddressSpace as, CPUAddr slotAddr,
  * MakeLazyJTStub - Create lazy-loading stub
  */
 static OSErr PPC_MakeLazyJTStub(CPUAddressSpace as, CPUAddr slotAddr,
-                                SInt16 segID, SInt16 entryIndex)
+                                SInt16 segID, UInt16 routineOffset)
 {
     PPCAddressSpace* pas = (PPCAddressSpace*)as;
     extern void PPC_Write32(PPCAddressSpace* as, UInt32 addr, UInt32 value);
@@ -405,7 +407,7 @@ static OSErr PPC_MakeLazyJTStub(CPUAddressSpace as, CPUAddr slotAddr,
     PPC_Write32(pas, slotAddr + 4, sc_insn);
     PPC_Write32(pas, slotAddr + 8, blr_insn);
 
-    (void)entryIndex; /* Stored in trap handler context */
+    (void)routineOffset; /* PowerPC segments are entered at their base */
 
     return noErr;
 }

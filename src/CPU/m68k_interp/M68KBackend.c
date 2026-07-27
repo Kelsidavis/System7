@@ -50,9 +50,9 @@ static OSErr M68K_SetStacks(CPUAddressSpace as, CPUAddr usp, CPUAddr ssp);
 static OSErr M68K_InstallTrap(CPUAddressSpace as, TrapNumber trapNum,
                               CPUTrapHandler handler, void* context);
 static OSErr M68K_WriteJumpTableSlot(CPUAddressSpace as, CPUAddr slotAddr,
-                                     CPUAddr target);
+                                     SInt16 segID, CPUAddr target);
 static OSErr M68K_MakeLazyJTStub(CPUAddressSpace as, CPUAddr slotAddr,
-                                 SInt16 segID, SInt16 entryIndex);
+                                 SInt16 segID, UInt16 routineOffset);
 static OSErr M68K_EnterAt(CPUAddressSpace as, CPUAddr entry, CPUEnterFlags flags);
 static OSErr M68K_Relocate(CPUAddressSpace as, CPUCodeHandle code,
                            const RelocTable* relocs, CPUAddr segBase,
@@ -380,7 +380,7 @@ static OSErr M68K_InstallTrap(CPUAddressSpace as, TrapNumber trapNum,
  * WriteJumpTableSlot - Patch jump table entry
  */
 static OSErr M68K_WriteJumpTableSlot(CPUAddressSpace as, CPUAddr slotAddr,
-                                     CPUAddr target)
+                                     SInt16 segID, CPUAddr target)
 {
     M68KAddressSpace* mas = (M68KAddressSpace*)as;
 
@@ -388,14 +388,25 @@ static OSErr M68K_WriteJumpTableSlot(CPUAddressSpace as, CPUAddr slotAddr,
         return paramErr;
     }
 
-    /* Write 68K JMP instruction using paged access: 0x4EF9 + 32-bit address */
+    /*
+     * Loaded form of a jump table entry:
+     *
+     *   +0: segment number
+     *   +2: 0x4EF9  JMP <abs.L>
+     *   +4: address of the routine
+     *
+     * The executable part starts at +2, exactly where the unloaded form's
+     * does, so callers are unaffected by the change.
+     */
     extern void M68K_Write8(M68KAddressSpace* as, UInt32 addr, UInt8 value);
-    M68K_Write8(mas, slotAddr + 0, 0x4E);
-    M68K_Write8(mas, slotAddr + 1, 0xF9);
-    M68K_Write8(mas, slotAddr + 2, (target >> 24) & 0xFF);
-    M68K_Write8(mas, slotAddr + 3, (target >> 16) & 0xFF);
-    M68K_Write8(mas, slotAddr + 4, (target >> 8) & 0xFF);
-    M68K_Write8(mas, slotAddr + 5, target & 0xFF);
+    M68K_Write8(mas, slotAddr + 0, (segID >> 8) & 0xFF);
+    M68K_Write8(mas, slotAddr + 1, segID & 0xFF);
+    M68K_Write8(mas, slotAddr + 2, 0x4E);
+    M68K_Write8(mas, slotAddr + 3, 0xF9);
+    M68K_Write8(mas, slotAddr + 4, (target >> 24) & 0xFF);
+    M68K_Write8(mas, slotAddr + 5, (target >> 16) & 0xFF);
+    M68K_Write8(mas, slotAddr + 6, (target >> 8) & 0xFF);
+    M68K_Write8(mas, slotAddr + 7, target & 0xFF);
 
     return noErr;
 }
@@ -404,7 +415,7 @@ static OSErr M68K_WriteJumpTableSlot(CPUAddressSpace as, CPUAddr slotAddr,
  * MakeLazyJTStub - Create lazy-loading stub
  */
 static OSErr M68K_MakeLazyJTStub(CPUAddressSpace as, CPUAddr slotAddr,
-                                 SInt16 segID, SInt16 entryIndex)
+                                 SInt16 segID, UInt16 routineOffset)
 {
     M68KAddressSpace* mas = (M68KAddressSpace*)as;
 
@@ -415,25 +426,27 @@ static OSErr M68K_MakeLazyJTStub(CPUAddressSpace as, CPUAddr slotAddr,
     extern void M68K_Write8(M68KAddressSpace* as, UInt32 addr, UInt8 value);
 
     /*
-     * Create lazy stub that triggers _LoadSeg:
+     * Unloaded form of a jump table entry:
      *
-     *   +0: 0x3F3C  MOVE.W #segID,-(SP)
-     *   +2: segID (16-bit)
-     *   +4: 0xA9F0  _LoadSeg trap
-     *   +6: 0x4E75  RTS (return after load)
+     *   +0: offset of the routine within its segment
+     *   +2: 0x3F3C  MOVE.W #segID,-(SP)
+     *   +4: segment number
+     *   +6: 0xA9F0  _LoadSeg
      *
-     * Note: entryIndex is embedded in the trap context
+     * The offset at +0 is what _LoadSeg reads to work out where in the newly
+     * mapped segment this particular entry points; a segment with several
+     * entry points has several entries, each with its own offset. It sits
+     * before the executable part rather than after so that the loaded form,
+     * which needs six bytes for a JMP plus its address, still fits in eight.
      */
-    M68K_Write8(mas, slotAddr + 0, 0x3F);
-    M68K_Write8(mas, slotAddr + 1, 0x3C);
-    M68K_Write8(mas, slotAddr + 2, (segID >> 8) & 0xFF);
-    M68K_Write8(mas, slotAddr + 3, segID & 0xFF);
-    M68K_Write8(mas, slotAddr + 4, 0xA9);
-    M68K_Write8(mas, slotAddr + 5, 0xF0);
-    M68K_Write8(mas, slotAddr + 6, 0x4E);
-    M68K_Write8(mas, slotAddr + 7, 0x75);
-
-    (void)entryIndex; /* Stored in trap handler context */
+    M68K_Write8(mas, slotAddr + 0, (routineOffset >> 8) & 0xFF);
+    M68K_Write8(mas, slotAddr + 1, routineOffset & 0xFF);
+    M68K_Write8(mas, slotAddr + 2, 0x3F);
+    M68K_Write8(mas, slotAddr + 3, 0x3C);
+    M68K_Write8(mas, slotAddr + 4, (segID >> 8) & 0xFF);
+    M68K_Write8(mas, slotAddr + 5, segID & 0xFF);
+    M68K_Write8(mas, slotAddr + 6, 0xA9);
+    M68K_Write8(mas, slotAddr + 7, 0xF0);
 
     return noErr;
 }

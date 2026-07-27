@@ -152,11 +152,12 @@ OSErr InstallA5World(SegmentLoaderContext* ctx, const CODE0Info* info)
 /*
  * BuildJumpTable - Construct jump table with lazy-loading stubs
  */
-OSErr BuildJumpTable(SegmentLoaderContext* ctx)
+OSErr BuildJumpTable(SegmentLoaderContext* ctx, const void* jtData, Size jtBytes)
 {
     OSErr err;
     CPUAddr jtBase;
     UInt16 jtCount;
+    const UInt8* src = (const UInt8*)jtData;
 
     if (!ctx || !ctx->a5World.initialized) {
         return segmentA5WorldErr;
@@ -167,51 +168,55 @@ OSErr BuildJumpTable(SegmentLoaderContext* ctx)
 
     if (jtCount == 0) {
         SEG_LOG_DEBUG("No jump table entries (jtCount=0)");
-        return noErr; /* No jump table */
+        return noErr;
+    }
+    if (!src || jtBytes < (Size)jtCount * JT_ENTRY_SIZE) {
+        SEG_LOG_ERROR("Jump table runs past the end of CODE 0");
+        return segmentBadFormat;
     }
 
-    SEG_LOG_INFO("Building %d jump table stubs at 0x%08X", jtCount, jtBase);
+    SEG_LOG_INFO("Copying %d jump table entries to 0x%08X", jtCount, jtBase);
 
     /*
-     * Initialize each jump table slot with a lazy-loading stub.
-     * The stub will trigger _LoadSeg on first call, load the segment,
-     * patch the JT entry with the real address, and retry the call.
+     * The jump table is the application's, not ours to invent.
+     *
+     * It is stored in CODE 0 with every entry already in unloaded form,
+     * carrying the segment it belongs to and the offset of the routine within
+     * that segment. Earlier this loader synthesized the entries instead, and
+     * had to guess the segment from the slot number - a rule that the segment
+     * headers were free to contradict, and did. Reading what CODE 0 says
+     * removes the guess and, with it, the possibility of disagreeing.
      */
     for (UInt16 i = 0; i < jtCount; i++) {
+        const UInt8* entry = src + (i * JT_ENTRY_SIZE);
         CPUAddr slotAddr = jtBase + (i * ctx->a5World.jtEntrySize);
 
-        /*
-         * Which segment a slot belongs to is written in that segment's own
-         * header, and _LoadSeg reads it from there when it patches. This runs
-         * before any segment is loaded, so it cannot ask them.
-         *
-         * System 7 does not have this problem: the jump table lives in CODE 0
-         * and each entry already carries its segment number in unloaded form,
-         * so the loader copies the table rather than building it. Until CODE 0
-         * is read that way, the slot ordering here has to match what the
-         * segment headers say, and the smoke test's resources are written so
-         * that it does.
-         */
-        SInt16 segID = SegLoader_SegmentForSlot((SInt16)i);
-        SInt16 entryIndex = 0;
+        UInt16 routineOffset = BE_Read16(entry + 0);
+        UInt16 pushOpcode    = BE_Read16(entry + 2);
+        SInt16 segID         = (SInt16)BE_Read16(entry + 4);
+        UInt16 trapWord      = BE_Read16(entry + 6);
+
+        /* An entry that is not a MOVE.W #seg,-(SP) followed by _LoadSeg is
+         * not something this loader can honour, and jumping into it would run
+         * whatever bytes happen to be there. Say so instead. */
+        if (pushOpcode != 0x3F3C || trapWord != 0xA9F0) {
+            SEG_LOG_ERROR("JT[%d] is not an unloaded entry (%04X %04X)",
+                          i, pushOpcode, trapWord);
+            return segmentBadFormat;
+        }
 
         err = ctx->cpuBackend->MakeLazyJTStub(ctx->cpuAS, slotAddr,
-                                             segID, entryIndex);
+                                             segID, routineOffset);
         if (err != noErr) {
-            SEG_LOG_ERROR("Failed to create stub for JT[%d]", i);
+            SEG_LOG_ERROR("Failed to write JT[%d]", i);
             return err;
         }
+
+        SEG_LOG_INFO("  JT[%d] = A5%+d (0x%08X) -> CODE %d +%u", i,
+                     (int)(ctx->code0Info.jtOffsetFromA5 + i * ctx->a5World.jtEntrySize),
+                     slotAddr, segID, routineOffset);
     }
 
-    SEG_LOG_INFO("All %d stubs installed successfully", jtCount);
-
-    /* Verify and log A5-relative JT layout */
-    SEG_LOG_INFO("Jump table A5-relative layout verification:");
-    for (UInt16 i = 0; i < jtCount; i++) {
-        SInt32 offsetFromA5 = ctx->code0Info.jtOffsetFromA5 + (i * ctx->a5World.jtEntrySize);
-        CPUAddr slotAddr = jtBase + (i * ctx->a5World.jtEntrySize);
-        SEG_LOG_INFO("  JT[%d] = A5%+d (0x%08X)", i, offsetFromA5, slotAddr);
-    }
-
+    SEG_LOG_INFO("All %d entries installed", jtCount);
     return noErr;
 }

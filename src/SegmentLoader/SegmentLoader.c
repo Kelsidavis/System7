@@ -183,8 +183,11 @@ static OSErr LoadCODE0AndSetupA5(SegmentLoaderContext* ctx)
         return err;
     }
 
-    /* Build jump table with lazy stubs */
-    err = BuildJumpTable(ctx);
+    /* Build the jump table from the copy CODE 0 carries, which follows its
+     * header. The handle is still locked, so that copy is still there. */
+    err = BuildJumpTable(ctx,
+                         (const UInt8*)*code0Handle + CODE0_HEADER_SIZE,
+                         GetHandleSize(code0Handle) - CODE0_HEADER_SIZE);
     if (err != noErr) {
         HUnlock(code0Handle);
         ReleaseResource(code0Handle);
@@ -377,6 +380,65 @@ OSErr UnloadSegment(SegmentLoaderContext* ctx, SInt16 segID)
 /*
  * ResolveJumpIndex - Resolve jump table index to address
  */
+/*
+ * PatchSegmentJumpTable - put a loaded segment's entries into loaded form
+ *
+ * Each entry still holds, at its first word, the offset of the routine it
+ * points to within the segment. That word is read before it is overwritten,
+ * which is what lets one segment have more than one entry point - the thing
+ * the previous single-entry-per-segment scheme could not express.
+ */
+OSErr PatchSegmentJumpTable(SegmentLoaderContext* ctx, SInt16 segID)
+{
+    if (!ctx || segID < 0 || segID >= ctx->numSegments) {
+        return paramErr;
+    }
+
+    const CodeSegment* seg = &ctx->segments[segID];
+    UInt16 first = (UInt16)(seg->firstJTEntry / JT_ENTRY_SIZE);
+    UInt16 count = (UInt16)seg->jtEntryCount;
+
+    if (count == 0) {
+        SEG_LOG_DEBUG("CODE %d owns no jump table entries", segID);
+        return noErr;
+    }
+    if (first + count > ctx->a5World.jtCount) {
+        SEG_LOG_ERROR("CODE %d claims JT entries %u..%u, past the table's %u",
+                      segID, first, first + count, ctx->a5World.jtCount);
+        return segmentBadFormat;
+    }
+
+    for (UInt16 i = first; i < first + count; i++) {
+        CPUAddr slotAddr = ctx->a5World.jtBase + (i * ctx->a5World.jtEntrySize);
+        UInt8 head[4];
+        OSErr err = ctx->cpuBackend->ReadMemory(ctx->cpuAS, slotAddr, head, 4);
+        if (err != noErr) {
+            return err;
+        }
+
+        /* An entry already in loaded form has a JMP where the push was, and
+         * no longer holds the offset - patching it again would use the
+         * segment number as one. Leave it alone. */
+        if (BE_Read16(head + 2) == 0x4EF9) {
+            continue;
+        }
+
+        UInt16 routineOffset = BE_Read16(head + 0);
+        CPUAddr target = seg->baseAddr + routineOffset;
+
+        err = ctx->cpuBackend->WriteJumpTableSlot(ctx->cpuAS, slotAddr,
+                                                 segID, target);
+        if (err != noErr) {
+            SEG_LOG_ERROR("Could not patch JT[%d] for CODE %d", i, segID);
+            return err;
+        }
+        SEG_LOG_INFO("JT[%d] -> CODE %d +%u (0x%08X)", i, segID,
+                     routineOffset, target);
+    }
+
+    return noErr;
+}
+
 OSErr ResolveJumpIndex(SegmentLoaderContext* ctx, SInt16 jtIndex,
                       CPUAddr* outAddr)
 {

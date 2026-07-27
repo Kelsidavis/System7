@@ -67,15 +67,31 @@ static void InstallTestResources(void)
      *   +4   4   Below A5 size (0x200 = 512 bytes)
      *   +8   4   JT size (8 bytes = 1 entry)
      *   +12  4   JT offset from A5 (0x00 = at A5)
-     *   +16  8   JT entry 0 (will be filled with stub by loader)
+     *   +16  8   JT entry 0 -> CODE 1
+     *   +24  8   JT entry 1 -> CODE 2
      */
     BE_Write32_Ptr(code0 + 0,  0x200);  // a5AboveSize
     BE_Write32_Ptr(code0 + 4,  0x200);  // a5BelowSize
     BE_Write32_Ptr(code0 + 8, 16);      // jtSize: two 8-byte entries
     BE_Write32_Ptr(code0 + 12, 0);      // jtOffsetFromA5 (JT at A5)
 
-    /* JT entry placeholder (loader will write stub) */
-    memset(code0 + 16, 0x4E, 8);  // NOPs for now
+    /*
+     * The jump table, in the unloaded form CODE 0 really stores:
+     *
+     *   +0  offset of the routine in its segment
+     *   +2  3F3C  MOVE.W #seg,-(SP)
+     *   +4  segment number
+     *   +6  A9F0  _LoadSeg
+     *
+     * Each entry names its own segment, so the loader has nothing to work out.
+     */
+    for (int i = 0; i < 2; i++) {
+        UInt8* e = code0 + 16 + (i * 8);
+        BE_Write16_Ptr(e + 0, 0);            // routine at the segment's start
+        e[2] = 0x3F; e[3] = 0x3C;            // MOVE.W #imm,-(SP)
+        BE_Write16_Ptr(e + 4, (UInt16)(i + 1));  // CODE 1, then CODE 2
+        e[6] = 0xA9; e[7] = 0xF0;            // _LoadSeg
+    }
 
     Handle h0 = MakeHandleFromBytes(code0, sizeof(code0));
     SEG_LOG_INFO("InstallTestResources: CODE 0 handle=%p size=%u", h0, (unsigned)sizeof(code0));
@@ -95,28 +111,24 @@ static void InstallTestResources(void)
     BE_Write16_Ptr(code1 + 0, 0);       // first JT entry: byte 0 of the table
     BE_Write16_Ptr(code1 + 2, 1);       // one entry belongs to this segment
     /*
-     * Load segment 2, then call it through its jump table entry - the call is
-     * the part that proves the mechanism. _LoadSeg patches JT[1] to jump to
-     * the loaded code and the JSR goes through that patched slot; a program
-     * that only traps and returns says nothing about whether the segment it
-     * asked for can be reached.
+     * Call CODE 2 the way an application does: one JSR through the jump
+     * table, with no idea whether the segment is loaded.
      *
-     * The NOP is load-bearing. The parser treats a MOVE.W #imm,-(SP) followed
-     * by _LoadSeg at the head of a segment as the classic linker prologue and
-     * enters six bytes past it, which is right for a real segment that begins
-     * with its own self-loading stub. This program began with exactly that
-     * pattern, so entry landed after the trap and the segment's first
-     * instructions never ran - the original version of this test executed
-     * nothing but its own RTS and reported success. Starting with something
-     * else keeps the prologue rule from matching.
+     * The entry it calls is still unloaded, so the JSR lands on the
+     * MOVE.W/_LoadSeg inside the entry, which loads CODE 2, rewrites the
+     * entry to jump straight at it, and returns into the routine. CODE 2's
+     * own RTS then returns here. Nothing in this program mentions loading.
+     *
+     * Entries are entered two bytes in, past the offset word - hence 10 for
+     * the second entry rather than 8.
      */
-    code1[4] = 0x4E; code1[5] = 0x71;   // NOP
-    code1[6] = 0x3F; code1[7] = 0x3C;   // MOVE.W #imm,-(SP)
-    BE_Write16_Ptr(code1 + 8, 2);       // #2 (segment ID)
-    code1[10] = 0xA9; code1[11] = 0xF0; // _LoadSeg trap
-    code1[12] = 0x4E; code1[13] = 0xAD; // JSR d16(A5)
-    BE_Write16_Ptr(code1 + 14, 8);      // JT[1], eight bytes into the table
-    code1[16] = 0x4E; code1[17] = 0x75; // RTS
+    code1[4] = 0x4E; code1[5] = 0xAD;   // JSR d16(A5)
+    BE_Write16_Ptr(code1 + 6, 10);      // JT[1], two bytes into the entry
+    code1[8] = 0x4E; code1[9] = 0x75;   // RTS
+    code1[10] = 0x4E; code1[11] = 0x71; // NOP padding
+    code1[12] = 0x4E; code1[13] = 0x71;
+    code1[14] = 0x4E; code1[15] = 0x71;
+    code1[16] = 0x4E; code1[17] = 0x71;
 
     Handle h1 = MakeHandleFromBytes(code1, sizeof(code1));
     SEG_LOG_INFO("InstallTestResources: CODE 1 handle=%p size=%u", h1, (unsigned)sizeof(code1));
@@ -218,17 +230,26 @@ OSErr SegmentLoader_RunSmokeChecks(SegmentLoaderContext* ctx)
     } else {
         SEG_LOG_INFO("PASS: jtCount = %d, all slots materialized", a5->jtCount);
 
-        /* Verify first slot contains stub */
-        UInt8 slotData[8];
-        OSErr err = ctx->cpuBackend->ReadMemory(ctx->cpuAS, a5->jtBase, slotData, 8);
-        if (err == noErr) {
-            /* Check for stub pattern: 0x3F3C (MOVE.W #imm,-(SP)) */
-            if (slotData[0] == 0x3F && slotData[1] == 0x3C) {
-                UInt16 segID = BE_Read16(slotData + 2);
-                SEG_LOG_INFO("JT[0] stub: segID=%d, looks valid", segID);
-            } else {
-                SEG_LOG_WARN("JT[0] = 0x%02X%02X (not expected stub)",
-                            slotData[0], slotData[1]);
+        /*
+         * Every entry should be the unloaded form CODE 0 supplied, naming its
+         * own segment. Checking all of them, not just the first, is what
+         * catches the table being built from a rule instead of copied - a
+         * rule that gets slot zero right can still get the rest wrong.
+         */
+        for (UInt16 i = 0; i < a5->jtCount; i++) {
+            UInt8 slotData[8];
+            CPUAddr slotAddr = a5->jtBase + (i * a5->jtEntrySize);
+            if (ctx->cpuBackend->ReadMemory(ctx->cpuAS, slotAddr, slotData, 8) != noErr) {
+                SEG_TEST_FAILED("could not read back a jump table entry");
+                break;
+            }
+            if (BE_Read16(slotData + 2) != 0x3F3C || BE_Read16(slotData + 6) != 0xA9F0) {
+                SEG_TEST_FAILED("a jump table entry is not in unloaded form");
+                break;
+            }
+            if (BE_Read16(slotData + 4) != (UInt16)(i + 1)) {
+                SEG_TEST_FAILED("a jump table entry names the wrong segment");
+                break;
             }
         }
     }
@@ -285,34 +306,37 @@ OSErr LoadSeg_TrapHandler(void* context, CPUAddr* pc, CPUAddr* registers)
 
     SEG_LOG_INFO("_LoadSeg: segment %d loaded successfully", segID);
 
-    /* Patch JT entry to point directly at segment (hot-patch) */
-    /* Calculate JT slot index - simplified mapping: seg 1 -> JT[0], etc. */
-    /* The segment records which jump table entries are its own, so the slot to
-     * patch is read from it rather than worked out from a rule. */
-    SInt16 jtIndex = (SInt16)(ctx->segments[segID].firstJTEntry / JT_ENTRY_SIZE);
+    /* Put every entry the segment owns into loaded form. This is the loader's
+     * own routine, so the test cannot drift away from what it does. */
+    err = PatchSegmentJumpTable(ctx, segID);
+    if (err != noErr) {
+        return err;
+    }
 
-    if (jtIndex >= 0 && jtIndex < ctx->a5World.jtCount) {
-        CPUAddr jtSlotAddr = ctx->a5World.jtBase + (jtIndex * ctx->a5World.jtEntrySize);
-        CPUAddr entryAddr;
+    /*
+     * Return into the routine that was called, not back to the caller.
+     *
+     * The call came through a jump table entry: JSR to entry+2, then the
+     * MOVE.W and _LoadSeg inside it, so the PC now sits eight bytes past the
+     * entry's start. Reading the entry back gives the address just patched
+     * into it, and continuing there makes the load invisible to the caller -
+     * which is the whole point of a lazily loaded segment. A _LoadSeg reached
+     * any other way is just a load, and returns normally.
+     */
+    CPUAddr jtLow = ctx->a5World.jtBase;
+    CPUAddr jtHigh = jtLow + (CPUAddr)ctx->a5World.jtCount * ctx->a5World.jtEntrySize;
+    CPUAddr entryAddr = *pc - JT_ENTRY_SIZE;
 
-        /* Get segment entry point */
-        err = GetSegmentEntryPoint(ctx, segID, &entryAddr);
-        if (err == noErr) {
-            /* Atomically patch JT slot with JMP to entry */
-            err = ctx->cpuBackend->WriteJumpTableSlot(ctx->cpuAS, jtSlotAddr, entryAddr);
-            if (err == noErr) {
-                SEG_LOG_INFO("_LoadSeg: hot-patched JT[%d] @ 0x%08X -> entry 0x%08X",
-                            jtIndex, jtSlotAddr, entryAddr);
-
-            } else {
-                SEG_LOG_ERROR("_LoadSeg: failed to patch JT[%d]: err=%d", jtIndex, err);
-            }
-        } else {
-            SEG_LOG_ERROR("_LoadSeg: failed to get entry point for seg %d: err=%d", segID, err);
+    if (entryAddr >= jtLow && entryAddr < jtHigh &&
+        ((entryAddr - jtLow) % ctx->a5World.jtEntrySize) == 0) {
+        UInt8 slot[8];
+        if (ctx->cpuBackend->ReadMemory(ctx->cpuAS, entryAddr, slot, 8) == noErr &&
+            BE_Read16(slot + 2) == 0x4EF9) {
+            CPUAddr target = ((CPUAddr)slot[4] << 24) | ((CPUAddr)slot[5] << 16) |
+                             ((CPUAddr)slot[6] << 8) | (CPUAddr)slot[7];
+            SEG_LOG_INFO("_LoadSeg: continuing into 0x%08X", target);
+            *pc = target;
         }
-    } else {
-        SEG_LOG_WARN("_LoadSeg: JT index %d out of range [0..%d), no hot-patch",
-                    jtIndex, ctx->a5World.jtCount);
     }
 
     return noErr;

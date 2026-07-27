@@ -270,39 +270,29 @@ OSErr ParseCODEN(const void* codeData, Size size, SInt16 segID,
 OSErr InstallA5World(SegmentLoaderContext* ctx, const CODE0Info* info);
 
 /*
- * BuildJumpTable - Construct jump table with lazy stubs
+ * BuildJumpTable - copy the application's jump table into its A5 world
  *
  * @param ctx               Segment loader context
+ * @param jtData            The table as it appears in CODE 0
+ * @param jtBytes           Its length in bytes
  * @return                  OSErr
  */
-OSErr BuildJumpTable(SegmentLoaderContext* ctx);
+OSErr BuildJumpTable(SegmentLoaderContext* ctx, const void* jtData, Size jtBytes);
+
+/*
+ * PatchSegmentJumpTable - put a loaded segment's entries into loaded form
+ *
+ * Every entry the segment owns is patched, not just the first: a segment can
+ * be entered at several points and each has its own entry.
+ *
+ * @param ctx               Segment loader context
+ * @param segID             The segment that has just been mapped
+ * @return                  OSErr
+ */
+OSErr PatchSegmentJumpTable(SegmentLoaderContext* ctx, SInt16 segID);
 
 #ifdef __cplusplus
 }
 #endif
-
-/*
- * Which jump table slot belongs to a segment, and which segment a slot
- * belongs to.
- *
- * These were answered in two places that disagreed: the stub installer gave
- * each segment sixteen consecutive slots, and _LoadSeg looked for one slot
- * per segment. So a stub installed for one segment was patched - or not
- * patched, when the index fell outside the table - somewhere else entirely,
- * and a lazily loaded segment could never be reached through its entry.
- *
- * A real application's layout comes from its own jump table rather than a
- * rule; this is the rule for the ones built here, and having it in one place
- * is what keeps the two ends agreeing.
- */
-static inline SInt16 SegLoader_SlotForSegment(SInt16 segID)
-{
-    return (SInt16)(segID - 1);
-}
-
-static inline SInt16 SegLoader_SegmentForSlot(SInt16 slot)
-{
-    return (SInt16)(slot + 1);
-}
 
 #endif /* SEGMENT_LOADER_H */

@@ -162,27 +162,35 @@ typedef struct ICPUBackend {
                         CPUTrapHandler handler, void* context);
 
     /*
-     * WriteJumpTableSlot - Write resolved address to JT slot
+     * WriteJumpTableSlot - put a jump table entry into its loaded form
+     *
+     * The segment number stays in the entry so an unload can tell which
+     * segment the entry belongs to without consulting anything else.
      *
      * @param as            Address space
      * @param slotAddr      Address of jump table slot
-     * @param target        Target address to patch in
+     * @param segID         Segment the entry belongs to
+     * @param target        Address of the routine within the loaded segment
      * @return              OSErr
      */
     OSErr (*WriteJumpTableSlot)(CPUAddressSpace as, CPUAddr slotAddr,
-                               CPUAddr target);
+                               SInt16 segID, CPUAddr target);
 
     /*
-     * MakeLazyJTStub - Create lazy-loading stub for jump table entry
+     * MakeLazyJTStub - put a jump table entry into its unloaded form
+     *
+     * Both forms are entered two bytes into the entry, so a caller jumping
+     * through the table does not care whether the segment has been loaded
+     * yet - which is the whole point of the jump table.
      *
      * @param as            Address space
      * @param slotAddr      Address of JT slot to fill
-     * @param segID         Segment ID to load on first call
-     * @param entryIndex    Entry index within segment
+     * @param segID         Segment to load on first call
+     * @param routineOffset Where in that segment the routine begins
      * @return              OSErr
      */
     OSErr (*MakeLazyJTStub)(CPUAddressSpace as, CPUAddr slotAddr,
-                           SInt16 segID, SInt16 entryIndex);
+                           SInt16 segID, UInt16 routineOffset);
 
     /*
      * EnterAt - Begin execution at address
