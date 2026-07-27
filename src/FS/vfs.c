@@ -125,6 +125,24 @@ static VFSOverlayEntry* VFS_AllocOverlay(VFSVolume* vol) {
     return NULL;
 }
 
+
+/*
+ * VFS_FinishMount - the bookkeeping every mount does, in one place.
+ *
+ * The classic File Manager keeps its own volume registry, and nothing ever
+ * filled it: VCB_Mount is a stub, so VCB_Find always failed and every classic
+ * entry point that starts by resolving a volume returned nsvErr before doing
+ * any work. That took out Make Alias, alias_manager.c and the Open and Save
+ * dialogs' file lists, one at a time. Registering here means a volume the VFS
+ * has mounted is a volume the whole system can see.
+ */
+static void VFS_FinishMount(VFSVolume* vol)
+{
+    extern void FM_RegisterVFSVolume(SInt16 vref, const char* name);
+    FM_RegisterVFSVolume((SInt16)vol->vref, vol->name);
+}
+
+
 /* Helper: Find free volume slot */
 static VFSVolume* VFS_AllocVolume(void) {
     for (int i = 0; i < VFS_MAX_VOLUMES; i++) {
@@ -238,6 +256,7 @@ bool VFS_MountBootVolume(const char* volName) {
     vol->nextCNID = 5000;  /* Start above typical HFS CNIDs */
     strncpy(vol->name, volName, sizeof(vol->name) - 1);
     vol->name[sizeof(vol->name) - 1] = '\0';
+    VFS_FinishMount(vol);
 
     serial_puts("[VFS] Boot volume mounted successfully (1MB)\n");
     uart_flush();
@@ -399,6 +418,7 @@ bool VFS_MountATA(int ata_device_index, const char* volName, VRefNum* vref) {
     vol->nextCNID = 5000;
     strncpy(vol->name, volName, sizeof(vol->name) - 1);
     vol->name[sizeof(vol->name) - 1] = '\0';
+    VFS_FinishMount(vol);
 
     FS_LOG_DEBUG("VFS: Mounted ATA volume '%s' as vRef %d\n", volName, vol->vref);
 
@@ -570,6 +590,7 @@ bool VFS_MountSDHCI(int drive_index, const char* volName, VRefNum* vref) {
     vol->nextCNID = 5000;
     strncpy(vol->name, volName, sizeof(vol->name) - 1);
     vol->name[sizeof(vol->name) - 1] = '\0';
+    VFS_FinishMount(vol);
 
     FS_LOG_DEBUG("VFS: Mounted SDHCI volume '%s' as vRef %d\n", volName, vol->vref);
 

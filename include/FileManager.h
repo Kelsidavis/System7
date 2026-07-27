@@ -187,3 +187,8 @@ void FM_DumpOpenFiles(void);
 #endif
 
 #endif /* __FILEMANAGER_H__ */
+
+/* Register a mounted VFS volume with the classic File Manager, so VCB_Find -
+ * and therefore PBGetCatInfoSync, FSMakeFSSpec and everything built on them -
+ * can resolve it. Called by the VFS as each volume mounts. */
+void FM_RegisterVFSVolume(SInt16 vref, const char* name);

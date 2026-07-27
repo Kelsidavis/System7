@@ -345,10 +345,23 @@ typedef struct CInfoPBRec {
             UInt32   ioFlMdDat;
         } hFileInfo;
 
+        /* The two members share their leading fields, as in Inside Macintosh:
+         * ioFDirIndex is what the caller sets to choose the lookup, and
+         * ioFlAttrib is what it reads afterwards to learn whether it got a
+         * file or a directory - so both have to mean the same thing whichever
+         * member is written. This used to start at ioDrDirID, putting it on
+         * top of ioFDirIndex and ioDrNmFls on top of ioFlAttrib: filling in a
+         * directory's entry destroyed the very flag that said it was one, and
+         * PBGetCatInfo's own index along with it. */
         struct {
+            SInt16   ioFRefNum;
+            SInt16   ioFDirIndex;
+            SInt8    ioFlAttrib;
+            SInt8    ioFlVersNum;
+            DInfo    ioDrUsrWds;
             SInt32   ioDrDirID;
             UInt16   ioDrNmFls;
-            SInt8    filler[9];
+            SInt8    filler[8];
             UInt32   ioDrCrDat;
             UInt32   ioDrMdDat;
             UInt32   ioDrBkDat;

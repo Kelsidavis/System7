@@ -12,6 +12,8 @@
 #include <stdlib.h>
 #include <string.h>
 #include "FS/FSLogging.h"
+#include "FS/vfs.h"
+#include "FS/hfs_types.h"
 
 /* Forward declaration for POSIX stub */
 int sched_yield(void);
@@ -224,9 +226,168 @@ OSErr Cat_Move(VCB* vcb, UInt32 srcDirID, const UInt8* name, UInt32 dstDirID) {
     return noErr;
 }
 
-OSErr Cat_GetInfo(VCB* vcb, UInt32 dirID, const UInt8* name, CInfoPBRec* pb) {
-    FS_LOG_DEBUG("Cat_GetInfo stub\n");
-    return fnfErr;
+/* ============================================================================
+ * Classic catalog access, served from the VFS
+ *
+ * The classic File Manager's own catalog was never implemented: Cat_GetInfo
+ * returned fnfErr and VCB_Mount returned nsvErr, so g_FSGlobals.vcbQueue was
+ * always empty and VCB_Find always failed. Every entry point that starts by
+ * resolving a volume - PBGetCatInfoSync, FSMakeFSSpec, and everything built on
+ * them - therefore failed with nsvErr before doing any work.
+ *
+ * That has quietly killed a feature at a time. Make Alias did nothing until it
+ * was rebuilt directly on the VFS, alias_manager.c became unreachable, and the
+ * Open and Save dialogs listed no files because SF_PopulateFileList enumerates
+ * with PBGetCatInfoSync. Rewriting each caller onto the VFS fixes one symptom
+ * and leaves the next one waiting, so the volume registry and the catalog are
+ * answered from the VFS here instead - once, for every caller.
+ * ============================================================================ */
+
+/* Register a mounted VFS volume so VCB_Find can see it. Called by the VFS as
+ * each volume mounts; a volume already registered is left alone. */
+void FM_RegisterVFSVolume(SInt16 vref, const char* name)
+{
+    VCBExt* vcb = g_FSGlobals.vcbQueue;
+    while (vcb) {
+        if (vcb->base.vcbVRefNum == (SInt16)vref) return;
+        vcb = vcb->vcbNext;
+    }
+
+    vcb = (VCBExt*)NewPtrClear(sizeof(VCBExt));
+    if (!vcb) return;
+
+    vcb->base.vcbVRefNum = (SInt16)vref;
+    if (name) {
+        size_t len = strlen(name);
+        if (len > 27) len = 27;
+        vcb->base.vcbVN[0] = (UInt8)len;
+        memcpy(&vcb->base.vcbVN[1], name, len);
+    }
+
+    vcb->vcbNext = g_FSGlobals.vcbQueue;
+    g_FSGlobals.vcbQueue = vcb;
+
+    /* First volume to arrive is the default one, matching the boot volume. */
+    if (g_FSGlobals.defVRefNum == 0) {
+        g_FSGlobals.defVRefNum = (VolumeRefNum)vref;
+    }
+
+    FS_LOG_DEBUG("FM_RegisterVFSVolume: vRefNum=%d name=%s\n", (int)vref,
+                 name ? name : "(none)");
+}
+
+/* Copy a C name into a Pascal-string buffer supplied by the caller. */
+static void Cat_SetName(StringPtr out, const char* name)
+{
+    if (!out || !name) return;
+    size_t len = strlen(name);
+    if (len > 31) len = 31;
+    out[0] = (UInt8)len;
+    memcpy(&out[1], name, len);
+}
+
+/* Fill a CInfoPBRec from a VFS catalog entry. */
+static void Cat_FillFromEntry(CInfoPBRec* pb, const CatEntry* e)
+{
+    Boolean isDir = (e->kind == kNodeDir);
+
+    if (pb->ioNamePtr) {
+        Cat_SetName(pb->ioNamePtr, e->name);
+    }
+
+    if (isDir) {
+        pb->u.dirInfo.ioDrDirID = (SInt32)e->id;
+        pb->u.dirInfo.ioDrParID = (SInt16)e->parent;
+        pb->u.dirInfo.ioDrNmFls = 0;   /* filled below when it is cheap to know */
+        pb->u.dirInfo.ioDrCrDat = e->createTime;
+        pb->u.dirInfo.ioDrMdDat = e->modTime;
+    } else {
+        pb->u.hFileInfo.ioDirID = (SInt32)e->id;
+        pb->u.hFileInfo.ioFlLgLen = (SInt32)e->size;
+        pb->u.hFileInfo.ioFlPyLen = (SInt32)e->size;
+        pb->u.hFileInfo.ioFlCrDat = e->createTime;
+        pb->u.hFileInfo.ioFlMdDat = e->modTime;
+        pb->u.hFileInfo.ioFlFndrInfo.fdType = (OSType)e->type;
+        pb->u.hFileInfo.ioFlFndrInfo.fdCreator = (OSType)e->creator;
+        pb->u.hFileInfo.ioFlFndrInfo.fdFlags = (SInt16)e->flags;
+    }
+
+    /* Bit 4 of ioFlAttrib marks a directory - callers test it to decide
+     * whether to recurse, and Standard File uses it to pick the folder icon.
+     * Written last: the union's two members share this field, so filling in
+     * either one's body has to happen before it is set. */
+    pb->u.hFileInfo.ioFlAttrib = isDir ? 0x10 : 0x00;
+}
+
+/*
+ * Cat_GetInfo - the three lookups PBGetCatInfo supports.
+ *
+ *   ioFDirIndex > 0   the index'th entry of directory ioDirID
+ *   ioFDirIndex == 0  the item named ioNamePtr in directory ioDirID
+ *   ioFDirIndex < 0   directory ioDirID itself
+ */
+OSErr Cat_GetInfo(VCB* vcb, UInt32 dirID, const UInt8* name, CInfoPBRec* pb)
+{
+    (void)dirID;
+    (void)name;
+
+    if (!vcb || !pb) return paramErr;
+
+    VRefNum vref = (VRefNum)vcb->base.vcbVRefNum;
+    SInt16 index = pb->u.hFileInfo.ioFDirIndex;
+    DirID dir = (DirID)pb->u.hFileInfo.ioDirID;
+    if (dir == 0) dir = 2;   /* 0 means the root, as in the classic API */
+
+    CatEntry entry;
+
+    if (index > 0) {
+        /* Indexed enumeration. VFS_Enumerate hands back the whole directory,
+         * so ask for it and take the one entry wanted; directories here are
+         * small enough that this is cheaper than keeping a cursor that could
+         * go stale between calls. */
+        enum { kMaxDirEntries = 128 };
+        static CatEntry entries[kMaxDirEntries];
+        int count = 0;
+
+        if (!VFS_Enumerate(vref, dir, entries, kMaxDirEntries, &count)) {
+            return fnfErr;
+        }
+        if (index > count) {
+            return fnfErr;   /* past the end - how callers stop enumerating */
+        }
+        entry = entries[index - 1];
+    } else if (index == 0) {
+        char cname[32];
+        if (!pb->ioNamePtr || pb->ioNamePtr[0] == 0) return paramErr;
+        size_t len = pb->ioNamePtr[0];
+        if (len > sizeof(cname) - 1) len = sizeof(cname) - 1;
+        memcpy(cname, &pb->ioNamePtr[1], len);
+        cname[len] = '\0';
+
+        if (!VFS_Lookup(vref, dir, cname, &entry)) {
+            return fnfErr;
+        }
+    } else {
+        if (!VFS_GetByID(vref, (FileID)dir, &entry)) {
+            return fnfErr;
+        }
+    }
+
+    Cat_FillFromEntry(pb, &entry);
+    pb->ioVRefNum = (SInt16)vref;
+
+    /* A directory's item count is worth reporting: the Finder and Standard
+     * File both show it, and it costs one enumeration we can already do. */
+    if (entry.kind == kNodeDir) {
+        enum { kMaxDirEntries = 128 };
+        static CatEntry kids[kMaxDirEntries];
+        int count = 0;
+        if (VFS_Enumerate(vref, (DirID)entry.id, kids, kMaxDirEntries, &count)) {
+            pb->u.dirInfo.ioDrNmFls = (UInt16)count;
+        }
+    }
+
+    return noErr;
 }
 
 OSErr Cat_SetInfo(VCB* vcb, UInt32 dirID, const UInt8* name, const CInfoPBRec* pb) {
