@@ -72,7 +72,34 @@ static inline uint8_t get_bit(const uint8_t *row, int bitOff) {
  * FM_DrawChicagoCharInternal - Internal function to draw a Chicago character at pixel level
  * This is the core drawing function used by all Font Manager rendering
  */
+/* Draw one glyph's bits. Split out so that a letter and the accent mark over
+ * it go through the same clipping and the same destination arithmetic - when
+ * the mark had its own copy of that, it was the copy that drifted. */
+static void FM_BlitGlyph(short x, short y, const ChicagoCharInfo* info,
+                         const uint8_t* strike, int strikeRowBytes, uint32_t color);
+
 void FM_DrawChicagoCharInternal(short x, short y, unsigned char ch, uint32_t color) {
+    /*
+     * An accented letter is Chicago's own letter with a mark over it, so it is
+     * drawn as those two things rather than looked up as one glyph.
+     */
+    ChicagoComposition comp = Chicago_Compose(ch);
+    if (comp.base != 0) {
+        const ChicagoCharInfo* baseInfo = &chicago_ascii[comp.base - 32];
+        short baseX = x + baseInfo->left_offset;
+
+        FM_BlitGlyph(baseX, y, baseInfo, chicago_bitmap, CHICAGO_ROW_BYTES, color);
+
+        if (comp.accent != kNoAccent) {
+            const ChicagoCharInfo* mark = &chicago_accents[comp.accent];
+            /* Centre the mark over the letter it belongs to. */
+            short markX = baseX + (baseInfo->bit_width - mark->bit_width) / 2;
+            FM_BlitGlyph(markX, y, mark, chicago_accent_bitmap,
+                         CHICAGO_ACCENT_ROW_BYTES, color);
+        }
+        return;
+    }
+
     /* One lookup covering all of Mac Roman, so a character outside ASCII is
      * drawn rather than silently skipped. */
     const uint8_t* strike = NULL;
@@ -80,7 +107,11 @@ void FM_DrawChicagoCharInternal(short x, short y, unsigned char ch, uint32_t col
     const ChicagoCharInfo* info = Chicago_Glyph(ch, &strike, &strikeRowBytes);
     if (!info) return;
 
-    x += info->left_offset;
+    FM_BlitGlyph(x + info->left_offset, y, info, strike, strikeRowBytes, color);
+}
+
+static void FM_BlitGlyph(short x, short y, const ChicagoCharInfo* info,
+                         const uint8_t* strike, int strikeRowBytes, uint32_t color) {
 
     /* Callers hand us coordinates that QD_LocalToPixel has already mapped out of
      * local space (local - portRect origin + portBits.bounds origin), so (x, y)
@@ -719,6 +750,12 @@ short FM_GetPlainCharWidth(short ch) {
          * from different places, a character the renderer could draw but the
          * measurer did not know about advanced by a default eight pixels and
          * left a gap. */
+        /* A composed letter is exactly as wide as the letter under the mark. */
+        ChicagoComposition comp = Chicago_Compose((unsigned char)ch);
+        if (comp.base != 0) {
+            return chicago_ascii[comp.base - 32].bit_width + 2;
+        }
+
         const ChicagoCharInfo* info = Chicago_Glyph((unsigned char)ch, NULL, NULL);
         if (info) {
             short width = info->bit_width + 2;  /* Corrected spacing */

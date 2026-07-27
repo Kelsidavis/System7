@@ -35,6 +35,114 @@ extern const ChicagoCharInfo chicago_extended[128];
 #define CHICAGO_EXT_ROW_BYTES 96  /* 96 bytes per row (768 bits) */
 extern const uint8_t chicago_ext_bitmap[CHICAGO_HEIGHT * CHICAGO_EXT_ROW_BYTES];
 
+/* ---- Composed accented letters ----------------------------------------- */
+
+#define CHICAGO_ACCENT_ROW_BYTES 10
+#define kChicagoAccentSlots      16
+
+/* Slot numbers into chicago_accents[]; "upper" variants sit higher, over a
+ * capital's cap height rather than a lowercase letter's x-height. */
+enum {
+    kAcuteLower = 0, kAcuteUpper,
+    kGraveLower,     kGraveUpper,
+    kCircumLower,    kCircumUpper,
+    kTildeLower,     kTildeUpper,
+    kDieresisLower,  kDieresisUpper,
+    kRingLower,      kRingUpper,
+    kCedilla,
+    kNoAccent = 0xFF
+};
+
+extern const ChicagoCharInfo chicago_accents[kChicagoAccentSlots];
+extern const uint8_t chicago_accent_bitmap[CHICAGO_HEIGHT * CHICAGO_ACCENT_ROW_BYTES];
+
+/*
+ * Chicago_Compose - the letter and mark a Mac Roman accented character is made of
+ *
+ * Returns the ASCII letter to draw and the accent slot to draw over it, or
+ * base 0 when the character is not a composed letter.
+ *
+ * Composing is what the real font does and what the strike in this tree
+ * failed at: it stored whole accented glyphs, drawn by hand and wrong - the
+ * a-grave had no "a" in it, only the mark; the E-acute put its accent three
+ * rows below the baseline. Taking the letter from Chicago and adding a mark
+ * cannot go wrong that way, and it covers every accented character at once
+ * rather than one glyph at a time.
+ */
+typedef struct {
+    unsigned char base;    /* ASCII letter, or 0 if this is not composed */
+    unsigned char accent;  /* slot in chicago_accents[] */
+} ChicagoComposition;
+
+static inline ChicagoComposition Chicago_Compose(unsigned char ch)
+{
+    ChicagoComposition c;
+    c.base = 0;
+    c.accent = kNoAccent;
+
+    switch (ch) {
+        /* Lowercase */
+        case 0x87: c.base='a'; c.accent=kAcuteLower;    break;  /* a-acute */
+        case 0x88: c.base='a'; c.accent=kGraveLower;    break;  /* a-grave */
+        case 0x89: c.base='a'; c.accent=kCircumLower;   break;  /* a-circumflex */
+        case 0x8A: c.base='a'; c.accent=kDieresisLower; break;  /* a-dieresis */
+        case 0x8B: c.base='a'; c.accent=kTildeLower;    break;  /* a-tilde */
+        case 0x8C: c.base='a'; c.accent=kRingLower;     break;  /* a-ring */
+        case 0x8D: c.base='c'; c.accent=kCedilla;       break;  /* c-cedilla */
+        case 0x8E: c.base='e'; c.accent=kAcuteLower;    break;  /* e-acute */
+        case 0x8F: c.base='e'; c.accent=kGraveLower;    break;  /* e-grave */
+        case 0x90: c.base='e'; c.accent=kCircumLower;   break;  /* e-circumflex */
+        case 0x91: c.base='e'; c.accent=kDieresisLower; break;  /* e-dieresis */
+        /* The dotted i would collide with its own mark, so accented forms use
+         * the upper placement to clear the dot. */
+        case 0x92: c.base='i'; c.accent=kAcuteUpper;    break;  /* i-acute */
+        case 0x93: c.base='i'; c.accent=kGraveUpper;    break;  /* i-grave */
+        case 0x94: c.base='i'; c.accent=kCircumUpper;   break;  /* i-circumflex */
+        case 0x95: c.base='i'; c.accent=kDieresisUpper; break;  /* i-dieresis */
+        case 0x96: c.base='n'; c.accent=kTildeLower;    break;  /* n-tilde */
+        case 0x97: c.base='o'; c.accent=kAcuteLower;    break;  /* o-acute */
+        case 0x98: c.base='o'; c.accent=kGraveLower;    break;  /* o-grave */
+        case 0x99: c.base='o'; c.accent=kCircumLower;   break;  /* o-circumflex */
+        case 0x9A: c.base='o'; c.accent=kDieresisLower; break;  /* o-dieresis */
+        case 0x9B: c.base='o'; c.accent=kTildeLower;    break;  /* o-tilde */
+        case 0x9C: c.base='u'; c.accent=kAcuteLower;    break;  /* u-acute */
+        case 0x9D: c.base='u'; c.accent=kGraveLower;    break;  /* u-grave */
+        case 0x9E: c.base='u'; c.accent=kCircumLower;   break;  /* u-circumflex */
+        case 0x9F: c.base='u'; c.accent=kDieresisLower; break;  /* u-dieresis */
+        case 0xD8: c.base='y'; c.accent=kDieresisLower; break;  /* y-dieresis */
+        case 0xF5: c.base='i'; c.accent=kNoAccent;      break;  /* dotless i */
+
+        /* Uppercase */
+        case 0x80: c.base='A'; c.accent=kDieresisUpper; break;  /* A-dieresis */
+        case 0x81: c.base='A'; c.accent=kRingUpper;     break;  /* A-ring */
+        case 0x82: c.base='C'; c.accent=kCedilla;       break;  /* C-cedilla */
+        case 0x83: c.base='E'; c.accent=kAcuteUpper;    break;  /* E-acute */
+        case 0x84: c.base='N'; c.accent=kTildeUpper;    break;  /* N-tilde */
+        case 0x85: c.base='O'; c.accent=kDieresisUpper; break;  /* O-dieresis */
+        case 0x86: c.base='U'; c.accent=kDieresisUpper; break;  /* U-dieresis */
+        case 0xCB: c.base='A'; c.accent=kGraveUpper;    break;  /* A-grave */
+        case 0xCC: c.base='A'; c.accent=kTildeUpper;    break;  /* A-tilde */
+        case 0xCD: c.base='O'; c.accent=kTildeUpper;    break;  /* O-tilde */
+        case 0xD9: c.base='Y'; c.accent=kDieresisUpper; break;  /* Y-dieresis */
+        case 0xE5: c.base='A'; c.accent=kCircumUpper;   break;  /* A-circumflex */
+        case 0xE6: c.base='E'; c.accent=kCircumUpper;   break;  /* E-circumflex */
+        case 0xE7: c.base='A'; c.accent=kAcuteUpper;    break;  /* A-acute */
+        case 0xE8: c.base='E'; c.accent=kDieresisUpper; break;  /* E-dieresis */
+        case 0xE9: c.base='E'; c.accent=kGraveUpper;    break;  /* E-grave */
+        case 0xEA: c.base='I'; c.accent=kAcuteUpper;    break;  /* I-acute */
+        case 0xEB: c.base='I'; c.accent=kCircumUpper;   break;  /* I-circumflex */
+        case 0xEC: c.base='I'; c.accent=kDieresisUpper; break;  /* I-dieresis */
+        case 0xED: c.base='I'; c.accent=kGraveUpper;    break;  /* I-grave */
+        case 0xEE: c.base='O'; c.accent=kAcuteUpper;    break;  /* O-acute */
+        case 0xEF: c.base='O'; c.accent=kCircumUpper;   break;  /* O-circumflex */
+        case 0xF1: c.base='O'; c.accent=kGraveUpper;    break;  /* O-grave */
+        case 0xF2: c.base='U'; c.accent=kAcuteUpper;    break;  /* U-acute */
+        case 0xF4: c.base='U'; c.accent=kGraveUpper;    break;  /* U-grave */
+        default: break;
+    }
+    return c;
+}
+
 /*
  * Chicago_Glyph - the glyph for a Mac Roman byte, whichever strike holds it
  *

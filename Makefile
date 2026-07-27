@@ -398,6 +398,7 @@ C_SOURCES = src/main.c \
             src/strings_en_rsrc.c \
             src/LocaleManager/LocaleManager.c \
             src/chicago_font_extended_data.c \
+            src/chicago_accents_data.c \
             src/TextEncoding/CJKEncoding.c \
             src/FontManager/CJKFont.c \
             src/FS/hfs_diskio.c \
