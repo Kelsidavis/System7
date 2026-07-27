@@ -209,11 +209,23 @@ static inline const ChicagoCharInfo* Chicago_Glyph(unsigned char ch,
         info = &chicago_ascii[ch - 32];
         strike = chicago_bitmap;
         rowBytes = CHICAGO_ROW_BYTES;
-    } else if (ch >= 0x80) {
-        info = &chicago_extended[ch - 0x80];
-        strike = chicago_ext_bitmap;
-        rowBytes = CHICAGO_EXT_ROW_BYTES;
     }
+
+    /*
+     * The extended strike is deliberately not consulted.
+     *
+     * Its entries do not draw the characters they name. Every one still
+     * reachable was checked: "degree" and "cent" are both a bare vertical
+     * bar, "bullet" is a zigzag rather than a dot, and neighbouring glyphs
+     * bleed into each other's columns - the bitmap was generated against one
+     * column layout and the table describes another. Composing accented
+     * letters from Chicago's own glyphs covers what the strike was mainly
+     * wanted for, and for the rest a blank is closer to the truth than a
+     * shape that is confidently the wrong character.
+     *
+     * The data is left in the tree, and the moment a strike is available that
+     * genuinely holds these glyphs it belongs here.
+     */
 
     /* The extended table has an entry for all 128 codes but a bitmap for only
      * some; a zero width means there is nothing to draw. Where a plain ASCII
