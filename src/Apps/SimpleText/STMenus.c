@@ -567,32 +567,22 @@ void STFind_ShowDialog(STDocument* doc) {
         return;
     }
 
-    ShowWindow((WindowPtr)dlg);
-
-    /* Modal dialog event loop */
-    Boolean done = false;
-    short itemHit = 0;
-    while (!done) {
-        EventRecord event;
-        if (GetNextEvent(everyEvent, &event)) {
-            if (IsDialogEvent(&event)) {
-                DialogPtr whichDlg;
-                short item;
-                if (DialogSelect(&event, &whichDlg, &item)) {
-                    if (whichDlg == dlg) {
-                        itemHit = item;
-                        done = (item == 1 || item == 2);  /* Find or Cancel */
-                    }
-                }
-            }
-            if (event.what == 3 /* keyDown */) {
-                char ch = event.message & 0xFF;
-                if (ch == '\r' || ch == 0x03) { itemHit = 1; done = true; }
-                if (ch == 0x1B) { itemHit = 2; done = true; }
-            }
-        }
-        SystemTask();
-    }
+    /*
+     * Run through the shared modal runner rather than a loop of our own.
+     *
+     * The runner draws the dialog before waiting, because nothing guarantees
+     * an update event arrives for a window that was just created, and it
+     * pumps the input devices while it runs - the main event loop is the only
+     * other caller of ProcessModernInput and it is blocked behind us. The
+     * loop that used to be here did neither, and reimplemented the key
+     * handling besides.
+     *
+     * This does not fix reopening Find after a search that found something,
+     * which still shows nothing. The dialog is created and its window is
+     * marked visible in that case too; the trigger is TESetSelect on the
+     * match, since a search that finds nothing reopens fine.
+     */
+    short itemHit = RunModalDialogBox(dlg, 1 /* Find */, 2 /* Cancel */);
 
     /* Extract search text from edit field (item 3) */
     if (itemHit == 1) {
