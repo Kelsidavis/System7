@@ -3,6 +3,7 @@
  */
 
 #include "FS/vfs_ops.h"
+#include "MemoryMgr/MemoryManager.h"
 #include "FS/vfs.h"
 #include "FS/hfs_types.h"
 #include <string.h>
@@ -39,6 +40,49 @@ bool VFS_Move(VRefNum vref, DirID fromDir, FileID id, DirID toDir, const char* n
     return VFS_MoveOverlay(vref, id, toDir, newName, &entry);
 }
 
+/*
+ * VFS_CopyData - copy one file's contents into another.
+ *
+ * VFS_Copy used to create the destination entry and stop there, so a
+ * duplicated document arrived empty: the Finder's Duplicate produced a
+ * "Read Me copy" of zero bytes beside a "Read Me" of two hundred, and Get
+ * Info agreed with the empty one. A copy that copies nothing is not a copy.
+ */
+static bool VFS_CopyData(VRefNum vref, FileID from, FileID to) {
+    VFSFile* in = VFS_OpenFile(vref, from, false);
+    if (!in) return false;
+
+    uint32_t size = VFS_GetFileSize(in);
+    if (size == 0) {
+        VFS_CloseFile(in);
+        return true;               /* nothing to carry over */
+    }
+
+    uint8_t* buf = (uint8_t*)NewPtr(size);
+    if (!buf) {
+        VFS_CloseFile(in);
+        return false;
+    }
+
+    uint32_t got = 0;
+    bool ok = VFS_ReadFile(in, buf, size, &got) && got == size;
+    VFS_CloseFile(in);
+
+    if (ok) {
+        VFSFile* out = VFS_OpenFile(vref, to, false);
+        if (out) {
+            uint32_t put = 0;
+            ok = VFS_WriteFile(out, buf, size, &put) && put == size;
+            VFS_CloseFile(out);
+        } else {
+            ok = false;
+        }
+    }
+
+    DisposePtr((Ptr)buf);
+    return ok;
+}
+
 bool VFS_Copy(VRefNum vref, DirID fromDir, FileID id, DirID toDir,
               const char* newName, FileID* newID) {
     FS_LOG_DEBUG("VFS_Copy: id=%u from dir=%u to dir=%u\n", id, fromDir, toDir);
@@ -46,6 +90,9 @@ bool VFS_Copy(VRefNum vref, DirID fromDir, FileID id, DirID toDir,
     /* Read source entry */
     CatEntry src;
     if (!VFS_GetByID(vref, id, &src)) return false;
+
+    /* Copying a folder into itself would not terminate. */
+    if (src.kind == kNodeDir && (DirID)src.id == toDir) return false;
 
     /* Create new entry in destination */
     char copyName[32];
@@ -59,10 +106,24 @@ bool VFS_Copy(VRefNum vref, DirID fromDir, FileID id, DirID toDir,
     if (src.kind == kNodeDir) {
         DirID dirID;
         if (!VFS_CreateFolder(vref, toDir, copyName, &dirID)) return false;
+
+        /* A copied folder brings its contents, as it does in the Finder. */
+        CatEntry children[64];
+        int count = 0;
+        if (VFS_Enumerate(vref, (DirID)src.id, children, 64, &count)) {
+            for (int i = 0; i < count; i++) {
+                VFS_Copy(vref, (DirID)src.id, children[i].id, dirID, NULL, NULL);
+            }
+        }
+
         if (newID) *newID = dirID;
     } else {
         FileID fid;
         if (!VFS_CreateFile(vref, toDir, copyName, src.type, src.creator, &fid)) return false;
+        if (!VFS_CopyData(vref, id, fid)) {
+            VFS_Delete(vref, fid);   /* half a copy is worse than none */
+            return false;
+        }
         if (newID) *newID = fid;
     }
 
