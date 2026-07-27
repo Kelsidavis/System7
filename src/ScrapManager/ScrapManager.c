@@ -329,6 +329,23 @@ ProcessID Scrap_GetOwner(void)
 
 #include "FS/vfs.h"
 
+/*
+ * Directory the Clipboard file belongs in.
+ *
+ * System 7 keeps it in the System Folder, not loose at the root of the boot
+ * volume - which is where this was creating it, so a "Clipboard" document
+ * appeared alongside the user's files the first time anything was copied.
+ * Falls back to the root if there is no System Folder to put it in.
+ */
+static DirID Scrap_ClipboardDir(VRefNum vref)
+{
+    CatEntry entry;
+    if (VFS_Lookup(vref, 2, "System Folder", &entry) && entry.kind == kNodeDir) {
+        return (DirID)entry.id;
+    }
+    return 2;
+}
+
 /**
  * Scrap_SaveToVFS - Persist scrap data to VFS
  * Format: [magic:4][version:2][count:2] then per item [type:4][size:4][data:size]
@@ -338,12 +355,13 @@ static void Scrap_SaveToVFS(void)
     if (!gScrap.dirty || gScrap.count == 0) return;
 
     VRefNum vref = VFS_GetBootVRef();
+    DirID clipDir = Scrap_ClipboardDir(vref);
     FileID fid = 0;
 
     /* Create or open the clipboard file */
-    if (!VFS_CreateFile(vref, 2, "Clipboard", 'CLIP', 'MACS', &fid)) {
+    if (!VFS_CreateFile(vref, clipDir, "Clipboard", 'CLIP', 'MACS', &fid)) {
         CatEntry entry;
-        if (VFS_Lookup(vref, 2, "Clipboard", &entry)) {
+        if (VFS_Lookup(vref, clipDir, "Clipboard", &entry)) {
             fid = entry.id;
         } else {
             return;
@@ -389,7 +407,7 @@ static void Scrap_LoadFromVFS(void)
 {
     VRefNum vref = VFS_GetBootVRef();
     CatEntry entry;
-    if (!VFS_Lookup(vref, 2, "Clipboard", &entry)) return;
+    if (!VFS_Lookup(vref, Scrap_ClipboardDir(vref), "Clipboard", &entry)) return;
 
     VFSFile *file = VFS_OpenFile(vref, entry.id, false);
     if (!file) return;

@@ -230,6 +230,23 @@ void Finder_AdjustMenus(void) {
             DisableItem(editMenu, kCopyItem);
             DisableItem(editMenu, kClearItem);
         }
+
+        /* Paste follows the scrap. Nothing here touched it before, so it sat
+         * at the enabled state it was built with and stayed that way for the
+         * session - offering to paste with an empty clipboard, and still
+         * offering it when the front window is not somewhere files can go.
+         * Passing no destination handle asks GetScrap for the size only. */
+        {
+            extern long GetScrap(Handle hDest, OSType theType, long* offset);
+            long fileListSize = GetScrap(NULL, 'fSSp', NULL);
+            Boolean canPaste = hasFolderWindow &&
+                               fileListSize > (long)(sizeof(SInt16) + sizeof(UInt8));
+            if (canPaste) {
+                EnableItem(editMenu, kPasteItem);
+            } else {
+                DisableItem(editMenu, kPasteItem);
+            }
+        }
     }
 
     /* Adjust File menu */
@@ -1524,8 +1541,12 @@ void Finder_Paste(void) {
     DirID destDir = FolderWindow_GetCurrentDir(frontWin);
 
     if (destVRef == 0 || destDir == 0) {
+        /* sourceSpecs points into the scrap handle's block, three bytes past
+         * its start - it is not its own allocation. Disposing it handed the
+         * allocator an address in the middle of a live block, and leaked the
+         * handle that actually needed freeing. */
         MENU_LOG_DEBUG("Finder_Paste: Failed to get destination folder info\n");
-        DisposePtr((Ptr)sourceSpecs);
+        DisposeHandle(scrapHandle);
         return;
     }
 
@@ -1617,7 +1638,16 @@ void Finder_Paste(void) {
     /* Free the scrap handle */
     DisposeHandle(scrapHandle);
 
-    /* Refresh the folder window */
+    /* Re-read the directory before repainting.
+     *
+     * Posting an update event only repaints what the window already has in
+     * state->items, and that list was built when the folder was opened - so
+     * the pasted files were created on disk and then not shown. Paste looked
+     * like it had done nothing at all. Finder_Undo already reloads this way
+     * for the same reason. */
+    extern void InitializeFolderContentsEx(WindowPtr w, Boolean isTrash,
+                                            VRefNum vref, DirID dirID);
+    InitializeFolderContentsEx(frontWin, false, destVRef, destDir);
     PostEvent(updateEvt, (UInt32)(uintptr_t)frontWin);
 
     MENU_LOG_DEBUG("Finder_Paste: Paste operation complete\n");
