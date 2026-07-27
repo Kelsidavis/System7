@@ -282,6 +282,32 @@ Boolean TrackGoAway(WindowPtr theWindow, Point thePt) {
  * Update Region Management
  * ============================================================================ */
 
+/*
+ * InvalWindowRect - invalidate a rectangle in a named window
+ *
+ * InvalRect takes no window: it invalidates whichever port happens to be
+ * current. That is fine inside a window's own drawing, and wrong everywhere
+ * else - a menu command, a resize, anything running from the Window Manager's
+ * port. The rectangle lands in some other window's update region and the one
+ * that changed is never repainted, so the feature looks like it does nothing.
+ * SimpleText's Style and Size menus failed exactly that way, and dialog edit
+ * fields and the desktop drag have each produced their own version of it.
+ *
+ * Mac OS added InvalWindowRect for this reason. Callers that know which
+ * window they mean should say so.
+ */
+void InvalWindowRect(WindowPtr window, const Rect* badRect)
+{
+    GrafPtr savePort;
+
+    if (!window || !badRect) return;
+
+    GetPort(&savePort);
+    SetPort((GrafPtr)window);
+    InvalRect(badRect);
+    SetPort(savePort);
+}
+
 void InvalRect(const Rect* badRect) {
     if (badRect == NULL) return;
 

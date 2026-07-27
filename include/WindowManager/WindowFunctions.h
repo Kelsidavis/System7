@@ -56,6 +56,9 @@ void SetDragConstraintProc(DragConstraintProc constraintProc, void* refCon);
 
 /* Window drawing and updating */
 void InvalRect(const Rect* badRect);
+/* Invalidate a rectangle in a named window rather than in whichever port is
+ * current. Prefer this wherever the window is known. */
+void InvalWindowRect(WindowPtr window, const Rect* badRect);
 void InvalRgn(RgnHandle badRgn);
 void ValidRect(const Rect* goodRect);
 void ValidRgn(RgnHandle goodRgn);

@@ -4,6 +4,24 @@ This document tracks known issues, workarounds, and technical debt in the System
 
 ## Open Issues
 
+### 🐞 Resizing a document window loses its frame
+
+Dragging the grow box on SimpleText's window enlarges the content and
+leaves the window with no title bar, no border and no grow box - fragments
+of the old frame stay behind on the desktop. Reproduce with the window
+open and `goto 511 411; down; goto 600 470; up`.
+
+**It is not the ambient-port bug.** Verified by A/B: the same drag against
+the tree without the `InvalWindowRect` change produces a pixel-identical
+result, so this predates that work and is its own defect.
+
+The likely direction is that only the content is invalidated on resize -
+`STView_Resize` invalidates the window's `portRect`, which is the content
+rect and never includes the frame - so nothing asks the Window Manager to
+redraw the chrome at the new size. That is a guess and has not been
+confirmed.
+
+
 ### 🐞 Type/creator icon mapping names icons that do not exist
 
 `IconRes_MapTypeCreatorToIcon` returns resource ID 128 for `APPL`, 129 and

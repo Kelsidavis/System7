@@ -567,8 +567,9 @@ void STView_Resize(STDocument* doc) {
     /* Recalculate line breaks */
     TECalText(doc->hTE);
 
-    /* Invalidate window */
-    InvalRect(&((GrafPtr)doc->window)->portRect);
+    /* Invalidate the document's window by name. A resize runs from the Window
+     * Manager, so the current port is not this window. */
+    InvalWindowRect(doc->window, &((GrafPtr)doc->window)->portRect);
 
     STView_RepositionScrollBar(doc);
     STView_UpdateScrollMetrics(doc);
@@ -664,15 +665,7 @@ static void ApplyStyleToSelection(STDocument* doc, SInt16 font, SInt16 size, Sty
      * repainted: choosing Bold ticked the menu, marked the file dirty, and
      * left the text exactly as it was.
      */
-    if (doc->window) {
-        GrafPtr savePort;
-        GetPort(&savePort);
-        SetPort((GrafPtr)doc->window);
-        InvalRect(&(*doc->hTE)->viewRect);
-        SetPort(savePort);
-    } else {
-        InvalRect(&(*doc->hTE)->viewRect);
-    }
+    InvalWindowRect(doc->window, &(*doc->hTE)->viewRect);
 
     /* Update global current style */
     g_ST.currentFont = font;

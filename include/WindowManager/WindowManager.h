@@ -474,6 +474,9 @@ void DragWindow(WindowPtr theWindow, Point startPt, const Rect* boundsRect);
  * Adds the specified rectangle to the current port's update region.
  */
 void InvalRect(const Rect* badRect);
+/* Invalidate a rectangle in a named window rather than in whichever port is
+ * current. Prefer this wherever the window is known. */
+void InvalWindowRect(WindowPtr window, const Rect* badRect);
 
 /*
  * InvalRgn - Invalidate a region in current port
