@@ -981,19 +981,45 @@ Handle _GetControlDefProc(SInt16 procID) {
     Handle cdefHandle;
     struct ControlTypeEntry *entry;
 
-    /* Search registered control types */
+    /* Search registered control types.
+     *
+     * An exact match first, then one ignoring the variant bits.
+     *
+     * Inside Macintosh numbers a control's procID as CDEF * 16 + variant, so
+     * masking off the low nibble finds the CDEF and the variant picks the
+     * shape. This codebase does not work that way: it registers a separate
+     * definition for each of pushButProc (0), checkBoxProc (1) and
+     * radioButProc (2), which differ only in those very bits. Masking made
+     * all three resolve to whichever happened to be registered first, so
+     * every push button in the system was drawn by the radio button
+     * definition - the Desktop Patterns panel's OK and Cancel came up as
+     * radio buttons.
+     *
+     * Trying the exact procID first makes those registrations work; keeping
+     * the masked search as a fallback leaves the Inside Macintosh convention
+     * working for anything registered as a CDEF with variants. */
     entry = gControlMgr.controlTypes;
     while (entry) {
-        if ((entry->procID & 0xFFF0) == (procID & 0xFFF0)) {
-            defProc = entry->defProc;
+        if (entry->procID == procID) {
             break;
         }
         entry = entry->next;
     }
 
     if (!entry) {
+        entry = gControlMgr.controlTypes;
+        while (entry) {
+            if ((entry->procID & 0xFFF0) == (procID & 0xFFF0)) {
+                break;
+            }
+            entry = entry->next;
+        }
+    }
+
+    if (!entry) {
         return NULL;
     }
+    defProc = entry->defProc;
 
     /* Create handle for CDEF */
     cdefHandle = NewHandle(sizeof(ControlDefProcPtr) + 2);
