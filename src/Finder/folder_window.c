@@ -1593,12 +1593,15 @@ static void FolderWindow_DrawListHeader(const Rect* portRect, short viewMode) {
     short y = portRect->top;
     short left = portRect->left;
 
-    /* Draw header background (light gray fill) */
+    /* Header background.
+     *
+     * This was a 50% gray pattern, which at one pixel per bit is a dense
+     * stripe the column titles then had to be read through - the header was
+     * effectively illegible. System 7 puts the column titles on the same white
+     * as the list body and separates them with the rule drawn below. */
     Rect headerRect;
     SetRect(&headerRect, left, y, portRect->right, y + kListHeaderHeight);
-    Pattern grayPat;
-    for (int i = 0; i < 8; i++) grayPat.pat[i] = 0xAA;  /* 50% gray */
-    FillRect(&headerRect, &grayPat);
+    EraseRect(&headerRect);
 
     /* Draw header text — active sort column is bold */
     short textY = y + 12;
@@ -3053,22 +3056,17 @@ DirID FolderWindow_GetCurrentDir(WindowPtr w) {
  * Sort items by name (folders first, then alphabetically)
  */
 static void SortFolderItemsByName(FolderItem* items, short count) {
-    /* Simple bubble sort - adequate for typical folder sizes */
+    /* Straight alphabetical, folders interleaved with files.
+     *
+     * This used to hoist every folder above every file. That is the file
+     * manager convention from elsewhere; the System 7 Finder's "by Name" is
+     * one alphabetical run - "About This Mac" sorts above "Applications"
+     * whether or not either is a folder. The comparison is case-insensitive
+     * for the same reason: the Finder sorts through the international string
+     * routines, which fold case. */
     for (short i = 0; i < count - 1; i++) {
         for (short j = 0; j < count - i - 1; j++) {
-            Boolean shouldSwap = false;
-
-            /* Folders always come first */
-            if (!items[j].isFolder && items[j+1].isFolder) {
-                shouldSwap = true;
-            } else if (items[j].isFolder == items[j+1].isFolder) {
-                /* Both are folders or both are files - compare names */
-                if (strcmp(items[j].name, items[j+1].name) > 0) {
-                    shouldSwap = true;
-                }
-            }
-
-            if (shouldSwap) {
+            if (strcasecmp(items[j].name, items[j+1].name) > 0) {
                 FolderItem temp = items[j];
                 items[j] = items[j+1];
                 items[j+1] = temp;
