@@ -127,8 +127,8 @@ OSErr ParseCODEN(const void* codeData, Size size, SInt16 segID,
     const UInt8* data = (const UInt8*)codeData;
 
     /* Extract entry offset and flags */
-    info->entryOffset = BE_Read16(data + CODEN_ENTRY_OFFSET);
-    info->flags = BE_Read16(data + CODEN_FLAGS_OFFSET);
+    info->firstJTEntry = BE_Read16(data + CODEN_FIRST_JT_ENTRY);
+    info->jtEntryCount = BE_Read16(data + CODEN_JT_ENTRY_COUNT);
 
     /* Check for linker prologue */
     info->prologueSkip = 0;

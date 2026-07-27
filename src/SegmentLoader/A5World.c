@@ -180,7 +180,18 @@ OSErr BuildJumpTable(SegmentLoaderContext* ctx)
     for (UInt16 i = 0; i < jtCount; i++) {
         CPUAddr slotAddr = jtBase + (i * ctx->a5World.jtEntrySize);
 
-        /* One rule, shared with the _LoadSeg handler that patches these. */
+        /*
+         * Which segment a slot belongs to is written in that segment's own
+         * header, and _LoadSeg reads it from there when it patches. This runs
+         * before any segment is loaded, so it cannot ask them.
+         *
+         * System 7 does not have this problem: the jump table lives in CODE 0
+         * and each entry already carries its segment number in unloaded form,
+         * so the loader copies the table rather than building it. Until CODE 0
+         * is read that way, the slot ordering here has to match what the
+         * segment headers say, and the smoke test's resources are written so
+         * that it does.
+         */
         SInt16 segID = SegLoader_SegmentForSlot((SInt16)i);
         SInt16 entryIndex = 0;
 

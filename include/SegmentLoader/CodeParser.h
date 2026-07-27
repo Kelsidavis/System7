@@ -80,9 +80,20 @@ static inline void BE_Write32(void* ptr, UInt32 value) {
  *
  * CODE resources 1..N have this layout:
  *   Offset  Size  Description
- *   +0      2     Entry offset (often 0x0000 or small value)
- *   +2      2     Flags/version (often 0x0000)
+ *   +0      2     Offset of this segment's first jump table entry, in bytes
+ *                 from the start of the jump table
+ *   +2      2     How many jump table entries belong to this segment
  *   +4      ...   Code bytes
+ *
+ * This was described as an entry offset and a flags word, and the first word
+ * was added to the segment base to find where to start executing. A near
+ * model segment is not entered that way - it is entered through one of its
+ * jump table entries - and that word is a jump table offset, so treating it
+ * as a distance into the code lands part way through an instruction.
+ *
+ * Which entries belong to which segment is written here, in the segment. It
+ * used to be worked out from a rule invented to make the stub installer and
+ * _LoadSeg agree with each other, which they had not.
  *
  * Some linkers add a small prologue:
  *   +0      2     0x3F3C (MOVE.W #imm,-(SP) prologue)
@@ -92,8 +103,8 @@ static inline void BE_Write32(void* ptr, UInt32 value) {
  * The actual entry point may skip this prologue.
  */
 
-#define CODEN_ENTRY_OFFSET      0
-#define CODEN_FLAGS_OFFSET      2
+#define CODEN_FIRST_JT_ENTRY    0
+#define CODEN_JT_ENTRY_COUNT    2
 #define CODEN_HEADER_SIZE       4
 
 /*

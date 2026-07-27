@@ -302,7 +302,9 @@ OSErr LoadSegment(SegmentLoaderContext* ctx, SInt16 segID)
     }
 
     /* Calculate entry point */
-    entryAddr = baseAddr + info.entryOffset;
+    /* A near model segment's code begins where the header ends; it is entered
+     * through a jump table entry, not at a header-declared offset. */
+    entryAddr = baseAddr;
 
     /* Store segment descriptor */
     if (segID >= ctx->numSegments) {
@@ -316,6 +318,10 @@ OSErr LoadSegment(SegmentLoaderContext* ctx, SInt16 segID)
     ctx->segments[segID].handle = cpuHandle;
     ctx->segments[segID].baseAddr = baseAddr;
     ctx->segments[segID].entryAddr = entryAddr;
+    /* Remember which jump table entries this segment owns; the segment says
+     * so itself, which is what makes a rule unnecessary. */
+    ctx->segments[segID].firstJTEntry = info.firstJTEntry;
+    ctx->segments[segID].jtEntryCount = info.jtEntryCount;
     ctx->segments[segID].size = executableSize;
     ctx->segments[segID].state = kSegmentLoaded;
     ctx->segments[segID].purgeable = false;
@@ -324,7 +330,9 @@ OSErr LoadSegment(SegmentLoaderContext* ctx, SInt16 segID)
 
     SEG_LOG_INFO("CODE %d loaded successfully:", segID);
     SEG_LOG_INFO("  baseAddr  = 0x%08X", baseAddr);
-    SEG_LOG_INFO("  entryAddr = 0x%08X (base + 0x%X)", entryAddr, info.entryOffset);
+    SEG_LOG_INFO("  entryAddr = 0x%08X, JT entries %u..%u", entryAddr,
+                 (unsigned)(info.firstJTEntry / JT_ENTRY_SIZE),
+                 (unsigned)(info.firstJTEntry / JT_ENTRY_SIZE + info.jtEntryCount));
     SEG_LOG_INFO("  size      = 0x%X bytes", executableSize);
 
     /* Clean up */

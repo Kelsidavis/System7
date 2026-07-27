@@ -72,7 +72,8 @@ typedef struct CODE0Info {
  * - Prologue skip (linker-generated header bytes to skip)
  */
 typedef struct CODEInfo {
-    UInt32 entryOffset;       /* Offset to entry point within segment */
+    UInt32 firstJTEntry;      /* Byte offset of this segment's first JT entry */
+    UInt32 jtEntryCount;      /* How many JT entries belong to this segment */
     UInt32 prologueSkip;      /* Bytes to skip before real code */
     RelocTable relocTable;    /* Relocation entries */
     UInt32 codeSize;          /* Size of code data */
@@ -97,6 +98,8 @@ typedef struct CodeSegment {
     CPUCodeHandle handle;     /* CPU-specific code handle */
     CPUAddr baseAddr;         /* Base address in CPU space */
     CPUAddr entryAddr;        /* Entry point address */
+    UInt32  firstJTEntry;     /* Byte offset of this segment's first JT entry */
+    UInt32  jtEntryCount;     /* How many JT entries belong to this segment */
     UInt32 size;              /* Segment size */
     SegmentState state;       /* Current state */
     Boolean purgeable;        /* Can be unloaded */

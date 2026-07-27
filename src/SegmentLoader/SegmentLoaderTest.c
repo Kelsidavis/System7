@@ -92,8 +92,8 @@ static void InstallTestResources(void)
      *   _LoadSeg          ; 0xA9F0 (trap)
      *   RTS               ; 0x4E75 (return)
      */
-    BE_Write16_Ptr(code1 + 0, 0x0000);  // entryOffset
-    BE_Write16_Ptr(code1 + 2, 0x0000);  // flags
+    BE_Write16_Ptr(code1 + 0, 0);       // first JT entry: byte 0 of the table
+    BE_Write16_Ptr(code1 + 2, 1);       // one entry belongs to this segment
     /*
      * Load segment 2, then call it through its jump table entry - the call is
      * the part that proves the mechanism. _LoadSeg patches JT[1] to jump to
@@ -135,8 +135,8 @@ static void InstallTestResources(void)
      * so its first instruction word was read as the entry offset. $A800 as an
      * offset put the entry forty-three thousand bytes past the segment, at an
      * address holding nothing, and the jump table was patched to point there. */
-    BE_Write16_Ptr(code2 + 0, 0x0000);  // entryOffset
-    BE_Write16_Ptr(code2 + 2, 0x0000);  // flags
+    BE_Write16_Ptr(code2 + 0, 8);       // first JT entry: byte 8, the second slot
+    BE_Write16_Ptr(code2 + 2, 1);       // one entry belongs to this segment
     code2[4] = 0xA8; code2[5] = 0x00;   // TRAP #$A800
     code2[6] = 0x4E; code2[7] = 0x75;   // RTS
 
@@ -287,7 +287,9 @@ OSErr LoadSeg_TrapHandler(void* context, CPUAddr* pc, CPUAddr* registers)
 
     /* Patch JT entry to point directly at segment (hot-patch) */
     /* Calculate JT slot index - simplified mapping: seg 1 -> JT[0], etc. */
-    SInt16 jtIndex = SegLoader_SlotForSegment(segID);
+    /* The segment records which jump table entries are its own, so the slot to
+     * patch is read from it rather than worked out from a rule. */
+    SInt16 jtIndex = (SInt16)(ctx->segments[segID].firstJTEntry / JT_ENTRY_SIZE);
 
     if (jtIndex >= 0 && jtIndex < ctx->a5World.jtCount) {
         CPUAddr jtSlotAddr = ctx->a5World.jtBase + (jtIndex * ctx->a5World.jtEntrySize);
