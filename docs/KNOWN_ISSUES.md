@@ -4,46 +4,32 @@ This document tracks known issues, workarounds, and technical debt in the System
 
 ## Open Issues
 
-### ⛔ A window overlapped by another never repaints (REGION-001 consequence)
+### ✅ A window overlapped by another never repaints — FIXED
 
-**Symptom**: open a document from a folder window. The document window covers
-part of the folder window, and the folder window's content goes white and
-stays white - not only where it is covered, but everywhere, including the
-parts still in plain view. Moving the document window off it does not bring
-it back; the icons return only when nothing overlaps the folder window at
-all, which on an 800x600 screen with a large folder window is rarely.
+**Was**: open a document from a folder window. The document window covers part
+of the folder window, and the folder window's content goes white and stays
+white — not only where it is covered, but everywhere, including the parts still
+in plain view. Moving the document window off it did not bring it back.
 
-**Mechanism**, confirmed by reading the two decisions that disagree:
+**Mechanism**: `PaintOne` filled the whole content region white and recorded
+that damage in `updateRgn`, expecting the update event to repaint it. Two
+places then refused to service that update while anything was on top —
+`WM_DeferUpdateIfObscured` in the dispatcher and the same test again inside
+`WM_FindWindowNeedingUpdate` — and both could only compare rectangles, so a
+single pixel of overlap deferred the whole window indefinitely. Erase
+unconditionally, repaint conditionally.
 
-  - PaintOne fills the whole content region white and records that damage in
-    updateRgn, expecting the update event to repaint it.
-  - WM_DeferUpdateIfObscured then refuses to service that update while
-    WM_RegionCoveredByFrontWindow says something is on top - and that test is
-    a rectangle intersection, so a single pixel of overlap defers the whole
-    window indefinitely.
+The deferral was standing in for real regions, and said so. Regions are real
+now (REGION-001), so `CalcVis` genuinely subtracts the structure region of
+every window in front, and `EndUpdate` copies a window's offscreen buffer to
+the screen band by band through its visible region. A window repainting itself
+can only put back pixels it owns, so there is nothing left to defer and both
+copies of the test are gone.
 
-Erase unconditionally, repaint conditionally. The comment on the deferral
-says the damage "is repainted once the covering window goes away", which is
-true only if it goes away entirely rather than merely stops covering the
-damaged part.
-
-**Why it is not a small fix**: skipping the erase when the repaint will be
-deferred was tried and is not an improvement - DragWindow paints the desktop
-into the uncovered region first, so the unerased content shows desktop
-pattern inside the window instead of white. Painting the window and then
-repainting everything above it in z-order would be correct and is expressible
-with bounding-box regions, but that is a real change to the repaint model.
-
-The clean fix is REGION-001: with real regions, visRgn can express "my
-content minus what is on top of me", BeginUpdate can clip to it, and the
-deferral is not needed at all. That is what the deferral's own comment says
-it is standing in for.
-
-**Files**: src/WindowManager/WindowDisplay.c (PaintOne's backfill,
-WM_RegionCoveredByFrontWindow, WM_DeferUpdateIfObscured, PaintBehind),
-src/WindowManager/WindowDragging.c (the desktop repaint before PaintBehind).
-
----
+Verified in QEMU: with Read Me open over the Macintosh HD window, the folder
+window shows its icons and status bar in the exposed area, clipped exactly at
+the document window's edge; dragging the document window away repaints the
+whole uncovered area including every icon.
 
 ### ✅ Typing into an opened document replaced it (SIMPLETEXT-001) — FIXED
 
@@ -181,10 +167,13 @@ nothing repaints until the cover moves — and then it does, automatically.
 Verified self-healing: opening About over the Finder window leaves it blank while
 covered, and closing About restores it in full (3767 content pixels).
 
-The trade-off is that a *partially* covered window defers wholesale rather than
-repainting its exposed part, so it can sit blank until the cover moves. That
-costs a delayed repaint and never wrong pixels. Real regions (REGION-001) would
-remove the need for the guard entirely.
+**Superseded.** The deferral above was a stand-in for real regions and has since
+been removed, along with the duplicate copy of its test in
+`WM_FindWindowNeedingUpdate`. With REGION-001 fixed, `EndUpdate` copies a
+window's offscreen buffer to the screen band by band through its visible region,
+so a stale update event can only ever put back pixels the window actually owns —
+it cannot paint over the window in front of it, and a partially covered window
+repaints its exposed part immediately instead of sitting blank.
 
 ⚠️ **Corrected diagnosis.** An earlier revision of this entry blamed
 `FrontWindow()` and `wmState->windowList` disagreeing about the frontmost window.
@@ -423,31 +412,31 @@ Both comments are now corrected; the script flags any future recurrence.
 > are `static` or `#if 0` definitions, which cannot shadow anything. The audit
 > script did not account for either, and now does.
 
-### ⛔ Regions are rectangles: DiffRgn and XorRgn are stubs (REGION-001)
+### ✅ Regions are rectangles: DiffRgn and XorRgn are stubs (REGION-001) — FIXED
 
-`struct Region` (include/SystemTypes.h) carries only `rgnSize` and `rgnBBox`, so
-a region cannot represent anything but a rectangle. Consequently in
-`src/QuickDraw/Regions.c`:
+`struct Region` carried only `rgnSize` and `rgnBBox`, so a region could not
+represent anything but a rectangle. `DiffRgn()` ended in
+`CopyRgn(srcRgnA, dstRgn)` — it returned the first operand unchanged and
+subtracted nothing — and `XorRgn()` returned the bounding box of the union.
 
-- `DiffRgn()` ends in `CopyRgn(srcRgnA, dstRgn)` — it returns the first operand
-  unchanged and **subtracts nothing**.
-- `XorRgn()` returns the bounding box of the union.
+A region is now a bounding box plus, when it is not a plain rectangle, a list
+of disjoint rectangles covering exactly its area. A rectangular region keeps
+`rgnSize == kMinRegionSize` and carries no list, so anything that only reads
+`rgnBBox` is unaffected. All four set operations are built from one primitive:
+subtracting a rectangle from a rectangle, which leaves at most four disjoint
+pieces. `PtInRgn` and `RectInRgn` test the rectangles rather than the bounding
+box. A region needing more rectangles than the cap collapses to its bounding
+box, which overstates it in the same direction the stubs always did.
 
-This is representational, not a missing few lines: the difference of two
-rectangles is not a rectangle. A real fix needs a scanline or rectangle-list
-region representation plus rendering and clipping that honour it.
+Verified with a boot-time test over an L-shaped case: difference,
+intersection, union and xor all produced exact areas, a point in the notch
+tested outside, full coverage gave an empty region, and a disjoint subtrahend
+left the original untouched.
 
-**Known consequences:**
-
-1. `DragWindow()` computes its uncovered-desktop area as
-   `DiffRgn(oldRgn, newRgn, uncoveredRgn)`, which yields the window's **entire**
-   former rectangle instead of just the newly exposed part.
-2. `Finder_DeskHook()` can only hold back one window from the desktop erase
-   (via rectangle strips in `Finder_EraseRegionExcludingRect`), so a second
-   overlapping window can be painted over and left damaged.
-
-**Do not** "fix" this by building on `DiffRgn` — doing so erases the whole
-desktop including every window, which then never gets repainted.
+**What this unblocked**: the overlapped-window repaint above, and the update
+deferral that stood in for it. `DragWindow()`'s uncovered-desktop area and
+`Finder_DeskHook()`'s hold-back are now expressible too, though they have not
+been revisited yet.
 
 ### ✅ Macintosh HD window booted with completely blank content (REDRAW-004) — FIXED
 

@@ -113,75 +113,18 @@ void CheckWindowsNeedingUpdate(void) {
  * when a window has a non-empty updateRgn, and BeginUpdate/EndUpdate clears it.
  * Generating them on demand cannot flood the queue and cannot go stale.
  */
-/*
- * WM_RegionCoveredByFrontWindow - is any part of rgn hidden by a window in front?
- *
- * Guard for REGION-001: a Region here holds only a bounding box, so visRgn
- * cannot express "my content minus the window sitting on top of me", and
- * BeginUpdate cannot clip a repaint to the parts that are actually exposed.
- * Repainting a covered window therefore draws straight over the window above
- * it - servicing a pending Finder update after About This Macintosh opened
- * painted the Finder's icons on top of the About box.
- *
- * The window list runs front to back, so everything reached before `window` is
- * in front of it. Rectangle intersection is all we can do until regions become
- * real. It errs toward deferring: the damage stays recorded in updateRgn and is
- * repainted once the covering window goes away.
- */
-static Boolean WM_RegionCoveredByFrontWindow(WindowPtr window, RgnHandle rgn) {
-    extern WindowPtr FrontWindow(void);
-
-    if (!window || !rgn || !*rgn) return false;
-
-    Rect area = (*rgn)->rgnBBox;
-    WindowPtr w = FrontWindow();
-    int guard = 0;
-
-    while (w && w != window && guard++ < 64) {
-        if (w->visible && w->strucRgn && *(w->strucRgn)) {
-            Rect s = (*(w->strucRgn))->rgnBBox;
-            if (s.left < area.right && s.right > area.left &&
-                s.top < area.bottom && s.bottom > area.top) {
-                return true;
-            }
-        }
-        w = w->nextWindow;
-    }
-
-    return false;
-}
-
 static void WM_AccumulateUpdateRgn(WindowPtr window, RgnHandle rgn);
 
 /*
- * WM_DeferUpdateIfObscured - can this window safely repaint right now?
- *
- * Returns true if something is stacked on top of it, having first re-recorded
- * the damage in its update region so it repaints once the cover goes away.
- *
- * Needed because update events can be queued: PostEvent(updateEvt, w) captures
- * "w needs redrawing" at one moment and the event is dispatched at another. Open
- * a folder and the parent's selection-redraw event, posted while the parent was
- * frontmost, is dispatched after the new window is already sitting on top of it
- * - and the parent paints straight over the window it just opened (WIN-001).
- *
- * Real QuickDraw does not need this: BeginUpdate clips to visRgn, which excludes
- * whatever is above. Ours is a bounding box (REGION-001) and cannot express
- * that, so obscured windows are deferred wholesale instead. That over-defers a
- * partially covered window until the cover moves, which costs a delayed repaint
- * and never wrong pixels.
+ * A window used to be skipped for update while anything overlapped it, both
+ * here and again in the event dispatcher - one policy written twice, and
+ * neither copy could be more precise than a rectangle intersection, so a
+ * single pixel of overlap left a window blank until the cover moved away.
+ * It stood in for real regions (REGION-001). Regions are real now: EndUpdate
+ * copies a window's offscreen buffer to the screen band by band through its
+ * visible region, so repainting an overlapped window can only put back pixels
+ * that window owns, and there is nothing left to defer.
  */
-Boolean WM_DeferUpdateIfObscured(WindowPtr window) {
-    if (!window || !window->contRgn || !*(window->contRgn)) return false;
-
-    if (!WM_RegionCoveredByFrontWindow(window, window->contRgn)) {
-        return false;
-    }
-
-    WM_AccumulateUpdateRgn(window, window->contRgn);
-    return true;
-}
-
 WindowPtr WM_FindWindowNeedingUpdate(void) {
     extern WindowPtr FrontWindow(void);
     extern Boolean EmptyRgn(RgnHandle rgn);
@@ -189,8 +132,7 @@ WindowPtr WM_FindWindowNeedingUpdate(void) {
     WindowPtr window = FrontWindow();
     int guard = 0;
     while (window && guard++ < 64) {
-        if (window->visible && window->updateRgn && !EmptyRgn(window->updateRgn) &&
-            !WM_RegionCoveredByFrontWindow(window, window->updateRgn)) {
+        if (window->visible && window->updateRgn && !EmptyRgn(window->updateRgn)) {
             return window;
         }
         window = window->nextWindow;

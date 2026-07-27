@@ -272,6 +272,8 @@ void SelectWindow(WindowPtr theWindow);
 /* Hand activation to a window (or to NULL). The one place that knows how
  * activation moves; every front-window change routes through it. */
 void WM_SetActiveWindow(WindowPtr theWindow);
+/* The frontmost window with damage recorded but not yet repainted. */
+WindowPtr WM_FindWindowNeedingUpdate(void);
 /* The active window has left the window list; pass activation to the one below. */
 void WM_ActiveWindowClosed(void);
 

@@ -653,18 +653,15 @@ Boolean HandleUpdate(EventRecord* event)
         }
         EVT_LOG_DEBUG("HandleUpdate: not About window, proceeding...\n");
 
-        /* Begin update to set up clipping */
-        /* A queued updateEvt records "this window needs redrawing" at post time
-         * and is dispatched later. If another window has been stacked on top in
-         * between, repainting now would draw straight over it - which is what
-         * made an opened folder vanish behind its parent (WIN-001). Defer; the
-         * damage is re-recorded and repaints once the cover goes away. */
-        extern Boolean WM_DeferUpdateIfObscured(WindowPtr window);
-        if (WM_DeferUpdateIfObscured(updateWindow)) {
-            EVT_LOG_DEBUG("HandleUpdate: window obscured, deferring update\n");
-            return true;
-        }
-
+        /* A queued updateEvt records "this window needs redrawing" at post
+         * time and is dispatched later, by which point another window may be
+         * stacked on top. Repainting is safe anyway: EndUpdate copies the
+         * window's offscreen buffer to the screen band by band through its
+         * visible region, which is its content minus everything in front of
+         * it, so a window can only ever put back pixels it owns. This used to
+         * defer the update wholesale instead, which left a window that was
+         * covered by so much as one pixel blank until the cover moved away
+         * (REGION-001). */
         EVT_LOG_DEBUG("HandleUpdate: calling BeginUpdate...\n");
         BeginUpdate(updateWindow);
         EVT_LOG_DEBUG("HandleUpdate: BeginUpdate returned\n");

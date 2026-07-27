@@ -687,6 +687,37 @@ void EndUpdate(WindowPtr theWindow) {
                 if (canBlit) {
                     dstRect = clippedDst;
 
+                    /*
+                     * Blit only what is actually visible.
+                     *
+                     * This used to copy the whole offscreen buffer to the
+                     * window's place on screen with no regard for what was
+                     * stacked on top of it, so a window repainting itself
+                     * painted straight over the windows in front. The Window
+                     * Manager worked around that by refusing to service an
+                     * update at all while anything covered any part of the
+                     * window (WM_DeferUpdateIfObscured), which left partially
+                     * covered windows blank until the cover moved away.
+                     *
+                     * visRgn is the window's content minus the structure
+                     * region of every window in front of it, so copying it
+                     * band by band puts back exactly the pixels this window
+                     * owns and none that it does not.
+                     */
+                    /* Recompute rather than trust: the visible region is
+                     * only as good as the last time something recalculated
+                     * it, and this is the moment it has to be right. */
+                    extern void CalcVis(WindowPtr window);
+                    CalcVis(theWindow);
+
+                    RgnHandle visible = theWindow->visRgn;
+                    SInt16 bandCount = 1;
+                    if (visible && *visible && !EmptyRgn(visible)) {
+                        bandCount = WM_RegionRectCount(visible);
+                    } else {
+                        visible = NULL;   /* nothing known; copy the lot */
+                    }
+
                     PixMap fbPixMap;
                     /* Offset framebuffer pointer to the window's top-left */
                     SInt16 dstTop = dstRect.top;
@@ -708,13 +739,46 @@ void EndUpdate(WindowPtr theWindow) {
                     fbPixMap.pmTable = NULL;
                     fbPixMap.pmReserved = 0;
 
-                    serial_logf(kLogModuleWindow, kLogLevelDebug,
-                               "[COPYBITS] src=(%d,%d,%d,%d) dst=(%d,%d,%d,%d)\n",
-                               srcRect.left, srcRect.top, srcRect.right, srcRect.bottom,
-                               dstRect.left, dstRect.top, dstRect.right, dstRect.bottom);
+                    for (SInt16 band = 0; band < bandCount; band++) {
+                        Rect bandDst = dstRect;
 
-                    CopyBits((BitMap*)(*gwPixMap), (BitMap*)&fbPixMap,
-                            &srcRect, &dstRect, srcCopy, NULL);
+                        if (visible) {
+                            Rect visRect;
+                            WM_RegionGetRect(visible, band, &visRect);
+                            if (!SectRect(&dstRect, &visRect, &bandDst)) {
+                                continue;   /* this band is entirely covered */
+                            }
+                        }
+
+                        /* Take the matching piece of the offscreen buffer:
+                         * source and destination differ only by the window's
+                         * position on screen. */
+                        Rect bandSrc;
+                        bandSrc.left   = srcRect.left   + (bandDst.left   - dstRect.left);
+                        bandSrc.top    = srcRect.top    + (bandDst.top    - dstRect.top);
+                        bandSrc.right  = srcRect.right  - (dstRect.right  - bandDst.right);
+                        bandSrc.bottom = srcRect.bottom - (dstRect.bottom - bandDst.bottom);
+
+                        if (bandSrc.left >= bandSrc.right ||
+                            bandSrc.top  >= bandSrc.bottom) {
+                            continue;
+                        }
+
+                        /* The framebuffer PixMap is described relative to the
+                         * pixels it points at, so it moves with the band. */
+                        fbPixMap.baseAddr = (Ptr)((uint8_t*)framebuffer +
+                                                  (size_t)bandDst.top * fb_pitch +
+                                                  (size_t)bandDst.left * 4u);
+                        fbPixMap.bounds = bandDst;
+
+                        serial_logf(kLogModuleWindow, kLogLevelDebug,
+                                   "[COPYBITS] src=(%d,%d,%d,%d) dst=(%d,%d,%d,%d)\n",
+                                   bandSrc.left, bandSrc.top, bandSrc.right, bandSrc.bottom,
+                                   bandDst.left, bandDst.top, bandDst.right, bandDst.bottom);
+
+                        CopyBits((BitMap*)(*gwPixMap), (BitMap*)&fbPixMap,
+                                &bandSrc, &bandDst, srcCopy, NULL);
+                    }
 
                     serial_logf(kLogModuleWindow, kLogLevelDebug, "[COPYBITS] Done\n");
                 }

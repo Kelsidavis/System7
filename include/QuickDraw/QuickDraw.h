@@ -263,3 +263,8 @@ QDErr QDError(void);
 #endif
 
 #endif /* __QUICKDRAW_H__ */
+
+/* Walk a region's rectangles. A rectangular region reports one; a region
+ * with a notch in it reports the disjoint pieces that make up its area. */
+SInt16 WM_RegionRectCount(RgnHandle rgn);
+void   WM_RegionGetRect(RgnHandle rgn, SInt16 index, Rect *out);

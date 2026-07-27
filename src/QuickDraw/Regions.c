@@ -1222,3 +1222,25 @@ static SInt16 DistanceToRegion(Point pt, RgnHandle rgn) {
     return (SInt16)sqrt(dx * dx + dv * dv);
 }
 #endif
+
+/* ================================================================
+ * REGION RECTANGLE ACCESS
+ *
+ * The Window Manager needs to walk a visible region band by band when it
+ * copies a window's offscreen buffer to the screen. These expose the
+ * rectangle list without exposing its layout.
+ * ================================================================ */
+
+SInt16 WM_RegionRectCount(RgnHandle rgn) {
+    if (!rgn || !*rgn) return 0;
+    return RgnRectCount(*rgn);
+}
+
+void WM_RegionGetRect(RgnHandle rgn, SInt16 index, Rect *out) {
+    if (!rgn || !*rgn || !out) return;
+    if (index < 0 || index >= RgnRectCount(*rgn)) {
+        SetRect(out, 0, 0, 0, 0);
+        return;
+    }
+    RgnGetRect(*rgn, index, out);
+}
