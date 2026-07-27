@@ -1144,44 +1144,136 @@ OSErr M68K_Execute(M68KAddressSpace* as, UInt32 startPC, UInt32 maxInstructions)
 }
 
 /*
- * M68K_SelfTest - prove the interpreter still executes what it used to.
+ * M68K_SelfTest - run programs whose results are not in doubt.
  *
- * Nothing in the system runs 68K code yet, so nothing noticed that the
- * interpreter did not work: three quarters of the opcode space was being
- * swallowed by one over-broad dispatch test, and the shift instructions read
- * the wrong bit for their count. Both faults had been there from the start
- * and would have stayed there, because no code path reached them.
+ * Nothing in the system executes 68K code yet, so nothing notices when the
+ * interpreter is wrong. Two faults that had been present from the start were
+ * found by running five instructions; these cases widen that to the parts a
+ * real program leans on - memory operands, condition flags, branches - and
+ * each is small enough that its expected result can be read off the manual.
  *
- * This runs five instructions whose results are not in doubt and says nothing
- * unless one of them is wrong. It is cheap, and it is the thing that would
- * have caught either fault the day it was written.
+ * Adding a case is one table entry. The runner says nothing unless a case
+ * comes out wrong.
  */
-void M68K_SelfTest(void)
+
+/* reg 0-7 are D0-D7, 8-15 are A0-A7 */
+typedef struct { UInt8 reg; UInt32 value; } M68KExpect;
+
+typedef struct {
+    const char*       name;
+    const UInt8*      code;
+    UInt16            codeLen;
+    UInt16            steps;
+    const M68KExpect* expect;
+    UInt16            expectCount;
+    UInt32            expectPCOffset;   /* from the load address */
+} M68KTestCase;
+
+/* MOVEQ #$42,D0; ADDQ.L #1,D0; MOVE.L D0,D1; LSL.L #2,D1; SUBQ.L #3,D1 */
+static const UInt8 kProgArith[] = {
+    0x70, 0x42,  0x52, 0x80,  0x22, 0x00,  0xE5, 0x89,  0x57, 0x81,
+};
+static const M68KExpect kWantArith[] = { {0, 0x43}, {1, 0x109} };
+
+/* MOVE.L #$12345678,D0; MOVEA.L #$00020000,A0; MOVE.L D0,(A0); MOVE.L (A0),D1 */
+static const UInt8 kProgAddr[] = {
+    0x20, 0x3C, 0x12, 0x34, 0x56, 0x78,
+    0x20, 0x7C, 0x00, 0x02, 0x00, 0x00,
+    0x20, 0x80,
+    0x22, 0x10,
+};
+static const M68KExpect kWantAddr[] = {
+    {0, 0x12345678}, {1, 0x12345678}, {8, 0x00020000},
+};
+
+/* MOVEQ #5,D0; SUBQ.L #5,D0; BEQ +2; MOVEQ #$7F,D1; MOVEQ #1,D2 */
+static const UInt8 kProgBranch[] = {
+    0x70, 0x05,
+    0x5B, 0x80,
+    0x67, 0x02,
+    0x72, 0x7F,
+    0x74, 0x01,
+};
+static const M68KExpect kWantBranch[] = { {0, 0}, {1, 0}, {2, 1} };
+
+
+/* MOVE.L #$FFFFFFFF,D0; MOVEQ #0,D1; MOVE.B D0,D1; MOVEQ #0,D2; MOVE.W D0,D2
+ * A byte or word move touches only that much of the destination register. */
+static const UInt8 kProgSizes[] = {
+    0x20, 0x3C, 0xFF, 0xFF, 0xFF, 0xFF,
+    0x72, 0x00,
+    0x12, 0x00,
+    0x74, 0x00,
+    0x34, 0x00,
+};
+static const M68KExpect kWantSizes[] = {
+    {0, 0xFFFFFFFF}, {1, 0x000000FF}, {2, 0x0000FFFF},
+};
+
+/* MOVEA.L #$20000,A0; MOVE.L #$AABBCCDD,D0; MOVE.L D0,(A0)+;
+ * MOVE.L #$11223344,D0; MOVE.L D0,(A0)+; MOVE.L -(A0),D1 */
+static const UInt8 kProgIncr[] = {
+    0x20, 0x7C, 0x00, 0x02, 0x00, 0x00,
+    0x20, 0x3C, 0xAA, 0xBB, 0xCC, 0xDD,
+    0x20, 0xC0,
+    0x20, 0x3C, 0x11, 0x22, 0x33, 0x44,
+    0x20, 0xC0,
+    0x22, 0x20,
+};
+static const M68KExpect kWantIncr[] = {
+    {1, 0x11223344}, {8, 0x00020004},
+};
+
+static const M68KTestCase kM68KTests[] = {
+    { "arithmetic", kProgArith,  sizeof(kProgArith),  5,
+      kWantArith,  2, sizeof(kProgArith) },
+    { "addressing", kProgAddr,   sizeof(kProgAddr),   4,
+      kWantAddr,   3, sizeof(kProgAddr) },
+    { "flags and branch", kProgBranch, sizeof(kProgBranch), 4,
+      kWantBranch, 3, sizeof(kProgBranch) },
+    { "operand sizes", kProgSizes, sizeof(kProgSizes), 5,
+      kWantSizes, 3, sizeof(kProgSizes) },
+    { "increment addressing", kProgIncr, sizeof(kProgIncr), 6,
+      kWantIncr, 2, sizeof(kProgIncr) },
+};
+
+
+/* The A-line trap the test installs, and proof that it ran. */
+static Boolean gM68KTrapFired = false;
+
+static OSErr M68K_TestTrapHandler(void* context, CPUAddr* pc, CPUAddr* registers)
+{
+    (void)context;
+    (void)pc;                      /* leave the PC where the trap left it */
+    gM68KTrapFired = true;
+    registers[3] = 0x5A5A5A5A;     /* a handler can change the registers */
+    return noErr;
+}
+
+/*
+ * A-line traps are how a Macintosh program calls the Toolbox: the opcode is
+ * not an instruction at all, it is a request. Nothing in this system issues
+ * one yet, so this checks the path exists - that an $Axxx opcode reaches the
+ * installed handler and that what the handler does to the registers sticks.
+ */
+static void M68K_SelfTestTrap(const ICPUBackend* be, UInt32 base)
 {
     extern void serial_puts(const char*);
 
-    /* MOVEQ #$42,D0 ; ADDQ.L #1,D0 ; MOVE.L D0,D1 ; LSL.L #2,D1 ; SUBQ.L #3,D1 */
-    static const unsigned char prog[] = {
-        0x70, 0x42,   /* MOVEQ  #$42,D0   -> D0 = 0x42       */
-        0x52, 0x80,   /* ADDQ.L #1,D0     -> D0 = 0x43       */
-        0x22, 0x00,   /* MOVE.L D0,D1     -> D1 = 0x43       */
-        0xE5, 0x89,   /* LSL.L  #2,D1     -> D1 = 0x10C      */
-        0x57, 0x81,   /* SUBQ.L #3,D1     -> D1 = 0x109      */
-    };
-    const UInt32 base = 0x10000;
+    /* MOVEQ #7,D0 ; _Debugger ($A9FF) */
+    static const UInt8 prog[] = { 0x70, 0x07, 0xA9, 0xFF };
 
-    const ICPUBackend* be = CPUBackend_GetDefault();
     CPUAddressSpace as = NULL;
     M68KAddressSpace* mas;
-    char b[128];
+    char b[140];
 
-    if (!be || be->CreateAddressSpace(NULL, &as) != noErr || !as) {
-        serial_puts("[M68K] self-test: no address space\n");
-        return;
-    }
+    if (be->CreateAddressSpace(NULL, &as) != noErr || !as) return;
 
-    if (be->WriteMemory(as, base, prog, sizeof(prog)) != noErr) {
-        serial_puts("[M68K] self-test: could not load the program\n");
+    gM68KTrapFired = false;
+
+    if (be->WriteMemory(as, base, prog, sizeof(prog)) != noErr ||
+        be->InstallTrap(as, 0xA9FF, M68K_TestTrapHandler, NULL) != noErr) {
+        serial_puts("[M68K] a-line trap: could not set up\n");
         be->DestroyAddressSpace(as);
         return;
     }
@@ -1190,24 +1282,89 @@ void M68K_SelfTest(void)
     mas->regs.pc = base;
     mas->halted = false;
 
-    for (int i = 0; i < 5; i++) {
-        if (M68K_Step(mas) != noErr || mas->halted) {
-            snprintf(b, sizeof(b), "[M68K] self-test: stopped at instruction %d\n", i);
-            serial_puts(b);
-            be->DestroyAddressSpace(as);
-            return;
-        }
-    }
+    M68K_Step(mas);   /* MOVEQ */
+    M68K_Step(mas);   /* the trap */
 
-    if (mas->regs.d[0] != 0x43 || mas->regs.d[1] != 0x109 ||
-        mas->regs.pc != base + sizeof(prog)) {
+    if (!gM68KTrapFired) {
+        serial_puts("[M68K] a-line trap FAILED: handler never ran\n");
+    } else if (mas->regs.d[3] != 0x5A5A5A5A || mas->regs.d[0] != 7) {
         snprintf(b, sizeof(b),
-                 "[M68K] self-test FAILED: D0=%08x D1=%08x PC=%08x"
-                 " (want 00000043 00000109 %08x)\n",
-                 (unsigned)mas->regs.d[0], (unsigned)mas->regs.d[1],
-                 (unsigned)mas->regs.pc, (unsigned)(base + sizeof(prog)));
+                 "[M68K] a-line trap FAILED: D0=%08x D3=%08x (want 00000007 5a5a5a5a)\n",
+                 (unsigned)mas->regs.d[0], (unsigned)mas->regs.d[3]);
         serial_puts(b);
     }
 
     be->DestroyAddressSpace(as);
+}
+
+void M68K_SelfTest(void)
+{
+    extern void serial_puts(const char*);
+
+    const UInt32 base = 0x10000;
+    const ICPUBackend* be = CPUBackend_GetDefault();
+    char b[160];
+
+    if (!be) {
+        serial_puts("[M68K] self-test: no backend\n");
+        return;
+    }
+
+    for (unsigned t = 0; t < sizeof(kM68KTests) / sizeof(kM68KTests[0]); t++) {
+        const M68KTestCase* tc = &kM68KTests[t];
+        CPUAddressSpace as = NULL;
+        M68KAddressSpace* mas;
+        Boolean ok = true;
+
+        if (be->CreateAddressSpace(NULL, &as) != noErr || !as) {
+            snprintf(b, sizeof(b), "[M68K] %s: no address space\n", tc->name);
+            serial_puts(b);
+            continue;
+        }
+
+        if (be->WriteMemory(as, base, tc->code, tc->codeLen) != noErr) {
+            snprintf(b, sizeof(b), "[M68K] %s: could not load\n", tc->name);
+            serial_puts(b);
+            be->DestroyAddressSpace(as);
+            continue;
+        }
+
+        mas = (M68KAddressSpace*)as;
+        mas->regs.pc = base;
+        mas->halted = false;
+
+        for (UInt16 i = 0; i < tc->steps; i++) {
+            if (M68K_Step(mas) != noErr || mas->halted) {
+                snprintf(b, sizeof(b), "[M68K] %s FAILED: stopped at instruction %u\n",
+                         tc->name, (unsigned)i);
+                serial_puts(b);
+                ok = false;
+                break;
+            }
+        }
+
+        for (UInt16 e = 0; ok && e < tc->expectCount; e++) {
+            UInt8 r = tc->expect[e].reg;
+            UInt32 got = (r < 8) ? mas->regs.d[r] : mas->regs.a[r - 8];
+            if (got != tc->expect[e].value) {
+                snprintf(b, sizeof(b), "[M68K] %s FAILED: %c%u = %08x, want %08x\n",
+                         tc->name, (r < 8) ? 'D' : 'A', (unsigned)(r & 7),
+                         (unsigned)got, (unsigned)tc->expect[e].value);
+                serial_puts(b);
+                ok = false;
+            }
+        }
+
+        if (ok && tc->expectPCOffset &&
+            mas->regs.pc != base + tc->expectPCOffset) {
+            snprintf(b, sizeof(b), "[M68K] %s FAILED: PC = %08x, want %08x\n",
+                     tc->name, (unsigned)mas->regs.pc,
+                     (unsigned)(base + tc->expectPCOffset));
+            serial_puts(b);
+        }
+
+        be->DestroyAddressSpace(as);
+    }
+
+    M68K_SelfTestTrap(be, base);
 }
