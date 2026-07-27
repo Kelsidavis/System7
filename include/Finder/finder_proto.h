@@ -30,7 +30,9 @@ OSErr MainEventLoop(EventRecord* event, WindowPtr window, MenuHandle menu,
 OSErr HandleFileOperation(FSSpec* fileSpec, short operation);
 
 /* Utility functions (inferred from Classic Mac OS patterns) */
-void InitializeFinder(void);
+/* Returns an OSErr - the definition in finder_main.c always has. This said
+ * void, so anyone trusting the header discarded the result. */
+OSErr InitializeFinder(void);
 void ShutdownFinder(void);
 Boolean ProcessEvent(EventRecord* event);
 void UpdateMenus(void);

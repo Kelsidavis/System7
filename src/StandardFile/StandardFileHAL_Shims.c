@@ -1,3 +1,4 @@
+#include "FS/vfs.h"
 #include "DialogManager/DITLBuilder.h"
 #include "MemoryMgr/MemoryManager.h"
 /*
@@ -847,8 +848,11 @@ Boolean StandardFile_HAL_ConfirmReplace(ConstStr255Param fileName) {
  */
 OSErr StandardFile_HAL_GetDefaultLocation(short *vRefNum, long *dirID) {
     SF_HAL_LOG_DEBUG("StandardFile HAL: GetDefaultLocation\n");
-    extern short VFS_GetBootVRef(void);
-    if (vRefNum) *vRefNum = VFS_GetBootVRef();
+    /* Declared in FS/vfs.h as returning VRefNum, which is 32 bits wide. A
+     * local extern here said short, cutting the top half off. The caller's
+     * out parameter is a short, so the value still narrows - but it narrows
+     * once, where it is visible, rather than silently at the call. */
+    if (vRefNum) *vRefNum = (short)VFS_GetBootVRef();
     if (dirID) *dirID = 2;  /* Root directory */
     return noErr;
 }
@@ -867,7 +871,6 @@ OSErr StandardFile_HAL_EjectVolume(short vRefNum) {
  */
 OSErr StandardFile_HAL_NavigateToDesktop(short *vRefNum, long *dirID) {
     SF_HAL_LOG_DEBUG("StandardFile HAL: NavigateToDesktop\n");
-    extern short VFS_GetBootVRef(void);
     if (vRefNum) *vRefNum = VFS_GetBootVRef();
     if (dirID) *dirID = 2;  /* Root directory (desktop level) */
     return noErr;

@@ -141,7 +141,9 @@ SInt16 FindMenuAtPoint_Internal(Point pt);
 /* Menu tracking */
 void BeginTrackMenu(void);
 void UpdateMenuTrackingNew(Point where);
-void EndMenuTrackingNew(void);
+/* Returns the menu choice as a long, which is what MenuTrack.c defines and
+ * what both callers read. This said void. */
+long EndMenuTrackingNew(void);
 Boolean IsMenuTrackingNew(void);
 long TrackMenu(short menuID, Point *startPt);
 
