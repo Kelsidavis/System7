@@ -1764,21 +1764,6 @@ static void FolderWindow_DrawListView(WindowPtr w, FolderWindowState* state) {
         Rect rowRect;
         SetRect(&rowRect, left, rowY, contentRight, rowY + kListRowHeight);
 
-        /* A selected row is black with its contents drawn in white.
-         *
-         * The original filled the row black and switched the pen to patXor,
-         * expecting white text to fall out of it. Text reaches the framebuffer
-         * through the Font Manager, which colours glyphs from the port's
-         * foreground and never looks at pnMode, so the row came out solid
-         * black with the name, kind and date drawn black-on-black and lost.
-         * Setting the foreground is what the glyph drawing actually reads. */
-        if (selected) {
-            Pattern blackPat;
-            for (int j = 0; j < 8; j++) blackPat.pat[j] = 0xFF;
-            FillRect(&rowRect, &blackPat);
-            ForeColor(whiteColor);
-        }
-
         /* Draw small icon */
         short iconX = left + kListLeftMargin;
         short iconY = rowY + 1;
@@ -1869,8 +1854,11 @@ static void FolderWindow_DrawListView(WindowPtr w, FolderWindowState* state) {
         MoveTo(dateX, rowY);
         LineTo(dateX, rowY + kListRowHeight - 1);
 
+        /* A selected row is the row inverted, which is how the Finder does it
+         * and how the close box highlight does it - the text comes along with
+         * the background and needs no separate colouring. */
         if (selected) {
-            ForeColor(blackColor);
+            InvertRect(&rowRect);
         }
 
         /* Row separator */

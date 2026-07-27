@@ -322,13 +322,73 @@ void QDPlatform_SetPixel(SInt32 x, SInt32 y, UInt32 color) {
     }
 }
 
-/* Get a pixel */
+/*
+ * Get a pixel from wherever the current port draws.
+ *
+ * This has to agree with QDPlatform_SetPixel about where the pixels live,
+ * because the two are used together: invert and patXor read a pixel, combine,
+ * and write it back. SetPixel has always been port-aware - GWorld PixMap,
+ * offscreen bitmap, or framebuffer - while this read the screen framebuffer
+ * unconditionally, so every read-modify-write into an offscreen port mixed
+ * two different images: it XORed whatever was on screen into the buffer.
+ *
+ * A window drawing through BeginUpdate draws into its offscreen GWorld while
+ * the screen still holds the previous frame, so inverting a rectangle there
+ * combined the new content with the old. Switching a folder window to a list
+ * view and inverting the selected row produced that row's icon-view pixels,
+ * inverted, instead of the list row - which is what it looked like: fragments
+ * of icon labels in a black bar.
+ */
 UInt32 QDPlatform_GetPixel(SInt32 x, SInt32 y) {
-    if (!framebuffer) return 0;
-    if (x < 0 || x >= fb_width || y < 0 || y >= fb_height) return 0;
+    extern GrafPtr g_currentPort;
+    extern CGrafPtr g_currentCPort;  /* from ColorQuickDraw.c */
 
-    uint32_t* pixel = (uint32_t*)((uint8_t*)framebuffer + y * fb_pitch + x * 4);
-    return *pixel;
+    if (!g_currentPort) {
+        if (!framebuffer) return 0;
+        if (x < 0 || x >= fb_width || y < 0 || y >= fb_height) return 0;
+        return *(uint32_t*)((uint8_t*)framebuffer + y * fb_pitch + x * 4);
+    }
+
+    Boolean isColorPort = (g_currentCPort != NULL && (GrafPtr)g_currentCPort == g_currentPort);
+
+    if (isColorPort) {
+        CGrafPtr cport = (CGrafPtr)g_currentPort;
+        if (cport->portPixMap && *cport->portPixMap) {
+            PixMapPtr pm = *cport->portPixMap;
+            Ptr baseAddr = pm->baseAddr;
+            SInt16 rowBytes = pm->rowBytes & 0x3FFF;
+            SInt16 width = pm->bounds.right - pm->bounds.left;
+            SInt16 height = pm->bounds.bottom - pm->bounds.top;
+
+            if (!baseAddr || rowBytes <= 0) return 0;
+            if (x < 0 || x >= width || y < 0 || y >= height) return 0;
+
+            return *(uint32_t*)((uint8_t*)baseAddr + y * rowBytes + x * 4);
+        }
+        return 0;
+    }
+
+    if (g_currentPort->portBits.baseAddr == (Ptr)framebuffer) {
+        if (!framebuffer) return 0;
+        if (x < 0 || x >= fb_width || y < 0 || y >= fb_height) return 0;
+        return *(uint32_t*)((uint8_t*)framebuffer + y * fb_pitch + x * 4);
+    }
+
+    /* Offscreen basic bitmap - same global-to-local mapping SetPixel uses */
+    Ptr baseAddr = g_currentPort->portBits.baseAddr;
+    if (!baseAddr) return 0;
+
+    SInt16 rowBytes = g_currentPort->portBits.rowBytes & 0x3FFF;
+    if (rowBytes <= 0) return 0;
+
+    SInt16 localX = (SInt16)(x - g_currentPort->portBits.bounds.left);
+    SInt16 localY = (SInt16)(y - g_currentPort->portBits.bounds.top);
+
+    SInt16 portWidth = g_currentPort->portRect.right - g_currentPort->portRect.left;
+    SInt16 portHeight = g_currentPort->portRect.bottom - g_currentPort->portRect.top;
+    if (localX < 0 || localY < 0 || localX >= portWidth || localY >= portHeight) return 0;
+
+    return *(uint32_t*)((uint8_t*)baseAddr + localY * rowBytes + localX * 4);
 }
 
 /* Draw line accelerated - return false to use software implementation */
