@@ -221,7 +221,6 @@ void CustomPutFile(ConstStr255Param prompt,
     OSErr err;
     Boolean done = false;
     short itemHit;
-    EventRecord event;
 
     /* Initialize reply */
     memset(reply, 0, sizeof(StandardFileReply));
@@ -257,24 +256,13 @@ void CustomPutFile(ConstStr255Param prompt,
 
     /* Dialog loop */
     while (!done) {
-        /* Check for keyboard events first */
-        if (WaitNextEvent(everyEvent, &event, 60, NULL)) {
-            if (event.what == keyDown || event.what == autoKey) {
-                if (DM_HandleDialogKey((WindowPtr)gSFState.dialog, &event, &itemHit)) {
-                    /* keyboard activated a control */
-                    done = (itemHit == sfItemOpenButton || itemHit == sfItemCancelButton);
-                    if (!done) {
-                        /* Let switch handle non-terminal items */
-                        goto handle_item;
-                    }
-                    continue;
-                }
-            }
-        }
-        /* Use HAL for event handling */
+        /* One loop owns the event stream. Fetching events here as well as in
+         * RunDialog meant whichever loop got an event first decided its fate,
+         * and this one discarded anything that was not a keystroke - the
+         * dialog's own buttons among them. Key handling moved into RunDialog,
+         * next to the fetch. */
         StandardFile_HAL_RunDialog(gSFState.dialog, &itemHit);
 
-handle_item:
         if (itemHit > 0) {
             SF_LOG_DEBUG("itemHit=%d\n", itemHit);
         }
@@ -405,7 +393,6 @@ void CustomGetFile(FileFilterYDProcPtr fileFilter,
     OSErr err;
     Boolean done = false;
     short itemHit;
-    EventRecord event;
 
     /* Initialize reply */
     memset(reply, 0, sizeof(StandardFileReply));
@@ -463,24 +450,13 @@ void CustomGetFile(FileFilterYDProcPtr fileFilter,
 
     /* Dialog loop */
     while (!done) {
-        /* Check for keyboard events first */
-        if (WaitNextEvent(everyEvent, &event, 60, NULL)) {
-            if (event.what == keyDown || event.what == autoKey) {
-                if (DM_HandleDialogKey((WindowPtr)gSFState.dialog, &event, &itemHit)) {
-                    /* keyboard activated a control */
-                    done = (itemHit == sfItemOpenButton || itemHit == sfItemCancelButton);
-                    if (!done) {
-                        /* Let switch handle non-terminal items */
-                        goto handle_item2;
-                    }
-                    continue;
-                }
-            }
-        }
-        /* Use HAL for event handling */
+        /* One loop owns the event stream. Fetching events here as well as in
+         * RunDialog meant whichever loop got an event first decided its fate,
+         * and this one discarded anything that was not a keystroke - the
+         * dialog's own buttons among them. Key handling moved into RunDialog,
+         * next to the fetch. */
         StandardFile_HAL_RunDialog(gSFState.dialog, &itemHit);
 
-handle_item2:
         if (itemHit > 0) {
             SF_LOG_DEBUG("itemHit=%d\n", itemHit);
         }

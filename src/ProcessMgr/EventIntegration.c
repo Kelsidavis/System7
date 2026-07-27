@@ -50,6 +50,25 @@ static Boolean CheckSystemEvents(EventMask mask, EventRecord* evt);
 Boolean Proc_GetNextEvent(EventMask mask, EventRecord* evt) {
     if (!evt) return false;
 
+    /* Turn the crank on the hardware before looking for an event.
+     *
+     * Input used to be produced only by main.c's loop calling
+     * ProcessModernInput, so a nested modal loop - which fetches its own
+     * events rather than returning to main - never saw a keystroke or a
+     * mouse click at all. The Standard File dialogs sat in exactly such a
+     * loop: they drew correctly and then ignored every click, because no
+     * mouse event was ever being generated while they ran. EventPumpYield
+     * exists for the same reason and has to be remembered at each such loop;
+     * asking for an event is the natural place, and is where the real
+     * Toolbox pumps, which is why nested modal loops work there.
+     *
+     * ProcessModernInput is edge-triggered on device state, so calling it
+     * from here as well as from the main loop cannot double-report anything. */
+    {
+        extern void ProcessModernInput(void);
+        ProcessModernInput();
+    }
+
     /* Check queue first */
     if (DequeueEvent(mask, evt)) {
         /* Unblock any process waiting for this event */

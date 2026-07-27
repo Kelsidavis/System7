@@ -452,6 +452,23 @@ void StandardFile_HAL_RunDialog(DialogPtr dialog, short *itemHit) {
     /* Modal event loop */
     while (!done) {
         if (GetNextEvent(everyEvent, &event)) {
+            /* Return and Escape reach the default and Cancel buttons.
+             *
+             * This used to be done by a second event loop, in CustomGetFile
+             * and CustomPutFile, which called WaitNextEvent before this one.
+             * Two loops pulling from one event stream: anything that loop
+             * fetched and did not recognise as a keystroke was dropped on the
+             * floor, so clicks on Cancel and Open never reached here and the
+             * dialog ignored its own buttons. This loop owns the stream now. */
+            if (event.what == keyDown || event.what == autoKey) {
+                SInt16 keyItem = 0;
+                if (DM_HandleDialogKey((WindowPtr)dialog, &event, &keyItem)) {
+                    *itemHit = keyItem;
+                    done = true;
+                    continue;
+                }
+            }
+
             if (IsDialogEvent(&event)) {
                 if (DialogSelect(&event, &whichDialog, &item)) {
                     if (whichDialog == dialog) {
