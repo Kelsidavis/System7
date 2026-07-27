@@ -18,6 +18,7 @@
 #include "ToolboxCompat.h"
 #include "WindowManager/WindowManager.h"
 #include "QuickDraw/QuickDraw.h"
+#include "QuickDrawConstants.h"   /* blackColor / whiteColor */
 #include "Finder/Icon/icon_types.h"
 #include "Finder/Icon/icon_label.h"
 #include "Finder/Icon/icon_system.h"
@@ -95,7 +96,7 @@ typedef struct FolderItem {
 #define kListLeftMargin      4  /* Left margin before icon */
 #define kListNameColWidth  160  /* Width of the Name column */
 #define kListSizeColWidth   55  /* Width of the Size column */
-#define kListKindColWidth   80  /* Width of the Kind column */
+#define kListKindColWidth  110  /* Width of the Kind column */
 #define kListLabelColWidth  60  /* Width of the Label column */
 #define kListDateColWidth   80  /* Width of the Date column */
 #define kListScrollBarWidth 15  /* Width of vertical scrollbar track */
@@ -1763,11 +1764,19 @@ static void FolderWindow_DrawListView(WindowPtr w, FolderWindowState* state) {
         Rect rowRect;
         SetRect(&rowRect, left, rowY, contentRight, rowY + kListRowHeight);
 
+        /* A selected row is black with its contents drawn in white.
+         *
+         * The original filled the row black and switched the pen to patXor,
+         * expecting white text to fall out of it. Text reaches the framebuffer
+         * through the Font Manager, which colours glyphs from the port's
+         * foreground and never looks at pnMode, so the row came out solid
+         * black with the name, kind and date drawn black-on-black and lost.
+         * Setting the foreground is what the glyph drawing actually reads. */
         if (selected) {
             Pattern blackPat;
             for (int j = 0; j < 8; j++) blackPat.pat[j] = 0xFF;
             FillRect(&rowRect, &blackPat);
-            PenMode(10);  /* patXor */
+            ForeColor(whiteColor);
         }
 
         /* Draw small icon */
@@ -1820,7 +1829,11 @@ static void FolderWindow_DrawListView(WindowPtr w, FolderWindowState* state) {
         const char* kindStr = GetFileKindString(&state->items[i]);
         int kindLen = 0;
         while (kindStr[kindLen]) kindLen++;
-        if (kindLen > 14) kindLen = 14;
+        /* Clamp to what the column can hold, the way the Name column does.
+         * A flat 14-character limit is wider than the column: "text document"
+         * fitted the limit and then ran on into the Label column. */
+        int maxKindChars = (kListKindColWidth - 8) / 7;
+        if (kindLen > maxKindChars) kindLen = maxKindChars;
         MoveTo(kindX + 4, textY);
         DrawText(kindStr, 0, kindLen);
 
@@ -1857,7 +1870,7 @@ static void FolderWindow_DrawListView(WindowPtr w, FolderWindowState* state) {
         LineTo(dateX, rowY + kListRowHeight - 1);
 
         if (selected) {
-            PenMode(8);  /* patCopy */
+            ForeColor(blackColor);
         }
 
         /* Row separator */
@@ -3227,6 +3240,33 @@ void FolderWindow_SortAndArrange(WindowPtr w, short sortType) {
     state->viewMode = sortType;
     state->scrollOffset = 0;
 
+    /* Remember what is selected by identity, not by position.
+     *
+     * The sorts permute items[], but selectedItems[] is a parallel array
+     * indexed by position and selectedIndex is a position too, so neither
+     * followed the item it referred to. Selecting a file and then changing the
+     * view highlighted whichever unrelated file happened to land on that row.
+     * fileID survives the permutation; the flags are rebuilt from it below. */
+    FileID selectedID = 0;
+    Boolean hadPrimary = (state->selectedIndex >= 0 &&
+                          state->selectedIndex < state->itemCount);
+    if (hadPrimary) {
+        selectedID = state->items[state->selectedIndex].fileID;
+    }
+
+    FileID* selectedIDs = NULL;
+    short selectedIDCount = 0;
+    if (state->selectedItems) {
+        selectedIDs = (FileID*)NewPtr(sizeof(FileID) * state->itemCount);
+        if (selectedIDs) {
+            for (short i = 0; i < state->itemCount; i++) {
+                if (state->selectedItems[i]) {
+                    selectedIDs[selectedIDCount++] = state->items[i].fileID;
+                }
+            }
+        }
+    }
+
     /* Sort the items array */
     switch (sortType) {
         case kViewByName:
@@ -3258,6 +3298,36 @@ void FolderWindow_SortAndArrange(WindowPtr w, short sortType) {
         default:
             FINDER_LOG_DEBUG("FolderWindow_SortAndArrange: No sorting, just arranging\n");
             break;
+    }
+
+    /* Put the selection back on the same files, wherever they moved to. */
+    if (state->selectedItems) {
+        for (short i = 0; i < state->itemCount; i++) {
+            state->selectedItems[i] = false;
+        }
+        if (selectedIDs) {
+            for (short i = 0; i < state->itemCount; i++) {
+                for (short k = 0; k < selectedIDCount; k++) {
+                    if (state->items[i].fileID == selectedIDs[k]) {
+                        state->selectedItems[i] = true;
+                        break;
+                    }
+                }
+            }
+        }
+    }
+    if (selectedIDs) {
+        DisposePtr((Ptr)selectedIDs);
+    }
+
+    state->selectedIndex = -1;
+    if (hadPrimary) {
+        for (short i = 0; i < state->itemCount; i++) {
+            if (state->items[i].fileID == selectedID) {
+                state->selectedIndex = i;
+                break;
+            }
+        }
     }
 
     /* For icon view, arrange in grid; for list view, just redraw */
