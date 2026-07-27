@@ -938,6 +938,25 @@ Boolean LClick(ListHandle lh, Point localWhere, unsigned short mods, short* outI
     return isDoubleClick;
 }
 
+/*
+ * LResetSelect - start LGetSelect's walk again from the first row.
+ *
+ * LGetSelect advances an iterator so repeated calls enumerate every selected
+ * cell, which means a caller that only wants "what is selected right now"
+ * gets whatever the last walk left behind. This puts the iterator back.
+ */
+void LResetSelect(ListHandle lh)
+{
+    ListMgrRec* list;
+
+    if (!lh) return;
+
+    HLock((Handle)lh);
+    list = *LIST_MGR_HANDLE(lh);
+    list->selectIterRow = -1;
+    HUnlock((Handle)lh);
+}
+
 Boolean LGetSelect(ListHandle lh, Cell* outCell)
 {
     ListMgrRec* list;

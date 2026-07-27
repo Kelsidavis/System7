@@ -90,8 +90,20 @@ Boolean DialogSelect(const EventRecord* evt, DialogPtr* which, SInt16* itemHit)
     *which = dlg;
     *itemHit = 0;
 
-    /* Handle update events */
+    /* Handle update events.
+     *
+     * Only the ones actually addressed to this dialog. This used to repaint
+     * the front dialog for any update event at all, whichever window it named
+     * - so an update for a window behind redrew the dialog, erasing its
+     * content, while whatever the caller does after DialogSelect to put back
+     * the parts the Dialog Manager does not own was skipped because the
+     * event's window did not match. That is why the Open dialog's file list
+     * appeared once and was then wiped: the Standard File loop redraws the
+     * list only for its own update events, and correctly so. */
     if (evt->what == updateEvt) {
+        if ((WindowPtr)(uintptr_t)evt->message != (WindowPtr)dlg) {
+            return false;
+        }
         BeginUpdate((WindowPtr)dlg);
         UpdateDialog(dlg, ((WindowPtr)dlg)->updateRgn);
         EndUpdate((WindowPtr)dlg);

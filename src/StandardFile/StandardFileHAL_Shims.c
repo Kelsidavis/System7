@@ -51,15 +51,46 @@ static ListHandle gFileListHandle = NULL;
 
 /* Selection and navigation */
 static short gSelectedIndex = -1;
+
+/*
+ * SF_SelectedRow - which row is selected, according to the list itself.
+ *
+ * gSelectedIndex is a second copy of a fact the List Manager already holds,
+ * and it was only ever written on the path that handles a click inside the
+ * list. Clicking a name highlighted it - the List Manager did that - while
+ * gSelectedIndex stayed -1, so Open decided nothing was selected and the
+ * dialog sat there. Ask the list; it is the one that knows.
+ */
+static short SF_SelectedRow(void)
+{
+    Cell cell;
+
+    if (gFileListHandle) {
+        extern void LResetSelect(ListHandle lh);
+        /* LGetSelect walks from an iterator, so start it at the top. */
+        LResetSelect(gFileListHandle);
+        if (LGetSelect(gFileListHandle, &cell)) {
+            return cell.v;
+        }
+        return -1;
+    }
+    return gSelectedIndex;
+}
 static short gCurrentVRefNum = 0;
 static long gCurrentDirID = 0;
 static Boolean gNavigationRequested = false;
 
-/* List dimensions */
+/* The file list's box, in the dialog's local coordinates.
+ *
+ * One definition, used both to place the DITL item that draws the border and
+ * to size the list itself. They used to be written out separately - the DITL
+ * said (30,10,250,376) and the list said (30,10,280,440) - so the list was
+ * both bigger than its frame and drawn over it: its erase wiped the border it
+ * was supposed to sit inside. */
 #define LIST_LEFT 10
 #define LIST_TOP 30
-#define LIST_RIGHT 440
-#define LIST_BOTTOM 280
+#define LIST_RIGHT 376
+#define LIST_BOTTOM 250
 #define INITIAL_FILE_LIST_CAPACITY 100
 
 /* Forward declarations */
@@ -75,8 +106,9 @@ static OSErr StandardFile_HAL_CreateListControl(DialogPtr dialog, ListHandle *ou
         return paramErr;
     }
 
-    Rect listBounds = {LIST_TOP, LIST_LEFT, LIST_BOTTOM, LIST_RIGHT};
-    Rect cellSize = {0, 0, 16, LIST_RIGHT - LIST_LEFT};  /* Row height 16, full width */
+    /* Inset by one so the box's own border survives the list's erase. */
+    Rect listBounds = {LIST_TOP + 1, LIST_LEFT + 1, LIST_BOTTOM - 1, LIST_RIGHT - 1};
+    Rect cellSize = {0, 0, 16, LIST_RIGHT - LIST_LEFT - 2};  /* Row height 16, full width */
 
     ListParams params = {
         .viewRect = listBounds,
@@ -176,12 +208,12 @@ static Handle BuildOpenDITL(ConstStr255Param prompt) {
         *p++ = 0;    /* no data */
     }
 
-    /* Item 7: File list user item (the list area) */
+    /* Item 7: File list user item (the box the list sits in) */
     *p++ = 0; *p++ = 0; *p++ = 0; *p++ = 0;
-    *p++ = 0; *p++ = 30;  /* top = 30 */
-    *p++ = 0; *p++ = 10;  /* left = 10 */
-    *p++ = 0; *p++ = 250; /* bottom = 250 (was LIST_BOTTOM area) */
-    *p++ = 1; *p++ = 120; /* right = 376 */
+    *p++ = (UInt8)(LIST_TOP >> 8);    *p++ = (UInt8)(LIST_TOP & 0xFF);
+    *p++ = (UInt8)(LIST_LEFT >> 8);   *p++ = (UInt8)(LIST_LEFT & 0xFF);
+    *p++ = (UInt8)(LIST_BOTTOM >> 8); *p++ = (UInt8)(LIST_BOTTOM & 0xFF);
+    *p++ = (UInt8)(LIST_RIGHT >> 8);  *p++ = (UInt8)(LIST_RIGHT & 0xFF);
     *p++ = 0;              /* userItem */
     *p++ = 0;              /* no data */
 
@@ -477,6 +509,7 @@ void StandardFile_HAL_RunDialog(DialogPtr dialog, short *itemHit) {
                         /* Handle button clicks */
                         if (item == sfItemOpenButton) {
                             /* Open/Save button */
+                            gSelectedIndex = SF_SelectedRow();
                             if (gSelectedIndex >= 0 && gSelectedIndex < gFileListCount) {
                                 /* Check if it's a folder */
                                 if (gFileListArray[gSelectedIndex].isFolder) {
@@ -503,7 +536,18 @@ void StandardFile_HAL_RunDialog(DialogPtr dialog, short *itemHit) {
                         /* Handle other items like Eject, Desktop, etc. */
                     }
                 }
-            } else {
+            }
+
+            {
+                /* Update and key handling used to sit in an else branch of
+                 * "is this a dialog event". Update events are dialog events,
+                 * so they always took the other branch and the redraw written
+                 * for them could never run - which is why the Open dialog's
+                 * file list was populated, drawn once, and then wiped by the
+                 * dialog's own repaint with nothing to put it back. The cases
+                 * below already check which window an event names, so they
+                 * run for every event. */
+
                 /* Handle list control interactions */
                 if (gFileListHandle && event.what == mouseDown) {
                     Point localPt = event.where;
@@ -521,7 +565,8 @@ void StandardFile_HAL_RunDialog(DialogPtr dialog, short *itemHit) {
                                 /* Check for double-click */
                                 if (LClick(gFileListHandle, localPt, event.modifiers, &listItem)) {
                                     /* Double-click detected */
-                                    if (gSelectedIndex >= 0 && gSelectedIndex < gFileListCount) {
+                                    gSelectedIndex = SF_SelectedRow();
+                            if (gSelectedIndex >= 0 && gSelectedIndex < gFileListCount) {
                                         if (gFileListArray[gSelectedIndex].isFolder) {
                                             /* Navigate into folder */
                                             SF_HAL_LOG_DEBUG("StandardFile HAL: Double-click navigating into folder\n");
@@ -588,7 +633,8 @@ void StandardFile_HAL_RunDialog(DialogPtr dialog, short *itemHit) {
                                 case '\r':
                                 case 0x03:
                                     /* Return/Enter = Open */
-                                    if (gSelectedIndex >= 0 && gSelectedIndex < gFileListCount) {
+                                    gSelectedIndex = SF_SelectedRow();
+                            if (gSelectedIndex >= 0 && gSelectedIndex < gFileListCount) {
                                         if (gFileListArray[gSelectedIndex].isFolder) {
                                             StandardFile_HAL_NavigateToFolder(&gFileListArray[gSelectedIndex].spec);
                                             *itemHit = sfItemOpenButton;
@@ -770,7 +816,8 @@ short StandardFile_HAL_GetSelectedFile(DialogPtr dialog) {
  * Get selected file spec
  */
 const FSSpec* StandardFile_HAL_GetSelectedFileSpec(void) {
-    if (gSelectedIndex >= 0 && gSelectedIndex < gFileListCount) {
+    gSelectedIndex = SF_SelectedRow();
+                            if (gSelectedIndex >= 0 && gSelectedIndex < gFileListCount) {
         return &gFileListArray[gSelectedIndex].spec;
     }
     return NULL;
@@ -801,7 +848,8 @@ void StandardFile_HAL_GetSaveFileName(DialogPtr dialog, Str255 name) {
     SF_HAL_LOG_DEBUG("StandardFile HAL: GetSaveFileName\n");
     /* Return selected file name or default */
     if (name) {
-        if (gSelectedIndex >= 0 && gSelectedIndex < gFileListCount) {
+        gSelectedIndex = SF_SelectedRow();
+                            if (gSelectedIndex >= 0 && gSelectedIndex < gFileListCount) {
             BlockMove(gFileListArray[gSelectedIndex].spec.name, name,
                      gFileListArray[gSelectedIndex].spec.name[0] + 1);
         } else {

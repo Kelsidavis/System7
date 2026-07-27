@@ -187,6 +187,8 @@ Boolean LClick(ListHandle lh, Point localWhere, unsigned short mods, short* outI
  * For iteration, call repeatedly (uses internal iterator)
  */
 Boolean LGetSelect(ListHandle lh, Cell* outCell);
+/* Restart LGetSelect's walk at the first row. */
+void LResetSelect(ListHandle lh);
 
 /*
  * LSetSelect - Set selection state for a cell
