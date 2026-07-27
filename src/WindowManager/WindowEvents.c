@@ -710,12 +710,24 @@ void EndUpdate(WindowPtr theWindow) {
                     extern void CalcVis(WindowPtr window);
                     CalcVis(theWindow);
 
+                    /* "No region" and "an empty region" are different
+                     * answers and this used to treat them the same, copying
+                     * the whole window for both. A window completely covered
+                     * by another has an empty visible region, so it repainted
+                     * itself over the window on top - which is exactly what
+                     * happened when the Trash window opened at the same bounds
+                     * as the Macintosh HD window and the one underneath drew
+                     * straight over it. */
                     RgnHandle visible = theWindow->visRgn;
-                    SInt16 bandCount = 1;
-                    if (visible && *visible && !EmptyRgn(visible)) {
-                        bandCount = WM_RegionRectCount(visible);
+                    SInt16 bandCount;
+
+                    if (!visible || !*visible) {
+                        visible = NULL;   /* nothing known - copy the lot */
+                        bandCount = 1;
+                    } else if (EmptyRgn(visible)) {
+                        bandCount = 0;    /* wholly covered - copy nothing */
                     } else {
-                        visible = NULL;   /* nothing known; copy the lot */
+                        bandCount = WM_RegionRectCount(visible);
                     }
 
                     PixMap fbPixMap;
