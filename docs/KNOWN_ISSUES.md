@@ -4,6 +4,42 @@ This document tracks known issues, workarounds, and technical debt in the System
 
 ## Open Issues
 
+### ⛔ The Open and Save dialogs never paint their interior
+
+**Symptom**: press Command-O or Command-S in SimpleText. The Standard File
+dialog comes up frontmost with a correct frame and title bar, but its interior
+shows whatever happened to be on screen underneath - usually the document
+window's text - instead of a file list, buttons and a name field. Parts of the
+dialog that fall outside any other window do show its items, so the items are
+being drawn; what is missing is the background.
+
+**What is known**: the dialog is genuinely the front window and genuinely in
+the window list (that was a separate bug, since fixed - a dialog used to hold a
+byte copy of a window record that the Window Manager knew nothing about).
+`CustomGetFile`/`CustomPutFile` drive their own event loop rather than going
+through `HandleUpdate`, so the dialog's content never passes through
+`BeginUpdate`/`EndUpdate` and its offscreen buffer is never composited to the
+screen. `PaintOne` erases the content region into that offscreen buffer and
+records the damage, and nothing ever services it.
+
+**Files**: src/StandardFile/StandardFile.c (CustomGetFile, CustomPutFile),
+src/StandardFile/StandardFileHAL_Shims.c, src/WindowManager/WindowEvents.c
+(BeginUpdate/EndUpdate).
+
+### ⚠️ A covered window's title text still shows through
+
+Window chrome is now clipped to the pixels the window actually owns, but the
+title is drawn with `DrawString` and so bypasses the pixel gate that clips
+everything else. A window covered by another can still show its title text on
+top of the window in front. Drawing the chrome once per visible band with the
+port clipped to that band was tried and made it worse - the whole title bar
+came back unclipped - so the cause needs to be understood rather than guessed
+at.
+
+**Files**: src/WindowManager/WindowDisplay.c (WM_ChromePixel,
+WM_BeginChromeClip, DrawWindowFrame_Unclipped).
+
+
 ### ✅ A window overlapped by another never repaints — FIXED
 
 **Was**: open a document from a folder window. The document window covers part
