@@ -4,6 +4,47 @@ This document tracks known issues, workarounds, and technical debt in the System
 
 ## Open Issues
 
+### ⛔ A window overlapped by another never repaints (REGION-001 consequence)
+
+**Symptom**: open a document from a folder window. The document window covers
+part of the folder window, and the folder window's content goes white and
+stays white - not only where it is covered, but everywhere, including the
+parts still in plain view. Moving the document window off it does not bring
+it back; the icons return only when nothing overlaps the folder window at
+all, which on an 800x600 screen with a large folder window is rarely.
+
+**Mechanism**, confirmed by reading the two decisions that disagree:
+
+  - PaintOne fills the whole content region white and records that damage in
+    updateRgn, expecting the update event to repaint it.
+  - WM_DeferUpdateIfObscured then refuses to service that update while
+    WM_RegionCoveredByFrontWindow says something is on top - and that test is
+    a rectangle intersection, so a single pixel of overlap defers the whole
+    window indefinitely.
+
+Erase unconditionally, repaint conditionally. The comment on the deferral
+says the damage "is repainted once the covering window goes away", which is
+true only if it goes away entirely rather than merely stops covering the
+damaged part.
+
+**Why it is not a small fix**: skipping the erase when the repaint will be
+deferred was tried and is not an improvement - DragWindow paints the desktop
+into the uncovered region first, so the unerased content shows desktop
+pattern inside the window instead of white. Painting the window and then
+repainting everything above it in z-order would be correct and is expressible
+with bounding-box regions, but that is a real change to the repaint model.
+
+The clean fix is REGION-001: with real regions, visRgn can express "my
+content minus what is on top of me", BeginUpdate can clip to it, and the
+deferral is not needed at all. That is what the deferral's own comment says
+it is standing in for.
+
+**Files**: src/WindowManager/WindowDisplay.c (PaintOne's backfill,
+WM_RegionCoveredByFrontWindow, WM_DeferUpdateIfObscured, PaintBehind),
+src/WindowManager/WindowDragging.c (the desktop repaint before PaintBehind).
+
+---
+
 ### ✅ Typing into an opened document replaced it (SIMPLETEXT-001) — FIXED
 
 **Symptom**: Open "Read Me" from the Finder, click in the text, type. Every-
