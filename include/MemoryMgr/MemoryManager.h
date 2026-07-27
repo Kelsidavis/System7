@@ -108,6 +108,7 @@ void    InitZone(ZoneInfo* zone, void* memory, u32 size, void** masterTable, u32
 ZoneInfo* GetZone(void);
 void    SetZone(ZoneInfo* zone);
 u32     FreeMem(void);
+u32     HeapUsed(void);
 u32     MaxMem(void);
 u32     CompactMem(u32 cbNeeded);
 void    PurgeMem(u32 cbNeeded);

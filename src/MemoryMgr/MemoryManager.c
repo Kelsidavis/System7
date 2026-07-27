@@ -606,6 +606,17 @@ u32 FreeMem(void) {
     return gCurrentZone ? gCurrentZone->bytesFree : 0;
 }
 
+/*
+ * HeapUsed - bytes allocated out of the current zone.
+ *
+ * The counterpart to FreeMem. About This Macintosh needs it to say what
+ * applications have taken without inferring it from physical RAM, which is a
+ * different quantity entirely and gave an answer a thousand times too large.
+ */
+u32 HeapUsed(void) {
+    return gCurrentZone ? gCurrentZone->bytesUsed : 0;
+}
+
 u32 MaxMem(void) {
     if (!gCurrentZone) return 0;
 

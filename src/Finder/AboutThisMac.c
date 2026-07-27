@@ -61,7 +61,8 @@ extern Boolean TrackGoAway(WindowPtr window, Point pt);
 
 /* External memory introspection - try to use real APIs if available */
 extern Size FreeMem(void);
-extern Size MaxMem(Size* grow);
+extern Size MaxMem(void);      /* the real one takes no argument */
+extern Size HeapUsed(void);
 extern UInt32 TotalRam(void);  /* Platform may provide this */
 extern uint32_t g_total_memory_kb;  /* Actual detected RAM from multiboot2 */
 
@@ -188,7 +189,6 @@ static void GetMemorySnapshot(MemSnapshot* m);
  */
 static void GetMemorySnapshot(MemSnapshot* m)
 {
-    Size grow = 0;
     UInt32 freeBytes = 0;
     (void)freeBytes;  /* Reserved for future use */
     UInt32 totalBytes = 0;
@@ -203,33 +203,29 @@ static void GetMemorySnapshot(MemSnapshot* m)
         totalBytes = 0x01000000;  /* Fallback: 16 MB if detection failed */
     }
 
-    /* Try FreeMem() and MaxMem() if available - these call real Memory Manager */
-    freeBytes = (UInt32)FreeMem();
-    m->largestFree = (UInt32)MaxMem(&grow);
-
-    if (m->largestFree == 0 || m->largestFree > totalBytes) {
-        /* Fallback if Memory Manager APIs not working */
-        m->largestFree = totalBytes / 4;  /* Assume 25% free */
-    }
-
+    /*
+     * Report the heap's figures for the heap, and physical RAM for physical
+     * RAM. These used to be mixed: largestFree came from MaxMem, which is the
+     * biggest free block in the Memory Manager's zone, and the code then did
+     * "physical RAM minus that" and called the remainder Applications. The two
+     * are not measurements of the same thing, so the answer was nonsense - a
+     * gigabyte machine reported 942,717K in use by applications while the
+     * largest free block was 539K.
+     */
     m->totalRAM = totalBytes;
 
-    /* Calculate actual system and application usage from free memory */
-    /* System usage: approximately kernel + driver buffers + Finder heap */
-    UInt32 usedTotal = totalBytes - m->largestFree;
+    freeBytes = (UInt32)FreeMem();
+    m->largestFree = (UInt32)MaxMem();
+    m->appUsed = (UInt32)HeapUsed();
 
-    /* Estimate system used as fraction of total (typically 12-20% on classic Mac) */
-    m->systemUsed = (totalBytes / 10);  /* ~10% for kernel + drivers + Finder */
-
-    /* Application usage is used memory minus system memory */
-    if (usedTotal > m->systemUsed) {
-        m->appUsed = usedTotal - m->systemUsed;
-    } else {
-        m->appUsed = totalBytes / 8;  /* Fallback estimate */
-    }
-
-    if (m->appUsed > totalBytes) {
-        m->appUsed = totalBytes / 4;
+    /*
+     * The System line is what the machine holds outside the application heap:
+     * the kernel, its drivers and the framebuffer. Nothing accounts for those
+     * individually yet, so it is whatever physical RAM is not the heap.
+     */
+    {
+        UInt32 heapTotal = m->appUsed + freeBytes;
+        m->systemUsed = (totalBytes > heapTotal) ? (totalBytes - heapTotal) : 0;
     }
 
     /* Disk cache - wired to actual cache manager when implemented */
