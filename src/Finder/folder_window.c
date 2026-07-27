@@ -186,6 +186,60 @@ static void DrawFileIcon(short x, short y, Boolean isFolder)
 
 /* Helper: Find folder window state slot */
 /* ============================================================================
+ * Icon grid
+ *
+ * One definition of where icons sit. The pitch and margins were written out
+ * separately at six sites - the four content loaders, the duplicate path and
+ * the clean-up - so "the grid" was six agreeing copies that nothing kept in
+ * agreement. Anything that places an icon goes through here.
+ * ============================================================================ */
+
+#define kFWIconWidth    80   /* icon plus its label */
+#define kFWIconHeight   64
+#define kFWLeftMargin   20
+#define kFWTopMargin    40   /* below the title bar */
+#define kFWSpacingH     10
+#define kFWSpacingV     10
+#define kFWGridPitchH   (kFWIconWidth + kFWSpacingH)
+#define kFWGridPitchV   (kFWIconHeight + kFWSpacingV)
+
+/* How many icons fit across this window. Never less than one. */
+static short FW_GridColumns(WindowPtr w) {
+    short width = w ? (w->port.portRect.right - w->port.portRect.left) : 0;
+    short cols = (short)((width - kFWLeftMargin) / kFWGridPitchH);
+    return (cols < 1) ? 1 : cols;
+}
+
+/* Where the icon in the given slot belongs, filling rows left to right. */
+static Point FW_GridPosition(WindowPtr w, short slot) {
+    short cols = FW_GridColumns(w);
+    Point pt;
+    pt.h = kFWLeftMargin + (slot % cols) * kFWGridPitchH;
+    pt.v = kFWTopMargin + (slot / cols) * kFWGridPitchV;
+    return pt;
+}
+
+/* ============================================================================
+ * Item storage
+ *
+ * Allocation always clears. NewPtr does not, and the loaders here fill items
+ * in field by field, so any field a loader forgot - or any field added to
+ * FolderItem later - would start as whatever was in the heap. That is how a
+ * duplicate ended up drawn at the window's top-left corner: its position was
+ * simply never assigned. Clearing at the allocation makes the mistake
+ * unavailable rather than asking five call sites to remember.
+ * ============================================================================ */
+
+static FolderItem* FW_AllocItems(short count) {
+    if (count <= 0) return NULL;
+    FolderItem* items = (FolderItem*)NewPtr(sizeof(FolderItem) * count);
+    if (items) {
+        memset(items, 0, sizeof(FolderItem) * count);
+    }
+    return items;
+}
+
+/* ============================================================================
  * Selection
  *
  * Every item carries its own flag, so sorting or reloading items[] moves the
@@ -347,7 +401,7 @@ void InitializeFolderContentsEx(WindowPtr w, Boolean isTrash, VRefNum vref, DirI
         }
 
         /* Allocate item array */
-        state->items = (FolderItem*)NewPtr(sizeof(FolderItem) * count);
+        state->items = FW_AllocItems(count);
         if (!state->items) {
             FINDER_LOG_WARN("InitializeFolderContentsEx: allocation failed for %d trash items\n", count);
             state->itemCount = 0;
@@ -378,16 +432,11 @@ void InitializeFolderContentsEx(WindowPtr w, Boolean isTrash, VRefNum vref, DirI
                          i, state->items[i].name, (int)state->items[i].fileID, state->items[i].isFolder);
         }
 
-        /* Layout in grid using dynamic calculation matching CleanUp */
-        {
-            const int IW = 80, IH = 64, LM = 20, TM = 40, SH = 10, SV = 10;
-            short ww = w->port.portRect.right - w->port.portRect.left;
-            int mc = (ww - LM) / (IW + SH);
-            if (mc < 1) mc = 1;
-            for (int i = 0; i < count; i++) {
-                state->items[i].position.h = LM + (i % mc) * (IW + SH);
-                state->items[i].position.v = TM + (i / mc) * (IH + SV);
-            }
+        /* Lay the icons out on the shared grid. */
+        for (int i = 0; i < count; i++) {
+            Point p_ = FW_GridPosition(w, (short)i);
+            state->items[i].position.h = p_.h;
+            state->items[i].position.v = p_.v;
         }
 
         FW_DeselectAll(state);
@@ -399,7 +448,7 @@ void InitializeFolderContentsEx(WindowPtr w, Boolean isTrash, VRefNum vref, DirI
     /* Handle Applications folder with virtual apps */
     if (dirID == 18) {
         state->itemCount = 3;  /* SimpleText, TextEdit, MacPaint */
-        state->items = (FolderItem*)NewPtr(sizeof(FolderItem) * state->itemCount);
+        state->items = FW_AllocItems(state->itemCount);
         if (!state->items) {
             state->itemCount = 0;
             return;
@@ -435,16 +484,11 @@ void InitializeFolderContentsEx(WindowPtr w, Boolean isTrash, VRefNum vref, DirI
         macPaint->type = 'APPL';
         macPaint->creator = 'MAPP';
 
-        /* Use the same grid constants as FolderWindow_CleanUp */
-        {
-            const int IW = 80, IH = 64, LM = 20, TM = 40, SH = 10, SV = 10;
-            short ww = w->port.portRect.right - w->port.portRect.left;
-            int mc = (ww - LM) / (IW + SH);
-            if (mc < 1) mc = 1;
-            for (int i = 0; i < state->itemCount; i++) {
-                state->items[i].position.h = LM + (i % mc) * (IW + SH);
-                state->items[i].position.v = TM + (i / mc) * (IH + SV);
-            }
+        /* Lay the icons out on the shared grid. */
+        for (int i = 0; i < state->itemCount; i++) {
+            Point p_ = FW_GridPosition(w, (short)i);
+            state->items[i].position.h = p_.h;
+            state->items[i].position.v = p_.v;
         }
 
         FW_DeselectAll(state);
@@ -456,7 +500,7 @@ void InitializeFolderContentsEx(WindowPtr w, Boolean isTrash, VRefNum vref, DirI
 
     if (dirID == kControlPanelsDirID) {
         state->itemCount = 6;
-        state->items = (FolderItem*)NewPtr(sizeof(FolderItem) * state->itemCount);
+        state->items = FW_AllocItems(state->itemCount);
         if (!state->items) {
             state->itemCount = 0;
             return;
@@ -521,16 +565,11 @@ void InitializeFolderContentsEx(WindowPtr w, Boolean isTrash, VRefNum vref, DirI
         strip->type = 'APPL';
         strip->creator = 'cdev';
 
-        /* Use the same grid constants as FolderWindow_CleanUp */
-        {
-            const int IW = 80, IH = 64, LM = 20, TM = 40, SH = 10, SV = 10;
-            short ww = w->port.portRect.right - w->port.portRect.left;
-            int mc = (ww - LM) / (IW + SH);
-            if (mc < 1) mc = 1;
-            for (int i = 0; i < state->itemCount; i++) {
-                state->items[i].position.h = LM + (i % mc) * (IW + SH);
-                state->items[i].position.v = TM + (i / mc) * (IH + SV);
-            }
+        /* Lay the icons out on the shared grid. */
+        for (int i = 0; i < state->itemCount; i++) {
+            Point p_ = FW_GridPosition(w, (short)i);
+            state->items[i].position.h = p_.h;
+            state->items[i].position.v = p_.v;
         }
 
         FW_DeselectAll(state);
@@ -565,7 +604,7 @@ void InitializeFolderContentsEx(WindowPtr w, Boolean isTrash, VRefNum vref, DirI
         }
 
         /* Allocate item array */
-        state->items = (FolderItem*)NewPtr(sizeof(FolderItem) * totalItems);
+        state->items = FW_AllocItems(totalItems);
         if (!state->items) {
             FINDER_LOG_WARN("FW: malloc failed for %d items\n", count);
             state->itemCount = 0;
@@ -607,16 +646,11 @@ void InitializeFolderContentsEx(WindowPtr w, Boolean isTrash, VRefNum vref, DirI
             FINDER_LOG_DEBUG("FW: Added virtual 'Control Panels' folder entry\n");
         }
 
-        /* Use the same grid constants as FolderWindow_CleanUp */
-        {
-            const int IW = 80, IH = 64, LM = 20, TM = 40, SH = 10, SV = 10;
-            short ww = w->port.portRect.right - w->port.portRect.left;
-            int mc = (ww - LM) / (IW + SH);
-            if (mc < 1) mc = 1;
-            for (int i = 0; i < state->itemCount; i++) {
-                state->items[i].position.h = LM + (i % mc) * (IW + SH);
-                state->items[i].position.v = TM + (i / mc) * (IH + SV);
-            }
+        /* Lay the icons out on the shared grid. */
+        for (int i = 0; i < state->itemCount; i++) {
+            Point p_ = FW_GridPosition(w, (short)i);
+            state->items[i].position.h = p_.h;
+            state->items[i].position.v = p_.v;
         }
 
         FW_DeselectAll(state);
@@ -1031,10 +1065,10 @@ static Boolean TrackFolderItemDrag(WindowPtr w, FolderWindowState* state, short 
                     GlobalToLocalWindow(w, &dropLocal);
 
                     /* Snap to grid for cleaner alignment */
-                    const short GRID_W = 80 + 10;  /* ICON_WIDTH + SPACING_H */
-                    const short GRID_H = 64 + 10;  /* ICON_HEIGHT + SPACING_V */
-                    short gridCol = (dropLocal.h - 20) / GRID_W;  /* LEFT_MARGIN = 20 */
-                    short gridRow = (dropLocal.v - 40) / GRID_H;  /* TOP_MARGIN = 40 */
+                    const short GRID_W = kFWGridPitchH;
+                    const short GRID_H = kFWGridPitchV;
+                    short gridCol = (dropLocal.h - kFWLeftMargin) / GRID_W;
+                    short gridRow = (dropLocal.v - kFWTopMargin) / GRID_H;
                     if (gridCol < 0) gridCol = 0;
                     if (gridRow < 0) gridRow = 0;
 
@@ -2282,10 +2316,8 @@ void FolderWindow_ArrowKeyLR(WindowPtr w, Boolean isRight) {
     /* In list view, left/right arrows do nothing */
     if (state->viewMode >= kViewByName) return;
 
-    /* Icon view: calculate grid columns to navigate horizontally */
-    short windowWidth = w->port.portRect.right - w->port.portRect.left;
-    short maxCols = (windowWidth - 20) / (80 + 10);  /* LEFT_MARGIN / (ICON_WIDTH + SPACING) */
-    if (maxCols < 1) maxCols = 1;
+    /* Icon view: navigate by the same grid the icons were placed on */
+    short maxCols = FW_GridColumns(w);
 
     short newIndex = FW_AnchorIndex(state);
     if (newIndex < 0) newIndex = 0;
@@ -2874,7 +2906,7 @@ void FolderWindow_DuplicateSelected(WindowPtr w) {
                         continue;
                     }
                     Size oldItemsSize = state->itemCount * sizeof(FolderItem);
-                    FolderItem* newItems = (FolderItem*)NewPtr(sizeof(FolderItem) * (state->itemCount + 1));
+                    FolderItem* newItems = FW_AllocItems(state->itemCount + 1);
                     if (!newItems) {
                         FINDER_LOG_DEBUG("FolderWindow_DuplicateSelected: Failed to reallocate items array\n");
                         continue;
@@ -2910,18 +2942,10 @@ void FolderWindow_DuplicateSelected(WindowPtr w) {
                     newItem->modTime = newEntry.modTime;
                     newItem->label = 0;
 
-                    /* Next free slot on the same grid the clean-up uses. */
-                    {
-                        const short kIconW = 80, kIconH = 64;
-                        const short kLeft = 20, kTop = 40;
-                        const short kGapH = 10, kGapV = 10;
-                        short windowWidth = w->port.portRect.right - w->port.portRect.left;
-                        short maxCols = (windowWidth - kLeft) / (kIconW + kGapH);
-                        if (maxCols < 1) maxCols = 1;
-                        short slot = state->itemCount;
-                        newItem->position.h = kLeft + (slot % maxCols) * (kIconW + kGapH);
-                        newItem->position.v = kTop + (slot / maxCols) * (kIconH + kGapV);
-                    }
+                    /* Next free slot on the shared grid. */
+                    { Point p_ = FW_GridPosition(w, state->itemCount);
+                      newItem->position.h = p_.h;
+                      newItem->position.v = p_.v; }
 
                     state->itemCount++;
 
@@ -3291,14 +3315,7 @@ void FolderWindow_SetLabelOnSelected(WindowPtr w, short labelIndex) {
     /* Apply label to all selected items */
     int labeledCount = 0;
     for (short i = 0; i < state->itemCount; i++) {
-        Boolean isSelected = false;
-
-        /* Check if this item is selected */
-        if (state->items[i].selected) {
-            isSelected = true;
-        } else if (0) {
-            isSelected = true;
-        }
+        Boolean isSelected = state->items[i].selected;
 
         if (isSelected) {
             state->items[i].label = labelIndex;
@@ -3338,56 +3355,44 @@ void FolderWindow_CleanUp(WindowPtr w, Boolean selectedOnly) {
     if (!state || !state->items) return;
 
     /* Grid parameters - matching classic Mac OS */
-    const short ICON_WIDTH = 80;   /* Width of icon + label */
-    const short ICON_HEIGHT = 64;  /* Height of icon + label */
-    const short LEFT_MARGIN = 20;
-    const short TOP_MARGIN = 40;   /* Below title bar */
-    const short SPACING_H = 10;    /* Horizontal spacing between icons */
-    const short SPACING_V = 10;    /* Vertical spacing between icons */
-
-    /* Calculate grid dimensions dynamically from window width */
-    short windowWidth = w->port.portRect.right - w->port.portRect.left;
-    short gridX = LEFT_MARGIN;
-    short gridY = TOP_MARGIN;
-    short col = 0;
-    short maxCols = (windowWidth - LEFT_MARGIN) / (ICON_WIDTH + SPACING_H);
-    if (maxCols < 1) maxCols = 1;
-
     FINDER_LOG_DEBUG("FolderWindow_CleanUp: Arranging %d items, selectedOnly=%d\n",
                      state->itemCount, selectedOnly);
 
+    /* Fill the grid, skipping slots that items we are leaving put already sit
+     * on. Cleaning up a selection used to pack the selected icons from slot 0
+     * regardless of what was there, so tidying one icon dropped it on top of
+     * whatever occupied the first position. Only the icons being arranged
+     * move; they take the free slots in order. */
+    short slot = 0;
     for (short i = 0; i < state->itemCount; i++) {
-        /* Check if we should arrange this item */
-        Boolean shouldArrange = true;
+        if (selectedOnly && !state->items[i].selected) continue;
+
         if (selectedOnly) {
-            shouldArrange = false;
-            if (state->items[i].selected) {
-                shouldArrange = true;
-        } else if (0) {
-                shouldArrange = true;
-            }
+            /* Advance past any slot an unmoved icon is already sitting on. */
+            Boolean taken;
+            do {
+                Point candidate = FW_GridPosition(w, slot);
+                taken = false;
+                for (short k = 0; k < state->itemCount; k++) {
+                    if (state->items[k].selected) continue;
+                    if (state->items[k].position.h == candidate.h &&
+                        state->items[k].position.v == candidate.v) {
+                        taken = true;
+                        break;
+                    }
+                }
+                if (taken) slot++;
+            } while (taken && slot < state->itemCount * 2);
         }
 
-        if (shouldArrange) {
-            /* Set grid position */
-            state->items[i].position.h = gridX;
-            state->items[i].position.v = gridY;
+        { Point p_ = FW_GridPosition(w, slot);
+          state->items[i].position.h = p_.h;
+          state->items[i].position.v = p_.v; }
+        slot++;
 
-            FINDER_LOG_DEBUG("FolderWindow_CleanUp: Item %d '%s' -> (%d, %d)\n",
-                           i, state->items[i].name, gridX, gridY);
-
-            /* Advance to next grid position */
-            col++;
-            if (col >= maxCols) {
-                /* Move to next row */
-                col = 0;
-                gridX = LEFT_MARGIN;
-                gridY += ICON_HEIGHT + SPACING_V;
-            } else {
-                /* Move to next column */
-                gridX += ICON_WIDTH + SPACING_H;
-            }
-        }
+        FINDER_LOG_DEBUG("FolderWindow_CleanUp: Item %d '%s' -> (%d, %d)\n",
+                       i, state->items[i].name,
+                       state->items[i].position.h, state->items[i].position.v);
     }
 
     /* Trigger redraw */
