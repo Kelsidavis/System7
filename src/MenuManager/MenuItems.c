@@ -446,6 +446,30 @@ void SetMenuItemText(MenuHandle theMenu, short item, ConstStr255Param itemString
 }
 
 /*
+ * Mirror an item's enable state into MenuInfo.enableFlags.
+ *
+ * The state lives in two places. MenuExtData carries a per-item flag, which is
+ * what CheckMenuItemEnabled reads and therefore what menu tracking and drawing
+ * see; MenuInfo.enableFlags is the Menu Manager's own 32-bit mask, which is
+ * what IsValidMenuCommand reads before letting a command through. EnableItem
+ * and DisableItem only ever wrote the first, so a disabled item still passed
+ * validation and could be chosen with the keyboard or by a caller that checks
+ * the mask. Both are kept in step here.
+ *
+ * Bit 0 is the menu as a whole and bit N is item N. Items past 31 have no bit,
+ * in this mask or in the real Menu Manager's, so they stay enabled there and
+ * the ExtData flag is the only word on them.
+ */
+static void SetEnableFlagBit(MenuInfo* menu, short item, Boolean enabled) {
+    if (!menu || item < 1 || item > 31) return;
+    if (enabled) {
+        menu->enableFlags |= (1L << item);
+    } else {
+        menu->enableFlags &= ~(1L << item);
+    }
+}
+
+/*
  * EnableItem - Enable menu item
  */
 void EnableItem(MenuHandle theMenu, short item) {
@@ -467,6 +491,7 @@ void EnableItem(MenuHandle theMenu, short item) {
         /* Don't enable separators */
         if (!extData->items[item - 1].isSeparator) {
             extData->items[item - 1].enabled = 1;
+            SetEnableFlagBit(menu, item, true);
             MENU_LOG_TRACE("EnableItem: enabled item %d\n", item);
         }
     }
@@ -492,6 +517,7 @@ void DisableItem(MenuHandle theMenu, short item) {
         if (!extData || item > extData->itemCount) return;
 
         extData->items[item - 1].enabled = 0;
+        SetEnableFlagBit(menu, item, false);
         MENU_LOG_TRACE("DisableItem: disabled item %d\n", item);
     }
 }

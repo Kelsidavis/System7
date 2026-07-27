@@ -91,6 +91,33 @@ static void DrawMenuRect(short left, short top, short right, short bottom, uint3
     }
 }
 
+/*
+ * Grey out a drawn row by removing every other pixel, which is what the System
+ * 7 MDEF gets by drawing the item and then applying the 50% grey pattern in
+ * patBic. Nothing here consulted the enable flags at all, so Print and
+ * Sharing... - disabled on every pass through Finder_AdjustMenus - were drawn
+ * in the same solid black as the items you can actually pick.
+ */
+static void DimMenuRow(short left, short top, short right, short bottom,
+                       uint32_t background) {
+    if (!framebuffer) return;
+
+    uint32_t *fb = (uint32_t*)framebuffer;
+    int pitch = fb_pitch / 4;
+
+    if (left < 0) left = 0;
+    if (top < 0) top = 0;
+    if (right > (int)fb_width) right = fb_width;
+    if (bottom > (int)fb_height) bottom = fb_height;
+
+    for (int y = top; y < bottom; y++) {
+        for (int x = left; x < right; x++) {
+            if (((x + y) & 1) == 0) continue;
+            fb[y * pitch + x] = background;
+        }
+    }
+}
+
 
 /*
  * The command ("cloverleaf") symbol shown beside command-key equivalents.
@@ -244,8 +271,8 @@ static short CalcMenuWidth(MenuHandle theMenu, short itemCount) {
  * erased its command key and left the row half drawn; going through one routine
  * means whatever an item is made of gets restored.
  */
-static void DrawMenuItemRow(MenuHandle theMenu, short i, short left, short itemTop,
-                            short menuWidth, short lineHeight, Boolean highlighted) {
+static void DrawMenuItemRowContents(MenuHandle theMenu, short i, short left, short itemTop,
+                                    short menuWidth, short lineHeight, Boolean highlighted) {
     char itemText[64];
     short cmdChar = 0;
     short subID = 0;
@@ -312,6 +339,21 @@ static void DrawMenuItemRow(MenuHandle theMenu, short i, short left, short itemT
         } else {
             DrawMenuItemText(cmdBuf, left + menuWidth - 16, itemTop + 12);
         }
+    }
+}
+
+/*
+ * Draw one row, then grey it if the item cannot be chosen. The dimming has to
+ * come after everything else the row is made of - text, mark, command key,
+ * submenu arrow - so it catches all of them.
+ */
+static void DrawMenuItemRow(MenuHandle theMenu, short i, short left, short itemTop,
+                            short menuWidth, short lineHeight, Boolean highlighted) {
+    DrawMenuItemRowContents(theMenu, i, left, itemTop, menuWidth, lineHeight, highlighted);
+
+    if (!CheckMenuItemSeparator(theMenu, i) && !CheckMenuItemEnabled(theMenu, i)) {
+        DimMenuRow(left + 1, itemTop, left + menuWidth - 1, itemTop + lineHeight,
+                   highlighted ? 0xFF000000 : 0xFFFFFFFF);
     }
 }
 
