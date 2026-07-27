@@ -49,50 +49,9 @@ enum {
     mStyle = 305
 };
 
-/* Menu Commands */
-enum {
-    /* Apple Menu */
-    iAbout = 1,
-
-    /* File Menu */
-    iNew = 1,
-    iOpen = 2,
-    iClose = 3,
-    iSave = 4,
-    iSaveAs = 5,
-    iPageSetup = 6,
-    iPrint = 7,
-    iQuit = 9,
-
-    /* Edit Menu */
-    iUndo = 1,
-    iCut = 3,
-    iCopy = 4,
-    iPaste = 5,
-    iClear = 6,
-    iSelectAll = 8,
-    iFind = 10,       /* After separator at 9 */
-    iFindAgain = 11,
-
-    /* Font Menu - dynamic */
-    iMonaco = 1,
-    iGeneva = 2,
-    iChicago = 3,
-
-    /* Size Menu */
-    iSize9 = 1,
-    iSize10 = 2,
-    iSize12 = 3,
-    iSize14 = 4,
-    iSize18 = 5,
-    iSize24 = 6,
-
-    /* Style Menu */
-    iPlain = 1,
-    iBold = 2,
-    iItalic = 3,
-    iUnderline = 4
-};
+/* Menu item numbers live with the item lists they number, in STMenus.c: an
+ * item's number is its position in its list, and keeping the two apart is how
+ * the File menu came to be numbered without counting its separators. */
 
 /* Style Run structure for styled text */
 typedef struct STStyleRun {

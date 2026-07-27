@@ -16,12 +16,116 @@
 #define LoWord(x) ((short)((unsigned long)(x) & 0xFFFF))
 
 /* Menu item strings */
-static const unsigned char kAppleMenuItems[] = {22, 'A','b','o','u','t',' ','S','i','m','p','l','e','T','e','x','t','.','.','.', ';','-'};
-static const unsigned char kFileMenuItems[] = {89, 'N','e','w','/','N',';','O','p','e','n','.','.','.','/','O',';','-',';','C','l','o','s','e','/','W',';','S','a','v','e','/','S',';','S','a','v','e',' ','A','s','.','.','.','/','S',';','-',';','P','a','g','e',' ','S','e','t','u','p','.','.','.',';','P','r','i','n','t','.','.','.','/','P',';','-',';','Q','u','i','t','/','Q'};
-static const unsigned char kEditMenuItems[] = {74, 'U','n','d','o','/','Z',';','-',';','C','u','t','/','X',';','C','o','p','y','/','C',';','P','a','s','t','e','/','V',';','C','l','e','a','r',';','-',';','S','e','l','e','c','t',' ','A','l','l','/','A',';','-',';','F','i','n','d','.','.','.','/','F',';','F','i','n','d',' ','A','g','a','i','n','/','G'};
-static const unsigned char kFontMenuItems[] = {22, 'M','o','n','a','c','o',';','G','e','n','e','v','a',';','C','h','i','c','a','g','o'};
-static const unsigned char kSizeMenuItems[] = {62, '9',' ','P','o','i','n','t',';','1','0',' ','P','o','i','n','t',';','1','2',' ','P','o','i','n','t',';','1','4',' ','P','o','i','n','t',';','1','8',' ','P','o','i','n','t',';','2','4',' ','P','o','i','n','t'};
-static const unsigned char kStyleMenuItems[] = {28, 'P','l','a','i','n',';','B','o','l','d',';','I','t','a','l','i','c',';','U','n','d','e','r','l','i','n','e'};
+/*
+ * Menu item lists and item numbers.
+ *
+ * An item's number is its position in the list, so the list and the numbers
+ * are one fact and are written once, here. They used to be two: a hand-built
+ * byte array of text in this file and a separate enum of numbers in the
+ * header. Both had drifted. Every one of the six arrays carried a
+ * hand-counted Pascal length that no longer matched its text, so AppendMenu
+ * read past the end of all of them; and the File menu's numbers had been
+ * written without counting its separator lines, so Command-S - which MenuKey
+ * correctly resolved to item 5 - arrived at the handler as Save As and always
+ * put up a dialog.
+ *
+ * Each X entry is (name, text). Separators are ordinary items and take a
+ * number, which is exactly why they have to appear in the same list.
+ * "\311" is the ellipsis in the Mac Roman set; a leading "(" disables an
+ * item, so "(-" is a disabled separator line.
+ */
+#define ST_APPLE_MENU_ITEMS(X) \
+    X(iAbout,       "About SimpleText\311") \
+    X(iAppleSep1,   "(-")
+
+#define ST_FILE_MENU_ITEMS(X) \
+    X(iNew,         "New/N") \
+    X(iOpen,        "Open\311/O") \
+    X(iFileSep1,    "(-") \
+    X(iClose,       "Close/W") \
+    X(iSave,        "Save/S") \
+    X(iSaveAs,      "Save As\311") \
+    X(iFileSep2,    "(-") \
+    X(iPageSetup,   "Page Setup\311") \
+    X(iPrint,       "Print\311/P") \
+    X(iFileSep3,    "(-") \
+    X(iQuit,        "Quit/Q")
+
+#define ST_EDIT_MENU_ITEMS(X) \
+    X(iUndo,        "Undo/Z") \
+    X(iEditSep1,    "(-") \
+    X(iCut,         "Cut/X") \
+    X(iCopy,        "Copy/C") \
+    X(iPaste,       "Paste/V") \
+    X(iClear,       "Clear") \
+    X(iEditSep2,    "(-") \
+    X(iSelectAll,   "Select All/A") \
+    X(iEditSep3,    "(-") \
+    X(iFind,        "Find\311/F") \
+    X(iFindAgain,   "Find Again/G")
+
+#define ST_FONT_MENU_ITEMS(X) \
+    X(iMonaco,      "Monaco") \
+    X(iGeneva,      "Geneva") \
+    X(iChicago,     "Chicago")
+
+#define ST_SIZE_MENU_ITEMS(X) \
+    X(iSize9,       "9 Point") \
+    X(iSize10,      "10 Point") \
+    X(iSize12,      "12 Point") \
+    X(iSize14,      "14 Point") \
+    X(iSize18,      "18 Point") \
+    X(iSize24,      "24 Point")
+
+#define ST_STYLE_MENU_ITEMS(X) \
+    X(iPlain,       "Plain") \
+    X(iBold,        "Bold") \
+    X(iItalic,      "Italic") \
+    X(iUnderline,   "Underline")
+
+/* Item numbers start at 1 and count every entry, separators included. */
+#define ST_MENU_ITEM_ENUM(name, text)  name,
+#define ST_MENU_ITEM_TEXT(name, text)  text ";"
+
+enum { ST_APPLE_ITEM_BASE = 0, ST_APPLE_MENU_ITEMS(ST_MENU_ITEM_ENUM) };
+enum { ST_FILE_ITEM_BASE  = 0, ST_FILE_MENU_ITEMS(ST_MENU_ITEM_ENUM)  };
+enum { ST_EDIT_ITEM_BASE  = 0, ST_EDIT_MENU_ITEMS(ST_MENU_ITEM_ENUM)  };
+enum { ST_FONT_ITEM_BASE  = 0, ST_FONT_MENU_ITEMS(ST_MENU_ITEM_ENUM)  };
+enum { ST_SIZE_ITEM_BASE  = 0, ST_SIZE_MENU_ITEMS(ST_MENU_ITEM_ENUM)  };
+enum { ST_STYLE_ITEM_BASE = 0, ST_STYLE_MENU_ITEMS(ST_MENU_ITEM_ENUM) };
+
+/* AppendMenu takes the whole list at once, ";"-separated. The trailing ";"
+ * each entry contributes is harmless - it is stripped below. */
+static const char* const kAppleMenuItems = ST_APPLE_MENU_ITEMS(ST_MENU_ITEM_TEXT);
+static const char* const kFileMenuItems  = ST_FILE_MENU_ITEMS(ST_MENU_ITEM_TEXT);
+static const char* const kEditMenuItems  = ST_EDIT_MENU_ITEMS(ST_MENU_ITEM_TEXT);
+static const char* const kFontMenuItems  = ST_FONT_MENU_ITEMS(ST_MENU_ITEM_TEXT);
+static const char* const kSizeMenuItems  = ST_SIZE_MENU_ITEMS(ST_MENU_ITEM_TEXT);
+static const char* const kStyleMenuItems = ST_STYLE_MENU_ITEMS(ST_MENU_ITEM_TEXT);
+
+/*
+ * Append a ";"-separated item list to a menu.
+ *
+ * AppendMenu wants a Pascal string; this is the only place that has to know
+ * that, and the length comes from the text rather than from a second copy of
+ * it kept alongside.
+ */
+static void STMenu_AppendItems(MenuHandle menu, const char* items)
+{
+    Str255 pstr;
+    size_t len;
+
+    if (menu == NULL || items == NULL) return;
+
+    len = strlen(items);
+    while (len > 0 && items[len - 1] == ';') {
+        len--;   /* the list builder leaves one behind */
+    }
+    if (len > 255) len = 255;
+    pstr[0] = (unsigned char)len;
+    memcpy(&pstr[1], items, len);
+    AppendMenu(menu, pstr);
+}
 
 /* Static helper functions */
 static void HandleAppleMenu(short item);
@@ -51,7 +155,7 @@ void STMenu_Init(void) {
     static unsigned char appleTitle[] = {1, 0x14};  /* Apple symbol */
     g_ST.appleMenu = NewMenu(mApple, appleTitle);
     if (g_ST.appleMenu) {
-        AppendMenu(g_ST.appleMenu, kAppleMenuItems);
+        STMenu_AppendItems(g_ST.appleMenu, kAppleMenuItems);
         /* DO NOT call InsertMenu here - menus installed on activate */
     }
 
@@ -59,7 +163,7 @@ void STMenu_Init(void) {
     static unsigned char fileTitle[] = {4, 'F','i','l','e'};
     g_ST.fileMenu = NewMenu(mFile, fileTitle);
     if (g_ST.fileMenu) {
-        AppendMenu(g_ST.fileMenu, kFileMenuItems);
+        STMenu_AppendItems(g_ST.fileMenu, kFileMenuItems);
         /* DO NOT call InsertMenu here - menus installed on activate */
     }
 
@@ -67,7 +171,7 @@ void STMenu_Init(void) {
     static unsigned char editTitle[] = {4, 'E','d','i','t'};
     g_ST.editMenu = NewMenu(mEdit, editTitle);
     if (g_ST.editMenu) {
-        AppendMenu(g_ST.editMenu, kEditMenuItems);
+        STMenu_AppendItems(g_ST.editMenu, kEditMenuItems);
         /* DO NOT call InsertMenu here - menus installed on activate */
     }
 
@@ -75,7 +179,7 @@ void STMenu_Init(void) {
     static unsigned char fontTitle[] = {4, 'F','o','n','t'};
     g_ST.fontMenu = NewMenu(mFont, fontTitle);
     if (g_ST.fontMenu) {
-        AppendMenu(g_ST.fontMenu, kFontMenuItems);
+        STMenu_AppendItems(g_ST.fontMenu, kFontMenuItems);
         /* DO NOT call InsertMenu here - menus installed on activate */
     }
 
@@ -83,7 +187,7 @@ void STMenu_Init(void) {
     static unsigned char sizeTitle[] = {4, 'S','i','z','e'};
     g_ST.sizeMenu = NewMenu(mSize, sizeTitle);
     if (g_ST.sizeMenu) {
-        AppendMenu(g_ST.sizeMenu, kSizeMenuItems);
+        STMenu_AppendItems(g_ST.sizeMenu, kSizeMenuItems);
         /* DO NOT call InsertMenu here - menus installed on activate */
     }
 
@@ -91,7 +195,7 @@ void STMenu_Init(void) {
     static unsigned char styleTitle[] = {5, 'S','t','y','l','e'};
     g_ST.styleMenu = NewMenu(mStyle, styleTitle);
     if (g_ST.styleMenu) {
-        AppendMenu(g_ST.styleMenu, kStyleMenuItems);
+        STMenu_AppendItems(g_ST.styleMenu, kStyleMenuItems);
         /* DO NOT call InsertMenu here - menus installed on activate */
     }
 

@@ -923,9 +923,16 @@ VFSFile* VFS_OpenFile(VRefNum vref, FileID id, bool resourceFork) {
     VFSVolume* vol = VFS_FindVolume(vref);
     if (!vol || !vol->mounted) return NULL;
 
-    /* Check if this is an overlay-created file (no HFS backing) */
+    /* Does the overlay hold this file's contents?
+     *
+     * This used to ask whether the file was *created* in the overlay, which
+     * is a different question. A file that shipped in the catalog and was
+     * then edited and saved has overlay data but was never "created", so it
+     * fell through to the catalog and reopened with its original text - the
+     * save had worked, and nothing ever read the result. What matters here is
+     * where the current contents live, so that is what is asked. */
     VFSOverlayEntry* oe = VFS_FindOverlay(vol, id);
-    if (oe && oe->created && !oe->deleted) {
+    if (oe && !oe->deleted && (oe->created || oe->fileData)) {
         /* Overlay-backed file — use in-memory buffer */
         VFSFile* vfsFile = (VFSFile*)NewPtr(sizeof(VFSFile));
         if (!vfsFile) return NULL;
