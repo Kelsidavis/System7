@@ -162,6 +162,73 @@ static void WM_AccumulateUpdateRgn(WindowPtr window, RgnHandle rgn) {
     UnionRgn(window->updateRgn, rgn, window->updateRgn);
 }
 
+
+/* ============================================================================
+ * Chrome painting
+ *
+ * A window's frame, title bar and controls are painted straight into the
+ * framebuffer rather than through the window's offscreen buffer, so none of it
+ * passed through the clipping that EndUpdate applies to window content. A
+ * window repainting its chrome - which happens whenever it is activated or
+ * deactivated - drew its frame and title bar over whatever was stacked on top
+ * of it. Opening a dialog over a document window deactivated the document,
+ * and the document's title bar came back over the dialog.
+ *
+ * Every chrome pixel now goes through one gate that knows which pixels this
+ * window actually owns. The region is the window's structure region minus the
+ * structure region of every window in front of it - the same relationship
+ * CalcVis computes for content.
+ * ============================================================================ */
+
+static RgnHandle gChromeClipRgn = NULL;
+
+/* Compute what is visible of a window's frame. The caller owns the region. */
+static void WM_BeginChromeClip(WindowPtr window, AutoRgnHandle* holder) {
+    *holder = WM_NewAutoRgn();
+    if (!holder->rgn || !window->strucRgn) {
+        gChromeClipRgn = NULL;
+        return;
+    }
+
+    CopyRgn(window->strucRgn, holder->rgn);
+
+    WindowManagerState* wmState = GetWindowManagerState();
+    WindowPtr front = wmState ? wmState->windowList : NULL;
+    int guard = 0;
+    while (front && front != window && guard++ < 64) {
+        if (front->visible && front->strucRgn && *(front->strucRgn)) {
+            DiffRgn(holder->rgn, front->strucRgn, holder->rgn);
+        }
+        front = front->nextWindow;
+    }
+
+    gChromeClipRgn = holder->rgn;
+}
+
+static void WM_EndChromeClip(AutoRgnHandle* holder) {
+    gChromeClipRgn = NULL;
+    WM_DisposeAutoRgn(holder);
+}
+
+/* Paint one pixel of window chrome, if this window owns it. */
+static void WM_ChromePixel(int x, int y, uint32_t colour) {
+    extern void* framebuffer;
+    extern uint32_t fb_width, fb_height, fb_pitch;
+
+    if (!framebuffer) return;
+    if (x < 0 || y < 0 || x >= (int)fb_width || y >= (int)fb_height) return;
+
+    if (gChromeClipRgn) {
+        Point pt;
+        pt.h = (short)x;
+        pt.v = (short)y;
+        if (!PtInRgn(pt, gChromeClipRgn)) return;
+    }
+
+    ((uint32_t*)framebuffer)[y * (int)(fb_pitch / 4) + x] = colour;
+}
+
+
 /* Internal helper to draw window frame */
 static void DrawWindowFrame(WindowPtr window);
 
@@ -545,7 +612,20 @@ void DrawNew(WindowPtr window, Boolean update) {
     WM_LOG_TRACE("DrawNew: EXIT\n");
 }
 
+static void DrawWindowFrame_Unclipped(WindowPtr window);
+
+/* Paint this window's chrome, limited to the pixels it actually owns. */
 static void DrawWindowFrame(WindowPtr window) {
+    AutoRgnHandle chromeClip;
+
+    if (!window || !window->visible) return;
+
+    WM_BeginChromeClip(window, &chromeClip);
+    DrawWindowFrame_Unclipped(window);
+    WM_EndChromeClip(&chromeClip);
+}
+
+static void DrawWindowFrame_Unclipped(WindowPtr window) {
     extern void serial_puts(const char*);
     extern void uart_flush(void);
     serial_puts("[DRAWFRAME] enter\n");
@@ -617,8 +697,21 @@ static void DrawWindowFrame(WindowPtr window) {
     serial_puts("[DRAWFRAME] FrameRect\n");
     uart_flush();
 
-    /* Draw frame outline using QuickDraw (not direct framebuffer) */
-    FrameRect(&frame);
+    /* Draw the frame outline through the same gate as the rest of the chrome.
+     * This was a QuickDraw FrameRect while everything around it wrote pixels
+     * directly, so the outline obeyed one set of rules and the title bar and
+     * highlights obeyed another - and neither obeyed the windows in front. */
+    {
+        uint32_t frameBlack = 0xFF000000;
+        for (int x = frame.left; x < frame.right; x++) {
+            WM_ChromePixel(x, frame.top, frameBlack);
+            WM_ChromePixel(x, frame.bottom - 1, frameBlack);
+        }
+        for (int y = frame.top; y < frame.bottom; y++) {
+            WM_ChromePixel(frame.left, y, frameBlack);
+            WM_ChromePixel(frame.right - 1, y, frameBlack);
+        }
+    }
     serial_puts("[DRAWFRAME] FrameRect done\n");
     uart_flush();
 
@@ -628,8 +721,6 @@ static void DrawWindowFrame(WindowPtr window) {
     extern void* framebuffer;
     extern uint32_t fb_width, fb_height, fb_pitch;
     if (framebuffer) {
-        uint32_t* fb = (uint32_t*)framebuffer;
-        int pitch = fb_pitch / 4;
         uint32_t black = 0xFF000000;
 
         /* Right side highlight: 2px wide, starting 1px down from top and extending to bottom */
@@ -640,7 +731,7 @@ static void DrawWindowFrame(WindowPtr window) {
                 for (int dx = 1; dx <= 2; dx++) {
                     int x = frame.right - 1 - dx;
                     if (x >= 0 && x < (int)fb_width) {
-                        fb[y * pitch + x] = black;
+                        WM_ChromePixel(x, y, black);
                     }
                 }
             }
@@ -652,7 +743,7 @@ static void DrawWindowFrame(WindowPtr window) {
             if (y >= 0 && y < (int)fb_height) {
                 for (int x = frame.left + 1; x < frame.right - 3 && x < (int)fb_width; x++) {
                     if (x >= 0) {
-                        fb[y * pitch + x] = black;
+                        WM_ChromePixel(x, y, black);
                     }
                 }
             }
@@ -679,8 +770,6 @@ static void DrawWindowFrame(WindowPtr window) {
         if (window->hilited) {
             /* Active window: solid light grey background with darker horizontal stripes */
             if (framebuffer) {
-                uint32_t* fb = (uint32_t*)framebuffer;
-                int pitch = fb_pitch / 4;
                 uint32_t lightGrey = 0xFFE8E8E8;  /* Solid lighter grey RGB(232,232,232) */
                 uint32_t darkGrey = 0xFF808080;   /* Solid darker grey RGB(128,128,128) for stripes */
 
@@ -689,7 +778,7 @@ static void DrawWindowFrame(WindowPtr window) {
                     if (y >= 0) {
                         for (int x = titleBar.left; x < titleBar.right && x < (int)fb_width; x++) {
                             if (x >= 0) {
-                                fb[y * pitch + x] = lightGrey;
+                                WM_ChromePixel(x, y, lightGrey);
                             }
                         }
                     }
@@ -702,7 +791,7 @@ static void DrawWindowFrame(WindowPtr window) {
                     if (y >= 0 && y < (int)fb_height) {
                         for (int x = titleBar.left; x < titleBar.right && x < (int)fb_width; x++) {
                             if (x >= 0) {
-                                fb[y * pitch + x] = darkGrey;
+                                WM_ChromePixel(x, y, darkGrey);
                             }
                         }
                     }
@@ -718,7 +807,7 @@ static void DrawWindowFrame(WindowPtr window) {
                 int y = titleBar.top;
                 if (y >= 0 && y < (int)fb_height) {
                     for (int x = titleBar.left; x < titleBar.right && x < (int)fb_width; x++) {
-                        if (x >= 0) fb[y * pitch + x] = highlightColor;
+                        if (x >= 0) WM_ChromePixel(x, y, highlightColor);
                     }
                 }
 
@@ -726,7 +815,7 @@ static void DrawWindowFrame(WindowPtr window) {
                 y = titleBar.bottom - 1;
                 if (y >= 0 && y < (int)fb_height) {
                     for (int x = titleBar.left; x < titleBar.right && x < (int)fb_width; x++) {
-                        if (x >= 0) fb[y * pitch + x] = highlightColor;
+                        if (x >= 0) WM_ChromePixel(x, y, highlightColor);
                     }
                 }
 
@@ -734,7 +823,7 @@ static void DrawWindowFrame(WindowPtr window) {
                 int x = titleBar.left;
                 if (x >= 0 && x < (int)fb_width) {
                     for (y = titleBar.top; y < titleBar.bottom && y < (int)fb_height; y++) {
-                        if (y >= 0) fb[y * pitch + x] = highlightColor;
+                        if (y >= 0) WM_ChromePixel(x, y, highlightColor);
                     }
                 }
 
@@ -742,7 +831,7 @@ static void DrawWindowFrame(WindowPtr window) {
                 x = titleBar.right - 1;
                 if (x >= 0 && x < (int)fb_width) {
                     for (y = titleBar.top; y < titleBar.bottom && y < (int)fb_height; y++) {
-                        if (y >= 0) fb[y * pitch + x] = highlightColor;
+                        if (y >= 0) WM_ChromePixel(x, y, highlightColor);
                     }
                 }
             }
@@ -764,8 +853,6 @@ static void DrawWindowFrame(WindowPtr window) {
 
             uint32_t black = 0xFF000000;
             uint32_t grey = 0xFF808080;  /* Same grey as title bar stripes */
-            uint32_t* fb = (uint32_t*)framebuffer;
-            int pitch = fb_pitch / 4;
 
             /* Get theme highlight color if window is active */
             uint32_t highlightColor = grey;
@@ -779,13 +866,13 @@ static void DrawWindowFrame(WindowPtr window) {
             /* Top edge */
             for (int x = boxLeft; x < boxLeft + boxSize - 1 && x < (int)fb_width; x++) {
                 if (x >= 0 && boxTop >= 0 && boxTop < (int)fb_height) {
-                    fb[boxTop * pitch + x] = black;
+                    WM_ChromePixel(x, boxTop, black);
                 }
             }
             /* Left edge */
             for (int y = boxTop; y < boxTop + boxSize - 1 && y < (int)fb_height; y++) {
                 if (y >= 0 && boxLeft >= 0 && boxLeft < (int)fb_width) {
-                    fb[y * pitch + boxLeft] = black;
+                    WM_ChromePixel(boxLeft, y, black);
                 }
             }
 
@@ -794,28 +881,28 @@ static void DrawWindowFrame(WindowPtr window) {
             int y = boxTop + 1;
             if (y >= 0 && y < (int)fb_height) {
                 for (int x = boxLeft + 1; x < boxLeft + boxSize - 1 && x < (int)fb_width; x++) {
-                    if (x >= 0) fb[y * pitch + x] = highlightColor;
+                    if (x >= 0) WM_ChromePixel(x, y, highlightColor);
                 }
             }
             /* Left highlight line */
             int x = boxLeft + 1;
             if (x >= 0 && x < (int)fb_width) {
                 for (y = boxTop + 2; y < boxTop + boxSize - 2 && y < (int)fb_height; y++) {
-                    if (y >= 0) fb[y * pitch + x] = highlightColor;
+                    if (y >= 0) WM_ChromePixel(x, y, highlightColor);
                 }
             }
             /* Right highlight line */
             x = boxLeft + boxSize - 2;
             if (x >= 0 && x < (int)fb_width) {
                 for (y = boxTop + 1; y < boxTop + boxSize - 1 && y < (int)fb_height; y++) {
-                    if (y >= 0) fb[y * pitch + x] = highlightColor;
+                    if (y >= 0) WM_ChromePixel(x, y, highlightColor);
                 }
             }
             /* Bottom highlight line */
             y = boxTop + boxSize - 2;
             if (y >= 0 && y < (int)fb_height) {
                 for (x = boxLeft + 1; x < boxLeft + boxSize - 1 && x < (int)fb_width; x++) {
-                    if (x >= 0) fb[y * pitch + x] = highlightColor;
+                    if (x >= 0) WM_ChromePixel(x, y, highlightColor);
                 }
             }
 
@@ -823,7 +910,7 @@ static void DrawWindowFrame(WindowPtr window) {
             for (y = boxTop + 2; y < boxTop + boxSize - 3 && y < (int)fb_height; y++) {
                 if (y >= 0) {
                     for (x = boxLeft + 2; x < boxLeft + boxSize - 3 && x < (int)fb_width; x++) {
-                        if (x >= 0) fb[y * pitch + x] = grey;
+                        if (x >= 0) WM_ChromePixel(x, y, grey);
                     }
                 }
             }
@@ -833,14 +920,14 @@ static void DrawWindowFrame(WindowPtr window) {
             y = boxTop + boxSize - 3;
             if (y >= 0 && y < (int)fb_height) {
                 for (x = boxLeft + 2; x < boxLeft + boxSize - 2 && x < (int)fb_width; x++) {
-                    if (x >= 0) fb[y * pitch + x] = black;
+                    if (x >= 0) WM_ChromePixel(x, y, black);
                 }
             }
             /* Right shadow */
             x = boxLeft + boxSize - 3;
             if (x >= 0 && x < (int)fb_width) {
                 for (y = boxTop + 2; y < boxTop + boxSize - 3 && y < (int)fb_height; y++) {
-                    if (y >= 0) fb[y * pitch + x] = black;
+                    if (y >= 0) WM_ChromePixel(x, y, black);
                 }
             }
 
@@ -852,7 +939,7 @@ static void DrawWindowFrame(WindowPtr window) {
             int sepX = boxLeft - 1;
             if (sepX >= 0 && sepX < (int)fb_width) {
                 for (y = boxTop; y < boxTop + boxSize - 1 && y < (int)fb_height; y++) {
-                    if (y >= 0) fb[y * pitch + sepX] = lightGrey;
+                    if (y >= 0) WM_ChromePixel(sepX, y, lightGrey);
                 }
             }
 
@@ -860,7 +947,7 @@ static void DrawWindowFrame(WindowPtr window) {
             sepX = boxLeft + boxSize - 1;
             if (sepX >= 0 && sepX < (int)fb_width) {
                 for (y = boxTop; y < boxTop + boxSize - 1 && y < (int)fb_height; y++) {
-                    if (y >= 0) fb[y * pitch + sepX] = lightGrey;
+                    if (y >= 0) WM_ChromePixel(sepX, y, lightGrey);
                 }
             }
         }
@@ -921,8 +1008,6 @@ static void DrawWindowFrame(WindowPtr window) {
 
                     /* Fill rectangular lozenge with grey at framebuffer level */
                     if (framebuffer) {
-                        uint32_t* fb = (uint32_t*)framebuffer;
-                        int pitch = fb_pitch / 4;
                         uint32_t lightGrey = 0xFFE8E8E8;  /* Same as title bar background */
 
                         /* Simple rectangular fill to cleanly cover stripes */
@@ -930,7 +1015,7 @@ static void DrawWindowFrame(WindowPtr window) {
                             if (y >= 0 && y < (int)fb_height) {
                                 for (int x = loz.left; x < loz.right; x++) {
                                     if (x >= 0 && x < (int)fb_width) {
-                                        fb[y * pitch + x] = lightGrey;
+                                        WM_ChromePixel(x, y, lightGrey);
                                     }
                                 }
                             }
@@ -977,7 +1062,20 @@ static void DrawWindowFrame(WindowPtr window) {
     SetPort(savePort);
 }
 
+static void DrawWindowControls_Unclipped(WindowPtr window);
+
+/* Paint this window's chrome, limited to the pixels it actually owns. */
 static void DrawWindowControls(WindowPtr window) {
+    AutoRgnHandle chromeClip;
+
+    if (!window || !window->visible) return;
+
+    WM_BeginChromeClip(window, &chromeClip);
+    DrawWindowControls_Unclipped(window);
+    WM_EndChromeClip(&chromeClip);
+}
+
+static void DrawWindowControls_Unclipped(WindowPtr window) {
     extern void uart_flush(void);
     serial_puts("[CONTROLS] enter\n");
     uart_flush();
@@ -1061,8 +1159,6 @@ static void DrawWindowControls(WindowPtr window) {
         extern uint32_t fb_width, fb_height, fb_pitch;
 
         if (framebuffer) {
-            uint32_t* fb = (uint32_t*)framebuffer;
-            int pitch = fb_pitch / 4;
             uint32_t black = 0xFF000000;
 
             /* Draw three diagonal lines from bottom-left to top-right */
@@ -1071,7 +1167,7 @@ static void DrawWindowControls(WindowPtr window) {
                 int x = growBox.left + i;
                 int y = growBox.bottom - 1 - i;
                 if (x >= 0 && x < (int)fb_width && y >= 0 && y < (int)fb_height) {
-                    fb[y * pitch + x] = black;
+                    WM_ChromePixel(x, y, black);
                 }
             }
 
@@ -1080,7 +1176,7 @@ static void DrawWindowControls(WindowPtr window) {
                 int x = growBox.left + 4 + i;
                 int y = growBox.bottom - 1 - i;
                 if (x >= 0 && x < (int)fb_width && y >= 0 && y < (int)fb_height) {
-                    fb[y * pitch + x] = black;
+                    WM_ChromePixel(x, y, black);
                 }
             }
 
@@ -1089,7 +1185,7 @@ static void DrawWindowControls(WindowPtr window) {
                 int x = growBox.left + 8 + i;
                 int y = growBox.bottom - 1 - i;
                 if (x >= 0 && x < (int)fb_width && y >= 0 && y < (int)fb_height) {
-                    fb[y * pitch + x] = black;
+                    WM_ChromePixel(x, y, black);
                 }
             }
         }
