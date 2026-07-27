@@ -473,10 +473,17 @@ static OSErr M68K_EnterAt(CPUAddressSpace as, CPUAddr entry, CPUEnterFlags flags
      */
     if (mas->halted) {
         if (mas->lastException) {
-            char b[160];
-            snprintf(b, sizeof(b), "[M68K] %s at PC=0x%08X\n",
+            char b[220];
+            /* The registers that decide where a program goes: A5 addresses
+             * the jump table and globals, A7 is the stack. A fault report
+             * without them says where execution died but not why it was
+             * there. */
+            snprintf(b, sizeof(b),
+                     "[M68K] %s at PC=0x%08X (A5=0x%08X A7=0x%08X D0=0x%08X)\n",
                      mas->faultReason ? mas->faultReason : "fault",
-                     (unsigned)mas->faultPC);
+                     (unsigned)mas->faultPC,
+                     (unsigned)mas->regs.a[5], (unsigned)mas->regs.a[7],
+                     (unsigned)mas->regs.d[0]);
             serial_puts(b);
             return -1;
         }

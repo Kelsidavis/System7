@@ -279,6 +279,7 @@ OSErr LoadSeg_TrapHandler(void* context, CPUAddr* pc, CPUAddr* registers)
             if (err == noErr) {
                 SEG_LOG_INFO("_LoadSeg: hot-patched JT[%d] @ 0x%08X -> entry 0x%08X",
                             jtIndex, jtSlotAddr, entryAddr);
+
             } else {
                 SEG_LOG_ERROR("_LoadSeg: failed to patch JT[%d]: err=%d", jtIndex, err);
             }

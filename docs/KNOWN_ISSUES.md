@@ -42,9 +42,27 @@ at all, so its first push faulted; and nothing in the system had ever called
 `SetRegisterA5`, so A5 held zero while every jump table entry was addressed as
 an offset from it. The A5 world is now loaded into A5 where it is built.
 
-The fault has moved but not gone — it was at the first push, it is now in the
-jump table call — so something later still leaves A5 or the slot wrong. That is
-where to pick this up.
+**What is now known**, with the register state reported at the fault:
+
+  - A5 is correct: `0x00010200`, matching the A5 world's base.
+  - The jump table is correct. Slot 0 holds `3F3C 0001 A9F0 4E75` and slot 1
+    holds `3F3C 0002 A9F0 4E75` — a stub per segment that pushes its segment
+    number, traps `_LoadSeg`, and returns.
+  - A7 ends at `0x00040004`, four bytes *above* where it started, so two
+    `RTS`es popped more than was pushed.
+
+That last one is the shape of the remaining fault. The caller jumps into the
+jump table slot, the stub traps, `_LoadSeg` loads the segment and patches the
+slot with a `JMP` — and then the stub's own `RTS` runs, returning to the caller
+without ever entering the segment that was just loaded. The call is answered by
+the stub rather than by the code it stands in for.
+
+The fix is for `_LoadSeg` to resume at the slot it just patched, so the `JMP`
+now written there is taken. **That was tried and loops**: re-entering the slot
+executes the stub again, which means the patched `JMP` is not visible to the
+instruction fetch. So the next question is why `WriteJumpTableSlot`'s write is
+not seen by `M68K_Fetch16` — whether it writes somewhere else, or the fetch
+path reads through something the write does not go through.
 
 **Files**: src/SegmentLoader/SegmentLoaderTest.c,
 src/SegmentLoader/A5World.c, src/CPU/m68k_interp/M68KBackend.c (M68K_EnterAt).
