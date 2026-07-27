@@ -1337,14 +1337,16 @@ void M68K_Op_MOVEM(M68KAddressSpace* as, UInt16 opcode)
 void M68K_Op_LSL(M68KAddressSpace* as, UInt16 opcode)
 {
     UInt8 count_reg = (opcode >> 9) & 7;
-    UInt8 dir = (opcode >> 8) & 1;  /* 0=immediate, 1=register */
+    /* Bit 5 says where the count comes from; bit 8 is the direction,
+     * which the dispatcher has already used to pick this handler. */
+    UInt8 countInRegister = (opcode >> 5) & 1;
     UInt8 size = (opcode >> 6) & 3;
     UInt8 data_reg = opcode & 7;
     UInt32 value, result, count;
     UInt32 mask = SIZE_MASK(size);
 
     /* Get shift count */
-    if (dir) {
+    if (countInRegister) {
         count = as->regs.d[count_reg] & 0x3F;  /* Modulo 64 */
     } else {
         count = count_reg ? count_reg : 8;  /* 0 means 8 */
@@ -1395,14 +1397,16 @@ void M68K_Op_LSL(M68KAddressSpace* as, UInt16 opcode)
 void M68K_Op_LSR(M68KAddressSpace* as, UInt16 opcode)
 {
     UInt8 count_reg = (opcode >> 9) & 7;
-    UInt8 dir = (opcode >> 8) & 1;
+    /* Bit 5 says where the count comes from; bit 8 is the direction,
+     * which the dispatcher has already used to pick this handler. */
+    UInt8 countInRegister = (opcode >> 5) & 1;
     UInt8 size = (opcode >> 6) & 3;
     UInt8 data_reg = opcode & 7;
     UInt32 value, result, count;
     UInt32 mask = SIZE_MASK(size);
 
     /* Get shift count */
-    if (dir) {
+    if (countInRegister) {
         count = as->regs.d[count_reg] & 0x3F;
     } else {
         count = count_reg ? count_reg : 8;
@@ -1453,7 +1457,9 @@ void M68K_Op_LSR(M68KAddressSpace* as, UInt16 opcode)
 void M68K_Op_ASL(M68KAddressSpace* as, UInt16 opcode)
 {
     UInt8 count_reg = (opcode >> 9) & 7;
-    UInt8 dir = (opcode >> 8) & 1;
+    /* Bit 5 says where the count comes from; bit 8 is the direction,
+     * which the dispatcher has already used to pick this handler. */
+    UInt8 countInRegister = (opcode >> 5) & 1;
     UInt8 size = (opcode >> 6) & 3;
     UInt8 data_reg = opcode & 7;
     UInt32 value, result, count;
@@ -1461,7 +1467,7 @@ void M68K_Op_ASL(M68KAddressSpace* as, UInt16 opcode)
     UInt32 sign_bit = SIZE_SIGN_BIT(size);
 
     /* Get shift count */
-    if (dir) {
+    if (countInRegister) {
         count = as->regs.d[count_reg] & 0x3F;
     } else {
         count = count_reg ? count_reg : 8;
@@ -1517,7 +1523,9 @@ void M68K_Op_ASL(M68KAddressSpace* as, UInt16 opcode)
 void M68K_Op_ASR(M68KAddressSpace* as, UInt16 opcode)
 {
     UInt8 count_reg = (opcode >> 9) & 7;
-    UInt8 dir = (opcode >> 8) & 1;
+    /* Bit 5 says where the count comes from; bit 8 is the direction,
+     * which the dispatcher has already used to pick this handler. */
+    UInt8 countInRegister = (opcode >> 5) & 1;
     UInt8 size = (opcode >> 6) & 3;
     UInt8 data_reg = opcode & 7;
     UInt32 value, result, count;
@@ -1526,7 +1534,7 @@ void M68K_Op_ASR(M68KAddressSpace* as, UInt16 opcode)
     SInt32 signed_value;
 
     /* Get shift count */
-    if (dir) {
+    if (countInRegister) {
         count = as->regs.d[count_reg] & 0x3F;
     } else {
         count = count_reg ? count_reg : 8;
@@ -1907,7 +1915,9 @@ void M68K_Op_DIVS(M68KAddressSpace* as, UInt16 opcode)
 void M68K_Op_ROL(M68KAddressSpace* as, UInt16 opcode)
 {
     UInt8 count_reg = (opcode >> 9) & 7;
-    UInt8 dir = (opcode >> 8) & 1;
+    /* Bit 5 says where the count comes from; bit 8 is the direction,
+     * which the dispatcher has already used to pick this handler. */
+    UInt8 countInRegister = (opcode >> 5) & 1;
     UInt8 size = (opcode >> 6) & 3;
     UInt8 data_reg = opcode & 7;
     UInt32 value, result, count;
@@ -1915,7 +1925,7 @@ void M68K_Op_ROL(M68KAddressSpace* as, UInt16 opcode)
     UInt8 bit_width = SIZE_BYTES(size) * 8;
 
     /* Get rotate count */
-    if (dir) {
+    if (countInRegister) {
         count = as->regs.d[count_reg] & 0x3F;
     } else {
         count = count_reg ? count_reg : 8;
@@ -1965,7 +1975,9 @@ void M68K_Op_ROL(M68KAddressSpace* as, UInt16 opcode)
 void M68K_Op_ROR(M68KAddressSpace* as, UInt16 opcode)
 {
     UInt8 count_reg = (opcode >> 9) & 7;
-    UInt8 dir = (opcode >> 8) & 1;
+    /* Bit 5 says where the count comes from; bit 8 is the direction,
+     * which the dispatcher has already used to pick this handler. */
+    UInt8 countInRegister = (opcode >> 5) & 1;
     UInt8 size = (opcode >> 6) & 3;
     UInt8 data_reg = opcode & 7;
     UInt32 value, result, count;
@@ -1973,7 +1985,7 @@ void M68K_Op_ROR(M68KAddressSpace* as, UInt16 opcode)
     UInt8 bit_width = SIZE_BYTES(size) * 8;
 
     /* Get rotate count */
-    if (dir) {
+    if (countInRegister) {
         count = as->regs.d[count_reg] & 0x3F;
     } else {
         count = count_reg ? count_reg : 8;
@@ -2063,7 +2075,9 @@ void M68K_Op_NEG(M68KAddressSpace* as, UInt16 opcode)
 void M68K_Op_ROXL(M68KAddressSpace* as, UInt16 opcode)
 {
     UInt8 count_reg = (opcode >> 9) & 7;
-    UInt8 dir = (opcode >> 8) & 1;
+    /* Bit 5 says where the count comes from; bit 8 is the direction,
+     * which the dispatcher has already used to pick this handler. */
+    UInt8 countInRegister = (opcode >> 5) & 1;
     UInt8 size = (opcode >> 6) & 3;
     UInt8 data_reg = opcode & 7;
     UInt32 value, result, count;
@@ -2072,7 +2086,7 @@ void M68K_Op_ROXL(M68KAddressSpace* as, UInt16 opcode)
     Boolean x_flag;
 
     /* Get rotate count */
-    if (dir) {
+    if (countInRegister) {
         count = as->regs.d[count_reg] & 0x3F;
     } else {
         count = count_reg ? count_reg : 8;
@@ -2127,7 +2141,9 @@ void M68K_Op_ROXL(M68KAddressSpace* as, UInt16 opcode)
 void M68K_Op_ROXR(M68KAddressSpace* as, UInt16 opcode)
 {
     UInt8 count_reg = (opcode >> 9) & 7;
-    UInt8 dir = (opcode >> 8) & 1;
+    /* Bit 5 says where the count comes from; bit 8 is the direction,
+     * which the dispatcher has already used to pick this handler. */
+    UInt8 countInRegister = (opcode >> 5) & 1;
     UInt8 size = (opcode >> 6) & 3;
     UInt8 data_reg = opcode & 7;
     UInt32 value, result, count;
@@ -2136,7 +2152,7 @@ void M68K_Op_ROXR(M68KAddressSpace* as, UInt16 opcode)
     Boolean x_flag;
 
     /* Get rotate count */
-    if (dir) {
+    if (countInRegister) {
         count = as->regs.d[count_reg] & 0x3F;
     } else {
         count = count_reg ? count_reg : 8;

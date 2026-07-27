@@ -64,6 +64,12 @@ OSErr ProcessManager_Initialize(void)
 
     /* Initialize CPU backends */
     err = M68KBackend_Initialize();
+    if (err == noErr) {
+        /* Nothing runs 68K code yet, so this is what notices if the
+         * interpreter stops working. Silent unless it fails. */
+        extern void M68K_SelfTest(void);
+        M68K_SelfTest();
+    }
     if (err != noErr) {
         return err;
     }

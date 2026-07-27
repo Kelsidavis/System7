@@ -109,6 +109,11 @@ OSErr M68KBackend_Initialize(void);
 OSErr M68K_Execute(M68KAddressSpace* as, UInt32 startPC, UInt32 maxInstructions);
 OSErr M68K_Step(M68KAddressSpace* as);
 
+/* Run five instructions of known result. Silent unless one comes out wrong.
+ * Nothing else in the system executes 68K code, so this is what would notice
+ * the interpreter breaking. */
+void M68K_SelfTest(void);
+
 #ifdef __cplusplus
 }
 #endif

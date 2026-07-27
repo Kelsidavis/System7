@@ -854,7 +854,23 @@ OSErr M68K_Step(M68KAddressSpace* as)
         } else {
             M68K_Fault(as, "Unimplemented 0xxx opcode");
         }
-    } else if ((opcode & 0xC000) == 0x0000 || (opcode & 0xC000) == 0x4000 || (opcode & 0xC000) == 0x8000) {
+    } else if ((opcode & 0xF000) == 0x1000 || (opcode & 0xF000) == 0x2000 ||
+               (opcode & 0xF000) == 0x3000 || (opcode & 0xF000) == 0x4000) {
+        /*
+         * MOVE.B/.W/.L (0x1000, 0x3000, 0x2000) and the 0x4xxx group.
+         *
+         * The test used to be (opcode & 0xC000) against 0x0000, 0x4000 and
+         * 0x8000 - three quarters of the whole opcode space. Everything from
+         * 0x4000 to 0xBFFF landed here, so every branch below it was
+         * unreachable: MOVEQ, ADDQ and SUBQ, Bcc and BRA and BSR, OR and DIV,
+         * SUB, CMP, and the A-line traps a Macintosh program uses to call the
+         * Toolbox at all. Worse than unreached - the body reads bits 13-12 as
+         * a MOVE size, and for MOVEQ (0x7xxx) that reads as 3, so a MOVEQ was
+         * executed as a MOVE.W of whatever those bits happened to address.
+         *
+         * The body only ever meant the MOVE sizes and the 0x4xxx group, which
+         * is what it now says.
+         */
         /* MOVE family - check for size bits in upper nibble */
         UInt8 size_bits = (opcode >> 12) & 3;
         if (size_bits == 1 || size_bits == 2 || size_bits == 3) {
@@ -1064,44 +1080,38 @@ OSErr M68K_Step(M68KAddressSpace* as)
             M68K_Op_AND(as, opcode);
         }
     } else if ((opcode & 0xF000) == 0xE000) {
-        /* Exxx - Shift/Rotate instructions */
+        /*
+         * Exxx - shift and rotate.
+         *
+         * Bits 4-3 say which family and bit 8 says which direction:
+         *
+         *     00 arithmetic   01 logical   10 rotate with extend   11 rotate
+         *     bit 8: 0 = right, 1 = left
+         *
+         * This read bits 4-3 correctly and then paired them with the wrong
+         * instructions - type 2 called ASL where 2 is the extend rotate, type
+         * 3 called ROXL/ROXR where 3 is the plain rotate, and both the type 0
+         * and type 1 branches decided rotate-versus-shift by re-testing the
+         * same bits they had already switched on, which is always true. So a
+         * plain LSL never ran: it was dispatched to ROL, and LSR, ASL, ROXL
+         * and ROXR were unreachable.
+         */
         UInt8 type = (opcode >> 3) & 3;
+        Boolean left = (opcode & 0x0100) != 0;
 
-        if (type == 1) {
-            /* LSL or ROL - bits 4-3 = 01 */
-            if ((opcode & 0x0018) == 0x0008) {
-                /* ROL - bit 5 = 1 */
-                M68K_Op_ROL(as, opcode);
-            } else {
-                /* LSL */
-                M68K_Op_LSL(as, opcode);
-            }
-        } else if (type == 0) {
-            /* ASR, LSR, or ROR - bits 4-3 = 00 */
-            if ((opcode & 0x0018) == 0x0008) {
-                /* ROR - bit 5 = 1 */
-                M68K_Op_ROR(as, opcode);
-            } else if ((opcode & 0x0100) == 0) {
-                /* ASR */
-                M68K_Op_ASR(as, opcode);
-            } else {
-                /* LSR */
-                M68K_Op_LSR(as, opcode);
-            }
-        } else if (type == 2) {
-            /* ASL - bits 4-3 = 10 */
-            M68K_Op_ASL(as, opcode);
-        } else if (type == 3) {
-            /* ROXL or ROXR - bits 4-3 = 11 */
-            if ((opcode & 0x0018) == 0x0008) {
-                /* ROXL - bit 5 = 1 */
-                M68K_Op_ROXL(as, opcode);
-            } else {
-                /* ROXR - bit 5 = 0 */
-                M68K_Op_ROXR(as, opcode);
-            }
-        } else {
-            M68K_Fault(as, "Unimplemented Exxx opcode");
+        switch (type) {
+        case 0:
+            if (left) M68K_Op_ASL(as, opcode); else M68K_Op_ASR(as, opcode);
+            break;
+        case 1:
+            if (left) M68K_Op_LSL(as, opcode); else M68K_Op_LSR(as, opcode);
+            break;
+        case 2:
+            if (left) M68K_Op_ROXL(as, opcode); else M68K_Op_ROXR(as, opcode);
+            break;
+        default:
+            if (left) M68K_Op_ROL(as, opcode); else M68K_Op_ROR(as, opcode);
+            break;
         }
     } else {
         serial_printf("[M68K] ILLEGAL opcode 0x%04X at PC=0x%08X\n", opcode, as->regs.pc - 2);
@@ -1131,4 +1141,73 @@ OSErr M68K_Execute(M68KAddressSpace* as, UInt32 startPC, UInt32 maxInstructions)
     }
 
     return noErr;
+}
+
+/*
+ * M68K_SelfTest - prove the interpreter still executes what it used to.
+ *
+ * Nothing in the system runs 68K code yet, so nothing noticed that the
+ * interpreter did not work: three quarters of the opcode space was being
+ * swallowed by one over-broad dispatch test, and the shift instructions read
+ * the wrong bit for their count. Both faults had been there from the start
+ * and would have stayed there, because no code path reached them.
+ *
+ * This runs five instructions whose results are not in doubt and says nothing
+ * unless one of them is wrong. It is cheap, and it is the thing that would
+ * have caught either fault the day it was written.
+ */
+void M68K_SelfTest(void)
+{
+    extern void serial_puts(const char*);
+
+    /* MOVEQ #$42,D0 ; ADDQ.L #1,D0 ; MOVE.L D0,D1 ; LSL.L #2,D1 ; SUBQ.L #3,D1 */
+    static const unsigned char prog[] = {
+        0x70, 0x42,   /* MOVEQ  #$42,D0   -> D0 = 0x42       */
+        0x52, 0x80,   /* ADDQ.L #1,D0     -> D0 = 0x43       */
+        0x22, 0x00,   /* MOVE.L D0,D1     -> D1 = 0x43       */
+        0xE5, 0x89,   /* LSL.L  #2,D1     -> D1 = 0x10C      */
+        0x57, 0x81,   /* SUBQ.L #3,D1     -> D1 = 0x109      */
+    };
+    const UInt32 base = 0x10000;
+
+    const ICPUBackend* be = CPUBackend_GetDefault();
+    CPUAddressSpace as = NULL;
+    M68KAddressSpace* mas;
+    char b[128];
+
+    if (!be || be->CreateAddressSpace(NULL, &as) != noErr || !as) {
+        serial_puts("[M68K] self-test: no address space\n");
+        return;
+    }
+
+    if (be->WriteMemory(as, base, prog, sizeof(prog)) != noErr) {
+        serial_puts("[M68K] self-test: could not load the program\n");
+        be->DestroyAddressSpace(as);
+        return;
+    }
+
+    mas = (M68KAddressSpace*)as;
+    mas->regs.pc = base;
+    mas->halted = false;
+
+    for (int i = 0; i < 5; i++) {
+        if (M68K_Step(mas) != noErr || mas->halted) {
+            snprintf(b, sizeof(b), "[M68K] self-test: stopped at instruction %d\n", i);
+            serial_puts(b);
+            be->DestroyAddressSpace(as);
+            return;
+        }
+    }
+
+    if (mas->regs.d[0] != 0x43 || mas->regs.d[1] != 0x109 ||
+        mas->regs.pc != base + sizeof(prog)) {
+        snprintf(b, sizeof(b),
+                 "[M68K] self-test FAILED: D0=%08x D1=%08x PC=%08x"
+                 " (want 00000043 00000109 %08x)\n",
+                 (unsigned)mas->regs.d[0], (unsigned)mas->regs.d[1],
+                 (unsigned)mas->regs.pc, (unsigned)(base + sizeof(prog)));
+        serial_puts(b);
+    }
+
+    be->DestroyAddressSpace(as);
 }
