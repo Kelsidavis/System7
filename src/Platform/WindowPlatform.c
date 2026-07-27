@@ -492,26 +492,35 @@ void Platform_GetWindowContentRect(WindowPtr window, Rect* rect) {
     rect->bottom = strucRectPtr->bottom - kBorder;
 }
 
+/*
+ * These two are the only description of where the title bar widgets are.
+ * DrawWindowFrame paints from them, FindWindow hit-tests against them, and
+ * TrackBox inverts them; previously each of those carried its own arithmetic
+ * and none of the three agreed. The close box was drawn at left+10 but hit at
+ * left+2, so eight pixels of plain title bar closed the window and four pixels
+ * of the visible box did not, and the press highlight landed offset from the
+ * thing it was highlighting.
+ */
 void Platform_GetWindowCloseBoxRect(WindowPtr window, Rect* rect) {
     if (!window || !rect) return;
 
-    /* Close box is in left side of title bar */
+    /* 14x14, inset 10 from the left edge of the frame and 4 from the top. */
     Platform_GetWindowTitleBarRect(window, rect);
-    rect->right = rect->left + 20;
-    rect->top += 2;
-    rect->bottom -= 2;
-    rect->left += 2;
+    rect->left  = rect->left + 10;
+    rect->top   = rect->top + 4;
+    rect->right = rect->left + 14;
+    rect->bottom = rect->top + 14;
 }
 
 void Platform_GetWindowZoomBoxRect(WindowPtr window, Rect* rect) {
     if (!window || !rect) return;
 
-    /* Zoom box is in right side of title bar */
+    /* 12x12, inset 8 from the right edge of the frame and 4 from the top. */
     Platform_GetWindowTitleBarRect(window, rect);
-    rect->left = rect->right - 20;
-    rect->top += 2;
-    rect->bottom -= 2;
-    rect->right -= 2;
+    rect->left   = rect->right - 20;
+    rect->top    = rect->top + 4;
+    rect->right  = rect->left + 12;
+    rect->bottom = rect->top + 12;
 }
 
 void Platform_GetWindowFrameRect(WindowPtr window, Rect* rect) {
@@ -580,8 +589,25 @@ void Platform_HighlightWindowPart(WindowPtr window, short partCode, Boolean high
     }
 
     if (hasRect) {
+        /* The Window Manager port carries whatever clip the last chrome draw
+         * left behind, which does not necessarily cover this window's title
+         * bar - the invert was landing on a few pixels at the box's edge and
+         * nothing else. Chrome drawing in WindowDisplay.c sets its own clip for
+         * the same reason; do it here too, narrowed to the part being inverted
+         * so nothing else can be touched. */
+        RgnHandle saveClip = Platform_NewRgn();
+        if (saveClip) {
+            GetClip(saveClip);
+        }
+        ClipRect(&partRect);
+
         /* InvertRect toggles highlight state (XOR operation) */
         InvertRect(&partRect);
+
+        if (saveClip) {
+            SetClip(saveClip);
+            Platform_DisposeRgn(saveClip);
+        }
     }
 
     SetPort(savePort);

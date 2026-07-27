@@ -331,15 +331,23 @@ void ShowCursor(void) {
 }
 
 void HideCursor(void) {
-    Boolean wasVisible = CursorManager_ShouldBeVisible();
     if (gCursorState.hideLevel < SHRT_MAX) {
         gCursorState.hideLevel++;
     }
-    Boolean isVisible = CursorManager_ShouldBeVisible();
 
-    if (wasVisible && !isVisible) {
-        InvalidateCursor();
-    }
+    /* Deliberately no InvalidateCursor() here.
+     *
+     * InvalidateCursor discards the saved background without putting it back,
+     * so calling it on the way to hidden threw away the only record of what
+     * was underneath the arrow. UpdateCursorDisplay's hidden path then found
+     * nothing to restore and returned, leaving the cursor painted on the
+     * screen for as long as it stayed hidden - every caller that hid the
+     * cursor to draw underneath it stamped an arrow into whatever it drew.
+     * Leaving the saved pixels in place lets that path erase properly.
+     *
+     * ShowCursor still invalidates on the way back, which is the correct place
+     * for it: the pointer has usually moved while hidden, so the background is
+     * stale and must not be written back over the new location. */
 }
 
 /* Obscure cursor until mouse moves */

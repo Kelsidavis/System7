@@ -812,9 +812,13 @@ static void DrawWindowFrame(WindowPtr window) {
         /* Draw System 7 close box - 14x14 at left side
          * Design: Black outline (left/top only for 3D), 1px theme highlight inside, grey fill */
         if (framebuffer) {
-            int boxLeft = frame.left + 10;
-            int boxTop = frame.top + 4;
-            int boxSize = 14;
+            /* Geometry comes from the platform rect so hit testing, press
+             * highlighting and this paint cannot drift apart. */
+            Rect closeBoxRect;
+            Platform_GetWindowCloseBoxRect(window, &closeBoxRect);
+            int boxLeft = closeBoxRect.left;
+            int boxTop = closeBoxRect.top;
+            int boxSize = closeBoxRect.right - closeBoxRect.left;
 
             uint32_t black = 0xFF000000;
             uint32_t grey = 0xFF808080;  /* Same grey as title bar stripes */
@@ -961,8 +965,11 @@ static void DrawWindowFrame(WindowPtr window) {
 
                 /* Clip lozenge to avoid controls (4px clearance) */
                 short ctrlPad = 4;
-                short closeRight = frame.left + 4 + 14;  /* close box: 4 inset + 14 size */
-                short zoomLeft = frame.right - 4 - 14;   /* zoom box (if present) */
+                Rect cbRect, zbRect;
+                Platform_GetWindowCloseBoxRect(window, &cbRect);
+                Platform_GetWindowZoomBoxRect(window, &zbRect);
+                short closeRight = cbRect.right;
+                short zoomLeft = zbRect.left;
 
                 if (loz.left < closeRight + ctrlPad) loz.left = closeRight + ctrlPad;
                 if (loz.right > zoomLeft - ctrlPad) loz.right = zoomLeft - ctrlPad;
@@ -1086,8 +1093,7 @@ static void DrawWindowControls(WindowPtr window) {
     /* Draw zoom box */
     if (window->spareFlag) {
         Rect zoomBox;
-        SetRect(&zoomBox, frame.right - 20, frame.top + 4,
-                frame.right - 8, frame.top + 16);
+        Platform_GetWindowZoomBoxRect(window, &zoomBox);
         FrameRect(&zoomBox);
 
         if (window->hilited) {

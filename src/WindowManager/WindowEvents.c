@@ -199,9 +199,7 @@ Boolean TrackBox(WindowPtr theWindow, Point thePt, short partCode) {
      * definition, so the first pass through the loop must find a change and
      * draw the highlight. Starting it true meant the press feedback System 7
      * gives you - the close box filling in while you hold it - was never
-     * requested at all unless you first dragged out of the box and back in.
-     * (Requested, not necessarily drawn: the invert still does not show up on
-     * screen, so something further down the highlight path is also wrong.) */
+     * drawn at all unless you first dragged out of the box and back in. */
     Boolean buttonDown = true;
     Boolean inPart = true;
     Boolean lastInPart = false;
@@ -256,10 +254,9 @@ Boolean TrackBox(WindowPtr theWindow, Point thePt, short partCode) {
         Platform_HighlightWindowPart(theWindow, partCode, false);
     }
 
-    /* The cursor was hidden at the press point and the pointer has usually
-     * moved since, so its saved background is stale. NOTE: this still leaves a
-     * small arrow-shaped remnant at the press point after a cancelled close -
-     * smaller than what the old repaint left, but not yet clean. */
+    /* The pointer has usually moved while hidden, so the background saved at
+     * the press point is stale and must not be written back over the new
+     * location. */
     extern void InvalidateCursor(void);
     InvalidateCursor();
     ShowCursor();
