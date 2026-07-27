@@ -887,6 +887,26 @@ WindowPtr FolderWindow_OpenFolder(VRefNum vref, DirID dirID, ConstStr255Param ti
  * Returns index of item or -1 if no hit.
  * Icon rect is 32x32, label is below with 20px left/right padding.
  */
+/*
+ * FW_LabelRect - where an item's name is drawn, in window-local coordinates.
+ *
+ * The hit test needs this to know an item was clicked, and the rename gate
+ * needs it to know the *name* was clicked rather than the icon, so it is
+ * worked out once. The baseline is at iconTop + 40 and the background runs
+ * from twelve above it to two below.
+ */
+static void FW_LabelRect(FolderWindowState* state, short i, Rect* out)
+{
+    int textWidth, textHeight;
+    IconLabel_Measure(state->items[i].name, &textWidth, &textHeight);
+
+    int centerX = state->items[i].position.h + 16;
+    out->left   = centerX - (textWidth / 2) - 2;
+    out->top    = state->items[i].position.v + 28;
+    out->right  = centerX + (textWidth / 2) + 2;
+    out->bottom = state->items[i].position.v + 42;
+}
+
 static short FW_IconAtPoint(WindowPtr w, Point localPt) {
     FolderWindowState* state = GetFolderState(w);
     if (!state || !state->items) return -1;
@@ -988,17 +1008,8 @@ static short FW_IconAtPoint(WindowPtr w, Point localPt) {
         iconRect.right = state->items[i].position.h + 32;
         iconRect.bottom = state->items[i].position.v + 32;
 
-        /* Label rect (text centered, with padding)
-         * Label baseline is at iconTop + 40, background extends from (baseline - 12) to (baseline + 2) */
-        int textWidth, textHeight;
-        IconLabel_Measure(state->items[i].name, &textWidth, &textHeight);
-
         Rect labelRect;
-        int centerX = state->items[i].position.h + 16;
-        labelRect.left = centerX - (textWidth / 2) - 2;
-        labelRect.top = state->items[i].position.v + 28;  /* 40 - 12 = 28 */
-        labelRect.right = centerX + (textWidth / 2) + 2;
-        labelRect.bottom = state->items[i].position.v + 42;  /* 40 + 2 = 42 */
+        FW_LabelRect(state, i, &labelRect);
 
         /* Check if point is in icon or label */
         if ((localPt.h >= iconRect.left && localPt.h < iconRect.right &&
@@ -1374,8 +1385,17 @@ Boolean HandleFolderWindowClick(WindowPtr w, EventRecord *ev, Boolean isDoubleCl
             FINDER_LOG_DEBUG("FW: select %d -> %d, shift=%d, SET lastClickIndex=%d, lastClickTime=%lu\n",
                          oldSel, hitIndex, shiftHeld, hitIndex, (unsigned long)currentTime);
 
-            /* Slow re-click on already-selected item = initiate rename */
-            if (oldSel == hitIndex && !shiftHeld) {
+            /* A slow re-click on an already-selected item begins a rename -
+             * but only when the click is on the name. System 7 renames from
+             * the name, not the icon, and without that distinction any second
+             * click anywhere on a selected item started a rename, which is
+             * not what clicking an icon you have already selected should do. */
+            Rect nameRect;
+            FW_LabelRect(state, hitIndex, &nameRect);
+            Boolean onName = (localPt.h >= nameRect.left && localPt.h < nameRect.right &&
+                              localPt.v >= nameRect.top  && localPt.v < nameRect.bottom);
+
+            if (oldSel == hitIndex && !shiftHeld && onName) {
                 extern void FolderWindow_RenameItem(WindowPtr w, short itemIndex);
                 FolderWindow_RenameItem(w, hitIndex);
             } else {
