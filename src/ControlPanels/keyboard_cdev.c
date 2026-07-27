@@ -84,7 +84,7 @@ static void ensure_controls(void)
         gKeyboardState.repeatSlower = NewControl(
             gKeyboardState.window,
             &buttonRect,
-            "\015Slower Repeat",
+            PSTR("Slower Repeat"),
             true,
             0,
             0,
@@ -100,7 +100,7 @@ static void ensure_controls(void)
         gKeyboardState.repeatFaster = NewControl(
             gKeyboardState.window,
             &buttonRect,
-            "\015Faster Repeat",
+            PSTR("Faster Repeat"),
             true,
             0,
             0,
@@ -118,7 +118,7 @@ static void ensure_controls(void)
         gKeyboardState.delayShorter = NewControl(
             gKeyboardState.window,
             &buttonRect,
-            "\015Shorter Delay",
+            PSTR("Shorter Delay"),
             true,
             0,
             0,
@@ -134,7 +134,7 @@ static void ensure_controls(void)
         gKeyboardState.delayLonger = NewControl(
             gKeyboardState.window,
             &buttonRect,
-            "\014Longer Delay",
+            PSTR("Longer Delay"),
             true,
             0,
             0,
@@ -153,7 +153,7 @@ static void ensure_controls(void)
         gKeyboardState.beepCheckbox = NewControl(
             gKeyboardState.window,
             &checkRect,
-            "\017Key Click Sound",
+            PSTR("Key Click Sound"),
             true,
             gKeyboardState.keyClick ? 1 : 0,
             0,

@@ -302,7 +302,7 @@ static void ensure_controls(void)
         gPanel.use24HourCheck = NewControl(
             gPanel.window,
             &checkboxRect,
-            "\01424-Hour Time",
+            PSTR("24-Hour Time"),
             true,
             gPanel.use24Hour ? 1 : 0,
             0,
@@ -322,7 +322,7 @@ static void ensure_controls(void)
         gPanel.showSecondsCheck = NewControl(
             gPanel.window,
             &checkboxRect,
-            "\014Show Seconds",
+            PSTR("Show Seconds"),
             true,
             gPanel.showSeconds ? 1 : 0,
             0,

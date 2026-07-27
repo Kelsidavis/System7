@@ -79,7 +79,7 @@ static void ensure_controls(void)
         gSoundState.volumeDownButton = NewControl(
             gSoundState.window,
             &buttonRect,
-            "\013Volume Down",
+            PSTR("Volume Down"),
             true,
             0,
             0,
@@ -95,7 +95,7 @@ static void ensure_controls(void)
         gSoundState.volumeUpButton = NewControl(
             gSoundState.window,
             &buttonRect,
-            "\011Volume Up",
+            PSTR("Volume Up"),
             true,
             0,
             0,
@@ -114,7 +114,7 @@ static void ensure_controls(void)
         gSoundState.muteCheckbox = NewControl(
             gSoundState.window,
             &checkRect,
-            "\012Mute Sound",
+            PSTR("Mute Sound"),
             true,
             gSoundState.muted ? 1 : 0,
             0,

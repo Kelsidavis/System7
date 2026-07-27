@@ -45,7 +45,7 @@ extern QDGlobals qd;  /* QuickDraw globals from main.c */
 
 /* Global Variables */
 static Boolean gFinderInitialized = false;
-static Str255 gFinderVersion = "\034Macintosh Finder Version 7.1";
+static ConstStr255Param gFinderVersion = PSTR("Macintosh Finder Version 7.1");
 static MenuHandle gAppleMenu, gFileMenu, gEditMenu, gViewMenu, gLabelMenu, gSpecialMenu, gControlPanelsMenu;
 static MenuHandle gHelpMenu;
 
@@ -257,7 +257,7 @@ static OSErr SetupMenus(void)
     gAppleMenu = NewMenu(128, appleTitle);
     GetLocalizedString(menuStr, kSTRListFinderAppleMenu, kStrAboutThisMacintosh);
     AppendMenu(gAppleMenu, menuStr);
-    AppendMenu(gAppleMenu, "\002(-");
+    AppendMenu(gAppleMenu, PSTR("(-"));
     AddResMenu(gAppleMenu, 'DRVR');
 
     /* Everything below the divider is the Apple Menu Items folder, which
@@ -366,7 +366,7 @@ static OSErr SetupMenus(void)
     AppendMenu(gFileMenu, menuStr);
     GetLocalizedString(menuStr, kSTRListFinderFileMenu, kStrClose);
     AppendMenu(gFileMenu, menuStr);
-    AppendMenu(gFileMenu, "\002(-");
+    AppendMenu(gFileMenu, PSTR("(-"));
     GetLocalizedString(menuStr, kSTRListFinderFileMenu, kStrGetInfo);
     AppendMenu(gFileMenu, menuStr);
     SetItemCmd(gFileMenu, 6, 'I');  /* Cmd+I for Get Info */
@@ -378,7 +378,7 @@ static OSErr SetupMenus(void)
     AppendMenu(gFileMenu, menuStr);
     GetLocalizedString(menuStr, kSTRListFinderFileMenu, kStrPutAway);
     AppendMenu(gFileMenu, menuStr);
-    AppendMenu(gFileMenu, "\002(-");
+    AppendMenu(gFileMenu, PSTR("(-"));
     GetLocalizedString(menuStr, kSTRListFinderFileMenu, kStrFindEllipsis);
     AppendMenu(gFileMenu, menuStr);
     GetLocalizedString(menuStr, kSTRListFinderFileMenu, kStrFindAgain);
@@ -389,7 +389,7 @@ static OSErr SetupMenus(void)
     gEditMenu = NewMenu(130, menuStr);
     GetLocalizedString(menuStr, kSTRListFinderEditMenu, kStrUndo);
     AppendMenu(gEditMenu, menuStr);
-    AppendMenu(gEditMenu, "\002(-");
+    AppendMenu(gEditMenu, PSTR("(-"));
     GetLocalizedString(menuStr, kSTRListFinderEditMenu, kStrCut);
     AppendMenu(gEditMenu, menuStr);
     GetLocalizedString(menuStr, kSTRListFinderEditMenu, kStrCopy);
@@ -402,7 +402,7 @@ static OSErr SetupMenus(void)
      * it item 8 - the number MenuCommands.c has always dispatched on. Without
      * the divider it was item 7 and Select All fell through to the handler's
      * "unknown item" case, so the command did nothing at all. */
-    AppendMenu(gEditMenu, "\002(-");
+    AppendMenu(gEditMenu, PSTR("(-"));
     GetLocalizedString(menuStr, kSTRListFinderEditMenu, kStrSelectAll);
     AppendMenu(gEditMenu, menuStr);
 
@@ -462,12 +462,12 @@ static OSErr SetupMenus(void)
     AppendMenu(gSpecialMenu, menuStr);
     GetLocalizedString(menuStr, kSTRListFinderSpecialMenu, kStrEmptyTrash);
     AppendMenu(gSpecialMenu, menuStr);
-    AppendMenu(gSpecialMenu, "\002(-");
+    AppendMenu(gSpecialMenu, PSTR("(-"));
     GetLocalizedString(menuStr, kSTRListFinderSpecialMenu, kStrEject);
     AppendMenu(gSpecialMenu, menuStr);
     GetLocalizedString(menuStr, kSTRListFinderSpecialMenu, kStrEraseDisk);
     AppendMenu(gSpecialMenu, menuStr);
-    AppendMenu(gSpecialMenu, "\002(-");
+    AppendMenu(gSpecialMenu, PSTR("(-"));
     GetLocalizedString(menuStr, kSTRListFinderSpecialMenu, kStrRestart);
     AppendMenu(gSpecialMenu, menuStr);
     GetLocalizedString(menuStr, kSTRListFinderSpecialMenu, kStrShutDown);
@@ -481,7 +481,7 @@ static OSErr SetupMenus(void)
         gHelpMenu = NewMenu((short)0xBF96, (ConstStr255Param)helpTitle);
         if (gHelpMenu) {
             AppendMenu(gHelpMenu, "\020About Balloon Help\311");
-            AppendMenu(gHelpMenu, "\015Show Balloons");
+            AppendMenu(gHelpMenu, PSTR("Show Balloons"));
         }
     }
 
@@ -494,10 +494,10 @@ static OSErr SetupMenus(void)
     const short appMenuID = (short)0xBF97; /* kApplicationMenuID */
     MenuHandle appMenu = NewMenu(appMenuID, (ConstStr255Param)"\000");
     if (appMenu) {
-        AppendMenu(appMenu, "\013Hide Others");
-        AppendMenu(appMenu, "\010Show All");
-        AppendMenu(appMenu, "\002(-");
-        AppendMenu(appMenu, "\006Finder");
+        AppendMenu(appMenu, PSTR("Hide Others"));
+        AppendMenu(appMenu, PSTR("Show All"));
+        AppendMenu(appMenu, PSTR("(-"));
+        AppendMenu(appMenu, PSTR("Finder"));
     }
     InsertMenu(appMenu, 0);
 
@@ -839,7 +839,7 @@ static void HandleMenuChoice(long menuChoice)
                     {
                         StandardFileReply reply;
                         FINDER_LOG_DEBUG("[TEST] StandardPutFile called\n");
-                        StandardPutFile("\010Save As:", "\010Untitled", &reply);
+                        StandardPutFile(PSTR("Save As:"), PSTR("Untitled"), &reply);
                         if (reply.sfGood) {
                             FINDER_LOG_DEBUG("[TEST] Save location: vRefNum=%d parID=%ld name='%.*s'\n",
                                          reply.sfFile.vRefNum, reply.sfFile.parID,

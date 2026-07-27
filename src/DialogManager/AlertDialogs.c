@@ -399,9 +399,9 @@ static OSErr BuildFallbackDITL(SInt16 pseudoId, SInt16 iconKind, Handle* outDITL
     unsigned char* p;
     Handle h;
     SInt16 i;
-    static const unsigned char okText[] = "\002OK";
-    static const unsigned char cancelText[] = "\006Cancel";
-    static const unsigned char msgText[] = "\037Alert message will appear here.";
+    ConstStr255Param okText = PSTR("OK");
+    ConstStr255Param cancelText = PSTR("Cancel");
+    ConstStr255Param msgText = PSTR("Alert message will appear here.");
 
     if (!outDITL) {
         return -50; /* paramErr */
@@ -611,7 +611,7 @@ static SInt16 RunAlertDialog(SInt16 alertID, ModalFilterProcPtr filterProc, SInt
     Handle ditlHandle = NULL;
     SInt16 itemHit = 1; /* Default to OK button */
     SInt16 defItem = 1, cancelItem = 0, iconKind = 0;
-    static const unsigned char alertTitle[] = "\005Alert";
+    ConstStr255Param alertTitle = PSTR("Alert");
 
     if (!gAlertState.initialized) {
     // printf("Error: Alert subsystem not initialized\n");
@@ -701,7 +701,7 @@ static DialogPtr CreateAlertDialogFromTemplate(const AlertTemplate* alertTemplat
     DialogPtr alertDialog = NULL;
     Handle itemList = NULL;
     OSErr err;
-    static const unsigned char alertTitle[] = "\005Alert";  /* Pascal string: length byte + "Alert" */
+    ConstStr255Param alertTitle = PSTR("Alert");
 
     if (!alertTemplate) {
         return NULL;

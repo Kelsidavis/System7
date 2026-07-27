@@ -76,7 +76,7 @@ extern GrafPtr g_currentPort;
 
 
 /* Desktop Database Constants */
-#define kDesktopDatabaseName    "\012Desktop DB"
+#define kDesktopDatabaseName    PSTR("Desktop DB")
 #define kDesktopIconSpacing     80          /* Pixel spacing between icons */
 #define kDesktopMargin          20          /* Margin from screen edge */
 #define kMaxDesktopIcons        256         /* Maximum icons on desktop */
@@ -2380,7 +2380,7 @@ void OpenSelectedDesktopIcon(void)
         SetRect(&windowBounds, 100, 60, 500, 360);
 
         WindowPtr volumeWindow = NewWindow(NULL, &windowBounds,
-                                          "\014Macintosh HD",
+                                          PSTR("Macintosh HD"),
                                           true,  /* visible */
                                           0,     /* documentProc */
                                           (WindowPtr)-1L,  /* frontmost */
@@ -2406,7 +2406,7 @@ void OpenSelectedDesktopIcon(void)
         SetRect(&windowBounds, 200, 120, 600, 420);
 
         WindowPtr trashWindow = (WindowPtr)NewWindow(NULL, &windowBounds,
-                                         "\005Trash",
+                                         PSTR("Trash"),
                                          true,  /* visible */
                                          0,     /* documentProc */
                                          (WindowPtr)-1L,  /* frontmost */

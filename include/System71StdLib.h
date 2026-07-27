@@ -277,3 +277,25 @@ void __stack_chk_fail(void);
 void __stack_chk_fail_local(void);
 
 #endif /* SYSTEM71_STDLIB_H */
+
+/*
+ * PSTR - a Pascal string from a C literal, counted by the compiler.
+ *
+ * Pascal strings were written out by hand as "\010Mute Sound", with the
+ * length in octal in front of the text. Whenever the text was edited the
+ * count had to be edited too, and three separate sweeps of this tree have
+ * found places where it had not been: labels truncated mid-word, and lengths
+ * longer than their text, which reads past the literal into whatever the
+ * linker put next.
+ *
+ * This takes the count away from the author. The compound literal lays out a
+ * length byte followed by the text, and sizeof does the counting, so the two
+ * cannot disagree. Both members are char-aligned, so nothing is padded
+ * between them and the result is exactly a Pascal string.
+ *
+ *     NewControl(w, &r, PSTR("Mute Sound"), ...);
+ */
+#define PSTR(lit) ((ConstStr255Param)&(const struct { \
+        unsigned char len;                            \
+        char txt[sizeof(lit)];                        \
+    }){ (unsigned char)(sizeof(lit) - 1), lit })

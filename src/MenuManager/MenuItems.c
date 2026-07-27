@@ -131,7 +131,7 @@ static MenuExtData* GetMenuExtData(MenuHandle theMenu) {
  *   /c      command-key equivalent
  *
  * Only "/c" used to be handled, and only as a trailing suffix. That left "("
- * sitting in the text, so the Finder's "\002(-" dividers were stored as the
+ * sitting in the text, so the Finder's PSTR("(-") dividers were stored as the
  * two-character item "(-" instead of the one-character "-". IsSeparatorText
  * then failed and the Apple menu drew a literal "(" and "-" side by side, which
  * reads on screen as a left arrow where System 7's dashed divider belongs.

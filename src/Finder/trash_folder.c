@@ -34,7 +34,7 @@
 
 
 /* Trash Folder Constants */
-#define kTrashFolderName        "\005Trash"
+#define kTrashFolderName        PSTR("Trash")
 #define kMaxTrashItems          512
 #define kFloppyDiskSize         409600L     /* 400K floppy disk size */
 
@@ -197,7 +197,7 @@ OSErr MoveToTrash(FSSpec *items, short count)
         err = FSpCatMove(&items[itemIndex], &gTrashFolder);
         if (err != noErr) {
             /* Show error for this item and continue */
-            ShowErrorDialog("\035Could not move item to Trash.", err);
+            ShowErrorDialog(PSTR("Could not move item to Trash."), err);
         }
     }
 

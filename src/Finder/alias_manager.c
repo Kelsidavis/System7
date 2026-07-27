@@ -327,7 +327,7 @@ static OSErr CreateAliasResource(FSSpec *target, FSSpec *aliasFile)
     }
 
     /* Add alias resource */
-    AddResource((Handle)aliasHandle, kAliasResourceType, kAliasResourceID, "\005alias");
+    AddResource((Handle)aliasHandle, kAliasResourceType, kAliasResourceID, PSTR("alias"));
     err = ResError();
     if (err == noErr) {
         WriteResource((Handle)aliasHandle);
@@ -374,7 +374,7 @@ static OSErr UpdateAliasFile(FSSpec *aliasFile, FSSpec *newTarget)
     }
 
     /* Add new alias resource */
-    AddResource((Handle)newAliasHandle, kAliasResourceType, kAliasResourceID, "\005alias");
+    AddResource((Handle)newAliasHandle, kAliasResourceType, kAliasResourceID, PSTR("alias"));
     err = ResError();
     if (err == noErr) {
         WriteResource((Handle)newAliasHandle);

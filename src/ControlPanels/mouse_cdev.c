@@ -81,7 +81,7 @@ static void ensure_controls(void)
         gMouseState.slowerButton = NewControl(
             gMouseState.window,
             &buttonRect,
-            "\017Slower Tracking",
+            PSTR("Slower Tracking"),
             true,
             0,
             0,
@@ -97,7 +97,7 @@ static void ensure_controls(void)
         gMouseState.fasterButton = NewControl(
             gMouseState.window,
             &buttonRect,
-            "\017Faster Tracking",
+            PSTR("Faster Tracking"),
             true,
             0,
             0,
@@ -116,7 +116,7 @@ static void ensure_controls(void)
         gMouseState.swapCheckbox = NewControl(
             gMouseState.window,
             &checkRect,
-            "\027Swap Left/Right Buttons",
+            PSTR("Swap Left/Right Buttons"),
             true,
             gMouseState.swapButtons ? 1 : 0,
             0,
@@ -137,7 +137,7 @@ static void ensure_controls(void)
         gMouseState.doubleClickCheckbox = NewControl(
             gMouseState.window,
             &checkRect,
-            "\033Assist with Double-Clicking",
+            PSTR("Assist with Double-Clicking"),
             true,
             gMouseState.doubleClickAssist ? 1 : 0,
             0,

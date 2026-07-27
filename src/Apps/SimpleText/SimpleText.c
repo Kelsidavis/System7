@@ -831,9 +831,9 @@ void ST_ErrorAlert(const char* message) {
 
     ClearParamText();
     ParamText(pMsg,
-              (const unsigned char *)"\001 ",
-              (const unsigned char *)"\001 ",
-              (const unsigned char *)"\001 ");
+              (const unsigned char *)PSTR(" "),
+              (const unsigned char *)PSTR(" "),
+              (const unsigned char *)PSTR(" "));
     extern SInt16 Alert(SInt16 alertID, ModalFilterProcPtr filterProc);
     Alert(130, NULL);
 }

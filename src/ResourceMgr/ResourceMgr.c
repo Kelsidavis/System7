@@ -273,7 +273,7 @@ void InitResourceManager(void) {
     gResMgr.curResFile = 0;
 
     /* Try to open System resource file from mounted volume */
-    Str255 systemName = "\006System";  /* Pascal string: length byte + "System" */
+    ConstStr255Param systemName = PSTR("System");
     FileRefNum fileRef;
     OSErr err = FSOpenRF(systemName, 0, &fileRef);
 
