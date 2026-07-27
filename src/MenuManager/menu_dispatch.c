@@ -71,13 +71,20 @@ OSErr MenuDispatch(SInt16 selector, void *params) {
  */
 static OSErr DispatchInsertFontResMenu(InsertFontResMenuParams *params) {
     /* Call existing implementation from menu_resources.c */
-    extern void InsertFontResMenu(MenuHandle theMenu, SInt16 afterItem);
+    /*
+     * Three arguments, not two. The declaration here said two and the call
+     * below passed two, while the function - declared in MenuManager.h and
+     * defined in MenuItems.c - takes a script filter as well. It was reading
+     * whatever happened to be on the stack as the script to filter by.
+     */
+    extern void InsertFontResMenu(MenuHandle theMenu, SInt16 afterItem,
+                                  SInt16 scriptFilter);
 
     if (!params || !params->theMenu) {
         return paramErr;
     }
 
-    InsertFontResMenu(params->theMenu, params->afterItem);
+    InsertFontResMenu(params->theMenu, params->afterItem, 0 /* all scripts */);
     return noErr;
 }
 
@@ -86,6 +93,14 @@ static OSErr DispatchInsertFontResMenu(InsertFontResMenuParams *params) {
  */
 static OSErr DispatchInsertIntlResMenu(InsertIntlResMenuParams *params) {
     /* Call existing implementation from menu_resources.c */
+    /*
+     * This disagrees with MenuManager.h too, which declares four parameters -
+     * theMenu, theType, afterItem, scriptFilter - and the dispatch parameter
+     * block has no resource type in it to supply. It is left as it stands
+     * because the function has no definition anywhere in the tree: correcting
+     * the declaration would only move an unbuildable call from wrong
+     * arguments to a missing symbol. Both need doing together.
+     */
     extern void InsertIntlResMenu(MenuHandle theMenu, SInt16 afterItem, SInt16 scriptTag);
 
     if (!params || !params->theMenu) {

@@ -2555,7 +2555,6 @@ void FolderWindow_RenameItem(WindowPtr w, short itemIndex) {
     extern void ShowWindow(WindowPtr);
     extern void GetDialogItem(DialogPtr, SInt16, SInt16*, Handle*, Rect*);
     extern void GetDialogItemText(Handle, unsigned char*);
-    extern Boolean FSRename(VRefNum vref, DirID dirID, const char* oldName, const char* newName);
 
     /* Build DITL: prompt(1), Rename(2), Cancel(3), edit text(4) */
     DITLBuilder ditlb;
