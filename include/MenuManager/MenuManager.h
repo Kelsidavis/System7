@@ -186,6 +186,9 @@ void SetMenuBar(Handle menuList);
  */
 void ClearMenuBar(void);
 
+/* Does this menu draw as the Apple glyph? Decided by its title, not its ID. */
+Boolean MenuIsAppleMenu(short menuID);
+
 /*
  * DrawMenuBar - Redraw the menu bar
  *

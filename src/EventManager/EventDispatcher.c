@@ -258,6 +258,48 @@ Boolean HandleNullEvent(EventRecord* event)
 /**
  * Handle mouse down events
  */
+/*
+ * The menu bar belongs to whichever application is active, and so do the
+ * commands picked from it. SimpleText and the Finder both have a File menu
+ * and an Edit menu, so an item number on its own says nothing about which one
+ * a selection came from - only the owner does. Clicking a title and typing a
+ * command key are two ways to reach the same menus, so they ask the same
+ * question here rather than each carrying their own copy of the answer.
+ */
+static Boolean MenuBar_OwnedBySimpleText(void)
+{
+    extern Boolean STMenu_IsInstalled(void);
+    return STMenu_IsInstalled();
+}
+
+/* Bring the owner's enable states up to date before its menus are searched. */
+static void MenuBar_PrepareForTracking(void)
+{
+    extern void STMenu_Update(void);
+    extern void Finder_AdjustMenus(void);
+
+    if (MenuBar_OwnedBySimpleText()) {
+        STMenu_Update();
+    } else {
+        Finder_AdjustMenus();
+    }
+}
+
+/* Run a MenuSelect/MenuKey result against whoever owns the bar. */
+static void MenuBar_DispatchChoice(long menuChoice)
+{
+    extern void STMenu_Handle(long menuResult);
+
+    if (menuChoice == 0) return;
+
+    if (MenuBar_OwnedBySimpleText()) {
+        STMenu_Handle(menuChoice);
+    } else {
+        DoMenuCommand((menuChoice >> 16) & 0xFFFF, menuChoice & 0xFFFF);
+    }
+    HiliteMenu(0);  /* Unhighlight menu */
+}
+
 Boolean HandleMouseDown(EventRecord* event)
 {
     WindowPtr whichWindow;
@@ -295,22 +337,9 @@ Boolean HandleMouseDown(EventRecord* event)
 
     switch (windowPart) {
         case inMenuBar:
-            /* Adjust menu enable states before showing menus */
-            {
-                extern void Finder_AdjustMenus(void);
-                Finder_AdjustMenus();
-            }
-            /* Handle menu selection */
-            {
-                long menuChoice = MenuSelect(event->where);
-                if (menuChoice) {
-                    short menuID = (menuChoice >> 16) & 0xFFFF;
-                    short menuItem = menuChoice & 0xFFFF;
-                    DoMenuCommand(menuID, menuItem);
-                    HiliteMenu(0);  /* Unhighlight menu */
-                }
-                DiscardMenuTrackingClicks();
-            }
+            MenuBar_PrepareForTracking();
+            MenuBar_DispatchChoice(MenuSelect(event->where));
+            DiscardMenuTrackingClicks();
             return true;
 
         case inSysWindow:
@@ -541,23 +570,17 @@ Boolean HandleKeyDownEvent(EventRecord* event)
     }
 
     if (cmdKeyDown) {
-        /* Command key combinations map to menu items via MenuKey */
+        /* Command key combinations map to menu items via MenuKey. MenuKey
+         * skips disabled items, so the owner's enable states have to be
+         * current before it looks - the same preparation a click does. */
+        MenuBar_PrepareForTracking();
         long menuChoice = MenuKey(key);
 
         if (menuChoice != 0) {
-            /* MenuKey found a matching menu item */
-            short menuID = (menuChoice >> 16) & 0xFFFF;
-            short itemID = menuChoice & 0xFFFF;
-
             EVT_LOG_DEBUG("Command key '%c' mapped to menu %d, item %d\n",
-                         key, menuID, itemID);
-
-            /* Execute the menu command */
-            DoMenuCommand(menuID, itemID);
-
-            /* Unhighlight the menu */
-            HiliteMenu(0);
-
+                         key, (int)((menuChoice >> 16) & 0xFFFF),
+                         (int)(menuChoice & 0xFFFF));
+            MenuBar_DispatchChoice(menuChoice);
             return true;
         }
 

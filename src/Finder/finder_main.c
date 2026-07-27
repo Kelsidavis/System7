@@ -47,6 +47,29 @@ extern QDGlobals qd;  /* QuickDraw globals from main.c */
 static Boolean gFinderInitialized = false;
 static Str255 gFinderVersion = "\033Macintosh Finder Version 7.1";
 static MenuHandle gAppleMenu, gFileMenu, gEditMenu, gViewMenu, gLabelMenu, gSpecialMenu, gControlPanelsMenu;
+static MenuHandle gHelpMenu;
+
+/*
+ * Finder_InstallMenuBar - put the Finder's menus in the menu bar.
+ *
+ * The menu bar belongs to whichever application is active, so the Finder's
+ * has to be re-installable, not just built once at startup: when a SimpleText
+ * window closes, the Finder takes the bar back. This is the only description
+ * of what the Finder's menu bar contains and in what order.
+ */
+void Finder_InstallMenuBar(void)
+{
+    InsertMenu(gAppleMenu, 0);     /* Apple at position 0 */
+    InsertMenu(gFileMenu, 0);      /* File at position 1 */
+    InsertMenu(gEditMenu, 0);      /* Edit at position 2 */
+    InsertMenu(gViewMenu, 0);      /* View at position 3 */
+    InsertMenu(gLabelMenu, 0);     /* Label at position 4 */
+    InsertMenu(gSpecialMenu, 0);   /* Special at position 5 */
+    if (gHelpMenu) {
+        InsertMenu(gHelpMenu, 0);  /* Balloon help "?" - System 7 standard */
+    }
+    DrawMenuBar();
+}
 
 /* Forward Declarations */
 OSErr InitializeFinder(void);  /* Made public for kernel integration */
@@ -449,24 +472,18 @@ static OSErr SetupMenus(void)
     GetLocalizedString(menuStr, kSTRListFinderSpecialMenu, kStrShutDown);
     AppendMenu(gSpecialMenu, menuStr);
 
-    /* Insert menus into menu bar in correct order: Apple, File, Edit, View, Label, Special, Help */
-    InsertMenu(gAppleMenu, 0);    /* Apple at position 0 */
-    InsertMenu(gFileMenu, 0);      /* File at position 1 */
-    InsertMenu(gEditMenu, 0);      /* Edit at position 2 */
-    InsertMenu(gViewMenu, 0);      /* View at position 3 */
-    InsertMenu(gLabelMenu, 0);     /* Label at position 4 */
-    InsertMenu(gSpecialMenu, 0);   /* Special at position 5 */
-
-    /* Help Menu (balloon help "?" icon) — System 7 standard */
+    /* The Help menu's contents never change, so it is built once here and
+     * reinstalled with the rest of the bar. */
     {
         unsigned char helpTitle[] = {1, '?'};
-        MenuHandle helpMenu = NewMenu((short)0xBF96, (ConstStr255Param)helpTitle);
-        if (helpMenu) {
-            AppendMenu(helpMenu, "\020About Balloon Help\311");
-            AppendMenu(helpMenu, "\014Show Balloons");
-            InsertMenu(helpMenu, 0);
+        gHelpMenu = NewMenu((short)0xBF96, (ConstStr255Param)helpTitle);
+        if (gHelpMenu) {
+            AppendMenu(gHelpMenu, "\020About Balloon Help\311");
+            AppendMenu(gHelpMenu, "\014Show Balloons");
         }
     }
+
+    Finder_InstallMenuBar();
 
     /* Application (top-right) menu — lists running applications */
     const short appMenuID = (short)0xBF97; /* kApplicationMenuID */

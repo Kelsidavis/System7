@@ -269,6 +269,11 @@ void GetWTitle(WindowPtr theWindow, Str255 title);
  * Deactivates the previously active window.
  */
 void SelectWindow(WindowPtr theWindow);
+/* Hand activation to a window (or to NULL). The one place that knows how
+ * activation moves; every front-window change routes through it. */
+void WM_SetActiveWindow(WindowPtr theWindow);
+/* The active window has left the window list; pass activation to the one below. */
+void WM_ActiveWindowClosed(void);
 
 /*
  * HideWindow - Hide a window

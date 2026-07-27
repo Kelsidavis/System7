@@ -249,6 +249,9 @@ void Desktop_OpenSelectedIcon(void);
  * Menu Functions (MenuCommands.c)
  * ============================================================================ */
 void Finder_AdjustMenus(void);
+/* Put the Finder's menus back in the menu bar (an application that took it
+ * over has given it up). Also used at startup. */
+void Finder_InstallMenuBar(void);
 void Finder_UpdateViewMenuForWindow(WindowPtr w);
 void Finder_RecordTrashUndo(VRefNum vref, DirID parentDir, FileID fileID);
 short Finder_GetUndoType(void);

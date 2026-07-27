@@ -31,12 +31,22 @@
 
 /* Menu IDs */
 enum {
-    mApple = 128,
-    mFile = 129,
-    mEdit = 130,
-    mFont = 131,
-    mSize = 132,
-    mStyle = 133
+    /* Menu IDs are a system-wide namespace: InsertMenu, MenuSelect, MenuKey
+     * and DoMenuCommand all key off the ID alone. These used to be 128-133,
+     * which is exactly the Finder's block (Apple 128, File 129, Edit 130,
+     * View 131, Label 132, Special 133) - two menus with one ID, so a
+     * SimpleText Save and a Finder Print were indistinguishable by the time
+     * they reached a dispatcher. Applications get their own block here.
+     *
+     *   128-134  Finder
+     *   300-305  SimpleText
+     */
+    mApple = 300,
+    mFile = 301,
+    mEdit = 302,
+    mFont = 303,
+    mSize = 304,
+    mStyle = 305
 };
 
 /* Menu Commands */
@@ -183,6 +193,7 @@ extern void STMenu_Handle(long menuResult);
 extern void STMenu_Update(void);
 extern void STMenu_Install(void);   /* Install menus when window activates */
 extern void STMenu_Remove(void);    /* Remove menus when window deactivates */
+extern Boolean STMenu_IsInstalled(void); /* Does SimpleText own the menu bar? */
 extern void STMenu_EnableItem(MenuHandle menu, short item, Boolean enable);
 extern void STMenu_CheckItem(MenuHandle menu, short item, Boolean check);
 

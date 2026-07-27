@@ -223,9 +223,13 @@ void STDoc_Close(STDocument* doc) {
     /* Free document structure */
     DisposePtr((Ptr)doc);
 
-    /* If no more documents, create new untitled */
-    if (!g_ST.firstDoc && g_ST.running) {
-        STDoc_New();
+    /* Closing the last document does not open another one. System 7 puts you
+     * back in the Finder; conjuring an empty Untitled window meant a document
+     * could never actually be closed, and SimpleText kept the menu bar
+     * forever because a window was always active. Give the bar back instead. */
+    if (!g_ST.firstDoc) {
+        g_ST.activeDoc = NULL;
+        STMenu_Remove();
     }
 }
 

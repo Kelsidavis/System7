@@ -999,9 +999,12 @@ static void RemoveWindowFromList(WindowPtr window) {
     /* Clear next pointer */
     window->nextWindow = NULL;
 
-    /* Update active window if this was it */
+    /* Update active window if this was it. Activation has to pass to the
+     * window below rather than simply evaporating, or nothing is active and
+     * no application owns the menu bar. */
     if (g_wmState.activeWindow == window) {
-        g_wmState.activeWindow = NULL;
+        extern void WM_ActiveWindowClosed(void);
+        WM_ActiveWindowClosed();
     }
 
     /* Update Window Manager port reference */

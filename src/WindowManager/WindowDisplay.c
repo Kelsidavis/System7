@@ -1343,6 +1343,17 @@ void ShowWindow(WindowPtr window) {
     /* Don't call PaintBehind here - background windows are already painted.
      * Calling PaintBehind would cause background windows to paint over the front window. */
 
+    /* A window shown at the front becomes the active one. Newly created
+     * document windows arrive this way rather than through SelectWindow, and
+     * without this nothing tells the application it now owns the front. */
+    {
+        WindowManagerState* wmState = GetWindowManagerState();
+        if (wmState && wmState->windowList == window) {
+            extern void WM_SetActiveWindow(WindowPtr w);
+            WM_SetActiveWindow(window);
+        }
+    }
+
     serial_puts("[SHOWWIN] EXIT - window should be fully visible now\n");
     WM_LOG_TRACE("ShowWindow: EXIT\n");
 }
@@ -1687,64 +1698,85 @@ void SendBehind(WindowPtr window, WindowPtr behindWindow) {
 /* Window Selection Functions                                           */
 /*-----------------------------------------------------------------------*/
 
-void SelectWindow(WindowPtr window) {
-    serial_puts("[SELWIN] enter\n");
-    extern void uart_flush(void);
-    uart_flush();
+/*
+ * WM_SetActiveWindow - hand activation from one window to another, or to none.
+ *
+ * The front window changes in more places than SelectWindow: a document window
+ * is created in front of everything, a hidden window is shown, the active
+ * window closes and the one below it takes over. Those paths either said
+ * nothing or simply nulled out activeWindow, so no application ever learned
+ * the front window had moved. SimpleText installs its menu bar from its
+ * activate event, so its menus never appeared and Save, Close, Font and Style
+ * were unreachable; closing a document left no window active at all. This is
+ * now the only place that knows how activation moves, and every front-window
+ * change goes through it.
+ *
+ * Pass NULL to deactivate whatever is active without activating anything.
+ */
+void WM_SetActiveWindow(WindowPtr window)
+{
+    extern OSErr PostEventWithModifiers(EventMask what, UInt32 message,
+                                        UInt16 modifiers);
+    extern void WM_OnActivate(WindowPtr w);
+    extern void WM_OnDeactivate(WindowPtr w);
 
+    WindowManagerState* wmState = GetWindowManagerState();
+    if (!wmState) return;
+
+    WindowPtr previous = wmState->activeWindow;
+    if (previous == window) return;
+
+    /* Take it out of the state first: WM_OnDeactivate and HiliteWindow can
+     * both draw, and neither should see a window that is half-way out. */
+    wmState->activeWindow = NULL;
+
+    if (previous) {
+        WM_OnDeactivate(previous);
+        HiliteWindow(previous, false);
+        /* The message is the window. Whether this is an activate or a
+         * deactivate lives in the modifiers - activeFlag is a modifiers bit,
+         * and ORing it into the message only corrupts the pointer. */
+        PostEventWithModifiers(activateEvt, (UInt32)(uintptr_t)previous, 0);
+    }
+
+    if (window) {
+        wmState->activeWindow = window;
+        WM_OnActivate(window);
+        HiliteWindow(window, true);
+        PostEventWithModifiers(activateEvt, (UInt32)(uintptr_t)window, activeFlag);
+    }
+}
+
+/*
+ * WM_ActiveWindowClosed - the active window has left the window list.
+ *
+ * The window is already gone, so it gets no deactivate event - there is
+ * nothing left to deactivate. Activation passes to the frontmost window still
+ * standing, which is what makes the Finder's menu bar come back when the last
+ * document window closes.
+ */
+void WM_ActiveWindowClosed(void)
+{
+    WindowManagerState* wmState = GetWindowManagerState();
+    if (!wmState) return;
+
+    wmState->activeWindow = NULL;
+
+    WindowPtr next = wmState->windowList;
+    while (next && !next->visible) {
+        next = next->nextWindow;
+    }
+    WM_SetActiveWindow(next);
+}
+
+void SelectWindow(WindowPtr window) {
     if (!window) return;
 
     WM_DEBUG("SelectWindow: Selecting window");
     DumpWindowList("SelectWindow - START");
 
-    WindowManagerState* wmState = GetWindowManagerState();
-    if (!wmState) return;
-
-    /* Deactivate current active window if different */
-    if (wmState->activeWindow && wmState->activeWindow != window) {
-        extern void WM_OnDeactivate(WindowPtr w);
-        serial_puts("[SELWIN] OnDeactivate\n");
-        uart_flush();
-        WM_OnDeactivate(wmState->activeWindow);
-
-        /* Unhilite the previously active window */
-        serial_puts("[SELWIN] HiliteWindow(old, false)\n");
-        uart_flush();
-        HiliteWindow(wmState->activeWindow, false);
-
-        /* Post deactivate event */
-        PostEvent(activateEvt, (UInt32)(uintptr_t)wmState->activeWindow);  /* activateEvt with activeFlag clear */
-    }
-
-    /* Bring window to front */
-    serial_puts("[SELWIN] BringToFront\n");
-    uart_flush();
     BringToFront(window);
-    serial_puts("[SELWIN] BringToFront done\n");
-    uart_flush();
-
-    /* Set as active window */
-    wmState->activeWindow = window;
-
-    /* Activate the new window */
-    extern void WM_OnActivate(WindowPtr w);
-    serial_puts("[SELWIN] OnActivate\n");
-    uart_flush();
-    WM_OnActivate(window);
-    serial_puts("[SELWIN] OnActivate done\n");
-    uart_flush();
-
-    /* Hilite the newly active window */
-    serial_puts("[SELWIN] HiliteWindow(new, true)\n");
-    uart_flush();
-    HiliteWindow(window, true);
-    serial_puts("[SELWIN] HiliteWindow done\n");
-    uart_flush();
-
-    /* Generate activate event for the newly selected window */
-    PostEvent(activateEvt, (UInt32)(uintptr_t)window | 0x0001);  /* activateEvt with activeFlag set */
-    serial_puts("[SELWIN] done\n");
-    uart_flush();
+    WM_SetActiveWindow(window);
 }
 
 /*-----------------------------------------------------------------------*/

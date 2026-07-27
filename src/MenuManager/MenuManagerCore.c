@@ -371,13 +371,14 @@ void ClearMenuBar(void)
         gMenuMgrState->menuList = NULL;
     }
 
-    /* CRITICAL: Clear menu handle tracking array to prevent stale pointers */
-    /* NOTE: We don't dispose the menu handles themselves here, only clear references */
-    for (int i = 0; i < gNumMenuHandles; i++) {
-        gMenuHandles[i].menuID = 0;
-        gMenuHandles[i].handle = NULL;
-    }
-    gNumMenuHandles = 0;
+    /* gMenuHandles is deliberately left alone. It records which menus exist,
+     * which is not the same fact as which menus are in the bar - the menus
+     * themselves are untouched here and GetMenuHandle must still find them.
+     * Wiping it made ClearMenuBar unrecoverable: every menu became invisible
+     * to GetMenuHandle, so nothing could be inserted back and an application
+     * that took over the bar could never hand it back. Entries are removed
+     * when a menu is actually disposed, which is where a stale pointer would
+     * come from. */
 
     /* Clear menu bar display */
     InvalidateMenuBar();
@@ -645,7 +646,7 @@ void DrawMenuBar(void)
                     }
 
                     /* Draw Apple glyph even when the menu title is blank */
-                    if (mptr->menuID == 128) {
+                    if (MenuIsAppleMenu(mptr->menuID)) {
                         menuWidth = 24;  /* Standard icon width */
                         /* Skip drawing if highlighted - same as text menus */
                         if (!(gMenuMgrState && gMenuMgrState->hiliteMenu == mptr->menuID)) {
@@ -1247,13 +1248,34 @@ static MenuHandle FindMenuInList(short menuID)
     return NULL;
 }
 
+/*
+ * MenuIsAppleMenu - does this menu draw as the Apple glyph?
+ *
+ * A menu whose title is the single character 0x14 is the Apple menu: that is
+ * what the character is in Chicago, and it is how the Menu Manager knows to
+ * draw an icon instead of text. This used to be decided by comparing the menu
+ * ID against the literal 128 in three separate places, which tied "is this
+ * the Apple menu" to one particular application's numbering - SimpleText's
+ * Apple menu carries the same title but a different ID, and drew as nothing
+ * at all. The title is the menu's own property, so ask it.
+ */
+Boolean MenuIsAppleMenu(short menuID)
+{
+    MenuHandle menu = GetMenuHandle(menuID);
+    if (menu == NULL || *menu == NULL) {
+        return false;
+    }
+    const unsigned char* title = (const unsigned char*)(*menu)->menuData;
+    return title[0] == 1 && title[1] == 0x14;
+}
+
 static short MeasureMenuTitleWidth(short menuID)
 {
     const short kIconMenuWidth = 24;
     const short kFallbackWidth = 48;
     const short kPadding = 12;
 
-    if (menuID == 128 || menuID == (short)kApplicationMenuID) {
+    if (MenuIsAppleMenu(menuID) || menuID == (short)kApplicationMenuID) {
         return kIconMenuWidth;
     }
 

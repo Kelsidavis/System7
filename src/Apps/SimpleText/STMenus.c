@@ -171,9 +171,33 @@ void STMenu_Update(void) {
  * Called when a SimpleText window becomes active.
  * This follows System 7 design: each app installs its menus when active.
  */
+/* Whether SimpleText's menus are the ones currently in the menu bar.
+ *
+ * This used to be inferred from g_ST.activeDoc ("install if no document was
+ * active"), but the document record is set when a document opens, well before
+ * its activate event arrives - so by the time HandleActivate ran, activeDoc
+ * was already non-NULL and the install was skipped every time. SimpleText's
+ * menus never reached the bar and Save, Close, Font, Size and Style were
+ * unreachable. Whether the menus are installed is a fact about the menu bar,
+ * so it is recorded here, next to the code that changes it. */
+static Boolean gSTMenusInstalled = false;
+
+Boolean STMenu_IsInstalled(void) {
+    return gSTMenusInstalled;
+}
+
 void STMenu_Install(void) {
     extern void serial_puts(const char*);
+
+    if (gSTMenusInstalled) {
+        return;
+    }
     serial_puts("[ST] STMenu_Install: Installing SimpleText menus into menu bar\n");
+
+    /* Only one application owns the menu bar at a time. The Finder's menus
+     * come out before SimpleText's go in, or the bar would carry two File
+     * menus and two Edit menus. */
+    ClearMenuBar();
 
     /* Insert menus in order: Apple, File, Edit, Font, Size, Style */
     if (g_ST.appleMenu) {
@@ -198,6 +222,7 @@ void STMenu_Install(void) {
     /* Redraw menu bar to show our menus */
     DrawMenuBar();
 
+    gSTMenusInstalled = true;
     serial_puts("[ST] STMenu_Install: Menus installed successfully\n");
 }
 
@@ -209,6 +234,10 @@ void STMenu_Install(void) {
  */
 void STMenu_Remove(void) {
     extern void serial_puts(const char*);
+
+    if (!gSTMenusInstalled) {
+        return;
+    }
     serial_puts("[ST] STMenu_Remove: Removing SimpleText menus from menu bar\n");
 
     /* Delete menus in reverse order */
@@ -231,8 +260,15 @@ void STMenu_Remove(void) {
         DeleteMenu(mApple);
     }
 
-    /* Redraw menu bar (will show Finder's menus or be empty) */
-    DrawMenuBar();
+    gSTMenusInstalled = false;
+
+    /* Hand the bar back to the Finder. Deleting SimpleText's menus on its own
+     * would leave the bar empty - the Finder's menus were cleared when
+     * SimpleText took over, and something has to put them back. */
+    {
+        extern void Finder_InstallMenuBar(void);
+        Finder_InstallMenuBar();
+    }
 
     serial_puts("[ST] STMenu_Remove: Menus removed successfully\n");
 }

@@ -290,21 +290,15 @@ static void HandleUpdate(EventRecord* event) {
 static void HandleActivate(EventRecord* event) {
     WindowPtr window = (WindowPtr)(uintptr_t)event->message;
     STDocument* doc = STDoc_FindByWindow(window);
-    Boolean wasActive;
 
     if (doc) {
         if (event->modifiers & activeFlag) {
             /* Window is being activated */
-            wasActive = (g_ST.activeDoc != NULL);
             STDoc_Activate(doc);
             g_ST.activeDoc = doc;
-
-            /* Install menus if this is the first active window */
-            if (!wasActive) {
-                extern void serial_puts(const char*);
-                serial_puts("[ST] HandleActivate: First window activated - installing menus\n");
-                STMenu_Install();
-            }
+            /* Idempotent - STMenu_Install knows whether the bar is already
+             * ours, so this does not have to guess from the document list. */
+            STMenu_Install();
         } else {
             /* Window is being deactivated */
             STDoc_Deactivate(doc);
@@ -312,10 +306,8 @@ static void HandleActivate(EventRecord* event) {
                 g_ST.activeDoc = NULL;
             }
 
-            /* Remove menus if no windows are active */
+            /* Give the bar back once no SimpleText window is active */
             if (g_ST.activeDoc == NULL) {
-                extern void serial_puts(const char*);
-                serial_puts("[ST] HandleActivate: Last window deactivated - removing menus\n");
                 STMenu_Remove();
             }
         }
