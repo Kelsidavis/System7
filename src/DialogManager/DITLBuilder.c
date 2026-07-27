@@ -23,6 +23,7 @@
 #include "SystemTypes.h"
 #include "System71StdLib.h"
 #include "MemoryMgr/MemoryManager.h"
+#include "QuickDraw/QuickDraw.h"   /* SetRect - was being called undeclared */
 #include "EventManager/EventTypes.h"
 #include "DialogManager/DITLBuilder.h"
 
@@ -160,6 +161,19 @@ Handle DITL_Finish(DITLBuilder* b)
 SInt16 RunModalDialogBox(DialogPtr dlg, SInt16 defaultItem, SInt16 cancelItem)
 {
     if (!dlg) return 0;
+
+    /* Tell the dialog which item is default before the first draw, so
+     * DrawDialogItemByType rings it. NewDialog leaves aDefItem at 1, which for
+     * these runtime alerts is the message text - a static text item never draws
+     * a ring, so no button ever got one. */
+    if (defaultItem > 0) {
+        extern OSErr SetDialogDefaultItem(DialogPtr theDialog, SInt16 newItem);
+        SetDialogDefaultItem(dlg, defaultItem);
+    }
+    if (cancelItem > 0) {
+        extern OSErr SetDialogCancelItem(DialogPtr theDialog, SInt16 newItem);
+        SetDialogCancelItem(dlg, cancelItem);
+    }
 
     DrawDialog(dlg);
 

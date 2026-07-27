@@ -655,6 +655,29 @@ void QDPlatform_DrawShape(GrafPtr port, GrafVerb verb, const Rect* rect,
                 }
             }
         } else if (verb == frame) {
+            /* The band between the outer shape and the same shape inset by the
+             * pen. Testing "inside, with a neighbour outside" instead would
+             * always give a one-pixel outline no matter what PenSize said, and
+             * the default-button ring - System 7 draws it three pixels thick -
+             * came out hairline because of it. Rect and oval framing already
+             * consult pnSize; this is the case that did not. */
+            SInt16 penW = (port && port->pnSize.h > 1) ? port->pnSize.h : 1;
+            SInt16 penH = (port && port->pnSize.v > 1) ? port->pnSize.v : 1;
+
+            Rect innerRect;
+            innerRect.left   = rect->left + penW;
+            innerRect.top    = rect->top + penH;
+            innerRect.right  = rect->right - penW;
+            innerRect.bottom = rect->bottom - penH;
+
+            SInt16 innerRadiusH = radiusH - penW;
+            SInt16 innerRadiusV = radiusV - penH;
+            if (innerRadiusH < 0) innerRadiusH = 0;
+            if (innerRadiusV < 0) innerRadiusV = 0;
+
+            Boolean hasInterior = (innerRect.right > innerRect.left &&
+                                   innerRect.bottom > innerRect.top);
+
             for (SInt32 y = rect->top; y < rect->bottom; y++) {
                 if (y < 0 || y >= (SInt32)fb_height) continue;
                 for (SInt32 x = rect->left; x < rect->right; x++) {
@@ -662,14 +685,10 @@ void QDPlatform_DrawShape(GrafPtr port, GrafVerb verb, const Rect* rect,
                     if (!QDPointInRoundRect(x, y, rect, radiusH, radiusV)) {
                         continue;
                     }
-
-                    Boolean neighborOutside =
-                        !QDPointInRoundRect(x - 1, y, rect, radiusH, radiusV) ||
-                        !QDPointInRoundRect(x + 1, y, rect, radiusH, radiusV) ||
-                        !QDPointInRoundRect(x, y - 1, rect, radiusH, radiusV) ||
-                        !QDPointInRoundRect(x, y + 1, rect, radiusH, radiusV);
-
-                    if (!neighborOutside) continue;
+                    if (hasInterior &&
+                        QDPointInRoundRect(x, y, &innerRect, innerRadiusH, innerRadiusV)) {
+                        continue;
+                    }
 
                     UInt32 color = QDPlatform_SelectPatternColor(port, pat, x, y,
                                                                   pack_color(0, 0, 0));
