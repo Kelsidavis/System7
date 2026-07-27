@@ -34,6 +34,11 @@
 #include <string.h>
 
 /* Forward declarations of ICPUBackend methods */
+/* Guest memory accessors, defined with the opcode implementations. */
+void M68K_Write8(M68KAddressSpace* as, UInt32 addr, UInt8 value);
+void M68K_Write16(M68KAddressSpace* as, UInt32 addr, UInt16 value);
+void M68K_Write32(M68KAddressSpace* as, UInt32 addr, UInt32 value);
+
 static OSErr M68K_CreateAddressSpace(void* processHandle, CPUAddressSpace* out);
 static OSErr M68K_DestroyAddressSpace(CPUAddressSpace as);
 static OSErr M68K_MapExecutable(CPUAddressSpace as, const void* image, Size len,
@@ -527,11 +532,18 @@ static OSErr M68K_Relocate(CPUAddressSpace as, CPUCodeHandle code,
         return paramErr;
     }
 
-    codeData = (UInt8*)mhandle->hostMemory;
-    if (!codeData) {
-        serial_printf("[RELOC] ERROR: hostMemory is NULL\n");
-        return paramErr;
-    }
+    /*
+     * Relocations are written through the guest's own memory, not through
+     * hostMemory.
+     *
+     * hostMemory points into the single page a segment starts in, and pages
+     * are separate allocations - so patching by host pointer was correct only
+     * while a segment fitted in the remainder of its first page. Anything
+     * larger wrote past the end of that allocation, corrupting whatever the
+     * heap had put after it and leaving the code itself unrelocated. Real
+     * application segments are routinely bigger than a page.
+     */
+    (void)codeData;
 
     serial_printf("[RELOC] Applying %d relocations to segment at 0x%08X\n",
                   relocs->count, segBase);
@@ -555,10 +567,7 @@ static OSErr M68K_Relocate(CPUAddressSpace as, CPUCodeHandle code,
                 /* Patch absolute address with segment base */
                 kindName = "ABS_SEG_BASE";
                 value = segBase + reloc->addend;
-                codeData[offset + 0] = (value >> 24) & 0xFF;
-                codeData[offset + 1] = (value >> 16) & 0xFF;
-                codeData[offset + 2] = (value >> 8) & 0xFF;
-                codeData[offset + 3] = value & 0xFF;
+                M68K_Write32(mas, segBase + offset, value);
                 serial_printf("[RELOC] apply kind=%s at off=0x%X -> val=0x%08X (base=0x%08X addend=%d)\n",
                              kindName, offset, value, segBase, reloc->addend);
                 break;
@@ -567,10 +576,7 @@ static OSErr M68K_Relocate(CPUAddressSpace as, CPUCodeHandle code,
                 /* Patch A5-relative offset */
                 kindName = "A5_REL";
                 value = a5Base + reloc->addend;
-                codeData[offset + 0] = (value >> 24) & 0xFF;
-                codeData[offset + 1] = (value >> 16) & 0xFF;
-                codeData[offset + 2] = (value >> 8) & 0xFF;
-                codeData[offset + 3] = value & 0xFF;
+                M68K_Write32(mas, segBase + offset, value);
                 serial_printf("[RELOC] apply kind=%s at off=0x%X -> val=0x%08X (A5=0x%08X addend=%d)\n",
                              kindName, offset, value, a5Base, reloc->addend);
                 break;
@@ -587,10 +593,7 @@ static OSErr M68K_Relocate(CPUAddressSpace as, CPUCodeHandle code,
                     }
                     value = jtBase + jtOffset;
                 }
-                codeData[offset + 0] = (value >> 24) & 0xFF;
-                codeData[offset + 1] = (value >> 16) & 0xFF;
-                codeData[offset + 2] = (value >> 8) & 0xFF;
-                codeData[offset + 3] = value & 0xFF;
+                M68K_Write32(mas, segBase + offset, value);
                 serial_printf("[RELOC] apply kind=%s at off=0x%X -> val=0x%08X (JT[%d])\n",
                              kindName, offset, value, reloc->jtIndex);
                 break;
@@ -610,8 +613,7 @@ static OSErr M68K_Relocate(CPUAddressSpace as, CPUCodeHandle code,
                     return segmentRelocErr;
                 }
                 /* Patch as big-endian 16-bit */
-                codeData[offset + 0] = (pcrel_offset >> 8) & 0xFF;
-                codeData[offset + 1] = pcrel_offset & 0xFF;
+                M68K_Write16(mas, segBase + offset, (UInt16)pcrel_offset);
                 serial_printf("[RELOC] apply kind=%s at off=0x%X -> disp=%+d (target=0x%08X PC=0x%08X)\n",
                              kindName, offset, pcrel_offset, value, patch_pc);
                 break;
@@ -622,10 +624,7 @@ static OSErr M68K_Relocate(CPUAddressSpace as, CPUCodeHandle code,
                 patch_pc = segBase + offset + 4;
                 value = segBase + reloc->addend;
                 pcrel_offset = (SInt32)value - (SInt32)patch_pc;
-                codeData[offset + 0] = (pcrel_offset >> 24) & 0xFF;
-                codeData[offset + 1] = (pcrel_offset >> 16) & 0xFF;
-                codeData[offset + 2] = (pcrel_offset >> 8) & 0xFF;
-                codeData[offset + 3] = pcrel_offset & 0xFF;
+                M68K_Write32(mas, segBase + offset, (UInt32)pcrel_offset);
                 serial_printf("[RELOC] apply kind=%s at off=0x%X -> disp=%+d (target=0x%08X PC=0x%08X)\n",
                              kindName, offset, pcrel_offset, value, patch_pc);
                 break;
@@ -635,10 +634,7 @@ static OSErr M68K_Relocate(CPUAddressSpace as, CPUCodeHandle code,
                 kindName = "SEG_REF";
                 /* For now, treat as absolute (would need segment table lookup) */
                 value = segBase + reloc->addend;
-                codeData[offset + 0] = (value >> 24) & 0xFF;
-                codeData[offset + 1] = (value >> 16) & 0xFF;
-                codeData[offset + 2] = (value >> 8) & 0xFF;
-                codeData[offset + 3] = value & 0xFF;
+                M68K_Write32(mas, segBase + offset, value);
                 serial_printf("[RELOC] apply kind=%s at off=0x%X -> val=0x%08X (seg=%d addend=%d)\n",
                              kindName, offset, value, reloc->targetSegment, reloc->addend);
                 break;

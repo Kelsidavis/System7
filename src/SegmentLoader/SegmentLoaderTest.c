@@ -49,7 +49,7 @@ static void InstallTestResources(void)
 {
     UInt8 code0[16 + 16]; // Header + 2 JT entries
     UInt8 code1[18];      // Entry segment
-    UInt8 code2[8];       // Trace segment
+    UInt8 code2[14];      // Trace segment
     SInt16 savedResFile;
 
     /* Save current resource file and use system resource file for tests */
@@ -139,6 +139,13 @@ static void InstallTestResources(void)
     BE_Write16_Ptr(code2 + 2, 0x0000);  // flags
     code2[4] = 0xA8; code2[5] = 0x00;   // TRAP #$A800
     code2[6] = 0x4E; code2[7] = 0x75;   // RTS
+    /* A JSR to an absolute address, placed after the RTS so it never runs.
+     * The loader should relocate its target by the segment base, and the
+     * check after the run reads it back out of the guest's own memory - which
+     * is the only place that says the relocation reached the running code
+     * rather than a host-side copy of it. */
+    code2[8] = 0x4E; code2[9] = 0xB9;   // JSR abs.L
+    BE_Write32_Ptr(code2 + 10, 0x00020000);
 
     Handle h2 = MakeHandleFromBytes(code2, sizeof(code2));
     SEG_LOG_INFO("InstallTestResources: CODE 2 handle=%p size=%u", h2, (unsigned)sizeof(code2));
@@ -458,6 +465,25 @@ void SegmentLoader_TestBoot(void)
      * exactly like a run that worked. */
     if (!gTraceSegmentRan) {
         SEG_TEST_FAILED("the loaded segment never executed");
+    }
+
+    /* The JSR target in segment 2 should have been relocated by its base. */
+    {
+        CPUAddr seg2 = 0;
+        if (GetSegmentEntryPoint(ctx, 2, &seg2) == noErr) {
+            unsigned char patched[4];
+            if (ctx->cpuBackend->ReadMemory(ctx->cpuAS, seg2 + 6, patched, 4) == noErr) {
+                UInt32 got = ((UInt32)patched[0] << 24) | ((UInt32)patched[1] << 16) |
+                             ((UInt32)patched[2] << 8) | patched[3];
+                if (got != seg2 + 0x00020000) {
+                    char rb[140];
+                    snprintf(rb, sizeof(rb),
+                             "[SegmentLoader] smoke test FAILED: relocation left 0x%08X, "
+                             "want 0x%08X\n", (unsigned)got, (unsigned)(seg2 + 0x00020000));
+                    serial_puts(rb);
+                }
+            }
+        }
     }
 
     SEG_LOG_INFO("");
