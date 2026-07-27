@@ -36,6 +36,9 @@ void VFS_SetMountCallback(VFS_MountCallback callback);
 
 /* Populate initial file system contents */
 bool VFS_PopulateSystemFolder(void);
+/* Write the shipped documents' text into their files. Skips any file that
+ * already has content, so a user's edits are never overwritten. */
+bool VFS_SeedSampleDocuments(void);
 
 /* Get volume info */
 bool VFS_GetVolumeInfo(VRefNum vref, VolumeControlBlock* vcb);

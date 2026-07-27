@@ -85,6 +85,33 @@ static VFSOverlayEntry* VFS_FindOverlay(VFSVolume* vol, FileID id) {
     return NULL;
 }
 
+/*
+ * Helper: the current state of a catalog entry, with the overlay applied.
+ *
+ * The overlay holds the whole modified record, not a set of patches, so
+ * anything it knows about is answered from there. VFS_GetByID already did
+ * this; VFS_Enumerate applied only the deleted, moved and renamed flags and
+ * copied the rest straight from the catalog, so a file whose size or
+ * modification date had changed reported its original values to anything
+ * listing a directory. Get Info said 218 bytes and the Finder's list view
+ * said nothing, for the same file at the same moment.
+ *
+ * Returns false when the entry should not be listed at all.
+ */
+static bool VFS_ApplyOverlay(VFSVolume* vol, DirID dir,
+                             const CatEntry* catalogEntry, CatEntry* out) {
+    VFSOverlayEntry* oe = VFS_FindOverlay(vol, catalogEntry->id);
+    if (!oe) {
+        *out = *catalogEntry;
+        return true;
+    }
+    if (oe->deleted) return false;
+    if (oe->moved && oe->newParent != dir) return false;
+
+    *out = oe->entry;
+    return true;
+}
+
 /* Helper: Allocate overlay entry */
 static VFSOverlayEntry* VFS_AllocOverlay(VFSVolume* vol) {
     for (int i = 0; i < VFS_MAX_OVERLAY; i++) {
@@ -583,6 +610,86 @@ bool VFS_Unmount(VRefNum vref) {
 }
 
 /*
+ * VFS_SeedSampleDocuments - give the documents that ship with the volume
+ * their text.
+ *
+ * They are created in the catalog by HFS_CreateBlankVolume with no data at
+ * all, so every one of them was an empty file. SimpleText papered over that
+ * with a table of hardcoded strings keyed by file name, which meant the
+ * document's contents lived somewhere the file system could not see: Get
+ * Info and the list view's Size column both reported nothing, and renaming
+ * a file would have lost its text, because the lookup was by name.
+ *
+ * The text belongs to the file. Writing it here is what makes the size
+ * correct, the content survive a rename, and an edit save over something
+ * real. Runs once at startup, and skips any file that already has data so
+ * it cannot overwrite a document the user has changed.
+ */
+bool VFS_SeedSampleDocuments(void) {
+    VFSVolume* vol = VFS_FindVolume(1);
+    if (!vol || !vol->mounted) return false;
+
+    VRefNum vref = vol->vref;
+
+    struct { DirID parent; const char* name; const char* text; } samples[] = {
+        { 2, "Read Me",
+          "Welcome to System 7.1 Portable!\n"
+          "\n"
+          "This early build includes:\n"
+          "\xa5 Finder with desktop icons\n"
+          "\xa5 SimpleText for viewing documents\n"
+          "\xa5 Partial Toolbox implementations\n"
+          "\n"
+          "Try opening the \"About This Mac\" document for system stats.\n" },
+        { 2, "About This Mac",
+          "About This Macintosh\n"
+          "---------------------\n"
+          "\n"
+          "System Version: 7.1 Portable Preview\n"
+          "Memory: 4 MB (simulated)\n"
+          "Processor: 80386 (emulated)\n"
+          "\n"
+          "This build focuses on windowing, Finder UI, and classic\n"
+          "Toolbox behaviours needed for early software bring-up.\n" },
+        { 17, "Sample Document",
+          "Sample Document\n"
+          "\n"
+          "This file demonstrates SimpleText's ability to open and\n"
+          "display text files sourced from the virtual HFS volume.\n"
+          "\n"
+          "Feel free to experiment by editing this file and saving it.\n" },
+        { 17, "Notes",
+          "Notes\n"
+          "-----\n"
+          "\n"
+          "- Drag windows by the title bar\n"
+          "- Close windows with the top-left box\n"
+          "- Use the Finder desktop to open documents\n"
+          "- SimpleText currently saves within this session only\n" },
+    };
+
+    int seeded = 0;
+    for (unsigned i = 0; i < sizeof(samples) / sizeof(samples[0]); i++) {
+        CatEntry entry;
+        if (!VFS_Lookup(vref, samples[i].parent, samples[i].name, &entry)) continue;
+        if (entry.size > 0) continue;   /* already has content - leave it be */
+
+        VFSFile* f = VFS_OpenFile(vref, entry.id, false);
+        if (!f) continue;
+
+        uint32_t len = (uint32_t)strlen(samples[i].text);
+        uint32_t written = 0;
+        if (VFS_WriteFile(f, samples[i].text, len, &written) && written == len) {
+            seeded++;
+        }
+        VFS_CloseFile(f);
+    }
+
+    FS_LOG_DEBUG("VFS: seeded %d sample documents\n", seeded);
+    return seeded > 0;
+}
+
+/*
  * VFS_PopulateSystemFolder - fill in the System Folder.
  *
  * The root of the boot volume is built by hand in HFS_CreateBlankVolume, as a
@@ -717,22 +824,11 @@ bool VFS_Enumerate(VRefNum vref, DirID dir, CatEntry* entries, int maxEntries, i
         int catCount = 0;
         HFS_CatalogEnumerate(&vol->catalog, dir, entries, maxEntries, &catCount);
 
-        /* Filter out deleted and moved-away entries, apply renames */
+        /* Answer from the overlay wherever it has something to say. */
         for (int i = 0; i < catCount && n < maxEntries; i++) {
-            FileID eid = entries[i].id;
-            VFSOverlayEntry* oe = VFS_FindOverlay(vol, eid);
-            if (oe) {
-                if (oe->deleted) continue;  /* Skip deleted */
-                if (oe->moved && oe->newParent != dir) continue;  /* Moved away */
-                /* Apply renames */
-                if (oe->renamed) {
-                    strncpy(entries[n].name, oe->entry.name, 31);
-                    entries[n].name[31] = '\0';
-                }
-                if (i != n) entries[n] = entries[i];
-            } else {
-                if (i != n) entries[n] = entries[i];
-            }
+            CatEntry current;
+            if (!VFS_ApplyOverlay(vol, dir, &entries[i], &current)) continue;
+            entries[n] = current;
             n++;
         }
     }
@@ -808,7 +904,7 @@ bool VFS_GetByID(VRefNum vref, FileID id, CatEntry* entry) {
     VFSVolume* vol = VFS_FindVolume(vref);
     if (!vol || !vol->mounted) return false;
 
-    /* Check overlay first */
+    CatEntry catalogEntry;
     VFSOverlayEntry* oe = VFS_FindOverlay(vol, id);
     if (oe) {
         if (oe->deleted) return false;
@@ -816,7 +912,9 @@ bool VFS_GetByID(VRefNum vref, FileID id, CatEntry* entry) {
         return true;
     }
 
-    return HFS_CatalogGetByID(&vol->catalog, id, entry);
+    if (!HFS_CatalogGetByID(&vol->catalog, id, &catalogEntry)) return false;
+    *entry = catalogEntry;
+    return true;
 }
 
 VFSFile* VFS_OpenFile(VRefNum vref, FileID id, bool resourceFork) {
@@ -863,6 +961,11 @@ VFSFile* VFS_OpenFile(VRefNum vref, FileID id, bool resourceFork) {
     memset(vfsFile, 0, sizeof(VFSFile));
     vfsFile->hfsFile = hfsFile;
     vfsFile->vref = vref;
+    /* The file's identity, whatever is backing it. This was left at zero for
+     * catalog-backed files, and VFS_CloseFile persists nothing without it -
+     * so every write to a file that shipped with the volume was accepted,
+     * buffered, and thrown away on close. */
+    vfsFile->fileID = id;
 
     return vfsFile;
 }
@@ -902,6 +1005,24 @@ void VFS_CloseFile(VFSFile* file) {
         VFSVolume* vol = VFS_FindVolume(file->vref);
         if (vol) {
             VFSOverlayEntry* oe = VFS_FindOverlay(vol, file->fileID);
+
+            /* A file that came from the catalog has no overlay entry until
+             * something changes it. Without one the write was dropped here in
+             * silence: opening a document that shipped with the volume,
+             * editing it and saving appeared to work and changed nothing.
+             * Give it an entry now, seeded from the catalog so the rest of
+             * the record survives. */
+            if (!oe) {
+                CatEntry existing;
+                if (VFS_GetByID(file->vref, file->fileID, &existing)) {
+                    oe = VFS_AllocOverlay(vol);
+                    if (oe) {
+                        oe->id = file->fileID;
+                        oe->entry = existing;
+                    }
+                }
+            }
+
             if (oe) {
                 /* Free old persisted data */
                 if (oe->fileData) {

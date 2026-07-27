@@ -935,6 +935,13 @@ static void init_system71(void) {
             serial_puts("  System Folder populated\n");
         }
 
+        {
+            extern bool VFS_SeedSampleDocuments(void);
+            if (VFS_SeedSampleDocuments()) {
+                serial_puts("  Sample documents given their text\n");
+            }
+        }
+
         /* Initial file system contents are now created during volume creation in HFS_CreateBlankVolume() */
         serial_puts("  Initial file system contents created during volume initialization\n");
     } else {
