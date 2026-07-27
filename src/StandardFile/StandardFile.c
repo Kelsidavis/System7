@@ -324,7 +324,8 @@ void CustomPutFile(ConstStr255Param prompt,
                 /* Handle directory popup */
                 {
                     long selectedDir = gSFState.dirID;
-                    if (StandardFile_HAL_HandleDirPopup(gSFState.dialog, &selectedDir)) {
+                    if (StandardFile_HAL_HandleDirPopup(gSFState.dialog, gSFState.vRefNum,
+                                                    &selectedDir)) {
                         gSFState.dirID = selectedDir;
                         SF_PopulateFileList();
                     }
@@ -514,7 +515,8 @@ void CustomGetFile(FileFilterYDProcPtr fileFilter,
             case sfItemPopUpMenuUser:
                 {
                     long selectedDir = gSFState.dirID;
-                    if (StandardFile_HAL_HandleDirPopup(gSFState.dialog, &selectedDir)) {
+                    if (StandardFile_HAL_HandleDirPopup(gSFState.dialog, gSFState.vRefNum,
+                                                    &selectedDir)) {
                         gSFState.dirID = selectedDir;
                         SF_PopulateFileList();
                     }

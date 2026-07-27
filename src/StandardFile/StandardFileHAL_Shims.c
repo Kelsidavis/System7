@@ -928,14 +928,16 @@ static void StandardFile_HAL_NavigateToFolder(const FSSpec *folderSpec) {
  * selectedDir is in and out: the caller passes the folder being shown and
  * gets its parent back.
  *
- * It used to read a gCurrentDirID kept here instead. That was a second record
- * of which folder the dialog is showing, and the one that actually drives the
- * list is the caller's - descending into a folder updated that and never this,
- * so this read a directory ID of zero, the lookup failed, and going up
- * silently did nothing. Taking the folder as an argument leaves one record of
- * it.
+ * It used to read a gCurrentDirID and gCurrentVRefNum kept here instead. Those
+ * were a second record of which folder the dialog is showing, and the one that
+ * actually drives the list is the caller's - descending into a folder updates
+ * that and never these, so this read a directory ID of zero, the lookup
+ * failed, and going up silently did nothing. Both come from the caller now, so
+ * there is one record of them. Passing only the directory and still reading
+ * the volume from here would have left exactly half the bug in place.
  */
-Boolean StandardFile_HAL_HandleDirPopup(DialogPtr dialog, long *selectedDir) {
+Boolean StandardFile_HAL_HandleDirPopup(DialogPtr dialog, short vRefNum,
+                                        long *selectedDir) {
     CInfoPBRec pb;
     Str255 dirName;
 
@@ -951,7 +953,7 @@ Boolean StandardFile_HAL_HandleDirPopup(DialogPtr dialog, long *selectedDir) {
     memset(&pb, 0, sizeof(pb));
     dirName[0] = 0;  /* empty name: ask about the directory itself */
     pb.ioNamePtr = dirName;
-    pb.ioVRefNum = gCurrentVRefNum;
+    pb.ioVRefNum = vRefNum;
     pb.u.dirInfo.ioDrDirID = *selectedDir;
     pb.u.hFileInfo.ioFDirIndex = -1;
 

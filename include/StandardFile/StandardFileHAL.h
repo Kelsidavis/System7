@@ -47,7 +47,8 @@ Boolean StandardFile_HAL_GetNewFolderName(Str255 folderName);
 OSErr StandardFile_HAL_GetDefaultLocation(short *vRefNum, long *dirID);
 OSErr StandardFile_HAL_EjectVolume(short vRefNum);
 OSErr StandardFile_HAL_NavigateToDesktop(short *vRefNum, long *dirID);
-Boolean StandardFile_HAL_HandleDirPopup(DialogPtr dialog, long *selectedDir);
+Boolean StandardFile_HAL_HandleDirPopup(DialogPtr dialog, short vRefNum,
+                                        long *selectedDir);
 
 #ifdef __cplusplus
 }
