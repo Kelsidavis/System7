@@ -4,6 +4,59 @@ This document tracks known issues, workarounds, and technical debt in the System
 
 ## Open Issues
 
+### ⛔ Typing into an opened document replaces it (SIMPLETEXT-001)
+
+**Symptom**: Open "Read Me" from the Finder — its text appears correctly.
+Click anywhere in the text and type. Everything vanishes except the
+characters just typed. Typing at the start of the document leaves only those
+characters; typing mid-document leaves the text up to the click point and
+the typed characters, and nothing after.
+
+**Not TextEdit corrupting the buffer.** TEReplaceSel moves the tail with
+BlockMove and is correct; TEClick only sets the selection and never touches
+the text.
+
+**Evidence**: instrumenting TE_RecalcLines to report teLength on every
+recalculation gives this sequence for one open-click-type run:
+
+```
+teLength=0   nLines=1      <- an empty document
+teLength=0   nLines=1      <- a second empty document
+teLength=224 nLines=9      <- Read Me, loaded and displayed
+teLength=224 nLines=9
+teLength=2   nLines=1      <- after typing 'x'
+teLength=3   nLines=1      <- after typing 'y'
+```
+
+Typing 'x' produced teLength 2, so the record it went into held one
+character beforehand - not the 224-byte record that was on screen. There is
+a stray "." visible at the top left of the window in every screenshot, which
+is that one character.
+
+**So the text is not being destroyed; the keystrokes are going to a
+different document.** SimpleText creates at least two empty documents before
+the file is loaded, keystrokes go to `g_ST.activeDoc`, and that is set from
+activate events in SimpleText.c's HandleActivate. The window's title stays
+"Untitled" rather than becoming the file name, which is consistent with the
+visible window not being bound to the document that was loaded.
+
+**Files**: src/Apps/SimpleText/SimpleText.c (HandleActivate, the key
+dispatch at STView_Key), src/Apps/SimpleText/STDocument.c (STDoc_Activate,
+STDoc_FindByWindow), src/Apps/SimpleText/STFileIO.c (document creation on
+open).
+
+**Next step**: find why opening a file creates empty documents alongside the
+loaded one, and which window each is bound to. The fix is probably that
+opening a file should reuse or properly bind the window it loaded into,
+rather than leaving an Untitled document active.
+
+**Related**: dragging the SimpleText window while a document is open leaves
+the window half-drawn - likely the same binding confusion, since the redraw
+finds a different document than the one displayed.
+
+---
+
+
 ### ⚠️ Window content had many competing redraw paths (ARCH-001) — MOSTLY FIXED
 
 The structural problem underneath most of the redraw bugs, and what made them
