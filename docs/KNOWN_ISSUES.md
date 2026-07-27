@@ -4,6 +4,58 @@ This document tracks known issues, workarounds, and technical debt in the System
 
 ## Open Issues
 
+### 🐞 The allocator hands out memory that is already in use
+
+Reproducible on every boot that opens a document and then the Find box:
+31 blocks are carved out of the middle of a block that is still live. The
+one that matters is a window's offscreen pixel buffer.
+
+**How to see it.** Log every `NewPtr` and `DisposePtr` with the *block*
+pointer (`(u8*)result - BLKHDR_SZ`) and `b->size`, boot with
+`wait 5; dbl on Read Me; wait 5; Cmd-F`, and replay the trace looking for
+a new block whose extent intersects one still live. It produces:
+
+```
+ev1119  A 0x0093E0E8 size 0x1CF38     <- a window's pixel buffer, never freed
+ev1125  A 0x00945588 size 0x28        <- inside it
+ev1128  A 0x00945568 size 0x20        <- inside it
+```
+
+**Why it matters.** The `0xFF` fill that clears a window's offscreen buffer
+in `BeginUpdate` writes over those blocks' headers. The heap then reads a
+block whose size is `0xFFFFFFFF`, and `DisposePtr` responds by dropping
+every freelist. Tens of kilobytes become unreachable, later allocations
+fail, `NewRgn` returns NULL, and a window created after that point has no
+`visRgn` or `strucRgn` and never draws. The visible symptom is a dialog
+that opens once and then stops appearing - five steps removed from the
+cause, which is why this took so long to find. SimpleText's Find box is
+the easiest way to see it.
+
+**Ruled out, each by measurement rather than by reading the code:**
+
+- Undersized splits. `find_fit` only returns a block with `b->size >= need`,
+  and the `[SPLIT] ERROR: block smaller than requested` path never fires.
+- Unaligned coalescing. Neither `[COALESCE_FWD]` nor `[COALESCE_BWD]`
+  warning fires.
+- A fill longer than the allocation. The `BeginUpdate` fill length equals
+  `pm->pmReserved` exactly on every call, so it stays inside its buffer.
+- Anything inside the buffer being freed. Nothing in its range is freed
+  before the overlapping allocations appear.
+- A freelist node surviving after its block is handed out. Scanning every
+  size-class ring for the block `NewPtr` is about to return finds nothing.
+- A zeroed or all-ones header being accepted as a block. `validate_block`
+  rejects size zero and unaligned sizes.
+
+So the stale free node covering that range is already in a ring *before*
+the pixel buffer is allocated, and where it comes from is the open
+question. `CompactMem` and the zone-extension paths around
+`MemoryManager.c:1458` and `:1485` are the parts not yet audited.
+
+**Existing workarounds that are probably this same bug:** the static
+storage in `AllocateDesktopIcons` ("heap corruption workaround"), and the
+suspect-address logging hooks left in `MemoryManager.c`.
+
+
 ### ✅ A loaded CODE segment cannot be reached through its jump table — FIXED
 
 An application's code is split into CODE resources, and a call to a segment
