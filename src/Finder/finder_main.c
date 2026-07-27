@@ -927,53 +927,73 @@ StringPtr GetFinderVersion(void)
 /*-----------------------------------------------------------------------*/
 
 /*
- * FindFolder - Locate system folders
- * Maps standard Mac OS folder type codes to directory IDs.
- * Directory IDs follow HFS convention: 1=root parent, 2=root, 3+=subdirs.
+ * FindFolder - Locate system folders.
+ *
+ * The folder is looked up by name in the file system, because that is where
+ * it actually is. This used to answer from a table of directory IDs written
+ * into the code - System Folder is 3, Trash is 4, and so on - and the table
+ * had drifted from the volume, which creates System Folder as 16, Documents
+ * as 17 and Applications as 18. So FindFolder named directories that did not
+ * exist: the Trash window enumerated directory 4 and found nothing, while the
+ * Trash itself put files somewhere else entirely, and the desktop's trash can
+ * showed full over a window that said it was empty.
+ *
+ * Nested folders are resolved through their parent, as in System 7, rather
+ * than assumed to sit at the root.
  */
-OSErr FindFolder(SInt16 vRefNum, OSType folderType, Boolean createFolder, SInt16* foundVRefNum, SInt32* foundDirID) {
-    (void)createFolder;  /* Not creating folders in this implementation */
+OSErr FindFolder(SInt16 vRefNum, OSType folderType, Boolean createFolder,
+                 SInt16* foundVRefNum, SInt32* foundDirID) {
+    extern VRefNum VFS_GetBootVRef(void);
 
-    if (foundVRefNum) *foundVRefNum = vRefNum;
+    const char* inSystemFolder = NULL;   /* NULL means "at the root" */
+    const char* name = NULL;
 
-    SInt32 dirID = 2;  /* Default: root directory */
     switch (folderType) {
-        case 'macs':  /* kSystemFolderType */
-            dirID = 3;  /* System Folder */
-            break;
-        case 'trsh':  /* kTrashFolderType */
-            dirID = 4;  /* Trash */
-            break;
-        case 'desk':  /* kDesktopFolderType */
-            dirID = 2;  /* Desktop = root */
-            break;
-        case 'pref':  /* kPreferencesFolderType */
-            dirID = 5;  /* Preferences */
-            break;
-        case 'extn':  /* kExtensionsFolderType */
-            dirID = 6;  /* Extensions */
-            break;
-        case 'ctrl':  /* kControlPanelFolderType */
-            dirID = 7;  /* Control Panels */
-            break;
-        case 'font':  /* kFontsFolderType */
-            dirID = 8;  /* Fonts */
-            break;
-        case 'strt':  /* kStartupFolderType */
-            dirID = 9;  /* Startup Items */
-            break;
-        case 'amnu':  /* kAppleMenuFolderType */
-            dirID = 10; /* Apple Menu Items */
-            break;
-        case 'temp':  /* kTemporaryFolderType */
-            dirID = 11; /* Temporary Items */
-            break;
-        default:
-            dirID = 2;  /* Unknown folder type: return root */
-            break;
+        case 'macs': name = "System Folder"; break;
+        case 'trsh': name = "Trash"; break;
+        case 'desk': name = NULL; break;              /* Desktop is the root */
+        case 'temp': name = "Temporary Items"; break;
+        case 'pref': name = "Preferences";        inSystemFolder = "System Folder"; break;
+        case 'extn': name = "Extensions";         inSystemFolder = "System Folder"; break;
+        case 'ctrl': name = "Control Panels";     inSystemFolder = "System Folder"; break;
+        case 'font': name = "Fonts";              inSystemFolder = "System Folder"; break;
+        case 'strt': name = "Startup Items";      inSystemFolder = "System Folder"; break;
+        case 'amnu': name = "Apple Menu Items";   inSystemFolder = "System Folder"; break;
+        default:     name = NULL; break;              /* Unknown: the root */
     }
 
-    if (foundDirID) *foundDirID = dirID;
+    VRefNum vref = (vRefNum == kOnSystemDisk || vRefNum == 0)
+                       ? VFS_GetBootVRef() : (VRefNum)vRefNum;
+    DirID dir = 2;   /* the root */
+
+    if (name) {
+        CatEntry entry;
+        DirID parent = 2;
+
+        if (inSystemFolder) {
+            CatEntry sysFolder;
+            if (VFS_Lookup(vref, 2, inSystemFolder, &sysFolder) &&
+                sysFolder.kind == kNodeDir) {
+                parent = (DirID)sysFolder.id;
+            }
+        }
+
+        if (VFS_Lookup(vref, parent, name, &entry) && entry.kind == kNodeDir) {
+            dir = (DirID)entry.id;
+        } else if (createFolder) {
+            DirID created = 0;
+            if (VFS_CreateFolder(vref, parent, name, &created)) {
+                dir = created;
+            } else {
+                return fnfErr;
+            }
+        } else {
+            return fnfErr;
+        }
+    }
+
+    if (foundVRefNum) *foundVRefNum = (SInt16)vref;
+    if (foundDirID) *foundDirID = (SInt32)dir;
     return noErr;
 }
 
