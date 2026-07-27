@@ -27,7 +27,7 @@ void DrawDialogStaticText(DialogPtr theDialog, const Rect* bounds, const unsigne
                          Boolean isEnabled);
 
 void DrawDialogEditText(const Rect* bounds, const unsigned char* text,
-                       Boolean isEnabled, Boolean hasFocus);
+                        Boolean isEnabled, Boolean hasFocus, SInt16 itemNo);
 
 void DrawDialogIcon(const Rect* bounds, SInt16 iconID, Boolean isEnabled);
 

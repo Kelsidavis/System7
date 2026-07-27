@@ -37,6 +37,7 @@ extern void TextFont(SInt16 font);
 extern void TextSize(SInt16 size);
 extern void TextFace(Style face);
 extern SInt16 StringWidth(const unsigned char* s);
+extern short TextWidth(const void* textBuf, short firstByte, short byteCount);
 
 /* External Window Manager dependencies */
 extern void InvalRect(const Rect* rect);
@@ -329,7 +330,7 @@ void DrawDialogStaticText(DialogPtr theDialog, const Rect* bounds, const unsigne
 
 /* Draw edit text field */
 void DrawDialogEditText(const Rect* bounds, const unsigned char* text,
-                       Boolean isEnabled, Boolean hasFocus) {
+                       Boolean isEnabled, Boolean hasFocus, SInt16 itemNo) {
     Rect frameRect = *bounds;
     Rect textRect = *bounds;
     Rect caretRect;
@@ -338,10 +339,24 @@ void DrawDialogEditText(const Rect* bounds, const unsigned char* text,
     GrafPtr savePort;
     DialogManagerState* state;
     DialogManagerState_Extended* extState;
+    SInt16 selStart = 0, selEnd = 0;
 
     GetPort(&savePort);
     state = GetDialogManagerState();
     extState = GET_EXTENDED_DLG_STATE(state);
+
+    /* Read the selection straight off the item's TextEdit record. Peeking at
+     * the stored handle rather than calling GetOrCreateDialogTEHandle keeps
+     * this a pure draw: creating a TE record as a side effect of painting
+     * would give a field a selection just by becoming visible. */
+    if (extState && itemNo > 0 &&
+        itemNo < (SInt16)(sizeof(extState->teHandles) / sizeof(extState->teHandles[0]))) {
+        TEHandle hTE = (TEHandle)extState->teHandles[itemNo];
+        if (hTE && *hTE) {
+            selStart = (**hTE).selStart;
+            selEnd = (**hTE).selEnd;
+        }
+    }
 
 
     /* Draw recessed frame */
@@ -377,14 +392,35 @@ void DrawDialogEditText(const Rect* bounds, const unsigned char* text,
         FrameRect(&focusRect);
         PenNormal();
 
-        /* Draw caret if focus and caret is visible */
-        if (extState && extState->caretVisible) {
-            caretRect.left = textRect.left + textWidth;
+        SInt16 textLen = (text && text[0] > 0) ? (SInt16)text[0] : 0;
+        if (selStart < 0) selStart = 0;
+        if (selEnd > textLen) selEnd = textLen;
+        if (selStart > selEnd) selStart = selEnd;
+
+        if (selStart < selEnd) {
+            /* A selected run is shown inverted, which is what tells you that
+             * typing replaces it. A dialog opens with its first field fully
+             * selected, so without this the pre-selected name looked like an
+             * ordinary insertion point right up until the first keystroke
+             * wiped it. */
+            Rect selRect;
+            selRect.left = textRect.left + TextWidth(text + 1, 0, selStart);
+            selRect.right = textRect.left + TextWidth(text + 1, 0, selEnd);
+            selRect.top = textRect.top;
+            selRect.bottom = textRect.bottom;
+            InvertRect(&selRect);
+        } else if (extState && extState->caretVisible) {
+            /* The caret marks the insertion point, which is not necessarily
+             * the end of the text - it was drawn at textLeft + full width
+             * regardless of where the insertion point actually was. */
+            caretRect.left = textRect.left +
+                             (textLen > 0 ? TextWidth(text + 1, 0, selStart) : 0);
             caretRect.right = caretRect.left + 1;
             caretRect.top = textRect.top;
             caretRect.bottom = textRect.bottom;
             InvertRect(&caretRect);
         }
+        (void)textWidth;
     }
 
     /* Draw disabled pattern if needed */
@@ -491,7 +527,7 @@ void DrawDialogItemByType(DialogPtr theDialog, SInt16 itemNo,
             DialogManagerState* state = GetDialogManagerState();
             DialogManagerState_Extended* extState = GET_EXTENDED_DLG_STATE(state);
             Boolean hasFocus = (extState && extState->focusedEditTextItem == itemNo);
-            DrawDialogEditText(&item->bounds, textData, item->enabled, hasFocus);
+            DrawDialogEditText(&item->bounds, textData, item->enabled, hasFocus, itemNo);
             break;
         }
 

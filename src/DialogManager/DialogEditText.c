@@ -66,6 +66,19 @@ void SetDialogEditTextFocus(DialogPtr theDialog, SInt16 itemNo) {
         extState->focusedEditTextItem = itemNo;
         extState->caretBlinkTime = TickCount();
         extState->caretVisible = true;
+
+        /* Materialise the TextEdit record and select the whole field before
+         * redrawing. Focusing a field in System 7 selects its contents, so the
+         * name in a rename box is ready to be typed over; leaving the record
+         * to be created lazily on the first click meant the field opened with
+         * nothing selected and the draw had no selection to show. */
+        if (itemNo != oldFocusItem) {
+            TEHandle hTE = GetOrCreateDialogTEHandle(theDialog, itemNo);
+            if (hTE && *hTE) {
+                TESetSelect(0, (SInt32)(**hTE).teLength, hTE);
+            }
+        }
+
         InvalDialogItem(theDialog, itemNo);
         DrawDialogItem(theDialog, itemNo);
 
