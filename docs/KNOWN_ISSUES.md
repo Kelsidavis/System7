@@ -4,6 +4,47 @@ This document tracks known issues, workarounds, and technical debt in the System
 
 ## Open Issues
 
+### 🐞 The Applications folder's contents live in the window, not the file system
+
+Opening Applications shows SimpleText, TextEdit and MacPaint. Get Info on
+the same folder says "Contains: 0 items", and it is the one telling the
+truth: those three are built in `folder_window.c`, in
+`InitializeFolderContentsEx`, under
+
+```c
+    /* Handle Applications folder with virtual apps */
+    if (dirID == 18) {
+        state->itemCount = 3;  /* SimpleText, TextEdit, MacPaint */
+```
+
+They are never created in the file system, so everything that asks the
+file system instead of the window disagrees with what is on screen - Get
+Info's count, and anything else that enumerates.
+
+**Measured, so the next person does not have to:**
+
+- `VFS_Enumerate(vref, 18, ...)` returns true with a count of zero.
+- The vref is 1 in both places, so this is not Get Info looking at a
+  different volume - the folder window logs the same one.
+- `hfs_volume.c:443` seeds a real `SimpleText` into directory 18 with CNID
+  23 when it builds the boot volume, so the volume image and the mounted
+  file system disagree about that directory as well. TextEdit and MacPaint
+  are not seeded anywhere.
+
+**Why 18 is its own hazard.** The number is whatever CNID the Applications
+folder happened to get when the volume was laid out - `ADD_FOLDER(2,
+"Applications", 18)`. Nothing ties the window's constant to that line. If
+the seed order ever changes, three applications appear inside whatever
+folder inherits the number.
+
+**The fix is to delete the special case, not to teach Get Info about it.**
+Seed the three applications where SimpleText already is, let the window
+enumerate them like any other folder, and the count, the Open dialog and
+the status line all agree for free. That depends on why directory 18 comes
+back empty from the mounted volume when the image says otherwise, which is
+the part still unexplained.
+
+
 ### 🐞 The allocator hands out memory that is already in use
 
 Reproducible on every boot that opens a document and then the Find box:
