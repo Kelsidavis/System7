@@ -475,6 +475,25 @@ FolderWindowState* GetFolderState(WindowPtr w) {
     return NULL;  /* No slots available */
 }
 
+/*
+ * FW_ControlPanelsDir - the volume's Control Panels folder.
+ *
+ * Asked of FindFolder, which resolves it by name in the file system, so this
+ * cannot drift from where the folder actually is.
+ */
+static DirID FW_ControlPanelsDir(void)
+{
+    extern OSErr FindFolder(SInt16 vRefNum, OSType folderType, Boolean createFolder,
+                            SInt16* foundVRefNum, SInt32* foundDirID);
+    SInt16 vref = 0;
+    SInt32 dir = 0;
+
+    if (FindFolder(kOnSystemDisk, 'ctrl', false, &vref, &dir) == noErr && dir != 2) {
+        return (DirID)dir;
+    }
+    return (DirID)0;
+}
+
 /* Initialize folder contents from VFS - Extended version with custom dirID */
 static void InitializeFolderContentsEx(WindowPtr w, Boolean isTrash, VRefNum vref, DirID dirID) {
         FolderWindowState* state = NULL;
@@ -648,7 +667,16 @@ static void InitializeFolderContentsEx(WindowPtr w, Boolean isTrash, VRefNum vre
         return;
     }
 
-    if (dirID == kControlPanelsDirID) {
+    /*
+     * The built-in control panels have no files behind them, so the Finder
+     * lists them itself - but it was listing them under a "Control Panels"
+     * folder it invented at the root of the volume, which is not where System
+     * 7 keeps them and left a second Control Panels beside the real one in the
+     * System Folder. The invented one carried no dates either, so it was the
+     * one item in a by-Date listing with an empty column. They are listed in
+     * the real folder now, found the same way everything else finds it.
+     */
+    if (dirID == kControlPanelsDirID || dirID == FW_ControlPanelsDir()) {
         state->itemCount = 6;
         state->items = FW_AllocItems(state->itemCount);
         if (!state->items) {
@@ -745,8 +773,7 @@ static void InitializeFolderContentsEx(WindowPtr w, Boolean isTrash, VRefNum vre
 
         FINDER_LOG_DEBUG("InitializeFolderContents: VFS_Enumerate OK, count=%d\n", count);
 
-        int extraItems = (dirID == 2) ? 1 : 0;
-        int totalItems = count + extraItems;
+        int totalItems = count;
         if (totalItems == 0) {
             state->itemCount = 0;
             state->items = NULL;
@@ -783,18 +810,6 @@ static void InitializeFolderContentsEx(WindowPtr w, Boolean isTrash, VRefNum vre
             state->items[i].type = entries[i].type;
             state->items[i].isAlias = Finder_IsAliasEntry(&entries[i]);
             state->items[i].creator = entries[i].creator;
-        }
-
-        if (extraItems) {
-            FolderItem *cpFolder = &state->items[count];
-            memset(cpFolder, 0, sizeof(FolderItem));
-            strncpy(cpFolder->name, "Control Panels", sizeof(cpFolder->name) - 1);
-            cpFolder->isFolder = true;
-            cpFolder->fileID = kControlPanelsDirID;
-            cpFolder->parentID = state->currentDir;
-            cpFolder->type = 'CPLF';
-            cpFolder->creator = 'cdev';
-            FINDER_LOG_DEBUG("FW: Added virtual 'Control Panels' folder entry\n");
         }
 
         /* Lay the icons out on the shared grid. */
