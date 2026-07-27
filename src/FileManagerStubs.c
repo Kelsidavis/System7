@@ -1573,9 +1573,30 @@ int sched_yield(void) {
     return 0;
 }
 
+/*
+ * time - the system clock, in Unix seconds.
+ *
+ * This used to return the constant 0x60000000, which is 14 January 2021 at
+ * 08:25, and everything that asked it believed that. The Date & Time control
+ * panel showed that date and time for the life of the machine while the menu
+ * bar clock beside it showed the real one, because the two were reading
+ * different clocks.
+ *
+ * GetDateTime is the system's clock - the Toolbox call every other part of
+ * the system uses, honouring SetDateTime - so this reports the same thing,
+ * shifted from the Mac epoch of 1904 to the Unix epoch of 1970.
+ */
 time_t time(time_t* t) {
-    /* Return a fake timestamp */
-    time_t fake_time = 0x60000000;  /* Some arbitrary value */
-    if (t) *t = fake_time;
-    return fake_time;
+    extern void GetDateTime(UInt32* secs);
+    const UInt32 kMacToUnixEpoch = 2082844800UL;  /* 1904 -> 1970 */
+
+    UInt32 macSecs = 0;
+    GetDateTime(&macSecs);
+
+    time_t now = (macSecs >= kMacToUnixEpoch)
+                     ? (time_t)(macSecs - kMacToUnixEpoch)
+                     : (time_t)0;
+
+    if (t) *t = now;
+    return now;
 }

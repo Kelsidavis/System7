@@ -106,8 +106,12 @@ static void cstr_to_pstr(const char *src, Str255 dst)
 
 static UInt32 current_mac_time(void)
 {
-    time_t now = time(NULL);
-    return (UInt32)(now + MAC_EPOCH_OFFSET);
+    /* Ask the system clock directly. Going out to Unix time and back only
+     * added a conversion either side of the same answer. */
+    extern void GetDateTime(UInt32* secs);
+    UInt32 secs = 0;
+    GetDateTime(&secs);
+    return secs;
 }
 
 static UInt32 compute_display_key(UInt32 macTime)
