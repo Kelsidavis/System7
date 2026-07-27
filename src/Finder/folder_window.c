@@ -3038,22 +3038,16 @@ static void SortFolderItemsBySize(FolderItem* items, short count) {
     /* Simple bubble sort */
     for (short i = 0; i < count - 1; i++) {
         for (short j = 0; j < count - i - 1; j++) {
+            /* Largest first, ties broken by name. No folders-first rule:
+             * System 7 sorts on the column, and a folder with no size simply
+             * has none - which puts folders at the end here, where the
+             * column shows them as "--". */
             Boolean shouldSwap = false;
-
-            /* Folders always come first */
-            if (!items[j].isFolder && items[j+1].isFolder) {
+            if (items[j].size < items[j+1].size) {
                 shouldSwap = true;
-            } else if (items[j].isFolder == items[j+1].isFolder) {
-                /* Both are folders or both are files */
-                /* Sort by size descending (larger files first) */
-                if (items[j].size < items[j+1].size) {
-                    shouldSwap = true;
-                } else if (items[j].size == items[j+1].size) {
-                    /* Same size - sort by name */
-                    if (strcmp(items[j].name, items[j+1].name) > 0) {
-                        shouldSwap = true;
-                    }
-                }
+            } else if (items[j].size == items[j+1].size &&
+                       strcasecmp(items[j].name, items[j+1].name) > 0) {
+                shouldSwap = true;
             }
 
             if (shouldSwap) {
@@ -3072,22 +3066,13 @@ static void SortFolderItemsByDate(FolderItem* items, short count) {
     /* Simple bubble sort */
     for (short i = 0; i < count - 1; i++) {
         for (short j = 0; j < count - i - 1; j++) {
+            /* Most recently modified first, ties broken by name. */
             Boolean shouldSwap = false;
-
-            /* Folders always come first */
-            if (!items[j].isFolder && items[j+1].isFolder) {
+            if (items[j].modTime < items[j+1].modTime) {
                 shouldSwap = true;
-            } else if (items[j].isFolder == items[j+1].isFolder) {
-                /* Both are folders or both are files */
-                /* Sort by modification date descending (most recent first) */
-                if (items[j].modTime < items[j+1].modTime) {
-                    shouldSwap = true;
-                } else if (items[j].modTime == items[j+1].modTime) {
-                    /* Same date - sort by name */
-                    if (strcmp(items[j].name, items[j+1].name) > 0) {
-                        shouldSwap = true;
-                    }
-                }
+            } else if (items[j].modTime == items[j+1].modTime &&
+                       strcasecmp(items[j].name, items[j+1].name) > 0) {
+                shouldSwap = true;
             }
 
             if (shouldSwap) {
@@ -3108,20 +3093,13 @@ static void SortFolderItemsByLabel(FolderItem* items, short count) {
         for (short j = 0; j < count - i - 1; j++) {
             Boolean shouldSwap = false;
 
-            /* Folders always come first */
-            if (!items[j].isFolder && items[j+1].isFolder) {
+            /* Grouped by label, ties broken by name. Unlabelled items are
+             * label 0 and so gather at the end. */
+            if (items[j].label < items[j+1].label) {
                 shouldSwap = true;
-            } else if (items[j].isFolder == items[j+1].isFolder) {
-                /* Both are folders or both are files */
-                /* Sort by label index (higher label numbers first for visual grouping) */
-                if (items[j].label < items[j+1].label) {
-                    shouldSwap = true;
-                } else if (items[j].label == items[j+1].label) {
-                    /* Same label - sort by name */
-                    if (strcmp(items[j].name, items[j+1].name) > 0) {
-                        shouldSwap = true;
-                    }
-                }
+            } else if (items[j].label == items[j+1].label &&
+                       strcasecmp(items[j].name, items[j+1].name) > 0) {
+                shouldSwap = true;
             }
 
             if (shouldSwap) {
