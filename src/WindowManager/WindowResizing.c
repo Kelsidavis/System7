@@ -27,6 +27,7 @@
 
 #include "WindowManager/WindowManagerInternal.h"
 #include "QuickDraw/QuickDraw.h"
+#include "QuickDraw/ColorQuickDraw.h"
 #include <math.h>
 
 /* [WM-017] Forward declarations for file-local helpers */
