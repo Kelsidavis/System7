@@ -1657,17 +1657,11 @@ void Finder_Paste(void) {
      * the pasted files were created on disk and then not shown. Paste looked
      * like it had done nothing at all. Finder_Undo already reloads this way
      * for the same reason. */
-    extern void InitializeFolderContentsEx(WindowPtr w, Boolean isTrash,
-                                            VRefNum vref, DirID dirID);
-    InitializeFolderContentsEx(frontWin, false, destVRef, destDir);
+    /* The folder's files changed; one call reloads, keeps positions and
+     * selection by identity, and repaints. */
+    FolderWindow_ContentsChanged(frontWin);
 
-    /* Put the selection on what was just pasted.
-     *
-     * Reloading rebuilds items[] from the directory, and the selection is
-     * held by position - so whatever index was selected before now names a
-     * different file. After a cut and paste that left an unrelated file
-     * highlighted, which is worse than untidy: the next Clear or Cut would
-     * have taken it. System 7 selects the items it just pasted. */
+    /* Then select what was pasted, as System 7 does. */
     FolderWindow_ClearSelection(frontWin);
     for (SInt16 i = 0; i < pastedCount; i++) {
         FolderWindow_AddToSelectionByName(frontWin, pastedNames[i]);

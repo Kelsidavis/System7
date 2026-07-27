@@ -239,6 +239,116 @@ static FolderItem* FW_AllocItems(short count) {
     return items;
 }
 
+/* First grid slot no item is sitting on, ignoring the item at skipIndex. */
+static short FW_FreeSlot(WindowPtr w, FolderWindowState* state, short skipIndex) {
+    for (short slot = 0; slot < state->itemCount + 1; slot++) {
+        Point candidate = FW_GridPosition(w, slot);
+        Boolean taken = false;
+        for (short k = 0; k < state->itemCount; k++) {
+            if (k == skipIndex) continue;
+            if (state->items[k].position.h == candidate.h &&
+                state->items[k].position.v == candidate.v) {
+                taken = true;
+                break;
+            }
+        }
+        if (!taken) return slot;
+    }
+    return state->itemCount;
+}
+
+/* ============================================================================
+ * Contents changed
+ *
+ * One way to say "this folder is not what it was". Callers that create,
+ * remove or rename files call this and nothing else; they do not reload, do
+ * not repair items[] by hand, and do not have to know that a repaint alone
+ * would show a stale list.
+ *
+ * There were two strategies before, chosen per call site. Delete shifted the
+ * array down and fixed up indices; duplicate grew the array and appended.
+ * Paste did neither and only posted an update, so pasted files were created
+ * on disk and never appeared - the window was repainting a list built when
+ * the folder was opened. Each of those had its own bugs, and the in-place
+ * surgery is where the stale-index faults kept coming from.
+ *
+ * Reloading alone is not enough either: an icon dragged to a chosen spot has
+ * that position only in memory, so a plain reload would shuffle every icon
+ * back onto the grid. Positions and selection are carried across by file ID,
+ * and anything genuinely new takes a free slot.
+ * ============================================================================ */
+
+void FolderWindow_ContentsChanged(WindowPtr w) {
+    if (!w || !IsFolderWindow(w)) return;
+
+    FolderWindowState* state = GetFolderState(w);
+    if (!state) return;
+
+    /* Remember where things were, and what was selected, by identity. */
+    typedef struct { FileID id; Point pos; Boolean selected; } FWCarry;
+    FWCarry* carried = NULL;
+    short carriedCount = 0;
+
+    if (state->items && state->itemCount > 0) {
+        carried = (FWCarry*)NewPtr(sizeof(FWCarry) * state->itemCount);
+        if (carried) {
+            for (short i = 0; i < state->itemCount; i++) {
+                carried[i].id = state->items[i].fileID;
+                carried[i].pos = state->items[i].position;
+                carried[i].selected = state->items[i].selected;
+            }
+            carriedCount = state->itemCount;
+        }
+    }
+
+    FileID priorAnchor = state->anchorID;
+    Boolean isTrash = (w->refCon == 'TRSH');
+
+    InitializeFolderContentsEx(w, isTrash, state->vref, state->currentDir);
+
+    /* Put back what survived, then give anything new a slot nothing is on.
+     *
+     * These have to be two passes. Placing a new item while later items still
+     * hold the positions the reload just handed them means asking "is this
+     * slot free?" against a half-restored layout - the answer is wrong, and
+     * the new icon lands on top of one that had not been moved back yet. */
+    if (carried) {
+        Boolean* isNew = (Boolean*)NewPtr(sizeof(Boolean) * (state->itemCount + 1));
+
+        for (short i = 0; i < state->itemCount; i++) {
+            Boolean known = false;
+            for (short k = 0; k < carriedCount; k++) {
+                if (carried[k].id != state->items[i].fileID) continue;
+                state->items[i].position = carried[k].pos;
+                state->items[i].selected = carried[k].selected;
+                known = true;
+                break;
+            }
+            if (isNew) isNew[i] = !known;
+        }
+
+        if (isNew) {
+            for (short i = 0; i < state->itemCount; i++) {
+                if (!isNew[i]) continue;
+                state->items[i].position = FW_GridPosition(w, FW_FreeSlot(w, state, i));
+            }
+            DisposePtr((Ptr)isNew);
+        }
+
+        DisposePtr((Ptr)carried);
+    }
+
+    state->anchorID = 0;
+    for (short i = 0; i < state->itemCount; i++) {
+        if (state->items[i].fileID == priorAnchor) {
+            state->anchorID = priorAnchor;
+            break;
+        }
+    }
+
+    PostEvent(updateEvt, (UInt32)(uintptr_t)w);
+}
+
 /* ============================================================================
  * Selection
  *
@@ -2636,16 +2746,7 @@ void FolderWindow_DeleteSelected(WindowPtr w) {
             if (success) {
                 FINDER_LOG_DEBUG("FolderWindow_DeleteSelected: Success for '%s'\n", item->name);
 
-                /* Remove from items array by shifting */
-                for (int j = i; j < state->itemCount - 1; j++) {
-                    state->items[j] = state->items[j + 1];
-                    {
-                        state->items[j].selected = state->items[j + 1].selected;
-                    }
-                }
-                state->itemCount--;
-
-    
+                /* items[] is refreshed once below, after the whole batch. */
             } else {
                 FINDER_LOG_DEBUG("FolderWindow_DeleteSelected: Failed for '%s'\n", item->name);
             }
@@ -2655,8 +2756,7 @@ void FolderWindow_DeleteSelected(WindowPtr w) {
     /* Restore arrow cursor */
     InitCursor();
 
-    /* Trigger redraw of folder window and refresh trash icon on desktop */
-    PostEvent(updateEvt, (UInt32)(uintptr_t)w);
+    FolderWindow_ContentsChanged(w);
     {
         extern void Desktop_RefreshTrashIcon(void);
         Desktop_RefreshTrashIcon();
@@ -2863,8 +2963,14 @@ void FolderWindow_DuplicateSelected(WindowPtr w) {
 
     FINDER_LOG_DEBUG("FolderWindow_DuplicateSelected: itemCount=%d\n", state->itemCount);
 
+    /* What we create, so the selection can land on it after the refresh. */
+    #define kMaxDuplicated 32
+    FileID newIDs[kMaxDuplicated];
+    short newCount = 0;
+
     /* Duplicate each selected item */
-    for (short i = 0; i < state->itemCount; i++) {
+    short originalCount = state->itemCount;
+    for (short i = 0; i < originalCount; i++) {
         Boolean shouldDuplicate = false;
 
         /* Check if this item is selected */
@@ -2895,64 +3001,10 @@ void FolderWindow_DuplicateSelected(WindowPtr w) {
             if (copied && newID != 0) {
                 FINDER_LOG_DEBUG("FolderWindow_DuplicateSelected: VFS_Copy succeeded, newID=%d\n", newID);
 
-                /* Get catalog entry for the new item */
-                CatEntry newEntry;
-                if (VFS_GetByID(state->vref, newID, &newEntry)) {
-                    /* Add to items array - reallocate if needed */
-                    /* Check for integer overflow: itemCount + 1 and sizeof multiplication */
-                    if (state->itemCount >= INT16_MAX ||
-                        (size_t)state->itemCount > SIZE_MAX / sizeof(FolderItem) - 1) {
-                        FINDER_LOG_DEBUG("FolderWindow_DuplicateSelected: Integer overflow in items count\n");
-                        continue;
-                    }
-                    Size oldItemsSize = state->itemCount * sizeof(FolderItem);
-                    FolderItem* newItems = FW_AllocItems(state->itemCount + 1);
-                    if (!newItems) {
-                        FINDER_LOG_DEBUG("FolderWindow_DuplicateSelected: Failed to reallocate items array\n");
-                        continue;
-                    }
-
-                    if (state->items) {
-                        BlockMove(state->items, newItems, oldItemsSize);
-                        DisposePtr((Ptr)state->items);
-                    }
-                    state->items = newItems;
-
-
-                    /* Add the new item.
-                     *
-                     * Every field has to be set. NewPtr does not clear the
-                     * block this slot came from, and the fields left out here
-                     * were name, fileID, isFolder, type and creator only - so
-                     * size, modTime, label, parentID and position all held
-                     * whatever bytes were in the heap. The visible one was
-                     * position: duplicates appeared at the window's top-left
-                     * corner, on top of the first icon, instead of in a free
-                     * slot in the grid. */
-                    FolderItem* newItem = &state->items[state->itemCount];
-                    memset(newItem, 0, sizeof(*newItem));
-                    strncpy(newItem->name, newEntry.name, sizeof(newItem->name) - 1);
-                    newItem->name[sizeof(newItem->name) - 1] = '\0';
-                    newItem->fileID = newID;
-                    newItem->parentID = state->currentDir;
-                    newItem->isFolder = (newEntry.kind == kNodeDir);
-                    newItem->type = newEntry.type;
-                    newItem->creator = newEntry.creator;
-                    newItem->size = newEntry.size;
-                    newItem->modTime = newEntry.modTime;
-                    newItem->label = 0;
-
-                    /* Next free slot on the shared grid. */
-                    { Point p_ = FW_GridPosition(w, state->itemCount);
-                      newItem->position.h = p_.h;
-                      newItem->position.v = p_.v; }
-
-                    state->itemCount++;
-
-                    FINDER_LOG_DEBUG("FolderWindow_DuplicateSelected: Added new item to window, count=%d\n",
-                                   state->itemCount);
-                } else {
-                    FINDER_LOG_DEBUG("FolderWindow_DuplicateSelected: Failed to get catalog entry for new item\n");
+                /* items[] is refreshed once below; the new file only needs
+                 * to be remembered so it can be selected afterwards. */
+                if (newCount < kMaxDuplicated) {
+                    newIDs[newCount++] = newID;
                 }
             } else {
                 FINDER_LOG_DEBUG("FolderWindow_DuplicateSelected: VFS_Copy failed\n");
@@ -2960,17 +3012,24 @@ void FolderWindow_DuplicateSelected(WindowPtr w) {
         }
     }
 
-    /* Select the last duplicated item (matches System 7 behavior) */
-    if (state->itemCount > 0) {
-        short lastIdx = state->itemCount - 1;
-        FW_DeselectAll(state);
-        state->items[lastIdx].selected = true;
-        FW_SetAnchor(state, lastIdx);
-    }
-
-    /* Restore cursor and trigger redraw */
     InitCursor();
-    PostEvent(updateEvt, (UInt32)(uintptr_t)w);
+
+    FolderWindow_ContentsChanged(w);
+
+    /* Select what was duplicated, as System 7 does. */
+    if (newCount > 0) {
+        FW_DeselectAll(state);
+        for (short i = 0; i < state->itemCount; i++) {
+            for (short k = 0; k < newCount; k++) {
+                if (state->items[i].fileID != newIDs[k]) continue;
+                state->items[i].selected = true;
+                if (state->anchorID == 0) state->anchorID = state->items[i].fileID;
+                break;
+            }
+        }
+        PostEvent(updateEvt, (UInt32)(uintptr_t)w);
+    }
+    #undef kMaxDuplicated
 }
 
 /*

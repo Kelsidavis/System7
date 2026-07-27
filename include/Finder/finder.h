@@ -213,6 +213,10 @@ Boolean FolderWindow_HasSelection(WindowPtr w);
 short FolderWindow_GetSelectedLabel(WindowPtr w);
 short FolderWindow_FindItemByName(WindowPtr w, const char* name);
 void FolderWindow_ClearSelection(WindowPtr w);
+/* Say that the folder's files changed; reloads, keeps positions and
+ * selection by identity, and repaints. Callers that create, remove or rename
+ * files use this instead of reloading or patching items[] themselves. */
+void FolderWindow_ContentsChanged(WindowPtr w);
 void FolderWindow_AddToSelectionByName(WindowPtr w, const char* name);
 void FolderWindow_SelectByName(WindowPtr w, const char* name);
 
