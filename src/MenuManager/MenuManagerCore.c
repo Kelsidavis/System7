@@ -669,13 +669,26 @@ void DrawMenuBar(void)
                         continue;
                     }
 
-                    /* CRITICAL FIX: Ensure titleLen is reasonable */
-                    if (titleLen > 20) {
-                        titleLen = 4; /* Default to 4 for "File", "Edit", etc */
-                    }
-
-                    /* Check if title is at wrong offset */
-                    if (titleLen > 0 && titleLen <= 20) { /* More restrictive sanity check */
+                    /*
+                     * A title longer than twenty characters used to be
+                     * replaced by its first four - not truncated to twenty,
+                     * replaced by four, on the reasoning that "File" and
+                     * "Edit" are four long. Any title that tripped it was
+                     * drawn as a fragment of itself with no indication that
+                     * anything had gone wrong, and twenty is not a limit
+                     * anything here actually has: titleText holds 256 bytes
+                     * and the length is a single byte, so 255 always fits.
+                     *
+                     * Menu titles are not all short. They are localised, and a
+                     * language whose word for a menu runs long would have had
+                     * that menu drawn as four characters of nonsense.
+                     *
+                     * No clamp replaces it: titleLen is an unsigned char and
+                     * titleText is 256 bytes, so the copy below cannot
+                     * overrun. The compiler agrees - a bound of 255 here warns
+                     * as always false.
+                     */
+                    if (titleLen > 0) {
                         /* Get precomputed menuWidth from layout */
                         menuWidth = menuBar->menus[i].menuWidth;
                         memcpy(titleText, &(**menu).menuData[1], titleLen);
