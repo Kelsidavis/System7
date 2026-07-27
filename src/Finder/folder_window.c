@@ -2598,15 +2598,15 @@ static void FolderWindow_OpenFileNamed(FolderWindowState* state,
 
     if (isTextFile) {
         FINDER_LOG_DEBUG("FW: Opening text file \"%s\" with SimpleText\n", name);
-        /* Launch SimpleText if not already running */
-        extern void SimpleText_Launch(void);
-        extern Boolean SimpleText_IsRunning(void);
         extern void SimpleText_OpenFile(const char* path);
 
-        if (!SimpleText_IsRunning()) {
-            SimpleText_Launch();
-            FINDER_LOG_DEBUG("FW: Launched SimpleText\n");
-        }
+        /* Not SimpleText_Launch first: launching with no document open makes
+         * an empty Untitled one, and then opening the file makes a second.
+         * Two windows, and the empty one is the document keystrokes went to -
+         * so typing into a document that had just been opened replaced it
+         * with whatever was typed. Opening a document starts the application
+         * if it is not running, which is what System 7 does when the Finder
+         * hands an application a document to open. */
 
         /* Build full path to the file */
         char fullPath[512];

@@ -870,13 +870,32 @@ void PollPS2Input(void) {
     }
 }
 
-/* Get current mouse position - returns in global (screen) coordinates */
+/*
+ * Get current mouse position, in global (screen) coordinates.
+ *
+ * Note that the Mac OS GetMouse returns coordinates local to the current
+ * port; this one does not, and callers keep reading it the documented way
+ * and getting the window's origin added twice. It has caused the same bug
+ * twice: dragging a Finder icon recorded drops offset by the window origin,
+ * and TextEdit's drag-selection mapped every point past the end of the text
+ * so a click selected from there to the end. Use GetMouseLocal below when
+ * port-local coordinates are what is wanted - the name says which space you
+ * are getting, which is the part that keeps being guessed wrong.
+ */
 void GetMouse(Point* mouseLoc) {
     if (mouseLoc) {
         /* g_mouseState is in global coordinates */
         mouseLoc->h = g_mouseState.x;
         mouseLoc->v = g_mouseState.y;
     }
+}
+
+/* Mouse position in the current port's coordinates. */
+void GetMouseLocal(Point* mouseLoc) {
+    extern void GlobalToLocal(Point* pt);
+    if (!mouseLoc) return;
+    GetMouse(mouseLoc);
+    GlobalToLocal(mouseLoc);
 }
 
 /* Button() moved to MouseEvents.c - reads gCurrentButtons instead of hardware */

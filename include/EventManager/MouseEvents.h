@@ -75,7 +75,10 @@ SInt16 ProcessRawMouseEvent(SInt16 x, SInt16 y, SInt16 buttonMask,
  * Get current mouse position
  * @param mouseLoc Pointer to Point to receive position
  */
+/* Global (screen) coordinates - note this differs from the Mac OS GetMouse,
+ * which is port-local. Use GetMouseLocal when you want the port's space. */
 void GetMouse(Point* mouseLoc);
+void GetMouseLocal(Point* mouseLoc);
 
 /**
  * Get mouse position in local coordinates

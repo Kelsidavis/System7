@@ -4,55 +4,39 @@ This document tracks known issues, workarounds, and technical debt in the System
 
 ## Open Issues
 
-### ⛔ Typing into an opened document replaces it (SIMPLETEXT-001)
+### ✅ Typing into an opened document replaced it (SIMPLETEXT-001) — FIXED
 
-**Symptom**: Open "Read Me" from the Finder — its text appears correctly.
-Click anywhere in the text and type. Everything vanishes except the
-characters just typed. Typing at the start of the document leaves only those
-characters; typing mid-document leaves the text up to the click point and
-the typed characters, and nothing after.
+**Symptom**: Open "Read Me" from the Finder, click in the text, type. Every-
+thing vanished except what was typed.
 
-**Not TextEdit corrupting the buffer.** TEReplaceSel moves the tail with
-BlockMove and is correct; TEClick only sets the selection and never touches
-the text.
+**Two causes, found by instrumenting TE_RecalcLines to report teLength.**
 
-**Evidence**: instrumenting TE_RecalcLines to report teLength on every
-recalculation gives this sequence for one open-click-type run:
+First, the Finder called SimpleText_Launch before SimpleText_OpenFile.
+Launching with nothing open creates an empty Untitled document, and opening
+the file then created a second - two windows, with keystrokes going to the
+empty one. That is why the title stayed "Untitled" and why a stray "." sat
+at the top left. Opening a document already starts the application, so the
+Launch call is gone; System 7 hands an application a document to open rather
+than launching it and then opening.
 
-```
-teLength=0   nLines=1      <- an empty document
-teLength=0   nLines=1      <- a second empty document
-teLength=224 nLines=9      <- Read Me, loaded and displayed
-teLength=224 nLines=9
-teLength=2   nLines=1      <- after typing 'x'
-teLength=3   nLines=1      <- after typing 'y'
-```
+Second, and still present after that: TE_TrackMouse, the drag-selection loop
+TEClick starts, read the mouse with GetMouse - which answers in screen
+coordinates - and passed it to TEGetOffset, which measures against viewRect
+and destRect in the port's coordinates. Every sampled point therefore landed
+below and right of the text, TEGetOffset clamped it to the end, and a plain
+click selected from the click point to the end of the document. Typing
+replaced the selection, exactly as it should have. The measurement was
+teLength 224 -> 87 on one keystroke, with the selection at [85, 223].
 
-Typing 'x' produced teLength 2, so the record it went into held one
-character beforehand - not the 224-byte record that was on screen. There is
-a stray "." visible at the top left of the window in every screenshot, which
-is that one character.
+**Fix**: GetMouseLocal, which converts to the current port, and TE_TrackMouse
+uses it. teLength now goes 224 -> 225 -> 226 as characters are typed.
 
-**So the text is not being destroyed; the keystrokes are going to a
-different document.** SimpleText creates at least two empty documents before
-the file is loaded, keystrokes go to `g_ST.activeDoc`, and that is set from
-activate events in SimpleText.c's HandleActivate. The window's title stays
-"Untitled" rather than becoming the file name, which is consistent with the
-visible window not being bound to the document that was loaded.
-
-**Files**: src/Apps/SimpleText/SimpleText.c (HandleActivate, the key
-dispatch at STView_Key), src/Apps/SimpleText/STDocument.c (STDoc_Activate,
-STDoc_FindByWindow), src/Apps/SimpleText/STFileIO.c (document creation on
-open).
-
-**Next step**: find why opening a file creates empty documents alongside the
-loaded one, and which window each is bound to. The fix is probably that
-opening a file should reuse or properly bind the window it loaded into,
-rather than leaving an Untitled document active.
-
-**Related**: dragging the SimpleText window while a document is open leaves
-the window half-drawn - likely the same binding confusion, since the redraw
-finds a different document than the one displayed.
+**Note**: this is the second time GetMouse's coordinate space has caused a
+bug - the Finder's icon drag had it too, recorded in 6f70965. GetMouse in
+this tree returns global coordinates while the Mac OS call it is named after
+returns port-local, so reading it the documented way is wrong here and looks
+right. The definition now says so, and GetMouseLocal exists to be the
+obvious thing to reach for.
 
 ---
 

@@ -339,7 +339,15 @@ static void TE_TrackMouse(TEHandle hTE, Point startPt) {
     while (StillDown() && loopCount < MAX_DRAG_ITERATIONS) {
         loopCount++;
         ProcessModernInput();  /* Update gCurrentButtons/g_mousePos */
-        GetMouse(&pt);
+
+        /* TEGetOffset measures against viewRect and destRect, which are in
+         * the port's coordinates. GetMouse answers in screen coordinates, so
+         * reading it directly put every sampled point below and right of the
+         * text - TEGetOffset clamped that to the end, and the click that
+         * started the drag ended up selecting from there to the end of the
+         * document. Typing then replaced all of it. */
+        extern void GetMouseLocal(Point* mouseLoc);
+        GetMouseLocal(&pt);
 
         /* Get offset at current position */
         offset = TEGetOffset(pt, hTE);

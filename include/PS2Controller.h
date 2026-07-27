@@ -10,7 +10,8 @@
 Boolean InitPS2Controller(void);
 Boolean PS2_IsInitialized(void);
 void PollPS2Input(void);
-void GetMouse(Point* pt);
+void GetMouse(Point* pt);          /* global (screen) coordinates */
+void GetMouseLocal(Point* pt);     /* current port's coordinates */
 void UpdateMouseStateDelta(SInt16 dx, SInt16 dy, UInt8 buttons);
 void UpdateMouseStateAbsolute(SInt16 x, SInt16 y, UInt8 buttons);
 UInt16 GetPS2Modifiers(void);
