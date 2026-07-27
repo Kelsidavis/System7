@@ -112,8 +112,6 @@ static Boolean gDesktopIconStaticInUse = false;
 
 /* Icon selection and dragging state */
 static short gSelectedIcon = -1;             /* Index of selected icon (-1 = none) */
-static Boolean gDraggingIcon = false;        /* Currently dragging an icon */
-static Point gDragOffset = {0, 0};           /* Offset from icon origin to mouse */
 /* Unused - reserved for future drag/click tracking:
 static Point gOriginalPos = {0, 0};
 static UInt32 gLastClickTime = 0;
@@ -2245,92 +2243,21 @@ OSErr HandleVolumeDoubleClick(Point clickPoint)
 }
 
 /*
- * StartDragIcon - Begin dragging an icon
+ * The desktop icon drag lived here twice.
+ *
+ * StartDragIcon, DragIcon, EndDragIcon and HandleDesktopDrag were a complete
+ * second implementation of dragging that could never run: HandleDesktopDrag
+ * only acts once gDraggingIcon is set, gDraggingIcon was only set by
+ * StartDragIcon, and nothing anywhere called StartDragIcon. It was incomplete
+ * as well - gDragOffset, the grab point inside the icon, was read but never
+ * assigned, so a drag through that path would have snapped the icon's corner
+ * to the pointer.
+ *
+ * The live drag is TrackIconDragSync, which runs synchronously off the
+ * mouse-down in HandleDesktopClick and handles the ghost, the drop targets and
+ * the repositioning. Having a plausible-looking dead copy alongside it is a
+ * trap: it reads as the drag code, and editing it changes nothing.
  */
-void StartDragIcon(Point mousePt)
-{
-
-    if (gSelectedIcon >= 0 && gSelectedIcon < gDesktopIconCount) {
-        if (gDesktopIcons[gSelectedIcon].movable) {
-            gDraggingIcon = true;
-            FINDER_LOG_DEBUG("Started dragging icon %d\n", gSelectedIcon);
-        } else {
-            FINDER_LOG_DEBUG("Cannot drag non-movable icon %d\n", gSelectedIcon);
-        }
-    }
-}
-
-/*
- * DragIcon - Update icon position during drag
- */
-void DragIcon(Point mousePt)
-{
-    if (!gDraggingIcon || gSelectedIcon < 0 || gSelectedIcon >= gDesktopIconCount) {
-        return;
-    }
-
-    /* Calculate new position based on mouse and offset */
-    Point newPos;
-    newPos.h = mousePt.h - gDragOffset.h;
-    newPos.v = mousePt.v - gDragOffset.v;
-
-    /* Constrain to screen bounds, clamping to SInt16 range */
-    short max_h = (fb_width > 42 && fb_width - 42 <= 32767) ? (short)(fb_width - 42) : 32767;
-    short max_v = (fb_height > 60 && fb_height - 60 <= 32767) ? (short)(fb_height - 60) : 32767;
-    if (newPos.h < 10) newPos.h = 10;
-    if (newPos.v < 30) newPos.v = 30;  /* Below menu bar */
-    if (newPos.h > max_h) newPos.h = max_h;
-    if (newPos.v > max_v) newPos.v = max_v;
-
-    /* Update icon position */
-    gDesktopIcons[gSelectedIcon].position = newPos;
-
-    /* Redraw desktop to show new position */
-    DrawDesktop();
-    DrawVolumeIcon();
-}
-
-/*
- * EndDragIcon - Finish dragging an icon
- */
-void EndDragIcon(Point mousePt)
-{
-
-    if (!gDraggingIcon) {
-        return;
-    }
-
-    gDraggingIcon = false;
-
-    if (gSelectedIcon >= 0 && gSelectedIcon < gDesktopIconCount) {
-        FINDER_LOG_DEBUG("Finished dragging icon %d to (%d,%d)\n",
-                     gSelectedIcon,
-                     gDesktopIcons[gSelectedIcon].position.h,
-                     gDesktopIcons[gSelectedIcon].position.v);
-
-        /* Save the new position */
-        SaveDesktopDatabase(0);
-    }
-}
-
-/*
- * HandleDesktopDrag - Handle mouse drag on desktop
- * Returns true if dragging an icon
- */
-Boolean HandleDesktopDrag(Point mousePt, Boolean buttonDown)
-{
-    if (gDraggingIcon && buttonDown) {
-        /* Continue dragging */
-        DragIcon(mousePt);
-        return true;
-    } else if (gDraggingIcon && !buttonDown) {
-        /* End drag */
-        EndDragIcon(mousePt);
-        return true;
-    }
-
-    return false;
-}
 
 /*
  * SelectNextDesktopIcon - Cycle through desktop icons with Tab key

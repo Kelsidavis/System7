@@ -107,10 +107,6 @@ OSErr InitializeVolumeIcon(void);
 OSErr HandleVolumeDoubleClick(Point clickPoint);
 void Desktop_GhostEraseIf(void);
 void Desktop_GhostShowAt(const Rect* r);
-void StartDragIcon(Point mousePt);
-void DragIcon(Point mousePt);
-void EndDragIcon(Point mousePt);
-Boolean HandleDesktopDrag(Point mousePt, Boolean buttonDown);
 void SelectNextDesktopIcon(void);
 void OpenSelectedDesktopIcon(void);
 

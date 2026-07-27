@@ -239,8 +239,9 @@ Boolean HandleNullEvent(EventRecord* event)
         Boolean buttonDown = Button();
 
         /* Handle drag tracking */
-        extern Boolean HandleDesktopDrag(Point mousePt, Boolean buttonDown);
-        HandleDesktopDrag(event->where, buttonDown);
+        /* The desktop drag is tracked synchronously from the mouse-down in
+         * HandleDesktopClick; the call that used to be here went to a second
+         * implementation that could never start. */
 
         /* Stop tracking if button released */
         if (!buttonDown) {
@@ -525,8 +526,7 @@ Boolean HandleMouseUp(EventRecord* event)
 
     /* End desktop tracking if active */
     if (g_dispatcher.trackingDesktop) {
-        extern Boolean HandleDesktopDrag(Point mousePt, Boolean buttonDown);
-        HandleDesktopDrag(event->where, false);  /* Button up */
+        /* See above: the drag is tracked synchronously, not from here. */
         g_dispatcher.trackingDesktop = false;
     }
 
