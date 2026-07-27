@@ -33,30 +33,6 @@ extern CGrafPtr g_currentCPort;
 extern QDGlobals qd;
 extern uint32_t pack_color(uint8_t r, uint8_t g, uint8_t b);
 
-extern void serial_puts(const char* str);
-extern void serial_putchar(char ch);
-
-static void qd_log_hex_u32(uint32_t value) {
-    static const char hex[] = "0123456789ABCDEF";
-    for (int i = 7; i >= 0; --i) {
-        serial_putchar(hex[(value >> (i * 4)) & 0xF]);
-    }
-}
-
-static void qd_log_memcpy(const char* tag, const void* src, const void* dst, size_t length) {
-    serial_puts(tag);
-    serial_puts(" src=0x");
-    qd_log_hex_u32((uint32_t)(uintptr_t)src);
-    serial_puts(" dst=0x");
-    qd_log_hex_u32((uint32_t)(uintptr_t)dst);
-    serial_puts(" len=0x");
-    qd_log_hex_u32((uint32_t)length);
-    serial_puts(" dst_end=0x");
-    qd_log_hex_u32((uint32_t)((uintptr_t)dst + length));
-    serial_putchar('\n');
-}
-
-
 static const UInt32 kColorMask = 0x00FFFFFF;
 
 typedef struct {
@@ -671,7 +647,6 @@ static void CopyBitsUnscaled(const BitMap *srcBits, const BitMap *dstBits,
                 UInt8 *srcRow = srcBase + srcStart;
                 UInt8 *dstRow = dstBase + dstStart;
                 if (copyBytes > 0) {
-                    qd_log_memcpy("[CopyBits32] memcpy", srcRow, dstRow, copyBytes);
                     memcpy(dstRow, srcRow, copyBytes);
                 }
             }

@@ -629,29 +629,14 @@ void Platform_DrawCloseBoxDirect(WindowPtr window) {
 void Platform_WaitTicks(short ticks) {
     extern UInt32 TickCount(void);
     extern void ProcessModernInput(void);  /* Poll PS/2 controller for button updates */
-    extern void serial_puts(const char* str);
 
     UInt32 start = TickCount();
     UInt32 iterations = 0;
     const UInt32 MAX_ITERATIONS = 1000;  /* Safety timeout - 1000 iterations is ~16ms at ~60Hz */
-    static int pwt_call_count = 0;
-
-    if (ticks <= 5) {  /* Only log brief waits that are called frequently */
-        pwt_call_count++;
-        if (pwt_call_count % 50 == 0) {  /* Log every 50 calls */
-            char msg[80];
-            snprintf(msg, sizeof(msg), "[PWT] Call #%d: ticks=%d iterations=%d\n", pwt_call_count, ticks, iterations);
-            serial_puts(msg);
-        }
-    }
 
     while (TickCount() - start < ticks && iterations < MAX_ITERATIONS) {
         ProcessModernInput();  /* Critical: update gCurrentButtons during waits */
         iterations++;
-    }
-
-    if (iterations >= MAX_ITERATIONS) {
-        serial_puts("[PWT] WARNING: Timeout in Platform_WaitTicks after 1000 iterations\n");
     }
 }
 

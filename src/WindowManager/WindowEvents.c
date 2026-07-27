@@ -199,69 +199,42 @@ Boolean TrackBox(WindowPtr theWindow, Point thePt, short partCode) {
     Boolean lastInPart = true;
     Point currentPt = thePt;
     int loopCount = 0;
-    const int MAX_TRACKING_ITERATIONS = 500;  /* Timeout after ~500ms at 1ms per iteration */
-
-    extern void serial_puts(const char* str);
-    serial_puts("[TB] Entering tracking loop\n");
+    /* Each iteration waits a tick, so this is a ~8s escape hatch for a button
+     * release we somehow never observe - not a limit the user should ever hit. */
+    const int MAX_TRACKING_ITERATIONS = 500;
 
     /* Process input ONCE before checking button state to ensure gCurrentButtons
      * is up-to-date with the latest PS/2 events */
     extern void ProcessModernInput(void);
     ProcessModernInput();
-    serial_puts("[TB] Processed input before loop\n");
 
     while (buttonDown && loopCount < MAX_TRACKING_ITERATIONS) {
         /* Get current mouse position and button state */
         buttonDown = WM_IsMouseDown();
 
-        if (loopCount == 0) {
-            char buf[80];
-            snprintf(buf, sizeof(buf), "[TB] First iteration: buttonDown=%d\n", buttonDown ? 1 : 0);
-            serial_puts(buf);
-        }
-
         loopCount++;
-        if (loopCount % 50 == 0 || loopCount < 5) {
-            char buf[80];
-            snprintf(buf, sizeof(buf), "[TB] Loop %d, buttonDown=%d, partCode=%d\n", loopCount, buttonDown, partCode);
-            serial_puts(buf);
-        }
 
         if (buttonDown) {
             Platform_GetMousePosition(&currentPt);
         }
 
-        serial_puts("[TB-LOOP] After mouse check\n");
-
         /* Check if mouse is still in the part */
         inPart = WM_PtInRect(currentPt, &partRect);
-
-        serial_puts("[TB-LOOP] After inPart check\n");
 
         /* Update visual feedback if state changed */
         if (inPart != lastInPart) {
             /* Highlight or unhighlight the part */
-            serial_puts("[TB-LOOP] About to highlight\n");
             Platform_HighlightWindowPart(theWindow, partCode, inPart);
-            serial_puts("[TB-LOOP] After highlight\n");
             lastInPart = inPart;
         }
 
-        serial_puts("[TB-LOOP] About to wait\n");
         /* Brief delay to avoid consuming too much CPU */
         Platform_WaitTicks(1);
-        serial_puts("[TB-LOOP] After wait, looping\n");
     }
 
-    /* If we hit the timeout limit, log it */
     if (loopCount >= MAX_TRACKING_ITERATIONS) {
-        serial_puts("[TB] WARNING: Tracking loop timeout - exceeded max iterations\n");
-        buttonDown = false;  /* Force exit */
+        WM_DEBUG("TrackBox: tracking timed out with the button still down");
     }
-
-    char buf[80];
-    snprintf(buf, sizeof(buf), "[TB] Exited loop after %d iterations\n", loopCount);
-    serial_puts(buf);
 
     /* DON'T call Platform_HighlightWindowPart to unhighlight - it will invert again
      * and leave a ghost on the framebuffer. Instead, just invalidate and let the
@@ -277,23 +250,16 @@ Boolean TrackBox(WindowPtr theWindow, Point thePt, short partCode) {
      * 3. With GWorld double-buffering, the offscreen buffer doesn't have these pixels
      * 4. Cursor continues to be drawn after window redraw, leaving new ghosts
      * Solution: Redraw window + force desktop manager to redraw background */
-    serial_puts("[TB] Calling BeginUpdate\n");
     BeginUpdate(theWindow);
-    serial_puts("[TB] BeginUpdate done\n");
 
     /* Draw window contents if this is a folder window */
     extern Boolean IsFolderWindow(WindowPtr w);
     extern void FolderWindow_Draw(WindowPtr w);
-    serial_puts("[TB] Checking if folder window\n");
     if (IsFolderWindow(theWindow)) {
-        serial_puts("[TB] Drawing folder window\n");
         FolderWindow_Draw(theWindow);
-        serial_puts("[TB] Folder window drawn\n");
     }
 
-    serial_puts("[TB] Calling EndUpdate\n");
     EndUpdate(theWindow);
-    serial_puts("[TB] EndUpdate done\n");
 
     /* Refresh desktop area around window to clean up cursor ghosts.
      * Cursor can move anywhere during tracking, leaving artifacts on desktop. */
@@ -312,24 +278,16 @@ Boolean TrackBox(WindowPtr theWindow, Point thePt, short partCode) {
     /* Manually erase the close box area to remove InvertRect artifacts.
      * We need to draw directly to framebuffer since the title bar chrome
      * is outside the GWorld content buffer. */
-    serial_puts("[TB] Checking if close box needs drawing\n");
     if (partCode == inGoAway) {
         extern void Platform_DrawCloseBoxDirect(WindowPtr window);
-        serial_puts("[TB] Drawing close box directly\n");
         Platform_DrawCloseBoxDirect(theWindow);
-        serial_puts("[TB] Close box drawn\n");
     }
 
     /* Show cursor now that window/title bar has been redrawn cleanly */
-    serial_puts("[TB] Showing cursor\n");
     ShowCursor();
-    serial_puts("[TB] Cursor shown\n");
 
     /* Return true if mouse was released inside the part */
     Boolean result = inPart;
-    char resultBuf[60];
-    snprintf(resultBuf, sizeof(resultBuf), "[TB] TrackBox returning %d\n", result ? 1 : 0);
-    serial_puts(resultBuf);
     WM_DEBUG("TrackBox: Tracking complete, result = %s", result ? "true" : "false");
     return result;
 }
@@ -682,23 +640,17 @@ void BeginUpdate(WindowPtr theWindow) {
 }
 
 void EndUpdate(WindowPtr theWindow) {
-    serial_puts("[EndUpdate] ENTRY\n");
     serial_puts("[MEM] EndUpdate enter\n");
     MemoryManager_CheckSuspectBlock("enter_EndUpdate");
     if (theWindow == NULL) {
-        serial_puts("[EndUpdate] NULL window, returning\n");
         return;
     }
 
-    serial_puts("[EndUpdate] About to log debug message\n");
     WM_DEBUG("EndUpdate: Ending window update");
-    serial_puts("[EndUpdate] After WM_DEBUG\n");
     MemoryManager_CheckSuspectBlock("post_debug_EndUpdate");
 
     /* If double-buffering with GWorld, copy offscreen buffer to screen */
-    serial_puts("[EndUpdate] Checking offscreenGWorld\n");
     if (theWindow->offscreenGWorld) {
-        serial_puts("[EndUpdate] Has GWorld, copying...\n");
         WM_DEBUG("EndUpdate: Copying offscreen GWorld to screen");
 
         /* Get the PixMap from the GWorld */
@@ -803,44 +755,30 @@ void EndUpdate(WindowPtr theWindow) {
     }
 
     /* Clear the update region */
-    serial_puts("[EndUpdate] About to clear update region\n");
     if (theWindow->updateRgn) {
-        serial_puts("[EndUpdate] Calling Platform_SetEmptyRgn...\n");
         Platform_SetEmptyRgn(theWindow->updateRgn);
-        serial_puts("[EndUpdate] Platform_SetEmptyRgn returned\n");
         MemoryManager_CheckSuspectBlock("after_SetEmptyRgn");
     }
 
     /* End platform drawing session */
-    serial_puts("[EndUpdate] Calling Platform_EndWindowDraw...\n");
     Platform_EndWindowDraw(theWindow);
-    serial_puts("[EndUpdate] Platform_EndWindowDraw returned\n");
     MemoryManager_CheckSuspectBlock("after_EndWindowDraw");
 
     /* CRITICAL: Restore clipping to content region (not visRgn!)
      * to prevent content from overdrawing chrome */
-    serial_puts("[EndUpdate] About to restore clipping\n");
     if (theWindow->contRgn) {
-        serial_puts("[EndUpdate] Calling Platform_SetClipRgn...\n");
         Platform_SetClipRgn(&theWindow->port, theWindow->contRgn);
-        serial_puts("[EndUpdate] Platform_SetClipRgn returned\n");
         MemoryManager_CheckSuspectBlock("after_SetClipRgn");
     }
 
     /* Restore previous port */
-    serial_puts("[EndUpdate] Calling Platform_GetUpdatePort...\n");
     GrafPtr savedPort = Platform_GetUpdatePort(theWindow);
-    serial_puts("[EndUpdate] Platform_GetUpdatePort returned\n");
     if (savedPort) {
-        serial_puts("[EndUpdate] Calling Platform_SetCurrentPort...\n");
         Platform_SetCurrentPort(savedPort);
-        serial_puts("[EndUpdate] Platform_SetCurrentPort returned\n");
         MemoryManager_CheckSuspectBlock("after_SetCurrentPort");
     }
 
-    serial_puts("[EndUpdate] About to final WM_DEBUG\n");
     WM_DEBUG("EndUpdate: Update session ended");
-    serial_puts("[EndUpdate] EXIT\n");
     serial_puts("[MEM] EndUpdate exit\n");
     MemoryManager_CheckSuspectBlock("exit_EndUpdate");
 }

@@ -658,23 +658,10 @@ void ColorBit(SInt16 whichBit) {
  * ================================================================ */
 
 void FrameRect(const Rect *r) {
-    extern void serial_puts(const char*);
-    extern void uart_flush(void);
-    serial_puts("[FRAMERECT] enter\n");
-    uart_flush();
-    if (!g_currentPort || !r || EmptyRect(r)) {
-        serial_puts("[FRAMERECT] early return\n");
-        uart_flush();
-        return;
-    }
-    serial_puts("[FRAMERECT] PictureRecordFrameRect\n");
-    uart_flush();
+    if (!g_currentPort || !r || EmptyRect(r)) return;
+
     PictureRecordFrameRect(r);
-    serial_puts("[FRAMERECT] DrawPrimitive\n");
-    uart_flush();
     DrawPrimitive(frame, r, 0, &g_currentPort->pnPat, 0, 0);
-    serial_puts("[FRAMERECT] done\n");
-    uart_flush();
 }
 
 void PaintRect(const Rect *r) {
