@@ -637,9 +637,40 @@ static void ApplyStyleToSelection(STDocument* doc, SInt16 font, SInt16 size, Sty
     (*doc->hTE)->txSize = size;
     (*doc->hTE)->txFace = style;
 
-    if (selStart != selEnd) {
-        /* Recalculate line breaks and redraw with new style */
-        TECalText(doc->hTE);
+    /*
+     * Redraw whether or not anything is selected.
+     *
+     * The three lines above set the style on the whole record - that is what
+     * this build's TextEdit can do, as the comment says - so the change is
+     * never limited to a selection. The redraw was, so choosing Bold with
+     * nothing selected stored the new face and repainted nothing: the menu
+     * ticked, the document did not move, and the style only appeared later if
+     * something else happened to invalidate the view.
+     *
+     * A change that always applies to everything needs an invalidation that
+     * always covers everything.
+     */
+    (void)selStart;
+    (void)selEnd;
+    TECalText(doc->hTE);
+
+    /*
+     * Invalidate against the document's own window.
+     *
+     * InvalRect has no window argument - it takes whichever port is current.
+     * This runs from a menu command, so the current port at this moment is
+     * whatever the Menu Manager left set, not the document. The rectangle
+     * went to that window's update region instead, so the document was never
+     * repainted: choosing Bold ticked the menu, marked the file dirty, and
+     * left the text exactly as it was.
+     */
+    if (doc->window) {
+        GrafPtr savePort;
+        GetPort(&savePort);
+        SetPort((GrafPtr)doc->window);
+        InvalRect(&(*doc->hTE)->viewRect);
+        SetPort(savePort);
+    } else {
         InvalRect(&(*doc->hTE)->viewRect);
     }
 
