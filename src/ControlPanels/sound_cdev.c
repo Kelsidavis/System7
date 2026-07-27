@@ -72,7 +72,7 @@ static void ensure_controls(void)
     Rect buttonRect;
 
     if (!gSoundState.volumeDownButton) {
-        buttonRect.top = portRect.bottom - 70;
+        buttonRect.top = 105;          /* below the tip line at y=90 */
         buttonRect.bottom = buttonRect.top + 20;
         buttonRect.left = 20;
         buttonRect.right = buttonRect.left + 100;
@@ -107,14 +107,14 @@ static void ensure_controls(void)
 
     if (!gSoundState.muteCheckbox) {
         Rect checkRect;
-        checkRect.top = portRect.bottom - 40;
+        checkRect.top = 140;           /* below the buttons */
         checkRect.bottom = checkRect.top + 18;
         checkRect.left = 20;
         checkRect.right = portRect.right - 20;
         gSoundState.muteCheckbox = NewControl(
             gSoundState.window,
             &checkRect,
-            "\010Mute Sound",
+            "\012Mute Sound",
             true,
             gSoundState.muted ? 1 : 0,
             0,
@@ -197,10 +197,14 @@ void SoundPanel_Open(void)
     }
 
     Rect bounds;
+    /* Tall enough for everything in it. The text is placed from the top and
+     * the controls were placed from the bottom, in a window that was not deep
+     * enough for both, so the buttons sat on top of the line explaining what
+     * they do. Both are laid out from the top now, against this height. */
     bounds.top = 100;
     bounds.left = 140;
-    bounds.bottom = bounds.top + 160;
-    bounds.right = bounds.left + 260;
+    bounds.bottom = bounds.top + 190;
+    bounds.right = bounds.left + 310;
 
     static Str255 title;
     c2pstrcpy(title, "Sound");

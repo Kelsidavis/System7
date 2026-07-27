@@ -401,7 +401,7 @@ static OSErr BuildFallbackDITL(SInt16 pseudoId, SInt16 iconKind, Handle* outDITL
     SInt16 i;
     static const unsigned char okText[] = "\002OK";
     static const unsigned char cancelText[] = "\006Cancel";
-    static const unsigned char msgText[] = "\034Alert message will appear here.";
+    static const unsigned char msgText[] = "\037Alert message will appear here.";
 
     if (!outDITL) {
         return -50; /* paramErr */

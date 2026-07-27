@@ -159,7 +159,7 @@ void DoMenuCommand(short menuID, short item)
                 /* Help menu: item 1 = About Balloon Help, item 2 = Show Balloons */
                 if (item == 1) {
                     ParamText("\030About Balloon Help\311",
-                              "\060Point at items on the screen to\rsee help balloons.",
+                              "\062Point at items on the screen to\rsee help balloons.",
                               "\000", "\000");
                     NoteAlert(128, NULL);
                 }
@@ -930,7 +930,7 @@ static void HandleSpecialMenu(short item)
             MENU_LOG_INFO("Special > Restart\n");
 
             /* Confirmation dialog — real System 7 asks before restarting */
-            ParamText("\034Are you sure you want to\rrestart your computer?",
+            ParamText("\057Are you sure you want to\rrestart your computer?",
                       "\000", "\000", "\000");
             if (CautionAlert(128, NULL) != 1) break;  /* Cancel */
 
@@ -966,7 +966,7 @@ static void HandleSpecialMenu(short item)
             MENU_LOG_INFO("Special > Shut Down\n");
 
             /* Confirmation dialog — real System 7 asks before shutting down */
-            ParamText("\035Are you sure you want to shut\rdown your computer?",
+            ParamText("\061Are you sure you want to shut\rdown your computer?",
                       "\000", "\000", "\000");
             if (CautionAlert(128, NULL) != 1) break;  /* Cancel */
 

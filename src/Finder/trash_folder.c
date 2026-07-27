@@ -197,7 +197,7 @@ OSErr MoveToTrash(FSSpec *items, short count)
         err = FSpCatMove(&items[itemIndex], &gTrashFolder);
         if (err != noErr) {
             /* Show error for this item and continue */
-            ShowErrorDialog("\036Could not move item to Trash.", err);
+            ShowErrorDialog("\035Could not move item to Trash.", err);
         }
     }
 

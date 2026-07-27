@@ -77,14 +77,14 @@ static void ensure_controls(void)
     Rect buttonRect;
 
     if (!gKeyboardState.repeatSlower) {
-        buttonRect.top = portRect.bottom - 90;
+        buttonRect.top = 140;   /* below the text lines ending at y=120 */
         buttonRect.bottom = buttonRect.top + 20;
         buttonRect.left = 20;
         buttonRect.right = buttonRect.left + 120;
         gKeyboardState.repeatSlower = NewControl(
             gKeyboardState.window,
             &buttonRect,
-            "\017Slower Repeat",
+            "\015Slower Repeat",
             true,
             0,
             0,
@@ -100,7 +100,7 @@ static void ensure_controls(void)
         gKeyboardState.repeatFaster = NewControl(
             gKeyboardState.window,
             &buttonRect,
-            "\017Faster Repeat",
+            "\015Faster Repeat",
             true,
             0,
             0,
@@ -111,14 +111,14 @@ static void ensure_controls(void)
     }
 
     if (!gKeyboardState.delayShorter) {
-        buttonRect.top = portRect.bottom - 60;
+        buttonRect.top = 170;
         buttonRect.bottom = buttonRect.top + 20;
         buttonRect.left = 20;
         buttonRect.right = buttonRect.left + 120;
         gKeyboardState.delayShorter = NewControl(
             gKeyboardState.window,
             &buttonRect,
-            "\021Shorter Delay",
+            "\015Shorter Delay",
             true,
             0,
             0,
@@ -134,7 +134,7 @@ static void ensure_controls(void)
         gKeyboardState.delayLonger = NewControl(
             gKeyboardState.window,
             &buttonRect,
-            "\017Longer Delay",
+            "\014Longer Delay",
             true,
             0,
             0,
@@ -146,14 +146,14 @@ static void ensure_controls(void)
 
     if (!gKeyboardState.beepCheckbox) {
         Rect checkRect;
-        checkRect.top = portRect.bottom - 30;
+        checkRect.top = 200;
         checkRect.bottom = checkRect.top + 18;
         checkRect.left = 20;
         checkRect.right = portRect.right - 20;
         gKeyboardState.beepCheckbox = NewControl(
             gKeyboardState.window,
             &checkRect,
-            "\020Key Click Sound",
+            "\017Key Click Sound",
             true,
             gKeyboardState.keyClick ? 1 : 0,
             0,
@@ -248,7 +248,7 @@ void KeyboardPanel_Open(void)
     Rect bounds;
     bounds.top = 140;
     bounds.left = 220;
-    bounds.bottom = bounds.top + 190;
+    bounds.bottom = bounds.top + 245;
     bounds.right = bounds.left + 320;
 
     static Str255 title;

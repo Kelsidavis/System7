@@ -74,7 +74,7 @@ static void ensure_controls(void)
     Rect buttonRect;
 
     if (!gMouseState.slowerButton) {
-        buttonRect.top = portRect.bottom - 80;
+        buttonRect.top = 140;   /* below the text lines ending at y=120 */
         buttonRect.bottom = buttonRect.top + 20;
         buttonRect.left = 20;
         buttonRect.right = buttonRect.left + 120;
@@ -109,14 +109,14 @@ static void ensure_controls(void)
 
     if (!gMouseState.swapCheckbox) {
         Rect checkRect;
-        checkRect.top = portRect.bottom - 50;
+        checkRect.top = 170;
         checkRect.bottom = checkRect.top + 18;
         checkRect.left = 20;
         checkRect.right = portRect.right - 20;
         gMouseState.swapCheckbox = NewControl(
             gMouseState.window,
             &checkRect,
-            "\021Swap Left/Right Buttons",
+            "\027Swap Left/Right Buttons",
             true,
             gMouseState.swapButtons ? 1 : 0,
             0,
@@ -130,14 +130,14 @@ static void ensure_controls(void)
 
     if (!gMouseState.doubleClickCheckbox) {
         Rect checkRect;
-        checkRect.top = portRect.bottom - 30;
+        checkRect.top = 195;
         checkRect.bottom = checkRect.top + 18;
         checkRect.left = 20;
         checkRect.right = portRect.right - 20;
         gMouseState.doubleClickCheckbox = NewControl(
             gMouseState.window,
             &checkRect,
-            "\025Assist with Double-Clicking",
+            "\033Assist with Double-Clicking",
             true,
             gMouseState.doubleClickAssist ? 1 : 0,
             0,
@@ -213,7 +213,7 @@ void MousePanel_Open(void)
     Rect bounds;
     bounds.top = 120;
     bounds.left = 180;
-    bounds.bottom = bounds.top + 180;
+    bounds.bottom = bounds.top + 240;
     bounds.right = bounds.left + 320;
 
     static Str255 title;

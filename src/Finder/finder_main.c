@@ -45,7 +45,7 @@ extern QDGlobals qd;  /* QuickDraw globals from main.c */
 
 /* Global Variables */
 static Boolean gFinderInitialized = false;
-static Str255 gFinderVersion = "\033Macintosh Finder Version 7.1";
+static Str255 gFinderVersion = "\034Macintosh Finder Version 7.1";
 static MenuHandle gAppleMenu, gFileMenu, gEditMenu, gViewMenu, gLabelMenu, gSpecialMenu, gControlPanelsMenu;
 static MenuHandle gHelpMenu;
 
@@ -481,7 +481,7 @@ static OSErr SetupMenus(void)
         gHelpMenu = NewMenu((short)0xBF96, (ConstStr255Param)helpTitle);
         if (gHelpMenu) {
             AppendMenu(gHelpMenu, "\020About Balloon Help\311");
-            AppendMenu(gHelpMenu, "\014Show Balloons");
+            AppendMenu(gHelpMenu, "\015Show Balloons");
         }
     }
 
@@ -494,7 +494,7 @@ static OSErr SetupMenus(void)
     const short appMenuID = (short)0xBF97; /* kApplicationMenuID */
     MenuHandle appMenu = NewMenu(appMenuID, (ConstStr255Param)"\000");
     if (appMenu) {
-        AppendMenu(appMenu, "\011Hide Others");
+        AppendMenu(appMenu, "\013Hide Others");
         AppendMenu(appMenu, "\010Show All");
         AppendMenu(appMenu, "\002(-");
         AppendMenu(appMenu, "\006Finder");

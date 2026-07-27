@@ -34,30 +34,30 @@ static void ShowAlertAndLog(const char* name, short id) {
 void DoAlertSmokeTests(void) {
     /* ParamText test */
     ParamText((const unsigned char*)"\014Disk 'DevHD'",
-              (const unsigned char*)"\021can't be ejected",
+              (const unsigned char*)"\020can't be ejected",
               (const unsigned char*)"\022(close apps first)",
               (const unsigned char*)"\001 ");
     ShowAlertAndLog("StopAlert",   kStopAlert);
 
     ClearParamText();
-    ParamText((const unsigned char*)"\020Update complete",
+    ParamText((const unsigned char*)"\017Update complete",
               (const unsigned char*)"\001 ",
               (const unsigned char*)"\001 ",
               (const unsigned char*)"\001 ");
     ShowAlertAndLog("NoteAlert",   kNoteAlert);
 
     ClearParamText();
-    ParamText((const unsigned char*)"\014Low battery",
-              (const unsigned char*)"\025Plug in the adapter.",
+    ParamText((const unsigned char*)"\013Low battery",
+              (const unsigned char*)"\024Plug in the adapter.",
               (const unsigned char*)"\001 ",
               (const unsigned char*)"\001 ");
     ShowAlertAndLog("CautionAlert", kCautionAlert);
 
     /* Generic Alert() path using a DLOG that includes 1-3 buttons */
     ClearParamText();
-    ParamText((const unsigned char*)"\015Generic DLOG",
+    ParamText((const unsigned char*)"\014Generic DLOG",
               (const unsigned char*)"\016with 3 buttons",
-              (const unsigned char*)"\031Default=1, Cancel=2",
+              (const unsigned char*)"\023Default=1, Cancel=2",
               (const unsigned char*)"\001 ");
     ShowAlertAndLog("Generic Alert", kTestDLOG);
 }
