@@ -597,9 +597,19 @@ static void DisposeDialogStructure(DialogPtr dialog, Boolean closeOnly)
         dialogRec->items = NULL;
     }
 
-    /* Dispose of TextEdit record if allocated */
+    /*
+     * Let go of the dialog's edit fields.
+     *
+     * They live in one global array indexed by item number, so leaving them
+     * behind meant the next window to redraw could find a TextEdit record for
+     * an item number it happened to share and draw that dialog's field into
+     * its own port. Cancelling SimpleText's Find box left the top of the
+     * document underneath it full of text that was never in the document.
+     */
+    DialogEditText_ReleaseAll(dialog);
+
     if (!closeOnly && dialogRec->textH) {
-        /* TEDispose(dialogRec->textH); - would need TextEdit integration */
+        TEDispose(dialogRec->textH);
         dialogRec->textH = NULL;
     }
 

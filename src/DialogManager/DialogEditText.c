@@ -286,6 +286,34 @@ void InitDialogEditTextFocus(DialogPtr theDialog) {
  * ============================================================================ */
 
 /*
+ * DialogEditText_ReleaseAll - free the edit fields belonging to one dialog
+ *
+ * The handles hang off a single global array, so they have to be let go when
+ * their dialog does; otherwise the next window to redraw finds a live-looking
+ * TextEdit record for an item number it shares and draws it.
+ */
+void DialogEditText_ReleaseAll(DialogPtr owner)
+{
+    DialogManagerState* state = GetDialogManagerState();
+    DialogManagerState_Extended* extState = GET_EXTENDED_DLG_STATE(state);
+    int i;
+
+    if (!extState) return;
+    /* Only the owner may clear them; a stale pointer must not free another
+     * dialog's fields. */
+    if (owner && extState->teOwner && extState->teOwner != owner) return;
+
+    for (i = 0; i < 256; i++) {
+        if (extState->teHandles[i]) {
+            TEDispose((TEHandle)extState->teHandles[i]);
+            extState->teHandles[i] = NULL;
+        }
+    }
+    extState->teOwner = NULL;
+    extState->focusedEditTextItem = 0;
+}
+
+/*
  * GetOrCreateDialogTEHandle - Get or create TextEdit handle for dialog item
  *
  * Returns: TEHandle for the specified dialog item, or NULL on error
@@ -304,6 +332,13 @@ TEHandle GetOrCreateDialogTEHandle(DialogPtr theDialog, SInt16 itemNo) {
 
     if (!state || !theDialog || itemNo < 1 || itemNo >= 256) {
         return NULL;
+    }
+
+
+    /* A different dialog's fields are still here; they are not ours to reuse
+     * and nobody else will free them. */
+    if (extState->teOwner && extState->teOwner != theDialog) {
+        DialogEditText_ReleaseAll(extState->teOwner);
     }
 
     /* Check if TEHandle already exists for this item */
@@ -343,6 +378,7 @@ TEHandle GetOrCreateDialogTEHandle(DialogPtr theDialog, SInt16 itemNo) {
 
     /* Store TEHandle for future use */
     extState->teHandles[itemNo] = (void*)hTE;
+    extState->teOwner = theDialog;
 
     // DIALOG_LOG_DEBUG("Created TEHandle for dialog item %d\n", itemNo);
     return hTE;

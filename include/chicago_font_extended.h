@@ -51,6 +51,7 @@ enum {
     kRingLower,      kRingUpper,
     kCedilla,
     kBullet,
+    kEllipsis,
     kNoAccent = 0xFF
 };
 
@@ -64,7 +65,11 @@ enum {
  */
 static inline unsigned char Chicago_DrawnSymbol(unsigned char ch)
 {
-    return (ch == 0xA5) ? (unsigned char)kBullet : (unsigned char)kNoAccent;
+    switch (ch) {
+        case 0xA5: return kBullet;   /* the Read Me's list items begin with it */
+        case 0xC9: return kEllipsis; /* every menu item that opens a dialog */
+        default:   return kNoAccent;
+    }
 }
 
 extern const ChicagoCharInfo chicago_accents[kChicagoAccentSlots];

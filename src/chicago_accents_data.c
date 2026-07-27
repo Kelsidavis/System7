@@ -2,21 +2,21 @@
  * chicago_accents_data.c - marks Chicago needs that are shapes, not letters
  *
  * Chicago has A, E, a, e and the rest already; what it lacked were the marks
- * that go over them, and a bullet. The extended strike that used to supply
- * whole accented glyphs had them badly wrong - an a-grave with no "a" in it
- * at all, an E-acute whose accent sat below the baseline, a "bullet" that was
- * a zigzag - so the letters are taken from Chicago itself now and only these
- * marks are drawn, the same choice already made for the command symbol in
- * menus. Each of them is a geometric shape with one obvious form, which is
- * why drawing them cannot produce the wrong character the way a hand-drawn
- * letterform can.
+ * that go over them, a bullet, and an ellipsis. The extended strike that used
+ * to supply whole accented glyphs had them badly wrong - an a-grave with no
+ * "a" in it at all, an E-acute whose accent sat below the baseline, a
+ * "bullet" that was a zigzag - so the letters are taken from Chicago itself
+ * now and only these marks are drawn, the same choice already made for the
+ * command symbol in menus. Each is a geometric shape with one obvious form,
+ * which is why drawing them cannot produce the wrong character the way a
+ * hand-drawn letterform can.
  *
- * Each mark occupies five columns of a strike laid out exactly like Chicago's
- * own, so the rows line up with the letter it sits over and the ordinary
- * glyph blitter can draw it with no special case. Upper and lower variants
- * differ only in which rows they use: capitals start at row 3 and lowercase
- * at row 5, so a mark for each sits just above. The bullet is centred on the
- * x-height instead, since it stands on its own.
+ * The marks share a strike laid out exactly like Chicago's own, so their rows
+ * line up with the letter they sit over and the ordinary glyph blitter draws
+ * them with no special case. Upper and lower variants differ only in which
+ * rows they use: capitals start at row 3 and lowercase at row 5, so a mark
+ * for each sits just above. The bullet is centred on the x-height and the
+ * ellipsis sits on the baseline, since both stand on their own.
  */
 
 #include "chicago_font_extended.h"
@@ -24,8 +24,8 @@
 const ChicagoCharInfo chicago_accents[kChicagoAccentSlots] = {
     /* acute lower        */ {   0, 5, 0, 0 },
     /* acute upper        */ {   5, 5, 0, 0 },
-    /* grave lower        */ {  10, 4, 0, 0 },
-    /* grave upper        */ {  15, 4, 0, 0 },
+    /* grave lower        */ {  10, 5, 0, 0 },
+    /* grave upper        */ {  15, 5, 0, 0 },
     /* circumflex lower   */ {  20, 5, 0, 0 },
     /* circumflex upper   */ {  25, 5, 0, 0 },
     /* tilde lower        */ {  30, 5, 0, 0 },
@@ -36,7 +36,7 @@ const ChicagoCharInfo chicago_accents[kChicagoAccentSlots] = {
     /* ring upper         */ {  55, 5, 0, 0 },
     /* cedilla below      */ {  60, 5, 0, 0 },
     /* bullet xmid        */ {  65, 4, 0, 0 },
-    /* spare              */ {   0, 0, 0, 0 },
+    /* ellipsis baseline  */ {  69, 8, 0, 0 },
     /* spare              */ {   0, 0, 0, 0 },
 };
 
@@ -51,8 +51,8 @@ const uint8_t chicago_accent_bitmap[CHICAGO_HEIGHT * CHICAGO_ACCENT_ROW_BYTES] =
     /* row  7 */ 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x78, 0x00,
     /* row  8 */ 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x78, 0x00,
     /* row  9 */ 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x30, 0x00,
-    /* row 10 */ 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-    /* row 11 */ 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    /* row 10 */ 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x06, 0xD8,
+    /* row 11 */ 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x06, 0xD8,
     /* row 12 */ 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x03, 0x00, 0x00,
     /* row 13 */ 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x80, 0x00,
     /* row 14 */ 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x07, 0x00, 0x00,
