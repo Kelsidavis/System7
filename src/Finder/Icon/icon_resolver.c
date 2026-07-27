@@ -168,7 +168,37 @@ bool Icon_ResolveForNode(const FileKind* fk, IconHandle* out) {
         }
     }
 
-    /* 2) Bundles: BNDL/FREF by creator/type */
+    /*
+     * 2) What the node is, before what it claims to contain.
+     *
+     * This used to come after the type/creator lookup below, which is the
+     * wrong way round: a folder's icon follows from its being a folder, not
+     * from a type and creator it has no real use for. Every folder here
+     * carries creator 'MACS', that lookup maps 'MACS' to the Finder's own
+     * icon, and so every folder on screen was drawn as a small Macintosh.
+     *
+     * A custom icon still wins - it is checked above - which is right: a
+     * folder someone has given an icon to should show it.
+     */
+    if (fk->isTrash) {
+        out->fam = fk->isTrashFull ? IconSys_TrashFull() : IconSys_TrashEmpty();
+        out->selected = false;
+        return true;
+    }
+
+    if (fk->isVolume) {
+        out->fam = IconSys_DefaultVolume();
+        out->selected = false;
+        return true;
+    }
+
+    if (fk->isFolder) {
+        out->fam = IconSys_DefaultFolder();
+        out->selected = false;
+        return true;
+    }
+
+    /* 3) Bundles: BNDL/FREF by creator/type. Only files reach this now. */
     int16_t iconID = 0;
     if (IconRes_MapTypeCreatorToIcon(fk->type, fk->creator, &iconID)) {
         /* Check cache first */
@@ -193,24 +223,6 @@ bool Icon_ResolveForNode(const FileKind* fk, IconHandle* out) {
         }
     }
 
-    /* 3) System defaults */
-    if (fk->isTrash) {
-        out->fam = fk->isTrashFull ? IconSys_TrashFull() : IconSys_TrashEmpty();
-        out->selected = false;
-        return true;
-    }
-
-    if (fk->isVolume) {
-        out->fam = IconSys_DefaultVolume();
-        out->selected = false;
-        return true;
-    }
-
-    if (fk->isFolder) {
-        out->fam = IconSys_DefaultFolder();
-        out->selected = false;
-        return true;
-    }
 
     /* Default document */
     out->fam = IconSys_DefaultDoc();
