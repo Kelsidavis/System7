@@ -262,7 +262,7 @@ static FontFamily g_genevaFamily = {
     genevaFont,
     {6, 'G','e','n','e','v','a'},  /* Pascal string */
     NULL,   /* fondHandle */
-    TRUE,   /* hasNFNT */
+    FALSE,  /* hasNFNT - no strike is shipped for Geneva */
     FALSE,  /* hasTrueType */
     NULL    /* next */
 };
@@ -271,7 +271,7 @@ static FontFamily g_monacoFamily = {
     monacoFont,
     {6, 'M','o','n','a','c','o'},  /* Pascal string */
     NULL,   /* fondHandle */
-    TRUE,   /* hasNFNT */
+    FALSE,  /* hasNFNT - no strike is shipped for Monaco */
     FALSE,  /* hasTrueType */
     NULL    /* next */
 };
@@ -627,7 +627,28 @@ void TextFont(short font) {
         return;
     }
 
-    /* Fall back to Chicago 12 */
+    /*
+     * Fall back to Chicago 12, and say so the first time.
+     *
+     * Only Chicago has a strike in this build. Geneva and Monaco are
+     * registered as families with hasNFNT set - a claim that they have
+     * bitmap strikes, which nothing backs and nothing reads - so
+     * SimpleText's Font menu offers all three and choosing either of the
+     * other two silently keeps drawing Chicago. The menu looks like it
+     * works and the document never changes.
+     *
+     * Once, not per call: TextFont runs for every run of text drawn.
+     */
+    {
+        extern void serial_puts(const char* str);
+        static Boolean toldAboutFontFallback = false;
+        if (!toldAboutFontFallback && font != chicagoFont) {
+            toldAboutFontFallback = true;
+            serial_puts("[FONT] no strike for the requested font; drawing Chicago\n");
+            serial_puts("[FONT] instead. Only Chicago has strike data in this build.\n");
+        }
+    }
+
     g_fmState.currentStrike = &g_chicagoStrike12;
     FM_LOG("TextFont: Falling back to Chicago 12\n");
 }
