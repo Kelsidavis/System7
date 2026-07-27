@@ -458,6 +458,22 @@ static OSErr M68K_EnterAt(CPUAddressSpace as, CPUAddr entry, CPUEnterFlags flags
         return -1;
     }
 
+    /*
+     * Give the program somewhere to return to.
+     *
+     * Code entered this way ends with an RTS, and nothing had pushed a return
+     * address for it to find - so a program that ran perfectly popped four
+     * bytes of whatever was under the stack, jumped there, and wandered
+     * through unmapped memory until it faulted. The run looked like a crash
+     * and the fault address said nothing about the code that had just
+     * finished correctly.
+     *
+     * Pushing a sentinel gives the final RTS a defined destination, and
+     * arriving at it is how the interpreter knows the program is done.
+     */
+    mas->regs.a[7] -= 4;
+    M68K_Write32(mas, mas->regs.a[7], kM68KReturnSentinel);
+
     /* Clear halted flag */
     mas->halted = false;
 
@@ -1175,6 +1191,10 @@ OSErr M68K_Execute(M68KAddressSpace* as, UInt32 startPC, UInt32 maxInstructions)
     as->halted = false;
 
     while (count < maxInstructions && !as->halted) {
+        if (as->regs.pc == kM68KReturnSentinel) {
+            as->halted = true;      /* the program returned to its caller */
+            break;
+        }
         M68K_Step(as);
         count++;
     }

@@ -132,7 +132,9 @@ OSErr ParseCODEN(const void* codeData, Size size, SInt16 segID,
 
     /* Check for linker prologue */
     info->prologueSkip = 0;
-    if (size >= 6) {
+    /* Reads as far as data[9], so it needs ten bytes, not six. A segment of
+     * six to nine bytes had its prologue decided on whatever followed it. */
+    if (size >= 10) {
         UInt16 word0 = BE_Read16(data + 4);
         UInt16 word2 = BE_Read16(data + 8);
 

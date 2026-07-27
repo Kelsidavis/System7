@@ -4,69 +4,37 @@ This document tracks known issues, workarounds, and technical debt in the System
 
 ## Open Issues
 
-### ⛔ A loaded CODE segment cannot be reached through its jump table
+### ✅ A loaded CODE segment cannot be reached through its jump table — FIXED
 
-**Symptom**: the segment loader smoke test, which runs on every boot, reports
-`[SegmentLoader] smoke test FAILED: EnterAt returned`. The entry segment is
-mapped and entered, but execution does not complete: `EnterAt` comes back with
-an error, meaning the interpreter either faulted or ran to its instruction
-limit without halting.
+An application's code is split into CODE resources, and a call to a segment
+that is not in memory goes through a jump table entry holding a stub: push the
+segment number, trap `_LoadSeg`, and let the loader patch the entry to jump at
+the real code. That chain now works end to end and the smoke test asserts it,
+having previously reported success without checking anything.
 
-**How it surfaced**: the test used to pass, and did not deserve to. It checked
-only that `EnterAt` returned `noErr` — and `EnterAt` returned `noErr` whether
-the program ran to completion, faulted, or spun, so every outcome looked
-identical. It also installed a trap to prove the loaded segment had executed
-and then never checked whether that trap fired, logging "Lazy segment loading
-WORKS!" through a filtered channel. Both are fixed: `EnterAt` reports what
-happened, and the test asserts the segment ran.
+Six faults were in the way, and each one hid the next:
 
-Two real faults were found and fixed on the way, neither of them the cause:
+  - The test asserted nothing. It checked that `EnterAt` returned `noErr` —
+    and `EnterAt` returned `noErr` whether the program completed, faulted, or
+    spun. It also installed a trap to prove the segment ran and never looked
+    at whether it fired.
+  - Log output could not render `%08X`, so the interpreter's own diagnostics
+    printed the format string instead of the address.
+  - The process was entered with no stack; its first push faulted.
+  - Nothing had ever called `SetRegisterA5`, so every jump table entry was
+    addressed as an offset from zero.
+  - Nothing pushed a return address, so a program that ran correctly popped
+    four bytes of whatever lay under the stack on its final `RTS` and wandered
+    until it faulted. `EnterAt` pushes a sentinel now, and arriving at it is
+    how the interpreter knows the program finished.
+  - CODE 2 in the test had no four-byte header, so its first instruction word
+    was read as its entry offset — `$A800` as an offset put the entry forty-three
+    thousand bytes past the segment, and the jump table was patched to point
+    at empty memory.
 
-  - The stub installer gave each segment sixteen consecutive jump table slots
-    while `_LoadSeg` looked for one slot per segment, so a stub installed for
-    one segment was patched somewhere else — or nowhere, when the index fell
-    outside the table. `SegLoader_SlotForSegment` is now the single rule.
-  - The test program began with `MOVE.W #imm,-(SP); _LoadSeg`, which is
-    exactly the classic linker prologue the parser skips six bytes past. Entry
-    landed after the trap, so the original program executed nothing but its
-    own `RTS`.
-
-**Where it stops**, now that faults report themselves: the entry segment runs
-its first instructions and dies in the `JSR` through the jump table, at
-`PC=0x000002AE` with `Read8 unmapped page`. That address is nowhere near the
-loaded code, which is what a `JSR d16(A5)` does when A5 is wrong — it jumps to
-the offset itself, low in memory, and wanders.
-
-Two causes of that were found and fixed: the process was entered with no stack
-at all, so its first push faulted; and nothing in the system had ever called
-`SetRegisterA5`, so A5 held zero while every jump table entry was addressed as
-an offset from it. The A5 world is now loaded into A5 where it is built.
-
-**What is now known**, with the register state reported at the fault:
-
-  - A5 is correct: `0x00010200`, matching the A5 world's base.
-  - The jump table is correct. Slot 0 holds `3F3C 0001 A9F0 4E75` and slot 1
-    holds `3F3C 0002 A9F0 4E75` — a stub per segment that pushes its segment
-    number, traps `_LoadSeg`, and returns.
-  - A7 ends at `0x00040004`, four bytes *above* where it started, so two
-    `RTS`es popped more than was pushed.
-
-That last one is the shape of the remaining fault. The caller jumps into the
-jump table slot, the stub traps, `_LoadSeg` loads the segment and patches the
-slot with a `JMP` — and then the stub's own `RTS` runs, returning to the caller
-without ever entering the segment that was just loaded. The call is answered by
-the stub rather than by the code it stands in for.
-
-The fix is for `_LoadSeg` to resume at the slot it just patched, so the `JMP`
-now written there is taken. **That was tried and loops**: re-entering the slot
-executes the stub again, which means the patched `JMP` is not visible to the
-instruction fetch. So the next question is why `WriteJumpTableSlot`'s write is
-not seen by `M68K_Fetch16` — whether it writes somewhere else, or the fetch
-path reads through something the write does not go through.
-
-**Files**: src/SegmentLoader/SegmentLoaderTest.c,
-src/SegmentLoader/A5World.c, src/CPU/m68k_interp/M68KBackend.c (M68K_EnterAt).
-
+Also fixed on the way: the stub installer and `_LoadSeg` disagreed about which
+jump table slot belonged to which segment, and the prologue check in the parser
+read as far as byte nine while only requiring six.
 
 ### ✅ The Open and Save dialogs never painted their interior — FIXED
 

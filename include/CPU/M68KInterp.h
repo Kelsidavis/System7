@@ -64,6 +64,15 @@ typedef struct M68KRegs {
 #define M68K_LOW_MEM_SIZE   0x10000     /* 64KB low memory (always present) */
 #define M68K_LOW_MEM_PAGES  16          /* 64KB / 4KB */
 
+/*
+ * Where a program entered through EnterAt returns to.
+ *
+ * Its last RTS has to land somewhere defined; arriving here is how the
+ * interpreter knows the program finished rather than went astray. Chosen at
+ * the top of the address space, where no code or data is placed.
+ */
+#define kM68KReturnSentinel  0x00FFFFF0UL
+
 /* Trap dispatch table sizes - see trapHandlers below. */
 #define M68K_OS_TRAP_SLOTS       256    /* $A000-$A7FF, low 8 bits */
 #define M68K_TOOLBOX_TRAP_SLOTS  1024   /* $A800-$AFFF, low 10 bits */

@@ -49,7 +49,7 @@ static void InstallTestResources(void)
 {
     UInt8 code0[16 + 16]; // Header + 2 JT entries
     UInt8 code1[18];      // Entry segment
-    UInt8 code2[4];       // Trace segment
+    UInt8 code2[8];       // Trace segment
     SInt16 savedResFile;
 
     /* Save current resource file and use system resource file for tests */
@@ -131,8 +131,14 @@ static void InstallTestResources(void)
      *   TRAP #$A800  ; 0xA800 (trace trap)
      *   RTS          ; 0x4E75
      */
-    code2[0] = 0xA8; code2[1] = 0x00;   // TRAP #$A800
-    code2[2] = 0x4E; code2[3] = 0x75;   // RTS
+    /* Every CODE resource begins with a four-byte header; this one did not,
+     * so its first instruction word was read as the entry offset. $A800 as an
+     * offset put the entry forty-three thousand bytes past the segment, at an
+     * address holding nothing, and the jump table was patched to point there. */
+    BE_Write16_Ptr(code2 + 0, 0x0000);  // entryOffset
+    BE_Write16_Ptr(code2 + 2, 0x0000);  // flags
+    code2[4] = 0xA8; code2[5] = 0x00;   // TRAP #$A800
+    code2[6] = 0x4E; code2[7] = 0x75;   // RTS
 
     Handle h2 = MakeHandleFromBytes(code2, sizeof(code2));
     SEG_LOG_INFO("InstallTestResources: CODE 2 handle=%p size=%u", h2, (unsigned)sizeof(code2));
