@@ -3076,7 +3076,13 @@ static void SortFolderItemsByName(FolderItem* items, short count) {
 }
 
 /*
- * Sort items by kind/type (folders first, then by file type)
+ * Sort items by kind, then by name within each kind.
+ *
+ * The comparison is on the kind string the Kind column actually shows, not on
+ * the raw OSType. Sorting by the type code grouped things the user sees as one
+ * kind into separate runs whenever the codes differed - and folders, whose
+ * type field is not a file type at all, came out in whatever order their
+ * codes happened to fall in rather than alphabetically.
  */
 static void SortFolderItemsByKind(FolderItem* items, short count) {
     /* Simple bubble sort */
@@ -3084,19 +3090,13 @@ static void SortFolderItemsByKind(FolderItem* items, short count) {
         for (short j = 0; j < count - i - 1; j++) {
             Boolean shouldSwap = false;
 
-            /* Folders always come first */
-            if (!items[j].isFolder && items[j+1].isFolder) {
+            int kindOrder = strcasecmp(GetFileKindString(&items[j]),
+                                       GetFileKindString(&items[j+1]));
+            if (kindOrder > 0) {
                 shouldSwap = true;
-            } else if (items[j].isFolder == items[j+1].isFolder) {
-                /* Both are folders or both are files */
-                if (items[j].type > items[j+1].type) {
-                    shouldSwap = true;
-                } else if (items[j].type == items[j+1].type) {
-                    /* Same type - sort by name */
-                    if (strcmp(items[j].name, items[j+1].name) > 0) {
-                        shouldSwap = true;
-                    }
-                }
+            } else if (kindOrder == 0 &&
+                       strcasecmp(items[j].name, items[j+1].name) > 0) {
+                shouldSwap = true;
             }
 
             if (shouldSwap) {
