@@ -58,8 +58,6 @@ static Boolean __attribute__((unused)) DlgPtInRect(Point pt, const Rect* r) {
 void DrawDialogButton(DialogPtr theDialog, const Rect* bounds, const unsigned char* title,
                      Boolean isDefault, Boolean isEnabled, Boolean isPressed) {
     Rect btnRect = *bounds;
-    Rect frameRect;
-    SInt16 textWidth, textH, textV;
     GrafPtr savePort;
 
     GetPort(&savePort);
@@ -68,56 +66,15 @@ void DrawDialogButton(DialogPtr theDialog, const Rect* bounds, const unsigned ch
     }
 
 
-    /* Draw default button ring if needed (3-pixel inset frame) */
-    if (isDefault) {
-        frameRect = btnRect;
-        InsetRect(&frameRect, -4, -4);
-        PenSize(3, 3);
-        FrameRoundRect(&frameRect, 16, 16);
-        PenNormal();
-    }
-
-    /* Draw button background */
-    if (isPressed) {
-        PaintRoundRect(&btnRect, 12, 12);
-    } else {
-        EraseRect(&btnRect);
-        FrameRoundRect(&btnRect, 12, 12);
-    }
-
-    /* Draw button text */
-    if (title && title[0] > 0) {
-        TextFont(0);  /* System font */
-        TextSize(12);
-        TextFace(isEnabled ? 0 : 0x80);  /* Dim if disabled */
-
-        textWidth = StringWidth(title);
-        textH = btnRect.left + ((btnRect.right - btnRect.left - textWidth) / 2);
-
-        /* Calculate vertical position using font metrics for proper centering */
-        /* Font ascent is ~9 for 12pt system font, descent is ~2 */
-        SInt16 fontAscent = 9;  /* System font 12pt ascent */
-        SInt16 fontDescent = 2; /* System font 12pt descent */
-        SInt16 textHeight = fontAscent + fontDescent;
-        SInt16 btnHeight = btnRect.bottom - btnRect.top;
-        textV = btnRect.top + ((btnHeight - textHeight) / 2) + fontAscent;
-
-        MoveTo(textH, textV);
-        DrawString(title);
-        if (isPressed) {
-            /* Invert text area for pressed look */
-            Rect textRect;
-            textRect.left = textH - 1;
-            textRect.top = textV - fontAscent;
-            textRect.right = textH + StringWidth(title) + 1;
-            textRect.bottom = textV + 2;
-            InvertRect(&textRect);
-        }
-    }
-
-    /* Draw disabled stipple if needed */
-    if (!isEnabled) {
-        FillRect(&btnRect, &qd.ltGray);
+    /* One routine draws a push button, and it belongs with the rest of the
+     * control appearance - the Control Manager's button definition draws
+     * through the same code, so a dialog's buttons and a NewControl button
+     * cannot look different from each other. */
+    {
+        extern void CTL_DrawPushButton(const Rect* bounds, const unsigned char* title,
+                                       Boolean isDefault, Boolean isEnabled,
+                                       Boolean isPressed);
+        CTL_DrawPushButton(&btnRect, title, isDefault, isEnabled, isPressed);
     }
 
     SetPort(savePort);

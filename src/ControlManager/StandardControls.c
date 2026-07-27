@@ -138,9 +138,6 @@ typedef struct CheckboxData {
 } CheckboxData;
 
 /* Internal function prototypes */
-static void DrawButtonFrame(ControlHandle button, Boolean pushed);
-static void DrawButtonText(ControlHandle button, Boolean pushed);
-static void DrawDefaultButtonOutline(ControlHandle button);
 static void DrawCheckboxMark(ControlHandle checkbox);
 static void DrawRadioMark(ControlHandle radio);
 static void CalculateButtonRects(ControlHandle button);
@@ -225,28 +222,11 @@ SInt32 ButtonCDEF(SInt16 varCode, ControlHandle theControl,
             buttonData = (ButtonData *)*(*theControl)->contrlData;
             bounds = (*theControl)->contrlRect;
 
-            /* Draw default button outline if needed */
-            if (buttonData->isDefault) {
-                DrawDefaultButtonOutline(theControl);
-            }
-
-            /* Draw button frame */
-            DrawButtonFrame(theControl, buttonData->isPushed ||
-                           (*theControl)->contrlHilite == inButton);
-
-            /* Draw button text */
-            DrawButtonText(theControl, buttonData->isPushed ||
-                          (*theControl)->contrlHilite == inButton);
-
-            /* Draw highlight/inactive state */
-            if ((*theControl)->contrlHilite == inactiveHilite) {
-                /* Gray out button */
-                PenPat(&qd.gray);
-                PenMode(patBic);
-                PaintRect(&bounds);
-                PenMode(patCopy);
-                PenPat(&qd.black);
-            }
+            CTL_DrawPushButton(&bounds, (*theControl)->contrlTitle,
+                               buttonData->isDefault,
+                               (*theControl)->contrlHilite != inactiveHilite,
+                               buttonData->isPushed ||
+                                   (*theControl)->contrlHilite == inButton);
         }
         break;
 
@@ -481,111 +461,73 @@ SInt32 RadioButtonCDEF(SInt16 varCode, ControlHandle theControl,
 
 /* Utility Functions */
 
-/**
- * Draw button frame
+/*
+ * CTL_DrawPushButton - the one place that knows what a push button looks like.
+ *
+ * There were two: this file drew a "3D" raised frame out of white and dark
+ * grey pens, and the Dialog Manager drew System 7's rounded outline. They
+ * disagreed, and which one you got depended on whether the button had been
+ * made with NewControl or come from a dialog item list - the Desktop Patterns
+ * panel's OK and Cancel came up as dark blocks beside a Standard File dialog
+ * whose buttons looked right.
+ *
+ * System 7 draws a push button as a rounded rectangle outline with the title
+ * centred in it, filled when pressed, with the default button ringed by a
+ * three-pixel rounded frame four pixels outside it.
  */
-static void DrawButtonFrame(ControlHandle button, Boolean pushed) {
-    ButtonData *buttonData;
-    Rect frameRect;
+void CTL_DrawPushButton(const Rect* bounds, const unsigned char* title,
+                        Boolean isDefault, Boolean isEnabled, Boolean isPressed)
+{
+    Rect btnRect = *bounds;
 
-    if (!button || !(*button)->contrlData) {
-        return;
+    if (isDefault) {
+        Rect ring = btnRect;
+        InsetRect(&ring, -4, -4);
+        PenSize(3, 3);
+        FrameRoundRect(&ring, 16, 16);
+        PenNormal();
     }
 
-    buttonData = (ButtonData *)*(*button)->contrlData;
-    frameRect = (*button)->contrlRect;
-
-    /* Adjust frame for default button */
-    if (buttonData->isDefault) {
-        InsetRect(&frameRect, 3, 3);
-    }
-
-    /* Draw 3D button frame */
-    if (pushed) {
-        /* Pushed state - dark frame */
-        PenPat(&qd.black);
-        FrameRect(&frameRect);
-        InsetRect(&frameRect, 1, 1);
-        PenPat(&qd.dkGray);
-        FrameRect(&frameRect);
+    if (isPressed) {
+        PaintRoundRect(&btnRect, 12, 12);
     } else {
-        /* Normal state - raised frame */
-        /* Top and left highlight */
-        PenPat(&qd.white);
-        MoveTo(frameRect.left, frameRect.bottom - 1);
-        LineTo(frameRect.left, frameRect.top);
-        LineTo(frameRect.right - 1, frameRect.top);
-
-        /* Bottom and right shadow */
-        PenPat(&qd.black);
-        LineTo(frameRect.right - 1, frameRect.bottom - 1);
-        LineTo(frameRect.left, frameRect.bottom - 1);
-
-        /* Inner shadow */
-        InsetRect(&frameRect, 1, 1);
-        PenPat(&qd.dkGray);
-        MoveTo(frameRect.right - 1, frameRect.top);
-        LineTo(frameRect.right - 1, frameRect.bottom - 1);
-        LineTo(frameRect.left, frameRect.bottom - 1);
+        EraseRect(&btnRect);
+        FrameRoundRect(&btnRect, 12, 12);
     }
 
-    /* Fill button interior */
-    InsetRect(&frameRect, 1, 1);
-    PenPat(&qd.ltGray);
-    PaintRect(&frameRect);
-    PenPat(&qd.black);
+    if (title && title[0] > 0) {
+        SInt16 fontAscent = 9;   /* system font, 12pt */
+        SInt16 fontDescent = 2;
+        SInt16 textHeight = fontAscent + fontDescent;
+        SInt16 btnHeight = btnRect.bottom - btnRect.top;
+        SInt16 textWidth, textH, textV;
+
+        TextFont(0);
+        TextSize(12);
+        TextFace(0);
+
+        textWidth = StringWidth(title);
+        textH = btnRect.left + ((btnRect.right - btnRect.left - textWidth) / 2);
+        textV = btnRect.top + ((btnHeight - textHeight) / 2) + fontAscent;
+
+        MoveTo(textH, textV);
+        DrawString(title);
+
+        if (isPressed) {
+            Rect textRect;
+            textRect.left = textH - 1;
+            textRect.top = textV - fontAscent;
+            textRect.right = textH + textWidth + 1;
+            textRect.bottom = textV + 2;
+            InvertRect(&textRect);
+        }
+    }
+
+    if (!isEnabled) {
+        FillRect(&btnRect, &qd.ltGray);
+    }
 }
 
-/**
- * Draw button text
- */
-static void DrawButtonText(ControlHandle button, Boolean pushed) {
-    ButtonData *buttonData;
-    Rect textRect;
-    SInt16 offset = pushed ? 1 : 0;
-    FontInfo fontInfo;
-
-    if (!button || (*button)->contrlTitle[0] == 0 || !(*button)->contrlData) {
-        return;
-    }
-
-    buttonData = (ButtonData *)*(*button)->contrlData;
-    textRect = buttonData->contentRect;
-
-    if (offset) {
-        OffsetRect(&textRect, offset, offset);
-    }
-
-    /* Set font and get metrics */
-    GetFontInfo(&fontInfo);
-
-    /* Center text in button */
-    SInt16 textWidth = StringWidth((*button)->contrlTitle);
-    SInt16 textHeight = fontInfo.ascent + fontInfo.descent;
-
-    MoveTo(textRect.left + (textRect.right - textRect.left - textWidth) / 2,
-           textRect.top + (textRect.bottom - textRect.top - textHeight) / 2 + fontInfo.ascent);
-
-    DrawString((*button)->contrlTitle);
-}
-
-/**
- * Draw default button outline
- */
-static void DrawDefaultButtonOutline(ControlHandle button) {
-    Rect outlineRect;
-
-    if (!button) {
-        return;
-    }
-
-    outlineRect = (*button)->contrlRect;
-
-    /* Draw thick rounded rectangle outline */
-    PenSize(3, 3);
-    FrameRoundRect(&outlineRect, 16, 16);
-    PenSize(1, 1);
-}
 
 /**
  * Draw checkbox mark
