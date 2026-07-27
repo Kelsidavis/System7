@@ -38,7 +38,9 @@
         "Lag alias",
         "Legg tilbake/Y",
         "S\u00f8k.../F",
-        "S\u00f8k igjen/G"
+        "S\u00f8k igjen/G",
+        "Lukk vindu",
+        "Lukk"
       ]}
     },
     {
@@ -51,7 +53,9 @@
         "Kopier/C",
         "Lim inn/V",
         "Fjern",
-        "Velg alt/A"
+        "Velg alt/A",
+        "Angre flytting",
+        "Kan ikke angre"
       ]}
     },
     {

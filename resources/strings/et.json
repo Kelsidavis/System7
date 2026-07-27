@@ -38,7 +38,9 @@
         "Loo alias",
         "Pane tagasi/Y",
         "Otsi.../F",
-        "Otsi uuesti/G"
+        "Otsi uuesti/G",
+        "Sulge aken",
+        "Sulge"
       ]}
     },
     {
@@ -51,7 +53,9 @@
         "Kopeeri/C",
         "Aseta/V",
         "Puhasta",
-        "Vali k\u00f5ik/A"
+        "Vali k\u00f5ik/A",
+        "Võta liigutamine tagasi",
+        "Ei saa tagasi võtta"
       ]}
     },
     {

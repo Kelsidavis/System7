@@ -151,7 +151,8 @@ OSErr Notepad_Open(WindowPtr *window) {
 
     /* Create window */
     SetRect(&windowBounds, 100, 50, 500, 350);
-    static unsigned char notepadTitle[] = {8, 'N', 'o', 't', 'e', 'P', 'a', 'd', '\0'};
+    static Str255 notepadTitle;
+    c2pstrcpy(notepadTitle, "NotePad");
     gNotepad->window = NewWindow(NULL, &windowBounds, (ConstStr255Param)notepadTitle,
                                 true, documentProc, (WindowPtr)-1L,
                                 true, 0);

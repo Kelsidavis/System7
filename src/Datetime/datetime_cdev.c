@@ -373,7 +373,8 @@ void DateTimePanel_Open(void)
     bounds.bottom = bounds.top + PANEL_HEIGHT;
     bounds.right = bounds.left + PANEL_WIDTH;
 
-    static unsigned char title[] = {12, 'D','a','t','e',' ','&',' ','T','i','m','e'};
+    static Str255 title;
+    c2pstrcpy(title, "Date & Time");
     gPanel.window = NewWindow(NULL, &bounds, title, true, documentProc, (WindowPtr)-1, true, 0);
     if (!gPanel.window) {
         return;

@@ -211,13 +211,19 @@ void Finder_AdjustMenus(void) {
          * g_finderUndo is defined later in this file — use extern-like access
          * via a helper to avoid forward-reference issues. */
         extern short Finder_GetUndoType(void);
-        if (Finder_GetUndoType() == 1 /* kFinderUndoTrash */) {
-            static unsigned char undoMove[] = {9, 'U','n','d','o',' ','M','o','v','e'};
-            SetMenuItemText(editMenu, kUndoItem, undoMove);
+        Boolean canUndo = (Finder_GetUndoType() == 1 /* kFinderUndoTrash */);
+        Str255 undoStr;
+
+        /* These were English string literals compiled into this function, so
+         * every localised build flipped the Undo item back to English the
+         * moment the menus were adjusted - the same fault the Special menu's
+         * Clean Up item had. They come from the Edit menu's own STR# now. */
+        GetLocalizedString(undoStr, kSTRListFinderEditMenu,
+                           canUndo ? kStrUndoMove : kStrCantUndo);
+        SetMenuItemText(editMenu, kUndoItem, undoStr);
+        if (canUndo) {
             EnableItem(editMenu, kUndoItem);
         } else {
-            static unsigned char cantUndo[] = {10, 'C','a','n','\'','t',' ','U','n','d','o'};
-            SetMenuItemText(editMenu, kUndoItem, cantUndo);
             DisableItem(editMenu, kUndoItem);
         }
 
@@ -294,13 +300,10 @@ void Finder_AdjustMenus(void) {
             EnableItem(fileMenu, kCloseItem);
             extern void SetMenuItemText(MenuHandle theMenu, short item,
                                          ConstStr255Param itemString);
-            if (hasFolderWindow) {
-                static unsigned char closeWin[] = {12, 'C','l','o','s','e',' ','W','i','n','d','o','w'};
-                SetMenuItemText(fileMenu, kCloseItem, closeWin);
-            } else {
-                static unsigned char closeStr[] = {5, 'C','l','o','s','e'};
-                SetMenuItemText(fileMenu, kCloseItem, closeStr);
-            }
+            Str255 closeStr;
+            GetLocalizedString(closeStr, kSTRListFinderFileMenu,
+                               hasFolderWindow ? kStrCloseWindow : kStrClosePlain);
+            SetMenuItemText(fileMenu, kCloseItem, closeStr);
         } else {
             DisableItem(fileMenu, kCloseItem);
         }

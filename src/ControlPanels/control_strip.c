@@ -135,7 +135,8 @@ void ControlStrip_Show(void)
     bounds.top = screenTop + 60;
     bounds.bottom = bounds.top + 220;
 
-    static unsigned char title[] = {13, 'C','o','n','t','r','o','l',' ','S','t','r','i','p'};
+    static Str255 title;
+    c2pstrcpy(title, "Control Strip");
     gControlStrip.window = NewWindow(NULL, &bounds, title, true, documentProc, (WindowPtr)-1, true, 0);
     if (!gControlStrip.window) {
         return;

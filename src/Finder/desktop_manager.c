@@ -2526,7 +2526,8 @@ void Desktop_OpenSelectedIcon(void) {
         case kDesktopItemTrash: {
             /* Open the Trash window */
             extern WindowPtr Finder_OpenDesktopItem(Boolean isTrash, ConstStr255Param title);
-            static unsigned char trashTitle[] = {5, 'T','r','a','s','h'};
+            static Str255 trashTitle;
+            c2pstrcpy(trashTitle, "Trash");
             Finder_OpenDesktopItem(true, trashTitle);
             break;
         }

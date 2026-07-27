@@ -38,7 +38,9 @@
         "B\u00faa til samv\u00edsan",
         "Setja \u00ed sta\u00f0/Y",
         "Leita.../F",
-        "Leita aftur/G"
+        "Leita aftur/G",
+        "Loka glugga",
+        "Loka"
       ]}
     },
     {
@@ -51,7 +53,9 @@
         "Afrita/C",
         "L\u00edma/V",
         "Hreinsa",
-        "Velja allt/A"
+        "Velja allt/A",
+        "Afturkalla færslu",
+        "Ekki hægt að afturkalla"
       ]}
     },
     {

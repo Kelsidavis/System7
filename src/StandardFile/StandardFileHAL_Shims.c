@@ -229,7 +229,8 @@ OSErr StandardFile_HAL_CreateOpenDialog(DialogPtr *outDialog, ConstStr255Param p
 
     /* Create a modal dialog with the item list */
     Rect bounds = {60, 60, 360, 460};
-    static unsigned char title[] = {9, 'O','p','e','n',' ','F','i','l','e'};
+    static Str255 title;
+    c2pstrcpy(title, "Open File");
     *outDialog = NewDialog(NULL, &bounds, title, true, dBoxProc,
                            (WindowPtr)-1, false, 0, ditl);
 
@@ -367,7 +368,8 @@ OSErr StandardFile_HAL_CreateSaveDialog(DialogPtr *outDialog, ConstStr255Param p
 
     /* Create a modal dialog with the item list */
     Rect bounds = {60, 60, 360, 460};
-    static unsigned char title[] = {9, 'S','a','v','e',' ','F','i','l','e'};
+    static Str255 title;
+    c2pstrcpy(title, "Save File");
     *outDialog = NewDialog(NULL, &bounds, title, true, dBoxProc,
                            (WindowPtr)-1, false, 0, ditl);
 

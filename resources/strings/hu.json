@@ -38,7 +38,9 @@
         "\u00c1ln\u00e9v k\u00e9sz\u00edt\u00e9se",
         "Visszarak\u00e1s/Y",
         "Keres\u00e9s.../F",
-        "Keres\u00e9s ism\u00e9t/G"
+        "Keres\u00e9s ism\u00e9t/G",
+        "Ablak bezárása",
+        "Bezárás"
       ]}
     },
     {
@@ -51,7 +53,9 @@
         "M\u00e1sol\u00e1s/C",
         "Beilleszt\u00e9s/V",
         "T\u00f6rl\u00e9s",
-        "Mindent kijel\u00f6l/A"
+        "Mindent kijel\u00f6l/A",
+        "Áthelyezés visszavonása",
+        "Nem vonható vissza"
       ]}
     },
     {

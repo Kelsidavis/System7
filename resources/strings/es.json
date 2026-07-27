@@ -38,7 +38,9 @@
         "Crear alias",
         "Devolver/Y",
         "Buscar.../F",
-        "Buscar de nuevo/G"
+        "Buscar de nuevo/G",
+        "Cerrar ventana",
+        "Cerrar"
       ]}
     },
     {
@@ -51,7 +53,9 @@
         "Copiar/C",
         "Pegar/V",
         "Borrar",
-        "Seleccionar todo/A"
+        "Seleccionar todo/A",
+        "Deshacer mover",
+        "No se puede deshacer"
       ]}
     },
     {

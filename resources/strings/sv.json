@@ -38,7 +38,9 @@
         "Skapa alias",
         "L\u00e4gg tillbaka/Y",
         "S\u00f6k.../F",
-        "S\u00f6k igen/G"
+        "S\u00f6k igen/G",
+        "Stäng fönster",
+        "Stäng"
       ]}
     },
     {
@@ -51,7 +53,9 @@
         "Kopiera/C",
         "Klistra in/V",
         "Rensa",
-        "Markera allt/A"
+        "Markera allt/A",
+        "Ångra flytt",
+        "Kan inte ångra"
       ]}
     },
     {

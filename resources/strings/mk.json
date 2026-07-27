@@ -38,7 +38,9 @@
         "Napravi pseudonim",
         "Vrati na mesto/Y",
         "Najdi.../F",
-        "Najdi povtorno/G"
+        "Najdi povtorno/G",
+        "Zatvori prozorec",
+        "Zatvori"
       ]}
     },
     {
@@ -51,7 +53,9 @@
         "Kopiraj/C",
         "Zalepi/V",
         "Izbri\u0161i",
-        "Selektiraj se/A"
+        "Selektiraj se/A",
+        "Vrati pomestuvanje",
+        "Ne mozhe da se vrati"
       ]}
     },
     {

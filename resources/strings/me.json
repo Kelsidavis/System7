@@ -38,7 +38,9 @@
         "Napravi pseudonim",
         "Vrati na mjesto/Y",
         "Na\u0111i.../F",
-        "Na\u0111i ponovo/G"
+        "Na\u0111i ponovo/G",
+        "Zatvori prozor",
+        "Zatvori"
       ]}
     },
     {
@@ -51,7 +53,9 @@
         "Kopiraj/C",
         "Zalijepi/V",
         "Obri\u0161i",
-        "Ozna\u010di sve/A"
+        "Ozna\u010di sve/A",
+        "Poništi premještanje",
+        "Nije moguće poništiti"
       ]}
     },
     {

@@ -1293,25 +1293,30 @@ static void create_system71_windows(void) {
     static unsigned char appleTitle[] = {1, 0x14};  /* Pascal string: length 1, Apple symbol */
     appleMenu = NewMenu(128, appleTitle);
     if (appleMenu) {
-        static unsigned char aboutItem[] = {20, 'A','b','o','u','t',' ','S','y','s','t','e','m',' ','7','.','1','.','.','.'}; /* Pascal string */
+        static Str255 aboutItem;
+        c2pstrcpy(aboutItem, "About System 7.1..."); /* Pascal string */
         AppendMenu(appleMenu, aboutItem);
         InsertMenu(appleMenu, 0);
     }
 
     /* Create File menu */
-    static unsigned char fileTitle[] = {4, 'F', 'i', 'l', 'e'};  /* Pascal string: "File" */
+    static Str255 fileTitle;
+    c2pstrcpy(fileTitle, "File");  /* Pascal string: "File" */
     fileMenu = NewMenu(129, fileTitle);
     if (fileMenu) {
-        static unsigned char fileItems[] = {56, 'N','e','w','/','N',';','O','p','e','n','.','.','.','/','O',';','-',';','C','l','o','s','e','/','W',';','S','a','v','e','/','S',';','S','a','v','e',' ','A','s','.','.','.',';','-',';','Q','u','i','t','/','Q'}; /* Pascal string */
+        static Str255 fileItems;
+        c2pstrcpy(fileItems, "New/N;Open.../O;-;Close/W;Save/S;Save As...;-;Quit/Q"); /* Pascal string */
         AppendMenu(fileMenu, fileItems);
         InsertMenu(fileMenu, 0);
     }
 
     /* Create Edit menu */
-    static unsigned char editTitle[] = {4, 'E', 'd', 'i', 't'};  /* Pascal string: "Edit" */
+    static Str255 editTitle;
+    c2pstrcpy(editTitle, "Edit");  /* Pascal string: "Edit" */
     editMenu = NewMenu(130, editTitle);
     if (editMenu) {
-        static unsigned char editItems[] = {36, 'U','n','d','o','/','Z',';','-',';','C','u','t','/','X',';','C','o','p','y','/','C',';','P','a','s','t','e','/','V',';','C','l','e','a','r'}; /* Pascal string */
+        static Str255 editItems;
+        c2pstrcpy(editItems, "Undo/Z;-;Cut/X;Copy/C;Paste/V;Clear"); /* Pascal string */
         AppendMenu(editMenu, editItems);
         InsertMenu(editMenu, 0);
     }

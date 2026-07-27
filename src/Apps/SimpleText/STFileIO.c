@@ -5,6 +5,7 @@
  */
 
 #include <string.h>
+#include "System71StdLib.h"
 #include <stdlib.h>
 #include <stdio.h>
 #include "Apps/SimpleText.h"
@@ -635,7 +636,8 @@ Boolean STIO_SaveDialog(STDocument* doc, char* pathOut)
     #define MAX_DIALOG_PATH 512
 
     /* Build prompt and default name as Pascal strings */
-    static unsigned char prompt[] = {8, 'S','a','v','e',' ','a','s',':'};
+    static Str255 prompt;
+    c2pstrcpy(prompt, "Save as:");
     unsigned char defaultName[256];
 
     if (doc->untitled || !doc->filePath[0]) {

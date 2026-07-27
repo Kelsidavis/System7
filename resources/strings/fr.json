@@ -38,7 +38,9 @@
         "Cr\u00e9er un alias",
         "Remettre en place/Y",
         "Rechercher.../F",
-        "Rechercher \u00e0 nouveau/G"
+        "Rechercher \u00e0 nouveau/G",
+        "Fermer la fenêtre",
+        "Fermer"
       ]}
     },
     {
@@ -51,7 +53,9 @@
         "Copier/C",
         "Coller/V",
         "Effacer",
-        "Tout s\u00e9lectionner/A"
+        "Tout s\u00e9lectionner/A",
+        "Annuler le déplacement",
+        "Annulation impossible"
       ]}
     },
     {

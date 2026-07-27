@@ -76,7 +76,8 @@ void OpenDesktopCdev(void) {
     winRect.right = winRect.left + (GRID_COLS * (CELL_W + CELL_PAD)) + 32;
 
     /* Create the window */
-    static unsigned char winTitle[] = {17, 'D','e','s','k','t','o','p',' ','P','a','t','t','e','r','n','s'};
+    static Str255 winTitle;
+    c2pstrcpy(winTitle, "Desktop Patterns");
     gDesktopCdevWin = NewWindow(NULL, &winRect, winTitle,
                                  true, documentProc, (WindowPtr)-1L, true, 0);
     if (!gDesktopCdevWin) {
@@ -101,13 +102,15 @@ void OpenDesktopCdev(void) {
     buttonRect.left = buttonRect.right - 80;
 
     serial_puts("[CDEV] Creating buttons\n");
-    static unsigned char okTitle[] = {2, 'O','K'};
+    static Str255 okTitle;
+    c2pstrcpy(okTitle, "OK");
     gOKButton = NewControl(gDesktopCdevWin, &buttonRect, okTitle,
                            true, 0, 0, 1, pushButProc, 0);
 
     buttonRect.right = buttonRect.left - 10;
     buttonRect.left = buttonRect.right - 80;
-    static unsigned char cancelTitle[] = {6, 'C','a','n','c','e','l'};
+    static Str255 cancelTitle;
+    c2pstrcpy(cancelTitle, "Cancel");
     gCancelButton = NewControl(gDesktopCdevWin, &buttonRect, cancelTitle,
                                true, 0, 0, 1, pushButProc, 0);
 
@@ -349,7 +352,8 @@ static void DrawPatternGrid(void) {
 
     /* Draw title */
     MoveTo(WINDOW_MARGIN, 25);
-    static unsigned char titleStr[] = {24, 'S','e','l','e','c','t',' ','D','e','s','k','t','o','p',' ','P','a','t','t','e','r','n',':'};
+    static Str255 titleStr;
+    c2pstrcpy(titleStr, "Select Desktop Pattern:");
     serial_puts("[CDEV-GRID] Drawing title\n");
     DrawString(titleStr);
 

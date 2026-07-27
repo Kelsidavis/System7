@@ -229,7 +229,8 @@ OSErr InitializeFinder(void)
             memcpy(&hdTitle[1], vcb.name, len);
         } else {
             /* Fallback to default name */
-            static const unsigned char defaultTitle[] = {12, 'M','a','c','i','n','t','o','s','h',' ','H','D'};
+            static Str255 defaultTitle;
+            c2pstrcpy(defaultTitle, "Macintosh HD");
             memcpy(hdTitle, defaultTitle, sizeof(defaultTitle));
         }
 
@@ -475,7 +476,8 @@ static OSErr SetupMenus(void)
     /* The Help menu's contents never change, so it is built once here and
      * reinstalled with the rest of the bar. */
     {
-        unsigned char helpTitle[] = {1, '?'};
+        static Str255 helpTitle;
+        c2pstrcpy(helpTitle, "?");
         gHelpMenu = NewMenu((short)0xBF96, (ConstStr255Param)helpTitle);
         if (gHelpMenu) {
             AppendMenu(gHelpMenu, "\020About Balloon Help\311");

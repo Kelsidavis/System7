@@ -778,7 +778,8 @@ void ST_ShowAbout(void) {
     HUnlock(ditl);
 
     Rect bounds = {120, 100, 240, 400};
-    static unsigned char title[] = {15, 'A','b','o','u','t',' ','S','i','m','p','l','e','T','e','x','t'};
+    static Str255 title;
+    c2pstrcpy(title, "About SimpleText");
     DialogPtr dlg = NewDialog(NULL, &bounds, title, true, 1,
                               (WindowPtr)-1, false, 0, ditl);
     if (!dlg) { DisposeHandle(ditl); return; }

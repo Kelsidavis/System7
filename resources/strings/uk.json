@@ -38,7 +38,9 @@
         "Stvoryty psevdonim",
         "Povernuty na mistse/Y",
         "Znayty.../F",
-        "Znayty znovu/G"
+        "Znayty znovu/G",
+        "Zakryty vikno",
+        "Zakryty"
       ]}
     },
     {
@@ -51,7 +53,9 @@
         "Kopiyuvaty/C",
         "Vstavyty/V",
         "Ochystyty",
-        "Vybraty vse/A"
+        "Vybraty vse/A",
+        "Skasuvaty peremishchennya",
+        "Nemozhlyvo skasuvaty"
       ]}
     },
     {

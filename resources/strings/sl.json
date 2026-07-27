@@ -38,7 +38,9 @@
         "Ustvari vzdevek",
         "Vrni nazaj/Y",
         "Poi\u0161\u010di.../F",
-        "Poi\u0161\u010di znova/G"
+        "Poi\u0161\u010di znova/G",
+        "Zapri okno",
+        "Zapri"
       ]}
     },
     {
@@ -51,7 +53,9 @@
         "Kopiraj/C",
         "Prilepi/V",
         "Po\u010disti",
-        "Izberi vse/A"
+        "Izberi vse/A",
+        "Razveljavi premik",
+        "Ni mogoče razveljaviti"
       ]}
     },
     {

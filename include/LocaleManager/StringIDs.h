@@ -94,6 +94,13 @@
 #define kStrPutAway                   9
 #define kStrFindEllipsis              10
 #define kStrFindAgain                 11
+/* Two states of the Close item. System 7 says "Close Window" for a Finder
+ * window and "Close" for anything else, so both belong to the File menu's own
+ * list. kStrClose above carries the "/W" that AppendMenu parses when the menu
+ * is built; these are the plain texts SetMenuItemText swaps in later, which
+ * takes them literally. */
+#define kStrCloseWindow               12
+#define kStrClosePlain                13
 
 /* kSTRListFinderEditMenu (131) - Edit menu items */
 #define kStrUndo                      1
@@ -102,6 +109,10 @@
 #define kStrPaste                     4
 #define kStrClear                     5
 #define kStrSelectAll                 6
+/* Two states of the Undo item, swapped in by SetMenuItemText - hence no
+ * command key in the text, which that call would show literally. */
+#define kStrUndoMove                  7
+#define kStrCantUndo                  8
 
 /* kSTRListFinderViewMenu (132) - View menu items */
 #define kStrByIcon                    1

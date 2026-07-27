@@ -5,6 +5,7 @@
  */
 
 #include <string.h>
+#include "System71StdLib.h"
 #include "Apps/SimpleText.h"
 #include "MemoryMgr/MemoryManager.h"
 #include "EventManager/EventManager.h"
@@ -160,7 +161,8 @@ void STMenu_Init(void) {
     }
 
     /* Create File menu - but DON'T insert yet */
-    static unsigned char fileTitle[] = {4, 'F','i','l','e'};
+    static Str255 fileTitle;
+    c2pstrcpy(fileTitle, "File");
     g_ST.fileMenu = NewMenu(mFile, fileTitle);
     if (g_ST.fileMenu) {
         STMenu_AppendItems(g_ST.fileMenu, kFileMenuItems);
@@ -168,7 +170,8 @@ void STMenu_Init(void) {
     }
 
     /* Create Edit menu - but DON'T insert yet */
-    static unsigned char editTitle[] = {4, 'E','d','i','t'};
+    static Str255 editTitle;
+    c2pstrcpy(editTitle, "Edit");
     g_ST.editMenu = NewMenu(mEdit, editTitle);
     if (g_ST.editMenu) {
         STMenu_AppendItems(g_ST.editMenu, kEditMenuItems);
@@ -176,7 +179,8 @@ void STMenu_Init(void) {
     }
 
     /* Create Font menu - but DON'T insert yet */
-    static unsigned char fontTitle[] = {4, 'F','o','n','t'};
+    static Str255 fontTitle;
+    c2pstrcpy(fontTitle, "Font");
     g_ST.fontMenu = NewMenu(mFont, fontTitle);
     if (g_ST.fontMenu) {
         STMenu_AppendItems(g_ST.fontMenu, kFontMenuItems);
@@ -184,7 +188,8 @@ void STMenu_Init(void) {
     }
 
     /* Create Size menu - but DON'T insert yet */
-    static unsigned char sizeTitle[] = {4, 'S','i','z','e'};
+    static Str255 sizeTitle;
+    c2pstrcpy(sizeTitle, "Size");
     g_ST.sizeMenu = NewMenu(mSize, sizeTitle);
     if (g_ST.sizeMenu) {
         STMenu_AppendItems(g_ST.sizeMenu, kSizeMenuItems);
@@ -192,7 +197,8 @@ void STMenu_Init(void) {
     }
 
     /* Create Style menu - but DON'T insert yet */
-    static unsigned char styleTitle[] = {5, 'S','t','y','l','e'};
+    static Str255 styleTitle;
+    c2pstrcpy(styleTitle, "Style");
     g_ST.styleMenu = NewMenu(mStyle, styleTitle);
     if (g_ST.styleMenu) {
         STMenu_AppendItems(g_ST.styleMenu, kStyleMenuItems);
@@ -584,7 +590,8 @@ void STFind_ShowDialog(STDocument* doc) {
     HUnlock(ditl);
 
     Rect bounds = {120, 120, 230, 400};
-    static unsigned char title[] = {4, 'F','i','n','d'};
+    static Str255 title;
+    c2pstrcpy(title, "Find");
     DialogPtr dlg = NewDialog(NULL, &bounds, title, true, 1 /* dBoxProc */,
                               (WindowPtr)-1, false, 0, ditl);
     if (!dlg) {

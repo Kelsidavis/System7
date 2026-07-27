@@ -38,7 +38,9 @@
         "Sozdat' psevdonim",
         "Vernut' na mesto/Y",
         "Naiti.../F",
-        "Naiti snova/G"
+        "Naiti snova/G",
+        "Zakryt' okno",
+        "Zakryt'"
       ]}
     },
     {
@@ -51,7 +53,9 @@
         "Kopirovat'/C",
         "Vstavit'/V",
         "Ochistit'",
-        "Vybrat' vse/A"
+        "Vybrat' vse/A",
+        "Otmenit' peremeshchenie",
+        "Nel'zya otmenit'"
       ]}
     },
     {

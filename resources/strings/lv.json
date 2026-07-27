@@ -38,7 +38,9 @@
         "Izveidot aizst\u0101jv\u0101rdu",
         "Nolikt viet\u0101/Y",
         "Mekl\u0113t.../F",
-        "Mekl\u0113t v\u0113lreiz/G"
+        "Mekl\u0113t v\u0113lreiz/G",
+        "Aizvērt logu",
+        "Aizvērt"
       ]}
     },
     {
@@ -51,7 +53,9 @@
         "Kop\u0113t/C",
         "Iel\u012bm\u0113t/V",
         "Not\u012br\u012bt",
-        "Atlas\u012bt visu/A"
+        "Atlas\u012bt visu/A",
+        "Atsaukt pārvietošanu",
+        "Nevar atsaukt"
       ]}
     },
     {

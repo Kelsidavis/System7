@@ -84,7 +84,8 @@ void TETestInit(void) {
 static void CreateTestWindow(void) {
     Rect bounds;
     Rect destRect, viewRect;
-    static unsigned char title[] = {14, 'T','e','x','t','E','d','i','t',' ','T','e','s','t'};
+    static Str255 title;
+    c2pstrcpy(title, "TextEdit Test");
     char *sampleText = "Welcome to TextEdit!\r\rType here to test text editing.\r"
                        "Try selecting text with the mouse.\r"
                        "Use arrow keys to navigate.\r"

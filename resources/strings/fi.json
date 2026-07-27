@@ -38,7 +38,9 @@
         "Luo alias",
         "Palauta/Y",
         "Etsi.../F",
-        "Etsi seuraava/G"
+        "Etsi seuraava/G",
+        "Sulje ikkuna",
+        "Sulje"
       ]}
     },
     {
@@ -51,7 +53,9 @@
         "Kopioi/C",
         "Liit\u00e4/V",
         "Tyhjenn\u00e4",
-        "Valitse kaikki/A"
+        "Valitse kaikki/A",
+        "Kumoa siirto",
+        "Ei voi kumota"
       ]}
     },
     {

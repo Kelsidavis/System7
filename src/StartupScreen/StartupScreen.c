@@ -327,7 +327,8 @@ static void DrawWelcomeScreen(void) {
     TextFace(0);
 
     /* Draw text on left side, vertically centered */
-    static unsigned char welcomeText[] = {21, 'W','e','l','c','o','m','e',' ','t','o',' ','M','a','c','i','n','t','o','s','h'};
+    static Str255 welcomeText;
+    c2pstrcpy(welcomeText, "Welcome to Macintosh");
     MoveTo(gStartupScreen.textRect.left,
            (gStartupScreen.textRect.top + gStartupScreen.textRect.bottom) / 2 + 8);
     DrawString(welcomeText);
@@ -537,7 +538,8 @@ OSErr SetStartupPhase(StartupPhase phase) {
         case kStartupPhaseExtensions:
             /* Draw "Loading Extensions..." text */
             {
-                static unsigned char extText[] = {21, 'L','o','a','d','i','n','g',' ','E','x','t','e','n','s','i','o','n','s','.','.','.'};
+                static Str255 extText;
+                c2pstrcpy(extText, "Loading Extensions...");
                 SetPort((GrafPtr)gStartupScreen.window);
                 TextFont(geneva);
                 TextSize(12);
@@ -550,7 +552,8 @@ OSErr SetStartupPhase(StartupPhase phase) {
         case kStartupPhaseDrivers:
             /* Draw "Loading Drivers..." text */
             {
-                static unsigned char drvText[] = {18, 'L','o','a','d','i','n','g',' ','D','r','i','v','e','r','s','.','.','.'};
+                static Str255 drvText;
+                c2pstrcpy(drvText, "Loading Drivers...");
                 SetPort((GrafPtr)gStartupScreen.window);
                 EraseRect(&gStartupScreen.extensionRect);
                 MoveTo(gStartupScreen.extensionRect.left,
@@ -562,7 +565,8 @@ OSErr SetStartupPhase(StartupPhase phase) {
         case kStartupPhaseFinder:
             /* Draw "Starting Finder..." text */
             {
-                static unsigned char finderText[] = {18, 'S','t','a','r','t','i','n','g',' ','F','i','n','d','e','r','.','.','.'};
+                static Str255 finderText;
+                c2pstrcpy(finderText, "Starting Finder...");
                 SetPort((GrafPtr)gStartupScreen.window);
                 EraseRect(&gStartupScreen.extensionRect);
                 MoveTo(gStartupScreen.extensionRect.left,
@@ -751,7 +755,8 @@ OSErr SetStartupColors(const RGBColor* background, const RGBColor* text) {
 void EnableStartupDebugMode(Boolean enable) {
     /* In debug mode, show additional info */
     if (enable && gStartupScreen.visible) {
-        static unsigned char debugText[] = {31, 'D','E','B','U','G',':',' ','S','y','s','t','e','m',' ','7','.','1',' ','S','t','a','r','t','u','p',' ','S','c','r','e','e','n'};
+        static Str255 debugText;
+        c2pstrcpy(debugText, "DEBUG: System 7.1 Startup Screen");
         SetPort((GrafPtr)gStartupScreen.window);
         TextFont(monaco);
         TextSize(9);

@@ -202,7 +202,8 @@ void SoundPanel_Open(void)
     bounds.bottom = bounds.top + 160;
     bounds.right = bounds.left + 260;
 
-    static unsigned char title[] = {5, 'S','o','u','n','d'};
+    static Str255 title;
+    c2pstrcpy(title, "Sound");
     gSoundState.window = NewWindow(NULL, &bounds, title, true, documentProc, (WindowPtr)-1, true, 0);
     if (!gSoundState.window) {
         return;

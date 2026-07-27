@@ -38,7 +38,9 @@
         "Criar Alias",
         "Repor/Y",
         "Procurar.../F",
-        "Procurar Novamente/G"
+        "Procurar Novamente/G",
+        "Fechar janela",
+        "Fechar"
       ]}
     },
     {
@@ -51,7 +53,9 @@
         "Copiar/C",
         "Colar/V",
         "Limpar",
-        "Seleccionar Tudo/A"
+        "Seleccionar Tudo/A",
+        "Desfazer mover",
+        "Não é possível desfazer"
       ]}
     },
     {

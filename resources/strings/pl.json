@@ -38,7 +38,9 @@
         "Utw\u00f3rz alias",
         "Odle\u017c na miejsce/Y",
         "Znajd\u017a.../F",
-        "Znajd\u017a ponownie/G"
+        "Znajd\u017a ponownie/G",
+        "Zamknij okno",
+        "Zamknij"
       ]}
     },
     {
@@ -51,7 +53,9 @@
         "Kopiuj/C",
         "Wklej/V",
         "Wyczy\u015b\u0107",
-        "Zaznacz wszystko/A"
+        "Zaznacz wszystko/A",
+        "Cofnij przeniesienie",
+        "Nie można cofnąć"
       ]}
     },
     {

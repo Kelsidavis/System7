@@ -38,7 +38,9 @@
         "Make Alias",
         "Put Away/Y",
         "Find.../F",
-        "Find Again/G"
+        "Find Again/G",
+        "Close Window",
+        "Close"
       ]}
     },
     {
@@ -51,7 +53,9 @@
         "Copy/C",
         "Paste/V",
         "Clear",
-        "Select All/A"
+        "Select All/A",
+        "Undo Move",
+        "Can't Undo"
       ]}
     },
     {

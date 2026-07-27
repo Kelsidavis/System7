@@ -251,7 +251,8 @@ void KeyboardPanel_Open(void)
     bounds.bottom = bounds.top + 190;
     bounds.right = bounds.left + 320;
 
-    static unsigned char title[] = {8, 'K','e','y','b','o','a','r','d'};
+    static Str255 title;
+    c2pstrcpy(title, "Keyboard");
     gKeyboardState.window = NewWindow(NULL, &bounds, title, true, documentProc, (WindowPtr)-1, true, 0);
     if (!gKeyboardState.window) {
         return;

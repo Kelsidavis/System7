@@ -216,7 +216,8 @@ void MousePanel_Open(void)
     bounds.bottom = bounds.top + 180;
     bounds.right = bounds.left + 320;
 
-    static unsigned char title[] = {5, 'M','o','u','s','e'};
+    static Str255 title;
+    c2pstrcpy(title, "Mouse");
     gMouseState.window = NewWindow(NULL, &bounds, title, true, documentProc, (WindowPtr)-1, true, 0);
     if (!gMouseState.window) {
         return;

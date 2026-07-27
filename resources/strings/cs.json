@@ -38,7 +38,9 @@
         "Vytvo\u0159it alias",
         "Vr\u00e1tit na m\u00edsto/Y",
         "Naj\u00edt.../F",
-        "Naj\u00edt znovu/G"
+        "Naj\u00edt znovu/G",
+        "Zavřít okno",
+        "Zavřít"
       ]}
     },
     {
@@ -51,7 +53,9 @@
         "Kop\u00edrovat/C",
         "Vlo\u017eit/V",
         "Smazat",
-        "Vybrat v\u0161e/A"
+        "Vybrat v\u0161e/A",
+        "Zpět přesun",
+        "Nelze vrátit zpět"
       ]}
     },
     {

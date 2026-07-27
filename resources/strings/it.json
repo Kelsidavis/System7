@@ -38,7 +38,9 @@
         "Crea alias",
         "Rimetti a posto/Y",
         "Cerca.../F",
-        "Cerca ancora/G"
+        "Cerca ancora/G",
+        "Chiudi finestra",
+        "Chiudi"
       ]}
     },
     {
@@ -51,7 +53,9 @@
         "Copia/C",
         "Incolla/V",
         "Cancella",
-        "Seleziona tutto/A"
+        "Seleziona tutto/A",
+        "Annulla spostamento",
+        "Impossibile annullare"
       ]}
     },
     {

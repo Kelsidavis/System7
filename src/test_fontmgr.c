@@ -29,7 +29,8 @@ void TestFontManager(void) {
     FONT_LOG_DEBUG("FM: Font ID 3 name: %.*s\n", fontName[0], &fontName[1]);
 
     /* Test 2: Get font ID from name */
-    unsigned char chicagoStr[] = {7, 'C','h','i','c','a','g','o'};
+    static Str255 chicagoStr;
+    c2pstrcpy(chicagoStr, "Chicago");
     GetFNum(chicagoStr, &familyID);
     FONT_LOG_DEBUG("FM: 'Chicago' -> ID %d\n", familyID);
 
@@ -53,11 +54,13 @@ void TestFontManager(void) {
     FONT_LOG_DEBUG("FM:   WidMax: %d\n", metrics.widMax);
 
     /* Test 5: Measure text widths */
-    unsigned char testStr1[] = {8, 'S','y','s','t','e','m',' ','7'};
+    static Str255 testStr1;
+    c2pstrcpy(testStr1, "System 7");
     short width = StringWidth(testStr1);
     FONT_LOG_DEBUG("FM: Width of 'System 7' = %d pixels\n", width);
 
-    unsigned char testStr2[] = {20, 'A','b','o','u','t',' ','T','h','i','s',' ','M','a','c','i','n','t','o','s','h'};
+    static Str255 testStr2;
+    c2pstrcpy(testStr2, "About This Macintosh");
     width = StringWidth(testStr2);
     FONT_LOG_DEBUG("FM: Width of 'About This Macintosh' = %d pixels\n", width);
 

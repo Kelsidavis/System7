@@ -38,7 +38,9 @@
         "Alias erzeugen",
         "Zur\u00fccklegen/Y",
         "Suchen.../F",
-        "Weitersuchen/G"
+        "Weitersuchen/G",
+        "Fenster schließen",
+        "Schließen"
       ]}
     },
     {
@@ -51,7 +53,9 @@
         "Kopieren/C",
         "Einsetzen/V",
         "L\u00f6schen",
-        "Alles ausw\u00e4hlen/A"
+        "Alles ausw\u00e4hlen/A",
+        "Bewegen widerrufen",
+        "Widerrufen nicht möglich"
       ]}
     },
     {

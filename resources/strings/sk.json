@@ -38,7 +38,9 @@
         "Vytvori\u0165 alias",
         "Vr\u00e1ti\u0165 sp\u00e4\u0165/Y",
         "H\u013eada\u0165.../F",
-        "H\u013eada\u0165 znovu/G"
+        "H\u013eada\u0165 znovu/G",
+        "Zavrieť okno",
+        "Zatvoriť"
       ]}
     },
     {
@@ -51,7 +53,9 @@
         "Kop\u00edrova\u0165/C",
         "Vlo\u017ei\u0165/V",
         "Vymaza\u0165",
-        "Vybra\u0165 v\u0161etko/A"
+        "Vybra\u0165 v\u0161etko/A",
+        "Späť presun",
+        "Nedá sa vrátiť späť"
       ]}
     },
     {
