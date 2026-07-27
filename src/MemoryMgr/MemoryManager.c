@@ -932,11 +932,37 @@ void DisposePtr(void* p) {
     /* Validate freelist BEFORE disposal */
     DISPOSE_LOG("[DISPOSE] Validating freelist BEFORE disposal\n");
     if (!validate_freelist(z)) {
+        /*
+         * Dropping the freelists keeps the allocator from following a bad
+         * pointer, but it also throws away every block that had been freed -
+         * on a running desktop that is well over a hundred kilobytes. What
+         * happens next is silent: allocations start failing, NewRgn hands
+         * back NULL, and a window created after that point has no regions and
+         * simply never draws. Tracing an invisible dialog back to here took
+         * far longer than it should have, so say what was lost and say it
+         * where an ordinary boot log will show it.
+         */
         serial_puts("[DISPOSE] ERROR: Freelist already corrupted before disposal!\n");
-        /* Clear all freelists to prevent crashes */
+        serial_puts("[DISPOSE] discarding every free block - allocations may now fail,\n");
+        serial_puts("[DISPOSE] which shows up later as windows that never draw.\n");
+        {
+            u32 lost = z->bytesFree;
+            char buf[48];
+            const char* hx = "0123456789ABCDEF";
+            int n = 0;
+            const char* t = "[DISPOSE] free bytes discarded: 0x";
+            while (t[n]) { buf[n] = t[n]; n++; }
+            for (int k = 28; k >= 0; k -= 4) buf[n++] = hx[(lost >> k) & 15];
+            buf[n++] = '\n'; buf[n] = 0;
+            serial_puts(buf);
+        }
         for (u32 i = 0; i < NUM_SIZE_CLASSES; i++) {
             z->freelists[i] = NULL;
         }
+        /* bytesFree is left alone deliberately. It now overstates what can
+         * actually be handed out, but it is only ever added to and subtracted
+         * from - zeroing it here would underflow on the next allocation and
+         * report a free figure of several gigabytes. */
         return;
     }
     DISPOSE_LOG("[DISPOSE] Freelist valid before disposal\n");
