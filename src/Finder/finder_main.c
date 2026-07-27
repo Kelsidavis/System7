@@ -374,6 +374,11 @@ static OSErr SetupMenus(void)
     AppendMenu(gEditMenu, menuStr);
     GetLocalizedString(menuStr, kSTRListFinderEditMenu, kStrClear);
     AppendMenu(gEditMenu, menuStr);
+    /* System 7 separates Select All from the cut/copy/paste group, which makes
+     * it item 8 - the number MenuCommands.c has always dispatched on. Without
+     * the divider it was item 7 and Select All fell through to the handler's
+     * "unknown item" case, so the command did nothing at all. */
+    AppendMenu(gEditMenu, "\002(-");
     GetLocalizedString(menuStr, kSTRListFinderEditMenu, kStrSelectAll);
     AppendMenu(gEditMenu, menuStr);
 

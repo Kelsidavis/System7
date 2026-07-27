@@ -78,6 +78,26 @@ static struct {
 
 static Boolean gControlStripBootstrap = true;
 
+/*
+ * Throw away mouse events left over from choosing a menu item.
+ *
+ * Menu tracking polls the input devices directly, but ProcessModernInput is
+ * also posting those same presses to the event queue, so the click that chose
+ * the item was still sitting there when tracking finished - and got delivered
+ * to whatever window happened to be underneath the menu. Choosing Edit >
+ * Select All over a folder window selected everything and then immediately
+ * handed the window a content click that cleared it again; the command only
+ * appeared to work if the item you picked did not overlap a window.
+ *
+ * In System 7 MenuSelect owns the mouse from press to release and nothing
+ * downstream ever sees that click. Dropping the queued mouse events is how
+ * that ownership is expressed here.
+ */
+static void DiscardMenuTrackingClicks(void)
+{
+    FlushEvents(mDownMask | mUpMask, 0);
+}
+
 /**
  * Initialize the event dispatcher
  */
@@ -289,6 +309,7 @@ Boolean HandleMouseDown(EventRecord* event)
                     DoMenuCommand(menuID, menuItem);
                     HiliteMenu(0);  /* Unhighlight menu */
                 }
+                DiscardMenuTrackingClicks();
             }
             return true;
 
@@ -466,6 +487,7 @@ Boolean HandleMouseUp(EventRecord* event)
             DoMenuCommand(menuID, menuItem);
             HiliteMenu(0);  /* Unhighlight menu */
         }
+        DiscardMenuTrackingClicks();
         return true;
     }
 
