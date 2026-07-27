@@ -74,6 +74,7 @@ typedef struct FolderItem {
     uint32_t size;         /* File size in bytes (0 for folders) */
     uint32_t modTime;      /* Modification time (seconds since 1904) */
     short label;           /* Label color index (0-7: None, Essential, Hot, etc.) */
+    Boolean selected;      /* Selection travels with the item - see FolderWindowState */
     Point position;        /* position in window (for icon view) */
     FileID fileID;         /* File system ID (CNID) */
     DirID parentID;        /* Parent directory ID */
@@ -105,8 +106,16 @@ typedef struct FolderItem {
 typedef struct FolderWindowState {
     FolderItem* items;     /* Array of items in this folder */
     short itemCount;       /* Number of items */
-    short selectedIndex;   /* Currently selected item (-1 = none) - primary selection for keyboard navigation */
-    Boolean* selectedItems; /* Array of selection flags (true = selected) for multi-select */
+    /* Selection.
+     *
+     * The flag lives in FolderItem, not in an array indexed by position, and
+     * the keyboard anchor is a file's identity rather than its row. Both used
+     * to be positional, so anything that rearranged items[] - a sort, a
+     * reload after pasting, a delete - left the selection pointing at
+     * whichever unrelated file had moved into that slot. That was fixed twice
+     * in two different places before it was fixed here, which is the argument
+     * for storing it this way: there is no longer a position to go stale. */
+    FileID anchorID;       /* Primary item for keyboard navigation, 0 = none */
     Boolean isDragging;    /* Currently dragging an item */
     UInt32 lastClickTime;  /* For double-click detection */
     Point lastClickPos;    /* Last click position */
@@ -176,6 +185,43 @@ static void DrawFileIcon(short x, short y, Boolean isFolder)
 
 
 /* Helper: Find folder window state slot */
+/* ============================================================================
+ * Selection
+ *
+ * Every item carries its own flag, so sorting or reloading items[] moves the
+ * selection with the files rather than leaving it on whatever ends up in the
+ * same row. The anchor - the item keyboard navigation works from - is stored
+ * as a FileID for the same reason and resolved to an index only when one is
+ * needed.
+ * ============================================================================ */
+
+/* Index of the anchor item, or -1 if there is not one any more. */
+static short FW_AnchorIndex(FolderWindowState* state) {
+    if (!state || !state->items || state->anchorID == 0) return -1;
+    for (short i = 0; i < state->itemCount; i++) {
+        if (state->items[i].fileID == state->anchorID) return i;
+    }
+    return -1;
+}
+
+/* Make items[idx] the anchor, or clear it with idx < 0. */
+static void FW_SetAnchor(FolderWindowState* state, short idx) {
+    if (!state) return;
+    if (idx < 0 || !state->items || idx >= state->itemCount) {
+        state->anchorID = 0;
+        return;
+    }
+    state->anchorID = state->items[idx].fileID;
+}
+
+static void FW_DeselectAll(FolderWindowState* state) {
+    if (!state || !state->items) return;
+    for (short i = 0; i < state->itemCount; i++) {
+        state->items[i].selected = false;
+    }
+    state->anchorID = 0;
+}
+
 FolderWindowState* GetFolderState(WindowPtr w) {
         FINDER_LOG_DEBUG("GetFolderState: ENTRY\n");
     if (!w) {
@@ -198,8 +244,7 @@ FolderWindowState* GetFolderState(WindowPtr w) {
             gFolderWindows[i].window = w;
             gFolderWindows[i].state.items = NULL;
             gFolderWindows[i].state.itemCount = 0;
-            gFolderWindows[i].state.selectedIndex = -1;
-            gFolderWindows[i].state.selectedItems = NULL;
+            gFolderWindows[i].state.anchorID = 0;
             gFolderWindows[i].state.isDragging = false;
             gFolderWindows[i].state.lastClickTime = 0;
             gFolderWindows[i].state.lastClickPos.h = 0;
@@ -255,10 +300,6 @@ void InitializeFolderContentsEx(WindowPtr w, Boolean isTrash, VRefNum vref, DirI
         state->itemCount = 0;
     }
 
-    if (state->selectedItems) {
-        DisposePtr((Ptr)state->selectedItems);
-        state->selectedItems = NULL;
-    }
 
     if (isTrash) {
         /* Trash folder - enumerate actual trash directory */
@@ -349,18 +390,7 @@ void InitializeFolderContentsEx(WindowPtr w, Boolean isTrash, VRefNum vref, DirI
             }
         }
 
-        /* Allocate selection array */
-        state->selectedItems = (Boolean*)NewPtr(count * sizeof(Boolean));
-        if (!state->selectedItems) {
-            FINDER_LOG_DEBUG("InitializeFolderContentsEx: Failed to allocate selectedItems for trash folder\n");
-            DisposePtr((Ptr)state->items);
-            state->items = NULL;
-            state->itemCount = 0;
-            return;
-        }
-        for (int i = 0; i < count; i++) {
-            state->selectedItems[i] = false;
-        }
+        FW_DeselectAll(state);
 
         FINDER_LOG_DEBUG("InitializeFolderContentsEx: trash folder populated with %d items\n", count);
         return;
@@ -417,18 +447,7 @@ void InitializeFolderContentsEx(WindowPtr w, Boolean isTrash, VRefNum vref, DirI
             }
         }
 
-        /* Allocate selection array */
-        state->selectedItems = (Boolean*)NewPtr(sizeof(Boolean) * state->itemCount);
-        if (!state->selectedItems) {
-            FINDER_LOG_DEBUG("InitializeFolderContentsEx: Failed to allocate selectedItems for Applications folder\n");
-            DisposePtr((Ptr)state->items);
-            state->items = NULL;
-            state->itemCount = 0;
-            return;
-        }
-        for (int i = 0; i < state->itemCount; i++) {
-            state->selectedItems[i] = false;
-        }
+        FW_DeselectAll(state);
 
         FINDER_LOG_DEBUG("InitializeFolderContentsEx: populated Applications folder with %d items\n",
                          state->itemCount);
@@ -514,18 +533,7 @@ void InitializeFolderContentsEx(WindowPtr w, Boolean isTrash, VRefNum vref, DirI
             }
         }
 
-        /* Allocate selection array */
-        state->selectedItems = (Boolean*)NewPtr(sizeof(Boolean) * state->itemCount);
-        if (!state->selectedItems) {
-            FINDER_LOG_DEBUG("InitializeFolderContentsEx: Failed to allocate selectedItems for Control Panels folder\n");
-            DisposePtr((Ptr)state->items);
-            state->items = NULL;
-            state->itemCount = 0;
-            return;
-        }
-        for (int i = 0; i < state->itemCount; i++) {
-            state->selectedItems[i] = false;
-        }
+        FW_DeselectAll(state);
 
         FINDER_LOG_DEBUG("InitializeFolderContentsEx: populated Control Panels folder with %d items\n",
                          state->itemCount);
@@ -611,18 +619,7 @@ void InitializeFolderContentsEx(WindowPtr w, Boolean isTrash, VRefNum vref, DirI
             }
         }
 
-        /* Allocate selection array */
-        state->selectedItems = (Boolean*)NewPtr(sizeof(Boolean) * state->itemCount);
-        if (!state->selectedItems) {
-            FINDER_LOG_DEBUG("InitializeFolderContentsEx: Failed to allocate selectedItems for VFS directory\n");
-            DisposePtr((Ptr)state->items);
-            state->items = NULL;
-            state->itemCount = 0;
-            return;
-        }
-        for (int i = 0; i < state->itemCount; i++) {
-            state->selectedItems[i] = false;
-        }
+        FW_DeselectAll(state);
 
         FINDER_LOG_DEBUG("FW: Initialized %d items from VFS\n", count);
     }
@@ -994,11 +991,8 @@ static Boolean TrackFolderItemDrag(WindowPtr w, FolderWindowState* state, short 
                     }
                     state->itemCount--;
 
-                    if (state->selectedIndex == itemIndex) {
-                        state->selectedIndex = -1;
-                    } else if (state->selectedIndex > itemIndex) {
-                        state->selectedIndex--;
-                    }
+                    /* The anchor is an identity; removing a row cannot move
+                     * it onto a different file, so there is nothing to fix. */
 
                     /* Refresh trash icon and folder window */
                     PostEvent(updateEvt, (UInt32)(uintptr_t)w);
@@ -1104,13 +1098,9 @@ Boolean HandleFolderWindowClick(WindowPtr w, EventRecord *ev, Boolean isDoubleCl
 
     if (hitIndex == -1) {
         /* Clicked empty space - deselect all */
-        if (state->selectedIndex != -1) {
+        if (FW_AnchorIndex(state) >= 0) {
             FINDER_LOG_DEBUG("FW: deselect (empty click)\n");
-            state->selectedIndex = -1;
-            if (state->selectedItems) {
-                for (short i = 0; i < state->itemCount; i++)
-                    state->selectedItems[i] = false;
-            }
+            FW_DeselectAll(state);
             PostEvent(updateEvt, (UInt32)(uintptr_t)w);
         }
         FINDER_LOG_DEBUG("FW: empty click - clearing lastClickIndex (was %d)\n", state->lastClickIndex);
@@ -1375,20 +1365,20 @@ Boolean HandleFolderWindowClick(WindowPtr w, EventRecord *ev, Boolean isDoubleCl
          * system hasn't flagged it as a double-click yet. Just select and track timing. */
         FINDER_LOG_DEBUG("FW: potential double-click (waiting for confirmation), selecting icon %d shift=%d\n", hitIndex, shiftHeld);
 
-        short oldSel = state->selectedIndex;
-        state->selectedIndex = hitIndex;
+        short oldSel = FW_AnchorIndex(state);
+        FW_SetAnchor(state, hitIndex);
         state->lastClickIndex = hitIndex;
         state->lastClickTime = currentTime;
 
         /* Update multi-selection array */
-        if (state->selectedItems) {
+        {
             if (shiftHeld) {
                 /* Shift-click: toggle this item's selection */
-                state->selectedItems[hitIndex] = !state->selectedItems[hitIndex];
+                state->items[hitIndex].selected = !state->items[hitIndex].selected;
             } else {
                 /* Normal click: select only this item */
                 for (short i = 0; i < state->itemCount; i++)
-                    state->selectedItems[i] = (i == hitIndex);
+                    state->items[i].selected = (i == hitIndex);
             }
         }
 
@@ -1404,20 +1394,20 @@ Boolean HandleFolderWindowClick(WindowPtr w, EventRecord *ev, Boolean isDoubleCl
 
         if (!wasDrag) {
             /* No drag occurred - treat as normal click/selection */
-            short oldSel = state->selectedIndex;
-            state->selectedIndex = hitIndex;
+            short oldSel = FW_AnchorIndex(state);
+            FW_SetAnchor(state, hitIndex);
             state->lastClickIndex = hitIndex;
             state->lastClickTime = currentTime;
 
             /* Update multi-selection array */
-            if (state->selectedItems) {
+            {
                 if (shiftHeld) {
                     /* Shift-click: toggle this item, keep others */
-                    state->selectedItems[hitIndex] = !state->selectedItems[hitIndex];
+                    state->items[hitIndex].selected = !state->items[hitIndex].selected;
                 } else {
                     /* Normal click: select only this item */
                     for (short i = 0; i < state->itemCount; i++)
-                        state->selectedItems[i] = (i == hitIndex);
+                        state->items[i].selected = (i == hitIndex);
                 }
             }
 
@@ -1758,8 +1748,7 @@ static void FolderWindow_DrawListView(WindowPtr w, FolderWindowState* state) {
     if (lastVisible > state->itemCount) lastVisible = state->itemCount;
 
     for (short i = firstVisible; i < lastVisible; i++) {
-        Boolean selected = (state->selectedItems && state->selectedItems[i]) ||
-                           (i == state->selectedIndex);
+        Boolean selected = state->items[i].selected;
 
         Rect rowRect;
         SetRect(&rowRect, left, rowY, contentRight, rowY + kListRowHeight);
@@ -1932,8 +1921,7 @@ void FolderWindow_Draw(WindowPtr w) {
         bool iconSystemReady = FolderWindow_EnsureIconSystemInitialized();
 
         for (short i = 0; i < state->itemCount; i++) {
-            /* Check selection from array if available, otherwise fall back to selectedIndex */
-            Boolean selected = (state->selectedItems && state->selectedItems[i]) || (i == state->selectedIndex);
+            Boolean selected = state->items[i].selected;
             IconHandle iconHandle = {0};
             bool resolved = false;
 
@@ -2014,8 +2002,7 @@ void FolderWindow_Draw(WindowPtr w) {
         short selectedCount = 0;
         uint64_t selectedSize = 0;
         for (short i = 0; i < state->itemCount; i++) {
-            Boolean isSel = (state->selectedItems && state->selectedItems[i]) ||
-                            (i == state->selectedIndex);
+            Boolean isSel = state->items[i].selected;
             if (isSel) {
                 selectedCount++;
                 selectedSize += state->items[i].size;
@@ -2100,16 +2087,16 @@ void FolderWindow_SelectAll(WindowPtr w) {
     if (!w || !IsFolderWindow(w)) return;
 
     FolderWindowState* state = GetFolderState(w);
-    if (!state || !state->selectedItems) return;
+    if (!state || !state->items) return;
 
     /* Select all items */
     for (short i = 0; i < state->itemCount; i++) {
-        state->selectedItems[i] = true;
+        state->items[i].selected = true;
     }
 
     /* Update primary selection to first item for keyboard navigation */
     if (state->itemCount > 0) {
-        state->selectedIndex = 0;
+        FW_SetAnchor(state, 0);
     }
 
     /* Trigger redraw */
@@ -2125,8 +2112,9 @@ short FolderWindow_GetSelectedLabel(WindowPtr w) {
     FolderWindowState* state = GetFolderState(w);
     if (!state || !state->items) return -1;
 
-    if (state->selectedIndex >= 0 && state->selectedIndex < state->itemCount) {
-        return state->items[state->selectedIndex].label;
+    short anchor = FW_AnchorIndex(state);
+    if (anchor >= 0) {
+        return state->items[anchor].label;
     }
     return -1;
 }
@@ -2152,12 +2140,9 @@ void FolderWindow_SelectByName(WindowPtr w, const char* name) {
     if (idx < 0) return;
     FolderWindowState* state = GetFolderState(w);
     if (!state) return;
-    if (state->selectedItems) {
-        for (short i = 0; i < state->itemCount; i++)
-            state->selectedItems[i] = false;
-        state->selectedItems[idx] = true;
-    }
-    state->selectedIndex = idx;
+    FW_DeselectAll(state);
+    state->items[idx].selected = true;
+    FW_SetAnchor(state, idx);
 }
 
 /*
@@ -2167,11 +2152,7 @@ void FolderWindow_ClearSelection(WindowPtr w) {
     if (!w || !IsFolderWindow(w)) return;
     FolderWindowState* state = GetFolderState(w);
     if (!state) return;
-    if (state->selectedItems) {
-        for (short i = 0; i < state->itemCount; i++)
-            state->selectedItems[i] = false;
-    }
-    state->selectedIndex = -1;
+    FW_DeselectAll(state);
 }
 
 /*
@@ -2185,11 +2166,11 @@ void FolderWindow_AddToSelectionByName(WindowPtr w, const char* name) {
     if (idx < 0) return;
     FolderWindowState* state = GetFolderState(w);
     if (!state) return;
-    if (state->selectedItems) {
-        state->selectedItems[idx] = true;
+    {
+        state->items[idx].selected = true;
     }
-    if (state->selectedIndex < 0) {
-        state->selectedIndex = idx;
+    if (FW_AnchorIndex(state) < 0) {
+        FW_SetAnchor(state, idx);
     }
 }
 
@@ -2200,10 +2181,10 @@ Boolean FolderWindow_HasSelection(WindowPtr w) {
     if (!w || !IsFolderWindow(w)) return false;
     FolderWindowState* state = GetFolderState(w);
     if (!state) return false;
-    if (state->selectedIndex >= 0) return true;
-    if (state->selectedItems) {
+    if (FW_AnchorIndex(state) >= 0) return true;
+    {
         for (short i = 0; i < state->itemCount; i++) {
-            if (state->selectedItems[i]) return true;
+            if (state->items[i].selected) return true;
         }
     }
     return false;
@@ -2230,7 +2211,7 @@ void FolderWindow_ArrowKey(WindowPtr w, Boolean isDown, Boolean extendSel) {
     FolderWindowState* state = GetFolderState(w);
     if (!state || !state->items || state->itemCount == 0) return;
 
-    short newIndex = state->selectedIndex;
+    short newIndex = FW_AnchorIndex(state);
     if (newIndex < 0) newIndex = 0;
 
     if (state->viewMode >= kViewByName) {
@@ -2251,24 +2232,25 @@ void FolderWindow_ArrowKey(WindowPtr w, Boolean isDown, Boolean extendSel) {
         }
     }
 
-    if (newIndex == state->selectedIndex) return;
+    if (newIndex == FW_AnchorIndex(state)) return;
 
-    if (state->selectedItems) {
+    {
         if (extendSel) {
             /* Shift+arrow: extend selection to include all items between
-             * old selectedIndex and new index (contiguous range) */
-            short from = (state->selectedIndex < newIndex) ? state->selectedIndex : newIndex;
-            short to = (state->selectedIndex > newIndex) ? state->selectedIndex : newIndex;
+             * old anchor and new index (contiguous range) */
+            short cur = FW_AnchorIndex(state);
+            short from = (cur < newIndex) ? cur : newIndex;
+            short to = (cur > newIndex) ? cur : newIndex;
             for (short i = from; i <= to; i++)
-                state->selectedItems[i] = true;
+                state->items[i].selected = true;
         } else {
             /* Normal arrow: single selection */
             for (short i = 0; i < state->itemCount; i++)
-                state->selectedItems[i] = false;
-            state->selectedItems[newIndex] = true;
+                state->items[i].selected = false;
+            state->items[newIndex].selected = true;
         }
     }
-    state->selectedIndex = newIndex;
+    FW_SetAnchor(state, newIndex);
 
     /* Auto-scroll in list view to keep selection visible */
     if (state->viewMode >= kViewByName) {
@@ -2305,7 +2287,7 @@ void FolderWindow_ArrowKeyLR(WindowPtr w, Boolean isRight) {
     short maxCols = (windowWidth - 20) / (80 + 10);  /* LEFT_MARGIN / (ICON_WIDTH + SPACING) */
     if (maxCols < 1) maxCols = 1;
 
-    short newIndex = state->selectedIndex;
+    short newIndex = FW_AnchorIndex(state);
     if (newIndex < 0) newIndex = 0;
 
     if (isRight) {
@@ -2320,14 +2302,14 @@ void FolderWindow_ArrowKeyLR(WindowPtr w, Boolean isRight) {
         }
     }
 
-    if (newIndex == state->selectedIndex) return;
+    if (newIndex == FW_AnchorIndex(state)) return;
 
-    if (state->selectedItems) {
+    {
         for (short i = 0; i < state->itemCount; i++)
-            state->selectedItems[i] = false;
-        state->selectedItems[newIndex] = true;
+            state->items[i].selected = false;
+        state->items[newIndex].selected = true;
     }
-    state->selectedIndex = newIndex;
+    FW_SetAnchor(state, newIndex);
 
     PostEvent(updateEvt, (UInt32)(uintptr_t)w);
 }
@@ -2345,22 +2327,24 @@ void FolderWindow_TabKey(WindowPtr w, Boolean reverse) {
 
     short newIndex;
     if (reverse) {
-        newIndex = (state->selectedIndex <= 0)
+        short cur0 = FW_AnchorIndex(state);
+        newIndex = (cur0 <= 0)
                    ? state->itemCount - 1
-                   : state->selectedIndex - 1;
+                   : cur0 - 1;
     } else {
-        newIndex = (state->selectedIndex >= state->itemCount - 1)
+        short cur1 = FW_AnchorIndex(state);
+        newIndex = (cur1 >= state->itemCount - 1)
                    ? 0
-                   : state->selectedIndex + 1;
+                   : cur1 + 1;
     }
 
     /* Update selection */
-    if (state->selectedItems) {
+    {
         for (short i = 0; i < state->itemCount; i++)
-            state->selectedItems[i] = false;
-        state->selectedItems[newIndex] = true;
+            state->items[i].selected = false;
+        state->items[newIndex].selected = true;
     }
-    state->selectedIndex = newIndex;
+    FW_SetAnchor(state, newIndex);
 
     /* Auto-scroll in list view */
     if (state->viewMode >= kViewByName) {
@@ -2420,12 +2404,12 @@ void FolderWindow_TypeAhead(WindowPtr w, char ch) {
 
         if (match) {
             /* Select this item */
-            if (state->selectedItems) {
+            {
                 for (short k = 0; k < state->itemCount; k++)
-                    state->selectedItems[k] = false;
-                state->selectedItems[i] = true;
+                    state->items[k].selected = false;
+                state->items[i].selected = true;
             }
-            state->selectedIndex = i;
+            FW_SetAnchor(state, i);
 
             /* Auto-scroll in list view */
             if (state->viewMode >= kViewByName) {
@@ -2482,12 +2466,13 @@ Boolean FolderWindow_GetSelectedItem(WindowPtr w, VRefNum* outVref, FileID* outF
     if (!w || !IsFolderWindow(w) || !outVref || !outFileID) return false;
 
     FolderWindowState* state = GetFolderState(w);
-    if (!state || state->selectedIndex < 0 || state->selectedIndex >= state->itemCount) {
+    short anchorIdx = state ? FW_AnchorIndex(state) : -1;
+    if (!state || anchorIdx < 0) {
         return false;
     }
 
     /* Get the selected item */
-    FolderItem* item = &state->items[state->selectedIndex];
+    FolderItem* item = &state->items[anchorIdx];
 
     *outVref = state->vref;
     *outFileID = item->fileID;
@@ -2593,11 +2578,7 @@ void FolderWindow_DeleteSelected(WindowPtr w) {
     for (short i = state->itemCount - 1; i >= 0; i--) {
         Boolean shouldDelete = false;
 
-        if (state->selectedItems) {
-            shouldDelete = state->selectedItems[i];
-        } else if (i == state->selectedIndex) {
-            shouldDelete = true;
-        }
+        shouldDelete = state->items[i].selected;
 
         if (shouldDelete) {
             FolderItem* item = &state->items[i];
@@ -2626,17 +2607,13 @@ void FolderWindow_DeleteSelected(WindowPtr w) {
                 /* Remove from items array by shifting */
                 for (int j = i; j < state->itemCount - 1; j++) {
                     state->items[j] = state->items[j + 1];
-                    if (state->selectedItems) {
-                        state->selectedItems[j] = state->selectedItems[j + 1];
+                    {
+                        state->items[j].selected = state->items[j + 1].selected;
                     }
                 }
                 state->itemCount--;
 
-                if (state->selectedIndex == i) {
-                    state->selectedIndex = -1;
-                } else if (state->selectedIndex > i) {
-                    state->selectedIndex--;
-                }
+    
             } else {
                 FINDER_LOG_DEBUG("FolderWindow_DeleteSelected: Failed for '%s'\n", item->name);
             }
@@ -2665,12 +2642,13 @@ void FolderWindow_OpenSelected(WindowPtr w) {
     if (!state || !state->items) return;
 
     /* Check if there's a valid selection */
-    if (state->selectedIndex < 0 || state->selectedIndex >= state->itemCount) {
+    short openIdx = FW_AnchorIndex(state);
+    if (openIdx < 0) {
         FINDER_LOG_DEBUG("FolderWindow_OpenSelected: No valid selection\n");
         return;
     }
 
-    short itemIndex = state->selectedIndex;
+    short itemIndex = openIdx;
 
     /* Check if this is a folder */
     if (state->items[itemIndex].isFolder) {
@@ -2858,11 +2836,7 @@ void FolderWindow_DuplicateSelected(WindowPtr w) {
         Boolean shouldDuplicate = false;
 
         /* Check if this item is selected */
-        if (state->selectedItems) {
-            shouldDuplicate = state->selectedItems[i];
-        } else if (i == state->selectedIndex) {
-            shouldDuplicate = true;
-        }
+        shouldDuplicate = state->items[i].selected;
 
         if (shouldDuplicate) {
             FolderItem* item = &state->items[i];
@@ -2912,25 +2886,6 @@ void FolderWindow_DuplicateSelected(WindowPtr w) {
                     }
                     state->items = newItems;
 
-                    /* Reallocate selectedItems array too */
-                    if (state->selectedItems) {
-                        /* Check for integer overflow: itemCount + 1 and sizeof multiplication */
-                        if (state->itemCount >= INT16_MAX ||
-                            (size_t)state->itemCount > SIZE_MAX / sizeof(Boolean) - 1) {
-                            FINDER_LOG_DEBUG("FolderWindow_DuplicateSelected: Integer overflow in selectedItems count\n");
-                            continue;
-                        }
-                        Size oldSelectedSize = state->itemCount * sizeof(Boolean);
-                        Boolean* newSelected = (Boolean*)NewPtr(sizeof(Boolean) * (state->itemCount + 1));
-                        if (!newSelected) {
-                            FINDER_LOG_DEBUG("FolderWindow_DuplicateSelected: Failed to reallocate selectedItems array\n");
-                            continue;
-                        }
-                        BlockMove(state->selectedItems, newSelected, oldSelectedSize);
-                        DisposePtr((Ptr)state->selectedItems);
-                        state->selectedItems = newSelected;
-                        state->selectedItems[state->itemCount] = false;
-                    }
 
                     /* Add the new item.
                      *
@@ -2984,12 +2939,9 @@ void FolderWindow_DuplicateSelected(WindowPtr w) {
     /* Select the last duplicated item (matches System 7 behavior) */
     if (state->itemCount > 0) {
         short lastIdx = state->itemCount - 1;
-        if (state->selectedItems) {
-            for (short i = 0; i < state->itemCount; i++)
-                state->selectedItems[i] = false;
-            state->selectedItems[lastIdx] = true;
-        }
-        state->selectedIndex = lastIdx;
+        FW_DeselectAll(state);
+        state->items[lastIdx].selected = true;
+        FW_SetAnchor(state, lastIdx);
     }
 
     /* Restore cursor and trigger redraw */
@@ -3011,11 +2963,7 @@ short FolderWindow_GetSelectedAsSpecs(WindowPtr w, FSSpec** outSpecs) {
     short selectedCount = 0;
     for (short i = 0; i < state->itemCount; i++) {
         Boolean isSelected = false;
-        if (state->selectedItems) {
-            isSelected = state->selectedItems[i];
-        } else if (i == state->selectedIndex) {
-            isSelected = true;
-        }
+        isSelected = state->items[i].selected;
         if (isSelected) {
             selectedCount++;
         }
@@ -3038,11 +2986,7 @@ short FolderWindow_GetSelectedAsSpecs(WindowPtr w, FSSpec** outSpecs) {
     short specIndex = 0;
     for (short i = 0; i < state->itemCount; i++) {
         Boolean isSelected = false;
-        if (state->selectedItems) {
-            isSelected = state->selectedItems[i];
-        } else if (i == state->selectedIndex) {
-            isSelected = true;
-        }
+        isSelected = state->items[i].selected;
 
         if (isSelected) {
             FolderItem* item = &state->items[i];
@@ -3080,8 +3024,7 @@ void FolderWindow_GetSelectedFileIDs(WindowPtr w, FileID* ids, short* count) {
     short n = 0;
     short max = *count > 0 ? *count : 32;
     for (short i = 0; i < state->itemCount && n < max; i++) {
-        Boolean isSel = (state->selectedItems && state->selectedItems[i]) ||
-                        (i == state->selectedIndex);
+        Boolean isSel = state->items[i].selected;
         if (isSel) {
             ids[n++] = state->items[i].fileID;
         }
@@ -3288,32 +3231,8 @@ void FolderWindow_SortAndArrange(WindowPtr w, short sortType) {
     state->viewMode = sortType;
     state->scrollOffset = 0;
 
-    /* Remember what is selected by identity, not by position.
-     *
-     * The sorts permute items[], but selectedItems[] is a parallel array
-     * indexed by position and selectedIndex is a position too, so neither
-     * followed the item it referred to. Selecting a file and then changing the
-     * view highlighted whichever unrelated file happened to land on that row.
-     * fileID survives the permutation; the flags are rebuilt from it below. */
-    FileID selectedID = 0;
-    Boolean hadPrimary = (state->selectedIndex >= 0 &&
-                          state->selectedIndex < state->itemCount);
-    if (hadPrimary) {
-        selectedID = state->items[state->selectedIndex].fileID;
-    }
-
-    FileID* selectedIDs = NULL;
-    short selectedIDCount = 0;
-    if (state->selectedItems) {
-        selectedIDs = (FileID*)NewPtr(sizeof(FileID) * state->itemCount);
-        if (selectedIDs) {
-            for (short i = 0; i < state->itemCount; i++) {
-                if (state->selectedItems[i]) {
-                    selectedIDs[selectedIDCount++] = state->items[i].fileID;
-                }
-            }
-        }
-    }
+    /* The selection needs no saving across the sort: the flag rides in
+     * FolderItem and the anchor is a FileID, so both move with the files. */
 
     /* Sort the items array */
     switch (sortType) {
@@ -3348,36 +3267,6 @@ void FolderWindow_SortAndArrange(WindowPtr w, short sortType) {
             break;
     }
 
-    /* Put the selection back on the same files, wherever they moved to. */
-    if (state->selectedItems) {
-        for (short i = 0; i < state->itemCount; i++) {
-            state->selectedItems[i] = false;
-        }
-        if (selectedIDs) {
-            for (short i = 0; i < state->itemCount; i++) {
-                for (short k = 0; k < selectedIDCount; k++) {
-                    if (state->items[i].fileID == selectedIDs[k]) {
-                        state->selectedItems[i] = true;
-                        break;
-                    }
-                }
-            }
-        }
-    }
-    if (selectedIDs) {
-        DisposePtr((Ptr)selectedIDs);
-    }
-
-    state->selectedIndex = -1;
-    if (hadPrimary) {
-        for (short i = 0; i < state->itemCount; i++) {
-            if (state->items[i].fileID == selectedID) {
-                state->selectedIndex = i;
-                break;
-            }
-        }
-    }
-
     /* For icon view, arrange in grid; for list view, just redraw */
     if (sortType <= kViewByIcon) {
         FolderWindow_CleanUp(w, false);  /* false = arrange all items */
@@ -3405,9 +3294,9 @@ void FolderWindow_SetLabelOnSelected(WindowPtr w, short labelIndex) {
         Boolean isSelected = false;
 
         /* Check if this item is selected */
-        if (state->selectedItems && state->selectedItems[i]) {
+        if (state->items[i].selected) {
             isSelected = true;
-        } else if (i == state->selectedIndex) {
+        } else if (0) {
             isSelected = true;
         }
 
@@ -3472,9 +3361,9 @@ void FolderWindow_CleanUp(WindowPtr w, Boolean selectedOnly) {
         Boolean shouldArrange = true;
         if (selectedOnly) {
             shouldArrange = false;
-            if (state->selectedItems && state->selectedItems[i]) {
+            if (state->items[i].selected) {
                 shouldArrange = true;
-            } else if (i == state->selectedIndex) {
+        } else if (0) {
                 shouldArrange = true;
             }
         }
@@ -3552,16 +3441,12 @@ void CleanupFolderWindow(WindowPtr w) {
                 gFolderWindows[i].state.items) {
                 DisposePtr((Ptr)gFolderWindows[i].state.items);
             }
-            if (gFolderWindows[i].state.selectedItems) {
-                DisposePtr((Ptr)gFolderWindows[i].state.selectedItems);
-            }
 
             /* Reset slot for reuse */
             gFolderWindows[i].window = NULL;
             gFolderWindows[i].state.items = NULL;
-            gFolderWindows[i].state.selectedItems = NULL;
             gFolderWindows[i].state.itemCount = 0;
-            gFolderWindows[i].state.selectedIndex = -1;
+            gFolderWindows[i].state.anchorID = 0;
             gFolderWindows[i].state.viewMode = kViewByIcon;
             gFolderWindows[i].state.scrollOffset = 0;
             gFolderWindows[i].state.typeAheadLen = 0;
