@@ -24,8 +24,14 @@
 #define FALSE 0
 #endif
 
-/* Debug logging */
-#define FSC_DEBUG 1
+/* Debug logging.
+ *
+ * Off by default, and it has to stay that way: FSC_LOG sits inside
+ * FM_GetScaledCharWidth and FM_ScaleChar, which run once per character of
+ * every string the system measures or draws. With it on, a few seconds of
+ * clicking around the Finder put 380KB on the serial port - more than a
+ * character of trace for every character on screen. */
+#define FSC_DEBUG 0
 
 #if FSC_DEBUG
 #define FSC_LOG(...) FONT_LOG_DEBUG("FSC: " __VA_ARGS__)
@@ -115,6 +121,7 @@ static void FM_ScaleCharNearestNeighbor(short srcX, short srcY, char ch,
     /* Calculate scaled dimensions using fixed-point scale (scale/256) */
     short dstWidth = (short)((srcWidth * scale + 128) / 256);
     short dstHeight = (short)((srcHeight * scale + 128) / 256);
+    (void)dstWidth; (void)dstHeight;   /* only read by FSC_LOG */
 
     FSC_LOG("ScaleChar '%c': %dx%d -> %dx%d (scale=%d/256)\n",
             ch, srcWidth, srcHeight, dstWidth, dstHeight, scale);
