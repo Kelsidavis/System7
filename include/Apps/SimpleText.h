@@ -179,6 +179,7 @@ extern void STFind_Again(STDocument* doc);
 
 /* Utility functions */
 extern void ST_Log(const char* fmt, ...);
+extern void ST_LogPascal(const char* what, const unsigned char* pstr);
 extern void ST_Beep(void);
 extern Boolean ST_ConfirmClose(STDocument* doc);
 extern void ST_ShowAbout(void);

@@ -5,7 +5,7 @@
 #include "SystemTypes.h"
 
 /* Font drawing internals */
-void FM_DrawChicagoCharInternal(short x, short y, char ch, uint32_t color);
+void FM_DrawChicagoCharInternal(short x, short y, unsigned char ch, uint32_t color);
 void QD_LocalToPixel(short localX, short localY, short* pixelX, short* pixelY);
 void DrawChar(SInt16 ch);
 void DrawString(ConstStr255Param s);

@@ -43,7 +43,7 @@
 extern GrafPtr g_currentPort;
 
 /* Internal Font Manager drawing function */
-extern void FM_DrawChicagoCharInternal(short x, short y, char ch, uint32_t color);
+extern void FM_DrawChicagoCharInternal(short x, short y, unsigned char ch, uint32_t color);
 
 /* Standard Mac font sizes (in points) */
 static const short g_standardSizes[] = {9, 10, 12, 14, 18, 24};

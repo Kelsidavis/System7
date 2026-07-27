@@ -22,6 +22,22 @@ extern UInt32 TickCount(void);
 #define ST_DEBUG 1
 
 #if ST_DEBUG
+/*
+ * ST_LogPascal - log a message and a Pascal string
+ *
+ * ST_Log below renders every argument as a single '*', so a document name
+ * passed to it never appeared in the log at all - and passing the Pascal
+ * fileName to a %s that did work would have printed its length byte as a
+ * character. Taking the string as what it is avoids both.
+ */
+void ST_LogPascal(const char* what, const unsigned char* pstr) {
+    char buf[300];
+    char nameC[256];
+    p2cstrcpy(nameC, pstr);
+    snprintf(buf, sizeof(buf), "ST: %s '%s'\n", what, nameC);
+    serial_puts(buf);
+}
+
 void ST_Log(const char* fmt, ...) {
     char buf[256];
     int i = 0;
@@ -603,7 +619,7 @@ Boolean ST_ConfirmClose(STDocument* doc) {
 
     if (!doc) return true;
 
-    ST_Log("Confirm close for '%s' (dirty=%d)\n", doc->fileName, doc->dirty);
+    ST_LogPascal("Confirm close for", doc->fileName);
 
     /* Build DITL: prompt (1=statText), Save (2=btn), Cancel (3=btn), Don't Save (4=btn) */
     Handle ditl = NewHandleClear(512);
@@ -622,11 +638,21 @@ Boolean ST_ConfirmClose(STDocument* doc) {
     *p++ = 0; *p++ = 50;  /* bottom */
     *p++ = 1; *p++ = 30;  /* right = 286 */
     *p++ = 8;              /* statText */
-    /* Build prompt: "Save changes to 'name' before closing?" */
+    /*
+     * fileName is a Pascal string, so its first byte is a length, not a
+     * character. Handed straight to %s it printed that length byte as text -
+     * a stray mark before the name inside the quotes - and stopped at
+     * whatever byte happened to be zero rather than at the name's end.
+     *
+     * The quotes are Mac Roman's curly pair, which is what System 7 puts
+     * around a document name.
+     */
     {
         char msg[200];
+        char nameC[256];
+        p2cstrcpy(nameC, doc->fileName);
         int mlen = snprintf(msg, sizeof(msg),
-                           "Save changes to \"%s\" before closing?", doc->fileName);
+                           "Save changes to \xD2%s\xD3 before closing?", nameC);
         if (mlen < 0) mlen = 0;
         else if (mlen > 200) mlen = 200;
         *p++ = (unsigned char)mlen;

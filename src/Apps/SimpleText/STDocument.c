@@ -89,7 +89,7 @@ STDocument* STDoc_New(void) {
     /* Make it active */
     STDoc_Activate(doc);
 
-    ST_Log("Created new document: %s\n", doc->fileName);
+    ST_LogPascal("Created new document", doc->fileName);
     return doc;
 }
 
@@ -184,7 +184,7 @@ STDocument* STDoc_Open(const char* path) {
 void STDoc_Close(STDocument* doc) {
     if (!doc) return;
 
-    ST_Log("Closing document: %s\n", doc->fileName);
+    ST_LogPascal("Closing document", doc->fileName);
 
     /* Check for unsaved changes */
     if (doc->dirty) {
@@ -239,7 +239,7 @@ void STDoc_Close(STDocument* doc) {
 void STDoc_Save(STDocument* doc) {
     if (!doc) return;
 
-    ST_Log("Saving document: %s\n", doc->fileName);
+    ST_LogPascal("Saving document", doc->fileName);
 
     if (doc->untitled) {
         /* Need Save As dialog */
@@ -266,7 +266,7 @@ void STDoc_SaveAs(STDocument* doc) {
 
     if (!doc) return;
 
-    ST_Log("Save As for document: %s\n", doc->fileName);
+    ST_LogPascal("Save As for document", doc->fileName);
 
     /* Get new filename from user */
     if (!STIO_SaveDialog(doc, newPath)) {
@@ -352,7 +352,7 @@ STDocument* STDoc_FindByWindow(WindowPtr window) {
 void STDoc_Activate(STDocument* doc) {
     if (!doc) return;
 
-    ST_Log("Activating document: %s\n", doc->fileName);
+    ST_LogPascal("Activating document", doc->fileName);
 
     /* Set as active document */
     g_ST.activeDoc = doc;
@@ -372,7 +372,7 @@ void STDoc_Activate(STDocument* doc) {
 void STDoc_Deactivate(STDocument* doc) {
     if (!doc) return;
 
-    ST_Log("Deactivating document: %s\n", doc->fileName);
+    ST_LogPascal("Deactivating document", doc->fileName);
 
     /* Deactivate TextEdit */
     if (doc->hTE) {

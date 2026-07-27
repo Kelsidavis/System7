@@ -35,7 +35,7 @@
 extern GrafPtr g_currentPort;
 
 /* Internal Font Manager drawing function */
-extern void FM_DrawChicagoCharInternal(short x, short y, char ch, uint32_t color);
+extern void FM_DrawChicagoCharInternal(short x, short y, unsigned char ch, uint32_t color);
 
 /* Style synthesis parameters (per System 7.1) */
 #define BOLD_OFFSET         1    /* Horizontal emboldening pixels */

@@ -13,6 +13,7 @@
 #include "QuickDraw/QuickDraw.h"
 #include "SystemTypes.h"
 #include "chicago_font.h"
+#include "chicago_font_extended.h"
 #include <string.h>
 #include "FontManager/FontLogging.h"
 
@@ -71,12 +72,13 @@ static inline uint8_t get_bit(const uint8_t *row, int bitOff) {
  * FM_DrawChicagoCharInternal - Internal function to draw a Chicago character at pixel level
  * This is the core drawing function used by all Font Manager rendering
  */
-void FM_DrawChicagoCharInternal(short x, short y, char ch, uint32_t color) {
-    if (ch < 32 || ch > 126) return;
-
-    /* Use pointer access instead of struct copy to avoid ARM64 struct assignment hang */
-    const ChicagoCharInfo* info = &chicago_ascii[ch - 32];
-    /* Debug removed - serial_printf can hang on ARM64 */
+void FM_DrawChicagoCharInternal(short x, short y, unsigned char ch, uint32_t color) {
+    /* One lookup covering all of Mac Roman, so a character outside ASCII is
+     * drawn rather than silently skipped. */
+    const uint8_t* strike = NULL;
+    int strikeRowBytes = 0;
+    const ChicagoCharInfo* info = Chicago_Glyph(ch, &strike, &strikeRowBytes);
+    if (!info) return;
 
     x += info->left_offset;
 
@@ -157,7 +159,7 @@ void FM_DrawChicagoCharInternal(short x, short y, char ch, uint32_t color) {
             continue;
         }
 
-        const uint8_t *strike_row = chicago_bitmap + (row * CHICAGO_ROW_BYTES);
+        const uint8_t *strike_row = strike + (row * strikeRowBytes);
 
         for (int col = 0; col < info->bit_width; col++) {
             int destX = x + col;
@@ -707,17 +709,22 @@ void GetFontMetrics(FMetricRec *theMetrics) {
  * neither has to call the other.
  */
 short FM_GetPlainCharWidth(short ch) {
-    if (ch >= 32 && ch <= 126 && g_fmState.currentStrike == &g_chicagoStrike12) {
+    if (g_fmState.currentStrike == &g_chicagoStrike12) {
         /* Non-12pt sizes are synthesised by scaling the 12pt strike */
         if (g_currentPort && g_currentPort->txSize != 12) {
             return FM_GetScaledCharWidth(g_currentPort->txFont, g_currentPort->txSize, ch);
         }
 
-        /* Use actual Chicago font metrics for 12pt */
-        ChicagoCharInfo info = chicago_ascii[ch - 32];
-        short width = info.bit_width + 2;  /* Corrected spacing */
-        if (ch == ' ') width += 3;  /* Extra space width */
-        return width;
+        /* Widths come from the same lookup the drawing does. When they came
+         * from different places, a character the renderer could draw but the
+         * measurer did not know about advanced by a default eight pixels and
+         * left a gap. */
+        const ChicagoCharInfo* info = Chicago_Glyph((unsigned char)ch, NULL, NULL);
+        if (info) {
+            short width = info->bit_width + 2;  /* Corrected spacing */
+            if (ch == ' ') width += 3;  /* Extra space width */
+            return width;
+        }
     }
 
     /* Default width for unknown chars */
