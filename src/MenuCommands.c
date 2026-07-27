@@ -552,9 +552,7 @@ static void HandleFileMenu(short item)
 
                 /* Refresh the window or desktop */
                 if (front && IsFolderWindow(front)) {
-                    /* Reload folder contents to show the new folder */
-                    extern void InitializeFolderContentsEx(WindowPtr w, Boolean isTrash, VRefNum vref, DirID dirID);
-                    InitializeFolderContentsEx(front, false, targetVRef, targetDir);
+                    FolderWindow_ContentsChanged(front);
 
                     /* Select the new folder and initiate rename.
                      * In System 7, New Folder creates the item selected
@@ -1177,12 +1175,7 @@ void MakeAliasOfSelectedItems(WindowPtr w) {
     /* Free the specs array */
     DisposePtr((Ptr)specs);
 
-    /* Reload the folder to show the new aliases */
-    extern void InitializeFolderContentsEx(WindowPtr w, Boolean isTrash, VRefNum vref, DirID dirID);
-    InitializeFolderContentsEx(w, false, vref, dirID);
-
-    /* Trigger redraw */
-    PostEvent(updateEvt, (UInt32)(uintptr_t)w);
+    FolderWindow_ContentsChanged(w);
 
     MENU_LOG_DEBUG("MakeAliasOfSelectedItems: Complete\n");
 }
@@ -1239,10 +1232,7 @@ void PutAwaySelectedItems(WindowPtr w) {
 
     MENU_LOG_DEBUG("PutAwaySelectedItems: Restored %d of %d items\n", restored, count);
 
-    /* Reload trash window */
-    extern void InitializeFolderContentsEx(WindowPtr w, Boolean isTrash, VRefNum vref, DirID dirID);
-    InitializeFolderContentsEx(w, true, vref, trashDir);
-    PostEvent(updateEvt, (UInt32)(uintptr_t)w);
+    FolderWindow_ContentsChanged(w);
 }
 
 /* ============================================================================
@@ -1331,14 +1321,7 @@ void Finder_Undo(void) {
         extern Boolean IsFolderWindow(WindowPtr w);
         WindowPtr front = FrontWindow();
         if (front && IsFolderWindow(front)) {
-            extern void InitializeFolderContentsEx(WindowPtr w, Boolean isTrash,
-                                                    VRefNum vref, DirID dirID);
-            extern VRefNum FolderWindow_GetVRef(WindowPtr w);
-            extern DirID FolderWindow_GetCurrentDir(WindowPtr w);
-            InitializeFolderContentsEx(front, false,
-                                       FolderWindow_GetVRef(front),
-                                       FolderWindow_GetCurrentDir(front));
-            PostEvent(updateEvt, (UInt32)(uintptr_t)front);
+            FolderWindow_ContentsChanged(front);
         }
 
         /* Refresh trash icon */

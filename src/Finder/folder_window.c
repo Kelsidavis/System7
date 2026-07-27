@@ -140,6 +140,7 @@ static struct {
 
 /* Get or create state for a folder window */
 FolderWindowState* GetFolderState(WindowPtr w);
+static void InitializeFolderContentsEx(WindowPtr w, Boolean isTrash, VRefNum vref, DirID dirID);
 void InitializeFolderContents(WindowPtr w, Boolean isTrash);
 static void GhostEraseIf(void);  /* Forward declaration for ghost system */
 
@@ -437,7 +438,7 @@ FolderWindowState* GetFolderState(WindowPtr w) {
 }
 
 /* Initialize folder contents from VFS - Extended version with custom dirID */
-void InitializeFolderContentsEx(WindowPtr w, Boolean isTrash, VRefNum vref, DirID dirID) {
+static void InitializeFolderContentsEx(WindowPtr w, Boolean isTrash, VRefNum vref, DirID dirID) {
         FolderWindowState* state = NULL;
 
     FINDER_LOG_DEBUG("InitializeFolderContentsEx: ENTRY, w=0x%08x isTrash=%d vref=%d dirID=%d\n",

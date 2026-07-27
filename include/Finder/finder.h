@@ -129,7 +129,11 @@ WindowPtr Finder_OpenDesktopItem(Boolean isTrash, ConstStr255Param title);
 
 /* Folder Window API */
 void DrawFolderWindowContents(WindowPtr window, Boolean isTrash);
-void InitializeFolderContentsEx(WindowPtr w, Boolean isTrash, VRefNum vref, DirID dirID);
+/* Not exported. Loading a folder's contents from scratch discards the icon
+ * positions and selection the window is holding, so callers outside
+ * folder_window.c must go through FolderWindow_ContentsChanged, which
+ * preserves them. Five call sites reloaded directly before that existed and
+ * every one of them reset the window's layout as a side effect. */
 WindowPtr FolderWindow_OpenFolder(VRefNum vref, DirID dirID, ConstStr255Param title);
 Boolean HandleFolderWindowClick(WindowPtr w, EventRecord *ev, Boolean isDoubleClick);
 void FolderWindow_Draw(WindowPtr w);
