@@ -151,8 +151,23 @@ DialogPtr NewDialog(void* wStorage, const Rect* boundsRect, const unsigned char*
         return NULL;
     }
 
-    /* Create the underlying window */
-    window = NewWindow(wStorage, boundsRect, title, false, /* Start hidden */
+    /*
+     * Create the underlying window inside the dialog record.
+     *
+     * A DialogRecord begins with a WindowRecord because a dialog IS a window
+     * - every Toolbox call that takes a DialogPtr and hands it to the Window
+     * Manager depends on that. This used to build a separate window and then
+     * memcpy it into the dialog, leaving two records for one window: the
+     * Window Manager's list held one and every DialogPtr in the system
+     * pointed at the other. The copy never appeared in the window list, so a
+     * dialog could not become the front window - the Open and Save dialogs
+     * drew and then had the document window painted straight over them - the
+     * real record was leaked, and disposal freed the dialog twice, once
+     * through DisposeWindow and once directly. Giving NewWindow the dialog's
+     * own storage makes them one object again.
+     */
+    window = NewWindow(&((DialogRecord*)dialog)->window, boundsRect, title,
+                       false, /* Start hidden until items are set up */
                        procID, behind, goAwayFlag, refCon);
     if (!window) {
         // printf("Error: Failed to create dialog window\n");
@@ -168,9 +183,6 @@ DialogPtr NewDialog(void* wStorage, const Rect* boundsRect, const unsigned char*
 
     /* Cast to DialogRecord for access to extended fields */
     DialogRecord* dialogRec = (DialogRecord*)dialog;
-
-    /* Copy window data into dialog record */
-    memcpy(&dialogRec->window, window, sizeof(struct WindowRecord));
 
     /* Set up dialog-specific data */
     dialogRec->items = itmLstHndl;
@@ -591,14 +603,11 @@ static void DisposeDialogStructure(DialogPtr dialog, Boolean closeOnly)
         dialogRec->textH = NULL;
     }
 
-    /* Dispose of the underlying window */
+    /* Dispose of the underlying window. The window record and the dialog
+     * record are the same allocation, so this frees the dialog too - there
+     * used to be a second DisposePtr here, which freed it a second time. */
     if (!closeOnly) {
         DisposeWindow((WindowPtr)dialog);
-    }
-
-    /* Free the dialog structure if it was allocated */
-    if (!closeOnly) {
-        DisposePtr((Ptr)dialog);
     }
 }
 
