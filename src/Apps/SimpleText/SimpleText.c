@@ -7,6 +7,7 @@
 
 #include <string.h>
 #include "Apps/SimpleText.h"
+#include "DialogManager/DITLBuilder.h"
 #include "MemoryMgr/MemoryManager.h"
 #include "SoundManager/SoundManager.h"
 
@@ -621,75 +622,36 @@ Boolean ST_ConfirmClose(STDocument* doc) {
 
     ST_LogPascal("Confirm close for", doc->fileName);
 
-    /* Build DITL: prompt (1=statText), Save (2=btn), Cancel (3=btn), Don't Save (4=btn) */
-    Handle ditl = NewHandleClear(512);
-    if (!ditl) return true;  /* Can't show dialog, allow close */
-
-    HLock(ditl);
-    unsigned char* p = (unsigned char*)*ditl;
-
-    /* 4 items, count-1 = 3 */
-    *p++ = 0; *p++ = 3;
-
-    /* Item 1: Prompt static text */
-    *p++ = 0; *p++ = 0; *p++ = 0; *p++ = 0;
-    *p++ = 0; *p++ = 10;  /* top */
-    *p++ = 0; *p++ = 10;  /* left */
-    *p++ = 0; *p++ = 50;  /* bottom */
-    *p++ = 1; *p++ = 30;  /* right = 286 */
-    *p++ = 8;              /* statText */
     /*
-     * fileName is a Pascal string, so its first byte is a length, not a
-     * character. Handed straight to %s it printed that length byte as text -
-     * a stray mark before the name inside the quotes - and stopped at
-     * whatever byte happened to be zero rather than at the name's end.
+     * Built through DITLBuilder rather than by hand.
      *
-     * The quotes are Mac Roman's curly pair, which is what System 7 puts
-     * around a document name.
+     * A dialog item list is word-aligned: an item whose data length is odd
+     * carries a pad byte, or the parser reads the next item's header one byte
+     * off and everything after it is garbage. This function used to lay the
+     * bytes out itself and skipped that, so the list held together only while
+     * the message length happened to be even. Fixing the message to stop
+     * printing the file name's Pascal length byte shortened it by one, and
+     * all three buttons stopped being drawn - the parser was reading them from
+     * the wrong offset. The builder exists to make that impossible; this was
+     * the one caller still not using it.
      */
-    {
-        char msg[200];
-        char nameC[256];
-        p2cstrcpy(nameC, doc->fileName);
-        int mlen = snprintf(msg, sizeof(msg),
-                           "Save changes to \xD2%s\xD3 before closing?", nameC);
-        if (mlen < 0) mlen = 0;
-        else if (mlen > 200) mlen = 200;
-        *p++ = (unsigned char)mlen;
-        memcpy(p, msg, mlen);
-        p += mlen;
-    }
+    char msg[200];
+    char nameC[256];
+    p2cstrcpy(nameC, doc->fileName);
+    /* The quotes are Mac Roman's curly pair, which is what System 7 puts
+     * around a document name. */
+    snprintf(msg, sizeof(msg), "Save changes to \xD2%s\xD3 before closing?", nameC);
 
-    /* Item 2: Save button (default - bottom right) */
-    *p++ = 0; *p++ = 0; *p++ = 0; *p++ = 0;
-    *p++ = 0; *p++ = 60;  /* top */
-    *p++ = 0; *p++ = 210; /* left */
-    *p++ = 0; *p++ = 80;  /* bottom */
-    *p++ = 1; *p++ = 30;  /* right = 286 */
-    *p++ = 4;              /* ctrlItem + btnCtrl */
-    *p++ = 4; *p++ = 'S'; *p++ = 'a'; *p++ = 'v'; *p++ = 'e';
+    DITLBuilder b;
+    if (!DITL_Begin(&b, 512)) return true;
 
-    /* Item 3: Cancel button (bottom center) */
-    *p++ = 0; *p++ = 0; *p++ = 0; *p++ = 0;
-    *p++ = 0; *p++ = 60;
-    *p++ = 0; *p++ = 110;
-    *p++ = 0; *p++ = 80;
-    *p++ = 0; *p++ = 200;
-    *p++ = 4;
-    *p++ = 6; *p++ = 'C'; *p++ = 'a'; *p++ = 'n'; *p++ = 'c'; *p++ = 'e'; *p++ = 'l';
+    DITL_AddText(&b, 10, 10, 50, 286, msg);
+    DITL_AddButton(&b, 60, 210, 80, 286, "Save");
+    DITL_AddButton(&b, 60, 110, 80, 200, "Cancel");
+    DITL_AddButton(&b, 60, 10, 80, 100, "Don\xD5t Save");
 
-    /* Item 4: Don't Save button (bottom left) */
-    *p++ = 0; *p++ = 0; *p++ = 0; *p++ = 0;
-    *p++ = 0; *p++ = 60;
-    *p++ = 0; *p++ = 10;
-    *p++ = 0; *p++ = 80;
-    *p++ = 0; *p++ = 100;
-    *p++ = 4;
-    *p++ = 10;
-    memcpy(p, "Don\xD5t Save", 10);  /* 0xD5 = curly apostrophe in Mac Roman */
-    p += 10;
-
-    HUnlock(ditl);
+    Handle ditl = DITL_Finish(&b);
+    if (!ditl) return true;
 
     Rect bounds = {140, 120, 240, 420};
     static unsigned char title[] = {0};  /* No title for alert-style dialog */
@@ -765,43 +727,18 @@ void ST_ShowAbout(void) {
     extern Boolean GetNextEvent(unsigned int, EventRecord*);
     extern void SystemTask(void);
 
-    /* Build DITL: app info text (1), OK button (2) */
-    Handle ditl = NewHandleClear(256);
+    /* Built through DITLBuilder: see ST_ConfirmClose for why nothing here lays
+     * item bytes down by hand any more. */
+    DITLBuilder b;
+    if (!DITL_Begin(&b, 512)) return;
+
+    DITL_AddText(&b, 10, 10, 70, 276,
+                 "SimpleText 1.0\n\nA simple text editor for System 7.\n"
+                 "\xa9 System 7 Portable Project");
+    DITL_AddButton(&b, 80, 200, 100, 276, "OK");
+
+    Handle ditl = DITL_Finish(&b);
     if (!ditl) return;
-
-    HLock(ditl);
-    unsigned char* p = (unsigned char*)*ditl;
-
-    /* 2 items, count-1 = 1 */
-    *p++ = 0; *p++ = 1;
-
-    /* Item 1: About text */
-    *p++ = 0; *p++ = 0; *p++ = 0; *p++ = 0;
-    *p++ = 0; *p++ = 10;  /* top */
-    *p++ = 0; *p++ = 10;  /* left */
-    *p++ = 0; *p++ = 70;  /* bottom */
-    *p++ = 1; *p++ = 20;  /* right = 276 */
-    *p++ = 8;              /* statText */
-    {
-        const char* msg = "SimpleText 1.0\n\nA simple text editor for System 7.\n"
-                          "\xa9 System 7 Portable Project";
-        int len = 0;
-        while (msg[len]) len++;
-        *p++ = (unsigned char)len;
-        memcpy(p, msg, len);
-        p += len;
-    }
-
-    /* Item 2: OK button */
-    *p++ = 0; *p++ = 0; *p++ = 0; *p++ = 0;
-    *p++ = 0; *p++ = 80;  /* top */
-    *p++ = 0; *p++ = 200; /* left */
-    *p++ = 0; *p++ = 100; /* bottom */
-    *p++ = 1; *p++ = 20;  /* right = 276 */
-    *p++ = 4;              /* btnCtrl */
-    *p++ = 2; *p++ = 'O'; *p++ = 'K';
-
-    HUnlock(ditl);
 
     Rect bounds = {120, 100, 240, 400};
     static Str255 title;

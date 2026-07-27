@@ -1,3 +1,4 @@
+#include "DialogManager/DITLBuilder.h"
 #include "MemoryMgr/MemoryManager.h"
 /*
 #include "DialogManager/DialogInternal.h"
@@ -410,84 +411,32 @@ static OSErr BuildFallbackDITL(SInt16 pseudoId, SInt16 iconKind, Handle* outDITL
     /* Determine item count: icon(1), text(2), OK(3), Cancel(4 if generic) */
     n = (pseudoId == 9004) ? 4 : 3;
 
-    /* Build minimal DITL in binary format that ParseDITL can read */
-    /* Format: count-1 (2 bytes), then for each item: placeholder(4), rect(8), type(1), data */
-    h = NewHandleClear(1024);  /* Generous size for small DITL */
+    /*
+     * Built through DITLBuilder rather than by hand.
+     *
+     * The message is runtime text, so its length is odd about half the time,
+     * and an item whose data length is odd needs a pad byte or the parser
+     * reads the next item's header one byte off. Laying these bytes out here
+     * skipped that, which meant the OK and Cancel buttons of an alert were
+     * present or missing depending on how long the message happened to be.
+     */
+    DITLBuilder b;
+    if (!DITL_Begin(&b, 1024)) {
+        return -108; /* memFullErr */
+    }
+
+    DITL_AddItem(&b, userItem, &(Rect){20, 20, 52, 52}, NULL);   /* icon well */
+    DITL_AddTextPascal(&b, 20, 60, 96, 260, msgText);
+    DITL_AddButtonPascal(&b, 96, 180, 116, 240, okText);
+    if (n == 4) {
+        DITL_AddButtonPascal(&b, 96, 100, 116, 160, cancelText);
+    }
+
+    h = DITL_Finish(&b);
     if (!h) {
         return -108; /* memFullErr */
     }
 
-    HLock(h);
-    p = (unsigned char*)*h;
-
-    /* Write count-1 */
-    *p++ = 0;
-    *p++ = (unsigned char)(n - 1);
-
-    /* Item 1: Icon user item at left */
-    /* Placeholder (4 bytes) */
-    *p++ = 0; *p++ = 0; *p++ = 0; *p++ = 0;
-    /* Bounds: top, left, bottom, right (each 2 bytes) */
-    *p++ = 0; *p++ = 20;  /* top */
-    *p++ = 0; *p++ = 20;  /* left */
-    *p++ = 0; *p++ = 52;  /* bottom */
-    *p++ = 0; *p++ = 52;  /* right */
-    /* Type: userItem (0) + itemDisable (128) */
-    *p++ = 0;  /* userItem */
-    /* Data length */
-    *p++ = 0;  /* No data for user item */
-
-    /* Item 2: Static text */
-    /* Placeholder */
-    *p++ = 0; *p++ = 0; *p++ = 0; *p++ = 0;
-    /* Bounds */
-    *p++ = 0; *p++ = 20;  /* top */
-    *p++ = 0; *p++ = 60;  /* left */
-    *p++ = 0; *p++ = 96;  /* bottom */
-    *p++ = 1; *p++ = 4;   /* right (260) */
-    /* Type: statText (8) */
-    *p++ = 8;
-    /* Data: Pascal string */
-    *p++ = msgText[0];  /* length */
-    for (i = 1; i <= msgText[0]; i++) {
-        *p++ = msgText[i];
-    }
-
-    /* Item 3: OK button */
-    /* Placeholder */
-    *p++ = 0; *p++ = 0; *p++ = 0; *p++ = 0;
-    /* Bounds: bottom-right, 80×20 button */
-    *p++ = 0; *p++ = 96;   /* top */
-    *p++ = 0; *p++ = 180;  /* left (260-80) */
-    *p++ = 0; *p++ = 116;  /* bottom */
-    *p++ = 0; *p++ = 240;  /* right (260-20) */
-    /* Type: ctrlItem + btnCtrl (4+0) */
-    *p++ = 4;
-    /* Data: Pascal string */
-    *p++ = okText[0];
-    for (i = 1; i <= okText[0]; i++) {
-        *p++ = okText[i];
-    }
-
-    if (n == 4) {
-        /* Item 4: Cancel button */
-        /* Placeholder */
-        *p++ = 0; *p++ = 0; *p++ = 0; *p++ = 0;
-        /* Bounds */
-        *p++ = 0; *p++ = 96;   /* top */
-        *p++ = 0; *p++ = 100;  /* left (260-160) */
-        *p++ = 0; *p++ = 116;  /* bottom */
-        *p++ = 0; *p++ = 160;  /* right (260-100) */
-        /* Type: ctrlItem + btnCtrl */
-        *p++ = 4;
-        /* Data: Pascal string */
-        *p++ = cancelText[0];
-        for (i = 1; i <= cancelText[0]; i++) {
-            *p++ = cancelText[i];
-        }
-    }
-
-    HUnlock(h);
     *outDITL = h;
     return noErr;
 }

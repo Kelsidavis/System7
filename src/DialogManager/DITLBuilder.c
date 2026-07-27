@@ -61,15 +61,16 @@ Boolean DITL_Begin(DITLBuilder* b, Size capacity)
     return true;
 }
 
-void DITL_AddItem(DITLBuilder* b, SInt16 type, const Rect* box, const char* text)
+/*
+ * The one place that lays an item down. Both the C-string and Pascal-string
+ * entry points come through here, so the alignment rule is applied once
+ * however the caller happens to hold its text.
+ */
+static void DITL_AddRaw(DITLBuilder* b, SInt16 type, const Rect* box,
+                        const void* bytes, Size len)
 {
     if (!b || !b->list || b->overflow || !box) return;
-
-    Size len = 0;
-    if (text) {
-        len = (Size)strlen(text);
-        if (len > 255) len = 255;
-    }
+    if (len > 255) len = 255;
 
     /* An odd-length item is followed by a pad byte so the next one starts even. */
     Size need = kDITLItemHeaderSize + len + ((len & 1) ? 1 : 0);
@@ -93,7 +94,7 @@ void DITL_AddItem(DITLBuilder* b, SInt16 type, const Rect* box, const char* text
     *p++ = (UInt8)(type & 0xFF);
     *p++ = (UInt8)len;
     if (len) {
-        memcpy(p, text, len);
+        memcpy(p, bytes, len);
         p += len;
     }
     if (len & 1) {
@@ -102,6 +103,40 @@ void DITL_AddItem(DITLBuilder* b, SInt16 type, const Rect* box, const char* text
 
     b->next = p;
     b->count++;
+}
+
+void DITL_AddItem(DITLBuilder* b, SInt16 type, const Rect* box, const char* text)
+{
+    DITL_AddRaw(b, type, box, text, text ? (Size)strlen(text) : 0);
+}
+
+/*
+ * Append an item whose text is a Pascal string.
+ *
+ * Callers that hold a Str255 used to convert it themselves, and getting that
+ * wrong is its own recurring bug - passing one to %s prints the length byte as
+ * a character. Taking the string as what it is removes the conversion.
+ */
+void DITL_AddItemPascal(DITLBuilder* b, SInt16 type, const Rect* box,
+                        const unsigned char* pstr)
+{
+    DITL_AddRaw(b, type, box, pstr ? pstr + 1 : NULL, pstr ? (Size)pstr[0] : 0);
+}
+
+void DITL_AddButtonPascal(DITLBuilder* b, SInt16 top, SInt16 left, SInt16 bottom,
+                          SInt16 right, const unsigned char* title)
+{
+    Rect r;
+    SetRect(&r, left, top, right, bottom);
+    DITL_AddItemPascal(b, ctrlItem + btnCtrl, &r, title);
+}
+
+void DITL_AddTextPascal(DITLBuilder* b, SInt16 top, SInt16 left, SInt16 bottom,
+                        SInt16 right, const unsigned char* text)
+{
+    Rect r;
+    SetRect(&r, left, top, right, bottom);
+    DITL_AddItemPascal(b, statText, &r, text);
 }
 
 void DITL_AddText(DITLBuilder* b, SInt16 top, SInt16 left, SInt16 bottom, SInt16 right,

@@ -1,3 +1,4 @@
+#include "DialogManager/DITLBuilder.h"
 #include "MemoryMgr/MemoryManager.h"
 /*
  * StandardFileHAL_Shims.c - Hardware Abstraction Layer for Standard File Package
@@ -166,16 +167,6 @@ OSErr StandardFile_HAL_Init(void) {
     return noErr;
 }
 
-/* Write a rectangle into a DITL item, big-endian as the format wants. */
-static void DITL_PutRect(UInt8 **p, const Rect *r)
-{
-    short v[4] = { r->top, r->left, r->bottom, r->right };
-    for (int i = 0; i < 4; i++) {
-        *(*p)++ = (UInt8)((v[i] >> 8) & 0xFF);
-        *(*p)++ = (UInt8)(v[i] & 0xFF);
-    }
-}
-
 /*
  * BuildOpenDITL - Build a binary DITL (Dialog Item List) for the Open dialog.
  *
@@ -190,72 +181,43 @@ static Handle BuildOpenDITL(ConstStr255Param prompt) {
     Handle h = NewHandleClear(512);
     if (!h) return NULL;
 
-    HLock(h);
-    unsigned char* p = (unsigned char*)*h;
+    /*
+     * Built through DITLBuilder rather than by hand.
+     *
+     * The prompt is caller-supplied, so its length is odd about half the time,
+     * and an odd item without its pad byte throws off every item after it. The
+     * prompt is last here so nothing followed it to be corrupted, but the
+     * fallback text was its own bug: it declared a length of 13 for "Select a
+     * file:", which is fourteen characters, so the colon was dropped.
+     */
+    DITLBuilder b;
+    if (!DITL_Begin(&b, 512)) return NULL;
 
-    /* We define items 1..11 but leave gaps as disabled user items */
-    /* Item count - 1 = 10 (11 items total, indices 1-11) */
-    *p++ = 0; *p++ = 10;
+    DITL_AddButton(&b, 260, 276, 280, 376, "Open");
+    DITL_AddButton(&b, 260, 140, 280, 240, "Cancel");
 
-    /* Item 1: Open button (bottom-right) */
-    *p++ = 0; *p++ = 0; *p++ = 0; *p++ = 0;  /* placeholder */
-    *p++ = 1; *p++ = 4;   /* top = 260 */
-    *p++ = 1; *p++ = 20;  /* left = 276 */
-    *p++ = 1; *p++ = 24;  /* bottom = 280 */
-    *p++ = 1; *p++ = 120; /* right = 376 */
-    *p++ = 4;              /* ctrlItem + btnCtrl */
-    *p++ = 4; *p++ = 'O'; *p++ = 'p'; *p++ = 'e'; *p++ = 'n';
-
-    /* Item 2: Cancel button */
-    *p++ = 0; *p++ = 0; *p++ = 0; *p++ = 0;
-    *p++ = 1; *p++ = 4;   /* top = 260 */
-    *p++ = 0; *p++ = 140; /* left = 140 */
-    *p++ = 1; *p++ = 24;  /* bottom = 280 */
-    *p++ = 0; *p++ = 240; /* right = 240 */
-    *p++ = 4;              /* ctrlItem + btnCtrl */
-    *p++ = 6; *p++ = 'C'; *p++ = 'a'; *p++ = 'n'; *p++ = 'c'; *p++ = 'e'; *p++ = 'l';
-
-    /* Items 3-6: placeholder disabled user items (minimal) */
+    /* Items 3-6 and 8-10 are disabled placeholders: the list below expects to
+     * be item 7, and the prompt item 11. */
     for (int i = 3; i <= 6; i++) {
-        *p++ = 0; *p++ = 0; *p++ = 0; *p++ = 0;  /* placeholder */
-        *p++ = 0; *p++ = 0; *p++ = 0; *p++ = 0;   /* top=0, left=0 */
-        *p++ = 0; *p++ = 0; *p++ = 0; *p++ = 0;   /* bottom=0, right=0 */
-        *p++ = 128;  /* userItem + disabled */
-        *p++ = 0;    /* no data */
+        DITL_AddItem(&b, userItem + itemDisable, &(Rect){0, 0, 0, 0}, NULL);
     }
 
-    /* Item 7: File list user item (the box the list sits in) */
-    *p++ = 0; *p++ = 0; *p++ = 0; *p++ = 0;
-    DITL_PutRect(&p, &kOpenListBox);
-    *p++ = 0;              /* userItem */
-    *p++ = 0;              /* no data */
+    DITL_AddItem(&b, userItem, &kOpenListBox, NULL);
 
-    /* Items 8-10: placeholder disabled user items */
     for (int i = 8; i <= 10; i++) {
-        *p++ = 0; *p++ = 0; *p++ = 0; *p++ = 0;
-        *p++ = 0; *p++ = 0; *p++ = 0; *p++ = 0;
-        *p++ = 0; *p++ = 0; *p++ = 0; *p++ = 0;
-        *p++ = 128;
-        *p++ = 0;
+        DITL_AddItem(&b, userItem + itemDisable, &(Rect){0, 0, 0, 0}, NULL);
     }
 
-    /* Item 11: Prompt static text */
-    *p++ = 0; *p++ = 0; *p++ = 0; *p++ = 0;
-    *p++ = 0; *p++ = 10;  /* top = 10 */
-    *p++ = 0; *p++ = 10;  /* left = 10 */
-    *p++ = 0; *p++ = 26;  /* bottom = 26 */
-    *p++ = 1; *p++ = 120; /* right = 376 */
-    *p++ = 8;              /* statText */
-    /* Write prompt text (Pascal string) */
     if (prompt && prompt[0] > 0) {
-        *p++ = prompt[0];
-        for (int i = 1; i <= prompt[0]; i++) *p++ = prompt[i];
+        DITL_AddTextPascal(&b, 10, 10, 26, 376, prompt);
     } else {
-        *p++ = 13;
-        memcpy(p, "Select a file:", 13); p += 13;
+        DITL_AddText(&b, 10, 10, 26, 376, "Select a file:");
     }
 
-    HUnlock(h);
+    Handle built = DITL_Finish(&b);
+    if (!built) return NULL;
+    DisposeHandle(h);
+    return built;
     return h;
 }
 
@@ -311,86 +273,44 @@ static Handle BuildSaveDITL(ConstStr255Param prompt, ConstStr255Param defaultNam
     Handle h = NewHandleClear(512);
     if (!h) return NULL;
 
-    HLock(h);
-    unsigned char* p = (unsigned char*)*h;
+    /*
+     * Built through DITLBuilder rather than by hand. The filename field is
+     * pre-filled with a caller-supplied name, and the "Save as:" prompt comes
+     * after it - so an odd-length name shifted the prompt's header by a byte
+     * and it stopped being drawn.
+     */
+    DITLBuilder b;
+    if (!DITL_Begin(&b, 512)) return NULL;
 
-    /* 11 items total, count-1 = 10 */
-    *p++ = 0; *p++ = 10;
+    DITL_AddButton(&b, 260, 276, 280, 376, "Save");
+    DITL_AddButton(&b, 260, 140, 280, 240, "Cancel");
 
-    /* Item 1: Save button (bottom-right) */
-    *p++ = 0; *p++ = 0; *p++ = 0; *p++ = 0;
-    *p++ = 1; *p++ = 4;   /* top = 260 */
-    *p++ = 1; *p++ = 20;  /* left = 276 */
-    *p++ = 1; *p++ = 24;  /* bottom = 280 */
-    *p++ = 1; *p++ = 120; /* right = 376 */
-    *p++ = 4;              /* ctrlItem + btnCtrl */
-    *p++ = 4; *p++ = 'S'; *p++ = 'a'; *p++ = 'v'; *p++ = 'e';
-
-    /* Item 2: Cancel button */
-    *p++ = 0; *p++ = 0; *p++ = 0; *p++ = 0;
-    *p++ = 1; *p++ = 4;   /* top = 260 */
-    *p++ = 0; *p++ = 140; /* left = 140 */
-    *p++ = 1; *p++ = 24;  /* bottom = 280 */
-    *p++ = 0; *p++ = 240; /* right = 240 */
-    *p++ = 4;              /* ctrlItem + btnCtrl */
-    *p++ = 6; *p++ = 'C'; *p++ = 'a'; *p++ = 'n'; *p++ = 'c'; *p++ = 'e'; *p++ = 'l';
-
-    /* Items 3-6: placeholder disabled user items */
     for (int i = 3; i <= 6; i++) {
-        *p++ = 0; *p++ = 0; *p++ = 0; *p++ = 0;
-        *p++ = 0; *p++ = 0; *p++ = 0; *p++ = 0;
-        *p++ = 0; *p++ = 0; *p++ = 0; *p++ = 0;
-        *p++ = 128;
-        *p++ = 0;
+        DITL_AddItem(&b, userItem + itemDisable, &(Rect){0, 0, 0, 0}, NULL);
     }
 
-    /* Item 7: File list user item (the box the list sits in) */
-    *p++ = 0; *p++ = 0; *p++ = 0; *p++ = 0;
-    DITL_PutRect(&p, &kSaveListBox);
-    *p++ = 0;              /* userItem */
-    *p++ = 0;
+    DITL_AddItem(&b, userItem, &kSaveListBox, NULL);
 
-    /* Items 8-9: placeholder disabled user items */
     for (int i = 8; i <= 9; i++) {
-        *p++ = 0; *p++ = 0; *p++ = 0; *p++ = 0;
-        *p++ = 0; *p++ = 0; *p++ = 0; *p++ = 0;
-        *p++ = 0; *p++ = 0; *p++ = 0; *p++ = 0;
-        *p++ = 128;
-        *p++ = 0;
+        DITL_AddItem(&b, userItem + itemDisable, &(Rect){0, 0, 0, 0}, NULL);
     }
 
-    /* Item 10: Filename text edit field */
-    *p++ = 0; *p++ = 0; *p++ = 0; *p++ = 0;
-    *p++ = 0; *p++ = 230; /* top = 230 */
-    *p++ = 0; *p++ = 10;  /* left = 10 */
-    *p++ = 0; *p++ = 248; /* bottom = 248 */
-    *p++ = 1; *p++ = 120; /* right = 376 */
-    *p++ = 16;             /* editText */
-    /* Default filename as Pascal string */
     if (defaultName && defaultName[0] > 0) {
-        *p++ = defaultName[0];
-        for (int i = 1; i <= defaultName[0]; i++) *p++ = defaultName[i];
+        DITL_AddItemPascal(&b, editText, &(Rect){230, 10, 248, 376}, defaultName);
     } else {
-        *p++ = 8;
-        memcpy(p, "Untitled", 8); p += 8;
+        DITL_AddEditText(&b, 230, 10, 248, 376, "Untitled");
     }
 
-    /* Item 11: Prompt static text ("Save as:") */
-    *p++ = 0; *p++ = 0; *p++ = 0; *p++ = 0;
-    *p++ = 0; *p++ = 10;  /* top = 10 */
-    *p++ = 0; *p++ = 10;  /* left = 10 */
-    *p++ = 0; *p++ = 26;  /* bottom = 26 */
-    *p++ = 1; *p++ = 120; /* right = 376 */
-    *p++ = 8;              /* statText */
     if (prompt && prompt[0] > 0) {
-        *p++ = prompt[0];
-        for (int i = 1; i <= prompt[0]; i++) *p++ = prompt[i];
+        DITL_AddTextPascal(&b, 10, 10, 26, 376, prompt);
     } else {
-        *p++ = 8;
-        memcpy(p, "Save as:", 8); p += 8;
+        DITL_AddText(&b, 10, 10, 26, 376, "Save as:");
     }
 
-    HUnlock(h);
+    Handle built = DITL_Finish(&b);
+    if (!built) return NULL;
+    DisposeHandle(h);
+    return built;
     return h;
 }
 

@@ -4,6 +4,7 @@
  * Handles all menu creation, updating, and command dispatch
  */
 
+#include "DialogManager/DITLBuilder.h"
 #include <string.h>
 #include "System71StdLib.h"
 #include "Apps/SimpleText.h"
@@ -536,58 +537,25 @@ void STFind_ShowDialog(STDocument* doc) {
     extern void ShowWindow(WindowPtr);
     extern void SystemTask(void);
 
-    /* Build a minimal DITL: OK button (1), Cancel button (2), edit text (3), prompt (4) */
-    Handle ditl = NewHandleClear(256);
+    /*
+     * Built through DITLBuilder rather than by hand.
+     *
+     * The edit field is pre-filled with the previous search text, so its
+     * length is whatever the user last typed. An item whose data length is odd
+     * needs a pad byte, and without it the parser reads the following item's
+     * header one byte off - so the "Find:" label after it appeared or vanished
+     * according to the parity of the last search.
+     */
+    DITLBuilder b;
+    if (!DITL_Begin(&b, 512)) return;
+
+    DITL_AddButton(&b, 70, 180, 90, 266, "Find");
+    DITL_AddButton(&b, 70, 90, 90, 170, "Cancel");
+    DITL_AddEditText(&b, 32, 10, 52, 266, g_ST.searchText);
+    DITL_AddText(&b, 10, 10, 26, 266, "Find:");
+
+    Handle ditl = DITL_Finish(&b);
     if (!ditl) return;
-    HLock(ditl);
-    unsigned char* p = (unsigned char*)*ditl;
-
-    /* 4 items, count-1 = 3 */
-    *p++ = 0; *p++ = 3;
-
-    /* Item 1: Find button */
-    *p++ = 0; *p++ = 0; *p++ = 0; *p++ = 0;
-    *p++ = 0; *p++ = 70;  /* top */
-    *p++ = 0; *p++ = 180; /* left */
-    *p++ = 0; *p++ = 90;  /* bottom */
-    *p++ = 1; *p++ = 10;  /* right = 266 */
-    *p++ = 4;              /* btnCtrl */
-    *p++ = 4; *p++ = 'F'; *p++ = 'i'; *p++ = 'n'; *p++ = 'd';
-
-    /* Item 2: Cancel button */
-    *p++ = 0; *p++ = 0; *p++ = 0; *p++ = 0;
-    *p++ = 0; *p++ = 70;
-    *p++ = 0; *p++ = 90;
-    *p++ = 0; *p++ = 90;
-    *p++ = 0; *p++ = 170;
-    *p++ = 4;
-    *p++ = 6; *p++ = 'C'; *p++ = 'a'; *p++ = 'n'; *p++ = 'c'; *p++ = 'e'; *p++ = 'l';
-
-    /* Item 3: Edit text field for search string */
-    *p++ = 0; *p++ = 0; *p++ = 0; *p++ = 0;
-    *p++ = 0; *p++ = 32;  /* top */
-    *p++ = 0; *p++ = 10;  /* left */
-    *p++ = 0; *p++ = 52;  /* bottom */
-    *p++ = 1; *p++ = 10;  /* right = 266 */
-    *p++ = 16;             /* editText */
-    /* Pre-fill with previous search text */
-    {
-        int slen = 0;
-        while (g_ST.searchText[slen] && slen < 250) slen++;
-        *p++ = (unsigned char)slen;
-        for (int i = 0; i < slen; i++) *p++ = (unsigned char)g_ST.searchText[i];
-    }
-
-    /* Item 4: Static text prompt */
-    *p++ = 0; *p++ = 0; *p++ = 0; *p++ = 0;
-    *p++ = 0; *p++ = 10;
-    *p++ = 0; *p++ = 10;
-    *p++ = 0; *p++ = 26;
-    *p++ = 1; *p++ = 10;
-    *p++ = 8;  /* statText */
-    *p++ = 5; *p++ = 'F'; *p++ = 'i'; *p++ = 'n'; *p++ = 'd'; *p++ = ':';
-
-    HUnlock(ditl);
 
     Rect bounds = {120, 120, 230, 400};
     static Str255 title;

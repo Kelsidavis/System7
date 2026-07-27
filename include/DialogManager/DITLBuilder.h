@@ -52,6 +52,15 @@ void DITL_AddButton(DITLBuilder* b, SInt16 top, SInt16 left, SInt16 bottom, SInt
 void DITL_AddEditText(DITLBuilder* b, SInt16 top, SInt16 left, SInt16 bottom, SInt16 right,
                       const char* initialText);
 
+/* The same, for callers holding a Pascal string. Taking it as what it is
+ * avoids a conversion that is easy to get wrong in the other direction. */
+void DITL_AddItemPascal(DITLBuilder* b, SInt16 type, const Rect* box,
+                        const unsigned char* pstr);
+void DITL_AddButtonPascal(DITLBuilder* b, SInt16 top, SInt16 left, SInt16 bottom,
+                          SInt16 right, const unsigned char* title);
+void DITL_AddTextPascal(DITLBuilder* b, SInt16 top, SInt16 left, SInt16 bottom,
+                        SInt16 right, const unsigned char* text);
+
 /*
  * Seal the list and hand over the handle, which the caller passes to NewDialog
  * and no longer owns. Returns NULL if anything went wrong along the way, after
