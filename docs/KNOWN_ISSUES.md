@@ -234,12 +234,13 @@ at all.
 Only reachable since the lost-click fix (see the input latch) — before that the
 second click of a double-click was dropped and folders never opened.
 
-**Still open:** the System Folder window opens empty because nothing is created
-inside it in the VFS (`src/FS/vfs.c` creates the folder but no contents). Real
-System 7.1 has System, Finder, Extensions, Preferences, Control Panels and so on.
-An empty folder window also draws no status line at all, where System 7 shows
-"0 items" — `FolderWindow_Draw` gates the status bar on `state->items` being
-non-NULL.
+~~**Still open:** the System Folder window opens empty...~~ **Both parts of this
+are now stale and were re-checked in QEMU.** The System Folder opens with its
+eleven items (Apple Menu Items, Control Panels, Extensions, Fonts, Preferences,
+PrintMonitor Documents, Shutdown Items, Startup Items, System, Finder,
+Scrapbook File), and a folder created with Command-N opens showing
+"0 items   1016K in disk   0K available" — `FolderWindow_Draw` no longer
+requires a non-NULL item array.
 
 ### ✅ Desktop volume and Trash icons never appeared on an input-free boot (REDRAW-005) — FIXED
 
