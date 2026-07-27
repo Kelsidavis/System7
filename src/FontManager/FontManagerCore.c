@@ -691,40 +691,46 @@ void GetFontMetrics(FMetricRec *theMetrics) {
  * Width Measurement
  * ============================================================================ */
 
-short CharWidth(short ch) {
+/*
+ * Width of a character in the current font and size with no style applied.
+ *
+ * This exists to break a cycle. CharWidth used to hand styled text to
+ * FM_GetStyledCharWidth, which starts by asking CharWidth for the base width -
+ * and CharWidth, still looking at the same styled port, handed it straight
+ * back. Every measurement of bold, italic, or any other styled text recursed
+ * until the stack ran out and the CPU faulted, which is why switching a folder
+ * window to a list view crashed the machine: the header draws its active sort
+ * column in bold, and nothing else in the system had ever asked for a styled
+ * character.
+ *
+ * Both CharWidth and FM_GetStyledCharWidth take their base width from here, so
+ * neither has to call the other.
+ */
+short FM_GetPlainCharWidth(short ch) {
     if (ch >= 32 && ch <= 126 && g_fmState.currentStrike == &g_chicagoStrike12) {
-        /* Check if we need scaling for different size */
+        /* Non-12pt sizes are synthesised by scaling the 12pt strike */
         if (g_currentPort && g_currentPort->txSize != 12) {
-            /* Use scaled width for non-12pt sizes */
-            short scaledWidth = FM_GetScaledCharWidth(g_currentPort->txFont, g_currentPort->txSize, ch);
-
-            /* Apply style on top of scaling if needed */
-            if (g_currentPort->txFace != normal) {
-                extern short FM_GetStyledCharWidth(char ch, Style face);
-                /* Style adjustments are relative, apply to scaled width */
-                return scaledWidth + (FM_GetStyledCharWidth(ch, g_currentPort->txFace) - scaledWidth);
-            }
-
-            return scaledWidth;
+            return FM_GetScaledCharWidth(g_currentPort->txFont, g_currentPort->txSize, ch);
         }
 
         /* Use actual Chicago font metrics for 12pt */
         ChicagoCharInfo info = chicago_ascii[ch - 32];
         short width = info.bit_width + 2;  /* Corrected spacing */
         if (ch == ' ') width += 3;  /* Extra space width */
-
-        /* Apply full style synthesis if we have styles */
-        if (g_currentPort && g_currentPort->txFace != normal) {
-            /* Use style synthesis for complex styles */
-            extern short FM_GetStyledCharWidth(char ch, Style face);
-            return FM_GetStyledCharWidth(ch, g_currentPort->txFace);
-        }
-
         return width;
     }
 
     /* Default width for unknown chars */
     return 8;
+}
+
+short CharWidth(short ch) {
+    if (g_currentPort && g_currentPort->txFace != normal) {
+        extern short FM_GetStyledCharWidth(char ch, Style face);
+        return FM_GetStyledCharWidth((char)ch, g_currentPort->txFace);
+    }
+
+    return FM_GetPlainCharWidth(ch);
 }
 
 short StringWidth(ConstStr255Param s) {

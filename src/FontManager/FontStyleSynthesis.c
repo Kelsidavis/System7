@@ -275,7 +275,10 @@ static void FM_SynthesizeStyledChar(short x, short y, char ch, Style face, uint3
  * FM_GetStyledCharWidth - Calculate width with all styles applied
  */
 short FM_GetStyledCharWidth(char ch, Style face) {
-    short width = CharWidth(ch);
+    /* Not CharWidth: that consults the port's style and would call straight
+     * back here for any styled text, recursing until the stack gave out. */
+    extern short FM_GetPlainCharWidth(short ch);
+    short width = FM_GetPlainCharWidth((short)(unsigned char)ch);
 
     /* Apply style modifiers */
     if (face & bold) {

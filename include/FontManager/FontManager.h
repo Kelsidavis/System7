@@ -171,6 +171,10 @@ void TextMode(short mode);
 
 /* Width Measurement */
 short CharWidth(short ch);
+
+/* Width with no style applied - the base both CharWidth and
+ * FM_GetStyledCharWidth measure from, so neither calls the other. */
+short FM_GetPlainCharWidth(short ch);
 short StringWidth(ConstStr255Param s);
 short TextWidth(const void* textBuf, short firstByte, short byteCount);
 
