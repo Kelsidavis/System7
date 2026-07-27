@@ -4,6 +4,42 @@ This document tracks known issues, workarounds, and technical debt in the System
 
 ## Open Issues
 
+### ⛔ A loaded CODE segment cannot be reached through its jump table
+
+**Symptom**: the segment loader smoke test, which runs on every boot, reports
+`[SegmentLoader] smoke test FAILED: EnterAt returned`. The entry segment is
+mapped and entered, but execution does not complete: `EnterAt` comes back with
+an error, meaning the interpreter either faulted or ran to its instruction
+limit without halting.
+
+**How it surfaced**: the test used to pass, and did not deserve to. It checked
+only that `EnterAt` returned `noErr` — and `EnterAt` returned `noErr` whether
+the program ran to completion, faulted, or spun, so every outcome looked
+identical. It also installed a trap to prove the loaded segment had executed
+and then never checked whether that trap fired, logging "Lazy segment loading
+WORKS!" through a filtered channel. Both are fixed: `EnterAt` reports what
+happened, and the test asserts the segment ran.
+
+Two real faults were found and fixed on the way, neither of them the cause:
+
+  - The stub installer gave each segment sixteen consecutive jump table slots
+    while `_LoadSeg` looked for one slot per segment, so a stub installed for
+    one segment was patched somewhere else — or nowhere, when the index fell
+    outside the table. `SegLoader_SlotForSegment` is now the single rule.
+  - The test program began with `MOVE.W #imm,-(SP); _LoadSeg`, which is
+    exactly the classic linker prologue the parser skips six bytes past. Entry
+    landed after the trap, so the original program executed nothing but its
+    own `RTS`.
+
+**What is not yet known**: why execution does not complete now that entry
+lands on the first instruction. The next step is to find where it stops —
+whether the `_LoadSeg` trap is reached, whether the jump table slot is
+patched, and whether the `JSR` through it lands somewhere valid.
+
+**Files**: src/SegmentLoader/SegmentLoaderTest.c,
+src/SegmentLoader/A5World.c, src/CPU/m68k_interp/M68KBackend.c (M68K_EnterAt).
+
+
 ### ✅ The Open and Save dialogs never painted their interior — FIXED
 
 **Was**: Command-O or Command-S drew a dialog frame and then froze the

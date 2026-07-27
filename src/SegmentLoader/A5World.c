@@ -162,10 +162,9 @@ OSErr BuildJumpTable(SegmentLoaderContext* ctx)
     for (UInt16 i = 0; i < jtCount; i++) {
         CPUAddr slotAddr = jtBase + (i * ctx->a5World.jtEntrySize);
 
-        /* For now, assume entry i maps to segment (i / 16) + 1 */
-        /* This is a simplification; real apps have complex JT layouts */
-        SInt16 segID = (i / 16) + 1;
-        SInt16 entryIndex = i % 16;
+        /* One rule, shared with the _LoadSeg handler that patches these. */
+        SInt16 segID = SegLoader_SegmentForSlot((SInt16)i);
+        SInt16 entryIndex = 0;
 
         err = ctx->cpuBackend->MakeLazyJTStub(ctx->cpuAS, slotAddr,
                                              segID, entryIndex);

@@ -451,13 +451,20 @@ static OSErr M68K_EnterAt(CPUAddressSpace as, CPUAddr entry, CPUEnterFlags flags
     /* Execute from entry point */
     M68K_Execute(mas, entry, max_instructions);
 
+    /*
+     * Report what happened. This returned noErr whether the code ran to
+     * completion, faulted on an illegal instruction, or spun until the
+     * instruction limit - so a caller could not tell a working program from a
+     * crashed one, and the segment loader's smoke test reported success for a
+     * run that had faulted on its first instruction.
+     */
     if (mas->halted) {
         M68K_LOG_INFO("Execution halted at PC=0x%08X\n", mas->regs.pc);
-    } else {
-        M68K_LOG_INFO("Execution completed after %u instructions\n", max_instructions);
+        return (OSErr)mas->lastException ? (OSErr)-1 : noErr;
     }
 
-    return noErr;
+    M68K_LOG_INFO("Ran the instruction limit without halting\n");
+    return -1;
 }
 
 /*

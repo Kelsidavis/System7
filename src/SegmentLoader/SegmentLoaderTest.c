@@ -47,8 +47,8 @@ static Handle MakeHandleFromBytes(const UInt8* bytes, Size len)
  */
 static void InstallTestResources(void)
 {
-    UInt8 code0[16 + 8];  // Header + 1 JT entry
-    UInt8 code1[12];      // Entry segment
+    UInt8 code0[16 + 16]; // Header + 2 JT entries
+    UInt8 code1[18];      // Entry segment
     UInt8 code2[4];       // Trace segment
     SInt16 savedResFile;
 
@@ -71,7 +71,7 @@ static void InstallTestResources(void)
      */
     BE_Write32_Ptr(code0 + 0,  0x200);  // a5AboveSize
     BE_Write32_Ptr(code0 + 4,  0x200);  // a5BelowSize
-    BE_Write32_Ptr(code0 + 8,  8);      // jtSize (1 entry)
+    BE_Write32_Ptr(code0 + 8, 16);      // jtSize: two 8-byte entries
     BE_Write32_Ptr(code0 + 12, 0);      // jtOffsetFromA5 (JT at A5)
 
     /* JT entry placeholder (loader will write stub) */
@@ -94,10 +94,29 @@ static void InstallTestResources(void)
      */
     BE_Write16_Ptr(code1 + 0, 0x0000);  // entryOffset
     BE_Write16_Ptr(code1 + 2, 0x0000);  // flags
-    code1[4] = 0x3F; code1[5] = 0x3C;   // MOVE.W #imm,-(SP)
-    BE_Write16_Ptr(code1 + 6, 2);       // #2 (segment ID)
-    code1[8] = 0xA9; code1[9] = 0xF0;   // _LoadSeg trap
-    code1[10] = 0x4E; code1[11] = 0x75; // RTS
+    /*
+     * Load segment 2, then call it through its jump table entry - the call is
+     * the part that proves the mechanism. _LoadSeg patches JT[1] to jump to
+     * the loaded code and the JSR goes through that patched slot; a program
+     * that only traps and returns says nothing about whether the segment it
+     * asked for can be reached.
+     *
+     * The NOP is load-bearing. The parser treats a MOVE.W #imm,-(SP) followed
+     * by _LoadSeg at the head of a segment as the classic linker prologue and
+     * enters six bytes past it, which is right for a real segment that begins
+     * with its own self-loading stub. This program began with exactly that
+     * pattern, so entry landed after the trap and the segment's first
+     * instructions never ran - the original version of this test executed
+     * nothing but its own RTS and reported success. Starting with something
+     * else keeps the prologue rule from matching.
+     */
+    code1[4] = 0x4E; code1[5] = 0x71;   // NOP
+    code1[6] = 0x3F; code1[7] = 0x3C;   // MOVE.W #imm,-(SP)
+    BE_Write16_Ptr(code1 + 8, 2);       // #2 (segment ID)
+    code1[10] = 0xA9; code1[11] = 0xF0; // _LoadSeg trap
+    code1[12] = 0x4E; code1[13] = 0xAD; // JSR d16(A5)
+    BE_Write16_Ptr(code1 + 14, 8);      // JT[1], eight bytes into the table
+    code1[16] = 0x4E; code1[17] = 0x75; // RTS
 
     Handle h1 = MakeHandleFromBytes(code1, sizeof(code1));
     SEG_LOG_INFO("InstallTestResources: CODE 1 handle=%p size=%u", h1, (unsigned)sizeof(code1));
@@ -246,7 +265,7 @@ OSErr LoadSeg_TrapHandler(void* context, CPUAddr* pc, CPUAddr* registers)
 
     /* Patch JT entry to point directly at segment (hot-patch) */
     /* Calculate JT slot index - simplified mapping: seg 1 -> JT[0], etc. */
-    SInt16 jtIndex = segID - 1;  /* JT[0] for segment 1 */
+    SInt16 jtIndex = SegLoader_SlotForSegment(segID);
 
     if (jtIndex >= 0 && jtIndex < ctx->a5World.jtCount) {
         CPUAddr jtSlotAddr = ctx->a5World.jtBase + (jtIndex * ctx->a5World.jtEntrySize);
@@ -279,11 +298,16 @@ OSErr LoadSeg_TrapHandler(void* context, CPUAddr* pc, CPUAddr* registers)
  *
  * Test trap to prove CODE 2 executed
  */
+/* Set when CODE 2 runs, so the test can assert it rather than log it. */
+static Boolean gTraceSegmentRan = false;
+
 OSErr Trace_TrapHandler(void* context, CPUAddr* pc, CPUAddr* registers)
 {
     (void)context;
     (void)pc;
     (void)registers;
+
+    gTraceSegmentRan = true;
 
     SEG_LOG_INFO("========================================");
     SEG_LOG_INFO("*** CODE 2 EXECUTED! ***");
@@ -415,6 +439,14 @@ void SegmentLoader_TestBoot(void)
         SEG_LOG_ERROR("FAIL: EnterAt returned %d", err);
         SegmentLoader_Cleanup(ctx);
         return;
+    }
+
+    /* The trap the loaded segment fires is the only thing that says the
+     * segment actually ran. Logging it is not checking it - the log line is
+     * filtered out of an ordinary boot, so a run that loaded nothing looked
+     * exactly like a run that worked. */
+    if (!gTraceSegmentRan) {
+        SEG_TEST_FAILED("the loaded segment never executed");
     }
 
     SEG_LOG_INFO("");
