@@ -377,6 +377,10 @@ void SegmentLoader_TestBoot(void)
 
     /* Install trap handlers */
     SEG_LOG_INFO("Installing trap handlers...");
+    /* A process needs a stack before it can run anything; the entry segment
+     * pushes a segment number as its first act. */
+    ctx->cpuBackend->SetStacks(ctx->cpuAS, 0x00040000, 0);
+
     ctx->cpuBackend->InstallTrap(ctx->cpuAS, 0xA9F0, LoadSeg_TrapHandler, ctx);
     ctx->cpuBackend->InstallTrap(ctx->cpuAS, 0xA800, Trace_TrapHandler, ctx);
 

@@ -36,6 +36,11 @@ static void M68K_RaiseException(M68KAddressSpace* as, UInt16 vector, const char*
     UInt32 handlerPC;
     const char* vecName;
 
+    /* Keep what went wrong and where, so whoever asked for this program to run
+     * can say so. The PC has already moved past the opcode being executed. */
+    as->faultReason = reason;
+    as->faultPC = as->regs.pc;
+
     /* Map vector number to name */
     switch (vector) {
         case M68K_VEC_BUS_ERROR:      vecName = "BUS ERROR"; break;

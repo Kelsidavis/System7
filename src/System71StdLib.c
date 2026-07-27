@@ -2019,124 +2019,28 @@ static bool SysLogShouldEmit(SystemLogModule module, SystemLogLevel level) {
     return true;
 }
 
+/* Defined below; the one formatter this file has that parses flags, width,
+ * precision and length modifiers properly. */
+static int vsnprintf(char* str, size_t size, const char* format, va_list args);
+
+/*
+ * SysLogFormatAndSend - render a log line and put it on the wire.
+ *
+ * This used to hand-roll its own formatter which recognised a fixed handful
+ * of specifier spellings - %02x, %04x and a few more - and copied anything
+ * else out literally. %08X was not among them, so every diagnostic in the
+ * system that printed an address printed the characters "0x%08X" instead,
+ * and the argument it should have consumed was left to misalign whatever
+ * came after it. That is how a 68K fault came to report its reason as an
+ * empty string at address "%08X".
+ *
+ * There is a formatter in this file that handles the whole grammar. Using it
+ * means log output cannot disagree with snprintf about what a format means.
+ */
 static void SysLogFormatAndSend(const char* fmt, va_list args) {
-    const char* p = fmt;
     char buffer[256];
-    int buf_idx = 0;
 
-    while (p && *p && buf_idx < 255) {
-        if (*p == '%') {
-            ++p;
-
-            if (*p == '0' && *(p + 1) == '2' && *(p + 2) == 'x') {
-                unsigned int val = va_arg(args, unsigned int);
-                const char* hex_digits = "0123456789abcdef";
-                buffer[buf_idx++] = hex_digits[(val >> 4) & 0xF];
-                if (buf_idx < 255) buffer[buf_idx++] = hex_digits[val & 0xF];
-                p += 3;
-            }
-            else if (*p == '0' && *(p + 1) == '4' && *(p + 2) == 'x') {
-                unsigned int val = va_arg(args, unsigned int);
-                const char* hex_digits = "0123456789abcdef";
-                for (int i = 3; i >= 0 && buf_idx < 255; --i) {
-                    buffer[buf_idx++] = hex_digits[(val >> (i * 4)) & 0xF];
-                }
-                p += 3;
-            }
-            else if (*p == '0' && *(p + 1) == '8' && *(p + 2) == 'x') {
-                unsigned int val = va_arg(args, unsigned int);
-                const char* hex_digits = "0123456789abcdef";
-                for (int i = 7; i >= 0 && buf_idx < 255; --i) {
-                    buffer[buf_idx++] = hex_digits[(val >> (i * 4)) & 0xF];
-                }
-                p += 3;
-            }
-            else if (*p == 'd') {
-                int val = va_arg(args, int);
-                char num_buf[12];
-                int i = 0;
-
-                if (val < 0) {
-                    if (buf_idx < 255) buffer[buf_idx++] = '-';
-                    val = -val;
-                }
-
-                if (val == 0) {
-                    if (buf_idx < 255) buffer[buf_idx++] = '0';
-                } else {
-                    while (val > 0 && i < 11) {
-                        num_buf[i++] = '0' + (val % 10);
-                        val /= 10;
-                    }
-                    while (i > 0 && buf_idx < 255) {
-                        buffer[buf_idx++] = num_buf[--i];
-                    }
-                }
-                ++p;
-            }
-            else if (*p == 'u') {
-                unsigned int val = va_arg(args, unsigned int);
-                char num_buf[12];
-                int i = 0;
-
-                if (val == 0) {
-                    if (buf_idx < 255) buffer[buf_idx++] = '0';
-                } else {
-                    while (val > 0 && i < 11) {
-                        num_buf[i++] = '0' + (val % 10);
-                        val /= 10;
-                    }
-                    while (i > 0 && buf_idx < 255) {
-                        buffer[buf_idx++] = num_buf[--i];
-                    }
-                }
-                ++p;
-            }
-            else if (*p == 'x') {
-                unsigned int val = va_arg(args, unsigned int);
-                char hex_buf[9];
-                int i = 0;
-                const char* hex_digits = "0123456789abcdef";
-
-                if (val == 0) {
-                    if (buf_idx < 255) buffer[buf_idx++] = '0';
-                } else {
-                    while (val > 0 && i < 8) {
-                        hex_buf[i++] = hex_digits[val & 0xF];
-                        val >>= 4;
-                    }
-                    while (i > 0 && buf_idx < 255) {
-                        buffer[buf_idx++] = hex_buf[--i];
-                    }
-                }
-                ++p;
-            }
-            else if (*p == 's') {
-                const char* s = va_arg(args, const char*);
-                while (s && *s && buf_idx < 255) {
-                    buffer[buf_idx++] = *s++;
-                }
-                ++p;
-            }
-            else if (*p == 'c') {
-                int ch = va_arg(args, int);
-                if (buf_idx < 255) buffer[buf_idx++] = (char)ch;
-                ++p;
-            }
-            else if (*p == '%') {
-                if (buf_idx < 255) buffer[buf_idx++] = '%';
-                ++p;
-            }
-            else {
-                if (buf_idx < 255) buffer[buf_idx++] = '%';
-            }
-        } else {
-            if (buf_idx < 255) buffer[buf_idx++] = *p;
-            ++p;
-        }
-    }
-
-    buffer[buf_idx] = '\0';
+    vsnprintf(buffer, sizeof(buffer), fmt, args);
     serial_puts(buffer);
 }
 

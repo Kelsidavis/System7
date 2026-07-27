@@ -115,6 +115,12 @@ typedef struct M68KAddressSpace {
     /* Execution state */
     Boolean halted;           /* CPU halted due to fault or completion */
     UInt16 lastException;     /* Last exception vector number */
+    /* Why execution stopped, and where. A halted address space knew only that
+     * it had halted; the reason went to a filtered log and the address went
+     * nowhere, so a caller could see that a program had failed but not what
+     * had failed or at which instruction. */
+    const char* faultReason;
+    UInt32      faultPC;
 } M68KAddressSpace;
 
 /*

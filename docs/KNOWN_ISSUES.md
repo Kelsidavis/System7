@@ -31,10 +31,20 @@ Two real faults were found and fixed on the way, neither of them the cause:
     landed after the trap, so the original program executed nothing but its
     own `RTS`.
 
-**What is not yet known**: why execution does not complete now that entry
-lands on the first instruction. The next step is to find where it stops —
-whether the `_LoadSeg` trap is reached, whether the jump table slot is
-patched, and whether the `JSR` through it lands somewhere valid.
+**Where it stops**, now that faults report themselves: the entry segment runs
+its first instructions and dies in the `JSR` through the jump table, at
+`PC=0x000002AE` with `Read8 unmapped page`. That address is nowhere near the
+loaded code, which is what a `JSR d16(A5)` does when A5 is wrong — it jumps to
+the offset itself, low in memory, and wanders.
+
+Two causes of that were found and fixed: the process was entered with no stack
+at all, so its first push faulted; and nothing in the system had ever called
+`SetRegisterA5`, so A5 held zero while every jump table entry was addressed as
+an offset from it. The A5 world is now loaded into A5 where it is built.
+
+The fault has moved but not gone — it was at the first push, it is now in the
+jump table call — so something later still leaves A5 or the slot wrong. That is
+where to pick this up.
 
 **Files**: src/SegmentLoader/SegmentLoaderTest.c,
 src/SegmentLoader/A5World.c, src/CPU/m68k_interp/M68KBackend.c (M68K_EnterAt).

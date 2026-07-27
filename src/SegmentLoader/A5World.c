@@ -81,6 +81,24 @@ OSErr InstallA5World(SegmentLoaderContext* ctx, const CODE0Info* info)
     ctx->a5World.a5BelowBase = belowBase;
     ctx->a5World.a5BelowSize = info->a5BelowSize;
     ctx->a5World.a5Base = a5;
+    /*
+     * Load A5 into the register it is named for.
+     *
+     * The A5 world was laid out and its base recorded, and nothing in the
+     * system ever called SetRegisterA5 - so A5 held zero while every jump
+     * table entry was addressed as an offset from it. A JSR through the table
+     * went to the offset itself, low in memory, and execution wandered into
+     * unmapped pages. The layout is this code's to build, so loading the
+     * register that addresses it belongs here rather than with each caller.
+     */
+    if (ctx->cpuBackend && ctx->cpuBackend->SetRegisterA5) {
+        OSErr a5Err = ctx->cpuBackend->SetRegisterA5(ctx->cpuAS, a5);
+        if (a5Err != noErr) {
+            SEG_LOG_ERROR("Failed to load A5 = 0x%08X: %d", a5, a5Err);
+            return a5Err;
+        }
+    }
+
     ctx->a5World.a5AboveBase = aboveBase;
     ctx->a5World.a5AboveSize = info->a5AboveSize;
 

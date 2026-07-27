@@ -134,6 +134,8 @@ static OSErr M68K_CreateAddressSpace(void* processHandle, CPUAddressSpace* out)
     M68K_LOG_INFO("CreateAddressSpace: low memory allocated, sparse 16MB virtual space ready\n");
 
     /* Initialize registers */
+    as->faultReason = NULL;
+    as->faultPC = 0;
     memset(&as->regs, 0, sizeof(M68KRegs));
     as->regs.sr = 0x2700; /* Supervisor mode, interrupts disabled */
 
@@ -445,6 +447,17 @@ static OSErr M68K_EnterAt(CPUAddressSpace as, CPUAddr entry, CPUEnterFlags flags
 
     M68K_LOG_DEBUG("EnterAt: entry=0x%08X flags=0x%04X\n", entry, flags);
 
+    /*
+     * A program with no stack cannot run - the first thing almost any 68K
+     * code does is push something. Entering anyway produced a page allocation
+     * failure at whatever address a push off a zero A7 lands on, which says
+     * nothing about the actual mistake. Say the actual mistake.
+     */
+    if (mas->regs.a[7] == 0) {
+        serial_puts("[M68K] EnterAt: no stack - call SetStacks before entering\n");
+        return -1;
+    }
+
     /* Clear halted flag */
     mas->halted = false;
 
@@ -459,11 +472,19 @@ static OSErr M68K_EnterAt(CPUAddressSpace as, CPUAddr entry, CPUEnterFlags flags
      * run that had faulted on its first instruction.
      */
     if (mas->halted) {
+        if (mas->lastException) {
+            char b[160];
+            snprintf(b, sizeof(b), "[M68K] %s at PC=0x%08X\n",
+                     mas->faultReason ? mas->faultReason : "fault",
+                     (unsigned)mas->faultPC);
+            serial_puts(b);
+            return -1;
+        }
         M68K_LOG_INFO("Execution halted at PC=0x%08X\n", mas->regs.pc);
-        return (OSErr)mas->lastException ? (OSErr)-1 : noErr;
+        return noErr;
     }
 
-    M68K_LOG_INFO("Ran the instruction limit without halting\n");
+    serial_puts("[M68K] ran the instruction limit without halting\n");
     return -1;
 }
 
