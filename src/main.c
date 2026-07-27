@@ -998,13 +998,15 @@ static void init_system71(void) {
         serial_puts("  WARNING: Process Manager initialization failed\n");
     }
 
-#ifdef TM_SMOKE_TEST
-    /* Segment Loader Test Harness (smoke checks for first-light validation) */
-    extern void SegmentLoader_TestBoot(void);
-    serial_puts("\n");
-    SegmentLoader_TestBoot();
-    serial_puts("\n");
-#endif
+    /*
+     * Load a CODE resource and run it. This is the path the whole 68K
+     * interpreter exists for, and it used to be behind a build flag nobody
+     * set - so nothing knew whether it worked. It reports only when it fails.
+     */
+    {
+        extern void SegmentLoader_TestBoot(void);
+        SegmentLoader_TestBoot();
+    }
 
 #ifdef INTEGRATION_TESTS
     /* Phase 1 Integration Test Suite */

@@ -124,6 +124,22 @@ static void InstallTestResources(void)
     (void)savedResFile; /* Will stay on system file for the duration of test */
 }
 
+
+/*
+ * A failure here has to be visible in an ordinary boot.
+ *
+ * SEG_LOG_ERROR goes through the filtered log and does not appear, which is
+ * fine while this only ran under a build flag - but this path is the whole
+ * point of having a 68K interpreter, and the interpreter itself accumulated
+ * two fatal faults precisely because nothing exercised it. It runs every boot
+ * now, so it says nothing when it passes and says it plainly when it does not.
+ */
+#define SEG_TEST_FAILED(what) do { \
+    extern void serial_puts(const char* s); \
+    serial_puts("[SegmentLoader] smoke test FAILED: " what "\n"); \
+} while (0)
+
+
 /*
  * Smoke Checks - Validate A5 World Invariants
  */
@@ -138,6 +154,7 @@ OSErr SegmentLoader_RunSmokeChecks(SegmentLoaderContext* ctx)
 
     /* Check: a5BelowBase + a5BelowSize == a5Base */
     if (a5->a5BelowBase + a5->a5BelowSize != a5->a5Base) {
+        SEG_TEST_FAILED("a5BelowBase(0x");
         SEG_LOG_ERROR("FAIL: a5BelowBase(0x%08X) + a5BelowSize(0x%X) != a5Base(0x%08X)",
                      a5->a5BelowBase, a5->a5BelowSize, a5->a5Base);
         return segmentA5WorldErr;
@@ -147,6 +164,7 @@ OSErr SegmentLoader_RunSmokeChecks(SegmentLoaderContext* ctx)
     /* Check: jtBase == a5Base + jtOffsetFromA5 */
     CPUAddr expectedJT = a5->a5Base + ctx->code0Info.jtOffsetFromA5;
     if (a5->jtBase != expectedJT) {
+        SEG_TEST_FAILED("jtBase(0x");
         SEG_LOG_ERROR("FAIL: jtBase(0x%08X) != a5Base(0x%08X) + jtOffset(0x%X)",
                      a5->jtBase, a5->a5Base, ctx->code0Info.jtOffsetFromA5);
         return segmentJTErr;
@@ -301,6 +319,7 @@ void SegmentLoader_TestBoot(void)
     Handle h2 = GetResource('CODE', 2);
 
     if (!h0 || !h1 || !h2) {
+        SEG_TEST_FAILED("Test resources not accessible via RM (h0=");
         SEG_LOG_ERROR("FAIL: Test resources not accessible via RM (h0=%p, h1=%p, h2=%p)", h0, h1, h2);
         return;
     }
@@ -318,6 +337,7 @@ void SegmentLoader_TestBoot(void)
     SEG_LOG_INFO("Initializing segment loader...");
     err = SegmentLoader_Initialize(&testPCB, "m68k_interp", &ctx);
     if (err != noErr) {
+        SEG_TEST_FAILED("SegmentLoader_Initialize returned");
         SEG_LOG_ERROR("FAIL: SegmentLoader_Initialize returned %d", err);
         return;
     }
@@ -325,6 +345,7 @@ void SegmentLoader_TestBoot(void)
     /* Map Memory Manager zones into the 68K address space */
     err = MemoryManager_MapToM68K((struct M68KAddressSpace*)ctx->cpuAS);
     if (err != noErr) {
+        SEG_TEST_FAILED("MemoryManager_MapToM68K returned");
         SEG_LOG_ERROR("FAIL: MemoryManager_MapToM68K returned %d", err);
         SegmentLoader_Cleanup(ctx);
         return;
@@ -344,6 +365,7 @@ void SegmentLoader_TestBoot(void)
     SEG_LOG_INFO("Loading CODE 0 and CODE 1...");
     err = EnsureEntrySegmentsLoaded(ctx);
     if (err != noErr) {
+        SEG_TEST_FAILED("EnsureEntrySegmentsLoaded returned");
         SEG_LOG_ERROR("FAIL: EnsureEntrySegmentsLoaded returned %d", err);
         SegmentLoader_Cleanup(ctx);
         return;
@@ -353,6 +375,7 @@ void SegmentLoader_TestBoot(void)
     SEG_LOG_INFO("Running A5 invariant checks...");
     err = SegmentLoader_RunSmokeChecks(ctx);
     if (err != noErr) {
+        SEG_TEST_FAILED("Smoke checks failed");
         SEG_LOG_ERROR("FAIL: Smoke checks failed");
         SegmentLoader_Cleanup(ctx);
         return;
@@ -370,6 +393,7 @@ void SegmentLoader_TestBoot(void)
 
     err = GetSegmentEntryPoint(ctx, 1, &entry);
     if (err != noErr) {
+        SEG_TEST_FAILED("GetSegmentEntryPoint failed");
         SEG_LOG_ERROR("FAIL: GetSegmentEntryPoint failed");
         SegmentLoader_Cleanup(ctx);
         return;
@@ -387,6 +411,7 @@ void SegmentLoader_TestBoot(void)
 
     err = ctx->cpuBackend->EnterAt(ctx->cpuAS, entry, 0);
     if (err != noErr) {
+        SEG_TEST_FAILED("EnterAt returned");
         SEG_LOG_ERROR("FAIL: EnterAt returned %d", err);
         SegmentLoader_Cleanup(ctx);
         return;
