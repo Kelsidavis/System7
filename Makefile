@@ -1174,6 +1174,20 @@ src/strings_ur_rsrc.c: $(BUILD_DIR)/Strings_ur.rsrc
 	@echo 'const unsigned int strings_ur_rsrc_size = sizeof(strings_ur_rsrc_data);' >> $@
 endif
 
+# Rebuild everything when the compile flags change.
+#
+# The flags are not all fixed by the platform: LOCALE_XX adds both a -D and a
+# source file, so switching one between builds leaves objects compiled against
+# a set of locales that no longer exists. Make sees the sources unchanged and
+# skips them, and the link fails on a symbol whose generator is no longer in
+# the build - or, worse, does not fail and produces a kernel built half one way
+# and half the other. Recording the flags and depending on that record makes
+# the change visible to Make, which is the only thing that can act on it.
+CFLAGS_STAMP := $(BUILD_DIR)/.cflags
+$(shell mkdir -p $(BUILD_DIR); \
+        printf '%s' '$(CFLAGS)' | cmp -s - $(CFLAGS_STAMP) 2>/dev/null || \
+        printf '%s' '$(CFLAGS)' > $(CFLAGS_STAMP))
+
 # Link kernel
 $(KERNEL): $(OBJECTS) | $(BUILD_DIR)
 	@echo "LD $(KERNEL)"
@@ -1213,7 +1227,7 @@ else
 endif
 
 # Compile C files (single rule for all directories via vpath)
-$(OBJ_DIR)/%.o: %.c | $(OBJ_DIR)
+$(OBJ_DIR)/%.o: %.c $(CFLAGS_STAMP) | $(OBJ_DIR)
 	@mkdir -p $(dir $@)
 	@echo "CC $<"
 	@$(CC) $(CFLAGS) -c $< -o $@
