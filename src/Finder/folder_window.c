@@ -80,6 +80,7 @@ typedef struct FolderItem {
     DirID parentID;        /* Parent directory ID */
     uint32_t type;         /* File type (OSType) */
     uint32_t creator;      /* Creator code (OSType) */
+    Boolean isAlias;       /* Drawn with an italic name, as System 7 does */
 } FolderItem;
 
 /* View mode constants matching System 7 Finder view menu */
@@ -574,6 +575,7 @@ static void InitializeFolderContentsEx(WindowPtr w, Boolean isTrash, VRefNum vre
             state->items[i].fileID = entries[i].id;
             state->items[i].parentID = entries[i].parent;
             state->items[i].type = entries[i].type;
+            state->items[i].isAlias = Finder_IsAliasEntry(&entries[i]);
             state->items[i].creator = entries[i].creator;
 
             FINDER_LOG_DEBUG("InitializeFolderContentsEx: trash item %d: %s (id=%d, folder=%d)\n",
@@ -779,6 +781,7 @@ static void InitializeFolderContentsEx(WindowPtr w, Boolean isTrash, VRefNum vre
             state->items[i].fileID = entries[i].id;
             state->items[i].parentID = entries[i].parent;
             state->items[i].type = entries[i].type;
+            state->items[i].isAlias = Finder_IsAliasEntry(&entries[i]);
             state->items[i].creator = entries[i].creator;
         }
 
@@ -1905,6 +1908,7 @@ void FolderWindow_Draw(WindowPtr w) {
             }
 
             iconHandle.selected = selected;
+            iconHandle.italicLabel = state->items[i].isAlias;
 
             int localX = state->items[i].position.h;
             int localY = state->items[i].position.v;

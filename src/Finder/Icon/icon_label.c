@@ -137,6 +137,32 @@ static void FillRectLocal(int left, int top, int right, int bottom, uint32_t col
 }
 
 /* Draw character using direct bitmap rendering (perfected from HD icon) */
+/*
+ * Italic labels.
+ *
+ * The Finder draws an alias's name in italics, and this label renderer draws
+ * Chicago from a bitmap strike rather than through QuickDraw, so TextFace has
+ * nothing to act on. Italic is a shear: each row is pushed right in
+ * proportion to its height above the baseline, which is what QuickDraw does
+ * to synthesise an italic from an upright face.
+ *
+ * gItalicLabel is set for the duration of one label. Drawing and measuring
+ * both read it, so the background and centring account for the lean instead
+ * of being computed for an upright name and drawn slanted.
+ */
+static bool gItalicLabel = false;
+
+#define kIconLabelItalicLean 3   /* pixels of lean over the glyph's height */
+
+static int IconLabel_Shear(int row) {
+    if (!gItalicLabel) return 0;
+    return ((14 - row) * kIconLabelItalicLean) / 14;
+}
+
+void IconLabel_SetItalic(bool slanted) {
+    gItalicLabel = slanted;
+}
+
 static void DrawCharBitmap(char ch, int x, int y, uint32_t color) {
     if (ch < 32 || ch > 126) return;
 
@@ -151,7 +177,7 @@ static void DrawCharBitmap(char ch, int x, int y, uint32_t color) {
             int bit_offset = 7 - (bit_position & 7);
 
             if (strike_row[byte_index] & (1 << bit_offset)) {
-                IconPort_WritePixel(x + col, y + row, color);
+                IconPort_WritePixel(x + col + IconLabel_Shear(row), y + row, color);
             }
         }
     }
@@ -170,6 +196,8 @@ void IconLabel_Measure(const char* name, int* outWidth, int* outHeight) {
             if (ch == ' ') width += 3;  /* Extra space width (perfected value) */
         }
     }
+
+    if (gItalicLabel) width += kIconLabelItalicLean;
 
     *outWidth = width;
     *outHeight = 15;  /* Chicago font actual height */
@@ -335,7 +363,9 @@ IconRect Icon_DrawWithLabel(const IconHandle* h, const char* name,
      * Icon visibly extends to row 27 (28px tall), label background extends 12px above baseline
      * So baseline needs to be at iconTopY + 28 (icon bottom) + 12 (background height above) = 40 */
     int labelTop = iconTopY + 40;
+    IconLabel_SetItalic(h && h->italicLabel);
     IconLabel_Draw(name, centerX, labelTop, selected);
+    IconLabel_SetItalic(false);
 
     /* Return combined bounds for hit testing */
     int textWidth, textHeight;

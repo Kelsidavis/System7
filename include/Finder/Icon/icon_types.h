@@ -52,6 +52,7 @@ typedef struct {
     /* Resolved draw recipe */
     const IconFamily* fam;  /* icon to draw (resource-backed or compiled default) */
     bool selected;          /* for selection state */
+    bool italicLabel;       /* an alias's name is italic, as in System 7 */
 } IconHandle;
 
 /* Rectangle type for hit testing */
