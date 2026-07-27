@@ -221,6 +221,9 @@ void FolderWindow_ClearSelection(WindowPtr w);
  * selection by identity, and repaints. Callers that create, remove or rename
  * files use this instead of reloading or patching items[] themselves. */
 void FolderWindow_ContentsChanged(WindowPtr w);
+/* Subscribe folder windows to VFS change notifications, so a file created
+ * outside the Finder still shows up in an open window. */
+void FolderWindow_ListenForVolumeChanges(void);
 
 /* Paint the contents of a Finder window - About, Get Info, Find or a folder.
  * The caller brackets it with BeginUpdate/EndUpdate. Returns false when the

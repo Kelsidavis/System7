@@ -67,6 +67,12 @@ bool VFS_CreateFile(VRefNum vref, DirID parent, const char* name,
                    uint32_t type, uint32_t creator, FileID* newID);
 bool VFS_Rename(VRefNum vref, FileID id, const char* newName);
 bool VFS_Delete(VRefNum vref, FileID id);
+
+/* Called after the contents of a directory change - a file or folder created,
+ * renamed, deleted, or written. Views of that directory are snapshots and have
+ * no other way to learn they are out of date. */
+typedef void (*VFS_ChangeCallback)(VRefNum vref, DirID dir);
+void VFS_SetChangeCallback(VFS_ChangeCallback callback);
 bool VFS_MoveOverlay(VRefNum vref, FileID id, DirID newParent,
                      const char* newName, const CatEntry* currentEntry);
 bool VFS_SetCatEntryInfo(VRefNum vref, FileID id,

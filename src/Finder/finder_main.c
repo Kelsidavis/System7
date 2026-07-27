@@ -487,6 +487,9 @@ static OSErr SetupMenus(void)
 
     Finder_InstallMenuBar();
 
+    /* Keep open folder windows honest about changes made outside the Finder. */
+    FolderWindow_ListenForVolumeChanges();
+
     /* Application (top-right) menu — lists running applications */
     const short appMenuID = (short)0xBF97; /* kApplicationMenuID */
     MenuHandle appMenu = NewMenu(appMenuID, (ConstStr255Param)"\000");

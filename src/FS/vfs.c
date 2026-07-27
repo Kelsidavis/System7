@@ -51,7 +51,11 @@ static struct {
     VFSVolume          volumes[VFS_MAX_VOLUMES];
     VRefNum             nextVRef;
     VFS_MountCallback  mountCallback;
+    VFS_ChangeCallback changeCallback;
 } g_vfs = { 0 };
+
+/* Announce that a directory listing has changed; defined with the mutations. */
+static void VFS_DirectoryChanged(VRefNum vref, DirID dir);
 
 /* VFS file wrapper — supports both HFS-backed and overlay-backed files */
 struct VFSFile {
@@ -1071,6 +1075,8 @@ void VFS_CloseFile(VFSFile* file) {
                     if (now != 0) {
                         oe->entry.modTime = now;
                     }
+                    /* The listing shows size and date, so a write changes it. */
+                    VFS_DirectoryChanged(file->vref, oe->entry.parent);
                 }
             }
         }
@@ -1198,6 +1204,28 @@ bool VFS_MoveOverlay(VRefNum vref, FileID id, DirID newParent,
     return true;
 }
 
+
+void VFS_SetChangeCallback(VFS_ChangeCallback callback) {
+    g_vfs.changeCallback = callback;
+}
+
+/*
+ * VFS_DirectoryChanged - announce that a directory's contents have changed.
+ *
+ * Anything showing a directory is showing a snapshot taken when it was opened.
+ * The Finder refreshes its own windows after its own operations, but had no
+ * way to hear about a change made anywhere else - saving a new document from
+ * SimpleText left an open Finder window still listing what was there before.
+ * Every mutation says so here, once, and whoever is displaying it decides what
+ * to do about it.
+ */
+static void VFS_DirectoryChanged(VRefNum vref, DirID dir) {
+    if (g_vfs.changeCallback) {
+        g_vfs.changeCallback(vref, dir);
+    }
+}
+
+
 /* Write operations */
 bool VFS_CreateFolder(VRefNum vref, DirID parent, const char* name, DirID* newID) {
     FS_LOG_DEBUG("VFS_CreateFolder: Creating folder '%s' in parent %d\n", name, parent);
@@ -1228,7 +1256,8 @@ bool VFS_CreateFolder(VRefNum vref, DirID parent, const char* name, DirID* newID
 
     *newID = id;
     FS_LOG_DEBUG("VFS_CreateFolder: Created folder '%s' with ID %u\n", name, id);
-    return true;
+    VFS_DirectoryChanged(vref, parent);
+        return true;
 }
 
 bool VFS_CreateFile(VRefNum vref, DirID parent, const char* name,
@@ -1263,7 +1292,8 @@ bool VFS_CreateFile(VRefNum vref, DirID parent, const char* name,
 
     *newID = id;
     FS_LOG_DEBUG("VFS_CreateFile: Created file '%s' with ID %u\n", name, id);
-    return true;
+    VFS_DirectoryChanged(vref, parent);
+        return true;
 }
 
 bool VFS_Rename(VRefNum vref, FileID id, const char* newName) {
@@ -1281,6 +1311,12 @@ bool VFS_Rename(VRefNum vref, FileID id, const char* newName) {
         strncpy(oe->entry.name, newName, 31);
         oe->entry.name[31] = '\0';
         oe->renamed = true;
+        {
+            CatEntry changed;
+            if (VFS_GetByID(vref, id, &changed)) {
+                VFS_DirectoryChanged(vref, changed.parent);
+            }
+        }
         return true;
     }
 
@@ -1300,7 +1336,13 @@ bool VFS_Rename(VRefNum vref, FileID id, const char* newName) {
     oe->entry.name[31] = '\0';
 
     FS_LOG_DEBUG("VFS_Rename: Successfully renamed ID %u to '%s'\n", id, newName);
-    return true;
+    {
+            CatEntry changed;
+            if (VFS_GetByID(vref, id, &changed)) {
+                VFS_DirectoryChanged(vref, changed.parent);
+            }
+        }
+        return true;
 }
 
 bool VFS_Delete(VRefNum vref, FileID id) {
@@ -1327,6 +1369,12 @@ bool VFS_Delete(VRefNum vref, FileID id) {
             /* Mark catalog entry as deleted */
             oe->deleted = true;
         }
+        {
+            CatEntry changed;
+            if (VFS_GetByID(vref, id, &changed)) {
+                VFS_DirectoryChanged(vref, changed.parent);
+            }
+        }
         return true;
     }
 
@@ -1338,7 +1386,13 @@ bool VFS_Delete(VRefNum vref, FileID id) {
     oe->deleted = true;
 
     FS_LOG_DEBUG("VFS_Delete: Marked ID %u as deleted\n", id);
-    return true;
+    {
+            CatEntry changed;
+            if (VFS_GetByID(vref, id, &changed)) {
+                VFS_DirectoryChanged(vref, changed.parent);
+            }
+        }
+        return true;
 }
 
 bool VFS_SetCatEntryInfo(VRefNum vref, FileID id,

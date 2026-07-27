@@ -284,6 +284,38 @@ static short FW_FreeSlot(WindowPtr w, FolderWindowState* state, short skipIndex)
  * and anything genuinely new takes a free slot.
  * ============================================================================ */
 
+/*
+ * FolderWindow_VolumeChanged - a directory's contents changed; refresh any
+ * window showing it.
+ *
+ * A folder window's item list is a snapshot taken when the window opened. The
+ * Finder refreshes after its own operations, but nothing told it about a
+ * change made anywhere else - saving a new document from SimpleText left an
+ * open window still listing what had been there before. The VFS announces
+ * every change now; this is the Finder listening.
+ */
+static void FolderWindow_VolumeChanged(VRefNum vref, DirID dir)
+{
+    WindowPtr w = FrontWindow();
+    int guard = 0;
+
+    while (w && guard++ < 64) {
+        WindowPtr next = w->nextWindow;   /* the refresh may repaint w */
+        if (IsFolderWindow(w)) {
+            FolderWindowState* state = GetFolderState(w);
+            if (state && state->vref == vref && state->currentDir == dir) {
+                FolderWindow_ContentsChanged(w);
+            }
+        }
+        w = next;
+    }
+}
+
+void FolderWindow_ListenForVolumeChanges(void)
+{
+    VFS_SetChangeCallback(FolderWindow_VolumeChanged);
+}
+
 void FolderWindow_ContentsChanged(WindowPtr w) {
     if (!w || !IsFolderWindow(w)) return;
 
