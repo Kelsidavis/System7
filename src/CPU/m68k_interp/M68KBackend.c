@@ -1283,6 +1283,78 @@ static const M68KExpect kWantMulDiv[] = {
     {0, 0x0002000E}, {2, 42},
 };
 
+
+/* Displacement and indexed operands - d16(An) and d8(An,Dn.L).
+ * Both reach the same longword, written once and read back two ways. */
+static const UInt8 kProgDisp[] = {
+    0x20, 0x7C, 0x00, 0x02, 0x00, 0x00,   /* MOVEA.L #$00020000,A0     */
+    0x20, 0x3C, 0xDE, 0xAD, 0xBE, 0xEF,   /* MOVE.L  #$DEADBEEF,D0     */
+    0x21, 0x40, 0x00, 0x10,               /* MOVE.L  D0,$10(A0)        */
+    0x22, 0x28, 0x00, 0x10,               /* MOVE.L  $10(A0),D1        */
+    0x74, 0x04,                           /* MOVEQ   #4,D2             */
+    0x26, 0x30, 0x28, 0x0C,               /* MOVE.L  $0C(A0,D2.L),D3   */
+};
+static const M68KExpect kWantDisp[] = {
+    {1, 0xDEADBEEF}, {3, 0xDEADBEEF}, {8, 0x00020000},
+};
+
+/* LINK builds a stack frame and UNLK takes it down again; compiled code puts
+ * one around any function with locals. A7 must come back to where it started
+ * and A6 must be restored to what it held before. */
+static const UInt8 kProgLink[] = {
+    0x2E, 0x7C, 0x00, 0x03, 0x00, 0x00,   /* MOVEA.L #$00030000,A7 */
+    0x4E, 0x56, 0xFF, 0xF8,               /* LINK    A6,#-8        */
+    0x70, 0x09,                           /* MOVEQ   #9,D0         */
+    0x4E, 0x5E,                           /* UNLK    A6            */
+};
+static const M68KExpect kWantLink[] = {
+    {0, 9}, {14, 0}, {15, 0x00030000},    /* D0, A6, A7 */
+};
+
+/* DBRA counts the low word of the register down past zero, which is how every
+ * 68K loop ends: four passes leave the counter at $FFFF, not at zero. */
+static const UInt8 kProgLoop[] = {
+    0x70, 0x03,                           /* MOVEQ #3,D0      */
+    0x72, 0x00,                           /* MOVEQ #0,D1      */
+    0x52, 0x81,                           /* ADDQ.L #1,D1     */
+    0x51, 0xC8, 0xFF, 0xFC,               /* DBRA  D0,-4      */
+};
+static const M68KExpect kWantLoop[] = {
+    {0, 0x0000FFFF}, {1, 4},
+};
+
+
+/* A comparison of -1 against 1 separates the signed and unsigned conditions:
+ * signed it is less-than, unsigned it is not, and the two branches must
+ * disagree. Getting this wrong makes loops and bounds checks run backwards. */
+static const UInt8 kProgCompare[] = {
+    0x70, 0xFF,                           /* MOVEQ #-1,D0   */
+    0x72, 0x01,                           /* MOVEQ #1,D1    */
+    0xB0, 0x81,                           /* CMP.L D1,D0    */
+    0x6D, 0x04,                           /* BLT   +4  (taken)     */
+    0x74, 0x03,                           /* MOVEQ #3,D2 (skipped) */
+    0x4E, 0x71,                           /* NOP            */
+    0x65, 0x02,                           /* BCS   +2  (not taken) */
+    0x76, 0x05,                           /* MOVEQ #5,D3    */
+    0x78, 0x07,                           /* MOVEQ #7,D4    */
+};
+static const M68KExpect kWantCompare[] = {
+    {2, 0}, {3, 5}, {4, 7},
+};
+
+/* Adding one to the largest positive long overflows into the most negative,
+ * which is what V is for. */
+static const UInt8 kProgOverflow[] = {
+    0x20, 0x3C, 0x7F, 0xFF, 0xFF, 0xFF,   /* MOVE.L #$7FFFFFFF,D0 */
+    0x52, 0x80,                           /* ADDQ.L #1,D0         */
+    0x69, 0x02,                           /* BVS    +2 (taken)    */
+    0x4E, 0x71,                           /* NOP       (skipped)  */
+    0x7A, 0x01,                           /* MOVEQ  #1,D5         */
+};
+static const M68KExpect kWantOverflow[] = {
+    {0, 0x80000000}, {5, 1},
+};
+
 static const M68KTestCase kM68KTests[] = {
     { "arithmetic", kProgArith,  sizeof(kProgArith),  5,
       kWantArith,  2, sizeof(kProgArith) },
@@ -1301,6 +1373,17 @@ static const M68KTestCase kM68KTests[] = {
       kWantMovem, 4, sizeof(kProgMovem) },
     { "multiply and divide", kProgMulDiv, sizeof(kProgMulDiv), 6,
       kWantMulDiv, 2, sizeof(kProgMulDiv) },
+    { "displacement and index", kProgDisp, sizeof(kProgDisp), 6,
+      kWantDisp, 3, sizeof(kProgDisp) },
+    { "link and unlink", kProgLink, sizeof(kProgLink), 4,
+      kWantLink, 3, sizeof(kProgLink) },
+    /* Two setup instructions, then four passes of body-and-branch. */
+    { "dbra loop", kProgLoop, sizeof(kProgLoop), 10,
+      kWantLoop, 2, sizeof(kProgLoop) },
+    { "signed and unsigned compare", kProgCompare, sizeof(kProgCompare), 7,
+      kWantCompare, 3, sizeof(kProgCompare) },
+    { "overflow", kProgOverflow, sizeof(kProgOverflow), 4,
+      kWantOverflow, 2, sizeof(kProgOverflow) },
 };
 
 
