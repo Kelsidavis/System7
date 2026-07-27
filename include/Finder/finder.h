@@ -212,6 +212,8 @@ short FolderWindow_GetViewMode(WindowPtr w);
 Boolean FolderWindow_HasSelection(WindowPtr w);
 short FolderWindow_GetSelectedLabel(WindowPtr w);
 short FolderWindow_FindItemByName(WindowPtr w, const char* name);
+void FolderWindow_ClearSelection(WindowPtr w);
+void FolderWindow_AddToSelectionByName(WindowPtr w, const char* name);
 void FolderWindow_SelectByName(WindowPtr w, const char* name);
 
 /* ============================================================================

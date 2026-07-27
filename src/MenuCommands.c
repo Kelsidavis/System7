@@ -1555,6 +1555,12 @@ void Finder_Paste(void) {
     extern bool VFS_Copy(VRefNum vref, DirID fromDir, FileID id, DirID toDir, const char* newName, FileID* newID);
     extern bool VFS_Lookup(VRefNum vref, DirID dir, const char* name, CatEntry* entry);
 
+    /* Names of what actually landed, so the selection can be put on them
+     * after the reload below. */
+    #define kMaxPastedTracked 32
+    char pastedNames[kMaxPastedTracked][256];
+    SInt16 pastedCount = 0;
+
     for (SInt16 i = 0; i < sourceCount; i++) {
         FSSpec* src = &sourceSpecs[i];
 
@@ -1593,6 +1599,12 @@ void Finder_Paste(void) {
         if (copied) {
             MENU_LOG_DEBUG("Finder_Paste: Successfully pasted '%s' as '%s' (newID=%d)\n",
                          sourceName, destName, newID);
+            if (pastedCount < kMaxPastedTracked) {
+                strncpy(pastedNames[pastedCount], destName,
+                        sizeof(pastedNames[0]) - 1);
+                pastedNames[pastedCount][sizeof(pastedNames[0]) - 1] = '\0';
+                pastedCount++;
+            }
         } else {
             MENU_LOG_DEBUG("Finder_Paste: Failed to copy '%s'\n", sourceName);
         }
@@ -1648,6 +1660,20 @@ void Finder_Paste(void) {
     extern void InitializeFolderContentsEx(WindowPtr w, Boolean isTrash,
                                             VRefNum vref, DirID dirID);
     InitializeFolderContentsEx(frontWin, false, destVRef, destDir);
+
+    /* Put the selection on what was just pasted.
+     *
+     * Reloading rebuilds items[] from the directory, and the selection is
+     * held by position - so whatever index was selected before now names a
+     * different file. After a cut and paste that left an unrelated file
+     * highlighted, which is worse than untidy: the next Clear or Cut would
+     * have taken it. System 7 selects the items it just pasted. */
+    FolderWindow_ClearSelection(frontWin);
+    for (SInt16 i = 0; i < pastedCount; i++) {
+        FolderWindow_AddToSelectionByName(frontWin, pastedNames[i]);
+    }
+    #undef kMaxPastedTracked
+
     PostEvent(updateEvt, (UInt32)(uintptr_t)frontWin);
 
     MENU_LOG_DEBUG("Finder_Paste: Paste operation complete\n");

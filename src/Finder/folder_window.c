@@ -2161,6 +2161,39 @@ void FolderWindow_SelectByName(WindowPtr w, const char* name) {
 }
 
 /*
+ * FolderWindow_ClearSelection - Deselect everything.
+ */
+void FolderWindow_ClearSelection(WindowPtr w) {
+    if (!w || !IsFolderWindow(w)) return;
+    FolderWindowState* state = GetFolderState(w);
+    if (!state) return;
+    if (state->selectedItems) {
+        for (short i = 0; i < state->itemCount; i++)
+            state->selectedItems[i] = false;
+    }
+    state->selectedIndex = -1;
+}
+
+/*
+ * FolderWindow_AddToSelectionByName - Add one item to the selection.
+ *
+ * Unlike FolderWindow_SelectByName this keeps whatever is already selected,
+ * so a caller that has just created several files can select all of them.
+ */
+void FolderWindow_AddToSelectionByName(WindowPtr w, const char* name) {
+    short idx = FolderWindow_FindItemByName(w, name);
+    if (idx < 0) return;
+    FolderWindowState* state = GetFolderState(w);
+    if (!state) return;
+    if (state->selectedItems) {
+        state->selectedItems[idx] = true;
+    }
+    if (state->selectedIndex < 0) {
+        state->selectedIndex = idx;
+    }
+}
+
+/*
  * FolderWindow_HasSelection - Check if any items are selected.
  */
 Boolean FolderWindow_HasSelection(WindowPtr w) {
@@ -2899,14 +2932,41 @@ void FolderWindow_DuplicateSelected(WindowPtr w) {
                         state->selectedItems[state->itemCount] = false;
                     }
 
-                    /* Add the new item */
+                    /* Add the new item.
+                     *
+                     * Every field has to be set. NewPtr does not clear the
+                     * block this slot came from, and the fields left out here
+                     * were name, fileID, isFolder, type and creator only - so
+                     * size, modTime, label, parentID and position all held
+                     * whatever bytes were in the heap. The visible one was
+                     * position: duplicates appeared at the window's top-left
+                     * corner, on top of the first icon, instead of in a free
+                     * slot in the grid. */
                     FolderItem* newItem = &state->items[state->itemCount];
+                    memset(newItem, 0, sizeof(*newItem));
                     strncpy(newItem->name, newEntry.name, sizeof(newItem->name) - 1);
                     newItem->name[sizeof(newItem->name) - 1] = '\0';
                     newItem->fileID = newID;
+                    newItem->parentID = state->currentDir;
                     newItem->isFolder = (newEntry.kind == kNodeDir);
                     newItem->type = newEntry.type;
                     newItem->creator = newEntry.creator;
+                    newItem->size = newEntry.size;
+                    newItem->modTime = newEntry.modTime;
+                    newItem->label = 0;
+
+                    /* Next free slot on the same grid the clean-up uses. */
+                    {
+                        const short kIconW = 80, kIconH = 64;
+                        const short kLeft = 20, kTop = 40;
+                        const short kGapH = 10, kGapV = 10;
+                        short windowWidth = w->port.portRect.right - w->port.portRect.left;
+                        short maxCols = (windowWidth - kLeft) / (kIconW + kGapH);
+                        if (maxCols < 1) maxCols = 1;
+                        short slot = state->itemCount;
+                        newItem->position.h = kLeft + (slot % maxCols) * (kIconW + kGapH);
+                        newItem->position.v = kTop + (slot / maxCols) * (kIconH + kGapV);
+                    }
 
                     state->itemCount++;
 
