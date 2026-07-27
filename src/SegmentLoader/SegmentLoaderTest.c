@@ -49,7 +49,7 @@ static void InstallTestResources(void)
 {
     UInt8 code0[16 + 16]; // Header + 2 JT entries
     UInt8 code1[18];      // Entry segment
-    UInt8 code2[14];      // Trace segment
+    UInt8 code2[24];      // Trace segment
     SInt16 savedResFile;
 
     /* Save current resource file and use system resource file for tests */
@@ -139,13 +139,22 @@ static void InstallTestResources(void)
     BE_Write16_Ptr(code2 + 2, 0x0000);  // flags
     code2[4] = 0xA8; code2[5] = 0x00;   // TRAP #$A800
     code2[6] = 0x4E; code2[7] = 0x75;   // RTS
-    /* A JSR to an absolute address, placed after the RTS so it never runs.
-     * The loader should relocate its target by the segment base, and the
-     * check after the run reads it back out of the guest's own memory - which
-     * is the only place that says the relocation reached the running code
-     * rather than a host-side copy of it. */
-    code2[8] = 0x4E; code2[9] = 0xB9;   // JSR abs.L
-    BE_Write32_Ptr(code2 + 10, 0x00020000);
+
+    /* Everything past the RTS is data for the loader to look at, not code to
+     * run.
+     *
+     * MOVE.L $00000904,D0 reads CurrentA5 - an ordinary low memory global,
+     * and the sort of thing real 68K code is full of. Its address must come
+     * through untouched.
+     *
+     * The JSR's absolute target is the one thing here that should be
+     * relocated by the segment base. */
+    code2[8] = 0x20; code2[9] = 0x39;   // MOVE.L abs.L,D0
+    BE_Write32_Ptr(code2 + 10, 0x00000904);
+    code2[14] = 0x4E; code2[15] = 0xB9; // JSR abs.L
+    BE_Write32_Ptr(code2 + 16, 0x00020000);
+    code2[20] = 0x4E; code2[21] = 0x71; // NOP
+    code2[22] = 0x4E; code2[23] = 0x71; // NOP
 
     Handle h2 = MakeHandleFromBytes(code2, sizeof(code2));
     SEG_LOG_INFO("InstallTestResources: CODE 2 handle=%p size=%u", h2, (unsigned)sizeof(code2));
@@ -472,14 +481,28 @@ void SegmentLoader_TestBoot(void)
         CPUAddr seg2 = 0;
         if (GetSegmentEntryPoint(ctx, 2, &seg2) == noErr) {
             unsigned char patched[4];
+            /* The low memory reference must survive unchanged. */
             if (ctx->cpuBackend->ReadMemory(ctx->cpuAS, seg2 + 6, patched, 4) == noErr) {
                 UInt32 got = ((UInt32)patched[0] << 24) | ((UInt32)patched[1] << 16) |
                              ((UInt32)patched[2] << 8) | patched[3];
-                if (got != seg2 + 0x00020000) {
-                    char rb[140];
+                if (got != 0x00000904) {
+                    char rb[150];
                     snprintf(rb, sizeof(rb),
-                             "[SegmentLoader] smoke test FAILED: relocation left 0x%08X, "
-                             "want 0x%08X\n", (unsigned)got, (unsigned)(seg2 + 0x00020000));
+                             "[SegmentLoader] smoke test FAILED: low memory reference "
+                             "rewritten to 0x%08X, was 0x00000904\n", (unsigned)got);
+                    serial_puts(rb);
+                }
+            }
+            /* And so must the JSR's, for the same reason: a near-model
+             * segment is loaded as it was written. */
+            if (ctx->cpuBackend->ReadMemory(ctx->cpuAS, seg2 + 12, patched, 4) == noErr) {
+                UInt32 got = ((UInt32)patched[0] << 24) | ((UInt32)patched[1] << 16) |
+                             ((UInt32)patched[2] << 8) | patched[3];
+                if (got != 0x00020000) {
+                    char rb[150];
+                    snprintf(rb, sizeof(rb),
+                             "[SegmentLoader] smoke test FAILED: absolute operand "
+                             "rewritten to 0x%08X, was 0x00020000\n", (unsigned)got);
                     serial_puts(rb);
                 }
             }

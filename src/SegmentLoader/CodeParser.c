@@ -172,154 +172,35 @@ OSErr BuildRelocationTable(const void* codeData, Size size, SInt16 segID,
         return paramErr;
     }
 
-    const UInt8* data = (const UInt8*)codeData;
+    (void)codeData;
+    (void)size;
+    (void)segID;
 
-    /* Scan for 68K relocation patterns:
-     * - JMP/JSR absolute.L (jump table or segment references)
-     * - PEA absolute.L (push effective address)
-     * - MOVE.L absolute.L (absolute data references)
-     * - LEA/MOVE with A5-relative addressing (globals)
+    /*
+     * A near-model CODE segment carries no relocations, and none are invented
+     * for it here.
+     *
+     * This used to scan the segment two bytes at a time looking for opcodes
+     * that take an absolute long operand - JMP, JSR, PEA, MOVE.L - and rewrite
+     * whatever followed them. Nothing in that scan could tell an instruction
+     * from the data or the second half of a longer instruction that happened
+     * to read like one, and the operands it found were not relocations to
+     * begin with.
+     *
+     * System 7 links a near-model application through its jump table: a call
+     * into another segment goes to an A5-relative jump table entry, and
+     * globals are addressed from A5. Both move with the process rather than
+     * with the segment, so a loaded segment needs no fixing up at all. The
+     * scan was rewriting correct code - MOVE.L $00000904,D0 reads CurrentA5,
+     * an ordinary low memory global, and its address came out as the segment
+     * base plus $904, pointing at nothing.
+     *
+     * Far-model segments do carry relocation tables, in the segment itself.
+     * When those are supported the table gets read from the segment; it does
+     * not get guessed from the instruction stream.
      */
-
-    /* Count potential relocations */
-    UInt16 count = 0;
-    for (Size i = 0; i + 6 < size; i += 2) {
-        UInt16 opcode = BE_Read16(data + i);
-
-        /* JMP absolute.L (0x4EF9) or JSR absolute.L (0x4EB9) */
-        if (opcode == 0x4EF9 || opcode == 0x4EB9) {
-            count++;
-        }
-        /* PEA absolute.L (0x4879) */
-        else if (opcode == 0x4879) {
-            count++;
-        }
-        /* MOVE.L absolute.L,Dn (0x20xx, 0x22xx, etc. with mode 111 reg 001) */
-        else if ((opcode & 0xF1FF) == 0x2039 || (opcode & 0xF1FF) == 0x2139) {
-            count++;
-        }
-        /* MOVE.L Dn,absolute.L (0x23C0-0x23C7) */
-        else if ((opcode & 0xFFF8) == 0x23C0) {
-            count++;
-        }
-        /* LEA d16(A5),An (0x4xED where x=dest reg) */
-        else if ((opcode & 0xF0FF) == 0x40ED) {
-            count++;
-        }
-        /* MOVE.L d16(A5),Dn (0x202D, 0x222D, etc.) */
-        else if ((opcode & 0xF1FF) == 0x202D) {
-            count++;
-        }
-        /* MOVE.L Dn,d16(A5) (0x2B40-0x2B47) */
-        else if ((opcode & 0xFFF8) == 0x2B40) {
-            count++;
-        }
-    }
-
-    /* Allocate relocation entries */
-    if (count > 0) {
-        /* UInt16 count can't overflow size_t multiplication */
-        relocTable->entries = (RelocEntry*)NewPtr((Size)count * sizeof(RelocEntry));
-        if (!relocTable->entries) {
-            return memFullErr;
-        }
-
-        /* Build entries */
-        UInt16 idx = 0;
-        for (Size i = 0; i + 6 < size && idx < count; i += 2) {
-            UInt16 opcode = BE_Read16(data + i);
-
-            /* JMP/JSR absolute.L */
-            if (opcode == 0x4EF9 || opcode == 0x4EB9) {
-                UInt32 target = BE_Read32(data + i + 2);
-
-                /* Heuristic: if target looks like it's in low memory,
-                 * assume it's a jump table reference */
-                if (target < 0x10000) {
-                    relocTable->entries[idx].kind = kRelocJTImport;
-                    relocTable->entries[idx].atOffset = i + 2;
-                    relocTable->entries[idx].addend = 0;
-                    relocTable->entries[idx].targetSegment = 0;
-                    relocTable->entries[idx].jtIndex = target / 8;
-                } else {
-                    /* Assume absolute segment reference */
-                    relocTable->entries[idx].kind = kRelocAbsSegBase;
-                    relocTable->entries[idx].atOffset = i + 2;
-                    relocTable->entries[idx].addend = target;
-                    relocTable->entries[idx].targetSegment = segID;
-                    relocTable->entries[idx].jtIndex = 0;
-                }
-                idx++;
-            }
-            /* PEA absolute.L */
-            else if (opcode == 0x4879) {
-                UInt32 target = BE_Read32(data + i + 2);
-                relocTable->entries[idx].kind = kRelocAbsSegBase;
-                relocTable->entries[idx].atOffset = i + 2;
-                relocTable->entries[idx].addend = target;
-                relocTable->entries[idx].targetSegment = segID;
-                relocTable->entries[idx].jtIndex = 0;
-                idx++;
-            }
-            /* MOVE.L absolute.L,Dn */
-            else if ((opcode & 0xF1FF) == 0x2039 || (opcode & 0xF1FF) == 0x2139) {
-                UInt32 target = BE_Read32(data + i + 2);
-                relocTable->entries[idx].kind = kRelocAbsSegBase;
-                relocTable->entries[idx].atOffset = i + 2;
-                relocTable->entries[idx].addend = target;
-                relocTable->entries[idx].targetSegment = segID;
-                relocTable->entries[idx].jtIndex = 0;
-                idx++;
-            }
-            /* MOVE.L Dn,absolute.L */
-            else if ((opcode & 0xFFF8) == 0x23C0) {
-                UInt32 target = BE_Read32(data + i + 2);
-                relocTable->entries[idx].kind = kRelocAbsSegBase;
-                relocTable->entries[idx].atOffset = i + 2;
-                relocTable->entries[idx].addend = target;
-                relocTable->entries[idx].targetSegment = segID;
-                relocTable->entries[idx].jtIndex = 0;
-                idx++;
-            }
-            /* LEA d16(A5),An - A5-relative */
-            else if ((opcode & 0xF0FF) == 0x40ED) {
-                SInt16 offset = (SInt16)BE_Read16(data + i + 2);
-                relocTable->entries[idx].kind = kRelocA5Relative;
-                relocTable->entries[idx].atOffset = i + 2;
-                relocTable->entries[idx].addend = offset;
-                relocTable->entries[idx].targetSegment = 0;
-                relocTable->entries[idx].jtIndex = 0;
-                idx++;
-            }
-            /* MOVE.L d16(A5),Dn - A5-relative */
-            else if ((opcode & 0xF1FF) == 0x202D) {
-                SInt16 offset = (SInt16)BE_Read16(data + i + 2);
-                relocTable->entries[idx].kind = kRelocA5Relative;
-                relocTable->entries[idx].atOffset = i + 2;
-                relocTable->entries[idx].addend = offset;
-                relocTable->entries[idx].targetSegment = 0;
-                relocTable->entries[idx].jtIndex = 0;
-                idx++;
-            }
-            /* MOVE.L Dn,d16(A5) - A5-relative */
-            else if ((opcode & 0xFFF8) == 0x2B40) {
-                SInt16 offset = (SInt16)BE_Read16(data + i + 2);
-                relocTable->entries[idx].kind = kRelocA5Relative;
-                relocTable->entries[idx].atOffset = i + 2;
-                relocTable->entries[idx].addend = offset;
-                relocTable->entries[idx].targetSegment = 0;
-                relocTable->entries[idx].jtIndex = 0;
-                idx++;
-            }
-        }
-
-        relocTable->count = idx;
-    } else {
-        relocTable->count = 0;
-        relocTable->entries = NULL;
-    }
-
-    (void)segID; /* Unused in this simple implementation */
+    relocTable->count = 0;
+    relocTable->entries = NULL;
 
     return noErr;
 }
