@@ -922,30 +922,49 @@ static void StandardFile_HAL_NavigateToFolder(const FSSpec *folderSpec) {
  * StandardFile_HAL_HandleDirPopup - Handle directory popup menu
  * For now, implements simple Desktop and Parent navigation
  */
+/*
+ * StandardFile_HAL_HandleDirPopup - leave the current folder for its parent
+ *
+ * selectedDir is in and out: the caller passes the folder being shown and
+ * gets its parent back.
+ *
+ * It used to read a gCurrentDirID kept here instead. That was a second record
+ * of which folder the dialog is showing, and the one that actually drives the
+ * list is the caller's - descending into a folder updated that and never this,
+ * so this read a directory ID of zero, the lookup failed, and going up
+ * silently did nothing. Taking the folder as an argument leaves one record of
+ * it.
+ */
 Boolean StandardFile_HAL_HandleDirPopup(DialogPtr dialog, long *selectedDir) {
-    SF_HAL_LOG_DEBUG("StandardFile HAL: HandleDirPopup\n");
+    CInfoPBRec pb;
+    Str255 dirName;
 
-    /* Simple implementation: navigate to parent directory */
-    if (gCurrentDirID != 2) {  /* 2 = root directory */
-        CInfoPBRec pb;
-        Str255 dirName;
+    (void)dialog;
+    if (!selectedDir) return false;
 
-        memset(&pb, 0, sizeof(pb));
-        dirName[0] = 0;  /* Empty name to get parent info */
-        pb.ioNamePtr = dirName;
-        pb.ioVRefNum = gCurrentVRefNum;
-        pb.u.dirInfo.ioDrDirID = gCurrentDirID;
-        pb.u.hFileInfo.ioFDirIndex = -1;  /* -1 = get info about directory itself */
+    SF_HAL_LOG_DEBUG("StandardFile HAL: HandleDirPopup from dirID=%ld\n", *selectedDir);
 
-        if (PBGetCatInfoSync(&pb) == noErr) {
-            /* Navigate to parent */
-            gCurrentDirID = pb.u.dirInfo.ioDrParID;
-            *selectedDir = gCurrentDirID;
-            gNavigationRequested = true;
-            SF_HAL_LOG_DEBUG("StandardFile HAL: Navigated to parent dirID=%ld\n", gCurrentDirID);
-            return true;
-        }
+    if (*selectedDir == fsRtDirID) {
+        return false;  /* already at the volume's root */
     }
 
-    return false;
+    memset(&pb, 0, sizeof(pb));
+    dirName[0] = 0;  /* empty name: ask about the directory itself */
+    pb.ioNamePtr = dirName;
+    pb.ioVRefNum = gCurrentVRefNum;
+    pb.u.dirInfo.ioDrDirID = *selectedDir;
+    pb.u.hFileInfo.ioFDirIndex = -1;
+
+    if (PBGetCatInfoSync(&pb) != noErr) {
+        return false;
+    }
+
+    /* A directory that is its own parent, or has none, is the top. */
+    if (pb.u.dirInfo.ioDrParID == 0 || pb.u.dirInfo.ioDrParID == *selectedDir) {
+        return false;
+    }
+
+    *selectedDir = pb.u.dirInfo.ioDrParID;
+    SF_HAL_LOG_DEBUG("StandardFile HAL: Navigated to parent dirID=%ld\n", *selectedDir);
+    return true;
 }
