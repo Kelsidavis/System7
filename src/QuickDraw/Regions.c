@@ -103,6 +103,11 @@ static void region_log_message(const char* context,
 #endif
 }
 
+/* Region rectangle-list accessors; defined with the set operations below. */
+static SInt16 RgnRectCount(Region *region);
+static Rect  *RgnRectList(Region *region);
+static void   RgnGetRect(Region *region, SInt16 i, Rect *out);
+
 static SInt16 sanitize_region_size(Region* region, const char* label) {
     if (!region) {
         return kMinRegionSize;
@@ -355,26 +360,14 @@ void OffsetRgn(RgnHandle rgn, SInt16 dh, SInt16 dv) {
     /* Offset bounding box */
     OffsetRect(&region->rgnBBox, dh, dv);
 
-    /* If this is a complex region, offset scan data */
+    /* Move the rectangle list with the box. This used to walk a scan-line
+     * format that nothing ever wrote, so a complex region's shape stayed
+     * where it was while its bounding box moved away from it. */
     if (region->rgnSize > kMinRegionSize) {
-        UInt8 *dataPtr = (UInt8 *)region + kMinRegionSize;
-        UInt8 *endPtr = (UInt8 *)region + region->rgnSize;
-
-        while (dataPtr < endPtr) {
-            SInt16 y = *(SInt16 *)dataPtr;
-            if (y == 0x7FFF) break; /* End marker */
-
-            *(SInt16 *)dataPtr = y + dv;
-            dataPtr += sizeof(SInt16);
-
-            SInt16 count = *(SInt16 *)dataPtr;
-            dataPtr += sizeof(SInt16);
-
-            /* Offset x coordinates */
-            for (int i = 0; i < count; i++) {
-                *(SInt16 *)dataPtr += dh;
-                dataPtr += sizeof(SInt16);
-            }
+        SInt16 n = RgnRectCount(region);
+        Rect *rects = RgnRectList(region);
+        for (SInt16 i = 0; i < n; i++) {
+            OffsetRect(&rects[i], dh, dv);
         }
     }
 
@@ -415,68 +408,216 @@ void InsetRgn(RgnHandle rgn, SInt16 dh, SInt16 dv) {
  * REGION BOOLEAN OPERATIONS
  * ================================================================ */
 
+/* ================================================================
+ * REGION SET OPERATIONS
+ *
+ * A region is a bounding box plus, when it is not a plain rectangle,
+ * a list of disjoint rectangles that cover exactly the region's area:
+ *
+ *   offset 0   SInt16 rgnSize     total bytes
+ *   offset 2   Rect   rgnBBox
+ *   offset 10  SInt16 rectCount   (only when rgnSize > kMinRegionSize)
+ *   offset 12  Rect   rects[rectCount]
+ *
+ * A rectangular region keeps rgnSize == kMinRegionSize and no list, so
+ * nothing that only reads rgnBBox behaves differently than before.
+ *
+ * Every operation below is built from one primitive - subtracting a
+ * rectangle from a rectangle, which leaves at most four pieces - because
+ * that is the only geometry involved once regions are rectangle lists.
+ * These used to be stubs that returned a bounding box: DiffRgn returned
+ * its first argument unchanged, so a window's visible region could never
+ * have the window in front of it taken out, and a window behind repainted
+ * straight over the one in front (REGION-001).
+ * ================================================================ */
+
+/* A region that would need more rectangles than this collapses to its
+ * bounding box. Overstating a visible region repaints too much, which is
+ * what the old stubs did in every case; the cap keeps the failure mode the
+ * same as before rather than introducing a new one. */
+#define kMaxRegionRects 128
+
+static SInt16 RgnRectCount(Region *region) {
+    if (!region) return 0;
+    if (EmptyRect(&region->rgnBBox)) return 0;
+    if (region->rgnSize <= kMinRegionSize) return 1;   /* the bbox itself */
+    return *(SInt16 *)((UInt8 *)region + kMinRegionSize);
+}
+
+static Rect *RgnRectList(Region *region) {
+    return (Rect *)((UInt8 *)region + kMinRegionSize + sizeof(SInt16));
+}
+
+/* Copy out rectangle i, whether the region is rectangular or a list. */
+static void RgnGetRect(Region *region, SInt16 i, Rect *out) {
+    if (region->rgnSize <= kMinRegionSize) {
+        *out = region->rgnBBox;
+    } else {
+        *out = RgnRectList(region)[i];
+    }
+}
+
+/* Read a region's rectangles into a caller-supplied array.
+ * Returns the count, or -1 if the array is too small. */
+static SInt16 RgnCopyRects(RgnHandle rgn, Rect *out, SInt16 max) {
+    Region *region = *rgn;
+    SInt16 n = RgnRectCount(region);
+    if (n > max) return -1;
+    for (SInt16 i = 0; i < n; i++) {
+        RgnGetRect(region, i, &out[i]);
+    }
+    return n;
+}
+
+/* Replace a region's contents with a list of disjoint rectangles. */
+static void SetRgnRects(RgnHandle rgn, Rect *rects, SInt16 count) {
+    Rect bbox;
+    SInt16 kept = 0;
+
+    /* Drop empties and compute the bounding box in one pass. */
+    SetRect(&bbox, 0, 0, 0, 0);
+    for (SInt16 i = 0; i < count; i++) {
+        if (EmptyRect(&rects[i])) continue;
+        if (kept == 0) {
+            bbox = rects[i];
+        } else {
+            UnionRect(&bbox, &rects[i], &bbox);
+        }
+        kept++;
+    }
+
+    if (kept == 0) {
+        SetEmptyRgn(rgn);
+        return;
+    }
+
+    /* One rectangle, or too many to store: a plain rectangular region.
+     * The bounding box is the only honest answer in the first case and a
+     * deliberate over-estimate in the second. */
+    if (kept == 1 || kept > kMaxRegionRects) {
+        RectRgn(rgn, &bbox);
+        return;
+    }
+
+    SInt16 needed = (SInt16)(kMinRegionSize + sizeof(SInt16) + kept * sizeof(Rect));
+    Region *region = *rgn;
+
+    if (region->rgnSize < needed) {
+        Region *grown = (Region *)NewPtr((u32)needed);
+        if (!grown) {
+            /* Cannot describe the shape exactly; the bounding box covers it. */
+            g_lastRegionError = rgnOverflowErr;
+            RectRgn(rgn, &bbox);
+            return;
+        }
+        DisposePtr((Ptr)region);
+        *rgn = grown;
+        region = grown;
+    }
+
+    region->rgnSize = needed;
+    region->rgnBBox = bbox;
+    *(SInt16 *)((UInt8 *)region + kMinRegionSize) = kept;
+
+    Rect *dst = (Rect *)((UInt8 *)region + kMinRegionSize + sizeof(SInt16));
+    for (SInt16 i = 0; i < count; i++) {
+        if (EmptyRect(&rects[i])) continue;
+        *dst++ = rects[i];
+    }
+
+    g_lastRegionError = 0;
+}
+
+/*
+ * Subtract one rectangle from another, appending what is left to out[].
+ *
+ * The result is the parts of "from" not covered by "cut" - up to four
+ * rectangles: the bands above and below the cut, and the strips left and
+ * right of it within the overlapping band. They are disjoint by
+ * construction, which is what keeps a region's rectangle list disjoint.
+ */
+static SInt16 SubtractRect(Rect *from, Rect *cut, Rect *out, SInt16 max) {
+    Rect overlap;
+    SInt16 n = 0;
+
+    if (!SectRect(from, cut, &overlap)) {
+        if (n < max) out[n++] = *from;
+        return n;
+    }
+
+    if (overlap.top > from->top && n < max) {           /* band above */
+        SetRect(&out[n++], from->left, from->top, from->right, overlap.top);
+    }
+    if (overlap.bottom < from->bottom && n < max) {     /* band below */
+        SetRect(&out[n++], from->left, overlap.bottom, from->right, from->bottom);
+    }
+    if (overlap.left > from->left && n < max) {         /* strip left */
+        SetRect(&out[n++], from->left, overlap.top, overlap.left, overlap.bottom);
+    }
+    if (overlap.right < from->right && n < max) {       /* strip right */
+        SetRect(&out[n++], overlap.right, overlap.top, from->right, overlap.bottom);
+    }
+    return n;
+}
+
+/* Subtract every rectangle of "cuts" from every rectangle of "pieces". */
+static SInt16 SubtractRectList(Rect *pieces, SInt16 pieceCount,
+                               Rect *cuts, SInt16 cutCount,
+                               Rect *out, SInt16 max) {
+    Rect work[kMaxRegionRects * 2];
+    Rect next[kMaxRegionRects * 2];
+    SInt16 workCount = 0;
+
+    if (pieceCount > (SInt16)(sizeof(work) / sizeof(work[0]))) return -1;
+    for (SInt16 i = 0; i < pieceCount; i++) work[workCount++] = pieces[i];
+
+    for (SInt16 c = 0; c < cutCount; c++) {
+        SInt16 nextCount = 0;
+        for (SInt16 p = 0; p < workCount; p++) {
+            SInt16 room = (SInt16)(sizeof(next) / sizeof(next[0])) - nextCount;
+            if (room < 4) return -1;   /* too fragmented to describe exactly */
+            nextCount += SubtractRect(&work[p], &cuts[c], &next[nextCount], room);
+        }
+        for (SInt16 i = 0; i < nextCount; i++) work[i] = next[i];
+        workCount = nextCount;
+        if (workCount == 0) break;
+    }
+
+    if (workCount > max) return -1;
+    for (SInt16 i = 0; i < workCount; i++) out[i] = work[i];
+    return workCount;
+}
+
 void SectRgn(RgnHandle srcRgnA, RgnHandle srcRgnB, RgnHandle dstRgn) {
     assert(srcRgnA != NULL && *srcRgnA != NULL);
     assert(srcRgnB != NULL && *srcRgnB != NULL);
     assert(dstRgn != NULL && *dstRgn != NULL);
 
-    Region *regionA = *srcRgnA;
-    Region *regionB = *srcRgnB;
+    Rect a[kMaxRegionRects], b[kMaxRegionRects], result[kMaxRegionRects];
+    Rect bounds;
 
-    /* Check for empty regions */
-    if (EmptyRect(&regionA->rgnBBox) || EmptyRect(&regionB->rgnBBox)) {
+    /* Nothing can be in both if their bounding boxes are disjoint. */
+    if (!SectRect(&(*srcRgnA)->rgnBBox, &(*srcRgnB)->rgnBBox, &bounds)) {
         SetEmptyRgn(dstRgn);
         return;
     }
 
-    /* Check if bounding boxes don't intersect */
-    Rect intersection;
-    if (!SectRect(&regionA->rgnBBox, &regionB->rgnBBox, &intersection)) {
-        SetEmptyRgn(dstRgn);
-        return;
+    SInt16 na = RgnCopyRects(srcRgnA, a, kMaxRegionRects);
+    SInt16 nb = RgnCopyRects(srcRgnB, b, kMaxRegionRects);
+    if (na < 0 || nb < 0) { RectRgn(dstRgn, &bounds); return; }
+
+    /* Pairwise intersections. Both lists are disjoint, so the results are. */
+    SInt16 n = 0;
+    for (SInt16 i = 0; i < na; i++) {
+        for (SInt16 j = 0; j < nb; j++) {
+            Rect piece;
+            if (SectRect(&a[i], &b[j], &piece)) {
+                if (n >= kMaxRegionRects) { RectRgn(dstRgn, &bounds); return; }
+                result[n++] = piece;
+            }
+        }
     }
-
-    /* If both are rectangular regions */
-    if (regionA->rgnSize == kMinRegionSize && regionB->rgnSize == kMinRegionSize) {
-        RectRgn(dstRgn, &intersection);
-        return;
-    }
-
-    /* For complex regions, use simplified implementation */
-    /* In a full implementation, this would do scan line intersection */
-    RectRgn(dstRgn, &intersection);
-}
-
-void UnionRgn(RgnHandle srcRgnA, RgnHandle srcRgnB, RgnHandle dstRgn) {
-    assert(srcRgnA != NULL && *srcRgnA != NULL);
-    assert(srcRgnB != NULL && *srcRgnB != NULL);
-    assert(dstRgn != NULL && *dstRgn != NULL);
-
-    Region *regionA = *srcRgnA;
-    Region *regionB = *srcRgnB;
-
-    /* Check for empty regions */
-    if (EmptyRect(&regionA->rgnBBox)) {
-        CopyRgn(srcRgnB, dstRgn);
-        return;
-    }
-    if (EmptyRect(&regionB->rgnBBox)) {
-        CopyRgn(srcRgnA, dstRgn);
-        return;
-    }
-
-    /* If both are rectangular regions */
-    if (regionA->rgnSize == kMinRegionSize && regionB->rgnSize == kMinRegionSize) {
-        Rect unionRect;
-        UnionRect(&regionA->rgnBBox, &regionB->rgnBBox, &unionRect);
-        RectRgn(dstRgn, &unionRect);
-        return;
-    }
-
-    /* For complex regions, use simplified implementation */
-    Rect unionRect;
-    UnionRect(&regionA->rgnBBox, &regionB->rgnBBox, &unionRect);
-    RectRgn(dstRgn, &unionRect);
+    SetRgnRects(dstRgn, result, n);
 }
 
 void DiffRgn(RgnHandle srcRgnA, RgnHandle srcRgnB, RgnHandle dstRgn) {
@@ -484,29 +625,55 @@ void DiffRgn(RgnHandle srcRgnA, RgnHandle srcRgnB, RgnHandle dstRgn) {
     assert(srcRgnB != NULL && *srcRgnB != NULL);
     assert(dstRgn != NULL && *dstRgn != NULL);
 
-    Region *regionA = *srcRgnA;
-    Region *regionB = *srcRgnB;
+    Rect a[kMaxRegionRects], b[kMaxRegionRects], result[kMaxRegionRects];
+    Rect ignored;
 
-    /* Check for empty regions */
-    if (EmptyRect(&regionA->rgnBBox)) {
-        SetEmptyRgn(dstRgn);
-        return;
-    }
-    if (EmptyRect(&regionB->rgnBBox)) {
+    if (EmptyRgn(srcRgnA)) { SetEmptyRgn(dstRgn); return; }
+    if (EmptyRgn(srcRgnB)) { CopyRgn(srcRgnA, dstRgn); return; }
+
+    /* Nothing to take away if the boxes do not meet. */
+    if (!SectRect(&(*srcRgnA)->rgnBBox, &(*srcRgnB)->rgnBBox, &ignored)) {
         CopyRgn(srcRgnA, dstRgn);
         return;
     }
 
-    /* Check if bounding boxes don't intersect */
-    Rect intersection;
-    if (!SectRect(&regionA->rgnBBox, &regionB->rgnBBox, &intersection)) {
-        CopyRgn(srcRgnA, dstRgn);
-        return;
-    }
+    SInt16 na = RgnCopyRects(srcRgnA, a, kMaxRegionRects);
+    SInt16 nb = RgnCopyRects(srcRgnB, b, kMaxRegionRects);
+    if (na < 0 || nb < 0) { CopyRgn(srcRgnA, dstRgn); return; }
 
-    /* For now, use simplified implementation */
-    /* In a full implementation, this would do scan line difference */
-    CopyRgn(srcRgnA, dstRgn);
+    SInt16 n = SubtractRectList(a, na, b, nb, result, kMaxRegionRects);
+    if (n < 0) { CopyRgn(srcRgnA, dstRgn); return; }  /* over-estimate, as before */
+    SetRgnRects(dstRgn, result, n);
+}
+
+void UnionRgn(RgnHandle srcRgnA, RgnHandle srcRgnB, RgnHandle dstRgn) {
+    assert(srcRgnA != NULL && *srcRgnA != NULL);
+    assert(srcRgnB != NULL && *srcRgnB != NULL);
+    assert(dstRgn != NULL && *dstRgn != NULL);
+
+    Rect a[kMaxRegionRects], b[kMaxRegionRects], result[kMaxRegionRects * 2];
+
+    if (EmptyRgn(srcRgnA)) { CopyRgn(srcRgnB, dstRgn); return; }
+    if (EmptyRgn(srcRgnB)) { CopyRgn(srcRgnA, dstRgn); return; }
+
+    SInt16 na = RgnCopyRects(srcRgnA, a, kMaxRegionRects);
+    SInt16 nb = RgnCopyRects(srcRgnB, b, kMaxRegionRects);
+
+    Rect bounds;
+    UnionRect(&(*srcRgnA)->rgnBBox, &(*srcRgnB)->rgnBBox, &bounds);
+    if (na < 0 || nb < 0) { RectRgn(dstRgn, &bounds); return; }
+
+    /* All of A, plus the parts of B that A does not already cover, so the
+     * result stays a list of disjoint rectangles. */
+    SInt16 n = 0;
+    for (SInt16 i = 0; i < na; i++) result[n++] = a[i];
+
+    SInt16 extra = SubtractRectList(b, nb, a, na, &result[n],
+                                    (SInt16)(kMaxRegionRects * 2 - n));
+    if (extra < 0) { RectRgn(dstRgn, &bounds); return; }
+    n += extra;
+
+    SetRgnRects(dstRgn, result, n);
 }
 
 void XorRgn(RgnHandle srcRgnA, RgnHandle srcRgnB, RgnHandle dstRgn) {
@@ -514,23 +681,27 @@ void XorRgn(RgnHandle srcRgnA, RgnHandle srcRgnB, RgnHandle dstRgn) {
     assert(srcRgnB != NULL && *srcRgnB != NULL);
     assert(dstRgn != NULL && *dstRgn != NULL);
 
-    Region *regionA = *srcRgnA;
-    Region *regionB = *srcRgnB;
+    Rect a[kMaxRegionRects], b[kMaxRegionRects], result[kMaxRegionRects * 2];
 
-    /* Check for empty regions */
-    if (EmptyRect(&regionA->rgnBBox)) {
-        CopyRgn(srcRgnB, dstRgn);
-        return;
-    }
-    if (EmptyRect(&regionB->rgnBBox)) {
-        CopyRgn(srcRgnA, dstRgn);
-        return;
-    }
+    if (EmptyRgn(srcRgnA)) { CopyRgn(srcRgnB, dstRgn); return; }
+    if (EmptyRgn(srcRgnB)) { CopyRgn(srcRgnA, dstRgn); return; }
 
-    /* For now, use simplified implementation */
-    Rect unionRect;
-    UnionRect(&regionA->rgnBBox, &regionB->rgnBBox, &unionRect);
-    RectRgn(dstRgn, &unionRect);
+    SInt16 na = RgnCopyRects(srcRgnA, a, kMaxRegionRects);
+    SInt16 nb = RgnCopyRects(srcRgnB, b, kMaxRegionRects);
+
+    Rect bounds;
+    UnionRect(&(*srcRgnA)->rgnBBox, &(*srcRgnB)->rgnBBox, &bounds);
+    if (na < 0 || nb < 0) { RectRgn(dstRgn, &bounds); return; }
+
+    /* In one or the other but not both: (A - B) and (B - A) are disjoint. */
+    SInt16 n = SubtractRectList(a, na, b, nb, result, kMaxRegionRects * 2);
+    if (n < 0) { RectRgn(dstRgn, &bounds); return; }
+
+    SInt16 extra = SubtractRectList(b, nb, a, na, &result[n],
+                                    (SInt16)(kMaxRegionRects * 2 - n));
+    if (extra < 0) { RectRgn(dstRgn, &bounds); return; }
+
+    SetRgnRects(dstRgn, result, (SInt16)(n + extra));
 }
 
 /* ================================================================
@@ -584,9 +755,25 @@ Boolean RectInRgn(const Rect *r, RgnHandle rgn) {
     HLock((Handle)rgn);
     Region *region = *rgn;
 
-    /* Simple implementation - check if rectangles intersect */
+    Rect probe = *r;
     Rect intersection;
-    Boolean result = SectRect(r, &region->rgnBBox, &intersection);
+    Boolean result = SectRect(&probe, &region->rgnBBox, &intersection);
+
+    /* Meeting the bounding box is not the same as meeting the region: a
+     * rectangle can sit squarely in the notch of an L and touch nothing. */
+    if (result && region->rgnSize > kMinRegionSize) {
+        SInt16 n = RgnRectCount(region);
+        result = false;
+        for (SInt16 i = 0; i < n; i++) {
+            Rect piece;
+            RgnGetRect(region, i, &piece);
+            if (SectRect(&probe, &piece, &intersection)) {
+                result = true;
+                break;
+            }
+        }
+    }
+
     HUnlock((Handle)rgn);
     return result;
 }
@@ -610,10 +797,20 @@ Boolean PtInRgn(Point pt, RgnHandle rgn) {
         return true;
     }
 
-    /* For complex regions, we need to check scan lines */
-    /* This is a simplified implementation */
+    /* Otherwise the point has to be in one of the region's rectangles. The
+     * bounding box of an L-shape contains points the region does not. */
+    SInt16 n = RgnRectCount(region);
+    for (SInt16 i = 0; i < n; i++) {
+        Rect piece;
+        RgnGetRect(region, i, &piece);
+        if (PtInRect(pt, &piece)) {
+            HUnlock((Handle)rgn);
+            return true;
+        }
+    }
+
     HUnlock((Handle)rgn);
-    return true;
+    return false;
 }
 
 /* ================================================================
