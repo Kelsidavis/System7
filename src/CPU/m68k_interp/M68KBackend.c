@@ -1228,6 +1228,61 @@ static const M68KExpect kWantIncr[] = {
     {1, 0x11223344}, {8, 0x00020004},
 };
 
+
+/* MOVEA.L #$30000,A7; BSR.S +4; MOVEQ #2,D5; NOP; MOVEQ #3,D3; RTS
+ *
+ * The subroutine at +$C sets D3 and returns; the return lands on the MOVEQ
+ * that sets D5. A7 must come back to where it started, which is what says
+ * the return address was pushed and popped rather than merely jumped over. */
+static const UInt8 kProgCall[] = {
+    0x2E, 0x7C, 0x00, 0x03, 0x00, 0x00,   /* MOVEA.L #$00030000,A7 */
+    0x61, 0x04,                           /* BSR.S   +4            */
+    0x7A, 0x02,                           /* MOVEQ   #2,D5         */
+    0x4E, 0x71,                           /* NOP                   */
+    0x76, 0x03,                           /* MOVEQ   #3,D3         */
+    0x4E, 0x75,                           /* RTS                   */
+};
+static const M68KExpect kWantCall[] = {
+    {3, 3}, {5, 2}, {15, 0x00030000},     /* D3, D5, A7 */
+};
+
+
+/* MOVEM saves and restores registers around a call - it is in the prologue of
+ * almost every compiled function. The mask is written backwards for the
+ * predecrement form, which is the part worth checking. */
+static const UInt8 kProgMovem[] = {
+    0x2E, 0x7C, 0x00, 0x03, 0x00, 0x00,   /* MOVEA.L #$00030000,A7   */
+    0x70, 0x11,                           /* MOVEQ   #$11,D0         */
+    0x72, 0x22,                           /* MOVEQ   #$22,D1         */
+    0x24, 0x7C, 0x00, 0x04, 0x00, 0x00,   /* MOVEA.L #$00040000,A2   */
+    0x48, 0xE7, 0xC0, 0x20,               /* MOVEM.L D0-D1/A2,-(A7)  */
+    0x70, 0x00,                           /* MOVEQ   #0,D0           */
+    0x72, 0x00,                           /* MOVEQ   #0,D1           */
+    0x24, 0x7C, 0x00, 0x00, 0x00, 0x00,   /* MOVEA.L #0,A2           */
+    0x4C, 0xDF, 0x04, 0x03,               /* MOVEM.L (A7)+,D0-D1/A2  */
+};
+/* The list spans both register files, which is where the reversed mask of the
+ * predecrement form and the plain mask of the postincrement form have to
+ * agree about which register is which. */
+static const M68KExpect kWantMovem[] = {
+    {0, 0x11}, {1, 0x22}, {10, 0x00040000}, {15, 0x00030000},
+};
+
+/* MOVE.L #100,D0; MOVEQ #7,D1; DIVU D1,D0; MOVEQ #6,D2; MOVEQ #7,D3; MULU D3,D2
+ * DIVU leaves the quotient in the low word and the remainder in the high one:
+ * 100 / 7 is 14 remainder 2. */
+static const UInt8 kProgMulDiv[] = {
+    0x20, 0x3C, 0x00, 0x00, 0x00, 0x64,   /* MOVE.L #100,D0 */
+    0x72, 0x07,                           /* MOVEQ  #7,D1   */
+    0x80, 0xC1,                           /* DIVU   D1,D0   */
+    0x74, 0x06,                           /* MOVEQ  #6,D2   */
+    0x76, 0x07,                           /* MOVEQ  #7,D3   */
+    0xC4, 0xC3,                           /* MULU   D3,D2   */
+};
+static const M68KExpect kWantMulDiv[] = {
+    {0, 0x0002000E}, {2, 42},
+};
+
 static const M68KTestCase kM68KTests[] = {
     { "arithmetic", kProgArith,  sizeof(kProgArith),  5,
       kWantArith,  2, sizeof(kProgArith) },
@@ -1239,6 +1294,13 @@ static const M68KTestCase kM68KTests[] = {
       kWantSizes, 3, sizeof(kProgSizes) },
     { "increment addressing", kProgIncr, sizeof(kProgIncr), 6,
       kWantIncr, 2, sizeof(kProgIncr) },
+    /* Five steps land on the MOVEQ after the call, at offset $A. */
+    { "call and return", kProgCall, sizeof(kProgCall), 5,
+      kWantCall, 3, 0x0A },
+    { "movem", kProgMovem, sizeof(kProgMovem), 9,
+      kWantMovem, 4, sizeof(kProgMovem) },
+    { "multiply and divide", kProgMulDiv, sizeof(kProgMulDiv), 6,
+      kWantMulDiv, 2, sizeof(kProgMulDiv) },
 };
 
 

@@ -1229,98 +1229,88 @@ void M68K_Op_CMPA(M68KAddressSpace* as, UInt16 opcode)
  */
 void M68K_Op_MOVEM(M68KAddressSpace* as, UInt16 opcode)
 {
-    UInt8 dir = (opcode >> 10) & 1;
+    UInt8 dir = (opcode >> 10) & 1;       /* 0 = registers to memory */
     UInt8 size_bit = (opcode >> 6) & 1;
     M68KSize size = size_bit ? SIZE_LONG : SIZE_WORD;
     UInt8 mode = (opcode >> 3) & 7;
     UInt8 reg = opcode & 7;
     UInt16 reglist;
     UInt32 addr;
+    int step = (size == SIZE_LONG) ? 4 : 2;
     int i;
 
     /* Fetch register list mask */
     reglist = M68K_Fetch16(as);
 
-    /* Compute base address */
-    addr = M68K_EA_ComputeAddress(as, mode, reg, size);
+    /*
+     * MOVEM walks the address itself, one step per register, so it must not
+     * be handed an address that has already been stepped. The general
+     * effective-address code adjusts the register for the increment and
+     * decrement modes, which left MOVEM starting one operand out and moving
+     * the address register twice.
+     */
+    if (mode == MODE_An_PRE || mode == MODE_An_POST) {
+        addr = as->regs.a[reg];
+    } else {
+        addr = M68K_EA_ComputeAddress(as, mode, reg, size);
+    }
 
     if (dir == 0) {
         /* Registers to memory */
         if (mode == MODE_An_PRE) {
-            /* Predecrement: process in reverse order (A7-A0, D7-D0) */
-            for (i = 15; i >= 0; i--) {
+            /*
+             * The predecrement form numbers the mask backwards: bit 15 is D0
+             * and bit 0 is A7, the reverse of every other form. Reading it in
+             * the usual order stored A7 and A6 where D0 and D1 were meant,
+             * so a saved register came back as whatever had been in an
+             * address register.
+             */
+            /* A7 is stored first, at the highest address, and D0 last at the
+             * lowest - so with the reversed mask the walk runs upward. */
+            for (i = 0; i < 16; i++) {
                 if (reglist & (1 << i)) {
+                    int r = 15 - i;    /* 0-7 are D0-D7, 8-15 are A0-A7 */
+                    UInt32 value = (r < 8) ? as->regs.d[r] : as->regs.a[r - 8];
+                    addr -= step;
                     if (size == SIZE_LONG) {
-                        addr -= 4;
-                        if (i >= 8) {
-                            M68K_Write32(as, addr, as->regs.a[i - 8]);
-                        } else {
-                            M68K_Write32(as, addr, as->regs.d[i]);
-                        }
+                        M68K_Write32(as, addr, value);
                     } else {
-                        addr -= 2;
-                        if (i >= 8) {
-                            M68K_Write16(as, addr, as->regs.a[i - 8] & 0xFFFF);
-                        } else {
-                            M68K_Write16(as, addr, as->regs.d[i] & 0xFFFF);
-                        }
+                        M68K_Write16(as, addr, value & 0xFFFF);
                     }
                 }
             }
-            /* Update address register */
             as->regs.a[reg] = addr;
         } else {
-            /* Normal order (D0-D7, A0-A7) */
             for (i = 0; i < 16; i++) {
                 if (reglist & (1 << i)) {
-                    if (i < 8) {
-                        /* D0-D7 */
-                        if (size == SIZE_LONG) {
-                            M68K_Write32(as, addr, as->regs.d[i]);
-                            addr += 4;
-                        } else {
-                            M68K_Write16(as, addr, as->regs.d[i] & 0xFFFF);
-                            addr += 2;
-                        }
+                    UInt32 value = (i < 8) ? as->regs.d[i] : as->regs.a[i - 8];
+                    if (size == SIZE_LONG) {
+                        M68K_Write32(as, addr, value);
                     } else {
-                        /* A0-A7 */
-                        if (size == SIZE_LONG) {
-                            M68K_Write32(as, addr, as->regs.a[i - 8]);
-                            addr += 4;
-                        } else {
-                            M68K_Write16(as, addr, as->regs.a[i - 8] & 0xFFFF);
-                            addr += 2;
-                        }
+                        M68K_Write16(as, addr, value & 0xFFFF);
                     }
+                    addr += step;
                 }
             }
         }
     } else {
-        /* Memory to registers */
+        /* Memory to registers - always the plain mask order */
         for (i = 0; i < 16; i++) {
             if (reglist & (1 << i)) {
-                if (i < 8) {
-                    /* D0-D7 */
-                    if (size == SIZE_LONG) {
-                        as->regs.d[i] = M68K_Read32(as, addr);
-                        addr += 4;
-                    } else {
-                        as->regs.d[i] = SIGN_EXTEND_WORD(M68K_Read16(as, addr));
-                        addr += 2;
-                    }
+                UInt32 value;
+                if (size == SIZE_LONG) {
+                    value = M68K_Read32(as, addr);
                 } else {
-                    /* A0-A7 */
-                    if (size == SIZE_LONG) {
-                        as->regs.a[i - 8] = M68K_Read32(as, addr);
-                        addr += 4;
-                    } else {
-                        as->regs.a[i - 8] = SIGN_EXTEND_WORD(M68K_Read16(as, addr));
-                        addr += 2;
-                    }
+                    value = SIGN_EXTEND_WORD(M68K_Read16(as, addr));
                 }
+                if (i < 8) {
+                    as->regs.d[i] = value;
+                } else {
+                    as->regs.a[i - 8] = value;
+                }
+                addr += step;
             }
         }
-        /* Update address register if postincrement */
         if (mode == MODE_An_POST) {
             as->regs.a[reg] = addr;
         }
