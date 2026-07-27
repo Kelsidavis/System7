@@ -4,6 +4,36 @@ This document tracks known issues, workarounds, and technical debt in the System
 
 ## Open Issues
 
+### 🐞 Type/creator icon mapping names icons that do not exist
+
+`IconRes_MapTypeCreatorToIcon` returns resource ID 128 for `APPL`, 129 and
+130 for TeachText and SimpleText documents, and 131 for plain text. None
+of those IDs exist, so every file falls through to the generic document
+icon - an application and a text file are drawn identically.
+
+**Why they do not exist.** The icon set is `gIconGenTable` in
+`src/Resources/generated/icons_generated.c`, 155 entries extracted from a
+real resource file and keyed by the resource numbers the icons had. Those
+numbers were negative and are stored as their absolute values, so the
+table holds 3982, 3999, 16396 and so on. The only number the mapping table
+and the icon table have in common is 999, the Finder's own icon - which is
+why the Finder icon in the menu bar is the one thing that does resolve.
+
+The resolver now says so once on the console instead of falling through
+silently.
+
+**What is not settled: which icon an application should get.** System 7's
+generic application is ICN# -16455, and that is not among the 155. Every
+32x32 entry was rendered and none is recognisably an application icon, so
+the extracted set appears not to contain one. Picking a near-enough
+existing icon, or drawing one, are both choices about art rather than
+about code, and neither should be made by guessing an ID.
+
+The mapping table itself is worth revisiting whatever is decided: it is a
+short list of hardcoded numbers with no relationship to what the build
+actually ships, and nothing checks the two against each other.
+
+
 ### 🐞 The Applications folder's contents live in the window, not the file system
 
 Opening Applications shows SimpleText, TextEdit and MacPaint. Get Info on

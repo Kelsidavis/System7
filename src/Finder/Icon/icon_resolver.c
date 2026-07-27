@@ -221,6 +221,30 @@ bool Icon_ResolveForNode(const FileKind* fk, IconHandle* out) {
             out->selected = false;
             return true;
         }
+
+        /*
+         * The table named an icon that is not there.
+         *
+         * IconRes_MapTypeCreatorToIcon hands back 128 for APPL, 129 and 130
+         * for TeachText and SimpleText documents, and 131 for plain text.
+         * None of those IDs exist: the extracted icon set is keyed by the
+         * resource numbers the icons actually had - all negative, stored here
+         * as their absolute values - and the only one of the table's numbers
+         * that is present is 999, the Finder's own. So every file fell through
+         * to the generic document, which is why an application and a text file
+         * look identical.
+         *
+         * Falling through is the right thing to do; doing it without a word is
+         * not. Said once, because the alternative is a line per icon per
+         * redraw.
+         */
+        extern void serial_puts(const char* s);
+        static bool toldAboutMissingIcon = false;
+        if (!toldAboutMissingIcon) {
+            toldAboutMissingIcon = true;
+            serial_puts("[ICON] type/creator maps to an icon ID that does not exist;\n");
+            serial_puts("[ICON] falling back to the generic document for every file.\n");
+        }
     }
 
 
