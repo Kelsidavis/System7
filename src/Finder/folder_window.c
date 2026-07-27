@@ -1086,12 +1086,16 @@ static Boolean TrackFolderItemDrag(WindowPtr w, FolderWindowState* state, short 
             FINDER_LOG_DEBUG("FW: Starting drag loop, lastPos=(%d,%d) in GLOBAL coords\n", lastPos.h, lastPos.v);
             while ((gCurrentButtons & 1) != 0) {
                 ProcessModernInput();  /* Update gCurrentButtons */
+                /* GetMouse reports global screen coordinates - the same as
+                 * the threshold loop above assumes. This converted the result
+                 * local-to-global a second time, adding the window's origin to
+                 * a figure that already included it, so every drop landed
+                 * about (11,101) down and right of where it was made. Drops
+                 * near the bottom or right of a window fell outside it and
+                 * were taken for drops on the desktop, which quietly created
+                 * an alias there instead of moving the icon. */
                 GetMouse(&cur);
-                /* g_mousePos is in window-local coords, need to convert using WINDOW port */
-                SetPort((GrafPtr)w);  /* Temporarily switch back to window port for LocalToGlobal */
-                LocalToGlobal(&cur);
-                SetPort(&screenDragPort);  /* Switch back to screen port for drawing */
-                FINDER_LOG_DEBUG("FW: GetMouse+LocalToGlobal returned cur=(%d,%d)\n", cur.h, cur.v);
+                FINDER_LOG_DEBUG("FW: GetMouse returned global cur=(%d,%d)\n", cur.h, cur.v);
 
                 /* Update ghost position if mouse moved */
                 if (cur.h != lastPos.h || cur.v != lastPos.v) {
@@ -1129,17 +1133,9 @@ static Boolean TrackFolderItemDrag(WindowPtr w, FolderWindowState* state, short 
                     extern void Finder_RecordTrashUndo(VRefNum vref, DirID parentDir, FileID fileID);
                     Finder_RecordTrashUndo(state->vref, state->currentDir, item->fileID);
 
-                    /* Remove item from folder window display by shifting array */
-                    for (int i = itemIndex; i < state->itemCount - 1; i++) {
-                        state->items[i] = state->items[i + 1];
-                    }
-                    state->itemCount--;
-
-                    /* The anchor is an identity; removing a row cannot move
-                     * it onto a different file, so there is nothing to fix. */
-
-                    /* Refresh trash icon and folder window */
-                    PostEvent(updateEvt, (UInt32)(uintptr_t)w);
+                    /* Say the folder changed and let the one refresh handle
+                     * it - this was a fourth place patching items[] by hand. */
+                    FolderWindow_ContentsChanged(w);
                     extern void Desktop_RefreshTrashIcon(void);
                     Desktop_RefreshTrashIcon();
                 } else {
