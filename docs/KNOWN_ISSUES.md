@@ -4,25 +4,35 @@ This document tracks known issues, workarounds, and technical debt in the System
 
 ## Open Issues
 
-### ⚠️ A window behind a resized one does not repaint where it is exposed
+### ⚠️ GrowWindow applies the resize as well as tracking it
 
-Resizing a window that overlaps another leaves fragments of the other
-window's frame on screen. The window being resized is now correct - it
-keeps its title bar, border and grow box - but the one behind it is not
-asked to repaint the parts of itself that are still visible, so pieces of
-its old chrome stay where they were.
+`GrowWindow` is documented, in Inside Macintosh and in its own comment
+here, to track the drag and return the size the user chose. This one also
+applies it: it calls `SizeWindow`, then `PaintOne` and `PaintBehind` to
+repair the screen.
 
-Reproduce: open Read Me, click the Macintosh HD title bar to bring it
-forward, then drag its grow box from `481,411` to `620,500`. The Read Me
-window's right edge survives as a stray outline.
+Callers disagree about that, because the contract says otherwise:
 
-Half of this was the resized window's own frame never being redrawn, which
-is fixed - `SizeWindow` calls `PaintOne` now. What remains is the other
-windows: `WM_InvalidateScreenRegion` adds the resized window's old and new
-structure regions to every intersecting window's `updateRgn`, which queues
-a content update for them, and content updates do not redraw chrome. The
-same reasoning that explains the first half explains the second, so the
-fix is likely to be of the same shape.
+- `SimpleText.c:242` and `sys71_stubs.c:966` (`HandleGrowWindow`, used by
+  the Finder) call `SizeWindow` afterwards - so the window is resized
+  twice, and the second one lands after the repair.
+- `EventDispatcher.c:422` and `WindowEvents.c:1043` do not, and rely on
+  the side effect.
+
+The visible consequence is that a window behind a resized one keeps
+pieces of its old frame: `PaintBehind` runs inside `GrowWindow`, and the
+caller's `SizeWindow` then invalidates again with nothing repainting the
+chrome behind. Reproduce by opening Read Me, clicking the Macintosh HD
+title bar, and dragging its grow box from `481,411` to `620,500`.
+
+**An attempt at the obvious fix failed and was reverted.** Making
+`GrowWindow` track only, and giving the two dependent callers their own
+`SizeWindow`, produced a window resized to the wrong dimensions
+altogether - narrower and taller than the drag asked for. The size
+`GrowWindow` returns appears to be computed on the assumption that its own
+`SizeWindow` has already run, so the two cannot simply be separated
+without working out what `finalSize` actually means first. That is the
+next step, and it is more than a call-site change.
 
 ### 🐞 Type/creator icon mapping names icons that do not exist
 
