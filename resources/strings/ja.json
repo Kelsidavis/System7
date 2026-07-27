@@ -65,9 +65,7 @@
         "Size jun",
         "Shurui jun",
         "Label jun",
-        "Hiduke jun",
-        "Window wo seiton",
-        "Sentaku wo seiton"
+        "Hiduke jun"
       ]}
     },
     {
@@ -91,6 +89,8 @@
       "name": "FinderSpecialMenu",
       "data": { "strings": [
         "Desktop wo seiton",
+        "Window wo seiton",
+        "Sentaku wo seiton",
         "Gomi-bako wo karani suru",
         "Toridashi/E",
         "Disk wo shoukyo",

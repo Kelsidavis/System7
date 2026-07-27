@@ -64,9 +64,7 @@
         "etter st\u00f8rrelse",
         "etter type",
         "etter etikett",
-        "etter dato",
-        "Rydd opp vindu",
-        "Rydd opp utvalg"
+        "etter dato"
       ]}
     },
     {
@@ -90,6 +88,8 @@
       "name": "FinderSpecialMenu",
       "data": { "strings": [
         "Rydd opp skrivebord",
+        "Rydd opp vindu",
+        "Rydd opp utvalg",
         "T\u00f8m papirkurv",
         "L\u00f8s ut/E",
         "Slett disk",

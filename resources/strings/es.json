@@ -64,9 +64,7 @@
         "por tama\u00f1o",
         "por tipo",
         "por etiqueta",
-        "por fecha",
-        "Ordenar ventana",
-        "Ordenar selecci\u00f3n"
+        "por fecha"
       ]}
     },
     {
@@ -90,6 +88,8 @@
       "name": "FinderSpecialMenu",
       "data": { "strings": [
         "Ordenar escritorio",
+        "Ordenar ventana",
+        "Ordenar selecci\u00f3n",
         "Vaciar la Papelera",
         "Expulsar/E",
         "Borrar disco",

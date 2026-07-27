@@ -64,9 +64,7 @@
         "Aakar se",
         "Prakaar se",
         "Laibal se",
-        "Tithi se",
-        "Khidki Saaf Karein",
-        "Chayan Saaf Karein"
+        "Tithi se"
       ]}
     },
     {
@@ -90,6 +88,8 @@
       "name": "FinderSpecialMenu",
       "data": { "strings": [
         "Desktop Saaf Karein",
+        "Khidki Saaf Karein",
+        "Chayan Saaf Karein",
         "Koodadaan Khaali Karein",
         "Nikaalein/E",
         "Disk Mitaayein",

@@ -64,9 +64,7 @@
         "velikost",
         "druh",
         "\u0161t\u00edtek",
-        "datum",
-        "Uklidit okno",
-        "Uklidit v\u00fdb\u011br"
+        "datum"
       ]}
     },
     {
@@ -90,6 +88,8 @@
       "name": "FinderSpecialMenu",
       "data": { "strings": [
         "Uklidit plochu",
+        "Uklidit okno",
+        "Uklidit v\u00fdb\u011br",
         "Vysypat ko\u0161",
         "Vysunout/E",
         "Smazat disk",

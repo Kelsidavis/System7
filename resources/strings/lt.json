@@ -64,9 +64,7 @@
         "pagal dyd\u012f",
         "pagal tip\u0105",
         "pagal etiket\u0119",
-        "pagal dat\u0105",
-        "Sutvarkyti lang\u0105",
-        "Sutvarkyti pa\u017eym\u0117tus"
+        "pagal dat\u0105"
       ]}
     },
     {
@@ -90,6 +88,8 @@
       "name": "FinderSpecialMenu",
       "data": { "strings": [
         "Sutvarkyti darbastal\u012f",
+        "Sutvarkyti lang\u0105",
+        "Sutvarkyti pa\u017eym\u0117tus",
         "I\u0161tu\u0161tinti \u0161iuk\u0161lin\u0119",
         "I\u0161stumti/E",
         "I\u0161trinti disk\u0105",

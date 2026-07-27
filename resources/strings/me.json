@@ -64,9 +64,7 @@
         "po Veli\u010dini",
         "po Vrsti",
         "po Oznaci",
-        "po Datumu",
-        "Sredi prozor",
-        "Sredi odabrano"
+        "po Datumu"
       ]}
     },
     {
@@ -90,6 +88,8 @@
       "name": "FinderSpecialMenu",
       "data": { "strings": [
         "Sredi radnu povr\u0161inu",
+        "Sredi prozor",
+        "Sredi odabrano",
         "Isprazni korpu",
         "Izbaci/E",
         "Obri\u0161i disk",

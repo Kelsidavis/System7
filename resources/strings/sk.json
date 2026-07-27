@@ -64,9 +64,7 @@
         "pod\u013ea ve\u013ekosti",
         "pod\u013ea typu",
         "pod\u013ea \u0161t\u00edtku",
-        "pod\u013ea d\u00e1tumu",
-        "Usporiada\u0165 okno",
-        "Usporiada\u0165 v\u00fdber"
+        "pod\u013ea d\u00e1tumu"
       ]}
     },
     {
@@ -90,6 +88,8 @@
       "name": "FinderSpecialMenu",
       "data": { "strings": [
         "Usporiada\u0165 plochu",
+        "Usporiada\u0165 okno",
+        "Usporiada\u0165 v\u00fdber",
         "Vypr\u00e1zdni\u0165 k\u00f4\u0161",
         "Vysun\u00fa\u0165/E",
         "Vymaza\u0165 disk",

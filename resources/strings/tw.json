@@ -65,9 +65,7 @@
         "yi Daxiao",
         "yi Leixing",
         "yi Biaoqian",
-        "yi Riqi",
-        "Zhengli Chuangkou",
-        "Zhengli Suoxuan"
+        "yi Riqi"
       ]}
     },
     {
@@ -91,6 +89,8 @@
       "name": "FinderSpecialMenu",
       "data": { "strings": [
         "Zhengli Zhuomian",
+        "Zhengli Chuangkou",
+        "Zhengli Suoxuan",
         "Qingkong Lajitong",
         "Tuichu/E",
         "Qingchu Cipan",

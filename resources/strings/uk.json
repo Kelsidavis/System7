@@ -64,9 +64,7 @@
         "rozmir",
         "typ",
         "mitka",
-        "data",
-        "Uporyadkuvaty vikno",
-        "Uporyadkuvaty vydilennya"
+        "data"
       ]}
     },
     {
@@ -90,6 +88,8 @@
       "name": "FinderSpecialMenu",
       "data": { "strings": [
         "Uporyadkuvaty stil",
+        "Uporyadkuvaty vikno",
+        "Uporyadkuvaty vydilennya",
         "Ochystyty koshyk",
         "Vyluchyty/E",
         "Sterty dysk",

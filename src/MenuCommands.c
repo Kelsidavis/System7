@@ -26,6 +26,8 @@
 #include "Datetime/datetime_cdev.h"
 #include "DeskManager/Notepad.h"
 #include "DialogManager/DialogManager.h"
+#include "LocaleManager/LocaleManager.h"
+#include "LocaleManager/StringIDs.h"
 #include "Platform/Halt.h"
 #include "Platform/include/io.h"
 
@@ -308,15 +310,23 @@ void Finder_AdjustMenus(void) {
     /* Adjust Special menu */
     MenuHandle specialMenu = GetMenuHandle(kSpecialMenuID);
     if (specialMenu) {
-        /* Dynamic "Clean Up" text — System 7 shows "Clean Up Window" when
-         * a folder window is front, "Clean Up Desktop" otherwise */
+        /* Dynamic "Clean Up" text. System 7 gives item 1 three states: the
+         * selection if there is one, otherwise the front folder window,
+         * otherwise the desktop.
+         *
+         * These used to be English string literals compiled into this
+         * function, so every localised build flipped the item back to English
+         * the moment a window came forward. They come from the Special menu's
+         * own STR# now, like every other item in the menu. */
+        extern void SetMenuItemText(MenuHandle theMenu, short item,
+                                     ConstStr255Param itemString);
+        Str255 cleanUpStr;
+        SInt16 whichCleanUp = kStrCleanUpDesktop;
         if (hasFolderWindow) {
-            static unsigned char cleanWin[] = {15, 'C','l','e','a','n',' ','U','p',' ','W','i','n','d','o','w'};
-            SetMenuItemText(specialMenu, 1, cleanWin);
-        } else {
-            static unsigned char cleanDesk[] = {16, 'C','l','e','a','n',' ','U','p',' ','D','e','s','k','t','o','p'};
-            SetMenuItemText(specialMenu, 1, cleanDesk);
+            whichCleanUp = hasSelection ? kStrCleanUpSelection : kStrCleanUpWindow;
         }
+        GetLocalizedString(cleanUpStr, kSTRListFinderSpecialMenu, whichCleanUp);
+        SetMenuItemText(specialMenu, 1, cleanUpStr);
 
         /* Empty Trash grayed when trash is empty */
         extern bool Trash_IsEmptyAll(void);
@@ -747,7 +757,6 @@ static void HandleViewMenu(short item)
 {
     extern WindowPtr FrontWindow(void);
     extern void SetWindowViewMode(WindowPtr w, short viewMode);
-    extern OSErr CleanUpWindow(WindowPtr w, short sortMode);
 
     WindowPtr front = FrontWindow();
 
@@ -786,19 +795,6 @@ static void HandleViewMenu(short item)
             MENU_LOG_INFO("View > by Date\n");
             if (front) SetWindowViewMode(front, 6);
             UpdateViewMenuCheckmarks(6);
-            break;
-
-        case 7:  /* separator */
-            return;
-
-        case 8:  /* Clean Up Window */
-            MENU_LOG_INFO("View > Clean Up Window\n");
-            if (front) CleanUpWindow(front, 0);
-            break;
-
-        case 9:  /* Clean Up Selection */
-            MENU_LOG_INFO("View > Clean Up Selection\n");
-            if (front) CleanUpWindow(front, 1);
             break;
 
         default:
@@ -860,13 +856,18 @@ static void HandleSpecialMenu(short item)
     extern OSErr EmptyTrash(Boolean force);
 
     switch (item) {
-        case 1: {  /* Clean Up Desktop/Window */
+        case 1: {  /* Clean Up Selection / Window / Desktop */
             extern WindowPtr FrontWindow(void);
             WindowPtr front = FrontWindow();
             if (front && IsFolderWindow(front)) {
-                MENU_LOG_INFO("Special > Clean Up Window\n");
                 extern void FolderWindow_CleanUp(WindowPtr w, Boolean selectedOnly);
-                FolderWindow_CleanUp(front, false);
+                extern Boolean FolderWindow_GetSelectedItem(WindowPtr w, VRefNum* outVref,
+                                                            FileID* outFileID);
+                VRefNum vref;
+                FileID fid;
+                Boolean hasSelection = FolderWindow_GetSelectedItem(front, &vref, &fid);
+                MENU_LOG_INFO("Special > Clean Up %s\n", hasSelection ? "Selection" : "Window");
+                FolderWindow_CleanUp(front, hasSelection);
             } else {
                 MENU_LOG_INFO("Special > Clean Up Desktop\n");
                 ArrangeDesktopIcons();

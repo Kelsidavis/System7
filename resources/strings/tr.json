@@ -64,9 +64,7 @@
         "Boyuta g\u00f6re",
         "T\u00fcre g\u00f6re",
         "Etikete g\u00f6re",
-        "Tarihe g\u00f6re",
-        "Pencereyi D\u00fczenle",
-        "Se\u00e7imi D\u00fczenle"
+        "Tarihe g\u00f6re"
       ]}
     },
     {
@@ -90,6 +88,8 @@
       "name": "FinderSpecialMenu",
       "data": { "strings": [
         "Masa\u00fcst\u00fcn\u00fc D\u00fczenle",
+        "Pencereyi D\u00fczenle",
+        "Se\u00e7imi D\u00fczenle",
         "\u00c7\u00f6p\u00fc Bo\u015falt",
         "\u00c7\u0131kar/E",
         "Diski Sil",

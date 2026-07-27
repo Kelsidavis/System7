@@ -64,9 +64,7 @@
         "nach Gr\u00f6\u00dfe",
         "nach Art",
         "nach Etikett",
-        "nach Datum",
-        "Fenster aufr\u00e4umen",
-        "Auswahl aufr\u00e4umen"
+        "nach Datum"
       ]}
     },
     {
@@ -90,6 +88,8 @@
       "name": "FinderSpecialMenu",
       "data": { "strings": [
         "Schreibtisch aufr\u00e4umen",
+        "Fenster aufr\u00e4umen",
+        "Auswahl aufr\u00e4umen",
         "Papierkorb leeren",
         "Auswerfen/E",
         "Festplatte l\u00f6schen",

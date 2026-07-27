@@ -65,9 +65,7 @@
         "bil-Hajm",
         "bil-Naw\u2018",
         "bit-Tasmiya",
-        "bit-Tarikh",
-        "Tanzif an-Nafidha",
-        "Tanzif al-Ikhtiyar"
+        "bit-Tarikh"
       ]}
     },
     {
@@ -91,6 +89,8 @@
       "name": "FinderSpecialMenu",
       "data": { "strings": [
         "Tanzif Sath al-Maktab",
+        "Tanzif an-Nafidha",
+        "Tanzif al-Ikhtiyar",
         "Tafrigh Sallat al-Mahdhufat",
         "Ikhraj/E",
         "Mash al-Qurs",

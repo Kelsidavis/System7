@@ -64,9 +64,7 @@
         "efter storlek",
         "efter typ",
         "efter etikett",
-        "efter datum",
-        "St\u00e4da f\u00f6nster",
-        "St\u00e4da markering"
+        "efter datum"
       ]}
     },
     {
@@ -90,6 +88,8 @@
       "name": "FinderSpecialMenu",
       "data": { "strings": [
         "St\u00e4da skrivbord",
+        "St\u00e4da f\u00f6nster",
+        "St\u00e4da markering",
         "T\u00f6m papperskorg",
         "Mata ut/E",
         "Radera skiva",

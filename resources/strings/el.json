@@ -64,9 +64,7 @@
         "kata Megethos",
         "kata Eidos",
         "kata Etiketa",
-        "kata Imerominia",
-        "Katharismos Parathyrou",
-        "Katharismos Epilogis"
+        "kata Imerominia"
       ]}
     },
     {
@@ -90,6 +88,8 @@
       "name": "FinderSpecialMenu",
       "data": { "strings": [
         "Katharismos Epifaneias",
+        "Katharismos Parathyrou",
+        "Katharismos Epilogis",
         "Adeiasma Kado",
         "Exagogi/E",
         "Diagrafi Diskou",

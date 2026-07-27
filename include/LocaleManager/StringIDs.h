@@ -110,8 +110,6 @@
 #define kStrByKind                    4
 #define kStrByLabel                   5
 #define kStrByDate                    6
-#define kStrCleanUpWindow             7
-#define kStrCleanUpSelection          8
 
 /* kSTRListFinderLabelMenu (133) - Label menu items */
 #define kStrLabelNone                 1
@@ -123,13 +121,21 @@
 #define kStrLabelProject1             7
 #define kStrLabelProject2             8
 
-/* kSTRListFinderSpecialMenu (134) - Special menu items */
+/* kSTRListFinderSpecialMenu (134) - Special menu items
+ *
+ * The first item is one control whose title depends on what is in front:
+ * "Clean Up Desktop", "Clean Up Window", or "Clean Up Selection". All three
+ * live here because they are three states of Special's item 1 - they used to
+ * sit in the View menu list, which is not where System 7 puts them.
+ */
 #define kStrCleanUpDesktop            1
-#define kStrEmptyTrash                2
-#define kStrEject                     3
-#define kStrEraseDisk                 4
-#define kStrRestart                   5
-#define kStrShutDown                  6
+#define kStrCleanUpWindow             2
+#define kStrCleanUpSelection          3
+#define kStrEmptyTrash                4
+#define kStrEject                     5
+#define kStrEraseDisk                 6
+#define kStrRestart                   7
+#define kStrShutDown                  8
 
 /* kSTRListFinderControlPanels (135) - Control Panels submenu */
 #define kStrCPDesktopPatterns         1

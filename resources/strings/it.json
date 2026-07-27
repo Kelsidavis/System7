@@ -64,9 +64,7 @@
         "per Dimensione",
         "per Tipo",
         "per Etichetta",
-        "per Data",
-        "Riordina finestra",
-        "Riordina selezione"
+        "per Data"
       ]}
     },
     {
@@ -90,6 +88,8 @@
       "name": "FinderSpecialMenu",
       "data": { "strings": [
         "Riordina Scrivania",
+        "Riordina finestra",
+        "Riordina selezione",
         "Svuota Cestino",
         "Espelli/E",
         "Inizializza disco",

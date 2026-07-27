@@ -392,11 +392,10 @@ static OSErr SetupMenus(void)
     AppendMenu(gViewMenu, menuStr);
     GetLocalizedString(menuStr, kSTRListFinderViewMenu, kStrByDate);
     AppendMenu(gViewMenu, menuStr);
-    AppendMenu(gViewMenu, "\002(-");
-    GetLocalizedString(menuStr, kSTRListFinderViewMenu, kStrCleanUpWindow);
-    AppendMenu(gViewMenu, menuStr);
-    GetLocalizedString(menuStr, kSTRListFinderViewMenu, kStrCleanUpSelection);
-    AppendMenu(gViewMenu, menuStr);
+    /* System 7's View menu is the view choices and nothing else. The two
+     * Clean Up commands that used to hang off the bottom of it belong to
+     * Special, which already had one of them - the menu carried a second,
+     * differently-behaving copy of a command sitting two menus away. */
 
     /* System 7 shows a check against the current view. Folder windows open in
      * icon view, so item 1 starts checked; HandleViewMenu moves it from there.

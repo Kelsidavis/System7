@@ -64,9 +64,7 @@
         "po velikosti",
         "po vrsti",
         "po oznaki",
-        "po datumu",
-        "Uredi okno",
-        "Uredi izbor"
+        "po datumu"
       ]}
     },
     {
@@ -90,6 +88,8 @@
       "name": "FinderSpecialMenu",
       "data": { "strings": [
         "Uredi namizje",
+        "Uredi okno",
+        "Uredi izbor",
         "Izprazni ko\u0161",
         "Izvrzi/E",
         "Izbri\u0161i disk",

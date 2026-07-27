@@ -64,9 +64,7 @@
         "par taille",
         "par type",
         "par \u00e9tiquette",
-        "par date",
-        "Ranger la fen\u00eatre",
-        "Ranger la s\u00e9lection"
+        "par date"
       ]}
     },
     {
@@ -90,6 +88,8 @@
       "name": "FinderSpecialMenu",
       "data": { "strings": [
         "Ranger le bureau",
+        "Ranger la fen\u00eatre",
+        "Ranger la s\u00e9lection",
         "Vider la corbeille",
         "\u00c9jecter/E",
         "Effacer le disque",

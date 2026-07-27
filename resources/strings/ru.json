@@ -64,9 +64,7 @@
         "razmer",
         "tip",
         "metka",
-        "data",
-        "Uporyadochit' okno",
-        "Uporyadochit' vydelennoe"
+        "data"
       ]}
     },
     {
@@ -90,6 +88,8 @@
       "name": "FinderSpecialMenu",
       "data": { "strings": [
         "Uporyadochit' stol",
+        "Uporyadochit' okno",
+        "Uporyadochit' vydelennoe",
         "Ochistit' korzinu",
         "Izvlech'/E",
         "Steret' disk",

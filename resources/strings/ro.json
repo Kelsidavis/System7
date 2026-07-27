@@ -64,9 +64,7 @@
         "dup\u0103 Dimensiune",
         "dup\u0103 Tip",
         "dup\u0103 Etichet\u0103",
-        "dup\u0103 Dat\u0103",
-        "Cur\u0103\u021b\u0103 Fereastra",
-        "Cur\u0103\u021b\u0103 Selec\u021bia"
+        "dup\u0103 Dat\u0103"
       ]}
     },
     {
@@ -90,6 +88,8 @@
       "name": "FinderSpecialMenu",
       "data": { "strings": [
         "Cur\u0103\u021b\u0103 Biroul",
+        "Cur\u0103\u021b\u0103 Fereastra",
+        "Cur\u0103\u021b\u0103 Selec\u021bia",
         "Gole\u0219te Co\u0219ul",
         "Ejecteaz\u0103/E",
         "\u0218terge Discul",

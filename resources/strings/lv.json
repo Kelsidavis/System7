@@ -64,9 +64,7 @@
         "p\u0113c izm\u0113ra",
         "p\u0113c veida",
         "p\u0113c eti\u0137etes",
-        "p\u0113c datuma",
-        "Sak\u0101rtot logu",
-        "Sak\u0101rtot atlas\u012bto"
+        "p\u0113c datuma"
       ]}
     },
     {
@@ -90,6 +88,8 @@
       "name": "FinderSpecialMenu",
       "data": { "strings": [
         "Sak\u0101rtot darbvirsmu",
+        "Sak\u0101rtot logu",
+        "Sak\u0101rtot atlas\u012bto",
         "Iztuk\u0161ot atkritni",
         "Izb\u012bd\u012bt/E",
         "Dz\u0113st disku",

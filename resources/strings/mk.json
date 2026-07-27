@@ -64,9 +64,7 @@
         "po Golemina",
         "po Tip",
         "po Etiketa",
-        "po Datum",
-        "Sredi prozorec",
-        "Sredi selekcija"
+        "po Datum"
       ]}
     },
     {
@@ -90,6 +88,8 @@
       "name": "FinderSpecialMenu",
       "data": { "strings": [
         "Sredi rabotna povr\u0161ina",
+        "Sredi prozorec",
+        "Sredi selekcija",
         "Isprazni korpa",
         "Izbaci/E",
         "Izbri\u0161i disk",

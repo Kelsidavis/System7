@@ -64,9 +64,7 @@
         "m\u00e9ret szerint",
         "t\u00edpus szerint",
         "c\u00edmke szerint",
-        "d\u00e1tum szerint",
-        "Ablak rendez\u00e9se",
-        "Kijel\u00f6l\u00e9s rendez\u00e9se"
+        "d\u00e1tum szerint"
       ]}
     },
     {
@@ -90,6 +88,8 @@
       "name": "FinderSpecialMenu",
       "data": { "strings": [
         "\u00cdr\u00f3asztal rendez\u00e9se",
+        "Ablak rendez\u00e9se",
+        "Kijel\u00f6l\u00e9s rendez\u00e9se",
         "Kuka \u00fcr\u00edt\u00e9se",
         "Kiad\u00e1s/E",
         "Lemez t\u00f6rl\u00e9se",

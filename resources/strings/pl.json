@@ -64,9 +64,7 @@
         "rozmiar",
         "rodzaj",
         "etykiet\u0119",
-        "dat\u0119",
-        "Uporz\u0105dkuj okno",
-        "Uporz\u0105dkuj zaznaczenie"
+        "dat\u0119"
       ]}
     },
     {
@@ -90,6 +88,8 @@
       "name": "FinderSpecialMenu",
       "data": { "strings": [
         "Uporz\u0105dkuj biurko",
+        "Uporz\u0105dkuj okno",
+        "Uporz\u0105dkuj zaznaczenie",
         "Opr\u00f3\u017cnij kosz",
         "Wysu\u0144/E",
         "Wyma\u017c dysk",

@@ -65,9 +65,7 @@
         "Aakar Anusare",
         "Dhoron Anusare",
         "Lebel Anusare",
-        "Tarikh Anusare",
-        "Janala Porishkar",
-        "Nirbachon Porishkar"
+        "Tarikh Anusare"
       ]}
     },
     {
@@ -91,6 +89,8 @@
       "name": "FinderSpecialMenu",
       "data": { "strings": [
         "Desktop Porishkar",
+        "Janala Porishkar",
+        "Nirbachon Porishkar",
         "Abarjona Khali Koro",
         "Ber Koro/E",
         "Disk Mochho",

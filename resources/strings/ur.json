@@ -65,9 +65,7 @@
         "Saiz Se",
         "Qism Se",
         "Lebel Se",
-        "Tarikh Se",
-        "Khidki Saaf Karein",
-        "Intikhab Saaf Karein"
+        "Tarikh Se"
       ]}
     },
     {
@@ -91,6 +89,8 @@
       "name": "FinderSpecialMenu",
       "data": { "strings": [
         "Desktop Saaf Karein",
+        "Khidki Saaf Karein",
+        "Intikhab Saaf Karein",
         "Koodadaan Khaali Karein",
         "Nikaalein/E",
         "Disk Mitayein",

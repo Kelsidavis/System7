@@ -64,9 +64,7 @@
         "eftir st\u00e6r\u00f0",
         "eftir ger\u00f0",
         "eftir merki",
-        "eftir dagsetningu",
-        "Hreinsa glugga",
-        "Hreinsa val"
+        "eftir dagsetningu"
       ]}
     },
     {
@@ -90,6 +88,8 @@
       "name": "FinderSpecialMenu",
       "data": { "strings": [
         "Hreinsa skj\u00e1bor\u00f0",
+        "Hreinsa glugga",
+        "Hreinsa val",
         "T\u00e6ma ruslatunnu",
         "Kasta \u00fat/E",
         "Ey\u00f0a disk",

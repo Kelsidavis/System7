@@ -64,9 +64,7 @@
         "koolta",
         "tyypilt\u00e4",
         "tunnisteelta",
-        "p\u00e4iv\u00e4m\u00e4\u00e4r\u00e4lt\u00e4",
-        "Siivoa ikkuna",
-        "Siivoa valinta"
+        "p\u00e4iv\u00e4m\u00e4\u00e4r\u00e4lt\u00e4"
       ]}
     },
     {
@@ -90,6 +88,8 @@
       "name": "FinderSpecialMenu",
       "data": { "strings": [
         "Siivoa ty\u00f6p\u00f6yt\u00e4",
+        "Siivoa ikkuna",
+        "Siivoa valinta",
         "Tyhjenn\u00e4 roskakori",
         "Poista levy/E",
         "Tyhjenn\u00e4 levy",

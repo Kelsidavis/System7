@@ -64,9 +64,7 @@
         "por Tamanho",
         "por Tipo",
         "por Etiqueta",
-        "por Data",
-        "Arrumar Janela",
-        "Arrumar Selec\u00e7\u00e3o"
+        "por Data"
       ]}
     },
     {
@@ -90,6 +88,8 @@
       "name": "FinderSpecialMenu",
       "data": { "strings": [
         "Arrumar Secretaria",
+        "Arrumar Janela",
+        "Arrumar Selec\u00e7\u00e3o",
         "Esvaziar Lixo",
         "Ejectar/E",
         "Apagar Disco",

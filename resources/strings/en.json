@@ -64,9 +64,7 @@
         "by Size",
         "by Kind",
         "by Label",
-        "by Date",
-        "Clean Up Window",
-        "Clean Up Selection"
+        "by Date"
       ]}
     },
     {
@@ -90,6 +88,8 @@
       "name": "FinderSpecialMenu",
       "data": { "strings": [
         "Clean Up Desktop",
+        "Clean Up Window",
+        "Clean Up Selection",
         "Empty Trash",
         "Eject/E",
         "Erase Disk",
