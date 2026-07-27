@@ -222,6 +222,11 @@ void FolderWindow_ClearSelection(WindowPtr w);
  * files use this instead of reloading or patching items[] themselves. */
 void FolderWindow_ContentsChanged(WindowPtr w);
 
+/* Paint the contents of a Finder window - About, Get Info, Find or a folder.
+ * The caller brackets it with BeginUpdate/EndUpdate. Returns false when the
+ * window is not one the Finder draws. */
+Boolean Finder_DrawWindowContents(WindowPtr window);
+
 /* Aliases, stored on the VFS - see src/Finder/finder_alias.c for why this
  * does not go through alias_manager.c's classic File Manager calls. */
 Boolean Finder_CreateAliasFile(VRefNum vref, DirID parentDir, const char* aliasName,

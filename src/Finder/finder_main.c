@@ -1249,55 +1249,57 @@ OSErr CloseFinderWindow(WindowPtr window) {
 /*
  * DoUpdate - Handle window update events
  */
-void DoUpdate(WindowPtr window) {
-    if (!window) return;
+/*
+ * Finder_DrawWindowContents - draw the content of whichever Finder window
+ * this is. Returns false if it is not one the Finder knows.
+ *
+ * The caller owns BeginUpdate/EndUpdate; this only paints. That split is the
+ * point: the live update path in EventDispatcher already brackets the draw,
+ * and it only knew how to paint folder windows - so About This Macintosh,
+ * Get Info and Find opened, got their content erased, and stayed blank. Each
+ * of them has had a working draw handler the whole time and nothing called
+ * it, because the dispatch that knew about them lived in DoUpdate, which no
+ * longer has any callers.
+ */
+Boolean Finder_DrawWindowContents(WindowPtr window) {
+    if (!window) return false;
 
-    /* Route to appropriate update handler based on window type */
     extern Boolean AboutWindow_HandleUpdate(WindowPtr w);
     extern Boolean GetInfo_HandleUpdate(WindowPtr w);
     extern Boolean Find_HandleUpdate(WindowPtr w);
     extern void FolderWindow_Draw(WindowPtr w);
     extern Boolean IsFolderWindow(WindowPtr w);
 
-    /* Try About window */
-    if (AboutWindow_HandleUpdate(window)) {
-        return;
-    }
+    if (AboutWindow_HandleUpdate(window)) return true;
+    if (GetInfo_HandleUpdate(window))     return true;
+    if (Find_HandleUpdate(window))        return true;
 
-    /* Try Get Info window */
-    if (GetInfo_HandleUpdate(window)) {
-        return;
-    }
-
-    /* Try Find window */
-    if (Find_HandleUpdate(window)) {
-        return;
-    }
-
-    /* Try folder window - FolderWindow_Draw handles its own port and update region */
     if (IsFolderWindow(window)) {
-        BeginUpdate(window);
         FolderWindow_Draw(window);
-        EndUpdate(window);
-        return;
+        return true;
     }
 
-    /* FIXED (UPDATE-001): Generic window update handler for unknown window types
-     * Previously this was a no-op, causing content not to redraw after drag/resize.
-     * Now we properly call BeginUpdate/EndUpdate to clear the update region. */
+    return false;
+}
+
+void DoUpdate(WindowPtr window) {
+    if (!window) return;
+
+    BeginUpdate(window);
+
     GrafPtr savePort;
     GetPort(&savePort);
     SetPort((GrafPtr)window);
 
-    BeginUpdate(window);
-
-    /* Erase content area for unknown windows */
-    Rect contentRect = window->port.portRect;
-    EraseRect(&contentRect);
-
-    EndUpdate(window);
+    if (!Finder_DrawWindowContents(window)) {
+        /* Not a Finder window - clear the content so stale pixels do not
+         * survive a drag or resize. */
+        Rect contentRect = window->port.portRect;
+        EraseRect(&contentRect);
+    }
 
     SetPort(savePort);
+    EndUpdate(window);
 }
 
 /*

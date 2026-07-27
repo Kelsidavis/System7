@@ -651,23 +651,15 @@ Boolean HandleUpdate(EventRecord* event)
         SetPort((GrafPtr)updateWindow);
         EVT_LOG_DEBUG("HandleUpdate: SetPort returned\n");
 
-        /* Check if this is a folder window - use new integrated drawing */
-        extern Boolean IsFolderWindow(WindowPtr w);
-        extern void FolderWindow_Draw(WindowPtr w);
-
-        EVT_LOG_DEBUG("HandleUpdate: checking if folder window...\n");
-        if (IsFolderWindow(updateWindow)) {
-            EVT_LOG_DEBUG("HandleUpdate: is folder window, calling FolderWindow_Draw...\n");
-            /* Call integrated folder window drawing (handles icons, selection, etc.) */
-            FolderWindow_Draw(updateWindow);
-            EVT_LOG_DEBUG("HandleUpdate: FolderWindow_Draw returned\n");
-        } else {
-            EVT_LOG_DEBUG("HandleUpdate: not folder window, erasing rect...\n");
-            /* Application would do the actual drawing */
-            /* For now, just fill with white to show content area */
+        /* Let the Finder paint whichever of its windows this is. This tested
+         * IsFolderWindow and erased everything else, so About This Macintosh,
+         * Get Info and Find opened and then had their contents wiped - each
+         * has had a working draw handler all along with nothing calling it. */
+        extern Boolean Finder_DrawWindowContents(WindowPtr window);
+        if (!Finder_DrawWindowContents(updateWindow)) {
+            EVT_LOG_DEBUG("HandleUpdate: not a Finder window, erasing content\n");
             Rect r = updateWindow->port.portRect;
             EraseRect(&r);
-            EVT_LOG_DEBUG("HandleUpdate: EraseRect returned\n");
         }
 
         /* Draw grow icon if window has grow box */
