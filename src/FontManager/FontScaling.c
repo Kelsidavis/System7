@@ -110,7 +110,7 @@ short FM_FindNearestStandardSize(short requestedSize) {
  * FM_ScaleCharNearestNeighbor - Scale character using nearest-neighbor
  * This maintains pixel-perfect appearance at integer scale factors
  */
-static void FM_ScaleCharNearestNeighbor(short srcX, short srcY, char ch,
+static void FM_ScaleCharNearestNeighbor(short srcX, short srcY, unsigned char ch,
                                         short scale, uint32_t color) {
     if (ch < 32 || ch > 126) return;
 
@@ -146,7 +146,7 @@ static void FM_ScaleCharNearestNeighbor(short srcX, short srcY, char ch,
  * Provides smoother scaling for non-integer factors
  */
 __attribute__((unused))
-static void FM_ScaleCharBilinear(short srcX, short srcY, char ch,
+static void FM_ScaleCharBilinear(short srcX, short srcY, unsigned char ch,
                                  short scale, uint32_t color) {
     /* For System 7.1 compatibility, fall back to nearest-neighbor */
     /* Bilinear would require anti-aliasing not available in 1992 */
@@ -205,7 +205,7 @@ short FM_GetScaledStringWidth(ConstStr255Param s, short targetSize) {
 /*
  * FM_SynthesizeSize - Create font at specific size
  */
-void FM_SynthesizeSize(short x, short y, char ch, short targetSize, uint32_t color) {
+void FM_SynthesizeSize(short x, short y, unsigned char ch, short targetSize, uint32_t color) {
     /* Find best available size */
     short baseSize = FM_FindNearestStandardSize(targetSize);
 
@@ -238,7 +238,7 @@ void FM_DrawScaledString(ConstStr255Param s, short targetSize) {
 
     /* Draw each character scaled */
     for (int i = 1; i <= s[0]; i++) {
-        char ch = s[i];
+        unsigned char ch = s[i];
 
         /* Draw scaled character */
         FM_SynthesizeSize(pen.h, pen.v, ch, targetSize, color);
@@ -425,7 +425,7 @@ void FM_DrawTextAtSize(const void* textBuf, short firstByte, short byteCount,
 
     /* Draw each character at target size */
     for (short i = 0; i < byteCount; i++) {
-        char ch = text[firstByte + i];
+        unsigned char ch = text[firstByte + i];
 
         /* Draw scaled character */
         FM_SynthesizeSize(pen.h, pen.v, ch, targetSize, color);

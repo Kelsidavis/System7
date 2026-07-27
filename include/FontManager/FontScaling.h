@@ -25,7 +25,7 @@ Boolean FM_IsSizeAvailable(short fontID, short size);
 short FM_GetAvailableSizes(short fontID, short* sizes, short maxSizes);
 
 /* Character Scaling */
-void FM_SynthesizeSize(short x, short y, char ch, short targetSize, uint32_t color);
+void FM_SynthesizeSize(short x, short y, unsigned char ch, short targetSize, uint32_t color);
 
 /* Width Calculations */
 short FM_GetScaledCharWidth(SInt16 fontNum, SInt16 fontSize, UInt8 ch);

@@ -25,7 +25,7 @@ short FM_GetCondensedWidth(short normalWidth);
 short FM_GetExtendedWidth(short normalWidth);
 
 /* Combined Style Support */
-short FM_GetStyledCharWidth(char ch, Style face);
+short FM_GetStyledCharWidth(unsigned char ch, Style face);
 
 /* String Operations with Styles */
 short FM_MeasureStyledString(ConstStr255Param s, Style face);

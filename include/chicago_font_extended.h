@@ -50,8 +50,22 @@ enum {
     kDieresisLower,  kDieresisUpper,
     kRingLower,      kRingUpper,
     kCedilla,
+    kBullet,
     kNoAccent = 0xFF
 };
+
+/*
+ * Chicago_DrawnSymbol - slot for a character drawn as a shape rather than a glyph
+ *
+ * Only characters whose form is geometric and unambiguous belong here. The
+ * bullet is one: the Read Me's list items begin with Mac Roman 0xA5, and it
+ * is a filled dot in every font that has one, so there is nothing to get
+ * wrong. A letterform is the opposite case and stays out.
+ */
+static inline unsigned char Chicago_DrawnSymbol(unsigned char ch)
+{
+    return (ch == 0xA5) ? (unsigned char)kBullet : (unsigned char)kNoAccent;
+}
 
 extern const ChicagoCharInfo chicago_accents[kChicagoAccentSlots];
 extern const uint8_t chicago_accent_bitmap[CHICAGO_HEIGHT * CHICAGO_ACCENT_ROW_BYTES];

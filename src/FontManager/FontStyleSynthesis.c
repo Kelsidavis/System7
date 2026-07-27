@@ -56,7 +56,7 @@ extern void FM_DrawChicagoCharInternal(short x, short y, unsigned char ch, uint3
  * FM_SynthesizeBold - Create bold version by horizontal emboldening
  * Algorithm: Draw character twice, offset by BOLD_OFFSET pixels
  */
-static void FM_SynthesizeBold(short x, short y, char ch, uint32_t color) {
+static void FM_SynthesizeBold(short x, short y, unsigned char ch, uint32_t color) {
     FSS_LOG("SynthesizeBold: char='%c' at (%d,%d)\n", ch, x, y);
 
     /* Draw original character */
@@ -84,7 +84,7 @@ short FM_GetBoldWidth(short normalWidth) {
  * Draws the character multiple times with progressively offset positions
  * to simulate a shear/slant effect (~14 degrees)
  */
-static void FM_SynthesizeItalic(short x, short y, char ch, uint32_t color) {
+static void FM_SynthesizeItalic(short x, short y, unsigned char ch, uint32_t color) {
     FSS_LOG("SynthesizeItalic: char='%c' at (%d,%d)\n", ch, x, y);
 
     /* Draw character with shear effect using multiple offset draws
@@ -143,7 +143,7 @@ static void FM_DrawUnderline(short x, short y, short width, uint32_t color) {
  * FM_SynthesizeShadow - Create shadow effect
  * Algorithm: Draw character, then draw offset shadow behind
  */
-static void FM_SynthesizeShadow(short x, short y, char ch, uint32_t foreColor, uint32_t shadowColor) {
+static void FM_SynthesizeShadow(short x, short y, unsigned char ch, uint32_t foreColor, uint32_t shadowColor) {
     FSS_LOG("SynthesizeShadow: char='%c' at (%d,%d)\n", ch, x, y);
 
     /* Draw shadow first (offset and in shadow color) */
@@ -169,7 +169,7 @@ short FM_GetShadowWidth(short normalWidth) {
  * FM_SynthesizeOutline - Create outline effect
  * Algorithm: Draw character stroked, then fill center
  */
-static void FM_SynthesizeOutline(short x, short y, char ch, uint32_t outlineColor, uint32_t fillColor) {
+static void FM_SynthesizeOutline(short x, short y, unsigned char ch, uint32_t outlineColor, uint32_t fillColor) {
     FSS_LOG("SynthesizeOutline: char='%c' at (%d,%d)\n", ch, x, y);
 
     /* Draw outline in 8 directions */
@@ -221,7 +221,7 @@ short FM_GetExtendedWidth(short normalWidth) {
  * FM_SynthesizeStyledChar - Apply multiple styles to character
  * Handles combination of bold, italic, underline, etc.
  */
-static void FM_SynthesizeStyledChar(short x, short y, char ch, Style face, uint32_t color) {
+static void FM_SynthesizeStyledChar(short x, short y, unsigned char ch, Style face, uint32_t color) {
     Boolean hasBold = (face & bold) != 0;
     Boolean hasItalic = (face & italic) != 0;
     Boolean hasUnderline = (face & underline) != 0;
@@ -274,7 +274,7 @@ static void FM_SynthesizeStyledChar(short x, short y, char ch, Style face, uint3
 /*
  * FM_GetStyledCharWidth - Calculate width with all styles applied
  */
-short FM_GetStyledCharWidth(char ch, Style face) {
+short FM_GetStyledCharWidth(unsigned char ch, Style face) {
     /* Not CharWidth: that consults the port's style and would call straight
      * back here for any styled text, recursing until the stack gave out. */
     extern short FM_GetPlainCharWidth(short ch);
@@ -323,7 +323,7 @@ static void FM_DrawStyledString(ConstStr255Param s, Style face) {
 
     /* Draw each character with styles */
     for (int i = 1; i <= s[0]; i++) {
-        char ch = s[i];
+        unsigned char ch = s[i];
 
         /* Draw styled character */
         FM_SynthesizeStyledChar(pen.h, pen.v, ch, face, color);

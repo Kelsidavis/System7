@@ -83,6 +83,14 @@ void FM_DrawChicagoCharInternal(short x, short y, unsigned char ch, uint32_t col
      * An accented letter is Chicago's own letter with a mark over it, so it is
      * drawn as those two things rather than looked up as one glyph.
      */
+    unsigned char sym = Chicago_DrawnSymbol(ch);
+    if (sym != kNoAccent) {
+        const ChicagoCharInfo* mark = &chicago_accents[sym];
+        FM_BlitGlyph(x, y, mark, chicago_accent_bitmap,
+                     CHICAGO_ACCENT_ROW_BYTES, color);
+        return;
+    }
+
     ChicagoComposition comp = Chicago_Compose(ch);
     if (comp.base != 0) {
         const ChicagoCharInfo* baseInfo = &chicago_ascii[comp.base - 32];
@@ -750,6 +758,11 @@ short FM_GetPlainCharWidth(short ch) {
          * from different places, a character the renderer could draw but the
          * measurer did not know about advanced by a default eight pixels and
          * left a gap. */
+        unsigned char sym = Chicago_DrawnSymbol((unsigned char)ch);
+        if (sym != kNoAccent) {
+            return chicago_accents[sym].bit_width + 2;
+        }
+
         /* A composed letter is exactly as wide as the letter under the mark. */
         ChicagoComposition comp = Chicago_Compose((unsigned char)ch);
         if (comp.base != 0) {
@@ -770,8 +783,8 @@ short FM_GetPlainCharWidth(short ch) {
 
 short CharWidth(short ch) {
     if (g_currentPort && g_currentPort->txFace != normal) {
-        extern short FM_GetStyledCharWidth(char ch, Style face);
-        return FM_GetStyledCharWidth((char)ch, g_currentPort->txFace);
+        extern short FM_GetStyledCharWidth(unsigned char ch, Style face);
+        return FM_GetStyledCharWidth((unsigned char)ch, g_currentPort->txFace);
     }
 
     return FM_GetPlainCharWidth(ch);
@@ -897,15 +910,15 @@ void DrawChar(short ch) {
         /* Draw character with style synthesis */
         if (hasBold) {
             /* Bold: draw twice with 1 pixel offset */
-            FM_DrawChicagoCharInternal(px, py, (char)ch, color);
-            FM_DrawChicagoCharInternal(px + 1, py, (char)ch, color);
+            FM_DrawChicagoCharInternal(px, py, (unsigned char)ch, color);
+            FM_DrawChicagoCharInternal(px + 1, py, (unsigned char)ch, color);
         } else {
-            FM_DrawChicagoCharInternal(px, py, (char)ch, color);
+            FM_DrawChicagoCharInternal(px, py, (unsigned char)ch, color);
         }
 
         if (hasItalic) {
             /* Italic: draw with slight right offset for shear effect */
-            FM_DrawChicagoCharInternal(px + 1, py, (char)ch, color);
+            FM_DrawChicagoCharInternal(px + 1, py, (unsigned char)ch, color);
         }
 
         g_currentPort->pnLoc.h += CharWidth(ch);
