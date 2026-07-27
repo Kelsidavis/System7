@@ -75,28 +75,26 @@ static void SF_NavigateToFolder(FSSpec *folder);
 static OSErr SF_GetCurrentLocation(short *vRefNum, long *dirID);
 
 /* Keyboard focus helpers */
-static void SF_PrimeInitialFocus(DialogPtr d)
-{
-    ControlHandle defBtn = NULL;
-    ControlHandle c;
+/*
+ * The Standard File dialogs used to prime keyboard focus themselves, walking
+ * what they took to be a chain of controls:
+ *
+ *     c = (ControlHandle)((DialogPeek)d)->items;
+ *     while (c) { ... c = (*c)->nextControl; }
+ *
+ * items is the dialog's DITL handle, not a control chain. That walk read DITL
+ * bytes as control records and followed whatever happened to sit at the
+ * nextControl offset, and it never terminated - so Command-O and Command-S
+ * drew the dialog frame and then hung the machine in this loop, which is why
+ * the Open and Save dialogs appeared with their interior never painted and
+ * nothing responded afterwards.
+ *
+ * There is nothing to replace it with: NewDialog already gives the first
+ * edit-text item the focus through InitDialogEditTextFocus, which is how
+ * every other dialog in the system gets primed. This one was a second,
+ * broken copy of that.
+ */
 
-    if (!d) return;
-
-    c = (ControlHandle)((DialogPeek)d)->items;
-    /* prefer default button if present */
-    while (c) {
-        if (IsButtonControl(c) && IsDefaultButton(c)) {
-            defBtn = c;
-            break;
-        }
-        c = (*c)->nextControl;
-    }
-    if (defBtn) {
-        DM_SetKeyboardFocus((WindowPtr)d, defBtn);
-    } else {
-        DM_FocusNextControl((WindowPtr)d, false);
-    }
-}
 
 static SInt16 __attribute__((unused)) SF_ItemFromControl(ControlHandle c)
 {
@@ -256,9 +254,6 @@ void CustomPutFile(ConstStr255Param prompt,
     if (dlgHook) {
         dlgHook(sfHookFirstCall, gSFState.dialog, yourDataPtr);
     }
-
-    /* Set initial keyboard focus */
-    SF_PrimeInitialFocus(gSFState.dialog);
 
     /* Dialog loop */
     while (!done) {
@@ -465,9 +460,6 @@ void CustomGetFile(FileFilterYDProcPtr fileFilter,
     if (dlgHook) {
         dlgHook(sfHookFirstCall, gSFState.dialog, yourDataPtr);
     }
-
-    /* Set initial keyboard focus */
-    SF_PrimeInitialFocus(gSFState.dialog);
 
     /* Dialog loop */
     while (!done) {
