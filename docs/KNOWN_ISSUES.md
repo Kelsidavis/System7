@@ -4,27 +4,40 @@ This document tracks known issues, workarounds, and technical debt in the System
 
 ## Open Issues
 
-### ⛔ The Open and Save dialogs never paint their interior
+### ✅ The Open and Save dialogs never painted their interior — FIXED
 
-**Symptom**: press Command-O or Command-S in SimpleText. The Standard File
-dialog comes up frontmost with a correct frame and title bar, but its interior
-shows whatever happened to be on screen underneath - usually the document
-window's text - instead of a file list, buttons and a name field. Parts of the
-dialog that fall outside any other window do show its items, so the items are
-being drawn; what is missing is the background.
+**Was**: Command-O or Command-S drew a dialog frame and then froze the
+machine. Nothing responded afterwards, so what showed inside the dialog was
+simply the screen as it had been left.
 
-**What is known**: the dialog is genuinely the front window and genuinely in
-the window list (that was a separate bug, since fixed - a dialog used to hold a
-byte copy of a window record that the Window Manager knew nothing about).
-`CustomGetFile`/`CustomPutFile` drive their own event loop rather than going
-through `HandleUpdate`, so the dialog's content never passes through
-`BeginUpdate`/`EndUpdate` and its offscreen buffer is never composited to the
-screen. `PaintOne` erases the content region into that offscreen buffer and
-records the damage, and nothing ever services it.
+Five faults, uncovered one behind the other:
 
-**Files**: src/StandardFile/StandardFile.c (CustomGetFile, CustomPutFile),
-src/StandardFile/StandardFileHAL_Shims.c, src/WindowManager/WindowEvents.c
-(BeginUpdate/EndUpdate).
+  - `SF_PrimeInitialFocus` walked the dialog's DITL handle as though it were a
+    chain of controls, reading DITL bytes as control records and following
+    whatever sat at the `nextControl` offset. It never terminated. NewDialog
+    already primes focus through `InitDialogEditTextFocus`, so this second
+    copy is gone rather than repaired.
+  - `CustomGetFile` and `CustomPutFile` ran their own event loop *and* called
+    `StandardFile_HAL_RunDialog`, which runs another. Two loops on one event
+    stream: the outer one discarded anything that was not a keystroke,
+    including the dialog's own buttons.
+  - No mouse events were produced at all while a dialog was up. Input was
+    generated only by main.c's loop, so any nested modal loop saw nothing from
+    the hardware. `Proc_GetNextEvent` pumps it now, which is where the real
+    Toolbox pumps and why nested modal loops work there.
+  - The list was populated but never redrawn, because the `switch` handling
+    update events sat in the `else` branch of "is this a dialog event" — and
+    update events are dialog events. `DialogSelect` also repainted the front
+    dialog for update events naming other windows, erasing the list.
+  - `gSelectedIndex` mirrored a selection the List Manager already owned and
+    was only written on one path, so Open saw nothing selected.
+
+The list's rectangle was written twice as well, once in the DITL and once for
+the list control, with different sizes; both derive from one definition now.
+
+Verified in QEMU: Command-O lists the root directory inside an intact box
+frame, clicking a name selects it, Open opens the document, and Cancel
+dismisses.
 
 ### ⚠️ A covered window's title text still shows through
 
