@@ -19,6 +19,8 @@
 #include "WindowManager/WindowManager.h"
 #include "QuickDraw/QuickDraw.h"
 #include "QuickDrawConstants.h"   /* blackColor / whiteColor */
+#include "LocaleManager/LocaleManager.h"
+#include "LocaleManager/StringIDs.h"
 #include "Finder/Icon/icon_types.h"
 #include "Finder/Icon/icon_label.h"
 #include "Finder/Icon/icon_system.h"
@@ -1486,12 +1488,29 @@ static void FormatFileSize(uint32_t size, char* buf, int bufLen) {
  * These match the default labels in the Labels control panel.
  */
 static const char* GetLabelName(short label) {
-    static const char* kLabelNames[] = {
-        "None", "Essential", "Hot", "In Progress",
-        "Cool", "Personal", "Project 1", "Project 2"
-    };
-    if (label >= 0 && label <= 7) return kLabelNames[label];
-    return "";
+    /*
+     * The names come from the same string list the Label menu is built from.
+     *
+     * There was a hardcoded English copy here, so the menu and the column
+     * disagreed the moment either was localised: a French build offered
+     * "Essentiel" in the menu and wrote "Essential" in the list. The labels
+     * are one set of names and belong in one place.
+     */
+    static char nameBuf[64];
+    Str255 pstr;
+
+    if (label < 0 || label > 7) return "";
+
+    pstr[0] = 0;
+    GetLocalizedString(pstr, kSTRListFinderLabelMenu, (SInt16)(label + 1));
+
+    if (pstr[0] == 0) return "";
+
+    int n = pstr[0];
+    if (n > (int)sizeof(nameBuf) - 1) n = (int)sizeof(nameBuf) - 1;
+    for (int i = 0; i < n; i++) nameBuf[i] = (char)pstr[1 + i];
+    nameBuf[n] = '\0';
+    return nameBuf;
 }
 
 /*
@@ -1812,7 +1831,49 @@ static void FolderWindow_DrawListView(WindowPtr w, FolderWindowState* state) {
             const char* labelStr = GetLabelName(state->items[i].label);
             int labelLen = 0;
             while (labelStr[labelLen]) labelLen++;
-            if (labelLen > 8) labelLen = 8;  /* Truncate to fit */
+
+            /*
+             * Fit the name to the column by measuring it, not by cutting it at
+             * eight characters. Eight is one short of "Essential", so the
+             * shortest label anyone is likely to apply lost its last letter,
+             * and "In Progress" lost three. Measuring uses the same widths the
+             * drawing does, so what survives is what actually fits.
+             */
+            {
+                extern short CharWidth(short ch);
+                static char fitted[64];
+                const short kEllipsis = 0xC9;   /* Mac Roman ... as one glyph */
+                short avail = kListLabelColWidth - 8;
+                short used = 0;
+                int fit = 0;
+
+                while (fit < labelLen) {
+                    short w = CharWidth((unsigned char)labelStr[fit]);
+                    if (used + w > avail) break;
+                    used += w;
+                    fit++;
+                }
+
+                if (fit < labelLen) {
+                    /* Does not fit: end it with an ellipsis, which is how
+                     * System 7 says a column has cut something short. Give the
+                     * ellipsis room by dropping characters until it fits. */
+                    short ellW = CharWidth(kEllipsis);
+                    while (fit > 0 && used + ellW > avail) {
+                        used -= CharWidth((unsigned char)labelStr[fit - 1]);
+                        fit--;
+                    }
+                    if (fit > (int)sizeof(fitted) - 2) fit = (int)sizeof(fitted) - 2;
+                    for (int c = 0; c < fit; c++) fitted[c] = labelStr[c];
+                    fitted[fit] = (char)kEllipsis;
+                    fitted[fit + 1] = '\0';
+                    labelStr = fitted;
+                    labelLen = fit + 1;
+                } else {
+                    labelLen = fit;
+                }
+            }
+
             MoveTo(labelX + 4, textY);
             DrawText(labelStr, 0, labelLen);
         }
