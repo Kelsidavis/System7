@@ -357,6 +357,17 @@ bool HFS_CreateBlankVolume(void* buffer, uint64_t size, const char* volName) {
     uint16_t offset = sizeof(HFS_BTNodeDesc);
     int recNum = 0;
 
+    /* Every entry gets a real creation and modification date.
+     *
+     * These were all written as zero, so nothing on the volume had a date at
+     * all - Get Info showed no "Created" line for any file, because the code
+     * that draws it correctly declines to invent one. A synthesized volume
+     * still comes into existence at a moment in time, and that is the honest
+     * answer: the moment it was built. */
+    extern void GetDateTime(uint32_t* secs);
+    uint32_t buildTime = 0;
+    GetDateTime(&buildTime);
+
     /* Helper function to add a folder record */
     #define ADD_FOLDER(parent, name_str, cnid) do { \
         HFS_CatKey* key = (HFS_CatKey*)recData; \
@@ -372,8 +383,8 @@ bool HFS_CreateBlankVolume(void* buffer, uint64_t size, const char* volName) {
         be16_write(&folder->flags, 0); \
         be16_write(&folder->valence, (parent == 2 && cnid == 17) ? 2 : 0); \
         be32_write(&folder->folderID, cnid); \
-        be32_write(&folder->createDate, 0); \
-        be32_write(&folder->modifyDate, 0); \
+        be32_write(&folder->createDate, buildTime); \
+        be32_write(&folder->modifyDate, buildTime); \
         be32_write(&folder->backupDate, 0); \
         memset(folder->finderInfo, 0, 16); \
         memset(folder->reserved, 0, 16); \
@@ -405,8 +416,8 @@ bool HFS_CreateBlankVolume(void* buffer, uint64_t size, const char* volName) {
         be16_write(&file->rsrcStartBlock, 0); \
         be32_write(&file->rsrcLogicalSize, 0); \
         be32_write(&file->rsrcPhysicalSize, 0); \
-        be32_write(&file->createDate, 0); \
-        be32_write(&file->modifyDate, 0); \
+        be32_write(&file->createDate, buildTime); \
+        be32_write(&file->modifyDate, buildTime); \
         be32_write(&file->backupDate, 0); \
         memset(file->finderInfo, 0, 16); \
         be32_write(&file->finderInfo[0], type_code); \

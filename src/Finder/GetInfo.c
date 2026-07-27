@@ -17,6 +17,7 @@
 #include "Finder/FinderLogging.h"
 #include "Finder/GetInfo.h"
 #include "EventManager/EventManager.h"
+#include "LocaleManager/StringIDs.h"
 
 /* Forward declarations */
 extern void MoveTo(short h, short v);
@@ -115,6 +116,29 @@ static void FormatOSType(uint32_t type, char* out) {
     out[4] = '\0';
 }
 
+
+/*
+ * A label from the Get Info string list, as a C string.
+ *
+ * These were English literals compiled into the drawing code while the
+ * translations sat unused in the resource - the same fault the Finder's menus
+ * had. The list already carries every one of them.
+ */
+static const char* GetInfo_Label(SInt16 which)
+{
+    static Str255 buf;
+    extern void GetLocalizedString(unsigned char* out, SInt16 listID, SInt16 index);
+    static char cstr[256];
+
+    GetLocalizedString(buf, kSTRListFinderGetInfo, which);
+    int len = buf[0];
+    if (len > 255) len = 255;
+    memcpy(cstr, &buf[1], len);
+    cstr[len] = '\0';
+    return cstr;
+}
+
+
 /*
  * GetInfo_CreateWindow - Create Get Info window
  */
@@ -132,7 +156,7 @@ static void GetInfo_CreateWindow(void) {
     bounds.bottom = bounds.top + 300;  /* Height: 300 pixels */
     bounds.right = bounds.left + 400;  /* Width: 400 pixels */
 
-    /* Create window title */
+    /* A placeholder; GetInfo_SetTitle puts the real one on before it shows. */
     title[0] = 4;
     memcpy(&title[1], "Info", 4);
 
@@ -176,6 +200,24 @@ void GetInfo_Show(VRefNum vref, FileID fileID) {
 
     if (!sGetInfoWin) {
         return;
+    }
+
+    /* System 7 titles this window "<name> Info". The window is created once
+     * and reused for whatever is asked about next, so the title has to be set
+     * here, where the entry changes, rather than where the window is made -
+     * it read a bare "Info" for every file. */
+    {
+        Str255 winTitle;
+        const char* suffix = GetInfo_Label(kStrInfoTitle);
+        int nameLen = (int)strlen(sCurrentEntry.name);
+        int sufLen = (int)strlen(suffix);
+
+        if (nameLen > 255 - sufLen - 1) nameLen = 255 - sufLen - 1;
+        memcpy(&winTitle[1], sCurrentEntry.name, nameLen);
+        winTitle[1 + nameLen] = ' ';
+        memcpy(&winTitle[2 + nameLen], suffix, sufLen);
+        winTitle[0] = (unsigned char)(nameLen + 1 + sufLen);
+        SetWTitle(sGetInfoWin, winTitle);
     }
 
     /* Bring to front */
@@ -260,7 +302,7 @@ Boolean GetInfo_HandleUpdate(WindowPtr w) {
             }
         }
         MoveTo(20, y);
-        snprintf(buf, sizeof(buf), "Kind: %s", kindStr);
+        snprintf(buf, sizeof(buf), "%s %s", GetInfo_Label(kStrInfoKind), kindStr);
         DrawText(buf, 0, strlen(buf));
     }
     y += 20;
@@ -270,7 +312,7 @@ Boolean GetInfo_HandleUpdate(WindowPtr w) {
         MoveTo(20, y);
         char sizeStr[64];
         FormatFileSize(sCurrentEntry.size, sizeStr, sizeof(sizeStr));
-        snprintf(buf, sizeof(buf), "Size: %s", sizeStr);
+        snprintf(buf, sizeof(buf), "%s %s", GetInfo_Label(kStrInfoSize), sizeStr);
         DrawText(buf, 0, strlen(buf));
         y += 20;
 
@@ -297,9 +339,19 @@ Boolean GetInfo_HandleUpdate(WindowPtr w) {
         y += 20;
     }
 
-    /* Where (location path) */
-    MoveTo(20, y);
-    DrawText("Where: Macintosh HD", 0, 19);
+    /* Where - the volume the item is actually on, rather than the boot
+     * volume's name spelled out in the code. */
+    {
+        VolumeControlBlock vcb;
+        const char* volName = "";
+        extern VRefNum VFS_GetBootVRef(void);
+        if (VFS_GetVolumeInfo(VFS_GetBootVRef(), &vcb)) {
+            volName = vcb.name;
+        }
+        MoveTo(20, y);
+        snprintf(buf, sizeof(buf), "%s %s", GetInfo_Label(kStrInfoWhere), volName);
+        DrawText(buf, 0, strlen(buf));
+    }
     y += 20;
 
     /* Separator line */
@@ -313,7 +365,7 @@ Boolean GetInfo_HandleUpdate(WindowPtr w) {
         MoveTo(20, y);
         char dateStr[64];
         FormatMacDate(sCurrentEntry.createTime, dateStr, sizeof(dateStr));
-        snprintf(buf, sizeof(buf), "Created: %s", dateStr);
+        snprintf(buf, sizeof(buf), "%s %s", GetInfo_Label(kStrInfoCreated), dateStr);
         DrawText(buf, 0, strlen(buf));
         y += 20;
     }
@@ -323,7 +375,7 @@ Boolean GetInfo_HandleUpdate(WindowPtr w) {
         MoveTo(20, y);
         char dateStr[64];
         FormatMacDate(sCurrentEntry.modTime, dateStr, sizeof(dateStr));
-        snprintf(buf, sizeof(buf), "Modified: %s", dateStr);
+        snprintf(buf, sizeof(buf), "%s %s", GetInfo_Label(kStrInfoModified), dateStr);
         DrawText(buf, 0, strlen(buf));
         y += 20;
     }
