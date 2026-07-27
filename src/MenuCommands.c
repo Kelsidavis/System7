@@ -1129,9 +1129,17 @@ void MakeAliasOfSelectedItems(WindowPtr w) {
     VRefNum vref = FolderWindow_GetVRef(w);
     DirID dirID = FolderWindow_GetCurrentDir(w);
 
-    /* Create alias for each selected item */
+    /* Create alias for each selected item.
+     *
+     * This used to go through FSMakeFSSpec and CreateAlias, which are built
+     * on the classic File Manager. That layer's volume registry is a stub, so
+     * FSMakeFSSpec returned nsvErr before an alias was ever attempted and the
+     * command silently did nothing. Aliases are created on the VFS now, like
+     * every other Finder operation that works. */
+    extern bool VFS_Lookup(VRefNum vref, DirID dir, const char* name, CatEntry* entry);
+    extern bool VFS_GenerateUniqueName(VRefNum vref, DirID dir, const char* base, char* out);
+
     for (short i = 0; i < count; i++) {
-        /* Extract C string from Pascal name */
         unsigned char nameLen = specs[i].name[0];
         char cName[256];
         if (nameLen > 0) {
@@ -1139,36 +1147,23 @@ void MakeAliasOfSelectedItems(WindowPtr w) {
         }
         cName[nameLen] = '\0';
 
-        /* Build alias file name: "<original name> alias" */
-        char aliasName[256];
-        snprintf(aliasName, sizeof(aliasName), "%s alias", cName);
-
-        /* Create FSSpec for the alias file in the same folder */
-        FSSpec aliasSpec;
-
-        /* Convert back to Pascal string for FSMakeFSSpec */
-        unsigned char pascalName[256];
-        int aLen = strlen(aliasName);
-        if (aLen > 255) aLen = 255;
-        pascalName[0] = (unsigned char)aLen;
-        memcpy(&pascalName[1], aliasName, aLen);
-
-        OSErr err = FSMakeFSSpec(vref, dirID, pascalName, &aliasSpec);
-        if (err != noErr && err != fnfErr) {
-            /* FSMakeFSSpec returns fnfErr if file doesn't exist, which is expected */
-            MENU_LOG_DEBUG("MakeAliasOfSelectedItems: FSMakeFSSpec failed with error %d for item %d\n", err, i);
+        CatEntry target;
+        if (!VFS_Lookup(vref, dirID, cName, &target)) {
+            MENU_LOG_DEBUG("MakeAlias: '%s' is not in this folder any more\n", cName);
             continue;
         }
 
-        /* Create the alias */
-        extern OSErr CreateAlias(FSSpec *target, FSSpec *aliasFile);
-        err = CreateAlias(&specs[i], &aliasSpec);
+        char wanted[256];
+        snprintf(wanted, sizeof(wanted), "%s alias", cName);
 
-        if (err == noErr) {
-            MENU_LOG_DEBUG("MakeAliasOfSelectedItems: Created alias '%s' for '%s'\n",
-                         aliasName, cName);
-        } else {
-            MENU_LOG_DEBUG("MakeAliasOfSelectedItems: CreateAlias failed with error %d for item %d\n", err, i);
+        char aliasName[256];
+        if (!VFS_GenerateUniqueName(vref, dirID, wanted, aliasName)) {
+            MENU_LOG_DEBUG("MakeAlias: no free name for '%s'\n", wanted);
+            continue;
+        }
+
+        if (Finder_CreateAliasFile(vref, dirID, aliasName, &target, NULL)) {
+            MENU_LOG_INFO("Made alias '%s' for '%s'\n", aliasName, cName);
         }
     }
 

@@ -141,6 +141,11 @@ static struct {
 /* Get or create state for a folder window */
 FolderWindowState* GetFolderState(WindowPtr w);
 static void InitializeFolderContentsEx(WindowPtr w, Boolean isTrash, VRefNum vref, DirID dirID);
+static void FolderWindow_OpenFileNamed(FolderWindowState* state,
+                                       const char* itemName, uint32_t itemType);
+static void FolderWindow_OpenItem(WindowPtr w, FolderWindowState* state,
+                                  const char* itemName, uint32_t itemType,
+                                  FileID itemID, Boolean isFolder);
 void InitializeFolderContents(WindowPtr w, Boolean isTrash);
 static void GhostEraseIf(void);  /* Forward declaration for ghost system */
 
@@ -1272,231 +1277,10 @@ Boolean HandleFolderWindowClick(WindowPtr w, EventRecord *ev, Boolean isDoubleCl
         /* DOUBLE-CLICK on same icon: open it */
         FINDER_LOG_DEBUG("FW: OPEN_FOLDER \"%s\"\n", state->items[hitIndex].name);
 
-        if (state->items[hitIndex].isFolder) {
-            /* Open folder: create new window showing the subfolder's contents */
-            extern WindowPtr FolderWindow_OpenFolder(VRefNum vref, DirID dirID, ConstStr255Param title);
-
-            /* Convert C string to Pascal string for window title */
-            Str255 pTitle;
-            size_t len = strlen(state->items[hitIndex].name);
-            if (len > 255) len = 255;
-            pTitle[0] = (unsigned char)len;
-            memcpy(&pTitle[1], state->items[hitIndex].name, len);
-
-            /* Open folder window with the subfolder's directory ID */
-            WindowPtr newWin = FolderWindow_OpenFolder(state->vref, state->items[hitIndex].fileID, pTitle);
-            if (newWin) {
-        FINDER_LOG_DEBUG("FW: opened subfolder window 0x%08x (dirID=%d)\n",
-                         (unsigned int)P2UL(newWin),
-                         (int)state->items[hitIndex].fileID);
-                /* Post update for the new window and old window */
-                PostEvent(updateEvt, (UInt32)(uintptr_t)newWin);
-                PostEvent(updateEvt, (UInt32)(uintptr_t)w);
-            }
-        } else {
-            /* Document/app: check if it's a text file */
-            Boolean isTextFile = false;
-            const char* name = state->items[hitIndex].name;
-
-            /* Check file type */
-            if (state->items[hitIndex].type == 'TEXT') {
-                isTextFile = true;
-            }
-
-            /* Check filename patterns for text files */
-            if (!isTextFile) {
-                int len = strlen(name);
-                /* Check for .txt extension */
-                if (len >= 4) {
-                    const char* ext = name + len - 4;
-                    if (ext[0] == '.' &&
-                        (ext[1] == 't' || ext[1] == 'T') &&
-                        (ext[2] == 'x' || ext[2] == 'X') &&
-                        (ext[3] == 't' || ext[3] == 'T')) {
-                        isTextFile = true;
-                    }
-                }
-                /* Check for "readme" or "README" prefix */
-                if (!isTextFile && len >= 6) {
-                    const char* prefix = name;
-                    if ((prefix[0] == 'r' || prefix[0] == 'R') &&
-                        (prefix[1] == 'e' || prefix[1] == 'E') &&
-                        (prefix[2] == 'a' || prefix[2] == 'A') &&
-                        (prefix[3] == 'd' || prefix[3] == 'D') &&
-                        (prefix[4] == 'm' || prefix[4] == 'M') &&
-                        (prefix[5] == 'e' || prefix[5] == 'E')) {
-                        isTextFile = true;
-                    }
-                }
-            }
-
-            if (isTextFile) {
-                FINDER_LOG_DEBUG("FW: Opening text file \"%s\" with SimpleText\n", name);
-                /* Launch SimpleText if not already running */
-                extern void SimpleText_Launch(void);
-                extern Boolean SimpleText_IsRunning(void);
-                extern void SimpleText_OpenFile(const char* path);
-
-                FINDER_LOG_DEBUG("FW: name BEFORE Launch = '%s'\n", name);
-                if (!SimpleText_IsRunning()) {
-                    SimpleText_Launch();
-                    FINDER_LOG_DEBUG("FW: Launched SimpleText\n");
-                    FINDER_LOG_DEBUG("FW: name AFTER Launch = '%s'\n", name);
-                }
-                FINDER_LOG_DEBUG("FW: name AFTER check = '%s'\n", name);
-
-                /* Build full path to the file */
-                char fullPath[512];
-                snprintf(fullPath, sizeof(fullPath), "/%s", name);  /* Simple path for now */
-                FINDER_LOG_DEBUG("FW: fullPath after snprintf = '%s'\n", fullPath);
-
-                /* Load file content into SimpleText window */
-                SimpleText_OpenFile(fullPath);
-                FINDER_LOG_DEBUG("FW: called SimpleText_OpenFile with '%s'\n", fullPath);
-                FINDER_LOG_DEBUG("FW: Opened file '%s' in SimpleText\n", name);
-            } else if (state->items[hitIndex].type == 'APPL') {
-                /* Application file */
-                if (strcmp(name, "TextEdit") == 0) {
-                    FINDER_LOG_DEBUG("FW: Launching TextEdit application\n");
-                    extern void TextEdit_InitApp(void);
-                    TextEdit_InitApp();
-                } else if (strcmp(name, "SimpleText") == 0) {
-                    FINDER_LOG_DEBUG("FW: Launching SimpleText application\n");
-                    extern void SimpleText_Launch(void);
-                    SimpleText_Launch();
-                } else if (strcmp(name, "MacPaint") == 0) {
-                    FINDER_LOG_DEBUG("FW: Launching MacPaint application\n");
-                    extern void MacPaint_Launch(void);
-                    MacPaint_Launch();
-                } else if (strcmp(name, "Desktop Patterns") == 0) {
-                    FINDER_LOG_DEBUG("FW: Opening Desktop Patterns control panel\n");
-                    OpenDesktopCdev();
-                } else if (strcmp(name, "Date & Time") == 0) {
-                    FINDER_LOG_DEBUG("FW: Opening Date & Time control panel\n");
-                    DateTimePanel_Open();
-                } else if (strcmp(name, "Sound") == 0) {
-                    FINDER_LOG_DEBUG("FW: Opening Sound control panel\n");
-                    SoundPanel_Open();
-                } else if (strcmp(name, "Mouse") == 0) {
-                    FINDER_LOG_DEBUG("FW: Opening Mouse control panel\n");
-                    MousePanel_Open();
-                } else if (strcmp(name, "Keyboard") == 0) {
-                    FINDER_LOG_DEBUG("FW: Opening Keyboard control panel\n");
-                    KeyboardPanel_Open();
-                } else if (strcmp(name, "Control Strip") == 0) {
-                    FINDER_LOG_DEBUG("FW: Toggling Control Strip palette\n");
-                    ControlStrip_Toggle();
-                } else {
-                    /* Generic application launcher */
-                    FINDER_LOG_DEBUG("FW: Launching generic application \"%s\"\n", name);
-
-                    LaunchParamBlockRec launchParams;
-                    FSSpec appSpec;
-                    OSErr err;
-
-                    /* Build FSSpec with actual volume and directory */
-                    appSpec.vRefNum = state->vref;
-                    appSpec.parID = state->currentDir;
-
-                    /* Convert name to Pascal string */
-                    UInt8 nameLen = strlen(name);
-                    if (nameLen > 63) nameLen = 63;
-                    appSpec.name[0] = nameLen;
-                    memcpy(&appSpec.name[1], name, nameLen);
-
-                    /* Set up launch parameters */
-                    memset(&launchParams, 0, sizeof(launchParams));
-                    launchParams.launchAppSpec = &appSpec;
-                    launchParams.launchPreferredSize = 512 * 1024;  /* 512KB default */
-                    launchParams.launchControlFlags = 0;  /* Default flags */
-
-                    /* Launch the application */
-                    err = LaunchApplication(&launchParams);
-                    if (err != noErr) {
-                        FINDER_LOG_DEBUG("FW: Failed to launch \"%s\" (err=%d)\n", name, err);
-                    } else {
-                        FINDER_LOG_DEBUG("FW: Successfully launched \"%s\"\n", name);
-                    }
-                }
-            } else {
-                /* Document file - try to open with associated application */
-                FINDER_LOG_DEBUG("FW: Opening document \"%s\"\n", name);
-
-                /* For now, route common document types to their apps */
-                Boolean handled = false;
-
-                /* Check file extension for text files (.txt, README, etc.) */
-                if (!handled) {
-                    int len = strlen(name);
-                    Boolean isTextDoc = false;
-
-                    if (len >= 4) {
-                        const char* ext = name + len - 4;
-                        if (ext[0] == '.' &&
-                            (ext[1] == 't' || ext[1] == 'T') &&
-                            (ext[2] == 'x' || ext[2] == 'X') &&
-                            (ext[3] == 't' || ext[3] == 'T')) {
-                            isTextDoc = true;
-                        }
-                    }
-
-                    if (isTextDoc) {
-                        FINDER_LOG_DEBUG("FW: Opening text document with SimpleText\n");
-                        extern void SimpleText_Launch(void);
-                        extern Boolean SimpleText_IsRunning(void);
-                        extern void SimpleText_OpenFile(const char* path);
-
-                        if (!SimpleText_IsRunning()) {
-                            SimpleText_Launch();
-                        }
-
-                        /* Build path and open file */
-                        char fullPath[512];
-                        snprintf(fullPath, sizeof(fullPath), "/%s", name);
-                        SimpleText_OpenFile(fullPath);
-                        handled = true;
-                    }
-                }
-
-                if (!handled) {
-                    FINDER_LOG_DEBUG("FW: No application associated with document \"%s\"\n", name);
-
-                    /* System 7 alert: "application not found" */
-                    extern DialogPtr NewDialog(void*, const Rect*, const unsigned char*,
-                                               Boolean, SInt16, WindowPtr, Boolean, SInt32, Handle);
-                    extern void DisposeDialog(DialogPtr);
-                    extern void ShowWindow(WindowPtr);
-
-                    SysBeep(1);
-
-                    char msg[256];
-                    snprintf(msg, sizeof(msg),
-                             "The document \"%s\" could not be opened, "
-                             "because the application that created it "
-                             "could not be found.", name);
-
-                    DITLBuilder ditlb;
-                    if (DITL_Begin(&ditlb, 384)) {
-                        DITL_AddText(&ditlb, 10, 10, 50, 276, msg);
-                        DITL_AddButton(&ditlb, 60, 200, 80, 276, "OK");
-                        Handle ditl = DITL_Finish(&ditlb);
-
-                        Rect bounds = {140, 100, 240, 400};
-                        static unsigned char noTitle[] = {0};
-                        DialogPtr dlg = ditl ? NewDialog(NULL, &bounds, noTitle, true, 1,
-                                                         (WindowPtr)-1, false, 0, ditl)
-                                             : NULL;
-                        if (dlg) {
-                            ShowWindow((WindowPtr)dlg);
-                            RunModalDialogBox(dlg, 2 /* OK */, 0);
-                            DisposeDialog(dlg);
-                        } else if (ditl) {
-                            DisposeHandle(ditl);
-                        }
-                    }
-                }
-            }
-        }
+        FolderWindow_OpenItem(w, state, state->items[hitIndex].name,
+                              state->items[hitIndex].type,
+                              state->items[hitIndex].fileID,
+                              state->items[hitIndex].isFolder);
 
         /* Clear double-click tracking */
         state->lastClickIndex = -1;
@@ -2764,6 +2548,209 @@ void FolderWindow_DeleteSelected(WindowPtr w) {
  * FolderWindow_OpenSelected - Open the currently selected item
  * Extracted from double-click handler for use with Return/Enter keys and File > Open
  */
+/*
+ * Open one document or application by name and type.
+ *
+ * Shared by double-click, File > Open and alias resolution. The first two
+ * carried their own copy of this - the same text-file sniffing, the same
+ * ladder of control panel names, the same LaunchApplication fallback - and
+ * an alias needed a third, which is what made extracting it worth doing:
+ * an alias opens its target's name and type, not its own.
+ */
+static void FolderWindow_OpenFileNamed(FolderWindowState* state,
+                                       const char* itemName, uint32_t itemType)
+{
+    /* Document/app: check if it's a text file */
+    Boolean isTextFile = false;
+    const char* name = itemName;
+
+    /* Check file type */
+    if (itemType == 'TEXT') {
+        isTextFile = true;
+    }
+
+    /* Check filename patterns for text files */
+    if (!isTextFile) {
+        int len = strlen(name);
+        /* Check for .txt extension */
+        if (len >= 4) {
+            const char* ext = name + len - 4;
+            if (ext[0] == '.' &&
+                (ext[1] == 't' || ext[1] == 'T') &&
+                (ext[2] == 'x' || ext[2] == 'X') &&
+                (ext[3] == 't' || ext[3] == 'T')) {
+                isTextFile = true;
+            }
+        }
+        /* Check for "readme" or "README" prefix */
+        if (!isTextFile && len >= 6) {
+            const char* prefix = name;
+            if ((prefix[0] == 'r' || prefix[0] == 'R') &&
+                (prefix[1] == 'e' || prefix[1] == 'E') &&
+                (prefix[2] == 'a' || prefix[2] == 'A') &&
+                (prefix[3] == 'd' || prefix[3] == 'D') &&
+                (prefix[4] == 'm' || prefix[4] == 'M') &&
+                (prefix[5] == 'e' || prefix[5] == 'E')) {
+                isTextFile = true;
+            }
+        }
+    }
+
+    if (isTextFile) {
+        FINDER_LOG_DEBUG("FW: Opening text file \"%s\" with SimpleText\n", name);
+        /* Launch SimpleText if not already running */
+        extern void SimpleText_Launch(void);
+        extern Boolean SimpleText_IsRunning(void);
+        extern void SimpleText_OpenFile(const char* path);
+
+        if (!SimpleText_IsRunning()) {
+            SimpleText_Launch();
+            FINDER_LOG_DEBUG("FW: Launched SimpleText\n");
+        }
+
+        /* Build full path to the file */
+        char fullPath[512];
+        snprintf(fullPath, sizeof(fullPath), "/%s", name);  /* Simple path for now */
+
+        /* Load file content into SimpleText window */
+        SimpleText_OpenFile(fullPath);
+        FINDER_LOG_DEBUG("FW: Opened file '%s' in SimpleText\n", name);
+    } else if (itemType == 'APPL') {
+        /* Application file */
+        if (strcmp(name, "TextEdit") == 0) {
+            FINDER_LOG_DEBUG("FW: Launching TextEdit application\n");
+            extern void TextEdit_InitApp(void);
+            TextEdit_InitApp();
+        } else if (strcmp(name, "SimpleText") == 0) {
+            FINDER_LOG_DEBUG("FW: Launching SimpleText application\n");
+            extern void SimpleText_Launch(void);
+            SimpleText_Launch();
+        } else if (strcmp(name, "MacPaint") == 0) {
+            FINDER_LOG_DEBUG("FW: Launching MacPaint application\n");
+            extern void MacPaint_Launch(void);
+            MacPaint_Launch();
+        } else if (strcmp(name, "Desktop Patterns") == 0) {
+            FINDER_LOG_DEBUG("FW: Opening Desktop Patterns control panel\n");
+            extern void OpenDesktopCdev(void);
+            OpenDesktopCdev();
+        } else if (strcmp(name, "Date & Time") == 0) {
+            FINDER_LOG_DEBUG("FW: Opening Date & Time control panel\n");
+            extern void DateTimePanel_Open(void);
+            DateTimePanel_Open();
+        } else if (strcmp(name, "Sound") == 0) {
+            FINDER_LOG_DEBUG("FW: Opening Sound control panel\n");
+            extern void SoundPanel_Open(void);
+            SoundPanel_Open();
+        } else if (strcmp(name, "Mouse") == 0) {
+            FINDER_LOG_DEBUG("FW: Opening Mouse control panel\n");
+            extern void MousePanel_Open(void);
+            MousePanel_Open();
+        } else if (strcmp(name, "Keyboard") == 0) {
+            FINDER_LOG_DEBUG("FW: Opening Keyboard control panel\n");
+            extern void KeyboardPanel_Open(void);
+            KeyboardPanel_Open();
+        } else if (strcmp(name, "Control Strip") == 0) {
+            FINDER_LOG_DEBUG("FW: Toggling Control Strip palette\n");
+            extern void ControlStrip_Toggle(void);
+            ControlStrip_Toggle();
+        } else {
+            /* Generic app launch via LaunchApplication */
+            FINDER_LOG_DEBUG("FW: Launching app \"%s\" via LaunchApplication\n", name);
+            FSSpec appSpec;
+            LaunchParamBlockRec launchParams;
+            OSErr err;
+
+            appSpec.vRefNum = state->vref;
+            appSpec.parID = state->currentDir;
+            UInt8 nameLen = strlen(name);
+            if (nameLen > 63) nameLen = 63;
+            appSpec.name[0] = nameLen;
+            memcpy(&appSpec.name[1], name, nameLen);
+
+            memset(&launchParams, 0, sizeof(launchParams));
+            launchParams.launchAppSpec = &appSpec;
+            launchParams.launchPreferredSize = 512 * 1024;
+            launchParams.launchControlFlags = 0;
+
+            err = LaunchApplication(&launchParams);
+            if (err != noErr) {
+                FINDER_LOG_DEBUG("FW: Failed to launch \"%s\" (err=%d)\n", name, err);
+            }
+        }
+    } else {
+        /* Unknown document type - try to open with SimpleText as fallback */
+        FINDER_LOG_DEBUG("FW: Opening document \"%s\" with SimpleText (fallback)\n", name);
+        extern void SimpleText_Launch(void);
+        extern Boolean SimpleText_IsRunning(void);
+        extern void SimpleText_OpenFile(const char* path);
+
+        if (!SimpleText_IsRunning()) {
+            SimpleText_Launch();
+        }
+
+        char fullPath[512];
+        snprintf(fullPath, sizeof(fullPath), "/%s", name);
+        SimpleText_OpenFile(fullPath);
+    }
+}
+
+/*
+ * Open one item: a folder, an alias, or a document/application.
+ *
+ * Everything that opens something goes through here - double-click, File >
+ * Open, and an alias resolving to its target. Double-click and File > Open
+ * each had their own copy of the folder branch and the file branch, so an
+ * alias opened correctly from one and opened the alias file itself from the
+ * other; SimpleText obligingly displayed the 84 bytes of the alias record.
+ * One entry point is the only way three callers stay in agreement.
+ */
+static void FolderWindow_OpenItem(WindowPtr w, FolderWindowState* state,
+                                  const char* itemName, uint32_t itemType,
+                                  FileID itemID, Boolean isFolder)
+{
+    if (!state || !itemName) return;
+
+    /* An alias stands in for its target: resolve, then open that instead.
+     * Resolution happens once - an alias to an alias is not followed, which
+     * is also what stops a cycle of them from hanging the Finder. */
+    if (itemType == 'alis') {
+        CatEntry target;
+        if (!Finder_ResolveAlias(state->vref, itemID, &target)) {
+            FINDER_LOG_DEBUG("FW: alias '%s' could not be resolved\n", itemName);
+            return;
+        }
+        FINDER_LOG_DEBUG("FW: alias '%s' resolves to '%s'\n", itemName, target.name);
+
+        if (target.kind == kNodeDir) {
+            FolderWindow_OpenItem(w, state, target.name, target.type,
+                                  (FileID)target.id, true);
+        } else {
+            FolderWindow_OpenFileNamed(state, target.name, target.type);
+        }
+        return;
+    }
+
+    if (isFolder) {
+        extern WindowPtr FolderWindow_OpenFolder(VRefNum vref, DirID dirID,
+                                                 ConstStr255Param title);
+        Str255 pTitle;
+        size_t len = strlen(itemName);
+        if (len > 255) len = 255;
+        pTitle[0] = (unsigned char)len;
+        memcpy(&pTitle[1], itemName, len);
+
+        WindowPtr newWin = FolderWindow_OpenFolder(state->vref, (DirID)itemID, pTitle);
+        if (newWin) {
+            FINDER_LOG_DEBUG("FW: opened subfolder window (dirID=%d)\n", (int)itemID);
+            PostEvent(updateEvt, (UInt32)(uintptr_t)newWin);
+            PostEvent(updateEvt, (UInt32)(uintptr_t)w);
+        }
+        return;
+    }
+
+    FolderWindow_OpenFileNamed(state, itemName, itemType);
+}
+
 void FolderWindow_OpenSelected(WindowPtr w) {
     if (!w || !IsFolderWindow(w)) return;
 
@@ -2779,162 +2766,14 @@ void FolderWindow_OpenSelected(WindowPtr w) {
 
     short itemIndex = openIdx;
 
-    /* Check if this is a folder */
-    if (state->items[itemIndex].isFolder) {
-        /* Open folder: create new window showing the subfolder's contents */
-        extern WindowPtr FolderWindow_OpenFolder(VRefNum vref, DirID dirID, ConstStr255Param title);
-
-        /* Convert C string to Pascal string for window title */
-        Str255 pTitle;
-        size_t len = strlen(state->items[itemIndex].name);
-        if (len > 255) len = 255;
-        pTitle[0] = (unsigned char)len;
-        memcpy(&pTitle[1], state->items[itemIndex].name, len);
-
-        /* Open folder window with the subfolder's directory ID */
-        WindowPtr newWin = FolderWindow_OpenFolder(state->vref, state->items[itemIndex].fileID, pTitle);
-        if (newWin) {
-            FINDER_LOG_DEBUG("FW: opened subfolder window 0x%08x (dirID=%d)\n",
-                           (unsigned int)P2UL(newWin),
-                           (int)state->items[itemIndex].fileID);
-            /* Post update for the new window and old window */
-            PostEvent(updateEvt, (UInt32)(uintptr_t)newWin);
-            PostEvent(updateEvt, (UInt32)(uintptr_t)w);
-        }
-    } else {
-        /* Document/app: check if it's a text file */
-        Boolean isTextFile = false;
-        const char* name = state->items[itemIndex].name;
-
-        /* Check file type */
-        if (state->items[itemIndex].type == 'TEXT') {
-            isTextFile = true;
-        }
-
-        /* Check filename patterns for text files */
-        if (!isTextFile) {
-            int len = strlen(name);
-            /* Check for .txt extension */
-            if (len >= 4) {
-                const char* ext = name + len - 4;
-                if (ext[0] == '.' &&
-                    (ext[1] == 't' || ext[1] == 'T') &&
-                    (ext[2] == 'x' || ext[2] == 'X') &&
-                    (ext[3] == 't' || ext[3] == 'T')) {
-                    isTextFile = true;
-                }
-            }
-            /* Check for "readme" or "README" prefix */
-            if (!isTextFile && len >= 6) {
-                const char* prefix = name;
-                if ((prefix[0] == 'r' || prefix[0] == 'R') &&
-                    (prefix[1] == 'e' || prefix[1] == 'E') &&
-                    (prefix[2] == 'a' || prefix[2] == 'A') &&
-                    (prefix[3] == 'd' || prefix[3] == 'D') &&
-                    (prefix[4] == 'm' || prefix[4] == 'M') &&
-                    (prefix[5] == 'e' || prefix[5] == 'E')) {
-                    isTextFile = true;
-                }
-            }
-        }
-
-        if (isTextFile) {
-            FINDER_LOG_DEBUG("FW: Opening text file \"%s\" with SimpleText\n", name);
-            /* Launch SimpleText if not already running */
-            extern void SimpleText_Launch(void);
-            extern Boolean SimpleText_IsRunning(void);
-            extern void SimpleText_OpenFile(const char* path);
-
-            if (!SimpleText_IsRunning()) {
-                SimpleText_Launch();
-                FINDER_LOG_DEBUG("FW: Launched SimpleText\n");
-            }
-
-            /* Build full path to the file */
-            char fullPath[512];
-            snprintf(fullPath, sizeof(fullPath), "/%s", name);  /* Simple path for now */
-
-            /* Load file content into SimpleText window */
-            SimpleText_OpenFile(fullPath);
-            FINDER_LOG_DEBUG("FW: Opened file '%s' in SimpleText\n", name);
-        } else if (state->items[itemIndex].type == 'APPL') {
-            /* Application file */
-            if (strcmp(name, "TextEdit") == 0) {
-                FINDER_LOG_DEBUG("FW: Launching TextEdit application\n");
-                extern void TextEdit_InitApp(void);
-                TextEdit_InitApp();
-            } else if (strcmp(name, "SimpleText") == 0) {
-                FINDER_LOG_DEBUG("FW: Launching SimpleText application\n");
-                extern void SimpleText_Launch(void);
-                SimpleText_Launch();
-            } else if (strcmp(name, "MacPaint") == 0) {
-                FINDER_LOG_DEBUG("FW: Launching MacPaint application\n");
-                extern void MacPaint_Launch(void);
-                MacPaint_Launch();
-            } else if (strcmp(name, "Desktop Patterns") == 0) {
-                FINDER_LOG_DEBUG("FW: Opening Desktop Patterns control panel\n");
-                extern void OpenDesktopCdev(void);
-                OpenDesktopCdev();
-            } else if (strcmp(name, "Date & Time") == 0) {
-                FINDER_LOG_DEBUG("FW: Opening Date & Time control panel\n");
-                extern void DateTimePanel_Open(void);
-                DateTimePanel_Open();
-            } else if (strcmp(name, "Sound") == 0) {
-                FINDER_LOG_DEBUG("FW: Opening Sound control panel\n");
-                extern void SoundPanel_Open(void);
-                SoundPanel_Open();
-            } else if (strcmp(name, "Mouse") == 0) {
-                FINDER_LOG_DEBUG("FW: Opening Mouse control panel\n");
-                extern void MousePanel_Open(void);
-                MousePanel_Open();
-            } else if (strcmp(name, "Keyboard") == 0) {
-                FINDER_LOG_DEBUG("FW: Opening Keyboard control panel\n");
-                extern void KeyboardPanel_Open(void);
-                KeyboardPanel_Open();
-            } else if (strcmp(name, "Control Strip") == 0) {
-                FINDER_LOG_DEBUG("FW: Toggling Control Strip palette\n");
-                extern void ControlStrip_Toggle(void);
-                ControlStrip_Toggle();
-            } else {
-                /* Generic app launch via LaunchApplication */
-                FINDER_LOG_DEBUG("FW: Launching app \"%s\" via LaunchApplication\n", name);
-                FSSpec appSpec;
-                LaunchParamBlockRec launchParams;
-                OSErr err;
-
-                appSpec.vRefNum = state->vref;
-                appSpec.parID = state->currentDir;
-                UInt8 nameLen = strlen(name);
-                if (nameLen > 63) nameLen = 63;
-                appSpec.name[0] = nameLen;
-                memcpy(&appSpec.name[1], name, nameLen);
-
-                memset(&launchParams, 0, sizeof(launchParams));
-                launchParams.launchAppSpec = &appSpec;
-                launchParams.launchPreferredSize = 512 * 1024;
-                launchParams.launchControlFlags = 0;
-
-                err = LaunchApplication(&launchParams);
-                if (err != noErr) {
-                    FINDER_LOG_DEBUG("FW: Failed to launch \"%s\" (err=%d)\n", name, err);
-                }
-            }
-        } else {
-            /* Unknown document type - try to open with SimpleText as fallback */
-            FINDER_LOG_DEBUG("FW: Opening document \"%s\" with SimpleText (fallback)\n", name);
-            extern void SimpleText_Launch(void);
-            extern Boolean SimpleText_IsRunning(void);
-            extern void SimpleText_OpenFile(const char* path);
-
-            if (!SimpleText_IsRunning()) {
-                SimpleText_Launch();
-            }
-
-            char fullPath[512];
-            snprintf(fullPath, sizeof(fullPath), "/%s", name);
-            SimpleText_OpenFile(fullPath);
-        }
-    }
+    /* An alias stands in for what it points at, so opening one opens the
+     * target. Resolve first and carry on with the target's identity; a
+     * broken alias reports and stops rather than opening the alias file
+     * itself, which would show an empty document. */
+    FolderWindow_OpenItem(w, state, state->items[itemIndex].name,
+                          state->items[itemIndex].type,
+                          state->items[itemIndex].fileID,
+                          state->items[itemIndex].isFolder);
 
     FINDER_LOG_DEBUG("FolderWindow_OpenSelected: Opened item '%s'\n", state->items[itemIndex].name);
 }

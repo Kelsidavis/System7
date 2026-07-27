@@ -221,6 +221,13 @@ void FolderWindow_ClearSelection(WindowPtr w);
  * selection by identity, and repaints. Callers that create, remove or rename
  * files use this instead of reloading or patching items[] themselves. */
 void FolderWindow_ContentsChanged(WindowPtr w);
+
+/* Aliases, stored on the VFS - see src/Finder/finder_alias.c for why this
+ * does not go through alias_manager.c's classic File Manager calls. */
+Boolean Finder_CreateAliasFile(VRefNum vref, DirID parentDir, const char* aliasName,
+                               const CatEntry* target, FileID* outID);
+Boolean Finder_ResolveAlias(VRefNum vref, FileID aliasID, CatEntry* outTarget);
+Boolean Finder_IsAliasEntry(const CatEntry* entry);
 void FolderWindow_AddToSelectionByName(WindowPtr w, const char* name);
 void FolderWindow_SelectByName(WindowPtr w, const char* name);
 
