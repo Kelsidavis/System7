@@ -37,7 +37,7 @@ void AboutWindow_ProcessPendingCreation(void);
  * Parameters:
  *   w - Window to check and potentially close
  */
-void AboutWindow_CloseIf(WindowPtr w);
+Boolean AboutWindow_CloseIf(WindowPtr w);
 
 /*
  * AboutWindow_HandleUpdate - Handle update event for About window

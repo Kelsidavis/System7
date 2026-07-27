@@ -191,15 +191,16 @@ void GetInfo_Show(VRefNum vref, FileID fileID) {
 /*
  * GetInfo_CloseIf - Close Get Info window if it matches
  */
-void GetInfo_CloseIf(WindowPtr w) {
+Boolean GetInfo_CloseIf(WindowPtr w) {
     if (!w || w != sGetInfoWin) {
-        return;
+        return false;
     }
 
     FINDER_LOG_DEBUG("GetInfo: Closing window\n");
     DisposeWindow(sGetInfoWin);
     sGetInfoWin = NULL;
     sHasEntry = false;
+    return true;
 }
 
 /*

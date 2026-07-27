@@ -551,9 +551,18 @@ void Platform_HighlightWindowPart(WindowPtr window, short partCode, Boolean high
     /* Draw highlight feedback for window parts */
     if (!window) return;
 
-    GrafPtr savePort;
+    /* The close and zoom boxes live in the title bar, which is chrome: it sits
+     * outside the window's content port and is clipped away there, so an invert
+     * issued against &window->port never appeared on screen. Chrome is drawn in
+     * the Window Manager port, in global coordinates - the same port and space
+     * the part rectangles below are computed in. */
+    extern void GetWMgrPort(GrafPtr* port);
+    GrafPtr savePort, wmgrPort;
     GetPort(&savePort);
-    SetPort(&window->port);
+    GetWMgrPort(&wmgrPort);
+    if (wmgrPort) {
+        SetPort(wmgrPort);
+    }
 
     Rect partRect;
     Boolean hasRect = false;
@@ -578,63 +587,31 @@ void Platform_HighlightWindowPart(WindowPtr window, short partCode, Boolean high
     SetPort(savePort);
 }
 
-/* Draw close box directly to framebuffer to clean up InvertRect artifacts */
-void Platform_DrawCloseBoxDirect(WindowPtr window) {
-    if (!window || !window->goAwayFlag) return;
-
-    /* Get close box rectangle */
-    Rect closeRect;
-    Platform_GetWindowCloseBoxRect(window, &closeRect);
-
-    /* Get framebuffer directly - we need to draw outside the GWorld */
-    extern void* framebuffer;
-    extern uint32_t fb_width, fb_height, fb_pitch;
-
-    /* Fill close box area with gray50 pattern (title bar background) */
-    uint32_t* fb = (uint32_t*)framebuffer;
-    int pitch_dwords = fb_pitch / 4;
-
-    for (int y = closeRect.top; y < closeRect.bottom && y < fb_height; y++) {
-        for (int x = closeRect.left; x < closeRect.right && x < fb_width; x++) {
-            /* Use gray50 pattern for title bar - alternating black/white pixels */
-            int pattern_bit = ((x + y) & 1);
-            fb[y * pitch_dwords + x] = pattern_bit ? 0xFFFFFFFF : 0xFF000000;
-        }
-    }
-
-    /* Now draw the close box itself (white box with black border) */
-    /* Draw black border */
-    for (int x = closeRect.left; x < closeRect.right && x < fb_width; x++) {
-        if (closeRect.top < fb_height)
-            fb[closeRect.top * pitch_dwords + x] = 0xFF000000;
-        if (closeRect.bottom - 1 < fb_height)
-            fb[(closeRect.bottom - 1) * pitch_dwords + x] = 0xFF000000;
-    }
-    for (int y = closeRect.top; y < closeRect.bottom && y < fb_height; y++) {
-        if (closeRect.left < fb_width)
-            fb[y * pitch_dwords + closeRect.left] = 0xFF000000;
-        if (closeRect.right - 1 < fb_width)
-            fb[y * pitch_dwords + (closeRect.right - 1)] = 0xFF000000;
-    }
-
-    /* Fill interior with white */
-    for (int y = closeRect.top + 1; y < closeRect.bottom - 1 && y < fb_height; y++) {
-        for (int x = closeRect.left + 1; x < closeRect.right - 1 && x < fb_width; x++) {
-            fb[y * pitch_dwords + x] = 0xFFFFFFFF;
-        }
-    }
-}
 
 /* Wait functions */
 void Platform_WaitTicks(short ticks) {
     extern UInt32 TickCount(void);
     extern void ProcessModernInput(void);  /* Poll PS/2 controller for button updates */
 
+    if (ticks <= 0) return;
+
+    /* The iteration ceiling exists only to break out if TickCount() has stopped
+     * advancing; it must never be what ends an ordinary wait. The body is one
+     * ProcessModernInput(), which returns as soon as the PS/2 buffer is drained,
+     * so this loop measures around 1.4 million iterations per second - a tick is
+     * roughly 24,000 of them. The previous ceiling of 1000 total therefore
+     * expired after about 4% of a single tick, which made every call to this
+     * function a no-op wait: TrackBox's 500-iteration close-box track lasted
+     * 0.35s instead of 8s, and the menu-selection flash was over in microseconds
+     * instead of the 33ms it asks for. */
+    const UInt32 kIterationsPerTick = 24000;
+    const UInt32 kHeadroom = 20;
+    UInt32 maxIterations = (UInt32)ticks * kIterationsPerTick * kHeadroom;
+
     UInt32 start = TickCount();
     UInt32 iterations = 0;
-    const UInt32 MAX_ITERATIONS = 1000;  /* Safety timeout - 1000 iterations is ~16ms at ~60Hz */
 
-    while (TickCount() - start < ticks && iterations < MAX_ITERATIONS) {
+    while (TickCount() - start < (UInt32)ticks && iterations < maxIterations) {
         ProcessModernInput();  /* Critical: update gCurrentButtons during waits */
         iterations++;
     }

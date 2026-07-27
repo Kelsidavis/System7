@@ -581,8 +581,6 @@ void Platform_DebugPrint(const char* format, ...);
     #endif
 #endif
 
-/* Drawing functions */
-void Platform_DrawCloseBoxDirect(WindowPtr window);
 void PlatformDrawRGBABitmap(const UInt8* rgba_data, int width, int height, int dest_x, int dest_y);
 
 #ifdef __cplusplus

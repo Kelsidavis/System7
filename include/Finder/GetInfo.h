@@ -12,7 +12,7 @@
 void GetInfo_Show(VRefNum vref, FileID fileID);
 
 /* Close Get Info window if it matches */
-void GetInfo_CloseIf(WindowPtr w);
+Boolean GetInfo_CloseIf(WindowPtr w);
 
 /* Handle update event for Get Info window */
 Boolean GetInfo_HandleUpdate(WindowPtr w);

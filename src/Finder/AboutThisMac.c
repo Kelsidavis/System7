@@ -449,23 +449,16 @@ void AboutWindow_ShowOrToggle(void)
 /*
  * AboutWindow_CloseIf - Close About window if it matches
  */
-void AboutWindow_CloseIf(WindowPtr w)
+Boolean AboutWindow_CloseIf(WindowPtr w)
 {
-    FINDER_LOG_DEBUG("AboutThisMac: CloseIf ENTRY, w=0x%08x, sAboutWin=0x%08x\n",
-                     (unsigned int)P2UL(w), (unsigned int)P2UL(sAboutWin));
-
     if (!w || w != sAboutWin) {
-        FINDER_LOG_DEBUG("AboutThisMac: CloseIf - window mismatch, returning\n");
-        return;
+        return false;
     }
 
     FINDER_LOG_DEBUG("AboutThisMac: Closing window\n");
-
-    FINDER_LOG_DEBUG("AboutThisMac: About to call DisposeWindow\n");
     DisposeWindow(sAboutWin);
-    FINDER_LOG_DEBUG("AboutThisMac: DisposeWindow returned\n");
     sAboutWin = NULL;
-    FINDER_LOG_DEBUG("AboutThisMac: CloseIf EXIT\n");
+    return true;
 }
 
 /*

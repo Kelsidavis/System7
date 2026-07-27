@@ -193,26 +193,37 @@ Boolean TrackBox(WindowPtr theWindow, Point thePt, short partCode) {
      * to actually remove the cursor pixels before InvertRect draws */
     UpdateCursorDisplay();
 
-    /* Track mouse while button is down */
+    /* Track mouse while button is down.
+     *
+     * lastInPart starts false, not true: the press is inside the part by
+     * definition, so the first pass through the loop must find a change and
+     * draw the highlight. Starting it true meant the press feedback System 7
+     * gives you - the close box filling in while you hold it - was never
+     * requested at all unless you first dragged out of the box and back in.
+     * (Requested, not necessarily drawn: the invert still does not show up on
+     * screen, so something further down the highlight path is also wrong.) */
     Boolean buttonDown = true;
     Boolean inPart = true;
-    Boolean lastInPart = true;
+    Boolean lastInPart = false;
     Point currentPt = thePt;
-    int loopCount = 0;
-    /* Each iteration waits a tick, so this is a ~8s escape hatch for a button
-     * release we somehow never observe - not a limit the user should ever hit. */
-    const int MAX_TRACKING_ITERATIONS = 500;
+
+    /* Bound the track by elapsed time, not by iteration count. Nothing paces
+     * this loop at a known rate, so a count of iterations says nothing about
+     * how long the user is given to make up their mind - the same mistake the
+     * drag loop in WindowDragging.c was carrying. This is a safety stop for a
+     * button release we never observe, not a limit anyone should reach. */
+    extern UInt32 TickCount(void);
+    const UInt32 kMaxTrackTicks = 60 * 30;   /* 30 seconds */
+    const UInt32 trackStartTick = TickCount();
 
     /* Process input ONCE before checking button state to ensure gCurrentButtons
      * is up-to-date with the latest PS/2 events */
     extern void ProcessModernInput(void);
     ProcessModernInput();
 
-    while (buttonDown && loopCount < MAX_TRACKING_ITERATIONS) {
+    while (buttonDown && (TickCount() - trackStartTick) < kMaxTrackTicks) {
         /* Get current mouse position and button state */
         buttonDown = WM_IsMouseDown();
-
-        loopCount++;
 
         if (buttonDown) {
             Platform_GetMousePosition(&currentPt);
@@ -232,62 +243,33 @@ Boolean TrackBox(WindowPtr theWindow, Point thePt, short partCode) {
         Platform_WaitTicks(1);
     }
 
-    if (loopCount >= MAX_TRACKING_ITERATIONS) {
+    if (buttonDown) {
         WM_DEBUG("TrackBox: tracking timed out with the button still down");
     }
 
-    /* DON'T call Platform_HighlightWindowPart to unhighlight - it will invert again
-     * and leave a ghost on the framebuffer. Instead, just invalidate and let the
-     * window redraw cleanly from the GWorld buffer which never had the highlight.
-     *
-     * Platform_HighlightWindowPart(theWindow, partCode, false);  // SKIP THIS
-     */
-
-    /* Force immediate window AND desktop redraw to remove all ghost artifacts.
-     * This is necessary because:
-     * 1. InvertRect draws directly to framebuffer during tracking (for close box feedback)
-     * 2. Cursor is drawn to framebuffer and can move anywhere during tracking
-     * 3. With GWorld double-buffering, the offscreen buffer doesn't have these pixels
-     * 4. Cursor continues to be drawn after window redraw, leaving new ghosts
-     * Solution: Redraw window + force desktop manager to redraw background */
-    BeginUpdate(theWindow);
-
-    /* Draw window contents if this is a folder window */
-    extern Boolean IsFolderWindow(WindowPtr w);
-    extern void FolderWindow_Draw(WindowPtr w);
-    if (IsFolderWindow(theWindow)) {
-        FolderWindow_Draw(theWindow);
+    /* Undo the highlight the same way it was applied: InvertRect is its own
+     * inverse, so one more call restores whatever was underneath. This replaces
+     * a full window-and-desktop repaint followed by a hand-drawn substitute
+     * close box, which did not match the chrome the frame painter draws and
+     * left a visibly wrong box behind every cancelled close. */
+    if (lastInPart) {
+        Platform_HighlightWindowPart(theWindow, partCode, false);
     }
 
-    EndUpdate(theWindow);
-
-    /* Refresh desktop area around window to clean up cursor ghosts.
-     * Cursor can move anywhere during tracking, leaving artifacts on desktop. */
-    extern void RefreshDesktopRect(const Rect* rectToRefresh);
-    if (theWindow->strucRgn) {
-        Rect windowBounds;
-        Platform_GetRegionBounds(theWindow->strucRgn, &windowBounds);
-        /* Expand by cursor size to catch any cursor ghosts near window */
-        windowBounds.left -= 20;
-        windowBounds.top -= 20;
-        windowBounds.right += 20;
-        windowBounds.bottom += 20;
-        RefreshDesktopRect(&windowBounds);
-    }
-
-    /* Manually erase the close box area to remove InvertRect artifacts.
-     * We need to draw directly to framebuffer since the title bar chrome
-     * is outside the GWorld content buffer. */
-    if (partCode == inGoAway) {
-        extern void Platform_DrawCloseBoxDirect(WindowPtr window);
-        Platform_DrawCloseBoxDirect(theWindow);
-    }
-
-    /* Show cursor now that window/title bar has been redrawn cleanly */
+    /* The cursor was hidden at the press point and the pointer has usually
+     * moved since, so its saved background is stale. NOTE: this still leaves a
+     * small arrow-shaped remnant at the press point after a cancelled close -
+     * smaller than what the old repaint left, but not yet clean. */
+    extern void InvalidateCursor(void);
+    InvalidateCursor();
     ShowCursor();
+    UpdateCursorDisplay();
 
     /* Return true if mouse was released inside the part */
-    Boolean result = inPart;
+    /* Only a release inside the part counts. Timing out with the button still
+     * held must not be read as a click, or the safety stop becomes a way to
+     * close a window by leaning on the mouse. */
+    Boolean result = inPart && !buttonDown;
     WM_DEBUG("TrackBox: Tracking complete, result = %s", result ? "true" : "false");
     return result;
 }

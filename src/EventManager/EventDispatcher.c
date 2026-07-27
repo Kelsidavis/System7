@@ -375,12 +375,20 @@ Boolean HandleMouseDown(EventRecord* event)
         case inGoAway:
             /* Close box clicked. Option+click = close ALL windows (System 7 behavior) */
             if (whichWindow) {
-                extern void DisposeWindow(WindowPtr window);
+                extern Boolean IsFolderWindow(WindowPtr w);
+                extern OSErr CloseFinderWindow(WindowPtr w);
+
+                /* System 7 does not close on the press: TrackGoAway highlights
+                 * the box while the button is held and returns false if the
+                 * pointer is dragged out of it before release, which is the
+                 * documented way to change your mind about closing a window. */
+                if (!TrackGoAway(whichWindow, event->where)) {
+                    EVT_LOG_DEBUG("DISP: Close box released outside, window stays open\n");
+                    return true;
+                }
 
                 if (event->modifiers & optionKey) {
                     /* Option+click close box = close all Finder folder windows */
-                    extern Boolean IsFolderWindow(WindowPtr w);
-                    extern OSErr CloseFinderWindow(WindowPtr w);
                     EVT_LOG_DEBUG("DISP: Option+close = closing all folder windows\n");
                     WindowPtr w;
                     while ((w = FrontWindow()) != NULL) {
@@ -388,8 +396,12 @@ Boolean HandleMouseDown(EventRecord* event)
                         CloseFinderWindow(w);
                     }
                 } else {
-                    EVT_LOG_DEBUG("DISP: Close box clicked, disposing window %p\n", (void*)whichWindow);
-                    DisposeWindow(whichWindow);
+                    /* Not DisposeWindow: the About, Get Info and Find windows
+                     * are tracked by module-level pointers that only
+                     * CloseFinderWindow's helpers clear, and a folder window
+                     * needs CleanupFolderWindow before it goes away. */
+                    EVT_LOG_DEBUG("DISP: Close box clicked, closing window %p\n", (void*)whichWindow);
+                    CloseFinderWindow(whichWindow);
                 }
             }
             return true;

@@ -210,14 +210,15 @@ OSErr ShowFind(void) {
 /*
  * Find_CloseIf - Close Find window if it matches
  */
-void Find_CloseIf(WindowPtr w) {
+Boolean Find_CloseIf(WindowPtr w) {
     if (!w || w != sFindWin) {
-        return;
+        return false;
     }
 
     FINDER_LOG_DEBUG("Find: Closing window\n");
     DisposeWindow(sFindWin);
     sFindWin = NULL;
+    return true;
 }
 
 /*

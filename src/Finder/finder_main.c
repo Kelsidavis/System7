@@ -1217,20 +1217,18 @@ OSErr CloseFinderWindow(WindowPtr window) {
     }
 
     /* Try to close special windows first */
-    extern void AboutWindow_CloseIf(WindowPtr w);
-    extern void GetInfo_CloseIf(WindowPtr w);
-    extern void Find_CloseIf(WindowPtr w);
+    extern Boolean AboutWindow_CloseIf(WindowPtr w);
+    extern Boolean GetInfo_CloseIf(WindowPtr w);
+    extern Boolean Find_CloseIf(WindowPtr w);
     extern void CleanupFolderWindow(WindowPtr w);
     extern Boolean IsFolderWindow(WindowPtr w);
 
-    /* Check About window */
-    AboutWindow_CloseIf(window);
-
-    /* Check Get Info window */
-    GetInfo_CloseIf(window);
-
-    /* Check Find window */
-    Find_CloseIf(window);
+    /* Each of these disposes the window itself when it owns it, so the first
+     * one that claims it ends the sequence - falling through to the dispose
+     * below would free the window a second time. */
+    if (AboutWindow_CloseIf(window)) return noErr;
+    if (GetInfo_CloseIf(window))     return noErr;
+    if (Find_CloseIf(window))        return noErr;
 
     /* Check folder window */
     if (IsFolderWindow(window)) {
