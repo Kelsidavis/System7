@@ -272,6 +272,9 @@ void SelectWindow(WindowPtr theWindow);
 /* Hand activation to a window (or to NULL). The one place that knows how
  * activation moves; every front-window change routes through it. */
 void WM_SetActiveWindow(WindowPtr theWindow);
+/* Repaint a window's frame, title bar and controls. The title lives in the
+ * chrome, which the content update path does not touch. */
+void WM_RedrawWindowChrome(WindowPtr theWindow);
 /* The frontmost window with damage recorded but not yet repainted. */
 WindowPtr WM_FindWindowNeedingUpdate(void);
 /* The active window has left the window list; pass activation to the one below. */

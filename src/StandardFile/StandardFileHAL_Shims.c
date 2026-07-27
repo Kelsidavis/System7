@@ -80,35 +80,41 @@ static short gCurrentVRefNum = 0;
 static long gCurrentDirID = 0;
 static Boolean gNavigationRequested = false;
 
-/* The file list's box, in the dialog's local coordinates.
+/* The file list's box in each dialog, in local coordinates.
  *
- * One definition, used both to place the DITL item that draws the border and
- * to size the list itself. They used to be written out separately - the DITL
- * said (30,10,250,376) and the list said (30,10,280,440) - so the list was
- * both bigger than its frame and drawn over it: its erase wiped the border it
- * was supposed to sit inside. */
-#define LIST_LEFT 10
-#define LIST_TOP 30
-#define LIST_RIGHT 376
-#define LIST_BOTTOM 250
+ * One definition per dialog, used both to place the DITL item that draws the
+ * border and to size the list inside it. These were written out three times
+ * over - the Open DITL said (30,10,250,376), the Save DITL said
+ * (50,10,220,376), and the list control said (30,10,280,440) for both - so
+ * the list was the wrong size in one dialog and drawn clean over its own
+ * frame in the other. The Save dialog's list really is shorter, to leave room
+ * for the name field, so the box is a parameter rather than a constant.
+ *
+ * Rects are {top, left, bottom, right}. */
+static const Rect kOpenListBox = {30, 10, 250, 376};
+static const Rect kSaveListBox = {50, 10, 220, 376};
+
 #define INITIAL_FILE_LIST_CAPACITY 100
 
 /* Forward declarations */
 extern void SF_PopulateFileList(void);
 static void StandardFile_HAL_NavigateToFolder(const FSSpec *folderSpec);
-static OSErr StandardFile_HAL_CreateListControl(DialogPtr dialog, ListHandle *outList);
+static OSErr StandardFile_HAL_CreateListControl(DialogPtr dialog, ListHandle *outList,
+                                                const Rect *box);
 
 /*
  * StandardFile_HAL_CreateListControl - Create list control in dialog
  */
-static OSErr StandardFile_HAL_CreateListControl(DialogPtr dialog, ListHandle *outList) {
+static OSErr StandardFile_HAL_CreateListControl(DialogPtr dialog, ListHandle *outList,
+                                                const Rect *box) {
     if (!dialog || !outList) {
         return paramErr;
     }
 
     /* Inset by one so the box's own border survives the list's erase. */
-    Rect listBounds = {LIST_TOP + 1, LIST_LEFT + 1, LIST_BOTTOM - 1, LIST_RIGHT - 1};
-    Rect cellSize = {0, 0, 16, LIST_RIGHT - LIST_LEFT - 2};  /* Row height 16, full width */
+    Rect listBounds = {(short)(box->top + 1), (short)(box->left + 1),
+                       (short)(box->bottom - 1), (short)(box->right - 1)};
+    Rect cellSize = {0, 0, 16, (short)(box->right - box->left - 2)};  /* Row height 16 */
 
     ListParams params = {
         .viewRect = listBounds,
@@ -158,6 +164,16 @@ OSErr StandardFile_HAL_Init(void) {
         gHALInitialized = true;
     }
     return noErr;
+}
+
+/* Write a rectangle into a DITL item, big-endian as the format wants. */
+static void DITL_PutRect(UInt8 **p, const Rect *r)
+{
+    short v[4] = { r->top, r->left, r->bottom, r->right };
+    for (int i = 0; i < 4; i++) {
+        *(*p)++ = (UInt8)((v[i] >> 8) & 0xFF);
+        *(*p)++ = (UInt8)(v[i] & 0xFF);
+    }
 }
 
 /*
@@ -210,10 +226,7 @@ static Handle BuildOpenDITL(ConstStr255Param prompt) {
 
     /* Item 7: File list user item (the box the list sits in) */
     *p++ = 0; *p++ = 0; *p++ = 0; *p++ = 0;
-    *p++ = (UInt8)(LIST_TOP >> 8);    *p++ = (UInt8)(LIST_TOP & 0xFF);
-    *p++ = (UInt8)(LIST_LEFT >> 8);   *p++ = (UInt8)(LIST_LEFT & 0xFF);
-    *p++ = (UInt8)(LIST_BOTTOM >> 8); *p++ = (UInt8)(LIST_BOTTOM & 0xFF);
-    *p++ = (UInt8)(LIST_RIGHT >> 8);  *p++ = (UInt8)(LIST_RIGHT & 0xFF);
+    DITL_PutRect(&p, &kOpenListBox);
     *p++ = 0;              /* userItem */
     *p++ = 0;              /* no data */
 
@@ -273,7 +286,8 @@ OSErr StandardFile_HAL_CreateOpenDialog(DialogPtr *outDialog, ConstStr255Param p
     }
 
     /* Create list control in the dialog */
-    OSErr err = StandardFile_HAL_CreateListControl(*outDialog, &gFileListHandle);
+    OSErr err = StandardFile_HAL_CreateListControl(*outDialog, &gFileListHandle,
+                                                  &kOpenListBox);
     if (err != noErr) {
         DisposeDialog(*outDialog);
         *outDialog = NULL;
@@ -330,12 +344,9 @@ static Handle BuildSaveDITL(ConstStr255Param prompt, ConstStr255Param defaultNam
         *p++ = 0;
     }
 
-    /* Item 7: File list user item */
+    /* Item 7: File list user item (the box the list sits in) */
     *p++ = 0; *p++ = 0; *p++ = 0; *p++ = 0;
-    *p++ = 0; *p++ = 50;  /* top = 50 */
-    *p++ = 0; *p++ = 10;  /* left = 10 */
-    *p++ = 0; *p++ = 220; /* bottom = 220 */
-    *p++ = 1; *p++ = 120; /* right = 376 */
+    DITL_PutRect(&p, &kSaveListBox);
     *p++ = 0;              /* userItem */
     *p++ = 0;
 
@@ -412,7 +423,8 @@ OSErr StandardFile_HAL_CreateSaveDialog(DialogPtr *outDialog, ConstStr255Param p
     }
 
     /* Create list control in the dialog */
-    OSErr err = StandardFile_HAL_CreateListControl(*outDialog, &gFileListHandle);
+    OSErr err = StandardFile_HAL_CreateListControl(*outDialog, &gFileListHandle,
+                                                  &kSaveListBox);
     if (err != noErr) {
         DisposeDialog(*outDialog);
         *outDialog = NULL;
@@ -506,28 +518,23 @@ void StandardFile_HAL_RunDialog(DialogPtr dialog, short *itemHit) {
                     if (whichDialog == dialog) {
                         SF_HAL_LOG_DEBUG("StandardFile HAL: Dialog item hit: %d\n", item);
 
-                        /* Handle button clicks */
+                        /* Handle button clicks.
+                         *
+                         * The default button is reported and the loop exits;
+                         * what it means is the caller's to decide, because
+                         * only the caller knows which dialog this is.
+                         * CustomGetFile already checks whether the selection
+                         * is a folder and navigates into it, and CustomPutFile
+                         * reads the name field - neither of which this loop
+                         * can tell apart. It used to decide for them, and
+                         * required a selected row in the list before it would
+                         * report the button at all: a Save has no list
+                         * selection, so clicking Save did nothing and the
+                         * dialog sat there. */
                         if (item == sfItemOpenButton) {
-                            /* Open/Save button */
                             gSelectedIndex = SF_SelectedRow();
-                            if (gSelectedIndex >= 0 && gSelectedIndex < gFileListCount) {
-                                /* Check if it's a folder */
-                                if (gFileListArray[gSelectedIndex].isFolder) {
-                                    /* Navigate into folder - don't exit, repopulate */
-                                    SF_HAL_LOG_DEBUG("StandardFile HAL: Navigating into folder\n");
-                                    StandardFile_HAL_NavigateToFolder(&gFileListArray[gSelectedIndex].spec);
-                                    /* Signal StandardFile.c to repopulate */
-                                    *itemHit = sfItemOpenButton;  /* Will be handled by StandardFile.c */
-                                    done = true;  /* Exit loop so StandardFile can handle navigation */
-                                } else {
-                                    /* File selected - exit with Open */
-                                    *itemHit = sfItemOpenButton;
-                                    done = true;
-                                }
-                            } else {
-                                /* No valid selection - just log for now */
-                                SF_HAL_LOG_DEBUG("StandardFile HAL: Open clicked but no valid selection\n");
-                            }
+                            *itemHit = sfItemOpenButton;
+                            done = true;
                         } else if (item == sfItemCancelButton) {
                             /* Cancel button */
                             *itemHit = sfItemCancelButton;
@@ -808,6 +815,8 @@ void StandardFile_HAL_SelectFile(DialogPtr dialog, short index) {
  * StandardFile_HAL_GetSelectedFile - Get the selected file index
  */
 short StandardFile_HAL_GetSelectedFile(DialogPtr dialog) {
+    /* Ask the list rather than trusting the mirror. */
+    gSelectedIndex = SF_SelectedRow();
     SF_HAL_LOG_DEBUG("StandardFile HAL: GetSelectedFile returning %d\n", gSelectedIndex);
     return gSelectedIndex;
 }
@@ -846,18 +855,40 @@ void StandardFile_HAL_SetSaveFileName(DialogPtr dialog, ConstStr255Param name) {
  */
 void StandardFile_HAL_GetSaveFileName(DialogPtr dialog, Str255 name) {
     SF_HAL_LOG_DEBUG("StandardFile HAL: GetSaveFileName\n");
-    /* Return selected file name or default */
-    if (name) {
-        gSelectedIndex = SF_SelectedRow();
-                            if (gSelectedIndex >= 0 && gSelectedIndex < gFileListCount) {
-            BlockMove(gFileListArray[gSelectedIndex].spec.name, name,
-                     gFileListArray[gSelectedIndex].spec.name[0] + 1);
-        } else {
-            const char *defaultName = "Untitled";
-            int len = strlen(defaultName);
-            name[0] = len;
-            memcpy(name + 1, defaultName, len);
+
+    if (!name) return;
+
+    /* Read the name out of the dialog's own text field.
+     *
+     * This used to return either the selected list item's name or the literal
+     * "Untitled", and never looked at the field at all - so whatever was typed
+     * showed on screen and was then thrown away, and every save through the
+     * dialog used the default name. The field is where the name lives. */
+    if (dialog) {
+        short itemType = 0;
+        Handle itemHandle = NULL;
+        Rect itemRect;
+
+        GetDialogItem(dialog, sfItemFileNameTextEdit, &itemType, &itemHandle, &itemRect);
+        if (itemHandle) {
+            GetDialogItemText(itemHandle, name);
+            if (name[0] > 0) {
+                return;
+            }
         }
+    }
+
+    /* An empty field falls back to the selected file, then to the default,
+     * so Save never comes back with nothing to write to. */
+    gSelectedIndex = SF_SelectedRow();
+    if (gSelectedIndex >= 0 && gSelectedIndex < gFileListCount) {
+        BlockMove(gFileListArray[gSelectedIndex].spec.name, name,
+                  gFileListArray[gSelectedIndex].spec.name[0] + 1);
+    } else {
+        const char *defaultName = "Untitled";
+        int len = strlen(defaultName);
+        name[0] = (unsigned char)len;
+        memcpy(name + 1, defaultName, len);
     }
 }
 

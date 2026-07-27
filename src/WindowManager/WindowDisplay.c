@@ -614,6 +614,23 @@ void DrawNew(WindowPtr window, Boolean update) {
 
 static void DrawWindowFrame_Unclipped(WindowPtr window);
 
+/*
+ * WM_RedrawWindowChrome - repaint a window's frame, title bar and controls.
+ *
+ * The title is part of the chrome, and chrome is painted by its own path
+ * rather than through the content update region. SetWTitle used to call
+ * InvalRect and expect that to bring the new title up, which it never could:
+ * an update event repaints content, and the rectangle it invalidated was
+ * computed from portRect and so was the top of the content area rather than
+ * the title bar at all. Renaming a document left the old name on screen.
+ */
+void WM_RedrawWindowChrome(WindowPtr window)
+{
+    if (!window || !window->visible) return;
+    DrawWindowFrame(window);
+    DrawWindowControls(window);
+}
+
 /* Paint this window's chrome, limited to the pixels it actually owns. */
 static void DrawWindowFrame(WindowPtr window) {
     AutoRgnHandle chromeClip;

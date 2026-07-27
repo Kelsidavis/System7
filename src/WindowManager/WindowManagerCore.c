@@ -1185,10 +1185,8 @@ void SetWTitle(WindowPtr window, ConstStr255Param title) {
     }
     WM_LOG_DEBUG("SetWTitle: titleWidth = %d, titleHandle = %p\n", window->titleWidth, window->titleHandle);
 
-    /* Invalidate title bar area */
-    GrafPort* port = (GrafPort*)window;
-    Rect titleBar = port->portRect;
-    titleBar.bottom = titleBar.top + 20;  /* Standard title bar height */
-    extern void InvalRect(const Rect* rect);
-    InvalRect(&titleBar);
+    /* Put the new title on screen. The title bar is chrome, so it is redrawn
+     * directly - invalidating a content rectangle, which is what this used to
+     * do, could never repaint it. */
+    WM_RedrawWindowChrome(window);
 }
