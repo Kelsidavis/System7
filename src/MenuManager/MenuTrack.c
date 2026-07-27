@@ -914,6 +914,19 @@ long TrackMenu(short menuID, Point *startPt) {
         const UInt32 MENU_ARM_TICKS     = 12; /* ~200ms open before selectable */
         const UInt32 RELEASE_DEBOUNCE   = 2;  /* ~33ms of steady release */
 
+        /* Is the pointer over one of this menu's items right now? */
+        Boolean overItem = false;
+        {
+            short itemsTop = top + 2;
+            if (mousePt.h >= left && mousePt.h < left + menuWidth &&
+                mousePt.v >= itemsTop &&
+                mousePt.v < itemsTop + itemCount * lineHeight) {
+                overItem = true;
+            }
+        }
+
+        Boolean commitSelection = false;
+
         if (!buttonState) {
             if (releaseStartTick == 0) {
                 releaseStartTick = TickCount();
@@ -922,8 +935,20 @@ long TrackMenu(short menuID, Point *startPt) {
             if (!buttonWasReleased &&
                 (TickCount() - releaseStartTick) >= RELEASE_DEBOUNCE &&
                 (TickCount() - trackStartTick) >= MENU_ARM_TICKS) {
-                buttonWasReleased = true;
-                serial_puts("TrackMenu: Button released, menu armed for selection\n");
+
+                /* System 7 accepts either gesture. Pressing the title,
+                 * dragging down and releasing over an item chooses it; this
+                 * only handled the other one - click to open, click again to
+                 * choose - so a press-drag-release selected nothing and left
+                 * the menu standing open. A release anywhere but over an item
+                 * still arms the menu for that second click. */
+                if (overItem) {
+                    commitSelection = true;
+                    serial_puts("TrackMenu: Released over an item\n");
+                } else {
+                    buttonWasReleased = true;
+                    serial_puts("TrackMenu: Button released, menu armed for selection\n");
+                }
             }
         } else {
             releaseStartTick = 0;  /* button down again - restart release timing */
@@ -931,10 +956,12 @@ long TrackMenu(short menuID, Point *startPt) {
 
         /* After the menu is armed, the next press makes the selection. */
         if (buttonWasReleased && buttonState) {
-            /* User clicked again while menu is open - check what they clicked on */
             serial_puts("TrackMenu: Second click detected\n");
+            commitSelection = true;
+        }
 
-            Point clickPt = mousePt;  /* Capture click position */
+        if (commitSelection) {
+            Point clickPt = mousePt;  /* Capture the indicated position */
 
             /* Check if click is within the menu bounds */
             if (clickPt.h >= left && clickPt.h < left + menuWidth) {
