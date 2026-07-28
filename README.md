@@ -26,7 +26,7 @@ We are choosing to take "sloperating system" as a compliment. It is now the
 project's official genre. Rude? Absolutely. Accurate? ...Also yes.
 
 He booted it on real metal, it froze on nearly every machine, and he was right
-about why. So we went and fixed it — see [what got fixed](#-what-action-retro-found-and-what-we-fixed) below.
+about why. So we went and fixed it — see [what got fixed](#-what-action-retro-found--and-what-we-fixed) below.
 
 ---
 
