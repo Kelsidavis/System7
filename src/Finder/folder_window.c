@@ -153,36 +153,9 @@ void InitializeFolderContents(WindowPtr w, Boolean isTrash);
 static void GhostEraseIf(void);  /* Forward declaration for ghost system */
 
 /* Draw a simple file/folder icon */
-static void DrawFileIcon(short x, short y, Boolean isFolder)
-{
-    
-    Rect iconRect;
-    SetRect(&iconRect, x, y, x + 32, y + 32);
-
-    FINDER_LOG_DEBUG("[ICON] res=%d at(l)={%d,%d} port=0x%08x\n",
-                     isFolder ? 1 : 2, x, y, (unsigned int)P2UL(NULL));
-
-    if (isFolder) {
-        /* Draw folder shape - paint with gray then frame */
-        extern void PaintRect(const Rect* r);
-        extern void InvertRect(const Rect* r);
-        PaintRect(&iconRect);  /* Fill with black */
-        FrameRect(&iconRect);
-        /* Tab on top */
-        Rect tabRect;
-        SetRect(&tabRect, x, y - 4, x + 12, y);
-        PaintRect(&tabRect);  /* Fill with black */
-        FrameRect(&tabRect);
-    } else {
-        /* Draw document shape - just frame it (white background) */
-        FrameRect(&iconRect);
-        /* Folded corner */
-        MoveTo(x + 24, y);
-        LineTo(x + 32, y + 8);
-        LineTo(x + 24, y + 8);
-        LineTo(x + 24, y);
-    }
-}
+/* DrawFileIcon removed: it drew a placeholder folder or document shape and
+ * nothing called it. Icons come from Icon_DrawWithLabel, which resolves the
+ * real family for the node. */
 
 /* Draw folder window contents - Content Only, No Chrome */
 /* DrawFolderWindowContents() was removed: it was dead code.
@@ -1848,9 +1821,9 @@ static void FolderWindow_DrawListView(WindowPtr w, FolderWindowState* state) {
                 int fit = 0;
 
                 while (fit < labelLen) {
-                    short w = CharWidth((unsigned char)labelStr[fit]);
-                    if (used + w > avail) break;
-                    used += w;
+                    short cw = CharWidth((unsigned char)labelStr[fit]);
+                    if (used + cw > avail) break;
+                    used += cw;
                     fit++;
                 }
 

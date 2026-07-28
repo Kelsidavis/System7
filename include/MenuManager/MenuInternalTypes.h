@@ -61,6 +61,10 @@ typedef struct {
     MenuListEntry menus[1];  /* Variable length array */
 } MenuBarList;
 
+/* The Menu Manager's bar list, for code that reaches it by another route
+ * than gMenuList. Declared here, next to the type it returns. */
+MenuBarList* MenuMgr_GetMenuBarList(void);
+
 /* Menu bar drawing information */
 typedef struct {
     Rect menuBarRect;

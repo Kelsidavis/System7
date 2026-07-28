@@ -249,6 +249,14 @@ Handle GetMenuBar(void)
  * the same menus tracked correctly with the mouse, because menu tracking
  * reaches the list by a different route.
  */
+/*
+ * Declared here rather than in a header because this file defines its own
+ * MenuBarList, distinct from the one in MenuInternalTypes.h - two structs of
+ * the same name describing the same thing. Until those are reconciled a shared
+ * declaration cannot name a type both sides agree on.
+ */
+MenuBarList* MenuMgr_GetMenuBarList(void);
+
 MenuBarList* MenuMgr_GetMenuBarList(void)
 {
     if (!gMenuMgrInitialized) {

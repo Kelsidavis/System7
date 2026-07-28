@@ -115,6 +115,17 @@ ifeq ($(DEBUG_SYMBOLS),1)
 endif
 
 # Platform-independent base flags
+# Warnings are errors.
+#
+# The tree builds clean, so anything new is a regression and stops the build
+# rather than scrolling past. This exists because a Handle passed where a
+# TEHandle belonged was a warning on the GCC here and an error on the GCC a
+# contributor had, so it built for me and broke for them (issue #27).
+#
+# WERROR=0 turns it off for a bisect or a quick experiment. Do not commit with
+# it off.
+WERROR ?= -Werror
+
 COMMON_CFLAGS = -DSYS71_PROVIDE_FINDER_TOOLBOX=1 \
          -ffreestanding -fno-builtin -fno-stack-protector -nostdlib \
          -fno-pic -fno-pie \
@@ -125,6 +136,7 @@ COMMON_CFLAGS = -DSYS71_PROVIDE_FINDER_TOOLBOX=1 \
          $(OPT_FLAGS) -fno-inline -fno-optimize-sibling-calls -I./include -I./src -std=c2x \
          -Wuninitialized -U_FORTIFY_SOURCE -D_FORTIFY_SOURCE=0 \
          -Wno-multichar -Wno-pointer-sign -Wno-sign-compare \
+         $(WERROR) \
          -fno-common -fno-delete-null-pointer-checks \
          -MMD -MP
 

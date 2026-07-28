@@ -28,6 +28,10 @@ void GetMouse(Point* mouseLoc);
 void SetMousePosition(SInt16 x, SInt16 y);
 void SetMouseButtons(UInt8 buttons);
 UInt8 GetMouseButtons(void);
+
+/* Like GetMouseButtons, but reports a press that arrived and released
+ * between polls so a fast click is not lost. */
+UInt8 GetMouseButtonsLatched(void);
 Boolean Button(void);
 Boolean StillDown(void);
 Boolean WaitMouseUp(void);

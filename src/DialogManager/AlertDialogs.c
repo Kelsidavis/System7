@@ -397,9 +397,7 @@ static OSErr BuildFallbackDLOG(const BuiltInAlertSpec* spec, DialogTemplate** ou
 static OSErr BuildFallbackDITL(SInt16 pseudoId, SInt16 iconKind, Handle* outDITL)
 {
     SInt16 n;
-    unsigned char* p;
     Handle h;
-    SInt16 i;
     ConstStr255Param okText = PSTR("OK");
     ConstStr255Param cancelText = PSTR("Cancel");
     ConstStr255Param msgText = PSTR("Alert message will appear here.");

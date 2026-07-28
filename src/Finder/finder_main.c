@@ -45,7 +45,9 @@ extern QDGlobals qd;  /* QuickDraw globals from main.c */
 
 /* Global Variables */
 static Boolean gFinderInitialized = false;
-static ConstStr255Param gFinderVersion = PSTR("Macintosh Finder Version 7.1");
+/* Not const: GetFinderVersion hands out a StringPtr, which is what the
+ * Toolbox call returns. Nothing writes through it. */
+static unsigned char gFinderVersion[] = "\x1cMacintosh Finder Version 7.1";
 static MenuHandle gAppleMenu, gFileMenu, gEditMenu, gViewMenu, gLabelMenu, gSpecialMenu, gControlPanelsMenu;
 static MenuHandle gHelpMenu;
 
@@ -899,7 +901,7 @@ static OSErr HandleShutDown(void)
  * ShowErrorDialog - Display error message to user
 
  */
-OSErr ShowErrorDialog(StringPtr message, OSErr errorCode)
+OSErr ShowErrorDialog(ConstStr255Param message, OSErr errorCode)
 {
     Str255 errorText;
 

@@ -11,6 +11,11 @@
 #ifndef __QUICKDRAW_H__
 #define __QUICKDRAW_H__
 
+/* The screen port - the GrafPtr that draws straight to the framebuffer.
+ * Declared here so callers stop writing their own extern for it. */
+GrafPtr QD_GetScreenPort(void);
+void    QD_SetScreenPort(void);
+
 #include "SystemTypes.h"
 #include "QDTypes.h"
 

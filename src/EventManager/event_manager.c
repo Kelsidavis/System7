@@ -50,7 +50,8 @@ extern UInt32 TickCount(void);
  * Proc_GetNextEvent in ProcessMgr/EventIntegration.c. This was labelled the
  * "canonical implementation" and a fix to update-event delivery was written
  * here, where it could never execute (see REDRAW-004). Change both copies, and
- * confirm with: nm --defined-only build/obj/**\/*.o | grep " T GetNextEvent"
+ * confirm with: nm --defined-only on the built objects, grepping for
+ * " T GetNextEvent"
  */
 #ifndef ENABLE_PROCESS_COOP
 Boolean GetNextEvent(short eventMask, EventRecord* theEvent) {

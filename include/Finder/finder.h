@@ -193,7 +193,7 @@ Boolean AboutWindow_IsOurs(WindowPtr w);
 void AboutWindow_ProcessPendingCreation(void);
 
 /* Utility Functions */
-OSErr ShowErrorDialog(StringPtr message, OSErr errorCode);
+OSErr ShowErrorDialog(ConstStr255Param message, OSErr errorCode);
 OSErr ShowConfirmDialog(StringPtr message, Boolean *confirmed);
 
 /* Volume Mount Callback */

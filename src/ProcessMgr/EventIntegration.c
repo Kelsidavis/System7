@@ -8,6 +8,7 @@
 
 #include "SystemTypes.h"
 #include "EventManager/EventTypes.h"
+#include "EventManager/EventManager.h"   /* PostEventWithModifiers */
 #include "ProcessMgr/ProcessMgr.h"
 #include "ProcessMgr/ProcessLogging.h"
 
