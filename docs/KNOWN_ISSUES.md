@@ -4,6 +4,50 @@ This document tracks known issues, workarounds, and technical debt in the System
 
 ## Open Issues
 
+### 🐞 Desk accessories do nothing, and hang if wired up
+
+Every item on the Apple menu below About This Macintosh - Alarm Clock,
+Calculator, Chooser, Key Caps, Note Pad - does nothing at all. The menu
+selection registers and `OpenDeskAcc` runs; it is the layer below that is
+missing.
+
+**Why nothing happens.** `DA_LoadFromRegistry` in `DeskManagerCore.c`
+copies the registry entry's `type` and stops:
+
+```c
+    /* Set function pointers from interface */
+    if (entry->interface) {
+        /* Map interface functions to DA functions */
+        /* This would need to be implemented based on the specific
+           interface design */
+    }
+```
+
+So every DA is registered, found and allocated with a NULL `open` handler,
+and `OpenDeskAcc` returns without opening anything.
+
+The comment is right that the two do not line up. `DARegistryEntry` can
+supply handlers two ways - individual procs, or a `DAInterface` - and every
+built-in supplies the interface. Their shapes differ: `initialize` takes a
+`DADriverHeader` the instance path has not got, `close`/`idle`/`activate`/
+`update` return void on one side and int on the other, and `processEvent`
+and `handleMenu` take `DAEventInfo`/`DAMenuInfo` where the instance procs
+take an `EventRecord` and a menu/item pair.
+
+**Wiring it up was tried and reverted.** Adding a `DAInterface*` to the
+instance and shimming the four void/int mismatches makes `open` resolve -
+confirmed, the handler is found and called. The Calculator then hangs
+inside `Calculator_DAInitialize`: the serial log stops dead at the call and
+never returns, where a normal run keeps logging. That trades a menu item
+that does nothing for one that freezes the machine, so the tree keeps the
+former until the hang is understood.
+
+Reproduce the hang by restoring the wiring and choosing Calculator from
+the Apple menu. `Calculator_DAInitialize` allocates a `Calculator`, calls
+`Calculator_Initialize`, and stores it on `da->driverData`; the hang is
+somewhere in there and has not been narrowed further.
+
+
 ### ⚠️ GrowWindow applies the resize as well as tracking it
 
 `GrowWindow` is documented, in Inside Macintosh and in its own comment
