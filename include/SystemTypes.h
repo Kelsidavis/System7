@@ -574,7 +574,7 @@ typedef MenuInfo* MenuPtr;
 typedef struct DialogRecord {
     WindowRecord  window;
     Handle        items;
-    Handle        textH;
+    struct TERec  **textH;  /* TEHandle; TERec isn't declared yet at this point in the file */
     SInt16        editField;
     SInt16        editOpen;
     SInt16        aDefItem;
