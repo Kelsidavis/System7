@@ -68,8 +68,10 @@ void STClip_Cut(STDocument* doc)
     /* Save for undo */
     STClip_SaveUndo(doc);
 
-    /* Cut using TextEdit */
+    /* Cut using TextEdit, then hand the result to the system scrap.
+     * See STClip_Copy for why that second step is not optional. */
     TECut(doc->hTE);
+    TEToScrap();
 
     /* Mark document as modified */
     STDoc_SetDirty(doc, true);
@@ -87,15 +89,26 @@ void STClip_Copy(STDocument* doc)
         return;
     }
 
-    /* Copy using TextEdit */
+    /*
+     * Copy, then publish to the system scrap.
+     *
+     * TECopy fills TextEdit's own scrap and nothing else - that is what the
+     * Toolbox does, and TEToScrap is the call that moves it to the scrap the
+     * rest of the system can see. Without it Copy and Paste were using two
+     * different clipboards: STClip_Paste asks GetScrap how much TEXT is
+     * available, found nothing there however much had just been copied, and
+     * returned before it ever reached TEPaste. Copy appeared to work and
+     * Paste did nothing at all.
+     */
     TECopy(doc->hTE);
+    TEToScrap();
 }
 
 /* Paste text from clipboard */
 void STClip_Paste(STDocument* doc)
 {
     SInt32 scrapLen;
-    OSErr err;
+    long scrapOffset = 0;
 
     ST_Log("STClip_Paste");
 
@@ -103,9 +116,21 @@ void STClip_Paste(STDocument* doc)
         return;
     }
 
-    /* Check if there's text in the scrap */
-    err = GetScrap(NULL, 'TEXT', (long *)&scrapLen);
-    if (err != noErr || scrapLen <= 0) {
+    /*
+     * GetScrap returns the number of bytes, or a negative OSErr. The third
+     * argument is where the data starts, which it writes only when given a
+     * destination handle - and this passes NULL.
+     *
+     * Both of this file's calls read it the other way round: they took the
+     * return value for an error code and the untouched offset for a length.
+     * So the test "err == noErr && len > 0" was false exactly when the scrap
+     * did hold something, because a successful call returns the byte count
+     * rather than zero. Paste stayed disabled after every Copy, and being
+     * disabled it never reached this function at all - MenuKey does not
+     * report a dimmed item.
+     */
+    scrapLen = GetScrap(NULL, 'TEXT', &scrapOffset);
+    if (scrapLen <= 0) {
         ST_Log("No text in clipboard");
         return;
     }
@@ -123,7 +148,9 @@ void STClip_Paste(STDocument* doc)
     /* Save for undo */
     STClip_SaveUndo(doc);
 
-    /* Paste using TextEdit */
+    /* Load the system scrap into TextEdit's before pasting, the counterpart
+     * of the TEToScrap above. */
+    TEFromScrap();
     TEPaste(doc->hTE);
 
     /* Mark document as modified */
@@ -174,13 +201,10 @@ void STClip_SelectAll(STDocument* doc)
 /* Check if clipboard has text */
 Boolean STClip_HasText(void)
 {
-    SInt32 scrapLen;
-    OSErr err;
+    long scrapOffset = 0;
 
-    /* Check for TEXT in scrap */
-    err = GetScrap(NULL, 'TEXT', (long *)&scrapLen);
-
-    return (err == noErr && scrapLen > 0);
+    /* The byte count comes back as the return value; see STClip_Paste. */
+    return (GetScrap(NULL, 'TEXT', &scrapOffset) > 0);
 }
 
 /* Undo last operation (single-level) */

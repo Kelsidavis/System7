@@ -4,21 +4,6 @@ This document tracks known issues, workarounds, and technical debt in the System
 
 ## Open Issues
 
-### 🐞 Paste inserts nothing in SimpleText
-
-Select All, Copy, click elsewhere in the document, Paste - the document is
-unchanged. The whole text should have been inserted at the caret.
-
-Selection and Select All both work, and are visible now that selected text
-is no longer drawn black on black, so this is Copy or Paste rather than
-the selection they depend on. Which of the two is at fault is not
-established: it could be that Copy never reaches the scrap, or that Paste
-never reads it.
-
-Reproduce: open Read Me, click in the text, Command-A, Command-C, click
-lower in the document, Command-V.
-
-
 ### ⚠️ GrowWindow applies the resize as well as tracking it
 
 `GrowWindow` is documented, in Inside Macintosh and in its own comment
