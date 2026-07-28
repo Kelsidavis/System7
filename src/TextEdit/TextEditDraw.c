@@ -626,15 +626,16 @@ static void TE_DrawStyledSegment(TEHandle hTE, SInt32 start, SInt32 end,
     HLock(pTE->base.hText);
     pText = *pTE->base.hText;
 
-    /* Draw selection background for entire segment if needed */
+    /* Same ordering as the plain path below: measure now, invert after the
+     * text is down, so the glyphs invert with the background instead of being
+     * drawn black on black. */
+    Boolean invertAfter = false;
     if (selected) {
         SInt16 width = TE_MeasureText(hTE, start, end - start);
         SetRect(&selRect, x, y - pTE->base.fontAscent,
                 x + width, y + pTE->base.lineHeight - pTE->base.fontAscent);
         SectRect(&selRect, &pTE->base.viewRect, &selRect);
-        if (!EmptyRect(&selRect)) {
-            InvertRect(&selRect);
-        }
+        invertAfter = !EmptyRect(&selRect);
     }
 
     /* Draw text in style runs */
@@ -685,6 +686,10 @@ static void TE_DrawStyledSegment(TEHandle hTE, SInt32 start, SInt32 end,
         pos = nextPos;
     }
 
+    if (invertAfter) {
+        InvertRect(&selRect);
+    }
+
     HUnlock(pTE->base.hText);
     HUnlock((Handle)hTE);
 }
@@ -710,7 +715,17 @@ static void TE_DrawLineSegment(TEHandle hTE, SInt32 start, SInt32 end,
     HLock(pTE->base.hText);
     pText = *pTE->base.hText;
 
-    /* Draw selection background if needed */
+    /*
+     * Work out the selection rectangle now, draw the text, and invert
+     * afterwards.
+     *
+     * Inverting first turned the background black and then drew black text on
+     * it, so selecting anything made it vanish - Select All left the document
+     * a solid black block. Inverting over the drawn text flips the glyphs
+     * along with the background, which is what gives the white-on-black that
+     * System 7 shows and what "inverse" was meant to mean here.
+     */
+    Boolean invertAfter = false;
     if (selected) {
         SInt16 width = TE_MeasureText(hTE, start, end - start);
         SetRect(&selRect, x, y - pTE->base.fontAscent,
@@ -718,16 +733,16 @@ static void TE_DrawLineSegment(TEHandle hTE, SInt32 start, SInt32 end,
 
         /* Clip to view rect */
         SectRect(&selRect, &pTE->base.viewRect, &selRect);
-
-        if (!EmptyRect(&selRect)) {
-            /* Use inverse for selection (classic Mac style) */
-            InvertRect(&selRect);
-        }
+        invertAfter = !EmptyRect(&selRect);
     }
 
     /* Draw text */
     MoveTo(x, y);
     DrawText(pText, start, end - start);
+
+    if (invertAfter) {
+        InvertRect(&selRect);
+    }
 
     HUnlock(pTE->base.hText);
     HUnlock((Handle)hTE);
