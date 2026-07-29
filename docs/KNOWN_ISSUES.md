@@ -4,12 +4,11 @@ This document tracks known issues, workarounds, and technical debt in the System
 
 ## Open Issues
 
-### 🐞 Desk accessories do nothing, and hang if wired up
+### 🐞 Desk accessories do nothing, and the Calculator hangs if wired up
 
 Every item on the Apple menu below About This Macintosh - Alarm Clock,
-Calculator, Chooser, Key Caps, Note Pad - does nothing at all. The menu
-selection registers and `OpenDeskAcc` runs; it is the layer below that is
-missing.
+Calculator, Chooser, Key Caps, Note Pad - does nothing. The selection
+registers and `OpenDeskAcc` runs; the layer below it is missing.
 
 **Why nothing happens.** `DA_LoadFromRegistry` in `DeskManagerCore.c`
 copies the registry entry's `type` and stops:
@@ -23,30 +22,49 @@ copies the registry entry's `type` and stops:
     }
 ```
 
-So every DA is registered, found and allocated with a NULL `open` handler,
-and `OpenDeskAcc` returns without opening anything.
+Every DA is registered, found and allocated with a NULL `open`, so
+`OpenDeskAcc` returns having opened nothing.
 
-The comment is right that the two do not line up. `DARegistryEntry` can
-supply handlers two ways - individual procs, or a `DAInterface` - and every
-built-in supplies the interface. Their shapes differ: `initialize` takes a
-`DADriverHeader` the instance path has not got, `close`/`idle`/`activate`/
-`update` return void on one side and int on the other, and `processEvent`
-and `handleMenu` take `DAEventInfo`/`DAMenuInfo` where the instance procs
-take an `EventRecord` and a menu/item pair.
+The comment is right that the two do not line up. A `DARegistryEntry` can
+carry handlers as individual procs or as a `DAInterface`; every built-in
+uses the interface, and the shapes differ - `initialize` takes a
+`DADriverHeader` the instance path has not got, four handlers return void
+on one side and int on the other, and `processEvent`/`handleMenu` take
+`DAEventInfo`/`DAMenuInfo` where the instance procs take an `EventRecord`
+and a menu/item pair.
 
-**Wiring it up was tried and reverted.** Adding a `DAInterface*` to the
-instance and shimming the four void/int mismatches makes `open` resolve -
-confirmed, the handler is found and called. The Calculator then hangs
-inside `Calculator_DAInitialize`: the serial log stops dead at the call and
-never returns, where a normal run keeps logging. That trades a menu item
-that does nothing for one that freezes the machine, so the tree keeps the
-former until the hang is understood.
+**Wiring `open` was tried and reverted: the Calculator then hangs.** With
+a `DAInterface*` on the instance and an adapter calling
+`interface->initialize(da, NULL)`, `open` resolves and is called. The
+machine then freezes inside `Calculator_DAInitialize` - the serial log
+stops dead where a normal run keeps logging.
 
-Reproduce the hang by restoring the wiring and choosing Calculator from
-the Apple menu. `Calculator_DAInitialize` allocates a `Calculator`, calls
-`Calculator_Initialize`, and stores it on `da->driverData`; the hang is
-somewhere in there and has not been narrowed further.
+**Narrowed by bisection to `Calculator_FormatNumber`'s decimal branch.**
+Skipping `Calculator_UpdateDisplay` avoids the hang; restoring it and
+stubbing out just that branch also avoids it. The branch is:
 
+```c
+    if (floor(number->value) == number->value && fabs(number->value) < 1e10) {
+        snprintf(buffer, bufferSize, "%.0f", number->value);
+    } else {
+        snprintf(buffer, bufferSize, "%.10g", number->value);
+    }
+```
+
+**It is not the arithmetic.** Each operation was run on its own early in
+boot and all of them work: `double` add, cast to `long long`, `fabs` and
+`floor` as calls, the `< 1e10` comparison, and `snprintf("%.0f", d)` with
+the double passed through varargs. That last returns the literal `"%f"` -
+the formatter has no float conversion and its default arm emits the
+specifier verbatim - which is wrong output but harmless, and notably not a
+hang.
+
+So the arithmetic is exonerated and the remaining suspects are the buffer
+being written (`calc->display`, inside a freshly `NewPtr`ed `Calculator`)
+and the allocation itself. Note the allocator is known to hand out blocks
+that overlap live ones - see the entry above - which would fit a
+large struct being corrupted rather than a computation going wrong. That
+connection is a hypothesis, not a measurement.
 
 ### ⚠️ GrowWindow applies the resize as well as tracking it
 
