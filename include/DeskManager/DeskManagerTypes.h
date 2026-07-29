@@ -173,6 +173,9 @@ struct DeskAccessory {
     DAEditProc edit;
     DAMenuProc menu;
 
+    /* The interface this DA registered with, if it supplied one. */
+    DAInterface *interface;
+
     /* Private data */
     void *privateData;
     void *driverData;

@@ -2192,6 +2192,106 @@ static void fmt_pad(FmtSink* sink, char c, int n) {
     }
 }
 
+/*
+ * Emit a double in fixed notation.
+ *
+ * The formatter had no float conversion at all: %f and %g fell through to the
+ * default arm, which emits the specifier verbatim, so every one of the
+ * twenty-odd float formats in the tree printed the literal text "%f" or "%g".
+ * The Calculator's display is built entirely from these.
+ *
+ * Fixed notation only, which is what %f asks for and close enough for %g at
+ * the magnitudes this system deals in - %g trims trailing zeros afterwards.
+ * No exponent form: a value too large to write out is a number this build has
+ * no business displaying, and printing it long is better than printing it
+ * wrong.
+ */
+static void fmt_double(FmtSink* sink, double v, int precision, int width,
+                       int leftAlign, int zeroPad, int trimZeros)
+{
+    char body[352];
+    int  len = 0;
+    int  neg = 0;
+    int  i;
+
+    if (precision < 0) precision = 6;
+    if (precision > 17) precision = 17;   /* past the useful range of a double */
+
+    /* NaN and the infinities, tested without <math.h> */
+    if (v != v) {
+        const char* t = "nan";
+        while (*t) body[len++] = *t++;
+        goto emit;
+    }
+    if (v > 1.7976931348623157e308 || v < -1.7976931348623157e308) {
+        const char* t = (v < 0) ? "-inf" : "inf";
+        while (*t) body[len++] = *t++;
+        goto emit;
+    }
+
+    if (v < 0.0) { neg = 1; v = -v; }
+
+    /* Round at the requested precision before splitting, so 0.999 at one
+     * decimal comes out 1.0 rather than 0.9. */
+    {
+        double half = 0.5;
+        for (i = 0; i < precision; i++) half /= 10.0;
+        v += half;
+    }
+
+    /* Integer part. Anything beyond a long long is emitted as its double
+     * approximation digit by digit rather than truncated. */
+    {
+        char ipbuf[336];
+        int  iplen = 0;
+        double ip;
+
+        for (ip = v; ip >= 1.0; ip /= 10.0) { }          /* count magnitude */
+        if (v < 1.0) {
+            ipbuf[iplen++] = '0';
+        } else {
+            double scale = 1.0;
+            int digits = 0;
+            while (scale * 10.0 <= v) { scale *= 10.0; digits++; }
+            for (i = 0; i <= digits && iplen < (int)sizeof(ipbuf); i++) {
+                int d = (int)(v / scale);
+                if (d > 9) d = 9;                        /* rounding slop */
+                ipbuf[iplen++] = (char)('0' + d);
+                v -= (double)d * scale;
+                scale /= 10.0;
+            }
+        }
+        for (i = 0; i < iplen && len < (int)sizeof(body); i++) body[len++] = ipbuf[i];
+    }
+
+    if (precision > 0) {
+        body[len++] = '.';
+        for (i = 0; i < precision && len < (int)sizeof(body); i++) {
+            int d;
+            v *= 10.0;
+            d = (int)v;
+            if (d < 0) d = 0;
+            if (d > 9) d = 9;
+            body[len++] = (char)('0' + d);
+            v -= (double)d;
+        }
+        if (trimZeros) {
+            while (len > 0 && body[len - 1] == '0') len--;
+            if (len > 0 && body[len - 1] == '.') len--;
+        }
+    }
+
+emit:
+    {
+        int total = len + (neg ? 1 : 0);
+        if (!leftAlign && !zeroPad && width > total) fmt_pad(sink, ' ', width - total);
+        if (neg) fmt_emit(sink, '-');
+        if (!leftAlign && zeroPad && width > total) fmt_pad(sink, '0', width - total);
+        for (i = 0; i < len; i++) fmt_emit(sink, body[i]);
+        if (leftAlign && width > total) fmt_pad(sink, ' ', width - total);
+    }
+}
+
 /* Format an already-signed-adjusted magnitude into digits, most significant
  * first, and emit it with the requested padding. */
 static void fmt_number(FmtSink* sink, unsigned long long value, unsigned base,
@@ -2388,6 +2488,25 @@ static int vsnprintf(char* str, size_t size, const char* format, va_list args) {
                 fmt_number(&sink, (unsigned long long)(uintptr_t)ptr, 16, 0,
                            "0x", width, precision, leftAlign, zeroPad, 0);
             }
+            break;
+        }
+        case 'f':
+        case 'F': {
+            double d = va_arg(args, double);
+            fmt_double(&sink, d, (precision < 0) ? 6 : precision,
+                       width, leftAlign, zeroPad, 0);
+            break;
+        }
+        case 'g':
+        case 'G':
+        case 'e':
+        case 'E': {
+            /* Fixed notation for all of them, with %g's trailing zeros
+             * trimmed. %e's exponent form is not produced - see fmt_double. */
+            double d = va_arg(args, double);
+            int prec = (precision < 0) ? 6 : precision;
+            int trim = (conv == 'g' || conv == 'G');
+            fmt_double(&sink, d, prec, width, leftAlign, zeroPad, trim);
             break;
         }
         case '%':

@@ -497,6 +497,54 @@ static void DA_FreeInstance(DeskAccessory *da)
 /*
  * Load DA from registry
  */
+/*
+ * Adapters from DAInterface to the per-instance handlers.
+ *
+ * A desk accessory supplies either the individual procs on its registry entry
+ * or a DAInterface, and every built-in supplies the interface. The two do not
+ * line up exactly - initialize takes a driver header the instance path has not
+ * got, and four of them return void here and int there - which is why the
+ * mapping below used to be an empty "this would need to be implemented" and
+ * every DA came out with a NULL open handler.
+ *
+ * processEvent and handleMenu take DAEventInfo and DAMenuInfo where the
+ * instance procs take an EventRecord and a menu/item pair. Those need real
+ * conversion rather than a shim and are left unwired.
+ */
+static int DA_OpenViaInterface(DeskAccessory *da)
+{
+    if (!da || !da->interface || !da->interface->initialize) return DESK_ERR_NONE;
+    return da->interface->initialize(da, NULL);   /* built-ins ignore the header */
+}
+
+static void DA_CloseViaInterface(DeskAccessory *da)
+{
+    if (da && da->interface && da->interface->terminate) {
+        (void)da->interface->terminate(da);
+    }
+}
+
+static void DA_IdleViaInterface(DeskAccessory *da)
+{
+    if (da && da->interface && da->interface->idle) {
+        (void)da->interface->idle(da);
+    }
+}
+
+static void DA_ActivateViaInterface(DeskAccessory *da, Boolean active)
+{
+    if (da && da->interface && da->interface->activate) {
+        (void)da->interface->activate(da, active);
+    }
+}
+
+static void DA_UpdateViaInterface(DeskAccessory *da)
+{
+    if (da && da->interface && da->interface->update) {
+        (void)da->interface->update(da);
+    }
+}
+
 static int DA_LoadFromRegistry(DeskAccessory *da, const char *name)
 {
     DARegistryEntry *entry = DA_FindRegistryEntry(name);
@@ -507,11 +555,25 @@ static int DA_LoadFromRegistry(DeskAccessory *da, const char *name)
     /* Set DA properties from registry */
     da->type = entry->type;
 
-    /* Set function pointers from interface */
+    /* Whatever the entry names directly wins; it is the more specific. */
+    da->open     = entry->open;
+    da->close    = entry->close;
+    da->event    = entry->event;
+    da->idle     = entry->idle;
+    da->activate = entry->activate;
+    da->update   = entry->update;
+    da->edit     = entry->edit;
+    da->menu     = entry->menu;
+
+    /* Otherwise go through the interface, if it supplied one. */
+    da->interface = entry->interface;
     if (entry->interface) {
-        /* Map interface functions to DA functions */
-        /* This would need to be implemented based on the specific
-           interface design */
+        if (!da->open)     da->open     = DA_OpenViaInterface;
+        if (!da->close)    da->close    = DA_CloseViaInterface;
+        if (!da->idle)     da->idle     = DA_IdleViaInterface;
+        if (!da->activate) da->activate = DA_ActivateViaInterface;
+        if (!da->update)   da->update   = DA_UpdateViaInterface;
+        if (!da->edit)     da->edit     = entry->interface->doEdit;
     }
 
     return DESK_ERR_NONE;

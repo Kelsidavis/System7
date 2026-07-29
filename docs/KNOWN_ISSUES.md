@@ -4,67 +4,22 @@ This document tracks known issues, workarounds, and technical debt in the System
 
 ## Open Issues
 
-### 🐞 Desk accessories do nothing, and the Calculator hangs if wired up
+### ⚠️ Desk accessories initialise but never show a window
 
-Every item on the Apple menu below About This Macintosh - Alarm Clock,
-Calculator, Chooser, Key Caps, Note Pad - does nothing. The selection
-registers and `OpenDeskAcc` runs; the layer below it is missing.
+Choosing Alarm Clock, Calculator, Chooser, Key Caps or Note Pad from the
+Apple menu now runs the accessory's initialiser without hanging, and then
+nothing appears. The DA is allocated, its handlers are attached and its
+data is set up; no window is created or shown.
 
-**Why nothing happens.** `DA_LoadFromRegistry` in `DeskManagerCore.c`
-copies the registry entry's `type` and stops:
+Two things that used to be wrong here are fixed. `DA_LoadFromRegistry` now
+attaches the handlers from the registry entry's `DAInterface` instead of
+leaving them NULL, and the missing float conversion that made the
+Calculator freeze during initialisation is gone.
 
-```c
-    /* Set function pointers from interface */
-    if (entry->interface) {
-        /* Map interface functions to DA functions */
-        /* This would need to be implemented based on the specific
-           interface design */
-    }
-```
-
-Every DA is registered, found and allocated with a NULL `open`, so
-`OpenDeskAcc` returns having opened nothing.
-
-The comment is right that the two do not line up. A `DARegistryEntry` can
-carry handlers as individual procs or as a `DAInterface`; every built-in
-uses the interface, and the shapes differ - `initialize` takes a
-`DADriverHeader` the instance path has not got, four handlers return void
-on one side and int on the other, and `processEvent`/`handleMenu` take
-`DAEventInfo`/`DAMenuInfo` where the instance procs take an `EventRecord`
-and a menu/item pair.
-
-**Wiring `open` was tried and reverted: the Calculator then hangs.** With
-a `DAInterface*` on the instance and an adapter calling
-`interface->initialize(da, NULL)`, `open` resolves and is called. The
-machine then freezes inside `Calculator_DAInitialize` - the serial log
-stops dead where a normal run keeps logging.
-
-**Narrowed by bisection to `Calculator_FormatNumber`'s decimal branch.**
-Skipping `Calculator_UpdateDisplay` avoids the hang; restoring it and
-stubbing out just that branch also avoids it. The branch is:
-
-```c
-    if (floor(number->value) == number->value && fabs(number->value) < 1e10) {
-        snprintf(buffer, bufferSize, "%.0f", number->value);
-    } else {
-        snprintf(buffer, bufferSize, "%.10g", number->value);
-    }
-```
-
-**It is not the arithmetic.** Each operation was run on its own early in
-boot and all of them work: `double` add, cast to `long long`, `fabs` and
-`floor` as calls, the `< 1e10` comparison, and `snprintf("%.0f", d)` with
-the double passed through varargs. That last returns the literal `"%f"` -
-the formatter has no float conversion and its default arm emits the
-specifier verbatim - which is wrong output but harmless, and notably not a
-hang.
-
-So the arithmetic is exonerated and the remaining suspects are the buffer
-being written (`calc->display`, inside a freshly `NewPtr`ed `Calculator`)
-and the allocation itself. Note the allocator is known to hand out blocks
-that overlap live ones - see the entry above - which would fit a
-large struct being corrupted rather than a computation going wrong. That
-connection is a hypothesis, not a measurement.
+`processEvent` and `handleMenu` are still unwired: they take `DAEventInfo`
+and `DAMenuInfo` where the instance procs take an `EventRecord` and a
+menu/item pair, which needs real conversion rather than the shims the other
+four got. A DA that showed a window would not yet receive events.
 
 ### ⚠️ GrowWindow applies the resize as well as tracking it
 
