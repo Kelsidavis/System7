@@ -1,0 +1,12 @@
+# PowerPC platform removed in efi-rework
+
+The PowerPC platform sources were removed from the active codebase in the
+efi-rework branch. This file is a marker indicating that deletion and the
+reasoning:
+
+- The project is consolidating on EFI/UEFI boot and 64-bit-only targets.
+- PowerPC is no longer supported and its sources were removed to simplify
+  the build and maintenance surface.
+
+If you need to recover the original PowerPC sources, switch to the branch or
+commit where they still exist (main branch prior to the efi-rework changes).
