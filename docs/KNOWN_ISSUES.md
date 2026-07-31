@@ -31,14 +31,42 @@ invalid-opcode exception. That was the allocator handing out memory
 already in use, fixed below. All five now open with their tables intact
 and a dispatched click returns normally.
 
-**What is left.** None of this is driven by the real event loop yet. The
-above was measured by calling `OpenDeskAcc` and `da->event` directly from
-a probe; what has *not* been shown is the Apple menu opening an accessory,
-`SystemClick` routing a real mouse event to it, or anything being drawn
-in the window that appears. `SystemMenu` still has "would need to map item
-to DA name" where the item-to-accessory lookup belongs, and routes only to
-the already-active DA. So the pieces are in place and connected to each
-other, but not yet to the user.
+Click routing reaches them now. `FindWindow` had a bare
+`/* TODO: Implement system window checking when needed */` where the
+`inSysWindow` test belongs, so it never returned that part and a click on
+an accessory went to whoever handles document content. Three things were
+needed: `DA_CreateWindow` stamps the window with the negated refNum of its
+DA, since `NewWindow` marks everything `userKind`; `FindWindow` reports a
+negative `windowKind` as `inSysWindow`; and `SystemClick` now makes the
+part decision itself, because `inSysWindow` deliberately says nothing
+about which part was hit. Without that last piece a click on an
+accessory's title bar would reach it as content and its window could
+never be moved or closed.
+
+Driving a click through the real chain - `FindWindow`, `inSysWindow`,
+`SystemClick` - lands it in the accessory, with the first click on an
+inactive one activating rather than being passed on:
+
+```
+DAPROBE: FindWindow -> inSysWindow
+DAPROBE: hit window is the DA's
+DAPROBE: hitTest -> wInContent
+DAPROBE: SystemClick #1 (activate)   ->  DA is active
+DAPROBE: SystemClick #2 (deliver)    ->  returned
+```
+
+**What is left.** Two things, both unproven rather than known broken.
+Nothing has been drawn in an accessory's window - `CalcDA_Draw` and its
+counterparts run, but no one has looked at a screenshot to see whether
+what lands there is right. And drag and close are wired but untested:
+both track the mouse, so a probe with no user to release the button
+cannot exercise them.
+
+Separately, `SystemMenu` in DeskManagerCore still has "would need to map
+item to DA name" where an item-to-accessory lookup belongs, and routes
+only to the already-active DA. The Apple menu does not go through it -
+`MenuCommands.c` resolves the item name and calls `OpenDeskAcc` directly -
+so this is a dead path rather than a hole in the menu.
 
 ### ⚠️ GrowWindow applies the resize as well as tracking it
 

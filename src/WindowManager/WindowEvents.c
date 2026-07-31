@@ -82,6 +82,17 @@ short FindWindow(Point thePoint, WindowPtr* theWindow) {
             if (Platform_PtInRgn(thePoint, current->strucRgn)) {
                 *theWindow = current;
 
+                /* A negative windowKind is a system window - a desk accessory's,
+                 * carrying the negated refNum of the DA that owns it. Inside
+                 * Macintosh has FindWindow report the whole window as
+                 * inSysWindow and leave the part to SystemClick, which is what
+                 * lets an accessory decide for itself what a click on its title
+                 * bar or close box means. The caller routes it there. */
+                if (current->windowKind < 0) {
+                    WM_DEBUG("FindWindow: Hit system (desk accessory) window");
+                    return inSysWindow;
+                }
+
                 /* Determine which part of the window was hit */
                 short hitResult = Platform_WindowHitTest(current, thePoint);
                 if (hitResult != wNoHit) {
@@ -118,9 +129,6 @@ short FindWindow(Point thePoint, WindowPtr* theWindow) {
         }
         current = current->nextWindow;
     }
-
-    /* Check if it's a system window */
-    /* TODO: Implement system window checking when needed */
 
     /* Not in any window - hit desktop */
     WM_DEBUG("FindWindow: Hit desktop");

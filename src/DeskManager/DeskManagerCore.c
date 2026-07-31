@@ -202,24 +202,61 @@ Boolean SystemEvent(const EventRecord *event)
  */
 void SystemClick(const EventRecord *event, WindowRecord *window)
 {
-    if (!g_deskMgrInitialized || !event) {
+    if (!g_deskMgrInitialized || !event || !window) {
         return;
     }
 
     /* Find DA that owns this window */
     DeskAccessory *da = g_deskMgr.firstDA;
-    while (da) {
-        if (da->window == window) {
-            /* Set as active DA */
-            DA_SetActive(da);
+    while (da && da->window != window) {
+        da = da->next;
+    }
+    if (!da) {
+        return;
+    }
 
-            /* Send event to DA */
+    /*
+     * FindWindow reports a system window as inSysWindow whole, without saying
+     * which part was hit, so the part decision belongs here. Without it a
+     * click anywhere on an accessory - title bar included - would go straight
+     * through to the accessory as content, and its window could never be
+     * moved or closed.
+     */
+    extern short Platform_WindowHitTest(WindowPtr window, Point pt);
+    extern void DragWindow(WindowPtr theWindow, Point startPt, const Rect* boundsRect);
+    extern Boolean TrackGoAway(WindowPtr theWindow, Point thePt);
+    extern void SelectWindow(WindowPtr theWindow);
+    extern QDGlobals qd;
+
+    short part = Platform_WindowHitTest(window, event->where);
+
+    switch (part) {
+        case wInGoAway:
+            if (TrackGoAway(window, event->where)) {
+                CloseDeskAcc(da->refNum);
+            }
+            return;
+
+        case wInDrag:
+            SelectWindow(window);
+            DA_SetActive(da);
+            DragWindow(window, event->where, &qd.screenBits.bounds);
+            return;
+
+        case wInContent:
+        default:
+            /* Clicking an inactive accessory activates it; the click that does
+             * so is not passed on, which is what the Finder does for its own
+             * windows and what Inside Macintosh describes. */
+            if (g_deskMgr.activeDA != da) {
+                SelectWindow(window);
+                DA_SetActive(da);
+                return;
+            }
             if (da->event) {
                 da->event(da, event);
             }
             return;
-        }
-        da = da->next;
     }
 }
 

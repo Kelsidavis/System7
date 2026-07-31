@@ -133,6 +133,13 @@ int DA_CreateWindow(DeskAccessory *da, const DAWindowAttr *attr)
         return DESK_ERR_NO_MEMORY;
     }
 
+    /* NewWindow stamps userKind, which makes this look like a document window:
+     * FindWindow would hand clicks to whoever owns document content, and the
+     * accessory would never see them. A system window carries the negated
+     * refNum of its driver, which is what FindWindow tests for and what
+     * SystemClick uses to find its way back to this DA. */
+    da->window->windowKind = (SInt16)(-(da->refNum));
+
     /* NewWindow's visible flag draws the frame; the DA still needs the port set
      * so whatever its initialiser draws next lands in the right place. */
     if (attr->visible) {
