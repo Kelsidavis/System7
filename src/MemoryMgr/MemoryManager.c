@@ -1403,6 +1403,11 @@ u32 CompactMem(u32 cbNeeded) {
     // MEMORY_LOG_DEBUG("[CompactMem] Starting heap walk from %p to %p\n", scan, z->limit);
     int block_count = 0;
 
+    /* Set when the walk gives up partway. Everything from that point to the
+     * zone limit is then of unknown shape, and in particular is not known to
+     * be free - see the trailing block below. */
+    bool walk_aborted = false;
+
     while (scan < z->limit) {
         BlockHeader* b = (BlockHeader*)scan;
         block_count++;
@@ -1415,6 +1420,7 @@ u32 CompactMem(u32 cbNeeded) {
         if (b->size == 0 || b->size > (u32)(z->limit - scan)) {
             // MEMORY_LOG_DEBUG("[CompactMem] ERROR: corrupted block at %p: size=%u (remaining=%u)\n",
             //              b, b->size, (u32)(z->limit - scan));
+            walk_aborted = true;
             break;
         }
 
@@ -1481,9 +1487,22 @@ u32 CompactMem(u32 cbNeeded) {
         scan = dest;
     }
 
-    /* Create trailing free block if needed */
-    if (dest < z->limit) {
-        u32 remaining = z->limit - dest;
+    /*
+     * Create trailing free block if needed.
+     *
+     * Only as far as the walk actually got. When the walk aborts on a
+     * corrupted header, everything from that point up is unexamined - and it
+     * is mostly live. Claiming it to z->limit anyway declared whole megabytes
+     * free with allocations sitting inside them: one boot freed
+     * [0x8413D8,0x964D00) as a single 1.19MB block, a later request was
+     * carved out of it, and the caller was handed memory another live object
+     * was already using. That is the "allocator hands out memory that is
+     * already in use" fault, and this is where it came from. Between dest and
+     * scan is genuine compaction slack and is still safe to reclaim.
+     */
+    u8* tail_limit = walk_aborted ? scan : z->limit;
+    if (dest < tail_limit) {
+        u32 remaining = tail_limit - dest;
         /* CRITICAL: Align remaining DOWN to avoid exceeding zone limit! */
         u32 aligned_remaining = remaining & ~(ALIGN - 1);
         if (aligned_remaining >= MIN_BLOCK_SIZE) {

@@ -4,7 +4,7 @@ This document tracks known issues, workarounds, and technical debt in the System
 
 ## Open Issues
 
-### ⚠️ Desk accessories open with a window, then lose their handler table
+### ⚠️ Desk accessories open and keep their handlers, but are not driven yet
 
 Calculator, Alarm Clock, Key Caps and Chooser now each open a real,
 visible window with a content region, and their `processEvent` and
@@ -23,31 +23,22 @@ coordinates while `where` stays global - every built-in hit-tests with
 `v`/`h`, so copying `where` into it would put every click off by the
 window origin. And `PurgeMem` no longer hangs the machine (below).
 
-**What is left.** Instrumenting `OpenDeskAcc` across all five accessories
-shows the handler table correct on each one as it opens, and the
-Calculator's wrong by the time the last one has finished:
+The struct corruption that used to follow is gone. Opening all five in
+sequence used to overwrite the Calculator's `DeskAccessory` - handlers
+right as it opened, wrong four opens later, `DA_GetByName` returning NULL
+for it, and a dispatched click jumping to the struct itself for an
+invalid-opcode exception. That was the allocator handing out memory
+already in use, fixed below. All five now open with their tables intact
+and a dispatched click returns normally.
 
-```
-DAPROBE: opening Calculator
-DAPROBE:   da=0x008AF6E8..+120 win=0x0081AFD0 eventOK=1 menuOK=1
-...
-DAPROBE: opening Note Pad
-DAPROBE: byName=0 calc=1 eventOK=0        <- same struct, after four more opens
-```
-
-`DA_GetByName("Calculator")` returns NULL at that point while
-`DA_GetByRefNum` still finds it, so the name field is clobbered too: this
-is the struct being written over, not a list bug. Dispatching a click to
-it jumps to whatever the `event` slot now holds - one run put `eip` at
-`0x008AF6E8`, the address of the struct itself, and took an invalid-opcode
-exception.
-
-The DA structs do not overlap each other (they are 120 bytes at
-`0x8AF6E8`, `0x841358`, `0x8507F8`, `0x8976B8`), so this is a later
-allocation landing inside a live one. That is the allocator issue recorded
-below, and opening desk accessories is a much shorter reproduction of it
-than the document-then-Find-box sequence in that entry. Nothing here will
-hold together until that is fixed.
+**What is left.** None of this is driven by the real event loop yet. The
+above was measured by calling `OpenDeskAcc` and `da->event` directly from
+a probe; what has *not* been shown is the Apple menu opening an accessory,
+`SystemClick` routing a real mouse event to it, or anything being drawn
+in the window that appears. `SystemMenu` still has "would need to map item
+to DA name" where the item-to-accessory lookup belongs, and routes only to
+the already-active DA. So the pieces are in place and connected to each
+other, but not yet to the user.
 
 ### ⚠️ GrowWindow applies the resize as well as tracking it
 
@@ -150,7 +141,41 @@ back empty from the mounted volume when the image says otherwise, which is
 the part still unexplained.
 
 
-### 🐞 The allocator hands out memory that is already in use
+### ✅ The allocator hands out memory that is already in use — FIXED
+
+`CompactMem` aborts its heap walk when it meets a corrupted block header, and
+then fell straight through into the code that creates the trailing free
+block, which claimed everything from `dest` to `z->limit`. Past the abort
+point nothing had been examined, and most of it was live. The result was
+whole megabytes declared free with allocations sitting inside them.
+
+Caught by arming a word that must not change - a desk accessory's `event`
+handler - and reporting the first allocation that altered it:
+
+```
+[AUDIT]  CompactMem ABORT at scan=0x008413D8 size=0x0 dest=0x008413D8 limit=0x00964D00
+[AUDIT]  CompactMem TAIL  dest=0x008413D8 size=0x00123928   <- 1.19MB, live blocks inside
+[CANARY] BROKEN in NewPtr now=0x00000000 blk=0x00897BD0 size=0x00054230
+```
+
+`0x897BD0 + 0x54230` spans `0x8AF488`, the armed word. The last allocation
+is the Chooser window's 397x217x4 offscreen buffer - the same "window's
+pixel buffer" this entry always named - carved out of a tail that had
+swallowed the Calculator's live `DeskAccessory`.
+
+The fix is to bound the trailing block by how far the walk actually got:
+`tail_limit = walk_aborted ? scan : z->limit`. The span between `dest` and
+`scan` is genuine compaction slack and is still reclaimed. With it in
+place, all five accessories open with their handler tables intact,
+`DA_GetByName` finds them again, and a dispatched click returns instead of
+executing the struct it landed on.
+
+The six hypotheses below were all correctly ruled out; the fault was in
+`CompactMem`, which this entry had listed as not yet audited. What creates
+the zeroed header that starts the abort is still unknown - it is real, and
+`PurgeMem` used to spin on it forever - but it no longer costs live memory.
+
+### 🐞 (historical) The allocator hands out memory that is already in use
 
 Reproducible on every boot that opens a document and then the Find box:
 31 blocks are carved out of the middle of a block that is still live. The
