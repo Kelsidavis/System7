@@ -508,8 +508,9 @@ static void DA_FreeInstance(DeskAccessory *da)
  * every DA came out with a NULL open handler.
  *
  * processEvent and handleMenu take DAEventInfo and DAMenuInfo where the
- * instance procs take an EventRecord and a menu/item pair. Those need real
- * conversion rather than a shim and are left unwired.
+ * instance procs take an EventRecord and a menu/item pair, so those two get a
+ * conversion rather than a cast. See DA_EventViaInterface for the part of it
+ * that is not a field copy.
  */
 static int DA_OpenViaInterface(DeskAccessory *da)
 {
@@ -545,6 +546,61 @@ static void DA_UpdateViaInterface(DeskAccessory *da)
     }
 }
 
+/*
+ * DAEventInfo carries the same five fields an EventRecord does, plus a separate
+ * v/h pair. The pair is not a copy of `where`: every built-in hit-tests with it
+ * against its own content - CalcDA_HitTest takes button coordinates, KeyCaps
+ * and Chooser build a Point from it for their click handlers - so it holds the
+ * point in the DA window's local space while `where` stays global. Copying
+ * `where` into it would put every click in the wrong place, off by the window
+ * origin, which is why this needed more than a cast.
+ *
+ * GlobalToLocalWindow works off the window's contRgn rather than the current
+ * port, so no SetPort dance is needed here.
+ */
+static int DA_EventViaInterface(DeskAccessory *da, const EventRecord *event)
+{
+    if (!da || !event) {
+        return DESK_ERR_INVALID_PARAM;
+    }
+    if (!da->interface || !da->interface->processEvent) {
+        return DESK_ERR_NONE;
+    }
+
+    Point local = event->where;
+    if (da->window) {
+        extern void GlobalToLocalWindow(WindowPtr window, Point *pt);
+        GlobalToLocalWindow(da->window, &local);
+    }
+
+    DAEventInfo info;
+    info.what      = event->what;
+    info.message   = event->message;
+    info.when      = event->when;
+    info.where     = event->where;   /* global, as the caller supplied it */
+    info.modifiers = event->modifiers;
+    info.v         = local.v;
+    info.h         = local.h;
+
+    return da->interface->processEvent(da, &info);
+}
+
+static int DA_MenuViaInterface(DeskAccessory *da, SInt16 menuID, SInt16 itemID)
+{
+    if (!da) {
+        return DESK_ERR_INVALID_PARAM;
+    }
+    if (!da->interface || !da->interface->handleMenu) {
+        return DESK_ERR_NONE;
+    }
+
+    DAMenuInfo info;
+    info.menuID = menuID;
+    info.itemID = itemID;
+
+    return da->interface->handleMenu(da, &info);
+}
+
 static int DA_LoadFromRegistry(DeskAccessory *da, const char *name)
 {
     DARegistryEntry *entry = DA_FindRegistryEntry(name);
@@ -574,6 +630,8 @@ static int DA_LoadFromRegistry(DeskAccessory *da, const char *name)
         if (!da->activate) da->activate = DA_ActivateViaInterface;
         if (!da->update)   da->update   = DA_UpdateViaInterface;
         if (!da->edit)     da->edit     = entry->interface->doEdit;
+        if (!da->event)    da->event    = DA_EventViaInterface;
+        if (!da->menu)     da->menu     = DA_MenuViaInterface;
     }
 
     return DESK_ERR_NONE;

@@ -1512,6 +1512,17 @@ void PurgeMem(u32 cbNeeded) {
     while (scan < z->limit) {
         BlockHeader* b = (BlockHeader*)scan;
 
+        /* This walk steps by b->size, so a zero size never advances it and the
+         * loop spins with interrupts enabled and nothing on the serial port.
+         * The heap does reach that state: opening any desk accessory arrives
+         * here with a fully zeroed header partway up the zone, and the machine
+         * stops dead. CompactMem's walk, called from the line below this one,
+         * has carried the same guard all along - this one was just missing it.
+         */
+        if (b->size == 0 || b->size > (u32)(z->limit - scan)) {
+            break;
+        }
+
         if ((b->flags & BF_HANDLE) &&
             (b->flags & BF_PURGEABLE) &&
             !(b->flags & BF_LOCKED)) {
@@ -1536,7 +1547,15 @@ void PurgeMem(u32 cbNeeded) {
             if (MaxMem() >= cbNeeded) return;
         }
 
-        scan += b->size;
+        /* coalesce_backward can hand back a block that starts before scan, so
+         * the next one is measured from where b actually begins rather than
+         * from scan. Bailing out if that does not move forward keeps a
+         * malformed heap from turning this into the same spin. */
+        u8* next = (u8*)b + b->size;
+        if (next <= scan) {
+            break;
+        }
+        scan = next;
     }
 }
 

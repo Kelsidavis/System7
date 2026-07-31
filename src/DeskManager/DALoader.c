@@ -17,6 +17,8 @@
 
 #include "DeskManager/DeskAccessory.h"
 #include "DeskManager/DeskManager.h"
+#include "QuickDraw/QuickDraw.h"
+#include "WindowManager/WindowManager.h"
 
 
 /* Global Registry */
@@ -97,20 +99,48 @@ int DA_LoadWindowTemplate(SInt16 resourceID, DAWindowAttr *attr)
 /*
  * Create DA window
  */
+/*
+ * This used to allocate sizeof(DAWindowAttr) and memcpy the attributes into it,
+ * on the grounds that "a real implementation would create a platform-specific
+ * window". The result was assigned to da->window, which is a WindowPtr, so
+ * every desk accessory came away holding an attribute block that claimed to be
+ * a window: nothing was ever drawn, and AlarmClock_DAIdle handed the thing to
+ * SetPort as a GrafPtr, where a 270-byte DAWindowAttr stands in for a GrafPort
+ * more than twice its size.
+ *
+ * procID passes through as-is: documentProc is 0, which is what the built-ins
+ * ask for, so their zeroed attr already names the right WDEF.
+ */
 int DA_CreateWindow(DeskAccessory *da, const DAWindowAttr *attr)
 {
     if (!da || !attr) {
         return DESK_ERR_INVALID_PARAM;
     }
 
-    /* In a real implementation, this would create a platform-specific window */
-    /* For now, just store the attributes */
-    da->window = NewPtr(sizeof(DAWindowAttr));
+    /* Reopening without closing first would leak the old window. */
+    if (da->window) {
+        DA_DestroyWindow(da);
+    }
+
+    Rect bounds = attr->bounds;
+    Str255 title;
+    c2pstrcpy(title, attr->title);
+
+    da->window = NewWindow(NULL, &bounds, (ConstStr255Param)title,
+                           attr->visible, attr->procID, (WindowPtr)-1L,
+                           attr->hasGoAway, attr->refCon);
     if (!da->window) {
         return DESK_ERR_NO_MEMORY;
     }
 
-    memcpy(da->window, attr, sizeof(DAWindowAttr));
+    /* NewWindow's visible flag draws the frame; the DA still needs the port set
+     * so whatever its initialiser draws next lands in the right place. */
+    if (attr->visible) {
+        ShowWindow(da->window);
+        SelectWindow(da->window);
+    }
+    SetPort((GrafPtr)da->window);
+
     return DESK_ERR_NONE;
 }
 
@@ -120,8 +150,10 @@ int DA_CreateWindow(DeskAccessory *da, const DAWindowAttr *attr)
 void DA_DestroyWindow(DeskAccessory *da)
 {
     if (da && da->window) {
-        /* In a real implementation, would destroy platform window */
-        DisposePtr((Ptr)da->window);
+        /* Was DisposePtr, to match the NewPtr above. Now that this is a real
+         * window it has a port, regions and a place in the window list, none of
+         * which DisposePtr would unhook. */
+        DisposeWindow(da->window);
         da->window = NULL;
     }
 }

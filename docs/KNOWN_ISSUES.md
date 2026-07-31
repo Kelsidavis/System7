@@ -4,22 +4,50 @@ This document tracks known issues, workarounds, and technical debt in the System
 
 ## Open Issues
 
-### ⚠️ Desk accessories initialise but never show a window
+### ⚠️ Desk accessories open with a window, then lose their handler table
 
-Choosing Alarm Clock, Calculator, Chooser, Key Caps or Note Pad from the
-Apple menu now runs the accessory's initialiser without hanging, and then
-nothing appears. The DA is allocated, its handlers are attached and its
-data is set up; no window is created or shown.
+Calculator, Alarm Clock, Key Caps and Chooser now each open a real,
+visible window with a content region, and their `processEvent` and
+`handleMenu` handlers are attached correctly at that moment. What breaks
+is what happens next: opening further accessories overwrites the earlier
+one's `DeskAccessory` struct, and its handler pointers stop being handler
+pointers.
 
-Two things that used to be wrong here are fixed. `DA_LoadFromRegistry` now
-attaches the handlers from the registry entry's `DAInterface` instead of
-leaving them NULL, and the missing float conversion that made the
-Calculator freeze during initialisation is gone.
+Three things that used to be wrong here are fixed. `DA_CreateWindow` was a
+stub that allocated `sizeof(DAWindowAttr)` and stored it in `da->window`,
+which is a `WindowPtr` - so no window was ever created, and the attribute
+block was passed to `SetPort` as a `GrafPtr`. It calls `NewWindow` now.
+`processEvent`/`handleMenu` are wired through a conversion rather than a
+cast, because `DAEventInfo`'s `v`/`h` pair is the click in *window-local*
+coordinates while `where` stays global - every built-in hit-tests with
+`v`/`h`, so copying `where` into it would put every click off by the
+window origin. And `PurgeMem` no longer hangs the machine (below).
 
-`processEvent` and `handleMenu` are still unwired: they take `DAEventInfo`
-and `DAMenuInfo` where the instance procs take an `EventRecord` and a
-menu/item pair, which needs real conversion rather than the shims the other
-four got. A DA that showed a window would not yet receive events.
+**What is left.** Instrumenting `OpenDeskAcc` across all five accessories
+shows the handler table correct on each one as it opens, and the
+Calculator's wrong by the time the last one has finished:
+
+```
+DAPROBE: opening Calculator
+DAPROBE:   da=0x008AF6E8..+120 win=0x0081AFD0 eventOK=1 menuOK=1
+...
+DAPROBE: opening Note Pad
+DAPROBE: byName=0 calc=1 eventOK=0        <- same struct, after four more opens
+```
+
+`DA_GetByName("Calculator")` returns NULL at that point while
+`DA_GetByRefNum` still finds it, so the name field is clobbered too: this
+is the struct being written over, not a list bug. Dispatching a click to
+it jumps to whatever the `event` slot now holds - one run put `eip` at
+`0x008AF6E8`, the address of the struct itself, and took an invalid-opcode
+exception.
+
+The DA structs do not overlap each other (they are 120 bytes at
+`0x8AF6E8`, `0x841358`, `0x8507F8`, `0x8976B8`), so this is a later
+allocation landing inside a live one. That is the allocator issue recorded
+below, and opening desk accessories is a much shorter reproduction of it
+than the document-then-Find-box sequence in that entry. Nothing here will
+hold together until that is fixed.
 
 ### ⚠️ GrowWindow applies the resize as well as tracking it
 
@@ -172,6 +200,39 @@ question. `CompactMem` and the zone-extension paths around
 **Existing workarounds that are probably this same bug:** the static
 storage in `AllocateDesktopIcons` ("heap corruption workaround"), and the
 suspect-address logging hooks left in `MemoryManager.c`.
+
+**A shorter reproduction.** Opening the built-in desk accessories in
+sequence corrupts a live `DeskAccessory` struct within four opens, with no
+document, no Find box and no offscreen pixel buffer involved. See the desk
+accessory entry at the top of this file for the trace.
+
+### ✅ PurgeMem spun forever on a zero-size block header — FIXED
+
+Any allocation that could not be satisfied from the freelists hung the
+machine outright: interrupts still on, nothing on the serial port, no
+exception. `NewPtr` falls back to `CompactMem`, which calls `PurgeMem`
+first, and `PurgeMem` walked the heap with `scan += b->size` and no check
+on `b->size`. gdb on the hung kernel:
+
+```
+#0  PurgeMem  MemoryManager.c:1539    scan += b->size;
+#1  CompactMem                        MemoryManager.c:1394
+#2  NewPtr (byteCount=512)            MemoryManager.c:862
+#3  Calculator_DAInitialize           BuiltinDAs.c:364
+(gdb) print *b
+$1 = {size = 0, flags = 0, lockCount = 0, prevSize = 0, masterPtr = 0x0}
+```
+
+A fully zeroed header sat mid-zone, so `scan` never advanced. `CompactMem`,
+called one line further down and walking the same heap the same way, has
+carried the guard for this all along; `PurgeMem` simply never got it. It
+now breaks out of the walk on a zero or over-long size, and takes the step
+from where the block actually starts, since `coalesce_backward` can hand
+back a block beginning before `scan`.
+
+This is what made every desk accessory hang the machine. It does not
+address the corruption that puts a zeroed header there - that is the entry
+above.
 
 
 ### ✅ A loaded CODE segment cannot be reached through its jump table — FIXED
