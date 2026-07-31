@@ -55,12 +55,35 @@ DAPROBE: SystemClick #1 (activate)   ->  DA is active
 DAPROBE: SystemClick #2 (deliver)    ->  returned
 ```
 
-**What is left.** Two things, both unproven rather than known broken.
-Nothing has been drawn in an accessory's window - `CalcDA_Draw` and its
-counterparts run, but no one has looked at a screenshot to see whether
-what lands there is right. And drag and close are wired but untested:
-both track the mouse, so a probe with no user to release the button
-cannot exercise them.
+They draw now, too, and this one was looked at rather than inferred: the
+Calculator comes up with its display reading `0` and all twenty buttons
+laid out, layered above the Macintosh HD window.
+
+Two things were in the way. `HandleUpdate` erased the content of any
+window it did not recognise, so an accessory's window was wiped on every
+update - the same fault the entry above it records for About This
+Macintosh, Get Info and Find. It now offers the update to `SystemUpdate`
+first, which finds the accessory that owns the window and lets it draw.
+
+The second was subtler and had been silently disabling the first.
+`DA_LoadFromRegistry` installed an interface adapter in *every* handler
+slot, whether or not the interface implemented the call behind it. So
+`da->update` was never NULL, even though all five accessories leave the
+interface's `update` NULL and paint from the `updateEvt` arm of
+`processEvent` instead. `SystemUpdate` saw a non-NULL `da->update`, called
+it, reached `DA_UpdateViaInterface`, which called a NULL `interface->update`
+and returned having done nothing - and so never fell through to deliver
+the event that would have drawn. Adapters are now installed only over
+slots the interface actually implements, which makes `if (da->update)`
+mean what every caller in the tree already assumes it means.
+
+**What is left.** Drag and close are wired but untested: both track the
+mouse, so a probe with no user to release the button cannot exercise
+them. Nothing has been driven through real mouse input at all - QEMU's
+tablet is detected by the kernel (`USB tablet detected - switching mouse
+source`) but its xHCI driver then reports `no device` on every port, so
+injected pointer events never arrive. Accessories were opened through
+`OpenDeskAcc`, the same call the Apple menu handler makes.
 
 Separately, `SystemMenu` in DeskManagerCore still has "would need to map
 item to DA name" where an item-to-accessory lookup belongs, and routes

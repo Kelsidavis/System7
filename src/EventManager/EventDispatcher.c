@@ -675,8 +675,15 @@ Boolean HandleUpdate(EventRecord* event)
          * IsFolderWindow and erased everything else, so About This Macintosh,
          * Get Info and Find opened and then had their contents wiped - each
          * has had a working draw handler all along with nothing calling it. */
+        /* A desk accessory owns its own content and is the only thing that can
+         * draw it. Without this the erase below wipes the window it was just
+         * given - the same way About This Macintosh used to be wiped - and the
+         * accessory shows an empty frame. */
+        extern Boolean SystemUpdate(WindowRecord *window, const EventRecord *event);
         extern Boolean Finder_DrawWindowContents(WindowPtr window);
-        if (!Finder_DrawWindowContents(updateWindow)) {
+        if (SystemUpdate((WindowRecord *)updateWindow, event)) {
+            EVT_LOG_DEBUG("HandleUpdate: desk accessory redrew itself\n");
+        } else if (!Finder_DrawWindowContents(updateWindow)) {
             EVT_LOG_DEBUG("HandleUpdate: not a Finder window, erasing content\n");
             Rect r = updateWindow->port.portRect;
             EraseRect(&r);

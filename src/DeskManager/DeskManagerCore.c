@@ -261,6 +261,46 @@ void SystemClick(const EventRecord *event, WindowRecord *window)
 }
 
 /*
+ * Redraw the accessory that owns this window.
+ *
+ * Returns false if the window is not an accessory's, so the caller can fall
+ * back to whatever it does for windows it does not recognise.
+ *
+ * The built-ins draw from the updateEvt arm of processEvent - CalcDA_Draw,
+ * KeyCaps_DrawKeyboard, Chooser_Draw - and every one of them leaves the
+ * interface's update slot NULL, so the event is what has to be delivered.
+ * update is tried first anyway, for any accessory that does supply one.
+ */
+Boolean SystemUpdate(WindowRecord *window, const EventRecord *event)
+{
+    if (!g_deskMgrInitialized || !window) {
+        return false;
+    }
+    if (window->windowKind >= 0) {
+        return false;       /* not a system window */
+    }
+
+    DeskAccessory *da = g_deskMgr.firstDA;
+    while (da && da->window != window) {
+        da = da->next;
+    }
+    if (!da) {
+        return false;
+    }
+
+    if (da->update) {
+        da->update(da);
+        return true;
+    }
+    if (da->event && event) {
+        da->event(da, event);
+        return true;
+    }
+
+    return false;
+}
+
+/*
  * Perform periodic processing for all DAs
  */
 void SystemTask(void)
@@ -659,16 +699,27 @@ static int DA_LoadFromRegistry(DeskAccessory *da, const char *name)
     da->menu     = entry->menu;
 
     /* Otherwise go through the interface, if it supplied one. */
+    /*
+     * Each adapter is installed only where the interface actually implements
+     * the call behind it. An adapter over an empty slot is worse than a NULL
+     * handler: it is not NULL, so every `if (da->update)` in the tree takes it
+     * for a working one and calls into something that returns without doing
+     * anything. That is exactly what kept accessories from drawing - all five
+     * leave the interface's update NULL and paint from the updateEvt arm of
+     * processEvent instead, but SystemUpdate saw a non-NULL da->update, called
+     * it, and never fell through to deliver the event.
+     */
     da->interface = entry->interface;
     if (entry->interface) {
-        if (!da->open)     da->open     = DA_OpenViaInterface;
-        if (!da->close)    da->close    = DA_CloseViaInterface;
-        if (!da->idle)     da->idle     = DA_IdleViaInterface;
-        if (!da->activate) da->activate = DA_ActivateViaInterface;
-        if (!da->update)   da->update   = DA_UpdateViaInterface;
-        if (!da->edit)     da->edit     = entry->interface->doEdit;
-        if (!da->event)    da->event    = DA_EventViaInterface;
-        if (!da->menu)     da->menu     = DA_MenuViaInterface;
+        DAInterface *itf = entry->interface;
+        if (!da->open     && itf->initialize)   da->open     = DA_OpenViaInterface;
+        if (!da->close    && itf->terminate)    da->close    = DA_CloseViaInterface;
+        if (!da->idle     && itf->idle)         da->idle     = DA_IdleViaInterface;
+        if (!da->activate && itf->activate)     da->activate = DA_ActivateViaInterface;
+        if (!da->update   && itf->update)       da->update   = DA_UpdateViaInterface;
+        if (!da->edit)                          da->edit     = itf->doEdit;
+        if (!da->event    && itf->processEvent) da->event    = DA_EventViaInterface;
+        if (!da->menu     && itf->handleMenu)   da->menu     = DA_MenuViaInterface;
     }
 
     return DESK_ERR_NONE;

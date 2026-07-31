@@ -113,6 +113,14 @@ Boolean SystemEvent(const EventRecord *event);
 void SystemClick(const EventRecord *event, WindowRecord *window);
 
 /**
+ * Redraw the desk accessory that owns a window
+ * @param window Window being updated
+ * @param event The update event, delivered to the DA if it has no update proc
+ * @return true if an accessory owned the window and redrew it
+ */
+Boolean SystemUpdate(WindowRecord *window, const EventRecord *event);
+
+/**
  * Perform periodic processing for all DAs
  */
 void SystemTask(void);
