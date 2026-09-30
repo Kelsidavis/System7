@@ -262,12 +262,6 @@ OSErr IO_WriteBlocks(VCB* vcb, UInt32 startBlock, UInt32 blockCount, const void*
 OSErr IO_ReadFork(FCB* fcb, UInt32 offset, UInt32 count, void* buffer, UInt32* actual);
 OSErr IO_WriteFork(FCB* fcb, UInt32 offset, UInt32 count, const void* buffer, UInt32* actual);
 
-/* Path and Name Utilities */
-OSErr Path_Parse(const char* path, VolumeRefNum* vRefNum, DirID* dirID, UInt8* name);
-OSErr Path_Build(VCB* vcb, DirID dirID, const UInt8* name, char* path, size_t maxLen);
-Boolean Name_Equal(const UInt8* name1, const UInt8* name2);
-void Name_Copy(UInt8* dst, const UInt8* src);
-UInt16 Name_Hash(const UInt8* name);
 
 /* Date/Time Utilities */
 UInt32 DateTime_Current(void);

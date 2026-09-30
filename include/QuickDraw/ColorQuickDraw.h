@@ -105,7 +105,6 @@ GDHandle GetMainDevice(void);
 GDHandle GetNextDevice(GDHandle curDevice);
 Boolean TestDeviceAttribute(GDHandle gdh, SInt16 attribute);
 void SetDeviceAttribute(GDHandle gdh, SInt16 attribute, Boolean value);
-void InitGDevice(SInt16 qdRefNum, SInt32 mode, GDHandle gdh);
 GDHandle NewGDevice(SInt16 refNum, SInt32 mode);
 void DisposeGDevice(GDHandle gdh);
 void SetGDevice(GDHandle gd);

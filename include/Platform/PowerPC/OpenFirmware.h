@@ -10,7 +10,6 @@ void ofw_client_init(void *entry);
 int ofw_console_available(void);
 int ofw_console_write(const char *buffer, uint32_t length);
 int ofw_console_putchar(char ch);
-int ofw_console_raw_write(void *entry, const char *buffer, uint32_t length);
 int ofw_console_input_available(void);
 int ofw_console_poll_char(char *out_char);
 int ofw_console_read_char(char *out_char);

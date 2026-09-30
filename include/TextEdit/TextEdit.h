@@ -159,15 +159,12 @@ extern void TEGetStyle(SInt32 offset, TextStyle *theStyle,
                       SInt16 *lineHeight, SInt16 *fontAscent, TEHandle hTE);
 extern void TESetStyle(SInt16 mode, const TextStyle *newStyle,
                       Boolean redraw, TEHandle hTE);
-extern void TEContinuousStyle(SInt16 *mode, TextStyle *aStyle, TEHandle hTE);
 extern void TEUseStyleScrap(SInt32 rangeStart, SInt32 rangeEnd,
                           StScrpHandle newStyles, Boolean redraw, TEHandle hTE);
 extern void TEStyleInsert(const void *text, SInt32 length,
                          StScrpHandle hST, TEHandle hTE);
 extern void TEStylePaste(TEHandle hTE);
 
-/* Features */
-extern SInt16 TEFeatureFlag(SInt16 feature, SInt16 action, TEHandle hTE);
 
 /* Utilities */
 extern void TESetJust(SInt16 just, TEHandle hTE);

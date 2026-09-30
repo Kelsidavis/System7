@@ -79,8 +79,6 @@ SInt32 GetMaxResourceSize(Handle theResource);
 /* Get information about a resource */
 void GetResInfo(Handle theResource, ResID* theID, ResType* theType, char* name);
 
-/* Set resource information */
-void SetResInfo(Handle theResource, ResID theID, const char* name);
 
 /* Get resource attributes */
 ResAttributes GetResAttrs(Handle theResource);
@@ -88,8 +86,6 @@ ResAttributes GetResAttrs(Handle theResource);
 /* Set resource attributes */
 void SetResAttrs(Handle theResource, ResAttributes attrs);
 
-/* Get resource data (for reading) */
-void* GetResourceData(Handle theResource);
 
 /* String resource functions */
 void GetString(StringPtr theString, SInt16 stringID);
@@ -100,16 +96,12 @@ void GetIndString(StringPtr theString, SInt16 strListID, SInt16 index);
 /* Open a resource file */
 SInt16 OpenResFile(const unsigned char* fileName);
 
-/* Open a resource fork */
-RefNum OpenRFPerm(const char* fileName, UInt8 vRefNum, SInt8 permission);
 
 /* Close a resource file */
 void CloseResFile(RefNum refNum);
 SInt16 FSpOpenResFile(const FSSpec* spec, SInt8 permission);
 void FSpCreateResFile(const FSSpec* spec, OSType creator, OSType fileType, ScriptCode scriptTag);
 
-/* Create a new resource file */
-void CreateResFile(const char* fileName);
 
 /* Use a specific resource file */
 void UseResFile(RefNum refNum);
@@ -123,8 +115,6 @@ RefNum HomeResFile(Handle theResource);
 /* Set whether to load resource data */
 void SetResLoad(Boolean load);
 
-/* Get current resource load state */
-Boolean GetResLoad(void);
 
 /* Update resource file */
 void UpdateResFile(RefNum refNum);
@@ -152,8 +142,6 @@ void ChangedResource(Handle theResource);
 /* Set resource purge level */
 void SetResPurge(Boolean install);
 
-/* Get resource purge state */
-Boolean GetResPurge(void);
 
 /* ---- Resource Enumeration Functions ---------------------------------------------- */
 
@@ -191,11 +179,6 @@ ResID Unique1ID(ResType theType);
 
 /* ---- Resource Chain Management --------------------------------------------------- */
 
-/* Get next resource file in chain */
-RefNum GetNextResourceFile(RefNum curFile);
-
-/* Get top resource file in chain */
-RefNum GetTopResourceFile(void);
 
 /* ---- Error Handling -------------------------------------------------------------- */
 
@@ -204,21 +187,9 @@ SInt16 ResError(void);
 
 /* Set Resource Manager error procedure */
 
-void SetResErrProc(ResErrProcPtr proc);
 
 /* ---- Compatibility Functions ----------------------------------------------------- */
 
-/* Enable/disable ROM resource map */
-void SetROMMapInsert(Boolean insert);
-
-/* Get ROM map insert state */
-Boolean GetROMMapInsert(void);
-
-/* Set search depth for resources */
-void SetResOneDeep(Boolean oneDeep);
-
-/* Get resource search depth */
-Boolean GetResOneDeep(void);
 
 /* ---- Memory Manager Integration -------------------------------------------------- */
 
@@ -233,7 +204,6 @@ void HPurge(Handle h);
 void HNoPurge(Handle h);
 UInt8 HGetState(Handle h);
 void HSetState(Handle h, UInt8 state);
-void* StripAddress(void* ptr);
 
 /* ---- Internal Structures (Exposed for Debugging) -------------------------------- */
 
@@ -263,29 +233,9 @@ SInt16 OpenResMemory(const unsigned char* data, UInt32 size);
 /* Close an in-memory resource file opened with OpenResMemory */
 void CloseResMemory(SInt16 refNum);
 
-/* Cleanup Resource Manager */
-void CleanupResourceManager(void);
-
-
-void InstallDecompressHook(DecompressHookProc proc);
 
 /* ---- Automatic Decompression Support --------------------------------------------- */
 
-/* Enable/disable automatic decompression */
-void SetAutoDecompression(Boolean enable);
-Boolean GetAutoDecompression(void);
-
-/* Flush decompression cache */
-void ResourceManager_FlushDecompressionCache(void);
-
-/* Set maximum decompression cache size */
-void ResourceManager_SetDecompressionCacheSize(Size maxItems);
-
-/* Register a custom decompressor defproc */
-int ResourceManager_RegisterDecompressor(UInt16 id, Handle defProcHandle);
-
-/* CheckLoad hook for automatic decompression (internal but exposed for patching) */
-Handle ResourceManager_CheckLoadHook(ResourceEntry* entry, ResourceMap* map);
 
 #ifdef __cplusplus
 }

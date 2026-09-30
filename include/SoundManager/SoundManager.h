@@ -146,13 +146,6 @@ OSErr SPBOpenDevice(const Str255 deviceName,
                    SInt16 permission,
                    SInt32 *inRefNum);
 
-OSErr SPBCloseDevice(SInt32 inRefNum);
-
-OSErr SPBRecord(SPBPtr inParamPtr, Boolean asynchFlag);
-OSErr SPBRecordToFile(SPBPtr inParamPtr, Boolean asynchFlag);
-OSErr SPBPauseRecording(SInt32 inRefNum);
-OSErr SPBResumeRecording(SInt32 inRefNum);
-OSErr SPBStopRecording(SInt32 inRefNum);
 
 OSErr SPBGetRecordingStatus(SInt32 inRefNum,
                            SInt16 *recordingStatus,
@@ -210,10 +203,6 @@ OSErr MIDISignIn(OSType clientID,
                 Handle icon,
                 Str255 name);
 
-OSErr MIDISignOut(OSType clientID);
-
-OSErr MIDIGetClients(OSType *clientIDs, SInt16 *actualCount);
-OSErr MIDIGetClientName(OSType clientID, Str255 name);
 
 OSErr MIDIOpenPort(OSType clientID,
                   Str255 name,
@@ -221,20 +210,16 @@ OSErr MIDIOpenPort(OSType clientID,
                   MIDIPortParams *params,
                   SInt32 *portRefNum);
 
-OSErr MIDIClosePort(SInt32 portRefNum);
 
 OSErr MIDIConnectPort(SInt32 srcPortRefNum,
                      SInt32 dstPortRefNum,
                      OSType connType);
 
-OSErr MIDIDisconnectPort(SInt32 srcPortRefNum, SInt32 dstPortRefNum);
 
 OSErr MIDISendData(SInt32 portRefNum,
                   MIDIPacketListPtr packetList);
 
 /* Internal Functions - Do Not Call Directly */
-void _SoundManagerInterrupt(void);
-OSErr _SoundManagerProcessCommands(void);
 void _SoundManagerMixerCallback(void *userData,
                                SInt16 *buffer,
                                UInt32 frameCount);

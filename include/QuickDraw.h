@@ -200,11 +200,6 @@ extern QDGlobals qd;
 
 #include "SystemTypes.h"
 
-/* Get version string */
-const char* QDGetVersionString(void);
-
-/* Get feature availability */
-Boolean QDHasFeature(int featureFlag);
 
 #ifdef __cplusplus
 }

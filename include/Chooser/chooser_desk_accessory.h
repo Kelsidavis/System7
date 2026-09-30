@@ -99,27 +99,6 @@
 
 /* Function Prototypes - provenance: function analysis fcn.* mappings */
 
-/* Main Entry Points */
-OSErr ChooserMain(void);  /* provenance: fcn.00000000 at offset 0x0000 */
-OSErr ChooserMessageHandler(short message, DCtlPtr dctlPtr);  /* provenance: fcn.000008de at offset 0x08DE */
-
-/* Initialization and Cleanup */
-OSErr InitializeChooser(void);  /* provenance: fcn.00000454 at offset 0x0454 */
-void CleanupChooser(void);  /* provenance: fcn.00002e9c at offset 0x2E9C */
-
-/* Dialog Management */
-Boolean HandleChooserDialog(DialogPtr dialog, EventRecord *event, short *itemHit);  /* provenance: fcn.00002e60 at offset 0x2E60 */
-void UpdateChooserDisplay(ChooserState *state);  /* provenance: fcn.00002e18 at offset 0x2E18 */
-
-/* Networking Functions */
-OSErr DiscoverPrinters(ATalkZone *zone, PrinterList *printers);  /* provenance: fcn.0000346e at offset 0x346E */
-OSErr BrowseAppleTalkZones(ZoneList *zones);  /* provenance: fcn.00002f40 at offset 0x2F40 */
-OSErr HandleAppleTalkProtocol(ATalkRequest *request, ATalkResponse *response);  /* provenance: fcn.00001a48 at offset 0x1A48 */
-
-/* Printer Management */
-OSErr ConfigurePrinter(ChooserPrinterInfo *printer);  /* provenance: fcn.00002290 at offset 0x2290 */
-Handle LoadPrinterDriver(ResType type, short id);  /* provenance: fcn.000008ba at offset 0x08BA */
-Boolean ValidateSelection(ChooserPrinterInfo *printer, ATalkZone *zone);  /* provenance: fcn.000030e6 at offset 0x30E6 */
 
 /* Constants from strings analysis */
 extern const char kChooserTitle[];     /* provenance: string at offset 0x30 "Chooser" */

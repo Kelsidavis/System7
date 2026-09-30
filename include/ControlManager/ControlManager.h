@@ -136,35 +136,17 @@ SInt16 TrackScrollbar(ControlHandle scrollBar, Point startLocal, SInt16 startPar
                       SInt16 modifiers, SInt16* outDelta);
 
 /* Text Controls */
-void RegisterTextControlTypes(void);
 ControlHandle NewEditTextControl(WindowPtr window, const Rect *bounds,
                                 ConstStr255Param text, Boolean visible,
                                 SInt16 maxLength, SInt32 refCon);
 ControlHandle NewStaticTextControl(WindowPtr window, const Rect *bounds,
                                   ConstStr255Param text, Boolean visible,
                                   SInt16 alignment, SInt32 refCon);
-void SetTextControlText(ControlHandle control, ConstStr255Param text);
-void GetTextControlText(ControlHandle control, Str255 text);
-void SetEditTextPassword(ControlHandle control, Boolean isPassword, char passwordChar);
-void SetTextValidation(ControlHandle control, TextValidationProcPtr validator, SInt32 refCon);
-void ActivateEditText(ControlHandle control);
-void DeactivateEditText(ControlHandle control);
-Boolean IsEditTextControl(ControlHandle control);
-Boolean IsStaticTextControl(ControlHandle control);
 
 /* Popup Controls */
-void RegisterPopupControlType(void);
 ControlHandle NewPopupControl(WindowPtr window, const Rect *bounds,
                              ConstStr255Param title, Boolean visible,
                              SInt16 menuID, SInt16 variation, SInt32 refCon);
-void SetPopupMenu(ControlHandle popup, MenuHandle menu);
-MenuHandle GetPopupMenu(ControlHandle popup);
-void AppendPopupMenuItem(ControlHandle popup, ConstStr255Param itemText);
-void InsertPopupMenuItem(ControlHandle popup, ConstStr255Param itemText, SInt16 afterItem);
-void DeletePopupMenuItem(ControlHandle popup, SInt16 item);
-void SetPopupMenuItemText(ControlHandle popup, SInt16 item, ConstStr255Param text);
-void GetPopupMenuItemText(ControlHandle popup, SInt16 item, Str255 text);
-Boolean IsPopupMenuControl(ControlHandle control);
 
 /* Control Type Registration */
 void RegisterControlType(SInt16 procID, ControlDefProcPtr defProc);
@@ -175,13 +157,9 @@ SInt32 ButtonCDEF(SInt16 varCode, ControlHandle theControl, SInt16 message, SInt
 SInt32 CheckboxCDEF(SInt16 varCode, ControlHandle theControl, SInt16 message, SInt32 param);
 SInt32 RadioButtonCDEF(SInt16 varCode, ControlHandle theControl, SInt16 message, SInt32 param);
 SInt32 ScrollBarCDEF(SInt16 varCode, ControlHandle theControl, SInt16 message, SInt32 param);
-SInt32 EditTextCDEF(SInt16 varCode, ControlHandle theControl, SInt16 message, SInt32 param);
-SInt32 StaticTextCDEF(SInt16 varCode, ControlHandle theControl, SInt16 message, SInt32 param);
-SInt32 PopupMenuCDEF(SInt16 varCode, ControlHandle theControl, SInt16 message, SInt32 param);
 
 /* Drawing and Tracking */
 void DrawScrollBar(ControlHandle scrollBar);
-void DrawPopupMenu(ControlHandle popup);
 
 /* Compatibility Aliases */
 #define SetCtlValue SetControlValue

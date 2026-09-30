@@ -102,13 +102,9 @@ void DrawProgressBar(short percent);
 /* Play startup sound */
 OSErr PlayStartupSound(void);
 
-/* Custom startup screen */
-OSErr SetCustomStartupScreen(PicHandle picture);
 
 /* Extension loading */
 OSErr BeginExtensionLoading(UInt16 extensionCount);
-OSErr ShowExtensionIcon(ConstStr255Param name, Handle iconSuite);
-OSErr EndExtensionLoading(void);
 
 /* Error display */
 OSErr ShowStartupError(ConstStr255Param errorMessage, OSErr errorCode);
@@ -119,16 +115,11 @@ void CleanupStartupScreen(void);
 /* Startup screen customization */
 OSErr SetStartupBackgroundPattern(const Pattern* pattern);
 OSErr SetStartupColors(const RGBColor* background, const RGBColor* text);
-OSErr SetStartupLogo(PicHandle logo);
 
 /* Progress callbacks */
 
 OSErr RegisterStartupProgressCallback(StartupProgressProc proc, void* userData);
 
-/* Animation support */
-OSErr StartStartupAnimation(void);
-OSErr StopStartupAnimation(void);
-Boolean IsStartupAnimating(void);
 
 /* Debug mode */
 void EnableStartupDebugMode(Boolean enable);

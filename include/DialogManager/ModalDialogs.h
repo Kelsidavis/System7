@@ -295,10 +295,7 @@ SInt16 ShowNativeModal(const char* message, const char* title,
 /* Internal modal dialog functions */
 void InitModalDialogs(void);
 void CleanupModalDialogs(void);
-OSErr PushModalDialog(DialogPtr theDialog);
-OSErr PopModalDialog(DialogPtr theDialog);
 Boolean ProcessModalEvent(DialogPtr theDialog, EventRecord* theEvent, SInt16* itemHit);
-void UpdateModalDialogState(DialogPtr theDialog);
 
 #ifdef __cplusplus
 }

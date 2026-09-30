@@ -60,106 +60,13 @@ void getfontname(short familyID, char *theName);
 
 /* Extended Font Manager Functions */
 
-/* Font Cache Management */
-OSErr InitFontCache(short maxEntries, unsigned long maxSize);
-OSErr FlushFontCache(void);
-OSErr PurgeFontCache(short familyID);
-OSErr GetFontCacheStats(short *entries, unsigned long *size);
-
-/* Font Format Detection */
-short GetFontFormat(short familyID, short size);
-Boolean IsBitmapFont(short familyID, short size);
-Boolean IsTrueTypeFont(short familyID, short size);
-Boolean IsOpenTypeFont(short familyID, short size);
-Boolean IsWOFFFont(short familyID, short size);
-Boolean IsWOFF2Font(short familyID, short size);
-Boolean IsPostScriptFont(short familyID, short size);
-Boolean IsSystemFont(short familyID, short size);
-
-/* Font Substitution */
-OSErr SetFontSubstitution(short originalID, short substituteID);
-OSErr GetFontSubstitution(short originalID, short *substituteID);
-OSErr RemoveFontSubstitution(short originalID);
-OSErr ClearFontSubstitutions(void);
-
-/* Font Loading and Validation */
-OSErr LoadFontFamily(short familyID);
-OSErr UnloadFontFamily(short familyID);
-OSErr ValidateFontResource(Handle fontResource);
-OSErr GetFontResourceInfo(short familyID, short size, short *resourceID, short *resourceType);
-
-/* Advanced Font Metrics */
-OSErr GetFontBoundingBox(short familyID, short size, short style, Rect *bbox);
-OSErr GetCharacterBounds(short familyID, short size, short style, char character, Rect *bounds);
-Fixed GetCharacterWidth(short familyID, short size, short style, char character);
-OSErr GetKerningPairs(short familyID, short size, short style, KernPair **pairs, short *count);
 
 /* Font Rendering Support */
-OSErr PrepareFontForRendering(short familyID, short size, short style, Point dpi);
 OSErr RenderGlyph(short familyID, short size, short style, char character,
                   GrafPtr port, Point location, short mode);
 OSErr GetGlyphOutline(short familyID, short size, short style, char character,
                       void **outline, long *outlineSize);
 
-/* Unicode and International Support */
-OSErr GetFontCharacterSet(short familyID, short *charset);
-OSErr MapCharacterToGlyph(short familyID, short unicodeChar, short *glyph);
-OSErr GetFontLanguageSupport(short familyID, short **languages, short *count);
-
-/* Font Installation and Management */
-OSErr InstallFontFile(ConstStr255Param filePath, short *familyID);
-OSErr InstallOpenTypeFont(ConstStr255Param filePath, short *familyID);
-OSErr InstallWOFFFont(ConstStr255Param filePath, short *familyID);
-OSErr InstallWOFF2Font(ConstStr255Param filePath, short *familyID);
-OSErr InstallSystemFont(ConstStr255Param fontName, short *familyID);
-OSErr RemoveFontFile(short familyID);
-OSErr GetInstalledFonts(short **familyIDs, short *count);
-OSErr RefreshFontList(void);
-OSErr ScanModernFontDirectories(void);
-
-/* Modern Platform Font Support */
-OSErr InitializePlatformFonts(void);
-OSErr RegisterSystemFontDirectory(ConstStr255Param directoryPath);
-OSErr ScanForSystemFonts(void);
-OSErr LoadPlatformFont(ConstStr255Param fontName, short *familyID);
-
-/* Modern Font Format Support */
-OSErr InitializeOpenTypeFonts(void);
-OSErr InitializeWOFFSupport(void);
-OSErr InitializeSystemFontSupport(void);
-OSErr LoadOpenTypeFont(ConstStr255Param filePath, OpenTypeFont **font);
-OSErr LoadWOFFFont(ConstStr255Param filePath, WOFFFont **font);
-OSErr LoadSystemFont(ConstStr255Param fontName, SystemFont **font);
-OSErr UnloadOpenTypeFont(OpenTypeFont *font);
-OSErr UnloadWOFFFont(WOFFFont *font);
-OSErr UnloadSystemFont(SystemFont *font);
-
-/* Font Collection Support */
-OSErr LoadFontCollection(ConstStr255Param filePath, FontCollection **collection);
-OSErr UnloadFontCollection(FontCollection *collection);
-OSErr GetFontFromCollection(FontCollection *collection, short index, ModernFont **font);
-OSErr GetCollectionFontCount(FontCollection *collection, short *count);
-
-/* Web Font Support */
-OSErr DownloadWebFont(ConstStr255Param url, ConstStr255Param cachePath, short *familyID);
-OSErr ValidateWebFont(ConstStr255Param filePath);
-OSErr GetWebFontMetadata(ConstStr255Param filePath, WebFontMetadata *metadata);
-
-/* Font Hinting and Rasterization */
-OSErr SetFontHinting(Boolean enableHinting);
-Boolean GetFontHinting(void);
-OSErr SetFontSmoothing(Boolean enableSmoothing);
-Boolean GetFontSmoothing(void);
-OSErr SetFontGamma(Fixed gammaValue);
-Fixed GetFontGamma(void);
-
-/* Internal Font Manager Functions (Implementation Details) */
-OSErr _InitFontManagerTables(void);
-OSErr _BuildFontCache(void);
-OSErr _ParseFontResource(Handle resource, FontRec **fontRec);
-OSErr _ParseFamilyResource(Handle resource, FamRec **famRec);
-OSErr _BuildWidthTable(const FMInput *input, WidthTable **widthTable);
-OSErr _ScaleFont(FontRec *font, Point numer, Point denom, FontRec **scaledFont);
 
 /* Font Manager State */
 

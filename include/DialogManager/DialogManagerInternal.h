@@ -65,9 +65,6 @@ typedef struct DialogManagerState {
     Boolean caretVisible;
 } DialogManagerState;
 
-// Internal functions
-void InitDialogInternals(void);
-void UpdateDialogState(DialogManagerState* state);
 
 extern DialogManagerState gDialogState;
 

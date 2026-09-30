@@ -175,19 +175,6 @@ int AlarmClock_CheckAlarms(AlarmClock *clock);
 
 /* Time Display Functions */
 
-/**
- * Set time display mode
- * @param clock Pointer to alarm clock structure
- * @param mode Time display mode
- */
-void AlarmClock_SetTimeMode(AlarmClock *clock, TimeDisplayMode mode);
-
-/**
- * Set date display mode
- * @param clock Pointer to alarm clock structure
- * @param mode Date display mode
- */
-void AlarmClock_SetDateMode(AlarmClock *clock, DateDisplayMode mode);
 
 /**
  * Format time for display
@@ -236,60 +223,6 @@ const char *AlarmClock_GetDateString(AlarmClock *clock);
 Alarm *AlarmClock_CreateAlarm(AlarmClock *clock, const char *name,
                               const DateTime *triggerTime, AlarmType type);
 
-/**
- * Delete alarm
- * @param clock Pointer to alarm clock structure
- * @param alarmID Alarm ID
- * @return 0 on success, negative on error
- */
-int AlarmClock_DeleteAlarm(AlarmClock *clock, SInt16 alarmID);
-
-/**
- * Enable alarm
- * @param clock Pointer to alarm clock structure
- * @param alarmID Alarm ID
- * @return 0 on success, negative on error
- */
-int AlarmClock_EnableAlarm(AlarmClock *clock, SInt16 alarmID);
-
-/**
- * Disable alarm
- * @param clock Pointer to alarm clock structure
- * @param alarmID Alarm ID
- * @return 0 on success, negative on error
- */
-int AlarmClock_DisableAlarm(AlarmClock *clock, SInt16 alarmID);
-
-/**
- * Get alarm by ID
- * @param clock Pointer to alarm clock structure
- * @param alarmID Alarm ID
- * @return Pointer to alarm or NULL if not found
- */
-Alarm *AlarmClock_GetAlarm(AlarmClock *clock, SInt16 alarmID);
-
-/**
- * Get next alarm to trigger
- * @param clock Pointer to alarm clock structure
- * @return Pointer to next alarm or NULL if none
- */
-Alarm *AlarmClock_GetNextAlarm(AlarmClock *clock);
-
-/**
- * Snooze alarm
- * @param clock Pointer to alarm clock structure
- * @param alarmID Alarm ID
- * @return 0 on success, negative on error
- */
-int AlarmClock_SnoozeAlarm(AlarmClock *clock, SInt16 alarmID);
-
-/**
- * Dismiss alarm
- * @param clock Pointer to alarm clock structure
- * @param alarmID Alarm ID
- * @return 0 on success, negative on error
- */
-int AlarmClock_DismissAlarm(AlarmClock *clock, SInt16 alarmID);
 
 /* Date/Time Utility Functions */
 
@@ -299,12 +232,6 @@ int AlarmClock_DismissAlarm(AlarmClock *clock, SInt16 alarmID);
  */
 void AlarmClock_GetCurrentTime(DateTime *dateTime);
 
-/**
- * Convert timestamp to date/time
- * @param timestamp Unix timestamp
- * @param dateTime Pointer to date/time structure
- */
-void AlarmClock_TimestampToDateTime(SInt32 timestamp, DateTime *dateTime);
 
 /**
  * Convert date/time to timestamp
@@ -334,13 +261,6 @@ void AlarmClock_AddInterval(DateTime *dateTime, SInt16 days, SInt16 hours,
 int AlarmClock_CalculateNextTrigger(Alarm *alarm, const DateTime *currentTime,
                                     DateTime *nextTime);
 
-/**
- * Check if date/time matches alarm pattern
- * @param alarm Pointer to alarm
- * @param dateTime Date/time to check
- * @return true if matches
- */
-Boolean AlarmClock_MatchesPattern(Alarm *alarm, const DateTime *dateTime);
 
 /* Notification Functions */
 
@@ -383,45 +303,9 @@ void AlarmClock_FlashMenuBar(int duration);
  */
 void AlarmClock_Draw(AlarmClock *clock, const Rect *updateRect);
 
-/**
- * Draw time display
- * @param clock Pointer to alarm clock structure
- */
-void AlarmClock_DrawTime(AlarmClock *clock);
-
-/**
- * Draw date display
- * @param clock Pointer to alarm clock structure
- */
-void AlarmClock_DrawDate(AlarmClock *clock);
-
-/**
- * Draw alarm indicator
- * @param clock Pointer to alarm clock structure
- */
-void AlarmClock_DrawAlarmIndicator(AlarmClock *clock);
 
 /* Settings Functions */
 
-/**
- * Load settings from preferences
- * @param clock Pointer to alarm clock structure
- * @return 0 on success, negative on error
- */
-int AlarmClock_LoadSettings(AlarmClock *clock);
-
-/**
- * Save settings to preferences
- * @param clock Pointer to alarm clock structure
- * @return 0 on success, negative on error
- */
-int AlarmClock_SaveSettings(AlarmClock *clock);
-
-/**
- * Reset to default settings
- * @param clock Pointer to alarm clock structure
- */
-void AlarmClock_ResetSettings(AlarmClock *clock);
 
 /* Desk Accessory Integration */
 

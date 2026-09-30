@@ -27,10 +27,6 @@ double acos(double x);
 double atan(double x);
 double atan2(double y, double x);
 
-/* Hyperbolic functions */
-double sinh(double x);
-double cosh(double x);
-double tanh(double x);
 
 /* Exponential and logarithmic functions */
 double exp(double x);
@@ -38,7 +34,6 @@ double log(double x);
 double log10(double x);
 double pow(double x, double y);
 double sqrt(double x);
-double cbrt(double x);
 
 /* Rounding functions */
 double ceil(double x);
@@ -56,8 +51,6 @@ double ldexp(double x, int exp);
 
 /* Floating-point classification functions */
 int isnan(double x);
-int isinf(double x);
-int isfinite(double x);
 
 #ifdef __cplusplus
 }

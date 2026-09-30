@@ -99,11 +99,6 @@ void    MoveHHi(Handle h);
 void    EmptyHandle(Handle h);
 bool    RecoverHandle(void* p, Handle* h);
 
-/* Handle utility functions - System 7 */
-OSErr   HandToHand(Handle* theHndl);
-OSErr   PtrToHand(const void* srcPtr, Handle* dstHndl, Size size);
-OSErr   PtrAndHand(const void* srcPtr, Handle dstHndl, Size size);
-OSErr   HandAndHand(Handle aHndl, Handle bHndl);
 
 /* Zone operations */
 void    InitZone(ZoneInfo* zone, void* memory, u32 size, void** masterTable, u32 masterCount);
@@ -127,12 +122,7 @@ void*   realloc(void* ptr, size_t size);
 
 /* Memory Manager initialization */
 void    InitMemoryManager(void);
-void    init_memory_manager(ZonePtr sysZone, ZonePtr applZone);
 
-/* Internal implementation functions */
-OSErr   memory_manager_handle_prologue(Handle handle, ZonePtr* outZone);
-OSErr   set_handle_size_24bit(Handle h, Size newSize);
-OSErr   set_handle_size_32bit(Handle h, Size newSize);
 
 /* Map Memory Manager zones into M68K interpreter address space */
 struct M68KAddressSpace;

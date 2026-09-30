@@ -68,38 +68,23 @@ void SetWRefCon(WindowPtr theWindow, long data);
 long GetWRefCon(WindowPtr theWindow);
 
 /* Window queries */
-void SetWindowKind(WindowPtr theWindow, short theKind);
-short GetWindowKind(WindowPtr theWindow);
 Boolean IsWindowVisible(WindowPtr theWindow);
 Boolean IsWindowHilited(WindowPtr theWindow);
-void GetWindowGoAwayFlag(WindowPtr theWindow, Boolean* hasGoAway);
-void GetWindowZoomFlag(WindowPtr theWindow, Boolean* hasZoom);
-void GetWindowStructureRgn(WindowPtr theWindow, RgnHandle r);
 void GetWindowContentRgn(WindowPtr theWindow, RgnHandle r);
 void GetWindowUpdateRgn(WindowPtr theWindow, RgnHandle r);
-void GetWindowTitle(WindowPtr theWindow, unsigned char* title);
-void SetWindowTitle(WindowPtr theWindow, const unsigned char* title);
 
 /* Port management */
 void SetPort(GrafPtr port);
-void SetPortWindowPort(WindowPtr window);
 void GetPort(GrafPtr* port);
 GrafPtr GetWindowPort(WindowPtr window);
-CGrafPtr GetWindowPortAsCGrafPtr(WindowPtr window);
 void GetWMgrPort(GrafPtr* wPort);
 void GetCWMgrPort(CGrafPtr* wMgrCPort);
 
 /* Window finding */
 WindowPtr FrontWindow(void);
-WindowPtr FrontNonFloatingWindow(void);
-WindowPtr GetFrontWindowOfClass(short windowClass, Boolean mustBeVisible);
 short FindWindow(Point thePoint, WindowPtr* theWindow);
-short GetWindowRegionCode(Point thePoint, WindowPtr theWindow);
-WindowPtr GetNextWindow(WindowPtr theWindow);
-WindowPtr GetPreviousWindow(WindowPtr theWindow);
 
 /* Palettes and colors (Color QuickDraw) */
-Boolean IsValidWindowPtr(WindowPtr theWindow);
 void CalcVis(WindowPtr theWindow);
 void CalcVisBehind(WindowPtr startWindow, RgnHandle clobberedRgn);
 void CheckUpdate(EventRecord* theEvent);
@@ -114,10 +99,6 @@ void InitWindows(void);
 void GetWTitle(WindowPtr theWindow, unsigned char* title);
 void SetWTitle(WindowPtr theWindow, const unsigned char* title);
 
-/* Low-memory globals access */
-WindowPtr GetWindowList(void);
-/* GrafPtr GetWMgrPort(void); - duplicate, using void GetWMgrPort(GrafPtr*) above */
-CWindowPtr GetWindowListColorPtr(void);
 
 #ifdef __cplusplus
 }

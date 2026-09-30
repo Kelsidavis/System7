@@ -126,14 +126,9 @@ UInt32 SpeechManagerVersion(void);
 OSErr SpeechManagerInit(void);
 
 /* Voice management */
-OSErr MakeVoiceSpec(OSType creator, OSType id, VoiceSpec *voice);
-OSErr CountVoices(short *numVoices);
-OSErr GetIndVoice(short index, VoiceSpec *voice);
-OSErr GetVoiceDescription(VoiceSpec *voice, VoiceDescription *info, long infoLength);
 OSErr GetVoiceInfo(VoiceSpec *voice, OSType selector, void *voiceInfo);
 
 /* Channel management */
-OSErr NewSpeechChannel(VoiceSpec *voice, SpeechChannel *chan);
 OSErr DisposeSpeechChannel(SpeechChannel chan);
 
 /* Speech synthesis */
@@ -142,10 +137,8 @@ OSErr SpeakText(SpeechChannel chan, void *textBuf, long textBytes);
 OSErr SpeakBuffer(SpeechChannel chan, void *textBuf, long textBytes, long controlFlags);
 
 /* Speech control */
-OSErr StopSpeech(SpeechChannel chan);
 OSErr StopSpeechAt(SpeechChannel chan, long whereToStop);
 OSErr PauseSpeechAt(SpeechChannel chan, long whereToPause);
-OSErr ContinueSpeech(SpeechChannel chan);
 
 /* Speech status */
 short SpeechBusy(void);

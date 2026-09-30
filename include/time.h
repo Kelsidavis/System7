@@ -29,12 +29,7 @@ struct tm {
 
 /* Time functions */
 time_t time(time_t *t);
-struct tm *localtime(const time_t *timep);
-struct tm *gmtime(const time_t *timep);
 time_t mktime(struct tm *tm);
-char *asctime(const struct tm *tm);
-char *ctime(const time_t *timep);
-size_t strftime(char *s, size_t max, const char *format, const struct tm *tm);
 
 #ifdef __cplusplus
 }

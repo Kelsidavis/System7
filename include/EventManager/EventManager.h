@@ -132,14 +132,6 @@ Boolean EventAvail(EventMask eventMask, EventRecord* theEvent);
  */
 OSErr PostEvent(EventMask evtType, UInt32 evtMessage);
 
-/**
- * Post an event with queue element return
- * @param eventCode Event type
- * @param eventMsg Event message
- * @param qEl Pointer to receive queue element pointer
- * @return Error code
- */
-SInt16 PPostEvent(SInt16 eventCode, SInt32 eventMsg, EvQEl** qEl);
 
 /**
  * OS-level event checking (low-level)
@@ -149,13 +141,6 @@ SInt16 PPostEvent(SInt16 eventCode, SInt32 eventMsg, EvQEl** qEl);
  */
 Boolean OSEventAvail(SInt16 mask, EventRecord* theEvent);
 
-/**
- * Get OS event (removes from queue, low-level)
- * @param mask Event mask
- * @param theEvent Event record to fill
- * @return true if event found
- */
-Boolean GetOSEvent(SInt16 mask, EventRecord* theEvent);
 
 /**
  * Flush events from queue
@@ -249,34 +234,11 @@ UInt32 TickCount(void);
  */
 UInt32 GetDblTime(void);
 
-/**
- * Get caret blink time
- * @return Ticks for caret blink rate
- */
-UInt32 GetCaretTime(void);
-
-/**
- * Set system event mask
- * @param mask New event mask
- */
-void SetEventMask(SInt16 mask);
 
 /*---------------------------------------------------------------------------
  * Event Manager Extended API
  *---------------------------------------------------------------------------*/
 
-/**
- * Set key repeat thresholds
- * @param delay Initial delay before repeat (ticks)
- * @param rate Rate of repeat (ticks between repeats)
- */
-void SetKeyRepeat(UInt16 delay, UInt16 rate);
-
-/**
- * Get global event manager state
- * @return Pointer to global state structure
- */
-EventMgrGlobals* GetEventMgrGlobals(void);
 
 /**
  * Generate system event (for internal use)
@@ -287,22 +249,6 @@ EventMgrGlobals* GetEventMgrGlobals(void);
  */
 void GenerateSystemEvent(SInt16 eventType, SInt32 message, Point where, SInt16 modifiers);
 
-/**
- * Process null event (idle processing)
- */
-void ProcessNullEvent(void);
-
-/**
- * Set the front window for event targeting
- * @param window Window to receive events
- */
-void SetEventWindow(WindowPtr window);
-
-/**
- * Get the front window for event targeting
- * @return Current front window
- */
-WindowPtr GetEventWindow(void);
 
 /*---------------------------------------------------------------------------
  * Modern Input Integration API

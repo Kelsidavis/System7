@@ -204,40 +204,6 @@ void StopAutoRepeat(void);
  * Keyboard Layout Management
  *---------------------------------------------------------------------------*/
 
-/**
- * Initialize keyboard layouts
- * @return Error code
- */
-SInt16 InitKeyboardLayouts(void);
-
-/**
- * Load keyboard layout
- * @param layoutType Layout type identifier
- * @param layoutData KCHR resource data
- * @param dataSize Size of resource data
- * @return Layout handle
- */
-KeyboardLayout* LoadKeyboardLayout(SInt16 layoutType, const void* layoutData, UInt32 dataSize);
-
-/**
- * Set active keyboard layout
- * @param layout Layout to activate
- * @return Error code
- */
-SInt16 SetActiveKeyboardLayout(KeyboardLayout* layout);
-
-/**
- * Get active keyboard layout
- * @return Current active layout
- */
-KeyboardLayout* GetActiveKeyboardLayout(void);
-
-/**
- * Get layout by type
- * @param layoutType Layout type to find
- * @return Layout handle or NULL
- */
-KeyboardLayout* GetKeyboardLayoutByType(SInt16 layoutType);
 
 /*---------------------------------------------------------------------------
  * International Input Support
@@ -276,31 +242,6 @@ void ResetDeadKeyState(void);
  * Modern Keyboard Features
  *---------------------------------------------------------------------------*/
 
-/**
- * Enable extended key support
- * @param enabled true to enable extended keys
- */
-void SetExtendedKeysEnabled(Boolean enabled);
-
-/**
- * Process media key event
- * @param mediaKey Media key identifier
- * @param isPressed true if pressed, false if released
- * @return true if event was handled
- */
-Boolean ProcessMediaKeyEvent(SInt16 mediaKey, Boolean isPressed);
-
-/**
- * Set keyboard backlight level
- * @param level Backlight level (0.0 to 1.0)
- */
-void SetKeyboardBacklight(float level);
-
-/**
- * Get keyboard backlight level
- * @return Current backlight level
- */
-float GetKeyboardBacklight(void);
 
 /*---------------------------------------------------------------------------
  * Event Generation

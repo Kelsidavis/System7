@@ -253,8 +253,6 @@ void WM_UpdateWindowLayers(void);
 /*
  * Window state management
  */
-void WM_SaveWindowState(WindowPtr window);
-void WM_RestoreWindowState(WindowPtr window);
 UInt32 WM_CalculateStateChecksum(WindowPtr window);
 void WM_UpdateStateChecksum(WindowPtr window);
 Boolean WM_ValidateStateChecksum(WindowPtr window);
@@ -263,9 +261,6 @@ Boolean WM_ValidateStateChecksum(WindowPtr window);
  * Window drawing coordination
  */
 void WM_InvalidateWindowsBelow(WindowPtr topWindow, const Rect* rect);
-void WM_UpdateWindowRegions(WindowPtr window);
-void WM_DrawWindowFrame(WindowPtr window);
-void WM_DrawAllWindows(void);
 void WM_InvalidateScreenRegion(RgnHandle rgn);
 void WM_CalculateWindowVisibility(WindowPtr window);
 void WM_UpdateWindowVisibilityStats(WindowPtr window);
@@ -273,8 +268,6 @@ void WM_UpdateWindowVisibilityStats(WindowPtr window);
 /*
  * Window tracking and interaction
  */
-void WM_StartWindowDrag(WindowPtr window, Point startPt);
-void WM_StartWindowResize(WindowPtr window, Point startPt);
 Boolean WM_TrackWindowPart(WindowPtr window, Point startPt, short part);
 void WM_StartDragFeedback(WindowPtr window, Point startPt);
 void WM_UpdateDragFeedback(Point currentPt);
@@ -294,16 +287,11 @@ void WM_UpdatePlatformWindowOrder(void);
 /*
  * Update management
  */
-void WM_AddToUpdateRegion(WindowPtr window, RgnHandle updateRgn);
-void WM_ProcessWindowUpdates(void);
 void WM_ScheduleWindowUpdate(WindowPtr window, WindowUpdateFlags flags);
 
 /*
  * Window metrics and layout
  */
-void WM_CalculateWindowMetrics(WindowPtr window, short procID);
-void WM_AdjustWindowBounds(Rect* bounds, short procID);
-Boolean WM_ValidateWindowBounds(const Rect* bounds);
 Boolean WM_ValidateWindow(WindowPtr window);
 Boolean WM_ValidateRect(const Rect* rect);
 void WM_InitializeSnapSizes(void);
@@ -355,21 +343,11 @@ void WM_InitializeWindowParts(WindowPtr window, short varCode);
 void WM_InitializeDialogParts(WindowPtr window, short varCode);
 void WM_CleanupWindowParts(WindowPtr window);
 
-/*
- * Memory management helpers
- */
-void* WM_AllocateMemory(size_t size);
-void WM_FreeMemory(void* ptr);
-Handle WM_AllocateHandle(size_t size);
-void WM_DisposeHandle(Handle h);
 
 /*
  * String utilities
  */
 void WM_CopyPascalString(ConstStr255Param source, Str255 dest);
-void WM_SetPascalString(Str255 dest, const char* source);
-short WM_GetPascalStringLength(ConstStr255Param str);
-Boolean WM_ComparePascalStrings(ConstStr255Param str1, ConstStr255Param str2);
 
 /*
  * Geometry utilities
@@ -377,9 +355,7 @@ Boolean WM_ComparePascalStrings(ConstStr255Param str1, ConstStr255Param str2);
 void WM_SetRect(Rect* rect, short left, short top, short right, short bottom);
 void WM_OffsetRect(Rect* rect, short dh, short dv);
 void WM_InsetRect(Rect* rect, short dh, short dv);
-void WM_UnionRect(const Rect* src1, const Rect* src2, Rect* dst);
 void WM_IntersectRect(const Rect* src1, const Rect* src2, Rect* dst);
-Boolean WM_EqualRect(const Rect* rect1, const Rect* rect2);
 Boolean WM_EmptyRect(const Rect* rect);
 Boolean WM_PtInRect(Point pt, const Rect* rect);
 Boolean WM_RectsIntersect(const Rect* rect1, const Rect* rect2);

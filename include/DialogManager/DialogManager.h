@@ -150,20 +150,15 @@ void SetDAFont(SInt16 fontNum);
 
 /* Standard filter procedure and extended features */
 Boolean StdFilterProc(DialogPtr theDialog, EventRecord* event, SInt16* itemHit);
-OSErr GetStdFilterProc(ModalFilterProcPtr* theProc);
 OSErr SetDialogDefaultItem(DialogPtr theDialog, SInt16 newItem);
 OSErr SetDialogCancelItem(DialogPtr theDialog, SInt16 newItem);
 SInt16 GetDialogDefaultItem(DialogPtr theDialog);
 SInt16 GetDialogCancelItem(DialogPtr theDialog);
-OSErr SetDialogTracksCursor(DialogPtr theDialog, Boolean tracks);
 
 /* Window modal class support */
 SInt16 GetFrontWindowModalClass(SInt16* modalClass);
 SInt16 GetWindowModalClass(WindowPtr theWindow, SInt16* modalClass);
 
-/* User item procedures */
-void SetUserItem(DialogPtr theDialog, SInt16 itemNo, UserItemProcPtr procPtr);
-UserItemProcPtr GetUserItem(DialogPtr theDialog, SInt16 itemNo);
 
 /*
  * BACKWARDS COMPATIBILITY ALIASES
@@ -209,8 +204,6 @@ OSErr DialogManager_ShowSaveFileDialog(const char* title, const char* defaultPat
 
 /* Color and theme support */
 
-void DialogManager_SetTheme(const DialogTheme* theme);
-void DialogManager_GetTheme(DialogTheme* theme);
 
 /*
  * INTERNAL UTILITY FUNCTIONS

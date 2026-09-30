@@ -145,12 +145,8 @@ OSErr ExitToShell(void);
 /* Cooperative Scheduling */
 OSErr Scheduler_GetNextProcess(ProcessControlBlock** nextProcess);
 OSErr Context_Switch(ProcessControlBlock* targetProcess);
-OSErr Process_Yield(void);
-OSErr Process_Suspend(ProcessSerialNumber* psn);
-OSErr Process_Resume(ProcessSerialNumber* psn);
 
 /* Process Information */
-OSErr GetProcessInformation(ProcessSerialNumber* psn, ProcessInfoRec* info);
 OSErr GetCurrentProcess(ProcessSerialNumber* currentPSN);
 OSErr GetNextProcess(ProcessSerialNumber* psn);
 OSErr SetFrontProcess(const ProcessSerialNumber* psn);
@@ -177,15 +173,9 @@ void FlushEvents(EventMask whichMask, EventMask stopMask);
 /* Keyboard modifier state */
 UInt16 GetCurrentModifiers(void);
 
-/* Memory Management Integration */
-OSErr Process_AllocateMemory(ProcessSerialNumber* psn, Size blockSize, Ptr* block);
-OSErr Process_DeallocateMemory(ProcessSerialNumber* psn, Ptr block);
-OSErr Process_SetMemorySize(ProcessSerialNumber* psn, Size newSize);
 
 /* MultiFinder Integration */
 OSErr MultiFinder_Init(void);
-OSErr MultiFinder_ConfigureProcess(ProcessSerialNumber* psn, ProcessMode mode);
-Boolean MultiFinder_IsActive(void);
 
 /* Application Switcher Integration */
 ProcessSerialNumber ProcessManager_GetFrontProcess(void);

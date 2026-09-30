@@ -85,13 +85,6 @@ extern "C" {
 
 /* Menu Manager private function prototypes */
 
-OSErr GetMenuTitleRect(MenuHandle theMenu, Rect *titleRect);
-OSErr GetMBARRect(Rect *mbarRect);
-OSErr GetAppMenusRect(Rect *appRect);
-OSErr GetSysMenusRect(Rect *sysRect);
-OSErr DrawMBARString(const unsigned char *text, SInt16 script, Rect *bounds, SInt16 just);
-Boolean IsSystemMenu(SInt16 menuID);
-OSErr CalcMenuBar(void);
 
 /* Menu item query functions (for MDEF and MenuKey) */
 Boolean CheckMenuItemEnabled(MenuHandle theMenu, short item);
@@ -103,20 +96,11 @@ Handle SaveBits(const Rect *bounds, SInt16 mode);
 OSErr RestoreBits(Handle bitsHandle);
 OSErr DiscardBits(Handle bitsHandle);
 
-/* Low-memory global manipulation */
-void SetMenuBarInvalidBit(Boolean invalid);
-Boolean GetMenuBarInvalidBit(void);
-void SetMenuBarGlobalInvalidBit(Boolean invalid);
-Boolean GetMenuBarGlobalInvalidBit(void);
-Boolean GetValidateMenuBarSemaphore(void);
-void SetValidateMenuBarSemaphore(Boolean locked);
 
 /* Menu resource parsing */
 MenuHandle ParseMENUResource(Handle resourceHandle);
 short* ParseMBARResource(Handle resourceHandle, short* outMenuCount);
 
-/* Menu Manager dispatch mechanism */
-OSErr MenuDispatch(SInt16 selector, void *params);
 
 /* Menu command handling */
 void DoMenuCommand(short menuID, short item);

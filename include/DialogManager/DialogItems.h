@@ -411,12 +411,9 @@ void DestroyPlatformDialogItem(DialogPtr theDialog, SInt16 itemNo);
 /* Internal dialog item functions */
 void InitDialogItems(void);
 void CleanupDialogItems(void);
-OSErr ValidateDialogItemNumber(DialogPtr theDialog, SInt16 itemNo);
 /* Forward declaration - actual type defined in DialogManagerStateExt.h */
 struct DialogItemInternal;
 typedef struct DialogItemInternal DialogItemInternal;
-DialogItemInternal* GetDialogItemPtr(DialogPtr theDialog, SInt16 itemNo);
-void UpdateDialogItemLayout(DialogPtr theDialog);
 void RemoveDialogItemCache(DialogPtr theDialog);
 
 /* Backwards compatibility aliases */

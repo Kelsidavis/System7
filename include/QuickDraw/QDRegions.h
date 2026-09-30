@@ -6,7 +6,6 @@
 // Forward declarations
 Boolean PtInRect(Point pt, const Rect *r);
 Boolean EmptyRect(const Rect *r);
-void CopyRect(const Rect* src, Rect* dst);
 void InsetRect(Rect* r, short dh, short dv);
 void OffsetRect(Rect* r, short dh, short dv);
 Boolean SectRect(const Rect* src1, const Rect* src2, Rect* dst);

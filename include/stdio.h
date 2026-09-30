@@ -30,26 +30,18 @@ int fprintf(FILE *stream, const char *format, ...);
 int sprintf(char *str, const char *format, ...);
 int snprintf(char *str, size_t size, const char *format, ...);
 int vprintf(const char *format, va_list ap);
-int vfprintf(FILE *stream, const char *format, va_list ap);
 int vsprintf(char *str, const char *format, va_list ap);
 int vsnprintf(char *str, size_t size, const char *format, va_list ap);
 
-/* Input functions */
-int scanf(const char *format, ...);
-int fscanf(FILE *stream, const char *format, ...);
-int sscanf(const char *str, const char *format, ...);
 
 /* Character I/O */
 int putchar(int c);
-int putc(int c, FILE *stream);
 int puts(const char *s);
 int getchar(void);
-int getc(FILE *stream);
 
 /* File operations */
 FILE *fopen(const char *filename, const char *mode);
 int fclose(FILE *stream);
-int fflush(FILE *stream);
 
 /* Error reporting */
 void perror(const char *s);

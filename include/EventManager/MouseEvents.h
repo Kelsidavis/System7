@@ -218,11 +218,6 @@ MouseRegion* AddMouseRegion(const Rect* bounds, void* userData);
  */
 void RemoveMouseRegion(MouseRegion* region);
 
-/**
- * Update mouse region tracking
- * @param mousePos Current mouse position
- */
-void UpdateMouseRegions(Point mousePos);
 
 /**
  * Get mouse region at point

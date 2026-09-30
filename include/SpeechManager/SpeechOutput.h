@@ -219,7 +219,6 @@ OSErr ResetAudioOutputStats(void);
 
 OSErr StartAudioFileRecording(const char *filePath, AudioFileFormat format,
                               const AudioOutputFormat *audioFormat);
-OSErr StopAudioFileRecording(void);
 OSErr WriteAudioToFile(const char *filePath, const void *audioData, long dataSize,
                        const AudioOutputFormat *format, AudioFileFormat fileFormat);
 
@@ -233,37 +232,19 @@ OSErr WriteAudioToFile(const char *filePath, const void *audioData, long dataSiz
 
 /* Buffer callback */
 
-/* Callback registration */
-OSErr SetAudioOutputCallback(AudioOutputStream *stream, AudioOutputProc callback, void *userData);
-OSErr SetAudioLevelCallback(AudioLevelProc callback, void *userData);
-OSErr SetAudioDeviceChangeCallback(AudioDeviceChangeProc callback, void *userData);
-OSErr SetAudioBufferCallback(AudioOutputStream *stream, AudioBufferProc callback, void *userData);
 
 /* ===== Platform Integration ===== */
 
 /* Platform-specific audio support */
 #ifdef PLATFORM_REMOVED_WIN32
-OSErr InitializeDirectSoundOutput(void);
-OSErr InitializeWASAPIOutput(void);
-OSErr ConfigureWindowsAudioSession(void *sessionConfig);
 #endif
 
 #ifdef PLATFORM_REMOVED_APPLE
-OSErr InitializeCoreAudioOutput(void);
-OSErr ConfigureAudioUnit(void *audioUnitConfig);
-OSErr SetAudioSessionCategory(OSType category);
 #endif
 
 #ifdef PLATFORM_REMOVED_LINUX
-OSErr InitializeALSAOutput(void);
-OSErr InitializePulseAudioOutput(void);
-OSErr InitializeJACKOutput(void);
-OSErr ConfigureLinuxAudioSystem(const char *configFile);
 #endif
 
-/* Cross-platform abstraction */
-OSErr GetPlatformAudioInfo(char **platformName, char **driverVersion, long *capabilities);
-OSErr SetPlatformAudioPreferences(const void *preferences);
 
 /* ===== Audio Utilities ===== */
 
@@ -289,27 +270,13 @@ OSErr ValidateAudioData(const void *audioData, long dataSize,
 OSErr AnalyzeAudioData(const void *audioData, long dataSize,
                        const AudioOutputFormat *format, Fixed *rmsLevel, Fixed *peakLevel);
 
-/* Timing utilities */
-OSErr AudioFramesToTime(long frameCount, long sampleRate, long *timeMs);
-OSErr AudioTimeToFrames(long timeMs, long sampleRate, long *frameCount);
-OSErr GetCurrentAudioTime(long *timeMs);
 
 /* ===== Audio Debugging ===== */
 
-/* Debug information */
-OSErr GetAudioOutputDebugInfo(char **debugInfo);
-OSErr DumpAudioOutputState(FILE *output);
-OSErr LogAudioActivity(const char *message);
-
-/* Performance monitoring */
-OSErr EnableAudioPerformanceMonitoring(Boolean enable);
-OSErr GetAudioPerformanceData(double *cpuUsage, long *memoryUsage, long *bufferUsage);
 
 /* Audio testing */
 OSErr GenerateTestTone(double frequency, long durationMs, const AudioOutputFormat *format,
                        void **audioData, long *dataSize);
-OSErr PlayTestTone(double frequency, long durationMs);
-OSErr TestAudioOutputDevice(const char *deviceID, Boolean *isWorking, char **errorMessage);
 
 #ifdef __cplusplus
 }

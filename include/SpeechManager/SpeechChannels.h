@@ -116,56 +116,12 @@ typedef void (*SpeechChannelEventProc)(SpeechChannel chan, long eventType, void 
 
 /* ===== Channel Management ===== */
 
-/* Channel creation and disposal */
-OSErr NewSpeechChannelWithConfig(const SpeechChannelConfig *config, SpeechChannel *chan);
-OSErr CloneSpeechChannel(SpeechChannel sourceChannel, SpeechChannel *newChannel);
-
-/* Channel state management */
-OSErr GetSpeechChannelState(SpeechChannel chan, SpeechChannelState *state);
-OSErr OpenSpeechChannel(SpeechChannel chan);
-OSErr CloseSpeechChannel(SpeechChannel chan);
-OSErr ResetSpeechChannel(SpeechChannel chan);
 
 /* ===== Channel Properties ===== */
 
-/* Voice management for channels */
-OSErr SetSpeechChannelVoice(SpeechChannel chan, const VoiceSpec *voice);
-OSErr GetSpeechChannelVoice(SpeechChannel chan, VoiceSpec *voice);
-
-/* Rate control */
-OSErr SetSpeechChannelRate(SpeechChannel chan, Fixed rate);
-OSErr GetSpeechChannelRate(SpeechChannel chan, Fixed *rate);
-
-/* Pitch control */
-OSErr SetSpeechChannelPitch(SpeechChannel chan, Fixed pitch);
-OSErr GetSpeechChannelPitch(SpeechChannel chan, Fixed *pitch);
-
-/* Volume control */
-OSErr SetSpeechChannelVolume(SpeechChannel chan, Fixed volume);
-OSErr GetSpeechChannelVolume(SpeechChannel chan, Fixed *volume);
-
-/* Channel priority */
-OSErr SetSpeechChannelPriority(SpeechChannel chan, SpeechChannelPriority priority);
-OSErr GetSpeechChannelPriority(SpeechChannel chan, SpeechChannelPriority *priority);
-
-/* Channel flags */
-OSErr SetSpeechChannelFlags(SpeechChannel chan, SpeechChannelFlags flags);
-OSErr GetSpeechChannelFlags(SpeechChannel chan, SpeechChannelFlags *flags);
 
 /* ===== Channel Information and Control ===== */
 
-/* Generic channel information */
-OSErr SetSpeechChannelInfo(SpeechChannel chan, OSType selector, void *speechInfo);
-OSErr GetSpeechChannelInfo(SpeechChannel chan, OSType selector, void *speechInfo);
-
-/* Channel status */
-Boolean IsSpeechChannelBusy(SpeechChannel chan);
-Boolean IsSpeechChannelPaused(SpeechChannel chan);
-OSErr GetSpeechChannelBytesLeft(SpeechChannel chan, long *bytesLeft);
-
-/* Channel dictionary support */
-OSErr SetSpeechChannelDictionary(SpeechChannel chan, void *dictionary);
-OSErr GetSpeechChannelDictionary(SpeechChannel chan, void **dictionary);
 
 /* ===== Channel Text Processing ===== */
 
@@ -173,37 +129,16 @@ OSErr GetSpeechChannelDictionary(SpeechChannel chan, void **dictionary);
 OSErr SpeakText(SpeechChannel chan, void *textBuf, long textBytes);
 OSErr SpeakBuffer(SpeechChannel chan, void *textBuf, long textBytes, long controlFlags);
 
-/* Text queueing */
-OSErr QueueSpeechText(SpeechChannel chan, void *textBuf, long textBytes);
-OSErr ClearSpeechQueue(SpeechChannel chan);
-OSErr GetSpeechQueueLength(SpeechChannel chan, long *queueLength);
-
-/* Text streaming */
-OSErr BeginSpeechStream(SpeechChannel chan);
-OSErr WriteSpeechStream(SpeechChannel chan, void *textBuf, long textBytes);
-OSErr EndSpeechStream(SpeechChannel chan);
 
 /* ===== Channel Control ===== */
 
 /* Speech control */
-OSErr StopSpeech(SpeechChannel chan);
 OSErr StopSpeechAt(SpeechChannel chan, long whereToStop);
 OSErr PauseSpeechAt(SpeechChannel chan, long whereToPause);
-OSErr ContinueSpeech(SpeechChannel chan);
 
-/* Channel synchronization */
-OSErr WaitForSpeechCompletion(SpeechChannel chan, long timeoutMs);
-OSErr FlushSpeechChannel(SpeechChannel chan);
 
 /* ===== Channel Monitoring ===== */
 
-/* Channel statistics */
-OSErr GetSpeechChannelStats(SpeechChannel chan, SpeechChannelStats *stats);
-OSErr ResetSpeechChannelStats(SpeechChannel chan);
-
-/* Performance monitoring */
-OSErr EnableSpeechChannelMonitoring(SpeechChannel chan, Boolean enable);
-OSErr GetSpeechChannelPerformance(SpeechChannel chan, double *cpuUsage, long *memoryUsage);
 
 /* Event monitoring */
 
@@ -214,59 +149,15 @@ OSErr SetSpeechChannelEventCallback(SpeechChannel chan, SpeechChannelEventProc c
 
 /* ===== System Channel Management ===== */
 
-/* System-wide channel operations */
-OSErr CountActiveSpeechChannels(short *channelCount);
-OSErr GetActiveSpeechChannels(SpeechChannel **channels, short *channelCount);
-Boolean IsSpeechSystemBusy(void);
-
-/* Channel enumeration */
-OSErr EnumerateSpeechChannels(Boolean (*callback)(SpeechChannel chan, void *userData), void *userData);
-
-/* System channel control */
-OSErr StopAllSpeechChannels(void);
-OSErr PauseAllSpeechChannels(void);
-OSErr ResumeAllSpeechChannels(void);
-
-/* Channel priority management */
-OSErr SetSystemChannelPriorities(Boolean enablePriorities);
-OSErr InterruptLowerPriorityChannels(SpeechChannelPriority minimumPriority);
 
 /* ===== Channel Resource Management ===== */
 
-/* Memory management */
-OSErr SetSpeechChannelMemoryLimit(SpeechChannel chan, long memoryLimit);
-OSErr GetSpeechChannelMemoryUsage(SpeechChannel chan, long *memoryUsage);
-
-/* Buffer management */
-OSErr SetSpeechChannelBufferSize(SpeechChannel chan, long bufferSize);
-OSErr GetSpeechChannelBufferSize(SpeechChannel chan, long *bufferSize);
-OSErr FlushSpeechChannelBuffers(SpeechChannel chan);
-
-/* Resource cleanup */
-OSErr CleanupIdleChannels(long maxIdleTime);
-OSErr OptimizeSpeechChannelMemory(SpeechChannel chan);
 
 /* ===== Channel Threading ===== */
 
-/* Thread safety */
-OSErr LockSpeechChannel(SpeechChannel chan);
-OSErr UnlockSpeechChannel(SpeechChannel chan);
-OSErr SetSpeechChannelThreadSafe(SpeechChannel chan, Boolean threadSafe);
-
-/* Background processing */
-OSErr SetSpeechChannelBackgroundMode(SpeechChannel chan, Boolean backgroundMode);
-OSErr GetSpeechChannelBackgroundMode(SpeechChannel chan, Boolean *backgroundMode);
 
 /* ===== Channel Configuration ===== */
 
-/* Default configuration */
-OSErr GetDefaultChannelConfig(SpeechChannelConfig *config);
-OSErr SetDefaultChannelConfig(const SpeechChannelConfig *config);
-
-/* Channel presets */
-OSErr SaveChannelPreset(SpeechChannel chan, const char *presetName);
-OSErr LoadChannelPreset(SpeechChannel chan, const char *presetName);
-OSErr DeleteChannelPreset(const char *presetName);
 
 /* Configuration validation */
 OSErr ValidateChannelConfig(const SpeechChannelConfig *config, Boolean *isValid,
@@ -274,31 +165,9 @@ OSErr ValidateChannelConfig(const SpeechChannelConfig *config, Boolean *isValid,
 
 /* ===== Channel Debugging ===== */
 
-/* Debug information */
-OSErr GetSpeechChannelDebugInfo(SpeechChannel chan, char **debugInfo);
-OSErr DumpSpeechChannelState(SpeechChannel chan, FILE *output);
-
-/* Channel tracing */
-OSErr EnableSpeechChannelTracing(SpeechChannel chan, Boolean enable);
-OSErr GetSpeechChannelTrace(SpeechChannel chan, char **traceData, long *traceSize);
-
-/* Error reporting */
-OSErr GetSpeechChannelLastError(SpeechChannel chan, OSErr *error, char **errorMessage);
-OSErr ClearSpeechChannelErrors(SpeechChannel chan);
 
 /* ===== Channel Utilities ===== */
 
-/* Channel comparison */
-Boolean AreSpeechChannelsEqual(SpeechChannel chan1, SpeechChannel chan2);
-int CompareSpeechChannels(SpeechChannel chan1, SpeechChannel chan2);
-
-/* Channel validation */
-Boolean IsValidSpeechChannel(SpeechChannel chan);
-OSErr ValidateSpeechChannel(SpeechChannel chan);
-
-/* Channel conversion */
-OSErr SpeechChannelToString(SpeechChannel chan, char *string, long stringSize);
-OSErr StringToSpeechChannel(const char *string, SpeechChannel *chan);
 
 #ifdef __cplusplus
 }

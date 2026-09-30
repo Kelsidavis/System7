@@ -189,13 +189,6 @@ void Chooser_SetDiscoveryCallback(Chooser *chooser,
  */
 int Chooser_AddDevice(Chooser *chooser, const DeviceInfo *device);
 
-/**
- * Remove device from list
- * @param chooser Pointer to chooser structure
- * @param deviceName Device name
- * @return 0 on success, negative on error
- */
-int Chooser_RemoveDevice(Chooser *chooser, const char *deviceName);
 
 /**
  * Update device information
@@ -215,13 +208,6 @@ int Chooser_UpdateDevice(Chooser *chooser, const char *deviceName,
  */
 DeviceInfo *Chooser_GetDevice(Chooser *chooser, const char *deviceName);
 
-/**
- * Get device by index
- * @param chooser Pointer to chooser structure
- * @param index Device index
- * @return Pointer to device info or NULL if invalid index
- */
-DeviceInfo *Chooser_GetDeviceByIndex(Chooser *chooser, SInt16 index);
 
 /**
  * Select device
@@ -247,14 +233,6 @@ DeviceInfo *Chooser_GetSelectedDevice(Chooser *chooser);
  */
 int Chooser_ScanZones(Chooser *chooser);
 
-/**
- * Add zone to list
- * @param chooser Pointer to chooser structure
- * @param zoneName Zone name
- * @param isDefault True if default zone
- * @return 0 on success, negative on error
- */
-int Chooser_AddZone(Chooser *chooser, const char *zoneName, Boolean isDefault);
 
 /**
  * Select zone
@@ -292,13 +270,6 @@ int Chooser_SetDefaultPrinter(Chooser *chooser, const char *printerName);
  */
 DeviceInfo *Chooser_GetDefaultPrinter(Chooser *chooser);
 
-/**
- * Test printer connection
- * @param chooser Pointer to chooser structure
- * @param printerName Printer name
- * @return 0 if connected, negative on error
- */
-int Chooser_TestPrinter(Chooser *chooser, const char *printerName);
 
 /**
  * Get printer status
@@ -313,18 +284,6 @@ int Chooser_GetPrinterStatus(Chooser *chooser, const char *printerName,
 
 /* Driver Management Functions */
 
-/**
- * Load device driver
- * @param driverName Driver name
- * @return Driver handle or NULL on error
- */
-void *Chooser_LoadDriver(const char *driverName);
-
-/**
- * Unload device driver
- * @param driver Driver handle
- */
-void Chooser_UnloadDriver(void *driver);
 
 /**
  * Get available drivers
@@ -363,11 +322,6 @@ void Chooser_DrawZoneList(Chooser *chooser);
  */
 void Chooser_DrawDeviceInfo(Chooser *chooser);
 
-/**
- * Update display
- * @param chooser Pointer to chooser structure
- */
-void Chooser_UpdateDisplay(Chooser *chooser);
 
 /* Event Handling */
 
@@ -380,13 +334,6 @@ void Chooser_UpdateDisplay(Chooser *chooser);
  */
 int Chooser_HandleClick(Chooser *chooser, Point point, UInt16 modifiers);
 
-/**
- * Handle double-click on device
- * @param chooser Pointer to chooser structure
- * @param deviceIndex Device index
- * @return 0 on success, negative on error
- */
-int Chooser_HandleDoubleClick(Chooser *chooser, SInt16 deviceIndex);
 
 /**
  * Handle key press
@@ -436,25 +383,6 @@ void Chooser_FormatAddress(const char *host, SInt16 port,
 
 /* Settings Functions */
 
-/**
- * Load chooser settings
- * @param chooser Pointer to chooser structure
- * @return 0 on success, negative on error
- */
-int Chooser_LoadSettings(Chooser *chooser);
-
-/**
- * Save chooser settings
- * @param chooser Pointer to chooser structure
- * @return 0 on success, negative on error
- */
-int Chooser_SaveSettings(Chooser *chooser);
-
-/**
- * Reset to default settings
- * @param chooser Pointer to chooser structure
- */
-void Chooser_ResetSettings(Chooser *chooser);
 
 /* Desk Accessory Integration */
 

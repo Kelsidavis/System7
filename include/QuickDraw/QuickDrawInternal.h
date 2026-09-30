@@ -26,7 +26,6 @@ RgnHandle EllipseToRegion(const Rect* bounds);
 RgnHandle RoundRectToRegion(const Rect* bounds, SInt16 ovalWidth, SInt16 ovalHeight);
 Boolean ClipLineToRegion(Point* p1, Point* p2, RgnHandle rgn);
 Boolean ClipRectToRegion(Rect *rect, RgnHandle clipRgn, Rect *clippedRect);
-RgnHandle IntersectRegionWithRect(RgnHandle rgn, const Rect* rect);
 
 /* Coordinates */
 Point CalculateArcPoint(const Rect *bounds, SInt16 angle);

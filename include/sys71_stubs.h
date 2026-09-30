@@ -23,13 +23,7 @@ void Platform_EraseMenuBar(void);
 void InitControlManager_Sys7(void);
 
 /* Expand Memory (Low Memory Globals) */
-void ExpandMemInit(void);
-void ExpandMemInitKeyboard(void);
-void ExpandMemSetAppleTalkInactive(void);
-void ExpandMemInstallDecompressor(void);
-void ExpandMemCleanup(void);
 void ExpandMemDump(void);
-Boolean ExpandMemValidate(void);
 
 /* Finder */
 void FinderEventLoop(void);
@@ -91,9 +85,6 @@ long long __divdi3(long long a, long long b);
 /* POSIX */
 int sched_yield(void);
 
-/* Runtime stubs */
-void __stack_chk_fail(void);
-void __stack_chk_fail_local(void);
 
 /* QuickDraw */
 typedef void (*DeskHookProc)(RgnHandle invalidRgn);

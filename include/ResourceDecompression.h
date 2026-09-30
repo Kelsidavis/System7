@@ -124,12 +124,6 @@ void DonnBits_Cleanup(
     DecompressContext* ctx
 );
 
-/* DonnBits helper functions */
-UInt32 DonnBits_GetEncodedValue(DecompressContext* ctx);
-int DonnBits_CopyLiteral(DecompressContext* ctx, size_t length);
-int DonnBits_RememberLiteral(DecompressContext* ctx, size_t length);
-int DonnBits_ReuseLiteral(DecompressContext* ctx, size_t index);
-int DonnBits_HandleExtended(DecompressContext* ctx);
 
 /* ---- GreggyBits Decompression (dcmp 2) ------------------------------------------- */
 
@@ -150,10 +144,6 @@ void GreggyBits_Cleanup(
     DecompressContext* ctx
 );
 
-/* GreggyBits helper functions */
-int GreggyBits_LoadByteTable(DecompressContext* ctx);
-int GreggyBits_ExpandBytes(DecompressContext* ctx);
-int GreggyBits_ProcessBitmap(DecompressContext* ctx);
 
 /* ---- Dcmp1 Decompression (dcmp 1 - byte-wise) ------------------------------------ */
 
@@ -176,25 +166,9 @@ void Dcmp1_Cleanup(
 
 /* ---- Variable Table Functions (DonnBits) ----------------------------------------- */
 
-/* Create a variable table */
-VarTable* VarTable_Create(size_t ratio, size_t unpackedSize);
-
-/* Initialize variable table */
-void VarTable_Init(VarTable* table);
-
-/* Store data in variable table */
-int VarTable_Remember(VarTable* table, const UInt8* data, size_t length);
-
-/* Retrieve data from variable table */
-int VarTable_Fetch(VarTable* table, size_t index, UInt8** data, size_t* length);
-
-/* Free variable table */
-void VarTable_Free(VarTable* table);
 
 /* ---- Static Byte Tables (GreggyBits) --------------------------------------------- */
 
-/* Get static byte expansion table */
-const UInt16* GreggyBits_GetStaticTable(void);
 
 /* ---- Decompressor DefProc Support ------------------------------------------------ */
 
@@ -206,13 +180,9 @@ int RegisterDecompressor(
     DecompressProc proc
 );
 
-/* Get decompressor for ID */
-DecompressProc GetDecompressor(UInt16 defProcID);
 
 /* ---- Utility Functions ----------------------------------------------------------- */
 
-/* Calculate checksum of data */
-UInt32 CalculateChecksum(const UInt8* data, size_t size);
 
 /* Verify decompressed data */
 Boolean VerifyDecompression(
@@ -222,35 +192,14 @@ Boolean VerifyDecompression(
     size_t decompressedSize
 );
 
-/* Get error message for error code */
-const char* GetDecompressErrorString(int error);
 
 /* ---- Debugging Support ----------------------------------------------------------- */
 
-/* Enable/disable debug output */
-void SetDecompressDebug(Boolean enable);
-
-/* Dump resource header */
-void DumpResourceHeader(const ResourceHeader* header);
-
-/* Dump variable table */
-void DumpVarTable(const VarTable* table);
-
-/* Dump decompression statistics */
-void DumpDecompressStats(const DecompressStats* stats);
 
 /* ---- Cache Support --------------------------------------------------------------- */
 
 /* Decompression cache entry */
 
-/* Enable/disable decompression caching */
-void SetDecompressCaching(Boolean enable);
-
-/* Clear decompression cache */
-void ClearDecompressCache(void);
-
-/* Get cache statistics */
-void GetDecompressCacheStats(size_t* entries, size_t* totalSize, size_t* hits, size_t* misses);
 
 #ifdef __cplusplus
 }

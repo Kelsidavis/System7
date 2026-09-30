@@ -82,13 +82,9 @@ typedef struct ResourceMgrGlobals {
 } ResourceMgrGlobals;
 
 /* Internal functions */
-void ResMap_Init(ResFile* file);
 TypeListEntry* ResMap_FindType(ResFile* file, ResType type);
 RefListEntry* ResMap_FindResource(ResFile* file, ResType type, ResID id);
-RefListEntry* ResMap_FindNamedResource(ResFile* file, ResType type, ConstStr255Param name);
-OSErr ResFile_Open(const char* path, SInt16* refNum);
 void ResFile_Close(SInt16 refNum);
-OSErr ResFile_ReadAt(ResFile* file, UInt32 offset, void* dst, UInt32 size);
 Handle ResFile_LoadResource(ResFile* file, RefListEntry* ref);
 
 /* Byte swapping for big-endian data */

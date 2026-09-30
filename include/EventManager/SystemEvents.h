@@ -327,53 +327,11 @@ SInt16 ProcessClipboardChangeEvent(void);
  * Memory Management Events
  *---------------------------------------------------------------------------*/
 
-/**
- * Process low memory warning
- * @param memoryLevel Memory level (0-100)
- * @return Error code
- */
-SInt16 ProcessLowMemoryWarning(SInt16 memoryLevel);
-
-/**
- * Process critical memory warning
- * @return Error code
- */
-SInt16 ProcessCriticalMemoryWarning(void);
-
-/**
- * Check memory warning state
- * @return true if memory warning is active
- */
-Boolean IsMemoryWarningActive(void);
 
 /*---------------------------------------------------------------------------
  * Power Management Events
  *---------------------------------------------------------------------------*/
 
-/**
- * Process power save event
- * @param enterPowerSave true to enter, false to exit
- * @return Error code
- */
-SInt16 ProcessPowerSaveEvent(Boolean enterPowerSave);
-
-/**
- * Process sleep event
- * @return Error code
- */
-SInt16 ProcessSleepEvent(void);
-
-/**
- * Process wake event
- * @return Error code
- */
-SInt16 ProcessWakeEvent(void);
-
-/**
- * Check if system is in power save mode
- * @return true if in power save mode
- */
-Boolean IsSystemInPowerSave(void);
 
 /*---------------------------------------------------------------------------
  * Event Callback Management
@@ -394,29 +352,6 @@ void* RegisterSystemEventCallback(SInt16 eventType, SystemEventCallback callback
  */
 void UnregisterSystemEventCallback(void* handle);
 
-/**
- * Register update event callback
- * @param callback Callback function
- * @param userData User data for callback
- * @return Registration handle
- */
-void* RegisterUpdateEventCallback(UpdateEventCallback callback, void* userData);
-
-/**
- * Register activation event callback
- * @param callback Callback function
- * @param userData User data for callback
- * @return Registration handle
- */
-void* RegisterActivateEventCallback(ActivateEventCallback callback, void* userData);
-
-/**
- * Register state change callback
- * @param callback Callback function
- * @param userData User data for callback
- * @return Registration handle
- */
-void* RegisterStateChangeCallback(StateChangeCallback callback, void* userData);
 
 /*---------------------------------------------------------------------------
  * Utility Functions

@@ -110,17 +110,10 @@ void Desktop_GhostShowAt(const Rect* r);
 void SelectNextDesktopIcon(void);
 void OpenSelectedDesktopIcon(void);
 
-/* File Manager API - Evidence: "Do you want to copy", "Items from ^1 disks cannot be moved" */
-OSErr CopyItems(FSSpec *source, FSSpec *dest, Boolean askUser);
-OSErr MoveItems(FSSpec *source, FSSpec *dest);
-OSErr PrintDocument(FSSpec *document);
-Boolean CheckMemoryForOperation(Size requiredBytes);
 
 /* Window Manager API - Evidence: "Clean Up Window", "Close All" */
 OSErr CleanUpWindow(WindowPtr window, short cleanupType);
 OSErr CloseAllWindows(void);
-OSErr ShowWindowContents(WindowPtr window, FSSpec *folder, short maxItems);
-Size FreeWindowMemory(void);
 WindowPtr Finder_OpenDesktopItem(Boolean isTrash, ConstStr255Param title);
 
 /* Folder Window API */
@@ -157,21 +150,15 @@ OSErr HandleFloppyTrashItems(void);
 OSErr InitializeTrashFolder(void);
 
 /* View Manager API - Evidence: "Icon Views", "List Views", "Clean Up Selection" */
-OSErr SetIconView(WindowPtr window);
-OSErr SetListView(WindowPtr window);
 OSErr CleanUpSelection(WindowPtr window);
 OSErr CleanUpBy(WindowPtr window, short sortType);
 
 /* Info Window API - Evidence: "Get Info", "Comments in info windows will be lost" */
 OSErr ShowGetInfo(FSSpec *items, short count);
-OSErr SetMemorySize(FSSpec *application, Size minSize, Size prefSize);
-OSErr PreserveComments(FSSpec *item, Boolean preserve);
 
 /* Find Dialog API - Evidence: "Find", "Find Again", "Find Original" */
 OSErr ShowFind(void);
 OSErr FindAgain(void);
-OSErr FindOriginal(FSSpec *alias);
-OSErr FindItemsByCriteria(StringPtr criteria, FSSpec *results, short *count);
 Boolean Find_CloseIf(WindowPtr w);
 Boolean Find_HandleUpdate(WindowPtr w);
 Boolean Find_IsFindWindow(WindowPtr w);

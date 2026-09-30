@@ -20,8 +20,6 @@ typedef struct EventManagerState {
 } EventManagerState;
 
 // Internal functions
-void InitEventInternals(void);
-Boolean QueueEvent(EventRecord* event);
 Boolean DequeueEvent(EventRecord* event);
 
 // Event Dispatcher

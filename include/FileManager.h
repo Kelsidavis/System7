@@ -105,19 +105,11 @@ OSErr FSGetVInfo(VolumeRefNum vRefNum, StringPtr volName, UInt16* actualVRefNum,
 OSErr FSSetVol(ConstStr255Param volName, VolumeRefNum vRefNum);
 OSErr FSGetVol(StringPtr volName, VolumeRefNum* vRefNum);
 
-/* File ID Operations */
-OSErr FSCreateFileIDRef(ConstStr255Param fileName, VolumeRefNum vRefNum, DirID dirID, FileID* fileID);
-OSErr FSDeleteFileIDRef(ConstStr255Param fileName, VolumeRefNum vRefNum);
-OSErr FSResolveFileIDRef(ConstStr255Param volName, VolumeRefNum vRefNum, FileID fileID, FSSpec* spec);
-OSErr FSExchangeFiles(const FSSpec* file1, const FSSpec* file2);
 
 /* High-level wrappers */
 OSErr HGetFInfo(short vRefNum, long dirID, ConstStr255Param fileName, FInfo *fndrInfo);
 OSErr DirCreate(short vRefNum, long parentDirID, ConstStr255Param directoryName, long *createdDirID);
 
-/* Alias and Path Resolution */
-OSErr FSResolveAliasFile(FSSpec* theSpec, Boolean resolveAliasChains, Boolean* targetIsFolder, Boolean* wasAliased);
-OSErr FSMakeAlias(const FSSpec* fromFile, const FSSpec* target, void** alias);
 
 /* Parameter Block Operations (Low-level) */
 OSErr PBOpenSync(ParmBlkPtr paramBlock);
@@ -145,37 +137,17 @@ OSErr PBHDeleteAsync(ParmBlkPtr paramBlock);
 OSErr PBHRenameSync(ParmBlkPtr paramBlock);
 OSErr PBHRenameAsync(ParmBlkPtr paramBlock);
 
-/* Working Directory Parameter Block Operations */
-OSErr PBOpenWDSync(WDPBPtr paramBlock);
-OSErr PBOpenWDAsync(WDPBPtr paramBlock);
-OSErr PBCloseWDSync(WDPBPtr paramBlock);
-OSErr PBCloseWDAsync(WDPBPtr paramBlock);
-OSErr PBGetWDInfoSync(WDPBPtr paramBlock);
-OSErr PBGetWDInfoAsync(WDPBPtr paramBlock);
-
-/* File Control Block Operations */
-OSErr PBGetFCBInfoSync(FCBPBPtr paramBlock);
-OSErr PBGetFCBInfoAsync(FCBPBPtr paramBlock);
 
 /* Utility Functions */
 OSErr FM_GetVolumeFromRefNum(VolumeRefNum vRefNum, VCB** vcb);
 OSErr FM_GetFCBFromRefNum(FileRefNum refNum, FCB** fcb);
 Boolean FM_IsDirectory(const FSSpec* spec);
-OSErr FM_ConvertPath(const char* unixPath, FSSpec* spec);
-OSErr FM_ConvertToUnixPath(const FSSpec* spec, char* unixPath, size_t maxLen);
 
 /* Process Manager Integration */
 OSErr FM_SetProcessOwner(FileRefNum refNum, UInt32 processID);
 OSErr FM_ReleaseProcessFiles(UInt32 processID);
 OSErr FM_YieldToProcess(void);
 
-/* Cache Management */
-OSErr FM_FlushCache(void);
-OSErr FM_SetCacheSize(UInt32 cacheSize);
-
-/* Compatibility Functions */
-OSErr FM_RegisterExternalFS(UInt16 fsID, void* dispatcher);
-OSErr FM_UnregisterExternalFS(UInt16 fsID);
 
 /* Debug and Statistics */
 void FM_GetStatistics(void* stats);

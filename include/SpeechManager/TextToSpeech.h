@@ -76,16 +76,10 @@ typedef void (*PronunciationProc)(const char *word, const char *pronunciation, v
 
 /* ===== Text Processing Functions ===== */
 
-/* Context management */
-OSErr CreateTextProcessingContext(TextProcessingContext **context);
-OSErr DisposeTextProcessingContext(TextProcessingContext *context);
-OSErr SetTextProcessingMode(TextProcessingContext *context, TextInputMode mode);
-OSErr SetTextProcessingFlags(TextProcessingContext *context, TextProcessingFlags flags);
 
 /* Text analysis */
 OSErr AnalyzeText(const char *text, long textLength, TextProcessingContext *context,
                   TextAnalysisResult **result);
-OSErr DisposeTextAnalysisResult(TextAnalysisResult *result);
 
 /* Text normalization */
 OSErr NormalizeText(const char *inputText, long inputLength, TextProcessingContext *context,
@@ -98,13 +92,7 @@ OSErr ProcessNumbers(const char *inputText, long inputLength, TextProcessingCont
 /* Phoneme conversion */
 OSErr ConvertTextToPhonemes(const char *text, long textLength, TextProcessingContext *context,
                             PhonemeConversionResult **result);
-OSErr DisposePhonemeConversionResult(PhonemeConversionResult *result);
 
-/* Dictionary support */
-OSErr LoadTextDictionary(const char *dictionaryPath, void **dictionary);
-OSErr UnloadTextDictionary(void *dictionary);
-OSErr LookupWord(void *dictionary, const char *word, char **pronunciation);
-OSErr AddWordToDictionary(void *dictionary, const char *word, const char *pronunciation);
 
 /* Markup processing */
 OSErr ProcessSSMLMarkup(const char *ssmlText, long textLength, TextProcessingContext *context,
@@ -130,28 +118,18 @@ OSErr SpeakTextWithCallback(SpeechChannel chan, const char *text, long textLengt
                             void *userData);
 
 /* Buffered text processing */
-OSErr BeginTextProcessing(SpeechChannel chan, TextProcessingContext *context);
 OSErr ProcessTextBuffer(SpeechChannel chan, const char *textBuffer, long bufferLength,
                         Boolean isLastBuffer);
-OSErr EndTextProcessing(SpeechChannel chan);
 
 /* Text streaming */
 
 OSErr CreateTextStream(SpeechChannel chan, TextProcessingContext *context,
                        TextStreamContext **stream);
-OSErr WriteToTextStream(TextStreamContext *stream, const char *text, long textLength);
-OSErr FlushTextStream(TextStreamContext *stream);
-OSErr CloseTextStream(TextStreamContext *stream);
 
 /* ===== Text Processing Utilities ===== */
 
-/* Language detection */
-OSErr DetectTextLanguage(const char *text, long textLength, short *language, short *confidence);
-OSErr IsTextInLanguage(const char *text, long textLength, short language, Boolean *isMatch);
 
 /* Text validation */
-Boolean IsValidTextForSpeech(const char *text, long textLength);
-OSErr ValidateTextEncoding(const char *text, long textLength, long *encoding);
 OSErr ConvertTextEncoding(const char *inputText, long inputLength, long inputEncoding,
                           long outputEncoding, char **outputText, long *outputLength);
 
@@ -162,7 +140,6 @@ OSErr GetTextStatistics(const char *text, long textLength, long *wordCount, long
 /* Pronunciation hints */
 OSErr SetPronunciationHint(TextProcessingContext *context, const char *word,
                            const char *pronunciation);
-OSErr RemovePronunciationHint(TextProcessingContext *context, const char *word);
 OSErr GetPronunciationHint(TextProcessingContext *context, const char *word,
                            char **pronunciation);
 
@@ -171,14 +148,12 @@ OSErr SetTextEmphasis(TextProcessingContext *context, long startPos, long endPos
                       short emphasisLevel);
 OSErr SetTextProsody(TextProcessingContext *context, long startPos, long endPos,
                      Fixed rate, Fixed pitch, Fixed volume);
-OSErr ClearTextAttributes(TextProcessingContext *context, long startPos, long endPos);
 
 /* Text caching */
 OSErr CacheProcessedText(const char *originalText, long textLength,
                          const char *processedText, long processedLength);
 OSErr LookupCachedText(const char *originalText, long textLength,
                        char **processedText, long *processedLength);
-OSErr ClearTextCache(void);
 
 /* ===== Text Processing Callbacks ===== */
 
@@ -198,14 +173,8 @@ OSErr SetPronunciationCallback(TextProcessingContext *context,
 
 /* ===== Advanced Text Features ===== */
 
-/* Text bookmarks */
-OSErr SetTextBookmark(TextProcessingContext *context, long position, const char *name);
-OSErr GetTextBookmark(TextProcessingContext *context, const char *name, long *position);
-OSErr RemoveTextBookmark(TextProcessingContext *context, const char *name);
 
 /* Text variables */
-OSErr SetTextVariable(TextProcessingContext *context, const char *name, const char *value);
-OSErr GetTextVariable(TextProcessingContext *context, const char *name, char **value);
 OSErr ExpandTextVariables(const char *inputText, long inputLength,
                           TextProcessingContext *context, char **outputText, long *outputLength);
 

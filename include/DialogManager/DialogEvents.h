@@ -409,8 +409,6 @@ void LogDialogEvent(DialogPtr theDialog, const EventRecord* theEvent,
 /* Internal event functions */
 void InitDialogEvents(void);
 void CleanupDialogEvents(void);
-void UpdateDialogEventState(DialogPtr theDialog, const EventRecord* theEvent);
-Boolean IsDialogEventRelevant(DialogPtr theDialog, const EventRecord* theEvent);
 void NotifyDialogEventHandlers(DialogPtr theDialog, const EventRecord* theEvent,
                               SInt16 itemHit);
 

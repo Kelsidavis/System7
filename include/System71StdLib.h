@@ -272,9 +272,6 @@ SInt16 LoWord(SInt32 x);
 void BlockMoveData(const void* srcPtr, void* destPtr, Size byteCount);
 void LongMul(SInt32 a, SInt32 b, wide* result);
 
-/* GCC stack checking functions */
-void __stack_chk_fail(void);
-void __stack_chk_fail_local(void);
 
 #endif /* SYSTEM71_STDLIB_H */
 

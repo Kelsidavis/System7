@@ -35,67 +35,6 @@ extern "C" {
 
 /* ExpandMem API Functions */
 
-/**
- * Initialize ExpandMem structure
- * Called early in system initialization
- *
- * @param size Size of ExpandMem to allocate (0 for default)
- * @return Pointer to initialized ExpandMem, NULL on failure
- */
-ExpandMemRec* ExpandMemInit(size_t size);
-
-/**
- * Get current ExpandMem pointer
- *
- * @return Current ExpandMem pointer (NULL if not initialized)
- */
-ExpandMemRec* ExpandMemGet(void);
-
-/**
- * Extend ExpandMem size
- * Used when system components need more global space
- *
- * @param new_size New size required
- * @return true on success, false on failure
- */
-Boolean ExpandMemExtend(size_t new_size);
-
-/**
- * Initialize keyboard cache in ExpandMem
- * Sets up KCHR resource and dead key state
- *
- * @param em ExpandMem pointer
- * @param kchr_id KCHR resource ID to load (0 for default)
- * @return true on success
- */
-Boolean ExpandMemInitKeyboard(ExpandMemRec* em, SInt16 kchr_id);
-
-/**
- * Set AppleTalk inactive flag
- * Called during boot if AppleTalk is not configured
- *
- * @param em ExpandMem pointer
- * @param inactive true if AppleTalk is inactive
- */
-void ExpandMemSetAppleTalkInactive(ExpandMemRec* em, Boolean inactive);
-
-/**
- * Install decompressor in ExpandMem
- * Sets up resource decompression hook
- *
- * @param em ExpandMem pointer
- * @param decompressor Decompressor procedure pointer
- */
-void ExpandMemInstallDecompressor(ExpandMemRec* em, void* decompressor);
-
-/**
- * Validate ExpandMem integrity
- * Checks version, size, and critical pointers
- *
- * @param em ExpandMem pointer to validate
- * @return true if valid, false if corrupted
- */
-Boolean ExpandMemValidate(const ExpandMemRec* em);
 
 /**
  * Dump ExpandMem contents for debugging
@@ -106,13 +45,6 @@ Boolean ExpandMemValidate(const ExpandMemRec* em);
 void ExpandMemDump(const ExpandMemRec* em,
                    void (*output_func)(const char* text));
 
-/**
- * Clean up ExpandMem on shutdown
- * Frees resources and cleans up allocations
- *
- * @param em ExpandMem pointer
- */
-void ExpandMemCleanup(ExpandMemRec* em);
 
 #ifdef __cplusplus
 }

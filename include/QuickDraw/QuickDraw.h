@@ -207,18 +207,8 @@ void MapRgn(RgnHandle rgn, const Rect *srcRect, const Rect *dstRect);
 void MapPoly(PolyHandle poly, const Rect *srcRect, const Rect *dstRect);
 
 /* Drawing Procedure Management */
-void SetStdProcs(QDProcs *procs);
-void StdRect(GrafVerb verb, const Rect *r);
-void StdRRect(GrafVerb verb, const Rect *r, SInt16 ovalWidth, SInt16 ovalHeight);
-void StdOval(GrafVerb verb, const Rect *r);
-void StdArc(GrafVerb verb, const Rect *r, SInt16 startAngle, SInt16 arcAngle);
-void StdPoly(GrafVerb verb, PolyHandle poly);
-void StdRgn(GrafVerb verb, RgnHandle rgn);
 void StdBits(const BitMap *srcBits, const Rect *srcRect, const Rect *dstRect,
              SInt16 mode, RgnHandle maskRgn);
-void StdComment(SInt16 kind, SInt16 dataSize, Handle dataHandle);
-void StdGetPic(void *dataPtr, SInt16 byteCount);
-void StdPutPic(const void *dataPtr, SInt16 byteCount);
 
 /* Point Operations */
 void AddPt(Point src, Point *dst);
@@ -228,7 +218,6 @@ Boolean PtInRect(Point pt, const Rect *r);
 void Pt2Rect(Point pt1, Point pt2, Rect *dstRect);
 void PtToAngle(const Rect *r, Point pt, SInt16 *angle);
 Boolean PtInRgn(Point pt, RgnHandle rgn);
-void StdLine(Point newPt);
 
 /* Rectangle Operations */
 void SetRect(Rect *r, SInt16 left, SInt16 top, SInt16 right, SInt16 bottom);

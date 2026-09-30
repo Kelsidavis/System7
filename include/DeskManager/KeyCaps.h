@@ -124,29 +124,6 @@ void KeyCaps_Reset(KeyCaps *keyCaps);
 
 /* Keyboard Layout Functions */
 
-/**
- * Load keyboard layout by ID
- * @param keyCaps Pointer to Key Caps structure
- * @param layoutID Layout identifier
- * @return 0 on success, negative on error
- */
-int KeyCaps_LoadLayout(KeyCaps *keyCaps, UInt16 layoutID);
-
-/**
- * Set current keyboard layout
- * @param keyCaps Pointer to Key Caps structure
- * @param layout Pointer to keyboard layout
- * @return 0 on success, negative on error
- */
-int KeyCaps_SetLayout(KeyCaps *keyCaps, KeyboardLayout *layout);
-
-/**
- * Get available keyboard layouts
- * @param layouts Array to fill with layout pointers
- * @param maxLayouts Maximum number of layouts
- * @return Number of layouts returned
- */
-int KeyCaps_GetAvailableLayouts(KeyboardLayout **layouts, int maxLayouts);
 
 /**
  * Create custom keyboard layout
@@ -223,13 +200,6 @@ Boolean KeyCaps_IsModifierActive(KeyCaps *keyCaps, ModifierMask modifier);
 UInt16 KeyCaps_ProcessDeadKey(KeyCaps *keyCaps, UInt16 deadKeyChar,
                                 UInt16 nextChar);
 
-/**
- * Check if character is a dead key
- * @param keyCaps Pointer to Key Caps structure
- * @param charCode Character code
- * @return true if character is a dead key
- */
-Boolean KeyCaps_IsDeadKey(KeyCaps *keyCaps, UInt16 charCode);
 
 /**
  * Get dead key combinations
@@ -251,27 +221,6 @@ int KeyCaps_GetDeadKeyCombinations(KeyCaps *keyCaps, UInt16 deadKeyChar,
  */
 void KeyCaps_DrawKeyboard(KeyCaps *keyCaps, const Rect *updateRect);
 
-/**
- * Draw individual key
- * @param keyCaps Pointer to Key Caps structure
- * @param keyInfo Key information
- * @param pressed True if key is pressed
- */
-void KeyCaps_DrawKey(KeyCaps *keyCaps, const KeyInfo *keyInfo, Boolean pressed);
-
-/**
- * Draw character display area
- * @param keyCaps Pointer to Key Caps structure
- */
-void KeyCaps_DrawCharDisplay(KeyCaps *keyCaps);
-
-/**
- * Highlight key by scan code
- * @param keyCaps Pointer to Key Caps structure
- * @param scanCode Key scan code
- * @param highlight True to highlight, false to unhighlight
- */
-void KeyCaps_HighlightKey(KeyCaps *keyCaps, UInt8 scanCode, Boolean highlight);
 
 /* Event Handling */
 
@@ -294,22 +243,9 @@ int KeyCaps_HandleClick(KeyCaps *keyCaps, Point point, ModifierMask modifiers);
 int KeyCaps_HandleKeyPress(KeyCaps *keyCaps, UInt8 scanCode,
                            ModifierMask modifiers);
 
-/**
- * Handle modifier key change
- * @param keyCaps Pointer to Key Caps structure
- * @param newModifiers New modifier state
- */
-void KeyCaps_HandleModifierChange(KeyCaps *keyCaps, ModifierMask newModifiers);
 
 /* Character Functions */
 
-/**
- * Get character information
- * @param charCode Character code
- * @param charInfo Pointer to character info structure
- * @return 0 on success, negative on error
- */
-int KeyCaps_GetCharInfo(UInt16 charCode, CharInfo *charInfo);
 
 /**
  * Insert character into target window
@@ -319,41 +255,9 @@ int KeyCaps_GetCharInfo(UInt16 charCode, CharInfo *charInfo);
  */
 int KeyCaps_InsertChar(KeyCaps *keyCaps, UInt16 charCode);
 
-/**
- * Copy character to clipboard
- * @param keyCaps Pointer to Key Caps structure
- * @param charCode Character to copy
- * @return 0 on success, negative on error
- */
-int KeyCaps_CopyChar(KeyCaps *keyCaps, UInt16 charCode);
 
 /* Utility Functions */
 
-/**
- * Convert character code to string
- * @param charCode Character code
- * @param buffer Buffer for string
- * @param bufferSize Size of buffer
- * @return Number of bytes written
- */
-int KeyCaps_CharToString(UInt16 charCode, char *buffer, int bufferSize);
-
-/**
- * Get keyboard layout name
- * @param layoutID Layout identifier
- * @param name Buffer for layout name
- * @param nameSize Size of name buffer
- * @return 0 on success, negative on error
- */
-int KeyCaps_GetLayoutName(UInt16 layoutID, char *name, int nameSize);
-
-/**
- * Check if layout supports character
- * @param layout Keyboard layout
- * @param charCode Character code
- * @return true if layout supports character
- */
-Boolean KeyCaps_LayoutSupportsChar(KeyboardLayout *layout, UInt16 charCode);
 
 /* Desk Accessory Integration */
 
