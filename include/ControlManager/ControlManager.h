@@ -97,6 +97,7 @@ SInt32 GetControlReference(ControlHandle theControl);
 void SetControlAction(ControlHandle theControl, ControlActionProcPtr actionProc);
 ControlActionProcPtr GetControlAction(ControlHandle theControl);
 SInt16 GetControlVariant(ControlHandle theControl);
+ControlDefProcPtr GetControlDefFunction(ControlHandle theControl);
 
 /* Control Interaction */
 SInt16 TestControl(ControlHandle theControl, Point thePt);
@@ -134,6 +135,8 @@ void UpdateScrollThumb(ControlHandle scrollBar, SInt16 value, SInt16 min, SInt16
 /* Note: For horizontal scrollbars, part codes (inUpButton/inDownButton) map to left/right visually; use outDelta instead of interpreting part names literally. */
 SInt16 TrackScrollbar(ControlHandle scrollBar, Point startLocal, SInt16 startPart,
                       SInt16 modifiers, SInt16* outDelta);
+SInt16 TrackScrollbarAction(ControlHandle scrollBar, Point startLocal, SInt16 startPart,
+                            ControlActionProcPtr action, SInt16* outDelta);
 
 /* Text Controls */
 ControlHandle NewEditTextControl(WindowPtr window, const Rect *bounds,

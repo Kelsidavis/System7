@@ -164,6 +164,21 @@ void SimpleText_HandleEvent(EventRecord* event) {
 /*
  * HandleMouseDown - Process mouse down events
  */
+/* The document a scroll bar is being tracked in, and the value its view
+ * last scrolled to. */
+static STDocument* s_scrollDoc = NULL;
+static SInt16 s_scrollShown = 0;
+
+static pascal void ST_ScrollAction(ControlHandle control, SInt16 part) {
+    (void)part;
+    if (!s_scrollDoc) return;
+    SInt16 value = GetControlValue(control);
+    if (value != s_scrollShown) {
+        STView_Scroll(s_scrollDoc, value - s_scrollShown, 0);
+        s_scrollShown = value;
+    }
+}
+
 static void HandleMouseDown(EventRecord* event) {
     WindowPtr window;
     short part;
@@ -202,16 +217,13 @@ static void HandleMouseDown(EventRecord* event) {
                     }
 
                     if (doc && doc->vScroll && control == doc->vScroll) {
-                        SInt16 startValue = GetControlValue(control);
+                        /* Scroll as the bar moves, not once at release. */
+                        s_scrollDoc = doc;
+                        s_scrollShown = GetControlValue(control);
                         SInt16 delta = 0;
-                        TrackScrollbar(control, localPt, controlPart, event->modifiers, &delta);
-                        SInt16 endValue = GetControlValue(control);
-                        if (delta == 0) {
-                            delta = endValue - startValue;
-                        }
-                        if (delta != 0) {
-                            STView_Scroll(doc, delta, 0);
-                        }
+                        TrackScrollbarAction(control, localPt, controlPart, ST_ScrollAction, &delta);
+                        ST_ScrollAction(control, controlPart);   /* anything not yet shown */
+                        s_scrollDoc = NULL;
                     } else {
                         TrackControl(control, localPt, NULL);
                     }

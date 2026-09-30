@@ -719,6 +719,19 @@ SInt16 GetControlVariant(ControlHandle theControl) {
     return (*(SInt16 *)*(*theControl)->contrlDefProc) >> 8;
 }
 
+/*
+ * The definition procedure a control was made with, or NULL. The
+ * standard kinds each have their own, so this is what tells them apart:
+ * the variant alone cannot, and the procID is not kept.
+ */
+ControlDefProcPtr GetControlDefFunction(ControlHandle theControl) {
+    if (!theControl || !*theControl || !(*theControl)->contrlDefProc ||
+        !*(*theControl)->contrlDefProc) {
+        return NULL;
+    }
+    return *(ControlDefProcPtr *)((char *)*(*theControl)->contrlDefProc + 2);
+}
+
 /**
  * Get auxiliary control record
  */

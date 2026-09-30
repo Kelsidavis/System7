@@ -81,11 +81,7 @@ SInt16 TrackControl(ControlHandle theControl, Point thePoint,
         if (partCode == 0) {
             return 0;
         }
-        TrackScrollbar(theControl, thePoint, partCode, 0, &delta);
-        /* Call action proc if provided (for compatibility) */
-        if (actionProc && delta != 0) {
-            (*actionProc)(theControl, partCode);
-        }
+        TrackScrollbarAction(theControl, thePoint, partCode, actionProc, &delta);
         return partCode;
     }
 

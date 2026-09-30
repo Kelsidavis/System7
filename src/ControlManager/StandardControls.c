@@ -707,7 +707,14 @@ static void HandleRadioGroup(ControlHandle radio) {
     }
 }
 
-/* Control Type Checking Functions */
+/* Control Type Checking Functions
+ *
+ * These masked GetControlVariant - already just the low four bits - with
+ * 0xFFF0, which always gives 0: every control counted as a push button and
+ * none as a checkbox, radio button or scroll bar. So scroll bars were never
+ * tracked as scroll bars, Space flashed a checkbox instead of toggling it,
+ * and a radio button could be taken for the default button. They now ask
+ * which definition the control was made with. */
 
 /**
  * Check if control is a button
@@ -717,8 +724,7 @@ Boolean IsButtonControl(ControlHandle control) {
         return false;
     }
 
-    SInt16 procID = GetControlVariant(control) & 0xFFF0;
-    return (procID == pushButProc);
+    return GetControlDefFunction(control) == ButtonCDEF;
 }
 
 /**
@@ -729,8 +735,7 @@ Boolean IsCheckboxControl(ControlHandle control) {
         return false;
     }
 
-    SInt16 procID = GetControlVariant(control) & 0xFFF0;
-    return (procID == checkBoxProc);
+    return GetControlDefFunction(control) == CheckboxCDEF;
 }
 
 /**
@@ -741,8 +746,7 @@ Boolean IsRadioControl(ControlHandle control) {
         return false;
     }
 
-    SInt16 procID = GetControlVariant(control) & 0xFFF0;
-    return (procID == radioButProc);
+    return GetControlDefFunction(control) == RadioButtonCDEF;
 }
 
 /**

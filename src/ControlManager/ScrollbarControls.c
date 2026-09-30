@@ -84,7 +84,7 @@ static void DrawScrollbarArrow(GrafPtr port, const Rect* r, short direction, Boo
 static void DrawScrollbarThumb(GrafPtr port, ControlHandle c, Boolean hilite);
 static void DrawScrollbarTrack(GrafPtr port, const Rect* r);
 static short HitTestScrollbar(ControlHandle c, Point pt);
-static short CalcThumbValue(ControlHandle c, Point pt);
+static short CalcThumbValue(ControlHandle c, Point pt, short grab);
 
 /* QuickDraw state restoration macro */
 #define RESTORE_QD(savePort, saveClip) do { \
@@ -332,14 +332,25 @@ static void ScrollbarHilite(ControlHandle c, short part)
 short TrackScrollbar(ControlHandle c, Point startLocal, short startPart,
                      short modifiers, short* outDelta)
 {
+    (void)modifiers;
+    return TrackScrollbarAction(c, startLocal, startPart, NULL, outDelta);
+}
+
+/*
+ * TrackScrollbar, calling action(c, part) after every change of value -
+ * each arrow or page step while held, and each thumb move - so the caller
+ * can scroll as it goes (Inside Macintosh: Toolbox Essentials, 5-104).
+ * Without it the thumb moved while the view stayed still until release.
+ */
+short TrackScrollbarAction(ControlHandle c, Point startLocal, short startPart,
+                           ControlActionProcPtr action, short* outDelta)
+{
     ScrollBarData* data;
     short startValue, newValue, delta;
     Point pt;
     Boolean stillInPart;
     UInt32 now;
     short trackPart;
-
-    (void)modifiers; /* Unused */
 
     if (!c || !(*c)->contrlData || !outDelta) return 0;
 
@@ -355,11 +366,13 @@ short TrackScrollbar(ControlHandle c, Point startLocal, short startPart,
         /* Thumb drag tracking */
         const UInt32 MAX_THUMB_ITERATIONS = 100000;  /* Safety timeout: ~1666 seconds at 60Hz */
         UInt32 loopCount = 0;
+        short grab = data->vertical ? (short)(startLocal.v - data->thumbRect.top)
+                                    : (short)(startLocal.h - data->thumbRect.left);
 
         while (StillDown() && loopCount < MAX_THUMB_ITERATIONS) {
             loopCount++;
             GetMouse(&pt);
-            newValue = CalcThumbValue(c, pt);
+            newValue = CalcThumbValue(c, pt, grab);
             if (newValue != (*c)->contrlValue) {
                 /* OPTIMIZATION: Invalidate only the region affected by thumb movement
                  * instead of redrawing the entire scrollbar control */
@@ -387,6 +400,7 @@ short TrackScrollbar(ControlHandle c, Point startLocal, short startPart,
 
                 /* Redraw just the affected area */
                 Draw1Control(c);
+                if (action) action(c, inThumb);
             }
         }
 
@@ -423,6 +437,7 @@ short TrackScrollbar(ControlHandle c, Point startLocal, short startPart,
         if (newValue < (*c)->contrlMin) newValue = (*c)->contrlMin;
         if (newValue > (*c)->contrlMax) newValue = (*c)->contrlMax;
         SetControlValue(c, newValue);
+        if (action) action(c, startPart);
 
         /* Track with repeat using part-specific timing */
         const UInt32 MAX_REPEAT_ITERATIONS = 100000;  /* Safety timeout */
@@ -457,6 +472,7 @@ short TrackScrollbar(ControlHandle c, Point startLocal, short startPart,
                         if (newValue < (*c)->contrlMin) newValue = (*c)->contrlMin;
                         if (newValue > (*c)->contrlMax) newValue = (*c)->contrlMax;
                         SetControlValue(c, newValue);
+                        if (action) action(c, startPart);
 
                         data->lastActionTime = now;
                     }
@@ -836,7 +852,10 @@ static short HitTestScrollbar(ControlHandle c, Point pt)
 /**
  * CalcThumbValue - Calculate value from thumb drag point
  */
-static short CalcThumbValue(ControlHandle c, Point pt)
+/* The value that puts the thumb's leading edge `grab` pixels before pt:
+ * the thumb stays under the point it was taken hold of. Without the offset
+ * the thumb's edge jumped to the pointer on the first move. */
+static short CalcThumbValue(ControlHandle c, Point pt, short grab)
 {
     ScrollBarData* data;
     short range, trackLen, thumbLen;
@@ -865,7 +884,7 @@ static short CalcThumbValue(ControlHandle c, Point pt)
     if (trackLen <= thumbLen) return (*c)->contrlValue;
 
     /* Map mouse position to value */
-    newValue = ((mousePos - trackStart) * (SInt32)range) / (trackLen - thumbLen);
+    newValue = ((mousePos - grab - trackStart) * (SInt32)range) / (trackLen - thumbLen);
     newValue += (*c)->contrlMin;
 
     /* Clamp */
@@ -890,7 +909,7 @@ void RegisterScrollBarControlType(void)
 Boolean IsScrollBarControl(ControlHandle c)
 {
     if (!c) return false;
-    return (GetControlVariant(c) & 0xFFF0) == scrollBarProc;
+    return GetControlDefFunction(c) == ScrollBarCDEF;
 }
 
 /**
