@@ -31,7 +31,7 @@ Implements the classic Mac Resource Manager APIs used to load system resources (
 
 ## Testing & Debugging
 - Run `make check-exports` to ensure expected Resource Manager traps remain exported
-- Resource loading currently relies on generated assets; inspect `Patterns.rsrc` or `converted_patterns.json` for correctness when adding new resources
+- Resource loading currently relies on generated assets; inspect `Patterns.rsrc` for correctness when adding new resources
 - Serial logging tagged `[RSRC]` can be enabled to trace cache hits/misses (ensure whitelist in `System71StdLib.c` includes the tag)
 
 ## Future Work
