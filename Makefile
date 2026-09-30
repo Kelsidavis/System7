@@ -241,7 +241,6 @@ C_SOURCES = src/main.c \
             src/SystemInit.c \
             src/sys71_stubs.c \
             src/System71StdLib.c \
-            src/runtime_stubs.c \
             src/System/SystemTheme.c \
             src/ToolboxCompat.c \
             src/Toolbox/IconUtilities.c \
@@ -384,7 +383,6 @@ C_SOURCES = src/main.c \
             src/FontManager/FontResourceLoader.c \
             src/FontManager/FontStyleSynthesis.c \
             src/FontManager/FontScaling.c \
-            src/test_fontmgr.c \
             src/PatternMgr/pattern_manager.c \
             src/PatternMgr/pattern_resources.c \
             src/PatternMgr/pram_prefs.c \
@@ -501,7 +499,6 @@ C_SOURCES = src/main.c \
             src/TextEdit/TextEditScroll.c \
             src/TextEdit/TextEditClipboard.c \
             src/TextEdit/TextBreak.c \
-            src/TextEdit/TextEditTest.c \
             src/WindowManager/WindowDisplay.c \
             src/WindowManager/WindowEvents.c \
             src/WindowManager/WindowManagerCore.c \
