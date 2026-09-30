@@ -327,27 +327,21 @@ static Boolean CheckSystemEvents(EventMask mask, EventRecord* evt) {
         }
     }
 
-    /* Generate null/idle events when no other events are pending */
-    /* Null events allow applications to perform background tasks */
-    if (mask & nullEvent) {
+    /* Nothing pending: a null event, and false (Inside Macintosh: Toolbox
+     * Essentials, 2-80). The caller does its idle work on it. This used to
+     * test mask & nullEvent - and nullEvent is 0, so it never ran and no
+     * null event was ever seen: no blinking caret, no ticking clock. */
+    {
         extern void GetMouse(Point* mouseLoc);
         extern UInt32 TickCount(void);
 
-        /* Fill in null event */
         evt->what = nullEvent;
         evt->message = 0;
         evt->when = TickCount();
         evt->modifiers = GetModifiers();
-
-        /* Get current mouse position */
-        Point mousePt;
-        GetMouse(&mousePt);
-        evt->where = mousePt;
-
-        return true;
+        GetMouse(&evt->where);
     }
-
-    return false;  /* No events generated */
+    return false;
 }
 
 /*

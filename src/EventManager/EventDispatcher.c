@@ -76,7 +76,10 @@ static struct {
     false
 };
 
-static Boolean gControlStripBootstrap = true;
+/* Opens the Control Strip on the first null event. Off: null events never
+ * arrived until now, so it has never opened, and its window covers the
+ * disk icons at the top right. */
+static Boolean gControlStripBootstrap = false;
 
 /*
  * Throw away mouse events left over from choosing a menu item.

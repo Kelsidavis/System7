@@ -1818,7 +1818,8 @@ void kernel_main(uint32_t magic, uint32_t* mb2_info) {
 
             MemoryManager_CheckSuspectBlock("after_dispatch(coop)");
         } else {
-            /* No events - yield to other processes */
+            /* A null event: idle time for the caret, the clock and the rest */
+            DispatchEvent(&evt);
             Proc_Yield();
         }
 #endif /* ENABLE_PROCESS_COOP */
