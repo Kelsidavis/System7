@@ -9,6 +9,8 @@ void boot_main(uint32_t magic, uint32_t* mb2_info);
 
 /* Cursor management */
 void InvalidateCursor(void);
+void Pointer_TakeOffScreen(void);                        /* erase the pointer now */
+void Pointer_Shield(int left, int top, int right, int bottom);  /* erase it if it is in there */
 void UpdateCursorDisplay(void);
 int IsCursorVisible(void);
 const Cursor* CursorManager_GetCurrentCursorImage(void);

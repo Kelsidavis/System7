@@ -21,6 +21,7 @@
  */
 
 #include "SystemTypes.h"
+#include "SystemInternal.h"
 #include "System71StdLib.h"
 
 #include "MenuManager/menu_private.h"
@@ -257,6 +258,8 @@ OSErr RestoreBits(Handle bitsHandle) {
         SInt16 height = savedBits->bounds.bottom - savedBits->bounds.top;
         int y, x;
         int bufferIndex = 0;
+        Pointer_Shield(savedBits->bounds.left, savedBits->bounds.top,
+                       savedBits->bounds.right, savedBits->bounds.bottom);
 
         for (y = 0; y < height; y++) {
             int screenY = savedBits->bounds.top + y;

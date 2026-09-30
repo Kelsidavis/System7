@@ -1,3 +1,4 @@
+#include "SystemInternal.h"
 #include "MemoryMgr/MemoryManager.h"
 /* #include "SystemTypes.h" */
 /*
@@ -1134,6 +1135,7 @@ static Rect    sGhostRect   = {0,0,0,0};
  */
 static void GhostXOR(const Rect* r)
 {
+    Pointer_Shield(r->left, r->top, r->right, r->bottom);   /* XOR under the pointer would leave a ghost of it */
     /* Direct XOR rectangle drawing to framebuffer for immediate visibility */
     extern void* framebuffer;
     extern uint32_t fb_width, fb_height, fb_pitch;

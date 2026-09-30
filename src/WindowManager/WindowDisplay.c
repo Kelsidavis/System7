@@ -1,3 +1,4 @@
+#include "SystemInternal.h"
 #include <stdio.h>
 
 #include "SystemTypes.h"
@@ -224,6 +225,7 @@ static void WM_ChromePixel(int x, int y, uint32_t colour) {
         if (!PtInRgn(pt, gChromeClipRgn)) return;
     }
 
+    Pointer_Shield(x, y, x + 1, y + 1);
     ((uint32_t*)framebuffer)[y * (int)(fb_pitch / 4) + x] = colour;
 }
 

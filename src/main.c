@@ -1345,132 +1345,138 @@ extern struct {
     uint8_t packet_index;
 } g_mouseState;
 
-/* Cursor state variables for direct framebuffer cursor drawing */
-static int16_t cursor_old_x = -1;
-static int16_t cursor_old_y = -1;
-static uint32_t cursor_saved_pixels[16][16];  /* Save area under cursor */
-static bool cursor_saved = false;
+/*
+ * The pointer, drawn in software over the framebuffer.
+ *
+ * Only the pixels under the cursor's mask are ever written, and a record is
+ * kept of what was written there. Erasing restores a pixel only if it still
+ * holds what the cursor put there: anything drawn over the cursor since is
+ * new content and stays. Each pass also repairs the cursor where something
+ * drew over it, taking the new pixels as its background.
+ *
+ * Nothing in QuickDraw hides the cursor before drawing under it, so this is
+ * what keeps the pointer from leaving stale patches behind. There used to be
+ * two renderers - one here, which restored all 16x16 pixels whatever had
+ * been drawn since and always showed the arrow, and this function, which
+ * followed SetCursor - sharing one saved background. InvalidateCursor threw
+ * that background away without erasing, so the old image stayed on screen.
+ */
+static struct {
+    bool     shown;
+    int      x, y;                 /* top left of the 16x16 cell */
+    uint16_t mask[16];
+    uint32_t saved[16][16];        /* what is under each masked pixel */
+    uint32_t drawn[16][16];        /* what the cursor put there */
+    Cursor   image;
+    bool     redraw;               /* image or visibility changed */
+} gPointer;
 
-/* InvalidateCursor - Force cursor redraw by resetting cursor state */
-void InvalidateCursor(void) {
-    cursor_saved = false;
-    cursor_old_x = -1;
-    cursor_old_y = -1;
-}
-
-/* UpdateCursorDisplay - Update cursor on screen if mouse has moved */
-void UpdateCursorDisplay(void) {
+static bool Pointer_Pixel(int row, int col, uint32_t** px) {
     extern void* framebuffer;
     extern uint32_t fb_width, fb_height, fb_pitch;
+    int x = gPointer.x + col, y = gPointer.y + row;
+    if (!framebuffer || x < 0 || y < 0 || x >= (int)fb_width || y >= (int)fb_height) return false;
+    *px = (uint32_t*)((uint8_t*)framebuffer + y * fb_pitch) + x;
+    return true;
+}
+
+static void Pointer_Erase(void) {
+    if (!gPointer.shown) return;
+    for (int row = 0; row < 16; row++) {
+        for (int col = 0; col < 16; col++) {
+            uint32_t* px;
+            if (!(gPointer.mask[row] & (0x8000 >> col)) || !Pointer_Pixel(row, col, &px)) continue;
+            if (*px == gPointer.drawn[row][col]) *px = gPointer.saved[row][col];
+        }
+    }
+    gPointer.shown = false;
+}
+
+/* Where something has drawn over the cursor, that is its new background. */
+static void Pointer_Repair(void) {
+    if (!gPointer.shown) return;
+    for (int row = 0; row < 16; row++) {
+        for (int col = 0; col < 16; col++) {
+            uint32_t* px;
+            if (!(gPointer.mask[row] & (0x8000 >> col)) || !Pointer_Pixel(row, col, &px)) continue;
+            if (*px != gPointer.drawn[row][col]) {
+                gPointer.saved[row][col] = *px;
+                *px = gPointer.drawn[row][col];
+            }
+        }
+    }
+}
+
+static void Pointer_Draw(const Cursor* c, int x, int y) {
+    gPointer.x = x;
+    gPointer.y = y;
+    gPointer.image = *c;
+    for (int row = 0; row < 16; row++) {
+        gPointer.mask[row] = c->mask[row];
+        for (int col = 0; col < 16; col++) {
+            uint32_t* px;
+            if (!(c->mask[row] & (0x8000 >> col)) || !Pointer_Pixel(row, col, &px)) continue;
+            gPointer.saved[row][col] = *px;
+            gPointer.drawn[row][col] = (c->data[row] & (0x8000 >> col)) ? 0xFF000000 : 0xFFFFFFFF;
+            *px = gPointer.drawn[row][col];
+        }
+    }
+    gPointer.shown = true;
+}
+
+/* The cursor's image, hotspot or visibility has changed: redraw it next pass. */
+void InvalidateCursor(void) {
+    gPointer.redraw = true;
+}
+
+/* Take the pointer off the screen, for code about to copy screen pixels
+ * that must not include it; the next UpdateCursorDisplay puts it back. */
+void Pointer_TakeOffScreen(void) {
+    Pointer_Erase();
+}
+
+/*
+ * Take the pointer off the screen if it lies in [left,right) x [top,bottom),
+ * global coordinates: QuickDraw calls this before drawing there, as
+ * ShieldCursor does on a Mac. Plain drawing over the pointer would be
+ * caught by the repair pass anyway; inverting would not - an invert and its
+ * undo under a still pointer read as new content - so the XOR outline of a
+ * window drag left a ghost of the arrow behind.
+ */
+void Pointer_Shield(int left, int top, int right, int bottom) {
+    if (!gPointer.shown) return;
+    if (right <= gPointer.x || left >= gPointer.x + 16 ||
+        bottom <= gPointer.y || top >= gPointer.y + 16) return;
+    Pointer_Erase();
+}
+
+/* Bring the pointer up to date: position, image and visibility. */
+void UpdateCursorDisplay(void) {
     extern int IsCursorVisible(void);
     extern const Cursor* CursorManager_GetCurrentCursorImage(void);
     extern Point CursorManager_GetCursorHotspot(void);
     extern void CursorManager_HandleMouseMotion(Point newPos);
-    extern Boolean IsMenuTrackingNew(void);
 
-    /* Don't update cursor display while menu is being tracked - prevents cursor changes during menu operations */
-    if (IsMenuTrackingNew()) {
+    const Cursor* image = CursorManager_GetCurrentCursorImage();
+    Point mouse;
+    GetMouse(&mouse);
+    CursorManager_HandleMouseMotion(mouse);
+
+    if (!image || !IsCursorVisible()) {
+        Pointer_Erase();
+        gPointer.redraw = false;
         return;
     }
 
-    const Cursor* cursorImage = CursorManager_GetCurrentCursorImage();
-    if (!cursorImage) {
+    Point hot = CursorManager_GetCursorHotspot();
+    int x = mouse.h - hot.h, y = mouse.v - hot.v;
+    if (gPointer.shown && !gPointer.redraw && x == gPointer.x && y == gPointer.y) {
+        Pointer_Repair();
         return;
     }
-
-    /* Use GetMouse for platform-independent mouse position */
-    Point mousePoint;
-    GetMouse(&mousePoint);
-    CursorManager_HandleMouseMotion(mousePoint);
-
-    /* Check if cursor is hidden */
-    if (!IsCursorVisible()) {
-        /* If cursor was previously visible, erase it */
-        if (cursor_saved) {
-            uint32_t* fb = (uint32_t*)framebuffer;
-            int pitch_dwords = fb_pitch / 4;
-
-            for (int row = 0; row < 16; row++) {
-                int py = cursor_old_y + row;
-                if (py >= 0 && py < fb_height) {
-                    for (int col = 0; col < 16; col++) {
-                        int px = cursor_old_x + col;
-                        if (px >= 0 && px < fb_width) {
-                            fb[py * pitch_dwords + px] = cursor_saved_pixels[row][col];
-                        }
-                    }
-                }
-            }
-            cursor_saved = false;
-        }
-        return;  /* Don't draw cursor */
-    }
-
-    static Point lastMouse = {SHRT_MIN, SHRT_MIN};
-
-    if (cursor_saved &&
-        mousePoint.h == lastMouse.h &&
-        mousePoint.v == lastMouse.v) {
-        return;
-    }
-
-    /* Only redraw if mouse moved or cursor was invalidated */
-    /* Simple direct cursor drawing */
-    uint32_t* fb = (uint32_t*)framebuffer;
-    int pitch_dwords = fb_pitch / 4;
-
-    /* Erase old cursor */
-    if (cursor_saved) {
-        for (int row = 0; row < 16; row++) {
-            int py = cursor_old_y + row;
-            if (py >= 0 && py < fb_height) {
-                for (int col = 0; col < 16; col++) {
-                    int px = cursor_old_x + col;
-                    if (px >= 0 && px < fb_width) {
-                        fb[py * pitch_dwords + px] = cursor_saved_pixels[row][col];
-                    }
-                }
-            }
-        }
-    }
-
-    /* Save and draw new cursor */
-    Point hotSpot = CursorManager_GetCursorHotspot();
-    int drawX = mousePoint.h - hotSpot.h;
-    int drawY = mousePoint.v - hotSpot.v;
-
-    for (int row = 0; row < 16; row++) {
-        uint16_t cursor_row = cursorImage->data[row];
-        uint16_t mask_row = cursorImage->mask[row];
-
-        int py = drawY + row;
-        if (py >= 0 && py < fb_height) {
-            for (int col = 0; col < 16; col++) {
-                int px = drawX + col;
-                if (px >= 0 && px < fb_width) {
-                    int idx = py * pitch_dwords + px;
-
-                    /* Save pixel */
-                    cursor_saved_pixels[row][col] = fb[idx];
-
-                    /* Draw cursor */
-                    if (mask_row & (0x8000 >> col)) {
-                        if (cursor_row & (0x8000 >> col)) {
-                            fb[idx] = 0xFF000000;  /* Black */
-                        } else {
-                            fb[idx] = 0xFFFFFFFF;  /* White */
-                        }
-                    }
-                }
-            }
-        }
-    }
-
-    cursor_old_x = drawX;
-    cursor_old_y = drawY;
-    cursor_saved = true;
-
-    lastMouse = mousePoint;
+    Pointer_Erase();
+    Pointer_Draw(image, x, y);
+    gPointer.redraw = false;
 }
 
 /* Kernel main entry point */
@@ -1710,53 +1716,7 @@ void kernel_main(uint32_t magic, uint32_t* mb2_info) {
     #endif
 
     /* Draw initial cursor */
-#if 1
-    /* Draw initial cursor with safety checks */
-    if (framebuffer && fb_width > 0 && fb_height > 0) {
-        Point initialMouse;
-        GetMouse(&initialMouse);
-        int16_t x = initialMouse.h;
-        int16_t y = initialMouse.v;
-
-        /* Save pixels under cursor position */
-        for (int row = 0; row < 16; row++) {
-            for (int col = 0; col < 16; col++) {
-                int px = x + col;
-                int py = y + row;
-                if (px >= 0 && px < fb_width && py >= 0 && py < fb_height) {
-                    uint32_t* pixel = (uint32_t*)((uint8_t*)framebuffer + py * fb_pitch + px * 4);
-                    cursor_saved_pixels[row][col] = *pixel;
-                }
-            }
-        }
-
-        /* Draw cursor using arrow_cursor and arrow_cursor_mask data */
-        for (int row = 0; row < 16; row++) {
-            uint16_t cursor_row = (arrow_cursor[row*2] << 8) | arrow_cursor[row*2 + 1];
-            uint16_t mask_row = (arrow_cursor_mask[row*2] << 8) | arrow_cursor_mask[row*2 + 1];
-
-            for (int col = 0; col < 16; col++) {
-                if (mask_row & (0x8000 >> col)) {  /* Check mask bit */
-                    int px = x + col;
-                    int py = y + row;
-                    if (px >= 0 && px < fb_width && py >= 0 && py < fb_height) {
-                        uint32_t* pixel = (uint32_t*)((uint8_t*)framebuffer + py * fb_pitch + px * 4);
-                        /* Draw black for cursor bits, white for background */
-                        if (cursor_row & (0x8000 >> col)) {
-                            *pixel = 0xFF000000;  /* Black */
-                        } else {
-                            *pixel = 0xFFFFFFFF;  /* White */
-                        }
-                    }
-                }
-            }
-        }
-
-        cursor_old_x = x;
-        cursor_old_y = y;
-        cursor_saved = true;
-    }
-#endif
+    UpdateCursorDisplay();
 
     Point lastMousePos;
     GetMouse(&lastMousePos);
@@ -1838,92 +1798,23 @@ void kernel_main(uint32_t magic, uint32_t* mb2_info) {
         }
         cursor_update_counter = 0;
 
-        /* Redraw cursor if mouse moved */
-#if 1
-        Point currentMouse;
-        GetMouse(&currentMouse);
-        if (currentMouse.h != last_mouse_x || currentMouse.v != last_mouse_y) {
-            /* Clamp mouse position to screen bounds */
-            int16_t x = currentMouse.h;
-            int16_t y = currentMouse.v;
+        /* Bring the pointer up to date */
+        UpdateCursorDisplay();
+        {
+            Point currentMouse;
+            GetMouse(&currentMouse);
+            if (currentMouse.h != last_mouse_x || currentMouse.v != last_mouse_y) {
+                last_mouse_x = currentMouse.h;
+                last_mouse_y = currentMouse.v;
 
-            if (x < 0) x = 0;
-            if (x >= fb_width) x = fb_width - 1;
-            if (y < 0) y = 0;
-            if (y >= fb_height) y = fb_height - 1;
-
-            /* Simple direct cursor drawing */
-            uint32_t* fb = (uint32_t*)framebuffer;
-            int pitch_dwords = fb_pitch / 4;
-
-            /* Erase old cursor */
-            if (cursor_saved) {
-                for (int row = 0; row < 16; row++) {
-                    int py = cursor_old_y + row;
-                    if (py >= 0 && py < fb_height) {
-                        for (int col = 0; col < 16; col++) {
-                            int px = cursor_old_x + col;
-                            if (px >= 0 && px < fb_width) {
-                                fb[py * pitch_dwords + px] = cursor_saved_pixels[row][col];
-                            }
-                        }
-                    }
+                /* Update menu highlighting if tracking */
+                extern Boolean IsMenuTrackingNew(void);
+                extern void UpdateMenuTrackingNew(Point mousePt);
+                if (IsMenuTrackingNew()) {
+                    UpdateMenuTrackingNew(currentMouse);
                 }
-            }
-
-            /* Save and draw new cursor */
-            for (int row = 0; row < 16; row++) {
-                uint16_t cursor_row = (arrow_cursor[row*2] << 8) | arrow_cursor[row*2 + 1];
-                uint16_t mask_row = (arrow_cursor_mask[row*2] << 8) | arrow_cursor_mask[row*2 + 1];
-
-                int py = y + row;
-                if (py >= 0 && py < fb_height) {
-                    for (int col = 0; col < 16; col++) {
-                        int px = x + col;
-                        if (px >= 0 && px < fb_width) {
-                            int idx = py * pitch_dwords + px;
-
-                            /* Save pixel */
-                            cursor_saved_pixels[row][col] = fb[idx];
-
-                            /* Draw cursor */
-                            if (mask_row & (0x8000 >> col)) {
-                                if (cursor_row & (0x8000 >> col)) {
-                                    fb[idx] = 0xFF000000;  /* Black */
-                                } else {
-                                    fb[idx] = 0xFFFFFFFF;  /* White */
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-
-            cursor_old_x = x;
-            cursor_old_y = y;
-            cursor_saved = true;
-
-            last_mouse_x = currentMouse.h;
-            last_mouse_y = currentMouse.v;
-
-            /* Update menu highlighting if tracking */
-            extern Boolean IsMenuTrackingNew(void);
-            extern void UpdateMenuTrackingNew(Point mousePt);
-            if (IsMenuTrackingNew()) {
-                Point currentPos = {y, x};  /* Point is {v, h} in QuickDraw */
-                UpdateMenuTrackingNew(currentPos);
-            }
-
-            /* Only redraw desktop very rarely - the cursor handles its own drawing */
-            static int movement_count = 0;
-            movement_count++;
-            if (movement_count > 10000) {  /* Redraw desktop every 10000 movements (basically never during normal use) */
-                SYSTEM_LOG_DEBUG("MAIN: Full redraw after %d movements\n", movement_count);
-                /* TODO: Hook real desktop invalidation once available */
-                movement_count = 0;
             }
         }
-#endif /* Cursor redraw */
 
         /* Mouse button tracking moved to EventManager - events are properly dispatched now */
 

@@ -16,6 +16,7 @@
  * Derived from System 7 ROM analysis (Ghidra) Window Manager
  */
 
+#include "SystemInternal.h"
 #include "SystemTypes.h"
 #include "QuickDraw/QuickDraw.h"
 #include "QuickDraw/ColorQuickDraw.h"
@@ -822,6 +823,7 @@ void EndUpdate(WindowPtr theWindow) {
                                    bandSrc.left, bandSrc.top, bandSrc.right, bandSrc.bottom,
                                    bandDst.left, bandDst.top, bandDst.right, bandDst.bottom);
 
+                        Pointer_Shield(bandDst.left, bandDst.top, bandDst.right, bandDst.bottom);
                         CopyBits((BitMap*)(*gwPixMap), (BitMap*)&fbPixMap,
                                 &bandSrc, &bandDst, srcCopy, NULL);
                     }

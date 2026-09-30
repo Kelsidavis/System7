@@ -184,6 +184,8 @@ static inline Boolean QDPointInArc(SInt32 x, SInt32 y, const Rect* rect,
 }
 
 /* Initialize platform layer */
+extern void Pointer_Shield(int left, int top, int right, int bottom);
+
 Boolean QDPlatform_Initialize(void) {
     g_platformFB.baseAddr = framebuffer;
     g_platformFB.width = fb_width;
@@ -405,6 +407,7 @@ Boolean QDPlatform_FillRectAccelerated(SInt32 left, SInt32 top, SInt32 right, SI
     if (top < 0) top = 0;
     if (right > fb_width) right = fb_width;
     if (bottom > fb_height) bottom = fb_height;
+    Pointer_Shield(left, top, right, bottom);
 
     for (SInt32 y = top; y < bottom; y++) {
         for (SInt32 x = left; x < right; x++) {
@@ -436,6 +439,11 @@ void QDPlatform_DrawLine(GrafPtr port, Point startPt, Point endPt,
     SInt32 y1 = startPt.v;
     SInt32 x2 = endPt.h;
     SInt32 y2 = endPt.v;
+    {
+        SInt32 pw = port ? port->pnSize.h : 1, ph = port ? port->pnSize.v : 1;
+        Pointer_Shield((int)(x1 < x2 ? x1 : x2), (int)(y1 < y2 ? y1 : y2),
+                       (int)((x1 > x2 ? x1 : x2) + pw), (int)((y1 > y2 ? y1 : y2) + ph));
+    }
 
     SInt32 dx = abs(x2 - x1);
     SInt32 dy = abs(y2 - y1);
@@ -528,6 +536,8 @@ void QDPlatform_DrawShape(GrafPtr port, GrafVerb verb, const Rect* rect,
 
     QD_LOG_TRACE("QDPlatform_DrawShape: verb=%d rect=(%d,%d,%d,%d) offset=(%d,%d)\n",
                  verb, rect->left, rect->top, rect->right, rect->bottom, offsetX, offsetY);
+
+    Pointer_Shield(rect->left, rect->top, rect->right, rect->bottom);
 
     /* For now, just draw rectangles */
     if (shapeType == 0) {  /* Rectangle */
@@ -883,6 +893,7 @@ void QDPlatform_FillPoly(GrafPtr port, PolyHandle poly, const Pattern* pat,
     bbox.right += offsetX;
     bbox.top += offsetY;
     bbox.bottom += offsetY;
+    Pointer_Shield(bbox.left, bbox.top, bbox.right, bbox.bottom);
 
     /* Clip to screen bounds */
     if (bbox.left < 0) bbox.left = 0;
@@ -996,6 +1007,7 @@ void QDPlatform_DrawRegion(RgnHandle rgn, short mode, const Pattern* pat) {
     r.right = region->rgnBBox.right;
 
     if (!framebuffer) return;
+    Pointer_Shield(r.left, r.top, r.right, r.bottom);
 
     /* CRITICAL: Handle Direct Framebuffer coordinate conversion
      *
@@ -1329,6 +1341,8 @@ void QDPlatform_DrawGlyphBitmap(GrafPtr port, Point pen,
     if (!destBits->baseAddr) {
         return;
     }
+
+    Pointer_Shield(pen.h, pen.v, pen.h + width, pen.v + height);
 
     /* Convert global pen position to bitmap coordinates */
     SInt16 destX = pen.h - destBits->bounds.left;

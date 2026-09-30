@@ -6,6 +6,7 @@
 
 #include "SystemTypes.h"
 #include "MenuManager/MenuManager.h"
+#include "SystemInternal.h"
 #include "MenuManager/MenuLogging.h"
 #include "MenuManager/MenuTypes.h"
 #include "QuickDraw/QuickDraw.h"
@@ -74,6 +75,7 @@ extern void InvalRect(const Rect* rect);
 /* Draw filled rectangle */
 static void DrawMenuRect(short left, short top, short right, short bottom, uint32_t color) {
     if (!framebuffer) return;
+    Pointer_Shield(left, top, right, bottom);
 
     uint32_t *fb = (uint32_t*)framebuffer;
     int pitch = fb_pitch / 4;
@@ -101,6 +103,7 @@ static void DrawMenuRect(short left, short top, short right, short bottom, uint3
 static void DimMenuRow(short left, short top, short right, short bottom,
                        uint32_t background) {
     if (!framebuffer) return;
+    Pointer_Shield(left, top, right, bottom);
 
     uint32_t *fb = (uint32_t*)framebuffer;
     int pitch = fb_pitch / 4;
@@ -519,6 +522,7 @@ static void DrawInvertedText(const char* text, short x, short y, Boolean inverte
 
     uint32_t* fb = (uint32_t*)framebuffer;
     uint32_t textColor = inverted ? 0xFFFFFFFF : 0xFF000000;  /* White if inverted, black if normal */
+    Pointer_Shield(x, y - 12, x + 8 * 64, y + 4);   /* a menu title's text, generously */
 
     int len = 0;
     int currentX = x;
@@ -842,6 +846,10 @@ long TrackMenu(short menuID, Point *startPt) {
     extern OSErr RestoreMenuBits(Handle bitsHandle);
     extern OSErr DiscardMenuBits(Handle bitsHandle);
 
+    /* The saved pixels must not include the pointer, or restoring them
+     * would put a copy of it back where it was. */
+    extern void Pointer_TakeOffScreen(void);
+    Pointer_TakeOffScreen();
     savedBits = SaveMenuBits(&menuRect);
     serial_puts("TrackMenu: SaveMenuBits returned\n");
     if (savedBits) {
@@ -1120,6 +1128,7 @@ static void DrawInvertedAppleIcon(short x, short y) {
 
     if (!framebuffer) return;
 
+    Pointer_Shield(x, y, x + 11, y + 13);
     uint32_t* fb = (uint32_t*)framebuffer;
 
     /* Simple Apple logo pattern - inverted colors (white on black) */
