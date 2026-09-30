@@ -287,28 +287,82 @@ int HFS_CompareCatalogKeys(const void* key1, const void* key2) {
     return 0;  /* Identical */
 }
 
+/*
+ * Extents keys as they are on disk (Inside Macintosh: Files, 2-83):
+ *   [0] key length (7)  [1] fork type ($00 data, $FF resource)
+ *   [2..5] file number  [6..7] first file allocation block of the record
+ * Ordered by file number, then fork, then starting block.
+ */
 int HFS_CompareExtentsKeys(const void* key1, const void* key2) {
-    /* Extents key: fileID + forkType + startBlock */
     const uint8_t* k1 = (const uint8_t*)key1;
     const uint8_t* k2 = (const uint8_t*)key2;
 
-    /* Compare file ID (4 bytes) */
-    uint32_t fid1 = be32_read(k1);
-    uint32_t fid2 = be32_read(k2);
+    uint32_t fid1 = be32_read(k1 + 2);
+    uint32_t fid2 = be32_read(k2 + 2);
+    if (fid1 != fid2) return (fid1 < fid2) ? -1 : 1;
 
-    if (fid1 < fid2) return -1;
-    if (fid1 > fid2) return 1;
+    if (k1[1] != k2[1]) return (k1[1] < k2[1]) ? -1 : 1;
 
-    /* Compare fork type (1 byte) */
-    if (k1[4] < k2[4]) return -1;
-    if (k1[4] > k2[4]) return 1;
-
-    /* Compare start block (2 bytes) */
-    uint16_t sb1 = be16_read(k1 + 5);
-    uint16_t sb2 = be16_read(k2 + 5);
-
-    if (sb1 < sb2) return -1;
-    if (sb1 > sb2) return 1;
-
+    uint16_t sb1 = be16_read(k1 + 6);
+    uint16_t sb2 = be16_read(k2 + 6);
+    if (sb1 != sb2) return (sb1 < sb2) ? -1 : 1;
     return 0;
+}
+
+/*
+ * Find the leaf record whose key equals `key` and copy out its data;
+ * *recordLen holds the buffer's size going in and the data's length coming
+ * out.
+ *
+ * Declared in hfs_btree.h and never written: the only definition was a stub
+ * in sys71_stubs.c taking four arguments where the caller passes five, which
+ * answered -1 - true, to the caller - and filled nothing in. The leaf chain
+ * is walked in key order; a record's data starts after its key, on a word
+ * boundary.
+ */
+bool HFS_BT_FindRecord(HFS_BTree* bt, const void* key, uint16_t keyLen,
+                       void* recordBuffer, uint16_t* recordLen) {
+    (void)keyLen;
+    if (!bt || !key || !recordBuffer || !recordLen) return false;
+    uint16_t capacity = *recordLen;
+    *recordLen = 0;
+
+    int (*compare)(const void*, const void*) =
+        (bt->type == kBTreeExtents) ? HFS_CompareExtentsKeys : HFS_CompareCatalogKeys;
+
+    void* node = NewPtr(bt->nodeSize);
+    if (!node) return false;
+
+    bool found = false;
+    bool passed = false;
+    uint32_t current = bt->firstLeaf;
+    while (current != 0 && !found && !passed) {
+        if (!HFS_BT_ReadNode(bt, current, node)) break;
+        HFS_BTNodeDesc* desc = (HFS_BTNodeDesc*)node;
+        uint16_t count = be16_read(&desc->numRecords);
+
+        for (uint16_t i = 0; i < count; i++) {
+            void* rec;
+            uint16_t len;
+            if (!HFS_BT_GetRecord(node, bt->nodeSize, i, &rec, &len)) continue;
+            int order = compare(rec, key);
+            if (order < 0) continue;
+            if (order == 0) {
+                uint16_t dataStart = (uint16_t)((1u + ((uint8_t*)rec)[0] + 1u) & ~1u);
+                if (dataStart <= len) {
+                    uint16_t dataLen = (uint16_t)(len - dataStart);
+                    if (dataLen > capacity) dataLen = capacity;
+                    memcpy(recordBuffer, (uint8_t*)rec + dataStart, dataLen);
+                    *recordLen = dataLen;
+                    found = true;
+                }
+            }
+            passed = true;   /* keys are in order: past it, it is not there */
+            break;
+        }
+        current = be32_read(&desc->fLink);
+    }
+
+    DisposePtr((Ptr)node);
+    return found;
 }

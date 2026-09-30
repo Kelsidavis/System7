@@ -124,59 +124,72 @@ static bool read_from_extents(HFS_Volume* vol, const HFS_Extent* extents,
     return true;
 }
 
-/* Read data from overflow extents B-tree */
+/*
+ * Read data from the extents overflow file.
+ *
+ * Past a file's first three extents, the rest are in records of three,
+ * each keyed by the file allocation block it starts at (Inside Macintosh:
+ * Files, 2-83 and 2-89). The first record starts where the first three
+ * extents end; each one after starts where the one before ends. Records are
+ * followed until one covers the offset wanted.
+ *
+ * This built a nine-byte key in a layout no HFS volume uses, looked up only
+ * the first record, and read from it with the file offset unchanged - as if
+ * the overflow extents began at byte 0 of the file.
+ */
 static bool read_from_overflow_extents(HFS_Volume* vol, FileID fileID,
                                        bool isResource, uint32_t fileSize,
                                        uint32_t offset, void* buffer,
                                        uint32_t length, uint32_t* bytesRead,
                                        uint32_t firstThreeExtentsSize) {
-    if (!vol || !buffer || !bytesRead) return false;
+    if (!vol || !buffer || !bytesRead || vol->alBlkSize == 0) return false;
 
     *bytesRead = 0;
 
     /* Skip if read is within first 3 extents */
     if (offset < firstThreeExtentsSize) return true;
 
-    /* Initialize extents B-tree */
     HFS_BTree extBTree;
     if (!HFS_BT_Init(&extBTree, vol, kBTreeExtents)) {
         return false;
     }
 
-    bool foundExtents = false;
+    bool ok = false;
+    uint32_t baseBytes = firstThreeExtentsSize;
+    for (int guard = 0; guard < 4096; guard++) {
+        uint8_t extKey[8];
+        extKey[0] = 7;
+        extKey[1] = isResource ? 0xFF : 0x00;
+        be32_write(extKey + 2, fileID);
+        be16_write(extKey + 6, (uint16_t)(baseBytes / vol->alBlkSize));
 
-    /* Search for overflow extents starting at file block 0 of overflow */
-    uint32_t searchBlock = firstThreeExtentsSize / vol->alBlkSize;
-
-    /* Build extent key: keyLen + reserved + fileID + forkType + startBlock */
-    uint8_t extKey[9];
-    extKey[0] = 7;  /* key length excluding first byte */
-    extKey[1] = 0;  /* reserved */
-    be32_write(extKey + 2, fileID);
-    extKey[6] = isResource ? 0xFF : 0x00;
-    be16_write(extKey + 7, (uint16_t)searchBlock);
-
-    /* Look up extent record */
-    uint8_t recordBuffer[32];
-    uint16_t recordLen = 0;
-
-    if (HFS_BT_FindRecord(&extBTree, extKey, 9, recordBuffer, &recordLen)) {
-        /* Found overflow extent record - it contains 3 more extents */
-        if (recordLen >= 12) {  /* 3 extents * 4 bytes each */
-            HFS_Extent overflowExtents[3];
-            for (int i = 0; i < 3; i++) {
-                overflowExtents[i].startBlock = be16_read(recordBuffer + i * 4);
-                overflowExtents[i].blockCount = be16_read(recordBuffer + i * 4 + 2);
-            }
-
-            /* Read from overflow extents */
-            foundExtents = read_from_extents(vol, overflowExtents, fileSize,
-                                           offset, buffer, length, bytesRead);
+        uint8_t record[12];
+        uint16_t recordLen = sizeof(record);
+        if (!HFS_BT_FindRecord(&extBTree, extKey, sizeof(extKey), record, &recordLen) ||
+            recordLen < 12) {
+            break;   /* no record for this stretch: the file has no more */
         }
+
+        HFS_Extent extents[3];
+        uint32_t spanBytes = 0;
+        for (int i = 0; i < 3; i++) {
+            extents[i].startBlock = be16_read(record + i * 4);
+            extents[i].blockCount = be16_read(record + i * 4 + 2);
+            spanBytes += (uint32_t)extents[i].blockCount * vol->alBlkSize;
+        }
+        if (spanBytes == 0) break;
+
+        if (offset < baseBytes + spanBytes) {
+            /* Measured from where these extents begin, not from the file's start. */
+            ok = read_from_extents(vol, extents, fileSize - baseBytes,
+                                   offset - baseBytes, buffer, length, bytesRead);
+            break;
+        }
+        baseBytes += spanBytes;
     }
 
     HFS_BT_Close(&extBTree);
-    return foundExtents;
+    return ok;
 }
 
 HFSFile* HFS_FileOpen(HFS_Catalog* cat, FileID id, bool resourceFork) {
