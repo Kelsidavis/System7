@@ -215,7 +215,7 @@ OSErr BTree_FlushNode(BTCB* btcb, UInt32 nodeNum);
 OSErr Cat_Open(VCB* vcb);
 OSErr Cat_Close(VCB* vcb);
 OSErr Cat_Lookup(VCB* vcb, UInt32 dirID, const UInt8* name, void* catData, UInt32* hint);
-OSErr Cat_Create(VCB* vcb, UInt32 dirID, const UInt8* name, UInt8 type, void* catData);
+OSErr Cat_Create(VCB* vcb, UInt32 dirID, const UInt8* name, UInt8 type, UInt32* newID);
 OSErr Cat_Delete(VCB* vcb, UInt32 dirID, const UInt8* name);
 OSErr Cat_Rename(VCB* vcb, UInt32 dirID, const UInt8* oldName, const UInt8* newName);
 OSErr Cat_Move(VCB* vcb, UInt32 srcDirID, const UInt8* name, UInt32 dstDirID);

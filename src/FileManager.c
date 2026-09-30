@@ -14,7 +14,6 @@
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
-#include <sched.h>
 #if defined(__i386__) || defined(__x86_64__)
 #include "Platform/x86/rtc.h"
 #endif
@@ -53,7 +52,6 @@ PlatformHooks g_PlatformHooks = {0};
 
 OSErr FM_Initialize(void)
 {
-    OSErr err;
 
     /* Check if already initialized */
     if (g_FSGlobals.initialized) {
@@ -85,13 +83,6 @@ OSErr FM_Initialize(void)
     }
     g_FSGlobals.wdcbFree = 0;
 
-    /* Initialize cache system */
-    err = Cache_Init(1024);  /* 1024 blocks = 512KB default cache */
-    if (err != noErr) {
-        DisposePtr((Ptr)g_FSGlobals.fcbArray);
-        DisposePtr((Ptr)g_FSGlobals.wdcbArray);
-        return err;
-    }
 
     /* Clear statistics */
     memset(&g_FSGlobals.bytesRead, 0, sizeof(g_FSGlobals.bytesRead));
@@ -121,8 +112,6 @@ OSErr FM_Shutdown(void)
         VCB_Unmount(g_FSGlobals.vcbQueue);
     }
 
-    /* Shutdown cache */
-    Cache_Shutdown();
 
     /* Free arrays */
     DisposePtr((Ptr)g_FSGlobals.fcbArray);
@@ -400,11 +389,22 @@ OSErr FSSetEOF(FileRefNum refNum, UInt32 eof)
         return wrPermErr;
     }
 
-    /* Extend or truncate as needed */
+    /* Growing writes zeros up to the new end. The VFS cannot shorten a
+     * file, so a smaller EOF is refused rather than pretended. */
     if (eof > fcb->base.fcbEOF) {
-        err = Ext_Extend((VCBExt*)fcb->base.fcbVPtr, fcb, eof);
+        static const UInt8 zeros[512];
+        UInt32 at = fcb->base.fcbEOF;
+        UInt32 savedPos = fcb->base.fcbCrPs;
+        err = noErr;
+        while (err == noErr && at < eof) {
+            UInt32 n = (eof - at > sizeof(zeros)) ? (UInt32)sizeof(zeros) : eof - at;
+            UInt32 wrote = 0;
+            err = IO_WriteFork(fcb, at, n, zeros, &wrote);
+            at += wrote;
+        }
+        fcb->base.fcbCrPs = savedPos;
     } else if (eof < fcb->base.fcbEOF) {
-        err = Ext_Truncate((VCBExt*)fcb->base.fcbVPtr, fcb, eof);
+        err = ioErr;
     } else {
         err = noErr;
     }
@@ -423,42 +423,12 @@ OSErr FSSetEOF(FileRefNum refNum, UInt32 eof)
     return err;
 }
 
+/* Space is taken as a file is written; there are no blocks to reserve
+ * ahead, so the request is met as asked. */
 OSErr FSAllocate(FileRefNum refNum, UInt32* count)
 {
-    FCB* fcb;
-    OSErr err;
-    UInt32 newSize;
-
-    if (!count) {
-        return paramErr;
-    }
-
-    fcb = FCB_Find(refNum);
-    if (!fcb) {
-        return rfNumErr;
-    }
-
-
-    /* Check write permission */
-    if (!(fcb->base.fcbFlags & FCB_WRITE_PERM)) {
-        return wrPermErr;
-    }
-
-    /* Calculate new size */
-    newSize = fcb->fcbPLen + *count;
-
-    /* Try to allocate the space */
-    err = Ext_Extend((VCBExt*)fcb->base.fcbVPtr, fcb, newSize);
-    if (err == noErr) {
-        *count = newSize - fcb->fcbPLen;
-        fcb->fcbPLen = newSize;
-        fcb->base.fcbFlags |= FCB_DIRTY;
-    } else {
-        *count = 0;
-    }
-
-
-    return err;
+    if (!count) return paramErr;
+    return FCB_Find(refNum) ? noErr : rfNumErr;
 }
 
 /* ============================================================================
@@ -608,7 +578,6 @@ OSErr FSCreateDir(ConstStr255Param dirName, VolumeRefNum vRefNum, DirID* created
 {
     VCB* vcb;
     OSErr err;
-    CatalogDirRec dirRec;
 
     /* Find the volume */
     err = FM_GetVolumeFromRefNum(vRefNum, &vcb);
@@ -616,19 +585,12 @@ OSErr FSCreateDir(ConstStr255Param dirName, VolumeRefNum vRefNum, DirID* created
         return err;
     }
 
-
-    /* Initialize directory record */
-    memset(&dirRec, 0, sizeof(dirRec));
-    dirRec.cdrType = REC_FLDR;
-    dirRec.dirDirID = Cat_GetNextID(vcb);
-    dirRec.dirCrDat = DateTime_Current();
-    dirRec.dirMdDat = dirRec.dirCrDat;
-
-    /* Create the directory in the catalog */
-    err = Cat_Create(vcb, 2, dirName, REC_FLDR, &dirRec);  /* Parent = root (2) */
+    /* Create the directory in the catalog; the ID is the one it got. */
+    UInt32 newID = 0;
+    err = Cat_Create(vcb, 2, dirName, REC_FLDR, &newID);  /* Parent = root (2) */
 
     if (err == noErr && createdDirID) {
-        *createdDirID = dirRec.dirDirID;
+        *createdDirID = (DirID)newID;
     }
 
     /* Update volume directory count */
@@ -660,43 +622,31 @@ OSErr DirCreate(short vRefNum, long parentDirID, ConstStr255Param directoryName,
 OSErr FSDeleteDir(ConstStr255Param dirName, VolumeRefNum vRefNum)
 {
     VCB* vcb;
-    OSErr err;
-    CatalogDirRec dirRec;
-    UInt32 hint = 0;
-
-    /* Find the volume */
-    err = FM_GetVolumeFromRefNum(vRefNum, &vcb);
+    OSErr err = FM_GetVolumeFromRefNum(vRefNum, &vcb);
     if (err != noErr) {
         return err;
     }
 
-
-    /* Look up the directory */
-    err = Cat_Lookup(vcb, 2, dirName, &dirRec, &hint);  /* Parent = root (2) */
+    /* A folder, and an empty one (Inside Macintosh: Files, HDelete). */
+    CInfoPBRec pb;
+    memset(&pb, 0, sizeof(pb));
+    pb.ioNamePtr = (StringPtr)(uintptr_t)dirName;
+    pb.u.hFileInfo.ioDirID = 2;
+    err = Cat_GetInfo(vcb, 2, dirName, &pb);
     if (err != noErr) {
         return err;
     }
-
-    /* Check if it's a directory */
-    if (dirRec.cdrType != REC_FLDR) {
-        return notAFileErr;
+    if (!(pb.u.hFileInfo.ioFlAttrib & 0x10)) {
+        return dirNFErr;
     }
-
-    /* Check if directory is empty */
-    if (dirRec.dirVal > 0) {
+    if (pb.u.dirInfo.ioDrNmFls > 0) {
         return fBsyErr;
     }
 
-    /* Delete from catalog */
     err = Cat_Delete(vcb, 2, dirName);
-
-    /* Update volume directory count */
-    if (err == noErr) {
+    if (err == noErr && vcb->vcbDirCnt > 0) {
         vcb->vcbDirCnt--;
-        vcb->base.vcbFlags |= VCB_DIRTY;
     }
-
-
     return err;
 }
 
@@ -768,25 +718,6 @@ OSErr FSCloseWD(WDRefNum wdRefNum)
 /* ============================================================================
  * Volume Operations
  * ============================================================================ */
-
-OSErr FSMount(UInt16 drvNum, void* buffer)
-{
-    VCB* vcb;
-    OSErr err;
-
-    /* Mount the volume */
-    err = VCB_Mount(drvNum, &vcb);
-    if (err != noErr) {
-        return err;
-    }
-
-    /* Set as default volume if first mount */
-    if (!g_FSGlobals.defVRefNum) {
-        g_FSGlobals.defVRefNum = vcb->base.vcbVRefNum;
-    }
-
-    return noErr;
-}
 
 OSErr FSUnmount(VolumeRefNum vRefNum)
 {
@@ -1223,7 +1154,6 @@ OSErr PBHCreateSync(ParmBlkPtr paramBlock)
 {
     VCB* vcb;
     OSErr err;
-    CatalogFileRec fileRec;
 
     if (!paramBlock) {
         return paramErr;
@@ -1236,17 +1166,9 @@ OSErr PBHCreateSync(ParmBlkPtr paramBlock)
         return err;
     }
 
-
-    /* Initialize file record */
-    memset(&fileRec, 0, sizeof(fileRec));
-    fileRec.cdrType = REC_FIL;
-    fileRec.filFlNum = Cat_GetNextID(vcb);
-    fileRec.filCrDat = DateTime_Current();
-    fileRec.filMdDat = fileRec.filCrDat;
-
     /* Create the file in the catalog */
     err = Cat_Create(vcb, ((HParamBlockRec*)paramBlock)->u.hFileInfo.ioDirID,
-                    paramBlock->ioNamePtr, REC_FIL, &fileRec);
+                    paramBlock->ioNamePtr, REC_FIL, NULL);
 
     /* Update volume file count */
     if (err == noErr) {
@@ -1446,19 +1368,6 @@ OSErr FM_ReleaseProcessFiles(UInt32 processID)
     return noErr;
 }
 
-OSErr FM_YieldToProcess(void)
-{
-    /* Cooperative multitasking yield point */
-    /* In a real implementation, this would yield to Process Manager */
-
-#ifdef PLATFORM_REMOVED_WIN32
-    Sleep(0);
-#else
-    sched_yield();
-#endif
-
-    return noErr;
-}
 
 /* ============================================================================
  * Date/Time Utilities

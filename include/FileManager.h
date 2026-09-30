@@ -102,7 +102,6 @@ OSErr FSOpenWD(VolumeRefNum vRefNum, DirID dirID, UInt32 procID, WDRefNum* wdRef
 OSErr FSCloseWD(WDRefNum wdRefNum);
 
 /* Volume Operations */
-OSErr FSMount(UInt16 drvNum, void* buffer);
 OSErr FSUnmount(VolumeRefNum vRefNum);
 OSErr FSEject(VolumeRefNum vRefNum);
 OSErr FSFlushVol(ConstStr255Param volName, VolumeRefNum vRefNum);
@@ -151,7 +150,6 @@ Boolean FM_IsDirectory(const FSSpec* spec);
 /* Process Manager Integration */
 OSErr FM_SetProcessOwner(FileRefNum refNum, UInt32 processID);
 OSErr FM_ReleaseProcessFiles(UInt32 processID);
-OSErr FM_YieldToProcess(void);
 
 
 /* Debug and Statistics */

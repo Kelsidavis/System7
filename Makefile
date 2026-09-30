@@ -453,7 +453,7 @@ C_SOURCES = src/main.c \
             src/PackageManager/Pack7_BinaryDecimal.c \
             src/PackageManager/Pack_Stubs.c \
             src/FileManager.c \
-            src/FileManagerStubs.c \
+            src/FileManagerVFS.c \
             src/EventManager/event_manager.c \
             src/EventManager/EventGlobals.c \
             src/EventManager/ModernInput.c \

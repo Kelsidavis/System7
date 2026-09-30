@@ -27,6 +27,13 @@ extern OSErr FSRead(FileRefNum refNum, UInt32* count, void* buffer);
 extern OSErr FSWrite(FileRefNum refNum, UInt32* count, const void* buffer);
 extern OSErr FSSetFPos(FileRefNum refNum, UInt16 posMode, SInt32 posOffset);
 extern OSErr FSGetEOF(FileRefNum refNum, UInt32* eof);
+extern OSErr FSSetEOF(FileRefNum refNum, UInt32 eof);
+extern OSErr FSGetFInfo(ConstStr255Param fileName, VolumeRefNum vRefNum, FInfo* fndrInfo);
+extern OSErr FSCreateDir(ConstStr255Param dirName, VolumeRefNum vRefNum, DirID* createdDirID);
+extern OSErr FSDeleteDir(ConstStr255Param dirName, VolumeRefNum vRefNum);
+extern OSErr FSOpenWD(VolumeRefNum vRefNum, DirID dirID, UInt32 procID, WDRefNum* wdRefNum);
+extern OSErr FSGetWDInfo(WDRefNum wdRefNum, VolumeRefNum* vRefNum, DirID* dirID, UInt32* procID);
+extern OSErr FSCloseWD(WDRefNum wdRefNum);
 #include <string.h>
 
 /* Straight to the serial port. Results are the point of a test build, and
@@ -252,6 +259,64 @@ static void Test_File_WriteReadRoundTrip(void) {
     RecordTest(test_name, true, "");
 }
 
+static void Test_File_Metadata(void) {
+    const char* test_name = "File_Metadata";
+    FSSpec spec;
+    SetSpec(&spec, "ITest Meta");
+    FSDelete(spec.name, 0);
+
+    CHECK(FSCreate(spec.name, 0, 'ITst', 'TEXT') == noErr, "FSCreate failed");
+    FInfo info;
+    memset(&info, 0, sizeof info);
+    CHECK(FSGetFInfo(spec.name, 0, &info) == noErr, "FSGetFInfo failed");
+    CHECK(info.fdType == 'TEXT' && info.fdCreator == 'ITst',
+          "the type and creator FSCreate set did not stick");
+
+    FileRefNum ref = 0;
+    CHECK(FSOpen(spec.name, 0, &ref) == noErr, "FSOpen failed");
+    UInt32 eof = 0;
+    OSErr err = FSSetEOF(ref, 100);
+    if (err == noErr) err = FSGetEOF(ref, &eof);
+    char buf[100];
+    UInt32 n = sizeof buf;
+    Boolean zeros = false;
+    if (err == noErr && FSSetFPos(ref, fsFromStart, 0) == noErr && FSRead(ref, &n, buf) == noErr) {
+        zeros = (n == 100);
+        for (UInt32 i = 0; i < n; i++) if (buf[i] != 0) zeros = false;
+    }
+    OSErr shrink = FSSetEOF(ref, 10);
+    FSClose(ref);
+    FSDelete(spec.name, 0);
+    CHECK(err == noErr && eof == 100, "FSSetEOF did not grow the file");
+    CHECK(zeros, "the grown part did not read back as zeros");
+    CHECK(shrink != noErr, "FSSetEOF reported shrinking a file it cannot shrink");
+    RecordTest(test_name, true, "");
+}
+
+static void Test_File_FoldersAndWorkingDirectories(void) {
+    const char* test_name = "File_FoldersAndWorkingDirectories";
+    FSSpec spec;
+    SetSpec(&spec, "ITest Folder");
+    FSDeleteDir(spec.name, 0);
+
+    DirID dir = 0;
+    CHECK(FSCreateDir(spec.name, 0, &dir) == noErr && dir > 2, "FSCreateDir failed");
+
+    WDRefNum wd = 0;
+    CHECK(FSOpenWD(0, dir, 'ITst', &wd) == noErr && wd < 0, "FSOpenWD failed");
+    DirID gotDir = 0;
+    UInt32 gotProc = 0;
+    OSErr err = FSGetWDInfo(wd, NULL, &gotDir, &gotProc);
+    OSErr closed = FSCloseWD(wd);
+    CHECK(err == noErr && gotDir == dir && gotProc == 'ITst', "FSGetWDInfo gave back something else");
+    CHECK(closed == noErr && FSGetWDInfo(wd, NULL, NULL, NULL) != noErr,
+          "the working directory was still there after FSCloseWD");
+
+    CHECK(FSDeleteDir(spec.name, 0) == noErr, "FSDeleteDir failed");
+    CHECK(FSDeleteDir(spec.name, 0) != noErr, "the folder was still there after FSDeleteDir");
+    RecordTest(test_name, true, "");
+}
+
 static void Test_Resource_CreateAndOpenResFile(void) {
     const char* test_name = "Resource_CreateAndOpenResFile";
     FSSpec spec;
@@ -371,6 +436,8 @@ void IntegrationTests_Run(void) {
 
     IT_LOG_INFO("--- File Manager ---");
     Test_File_WriteReadRoundTrip();
+    Test_File_Metadata();
+    Test_File_FoldersAndWorkingDirectories();
 
     IT_LOG_INFO("--- Resource Manager ---");
     Test_Resource_CreateAndOpenResFile();
