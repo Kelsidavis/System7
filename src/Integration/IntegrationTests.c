@@ -16,6 +16,7 @@
 #include "DialogManager/DialogResources.h"
 #include "ResourceManager.h"
 #include "MacTypes.h"
+#include "math.h"
 
 /* The File Manager calls the tests use, as FileManager.c defines them. */
 extern OSErr FSDelete(ConstStr255Param fileName, VolumeRefNum vRefNum);
@@ -281,6 +282,48 @@ static void Test_Resource_OpenMissingResFile(void) {
 }
 
 /* ----------------------------------------------------------------------------
+ * Math library
+ * ------------------------------------------------------------------------- */
+
+/* Within 1e-12 of the expected value, relative (absolute near zero). */
+static Boolean Near(double got, double want) {
+    double diff = fabs(got - want);
+    double scale = fabs(want) > 1.0 ? fabs(want) : 1.0;
+    return diff <= 1e-12 * scale;
+}
+
+static void Test_Math_Accuracy(void) {
+    const char* test_name = "Math_Accuracy";
+    const double pi = 3.14159265358979323846;
+    /* The values the old series got furthest wrong come first. */
+    CHECK(Near(cos(3.1), -0.99913515027327948), "cos(3.1)");
+    CHECK(Near(sin(3.0), 0.14112000805986721), "sin(3.0)");
+    CHECK(Near(atan(1.0), pi / 4), "atan(1)");
+    CHECK(Near(exp(-20.0), 2.0611536224385579e-09), "exp(-20)");
+    CHECK(Near(exp(50.0), 5.1847055285870724e+21), "exp(50)");
+    CHECK(Near(asin(0.999), 1.526071239626163), "asin(0.999)");
+    CHECK(Near(sin(pi / 6), 0.5) && Near(cos(pi / 3), 0.5), "sin/cos of 30/60 degrees");
+    CHECK(Near(sin(100.0), -0.50636564110975879), "sin(100)");
+    CHECK(Near(tan(1.0), 1.5574077246549023), "tan(1)");
+    CHECK(Near(atan2(-1.0, -1.0), -3 * pi / 4), "atan2(-1,-1)");
+    CHECK(Near(atan2(1.0, 0.0), pi / 2), "atan2(1,0)");
+    CHECK(Near(acos(-1.0), pi) && Near(asin(1.0), pi / 2), "acos(-1), asin(1)");
+    CHECK(Near(exp(1.0), 2.7182818284590452), "exp(1)");
+    CHECK(Near(sqrt(2.0), 1.4142135623730951) && sqrt(0.0) == 0.0, "sqrt");
+    CHECK(Near(log(10.0), 2.3025850929940457), "log(10)");
+    CHECK(Near(log(1e-300), -690.77552789821368), "log(1e-300)");
+    CHECK(Near(log10(1000.0), 3.0), "log10(1000)");
+    CHECK(floor(-2.5) == -3.0 && floor(2.5) == 2.0 && floor(1e20) == 1e20, "floor");
+    CHECK(fabs(-0.0) == 0.0 && fabs(-3.5) == 3.5, "fabs");
+    CHECK(ceil(-2.5) == -2.0 && ceil(2.1) == 3.0, "ceil");
+    CHECK(pow(2.0, 10.0) == 1024.0 && pow(-2.0, 3.0) == -8.0 && pow(2.0, -2.0) == 0.25, "pow, whole exponents");
+    CHECK(Near(pow(2.0, 0.5), 1.4142135623730951) && Near(pow(10.0, 2.5), 316.22776601683796), "pow, fractional exponents");
+    CHECK(isnan(pow(-2.0, 0.5)), "pow of a negative base to a fraction");
+    CHECK(isnan(log(-1.0)) && isnan(asin(2.0)) && !isnan(1.0), "NaN for domain errors");
+    RecordTest(test_name, true, "");
+}
+
+/* ----------------------------------------------------------------------------
  * Running and reporting
  * ------------------------------------------------------------------------- */
 
@@ -322,6 +365,9 @@ void IntegrationTests_Run(void) {
     Test_Dialog_ParseALRT();
     Test_Dialog_ParseDLOGTruncated();
     Test_Dialog_LoadMissingTemplate();
+
+    IT_LOG_INFO("--- Math ---");
+    Test_Math_Accuracy();
 
     IT_LOG_INFO("--- File Manager ---");
     Test_File_WriteReadRoundTrip();

@@ -1,5 +1,5 @@
 /*
- * math.h - Minimal math library for bare-metal ARM64 kernel
+ * math.h - the math functions System71Math.c provides
  */
 
 #ifndef _MATH_H_
@@ -27,24 +27,20 @@ double acos(double x);
 double atan(double x);
 double atan2(double y, double x);
 
-
 /* Exponential and logarithmic functions */
 double exp(double x);
 double log(double x);
 double log10(double x);
-double pow(double x, double y);
 double sqrt(double x);
+double pow(double x, double y);
 
 /* Rounding functions */
-double ceil(double x);
 double floor(double x);
+double ceil(double x);
 double fabs(double x);
-double fmod(double x, double y);
 double modf(double x, double *intptr);
 double fmin(double x, double y);
 double fmax(double x, double y);
-
-/* Other functions */
 double hypot(double x, double y);
 double frexp(double x, int *exp);
 double ldexp(double x, int exp);

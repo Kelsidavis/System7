@@ -235,6 +235,7 @@ PATTERN_RESOURCE ?= resources/patterns_authentic_color.json
 C_SOURCES = src/main.c \
             src/boot.c \
             src/sys71_stubs.c \
+            src/System71Math.c \
             src/System71StdLib.c \
             src/System/SystemTheme.c \
             src/ToolboxCompat.c \
@@ -421,7 +422,6 @@ C_SOURCES = src/main.c \
             src/DeskManager/BuiltinDAs.c \
             src/DeskManager/DALoader.c \
             src/DeskManager/SystemMenu.c \
-            src/DeskManager/DAPreferences.c \
             src/DeskManager/KeyCaps.c \
             src/DeskManager/Notepad.c \
             src/DeskManager/Calculator.c \

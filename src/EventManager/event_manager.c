@@ -297,8 +297,21 @@ SInt16 PostEvent(SInt16 eventNum, SInt32 eventMsg) {
 }
 #endif /* !ENABLE_PROCESS_COOP */
 
-/* InitEvents is provided by sys71_stubs.c - we just use the queue here */
-extern SInt16 InitEvents(SInt16 numEvents);
+/*
+ * InitEvents - empty the event queue.
+ *
+ * The queue is a fixed MAX_EVENTS entries, so the size asked for is not
+ * honoured. This was a stub in sys71_stubs.c that did nothing and said the
+ * Event Manager was initialized elsewhere; nothing else emptied the queue.
+ */
+SInt16 InitEvents(SInt16 numEvents);
+SInt16 InitEvents(SInt16 numEvents) {
+    (void)numEvents;
+    g_eventQueue.head = 0;
+    g_eventQueue.tail = 0;
+    g_eventQueue.count = 0;
+    return 0;
+}
 
 /**
  * WaitNextEvent - Core of cooperative multitasking

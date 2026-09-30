@@ -32,68 +32,19 @@ bool HFS_BD_InitMemory(HFS_BlockDev* bd, void* buffer, uint64_t size) {
     return true;
 }
 
+/*
+ * A block device held in memory, blank. There is no host file system here to
+ * read an image from; this used to try, through fopen and friends, which
+ * existed only as stubs answering failure - so every call already ended up
+ * where this starts. The path is accepted and ignored.
+ */
 bool HFS_BD_InitFile(HFS_BlockDev* bd, const char* path, bool readonly) {
-    extern FILE* fopen(const char* filename, const char* mode);
-    extern int fclose(FILE* stream);
-    extern int fseek(FILE* stream, long offset, int whence);
-    extern long ftell(FILE* stream);
-    extern size_t fread(void* ptr, size_t size, size_t nmemb, FILE* stream);
-    FILE* file = NULL;
-    long fileSize;
-    size_t bytesRead;
-
+    (void)path;
     if (!bd) return false;
 
     bd->type = HFS_BD_TYPE_FILE;
     bd->device_index = -1;
 
-    /* Try to open the disk image file */
-    if (path && path[0] != '\0') {
-        file = fopen(path, readonly ? "rb" : "rb+");
-    }
-
-    if (file) {
-        /* Get file size */
-        if (fseek(file, 0, SEEK_END) != 0) {
-            fclose(file);
-            return false;
-        }
-
-        fileSize = ftell(file);
-        if (fileSize <= 0 || fileSize > 100 * 1024 * 1024) {  /* Cap at 100MB */
-            fclose(file);
-            return false;
-        }
-
-        /* Allocate memory for disk image */
-        bd->size = (uint32_t)fileSize;
-        bd->data = NewPtr(bd->size);
-        if (!bd->data) {
-            fclose(file);
-            return false;
-        }
-
-        /* Read disk image into memory */
-        if (fseek(file, 0, SEEK_SET) != 0) {
-            DisposePtr((Ptr)bd->data);
-            fclose(file);
-            return false;
-        }
-
-        bytesRead = fread(bd->data, 1, bd->size, file);
-        fclose(file);
-
-        if (bytesRead != bd->size) {
-            DisposePtr((Ptr)bd->data);
-            return false;
-        }
-
-        bd->sectorSize = 512;
-        bd->readonly = readonly;
-        return true;
-    }
-
-    /* File doesn't exist or no path provided - create empty disk image */
     bd->size = 4 * 1024 * 1024;  /* Default 4MB */
     bd->data = NewPtr(bd->size);
     if (!bd->data) return false;

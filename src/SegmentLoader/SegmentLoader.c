@@ -573,19 +573,11 @@ OSErr InstallLoadSegTrap(SegmentLoaderContext* ctx)
         return noErr;
     }
 
-    /* Fallback: Use trap dispatcher for platforms without CPU backend trap support */
-    extern int TrapDispatcher_SetTrapAddress(UInt16 trap_number, UInt16 trap_word,
-                                              void* handler);
-
-    /* 0xA9F0 is toolbox trap 0x1F0 (bit 11 set = toolbox, bits 0-9 = trap number) */
-    int result = TrapDispatcher_SetTrapAddress(0x1F0, 0xA9F0, (void*)LoadSeg_TrapHandler);
-    if (result != 0) {
-        SEG_LOG_ERROR("Failed to install _LoadSeg trap handler");
-        return segmentLoaderErr;
-    }
-
-    SEG_LOG_INFO("Installed _LoadSeg trap handler via trap dispatcher");
-    return noErr;
+    /* Without a CPU backend that takes traps there is nowhere to install one.
+     * This used to call TrapDispatcher_SetTrapAddress, which existed only as
+     * a stub answering failure - there is no separate trap dispatcher. */
+    SEG_LOG_ERROR("No CPU backend to install the _LoadSeg trap in");
+    return segmentLoaderErr;
 }
 
 /*

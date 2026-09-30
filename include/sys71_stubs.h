@@ -95,7 +95,6 @@ void TextSize(short size);
 void TextFont(short font);
 void TextFace(short face);
 */
-OSErr HandleGetInfo(void);
 
 /* Miscellaneous */
 OSErr ShowFind(void);

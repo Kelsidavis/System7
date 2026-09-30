@@ -815,7 +815,13 @@ static void HandleMenuChoice(long menuChoice)
         case 129:  /* File Menu */
             switch (menuItem) {
                 case 6:   /* Get Info */
-                    (void)HandleGetInfo();
+                    {
+                        /* The window the File menu's Get Info shows, as
+                         * MenuCommands.c does; HandleGetInfo was a stub that
+                         * asked for Get Info on a blank dummy item. */
+                        extern void ShowGetInfoDialog(WindowPtr w);
+                        ShowGetInfoDialog(FrontWindow());
+                    }
                     break;
                 case 12:  /* Find */
                     (void)ShowFind();

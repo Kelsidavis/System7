@@ -154,7 +154,6 @@ OSErr CleanUpSelection(WindowPtr window);
 OSErr CleanUpBy(WindowPtr window, short sortType);
 
 /* Info Window API - Evidence: "Get Info", "Comments in info windows will be lost" */
-OSErr ShowGetInfo(FSSpec *items, short count);
 
 /* Find Dialog API - Evidence: "Find", "Find Again", "Find Original" */
 OSErr ShowFind(void);

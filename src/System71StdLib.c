@@ -2628,27 +2628,7 @@ void __assert_fail(const char* expr, const char* file, int line, const char* fun
     serial_printf("Assertion failed: %s at %s:%d in %s\n", expr, file, line, func);
     /* In production, could halt or reset system */
 }
-/* Math library functions for bare metal */
-/* Newton-Raphson square root for QuickDraw distance calculations */
-double sqrt(double x) {
-    if (x < 0.0) return 0.0;
-    if (x == 0.0) return 0.0;
-
-    /* Newton-Raphson method for square root */
-    double guess = x / 2.0;
-    double epsilon = 0.00001;
-
-    for (int i = 0; i < 20; i++) {
-        double next = (guess + x / guess) / 2.0;
-        if (next - guess < epsilon && guess - next < epsilon) {
-            return next;
-        }
-        guess = next;
-    }
-
-    return guess;
-}
-
+/* Math library functions for bare metal; sqrt is in System71Math.c. */
 double frexp(double value, int* exp) {
     /* Split floating point into mantissa and exponent
      * value = mantissa * 2^exp, where 0.5 <= |mantissa| < 1.0 */

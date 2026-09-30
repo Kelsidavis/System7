@@ -560,7 +560,6 @@ extern void InitFonts(void);
 extern void InitWindows(void);
 extern void InitMenus(void);
 extern void InitDialogs(ResumeProcPtr resumeProc);
-extern void InitListManager(void);
 extern void InitControlManager_Sys7(void);
 extern SInt16 InitEvents(SInt16 numEvents);
 
@@ -982,7 +981,6 @@ static void init_system71(void) {
 #endif
 
     /* List Manager */
-    InitListManager();
     serial_puts("  List Manager initialized\n");
 
     /* Event Manager */
