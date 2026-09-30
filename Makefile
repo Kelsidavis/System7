@@ -539,19 +539,6 @@ C_SOURCES += src/Integration/IntegrationTests.c
 CFLAGS += -DINTEGRATION_TESTS=1
 endif
 
-# Add Phase 2 Integration Tests if enabled
-ifeq ($(PHASE2_TESTS),1)
-C_SOURCES += src/Integration/Phase2_EventDispatch.c \
-             src/Integration/Phase2_FileIO.c \
-             src/Integration/Phase2_DialogManager.c \
-             src/Integration/Phase2_TextEdit.c \
-             src/Integration/Phase2_QuickDraw.c \
-             src/Integration/Phase2_WindowManager.c \
-             src/Integration/Phase2_AppStartup.c \
-             src/Integration/Phase2_SoundManager.c \
-             src/Integration/Phase2_Rendering.c
-CFLAGS += -DPHASE2_TESTS=1
-endif
 
 # Add ResourceMgr sources if enabled
 ifeq ($(ENABLE_RESOURCES),1)
