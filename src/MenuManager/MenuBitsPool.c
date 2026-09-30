@@ -220,6 +220,13 @@ Handle MenuBitsPool_Allocate(const Rect* bounds) {
         return NULL;
     }
 
+    /* A rectangle larger than a pool buffer is left to the caller's heap
+     * path; the pixels are copied in without a bound, so it must fit. */
+    SInt32 w = bounds->right - bounds->left, h = bounds->bottom - bounds->top;
+    if (w <= 0 || h <= 0 || (SInt64)w * h * 4 > gMenuBitsPool.bufferSize) {
+        return NULL;
+    }
+
     /* Get a pool buffer */
     void* pixelBuffer = MenuBitsPool_GetBuffer(&poolIndex);
     if (!pixelBuffer) {

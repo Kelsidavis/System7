@@ -357,6 +357,32 @@ static void DrawMenuItemRow(MenuHandle theMenu, short i, short left, short itemT
     }
 }
 
+/*
+ * Blink the chosen item as many times as SetMenuFlash asks, about 3 ticks
+ * each way, ending highlighted (Inside Macintosh: Toolbox Essentials,
+ * 3-116). This held the highlight for 200000 turns of an untimed loop.
+ */
+extern UInt32 TickCount(void);
+extern void SystemTask(void);
+extern void EventPumpYield(void);
+static void FlashChosenItem(MenuHandle theMenu, short item, short left, short top,
+                            short menuWidth, short lineHeight) {
+    short itemTop = top + 2 + (item - 1) * lineHeight;
+    short flashes = GetMenuFlashCount();
+    for (short n = 0; n < flashes; n++) {
+        for (int on = 0; on <= 1; on++) {
+            DrawHighlightRect(left + 2, itemTop, left + menuWidth - 2,
+                              itemTop + lineHeight - 1, on);
+            DrawMenuItemRow(theMenu, item, left, itemTop, menuWidth, lineHeight, on);
+            UInt32 until = TickCount() + 3;
+            while (TickCount() < until) {
+                SystemTask();
+                EventPumpYield();
+            }
+        }
+    }
+}
+
 /* Draw dropdown menu */
 static void DrawMenuOld(MenuHandle theMenu, short left, short top, short itemCount, short menuWidth, short lineHeight) {
     /* Save current port and ensure we're in screen port for menu drawing */
@@ -784,19 +810,25 @@ long TrackMenu(short menuID, Point *startPt) {
     short left = startPt->h;
     short top = 20;
 
+    /* A menu that would run off the right of the screen is moved left to
+     * fit (Inside Macintosh: Toolbox Essentials, 3-10). This clipped to a
+     * fixed 640x480, so on a wider screen a menu whose title sat past 640 -
+     * the Application menu's, at the right end - never opened, and one
+     * reaching past 640 was drawn whole but saved and restored only in
+     * part, leaving the rest on screen. */
+    short screenRight = qd.screenBits.bounds.right;
+    short screenBottom = qd.screenBits.bounds.bottom;
+    if (left + menuWidth > screenRight) left = screenRight - menuWidth;
+    if (left < 0) left = 0;
+
     /* Calculate menu rectangle */
     menuRect.left = left;
     menuRect.top = top;
     menuRect.right = left + menuWidth;
     menuRect.bottom = top + menuHeight;
 
-    /* Clip to screen bounds to prevent out-of-bounds save/restore */
-    #define SCREEN_WIDTH 640
-    #define SCREEN_HEIGHT 480
-    if (menuRect.left < 0) menuRect.left = 0;
-    if (menuRect.top < 0) menuRect.top = 0;
-    if (menuRect.right > SCREEN_WIDTH) menuRect.right = SCREEN_WIDTH;
-    if (menuRect.bottom > SCREEN_HEIGHT) menuRect.bottom = SCREEN_HEIGHT;
+    if (menuRect.right > screenRight) menuRect.right = screenRight;
+    if (menuRect.bottom > screenBottom) menuRect.bottom = screenBottom;
 
     /* Validate rect is non-empty after clipping */
     if (menuRect.right <= menuRect.left || menuRect.bottom <= menuRect.top) {
@@ -976,7 +1008,13 @@ long TrackMenu(short menuID, Point *startPt) {
                         if (clickPt.v >= itemTop && clickPt.v < itemBottom) {
                             char itemText[64];
                             GetItemText(theMenu, i, itemText);
-                            if (itemText[0] != 0) {  /* Skip empty items */
+                            /* A disabled item or a divider chooses nothing
+                             * (Inside Macintosh: Toolbox Essentials, 3-111);
+                             * only empty text used to be refused, so a
+                             * greyed command ran when released on. */
+                            if (itemText[0] != 0 &&
+                                !CheckMenuItemSeparator(theMenu, i) &&
+                                CheckMenuItemEnabled(theMenu, i)) {
                                 clickedItem = i;
                             }
                             break;
@@ -1013,12 +1051,8 @@ long TrackMenu(short menuID, Point *startPt) {
                             result = ((long)menuID << 16) | clickedItem;
                             MENU_LOG_TRACE("TrackMenu: Item %d selected by click\n", clickedItem);
 
-                            /* Show visual feedback - keep selected item highlighted briefly */
-                            volatile int feedbackDelay = 0;
-                            for (feedbackDelay = 0; feedbackDelay < 200000; feedbackDelay++) {
-                                SystemTask();
-                                EventPumpYield();
-                            }
+                            FlashChosenItem(theMenu, clickedItem, left, top,
+                                            menuWidth, lineHeight);
                         }
                     }
                     tracking = false;

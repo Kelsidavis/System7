@@ -248,6 +248,7 @@ void FlashMenuBar(short menuID);
  *   count - Number of flashes (0 = no flashing)
  */
 void SetMenuFlash(short count);
+short GetMenuFlashCount(void);   /* the count SetMenuFlash set */
 
 /* ============================================================================
  * Menu Manager API - Menu Creation and Management

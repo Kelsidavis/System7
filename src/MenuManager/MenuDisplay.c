@@ -207,7 +207,7 @@ void DrawMenuTitle(short menuID, const Rect* titleRect, Boolean hilited)
         barRect.left = 0;
         barRect.top = 0;
         barRect.right = qd.screenBits.bounds.right;
-        barRect.bottom = 20;
+        barRect.bottom = 19;   /* row 19 is the bar's bottom rule: never erased here */
         ClipRect(&barRect);
     }
 
@@ -226,8 +226,11 @@ void DrawMenuTitle(short menuID, const Rect* titleRect, Boolean hilited)
     titleText[0] = titleLen;
     memcpy(&titleText[1], &(*(MenuInfo**)theMenu)->menuData[1], titleLen);
 
-    /* Use titleRect directly - DrawMenuItemTextInternal will add its own padding */
+    /* DrawMenuItemTextInternal centres the text in its rect; one pixel down
+     * puts the baseline at 14, where DrawMenuBar draws every other title.
+     * At 13 a title sat a pixel high once it had been highlighted. */
     textRect = *titleRect;
+    textRect.top += 1;
 
     extern void serial_puts(const char* str);
     if (hilited) {

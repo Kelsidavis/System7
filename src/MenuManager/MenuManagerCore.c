@@ -1143,6 +1143,11 @@ void SetMenuFlash(short count)
     gMenuFlash = count;
 }
 
+short GetMenuFlashCount(void)
+{
+    return gMenuFlash;
+}
+
 /* ============================================================================
  * Menu Manager State Access
  * ============================================================================ */
