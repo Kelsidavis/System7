@@ -49,6 +49,8 @@ void UseResFile(SInt16 refNum);
 /* Note: OpenResFile declared in ResourceMgr/resource_manager.h */
 // SInt16 OpenResFile(const unsigned char* fileName);
 void CloseResFile(SInt16 refNum);
+SInt16 FSpOpenResFile(const FSSpec* spec, SInt8 permission);
+void FSpCreateResFile(const FSSpec* spec, OSType creator, OSType fileType, ScriptCode scriptTag);
 
 /* Error Handling */
 OSErr ResError(void);

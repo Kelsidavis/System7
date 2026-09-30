@@ -483,30 +483,6 @@ void ReleaseResource(Handle theResource) {
 
 /* Memory Manager functions provided by MemoryManager.c */
 
-OSErr FSpCreateResFile(const FSSpec* spec, OSType creator, OSType fileType, SInt16 scriptTag) {
-    if (!spec) {
-        return paramErr;
-    }
-
-    /* Create a new resource file with empty resource fork */
-
-    /* In a full implementation, this would:
-     * 1. Create the file using FSpCreate with specified creator/type
-     * 2. Create an empty resource fork
-     * 3. Write an empty resource map to the resource fork
-     * 4. Close the file
-     */
-
-    /* For now, just call FSpCreate to create the data fork */
-    OSErr err = FSpCreate(spec, creator, fileType, scriptTag);
-    if (err != noErr) {
-        return err;
-    }
-
-    /* Resource fork initialization would happen here in full implementation */
-
-    return noErr;
-}
 
 /* File Manager stubs - Core functions now implemented in FileManager.c */
 
@@ -533,32 +509,6 @@ OSErr FSpOpenDF(const FSSpec* spec, SInt16 permission, SInt16* refNum) {
     return FSOpen(spec->name, spec->vRefNum, refNum);
 }
 
-OSErr FSpOpenResFile(const FSSpec* spec, SInt16 permission) {
-    if (!spec) {
-        return -1; /* Invalid resource file reference */
-    }
-
-    /* Open the resource fork of a file */
-
-    /* In a full implementation, this would:
-     * 1. Validate the FSSpec points to an existing file
-     * 2. Open the resource fork
-     * 3. Read and parse the resource map
-     * 4. Add the file to the resource file chain
-     * 5. Return the resource file reference number
-     */
-
-    /* Permission values:
-     * fsCurPerm (0) - read/write based on file permissions
-     * fsRdPerm (1) - read-only
-     * fsWrPerm (2) - write-only
-     * fsRdWrPerm (3) - read/write
-     */
-
-    /* Return fake resource file reference number */
-    (void)permission;
-    return 1;
-}
 
 OSErr FSpDelete(const FSSpec* spec) {
     if (!spec) {

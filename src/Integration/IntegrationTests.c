@@ -14,6 +14,10 @@
 #include "System71StdLib.h"
 #include "MemoryMgr/MemoryManager.h"
 #include "DialogManager/DialogResources.h"
+#include "ResourceManager.h"
+
+/* The File Manager calls the tests use, as FileManager.c defines them. */
+extern OSErr FSDelete(ConstStr255Param fileName, VolumeRefNum vRefNum);
 #include <string.h>
 
 /* Straight to the serial port. Results are the point of a test build, and
@@ -186,6 +190,46 @@ static void Test_Dialog_LoadMissingTemplate(void) {
 }
 
 /* ----------------------------------------------------------------------------
+ * Resource Manager: resource files named by FSSpec
+ * ------------------------------------------------------------------------- */
+
+static void SetSpec(FSSpec* spec, const char* name) {
+    memset(spec, 0, sizeof(*spec));
+    size_t len = strlen(name);
+    spec->name[0] = (UInt8)len;
+    memcpy(&spec->name[1], name, len);
+}
+
+static void Test_Resource_CreateAndOpenResFile(void) {
+    const char* test_name = "Resource_CreateAndOpenResFile";
+    FSSpec spec;
+    SetSpec(&spec, "ITest Resources");
+
+    FSpCreateResFile(&spec, 'ITst', 'rsrc', 0);
+    OSErr createErr = ResError();
+    if (createErr != noErr) IT_LOG_INFO("FSpCreateResFile: ResError %d", createErr);
+    CHECK(createErr == noErr, "FSpCreateResFile reported an error");
+
+    SInt16 ref = FSpOpenResFile(&spec, 1);
+    CHECK(ref > 0, "the file just created would not open as a resource file");
+    CHECK(ResError() == noErr, "FSpOpenResFile opened it and reported an error");
+    CloseResFile(ref);
+    FSDelete(spec.name, spec.vRefNum);
+    RecordTest(test_name, true, "");
+}
+
+static void Test_Resource_OpenMissingResFile(void) {
+    const char* test_name = "Resource_OpenMissingResFile";
+    FSSpec spec;
+    SetSpec(&spec, "ITest No Such File");
+
+    SInt16 ref = FSpOpenResFile(&spec, 1);
+    CHECK(ref == -1, "opened a file that does not exist");
+    CHECK(ResError() != noErr, "failed to open and reported no error");
+    RecordTest(test_name, true, "");
+}
+
+/* ----------------------------------------------------------------------------
  * Running and reporting
  * ------------------------------------------------------------------------- */
 
@@ -227,6 +271,10 @@ void IntegrationTests_Run(void) {
     Test_Dialog_ParseALRT();
     Test_Dialog_ParseDLOGTruncated();
     Test_Dialog_LoadMissingTemplate();
+
+    IT_LOG_INFO("--- Resource Manager ---");
+    Test_Resource_CreateAndOpenResFile();
+    Test_Resource_OpenMissingResFile();
 
     PrintTestSummary();
 }

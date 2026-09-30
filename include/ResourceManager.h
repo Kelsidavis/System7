@@ -105,6 +105,8 @@ RefNum OpenRFPerm(const char* fileName, UInt8 vRefNum, SInt8 permission);
 
 /* Close a resource file */
 void CloseResFile(RefNum refNum);
+SInt16 FSpOpenResFile(const FSSpec* spec, SInt8 permission);
+void FSpCreateResFile(const FSSpec* spec, OSType creator, OSType fileType, ScriptCode scriptTag);
 
 /* Create a new resource file */
 void CreateResFile(const char* fileName);

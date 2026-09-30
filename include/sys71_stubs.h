@@ -49,10 +49,8 @@ OSErr ResolveAliasFile(const FSSpec* spec, FSSpec* target, Boolean* wasAliased, 
 OSErr NewAlias(const FSSpec* fromFile, const FSSpec* target, AliasHandle* alias);
 
 /* File System Spec */
-OSErr FSpCreateResFile(const FSSpec* spec, OSType creator, OSType fileType, SInt16 scriptTag);
 OSErr FSpCreate(const FSSpec* spec, OSType creator, OSType fileType, SInt16 scriptTag);
 OSErr FSpOpenDF(const FSSpec* spec, SInt16 permission, SInt16* refNum);
-OSErr FSpOpenResFile(const FSSpec* spec, SInt16 permission);
 OSErr FSpDelete(const FSSpec *spec);
 OSErr FSpGetFInfo(const FSSpec* spec, FInfo* fndrInfo);
 OSErr FSpSetFInfo(const FSSpec* spec, const FInfo* fndrInfo);

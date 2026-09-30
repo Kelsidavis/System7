@@ -24,6 +24,8 @@ extern OSErr FSOpenRF(ConstStr255Param fileName, VolumeRefNum vRefNum, FileRefNu
 extern OSErr FSRead(FileRefNum refNum, UInt32* count, void* buffer);
 extern OSErr FSClose(FileRefNum refNum);
 extern OSErr FSSetFPos(FileRefNum refNum, UInt16 posMode, SInt32 posOffset);
+extern OSErr FSWrite(FileRefNum refNum, UInt32* count, const void* buffer);
+extern OSErr FSCreate(ConstStr255Param fileName, VolumeRefNum vRefNum, UInt32 creator, UInt32 fileType);
 
 /* RM_DEBUG: Set to 1 to enable verbose Resource Manager debugging
  * WARNING: Enabling causes severe performance impact on ARM64 */
@@ -1223,8 +1225,9 @@ void SetResLoad(Boolean load) {
     gResMgr.resLoad = load;
 }
 
-/* Open resource file */
-SInt16 OpenResFile(ConstStr255Param fileName) {
+/* Open a file's resource fork on a given volume; OpenResFile uses the
+ * default volume, FSpOpenResFile the one its FSSpec names. */
+static SInt16 OpenResFileOnVolume(ConstStr255Param fileName, VolumeRefNum vRefNum) {
     SInt16 refNum;
     OSErr err;
 
@@ -1244,7 +1247,7 @@ SInt16 OpenResFile(ConstStr255Param fileName) {
 
     /* Open resource fork using File Manager */
     FileRefNum fileRef;
-    err = FSOpenRF(fileName, 0, &fileRef);
+    err = FSOpenRF(fileName, vRefNum, &fileRef);
     if (err != noErr) {
         gResMgr.resError = err;
         return -1;
@@ -1327,6 +1330,74 @@ SInt16 OpenResFile(ConstStr255Param fileName) {
 
     gResMgr.resError = noErr;
     return refNum;
+}
+
+/* Open resource file */
+SInt16 OpenResFile(ConstStr255Param fileName) {
+    return OpenResFileOnVolume(fileName, 0);
+}
+
+/*
+ * FSpOpenResFile - open the resource fork of the file an FSSpec names.
+ *
+ * Answers the fork's reference number, or -1 with ResError saying why. It
+ * was a stub in sys71_stubs.c that answered 1 for any file, open or not.
+ * The permission is not enforced: forks are read whole into memory.
+ */
+SInt16 FSpOpenResFile(const FSSpec* spec, SInt8 permission) {
+    (void)permission;
+    if (!spec) {
+        gResMgr.resError = paramErr;
+        return -1;
+    }
+    return OpenResFileOnVolume(spec->name, spec->vRefNum);
+}
+
+/*
+ * FSpCreateResFile - create a file with an empty resource fork.
+ *
+ * The file is created if it is not there, then its resource fork is given
+ * the layout an empty fork has (Inside Macintosh: More Macintosh Toolbox,
+ * 1-121): a 256-byte header area whose header puts the map at 256, and a
+ * 30-byte map with no types. The stub this replaces created the data fork and
+ * stopped, so OpenResFile then found no map and failed.
+ */
+void FSpCreateResFile(const FSSpec* spec, OSType creator, OSType fileType, ScriptCode scriptTag) {
+    (void)scriptTag;
+    if (!spec) {
+        gResMgr.resError = paramErr;
+        return;
+    }
+
+    OSErr err = FSCreate(spec->name, spec->vRefNum, creator, fileType);
+    if (err != noErr && err != dupFNErr) {
+        gResMgr.resError = err;
+        return;
+    }
+
+    enum { kHeaderArea = 256, kMapSize = 30 };
+    UInt8 fork[kHeaderArea + kMapSize];
+    memset(fork, 0, sizeof(fork));
+    write_be32(fork + 0, kHeaderArea);      /* data offset */
+    write_be32(fork + 4, kHeaderArea);      /* map offset */
+    write_be32(fork + 8, 0);                /* data length */
+    write_be32(fork + 12, kMapSize);        /* map length */
+    memcpy(fork + kHeaderArea, fork, 16);   /* the map opens with a copy of the header */
+    write_be16(fork + kHeaderArea + 24, 28);      /* type list offset, from the map */
+    write_be16(fork + kHeaderArea + 26, kMapSize); /* name list offset: empty, at the end */
+    write_be16(fork + kHeaderArea + 28, 0xFFFF);  /* number of types, minus one */
+
+    FileRefNum ref;
+    err = FSOpenRF(spec->name, spec->vRefNum, &ref);
+    if (err != noErr) {
+        gResMgr.resError = err;
+        return;
+    }
+    UInt32 count = sizeof(fork);
+    err = FSWrite(ref, &count, fork);
+    if (err == noErr && count != sizeof(fork)) err = ioErr;
+    OSErr closeErr = FSClose(ref);
+    gResMgr.resError = (err != noErr) ? err : closeErr;
 }
 
 /* Close resource file */
