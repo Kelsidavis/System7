@@ -34,6 +34,12 @@ extern OSErr FSDeleteDir(ConstStr255Param dirName, VolumeRefNum vRefNum);
 extern OSErr FSOpenWD(VolumeRefNum vRefNum, DirID dirID, UInt32 procID, WDRefNum* wdRefNum);
 extern OSErr FSGetWDInfo(WDRefNum wdRefNum, VolumeRefNum* vRefNum, DirID* dirID, UInt32* procID);
 extern OSErr FSCloseWD(WDRefNum wdRefNum);
+extern OSErr FSMakeFSSpec(VolumeRefNum vRefNum, DirID dirID, ConstStr255Param fileName, FSSpec* spec);
+extern OSErr FSpCreate(const FSSpec* spec, OSType creator, OSType fileType, ScriptCode scriptTag);
+extern OSErr FSpOpenDF(const FSSpec* spec, SInt8 permission, FileRefNum* refNum);
+extern OSErr FSpGetFInfo(const FSSpec* spec, FInfo* fndrInfo);
+extern OSErr FSpDelete(const FSSpec* spec);
+extern OSErr HGetFInfo(short vRefNum, long dirID, ConstStr255Param fileName, FInfo* fndrInfo);
 #include <string.h>
 
 /* Straight to the serial port. Results are the point of a test build, and
@@ -317,6 +323,52 @@ static void Test_File_FoldersAndWorkingDirectories(void) {
     RecordTest(test_name, true, "");
 }
 
+/* A file made in a folder is in that folder, and found there by FSSpec, by
+ * dirID and through a working directory - and not in the root. */
+static void Test_File_InFolder(void) {
+    const char* test_name = "File_InFolder";
+    FSSpec folder, file;
+    SetSpec(&folder, "ITest Nest");
+    SetSpec(&file, "ITest Nested");
+    FSDelete(file.name, 0);
+
+    DirID dir = 0;
+    CHECK(FSCreateDir(folder.name, 0, &dir) == noErr, "FSCreateDir failed");
+
+    FSSpec spec;
+    CHECK(FSMakeFSSpec(0, dir, file.name, &spec) == fnfErr, "FSMakeFSSpec found a file not yet made");
+    CHECK(spec.parID == dir, "FSMakeFSSpec lost the folder");
+    OSErr made = FSpCreate(&spec, 'ITst', 'TEXT', 0);
+
+    FInfo info;
+    OSErr inRoot = HGetFInfo(0, 0, file.name, &info);
+    OSErr byDir = HGetFInfo(0, dir, file.name, &info);
+    OSErr bySpec = FSpGetFInfo(&spec, &info);
+
+    WDRefNum wd = 0;
+    OSErr viaWD = FSOpenWD(0, dir, 'ITst', &wd);
+    FileRefNum ref = 0;
+    if (viaWD == noErr) viaWD = FSOpen(file.name, wd, &ref);
+    if (viaWD == noErr) FSClose(ref);
+    FSSpec wdSpec;
+    OSErr wdMake = FSMakeFSSpec(wd, 0, file.name, &wdSpec);
+    FSCloseWD(wd);
+
+    OSErr gone = FSpDelete(&spec);
+    OSErr dirGone = FSDeleteDir(folder.name, 0);
+
+    CHECK(made == noErr, "FSpCreate in the folder failed");
+    CHECK(inRoot == fnfErr, "the file was made in the root, not the folder");
+    CHECK(byDir == noErr && bySpec == noErr, "the file was not found in its folder");
+    CHECK(info.fdType == 'TEXT', "the file in the folder lost its type");
+    CHECK(viaWD == noErr, "FSOpen through a working directory failed");
+    CHECK(wdMake == noErr && wdSpec.parID == dir && wdSpec.vRefNum == spec.vRefNum,
+          "FSMakeFSSpec did not turn the working directory into its volume and folder");
+    CHECK(gone == noErr, "FSpDelete in the folder failed");
+    CHECK(dirGone == noErr, "the folder was not empty after FSpDelete");
+    RecordTest(test_name, true, "");
+}
+
 static void Test_Resource_CreateAndOpenResFile(void) {
     const char* test_name = "Resource_CreateAndOpenResFile";
     FSSpec spec;
@@ -438,6 +490,7 @@ void IntegrationTests_Run(void) {
     Test_File_WriteReadRoundTrip();
     Test_File_Metadata();
     Test_File_FoldersAndWorkingDirectories();
+    Test_File_InFolder();
 
     IT_LOG_INFO("--- Resource Manager ---");
     Test_Resource_CreateAndOpenResFile();

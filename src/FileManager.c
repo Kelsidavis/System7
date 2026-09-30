@@ -78,7 +78,7 @@ OSErr FM_Initialize(void)
 
     /* Initialize WDCB reference numbers (negative, starting from -1) */
     for (int i = 0; i < g_FSGlobals.wdcbCount; i++) {
-        g_FSGlobals.wdcbArray[i].wdRefNum = -(WDRefNum)(i + 1);
+        g_FSGlobals.wdcbArray[i].wdRefNum = (WDRefNum)(kFirstWDRefNum + i);
         g_FSGlobals.wdcbArray[i].wdIndex = i;
     }
     g_FSGlobals.wdcbFree = 0;
@@ -129,19 +129,7 @@ OSErr FM_Shutdown(void)
 
 OSErr FSOpen(ConstStr255Param fileName, VolumeRefNum vRefNum, FileRefNum* refNum)
 {
-    ParamBlockRec pb;
-
-    memset(&pb, 0, sizeof(pb));
-    pb.ioNamePtr = CONST_CAST_STRINGPTR(fileName);
-    pb.ioVRefNum = vRefNum;
-    pb.u.ioParam.ioPermssn = fsRdWrPerm;
-
-    OSErr err = PBOpenSync(&pb);
-    if (err == noErr && refNum) {
-        *refNum = pb.u.ioParam.ioRefNum;
-    }
-
-    return err;
+    return HOpenDF(vRefNum, 0, fileName, fsRdWrPerm, refNum);
 }
 
 OSErr FSClose(FileRefNum refNum)
@@ -198,77 +186,22 @@ OSErr FSWrite(FileRefNum refNum, UInt32* count, const void* buffer)
 
 OSErr FSOpenDF(ConstStr255Param fileName, VolumeRefNum vRefNum, FileRefNum* refNum)
 {
-    ParamBlockRec pb;
-
-    memset(&pb, 0, sizeof(pb));
-    pb.ioNamePtr = CONST_CAST_STRINGPTR(fileName);
-    pb.ioVRefNum = vRefNum;
-    pb.u.ioParam.ioPermssn = fsRdWrPerm;
-    /* pb.u.fileParam.ioDirID = 0; -- FileParam doesn't have ioDirID */  /* Use default directory */
-
-    OSErr err = PBHOpenDFSync(&pb);
-    if (err == noErr && refNum) {
-        *refNum = pb.u.ioParam.ioRefNum;
-    }
-
-    return err;
+    return HOpenDF(vRefNum, 0, fileName, fsRdWrPerm, refNum);
 }
 
 OSErr FSOpenRF(ConstStr255Param fileName, VolumeRefNum vRefNum, FileRefNum* refNum)
 {
-    ParamBlockRec pb;
-
-    memset(&pb, 0, sizeof(pb));
-    pb.ioNamePtr = CONST_CAST_STRINGPTR(fileName);
-    pb.ioVRefNum = vRefNum;
-    pb.u.ioParam.ioPermssn = fsRdWrPerm;
-    /* pb.u.fileParam.ioDirID = 0; -- FileParam doesn't have ioDirID */
-
-    OSErr err = PBHOpenRFSync(&pb);
-    if (err == noErr && refNum) {
-        *refNum = pb.u.ioParam.ioRefNum;
-    }
-
-    return err;
+    return HOpenRF(vRefNum, 0, fileName, fsRdWrPerm, refNum);
 }
 
 OSErr FSCreate(ConstStr255Param fileName, VolumeRefNum vRefNum, UInt32 creator, UInt32 fileType)
 {
-    ParamBlockRec pb;
-
-    /* First create the file */
-    memset(&pb, 0, sizeof(pb));
-    pb.ioNamePtr = CONST_CAST_STRINGPTR(fileName);
-    pb.ioVRefNum = vRefNum;
-    /* pb.u.fileParam.ioDirID = 0; -- FileParam doesn't have ioDirID */
-
-    OSErr err = PBHCreateSync(&pb);
-    if (err != noErr) {
-        return err;
-    }
-
-    /* Then set its type and creator */
-    FInfo fndrInfo;
-    err = FSGetFInfo(fileName, vRefNum, &fndrInfo);
-    if (err == noErr) {
-        fndrInfo.fdType = fileType;
-        fndrInfo.fdCreator = creator;
-        err = FSSetFInfo(fileName, vRefNum, &fndrInfo);
-    }
-
-    return err;
+    return HCreate(vRefNum, 0, fileName, creator, fileType);
 }
 
 OSErr FSDelete(ConstStr255Param fileName, VolumeRefNum vRefNum)
 {
-    ParamBlockRec pb;
-
-    memset(&pb, 0, sizeof(pb));
-    pb.ioNamePtr = CONST_CAST_STRINGPTR(fileName);
-    pb.ioVRefNum = vRefNum;
-    /* pb.u.fileParam.ioDirID = 0; -- FileParam doesn't have ioDirID */
-
-    return PBHDeleteSync(&pb);
+    return HDelete(vRefNum, 0, fileName);
 }
 
 OSErr FSRename(ConstStr255Param oldName, ConstStr255Param newName, VolumeRefNum vRefNum)
@@ -279,7 +212,6 @@ OSErr FSRename(ConstStr255Param oldName, ConstStr255Param newName, VolumeRefNum 
     pb.ioNamePtr = CONST_CAST_STRINGPTR(oldName);
     pb.ioVRefNum = vRefNum;
     pb.u.ioParam.ioMisc = CONST_CAST_STRINGPTR(newName);
-    /* pb.u.fileParam.ioDirID = 0; -- FileParam doesn't have ioDirID */
 
     return PBHRenameSync(&pb);
 }
@@ -437,23 +369,7 @@ OSErr FSAllocate(FileRefNum refNum, UInt32* count)
 
 OSErr FSGetFInfo(ConstStr255Param fileName, VolumeRefNum vRefNum, FInfo* fndrInfo)
 {
-    CInfoPBRec pb;
-
-    if (!fndrInfo) {
-        return paramErr;
-    }
-
-    memset(&pb, 0, sizeof(pb));
-    pb.ioNamePtr = CONST_CAST_STRINGPTR(fileName);
-    pb.ioVRefNum = vRefNum;
-    pb.u.hFileInfo.ioFDirIndex = 0;
-
-    OSErr err = PBGetCatInfoSync(&pb);
-    if (err == noErr) {
-        *fndrInfo = pb.u.hFileInfo.ioFlFndrInfo;
-    }
-
-    return err;
+    return HGetFInfo(vRefNum, 0, fileName, fndrInfo);
 }
 
 /* HGetFInfo - High-level wrapper for getting file info by dirID */
@@ -485,28 +401,7 @@ OSErr HGetFInfo(short vRefNum, long dirID, ConstStr255Param fileName, FInfo *fnd
 
 OSErr FSSetFInfo(ConstStr255Param fileName, VolumeRefNum vRefNum, const FInfo* fndrInfo)
 {
-    CInfoPBRec pb;
-
-    if (!fndrInfo) {
-        return paramErr;
-    }
-
-    /* First get current info */
-    memset(&pb, 0, sizeof(pb));
-    pb.ioNamePtr = CONST_CAST_STRINGPTR(fileName);
-    pb.ioVRefNum = vRefNum;
-    pb.u.hFileInfo.ioFDirIndex = 0;
-
-    OSErr err = PBGetCatInfoSync(&pb);
-    if (err != noErr) {
-        return err;
-    }
-
-    /* Update Finder info */
-    pb.u.hFileInfo.ioFlFndrInfo = *fndrInfo;
-
-    /* Write back */
-    return PBSetCatInfoSync(&pb);
+    return HSetFInfo(vRefNum, 0, fileName, fndrInfo);
 }
 
 OSErr FSGetCatInfo(CInfoPBPtr paramBlock)
@@ -534,95 +429,66 @@ OSErr FSSetCatInfo(CInfoPBPtr paramBlock)
 OSErr FSMakeFSSpec(VolumeRefNum vRefNum, DirID dirID, ConstStr255Param fileName, FSSpec* spec)
 {
     VCB* vcb;
-    OSErr err;
+    UInt32 dir;
 
     if (!spec) {
         return paramErr;
     }
 
-    /* Find the volume */
-    err = FM_GetVolumeFromRefNum(vRefNum, &vcb);
+    /* The spec names the real volume and folder, never a working directory
+     * (Inside Macintosh: Files, FSMakeFSSpec). */
+    OSErr err = FM_ResolveDir(vRefNum, dirID, &vcb, &dir);
     if (err != noErr) {
         return err;
     }
-
-    /* Fill in the FSSpec */
-    spec->vRefNum = vRefNum;
-    spec->parID = dirID;
-
+    spec->vRefNum = vcb->base.vcbVRefNum;
+    spec->parID = (DirID)dir;
     if (fileName && fileName[0] > 0) {
         memcpy(spec->name, fileName, fileName[0] + 1);
     } else {
         spec->name[0] = 0;
     }
 
-    /* Verify the file/directory exists */
+    /* Whether it exists: fnfErr leaves a valid spec for a file to create. */
     CInfoPBRec pb;
     memset(&pb, 0, sizeof(pb));
     pb.ioNamePtr = spec->name;
     pb.ioVRefNum = spec->vRefNum;
-    pb.u.dirInfo.ioDrDirID = spec->parID;
-    pb.u.hFileInfo.ioFDirIndex = 0;
-
-    err = PBGetCatInfoSync(&pb);
-
-    /* Update parent ID if we got a directory */
-    if (err == noErr && (pb.u.hFileInfo.ioFlAttrib & kioFlAttribDir)) {
-        spec->parID = pb.u.dirInfo.ioDrParID;
-    }
-
-    return err;
+    pb.u.hFileInfo.ioDirID = (SInt32)dir;
+    return PBGetCatInfoSync(&pb);
 }
 
 OSErr FSCreateDir(ConstStr255Param dirName, VolumeRefNum vRefNum, DirID* createdDirID)
 {
-    VCB* vcb;
-    OSErr err;
-
-    /* Find the volume */
-    err = FM_GetVolumeFromRefNum(vRefNum, &vcb);
-    if (err != noErr) {
-        return err;
-    }
-
-    /* Create the directory in the catalog; the ID is the one it got. */
-    UInt32 newID = 0;
-    err = Cat_Create(vcb, 2, dirName, REC_FLDR, &newID);  /* Parent = root (2) */
-
+    long id = 0;
+    OSErr err = DirCreate(vRefNum, 0, dirName, &id);
     if (err == noErr && createdDirID) {
-        *createdDirID = (DirID)newID;
+        *createdDirID = (DirID)id;
     }
-
-    /* Update volume directory count */
-    if (err == noErr) {
-        vcb->vcbDirCnt++;
-        vcb->base.vcbFlags |= VCB_DIRTY;
-    }
-
-
     return err;
 }
 
-/* DirCreate - High-level wrapper for creating directory by parent dirID */
+/* DirCreate - make a folder in the folder parentDirID names (0: the root). */
 OSErr DirCreate(short vRefNum, long parentDirID, ConstStr255Param directoryName, long *createdDirID)
 {
-    /* For now, delegate to FSCreateDir
-     * In a full implementation, this would handle the parentDirID parameter
-     * by navigating to that directory first */
-    DirID tempDirID;
-    OSErr err = FSCreateDir(directoryName, vRefNum, &tempDirID);
+    VCB* vcb;
+    UInt32 dir;
+    OSErr err = FM_ResolveDir(vRefNum, parentDirID, &vcb, &dir);
+    if (err != noErr) return err;
 
-    if (err == noErr && createdDirID) {
-        *createdDirID = tempDirID;
-    }
-
-    return err;
+    UInt32 newID = 0;
+    err = Cat_Create(vcb, dir, directoryName, REC_FLDR, &newID);
+    if (err != noErr) return err;
+    vcb->vcbDirCnt++;
+    if (createdDirID) *createdDirID = (long)newID;
+    return noErr;
 }
 
 OSErr FSDeleteDir(ConstStr255Param dirName, VolumeRefNum vRefNum)
 {
     VCB* vcb;
-    OSErr err = FM_GetVolumeFromRefNum(vRefNum, &vcb);
+    UInt32 dir;
+    OSErr err = FM_ResolveDir(vRefNum, 0, &vcb, &dir);
     if (err != noErr) {
         return err;
     }
@@ -630,24 +496,16 @@ OSErr FSDeleteDir(ConstStr255Param dirName, VolumeRefNum vRefNum)
     /* A folder, and an empty one (Inside Macintosh: Files, HDelete). */
     CInfoPBRec pb;
     memset(&pb, 0, sizeof(pb));
-    pb.ioNamePtr = (StringPtr)(uintptr_t)dirName;
-    pb.u.hFileInfo.ioDirID = 2;
-    err = Cat_GetInfo(vcb, 2, dirName, &pb);
+    pb.ioNamePtr = CONST_CAST_STRINGPTR(dirName);
+    pb.u.hFileInfo.ioDirID = (SInt32)dir;
+    err = Cat_GetInfo(vcb, dir, dirName, &pb);
     if (err != noErr) {
         return err;
     }
-    if (!(pb.u.hFileInfo.ioFlAttrib & 0x10)) {
+    if (!(pb.u.hFileInfo.ioFlAttrib & kioFlAttribDir)) {
         return dirNFErr;
     }
-    if (pb.u.dirInfo.ioDrNmFls > 0) {
-        return fBsyErr;
-    }
-
-    err = Cat_Delete(vcb, 2, dirName);
-    if (err == noErr && vcb->vcbDirCnt > 0) {
-        vcb->vcbDirCnt--;
-    }
-    return err;
+    return HDelete(vRefNum, 0, dirName);
 }
 
 OSErr FSGetWDInfo(WDRefNum wdRefNum, VolumeRefNum* vRefNum, DirID* dirID, UInt32* procID)
@@ -882,15 +740,15 @@ OSErr PBOpenSync(ParmBlkPtr paramBlock)
         return paramErr;
     }
 
-    /* Find the volume */
-    err = FM_GetVolumeFromRefNum(paramBlock->ioVRefNum, &vcb);
+    UInt32 dir;
+    err = FM_ResolveDir(paramBlock->ioVRefNum, 0, &vcb, &dir);
     if (err != noErr) {
         paramBlock->ioResult = err;
         return err;
     }
 
     /* Open the file */
-    err = FCB_Open(vcb, 2, paramBlock->ioNamePtr,
+    err = FCB_Open(vcb, dir, paramBlock->ioNamePtr,
                    (paramBlock)->u.ioParam.ioPermssn, false, &fcb);
 
     if (err == noErr) {
@@ -1013,15 +871,16 @@ OSErr PBGetCatInfoSync(CInfoPBPtr paramBlock)
         return paramErr;
     }
 
-    /* Find the volume */
-    err = FM_GetVolumeFromRefNum(paramBlock->ioVRefNum, &vcb);
+    UInt32 dir;
+    err = FM_ResolveDir(paramBlock->ioVRefNum, paramBlock->u.hFileInfo.ioDirID, &vcb, &dir);
     if (err != noErr) {
         paramBlock->ioResult = err;
         return err;
     }
+    paramBlock->u.hFileInfo.ioDirID = (SInt32)dir;
 
     /* Get catalog info */
-    err = Cat_GetInfo(vcb, 2, paramBlock->ioNamePtr, paramBlock);
+    err = Cat_GetInfo(vcb, dir, paramBlock->ioNamePtr, paramBlock);
 
     paramBlock->ioResult = err;
     return err;
@@ -1036,15 +895,16 @@ OSErr PBSetCatInfoSync(CInfoPBPtr paramBlock)
         return paramErr;
     }
 
-    /* Find the volume */
-    err = FM_GetVolumeFromRefNum(paramBlock->ioVRefNum, &vcb);
+    UInt32 dir;
+    err = FM_ResolveDir(paramBlock->ioVRefNum, paramBlock->u.hFileInfo.ioDirID, &vcb, &dir);
     if (err != noErr) {
         paramBlock->ioResult = err;
         return err;
     }
+    paramBlock->u.hFileInfo.ioDirID = (SInt32)dir;
 
     /* Set catalog info */
-    err = Cat_SetInfo(vcb, 2, paramBlock->ioNamePtr, paramBlock);
+    err = Cat_SetInfo(vcb, dir, paramBlock->ioNamePtr, paramBlock);
 
     paramBlock->ioResult = err;
     return err;
@@ -1100,15 +960,15 @@ OSErr PBHOpenDFSync(ParmBlkPtr paramBlock)
         return paramErr;
     }
 
-    /* Find the volume */
-    err = FM_GetVolumeFromRefNum(paramBlock->ioVRefNum, &vcb);
+    UInt32 dir;
+    err = FM_ResolveDir(paramBlock->ioVRefNum, ((HParamBlockRec*)paramBlock)->u.hFileInfo.ioDirID, &vcb, &dir);
     if (err != noErr) {
         paramBlock->ioResult = err;
         return err;
     }
 
     /* Open data fork */
-    err = FCB_Open(vcb, ((HParamBlockRec*)paramBlock)->u.hFileInfo.ioDirID,
+    err = FCB_Open(vcb, dir,
                    paramBlock->ioNamePtr,
                    (paramBlock)->u.ioParam.ioPermssn, false, &fcb);
 
@@ -1130,15 +990,15 @@ OSErr PBHOpenRFSync(ParmBlkPtr paramBlock)
         return paramErr;
     }
 
-    /* Find the volume */
-    err = FM_GetVolumeFromRefNum(paramBlock->ioVRefNum, &vcb);
+    UInt32 dir;
+    err = FM_ResolveDir(paramBlock->ioVRefNum, ((HParamBlockRec*)paramBlock)->u.hFileInfo.ioDirID, &vcb, &dir);
     if (err != noErr) {
         paramBlock->ioResult = err;
         return err;
     }
 
     /* Open resource fork */
-    err = FCB_Open(vcb, ((HParamBlockRec*)paramBlock)->u.hFileInfo.ioDirID,
+    err = FCB_Open(vcb, dir,
                    paramBlock->ioNamePtr,
                    (paramBlock)->u.ioParam.ioPermssn, true, &fcb);
 
@@ -1159,15 +1019,15 @@ OSErr PBHCreateSync(ParmBlkPtr paramBlock)
         return paramErr;
     }
 
-    /* Find the volume */
-    err = FM_GetVolumeFromRefNum(paramBlock->ioVRefNum, &vcb);
+    UInt32 dir;
+    err = FM_ResolveDir(paramBlock->ioVRefNum, ((HParamBlockRec*)paramBlock)->u.hFileInfo.ioDirID, &vcb, &dir);
     if (err != noErr) {
         paramBlock->ioResult = err;
         return err;
     }
 
     /* Create the file in the catalog */
-    err = Cat_Create(vcb, ((HParamBlockRec*)paramBlock)->u.hFileInfo.ioDirID,
+    err = Cat_Create(vcb, dir,
                     paramBlock->ioNamePtr, REC_FIL, NULL);
 
     /* Update volume file count */
@@ -1190,8 +1050,8 @@ OSErr PBHDeleteSync(ParmBlkPtr paramBlock)
         return paramErr;
     }
 
-    /* Find the volume */
-    err = FM_GetVolumeFromRefNum(paramBlock->ioVRefNum, &vcb);
+    UInt32 dir;
+    err = FM_ResolveDir(paramBlock->ioVRefNum, ((HParamBlockRec*)paramBlock)->u.hFileInfo.ioDirID, &vcb, &dir);
     if (err != noErr) {
         paramBlock->ioResult = err;
         return err;
@@ -1199,7 +1059,7 @@ OSErr PBHDeleteSync(ParmBlkPtr paramBlock)
 
 
     /* Delete from catalog */
-    err = Cat_Delete(vcb, ((HParamBlockRec*)paramBlock)->u.hFileInfo.ioDirID,
+    err = Cat_Delete(vcb, dir,
                     paramBlock->ioNamePtr);
 
     /* Update volume file count */
@@ -1222,8 +1082,8 @@ OSErr PBHRenameSync(ParmBlkPtr paramBlock)
         return paramErr;
     }
 
-    /* Find the volume */
-    err = FM_GetVolumeFromRefNum(paramBlock->ioVRefNum, &vcb);
+    UInt32 dir;
+    err = FM_ResolveDir(paramBlock->ioVRefNum, ((HParamBlockRec*)paramBlock)->u.hFileInfo.ioDirID, &vcb, &dir);
     if (err != noErr) {
         paramBlock->ioResult = err;
         return err;
@@ -1231,7 +1091,7 @@ OSErr PBHRenameSync(ParmBlkPtr paramBlock)
 
 
     /* Rename in catalog */
-    err = Cat_Rename(vcb, ((HParamBlockRec*)paramBlock)->u.hFileInfo.ioDirID,
+    err = Cat_Rename(vcb, dir,
                      paramBlock->ioNamePtr,
                      (const UInt8*)(paramBlock)->u.ioParam.ioMisc);
 
@@ -1269,6 +1129,28 @@ OSErr PBHRenameAsync(ParmBlkPtr paramBlock)
 /* ============================================================================
  * Utility Functions
  * ============================================================================ */
+
+/* The volume and folder a vRefNum and dirID name, as Inside Macintosh:
+ * Files has it: vRefNum is a volume, or a working directory standing for
+ * one of its folders (or 0, the default volume); a dirID of 0 means that
+ * working directory's folder, or else the volume's root. */
+OSErr FM_ResolveDir(short vRefNum, long dirID, VCB** vcb, UInt32* dir)
+{
+    if (!vcb || !dir) {
+        return paramErr;
+    }
+    WDCB* wd = WDCB_Find(vRefNum);
+    if (wd) {
+        *vcb = wd->wdVCBPtr;
+        *dir = dirID ? (UInt32)dirID : wd->wdDirID;
+        return noErr;
+    }
+    OSErr err = FM_GetVolumeFromRefNum(vRefNum, vcb);
+    if (err == noErr) {
+        *dir = dirID ? (UInt32)dirID : 2;
+    }
+    return err;
+}
 
 OSErr FM_GetVolumeFromRefNum(VolumeRefNum vRefNum, VCB** vcb)
 {
@@ -1522,30 +1404,142 @@ void FM_DumpOpenFiles(void)
 }
 
 /* ============================================================================
- * FSSpec calls
+ * Calls that name a file by volume, directory and name (Inside Macintosh:
+ * Files, "High-Level File Access Routines"), and the FSSpec calls on them.
  *
- * On the volume the spec names, by name. The parent directory is not yet
- * honoured: the name is looked up where FSCreate, FSOpen and FSDelete look.
+ * A directory ID of 0 means the volume's root. The FSSpec calls used to go
+ * through FSCreate, FSOpen and FSDelete, which take no directory, so every
+ * one of them acted on the root whatever folder the spec named.
  * ============================================================================ */
+
+/* A pb naming dirID:name on vRefNum, for Cat_GetInfo and Cat_SetInfo. */
+static void H_NamePB(CInfoPBRec* pb, short vRefNum, long dirID, ConstStr255Param name)
+{
+    memset(pb, 0, sizeof(*pb));
+    pb->ioNamePtr = CONST_CAST_STRINGPTR(name);
+    pb->ioVRefNum = vRefNum;
+    pb->u.hFileInfo.ioDirID = dirID;
+}
+
+OSErr HSetFInfo(short vRefNum, long dirID, ConstStr255Param fileName, const FInfo* fndrInfo)
+{
+    VCB* vcb;
+    UInt32 dir;
+    if (!fndrInfo) return paramErr;
+    OSErr err = FM_ResolveDir(vRefNum, dirID, &vcb, &dir);
+    if (err != noErr) return err;
+    CInfoPBRec pb;
+    H_NamePB(&pb, vRefNum, dir, fileName);
+    pb.u.hFileInfo.ioFlFndrInfo = *fndrInfo;
+    return Cat_SetInfo(vcb, dir, fileName, &pb);
+}
+
+OSErr HCreate(short vRefNum, long dirID, ConstStr255Param fileName, OSType creator, OSType fileType)
+{
+    VCB* vcb;
+    UInt32 dir;
+    OSErr err = FM_ResolveDir(vRefNum, dirID, &vcb, &dir);
+    if (err != noErr) return err;
+    err = Cat_Create(vcb, dir, fileName, REC_FIL, NULL);
+    if (err != noErr) return err;
+    vcb->vcbFilCnt++;
+
+    FInfo info;
+    memset(&info, 0, sizeof(info));
+    info.fdType = fileType;
+    info.fdCreator = creator;
+    return HSetFInfo(vRefNum, (long)dir, fileName, &info);
+}
+
+static OSErr H_OpenFork(short vRefNum, long dirID, ConstStr255Param fileName,
+                        SInt8 permission, Boolean resourceFork, short* refNum)
+{
+    VCB* vcb;
+    FCB* fcb;
+    UInt32 dir;
+    if (!refNum) return paramErr;
+    OSErr err = FM_ResolveDir(vRefNum, dirID, &vcb, &dir);
+    if (err != noErr) return err;
+    err = FCB_Open(vcb, dir, fileName, (UInt8)permission, resourceFork, &fcb);
+    if (err == noErr) *refNum = fcb->fcbRefNum;
+    return err;
+}
+
+OSErr HOpenDF(short vRefNum, long dirID, ConstStr255Param fileName, SInt8 permission, short* refNum)
+{
+    return H_OpenFork(vRefNum, dirID, fileName, permission, false, refNum);
+}
+
+OSErr HOpenRF(short vRefNum, long dirID, ConstStr255Param fileName, SInt8 permission, short* refNum)
+{
+    return H_OpenFork(vRefNum, dirID, fileName, permission, true, refNum);
+}
+
+/* A file, or a folder with nothing in it. */
+OSErr HDelete(short vRefNum, long dirID, ConstStr255Param fileName)
+{
+    VCB* vcb;
+    UInt32 dir;
+    OSErr err = FM_ResolveDir(vRefNum, dirID, &vcb, &dir);
+    if (err != noErr) return err;
+
+    CInfoPBRec pb;
+    H_NamePB(&pb, vRefNum, dir, fileName);
+    err = Cat_GetInfo(vcb, dir, fileName, &pb);
+    if (err != noErr) return err;
+    Boolean isDir = (pb.u.hFileInfo.ioFlAttrib & kioFlAttribDir) != 0;
+    if (isDir && pb.u.dirInfo.ioDrNmFls > 0) return fBsyErr;
+
+    err = Cat_Delete(vcb, dir, fileName);
+    if (err == noErr) {
+        if (isDir) { if (vcb->vcbDirCnt) vcb->vcbDirCnt--; }
+        else       { if (vcb->vcbFilCnt) vcb->vcbFilCnt--; }
+    }
+    return err;
+}
 
 OSErr FSpCreate(const FSSpec* spec, OSType creator, OSType fileType, ScriptCode scriptTag)
 {
     (void)scriptTag;
     if (!spec) return paramErr;
-    return FSCreate(spec->name, spec->vRefNum, creator, fileType);
+    return HCreate(spec->vRefNum, spec->parID, spec->name, creator, fileType);
 }
 
 OSErr FSpOpenDF(const FSSpec* spec, SInt8 permission, FileRefNum* refNum)
 {
-    (void)permission;
-    if (!spec || !refNum) return paramErr;
-    return FSOpen(spec->name, spec->vRefNum, refNum);
+    if (!spec) return paramErr;
+    return HOpenDF(spec->vRefNum, spec->parID, spec->name, permission, refNum);
+}
+
+OSErr FSpOpenRF(const FSSpec* spec, SInt8 permission, FileRefNum* refNum)
+{
+    if (!spec) return paramErr;
+    return HOpenRF(spec->vRefNum, spec->parID, spec->name, permission, refNum);
 }
 
 OSErr FSpDelete(const FSSpec* spec)
 {
     if (!spec) return paramErr;
-    return FSDelete(spec->name, spec->vRefNum);
+    return HDelete(spec->vRefNum, spec->parID, spec->name);
+}
+
+OSErr FSpGetFInfo(const FSSpec* spec, FInfo* fndrInfo)
+{
+    if (!spec) return paramErr;
+    return HGetFInfo(spec->vRefNum, spec->parID, spec->name, fndrInfo);
+}
+
+OSErr FSpSetFInfo(const FSSpec* spec, const FInfo* fndrInfo)
+{
+    if (!spec) return paramErr;
+    return HSetFInfo(spec->vRefNum, spec->parID, spec->name, fndrInfo);
+}
+
+OSErr FSpDirCreate(const FSSpec* spec, ScriptCode scriptTag, long* createdDirID)
+{
+    (void)scriptTag;
+    if (!spec) return paramErr;
+    return DirCreate(spec->vRefNum, spec->parID, spec->name, createdDirID);
 }
 
 /* Move a file or folder into the folder `dest` names, on the same volume.

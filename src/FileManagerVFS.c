@@ -89,8 +89,8 @@ OSErr VCB_Flush(VCB* vcb) {
 /* ============================================================================
  * Working directories
  *
- * FM_Initialize allocates the table, numbered -1, -2, ...; a slot is free
- * while it names no volume. These were stubs: WDCB_Create answered
+ * FM_Initialize allocates the table, numbered up from kFirstWDRefNum, apart
+ * from the VFS's volume numbers; a slot is free while it names no volume. These were stubs: WDCB_Create answered
  * tmwdoErr and WDCB_Find found nothing, so OpenWD never worked.
  * ============================================================================ */
 
@@ -110,9 +110,8 @@ OSErr WDCB_Create(VCB* vcb, UInt32 dirID, UInt32 procID, WDCB** newWDCB) {
 }
 
 WDCB* WDCB_Find(WDRefNum wdRefNum) {
-    if (wdRefNum >= 0) return NULL;
-    int idx = -wdRefNum - 1;
-    if (idx >= (int)g_FSGlobals.wdcbCount) return NULL;
+    int idx = (int)wdRefNum - kFirstWDRefNum;
+    if (idx < 0 || idx >= (int)g_FSGlobals.wdcbCount) return NULL;
     WDCB* w = &g_FSGlobals.wdcbArray[idx];
     return w->wdVCBPtr ? w : NULL;
 }

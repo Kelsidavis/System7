@@ -65,6 +65,15 @@ OSErr FSOpen(ConstStr255Param fileName, VolumeRefNum vRefNum, FileRefNum* refNum
 OSErr FSpCreate(const FSSpec* spec, OSType creator, OSType fileType, ScriptCode scriptTag);
 OSErr FSpOpenDF(const FSSpec* spec, SInt8 permission, FileRefNum* refNum);
 OSErr FSpDelete(const FSSpec* spec);
+OSErr FSpOpenRF(const FSSpec* spec, SInt8 permission, FileRefNum* refNum);
+OSErr FSpGetFInfo(const FSSpec* spec, FInfo* fndrInfo);
+OSErr FSpSetFInfo(const FSSpec* spec, const FInfo* fndrInfo);
+OSErr FSpDirCreate(const FSSpec* spec, ScriptCode scriptTag, long* createdDirID);
+OSErr HCreate(short vRefNum, long dirID, ConstStr255Param fileName, OSType creator, OSType fileType);
+OSErr HOpenDF(short vRefNum, long dirID, ConstStr255Param fileName, SInt8 permission, short* refNum);
+OSErr HOpenRF(short vRefNum, long dirID, ConstStr255Param fileName, SInt8 permission, short* refNum);
+OSErr HDelete(short vRefNum, long dirID, ConstStr255Param fileName);
+OSErr HSetFInfo(short vRefNum, long dirID, ConstStr255Param fileName, const FInfo* fndrInfo);
 OSErr FSpCatMove(const FSSpec* source, const FSSpec* dest);
 OSErr PBHGetVInfoSync(void* paramBlock);
 OSErr SetEOF(short refNum, long logEOF);

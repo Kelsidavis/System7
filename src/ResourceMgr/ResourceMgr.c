@@ -8,6 +8,7 @@
 #include "MacTypes.h"
 #include "FileManagerTypes.h"
 #include "ResourceManager.h"
+#include "FileManager.h"
 #include "ResourceMgr/ResourceMgrPriv.h"
 #include "ResourceMgr/ResourceLogging.h"
 #include "System71StdLib.h"
@@ -19,12 +20,6 @@ extern void HLock(Handle h);
 extern void HUnlock(Handle h);
 extern void BlockMove(const void* srcPtr, void* destPtr, Size byteCount);
 extern void serial_puts(const char* s);
-extern OSErr FSOpenRF(ConstStr255Param fileName, VolumeRefNum vRefNum, FileRefNum* refNum);
-extern OSErr FSRead(FileRefNum refNum, UInt32* count, void* buffer);
-extern OSErr FSClose(FileRefNum refNum);
-extern OSErr FSSetFPos(FileRefNum refNum, UInt16 posMode, SInt32 posOffset);
-extern OSErr FSWrite(FileRefNum refNum, UInt32* count, const void* buffer);
-extern OSErr FSCreate(ConstStr255Param fileName, VolumeRefNum vRefNum, UInt32 creator, UInt32 fileType);
 
 /* RM_DEBUG: Set to 1 to enable verbose Resource Manager debugging
  * WARNING: Enabling causes severe performance impact on ARM64 */
@@ -1226,7 +1221,7 @@ void SetResLoad(Boolean load) {
 
 /* Open a file's resource fork on a given volume; OpenResFile uses the
  * default volume, FSpOpenResFile the one its FSSpec names. */
-static SInt16 OpenResFileOnVolume(ConstStr255Param fileName, VolumeRefNum vRefNum) {
+static SInt16 OpenResFileIn(VolumeRefNum vRefNum, long dirID, ConstStr255Param fileName) {
     SInt16 refNum;
     OSErr err;
 
@@ -1246,7 +1241,7 @@ static SInt16 OpenResFileOnVolume(ConstStr255Param fileName, VolumeRefNum vRefNu
 
     /* Open resource fork using File Manager */
     FileRefNum fileRef;
-    err = FSOpenRF(fileName, vRefNum, &fileRef);
+    err = HOpenRF(vRefNum, dirID, fileName, fsRdPerm, &fileRef);
     if (err != noErr) {
         gResMgr.resError = err;
         return -1;
@@ -1333,7 +1328,7 @@ static SInt16 OpenResFileOnVolume(ConstStr255Param fileName, VolumeRefNum vRefNu
 
 /* Open resource file */
 SInt16 OpenResFile(ConstStr255Param fileName) {
-    return OpenResFileOnVolume(fileName, 0);
+    return OpenResFileIn(0, 0, fileName);
 }
 
 /*
@@ -1349,7 +1344,7 @@ SInt16 FSpOpenResFile(const FSSpec* spec, SInt8 permission) {
         gResMgr.resError = paramErr;
         return -1;
     }
-    return OpenResFileOnVolume(spec->name, spec->vRefNum);
+    return OpenResFileIn(spec->vRefNum, spec->parID, spec->name);
 }
 
 /*
@@ -1368,7 +1363,7 @@ void FSpCreateResFile(const FSSpec* spec, OSType creator, OSType fileType, Scrip
         return;
     }
 
-    OSErr err = FSCreate(spec->name, spec->vRefNum, creator, fileType);
+    OSErr err = HCreate(spec->vRefNum, spec->parID, spec->name, creator, fileType);
     if (err != noErr && err != dupFNErr) {
         gResMgr.resError = err;
         return;
@@ -1387,7 +1382,7 @@ void FSpCreateResFile(const FSSpec* spec, OSType creator, OSType fileType, Scrip
     write_be16(fork + kHeaderArea + 28, 0xFFFF);  /* number of types, minus one */
 
     FileRefNum ref;
-    err = FSOpenRF(spec->name, spec->vRefNum, &ref);
+    err = HOpenRF(spec->vRefNum, spec->parID, spec->name, fsRdWrPerm, &ref);
     if (err != noErr) {
         gResMgr.resError = err;
         return;

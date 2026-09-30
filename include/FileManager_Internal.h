@@ -215,6 +215,11 @@ OSErr BTree_FlushNode(BTCB* btcb, UInt32 nodeNum);
 OSErr Cat_Open(VCB* vcb);
 OSErr Cat_Close(VCB* vcb);
 OSErr Cat_Lookup(VCB* vcb, UInt32 dirID, const UInt8* name, void* catData, UInt32* hint);
+/* Working directory refnums: negative, and far from the VFS's volume
+ * numbers, which count up from 1. */
+#define kFirstWDRefNum (-32000)
+
+OSErr FM_ResolveDir(short vRefNum, long dirID, VCB** vcb, UInt32* dir);
 OSErr Cat_Create(VCB* vcb, UInt32 dirID, const UInt8* name, UInt8 type, UInt32* newID);
 OSErr Cat_Delete(VCB* vcb, UInt32 dirID, const UInt8* name);
 OSErr Cat_Rename(VCB* vcb, UInt32 dirID, const UInt8* oldName, const UInt8* newName);
