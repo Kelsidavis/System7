@@ -394,6 +394,10 @@ const char* sys71_strerror(int errnum) {
     }
 }
 
+/* The C library's error number, set by the calls below that fail. It lived in
+ * runtime_stubs.c, alongside stack-protector stubs this kernel does not use. */
+int errno = 0;
+
 void perror(const char* s) {
     extern void serial_puts(const char* str);
     extern int errno;
