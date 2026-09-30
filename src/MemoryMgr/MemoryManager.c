@@ -30,6 +30,7 @@
 /* Alignment */
 #define ALIGN     8u
 #define BLKHDR_SZ ((u32)sizeof(BlockHeader))
+_Static_assert(sizeof(BlockHeader) % 8 == 0, "block data must stay 8-aligned");
 
 /* Minimum block size must accommodate BlockHeader + FreeNode AND be aligned */
 #define MIN_BLOCK_SIZE_RAW (BLKHDR_SZ + (u32)sizeof(FreeNode))
@@ -872,6 +873,7 @@ void* NewPtr(u32 byteCount) {
     split_block(z, b, need);
 
     b->flags |= BF_PTR;
+    b->logicalSize = byteCount;
     b->masterPtr = NULL;
     z->bytesUsed += b->size;
     z->bytesFree -= b->size;
@@ -1060,16 +1062,11 @@ void DisposePtr(void* p) {
     DISPOSE_LOG("[DISPOSE] Complete - freelist validated successfully\n");
 }
 
+/* The size asked for, as GetHandleSize. */
 u32 GetPtrSize(void* p) {
     if (!p) return 0;
     BlockHeader* b = (BlockHeader*)((u8*)p - BLKHDR_SZ);
-    u32 total = b->size - BLKHDR_SZ;
-#if MEM_DEBUG_CANARY
-    if (b->lockCount && b->lockCount <= total) {
-        total -= (u32)b->lockCount;
-    }
-#endif
-    return total;
+    return b->logicalSize;
 }
 
 /* ======================== Handle Operations ======================== */
@@ -1122,6 +1119,7 @@ Handle NewHandle(u32 byteCount) {
 
     split_block(z, b, need);
     b->flags |= BF_HANDLE;
+    b->logicalSize = byteCount;
     b->masterPtr = (Handle)mp;  /* Store backpointer */
     *mp = (u8*)b + BLKHDR_SZ;    /* Master pointer points to data */
     z->bytesUsed += b->size;
@@ -1266,10 +1264,11 @@ void HSetState(Handle h, UInt8 state) {
     if (state & 0x20) b->flags |= BF_RESOURCE;  else b->flags &= ~BF_RESOURCE;
 }
 
+/* The size asked for (Inside Macintosh: Memory, 2-48), not the block's. */
 u32 GetHandleSize(Handle h) {
     if (!h || !*h) return 0;
     BlockHeader* b = (BlockHeader*)((u8*)*h - BLKHDR_SZ);
-    return b->size - BLKHDR_SZ;
+    return b->logicalSize;
 }
 
 /*
@@ -1318,32 +1317,21 @@ bool RecoverHandle(void* p, Handle* outHandle) {
 }
 
 /*
- * SetPtrSize - Resize a non-relocatable pointer allocation.
- * This is equivalent to realloc for Ptr blocks.
+ * SetPtrSize - change a nonrelocatable block's size, in place: a pointer
+ * cannot move. It fits if the block already has the room (Inside Macintosh:
+ * Memory, 2-58); otherwise the answer is false and the size is unchanged.
+ * This answered false for any change at all.
  */
 bool SetPtrSize(void* p, u32 newSize) {
     if (!p) return false;
 
-    ZoneInfo* z = gCurrentZone;
-    if (!z) return false;
-
     BlockHeader* b = (BlockHeader*)((u8*)p - BLKHDR_SZ);
     if (!(b->flags & BF_PTR)) return false;
 
-    u32 oldDataSize = b->size - BLKHDR_SZ;
-    if (newSize == oldDataSize) return true;
-
-    /* Allocate new block, copy data, free old */
-    void* newPtr = NewPtr(newSize);
-    if (!newPtr) return false;
-
-    u32 copySize = (newSize < oldDataSize) ? newSize : oldDataSize;
-    memcpy(newPtr, p, copySize);
-
-    /* Cannot change the pointer value (caller holds it), so this
-     * implementation is limited. For now, just return false for grow. */
-    DisposePtr(newPtr);
-    return false;  /* Cannot resize in-place without relocating */
+    u32 room = b->size - BLKHDR_SZ - CANARY_SIZE;
+    if (newSize > room) return false;
+    b->logicalSize = newSize;
+    return true;
 }
 
 bool SetHandleSize(Handle h, u32 newSize) {
@@ -1362,7 +1350,7 @@ bool SetHandleSize(Handle h, u32 newSize) {
     if (b->flags & BF_LOCKED) {
         /* Can only shrink or grow in place */
         if (newTotalSize <= b->size) {
-            /* Shrinking - just update size */
+            b->logicalSize = newSize;
             return true;
         }
         /* Cannot grow locked handle */
@@ -1371,7 +1359,7 @@ bool SetHandleSize(Handle h, u32 newSize) {
 
     /* If new size fits in current block (with some slack), keep it */
     if (newTotalSize <= b->size && b->size - newTotalSize < 64) {
-        /* Size fits, no need to reallocate */
+        b->logicalSize = newSize;
         return true;
     }
 
@@ -1477,7 +1465,7 @@ u32 CompactMem(u32 cbNeeded) {
                 /* dataSize not needed; full header+data copied above */
 
                 /* Copy block header and data */
-                memcpy(d, b, b->size);
+                memmove(d, b, b->size);   /* the two overlap when it moves less than its size */
 
                 /* Update master pointer */
                 if (d->masterPtr && *(d->masterPtr)) {

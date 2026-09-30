@@ -131,6 +131,39 @@ static void Test_Memory_HandleStateRoundTrip(void) {
  * Dialog Manager: templates from resource data
  * ------------------------------------------------------------------------- */
 
+/* GetHandleSize and GetPtrSize answer the size asked for, not the block's,
+ * and follow SetHandleSize and SetPtrSize (Inside Macintosh: Memory). */
+static void Test_Memory_LogicalSizes(void) {
+    const char* test_name = "Memory_LogicalSizes";
+    static const u32 sizes[] = { 0, 1, 7, 10, 13, 100, 1001 };
+    for (u32 i = 0; i < sizeof sizes / sizeof sizes[0]; i++) {
+        Handle h = NewHandle(sizes[i]);
+        Ptr p = NewPtr(sizes[i]);
+        u32 hs = GetHandleSize(h), ps = GetPtrSize(p);
+        if (h) DisposeHandle(h);
+        if (p) DisposePtr(p);
+        CHECK(h && p, "allocation failed");
+        CHECK(hs == sizes[i] || (sizes[i] == 0 && hs == 0), "GetHandleSize is not the size asked for");
+        CHECK(ps == sizes[i], "GetPtrSize is not the size asked for");
+    }
+
+    Handle h = NewHandle(40);
+    CHECK(h, "NewHandle failed");
+    Boolean shrank = SetHandleSize(h, 30) && GetHandleSize(h) == 30;
+    Boolean grew = SetHandleSize(h, 500) && GetHandleSize(h) == 500;
+    DisposeHandle(h);
+    CHECK(shrank, "SetHandleSize to smaller left GetHandleSize unchanged");
+    CHECK(grew, "SetHandleSize to larger failed");
+
+    Ptr p = NewPtr(40);
+    CHECK(p, "NewPtr failed");
+    Boolean pshrank = SetPtrSize(p, 20) && GetPtrSize(p) == 20;
+    Boolean pregrew = SetPtrSize(p, 40) && GetPtrSize(p) == 40;
+    DisposePtr(p);
+    CHECK(pshrank && pregrew, "SetPtrSize could not change size within its block");
+    RecordTest(test_name, true, "");
+}
+
 static Handle HandleFromBytes(const UInt8* bytes, u32 size) {
     Handle h = NewHandle(size);
     if (h && *h) memcpy(*h, bytes, size);
@@ -476,6 +509,7 @@ void IntegrationTests_Run(void) {
 
     IT_LOG_INFO("--- Memory Manager ---");
     Test_Memory_HandleStateRoundTrip();
+    Test_Memory_LogicalSizes();
 
     IT_LOG_INFO("--- Dialog Manager ---");
     Test_Dialog_ParseDLOG();

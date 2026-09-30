@@ -25,11 +25,15 @@ enum {
 /* Block header - precedes every allocation */
 #ifndef BLOCKHEADER_DEFINED
 #define BLOCKHEADER_DEFINED
-typedef struct BlockHeader {
+typedef struct __attribute__((aligned(8))) BlockHeader {
     u32     size;           /* Total size including header (aligned) */
     u16     flags;          /* BF_* flags */
     u16     lockCount;      /* Handles: lock nesting depth; Ptrs: canary size */
     u32     prevSize;       /* Size of previous block (0 if first) */
+    u32     logicalSize;    /* Bytes asked for: what GetHandleSize and
+                             * GetPtrSize answer. The block is larger - by
+                             * alignment, and by any remainder too small
+                             * to split off. */
     Handle  masterPtr;      /* For handles: backpointer to master pointer */
     /* Data follows immediately after */
 } BlockHeader;
