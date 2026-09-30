@@ -86,6 +86,8 @@ typedef const unsigned char* ConstStringPtr;
 OSErr FSMakeFSSpec(short vRefNum, long dirID, const unsigned char *fileName, FSSpec *spec);
 OSErr FSpCreate(const FSSpec *spec, OSType creator, OSType fileType, short scriptTag);
 OSErr FSpOpenDF(const FSSpec *spec, short permission, short *refNum);
+OSErr FSpDelete(const FSSpec *spec);
+OSErr FSpCatMove(const FSSpec *source, const FSSpec *dest);
 OSErr FSClose(short refNum);
 OSErr FSRead(short refNum, long *count, void *buffPtr);
 OSErr FSWrite(short refNum, long *count, const void *buffPtr);

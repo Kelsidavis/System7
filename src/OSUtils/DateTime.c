@@ -240,3 +240,63 @@ void Date2Secs(const DateTimeRec *d, UInt32 *secs) {
 void DateToSeconds(const DateTimeRec *d, UInt32 *secs) {
     Date2Secs(d, secs);
 }
+
+/*
+ * Delay - wait numTicks sixtieths of a second, giving desk accessories their
+ * time meanwhile; *finalTicks gets TickCount at the end.
+ */
+void Delay(UInt32 numTicks, UInt32* finalTicks) {
+    /* Wait for specified number of ticks with cooperative multitasking
+     *
+     * Timing:
+     * - One tick = 1/60th second (16.67 ms) on most Macs
+     * - Some systems use 1/50th second (PAL regions)
+     * - Query actual tick rate with TickCount() frequency
+     *
+     * Cooperative Multitasking:
+     * - Calls SystemTask() during wait to service Desk Accessories
+     * - Allows DA windows to update, respond to events
+     * - Critical for responsive UI during delays
+     *
+     * Common uses:
+     * - Animation frame delays (e.g., 3 ticks = ~50ms)
+     * - Double-click detection timeouts
+     * - Debouncing user input
+     * - Pacing Finder operations (icon dragging, etc.)
+     *
+     * Parameters:
+     * - numTicks: Number of ticks to wait (60 ticks = 1 second)
+     * - finalTicks: Optional output of actual final tick count
+     *
+     * Note: Not suitable for precise timing due to cooperative scheduling
+     * overhead. For animations, use actual elapsed time calculations.
+     */
+    extern UInt32 TickCount(void);
+    extern void SystemTask(void);
+
+    /* Until the ticks have passed, however long each SystemTask takes. The
+     * difference is unsigned, so the counter wrapping does not end it early.
+     * This used to give up after numTicks*1000 passes, and after 100 passes
+     * without a tick - a pass is one SystemTask, far shorter than a 60th of a
+     * second, so a short Delay could end almost at once. The only way out now
+     * is the tick count really not moving: the timer is dead. */
+    UInt32 startTicks = TickCount();
+    UInt32 lastTicks = startTicks;
+    UInt32 passesSinceTick = 0;
+    while ((UInt32)(TickCount() - startTicks) < numTicks) {
+        SystemTask();
+        UInt32 now = TickCount();
+        if (now != lastTicks) {
+            lastTicks = now;
+            passesSinceTick = 0;
+        } else if (++passesSinceTick > 50000000u) {
+            extern void serial_printf(const char* fmt, ...);
+            serial_printf("[Delay] TickCount has stopped; giving up the wait\n");
+            break;
+        }
+    }
+
+    if (finalTicks) {
+        *finalTicks = TickCount();
+    }
+}

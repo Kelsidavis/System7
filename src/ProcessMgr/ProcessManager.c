@@ -28,7 +28,6 @@
 // #include "CompatibilityFix.h" // Removed
 #include "SystemTypes.h"
 #include "System71StdLib.h"
-#include "sys71_stubs.h"
 
 #include "ProcessMgr/ProcessMgr.h"
 #include "ProcessMgr/ProcessLogging.h"

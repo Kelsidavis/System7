@@ -62,6 +62,13 @@ OSErr FM_Shutdown(void);
 
 /* File Operations - Basic */
 OSErr FSOpen(ConstStr255Param fileName, VolumeRefNum vRefNum, FileRefNum* refNum);
+OSErr FSpCreate(const FSSpec* spec, OSType creator, OSType fileType, ScriptCode scriptTag);
+OSErr FSpOpenDF(const FSSpec* spec, SInt8 permission, FileRefNum* refNum);
+OSErr FSpDelete(const FSSpec* spec);
+OSErr FSpCatMove(const FSSpec* source, const FSSpec* dest);
+OSErr PBHGetVInfoSync(void* paramBlock);
+OSErr SetEOF(short refNum, long logEOF);
+OSErr GetEOF(short refNum, long* logEOF);
 OSErr FSClose(FileRefNum refNum);
 OSErr FSRead(FileRefNum refNum, UInt32* count, void* buffer);
 OSErr FSWrite(FileRefNum refNum, UInt32* count, const void* buffer);

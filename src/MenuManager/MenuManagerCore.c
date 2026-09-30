@@ -131,7 +131,6 @@ static void UpdateMenuBarLayout(void);
 static void InvalidateMenuBar(void);
 
 /* Platform function prototypes (implemented elsewhere) */
-extern void Platform_CleanupMenuSystem(void);
 /* Platform_DrawMenuBar declared in menu_private.h */
 extern void Platform_EraseMenuBar(void);
 
@@ -197,7 +196,6 @@ void CleanupMenus(void)
     gNumMenuHandles = 0;
 
     /* Clean up platform-specific resources */
-    Platform_CleanupMenuSystem();
 
     /* Dispose of menu color table */
     if (gMCTable != NULL) {

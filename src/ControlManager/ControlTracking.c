@@ -36,6 +36,12 @@ static TrackingState gTracking = {0};
 /**
  * Test point in control
  */
+/* The rectangle a control may be dragged within: its window's port rect.
+ * Local coordinates, not the global bounds Carbon's GetWindowBounds gives. */
+static void GetWindowBounds(WindowPtr window, Rect* bounds) {
+    if (window && bounds) *bounds = window->port.portRect;
+}
+
 SInt16 TestControl(ControlHandle theControl, Point thePt) {
     if (!theControl) {
         return 0;

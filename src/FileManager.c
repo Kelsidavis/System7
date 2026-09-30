@@ -21,6 +21,8 @@
 #include "System71StdLib.h"
 #include "FileManager_Internal.h"
 #include "FS/FSLogging.h"
+#include "FS/vfs.h"
+#include "FS/vfs_ops.h"
 
 
 /* Global file system state */
@@ -1608,4 +1610,98 @@ void FM_DumpOpenFiles(void)
     }
 
     FS_LOG_DEBUG("Total open files: %d\n", openCount);
+}
+
+/* ============================================================================
+ * FSSpec calls
+ *
+ * On the volume the spec names, by name. The parent directory is not yet
+ * honoured: the name is looked up where FSCreate, FSOpen and FSDelete look.
+ * ============================================================================ */
+
+OSErr FSpCreate(const FSSpec* spec, OSType creator, OSType fileType, ScriptCode scriptTag)
+{
+    (void)scriptTag;
+    if (!spec) return paramErr;
+    return FSCreate(spec->name, spec->vRefNum, creator, fileType);
+}
+
+OSErr FSpOpenDF(const FSSpec* spec, SInt8 permission, FileRefNum* refNum)
+{
+    (void)permission;
+    if (!spec || !refNum) return paramErr;
+    return FSOpen(spec->name, spec->vRefNum, refNum);
+}
+
+OSErr FSpDelete(const FSSpec* spec)
+{
+    if (!spec) return paramErr;
+    return FSDelete(spec->name, spec->vRefNum);
+}
+
+/* Move a file or folder into the folder `dest` names, on the same volume.
+ * An empty dest name means dest->parID is the folder itself. */
+OSErr FSpCatMove(const FSSpec* source, const FSSpec* dest)
+{
+    if (!source || !dest) return paramErr;
+    if (source->vRefNum != dest->vRefNum) return diffVolErr;
+
+    char name[32];
+    UInt8 len = source->name[0] > 31 ? 31 : source->name[0];
+    memcpy(name, &source->name[1], len);
+    name[len] = '\0';
+
+    CatEntry src;
+    if (!VFS_Lookup(source->vRefNum, source->parID, name, &src)) return fnfErr;
+
+    DirID target = dest->parID;
+    if (dest->name[0] != 0) {
+        char dname[32];
+        UInt8 dlen = dest->name[0] > 31 ? 31 : dest->name[0];
+        memcpy(dname, &dest->name[1], dlen);
+        dname[dlen] = '\0';
+        CatEntry folder;
+        if (!VFS_Lookup(dest->vRefNum, dest->parID, dname, &folder)) return dirNFErr;
+        if (folder.kind != kNodeDir) return dirNFErr;
+        target = (DirID)folder.id;
+    }
+
+    return VFS_Move(source->vRefNum, source->parID, src.id, target, NULL) ? noErr : ioErr;
+}
+
+/*
+ * Volume size in 512-byte allocation blocks. A volume that is not mounted is
+ * nsvErr; this used to answer noErr with an invented 800-block volume.
+ */
+OSErr PBHGetVInfoSync(void* paramBlock)
+{
+    if (!paramBlock) return paramErr;
+    HParamBlockRec* pb = (HParamBlockRec*)paramBlock;
+    VRefNum vref = pb->ioVRefNum ? (VRefNum)pb->ioVRefNum : (VRefNum)g_FSGlobals.defVRefNum;
+
+    VolumeControlBlock info;
+    if (!VFS_GetVolumeInfo(vref, &info)) {
+        pb->ioResult = nsvErr;
+        return nsvErr;
+    }
+    pb->u.volumeParam.ioVAlBlkSiz = 512;
+    pb->u.volumeParam.ioVNmAlBlks = (UInt32)(info.totalBytes / 512);
+    pb->ioResult = noErr;
+    return noErr;
+}
+
+/* The classic names for setting and reading a file's length. */
+OSErr SetEOF(short refNum, long logEOF)
+{
+    if (logEOF < 0) return paramErr;
+    return FSSetEOF(refNum, (UInt32)logEOF);
+}
+
+OSErr GetEOF(short refNum, long* logEOF)
+{
+    if (!logEOF) return paramErr;
+    UInt32 eof;
+    OSErr err = FSGetEOF(refNum, &eof);
+    if (err == noErr) *logEOF = (long)eof;
+    return err;
 }

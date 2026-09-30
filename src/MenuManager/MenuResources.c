@@ -339,5 +339,4 @@ short* ParseMBARResource(Handle resourceHandle, short* outMenuCount)
     return menuIDs;
 }
 
-/* Resource menu functions (implemented in sys71_stubs.c to avoid duplication) */
-/* See AddResMenu, InsertResMenu, InsertFontResMenu, InsertIntlResMenu in sys71_stubs.c */
+/* AddResMenu and InsertResMenu are in menu_stubs.c, InsertFontResMenu in MenuItems.c. */

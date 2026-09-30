@@ -38,7 +38,7 @@ extern void GetMouse(Point* mouseLoc);
 /* GetPS2Modifiers is provided by PS2Controller.c */
 extern UInt16 GetPS2Modifiers(void);
 
-/* TickCount is provided by sys71_stubs.c */
+/* TickCount is in TimeManager/TimeBase.c */
 extern UInt32 TickCount(void);
 
 /**

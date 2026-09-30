@@ -454,4 +454,9 @@ WindowManagerState* GetWindowManagerState(void);
 }
 #endif
 
+/* The desktop's redraw hook, and redrawing what has been invalidated. */
+typedef void (*DeskHookProc)(RgnHandle invalidRgn);
+void SetDeskHook(DeskHookProc proc);
+void WM_Update(void);
+
 #endif /* __WINDOW_MANAGER_INTERNAL_H__ */

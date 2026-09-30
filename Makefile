@@ -103,10 +103,6 @@ endif
 GRUB = grub-mkrescue
 
 # Flags
-# [WM-050] SYS71_PROVIDE_FINDER_TOOLBOX=1 means: DO NOT provide Toolbox stubs; real implementations win.
-#          When defined, stubs in sys71_stubs.c are excluded via #ifndef guards.
-#          This ensures single source of truth per symbol (no duplicate definitions).
-# [WM-052] Warnings are errors - no papering over issues
 
 # Base CFLAGS (optimization level from config)
 OPT_FLAGS = -O$(OPT_LEVEL)
@@ -126,7 +122,7 @@ endif
 # it off.
 WERROR ?= -Werror
 
-COMMON_CFLAGS = -DSYS71_PROVIDE_FINDER_TOOLBOX=1 \
+COMMON_CFLAGS = \
          -ffreestanding -fno-builtin -fno-stack-protector -nostdlib \
          -fno-pic -fno-pie \
          -Wall -Wextra -Wformat=2 -Wmissing-prototypes -Wmissing-declarations -Wshadow -Wcast-qual \
@@ -234,7 +230,6 @@ PATTERN_RESOURCE ?= resources/patterns_authentic_color.json
 # Source files
 C_SOURCES = src/main.c \
             src/boot.c \
-            src/sys71_stubs.c \
             src/System71Math.c \
             src/System71StdLib.c \
             src/System/SystemTheme.c \
@@ -393,7 +388,6 @@ C_SOURCES = src/main.c \
             src/ControlManager/StandardControls.c \
             src/ControlManager/ControlResources.c \
             src/ControlManager/ControlSmoke.c \
-            src/control_stubs.c \
             src/ControlPanels/sound_cdev.c \
             src/ControlPanels/mouse_cdev.c \
             src/ControlPanels/keyboard_cdev.c \

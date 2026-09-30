@@ -1080,3 +1080,12 @@ ControlDefProcPtr GetControlDefProc(SInt16 procID) {
 
     return NULL;
 }
+
+/* A window's control list, head first. */
+ControlHandle _GetFirstControl(WindowPtr window) {
+    return window ? window->controlList : NULL;
+}
+
+void _SetFirstControl(WindowPtr window, ControlHandle control) {
+    if (window) window->controlList = control;
+}

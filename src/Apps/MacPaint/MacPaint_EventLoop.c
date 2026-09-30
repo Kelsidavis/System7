@@ -19,7 +19,6 @@
 #include "MenuManager/MenuManager.h"
 #include "EventManager/EventManager.h"
 #include "System71StdLib.h"
-#include "sys71_stubs.h"
 #include "MemoryMgr/MemoryManager.h"
 #include <string.h>
 

@@ -10,7 +10,6 @@
 #include "WindowManager/WMLogging.h"
 #include "EventManager/EventManager.h"
 #include "MemoryMgr/MemoryManager.h"
-#include "sys71_stubs.h"
 
 /* Color constants */
 #define blackColor 33

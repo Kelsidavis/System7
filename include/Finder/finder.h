@@ -248,6 +248,15 @@ void MenuBar_UpdateClock(void);
 void SetWatchCursor(void);
 const Cursor* CursorManager_GetIBeamCursor(void);
 
+/* Aliases (alias_manager.c) */
+OSErr ResolveAliasFile(const FSSpec* spec, FSSpec* target, Boolean* wasAliased, Boolean* wasFolder);
+OSErr NewAlias(const FSSpec* fromFile, const FSSpec* target, AliasHandle* alias);
+
+/* Trash, desktop database and the Finder's own event handling */
+OSErr GenerateUniqueTrashName(Str255 baseName, Str255 uniqueName);
+void DoActivate(WindowPtr window, Boolean becomingActive);
+void DoBackgroundTasks(void);
+
 #endif /* __FINDER_H__ */
 
 /*

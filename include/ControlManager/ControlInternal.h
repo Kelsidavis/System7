@@ -20,7 +20,6 @@ ControlHandle _GetFirstControl(WindowPtr window);
 void _SetFirstControl(WindowPtr window, ControlHandle control);
 
 /* Basic window bounds helper used during control drag */
-void GetWindowBounds(WindowPtr window, Rect* bounds);
 
 /* Attach control to window list head */
 void _AttachControlToWindow(ControlHandle ctrl, WindowPtr window);

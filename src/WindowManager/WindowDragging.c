@@ -676,8 +676,7 @@ void DragWindow(WindowPtr theWindow, Point startPt, const Rect* boundsRect) {
         /* Paint the desktop pattern in the uncovered region FIRST */
         extern void GetWMgrPort(GrafPtr* port);
         extern void SetClip(RgnHandle rgn);
-        typedef void (*DeskHookProc)(RgnHandle rgn);
-        extern DeskHookProc g_deskHook;  /* From sys71_stubs.c */
+        extern DeskHookProc g_deskHook;  /* WindowDisplay.c */
 
         GrafPtr savePort;
         GetPort(&savePort);

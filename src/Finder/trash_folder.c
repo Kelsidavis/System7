@@ -29,7 +29,6 @@
 #include "EventManager/EventManager.h"
 #include "Finder/FinderLogging.h"
 #include "DialogManager/DITLBuilder.h"
-#include "sys71_stubs.h"
 #include "FS/hfs_types.h"
 
 

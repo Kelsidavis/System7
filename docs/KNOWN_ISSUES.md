@@ -100,9 +100,8 @@ repair the screen.
 
 Callers disagree about that, because the contract says otherwise:
 
-- `SimpleText.c:242` and `sys71_stubs.c:966` (`HandleGrowWindow`, used by
-  the Finder) call `SizeWindow` afterwards - so the window is resized
-  twice, and the second one lands after the repair.
+- `SimpleText.c:242` calls `SizeWindow` afterwards - so the window is
+  resized twice, and the second one lands after the repair.
 - `EventDispatcher.c:422` and `WindowEvents.c:1043` do not, and rely on
   the side effect.
 

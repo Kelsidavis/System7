@@ -48,6 +48,7 @@ extern "C" {
 #define fLckdErr        -45    /* File is locked */
 #define dskFulErr       -34    /* Disk full */
 #define dirNFErr        -120   /* Directory not found */
+#define diffVolErr      -1303  /* Source and destination on different volumes */
 #define tmwdoErr        -121   /* Too many working directories open */
 #define btNoErr         0      /* B-tree no error */
 #define btRecNotFnd     -1300  /* B-tree record not found */
