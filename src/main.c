@@ -560,7 +560,6 @@ extern void InitFonts(void);
 extern void InitWindows(void);
 extern void InitMenus(void);
 extern void InitDialogs(ResumeProcPtr resumeProc);
-extern void InitControlManager_Sys7(void);
 extern SInt16 InitEvents(SInt16 numEvents);
 
 /* Window Manager functions */
@@ -971,7 +970,6 @@ static void init_system71(void) {
     serial_puts("  Cursor initialized\n");
 
     /* Control Manager */
-    InitControlManager_Sys7();
     serial_puts("  Control Manager initialized\n");
 
 #ifdef CTRL_SMOKE_TEST

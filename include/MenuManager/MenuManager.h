@@ -820,14 +820,9 @@ MenuManagerState* GetMenuManagerState(void);
 /*
  * Platform-specific functions that must be implemented by each platform:
  *
- * void Platform_InitMenuSystem(void);
  * void Platform_CleanupMenuSystem(void);
  * void Platform_DrawMenuBar(void);
  * void Platform_EraseMenuBar(void);
- * void Platform_HiliteMenuTitle(short menuID, Boolean hilite);
- * void Platform_ShowMenu(MenuHandle theMenu, Point location);
- * void Platform_HideMenu(void);
- * Boolean Platform_TrackMenu(MenuHandle theMenu, Point startPt, short* itemHit);
  * void Platform_FlashMenuBar(short menuID);
  */
 

@@ -131,7 +131,6 @@ static void UpdateMenuBarLayout(void);
 static void InvalidateMenuBar(void);
 
 /* Platform function prototypes (implemented elsewhere) */
-extern void Platform_InitMenuSystem(void);
 extern void Platform_CleanupMenuSystem(void);
 /* Platform_DrawMenuBar declared in menu_private.h */
 extern void Platform_EraseMenuBar(void);
@@ -163,7 +162,6 @@ void InitMenus(void)
     InitializeMenuManagerState(gMenuMgrState);
 
     /* Initialize platform-specific menu system */
-    Platform_InitMenuSystem();
 
     /* Set up standard menu bar */
     gMBarHeight = menuBarStdHeight;

@@ -48,23 +48,6 @@
 /* DeskHook type definition if not in headers */
 typedef void (*DeskHookProc)(RgnHandle invalidRgn);
 
-/* Platform Menu System stubs */
-void Platform_InitMenuSystem(void) {
-    /* Platform-specific menu initialization
-     * Called by InitMenus() during Menu Manager initialization
-     *
-     * In a full implementation, this would:
-     * - Initialize platform-specific menu rendering state
-     * - Set up menu bar cursor resources
-     * - Allocate platform-specific menu caches
-     * - Register menu-related event handlers
-     * - Initialize platform menu tracking structures
-     *
-     * For the kernel environment, menu rendering is handled by
-     * MenuDisplay.c and platform_stubs.c, so this is a no-op.
-     */
-}
-
 void Platform_CleanupMenuSystem(void) {
     /* Platform-specific menu cleanup
      * Called by CleanupMenus() during Menu Manager shutdown
@@ -115,53 +98,29 @@ void InitResourceManager(void) {
 }
 #endif
 
-/* QuickDraw - InitGraf is now provided by QuickDrawCore.c */
-
 /* Font Manager */
-/* Moved to FontManagerCore.c
-void InitFonts(void) {
-    // Stub implementation
-}
-*/
 
 /* [WM-050] Window Manager stub quarantine
  * Provenance: IM:Windows Vol I - real implementations in WindowDisplay.c, WindowEvents.c, WindowResizing.c
  * Policy: Stubs compile only if SYS71_PROVIDE_FINDER_TOOLBOX is undefined
  * Real WM always wins; no dual definitions
  */
-/* DrawWindow removed - implemented in WindowManager/WindowDisplay.c:919
- * Window chrome is drawn by real implementation, not this disabled stub */
-
-/* Menu Manager - Most functions now provided by MenuManagerCore.c */
-
-/* AppendMenu now implemented in MenuItems.c */
-
-/* Dialog Manager - provided by DialogManagerCore.c */
 
 /* Control Manager */
-/* InitControlManager_Sys7 now implemented in ControlManager/control_manager_sys7.c */
 
 /* Event Manager */
-/* InitEvents now implemented in EventManager/EventManagerCore.c */
 
 /* Removed DISABLED GetNextEvent stub (real implementation lives in EventManager) */
 
 /* Removed DISABLED PostEvent stub (real implementation lives in EventManager) */
 
-/* GenerateSystemEvent now provided by EventManager/event_manager.c */
 /* Forward declaration for compatibility */
 extern void GenerateSystemEvent(short eventType, int message, Point where, short modifiers);
-
-/* SystemTask provided by DeskManagerCore.c */
 
 /* External functions we use */
 
 /* Serial stubs */
 #include <stdarg.h>
-
-/* serial_printf moved to System71StdLib.c */
-
-/* Finder InitializeFinder provided by finder_main.c */
 
 /* QuickDraw globals - defined in main.c */
 extern QDGlobals qd;
@@ -201,8 +160,6 @@ void FinderEventLoop(void) {
 /* Additional Finder support functions */
 /* Removed DISABLED FlushEvents stub (real implementation lives in EventManager) */
 
-/* TEInit now implemented in TextEditCore.c */
-
 /* Window Manager functions - All real implementations in WindowManager/ directory:
  * InitWindows - WindowManagerCore.c
  * NewWindow - WindowManagerCore.c
@@ -216,13 +173,6 @@ void FinderEventLoop(void) {
  * FindWindow - WindowEvents.c
  * DragWindow - WindowDragging.c
  * SetWTitle - WindowManagerCore.c
- */
-
-
-/* Functions provided by other components:
- * ShowErrorDialog - finder_main.c
- * CleanUpDesktop - desktop_manager.c
- * DrawDesktop - desktop_manager.c
  */
 
 /* System stubs */
@@ -259,12 +209,6 @@ long sysconf(int name) {
     }
 }
 
-/* Resource Manager functions provided by Memory Manager */
-
-/* HandleKeyDown moved to Finder/finder_main.c */
-
-/* ResolveAliasFile moved to Finder/alias_manager.c */
-
 #ifndef ENABLE_RESOURCES
 void ReleaseResource(Handle theResource) {
     if (!theResource) return;
@@ -284,13 +228,6 @@ void ReleaseResource(Handle theResource) {
      */
 }
 #endif
-
-/* NewAlias moved to Finder/alias_manager.c */
-
-/* Memory Manager functions provided by MemoryManager.c */
-
-
-/* File Manager stubs - Core functions now implemented in FileManager.c */
 
 OSErr FSpCreate(const FSSpec* spec, OSType creator, OSType fileType, SInt16 scriptTag) {
     if (!spec) {
@@ -314,7 +251,6 @@ OSErr FSpOpenDF(const FSSpec* spec, SInt16 permission, SInt16* refNum) {
     extern OSErr FSOpen(const unsigned char* fileName, SInt16 vRefNum, SInt16* refNum);
     return FSOpen(spec->name, spec->vRefNum, refNum);
 }
-
 
 OSErr FSpDelete(const FSSpec* spec) {
     if (!spec) {
@@ -433,7 +369,6 @@ OSErr FSpCatMove(const FSSpec* source, const FSSpec* dest) {
     return noErr;
 }
 
-
 OSErr PBHGetVInfoSync(void *paramBlock) {
     if (!paramBlock) {
         return paramErr;
@@ -460,7 +395,6 @@ OSErr PBHGetVInfoSync(void *paramBlock) {
     return noErr;
 }
 
-
 OSErr SetEOF(short refNum, long logEOF) {
     if (refNum <= 0) return paramErr;
     if (logEOF < 0) return paramErr;
@@ -482,8 +416,6 @@ OSErr GetEOF(short refNum, long* logEOF) {
 }
 
 /* Resource Manager stubs */
-/* NewHandle and DisposeHandle provided by Memory Manager */
-/* GetResource provided by simple_resource_manager.c */
 
 #ifndef ENABLE_RESOURCES
 Handle Get1Resource(ResType theType, SInt16 theID) {
@@ -589,21 +521,7 @@ OSErr ResError(void) {
 }
 #endif
 
-/* AddResMenu and InsertResMenu now implemented in MenuManager/menu_stubs.c
- * - AddResMenu: Enumerates resources and appends names to menu
- * - InsertResMenu: Enumerates resources and inserts names at position */
-
-/* InsertFontResMenu moved to MenuManager/MenuItems.c */
-
-/* Memory Manager functions provided by Memory Manager */
-/* MemError moved to System71StdLib.c */
-
-/* BlockMoveData moved to System71StdLib.c */
-
 /* Finder-specific stubs */
-/* FindFolder moved to Finder/finder_main.c */
-
-/* GenerateUniqueTrashName moved to Finder/trash_folder.c */
 
 OSErr InitializeWindowManager(void) {
     /* Initialize the Window Manager */
@@ -614,10 +532,6 @@ OSErr InitializeWindowManager(void) {
 
     return noErr;
 }
-
-/* InitializeTrashFolder provided by trash_folder.c */
-
-/* ShowFind and FindAgain implemented in src/Finder/Find.c */
 
 OSErr ShowAboutFinder(void) {
     /* Show About Finder dialog */
@@ -645,8 +559,6 @@ OSErr ShowAboutFinder(void) {
 
     return noErr;
 }
-
-/* HandleContentClick moved to Finder/finder_main.c */
 
 OSErr HandleGrowWindow(WindowPtr window, EventRecord* event) {
     /* Handle window grow/resize interaction
@@ -705,9 +617,7 @@ OSErr HandleGrowWindow(WindowPtr window, EventRecord* event) {
     return noErr;
 }
 
-/* CloseFinderWindow moved to Finder/finder_main.c */
 /* TrackGoAway, TrackBox, ZoomWindow - real implementations in WindowManager */
-/* DoUpdate moved to Finder/finder_main.c */
 
 void DoActivate(WindowPtr window, Boolean activate) {
     /* Handle window activation/deactivation events
@@ -781,16 +691,7 @@ void DoBackgroundTasks(void) {
     SystemTask();
 }
 
-/* WaitNextEvent now implemented in EventManager/event_manager.c */
-
 /* Removed DISABLED EventAvail stub (real implementation lives in EventManager) */
-
-/* Menu and Window functions provided by their respective managers:
- * MenuSelect - MenuSelection.c
- * SystemClick - DeskManagerCore.c
- * HiliteMenu - MenuManagerCore.c
- * FrontWindow - WindowDisplay.c
- */
 
 OSErr ShowConfirmDialog(StringPtr message, Boolean* confirmed) {
     /* Display confirmation dialog with OK and Cancel buttons
@@ -1011,22 +912,6 @@ OSErr CleanUpBy(WindowPtr window, SInt16 sortType) {
     return noErr;
 }
 
-/* CleanUpWindow moved to Finder/finder_main.c */
-
-/* ParamText provided by DialogManagerCore.c */
-
-/* Alert, StopAlert, NoteAlert, CautionAlert now provided by AlertDialogs.c */
-
-/* TickCount() now implemented in TimeManager/TimeBase.c */
-
-/* GetMenuItemText now implemented in MenuItems.c */
-
-/* OpenDeskAcc provided by DeskManagerCore.c */
-
-/* HiWord and LoWord moved to System71StdLib.c */
-
-/* InvalRect removed - implemented in WindowManager/WindowEvents.c:348 */
-
 OSErr ScanDirectoryForDesktopEntries(SInt16 vRefNum, SInt32 dirID, SInt16 databaseRefNum) {
     /* Scan directory and populate Desktop Database with file metadata
      *
@@ -1079,11 +964,6 @@ OSErr ScanDirectoryForDesktopEntries(SInt16 vRefNum, SInt32 dirID, SInt16 databa
  * NewRgn, DisposeRgn, RectRgn, SetRectRgn, CopyRgn, SetEmptyRgn
  */
 
-/* Standard library functions moved to System71StdLib.c:
- * sprintf, __assert_fail, strlen, abs
- * HiWord, LoWord, BlockMoveData - moved to System71StdLib.c
- */
-
 /* Minimal math functions for -nostdlib build */
 
 /* Forward declarations */
@@ -1091,13 +971,6 @@ double fabs(double x);
 
 /* Standard library minimal implementations */
 #include <stddef.h>
-
-/* Memory and string functions moved to System71StdLib.c:
- * memcpy, memset, memcmp, memmove, strncpy, snprintf
- *
- * Memory allocation handled by Memory Manager:
- * malloc, calloc, realloc, free
- */
 
 /* External globals from main.c */
 extern void* framebuffer;
@@ -1110,15 +983,7 @@ extern uint32_t pack_color(uint8_t r, uint8_t g, uint8_t b);
 extern QDGlobals qd;
 extern void* framebuffer;
 
-/* WM_Update, WM_InvalidateDisplay, SetDeskHook, and g_deskHook moved to WindowManager/WindowDisplay.c */
-
 /* [WM-050] Stub quarantine: real BeginUpdate/EndUpdate in WindowEvents.c */
-/* BeginUpdate and EndUpdate removed - implemented in WindowManager/WindowEvents.c
- * - BeginUpdate at line 499
- * - EndUpdate at line 650
- */
-
-/* SetDeskHook moved to WindowManager/WindowDisplay.c */
 
 /* [WM-053] QuickDraw region drawing functions
  * Removed stubs (now disabled by default via SYS71_STUBS_DISABLED=1):
@@ -1126,22 +991,7 @@ extern void* framebuffer;
  * - RectInRgn - implemented in QuickDraw/Regions.c:557
  */
 
-/* sqrt() moved to System71StdLib.c */
-/* QDPlatform_DrawRegion() moved to QuickDraw/QuickDrawPlatform.c */
 /* QuickDraw text stubs for About box */
-/* Moved to FontManagerCore.c
-void TextSize(short size) {
-    // Stub - would set text size in current GrafPort
-}
-void TextFont(short font) {
-    // Stub - would set text font in current GrafPort
-}
-
-void TextFace(short face) {
-    // Stub - would set text face (bold, italic, etc.) in current GrafPort
-}
-*/
-
 
 /* Alert stub for trash_folder */
 
@@ -1174,22 +1024,24 @@ void Delay(UInt32 numTicks, UInt32* finalTicks) {
     extern UInt32 TickCount(void);
     extern void SystemTask(void);
 
+    /* Until the ticks have passed, however long each SystemTask takes. The
+     * difference is unsigned, so the counter wrapping does not end it early.
+     * This used to give up after numTicks*1000 passes, and after 100 passes
+     * without a tick - a pass is one SystemTask, far shorter than a 60th of a
+     * second, so a short Delay could end almost at once. The only way out now
+     * is the tick count really not moving: the timer is dead. */
     UInt32 startTicks = TickCount();
-    UInt32 targetTicks = startTicks + numTicks;
-    UInt32 iterations = 0;
-    const UInt32 MAX_ITERATIONS = numTicks * 1000;  /* Safety timeout: ~1000 iterations per tick */
-
-    /* Wait until target tick count reached */
-    while (TickCount() < targetTicks && iterations < MAX_ITERATIONS) {
-        /* Call SystemTask to allow DAs to run during delay */
+    UInt32 lastTicks = startTicks;
+    UInt32 passesSinceTick = 0;
+    while ((UInt32)(TickCount() - startTicks) < numTicks) {
         SystemTask();
-        iterations++;
-
-        /* If TickCount isn't advancing after many iterations, break out */
-        if (iterations > 100 && TickCount() == startTicks) {
-            /* Timer not working - just exit to prevent hang */
+        UInt32 now = TickCount();
+        if (now != lastTicks) {
+            lastTicks = now;
+            passesSinceTick = 0;
+        } else if (++passesSinceTick > 50000000u) {
             extern void serial_printf(const char* fmt, ...);
-            serial_printf("[Delay] WARNING: TickCount not advancing, exiting early (iterations=%u)\n", iterations);
+            serial_printf("[Delay] TickCount has stopped; giving up the wait\n");
             break;
         }
     }
@@ -1197,18 +1049,6 @@ void Delay(UInt32 numTicks, UInt32* finalTicks) {
     if (finalTicks) {
         *finalTicks = TickCount();
     }
-}
-
-/*
- * InitControlManager_Sys7 - Initialize Control Manager for System 7.1
- *
- * Sets up the control manager subsystem for UI controls (buttons, scroll bars, etc.).
- * Called during system initialization.
- *
- * This is a minimal stub for bare-metal environment.
- */
-void InitControlManager_Sys7(void) {
-    /* Minimal implementation - control manager is initialized elsewhere */
 }
 
 /*

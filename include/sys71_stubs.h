@@ -15,12 +15,10 @@
 #include "TextEdit/TextEdit.h"
 
 /* Platform Menu System */
-void Platform_InitMenuSystem(void);
 void Platform_CleanupMenuSystem(void);
 void Platform_EraseMenuBar(void);
 
 /* Control Manager */
-void InitControlManager_Sys7(void);
 
 /* Expand Memory (Low Memory Globals) */
 void ExpandMemDump(void);
