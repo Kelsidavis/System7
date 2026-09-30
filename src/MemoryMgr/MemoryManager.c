@@ -1226,6 +1226,46 @@ void HNoPurge(Handle h) {
     b->flags &= ~BF_PURGEABLE;
 }
 
+/*
+ * HGetState / HSetState - a handle's lock, purge and resource flags as one
+ * byte, laid out as Inside Macintosh: Memory gives them: bit 7 locked, bit 6
+ * purgeable, bit 5 a resource. The byte exists to be saved before a handle is
+ * locked and handed back afterwards, restoring whatever it was.
+ *
+ * These were stubs that answered 0 and ignored the restore, so every
+ * save-lock-restore left the handle locked for good - the Finder's icon
+ * loader did it to every icon it read.
+ *
+ * This heap counts locks rather than keeping one bit, so restoring "locked"
+ * leaves an already-locked handle's count alone and restoring "unlocked"
+ * clears it: the state after HSetState is the state that was saved.
+ */
+UInt8 HGetState(Handle h) {
+    if (!h || !*h) return 0;
+    BlockHeader* b = (BlockHeader*)((u8*)*h - BLKHDR_SZ);
+    UInt8 state = 0;
+    if (b->flags & BF_LOCKED)    state |= 0x80;
+    if (b->flags & BF_PURGEABLE) state |= 0x40;
+    if (b->flags & BF_RESOURCE)  state |= 0x20;
+    return state;
+}
+
+void HSetState(Handle h, UInt8 state) {
+    if (!h || !*h) return;
+    BlockHeader* b = (BlockHeader*)((u8*)*h - BLKHDR_SZ);
+    if (state & 0x80) {
+        if (!(b->flags & BF_LOCKED)) {
+            b->lockCount = 1;
+            b->flags |= BF_LOCKED;
+        }
+    } else {
+        b->lockCount = 0;
+        b->flags &= ~BF_LOCKED;
+    }
+    if (state & 0x40) b->flags |= BF_PURGEABLE; else b->flags &= ~BF_PURGEABLE;
+    if (state & 0x20) b->flags |= BF_RESOURCE;  else b->flags &= ~BF_RESOURCE;
+}
+
 u32 GetHandleSize(Handle h) {
     if (!h || !*h) return 0;
     BlockHeader* b = (BlockHeader*)((u8*)*h - BLKHDR_SZ);

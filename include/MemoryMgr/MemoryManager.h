@@ -93,6 +93,8 @@ void    HLock(Handle h);
 void    HUnlock(Handle h);
 void    HPurge(Handle h);
 void    HNoPurge(Handle h);
+UInt8   HGetState(Handle h);
+void    HSetState(Handle h, UInt8 state);
 void    MoveHHi(Handle h);
 void    EmptyHandle(Handle h);
 bool    RecoverHandle(void* p, Handle* h);

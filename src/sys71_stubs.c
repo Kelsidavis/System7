@@ -1677,15 +1677,6 @@ char* fgets(char *s, int size, void *stream) {
 #pragma GCC diagnostic ignored "-Wmissing-prototypes"
 
 /* Memory handle stubs */
-UInt8 HGetState(Handle h) {
-    /* Stub: Return default state (unlocked, unpurgeable) */
-    return 0;
-}
-
-void HSetState(Handle h, UInt8 state) {
-    /* Stub: Ignore handle state changes */
-    return;
-}
 
 /* HFS B-tree stubs */
 OSErr HFS_BT_FindRecord(void *btree, const void *key, void *record, UInt32 *recLen) {
