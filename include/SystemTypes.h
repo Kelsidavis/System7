@@ -918,8 +918,6 @@ enum {
 
 typedef SInt8 AEEventSource;
 
-// Thread support types (stub for portability)
-typedef struct pthread_mutex_t { void* dummy; } pthread_mutex_t;
 
 // Color Manager types
 typedef struct CMCMYKColor {

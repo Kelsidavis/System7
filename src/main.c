@@ -912,6 +912,15 @@ static void init_system71(void) {
         serial_puts("  Storage subsystem initialized\n");
     }
 
+    /* File Manager. Never called before, so the classic calls had no file
+     * control blocks to open anything into: FSOpen and every open built on it
+     * failed with tmfoErr once a lookup succeeded. Ahead of the VFS, whose
+     * volumes register with it as they mount. */
+    extern OSErr FM_Initialize(void);
+    if (FM_Initialize() != noErr) {
+        serial_puts("  WARNING: File Manager initialization failed\n");
+    }
+
     /* Virtual File System */
     VFS_Init();
     serial_puts("  Virtual File System initialized\n");

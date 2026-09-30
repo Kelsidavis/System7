@@ -79,29 +79,37 @@ OSErr VCB_Update(VCB* vcb) {
 }
 
 /* File Control Block Management */
+/*
+ * File control blocks.
+ *
+ * A slot is free while its fcbFlNm is 0, and its reference number is its
+ * index plus one. The free list this replaces handed the first file refNum 2
+ * - it read the next free index after advancing to it - so FCB_Find(2)
+ * answered a different slot; and FCB_Free zeroed a slot without returning it
+ * to the list, so after MAX_FCBS opens nothing more could be opened.
+ */
+static Boolean Cat_NameToC(const UInt8* name, char out[32]);
+
 FCB* FCB_Alloc(void) {
-    FS_LOG_DEBUG("FCB_Alloc stub\n");
-    if (g_FSGlobals.fcbFree < g_FSGlobals.fcbCount) {
-        FCB* fcb = &g_FSGlobals.fcbArray[g_FSGlobals.fcbFree];
-        g_FSGlobals.fcbFree = fcb->fcbRefNum;
-        fcb->fcbRefNum = g_FSGlobals.fcbFree + 1;
-        return fcb;
+    for (SInt16 i = 0; i < (SInt16)g_FSGlobals.fcbCount; i++) {
+        FCB* fcb = &g_FSGlobals.fcbArray[i];
+        if (fcb->base.fcbFlNm == 0 && !fcb->fcbVFSFile) {
+            memset(fcb, 0, sizeof(FCB));
+            fcb->fcbRefNum = (FileRefNum)(i + 1);
+            return fcb;
+        }
     }
     return NULL;
 }
 
 void FCB_Free(FCB* fcb) {
-    FS_LOG_DEBUG("FCB_Free stub\n");
-    if (fcb) {
-        memset(fcb, 0, sizeof(FCB));
-    }
+    if (fcb) memset(fcb, 0, sizeof(FCB));
 }
 
 FCB* FCB_Find(FileRefNum refNum) {
-    FS_LOG_DEBUG("FCB_Find stub: refNum=%d\n", refNum);
-    if (refNum > 0 && refNum <= g_FSGlobals.fcbCount) {
+    if (refNum > 0 && refNum <= (FileRefNum)g_FSGlobals.fcbCount) {
         FCB* fcb = &g_FSGlobals.fcbArray[refNum - 1];
-        if (fcb->base.fcbFlNm != 0) {
+        if (fcb->base.fcbFlNm != 0 && fcb->fcbRefNum == refNum) {
             return fcb;
         }
     }
@@ -109,23 +117,72 @@ FCB* FCB_Find(FileRefNum refNum) {
 }
 
 FCB* FCB_FindByID(VCB* vcb, UInt32 fileID) {
-    FS_LOG_DEBUG("FCB_FindByID stub: fileID=%d\n", fileID);
+    for (UInt16 i = 0; i < g_FSGlobals.fcbCount; i++) {
+        FCB* fcb = &g_FSGlobals.fcbArray[i];
+        if (fcb->base.fcbFlNm == fileID && (void*)fcb->base.fcbVPtr == (void*)vcb) {
+            return fcb;
+        }
+    }
     return NULL;
 }
 
-OSErr FCB_Open(VCB* vcb, UInt32 dirID, const UInt8* name, UInt8 permission, FCB** newFCB) {
-    FS_LOG_DEBUG("FCB_Open stub\n");
-    return fnfErr;
+/*
+ * Open a fork of a file on a volume the VFS serves.
+ *
+ * This was a stub that answered fnfErr, so no classic open - FSOpen,
+ * FSOpenDF, FSOpenRF, PBHOpen and the FSp variants built on them - could
+ * open any file, and no read or write through them could happen.
+ */
+OSErr FCB_Open(VCB* vcb, UInt32 dirID, ConstStr255Param name, UInt8 permission,
+               Boolean resourceFork, FCB** newFCB) {
+    char cname[32];
+    if (!vcb || !newFCB) return paramErr;
+    *newFCB = NULL;
+    if (!Cat_NameToC(name, cname)) return bdNamErr;
+
+    VRefNum vref = (VRefNum)vcb->base.vcbVRefNum;
+    CatEntry entry;
+    if (!VFS_Lookup(vref, dirID ? (DirID)dirID : 2, cname, &entry)) return fnfErr;
+    if (entry.kind == kNodeDir) return fnfErr;
+
+    FCB* fcb = FCB_Alloc();
+    if (!fcb) return tmfoErr;
+
+    VFSFile* file = VFS_OpenFile(vref, entry.id, resourceFork);
+    if (!file) {
+        FCB_Free(fcb);
+        return ioErr;
+    }
+
+    fcb->fcbVFSFile = file;
+    fcb->base.fcbFlNm = entry.id;
+    fcb->base.fcbVPtr = (void*)vcb;
+    fcb->base.fcbVRefNum = (SInt16)vref;
+    fcb->base.fcbEOF = VFS_GetFileSize(file);
+    fcb->base.fcbPLen = fcb->base.fcbEOF;
+    fcb->fcbPLen = fcb->base.fcbEOF;
+    fcb->base.fcbCrPs = 0;
+    fcb->base.fcbFlags = resourceFork ? FCB_RESOURCE : 0;
+    /* fsCurPerm (0) and anything with the write bit set may write. */
+    if (permission == 0 || (permission & 2)) {
+        fcb->base.fcbFlags |= FCB_WRITE_PERM;
+    }
+
+    *newFCB = fcb;
+    return noErr;
 }
 
 OSErr FCB_Close(FCB* fcb) {
-    FS_LOG_DEBUG("FCB_Close stub\n");
+    if (!fcb) return paramErr;
+    if (fcb->fcbVFSFile) {
+        VFS_CloseFile((VFSFile*)fcb->fcbVFSFile);
+    }
+    FCB_Free(fcb);
     return noErr;
 }
 
 OSErr FCB_Flush(FCB* fcb) {
-    FS_LOG_DEBUG("FCB_Flush stub\n");
-    return noErr;
+    return fcb ? noErr : paramErr;
 }
 
 /* Working Directory Management */
@@ -206,26 +263,6 @@ OSErr Cat_Lookup(VCB* vcb, UInt32 dirID, const UInt8* name, void* catData, UInt3
     return fnfErr;
 }
 
-OSErr Cat_Create(VCB* vcb, UInt32 dirID, const UInt8* name, UInt8 type, void* catData) {
-    FS_LOG_DEBUG("Cat_Create stub\n");
-    return noErr;
-}
-
-OSErr Cat_Delete(VCB* vcb, UInt32 dirID, const UInt8* name) {
-    FS_LOG_DEBUG("Cat_Delete stub\n");
-    return noErr;
-}
-
-OSErr Cat_Rename(VCB* vcb, UInt32 dirID, const UInt8* oldName, const UInt8* newName) {
-    FS_LOG_DEBUG("Cat_Rename stub\n");
-    return noErr;
-}
-
-OSErr Cat_Move(VCB* vcb, UInt32 srcDirID, const UInt8* name, UInt32 dstDirID) {
-    FS_LOG_DEBUG("Cat_Move stub\n");
-    return noErr;
-}
-
 /* ============================================================================
  * Classic catalog access, served from the VFS
  *
@@ -284,6 +321,85 @@ static void Cat_SetName(StringPtr out, const char* name)
     if (len > 31) len = 31;
     out[0] = (UInt8)len;
     memcpy(&out[1], name, len);
+}
+
+/* A Pascal name as the C string the VFS takes. False if it is empty or will
+ * not fit the VFS's 31 characters. */
+static Boolean Cat_NameToC(const UInt8* name, char out[32])
+{
+    if (!name || name[0] == 0 || name[0] > 31) return false;
+    memcpy(out, &name[1], name[0]);
+    out[name[0]] = '\0';
+    return true;
+}
+
+/*
+ * Creating, deleting, renaming and moving, served from the VFS like the
+ * lookups below.
+ *
+ * All four were stubs that answered noErr and did nothing, so the classic
+ * calls built on them - PBHCreate, FSDelete, PBHRename, CatMove and every
+ * FSp variant - reported success for work never done. FSCreate "made" a file
+ * that the very next call could not find.
+ */
+OSErr Cat_Create(VCB* vcb, UInt32 dirID, const UInt8* name, UInt8 type, void* catData)
+{
+    (void)catData;
+    char cname[32];
+    if (!vcb) return paramErr;
+    if (!Cat_NameToC(name, cname)) return bdNamErr;
+
+    VRefNum vref = (VRefNum)vcb->base.vcbVRefNum;
+    DirID dir = dirID ? (DirID)dirID : 2;
+    CatEntry existing;
+    if (VFS_Lookup(vref, dir, cname, &existing)) return dupFNErr;
+
+    if (type == REC_FLDR) {
+        DirID newID;
+        return VFS_CreateFolder(vref, dir, cname, &newID) ? noErr : ioErr;
+    }
+    FileID newID;
+    return VFS_CreateFile(vref, dir, cname, 0, 0, &newID) ? noErr : ioErr;
+}
+
+OSErr Cat_Delete(VCB* vcb, UInt32 dirID, const UInt8* name)
+{
+    char cname[32];
+    if (!vcb) return paramErr;
+    if (!Cat_NameToC(name, cname)) return bdNamErr;
+
+    VRefNum vref = (VRefNum)vcb->base.vcbVRefNum;
+    CatEntry entry;
+    if (!VFS_Lookup(vref, dirID ? (DirID)dirID : 2, cname, &entry)) return fnfErr;
+    return VFS_Delete(vref, entry.id) ? noErr : ioErr;
+}
+
+OSErr Cat_Rename(VCB* vcb, UInt32 dirID, const UInt8* oldName, const UInt8* newName)
+{
+    char oldC[32], newC[32];
+    if (!vcb) return paramErr;
+    if (!Cat_NameToC(oldName, oldC) || !Cat_NameToC(newName, newC)) return bdNamErr;
+
+    VRefNum vref = (VRefNum)vcb->base.vcbVRefNum;
+    DirID dir = dirID ? (DirID)dirID : 2;
+    CatEntry entry, clash;
+    if (!VFS_Lookup(vref, dir, oldC, &entry)) return fnfErr;
+    if (VFS_Lookup(vref, dir, newC, &clash)) return dupFNErr;
+    return VFS_Rename(vref, entry.id, newC) ? noErr : ioErr;
+}
+
+OSErr Cat_Move(VCB* vcb, UInt32 srcDirID, const UInt8* name, UInt32 dstDirID)
+{
+    char cname[32];
+    if (!vcb) return paramErr;
+    if (!Cat_NameToC(name, cname)) return bdNamErr;
+
+    VRefNum vref = (VRefNum)vcb->base.vcbVRefNum;
+    DirID dst = dstDirID ? (DirID)dstDirID : 2;
+    CatEntry entry, clash;
+    if (!VFS_Lookup(vref, srcDirID ? (DirID)srcDirID : 2, cname, &entry)) return fnfErr;
+    if (VFS_Lookup(vref, dst, cname, &clash)) return dupFNErr;
+    return VFS_MoveOverlay(vref, entry.id, dst, entry.name, &entry) ? noErr : ioErr;
 }
 
 /* Fill a CInfoPBRec from a VFS catalog entry. */
@@ -868,7 +984,6 @@ OSErr Ext_AddOverflow(VCB* vcb, UInt32 fileID, UInt8 forkType, UInt32 startFABN,
         return paramErr;
     }
 
-    FS_LockVolume(vcb);
 
     /* Build extent key */
     memset(&key, 0, sizeof(key));
@@ -882,14 +997,12 @@ OSErr Ext_AddOverflow(VCB* vcb, UInt32 fileID, UInt8 forkType, UInt32 startFABN,
     if (err != noErr) {
         FS_LOG_ERROR("Ext_AddOverflow: insert failed for fileID=%u FABN=%u: %d\n",
                     fileID, startFABN, err);
-        FS_UnlockVolume(vcb);
         return err;
     }
 
     /* Mark volume as dirty */
     vcb->base.vcbFlags |= VCB_DIRTY;
 
-    FS_UnlockVolume(vcb);
 
     FS_LOG_DEBUG("Ext_AddOverflow: added extent for fileID=%u FABN=%u\n",
                 fileID, startFABN);
@@ -908,7 +1021,6 @@ OSErr Ext_DeleteOverflow(VCB* vcb, UInt32 fileID, UInt8 forkType, UInt32 startFA
         return paramErr;
     }
 
-    FS_LockVolume(vcb);
 
     /* Build extent key */
     memset(&key, 0, sizeof(key));
@@ -922,14 +1034,12 @@ OSErr Ext_DeleteOverflow(VCB* vcb, UInt32 fileID, UInt8 forkType, UInt32 startFA
     if (err != noErr) {
         FS_LOG_ERROR("Ext_DeleteOverflow: delete failed for fileID=%u FABN=%u: %d\n",
                     fileID, startFABN, err);
-        FS_UnlockVolume(vcb);
         return err;
     }
 
     /* Mark volume as dirty */
     vcb->base.vcbFlags |= VCB_DIRTY;
 
-    FS_UnlockVolume(vcb);
 
     FS_LOG_DEBUG("Ext_DeleteOverflow: deleted extent for fileID=%u FABN=%u\n",
                 fileID, startFABN);
@@ -1070,11 +1180,9 @@ OSErr Alloc_Blocks(VCB* vcb, UInt32 startHint, UInt32 minBlocks, UInt32 maxBlock
         return paramErr;
     }
 
-    FS_LockVolume(vcb);
 
     /* Ensure bitmap is loaded */
     if (!vcb->base.vcbMAdr) {
-        FS_UnlockVolume(vcb);
         return ioErr;
     }
 
@@ -1082,7 +1190,6 @@ OSErr Alloc_Blocks(VCB* vcb, UInt32 startHint, UInt32 minBlocks, UInt32 maxBlock
 
     /* Check if enough free blocks available */
     if (vcb->base.vcbFreeBks < minBlocks) {
-        FS_UnlockVolume(vcb);
         return dskFulErr;
     }
 
@@ -1097,7 +1204,6 @@ OSErr Alloc_Blocks(VCB* vcb, UInt32 startHint, UInt32 minBlocks, UInt32 maxBlock
         /* Try again from beginning */
         foundStart = FindFreeRun(bitmap, (UInt32)vcb->base.vcbNmAlBlks, 0, minBlocks);
         if (foundStart == 0xFFFFFFFF) {
-            FS_UnlockVolume(vcb);
             return dskFulErr;
         }
     }
@@ -1131,7 +1237,6 @@ OSErr Alloc_Blocks(VCB* vcb, UInt32 startHint, UInt32 minBlocks, UInt32 maxBlock
     err = IO_WriteBlocks(vcb, (UInt32)vcb->base.vcbVBMSt, bitmapBlocks, bitmap);
     if (err != noErr) {
         FS_LOG_ERROR("Alloc_Blocks: failed to write bitmap: %d\n", err);
-        FS_UnlockVolume(vcb);
         return err;
     }
 
@@ -1141,7 +1246,6 @@ OSErr Alloc_Blocks(VCB* vcb, UInt32 startHint, UInt32 minBlocks, UInt32 maxBlock
     FS_LOG_DEBUG("Alloc_Blocks: allocated %u blocks at %u (free=%u)\n",
                  foundCount, foundStart, vcb->base.vcbFreeBks);
 
-    FS_UnlockVolume(vcb);
     return noErr;
 }
 
@@ -1161,11 +1265,9 @@ OSErr Alloc_Free(VCB* vcb, UInt32 startBlock, UInt32 blockCount) {
         return paramErr;
     }
 
-    FS_LockVolume(vcb);
 
     /* Ensure bitmap is loaded */
     if (!vcb->base.vcbMAdr) {
-        FS_UnlockVolume(vcb);
         return ioErr;
     }
 
@@ -1192,14 +1294,12 @@ OSErr Alloc_Free(VCB* vcb, UInt32 startBlock, UInt32 blockCount) {
     err = IO_WriteBlocks(vcb, (UInt32)vcb->base.vcbVBMSt, bitmapBlocks, bitmap);
     if (err != noErr) {
         FS_LOG_ERROR("Alloc_Free: failed to write bitmap: %d\n", err);
-        FS_UnlockVolume(vcb);
         return err;
     }
 
     FS_LOG_DEBUG("Alloc_Free: freed %u blocks at %u (free=%u)\n",
                  blockCount, startBlock, vcb->base.vcbFreeBks);
 
-    FS_UnlockVolume(vcb);
     return noErr;
 }
 
@@ -1265,6 +1365,44 @@ OSErr IO_WriteBlocks(VCB* vcb, UInt32 startBlock, UInt32 blockCount, const void*
 
 /* I/O Operations */
 
+/*
+ * Reads and writes of a fork the VFS opened go through the VFS; the block
+ * path below is for a volume the File Manager mounted itself. Either way the
+ * position that moves is fcb->base.fcbCrPs, the one PBRead and PBWrite read
+ * back - the block path used to advance a second copy of it, so successive
+ * reads started from the same place.
+ */
+static OSErr IO_VFSRead(FCB* fcb, UInt32 offset, UInt32 count, void* buffer, UInt32* actual) {
+    VFSFile* file = (VFSFile*)fcb->fcbVFSFile;
+    if (offset >= fcb->base.fcbEOF) return eofErr;
+    Boolean short_ = false;
+    if (offset + count > fcb->base.fcbEOF) {
+        count = fcb->base.fcbEOF - offset;
+        short_ = true;
+    }
+    uint32_t got = 0;
+    if (!VFS_SeekFile(file, offset) || !VFS_ReadFile(file, buffer, count, &got)) return ioErr;
+    *actual = got;
+    fcb->base.fcbCrPs = offset + got;
+    return short_ ? eofErr : noErr;
+}
+
+static OSErr IO_VFSWrite(FCB* fcb, UInt32 offset, UInt32 count, const void* buffer, UInt32* actual) {
+    VFSFile* file = (VFSFile*)fcb->fcbVFSFile;
+    if (!(fcb->base.fcbFlags & FCB_WRITE_PERM)) return wrPermErr;
+    uint32_t put = 0;
+    if (!VFS_SeekFile(file, offset) || !VFS_WriteFile(file, buffer, count, &put)) return ioErr;
+    *actual = put;
+    fcb->base.fcbCrPs = offset + put;
+    if (fcb->base.fcbCrPs > fcb->base.fcbEOF) {
+        fcb->base.fcbEOF = fcb->base.fcbCrPs;
+        fcb->base.fcbPLen = fcb->base.fcbEOF;
+        fcb->fcbPLen = fcb->base.fcbEOF;
+    }
+    fcb->base.fcbFlags |= FCB_DIRTY;
+    return (put == count) ? noErr : dskFulErr;
+}
+
 OSErr IO_ReadFork(FCB* fcb, UInt32 offset, UInt32 count, void* buffer, UInt32* actual) {
     VCB* vcb;
     VCBExt* vcbExt;
@@ -1284,6 +1422,9 @@ OSErr IO_ReadFork(FCB* fcb, UInt32 offset, UInt32 count, void* buffer, UInt32* a
     }
 
     *actual = 0;
+    if (fcb->fcbVFSFile) {
+        return IO_VFSRead(fcb, offset, count, buffer, actual);
+    }
     vcb = (VCB*)fcb->base.fcbVPtr;
     if (!vcb) {
         return rfNumErr;
@@ -1387,7 +1528,7 @@ OSErr IO_ReadFork(FCB* fcb, UInt32 offset, UInt32 count, void* buffer, UInt32* a
     }
 
     /* Update file position */
-    fcb->fcbCrPs = offset;
+    fcb->base.fcbCrPs = offset;
 
     *actual = totalRead;
 
@@ -1414,6 +1555,9 @@ OSErr IO_WriteFork(FCB* fcb, UInt32 offset, UInt32 count, const void* buffer, UI
     }
 
     *actual = 0;
+    if (fcb->fcbVFSFile) {
+        return IO_VFSWrite(fcb, offset, count, buffer, actual);
+    }
     vcb = (VCB*)fcb->base.fcbVPtr;
     if (!vcb) {
         return rfNumErr;
@@ -1549,8 +1693,8 @@ OSErr IO_WriteFork(FCB* fcb, UInt32 offset, UInt32 count, const void* buffer, UI
     }
 
     /* Update file position and EOF if extended */
-    if (fcb->fcbCrPs < offset) {
-        fcb->fcbCrPs = offset;
+    if (fcb->base.fcbCrPs < offset) {
+        fcb->base.fcbCrPs = offset;
     }
     if (offset > fcb->base.fcbEOF) {
         fcb->base.fcbEOF = offset;

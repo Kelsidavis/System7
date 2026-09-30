@@ -22,8 +22,6 @@ extern "C" {
 /* Platform configuration */
 #define FM_PLATFORM_X86 1
 
-/* Thread safety - we don't need pthread for single-threaded kernel */
-/* pthread types are already defined in SystemTypes.h if needed */
 
 /* Forward declarations */
 

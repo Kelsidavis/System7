@@ -189,7 +189,8 @@ FCB* FCB_Alloc(void);
 void FCB_Free(FCB* fcb);
 FCB* FCB_Find(FileRefNum refNum);
 FCB* FCB_FindByID(VCB* vcb, UInt32 fileID);
-OSErr FCB_Open(VCB* vcb, UInt32 dirID, const UInt8* name, UInt8 permission, FCB** newFCB);
+OSErr FCB_Open(VCB* vcb, UInt32 dirID, ConstStr255Param name, UInt8 permission,
+               Boolean resourceFork, FCB** fcb);
 OSErr FCB_Close(FCB* fcb);
 OSErr FCB_Flush(FCB* fcb);
 
@@ -267,14 +268,6 @@ OSErr IO_WriteFork(FCB* fcb, UInt32 offset, UInt32 count, const void* buffer, UI
 UInt32 DateTime_Current(void);
 UInt32 DateTime_FromUnix(time_t unixTime);
 time_t DateTime_ToUnix(UInt32 macTime);
-
-/* Thread Safety */
-void FS_LockGlobal(void);
-void FS_UnlockGlobal(void);
-void FS_LockVolume(VCB* vcb);
-void FS_UnlockVolume(VCB* vcb);
-void FS_LockFCB(FCB* fcb);
-void FS_UnlockFCB(FCB* fcb);
 
 /* Error Handling */
 OSErr Error_Map(int platformError);

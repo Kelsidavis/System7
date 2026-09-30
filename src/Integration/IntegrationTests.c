@@ -15,9 +15,17 @@
 #include "MemoryMgr/MemoryManager.h"
 #include "DialogManager/DialogResources.h"
 #include "ResourceManager.h"
+#include "MacTypes.h"
 
 /* The File Manager calls the tests use, as FileManager.c defines them. */
 extern OSErr FSDelete(ConstStr255Param fileName, VolumeRefNum vRefNum);
+extern OSErr FSCreate(ConstStr255Param fileName, VolumeRefNum vRefNum, UInt32 creator, UInt32 fileType);
+extern OSErr FSOpen(ConstStr255Param fileName, VolumeRefNum vRefNum, FileRefNum* refNum);
+extern OSErr FSClose(FileRefNum refNum);
+extern OSErr FSRead(FileRefNum refNum, UInt32* count, void* buffer);
+extern OSErr FSWrite(FileRefNum refNum, UInt32* count, const void* buffer);
+extern OSErr FSSetFPos(FileRefNum refNum, UInt16 posMode, SInt32 posOffset);
+extern OSErr FSGetEOF(FileRefNum refNum, UInt32* eof);
 #include <string.h>
 
 /* Straight to the serial port. Results are the point of a test build, and
@@ -200,6 +208,49 @@ static void SetSpec(FSSpec* spec, const char* name) {
     memcpy(&spec->name[1], name, len);
 }
 
+static void Test_File_WriteReadRoundTrip(void) {
+    const char* test_name = "File_WriteReadRoundTrip";
+    FSSpec spec;
+    SetSpec(&spec, "ITest Data");
+    static const char kText[] = "System 7 wrote this";
+    const UInt32 kLen = sizeof(kText) - 1;
+    FSDelete(spec.name, 0);
+
+    CHECK(FSCreate(spec.name, 0, 'ITst', 'TEXT') == noErr, "FSCreate failed");
+    FileRefNum ref = 0;
+    CHECK(FSOpen(spec.name, 0, &ref) == noErr && ref > 0, "FSOpen failed");
+
+    UInt32 n = kLen;
+    OSErr err = FSWrite(ref, &n, kText);
+    if (err != noErr || n != kLen) { FSClose(ref); CHECK(false, "FSWrite failed"); }
+
+    char back[32];
+    memset(back, 0, sizeof back);
+    n = kLen;
+    err = FSSetFPos(ref, fsFromStart, 0);
+    if (err == noErr) err = FSRead(ref, &n, back);
+    if (err != noErr || n != kLen || memcmp(back, kText, kLen) != 0) {
+        FSClose(ref);
+        CHECK(false, "read back did not match what was written");
+    }
+
+    /* A second read at the end must say so rather than hand back the start. */
+    n = 4;
+    err = FSRead(ref, &n, back);
+    FSClose(ref);
+    CHECK(err == eofErr && n == 0, "reading at the end did not report eofErr");
+
+    CHECK(FSOpen(spec.name, 0, &ref) == noErr, "reopen failed");
+    UInt32 eof = 0;
+    err = FSGetEOF(ref, &eof);
+    FSClose(ref);
+    CHECK(err == noErr && eof == kLen, "reopened file had the wrong length");
+
+    CHECK(FSDelete(spec.name, 0) == noErr, "FSDelete failed");
+    CHECK(FSOpen(spec.name, 0, &ref) == fnfErr, "file still opens after FSDelete");
+    RecordTest(test_name, true, "");
+}
+
 static void Test_Resource_CreateAndOpenResFile(void) {
     const char* test_name = "Resource_CreateAndOpenResFile";
     FSSpec spec;
@@ -271,6 +322,9 @@ void IntegrationTests_Run(void) {
     Test_Dialog_ParseALRT();
     Test_Dialog_ParseDLOGTruncated();
     Test_Dialog_LoadMissingTemplate();
+
+    IT_LOG_INFO("--- File Manager ---");
+    Test_File_WriteReadRoundTrip();
 
     IT_LOG_INFO("--- Resource Manager ---");
     Test_Resource_CreateAndOpenResFile();

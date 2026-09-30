@@ -58,36 +58,21 @@ OSErr FM_Initialize(void)
         return noErr;
     }
 
-    /* Initialize global mutex */
-#ifdef PLATFORM_REMOVED_WIN32
-    InitializeCriticalSection(&g_FSGlobals.globalMutex);
-#else
-    pthread_mutex_init(&g_FSGlobals.globalMutex, NULL);
-#endif
-
-    FS_LockGlobal();
 
     /* Allocate FCB array */
     g_FSGlobals.fcbCount = MAX_FCBS;
     g_FSGlobals.fcbArray = (FCB*)NewPtrClear((g_FSGlobals.fcbCount) * (sizeof(FCB)));
     if (!g_FSGlobals.fcbArray) {
-        FS_UnlockGlobal();
         return memFullErr;
     }
 
-    /* Initialize FCB free list */
-    for (int i = 0; i < g_FSGlobals.fcbCount - 1; i++) {
-        g_FSGlobals.fcbArray[i].fcbRefNum = (FileRefNum)(i + 1);
-    }
-    g_FSGlobals.fcbArray[g_FSGlobals.fcbCount - 1].fcbRefNum = -1;
-    g_FSGlobals.fcbFree = 0;
+    /* An FCB is free while fcbFlNm is 0; see FCB_Alloc. */
 
     /* Allocate WDCB array */
     g_FSGlobals.wdcbCount = MAX_WDCBS;
     g_FSGlobals.wdcbArray = (WDCB*)NewPtrClear((g_FSGlobals.wdcbCount) * (sizeof(WDCB)));
     if (!g_FSGlobals.wdcbArray) {
         DisposePtr((Ptr)g_FSGlobals.fcbArray);
-        FS_UnlockGlobal();
         return memFullErr;
     }
 
@@ -103,7 +88,6 @@ OSErr FM_Initialize(void)
     if (err != noErr) {
         DisposePtr((Ptr)g_FSGlobals.fcbArray);
         DisposePtr((Ptr)g_FSGlobals.wdcbArray);
-        FS_UnlockGlobal();
         return err;
     }
 
@@ -112,7 +96,6 @@ OSErr FM_Initialize(void)
 
     g_FSGlobals.initialized = true;
 
-    FS_UnlockGlobal();
 
     return noErr;
 }
@@ -123,7 +106,6 @@ OSErr FM_Shutdown(void)
         return noErr;
     }
 
-    FS_LockGlobal();
 
     /* Close all open files */
     for (int i = 0; i < g_FSGlobals.fcbCount; i++) {
@@ -146,14 +128,6 @@ OSErr FM_Shutdown(void)
 
     g_FSGlobals.initialized = false;
 
-    FS_UnlockGlobal();
-
-    /* Destroy global mutex */
-#ifdef PLATFORM_REMOVED_WIN32
-    DeleteCriticalSection(&g_FSGlobals.globalMutex);
-#else
-    pthread_mutex_destroy(&g_FSGlobals.globalMutex);
-#endif
 
     return noErr;
 }
@@ -336,9 +310,7 @@ OSErr FSGetFPos(FileRefNum refNum, UInt32* position)
         return rfNumErr;
     }
 
-    FS_LockFCB(fcb);
     *position = fcb->base.fcbCrPs;
-    FS_UnlockFCB(fcb);
 
     return noErr;
 }
@@ -353,13 +325,11 @@ OSErr FSSetFPos(FileRefNum refNum, UInt16 posMode, SInt32 posOffset)
         return rfNumErr;
     }
 
-    FS_LockFCB(fcb);
 
     /* Calculate new position based on mode */
     switch (posMode) {
         case fsFromStart:
             if (posOffset < 0) {
-                FS_UnlockFCB(fcb);
                 return posErr;
             }
             newPos = (UInt32)posOffset;
@@ -367,7 +337,6 @@ OSErr FSSetFPos(FileRefNum refNum, UInt16 posMode, SInt32 posOffset)
 
         case fsFromLEOF:
             if (posOffset > 0 || (UInt32)(-posOffset) > fcb->base.fcbEOF) {
-                FS_UnlockFCB(fcb);
                 return posErr;
             }
             newPos = fcb->base.fcbEOF + posOffset;
@@ -376,25 +345,21 @@ OSErr FSSetFPos(FileRefNum refNum, UInt16 posMode, SInt32 posOffset)
         case fsFromMark:
             if ((posOffset < 0 && (UInt32)(-posOffset) > fcb->base.fcbCrPs) ||
                 (posOffset > 0 && fcb->base.fcbCrPs + posOffset > fcb->base.fcbEOF)) {
-                FS_UnlockFCB(fcb);
                 return posErr;
             }
             newPos = fcb->base.fcbCrPs + posOffset;
             break;
 
         default:
-            FS_UnlockFCB(fcb);
             return paramErr;
     }
 
     /* Check bounds */
     if (newPos > fcb->base.fcbEOF) {
-        FS_UnlockFCB(fcb);
         return eofErr;
     }
 
     fcb->base.fcbCrPs = newPos;
-    FS_UnlockFCB(fcb);
 
     return noErr;
 }
@@ -412,9 +377,7 @@ OSErr FSGetEOF(FileRefNum refNum, UInt32* eof)
         return rfNumErr;
     }
 
-    FS_LockFCB(fcb);
     *eof = fcb->base.fcbEOF;
-    FS_UnlockFCB(fcb);
 
     return noErr;
 }
@@ -429,11 +392,9 @@ OSErr FSSetEOF(FileRefNum refNum, UInt32 eof)
         return rfNumErr;
     }
 
-    FS_LockFCB(fcb);
 
     /* Check write permission */
     if (!(fcb->base.fcbFlags & FCB_WRITE_PERM)) {
-        FS_UnlockFCB(fcb);
         return wrPermErr;
     }
 
@@ -456,7 +417,6 @@ OSErr FSSetEOF(FileRefNum refNum, UInt32 eof)
         }
     }
 
-    FS_UnlockFCB(fcb);
 
     return err;
 }
@@ -476,11 +436,9 @@ OSErr FSAllocate(FileRefNum refNum, UInt32* count)
         return rfNumErr;
     }
 
-    FS_LockFCB(fcb);
 
     /* Check write permission */
     if (!(fcb->base.fcbFlags & FCB_WRITE_PERM)) {
-        FS_UnlockFCB(fcb);
         return wrPermErr;
     }
 
@@ -497,7 +455,6 @@ OSErr FSAllocate(FileRefNum refNum, UInt32* count)
         *count = 0;
     }
 
-    FS_UnlockFCB(fcb);
 
     return err;
 }
@@ -657,7 +614,6 @@ OSErr FSCreateDir(ConstStr255Param dirName, VolumeRefNum vRefNum, DirID* created
         return err;
     }
 
-    FS_LockVolume(vcb);
 
     /* Initialize directory record */
     memset(&dirRec, 0, sizeof(dirRec));
@@ -679,7 +635,6 @@ OSErr FSCreateDir(ConstStr255Param dirName, VolumeRefNum vRefNum, DirID* created
         vcb->base.vcbFlags |= VCB_DIRTY;
     }
 
-    FS_UnlockVolume(vcb);
 
     return err;
 }
@@ -713,24 +668,20 @@ OSErr FSDeleteDir(ConstStr255Param dirName, VolumeRefNum vRefNum)
         return err;
     }
 
-    FS_LockVolume(vcb);
 
     /* Look up the directory */
     err = Cat_Lookup(vcb, 2, dirName, &dirRec, &hint);  /* Parent = root (2) */
     if (err != noErr) {
-        FS_UnlockVolume(vcb);
         return err;
     }
 
     /* Check if it's a directory */
     if (dirRec.cdrType != REC_FLDR) {
-        FS_UnlockVolume(vcb);
         return notAFileErr;
     }
 
     /* Check if directory is empty */
     if (dirRec.dirVal > 0) {
-        FS_UnlockVolume(vcb);
         return fBsyErr;
     }
 
@@ -743,7 +694,6 @@ OSErr FSDeleteDir(ConstStr255Param dirName, VolumeRefNum vRefNum)
         vcb->base.vcbFlags |= VCB_DIRTY;
     }
 
-    FS_UnlockVolume(vcb);
 
     return err;
 }
@@ -920,7 +870,6 @@ OSErr FSGetVInfo(VolumeRefNum vRefNum, StringPtr volName, UInt16* vRefNumOut, UI
         return err;
     }
 
-    FS_LockVolume(vcb);
 
     if (volName) {
         memcpy(volName, vcb->base.vcbVN, vcb->base.vcbVN[0] + 1);
@@ -934,7 +883,6 @@ OSErr FSGetVInfo(VolumeRefNum vRefNum, StringPtr volName, UInt16* vRefNumOut, UI
         *freeBytes = (UInt32)vcb->base.vcbFreeBks * vcb->base.vcbAlBlkSiz;
     }
 
-    FS_UnlockVolume(vcb);
 
     return noErr;
 }
@@ -1010,7 +958,7 @@ OSErr PBOpenSync(ParmBlkPtr paramBlock)
 
     /* Open the file */
     err = FCB_Open(vcb, 2, paramBlock->ioNamePtr,
-                   (paramBlock)->u.ioParam.ioPermssn, &fcb);
+                   (paramBlock)->u.ioParam.ioPermssn, false, &fcb);
 
     if (err == noErr) {
         (paramBlock)->u.ioParam.ioRefNum = fcb->fcbRefNum;
@@ -1229,10 +1177,9 @@ OSErr PBHOpenDFSync(ParmBlkPtr paramBlock)
     /* Open data fork */
     err = FCB_Open(vcb, ((HParamBlockRec*)paramBlock)->u.hFileInfo.ioDirID,
                    paramBlock->ioNamePtr,
-                   (paramBlock)->u.ioParam.ioPermssn, &fcb);
+                   (paramBlock)->u.ioParam.ioPermssn, false, &fcb);
 
     if (err == noErr) {
-        fcb->base.fcbFlags &= ~FCB_RESOURCE;  /* Clear resource fork flag */
         (paramBlock)->u.ioParam.ioRefNum = fcb->fcbRefNum;
     }
 
@@ -1260,10 +1207,9 @@ OSErr PBHOpenRFSync(ParmBlkPtr paramBlock)
     /* Open resource fork */
     err = FCB_Open(vcb, ((HParamBlockRec*)paramBlock)->u.hFileInfo.ioDirID,
                    paramBlock->ioNamePtr,
-                   (paramBlock)->u.ioParam.ioPermssn, &fcb);
+                   (paramBlock)->u.ioParam.ioPermssn, true, &fcb);
 
     if (err == noErr) {
-        fcb->base.fcbFlags |= FCB_RESOURCE;  /* Set resource fork flag */
         (paramBlock)->u.ioParam.ioRefNum = fcb->fcbRefNum;
     }
 
@@ -1288,7 +1234,6 @@ OSErr PBHCreateSync(ParmBlkPtr paramBlock)
         return err;
     }
 
-    FS_LockVolume(vcb);
 
     /* Initialize file record */
     memset(&fileRec, 0, sizeof(fileRec));
@@ -1307,7 +1252,6 @@ OSErr PBHCreateSync(ParmBlkPtr paramBlock)
         vcb->base.vcbFlags |= VCB_DIRTY;
     }
 
-    FS_UnlockVolume(vcb);
 
     paramBlock->ioResult = err;
     return err;
@@ -1329,7 +1273,6 @@ OSErr PBHDeleteSync(ParmBlkPtr paramBlock)
         return err;
     }
 
-    FS_LockVolume(vcb);
 
     /* Delete from catalog */
     err = Cat_Delete(vcb, ((HParamBlockRec*)paramBlock)->u.hFileInfo.ioDirID,
@@ -1341,7 +1284,6 @@ OSErr PBHDeleteSync(ParmBlkPtr paramBlock)
         vcb->base.vcbFlags |= VCB_DIRTY;
     }
 
-    FS_UnlockVolume(vcb);
 
     paramBlock->ioResult = err;
     return err;
@@ -1363,14 +1305,12 @@ OSErr PBHRenameSync(ParmBlkPtr paramBlock)
         return err;
     }
 
-    FS_LockVolume(vcb);
 
     /* Rename in catalog */
     err = Cat_Rename(vcb, ((HParamBlockRec*)paramBlock)->u.hFileInfo.ioDirID,
                      paramBlock->ioNamePtr,
                      (const UInt8*)(paramBlock)->u.ioParam.ioMisc);
 
-    FS_UnlockVolume(vcb);
 
     paramBlock->ioResult = err;
     return err;
@@ -1473,9 +1413,7 @@ OSErr FM_SetProcessOwner(FileRefNum refNum, UInt32 processID)
         return rfNumErr;
     }
 
-    FS_LockFCB(fcb);
     fcb->fcbProcessID = processID;
-    FS_UnlockFCB(fcb);
 
     return noErr;
 }
@@ -1484,7 +1422,6 @@ OSErr FM_ReleaseProcessFiles(UInt32 processID)
 {
     int closedCount = 0;
 
-    FS_LockGlobal();
 
     /* Close all files owned by this process */
     for (int i = 0; i < g_FSGlobals.fcbCount; i++) {
@@ -1503,7 +1440,6 @@ OSErr FM_ReleaseProcessFiles(UInt32 processID)
         }
     }
 
-    FS_UnlockGlobal();
 
     return noErr;
 }
@@ -1520,72 +1456,6 @@ OSErr FM_YieldToProcess(void)
 #endif
 
     return noErr;
-}
-
-/* ============================================================================
- * Thread Safety Implementation
- * ============================================================================ */
-
-void FS_LockGlobal(void)
-{
-#ifdef PLATFORM_REMOVED_WIN32
-    EnterCriticalSection(&g_FSGlobals.globalMutex);
-#else
-    pthread_mutex_lock(&g_FSGlobals.globalMutex);
-#endif
-}
-
-void FS_UnlockGlobal(void)
-{
-#ifdef PLATFORM_REMOVED_WIN32
-    LeaveCriticalSection(&g_FSGlobals.globalMutex);
-#else
-    pthread_mutex_unlock(&g_FSGlobals.globalMutex);
-#endif
-}
-
-void FS_LockVolume(VCB* vcb)
-{
-    if (!vcb) return;
-
-#ifdef PLATFORM_REMOVED_WIN32
-    EnterCriticalSection(&vcb->base.vcbMutex);
-#else
-    pthread_mutex_lock(&vcb->vcbMutex);
-#endif
-}
-
-void FS_UnlockVolume(VCB* vcb)
-{
-    if (!vcb) return;
-
-#ifdef PLATFORM_REMOVED_WIN32
-    LeaveCriticalSection(&vcb->base.vcbMutex);
-#else
-    pthread_mutex_unlock(&vcb->vcbMutex);
-#endif
-}
-
-void FS_LockFCB(FCB* fcb)
-{
-    if (!fcb) return;
-
-#ifdef PLATFORM_REMOVED_WIN32
-    EnterCriticalSection(&fcb->fcbMutex);
-#else
-    pthread_mutex_lock(&fcb->fcbMutex);
-#endif
-}
-
-void FS_UnlockFCB(FCB* fcb)
-{
-    if (!fcb) return;
-
-#ifdef PLATFORM_REMOVED_WIN32
-    LeaveCriticalSection(&fcb->fcbMutex);
-#else
-    pthread_mutex_unlock(&fcb->fcbMutex);
-#endif
 }
 
 /* ============================================================================

@@ -11,28 +11,10 @@
 #include "SystemTypes.h"
 #include <time.h>
 
-/* pthread inline functions for single-threaded kernel */
-static inline int pthread_mutex_init(pthread_mutex_t *mutex, const void *attr) {
-    return 0;
-}
-
-static inline int pthread_mutex_destroy(pthread_mutex_t *mutex) {
-    return 0;
-}
-
-static inline int pthread_mutex_lock(pthread_mutex_t *mutex) {
-    return 0;
-}
-
-static inline int pthread_mutex_unlock(pthread_mutex_t *mutex) {
-    return 0;
-}
-
 /* Extended Volume Control Block for File Manager */
 typedef struct VCBExt {
     VCB             base;           /* Base VCB from SystemTypes.h */
     struct VCBExt*  vcbNext;        /* Next VCB in queue */
-    pthread_mutex_t vcbMutex;       /* Volume mutex */
     void*           vcbCatalogBTCB; /* Catalog B-tree control block */
     void*           vcbExtentsBTCB; /* Extents B-tree control block */
     void*           vcbCTRef;       /* Catalog file reference (BTCB*) */
@@ -47,8 +29,7 @@ typedef struct FCBExt {
     FCB             base;           /* Base FCB from SystemTypes.h */
     FileRefNum      fcbRefNum;      /* File reference number */
     UInt32          fcbProcessID;   /* Process ID */
-    pthread_mutex_t fcbMutex;       /* FCB mutex */
-    UInt32          fcbCrPs;        /* Current position */
+    void*           fcbVFSFile;     /* Open VFS file behind this FCB, or NULL */
     UInt32          fcbPLen;        /* Physical length */
 } FCBExt;
 
@@ -89,7 +70,6 @@ typedef struct FSGlobals {
     UInt16          wdcbCount;      /* Number of WDCBs */
     UInt16          wdcbFree;       /* First free WDCB */
     VolumeRefNum    defVRefNum;     /* Default volume reference number */
-    pthread_mutex_t globalMutex;    /* Global mutex */
     UInt64          bytesRead;      /* Statistics */
     UInt64          bytesWritten;
 } FSGlobals;
