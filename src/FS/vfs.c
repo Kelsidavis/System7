@@ -307,14 +307,14 @@ bool VFS_FormatATA(int ata_device_index, const char* volName) {
 
 bool VFS_MountATA(int ata_device_index, const char* volName, VRefNum* vref) {
     if (!g_vfs.initialized) {
-        FS_LOG_DEBUG("VFS: Not initialized\n");
+        FS_LOG_WARN("VFS: Not initialized\n");
         return false;
     }
 
     /* Allocate volume slot */
     VFSVolume* vol = VFS_AllocVolume();
     if (!vol) {
-        FS_LOG_DEBUG("VFS: No free volume slots\n");
+        FS_LOG_WARN("VFS: No free volume slots\n");
         return false;
     }
 
@@ -331,79 +331,18 @@ bool VFS_MountATA(int ata_device_index, const char* volName, VRefNum* vref) {
     uint8_t mdbSector[512];
 
     if (!HFS_BD_ReadSector(&vol->volume.bd, HFS_MDB_SECTOR, mdbSector)) {
-        FS_LOG_DEBUG("VFS: Failed to read MDB sector\n");
+        FS_LOG_WARN("VFS: Failed to read MDB sector\n");
         HFS_BD_Close(&vol->volume.bd);
         return false;
     }
 
-    /* Check HFS signature */
-    uint16_t sig = be16_read(&mdbSector[0]);
-
-    if (sig != HFS_SIGNATURE) {
-        FS_LOG_DEBUG("VFS: ERROR - Disk is not formatted with HFS (signature: 0x%04x)\n", sig);
-        FS_LOG_DEBUG("VFS: Use VFS_FormatATA() to format this disk first\n");
+    if (!HFS_VolumeFromMDB(&vol->volume, mdbSector)) {
+        FS_LOG_WARN("VFS: no HFS volume on this disk (signature 0x%04x)\n",
+                    be16_read(&mdbSector[0]));
         HFS_BD_Close(&vol->volume.bd);
         return false;
     }
-
-    /* Disk is formatted, proceed with mounting */
-    FS_LOG_DEBUG("VFS: Found valid HFS signature, mounting...\n");
-
-    /* Parse MDB into volume structure */
     HFS_MDB* mdb = &vol->volume.mdb;
-
-    mdb->drSigWord    = be16_read(&mdbSector[0]);
-    mdb->drCrDate     = be32_read(&mdbSector[4]);
-    mdb->drLsMod      = be32_read(&mdbSector[8]);
-    mdb->drAtrb       = be16_read(&mdbSector[12]);
-    mdb->drNmFls      = be16_read(&mdbSector[14]);
-    mdb->drVBMSt      = be16_read(&mdbSector[16]);
-    mdb->drAllocPtr   = be16_read(&mdbSector[18]);
-    mdb->drNmAlBlks   = be16_read(&mdbSector[20]);
-    mdb->drAlBlkSiz   = be32_read(&mdbSector[22]);
-    mdb->drClpSiz     = be32_read(&mdbSector[26]);
-    mdb->drAlBlSt     = be16_read(&mdbSector[30]);
-    mdb->drNxtCNID    = be32_read(&mdbSector[32]);
-    mdb->drFreeBks    = be16_read(&mdbSector[36]);
-
-    /* Volume name - Pascal string: first byte is length */
-    memcpy(mdb->drVN, &mdbSector[38], 28);
-    if ((unsigned char)mdb->drVN[0] > 27) {
-        mdb->drVN[0] = 27;
-    }
-
-    /* Validate allocation block size - must be non-zero and power of 2 */
-    if (mdb->drAlBlkSiz == 0 || mdb->drAlBlkSiz > 65536 ||
-        (mdb->drAlBlkSiz & (mdb->drAlBlkSiz - 1)) != 0) {
-        FS_LOG_DEBUG("VFS: Invalid allocation block size %u on ATA volume\n", mdb->drAlBlkSiz);
-        return false;
-    }
-
-    /* Catalog file */
-    mdb->drCTFlSize = be32_read(&mdbSector[142]);
-    for (int i = 0; i < 3; i++) {
-        mdb->drCTExtRec[i].startBlock = be16_read(&mdbSector[146 + i * 4]);
-        mdb->drCTExtRec[i].blockCount = be16_read(&mdbSector[148 + i * 4]);
-    }
-
-    /* Extents file */
-    mdb->drXTFlSize = be32_read(&mdbSector[126]);
-    for (int i = 0; i < 3; i++) {
-        mdb->drXTExtRec[i].startBlock = be16_read(&mdbSector[130 + i * 4]);
-        mdb->drXTExtRec[i].blockCount = be16_read(&mdbSector[132 + i * 4]);
-    }
-
-    /* Cache volume parameters */
-    vol->volume.alBlkSize = mdb->drAlBlkSiz;
-    vol->volume.alBlSt = mdb->drAlBlSt;
-    vol->volume.numAlBlks = mdb->drNmAlBlks;
-    vol->volume.vbmStart = mdb->drVBMSt;
-    vol->volume.catFileSize = mdb->drCTFlSize;
-    memcpy(vol->volume.catExtents, mdb->drCTExtRec, sizeof(vol->volume.catExtents));
-    vol->volume.extFileSize = mdb->drXTFlSize;
-    memcpy(vol->volume.extExtents, mdb->drXTExtRec, sizeof(vol->volume.extExtents));
-    vol->volume.nextCNID = mdb->drNxtCNID;
-    vol->volume.rootDirID = 2;  /* HFS root is always 2 */
 
     /* Mark volume as mounted */
     vol->volume.vRefNum = vol->vref;
@@ -420,8 +359,17 @@ bool VFS_MountATA(int ata_device_index, const char* volName, VRefNum* vref) {
     memset(vol->overlay, 0, sizeof(vol->overlay));
     vol->overlayCount = 0;
     vol->nextCNID = 5000;
-    strncpy(vol->name, volName, sizeof(vol->name) - 1);
-    vol->name[sizeof(vol->name) - 1] = '\0';
+    /* The volume is known by the name on the disk; volName is only for
+     * a disk whose name is empty. */
+    UInt8 nameLen = (UInt8)mdb->drVN[0];
+    if (nameLen > 0) {   /* drVN was clamped to 27 above */
+        memcpy(vol->name, &mdb->drVN[1], nameLen);
+        vol->name[nameLen] = '\0';
+    } else {
+        strncpy(vol->name, volName, sizeof(vol->name) - 1);
+        vol->name[sizeof(vol->name) - 1] = '\0';
+    }
+    volName = vol->name;
     VFS_FinishMount(vol);
 
     FS_LOG_DEBUG("VFS: Mounted ATA volume '%s' as vRef %d\n", volName, vol->vref);
@@ -508,74 +456,13 @@ bool VFS_MountSDHCI(int drive_index, const char* volName, VRefNum* vref) {
         return false;
     }
 
-    /* Check HFS signature */
-    uint16_t sig = be16_read(&mdbSector[0]);
-
-    if (sig != HFS_SIGNATURE) {
-        FS_LOG_DEBUG("VFS: ERROR - SD card is not formatted with HFS (signature: 0x%04x)\n", sig);
-        FS_LOG_DEBUG("VFS: Use VFS_FormatSDHCI() to format this SD card first\n");
+    if (!HFS_VolumeFromMDB(&vol->volume, mdbSector)) {
+        FS_LOG_WARN("VFS: no HFS volume on this disk (signature 0x%04x)\n",
+                    be16_read(&mdbSector[0]));
         HFS_BD_Close(&vol->volume.bd);
         return false;
     }
-
-    /* Disk is formatted, proceed with mounting */
-    FS_LOG_DEBUG("VFS: Found valid HFS signature on SDHCI, mounting...\n");
-
-    /* Parse MDB into volume structure */
     HFS_MDB* mdb = &vol->volume.mdb;
-
-    mdb->drSigWord    = be16_read(&mdbSector[0]);
-    mdb->drCrDate     = be32_read(&mdbSector[4]);
-    mdb->drLsMod      = be32_read(&mdbSector[8]);
-    mdb->drAtrb       = be16_read(&mdbSector[12]);
-    mdb->drNmFls      = be16_read(&mdbSector[14]);
-    mdb->drVBMSt      = be16_read(&mdbSector[16]);
-    mdb->drAllocPtr   = be16_read(&mdbSector[18]);
-    mdb->drNmAlBlks   = be16_read(&mdbSector[20]);
-    mdb->drAlBlkSiz   = be32_read(&mdbSector[22]);
-    mdb->drClpSiz     = be32_read(&mdbSector[26]);
-    mdb->drAlBlSt     = be16_read(&mdbSector[30]);
-    mdb->drNxtCNID    = be32_read(&mdbSector[32]);
-    mdb->drFreeBks    = be16_read(&mdbSector[36]);
-
-    /* Volume name - Pascal string: first byte is length */
-    memcpy(mdb->drVN, &mdbSector[38], 28);
-    if ((unsigned char)mdb->drVN[0] > 27) {
-        mdb->drVN[0] = 27;
-    }
-
-    /* Validate allocation block size - must be non-zero and power of 2 */
-    if (mdb->drAlBlkSiz == 0 || mdb->drAlBlkSiz > 65536 ||
-        (mdb->drAlBlkSiz & (mdb->drAlBlkSiz - 1)) != 0) {
-        FS_LOG_DEBUG("VFS: Invalid allocation block size %u on SDHCI volume\n", mdb->drAlBlkSiz);
-        return false;
-    }
-
-    /* Catalog file */
-    mdb->drCTFlSize = be32_read(&mdbSector[142]);
-    for (int i = 0; i < 3; i++) {
-        mdb->drCTExtRec[i].startBlock = be16_read(&mdbSector[146 + i * 4]);
-        mdb->drCTExtRec[i].blockCount = be16_read(&mdbSector[148 + i * 4]);
-    }
-
-    /* Extents file */
-    mdb->drXTFlSize = be32_read(&mdbSector[126]);
-    for (int i = 0; i < 3; i++) {
-        mdb->drXTExtRec[i].startBlock = be16_read(&mdbSector[130 + i * 4]);
-        mdb->drXTExtRec[i].blockCount = be16_read(&mdbSector[132 + i * 4]);
-    }
-
-    /* Cache volume parameters */
-    vol->volume.alBlkSize = mdb->drAlBlkSiz;
-    vol->volume.alBlSt = mdb->drAlBlSt;
-    vol->volume.numAlBlks = mdb->drNmAlBlks;
-    vol->volume.vbmStart = mdb->drVBMSt;
-    vol->volume.catFileSize = mdb->drCTFlSize;
-    memcpy(vol->volume.catExtents, mdb->drCTExtRec, sizeof(vol->volume.catExtents));
-    vol->volume.extFileSize = mdb->drXTFlSize;
-    memcpy(vol->volume.extExtents, mdb->drXTExtRec, sizeof(vol->volume.extExtents));
-    vol->volume.nextCNID = mdb->drNxtCNID;
-    vol->volume.rootDirID = 2;  /* HFS root is always 2 */
 
     /* Mark volume as mounted */
     vol->volume.vRefNum = vol->vref;

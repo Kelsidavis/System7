@@ -139,11 +139,15 @@ enum {
     kHFS_FileThreadRecord    = 0x0400
 };
 
-/* Catalog file record */
+/* Catalog file record, cdrFilRec (Inside Macintosh: Files, 2-71): 102 bytes.
+ * The Finder's FInfo - type, creator, flags - comes first, at 4; FXInfo
+ * comes after the dates. This used to leave the FInfo out, reading every
+ * field from the file ID on 16 bytes early. */
 typedef struct {
     int16_t  recordType;      /* kHFSFileRecord */
     uint8_t  flags;
     uint8_t  fileType;
+    uint8_t  userInfo[16];    /* filUsrWds: FInfo */
     uint32_t fileID;          /* CNID */
     uint16_t dataStartBlock;
     uint32_t dataLogicalSize;
@@ -154,14 +158,14 @@ typedef struct {
     uint32_t createDate;
     uint32_t modifyDate;
     uint32_t backupDate;
-    uint8_t  finderInfo[16];
+    uint8_t  finderInfo[16];  /* filFndrInfo: FXInfo */
     uint16_t clumpSize;
     HFS_Extent dataExtents[3];
     HFS_Extent rsrcExtents[3];
     uint32_t reserved;
 } HFS_CatFileRec;
 
-/* Catalog folder record */
+/* Catalog folder record, cdrDirRec (Inside Macintosh: Files, 2-70): 70 bytes. */
 typedef struct {
     int16_t  recordType;      /* kHFSFolderRecord */
     uint16_t flags;
@@ -170,7 +174,8 @@ typedef struct {
     uint32_t createDate;
     uint32_t modifyDate;
     uint32_t backupDate;
-    uint8_t  finderInfo[16];
+    uint8_t  userInfo[16];    /* dirUsrInfo: DInfo */
+    uint8_t  finderInfo[16];  /* dirFndrInfo: DXInfo */
     uint32_t reserved[4];
 } HFS_CatFolderRec;
 
@@ -184,9 +189,48 @@ typedef struct {
 } HFS_CatThreadRec;
 #pragma pack(pop)
 
+_Static_assert(sizeof(HFS_CatFileRec) == 102, "cdrFilRec is 102 bytes");
+_Static_assert(sizeof(HFS_CatFolderRec) == 70, "cdrDirRec is 70 bytes");
+
 /* Constants */
 #define HFS_SECTOR_SIZE      512
 #define HFS_MDB_SECTOR       2
+
+/* Byte offsets in the master directory block, from Inside Macintosh: Files
+ * (2-60). Everything is big-endian and packed: drCrDate follows drSigWord
+ * directly, at 2. */
+enum {
+    kMDB_drSigWord   = 0,
+    kMDB_drCrDate    = 2,
+    kMDB_drLsMod     = 6,
+    kMDB_drAtrb      = 10,
+    kMDB_drNmFls     = 12,
+    kMDB_drVBMSt     = 14,
+    kMDB_drAllocPtr  = 16,
+    kMDB_drNmAlBlks  = 18,
+    kMDB_drAlBlkSiz  = 20,
+    kMDB_drClpSiz    = 24,
+    kMDB_drAlBlSt    = 28,
+    kMDB_drNxtCNID   = 30,
+    kMDB_drFreeBks   = 34,
+    kMDB_drVN        = 36,   /* Str27: 28 bytes */
+    kMDB_drVolBkUp   = 64,
+    kMDB_drVSeqNum   = 68,
+    kMDB_drWrCnt     = 70,
+    kMDB_drXTClpSiz  = 74,
+    kMDB_drCTClpSiz  = 78,
+    kMDB_drNmRtDirs  = 82,
+    kMDB_drFilCnt    = 84,
+    kMDB_drDirCnt    = 88,
+    kMDB_drFndrInfo  = 92,   /* 8 longs */
+    kMDB_drVCSize    = 124,
+    kMDB_drVBMCSize  = 126,
+    kMDB_drCtlCSize  = 128,
+    kMDB_drXTFlSize  = 130,
+    kMDB_drXTExtRec  = 134,  /* 3 extents of (startBlock, blockCount) */
+    kMDB_drCTFlSize  = 146,
+    kMDB_drCTExtRec  = 150
+};
 #define HFS_SIGNATURE        0x4244  /* 'BD' */
 #define HFS_ROOT_CNID        1
 #define HFS_ROOT_PARENT_CNID 1

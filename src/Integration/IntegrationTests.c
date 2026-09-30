@@ -11,6 +11,7 @@
 
 #include "SystemTypes.h"
 #include "Errors/ErrorCodes.h"
+#include "FileManager_Internal.h"
 #include "System71StdLib.h"
 #include "MemoryMgr/MemoryManager.h"
 #include "DialogManager/DialogResources.h"
@@ -402,6 +403,64 @@ static void Test_File_InFolder(void) {
     RecordTest(test_name, true, "");
 }
 
+/*
+ * A file whose extents run past the three the catalog holds, so the rest
+ * come from the extents overflow B-tree. It needs the disk
+ * tools/make_fragmented_hfs.sh makes, attached as an IDE drive; without it
+ * the test says so and is not counted.
+ *
+ * The file is 80000 bytes of ((i * 7) ^ (i >> 9)) & 0xFF, read in pieces
+ * that do not line up with its 512-byte allocation blocks, then read again
+ * from a position deep in the overflow extents.
+ */
+static UInt8 FragByte(UInt32 i) { return (UInt8)(((i * 7) ^ (i >> 9)) & 0xFF); }
+
+static void Test_File_ReadThroughExtentsOverflow(void) {
+    const char* test_name = "File_ReadThroughExtentsOverflow";
+    static const UInt8 volName[] = "\x08" "ITestHFS";
+    static const UInt8 fileName[] = "\x0A" "Fragmented";
+    enum { kSize = 80000 };
+
+    VCB* vcb = VCB_FindByName(volName);
+    if (!vcb) {
+        serial_puts("[IT] SKIP: File_ReadThroughExtentsOverflow (no ITestHFS disk attached)\n");
+        return;
+    }
+    VolumeRefNum vref = vcb->base.vcbVRefNum;
+
+    FileRefNum ref = 0;
+    CHECK(FSOpen(fileName, vref, &ref) == noErr, "could not open the fragmented file");
+    UInt32 eof = 0;
+    FSGetEOF(ref, &eof);
+
+    static UInt8 buf[777];
+    UInt32 at = 0;
+    Boolean same = true;
+    OSErr err = noErr;
+    while (err == noErr && at < kSize) {
+        UInt32 n = sizeof buf;
+        err = FSRead(ref, &n, buf);
+        for (UInt32 i = 0; i < n; i++) if (buf[i] != FragByte(at + i)) same = false;
+        at += n;
+        if (n == 0) break;
+    }
+
+    static UInt8 tail[3000];
+    UInt32 n = sizeof tail;
+    Boolean seekSame = FSSetFPos(ref, fsFromStart, 70001) == noErr &&
+                       FSRead(ref, &n, tail) == noErr && n == sizeof tail;
+    for (UInt32 i = 0; seekSame && i < n; i++) {
+        if (tail[i] != FragByte(70001 + i)) seekSame = false;
+    }
+    FSClose(ref);
+
+    CHECK(eof == kSize, "the file's length was wrong");
+    CHECK(at == kSize, "reading stopped before the end of the file");
+    CHECK(same, "bytes past the catalog's three extents read back wrong");
+    CHECK(seekSame, "a read from a position in an overflow extent came back wrong");
+    RecordTest(test_name, true, "");
+}
+
 static void Test_Resource_CreateAndOpenResFile(void) {
     const char* test_name = "Resource_CreateAndOpenResFile";
     FSSpec spec;
@@ -525,6 +584,7 @@ void IntegrationTests_Run(void) {
     Test_File_Metadata();
     Test_File_FoldersAndWorkingDirectories();
     Test_File_InFolder();
+    Test_File_ReadThroughExtentsOverflow();
 
     IT_LOG_INFO("--- Resource Manager ---");
     Test_Resource_CreateAndOpenResFile();

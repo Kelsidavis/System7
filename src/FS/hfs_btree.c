@@ -18,8 +18,7 @@ static bool read_btree_data(HFS_BTree* bt, uint32_t offset, void* buffer, uint32
     uint32_t bytesRead = 0;
     uint32_t currentOffset = offset;
 
-    /* Read from first 3 extents */
-    for (int i = 0; i < 3 && bytesRead < length; i++) {
+    for (int i = 0; i < bt->extentCount && bytesRead < length; i++) {
         if (bt->extents[i].blockCount == 0) {
             /* FS_LOG_DEBUG("read_btree_data: Extent %d has 0 blocks\n", i); */
             break;
@@ -44,10 +43,10 @@ static bool read_btree_data(HFS_BTree* bt, uint32_t offset, void* buffer, uint32
         }
 
         /* Read the blocks */
-        uint8_t* tempBuffer = NewPtr(bt->vol->alBlkSize * 2);
+        uint32_t blocksToRead = (toRead + byteOffset + bt->vol->alBlkSize - 1) / bt->vol->alBlkSize;
+        uint8_t* tempBuffer = NewPtr(blocksToRead * bt->vol->alBlkSize);
         if (!tempBuffer) return false;
 
-        uint32_t blocksToRead = (toRead + byteOffset + bt->vol->alBlkSize - 1) / bt->vol->alBlkSize;
         if (!HFS_ReadAllocBlocks(bt->vol, startBlock + blockOffset, blocksToRead, tempBuffer)) {
             DisposePtr((Ptr)tempBuffer);
             return false;
@@ -61,6 +60,53 @@ static bool read_btree_data(HFS_BTree* bt, uint32_t offset, void* buffer, uint32
     }
 
     return bytesRead == length;
+}
+
+/*
+ * Add the catalog's extents past the MDB's three, from the extents overflow
+ * tree: records of three under file ID 4, each keyed by the file allocation
+ * block it starts at (Inside Macintosh: Files, 2-83). Only the first three
+ * used to be read, so a catalog in more pieces than that - any volume that
+ * has grown a while - was cut off where they ended.
+ */
+static void load_catalog_overflow(HFS_BTree* bt) {
+    enum { kCatalogFileID = 4 };
+    uint32_t alBlk = bt->vol->alBlkSize;
+    uint32_t have = 0;
+    for (int i = 0; i < bt->extentCount; i++) have += bt->extents[i].blockCount;
+    uint32_t need = (bt->fileSize + alBlk - 1) / alBlk;
+    if (have >= need) return;
+
+    HFS_BTree ext;
+    if (!HFS_BT_Init(&ext, bt->vol, kBTreeExtents)) {
+        FS_LOG_WARN("HFS BTree: catalog needs overflow extents; no extents tree to find them\n");
+        return;
+    }
+    while (have < need && bt->extentCount + 3 <= kBTMaxExtents) {
+        uint8_t key[8];
+        key[0] = 7;
+        key[1] = 0x00;   /* data fork */
+        be32_write(key + 2, kCatalogFileID);
+        be16_write(key + 6, (uint16_t)have);
+
+        uint8_t record[12];
+        uint16_t len = sizeof(record);
+        if (!HFS_BT_FindRecord(&ext, key, sizeof(key), record, &len) || len < 12) break;
+        uint32_t added = 0;
+        for (int i = 0; i < 3; i++) {
+            HFS_Extent* e = &bt->extents[bt->extentCount + i];
+            e->startBlock = be16_read(record + i * 4);
+            e->blockCount = be16_read(record + i * 4 + 2);
+            added += e->blockCount;
+        }
+        if (added == 0) break;
+        bt->extentCount += 3;
+        have += added;
+    }
+    HFS_BT_Close(&ext);
+    if (have < need) {
+        FS_LOG_WARN("HFS BTree: catalog extents cover %u of %u blocks\n", have, need);
+    }
 }
 
 bool HFS_BT_Init(HFS_BTree* bt, HFS_Volume* vol, HFS_BTreeType type) {
@@ -79,11 +125,13 @@ bool HFS_BT_Init(HFS_BTree* bt, HFS_Volume* vol, HFS_BTreeType type) {
     /* Set up extents and file size based on type */
     if (type == kBTreeCatalog) {
         bt->fileSize = vol->catFileSize;
-        memcpy(bt->extents, vol->catExtents, sizeof(bt->extents));
+        memcpy(bt->extents, vol->catExtents, sizeof(vol->catExtents));
+        bt->extentCount = 3;
         /* FS_LOG_DEBUG("HFS_BT_Init: Catalog tree, fileSize=%u\n", bt->fileSize); */
     } else if (type == kBTreeExtents) {
         bt->fileSize = vol->extFileSize;
-        memcpy(bt->extents, vol->extExtents, sizeof(bt->extents));
+        memcpy(bt->extents, vol->extExtents, sizeof(vol->extExtents));
+        bt->extentCount = 3;
         /* FS_LOG_DEBUG("HFS_BT_Init: Extents tree, fileSize=%u\n", bt->fileSize); */
     } else {
         /* FS_LOG_DEBUG("HFS_BT_Init: Unknown tree type %d\n", type); */
@@ -134,6 +182,10 @@ bool HFS_BT_Init(HFS_BTree* bt, HFS_Volume* vol, HFS_BTreeType type) {
     }
 
     /* Allocate node buffer */
+    if (type == kBTreeCatalog) {
+        load_catalog_overflow(bt);
+    }
+
     bt->nodeBuffer = NewPtr(bt->nodeSize);
     if (!bt->nodeBuffer) {
         /* FS_LOG_DEBUG("HFS BTree: Failed to allocate node buffer\n"); */
@@ -233,9 +285,11 @@ bool HFS_BT_IterateLeaves(HFS_BTree* bt, HFS_BT_IteratorFunc func, void* context
             if (bt->type == kBTreeCatalog) {
                 HFS_CatKey* key = (HFS_CatKey*)record;
                 uint8_t keyLen = key->keyLength;
-                /* keyLength excludes the keyLength byte itself, so data starts at +1 + keyLen */
-                void* data = (uint8_t*)record + 1 + keyLen;
-                uint16_t dataLen = recordLen - 1 - keyLen;
+                /* The key is its length byte and keyLen more, padded to an
+                 * even length; the data follows (Inside Macintosh: Files 2-66). */
+                uint16_t keySpan = (uint16_t)((1u + keyLen + 1u) & ~1u);
+                void* data = (uint8_t*)record + keySpan;
+                uint16_t dataLen = recordLen - keySpan;
 
                 if (!func(key, keyLen, data, dataLen, context)) {
                     DisposePtr((Ptr)nodeBuffer);

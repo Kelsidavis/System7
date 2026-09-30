@@ -6,7 +6,6 @@
 /* Block device types */
 typedef enum {
     HFS_BD_TYPE_MEMORY = 0,    /* Memory-based (RAM disk) */
-    HFS_BD_TYPE_FILE,          /* File-based (hosted) */
     HFS_BD_TYPE_ATA,           /* ATA/IDE disk */
     HFS_BD_TYPE_SDHCI          /* SDHCI SD card (ARM/Raspberry Pi) */
 } HFS_BD_Type;
@@ -25,7 +24,6 @@ typedef struct {
 bool HFS_BD_InitMemory(HFS_BlockDev* bd, void* buffer, uint64_t size);
 
 /* Initialize block device from file path */
-bool HFS_BD_InitFile(HFS_BlockDev* bd, const char* path, bool readonly);
 
 /* Initialize block device from ATA drive */
 bool HFS_BD_InitATA(HFS_BlockDev* bd, int device_index, bool readonly);

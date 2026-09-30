@@ -82,11 +82,11 @@ bool HFS_ParseCatalogRecord(const HFS_CatKey* key, const void* data, uint16_t da
         entry->createTime = be32_read(&file->createDate);
         entry->size = be32_read(&file->dataLogicalSize);
 
-        /* Get type and creator from Finder info */
-        if (file->finderInfo[0] || file->finderInfo[1] ||
-            file->finderInfo[2] || file->finderInfo[3]) {
-            entry->type = be32_read(&file->finderInfo[0]);
-            entry->creator = be32_read(&file->finderInfo[4]);
+        /* Type and creator are the FInfo's first two fields */
+        if (file->userInfo[0] || file->userInfo[1] ||
+            file->userInfo[2] || file->userInfo[3]) {
+            entry->type = be32_read(&file->userInfo[0]);
+            entry->creator = be32_read(&file->userInfo[4]);
         } else {
             /* Default for files without Finder info */
             entry->type = make_ostype('?', '?', '?', '?');
@@ -213,56 +213,59 @@ bool HFS_CatalogEnumerate(HFS_Catalog* cat, DirID parentID,
     return result;
 }
 
+/* Lookup context */
+typedef struct {
+    DirID       parentID;
+    const char* name;
+    size_t      nameLen;
+    CatEntry*   result;
+    bool        found;
+} LookupContext;
+
+/* Names match as HFS compares them: ignoring case. */
+static bool names_match(const char* a, const char* b, size_t len) {
+    if (strlen(a) != len) return false;
+    for (size_t j = 0; j < len; j++) {
+        char c1 = a[j], c2 = b[j];
+        if (c1 >= 'a' && c1 <= 'z') c1 -= 32;
+        if (c2 >= 'a' && c2 <= 'z') c2 -= 32;
+        if (c1 != c2) return false;
+    }
+    return true;
+}
+
+static bool lookup_callback(void* keyPtr, uint16_t keyLen,
+                            void* dataPtr, uint16_t dataLen,
+                            void* context) {
+    (void)keyLen;
+    LookupContext* ctx = (LookupContext*)context;
+    HFS_CatKey* key = (HFS_CatKey*)keyPtr;
+    if (be32_read(&key->parentID) != ctx->parentID) return true;
+
+    CatEntry entry;
+    if (HFS_ParseCatalogRecord(key, dataPtr, dataLen, &entry) &&
+        names_match(entry.name, ctx->name, ctx->nameLen)) {
+        *ctx->result = entry;
+        ctx->found = true;
+        return false;
+    }
+    return true;
+}
+
+/*
+ * The entry name names in parentID. This used to copy the folder's first
+ * 100 entries and search those, so in a larger folder a file past the 100th
+ * could not be found or opened.
+ */
 bool HFS_CatalogLookup(HFS_Catalog* cat, DirID parentID, const char* name,
                        CatEntry* entry) {
     if (!cat || !name || !entry) return false;
 
-    /* Convert name to MacRoman Pascal string */
-    uint8_t pname[32];
     size_t len = strlen(name);
     if (len > 31) len = 31;
-    pname[0] = len;
-    memcpy(pname + 1, name, len);
-
-    /* Build catalog key */
-    HFS_CatKey searchKey;
-    searchKey.keyLength = 6 + len;  /* 1 + 1 + 4 + 1 + nameLen - 1 */
-    searchKey.reserved = 0;
-    be32_write(&searchKey.parentID, parentID);
-    searchKey.nameLength = len;
-    memcpy(searchKey.name, pname + 1, len);
-
-    /* Linear search through leaves (simple implementation) */
-    CatEntry entries[100];
-    int count;
-    if (!HFS_CatalogEnumerate(cat, parentID, entries, 100, &count)) {
-        return false;
-    }
-
-    /* Find matching name (case-insensitive) */
-    for (int i = 0; i < count; i++) {
-        /* Verify entry name length matches before comparing */
-        size_t entryLen = strlen(entries[i].name);
-        if (entryLen != len) continue;
-
-        bool match = true;
-        for (size_t j = 0; j < len; j++) {
-            char c1 = entries[i].name[j];
-            char c2 = name[j];
-            if (c1 >= 'a' && c1 <= 'z') c1 -= 32;
-            if (c2 >= 'a' && c2 <= 'z') c2 -= 32;
-            if (c1 != c2) {
-                match = false;
-                break;
-            }
-        }
-        if (match) {
-            *entry = entries[i];
-            return true;
-        }
-    }
-
-    return false;
+    LookupContext ctx = { parentID, name, len, entry, false };
+    HFS_BT_IterateLeaves(&cat->bt, lookup_callback, &ctx);
+    return ctx.found;
 }
 
 /* Get by ID context */

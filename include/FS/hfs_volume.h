@@ -36,7 +36,7 @@ typedef struct {
 } HFS_Volume;
 
 /* Mount an HFS volume from a disk image */
-bool HFS_VolumeMount(HFS_Volume* vol, const char* imagePath, VRefNum vRefNum);
+bool HFS_VolumeFromMDB(HFS_Volume* vol, const uint8_t* mdbSector);
 
 /* Mount an HFS volume from memory */
 bool HFS_VolumeMountMemory(HFS_Volume* vol, void* buffer, uint64_t size, VRefNum vRefNum);

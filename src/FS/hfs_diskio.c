@@ -32,35 +32,12 @@ bool HFS_BD_InitMemory(HFS_BlockDev* bd, void* buffer, uint64_t size) {
     return true;
 }
 
-/*
- * A block device held in memory, blank. There is no host file system here to
- * read an image from; this used to try, through fopen and friends, which
- * existed only as stubs answering failure - so every call already ended up
- * where this starts. The path is accepted and ignored.
- */
-bool HFS_BD_InitFile(HFS_BlockDev* bd, const char* path, bool readonly) {
-    (void)path;
-    if (!bd) return false;
-
-    bd->type = HFS_BD_TYPE_FILE;
-    bd->device_index = -1;
-
-    bd->size = 4 * 1024 * 1024;  /* Default 4MB */
-    bd->data = NewPtr(bd->size);
-    if (!bd->data) return false;
-
-    memset(bd->data, 0, bd->size);
-    bd->sectorSize = 512;
-    bd->readonly = readonly;
-    return true;
-}
-
 bool HFS_BD_InitATA(HFS_BlockDev* bd, int device_index, bool readonly) {
 #if defined(__arm__) || defined(__aarch64__) || defined(HFS_DISABLE_ATA)
     (void)bd;
     (void)device_index;
     (void)readonly;
-    FS_LOG_DEBUG("HFS: ATA not available on this platform\n");
+    FS_LOG_WARN("HFS: ATA not available on this platform\n");
     return false;
 #else
 
@@ -69,7 +46,7 @@ bool HFS_BD_InitATA(HFS_BlockDev* bd, int device_index, bool readonly) {
     /* Get ATA device */
     ATADevice* ata_dev = ATA_GetDevice(device_index);
     if (!ata_dev || !ata_dev->present) {
-        FS_LOG_DEBUG("HFS: ATA device %d not found\n", device_index);
+        FS_LOG_WARN("HFS: ATA device %d not found\n", device_index);
         return false;
     }
 
@@ -362,7 +339,7 @@ void HFS_BD_Close(HFS_BlockDev* bd) {
     if (bd->type == HFS_BD_TYPE_SDHCI) {
         /* SDHCI devices don't need explicit flushing (SD protocol handles this) */
         bd->device_index = -1;
-    } else if (bd->type == HFS_BD_TYPE_MEMORY || bd->type == HFS_BD_TYPE_FILE) {
+    } else if (bd->type == HFS_BD_TYPE_MEMORY) {
         /* If we allocated memory, free it */
         if (bd->data) {
             DisposePtr((Ptr)bd->data);

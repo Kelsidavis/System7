@@ -1012,18 +1012,6 @@ static void init_system71(void) {
         SegmentLoader_TestBoot();
     }
 
-#ifdef INTEGRATION_TESTS
-    /* Phase 1 Integration Test Suite */
-    extern OSErr IntegrationTests_Initialize(void);
-    extern void IntegrationTests_Run(void);
-    extern void IntegrationTests_Cleanup(void);
-    serial_puts("\n");
-    if (IntegrationTests_Initialize() == noErr) {
-        IntegrationTests_Run();
-        IntegrationTests_Cleanup();
-    }
-    serial_puts("\n");
-#endif
 
 #ifdef PHASE2_TESTS
     /* Phase 2 Integration Test Suites */
@@ -1185,6 +1173,19 @@ static void init_system71(void) {
         serial_puts("  Activating fallback desktop menus\n");
         create_system71_windows();
     }
+
+#ifdef INTEGRATION_TESTS
+    /* Integration tests: last, so the volumes on ATA disks are mounted. */
+    extern OSErr IntegrationTests_Initialize(void);
+    extern void IntegrationTests_Run(void);
+    extern void IntegrationTests_Cleanup(void);
+    serial_puts("\n");
+    if (IntegrationTests_Initialize() == noErr) {
+        IntegrationTests_Run();
+        IntegrationTests_Cleanup();
+    }
+    serial_puts("\n");
+#endif
 
 }
 

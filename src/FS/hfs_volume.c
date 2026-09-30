@@ -25,81 +25,63 @@ static void cstr_to_pstr(uint8_t* dst, const char* src, size_t maxlen) {
     memcpy(dst + 1, src, len);
 }
 
-bool HFS_VolumeMount(HFS_Volume* vol, const char* imagePath, VRefNum vRefNum) {
-    if (!vol) return false;
+/*
+ * Read a master directory block into vol->mdb and the values the volume
+ * keeps at hand. False if it is not HFS or its allocation block size is not
+ * a power of two a volume could have.
+ *
+ * The three mount paths each used to parse the MDB themselves, all with the
+ * same offsets - two bytes too far from drCrDate on, which the formatters
+ * here also wrote. So the volumes this code made mounted, and no HFS disk
+ * made anywhere else ever did.
+ */
+bool HFS_VolumeFromMDB(HFS_Volume* vol, const uint8_t* b) {
+    if (!vol || !b) return false;
+    if (be16_read(&b[kMDB_drSigWord]) != HFS_SIGNATURE) return false;
 
-    memset(vol, 0, sizeof(HFS_Volume));
-
-    /* Initialize block device */
-    if (!HFS_BD_InitFile(&vol->bd, imagePath, false)) {
-        return false;
-    }
-
-    /* Read MDB from sector 2 */
-    uint8_t mdbBuffer[512];
-    if (!HFS_BD_ReadSector(&vol->bd, HFS_MDB_SECTOR, mdbBuffer)) {
-        HFS_BD_Close(&vol->bd);
-        return false;
-    }
-
-    /* Verify HFS signature */
-    uint16_t sig = be16_read(&mdbBuffer[0]);
-    if (sig != HFS_SIGNATURE) {
-        /* FS_LOG_DEBUG("HFS: Invalid signature 0x%04x (expected 0x4244)\n", sig); */
-        HFS_BD_Close(&vol->bd);
-        return false;
-    }
-
-    /* Parse MDB fields */
     HFS_MDB* mdb = &vol->mdb;
-    mdb->drSigWord    = sig;
-    mdb->drCrDate     = be32_read(&mdbBuffer[4]);
-    mdb->drLsMod      = be32_read(&mdbBuffer[8]);
-    mdb->drAtrb       = be16_read(&mdbBuffer[12]);
-    mdb->drNmFls      = be16_read(&mdbBuffer[14]);
-    mdb->drVBMSt      = be16_read(&mdbBuffer[16]);
-    mdb->drAllocPtr   = be16_read(&mdbBuffer[18]);
-    mdb->drNmAlBlks   = be16_read(&mdbBuffer[20]);
-    mdb->drAlBlkSiz   = be32_read(&mdbBuffer[22]);
-    mdb->drClpSiz     = be32_read(&mdbBuffer[26]);
-    mdb->drAlBlSt     = be16_read(&mdbBuffer[30]);
-    mdb->drNxtCNID    = be32_read(&mdbBuffer[32]);
-    mdb->drFreeBks    = be16_read(&mdbBuffer[36]);
-
-    /* Volume name */
-    memcpy(mdb->drVN, &mdbBuffer[38], 28);
-    pstr_to_cstr(vol->volName, mdb->drVN, sizeof(vol->volName));
-
-    /* More MDB fields */
-    mdb->drVolBkUp    = be32_read(&mdbBuffer[66]);
-    mdb->drVSeqNum    = be16_read(&mdbBuffer[70]);
-    mdb->drWrCnt      = be32_read(&mdbBuffer[72]);
-    mdb->drXTClpSiz   = be32_read(&mdbBuffer[76]);
-    mdb->drCTClpSiz   = be32_read(&mdbBuffer[80]);
-    mdb->drNmRtDirs   = be16_read(&mdbBuffer[84]);
-    mdb->drFilCnt     = be32_read(&mdbBuffer[86]);
-    mdb->drDirCnt     = be32_read(&mdbBuffer[90]);
-
-    /* Finder info */
+    mdb->drSigWord   = HFS_SIGNATURE;
+    mdb->drCrDate    = be32_read(&b[kMDB_drCrDate]);
+    mdb->drLsMod     = be32_read(&b[kMDB_drLsMod]);
+    mdb->drAtrb      = be16_read(&b[kMDB_drAtrb]);
+    mdb->drNmFls     = be16_read(&b[kMDB_drNmFls]);
+    mdb->drVBMSt     = be16_read(&b[kMDB_drVBMSt]);
+    mdb->drAllocPtr  = be16_read(&b[kMDB_drAllocPtr]);
+    mdb->drNmAlBlks  = be16_read(&b[kMDB_drNmAlBlks]);
+    mdb->drAlBlkSiz  = be32_read(&b[kMDB_drAlBlkSiz]);
+    mdb->drClpSiz    = be32_read(&b[kMDB_drClpSiz]);
+    mdb->drAlBlSt    = be16_read(&b[kMDB_drAlBlSt]);
+    mdb->drNxtCNID   = be32_read(&b[kMDB_drNxtCNID]);
+    mdb->drFreeBks   = be16_read(&b[kMDB_drFreeBks]);
+    memcpy(mdb->drVN, &b[kMDB_drVN], sizeof(mdb->drVN));
+    if (mdb->drVN[0] > 27) mdb->drVN[0] = 27;
+    mdb->drVolBkUp   = be32_read(&b[kMDB_drVolBkUp]);
+    mdb->drVSeqNum   = be16_read(&b[kMDB_drVSeqNum]);
+    mdb->drWrCnt     = be32_read(&b[kMDB_drWrCnt]);
+    mdb->drXTClpSiz  = be32_read(&b[kMDB_drXTClpSiz]);
+    mdb->drCTClpSiz  = be32_read(&b[kMDB_drCTClpSiz]);
+    mdb->drNmRtDirs  = be16_read(&b[kMDB_drNmRtDirs]);
+    mdb->drFilCnt    = be32_read(&b[kMDB_drFilCnt]);
+    mdb->drDirCnt    = be32_read(&b[kMDB_drDirCnt]);
     for (int i = 0; i < 8; i++) {
-        mdb->drFndrInfo[i] = be32_read(&mdbBuffer[94 + i * 4]);
+        mdb->drFndrInfo[i] = be32_read(&b[kMDB_drFndrInfo + i * 4]);
     }
-
-    /* Extents overflow file */
-    mdb->drXTFlSize = be32_read(&mdbBuffer[126]);
+    mdb->drXTFlSize  = be32_read(&b[kMDB_drXTFlSize]);
+    mdb->drCTFlSize  = be32_read(&b[kMDB_drCTFlSize]);
     for (int i = 0; i < 3; i++) {
-        mdb->drXTExtRec[i].startBlock = be16_read(&mdbBuffer[130 + i * 4]);
-        mdb->drXTExtRec[i].blockCount = be16_read(&mdbBuffer[132 + i * 4]);
+        mdb->drXTExtRec[i].startBlock = be16_read(&b[kMDB_drXTExtRec + i * 4]);
+        mdb->drXTExtRec[i].blockCount = be16_read(&b[kMDB_drXTExtRec + i * 4 + 2]);
+        mdb->drCTExtRec[i].startBlock = be16_read(&b[kMDB_drCTExtRec + i * 4]);
+        mdb->drCTExtRec[i].blockCount = be16_read(&b[kMDB_drCTExtRec + i * 4 + 2]);
     }
 
-    /* Catalog file */
-    mdb->drCTFlSize = be32_read(&mdbBuffer[142]);
-    for (int i = 0; i < 3; i++) {
-        mdb->drCTExtRec[i].startBlock = be16_read(&mdbBuffer[146 + i * 4]);
-        mdb->drCTExtRec[i].blockCount = be16_read(&mdbBuffer[148 + i * 4]);
+    /* A multiple of 512, and a power of two; HFS allows up to 2^16 blocks. */
+    uint32_t bs = mdb->drAlBlkSiz;
+    if (bs < 512 || (bs & (bs - 1)) != 0) {
+        FS_LOG_WARN("HFS: allocation block size %u is not one a volume can have\n", bs);
+        return false;
     }
 
-    /* Cache frequently used values */
     vol->alBlkSize   = mdb->drAlBlkSiz;
     vol->alBlSt      = mdb->drAlBlSt;
     vol->vbmStart    = mdb->drVBMSt;
@@ -108,16 +90,9 @@ bool HFS_VolumeMount(HFS_Volume* vol, const char* imagePath, VRefNum vRefNum) {
     memcpy(vol->catExtents, mdb->drCTExtRec, sizeof(vol->catExtents));
     vol->extFileSize = mdb->drXTFlSize;
     memcpy(vol->extExtents, mdb->drXTExtRec, sizeof(vol->extExtents));
-    vol->rootDirID   = 2;  /* Standard HFS root CNID */
+    vol->rootDirID   = 2;
     vol->nextCNID    = mdb->drNxtCNID;
-    vol->mounted     = true;
-    vol->vRefNum     = vRefNum;
-
-    /* FS_LOG_DEBUG("HFS: Mounted volume (vRef=%d)\n", vRefNum); */
-    /* FS_LOG_DEBUG("  Volume name: %s\n", vol->volName); */
-    /* FS_LOG_DEBUG("  Allocation blocks: %u x %u bytes\n", vol->numAlBlks, vol->alBlkSize); */
-    /* FS_LOG_DEBUG("  Catalog size: %u bytes\n", vol->catFileSize); */
-
+    pstr_to_cstr(vol->volName, mdb->drVN, sizeof(vol->volName));
     return true;
 }
 
@@ -146,48 +121,11 @@ bool HFS_VolumeMountMemory(HFS_Volume* vol, void* buffer, uint64_t size, VRefNum
     /* Try to read existing MDB */
     uint8_t mdbBuffer[512];
     if (HFS_BD_ReadSector(&vol->bd, HFS_MDB_SECTOR, mdbBuffer)) {
-        uint16_t sig = be16_read(&mdbBuffer[0]);
-        /* FS_LOG_DEBUG("HFS: Read MDB signature: 0x%04x (expected 0x%04x)\n", sig, HFS_SIGNATURE); */
-        if (sig == HFS_SIGNATURE) {
-            /* Valid HFS volume - mount it properly */
-            /* FS_LOG_DEBUG("HFS: Found valid HFS signature, mounting...\n"); */
-
-            /* Parse MDB directly here instead of calling HFS_VolumeMount */
-            vol->mdb.drSigWord = sig;
-            vol->alBlkSize = be32_read(&mdbBuffer[22]);
-            vol->alBlSt = be16_read(&mdbBuffer[30]);
-            vol->numAlBlks = be16_read(&mdbBuffer[20]);
-            vol->vbmStart = be16_read(&mdbBuffer[16]);
-            vol->catFileSize = be32_read(&mdbBuffer[142]);
-            vol->extFileSize = be32_read(&mdbBuffer[126]);
-
-            /* Copy catalog extents */
-            for (int i = 0; i < 3; i++) {
-                vol->catExtents[i].startBlock = be16_read(&mdbBuffer[146 + i*4]);
-                vol->catExtents[i].blockCount = be16_read(&mdbBuffer[148 + i*4]);
-            }
-
-            /* Copy extents extents */
-            for (int i = 0; i < 3; i++) {
-                vol->extExtents[i].startBlock = be16_read(&mdbBuffer[130 + i*4]);
-                vol->extExtents[i].blockCount = be16_read(&mdbBuffer[132 + i*4]);
-            }
-
-            vol->rootDirID = 2;
-            vol->nextCNID = be32_read(&mdbBuffer[32]);
+        if (HFS_VolumeFromMDB(vol, mdbBuffer)) {
             vol->vRefNum = vRefNum;
             vol->mounted = true;
-
-            /* Get volume name */
-            pstr_to_cstr(vol->volName, &mdbBuffer[38], sizeof(vol->volName));
-
-            /* FS_LOG_DEBUG("HFS: Mounted volume from memory\n"); */
             return true;
-        } else {
-            /* FS_LOG_DEBUG("HFS: MDB signature mismatch: got 0x%04x\n", sig); */
         }
-    } else {
-        /* FS_LOG_DEBUG("HFS: Failed to read MDB sector %d\n", HFS_MDB_SECTOR); */
     }
 
     /* FS_LOG_DEBUG("HFS: No valid MDB found, volume was not created properly\n"); */
@@ -265,35 +203,35 @@ bool HFS_CreateBlankVolume(void* buffer, uint64_t size, const char* volName) {
     memset(mdb, 0, sizeof(mdb));
 
     /* Fill MDB fields */
-    be16_write(&mdb[0], HFS_SIGNATURE);               /* drSigWord */
-    be32_write(&mdb[4], 0);                          /* drCrDate - will set later */
-    be32_write(&mdb[8], 0);                          /* drLsMod */
-    be16_write(&mdb[12], 0);                         /* drAtrb */
-    be16_write(&mdb[14], 0);                         /* drNmFls */
-    be16_write(&mdb[16], vbmStart);                  /* drVBMSt */
-    be16_write(&mdb[18], 0);                         /* drAllocPtr */
-    be16_write(&mdb[20], numAlBlks);                 /* drNmAlBlks */
-    be32_write(&mdb[22], alBlkSize);                 /* drAlBlkSiz */
-    be32_write(&mdb[26], 4096);                      /* drClpSiz */
-    be16_write(&mdb[30], alBlSt);                    /* drAlBlSt */
-    be32_write(&mdb[32], 16);                        /* drNxtCNID */
-    be16_write(&mdb[36], numAlBlks - 10);            /* drFreeBks (reserve some) */
+    be16_write(&mdb[kMDB_drSigWord], HFS_SIGNATURE);               /* drSigWord */
+    be32_write(&mdb[kMDB_drCrDate], 0);                          /* drCrDate - will set later */
+    be32_write(&mdb[kMDB_drLsMod], 0);                          /* drLsMod */
+    be16_write(&mdb[kMDB_drAtrb], 0);                         /* drAtrb */
+    be16_write(&mdb[kMDB_drNmFls], 0);                         /* drNmFls */
+    be16_write(&mdb[kMDB_drVBMSt], vbmStart);                  /* drVBMSt */
+    be16_write(&mdb[kMDB_drAllocPtr], 0);                         /* drAllocPtr */
+    be16_write(&mdb[kMDB_drNmAlBlks], numAlBlks);                 /* drNmAlBlks */
+    be32_write(&mdb[kMDB_drAlBlkSiz], alBlkSize);                 /* drAlBlkSiz */
+    be32_write(&mdb[kMDB_drClpSiz], 4096);                      /* drClpSiz */
+    be16_write(&mdb[kMDB_drAlBlSt], alBlSt);                    /* drAlBlSt */
+    be32_write(&mdb[kMDB_drNxtCNID], 16);                        /* drNxtCNID */
+    be16_write(&mdb[kMDB_drFreeBks], numAlBlks - 10);            /* drFreeBks (reserve some) */
 
     /* Volume name */
     uint8_t pname[28];
     memset(pname, 0, sizeof(pname));
     cstr_to_pstr(pname, volName, 27);
-    memcpy(&mdb[38], pname, 28);                     /* drVN */
+    memcpy(&mdb[kMDB_drVN], pname, 28);                     /* drVN */
 
     /* Catalog file - allocate 10 blocks */
-    be32_write(&mdb[142], 10 * alBlkSize);           /* drCTFlSize */
-    be16_write(&mdb[146], 0);                        /* drCTExtRec[0].startBlock */
-    be16_write(&mdb[148], 10);                       /* drCTExtRec[0].blockCount */
+    be32_write(&mdb[kMDB_drCTFlSize], 10 * alBlkSize);           /* drCTFlSize */
+    be16_write(&mdb[kMDB_drCTExtRec], 0);                        /* drCTExtRec[0].startBlock */
+    be16_write(&mdb[kMDB_drCTExtRec + 2], 10);                       /* drCTExtRec[0].blockCount */
 
     /* Extents file - allocate 3 blocks */
-    be32_write(&mdb[126], 3 * alBlkSize);            /* drXTFlSize */
-    be16_write(&mdb[130], 10);                       /* drXTExtRec[0].startBlock */
-    be16_write(&mdb[132], 3);                        /* drXTExtRec[0].blockCount */
+    be32_write(&mdb[kMDB_drXTFlSize], 3 * alBlkSize);            /* drXTFlSize */
+    be16_write(&mdb[kMDB_drXTExtRec], 10);                       /* drXTExtRec[0].startBlock */
+    be16_write(&mdb[kMDB_drXTExtRec + 2], 3);                        /* drXTExtRec[0].blockCount */
 
     /* Write MDB */
     memcpy((uint8_t*)buffer + (HFS_MDB_SECTOR * 512), mdb, sizeof(mdb));
@@ -378,7 +316,9 @@ bool HFS_CreateBlankVolume(void* buffer, uint64_t size, const char* volName) {
         be32_write(&key->parentID, parent); \
         key->nameLength = name_len; \
         memcpy(key->name, name_str, name_len); \
-        HFS_CatFolderRec* folder = (HFS_CatFolderRec*)(recData + 1 + key->keyLength); \
+        uint16_t keySpan = (uint16_t)((1u + key->keyLength + 1u) & ~1u); \
+        if (keySpan > 1u + key->keyLength) recData[1 + key->keyLength] = 0; \
+        HFS_CatFolderRec* folder = (HFS_CatFolderRec*)(recData + keySpan); \
         be16_write(&folder->recordType, kHFS_FolderRecord); \
         be16_write(&folder->flags, 0); \
         be16_write(&folder->valence, (parent == 2 && cnid == 17) ? 2 : 0); \
@@ -386,9 +326,10 @@ bool HFS_CreateBlankVolume(void* buffer, uint64_t size, const char* volName) {
         be32_write(&folder->createDate, buildTime); \
         be32_write(&folder->modifyDate, buildTime); \
         be32_write(&folder->backupDate, 0); \
+        memset(folder->userInfo, 0, 16); \
         memset(folder->finderInfo, 0, 16); \
         memset(folder->reserved, 0, 16); \
-        uint16_t rec_size = 1 + key->keyLength + sizeof(HFS_CatFolderRec); \
+        uint16_t rec_size = keySpan + sizeof(HFS_CatFolderRec); \
         be16_write(&offsets[-(recNum)], offset); \
         recData += rec_size; \
         offset += rec_size; \
@@ -405,7 +346,9 @@ bool HFS_CreateBlankVolume(void* buffer, uint64_t size, const char* volName) {
         be32_write(&key->parentID, parent); \
         key->nameLength = name_len; \
         memcpy(key->name, name_str, name_len); \
-        HFS_CatFileRec* file = (HFS_CatFileRec*)(recData + 1 + key->keyLength); \
+        uint16_t keySpan = (uint16_t)((1u + key->keyLength + 1u) & ~1u); \
+        if (keySpan > 1u + key->keyLength) recData[1 + key->keyLength] = 0; \
+        HFS_CatFileRec* file = (HFS_CatFileRec*)(recData + keySpan); \
         be16_write(&file->recordType, kHFS_FileRecord); \
         file->flags = 0; \
         file->fileType = 0; \
@@ -419,14 +362,15 @@ bool HFS_CreateBlankVolume(void* buffer, uint64_t size, const char* volName) {
         be32_write(&file->createDate, buildTime); \
         be32_write(&file->modifyDate, buildTime); \
         be32_write(&file->backupDate, 0); \
+        memset(file->userInfo, 0, 16); \
         memset(file->finderInfo, 0, 16); \
-        be32_write(&file->finderInfo[0], type_code); \
-        be32_write(&file->finderInfo[4], creator_code); \
+        be32_write(&file->userInfo[0], type_code); \
+        be32_write(&file->userInfo[4], creator_code); \
         be16_write(&file->clumpSize, 0); \
         memset(file->dataExtents, 0, sizeof(file->dataExtents)); \
         memset(file->rsrcExtents, 0, sizeof(file->rsrcExtents)); \
         be32_write(&file->reserved, 0); \
-        uint16_t rec_size = 1 + key->keyLength + sizeof(HFS_CatFileRec); \
+        uint16_t rec_size = keySpan + sizeof(HFS_CatFileRec); \
         be16_write(&offsets[-(recNum)], offset); \
         recData += rec_size; \
         offset += rec_size; \
@@ -447,9 +391,9 @@ bool HFS_CreateBlankVolume(void* buffer, uint64_t size, const char* volName) {
     #undef ADD_FILE
 
     /* Update MDB to reflect created folders and files */
-    be32_write(&mdb[32], 24);  /* drNxtCNID - next available is 24 */
-    be32_write(&mdb[90], 3);   /* drDirCnt - 3 directories (excluding root) */
-    be32_write(&mdb[86], 5);   /* drFilCnt - 5 files (including TextEdit) */
+    be32_write(&mdb[kMDB_drNxtCNID], 24);  /* drNxtCNID - next available is 24 */
+    be32_write(&mdb[kMDB_drDirCnt], 3);   /* drDirCnt - 3 directories (excluding root) */
+    be32_write(&mdb[kMDB_drFilCnt], 5);   /* drFilCnt - 5 files (including TextEdit) */
 
     /* Initialize Extents B-tree */
     /* Extents start at allocation block 10 (after catalog's 10 blocks) */
@@ -529,39 +473,39 @@ bool HFS_FormatVolume(HFS_BlockDev* bd, const char* volName) {
     uint8_t mdb[512];
     memset(mdb, 0, sizeof(mdb));
 
-    be16_write(&mdb[0], HFS_SIGNATURE);               /* drSigWord */
-    be32_write(&mdb[4], 0);                          /* drCrDate */
-    be32_write(&mdb[8], 0);                          /* drLsMod */
-    be16_write(&mdb[12], 0);                         /* drAtrb */
-    be16_write(&mdb[14], 0);                         /* drNmFls */
-    be16_write(&mdb[16], vbmStart);                  /* drVBMSt */
-    be16_write(&mdb[18], 0);                         /* drAllocPtr */
-    be16_write(&mdb[20], numAlBlks);                 /* drNmAlBlks */
-    be32_write(&mdb[22], alBlkSize);                 /* drAlBlkSiz */
-    be32_write(&mdb[26], 4096);                      /* drClpSiz */
-    be16_write(&mdb[30], alBlSt);                    /* drAlBlSt */
-    be32_write(&mdb[32], 16);                        /* drNxtCNID */
-    be16_write(&mdb[36], numAlBlks - 13);            /* drFreeBks */
+    be16_write(&mdb[kMDB_drSigWord], HFS_SIGNATURE);               /* drSigWord */
+    be32_write(&mdb[kMDB_drCrDate], 0);                          /* drCrDate */
+    be32_write(&mdb[kMDB_drLsMod], 0);                          /* drLsMod */
+    be16_write(&mdb[kMDB_drAtrb], 0);                         /* drAtrb */
+    be16_write(&mdb[kMDB_drNmFls], 0);                         /* drNmFls */
+    be16_write(&mdb[kMDB_drVBMSt], vbmStart);                  /* drVBMSt */
+    be16_write(&mdb[kMDB_drAllocPtr], 0);                         /* drAllocPtr */
+    be16_write(&mdb[kMDB_drNmAlBlks], numAlBlks);                 /* drNmAlBlks */
+    be32_write(&mdb[kMDB_drAlBlkSiz], alBlkSize);                 /* drAlBlkSiz */
+    be32_write(&mdb[kMDB_drClpSiz], 4096);                      /* drClpSiz */
+    be16_write(&mdb[kMDB_drAlBlSt], alBlSt);                    /* drAlBlSt */
+    be32_write(&mdb[kMDB_drNxtCNID], 16);                        /* drNxtCNID */
+    be16_write(&mdb[kMDB_drFreeBks], numAlBlks - 13);            /* drFreeBks */
 
     /* Volume name */
     uint8_t pname[28];
     memset(pname, 0, sizeof(pname));
     cstr_to_pstr(pname, volName, 27);
-    memcpy(&mdb[38], pname, 28);                     /* drVN */
+    memcpy(&mdb[kMDB_drVN], pname, 28);                     /* drVN */
 
     /* Catalog file - 10 allocation blocks */
-    be32_write(&mdb[142], 10 * alBlkSize);           /* drCTFlSize */
-    be16_write(&mdb[146], 0);                        /* drCTExtRec[0].startBlock */
-    be16_write(&mdb[148], 10);                       /* drCTExtRec[0].blockCount */
+    be32_write(&mdb[kMDB_drCTFlSize], 10 * alBlkSize);           /* drCTFlSize */
+    be16_write(&mdb[kMDB_drCTExtRec], 0);                        /* drCTExtRec[0].startBlock */
+    be16_write(&mdb[kMDB_drCTExtRec + 2], 10);                       /* drCTExtRec[0].blockCount */
 
     /* Extents file - 3 allocation blocks */
-    be32_write(&mdb[126], 3 * alBlkSize);            /* drXTFlSize */
-    be16_write(&mdb[130], 10);                       /* drXTExtRec[0].startBlock */
-    be16_write(&mdb[132], 3);                        /* drXTExtRec[0].blockCount */
+    be32_write(&mdb[kMDB_drXTFlSize], 3 * alBlkSize);            /* drXTFlSize */
+    be16_write(&mdb[kMDB_drXTExtRec], 10);                       /* drXTExtRec[0].startBlock */
+    be16_write(&mdb[kMDB_drXTExtRec + 2], 3);                        /* drXTExtRec[0].blockCount */
 
     /* Directories and files count (will be 0 initially, populated later) */
-    be32_write(&mdb[90], 0);                         /* drDirCnt */
-    be32_write(&mdb[86], 0);                         /* drFilCnt */
+    be32_write(&mdb[kMDB_drDirCnt], 0);                         /* drDirCnt */
+    be32_write(&mdb[kMDB_drFilCnt], 0);                         /* drFilCnt */
 
     if (!HFS_BD_WriteSector(bd, HFS_MDB_SECTOR, mdb)) {
         FS_LOG_DEBUG("HFS: Failed to write MDB\n");

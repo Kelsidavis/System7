@@ -10,6 +10,9 @@ typedef enum {
     kBTreeExtents
 } HFS_BTreeType;
 
+/* A catalog in more pieces than this is not read past them. */
+#define kBTMaxExtents 48
+
 /* B-Tree structure */
 typedef struct {
     HFS_Volume*  vol;           /* Volume this B-tree belongs to */
@@ -17,7 +20,10 @@ typedef struct {
 
     /* B-tree parameters */
     uint32_t     fileSize;      /* Total file size */
-    HFS_Extent   extents[3];    /* First 3 extents */
+    /* All the tree file's extents: the three in the MDB, then for the
+     * catalog any more the extents overflow tree holds. */
+    HFS_Extent   extents[kBTMaxExtents];
+    uint16_t     extentCount;
     uint16_t     nodeSize;      /* Size of each node */
     uint32_t     rootNode;      /* Root node number */
     uint32_t     firstLeaf;     /* First leaf node */
