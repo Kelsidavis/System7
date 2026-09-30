@@ -15,7 +15,7 @@
 // #include "CompatibilityFix.h" // Removed
 #include "SystemTypes.h"
 #include "System71StdLib.h"
-#include "ResourceMgr/ResourceMgr.h"
+#include "ResourceManager.h"
 
 #include "MenuManager/MenuManager.h"
 #include "MenuManager/MenuTypes.h"

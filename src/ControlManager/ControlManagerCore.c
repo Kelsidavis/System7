@@ -30,7 +30,7 @@ extern ControlHandle LoadControlFromResource(Handle cntlRes, WindowPtr owner);
 #include "EventManager/EventManager.h"
 #include "DialogManager/DialogManager.h"
 #include "ResourceMgr/resource_types.h"
-#include "ResourceMgr/ResourceMgr.h"
+#include "ResourceManager.h"
 #include "MemoryMgr/MemoryManager.h"
 #include "SystemTypes.h"
 #include "System71StdLib.h"

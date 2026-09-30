@@ -20,7 +20,7 @@
 #include "System71StdLib.h"
 #include "ExtensionManager/ExtensionManager.h"
 #include "ExtensionManager/ExtensionTypes.h"
-#include "ResourceMgr/ResourceMgr.h"
+#include "ResourceManager.h"
 #include "MemoryMgr/MemoryManager.h"
 #include "System/SystemLogging.h"
 #include "EventManager/event_manager.h"

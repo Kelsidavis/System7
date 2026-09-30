@@ -7,8 +7,7 @@
 #include "SystemTypes.h"
 #include "MacTypes.h"
 #include "FileManagerTypes.h"
-#include "ResourceMgr/ResourceMgr.h"
-#include "ResourceMgr/resource_manager.h"
+#include "ResourceManager.h"
 #include "ResourceMgr/ResourceMgrPriv.h"
 #include "ResourceMgr/ResourceLogging.h"
 #include "System71StdLib.h"
@@ -1451,7 +1450,6 @@ void AddResource(Handle theData, ResType theType, ResID theID, ConstStr255Param 
 
     /* Record handle info */
     UInt16 nameOff = (name && name[0] > 0) ? 1 : 0;  /* Simplified name handling */
-    extern Size GetHandleSize(Handle h);
     UInt32 dataLen = GetHandleSize(theData);
     RecordHandleInfo(theData, theType, theID, nameOff, dataLen, gResMgr.curResFile, 0);
 

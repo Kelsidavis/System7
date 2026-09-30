@@ -19,7 +19,7 @@ extern void QD_SetScreenPort(void);
 #include "../include/QuickDraw/QuickDraw.h"
 #include "../include/QuickDraw/DisplayBezel.h"
 #include "../include/QuickDrawConstants.h"
-#include "../include/ResourceMgr/ResourceMgr.h"
+#include "ResourceManager.h"
 #include "../include/MemoryMgr/MemoryManager.h"
 
 #include "../include/MenuManager/MenuManager.h"

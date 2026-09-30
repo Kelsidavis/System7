@@ -12,7 +12,7 @@
 #include <stdbool.h>
 #include <stdint.h>
 #include "SystemTypes.h"
-#include "ResourceMgr/resource_manager.h"
+#include "ResourceManager.h"
 
 #ifdef __cplusplus
 extern "C" {

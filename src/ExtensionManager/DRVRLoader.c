@@ -10,7 +10,7 @@
 #include "System71StdLib.h"
 #include "ExtensionManager/DRVRLoader.h"
 #include "ExtensionManager/ExtensionTypes.h"
-#include "ResourceMgr/ResourceMgr.h"
+#include "ResourceManager.h"
 #include "MemoryMgr/MemoryManager.h"
 #include "System/SystemLogging.h"
 

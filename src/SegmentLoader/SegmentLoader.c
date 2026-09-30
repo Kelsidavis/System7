@@ -7,7 +7,7 @@
 #include "SegmentLoader/SegmentLoader.h"
 #include "SegmentLoader/CodeParser.h"
 #include "SegmentLoader/SegmentLoaderLogging.h"
-#include "ResourceMgr/resource_manager.h"
+#include "ResourceManager.h"
 #include "MemoryMgr/MemoryManager.h"
 #include "EventManager/EventManager.h"
 #include "CPU/M68KInterp.h"

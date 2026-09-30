@@ -9,7 +9,7 @@
 #include "SystemTypes.h"
 #include "System71StdLib.h"
 #include "ExtensionManager/CDEFLoader.h"
-#include "ResourceMgr/ResourceMgr.h"
+#include "ResourceManager.h"
 #include "MemoryMgr/MemoryManager.h"
 #include "ControlManager/ControlManager.h"
 #include "System/SystemLogging.h"

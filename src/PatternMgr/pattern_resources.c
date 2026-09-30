@@ -9,7 +9,7 @@
  */
 
 #include "PatternMgr/pattern_resources.h"
-#include "ResourceMgr/resource_manager.h"
+#include "ResourceManager.h"
 #include "MemoryMgr/MemoryManager.h"
 #include <string.h>
 #include <stdlib.h>

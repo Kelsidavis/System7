@@ -6,7 +6,7 @@
 #ifndef ENABLE_RESOURCES  /* Only compile when not using full ResourceMgr */
 
 #include "SystemTypes.h"
-#include "ResourceMgr/resource_manager.h"
+#include "ResourceManager.h"
 #include <string.h>
 #include <stdlib.h>
 

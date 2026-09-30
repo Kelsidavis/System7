@@ -13,7 +13,7 @@
 /* Include actual System 7.1 headers */
 #include "../include/MacTypes.h"
 #include "../include/QuickDraw/QuickDraw.h"
-#include "../include/ResourceManager.h"
+#include "ResourceManager.h"
 #include "../include/EventManager/EventTypes.h"  /* Include EventTypes first to define activeFlag */
 #include "../include/EventManager/EventManager.h"
 #include "../include/System71StdLib.h"                 /* for serial_printf & friends */
@@ -553,7 +553,6 @@ extern void InitMemoryManager(void);
 extern void InitResourceManager(void);
 
 #ifdef ENABLE_RESOURCES
-#include "ResourceMgr/ResourceMgr.h"
 #endif
 extern void InitGraf(void *globalPtr);
 extern void InitFonts(void);
