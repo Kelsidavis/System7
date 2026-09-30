@@ -130,7 +130,6 @@ void    InitMemoryManager(void);
 void    init_memory_manager(ZonePtr sysZone, ZonePtr applZone);
 
 /* Internal implementation functions */
-bool    SetHandleSize_MemMgr(Handle h, u32 newSize);
 OSErr   memory_manager_handle_prologue(Handle handle, ZonePtr* outZone);
 OSErr   set_handle_size_24bit(Handle h, Size newSize);
 OSErr   set_handle_size_32bit(Handle h, Size newSize);

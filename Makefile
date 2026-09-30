@@ -200,7 +200,6 @@ else
 endif
 
 CFLAGS += -DDEFAULT_GESTALT_MACHINE_TYPE=$(GESTALT_MACHINE_TYPE)
-CFLAGS += -DEXPANDMEM_FULL_IMPL=1
 
 BEZEL_STYLE ?= auto
 ifeq ($(strip $(BEZEL_STYLE)),rounded)
@@ -214,9 +213,6 @@ endif
 # Add feature flags based on configuration
 ifeq ($(ENABLE_RESOURCES),1)
   CFLAGS += -DENABLE_RESOURCES=1
-endif
-ifeq ($(ENABLE_FILEMGR_EXTRA),1)
-  CFLAGS += -DENABLE_FILEMGR_EXTRA=1
 endif
 ifeq ($(ENABLE_PROCESS_COOP),1)
   CFLAGS += -DENABLE_PROCESS_COOP=1
@@ -238,7 +234,6 @@ PATTERN_RESOURCE ?= resources/patterns_authentic_color.json
 # Source files
 C_SOURCES = src/main.c \
             src/boot.c \
-            src/SystemInit.c \
             src/sys71_stubs.c \
             src/System71StdLib.c \
             src/System/SystemTheme.c \
@@ -253,7 +248,6 @@ C_SOURCES = src/main.c \
             src/Finder/AboutThisMac.c \
             src/Finder/GetInfo.c \
             src/Finder/Find.c \
-            src/ExpandMem.c \
             src/QuickDraw/QuickDrawCore.c \
             src/QuickDraw/Bitmaps.c \
             src/QuickDraw/QuickDrawPlatform.c \
@@ -420,11 +414,6 @@ C_SOURCES = src/main.c \
             src/FS/trash.c \
             src/FS/vfs_ops.c \
             src/MemoryMgr/MemoryManager.c \
-            src/MemoryMgr/memory_manager_core.c \
-            src/MemoryMgr/heap_compaction.c \
-            src/MemoryMgr/blockmove_optimization.c \
-            src/MemoryMgr/HandleUtilities.c \
-            src/MemoryMgr/MemoryInitialization.c \
             src/Resources/Icons/hd_icon.c \
             src/color_icons.c \
             src/DeskManager/DeskManagerCore.c \
@@ -546,13 +535,6 @@ C_SOURCES += src/ResourceMgr/ResourceMgr.c \
              src/ResourceMgr/StringResources.c
 endif
 
-# Add FileMgr extra sources if enabled
-ifeq ($(ENABLE_FILEMGR_EXTRA),1)
-C_SOURCES += src/FileMgr/btree_services.c \
-             src/FileMgr/extent_manager.c \
-             src/FileMgr/tfs_dispatch.c \
-             src/FileMgr/volume_manager.c
-endif
 
 # Add Gestalt Manager if enabled
 ifeq ($(ENABLE_GESTALT),1)
@@ -1525,7 +1507,6 @@ build-configurations:
 	@echo ""
 	@echo "FEATURE FLAGS (override in config/*.mk or command line):"
 	@echo "  ENABLE_RESOURCES=1       Enable Resource Manager"
-	@echo "  ENABLE_FILEMGR_EXTRA=1   Enable File Manager extras"
 	@echo "  ENABLE_PROCESS_COOP=1    Enable cooperative scheduling"
 	@echo "  ENABLE_GESTALT=1         Enable Gestalt Manager"
 	@echo "  ENABLE_SCRAP=1           Enable Scrap Manager"

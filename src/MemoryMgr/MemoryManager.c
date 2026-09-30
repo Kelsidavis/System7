@@ -1346,7 +1346,7 @@ bool SetPtrSize(void* p, u32 newSize) {
     return false;  /* Cannot resize in-place without relocating */
 }
 
-bool SetHandleSize_MemMgr(Handle h, u32 newSize) {
+bool SetHandleSize(Handle h, u32 newSize) {
     if (!h || !*h) return false;
 
     ZoneInfo* z = gCurrentZone;
