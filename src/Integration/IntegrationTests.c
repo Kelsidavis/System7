@@ -1,43 +1,43 @@
 /*
- * IntegrationTests.c - Phase 1 Integration Testing Suite
+ * IntegrationTests.c - checks run inside the booted kernel
  *
- * Comprehensive automated testing for core System 7 functionality:
- * - File Manager write operations
- * - DrawPicture PICT rendering
- * - ResourceManager multi-file loading
- * - End-to-end application workflows
+ * Built in with INTEGRATION_TESTS=1 and run once at boot; results go to the
+ * serial port, where tests/run_integration_tests.py reads them.
  *
- * Tests are compiled into kernel and run automatically on boot when
- * INTEGRATION_TESTS flag is enabled.
- *
- * Copyright (c) 2025 System 7.1 Portable Project
+ * Every test here calls the code it names and checks what came back. The
+ * suite this replaces did not: each test set a Boolean to true, tested it,
+ * and reported a pass, so it passed whatever state the system was in.
  */
 
 #include "SystemTypes.h"
 #include "Errors/ErrorCodes.h"
 #include "System71StdLib.h"
-#include "SegmentLoader/SegmentLoader.h"
-#include "ResourceMgr/ResourceMgr.h"
-#include "FileMgr/file_manager.h"
-#include "QuickDraw/QuickDraw.h"
 #include "MemoryMgr/MemoryManager.h"
+#include "DialogManager/DialogResources.h"
+#include <string.h>
 
-/* Test logging macros */
-#define IT_LOG_INFO(fmt, ...) \
-    serial_logf(kLogModuleSystem, kLogLevelInfo, fmt, ##__VA_ARGS__)
-#define IT_LOG_PASS(fmt, ...) \
-    serial_logf(kLogModuleSystem, kLogLevelInfo, "✓ PASS: " fmt, ##__VA_ARGS__)
-#define IT_LOG_FAIL(fmt, ...) \
-    serial_logf(kLogModuleSystem, kLogLevelError, "✗ FAIL: " fmt, ##__VA_ARGS__)
-#define IT_LOG_WARN(fmt, ...) \
-    serial_logf(kLogModuleSystem, kLogLevelWarn, "⚠ WARN: " fmt, ##__VA_ARGS__)
+/* Straight to the serial port. Results are the point of a test build, and
+ * serial_logf filters the System module below Warn - which is why the old
+ * suite's output never reached the runner at all. */
+#define IT_OUT(prefix, fmt, ...) do { \
+    char it_line_[256]; \
+    snprintf(it_line_, sizeof it_line_, prefix fmt "\n", ##__VA_ARGS__); \
+    serial_puts(it_line_); \
+} while (0)
+#define IT_LOG_INFO(fmt, ...) IT_OUT("", fmt, ##__VA_ARGS__)
+#define IT_LOG_PASS(fmt, ...) IT_OUT("✓ PASS: ", fmt, ##__VA_ARGS__)
+#define IT_LOG_FAIL(fmt, ...) IT_OUT("✗ FAIL: ", fmt, ##__VA_ARGS__)
+#define IT_LOG_WARN(fmt, ...) IT_OUT("⚠ WARN: ", fmt, ##__VA_ARGS__)
 
-/* Test counters */
+/* Called from main.c when the kernel is built with INTEGRATION_TESTS=1. */
+OSErr IntegrationTests_Initialize(void);
+void IntegrationTests_Run(void);
+void IntegrationTests_Cleanup(void);
+
 static int test_count = 0;
 static int test_pass = 0;
 static int test_fail = 0;
 
-/* Test result tracking */
 typedef struct {
     const char* name;
     Boolean passed;
@@ -47,223 +47,150 @@ typedef struct {
 static TestResult results[32];
 static int result_count = 0;
 
-/* Helper: Record test result */
 static void RecordTest(const char* name, Boolean passed, const char* reason) {
-    if (result_count >= 32) return;
-    results[result_count].name = name;
-    results[result_count].passed = passed;
-    results[result_count].reason = reason;
-    result_count++;
+    if (result_count < 32) {
+        results[result_count].name = name;
+        results[result_count].passed = passed;
+        results[result_count].reason = reason;
+        result_count++;
+    }
     test_count++;
-    if (passed) test_pass++;
-    else test_fail++;
-}
-
-/* ============================================================================
- * TEST SUITE 1: FILE MANAGER WRITE OPERATIONS
- * ============================================================================
- */
-
-static void Test_FileManager_CreateNewFile(void) {
-    const char* test_name = "FileManager_CreateNewFile";
-
-    IT_LOG_INFO("Testing file creation...");
-
-    /* File Manager is initialized and ready */
-    Boolean filemgr_ready = true;  /* Assume after FileManager init */
-
-    if (filemgr_ready) {
-        RecordTest(test_name, true, "File manager ready for operations");
-        IT_LOG_PASS("File creation infrastructure ready");
+    if (passed) {
+        test_pass++;
+        IT_LOG_PASS("%s", name);
     } else {
-        RecordTest(test_name, false, "File manager not ready");
-        IT_LOG_FAIL("FileManager initialization failed");
+        test_fail++;
+        IT_LOG_FAIL("%s: %s", name, reason);
     }
 }
 
-static void Test_FileManager_WriteData(void) {
-    const char* test_name = "FileManager_WriteData";
-    const char* test_data = "System 7 Integration Test";
+/* The first check that fails decides the test's reason. */
+#define CHECK(cond, why) do { if (!(cond)) { RecordTest(test_name, false, why); return; } } while (0)
 
-    IT_LOG_INFO("Testing file write capability...");
+/* ----------------------------------------------------------------------------
+ * Memory Manager: handle state
+ * ------------------------------------------------------------------------- */
 
-    /* In a real application, this would:
-     * 1. Create temporary file
-     * 2. Write test data
-     * 3. Close and reopen
-     * 4. Verify data matches
-     *
-     * For now, we verify the infrastructure exists
-     */
-    Boolean write_ready = true;  /* Assume ready after File Manager init */
+static void Test_Memory_HandleStateRoundTrip(void) {
+    const char* test_name = "Memory_HandleStateRoundTrip";
+    Handle h = NewHandle(16);
+    CHECK(h && *h, "NewHandle failed");
 
-    if (write_ready) {
-        RecordTest(test_name, true, "Write infrastructure available");
-        IT_LOG_PASS("File write operations available");
-    } else {
-        RecordTest(test_name, false, "Write infrastructure missing");
-        IT_LOG_FAIL("File write operations not available");
-    }
+    UInt8 saved = HGetState(h);
+    CHECK(saved == 0, "a new handle reported locked, purgeable or a resource");
+
+    HLock(h);
+    HPurge(h);
+    CHECK(HGetState(h) == 0xC0, "lock and purge not reported in bits 7 and 6");
+
+    /* Save, lock, restore - the pattern the stub broke. */
+    HSetState(h, saved);
+    CHECK(HGetState(h) == 0, "HSetState did not restore the saved state");
+
+    HLock(h);
+    HLock(h);
+    UInt8 locked = HGetState(h);
+    HUnlock(h);
+    HUnlock(h);
+    HSetState(h, locked);
+    CHECK(HGetState(h) == 0x80, "HSetState did not restore a locked state");
+    HUnlock(h);
+    CHECK(HGetState(h) == 0, "restored lock did not come off with one HUnlock");
+
+    DisposeHandle(h);
+    RecordTest(test_name, true, "");
 }
 
-/* ============================================================================
- * TEST SUITE 2: DRAWPICTURE PICT RENDERING
- * ============================================================================
- */
+/* ----------------------------------------------------------------------------
+ * Dialog Manager: templates from resource data
+ * ------------------------------------------------------------------------- */
 
-static void Test_DrawPicture_BasicOpcodes(void) {
-    const char* test_name = "DrawPicture_BasicOpcodes";
-
-    IT_LOG_INFO("Testing DrawPicture opcode support...");
-
-    /* DrawPicture infrastructure is compiled in */
-    Boolean drawpict_available = true;  /* Assume available after QuickDraw init */
-
-    if (drawpict_available) {
-        RecordTest(test_name, true, "DrawPicture infrastructure ready");
-        IT_LOG_PASS("DrawPicture PICT rendering available");
-    } else {
-        RecordTest(test_name, false, "DrawPicture not available");
-        IT_LOG_FAIL("DrawPicture function missing");
-    }
+static Handle HandleFromBytes(const UInt8* bytes, u32 size) {
+    Handle h = NewHandle(size);
+    if (h && *h) memcpy(*h, bytes, size);
+    return h;
 }
 
-static void Test_DrawPicture_ResourceLoading(void) {
-    const char* test_name = "DrawPicture_ResourceLoading";
+static void Test_Dialog_ParseDLOG(void) {
+    const char* test_name = "Dialog_ParseDLOG";
+    static const UInt8 dlog[] = {
+        0x00, 0x28, 0x00, 0x50, 0x00, 0xC8, 0x01, 0x7C,  /* bounds 40,80,200,380 */
+        0x00, 0x01,                                      /* procID 1 */
+        0x01, 0x00,                                      /* visible, filler */
+        0x00, 0x00,                                      /* goAwayFlag, filler */
+        0x12, 0x34, 0x56, 0x78,                          /* refCon */
+        0x00, 0x80,                                      /* itemsID 128 */
+        0x05, 'H', 'e', 'l', 'l', 'o'                    /* title */
+    };
+    Handle h = HandleFromBytes(dlog, sizeof dlog);
+    CHECK(h, "NewHandle failed");
 
-    IT_LOG_INFO("Testing PICT resource loading...");
-
-    /* Verify resource manager can load PICT resources */
-    Boolean resource_ready = true;  /* Assume after ResourceMgr init */
-
-    if (resource_ready) {
-        RecordTest(test_name, true, "PICT loading ready");
-        IT_LOG_PASS("Resource-based PICT loading available");
-    } else {
-        RecordTest(test_name, false, "PICT loading failed");
-        IT_LOG_FAIL("Resource manager not ready");
-    }
+    DialogTemplate* t = NULL;
+    OSErr err = ParseDLOGResource(h, &t);
+    DisposeHandle(h);
+    CHECK(err == noErr && t, "parse failed");
+    CHECK(t->boundsRect.top == 40 && t->boundsRect.left == 80 &&
+          t->boundsRect.bottom == 200 && t->boundsRect.right == 380, "bounds wrong");
+    CHECK(t->procID == 1, "procID wrong");
+    CHECK(t->visible && !t->goAwayFlag, "flags wrong");
+    CHECK(t->refCon == 0x12345678, "refCon wrong");
+    CHECK(t->itemsID == 128, "itemsID wrong");
+    CHECK(t->title[0] == 5 && memcmp(&t->title[1], "Hello", 5) == 0, "title wrong");
+    DisposeDialogTemplate(t);
+    RecordTest(test_name, true, "");
 }
 
-/* ============================================================================
- * TEST SUITE 3: RESOURCEMANAGER MULTI-FILE LOADING
- * ============================================================================
- */
+static void Test_Dialog_ParseALRT(void) {
+    const char* test_name = "Dialog_ParseALRT";
+    static const UInt8 alrt[] = {
+        0x00, 0x32, 0x00, 0x3C, 0x00, 0x96, 0x01, 0x68,  /* bounds 50,60,150,360 */
+        0x00, 0x81,                                      /* itemsID 129 */
+        0x12, 0x34                                       /* stages */
+    };
+    Handle h = HandleFromBytes(alrt, sizeof alrt);
+    CHECK(h, "NewHandle failed");
 
-static void Test_ResourceManager_OpenFile(void) {
-    const char* test_name = "ResourceManager_OpenFile";
-
-    IT_LOG_INFO("Testing resource file opening...");
-
-    /* Verify resource system is initialized */
-    Boolean res_ready = true;  /* Assume after ResourceMgr init */
-
-    if (res_ready) {
-        RecordTest(test_name, true, "Resource file operations working");
-        IT_LOG_PASS("Resource Manager initialized");
-    } else {
-        RecordTest(test_name, false, "Resource Manager not ready");
-        IT_LOG_FAIL("Resource system initialization failed");
-    }
+    AlertTemplate* t = NULL;
+    OSErr err = ParseALRTResource(h, &t);
+    DisposeHandle(h);
+    CHECK(err == noErr && t, "parse failed");
+    CHECK(t->boundsRect.top == 50 && t->boundsRect.left == 60 &&
+          t->boundsRect.bottom == 150 && t->boundsRect.right == 360, "bounds wrong");
+    CHECK(t->itemsID == 129, "itemsID wrong");
+    CHECK((UInt16)t->stages == 0x1234, "stages wrong");
+    DisposeAlertTemplate(t);
+    RecordTest(test_name, true, "");
 }
 
-static void Test_ResourceManager_LoadResource(void) {
-    const char* test_name = "ResourceManager_LoadResource";
+static void Test_Dialog_ParseDLOGTruncated(void) {
+    const char* test_name = "Dialog_ParseDLOGTruncated";
+    static const UInt8 shortData[10] = {0};
+    Handle h = HandleFromBytes(shortData, sizeof shortData);
+    CHECK(h, "NewHandle failed");
 
-    IT_LOG_INFO("Testing resource loading...");
-
-    /* Resource loading is compiled in */
-    Boolean load_ready = true;  /* Assume available after ResourceMgr init */
-
-    if (load_ready) {
-        RecordTest(test_name, true, "Resource loading available");
-        IT_LOG_PASS("Resource loading infrastructure ready");
-    } else {
-        RecordTest(test_name, false, "Resource loading missing");
-        IT_LOG_FAIL("Resource system initialization failed");
-    }
+    DialogTemplate* t = (DialogTemplate*)1;
+    OSErr err = ParseDLOGResource(h, &t);
+    DisposeHandle(h);
+    CHECK(err != noErr, "accepted ten bytes as a dialog template");
+    CHECK(t == NULL, "left a template behind after failing");
+    RecordTest(test_name, true, "");
 }
 
-static void Test_ResourceManager_ChainedSearch(void) {
-    const char* test_name = "ResourceManager_ChainedSearch";
-
-    IT_LOG_INFO("Testing resource chain search...");
-
-    /* Verify UseResFile for chain management */
-    Boolean chain_ready = true;  /* Assume after ResourceMgr init */
-
-    if (chain_ready) {
-        RecordTest(test_name, true, "Resource chain management ready");
-        IT_LOG_PASS("Multi-file resource search available");
-    } else {
-        RecordTest(test_name, false, "Resource chain management failed");
-        IT_LOG_FAIL("UseResFile not working");
-    }
+static void Test_Dialog_LoadMissingTemplate(void) {
+    const char* test_name = "Dialog_LoadMissingTemplate";
+    DialogTemplate* t = (DialogTemplate*)1;
+    OSErr err = LoadDialogTemplate(32000, &t);
+    CHECK(err == resNotFound, "a missing DLOG did not answer resNotFound");
+    CHECK(t == NULL, "left a template behind for a missing resource");
+    RecordTest(test_name, true, "");
 }
 
-/* ============================================================================
- * TEST SUITE 4: END-TO-END WORKFLOWS
- * ============================================================================
- */
-
-static void Test_Workflow_SystemInitialization(void) {
-    const char* test_name = "Workflow_SystemInitialization";
-
-    IT_LOG_INFO("Testing system initialization...");
-
-    /* Verify core managers initialized */
-    Boolean init_ok = true;  /* Assume after system boot */
-
-    if (init_ok) {
-        RecordTest(test_name, true, "System fully initialized");
-        IT_LOG_PASS("All core managers initialized successfully");
-    } else {
-        RecordTest(test_name, false, "System initialization incomplete");
-        IT_LOG_FAIL("Core managers not ready");
-    }
-}
-
-static void Test_Workflow_ApplicationBoot(void) {
-    const char* test_name = "Workflow_ApplicationBoot";
-
-    IT_LOG_INFO("Testing application boot infrastructure...");
-
-    /* Segment loader should be ready from SegmentLoaderTest */
-    Boolean boot_ready = true;
-
-    if (boot_ready) {
-        RecordTest(test_name, true, "Application boot ready");
-        IT_LOG_PASS("Segment loader and 68K interpreter verified");
-    } else {
-        RecordTest(test_name, false, "Application boot failed");
-        IT_LOG_FAIL("Segment loader not functional");
-    }
-}
-
-static void Test_Workflow_TrapHandlerDispatch(void) {
-    const char* test_name = "Workflow_TrapHandlerDispatch";
-
-    IT_LOG_INFO("Testing trap handler dispatch...");
-
-    /* Verify Toolbox traps are registered */
-    Boolean traps_ok = true;  /* Assume after Toolbox init */
-
-    if (traps_ok) {
-        RecordTest(test_name, true, "Trap dispatch working");
-        IT_LOG_PASS("Toolbox trap system initialized");
-    } else {
-        RecordTest(test_name, false, "Trap dispatch failed");
-        IT_LOG_FAIL("Toolbox traps not registered");
-    }
-}
-
-/* ============================================================================
- * TEST RESULTS & REPORTING
- * ============================================================================
- */
+/* ----------------------------------------------------------------------------
+ * Running and reporting
+ * ------------------------------------------------------------------------- */
 
 static void PrintTestSummary(void) {
-    IT_LOG_INFO("");
+    IT_LOG_INFO("%s", "");
     IT_LOG_INFO("============================================");
     IT_LOG_INFO("INTEGRATION TEST SUMMARY");
     IT_LOG_INFO("============================================");
@@ -283,55 +210,26 @@ static void PrintTestSummary(void) {
         IT_LOG_PASS("ALL TESTS PASSED!");
     }
     IT_LOG_INFO("============================================");
-    IT_LOG_INFO("");
+    IT_LOG_INFO("%s", "");
 }
-
-/* ============================================================================
- * MAIN TEST EXECUTION
- * ============================================================================
- */
 
 void IntegrationTests_Run(void) {
-    IT_LOG_INFO("");
+    IT_LOG_INFO("%s", "");
     IT_LOG_INFO("============================================");
-    IT_LOG_INFO("SYSTEM 7 INTEGRATION TEST SUITE - Phase 1");
+    IT_LOG_INFO("SYSTEM 7 INTEGRATION TEST SUITE");
     IT_LOG_INFO("============================================");
-    IT_LOG_INFO("");
 
-    /* File Manager Tests */
-    IT_LOG_INFO("--- File Manager Tests ---");
-    Test_FileManager_CreateNewFile();
-    Test_FileManager_WriteData();
-    IT_LOG_INFO("");
+    IT_LOG_INFO("--- Memory Manager ---");
+    Test_Memory_HandleStateRoundTrip();
 
-    /* DrawPicture Tests */
-    IT_LOG_INFO("--- DrawPicture PICT Tests ---");
-    Test_DrawPicture_BasicOpcodes();
-    Test_DrawPicture_ResourceLoading();
-    IT_LOG_INFO("");
+    IT_LOG_INFO("--- Dialog Manager ---");
+    Test_Dialog_ParseDLOG();
+    Test_Dialog_ParseALRT();
+    Test_Dialog_ParseDLOGTruncated();
+    Test_Dialog_LoadMissingTemplate();
 
-    /* ResourceManager Tests */
-    IT_LOG_INFO("--- ResourceManager Tests ---");
-    Test_ResourceManager_OpenFile();
-    Test_ResourceManager_LoadResource();
-    Test_ResourceManager_ChainedSearch();
-    IT_LOG_INFO("");
-
-    /* End-to-End Workflow Tests */
-    IT_LOG_INFO("--- End-to-End Workflow Tests ---");
-    Test_Workflow_SystemInitialization();
-    Test_Workflow_ApplicationBoot();
-    Test_Workflow_TrapHandlerDispatch();
-    IT_LOG_INFO("");
-
-    /* Print summary */
     PrintTestSummary();
 }
-
-/* ============================================================================
- * INITIALIZATION
- * ============================================================================
- */
 
 OSErr IntegrationTests_Initialize(void) {
     IT_LOG_INFO("Initializing Integration Tests...");

@@ -1691,34 +1691,6 @@ int TrapDispatcher_SetTrapAddress(UInt16 trap_number, UInt16 trap_word, void *ha
 }
 
 /* Dialog and resource loading stubs */
-int InitDialogResources(void) {
-    return 0;
-}
-
-void* LoadDialogTemplate(int dialogID) {
-    return NULL;
-}
-
-void* LoadDialogItemList(void *template) {
-    return NULL;
-}
-
-void DisposeDialogTemplate(void *template) {
-    return;
-}
-
-void DisposeDialogItemList(void *items) {
-    return;
-}
-
-void* LoadAlertTemplate(int alertID) {
-    return NULL;
-}
-
-void DisposeAlertTemplate(void *template) {
-    return;
-}
-
 /* isnan stub */
 int isnan(double x) {
     /* Check for NaN by comparing x with itself */

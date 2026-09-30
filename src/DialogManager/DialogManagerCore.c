@@ -100,7 +100,6 @@ void InitDialogs(ResumeProcPtr resumeProc)
     /* Initialize subsystems */
     InitModalDialogs();
     InitDialogItems();
-    InitDialogResources();
     InitDialogEvents();
     InitAlertDialogs();
 

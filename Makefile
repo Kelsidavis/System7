@@ -439,7 +439,7 @@ C_SOURCES = src/main.c \
             src/DeskManager/AlarmClock.c \
             src/DeskManager/Chooser.c \
             src/DialogManager/DialogManagerCore.c \
-            src/DialogManager/DialogManagerStubs.c \
+            src/DialogManager/DialogResources.c \
             src/DialogManager/ModalDialogs.c \
             src/DialogManager/AlertDialogs.c \
             src/DialogManager/AlertSmoke.c \
