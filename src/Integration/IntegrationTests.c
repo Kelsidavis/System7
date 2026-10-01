@@ -709,6 +709,7 @@ static void Test_Window_MoveAndZoom(void) {
     Rect before = (*doc->contRgn)->rgnBBox;
     ZoomWindow(doc, inZoomOut + 1 /* inZoomIn */, false);
     Rect zoomed = (*doc->contRgn)->rgnBBox;
+    Boolean zoomedBuffered = doc->offscreenGWorld != NULL;
     ZoomWindow(doc, inZoomOut, false);
     Rect after = (*doc->contRgn)->rgnBBox;
 
@@ -717,6 +718,7 @@ static void Test_Window_MoveAndZoom(void) {
     CHECK(ok, "MoveWindow did not put the content's corner where asked, or changed the frame");
     CHECK(zoomed.top >= 20 && (zoomed.right - zoomed.left) > (before.right - before.left),
           "zooming in did not enlarge the window below the menu bar");
+    CHECK(zoomedBuffered, "the zoomed window lost its offscreen buffer");
     CHECK(after.left == before.left && after.top == before.top &&
           after.right == before.right && after.bottom == before.bottom,
           "zooming back out did not restore the window");

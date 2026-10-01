@@ -109,7 +109,12 @@ static ZoneInfo* gCurrentZone = NULL;
 
 /* Static memory for zones - 8MB total */
 static u8 gSystemHeap[2 * 1024 * 1024];    /* 2MB system heap */
-static u8 gAppHeap[6 * 1024 * 1024];       /* 6MB app heap */
+/* Every window keeps a 32-bit offscreen buffer the size of its content, and
+ * the screen has one of its own: at 800x600 a full-screen buffer is 1.9 MB.
+ * At 6 MB the heap could not hold a zoomed Finder window's buffer once the
+ * screen's and one ordinary window's were taken. */
+#define APP_HEAP_SIZE (24u * 1024 * 1024)
+static u8 gAppHeap[APP_HEAP_SIZE];
 
 /* Master pointer tables */
 static void* gSystemMasters[1024];         /* 1024 system handles */
@@ -1684,7 +1689,7 @@ void InitMemoryManager(void) {
              gAppMasters, sizeof(gAppMasters)/sizeof(void*));
     /* strcpy not available in kernel */
     gAppZone.name[0] = 'A'; gAppZone.name[1] = 0;
-    serial_puts("MM: App Zone initialized (6144 KB)\n");
+    serial_puts("MM: App Zone initialized (24576 KB)\n");
 
     /* Set current zone to app zone */
     gCurrentZone = &gAppZone;

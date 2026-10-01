@@ -66,6 +66,34 @@ typedef struct WindowStateData {
     long stateChecksum;         /* Checksum for state validation */
 } WindowStateData;
 
+/* Windows whose offscreen buffer could not be reallocated on a resize. A
+ * window without a buffer is otherwise taken to have none by choice (About
+ * This Macintosh draws straight to the screen). */
+enum { kMaxLostBuffers = 16 };
+static WindowPtr gLostBuffers[kMaxLostBuffers];
+
+/* Whether theWindow is listed; with mark, list it. */
+Boolean WM_BufferLost(WindowPtr theWindow, Boolean mark) {
+    for (int i = 0; i < kMaxLostBuffers; i++) {
+        if (gLostBuffers[i] == theWindow) return true;
+    }
+    if (mark) {
+        for (int i = 0; i < kMaxLostBuffers; i++) {
+            if (!gLostBuffers[i]) {
+                gLostBuffers[i] = theWindow;
+                break;
+            }
+        }
+    }
+    return false;
+}
+
+void WM_ForgetLostBuffer(WindowPtr theWindow) {
+    for (int i = 0; i < kMaxLostBuffers; i++) {
+        if (gLostBuffers[i] == theWindow) gLostBuffers[i] = NULL;
+    }
+}
+
 
 /* ============================================================================
  * Window Sizing Functions
@@ -177,9 +205,11 @@ void SizeWindow(WindowPtr theWindow, short w, short h, Boolean fUpdate) {
      * i.e. 0xCDCD padding fill and the 0xABAB canary - which then placed icons
      * outside the window, pushed labels off-port, blanked the content and
      * eventually hung. */
-    if (theWindow->offscreenGWorld) {
-        DisposeGWorld(theWindow->offscreenGWorld);
-        theWindow->offscreenGWorld = NULL;
+    if (theWindow->offscreenGWorld || WM_BufferLost(theWindow, false)) {
+        if (theWindow->offscreenGWorld) {
+            DisposeGWorld(theWindow->offscreenGWorld);
+            theWindow->offscreenGWorld = NULL;
+        }
 
         Rect gwRect;
         gwRect.top = 0;
@@ -187,16 +217,18 @@ void SizeWindow(WindowPtr theWindow, short w, short h, Boolean fUpdate) {
         gwRect.right = w;
         gwRect.bottom = h;
 
-        if (w > 0 && h > 0) {
-            GWorldPtr newWorld = NULL;
-            if (NewGWorld(&newWorld, 32, &gwRect, NULL, NULL, 0) == noErr) {
-                theWindow->offscreenGWorld = newWorld;
-            } else {
-                /* Leave it NULL rather than keeping an undersized buffer -
-                 * drawing falls back to the screen port, which is correct if
-                 * less smooth. */
-                serial_puts("[SIZEWND] GWorld realloc failed; double-buffering disabled\n");
-            }
+        GWorldPtr newWorld = NULL;
+        if (w > 0 && h > 0 && NewGWorld(&newWorld, 32, &gwRect, NULL, NULL, 0) == noErr) {
+            theWindow->offscreenGWorld = newWorld;
+            WM_ForgetLostBuffer(theWindow);
+        } else {
+            /* Left NULL rather than keeping an undersized buffer: drawing
+             * goes to the screen through the clip, correct if less smooth.
+             * Remembered, so the next resize tries again - a window that
+             * failed once at full-screen size used to stay unbuffered for
+             * good. */
+            WM_BufferLost(theWindow, true);
+            serial_puts("[SIZEWND] GWorld realloc failed; drawing unbuffered until the next resize\n");
         }
     }
 

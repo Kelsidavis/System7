@@ -460,6 +460,11 @@ WindowManagerState* GetWindowManagerState(void);
 
 /* The desktop's redraw hook, and redrawing what has been invalidated. */
 typedef void (*DeskHookProc)(RgnHandle invalidRgn);
+
+/* Windows whose offscreen buffer failed to reallocate on a resize, so the next
+ * resize tries again (WindowResizing.c). */
+Boolean WM_BufferLost(WindowPtr theWindow, Boolean mark);
+void WM_ForgetLostBuffer(WindowPtr theWindow);
 void SetDeskHook(DeskHookProc proc);
 void WM_Update(void);
 

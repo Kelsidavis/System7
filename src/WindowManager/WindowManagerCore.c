@@ -459,6 +459,7 @@ void CloseWindow(WindowPtr theWindow) {
     }
 
     /* Dispose of offscreen GWorld if it exists */
+    WM_ForgetLostBuffer(theWindow);
     WM_LOG_DEBUG("CloseWindow: About to check offscreenGWorld\n");
     if (theWindow->offscreenGWorld) {
         WM_LOG_DEBUG("CloseWindow: Calling DisposeGWorld\n");
