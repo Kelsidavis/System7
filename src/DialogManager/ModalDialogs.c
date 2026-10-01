@@ -217,8 +217,16 @@ void ModalDialog(ModalFilterProcPtr filterProc, SInt16* itemHit)
 
         /* Idle update pipeline */
         if (evt.what == updateEvt) {
-            /* UpdateDialog handles Begin/EndUpdate internally, don't nest them */
-            UpdateDialog(dlg, ((WindowPtr)dlg)->updateRgn);
+            if ((DialogPtr)(uintptr_t)evt.message == dlg) {
+                /* UpdateDialog handles Begin/EndUpdate internally, don't nest them */
+                UpdateDialog(dlg, ((WindowPtr)dlg)->updateRgn);
+            } else {
+                /* Another window's: its owner draws it. Answering it by
+                 * redrawing the dialog left that window's update pending,
+                 * so the same event came back without end. */
+                extern Boolean HandleUpdate(EventRecord* event);
+                HandleUpdate(&evt);
+            }
         }
     }
 }
