@@ -567,6 +567,18 @@ Boolean HandleKeyDownEvent(EventRecord* event)
         return true;
     }
 
+    /* A Finder window in front takes its keys first: arrows, Tab,
+     * type-ahead, Return to rename, Command-Up and -Down, Command-Delete.
+     * Tab and Return used to go to the desktop icons whatever was in front. */
+    {
+        extern Boolean IsFolderWindow(WindowPtr w);
+        extern Boolean Finder_HandleKey(EventRecord* event);
+        WindowPtr front = FrontWindow();
+        if (front && IsFolderWindow(front) && Finder_HandleKey(event)) {
+            return true;
+        }
+    }
+
     /* Handle special keys without command modifier */
     if (!cmdKeyDown) {
         switch (key) {

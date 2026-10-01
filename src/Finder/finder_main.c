@@ -709,7 +709,7 @@ static void MainEventLoop(void)
 
                 case keyDown:
                 case autoKey:
-                    HandleKeyDown(&event);
+                    Finder_HandleKey(&event);
                     break;
 
                 case updateEvt:
@@ -1029,8 +1029,14 @@ OSErr FindFolder(SInt16 vRefNum, OSType folderType, Boolean createFolder,
 /*
  * HandleKeyDown - Handle keyboard input in Finder
  */
-void HandleKeyDown(EventRecord* event) {
-    if (!event) return;
+/*
+ * The Finder's keys, for when a Finder window is in front; true if handled.
+ * Menu shortcuts are not looked up here: the event dispatcher does that.
+ * This had no caller, so arrows, Tab, type-ahead, Command-Up and -Down and
+ * Command-Delete did nothing in a Finder window.
+ */
+Boolean Finder_HandleKey(EventRecord* event) {
+    if (!event) return false;
 
     /* Extract character code and key code from message */
     char charCode = (char)(event->message & charCodeMask);
@@ -1063,7 +1069,7 @@ void HandleKeyDown(EventRecord* event) {
 
             /* Camera shutter sound */
             SysBeep(1);
-            return;
+            return true;
         }
 
         /* Cmd+Shift+Delete = Empty Trash (power-user shortcut) */
@@ -1076,7 +1082,7 @@ void HandleKeyDown(EventRecord* event) {
                 extern void Finder_Clear(void);
                 Finder_Clear();
             }
-            return;
+            return true;
         }
 
         /* Cmd+Up Arrow = Navigate to parent folder */
@@ -1125,7 +1131,7 @@ void HandleKeyDown(EventRecord* event) {
                         SysBeep(1);  /* Already at root */
                     }
                 }
-                return;
+                return true;
             }
         }
 
@@ -1141,7 +1147,7 @@ void HandleKeyDown(EventRecord* event) {
                 if (!IsFolderWindow(w)) break;  /* Stop at non-folder windows */
                 CloseFinderWindow(w);
             }
-            return;
+            return true;
         }
 
         /* Cmd+` = Cycle to next window (standard Mac OS shortcut) */
@@ -1159,31 +1165,9 @@ void HandleKeyDown(EventRecord* event) {
                     SelectWindow(newFront);
                 }
             }
-            return;
+            return true;
         }
 
-        /* Adjust menu states before MenuKey so disabled items don't trigger */
-        extern void Finder_AdjustMenus(void);
-        Finder_AdjustMenus();
-
-        extern long MenuKey(short ch);
-
-        /* Convert to uppercase for menu matching */
-        char menuChar = charCode;
-        if (menuChar >= 'a' && menuChar <= 'z') {
-            menuChar = menuChar - 'a' + 'A';
-        }
-
-        /* Call MenuKey to find matching menu command */
-        long menuChoice = MenuKey(menuChar);
-
-        if (menuChoice != 0) {
-            /* Found a menu command - extract menuID and item, then execute */
-            short menuID = HiWord(menuChoice);
-            short menuItem = LoWord(menuChoice);
-            DoMenuCommand(menuID, menuItem);
-            return;
-        }
     }
 
     /* Handle special keys without command modifier */
@@ -1192,14 +1176,21 @@ void HandleKeyDown(EventRecord* event) {
         if (charCode == kDeleteKey) {
             extern void Finder_Clear(void);
             Finder_Clear();
-            return;
+            return true;
         }
 
-        /* Return/Enter - open selected items */
+        /* Return/Enter edits the selected item's name, as in System 7;
+         * opening is Command-O or Command-Down. */
         if (charCode == kReturnKey || charCode == kEnterKey) {
-            extern void OpenSelectedItems(void);
-            OpenSelectedItems();
-            return;
+            extern WindowPtr FrontWindow(void);
+            extern Boolean IsFolderWindow(WindowPtr w);
+            extern short FolderWindow_GetSelectedIndex(WindowPtr w);
+            WindowPtr front = FrontWindow();
+            if (front && IsFolderWindow(front)) {
+                short sel = FolderWindow_GetSelectedIndex(front);
+                if (sel >= 0) FolderWindow_RenameItem(front, sel);
+                return true;
+            }
         }
 
         /* Arrow keys - navigate selection in folder windows.
@@ -1218,7 +1209,7 @@ void HandleKeyDown(EventRecord* event) {
                 } else {
                     FolderWindow_ArrowKeyLR(front, charCode == 0x1D);
                 }
-                return;
+                return true;
             }
         }
 
@@ -1231,7 +1222,7 @@ void HandleKeyDown(EventRecord* event) {
             WindowPtr front = FrontWindow();
             if (front && IsFolderWindow(front)) {
                 FolderWindow_TabKey(front, (event->modifiers & shiftKey) != 0);
-                return;
+                return true;
             }
         }
 
@@ -1244,12 +1235,13 @@ void HandleKeyDown(EventRecord* event) {
             WindowPtr front = FrontWindow();
             if (front && IsFolderWindow(front)) {
                 FolderWindow_TypeAhead(front, charCode);
-                return;
+                return true;
             }
         }
     }
 
     /* If we get here, key was not handled */
+    return false;
 }
 
 /*

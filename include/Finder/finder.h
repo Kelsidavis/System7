@@ -69,7 +69,8 @@
 /* Forward Declarations */
 
 /* Finder Event Handling */
-void HandleKeyDown(EventRecord* event);
+Boolean Finder_HandleKey(EventRecord* event);   /* true if the Finder took the key */
+short FolderWindow_GetSelectedIndex(WindowPtr w); /* the selection's anchor, or -1 */
 OSErr HandleContentClick(WindowPtr window, EventRecord* event);
 OSErr CloseFinderWindow(WindowPtr window);
 void DoUpdate(WindowPtr window);

@@ -3466,3 +3466,11 @@ void CleanupFolderWindow(WindowPtr w) {
         }
     }
 }
+
+/* The selected item (the selection's anchor) in a folder window, or -1. */
+short FolderWindow_GetSelectedIndex(WindowPtr w) {
+    FolderWindowState* state = (w && IsFolderWindow(w)) ? GetFolderState(w) : NULL;
+    if (!state || !state->items) return -1;
+    short i = FW_AnchorIndex(state);
+    return (i >= 0 && i < state->itemCount && state->items[i].selected) ? i : -1;
+}

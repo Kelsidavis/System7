@@ -91,8 +91,10 @@ static const UInt8 g_usKeyTransTable[128] = {
     0, '=', '0', '1', '2', '3', '4', '5', '6', '7', 0, '8', '9', 0, 0, 0,
     /* 0x60-0x6F */
     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-    /* 0x70-0x7F */
-    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+    /* 0x70-0x7F: help, home, page up, forward delete, end, page down and the
+     * arrows (left, right, down, up) carry their US layout codes; they were
+     * 0, so no key event was posted and arrow keys did nothing anywhere. */
+    0, 0, 0x05, 0x01, 0x0B, 0x7F, 0, 0x04, 0, 0x0C, 0, 0x1C, 0x1D, 0x1F, 0x1E, 0
 };
 
 /* Shifted character table */
@@ -105,7 +107,13 @@ static const UInt8 g_usShiftedTable[128] = {
     'U', '{', 'I', 'P', 0x0D, 'L', 'J', '"', 'K', ':', '|', '<', '?', 'N', 'M', '>',
     /* 0x30-0x3F */
     0x09, ' ', '~', 0x08, 0, 0x1B, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-    /* Rest same as unshifted for simplicity */
+    /* 0x40-0x7F as unshifted. The comment said so but the rows were not
+     * there, so a shifted keypad or arrow key gave nothing - Shift-arrow
+     * could not extend a selection. */
+    0, '.', 0, '*', 0, '+', 0, 0, 0, 0, 0, '/', 0x03, 0, 0, '-',
+    0, '=', '0', '1', '2', '3', '4', '5', '6', '7', 0, '8', '9', 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0x05, 0x01, 0x0B, 0x7F, 0, 0x04, 0, 0x0C, 0, 0x1C, 0x1D, 0x1F, 0x1E, 0
 };
 
 /* Dead key composition table */

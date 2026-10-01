@@ -100,6 +100,7 @@ extern uint32_t pack_color(uint8_t r, uint8_t g, uint8_t b);
 volatile Boolean gInMouseTracking = false;
 
 /* Index of icon being dragged (-1 if none) */
+static void Desktop_OpenItem(short i);
 static short gDraggingIconIndex = -1;
 
 /* Global Desktop State */
@@ -2054,21 +2055,8 @@ Boolean HandleDesktopClick(Point clickPoint, Boolean doubleClick)
         /* Ensure any ghost from prior drag is erased */
         GhostEraseIf();
 
-        if (it->type == kDesktopItemVolume) {
-            /* Build Pascal string from the icon's actual name */
-            static unsigned char hdTitle[256];
-            int nlen = 0;
-            while (it->name[nlen] && nlen < 255) nlen++;
-            hdTitle[0] = (unsigned char)nlen;
-            memcpy(&hdTitle[1], it->name, nlen);
-            Finder_OpenDesktopItem(false, hdTitle);
-        } else if (it->type == kDesktopItemTrash) {
-            /* Build Pascal string for Trash title */
-            static unsigned char trashTitle[256];
-            memcpy(&trashTitle[1], "Trash", 5);
-            trashTitle[0] = 5;
-            Finder_OpenDesktopItem(true, trashTitle);
-        }
+        (void)it;
+        Desktop_OpenItem(hitIcon);
 
         /* DO NOT post desktop updateEvt - the window will handle its own updates */
         /* Posting updateEvt(0) would trigger DrawDesktop which paints over windows! */
@@ -2200,71 +2188,32 @@ void SelectNextDesktopIcon(void)
 /*
  * OpenSelectedDesktopIcon - Open window for currently selected desktop icon
  */
+/* Open desktop item i the one way: the disk by its own name, or the Trash,
+ * through Finder_OpenDesktopItem, which brings an open window forward. */
+static void Desktop_OpenItem(short i)
+{
+    extern WindowPtr Finder_OpenDesktopItem(Boolean isTrash, ConstStr255Param title);
+    if (i < 0 || i >= gDesktopIconCount) return;
+    DesktopItem *it = &gDesktopIcons[i];
+    unsigned char title[256];
+    if (it->type == kDesktopItemVolume) {
+        int nlen = 0;
+        while (it->name[nlen] && nlen < 255) nlen++;
+        title[0] = (unsigned char)nlen;
+        memcpy(&title[1], it->name, nlen);
+        Finder_OpenDesktopItem(false, title);
+    } else if (it->type == kDesktopItemTrash) {
+        memcpy(&title[1], "Trash", 5);
+        title[0] = 5;
+        Finder_OpenDesktopItem(true, title);
+    }
+}
+
+/* Open the selected desktop item. This made a new window titled "Macintosh
+ * HD" at a fixed place for any disk, every time it was asked. */
 void OpenSelectedDesktopIcon(void)
 {
-
-    FINDER_LOG_DEBUG("OpenSelectedDesktopIcon: selected=%d, count=%d\n",
-                  gSelectedIcon, gDesktopIconCount);
-
-    if (gSelectedIcon < 0 || gSelectedIcon >= gDesktopIconCount) {
-        FINDER_LOG_DEBUG("OpenSelectedDesktopIcon: No icon selected\n");
-        return;
-    }
-
-    /* Check if it's the volume icon */
-    if (gDesktopIcons[gSelectedIcon].type == kDesktopItemVolume) {
-        FINDER_LOG_DEBUG("OpenSelectedDesktopIcon: Opening volume window\n");
-
-        /* Create a folder window for the volume */
-        Rect windowBounds;
-        SetRect(&windowBounds, 100, 60, 500, 360);
-
-        WindowPtr volumeWindow = NewWindow(NULL, &windowBounds,
-                                          PSTR("Macintosh HD"),
-                                          true,  /* visible */
-                                          zoomDocProc,   /* Finder windows zoom */
-                                          (WindowPtr)-1L,  /* frontmost */
-                                          true,  /* goAway box */
-                                          'DISK');  /* refCon to identify as disk window */
-
-        if (volumeWindow) {
-            ShowWindow(volumeWindow);
-            SelectWindow(volumeWindow);
-
-            /* Force update event */
-            InvalRect(&volumeWindow->port.portRect);
-
-            FINDER_LOG_DEBUG("OpenSelectedDesktopIcon: Volume window created successfully\n");
-        } else {
-            FINDER_LOG_DEBUG("OpenSelectedDesktopIcon: Failed to create window\n");
-        }
-    } else if (gDesktopIcons[gSelectedIcon].type == kDesktopItemTrash) {
-        FINDER_LOG_DEBUG("OpenSelectedDesktopIcon: Opening trash window\n");
-
-        /* Create a trash window */
-        Rect windowBounds;
-        SetRect(&windowBounds, 200, 120, 600, 420);
-
-        WindowPtr trashWindow = (WindowPtr)NewWindow(NULL, &windowBounds,
-                                         PSTR("Trash"),
-                                         true,  /* visible */
-                                         zoomDocProc,   /* Finder windows zoom */
-                                         (WindowPtr)-1L,  /* frontmost */
-                                         true,  /* goAway box */
-                                         'TRSH');  /* refCon to identify as trash window */
-
-        if (trashWindow) {
-            ShowWindow(trashWindow);
-            SelectWindow(trashWindow);
-
-            /* Force update event */
-            InvalRect(&trashWindow->port.portRect);
-
-            FINDER_LOG_DEBUG("OpenSelectedDesktopIcon: Trash window created successfully\n");
-        } else {
-            FINDER_LOG_DEBUG("OpenSelectedDesktopIcon: Failed to create trash window\n");
-        }
-    }
+    Desktop_OpenItem(gSelectedIcon);
 }
 
 /*
