@@ -48,10 +48,6 @@
 #define kSTRListSimpleTextMenus       200
 #define kSTRListSimpleTextDialogs     201
 
-/* MacPaint */
-#define kSTRListMacPaintMenus         300
-#define kSTRListMacPaintDialogs       301
-
 /* Window Manager */
 #define kSTRListWindowMgr             400
 

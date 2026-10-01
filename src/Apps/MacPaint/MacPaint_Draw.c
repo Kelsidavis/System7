@@ -1,0 +1,310 @@
+/*
+ * MacPaint_Draw.c - MacPaint's window
+ *
+ * The tool palette and line widths down the left, the pattern palette along
+ * the bottom, and the rest a view of the page: actual size, or in FatBits each
+ * page pixel an 8-pixel square. The page is drawn from gPage, so whatever a
+ * tool has done shows wherever the view is.
+ */
+
+#include <string.h>
+
+#include "MacPaintInternal.h"
+#include "QuickDrawConstants.h"
+
+/* The tool icons, in tool order */
+static const UInt8 kToolIcons[kToolCount][32] = {
+    /* Lasso     */ { 0x00,0x00, 0x07,0xE0, 0x18,0x18, 0x20,0x04, 0x20,0x04, 0x20,0x04, 0x18,0x18, 0x07,0xE0, 0x02,0x00, 0x04,0x00, 0x04,0x00, 0x03,0x00, 0x00,0x80, 0x01,0x00, 0x00,0x00, 0x00,0x00 },
+    /* Select    */ { 0x00,0x00, 0x6D,0xB6, 0x40,0x02, 0x00,0x00, 0x40,0x02, 0x40,0x02, 0x00,0x00, 0x40,0x02, 0x40,0x02, 0x00,0x00, 0x40,0x02, 0x40,0x02, 0x00,0x00, 0x6D,0xB6, 0x00,0x00, 0x00,0x00 },
+    /* Grabber   */ { 0x00,0x00, 0x03,0x00, 0x04,0xE0, 0x04,0x90, 0x04,0x96, 0x04,0x99, 0x34,0x91, 0x4C,0x01, 0x44,0x01, 0x20,0x01, 0x10,0x01, 0x10,0x02, 0x08,0x02, 0x04,0x04, 0x02,0x04, 0x03,0xFC },
+    /* Text      */ { 0x00,0x00, 0x00,0x00, 0x01,0x80, 0x02,0x40, 0x02,0x40, 0x04,0x20, 0x04,0x20, 0x0F,0xF0, 0x08,0x10, 0x10,0x08, 0x10,0x08, 0x38,0x1C, 0x00,0x00, 0x00,0x00, 0x00,0x00, 0x00,0x00 },
+    /* Bucket    */ { 0x00,0x00, 0x01,0x00, 0x02,0x80, 0x04,0x40, 0x0A,0x20, 0x13,0x10, 0x22,0x88, 0x7C,0x44, 0x7C,0x24, 0x7C,0x1C, 0x3C,0x08, 0x1C,0x10, 0x0C,0x20, 0x06,0x40, 0x03,0x80, 0x00,0x00 },
+    /* Spray     */ { 0x00,0x00, 0x00,0x54, 0x00,0x28, 0x00,0x54, 0x1C,0x28, 0x14,0x54, 0x3E,0x00, 0x22,0x00, 0x22,0x00, 0x22,0x00, 0x22,0x00, 0x22,0x00, 0x22,0x00, 0x3E,0x00, 0x00,0x00, 0x00,0x00 },
+    /* Brush     */ { 0x00,0x00, 0x00,0x18, 0x00,0x38, 0x00,0x70, 0x00,0xE0, 0x01,0xC0, 0x03,0x80, 0x06,0x00, 0x0A,0x00, 0x12,0x00, 0x34,0x00, 0x38,0x00, 0x70,0x00, 0x60,0x00, 0x00,0x00, 0x00,0x00 },
+    /* Pencil    */ { 0x00,0x00, 0x00,0x18, 0x00,0x24, 0x00,0x48, 0x00,0x90, 0x01,0x20, 0x02,0x40, 0x04,0x80, 0x09,0x00, 0x12,0x00, 0x1C,0x00, 0x30,0x00, 0x20,0x00, 0x00,0x00, 0x00,0x00, 0x00,0x00 },
+    /* Line      */ { 0x00,0x00, 0x20,0x00, 0x10,0x00, 0x08,0x00, 0x04,0x00, 0x02,0x00, 0x01,0x00, 0x00,0x80, 0x00,0x40, 0x00,0x20, 0x00,0x10, 0x00,0x08, 0x00,0x04, 0x00,0x00, 0x00,0x00, 0x00,0x00 },
+    /* Eraser    */ { 0x00,0x00, 0x00,0x00, 0x01,0xF8, 0x02,0x0C, 0x04,0x14, 0x08,0x24, 0x10,0x48, 0x20,0x90, 0x7F,0x20, 0x41,0x40, 0x41,0x80, 0x7F,0x00, 0x00,0x00, 0x00,0x00, 0x00,0x00, 0x00,0x00 },
+    /* Rect      */ { 0x00,0x00, 0x00,0x00, 0x00,0x00, 0x7F,0xFE, 0x40,0x02, 0x40,0x02, 0x40,0x02, 0x40,0x02, 0x40,0x02, 0x40,0x02, 0x40,0x02, 0x40,0x02, 0x7F,0xFE, 0x00,0x00, 0x00,0x00, 0x00,0x00 },
+    /* RectFill  */ { 0x00,0x00, 0x00,0x00, 0x00,0x00, 0x7F,0xFE, 0x6A,0xAA, 0x55,0x56, 0x6A,0xAA, 0x55,0x56, 0x6A,0xAA, 0x55,0x56, 0x6A,0xAA, 0x55,0x56, 0x7F,0xFE, 0x00,0x00, 0x00,0x00, 0x00,0x00 },
+    /* RRect     */ { 0x00,0x00, 0x00,0x00, 0x00,0x00, 0x3F,0xFC, 0x60,0x06, 0x40,0x02, 0x40,0x02, 0x40,0x02, 0x40,0x02, 0x40,0x02, 0x40,0x02, 0x60,0x06, 0x3F,0xFC, 0x00,0x00, 0x00,0x00, 0x00,0x00 },
+    /* RRectFill */ { 0x00,0x00, 0x00,0x00, 0x00,0x00, 0x3F,0xFC, 0x6A,0xAE, 0x55,0x56, 0x6A,0xAA, 0x55,0x56, 0x6A,0xAA, 0x55,0x56, 0x6A,0xAA, 0x75,0x56, 0x3F,0xFC, 0x00,0x00, 0x00,0x00, 0x00,0x00 },
+    /* Oval      */ { 0x00,0x00, 0x00,0x00, 0x00,0x00, 0x07,0xE0, 0x1C,0x38, 0x30,0x0C, 0x60,0x06, 0x40,0x02, 0x40,0x02, 0x60,0x06, 0x30,0x0C, 0x1C,0x38, 0x07,0xE0, 0x00,0x00, 0x00,0x00, 0x00,0x00 },
+    /* OvalFill  */ { 0x00,0x00, 0x00,0x00, 0x00,0x00, 0x07,0xE0, 0x1E,0xB8, 0x35,0x5C, 0x6A,0xAE, 0x55,0x56, 0x6A,0xAA, 0x75,0x56, 0x3A,0xAC, 0x1D,0x78, 0x07,0xE0, 0x00,0x00, 0x00,0x00, 0x00,0x00 },
+    /* Free      */ { 0x00,0x00, 0x07,0x00, 0x08,0xC0, 0x10,0x20, 0x10,0x10, 0x08,0x08, 0x04,0x08, 0x08,0x04, 0x10,0x04, 0x20,0x08, 0x20,0x10, 0x18,0x60, 0x07,0x80, 0x00,0x00, 0x00,0x00, 0x00,0x00 },
+    /* FreeFill  */ { 0x00,0x00, 0x07,0x00, 0x0A,0xC0, 0x15,0x60, 0x1A,0xB0, 0x0D,0x58, 0x06,0xA8, 0x0D,0x54, 0x1A,0xAC, 0x35,0x58, 0x2A,0xB0, 0x1D,0x60, 0x07,0x80, 0x00,0x00, 0x00,0x00, 0x00,0x00 },
+    /* Poly      */ { 0x00,0x00, 0x02,0x00, 0x05,0x00, 0x08,0x80, 0x10,0x40, 0x20,0x20, 0x40,0x10, 0x40,0x0F, 0x40,0x01, 0x40,0x02, 0x40,0x04, 0x40,0x08, 0x7F,0xF8, 0x00,0x00, 0x00,0x00, 0x00,0x00 },
+    /* PolyFill  */ { 0x00,0x00, 0x02,0x00, 0x07,0x00, 0x0D,0x80, 0x1A,0xC0, 0x35,0x60, 0x6A,0xB0, 0x55,0x5F, 0x6A,0xAB, 0x55,0x56, 0x6A,0xAC, 0x55,0x58, 0x7F,0xF8, 0x00,0x00, 0x00,0x00, 0x00,0x00 },
+};
+
+enum { kFatBits = 8 };
+
+int Draw_Zoom(void) {
+    return gPaint.fatBits ? kFatBits : 1;
+}
+
+void Draw_ViewRect(Rect* r) {
+    SetRect(r, kViewLeft, kViewTop, kViewRight, kViewBottom);
+}
+
+static int FloorDiv(int a, int b) {
+    return a >= 0 ? a / b : -((-a + b - 1) / b);
+}
+
+void Draw_LocalToPage(int lx, int ly, int* px, int* py) {
+    int z = Draw_Zoom();
+    *px = gPaint.viewX + FloorDiv(lx - kViewLeft, z);
+    *py = gPaint.viewY + FloorDiv(ly - kViewTop, z);
+}
+
+void Draw_PageToLocal(int px, int py, int* lx, int* ly) {
+    int z = Draw_Zoom();
+    *lx = kViewLeft + (px - gPaint.viewX) * z;
+    *ly = kViewTop + (py - gPaint.viewY) * z;
+}
+
+void Draw_ScrollTo(int viewX, int viewY) {
+    int z = Draw_Zoom();
+    int maxX = kPageW - (kViewRight - kViewLeft) / z;
+    int maxY = kPageH - (kViewBottom - kViewTop) / z;
+    if (viewX > maxX) viewX = maxX;
+    if (viewY > maxY) viewY = maxY;
+    if (viewX < 0) viewX = 0;
+    if (viewY < 0) viewY = 0;
+    gPaint.viewX = viewX;
+    gPaint.viewY = viewY;
+}
+
+/* ------------------------------------------------------------------------
+ * The palettes
+ * ------------------------------------------------------------------------ */
+
+static void ToolCell(int tool, Rect* r) {
+    int col = tool % 2, row = tool / 2;
+    r->left = (short)(1 + col * kToolCellW);
+    r->top = (short)(1 + row * kToolCellH);
+    r->right = (short)(r->left + kToolCellW);
+    r->bottom = (short)(r->top + kToolCellH);
+}
+
+static void LineCell(int i, Rect* r) {
+    SetRect(r, 1, kLinesTop + i * kLineCellH, kToolsW - 1, kLinesTop + (i + 1) * kLineCellH);
+}
+
+static void PatternCell(int i, Rect* r) {
+    int col = i % kPatCols, row = i / kPatCols;
+    r->left = (short)(kToolsW + 2 + col * kPatCellW);
+    r->top = (short)(kViewBottom + 4 + row * kPatCellH);
+    r->right = (short)(r->left + kPatCellW - 2);
+    r->bottom = (short)(r->top + kPatCellH - 2);
+}
+
+int Draw_ToolAt(int lx, int ly) {
+    for (int t = 0; t < kToolCount; t++) {
+        Rect r;
+        ToolCell(t, &r);
+        if (lx >= r.left && lx < r.right && ly >= r.top && ly < r.bottom) return t;
+    }
+    return -1;
+}
+
+int Draw_LineWidthAt(int lx, int ly) {
+    for (int i = 0; i < kLineWidthCount; i++) {
+        Rect r;
+        LineCell(i, &r);
+        if (lx >= r.left && lx < r.right && ly >= r.top && ly < r.bottom) return i;
+    }
+    return -1;
+}
+
+int Draw_PatternAt(int lx, int ly) {
+    for (int i = 0; i < kPatternCount; i++) {
+        Rect r;
+        PatternCell(i, &r);
+        if (lx >= r.left && lx < r.right && ly >= r.top && ly < r.bottom) return i;
+    }
+    return -1;
+}
+
+static void FillWithPattern(const Rect* r, int index) {
+    Pattern p;
+    memcpy(p.pat, kPatterns[index], 8);
+    FillRect(r, &p);
+}
+
+void Draw_Palettes(void) {
+    WindowPtr w = MacPaint_Window();
+    if (!w) return;
+    GrafPtr save;
+    GetPort(&save);
+    SetPort((GrafPtr)w);
+    PenNormal();
+    ForeColor(blackColor);
+    BackColor(whiteColor);
+
+    /* Tools */
+    Rect area = { 0, 0, kViewBottom, kToolsW };
+    EraseRect(&area);
+    for (int t = 0; t < kToolCount; t++) {
+        Rect cell;
+        ToolCell(t, &cell);
+        FrameRect(&cell);
+        BitMap icon;
+        icon.baseAddr = (Ptr)(uintptr_t)kToolIcons[t];
+        icon.rowBytes = 2;
+        SetRect(&icon.bounds, 0, 0, 16, 16);
+        Rect dst;
+        SetRect(&dst, cell.left + (kToolCellW - 16) / 2, cell.top + (kToolCellH - 16) / 2,
+                cell.left + (kToolCellW - 16) / 2 + 16, cell.top + (kToolCellH - 16) / 2 + 16);
+        CopyBits(&icon, &((GrafPtr)w)->portBits, &icon.bounds, &dst, srcCopy, NULL);
+        if (t == gPaint.tool) {
+            InsetRect(&cell, 1, 1);
+            InvertRect(&cell);
+        }
+    }
+
+    /* Line widths, the current one checked */
+    for (int i = 0; i < kLineWidthCount; i++) {
+        Rect cell;
+        LineCell(i, &cell);
+        int lw = kLineWidths[i];
+        int mid = (cell.top + cell.bottom) / 2;
+        Rect bar = { (short)(mid - lw / 2), 22, (short)(mid - lw / 2 + lw), (short)(kToolsW - 8) };
+        PaintRect(&bar);
+        if (i == gPaint.lineWidth) {
+            MoveTo(6, mid);
+            LineTo(9, mid + 3);
+            LineTo(15, mid - 3);
+        }
+    }
+
+    /* The right edge of the palettes, and the top of the pattern bar */
+    MoveTo(kToolsW - 1, 0);
+    LineTo(kToolsW - 1, kViewBottom - 1);
+
+    Rect bar = { kViewBottom, 0, kWinH, kWinW };
+    EraseRect(&bar);
+    MoveTo(0, kViewBottom);
+    LineTo(kWinW - 1, kViewBottom);
+
+    /* The pattern in use, then the palette */
+    Rect current = { kViewBottom + 5, 6, kWinH - 5, kToolsW - 8 };
+    FillWithPattern(&current, gPaint.pattern);
+    FrameRect(&current);
+    for (int i = 0; i < kPatternCount; i++) {
+        Rect cell;
+        PatternCell(i, &cell);
+        FillWithPattern(&cell, i);
+        FrameRect(&cell);
+    }
+
+    SetPort(save);
+}
+
+/* ------------------------------------------------------------------------
+ * The page
+ * ------------------------------------------------------------------------ */
+
+static void PageBits(BitMap* bm) {
+    bm->baseAddr = (Ptr)gPage;
+    bm->rowBytes = kPageRowBytes;
+    SetRect(&bm->bounds, 0, 0, kPageW, kPageH);
+}
+
+/* The page rectangle the view shows */
+static void VisiblePage(Rect* r) {
+    int z = Draw_Zoom();
+    SetRect(r, gPaint.viewX, gPaint.viewY,
+            gPaint.viewX + (kViewRight - kViewLeft) / z,
+            gPaint.viewY + (kViewBottom - kViewTop) / z);
+    if (r->right > kPageW) r->right = kPageW;
+    if (r->bottom > kPageH) r->bottom = kPageH;
+}
+
+static void PixelRect(int px, int py, Rect* r) {
+    int lx, ly, z = Draw_Zoom();
+    Draw_PageToLocal(px, py, &lx, &ly);
+    SetRect(r, lx, ly, lx + z, ly + z);
+}
+
+void Draw_PageArea(const Rect* pageRect) {
+    WindowPtr w = MacPaint_Window();
+    if (!w) return;
+    Rect vis, area;
+    VisiblePage(&vis);
+    if (!SectRect(pageRect, &vis, &area)) return;
+
+    GrafPtr save;
+    GetPort(&save);
+    SetPort((GrafPtr)w);
+    PenNormal();
+    ForeColor(blackColor);
+    BackColor(whiteColor);
+
+    int z = Draw_Zoom();
+    if (z == 1) {
+        BitMap bm;
+        PageBits(&bm);
+        Rect dst = area;
+        OffsetRect(&dst, kViewLeft - gPaint.viewX, kViewTop - gPaint.viewY);
+        CopyBits(&bm, &((GrafPtr)w)->portBits, &area, &dst, srcCopy, NULL);
+    } else {
+        /* FatBits: each pixel a square, with a white line between them */
+        Rect local;
+        int l, t;
+        Draw_PageToLocal(area.left, area.top, &l, &t);
+        SetRect(&local, l, t, l + (area.right - area.left) * z, t + (area.bottom - area.top) * z);
+        EraseRect(&local);
+        for (int y = area.top; y < area.bottom; y++) {
+            for (int x = area.left; x < area.right; x++) {
+                if (!Page_IsBlack(x, y)) continue;
+                Rect cell;
+                PixelRect(x, y, &cell);
+                cell.right--;
+                cell.bottom--;
+                PaintRect(&cell);
+            }
+        }
+    }
+
+    /* The selection's outline, in dashes */
+    if (Edit_HasSelection()) {
+        for (int y = area.top; y < area.bottom; y++) {
+            for (int x = area.left; x < area.right; x++) {
+                if (!Sel_IsEdge(x, y)) continue;
+                Rect cell;
+                PixelRect(x, y, &cell);
+                if (((x + y) >> 2) & 1) PaintRect(&cell);
+                else EraseRect(&cell);
+            }
+        }
+    }
+
+    /* The text insertion point */
+    int cx, ctop, ch;
+    if (Text_Caret(&cx, &ctop, &ch)) {
+        int lx, ly;
+        Draw_PageToLocal(cx, ctop, &lx, &ly);
+        Rect caret = { (short)ly, (short)lx, (short)(ly + ch * z), (short)(lx + (z > 1 ? z : 1)) };
+        Rect view;
+        Draw_ViewRect(&view);
+        if (SectRect(&caret, &view, &caret)) PaintRect(&caret);
+    }
+
+    SetPort(save);
+}
+
+void Draw_Window(void) {
+    WindowPtr w = MacPaint_Window();
+    if (!w) return;
+    GrafPtr save;
+    GetPort(&save);
+    SetPort((GrafPtr)w);
+    Rect view;
+    Draw_ViewRect(&view);
+    EraseRect(&view);
+    SetPort(save);
+
+    Draw_Palettes();
+    Rect all = { 0, 0, kPageH, kPageW };
+    Draw_PageArea(&all);
+}

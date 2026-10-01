@@ -1565,6 +1565,7 @@ static const char* GetFileKindString(const FolderItem* item) {
         case 0x4150504C: return "application";      /* 'APPL' */
         case 0x54455854: return "text document";     /* 'TEXT' */
         case 0x50494354: return "picture";           /* 'PICT' */
+        case 0x504E5447: return "MacPaint document"; /* 'PNTG' */
         case 0x73637462: return "color table";       /* 'sctb' */
         case 0x73746E72: return "stationery pad";    /* 'stnr' */
         case 0x616C6973: return "alias";             /* 'alis' */
@@ -2749,6 +2750,10 @@ static void FolderWindow_OpenFileNamed(FolderWindowState* state,
         /* Load file content into SimpleText window */
         SimpleText_OpenFile(fullPath);
         FINDER_LOG_DEBUG("FW: Opened file '%s' in SimpleText\n", name);
+    } else if (itemType == 'PNTG') {
+        /* A painting: MacPaint opens it from where it is */
+        extern void MacPaint_OpenDocument(VRefNum vref, DirID dir, const char* name);
+        MacPaint_OpenDocument(state->vref, state->currentDir, name);
     } else if (itemType == 'APPL') {
         /* Application file */
         if (strcmp(name, "TextEdit") == 0) {

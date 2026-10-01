@@ -1,1030 +1,1143 @@
 /*
- * MacPaint_Tools.c - MacPaint Drawing Tools Implementation
+ * MacPaint_Tools.c - the page and everything that changes it
  *
- * Complete implementation of all MacPaint drawing tools:
- * - Pencil/Brush: Freehand drawing with patterns
- * - Line: Straight lines using Bresenham's algorithm
- * - Rectangle: Rectangles (filled and outline)
- * - Oval/Circle: Circles using Midpoint algorithm
- * - Fill: Flood fill algorithm
- * - Eraser: Pixel clearing
- * - Spray/Airbrush: Random pixel placement
- * - Lasso: Freeform selection
- * - Selection: Rectangular selection
+ * The page is one bitmap. A gesture that shows something while the button is
+ * held - a shape being pulled out, a selection being dragged, text being
+ * typed - takes a snapshot of the page when it starts and, at each step, puts
+ * the snapshot back and draws the step on it. The window draws whatever part
+ * of the page a change touched (Page_TakeDirty), so a tool never draws on the
+ * screen itself.
  *
- * All algorithms ported from original 68k assembly PaintAsm.a
+ * Undo is one level, as in MacPaint: the page before the last change, and
+ * Undo swaps the two, so a second Undo puts the change back.
  */
 
-#include "SystemTypes.h"
-#include "Apps/MacPaint.h"
-#include "QuickDraw/QuickDraw.h"
-#include "FontManager/FontManager.h"
-#include "chicago_font.h"
-#include "System71StdLib.h"
-#include "MemoryMgr/MemoryManager.h"
 #include <string.h>
 
-/* Tool state tracking */
-typedef struct {
-    int lastX, lastY;           /* Last mouse position for continuous drawing */
-    int startX, startY;          /* Starting position for line/rect/oval */
-    int currentX, currentY;      /* Current mouse position */
-    int isDrawing;              /* Currently drawing (mouse button down) */
-} ToolState;
+#include "MacPaintInternal.h"
+#include "EventManager/EventManager.h"
+#include "chicago_font.h"
 
-static ToolState gToolState = {0, 0, 0, 0, 0, 0, 0};
+extern UInt32 TickCount(void);
 
-/* External paint buffer from MacPaint_Core */
-extern BitMap gPaintBuffer;
+/* MacPaint's patterns, as its palette shows them */
+const UInt8 kPatterns[kPatternCount][8] = {
+    { 0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF }, { 0xDD,0xFF,0x77,0xFF,0xDD,0xFF,0x77,0xFF },
+    { 0xDD,0x77,0xDD,0x77,0xDD,0x77,0xDD,0x77 }, { 0xAA,0xFF,0xAA,0xFF,0xAA,0xFF,0xAA,0xFF },
+    { 0x55,0xFF,0x55,0xFF,0x55,0xFF,0x55,0xFF }, { 0xAA,0xAA,0xAA,0xAA,0xAA,0xAA,0xAA,0xAA },
+    { 0xEE,0xDD,0xBB,0x77,0xEE,0xDD,0xBB,0x77 }, { 0x88,0x88,0x88,0x88,0x88,0x88,0x88,0x88 },
+    { 0xB1,0x30,0x03,0x1B,0xD8,0xC0,0x0C,0x8D }, { 0x80,0x10,0x02,0x20,0x01,0x08,0x40,0x04 },
+    { 0xFF,0x88,0x88,0x88,0xFF,0x88,0x88,0x88 }, { 0xFF,0x80,0x80,0x80,0xFF,0x08,0x08,0x08 },
+    { 0x80,0x00,0x00,0x00,0x00,0x00,0x00,0x00 }, { 0x80,0x40,0x20,0x00,0x02,0x04,0x08,0x00 },
+    { 0x82,0x44,0x39,0x44,0x82,0x01,0x01,0x01 }, { 0xF8,0x74,0x22,0x47,0x8F,0x17,0x22,0x71 },
+    { 0x55,0xA0,0x40,0x40,0x55,0x0A,0x04,0x04 }, { 0x20,0x50,0x88,0x88,0x88,0x88,0x05,0x02 },
+    { 0xBF,0x00,0xBF,0xBF,0xB0,0xB0,0xB0,0xB0 }, { 0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00 },
+    { 0x80,0x00,0x08,0x00,0x80,0x00,0x08,0x00 }, { 0x88,0x00,0x22,0x00,0x88,0x00,0x22,0x00 },
+    { 0x88,0x22,0x88,0x22,0x88,0x22,0x88,0x22 }, { 0xAA,0x00,0xAA,0x00,0xAA,0x00,0xAA,0x00 },
+    { 0xFF,0x00,0xFF,0x00,0xFF,0x00,0xFF,0x00 }, { 0x11,0x22,0x44,0x88,0x11,0x22,0x44,0x88 },
+    { 0xFF,0x00,0x00,0x00,0xFF,0x00,0x00,0x00 }, { 0x01,0x02,0x04,0x08,0x10,0x20,0x40,0x80 },
+    { 0xAA,0x00,0x80,0x00,0x88,0x00,0x80,0x00 }, { 0xFF,0x80,0x80,0x80,0x80,0x80,0x80,0x80 },
+    { 0x08,0x1C,0x22,0xC1,0x80,0x01,0x02,0x04 }, { 0x88,0x14,0x22,0x41,0x88,0x00,0xAA,0x00 },
+    { 0x40,0xA0,0x00,0x00,0x04,0x0A,0x00,0x00 }, { 0x03,0x84,0x48,0x30,0x0C,0x02,0x01,0x01 },
+    { 0x80,0x80,0x41,0x3E,0x08,0x08,0x14,0xE3 }, { 0x10,0x20,0x54,0xAA,0xFF,0x02,0x04,0x08 },
+    { 0x77,0x89,0x8F,0x8F,0x77,0x98,0xF8,0xF8 }, { 0x00,0x08,0x14,0x2A,0x55,0x2A,0x14,0x08 },
+};
 
-/*
- * DRAWING PRIMITIVES
- */
+const int kLineWidths[kLineWidthCount] = { 1, 2, 3, 5, 8 };
 
-/**
- * MacPaint_DrawPixel - Draw a single pixel with current pattern and mode
- * mode: 0=replace, 1=OR (paint), 2=XOR (invert), 3=AND (erase)
- */
-static void MacPaint_DrawPixel(int x, int y, int mode)
-{
-    if (x < 0 || y < 0 || x >= gPaintBuffer.bounds.right || y >= gPaintBuffer.bounds.bottom) {
+PaintState gPaint = { kToolPencil, 0, 0, false, false, 0, 0 };
+
+UInt8 gPage[kPageBytes];
+static UInt8 gSnapshot[kPageBytes];     /* the page when the gesture began */
+static UInt8 gUndo[kPageBytes];
+static Boolean gUndoValid = false;
+static UInt8 gTemp[kPageBytes];         /* scratch: fill region, the page under a move */
+static UInt8 gSelMask[kPageBytes];      /* the selection, a bit per page pixel */
+static UInt8 gMoveBits[kPageBytes];     /* the page as a move started */
+static UInt8 gClipBits[kPageBytes];     /* the clipboard, at the page's origin */
+static UInt8 gClipMask[kPageBytes];
+
+/* ------------------------------------------------------------------------
+ * Bits
+ * ------------------------------------------------------------------------ */
+
+#define BIT(x) ((UInt8)(0x80 >> ((x) & 7)))
+
+static inline Boolean InPage(int x, int y) {
+    return (unsigned)x < kPageW && (unsigned)y < kPageH;
+}
+static inline Boolean GetBit(const UInt8* b, int x, int y) {
+    return (b[y * kPageRowBytes + (x >> 3)] & BIT(x)) != 0;
+}
+static inline void SetBit(UInt8* b, int x, int y, Boolean on) {
+    UInt8* p = &b[y * kPageRowBytes + (x >> 3)];
+    if (on) *p |= BIT(x); else *p &= (UInt8)~BIT(x);
+}
+
+Boolean Page_IsBlack(int x, int y) {
+    return InPage(x, y) && GetBit(gPage, x, y);
+}
+
+/* ------------------------------------------------------------------------
+ * What changed
+ * ------------------------------------------------------------------------ */
+
+static Rect gDirty;         /* changed and not yet drawn */
+static Rect gSinceSnap;     /* drawn since the snapshot */
+
+static Boolean RectEmpty(const Rect* r) {
+    return r->right <= r->left || r->bottom <= r->top;
+}
+static void Grow(Rect* r, int l, int t, int rr, int b) {
+    if (RectEmpty(r)) {
+        SetRect(r, l, t, rr, b);
         return;
     }
+    if (l < r->left) r->left = l;
+    if (t < r->top) r->top = t;
+    if (rr > r->right) r->right = rr;
+    if (b > r->bottom) r->bottom = b;
+}
 
-    int byteOffset = (y * gPaintBuffer.rowBytes) + (x / 8);
-    int bitOffset = 7 - (x % 8);
-    unsigned char *byte_ptr = (unsigned char *)gPaintBuffer.baseAddr + byteOffset;
+void Page_MarkDirty(const Rect* r) {
+    if (!RectEmpty(r)) Grow(&gDirty, r->left, r->top, r->right, r->bottom);
+}
 
-    switch (mode) {
-        case 0: /* Replace - set pixel */
-            *byte_ptr |= (1 << bitOffset);
-            break;
-        case 1: /* OR (paint with pattern) */
-            *byte_ptr |= (1 << bitOffset);
-            break;
-        case 2: /* XOR (invert) */
-            *byte_ptr ^= (1 << bitOffset);
-            break;
-        case 3: /* AND (erase) */
-            *byte_ptr &= ~(1 << bitOffset);
-            break;
+Boolean Page_TakeDirty(Rect* r) {
+    if (RectEmpty(&gDirty)) return false;
+    *r = gDirty;
+    SetRect(&gDirty, 0, 0, 0, 0);
+    return true;
+}
+
+static void MarkAll(void) {
+    Rect all = { 0, 0, kPageH, kPageW };
+    Page_MarkDirty(&all);
+}
+
+static void Put(int x, int y, Boolean black) {
+    if (!InPage(x, y)) return;
+    SetBit(gPage, x, y, black);
+    Grow(&gDirty, x, y, x + 1, y + 1);
+    Grow(&gSinceSnap, x, y, x + 1, y + 1);
+}
+
+static Boolean PatBit(int x, int y) {
+    return (kPatterns[gPaint.pattern][y & 7] & BIT(x)) != 0;
+}
+static void PutPat(int x, int y) {
+    Put(x, y, PatBit(x, y));
+}
+
+/* ------------------------------------------------------------------------
+ * Snapshot and undo
+ * ------------------------------------------------------------------------ */
+
+static void Snap(void) {
+    memcpy(gSnapshot, gPage, kPageBytes);
+    SetRect(&gSinceSnap, 0, 0, 0, 0);
+}
+
+/* Put back what was drawn since the snapshot */
+static void Restore(void) {
+    if (RectEmpty(&gSinceSnap)) return;
+    int top = gSinceSnap.top < 0 ? 0 : gSinceSnap.top;
+    int bottom = gSinceSnap.bottom > kPageH ? kPageH : gSinceSnap.bottom;
+    if (bottom > top) {
+        memcpy(&gPage[top * kPageRowBytes], &gSnapshot[top * kPageRowBytes],
+               (size_t)(bottom - top) * kPageRowBytes);
+    }
+    Page_MarkDirty(&gSinceSnap);
+    SetRect(&gSinceSnap, 0, 0, 0, 0);
+}
+
+static void SaveUndo(void) {
+    memcpy(gUndo, gPage, kPageBytes);
+    gUndoValid = true;
+}
+
+Boolean Edit_CanUndo(void) {
+    return gUndoValid;
+}
+
+/* ------------------------------------------------------------------------
+ * Pens
+ * ------------------------------------------------------------------------ */
+
+typedef void (*PlotFn)(int x, int y);
+
+static void DrawSeg(int x0, int y0, int x1, int y1, PlotFn plot) {
+    int dx = x1 > x0 ? x1 - x0 : x0 - x1;
+    int dy = y1 > y0 ? y0 - y1 : y1 - y0;
+    int sx = x0 < x1 ? 1 : -1, sy = y0 < y1 ? 1 : -1;
+    int err = dx + dy;
+    for (;;) {
+        plot(x0, y0);
+        if (x0 == x1 && y0 == y1) break;
+        int e2 = 2 * err;
+        if (e2 >= dy) { err += dy; x0 += sx; }
+        if (e2 <= dx) { err += dx; y0 += sy; }
     }
 }
 
-/*
- * LINE DRAWING - Bresenham's Algorithm
- */
+static int PenW(void) {
+    return kLineWidths[gPaint.lineWidth];
+}
 
-/**
- * MacPaint_DrawLineAlgo - Draw line from (x0,y0) to (x1,y1)
- * Uses Bresenham's line algorithm for efficient rasterization
- */
-void MacPaint_DrawLineAlgo(int x0, int y0, int x1, int y1, int mode)
-{
-    int dx = (x1 > x0) ? (x1 - x0) : (x0 - x1);
-    int dy = (y1 > y0) ? (y1 - y0) : (y0 - y1);
-    int sx = (x0 < x1) ? 1 : -1;
-    int sy = (y0 < y1) ? 1 : -1;
-    int err = dx - dy;
-    int e2;
+/* Lines and borders: a square pen of the line width, in black */
+static void PenAt(int x, int y) {
+    int w = PenW();
+    for (int dy = 0; dy < w; dy++)
+        for (int dx = 0; dx < w; dx++)
+            Put(x + dx, y + dy, true);
+}
 
-    int x = x0;
-    int y = y0;
+/* The paintbrush: a round brush, painting the pattern */
+static const UInt8 kBrush[6] = { 0x78, 0xFC, 0xFC, 0xFC, 0xFC, 0x78 };
+static void BrushAt(int x, int y) {
+    for (int r = 0; r < 6; r++)
+        for (int c = 0; c < 6; c++)
+            if (kBrush[r] & (0x80 >> c)) PutPat(x - 3 + c, y - 3 + r);
+}
 
-    /* Safety limit to prevent infinite loops in case of coordinate corruption */
-    int maxIterations = dx + dy + 1;
-    int iterations = 0;
+/* The eraser: a 16-pixel square on the screen, so smaller on the page in
+ * FatBits */
+static void EraserAt(int x, int y) {
+    int s = 16 / Draw_Zoom();
+    if (s < 1) s = 1;
+    for (int dy = 0; dy < s; dy++)
+        for (int dx = 0; dx < s; dx++)
+            Put(x - s / 2 + dx, y - s / 2 + dy, false);
+}
 
-    while (iterations < maxIterations) {
-        MacPaint_DrawPixel(x, y, mode);
+/* The pencil draws white where it starts on black, black otherwise */
+static Boolean gPencilBlack;
+static void PencilAt(int x, int y) {
+    Put(x, y, gPencilBlack);
+}
 
-        if (x == x1 && y == y1) break;
-
-        e2 = 2 * err;
-        if (e2 > -dy) {
-            err = err - dy;
-            x = x + sx;
-        }
-        if (e2 < dx) {
-            err = err + dx;
-            y = y + sy;
-        }
-        iterations++;
+/* The airbrush: a few dots of the pattern each tick, within a circle */
+static UInt32 gSeed = 12345;
+static int Rand(int n) {
+    gSeed = gSeed * 1103515245u + 12345u;
+    return (int)((gSeed >> 16) % (UInt32)n);
+}
+static UInt32 gLastSprayTick;
+static void SprayAt(int x, int y) {
+    UInt32 now = TickCount();
+    if (now == gLastSprayTick) return;
+    gLastSprayTick = now;
+    for (int i = 0; i < 10; i++) {
+        int dx = Rand(17) - 8, dy = Rand(17) - 8;
+        if (dx * dx + dy * dy <= 64) PutPat(x + dx, y + dy);
     }
 }
 
-/*
- * CIRCLE/OVAL DRAWING - Midpoint Circle Algorithm
- */
-
-/**
- * MacPaint_DrawOvalAlgo - Draw oval/circle using Midpoint algorithm
- * Draws from center (cx, cy) with radii rx (horizontal) and ry (vertical)
- */
-void MacPaint_DrawOvalAlgo(int cx, int cy, int rx, int ry, int filled, int mode)
-{
-    if (rx <= 0 || ry <= 0) return;
-
-    /* For circles, both radii are equal */
-    int d, x, y;
-
-    if (rx == ry) {
-        /* Circle - use simple midpoint algorithm */
-        x = 0;
-        y = rx;
-        d = 3 - 2 * rx;
-
-        while (x <= y) {
-            if (filled) {
-                /* Draw horizontal line at each y level */
-                MacPaint_DrawLineAlgo(cx - x, cy + y, cx + x, cy + y, mode);
-                MacPaint_DrawLineAlgo(cx - x, cy - y, cx + x, cy - y, mode);
-                MacPaint_DrawLineAlgo(cx - y, cy + x, cx + y, cy + x, mode);
-                MacPaint_DrawLineAlgo(cx - y, cy - x, cx + y, cy - x, mode);
-            } else {
-                /* Draw 8 symmetry points */
-                MacPaint_DrawPixel(cx + x, cy + y, mode);
-                MacPaint_DrawPixel(cx - x, cy + y, mode);
-                MacPaint_DrawPixel(cx + x, cy - y, mode);
-                MacPaint_DrawPixel(cx - x, cy - y, mode);
-                MacPaint_DrawPixel(cx + y, cy + x, mode);
-                MacPaint_DrawPixel(cx - y, cy + x, mode);
-                MacPaint_DrawPixel(cx + y, cy - x, mode);
-                MacPaint_DrawPixel(cx - y, cy - x, mode);
-            }
-
-            if (d < 0) {
-                d = d + 4 * x + 6;
-            } else {
-                d = d + 4 * (x - y) + 10;
-                y--;
-            }
-            x++;
-        }
-    } else {
-        /* Ellipse - midpoint algorithm, one quadrant mirrored four ways. The
-         * parametric version here moved y in a straight line down, so an
-         * "oval" was a fan of slanted strokes. */
-        long rx2 = (long)rx * rx, ry2 = (long)ry * ry;
-        long px = 0, py = 2 * rx2 * ry;
-        long p;
-        x = 0;
-        y = ry;
-
-        #define OVAL_PLOT() do { \
-            if (filled) { \
-                MacPaint_DrawLineAlgo(cx - x, cy + y, cx + x, cy + y, mode); \
-                MacPaint_DrawLineAlgo(cx - x, cy - y, cx + x, cy - y, mode); \
-            } else { \
-                MacPaint_DrawPixel(cx + x, cy + y, mode); \
-                MacPaint_DrawPixel(cx - x, cy + y, mode); \
-                MacPaint_DrawPixel(cx + x, cy - y, mode); \
-                MacPaint_DrawPixel(cx - x, cy - y, mode); \
-            } \
-        } while (0)
-
-        /* Region 1: slope shallower than -1 */
-        p = ry2 - rx2 * ry + rx2 / 4;
-        while (px < py) {
-            OVAL_PLOT();
-            x++;
-            px += 2 * ry2;
-            if (p < 0) {
-                p += ry2 + px;
-            } else {
-                y--;
-                py -= 2 * rx2;
-                p += ry2 + px - py;
-            }
-        }
-        /* Region 2: steeper */
-        p = ry2 * (2L * x + 1) * (2L * x + 1) / 4 + rx2 * (long)(y - 1) * (y - 1) - rx2 * ry2;
-        while (y >= 0) {
-            OVAL_PLOT();
-            y--;
-            py -= 2 * rx2;
-            if (p > 0) {
-                p += rx2 - py;
-            } else {
-                x++;
-                px += 2 * ry2;
-                p += rx2 - py + px;
-            }
-        }
-        #undef OVAL_PLOT
-    }
+/* Selection outlines while they are being drawn: the snapshot inverted, so
+ * drawing over a point twice does no harm */
+static void InvertAt(int x, int y) {
+    if (InPage(x, y)) Put(x, y, !GetBit(gSnapshot, x, y));
+}
+static void DottedAt(int x, int y) {
+    if (((x + y) & 3) < 2) InvertAt(x, y);
 }
 
-/*
- * RECTANGLE DRAWING
- */
-
-/**
- * MacPaint_DrawRectAlgo - Draw rectangle from (x0,y0) to (x1,y1)
- * filled=0: outline, filled=1: filled
- */
-void MacPaint_DrawRectAlgo(int x0, int y0, int x1, int y1, int filled, int mode)
-{
-    int left = (x0 < x1) ? x0 : x1;
-    int right = (x0 > x1) ? x0 : x1;
-    int top = (y0 < y1) ? y0 : y1;
-    int bottom = (y0 > y1) ? y0 : y1;
-
-    if (filled) {
-        /* Fill rectangle with horizontal lines */
-        for (int y = top; y <= bottom; y++) {
-            MacPaint_DrawLineAlgo(left, y, right, y, mode);
-        }
-    } else {
-        /* Draw outline */
-        MacPaint_DrawLineAlgo(left, top, right, top, mode);         /* Top */
-        MacPaint_DrawLineAlgo(right, top, right, bottom, mode);     /* Right */
-        MacPaint_DrawLineAlgo(right, bottom, left, bottom, mode);   /* Bottom */
-        MacPaint_DrawLineAlgo(left, bottom, left, top, mode);       /* Left */
-    }
-}
-
-/*
- * PENCIL/BRUSH TOOL
- */
-
-/**
- * MacPaint_ToolPencil - Draw with pencil tool
- * Creates continuous lines as mouse moves
- */
-void MacPaint_ToolPencil(int x, int y, int down)
-{
-    if (down) {
-        if (gToolState.isDrawing) {
-            /* Continue line from last position */
-            MacPaint_DrawLineAlgo(gToolState.lastX, gToolState.lastY, x, y, 1);
-        } else {
-            /* Start new line */
-            gToolState.isDrawing = 1;
-        }
-        gToolState.lastX = x;
-        gToolState.lastY = y;
-    } else {
-        /* Mouse released */
-        gToolState.isDrawing = 0;
-    }
-}
-
-/*
- * ERASER TOOL
- */
-
-/**
- * MacPaint_ToolEraser - Erase pixels as mouse moves
- * Creates continuous eraser strokes with multi-pixel width
- */
-void MacPaint_ToolEraser(int x, int y, int down)
-{
-    int eraserSize = 3; /* Eraser brush size in pixels */
-
-    if (down) {
-        if (gToolState.isDrawing) {
-            /* Continue erasing from last position */
-            MacPaint_DrawLineAlgo(gToolState.lastX, gToolState.lastY, x, y, 3);
-
-            /* Draw thicker eraser by drawing nearby lines for eraser width */
-            for (int offset = 1; offset < eraserSize; offset++) {
-                int dx = x - gToolState.lastX;
-                int dy = y - gToolState.lastY;
-                if (dx != 0 || dy != 0) {
-                    /* Draw parallel line offset by offset pixels perpendicular to stroke */
-                    int len = (dx > 0 ? dx : -dx) + (dy > 0 ? dy : -dy);
-                    if (len > 0) {
-                        int perpX = (dy != 0) ? offset : 0;
-                        int perpY = (dx != 0) ? offset : 0;
-                        MacPaint_DrawLineAlgo(gToolState.lastX + perpX, gToolState.lastY + perpY,
-                                            x + perpX, y + perpY, 3);
-                    }
-                }
-            }
-        } else {
-            gToolState.isDrawing = 1;
-        }
-        gToolState.lastX = x;
-        gToolState.lastY = y;
-    } else {
-        gToolState.isDrawing = 0;
-    }
-}
-
-/*
- * LINE TOOL
- */
-
-/**
- * MacPaint_ToolLine - Draw straight line from press to release
- * Supports live preview during dragging
- */
-void MacPaint_ToolLine(int x, int y, int down)
-{
-    if (down) {
-        if (!gToolState.isDrawing) {
-            /* Starting a new line */
-            gToolState.isDrawing = 1;
-            gToolState.startX = x;
-            gToolState.startY = y;
-        }
-        /* Update current position for preview */
-        gToolState.currentX = x;
-        gToolState.currentY = y;
-    } else {
-        if (gToolState.isDrawing) {
-            /* Draw the final line */
-            MacPaint_DrawLineAlgo(gToolState.startX, gToolState.startY, x, y, 1);
-            gToolState.isDrawing = 0;
-        }
-    }
-}
-
-/*
- * RECTANGLE TOOL
- */
-
-/**
- * MacPaint_ToolRectangle - Draw rectangle from press to release
- * Supports live preview during dragging
- */
-void MacPaint_ToolRectangle(int x, int y, int down)
-{
-    if (down) {
-        if (!gToolState.isDrawing) {
-            /* Starting a new rectangle */
-            gToolState.isDrawing = 1;
-            gToolState.startX = x;
-            gToolState.startY = y;
-        }
-        /* Update current position for preview */
-        gToolState.currentX = x;
-        gToolState.currentY = y;
-    } else {
-        if (gToolState.isDrawing) {
-            /* Draw the final rectangle (outline) */
-            MacPaint_DrawRectAlgo(gToolState.startX, gToolState.startY, x, y, 0, 1);
-            gToolState.isDrawing = 0;
-        }
-    }
-}
-
-/*
- * OVAL TOOL
- */
-
-/**
- * MacPaint_ToolOval - Draw oval from press to release
- * Supports live preview during dragging
- */
-void MacPaint_ToolOval(int x, int y, int down)
-{
-    if (down) {
-        if (!gToolState.isDrawing) {
-            /* Starting a new oval */
-            gToolState.isDrawing = 1;
-            gToolState.startX = x;
-            gToolState.startY = y;
-        }
-        /* Update current position for preview */
-        gToolState.currentX = x;
-        gToolState.currentY = y;
-    } else {
-        if (gToolState.isDrawing) {
-            /* Draw the final oval */
-            int cx = (gToolState.startX + x) / 2;
-            int cy = (gToolState.startY + y) / 2;
-            int rx = (x - gToolState.startX) / 2;
-            int ry = (y - gToolState.startY) / 2;
-            if (rx < 0) rx = -rx;
-            if (ry < 0) ry = -ry;
-            MacPaint_DrawOvalAlgo(cx, cy, rx, ry, 0, 1);
-            gToolState.isDrawing = 0;
-        }
-    }
-}
-
-/*
- * FILL TOOL - Flood Fill Algorithm
- */
-
-/**
- * MacPaint_FloodFill - Fill the region of like pixels around (x,y)
+/* ------------------------------------------------------------------------
+ * Shapes
  *
- * Scanline: each stack entry is a seed, and a whole run of the row is filled
- * from it, seeding the rows above and below once per run. The pixel-at-a-time
- * version pushed four neighbours for every pixel into a fixed 8192-entry stack
- * and stopped when it filled - a vertical strip of any real area.
- */
-#define MAX_FILL_SEEDS 4096
+ * Each shape is a test of whether a pixel is inside it. Its border is what is
+ * inside the shape and not inside the shape inset by the line width; a filled
+ * shape paints the inside with the pattern.
+ * ------------------------------------------------------------------------ */
 
-static int FillWants(int x, int y, int setColour)
-{
-    return MacPaint_PixelTrue(x, y, &gPaintBuffer) ? setColour : !setColour;
+enum { kShapeRect, kShapeRRect, kShapeOval };
+
+static Boolean InsideRect(const Rect* r, int x, int y) {
+    return x >= r->left && x < r->right && y >= r->top && y < r->bottom;
 }
 
-void MacPaint_FloodFill(int x, int y)
-{
-    int width = gPaintBuffer.bounds.right, height = gPaintBuffer.bounds.bottom;
-    if (x < 0 || x >= width || y < 0 || y >= height) {
-        return;
-    }
+static Boolean InsideOval(const Rect* r, int x, int y) {
+    if (!InsideRect(r, x, y)) return false;
+    long long w = r->right - r->left, h = r->bottom - r->top;
+    long long dx = 2LL * x + 1 - (r->left + r->right);
+    long long dy = 2LL * y + 1 - (r->top + r->bottom);
+    return dx * dx * h * h + dy * dy * w * w <= w * w * h * h;
+}
 
-    short *seeds = (short *)NewPtr(MAX_FILL_SEEDS * 2 * sizeof(short));
-    if (!seeds) {
-        return;
-    }
+static Boolean InsideRRect(const Rect* r, int radius, int x, int y) {
+    if (!InsideRect(r, x, y)) return false;
+    int w = r->right - r->left, h = r->bottom - r->top;
+    if (radius > w / 2) radius = w / 2;
+    if (radius > h / 2) radius = h / 2;
+    if (radius <= 0) return true;
+    if (x >= r->left + radius && x < r->right - radius) return true;
+    if (y >= r->top + radius && y < r->bottom - radius) return true;
+    Rect corner;
+    corner.left = x < r->left + radius ? r->left : r->right - 2 * radius;
+    corner.top = y < r->top + radius ? r->top : r->bottom - 2 * radius;
+    corner.right = corner.left + 2 * radius;
+    corner.bottom = corner.top + 2 * radius;
+    return InsideOval(&corner, x, y);
+}
 
-    /* Black fills white, white fills black */
-    int fromSet = MacPaint_PixelTrue(x, y, &gPaintBuffer);
-    int mode = fromSet ? 3 : 1;
+static Boolean InsideShape(int shape, const Rect* r, int radius, int x, int y) {
+    switch (shape) {
+        case kShapeOval:  return InsideOval(r, x, y);
+        case kShapeRRect: return InsideRRect(r, radius, x, y);
+        default:          return InsideRect(r, x, y);
+    }
+}
+
+static void PaintShape(int shape, const Rect* r, Boolean filled) {
+    if (RectEmpty(r)) return;
+    int w = PenW();
+    int radius = 8;
+    Rect in = *r;
+    in.left += w; in.top += w; in.right -= w; in.bottom -= w;
+    int inRadius = radius - w > 0 ? radius - w : 0;
+
+    int top = r->top < 0 ? 0 : r->top, bottom = r->bottom > kPageH ? kPageH : r->bottom;
+    int left = r->left < 0 ? 0 : r->left, right = r->right > kPageW ? kPageW : r->right;
+    for (int y = top; y < bottom; y++) {
+        for (int x = left; x < right; x++) {
+            if (!InsideShape(shape, r, radius, x, y)) continue;
+            Boolean inner = !RectEmpty(&in) && InsideShape(shape, &in, inRadius, x, y);
+            if (!inner) Put(x, y, true);
+            else if (filled) PutPat(x, y);
+        }
+    }
+}
+
+/* The rectangle a drag from (x0,y0) to (x1,y1) covers, both ends included */
+static void DragRect(int x0, int y0, int x1, int y1, Rect* r) {
+    r->left = x0 < x1 ? x0 : x1;
+    r->right = (x0 < x1 ? x1 : x0) + 1;
+    r->top = y0 < y1 ? y0 : y1;
+    r->bottom = (y0 < y1 ? y1 : y0) + 1;
+}
+
+/* ------------------------------------------------------------------------
+ * Polygons: the freeform and polygon tools, and the lasso
+ * ------------------------------------------------------------------------ */
+
+#define kMaxPoints 2048
+static short gPtX[kMaxPoints], gPtY[kMaxPoints];
+static int gPtCount;
+
+static void AddPoint(int x, int y) {
+    if (gPtCount > 0 && gPtX[gPtCount - 1] == x && gPtY[gPtCount - 1] == y) return;
+    if (gPtCount < kMaxPoints) {
+        gPtX[gPtCount] = (short)x;
+        gPtY[gPtCount] = (short)y;
+        gPtCount++;
+    }
+}
+
+typedef void (*SpanFn)(int y, int x0, int x1);   /* x0 <= x < x1 */
+
+/* Even-odd scan of the closed polygon through the points */
+static void ScanPolygon(SpanFn span) {
+    static int xs[kMaxPoints];
+    if (gPtCount < 3) return;
+    int top = gPtY[0], bottom = gPtY[0];
+    for (int i = 1; i < gPtCount; i++) {
+        if (gPtY[i] < top) top = gPtY[i];
+        if (gPtY[i] > bottom) bottom = gPtY[i];
+    }
+    if (top < 0) top = 0;
+    if (bottom >= kPageH) bottom = kPageH - 1;
+
+    for (int y = top; y <= bottom; y++) {
+        int n = 0;
+        int Y = 2 * y + 1;                /* through the middle of the row */
+        for (int i = 0; i < gPtCount; i++) {
+            int j = (i + 1) % gPtCount;
+            int a = 2 * gPtY[i], b = 2 * gPtY[j];
+            if ((a <= Y) == (b <= Y)) continue;
+            xs[n++] = gPtX[i] + (gPtX[j] - gPtX[i]) * (Y - a) / (b - a);
+        }
+        for (int i = 1; i < n; i++) {      /* few crossings: insertion sort */
+            int v = xs[i], k = i - 1;
+            while (k >= 0 && xs[k] > v) { xs[k + 1] = xs[k]; k--; }
+            xs[k + 1] = v;
+        }
+        for (int i = 0; i + 1 < n; i += 2) span(y, xs[i], xs[i + 1] + 1);
+    }
+}
+
+static void PatternSpan(int y, int x0, int x1) {
+    for (int x = x0; x < x1; x++) PutPat(x, y);
+}
+
+static void OutlinePoints(Boolean closed) {
+    for (int i = 0; i + 1 < gPtCount; i++) DrawSeg(gPtX[i], gPtY[i], gPtX[i + 1], gPtY[i + 1], PenAt);
+    if (closed && gPtCount > 1) DrawSeg(gPtX[gPtCount - 1], gPtY[gPtCount - 1], gPtX[0], gPtY[0], PenAt);
+    if (gPtCount == 1) PenAt(gPtX[0], gPtY[0]);
+}
+
+/* ------------------------------------------------------------------------
+ * The selection
+ *
+ * A mask with a bit for each page pixel. The selection rectangle selects
+ * everything in it, white included, and moves it as a block; the lasso
+ * selects only the black pixels inside its outline, so what it moves is
+ * transparent - as in MacPaint.
+ * ------------------------------------------------------------------------ */
+
+static Boolean gSelActive;
+static Rect gSelRect;           /* bounds of the mask */
+static Boolean gSelOpaque;
+static int gSelDX, gSelDY;      /* how far a move under way has taken it */
+
+static void SelMarkDirty(void) {
+    Rect r = gSelRect;
+    OffsetRect(&r, gSelDX, gSelDY);
+    r.left--; r.top--; r.right++; r.bottom++;
+    Page_MarkDirty(&r);
+}
+
+static void Sel_Drop(void) {
+    if (!gSelActive) return;
+    SelMarkDirty();
+    for (int y = gSelRect.top; y < gSelRect.bottom; y++) {
+        memset(&gSelMask[y * kPageRowBytes], 0, kPageRowBytes);
+    }
+    gSelActive = false;
+    gSelDX = gSelDY = 0;
+}
+
+static void ClipToPage(Rect* r) {
+    if (r->left < 0) r->left = 0;
+    if (r->top < 0) r->top = 0;
+    if (r->right > kPageW) r->right = kPageW;
+    if (r->bottom > kPageH) r->bottom = kPageH;
+}
+
+static void Sel_SetRect(Rect r) {
+    Sel_Drop();
+    ClipToPage(&r);
+    if (RectEmpty(&r)) return;
+    for (int y = r.top; y < r.bottom; y++)
+        for (int x = r.left; x < r.right; x++)
+            SetBit(gSelMask, x, y, true);
+    gSelRect = r;
+    gSelOpaque = true;
+    gSelActive = true;
+    SelMarkDirty();
+}
+
+/* After the mask changed: its bounds, and whether anything is left */
+static void Sel_Bound(void) {
+    Rect b = { 0, 0, 0, 0 };
+    for (int y = 0; y < kPageH; y++) {
+        const UInt8* row = &gSelMask[y * kPageRowBytes];
+        for (int i = 0; i < kPageRowBytes; i++) {
+            if (!row[i]) continue;
+            for (int k = 0; k < 8; k++)
+                if (row[i] & (0x80 >> k)) Grow(&b, i * 8 + k, y, i * 8 + k + 1, y + 1);
+        }
+    }
+    gSelRect = b;
+    gSelActive = !RectEmpty(&b);
+    if (gSelActive) SelMarkDirty();
+}
+
+static Boolean Sel_Contains(int x, int y) {
+    return gSelActive && InPage(x, y) && GetBit(gSelMask, x, y);
+}
+
+Boolean Edit_HasSelection(void) {
+    return gSelActive;
+}
+
+Boolean Sel_IsEdge(int x, int y) {
+    if (!gSelActive) return false;
+    x -= gSelDX;
+    y -= gSelDY;
+    if (!InPage(x, y) || !GetBit(gSelMask, x, y)) return false;
+    return x == 0 || y == 0 || x == kPageW - 1 || y == kPageH - 1 ||
+           !GetBit(gSelMask, x - 1, y) || !GetBit(gSelMask, x + 1, y) ||
+           !GetBit(gSelMask, x, y - 1) || !GetBit(gSelMask, x, y + 1);
+}
+
+/* A move: the page under the selection is gTemp; each step puts that back
+ * and stamps the selection at its new place. Option leaves the original. */
+static Boolean gMoving;
+static int gMoveX0, gMoveY0;
+
+static void MoveBegin(int x, int y, Boolean copy) {
+    SaveUndo();
+    memcpy(gMoveBits, gPage, kPageBytes);
+    memcpy(gTemp, gPage, kPageBytes);
+    if (!copy) {
+        for (int py = gSelRect.top; py < gSelRect.bottom; py++)
+            for (int px = gSelRect.left; px < gSelRect.right; px++)
+                if (GetBit(gSelMask, px, py)) SetBit(gTemp, px, py, false);
+    }
+    gMoving = true;
+    gMoveX0 = x;
+    gMoveY0 = y;
+    gSelDX = gSelDY = 0;
+}
+
+static void MoveTo_(int x, int y) {
+    int dx = x - gMoveX0, dy = y - gMoveY0;
+    if (dx == gSelDX && dy == gSelDY) return;
+    SelMarkDirty();                                 /* where it was */
+
+    /* The page under the selection, then the selection on it */
+    Rect span = gSelRect;
+    OffsetRect(&span, gSelDX, gSelDY);
+    Page_MarkDirty(&span);
+    Page_MarkDirty(&gSelRect);
+    int top = span.top < gSelRect.top ? span.top : gSelRect.top;
+    int bottom = span.bottom > gSelRect.bottom ? span.bottom : gSelRect.bottom;
+    if (top < 0) top = 0;
+    if (bottom > kPageH) bottom = kPageH;
+    if (bottom > top)
+        memcpy(&gPage[top * kPageRowBytes], &gTemp[top * kPageRowBytes],
+               (size_t)(bottom - top) * kPageRowBytes);
+
+    gSelDX = dx;
+    gSelDY = dy;
+    for (int py = gSelRect.top; py < gSelRect.bottom; py++) {
+        for (int px = gSelRect.left; px < gSelRect.right; px++) {
+            if (!GetBit(gSelMask, px, py)) continue;
+            Boolean black = GetBit(gMoveBits, px, py);
+            if (gSelOpaque || black) Put(px + dx, py + dy, black);
+        }
+    }
+    SelMarkDirty();                                 /* where it is */
+}
+
+static void MoveEnd(void) {
+    gMoving = false;
+    if (gSelDX == 0 && gSelDY == 0) return;
+    /* The mask follows the pixels; gSnapshot is free to build it in */
+    memset(gSnapshot, 0, kPageBytes);
+    for (int py = gSelRect.top; py < gSelRect.bottom; py++)
+        for (int px = gSelRect.left; px < gSelRect.right; px++)
+            if (GetBit(gSelMask, px, py) && InPage(px + gSelDX, py + gSelDY))
+                SetBit(gSnapshot, px + gSelDX, py + gSelDY, true);
+    memcpy(gSelMask, gSnapshot, kPageBytes);
+    gSelDX = gSelDY = 0;
+    Sel_Bound();
+    MacPaint_SetDirty();
+}
+
+static void LassoSpan(int y, int x0, int x1) {
+    if (x0 < 0) x0 = 0;
+    if (x1 > kPageW) x1 = kPageW;
+    for (int x = x0; x < x1; x++)
+        if (GetBit(gPage, x, y)) SetBit(gSelMask, x, y, true);
+}
+
+/* Map each selected pixel somewhere else: flips */
+typedef void (*MapFn)(int x, int y, int* nx, int* ny);
+
+static void Sel_Transform(MapFn map) {
+    if (!gSelActive) return;
+    Tool_Finish();
+    SaveUndo();
+    memcpy(gTemp, gPage, kPageBytes);
+    memcpy(gSnapshot, gSelMask, kPageBytes);
+    Rect old = gSelRect;
+    Sel_Drop();
+    for (int y = old.top; y < old.bottom; y++)
+        for (int x = old.left; x < old.right; x++)
+            if (GetBit(gSnapshot, x, y)) Put(x, y, false);
+    for (int y = old.top; y < old.bottom; y++) {
+        for (int x = old.left; x < old.right; x++) {
+            if (!GetBit(gSnapshot, x, y)) continue;
+            int nx, ny;
+            map(x, y, &nx, &ny);
+            if (!InPage(nx, ny)) continue;
+            Boolean black = GetBit(gTemp, x, y);
+            if (gSelOpaque || black) Put(nx, ny, black);
+            SetBit(gSelMask, nx, ny, true);
+        }
+    }
+    Sel_Bound();
+    MacPaint_SetDirty();
+}
+
+static Rect gMapRect;
+static void MapFlipH(int x, int y, int* nx, int* ny) {
+    *nx = gMapRect.left + gMapRect.right - 1 - x;
+    *ny = y;
+}
+static void MapFlipV(int x, int y, int* nx, int* ny) {
+    *nx = x;
+    *ny = gMapRect.top + gMapRect.bottom - 1 - y;
+}
+
+void Edit_FlipHorizontal(void) {
+    gMapRect = gSelRect;
+    Sel_Transform(MapFlipH);
+}
+
+void Edit_FlipVertical(void) {
+    gMapRect = gSelRect;
+    Sel_Transform(MapFlipV);
+}
+
+/* ------------------------------------------------------------------------
+ * Text: typed straight onto the page in Chicago, from where it was clicked
+ * ------------------------------------------------------------------------ */
+
+static Boolean gTextActive;
+static int gTextX, gTextY;      /* top left of the first line */
+static char gText[512];
+static int gTextLen;
+
+enum { kTextLineH = CHICAGO_HEIGHT + 1 };
+
+static void CaretDirty(void) {
+    int x, top, h;
+    if (Text_Caret(&x, &top, &h)) {
+        Rect r = { (short)top, (short)(x - 1), (short)(top + h), (short)(x + 2) };
+        Page_MarkDirty(&r);
+    }
+}
+
+/* How far a character moves the pen: the font's own advance figures are not
+ * to be trusted (an 'i' advanced 8), so this spaces by the ink width, as the
+ * Font Manager does */
+static int Advance(char ch) {
+    if (ch < 32 || ch > 126) return 0;
+    int w = chicago_ascii[ch - 32].bit_width + 2;
+    return ch == ' ' ? w + 3 : w;
+}
+
+static int GlyphAt(char ch, int penX, int top) {
+    if (ch < 32 || ch > 126) return penX;
+    const ChicagoCharInfo* info = &chicago_ascii[ch - 32];
+    for (int row = 0; row < CHICAGO_HEIGHT; row++) {
+        const uint8_t* strike = chicago_bitmap + row * CHICAGO_ROW_BYTES;
+        for (int col = 0; col < info->bit_width; col++) {
+            int bit = info->bit_start + col;
+            if ((strike[bit >> 3] >> (7 - (bit & 7))) & 1)
+                Put(penX + col, top + row, true);
+        }
+    }
+    return penX + Advance(ch);
+}
+
+static void TextRender(void) {
+    Restore();
+    int x = gTextX, top = gTextY;
+    for (int i = 0; i < gTextLen; i++) {
+        if (gText[i] == '\r') {
+            x = gTextX;
+            top += kTextLineH;
+        } else {
+            x = GlyphAt(gText[i], x, top);
+        }
+    }
+}
+
+Boolean Text_Caret(int* x, int* top, int* height) {
+    if (!gTextActive) return false;
+    int cx = gTextX, ct = gTextY;
+    for (int i = 0; i < gTextLen; i++) {
+        if (gText[i] == '\r') {
+            cx = gTextX;
+            ct += kTextLineH;
+        } else if (gText[i] >= 32 && gText[i] <= 126) {
+            cx += Advance(gText[i]);
+        }
+    }
+    *x = cx;
+    *top = ct;
+    *height = CHICAGO_HEIGHT;
+    return true;
+}
+
+static void TextEnd(void) {
+    if (!gTextActive) return;
+    CaretDirty();
+    gTextActive = false;
+}
+
+Boolean Tool_Key(unsigned char ch) {
+    if (!gTextActive) return false;
+    CaretDirty();
+    if (ch == 8 || ch == 127) {                 /* backspace */
+        if (gTextLen > 0) gTextLen--;
+    } else if (ch == '\r' || ch == 3) {         /* return, enter */
+        if (gTextLen < (int)sizeof(gText) - 1) gText[gTextLen++] = '\r';
+    } else if (ch >= 32 && ch <= 126) {
+        if (gTextLen < (int)sizeof(gText) - 1) gText[gTextLen++] = (char)ch;
+    } else {
+        return true;
+    }
+    TextRender();
+    CaretDirty();
+    MacPaint_SetDirty();
+    return true;
+}
+
+/* ------------------------------------------------------------------------
+ * The paint bucket: the region of like pixels around the click, by rows,
+ * gathered in gTemp first so a pattern that contains the region's own
+ * colour does not leak the fill into the rest of the page
+ * ------------------------------------------------------------------------ */
+
+static void BucketFill(int x, int y) {
+    static short stack[2 * 4096];
+    if (!InPage(x, y)) return;
+    Boolean target = GetBit(gPage, x, y);
+    memset(gTemp, 0, kPageBytes);
+    Rect box = { 0, 0, 0, 0 };
     int n = 0;
-    seeds[n++] = (short)x;
-    seeds[n++] = (short)y;
-
+    stack[n++] = (short)x;
+    stack[n++] = (short)y;
+#define WANT(px, py) (GetBit(gPage, px, py) == target && !GetBit(gTemp, px, py))
     while (n > 0) {
-        int sy = seeds[--n];
-        int sx = seeds[--n];
-        if (!FillWants(sx, sy, fromSet)) {
-            continue;                       /* filled since it was pushed */
-        }
-        int left = sx, right = sx;
-        while (left > 0 && FillWants(left - 1, sy, fromSet)) left--;
-        while (right < width - 1 && FillWants(right + 1, sy, fromSet)) right++;
-        for (int px = left; px <= right; px++) {
-            MacPaint_DrawPixel(px, sy, mode);
-        }
-        for (int dy = -1; dy <= 1; dy += 2) {
-            int ny = sy + dy;
-            if (ny < 0 || ny >= height) continue;
-            int inRun = 0;
-            for (int px = left; px <= right; px++) {
-                if (FillWants(px, ny, fromSet)) {
-                    if (!inRun && n < MAX_FILL_SEEDS * 2 - 2) {
-                        seeds[n++] = (short)px;
-                        seeds[n++] = (short)ny;
+        int sy = stack[--n], sx = stack[--n];
+        if (!WANT(sx, sy)) continue;
+        int l = sx, r = sx;
+        while (l > 0 && WANT(l - 1, sy)) l--;
+        while (r < kPageW - 1 && WANT(r + 1, sy)) r++;
+        for (int px = l; px <= r; px++) SetBit(gTemp, px, sy, true);
+        Grow(&box, l, sy, r + 1, sy + 1);
+        for (int ny = sy - 1; ny <= sy + 1; ny += 2) {
+            if (ny < 0 || ny >= kPageH) continue;
+            Boolean inRun = false;
+            for (int px = l; px <= r; px++) {
+                if (WANT(px, ny)) {
+                    if (!inRun && n < (int)(sizeof(stack) / sizeof(stack[0])) - 2) {
+                        stack[n++] = (short)px;
+                        stack[n++] = (short)ny;
                     }
-                    inRun = 1;
+                    inRun = true;
                 } else {
-                    inRun = 0;
+                    inRun = false;
                 }
             }
         }
     }
-
-    DisposePtr((Ptr)seeds);
+#undef WANT
+    for (int py = box.top; py < box.bottom; py++)
+        for (int px = box.left; px < box.right; px++)
+            if (GetBit(gTemp, px, py)) PutPat(px, py);
 }
 
-/**
- * MacPaint_ToolFill - Fill tool handler
- */
-void MacPaint_ToolFill(int x, int y, int down)
-{
-    if (down) {
-        MacPaint_FloodFill(x, y);
+/* ------------------------------------------------------------------------
+ * Gestures
+ * ------------------------------------------------------------------------ */
+
+static int gStartX, gStartY, gLastX, gLastY;
+static Boolean gPolyActive;
+static Boolean gGesture;        /* the button went down on the page */
+
+static int SnapToGrid(int v) {
+    return gPaint.grid ? ((v + 4) & ~7) : v;
+}
+
+static Boolean IsShapeTool(int t) {
+    return t == kToolLine || (t >= kToolRect && t <= kToolOvalFill);
+}
+
+static void ShapeStep(int x, int y) {
+    Restore();
+    if (gPaint.tool == kToolLine) {
+        DrawSeg(gStartX, gStartY, x, y, PenAt);
+        return;
+    }
+    Rect r;
+    DragRect(gStartX, gStartY, x, y, &r);
+    switch (gPaint.tool) {
+        case kToolRect:      PaintShape(kShapeRect, &r, false); break;
+        case kToolRectFill:  PaintShape(kShapeRect, &r, true); break;
+        case kToolRRect:     PaintShape(kShapeRRect, &r, false); break;
+        case kToolRRectFill: PaintShape(kShapeRRect, &r, true); break;
+        case kToolOval:      PaintShape(kShapeOval, &r, false); break;
+        case kToolOvalFill:  PaintShape(kShapeOval, &r, true); break;
     }
 }
 
-/*
- * SPRAY/AIRBRUSH TOOL
- */
-
-/**
- * MacPaint_ToolSpray - Paint with spray/airbrush effect
- * Randomly places pixels in a circular area
- */
-static int gSprayCounter = 0; /* Simple pseudo-random */
-
-void MacPaint_ToolSpray(int x, int y, int down)
-{
-    if (!down) return;
-
-    int radius = 8;
-    int num_pixels = 16;
-
-    for (int i = 0; i < num_pixels; i++) {
-        /* Simple pseudo-random using counter */
-        gSprayCounter = (gSprayCounter * 1103515245 + 12345) & 0x7fffffff;
-        int angle_idx = (gSprayCounter >> 16) % 8;
-        int dist = (gSprayCounter >> 8) % radius;
-
-        /* Simple 8-direction offsets instead of trig */
-        int dx_tab[] = {dist, dist, 0, -dist, -dist, -dist, 0, dist};
-        int dy_tab[] = {0, dist, dist, dist, 0, -dist, -dist, -dist};
-
-        int px = x + dx_tab[angle_idx];
-        int py = y + dy_tab[angle_idx];
-
-        MacPaint_DrawPixel(px, py, 1);
-    }
+static void PolyPreview(int x, int y) {
+    Restore();
+    OutlinePoints(false);
+    if (gPtCount > 0) DrawSeg(gPtX[gPtCount - 1], gPtY[gPtCount - 1], x, y, PenAt);
 }
 
-/*
- * SELECTION TOOLS
- */
-
-/**
- * MacPaint_ToolRectSelect - Create rectangular selection
- */
-void MacPaint_ToolRectSelect(int x, int y, int down)
-{
-    extern Rect gSelectionRect;
-    extern int gSelectionActive;
-
-    if (down) {
-        gToolState.isDrawing = 1;
-        gToolState.startX = x;
-        gToolState.startY = y;
-    } else {
-        if (gToolState.isDrawing) {
-            /* Store selection rectangle for later use (cut/copy/paste operations) */
-            gSelectionRect.left = (gToolState.startX < x) ? gToolState.startX : x;
-            gSelectionRect.top = (gToolState.startY < y) ? gToolState.startY : y;
-            gSelectionRect.right = (gToolState.startX > x) ? gToolState.startX : x;
-            gSelectionRect.bottom = (gToolState.startY > y) ? gToolState.startY : y;
-            gSelectionActive = 1;
-
-            gToolState.isDrawing = 0;
-        }
-    }
+static void PolyFinish(void) {
+    if (!gPolyActive) return;
+    gPolyActive = false;
+    Restore();
+    if (gPaint.tool == kToolPolyFill) ScanPolygon(PatternSpan);
+    OutlinePoints(true);
+    MacPaint_SetDirty();
 }
 
-/*
- * LASSO TOOL - Freeform selection by tracking bounding box of drawn path
- */
-
-/* Lasso state tracks the bounding box of the freeform stroke */
-static struct {
-    int tracking;
-    int minX, minY, maxX, maxY;
-} gLassoState = {0};
-
-/**
- * MacPaint_ToolLasso - Freeform selection tool
- * Tracks the bounding box of the mouse path to create a selection
- */
-void MacPaint_ToolLasso(int x, int y, int down)
-{
-    extern Rect gSelectionRect;
-    extern int gSelectionActive;
-
-    if (down) {
-        if (!gLassoState.tracking) {
-            /* Start tracking on first mouse-down */
-            gLassoState.tracking = 1;
-            gLassoState.minX = x;
-            gLassoState.minY = y;
-            gLassoState.maxX = x;
-            gLassoState.maxY = y;
-        } else {
-            /* Expand bounding box as mouse moves */
-            if (x < gLassoState.minX) gLassoState.minX = x;
-            if (y < gLassoState.minY) gLassoState.minY = y;
-            if (x > gLassoState.maxX) gLassoState.maxX = x;
-            if (y > gLassoState.maxY) gLassoState.maxY = y;
-        }
-    } else {
-        if (gLassoState.tracking) {
-            /* Mouse up - finalize selection from bounding box */
-            gLassoState.tracking = 0;
-
-            if (gLassoState.maxX > gLassoState.minX &&
-                gLassoState.maxY > gLassoState.minY) {
-                gSelectionRect.left = gLassoState.minX;
-                gSelectionRect.top = gLassoState.minY;
-                gSelectionRect.right = gLassoState.maxX;
-                gSelectionRect.bottom = gLassoState.maxY;
-                gSelectionActive = 1;
-            }
-        }
-    }
+void Tool_Finish(void) {
+    PolyFinish();
+    TextEnd();
+    Sel_Drop();
 }
 
-/*
- * GRABBER TOOL - Move selected region
- */
+void Tool_Begin(int x, int y, int modifiers) {
+    int tool = gPaint.tool;
+    gGesture = true;
+    gLastX = x;
+    gLastY = y;
 
-/* Grabber state for tracking drag offset */
-static struct {
-    int dragging;
-    int origX, origY;       /* Mouse-down position */
-    int selLeft, selTop;    /* Original selection position */
-    Ptr savedBits;          /* Saved pixel data from selection */
-    int savedW, savedH;
-    int savedRowBytes;
-} gGrabberState = {0};
+    if (tool != kToolText) TextEnd();
+    if (tool != kToolSelect && tool != kToolLasso) Sel_Drop();
 
-/**
- * MacPaint_ToolGrabber - Move the current selection
- * Picks up selected pixels and moves them with the mouse
- */
-void MacPaint_ToolGrabber(int x, int y, int down)
-{
-    extern Rect gSelectionRect;
-    extern int gSelectionActive;
-
-    if (!gSelectionActive) return;
-
-    if (down) {
-        if (!gGrabberState.dragging) {
-            /* Check if click is inside selection */
-            if (x < gSelectionRect.left || x > gSelectionRect.right ||
-                y < gSelectionRect.top || y > gSelectionRect.bottom) {
+    switch (tool) {
+        case kToolSelect:
+        case kToolLasso:
+            if (Sel_Contains(x, y)) {
+                MoveBegin(x, y, (modifiers & optionKey) != 0);
                 return;
             }
+            Sel_Drop();
+            Snap();
+            gStartX = SnapToGrid(x);
+            gStartY = SnapToGrid(y);
+            gPtCount = 0;
+            AddPoint(x, y);
+            return;
 
-            int w = gSelectionRect.right - gSelectionRect.left;
-            int h = gSelectionRect.bottom - gSelectionRect.top;
-            int saveRowBytes = (w + 7) / 8;
-            int saveSize = saveRowBytes * h;
+        case kToolText:
+            TextEnd();
+            SaveUndo();
+            Snap();
+            gTextActive = true;
+            gTextLen = 0;
+            gTextX = x;
+            gTextY = y - CHICAGO_ASCENT / 2;
+            CaretDirty();
+            return;
 
-            /* Save the selected pixels */
-            if (gGrabberState.savedBits) {
-                DisposePtr(gGrabberState.savedBits);
+        case kToolBucket:
+            SaveUndo();
+            BucketFill(x, y);
+            MacPaint_SetDirty();
+            return;
+
+        case kToolSpray:
+            SaveUndo();
+            gLastSprayTick = 0;
+            SprayAt(x, y);
+            return;
+
+        case kToolBrush:
+            SaveUndo();
+            BrushAt(x, y);
+            return;
+
+        case kToolPencil:
+            SaveUndo();
+            gPencilBlack = !Page_IsBlack(x, y);
+            PencilAt(x, y);
+            return;
+
+        case kToolEraser:
+            SaveUndo();
+            EraserAt(x, y);
+            return;
+
+        case kToolFree:
+        case kToolFreeFill:
+            SaveUndo();
+            Snap();
+            gPtCount = 0;
+            AddPoint(x, y);
+            PenAt(x, y);
+            return;
+
+        case kToolPoly:
+        case kToolPolyFill:
+            x = SnapToGrid(x);
+            y = SnapToGrid(y);
+            if (!gPolyActive) {
+                SaveUndo();
+                Snap();
+                gPtCount = 0;
+                AddPoint(x, y);
+                gPolyActive = true;
+                PolyPreview(x, y);
+                return;
             }
-            gGrabberState.savedBits = NewPtr(saveSize);
-            if (!gGrabberState.savedBits) return;
-            memset(gGrabberState.savedBits, 0, saveSize);
-
-            unsigned char *bits = (unsigned char *)gPaintBuffer.baseAddr;
-            int rowBytes = gPaintBuffer.rowBytes;
-
-            /* Copy selected pixels to saved buffer and clear from canvas */
-            for (int sy = 0; sy < h; sy++) {
-                int py = gSelectionRect.top + sy;
-                for (int sx = 0; sx < w; sx++) {
-                    int px = gSelectionRect.left + sx;
-                    int sByte = py * rowBytes + (px / 8);
-                    int sBit = 7 - (px % 8);
-                    int val = (bits[sByte] >> sBit) & 1;
-
-                    if (val) {
-                        int dByte = sy * saveRowBytes + (sx / 8);
-                        int dBit = 7 - (sx % 8);
-                        ((unsigned char *)gGrabberState.savedBits)[dByte] |= (1 << dBit);
-                    }
-                    /* Clear source pixel */
-                    bits[sByte] &= ~(1 << sBit);
+            /* A click on the first corner closes it; a second click on the
+             * last one (a double-click) ends it there */
+            {
+                int dx0 = x - gPtX[0], dy0 = y - gPtY[0];
+                int dxl = x - gPtX[gPtCount - 1], dyl = y - gPtY[gPtCount - 1];
+                if ((gPtCount > 2 && dx0 * dx0 + dy0 * dy0 <= 9) ||
+                    (dxl * dxl + dyl * dyl <= 4)) {
+                    PolyFinish();
+                    return;
                 }
             }
+            AddPoint(x, y);
+            PolyPreview(x, y);
+            return;
 
-            gGrabberState.dragging = 1;
-            gGrabberState.origX = x;
-            gGrabberState.origY = y;
-            gGrabberState.selLeft = gSelectionRect.left;
-            gGrabberState.selTop = gSelectionRect.top;
-            gGrabberState.savedW = w;
-            gGrabberState.savedH = h;
-            gGrabberState.savedRowBytes = saveRowBytes;
-        }
+        default:
+            if (IsShapeTool(tool)) {
+                SaveUndo();
+                Snap();
+                gStartX = SnapToGrid(x);
+                gStartY = SnapToGrid(y);
+                ShapeStep(gStartX, gStartY);
+            }
+            return;
+    }
+}
+
+void Tool_Move(int x, int y) {
+    if (!gGesture) return;
+    int tool = gPaint.tool;
+    if (tool == kToolSpray) {
+        SprayAt(x, y);
+        gLastX = x;
+        gLastY = y;
+        return;
+    }
+    if (x == gLastX && y == gLastY) return;
+
+    if (gMoving) {
+        MoveTo_(x, y);
     } else {
-        if (gGrabberState.dragging && gGrabberState.savedBits) {
-            /* Mouse up - place pixels at new location */
-            int dx = x - gGrabberState.origX;
-            int dy = y - gGrabberState.origY;
-            int newLeft = gGrabberState.selLeft + dx;
-            int newTop = gGrabberState.selTop + dy;
-
-            unsigned char *bits = (unsigned char *)gPaintBuffer.baseAddr;
-            int rowBytes = gPaintBuffer.rowBytes;
-            int w = gGrabberState.savedW;
-            int h = gGrabberState.savedH;
-            int saveRowBytes = gGrabberState.savedRowBytes;
-
-            /* Stamp saved pixels at new position */
-            for (int sy = 0; sy < h; sy++) {
-                int py = newTop + sy;
-                if (py < 0 || py >= gPaintBuffer.bounds.bottom) continue;
-                for (int sx = 0; sx < w; sx++) {
-                    int px = newLeft + sx;
-                    if (px < 0 || px >= gPaintBuffer.bounds.right) continue;
-
-                    int sByte = sy * saveRowBytes + (sx / 8);
-                    int sBit = 7 - (sx % 8);
-                    int val = (((unsigned char *)gGrabberState.savedBits)[sByte] >> sBit) & 1;
-
-                    int dByte = py * rowBytes + (px / 8);
-                    int dBit = 7 - (px % 8);
-                    if (val) bits[dByte] |= (1 << dBit);
+        switch (tool) {
+            case kToolSelect: {
+                Restore();
+                Rect r;
+                DragRect(gStartX, gStartY, SnapToGrid(x), SnapToGrid(y), &r);
+                for (int px = r.left; px < r.right; px++) {
+                    DottedAt(px, r.top);
+                    DottedAt(px, r.bottom - 1);
                 }
+                for (int py = r.top; py < r.bottom; py++) {
+                    DottedAt(r.left, py);
+                    DottedAt(r.right - 1, py);
+                }
+                break;
             }
-
-            /* Update selection rect to new position */
-            gSelectionRect.left = newLeft;
-            gSelectionRect.top = newTop;
-            gSelectionRect.right = newLeft + w;
-            gSelectionRect.bottom = newTop + h;
-
-            DisposePtr(gGrabberState.savedBits);
-            gGrabberState.savedBits = NULL;
-            gGrabberState.dragging = 0;
-
-            extern int gDocDirty;
-            gDocDirty = 1;
+            case kToolLasso:
+                AddPoint(x, y);
+                DrawSeg(gLastX, gLastY, x, y, DottedAt);
+                break;
+            case kToolBrush:  DrawSeg(gLastX, gLastY, x, y, BrushAt); break;
+            case kToolPencil: DrawSeg(gLastX, gLastY, x, y, PencilAt); break;
+            case kToolEraser: DrawSeg(gLastX, gLastY, x, y, EraserAt); break;
+            case kToolFree:
+            case kToolFreeFill:
+                AddPoint(x, y);
+                DrawSeg(gLastX, gLastY, x, y, PenAt);
+                break;
+            case kToolPoly:
+            case kToolPolyFill:
+                break;
+            default:
+                if (IsShapeTool(tool)) ShapeStep(SnapToGrid(x), SnapToGrid(y));
+                break;
         }
     }
+    gLastX = x;
+    gLastY = y;
 }
 
-/*
- * TEXT TOOL
- */
+void Tool_End(int x, int y) {
+    if (!gGesture) return;
+    Tool_Move(x, y);
+    gGesture = false;
 
-/**
- * MacPaint_ToolText - Place text on canvas
- * Displays text input dialog on click and renders typed text
- */
-
-typedef struct {
-    int active;
-    int textX, textY;
-    char textBuffer[256];
-} TextToolState;
-
-static TextToolState gTextToolState = {0};
-
-void MacPaint_ToolText(int x, int y, int down)
-{
-    if (!down) return;
-
-    /* If already entering text, commit current text and start new */
-    if (gTextToolState.active && gTextToolState.textBuffer[0]) {
-        MacPaint_RenderTextAtPosition(gTextToolState.textBuffer,
-                                       gTextToolState.textX, gTextToolState.textY);
-    }
-
-    /* Start new text entry at click position */
-    gTextToolState.textX = x;
-    gTextToolState.textY = y;
-    gTextToolState.active = 1;
-    gTextToolState.textBuffer[0] = '\0';
-}
-
-/**
- * MacPaint_TextToolHandleKey - Handle keyboard input for text tool
- * Returns 1 if the key was consumed, 0 if not
- */
-int MacPaint_TextToolHandleKey(int keyCode, int modifiers)
-{
-    if (!gTextToolState.active) return 0;
-    if (modifiers & 0x100) return 0;  /* Don't consume Cmd shortcuts */
-
-    /* Convert Mac keycode to ASCII character */
-    /* Mac keycodes: 0x24=Return, 0x35=Escape, 0x33=Delete */
-    if (keyCode == 0x24 || keyCode == 0x4C) {
-        /* Return/Enter - commit text to canvas */
-        if (gTextToolState.textBuffer[0]) {
-            MacPaint_RenderTextAtPosition(gTextToolState.textBuffer,
-                                           gTextToolState.textX, gTextToolState.textY);
-        }
-        gTextToolState.active = 0;
-        gTextToolState.textBuffer[0] = '\0';
-        return 1;
-    }
-
-    if (keyCode == 0x35) {
-        /* Escape - cancel text entry */
-        gTextToolState.active = 0;
-        gTextToolState.textBuffer[0] = '\0';
-        return 1;
-    }
-
-    if (keyCode == 0x33) {
-        /* Delete/Backspace - remove last character */
-        int len = 0;
-        while (gTextToolState.textBuffer[len]) len++;
-        if (len > 0) {
-            gTextToolState.textBuffer[len - 1] = '\0';
-        }
-        return 1;
-    }
-
-    /* Map common keycodes to ASCII characters */
-    static const char keyMap[128] = {
-        'a','s','d','f','h','g','z','x', 'c','v', 0 ,'b','q','w','e','r',  /* 0x00-0x0F */
-        'y','t','1','2','3','4','6','5', '=','9','7','-','8','0',']','o',  /* 0x10-0x1F */
-        'u','[','i','p', 0 ,'l','j','\'','k',';','\\',',','/','n','m','.',  /* 0x20-0x2F */
-         0 ,' ', 0 , 0 , 0 , 0 , 0 , 0 ,  0 , 0 , 0 , 0 , 0 , 0 , 0 , 0 ,  /* 0x30-0x3F */
-    };
-
-    char ch = 0;
-    if (keyCode >= 0 && keyCode < 64) {
-        ch = keyMap[keyCode];
-    } else if (keyCode == 0x31) {
-        ch = ' ';
-    }
-
-    if (ch == 0) return 0;
-
-    /* Apply shift modifier */
-    if (modifiers & 0x200) {  /* Shift key */
-        if (ch >= 'a' && ch <= 'z') ch -= 32;
-        else {
-            switch (ch) {
-                case '1': ch = '!'; break; case '2': ch = '@'; break;
-                case '3': ch = '#'; break; case '4': ch = '$'; break;
-                case '5': ch = '%'; break; case '6': ch = '^'; break;
-                case '7': ch = '&'; break; case '8': ch = '*'; break;
-                case '9': ch = '('; break; case '0': ch = ')'; break;
-                case '-': ch = '_'; break; case '=': ch = '+'; break;
-                case '[': ch = '{'; break; case ']': ch = '}'; break;
-                case ';': ch = ':'; break; case '\'': ch = '"'; break;
-                case ',': ch = '<'; break; case '.': ch = '>'; break;
-                case '/': ch = '?'; break; case '\\': ch = '|'; break;
-            }
-        }
-    }
-
-    /* Append character to buffer */
-    int len = 0;
-    while (gTextToolState.textBuffer[len]) len++;
-    if (len < 254) {
-        gTextToolState.textBuffer[len] = ch;
-        gTextToolState.textBuffer[len + 1] = '\0';
-    }
-
-    return 1;
-}
-
-/**
- * MacPaint_RenderTextAtPosition - Render text string to canvas
- * Draws text using FontManager at specified position
- */
-void MacPaint_RenderTextAtPosition(const char *text, int x, int y)
-{
-    if (!text || !*text) {
+    if (gMoving) {
+        MoveEnd();
         return;
     }
-
-    /* Render text using Chicago font bitmap strike directly to 1bpp paint buffer */
-    extern const uint8_t chicago_bitmap[];
-    extern const ChicagoCharInfo chicago_ascii[];
-
-    unsigned char *bits = (unsigned char *)gPaintBuffer.baseAddr;
-    int rowBytes = gPaintBuffer.rowBytes;
-    int canvasW = gPaintBuffer.bounds.right;
-    int canvasH = gPaintBuffer.bounds.bottom;
-
-    /* Position y at baseline - ascent to get top of glyphs */
-    int penX = x;
-    int topY = y - CHICAGO_ASCENT;
-
-    for (const char *p = text; *p; p++) {
-        char ch = *p;
-        if (ch < 32 || ch > 126) continue;
-
-        const ChicagoCharInfo *info = &chicago_ascii[ch - 32];
-        int glyphX = penX + info->left_offset;
-
-        /* Render each row of the glyph */
-        for (int row = 0; row < CHICAGO_HEIGHT; row++) {
-            int destY = topY + row;
-            if (destY < 0 || destY >= canvasH) continue;
-
-            const uint8_t *strikeRow = chicago_bitmap + (row * CHICAGO_ROW_BYTES);
-
-            for (int col = 0; col < info->bit_width; col++) {
-                int destX = glyphX + col;
-                if (destX < 0 || destX >= canvasW) continue;
-
-                int bitPos = info->bit_start + col;
-                /* Extract pixel from strike bitmap */
-                int pixel = (strikeRow[bitPos >> 3] >> (7 - (bitPos & 7))) & 1;
-
-                if (pixel) {
-                    int byteOff = destY * rowBytes + (destX / 8);
-                    int bitOff = 7 - (destX % 8);
-                    bits[byteOff] |= (1 << bitOff);
-                }
+    switch (gPaint.tool) {
+        case kToolSelect: {
+            Restore();
+            Rect r;
+            DragRect(gStartX, gStartY, SnapToGrid(x), SnapToGrid(y), &r);
+            if (r.right - r.left > 1 || r.bottom - r.top > 1) Sel_SetRect(r);
+            return;
+        }
+        case kToolLasso:
+            Restore();
+            AddPoint(x, y);
+            if (gPtCount >= 3) {
+                ScanPolygon(LassoSpan);
+                gSelOpaque = false;
+                gSelDX = gSelDY = 0;
+                Sel_Bound();
             }
-        }
-
-        penX += info->advance;
+            return;
+        case kToolFree:
+            DrawSeg(x, y, gPtX[0], gPtY[0], PenAt);
+            break;
+        case kToolFreeFill:
+            Restore();
+            ScanPolygon(PatternSpan);
+            OutlinePoints(true);
+            break;
+        case kToolText:
+        case kToolPoly:
+        case kToolPolyFill:
+            return;
+        default:
+            break;
     }
-
-    extern int gDocDirty;
-    gDocDirty = 1;
+    MacPaint_SetDirty();
 }
 
-/*
- * TOOL DISPATCHER
- */
-
-/**
- * MacPaint_HandleToolMouseEvent - Route mouse event to appropriate tool handler
- */
-void MacPaint_HandleToolMouseEvent(int toolID, int x, int y, int down)
-{
-    switch (toolID) {
-        case TOOL_PENCIL:
-            MacPaint_ToolPencil(x, y, down);
-            break;
-        case TOOL_BRUSH:
-            MacPaint_ToolPencil(x, y, down); /* For now, same as pencil */
-            break;
-        case TOOL_ERASE:
-            MacPaint_ToolEraser(x, y, down);
-            break;
-        case TOOL_LINE:
-            MacPaint_ToolLine(x, y, down);
-            break;
-        case TOOL_RECT:
-            MacPaint_ToolRectangle(x, y, down);
-            break;
-        case TOOL_OVAL:
-            MacPaint_ToolOval(x, y, down);
-            break;
-        case TOOL_FILL:
-            MacPaint_ToolFill(x, y, down);
-            break;
-        case TOOL_SPRAY:
-            MacPaint_ToolSpray(x, y, down);
-            break;
-        case TOOL_SELECT:
-            MacPaint_ToolRectSelect(x, y, down);
-            break;
-        case TOOL_LASSO:
-            MacPaint_ToolLasso(x, y, down);
-            break;
-        case TOOL_GRABBER:
-            MacPaint_ToolGrabber(x, y, down);
-            break;
-        case TOOL_TEXT:
-            MacPaint_ToolText(x, y, down);
-            break;
-    }
+Boolean Tool_WantsHover(void) {
+    return gPolyActive;
 }
 
-/*
- * PATTERN AND BRUSH HELPERS
- */
-
-/**
- * MacPaint_DrawPatternedLine - Draw line with pattern/texture
- * Useful for brush strokes with patterns
- */
-void MacPaint_DrawPatternedLine(int x0, int y0, int x1, int y1, Pattern *pat)
-{
-    if (!pat) {
-        MacPaint_DrawLineAlgo(x0, y0, x1, y1, 1);
-        return;
-    }
-
-    int dx = (x1 > x0) ? (x1 - x0) : (x0 - x1);
-    int dy = (y1 > y0) ? (y1 - y0) : (y0 - y1);
-    int sx = (x0 < x1) ? 1 : -1;
-    int sy = (y0 < y1) ? 1 : -1;
-    int err = dx - dy;
-    int e2;
-    int step = 0;
-
-    int x = x0;
-    int y = y0;
-
-    /* Safety limit to prevent infinite loops in case of coordinate corruption */
-    int maxIterations = dx + dy + 1;
-    int iterations = 0;
-
-    while (iterations < maxIterations) {
-        /* Draw line points with pattern modulation */
-        unsigned char pat_row = pat->pat[step % 8];
-        if ((pat_row >> (step % 8)) & 1) {
-            MacPaint_DrawPixel(x, y, 1);
-            if (step % 2) {
-                /* Draw nearby pixels for thickness */
-                MacPaint_DrawPixel(x + 1, y, 1);
-                MacPaint_DrawPixel(x, y + 1, 1);
-            }
-        }
-
-        if (x == x1 && y == y1) break;
-
-        e2 = 2 * err;
-        if (e2 > -dy) {
-            err = err - dy;
-            x = x + sx;
-        }
-        if (e2 < dx) {
-            err = err + dx;
-            y = y + sy;
-        }
-        step++;
-        iterations++;
-    }
+void Tool_Hover(int x, int y) {
+    if (!gPolyActive) return;
+    x = SnapToGrid(x);
+    y = SnapToGrid(y);
+    if (x == gLastX && y == gLastY) return;
+    gLastX = x;
+    gLastY = y;
+    PolyPreview(x, y);
 }
 
-/*
- * TOOL STATE QUERY
- */
+void Tools_Reset(void) {
+    gPolyActive = false;
+    gTextActive = false;
+    gMoving = false;
+    gGesture = false;
+    Sel_Drop();
+    memset(gSelMask, 0, kPageBytes);
+    memset(gPage, 0, kPageBytes);
+    gUndoValid = false;
+    SetRect(&gSinceSnap, 0, 0, 0, 0);
+    MarkAll();
+}
 
-/**
- * MacPaint_GetToolState - Get current tool state for rendering preview
- */
-void MacPaint_GetToolState(int *isDrawing, int *startX, int *startY, int *currentX, int *currentY)
-{
-    if (isDrawing) *isDrawing = gToolState.isDrawing;
-    if (startX) *startX = gToolState.startX;
-    if (startY) *startY = gToolState.startY;
-    if (currentX) *currentX = gToolState.currentX;
-    if (currentY) *currentY = gToolState.currentY;
+/* ------------------------------------------------------------------------
+ * The Edit menu
+ * ------------------------------------------------------------------------ */
+
+void Edit_Undo(void) {
+    if (!gUndoValid) return;
+    Tool_Finish();
+    memcpy(gTemp, gPage, kPageBytes);
+    memcpy(gPage, gUndo, kPageBytes);
+    memcpy(gUndo, gTemp, kPageBytes);
+    MarkAll();
+    MacPaint_SetDirty();
+}
+
+static Boolean gClipValid, gClipOpaque;
+static int gClipW, gClipH;
+
+Boolean Edit_HasClipboard(void) {
+    return gClipValid;
+}
+
+void Edit_Copy(void) {
+    if (!gSelActive) return;
+    memset(gClipBits, 0, kPageBytes);
+    memset(gClipMask, 0, kPageBytes);
+    for (int y = gSelRect.top; y < gSelRect.bottom; y++) {
+        for (int x = gSelRect.left; x < gSelRect.right; x++) {
+            if (!GetBit(gSelMask, x, y)) continue;
+            int cx = x - gSelRect.left, cy = y - gSelRect.top;
+            SetBit(gClipMask, cx, cy, true);
+            SetBit(gClipBits, cx, cy, GetBit(gPage, x, y));
+        }
+    }
+    gClipW = gSelRect.right - gSelRect.left;
+    gClipH = gSelRect.bottom - gSelRect.top;
+    gClipOpaque = gSelOpaque;
+    gClipValid = true;
+}
+
+void Edit_Clear(void) {
+    if (!gSelActive) return;
+    SaveUndo();
+    for (int y = gSelRect.top; y < gSelRect.bottom; y++)
+        for (int x = gSelRect.left; x < gSelRect.right; x++)
+            if (GetBit(gSelMask, x, y)) Put(x, y, false);
+    Sel_Drop();
+    MacPaint_SetDirty();
+}
+
+void Edit_Cut(void) {
+    if (!gSelActive) return;
+    Edit_Copy();
+    Edit_Clear();
+}
+
+/* Paste puts the clipboard at the top left of the view, selected, ready to
+ * be dragged where it belongs */
+void Edit_Paste(void) {
+    if (!gClipValid) return;
+    Tool_Finish();
+    SaveUndo();
+    int ox = gPaint.viewX + 8, oy = gPaint.viewY + 8;
+    if (ox + gClipW > kPageW) ox = kPageW - gClipW;
+    if (oy + gClipH > kPageH) oy = kPageH - gClipH;
+    if (ox < 0) ox = 0;
+    if (oy < 0) oy = 0;
+    for (int cy = 0; cy < gClipH; cy++) {
+        for (int cx = 0; cx < gClipW; cx++) {
+            if (!GetBit(gClipMask, cx, cy) || !InPage(ox + cx, oy + cy)) continue;
+            Boolean black = GetBit(gClipBits, cx, cy);
+            if (gClipOpaque || black) Put(ox + cx, oy + cy, black);
+            SetBit(gSelMask, ox + cx, oy + cy, true);
+        }
+    }
+    gSelOpaque = gClipOpaque;
+    gSelDX = gSelDY = 0;
+    Sel_Bound();
+    if (gPaint.tool != kToolSelect && gPaint.tool != kToolLasso) gPaint.tool = kToolSelect;
+    MacPaint_SetDirty();
+}
+
+void Edit_Invert(void) {
+    if (!gSelActive) return;
+    SaveUndo();
+    for (int y = gSelRect.top; y < gSelRect.bottom; y++)
+        for (int x = gSelRect.left; x < gSelRect.right; x++)
+            if (GetBit(gSelMask, x, y)) Put(x, y, !GetBit(gPage, x, y));
+    MacPaint_SetDirty();
+}
+
+void Edit_Fill(void) {
+    if (!gSelActive) return;
+    SaveUndo();
+    for (int y = gSelRect.top; y < gSelRect.bottom; y++)
+        for (int x = gSelRect.left; x < gSelRect.right; x++)
+            if (GetBit(gSelMask, x, y)) PutPat(x, y);
+    MacPaint_SetDirty();
+}
+
+void Edit_SelectAll(void) {
+    Tool_Finish();
+    Rect all = { 0, 0, kPageH, kPageW };
+    Sel_SetRect(all);
+    if (gPaint.tool != kToolSelect && gPaint.tool != kToolLasso) gPaint.tool = kToolSelect;
+}
+
+/* What the view shows, in page coordinates */
+static void ViewOnPage(Rect* r) {
+    int z = Draw_Zoom();
+    r->left = (short)gPaint.viewX;
+    r->top = (short)gPaint.viewY;
+    r->right = (short)(gPaint.viewX + (kViewRight - kViewLeft) / z);
+    r->bottom = (short)(gPaint.viewY + (kViewBottom - kViewTop) / z);
+    ClipToPage(r);
+}
+
+void Edit_EraseView(void) {
+    Tool_Finish();
+    SaveUndo();
+    Rect v;
+    ViewOnPage(&v);
+    for (int y = v.top; y < v.bottom; y++)
+        for (int x = v.left; x < v.right; x++)
+            Put(x, y, false);
+    MacPaint_SetDirty();
 }

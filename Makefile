@@ -493,15 +493,9 @@ C_SOURCES = src/main.c \
             src/Apps/SimpleText/STMenus.c \
             src/Apps/SimpleText/STFileIO.c \
             src/Apps/SimpleText/STClipboard.c \
-            src/Apps/MacPaint/MacPaint_Core.c \
+            src/Apps/MacPaint/MacPaint.c \
             src/Apps/MacPaint/MacPaint_Tools.c \
-            src/Apps/MacPaint/MacPaint_FileIO.c \
-            src/Apps/MacPaint/MacPaint_Menus.c \
-            src/Apps/MacPaint/MacPaint_Advanced.c \
-            src/Apps/MacPaint/MacPaint_Integration.c \
-            src/Apps/MacPaint/MacPaint_EventLoop.c \
-            src/Apps/MacPaint/MacPaint_Rendering.c \
-            src/Apps/MacPaint/MacPaint_Main.c \
+            src/Apps/MacPaint/MacPaint_Draw.c \
             src/StartupScreen/StartupScreen.c
 
 # Add IntegrationTests if enabled
