@@ -204,82 +204,84 @@ Boolean DesktopPatterns_HandleEvent(EventRecord *event) {
         case mouseDown:
             serial_puts("[CDEV-EVT] Mouse down event\n");
             part = FindWindow(event->where, &whichWindow);
-            if (whichWindow == gDesktopCdevWin) {
-                switch (part) {
-                    case inContent:
-                        SelectWindow(gDesktopCdevWin);
-                        SetPort((GrafPtr)gDesktopCdevWin);
-                        where = event->where;
-                        GlobalToLocal(&where);
+            if (whichWindow != gDesktopCdevWin) {
+                /* Someone else's window, or the desktop: not ours to take. */
+                return false;
+            }
+            switch (part) {
+                case inContent:
+                    SelectWindow(gDesktopCdevWin);
+                    SetPort((GrafPtr)gDesktopCdevWin);
+                    where = event->where;
+                    GlobalToLocal(&where);
 
-                        /* Check if click is on a control */
-                        part = FindControl(where, gDesktopCdevWin, &control);
-                        if (part && control) {
-                            serial_puts("[CDEV-EVT] Control found, tracking\n");
-                            if (TrackControl(control, where, NULL)) {
-                                serial_puts("[CDEV-EVT] Control tracked successfully\n");
-                                if (control == gOKButton) {
-                                    serial_puts("[OK] Button tracked\n");
-                                    /* Save and apply the selected pattern */
-                                    serial_puts("[OK] Calling ApplySelectedPattern\n");
-                                    ApplySelectedPattern();
-                                    serial_puts("[OK] ApplySelectedPattern done\n");
-                                    serial_puts("[OK] Calling CloseDesktopCdev\n");
-                                    CloseDesktopCdev();
-                                    serial_puts("[OK] CloseDesktopCdev done\n");
-                                } else if (control == gCancelButton) {
-                                    serial_puts("[CDEV-EVT] Cancel button clicked\n");
-                                    /* Restore original pattern and close */
-                                    RestoreOriginalPattern();
-                                    CloseDesktopCdev();
-                                }
-                            } else {
-                                serial_puts("[CDEV-EVT] Control tracking returned false\n");
+                    /* Check if click is on a control */
+                    part = FindControl(where, gDesktopCdevWin, &control);
+                    if (part && control) {
+                        serial_puts("[CDEV-EVT] Control found, tracking\n");
+                        if (TrackControl(control, where, NULL)) {
+                            serial_puts("[CDEV-EVT] Control tracked successfully\n");
+                            if (control == gOKButton) {
+                                serial_puts("[OK] Button tracked\n");
+                                /* Save and apply the selected pattern */
+                                serial_puts("[OK] Calling ApplySelectedPattern\n");
+                                ApplySelectedPattern();
+                                serial_puts("[OK] ApplySelectedPattern done\n");
+                                serial_puts("[OK] Calling CloseDesktopCdev\n");
+                                CloseDesktopCdev();
+                                serial_puts("[OK] CloseDesktopCdev done\n");
+                            } else if (control == gCancelButton) {
+                                serial_puts("[CDEV-EVT] Cancel button clicked\n");
+                                /* Restore original pattern and close */
+                                RestoreOriginalPattern();
+                                CloseDesktopCdev();
                             }
                         } else {
-                            /* Check if click is on a pattern cell */
-                            int16_t patID = GetPatternIDAtPosition(where);
-                            if (patID != 0 && patID != gSelectedPatID) {
-                                gSelectedPatID = patID;
-                                serial_puts("[CDEV-EVT] Pattern selected\n");
+                            serial_puts("[CDEV-EVT] Control tracking returned false\n");
+                        }
+                    } else {
+                        /* Check if click is on a pattern cell */
+                        int16_t patID = GetPatternIDAtPosition(where);
+                        if (patID != 0 && patID != gSelectedPatID) {
+                            gSelectedPatID = patID;
+                            serial_puts("[CDEV-EVT] Pattern selected\n");
 
-                                /* Apply pattern immediately for preview on the DESKTOP, not the window */
-                                Pattern pat;
-                                if (PM_LoadPAT(patID, &pat)) {
-                                    /* Switch to desktop port to apply pattern there */
-                                    GrafPtr savedPort;
-                                    GetPort(&savedPort);
-                                    if (gDesktopPrevPort) {
-                                        SetPort(gDesktopPrevPort);
-                                    } else {
-                                        SetPort(NULL);  /* Switch to main screen port */
-                                    }
-                                    PM_SetBackPat(&pat);
-                                    SetPort(savedPort);  /* Restore window port */
+                            /* Apply pattern immediately for preview on the DESKTOP, not the window */
+                            Pattern pat;
+                            if (PM_LoadPAT(patID, &pat)) {
+                                /* Switch to desktop port to apply pattern there */
+                                GrafPtr savedPort;
+                                GetPort(&savedPort);
+                                if (gDesktopPrevPort) {
+                                    SetPort(gDesktopPrevPort);
+                                } else {
+                                    SetPort(NULL);  /* Switch to main screen port */
                                 }
-
-                                /* Redraw the grid to show new selection */
-                                DrawPatternGrid();
-                                DrawControls(gDesktopCdevWin);
+                                PM_SetBackPat(&pat);
+                                SetPort(savedPort);  /* Restore window port */
                             }
-                        }
-                        break;
 
-                    case inDrag:
-                        DragWindow(gDesktopCdevWin, event->where, &qd.screenBits.bounds);
-                        break;
-
-                    case inGoAway:
-                        serial_puts("[CDEV-EVT] Close button clicked, tracking go-away\n");
-                        if (TrackGoAway(gDesktopCdevWin, event->where)) {
-                            serial_puts("[CDEV-EVT] Go-away tracked, closing\n");
-                            RestoreOriginalPattern();
-                            CloseDesktopCdev();
-                        } else {
-                            serial_puts("[CDEV-EVT] Go-away tracking returned false\n");
+                            /* Redraw the grid to show new selection */
+                            DrawPatternGrid();
+                            DrawControls(gDesktopCdevWin);
                         }
-                        break;
-                }
+                    }
+                    break;
+
+                case inDrag:
+                    DragWindow(gDesktopCdevWin, event->where, &qd.screenBits.bounds);
+                    break;
+
+                case inGoAway:
+                    serial_puts("[CDEV-EVT] Close button clicked, tracking go-away\n");
+                    if (TrackGoAway(gDesktopCdevWin, event->where)) {
+                        serial_puts("[CDEV-EVT] Go-away tracked, closing\n");
+                        RestoreOriginalPattern();
+                        CloseDesktopCdev();
+                    } else {
+                        serial_puts("[CDEV-EVT] Go-away tracking returned false\n");
+                    }
+                    break;
             }
             return true;
 
