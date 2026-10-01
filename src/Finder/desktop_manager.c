@@ -833,6 +833,9 @@ OSErr InitializeDesktopDB(void)
         pref.backColor.blue = 0xC000;
 
         if (PM_ApplyDesktopPref(&pref)) {
+            /* Recorded, so Desktop Patterns knows what is current and its
+             * Cancel can put it back */
+            PM_SaveDesktopPref(&pref);
             snprintf(msg, sizeof(msg), "Desktop: SUCCESS - ppat ID %d loaded!\n", ppat_ids[i]);
             serial_puts(msg);
             found_working = true;
@@ -848,6 +851,7 @@ OSErr InitializeDesktopDB(void)
         pref.usePixPat = false;
         pref.patID = 16;  /* Use dots pattern as fallback */
         PM_ApplyDesktopPref(&pref);
+        PM_SaveDesktopPref(&pref);
     }
 
     /* Allocate desktop icons array */

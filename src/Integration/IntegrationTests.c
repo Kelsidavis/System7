@@ -971,6 +971,29 @@ static void Test_Calculator_Arithmetic(void) {
     RecordTest(test_name, true, "");
 }
 
+/* A released resource loads again intact, not as the freed handle. */
+static void Test_Resource_ReleaseThenGet(void) {
+    const char* test_name = "Resource_ReleaseThenGet";
+    Handle h1 = GetResource('ppat', 304);
+    CHECK(h1 && *h1, "ppat 304 did not load");
+    Size size1 = GetHandleSize(h1);
+    UInt8 head[8];
+    memcpy(head, *h1, sizeof(head));
+    ReleaseResource(h1);
+
+    Handle churn[8];
+    for (int i = 0; i < 8; i++) {
+        churn[i] = NewHandle(13);
+        if (churn[i]) memset(*churn[i], 0x5A, 13);
+    }
+    Handle h2 = GetResource('ppat', 304);
+    Boolean same = h2 && *h2 && GetHandleSize(h2) == size1 && memcmp(*h2, head, sizeof(head)) == 0;
+    for (int i = 0; i < 8; i++) if (churn[i]) DisposeHandle(churn[i]);
+    if (h2) ReleaseResource(h2);
+    CHECK(same, "the resource loaded after ReleaseResource was not the resource");
+    RecordTest(test_name, true, "");
+}
+
 static void Test_Resource_CreateAndOpenResFile(void) {
     const char* test_name = "Resource_CreateAndOpenResFile";
     FSSpec spec;
@@ -1104,6 +1127,7 @@ void IntegrationTests_Run(void) {
     Test_Window_MoveRepaintsUncovered();
     Test_Event_FullQueueKeepsNewest();
     Test_Calculator_Arithmetic();
+    Test_Resource_ReleaseThenGet();
     Test_Dialog_AlertLayout();
     Test_Dialog_IconItem();
     Test_Window_ReorderAndHide();

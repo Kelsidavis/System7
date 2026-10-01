@@ -44,7 +44,6 @@ static GrafPtr gDesktopPrevPort = NULL;
 static ControlHandle gOKButton = NULL;
 static ControlHandle gCancelButton = NULL;
 static int16_t gSelectedPatID = 16;
-static Pattern gOriginalPattern;
 static RGBColor gOriginalColor;
 static DesktopPref gOriginalPref;
 
@@ -117,8 +116,6 @@ void OpenDesktopCdev(void) {
     serial_puts("[CDEV] Loading preferences\n");
     /* Save current pattern so we can restore on cancel */
     gOriginalPref = PM_GetSavedDesktopPref();
-    serial_puts("[CDEV] Getting background pattern\n");
-    PM_GetBackPat(&gOriginalPattern);
     serial_puts("[CDEV] Getting background color\n");
     PM_GetBackColor(&gOriginalColor);
 
@@ -128,9 +125,10 @@ void OpenDesktopCdev(void) {
         ColorManager_SetBackground(&gOriginalColor);
         ColorManager_CommitQuickDraw();
     }
-    gSelectedPatID = gOriginalPref.patID;
+    /* The pattern in use is selected; a colour pattern is none of these. */
+    gSelectedPatID = gOriginalPref.usePixPat ? 0 : gOriginalPref.patID;
     if (gSelectedPatID < 16 || gSelectedPatID > 47) {
-        gSelectedPatID = 16;
+        gSelectedPatID = 0;
     }
 
     serial_puts("[CDEV] Drawing pattern grid\n");
@@ -246,19 +244,15 @@ Boolean DesktopPatterns_HandleEvent(EventRecord *event) {
                             gSelectedPatID = patID;
                             serial_puts("[CDEV-EVT] Pattern selected\n");
 
-                            /* Apply pattern immediately for preview on the DESKTOP, not the window */
+                            /* Shown on the desktop straight away; OK keeps it,
+                             * Cancel puts the old one back. This set the
+                             * pattern without painting the desktop, so nothing
+                             * visibly changed. */
                             Pattern pat;
                             if (PM_LoadPAT(patID, &pat)) {
-                                /* Switch to desktop port to apply pattern there */
-                                GrafPtr savedPort;
-                                GetPort(&savedPort);
-                                if (gDesktopPrevPort) {
-                                    SetPort(gDesktopPrevPort);
-                                } else {
-                                    SetPort(NULL);  /* Switch to main screen port */
-                                }
                                 PM_SetBackPat(&pat);
-                                SetPort(savedPort);  /* Restore window port */
+                                PM_RedrawDesktop();
+                                SetPort((GrafPtr)gDesktopCdevWin);
                             }
 
                             /* Redraw the grid to show new selection */
@@ -309,14 +303,16 @@ static void DrawPatternCell(int col, int row, int16_t patID, bool selected) {
     cellRect.right = cellRect.left + CELL_W;
     cellRect.bottom = cellRect.top + CELL_H;
 
-    /* Draw border */
+    /* Border, and outside it a heavier frame round the selected pattern. It
+     * was drawn as a 2-pixel border that the fill below then covered half
+     * of, which left the selected cell looking like every other. */
+    FrameRect(&cellRect);
     if (selected) {
-        /* Highlight selected pattern */
+        Rect ring = cellRect;
+        InsetRect(&ring, -3, -3);
         PenSize(2, 2);
-        FrameRect(&cellRect);
+        FrameRect(&ring);
         PenSize(1, 1);
-    } else {
-        FrameRect(&cellRect);
     }
 
     /* Create interior rect for fill - don't modify the original */
@@ -433,8 +429,9 @@ static void ApplySelectedPattern(void) {
  */
 static void RestoreOriginalPattern(void) {
     serial_puts("[CDEV] RestoreOriginalPattern start\n");
-    PM_SetBackPat(&gOriginalPattern);
-    PM_SetBackColor(&gOriginalColor);
+    /* Whatever it was - a colour pattern included, which restoring the 1-bit
+     * pattern alone lost - and the desktop repainted in it. */
+    PM_ApplyDesktopPref(&gOriginalPref);
     serial_puts("[CDEV] Colors set, committing\n");
     if (ColorManager_IsAvailable()) {
         ColorManager_SetBackground(&gOriginalColor);

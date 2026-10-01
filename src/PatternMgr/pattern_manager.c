@@ -58,6 +58,9 @@ void PM_SetBackPat(const Pattern *pat) {
     if (!pat) return;
     gPM.usePixPat = false;
     gPM.backPat = *pat;
+    /* The colour pattern no longer applies. Left set, the desktop went on
+     * being erased with it whatever 1-bit pattern was chosen. */
+    gPM.hasColorPattern = false;
 
     /* Store the pattern but DON'T call BackPat() - we only want it on the desktop, not in windows */
     /* The DeskHook will use this pattern directly when drawing the desktop background */
@@ -185,16 +188,29 @@ bool PM_ApplyDesktopPref(const DesktopPref *p) {
         PM_SetBackPat(&pat);
     }
 
-    /* Trigger a desktop redraw */
-    Rect desktopRect;
-    desktopRect.left = 0;
-    desktopRect.top = 0;
-    desktopRect.right = qd.screenBits.bounds.right;
-    desktopRect.bottom = qd.screenBits.bounds.bottom;
-    InvalRect(&desktopRect);
-    serial_puts("PM: Desktop invalidated\n");
-
+    PM_RedrawDesktop();
     return true;
+}
+
+/*
+ * PM_RedrawDesktop - paint the desktop again in the current pattern.
+ *
+ * Through the desk hook, which paints only where no window is. This used to
+ * InvalRect the screen rectangle in whatever port was current - a window's,
+ * typically - which never reached the desktop, so a new pattern appeared
+ * only where something later happened to uncover it.
+ */
+void PM_RedrawDesktop(void)
+{
+    extern void (*g_deskHook)(RgnHandle);
+    if (!g_deskHook) return;
+    RgnHandle all = NewRgn();
+    if (!all) return;
+    Rect screen = qd.screenBits.bounds;
+    screen.top = 20;   /* below the menu bar */
+    RectRgn(all, &screen);
+    g_deskHook(all);
+    DisposeRgn(all);
 }
 
 bool PM_LoadPAT(int16_t id, Pattern *out) {

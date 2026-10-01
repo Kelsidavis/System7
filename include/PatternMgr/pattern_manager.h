@@ -47,6 +47,9 @@ void PM_SaveDesktopPref(const DesktopPref *p);
 /* Apply a saved pref to the current desktop port */
 bool PM_ApplyDesktopPref(const DesktopPref *p);
 
+/* Paint the desktop again in the current pattern, around the windows. */
+void PM_RedrawDesktop(void);
+
 /* Resource helpers (like GetPattern/GetPixPat) */
 bool PM_LoadPAT(int16_t id, Pattern *out);
 Handle PM_LoadPPAT(int16_t id);  /* Raw 'ppat' handle; ownership to caller */
