@@ -354,8 +354,17 @@ TEHandle GetOrCreateDialogTEHandle(DialogPtr theDialog, SInt16 itemNo) {
         return NULL;
     }
 
-    /* Create new TextEdit record */
-    hTE = TENew(&itemBox, &itemBox);
+    /* Create new TextEdit record, in the dialog's port: a record draws in
+     * the port current when it is made, and this was whichever window was
+     * current - the Finder's rename box drew its field a second time in
+     * the Finder window underneath. */
+    {
+        GrafPtr savePort;
+        GetPort(&savePort);
+        SetPort((GrafPtr)theDialog);
+        hTE = TENew(&itemBox, &itemBox);
+        SetPort(savePort);
+    }
     if (!hTE) {
         // DIALOG_LOG_DEBUG("Failed to create TEHandle for dialog item %d\n", itemNo);
         return NULL;

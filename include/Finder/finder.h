@@ -194,6 +194,7 @@ void FolderWindow_TabKey(WindowPtr w, Boolean reverse);
 void FolderWindow_TypeAhead(WindowPtr w, char ch);
 void FolderWindow_ScrollWheel(int8_t delta);
 void FolderWindow_RenameItem(WindowPtr w, short itemIndex);
+void FolderWindow_IdleRename(void);   /* starts a rename once the double-click time is out */
 short FolderWindow_GetViewMode(WindowPtr w);
 Boolean FolderWindow_HasSelection(WindowPtr w);
 short FolderWindow_GetSelectedLabel(WindowPtr w);

@@ -235,6 +235,9 @@ Boolean HandleNullEvent(EventRecord* event)
 
     DateTimePanel_Tick();
 
+    extern void FolderWindow_IdleRename(void);
+    FolderWindow_IdleRename();
+
     /* Check if we're tracking desktop drag */
     if (g_dispatcher.trackingDesktop) {
         /* Check if mouse button is still down */

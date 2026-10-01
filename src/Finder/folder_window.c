@@ -1253,7 +1253,34 @@ static Boolean TrackFolderItemDrag(WindowPtr w, FolderWindowState* state, short 
 /* Handle click in folder window - called from EventDispatcher
  * Point is in GLOBAL coordinates, isDoubleClick from event system
  */
+/*
+ * A rename waiting out the double-click time. A click on a selected item's
+ * name renames it - but only once that interval has passed with no second
+ * click, which would make it a double-click that opens the item instead.
+ * The rename dialog used to come up on the first click, so a slow
+ * double-click on a name renamed rather than opened.
+ */
+static struct { WindowPtr w; short item; UInt32 at; } gPendingRename;
+
+/* Called at idle: start a rename whose wait is over. */
+void FolderWindow_IdleRename(void) {
+    extern UInt32 TickCount(void);
+    extern Boolean Button(void);
+    if (!gPendingRename.w || TickCount() < gPendingRename.at || Button()) return;
+    WindowPtr w = gPendingRename.w;
+    short item = gPendingRename.item;
+    gPendingRename.w = NULL;
+    for (WindowPtr open = FrontWindow(); open; open = open->nextWindow) {
+        if (open == w) {
+            extern void FolderWindow_RenameItem(WindowPtr w, short itemIndex);
+            FolderWindow_RenameItem(w, item);
+            return;
+        }
+    }
+}
+
 Boolean HandleFolderWindowClick(WindowPtr w, EventRecord *ev, Boolean isDoubleClick) {
+    gPendingRename.w = NULL;   /* any further click cancels a waiting rename */
     if (!w || !ev) return false;
 
     FolderWindowState* state = GetFolderState(w);
@@ -1386,8 +1413,11 @@ Boolean HandleFolderWindowClick(WindowPtr w, EventRecord *ev, Boolean isDoubleCl
                               localPt.v >= nameRect.top  && localPt.v < nameRect.bottom);
 
             if (oldSel == hitIndex && !shiftHeld && onName) {
-                extern void FolderWindow_RenameItem(WindowPtr w, short itemIndex);
-                FolderWindow_RenameItem(w, hitIndex);
+                extern UInt32 GetDblTime(void);
+                extern UInt32 TickCount(void);
+                gPendingRename.w = w;
+                gPendingRename.item = hitIndex;
+                gPendingRename.at = TickCount() + GetDblTime();
             } else {
                 PostEvent(updateEvt, (UInt32)(uintptr_t)w);
             }

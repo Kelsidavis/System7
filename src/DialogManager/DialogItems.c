@@ -711,8 +711,14 @@ void DrawDialogItem(DialogPtr theDialog, SInt16 itemNo)
         return;
     }
 
-    /* Use the new unified drawing dispatcher */
+    /* In the dialog's own port: items were drawn in whatever port was
+     * current, so focusing the Finder's rename field drew it a second time
+     * in the Finder window underneath. */
+    GrafPtr savePort;
+    GetPort(&savePort);
+    SetPort((GrafPtr)theDialog);
     DrawDialogItemByType(theDialog, itemNo, itemEx);
+    SetPort(savePort);
 
     // DIALOG_LOG_DEBUG("Drew dialog item %d (type %d)\n", itemNo, itemEx->type & itemTypeMask);
 }
@@ -892,8 +898,12 @@ static void InvalidateItemRect(DialogPtr theDialog, const Rect* rect)
         return;
     }
 
-    /* Invalidate the rectangle for redrawing */
+    /* In the dialog's port; the current one was often another window */
+    GrafPtr savePort;
+    GetPort(&savePort);
+    SetPort((GrafPtr)theDialog);
     InvalRect(rect);
+    SetPort(savePort);
 }
 
 void CleanupDialogItems(void)
