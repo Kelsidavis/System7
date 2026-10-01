@@ -596,3 +596,10 @@ void DrawPicture(PicHandle myPicture, const Rect* dstRect) {
         }
     }
 }
+
+/* A picture from the resource file: 'PICT' theID (Inside Macintosh:
+ * Imaging With QuickDraw, 7-30). Declared nowhere and never written. */
+PicHandle GetPicture(SInt16 picID) {
+    extern Handle GetResource(ResType theType, SInt16 theID);
+    return (PicHandle)GetResource('PICT', picID);
+}

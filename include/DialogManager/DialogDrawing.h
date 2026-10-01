@@ -30,6 +30,7 @@ void DrawDialogEditText(const Rect* bounds, const unsigned char* text,
                         Boolean isEnabled, Boolean hasFocus, SInt16 itemNo);
 
 void DrawDialogIcon(const Rect* bounds, SInt16 iconID, Boolean isEnabled);
+void DrawDialogPicture(const Rect* bounds, SInt16 picID);
 
 void DrawDialogUserItem(DialogPtr theDialog, SInt16 itemNo, const Rect* bounds,
                        UserItemProcPtr userProc);

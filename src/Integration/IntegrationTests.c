@@ -21,6 +21,7 @@
 #include "QuickDrawConstants.h"
 #include "DialogManager/DialogManager.h"
 #include "DialogManager/AlertDialogs.h"
+#include "DialogManager/DITLBuilder.h"
 extern QDGlobals qd;
 #include "MacTypes.h"
 #include "math.h"
@@ -720,6 +721,44 @@ static void Test_Window_MoveAndZoom(void) {
     RecordTest(test_name, true, "");
 }
 
+/* A dialog's icon item draws the icon, not a placeholder: ID 2 is the
+ * system caution icon. */
+static void Test_Dialog_IconItem(void) {
+    const char* test_name = "Dialog_IconItem";
+    DITLBuilder b;
+    CHECK(DITL_Begin(&b, 256), "DITL_Begin failed");
+    Rect well = { 10, 10, 42, 42 };
+    DITL_AddItemPascal(&b, iconItem, &well, (ConstStr255Param)"\x02\x00\x02");
+    Handle items = DITL_Finish(&b);
+    CHECK(items, "DITL_Finish failed");
+    Rect r = { 150, 520, 230, 700 };
+    DialogPtr d = NewDialog(NULL, &r, (ConstStr255Param)"", true, dBoxProc,
+                            (WindowPtr)-1, false, 0, items);
+    CHECK(d, "NewDialog failed");
+
+    GrafPtr save;
+    GetPort(&save);
+    SetPort((GrafPtr)d);
+    DrawDialog(d);
+    int black = 0, diagonal = 0;
+    for (int y = well.top; y < well.bottom; y++) {
+        for (int x = well.left; x < well.right; x++) {
+            Point g = { (short)y, (short)x };
+            LocalToGlobal(&g);
+            if ((ScreenPixel(g.h, g.v) & 0x00FFFFFF) == 0) {
+                black++;
+                if (x - well.left == y - well.top) diagonal++;
+            }
+        }
+    }
+    SetPort(save);
+    DisposeDialog(d);
+
+    CHECK(black > 100, "the icon was not drawn");
+    CHECK(diagonal < 30, "a placeholder X was drawn instead of the icon");
+    RecordTest(test_name, true, "");
+}
+
 static void Test_Resource_CreateAndOpenResFile(void) {
     const char* test_name = "Resource_CreateAndOpenResFile";
     FSSpec spec;
@@ -846,6 +885,7 @@ void IntegrationTests_Run(void) {
     Test_Draw_ClippedToVisibleRegion();
     Test_Draw_PenModes();
     Test_Dialog_AlertLayout();
+    Test_Dialog_IconItem();
     Test_Window_ReorderAndHide();
     Test_Window_MoveAndZoom();
     Test_File_ReadThroughExtentsOverflow();

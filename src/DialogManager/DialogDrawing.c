@@ -11,6 +11,7 @@
 #include "SystemTypes.h"
 #include "System71StdLib.h"
 #include "QuickDrawConstants.h"
+#include "MemoryMgr/MemoryManager.h"
 #include "DialogManager/DialogManager.h"
 #include "DialogManager/DialogTypes.h"
 #include "DialogManager/DialogDrawing.h"
@@ -401,29 +402,57 @@ void DrawDialogEditText(const Rect* bounds, const unsigned char* text,
 }
 
 /* Draw icon item */
+/*
+ * An icon item: a colour 'cicn' if there is one, else the 'ICON'; IDs 0 to 2
+ * are the system's stop, note and caution icons. This drew a box with an X
+ * through it whatever the ID.
+ */
 void DrawDialogIcon(const Rect* bounds, SInt16 iconID, Boolean isEnabled) {
-    GrafPtr savePort;
-
-    GetPort(&savePort);
-
-    // DIALOG_LOG_DEBUG("Dialog: DrawIcon id=%d at (%d,%d,%d,%d)\n", iconID, bounds->top, bounds->left, bounds->bottom, bounds->right);
-
-    /* For now, just draw a placeholder frame */
-    /* In full implementation, would load and draw actual icon resource */
+    (void)isEnabled;   /* an item's itemDisable bit is about clicks */
     EraseRect(bounds);
-    FrameRect(bounds);
 
-    /* Draw X through it as placeholder */
-    MoveTo(bounds->left, bounds->top);
-    LineTo(bounds->right-1, bounds->bottom-1);
-    MoveTo(bounds->right-1, bounds->top);
-    LineTo(bounds->left, bounds->bottom-1);
-
-    if (!isEnabled) {
-        FillRect(bounds, &qd.ltGray);
+    extern CIconHandle GetCIcon(SInt16 iconID);
+    extern void PlotCIcon(const Rect* theRect, CIconHandle theIcon);
+    extern void DisposeCIcon(CIconHandle theIcon);
+    CIconHandle cicn = GetCIcon(iconID);
+    if (cicn) {
+        PlotCIcon(bounds, cicn);
+        DisposeCIcon(cicn);
+        return;
     }
 
-    SetPort(savePort);
+    extern Handle GetIcon(short iconID);
+    extern void PlotIcon(const Rect* theRect, Handle theIcon);
+    Handle icon = GetIcon(iconID);
+    if (!icon && iconID >= 0 && iconID <= 2) {
+        /* The system's alert icons, from the built-in bitmaps */
+        extern const unsigned char* Alert_IconBitmap(SInt16 kind);
+        const unsigned char* bits = Alert_IconBitmap((SInt16)(iconID + 1));
+        if (bits) {
+            Handle h = NewHandle(128);
+            if (h) {
+                memcpy(*h, bits, 128);
+                PlotIcon(bounds, h);
+                DisposeHandle(h);
+            }
+        }
+        return;
+    }
+    if (icon) {
+        PlotIcon(bounds, icon);
+    }
+}
+
+/* A picture item: the 'PICT' with the item's resource ID, drawn into the
+ * item's rectangle. There was no case for it, so it drew as an empty frame. */
+void DrawDialogPicture(const Rect* bounds, SInt16 picID) {
+    extern PicHandle GetPicture(SInt16 picID);
+    extern void DrawPicture(PicHandle myPicture, const Rect* dstRect);
+    EraseRect(bounds);
+    PicHandle pic = GetPicture(picID);
+    if (pic) {
+        DrawPicture(pic, bounds);
+    }
 }
 
 /* Draw user item (calls user proc) */
@@ -505,6 +534,10 @@ void DrawDialogItemByType(DialogPtr theDialog, SInt16 itemNo,
 
         case iconItem:  /* Icon */
             DrawDialogIcon(&item->bounds, (SInt16)item->refCon, true);
+            break;
+
+        case picItem:   /* Picture */
+            DrawDialogPicture(&item->bounds, (SInt16)item->refCon);
             break;
 
         case userItem:  /* User item (type 0) */

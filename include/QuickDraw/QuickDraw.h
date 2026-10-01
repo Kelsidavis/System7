@@ -180,6 +180,7 @@ PicHandle OpenPicture(const Rect *picFrame);
 void PicComment(SInt16 kind, SInt16 dataSize, Handle dataHandle);
 void ClosePicture(void);
 void DrawPicture(PicHandle myPicture, const Rect *dstRect);
+PicHandle GetPicture(SInt16 picID);   /* the PICT resource picID */
 void KillPicture(PicHandle myPicture);
 
 /* Polygon Operations */
