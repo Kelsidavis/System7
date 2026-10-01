@@ -1712,12 +1712,12 @@ Handle GetIndResource(ResType theType, SInt16 index) {
         return NULL;
     }
 
-    h = ResFile_LoadResource(file, ref);
-    if (h) {
-        gResMgr.resError = noErr;
-    } else {
-        gResMgr.resError = resNotFound;
-    }
+    /* The same handle GetResource gives for that resource (Inside Macintosh:
+     * More Macintosh Toolbox, 1-87): loaded through it, so the resource is
+     * known to the map and GetResInfo can say which one it is. This loaded a
+     * private copy that nothing knew was a resource. */
+    h = GetResource(theType, (ResID)read_be16((UInt8*)&ref->resID));
+    gResMgr.resError = h ? noErr : resNotFound;
     return h;
 }
 
