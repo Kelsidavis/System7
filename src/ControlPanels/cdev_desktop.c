@@ -1,443 +1,294 @@
 /*
- * RE-AGENT-BANNER
- * Desktop Patterns Control Panel (cdev)
- * System 7.1 Desktop Pattern Selector
+ * cdev_desktop.c - the Desktop Patterns control panel
  *
- * Control Panel for selecting desktop patterns.
- * Shows a grid of available patterns and allows the user to choose one.
- * Changes are applied immediately and saved to PRAM.
+ * Laid out as Apple's Desktop Patterns control panel (System 7.5), the first
+ * to carry colour patterns: one pattern at a time, tiled in a large preview,
+ * a scroll bar beneath it to move through the collection, and a "Set Desktop
+ * Pattern" button that puts the one shown on the desktop. Moving through the
+ * collection changes only the preview; the close box simply closes.
+ *
+ * The collection is every colour pattern ('ppat') the system has, then the
+ * black-and-white ones ('PAT ' 16 to 47). This used to be a grid of the
+ * black-and-white patterns alone with OK and Cancel, so none of the colour
+ * patterns could be chosen.
  */
 
 #include "ControlPanels/DesktopPatterns.h"
 #include "PatternMgr/pattern_manager.h"
 #include "PatternMgr/pattern_resources.h"
 #include "ControlManager/ControlManager.h"
+#include "ControlManager/ControlTypes.h"
 #include "WindowManager/WindowManager.h"
 #include "QuickDraw/QuickDraw.h"
+#include "QuickDraw/QuickDrawInternal.h"
 #include "QuickDrawConstants.h"
-#include "QuickDraw/ColorQuickDraw.h"
-#include "ColorManager.h"
-#include "FontManager/FontManager.h"
-#include "FontManager/FontInternal.h"
-#include "DialogManager/DialogManager.h"
+#include "ResourceManager.h"
 #include "System71StdLib.h"
 #include <string.h>
-#include <stdlib.h>
 
-/* Layout constants */
-#define GRID_COLS 8
-#define GRID_ROWS 4
-#define CELL_W    32
-#define CELL_H    32
-#define CELL_PAD   8
-#define WINDOW_MARGIN 16
-
-/* External QuickDraw globals */
 extern QDGlobals qd;
 
-/* Control button type */
-#define pushButProc 0
+#define pushButProc   0
+#define scrollBarProc 16
 
-/* Global state for the control panel */
+/* Content layout, in the window's local coordinates */
+enum {
+    kContentW = 236, kContentH = 196,
+    kPreviewTop = 12, kPreviewLeft = 12, kPreviewBottom = 132, kPreviewRight = 224,
+    kBarTop = 140, kBarBottom = 156,
+    kButtonTop = 166, kButtonBottom = 186, kButtonLeft = 38, kButtonRight = 198
+};
+
+/* The collection */
+#define kMaxPatterns 64
+typedef struct {
+    Boolean color;      /* a 'ppat', else a 'PAT ' */
+    int16_t id;
+} PatternEntry;
+
+static PatternEntry gPatterns[kMaxPatterns];
+static SInt16 gPatternCount = 0;
+static SInt16 gShown = 0;               /* index of the pattern in the preview */
+
 static WindowPtr gDesktopCdevWin = NULL;
-static GrafPtr gDesktopPrevPort = NULL;
-static ControlHandle gOKButton = NULL;
-static ControlHandle gCancelButton = NULL;
-static int16_t gSelectedPatID = 16;
-static RGBColor gOriginalColor;
-static DesktopPref gOriginalPref;
+static ControlHandle gScrollBar = NULL;
+static ControlHandle gSetButton = NULL;
 
-/* Forward declarations */
-static void DrawPatternCell(int col, int row, int16_t patID, bool selected);
-static void DrawPatternGrid(void);
-static int16_t GetPatternIDAtPosition(Point pt);
-static void ApplySelectedPattern(void);
-static void RestoreOriginalPattern(void);
+/* The colour pattern last decoded for the preview, so redrawing it does not
+ * load and decode the resource again. */
+static int16_t gDecodedID = 0;
+static uint32_t gDecoded[64];
+
+static void BuildCollection(void) {
+    gPatternCount = 0;
+
+    SInt16 colours = CountResources('ppat');
+    for (SInt16 i = 1; i <= colours && gPatternCount < kMaxPatterns; i++) {
+        Handle h = GetIndResource('ppat', i);
+        if (!h) continue;
+        ResID id;
+        ResType type;
+        char name[256];
+        GetResInfo(h, &id, &type, name);
+        /* Each once - the same pattern can be in more than one open file */
+        Boolean have = false;
+        for (SInt16 k = 0; k < gPatternCount; k++) {
+            if (gPatterns[k].color && gPatterns[k].id == id) have = true;
+        }
+        uint32_t probe[64];
+        /* Only patterns the Pattern Manager can show are offered */
+        if (!have && PM_LoadColorPattern(id, probe)) {
+            gPatterns[gPatternCount].color = true;
+            gPatterns[gPatternCount].id = id;
+            gPatternCount++;
+        }
+    }
+
+    for (int16_t id = 16; id <= 47 && gPatternCount < kMaxPatterns; id++) {
+        Pattern pat;
+        if (LoadPATResource(id, &pat)) {
+            gPatterns[gPatternCount].color = false;
+            gPatterns[gPatternCount].id = id;
+            gPatternCount++;
+        }
+    }
+}
+
+/* Which entry the desktop is using now, or 0 */
+static SInt16 CurrentDesktopIndex(void) {
+    DesktopPref pref = PM_GetSavedDesktopPref();
+    for (SInt16 i = 0; i < gPatternCount; i++) {
+        if (gPatterns[i].color == pref.usePixPat &&
+            gPatterns[i].id == (pref.usePixPat ? pref.ppatID : pref.patID)) {
+            return i;
+        }
+    }
+    return 0;
+}
+
+static void DrawPreview(void) {
+    if (!gDesktopCdevWin || gPatternCount == 0) return;
+    SetPort((GrafPtr)gDesktopCdevWin);
+
+    Rect box = { kPreviewTop, kPreviewLeft, kPreviewBottom, kPreviewRight };
+    PenNormal();
+    FrameRect(&box);
+    Rect interior = box;
+    InsetRect(&interior, 1, 1);
+
+    const PatternEntry* e = &gPatterns[gShown];
+    if (e->color) {
+        if (gDecodedID != e->id) {
+            gDecodedID = PM_LoadColorPattern(e->id, gDecoded) ? e->id : 0;
+        }
+        if (gDecodedID == e->id) {
+            QD_FillRectColorPattern(&interior, gDecoded);
+            return;
+        }
+    } else {
+        Pattern pat;
+        if (LoadPATResource(e->id, &pat)) {
+            ForeColor(blackColor);
+            BackColor(whiteColor);
+            FillRect(&interior, &pat);
+            return;
+        }
+    }
+    EraseRect(&interior);
+}
+
+static void DrawContents(void) {
+    SetPort((GrafPtr)gDesktopCdevWin);
+    EraseRect(&gDesktopCdevWin->port.portRect);
+    DrawPreview();
+    DrawControls(gDesktopCdevWin);
+}
+
+/* When the arrows last moved the preview on */
+static UInt32 gLastStepTick = 0;
+enum { kStepTicks = 20 };   /* one pattern per third of a second while held */
 
 /*
- * OpenDesktopCdev - Open the Desktop Patterns control panel
+ * The scroll bar moved: show the pattern it now points at. The arrows step one
+ * pattern a click; held, they go on at a pace you can follow rather than at
+ * the scroll bar's own repeat rate, which went past several patterns in an
+ * ordinary click.
  */
+static void ScrollAction(ControlHandle control, SInt16 part) {
+    extern UInt32 TickCount(void);
+    SInt16 value = GetControlValue(control);
+    if (value == gShown || value < 0 || value >= gPatternCount) return;
+    if (part == inUpButton || part == inDownButton) {
+        UInt32 now = TickCount();
+        if (now - gLastStepTick < kStepTicks) {
+            SetControlValue(control, gShown);   /* too soon: undo the step */
+            return;
+        }
+        gLastStepTick = now;
+    }
+    gShown = value;
+    DrawPreview();
+}
+
+/* Put the pattern shown on the desktop, and remember it */
+static void SetDesktopPattern(void) {
+    const PatternEntry* e = &gPatterns[gShown];
+    DesktopPref pref = PM_GetSavedDesktopPref();
+    pref.usePixPat = e->color;
+    if (e->color) {
+        pref.ppatID = e->id;
+    } else {
+        pref.patID = e->id;
+    }
+    if (PM_ApplyDesktopPref(&pref)) {
+        PM_SaveDesktopPref(&pref);
+    }
+}
+
 void OpenDesktopCdev(void) {
-    serial_puts("[CDEV] OpenDesktopCdev start\n");
-    if (gDesktopCdevWin != NULL) {
-        /* Already open, bring to front */
-        serial_puts("[CDEV] Window already open, selecting\n");
+    if (gDesktopCdevWin) {
         SelectWindow(gDesktopCdevWin);
         return;
     }
 
-    serial_puts("[CDEV] Creating new desktop patterns window\n");
-    /* Calculate window size */
-    Rect winRect;
-    winRect.top = 50;
-    winRect.left = 50;
-    winRect.bottom = winRect.top + 40 + (GRID_ROWS * (CELL_H + CELL_PAD)) + 60;
-    winRect.right = winRect.left + (GRID_COLS * (CELL_W + CELL_PAD)) + 32;
+    BuildCollection();
+    if (gPatternCount == 0) return;
+    gShown = CurrentDesktopIndex();
 
-    /* Create the window */
-    static Str255 winTitle;
-    c2pstrcpy(winTitle, "Desktop Patterns");
-    gDesktopCdevWin = NewWindow(NULL, &winRect, winTitle,
-                                 true, documentProc, (WindowPtr)-1L, true, 0);
-    if (!gDesktopCdevWin) {
-        serial_puts("[CDEV] NewWindow failed\n");
-        return;
-    }
-
-    serial_puts("[CDEV] Window created, setting port\n");
-    GetPort(&gDesktopPrevPort);
+    Rect bounds = { 60, 60, 60 + 21 + kContentH, 60 + 2 + kContentW };
+    static Str255 title;
+    c2pstrcpy(title, "Desktop Patterns");
+    gDesktopCdevWin = NewWindow(NULL, &bounds, title, false, noGrowDocProc,
+                                (WindowPtr)-1L, true, 0);
+    if (!gDesktopCdevWin) return;
     SetPort((GrafPtr)gDesktopCdevWin);
 
-    /* Ensure consistent black/white rendering for 1-bit patterns */
-    ForeColor(blackColor);
-    BackColor(whiteColor);
+    Rect barRect = { kBarTop, kPreviewLeft, kBarBottom, kPreviewRight };
+    gScrollBar = NewControl(gDesktopCdevWin, &barRect, (ConstStr255Param)"", true,
+                            gShown, 0, (SInt16)(gPatternCount - 1), scrollBarProc, 0);
 
-    /* Create OK and Cancel buttons - use LOCAL window coordinates */
-    Rect portRect = gDesktopCdevWin->port.portRect;
-    Rect buttonRect;
-    buttonRect.bottom = portRect.bottom - 20;
-    buttonRect.top = buttonRect.bottom - 20;
-    buttonRect.right = portRect.right - 20;
-    buttonRect.left = buttonRect.right - 80;
+    Rect buttonRect = { kButtonTop, kButtonLeft, kButtonBottom, kButtonRight };
+    static Str255 setTitle;
+    c2pstrcpy(setTitle, "Set Desktop Pattern");
+    gSetButton = NewControl(gDesktopCdevWin, &buttonRect, setTitle, true, 0, 0, 1,
+                            pushButProc, 0);
 
-    serial_puts("[CDEV] Creating buttons\n");
-    static Str255 okTitle;
-    c2pstrcpy(okTitle, "OK");
-    gOKButton = NewControl(gDesktopCdevWin, &buttonRect, okTitle,
-                           true, 0, 0, 1, pushButProc, 0);
-
-    buttonRect.right = buttonRect.left - 10;
-    buttonRect.left = buttonRect.right - 80;
-    static Str255 cancelTitle;
-    c2pstrcpy(cancelTitle, "Cancel");
-    gCancelButton = NewControl(gDesktopCdevWin, &buttonRect, cancelTitle,
-                               true, 0, 0, 1, pushButProc, 0);
-
-    serial_puts("[CDEV] Loading preferences\n");
-    /* Save current pattern so we can restore on cancel */
-    gOriginalPref = PM_GetSavedDesktopPref();
-    serial_puts("[CDEV] Getting background color\n");
-    PM_GetBackColor(&gOriginalColor);
-
-    /* Align Color Manager state with the current desktop colors */
-    serial_puts("[CDEV] Initializing ColorManager\n");
-    if (ColorManager_Init() == noErr) {
-        ColorManager_SetBackground(&gOriginalColor);
-        ColorManager_CommitQuickDraw();
-    }
-    /* The pattern in use is selected; a colour pattern is none of these. */
-    gSelectedPatID = gOriginalPref.usePixPat ? 0 : gOriginalPref.patID;
-    if (gSelectedPatID < 16 || gSelectedPatID > 47) {
-        gSelectedPatID = 0;
-    }
-
-    serial_puts("[CDEV] Drawing pattern grid\n");
-    /* Draw the window contents */
-    DrawPatternGrid();
-    serial_puts("[CDEV] Drawing controls\n");
-    DrawControls(gDesktopCdevWin);
-    serial_puts("[CDEV] Showing window\n");
     ShowWindow(gDesktopCdevWin);
-    serial_puts("[CDEV] OpenDesktopCdev complete\n");
+    SelectWindow(gDesktopCdevWin);
+    DrawContents();
 }
 
-/*
- * CloseDesktopCdev - Close the control panel
- */
 void CloseDesktopCdev(void) {
-    serial_puts("[CDC] Start\n");
-    if (gDesktopCdevWin) {
-        serial_puts("[CDC] Restoring port\n");
-        if (gDesktopPrevPort) {
-            SetPort(gDesktopPrevPort);
-            gDesktopPrevPort = NULL;
-        }
-        serial_puts("[CDC] About to dispose window\n");
-        DisposeWindow(gDesktopCdevWin);
-        serial_puts("[CDC] Window disposed\n");
-        gDesktopCdevWin = NULL;
-        gOKButton = NULL;
-        gCancelButton = NULL;
-
-        /* The control panel is closing, clear out any dirty Color Manager state */
-        serial_puts("[CDC] Cleaning up ColorManager\n");
-        if (ColorManager_IsAvailable()) {
-            serial_puts("[CDC] CM available, setting background\n");
-            ColorManager_SetBackground(&gOriginalColor);
-            serial_puts("[CDC] CM background set\n");
-            ColorManager_CommitQuickDraw();
-            serial_puts("[CDC] CM committed\n");
-            /* ColorManager_Shutdown(); */ /* DISABLED: Testing if this causes freeze */
-        }
-    }
-    serial_puts("[CDC] Complete\n");
+    if (!gDesktopCdevWin) return;
+    DisposeWindow(gDesktopCdevWin);
+    gDesktopCdevWin = NULL;
+    gScrollBar = NULL;
+    gSetButton = NULL;
 }
 
-/*
- * HandleDesktopCdevEvent - Handle events for the Desktop Patterns control panel
- */
 Boolean DesktopPatterns_HandleEvent(EventRecord *event) {
     if (!event || !gDesktopCdevWin) {
         return false;
     }
 
-    WindowPtr whichWindow;
-    Point where;
-    ControlHandle control;
-    int16_t part;
-
     switch (event->what) {
         case updateEvt:
-            serial_puts("[CDEV-EVT] Update event\n");
             if ((WindowPtr)(uintptr_t)event->message != gDesktopCdevWin) {
                 return false;
             }
             BeginUpdate(gDesktopCdevWin);
-            SetPort((GrafPtr)gDesktopCdevWin);
-            DrawPatternGrid();
-            DrawControls(gDesktopCdevWin);
+            DrawContents();
             EndUpdate(gDesktopCdevWin);
             return true;
 
-        case mouseDown:
-            serial_puts("[CDEV-EVT] Mouse down event\n");
-            part = FindWindow(event->where, &whichWindow);
-            if (whichWindow != gDesktopCdevWin) {
-                /* Someone else's window, or the desktop: not ours to take. */
-                return false;
+        case mouseDown: {
+            WindowPtr which;
+            SInt16 part = FindWindow(event->where, &which);
+            if (which != gDesktopCdevWin) {
+                return false;    /* someone else's window, or the desktop */
             }
             switch (part) {
-                case inContent:
-                    SelectWindow(gDesktopCdevWin);
+                case inContent: {
+                    if (FrontWindow() != gDesktopCdevWin) {
+                        SelectWindow(gDesktopCdevWin);
+                        break;
+                    }
                     SetPort((GrafPtr)gDesktopCdevWin);
-                    where = event->where;
+                    Point where = event->where;
                     GlobalToLocal(&where);
-
-                    /* Check if click is on a control */
-                    part = FindControl(where, gDesktopCdevWin, &control);
-                    if (part && control) {
-                        serial_puts("[CDEV-EVT] Control found, tracking\n");
+                    ControlHandle control;
+                    SInt16 cpart = FindControl(where, gDesktopCdevWin, &control);
+                    if (control == gScrollBar && cpart) {
+                        SInt16 delta = 0;
+                        gLastStepTick = 0;   /* a new click steps at once */
+                        TrackScrollbarAction(control, where, cpart, ScrollAction, &delta);
+                        ScrollAction(control, cpart);
+                    } else if (control == gSetButton && cpart) {
                         if (TrackControl(control, where, NULL)) {
-                            serial_puts("[CDEV-EVT] Control tracked successfully\n");
-                            if (control == gOKButton) {
-                                serial_puts("[OK] Button tracked\n");
-                                /* Save and apply the selected pattern */
-                                serial_puts("[OK] Calling ApplySelectedPattern\n");
-                                ApplySelectedPattern();
-                                serial_puts("[OK] ApplySelectedPattern done\n");
-                                serial_puts("[OK] Calling CloseDesktopCdev\n");
-                                CloseDesktopCdev();
-                                serial_puts("[OK] CloseDesktopCdev done\n");
-                            } else if (control == gCancelButton) {
-                                serial_puts("[CDEV-EVT] Cancel button clicked\n");
-                                /* Restore original pattern and close */
-                                RestoreOriginalPattern();
-                                CloseDesktopCdev();
-                            }
-                        } else {
-                            serial_puts("[CDEV-EVT] Control tracking returned false\n");
-                        }
-                    } else {
-                        /* Check if click is on a pattern cell */
-                        int16_t patID = GetPatternIDAtPosition(where);
-                        if (patID != 0 && patID != gSelectedPatID) {
-                            gSelectedPatID = patID;
-                            serial_puts("[CDEV-EVT] Pattern selected\n");
-
-                            /* Shown on the desktop straight away; OK keeps it,
-                             * Cancel puts the old one back. This set the
-                             * pattern without painting the desktop, so nothing
-                             * visibly changed. */
-                            Pattern pat;
-                            if (PM_LoadPAT(patID, &pat)) {
-                                PM_SetBackPat(&pat);
-                                PM_RedrawDesktop();
-                                SetPort((GrafPtr)gDesktopCdevWin);
-                            }
-
-                            /* Redraw the grid to show new selection */
-                            DrawPatternGrid();
-                            DrawControls(gDesktopCdevWin);
+                            SetDesktopPattern();
                         }
                     }
                     break;
-
+                }
                 case inDrag:
                     DragWindow(gDesktopCdevWin, event->where, &qd.screenBits.bounds);
                     break;
-
                 case inGoAway:
-                    serial_puts("[CDEV-EVT] Close button clicked, tracking go-away\n");
                     if (TrackGoAway(gDesktopCdevWin, event->where)) {
-                        serial_puts("[CDEV-EVT] Go-away tracked, closing\n");
-                        RestoreOriginalPattern();
                         CloseDesktopCdev();
-                    } else {
-                        serial_puts("[CDEV-EVT] Go-away tracking returned false\n");
                     }
                     break;
             }
             return true;
+        }
 
         case activateEvt:
-            if ((WindowPtr)(uintptr_t)event->message == gDesktopCdevWin) {
-                /* Future: highlight controls if needed */
-                return true;
-            }
-            return false;
+            return (WindowPtr)(uintptr_t)event->message == gDesktopCdevWin;
 
         default:
             break;
     }
-
     return false;
-}
-
-/*
- * DrawPatternCell - Draw a single pattern cell in the grid
- */
-static void DrawPatternCell(int col, int row, int16_t patID, bool selected) {
-    Rect cellRect;
-    cellRect.left = WINDOW_MARGIN + col * (CELL_W + CELL_PAD);
-    cellRect.top = 40 + row * (CELL_H + CELL_PAD);
-    cellRect.right = cellRect.left + CELL_W;
-    cellRect.bottom = cellRect.top + CELL_H;
-
-    /* Border, and outside it a heavier frame round the selected pattern. It
-     * was drawn as a 2-pixel border that the fill below then covered half
-     * of, which left the selected cell looking like every other. */
-    FrameRect(&cellRect);
-    if (selected) {
-        Rect ring = cellRect;
-        InsetRect(&ring, -3, -3);
-        PenSize(2, 2);
-        FrameRect(&ring);
-        PenSize(1, 1);
-    }
-
-    /* Create interior rect for fill - don't modify the original */
-    Rect fillRect = cellRect;
-    InsetRect(&fillRect, 1, 1);
-
-    /* Fill with pattern */
-    Pattern pat;
-    if (LoadPATResource(patID, &pat)) {
-        FillRect(&fillRect, &pat);
-    } else {
-        /* Fallback: lightly shade missing pattern - pattern load failed */
-        Pattern fallback = qd.ltGray;
-        FillRect(&fillRect, &fallback);
-    }
-}
-
-/*
- * DrawPatternGrid - Draw the entire grid of patterns
- */
-static void DrawPatternGrid(void) {
-    serial_puts("[CDEV-GRID] DrawPatternGrid start\n");
-    if (!gDesktopCdevWin) {
-        serial_puts("[CDEV-GRID] No window, returning\n");
-        return;
-    }
-
-    SetPort((GrafPtr)gDesktopCdevWin);
-
-    /* Clear the window */
-    Rect winRect;
-    winRect = gDesktopCdevWin->port.portRect;
-    serial_puts("[CDEV-GRID] Erasing rect\n");
-    EraseRect(&winRect);
-
-    /* Draw title */
-    MoveTo(WINDOW_MARGIN, 25);
-    static Str255 titleStr;
-    c2pstrcpy(titleStr, "Select Desktop Pattern:");
-    serial_puts("[CDEV-GRID] Drawing title\n");
-    DrawString(titleStr);
-
-    /* Draw pattern grid */
-    /* Start with standard pattern IDs */
-    int16_t patID = 16;  /* Start with kDesktopPatternID */
-    serial_puts("[CDEV-GRID] Starting grid drawing loop\n");
-
-    for (int row = 0; row < GRID_ROWS; row++) {
-        for (int col = 0; col < GRID_COLS; col++) {
-            DrawPatternCell(col, row, patID, (patID == gSelectedPatID));
-            patID++;
-        }
-    }
-    serial_puts("[CDEV-GRID] DrawPatternGrid complete\n");
-}
-
-/*
- * GetPatternIDAtPosition - Determine which pattern was clicked
- */
-static int16_t GetPatternIDAtPosition(Point pt) {
-    /* Check if point is in grid area */
-    if (pt.h < WINDOW_MARGIN || pt.v < 40) {
-        return 0;
-    }
-
-    int col = (pt.h - WINDOW_MARGIN) / (CELL_W + CELL_PAD);
-    int row = (pt.v - 40) / (CELL_H + CELL_PAD);
-
-    if (col >= 0 && col < GRID_COLS && row >= 0 && row < GRID_ROWS) {
-        /* Check if click is actually within cell (not in padding) */
-        int cellX = WINDOW_MARGIN + col * (CELL_W + CELL_PAD);
-        int cellY = 40 + row * (CELL_H + CELL_PAD);
-
-        if (pt.h >= cellX && pt.h < cellX + CELL_W &&
-            pt.v >= cellY && pt.v < cellY + CELL_H) {
-            return 16 + (row * GRID_COLS) + col;
-        }
-    }
-
-    return 0;
-}
-
-/*
- * ApplySelectedPattern - Apply and save the selected pattern
- */
-static void ApplySelectedPattern(void) {
-    serial_puts("[ASP] Start\n");
-    if (gSelectedPatID == 0) {
-        serial_puts("[ASP] Invalid ID, returning\n");
-        return;
-    }
-
-    /* Update the preference */
-    serial_puts("[ASP] Creating pref\n");
-    DesktopPref pref = gOriginalPref;
-    pref.usePixPat = false;
-    pref.patID = gSelectedPatID;
-
-    /* Save to PRAM - this persists the user's choice */
-    serial_puts("[ASP] About to save pref\n");
-    PM_SaveDesktopPref(&pref);
-    serial_puts("[ASP] Pref saved\n");
-    gOriginalPref = pref;
-
-    serial_puts("[ASP] Done\n");
-    /* Don't apply pattern here - it's already being shown as preview on the desktop.
-     * Just save the preference and close the window. The Finder will update the
-     * desktop when it gets the notification. Applying here would try to set the
-     * pattern on the applet window's port, which causes issues. */
-}
-
-/*
- * RestoreOriginalPattern - Restore the original pattern (for cancel)
- */
-static void RestoreOriginalPattern(void) {
-    serial_puts("[CDEV] RestoreOriginalPattern start\n");
-    /* Whatever it was - a colour pattern included, which restoring the 1-bit
-     * pattern alone lost - and the desktop repainted in it. */
-    PM_ApplyDesktopPref(&gOriginalPref);
-    serial_puts("[CDEV] Colors set, committing\n");
-    if (ColorManager_IsAvailable()) {
-        ColorManager_SetBackground(&gOriginalColor);
-        ColorManager_CommitQuickDraw();
-    }
-    serial_puts("[CDEV] RestoreOriginalPattern complete\n");
 }
 
 Boolean DesktopPatterns_IsWindow(WindowPtr window) {
