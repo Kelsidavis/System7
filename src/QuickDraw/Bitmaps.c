@@ -615,7 +615,12 @@ static void CopyBitsUnscaled(const BitMap *srcBits, const BitMap *dstBits,
             UInt8 *srcBase = (UInt8 *)srcBits->baseAddr;
             UInt8 *dstBase = (UInt8 *)dstBits->baseAddr;
 
-            for (SInt16 line = 0; line < height; line++) {
+            /* Within one bitmap, a copy moving down goes bottom up, or
+             * the rows it has not read yet are overwritten first; each row
+             * is moved with memmove for the same reason sideways. */
+            Boolean upward = (srcBits->baseAddr == dstBits->baseAddr && dstRect->top > srcRect->top);
+            for (SInt16 n = 0; n < height; n++) {
+                SInt16 line = upward ? (SInt16)(height - 1 - n) : n;
                 SInt16 srcOffsetY = (srcRect->top + line - srcBits->bounds.top);
                 SInt16 dstOffsetY = (dstRect->top + line - dstBits->bounds.top);
                 SInt16 srcOffsetX = srcRect->left - srcBits->bounds.left;
@@ -647,18 +652,24 @@ static void CopyBitsUnscaled(const BitMap *srcBits, const BitMap *dstBits,
                 UInt8 *srcRow = srcBase + srcStart;
                 UInt8 *dstRow = dstBase + dstStart;
                 if (copyBytes > 0) {
-                    memcpy(dstRow, srcRow, copyBytes);
+                    memmove(dstRow, srcRow, copyBytes);
                 }
             }
             return;
         }
     }
 
-    for (SInt16 line = 0; line < height; line++) {
+    /* Same order rule as above, rows and columns both */
+    Boolean same = (srcBits->baseAddr == dstBits->baseAddr);
+    Boolean upward = same && dstRect->top > srcRect->top;
+    Boolean leftward = same && dstRect->left > srcRect->left;
+    for (SInt16 n = 0; n < height; n++) {
+        SInt16 line = upward ? (SInt16)(height - 1 - n) : n;
         SInt16 srcY = srcRect->top + line;
         SInt16 dstY = dstRect->top + line;
 
-        for (SInt16 column = 0; column < width; column++) {
+        for (SInt16 m = 0; m < width; m++) {
+            SInt16 column = leftward ? (SInt16)(width - 1 - m) : m;
             SInt16 srcX = srcRect->left + column;
             SInt16 dstX = dstRect->left + column;
 
@@ -838,6 +849,81 @@ void ScrollRect(const Rect *r, SInt16 dh, SInt16 dv, RgnHandle updateRgn) {
     /* Destination aligned with the clipped source */
     Rect copyDstAligned = copySrcLocal;
     OffsetRect(&copyDstAligned, dh, dv);
+
+    /* On screen, move the pixels here. CopyBits reads a window's bitmap
+     * as a PixMap, from fields a BitMap does not have; and the area
+     * uncovered was left as it was, where it is to be filled with the
+     * background (Inside Macintosh: Imaging With QuickDraw, 3-140). */
+    extern void* framebuffer;
+    extern uint32_t fb_pitch, fb_width, fb_height;
+    extern CGrafPtr g_currentCPort;
+    Boolean colourPort = g_currentCPort && (GrafPtr)g_currentCPort == g_currentPort;
+    if (!colourPort && framebuffer && g_currentPort->portBits.baseAddr == (Ptr)framebuffer) {
+        extern void QD_ClipBegin(GrafPtr port);
+        extern void QD_ClipEnd(void);
+        extern Boolean QD_ClipHas(SInt32 x, SInt32 y);
+        extern Boolean WM_PortVisibleRgn(GrafPtr port, RgnHandle out);
+        extern void Pointer_Shield(int left, int top, int right, int bottom);
+        SInt16 bh = g_currentPort->portBits.bounds.left, bv = g_currentPort->portBits.bounds.top;
+        Rect sg = copySrcLocal, dg = copyDstAligned;
+        OffsetRect(&sg, bh, bv);
+        OffsetRect(&dg, bh, bv);
+        Pointer_Shield(srcRectLocal.left + bh, srcRectLocal.top + bv,
+                       srcRectLocal.right + bh, srcRectLocal.bottom + bv);
+
+        QD_ClipBegin(g_currentPort);
+        SInt16 w = sg.right - sg.left, h = sg.bottom - sg.top;
+        for (SInt16 n = 0; n < h; n++) {
+            SInt16 line = (dv > 0) ? (SInt16)(h - 1 - n) : n;
+            SInt32 sy = sg.top + line, dy = dg.top + line;
+            if (sy < 0 || dy < 0 || sy >= (SInt32)fb_height || dy >= (SInt32)fb_height) continue;
+            uint32_t* srow = (uint32_t*)((uint8_t*)framebuffer + sy * fb_pitch);
+            uint32_t* drow = (uint32_t*)((uint8_t*)framebuffer + dy * fb_pitch);
+            for (SInt16 m = 0; m < w; m++) {
+                SInt16 col = (dh > 0) ? (SInt16)(w - 1 - m) : m;
+                SInt32 sx = sg.left + col, dx = dg.left + col;
+                if (sx < 0 || dx < 0 || sx >= (SInt32)fb_width || dx >= (SInt32)fb_width) continue;
+                if (QD_ClipHas(dx, dy)) drow[dx] = srow[sx];
+            }
+        }
+        QD_ClipEnd();
+
+        /* The uncovered part: background, and the update region */
+        RgnHandle vacated = NewRgn();
+        if (vacated) {
+            RgnHandle moved = NewRgn();
+            RectRgn(vacated, &srcRectLocal);
+            if (moved) {
+                RectRgn(moved, &copyDstAligned);
+                DiffRgn(vacated, moved, vacated);
+                DisposeRgn(moved);
+            }
+            EraseRgn(vacated);
+            if (updateRgn && *updateRgn) CopyRgn(vacated, updateRgn);
+            DisposeRgn(vacated);
+        }
+
+        /* Part of the source under another window has nothing to bring:
+         * the whole area is to be redrawn. */
+        RgnHandle vis = NewRgn();
+        if (vis && WM_PortVisibleRgn(g_currentPort, vis)) {
+            Rect sGlobal = srcRectLocal;
+            OffsetRect(&sGlobal, bh, bv);
+            RgnHandle part = NewRgn();
+            if (part) {
+                RectRgn(part, &sGlobal);
+                DiffRgn(part, vis, part);
+                if (!EmptyRgn(part)) {
+                    extern void InvalRect(const Rect* badRect);
+                    InvalRect(&srcRectLocal);
+                    if (updateRgn && *updateRgn) RectRgn(updateRgn, &srcRectLocal);
+                }
+                DisposeRgn(part);
+            }
+        }
+        if (vis) DisposeRgn(vis);
+        return;
+    }
 
     /* Convert rectangles to global coordinates for CopyBits */
     Rect srcRectGlobal = copySrcLocal;

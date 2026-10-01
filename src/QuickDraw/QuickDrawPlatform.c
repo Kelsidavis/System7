@@ -1113,7 +1113,13 @@ static void QDPlatform_DrawRegion_Body(RgnHandle rgn, short mode, const Pattern*
     extern void EraseRect(const Rect* r);
     extern GrafPtr g_currentPort;
     uint32_t* colorPattern = NULL;
-    Boolean colour = PM_GetColorPattern(&colorPattern) && g_currentPort &&
+    /* The desktop's pattern is for the desktop: a window erases to its own
+     * background, through EraseRect. */
+    extern Boolean WM_PortVisibleRgn(GrafPtr port, RgnHandle out);
+    static RgnHandle probe = NULL;
+    if (!probe) probe = NewRgn();
+    Boolean isWindow = g_currentPort && probe && WM_PortVisibleRgn(g_currentPort, probe);
+    Boolean colour = !isWindow && PM_GetColorPattern(&colorPattern) && g_currentPort &&
                      g_currentPort->portBits.baseAddr == (Ptr)framebuffer;
     SInt16 dh = colour ? g_currentPort->portBits.bounds.left - g_currentPort->portRect.left : 0;
     SInt16 dv = colour ? g_currentPort->portBits.bounds.top - g_currentPort->portRect.top : 0;

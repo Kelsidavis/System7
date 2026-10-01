@@ -797,6 +797,41 @@ static void Test_Draw_SetOrigin(void) {
     RecordTest(test_name, true, "");
 }
 
+/* ScrollRect moves the contents, down and right included, clears what it
+ * uncovers and reports exactly that as the update region. */
+static void Test_Draw_ScrollRect(void) {
+    const char* test_name = "Draw_ScrollRect";
+    Rect wr = { 150, 520, 300, 700 };
+    WindowPtr w = NewWindow(NULL, &wr, (ConstStr255Param)"\x06ITScrl", true, 0, (WindowPtr)-1, false, 0);
+    CHECK(w, "NewWindow failed");
+    GrafPtr save;
+    GetPort(&save);
+    SetPort((GrafPtr)w);
+    EraseRect(&w->port.portRect);
+    int gx = (*w->contRgn)->rgnBBox.left, gy = (*w->contRgn)->rgnBBox.top;
+
+    Rect sq = { 10, 10, 20, 20 };
+    PaintRect(&sq);
+    RgnHandle upd = NewRgn();
+    Rect area = { 0, 0, 100, 150 };
+    ScrollRect(&area, 25, 30, upd);
+    Rect u = (*upd)->rgnBBox;
+    DisposeRgn(upd);
+
+    UInt32 movedTL = ScreenPixel(gx + 35, gy + 40);   /* old (10,10) */
+    UInt32 movedBR = ScreenPixel(gx + 44, gy + 49);   /* old (19,19) */
+    UInt32 oldSpot = ScreenPixel(gx + 15, gy + 15);
+    SetPort(save);
+    DisposeWindow(w);
+
+    CHECK((movedTL & 0x00FFFFFF) == 0 && (movedBR & 0x00FFFFFF) == 0,
+          "the square did not arrive whole where it was scrolled to");
+    CHECK((oldSpot & 0x00FFFFFF) == 0x00FFFFFF, "the uncovered area was not cleared");
+    CHECK(u.left == 0 && u.top == 0 && u.right == 150 && u.bottom == 100,
+          "the update region is not the uncovered area");
+    RecordTest(test_name, true, "");
+}
+
 static void Test_Resource_CreateAndOpenResFile(void) {
     const char* test_name = "Resource_CreateAndOpenResFile";
     FSSpec spec;
@@ -923,6 +958,7 @@ void IntegrationTests_Run(void) {
     Test_Draw_ClippedToVisibleRegion();
     Test_Draw_PenModes();
     Test_Draw_SetOrigin();
+    Test_Draw_ScrollRect();
     Test_Dialog_AlertLayout();
     Test_Dialog_IconItem();
     Test_Window_ReorderAndHide();
