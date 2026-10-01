@@ -6,6 +6,7 @@
 
 #include "SystemTypes.h"
 #include "MenuManager/MenuManager.h"
+#include "WindowManager/WindowManager.h"
 #include "SystemInternal.h"
 #include "MenuManager/MenuLogging.h"
 #include "MenuManager/MenuTypes.h"
@@ -36,7 +37,6 @@ extern void GetItemSubmenu(MenuHandle theMenu, short item, short* submenuID);
 /* Forward declarations for static functions */
 static void DrawHighlightRect(short left, short top, short right, short bottom, Boolean highlight);
 static void DrawInvertedText(const char* text, short x, short y, Boolean inverted);
-static void DrawInvertedAppleIcon(short x, short y);
 void DrawMenuBarWithHighlight(short highlightMenuID);
 
 /* Forward declarations for menu tracking functions */
@@ -1120,48 +1120,6 @@ long TrackMenu(short menuID, Point *startPt) {
 }
 
 /* Draw inverted Apple icon for highlighted Apple menu */
-static void DrawInvertedAppleIcon(short x, short y) {
-    extern void* framebuffer;
-    extern uint32_t fb_width;
-    extern uint32_t fb_height;
-    extern uint32_t fb_pitch;
-
-    if (!framebuffer) return;
-
-    Pointer_Shield(x, y, x + 11, y + 13);
-    uint32_t* fb = (uint32_t*)framebuffer;
-
-    /* Simple Apple logo pattern - inverted colors (white on black) */
-    static const uint8_t apple[13][11] = {
-        {0,0,0,0,0,1,1,0,0,0,0},
-        {0,0,0,0,1,1,1,0,0,0,0},
-        {0,0,0,0,0,1,0,0,0,0,0},
-        {0,0,1,1,1,1,1,1,1,0,0},
-        {0,1,1,1,1,1,1,1,1,1,0},
-        {1,1,1,1,1,1,1,1,1,1,1},
-        {1,1,1,1,1,1,1,1,1,1,1},
-        {1,1,1,1,1,1,1,1,1,1,1},
-        {1,1,1,1,1,1,1,1,1,1,1},
-        {1,1,1,1,1,1,1,1,1,1,1},
-        {0,1,1,1,1,1,1,1,1,1,0},
-        {0,0,1,1,0,0,0,1,1,0,0},
-        {0,0,0,0,0,0,0,0,0,0,0}
-    };
-
-    /* Draw the inverted Apple logo (white pixels) */
-    for (int row = 0; row < 13; row++) {
-        for (int col = 0; col < 11; col++) {
-            if (apple[row][col]) {
-                int px = x + col;
-                int py = y + row;
-                if (px >= 0 && px < fb_width && py >= 0 && py < fb_height) {
-                    fb[py * (fb_pitch / 4) + px] = 0xFFFFFFFF;  /* White */
-                }
-            }
-        }
-    }
-}
-
 /* Draw menu bar with a specific menu title highlighted */
 void DrawMenuBarWithHighlight(short highlightMenuID) {
     static short lastHighlightMenuID = 0;
@@ -1206,7 +1164,20 @@ void DrawMenuBarWithHighlight(short highlightMenuID) {
     /* Draw black background for the title */
     DrawHighlightRect(titleX, 0, titleX + titleW, 19, true);
 
-    if (highlightMenuID != 128) {
+    /* The Apple and Application menus have icons for titles, drawn as
+     * DrawMenuTitle draws them; this drew a hand-made 11x13 apple four
+     * pixels right of the real one, and the Application menu as a box. */
+    extern short MenuAppleIcon_Draw(GrafPtr port, short x, short y, Boolean inverted);
+    extern short MenuAppIcon_Draw(GrafPtr port, short x, short y, Boolean inverted);
+    if (MenuIsAppleMenu(highlightMenuID) || MenuIsApplicationMenu(highlightMenuID)) {
+        GrafPtr screen = NULL;
+        GetWMgrPort(&screen);
+        if (MenuIsAppleMenu(highlightMenuID)) {
+            MenuAppleIcon_Draw(screen, titleRect.left, titleRect.top, true);
+        } else {
+            MenuAppIcon_Draw(screen, titleRect.left, titleRect.top, true);
+        }
+    } else {
         /* Title text comes from the menu itself, not a hardcoded table */
         MenuHandle theMenu = GetMenuHandle(highlightMenuID);
         if (theMenu) {
@@ -1219,9 +1190,6 @@ void DrawMenuBarWithHighlight(short highlightMenuID) {
             titleText[len] = '\0';
             DrawInvertedText(titleText, titleX + 4, 14, true);
         }
-    } else {
-        /* For Apple menu, draw inverted Apple icon */
-        DrawInvertedAppleIcon(8, 2);
     }
 
     lastHighlightMenuID = highlightMenuID;

@@ -778,10 +778,10 @@ void GetFontMetrics(FMetricRec *theMetrics) {
  */
 short FM_GetPlainCharWidth(short ch) {
     if (g_fmState.currentStrike == &g_chicagoStrike12) {
-        /* Non-12pt sizes are synthesised by scaling the 12pt strike */
-        if (g_currentPort && g_currentPort->txSize != 12) {
-            return FM_GetScaledCharWidth(g_currentPort->txFont, g_currentPort->txSize, ch);
-        }
+        /* Every size is drawn from the 12-point strike, so every size is
+         * measured by it too. Other sizes were measured as if scaled - nothing
+         * draws them scaled - so the pen advanced by a 9- or 10-point width
+         * after a 12-point glyph and the letters overlapped. */
 
         /* Widths come from the same lookup the drawing does. When they came
          * from different places, a character the renderer could draw but the

@@ -1286,6 +1286,12 @@ static MenuHandle FindMenuInList(short menuID)
  * Apple menu carries the same title but a different ID, and drew as nothing
  * at all. The title is the menu's own property, so ask it.
  */
+/* Does this menu draw as the application's icon? */
+Boolean MenuIsApplicationMenu(short menuID)
+{
+    return menuID == (short)kApplicationMenuID;
+}
+
 Boolean MenuIsAppleMenu(short menuID)
 {
     MenuHandle menu = GetMenuHandle(menuID);
