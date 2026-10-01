@@ -475,6 +475,63 @@ static void WritePixelColor(const BitMap *bitmap, const BitmapDescriptor *desc,
  * COPYBITS IMPLEMENTATION
  * ================================================================ */
 
+/*
+ * A port's portBits are not a classic BitMap here. bounds holds the port's
+ * global origin and a pixel is local + bounds, the window's buffer indexed by
+ * local coordinates and the screen by global ones; the 32-bit depth is not
+ * recorded at all. Copied into as a BitMap, a window took a 1-bit page as
+ * packed bits wherever bounds happened to put it - MacPaint's document came
+ * out as a black stripe across its tools and drawing never showed.
+ */
+static Boolean IsCurrentPortBits(const BitMap *bits) {
+    if (!g_currentPort || !bits->baseAddr) return false;
+    if (g_currentCPort && (GrafPtr)g_currentCPort == g_currentPort) return false;
+    const BitMap *pb = &g_currentPort->portBits;
+    return bits->baseAddr == pb->baseAddr &&
+           memcmp(&bits->bounds, &pb->bounds, sizeof(Rect)) == 0;
+}
+
+/* Copy into the current port, pixel by pixel through the port's own mapping
+ * and, on screen, its clip and visible region. */
+static void CopyBitsToPort(const BitMap *srcBits, const Rect *srcRect,
+                           const Rect *dstRect, SInt16 mode, RgnHandle maskRgn) {
+    GrafPtr port = g_currentPort;
+    Rect dst;
+    if (!SectRect(dstRect, &port->portRect, &dst)) return;
+
+    BitmapDescriptor srcDesc;
+    InitBitmapDescriptor(srcBits, &srcDesc);
+    UInt32 fgColor, bgColor;
+    GetPortColors(&fgColor, &bgColor);
+
+    Boolean usePattern = (mode >= patCopy && mode <= notPatBic);
+    Boolean needDst = !(mode == srcCopy || mode == notSrcCopy);
+    Boolean useMask = (maskRgn && *maskRgn);
+    SInt32 srcW = srcRect->right - srcRect->left, srcH = srcRect->bottom - srcRect->top;
+    SInt32 dstW = dstRect->right - dstRect->left, dstH = dstRect->bottom - dstRect->top;
+    SInt16 bx = port->portBits.bounds.left, by = port->portBits.bounds.top;
+
+    QD_ClipBegin(port);
+    for (SInt16 y = dst.top; y < dst.bottom; y++) {
+        SInt16 sy = (SInt16)(srcRect->top + ((SInt32)(y - dstRect->top) * srcH) / dstH);
+        if (sy < srcBits->bounds.top || sy >= srcBits->bounds.bottom) continue;
+        for (SInt16 x = dst.left; x < dst.right; x++) {
+            SInt16 sx = (SInt16)(srcRect->left + ((SInt32)(x - dstRect->left) * srcW) / dstW);
+            if (sx < srcBits->bounds.left || sx >= srcBits->bounds.right) continue;
+            if (useMask) {
+                Point pt = { y, x };
+                if (!PtInRgn(pt, maskRgn)) continue;
+            }
+            UInt32 srcColor = ReadPixelColor(srcBits, &srcDesc, sx, sy, fgColor, bgColor);
+            UInt32 dstColor = needDst ? QDPlatform_GetPixel(x + bx, y + by) : 0;
+            UInt32 patColor = usePattern ? SamplePatternColor(&port->pnPat, x, y, fgColor, bgColor) : 0;
+            QDPlatform_SetPixel(x + bx, y + by,
+                                ApplyTransferMode(srcColor, dstColor, patColor, mode));
+        }
+    }
+    QD_ClipEnd();
+}
+
 void CopyBits(const BitMap *srcBits, const BitMap *dstBits,
               const Rect *srcRect, const Rect *dstRect,
               SInt16 mode, RgnHandle maskRgn) {
@@ -485,6 +542,11 @@ void CopyBits(const BitMap *srcBits, const BitMap *dstBits,
 
     /* Validate rectangles */
     if (EmptyRect(srcRect) || EmptyRect(dstRect)) return;
+
+    if (IsCurrentPortBits(dstBits) && !IsCurrentPortBits(srcBits)) {
+        CopyBitsToPort(srcBits, srcRect, dstRect, mode, maskRgn);
+        return;
+    }
 
     CopyBitsImplementation(srcBits, dstBits, srcRect, dstRect, mode, maskRgn);
 }

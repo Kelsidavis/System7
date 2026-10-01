@@ -491,11 +491,7 @@ void BeginUpdate(WindowPtr theWindow) {
         if (gwPixMap && *gwPixMap) {
             /* Swap window's portBits to point to GWorld buffer */
             theWindow->port.portBits.baseAddr = (*gwPixMap)->baseAddr;
-            /* Still a 32-bit PixMap, flag and all, as it is outside an update
-             * (EndUpdate puts back the flag). Without it CopyBits took the
-             * buffer for a 1-bit BitMap and wrote packed bits into it -
-             * MacPaint's page came out as a black stripe. */
-            theWindow->port.portBits.rowBytes = (SInt16)(((*gwPixMap)->rowBytes & 0x3FFF) | 0x8000);
+            theWindow->port.portBits.rowBytes = (*gwPixMap)->rowBytes & 0x3FFF;
         }
 
         /* Set port to window (which now points to GWorld buffer) */

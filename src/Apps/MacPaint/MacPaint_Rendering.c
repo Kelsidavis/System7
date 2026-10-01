@@ -777,6 +777,20 @@ void MacPaint_UpdateCursorPosition(int x, int y)
  * INVALIDATION AND REDRAW COORDINATION
  */
 
+/*
+ * InvalRect works on the current port, which during a drag is whatever the
+ * pointer code left current - so these invalidated some other window, and what
+ * was drawn on the page never reached the screen.
+ */
+static void MacPaint_InvalRectInWindow(const Rect *r)
+{
+    GrafPtr save;
+    GetPort(&save);
+    SetPort(GetWindowPort(gPaintWindow));
+    InvalRect(r);
+    SetPort(save);
+}
+
 /**
  * MacPaint_InvalidateToolArea - Mark toolbox for redraw
  */
@@ -790,7 +804,7 @@ void MacPaint_InvalidateToolArea(void)
     gInvalidState.toolboxDirty = 1;
 
     /* Mark toolbox rectangle for update */
-    InvalRect(&gInvalidState.toolboxRect);
+    MacPaint_InvalRectInWindow(&gInvalidState.toolboxRect);
 }
 
 /**
@@ -806,7 +820,7 @@ void MacPaint_InvalidateStatusArea(void)
     gInvalidState.statusDirty = 1;
 
     /* Mark status bar rectangle for update */
-    InvalRect(&gInvalidState.statusRect);
+    MacPaint_InvalRectInWindow(&gInvalidState.statusRect);
 }
 
 /**
@@ -829,7 +843,7 @@ void MacPaint_InvalidateWindowArea(void)
     gInvalidState.statusDirty = 1;
 
     /* Mark entire window for update */
-    InvalRect(&port->portRect);
+    MacPaint_InvalRectInWindow(&port->portRect);
 }
 
 /**
@@ -845,7 +859,7 @@ void MacPaint_InvalidatePaintArea(void)
     gInvalidState.paintDirty = 1;
 
     /* Mark paint canvas rectangle for update */
-    InvalRect(&gInvalidState.paintRect);
+    MacPaint_InvalRectInWindow(&gInvalidState.paintRect);
 }
 
 /**

@@ -1029,6 +1029,37 @@ static void Test_Draw_PolygonRecording(void) {
     RecordTest(test_name, true, "");
 }
 
+/* CopyBits from a 1-bit BitMap into a window draws its black bits black. */
+static void Test_Draw_CopyBits1Bit(void) {
+    const char* test_name = "Draw_CopyBits1Bit";
+    Rect r = { 470, 560, 570, 760 };
+    WindowPtr w = NewWindow(NULL, &r, (ConstStr255Param)"\x04Bits", true, 0, (WindowPtr)-1, false, 0);
+    CHECK(w, "NewWindow failed");
+
+    static UInt8 bits[16 * 16];
+    memset(bits, 0, sizeof bits);
+    memset(bits + 5 * 16, 0xFF, 16);          /* row 5 black */
+    BitMap bm;
+    bm.baseAddr = (Ptr)bits;
+    bm.rowBytes = 16;
+    SetRect(&bm.bounds, 0, 0, 128, 16);
+
+    GrafPtr save;
+    GetPort(&save);
+    SetPort((GrafPtr)w);
+    Rect dst = { 10, 10, 26, 138 };
+    CopyBits(&bm, &((GrafPtr)w)->portBits, &bm.bounds, &dst, srcCopy, NULL);
+    SetPort(save);
+
+    int x = (*w->contRgn)->rgnBBox.left + 20;
+    int y = (*w->contRgn)->rgnBBox.top;
+    UInt32 black = ScreenPixel(x, y + 15), white = ScreenPixel(x, y + 12);
+    DisposeWindow(w);
+    CHECK((black & 0x00FFFFFF) == 0, "a set bit did not draw black");
+    CHECK((white & 0x00FFFFFF) == 0x00FFFFFF, "a clear bit did not draw white");
+    RecordTest(test_name, true, "");
+}
+
 static void Test_Resource_CreateAndOpenResFile(void) {
     const char* test_name = "Resource_CreateAndOpenResFile";
     FSSpec spec;
@@ -1164,6 +1195,7 @@ void IntegrationTests_Run(void) {
     Test_Calculator_Arithmetic();
     Test_Resource_ReleaseThenGet();
     Test_Draw_PolygonRecording();
+    Test_Draw_CopyBits1Bit();
     Test_Dialog_AlertLayout();
     Test_Dialog_IconItem();
     Test_Window_ReorderAndHide();
