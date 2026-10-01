@@ -20,9 +20,6 @@
 /* For debug logging */
 extern void serial_printf(const char* fmt, ...);
 
-extern void DisposeGWorld(GWorldPtr offscreenGWorld);
-extern void* framebuffer;
-extern uint32_t fb_pitch;
 extern uint32_t fb_width;
 extern uint32_t fb_height;
 
@@ -41,6 +38,7 @@ extern void TextFont(short font);
 extern void TextSize(short size);
 extern void TextFace(short face);
 extern void PenPat(const Pattern* pat);
+extern void PenNormal(void);
 extern void FillRect(const Rect* r, const Pattern* pat);
 extern short StringWidth(ConstStr255Param s);
 
@@ -256,37 +254,6 @@ static void GetMemorySnapshot(MemSnapshot* m)
  */
 
 /*
- * AboutWindow_UpdateFramebufferAddress - Recalculate baseAddr after window moves
- */
-static void AboutWindow_UpdateFramebufferAddress(void) {
-    if (!sAboutWin) return;
-
-    /* Get current window content position in global coordinates */
-    /* Use window's content region for accurate global position */
-    if (!sAboutWin->contRgn || !*(sAboutWin->contRgn)) return;
-
-    Rect contentGlobal = (*(sAboutWin->contRgn))->rgnBBox;
-    SInt16 contentTop = contentGlobal.top;
-    SInt16 contentLeft = contentGlobal.left;
-
-    /* Clamp to screen bounds to prevent wrapping */
-    extern QDGlobals qd;
-    if (contentTop < 0) contentTop = 0;
-    if (contentLeft < 0) contentLeft = 0;
-    if (contentTop >= qd.screenBits.bounds.bottom) contentTop = qd.screenBits.bounds.bottom - 1;
-    if (contentLeft >= qd.screenBits.bounds.right) contentLeft = qd.screenBits.bounds.right - 1;
-
-    /* Recalculate framebuffer offset */
-    uint32_t bytes_per_pixel = 4;
-    uint32_t offset = contentTop * fb_pitch + contentLeft * bytes_per_pixel;
-
-    /* Update baseAddr to new window position */
-    sAboutWin->port.portBits.baseAddr = (Ptr)framebuffer + offset;
-
-    serial_puts("[ABOUT] Updated baseAddr after window move\n");
-}
-
-/*
  * AboutWindow_CreateIfNeeded - Create About window if not already open
  */
 static void AboutWindow_CreateIfNeeded(void)
@@ -328,50 +295,11 @@ static void AboutWindow_CreateIfNeeded(void)
         return;
     }
 
-    serial_puts("[ABOUT] CreateIfNeeded: Configuring direct framebuffer rendering\n");
-
-    /* Dispose of offscreenGWorld if it exists */
-    if (sAboutWin->offscreenGWorld) {
-        serial_puts("[ABOUT] Disposing offscreenGWorld\n");
-        DisposeGWorld((GWorldPtr)sAboutWin->offscreenGWorld);
-        sAboutWin->offscreenGWorld = NULL;
-    }
-
-    /* CRITICAL FIX: Configure direct framebuffer rendering
-     * Since baseAddr will point to window's position in framebuffer,
-     * bounds must be in local coordinates (0,0,width,height) NOT global coordinates.
-     * This prevents FM_DrawChicagoCharInternal from double-adjusting coordinates. */
-    Rect originalBounds = sAboutWin->port.portBits.bounds;
-    uint32_t bytes_per_pixel = 4;  /* ARGB32 */
-    uint32_t offset = originalBounds.top * fb_pitch + originalBounds.left * bytes_per_pixel;
-
-    serial_puts("[ABOUT] Configuring direct framebuffer rendering\n");
-
-    /* Set baseAddr to point to window's content area in framebuffer */
-    sAboutWin->port.portBits.baseAddr = (Ptr)framebuffer + offset;
-    sAboutWin->port.portBits.rowBytes = (fb_pitch | 0x8000);
-
-    /* Set bounds to LOCAL coordinates (0,0,width,height) since baseAddr is already offset
-     * This makes FM_DrawChicagoCharInternal treat it like an offscreen buffer at origin */
-    SInt16 width = originalBounds.right - originalBounds.left;
-    SInt16 height = originalBounds.bottom - originalBounds.top;
-
-    sAboutWin->port.portBits.bounds.left = 0;
-    sAboutWin->port.portBits.bounds.top = 0;
-    sAboutWin->port.portBits.bounds.right = width;
-    sAboutWin->port.portBits.bounds.bottom = height;
-
-    /* Ensure portRect also matches the content dimensions
-     * portRect should already be set correctly, but verify it matches */
-    if (sAboutWin->port.portRect.right != width || sAboutWin->port.portRect.bottom != height) {
-        serial_puts("[ABOUT] WARNING: portRect dimensions don't match, fixing\n");
-        sAboutWin->port.portRect.left = 0;
-        sAboutWin->port.portRect.top = 0;
-        sAboutWin->port.portRect.right = width;
-        sAboutWin->port.portRect.bottom = height;
-    }
-
-    serial_puts("[ABOUT] Direct framebuffer configured\n");
+    /* An ordinary window: drawn through its offscreen buffer and clipped to
+     * what is visible, like every other. It used to throw the buffer away and
+     * point its port straight at its place in the framebuffer, with local
+     * bounds, which bypassed the clip - the window behind showed through at
+     * the top - and needed the address recomputed after every move. */
 
     serial_puts("[ABOUT] CreateIfNeeded COMPLETE\n");
     FINDER_LOG_DEBUG("AboutThisMac: Created window at 0x%08x, refCon=0x%08X\n",
@@ -484,9 +412,6 @@ Boolean AboutWindow_HandleUpdate(WindowPtr w)
 
     serial_puts("[ABOUT] UPDATE: Before BeginUpdate\n");
 
-    /* Update baseAddr in case window was moved */
-    AboutWindow_UpdateFramebufferAddress();
-
     BeginUpdate(w);
 
     serial_puts("[ABOUT] UPDATE: After BeginUpdate\n");
@@ -523,6 +448,7 @@ Boolean AboutWindow_HandleUpdate(WindowPtr w)
     serial_puts("[ABOUT] Drawing content\n");
 
     /* Clear */
+    PenNormal();
     EraseRect(&contentRect);
 
     /* Get platform info for display */
@@ -546,7 +472,7 @@ Boolean AboutWindow_HandleUpdate(WindowPtr w)
     /* Version and Memory: "System 7 - X GB" - Chicago 11, normal */
     Str255 ver;
     char ver_buf[64];
-    snprintf(ver_buf, sizeof(ver_buf), "System 7.1 - %s", memory_gb);
+    snprintf(ver_buf, sizeof(ver_buf), "System 7 - %s", memory_gb);   /* the system's name */
     TextSize(11);
     TextFace(0);            /* normal */
     ToPStr(ver_buf, ver);
@@ -690,7 +616,10 @@ Boolean AboutWindow_HandleUpdate(WindowPtr w)
         PaintRect(&seg);
     }
 
-    /* Unused stays white - no fill needed; reframe to restore crisp outline */
+    /* Unused stays white - no fill needed; reframe to restore crisp outline,
+     * in a solid pen: the segments' gray was left set, which drew this
+     * outline dotted, and the memory box with it on the next redraw */
+    PenNormal();
     FrameRect(&bar);
 
     /* Labels below bar */
