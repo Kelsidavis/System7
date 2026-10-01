@@ -22,6 +22,8 @@
 #include "MemoryMgr/MemoryManager.h"
 #include <string.h>
 
+extern QDGlobals qd;
+
 /*
  * EVENT TYPE CONSTANTS (System 7.1 compatible)
  * Local constants for event types - use local names to avoid conflicts
@@ -35,8 +37,9 @@ enum {
     kEventUpdateEvt   = 6,
     kEventOSEvt       = 15,
     kEventNullEvent   = 0,
-    kEventQuitEvent   = 0xFFFFFFF,
-    kEventCloseEvt    = 8
+    kEventActivateEvt = 8      /* not a close: 8 is activateEvt. Taken for
+                                * one, MacPaint quit the moment its window
+                                * came to the front */
 };
 
 /* MenuResult type for menu selection return */
@@ -544,26 +547,39 @@ void MacPaint_RunEventLoop(void)
         /* Process different event types */
         switch (event.what) {
 
-            case kEventMouseDown:
-                /* Determine which window/region the click is in */
-                eventWindow = FrontWindow();
-
-                /* Check for menu bar click */
-                if (event.where.v < 20) {
-                    /* Click is in menu bar region */
+            case kEventMouseDown: {
+                /* Where the click is, by FindWindow: the menu bar was taken to
+                 * be anything above row 20 and every other click to be in the
+                 * canvas window, so the close box and title bar did nothing */
+                short part = FindWindow(event.where, &eventWindow);
+                if (part == inMenuBar) {
                     menuResult = MenuSelect(event.where);
                     menuID = HiWord(menuResult);
                     itemID = LoWord(menuResult);
                     if (menuID != 0) {
                         MacPaint_HandleMenuClickEvent(menuID, itemID);
                     }
-                } else if (eventWindow == gEventState.paintWindow) {
-                    /* Convert global to local window coordinates */
+                    HiliteMenu(0);
+                } else if (eventWindow != gEventState.paintWindow) {
+                    break;   /* another application's window */
+                } else if (part == inGoAway) {
+                    if (TrackGoAway(eventWindow, event.where)) {
+                        MacPaint_HandleWindowClose(eventWindow);
+                    }
+                } else if (part == inDrag) {
+                    DragWindow(eventWindow, event.where, &qd.screenBits.bounds);
+                } else if (part == inContent) {
+                    if (FrontWindow() != eventWindow) {
+                        SelectWindow(eventWindow);
+                        break;
+                    }
                     GrafPtr port = MacPaint_GetWindowPort(eventWindow);
                     if (port) {
                         SetPort(port);
-                        localX = event.where.h - port->portRect.left;
-                        localY = event.where.v - port->portRect.top;
+                        Point local = event.where;
+                        GlobalToLocal(&local);
+                        localX = local.h;
+                        localY = local.v;
 
                         /* Route click based on region */
                         if (MacPaint_IsPointInToolbox(localX, localY)) {
@@ -576,6 +592,7 @@ void MacPaint_RunEventLoop(void)
                     }
                 }
                 break;
+            }
 
             case kEventMouseUp:
                 /* Mouse button released */
@@ -586,8 +603,10 @@ void MacPaint_RunEventLoop(void)
                         GrafPtr port = MacPaint_GetWindowPort(eventWindow);
                         if (port) {
                             SetPort(port);
-                            localX = event.where.h - port->portRect.left;
-                            localY = event.where.v - port->portRect.top;
+                            Point local = event.where;
+                            GlobalToLocal(&local);
+                            localX = local.h;
+                            localY = local.v;
 
                             /* Release mouse button and finalize current drawing */
                             gEventState.mouseDown = 0;
@@ -629,9 +648,15 @@ void MacPaint_RunEventLoop(void)
                 break;
 
             case kEventUpdateEvt:
-                /* Window needs redraw */
+                /* Window needs redraw - another window's goes to its owner,
+                 * or it stays pending and comes back for ever */
                 eventWindow = (WindowPtr)(uintptr_t)event.message;
-                MacPaint_HandleWindowUpdate(eventWindow);
+                if (eventWindow == gEventState.paintWindow) {
+                    MacPaint_HandleWindowUpdate(eventWindow);
+                } else {
+                    extern Boolean HandleUpdate(EventRecord* event);
+                    HandleUpdate(&event);
+                }
                 break;
 
             case kEventOSEvt:
@@ -648,20 +673,12 @@ void MacPaint_RunEventLoop(void)
                 }
                 break;
 
-            case kEventCloseEvt:
-                /* Window close event */
-                eventWindow = (WindowPtr)(uintptr_t)event.message;
-                if (eventWindow == gEventState.paintWindow) {
-                    MacPaint_HandleWindowClose(eventWindow);
+            case kEventActivateEvt:
+                /* Coming to the front or going behind: redraw for the change */
+                if ((WindowPtr)(uintptr_t)event.message == gEventState.paintWindow) {
+                    MacPaint_InvalidateWindowArea();
                 }
                 break;
-
-            /* Note: kEventQuitEvent not valid in classic Mac OS event model
-            case kEventQuitEvent:
-                // Quit event from system
-                gEventState.running = 0;
-                break;
-            */
 
             case kEventNullEvent:
                 /* No event, but we got control back from WaitNextEvent */

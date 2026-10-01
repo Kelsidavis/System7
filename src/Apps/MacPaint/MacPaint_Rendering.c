@@ -134,10 +134,20 @@ void MacPaint_RenderPaintBuffer(void)
         MacPaint_RenderFatBits();
     } else {
         /* Normal 1:1 rendering using CopyBits */
-        Rect dstRect;
+        /* The part of the document that fits, at its own size: copying the
+         * whole 576x720 page into the window scaled it to fit, and the scaled
+         * path striped a black bar across the toolbox */
+        Rect dstRect, srcRect;
         MacPaint_GetPaintRect(&dstRect);
+        srcRect = gPaintBuffer.bounds;
+        if (srcRect.right - srcRect.left > dstRect.right - dstRect.left)
+            srcRect.right = srcRect.left + (dstRect.right - dstRect.left);
+        if (srcRect.bottom - srcRect.top > dstRect.bottom - dstRect.top)
+            srcRect.bottom = srcRect.top + (dstRect.bottom - dstRect.top);
+        dstRect.right = dstRect.left + (srcRect.right - srcRect.left);
+        dstRect.bottom = dstRect.top + (srcRect.bottom - srcRect.top);
         CopyBits(&gPaintBuffer, &port->portBits,
-                 &gPaintBuffer.bounds, &dstRect,
+                 &srcRect, &dstRect,
                  srcCopy, NULL);
     }
 
@@ -930,10 +940,10 @@ void MacPaint_FullWindowUpdate(void)
         BackColor(whiteColor);
         EraseRect(&port->portRect);
 
-        /* Render all elements in order */
+        /* Render all elements in order - the toolbox and status bar with
+         * it. Drawing the toolbox a second time here inverted the active
+         * tool back to normal. */
         MacPaint_RenderPaintBuffer();
-        MacPaint_DrawToolbox();
-        MacPaint_DrawStatusBar();
     }
 
     EndUpdate(gPaintWindow);
