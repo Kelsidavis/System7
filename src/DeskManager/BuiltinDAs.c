@@ -19,6 +19,7 @@
 #include "DeskManager/DeskAccessory.h"
 #include "DeskManager/Calculator.h"
 #include "DeskManager/KeyCaps.h"
+#include "EventManager/EventTypes.h"
 #include "DeskManager/AlarmClock.h"
 #include "DeskManager/Chooser.h"
 
@@ -171,6 +172,7 @@ static int Calculator_DAIdle(DeskAccessory *da);
 static int KeyCaps_DAInitialize(DeskAccessory *da, const DADriverHeader *header);
 static int KeyCaps_DATerminate(DeskAccessory *da);
 static int KeyCaps_DAProcessEvent(DeskAccessory *da, const DAEventInfo *event);
+static int KeyCaps_DAIdle(DeskAccessory *da);
 
 static int AlarmClock_DAInitialize(DeskAccessory *da, const DADriverHeader *header);
 static int AlarmClock_DATerminate(DeskAccessory *da);
@@ -209,7 +211,7 @@ static DAInterface g_keyCapsInterface = {
     .processEvent = KeyCaps_DAProcessEvent,
     .handleMenu = NULL,
     .doEdit = NULL,
-    .idle = NULL,
+    .idle = KeyCaps_DAIdle,
     .updateCursor = NULL,
     .activate = NULL,
     .update = NULL,
@@ -511,6 +513,27 @@ static int Calculator_DAIdle(DeskAccessory *da)
 
 /* Key Caps Interface Implementation */
 
+/* Event modifiers, as the Event Manager reports them, in Key Caps' terms */
+static ModifierMask KeyCaps_Modifiers(UInt16 mods)
+{
+    int m = MOD_NONE;
+    if (mods & shiftKey)  m |= MOD_SHIFT;
+    if (mods & alphaLock) m |= MOD_CAPS_LOCK;
+    if (mods & optionKey) m |= MOD_OPTION;
+    if (mods & cmdKey)    m |= MOD_COMMAND;
+    return (ModifierMask)m;
+}
+
+static int KeyCaps_DAIdle(DeskAccessory *da)
+{
+    if (!da || !da->driverData) {
+        return DESK_ERR_INVALID_PARAM;
+    }
+    extern UInt16 GetCurrentModifiers(void);
+    KeyCaps_Idle((KeyCaps *)da->driverData, KeyCaps_Modifiers(GetCurrentModifiers()));
+    return DESK_ERR_NONE;
+}
+
 static int KeyCaps_DAInitialize(DeskAccessory *da, const DADriverHeader *header)
 {
     if (!da) {
@@ -535,10 +558,10 @@ static int KeyCaps_DAInitialize(DeskAccessory *da, const DADriverHeader *header)
 
     /* Create window */
     DAWindowAttr attr;
-    attr.bounds.left = 120;
+    attr.bounds.left = 120;     /* the frame around the keyboard KeyCaps.c lays out */
     attr.bounds.top = 120;
-    attr.bounds.right = 520;
-    attr.bounds.bottom = 320;
+    attr.bounds.right = 518;
+    attr.bounds.bottom = 312;
     attr.procID = 0;
     attr.visible = true;
     attr.hasGoAway = true;
@@ -576,14 +599,13 @@ static int KeyCaps_DAProcessEvent(DeskAccessory *da, const DAEventInfo *event)
         case 1: /* mouseDown */
             {
                 Point point = { .v = event->v, .h = event->h };
-                return KeyCaps_HandleClick(keyCaps, point, event->modifiers);
+                return KeyCaps_HandleClick(keyCaps, point, KeyCaps_Modifiers(event->modifiers));
             }
 
         case 3: /* keyDown */
-            {
-                UInt8 scanCode = (event->message >> 8) & 0xFF;
-                return KeyCaps_HandleKeyPress(keyCaps, scanCode, event->modifiers);
-            }
+        case 5: /* autoKey */
+            return KeyCaps_HandleKeyPress(keyCaps, (UInt16)(event->message & 0xFF),
+                                          KeyCaps_Modifiers(event->modifiers));
 
         case 6: /* updateEvt */
             KeyCaps_DrawKeyboard(keyCaps, NULL);

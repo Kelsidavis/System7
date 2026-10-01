@@ -99,6 +99,10 @@ typedef struct KeyCaps {
     Boolean insertMode;
     Rect keyboardDisplayRect;
     Rect charDisplayRect;
+    char typed[64];             /* the characters typed or clicked, shown on top */
+    SInt16 typedLen;
+    SInt16 litKey;              /* index of the key shown pressed, or -1 */
+    UInt32 litTick;             /* when it was pressed */
 } KeyCaps;
 
 /* Key Caps Functions */
@@ -234,14 +238,21 @@ void KeyCaps_DrawKeyboard(KeyCaps *keyCaps, const Rect *updateRect);
 int KeyCaps_HandleClick(KeyCaps *keyCaps, Point point, ModifierMask modifiers);
 
 /**
- * Handle key press
+ * Handle a key typed while Key Caps is in front: its key is shown pressed and
+ * the character added to the text strip. Draws in the current port.
  * @param keyCaps Pointer to Key Caps structure
- * @param scanCode Key scan code
+ * @param charCode The character typed
  * @param modifiers Modifier keys
  * @return 0 on success, negative on error
  */
-int KeyCaps_HandleKeyPress(KeyCaps *keyCaps, UInt8 scanCode,
+int KeyCaps_HandleKeyPress(KeyCaps *keyCaps, UInt16 charCode,
                            ModifierMask modifiers);
+
+/**
+ * Periodic work: let a pressed key back up, and relabel the keys when Shift or
+ * Caps Lock changes. Draws in the current port.
+ */
+void KeyCaps_Idle(KeyCaps *keyCaps, ModifierMask modifiers);
 
 
 /* Character Functions */
