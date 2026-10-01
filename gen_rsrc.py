@@ -373,13 +373,19 @@ def main():
     json_paths = sys.argv[1:-1]
     out_path = sys.argv[-1]
 
-    # Merge all JSON files
-    merged_resources = []
+    # Merge all JSON files. A later file's resource replaces an earlier one
+    # with the same type and ID: a resource file holds one of each, and with
+    # both kept, GetResource found the first - so Apple's own ppat 400 and 401
+    # from the authentic set were hidden behind stand-ins of the same IDs.
+    merged = {}
     for json_path in json_paths:
         if os.path.exists(json_path):
             manifest = json.load(open(json_path, "r", encoding="utf-8"))
-            merged_resources.extend(manifest.get("resources", []))
+            for ent in manifest.get("resources", []):
+                rtype = "ppat" if ent["type"] == "ppat_raw" else ent["type"]
+                merged[(rtype, int(ent["id"]))] = ent
             print(f"Loaded {len(manifest.get('resources', []))} resources from {json_path}")
+    merged_resources = list(merged.values())
 
     # Create merged manifest
     manifest = {"resources": merged_resources}

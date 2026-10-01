@@ -82,31 +82,27 @@ void PM_SetBackPixPat(Handle pixPatHandle) {
 
     gPM.backPixPat = pixPatHandle; /* Caller transfers ownership to PM */
 
-    /* Try to decode as PPAT8 */
-    /* GetHandleSize is broken in our stub implementation, so use a fixed size for ppat */
-    Size sz = 156;  /* Need 152 bytes for pattern 304, plus some buffer */
     HLock(pixPatHandle);
     const uint8_t* data = (const uint8_t*)*pixPatHandle;
+    Size sz = GetHandleSize(pixPatHandle);   /* was a fixed 156, from when
+                                              * handle sizes were not kept:
+                                              * Apple's ppat 16, 182 bytes,
+                                              * lost its colour table */
 
-    extern void serial_puts(const char* str);
-    serial_puts("PM_SetBackPixPat: called\n");
+    /* Windows erase white; the pattern is the desktop's alone */
+    Pattern whitePat;
+    memset(&whitePat, 0x00, sizeof(whitePat));
+    UpdateBackgroundPattern(&whitePat);
 
-    if (DecodePPAT8(data, sz, gPM.colorPattern)) {
+    if (DecodePPAT8(data, (size_t)sz, gPM.colorPattern)) {
         gPM.hasColorPattern = true;
-        serial_puts("PM_SetBackPixPat: Successfully decoded color pattern\n");
-        /* Don't call BackPat() - pattern only applies to desktop, not windows */
-        /* Set white pattern for UpdateBackgroundPattern so windows have white background */
-        Pattern whitePat;
-        memset(&whitePat, 0x00, sizeof(whitePat));  /* 0x00 = white, 0xFF = black */
-        UpdateBackgroundPattern(&whitePat);
     } else {
-        /* Fall back to using first 8 bytes as pattern for desktop only */
+        /* What QuickDraw shows where colour cannot be: the pattern's own
+         * black-and-white version, pat1Data, carried in every 'ppat' */
         gPM.hasColorPattern = false;
-        serial_puts("PM_SetBackPixPat: Failed to decode, using fallback\n");
-        /* Set white pattern for windows */
-        Pattern whitePat;
-        memset(&whitePat, 0x00, sizeof(whitePat));  /* 0x00 = white, 0xFF = black */
-        UpdateBackgroundPattern(&whitePat);
+        if (sz >= 28 && data[0] == 0 && data[1] == 1) {
+            memcpy(&gPM.backPat, data + 20, sizeof(Pattern));
+        }
     }
 
     HUnlock(pixPatHandle);
@@ -220,6 +216,18 @@ bool PM_LoadPAT(int16_t id, Pattern *out) {
 
 Handle PM_LoadPPAT(int16_t id) {
     return LoadPPATResource(id);
+}
+
+/* Decode colour pattern ppatID into 64 screen-format pixels, without making
+ * it the desktop's. False if it cannot be loaded or decoded. */
+bool PM_LoadColorPattern(int16_t ppatID, uint32_t out[64]) {
+    Handle h = PM_LoadPPAT(ppatID);
+    if (!h || !*h) return false;
+    HLock(h);
+    bool ok = DecodePPAT8((const uint8_t*)*h, (size_t)GetHandleSize(h), out);
+    HUnlock(h);
+    DisposeHandle(h);
+    return ok;
 }
 
 /* Get color pattern data if available */

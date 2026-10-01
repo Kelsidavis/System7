@@ -93,94 +93,73 @@ static uint16_t ReadBE16(const uint8_t* p) {
     return (p[0] << 8) | p[1];
 }
 
-/* Decode native Mac ppat format */
-static bool DecodeNativePPAT(const uint8_t* data, size_t size, uint32_t outRGBA[64]) {
-    extern void serial_puts(const char* str);
-    char msg[128];
-    snprintf(msg, sizeof(msg), "DecodeNativePPAT: called with size %d (0x%x)\n", (int)size, (int)size);
-    serial_puts(msg);
+static uint32_t ReadBE32(const uint8_t* p) {
+    return ((uint32_t)p[0] << 24) | ((uint32_t)p[1] << 16) | ((uint32_t)p[2] << 8) | p[3];
+}
 
-    /* The ppat data from our JSON is 134 bytes, structured as:
-     * 0x00-0x01: Version (0x0001)
-     * 0x40-0x41: Pixel depth (0x0002 = 2 bits per pixel = 4 colors)
-     * 0x4C-0x5B: Pattern data (16 bytes for 8x8 pixels at 2 bits each)
-     * 0x5E+: Color table
-     */
-    if (size < 0x5E + 16) {
-        snprintf(msg, sizeof(msg), "DecodeNativePPAT: too small (%d < minimum)\n", (int)size);
-        serial_puts(msg);
-        return false;
-    }
+/*
+ * DecodeNativePPAT - a 'ppat' resource as the Mac stores it (Inside Macintosh:
+ * Imaging With QuickDraw, 4-104): a PixPat record, the PixMap it points to,
+ * the pixel data, and the colour table the PixMap points to, every offset
+ * from the start of the resource.
+ *
+ *   PixPat   patType(2) patMap(4) patData(4) patXData(4) patXValid(2)
+ *            patXMap(4) pat1Data(8)
+ *   PixMap   baseAddr(4) rowBytes(2) bounds(8) pmVersion(2) packType(2)
+ *            packSize(4) hRes(4) vRes(4) pixelType(2) pixelSize(2)
+ *            cmpCount(2) cmpSize(2) planeBytes(4) pmTable(4) pmReserved(4)
+ *   CTab     ctSeed(4) ctFlags(2) ctSize(2), then ctSize+1 of
+ *            value(2) red(2) green(2) blue(2)
+ *
+ * Only full-colour (patType 1) 8 by 8 patterns of 1, 2, 4 or 8 bits a pixel,
+ * which is what a desktop pattern is. This used to read the pixels two bytes
+ * early and paint them in four colours written into the code, whatever the
+ * pattern's own colour table said.
+ */
+static bool DecodeNativePPAT(const uint8_t* d, size_t n, uint32_t out[64]) {
+    if (n < 28 || ReadBE16(d) != 1) return false;
+    uint32_t mapOff = ReadBE32(d + 2);
+    uint32_t dataOff = ReadBE32(d + 6);
+    if (mapOff + 50 > n) return false;
 
-    /* Check ppat version (0x0001) */
-    uint16_t version = ReadBE16(data);
-    if (version != 0x0001) {
-        snprintf(msg, sizeof(msg), "DecodeNativePPAT: wrong version 0x%04x\n", version);
-        serial_puts(msg);
-        return false;
-    }
+    const uint8_t* pm = d + mapOff;
+    uint16_t rowBytes = ReadBE16(pm + 4) & 0x3FFF;
+    int16_t top = (int16_t)ReadBE16(pm + 6), left = (int16_t)ReadBE16(pm + 8);
+    int16_t bottom = (int16_t)ReadBE16(pm + 10), right = (int16_t)ReadBE16(pm + 12);
+    uint16_t pixelSize = ReadBE16(pm + 32);
+    uint32_t ctOff = ReadBE32(pm + 42);
 
-    /* Get pixel depth from offset 0x40 */
-    uint16_t pixelDepth = ReadBE16(data + 0x40);
-    snprintf(msg, sizeof(msg), "DecodeNativePPAT: pixel depth = %d\n", pixelDepth);
-    serial_puts(msg);
+    if (bottom - top != 8 || right - left != 8) return false;
+    if (pixelSize != 1 && pixelSize != 2 && pixelSize != 4 && pixelSize != 8) return false;
+    /* a row of 8 pixels is pixelSize bytes */
+    if (rowBytes < pixelSize || dataOff + rowBytes * 8u > n) return false;
+    if (ctOff + 8 > n) return false;
 
-    /* Debug: show some raw data */
-    snprintf(msg, sizeof(msg), "Data at 0x4C: %02x %02x %02x %02x\n",
-            data[0x4C], data[0x4D], data[0x4E], data[0x4F]);
-    serial_puts(msg);
+    uint16_t ctFlags = ReadBE16(d + ctOff + 4);
+    uint16_t ctCount = (uint16_t)(ReadBE16(d + ctOff + 6) + 1);
+    if (ctOff + 8 + ctCount * 8u > n) return false;
+    const uint8_t* ct = d + ctOff + 8;
 
-    /* Handle 2-bit patterns (4 colors) */
-    if (pixelDepth == 2) {
-        /* Pattern data starts at 0x4C for 8x8 patterns */
-        const uint8_t* patData = data + 0x4C;
-
-        /* Parse the colors from the color table
-         * The color table format at 0x5E appears to be:
-         * Each color entry is 16 bytes with RGB values */
-        uint32_t colors[4];
-
-        /* Extract the 4 colors - based on hex dump analysis:
-         * Color 0: teal/cyan (0x00FF, 0x9999, 0x9999)
-         * Color 1: purple (0xFF00, 0x0033, 0x9900)
-         * Color 2: light blue (0x00FF, 0xEB00, 0x0000)
-         * Color 3: yellow/orange (based on pattern) */
-
-        /* Parse from the raw data - colors appear at specific offsets
-         * Based on analysis of authentic Mac ppat ID 400 (Authentic4Color):
-         * This is a teal/cyan checkerboard pattern with 4 colors
-         */
-        colors[0] = pack_color(0x00, 0x99, 0x99);  /* Dark teal/cyan */
-        colors[1] = pack_color(0x99, 0x00, 0x99);  /* Purple/magenta */
-        colors[2] = pack_color(0x00, 0xEB, 0xFF);  /* Light cyan/blue */
-        colors[3] = pack_color(0xFF, 0x99, 0x00);  /* Orange/yellow */
-
-        /* Decode pattern - 2 bits per pixel */
-        for (int y = 0; y < 8; y++) {
-            uint16_t row = ReadBE16(patData + y * 2);
-
-            /* Debug first row to see the pattern */
-            if (y == 0) {
-                snprintf(msg, sizeof(msg), "Row 0 data: 0x%04x\n", row);
-                serial_puts(msg);
+    for (int y = 0; y < 8; y++) {
+        const uint8_t* row = d + dataOff + y * rowBytes;
+        for (int x = 0; x < 8; x++) {
+            int bit = x * pixelSize;
+            unsigned index = (row[bit >> 3] >> (8 - pixelSize - (bit & 7))) & ((1u << pixelSize) - 1);
+            /* A device table (high bit of ctFlags) is indexed by position;
+             * otherwise each entry names its pixel value. */
+            const uint8_t* entry = NULL;
+            if (ctFlags & 0x8000) {
+                if (index < ctCount) entry = ct + index * 8;
+            } else {
+                for (unsigned k = 0; k < ctCount && !entry; k++) {
+                    if (ReadBE16(ct + k * 8) == index) entry = ct + k * 8;
+                }
             }
-
-            for (int x = 0; x < 8; x++) {
-                /* Extract 2-bit color index from left to right */
-                int shift = 14 - (x * 2);  /* Start at bit 15-14, then 13-12, etc */
-                int colorIdx = (row >> shift) & 0x03;
-
-                outRGBA[y * 8 + x] = colors[colorIdx];
-            }
+            out[y * 8 + x] = entry ? pack_color(entry[2], entry[4], entry[6])
+                                   : pack_color(0, 0, 0);
         }
-
-        serial_puts("DecodeNativePPAT: Successfully decoded 2-bit pattern\n");
-        return true;
     }
-
-    snprintf(msg, sizeof(msg), "DecodeNativePPAT: Unsupported pixel depth %d\n", pixelDepth);
-    serial_puts(msg);
-    return false;
+    return true;
 }
 
 /* Decode PPAT8 format into RGBA pixels */

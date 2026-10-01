@@ -50,6 +50,10 @@ bool PM_ApplyDesktopPref(const DesktopPref *p);
 /* Paint the desktop again in the current pattern, around the windows. */
 void PM_RedrawDesktop(void);
 
+/* Decode colour pattern ppatID into 64 screen-format pixels without making it
+ * the desktop's. */
+bool PM_LoadColorPattern(int16_t ppatID, uint32_t out[64]);
+
 /* Resource helpers (like GetPattern/GetPixPat) */
 bool PM_LoadPAT(int16_t id, Pattern *out);
 Handle PM_LoadPPAT(int16_t id);  /* Raw 'ppat' handle; ownership to caller */
