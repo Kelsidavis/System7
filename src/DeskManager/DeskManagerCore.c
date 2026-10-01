@@ -14,6 +14,7 @@
 
 #include "SystemTypes.h"
 #include "System71StdLib.h"
+#include "QuickDraw/QuickDraw.h"
 
 #include "DeskManager/DeskManager.h"
 #include "DeskManager/DeskAccessory.h"
@@ -589,6 +590,18 @@ static void DA_FreeInstance(DeskAccessory *da)
  * conversion rather than a cast. See DA_EventViaInterface for the part of it
  * that is not a field copy.
  */
+/* An accessory draws in its own window, so its port is current while it runs
+ * (as the Desk Manager arranges for a driver's calls). Left to whatever port
+ * was current, the Calculator's display redrew into the Finder's window and
+ * stayed at 0 however its keys were pressed. */
+static GrafPtr DA_EnterPort(DeskAccessory *da)
+{
+    GrafPtr save;
+    GetPort(&save);
+    if (da && da->window) SetPort((GrafPtr)da->window);
+    return save;
+}
+
 static int DA_OpenViaInterface(DeskAccessory *da)
 {
     if (!da || !da->interface || !da->interface->initialize) return DESK_ERR_NONE;
@@ -605,21 +618,27 @@ static void DA_CloseViaInterface(DeskAccessory *da)
 static void DA_IdleViaInterface(DeskAccessory *da)
 {
     if (da && da->interface && da->interface->idle) {
+        GrafPtr save = DA_EnterPort(da);
         (void)da->interface->idle(da);
+        SetPort(save);
     }
 }
 
 static void DA_ActivateViaInterface(DeskAccessory *da, Boolean active)
 {
     if (da && da->interface && da->interface->activate) {
+        GrafPtr save = DA_EnterPort(da);
         (void)da->interface->activate(da, active);
+        SetPort(save);
     }
 }
 
 static void DA_UpdateViaInterface(DeskAccessory *da)
 {
     if (da && da->interface && da->interface->update) {
+        GrafPtr save = DA_EnterPort(da);
         (void)da->interface->update(da);
+        SetPort(save);
     }
 }
 
@@ -659,7 +678,10 @@ static int DA_EventViaInterface(DeskAccessory *da, const EventRecord *event)
     info.v         = local.v;
     info.h         = local.h;
 
-    return da->interface->processEvent(da, &info);
+    GrafPtr save = DA_EnterPort(da);
+    int result = da->interface->processEvent(da, &info);
+    SetPort(save);
+    return result;
 }
 
 static int DA_MenuViaInterface(DeskAccessory *da, SInt16 menuID, SInt16 itemID)

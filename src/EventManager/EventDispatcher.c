@@ -349,9 +349,16 @@ Boolean HandleMouseDown(EventRecord* event)
             DiscardMenuTrackingClicks();
             return true;
 
-        case inSysWindow:
-            /* System window - let system handle it */
-            return false;
+        case inSysWindow: {
+            /* A desk accessory's window: the Desk Manager decides what the
+             * click means (Inside Macintosh: Toolbox Essentials, 4-80). This
+             * returned unhandled and nothing passed the click on, so no
+             * accessory could be clicked - the Calculator's keys did nothing
+             * and its window could not be closed or dragged. */
+            extern void SystemClick(const EventRecord *event, WindowRecord *window);
+            if (whichWindow) SystemClick(event, (WindowRecord*)whichWindow);
+            return true;
+        }
 
         case inContent: {
             /* Click in window content */
@@ -563,6 +570,19 @@ Boolean HandleKeyDownEvent(EventRecord* event)
 
     if (SimpleText_DispatchEvent(event)) {
         return true;
+    }
+
+    /* A desk accessory in front takes its keys, Command-key equivalents
+     * excepted - those are menu commands (Inside Macintosh: Toolbox
+     * Essentials, 2-108). Nothing passed keys on, so the Calculator could
+     * not be typed into. */
+    if (!cmdKeyDown) {
+        WindowPtr front = FrontWindow();
+        if (front && front->windowKind < 0) {
+            extern Boolean SystemEvent(const EventRecord *event);
+            SystemEvent(event);
+            return true;
+        }
     }
 
     /* A Finder window in front takes its keys first: arrows, Tab,
