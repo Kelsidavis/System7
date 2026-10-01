@@ -186,10 +186,11 @@ Boolean Platform_InitializePort(GrafPtr port) {
 /* Get screen bounds */
 void Platform_GetScreenBounds(Rect* bounds) {
     if (bounds) {
-        /* System 7.1 uses 640x480 screen resolution
-         * The framebuffer may be larger (e.g., 800x600) but we need to
-         * report the logical screen size for window positioning */
-        SetRect(bounds, 0, 0, 640, 480);
+        /* The screen as it is. This answered a fixed 640x480, so on a
+         * larger screen dialogs were centred in its top left corner,
+         * windows were kept inside it, and zooming filled only that. */
+        extern QDGlobals qd;
+        *bounds = qd.screenBits.bounds;
     }
 }
 
