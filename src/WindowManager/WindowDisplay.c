@@ -1934,7 +1934,6 @@ DeskHookProc g_deskHook = NULL;  /* Non-static so WindowDragging.c can access it
 
 /* Tracks if display needs updating to avoid constant flashing */
 static Boolean gDisplayDirty = true;
-static int gLastWindowCount = -1;
 static int gUpdateThrottle = 0;
 
 void SetDeskHook(DeskHookProc proc) {
@@ -1967,24 +1966,24 @@ void WM_Update(void) {
         qd.thePort = &screenPort;
     }
 
-    /* Check if window count has changed */
+    /* Only when asked for - the first frame, and the application switcher.
+     * This also ran whenever the number of windows changed, filling the whole
+     * screen with gray over every window and painting them all again, though
+     * opening and closing a window already repaint what they uncover: the
+     * windows' contents blanked and stray rows of the gray stayed behind, such
+     * as a dotted line across a title bar when Desktop Patterns opened. */
+    if (!gDisplayDirty) {
+        return;
+    }
+    gDisplayDirty = false;
+
     int currentWindowCount = 0;
     {
         extern WindowPtr FrontWindow(void);
-        WindowPtr w = FrontWindow();
-        while (w) {
+        for (WindowPtr w = FrontWindow(); w; w = w->nextWindow) {
             currentWindowCount++;
-            w = w->nextWindow;
         }
     }
-
-    /* Skip full redraw if nothing changed */
-    if (!gDisplayDirty && currentWindowCount == gLastWindowCount) {
-        return;
-    }
-
-    gLastWindowCount = currentWindowCount;
-    gDisplayDirty = false;
 
     /* Use QuickDraw to draw desktop */
     GrafPtr savePort;
@@ -1996,7 +1995,9 @@ void WM_Update(void) {
     SetRect(&desktopRect, 0, 20,
             qd.screenBits.bounds.right,
             qd.screenBits.bounds.bottom);
-    FillRect(&desktopRect, &qd.gray);  /* Gray desktop pattern */
+    if (!g_deskHook) {
+        FillRect(&desktopRect, &qd.gray);  /* no Finder yet to paint it */
+    }
 
     /* 2. Call DeskHook BEFORE windows to draw desktop icons behind windows */
     if (g_deskHook) {
