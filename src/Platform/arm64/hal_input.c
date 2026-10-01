@@ -9,6 +9,8 @@
 #include "SystemTypes.h"
 #include "EventManager/EventTypes.h"
 #include "Platform/PS2Input.h"
+#include "PS2Controller.h"
+#include "EventManager/MouseEvents.h"
 
 /* Display driver for resolution info */
 #include "display.h"
@@ -252,4 +254,43 @@ Boolean WaitMouseUp(void) {
         PollPS2Input();
     }
     return true;
+}
+
+/*
+ * The rest of the input interface the shared code uses, as the x86 PS/2 driver
+ * provides it. Without these the arm64 kernel did not link.
+ */
+
+/* Mouse position in the current port's coordinates */
+void GetMouseLocal(Point* mouseLoc) {
+    extern GrafPtr g_currentPort;
+    if (!mouseLoc) return;
+    GetMouse(mouseLoc);
+    /* local = global - bounds, the one rule every port follows */
+    if (g_currentPort) {
+        mouseLoc->h -= g_currentPort->portBits.bounds.left;
+        mouseLoc->v -= g_currentPort->portBits.bounds.top;
+    }
+}
+
+Boolean PS2_IsInitialized(void) {
+    return g_input_initialized;
+}
+
+/* Input here is polled */
+Boolean PS2_IsIRQDriven(void) {
+    return false;
+}
+
+/* The button level as last polled: these drivers keep no record of a press
+ * released between polls */
+UInt8 GetMouseButtonsLatched(void) {
+    return g_mouseState;
+}
+
+/* Keys arrive through the VirtIO and USB HID drivers, not a transition queue */
+Boolean PS2_DequeueKeyTransition(UInt8* macCode, Boolean* isPressed) {
+    (void)macCode;
+    (void)isPressed;
+    return false;
 }

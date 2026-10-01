@@ -57,13 +57,27 @@ jobs:
             mtools \
             xorriso \
             python3 \
-            vim-common
+            vim-common \
+            gcc-aarch64-linux-gnu
 
       - name: Build
         run: |
+          # English
           make clean
           make PLATFORM=x86
           make iso
+          cp kernel.elf kernel-x86.elf
+          cp system71.iso system71-english.iso
+          # All languages
+          make clean
+          make PLATFORM=x86 LOCALE_ALL=1
+          make iso
+          cp kernel.elf kernel-x86-all-languages.elf
+          cp system71.iso system71-all-languages.iso
+          # ARM64 (QEMU virt)
+          make clean
+          make PLATFORM=arm64
+          cp kernel.elf kernel-arm64.elf
 
       - name: Generate version
         id: version
@@ -101,8 +115,11 @@ jobs:
           draft: false
           prerelease: false
           files: |
-            system71.iso
-            kernel.elf
+            system71-english.iso
+            system71-all-languages.iso
+            kernel-x86.elf
+            kernel-x86-all-languages.elf
+            kernel-arm64.elf
           body: |
             ## System7 ${{ steps.version.outputs.VERSION }}
 
@@ -110,12 +127,15 @@ jobs:
 
             ### Downloads
 
-            - `system71.iso` - bootable ISO image
-            - `kernel.elf` - the kernel on its own
+            - `system71-english.iso` - bootable ISO, English
+            - `system71-all-languages.iso` - bootable ISO with every language built in
+              (choose one at boot with `lang=xx` on the kernel command line)
+            - `kernel-x86.elf`, `kernel-x86-all-languages.elf` - the x86 kernels on their own
+            - `kernel-arm64.elf` - ARM64 kernel for QEMU's `virt` machine
 
             ### Running
             ```bash
-            qemu-system-i386 -cdrom system71.iso -m 1024 -vga std \
+            qemu-system-i386 -cdrom system71-english.iso -m 1024 -vga std \
                 -device qemu-xhci,id=xhci -device usb-tablet,bus=xhci.0 -serial stdio
             ```
         env:

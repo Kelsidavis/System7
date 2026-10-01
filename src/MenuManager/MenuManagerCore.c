@@ -471,8 +471,8 @@ void SetupDefaultMenus(void)
  * ============================================================================ */
 
 /* Track the last displayed minute to avoid redundant redraws */
-static uint8_t g_lastClockHour = 0xFF;
-static uint8_t g_lastClockMinute = 0xFF;
+static uint8_t g_lastClockHour __attribute__((unused)) = 0xFF;   /* the clock is x86 only */
+static uint8_t g_lastClockMinute __attribute__((unused)) = 0xFF;   /* the clock is x86 only */
 
 /*
  * MenuBar_DrawClock - Draw the current time in the upper-right of the menu bar.

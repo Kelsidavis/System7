@@ -49,6 +49,65 @@ jobs:
           name: system71-iso
           path: system71.iso
 
+  build-x86-all-languages:
+    name: Build x86 (all languages)
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            build-essential \
+            gcc-multilib \
+            grub-pc-bin \
+            grub-efi-amd64-bin \
+            mtools \
+            xorriso \
+            python3 \
+            vim-common
+
+      - name: Build kernel (all languages)
+        run: make PLATFORM=x86 LOCALE_ALL=1
+
+      - name: Build ISO (all languages)
+        run: make iso
+
+      - name: Upload ISO artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: system71-all-languages-iso
+          path: system71.iso
+
+  build-arm64:
+    name: Build ARM64
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            build-essential \
+            gcc-aarch64-linux-gnu \
+            python3 \
+            vim-common
+
+      - name: Build kernel (ARM64, QEMU virt)
+        run: make PLATFORM=arm64
+
+      - name: Upload ARM64 kernel artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: kernel-arm64
+          path: kernel.elf
+
   test-stdlib:
     name: C Library Differential Test
     runs-on: ubuntu-latest

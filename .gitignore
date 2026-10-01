@@ -65,3 +65,7 @@ AGENTS.md
 GEMINI.mdLISTMANAGER_*.md
 LISTMANAGER_*.txt
 NEXT_IMPLEMENTATION_TARGETS.md
+
+# Generated per-language string tables (English is checked in)
+src/strings_*_rsrc.c
+!src/strings_en_rsrc.c
