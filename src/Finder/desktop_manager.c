@@ -931,40 +931,6 @@ static OSErr AllocateDesktopIcons(void)
     return noErr;
 }
 
-#if 0  /* Unused helper functions - reserved for future icon positioning features */
-/*
- * CalculateNextIconPosition - Calculate next available icon position
- */
-static Point CalculateNextIconPosition(void)
-{
-    Point pos;
-    pos.h = kDesktopMargin;
-    pos.v = kDesktopMargin + 40;
-
-    /* Simple increment for now */
-    if (gDesktopIconCount > 0) {
-        pos.h += (gDesktopIconCount % 10) * kDesktopIconSpacing;
-        pos.v += (gDesktopIconCount / 10) * kDesktopIconSpacing;
-    }
-
-    return pos;
-}
-
-/*
- * IsPositionOccupied - Check if a position is already occupied
- */
-static Boolean IsPositionOccupied(Point position)
-{
-    short i;
-    for (i = 0; i < gDesktopIconCount; i++) {
-        if (gDesktopIcons[i].position.h == position.h &&
-            gDesktopIcons[i].position.v == position.v) {
-            return true;
-        }
-    }
-    return false;
-}
-#endif  /* Unused helper functions */
 
 /*
  * SnapToGrid - Snap position to grid (System 7 style)

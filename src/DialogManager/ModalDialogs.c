@@ -475,68 +475,9 @@ Boolean ProcessModalEvent(DialogPtr theDialog, EventRecord* theEvent, SInt16* it
     return DialogSelect(theEvent, &theDialog, itemHit);
 }
 
-#if 0  /* UNUSED: CallModalFilter - preserved for possible future use */
-static Boolean CallModalFilter(DialogPtr theDialog, EventRecord* theEvent, SInt16* itemHit)
-{
-    if (!gModalState.modalFiltersActive || !theDialog || !theEvent) {
-        return false;
-    }
 
-    /* Find filter for this dialog */
-    for (int i = 0; i < 16; i++) {
-        if (gModalState.modalStack[i] == (WindowPtr)theDialog &&
-            gModalState.installedFilters[i] != NULL) {
-            return gModalState.installedFilters[i](theDialog, theEvent, itemHit);
-        }
-    }
 
-    return false;
-}
-#endif /* CallModalFilter */
 
-#if 0  /* UNUSED: UpdateModalState - preserved for possible future use */
-static void UpdateModalState(DialogPtr theDialog)
-{
-    if (!theDialog) {
-        return;
-    }
-
-    /* Update dialog state as needed */
-    /* This could include cursor tracking, idle processing, etc. */
-}
-#endif /* UpdateModalState */
-
-#if 0  /* UNUSED: IsEventForDialog - preserved for possible future use */
-static Boolean IsEventForDialog(DialogPtr theDialog, const EventRecord* theEvent)
-{
-    if (!theDialog || !theEvent) {
-        return false;
-    }
-
-    /* In a full implementation, this would check if the event's window
-       matches the dialog's window */
-    /* For now, assume all events are for the current dialog */
-    return true;
-}
-#endif /* IsEventForDialog */
-
-#if 0  /* UNUSED: HandleModalTimeout - preserved for possible future use */
-static void HandleModalTimeout(DialogPtr theDialog, SInt16* itemHit)
-{
-    if (!theDialog) {
-        return;
-    }
-
-    /* Handle dialog timeout - typically activate default button */
-    SInt16 defaultItem = GetDialogDefaultItem(theDialog);
-    if (defaultItem > 0) {
-        if (itemHit) *itemHit = defaultItem;
-        FlashButtonInternal(theDialog, defaultItem);
-    }
-
-    // DIALOG_LOG_DEBUG("Modal dialog timeout - activated default item %d\n", defaultItem);
-}
-#endif /* HandleModalTimeout */
 
 static Boolean ProcessStandardModalKeys(DialogPtr theDialog, EventRecord* theEvent, SInt16* itemHit)
 {

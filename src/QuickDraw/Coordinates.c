@@ -28,13 +28,6 @@
 #define M_PI 3.14159265358979323846
 #endif
 
-#if 0  /* UNUSED forward declarations for commented-out functions */
-/* Forward declarations */
-static SInt32 FixedMultiply(SInt32 a, SInt32 b);
-static SInt32 FixedDivide(SInt32 dividend, SInt32 divisor);
-static void TransformPoint(Point *pt, const Rect *srcRect, const Rect *dstRect);
-static void TransformRect(Rect *r, const Rect *srcRect, const Rect *dstRect);
-#endif
 
 /* ================================================================
  * POINT OPERATIONS
@@ -424,40 +417,9 @@ Boolean GetPixel(SInt16 h, SInt16 v) {
  * FIXED-POINT MATHEMATICS
  * ================================================================ */
 
-#if 0  /* UNUSED: FixedMultiply - preserved for possible future use */
-static SInt32 FixedMultiply(SInt32 a, SInt32 b) {
-    int64_t result = (int64_t)a * b;
-    return (SInt32)(result >> 16);
-}
-#endif /* FixedMultiply */
 
-#if 0  /* UNUSED: FixedDivide - preserved for possible future use */
-static SInt32 FixedDivide(SInt32 dividend, SInt32 divisor) {
-    if (divisor == 0) return 0x7FFFFFFF; /* Maximum positive value */
 
-    int64_t result = ((int64_t)dividend << 16) / divisor;
 
-    /* Clamp to 32-bit range */
-    if (result > 0x7FFFFFFF) return 0x7FFFFFFF;
-    if (result < -0x80000000LL) return -0x80000000LL;
-
-    return (SInt32)result;
-}
-#endif /* FixedDivide */
-
-#if 0  /* UNUSED: TransformPoint - preserved for possible future use */
-static void TransformPoint(Point *pt, const Rect *srcRect, const Rect *dstRect) {
-    /* This is the same as MapPt */
-    MapPt(pt, srcRect, dstRect);
-}
-#endif /* TransformPoint */
-
-#if 0  /* UNUSED: TransformRect - preserved for possible future use */
-static void TransformRect(Rect *r, const Rect *srcRect, const Rect *dstRect) {
-    /* This is the same as MapRect */
-    MapRect(r, srcRect, dstRect);
-}
-#endif /* TransformRect */
 
 /* ================================================================
  * ANGLE AND TRIGONOMETRIC UTILITIES

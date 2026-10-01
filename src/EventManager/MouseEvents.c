@@ -141,12 +141,6 @@ extern UInt32 GetDblTime(void);
  * Private Function Declarations
  *---------------------------------------------------------------------------*/
 
-#if 0  /* UNUSED forward declarations for commented-out functions */
-static SInt16 DetectClickCount(Point clickPos, UInt32 clickTime);
-static void UpdateMouseRegionTracking(Point mousePos);
-static void ApplyMouseAcceleration(SInt16* deltaX, SInt16* deltaY);
-static Boolean IsWithinClickTolerance(Point pt1, Point pt2);
-#endif
 static SInt16 MapMouseButton(SInt16 buttonID);
 
 /*---------------------------------------------------------------------------
@@ -174,39 +168,7 @@ Boolean PointInRect(Point pt, const Rect* rect)
             pt.v >= rect->top && pt.v < rect->bottom);
 }
 
-#if 0  /* UNUSED: IsWithinClickTolerance - orphaned by commenting out DetectClickCount */
-/**
- * Check if points are within double-click tolerance
- */
-static Boolean IsWithinClickTolerance(Point pt1, Point pt2)
-{
-    SInt16 distance = PointDistance(pt1, pt2);
-    return distance <= kDoubleClickTolerance;
-}
-#endif /* IsWithinClickTolerance */
 
-#if 0  /* UNUSED: ApplyMouseAcceleration - preserved for possible future use */
-/**
- * Apply mouse acceleration to movement delta
- */
-static void ApplyMouseAcceleration(SInt16* deltaX, SInt16* deltaY)
-{
-    if (!deltaX || !deltaY) return;
-
-    float magnitude = sqrt((*deltaX) * (*deltaX) + (*deltaY) * (*deltaY));
-
-    if (magnitude > 0 && g_mouseAcceleration != 1.0f) {
-        float accelerated = magnitude * g_mouseAcceleration;
-        float scale = accelerated / magnitude;
-
-        *deltaX = (SInt16)((*deltaX) * scale * g_mouseSensitivity);
-        *deltaY = (SInt16)((*deltaY) * scale * g_mouseSensitivity);
-    } else {
-        *deltaX = (SInt16)((*deltaX) * g_mouseSensitivity);
-        *deltaY = (SInt16)((*deltaY) * g_mouseSensitivity);
-    }
-}
-#endif /* ApplyMouseAcceleration */
 
 /**
  * Map physical button to logical button (for left-handed support)
@@ -226,30 +188,6 @@ static SInt16 MapMouseButton(SInt16 buttonID)
     return buttonID;
 }
 
-#if 0  /* UNUSED: DetectClickCount - preserved for possible future use */
-/**
- * Detect multi-click count
- */
-static SInt16 DetectClickCount(Point clickPos, UInt32 clickTime)
-{
-    UInt32 doubleTime = GetDblTime();
-    UInt32 timeDiff = clickTime - g_lastClickTime;
-
-    if (timeDiff <= doubleTime && IsWithinClickTolerance(clickPos, g_lastClickPos)) {
-        g_clickCount++;
-        if (g_clickCount > kMaxClickCount) {
-            g_clickCount = kMaxClickCount;
-        }
-    } else {
-        g_clickCount = 1;
-    }
-
-    g_lastClickPos = clickPos;
-    g_lastClickTime = clickTime;
-
-    return g_clickCount;
-}
-#endif /* DetectClickCount */
 
 /*---------------------------------------------------------------------------
  * Core Mouse Event API
@@ -578,28 +516,6 @@ void RemoveMouseRegion(MouseRegion* region)
     }
 }
 
-#if 0  /* UNUSED: UpdateMouseRegionTracking - preserved for possible future use */
-/**
- * Update mouse region tracking
- */
-static void UpdateMouseRegionTracking(Point mousePos)
-{
-    MouseRegion* region = g_mouseRegions;
-
-    while (region) {
-        if (region->trackingEnabled) {
-            Boolean wasInside = region->mouseInside;
-            Boolean isInside = PointInRect(mousePos, &region->bounds);
-
-            if (isInside != wasInside) {
-                region->mouseInside = isInside;
-                /* Could generate enter/exit events here */
-            }
-        }
-        region = region->next;
-    }
-}
-#endif /* UpdateMouseRegionTracking */
 
 /**
  * Get mouse region at point

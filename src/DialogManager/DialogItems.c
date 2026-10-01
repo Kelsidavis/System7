@@ -850,47 +850,13 @@ static Boolean ValidateItemNumber(DialogPtr theDialog, SInt16 itemNo)
     return (itemNo <= cache->itemCount);
 }
 
-#if 0  /* UNUSED: DrawButtonItem - preserved for possible future use */
-static void DrawButtonItem(DialogPtr theDialog, SInt16 itemNo, const DialogItemEx* item)
-{
-    if (!item) {
-        return;
-    }
-
-    Boolean isDefault = (itemNo == GetDialogDefaultItem(theDialog));
-    const unsigned char* title = (const unsigned char*)item->data;
-
-    DrawDialogButton(theDialog, &item->bounds, title, isDefault, item->enabled, false);
-}
-#endif /* DrawButtonItem */
 
 /* NOTE: Text/Icon drawing functions moved to DialogDrawing.c unified dispatcher.
  * Keyboard focus tracking now implemented in DialogKeyboard.c
  * (see DM_SetKeyboardFocus, DM_GetKeyboardFocus, DM_FocusNextControl)
  */
 
-#if 0  /* UNUSED: DrawIconItem - preserved for possible future use */
-static void DrawIconItem(DialogPtr theDialog, SInt16 itemNo, const DialogItemEx* item)
-{
-    if (!item) {
-        return;
-    }
 
-    DrawDialogIcon(&item->bounds, (SInt16)item->refCon, true);   /* itemDisable is about clicks */
-}
-#endif /* DrawIconItem */
-
-#if 0  /* UNUSED: DrawUserItem - preserved for possible future use */
-static void DrawUserItem(DialogPtr theDialog, SInt16 itemNo, const DialogItemEx* item)
-{
-    if (!item) {
-        return;
-    }
-
-    UserItemProcPtr userProc = (UserItemProcPtr)item->handle;
-    DrawDialogUserItem(theDialog, itemNo, &item->bounds, userProc);
-}
-#endif /* DrawUserItem */
 
 static void InvalidateItemRect(DialogPtr theDialog, const Rect* rect)
 {

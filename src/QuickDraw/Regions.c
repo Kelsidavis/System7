@@ -56,19 +56,6 @@ static RegionRecorder g_regionRecorder = {false, NULL, {0,0,0,0}, NULL, 0, 0};
 static QDErr g_lastRegionError = 0;
 
 /* Forward declarations - Commented out: not yet implemented */
-#if 0
-static void CompactRegionData(RgnHandle rgn);
-static Boolean AddScanLineToRegion(RgnHandle rgn, SInt16 y, SInt16 *coords, SInt16 coordCount);
-static void UpdateRegionBounds(RgnHandle rgn);
-static Boolean IntersectScanLines(SInt16 *line1, SInt16 count1, SInt16 *line2, SInt16 count2,
-                              SInt16 *result, SInt16 *resultCount);
-static Boolean UnionScanLines(SInt16 *line1, SInt16 count1, SInt16 *line2, SInt16 count2,
-                          SInt16 *result, SInt16 *resultCount);
-static Boolean DifferenceScanLines(SInt16 *line1, SInt16 count1, SInt16 *line2, SInt16 count2,
-                               SInt16 *result, SInt16 *resultCount);
-static Boolean XorScanLines(SInt16 *line1, SInt16 count1, SInt16 *line2, SInt16 count2,
-                        SInt16 *result, SInt16 *resultCount);
-#endif
 
 __attribute__((unused))
 static void region_log_hex(uint32_t value, int digits) {
@@ -202,17 +189,6 @@ void DisposeRgn(RgnHandle rgn) {
     DisposePtr((Ptr)rgn);
 }
 
-#if 0  /* Unused function */
-static RgnHandle DuplicateRgn(RgnHandle srcRgn) {
-    if (!srcRgn || !*srcRgn) return NULL;
-
-    RgnHandle newRgn = NewRgn();
-    if (!newRgn) return NULL;
-
-    CopyRgn(srcRgn, newRgn);
-    return newRgn;
-}
-#endif
 
 void SetEmptyRgn(RgnHandle rgn) {
     assert(rgn != NULL && *rgn != NULL);
@@ -245,13 +221,6 @@ void SetRectRgn(RgnHandle rgn, SInt16 left, SInt16 top, SInt16 right, SInt16 bot
 
     /* Don't resize - realloc() is broken in bare-metal kernel
      * Just use existing allocation */
-    #if 0  /* DISABLED - realloc causes freeze */
-    Region *newRegion = (Region *)realloc(region, kMinRegionSize);
-    if (newRegion) {
-        *rgn = newRegion;
-        region = newRegion;
-    }
-    #endif
 
     region->rgnSize = kMinRegionSize;
     SetRect(&region->rgnBBox, left, top, right, bottom);
@@ -1211,41 +1180,7 @@ Boolean ClipRectToRegion(Rect *rect, RgnHandle clipRgn, Rect *clippedRect) {
  * REGION HIT TESTING
  * ================================================================ */
 
-#if 0  /* Unused function */
-static HitTestResult HitTestRegion(Point pt, RgnHandle rgn) {
-    if (PtInRgn(pt, rgn)) {
-        return kHitTestHit;
-    }
-    return kHitTestMiss;
-}
 
-static Point FindClosestPointOnRegion(Point pt, RgnHandle rgn) {
-    assert(rgn != NULL && *rgn != NULL);
-
-    Region *region = *rgn;
-    Rect bounds = region->rgnBBox;
-
-    /* Simple implementation - find closest point on bounding box */
-    Point closest = pt;
-
-    if (pt.h < bounds.left) closest.h = bounds.left;
-    else if (pt.h > bounds.right) closest.h = bounds.right;
-
-    if (pt.v < bounds.top) closest.v = bounds.top;
-    else if (pt.v > bounds.bottom) closest.v = bounds.bottom;
-
-    return closest;
-}
-#endif
-
-#if 0  /* Unused function */
-static SInt16 DistanceToRegion(Point pt, RgnHandle rgn) {
-    Point closest = FindClosestPointOnRegion(pt, rgn);
-    SInt16 dx = pt.h - closest.h;
-    SInt16 dv = pt.v - closest.v;
-    return (SInt16)sqrt(dx * dx + dv * dv);
-}
-#endif
 
 /* ================================================================
  * REGION RECTANGLE ACCESS
