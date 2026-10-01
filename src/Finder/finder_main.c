@@ -612,6 +612,23 @@ WindowPtr Finder_OpenDesktopItem(Boolean isTrash, ConstStr255Param title)
                   r.top, r.left, r.bottom, r.right, windowTitle[0], isTrash);
     FINDER_LOG_DEBUG("[WIN_OPEN] NewWindow function ptr=%p\n", NewWindow);
 
+    /* A disk or the Trash already open is brought forward, not opened a
+     * second time: each double-click made another window, stacked exactly
+     * on the first. */
+    {
+        long kind = isTrash ? 0x54525348 : 0x4449534B;   /* 'TRSH' or 'DISK' */
+        for (WindowPtr open = FrontWindow(); open; open = open->nextWindow) {
+            if (GetWRefCon(open) != kind) continue;
+            Str255 have;
+            GetWTitle(open, have);
+            if (have[0] == windowTitle[0] && memcmp(&have[1], &windowTitle[1], have[0]) == 0) {
+                if (!open->visible) ShowWindow(open);
+                SelectWindow(open);
+                return open;
+            }
+        }
+    }
+
     WindowPtr w = NewWindow(NULL, &r, windowTitle,
                             false, zoomDocProc, (WindowPtr)-1L, true,   /* Finder windows zoom */
                             isTrash ? 0x54525348 : 0x4449534B);  /* 'TRSH' or 'DISK' */

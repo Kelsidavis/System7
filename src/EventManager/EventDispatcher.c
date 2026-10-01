@@ -475,8 +475,11 @@ Boolean HandleMouseDown(EventRecord* event)
             /* Zoom box clicked */
             if (whichWindow) {
                 extern void ZoomWindow(WindowPtr theWindow, short partCode, Boolean front);
-                EVT_LOG_DEBUG("Zoom window %p (partCode=%d)\n", (void*)whichWindow, windowPart);
-                ZoomWindow(whichWindow, windowPart, true);
+                /* Zoomed on release inside the box, as TrackBox decides; it
+                 * zoomed on the press, with no highlight and no way to back out. */
+                if (TrackBox(whichWindow, event->where, windowPart)) {
+                    ZoomWindow(whichWindow, windowPart, true);
+                }
             }
             return true;
 

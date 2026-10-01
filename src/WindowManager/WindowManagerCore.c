@@ -1126,6 +1126,16 @@ void CopyPascalString(const unsigned char* source, unsigned char* dest) {
  * Window Title Management
  * ============================================================================ */
 
+/* A window's title, as SetWTitle stored it (Inside Macintosh: Toolbox
+ * Essentials, 4-95). Declared in the headers, never written. */
+void GetWTitle(WindowPtr theWindow, Str255 title) {
+    if (!title) return;
+    title[0] = 0;
+    if (!theWindow || !theWindow->titleHandle || !*theWindow->titleHandle) return;
+    unsigned char len = (*theWindow->titleHandle)[0];
+    memcpy(title, *theWindow->titleHandle, (size_t)len + 1);
+}
+
 void SetWTitle(WindowPtr window, ConstStr255Param title) {
     if (!window) {
         WM_LOG_DEBUG("SetWTitle: NULL window\n");

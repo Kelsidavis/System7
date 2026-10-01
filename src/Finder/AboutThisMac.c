@@ -778,9 +778,10 @@ Boolean AboutWindow_HandleMouseDown(WindowPtr w, short part, Point localPt)
 
         case inGoAway:
             FINDER_LOG_DEBUG("AboutThisMac: In inGoAway case\n");
-            /* Handle close box - TrackGoAway hangs, so just close directly */
-            FINDER_LOG_DEBUG("AboutThisMac: Close box clicked, closing window\n");
-            AboutWindow_CloseIf(w);
+            /* Closed on release inside the box, as TrackGoAway decides */
+            if (TrackGoAway(w, localPt)) {   /* the event's global point */
+                AboutWindow_CloseIf(w);
+            }
             FINDER_LOG_DEBUG("AboutThisMac: After AboutWindow_CloseIf\n");
             return 1;  /* true */
 
