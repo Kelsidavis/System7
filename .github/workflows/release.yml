@@ -59,27 +59,11 @@ jobs:
             python3 \
             vim-common
 
-      - name: Build per-language artifacts
+      - name: Build
         run: |
-          for lang in en es fr de zh tw; do
-            echo "Building $lang..."
-            make clean
-            if [[ "$lang" == "en" ]]; then
-              make PLATFORM=x86
-            else
-              LANG_UPPER=$(echo "$lang" | tr '[:lower:]' '[:upper:]')
-              make PLATFORM=x86 "LOCALE_${LANG_UPPER}=1"
-            fi
-            make iso
-            cp kernel.elf "kernel-${lang}.elf"
-            cp system71.iso "system71-${lang}.iso"
-          done
-          echo "Building all-languages..."
           make clean
-          make PLATFORM=x86 LOCALE_FR=1 LOCALE_DE=1 LOCALE_ES=1 LOCALE_JA=1 LOCALE_ZH=1 LOCALE_KO=1 LOCALE_RU=1 LOCALE_UK=1 LOCALE_PL=1 LOCALE_CS=1 LOCALE_SQ=1 LOCALE_BG=1 LOCALE_HR=1 LOCALE_DA=1 LOCALE_NL=1 LOCALE_ET=1 LOCALE_FI=1 LOCALE_EL=1 LOCALE_HU=1 LOCALE_IS=1 LOCALE_IT=1 LOCALE_LV=1 LOCALE_LT=1 LOCALE_MK=1 LOCALE_ME=1 LOCALE_NO=1 LOCALE_PT=1 LOCALE_RO=1 LOCALE_SK=1 LOCALE_SL=1 LOCALE_SV=1 LOCALE_TR=1 LOCALE_HI=1 LOCALE_TW=1 LOCALE_AR=1 LOCALE_BN=1 LOCALE_UR=1
+          make PLATFORM=x86
           make iso
-          cp kernel.elf kernel-all-languages.elf
-          cp system71.iso system71-all-languages.iso
 
       - name: Generate version
         id: version
@@ -117,8 +101,8 @@ jobs:
           draft: false
           prerelease: false
           files: |
-            system71-*.iso
-            kernel-*.elf
+            system71.iso
+            kernel.elf
           body: |
             ## System7 ${{ steps.version.outputs.VERSION }}
 
@@ -126,24 +110,13 @@ jobs:
 
             ### Downloads
 
-            **Per-language ISOs and kernels (one ISO per locale):**
-            - `system71-<lang>.iso` - Bootable ISO image for a single locale
-            - `kernel-<lang>.elf` - Kernel binary for a single locale
-
-            Supported locales: `en`, `es`, `fr`, `de`, `zh`, `tw`.
-
-            **All languages (single ISO containing every locale):**
-            - `system71-all-languages.iso` - Bootable ISO image (all locales)
-            - `kernel-all-languages.elf` - Kernel binary (all locales)
+            - `system71.iso` - bootable ISO image
+            - `kernel.elf` - the kernel on its own
 
             ### Running
             ```bash
-            # Example: French
-            qemu-system-i386 -cdrom system71-fr.iso -serial stdio -display sdl -m 256M
-
-            # All languages
-            qemu-system-i386 -cdrom system71-all-languages.iso -serial stdio -display sdl -m 256M
-
+            qemu-system-i386 -cdrom system71.iso -m 1024 -vga std \
+                -device qemu-xhci,id=xhci -device usb-tablet,bus=xhci.0 -serial stdio
             ```
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

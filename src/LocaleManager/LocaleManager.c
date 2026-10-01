@@ -196,191 +196,42 @@ static const LocaleEntry gLocaleTable[kLocaleCount] = {
 extern const unsigned char strings_en_rsrc_data[];
 extern const unsigned int  strings_en_rsrc_size;
 
-/* Optional locale resources - compiled in when LOCALE_XX is defined */
-#ifdef LOCALE_FR
-extern const unsigned char strings_fr_rsrc_data[];
-extern const unsigned int  strings_fr_rsrc_size;
-#endif
 
-#ifdef LOCALE_DE
-extern const unsigned char strings_de_rsrc_data[];
-extern const unsigned int  strings_de_rsrc_size;
-#endif
 
-#ifdef LOCALE_ES
-extern const unsigned char strings_es_rsrc_data[];
-extern const unsigned int  strings_es_rsrc_size;
-#endif
 
-#ifdef LOCALE_JA
-extern const unsigned char strings_ja_rsrc_data[];
-extern const unsigned int  strings_ja_rsrc_size;
-#endif
 
-#ifdef LOCALE_ZH
-extern const unsigned char strings_zh_rsrc_data[];
-extern const unsigned int  strings_zh_rsrc_size;
-#endif
 
-#ifdef LOCALE_KO
-extern const unsigned char strings_ko_rsrc_data[];
-extern const unsigned int  strings_ko_rsrc_size;
-#endif
 
-#ifdef LOCALE_RU
-extern const unsigned char strings_ru_rsrc_data[];
-extern const unsigned int  strings_ru_rsrc_size;
-#endif
 
-#ifdef LOCALE_UK
-extern const unsigned char strings_uk_rsrc_data[];
-extern const unsigned int  strings_uk_rsrc_size;
-#endif
 
-#ifdef LOCALE_PL
-extern const unsigned char strings_pl_rsrc_data[];
-extern const unsigned int  strings_pl_rsrc_size;
-#endif
 
-#ifdef LOCALE_CS
-extern const unsigned char strings_cs_rsrc_data[];
-extern const unsigned int  strings_cs_rsrc_size;
-#endif
 
-#ifdef LOCALE_SQ
-extern const unsigned char strings_sq_rsrc_data[];
-extern const unsigned int  strings_sq_rsrc_size;
-#endif
 
-#ifdef LOCALE_BG
-extern const unsigned char strings_bg_rsrc_data[];
-extern const unsigned int  strings_bg_rsrc_size;
-#endif
 
-#ifdef LOCALE_HR
-extern const unsigned char strings_hr_rsrc_data[];
-extern const unsigned int  strings_hr_rsrc_size;
-#endif
 
-#ifdef LOCALE_DA
-extern const unsigned char strings_da_rsrc_data[];
-extern const unsigned int  strings_da_rsrc_size;
-#endif
 
-#ifdef LOCALE_NL
-extern const unsigned char strings_nl_rsrc_data[];
-extern const unsigned int  strings_nl_rsrc_size;
-#endif
 
-#ifdef LOCALE_ET
-extern const unsigned char strings_et_rsrc_data[];
-extern const unsigned int  strings_et_rsrc_size;
-#endif
 
-#ifdef LOCALE_FI
-extern const unsigned char strings_fi_rsrc_data[];
-extern const unsigned int  strings_fi_rsrc_size;
-#endif
 
-#ifdef LOCALE_EL
-extern const unsigned char strings_el_rsrc_data[];
-extern const unsigned int  strings_el_rsrc_size;
-#endif
 
-#ifdef LOCALE_HU
-extern const unsigned char strings_hu_rsrc_data[];
-extern const unsigned int  strings_hu_rsrc_size;
-#endif
 
-#ifdef LOCALE_IS
-extern const unsigned char strings_is_rsrc_data[];
-extern const unsigned int  strings_is_rsrc_size;
-#endif
 
-#ifdef LOCALE_IT
-extern const unsigned char strings_it_rsrc_data[];
-extern const unsigned int  strings_it_rsrc_size;
-#endif
 
-#ifdef LOCALE_LV
-extern const unsigned char strings_lv_rsrc_data[];
-extern const unsigned int  strings_lv_rsrc_size;
-#endif
 
-#ifdef LOCALE_LT
-extern const unsigned char strings_lt_rsrc_data[];
-extern const unsigned int  strings_lt_rsrc_size;
-#endif
 
-#ifdef LOCALE_MK
-extern const unsigned char strings_mk_rsrc_data[];
-extern const unsigned int  strings_mk_rsrc_size;
-#endif
 
-#ifdef LOCALE_ME
-extern const unsigned char strings_me_rsrc_data[];
-extern const unsigned int  strings_me_rsrc_size;
-#endif
 
-#ifdef LOCALE_NO
-extern const unsigned char strings_no_rsrc_data[];
-extern const unsigned int  strings_no_rsrc_size;
-#endif
 
-#ifdef LOCALE_PT
-extern const unsigned char strings_pt_rsrc_data[];
-extern const unsigned int  strings_pt_rsrc_size;
-#endif
 
-#ifdef LOCALE_RO
-extern const unsigned char strings_ro_rsrc_data[];
-extern const unsigned int  strings_ro_rsrc_size;
-#endif
 
-#ifdef LOCALE_SK
-extern const unsigned char strings_sk_rsrc_data[];
-extern const unsigned int  strings_sk_rsrc_size;
-#endif
 
-#ifdef LOCALE_SL
-extern const unsigned char strings_sl_rsrc_data[];
-extern const unsigned int  strings_sl_rsrc_size;
-#endif
 
-#ifdef LOCALE_SV
-extern const unsigned char strings_sv_rsrc_data[];
-extern const unsigned int  strings_sv_rsrc_size;
-#endif
 
-#ifdef LOCALE_TR
-extern const unsigned char strings_tr_rsrc_data[];
-extern const unsigned int  strings_tr_rsrc_size;
-#endif
 
-#ifdef LOCALE_HI
-extern const unsigned char strings_hi_rsrc_data[];
-extern const unsigned int  strings_hi_rsrc_size;
-#endif
 
-#ifdef LOCALE_TW
-extern const unsigned char strings_tw_rsrc_data[];
-extern const unsigned int  strings_tw_rsrc_size;
-#endif
 
-#ifdef LOCALE_AR
-extern const unsigned char strings_ar_rsrc_data[];
-extern const unsigned int  strings_ar_rsrc_size;
-#endif
 
-#ifdef LOCALE_BN
-extern const unsigned char strings_bn_rsrc_data[];
-extern const unsigned int  strings_bn_rsrc_size;
-#endif
 
-#ifdef LOCALE_UR
-extern const unsigned char strings_ur_rsrc_data[];
-extern const unsigned int  strings_ur_rsrc_size;
-#endif
 
 /* ---- State -------------------------------------------------------------- */
 
@@ -396,191 +247,6 @@ static const unsigned char* GetLocaleData(SInt16 localeID, UInt32* outSize) {
         case kLocaleIDEnglish:
             *outSize = strings_en_rsrc_size;
             return strings_en_rsrc_data;
-#ifdef LOCALE_FR
-        case kLocaleIDFrench:
-            *outSize = strings_fr_rsrc_size;
-            return strings_fr_rsrc_data;
-#endif
-#ifdef LOCALE_DE
-        case kLocaleIDGerman:
-            *outSize = strings_de_rsrc_size;
-            return strings_de_rsrc_data;
-#endif
-#ifdef LOCALE_ES
-        case kLocaleIDSpanish:
-            *outSize = strings_es_rsrc_size;
-            return strings_es_rsrc_data;
-#endif
-#ifdef LOCALE_JA
-        case kLocaleIDJapanese:
-            *outSize = strings_ja_rsrc_size;
-            return strings_ja_rsrc_data;
-#endif
-#ifdef LOCALE_ZH
-        case kLocaleIDSimpChinese:
-            *outSize = strings_zh_rsrc_size;
-            return strings_zh_rsrc_data;
-#endif
-#ifdef LOCALE_KO
-        case kLocaleIDKorean:
-            *outSize = strings_ko_rsrc_size;
-            return strings_ko_rsrc_data;
-#endif
-#ifdef LOCALE_RU
-        case kLocaleIDRussian:
-            *outSize = strings_ru_rsrc_size;
-            return strings_ru_rsrc_data;
-#endif
-#ifdef LOCALE_UK
-        case kLocaleIDUkrainian:
-            *outSize = strings_uk_rsrc_size;
-            return strings_uk_rsrc_data;
-#endif
-#ifdef LOCALE_PL
-        case kLocaleIDPolish:
-            *outSize = strings_pl_rsrc_size;
-            return strings_pl_rsrc_data;
-#endif
-#ifdef LOCALE_CS
-        case kLocaleIDCzech:
-            *outSize = strings_cs_rsrc_size;
-            return strings_cs_rsrc_data;
-#endif
-#ifdef LOCALE_SQ
-        case kLocaleIDAlbanian:
-            *outSize = strings_sq_rsrc_size;
-            return strings_sq_rsrc_data;
-#endif
-#ifdef LOCALE_BG
-        case kLocaleIDBulgarian:
-            *outSize = strings_bg_rsrc_size;
-            return strings_bg_rsrc_data;
-#endif
-#ifdef LOCALE_HR
-        case kLocaleIDCroatian:
-            *outSize = strings_hr_rsrc_size;
-            return strings_hr_rsrc_data;
-#endif
-#ifdef LOCALE_DA
-        case kLocaleIDDanish:
-            *outSize = strings_da_rsrc_size;
-            return strings_da_rsrc_data;
-#endif
-#ifdef LOCALE_NL
-        case kLocaleIDDutch:
-            *outSize = strings_nl_rsrc_size;
-            return strings_nl_rsrc_data;
-#endif
-#ifdef LOCALE_ET
-        case kLocaleIDEstonian:
-            *outSize = strings_et_rsrc_size;
-            return strings_et_rsrc_data;
-#endif
-#ifdef LOCALE_FI
-        case kLocaleIDFinnish:
-            *outSize = strings_fi_rsrc_size;
-            return strings_fi_rsrc_data;
-#endif
-#ifdef LOCALE_EL
-        case kLocaleIDGreek:
-            *outSize = strings_el_rsrc_size;
-            return strings_el_rsrc_data;
-#endif
-#ifdef LOCALE_HU
-        case kLocaleIDHungarian:
-            *outSize = strings_hu_rsrc_size;
-            return strings_hu_rsrc_data;
-#endif
-#ifdef LOCALE_IS
-        case kLocaleIDIcelandic:
-            *outSize = strings_is_rsrc_size;
-            return strings_is_rsrc_data;
-#endif
-#ifdef LOCALE_IT
-        case kLocaleIDItalian:
-            *outSize = strings_it_rsrc_size;
-            return strings_it_rsrc_data;
-#endif
-#ifdef LOCALE_LV
-        case kLocaleIDLatvian:
-            *outSize = strings_lv_rsrc_size;
-            return strings_lv_rsrc_data;
-#endif
-#ifdef LOCALE_LT
-        case kLocaleIDLithuanian:
-            *outSize = strings_lt_rsrc_size;
-            return strings_lt_rsrc_data;
-#endif
-#ifdef LOCALE_MK
-        case kLocaleIDMacedonian:
-            *outSize = strings_mk_rsrc_size;
-            return strings_mk_rsrc_data;
-#endif
-#ifdef LOCALE_ME
-        case kLocaleIDMontenegrin:
-            *outSize = strings_me_rsrc_size;
-            return strings_me_rsrc_data;
-#endif
-#ifdef LOCALE_NO
-        case kLocaleIDNorwegian:
-            *outSize = strings_no_rsrc_size;
-            return strings_no_rsrc_data;
-#endif
-#ifdef LOCALE_PT
-        case kLocaleIDPortuguese:
-            *outSize = strings_pt_rsrc_size;
-            return strings_pt_rsrc_data;
-#endif
-#ifdef LOCALE_RO
-        case kLocaleIDRomanian:
-            *outSize = strings_ro_rsrc_size;
-            return strings_ro_rsrc_data;
-#endif
-#ifdef LOCALE_SK
-        case kLocaleIDSlovak:
-            *outSize = strings_sk_rsrc_size;
-            return strings_sk_rsrc_data;
-#endif
-#ifdef LOCALE_SL
-        case kLocaleIDSlovenian:
-            *outSize = strings_sl_rsrc_size;
-            return strings_sl_rsrc_data;
-#endif
-#ifdef LOCALE_SV
-        case kLocaleIDSwedish:
-            *outSize = strings_sv_rsrc_size;
-            return strings_sv_rsrc_data;
-#endif
-#ifdef LOCALE_TR
-        case kLocaleIDTurkish:
-            *outSize = strings_tr_rsrc_size;
-            return strings_tr_rsrc_data;
-#endif
-#ifdef LOCALE_HI
-        case kLocaleIDHindi:
-            *outSize = strings_hi_rsrc_size;
-            return strings_hi_rsrc_data;
-#endif
-#ifdef LOCALE_TW
-        case kLocaleIDTradChinese:
-            *outSize = strings_tw_rsrc_size;
-            return strings_tw_rsrc_data;
-#endif
-#ifdef LOCALE_AR
-        case kLocaleIDArabic:
-            *outSize = strings_ar_rsrc_size;
-            return strings_ar_rsrc_data;
-#endif
-#ifdef LOCALE_BN
-        case kLocaleIDBengali:
-            *outSize = strings_bn_rsrc_size;
-            return strings_bn_rsrc_data;
-#endif
-#ifdef LOCALE_UR
-        case kLocaleIDUrdu:
-            *outSize = strings_ur_rsrc_size;
-            return strings_ur_rsrc_data;
-#endif
         default:
             *outSize = 0;
             return NULL;
