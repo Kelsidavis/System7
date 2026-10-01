@@ -64,10 +64,16 @@ Boolean Proc_GetNextEvent(EventMask mask, EventRecord* evt) {
      * Toolbox pumps, which is why nested modal loops work there.
      *
      * ProcessModernInput is edge-triggered on device state, so calling it
-     * from here as well as from the main loop cannot double-report anything. */
+     * from here as well as from the main loop cannot double-report anything.
+     *
+     * The pointer is brought up to date here for the same reason: only the
+     * main loop drew it, so inside an alert's ModalDialog loop it vanished and
+     * stayed gone until the alert was dismissed. */
     {
         extern void ProcessModernInput(void);
+        extern void UpdateCursorDisplay(void);
         ProcessModernInput();
+        UpdateCursorDisplay();
     }
 
     /* Check queue first */
