@@ -2873,7 +2873,14 @@ static bool xhci_reset(uintptr_t base, uint32_t cap_len) {
 static bool xhci_start(uintptr_t base, uint32_t cap_len) {
     uintptr_t op_base = base + cap_len;
     uint32_t cmd = mmio_read32(op_base, XHCI_USBCMD);
-    cmd |= XHCI_CMD_RUN | XHCI_CMD_INTE;
+    /* Run without interrupts: this driver polls its event ring, and nothing
+     * handles the controller's interrupt. With INTE set its level-triggered
+     * line stayed asserted, refiring the moment each EOI went out, and the
+     * kernel never got past enabling interrupts to its event loop - so with
+     * a USB controller present nothing took input at all. Events are still
+     * written to the ring with interrupts off. */
+    cmd |= XHCI_CMD_RUN;
+    cmd &= ~XHCI_CMD_INTE;
     mmio_write32(op_base, XHCI_USBCMD, cmd);
 
     uint32_t timeout = 100000;
@@ -3001,8 +3008,8 @@ bool xhci_init_x86(void) {
             mmio_write32(rt_base, XHCI_RT_ERDP_LO, (uint32_t)((uintptr_t)&g_evt_ring[0] & 0xFFFFFFFFu));
             mmio_write32(rt_base, XHCI_RT_ERDP_HI, 0);
 
-            /* Enable interrupter (IE bit) */
-            mmio_write32(rt_base, XHCI_RT_IMAN, 0x2);
+            /* Interrupter 0 stays disabled (IE clear; IP written to clear) */
+            mmio_write32(rt_base, XHCI_RT_IMAN, 0x1);
             mmio_write32(rt_base, XHCI_RT_IMOD, 0);
 
             /* Set max device slots enabled */
