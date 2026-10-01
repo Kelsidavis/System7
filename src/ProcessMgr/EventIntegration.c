@@ -159,9 +159,13 @@ Boolean Proc_EventAvail(EventMask mask, EventRecord* evt) {
 OSErr Proc_PostEventWithModifiers(EventMask what, UInt32 message, UInt16 modifiers) {
     EventRecord evt;
 
+    /* A full queue gives up its oldest event (Inside Macintosh: Macintosh
+     * Toolbox Essentials, 2-115). Refusing the new one let events a modal
+     * loop does not ask for fill it and lock out every click after them. */
     if (gQueueCount >= EVENT_QUEUE_SIZE) {
-        PROCESS_LOG_DEBUG("EventMgr: Queue full, dropping event %d\n", what);
-        return evtNotEnb;  /* Event queue full */
+        PROCESS_LOG_DEBUG("EventMgr: Queue full, discarding the oldest\n");
+        gQueueHead = (gQueueHead + 1) % EVENT_QUEUE_SIZE;
+        gQueueCount--;
     }
 
     /* Build event record */

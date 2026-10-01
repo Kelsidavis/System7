@@ -256,10 +256,13 @@ SInt16 PostEvent(SInt16 eventNum, SInt32 eventMsg) {
     EVT_LOG_DEBUG("PostEvent: Posting %s (type=%d), msg=0x%08x, queue count=%d\n",
                   eventName, eventNum, eventMsg, g_eventQueue.count);
 
-    /* Check if queue is full */
+    /* A full queue gives up its oldest event (Inside Macintosh: Macintosh
+     * Toolbox Essentials, 2-115). Refusing the new one let events nobody
+     * asked for fill it and lock out every click and key after them. */
     if (g_eventQueue.count >= MAX_EVENTS) {
-        EVT_LOG_DEBUG("PostEvent: Event queue full!\n");
-        return -1; /* queueFull error */
+        EVT_LOG_DEBUG("PostEvent: Event queue full, discarding the oldest\n");
+        g_eventQueue.head = (g_eventQueue.head + 1) % MAX_EVENTS;
+        g_eventQueue.count--;
     }
 
     /* Add event to queue */

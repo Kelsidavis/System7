@@ -24,6 +24,7 @@ extern void InvalWindowRect(WindowPtr, const Rect*);
 #include "DialogManager/DialogManager.h"
 #include "DialogManager/AlertDialogs.h"
 #include "DialogManager/DITLBuilder.h"
+#include "EventManager/EventManager.h"
 extern QDGlobals qd;
 #include "MacTypes.h"
 #include "math.h"
@@ -929,6 +930,26 @@ static void Test_Window_MoveRepaintsUncovered(void) {
     RecordTest(test_name, true, "");
 }
 
+/* A full event queue gives up its oldest event, so a click posted after a
+ * flood of events nobody asks for still arrives. */
+static void Test_Event_FullQueueKeepsNewest(void) {
+    const char* test_name = "Event_FullQueueKeepsNewest";
+    FlushEvents(everyEvent, 0);
+    for (int i = 0; i < 100; i++) {
+        PostEvent(osEvt, 0);
+    }
+    OSErr err = PostEvent(mouseDown, 0x1234);
+    EventRecord e;
+    Boolean got = false;
+    for (int i = 0; i < 4 && !got; i++) {
+        got = GetNextEvent(mDownMask, &e) && e.what == mouseDown && e.message == 0x1234;
+    }
+    FlushEvents(everyEvent, 0);
+    CHECK(err == noErr, "posting to a full queue failed");
+    CHECK(got, "the click posted after the flood was lost");
+    RecordTest(test_name, true, "");
+}
+
 static void Test_Resource_CreateAndOpenResFile(void) {
     const char* test_name = "Resource_CreateAndOpenResFile";
     FSSpec spec;
@@ -1060,6 +1081,7 @@ void IntegrationTests_Run(void) {
     Test_Window_RepaintAroundInner();
     Test_Window_UpdateWithoutBuffer();
     Test_Window_MoveRepaintsUncovered();
+    Test_Event_FullQueueKeepsNewest();
     Test_Dialog_AlertLayout();
     Test_Dialog_IconItem();
     Test_Window_ReorderAndHide();

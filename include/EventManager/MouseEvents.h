@@ -231,17 +231,6 @@ MouseRegion* GetMouseRegionAtPoint(Point point);
  *---------------------------------------------------------------------------*/
 
 /**
- * Process scroll wheel event
- * @param deltaX Horizontal scroll delta
- * @param deltaY Vertical scroll delta
- * @param modifiers Modifier keys
- * @param timestamp Event timestamp
- * @return true if event was processed
- */
-Boolean ProcessScrollWheelEvent(SInt16 deltaX, SInt16 deltaY,
-                            SInt16 modifiers, UInt32 timestamp);
-
-/**
  * Set mouse acceleration
  * @param acceleration Acceleration factor (1.0 = no acceleration)
  */

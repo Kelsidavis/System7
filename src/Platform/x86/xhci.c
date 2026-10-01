@@ -1438,7 +1438,9 @@ static int xhci_poll_transfer_event(uintptr_t rt_base, uint8_t *out_slot) {
         uint8_t evt_slot = (uint8_t)((evt->dword3 >> 24) & 0xFF);
         uint32_t comp = (evt->dword2 >> 24) & 0xFF;
         uint32_t len = evt->dword2 & 0xFFFFFF;
-        if (comp != 1) {
+        /* 1 is Success and 13 Short Packet - how a HID report shorter
+         * than its buffer ends, many times a second from a tablet */
+        if (comp != 1 && comp != 13) {
             serial_printf("[XHCI] Transfer complete slot=%u code=%u len=%u\n",
                           evt_slot, comp, len);
         }
@@ -1487,18 +1489,17 @@ static void xhci_handle_hid_mouse(xhci_hid_dev_t *dev, const uint8_t *report, ui
         UpdateMouseStateDelta(dx, -dy, buttons);
     }
 
-    if (len >= 4 + offset) {
-        int8_t wheel = (int8_t)report[3 + offset];
+    /* The wheel follows the pointer fields: byte 3 after a relative mouse's
+     * two deltas, byte 5 after a tablet's two 16-bit coordinates. Read at
+     * byte 3 for both, a tablet's every vertical move came out as wheel
+     * turns, and those filled the event queue until clicks were dropped.
+     * Scrolled as the PS/2 wheel is, which reports up as negative. */
+    uint32_t wheelAt = (dev && dev->absolute_pointer) ? 5u : 3u;
+    if (len > wheelAt + offset) {
+        int8_t wheel = (int8_t)report[wheelAt + offset];
         if (wheel != 0) {
-            UInt16 mods = GetModifierState();
-            ProcessScrollWheelEvent(0, (SInt16)-wheel, mods, TickCount());
-        }
-    }
-    if (len >= 5 + offset) {
-        int8_t pan = (int8_t)report[4 + offset];
-        if (pan != 0) {
-            UInt16 mods = GetModifierState();
-            ProcessScrollWheelEvent((SInt16)pan, 0, mods, TickCount());
+            extern void FolderWindow_ScrollWheel(int8_t delta);
+            FolderWindow_ScrollWheel((int8_t)-wheel);
         }
     }
 }

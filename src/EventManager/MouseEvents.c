@@ -728,20 +728,6 @@ MouseRegion* GetMouseRegionAtPoint(Point point)
  *---------------------------------------------------------------------------*/
 
 /**
- * Process scroll wheel event
- */
-Boolean ProcessScrollWheelEvent(SInt16 deltaX, SInt16 deltaY,
-                            SInt16 modifiers, UInt32 timestamp)
-{
-    /* Generate custom scroll wheel event */
-    /* This could be handled as a special OS event */
-    SInt32 message = (deltaY << 16) | (deltaX & 0xFFFF);
-    PostEvent(osEvt, message);
-
-    return true;
-}
-
-/**
  * Set mouse acceleration
  */
 void SetMouseAcceleration(float acceleration)
