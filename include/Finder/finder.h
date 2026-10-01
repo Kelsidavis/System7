@@ -159,10 +159,6 @@ OSErr CleanUpBy(WindowPtr window, short sortType);
 /* Find Dialog API - Evidence: "Find", "Find Again", "Find Original" */
 OSErr ShowFind(void);
 OSErr FindAgain(void);
-Boolean Find_CloseIf(WindowPtr w);
-Boolean Find_HandleUpdate(WindowPtr w);
-Boolean Find_IsFindWindow(WindowPtr w);
-Boolean Find_HandleKeyPress(WindowPtr w, char key);
 
 /* Alias Manager API - Evidence: alias resolution error strings */
 OSErr ResolveAlias(FSSpec *alias, FSSpec *target, Boolean *wasChanged);

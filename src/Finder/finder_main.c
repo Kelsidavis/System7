@@ -1283,7 +1283,6 @@ OSErr CloseFinderWindow(WindowPtr window) {
     /* Try to close special windows first */
     extern Boolean AboutWindow_CloseIf(WindowPtr w);
     extern Boolean GetInfo_CloseIf(WindowPtr w);
-    extern Boolean Find_CloseIf(WindowPtr w);
     extern void CleanupFolderWindow(WindowPtr w);
     extern Boolean IsFolderWindow(WindowPtr w);
 
@@ -1292,7 +1291,6 @@ OSErr CloseFinderWindow(WindowPtr window) {
      * below would free the window a second time. */
     if (AboutWindow_CloseIf(window)) return noErr;
     if (GetInfo_CloseIf(window))     return noErr;
-    if (Find_CloseIf(window))        return noErr;
 
     /* Check folder window */
     if (IsFolderWindow(window)) {
@@ -1326,13 +1324,11 @@ Boolean Finder_DrawWindowContents(WindowPtr window) {
 
     extern Boolean AboutWindow_HandleUpdate(WindowPtr w);
     extern Boolean GetInfo_HandleUpdate(WindowPtr w);
-    extern Boolean Find_HandleUpdate(WindowPtr w);
     extern void FolderWindow_Draw(WindowPtr w);
     extern Boolean IsFolderWindow(WindowPtr w);
 
     if (AboutWindow_HandleUpdate(window)) return true;
     if (GetInfo_HandleUpdate(window))     return true;
-    if (Find_HandleUpdate(window))        return true;
 
     if (IsFolderWindow(window)) {
         FolderWindow_Draw(window);
