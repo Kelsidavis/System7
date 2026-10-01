@@ -278,14 +278,13 @@ void PaintOne(WindowPtr window, RgnHandle clobberedRgn) {
 
     /* CRITICAL: Fill content region with white background BEFORE drawing chrome
      * This prevents garbage/dotted patterns from appearing in the window content area
-     * The application will draw over this white background when handling update events
+     * The application will draw over this white background when handling update events.
      *
-     * EXCEPTION: Skip filling windows with refCon=0 (desktop background window)
-     * as filling it with white would erase desktop icons.
-     *
-     * NOTE: The refCon=0 check works because the desktop window is a special singleton
-     * created with NewWindow(nil,...,0), using refCon to distinguish it from regular windows.
-     * This is a standard Mac OS pattern; refCon values are application-specific window identifiers. */
+     * Every window: this used to skip windows whose refCon was 0, taken for
+     * a "desktop background window" that does not exist. A refCon is the
+     * application's own; control panels, dialogs, SimpleText and the rest
+     * use 0, so their uncovered content was neither cleared nor redrawn, and
+     * a control panel brought forward kept the other window's picture. */
     extern void serial_puts(const char* str);
     static char dbgbuf[256];
     static int fill_log = 0;
@@ -303,8 +302,7 @@ void PaintOne(WindowPtr window, RgnHandle clobberedRgn) {
             fill_log++;
         }
 
-        /* Don't fill the desktop background window (refCon=0) */
-        if (window->refCon != 0) {
+        {
             extern void FillRgn(RgnHandle rgn, const Pattern* pat);
             extern QDGlobals qd;
 
@@ -1453,111 +1451,52 @@ void ShowWindow(WindowPtr window) {
 #define WM_LOG_ERROR(...) do {} while(0)
 #define WM_DEBUG(...) do {} while(0)
 
-void HideWindow(WindowPtr window) {
-    extern void serial_puts(const char*);
-    extern void uart_flush(void);
-    serial_puts("[HIDEW] enter\n");
-    uart_flush();
-    WM_LOG_DEBUG("[WM] HideWindow: ENTRY\n");
+/* The part of window's structure no visible window in front covers. */
+static void WM_VisibleStructure(WindowPtr window, RgnHandle out) {
+    CopyRgn(window->strucRgn, out);
+    WindowManagerState* wm = GetWindowManagerState();
+    for (WindowPtr w = wm ? wm->windowList : NULL; w && w != window; w = w->nextWindow) {
+        if (w->visible && w->strucRgn && *w->strucRgn) DiffRgn(out, w->strucRgn, out);
+    }
+}
 
-    if (!window) {
-        serial_puts("[HIDEW] null window\n");
-        WM_LOG_DEBUG("[WM] HideWindow: NULL window, returning\n");
+void HideWindow(WindowPtr window) {
+    if (!window || !window->visible) {
         return;
     }
+    WindowManagerState* wm = GetWindowManagerState();
+    Boolean wasActive = window->hilited;
 
-    serial_puts("[HIDEW] set visible\n");
-    uart_flush();
-    WM_LOG_DEBUG("[WM] HideWindow: Setting visible=false\n");
+    /* Only the part that was showing is uncovered */
+    AutoRgnHandle clobbered = WM_NewAutoRgn();
+    if (clobbered.rgn && window->strucRgn && *window->strucRgn) {
+        WM_VisibleStructure(window, clobbered.rgn);
+    }
     window->visible = false;
 
-    /* Save the region that needs repainting */
-    serial_puts("[HIDEW] NewAutoRgn\n");
-    uart_flush();
-    WM_LOG_DEBUG("[WM] HideWindow: About to declare clobberedRgn\n");
-    AutoRgnHandle clobberedRgn = WM_NewAutoRgn();
-    serial_puts("[HIDEW] NewAutoRgn done\n");
-    uart_flush();
-    WM_LOG_DEBUG("[WM] HideWindow: clobberedRgn declared\n");
-    WM_LOG_DEBUG("[WM] HideWindow: window pointer = 0x%08x\n", (unsigned int)P2UL(window));
-    WM_LOG_DEBUG("[WM] HideWindow: &(window->strucRgn) = 0x%08x\n", (unsigned int)P2UL(&(window->strucRgn)));
-    WM_LOG_DEBUG("[WM] HideWindow: About to read window->strucRgn value...\n");
-    RgnHandle strucRgn_value = window->strucRgn;
-    WM_LOG_DEBUG("[WM] HideWindow: strucRgn value = 0x%08x\n", (unsigned int)P2UL(strucRgn_value));
-    WM_LOG_DEBUG("[WM] HideWindow: About to check if strucRgn is NULL\n");
-    serial_puts("[HIDEW] CopyRgn\n");
-    uart_flush();
-    if (strucRgn_value && clobberedRgn.rgn) {
-        WM_LOG_DEBUG("[WM] HideWindow: strucRgn is NOT NULL, allocation succeeded\n");
-        WM_LOG_DEBUG("[WM] HideWindow: NewRgn returned 0x%08x\n", (unsigned int)P2UL(clobberedRgn.rgn));
-        WM_DEBUG("HideWindow: Calling CopyRgn()");
-        CopyRgn(strucRgn_value, clobberedRgn.rgn);
-        WM_DEBUG("HideWindow: CopyRgn returned");
-    }
-    serial_puts("[HIDEW] CopyRgn done\n");
-    uart_flush();
-
-    /* Erase the window's area with desktop pattern FIRST */
-    serial_puts("[HIDEW] erase\n");
-    uart_flush();
-    WM_DEBUG("HideWindow: About to erase region, clobberedRgn=0x%08x", (unsigned int)P2UL(clobberedRgn.rgn));
-    if (clobberedRgn.rgn) {
-        extern void EraseRgn(RgnHandle rgn);
-        extern void GetWMgrPort(GrafPtr* port);
-        extern void SetPort(GrafPtr port);
-        extern void GetPort(GrafPtr* port);
-
-        GrafPtr savePort, wmPort;
-        WM_DEBUG("HideWindow: Calling GetPort()");
-        GetPort(&savePort);
-        WM_DEBUG("HideWindow: GetPort returned, savePort=0x%08x", (unsigned int)P2UL(savePort));
-
-        WM_DEBUG("HideWindow: Calling GetWMgrPort()");
-        GetWMgrPort(&wmPort);
-        WM_DEBUG("HideWindow: GetWMgrPort returned, wmPort=0x%08x", (unsigned int)P2UL(wmPort));
-
-        if (wmPort) {
-            WM_DEBUG("HideWindow: Calling SetPort(wmPort)");
-            SetPort(wmPort);  /* Set to desktop port for erasing */
-            WM_DEBUG("HideWindow: SetPort returned");
+    /* The desktop and the windows behind, within it. This erased the
+     * window's whole area in the Window Manager port's background - white -
+     * over any window in front, and never put the desktop back. */
+    if (clobbered.rgn && !EmptyRgn(clobbered.rgn)) {
+        extern DeskHookProc g_deskHook;
+        if (g_deskHook) {
+            g_deskHook(clobbered.rgn);
         }
-
-        serial_puts("[HIDEW] EraseRgn\n");
-        uart_flush();
-        WM_DEBUG("HideWindow: Calling EraseRgn()");
-        EraseRgn(clobberedRgn.rgn);
-        serial_puts("[HIDEW] EraseRgn done\n");
-        uart_flush();
-        WM_DEBUG("HideWindow: EraseRgn returned");
-
-        WM_DEBUG("HideWindow: Restoring port");
-        SetPort(savePort);  /* Restore previous port */
-        WM_DEBUG("HideWindow: Port restored");
+        CalcVisBehind(window->nextWindow, clobbered.rgn);
+        PaintBehind(window->nextWindow, clobbered.rgn);
     }
+    WM_DisposeAutoRgn(&clobbered);
 
-    /* Recalculate visible regions */
-    serial_puts("[HIDEW] CalcVisBehind\n");
-    uart_flush();
-    WM_DEBUG("HideWindow: Calling CalcVisBehind()");
-    CalcVisBehind(window->nextWindow, clobberedRgn.rgn);
-    serial_puts("[HIDEW] CalcVisBehind done\n");
-    uart_flush();
-    WM_DEBUG("HideWindow: CalcVisBehind returned");
-
-    /* Repaint windows behind */
-    serial_puts("[HIDEW] PaintBehind\n");
-    uart_flush();
-    WM_DEBUG("HideWindow: Calling PaintBehind()");
-    PaintBehind(window->nextWindow, clobberedRgn.rgn);
-    serial_puts("[HIDEW] PaintBehind done\n");
-    uart_flush();
-    WM_DEBUG("HideWindow: PaintBehind returned");
-
-    WM_DisposeAutoRgn(&clobberedRgn);
-
-    serial_puts("[HIDEW] done\n");
-    uart_flush();
-    WM_DEBUG("HideWindow: RETURN");
+    /* Hiding the active window makes the next one active (4-91) */
+    if (wasActive) {
+        window->hilited = false;
+        for (WindowPtr w = wm ? wm->windowList : NULL; w; w = w->nextWindow) {
+            if (w->visible) {
+                HiliteWindow(w, true);
+                break;
+            }
+        }
+    }
 }
 
 void ShowHide(WindowPtr window, Boolean showFlag) {
@@ -1654,6 +1593,13 @@ void BringToFront(WindowPtr window) {
     }
 
     /* Remove window from current position */
+    /* What was hidden before it comes forward: only that needs drawing */
+    AutoRgnHandle exposed = WM_NewAutoRgn();
+    if (exposed.rgn && window->strucRgn && *window->strucRgn) {
+        WM_VisibleStructure(window, exposed.rgn);
+        DiffRgn(window->strucRgn, exposed.rgn, exposed.rgn);
+    }
+
     WindowPtr prev = NULL;
     WindowPtr current = wmState->windowList;
 
@@ -1702,10 +1648,11 @@ void BringToFront(WindowPtr window) {
     uart_flush();
     MemoryManager_CheckSuspectBlock("BringToFront_post_CalcVisBehind");
 
-    /* CRITICAL: Repaint entire window stack from back to front to ensure proper z-order */
-    serial_puts("[BTF] PaintBehind\n");
-    uart_flush();
-    PaintBehind(NULL, NULL);
+    /* Draw the window, and in its content only what was covered (Inside
+     * Macintosh: Toolbox Essentials, 4-101). This repainted every window,
+     * so the whole screen flickered at each click on a window behind. */
+    PaintOne(window, exposed.rgn);
+    WM_DisposeAutoRgn(&exposed);
     serial_puts("[BTF] PaintBehind done\n");
     uart_flush();
     MemoryManager_CheckSuspectBlock("BringToFront_post_PaintBehind");
@@ -1772,7 +1719,9 @@ void SendBehind(WindowPtr window, WindowPtr behindWindow) {
     CalcVisBehind(window, NULL);
 
     /* Repaint affected windows */
-    PaintBehind(window, window->strucRgn);
+    /* Every window in the area it covered: those that came forward over it
+     * were never redrawn, since this started at the window itself. */
+    PaintBehind(NULL, window->strucRgn);
 
     DumpWindowList("SendBehind - END");
 }

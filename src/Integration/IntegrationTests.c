@@ -626,6 +626,51 @@ static void Test_Dialog_AlertLayout(void) {
     RecordTest(test_name, true, "");
 }
 
+/* Reordering and hiding windows redraw what they uncover. */
+static void PaintContent(WindowPtr w, Boolean black) {
+    GrafPtr save;
+    GetPort(&save);
+    SetPort((GrafPtr)w);
+    if (black) PaintRect(&w->port.portRect); else EraseRect(&w->port.portRect);
+    SetPort(save);
+}
+
+static void Test_Window_ReorderAndHide(void) {
+    const char* test_name = "Window_ReorderAndHide";
+    Rect aR = { 150, 520, 350, 700 };
+    Rect bR = { 220, 600, 420, 780 };
+    WindowPtr a = NewWindow(NULL, &aR, (ConstStr255Param)"\x01" "A", true, 0, (WindowPtr)-1, false, 0);
+    WindowPtr b = NewWindow(NULL, &bR, (ConstStr255Param)"\x01" "B", true, 0, (WindowPtr)-1, false, 0);
+    CHECK(a && b, "NewWindow failed");
+    const int ox = 650, oy = 300;    /* in both contents */
+    const int dx = 760, dy = 400;    /* in B only, over the desktop */
+
+    PaintContent(a, false);
+    PaintContent(b, true);
+    UInt32 bInFront = ScreenPixel(ox, oy);
+
+    BringToFront(a);                 /* A now covers the overlap */
+    UInt32 aBrought = ScreenPixel(ox, oy);
+
+    SendBehind(a, NULL);             /* B in front again */
+    PaintContent(b, true);
+    UInt32 bAgain = ScreenPixel(ox, oy);
+
+    HideWindow(b);
+    UInt32 afterHide = ScreenPixel(dx, dy);
+    UInt32 aShows = ScreenPixel(ox, oy);
+
+    DisposeWindow(b);
+    DisposeWindow(a);
+
+    CHECK((bInFront & 0x00FFFFFF) == 0, "the front window's black did not show");
+    CHECK((aBrought & 0x00FFFFFF) != 0, "BringToFront left the other window's content over it");
+    CHECK((bAgain & 0x00FFFFFF) == 0, "after SendBehind the window now in front did not show");
+    CHECK((afterHide & 0x00FFFFFF) != 0x00FFFFFF, "HideWindow left white where the desktop was");
+    CHECK((aShows & 0x00FFFFFF) != 0, "HideWindow left the hidden window's content over the one behind");
+    RecordTest(test_name, true, "");
+}
+
 static void Test_Resource_CreateAndOpenResFile(void) {
     const char* test_name = "Resource_CreateAndOpenResFile";
     FSSpec spec;
@@ -752,6 +797,7 @@ void IntegrationTests_Run(void) {
     Test_Draw_ClippedToVisibleRegion();
     Test_Draw_PenModes();
     Test_Dialog_AlertLayout();
+    Test_Window_ReorderAndHide();
     Test_File_ReadThroughExtentsOverflow();
 
     IT_LOG_INFO("--- Resource Manager ---");
