@@ -18,6 +18,8 @@
 #include "ResourceManager.h"
 #include "WindowManager/WindowManager.h"
 #include "QuickDraw/QuickDraw.h"
+extern void DisposeGWorld(GWorldPtr);
+extern void InvalWindowRect(WindowPtr, const Rect*);
 #include "QuickDrawConstants.h"
 #include "DialogManager/DialogManager.h"
 #include "DialogManager/AlertDialogs.h"
@@ -832,6 +834,82 @@ static void Test_Draw_ScrollRect(void) {
     RecordTest(test_name, true, "");
 }
 
+/* A region with a hole: a rectangle less one inside it. */
+static void Test_Region_Hole(void) {
+    const char* test_name = "Region_Hole";
+    RgnHandle a = NewRgn(), b = NewRgn();
+    CHECK(a && b, "NewRgn failed");
+    Rect ra = { 0, 0, 100, 100 }, rb = { 20, 20, 50, 50 };
+    RectRgn(a, &ra);
+    RectRgn(b, &rb);
+    DiffRgn(a, b, a);
+    Point inHole = { 30, 30 }, left = { 30, 10 }, below = { 60, 30 }, right = { 30, 60 }, above = { 10, 30 };
+    Boolean ok = !PtInRgn(inHole, a) && PtInRgn(left, a) && PtInRgn(below, a) &&
+                 PtInRgn(right, a) && PtInRgn(above, a);
+    Rect probe = { 25, 25, 45, 45 };
+    Boolean holeEmpty = !RectInRgn(&probe, a);
+    DisposeRgn(a);
+    DisposeRgn(b);
+    CHECK(ok, "DiffRgn did not leave a hole surrounded by the rest");
+    CHECK(holeEmpty, "RectInRgn found the rectangle inside the hole");
+    RecordTest(test_name, true, "");
+}
+
+/* Repainting a window behind leaves a window inside it alone. */
+static void Test_Window_RepaintAroundInner(void) {
+    const char* test_name = "Window_RepaintAroundInner";
+    Rect outerR = { 60, 300, 400, 790 };
+    Rect innerR = { 150, 450, 250, 650 };
+    WindowPtr outer = NewWindow(NULL, &outerR, (ConstStr255Param)"\x05Outer", true, 0, (WindowPtr)-1, false, 0);
+    WindowPtr inner = NewWindow(NULL, &innerR, (ConstStr255Param)"\x05Inner", true, 0, (WindowPtr)-1, false, 0);
+    CHECK(outer && inner, "NewWindow failed");
+    PaintContent(inner, true);
+    int ix = (*inner->contRgn)->rgnBBox.left + 20, iy = (*inner->contRgn)->rgnBBox.top + 20;
+    UInt32 before = ScreenPixel(ix, iy);
+    PaintOne(outer, NULL);
+    UInt32 after = ScreenPixel(ix, iy);
+    DisposeWindow(inner);
+    DisposeWindow(outer);
+    CHECK((before & 0x00FFFFFF) == 0, "the inner window was not black to begin with");
+    CHECK((after & 0x00FFFFFF) == 0, "repainting the outer window painted over the inner one");
+    RecordTest(test_name, true, "");
+}
+
+/* A window without an offscreen buffer, updating, draws around a window in
+ * front of it. */
+static void Test_Window_UpdateWithoutBuffer(void) {
+    const char* test_name = "Window_UpdateWithoutBuffer";
+    Rect outerR = { 60, 300, 400, 790 };
+    Rect innerR = { 150, 450, 250, 650 };
+    WindowPtr outer = NewWindow(NULL, &outerR, (ConstStr255Param)"\x05Outer", true, 0, (WindowPtr)-1, false, 0);
+    WindowPtr inner = NewWindow(NULL, &innerR, (ConstStr255Param)"\x05Inner", true, 0, (WindowPtr)-1, false, 0);
+    CHECK(outer && inner, "NewWindow failed");
+    if (outer->offscreenGWorld) {
+        DisposeGWorld(outer->offscreenGWorld);
+        outer->offscreenGWorld = NULL;
+    }
+    PaintContent(inner, true);
+    int ix = (*inner->contRgn)->rgnBBox.left + 20, iy = (*inner->contRgn)->rgnBBox.top + 20;
+
+    GrafPtr save;
+    GetPort(&save);
+    InvalWindowRect(outer, &outer->port.portRect);
+    BeginUpdate(outer);
+    SetPort((GrafPtr)outer);
+    EraseRect(&outer->port.portRect);
+    PenPat(&qd.gray);
+    PaintRect(&outer->port.portRect);
+    PenNormal();
+    EndUpdate(outer);
+    SetPort(save);
+    UInt32 after = ScreenPixel(ix, iy);
+
+    DisposeWindow(inner);
+    DisposeWindow(outer);
+    CHECK((after & 0x00FFFFFF) == 0, "updating the window behind drew over the one in front");
+    RecordTest(test_name, true, "");
+}
+
 static void Test_Resource_CreateAndOpenResFile(void) {
     const char* test_name = "Resource_CreateAndOpenResFile";
     FSSpec spec;
@@ -959,6 +1037,9 @@ void IntegrationTests_Run(void) {
     Test_Draw_PenModes();
     Test_Draw_SetOrigin();
     Test_Draw_ScrollRect();
+    Test_Region_Hole();
+    Test_Window_RepaintAroundInner();
+    Test_Window_UpdateWithoutBuffer();
     Test_Dialog_AlertLayout();
     Test_Dialog_IconItem();
     Test_Window_ReorderAndHide();
