@@ -252,6 +252,41 @@ static HandleInfo* FindHandleInfo(Handle h) {
     return NULL;
 }
 
+/*
+ * Forgetting a handle - both tables are open-addressed with linear probing,
+ * so a removed slot cannot simply be emptied: entries further along its probe
+ * run would no longer be found. Each later entry in the run is taken out and
+ * put back, which closes the gap.
+ */
+static void CacheForget(Handle h) {
+    for (UInt32 idx = 0; idx < RM_CACHE_CAP; idx++) {
+        if (gCache[idx].h != h) continue;
+        gCache[idx].h = NULL;
+        gCacheCount--;
+        for (UInt32 n = (idx + 1) % RM_CACHE_CAP; gCache[n].h; n = (n + 1) % RM_CACHE_CAP) {
+            CacheEntry e = gCache[n];
+            gCache[n].h = NULL;
+            gCacheCount--;
+            CacheInsert(e.type, e.id, e.h);
+        }
+        return;
+    }
+}
+
+static void HandleInfoForget(Handle h) {
+    HandleInfo* info = FindHandleInfo(h);
+    if (!info) return;
+    UInt32 idx = (UInt32)(info - gHandleInfo);
+    gHandleInfo[idx].h = NULL;
+    gHandleCount--;
+    for (UInt32 n = (idx + 1) % RM_HANDLE_CAP; gHandleInfo[n].h; n = (n + 1) % RM_HANDLE_CAP) {
+        HandleInfo e = gHandleInfo[n];
+        gHandleInfo[n].h = NULL;
+        gHandleCount--;
+        RecordHandleInfo(e.h, e.type, e.id, e.nameOffset, e.dataLen, e.homeFile, e.attributes);
+    }
+}
+
 /* Initialize Resource Manager */
 void InitResourceManager(void) {
     int i;
@@ -1097,10 +1132,39 @@ Handle Get1NamedResource(ResType theType, ConstStr255Param name) {
 
 /* GetNamedResource is defined earlier in this file (line ~974) */
 
+
+/* Clear the handle the resource map holds for a loaded resource: GetResource
+ * keeps it in the entry's reserved field and returns it from there. */
+static void MapForget(Handle h) {
+    HandleInfo* info = FindHandleInfo(h);
+    if (!info) return;
+    for (int i = 0; i < MAX_RES_FILES; i++) {
+        ResFile* file = &gResMgr.resFiles[i];
+        if (!file->inUse || file->refNum != info->homeFile) continue;
+        RefListEntry* ref = ResMap_FindResource(file, info->type, info->id);
+        if (ref) {
+            UInt8* rp = (UInt8*)&ref->reserved;
+            UInt32 held = ((UInt32)rp[0]) | ((UInt32)rp[1] << 8) |
+                          ((UInt32)rp[2] << 16) | ((UInt32)rp[3] << 24);
+            if (held == (UInt32)(uintptr_t)h) {
+                rp[0] = rp[1] = rp[2] = rp[3] = 0;
+            }
+        }
+        return;
+    }
+}
+
 /* Release resource */
 void ReleaseResource(Handle theResource) {
-    /* In read-only mode, just dispose the handle */
+    /* The resource map forgets the handle as its data goes (Inside Macintosh:
+     * More Macintosh Toolbox, 1-91). The cache kept it, so the next
+     * GetResource for the same resource returned the freed handle - by then
+     * pointing at whatever had reused the block: Desktop Patterns' Cancel got
+     * 13 bytes of a volume name for its colour pattern. */
     if (theResource) {
+        MapForget(theResource);
+        CacheForget(theResource);
+        HandleInfoForget(theResource);
         DisposeHandle(theResource);
     }
 }
@@ -1196,11 +1260,13 @@ void DetachResource(Handle theResource) {
         return;
     }
 
-    /* Remove from handle tracking so it's no longer a "resource" */
-    HandleInfo* info = FindHandleInfo(theResource);
-    if (info) {
-        info->h = NULL;  /* Clear the slot */
-        gHandleCount--;
+    /* No longer a resource: the caller owns it now, so GetResource must not
+     * hand it out again (it stayed in the cache), and its slot is removed
+     * without breaking the probe runs of the entries after it. */
+    if (FindHandleInfo(theResource)) {
+        MapForget(theResource);
+        CacheForget(theResource);
+        HandleInfoForget(theResource);
         gResMgr.resError = noErr;
     } else {
         gResMgr.resError = resNotFound;
