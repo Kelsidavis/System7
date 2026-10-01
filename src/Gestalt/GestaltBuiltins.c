@@ -255,10 +255,8 @@ static OSErr gestalt_evnt(long *response) {
      */
     *response = 0;
 
-#ifdef ENABLE_PROCESS_COOP
     *response |= 0x01;  /* Event queue present */
     *response |= 0x02;  /* Mouse synthesis */
-#endif
 
     return noErr;
 }
@@ -274,11 +272,9 @@ static OSErr gestalt_pcop(long *response) {
      */
     *response = 0;
 
-#ifdef ENABLE_PROCESS_COOP
     *response |= 0x01;  /* Coop scheduler present */
     *response |= 0x02;  /* Process sleep supported */
     *response |= 0x04;  /* Block on event supported */
-#endif
 
     return noErr;
 }

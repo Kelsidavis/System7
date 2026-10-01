@@ -14,13 +14,11 @@ Two categories, both of which have already cost debugging sessions:
                   that links.
 
 An unbuilt copy is usually INTENTIONAL: the tree uses mutually exclusive
-alternates chosen by feature flags (GetNextEvent is `#ifndef ENABLE_PROCESS_COOP`
-in EventManager/event_manager.c, and config/default.mk turns that flag on, so
-ProcessMgr/EventIntegration.c wins). The danger is not the mechanism, it is
-being pointed at the wrong file: event_manager.c calls its copy the "Canonical
-implementation" and EventIntegration.c's comment agrees, yet the canonical one
-is compiled out by default. The update-event fix in 293388f was written there
-and never ran.
+alternates chosen by feature flags. The danger is not the mechanism, it is
+being pointed at the wrong file: EventManager/event_manager.c once carried a
+GetNextEvent it called the "Canonical implementation" that a feature flag
+compiled out, so the update-event fix in 293388f was written there and never
+ran. (That copy has since been removed.)
 
 So this script flags an unbuilt copy as SUSPECT when the dead text advertises
 itself as canonical/primary/real - that combination is what misleads.

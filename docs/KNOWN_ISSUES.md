@@ -666,48 +666,22 @@ Still outstanding:
 - The Control Panels submenu is linked and drawn as hierarchical, but selecting
   it does not open the submenu yet.
 
-### ⛔ 34 source files are never compiled, and one live file lies about it (ARCH-002)
+### ✅ Source files that were never compiled, and a copy that claimed to be canonical (ARCH-002) — FIXED
 
-Editing code that isn't built changes nothing about the running system. This has
-cost two debugging sessions. Run `python3 scripts/find-shadowed-defs.py` after a
-build for the current list.
+Thirty-four `.c` files no build compiled used to sit in the tree defining
+Toolbox functions whose live copies were elsewhere, and grep found them first.
+They are gone. So is the last misleading alternate: `GetNextEvent` and its
+companions in `EventManager/event_manager.c`, written for a non-cooperative
+build that no longer compiled, while the copy that ran was in
+`ProcessMgr/EventIntegration.c`. Cooperative scheduling is now simply how the
+system is built; the `ENABLE_PROCESS_COOP` option is gone.
 
-**Dead files (34).** Never compiled by any configuration, yet they define
-functions whose live copy lives elsewhere. Whole subsystems sit in this state:
+`python3 scripts/find-shadowed-defs.py` after a build reports dead files and
+suspect copies; both are at zero. The 116 remaining "unbuilt copies" are
+deliberate alternates chosen by feature flags.
 
-| dead file | defines (live copy elsewhere) |
-|---|---|
-| `QuickDraw/Text.c` | `DrawText` — the live one is `FontManager/FontManagerCore.c` |
-| `TextEdit/TextEditCore.c`, `TextDisplay.c`, `TextClipboard.c`, … | `TEClick`, `TEUpdate`, `TECopy`, … |
-| `DialogManager/dialog_manager_core.c`, `DialogResources.c` | `InitDialogs`, `NewDialog`, `LoadDialogTemplate`, … |
-| `SoundManager/SoundManagerCore.c` | `SndPlay`, `SetSoundVol`, … |
-| `HFS_Catalog.c`, `HFS_Volume.c` | `BTree_*`, `FCB_*`, `VCB_*` |
-| `ResourceManager.c` | `AddResource`, `CountResources`, … |
-| `lib/string.c` | `memcpy`, `strcmp`, … |
-
-These are the real hazard: nothing in the file says it is dead, and grep finds
-it first.
-
-**Unbuilt copies (133).** A function defined in a *compiled* file whose
-definition doesn't survive into its `.o` — excluded by `static`, `#if 0`, or a
-feature-flag `#ifdef`. Almost all are **intentional** mutually-exclusive
-alternates and need no action.
-
-**The one that misleads (1 SUSPECT).** `GetNextEvent` in
-`EventManager/event_manager.c` was labelled *"Canonical implementation"* while
-being compiled out — `config/default.mk` sets `ENABLE_PROCESS_COOP ?= 1`, which
-routes the symbol to `Proc_GetNextEvent` in `ProcessMgr/EventIntegration.c`.
-`EventIntegration.c`'s own comment pointed back at the dead file. The
-update-event fix in 293388f was written there and never ran (see REDRAW-004).
-Both comments are now corrected; the script flags any future recurrence.
-
-⚠️ **Before editing any Toolbox-looking function, confirm which copy links:**
+⚠️ **Before editing a Toolbox-looking function, confirm which copy links:**
 `nm --defined-only build/obj/**/*.o | grep " T <name>"`.
-
-> An earlier revision of this entry claimed 42 shadowed definitions and singled
-> out `main`, `LoadSeg_TrapHandler` and `HandleMouseDown`. That was wrong: those
-> are `static` or `#if 0` definitions, which cannot shadow anything. The audit
-> script did not account for either, and now does.
 
 ### ✅ Regions are rectangles: DiffRgn and XorRgn are stubs (REGION-001) — FIXED
 

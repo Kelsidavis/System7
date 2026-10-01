@@ -39,9 +39,7 @@ extern void DoMenuCommand(short menuID, short item);
 #include "../include/Resources/system7_resources.h"
 #include "../include/TimeManager/TimeManager.h"
 #include "../include/ExtensionManager/DefLoader.h"
-#ifdef ENABLE_PROCESS_COOP
 #include "../include/ProcessMgr/ProcessTypes.h"
-#endif
 
 #include "Platform/include/network.h"
 #include "Platform/include/input.h"
@@ -613,12 +611,10 @@ static void init_system71(void) {
     if (tmErr == noErr) {
         serial_puts("  Time Manager initialized\n");
 
-#ifdef ENABLE_PROCESS_COOP
         /* Process Manager cooperative scheduling */
         Proc_Init();
         Event_InitQueue();
         serial_puts("  ProcessMgr (coop) + Event queue initialized\n");
-#endif
 
 #ifdef ENABLE_SCRAP
         /* Initialize ScrapManager after ProcessMgr */
@@ -1762,7 +1758,6 @@ void kernel_main(uint32_t magic, uint32_t* mb2_info) {
 
         platform_network_poll();
 
-#ifdef ENABLE_PROCESS_COOP
         /* Cooperative yield point - let other processes run */
         static EventRecord evt;
         if (GetNextEvent(everyEvent, &evt)) {
@@ -1784,7 +1779,6 @@ void kernel_main(uint32_t magic, uint32_t* mb2_info) {
             DispatchEvent(&evt);
             Proc_Yield();
         }
-#endif /* ENABLE_PROCESS_COOP */
 
         /* Poll USB HID devices (xHCI) - the x86 driver */
 #if defined(__i386__) || defined(__x86_64__)
@@ -1843,17 +1837,6 @@ skip_cursor_drawing:
 #endif
 
         /* Get and process events via DispatchEvent */
-#ifndef ENABLE_PROCESS_COOP
-        /* Only do this when NOT using ProcessMgr (already handled above) */
-        if (GetNextEvent(everyEvent, &event)) {
-            /* Log event retrieval */
-            SYSTEM_LOG_DEBUG("MAIN: GetNextEvent -> 1, what=%d at (%d,%d)\n",
-                         event.what, event.where.h, event.where.v);
-            /* Let DispatchEvent handle all events */
-            DispatchEvent(&event);
-            MemoryManager_CheckSuspectBlock("after_dispatch(main)");
-        }
-#endif
 
         /* Process deferred Time Manager tasks
          * IMPORTANT: Call TimerISR each iteration for high-cadence timer checking.

@@ -55,6 +55,4 @@ void Event_DumpQueue(void);
 
 /* Process-aware event functions - declared in ProcessMgr.h */
 
-/* When ENABLE_PROCESS_COOP is defined, these override canonical APIs */
-
 #endif /* PROCESS_TYPES_H */

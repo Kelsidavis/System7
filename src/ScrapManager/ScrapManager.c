@@ -11,9 +11,7 @@
 #include "ScrapManager/ScrapManager.h"
 #include "ScrapManager/ScrapTypes.h"
 #include "MemoryMgr/MemoryManager.h"
-#ifdef ENABLE_PROCESS_COOP
 #include "ProcessMgr/ProcessTypes.h"
-#endif
 #include "Gestalt/Gestalt.h"
 #include "System71StdLib.h"
 #include "ScrapManager/ScrapLogging.h"
@@ -187,12 +185,8 @@ void Scrap_Zero(void)
     gScrap.dirty = true;
 
     /* Set owner to current process if ProcessMgr is available */
-#ifdef ENABLE_PROCESS_COOP
     extern ProcessID Proc_GetCurrent(void);
     gScrap.owner = Proc_GetCurrent();
-#else
-    gScrap.owner = 1;  /* Default process ID */
-#endif
 
     SCRAP_LOG("Zeroed, changeCnt=%lu owner=%d\n",
              (unsigned long)gScrap.changeCnt, gScrap.owner);
@@ -240,12 +234,8 @@ OSErr Scrap_Put(Size size, ResType type, const void* src)
     /* Update state and owner */
     gScrap.changeCnt++;
     gScrap.dirty = true;
-#ifdef ENABLE_PROCESS_COOP
     extern ProcessID Proc_GetCurrent(void);
     gScrap.owner = Proc_GetCurrent();
-#else
-    gScrap.owner = 1;
-#endif
 
     SCRAP_LOG("Put type='%c%c%c%c' size=%ld changeCnt=%lu\n",
              (char)(type >> 24), (char)(type >> 16),

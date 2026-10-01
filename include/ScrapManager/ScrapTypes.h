@@ -100,11 +100,7 @@ void   Scrap_Info(short* count, short* state);
 void   Scrap_Unload(void);
 
 /* Process-aware extensions */
-#ifdef ENABLE_PROCESS_COOP
 #include "ProcessMgr/ProcessTypes.h"  /* Get ProcessID type */
-#else
-typedef short ProcessID;  /* Fallback if ProcessMgr not enabled */
-#endif
 ProcessID Scrap_GetOwner(void);
 
 /* Standard scrap types for MVP */

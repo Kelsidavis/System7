@@ -210,9 +210,6 @@ endif
 ifeq ($(ENABLE_RESOURCES),1)
   CFLAGS += -DENABLE_RESOURCES=1
 endif
-ifeq ($(ENABLE_PROCESS_COOP),1)
-  CFLAGS += -DENABLE_PROCESS_COOP=1
-endif
 ifeq ($(MODERN_INPUT_ONLY),1)
   CFLAGS += -DMODERN_INPUT_ONLY=1
 endif
@@ -538,11 +535,9 @@ C_SOURCES += src/Gestalt/Gestalt.c \
 CFLAGS += -DENABLE_GESTALT=1
 endif
 
-# Conditionally add Process Manager cooperative scheduling
-ifeq ($(ENABLE_PROCESS_COOP),1)
+# Process Manager cooperative scheduling, and the Event Manager calls it routes
 C_SOURCES += src/ProcessMgr/CooperativeScheduler.c \
              src/ProcessMgr/EventIntegration.c
-endif
 
 # Add ScrapManager if enabled
 ifeq ($(ENABLE_SCRAP),1)
@@ -1542,7 +1537,6 @@ build-configurations:
 	@echo ""
 	@echo "FEATURE FLAGS (override in config/*.mk or command line):"
 	@echo "  ENABLE_RESOURCES=1       Enable Resource Manager"
-	@echo "  ENABLE_PROCESS_COOP=1    Enable cooperative scheduling"
 	@echo "  ENABLE_GESTALT=1         Enable Gestalt Manager"
 	@echo "  ENABLE_SCRAP=1           Enable Scrap Manager"
 	@echo "  ENABLE_LIST=1            Enable List Manager"

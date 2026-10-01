@@ -42,11 +42,10 @@ static Boolean CheckSystemEvents(EventMask mask, EventRecord* evt);
  *
  * NOTE: This is a process-aware version that integrates with the scheduler.
  *
- * With ENABLE_PROCESS_COOP=1 (the default, see config/default.mk) THIS is the
- * GetNextEvent that runs - the override at the bottom of this file routes the
- * public symbol here, and EventManager/event_manager.c's copy is compiled out.
- * Event-delivery changes belong here; a fix written only in the other file
- * cannot execute (see REDRAW-004).
+ * This is the GetNextEvent that runs: the public symbol at the bottom of this
+ * file routes here. EventManager/event_manager.c once had a second copy, for a
+ * non-cooperative build that no longer exists; a fix written there could never
+ * execute (see REDRAW-004).
  */
 Boolean Proc_GetNextEvent(EventMask mask, EventRecord* evt) {
     if (!evt) return false;
@@ -307,11 +306,9 @@ static Boolean CheckSystemEvents(EventMask mask, EventRecord* evt) {
 
     /* Synthesise an update event for a window with a dirty updateRgn.
      *
-     * This mirrors the logic in EventManager/event_manager.c. That copy is the
-     * one the comment above Proc_GetNextEvent calls "canonical", but its
-     * GetNextEvent is not what links - with ENABLE_PROCESS_COOP the override at
-     * the bottom of this file wins, so this is the only GetNextEvent that runs
-     * and update events were never generated here at all.
+     * Update events were once generated only in a second GetNextEvent, in
+     * EventManager/event_manager.c, that never linked - so none were generated
+     * at all.
      *
      * Synthesising rather than PostEvent()ing matters: GetNextEvent is called
      * continuously and PostEvent does not deduplicate, so posting would fill
@@ -434,11 +431,7 @@ void Event_DumpQueue(void) {
     PROCESS_LOG_DEBUG("==================\n\n");
 }
 
-/*
- * Route canonical Event Manager APIs to process-aware versions
- * when ENABLE_PROCESS_COOP is defined
- */
-#ifdef ENABLE_PROCESS_COOP
+/* The Event Manager's public calls, routed to the process-aware versions */
 
 /* Override the canonical GetNextEvent */
 Boolean GetNextEvent(EventMask mask, EventRecord* evt) {
@@ -464,4 +457,3 @@ void FlushEvents(EventMask whichMask, EventMask stopMask) {
     Proc_FlushEvents(whichMask, stopMask);
 }
 
-#endif /* ENABLE_PROCESS_COOP */
