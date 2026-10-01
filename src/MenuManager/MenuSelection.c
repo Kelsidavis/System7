@@ -207,8 +207,20 @@ long MenuSelect(Point startPt)
         serial_puts("DEBUG: About to call TrackMenu\n");
         stack_align = 0;  /* Fix stack before TrackMenu call */
         stack_align++;
-        /* Show dropdown and track item selection */
-        trackResult = TrackMenu(menuID, &dropdownPt);
+        /* Show dropdown and track item selection; follow the pointer from
+         * title to title while it is dragged along the bar */
+        extern short TrackMenu_TakeSwitch(void);
+        for (;;) {
+            trackResult = TrackMenu(menuID, &dropdownPt);
+            short next = TrackMenu_TakeSwitch();
+            if (next == 0) break;
+            menuID = next;
+            HiliteMenu(menuID);
+            if (GetMenuTitleRectByID(menuID, &titleRect)) {
+                dropdownPt.h = titleRect.left;
+                dropdownPt.v = 20;
+            }
+        }
 
         if (trackResult != 0) {
             /* User selected an item - TrackMenu already returns packed format */

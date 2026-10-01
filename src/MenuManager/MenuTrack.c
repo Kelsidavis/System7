@@ -45,6 +45,7 @@ void UpdateMenuTrackingNew(Point mousePt);
 long EndMenuTrackingNew(void);
 Boolean IsMenuTrackingNew(void);
 long TrackMenu(short menuID, Point *startPt);
+short TrackMenu_TakeSwitch(void);
 
 /* Global menu tracking state for event-based menu handling */
 static struct {
@@ -730,9 +731,30 @@ Boolean IsMenuTrackingNew(void) {
     return g_menuTrackState.isTracking;
 }
 
+/* How deep the current TrackMenu is: 1 for a menu from the bar, more for a
+ * submenu. And the title the pointer moved onto, for MenuSelect to open next. */
+static int gTrackDepth = 0;
+static short gMenuSwitchTo = 0;
+
+static long TrackMenu_Body(short menuID, Point *startPt);
+
+long TrackMenu(short menuID, Point *startPt) {
+    gTrackDepth++;
+    long r = TrackMenu_Body(menuID, startPt);
+    gTrackDepth--;
+    return r;
+}
+
+/* The title the pointer was dragged onto, if the last TrackMenu ended that way. */
+short TrackMenu_TakeSwitch(void) {
+    short id = gMenuSwitchTo;
+    gMenuSwitchTo = 0;
+    return id;
+}
+
 /* TrackMenu - Full implementation with mouse tracking loop */
 __attribute__((optimize("O0")))
-long TrackMenu(short menuID, Point *startPt) {
+static long TrackMenu_Body(short menuID, Point *startPt) {
     /* NULL check to prevent crash */
     if (!startPt) {
         return 0;
@@ -812,7 +834,8 @@ long TrackMenu(short menuID, Point *startPt) {
 
     /* Get coordinates from startPt (already validated non-NULL earlier) */
     short left = startPt->h;
-    short top = 20;
+    /* A submenu opens beside its item; it was pinned under the menu bar. */
+    short top = (gTrackDepth > 1) ? (short)(startPt->v - 2) : 20;
 
     /* A menu that would run off the right of the screen is moved left to
      * fit (Inside Macintosh: Toolbox Essentials, 3-10). This clipped to a
@@ -830,6 +853,14 @@ long TrackMenu(short menuID, Point *startPt) {
     menuRect.top = top;
     menuRect.right = left + menuWidth;
     menuRect.bottom = top + menuHeight;
+
+    /* A submenu that would run off the bottom moves up to fit */
+    if (gTrackDepth > 1 && top + menuHeight > screenBottom) {
+        top = screenBottom - menuHeight;
+        if (top < 20) top = 20;
+        menuRect.top = top;
+        menuRect.bottom = top + menuHeight;
+    }
 
     if (menuRect.right > screenRight) menuRect.right = screenRight;
     if (menuRect.bottom > screenBottom) menuRect.bottom = screenBottom;
@@ -918,6 +949,36 @@ long TrackMenu(short menuID, Point *startPt) {
         /* Update menu highlighting based on mouse position */
         UpdateMenuTrackingNew(mousePt);
 
+        /* Dragged onto another title in the bar: close this one and let
+         * MenuSelect open that (Inside Macintosh: Toolbox Essentials, 3-11).
+         * Only a click on another title used to change menus, and it took
+         * two - this one cancelled, then a fresh click. */
+        if (gTrackDepth == 1 && mousePt.v >= 0 && mousePt.v < 20) {
+            extern short FindMenuAtPoint_Internal(Point pt);
+            short over = FindMenuAtPoint_Internal(mousePt);
+            if (over != 0 && over != menuID) {
+                gMenuSwitchTo = over;
+                result = 0;
+                break;
+            }
+        }
+
+        /* Resting on an item with a submenu opens it, as a click does */
+        static short hoverItem = 0;
+        static UInt32 hoverSince = 0;
+        Boolean openSubmenuNow = false;
+        {
+            short hi = g_menuTrackState.highlightedItem;
+            if (hi != hoverItem) {
+                hoverItem = hi;
+                hoverSince = TickCount();
+            } else if (hi > 0 && TickCount() - hoverSince >= 12) {
+                short sub = 0;
+                GetItemSubmenu(theMenu, hi, &sub);
+                if (sub != 0) openSubmenuNow = true;
+            }
+        }
+
         /* Check button state.
          *
          * This used to declare `extern volatile uint8_t g_mouseState` and test
@@ -992,6 +1053,10 @@ long TrackMenu(short menuID, Point *startPt) {
             }
         } else {
             releaseStartTick = 0;  /* button down again - restart release timing */
+        }
+
+        if (openSubmenuNow) {
+            commitSelection = true;
         }
 
         /* After the menu is armed, the next press makes the selection. */
