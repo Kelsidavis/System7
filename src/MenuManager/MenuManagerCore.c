@@ -128,6 +128,7 @@ static OSErr ValidateMenuHandle(MenuHandle theMenu);
 static OSErr ValidateMenuID(short menuID);
 static MenuHandle FindMenuInList(short menuID);
 static void UpdateMenuBarLayout(void);
+static short MenuBar_SystemMenusLeft(void) __attribute__((unused));   /* the clock, x86 only */
 static void InvalidateMenuBar(void);
 
 /* Platform function prototypes (implemented elsewhere) */
@@ -511,19 +512,24 @@ static void MenuBar_DrawClock(void) {
         clockLen = 7;
     }
 
-    /* Right-aligned, 8 pixels in, by the text's measured width: it was put
-     * at 7 pixels a character, so wider digits ran the last letter off the
-     * screen's edge. The area cleared reaches as far left as the last time
+    /* Right-aligned by the text's measured width, left of the system menus
+     * as System 7.5's clock sits: it was put at the screen's edge, under the
+     * Help and Application menus, and erased them each minute. The area
+     * cleared is the clock's own, reaching as far left as the last time
      * drawn, which may have been wider. */
     TextFont(0);
     TextSize(12);
-    short clockX = qd.screenBits.bounds.right - TextWidth(clockBuf, 0, clockLen) - 8;
+    short clockRight = MenuBar_SystemMenusLeft() - 12;
+    short clockX = clockRight - TextWidth(clockBuf, 0, clockLen);
     static short lastClockX = 0x7FFF;
+    static short lastClockRight = 0;
+    if (clockRight != lastClockRight) lastClockX = 0x7FFF;   /* the bar was laid out again */
     short clearLeft = (clockX < lastClockX ? clockX : lastClockX) - 4;
     lastClockX = clockX;
+    lastClockRight = clockRight;
 
     Rect clockRect;
-    SetRect(&clockRect, clearLeft, 0, qd.screenBits.bounds.right, 19);
+    SetRect(&clockRect, clearLeft, 0, clockRight, 19);
     FillRect(&clockRect, &qd.white);
 
     ForeColor(blackColor);
@@ -1348,6 +1354,30 @@ static short MeasureMenuTitleWidth(short menuID)
 /*
  * UpdateMenuBarLayout - Update menu bar layout
  */
+/* System menus - Help, the Application menu and the rest of the 0xB000
+ * range - sit at the right end of the bar. */
+static Boolean IsRightAlignedMenuID(short id)
+{
+    return id >= (short)0xB000 && id <= (short)0xBFFF;
+}
+
+/* The left edge of the right-aligned menus, or the screen's right edge when
+ * there are none. */
+static short MenuBar_SystemMenusLeft(void)
+{
+    short left = qd.screenBits.bounds.right;
+    MenuBarList* menuBar = (MenuBarList*)gMenuList;
+    if (menuBar) {
+        for (int i = 0; i < menuBar->numMenus; i++) {
+            if (IsRightAlignedMenuID(menuBar->menus[i].menuID) &&
+                menuBar->menus[i].menuLeft < left) {
+                left = menuBar->menus[i].menuLeft;
+            }
+        }
+    }
+    return left;
+}
+
 static void UpdateMenuBarLayout(void)
 {
     MenuBarList* menuBar;
@@ -1370,7 +1400,7 @@ static void UpdateMenuBarLayout(void)
         short menuWidth = MeasureMenuTitleWidth(id);
 
         /* Treat classic system menu IDs and Application menu as right-aligned */
-        if ((id >= (short)0xB000 && id <= (short)0xBFFF) || id == (short)0xBF97) {
+        if (IsRightAlignedMenuID(id)) {
             systemRight -= menuWidth;
             menuBar->menus[i].menuLeft = systemRight;
             menuBar->menus[i].menuWidth = menuWidth;

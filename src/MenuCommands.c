@@ -156,14 +156,16 @@ void DoMenuCommand(short menuID, short item)
 
         default:
             if (menuID == kHelpMenuIDLocal) {
-                /* Help menu: item 1 = About Balloon Help, item 2 = Show Balloons */
+                /* Help menu: item 1 = About Balloon Help. Item 2, Show
+                 * Balloons, is dimmed: there are no balloons to show. The
+                 * note's message is ^0, the only text its items carry; the
+                 * title used to be passed with a length byte of 24 for 19
+                 * characters, so the alert showed five bytes past it. */
                 if (item == 1) {
-                    ParamText("\030About Balloon Help\311",
-                              PSTR("Point at items on the screen to\rsee help balloons."),
-                              "\000", "\000");
-                    NoteAlert(128, NULL);
+                    ParamText(PSTR("Balloon Help is not available in this version."),
+                              "\000", "\000", "\000");
+                    NoteAlert(130, NULL);
                 }
-                /* item 2 (Show Balloons) is a toggle — balloon help not implemented */
             } else {
                 MENU_LOG_WARN("Unknown menu ID: %d\n", menuID);
             }

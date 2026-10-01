@@ -482,8 +482,9 @@ static OSErr SetupMenus(void)
         c2pstrcpy(helpTitle, "?");
         gHelpMenu = NewMenu((short)0xBF96, (ConstStr255Param)helpTitle);
         if (gHelpMenu) {
-            AppendMenu(gHelpMenu, "\020About Balloon Help\311");
+            AppendMenu(gHelpMenu, PSTR("About Balloon Help\311"));
             AppendMenu(gHelpMenu, PSTR("Show Balloons"));
+            DisableItem(gHelpMenu, 2);   /* balloon help is not implemented */
         }
     }
 
