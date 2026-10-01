@@ -18,6 +18,8 @@
 #include "ResourceManager.h"
 #include "WindowManager/WindowManager.h"
 #include "QuickDraw/QuickDraw.h"
+#include "QuickDrawConstants.h"
+extern QDGlobals qd;
 #include "MacTypes.h"
 #include "math.h"
 
@@ -510,6 +512,54 @@ static void Test_Draw_ClippedToVisibleRegion(void) {
     RecordTest(test_name, true, "");
 }
 
+/* Transfer modes (Inside Macintosh: Imaging With QuickDraw, 3-8), read
+ * back from the screen. */
+static void Test_Draw_PenModes(void) {
+    const char* test_name = "Draw_PenModes";
+    Rect wr = { 150, 520, 300, 700 };
+    WindowPtr w = NewWindow(NULL, &wr, (ConstStr255Param)"\x06ITPens", true,
+                            0, (WindowPtr)-1, false, 0);
+    CHECK(w, "NewWindow failed");
+    GrafPtr save;
+    GetPort(&save);
+    SetPort((GrafPtr)w);
+    EraseRect(&w->port.portRect);
+
+    /* (gx,gy) is global for local (10,10) */
+    int gx = (*w->contRgn)->rgnBBox.left + 10, gy = (*w->contRgn)->rgnBBox.top + 10;
+    Rect r = { 5, 5, 25, 25 };
+
+    PenNormal();
+    PenMode(patXor);
+    PaintRect(&r);
+    UInt32 once = ScreenPixel(gx, gy);
+    PaintRect(&r);
+    UInt32 twice = ScreenPixel(gx, gy);
+
+    PenMode(patCopy);
+    PaintRect(&r);                       /* black */
+    PenPat(&qd.gray);
+    PenMode(patBic);
+    PaintRect(&r);                       /* clears every other pixel */
+    UInt32 a = ScreenPixel(gx, gy), b = ScreenPixel(gx + 1, gy);
+
+    PenNormal();
+    EraseRect(&w->port.portRect);
+    PenMode(patXor);
+    FrameRect(&r);
+    UInt32 edge = ScreenPixel(gx - 5, gy);   /* local (5,10): the left edge */
+    PenNormal();
+
+    SetPort(save);
+    DisposeWindow(w);
+
+    CHECK((once & 0x00FFFFFF) == 0, "patXor did not invert white to black");
+    CHECK((twice & 0x00FFFFFF) == 0x00FFFFFF, "a second patXor did not restore white");
+    CHECK(((a ^ b) & 0x00FFFFFF) == 0x00FFFFFF, "patBic grey did not clear every other pixel");
+    CHECK((edge & 0x00FFFFFF) == 0, "a patXor frame was not drawn");
+    RecordTest(test_name, true, "");
+}
+
 static void Test_Resource_CreateAndOpenResFile(void) {
     const char* test_name = "Resource_CreateAndOpenResFile";
     FSSpec spec;
@@ -634,6 +684,7 @@ void IntegrationTests_Run(void) {
     Test_File_FoldersAndWorkingDirectories();
     Test_File_InFolder();
     Test_Draw_ClippedToVisibleRegion();
+    Test_Draw_PenModes();
     Test_File_ReadThroughExtentsOverflow();
 
     IT_LOG_INFO("--- Resource Manager ---");

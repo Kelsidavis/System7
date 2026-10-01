@@ -96,6 +96,46 @@ static inline UInt32 QDPlatform_SelectPatternColor(GrafPtr port,
     return bit ? fg : bg;
 }
 
+/*
+ * Draw one pen pixel at (x,y) in transfer mode `mode` (Inside Macintosh:
+ * Imaging With QuickDraw, 3-8). The pattern's set bits are the "black" of
+ * the source; Copy writes them in the foreground colour and the rest in the
+ * background, Or writes only them, Xor inverts under them, Bic writes the
+ * background under them, and the not- modes take the pattern reversed.
+ *
+ * The modes used to be applied to RGB values, where black is 0: Xor with a
+ * black pen changed nothing and Or and Bic did the reverse of their job, so
+ * XOR outlines were invisible - and rectangle painting ignored the mode
+ * entirely, which turned the patBic grey used to dim inactive controls into
+ * a solid checkerboard over them.
+ */
+static void QD_PenPixel(GrafPtr port, const Pattern* pat, SInt16 mode, SInt32 x, SInt32 y) {
+    Boolean bit = true;
+    if (pat) bit = (pat->pat[y & 7] >> (7 - (x & 7))) & 1;
+    UInt32 fg = port ? QDPlatform_MapQDColor(port->fgColor) : pack_color(0, 0, 0);
+    UInt32 bg = port ? QDPlatform_MapQDColor(port->bkColor) : pack_color(255, 255, 255);
+
+    Boolean notMode = (mode == notPatCopy || mode == notPatOr || mode == notPatXor ||
+                       mode == notPatBic || mode == notSrcCopy || mode == notSrcOr ||
+                       mode == notSrcXor || mode == notSrcBic);
+    if (notMode) bit = !bit;
+
+    switch (mode) {
+        case patOr: case notPatOr: case srcOr: case notSrcOr:
+            if (bit) QDPlatform_SetPixel(x, y, fg);
+            break;
+        case patXor: case notPatXor: case srcXor: case notSrcXor:
+            if (bit) QDPlatform_SetPixel(x, y, QDPlatform_GetPixel(x, y) ^ 0x00FFFFFF);
+            break;
+        case patBic: case notPatBic: case srcBic: case notSrcBic:
+            if (bit) QDPlatform_SetPixel(x, y, bg);
+            break;
+        default:   /* the copy modes */
+            QDPlatform_SetPixel(x, y, bit ? fg : bg);
+            break;
+    }
+}
+
 static inline Boolean QDPointInRoundRect(SInt32 x, SInt32 y, const Rect* rect,
                                          SInt16 radiusH, SInt16 radiusV) {
     if (x < rect->left || x >= rect->right ||
@@ -534,9 +574,6 @@ static void QDPlatform_DrawLine_Body(GrafPtr port, Point startPt, Point endPt,
 
     SInt32 penWidth = (port && port->pnSize.h > 0) ? port->pnSize.h : 1;
     SInt32 penHeight = (port && port->pnSize.v > 0) ? port->pnSize.v : 1;
-    UInt32 fallbackColor = port ? QDPlatform_MapQDColor(port->fgColor)
-                                : pack_color(0, 0, 0);
-
     while (1) {
         for (SInt32 penY = 0; penY < penHeight; penY++) {
             for (SInt32 penX = 0; penX < penWidth; penX++) {
@@ -548,41 +585,7 @@ static void QDPlatform_DrawLine_Body(GrafPtr port, Point startPt, Point endPt,
                     continue;
                 }
 
-                UInt32 patternColor = QDPlatform_SelectPatternColor(port, pat,
-                                                                     drawX, drawY,
-                                                                     fallbackColor);
-                UInt32 current = QDPlatform_GetPixel(drawX, drawY);
-                UInt32 outColor = patternColor;
-
-                switch (mode) {
-                    case patXor:
-                    case srcXor:
-                    case notSrcXor:
-                    case notPatXor:
-                        outColor = current ^ patternColor;
-                        break;
-                    case patOr:
-                    case srcOr:
-                    case notSrcOr:
-                    case notPatOr:
-                        outColor = current | patternColor;
-                        break;
-                    case patBic:
-                    case srcBic:
-                    case notSrcBic:
-                    case notPatBic:
-                        outColor = current & (~patternColor);
-                        break;
-                    case notSrcCopy:
-                    case notPatCopy:
-                        outColor = ~patternColor;
-                        break;
-                    default:
-                        outColor = patternColor;
-                        break;
-                }
-
-                QDPlatform_SetPixel(drawX, drawY, outColor);
+                QD_PenPixel(port, pat, mode, drawX, drawY);
             }
         }
 
@@ -631,23 +634,11 @@ static void QDPlatform_DrawShape_Body(GrafPtr port, GrafVerb verb, const Rect* r
     /* For now, just draw rectangles */
     if (shapeType == 0) {  /* Rectangle */
         if (verb == paint) {
-            /* Fill rectangle with pattern or black */
-            if (pat) {
-                /* Draw with pattern */
-                for (SInt32 y = rect->top; y < rect->bottom; y++) {
-                    for (SInt32 x = rect->left; x < rect->right; x++) {
-                        UInt32 color = QDPlatform_SelectPatternColor(port, pat, x, y,
-                                                                      pack_color(0, 0, 0));
-                        QDPlatform_SetPixel(x + offsetX, y + offsetY, color);
-                    }
-                }
-            } else {
-                /* No pattern - fill with black */
-                UInt32 color = pack_color(0, 0, 0);
-                for (SInt32 y = rect->top; y < rect->bottom; y++) {
-                    for (SInt32 x = rect->left; x < rect->right; x++) {
-                        QDPlatform_SetPixel(x + offsetX, y + offsetY, color);
-                    }
+            /* The pen's pattern, in the pen's mode */
+            SInt16 mode = port ? port->pnMode : patCopy;
+            for (SInt32 y = rect->top; y < rect->bottom; y++) {
+                for (SInt32 x = rect->left; x < rect->right; x++) {
+                    QD_PenPixel(port, pat, mode, x + offsetX, y + offsetY);
                 }
             }
         } else if (verb == fill) {

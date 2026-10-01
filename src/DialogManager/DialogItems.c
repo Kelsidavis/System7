@@ -870,7 +870,7 @@ static void DrawIconItem(DialogPtr theDialog, SInt16 itemNo, const DialogItemEx*
         return;
     }
 
-    DrawDialogIcon(&item->bounds, (SInt16)item->refCon, item->enabled);
+    DrawDialogIcon(&item->bounds, (SInt16)item->refCon, true);   /* itemDisable is about clicks */
 }
 #endif /* DrawIconItem */
 

@@ -307,6 +307,11 @@ SInt32 CheckboxCDEF(SInt16 varCode, ControlHandle theControl,
         if ((*theControl)->contrlData) {
             checkData = (CheckboxData *)*(*theControl)->contrlData;
 
+            /* The whole control is drawn afresh (Inside Macintosh: Toolbox
+             * Essentials, 5-111): drawn over what was there, an unchecked box
+             * kept its old check and a re-activated one its grey. */
+            EraseRect(&(*theControl)->contrlRect);
+
             /* Draw checkbox frame */
             FrameRect(&checkData->boxRect);
 
@@ -402,6 +407,9 @@ SInt32 RadioButtonCDEF(SInt16 varCode, ControlHandle theControl,
         if ((*theControl)->contrlData) {
             radioData = (CheckboxData *)*(*theControl)->contrlData;
 
+            /* Drawn afresh, as the checkbox is */
+            EraseRect(&(*theControl)->contrlRect);
+
             /* Draw radio button circle */
             FrameOval(&radioData->boxRect);
 
@@ -479,6 +487,11 @@ void CTL_DrawPushButton(const Rect* bounds, const unsigned char* title,
                         Boolean isDefault, Boolean isEnabled, Boolean isPressed)
 {
     Rect btnRect = *bounds;
+    GrafPtr port;
+    GetPort(&port);
+    SInt16 saveFont = port->txFont, saveSize = port->txSize;
+    Style saveFace = port->txFace;
+    SInt32 saveFore = port->fgColor;
 
     if (isDefault) {
         Rect ring = btnRect;
@@ -488,10 +501,13 @@ void CTL_DrawPushButton(const Rect* bounds, const unsigned char* title,
         PenNormal();
     }
 
+    /* Pressed: black, with the title in white. The title used to be drawn
+     * black on the black and then inverted, which left a blank box, since
+     * text is drawn in the foreground colour whatever the mode. */
+    EraseRect(&btnRect);
     if (isPressed) {
         PaintRoundRect(&btnRect, 12, 12);
     } else {
-        EraseRect(&btnRect);
         FrameRoundRect(&btnRect, 12, 12);
     }
 
@@ -500,32 +516,36 @@ void CTL_DrawPushButton(const Rect* bounds, const unsigned char* title,
         SInt16 fontDescent = 2;
         SInt16 textHeight = fontAscent + fontDescent;
         SInt16 btnHeight = btnRect.bottom - btnRect.top;
-        SInt16 textWidth, textH, textV;
 
         TextFont(0);
         TextSize(12);
         TextFace(0);
 
-        textWidth = StringWidth(title);
-        textH = btnRect.left + ((btnRect.right - btnRect.left - textWidth) / 2);
-        textV = btnRect.top + ((btnHeight - textHeight) / 2) + fontAscent;
+        SInt16 textWidth = StringWidth(title);
+        SInt16 textH = btnRect.left + ((btnRect.right - btnRect.left - textWidth) / 2);
+        SInt16 textV = btnRect.top + ((btnHeight - textHeight) / 2) + fontAscent;
 
+        ForeColor(isPressed ? whiteColor : blackColor);
         MoveTo(textH, textV);
         DrawString(title);
+        ForeColor(blackColor);
 
-        if (isPressed) {
+        /* Disabled: the title dimmed, the outline left whole. This painted a
+         * grey stipple over the entire button. */
+        if (!isEnabled) {
             Rect textRect;
-            textRect.left = textH - 1;
-            textRect.top = textV - fontAscent;
-            textRect.right = textH + textWidth + 1;
-            textRect.bottom = textV + 2;
-            InvertRect(&textRect);
+            SetRect(&textRect, textH - 1, textV - fontAscent, textH + textWidth + 1, textV + fontDescent);
+            PenPat(&qd.gray);
+            PenMode(patBic);
+            PaintRect(&textRect);
+            PenNormal();
         }
     }
 
-    if (!isEnabled) {
-        FillRect(&btnRect, &qd.ltGray);
-    }
+    TextFont(saveFont);
+    TextSize(saveSize);
+    TextFace(saveFace);
+    port->fgColor = saveFore;
 }
 
 

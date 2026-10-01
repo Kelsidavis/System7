@@ -10,6 +10,7 @@
 #include <string.h>
 #include "SystemTypes.h"
 #include "System71StdLib.h"
+#include "QuickDrawConstants.h"
 #include "DialogManager/DialogManager.h"
 #include "DialogManager/DialogTypes.h"
 #include "DialogManager/DialogDrawing.h"
@@ -90,6 +91,7 @@ void DrawDialogCheckBox(const Rect* bounds, const unsigned char* title,
 
     GetPort(&savePort);
 
+    EraseRect(bounds);   /* drawn afresh: an unchecked box kept its old check */
 
     /* Checkbox is 13x13 square on left */
     boxRect.top = bounds->top + 1;
@@ -116,7 +118,7 @@ void DrawDialogCheckBox(const Rect* bounds, const unsigned char* title,
     if (title && title[0] > 0) {
         TextFont(0);
         TextSize(12);
-        TextFace(isEnabled ? 0 : 0x80);
+        TextFace(0);
 
         textRect.left = boxRect.right + 6;
         textRect.top = bounds->top;
@@ -136,7 +138,11 @@ void DrawDialogCheckBox(const Rect* bounds, const unsigned char* title,
 
     /* Draw disabled stipple if needed */
     if (!isEnabled) {
-        FillRect(&boxRect, &qd.ltGray);
+        /* Dimmed the classic way: grey cleared over it */
+        PenPat(&qd.gray);
+        PenMode(patBic);
+        PaintRect(bounds);
+        PenNormal();
     }
 
     SetPort(savePort);
@@ -151,6 +157,8 @@ void DrawDialogRadioButton(const Rect* bounds, const unsigned char* title,
     GrafPtr savePort;
 
     GetPort(&savePort);
+
+    EraseRect(bounds);   /* drawn afresh, as the checkbox is */
 
 
     /* Radio button is 13x13 circle on left */
@@ -174,7 +182,7 @@ void DrawDialogRadioButton(const Rect* bounds, const unsigned char* title,
     if (title && title[0] > 0) {
         TextFont(0);
         TextSize(12);
-        TextFace(isEnabled ? 0 : 0x80);
+        TextFace(0);
 
         /* Center text vertically with the radio button circle using font metrics */
         SInt16 fontAscent = 9;   /* System font 12pt ascent */
@@ -189,7 +197,11 @@ void DrawDialogRadioButton(const Rect* bounds, const unsigned char* title,
 
     /* Draw disabled stipple if needed */
     if (!isEnabled) {
-        FillRect(&circleRect, &qd.ltGray);
+        /* Dimmed the classic way: grey cleared over it */
+        PenPat(&qd.gray);
+        PenMode(patBic);
+        PaintRect(bounds);
+        PenNormal();
     }
 
     SetPort(savePort);
@@ -226,7 +238,7 @@ void DrawDialogStaticText(DialogPtr theDialog, const Rect* bounds, const unsigne
     /* Draw text */
     TextFont(0);
     TextSize(12);
-    TextFace(isEnabled ? 0 : 0x80);
+    TextFace(0);
 
     /*
      * Wrap the text inside its item rectangle.
@@ -329,7 +341,7 @@ void DrawDialogEditText(const Rect* bounds, const unsigned char* text,
     if (text && text[0] > 0) {
         TextFont(0);
         TextSize(12);
-        TextFace(isEnabled ? 0 : 0x80);
+        TextFace(0);
 
         InsetRect(&textRect, 3, 2);
         textV = textRect.top + 11;
@@ -473,10 +485,13 @@ void DrawDialogItemByType(DialogPtr theDialog, SInt16 itemNo,
         return;
     }
 
-    /* Handle other item types */
+    /* Text and icons are never drawn dimmed. A DITL's itemDisable bit means
+     * the item reports no clicks (Inside Macintosh: Toolbox Essentials,
+     * 6-128) - which is why every alert's message and icon carry it - and
+     * drawing it dimmed greyed out the text of every alert. */
     switch (baseType) {
         case statText:  /* Static text */
-            DrawDialogStaticText(theDialog, &item->bounds, textData, item->enabled);
+            DrawDialogStaticText(theDialog, &item->bounds, textData, true);
             break;
 
         case editText:  /* Edit text */
@@ -484,12 +499,12 @@ void DrawDialogItemByType(DialogPtr theDialog, SInt16 itemNo,
             DialogManagerState* state = GetDialogManagerState();
             DialogManagerState_Extended* extState = GET_EXTENDED_DLG_STATE(state);
             Boolean hasFocus = (extState && extState->focusedEditTextItem == itemNo);
-            DrawDialogEditText(&item->bounds, textData, item->enabled, hasFocus, itemNo);
+            DrawDialogEditText(&item->bounds, textData, true, hasFocus, itemNo);
             break;
         }
 
         case iconItem:  /* Icon */
-            DrawDialogIcon(&item->bounds, (SInt16)item->refCon, item->enabled);
+            DrawDialogIcon(&item->bounds, (SInt16)item->refCon, true);
             break;
 
         case userItem:  /* User item (type 0) */
