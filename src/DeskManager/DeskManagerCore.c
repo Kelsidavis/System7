@@ -163,6 +163,11 @@ void CloseDeskAcc(SInt16 refNum)
         da->close(da);
     }
 
+    /* And its window: nothing took it down, so a closed accessory's window
+     * stayed on screen with its record freed underneath it. */
+    extern void DA_DestroyWindow(DeskAccessory *da);
+    DA_DestroyWindow(da);
+
     /* Remove from system menu */
     SystemMenu_RemoveDA(da);
 

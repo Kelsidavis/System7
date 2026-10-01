@@ -1292,6 +1292,15 @@ OSErr CloseFinderWindow(WindowPtr window) {
     if (AboutWindow_CloseIf(window)) return noErr;
     if (GetInfo_CloseIf(window))     return noErr;
 
+    /* A desk accessory is closed by the Desk Manager, which owns its window
+     * and its record (windowKind is minus its reference number). Disposing
+     * the window here left the accessory running with a freed window. */
+    if (window->windowKind < 0) {
+        extern void CloseDeskAcc(SInt16 refNum);
+        CloseDeskAcc((SInt16)-window->windowKind);
+        return noErr;
+    }
+
     /* Check folder window */
     if (IsFolderWindow(window)) {
         CleanupFolderWindow(window);
