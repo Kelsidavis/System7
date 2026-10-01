@@ -21,6 +21,12 @@ extern SInt16 CountMenuItems(MenuHandle theMenu);
 extern void serial_puts(const char* str);
 extern QDGlobals qd;
 extern void QD_SetScreenPort(void);
+
+/* Menus draw anywhere on the screen, so the screen port is opened to all of
+ * it: a clip someone else left there hid item text wherever it did not reach. */
+static void Menu_ClipToScreen(void) {
+    ClipRect(&qd.screenBits.bounds);
+}
 extern void DrawDesktop(void);
 extern void DrawText(const void* textBuf, short firstByte, short byteCount);
 extern void DrawVolumeIcon(void);
@@ -394,6 +400,7 @@ static void DrawMenuOld(MenuHandle theMenu, short left, short top, short itemCou
     GetPort(&savePort);
     if (qd.thePort) {
         QD_SetScreenPort();  /* menus use global coordinates */
+        Menu_ClipToScreen();
     }
 
     /* Draw white background */
@@ -438,6 +445,7 @@ long BeginTrackMenu(short menuID, Point *startPt) {
     GetPort(&savePort);
     if (qd.thePort) {
         QD_SetScreenPort();  /* menus use global coordinates */
+        Menu_ClipToScreen();
     }
 
     /* Get the actual menu handle for this menu ID */
@@ -713,6 +721,7 @@ long EndMenuTrackingNew(void) {
     GetPort(&savePort);
     if (qd.thePort) {
         QD_SetScreenPort();
+        Menu_ClipToScreen();
     }
 
     /* Redraw everything cleanly */
@@ -774,6 +783,7 @@ static long TrackMenu_Body(short menuID, Point *startPt) {
     /* Save current port */
     GetPort(&savePort);
     QD_SetScreenPort();
+    Menu_ClipToScreen();
     serial_puts("TrackMenu: SetPort done\n");
 
     /* Get the menu */

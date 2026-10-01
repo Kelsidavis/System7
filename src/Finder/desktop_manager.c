@@ -483,6 +483,12 @@ static void Finder_DeskHook(RgnHandle invalidRgn)
     GetPort(&savePort);
     QD_SetScreenPort();  /* the desktop is drawn in global coordinates */
 
+    /* The screen port is shared - menus draw in it too - so its clip is put
+     * back afterwards. Left clipped to the region just repainted, it hid the
+     * text of the next menu pulled down wherever that region did not reach. */
+    RgnHandle savedClip = NewRgn();
+    if (savedClip) GetClip(savedClip);
+
     /* Clip to the invalid region */
     RgnHandle desktopClip = NewRgn();
     if (desktopClip) {
@@ -559,6 +565,10 @@ static void Finder_DeskHook(RgnHandle invalidRgn)
     FINDER_LOG_DEBUG("DeskHook: drawing %d desktop icons\n", gDesktopIconCount);
     Desktop_DrawIconsCommon(paintClip);
 
+    if (savedClip) {
+        SetClip(savedClip);
+        DisposeRgn(savedClip);
+    }
     SetPort(savePort);
     if (desktopClip) {
         DisposeRgn(desktopClip);
