@@ -162,25 +162,56 @@ void MacPaint_DrawOvalAlgo(int cx, int cy, int rx, int ry, int filled, int mode)
             x++;
         }
     } else {
-        /* Ellipse - simplified approach using parametric equation */
-        int last_x = cx + rx;
-        int last_y = cy;
+        /* Ellipse - midpoint algorithm, one quadrant mirrored four ways. The
+         * parametric version here moved y in a straight line down, so an
+         * "oval" was a fan of slanted strokes. */
+        long rx2 = (long)rx * rx, ry2 = (long)ry * ry;
+        long px = 0, py = 2 * rx2 * ry;
+        long p;
+        x = 0;
+        y = ry;
 
-        /* Use 32 samples around ellipse instead of trig for portability */
-        for (int i = 1; i <= 32; i++) {
-            int frac = (i * 256) / 32; /* 0-256 represents 0-2pi */
-            /* Simple sin/cos approximation using lookup */
-            int new_x = cx + (rx * (frac < 64 ? frac : (frac < 128 ? 128-frac : (frac < 192 ? frac-128 : 256-frac)))) / 64;
-            int new_y = cy + (ry * i) / 16 - (ry / 2); /* Simplified y calculation */
+        #define OVAL_PLOT() do { \
+            if (filled) { \
+                MacPaint_DrawLineAlgo(cx - x, cy + y, cx + x, cy + y, mode); \
+                MacPaint_DrawLineAlgo(cx - x, cy - y, cx + x, cy - y, mode); \
+            } else { \
+                MacPaint_DrawPixel(cx + x, cy + y, mode); \
+                MacPaint_DrawPixel(cx - x, cy + y, mode); \
+                MacPaint_DrawPixel(cx + x, cy - y, mode); \
+                MacPaint_DrawPixel(cx - x, cy - y, mode); \
+            } \
+        } while (0)
 
-            if (!filled) {
-                MacPaint_DrawLineAlgo(last_x, last_y, new_x, new_y, mode);
+        /* Region 1: slope shallower than -1 */
+        p = ry2 - rx2 * ry + rx2 / 4;
+        while (px < py) {
+            OVAL_PLOT();
+            x++;
+            px += 2 * ry2;
+            if (p < 0) {
+                p += ry2 + px;
             } else {
-                MacPaint_DrawLineAlgo(cx, cy, new_x, new_y, mode);
+                y--;
+                py -= 2 * rx2;
+                p += ry2 + px - py;
             }
-
-            last_x = new_x;
         }
+        /* Region 2: steeper */
+        p = ry2 * (2L * x + 1) * (2L * x + 1) / 4 + rx2 * (long)(y - 1) * (y - 1) - rx2 * ry2;
+        while (y >= 0) {
+            OVAL_PLOT();
+            y--;
+            py -= 2 * rx2;
+            if (p > 0) {
+                p += rx2 - py;
+            } else {
+                x++;
+                px += 2 * ry2;
+                p += rx2 - py + px;
+            }
+        }
+        #undef OVAL_PLOT
     }
 }
 
@@ -379,72 +410,70 @@ void MacPaint_ToolOval(int x, int y, int down)
  */
 
 /**
- * MacPaint_FloodFill - Flood fill from (x,y) using stack-based algorithm
- * Fills all connected pixels of same color with different color
+ * MacPaint_FloodFill - Fill the region of like pixels around (x,y)
+ *
+ * Scanline: each stack entry is a seed, and a whole run of the row is filled
+ * from it, seeding the rows above and below once per run. The pixel-at-a-time
+ * version pushed four neighbours for every pixel into a fixed 8192-entry stack
+ * and stopped when it filled - a vertical strip of any real area.
  */
-#define MAX_FILL_STACK 8192
+#define MAX_FILL_SEEDS 4096
+
+static int FillWants(int x, int y, int setColour)
+{
+    return MacPaint_PixelTrue(x, y, &gPaintBuffer) ? setColour : !setColour;
+}
 
 void MacPaint_FloodFill(int x, int y)
 {
-    /* Validate starting coordinates */
-    if (x < 0 || x >= gPaintBuffer.bounds.right ||
-        y < 0 || y >= gPaintBuffer.bounds.bottom) {
+    int width = gPaintBuffer.bounds.right, height = gPaintBuffer.bounds.bottom;
+    if (x < 0 || x >= width || y < 0 || y >= height) {
         return;
     }
 
-    /* Simple iterative flood fill with explicit stack - use dynamic allocation */
-    int *stack;
-    int stack_ptr = 0;
-    int max_stack_size = MAX_FILL_STACK * 2;
-
-    /* Allocate stack buffer dynamically to avoid stack overflow */
-    stack = (int *)NewPtr(max_stack_size * sizeof(int));
-    if (stack == NULL) {
-        /* Memory allocation failed - cannot perform fill */
+    short *seeds = (short *)NewPtr(MAX_FILL_SEEDS * 2 * sizeof(short));
+    if (!seeds) {
         return;
     }
 
-    /* Check starting pixel - if it's set, erase; if clear, set */
-    int fillMode = MacPaint_PixelTrue(x, y, &gPaintBuffer) ? 3 : 1;
+    /* Black fills white, white fills black */
+    int fromSet = MacPaint_PixelTrue(x, y, &gPaintBuffer);
+    int mode = fromSet ? 3 : 1;
+    int n = 0;
+    seeds[n++] = (short)x;
+    seeds[n++] = (short)y;
 
-    stack[stack_ptr++] = x;
-    stack[stack_ptr++] = y;
-
-    while (stack_ptr > 0 && stack_ptr < max_stack_size - 4) {
-        y = stack[--stack_ptr];
-        x = stack[--stack_ptr];
-
-        if (x < 0 || x >= gPaintBuffer.bounds.right ||
-            y < 0 || y >= gPaintBuffer.bounds.bottom) {
-            continue;
+    while (n > 0) {
+        int sy = seeds[--n];
+        int sx = seeds[--n];
+        if (!FillWants(sx, sy, fromSet)) {
+            continue;                       /* filled since it was pushed */
         }
-
-        /* Check if pixel matches the color we're filling */
-        int pixel_set = MacPaint_PixelTrue(x, y, &gPaintBuffer);
-        int should_fill = (fillMode == 1) ? !pixel_set : pixel_set;
-
-        if (!should_fill) {
-            continue;
+        int left = sx, right = sx;
+        while (left > 0 && FillWants(left - 1, sy, fromSet)) left--;
+        while (right < width - 1 && FillWants(right + 1, sy, fromSet)) right++;
+        for (int px = left; px <= right; px++) {
+            MacPaint_DrawPixel(px, sy, mode);
         }
-
-        /* Fill this pixel */
-        MacPaint_DrawPixel(x, y, fillMode);
-
-        /* Add neighbors to stack - verify space available */
-        if (stack_ptr < max_stack_size - 8) {
-            stack[stack_ptr++] = x + 1;
-            stack[stack_ptr++] = y;
-            stack[stack_ptr++] = x - 1;
-            stack[stack_ptr++] = y;
-            stack[stack_ptr++] = x;
-            stack[stack_ptr++] = y + 1;
-            stack[stack_ptr++] = x;
-            stack[stack_ptr++] = y - 1;
+        for (int dy = -1; dy <= 1; dy += 2) {
+            int ny = sy + dy;
+            if (ny < 0 || ny >= height) continue;
+            int inRun = 0;
+            for (int px = left; px <= right; px++) {
+                if (FillWants(px, ny, fromSet)) {
+                    if (!inRun && n < MAX_FILL_SEEDS * 2 - 2) {
+                        seeds[n++] = (short)px;
+                        seeds[n++] = (short)ny;
+                    }
+                    inRun = 1;
+                } else {
+                    inRun = 0;
+                }
+            }
         }
     }
 
-    /* Clean up allocated memory */
-    DisposePtr((void *)stack);
+    DisposePtr((Ptr)seeds);
 }
 
 /**

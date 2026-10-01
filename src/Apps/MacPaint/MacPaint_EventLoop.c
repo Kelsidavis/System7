@@ -434,6 +434,9 @@ static int MacPaint_GetToolboxToolID(int localX, int localY)
 
     int col = relativeX / (toolSize + spacing);
     int row = relativeY / (toolSize + spacing);
+    if (col > 1) {
+        return -1;      /* right of the two columns, not the next row's tool */
+    }
 
     /* Verify we're actually on a tool button, not in the spacing */
     if ((relativeX % (toolSize + spacing)) > toolSize ||
@@ -827,6 +830,7 @@ void MacPaint_SetActiveTool(int toolID)
 {
     MacPaint_SelectTool(toolID);
     MacPaint_InvalidateToolArea();
+    MacPaint_InvalidateStatusArea();    /* it names the tool */
 }
 
 /**
