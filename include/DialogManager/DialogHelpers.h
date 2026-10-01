@@ -25,8 +25,11 @@ Boolean DialogItemIsRadio(DialogPtr theDialog, SInt16 itemNo);
 Boolean DialogItemIsEditText(DialogPtr theDialog, SInt16 itemNo);
 
 /* Item interaction */
-void DialogTrackButton(DialogPtr theDialog, SInt16 itemNo, Point startPt,
-                      Boolean autoHilite);
+Boolean DialogTrackButton(DialogPtr theDialog, SInt16 itemNo, Point startPt,
+                          Boolean autoHilite);   /* true if released inside */
+/* A checkbox or radio button item's on/off state (kept in its refCon) */
+SInt32 DM_GetItemState(DialogPtr theDialog, SInt16 itemNo);
+void DM_SetItemState(DialogPtr theDialog, SInt16 itemNo, SInt32 value);
 void ToggleDialogCheckbox(DialogPtr theDialog, SInt16 itemNo);
 void SelectRadioInGroup(DialogPtr theDialog, SInt16 itemNo);
 

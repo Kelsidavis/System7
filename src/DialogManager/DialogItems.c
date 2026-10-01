@@ -969,3 +969,25 @@ void RemoveDialogItemCache(DialogPtr theDialog)
         }
     }
 }
+
+/*
+ * The on/off state of a dialog's checkbox or radio button item. It is kept
+ * in the item's refCon, which drawing reads; GetDialogItem hands out the
+ * title's handle rather than a control, so the Dialog Manager keeps it.
+ */
+SInt32 DM_GetItemState(DialogPtr theDialog, SInt16 itemNo)
+{
+    DialogItemEx* itemEx = (theDialog && ValidateItemNumber(theDialog, itemNo))
+                           ? GetDialogItemEx(theDialog, itemNo) : NULL;
+    return itemEx ? itemEx->refCon : 0;
+}
+
+void DM_SetItemState(DialogPtr theDialog, SInt16 itemNo, SInt32 value)
+{
+    DialogItemEx* itemEx = (theDialog && ValidateItemNumber(theDialog, itemNo))
+                           ? GetDialogItemEx(theDialog, itemNo) : NULL;
+    if (itemEx && itemEx->refCon != value) {
+        itemEx->refCon = value;
+        InvalDialogItem(theDialog, itemNo);
+    }
+}

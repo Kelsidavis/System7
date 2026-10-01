@@ -122,25 +122,26 @@ Boolean DialogSelect(const EventRecord* evt, DialogPtr* which, SInt16* itemHit)
 
         // DIALOG_LOG_DEBUG("Dialog: DialogSelect hit item %d\n", hit);
 
-        /* Track push button - press feedback then release to commit */
+        /* Push buttons, checkboxes and radio buttons count only if the
+         * button comes up inside them. */
         if (DialogItemIsPushButton(dlg, hit)) {
-            DialogTrackButton(dlg, hit, local, true);
+            if (!DialogTrackButton(dlg, hit, local, true)) return false;
             *itemHit = hit;
             return true;
         }
 
         /* Toggle checkbox */
         if (DialogItemIsCheckbox(dlg, hit)) {
+            if (!DialogTrackButton(dlg, hit, local, false)) return false;
             ToggleDialogCheckbox(dlg, hit);
-            InvalDialogItem(dlg, hit);
             *itemHit = hit;
             return true;
         }
 
         /* Select radio button (exclusive) */
         if (DialogItemIsRadio(dlg, hit)) {
+            if (!DialogTrackButton(dlg, hit, local, false)) return false;
             SelectRadioInGroup(dlg, hit);
-            InvalDialogItem(dlg, hit);
             *itemHit = hit;
             return true;
         }

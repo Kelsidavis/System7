@@ -125,101 +125,77 @@ Boolean DialogItemIsEditText(DialogPtr theDialog, SInt16 itemNo) {
     return (itemType == editText);
 }
 
-/* Track button press with visual feedback */
-void DialogTrackButton(DialogPtr theDialog, SInt16 itemNo, Point startPt,
-                      Boolean autoHilite) {
+/*
+ * Track a press on a dialog item until the button comes up, showing it
+ * pressed while the pointer is inside. True if it came up inside: only then
+ * does the item count as clicked (Inside Macintosh: Toolbox Essentials,
+ * 5-104). Releasing outside used to count too, and a release inside left a
+ * push button drawn inverted - an inverted square over a rounded button.
+ */
+Boolean DialogTrackButton(DialogPtr theDialog, SInt16 itemNo, Point startPt,
+                          Boolean autoHilite) {
+    extern void EventPumpYield(void);
     Rect itemBounds;
     SInt16 itemType;
     Handle itemHandle;
-    Boolean inside = true;
-    Boolean wasInside = true;
+    Boolean inside = true, shown = false;
     Point pt;
+    (void)startPt;
 
-    if (!theDialog) return;
+    if (!theDialog) return false;
+    GrafPtr savePort;
+    GetPort(&savePort);
+    SetPort((GrafPtr)theDialog);
 
     GetDialogItem(theDialog, itemNo, &itemType, &itemHandle, &itemBounds);
+    Boolean isButton = (itemType & itemTypeMask) == (ctrlItem + btnCtrl);
+    const unsigned char* title = (const unsigned char*)(itemHandle ? *itemHandle : NULL);
 
-    // DIALOG_LOG_DEBUG("Dialog: Tracking button item %d\n", itemNo);
-
-    /* Highlight button on press */
-    if (autoHilite) {
-        InvertRect(&itemBounds);
-    }
-
-    /* Track mouse until release */
-    const UInt32 MAX_TRACK_ITERATIONS = 100000;  /* Safety timeout: ~1666 seconds at 60Hz */
-    UInt32 loopCount = 0;
-
-    while (StillDown() && loopCount < MAX_TRACK_ITERATIONS) {
-        loopCount++;
+    for (UInt32 guard = 0; guard < 10000000UL; guard++) {
         GetMouse(&pt);
         GlobalToLocalDialog(theDialog, &pt);
-
         inside = PtInRect(pt, &itemBounds);
-
-        /* Toggle highlight when mouse moves in/out */
-        if (inside != wasInside && autoHilite) {
-            InvertRect(&itemBounds);
-            wasInside = inside;
+        if (autoHilite && inside != shown) {
+            if (isButton) {
+                DrawDialogButton(theDialog, &itemBounds, title,
+                                 itemNo == GetDialogDefaultItem(theDialog), true, inside);
+            }
+            shown = inside;
         }
+        if (!StillDown()) break;
+        EventPumpYield();
     }
 
-    if (loopCount >= MAX_TRACK_ITERATIONS) {
-        /* Safety timeout reached - log warning */
-        // DIALOG_LOG_DEBUG("Dialog: item tracking loop timeout after %u iterations\n", loopCount);
+    if (autoHilite && shown && isButton) {
+        DrawDialogButton(theDialog, &itemBounds, title,
+                         itemNo == GetDialogDefaultItem(theDialog), true, false);
     }
-
-    /* If mouse released outside, unhighlight */
-    if (!inside && autoHilite) {
-        InvertRect(&itemBounds);
-    }
-
+    SetPort(savePort);
+    return inside;
 }
 
-/* Toggle checkbox state */
+/* Toggle a checkbox item: it was a stub, so clicking one changed nothing. */
 void ToggleDialogCheckbox(DialogPtr theDialog, SInt16 itemNo) {
-    /* Get current item to access refCon */
-    extern DialogItemEx* GetDialogItemEx(DialogPtr theDialog, SInt16 itemNo);
-    /* For now, use a simple approach via the cache */
-
-    // DIALOG_LOG_DEBUG("Dialog: Toggle checkbox %d\n", itemNo);
-
-    /* The actual state is stored in the item's refCon */
-    /* We'll need to access the DialogItemEx to toggle it */
-    /* For now, just redraw */
+    if (!theDialog) return;
+    DM_SetItemState(theDialog, itemNo, DM_GetItemState(theDialog, itemNo) ? 0 : 1);
 }
 
-/* Select radio button and deselect others in group */
+/* Turn a radio button on and the dialog's other radio buttons off. The
+ * dialog is taken as one group, as a DITL has no way to say otherwise.
+ * This only invalidated them, so nothing changed. */
 void SelectRadioInGroup(DialogPtr theDialog, SInt16 itemNo) {
-    SInt16 itemCount, i;
-    SInt16 thisType, otherType;
-    Handle h1, h2;
-    Rect r1, r2;
-
+    SInt16 type;
+    Handle h;
+    Rect r;
     if (!theDialog) return;
+    GetDialogItem(theDialog, itemNo, &type, &h, &r);
+    if ((type & itemTypeMask) != (ctrlItem + radCtrl)) return;
 
-    GetDialogItem(theDialog, itemNo, &thisType, &h1, &r1);
-    thisType &= itemTypeMask;
-
-    if (thisType != (ctrlItem + radCtrl)) {
-        return;
-    }
-
-    // DIALOG_LOG_DEBUG("Dialog: Select radio %d in group\n", itemNo);
-
-    /* Find all radio buttons and deselect them */
-    /* In full implementation, would check group ID */
-    itemCount = CountDITL(theDialog);
-
-    for (i = 1; i <= itemCount; i++) {
-        GetDialogItem(theDialog, i, &otherType, &h2, &r2);
-        otherType &= itemTypeMask;
-
-        if (otherType == (ctrlItem + radCtrl)) {
-            /* Deselect this radio (set refCon = 0) */
-            /* Then select the clicked one (set refCon = 1) */
-            /* For now, just invalidate all radios to redraw */
-            InvalDialogItem(theDialog, i);
+    SInt16 n = CountDITL(theDialog);
+    for (SInt16 i = 1; i <= n; i++) {
+        GetDialogItem(theDialog, i, &type, &h, &r);
+        if ((type & itemTypeMask) == (ctrlItem + radCtrl)) {
+            DM_SetItemState(theDialog, i, i == itemNo ? 1 : 0);
         }
     }
 }
