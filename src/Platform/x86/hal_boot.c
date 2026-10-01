@@ -5,6 +5,7 @@
  */
 
 #include "Platform/include/boot.h"
+#include "MemoryMgr/MemoryManager.h"
 #include "Platform/include/serial.h"
 #include "pic.h"
 #include "pit.h"
@@ -133,4 +134,33 @@ void hal_platform_shutdown(void) {
 
 int hal_framebuffer_present(void) {
     return framebuffer != NULL;
+}
+
+/*
+ * Platform_GetFreeMemory - the RAM no one is using, for the Memory Manager.
+ *
+ * From the end of the kernel image (its BSS included) to the top of the
+ * contiguous RAM above 1 MB that the boot loader reported, less a little at
+ * the top. Nothing else is placed there: no paging, no boot modules, and the
+ * boot information is read before the Memory Manager starts. The heap used to
+ * be a fixed array inside the image, whatever memory the machine had.
+ */
+bool Platform_GetFreeMemory(void** base, uint32_t* size) {
+    extern char kernel_end[];
+    extern uint32_t g_mem_upper_kb;
+    extern void* framebuffer;
+    if (!base || !size || g_mem_upper_kb == 0) return false;
+
+    uintptr_t start = ((uintptr_t)kernel_end + 0xFFFu) & ~(uintptr_t)0xFFFu;
+    uintptr_t end = 0x100000u + (uintptr_t)g_mem_upper_kb * 1024u;
+    /* Not into the framebuffer, should it lie inside RAM */
+    uintptr_t fb = (uintptr_t)framebuffer;
+    if (fb > start && fb < end) end = fb & ~(uintptr_t)0xFFFu;
+    const uintptr_t reserve = 1024u * 1024u;
+    if (end < start + reserve + 16u * 1024u * 1024u) return false;
+    end -= reserve;
+
+    *base = (void*)start;
+    *size = (uint32_t)(end - start);
+    return true;
 }

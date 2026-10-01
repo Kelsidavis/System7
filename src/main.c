@@ -249,6 +249,7 @@ uint8_t fb_blue_size = 0;
 
 /* System memory globals */
 uint32_t g_total_memory_kb = 8 * 1024;  /* Default 8MB if not detected */
+uint32_t g_mem_upper_kb = 0;            /* contiguous RAM above 1 MB, 0 if unknown */
 
 /* QuickDraw globals structure */
 QDGlobals qd;
@@ -424,6 +425,7 @@ static void parse_multiboot2(uint32_t magic, uint32_t* mb2_info) {
 
                     /* Total memory = lower (up to 640KB) + upper (above 1MB) */
                     g_total_memory_kb = mem_tag->mem_lower + mem_tag->mem_upper;
+                    g_mem_upper_kb = mem_tag->mem_upper;
 
                     serial_puts("Memory detected:\n");
                     serial_puts("  Lower: ");

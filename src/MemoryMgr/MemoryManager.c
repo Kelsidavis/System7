@@ -109,12 +109,28 @@ static ZoneInfo* gCurrentZone = NULL;
 
 /* Static memory for zones - 8MB total */
 static u8 gSystemHeap[2 * 1024 * 1024];    /* 2MB system heap */
-/* Every window keeps a 32-bit offscreen buffer the size of its content, and
- * the screen has one of its own: at 800x600 a full-screen buffer is 1.9 MB.
- * At 6 MB the heap could not hold a zoomed Finder window's buffer once the
- * screen's and one ordinary window's were taken. */
+/* The application zone takes the machine's free RAM when the platform can
+ * say where it is (Platform_GetFreeMemory). This array is for when it cannot:
+ * every window keeps a 32-bit offscreen buffer the size of its content, and
+ * at 800x600 a full-screen one is 1.9 MB, so 24 MB is the least that works.
+ * On x86, which always knows, it only has to get a machine without memory
+ * information booted. */
+#if defined(__i386__) || defined(__x86_64__)
+#define APP_HEAP_SIZE (8u * 1024 * 1024)
+#else
 #define APP_HEAP_SIZE (24u * 1024 * 1024)
+#endif
 static u8 gAppHeap[APP_HEAP_SIZE];
+
+/* A zone in found memory has room for many more handles than the fallback */
+#define FOUND_ZONE_MASTERS 65536u
+
+/* No free memory known unless the platform supplies this */
+__attribute__((weak)) bool Platform_GetFreeMemory(void** base, uint32_t* size) {
+    (void)base;
+    (void)size;
+    return false;
+}
 
 /* Master pointer tables */
 static void* gSystemMasters[1024];         /* 1024 system handles */
@@ -1685,11 +1701,27 @@ void InitMemoryManager(void) {
     serial_puts("MM: System Zone initialized (2048 KB)\n");
 
     /* Initialize Application Zone */
-    InitZone(&gAppZone, gAppHeap, sizeof(gAppHeap),
-             gAppMasters, sizeof(gAppMasters)/sizeof(void*));
+    void* found = NULL;
+    uint32_t foundSize = 0;
+    if (Platform_GetFreeMemory(&found, &foundSize) &&
+        foundSize > FOUND_ZONE_MASTERS * sizeof(void*) + APP_HEAP_SIZE) {
+        /* The master pointers first, then the heap */
+        void** masters = (void**)found;
+        u8* heap = (u8*)found + FOUND_ZONE_MASTERS * sizeof(void*);
+        u32 heapSize = foundSize - FOUND_ZONE_MASTERS * sizeof(void*);
+        InitZone(&gAppZone, heap, heapSize, masters, FOUND_ZONE_MASTERS);
+    } else {
+        InitZone(&gAppZone, gAppHeap, sizeof(gAppHeap),
+                 gAppMasters, sizeof(gAppMasters)/sizeof(void*));
+    }
     /* strcpy not available in kernel */
     gAppZone.name[0] = 'A'; gAppZone.name[1] = 0;
-    serial_puts("MM: App Zone initialized (24576 KB)\n");
+    {
+        char msg[64];
+        snprintf(msg, sizeof msg, "MM: App Zone initialized (%u KB)\n",
+                 (unsigned)((gAppZone.limit - gAppZone.base) / 1024));
+        serial_puts(msg);
+    }
 
     /* Set current zone to app zone */
     gCurrentZone = &gAppZone;
@@ -1733,6 +1765,13 @@ OSErr MemoryManager_MapToM68K(struct M68KAddressSpace* as)
         UInt32 addr = kSysBase + (UInt32)offset;
         UInt32 page = addr >> M68K_PAGE_SHIFT;
         as->pageTable[page] = gSystemZone.base + offset;
+    }
+
+    /* A 68K program addresses 16 MB, so it sees the part of the zone that
+     * fits below that. Mapping all of it wrote past the end of the page table
+     * once the zone was larger than the space left above kAppBase. */
+    if (appSize > (size_t)(M68K_MAX_ADDR - kAppBase)) {
+        appSize = (size_t)(M68K_MAX_ADDR - kAppBase);
     }
 
     for (size_t offset = 0; offset < appSize; offset += M68K_PAGE_SIZE) {
@@ -1789,7 +1828,7 @@ bool MemoryManager_IsHeapPointer(const void* p)
 {
     if (!p) return false;
     if (pointer_in_range(p, gSystemHeap, sizeof(gSystemHeap))) return true;
-    if (pointer_in_range(p, gAppHeap, sizeof(gAppHeap))) return true;
+    if (pointer_in_range(p, gAppZone.base, (u32)(gAppZone.limit - gAppZone.base))) return true;
     return false;
 }
 

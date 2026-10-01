@@ -143,4 +143,8 @@ void    CheckHeap(ZoneInfo* zone);
 void    DumpHeap(ZoneInfo* zone);
 void    MemoryManager_CheckSuspectBlock(const char* tag);
 
+/* Where the platform's free RAM is, for the application zone; false if it
+ * cannot say. Platforms that know define it; the default answers false. */
+bool Platform_GetFreeMemory(void** base, uint32_t* size);
+
 #endif /* MEMORY_MANAGER_H */
