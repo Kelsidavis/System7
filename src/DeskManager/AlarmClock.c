@@ -154,8 +154,17 @@ void AlarmClock_UpdateTime(AlarmClock *clock)
         return;
     }
 
-    /* Get current system time */
+    /* Get current system time, and hand it to the fields the strings are
+     * made from: they were never set, so the clock read 12:00:00 AM on
+     * 0/0/0 for ever. */
     AlarmClock_GetCurrentTime(&clock->currentTime);
+    clock->time.hour    = clock->currentTime.hour;
+    clock->time.minute  = clock->currentTime.minute;
+    clock->time.second  = clock->currentTime.second;
+    clock->date.year    = clock->currentTime.year;
+    clock->date.month   = clock->currentTime.month;
+    clock->date.day     = clock->currentTime.day;
+    clock->date.weekday = clock->currentTime.weekday;
 
     /* Format time string */
     AlarmClock_FormatTime(clock, &(clock)->time,
@@ -448,66 +457,34 @@ void AlarmClock_FlashMenuBar(int duration)
 void AlarmClock_Draw(AlarmClock *clock, const Rect *updateRect)
 {
     extern void MoveTo(short h, short v);
-    extern void LineTo(short h, short v);
     extern void DrawText(const void* textBuf, short firstByte, short byteCount);
     extern void EraseRect(const Rect* r);
-    extern void FrameRect(const Rect* r);
-    extern void FillRect(const Rect* r, const Pattern* pat);
-    extern void PenSize(short w, short h);
     extern void TextFont(short font);
     extern void TextSize(short size);
+    extern short TextWidth(const void* textBuf, short firstByte, short byteCount);
+    extern GrafPtr g_currentPort;
 
-    if (!clock) {
+    (void)updateRect;
+    if (!clock || !g_currentPort) {
         return;
     }
 
-    /* Update the time first */
     AlarmClock_UpdateTime(clock);
 
-    /* Draw the classic Alarm Clock DA display:
-     * - Digital time in large font centered in the window
-     * - Date below in smaller font
-     * - Simple clock face appearance */
+    /* The time, centred in the window in the system font, as the System 7
+     * Alarm Clock shows it closed. This drew an 18-point time and a date
+     * laid out for a 200 by 100 window into one 80 high, so most of it fell
+     * outside and the window looked empty. */
+    Rect r = g_currentPort->portRect;
+    EraseRect(&r);
 
-    /* Clear the drawing area */
-    Rect drawRect = {0, 0, 100, 200};
-    EraseRect(&drawRect);
-
-    /* Draw border */
-    Rect borderRect = {2, 2, 98, 198};
-    FrameRect(&borderRect);
-
-    /* Draw time in large font */
-    TextFont(0);   /* Chicago */
-    TextSize(18);  /* Large for time display */
-
-    int timeLen = 0;
-    while (clock->timeString[timeLen]) timeLen++;
-
-    /* Center the time text */
-    short timeX = 100 - (timeLen * 9) / 2;  /* Approximate centering for 18pt */
-    if (timeX < 10) timeX = 10;
-    MoveTo(timeX, 45);
-    DrawText(clock->timeString, 0, timeLen);
-
-    /* Draw date in smaller font */
-    TextSize(10);
-
-    int dateLen = 0;
-    while (clock->dateString[dateLen]) dateLen++;
-
-    short dateX = 100 - (dateLen * 6) / 2;  /* Approximate centering for 10pt */
-    if (dateX < 10) dateX = 10;
-    MoveTo(dateX, 70);
-    DrawText(clock->dateString, 0, dateLen);
-
-    /* Draw separator line between time and date */
-    PenSize(1, 1);
-    MoveTo(20, 55);
-    LineTo(180, 55);
-
-    /* Restore default text size */
+    TextFont(0);
     TextSize(12);
+    short len = 0;
+    while (clock->timeString[len]) len++;
+    short w = TextWidth(clock->timeString, 0, len);
+    MoveTo((short)((r.left + r.right - w) / 2), (short)((r.top + r.bottom) / 2 + 4));
+    DrawText(clock->timeString, 0, len);
 }
 
 /*

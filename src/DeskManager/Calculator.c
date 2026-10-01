@@ -313,10 +313,13 @@ int Calculator_PerformOperation(Calculator *calc, CalcOperation operation)
         case CALC_OP_SUBTRACT:
         case CALC_OP_MULTIPLY:
         case CALC_OP_DIVIDE:
-            /* Binary operations */
-            if (calc->pendingOp != CALC_OP_NONE && calc->state == CALC_STATE_OPERATION) {
-                /* Chain operations: perform pending operation first */
-                result = Calculator_PerformArithmetic((calc)->value,
+            /* Binary operations. The first operand is kept in the
+             * accumulator; both operands used to be the number on display, so
+             * 7 + 8 = came to 16. A number entered since the last operator
+             * completes the pending operation first (7 + 8 * gives 15 * ...);
+             * a second operator in a row just replaces the first. */
+            if (calc->pendingOp != CALC_OP_NONE && calc->state == CALC_STATE_ENTRY) {
+                result = Calculator_PerformArithmetic(calc->accumulator,
                                                     (calc)->value,
                                                     calc->pendingOp);
                 if (result == HUGE_VAL || result == -HUGE_VAL) {
@@ -332,6 +335,7 @@ int Calculator_PerformOperation(Calculator *calc, CalcOperation operation)
                 Calculator_UpdateDisplay(calc);
             }
 
+            calc->accumulator = calc->value;
             calc->pendingOp = operation;
             calc->state = CALC_STATE_OPERATION;
             calc->newNumber = true;
@@ -339,7 +343,7 @@ int Calculator_PerformOperation(Calculator *calc, CalcOperation operation)
 
         case CALC_OP_EQUALS:
             if (calc->pendingOp != CALC_OP_NONE) {
-                result = Calculator_PerformArithmetic((calc)->value,
+                result = Calculator_PerformArithmetic(calc->accumulator,
                                                     (calc)->value,
                                                     calc->pendingOp);
                 if (result == HUGE_VAL || result == -HUGE_VAL) {
@@ -412,7 +416,7 @@ int Calculator_PerformOperation(Calculator *calc, CalcOperation operation)
 
         case CALC_OP_PERCENT:
             if (calc->pendingOp != CALC_OP_NONE) {
-                (calc)->value = ((calc)->value * (calc)->value) / 100.0;
+                (calc)->value = (calc->accumulator * (calc)->value) / 100.0;
                 Calculator_UpdateDisplay(calc);
             }
             break;

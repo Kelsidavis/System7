@@ -25,6 +25,7 @@ extern void InvalWindowRect(WindowPtr, const Rect*);
 #include "DialogManager/AlertDialogs.h"
 #include "DialogManager/DITLBuilder.h"
 #include "EventManager/EventManager.h"
+#include "DeskManager/Calculator.h"
 extern QDGlobals qd;
 #include "MacTypes.h"
 #include "math.h"
@@ -950,6 +951,26 @@ static void Test_Event_FullQueueKeepsNewest(void) {
     RecordTest(test_name, true, "");
 }
 
+/* The Calculator keeps its first operand: 7 + 8 = is 15. */
+static double CalcRun(Calculator* c, const char* keys) {
+    Calculator_ClearAll(c);
+    for (const char* k = keys; *k; k++) Calculator_KeyPress(c, *k);
+    return c->value;
+}
+
+static void Test_Calculator_Arithmetic(void) {
+    const char* test_name = "Calculator_Arithmetic";
+    static Calculator calc;
+    CHECK(Calculator_Initialize(&calc) == 0, "Calculator_Initialize failed");
+    CHECK(CalcRun(&calc, "7+8=") == 15.0, "7+8= is not 15");
+    CHECK(CalcRun(&calc, "7+8*2=") == 30.0, "7+8*2= is not 30 (chained left to right)");
+    CHECK(CalcRun(&calc, "9-4=") == 5.0, "9-4= is not 5");
+    CHECK(CalcRun(&calc, "6/3=") == 2.0, "6/3= is not 2");
+    CHECK(CalcRun(&calc, "5+*3=") == 15.0, "a second operator did not replace the first");
+    Calculator_Shutdown(&calc);
+    RecordTest(test_name, true, "");
+}
+
 static void Test_Resource_CreateAndOpenResFile(void) {
     const char* test_name = "Resource_CreateAndOpenResFile";
     FSSpec spec;
@@ -1082,6 +1103,7 @@ void IntegrationTests_Run(void) {
     Test_Window_UpdateWithoutBuffer();
     Test_Window_MoveRepaintsUncovered();
     Test_Event_FullQueueKeepsNewest();
+    Test_Calculator_Arithmetic();
     Test_Dialog_AlertLayout();
     Test_Dialog_IconItem();
     Test_Window_ReorderAndHide();

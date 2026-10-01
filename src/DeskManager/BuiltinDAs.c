@@ -379,7 +379,9 @@ static int Calculator_DAInitialize(DeskAccessory *da, const DADriverHeader *head
     attr.bounds.left = 100;
     attr.bounds.top = 100;
     attr.bounds.right = 300;     /* 200px wide */
-    attr.bounds.bottom = 320;    /* 220px tall - fits display + 5x4 button grid */
+    /* The frame, title bar included, around 208 of content: the button grid
+     * ends at 200 and an 8-pixel margin. At 320 the bottom row was cut off. */
+    attr.bounds.bottom = 330;
     attr.procID = 0;
     attr.visible = true;
     attr.hasGoAway = true;
@@ -620,10 +622,10 @@ static int AlarmClock_DAInitialize(DeskAccessory *da, const DADriverHeader *head
 
     /* Create window */
     DAWindowAttr attr;
-    attr.bounds.left = 140;
+    attr.bounds.left = 140;     /* room for the time, as System 7's is */
     attr.bounds.top = 140;
-    attr.bounds.right = 340;
-    attr.bounds.bottom = 240;
+    attr.bounds.right = 300;
+    attr.bounds.bottom = 186;
     attr.procID = 0;
     attr.visible = true;
     attr.hasGoAway = true;
@@ -682,11 +684,13 @@ static int AlarmClock_DAIdle(DeskAccessory *da)
     AlarmClock *clock = (AlarmClock *)da->driverData;
 
     /* Update time and check alarms */
+    char shown[sizeof(clock->timeString)];
+    memcpy(shown, clock->timeString, sizeof(shown));
     AlarmClock_UpdateTime(clock);
     AlarmClock_CheckAlarms(clock);
 
-    /* Redraw clock display every idle cycle to keep time current */
-    if (da->window) {
+    /* Redraw when the time shown changes - every idle pass flickered */
+    if (da->window && memcmp(shown, clock->timeString, sizeof(shown)) != 0) {
         extern void GetPort(GrafPtr* port);
         extern void SetPort(GrafPtr port);
         GrafPtr savePort;
