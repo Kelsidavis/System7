@@ -11,6 +11,7 @@
 #include "MenuManager/MenuLogging.h"
 #include "MenuManager/MenuTypes.h"
 #include "QuickDraw/QuickDraw.h"
+#include "QuickDrawConstants.h"
 #include "FontManager/FontManager.h"
 #include "EventManager/EventTypes.h"  /* For mouse masks */
 
@@ -42,7 +43,6 @@ extern void GetItemSubmenu(MenuHandle theMenu, short item, short* submenuID);
 
 /* Forward declarations for static functions */
 static void DrawHighlightRect(short left, short top, short right, short bottom, Boolean highlight);
-static void DrawInvertedText(const char* text, short x, short y, Boolean inverted);
 void DrawMenuBarWithHighlight(short highlightMenuID);
 
 /* Forward declarations for menu tracking functions */
@@ -304,11 +304,11 @@ static void DrawMenuItemRowContents(MenuHandle theMenu, short i, short left, sho
     GetItemText(theMenu, i, itemText);
     if (itemText[0] == 0) return;
 
-    if (highlighted) {
-        DrawInvertedText(itemText, left + kMenuMarkColumn, itemTop + 12, true);
-    } else {
-        DrawMenuItemText(itemText, left + kMenuMarkColumn, itemTop + 12);
-    }
+    /* Highlighted text is the same text in white, through QuickDraw. It had
+     * its own glyph renderer reading the Chicago strike directly, which got
+     * several glyphs wrong: "Alarm Clock" read "Al arm0 ock". */
+    if (highlighted) ForeColor(whiteColor);
+    DrawMenuItemText(itemText, left + kMenuMarkColumn, itemTop + 12);
 
     /* Item mark - the View menu checks its current view. CheckItem has always
      * maintained this; nothing drew it. */
@@ -333,6 +333,7 @@ static void DrawMenuItemRowContents(MenuHandle theMenu, short i, short left, sho
             if (w <= 0) continue;
             DrawMenuRect(tx, cy - 4 + r, tx + w, cy - 3 + r, ink);
         }
+        ForeColor(blackColor);
         return;   /* hierarchical items carry no command key */
     }
 
@@ -344,12 +345,9 @@ static void DrawMenuItemRowContents(MenuHandle theMenu, short i, short left, sho
                            ? cmdChar - 'a' + 'A' : cmdChar);
         cmdBuf[1] = 0;
         DrawCommandGlyph(left + menuWidth - 30, itemTop + 2, ink);
-        if (highlighted) {
-            DrawInvertedText(cmdBuf, left + menuWidth - 16, itemTop + 12, true);
-        } else {
-            DrawMenuItemText(cmdBuf, left + menuWidth - 16, itemTop + 12);
-        }
+        DrawMenuItemText(cmdBuf, left + menuWidth - 16, itemTop + 12);
     }
+    ForeColor(blackColor);
 }
 
 /*
@@ -515,57 +513,6 @@ long BeginTrackMenu(short menuID, Point *startPt) {
 
     /* Return 0 - actual selection will come from event handling */
     return 0;
-}
-
-/* Draw inverted text directly to framebuffer */
-static void DrawInvertedText(const char* text, short x, short y, Boolean inverted) {
-    extern void* framebuffer;
-    extern uint32_t fb_width;
-    extern uint32_t fb_height;
-    extern uint32_t fb_pitch;
-    extern uint32_t pack_color(uint8_t r, uint8_t g, uint8_t b);
-
-    if (!text || !framebuffer) return;
-
-    #include "chicago_font.h"
-
-    uint32_t* fb = (uint32_t*)framebuffer;
-    uint32_t textColor = inverted ? 0xFFFFFFFF : 0xFF000000;  /* White if inverted, black if normal */
-    Pointer_Shield(x, y - 12, x + 8 * 64, y + 4);   /* a menu title's text, generously */
-
-    int len = 0;
-    int currentX = x;
-
-    /* Direct rendering using Chicago font bitmap */
-    while (text[len] && len < 255) {
-        char ch = text[len];
-        if (ch >= 32 && ch <= 126) {
-            ChicagoCharInfo info = chicago_ascii[ch - 32];
-
-            /* Draw character */
-            for (int row = 0; row < CHICAGO_HEIGHT; row++) {
-                if (y - 12 + row < 0 || y - 12 + row >= fb_height) continue;
-
-                const uint8_t *strike_row = chicago_bitmap + (row * CHICAGO_ROW_BYTES);
-
-                for (int col = 0; col < info.bit_width; col++) {
-                    int px = currentX + info.left_offset + col;
-                    if (px < 0 || px >= fb_width) continue;
-
-                    int bit_position = info.bit_start + col;
-                    uint8_t bit = (strike_row[bit_position >> 3] >> (7 - (bit_position & 7))) & 1;
-
-                    if (bit) {
-                        int fb_offset = (y - 12 + row) * (fb_pitch / 4) + px;
-                        fb[fb_offset] = textColor;
-                    }
-                }
-            }
-
-            currentX += info.advance;
-        }
-        len++;
-    }
 }
 
 /* Draw rectangle with specified color */
@@ -1263,7 +1210,14 @@ void DrawMenuBarWithHighlight(short highlightMenuID) {
                 titleText[i] = (char)(*(MenuInfo**)theMenu)->menuData[1 + i];
             }
             titleText[len] = '\0';
-            DrawInvertedText(titleText, titleX + 4, 14, true);
+            GrafPtr savePort;
+            GetPort(&savePort);
+            QD_SetScreenPort();
+            Menu_ClipToScreen();
+            ForeColor(whiteColor);
+            DrawMenuItemText(titleText, titleX + 4, 14);
+            ForeColor(blackColor);
+            SetPort(savePort);
         }
     }
 
