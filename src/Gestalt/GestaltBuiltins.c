@@ -77,7 +77,7 @@ static int probe_fpu_present(void) {
         "xchgl %%ebx, %1"
         : "+a"(a), "+r"(b), "+c"(c), "+d"(d));
     #else
-    __asm__ __volatile__("cpuid" : "+a"(a), "+b"(b), "+c"(c), "+d"(d) : "0"(1));
+    __asm__ __volatile__("cpuid" : "+a"(a), "+b"(b), "+c"(c), "+d"(d));   /* a is the leaf */
     #endif
 
     return (d & 0x00000001u) ? 1 : 0;
@@ -139,16 +139,12 @@ static OSErr gestalt_qtim(long *response) {
 static OSErr gestalt_rsrc(long *response) {
     if (!response) return paramErr;
 
-#ifdef ENABLE_RESOURCES
     /* Check if Resource Manager is initialized */
     if (gGestaltInitBits & (1UL << kGestaltInitBit_ResourceMgr)) {
         *response = 0x00010000;  /* Version 1.0.0 */
     } else {
         *response = 0;  /* Not yet initialized */
     }
-#else
-    return gestaltUnknownErr;  /* Not compiled in */
-#endif
 
     return noErr;
 }
@@ -308,10 +304,8 @@ void Gestalt_Register_Builtins(void) {
         err = NewGestalt(kSel_qtim, gestalt_qtim);
     }
 
-#ifdef ENABLE_RESOURCES
     /* Resource Manager - only register if compiled in */
     err = NewGestalt(kSel_rsrc, gestalt_rsrc);
-#endif
 
     /* Event Manager features */
     err = NewGestalt(kSel_evnt, gestalt_evnt);

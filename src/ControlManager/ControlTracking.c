@@ -58,7 +58,7 @@ SInt16 TestControl(ControlHandle theControl, Point thePt) {
     }
 
     /* Let CDEF determine part code */
-    return (SInt16)_CallControlDefProc(theControl, testCntl, *(SInt32 *)&thePt);
+    return (SInt16)_CallControlDefProc(theControl, testCntl, CTL_PointToParam(thePt));
 }
 
 /**
@@ -146,7 +146,7 @@ SInt16 TrackControl(ControlHandle theControl, Point thePoint,
 
         /* Special handling for scroll bar thumb tracking */
         if (partCode == inThumb) {
-            _CallControlDefProc(theControl, thumbCntl, *(SInt32 *)&currentPt);
+            _CallControlDefProc(theControl, thumbCntl, CTL_PointToParam(currentPt));
         }
     }
 

@@ -106,8 +106,10 @@ SInt16 OpenDeskAcc(const char *name)
     }
 
     /* Set basic properties */
-    strncpy(da->name, name, DA_NAME_LENGTH);
-    da->name[DA_NAME_LENGTH] = '\0';
+    /* Bounded by the field, 32 bytes: DA_NAME_LENGTH is 255, and both the
+     * copy and the terminator went past the end of it */
+    strncpy(da->name, name, sizeof(da->name) - 1);
+    da->name[sizeof(da->name) - 1] = '\0';
     da->refNum = DA_AllocateRefNum();
     da->state = DA_STATE_CLOSED;
 

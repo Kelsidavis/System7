@@ -33,9 +33,7 @@ extern void DoMenuCommand(short menuID, short item);
 #include "../include/MemoryMgr/MemoryManager.h"
 #include "Platform/include/boot.h"
 
-#ifdef ENABLE_GESTALT
 #include "../include/Gestalt/Gestalt.h"
-#endif
 #include "../include/Resources/system7_resources.h"
 #include "../include/TimeManager/TimeManager.h"
 #include "../include/ExtensionManager/DefLoader.h"
@@ -128,7 +126,6 @@ static void process_serial_command(void) {
             }
             break;
 
-#ifdef ENABLE_GESTALT
         case 'g':  /* Gestalt query */
         case 'G':
             {
@@ -157,7 +154,6 @@ static void process_serial_command(void) {
                 }
             }
             break;
-#endif
 
         case 'f':  /* File menu */
         case 'F':
@@ -552,8 +548,6 @@ static void parse_multiboot2(uint32_t magic, uint32_t* mb2_info) {
 extern void InitMemoryManager(void);
 extern void InitResourceManager(void);
 
-#ifdef ENABLE_RESOURCES
-#endif
 extern void InitGraf(void *globalPtr);
 extern void InitFonts(void);
 extern void InitWindows(void);
@@ -616,7 +610,6 @@ static void init_system71(void) {
         Event_InitQueue();
         serial_puts("  ProcessMgr (coop) + Event queue initialized\n");
 
-#ifdef ENABLE_SCRAP
         /* Initialize ScrapManager after ProcessMgr */
         extern void Scrap_Zero(void);
         Scrap_Zero();
@@ -626,7 +619,6 @@ static void init_system71(void) {
         extern void Scrap_RunSelfTest(void);
         Scrap_RunSelfTest();
         serial_puts("  Scrap self-test complete\n");
-#endif
 #endif
 
         /* Smoke test: schedule a timer */
@@ -643,7 +635,6 @@ static void init_system71(void) {
     }
 
     /* Gestalt Manager - must be after Memory Manager, before other subsystems query */
-#ifdef ENABLE_GESTALT
     {
         extern void Gestalt_SetInitBit(int bit);
 
@@ -662,7 +653,6 @@ static void init_system71(void) {
             serial_puts("  Gestalt Manager init FAILED\n");
         }
     }
-#endif
 
     /* Resource Manager - needed for loading resources */
     InitResourceManager();
@@ -679,11 +669,9 @@ static void init_system71(void) {
         }
     }
 
-#ifdef ENABLE_GESTALT
     /* Mark Resource Manager as initialized */
     extern void Gestalt_SetInitBit(int bit);
     Gestalt_SetInitBit(2);  /* kGestaltInitBit_ResourceMgr */
-#endif
 
     /* Extension Manager - loads INIT resources and system extensions */
 #ifdef ENABLE_EXTENSIONS
@@ -823,7 +811,6 @@ static void init_system71(void) {
     }
 #endif
 
-#ifdef ENABLE_RESOURCES
     /* Resource Manager smoke test */
     {
         extern void serial_puts(const char*);
@@ -859,7 +846,6 @@ static void init_system71(void) {
             serial_puts("[ResourceMgr] MENU 256 unexpected result\n");
         }
     }
-#endif
 
     /* QuickDraw - graphics foundation */
     InitGraf(&qd.thePort);
@@ -969,11 +955,6 @@ static void init_system71(void) {
     /* Control Manager */
     serial_puts("  Control Manager initialized\n");
 
-#ifdef CTRL_SMOKE_TEST
-    /* Create control smoke test window */
-    extern void InitControlSmokeTest(void);
-    InitControlSmokeTest();
-#endif
 
     /* List Manager */
     serial_puts("  List Manager initialized\n");
@@ -1280,9 +1261,7 @@ static void test_cancel_stale(void) {
 static void run_performance_tests(void) {
     serial_puts("\n=== Running Performance Tests ===\n");
 
-#ifdef ENABLE_RESOURCES
     bench_getresource();
-#endif
 
     test_cancel_stale();
 
@@ -1579,7 +1558,6 @@ void kernel_main(uint32_t magic, uint32_t* mb2_info) {
     }
 
     /* Create windows and menus using real System 7.1 APIs */
-#ifdef ENABLE_GESTALT
     /* Gestalt smoke test */
     {
         long value;
@@ -1672,7 +1650,6 @@ void kernel_main(uint32_t magic, uint32_t* mb2_info) {
 
         serial_puts("=== Gestalt Test Complete ===\n\n");
     }
-#endif
 
     /* Always run performance tests after initialization for debugging */
     #if 1  /* Enable performance tests */
@@ -1692,26 +1669,10 @@ void kernel_main(uint32_t magic, uint32_t* mb2_info) {
     serial_puts("MAIN: DrawVolumeIcon returned\n");
 
     /* Run alert dialog smoke tests */
-    #ifdef ALERT_SMOKE_TEST
-    extern void InitAlertSmokeTest(void);
-    InitAlertSmokeTest();
-    #endif
 
     /* Run List Manager smoke tests */
-    #ifdef LIST_SMOKE_TEST
-    extern void RunListSmokeTest(void);
-    serial_puts("MAIN: Running List Manager smoke tests\n");
-    RunListSmokeTest();
-    serial_puts("MAIN: List Manager smoke tests complete\n");
-    #endif
 
     /* Run Speech Manager smoke tests */
-    #ifdef SPEECH_SMOKE_TEST
-    extern void RunSpeechSmokeTest(void);
-    serial_puts("MAIN: Running Speech Manager smoke tests\n");
-    RunSpeechSmokeTest();
-    serial_puts("MAIN: Speech Manager smoke tests complete\n");
-    #endif
 
     /* Draw initial cursor */
     UpdateCursorDisplay();

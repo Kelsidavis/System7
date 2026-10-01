@@ -287,8 +287,10 @@ DeskAccessory *DA_CreateInstance(const char *name)
     }
 
     /* Initialize basic properties */
-    strncpy(da->name, name, DA_NAME_LENGTH);
-    da->name[DA_NAME_LENGTH] = '\0';
+    /* Bounded by the field, 32 bytes: DA_NAME_LENGTH is 255, and both the
+     * copy and the terminator went past the end of it */
+    strncpy(da->name, name, sizeof(da->name) - 1);
+    da->name[sizeof(da->name) - 1] = '\0';
     da->type = entry->type;
     da->state = DA_STATE_CLOSED;
 
@@ -418,7 +420,7 @@ int DA_Status(DeskAccessory *da, SInt16 statusCode, DAControlPB *params)
             break;
 
         case DA_STATUS_VERSION:
-            *(UInt16 *)params->csParam = DESK_MGR_VERSION;
+            params->csParam[0] = DESK_MGR_VERSION;
             break;
 
         case DA_STATUS_INFO:

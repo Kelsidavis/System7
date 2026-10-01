@@ -60,18 +60,6 @@ SInt16 InitMouseEvents(void);
 void ShutdownMouseEvents(void);
 
 /**
- * Process a raw mouse event and generate appropriate Mac events
- * @param x Mouse X coordinate
- * @param y Mouse Y coordinate
- * @param buttonMask Button state bitmask
- * @param modifiers Modifier key state
- * @param timestamp Event timestamp
- * @return Number of events generated
- */
-SInt16 ProcessRawMouseEvent(SInt16 x, SInt16 y, SInt16 buttonMask,
-                            SInt16 modifiers, UInt32 timestamp);
-
-/**
  * Get current mouse position
  * @param mouseLoc Pointer to Point to receive position
  */

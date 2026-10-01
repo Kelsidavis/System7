@@ -206,13 +206,6 @@ else
   CFLAGS += -DDEFAULT_BEZEL_STYLE=0
 endif
 
-# Add feature flags based on configuration
-ifeq ($(ENABLE_RESOURCES),1)
-  CFLAGS += -DENABLE_RESOURCES=1
-endif
-ifeq ($(MODERN_INPUT_ONLY),1)
-  CFLAGS += -DMODERN_INPUT_ONLY=1
-endif
 
 # Resource files
 RSRC_JSON = patterns.json
@@ -379,13 +372,11 @@ C_SOURCES = src/main.c \
             src/Resources/generated/icons_generated.c \
             src/Resources/ResourceData.c \
             src/ControlPanels/cdev_desktop.c \
-            src/simple_resource_manager.c \
             src/ControlManager/ControlManagerCore.c \
             src/ControlManager/ControlTracking.c \
             src/ControlManager/ScrollbarControls.c \
             src/ControlManager/StandardControls.c \
             src/ControlManager/ControlResources.c \
-            src/ControlManager/ControlSmoke.c \
             src/ControlPanels/sound_cdev.c \
             src/ControlPanels/mouse_cdev.c \
             src/ControlPanels/keyboard_cdev.c \
@@ -423,7 +414,6 @@ C_SOURCES = src/main.c \
             src/DialogManager/DialogResources.c \
             src/DialogManager/ModalDialogs.c \
             src/DialogManager/AlertDialogs.c \
-            src/DialogManager/AlertSmoke.c \
             src/DialogManager/DialogEvents.c \
             src/DialogManager/DialogItems.c \
             src/DialogManager/DialogResourceParser.c \
@@ -521,43 +511,21 @@ CFLAGS += -DINTEGRATION_TESTS=1
 endif
 
 
-# Add ResourceMgr sources if enabled
-ifeq ($(ENABLE_RESOURCES),1)
+# Resource Manager, Gestalt Manager, Scrap Manager and List Manager. These were
+# each behind an ENABLE_ option whose "off" build no longer compiled.
 C_SOURCES += src/ResourceMgr/ResourceMgr.c \
-             src/ResourceMgr/StringResources.c
-endif
-
-
-# Add Gestalt Manager if enabled
-ifeq ($(ENABLE_GESTALT),1)
-C_SOURCES += src/Gestalt/Gestalt.c \
-             src/Gestalt/GestaltBuiltins.c
-CFLAGS += -DENABLE_GESTALT=1
-endif
+             src/ResourceMgr/StringResources.c \
+             src/Gestalt/Gestalt.c \
+             src/Gestalt/GestaltBuiltins.c \
+             src/ScrapManager/ScrapManager.c \
+             src/ListManager/ListManager.c \
+             src/ListManager/list_manager.c \
+             src/ListManager/Pack0_ListManager.c
 
 # Process Manager cooperative scheduling, and the Event Manager calls it routes
 C_SOURCES += src/ProcessMgr/CooperativeScheduler.c \
              src/ProcessMgr/EventIntegration.c
 
-# Add ScrapManager if enabled
-ifeq ($(ENABLE_SCRAP),1)
-C_SOURCES += src/ScrapManager/ScrapManager.c
-CFLAGS += -DENABLE_SCRAP=1
-# Enable self-test for debugging
-CFLAGS += -DSCRAP_SELFTEST=1 -DDEBUG_DOUBLECLICK=1
-endif
-
-# Add ListManager if enabled
-ifeq ($(ENABLE_LIST),1)
-C_SOURCES += src/ListManager/ListManager.c \
-             src/ListManager/list_manager.c \
-             src/ListManager/ListSmoke.c \
-             src/ListManager/Pack0_ListManager.c
-CFLAGS += -DENABLE_LIST=1
-ifeq ($(LIST_SMOKE_TEST),1)
-CFLAGS += -DLIST_SMOKE_TEST=1
-endif
-endif
 
 # Add ExtensionManager and related loaders
 C_SOURCES += src/ExtensionManager/ExtensionManagerCore.c \
@@ -570,28 +538,18 @@ CFLAGS += -DENABLE_EXTENSIONS=1
 
 # Speech Manager - Minimal implementation with SoundManager integration
 C_SOURCES += src/SpeechManager/SpeechManagerCore.c \
-             src/SpeechManager/SpeechOutput_Stub.c \
-             src/SpeechManager/SpeechSmoke.c
+             src/SpeechManager/SpeechOutput_Stub.c
 CFLAGS += -DENABLE_SPEECH=1
 
 # Speech Manager smoke test (optional testing)
-ifeq ($(SPEECH_SMOKE_TEST),1)
-CFLAGS += -DSPEECH_SMOKE_TEST=1
-endif
 
 # Notification Manager - Background notification system
 C_SOURCES += src/NotificationManager/NotificationManagerCore.c
 CFLAGS += -DENABLE_NOTIFICATION=1
 
 # Add Control smoke test if enabled
-ifeq ($(CTRL_SMOKE_TEST),1)
-CFLAGS += -DCTRL_SMOKE_TEST=1
-endif
 
 # Alert smoke test (alert dialogs)
-ifeq ($(ALERT_SMOKE_TEST),1)
-CFLAGS += -DALERT_SMOKE_TEST=1
-endif
 
 ASM_SOURCES = $(HAL_DIR)/platform_boot.S
 ifeq ($(PLATFORM),x86)
@@ -1536,13 +1494,6 @@ build-configurations:
 	@echo "  PI_MODEL=                Runtime detection (default)"
 	@echo ""
 	@echo "FEATURE FLAGS (override in config/*.mk or command line):"
-	@echo "  ENABLE_RESOURCES=1       Enable Resource Manager"
-	@echo "  ENABLE_GESTALT=1         Enable Gestalt Manager"
-	@echo "  ENABLE_SCRAP=1           Enable Scrap Manager"
-	@echo "  ENABLE_LIST=1            Enable List Manager"
-	@echo "  CTRL_SMOKE_TEST=1        Enable Control Manager tests"
-	@echo "  LIST_SMOKE_TEST=1        Enable List Manager tests"
-	@echo "  ALERT_SMOKE_TEST=1       Enable Alert Dialog tests"
 	@echo "  OPT_LEVEL=0-3            Optimization level (0=none, 1=default, 2-3=release)"
 	@echo "  DEBUG_SYMBOLS=0/1        Include debug symbols"
 	@echo ""
@@ -1557,7 +1508,6 @@ build-configurations:
 	@echo "  make PLATFORM=arm              Build with runtime Pi detection"
 	@echo "  make PLATFORM=ppc             Build experimental PowerPC image"
 	@echo "  make clean all                 Clean rebuild"
-	@echo "  make CTRL_SMOKE_TEST=1         Build with control tests"
 	@echo ""
 	@echo "BUILD INFORMATION:"
 	@echo "  Run 'make info' to see current build configuration details"

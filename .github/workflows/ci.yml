@@ -82,6 +82,27 @@ jobs:
           name: system71-all-languages-iso
           path: system71.iso
 
+  build-x86-configs:
+    name: Build x86 (debug and release configs)
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential gcc-multilib python3 vim-common
+
+      # Unoptimised and -O2 builds each catch what the other misses; these
+      # configurations stopped compiling unnoticed when nothing built them.
+      - name: Build CONFIG=debug
+        run: make clean && make PLATFORM=x86 CONFIG=debug
+
+      - name: Build CONFIG=release
+        run: make clean && make PLATFORM=x86 CONFIG=release
+
   build-arm64:
     name: Build ARM64
     runs-on: ubuntu-latest

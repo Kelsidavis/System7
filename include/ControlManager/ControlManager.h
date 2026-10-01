@@ -190,11 +190,18 @@ void _SetFirstControl(WindowPtr window, ControlHandle control);
 SInt16 _CallControlDefProc(ControlHandle control, SInt16 message, SInt32 param);
 Handle _GetControlDefProc(SInt16 procID);
 
-/* Smoke Test Functions (CTRL_SMOKE_TEST) */
-void InitControlSmokeTest(void);
-void CreateControlSmokeWindow(void);
-Boolean HandleControlSmokeClick(WindowPtr window, Point where);
-Boolean HandleControlSmokeKey(WindowPtr window, EventRecord* evt);
+/* A Point carried in a definition procedure's SInt32 parameter, as the
+ * Control Manager passes it, packed and unpacked without type punning */
+static inline SInt32 CTL_PointToParam(Point pt) {
+    SInt32 v;
+    __builtin_memcpy(&v, &pt, sizeof v);
+    return v;
+}
+static inline Point CTL_ParamToPoint(SInt32 v) {
+    Point pt;
+    __builtin_memcpy(&pt, &v, sizeof pt);
+    return pt;
+}
 
 #ifdef __cplusplus
 }

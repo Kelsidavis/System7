@@ -14,7 +14,4 @@
 struct DialogManagerState;
 struct DialogManagerState* GetDialogManagerState(void);
 
-/* Alert Smoke Test */
-void InitAlertSmokeTest(void);
-
 #endif /* DIALOG_INTERNAL_H */

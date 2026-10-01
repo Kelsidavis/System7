@@ -159,10 +159,6 @@ OSErr TextToPhonemes(SpeechChannel chan, void *textBuf, long textBytes,
 /* Dictionary support */
 OSErr UseDictionary(SpeechChannel chan, void *dictionary);
 
-/* ===== Testing Functions ===== */
-
-void RunSpeechSmokeTest(void);
-
 /* ===== Error Codes ===== */
 
 /* noErr is defined in MacTypes.h */

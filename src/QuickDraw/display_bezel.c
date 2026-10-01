@@ -1,9 +1,7 @@
 #include <stdint.h>
 
 #include "QuickDraw/DisplayBezel.h"
-#ifdef ENABLE_GESTALT
 #include "Gestalt/Gestalt.h"
-#endif
 
 extern void* framebuffer;
 extern uint32_t fb_width;
@@ -45,11 +43,7 @@ static int compute_corner_radius(void) {
 void QD_DrawCRTBezel(void) {
     QDBezelMode effectiveMode = gConfiguredBezelMode;
     if (effectiveMode == kQDBezelAuto) {
-#ifdef ENABLE_GESTALT
         UInt16 machine = Gestalt_GetMachineType();
-#else
-        UInt16 machine = 0;
-#endif
         if (machine == 0x0196) { /* NewWorld default */
             effectiveMode = kQDBezelFlat;
         } else {

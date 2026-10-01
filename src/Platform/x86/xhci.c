@@ -670,11 +670,17 @@ static void xhci_ep0_enqueue_setup(uint8_t slot_id, const usb_setup_packet_t *se
     }
     uint8_t slot_index = (uint8_t)(slot_id - 1);
     xhci_trb_t *trb = &g_ep0_ring[slot_index][g_ep0_ring_index[slot_index]++];
-    trb->dword0 = *(const uint32_t *)setup;
-    trb->dword1 = *((const uint32_t *)setup + 1);
+    uint32_t words[2];
+    memcpy(words, setup, sizeof words);
+    trb->dword0 = words[0];
+    trb->dword1 = words[1];
     trb->dword2 = 8;
+    /* Transfer type (xHCI 6.4.1.2.1): 0 no data stage, 2 OUT, 3 IN. This was
+     * 2 for everything, though the comment beside it said IN. */
+    uint32_t trt = setup->wLength == 0 ? 0u
+                 : (setup->bmRequestType & 0x80u) ? 3u : 2u;
     trb->dword3 = (XHCI_TRB_TYPE_SETUP_STAGE << XHCI_TRB_TYPE_SHIFT) |
-                  (2u << 16) | /* transfer type: IN data stage */
+                  (trt << 16) |
                   XHCI_TRB_IDT |
                   (g_ep0_cycle[slot_index] ? XHCI_TRB_CYCLE : 0);
 }

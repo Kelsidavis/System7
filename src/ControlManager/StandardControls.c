@@ -236,7 +236,7 @@ SInt32 ButtonCDEF(SInt16 varCode, ControlHandle theControl,
             return 0;
         }
         /* Test if point is in button */
-        pt = *(Point *)&param;
+        pt = CTL_ParamToPoint(param);
         return TestButtonPart(theControl, pt);
 
     case calcCRgns:
@@ -348,7 +348,7 @@ SInt32 CheckboxCDEF(SInt16 varCode, ControlHandle theControl,
             return 0;
         }
         /* Test if point is in checkbox */
-        pt = *(Point *)&param;
+        pt = CTL_ParamToPoint(param);
         return TestCheckboxPart(theControl, pt);
 
     case calcCRgns:
@@ -446,7 +446,7 @@ SInt32 RadioButtonCDEF(SInt16 varCode, ControlHandle theControl,
             return 0;
         }
         /* Test if point is in radio button */
-        pt = *(Point *)&param;
+        pt = CTL_ParamToPoint(param);
         return TestCheckboxPart(theControl, pt);
 
     case calcCRgns:
