@@ -410,10 +410,21 @@ void GetClip(RgnHandle rgn) {
     CopyRgn(g_currentPort->clipRgn, rgn);
 }
 
+/* The clip region is kept in global coordinates here, as everything that
+ * reads it expects; r is local, as Inside Macintosh has it. It used to be
+ * stored as given, so in a window away from the screen's origin the clip
+ * landed up and to the left of where it was asked for. */
 void ClipRect(const Rect *r) {
     assert(g_currentPort != NULL);
     assert(r != NULL);
     RectRgn(g_currentPort->clipRgn, r);
+    extern CGrafPtr g_currentCPort;
+    Boolean colour = g_currentCPort && (GrafPtr)g_currentCPort == g_currentPort;
+    if (!colour) {
+        OffsetRgn(g_currentPort->clipRgn,
+                  g_currentPort->portBits.bounds.left - g_currentPort->portRect.left,
+                  g_currentPort->portBits.bounds.top - g_currentPort->portRect.top);
+    }
 }
 
 /* ================================================================

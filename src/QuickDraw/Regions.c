@@ -817,16 +817,40 @@ Boolean PtInRgn(Point pt, RgnHandle rgn) {
  * REGION DRAWING
  * ================================================================ */
 
+/*
+ * Drawing a region draws each of its rectangles. These all went to one
+ * platform routine that painted the region's bounding box, ignored the
+ * clip and had no frame or invert at all - so a region with a notch in it,
+ * like the part of a window that another one does not cover, was filled
+ * straight across the window in the notch.
+ */
+static void RgnForEachRect(RgnHandle rgn, void (*draw)(const Rect*, ConstPatternParam),
+                           ConstPatternParam pat) {
+    Region* region = *rgn;
+    SInt16 n = RgnRectCount(region);
+    for (SInt16 i = 0; i < n; i++) {
+        Rect r;
+        RgnGetRect(*rgn, i, &r);   /* re-dereference: drawing may move memory */
+        draw(&r, pat);
+    }
+}
+
+static void RgnPaintOne(const Rect* r, ConstPatternParam pat)  { (void)pat; PaintRect(r); }
+static void RgnInvertOne(const Rect* r, ConstPatternParam pat) { (void)pat; InvertRect(r); }
+static void RgnFillOne(const Rect* r, ConstPatternParam pat)   { FillRect(r, pat); }
+
+/* The outline of a region is not drawn; nothing calls FrameRgn yet. */
 void FrameRgn(RgnHandle rgn) {
-    if (!rgn || !*rgn) return;
-    QDPlatform_DrawRegion(rgn, frame, NULL);
+    (void)rgn;
 }
 
 void PaintRgn(RgnHandle rgn) {
     if (!rgn || !*rgn) return;
-    QDPlatform_DrawRegion(rgn, paint, NULL);
+    RgnForEachRect(rgn, RgnPaintOne, NULL);
 }
 
+/* Erasing keeps the desktop's colour pattern, which only the platform
+ * layer knows about; it erases rectangle by rectangle. */
 void EraseRgn(RgnHandle rgn) {
     if (!rgn || !*rgn) return;
     QDPlatform_DrawRegion(rgn, erase, NULL);
@@ -834,12 +858,12 @@ void EraseRgn(RgnHandle rgn) {
 
 void InvertRgn(RgnHandle rgn) {
     if (!rgn || !*rgn) return;
-    QDPlatform_DrawRegion(rgn, invert, NULL);
+    RgnForEachRect(rgn, RgnInvertOne, NULL);
 }
 
 void FillRgn(RgnHandle rgn, ConstPatternParam pat) {
     if (!rgn || !*rgn || !pat) return;
-    QDPlatform_DrawRegion(rgn, fill, pat);
+    RgnForEachRect(rgn, RgnFillOne, pat);
 }
 
 /* ================================================================

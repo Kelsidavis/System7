@@ -244,6 +244,86 @@ void QDPlatform_FlushScreen(void) {
     }
 }
 
+
+/* ================================================================
+ * Clipping
+ *
+ * Drawing on screen is limited to the port's rectangle, its clipRgn and,
+ * for a window, the part of it no other window covers (Inside Macintosh:
+ * Imaging With QuickDraw, 2-16 and 3-11). This clipped to the clipRgn's
+ * bounding box only and never consulted the visible region, so a window
+ * behind drew straight over the ones in front wherever its clip was not a
+ * plain rectangle - and lines and region fills were not clipped at all.
+ *
+ * Each primitive builds the clip once, as a list of global rectangles, and
+ * every pixel it writes to the screen is tested against it. Offscreen
+ * buffers are not clipped here: EndUpdate copies them to the screen band by
+ * band through the window's visible region.
+ * ================================================================ */
+
+enum { kQDClipMaxRects = 128 };
+static struct {
+    int    depth;
+    Boolean active;
+    int    count;
+    Rect   rects[kQDClipMaxRects];
+} gQDClip;
+
+extern Boolean WM_PortVisibleRgn(GrafPtr port, RgnHandle out);
+
+static void QD_ClipAddRegion(RgnHandle rgn) {
+    Region* r = *rgn;
+    if (EmptyRect(&r->rgnBBox)) return;
+    if (r->rgnSize <= 10) {                       /* rectangular */
+        gQDClip.rects[gQDClip.count++] = r->rgnBBox;
+        return;
+    }
+    SInt16 n = *(SInt16*)((UInt8*)r + 10);
+    const Rect* list = (const Rect*)((UInt8*)r + 12);
+    for (SInt16 i = 0; i < n && gQDClip.count < kQDClipMaxRects; i++) {
+        gQDClip.rects[gQDClip.count++] = list[i];
+    }
+}
+
+void QD_ClipBegin(GrafPtr port) {
+    if (gQDClip.depth++ > 0) return;              /* the outer primitive's clip holds */
+    gQDClip.active = false;
+    gQDClip.count = 0;
+    extern CGrafPtr g_currentCPort;
+    if (!port || !framebuffer || port->portBits.baseAddr != (Ptr)framebuffer) return;
+    if (g_currentCPort && (GrafPtr)g_currentCPort == port) return;
+
+    static RgnHandle clip = NULL, tmp = NULL;
+    if (!clip) clip = NewRgn();
+    if (!tmp) tmp = NewRgn();
+    if (!clip || !tmp) return;
+
+    /* The port rectangle, global */
+    Rect pr = port->portRect;
+    OffsetRect(&pr, port->portBits.bounds.left - port->portRect.left,
+                    port->portBits.bounds.top - port->portRect.top);
+    RectRgn(clip, &pr);
+    if (port->clipRgn && *port->clipRgn) SectRgn(clip, port->clipRgn, clip);
+    if (WM_PortVisibleRgn(port, tmp)) SectRgn(clip, tmp, clip);
+
+    QD_ClipAddRegion(clip);
+    gQDClip.active = true;
+}
+
+void QD_ClipEnd(void) {
+    if (gQDClip.depth > 0 && --gQDClip.depth == 0) gQDClip.active = false;
+}
+
+/* May (x,y), global, be drawn? */
+Boolean QD_ClipHas(SInt32 x, SInt32 y) {
+    if (!gQDClip.active) return true;
+    for (int i = 0; i < gQDClip.count; i++) {
+        const Rect* r = &gQDClip.rects[i];
+        if (x >= r->left && x < r->right && y >= r->top && y < r->bottom) return true;
+    }
+    return false;
+}
+
 /* Set a pixel */
 void QDPlatform_SetPixel(SInt32 x, SInt32 y, UInt32 color) {
     extern GrafPtr g_currentPort;
@@ -283,6 +363,7 @@ void QDPlatform_SetPixel(SInt32 x, SInt32 y, UInt32 color) {
         if (g_currentPort->portBits.baseAddr == (Ptr)framebuffer) {
             /* Drawing to framebuffer - x,y are global screen coords */
             if (x < 0 || x >= fb_width || y < 0 || y >= fb_height) return;
+            if (!QD_ClipHas(x, y)) return;
             uint32_t* pixel = (uint32_t*)((uint8_t*)framebuffer + y * fb_pitch + x * 4);
             *pixel = color;
         } else {
@@ -432,7 +513,7 @@ UInt32 QDPlatform_RGBToPixel(UInt8 red, UInt8 green, UInt8 blue) {
 }
 
 /* Draw a line using platform capabilities - called from QuickDrawCore */
-void QDPlatform_DrawLine(GrafPtr port, Point startPt, Point endPt,
+static void QDPlatform_DrawLine_Body(GrafPtr port, Point startPt, Point endPt,
                         const Pattern* pat, SInt16 mode) {
     /* Simple Bresenham's algorithm */
     SInt32 x1 = startPt.h;
@@ -519,11 +600,19 @@ void QDPlatform_DrawLine(GrafPtr port, Point startPt, Point endPt,
     }
 }
 
+void QDPlatform_DrawLine(GrafPtr port, Point startPt, Point endPt,
+                        const Pattern* pat, SInt16 mode) {
+    extern GrafPtr g_currentPort;
+    QD_ClipBegin(port);
+    QDPlatform_DrawLine_Body(port, startPt, endPt, pat, mode);
+    QD_ClipEnd();
+}
+
 /* For Pattern Manager color patterns */
 extern bool PM_GetColorPattern(uint32_t** patternData);
 
 /* Draw a shape using platform capabilities - called from QuickDrawCore */
-void QDPlatform_DrawShape(GrafPtr port, GrafVerb verb, const Rect* rect,
+static void QDPlatform_DrawShape_Body(GrafPtr port, GrafVerb verb, const Rect* rect,
                          SInt16 shapeType, const Pattern* pat,
                          SInt16 ovalWidth, SInt16 ovalHeight) {
 
@@ -871,8 +960,17 @@ void QDPlatform_DrawShape(GrafPtr port, GrafVerb verb, const Rect* rect,
     }
 }
 
+void QDPlatform_DrawShape(GrafPtr port, GrafVerb verb, const Rect* rect,
+                         SInt16 shapeType, const Pattern* pat,
+                         SInt16 ovalWidth, SInt16 ovalHeight) {
+    extern GrafPtr g_currentPort;
+    QD_ClipBegin(port);
+    QDPlatform_DrawShape_Body(port, verb, rect, shapeType, pat, ovalWidth, ovalHeight);
+    QD_ClipEnd();
+}
+
 /* Polygon fill using scanline algorithm */
-void QDPlatform_FillPoly(GrafPtr port, PolyHandle poly, const Pattern* pat,
+static void QDPlatform_FillPoly_Body(GrafPtr port, PolyHandle poly, const Pattern* pat,
                         SInt16 mode, GrafVerb verb) {
     if (!poly || !*poly || !port) return;
 
@@ -977,6 +1075,14 @@ void QDPlatform_FillPoly(GrafPtr port, PolyHandle poly, const Pattern* pat,
     }
 }
 
+void QDPlatform_FillPoly(GrafPtr port, PolyHandle poly, const Pattern* pat,
+                        SInt16 mode, GrafVerb verb) {
+    extern GrafPtr g_currentPort;
+    QD_ClipBegin(port);
+    QDPlatform_FillPoly_Body(port, poly, pat, mode, verb);
+    QD_ClipEnd();
+}
+
 /* Convert RGB 16-bit values to native pixel format */
 UInt32 QDPlatform_RGBToNative(UInt16 red, UInt16 green, UInt16 blue) {
     /* Convert 16-bit Mac colors (0-65535) to 8-bit (0-255) */
@@ -995,182 +1101,54 @@ void QDPlatform_NativeToRGB(UInt32 native, UInt16* red, UInt16* green, UInt16* b
 }
 /* QuickDraw Platform region drawing implementation */
 /* Renders region outline/fill based on mode */
-void QDPlatform_DrawRegion(RgnHandle rgn, short mode, const Pattern* pat) {
-    if (!rgn || !*rgn) return;
+/* Erase a region in the current port: the desktop's colour pattern where
+ * the Pattern Manager has one, else EraseRect. Only erasing comes here now;
+ * Regions.c draws the other verbs rectangle by rectangle. */
+static void QDPlatform_DrawRegion_Body(RgnHandle rgn, short mode, const Pattern* pat) {
+    (void)pat;
+    if (mode != erase || !rgn || !*rgn || !framebuffer) return;
 
-    Region* region = (Region*)*rgn;
-    /* Explicit field copy to avoid ARM64 struct assignment hang */
-    Rect r;
-    r.top = region->rgnBBox.top;
-    r.left = region->rgnBBox.left;
-    r.bottom = region->rgnBBox.bottom;
-    r.right = region->rgnBBox.right;
+    extern bool PM_GetColorPattern(uint32_t** patternData);
+    extern void EraseRect(const Rect* r);
+    extern GrafPtr g_currentPort;
+    uint32_t* colorPattern = NULL;
+    Boolean colour = PM_GetColorPattern(&colorPattern) && g_currentPort &&
+                     g_currentPort->portBits.baseAddr == (Ptr)framebuffer;
+    SInt16 dh = colour ? g_currentPort->portBits.bounds.left - g_currentPort->portRect.left : 0;
+    SInt16 dv = colour ? g_currentPort->portBits.bounds.top - g_currentPort->portRect.top : 0;
 
-    if (!framebuffer) return;
-    Pointer_Shield(r.left, r.top, r.right, r.bottom);
-
-    /* CRITICAL: Handle Direct Framebuffer coordinate conversion
-     *
-     * When using Direct Framebuffer (baseAddr = framebuffer + offset),
-     * the region coordinates are GLOBAL (screen coordinates), but we need
-     * to convert them to LOCAL coordinates (relative to window content area).
-     *
-     * The window's baseAddr already points to the window's content area,
-     * so we need to use LOCAL coordinates (0,0,width,height) for pixel calcs.
-     */
-    extern QDGlobals qd;
-    GrafPtr port = qd.thePort;
-    int isDirectFB = 0;
-    if (port && port->portBits.baseAddr != (Ptr)framebuffer) {
-        /* This port has a baseAddr offset from framebuffer (Direct Framebuffer approach)
-         * Convert GLOBAL region coordinates to LOCAL coordinates */
-        isDirectFB = 1;
-
-        /* Get the window's content offset from portBits.bounds */
-        int localWidth = port->portBits.bounds.right - port->portBits.bounds.left;
-        int localHeight = port->portBits.bounds.bottom - port->portBits.bounds.top;
-
-        /* The offset in the framebuffer tells us the window's global position */
-        uint8_t* fbPtr = (uint8_t*)port->portBits.baseAddr;
-        uint8_t* fbStart = (uint8_t*)framebuffer;
-        int byteOffset = fbPtr - fbStart;
-
-        /* Calculate global position from byte offset */
-        extern uint32_t fb_pitch;
-        int globalY = byteOffset / fb_pitch;
-        int globalX = (byteOffset % fb_pitch) / 4;  /* 4 bytes per pixel */
-
-        extern void serial_puts(const char *str);
-        extern int snprintf(char* buf, size_t size, const char* fmt, ...);
-        char dbgbuf[256];
-        snprintf(dbgbuf, sizeof(dbgbuf), "[QDRAW-COORD] BEFORE: global_region=(%d,%d,%d,%d) window_at=(%d,%d) local_size=%dx%d\n",
-                r.left, r.top, r.right, r.bottom, globalX, globalY, localWidth, localHeight);
-        serial_puts(dbgbuf);
-
-        /* Convert region bounds from global to local */
-        r.left = r.left - globalX;
-        r.top = r.top - globalY;
-        r.right = r.right - globalX;
-        r.bottom = r.bottom - globalY;
-
-        snprintf(dbgbuf, sizeof(dbgbuf), "[QDRAW-COORD] AFTER:  local_region=(%d,%d,%d,%d)\n",
-                r.left, r.top, r.right, r.bottom);
-        serial_puts(dbgbuf);
-
-        /* Clamp to window bounds (LOCAL coordinates 0,0,width,height) */
-        if (r.left < 0) r.left = 0;
-        if (r.top < 0) r.top = 0;
-        if (r.right > localWidth) r.right = localWidth;
-        if (r.bottom > localHeight) r.bottom = localHeight;
-
-        if (r.left >= r.right || r.top >= r.bottom) return;  /* Nothing to draw */
-    }
-
-    /* Log fill operations for debugging ghost window issue */
-    if (mode == fill && pat) {
-        /* Check if this looks like a window content fill (white pattern) */
-        bool allWhite = true;
-        for (int i = 0; i < 8; i++) {
-            if (pat->pat[i] != 0xFF) {
-                allWhite = false;
-                break;
-            }
+    Region* region = *rgn;
+    SInt16 n = (region->rgnSize <= 10) ? (EmptyRect(&region->rgnBBox) ? 0 : 1)
+                                       : *(SInt16*)((UInt8*)region + 10);
+    for (SInt16 k = 0; k < n; k++) {
+        region = *rgn;
+        Rect r = (region->rgnSize <= 10) ? region->rgnBBox
+                                         : ((const Rect*)((UInt8*)region + 12))[k];
+        if (!colour) {
+            EraseRect(&r);
+            continue;
         }
-        if (allWhite) {
-            extern void serial_puts(const char *str);
-            extern int snprintf(char* buf, size_t size, const char* fmt, ...);
-            char dbgbuf[256];
-            snprintf(dbgbuf, sizeof(dbgbuf), "[QDRAW-FILL] Filling region at bbox=(%d,%d,%d,%d) white pattern\n",
-                    r.left, r.top, r.right, r.bottom);
-            serial_puts(dbgbuf);
-        }
-    }
-
-    /* Handle erase mode with Pattern Manager color patterns */
-    if (mode == erase) {
-        extern bool PM_GetColorPattern(uint32_t** patternData);
-        uint32_t* colorPattern = NULL;
-
-        if (PM_GetColorPattern(&colorPattern)) {
-            /* Use color pattern - tile 8x8 across region bounds */
-            int left = (r.left < 0) ? 0 : r.left;
-            int top = (r.top < 0) ? 0 : r.top;
-            int right = (r.right > fb_width) ? fb_width : r.right;
-            int bottom = (r.bottom > fb_height) ? fb_height : r.bottom;
-
-            for (int y = top; y < bottom; y++) {
-                for (int x = left; x < right; x++) {
-                    /* Get pattern pixel (8x8 tile) using absolute screen position */
-                    int patRow = y & 7;
-                    int patCol = x & 7;
-                    uint32_t patColor = colorPattern[patRow * 8 + patCol];
-
-                    /* Extract RGB from ARGB */
-                    uint8_t red = (patColor >> 16) & 0xFF;
-                    uint8_t green = (patColor >> 8) & 0xFF;
-                    uint8_t blue = patColor & 0xFF;
-
-                    uint32_t* pixel = (uint32_t*)((uint8_t*)framebuffer + y * fb_pitch + x * 4);
-                    *pixel = pack_color(red, green, blue);
-                }
-            }
-            return;
-        }
-    }
-
-    /* For other modes or if pattern not available, use simple rect operations */
-    if (mode == erase) {
-        extern void EraseRect(const Rect* r);
-        EraseRect(&r);
-    } else if (mode == paint && pat) {
-        /* Simple paint with pattern using port colors */
-        for (int y = r.top; y < r.bottom; y++) {
-            for (int x = r.left; x < r.right; x++) {
-                uint32_t color = QDPlatform_SelectPatternColor(port, pat, x, y,
-                                                                pack_color(0, 0, 0));
-                QDPlatform_SetPixel(x, y, color);
-            }
-        }
-    } else if (mode == fill && pat) {
-        /* Fill region with pattern */
-        /* Clamp to local bounds */
-        int left = (r.left < 0) ? 0 : r.left;
-        int top = (r.top < 0) ? 0 : r.top;
-
-        /* Check if using Direct Framebuffer (baseAddr offset from framebuffer) */
-        int right, bottom;
-        if (port && port->portBits.baseAddr != (Ptr)framebuffer) {
-            /* LOCAL coordinates - clamp to window size */
-            int localWidth = port->portBits.bounds.right - port->portBits.bounds.left;
-            int localHeight = port->portBits.bounds.bottom - port->portBits.bounds.top;
-            right = (r.right > localWidth) ? localWidth : r.right;
-            bottom = (r.bottom > localHeight) ? localHeight : r.bottom;
-        } else {
-            /* GLOBAL coordinates - clamp to screen */
-            right = (r.right > fb_width) ? fb_width : r.right;
-            bottom = (r.bottom > fb_height) ? fb_height : r.bottom;
-        }
-
+        OffsetRect(&r, dh, dv);   /* local to global */
+        int left = r.left < 0 ? 0 : r.left, top = r.top < 0 ? 0 : r.top;
+        int right = r.right > (int)fb_width ? (int)fb_width : r.right;
+        int bottom = r.bottom > (int)fb_height ? (int)fb_height : r.bottom;
+        Pointer_Shield(left, top, right, bottom);
         for (int y = top; y < bottom; y++) {
             for (int x = left; x < right; x++) {
-                /* Use position for pattern tiling (8x8 repeat) */
-                uint32_t color = QDPlatform_SelectPatternColor(port, pat, x, y,
-                                                              pack_color(0, 0, 0));
-
-                /* Write to appropriate location */
-                if (isDirectFB) {
-                    /* Direct Framebuffer: use window's baseAddr + local offset */
-                    uint32_t* pixel = (uint32_t*)((uint8_t*)port->portBits.baseAddr + y * fb_pitch + x * 4);
-                    *pixel = color;
-                } else {
-                    /* Regular framebuffer: calculate global position */
-                    uint32_t* pixel = (uint32_t*)((uint8_t*)framebuffer + y * fb_pitch + x * 4);
-                    *pixel = color;
-                }
+                if (!QD_ClipHas(x, y)) continue;
+                uint32_t c = colorPattern[(y & 7) * 8 + (x & 7)];
+                *(uint32_t*)((uint8_t*)framebuffer + y * fb_pitch + x * 4) =
+                    pack_color((c >> 16) & 0xFF, (c >> 8) & 0xFF, c & 0xFF);
             }
         }
     }
-    /* frame, invert modes not yet implemented */
+}
+
+void QDPlatform_DrawRegion(RgnHandle rgn, short mode, const Pattern* pat) {
+    extern GrafPtr g_currentPort;
+    QD_ClipBegin(g_currentPort);
+    QDPlatform_DrawRegion_Body(rgn, mode, pat);
+    QD_ClipEnd();
 }
 
 /* ============================================================================
@@ -1195,7 +1173,7 @@ static inline UInt8 GetBitmapBit(const UInt8 *bitmap, SInt32 bitOffset) {
  * @param color     Pixel color to use
  * @return          Character advance width in pixels
  */
-SInt16 QDPlatform_DrawGlyph(struct FontStrike *strike, UInt8 ch, SInt16 x, SInt16 y,
+static SInt16 QDPlatform_DrawGlyph_Body(struct FontStrike *strike, UInt8 ch, SInt16 x, SInt16 y,
                             GrafPtr port, UInt32 color) {
     if (!strike) {
         return 0;
@@ -1297,7 +1275,8 @@ SInt16 QDPlatform_DrawGlyph(struct FontStrike *strike, UInt8 ch, SInt16 x, SInt1
 
             SInt32 bitPos = bitRowStart + locStart + col;
 
-            if (GetBitmapBit(bitmap, bitPos)) {
+            if (GetBitmapBit(bitmap, bitPos) &&
+                (renderBuffer != (Ptr)framebuffer || QD_ClipHas(pixelX + col, pixelY + row))) {
                 SInt32 pixelOffset = (pixelY + row) * (renderPitch / 4) + (pixelX + col);
                 pixels[pixelOffset] = color;
             }
@@ -1310,6 +1289,14 @@ SInt16 QDPlatform_DrawGlyph(struct FontStrike *strike, UInt8 ch, SInt16 x, SInt1
     }
 
     return charWidth;
+}
+
+SInt16 QDPlatform_DrawGlyph(struct FontStrike *strike, UInt8 ch, SInt16 x, SInt16 y,
+                            GrafPtr port, UInt32 color) {
+    QD_ClipBegin(port);
+    SInt16 advance = QDPlatform_DrawGlyph_Body(strike, ch, x, y, port, color);
+    QD_ClipEnd();
+    return advance;
 }
 
 /**
@@ -1326,7 +1313,7 @@ SInt16 QDPlatform_DrawGlyph(struct FontStrike *strike, UInt8 ch, SInt16 x, SInt1
  * @param pattern   Pattern to use for foreground pixels
  * @param mode      Transfer mode (srcCopy, srcOr, etc.)
  */
-void QDPlatform_DrawGlyphBitmap(GrafPtr port, Point pen,
+static void QDPlatform_DrawGlyphBitmap_Body(GrafPtr port, Point pen,
                          const uint8_t *bitmap,
                          SInt16 width, SInt16 height,
                          const Pattern *pattern, SInt16 mode) {
@@ -1424,4 +1411,14 @@ void QDPlatform_DrawGlyphBitmap(GrafPtr port, Point pen,
             }
         }
     }
+}
+
+void QDPlatform_DrawGlyphBitmap(GrafPtr port, Point pen,
+                         const uint8_t *bitmap,
+                         SInt16 width, SInt16 height,
+                         const Pattern *pattern, SInt16 mode) {
+    extern GrafPtr g_currentPort;
+    QD_ClipBegin(port);
+    QDPlatform_DrawGlyphBitmap_Body(port, pen, bitmap, width, height, pattern, mode);
+    QD_ClipEnd();
 }

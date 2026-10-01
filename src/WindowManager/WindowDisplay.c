@@ -258,14 +258,23 @@ void PaintOne(WindowPtr window, RgnHandle clobberedRgn) {
     SetPort(wmgrPort);
     WM_LOG_TRACE("PaintOne: Switched to WMgr port for backfill\n");
 
-    /* Reset clip in WMgr port */
-    extern void SetRectRgn(RgnHandle rgn, short left, short top, short right, short bottom);
-    AutoRgnHandle fullClipWMgr = WM_NewAutoRgn();
-    if (fullClipWMgr.rgn) {
-        SetRectRgn(fullClipWMgr.rgn, -32768, -32768, 32767, 32767);
-        SetClip(fullClipWMgr.rgn);
+    /* Clip the Window Manager port to the part of this window no window in
+     * front covers (Inside Macintosh: Toolbox Essentials, 4-127). The clip
+     * used to be opened to the whole plane, so painting a window that was
+     * not in front - ShowWindow, PaintBehind, a resize - filled its content
+     * white and drew its frame straight over the windows in front of it. */
+    AutoRgnHandle chromeClip = WM_NewAutoRgn();
+    if (chromeClip.rgn && window->strucRgn && *window->strucRgn) {
+        CopyRgn(window->strucRgn, chromeClip.rgn);
+        WindowManagerState* wmState = GetWindowManagerState();
+        for (WindowPtr w = wmState ? wmState->windowList : NULL; w && w != window; w = w->nextWindow) {
+            if (w->visible && w->strucRgn && *w->strucRgn) {
+                DiffRgn(chromeClip.rgn, w->strucRgn, chromeClip.rgn);
+            }
+        }
+        SetClip(chromeClip.rgn);
     }
-    WM_DisposeAutoRgn(&fullClipWMgr);
+    WM_DisposeAutoRgn(&chromeClip);
 
     /* CRITICAL: Fill content region with white background BEFORE drawing chrome
      * This prevents garbage/dotted patterns from appearing in the window content area
@@ -525,6 +534,24 @@ void CalcVis(WindowPtr window) {
     }
 }
 
+/*
+ * For QuickDraw: if port is a visible window, the part of its content no
+ * window in front covers, global, in out. Worked out afresh each time, so
+ * it is never stale. False for any other port.
+ */
+Boolean WM_PortVisibleRgn(GrafPtr port, RgnHandle out) {
+    WindowManagerState* wm = GetWindowManagerState();
+    if (!port || !out || !wm) return false;
+    for (WindowPtr w = wm->windowList; w; w = w->nextWindow) {
+        if ((GrafPtr)w != port) continue;
+        if (!w->visible || !w->visRgn) return false;
+        CalcVis(w);
+        CopyRgn(w->visRgn, out);
+        return true;
+    }
+    return false;
+}
+
 void CalcVisBehind(WindowPtr startWindow, RgnHandle clobberedRgn) {
     WindowManagerState* wmState = GetWindowManagerState();
     if (!wmState) return;
@@ -553,14 +580,14 @@ void ClipAbove(WindowPtr window) {
     AutoRgnHandle clipRgn = WM_NewAutoRgn();
     if (clipRgn.rgn) {
         /* Start with full screen */
-        SetRectRgn(clipRgn.rgn, 0, 0, 1024, 768);
+        SetRectRgn(clipRgn.rgn, qd.screenBits.bounds.left, qd.screenBits.bounds.top,
+                   qd.screenBits.bounds.right, qd.screenBits.bounds.bottom);
 
         /* Subtract regions of windows in front */
         WindowPtr frontWindow = FrontWindow();
         while (frontWindow && frontWindow != window) {
-            if (frontWindow->visible && frontWindow->strucRgn) {
-                /* Would subtract frontWindow->strucRgn from clipRgn.rgn */
-                /* For now, simplified implementation */
+            if (frontWindow->visible && frontWindow->strucRgn && *frontWindow->strucRgn) {
+                DiffRgn(clipRgn.rgn, frontWindow->strucRgn, clipRgn.rgn);
             }
             frontWindow = frontWindow->nextWindow;
         }

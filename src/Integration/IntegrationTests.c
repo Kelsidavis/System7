@@ -16,6 +16,8 @@
 #include "MemoryMgr/MemoryManager.h"
 #include "DialogManager/DialogResources.h"
 #include "ResourceManager.h"
+#include "WindowManager/WindowManager.h"
+#include "QuickDraw/QuickDraw.h"
 #include "MacTypes.h"
 #include "math.h"
 
@@ -461,6 +463,53 @@ static void Test_File_ReadThroughExtentsOverflow(void) {
     RecordTest(test_name, true, "");
 }
 
+/*
+ * Drawing in a window that another one partly covers stays out of the
+ * covered part: rectangles and text, read back from the screen.
+ */
+static UInt32 ScreenPixel(int x, int y) {
+    extern void* framebuffer;
+    extern uint32_t fb_pitch;
+    return *(UInt32*)((UInt8*)framebuffer + y * fb_pitch + x * 4);
+}
+
+static void Test_Draw_ClippedToVisibleRegion(void) {
+    const char* test_name = "Draw_ClippedToVisibleRegion";
+    Rect backR  = { 150, 520, 350, 700 };    /* top, left, bottom, right */
+    Rect frontR = { 220, 600, 420, 780 };
+    WindowPtr back = NewWindow(NULL, &backR, (ConstStr255Param)"\x06ITBack", true,
+                               0, (WindowPtr)-1, false, 0);
+    WindowPtr front = NewWindow(NULL, &frontR, (ConstStr255Param)"\x07ITFront", true,
+                                0, (WindowPtr)-1, false, 0);
+    CHECK(back && front, "NewWindow failed");
+
+    const int px = 650, py = 300;            /* inside both: front covers it */
+    const int qx = 560, qy = 200;            /* in the back window only */
+    /* The screen may not be drawn yet: give the front window white
+     * content, so the back one's black has something to show against. */
+    GrafPtr save;
+    GetPort(&save);
+    SetPort((GrafPtr)front);
+    EraseRect(&front->port.portRect);
+    UInt32 before = ScreenPixel(px, py);
+
+    SetPort((GrafPtr)back);
+    PaintRect(&back->port.portRect);
+    MoveTo(0, 150);
+    DrawString((ConstStr255Param)"\x14WWWWWWWWWWWWWWWWWWWW");
+    SetPort(save);
+
+    UInt32 covered = ScreenPixel(px, py);
+    UInt32 uncovered = ScreenPixel(qx, qy);
+    DisposeWindow(front);
+    DisposeWindow(back);
+
+    CHECK((before & 0x00FFFFFF) == 0x00FFFFFF, "the front window's content did not erase to white");
+    CHECK(covered == before, "the back window drew over the front one");
+    CHECK((uncovered & 0x00FFFFFF) == 0, "the back window's own uncovered part was not painted");
+    RecordTest(test_name, true, "");
+}
+
 static void Test_Resource_CreateAndOpenResFile(void) {
     const char* test_name = "Resource_CreateAndOpenResFile";
     FSSpec spec;
@@ -584,6 +633,7 @@ void IntegrationTests_Run(void) {
     Test_File_Metadata();
     Test_File_FoldersAndWorkingDirectories();
     Test_File_InFolder();
+    Test_Draw_ClippedToVisibleRegion();
     Test_File_ReadThroughExtentsOverflow();
 
     IT_LOG_INFO("--- Resource Manager ---");

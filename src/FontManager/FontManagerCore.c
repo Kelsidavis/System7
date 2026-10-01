@@ -5,6 +5,7 @@
  * Integrates with existing Chicago font implementation
  */
 
+#include "QuickDraw/QuickDrawPlatform.h"
 #include "FontManager/FontInternal.h"
 #include "FontManager/FontManager.h"
 #include "FontManager/FontTypes.h"
@@ -192,6 +193,10 @@ static void FM_BlitGlyph(short x, short y, const ChicagoCharInfo* info,
     int pixels_drawn = 0;
     int first_pixel_x = -1, first_pixel_y = -1;
 
+    /* Text on screen is clipped like everything else: it used to be held
+     * only to portBits.bounds, so a window behind wrote its text over the
+     * ones in front. */
+    QD_ClipBegin(g_currentPort);
     for (int row = 0; row < CHICAGO_HEIGHT; row++) {
         int destY = y + row;
         if (destY < clipTop || destY >= clipBottom) {
@@ -206,7 +211,8 @@ static void FM_BlitGlyph(short x, short y, const ChicagoCharInfo* info,
                 continue;
             }
             int bit_position = info->bit_start + col;
-            if (get_bit(strike_row, bit_position)) {
+            if (get_bit(strike_row, bit_position) &&
+                (destBase != (Ptr)framebuffer || QD_ClipHas(destX, destY))) {
                 uint8_t* dstRow = (uint8_t*)destBase +
                                   (destY - destYOrigin) * destRowBytes;
                 uint32_t* dstPixels = (uint32_t*)dstRow;
@@ -219,6 +225,8 @@ static void FM_BlitGlyph(short x, short y, const ChicagoCharInfo* info,
             }
         }
     }
+
+    QD_ClipEnd();
 
     /* Debug removed - serial_printf can hang on ARM64 */
     (void)pixels_drawn;

@@ -45,6 +45,12 @@ void QDPlatform_FlushScreen(void);
 
 /* Pixel operations */
 void QDPlatform_SetPixel(SInt32 x, SInt32 y, UInt32 color);
+
+/* Clipping for one drawing operation on screen: port rectangle, clipRgn and
+ * the window's visible region. Begin and End bracket the operation. */
+void QD_ClipBegin(GrafPtr port);
+void QD_ClipEnd(void);
+Boolean QD_ClipHas(SInt32 x, SInt32 y);   /* global coordinates */
 UInt32 QDPlatform_GetPixel(SInt32 x, SInt32 y);
 
 /* Line drawing acceleration (optional) */
