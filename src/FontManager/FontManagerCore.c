@@ -899,8 +899,11 @@ void QD_LocalToPixel(short localX, short localY, short* pixelX, short* pixelY) {
 
     /* Convert from QuickDraw coordinates to framebuffer pixels */
     /* Account for the port's origin */
-    *pixelX = localX - g_currentPort->portRect.left + g_currentPort->portBits.bounds.left;
-    *pixelY = localY - g_currentPort->portRect.top + g_currentPort->portBits.bounds.top;
+    /* local + bounds, as every other drawing call maps it: subtracting
+     * portRect's corner as well put text off by the origin once SetOrigin
+     * had moved it. */
+    *pixelX = localX + g_currentPort->portBits.bounds.left;
+    *pixelY = localY + g_currentPort->portBits.bounds.top;
     /* Debug removed - serial_printf can hang on ARM64 */
 }
 

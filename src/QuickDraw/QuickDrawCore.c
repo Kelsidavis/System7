@@ -383,14 +383,32 @@ void MovePortTo(SInt16 leftGlobal, SInt16 topGlobal) {
     g_currentPort->portRect.bottom = topGlobal + height;
 }
 
+/*
+ * SetOrigin - give the port's top left corner the local coordinates (h,v)
+ * (Inside Macintosh: Imaging With QuickDraw, 2-40). portRect moves by the
+ * change and the bitmap's bounds by the opposite, so a point's place on the
+ * screen - local plus bounds - stays where it was, now under new numbers.
+ * This set bounds to 2*bounds - (h,v) and left portRect alone, so drawing
+ * after SetOrigin(0,0) in a window landed off by the window's position.
+ */
 void SetOrigin(SInt16 h, SInt16 v) {
     assert(g_currentPort != NULL);
 
-    /* Adjust port bounds by the origin offset */
-    SInt16 dh = g_currentPort->portBits.bounds.left - h;
-    SInt16 dv = g_currentPort->portBits.bounds.top - v;
+    SInt16 dh = h - g_currentPort->portRect.left;
+    SInt16 dv = v - g_currentPort->portRect.top;
+    if (dh == 0 && dv == 0) return;
 
-    OffsetRect(&g_currentPort->portBits.bounds, dh, dv);
+    OffsetRect(&g_currentPort->portRect, dh, dv);
+
+    extern CGrafPtr g_currentCPort;
+    if (g_currentCPort && (GrafPtr)g_currentCPort == g_currentPort) {
+        CGrafPtr cport = (CGrafPtr)g_currentPort;
+        if (cport->portPixMap && *cport->portPixMap) {
+            OffsetRect(&(*cport->portPixMap)->bounds, (SInt16)-dh, (SInt16)-dv);
+        }
+    } else {
+        OffsetRect(&g_currentPort->portBits.bounds, (SInt16)-dh, (SInt16)-dv);
+    }
 }
 
 /* ================================================================
@@ -420,9 +438,10 @@ void ClipRect(const Rect *r) {
     extern CGrafPtr g_currentCPort;
     Boolean colour = g_currentCPort && (GrafPtr)g_currentCPort == g_currentPort;
     if (!colour) {
+        /* local + bounds is global, whatever the origin */
         OffsetRgn(g_currentPort->clipRgn,
-                  g_currentPort->portBits.bounds.left - g_currentPort->portRect.left,
-                  g_currentPort->portBits.bounds.top - g_currentPort->portRect.top);
+                  g_currentPort->portBits.bounds.left,
+                  g_currentPort->portBits.bounds.top);
     }
 }
 

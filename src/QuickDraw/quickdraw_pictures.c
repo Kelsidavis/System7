@@ -392,7 +392,14 @@ void DrawPicture(PicHandle myPicture, const Rect* dstRect) {
                     done = true;
                     break;
                 }
-                SetOrigin(dh, dv);
+                /* The opcode carries a change of origin, not an origin */
+                {
+                    extern GrafPtr g_currentPort;
+                    if (g_currentPort) {
+                        SetOrigin(g_currentPort->portRect.left + dh,
+                                  g_currentPort->portRect.top + dv);
+                    }
+                }
                 break;
             }
 

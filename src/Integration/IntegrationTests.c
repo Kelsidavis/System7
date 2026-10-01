@@ -759,6 +759,44 @@ static void Test_Dialog_IconItem(void) {
     RecordTest(test_name, true, "");
 }
 
+/* After SetOrigin, a point's new coordinates draw where the old ones did:
+ * shapes, text-free, and the clip all move together. */
+static void Test_Draw_SetOrigin(void) {
+    const char* test_name = "Draw_SetOrigin";
+    Rect wr = { 150, 520, 300, 700 };
+    WindowPtr w = NewWindow(NULL, &wr, (ConstStr255Param)"\x06ITOrig", true, 0, (WindowPtr)-1, false, 0);
+    CHECK(w, "NewWindow failed");
+    GrafPtr save;
+    GetPort(&save);
+    SetPort((GrafPtr)w);
+    EraseRect(&w->port.portRect);
+    int gx = (*w->contRgn)->rgnBBox.left, gy = (*w->contRgn)->rgnBBox.top;
+
+    SetOrigin(100, 50);
+    Rect r = { 50 + 10, 100 + 10, 50 + 20, 100 + 20 };   /* old local (10,10)-(20,20) */
+    PaintRect(&r);
+    Point p = { 50 + 15, 100 + 15 };
+    LocalToGlobal(&p);
+    Rect clip = { 50, 100, 50 + 5, 100 + 5 };            /* old local (0,0)-(5,5) */
+    ClipRect(&clip);
+    Rect big = { 50, 100, 50 + 40, 100 + 40 };
+    PaintRect(&big);                                     /* only the clip may darken */
+    ClipRect(&w->port.portRect);
+    SetOrigin(0, 0);
+
+    UInt32 painted = ScreenPixel(gx + 15, gy + 15);
+    UInt32 clipped = ScreenPixel(gx + 2, gy + 2);
+    UInt32 outside = ScreenPixel(gx + 30, gy + 30);
+    SetPort(save);
+    DisposeWindow(w);
+
+    CHECK((painted & 0x00FFFFFF) == 0, "a rectangle drew elsewhere after SetOrigin");
+    CHECK(p.h == gx + 15 && p.v == gy + 15, "LocalToGlobal disagreed with drawing after SetOrigin");
+    CHECK((clipped & 0x00FFFFFF) == 0 && (outside & 0x00FFFFFF) == 0x00FFFFFF,
+          "ClipRect after SetOrigin clipped somewhere else");
+    RecordTest(test_name, true, "");
+}
+
 static void Test_Resource_CreateAndOpenResFile(void) {
     const char* test_name = "Resource_CreateAndOpenResFile";
     FSSpec spec;
@@ -884,6 +922,7 @@ void IntegrationTests_Run(void) {
     Test_File_InFolder();
     Test_Draw_ClippedToVisibleRegion();
     Test_Draw_PenModes();
+    Test_Draw_SetOrigin();
     Test_Dialog_AlertLayout();
     Test_Dialog_IconItem();
     Test_Window_ReorderAndHide();

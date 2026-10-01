@@ -340,8 +340,7 @@ void QD_ClipBegin(GrafPtr port) {
 
     /* The port rectangle, global */
     Rect pr = port->portRect;
-    OffsetRect(&pr, port->portBits.bounds.left - port->portRect.left,
-                    port->portBits.bounds.top - port->portRect.top);
+    OffsetRect(&pr, port->portBits.bounds.left, port->portBits.bounds.top);
     RectRgn(clip, &pr);
     if (port->clipRgn && *port->clipRgn) SectRgn(clip, port->clipRgn, clip);
     if (WM_PortVisibleRgn(port, tmp)) SectRgn(clip, tmp, clip);
