@@ -671,6 +671,41 @@ static void Test_Window_ReorderAndHide(void) {
     RecordTest(test_name, true, "");
 }
 
+/* MoveWindow places the content's corner, for any kind of window; zooming
+ * in and back out restores the window. */
+static void Test_Window_MoveAndZoom(void) {
+    const char* test_name = "Window_MoveAndZoom";
+    Rect r = { 150, 520, 300, 700 };
+    WindowPtr doc = NewWindow(NULL, &r, (ConstStr255Param)"\x03" "Doc", true, zoomDocProc, (WindowPtr)-1, true, 0);
+    WindowPtr dlg = NewWindow(NULL, &r, (ConstStr255Param)"", true, dBoxProc, (WindowPtr)-1, false, 0);
+    CHECK(doc && dlg, "NewWindow failed");
+
+    Boolean ok = true;
+    WindowPtr ws[2] = { doc, dlg };
+    for (int i = 0; i < 2; i++) {
+        Rect f0 = (*ws[i]->strucRgn)->rgnBBox, c0 = (*ws[i]->contRgn)->rgnBBox;
+        MoveWindow(ws[i], 300, 200, false);
+        Rect f1 = (*ws[i]->strucRgn)->rgnBBox, c1 = (*ws[i]->contRgn)->rgnBBox;
+        if (c1.left != 300 || c1.top != 200) ok = false;
+        if (c1.left - f1.left != c0.left - f0.left || c1.top - f1.top != c0.top - f0.top) ok = false;
+    }
+    Rect before = (*doc->contRgn)->rgnBBox;
+    ZoomWindow(doc, inZoomOut + 1 /* inZoomIn */, false);
+    Rect zoomed = (*doc->contRgn)->rgnBBox;
+    ZoomWindow(doc, inZoomOut, false);
+    Rect after = (*doc->contRgn)->rgnBBox;
+
+    DisposeWindow(dlg);
+    DisposeWindow(doc);
+    CHECK(ok, "MoveWindow did not put the content's corner where asked, or changed the frame");
+    CHECK(zoomed.top >= 20 && (zoomed.right - zoomed.left) > (before.right - before.left),
+          "zooming in did not enlarge the window below the menu bar");
+    CHECK(after.left == before.left && after.top == before.top &&
+          after.right == before.right && after.bottom == before.bottom,
+          "zooming back out did not restore the window");
+    RecordTest(test_name, true, "");
+}
+
 static void Test_Resource_CreateAndOpenResFile(void) {
     const char* test_name = "Resource_CreateAndOpenResFile";
     FSSpec spec;
@@ -798,6 +833,7 @@ void IntegrationTests_Run(void) {
     Test_Draw_PenModes();
     Test_Dialog_AlertLayout();
     Test_Window_ReorderAndHide();
+    Test_Window_MoveAndZoom();
     Test_File_ReadThroughExtentsOverflow();
 
     IT_LOG_INFO("--- Resource Manager ---");

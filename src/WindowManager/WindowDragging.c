@@ -147,204 +147,65 @@ static DragFeedbackMode_Local Local_GetPreferredDragFeedback(void) {
  * Window Movement Functions
  * ============================================================================ */
 
+/*
+ * MoveWindow - put the top left of the window's content (its port
+ * rectangle) at (hGlobal, vGlobal), global coordinates (Inside Macintosh:
+ * Toolbox Essentials, 4-104). The frame moves with it by the same amount,
+ * so every kind of window keeps its own frame.
+ *
+ * This took the point as the frame's top left and rebuilt the content
+ * 21 pixels under it, as for a document window - so a dialog without a
+ * title bar had its content drawn 20 pixels low after any move.
+ */
 void MoveWindow(WindowPtr theWindow, short hGlobal, short vGlobal, Boolean front) {
-    if (theWindow == NULL) return;
+    if (theWindow == NULL || !theWindow->strucRgn || !*theWindow->strucRgn ||
+        !theWindow->contRgn || !*theWindow->contRgn) return;
 
-    WM_DEBUG("MoveWindow: Moving window to (%d, %d), front = %s",
-             hGlobal, vGlobal, front ? "true" : "false");
+    Rect cont = (*theWindow->contRgn)->rgnBBox;
+    short dh = hGlobal - cont.left;
+    short dv = vGlobal - cont.top;
 
-    if (theWindow->refCon == 0x4449534b) {
-        extern void serial_puts(const char *str);
-        extern int snprintf(char* buf, size_t size, const char* fmt, ...);
-        char dbgbuf[256];
-        snprintf(dbgbuf, sizeof(dbgbuf), "[MOVECALL] hGlobal=%d vGlobal=%d\n", hGlobal, vGlobal);
-        serial_puts(dbgbuf);
+    /* Kept on screen, judged by the frame */
+    Rect frame = (*theWindow->strucRgn)->rgnBBox;
+    Rect moved = frame;
+    WM_OffsetRect(&moved, dh, dv);
+    if (!WM_ValidateWindowPosition(theWindow, &moved)) {
+        WM_ConstrainWindowPosition(theWindow, &moved);
+        dh = moved.left - frame.left;
+        dv = moved.top - frame.top;
     }
 
-    /* CRITICAL: Get current global position from strucRgn, NOT from portRect
-     * portRect is ALWAYS in LOCAL coordinates (0,0,width,height)
-     * strucRgn contains the GLOBAL screen position */
-    Rect currentGlobalBounds;
-    if (theWindow->strucRgn && *(theWindow->strucRgn)) {
-        currentGlobalBounds = (*(theWindow->strucRgn))->rgnBBox;
-    } else {
-        /* Fallback: use portRect but this is wrong if already corrupted */
-        currentGlobalBounds = theWindow->port.portRect;
-    }
-
-    /* Calculate movement offset */
-    short deltaH = hGlobal - currentGlobalBounds.left;
-    short deltaV = vGlobal - currentGlobalBounds.top;
-
-    if (theWindow->refCon == 0x4449534b) {
-        extern void serial_puts(const char *str);
-        extern int snprintf(char* buf, size_t size, const char* fmt, ...);
-        char dbgbuf[256];
-        snprintf(dbgbuf, sizeof(dbgbuf), "[MOVECALL] current bounds=(%d,%d,%d,%d) deltaH=%d deltaV=%d\n",
-                currentGlobalBounds.left, currentGlobalBounds.top,
-                currentGlobalBounds.right, currentGlobalBounds.bottom,
-                deltaH, deltaV);
-        serial_puts(dbgbuf);
-    }
-
-    /* Check if window actually needs to move */
-    if (deltaH == 0 && deltaV == 0) {
-        if (front) {
-            SelectWindow(theWindow);
-        }
+    if (dh == 0 && dv == 0) {
+        if (front) SelectWindow(theWindow);
         return;
     }
 
-    /* Validate new position */
-    Rect newBounds = currentGlobalBounds;
-    WM_OffsetRect(&newBounds, deltaH, deltaV);
-
-    if (!WM_ValidateWindowPosition(theWindow, &newBounds)) {
-        WM_DEBUG("MoveWindow: Invalid window position, constraining");
-        WM_ConstrainWindowPosition(theWindow, &newBounds);
-        deltaH = newBounds.left - currentGlobalBounds.left;
-        deltaV = newBounds.top - currentGlobalBounds.top;
-    }
-
-    /* Save old structure region for invalidation */
     RgnHandle oldStrucRgn = Platform_NewRgn();
-    if (oldStrucRgn && theWindow->strucRgn) {
-        Platform_CopyRgn(theWindow->strucRgn, oldStrucRgn);
-    }
+    if (oldStrucRgn) Platform_CopyRgn(theWindow->strucRgn, oldStrucRgn);
 
-    /* CRITICAL: Do NOT modify portRect - it must stay in LOCAL coordinates!
-     * Only update the window regions which are in GLOBAL coordinates */
-
-    /* Update window regions using the CORRECTED deltaH and deltaV after validation */
-    if (theWindow->strucRgn) {
-        /* Validate that strucRgn handle is not NULL */
-        if (!*(theWindow->strucRgn)) {
-            WM_LOG_ERROR("MoveWindow: strucRgn handle points to NULL after validation\n");
-        }
-
-        if (theWindow->refCon == 0x4449534b) {
-            extern void serial_puts(const char *str);
-            extern int snprintf(char* buf, size_t size, const char* fmt, ...);
-            char dbgbuf[256];
-            snprintf(dbgbuf, sizeof(dbgbuf), "[MOVEWIN] Before offset: computed newBounds=(%d,%d,%d,%d)\n",
-                    newBounds.left, newBounds.top, newBounds.right, newBounds.bottom);
-            serial_puts(dbgbuf);
-        }
-
-        /* Instead of offsetting the existing region, recalculate it properly */
-        if (theWindow->refCon == 0x4449534b) {
-            extern void serial_puts(const char *str);
-            extern int snprintf(char* buf, size_t size, const char* fmt, ...);
-            char dbgbuf[256];
-            snprintf(dbgbuf, sizeof(dbgbuf), "[MOVEWIN] Calling SetRectRgn with (%d,%d,%d,%d)\n",
-                    newBounds.left, newBounds.top, newBounds.right, newBounds.bottom);
-            serial_puts(dbgbuf);
-        }
-
-        extern void SetRectRgn(RgnHandle rgn, SInt16 left, SInt16 top, SInt16 right, SInt16 bottom);
-        SetRectRgn(theWindow->strucRgn, newBounds.left, newBounds.top, newBounds.right, newBounds.bottom);
-
-        if (theWindow->refCon == 0x4449534b) {
-            if (*(theWindow->strucRgn)) {
-                Rect afterUpdate = (*(theWindow->strucRgn))->rgnBBox;
-                extern void serial_puts(const char *str);
-                extern int snprintf(char* buf, size_t size, const char* fmt, ...);
-                char dbgbuf[256];
-                snprintf(dbgbuf, sizeof(dbgbuf), "[MOVEWIN] After SetRectRgn: strucRgn=(%d,%d,%d,%d)\n",
-                        afterUpdate.left, afterUpdate.top, afterUpdate.right, afterUpdate.bottom);
-                serial_puts(dbgbuf);
-            } else {
-                extern void serial_puts(const char *str);
-                serial_puts("[MOVEWIN] After SetRectRgn: strucRgn is NULL!\n");
-            }
-        }
-    }
-    if (theWindow->contRgn) {
-        /* Recalculate content region based on new structure bounds */
-        if (theWindow->strucRgn && *(theWindow->strucRgn)) {
-            Rect newStrucBounds = (*(theWindow->strucRgn))->rgnBBox;
-            Rect newContBounds;
-            newContBounds.left = newStrucBounds.left + 1;      /* 1px left border */
-            newContBounds.top = newStrucBounds.top + 21;       /* 1px border + 20px title */
-            newContBounds.right = newStrucBounds.right - 2;    /* 2px right border (1px border + 1px 3D highlight) */
-            newContBounds.bottom = newStrucBounds.bottom - 2;  /* 2px bottom border (1px bottom + 1px padding) */
-            extern void RectRgn(RgnHandle rgn, const Rect* r);
-            RectRgn(theWindow->contRgn, &newContBounds);
-        }
-    }
+    Platform_OffsetRgn(theWindow->strucRgn, dh, dv);
+    Platform_OffsetRgn(theWindow->contRgn, dh, dv);
     if (theWindow->updateRgn) {
-        /* Update region should be recalculated, not offset */
-        /* For now, just recalculate it to match content region */
-        if (theWindow->contRgn) {
-            extern void CopyRgn(RgnHandle srcRgn, RgnHandle dstRgn);
-            CopyRgn(theWindow->contRgn, theWindow->updateRgn);
-        }
+        /* The content is redrawn in its new place */
+        Platform_CopyRgn(theWindow->contRgn, theWindow->updateRgn);
     }
 
-    /* With Global Framebuffer approach, update portBits.bounds to content area's new GLOBAL position
-     * CRITICAL: Do this AFTER updating contRgn! */
-    if (theWindow->contRgn && *(theWindow->contRgn)) {
-        Rect newContentBounds = (*(theWindow->contRgn))->rgnBBox;
+    /* portBits.bounds is the content's global position */
+    Rect nc = (*theWindow->contRgn)->rgnBBox;
+    SetRect(&theWindow->port.portBits.bounds, nc.left, nc.top, nc.right, nc.bottom);
 
-        if (theWindow->refCon == 0x4449534b) {
-            extern void serial_puts(const char *str);
-            extern int snprintf(char* buf, size_t size, const char* fmt, ...);
-            char dbgbuf[256];
-            snprintf(dbgbuf, sizeof(dbgbuf), "[MOVWIN] strucRgn was (%d,%d,%d,%d) contRgn new bounds=(%d,%d,%d,%d)\n",
-                    (theWindow->strucRgn && *(theWindow->strucRgn)) ? (*(theWindow->strucRgn))->rgnBBox.left : -1,
-                    (theWindow->strucRgn && *(theWindow->strucRgn)) ? (*(theWindow->strucRgn))->rgnBBox.top : -1,
-                    (theWindow->strucRgn && *(theWindow->strucRgn)) ? (*(theWindow->strucRgn))->rgnBBox.right : -1,
-                    (theWindow->strucRgn && *(theWindow->strucRgn)) ? (*(theWindow->strucRgn))->rgnBBox.bottom : -1,
-                    newContentBounds.left, newContentBounds.top, newContentBounds.right, newContentBounds.bottom);
-            serial_puts(dbgbuf);
-        }
+    Rect nf = (*theWindow->strucRgn)->rgnBBox;
+    Platform_MoveNativeWindow(theWindow, nf.left, nf.top);
 
-        /* Update bounds to content area's new GLOBAL position */
-        SetRect(&theWindow->port.portBits.bounds,
-                newContentBounds.left, newContentBounds.top,
-                newContentBounds.right, newContentBounds.bottom);
+    if (front) SelectWindow(theWindow);
 
-        if (theWindow->refCon == 0x4449534b) {
-            extern void serial_puts(const char *str);
-            extern int snprintf(char* buf, size_t size, const char* fmt, ...);
-            char dbgbuf[256];
-            snprintf(dbgbuf, sizeof(dbgbuf), "[MOVWIN] portBits.bounds updated to (%d,%d,%d,%d)\n",
-                    theWindow->port.portBits.bounds.left, theWindow->port.portBits.bounds.top,
-                    theWindow->port.portBits.bounds.right, theWindow->port.portBits.bounds.bottom);
-            serial_puts(dbgbuf);
-        }
-    }
-
-    /* Move native platform window using new global position from strucRgn */
-    if (theWindow->strucRgn && *(theWindow->strucRgn)) {
-        Rect newGlobalBounds = (*(theWindow->strucRgn))->rgnBBox;
-        Platform_MoveNativeWindow(theWindow, newGlobalBounds.left, newGlobalBounds.top);
-    }
-
-    /* Bring to front if requested */
-    if (front) {
-        SelectWindow(theWindow);
-    }
-
-    /* Invalidate old and new positions */
     if (theWindow->visible) {
-        if (oldStrucRgn) {
-            Local_InvalidateScreenRegion(oldStrucRgn);
-        }
-        if (theWindow->strucRgn) {
-            Local_InvalidateScreenRegion(theWindow->strucRgn);
-        }
+        if (oldStrucRgn) Local_InvalidateScreenRegion(oldStrucRgn);
+        Local_InvalidateScreenRegion(theWindow->strucRgn);
     }
+    if (oldStrucRgn) Platform_DisposeRgn(oldStrucRgn);
 
-    /* Clean up */
-    if (oldStrucRgn) {
-        Platform_DisposeRgn(oldStrucRgn);
-    }
-
-    /* Update window layering if needed */
     WM_UpdateWindowVisibility(theWindow);
-
-    /* Debug log removed to avoid unused variable when logging is compiled out */
 }
 
 /* ============================================================================
@@ -644,7 +505,12 @@ void DragWindow(WindowPtr theWindow, Point startPt, const Rect* boundsRect) {
                      oldBounds.left, oldBounds.top, oldBounds.right, oldBounds.bottom);
 
         /* Move the window to new position */
-        MoveWindow(theWindow, dragOutline.left, dragOutline.top, false);
+        /* The outline is the frame; MoveWindow takes the content's corner */
+        {
+            Rect f = (*theWindow->strucRgn)->rgnBBox, c = (*theWindow->contRgn)->rgnBBox;
+            MoveWindow(theWindow, dragOutline.left + (c.left - f.left),
+                       dragOutline.top + (c.top - f.top), false);
+        }
 
         /* Recalculate window visibility */
         CalcVis(theWindow);

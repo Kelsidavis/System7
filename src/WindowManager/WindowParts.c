@@ -650,28 +650,14 @@ void WM_CalculateStandardWindowRegions(WindowPtr window, short varCode) {
     uart_flush();
 }
 
+/*
+ * A dialog's regions are worked out as any window's: the frame stands, and
+ * the content is inside it by the frame's thickness for the dialog's kind.
+ * They were built from portRect, which is local, so a dialog's content
+ * region sat at (0,0) whenever this ran.
+ */
 void WM_CalculateDialogWindowRegions(WindowPtr window, short varCode) {
-    if (window == NULL) return;
-
-    WM_DEBUG("WM_CalculateDialogWindowRegions: Calculating regions for dialog window");
-
-    /* Dialogs have simpler region calculation */
-    /* [WM-032] IM:Windows p.2-13: WindowRecord embeds GrafPort; use port.portRect */
-    Rect dialogRect = window->port.portRect;
-
-    /* Add border for structure region */
-    Rect structRect = dialogRect;
-    WM_InsetRect(&structRect, -WINDOW_BORDER_WIDTH, -WINDOW_BORDER_WIDTH);
-
-    /* Add title bar for movable dialogs */
-    if (varCode == movableDBoxProc) {
-        structRect.top -= TITLE_BAR_HEIGHT;
-    }
-
-    Platform_SetRectRgn(window->strucRgn, &structRect);
-    Platform_SetRectRgn(window->contRgn, &dialogRect);
-
-    WM_DEBUG("WM_CalculateDialogWindowRegions: Dialog regions calculated");
+    WM_CalculateStandardWindowRegions(window, varCode);
 }
 
 /* ============================================================================

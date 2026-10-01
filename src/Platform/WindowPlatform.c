@@ -476,22 +476,17 @@ void Platform_GetWindowContentRect(WindowPtr window, Rect* rect) {
      * its own frame. Nothing painted that strip, and the Finder window showed
      * through the top of the dialog.
      */
-    SInt16 chromeTop = kTitleBar + kSeparator;
-    switch (window->windowProcID) {
-        case dBoxProc:
-        case plainDBox:
-        case altDBoxProc:
-            chromeTop = kBorder;
-            break;
-        default:
-            break;
-    }
+    extern Boolean WM_WindowHasTitleBar(WindowPtr window);
+    SInt16 chromeTop = WM_WindowHasTitleBar(window) ? kTitleBar + kSeparator : kBorder;
 
-    /* Content is inside the frame */
+    /* Content is inside the frame, as NewWindow lays it out: 1 pixel at the
+     * left, 2 at the right and bottom. The bottom was taken as 1, a pixel
+     * more than NewWindow gives the content, so a window's content region
+     * and its port disagreed by a row after every recalculation. */
     rect->left = strucRectPtr->left + kBorder;
     rect->top = strucRectPtr->top + chromeTop;
-    rect->right = strucRectPtr->right - (kBorder + 1);  /* Right border is 2px */
-    rect->bottom = strucRectPtr->bottom - kBorder;
+    rect->right = strucRectPtr->right - (kBorder + 1);
+    rect->bottom = strucRectPtr->bottom - (kBorder + 1);
 }
 
 /*

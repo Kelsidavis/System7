@@ -34,10 +34,8 @@
 /* Provenance: Standard C practice for static functions called before definition */
 typedef struct WindowStateData WindowStateData;
 WindowStateData* WM_GetWindowStateData(WindowPtr window);
-static WindowStateData* WM_CreateWindowStateData(WindowPtr window);
 static void WM_CalculateStandardState(WindowPtr window, Rect* stdState);
 static void WM_UpdateWindowUserState(WindowPtr window);
-static Boolean Local_ValidateStateChecksum(WindowStateData* stateData);
 static void Local_UpdateStateChecksum(WindowStateData* stateData);
 static long Local_CalculateStateChecksum(WindowStateData* stateData);
 static void Local_AnimateZoom(WindowPtr window, const Rect* fromBounds, const Rect* toBounds);
@@ -145,32 +143,18 @@ void SizeWindow(WindowPtr theWindow, short w, short h, Boolean fUpdate) {
      */
     if (oldStrucRgn && *(oldStrucRgn)) {
         Rect oldStrucRect = (**oldStrucRgn).rgnBBox;
+        Rect oldContRect = (*theWindow->contRgn)->rgnBBox;
 
-        /* Chrome dimensions */
-        const SInt16 kBorder = 1;
-        const SInt16 kTitleBar = 20;
-        const SInt16 kSeparator = 1;
-        const SInt16 kRightBorder = 2;
+        /* The window keeps its own frame: the borders around the content
+         * are measured, not assumed. This took every window for a document
+         * window with a 20-pixel title bar, so a dialog resized grew one. */
+        Rect newContRect = oldContRect;
+        newContRect.right = newContRect.left + w;
+        newContRect.bottom = newContRect.top + h;
+        Rect newStrucRect = oldStrucRect;
+        newStrucRect.right = newContRect.right + (oldStrucRect.right - oldContRect.right);
+        newStrucRect.bottom = newContRect.bottom + (oldStrucRect.bottom - oldContRect.bottom);
 
-        /* Calculate old content position */
-        SInt16 contentLeft = oldStrucRect.left + kBorder;
-        SInt16 contentTop = oldStrucRect.top + kTitleBar + kSeparator;
-
-        /* Calculate new structure rect (frame) with new dimensions */
-        Rect newStrucRect;
-        newStrucRect.left = oldStrucRect.left;
-        newStrucRect.top = oldStrucRect.top;
-        newStrucRect.right = contentLeft + w + kRightBorder;
-        newStrucRect.bottom = contentTop + h + kBorder;
-
-        /* Calculate new content rect */
-        Rect newContRect;
-        newContRect.left = contentLeft;
-        newContRect.top = contentTop;
-        newContRect.right = contentLeft + w;
-        newContRect.bottom = contentTop + h;
-
-        /* Update regions */
         extern void Platform_SetRectRgn(RgnHandle rgn, const Rect* rect);
         Platform_SetRectRgn(theWindow->strucRgn, &newStrucRect);
         Platform_SetRectRgn(theWindow->contRgn, &newContRect);
@@ -423,9 +407,7 @@ void ZoomWindow(WindowPtr theWindow, short partCode, Boolean front) {
         if (stateData->hasUserState) {
             targetBounds = stateData->userState;
         } else {
-            /* Use current bounds as user state */
-            /* [WM-009] Provenance: IM:Windows p.2-13 */
-            targetBounds = theWindow->port.portRect;
+            targetBounds = (*theWindow->contRgn)->rgnBBox;
         }
         stateData->isZoomed = false;
         WM_DEBUG("ZoomWindow: Zooming out to user state");
@@ -442,16 +424,19 @@ void ZoomWindow(WindowPtr theWindow, short partCode, Boolean front) {
     }
 
     /* Save current state as appropriate */
-    if (!shouldZoomOut && !stateData->hasUserState) {
-        /* [WM-009] Provenance: IM:Windows p.2-13 */
-        stateData->userState = theWindow->port.portRect;
+    /* Both states are the content's global rectangle (Inside Macintosh:
+     * Toolbox Essentials, 4-121). The user state was kept as the local
+     * portRect, (0,0,w,h), so zooming back out put the window's corner at
+     * the screen's, under the menu bar. */
+    if (!shouldZoomOut) {
+        stateData->userState = (*theWindow->contRgn)->rgnBBox;
         stateData->hasUserState = true;
     }
 
     /* Perform zoom animation */
     if (Platform_IsZoomAnimationEnabled()) {
         /* [WM-009] Provenance: IM:Windows p.2-13 */
-        Local_AnimateZoom(theWindow, &theWindow->port.portRect, &targetBounds);
+        Local_AnimateZoom(theWindow, &(*theWindow->contRgn)->rgnBBox, &targetBounds);
     }
 
     /* Apply final size and position */
@@ -478,47 +463,26 @@ void ZoomWindow(WindowPtr theWindow, short partCode, Boolean front) {
  * Window State Management
  * ============================================================================ */
 
+/*
+ * The zoom states live in the window's dataHandle, as the WStateData record
+ * does (Inside Macintosh: Toolbox Essentials, 4-121). They were looked for
+ * in an auxiliary record that does not exist, so each call made new ones -
+ * leaking them, and forgetting where the window had been before zooming.
+ */
 WindowStateData* WM_GetWindowStateData(WindowPtr window) {
     if (window == NULL) return NULL;
-
-    /* Try to get state data from auxiliary window record */
-    AuxWinHandle auxWin;
-    if (GetAuxWin(window, &auxWin)) {
-        if (*auxWin != NULL) {
-            /* Check if dataHandle contains our state data */
-            if ((**auxWin).dialogCItem != NULL) {
-                /* Verify this is our state data */
-                WindowStateData* stateData = (WindowStateData*)((**auxWin).dialogCItem);
-                if (Local_ValidateStateChecksum(stateData)) {
-                    return stateData;
-                }
-            }
-        }
+    if (window->dataHandle && *window->dataHandle) {
+        return (WindowStateData*)*window->dataHandle;
     }
-
-    /* Create new state data */
-    WindowStateData* stateData = WM_CreateWindowStateData(window);
-    if (stateData && auxWin && *auxWin) {
-        (**auxWin).dialogCItem = (Handle)stateData;
+    Handle h = NewHandleClear(sizeof(WindowStateData));
+    if (!h) return NULL;
+    HLock(h);
+    window->dataHandle = h;
+    WindowStateData* stateData = (WindowStateData*)*h;
+    if (window->contRgn && *window->contRgn) {
+        stateData->userState = (*window->contRgn)->rgnBBox;
+        stateData->hasUserState = true;
     }
-
-    return stateData;
-}
-
-static WindowStateData* WM_CreateWindowStateData(WindowPtr window) {
-    WindowStateData* stateData = (WindowStateData*)NewPtrClear(sizeof(WindowStateData));
-    if (stateData == NULL) return NULL;
-
-    /* Initialize with current window bounds */
-    /* [WM-009] Provenance: IM:Windows p.2-13 */
-    stateData->userState = window->port.portRect;
-    stateData->hasUserState = true;
-    stateData->hasStdState = false;
-    stateData->isZoomed = false;
-
-    Local_UpdateStateChecksum(stateData);
-
-    WM_DEBUG("WM_CreateWindowStateData: Created new window state data");
     return stateData;
 }
 
@@ -538,28 +502,22 @@ static void WM_CalculateStandardState(WindowPtr window, Rect* stdState) {
             screenBounds.left, screenBounds.top, screenBounds.right, screenBounds.bottom);
     serial_puts(dbgbuf);
 
-    /* Calculate standard size (80% of screen, centered) */
-    short screenWidth = screenBounds.right - screenBounds.left;
-    short screenHeight = screenBounds.bottom - screenBounds.top;
-    short stdWidth = (screenWidth * 4) / 5;
-    short stdHeight = (screenHeight * 4) / 5;
-
-    /* Center on screen */
-    short leftMargin = (screenWidth - stdWidth) / 2;
-    short topMargin = (screenHeight - stdHeight) / 2;
-
-    WM_SetRect(stdState,
-              screenBounds.left + leftMargin,
-              screenBounds.top + topMargin,
-              screenBounds.left + leftMargin + stdWidth,
-              screenBounds.top + topMargin + stdHeight);
-
-    /* Adjust for menu bar */
-    /* [WM-011] Provenance: IM:Toolbox Essentials p.3-8 - menu bar height is 20 pixels */
+    /* The screen below the menu bar, less the window's own frame and a
+     * margin: the frame's thickness on each side is measured from the
+     * window. This was 80% of the screen as a frame rectangle, handed to
+     * SizeWindow as a content size. */
+    short menuBar = 20;
     WindowManagerState* wmState = GetWindowManagerState();
-    if (wmState && wmState->menuBarHeight > 0) {
-        stdState->top += wmState->menuBarHeight;
-    }
+    if (wmState && wmState->menuBarHeight > 0) menuBar = wmState->menuBarHeight;
+    Rect f = (*window->strucRgn)->rgnBBox, c = (*window->contRgn)->rgnBBox;
+    short leftEdge = c.left - f.left, topEdge = c.top - f.top;
+    short rightEdge = f.right - c.right, bottomEdge = f.bottom - c.bottom;
+    const short margin = 4;
+    WM_SetRect(stdState,
+               screenBounds.left + margin + leftEdge,
+               screenBounds.top + menuBar + margin + topEdge,
+               screenBounds.right - margin - rightEdge,
+               screenBounds.bottom - margin - bottomEdge);
 
     WM_DEBUG("WM_CalculateStandardState: Standard state = (%d, %d, %d, %d)",
              stdState->left, stdState->top, stdState->right, stdState->bottom);
@@ -577,18 +535,13 @@ static void WM_UpdateWindowUserState(WindowPtr window) {
     /* Update user state only if window is not currently zoomed */
     if (!stateData->isZoomed) {
         /* [WM-009] Provenance: IM:Windows p.2-13 */
-        stateData->userState = window->port.portRect;
-        stateData->hasUserState = true;
+        if (window->contRgn && *window->contRgn) {
+            stateData->userState = (*window->contRgn)->rgnBBox;
+            stateData->hasUserState = true;
+        }
         Local_UpdateStateChecksum(stateData);
         WM_DEBUG("WM_UpdateWindowUserState: Updated user state");
     }
-}
-
-static Boolean Local_ValidateStateChecksum(WindowStateData* stateData) {
-    if (stateData == NULL) return false;
-
-    long checksum = Local_CalculateStateChecksum(stateData);
-    return (checksum == stateData->stateChecksum);
 }
 
 static void Local_UpdateStateChecksum(WindowStateData* stateData) {

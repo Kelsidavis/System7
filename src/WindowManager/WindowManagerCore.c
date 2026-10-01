@@ -500,6 +500,12 @@ void CloseWindow(WindowPtr theWindow) {
     }
     WM_LOG_TRACE("CloseWindow: Title disposed\n");
 
+    /* The zoom states (WindowResizing.c keeps them in dataHandle) */
+    if (theWindow->dataHandle) {
+        DisposeHandle(theWindow->dataHandle);
+        theWindow->dataHandle = NULL;
+    }
+
     /* Clean up the window's port */
     WM_LOG_TRACE("CloseWindow: Cleaning up port\n");
     Platform_CleanupWindowPort(theWindow);
@@ -944,8 +950,13 @@ static void InitializeWindowRecord(WindowPtr window, const Rect* bounds,
         WM_LOG_TRACE("InitializeWindowRecord: Set strucRgn to clampedBounds\n");
     }
 
-    /* NOTE: Do NOT initialize contRgn here - let Platform_CalculateWindowRegions handle it
-     * This is called from ShowWindow and other places to ensure regions are always in sync */
+    /* The content region from the start, global like the frame. It was left
+     * empty until ShowWindow, so a window placed while still invisible - every
+     * dialog is centred before it is shown - was moved from a content region
+     * at (0,0), and its frame ended up twice as far across as it should. */
+    if (window->contRgn) {
+        Platform_SetRectRgn(window->contRgn, &window->port.portBits.bounds);
+    }
 }
 
 static void AddWindowToList(WindowPtr window, WindowPtr behind) {

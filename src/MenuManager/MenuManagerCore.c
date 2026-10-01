@@ -511,17 +511,22 @@ static void MenuBar_DrawClock(void) {
         clockLen = 7;
     }
 
-    /* Right-align in menu bar (approx 7px per char, 8px right margin) */
-    short clockX = qd.screenBits.bounds.right - (clockLen * 7) - 8;
+    /* Right-aligned, 8 pixels in, by the text's measured width: it was put
+     * at 7 pixels a character, so wider digits ran the last letter off the
+     * screen's edge. The area cleared reaches as far left as the last time
+     * drawn, which may have been wider. */
+    TextFont(0);
+    TextSize(12);
+    short clockX = qd.screenBits.bounds.right - TextWidth(clockBuf, 0, clockLen) - 8;
+    static short lastClockX = 0x7FFF;
+    short clearLeft = (clockX < lastClockX ? clockX : lastClockX) - 4;
+    lastClockX = clockX;
 
-    /* Clear the clock area first to avoid overwriting */
     Rect clockRect;
-    SetRect(&clockRect, clockX - 4, 0, qd.screenBits.bounds.right, 19);
+    SetRect(&clockRect, clearLeft, 0, qd.screenBits.bounds.right, 19);
     FillRect(&clockRect, &qd.white);
 
     ForeColor(blackColor);
-    TextFont(0);
-    TextSize(12);
     MoveTo(clockX, 14);
     DrawText(clockBuf, 0, clockLen);
 
