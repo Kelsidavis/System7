@@ -725,7 +725,7 @@ void DragWindow(WindowPtr theWindow, Point startPt, const Rect* boundsRect) {
             GrafPtr oldPort;
             GetPort(&oldPort);
             SetPort((GrafPtr)theWindow);
-            InvalRgn(theWindow->contRgn);
+            WM_InvalGlobalRgn(theWindow, theWindow->contRgn);
             SetPort(oldPort);
             WM_LOG_TRACE("DragWindow: Invalidated window content region\n");
         }
@@ -765,7 +765,7 @@ void DragWindow(WindowPtr theWindow, Point startPt, const Rect* boundsRect) {
             GrafPtr oldPort;
             GetPort(&oldPort);
             SetPort((GrafPtr)theWindow);
-            InvalRgn(theWindow->contRgn);
+            WM_InvalGlobalRgn(theWindow, theWindow->contRgn);
             SetPort(oldPort);
         }
     }

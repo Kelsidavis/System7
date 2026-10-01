@@ -341,22 +341,15 @@ void Platform_GetWindowGrowBoxRect(WindowPtr window, Rect* rect) {
 }
 
 void Platform_IntersectRgn(RgnHandle src1, RgnHandle src2, RgnHandle dst) {
-    /* Simple implementation - just copy src1 for now */
-    if (dst && src1 && *src1) {
-        CopyRgn(src1, dst);
-    }
+    if (src1 && *src1 && src2 && *src2 && dst && *dst) SectRgn(src1, src2, dst);
 }
 
 Boolean Platform_EmptyRgn(RgnHandle rgn) {
-    if (!rgn || !*rgn) return true;
-    return ((*rgn)->rgnBBox.left >= (*rgn)->rgnBBox.right ||
-            (*rgn)->rgnBBox.top >= (*rgn)->rgnBBox.bottom);
+    return (!rgn || !*rgn) ? true : EmptyRgn(rgn);
 }
 
 Boolean Platform_PtInRgn(Point pt, RgnHandle rgn) {
-    if (!rgn || !*rgn) return false;
-    return (pt.h >= (*rgn)->rgnBBox.left && pt.h < (*rgn)->rgnBBox.right &&
-            pt.v >= (*rgn)->rgnBBox.top && pt.v < (*rgn)->rgnBBox.bottom);
+    return (rgn && *rgn) ? PtInRgn(pt, rgn) : false;
 }
 
 void Platform_ShowNativeWindow(WindowPtr window, Boolean show) {
@@ -662,16 +655,13 @@ void Platform_SetUpdatePort(GrafPtr port) {
     SetPort(port);
 }
 
-/* Region operations */
+/* Region operations: QuickDraw's own. These used to work on bounding boxes
+ * alone - intersection and difference copied their first operand, union
+ * took the box around both, offset moved only the box, and copy took only
+ * the header - so the Window Manager's visible, update and clobbered
+ * regions were never the shapes they stood for. */
 void Platform_CopyRgn(RgnHandle src, RgnHandle dst) {
-    if (src && dst && *src && *dst) {
-        /* CRITICAL: Lock handles before dereferencing to prevent heap compaction issues */
-        HLock((Handle)src);
-        HLock((Handle)dst);
-        **dst = **src;
-        HUnlock((Handle)dst);
-        HUnlock((Handle)src);
-    }
+    if (src && dst && *src && *dst) CopyRgn(src, dst);
 }
 
 void Platform_SetRectRgn(RgnHandle rgn, const Rect* rect) {
@@ -687,48 +677,21 @@ void Platform_SetEmptyRgn(RgnHandle rgn) {
 }
 
 void Platform_UnionRgn(RgnHandle src1, RgnHandle src2, RgnHandle dst) {
-    if (!dst || !(*dst)) return;
-
-    Region* dstRgn = *dst;
-
-    if (src1 && *src1 && src2 && *src2) {
-        Region* rgn1 = *src1;
-        Region* rgn2 = *src2;
-
-        Boolean rgn1Empty = (rgn1->rgnBBox.left >= rgn1->rgnBBox.right || rgn1->rgnBBox.top >= rgn1->rgnBBox.bottom);
-        Boolean rgn2Empty = (rgn2->rgnBBox.left >= rgn2->rgnBBox.right || rgn2->rgnBBox.top >= rgn2->rgnBBox.bottom);
-
-        if (rgn1Empty && !rgn2Empty) {
-            Platform_CopyRgn(src2, dst);
-        } else if (rgn2Empty && !rgn1Empty) {
-            Platform_CopyRgn(src1, dst);
-        } else if (!rgn1Empty && !rgn2Empty) {
-            dstRgn->rgnBBox.left = (rgn1->rgnBBox.left < rgn2->rgnBBox.left) ? rgn1->rgnBBox.left : rgn2->rgnBBox.left;
-            dstRgn->rgnBBox.top = (rgn1->rgnBBox.top < rgn2->rgnBBox.top) ? rgn1->rgnBBox.top : rgn2->rgnBBox.top;
-            dstRgn->rgnBBox.right = (rgn1->rgnBBox.right > rgn2->rgnBBox.right) ? rgn1->rgnBBox.right : rgn2->rgnBBox.right;
-            dstRgn->rgnBBox.bottom = (rgn1->rgnBBox.bottom > rgn2->rgnBBox.bottom) ? rgn1->rgnBBox.bottom : rgn2->rgnBBox.bottom;
-        }
-    } else if (src1 && *src1) {
-        Platform_CopyRgn(src1, dst);
-    } else if (src2 && *src2) {
-        Platform_CopyRgn(src2, dst);
-    }
+    if (!dst || !*dst) return;
+    Boolean have1 = src1 && *src1, have2 = src2 && *src2;
+    if (have1 && have2) UnionRgn(src1, src2, dst);
+    else if (have1) CopyRgn(src1, dst);
+    else if (have2) CopyRgn(src2, dst);
 }
 
 void Platform_DiffRgn(RgnHandle src1, RgnHandle src2, RgnHandle dst) {
-    /* Simple difference - just copy src1 for now */
-    if (dst && src1) {
-        Platform_CopyRgn(src1, dst);
-    }
+    if (!dst || !*dst || !src1 || !*src1) return;
+    if (src2 && *src2) DiffRgn(src1, src2, dst);
+    else CopyRgn(src1, dst);
 }
 
 void Platform_OffsetRgn(RgnHandle rgn, short dh, short dv) {
-    if (rgn && *rgn) {
-        (*rgn)->rgnBBox.left += dh;
-        (*rgn)->rgnBBox.right += dh;
-        (*rgn)->rgnBBox.top += dv;
-        (*rgn)->rgnBBox.bottom += dv;
-    }
+    if (rgn && *rgn) OffsetRgn(rgn, dh, dv);
 }
 
 void Platform_SetClipRgn(GrafPtr port, RgnHandle rgn) {

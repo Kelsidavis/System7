@@ -488,7 +488,7 @@ paint_windows:
              * overflowed), so the update event repaints this. Redrawing content
              * from inside a chrome-painting routine is also what let repaints
              * from different callers disagree - see ARCH-001. */
-            InvalRgn(w->contRgn);
+            WM_InvalGlobalRgn(w, w->contRgn);
 
             SetPort(savePort);
 
@@ -1380,7 +1380,7 @@ void ShowWindow(WindowPtr window) {
          * This prevents content from overdrawing chrome while preserving contRgn. */
         CopyRgn(window->contRgn, window->port.clipRgn);
 
-        InvalRgn(window->contRgn);
+        WM_InvalGlobalRgn(window, window->contRgn);
 
         /* WORKAROUND: Directly draw folder window content since update events may not flow yet */
         if (window->refCon == 0x4449534b || window->refCon == 0x54525348) {  /* 'DISK' or 'TRSH' */

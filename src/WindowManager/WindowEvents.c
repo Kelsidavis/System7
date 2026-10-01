@@ -317,37 +317,76 @@ void InvalWindowRect(WindowPtr window, const Rect* badRect)
     SetPort(savePort);
 }
 
+/*
+ * How far a window's local coordinates are from global ones. The update
+ * region is global, like the content and structure regions it is combined
+ * with; InvalRect and the rest take the current port's local coordinates
+ * (Inside Macintosh: Toolbox Essentials, 4-111) and used to add them
+ * unconverted, so anything invalidated in a window not at the screen's
+ * origin was redrawn in the wrong place, and ValidRect cleared the wrong
+ * area. Measured from contRgn, which BeginUpdate's port swap leaves alone.
+ */
+static Boolean WM_PortIsWindow(GrafPtr port) {
+    WindowManagerState* wm = GetWindowManagerState();
+    for (WindowPtr w = wm ? wm->windowList : NULL; w; w = w->nextWindow) {
+        if ((GrafPtr)w == port) return true;
+    }
+    return false;
+}
+
+/* Only a window has an update region: the desktop's port is a plain
+ * GrafPort, and treating it as a window wrote past its end. */
+static Boolean WM_LocalToGlobalOffset(WindowPtr window, short* dh, short* dv) {
+    if (!window || !WM_PortIsWindow((GrafPtr)window)) return false;
+    if (!window->contRgn || !*window->contRgn) return false;
+    *dh = (*window->contRgn)->rgnBBox.left - window->port.portRect.left;
+    *dv = (*window->contRgn)->rgnBBox.top - window->port.portRect.top;
+    return true;
+}
+
+/* A copy of the current port's local rect as a global region, or NULL. */
+static RgnHandle WM_GlobalRgnFromLocalRect(WindowPtr window, const Rect* r) {
+    short dh, dv;
+    if (!WM_LocalToGlobalOffset(window, &dh, &dv)) return NULL;
+    RgnHandle rgn = Platform_NewRgn();
+    if (!rgn) return NULL;
+    Rect g = *r;
+    OffsetRect(&g, dh, dv);
+    Platform_SetRectRgn(rgn, &g);
+    return rgn;
+}
+
+static RgnHandle WM_GlobalRgnFromLocalRgn(WindowPtr window, RgnHandle local) {
+    short dh, dv;
+    if (!WM_LocalToGlobalOffset(window, &dh, &dv)) return NULL;
+    RgnHandle rgn = Platform_NewRgn();
+    if (!rgn) return NULL;
+    CopyRgn(local, rgn);
+    OffsetRgn(rgn, dh, dv);
+    return rgn;
+}
+
+/* Add a region already in global coordinates to a window's update region:
+ * for the Window Manager's own use, with content and structure regions. */
+void WM_InvalGlobalRgn(WindowPtr window, RgnHandle globalRgn) {
+    if (!window || !globalRgn || !*globalRgn) return;
+    if (!window->updateRgn) window->updateRgn = Platform_NewRgn();
+    if (window->updateRgn) Platform_UnionRgn(window->updateRgn, globalRgn, window->updateRgn);
+}
+
 void InvalRect(const Rect* badRect) {
     if (badRect == NULL) return;
 
-    WM_DEBUG("InvalRect: Invalidating rect (%d, %d, %d, %d)",
-             badRect->left, badRect->top, badRect->right, badRect->bottom);
-
-    /* Get current graphics port */
     GrafPtr currentPort = WM_GetCurrentPort();
     if (currentPort == NULL) return;
-
-    /* Assume current port is a window */
     WindowPtr window = (WindowPtr)currentPort;
 
-    /* Add rectangle to window's update region */
-    if (!window->updateRgn) {
-        /* Create update region if it doesn't exist */
-        window->updateRgn = Platform_NewRgn();
-        if (!window->updateRgn) return; /* Out of memory */
+    RgnHandle bad = WM_GlobalRgnFromLocalRect(window, badRect);
+    if (bad && !window->updateRgn) window->updateRgn = Platform_NewRgn();
+    if (bad && window->updateRgn) {
+        Platform_UnionRgn(window->updateRgn, bad, window->updateRgn);
     }
-
-    RgnHandle tempRgn = Platform_NewRgn();
-    if (tempRgn) {
-        Platform_SetRectRgn(tempRgn, badRect);
-        Platform_UnionRgn(window->updateRgn, tempRgn, window->updateRgn);
-        Platform_DisposeRgn(tempRgn);
-
-        /* Schedule platform update */
-        Platform_InvalidateWindowRect(window, badRect);
-    }
-
-    WM_DEBUG("InvalRect: Rectangle invalidated");
+    if (bad) Platform_DisposeRgn(bad);
 }
 
 /* Temporarily disable ALL WM logging to prevent heap corruption from variadic serial_logf */
@@ -363,88 +402,50 @@ void InvalRect(const Rect* badRect) {
 #define WM_DEBUG(...) do {} while(0)
 
 void InvalRgn(RgnHandle badRgn) {
+    if (badRgn == NULL) return;
 
-    if (badRgn == NULL) {
-        WM_LOG_WARN("WindowManager: InvalRgn called with NULL region\n");
-        return;
-    }
-
-    /* Get current graphics port */
     GrafPtr currentPort = WM_GetCurrentPort();
-    if (currentPort == NULL) {
-        WM_LOG_WARN("WindowManager: InvalRgn - no current port\n");
-        return;
-    }
-
-    /* Assume current port is a window */
+    if (currentPort == NULL) return;
     WindowPtr window = (WindowPtr)currentPort;
 
-    /* Add region to window's update region */
-    if (!window->updateRgn) {
-        window->updateRgn = Platform_NewRgn();
-        if (!window->updateRgn) {
-            WM_LOG_WARN("WindowManager: InvalRgn - failed to create updateRgn (out of memory)!\n");
-            return;
-        }
+    RgnHandle bad = WM_GlobalRgnFromLocalRgn(window, badRgn);
+    if (bad && !window->updateRgn) window->updateRgn = Platform_NewRgn();
+    if (bad && window->updateRgn) {
+        Platform_UnionRgn(window->updateRgn, bad, window->updateRgn);
     }
-
-    Platform_UnionRgn(window->updateRgn, badRgn, window->updateRgn);
-
-    /* Schedule platform update - convert region to rectangle for platform invalidation */
-    Rect regionBounds;
-    Platform_GetRegionBounds(badRgn, &regionBounds);
-    Platform_InvalidateWindowRect(window, &regionBounds);
-
-    /* Post update event to Event Manager so application can redraw */
-    /* PostEvent declared in EventManager.h */
-    PostEvent(6 /* updateEvt */, (SInt32)(uintptr_t)window);
-    WM_LOG_DEBUG("WindowManager: InvalRgn - Posted updateEvt for window=%p\n", (void*)window);
+    if (bad) Platform_DisposeRgn(bad);
 }
 
 void ValidRect(const Rect* goodRect) {
     if (goodRect == NULL) return;
 
-    WM_DEBUG("ValidRect: Validating rect (%d, %d, %d, %d)",
-             goodRect->left, goodRect->top, goodRect->right, goodRect->bottom);
-
-    /* Get current graphics port */
     GrafPtr currentPort = WM_GetCurrentPort();
     if (currentPort == NULL) return;
-
-    /* Assume current port is a window */
     WindowPtr window = (WindowPtr)currentPort;
 
-    /* Remove rectangle from window's update region */
-    if (window->updateRgn) {
-        RgnHandle tempRgn = Platform_NewRgn();
-        if (tempRgn) {
-            Platform_SetRectRgn(tempRgn, goodRect);
-            Platform_DiffRgn(window->updateRgn, tempRgn, window->updateRgn);
-            Platform_DisposeRgn(tempRgn);
+    if (WM_PortIsWindow(currentPort) && window->updateRgn) {
+        RgnHandle good = WM_GlobalRgnFromLocalRect(window, goodRect);
+        if (good) {
+            Platform_DiffRgn(window->updateRgn, good, window->updateRgn);
+            Platform_DisposeRgn(good);
         }
     }
-
-    WM_DEBUG("ValidRect: Rectangle validated");
 }
 
 void ValidRgn(RgnHandle goodRgn) {
     if (goodRgn == NULL) return;
 
-    WM_DEBUG("ValidRgn: Validating region");
-
-    /* Get current graphics port */
     GrafPtr currentPort = WM_GetCurrentPort();
     if (currentPort == NULL) return;
-
-    /* Assume current port is a window */
     WindowPtr window = (WindowPtr)currentPort;
 
-    /* Remove region from window's update region */
-    if (window->updateRgn) {
-        Platform_DiffRgn(window->updateRgn, goodRgn, window->updateRgn);
+    if (WM_PortIsWindow(currentPort) && window->updateRgn) {
+        RgnHandle good = WM_GlobalRgnFromLocalRgn(window, goodRgn);
+        if (good) {
+            Platform_DiffRgn(window->updateRgn, good, window->updateRgn);
+            Platform_DisposeRgn(good);
+        }
     }
-
-    WM_DEBUG("ValidRgn: Region validated");
 }
 
 /* ============================================================================

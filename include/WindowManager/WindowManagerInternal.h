@@ -262,6 +262,7 @@ Boolean WM_ValidateStateChecksum(WindowPtr window);
  */
 void WM_InvalidateWindowsBelow(WindowPtr topWindow, const Rect* rect);
 void WM_InvalidateScreenRegion(RgnHandle rgn);
+void WM_InvalGlobalRgn(WindowPtr window, RgnHandle globalRgn);   /* add a global region to updateRgn */
 void WM_CalculateWindowVisibility(WindowPtr window);
 void WM_UpdateWindowVisibilityStats(WindowPtr window);
 
