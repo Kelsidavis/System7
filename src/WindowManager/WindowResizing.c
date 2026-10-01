@@ -33,17 +33,6 @@
 /* [WM-017] Forward declarations for file-local helpers */
 /* Provenance: Standard C practice for static functions called before definition */
 typedef struct WindowStateData WindowStateData;
-typedef struct ResizeState ResizeState;
-static void Local_InitializeResizeState(WindowPtr window, Point startPt, const Rect* bBox);
-static void Local_CleanupResizeState(void);
-static void Local_InitializeSnapSizes(WindowPtr window);
-static void Local_AddSnapSize(short width, short height);
-/* Future use - resize feedback functions currently unused */
-/* static long Local_CalculateNewSize(Point currentPt); */
-/* static Point Local_ApplySnapToSize(short width, short height); */
-static void Local_StartResizeFeedback(void);
-/* static void Local_UpdateResizeFeedback(long newSize); */
-static void Local_EndResizeFeedback(void);
 WindowStateData* WM_GetWindowStateData(WindowPtr window);
 static WindowStateData* WM_CreateWindowStateData(WindowPtr window);
 static void WM_CalculateStandardState(WindowPtr window, Rect* stdState);
@@ -64,8 +53,6 @@ static void Local_GenerateResizeUpdateEvents(WindowPtr window, short oldWidth, s
 #define MIN_RESIZE_HEIGHT          60     /* Minimum window height */
 #define MAX_RESIZE_WIDTH           2048   /* Maximum window width */
 #define MAX_RESIZE_HEIGHT          2048   /* Maximum window height */
-#define RESIZE_SNAP_DISTANCE       8     /* Snap-to-size distance */
-#define GROW_FEEDBACK_DELAY        50    /* Delay for grow feedback (ms) */
 
 /* Zoom state constants */
 #define ZOOM_ANIMATION_STEPS       8     /* Steps in zoom animation */
@@ -81,27 +68,6 @@ typedef struct WindowStateData {
     long stateChecksum;         /* Checksum for state validation */
 } WindowStateData;
 
-/* Resize tracking state */
-typedef struct ResizeState {
-    WindowPtr window;           /* Window being resized */
-    Point startPoint;           /* Initial mouse position */
-    Point currentPoint;         /* Current mouse position */
-    Rect originalBounds;        /* Original window bounds */
-    Rect currentBounds;         /* Current bounds during resize */
-    Rect constraintRect;        /* Size constraints */
-    Rect snapSizes[8];          /* Predefined snap sizes */
-    short snapCount;            /* Number of snap sizes */
-    Boolean active;             /* True if resize is active */
-    Boolean hasMoved;           /* True if size has changed */
-    Boolean showFeedback;       /* True to show resize feedback */
-    unsigned long lastUpdate;   /* Last feedback update time */
-} ResizeState;
-
-/* Global resize state */
-static ResizeState g_resizeState = {
-    NULL, {0, 0}, {0, 0}, {0, 0, 0, 0}, {0, 0, 0, 0}, {0, 0, 0, 0},
-    {{0}}, 0, false, false, false, 0
-};
 
 /* ============================================================================
  * Window Sizing Functions
@@ -298,7 +264,13 @@ void SizeWindow(WindowPtr theWindow, short w, short h, Boolean fUpdate) {
 
                 SetPort(savePort);
 
-                WM_DEBUG("SizeWindow: Erased exposed desktop area");
+                /* Windows behind that were under the old frame need their
+                 * frames back, not just their content. Back to front, so this
+                 * window - painted below - ends up on top. */
+                if (!EmptyRgn(exposedDesktop) && theWindow->nextWindow) {
+                    extern void PaintBehind(WindowPtr startWindow, RgnHandle clobberedRgn);
+                    PaintBehind(theWindow->nextWindow, exposedDesktop);
+                }
 
                 Platform_DisposeRgn(exposedDesktop);
             }
@@ -346,259 +318,76 @@ void SizeWindow(WindowPtr theWindow, short w, short h, Boolean fUpdate) {
  * Grow Box Tracking
  * ============================================================================ */
 
+/*
+ * GrowWindow - track the grow box (Inside Macintosh: Toolbox Essentials,
+ * 4-106). While the button is down an outline of the window follows the
+ * pointer; the content may be no smaller than bBox's left and top and no
+ * larger than its right and bottom. Answers 0 if the size is unchanged,
+ * else the new content size with the height in the high word and the
+ * width in the low. The caller resizes the window, with SizeWindow.
+ *
+ * This measured the frame and handed it to SizeWindow as a content size,
+ * so each grow added the frame's borders; packed width high and height
+ * low, which swapped SimpleText's window; ignored bBox; and called
+ * SizeWindow itself, then painted the windows behind over the resized
+ * one's frame.
+ */
 long GrowWindow(WindowPtr theWindow, Point startPt, const Rect* bBox) {
-    extern void serial_puts(const char* str);
-    serial_puts("[GW] GrowWindow ENTRY\n");
+    if (theWindow == NULL || !WM_WindowHasGrowBox(theWindow)) return 0;
+    if (!theWindow->strucRgn || !*theWindow->strucRgn) return 0;
+    if (!Platform_IsMouseDown()) return 0;
 
-    if (theWindow == NULL) {
-        serial_puts("[GW] GrowWindow: NULL window\n");
-        return 0;
+    Rect frame = (*theWindow->strucRgn)->rgnBBox;
+    short contentW = theWindow->port.portRect.right - theWindow->port.portRect.left;
+    short contentH = theWindow->port.portRect.bottom - theWindow->port.portRect.top;
+    short extraW = (frame.right - frame.left) - contentW;
+    short extraH = (frame.bottom - frame.top) - contentH;
+
+    short minW = MIN_RESIZE_WIDTH, minH = MIN_RESIZE_HEIGHT;
+    short maxW = MAX_RESIZE_WIDTH, maxH = MAX_RESIZE_HEIGHT;
+    if (bBox) {
+        minW = bBox->left;  minH = bBox->top;
+        maxW = bBox->right; maxH = bBox->bottom;
     }
 
-    serial_puts("[GW] GrowWindow: Starting grow tracking\n");
-    WM_DEBUG("GrowWindow: Starting grow tracking from (%d, %d)", startPt.h, startPt.v);
+    extern void EventPumpYield(void);
+    extern void GetMouse(Point* mouseLoc);
+    extern Boolean StillDown(void);
+    extern void UpdateCursorDisplay(void);
 
-    /* Check if window supports growing */
-    serial_puts("[GW] Checking grow box\n");
-    if (!WM_WindowHasGrowBox(theWindow)) {
-        serial_puts("[GW] No grow box\n");
-        WM_DEBUG("GrowWindow: Window does not have grow box");
-        return 0;
-    }
-
-    /* Initialize resize state */
-    serial_puts("[GW] Initializing resize state\n");
-    Local_InitializeResizeState(theWindow, startPt, bBox);
-    serial_puts("[GW] Resize state initialized\n");
-
-    /* Check if mouse is still down */
-    serial_puts("[GW] Checking mouse\n");
-    if (!Platform_IsMouseDown()) {
-        serial_puts("[GW] Mouse not down\n");
-        WM_DEBUG("GrowWindow: Mouse not down, aborting grow");
-        return 0;
-    }
-
-    /* Start resize feedback */
-    serial_puts("[GW] Starting feedback\n");
-    Local_StartResizeFeedback();
-    serial_puts("[GW] Feedback started\n");
-
-    /* Get original window bounds for tracking - use strucRgn for GLOBAL coordinates */
-    Rect originalBounds;
-    if (theWindow->strucRgn && *(theWindow->strucRgn)) {
-        /* Use the actual GLOBAL window bounds from strucRgn */
-        originalBounds = (*(theWindow->strucRgn))->rgnBBox;
-    } else {
-        /* Fallback to portRect but this may be wrong */
-        originalBounds.left = 0;
-        originalBounds.top = 0;
-        originalBounds.right = theWindow->port.portRect.right - theWindow->port.portRect.left;
-        originalBounds.bottom = theWindow->port.portRect.bottom - theWindow->port.portRect.top;
-    }
-
-    /* Main resize tracking loop */
-    serial_puts("[GW] Entering main loop\n");
-    Boolean resizeContinues = true;
-    Point currentPt = startPt;
-
-    /* Track outline for XOR visual feedback */
-    Rect outlineRect = originalBounds;
+    short newW = contentW, newH = contentH;
+    Rect box = frame;
     Boolean outlineDrawn = false;
 
-    int loopCount = 0;
-    const int MAX_LOOP_ITERATIONS = 1000000;  /* Prevent infinite loops */
-
-    while (resizeContinues && loopCount < MAX_LOOP_ITERATIONS) {
-        loopCount++;
-
-        /* Poll hardware for new input events (like DragWindow) */
-        extern void EventPumpYield(void);
+    for (long guard = 0; guard < 10000000L; guard++) {
         EventPumpYield();
+        UpdateCursorDisplay();
+        Point pt;
+        GetMouse(&pt);
+        Boolean down = StillDown();
 
-        /* Get current mouse state using same method as DragWindow */
-        extern void GetMouse(Point* mouseLoc);
-        extern Boolean StillDown(void);
-        GetMouse(&currentPt);  /* Returns GLOBAL coords */
-        resizeContinues = StillDown();
+        short w = contentW + (pt.h - startPt.h);
+        short h = contentH + (pt.v - startPt.v);
+        if (w < minW) w = minW;
+        if (h < minH) h = minH;
+        if (w > maxW) w = maxW;
+        if (h > maxH) h = maxH;
 
-        /* Calculate delta from original grow box click */
-        short deltaH = currentPt.h - startPt.h;
-        short deltaV = currentPt.v - startPt.v;
-
-        /* Log first few iterations to debug */
-        if (loopCount <= 5) {
-            serial_puts("[GW] Loop: delta=");
-            // Can't easily print ints, so just indicate we're updating
-            if (deltaH != 0 || deltaV != 0) {
-                serial_puts("[GW] Delta detected\n");
-            }
-        }
-
-        /* Calculate new size */
-        short newWidth = (short)(originalBounds.right - originalBounds.left + deltaH);
-        short newHeight = (short)(originalBounds.bottom - originalBounds.top + deltaV);
-
-        /* Constrain to minimum size */
-        if (newWidth < MIN_RESIZE_WIDTH) newWidth = MIN_RESIZE_WIDTH;
-        if (newHeight < MIN_RESIZE_HEIGHT) newHeight = MIN_RESIZE_HEIGHT;
-
-        /* Build new outline rect */
-        Rect newOutline = originalBounds;
-        newOutline.right = originalBounds.left + newWidth;
-        newOutline.bottom = originalBounds.top + newHeight;
-
-        /* Update visual feedback if size changed */
-        if (newOutline.right != outlineRect.right || newOutline.bottom != outlineRect.bottom) {
-            /* trace removed: blocking UART write on every resize frame */
-
-            /* Erase old outline (XOR twice = erase) */
-            if (outlineDrawn) {
-                extern void InvertRect(const Rect* rect);
-                extern void QDPlatform_FlushScreen(void);
-                InvertRect(&outlineRect);
-                QDPlatform_FlushScreen();
-                /* trace removed: blocking UART write on every resize frame */
-            }
-
-            /* Draw new outline */
-            extern void InvertRect(const Rect* rect);
-            extern void QDPlatform_FlushScreen(void);
-            InvertRect(&newOutline);
-            QDPlatform_FlushScreen();
-            /* trace removed: blocking UART write on every resize frame */
-
-            outlineRect = newOutline;
+        if (!outlineDrawn || w != newW || h != newH) {
+            if (outlineDrawn) WM_XorFrame(&box);
+            newW = w;
+            newH = h;
+            box.right = frame.left + newW + extraW;
+            box.bottom = frame.top + newH + extraH;
+            WM_XorFrame(&box);
             outlineDrawn = true;
-            g_resizeState.hasMoved = true;
         }
-
-        /* Note: Cannot use Platform_WaitTicks here - it would hang because TickCount()
-           doesn't advance while we're blocking in event handling. Instead, let the loop
-           iterate freely. The system responsiveness is maintained through the event loop. */
+        if (!down) break;
     }
+    if (outlineDrawn) WM_XorFrame(&box);
 
-    /* Erase the outline by XOR-ing one more time */
-    if (outlineDrawn) {
-        extern void InvertRect(const Rect* rect);
-        extern void QDPlatform_FlushScreen(void);
-        InvertRect(&outlineRect);
-        QDPlatform_FlushScreen();
-        serial_puts("[GW] Outline erased\n");
-    }
-
-    if (loopCount >= MAX_LOOP_ITERATIONS) {
-        serial_puts("[GW] Loop hit iteration limit\n");
-    } else {
-        serial_puts("[GW] Loop exited normally\n");
-    }
-
-    serial_puts("[GW] Exited main loop\n");
-
-    /* End resize feedback */
-    serial_puts("[GW] Ending feedback\n");
-    Local_EndResizeFeedback();
-    serial_puts("[GW] Feedback ended\n");
-
-    /* Calculate and apply final size */
-    serial_puts("[GW] Calculating final size\n");
-
-    /* Calculate final width and height from outline */
-    short finalWidth = outlineRect.right - outlineRect.left;
-    short finalHeight = outlineRect.bottom - outlineRect.top;
-    short originalWidth = originalBounds.right - originalBounds.left;
-    short originalHeight = originalBounds.bottom - originalBounds.top;
-    long finalSize = ((long)finalWidth << 16) | (finalHeight & 0xFFFF);
-
-    serial_puts("[GW] Final size calculated\n");
-    serial_puts("[GW] Checking if resize is needed\n");
-
-    /* Get the ACTUAL current window dimensions from the portRect */
-    short actualWidth = theWindow->port.portRect.right - theWindow->port.portRect.left;
-    short actualHeight = theWindow->port.portRect.bottom - theWindow->port.portRect.top;
-
-    /* Log the size comparison for debugging */
-    extern void serial_puts(const char *str);
-    extern int snprintf(char* buf, size_t size, const char* fmt, ...);
-    char dbgbuf[256];
-    snprintf(dbgbuf, sizeof(dbgbuf), "[GW] Size check: final=%dx%d actual=%dx%d original=%dx%d\n",
-            finalWidth, finalHeight, actualWidth, actualHeight, originalWidth, originalHeight);
-    serial_puts(dbgbuf);
-
-    /* Apply resize ONLY if size actually changed from the ACTUAL dimensions */
-    if (finalWidth != actualWidth || finalHeight != actualHeight) {
-        snprintf(dbgbuf, sizeof(dbgbuf), "[GW] Size changed, applying resize\n");
-        serial_puts(dbgbuf);
-        WM_DEBUG("GrowWindow: Applying final resize from %dx%d to %dx%d (actual=%dx%d)",
-                 actualWidth, actualHeight, finalWidth, finalHeight, actualWidth, actualHeight);
-
-        /* Apply the resize */
-        serial_puts("[GW] >>> Calling SizeWindow from GrowWindow\n");
-        SizeWindow(theWindow, finalWidth, finalHeight, true);
-        serial_puts("[GW] SizeWindow called\n");
-
-        /* Force complete window redraw - MUST redraw frame/chrome AND content */
-        /* PaintBehind is designed to repaint windows after structural changes */
-        extern void PaintBehind(WindowPtr startWindow, RgnHandle clobberedRgn);
-        extern void FolderWindow_Draw(WindowPtr w);
-        extern void BeginUpdate(WindowPtr window);
-        extern void EndUpdate(WindowPtr window);
-
-        serial_puts("[GW] Starting window redraw\n");
-
-        /* CRITICAL: Explicitly redraw window chrome (frame and title bar)
-         * PaintBehind doesn't necessarily repaint the chrome of the resized window itself */
-        extern void PaintOne(WindowPtr window, RgnHandle clobberedRgn);
-        serial_puts("[GW] Calling PaintOne to redraw window chrome\n");
-        PaintOne(theWindow, NULL);
-        serial_puts("[GW] PaintOne completed - chrome redrawn\n");
-
-        /* Use PaintBehind to repaint windows behind the resized window */
-        /* This ensures desktop/windows behind are redrawn for exposed areas */
-        serial_puts("[GW] Calling PaintBehind to repaint exposed areas behind window\n");
-        PaintBehind(theWindow->nextWindow, NULL);  /* Start with window BEHIND this one */
-        serial_puts("[GW] PaintBehind completed\n");
-
-        /* Also redraw folder content if applicable */
-        serial_puts("[GW] Checking for folder window content\n");
-        Boolean isFolderWindow = (theWindow->refCon == 0x4449534b || theWindow->refCon == 0x54525348);  /* 'DISK' or 'TRSH' */
-
-        if (isFolderWindow) {
-            /* Rearrange icons to fit new window width (icon view only) */
-            extern short FolderWindow_GetViewMode(WindowPtr w);
-            extern void FolderWindow_CleanUp(WindowPtr w, Boolean selectedOnly);
-            if (FolderWindow_GetViewMode(theWindow) <= 1) {
-                FolderWindow_CleanUp(theWindow, false);
-            }
-
-            /* Content itself is repainted from the update event that
-             * Local_GenerateResizeUpdateEvents() queued into updateRgn above.
-             * Drawing it synchronously here as well consumed that region, so
-             * the event-driven path could never run - one of the duplicate
-             * repaint routes described in ARCH-001. */
-        }
-
-        /* Flush screen to ensure all updates are visible */
-        extern void QDPlatform_FlushScreen(void);
-        QDPlatform_FlushScreen();
-        serial_puts("[GW] Screen flushed\n");
-
-        serial_puts("[GW] Resize applied and redrawn\n");
-    } else {
-        snprintf(dbgbuf, sizeof(dbgbuf), "[GW] No size change: %dx%d == %dx%d, skipping SizeWindow\n",
-                finalWidth, finalHeight, actualWidth, actualHeight);
-        serial_puts(dbgbuf);
-        serial_puts("[GW] No size change detected\n");
-    }
-
-    /* Clean up resize state */
-    serial_puts("[GW] Cleaning up\n");
-    Local_CleanupResizeState();
-    serial_puts("[GW] Cleanup complete\n");
-
-    WM_DEBUG("GrowWindow: Grow tracking completed, result = 0x%08lX", finalSize);
-    serial_puts("[GW] GrowWindow EXIT\n");
-    return finalSize;
+    if (newW == contentW && newH == contentH) return 0;
+    return ((long)(unsigned short)newH << 16) | (unsigned short)newW;
 }
 
 /* ============================================================================
@@ -683,193 +472,6 @@ void ZoomWindow(WindowPtr theWindow, short partCode, Boolean front) {
     Local_UpdateStateChecksum(stateData);
 
     WM_DEBUG("ZoomWindow: Zoom operation completed");
-}
-
-/* ============================================================================
- * Resize State Management
- * ============================================================================ */
-
-static void Local_InitializeResizeState(WindowPtr window, Point startPt, const Rect* bBox) {
-    WM_DEBUG("Local_InitializeResizeState: Initializing resize state");
-
-    /* Clear previous state */
-    Local_CleanupResizeState();
-
-    /* Initialize resize state */
-    g_resizeState.window = window;
-    g_resizeState.startPoint = startPt;
-    g_resizeState.currentPoint = startPt;
-    /* [WM-009] Provenance: IM:Windows p.2-13 */
-    g_resizeState.originalBounds = window->port.portRect;
-    g_resizeState.currentBounds = window->port.portRect;
-    g_resizeState.active = true;
-    g_resizeState.hasMoved = false;
-    g_resizeState.showFeedback = Platform_IsResizeFeedbackEnabled();
-
-    /* Set size constraints */
-    if (bBox) {
-        g_resizeState.constraintRect = *bBox;
-    } else {
-        /* Use default constraints */
-        WM_SetRect(&g_resizeState.constraintRect,
-                  MIN_RESIZE_WIDTH, MIN_RESIZE_HEIGHT,
-                  MAX_RESIZE_WIDTH, MAX_RESIZE_HEIGHT);
-    }
-
-    /* Set up snap sizes */
-    Local_InitializeSnapSizes(window);
-
-    WM_DEBUG("Local_InitializeResizeState: Resize state initialized");
-}
-
-static void Local_CleanupResizeState(void) {
-    if (!g_resizeState.active) return;
-
-    WM_DEBUG("Local_CleanupResizeState: Cleaning up resize state");
-
-    /* Clear state */
-    memset(&g_resizeState, 0, sizeof(ResizeState));
-
-    WM_DEBUG("Local_CleanupResizeState: Cleanup complete");
-}
-
-static void Local_InitializeSnapSizes(WindowPtr window) {
-    g_resizeState.snapCount = 0;
-
-    /* Add common snap sizes */
-    Local_AddSnapSize(320, 240);   /* Classic small */
-    Local_AddSnapSize(640, 480);   /* Classic VGA */
-    Local_AddSnapSize(800, 600);   /* Classic SVGA */
-    Local_AddSnapSize(1024, 768);  /* Classic XGA */
-
-    /* Add screen-based sizes */
-    Rect screenBounds;
-    Platform_GetScreenBounds(&screenBounds);
-    short screenWidth = screenBounds.right - screenBounds.left;
-    short screenHeight = screenBounds.bottom - screenBounds.top;
-
-    Local_AddSnapSize(screenWidth / 2, screenHeight / 2);  /* Quarter screen */
-    Local_AddSnapSize(screenWidth * 2 / 3, screenHeight * 2 / 3); /* Two-thirds */
-    Local_AddSnapSize(screenWidth - 40, screenHeight - 80); /* Almost full screen */
-
-    WM_DEBUG("Local_InitializeSnapSizes: Added %d snap sizes", g_resizeState.snapCount);
-}
-
-static void Local_AddSnapSize(short width, short height) {
-    if (g_resizeState.snapCount >= 8) return;
-
-    /* Validate size against constraints */
-    if (width >= g_resizeState.constraintRect.left &&
-        width <= g_resizeState.constraintRect.right &&
-        height >= g_resizeState.constraintRect.top &&
-        height <= g_resizeState.constraintRect.bottom) {
-
-        Rect* snapRect = &g_resizeState.snapSizes[g_resizeState.snapCount];
-        WM_SetRect(snapRect, 0, 0, width, height);
-        g_resizeState.snapCount++;
-    }
-}
-
-/* ============================================================================
- * Size Calculation and Constraints
- * ============================================================================ */
-
-#if 0 /* Future use - resize feedback system currently unused */
-static long Local_CalculateNewSize(Point currentPt) {
-    /* Calculate size change from mouse movement */
-    short deltaH = currentPt.h - g_resizeState.startPoint.h;
-    short deltaV = currentPt.v - g_resizeState.startPoint.v;
-
-    /* Calculate new window size */
-    short newWidth = WM_RECT_WIDTH(&g_resizeState.originalBounds) + deltaH;
-    short newHeight = WM_RECT_HEIGHT(&g_resizeState.originalBounds) + deltaV;
-
-    /* Apply constraints */
-    if (newWidth < g_resizeState.constraintRect.left) {
-        newWidth = g_resizeState.constraintRect.left;
-    }
-    if (newWidth > g_resizeState.constraintRect.right) {
-        newWidth = g_resizeState.constraintRect.right;
-    }
-    if (newHeight < g_resizeState.constraintRect.top) {
-        newHeight = g_resizeState.constraintRect.top;
-    }
-    if (newHeight > g_resizeState.constraintRect.bottom) {
-        newHeight = g_resizeState.constraintRect.bottom;
-    }
-
-    /* Apply snap sizes if enabled */
-    if (Platform_IsSnapToSizeEnabled()) {
-        Point snapSize = Local_ApplySnapToSize(newWidth, newHeight);
-        newWidth = snapSize.h;
-        newHeight = snapSize.v;
-    }
-
-    /* Return size as long (width in high word, height in low word) */
-    return ((long)newWidth << 16) | (newHeight & 0xFFFF);
-}
-#endif
-
-#if 0 /* Future use - only used by disabled Local_CalculateNewSize */
-static Point Local_ApplySnapToSize(short width, short height) {
-    Point result = {width, height};
-
-    /* Check against predefined snap sizes */
-    for (int i = 0; i < g_resizeState.snapCount; i++) {
-        Rect* snapRect = &g_resizeState.snapSizes[i];
-        short snapWidth = WM_RECT_WIDTH(snapRect);
-        short snapHeight = WM_RECT_HEIGHT(snapRect);
-
-        if (abs(width - snapWidth) <= RESIZE_SNAP_DISTANCE &&
-            abs(height - snapHeight) <= RESIZE_SNAP_DISTANCE) {
-            result.h = snapWidth;
-            result.v = snapHeight;
-            WM_DEBUG("WM_ApplySnapToSize: Snapped to %dx%d", snapWidth, snapHeight);
-            break;
-        }
-    }
-
-    return result;
-}
-#endif
-
-/* ============================================================================
- * Resize Feedback
- * ============================================================================ */
-
-static void Local_StartResizeFeedback(void) {
-    if (!g_resizeState.showFeedback) return;
-
-    WM_DEBUG("WM_StartResizeFeedback: Starting resize feedback");
-
-    /* Show initial size feedback */
-    Platform_ShowSizeFeedback(&g_resizeState.originalBounds);
-    g_resizeState.currentBounds = g_resizeState.originalBounds;
-}
-
-#if 0 /* Future use - resize feedback system currently unused */
-static void Local_UpdateResizeFeedback(long newSize) {
-    if (!g_resizeState.showFeedback) return;
-
-    short width = (short)(newSize >> 16);
-    short height = (short)(newSize & 0xFFFF);
-
-    /* Calculate new window bounds */
-    Rect oldBounds = g_resizeState.currentBounds;
-    Rect newBounds = g_resizeState.originalBounds;
-    newBounds.right = newBounds.left + width;
-    newBounds.bottom = newBounds.top + height;
-
-    Platform_UpdateSizeFeedback(&oldBounds, &newBounds);
-    g_resizeState.currentBounds = newBounds;
-}
-#endif
-
-static void Local_EndResizeFeedback(void) {
-    if (!g_resizeState.showFeedback) return;
-
-    WM_DEBUG("WM_EndResizeFeedback: Ending resize feedback");
-    Platform_HideSizeFeedback(&g_resizeState.currentBounds);
 }
 
 /* ============================================================================

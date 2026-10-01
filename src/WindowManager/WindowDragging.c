@@ -571,7 +571,7 @@ void DragWindow(WindowPtr theWindow, Point startPt, const Rect* boundsRect) {
                     extern void InvertRect(const Rect* rect);
                     WM_LOG_TRACE("DragWindow: Erasing old outline at (%d,%d,%d,%d)\n",
                                  dragOutline.left, dragOutline.top, dragOutline.right, dragOutline.bottom);
-                    InvertRect(&dragOutline);  /* Use InvertRect for simple XOR */
+                    WM_XorFrame(&dragOutline);
                     QDPlatform_FlushScreen();  /* Force screen update */
                 }
 
@@ -585,7 +585,7 @@ void DragWindow(WindowPtr theWindow, Point startPt, const Rect* boundsRect) {
                 extern void InvertRect(const Rect* rect);
                 WM_LOG_TRACE("DragWindow: Drawing new outline at (%d,%d,%d,%d)\n",
                              dragOutline.left, dragOutline.top, dragOutline.right, dragOutline.bottom);
-                InvertRect(&dragOutline);  /* Use InvertRect for simple XOR */
+                WM_XorFrame(&dragOutline);
                 QDPlatform_FlushScreen();  /* Force screen update */
                 outlineDrawn = true;
 
@@ -610,7 +610,7 @@ void DragWindow(WindowPtr theWindow, Point startPt, const Rect* boundsRect) {
     if (outlineDrawn) {
         extern void InvertRect(const Rect* rect);
         WM_LOG_TRACE("DragWindow: Erasing final outline\n");
-        InvertRect(&dragOutline);
+        WM_XorFrame(&dragOutline);
         QDPlatform_FlushScreen();  /* Force screen update */
     }
 

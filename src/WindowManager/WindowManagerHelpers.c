@@ -482,3 +482,24 @@ void WM_DisableWindowsBehindModal(WindowPtr modalWindow) {
 
 /* [WM-050] WM_EnableAllWindows moved to WindowLayering.c to avoid duplication */
 /* [WM-050] WDEF procedures moved to WindowParts.c with proper signatures */
+/*
+ * Invert a one-pixel outline of r, in global coordinates: the feedback
+ * DragWindow and GrowWindow draw while tracking. Drawing it twice erases
+ * it. Inverting the whole rectangle, as both used to, flashed the area
+ * under the window instead of showing its outline.
+ */
+void WM_XorFrame(const Rect* r) {
+    if (!r || r->right - r->left < 2 || r->bottom - r->top < 2) return;
+    extern void InvertRect(const Rect* rect);
+    GrafPtr save;
+    GetPort(&save);
+    GrafPtr wm = NULL;
+    GetWMgrPort(&wm);
+    if (wm) SetPort(wm);
+    Rect e;
+    SetRect(&e, r->left, r->top, r->right, r->top + 1);            InvertRect(&e);
+    SetRect(&e, r->left, r->bottom - 1, r->right, r->bottom);      InvertRect(&e);
+    SetRect(&e, r->left, r->top + 1, r->left + 1, r->bottom - 1);  InvertRect(&e);
+    SetRect(&e, r->right - 1, r->top + 1, r->right, r->bottom - 1); InvertRect(&e);
+    SetPort(save);
+}

@@ -1034,42 +1034,6 @@ long DragGrayRgn(RgnHandle theRgn, Point startPt, const Rect* limitRect,
 
 /* [WM-051] WM_InvalidateWindowsBelow moved to WindowLayering.c - canonical Z-order invalidation */
 
-Boolean WM_TrackWindowPart(WindowPtr window, Point startPt, short part) {
-    if (window == NULL) return false;
-
-    WM_DEBUG("WM_TrackWindowPart: Tracking window part %d", part);
-
-    /* Delegate to appropriate tracking function */
-    switch (part) {
-        case inGoAway:
-            return TrackGoAway(window, startPt);
-        case inZoomIn:
-        case inZoomOut:
-            return TrackBox(window, startPt, part);
-        case inGrow:
-            /* Grow tracking - returns new size as long (width << 16 | height) */
-            {
-                extern long GrowWindow(WindowPtr theWindow, Point startPt, const Rect* bBox);
-                /* Use default screen bounds for grow limits */
-                long newSize = GrowWindow(window, startPt, NULL);
-                /* Return true if window was actually resized */
-                return (newSize != 0);
-            }
-        case inDrag:
-            /* Drag tracking - moves window to new position */
-            {
-                extern void DragWindow(WindowPtr theWindow, Point startPt, const Rect* boundsRect);
-                /* Use default screen bounds for drag limits */
-                DragWindow(window, startPt, NULL);
-                /* DragWindow is void, but tracking completed successfully */
-                return true;
-            }
-        default:
-            WM_DEBUG("WM_TrackWindowPart: Unsupported part %d", part);
-            return false;
-    }
-}
-
 /* ============================================================================
  * Platform Abstraction Helpers
  * ============================================================================ */

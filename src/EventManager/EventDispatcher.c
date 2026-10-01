@@ -408,9 +408,8 @@ Boolean HandleMouseDown(EventRecord* event)
             return true;
 
         case inGrow:
-            /* Resize window using grow box.
-             * GrowWindow tracks the drag outline and calls SizeWindow internally,
-             * so we only need to call GrowWindow with size bounds. */
+            /* GrowWindow tracks the outline and answers the new content
+             * size, height high and width low; the resize is ours to do. */
             if (whichWindow) {
                 EVT_LOG_DEBUG("Grow window %p\n", (void*)whichWindow);
                 extern long GrowWindow(WindowPtr theWindow, Point startPt, const Rect* bBox);
@@ -422,7 +421,18 @@ Boolean HandleMouseDown(EventRecord* event)
                 sizeRect.right = 2000; /* Max width */
                 sizeRect.bottom = 2000;/* Max height */
 
-                GrowWindow(whichWindow, event->where, &sizeRect);
+                long newSize = GrowWindow(whichWindow, event->where, &sizeRect);
+                if (newSize) {
+                    SizeWindow(whichWindow, LoWord(newSize), HiWord(newSize), true);
+
+                    /* A Finder window lays its icons out again for the new width. */
+                    extern Boolean IsFolderWindow(WindowPtr w);
+                    extern short FolderWindow_GetViewMode(WindowPtr w);
+                    extern void FolderWindow_CleanUp(WindowPtr w, Boolean selectedOnly);
+                    if (IsFolderWindow(whichWindow) && FolderWindow_GetViewMode(whichWindow) <= 1) {
+                        FolderWindow_CleanUp(whichWindow, false);
+                    }
+                }
             }
             return true;
 

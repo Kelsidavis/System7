@@ -262,14 +262,14 @@ Boolean WM_ValidateStateChecksum(WindowPtr window);
  */
 void WM_InvalidateWindowsBelow(WindowPtr topWindow, const Rect* rect);
 void WM_InvalidateScreenRegion(RgnHandle rgn);
-void WM_InvalGlobalRgn(WindowPtr window, RgnHandle globalRgn);   /* add a global region to updateRgn */
+void WM_InvalGlobalRgn(WindowPtr window, RgnHandle globalRgn);
+void WM_XorFrame(const Rect* r);   /* inverted 1-pixel outline, global coordinates */   /* add a global region to updateRgn */
 void WM_CalculateWindowVisibility(WindowPtr window);
 void WM_UpdateWindowVisibilityStats(WindowPtr window);
 
 /*
  * Window tracking and interaction
  */
-Boolean WM_TrackWindowPart(WindowPtr window, Point startPt, short part);
 void WM_StartDragFeedback(WindowPtr window, Point startPt);
 void WM_UpdateDragFeedback(Point currentPt);
 void WM_EndDragFeedback(void);
