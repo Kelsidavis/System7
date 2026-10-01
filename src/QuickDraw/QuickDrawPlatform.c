@@ -1,8 +1,8 @@
 /*
-#include "QuickDraw/QuickDrawInternal.h"
  * QuickDrawPlatform.c - Platform implementation for QuickDraw
  * Connects QuickDraw to the actual framebuffer
  */
+#include "QuickDraw/QuickDrawInternal.h"
 
 #include "MacTypes.h"
 #include "QuickDraw/QuickDraw.h"
@@ -1149,6 +1149,28 @@ static void QDPlatform_DrawRegion_Body(RgnHandle rgn, short mode, const Pattern*
             }
         }
     }
+}
+
+/*
+ * QD_FillRectColorPattern - fill a rectangle of the current port with an 8 by
+ * 8 colour pattern, pixels already in screen format (as the Pattern Manager
+ * decodes a 'ppat'). Aligned to the port's local coordinates, as QuickDraw
+ * aligns patterns, and clipped like any other drawing. Desktop Patterns shows
+ * its preview with it.
+ */
+void QD_FillRectColorPattern(const Rect* r, const uint32_t pattern[64]) {
+    extern GrafPtr g_currentPort;
+    if (!r || !pattern || !g_currentPort) return;
+    GrafPtr port = g_currentPort;
+    QD_ClipBegin(port);
+    for (SInt16 v = r->top; v < r->bottom; v++) {
+        for (SInt16 h = r->left; h < r->right; h++) {
+            short px, py;
+            QD_LocalToPixel(h, v, &px, &py);
+            QDPlatform_SetPixel(px, py, pattern[(v & 7) * 8 + (h & 7)]);
+        }
+    }
+    QD_ClipEnd();
 }
 
 void QDPlatform_DrawRegion(RgnHandle rgn, short mode, const Pattern* pat) {

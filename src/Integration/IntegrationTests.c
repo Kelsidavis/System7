@@ -994,6 +994,41 @@ static void Test_Resource_ReleaseThenGet(void) {
     RecordTest(test_name, true, "");
 }
 
+/* OpenPoly hands out the polygon, ClosePoly fills it, and lines draw again. */
+static void Test_Draw_PolygonRecording(void) {
+    const char* test_name = "Draw_PolygonRecording";
+    Rect r = { 470, 560, 570, 760 };
+    WindowPtr w = NewWindow(NULL, &r, (ConstStr255Param)"\x04Poly", true, 0, (WindowPtr)-1, false, 0);
+    CHECK(w, "NewWindow failed");
+    GrafPtr save;
+    GetPort(&save);
+    SetPort((GrafPtr)w);
+
+    PolyHandle poly = OpenPoly();
+    MoveTo(10, 10);
+    LineTo(50, 10);
+    LineTo(30, 40);
+    LineTo(10, 10);
+    PolyHandle closed = ClosePoly();
+    SInt16 points = poly ? (SInt16)(((*poly)->polySize - sizeof(SInt16) - sizeof(Rect)) / sizeof(Point)) : 0;
+
+    /* Recording over, a line draws */
+    PenNormal();
+    MoveTo(5, 60);
+    LineTo(80, 60);
+    int x = (*w->contRgn)->rgnBBox.left + 40, y = (*w->contRgn)->rgnBBox.top + 60;
+    UInt32 px = ScreenPixel(x, y);
+
+    if (poly) KillPoly(poly);
+    SetPort(save);
+    DisposeWindow(w);
+    CHECK(poly != NULL, "OpenPoly returned no polygon");
+    CHECK(closed == poly, "ClosePoly did not fill the polygon OpenPoly returned");
+    CHECK(points == 4, "the polygon does not hold the four points drawn");
+    CHECK((px & 0x00FFFFFF) == 0, "a line after ClosePoly did not draw");
+    RecordTest(test_name, true, "");
+}
+
 static void Test_Resource_CreateAndOpenResFile(void) {
     const char* test_name = "Resource_CreateAndOpenResFile";
     FSSpec spec;
@@ -1128,6 +1163,7 @@ void IntegrationTests_Run(void) {
     Test_Event_FullQueueKeepsNewest();
     Test_Calculator_Arithmetic();
     Test_Resource_ReleaseThenGet();
+    Test_Draw_PolygonRecording();
     Test_Dialog_AlertLayout();
     Test_Dialog_IconItem();
     Test_Window_ReorderAndHide();

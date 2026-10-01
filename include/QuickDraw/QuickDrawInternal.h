@@ -42,7 +42,13 @@ void PictureRecordEraseOval(const Rect* r);
 void PictureRecordInvertOval(const Rect* r);
 
 /* Platform coordinate conversion */
-void QD_LocalToPixel(GrafPtr port, Point localPt, SInt16* pixelX, SInt16* pixelY);
+/* Local coordinates of the current port to screen pixels (FontManagerCore.c).
+ * This was declared taking a port and a Point, which is not what it takes. */
+void QD_LocalToPixel(short localX, short localY, short* pixelX, short* pixelY);
+
+/* Fill r, in the current port's local coordinates, with an 8x8 colour
+ * pattern of screen-format pixels. */
+void QD_FillRectColorPattern(const Rect* r, const uint32_t pattern[64]);
 
 /* Window-relative coordinate conversion */
 void GlobalToLocalWindow(WindowPtr window, Point *pt);

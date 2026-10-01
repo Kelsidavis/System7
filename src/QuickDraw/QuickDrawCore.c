@@ -567,6 +567,38 @@ void LineTo(SInt16 h, SInt16 v) {
     endLocal.h = h;
     endLocal.v = v;
 
+    /* While a polygon is open its lines are recorded, not drawn (Inside
+     * Macintosh: Imaging With QuickDraw, 3-90), and every one counts - this
+     * came after the clipping test, which could drop a vertex. A polygon
+     * begun with a LineTo starts where the line does. */
+    if (g_polyRecording && g_polyPointCount == 0) {
+        g_polyPoints[0] = startLocal;
+        g_polyBBox.left = g_polyBBox.right = startLocal.h;
+        g_polyBBox.top = g_polyBBox.bottom = startLocal.v;
+        g_polyPointCount = 1;
+    }
+    if (g_polyRecording && g_polyPointCount < MAX_POLY_POINTS) {
+        g_polyPoints[g_polyPointCount].h = h;
+        g_polyPoints[g_polyPointCount].v = v;
+        g_polyPointCount++;
+
+        /* Update bounding box */
+        if (g_polyPointCount == 1) {
+            g_polyBBox.left = g_polyBBox.right = h;
+            g_polyBBox.top = g_polyBBox.bottom = v;
+        } else {
+            if (h < g_polyBBox.left) g_polyBBox.left = h;
+            if (h > g_polyBBox.right) g_polyBBox.right = h;
+            if (v < g_polyBBox.top) g_polyBBox.top = v;
+            if (v > g_polyBBox.bottom) g_polyBBox.bottom = v;
+        }
+    }
+    if (g_polyRecording) {
+        g_currentPort->pnLoc.h = endLocal.h;
+        g_currentPort->pnLoc.v = endLocal.v;
+        return;
+    }
+
     /* Quick reject if the line's bounding box misses the port bounds */
     Rect lineBounds;
     SInt16 left = (startLocal.h < endLocal.h) ? startLocal.h : endLocal.h;
@@ -600,24 +632,6 @@ void LineTo(SInt16 h, SInt16 v) {
             g_currentPort->pnLoc.h = endLocal.h;
             g_currentPort->pnLoc.v = endLocal.v;
             return;
-        }
-    }
-
-    /* Record point if polygon recording is active */
-    if (g_polyRecording && g_polyPointCount < MAX_POLY_POINTS) {
-        g_polyPoints[g_polyPointCount].h = h;
-        g_polyPoints[g_polyPointCount].v = v;
-        g_polyPointCount++;
-
-        /* Update bounding box */
-        if (g_polyPointCount == 1) {
-            g_polyBBox.left = g_polyBBox.right = h;
-            g_polyBBox.top = g_polyBBox.bottom = v;
-        } else {
-            if (h < g_polyBBox.left) g_polyBBox.left = h;
-            if (h > g_polyBBox.right) g_polyBBox.right = h;
-            if (v < g_polyBBox.top) g_polyBBox.top = v;
-            if (v > g_polyBBox.bottom) g_polyBBox.bottom = v;
         }
     }
 
@@ -871,41 +885,54 @@ void FillArc(const Rect *r, SInt16 startAngle, SInt16 arcAngle,
  * POLYGON OPERATIONS
  * ================================================================ */
 
+/* The polygon OpenPoly handed out, which ClosePoly fills in */
+static PolyHandle g_openPoly = NULL;
+
+/*
+ * OpenPoly returns the polygon's handle at once, as Inside Macintosh has it
+ * (Imaging With QuickDraw, 3-90); ClosePoly fills it in. This returned NULL,
+ * promising the handle from ClosePoly - so a caller that tested the result,
+ * as the scroll bar's arrows did, took it for failure and drew its lines
+ * without ever calling ClosePoly. Recording stayed on, and from then on every
+ * LineTo in the system recorded a point and drew nothing: frames lost their
+ * lines wherever they were repainted.
+ *
+ * The polygon is the lines drawn: nothing is recorded until a MoveTo or a
+ * LineTo, and the pen's position beforehand is not a vertex.
+ */
 PolyHandle OpenPoly(void) {
     if (!g_currentPort) return NULL;
 
-    /* Initialize polygon recording */
+    PolyHandle poly = (PolyHandle)NewHandle(sizeof(SInt16) + sizeof(Rect));
+    if (!poly) {
+        g_lastError = memFullErr;
+        return NULL;
+    }
+    (*poly)->polySize = sizeof(SInt16) + sizeof(Rect);
+    SetRect(&(*poly)->polyBBox, 0, 0, 0, 0);
+
+    g_openPoly = poly;
     g_polyRecording = true;
     g_polyPointCount = 0;
     SetRect(&g_polyBBox, 0, 0, 0, 0);
-
-    /* Store current pen location as first point if it's valid */
-    Point penLoc = g_currentPort->pnLoc;
-    if (g_polyPointCount < MAX_POLY_POINTS) {
-        g_polyPoints[g_polyPointCount++] = penLoc;
-        g_polyBBox.left = g_polyBBox.right = penLoc.h;
-        g_polyBBox.top = g_polyBBox.bottom = penLoc.v;
-    }
-
-    return NULL;  /* Will return actual handle in ClosePoly */
+    return poly;
 }
 
 PolyHandle ClosePoly(void) {
     if (!g_polyRecording) return NULL;
 
     g_polyRecording = false;
+    PolyHandle poly = g_openPoly;
+    g_openPoly = NULL;
+    if (!poly) return NULL;
 
-    if (g_polyPointCount == 0) return NULL;
-
-    /* Calculate size needed for Polygon structure */
+    /* Size the handle OpenPoly gave out for the points recorded */
     SInt16 polySize = sizeof(SInt16) + sizeof(Rect) +
                       (g_polyPointCount * sizeof(Point));
-
-    /* Allocate handle for polygon */
-    PolyHandle poly = (PolyHandle)NewHandle(polySize);
-    if (!poly) {
+    SetHandleSize((Handle)poly, polySize);
+    if (MemError() != noErr) {
         g_lastError = memFullErr;
-        return NULL;
+        return poly;
     }
 
     /* CRITICAL: Lock handle before dereferencing to prevent heap compaction issues */
