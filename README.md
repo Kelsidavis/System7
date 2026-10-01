@@ -1,7 +1,5 @@
 # System 7 - Portable Open-Source Reimplementation
 
-**[View in 37 Languages](docs/TRANSLATIONS.md)** | English (Main)
-
 <img width="793" height="657" alt="System 7 running on modern hardware" src="https://github.com/user-attachments/assets/be84b83e-191c-4f9d-a786-11d0bd04203b" />
 <img width="801" height="662" alt="simpletextworks" src="https://github.com/user-attachments/assets/7c9ebe5b-22b4-4612-93a1-2076909d77cd" />
 <img width="803" height="661" alt="macpaint" src="https://github.com/user-attachments/assets/cd3ed04a-fdde-4dd5-88ef-5b19b3a13a54" />
@@ -34,7 +32,7 @@ An open-source reimplementation of Apple Macintosh System 7 for modern x86 hardw
 
 ## 📖 Quick Links
 
-**New here?** Start with [Getting Started](docs/GETTING_STARTED.md) | **All docs?** See [Documentation Index](docs/INDEX.md) | **Context?** Read [Project Evolution](docs/PROJECT_EVOLUTION.md) | **Contribute?** See [Contributing](docs/CONTRIBUTING.md) | **Languages?** [37 translations](docs/TRANSLATIONS.md)
+**New here?** Start with [Getting Started](docs/GETTING_STARTED.md) | **All docs?** See [Documentation Index](docs/INDEX.md) | **Context?** Read [Project Evolution](docs/PROJECT_EVOLUTION.md) | **Contribute?** See [Contributing](docs/CONTRIBUTING.md)
 
 **Using Claude Code?** See [CLAUDE.md](CLAUDE.md) for project-specific guidance
 
@@ -84,7 +82,7 @@ Also verified headless in QEMU on both firmware paths — 5,000 timer ticks at
 **Still true:** the 68K interpreter is not wired up, so real Mac applications
 still don't run. Broader hardware coverage is thin — one confirmed machine is
 not a compatibility matrix. If you have a vintage or modern box to try it on,
-[we would love your test results](docs/TEST_PLAN_FIXES.md).
+we would love your test results — please [open an issue](https://github.com/Kelsidavis/System7/issues).
 
 > **Secure Boot must be off.** The GRUB image is unsigned, so a machine with
 > Secure Boot enabled will refuse the stick before GRUB ever appears.
@@ -95,22 +93,44 @@ Full roadmap: [BARE_METAL_IMPROVEMENTS.md](docs/BARE_METAL_IMPROVEMENTS.md)
 
 **Current State**: Active experimental development. ~94% of core subsystems have *something* implemented. Most work in QEMU. Bare metal now boots to a responsive desktop on one confirmed machine (UEFI ThinkPad) — broader hardware coverage is untested. Stability? Low. Edge cases crash.
 
-### Latest Updates (November 2025)
+### Latest Updates (October 2026)
 
-#### Sound Manager Enhancements ✅ COMPLETE
-- **Optimized MIDI conversion**: Shared `SndMidiNoteToFreq()` helper with 37-entry lookup table (C3-B5) and octave-based fallback for full MIDI range (0-127)
-- **Async playback support**: Complete callback infrastructure for both file playback (`FilePlayCompletionUPP`) and command execution (`SndCallBackProcPtr`)
-- **Channel-based audio routing**: Multi-level priority system with mute and enable controls
-  - 4-level priority channels (0-3) for hardware output routing
-  - Independent mute and enable controls per channel
-  - `SndGetActiveChannel()` returns highest-priority active channel
-  - Proper channel initialization with enabled flag by default
-- **Production-quality implementation**: All code compiles cleanly, no malloc/free violations detected
-- **Commits**: 07542c5 (MIDI optimization), 1854fe6 (async callbacks), a3433c6 (channel routing)
+#### Desktop, Desk Accessories, and the Toolbox Underneath ✅
+- **Desktop Patterns** is laid out as Apple's System 7.5 control panel: one
+  pattern tiled in a preview, a scroll bar to step through the collection, and
+  a **Set Desktop Pattern** button. Colour patterns (`ppat`) come first,
+  including Apple's own 400 and 401, decoded by the Inside Macintosh `ppat`
+  layout, then the 32 black-and-white ones
+- **Desk accessories work**: clicks and keys reach them, each draws in its own
+  window, and closing one (close box or Close Window) closes it properly.
+  Calculator gets its arithmetic right, Alarm Clock shows the live time, and
+  Key Caps draws a keyboard and shows what you type
+- **Memory**: on x86 the application heap takes the machine's free RAM instead
+  of a fixed array — about 1 GB under QEMU with `-m 1024` — and About This
+  Macintosh names the processor (CPUID)
+- **QuickDraw**: `OpenPoly` returns the polygon, so polygon recording no longer
+  sticks on and stops every later line from drawing
+- **Windows**: screen size comes from the screen (no 640×480 assumption);
+  moving, shrinking and zooming repaint what they uncover; updates copy only
+  what was redrawn; hidden windows draw nothing
+- **Events**: the USB tablet works, its movement is no longer read as wheel
+  turns, and a full event queue drops its oldest event rather than new clicks;
+  modal dialogs keep the pointer and pass other windows' updates on
+- **Finder**: Find asks for a name and reveals each match, Find Again moves to
+  the next; menus, the menu-bar clock, alerts and Balloon Help's menu draw
+  correctly
+- **Resource Manager**: `ReleaseResource`, `DetachResource` and
+  `GetIndResource` keep the resource map and cache consistent
 
 #### Previous Session Accomplishments
-- ✅ **Advanced Features Phase**: Sound Manager command processing loop, multi-run style serialization, extended MIDI/synthesis features
-- ✅ **Window Resize System**: Interactive resizing with proper chrome handling, grow box, and desktop cleanup
+- ✅ **Bare Metal Fixes**: GDT installation, hybrid BIOS+UEFI ISO, PIC mask
+  handling, bounded UART spin, read-only CMOS — all verified on a physical UEFI ThinkPad
+- ✅ **Sound Manager**: shared `SndMidiNoteToFreq()` with 37-entry lookup table
+  (C3–B5 plus octave fallback for MIDI 0–127), async playback callbacks
+  (`FilePlayCompletionUPP`, `SndCallBackProcPtr`), and 4-level priority channel
+  routing with per-channel mute/enable (`SndGetActiveChannel()` picks the
+  highest-priority active channel)
+- ✅ **Window Resize System**: interactive resizing with proper chrome handling, grow box, and desktop cleanup
 - ✅ **PS/2 Keyboard Translation**: Full set 1 scancode to Toolbox key code mapping
 - ✅ **Multi-platform HAL**: x86, ARM, and PowerPC support with clean abstraction
 
@@ -123,14 +143,14 @@ Full roadmap: [BARE_METAL_IMPROVEMENTS.md](docs/BARE_METAL_IMPROVEMENTS.md)
 - **Hardware Abstraction Layer (HAL)**: Complete platform abstraction for x86/ARM/PowerPC
 - **Boot System**: Successfully boots via GRUB2/Multiboot2 on x86
 - **Serial Logging**: Module-based logging with runtime filtering (Error/Warn/Info/Debug/Trace)
-- **Graphics Foundation**: VESA framebuffer (800x600x32) with QuickDraw primitives including XOR mode
+- **Graphics Foundation**: VESA framebuffer (800x600x32, 32-bit colour) with QuickDraw primitives including XOR mode
 - **Desktop Rendering**: System 7 menu bar with rainbow Apple logo, icons, and desktop patterns
 - **Typography**: Chicago bitmap font with pixel-perfect rendering and proper kerning, extended Mac Roman (0x80-0xFF) for European accented characters
-- **Internationalization (i18n)**: Resource-based localization with 38 languages (English, French, German, Spanish, Italian, Portuguese, Dutch, Danish, Norwegian, Swedish, Finnish, Icelandic, Greek, Turkish, Polish, Czech, Slovak, Slovenian, Croatian, Hungarian, Romanian, Bulgarian, Albanian, Estonian, Latvian, Lithuanian, Macedonian, Montenegrin, Russian, Ukrainian, Arabic, Japanese, Simplified Chinese, Traditional Chinese, Korean, Hindi, Bengali, Urdu), Locale Manager with boot-time language selection, CJK multi-byte encoding infrastructure
+- **Localization**: user-visible strings come from `STR#` resources through the Locale Manager, in 38 languages; build English only, one language, or all of them (`LOCALE_ALL=1`) and pick one at boot with `lang=xx`; CJK multi-byte encoding infrastructure
 - **Font Manager**: Multi-size support (9-24pt), style synthesis, FOND/NFNT parsing, LRU caching
-- **Input System**: PS/2 keyboard and mouse with complete event forwarding
+- **Input System**: PS/2 keyboard and mouse, and USB keyboards, mice and tablets (xHCI)
 - **Event Manager**: Cooperative multitasking via WaitNextEvent with unified event queue
-- **Memory Manager**: Zone-based allocation with 68K interpreter integration
+- **Memory Manager**: Zone-based allocation with 68K interpreter integration; on x86 the application zone takes the machine's free RAM
 - **Menu Manager**: Complete dropdown menus with mouse tracking and SaveBits/RestoreBits
 - **File System**: HFS with B-tree implementation, folder windows with VFS enumeration
 - **Window Manager**: Dragging, resizing (with grow box), layering, activation
@@ -140,7 +160,7 @@ Full roadmap: [BARE_METAL_IMPROVEMENTS.md](docs/BARE_METAL_IMPROVEMENTS.md)
 - **TextEdit Manager**: Complete text editing with clipboard integration
 - **Scrap Manager**: Classic Mac OS clipboard with multiple flavor support
 - **SimpleText Application**: Full-featured MDI text editor with cut/copy/paste
-- **List Manager**: System 7.1-compatible list controls with keyboard navigation
+- **List Manager**: System 7-compatible list controls with keyboard navigation
 - **Control Manager**: Standard and scrollbar controls with CDEF implementation
 - **Dialog Manager**: Keyboard navigation, focus rings, keyboard shortcuts
 - **Segment Loader**: Portable ISA-agnostic 68K segment loading system with relocation
@@ -149,6 +169,8 @@ Full roadmap: [BARE_METAL_IMPROVEMENTS.md](docs/BARE_METAL_IMPROVEMENTS.md)
 - **Device Manager**: DCE management, driver installation/removal, and I/O operations
 - **Startup Screen**: Complete boot UI with progress tracking, phase management, and splash screen
 - **Color Manager**: Color state management with QuickDraw integration
+- **Desk Accessories**: Calculator, Alarm Clock, Key Caps, Note Pad and Chooser from the Apple menu, driven through `SystemClick`/`SystemEvent`
+- **Control Panels**: Desktop Patterns (with colour patterns), Date & Time, Sound, Mouse, Keyboard, Control Strip
 
 ### Partially Implemented ⚠️
 
@@ -161,14 +183,18 @@ Full roadmap: [BARE_METAL_IMPROVEMENTS.md](docs/BARE_METAL_IMPROVEMENTS.md)
 
 - **Printing**: No print system
 - **Networking**: No AppleTalk or network functionality
-- **Desk Accessories**: Framework only
+- **Balloon Help**: the Help menu is there; balloons are not
 - **Advanced Audio**: Sample playback, mixing (PC speaker limitation)
 
 ### Subsystems Not Compiled 🔧
 
 The following have source code but aren't integrated into the kernel:
-- **AppleEventManager** (8 files): Inter-application messaging; deliberately excluded due to pthread dependencies incompatible with freestanding environment
-- **FontResources** (header only): Font resource type definitions; actual font support provided by compiled FontResourceLoader.c
+- **AppleEventManager** (`src/CPU/m68k_interp` and `src/CPU/ppc_interp` only
+  carry the 68K/PowerPC interpreters; the Apple Event Manager itself has no
+  source at all): inter-application messaging would need pthread-style
+  primitives that don't exist in a freestanding kernel
+- **FontResources** (header only): Font resource type definitions; actual font
+  support is provided by the compiled `FontManager/FontResourceLoader.c`
 
 ## 🏗️ Architecture
 
@@ -183,12 +209,12 @@ The following have source code but aren't integrated into the kernel:
 
 ### Codebase Statistics
 
-- **225+ source files** with ~57,500+ lines of code
-- **145+ header files** across 28+ subsystems
-- **69 resource types** extracted from System 7.1
+- **306 source files** with ~218,000 lines of code (sources **and** headers)
+- **221 header files** across 57 subsystem directories under `src/`
+- **69 resource types** extracted from System 7.1, plus 17 colour (`ppat`) and 32 black-and-white (`PAT `) patterns in `Patterns.rsrc`
 - **Compilation time**: 3-5 seconds on modern hardware
-- **Kernel size**: ~4.16 MB
-- **ISO size**: ~12.5 MB
+- **Kernel size**: ~4.4 MB (`kernel.elf`)
+- **ISO size**: ~16 MB (`system71.iso`)
 
 ## 🔨 Building
 
@@ -226,11 +252,9 @@ make PLATFORM=ppc        # experimental; requires PowerPC ELF toolchain
 # Create bootable ISO
 make iso
 
-# Build with all languages
-make LOCALE_FR=1 LOCALE_DE=1 LOCALE_ES=1 LOCALE_JA=1 LOCALE_ZH=1 LOCALE_KO=1 LOCALE_RU=1 LOCALE_UK=1 LOCALE_PL=1 LOCALE_CS=1 LOCALE_SQ=1 LOCALE_BG=1 LOCALE_HR=1 LOCALE_DA=1 LOCALE_NL=1 LOCALE_ET=1 LOCALE_FI=1 LOCALE_EL=1 LOCALE_HU=1 LOCALE_IS=1 LOCALE_IT=1 LOCALE_LV=1 LOCALE_LT=1 LOCALE_MK=1 LOCALE_ME=1 LOCALE_NO=1 LOCALE_PT=1 LOCALE_RO=1 LOCALE_SK=1 LOCALE_SL=1 LOCALE_SV=1 LOCALE_TR=1 LOCALE_HI=1 LOCALE_TW=1 LOCALE_AR=1 LOCALE_BN=1 LOCALE_UR=1
-
-# Build with a single additional language
+# Languages: English is always built in; add one, or all 38
 make LOCALE_FR=1
+make LOCALE_ALL=1
 
 # Build and run in QEMU
 make run
@@ -250,8 +274,11 @@ make info
 # Standard run with serial logging
 make run
 
-# Manually with options
-qemu-system-i386 -cdrom system71.iso -serial file:/tmp/serial.log -display sdl -vga std -m 256M
+# Manually: 1 GB of RAM (the system uses what it is given) and a USB tablet,
+# so the pointer follows the host mouse without capturing it
+qemu-system-i386 -cdrom system71.iso -m 1024 -vga std \
+    -device qemu-xhci,id=xhci -device usb-tablet,bus=xhci.0 \
+    -serial file:/tmp/serial.log
 ```
 
 ### QEMU Options
@@ -276,19 +303,16 @@ make debug
 - **[Contributing Guide](docs/CONTRIBUTING.md)** — How to help with development
 
 ### Deep Dives
-- **[Implementation Status](docs/IMPLEMENTATION_STATUS_AUDIT.md)** — Complete subsystem audit
-- **[Implementation Priorities](IMPLEMENTATION_PRIORITIES.md)** — Planned work roadmap
 - **[Component Guides](docs/components/)** — Detailed technical documentation:
   - Control Manager, Dialog Manager, Font Manager, Event Manager
   - Menu Manager, Window Manager, Resource Manager, Serial Logging
 - **[Memory Management](docs/MEMORY_MANAGEMENT.md)** — Zone-based allocation system
 - **[Project Architecture](docs/)** — Full documentation index
 
-### Localization & Internationalization
-- **[Available Translations](docs/TRANSLATIONS.md)** — READMEs in 37 languages
-- **[Locale Manager](include/LocaleManager/)** — Runtime language switching
-- **[String Resources](resources/strings/)** — Per-language localization files
-- **[CJK Support](include/TextEncoding/)** — Chinese, Japanese, Korean font support
+### Localization
+- **[Locale Manager](include/LocaleManager/)** — where user-visible strings come from, and `lang=` at boot
+- **[String Resources](resources/strings/)** — the `STR#` tables, one file per language
+- **[CJK Support](include/TextEncoding/)** — multi-byte encoding infrastructure
 
 ### Project Philosophy
 
@@ -346,12 +370,14 @@ This is a **clean-room reimplementation** for educational and preservation purpo
 
 ## 📊 Development Statistics
 
-- **Lines of Code**: ~57,500+ (including 2,500+ for segment loader)
+- **Lines of Code**: ~218,000 (headers **and** sources; ~57,500 was the figure
+  when the audit was written — the codebase has roughly quadrupled since)
 - **Compilation Time**: ~3-5 seconds
-- **Kernel Size**: ~4.16 MB (kernel.elf)
-- **ISO Size**: ~12.5 MB (system71.iso)
+- **Kernel Size**: ~4.4 MB (`kernel.elf`)
+- **ISO Size**: ~16 MB (`system71.iso`)
 - **Error Reduction**: 94% of core functionality working
-- **Major Subsystems**: 28+ (Font, Window, Menu, Control, Dialog, TextEdit, etc.)
+- **Major Subsystems**: 57+ directories under `src/` (Font, Window, Menu,
+  Control, Dialog, TextEdit, DeskManager, PatternMgr, Finder, …)
 
 ## 🔮 Future Direction
 
@@ -363,12 +389,12 @@ This is a **clean-room reimplementation** for educational and preservation purpo
 - Implement additional controls (text fields, pop-ups, sliders)
 - Disk write-back for HFS file system
 - Advanced Sound Manager features (mixing, sampling)
-- Basic desk accessories (Calculator, Note Pad)
+- Balloon Help, and setting alarms in Alarm Clock
 
 ---
 
 **Status**: Experimental - Educational - In Development
 
-**Last Updated**: November 2025 (Sound Manager Enhancements Complete)
+**Last Updated**: October 2026
 
 For questions, issues, or discussion, please use GitHub Issues.

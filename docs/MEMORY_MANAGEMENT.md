@@ -1,5 +1,22 @@
 # Memory Management Guidelines
 
+## How Big the Heaps Are
+
+There are two zones. The **system zone** is a fixed 2 MB array in the kernel.
+The **application zone**, where windows, their offscreen buffers, dialogs and
+documents live, is sized from the machine:
+
+- **x86**: it takes the RAM from the end of the kernel image to the top of the
+  contiguous memory the boot loader reports, less 1 MB
+  (`Platform_GetFreeMemory` in `src/Platform/x86/hal_boot.c`). Under QEMU with
+  `-m 1024` that is about 1 GB, with 65,536 master pointers.
+- **Other platforms**, or an x86 machine that reports no memory, fall back to a
+  fixed array: 24 MB (8 MB on x86).
+
+Every window keeps a 32-bit offscreen buffer the size of its content, so a
+full-screen window at 800x600 needs 1.9 MB. The 68K emulator sees only the
+first 16 MB of the application zone, which is all a 68K program can address.
+
 ## ⚠️ CRITICAL: Do Not Use Standard C Allocators
 
 **NEVER use `malloc()`, `free()`, `calloc()`, or `realloc()` in application code.**

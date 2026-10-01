@@ -14,7 +14,7 @@ make clean        # Clean build artifacts
 ### Add Languages
 ```bash
 make LOCALE_FR=1  # Add French to build
-make LOCALE_DE=1 LOCALE_JA=1  # Multiple languages
+make LOCALE_ALL=1 # Every language (choose with lang=xx at boot)
 ```
 
 ### Debug
@@ -50,7 +50,7 @@ System7/
 1. Check `docs/KNOWN_ISSUES.md`
 2. Search for `TODO` or `FIXME` comments
 3. Run `grep -r "HACK" include/ src/`
-4. Look at `docs/IMPLEMENTATION_STATUS_AUDIT.md`
+4. Run the integration tests: `make INTEGRATION_TESTS=1` (results on serial)
 
 ### Adding a Feature
 1. Decide which component it belongs to
@@ -125,10 +125,8 @@ make debug                # Run with GDB for breakpoints
 |------|---------|
 | `docs/INDEX.md` | Documentation guide (start here) |
 | `docs/PROJECT_EVOLUTION.md` | Why this is sloppy and how it got that way |
-| `docs/IMPLEMENTATION_STATUS_AUDIT.md` | What's implemented, what's not |
 | `docs/KNOWN_ISSUES.md` | Known bugs and limitations |
 | `docs/components/README.md` | Component documentation index |
-| `IMPLEMENTATION_PRIORITIES.md` | Roadmap and planned work |
 | `.github/workflows/ci.yml` | CI/CD configuration and test setup |
 | `Makefile` | Build system and compilation flags |
 
@@ -213,7 +211,7 @@ make clean && make run  # Quick compile + QEMU boot
 
 ### Multiple Languages
 ```bash
-make LOCALE_FR=1 LOCALE_DE=1 LOCALE_JA=1 LOCALE_ZH=1 run
+make LOCALE_ALL=1 run
 ```
 
 ### Check Build Issues
@@ -244,7 +242,6 @@ If you can't find answers:
 2. Look at [docs/PROJECT_EVOLUTION.md](docs/PROJECT_EVOLUTION.md)
 3. Search existing GitHub Issues
 4. Ask in a new GitHub Issue with context
-5. Reference IMPLEMENTATION_PRIORITIES.md for planned work
 
 ---
 

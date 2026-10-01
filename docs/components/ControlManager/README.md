@@ -29,7 +29,6 @@ Coordinate creation, drawing, tracking, and activation of classic System 7 contr
 - Build smoke harness: `make CTRL_SMOKE_TEST=1 run` to exercise default/cancel buttons, checkbox/radio toggles, and focus traversal (keyboard + mouse)
 - Serial logging is guarded with `[CTRL]` prefixes and whitelisted in `System71StdLib.c`
 - Run `make check-exports` after modifying exported Toolbox traps to keep `docs/symbols_allowlist.txt` in sync
-- See [QA checklist](QA.md) for manual regression scenarios and expected serial traces
 
 ## Future Work
 - Replace hard-coded Chicago metrics with `GetFontInfo()` once additional Font Manager strikes land

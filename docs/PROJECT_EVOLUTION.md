@@ -150,7 +150,7 @@ The initial discipline showed **how** to reverse-engineer systematically with AI
 
 ### For Understanding System 7
 We now have:
-- 225+ source files documenting System 7 internals (even if incomplete/rough)
+- 300+ source files documenting System 7 internals (even if incomplete/rough)
 - Extracted resources (fonts, patterns, icons) that are historically accurate
 - A running System 7 in QEMU showing how it actually behaves
 - Proof that you can build a recognizable OS from reverse engineering

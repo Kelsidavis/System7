@@ -48,8 +48,12 @@ sudo apt-get install build-essential gcc-multilib grub-pc-bin grub-efi-amd64-bin
 # Build kernel
 make
 
-# Build with additional language
+# Build with every language, or one more than English
+make LOCALE_ALL=1
 make LOCALE_FR=1
+
+# Build with the integration tests, which run at boot
+make INTEGRATION_TESTS=1
 
 # Run in QEMU
 make run
@@ -67,9 +71,8 @@ System7/
 ├── docs/                 # Project documentation
 │   ├── components/       # Detailed component guides
 │   ├── future/           # Planning documents
-│   └── TRANSLATIONS.md   # Multi-language README index
 ├── resources/            # Resource files, fonts, patterns
-│   ├── strings/          # Localization files (one per language)
+│   ├── strings/          # STR# tables, one per language
 │   └── device-tree/      # QEMU device tree files
 ├── scripts/              # Development utility scripts
 ├── Makefile              # Build system
@@ -99,8 +102,7 @@ Types: `feat`, `fix`, `docs`, `test`, `refactor`, `perf`, `style`
 
 ## Getting Help
 
-- Review [IMPLEMENTATION_PRIORITIES.md](../IMPLEMENTATION_PRIORITIES.md) for planned work
-- Check [IMPLEMENTATION_STATUS_AUDIT.md](../docs/IMPLEMENTATION_STATUS_AUDIT.md) for subsystem details
+- Check [KNOWN_ISSUES.md](KNOWN_ISSUES.md) for what is broken or missing
 - Read component documentation in `docs/components/`
 - Ask questions in GitHub issues
 

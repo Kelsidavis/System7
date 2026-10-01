@@ -1,5 +1,11 @@
 ### **Phase 1: Core Codebase Refactoring for Portability**
 
+> **Status: executed (verified 2026-10-01).** `src/Platform/include/`
+> (`boot.h`, `io.h`, `storage.h`, `input.h`, `serial.h`, `network.h`) and
+> `src/Platform/x86/` (`io.c`, `ata.c`, `ps2.c`, `hal_boot.c`) all exist, as
+> does `src/boot.c`. Paths in this plan refer to the *target* layout and are
+> accurate.
+
 This is the most critical phase, establishing the foundation for all future porting. The primary objective is to abstract all platform-specific code into a well-defined Hardware Abstraction Layer (HAL), making the core OS platform-agnostic.
 
 **Module 1.1: Establish the HAL Directory Structure and API**
@@ -64,3 +70,8 @@ This is the most critical phase, establishing the foundation for all future port
     *   Define toolchain variables (e.g., `CC`, `LD`) based on the selected `PLATFORM`.
 
 With the completion of Phase 1, the core OS will be decoupled from the x86 architecture, making it significantly easier to port to new platforms. The next phase would be to implement a new HAL for a different platform, such as the Raspberry Pi.
+
+> **Note:** the earlier revision of this plan referred to `src/System/Kernel/…`,
+> `src/StringMgr/`, and `src/SerialManager/`. None of those paths exist; the
+> Memory Manager lives in `src/MemoryMgr/`, and `printf`/`snprintf` live in
+> `src/System71StdLib.c`. Don't go looking for files that aren't there.

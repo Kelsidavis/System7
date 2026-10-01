@@ -1,124 +1,41 @@
 # Known Issues and Technical Debt
 
-This document tracks known issues, workarounds, and technical debt in the System 7.1 reimplementation codebase.
+This document tracks known issues, workarounds, and technical debt in the System 7 codebase.
 
 ## Open Issues
 
-### ⚠️ Desk accessories open and keep their handlers, but are not driven yet
+### ⚠️ ARM64 boot stops while creating the boot volume
 
-Calculator, Alarm Clock, Key Caps and Chooser now each open a real,
-visible window with a content region, and their `processEvent` and
-`handleMenu` handlers are attached correctly at that moment. What breaks
-is what happens next: opening further accessories overwrites the earlier
-one's `DeskAccessory` struct, and its handler pointers stop being handler
-pointers.
+`make PLATFORM=arm64` builds and links (CI builds it), and under QEMU's `virt`
+machine the kernel starts, sets up its zones and the desktop pattern, then
+stops in `HFS_CreateBlankVolume` and goes no further. Not yet investigated.
 
-Three things that used to be wrong here are fixed. `DA_CreateWindow` was a
-stub that allocated `sizeof(DAWindowAttr)` and stored it in `da->window`,
-which is a `WindowPtr` - so no window was ever created, and the attribute
-block was passed to `SetPort` as a `GrafPtr`. It calls `NewWindow` now.
-`processEvent`/`handleMenu` are wired through a conversion rather than a
-cast, because `DAEventInfo`'s `v`/`h` pair is the click in *window-local*
-coordinates while `where` stays global - every built-in hit-tests with
-`v`/`h`, so copying `where` into it would put every click off by the
-window origin. And `PurgeMem` no longer hangs the machine (below).
+**Files**: src/FS/ (HFS volume creation), src/Platform/arm64/.
 
-The struct corruption that used to follow is gone. Opening all five in
-sequence used to overwrite the Calculator's `DeskAccessory` - handlers
-right as it opened, wrong four opens later, `DA_GetByName` returning NULL
-for it, and a dispatched click jumping to the struct itself for an
-invalid-opcode exception. That was the allocator handing out memory
-already in use, fixed below. All five now open with their tables intact
-and a dispatched click returns normally.
+### ⚠️ Balloon Help, alarms, and Find's reach
 
-Click routing reaches them now. `FindWindow` had a bare
-`/* TODO: Implement system window checking when needed */` where the
-`inSysWindow` test belongs, so it never returned that part and a click on
-an accessory went to whoever handles document content. Three things were
-needed: `DA_CreateWindow` stamps the window with the negated refNum of its
-DA, since `NewWindow` marks everything `userKind`; `FindWindow` reports a
-negative `windowKind` as `inSysWindow`; and `SystemClick` now makes the
-part decision itself, because `inSysWindow` deliberately says nothing
-about which part was hit. Without that last piece a click on an
-accessory's title bar would reach it as content and its window could
-never be moved or closed.
+- **Balloon Help**: the Help menu is there and About Balloon Help says so, but
+  balloons are not implemented; Show Balloons is dimmed.
+- **Alarm Clock** shows the time but cannot set an alarm.
+- **Find** searches the startup disk only, up to 100 matches and 64 items a
+  folder, and has no More Choices.
 
-Driving a click through the real chain - `FindWindow`, `inSysWindow`,
-`SystemClick` - lands it in the accessory, with the first click on an
-inactive one activating rather than being passed on:
+### ✅ Desk accessories open but were not driven — FIXED
 
-```
-DAPROBE: FindWindow -> inSysWindow
-DAPROBE: hit window is the DA's
-DAPROBE: hitTest -> wInContent
-DAPROBE: SystemClick #1 (activate)   ->  DA is active
-DAPROBE: SystemClick #2 (deliver)    ->  returned
-```
+Clicks in an accessory's window were reported as `inSysWindow` and passed to
+nobody, keys never reached `SystemEvent`, and accessories drew into whatever
+port happened to be current, so the Calculator's display never changed.
+`SystemClick` now gets the click, `SystemEvent` gets keys while an accessory is
+in front, and the Desk Manager makes each accessory's window the current port
+while it runs. Closing one (close box or Close Window) goes through
+`CloseDeskAcc`, which now disposes its window. Calculator, Alarm Clock and Key
+Caps each had bugs of their own, fixed with them.
 
-They draw now, too, and this one was looked at rather than inferred: the
-Calculator comes up with its display reading `0` and all twenty buttons
-laid out, layered above the Macintosh HD window.
+### ✅ GrowWindow applied the resize as well as tracking it — FIXED
 
-Two things were in the way. `HandleUpdate` erased the content of any
-window it did not recognise, so an accessory's window was wiped on every
-update - the same fault the entry above it records for About This
-Macintosh, Get Info and Find. It now offers the update to `SystemUpdate`
-first, which finds the accessory that owns the window and lets it draw.
-
-The second was subtler and had been silently disabling the first.
-`DA_LoadFromRegistry` installed an interface adapter in *every* handler
-slot, whether or not the interface implemented the call behind it. So
-`da->update` was never NULL, even though all five accessories leave the
-interface's `update` NULL and paint from the `updateEvt` arm of
-`processEvent` instead. `SystemUpdate` saw a non-NULL `da->update`, called
-it, reached `DA_UpdateViaInterface`, which called a NULL `interface->update`
-and returned having done nothing - and so never fell through to deliver
-the event that would have drawn. Adapters are now installed only over
-slots the interface actually implements, which makes `if (da->update)`
-mean what every caller in the tree already assumes it means.
-
-**What is left.** Drag and close are wired but untested: both track the
-mouse, so a probe with no user to release the button cannot exercise
-them. Nothing has been driven through real mouse input at all - QEMU's
-tablet is detected by the kernel (`USB tablet detected - switching mouse
-source`) but its xHCI driver then reports `no device` on every port, so
-injected pointer events never arrive. Accessories were opened through
-`OpenDeskAcc`, the same call the Apple menu handler makes.
-
-Separately, `SystemMenu` in DeskManagerCore still has "would need to map
-item to DA name" where an item-to-accessory lookup belongs, and routes
-only to the already-active DA. The Apple menu does not go through it -
-`MenuCommands.c` resolves the item name and calls `OpenDeskAcc` directly -
-so this is a dead path rather than a hole in the menu.
-
-### ⚠️ GrowWindow applies the resize as well as tracking it
-
-`GrowWindow` is documented, in Inside Macintosh and in its own comment
-here, to track the drag and return the size the user chose. This one also
-applies it: it calls `SizeWindow`, then `PaintOne` and `PaintBehind` to
-repair the screen.
-
-Callers disagree about that, because the contract says otherwise:
-
-- `SimpleText.c:242` calls `SizeWindow` afterwards - so the window is
-  resized twice, and the second one lands after the repair.
-- `EventDispatcher.c:422` and `WindowEvents.c:1043` do not, and rely on
-  the side effect.
-
-The visible consequence is that a window behind a resized one keeps
-pieces of its old frame: `PaintBehind` runs inside `GrowWindow`, and the
-caller's `SizeWindow` then invalidates again with nothing repainting the
-chrome behind. Reproduce by opening Read Me, clicking the Macintosh HD
-title bar, and dragging its grow box from `481,411` to `620,500`.
-
-**An attempt at the obvious fix failed and was reverted.** Making
-`GrowWindow` track only, and giving the two dependent callers their own
-`SizeWindow`, produced a window resized to the wrong dimensions
-altogether - narrower and taller than the drag asked for. The size
-`GrowWindow` returns appears to be computed on the assumption that its own
-`SizeWindow` has already run, so the two cannot simply be separated
-without working out what `finalSize` actually means first. That is the
-next step, and it is more than a call-site change.
+`GrowWindow` now does what Inside Macintosh says: it tracks the outline and
+returns the size chosen, and the caller resizes. The windows behind no longer
+keep pieces of the old frame.
 
 ### 🐞 Type/creator icon mapping names icons that do not exist
 
@@ -377,19 +294,11 @@ Verified in QEMU: Command-O lists the root directory inside an intact box
 frame, clicking a name selects it, Open opens the document, and Cancel
 dismisses.
 
-### ⚠️ A covered window's title text still shows through
+### ✅ A covered window's title text showed through — FIXED
 
-Window chrome is now clipped to the pixels the window actually owns, but the
-title is drawn with `DrawString` and so bypasses the pixel gate that clips
-everything else. A window covered by another can still show its title text on
-top of the window in front. Drawing the chrome once per visible band with the
-port clipped to that band was tried and made it worse - the whole title bar
-came back unclipped - so the cause needs to be understood rather than guessed
-at.
-
-**Files**: src/WindowManager/WindowDisplay.c (WM_ChromePixel,
-WM_BeginChromeClip, DrawWindowFrame_Unclipped).
-
+All drawing, text included, now goes through one clip: the port rectangle, its
+clip region and the window's visible region. A covered window's title stays
+under the window in front.
 
 ### ✅ A window overlapped by another never repaints — FIXED
 
@@ -1089,7 +998,7 @@ Implemented proper region-based erasing for Direct Framebuffer:
 Several features are noted as incomplete:
 
 - **Color QuickDraw**: `Platform_HasColorQuickDraw()` returns false (WindowPlatform.c:32)
-- **ARM64 Port**: Exists but incomplete/untested (noted in Hot Mess 4 release)
+- **ARM64 Port**: builds and starts under QEMU `virt`, but stops while creating the boot volume (above)
 - **Many Menu Items**: Remain placeholders
 - **Graphics Mode**: Stuck in classic VGA mode
 

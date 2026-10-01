@@ -8,6 +8,11 @@ This is an open-source reimplementation of Apple's classic Macintosh System 7 op
 
 **Status**: Proof of concept (~94% of core functionality complete)
 
+> Note: the audit that produced the ~85% figure is from November 2025 and
+> predates the 2026 work (desktop patterns, dialog/window redraw fixes, Finder
+> search, CPU-named About This Macintosh). Treat its file/line references as
+> hints, not gospel.
+
 ## Quick Start (5 minutes)
 
 ### 1. Install Dependencies
@@ -41,14 +46,17 @@ make run
 ```
 
 ### With Serial Output
-Useful for debugging:
+Useful for debugging. A USB tablet lets the pointer follow the host mouse
+without capturing it, and the system uses as much RAM as it is given:
 ```bash
-qemu-system-i386 -cdrom system71.iso -serial stdio -display sdl -m 256M
+qemu-system-i386 -cdrom system71.iso -m 1024 -vga std \
+    -device qemu-xhci,id=xhci -device usb-tablet,bus=xhci.0 -serial stdio
 ```
 
 ### Headless (No Graphics)
 ```bash
-qemu-system-i386 -cdrom system71.iso -serial stdio -display none -m 256M
+qemu-system-i386 -cdrom system71.iso -m 1024 -vga std \
+    -device qemu-xhci,id=xhci -device usb-tablet,bus=xhci.0 -serial stdio -display none
 ```
 
 ### With Debugger
@@ -60,22 +68,13 @@ gdb kernel.elf -ex "target remote :1234"
 
 ## Building Variants
 
-### English Only (Default)
 ```bash
-make
-```
-
-### With Additional Language
-```bash
-make LOCALE_FR=1     # Add French
-make LOCALE_DE=1     # Add German
-make LOCALE_JA=1     # Add Japanese
-make LOCALE_ZH=1     # Add Simplified Chinese
-```
-
-### All Languages
-```bash
-make LOCALE_FR=1 LOCALE_DE=1 LOCALE_ES=1 LOCALE_JA=1 LOCALE_ZH=1 ... # (see README.md)
+make                         # the kernel, x86, English
+make LOCALE_FR=1             # with French as well
+make LOCALE_ALL=1            # with all 38 languages; choose with lang=xx at boot
+make PLATFORM=arm64          # ARM64 kernel for QEMU's virt machine
+make INTEGRATION_TESTS=1     # with the integration tests, which run at boot
+                             # and report PASS/FAIL on the serial port
 ```
 
 ## What Works
@@ -129,13 +128,12 @@ System7/
 ├── docs/
 │   ├── GETTING_STARTED.md        # This file
 │   ├── CONTRIBUTING.md           # How to contribute
-│   ├── TRANSLATIONS.md           # Multi-language READMEs
 │   ├── KNOWN_ISSUES.md           # Current limitations
 │   ├── components/               # Deep technical guides
 │   └── future/                   # Planned improvements
 ├── include/                       # Public headers (subsystems)
 ├── resources/
-│   ├── strings/                  # Localization (one per language)
+│   ├── strings/                  # STR# tables, one per language
 │   └── device-tree/              # QEMU configuration
 ├── scripts/                       # Utility scripts
 ├── Makefile                       # Build system
@@ -144,11 +142,10 @@ System7/
 
 ## Next Steps
 
-- **Want to explore the code?** See [IMPLEMENTATION_STATUS_AUDIT.md](IMPLEMENTATION_STATUS_AUDIT.md)
+- **Want to explore the code?** Start with the [component guides](components/README.md)
 - **Hit an issue?** Check [KNOWN_ISSUES.md](KNOWN_ISSUES.md)
 - **Want to contribute?** See [CONTRIBUTING.md](CONTRIBUTING.md)
 - **Curious about architecture?** Browse [docs/components/](components/)
-- **Looking for translations?** See [TRANSLATIONS.md](TRANSLATIONS.md)
 
 ## Troubleshooting
 

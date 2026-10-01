@@ -1,112 +1,58 @@
 # System 7 Documentation Index
 
-Welcome to the System 7 documentation. This index will help you find what you're looking for.
+## Getting Started
 
-## 🚀 Getting Started
+- [README](../README.md) — what this is, what works, how to build and run it
+- [Getting Started](GETTING_STARTED.md) — first build and first boot
+- [Quick Reference](QUICKREF.md) — build, run and debug commands on one page
+- [Project Evolution](PROJECT_EVOLUTION.md) — how the project got here
+- [Featured In](FEATURED_IN.md) — the Action Retro video and what it found
 
-**First time here?**
-- [Getting Started](GETTING_STARTED.md) — 5-minute quick start guide
-- [Project Evolution](PROJECT_EVOLUTION.md) — Understanding this project's journey
-- [Featured In](FEATURED_IN.md) — YouTube feature and real hardware testing results
-- [Session Handoff](SESSION_HANDOFF.md) — current state of the bare-metal/redraw work, open leads, and debugging traps
-- [README (main)](../README.md) — Project overview
+## Understanding the System
 
-## 📚 Understanding the System
+- [Memory Management](MEMORY_MANAGEMENT.md) — zones, handles, and how the heap is sized
+- [malloc Prevention](MALLOC_PREVENTION.md) — why the kernel does not use malloc/free
+- [Known Issues](KNOWN_ISSUES.md) — what is broken or missing, and why
+- [Compatibility Gaps](components/Compatibility/System7_Compatibility_Gaps.md) — where the Toolbox differs from Inside Macintosh
+- [Bare Metal](BARE_METAL_IMPROVEMENTS.md) — real-hardware support and what remains
 
-### Architecture & Design
-- [IMPLEMENTATION_STATUS_AUDIT.md](IMPLEMENTATION_STATUS_AUDIT.md) — What's implemented, what's not
-- [MEMORY_MANAGEMENT.md](MEMORY_MANAGEMENT.md) — Zone-based allocation, how memory works
-- [MALLOC_PREVENTION.md](MALLOC_PREVENTION.md) — Why we don't use malloc/free in kernel
-
-### Bare Metal & Hardware
-- [BARE_METAL_IMPROVEMENTS.md](BARE_METAL_IMPROVEMENTS.md) — Plan for real hardware support
-- Details: Current QEMU-only limitations and roadmap for bare metal improvements
-
-### Known Issues & Limitations
-- [KNOWN_ISSUES.md](KNOWN_ISSUES.md) — Current bugs and workarounds
-- [System7_Compatibility_Gaps.md](components/Compatibility/System7_Compatibility_Gaps.md) — Differences from real System 7
-
-## 🔧 Component Deep Dives
-
-Each component has its own documentation:
+## Components
 
 | Component | Documentation |
-|-----------|----------------|
-| **Window Manager** | [WindowManager.md](components/WindowManager.md) |
-| **Menu Manager** | [MenuManager.md](components/MenuManager.md) |
-| **Event Manager** | [EventManager.md](components/EventManager.md) |
-| **Dialog Manager** | [DialogManager/](components/DialogManager/) |
-| **Control Manager** | [ControlManager/](components/ControlManager/) |
-| **Font Manager** | [FontManager/](components/FontManager/) |
-| **Resource Manager** | [ResourceManager.md](components/ResourceManager.md) |
-| **Serial Logging** | [System/Logging.md](components/System/Logging.md) |
-| **Component Status** | [STATUS.md](components/STATUS.md) |
+|-----------|---------------|
+| Window Manager | [WindowManager.md](components/WindowManager.md) |
+| Menu Manager | [MenuManager.md](components/MenuManager.md) |
+| Event Manager | [EventManager.md](components/EventManager.md) |
+| Dialog Manager | [DialogManager/](components/DialogManager/) |
+| Control Manager | [ControlManager/](components/ControlManager/) |
+| Font Manager | [FontManager/](components/FontManager/) |
+| Resource Manager | [ResourceManager.md](components/ResourceManager.md) |
+| Serial Logging | [System/Logging.md](components/System/Logging.md) |
+| Desk Accessories | `src/DeskManager/` — Calculator, Alarm Clock, Key Caps, Note Pad, Chooser |
+| Patterns | `src/PatternMgr/` and `Patterns.rsrc` — 17 colour and 32 black-and-white patterns |
 
-**[Full Components Index](components/README.md)** — Organized by subsystem
+[Components index](components/README.md)
 
-## 🌍 Internationalization
+## Contributing and Planning
 
-- [TRANSLATIONS.md](TRANSLATIONS.md) — Available in 37 languages
-- `translations/` — All translated README files organized by language group
+- [Contributing](CONTRIBUTING.md)
+- [Porting plan](future/PORTING_PLAN.md) — other architectures
+- [Refactoring plan](future/REFACTORING_PLAN.md) — the platform layer
 
-## 👥 Contributing
+## Project Layout
 
-- [CONTRIBUTING.md](CONTRIBUTING.md) — How to contribute to the project
-- [CONTRIBUTING.md](../docs/CONTRIBUTING.md) — Types of contributions welcome
-
-## 🛣️ Planning & Future Work
-
-- [IMPLEMENTATION_PRIORITIES.md](../IMPLEMENTATION_PRIORITIES.md) — Planned work and roadmap
-- [future/REFACTORING_PLAN.md](future/REFACTORING_PLAN.md) — Potential refactoring
-- [future/PORTING_PLAN.md](future/PORTING_PLAN.md) — Cross-platform porting notes
-
-## 🏗️ Project Structure
-
-### Main directories
 ```
 System7/
-├── README.md              # Start here
-├── docs/                  # All documentation
-│   ├── components/        # Component guides
-│   ├── future/            # Planning docs
-│   ├── translations/      # 37 language READMEs
-│   └── [this index]
-├── include/               # Public headers
-├── src/                   # Implementation (organized by subsystem)
-├── resources/
-│   ├── strings/           # Localization files
-│   └── device-tree/       # QEMU device trees
-├── scripts/               # Development utilities
-└── [other files]
+├── README.md
+├── docs/                  # this documentation
+│   ├── components/        # subsystem guides
+│   └── future/            # plans
+├── include/               # headers, by subsystem
+├── src/                   # implementation, by subsystem
+├── resources/strings/     # STR# tables, one per language (LOCALE_ALL=1 builds them all)
+├── patterns.json          # pattern sources for Patterns.rsrc
+└── tests/                 # test notes and harnesses
 ```
 
-## 📋 Quick Reference
-
-### What You're Looking For
-- **"How do I get started?"** → [Getting Started](GETTING_STARTED.md)
-- **"What actually works?"** → [IMPLEMENTATION_STATUS_AUDIT.md](IMPLEMENTATION_STATUS_AUDIT.md)
-- **"Why is this so rough?"** → [Project Evolution](PROJECT_EVOLUTION.md)
-- **"How do I help?"** → [CONTRIBUTING.md](CONTRIBUTING.md)
-- **"How does X work?"** → [Components](components/) or search below
-- **"What's broken?"** → [KNOWN_ISSUES.md](KNOWN_ISSUES.md)
-- **"What are you planning?"** → [IMPLEMENTATION_PRIORITIES.md](../IMPLEMENTATION_PRIORITIES.md)
-
-### By Experience Level
-- **Complete beginner** → Start with [Getting Started](GETTING_STARTED.md)
-- **Want to understand design** → Read [components/README.md](components/README.md)
-- **Want to understand limitations** → Read [KNOWN_ISSUES.md](KNOWN_ISSUES.md) and [Project Evolution](PROJECT_EVOLUTION.md)
-- **Ready to dive into code** → Pick a component in [components/](components/) and read the source
-
-## 🔍 Searching
-
-If you can't find what you're looking for:
-1. Check [IMPLEMENTATION_STATUS_AUDIT.md](IMPLEMENTATION_STATUS_AUDIT.md) for system overview
-2. Look through [components/README.md](components/README.md) for specific subsystems
-3. Search code comments with `grep TODO` or `grep FIXME`
-4. Open a GitHub issue asking for guidance
-
----
-
-**Last updated**: July 2026  
-**Total documentation files**: 60+  
-**Organized by**: Component, topic, and experience level
+The integration tests live in `src/Integration/IntegrationTests.c` and run when
+the kernel is built with `INTEGRATION_TESTS=1`.

@@ -11,17 +11,20 @@ make clean        # Clean all build artifacts
 make info         # Show build statistics
 ```
 
+## Running by Hand
+
+```bash
+qemu-system-i386 -cdrom system71.iso -m 1024 -vga std \
+    -device qemu-xhci,id=xhci -device usb-tablet,bus=xhci.0 \
+    -serial file:/tmp/serial.log
+make INTEGRATION_TESTS=1 && make iso   # integration tests run at boot
+```
+
 ## Languages
 
 ```bash
-# Add single language to build
-make LOCALE_FR=1 run      # French
-make LOCALE_DE=1 run      # German
-make LOCALE_JA=1 run      # Japanese
-make LOCALE_ZH=1 run      # Simplified Chinese
-
-# Multiple languages
-make LOCALE_FR=1 LOCALE_DE=1 LOCALE_JA=1 run
+make LOCALE_FR=1        # English plus French
+make LOCALE_ALL=1       # all 38; choose one at boot with lang=xx
 ```
 
 ## Debugging
@@ -122,14 +125,6 @@ grep -r "^[a-zA-Z_][a-zA-Z0-9_]*(" include/ src/
 make PLATFORM=x86          # x86 (default)
 make PLATFORM=arm          # ARM (experimental)
 make PLATFORM=ppc          # PowerPC (experimental)
-
-# Add languages
-make LOCALE_FR=1           # French
-make LOCALE_DE=1           # German
-# ... (see Make commands above)
-
-# Build with custom options
-make PLATFORM=x86 LOCALE_FR=1 LOCALE_JA=1
 ```
 
 ## Git Quick Ref
@@ -206,7 +201,6 @@ python3 scripts/create_color_icons.py input.icns output.png
 - **docs/PROJECT_EVOLUTION.md** — Project history
 - **docs/KNOWN_ISSUES.md** — Known problems
 - **docs/components/** — Component guides
-- **IMPLEMENTATION_PRIORITIES.md** — Roadmap
 
 ## Need Help?
 
@@ -215,7 +209,6 @@ python3 scripts/create_color_icons.py input.icns output.png
 3. Read `CLAUDE.md` for development guidance
 4. Check `docs/components/` for specific topics
 5. Open a GitHub Issue if stuck
-6. Reference `IMPLEMENTATION_PRIORITIES.md` for roadmap
 
 ---
 

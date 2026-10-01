@@ -1,5 +1,11 @@
 ### **Porting System 7 to Other Platforms: A Comprehensive Plan**
 
+> **Status: partly done (October 2026).** `src/Platform/` has `x86/`, `arm/`
+> (Raspberry Pi), `arm64/` (QEMU `virt` and Raspberry Pi) and `ppc/` trees.
+> x86 runs fully; arm64 builds and starts under QEMU but stops while creating
+> the boot volume; `arm/` and `ppc/` are earlier. The 68K and PowerPC
+> interpreters live in `src/CPU/`.
+
 This document outlines a plan for porting the System 7 reimplementation to other platforms, including ARM (Raspberry Pi, Apple Silicon) and PowerPC.
 
 **1. High-Level Strategy: Abstraction and Modularization**

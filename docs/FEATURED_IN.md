@@ -57,7 +57,7 @@ This feature brought significant attention to the project and validated our hone
 
 **For New Users:** You're now aware the project works partially on real hardware but needs significant bare metal improvements.
 
-**For Contributors:** Real hardware testing data is now available showing exactly where work is needed. See [BARE_METAL_IMPROVEMENTS.md](BARE_METAL_IMPROVEMENTS.md) and [BARE_METAL_TODO.md](BARE_METAL_TODO.md).
+**For Contributors:** Real hardware testing data is now available showing exactly where work is needed. See [BARE_METAL_IMPROVEMENTS.md](BARE_METAL_IMPROVEMENTS.md).
 
 **For the Project:** This visibility created an opportunity to be honest about limitations and transparent about the roadmap, which is exactly what our documentation provides.
 
@@ -72,7 +72,6 @@ This feature brought significant attention to the project and validated our hone
 
 - [PROJECT_EVOLUTION.md](PROJECT_EVOLUTION.md) - Why the project is "sloppy"
 - [BARE_METAL_IMPROVEMENTS.md](BARE_METAL_IMPROVEMENTS.md) - Roadmap to fix the issues
-- [BARE_METAL_TODO.md](BARE_METAL_TODO.md) - Specific tasks for bare metal support
 - [KNOWN_ISSUES.md](KNOWN_ISSUES.md) - Detailed list of known problems
 
 ## Contributing Based on YouTube Testing
@@ -80,9 +79,8 @@ This feature brought significant attention to the project and validated our hone
 If you watched the YouTube feature and want to help fix the bare metal issues:
 
 1. **Start here:** [BARE_METAL_IMPROVEMENTS.md](BARE_METAL_IMPROVEMENTS.md)
-2. **Pick a task:** [BARE_METAL_TODO.md](BARE_METAL_TODO.md)
-3. **Test safely:** See [CLAUDE.md](../CLAUDE.md) for development setup
-4. **Report results:** Document what hardware you test and what works/breaks
+2. **Test safely:** See [CLAUDE.md](../CLAUDE.md) for development setup
+3. **Report results:** Document what hardware you test and what works/breaks
 
 The real hardware testing data from the YouTube feature is incredibly valuable for fixing these issues.
 
