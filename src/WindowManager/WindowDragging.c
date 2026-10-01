@@ -200,8 +200,9 @@ void MoveWindow(WindowPtr theWindow, short hGlobal, short vGlobal, Boolean front
     if (front) SelectWindow(theWindow);
 
     if (theWindow->visible) {
-        if (oldStrucRgn) Local_InvalidateScreenRegion(oldStrucRgn);
-        Local_InvalidateScreenRegion(theWindow->strucRgn);
+        /* Where the window was and where it is now, together */
+        if (oldStrucRgn) UnionRgn(oldStrucRgn, theWindow->strucRgn, oldStrucRgn);
+        Local_InvalidateScreenRegion(oldStrucRgn ? oldStrucRgn : theWindow->strucRgn);
     }
     if (oldStrucRgn) Platform_DisposeRgn(oldStrucRgn);
 
@@ -279,7 +280,6 @@ void DragWindow(WindowPtr theWindow, Point startPt, const Rect* boundsRect) {
     Point ptG;
     Point lastPos = startPt;
     Boolean moved = false;
-    Rect oldBounds = frameG;
 
     /* XOR outline state */
     Rect dragOutline = frameG;
@@ -297,17 +297,7 @@ void DragWindow(WindowPtr theWindow, Point startPt, const Rect* boundsRect) {
         SetPort(wmPort);
     }
 
-    /* CRITICAL: Erase the window from its current position BEFORE starting XOR drag
-     * This prevents leaving white artifacts where the title bar was */
-    extern void HideWindow(WindowPtr window);
-    extern void ShowWindow(WindowPtr window);
     extern void InvalidateCursor(void);  /* Force cursor redraw */
-    Boolean wasVisible = theWindow->visible;
-    (void)wasVisible; /* Avoid unused warning; keep window visible during drag */
-    /* NOTE: Do not HideWindow/PaintBehind here. Using XOR outline without
-     * erasing the window avoids a heap overwrite we are chasing in the
-     * hide/paint path. This matches classic XOR-drag behavior visually,
-     * and prevents the freeze observed at drag start. */
 
     /* Invalidate cursor state before drag to prevent stale background artifacts */
     InvalidateCursor();
@@ -479,161 +469,19 @@ void DragWindow(WindowPtr theWindow, Point startPt, const Rect* boundsRect) {
     InvalidateCursor();
 
     if (moved) {
-        WM_LOG_DEBUG("DragWindow: Final MoveWindow to (%d,%d)\n", dragOutline.left, dragOutline.top);
-
-        /* Create a region for the old window position to invalidate */
-        extern RgnHandle NewRgn(void);
-        extern void RectRgn(RgnHandle rgn, const Rect* r);
-        extern void DisposeRgn(RgnHandle rgn);
-        extern void PaintBehind(WindowPtr startWindow, RgnHandle clobberedRgn);
-        extern void PaintOne(WindowPtr window, RgnHandle clobberedRgn);
-        extern void CalcVis(WindowPtr window);
-
-        WM_LOG_DEBUG("DragWindow: About to call NewRgn()\n");
-        serial_puts("[MEM] DragWindow before NewRgn(oldRgn)\n");
-        MemoryManager_CheckSuspectBlock("pre_NewRgn_old");
-        RgnHandle oldRgn = NewRgn();
-        MemoryManager_CheckSuspectBlock("post_NewRgn_old");
-        WM_LOG_DEBUG("DragWindow: NewRgn() returned %p\n", oldRgn);
-        if (!oldRgn) {
-            WM_LOG_WARN("DragWindow: Failed to allocate oldRgn\n");
-            return;
-        }
-        RectRgn(oldRgn, &oldBounds);
-
-        WM_LOG_TRACE("DragWindow: Created oldRgn for bounds (%d,%d,%d,%d)\n",
-                     oldBounds.left, oldBounds.top, oldBounds.right, oldBounds.bottom);
-
-        /* Move the window to new position */
-        /* The outline is the frame; MoveWindow takes the content's corner */
-        {
-            Rect f = (*theWindow->strucRgn)->rgnBBox, c = (*theWindow->contRgn)->rgnBBox;
-            MoveWindow(theWindow, dragOutline.left + (c.left - f.left),
-                       dragOutline.top + (c.top - f.top), false);
-        }
-
-        /* Recalculate window visibility */
-        CalcVis(theWindow);
-
-        /* Calculate the uncovered desktop region: old position minus new position */
-        extern void DiffRgn(RgnHandle srcRgnA, RgnHandle srcRgnB, RgnHandle dstRgn);
-        RgnHandle uncoveredRgn = NewRgn();
-        MemoryManager_CheckSuspectBlock("post_NewRgn_uncovered");
-        RgnHandle newRgn = NewRgn();
-        MemoryManager_CheckSuspectBlock("post_NewRgn_new");
-
-        if (!uncoveredRgn || !newRgn) {
-            WM_LOG_WARN("DragWindow: Failed to allocate regions for uncovered area\n");
-            if (uncoveredRgn) DisposeRgn(uncoveredRgn);
-            if (newRgn) DisposeRgn(newRgn);
-            if (oldRgn) DisposeRgn(oldRgn);
-            return;
-        }
-
-        if (theWindow->strucRgn && *theWindow->strucRgn) {
-            CopyRgn(theWindow->strucRgn, newRgn);
-        }
-
-        /* Compute: oldRgn - newRgn = region that was uncovered */
-        DiffRgn(oldRgn, newRgn, uncoveredRgn);
-
-        WM_LOG_TRACE("DragWindow: Computed uncovered region\n");
-
-        /* Paint the desktop pattern in the uncovered region FIRST */
-        extern void GetWMgrPort(GrafPtr* port);
-        extern void SetClip(RgnHandle rgn);
-        extern DeskHookProc g_deskHook;  /* WindowDisplay.c */
-
-        GrafPtr savePort;
-        GetPort(&savePort);
-        GrafPtr wmgrPort;
-        GetWMgrPort(&wmgrPort);
-        SetPort(wmgrPort);
-
-        /* Set clip to only the uncovered region */
-        SetClip(uncoveredRgn);
-
-
-        /* Call the desk hook to paint the desktop pattern in the uncovered region */
-        if (g_deskHook) {
-            WM_LOG_TRACE("DragWindow: Calling DeskHook for uncovered region\n");
-            g_deskHook(uncoveredRgn);
-        }
-
-        /* Reset clip */
-        extern void SetRectRgn(RgnHandle rgn, short left, short top, short right, short bottom);
-        RgnHandle fullClip = NewRgn();
-        if (fullClip) {
-            SetRectRgn(fullClip, -32768, -32768, 32767, 32767);
-            SetClip(fullClip);
-            DisposeRgn(fullClip);
-        }
-
-        SetPort(savePort);
-        WM_LOG_TRACE("DragWindow: Desktop repainted in uncovered region\n");
-
-        /* Repaint windows behind in the uncovered region */
-        PaintBehind(theWindow->nextWindow, uncoveredRgn);
-        WM_LOG_TRACE("DragWindow: PaintBehind called for uncovered region\n");
-
-        /* Restore window visibility if it was visible before drag */
-        if (wasVisible) {
-            theWindow->visible = true;
-        }
-
-        /* Repaint the window itself at new position */
-        PaintOne(theWindow, NULL);
-        WM_LOG_TRACE("DragWindow: PaintOne called for window at new position\n");
-
-        /* Invalidate window content to trigger updateEvt for content redraw */
-        if (theWindow->contRgn) {
-            extern void InvalRgn(RgnHandle badRgn);
-            GrafPtr oldPort;
-            GetPort(&oldPort);
-            SetPort((GrafPtr)theWindow);
-            WM_InvalGlobalRgn(theWindow, theWindow->contRgn);
-            SetPort(oldPort);
-            WM_LOG_TRACE("DragWindow: Invalidated window content region\n");
-        }
-
-        /* Content is repainted by the update event generated from the InvalRgn
-         * above. The direct FolderWindow_Draw / AboutWindow_HandleUpdate calls
-         * that used to sit here were a workaround for update events not being
-         * delivered; that delivery is fixed (update events are now synthesised
-         * in GetNextEvent rather than posted into a queue they overflowed), so
-         * having each caller redraw content itself is no longer needed - and
-         * having several of them do it is what made repaint bugs so hard to
-         * attribute. See ARCH-001 in docs/KNOWN_ISSUES.md. */
-
-        /* Clean up new regions */
-        DisposeRgn(uncoveredRgn);
-        DisposeRgn(newRgn);
-
-        /* Clean up */
-        WM_LOG_TRACE("DragWindow: About to DisposeRgn\n");
-        DisposeRgn(oldRgn);
-        WM_LOG_TRACE("DragWindow: DisposeRgn completed\n");
-
-        /* Force screen update */
-        extern void QDPlatform_FlushScreen(void);
-        QDPlatform_FlushScreen();
-
-        if (wasVisible) {
-            theWindow->visible = true;
-        }
+        /* The outline is the frame; MoveWindow takes the content's corner.
+         * MoveWindow repaints the desktop and the windows over both places. */
+        Rect f = (*theWindow->strucRgn)->rgnBBox, c = (*theWindow->contRgn)->rgnBBox;
+        MoveWindow(theWindow, dragOutline.left + (c.left - f.left),
+                   dragOutline.top + (c.top - f.top), false);
     }
-    else if (wasVisible) {
-        /* Restore window visibility even if it never moved */
-        theWindow->visible = true;
-        PaintOne(theWindow, NULL);
-        if (theWindow->contRgn) {
-            extern void InvalRgn(RgnHandle badRgn);
-            GrafPtr oldPort;
-            GetPort(&oldPort);
-            SetPort((GrafPtr)theWindow);
-            WM_InvalGlobalRgn(theWindow, theWindow->contRgn);
-            SetPort(oldPort);
-        }
+
+    /* Dragging a window brings it forward unless Command is held (Inside
+     * Macintosh: Toolbox Essentials, 4-111). Only the Finder's own dispatch
+     * selected first; a control panel dragged from behind stayed behind. */
+    extern UInt16 GetCurrentModifiers(void);
+    if (!(GetCurrentModifiers() & cmdKey) && theWindow != FrontWindow()) {
+        SelectWindow(theWindow);
     }
 
     WM_LOG_TRACE("DragWindow EXIT: moved=%d\n", moved);
@@ -1117,17 +965,17 @@ static Boolean Local_RectsIntersect(const Rect* rect1, const Rect* rect2) {
 static void Local_InvalidateScreenRegion(RgnHandle rgn) {
     if (rgn == NULL || !*rgn) return;
 
-    WM_DEBUG("Local_InvalidateScreenRegion: Invalidating screen region");
-
-    /* Repaint windows behind this region to erase the old window chrome/content
-     * This is critical after a drag operation to remove the ghost image at the old position */
-    extern void PaintBehind(WindowPtr startWindow, RgnHandle clobberedRgn);
-    extern WindowManagerState* GetWindowManagerState(void);
+    /* The desktop first, then every window over it, back to front. The
+     * desktop was left out, so whatever a moved window uncovered kept the
+     * window's old frame - zooming back in left the zoomed title bar and
+     * edges on screen. The desk hook paints only where no window is. */
+    extern DeskHookProc g_deskHook;  /* WindowDisplay.c */
+    if (g_deskHook) {
+        g_deskHook(rgn);
+    }
 
     WindowManagerState* wmState = GetWindowManagerState();
     if (wmState && wmState->windowList) {
-        /* PaintBehind will redraw all windows from the start of the list
-         * The region parameter tells PaintBehind what area was affected */
         PaintBehind(wmState->windowList, rgn);
     }
 }

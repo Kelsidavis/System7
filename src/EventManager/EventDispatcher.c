@@ -387,10 +387,8 @@ Boolean HandleMouseDown(EventRecord* event)
         case inDrag:
             /* Drag window */
             if (whichWindow) {
-                /* CRITICAL: Select window first to bring it to front and activate it! */
-                SelectWindow(whichWindow);
-                EVT_LOG_DEBUG("HandleMouseDown: inDrag - called SelectWindow for window=%p\n",
-                             (void*)whichWindow);
+                /* DragWindow brings the window forward itself, unless
+                 * Command is held */
 
                 /* Set up drag bounds (entire screen minus menu bar) */
                 extern QDGlobals qd;

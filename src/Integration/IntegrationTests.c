@@ -910,6 +910,23 @@ static void Test_Window_UpdateWithoutBuffer(void) {
     RecordTest(test_name, true, "");
 }
 
+/* What a moved window uncovers is repainted, not left showing the window. */
+static void Test_Window_MoveRepaintsUncovered(void) {
+    const char* test_name = "Window_MoveRepaintsUncovered";
+    Rect r = { 470, 560, 570, 760 };   /* over the desktop, clear of the Finder's windows */
+    WindowPtr w = NewWindow(NULL, &r, (ConstStr255Param)"\x04Move", true, 0, (WindowPtr)-1, false, 0);
+    CHECK(w, "NewWindow failed");
+    PaintContent(w, true);
+    int x = (*w->contRgn)->rgnBBox.left + 10, y = (*w->contRgn)->rgnBBox.top + 10;
+    UInt32 before = ScreenPixel(x, y);
+    MoveWindow(w, 560, 300, false);
+    UInt32 after = ScreenPixel(x, y);
+    DisposeWindow(w);
+    CHECK((before & 0x00FFFFFF) == 0, "the window was not black to begin with");
+    CHECK((after & 0x00FFFFFF) != 0, "the uncovered area still shows the window");
+    RecordTest(test_name, true, "");
+}
+
 static void Test_Resource_CreateAndOpenResFile(void) {
     const char* test_name = "Resource_CreateAndOpenResFile";
     FSSpec spec;
@@ -1040,6 +1057,7 @@ void IntegrationTests_Run(void) {
     Test_Region_Hole();
     Test_Window_RepaintAroundInner();
     Test_Window_UpdateWithoutBuffer();
+    Test_Window_MoveRepaintsUncovered();
     Test_Dialog_AlertLayout();
     Test_Dialog_IconItem();
     Test_Window_ReorderAndHide();

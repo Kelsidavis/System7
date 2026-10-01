@@ -232,21 +232,15 @@ void SizeWindow(WindowPtr theWindow, short w, short h, Boolean fUpdate) {
                 /* Exposed area = old region minus new region */
                 DiffRgn(oldStrucRgn, theWindow->strucRgn, exposedDesktop);
 
-                /* CRITICAL: Erase the exposed desktop area with desktop pattern BEFORE repainting */
-                /* This is the same approach used in HideWindow */
-                extern void EraseRgn(RgnHandle rgn);
-                extern void GetWMgrPort(GrafPtr* port);
-                extern void SetPort(GrafPtr port);
-                extern void GetPort(GrafPtr* port);
-
-                GrafPtr savePort, wmPort;
-                GetPort(&savePort);
-                GetWMgrPort(&wmPort);
-                SetPort(wmPort);
-
-                EraseRgn(exposedDesktop);
-
-                SetPort(savePort);
+                /* The desktop there, icons included, before the windows
+                 * behind: the desk hook, as HideWindow uses. Erasing to the
+                 * pattern left out the icons, so the Trash vanished when a
+                 * zoomed window shrank back off it. The hook paints only
+                 * where no window is. */
+                extern DeskHookProc g_deskHook;  /* WindowDisplay.c */
+                if (g_deskHook) {
+                    g_deskHook(exposedDesktop);
+                }
 
                 /* Windows behind that were under the old frame need their
                  * frames back, not just their content. Back to front, so this
