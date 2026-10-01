@@ -681,7 +681,7 @@ static SInt16 RunAlertDialog(SInt16 alertID, ModalFilterProcPtr filterProc, SInt
         Handle itemHandle;
         Rect itemRect;
         GetDialogItem(alertDialog, defItem, &itemType, &itemHandle, &itemRect);
-        if (itemHandle) {
+        if (DM_IsControlOf((WindowPtr)alertDialog, itemHandle)) {
             DM_SetKeyboardFocus((WindowPtr)alertDialog, (ControlHandle)itemHandle);
         } else {
             /* Fallback to first focusable control */

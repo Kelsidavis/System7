@@ -353,6 +353,10 @@ short TrackScrollbarAction(ControlHandle c, Point startLocal, short startPart,
     short trackPart;
 
     if (!c || !(*c)->contrlData || !outDelta) return 0;
+    extern void GetMouseLocal(Point* mouseLoc);
+    GrafPtr savePort;
+    GetPort(&savePort);
+    if ((*c)->contrlOwner) SetPort((GrafPtr)(*c)->contrlOwner);
 
     data = (ScrollBarData*)(*(*c)->contrlData);
     startValue = (*c)->contrlValue;  /* Save initial value for final delta */
@@ -371,7 +375,7 @@ short TrackScrollbarAction(ControlHandle c, Point startLocal, short startPart,
 
         while (StillDown() && loopCount < MAX_THUMB_ITERATIONS) {
             loopCount++;
-            GetMouse(&pt);
+            GetMouseLocal(&pt);   /* GetMouse here is global */
             newValue = CalcThumbValue(c, pt, grab);
             if (newValue != (*c)->contrlValue) {
                 /* OPTIMIZATION: Invalidate only the region affected by thumb movement
@@ -445,7 +449,7 @@ short TrackScrollbarAction(ControlHandle c, Point startLocal, short startPart,
 
         while (StillDown() && loopCount < MAX_REPEAT_ITERATIONS) {
             loopCount++;
-            GetMouse(&pt);
+            GetMouseLocal(&pt);   /* GetMouse here is global */
             stillInPart = (HitTestScrollbar(c, pt) == startPart);
 
             if (stillInPart) {
@@ -504,6 +508,7 @@ short TrackScrollbarAction(ControlHandle c, Point startLocal, short startPart,
 
     CTRL_LOG_TRACE("TrackScrollbar: part=%d delta=%d\n", trackPart, *outDelta);
 
+    SetPort(savePort);
     return trackPart;
 }
 

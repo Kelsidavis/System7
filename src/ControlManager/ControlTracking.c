@@ -107,14 +107,21 @@ SInt16 TrackControl(ControlHandle theControl, Point thePoint,
         actionTime = TickCount();
     }
 
-    /* Track until mouse up - with safety timeout */
-    int trackLoopCount = 0;
-    const int MAX_TRACK_ITERATIONS = 5000;  /* Safety limit (~5 seconds at 1ms per iteration) */
-    extern void serial_puts(const char* str);
+    /* Track until the button comes up. The pointer is read in the
+     * control's window's coordinates: GetMouse here answers global ones,
+     * so in any window away from the screen's origin the pointer read as
+     * outside the control at once - a held button let go of its highlight
+     * and reported nothing. Nor is there a cap on the loop any more: after
+     * 5000 turns, a fraction of a second, a held button fired. */
+    extern void GetMouseLocal(Point* mouseLoc);
+    extern void EventPumpYield(void);
+    GrafPtr savePort;
+    GetPort(&savePort);
+    if ((*theControl)->contrlOwner) SetPort((GrafPtr)(*theControl)->contrlOwner);
 
-    while (StillDown() && trackLoopCount < MAX_TRACK_ITERATIONS) {
-        trackLoopCount++;
-        GetMouse(&currentPt);
+    while (StillDown()) {
+        EventPumpYield();
+        GetMouseLocal(&currentPt);
         currentPart = TestControl(theControl, currentPt);
 
         /* Update highlighting */
@@ -143,10 +150,7 @@ SInt16 TrackControl(ControlHandle theControl, Point thePoint,
         }
     }
 
-    /* Log if we hit the timeout */
-    if (trackLoopCount >= MAX_TRACK_ITERATIONS) {
-        serial_puts("[CTRL-TRACK] WARNING: TrackControl timeout - exceeded max iterations\n");
-    }
+    SetPort(savePort);
 
     /* Clear highlighting */
     HiliteControl(theControl, 0);
@@ -209,10 +213,11 @@ void DragControl(ControlHandle theControl, Point startPt,
         GetWindowBounds((*theControl)->contrlOwner, &limit);
     }
 
-    /* Track mouse */
+    /* Track mouse, in the control's window's coordinates */
+    extern void GetMouseLocal(Point* mouseLoc);
     lastPt = startPt;
     while (StillDown()) {
-        GetMouse(&currentPt);
+        GetMouseLocal(&currentPt);
 
         /* Apply axis constraints */
         if (axis == hAxisOnly) {

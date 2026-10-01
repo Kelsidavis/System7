@@ -355,14 +355,25 @@ static ControlHandle DM_FindButtonByFlag(WindowPtr w, Boolean wantDefault, Boole
         if (item > 0) {
             GetDialogItem((DialogPtr)w, item, &itemType, &itemHandle, &itemRect);
 
-            /* If GetDialogItem returned a control handle, use it directly */
-            if (itemHandle && IsButtonControl((ControlHandle)itemHandle)) {
+            /* Only if the item's handle is one of the window's controls:
+             * for most items it is the title's text, and reading it as a
+             * control read past the end of a small block. */
+            if (DM_IsControlOf(w, itemHandle) && IsButtonControl((ControlHandle)itemHandle)) {
                 return (ControlHandle)itemHandle;
             }
         }
     }
 
     return NULL;
+}
+
+/* Whether h is one of window w's controls. */
+Boolean DM_IsControlOf(WindowPtr w, Handle h) {
+    if (!w || !h) return false;
+    for (ControlHandle c = _GetFirstControl(w); c; c = (*c)->nextControl) {
+        if ((Handle)c == h) return true;
+    }
+    return false;
 }
 
 /**

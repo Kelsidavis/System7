@@ -837,15 +837,20 @@ void MacPaint_ProcessIdleTime(void)
     if (gEventState.mouseDown) {
         /* Check if mouse button is still down */
         if (StillDown()) {
-            /* Get current mouse position */
-            Point mouseLoc;
-            GetMouse(&mouseLoc);
-
-            /* Convert to local window coordinates */
+            /* The pointer in the paint window's coordinates. GetMouse here
+             * is global; taking portRect's origin off it left drawing offset
+             * by the window's position. */
             GrafPtr port = MacPaint_GetWindowPort(gEventState.paintWindow);
             if (port) {
-                int localX = mouseLoc.h - port->portRect.left;
-                int localY = mouseLoc.v - port->portRect.top;
+                extern void GetMouseLocal(Point* mouseLoc);
+                GrafPtr save;
+                GetPort(&save);
+                SetPort(port);
+                Point mouseLoc;
+                GetMouseLocal(&mouseLoc);
+                SetPort(save);
+                int localX = mouseLoc.h;
+                int localY = mouseLoc.v;
 
                 /* Process continuous drawing via drag handler */
                 MacPaint_HandleMouseDragEvent(localX, localY);
@@ -860,13 +865,17 @@ void MacPaint_ProcessIdleTime(void)
         /* Mouse not down - update cursor position dynamically
          * This allows cursor to change based on hover position
          */
-        Point mouseLoc;
-        GetMouse(&mouseLoc);
-
         GrafPtr port = MacPaint_GetWindowPort(gEventState.paintWindow);
         if (port) {
-            int localX = mouseLoc.h - port->portRect.left;
-            int localY = mouseLoc.v - port->portRect.top;
+            extern void GetMouseLocal(Point* mouseLoc);
+            GrafPtr save;
+            GetPort(&save);
+            SetPort(port);
+            Point mouseLoc;
+            GetMouseLocal(&mouseLoc);
+            SetPort(save);
+            int localX = mouseLoc.h;
+            int localY = mouseLoc.v;
             MacPaint_UpdateCursorPosition(localX, localY);
         }
     }

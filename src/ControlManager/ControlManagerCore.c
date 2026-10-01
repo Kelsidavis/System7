@@ -329,6 +329,25 @@ void ShowControl(ControlHandle theControl) {
 /**
  * Hide a control
  */
+/*
+ * Invalidate (and optionally erase) r in the control's own window, widened
+ * by 4 pixels for the default button's ring, which is drawn outside the
+ * control's rectangle. This was done in whatever port was current - often
+ * not the control's window - and to the rectangle alone, so the ring stayed
+ * behind after a move.
+ */
+static void CTL_InvalInOwner(ControlHandle c, Rect r, Boolean erase) {
+    GrafPtr owner = (GrafPtr)(*c)->contrlOwner;
+    if (!owner) return;
+    GrafPtr save;
+    GetPort(&save);
+    SetPort(owner);
+    InsetRect(&r, -4, -4);
+    if (erase) EraseRect(&r);
+    InvalRect(&r);
+    SetPort(save);
+}
+
 void HideControl(ControlHandle theControl) {
     Rect bounds;
 
@@ -338,9 +357,9 @@ void HideControl(ControlHandle theControl) {
 
     (*theControl)->contrlVis = 0;
 
-    /* Invalidate control area */
+    /* Erased at once (Inside Macintosh: Toolbox Essentials, 5-97) */
     bounds = (*theControl)->contrlRect;
-    InvalRect(&bounds);
+    CTL_InvalInOwner(theControl, bounds, true);
 
     /* Notify of visibility change */
     NotifyControlChange(theControl, kControlVisibilityChanged);
@@ -475,7 +494,7 @@ void MoveControl(ControlHandle theControl, SInt16 h, SInt16 v) {
 
     /* Invalidate old position */
     if ((*theControl)->contrlVis) {
-        InvalRect(&oldRect);
+        CTL_InvalInOwner(theControl, oldRect, true);
     }
 
     /* Update control rectangle */
@@ -487,7 +506,7 @@ void MoveControl(ControlHandle theControl, SInt16 h, SInt16 v) {
     /* Invalidate new position */
     if ((*theControl)->contrlVis) {
         newRect = (*theControl)->contrlRect;
-        InvalRect(&newRect);
+        CTL_InvalInOwner(theControl, newRect, false);
     }
 
     /* Notify of position change */
@@ -518,7 +537,7 @@ void SizeControl(ControlHandle theControl, SInt16 w, SInt16 h) {
     /* Invalidate affected area */
     if ((*theControl)->contrlVis) {
         UnionRect(&oldRect, &newRect, &oldRect);
-        InvalRect(&oldRect);
+        CTL_InvalInOwner(theControl, oldRect, true);
     }
 
     /* Notify of size change */

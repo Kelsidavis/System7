@@ -372,7 +372,15 @@ void TEIdle(TEHandle hTE) {
         Rect viewRect = pTE->base.viewRect;
         SInt16 autoscrollDistance = 4;  /* Pixels per autoscroll */
 
-        GetMouse(&mousePt);
+        {
+            /* In the record's port: viewRect is local, GetMouse global */
+            extern void GetMouseLocal(Point* mouseLoc);
+            GrafPtr save;
+            GetPort(&save);
+            if (pTE->base.inPort) SetPort(pTE->base.inPort);
+            GetMouseLocal(&mousePt);
+            SetPort(save);
+        }
 
         /* Check if mouse is near view edges - autoscroll if so */
         if (mousePt.h < viewRect.left + 16) {

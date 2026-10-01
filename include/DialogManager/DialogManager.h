@@ -224,6 +224,7 @@ DialogPtr GetWindowDialog(WindowPtr theWindow);
 
 /* Keyboard navigation and control activation */
 ControlHandle DM_FindDefaultButton(WindowPtr dialog);
+Boolean DM_IsControlOf(WindowPtr w, Handle h);   /* is h one of w's controls */
 ControlHandle DM_FindCancelButton(WindowPtr dialog);
 void DM_ActivatePushButton(ControlHandle button);
 void DM_SetKeyboardFocus(WindowPtr window, ControlHandle newFocus);
