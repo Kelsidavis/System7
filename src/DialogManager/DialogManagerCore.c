@@ -13,6 +13,7 @@
 
 // #include "CompatibilityFix.h" // Removed
 #include "SystemTypes.h"
+#include <stddef.h>
 #include "System71StdLib.h"
 #include "DialogManager/DialogManager.h"
 #include "DialogManager/DialogTypes.h"
@@ -29,7 +30,22 @@
 
 
 /* Global Dialog Manager state */
-static DialogManagerState gDialogManagerState = {0};
+/*
+ * The Dialog Manager's state, sized for the extended view of it
+ * (DialogManagerStateExt.h) that the edit-text and keyboard code reach
+ * through GET_EXTENDED_DLG_STATE. It used to be allocated at the base
+ * size, so the extended fields - 256 TextEdit handle slots and their
+ * owner - lay past its end: disposing of any dialog zeroed a kilobyte of
+ * whatever followed it, the modal and alert state among it, and storing an
+ * edit field wrote into them.
+ */
+static union {
+    DialogManagerState          base;
+    DialogManagerState_Extended ext;
+} gDialogManagerStateStorage;
+#define gDialogManagerState (gDialogManagerStateStorage.base)
+_Static_assert(sizeof(DialogManagerState) <= offsetof(DialogManagerState_Extended, teHandles),
+               "the extended Dialog Manager state must extend the base one");
 static Boolean gDialogManagerInitialized = false;
 
 /* External dependencies that need to be linked */
@@ -68,7 +84,7 @@ void InitDialogs(ResumeProcPtr resumeProc)
     }
 
     /* Initialize global state */
-    memset(&gDialogManagerState, 0, sizeof(gDialogManagerState));
+    memset(&gDialogManagerStateStorage, 0, sizeof(gDialogManagerStateStorage));
     gDialogManagerState.globals.resumeProc = resumeProc;
     gDialogManagerState.globals.soundProc = NULL;
     gDialogManagerState.globals.alertStage = 0;
@@ -442,6 +458,13 @@ void SetDAFont(SInt16 fontNum)
 /*
  * ParamText - Set parameter text for alert substitution
  */
+/* ParamText's strings, the one copy: what ^0 to ^3 stand for. */
+unsigned char* DM_ParamTextSlot(SInt16 index)
+{
+    if (index < 0 || index > 3) return NULL;
+    return gDialogManagerState.globals.paramText[index];
+}
+
 void ParamText(const unsigned char* param0, const unsigned char* param1,
                const unsigned char* param2, const unsigned char* param3)
 {

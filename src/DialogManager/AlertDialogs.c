@@ -16,6 +16,8 @@
 #include "DialogManager/AlertDialogs.h"
 #include "SoundManager/SoundEffects.h"
 #include "DialogManager/DialogManager.h"
+#include "WindowManager/WindowManager.h"
+#include "QuickDraw/QuickDraw.h"
 #include "DialogManager/DialogTypes.h"
 #include "DialogManager/ModalDialogs.h"
 #include "DialogManager/DialogResources.h"
@@ -37,7 +39,6 @@ extern void InvalRect(const Rect* r);
 static struct {
     Boolean initialized;
     SInt16 alertStage;
-    unsigned char paramText[4][256];
     SInt16 alertSounds[4];  /* Stop, Note, Caution, (reserved) */
     SInt16 alertIcons[4];
     Boolean useNativeAlerts;
@@ -53,10 +54,12 @@ typedef struct {
     SInt16 ditlId;    /* pseudo id for fallback DITL */
 } BuiltInAlertSpec;
 
-static const BuiltInAlertSpec kFallbackStop    = {{160, 180, 320, 460}, 3, 0, 1, 9001};
-static const BuiltInAlertSpec kFallbackNote    = {{160, 180, 320, 460}, 3, 0, 2, 9002};
-static const BuiltInAlertSpec kFallbackCaution = {{160, 180, 320, 460}, 3, 0, 3, 9003};
-static const BuiltInAlertSpec kFallbackGeneric = {{160, 180, 320, 460}, 3, 4, 0, 9004};
+/* Items in the standard order: OK is item 1, Cancel (when there is one)
+ * item 2, as Inside Macintosh's alerts have them and callers test for. */
+static const BuiltInAlertSpec kFallbackStop    = {{160, 180, 320, 460}, 1, 0, 1, 9001};
+static const BuiltInAlertSpec kFallbackNote    = {{160, 180, 320, 460}, 1, 0, 2, 9002};
+static const BuiltInAlertSpec kFallbackCaution = {{160, 180, 320, 460}, 1, 0, 3, 9003};
+static const BuiltInAlertSpec kFallbackGeneric = {{160, 180, 320, 460}, 1, 2, 0, 9004};
 
 /* Private function prototypes */
 static SInt16 RunAlertDialog(SInt16 alertID, ModalFilterProcPtr filterProc, SInt16 alertType);
@@ -91,7 +94,7 @@ void InitAlertDialogs(void)
 
     /* Clear parameter text */
     for (i = 0; i < 4; i++) {
-        gAlertState.paramText[i][0] = 0;
+        DM_ParamTextSlot(i)[0] = 0;
     }
 
     /* Set default alert sounds (0 = system beep) */
@@ -114,7 +117,7 @@ void InitAlertDialogs(void)
  */
 SInt16 Alert(SInt16 alertID, ModalFilterProcPtr filterProc)
 {
-    return RunAlertDialog(alertID, filterProc, 0);
+    return RunAlertDialog(alertID, filterProc, -1);   /* Alert has no icon */
 }
 
 /*
@@ -188,8 +191,8 @@ void GetParamText(SInt16 paramIndex, unsigned char* text)
         return;
     }
 
-    memcpy(text, gAlertState.paramText[paramIndex],
-           gAlertState.paramText[paramIndex][0] + 1);
+    const unsigned char* p = DM_ParamTextSlot(paramIndex);
+    memcpy(text, p, p[0] + 1);
 }
 
 /*
@@ -204,7 +207,7 @@ void ClearParamText(void)
     }
 
     for (i = 0; i < 4; i++) {
-        gAlertState.paramText[i][0] = 0;
+        DM_ParamTextSlot(i)[0] = 0;
     }
 }
 
@@ -396,48 +399,67 @@ static OSErr BuildFallbackDLOG(const BuiltInAlertSpec* spec, DialogTemplate** ou
 
 static OSErr BuildFallbackDITL(SInt16 pseudoId, SInt16 iconKind, Handle* outDITL)
 {
-    SInt16 n;
-    Handle h;
-    ConstStr255Param okText = PSTR("OK");
-    ConstStr255Param cancelText = PSTR("Cancel");
-    ConstStr255Param msgText = PSTR("Alert message will appear here.");
-
+    (void)iconKind;
     if (!outDITL) {
         return -50; /* paramErr */
     }
 
-    /* Determine item count: icon(1), text(2), OK(3), Cancel(4 if generic) */
-    n = (pseudoId == 9004) ? 4 : 3;
-
     /*
-     * Built through DITLBuilder rather than by hand.
+     * OK, Cancel for the generic alert, the message, and the icon well.
+     * The message is ^0, so ParamText supplies it; this said "Alert message
+     * will appear here." whatever the caller had set. OK was item 3, so a
+     * caller testing for item 1 - Special > Restart does - took OK for
+     * Cancel.
      *
-     * The message is runtime text, so its length is odd about half the time,
-     * and an item whose data length is odd needs a pad byte or the parser
-     * reads the next item's header one byte off. Laying these bytes out here
-     * skipped that, which meant the OK and Cancel buttons of an alert were
-     * present or missing depending on how long the message happened to be.
+     * Built through DITLBuilder, which pads items whose data length is odd.
      */
     DITLBuilder b;
     if (!DITL_Begin(&b, 1024)) {
         return -108; /* memFullErr */
     }
 
-    DITL_AddItem(&b, userItem, &(Rect){20, 20, 52, 52}, NULL);   /* icon well */
-    DITL_AddTextPascal(&b, 20, 60, 96, 260, msgText);
-    DITL_AddButtonPascal(&b, 96, 180, 116, 240, okText);
-    if (n == 4) {
-        DITL_AddButtonPascal(&b, 96, 100, 116, 160, cancelText);
+    DITL_AddButtonPascal(&b, 96, 180, 116, 240, PSTR("OK"));
+    if (pseudoId == 9004) {
+        DITL_AddButtonPascal(&b, 96, 100, 116, 160, PSTR("Cancel"));
     }
+    DITL_AddTextPascal(&b, 20, 60, 90, 270, PSTR("^0"));
+    DITL_AddItem(&b, userItem, &(Rect){20, 20, 52, 52}, NULL);   /* icon well */
 
-    h = DITL_Finish(&b);
+    Handle h = DITL_Finish(&b);
     if (!h) {
         return -108; /* memFullErr */
     }
-
     *outDITL = h;
     return noErr;
 }
+
+/* The alert's icon, drawn into the icon well (a user item) from the 32x32
+ * bitmaps in system7_resources.h. The kind is kept in the dialog's refCon:
+ * 1 stop, 2 note, 3 caution, 0 none. The well used to have no procedure and
+ * drew as an empty square. */
+static pascal void Alert_DrawIconWell(DialogPtr d, SInt16 itemNo)
+{
+    extern const unsigned char* Alert_IconBitmap(SInt16 kind);
+    SInt16 type;
+    Handle h;
+    Rect r;
+    GetDialogItem(d, itemNo, &type, &h, &r);
+    const unsigned char* bits = Alert_IconBitmap((SInt16)GetWRefCon((WindowPtr)d));
+    if (!bits) return;
+    for (int row = 0; row < 32; row++) {
+        for (int col = 0; col < 32; col++) {
+            if (bits[row * 4 + col / 8] & (0x80 >> (col % 8))) {
+                Rect px = { (short)(r.top + row), (short)(r.left + col),
+                            (short)(r.top + row + 1), (short)(r.left + col + 1) };
+                PaintRect(&px);
+            }
+        }
+    }
+}
+
+/* Whether the alert being built came from the fallback, whose last item is
+ * the icon well. */
+static Boolean gAlertFromFallback = false;
 
 static Boolean LoadAlertWithFallback(SInt16 alertID, SInt16 alertType,
                                      DialogTemplate** outDLOG, Handle* outDITL,
@@ -450,6 +472,38 @@ static Boolean LoadAlertWithFallback(SInt16 alertID, SInt16 alertType,
     if (!outDLOG || !outDITL || !outDefItem || !outCancelItem || !outIconKind) {
         return false;
     }
+
+    gAlertFromFallback = false;
+
+    /* The application's own ALRT and DITL, when it has them (Inside
+     * Macintosh: Toolbox Essentials, 6-156). Every alert used to be built
+     * from the fallback below whatever its resources said. */
+    {
+        AlertTemplate* alrt = NULL;
+        Handle items = NULL;
+        if (LoadAlertTemplate(alertID, &alrt) == noErr && alrt &&
+            LoadDialogItemList(alrt->itemsID, &items) == noErr && items) {
+            DialogTemplate* t = (DialogTemplate*)NewPtrClear(sizeof(DialogTemplate));
+            if (t) {
+                t->boundsRect = alrt->boundsRect;
+                t->procID = 1;      /* dBoxProc */
+                t->itemsID = alrt->itemsID;
+                /* Stage 1's boldItm bit picks item 2 as the default */
+                SInt16 def = (alrt->stages & 0x0008) ? 2 : 1;
+                *outDefItem = def;
+                *outCancelItem = (def == 1) ? 2 : 1;
+                *outIconKind = (alertType < 0) ? 0 : alertType + 1;
+                *outDLOG = t;
+                *outDITL = items;
+                DisposeAlertTemplate(alrt);
+                return true;
+            }
+            DisposeHandle(items);
+        }
+        if (alrt) DisposeAlertTemplate(alrt);
+    }
+
+    gAlertFromFallback = true;
 
     /* Map alert ID to fallback spec */
     /* Standard alert IDs: 128=generic, 129=stop, 130=note, 131=caution */
@@ -465,7 +519,7 @@ static Boolean LoadAlertWithFallback(SInt16 alertID, SInt16 alertType,
 
     *outDefItem    = spec->defItem;
     *outCancelItem = spec->cancelItem;
-    *outIconKind   = spec->icon;
+    *outIconKind   = (alertType < 0) ? 0 : alertType + 1;   /* the call, not the ID, says which */
 
     /* Build fallback DLOG and DITL */
     err = BuildFallbackDLOG(spec, outDLOG);
@@ -590,6 +644,18 @@ static SInt16 RunAlertDialog(SInt16 alertID, ModalFilterProcPtr filterProc, SInt
         if (dlogTemplate) DisposePtr((Ptr)dlogTemplate);
         if (ditlHandle) DisposeHandle(ditlHandle);
         return 1;
+    }
+
+    /* The fallback's icon well draws the alert's icon */
+    if (gAlertFromFallback && iconKind) {
+        SInt16 well = CountDITL(alertDialog);
+        SInt16 type;
+        Handle h;
+        Rect r;
+        GetDialogItem(alertDialog, well, &type, &h, &r);
+        if ((type & itemTypeMask) == userItem) {
+            SetDialogItem(alertDialog, well, type, (Handle)Alert_DrawIconWell, &r);
+        }
     }
 
     /* Set default and cancel items */
@@ -737,11 +803,12 @@ void SubstituteAlertParameters(unsigned char* text)
             if (nextChar >= '0' && nextChar <= '3') {
                 /* Substitute parameter */
                 SInt16 paramIndex = nextChar - '0';
-                unsigned char paramLen = gAlertState.paramText[paramIndex][0];
+                const unsigned char* param = DM_ParamTextSlot(paramIndex);
+                unsigned char paramLen = param[0];
 
                 /* Copy parameter text */
                 for (unsigned char j = 0; j < paramLen && resultLen < 255; j++) {
-                    result[resultLen + 1] = gAlertState.paramText[paramIndex][j + 1];
+                    result[resultLen + 1] = param[j + 1];
                     resultLen++;
                 }
 
@@ -941,11 +1008,12 @@ void SubstituteParamText(char* text, size_t textSize)
             if (nextChar >= '0' && nextChar <= '3') {
                 /* Substitute parameter */
                 SInt16 paramIndex = nextChar - '0';
-                unsigned char paramLen = gAlertState.paramText[paramIndex][0];
+                const unsigned char* param = DM_ParamTextSlot(paramIndex);
+                unsigned char paramLen = param[0];
 
                 /* Convert Pascal string to C string and copy */
                 for (unsigned char i = 0; i < paramLen && dstIdx < sizeof(result) - 1; i++) {
-                    result[dstIdx++] = gAlertState.paramText[paramIndex][i + 1];
+                    result[dstIdx++] = param[i + 1];
                 }
 
                 /* Skip the caret and digit */

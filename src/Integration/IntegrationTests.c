@@ -19,6 +19,8 @@
 #include "WindowManager/WindowManager.h"
 #include "QuickDraw/QuickDraw.h"
 #include "QuickDrawConstants.h"
+#include "DialogManager/DialogManager.h"
+#include "DialogManager/AlertDialogs.h"
 extern QDGlobals qd;
 #include "MacTypes.h"
 #include "math.h"
@@ -560,6 +562,70 @@ static void Test_Draw_PenModes(void) {
     RecordTest(test_name, true, "");
 }
 
+/* An alert built with no resources: OK is item 1 and Cancel item 2, the
+ * message is the ParamText text, and the icon is drawn. The alert is looked
+ * at from its filter procedure, then dismissed with item 1. */
+static struct { Boolean seen, okFirst, cancelSecond, iconDrawn; unsigned char text[64]; } gAlertSeen;
+
+static Boolean ITest_AlertFilter(DialogPtr d, EventRecord* e, SInt16* itemHit) {
+    (void)e;
+    if (!gAlertSeen.seen) {
+        gAlertSeen.seen = true;
+            SInt16 type;
+        Handle h;
+        Rect r;
+        GetDialogItem(d, 1, &type, &h, &r);
+        gAlertSeen.okFirst = (type & 0x7F) == (ctrlItem + btnCtrl);
+        GetDialogItem(d, 2, &type, &h, &r);
+        gAlertSeen.cancelSecond = (type & 0x7F) == (ctrlItem + btnCtrl);
+
+        SInt16 n = CountDITL(d);
+        for (SInt16 i = 1; i <= n; i++) {
+            GetDialogItem(d, i, &type, &h, &r);
+            if ((type & 0x7F) == statText) {
+                GetDialogItemText(h, gAlertSeen.text);
+            }
+        }
+
+        /* The icon well is the last item; draw it and look at its middle */
+        GrafPtr save;
+        GetPort(&save);
+        SetPort((GrafPtr)d);
+        DrawDialog(d);
+        GetDialogItem(d, n, &type, &h, &r);
+        int black = 0;
+        for (int y = r.top; y < r.bottom; y++) {
+            for (int x = r.left; x < r.right; x++) {
+                Point g = { (short)y, (short)x };
+                LocalToGlobal(&g);
+                if ((ScreenPixel(g.h, g.v) & 0x00FFFFFF) == 0) black++;
+            }
+        }
+        gAlertSeen.iconDrawn = black > 100;
+        SetPort(save);
+    }
+    *itemHit = 1;
+    return true;
+}
+
+static void Test_Dialog_AlertLayout(void) {
+    const char* test_name = "Dialog_AlertLayout";
+    memset(&gAlertSeen, 0, sizeof gAlertSeen);
+    ParamText((ConstStr255Param)"\x0BITest alert", (ConstStr255Param)"", (ConstStr255Param)"", (ConstStr255Param)"");
+    SInt16 hit = CautionAlert(128, ITest_AlertFilter);
+    CHECK(gAlertSeen.seen, "the alert's filter was never called");
+    CHECK(gAlertSeen.okFirst && gAlertSeen.cancelSecond, "OK and Cancel are not items 1 and 2");
+    /* The item holds ^0; drawing substitutes ParamText's text for it */
+    CHECK(gAlertSeen.text[0] == 2 && gAlertSeen.text[1] == '^' && gAlertSeen.text[2] == '0',
+          "the message item is not ^0");
+    SubstituteAlertParameters(gAlertSeen.text);
+    CHECK(gAlertSeen.text[0] == 11 && memcmp(&gAlertSeen.text[1], "ITest alert", 11) == 0,
+          "^0 did not become the ParamText text");
+    CHECK(gAlertSeen.iconDrawn, "the caution icon was not drawn");
+    CHECK(hit == 1, "the alert did not answer the item its filter chose");
+    RecordTest(test_name, true, "");
+}
+
 static void Test_Resource_CreateAndOpenResFile(void) {
     const char* test_name = "Resource_CreateAndOpenResFile";
     FSSpec spec;
@@ -685,6 +751,7 @@ void IntegrationTests_Run(void) {
     Test_File_InFolder();
     Test_Draw_ClippedToVisibleRegion();
     Test_Draw_PenModes();
+    Test_Dialog_AlertLayout();
     Test_File_ReadThroughExtentsOverflow();
 
     IT_LOG_INFO("--- Resource Manager ---");

@@ -130,6 +130,7 @@ SInt16 FindDialogItem(DialogPtr theDialog, Point thePt);
 void GetDialogItemText(Handle item, unsigned char* text);
 void SetDialogItemText(Handle item, const unsigned char* text);
 void SelectDialogItemText(DialogPtr theDialog, SInt16 itemNo, SInt16 strtSel, SInt16 endSel);
+unsigned char* DM_ParamTextSlot(SInt16 index);   /* ParamText's string for ^index */
 void ParamText(const unsigned char* param0, const unsigned char* param1,
                const unsigned char* param2, const unsigned char* param3);
 

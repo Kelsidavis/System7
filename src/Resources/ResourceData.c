@@ -73,3 +73,14 @@ OSErr InitResourceData(void) {
 Boolean GetResourceDataInitialized(void) {
     return gResourceDataInitialized;
 }
+
+/* The 32x32 alert icons, by kind: 1 stop, 2 note, 3 caution. */
+const unsigned char* Alert_IconBitmap(SInt16 kind);
+const unsigned char* Alert_IconBitmap(SInt16 kind) {
+    switch (kind) {
+        case 1:  return stop_icon;
+        case 2:  return note_icon;
+        case 3:  return caution_icon;
+        default: return NULL;
+    }
+}
