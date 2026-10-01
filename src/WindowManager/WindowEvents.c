@@ -24,6 +24,7 @@
 #include "WindowManager/WindowManager.h"
 #include "WindowManager/WindowManagerInternal.h"
 #include "WindowManager/WMLogging.h"
+#include "WindowManager/WindowRegions.h"
 #include "EventManager/EventManager.h"
 #include "MemoryMgr/MemoryManager.h"
 
@@ -692,6 +693,21 @@ void EndUpdate(WindowPtr theWindow) {
                     RgnHandle visible = theWindow->visRgn;
                     SInt16 bandCount;
 
+                    /* Only what this update drew: BeginUpdate clipped the
+                     * drawing to the update region but filled the whole
+                     * buffer, so copying all of it blanked the rest of the
+                     * window - a keystroke in a dialog's text field redrew
+                     * the field and wiped the buttons. Inside Macintosh's
+                     * BeginUpdate narrows the visible region the same way.
+                     * A nested EndUpdate finds the region already cleared
+                     * and copies nothing, the inner one having done it. */
+                    AutoRgnHandle updated = WM_NewAutoRgn();
+                    if (visible && *visible && updated.rgn &&
+                        theWindow->updateRgn && *theWindow->updateRgn) {
+                        SectRgn(visible, theWindow->updateRgn, updated.rgn);
+                        visible = updated.rgn;
+                    }
+
                     if (!visible || !*visible) {
                         visible = NULL;   /* nothing known - copy the lot */
                         bandCount = 1;
@@ -765,6 +781,7 @@ void EndUpdate(WindowPtr theWindow) {
                     }
 
                     serial_logf(kLogModuleWindow, kLogLevelDebug, "[COPYBITS] Done\n");
+                    WM_DisposeAutoRgn(&updated);
                 }
 
                 UnlockPixels(gwPixMap);

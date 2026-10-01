@@ -219,6 +219,21 @@ OSErr ParseDITL(Handle ditlHandle, DialogItemEx** items, SInt16* itemCount) {
                         itemArray[i].handle = textHandle;
                         itemArray[i].data = textData;
                     }
+                } else if (baseType == editText) {
+                    /* An edit field that starts empty still needs somewhere
+                     * for what is typed into it. Without a handle the keys
+                     * reached TextEdit and went no further: the field stayed
+                     * blank and GetDialogItemText read back nothing - Find's
+                     * empty search field could never be filled in. */
+                    Handle textHandle = NewHandle(2);
+                    if (textHandle) {
+                        HLock(textHandle);
+                        unsigned char* textData = (unsigned char*)*textHandle;
+                        textData[0] = 0;
+                        textData[1] = 0;
+                        itemArray[i].handle = textHandle;
+                        itemArray[i].data = textData;
+                    }
                 }
             } else if (baseType == iconItem || baseType == picItem) {
                 /* Resource ID stored as 2-byte integer */

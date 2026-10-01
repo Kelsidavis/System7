@@ -542,7 +542,15 @@ Boolean WM_PortVisibleRgn(GrafPtr port, RgnHandle out) {
     if (!port || !out || !wm) return false;
     for (WindowPtr w = wm->windowList; w; w = w->nextWindow) {
         if ((GrafPtr)w != port) continue;
-        if (!w->visible || !w->visRgn) return false;
+        /* An invisible window shows nothing (Inside Macintosh: Toolbox
+         * Essentials, 4-15). Answered as "not a window", its drawing went
+         * unclipped onto the screen: a dialog filled in before being shown
+         * left its edit field where it had been created. */
+        if (!w->visible) {
+            SetEmptyRgn(out);
+            return true;
+        }
+        if (!w->visRgn) return false;
         CalcVis(w);
         CopyRgn(w->visRgn, out);
         return true;
