@@ -142,108 +142,6 @@ static void DesktopYield(void);
 static void TrackIconDragSync(short iconIndex, Point startPt);
 
 /* Helper forward declarations */
-static WindowPtr Finder_GetFrontVisibleWindow(void);
-static Boolean Finder_GetWindowBounds(WindowPtr window, Rect* outBounds);
-static void Finder_EraseRegionExcludingRect(RgnHandle baseRgn, const Rect* excludeRect);
-
-static WindowPtr Finder_GetFrontVisibleWindow(void)
-{
-    WindowPtr front = FrontWindow();
-    while (front && !front->visible) {
-        front = front->nextWindow;
-    }
-    return front;
-}
-
-static Boolean Finder_GetWindowBounds(WindowPtr window, Rect* outBounds)
-{
-    if (!window || !outBounds) {
-        return false;
-    }
-
-    /* Prefer strucRgn - the window's STRUCTURE, which includes the title bar
-     * and frame. This used to prefer visRgn, the visible CONTENT region, which
-     * stops below the title bar. Callers use this rect to decide which part of
-     * the screen to keep clear when repainting the desktop, so taking the
-     * content rect meant the desktop pattern was painted straight over the
-     * title bar: content survived, chrome was wiped, and the window rendered as
-     * a bare white box with no title bar or close box. */
-    if (window->strucRgn && *window->strucRgn) {
-        *outBounds = (*window->strucRgn)->rgnBBox;
-    } else if (window->visRgn && *window->visRgn) {
-        *outBounds = (*window->visRgn)->rgnBBox;
-    } else {
-        *outBounds = window->port.portBits.bounds;
-    }
-
-    return (outBounds->left < outBounds->right) && (outBounds->top < outBounds->bottom);
-}
-
-static void Finder_EraseRectSection(const Rect* rect)
-{
-    if (!rect || rect->left >= rect->right || rect->top >= rect->bottom) {
-        return;
-    }
-
-    RgnHandle temp = NewRgn();
-    if (temp) {
-        RectRgn(temp, rect);
-        EraseRgn(temp);
-        DisposeRgn(temp);
-    } else {
-        EraseRect(rect);
-    }
-}
-
-static void Finder_EraseRegionExcludingRect(RgnHandle baseRgn, const Rect* excludeRect)
-{
-    if (!baseRgn || !*baseRgn) {
-        return;
-    }
-
-    if (!excludeRect) {
-        EraseRgn(baseRgn);
-        return;
-    }
-
-    Rect baseBounds = (*baseRgn)->rgnBBox;
-    Rect overlap;
-    if (!SectRect(&baseBounds, excludeRect, &overlap)) {
-        EraseRgn(baseRgn);
-        return;
-    }
-
-    /* Top strip */
-    if (baseBounds.top < overlap.top) {
-        Rect topRect = baseBounds;
-        topRect.bottom = overlap.top;
-        Finder_EraseRectSection(&topRect);
-    }
-
-    /* Bottom strip */
-    if (overlap.bottom < baseBounds.bottom) {
-        Rect bottomRect = baseBounds;
-        bottomRect.top = overlap.bottom;
-        Finder_EraseRectSection(&bottomRect);
-    }
-
-    /* Middle strips (left/right) */
-    Rect middleRect = baseBounds;
-    middleRect.top = (baseBounds.top > overlap.top) ? baseBounds.top : overlap.top;
-    middleRect.bottom = (baseBounds.bottom < overlap.bottom) ? baseBounds.bottom : overlap.bottom;
-    if (middleRect.top < middleRect.bottom) {
-        if (baseBounds.left < overlap.left) {
-            Rect leftRect = middleRect;
-            leftRect.right = overlap.left;
-            Finder_EraseRectSection(&leftRect);
-        }
-        if (overlap.right < baseBounds.right) {
-            Rect rightRect = middleRect;
-            rightRect.left = overlap.right;
-            Finder_EraseRectSection(&rightRect);
-        }
-    }
-}
 
 /*
  * NOTE on why the desktop erase can only hold back one window.
@@ -406,16 +304,30 @@ static void Desktop_DrawIconsCommon(RgnHandle clip)
             CopyRgn(screenPort->clipRgn, iconSaveClip);
         }
     }
+    /* The desk below the menu bar, less every window on it, within the area
+     * being repainted. Clipping to the whole screen drew the icons on top
+     * of any window that lay over them. */
     {
         Rect deskClip;
         deskClip.left   = qd.screenBits.bounds.left;
         deskClip.top    = 20;    /* keep the menu bar clear */
         deskClip.right  = qd.screenBits.bounds.right;
         deskClip.bottom = qd.screenBits.bounds.bottom;
-        ClipRect(&deskClip);
+        RgnHandle desk = NewRgn();
+        if (desk) {
+            RectRgn(desk, &deskClip);
+            for (WindowPtr w = FrontWindow(); w; w = w->nextWindow) {
+                if (w->visible && w->strucRgn && *w->strucRgn) {
+                    DiffRgn(desk, w->strucRgn, desk);
+                }
+            }
+            if (clip && *clip) SectRgn(desk, clip, desk);
+            SetClip(desk);
+            DisposeRgn(desk);
+        } else {
+            ClipRect(&deskClip);
+        }
     }
-
-    (void)clip;  /* Clipping handled by QuickDraw port */
 
     for (int i = 0; i < gDesktopIconCount; i++) {
         if (i == gDraggingIconIndex) {
@@ -616,18 +528,15 @@ static void Finder_DeskHook(RgnHandle invalidRgn)
             RectRgn(paintRgn, &screenRect);
         }
 
-        if (!EmptyRgn(paintRgn)) {
-            /* Only the frontmost window is held back, because rectangle
-             * arithmetic is all that is available here - see the note on
-             * DiffRgn in Finder_EraseDesktopExcludingWindows. A second visible
-             * window overlapping the erase region will still be painted over. */
-            Rect excludeBounds;
-            WindowPtr front = Finder_GetFrontVisibleWindow();
-            if (Finder_GetWindowBounds(front, &excludeBounds)) {
-                Finder_EraseRegionExcludingRect(paintRgn, &excludeBounds);
-            } else {
-                EraseRgn(paintRgn);
+        /* Every window is held back: erasing around only the front one
+         * blanked any window behind it to the desktop pattern. */
+        for (WindowPtr w = FrontWindow(); w; w = w->nextWindow) {
+            if (w->visible && w->strucRgn && *w->strucRgn) {
+                DiffRgn(paintRgn, w->strucRgn, paintRgn);
             }
+        }
+        if (!EmptyRgn(paintRgn)) {
+            EraseRgn(paintRgn);
         }
         DisposeRgn(paintRgn);
     } else if (invalidRgn) {
@@ -2115,7 +2024,9 @@ Boolean HandleDesktopClick(Point clickPoint, Boolean doubleClick)
         /* No icon hit - deselect and clear same-icon tracking */
         if (prevSelected != -1) {
             gSelectedIcon = -1;
-            /* Don't redraw here - let Window Manager handle it via DeskHook */
+            /* Redraw the desktop, as selecting does: nothing else would, so
+             * the icon stayed highlighted. */
+            PostEvent(updateEvt, 0);
         }
         sLastClickIcon = -1;
         sLastClickTicks = 0;

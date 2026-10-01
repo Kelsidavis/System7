@@ -293,7 +293,7 @@ static void DrawLabelLine(const char* s, int len, int cx, int topY, bool selecte
  * line is cut and given a trailing ellipsis, which is what the Finder does for
  * a single long word.
  */
-void IconLabel_Draw(const char* name, int cx, int topY, bool selected) {
+static void IconLabel_Draw_Body(const char* name, int cx, int topY, bool selected) {
     if (!name) {
         return;
     }
@@ -347,6 +347,12 @@ void IconLabel_Draw(const char* name, int cx, int topY, bool selected) {
 
     DrawLabelLine(name, best, cx, topY, selected);
     DrawLabelLine(second, secondLen, cx, topY + kIconLabelLineStep, selected);
+}
+
+void IconLabel_Draw(const char* name, int cx, int topY, bool selected) {
+    QD_ClipBegin(g_currentPort);
+    IconLabel_Draw_Body(name, cx, topY, selected);
+    QD_ClipEnd();
 }
 
 /* Draw icon with label - main entry point for icon+label rendering */

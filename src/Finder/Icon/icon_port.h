@@ -3,6 +3,7 @@
 #include <stdint.h>
 #include <stddef.h>
 #include "QuickDraw/QuickDraw.h"
+#include "QuickDraw/QuickDrawPlatform.h"
 
 /* Shared QuickDraw globals */
 extern void* framebuffer;
@@ -39,6 +40,9 @@ static inline void IconPort_WritePixel(int x, int y, uint32_t color) {
             if (globalX < 0 || globalX >= (int)fb_width ||
                 globalY < 0 || globalY >= (int)fb_height) {
                 return;
+            }
+            if (!QD_ClipHas(globalX, globalY)) {
+                return;   /* clipped, like QuickDraw's own drawing */
             }
 
             uint8_t* fbBase = (uint8_t*)framebuffer;

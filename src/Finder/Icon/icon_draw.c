@@ -106,7 +106,7 @@ static void DrawCICN32(const IconBitmap* ib, int dx, int dy, bool selected) {
 }
 
 /* Public API: Draw 32x32 icon */
-void Icon_Draw32(const IconHandle* h, int x, int y, bool selected) {
+static void Icon_Draw32_Body(const IconHandle* h, int x, int y, bool selected) {
     if (!h || !h->fam) return;
 
     const IconBitmap* b = &h->fam->large;
@@ -116,6 +116,12 @@ void Icon_Draw32(const IconHandle* h, int x, int y, bool selected) {
     } else if (b->img1b && b->mask1b) {
         DrawICN32(b, x, y, selected);
     }
+}
+
+void Icon_Draw32(const IconHandle* h, int x, int y, bool selected) {
+    QD_ClipBegin(g_currentPort);
+    Icon_Draw32_Body(h, x, y, selected);
+    QD_ClipEnd();
 }
 
 /* Draw 1-bit SICN 16x16 icon */
@@ -141,7 +147,7 @@ static void DrawSICN16(const IconBitmap* ib, int dx, int dy) {
 }
 
 /* Draw 16x16 icon (for list views) */
-void Icon_Draw16(const IconHandle* h, int x, int y) {
+static void Icon_Draw16_Body(const IconHandle* h, int x, int y) {
     if (!h || !h->fam) return;
 
     /* Use small icon if available */
@@ -192,4 +198,10 @@ void Icon_Draw16(const IconHandle* h, int x, int y) {
             }
         }
     }
+}
+
+void Icon_Draw16(const IconHandle* h, int x, int y) {
+    QD_ClipBegin(g_currentPort);
+    Icon_Draw16_Body(h, x, y);
+    QD_ClipEnd();
 }
