@@ -806,6 +806,7 @@ static void InitializeWindowRecord(WindowPtr window, const Rect* bounds,
     /* Set window definition procedure based on procID */
     window->windowDefProc = Platform_GetWindowDefProc(procID);
     window->windowProcID = procID;   /* the variant, which the WDEF pointer loses */
+    window->spareFlag = (procID == zoomDocProc || procID == zoomNoGrow);   /* has a zoom box */
     window->dataHandle = NULL;
 
     /* Set window title */

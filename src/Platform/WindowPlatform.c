@@ -385,22 +385,31 @@ short Platform_WindowHitTest(WindowPtr window, Point pt) {
     Platform_GetWindowTitleBarRect(window, &titleBar);
     Platform_GetWindowContentRect(window, &content);
 
-    /* Check close box */
-    if (window->goAwayFlag) {
+    /* The boxes only where the window has them, and the close and zoom
+     * boxes only while it is active - an inactive window shows neither, so
+     * a click there selects it. Every window used to report all three, and
+     * a dialog with no title bar was draggable by its top 20 pixels. */
+    extern Boolean WM_WindowHasCloseBox(WindowPtr);
+    extern Boolean WM_WindowHasZoomBox(WindowPtr);
+    extern Boolean WM_WindowHasGrowBox(WindowPtr);
+    extern Boolean WM_WindowHasTitleBar(WindowPtr);
+
+    if (window->hilited && WM_WindowHasCloseBox(window)) {
         Platform_GetWindowCloseBoxRect(window, &closeBox);
         if (PtInRect(pt, &closeBox)) return wInGoAway;
     }
 
-    /* Check zoom box */
-    Platform_GetWindowZoomBoxRect(window, &zoomBox);
-    if (PtInRect(pt, &zoomBox)) return wInZoomIn;
+    if (window->hilited && WM_WindowHasZoomBox(window)) {
+        Platform_GetWindowZoomBoxRect(window, &zoomBox);
+        if (PtInRect(pt, &zoomBox)) return wInZoomIn;
+    }
 
-    /* Check grow box */
-    Platform_GetWindowGrowBoxRect(window, &growBox);
-    if (PtInRect(pt, &growBox)) return wInGrow;
+    if (WM_WindowHasGrowBox(window)) {
+        Platform_GetWindowGrowBoxRect(window, &growBox);
+        if (PtInRect(pt, &growBox)) return wInGrow;
+    }
 
-    /* Check title bar */
-    if (PtInRect(pt, &titleBar)) return wInDrag;
+    if (WM_WindowHasTitleBar(window) && PtInRect(pt, &titleBar)) return wInDrag;
 
     /* Check content */
     if (PtInRect(pt, &content)) return wInContent;

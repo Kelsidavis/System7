@@ -310,6 +310,8 @@ long WM_CalculateRegionArea(RgnHandle rgn);
  */
 Boolean WM_WindowHasGrowBox(WindowPtr window);
 Boolean WM_WindowHasZoomBox(WindowPtr window);
+Boolean WM_WindowHasTitleBar(WindowPtr window);
+Boolean WM_WindowHasCloseBox(WindowPtr window);
 Boolean WM_WindowIsZoomed(WindowPtr window);
 
 /*

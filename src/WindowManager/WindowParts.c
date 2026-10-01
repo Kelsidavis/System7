@@ -717,33 +717,34 @@ void WM_CleanupWindowParts(WindowPtr window) {
  * Window Capability Queries
  * ============================================================================ */
 
+/*
+ * What a window's frame has, from the procID it was made with (Inside
+ * Macintosh: Toolbox Essentials, 4-10): documentProc 0, dBoxProc 1,
+ * plainDBox 2, altDBoxProc 3, noGrowDocProc 4, movableDBoxProc 5,
+ * zoomDocProc 8, zoomNoGrow 12, rDocProc 16 and up. These answered "yes"
+ * for every window, so dialogs had grow boxes drawn and every window had
+ * an invisible zoom box catching clicks at the right of its title bar.
+ */
+Boolean WM_WindowHasTitleBar(WindowPtr window) {
+    if (window == NULL) return false;
+    short id = window->windowProcID;
+    return !(id == dBoxProc || id == plainDBox || id == altDBoxProc);
+}
+
 Boolean WM_WindowHasZoomBox(WindowPtr window) {
     if (window == NULL) return false;
-
-    /* Determine zoom box capability from window definition procedure */
-    Handle wdef = window->windowDefProc;
-    if (wdef == (Handle)WM_StandardWindowDefProc) {
-        /* Check against the window's port for procID inference */
-        /* In a full implementation, the procID would be stored */
-        /* For now, assume document windows have zoom boxes */
-        return true;
-    }
-
-    return false;
+    short id = window->windowProcID;
+    return id == zoomDocProc || id == zoomNoGrow;
 }
 
 Boolean WM_WindowHasGrowBox(WindowPtr window) {
     if (window == NULL) return false;
+    short id = window->windowProcID;
+    return id == documentProc || id == zoomDocProc;
+}
 
-    /* Determine grow box capability from window definition procedure */
-    Handle wdef = window->windowDefProc;
-    if (wdef == (Handle)WM_StandardWindowDefProc) {
-        /* Check against specific window types */
-        /* For now, assume document windows have grow boxes */
-        return true;
-    }
-
-    return false;
+Boolean WM_WindowHasCloseBox(WindowPtr window) {
+    return window && window->goAwayFlag && WM_WindowHasTitleBar(window);
 }
 
 /* [WM-035] Local zoom query; sources: IM:Windows "ZoomWindow" */

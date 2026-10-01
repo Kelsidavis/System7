@@ -844,7 +844,7 @@ WindowPtr FolderWindow_OpenFolder(VRefNum vref, DirID dirID, ConstStr255Param ti
         sCascadeOffset = 0;
     }
 
-    WindowPtr w = NewWindow(NULL, &r, title, true, 0 /* documentProc */, (WindowPtr)-1, true, 'DISK');
+    WindowPtr w = NewWindow(NULL, &r, title, true, zoomDocProc, (WindowPtr)-1, true, 'DISK');   /* Finder windows zoom */
 
     if (!w) {
         FINDER_LOG_DEBUG("FolderWindow_OpenFolder: Failed to create window\n");

@@ -613,7 +613,7 @@ WindowPtr Finder_OpenDesktopItem(Boolean isTrash, ConstStr255Param title)
     FINDER_LOG_DEBUG("[WIN_OPEN] NewWindow function ptr=%p\n", NewWindow);
 
     WindowPtr w = NewWindow(NULL, &r, windowTitle,
-                            false, 0, (WindowPtr)-1L, true,
+                            false, zoomDocProc, (WindowPtr)-1L, true,   /* Finder windows zoom */
                             isTrash ? 0x54525348 : 0x4449534B);  /* 'TRSH' or 'DISK' */
 
     FINDER_LOG_DEBUG("[WIN_OPEN] NewWindow RETURNED: w=%p\n", w);

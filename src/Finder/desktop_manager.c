@@ -2222,7 +2222,7 @@ void OpenSelectedDesktopIcon(void)
         WindowPtr volumeWindow = NewWindow(NULL, &windowBounds,
                                           PSTR("Macintosh HD"),
                                           true,  /* visible */
-                                          0,     /* documentProc */
+                                          zoomDocProc,   /* Finder windows zoom */
                                           (WindowPtr)-1L,  /* frontmost */
                                           true,  /* goAway box */
                                           'DISK');  /* refCon to identify as disk window */
@@ -2248,7 +2248,7 @@ void OpenSelectedDesktopIcon(void)
         WindowPtr trashWindow = (WindowPtr)NewWindow(NULL, &windowBounds,
                                          PSTR("Trash"),
                                          true,  /* visible */
-                                         0,     /* documentProc */
+                                         zoomDocProc,   /* Finder windows zoom */
                                          (WindowPtr)-1L,  /* frontmost */
                                          true,  /* goAway box */
                                          'TRSH');  /* refCon to identify as trash window */

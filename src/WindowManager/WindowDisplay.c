@@ -797,8 +797,10 @@ static void DrawWindowFrame_Unclipped(WindowPtr window) {
     uart_flush();
     /* Draw title bar BEFORE filling content area */
 
-    if (window->titleWidth > 0) {
-        WM_LOG_TRACE("WindowManager: titleWidth > 0, drawing title bar\n");
+    /* A title bar by the window's kind, not by whether it has a title: a
+     * document window with an empty title still has one, a dBoxProc dialog
+     * with a title does not. */
+    if (WM_WindowHasTitleBar(window)) {
         /* Title bar background should be INSIDE the frame, not overlap it */
         Rect titleBar;
         titleBar.left = frame.left + 1;    /* Inset from left frame edge */
@@ -884,8 +886,10 @@ static void DrawWindowFrame_Unclipped(WindowPtr window) {
         }
 
         /* Draw System 7 close box - 14x14 at left side
-         * Design: Black outline (left/top only for 3D), 1px theme highlight inside, grey fill */
-        if (framebuffer) {
+         * Design: Black outline (left/top only for 3D), 1px theme highlight inside, grey fill.
+         * Only for a window made with one (goAwayFlag), and only while it is
+         * active, as System 7 shows it; it was drawn on every window. */
+        if (framebuffer && WM_WindowHasCloseBox(window) && window->hilited) {
             /* Geometry comes from the platform rect so hit testing, press
              * highlighting and this paint cannot drift apart. */
             Rect closeBoxRect;
@@ -1173,8 +1177,8 @@ static void DrawWindowControls_Unclipped(WindowPtr window) {
 
     /* Close box is drawn in DrawWindowFrame, not here */
 
-    /* Draw zoom box */
-    if (window->spareFlag) {
+    /* Draw zoom box: only on a window that has one, and only while active */
+    if (window->spareFlag && window->hilited) {
         Rect zoomBox;
         Platform_GetWindowZoomBoxRect(window, &zoomBox);
         FrameRect(&zoomBox);
@@ -1191,8 +1195,9 @@ static void DrawWindowControls_Unclipped(WindowPtr window) {
         }
     }
 
-    /* Draw grow box */
-    if (window->windowKind >= 0) {  /* Document window */
+    /* Draw grow box: only on a kind of window that has one. This went by
+     * windowKind >= 0, which includes every dialog. */
+    if (WM_WindowHasGrowBox(window)) {
         /* Grow box in bottom-right corner */
         Rect growBox;
         SetRect(&growBox, frame.right - 16, frame.bottom - 16,
