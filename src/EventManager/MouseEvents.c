@@ -420,15 +420,13 @@ SInt16 ProcessRawMouseEvent(SInt16 x, SInt16 y, SInt16 buttonMask,
  */
 Boolean Button(void)
 {
+    /* Read the hardware first: the state is otherwise only refreshed by
+     * the main loop, so a tracking loop that did not pump never saw the
+     * button come up. */
+    extern void EventPumpYield(void);
     extern volatile UInt8 gCurrentButtons;
-    static int callCount = 0;
-    callCount++;
-
-    Boolean result = (gCurrentButtons & 1) != 0;
-
-    /* Disabled Button() debug output to reduce serial log noise */
-
-    return result;
+    EventPumpYield();
+    return (gCurrentButtons & 1) != 0;
 }
 
 /**
@@ -468,16 +466,14 @@ Boolean ButtonState(SInt16 buttonID)
 /**
  * Wait for mouse button release
  */
+/* Wait for the button to come up, and take the mouse-up event off the
+ * queue (Inside Macintosh: Toolbox Essentials, 2-111). */
 Boolean WaitMouseUp(void)
 {
     while (Button()) {
-        /* Brief sleep to avoid busy waiting */
-        #ifdef PLATFORM_REMOVED_WIN32
-        Sleep(1);
-        #else
-        /* Brief delay - would use usleep(1000) in user space */
-        #endif
     }
+    EventRecord up;
+    GetNextEvent(mUpMask, &up);
     return true;
 }
 

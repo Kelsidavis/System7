@@ -255,6 +255,15 @@ void ProcessModernInput(void)
         return;
     }
 
+    /* USB HID devices too: only the main loop polled them, so with a USB
+     * mouse every nested tracking loop saw the pointer and button frozen. */
+#if defined(__i386__)
+    {
+        extern void xhci_poll_hid_x86(void);
+        xhci_poll_hid_x86();
+    }
+#endif
+
     /* Poll input devices unless IRQ-driven input is enabled */
     if (!PS2_IsIRQDriven()) {
         PollPS2Input();
