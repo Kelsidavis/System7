@@ -653,18 +653,29 @@ static void QDPlatform_DrawShape_Body(GrafPtr port, GrafVerb verb, const Rect* r
                 }
             }
         } else if (verb == frame) {
-            /* Draw rectangle outline using port's pen mode */
-            /* CRITICAL: Point is {v, h} not {h, v}! */
-            Point tl = {rect->top, rect->left};
-            Point tr = {rect->top, rect->right - 1};
-            Point br = {rect->bottom - 1, rect->right - 1};
-            Point bl = {rect->bottom - 1, rect->left};
-
+            /* The outline lies inside the rectangle, the pen's width thick
+             * (Inside Macintosh: Imaging With QuickDraw, 3-60): four bands
+             * that do not overlap. It was four lines that shared their
+             * corner pixels - drawn twice, so in XOR mode the corners
+             * vanished - each hanging the pen outside the rectangle. */
             SInt16 mode = port ? port->pnMode : patCopy;
-            QDPlatform_DrawLine(port, tl, tr, pat, mode);
-            QDPlatform_DrawLine(port, tr, br, pat, mode);
-            QDPlatform_DrawLine(port, br, bl, pat, mode);
-            QDPlatform_DrawLine(port, bl, tl, pat, mode);
+            SInt32 pw = (port && port->pnSize.h > 0) ? port->pnSize.h : 1;
+            SInt32 ph = (port && port->pnSize.v > 0) ? port->pnSize.v : 1;
+            SInt32 L = rect->left, T = rect->top, R = rect->right, B = rect->bottom;
+            if (R - L <= 2 * pw || B - T <= 2 * ph) {
+                /* Too small to have a hole: it is all pen */
+                for (SInt32 y = T; y < B; y++)
+                    for (SInt32 x = L; x < R; x++) QD_PenPixel(port, pat, mode, x, y);
+            } else {
+                for (SInt32 y = T; y < T + ph; y++)
+                    for (SInt32 x = L; x < R; x++) QD_PenPixel(port, pat, mode, x, y);
+                for (SInt32 y = B - ph; y < B; y++)
+                    for (SInt32 x = L; x < R; x++) QD_PenPixel(port, pat, mode, x, y);
+                for (SInt32 y = T + ph; y < B - ph; y++) {
+                    for (SInt32 x = L; x < L + pw; x++) QD_PenPixel(port, pat, mode, x, y);
+                    for (SInt32 x = R - pw; x < R; x++) QD_PenPixel(port, pat, mode, x, y);
+                }
+            }
         } else if (verb == erase) {
             /* Erase should use port's background pattern, NOT desktop pattern */
             if (pat) {

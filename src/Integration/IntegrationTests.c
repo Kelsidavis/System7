@@ -550,7 +550,17 @@ static void Test_Draw_PenModes(void) {
     PenMode(patXor);
     FrameRect(&r);
     UInt32 edge = ScreenPixel(gx - 5, gy);   /* local (5,10): the left edge */
+    UInt32 corner = ScreenPixel(gx - 5, gy - 5);   /* local (5,5): a corner */
     PenNormal();
+
+    /* A 3-pixel frame lies inside its rectangle */
+    EraseRect(&w->port.portRect);
+    PenSize(3, 3);
+    FrameRect(&r);
+    PenNormal();
+    UInt32 innerRight = ScreenPixel(gx + 14, gy);   /* local (24,10): last column inside */
+    UInt32 outsideRight = ScreenPixel(gx + 15, gy); /* local (25,10): just outside */
+    UInt32 hole = ScreenPixel(gx + 1, gy + 1);      /* local (11,11): inside the band */
 
     SetPort(save);
     DisposeWindow(w);
@@ -559,6 +569,10 @@ static void Test_Draw_PenModes(void) {
     CHECK((twice & 0x00FFFFFF) == 0x00FFFFFF, "a second patXor did not restore white");
     CHECK(((a ^ b) & 0x00FFFFFF) == 0x00FFFFFF, "patBic grey did not clear every other pixel");
     CHECK((edge & 0x00FFFFFF) == 0, "a patXor frame was not drawn");
+    CHECK((corner & 0x00FFFFFF) == 0, "a patXor frame's corner was inverted twice");
+    CHECK((innerRight & 0x00FFFFFF) == 0 && (outsideRight & 0x00FFFFFF) == 0x00FFFFFF,
+          "a thick frame did not lie inside its rectangle");
+    CHECK((hole & 0x00FFFFFF) == 0x00FFFFFF, "a thick frame filled its middle");
     RecordTest(test_name, true, "");
 }
 

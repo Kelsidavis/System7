@@ -104,7 +104,6 @@ static void DrawPrimitive(GrafVerb verb, const Rect *shape, int shapeType,
                          ConstPatternParam pat, SInt16 ovalWidth, SInt16 ovalHeight);
 static void ClipToPort(GrafPtr port, Rect *rect);
 static Boolean PrepareDrawing(GrafPtr port);
-static void ApplyPenToRect(GrafPtr port, Rect *rect);
 
 /* ================================================================
  * INITIALIZATION AND SETUP
@@ -1022,13 +1021,19 @@ static void DrawPrimitive(GrafVerb verb, const Rect *shape, int shapeType,
     drawRect.bottom = shape->bottom;
     drawRect.right = shape->right;
 
-    /* Apply pen size for frame operations */
-    if (verb == frame) {
-        ApplyPenToRect(g_currentPort, &drawRect);
-    }
-
-    /* Clip to port and visible region */
+    /* Clipped, to know whether anything shows at all. Only a filled
+     * rectangle is drawn from the clipped one: a frame or a curved shape
+     * drawn from it took the clip's edge for its own - a frame running past
+     * the clip grew a false side along it, an oval was squashed into what
+     * was left - so those are drawn whole and clipped pixel by pixel. */
+    Rect wholeShape = drawRect;
     ClipToPort(g_currentPort, &drawRect);
+    if (drawRect.right <= drawRect.left || drawRect.bottom <= drawRect.top) {
+        return;
+    }
+    if (verb == frame || shapeType != 0) {
+        drawRect = wholeShape;
+    }
     QD_LOG_TRACE("DrawPrimitive clipped rect=(%d,%d,%d,%d)\n",
                 drawRect.left, drawRect.top, drawRect.right, drawRect.bottom);
 
@@ -1077,7 +1082,7 @@ static void DrawPrimitive(GrafVerb verb, const Rect *shape, int shapeType,
 
     /* Call platform layer to do actual drawing */
     QD_LOG_TRACE("DrawPrimitive call QDPlatform_DrawShape\n");
-    /* Clamp oval dimensions after clipping */
+    /* Corner ovals no bigger than the shape */
     if (shapeType == 2) {
         SInt16 width = globalRect.right - globalRect.left;
         SInt16 height = globalRect.bottom - globalRect.top;
@@ -1135,12 +1140,3 @@ static Boolean PrepareDrawing(GrafPtr port) {
     return true;
 }
 
-static void ApplyPenToRect(GrafPtr port, Rect *rect) {
-    /* Adjust rectangle for pen size */
-    if (port->pnSize.h > 1) {
-        rect->right += port->pnSize.h - 1;
-    }
-    if (port->pnSize.v > 1) {
-        rect->bottom += port->pnSize.v - 1;
-    }
-}
