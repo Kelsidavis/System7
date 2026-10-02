@@ -32,6 +32,7 @@
 
 extern QDGlobals qd;
 extern UInt32 TickCount(void);
+extern UInt32 GetDblTime(void);
 extern void SysBeep(short duration);
 extern void InitCursor(void);
 
@@ -617,7 +618,8 @@ static const M68KTrapEntry kTraps[] = {
 };
 
 OSErr M68KToolbox_Prepare(SegmentLoaderContext* ctx, ConstStr255Param appName,
-                          SInt16 resRefNum, CPUAddr stackBase, CPUAddr stackTop)
+                          SInt16 resRefNum, CPUAddr stackBase, CPUAddr stackTop,
+                          VRefNum appVRef, DirID appDir)
 {
     if (!ctx || !ctx->cpuAS || !ctx->cpuBackend) return paramErr;
     gAS = (M68KAddressSpace*)ctx->cpuAS;
@@ -655,6 +657,9 @@ OSErr M68KToolbox_Prepare(SegmentLoaderContext* ctx, ConstStr255Param appName,
     W8(kLM_CurApName, len);
     for (int i = 0; i < len; i++) W8(kLM_CurApName + 1 + i, appName[1 + i]);
     LMSetTicks(TickCount());
+    M68KFiles_Prepare(appVRef, appDir);
+    W32(0x02F0, GetDblTime());              /* DoubleTime */
+    W32(0x02F4, 32);                        /* CaretTime: half a second */
 
     const struct { const M68KTrapEntry* t; int n; } tables[] = {
         { kTraps, (int)(sizeof(kTraps) / sizeof(kTraps[0])) },
@@ -662,6 +667,11 @@ OSErr M68KToolbox_Prepare(SegmentLoaderContext* ctx, ConstStr255Param appName,
         { kM68KWindowTraps, kM68KWindowTrapCount },
         { kM68KMenuTraps, kM68KMenuTrapCount },
         { kM68KEventTraps, kM68KEventTrapCount },
+        { kM68KDialogTraps, kM68KDialogTrapCount },
+        { kM68KControlTraps, kM68KControlTrapCount },
+        { kM68KTextEditTraps, kM68KTextEditTrapCount },
+        { kM68KUtilityTraps, kM68KUtilityTrapCount },
+        { kM68KFileTraps, kM68KFileTrapCount },
     };
     for (size_t k = 0; k < sizeof(tables) / sizeof(tables[0]); k++) {
         for (int i = 0; i < tables[k].n; i++) {
@@ -682,6 +692,10 @@ UInt32 M68KTB_QDGlobals(void) {
 }
 
 void M68KToolbox_Finish(void) {
+    M68KTE_Finish();
+    M68KDialogs_Finish();
+    M68KFiles_Finish();
+    M68KUtils_Finish();
     Obj_Finish();
     M68KMenus_Finish();
     /* Native resources the application still held */

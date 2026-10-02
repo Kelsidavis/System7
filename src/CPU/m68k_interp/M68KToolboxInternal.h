@@ -13,6 +13,7 @@
 #include "CPU/CPUBackend.h"
 #include "CPU/M68KInterp.h"
 #include "CPU/M68KHeap.h"
+#include "FS/hfs_types.h"
 
 extern M68KAddressSpace* gM68KApp;     /* the application being answered */
 
@@ -105,6 +106,10 @@ UInt32 Obj_NewRgnRecord(RgnHandle rgn);
 void Obj_ForgetRgn(UInt32 h);
 void Obj_SyncRgn(RgnHandle rgn);
 void Obj_SetThePort(GrafPtr port);           /* and QuickDraw's thePort in the program */
+UInt32 Obj_ControlFor(ControlHandle c);      /* its ControlRecord handle, made if need be */
+ControlHandle Obj_Control(UInt32 h);
+void Obj_SyncControl(ControlHandle c);
+void Obj_ForgetControl(ControlHandle c);
 void Obj_Finish(void);                       /* the program is done: its windows go */
 
 extern const M68KTrapEntry kM68KQuickDrawTraps[];
@@ -115,6 +120,30 @@ extern const M68KTrapEntry kM68KMenuTraps[];
 extern const int kM68KMenuTrapCount;
 extern const M68KTrapEntry kM68KEventTraps[];
 extern const int kM68KEventTrapCount;
+extern const M68KTrapEntry kM68KDialogTraps[];
+extern const int kM68KDialogTrapCount;
+extern const M68KTrapEntry kM68KControlTraps[];
+extern const int kM68KControlTrapCount;
+extern const M68KTrapEntry kM68KTextEditTraps[];
+extern const int kM68KTextEditTrapCount;
+extern const M68KTrapEntry kM68KUtilityTraps[];
+extern const int kM68KUtilityTrapCount;
+extern const M68KTrapEntry kM68KFileTraps[];
+extern const int kM68KFileTrapCount;
+void M68KFiles_Prepare(VRefNum vref, DirID dir);   /* the application's folder: the default */
+void M68KFiles_Finish(void);
+void M68KUtils_Finish(void);
+void M68KDialogs_Finish(void);
+UInt32 Obj_TEFor(struct TERec** te);
+void M68KTE_Finish(void);
+
+/* Read an event from the program's record, its window made native */
+void M68KTB_ReadEvent(UInt32 addr, EventRecord* e);
+/* Write an event for the program, its window made the program's */
+void M68KTB_WriteEvent(UInt32 addr, const EventRecord* e);
+
+/* Call a procedure in the program; its arguments are already pushed */
+static inline OSErr CallProgram(UInt32 proc) { return M68K_CallProc(gM68KApp, proc); }
 void M68KMenus_Finish(void);
 
 #endif /* M68K_TOOLBOX_INTERNAL_H */

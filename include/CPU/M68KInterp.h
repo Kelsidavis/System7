@@ -73,6 +73,7 @@ typedef struct M68KRegs {
  * the top of the address space, where no code or data is placed.
  */
 #define kM68KReturnSentinel  0x00FFFFF0UL
+#define kM68KCallSentinel    0x00FFFFE0UL     /* where a callback returns to */
 
 /* Trap dispatch table sizes - see trapHandlers below. */
 #define M68K_OS_TRAP_SLOTS       256    /* $A000-$A7FF, low 8 bits */
@@ -130,6 +131,8 @@ typedef struct M68KAddressSpace {
 
     UInt16 currentTrap;       /* the trap word being answered, for its flag bits */
     UInt32 instrPC;           /* where the instruction being executed began */
+    UInt32 rmwAddr;           /* the operand of a read-modify-write, once found */
+    Boolean rmwValid;
 
     /* The last traps called, for a fault report: which call left the stack
      * or a register as the fault found it */
@@ -167,6 +170,7 @@ OSErr M68KBackend_Initialize(void);
  */
 OSErr M68K_Execute(M68KAddressSpace* as, UInt32 startPC, UInt32 maxInstructions);
 OSErr M68K_Run(M68KAddressSpace* as, UInt32 maxInstructions);
+OSErr M68K_CallProc(M68KAddressSpace* as, UInt32 proc);
 
 /* The name of a trap word, "_InitGraf"; NULL if it is not one this knows */
 const char* M68K_TrapName(UInt16 trapWord);

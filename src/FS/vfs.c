@@ -67,6 +67,7 @@ struct VFSFile {
     uint32_t memSize;       /* Current data size */
     uint32_t memCapacity;   /* Buffer capacity */
     uint32_t memPosition;   /* Read/write position */
+    bool     changed;       /* written to or resized: saved on close */
 };
 
 /* Helper: Find volume by vref */
@@ -919,8 +920,10 @@ void VFS_CloseFile(VFSFile* file) {
         HFS_FileClose(file->hfsFile);
     }
 
-    /* Persist in-memory data to overlay entry on close */
-    if (file->memData && file->memSize > 0 && file->fileID != 0) {
+    /* Persist in-memory data to overlay entry on close - an emptied file
+     * too, which needed a size above zero to be saved and so kept its old
+     * contents */
+    if ((file->changed || (file->memData && file->memSize > 0)) && file->fileID != 0) {
         VFSVolume* vol = VFS_FindVolume(file->vref);
         if (vol) {
             VFSOverlayEntry* oe = VFS_FindOverlay(vol, file->fileID);
@@ -950,9 +953,9 @@ void VFS_CloseFile(VFSFile* file) {
                     oe->fileDataSize = 0;
                 }
                 /* Copy current buffer to overlay */
-                oe->fileData = (uint8_t*)NewPtr(file->memSize);
+                oe->fileData = (uint8_t*)NewPtr(file->memSize ? file->memSize : 1);
                 if (oe->fileData) {
-                    memcpy(oe->fileData, file->memData, file->memSize);
+                    if (file->memSize) memcpy(oe->fileData, file->memData, file->memSize);
                     oe->fileDataSize = file->memSize;
                     /* Update CatEntry size and modification time */
                     oe->entry.size = file->memSize;
@@ -997,8 +1000,60 @@ bool VFS_ReadFile(VFSFile* file, void* buffer, uint32_t length, uint32_t* bytesR
     return HFS_FileRead(file->hfsFile, buffer, length, bytesRead);
 }
 
+/*
+ * The file's contents in memory, where they can be changed. A file from the
+ * disk was written into an empty buffer, so writing part of it lost the rest:
+ * it is read in whole, at the position it was read to, before the first
+ * change.
+ */
+static bool VFS_MakeChangeable(VFSFile* file) {
+    if (file->memData || !file->hfsFile) return true;
+    uint32_t size = HFS_FileGetSize(file->hfsFile);
+    uint32_t position = HFS_FileTell(file->hfsFile);
+    uint32_t cap = (size + 4095) & ~4095u;
+    if (cap == 0) cap = 4096;
+    uint8_t* buf = (uint8_t*)NewPtr(cap);
+    if (!buf) return false;
+    memset(buf, 0, cap);
+    uint32_t got = 0;
+    HFS_FileSeek(file->hfsFile, 0);
+    if (size && !HFS_FileRead(file->hfsFile, buf, size, &got)) {
+        DisposePtr((Ptr)buf);
+        HFS_FileSeek(file->hfsFile, position);
+        return false;
+    }
+    file->memData = buf;
+    file->memSize = got;
+    file->memCapacity = cap;
+    file->memPosition = position;
+    return true;
+}
+
+/* Make the file this long: cut off, or extended with zeros */
+bool VFS_SetFileSize(VFSFile* file, uint32_t size) {
+    if (!file || !VFS_MakeChangeable(file)) return false;
+    if (size > file->memCapacity) {
+        uint32_t newCap = (size + 4095) & ~4095u;
+        uint8_t* newBuf = (uint8_t*)NewPtr(newCap);
+        if (!newBuf) return false;
+        memset(newBuf, 0, newCap);
+        if (file->memData && file->memSize) memcpy(newBuf, file->memData, file->memSize);
+        if (file->memData) DisposePtr((Ptr)file->memData);
+        file->memData = newBuf;
+        file->memCapacity = newCap;
+    } else if (size > file->memSize && file->memData) {
+        memset(file->memData + file->memSize, 0, size - file->memSize);
+    }
+    file->memSize = size;
+    if (file->memPosition > size) file->memPosition = size;
+    file->changed = true;
+    return true;
+}
+
 bool VFS_WriteFile(VFSFile* file, const void* buffer, uint32_t length, uint32_t* bytesWritten) {
     if (!file || !buffer) return false;
+    if (!VFS_MakeChangeable(file)) return false;
+    file->changed = true;
 
     /* Check for integer overflow in position + length */
     if (length > (uint32_t)0xFFFFFFFF - file->memPosition) return false;

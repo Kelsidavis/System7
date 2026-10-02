@@ -148,9 +148,10 @@ void TEUpdate(const Rect *updateRect, TEHandle hTE) {
         y += pTE->base.lineHeight;
     }
 
-    /* Draw caret if active and no selection */
-    if (pTE->base.active && pTE->base.selStart == pTE->base.selEnd) {
-        TE_UpdateCaret(hTE, FALSE);
+    /* The erase took the caret with it: put it back if it was showing */
+    if (pTE->base.caretState) {
+        pTE->base.caretState = 0;
+        TE_UpdateCaret(hTE, TRUE);
     }
 
     /* Restore port */
@@ -324,9 +325,13 @@ void TE_InvalidateSelection(TEHandle hTE) {
     /* Clip to view rect */
     SectRect(&selRect, &pTE->base.viewRect, &selRect);
 
-    /* Invalidate */
+    /* Invalidate - in the record's port, which need not be the current one */
     if (!EmptyRect(&selRect)) {
+        GrafPtr save;
+        GetPort(&save);
+        if (pTE->base.inPort) SetPort(pTE->base.inPort);
         InvalRect(&selRect);
+        SetPort(save);
     }
 
     HUnlock((Handle)hTE);
@@ -361,8 +366,7 @@ void TEIdle(TEHandle hTE) {
         /* Check if time to blink */
         if (currentTick - pTE->base.caretTime >= CARET_BLINK) {
             pTE->base.caretTime = currentTick;
-            pTE->base.caretState = pTE->base.caretState ? 0 : 0xFF;
-            TE_UpdateCaret(hTE, FALSE);
+            TE_UpdateCaret(hTE, pTE->base.caretState == 0);
         }
     }
 
@@ -408,9 +412,15 @@ void TEIdle(TEHandle hTE) {
 }
 
 /*
- * TE_UpdateCaret - Draw or erase caret
+ * TE_UpdateCaret - put the caret on the screen, or take it off
+ *
+ * caretState says whether the caret is on the screen, and the caret is an
+ * inversion, so drawing it twice takes it off. This used to invert only
+ * when the state said "on", and blinking set the state before calling it -
+ * so a blink to "off" drew nothing and every caret stayed where it was
+ * drawn, a row of them across the line as the insertion point moved.
  */
-void TE_UpdateCaret(TEHandle hTE, Boolean forceOn) {
+void TE_UpdateCaret(TEHandle hTE, Boolean show) {
     TEExtPtr pTE;
     Point caretPt;
     Rect caretRect;
@@ -421,41 +431,31 @@ void TE_UpdateCaret(TEHandle hTE, Boolean forceOn) {
     HLock((Handle)hTE);
     pTE = (TEExtPtr)*hTE;
 
-    /* Only draw if active and no selection */
+    Boolean visible = pTE->base.caretState != 0;
+    if (show == visible) {
+        HUnlock((Handle)hTE);
+        return;
+    }
+    pTE->base.caretState = show ? 0xFF : 0;
+
+    /* Only an insertion point in an active record is drawn */
     if (!pTE->base.active || pTE->base.selStart != pTE->base.selEnd) {
         HUnlock((Handle)hTE);
         return;
     }
 
-    TED_LOG("TE_UpdateCaret: state=%d, force=%d\n", pTE->base.caretState, forceOn);
-
-    /* Get caret position */
     caretPt = TEGetPoint(pTE->base.selStart, hTE);
-
-    /* Build caret rect */
     SetRect(&caretRect,
             caretPt.h,
             caretPt.v - pTE->base.fontAscent,
             caretPt.h + CARET_WIDTH,
             caretPt.v + (pTE->base.lineHeight - pTE->base.fontAscent));
-
-    /* Clip to view rect */
     SectRect(&caretRect, &pTE->base.viewRect, &caretRect);
 
     if (!EmptyRect(&caretRect)) {
-        /* Save and set port */
         GetPort(&savedPort);
         SetPort(pTE->base.inPort);
-
-        /* Draw/erase caret */
-        if (forceOn) {
-            pTE->base.caretState = 0xFF;
-            InvertRect(&caretRect);
-        } else if (pTE->base.caretState) {
-            InvertRect(&caretRect);
-        }
-
-        /* Restore port */
+        InvertRect(&caretRect);
         SetPort(savedPort);
     }
 

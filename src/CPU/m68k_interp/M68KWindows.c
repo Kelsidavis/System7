@@ -13,6 +13,7 @@
 #include "M68KToolboxInternal.h"
 #include "WindowManager/WindowManager.h"
 #include "ResourceManager.h"
+#include "QuickDraw/QuickDraw.h"
 #include "System71StdLib.h"
 
 static WindowPtr PopWindow(void) {

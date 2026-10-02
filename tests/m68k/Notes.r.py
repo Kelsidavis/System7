@@ -1,0 +1,27 @@
+# Notes's resources: its menus, window, alerts and the Find dialog, built
+# by mkapp.py's helpers into the layouts Inside Macintosh gives them.
+RESOURCES = [
+    (b"MBAR", 128, mbar(128, 129, 130, 131)),
+    (b"MENU", 128, menu(128, "\x14", [("About Notes…", ""), ("-", "")])),
+    (b"MENU", 129, menu(129, "File", [("New", "N"), ("Open…", "O"), ("-", ""),
+                                      ("Save", "S"), ("Save As…", ""), ("-", ""),
+                                      ("Quit", "Q")])),
+    (b"MENU", 130, menu(130, "Edit", [("Undo", "Z"), ("-", ""), ("Cut", "X"), ("Copy", "C"),
+                                      ("Paste", "V"), ("Clear", "")])),
+    (b"MENU", 131, menu(131, "Search", [("Find…", "F"), ("Find Again", "G")])),
+    (b"WIND", 128, wind((60, 40, 360, 500), "Untitled")),
+    (b"ALRT", 128, alrt((80, 120, 200, 440), 128)),
+    (b"DITL", 128, ditl((BUTTON, (85, 240, 105, 310), "OK"),
+                        (STATTEXT, (15, 20, 75, 310),
+                         "Notes, a 68K application for testing System 7. The note has ^0 lines."))),
+    (b"ALRT", 129, alrt((80, 100, 200, 440), 129)),
+    (b"DITL", 129, ditl((BUTTON, (85, 250, 105, 320), "Save"),
+                        (BUTTON, (85, 170, 105, 240), "Cancel"),
+                        (BUTTON, (85, 20, 105, 120), "Don’t Save"),
+                        (STATTEXT, (15, 20, 70, 320), "Save changes to “^0” before ^1?"))),
+    (b"DLOG", 130, dlog((90, 120, 190, 420), 130)),
+    (b"DITL", 130, ditl((BUTTON, (65, 210, 85, 280), "Find"),
+                        (BUTTON, (65, 120, 85, 190), "Cancel"),
+                        (STATTEXT, (15, 15, 31, 60), "Find:"),
+                        (EDITTEXT, (15, 65, 31, 285), ""))),
+]

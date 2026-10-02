@@ -398,7 +398,9 @@ OSErr LaunchApplication(LaunchParamBlockRec* launchParams)
     if (err == noErr) err = segLoader->cpuBackend->SetStacks(segLoader->cpuAS, stackTop, 0);
     if (err == noErr) {
         err = M68KToolbox_Prepare(segLoader, launchParams->launchAppSpec->name,
-                                  appRes, stackBase, stackTop);
+                                  appRes, stackBase, stackTop,
+                                  (VRefNum)launchParams->launchAppSpec->vRefNum,
+                                  (DirID)launchParams->launchAppSpec->parID);
     }
 
     /* Into the program the way the Segment Loader goes in: through the first

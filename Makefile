@@ -466,6 +466,11 @@ C_SOURCES = src/main.c \
             src/CPU/m68k_interp/M68KWindows.c \
             src/CPU/m68k_interp/M68KMenus.c \
             src/CPU/m68k_interp/M68KEvents.c \
+            src/CPU/m68k_interp/M68KDialogs.c \
+            src/CPU/m68k_interp/M68KControls.c \
+            src/CPU/m68k_interp/M68KTextEdit.c \
+            src/CPU/m68k_interp/M68KUtils.c \
+            src/CPU/m68k_interp/M68KFiles.c \
             src/CPU/ppc_interp/PPCBackend.c \
             src/CPU/ppc_interp/PPCOpcodes.c \
             src/SegmentLoader/SegmentLoader.c \

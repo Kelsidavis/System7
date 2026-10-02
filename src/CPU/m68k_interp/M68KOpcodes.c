@@ -20,6 +20,8 @@ extern UInt32 M68K_Fetch32(M68KAddressSpace* as);
 extern UInt8 M68K_Read8(M68KAddressSpace* as, UInt32 addr);
 extern UInt16 M68K_Read16(M68KAddressSpace* as, UInt32 addr);
 extern UInt32 M68K_Read32(M68KAddressSpace* as, UInt32 addr);
+extern UInt32 M68K_EA_ReadRMW(M68KAddressSpace* as, UInt8 mode, UInt8 reg, M68KSize size);
+extern void M68K_EA_WriteRMW(M68KAddressSpace* as, UInt8 mode, UInt8 reg, M68KSize size, UInt32 value);
 extern void M68K_Write8(M68KAddressSpace* as, UInt32 addr, UInt8 value);
 extern void M68K_Write16(M68KAddressSpace* as, UInt32 addr, UInt16 value);
 extern void M68K_Write32(M68KAddressSpace* as, UInt32 addr, UInt32 value);
@@ -320,13 +322,13 @@ void M68K_Op_NOT(M68KAddressSpace* as, UInt16 opcode)
     UInt32 value;
 
     /* Read value */
-    value = M68K_EA_Read(as, mode, reg, size);
+    value = M68K_EA_ReadRMW(as, mode, reg, size);
 
     /* Complement */
     value = (~value) & SIZE_MASK(size);
 
     /* Write back */
-    M68K_EA_Write(as, mode, reg, size, value);
+    M68K_EA_WriteRMW(as, mode, reg, size, value);
 
     /* Set flags */
     M68K_SetNZ(as, value, size);
@@ -352,16 +354,16 @@ void M68K_Op_ADD(M68KAddressSpace* as, UInt16 opcode)
 
     if (!toEA) {
         /* Dn + EA -> Dn */
-        src = M68K_EA_Read(as, ea_mode, ea_reg, size);
+        src = M68K_EA_ReadRMW(as, ea_mode, ea_reg, size);
         dst = as->regs.d[reg] & mask;
         result = (dst + src) & mask;
         as->regs.d[reg] = (as->regs.d[reg] & ~mask) | result;
     } else {
         /* EA + Dn -> EA */
-        dst = M68K_EA_Read(as, ea_mode, ea_reg, size);
+        dst = M68K_EA_ReadRMW(as, ea_mode, ea_reg, size);
         src = as->regs.d[reg] & mask;
         result = (dst + src) & mask;
-        M68K_EA_Write(as, ea_mode, ea_reg, size, result);
+        M68K_EA_WriteRMW(as, ea_mode, ea_reg, size, result);
     }
 
     /* Set flags */
@@ -405,15 +407,15 @@ void M68K_Op_SUB(M68KAddressSpace* as, UInt16 opcode)
     if (!toEA) {
         /* Dn - EA -> Dn */
         dst = as->regs.d[reg] & mask;
-        src = M68K_EA_Read(as, ea_mode, ea_reg, size);
+        src = M68K_EA_ReadRMW(as, ea_mode, ea_reg, size);
         result = (dst - src) & mask;
         as->regs.d[reg] = (as->regs.d[reg] & ~mask) | result;
     } else {
         /* EA - Dn -> EA */
-        dst = M68K_EA_Read(as, ea_mode, ea_reg, size);
+        dst = M68K_EA_ReadRMW(as, ea_mode, ea_reg, size);
         src = as->regs.d[reg] & mask;
         result = (dst - src) & mask;
-        M68K_EA_Write(as, ea_mode, ea_reg, size, result);
+        M68K_EA_WriteRMW(as, ea_mode, ea_reg, size, result);
     }
 
     /* Set flags */
@@ -753,6 +755,17 @@ void M68K_Op_TRAP(M68KAddressSpace* as, UInt16 opcode)
         UInt32 d1 = as->regs.d[1], d2 = as->regs.d[2];
         if (osTrap) as->regs.d[1] = opcode;
 
+        /* Auto-pop: the trap is the body of a routine that was JSRed to, so
+         * the routine's return address is on top of its arguments. It comes
+         * off first, so the handler finds its arguments where it expects
+         * them, and is where execution goes afterwards. */
+        Boolean autoPop = !osTrap && (opcode & 0x0400);
+        UInt32 popTo = 0;
+        if (autoPop) {
+            popTo = M68K_Read32(as, as->regs.a[7]);
+            as->regs.a[7] += 4;
+        }
+
         as->currentTrap = opcode;
         int r = as->recentTrapNext++ & 7;
         as->recentTraps[r].trap = opcode;
@@ -774,11 +787,8 @@ void M68K_Op_TRAP(M68KAddressSpace* as, UInt16 opcode)
             M68K_ClearFlag(as, CCR_N | CCR_Z | CCR_V | CCR_C);
             if (result == 0) M68K_SetFlag(as, CCR_Z);
             if (result < 0) M68K_SetFlag(as, CCR_N);
-        } else if (!osTrap && (opcode & 0x0400) && !as->halted) {
-            /* Auto-pop: the trap was the body of a routine JSRed to; go back
-             * to that routine's caller */
-            as->regs.pc = M68K_Read32(as, as->regs.a[7]);
-            as->regs.a[7] += 4;
+        } else if (autoPop && !as->halted) {
+            as->regs.pc = popTo;
         }
 
         if (err != noErr) {
@@ -954,13 +964,13 @@ void M68K_Op_ADDQ(M68KAddressSpace* as, UInt16 opcode)
     immediate = (data == 0) ? 8 : data;
 
     /* Read operand */
-    operand = M68K_EA_Read(as, mode, reg, size);
+    operand = M68K_EA_ReadRMW(as, mode, reg, size);
 
     /* Perform addition */
     result = (operand + immediate) & mask;
 
     /* Write result */
-    M68K_EA_Write(as, mode, reg, size, result);
+    M68K_EA_WriteRMW(as, mode, reg, size, result);
 
     /* Set flags (unless An direct) */
     if (mode != MODE_An) {
@@ -1007,13 +1017,13 @@ void M68K_Op_SUBQ(M68KAddressSpace* as, UInt16 opcode)
     immediate = (data == 0) ? 8 : data;
 
     /* Read operand */
-    operand = M68K_EA_Read(as, mode, reg, size);
+    operand = M68K_EA_ReadRMW(as, mode, reg, size);
 
     /* Perform subtraction */
     result = (operand - immediate) & mask;
 
     /* Write result */
-    M68K_EA_Write(as, mode, reg, size, result);
+    M68K_EA_WriteRMW(as, mode, reg, size, result);
 
     /* Set flags (unless An direct) */
     if (mode != MODE_An) {
@@ -1059,16 +1069,16 @@ void M68K_Op_AND(M68KAddressSpace* as, UInt16 opcode)
 
     if (dir == 0) {
         /* EA & Dn -> Dn */
-        src = M68K_EA_Read(as, ea_mode, ea_reg, size);
+        src = M68K_EA_ReadRMW(as, ea_mode, ea_reg, size);
         dst = as->regs.d[reg] & mask;
         result = (dst & src) & mask;
         as->regs.d[reg] = (as->regs.d[reg] & ~mask) | result;
     } else {
         /* Dn & EA -> EA */
-        dst = M68K_EA_Read(as, ea_mode, ea_reg, size);
+        dst = M68K_EA_ReadRMW(as, ea_mode, ea_reg, size);
         src = as->regs.d[reg] & mask;
         result = (dst & src) & mask;
-        M68K_EA_Write(as, ea_mode, ea_reg, size, result);
+        M68K_EA_WriteRMW(as, ea_mode, ea_reg, size, result);
     }
 
     /* Set flags */
@@ -1093,16 +1103,16 @@ void M68K_Op_OR(M68KAddressSpace* as, UInt16 opcode)
 
     if (dir == 0) {
         /* EA | Dn -> Dn */
-        src = M68K_EA_Read(as, ea_mode, ea_reg, size);
+        src = M68K_EA_ReadRMW(as, ea_mode, ea_reg, size);
         dst = as->regs.d[reg] & mask;
         result = (dst | src) & mask;
         as->regs.d[reg] = (as->regs.d[reg] & ~mask) | result;
     } else {
         /* Dn | EA -> EA */
-        dst = M68K_EA_Read(as, ea_mode, ea_reg, size);
+        dst = M68K_EA_ReadRMW(as, ea_mode, ea_reg, size);
         src = as->regs.d[reg] & mask;
         result = (dst | src) & mask;
-        M68K_EA_Write(as, ea_mode, ea_reg, size, result);
+        M68K_EA_WriteRMW(as, ea_mode, ea_reg, size, result);
     }
 
     /* Set flags */
@@ -1125,10 +1135,10 @@ void M68K_Op_EOR(M68KAddressSpace* as, UInt16 opcode)
     UInt32 mask = SIZE_MASK(size);
 
     /* Dn ^ EA -> EA */
-    dst = M68K_EA_Read(as, ea_mode, ea_reg, size);
+    dst = M68K_EA_ReadRMW(as, ea_mode, ea_reg, size);
     src = as->regs.d[reg] & mask;
     result = (dst ^ src) & mask;
-    M68K_EA_Write(as, ea_mode, ea_reg, size, result);
+    M68K_EA_WriteRMW(as, ea_mode, ea_reg, size, result);
 
     /* Set flags */
     M68K_SetNZ(as, result, size);
@@ -1733,7 +1743,7 @@ void M68K_Op_BSET(M68KAddressSpace* as, UInt16 opcode)
     }
 
     /* Read operand */
-    value = M68K_EA_Read(as, mode, reg, size);
+    value = M68K_EA_ReadRMW(as, mode, reg, size);
 
     /* Test old bit value (Z flag) */
     if (value & (1 << bit_num)) {
@@ -1746,7 +1756,7 @@ void M68K_Op_BSET(M68KAddressSpace* as, UInt16 opcode)
     value |= (1 << bit_num);
 
     /* Write back */
-    M68K_EA_Write(as, mode, reg, size, value);
+    M68K_EA_WriteRMW(as, mode, reg, size, value);
 }
 
 /*
@@ -1779,7 +1789,7 @@ void M68K_Op_BCLR(M68KAddressSpace* as, UInt16 opcode)
     }
 
     /* Read operand */
-    value = M68K_EA_Read(as, mode, reg, size);
+    value = M68K_EA_ReadRMW(as, mode, reg, size);
 
     /* Test old bit value (Z flag) */
     if (value & (1 << bit_num)) {
@@ -1792,7 +1802,7 @@ void M68K_Op_BCLR(M68KAddressSpace* as, UInt16 opcode)
     value &= ~(1 << bit_num);
 
     /* Write back */
-    M68K_EA_Write(as, mode, reg, size, value);
+    M68K_EA_WriteRMW(as, mode, reg, size, value);
 }
 
 /*
@@ -1825,7 +1835,7 @@ void M68K_Op_BCHG(M68KAddressSpace* as, UInt16 opcode)
     }
 
     /* Read operand */
-    value = M68K_EA_Read(as, mode, reg, size);
+    value = M68K_EA_ReadRMW(as, mode, reg, size);
 
     /* Test old bit value (Z flag) */
     if (value & (1 << bit_num)) {
@@ -1838,7 +1848,7 @@ void M68K_Op_BCHG(M68KAddressSpace* as, UInt16 opcode)
     value ^= (1 << bit_num);
 
     /* Write back */
-    M68K_EA_Write(as, mode, reg, size, value);
+    M68K_EA_WriteRMW(as, mode, reg, size, value);
 }
 
 /*
@@ -2061,13 +2071,13 @@ void M68K_Op_NEG(M68KAddressSpace* as, UInt16 opcode)
     UInt32 mask = SIZE_MASK(size);
 
     /* Read operand */
-    value = M68K_EA_Read(as, mode, reg, size);
+    value = M68K_EA_ReadRMW(as, mode, reg, size);
 
     /* Negate (0 - value) */
     result = (0 - value) & mask;
 
     /* Write result */
-    M68K_EA_Write(as, mode, reg, size, result);
+    M68K_EA_WriteRMW(as, mode, reg, size, result);
 
     /* Set flags */
     M68K_SetNZ(as, result, size);
@@ -2368,13 +2378,13 @@ void M68K_Op_NEGX(M68KAddressSpace* as, UInt16 opcode)
     Boolean x = M68K_TestFlag(as, CCR_X);
 
     /* Read operand */
-    value = M68K_EA_Read(as, mode, reg, size);
+    value = M68K_EA_ReadRMW(as, mode, reg, size);
 
     /* Negate with extend (0 - value - X) */
     result = (0 - value - (x ? 1 : 0)) & mask;
 
     /* Write result */
-    M68K_EA_Write(as, mode, reg, size, result);
+    M68K_EA_WriteRMW(as, mode, reg, size, result);
 
     /* Set flags (Z cleared only if result is non-zero) */
     if (result != 0) {
@@ -2445,7 +2455,7 @@ void M68K_Op_TAS(M68KAddressSpace* as, UInt16 opcode)
     UInt8 value;
 
     /* Read byte */
-    value = M68K_EA_Read(as, mode, reg, SIZE_BYTE) & 0xFF;
+    value = M68K_EA_ReadRMW(as, mode, reg, SIZE_BYTE) & 0xFF;
 
     /* Test and set flags */
     M68K_SetNZ(as, value, SIZE_BYTE);
@@ -2455,7 +2465,7 @@ void M68K_Op_TAS(M68KAddressSpace* as, UInt16 opcode)
     value |= 0x80;
 
     /* Write back */
-    M68K_EA_Write(as, mode, reg, SIZE_BYTE, value);
+    M68K_EA_WriteRMW(as, mode, reg, SIZE_BYTE, value);
 }
 
 /*
@@ -2531,13 +2541,13 @@ void M68K_Op_ADDI(M68KAddressSpace* as, UInt16 opcode)
     }
 
     /* Read destination */
-    dest = M68K_EA_Read(as, mode, reg, size);
+    dest = M68K_EA_ReadRMW(as, mode, reg, size);
 
     /* Perform addition */
     result = (dest + immediate) & mask;
 
     /* Write result */
-    M68K_EA_Write(as, mode, reg, size, result);
+    M68K_EA_WriteRMW(as, mode, reg, size, result);
 
     /* Set flags */
     M68K_SetNZ(as, result, size);
@@ -2583,13 +2593,13 @@ void M68K_Op_SUBI(M68KAddressSpace* as, UInt16 opcode)
     }
 
     /* Read destination */
-    dest = M68K_EA_Read(as, mode, reg, size);
+    dest = M68K_EA_ReadRMW(as, mode, reg, size);
 
     /* Perform subtraction */
     result = (dest - immediate) & mask;
 
     /* Write result */
-    M68K_EA_Write(as, mode, reg, size, result);
+    M68K_EA_WriteRMW(as, mode, reg, size, result);
 
     /* Set flags */
     M68K_SetNZ(as, result, size);
@@ -2634,13 +2644,13 @@ void M68K_Op_ANDI(M68KAddressSpace* as, UInt16 opcode)
     }
 
     /* Read destination */
-    dest = M68K_EA_Read(as, mode, reg, size);
+    dest = M68K_EA_ReadRMW(as, mode, reg, size);
 
     /* Perform AND */
     result = (dest & immediate) & mask;
 
     /* Write result */
-    M68K_EA_Write(as, mode, reg, size, result);
+    M68K_EA_WriteRMW(as, mode, reg, size, result);
 
     /* Set flags */
     M68K_SetNZ(as, result, size);
@@ -2669,13 +2679,13 @@ void M68K_Op_ORI(M68KAddressSpace* as, UInt16 opcode)
     }
 
     /* Read destination */
-    dest = M68K_EA_Read(as, mode, reg, size);
+    dest = M68K_EA_ReadRMW(as, mode, reg, size);
 
     /* Perform OR */
     result = (dest | immediate) & mask;
 
     /* Write result */
-    M68K_EA_Write(as, mode, reg, size, result);
+    M68K_EA_WriteRMW(as, mode, reg, size, result);
 
     /* Set flags */
     M68K_SetNZ(as, result, size);
@@ -2704,13 +2714,13 @@ void M68K_Op_EORI(M68KAddressSpace* as, UInt16 opcode)
     }
 
     /* Read destination */
-    dest = M68K_EA_Read(as, mode, reg, size);
+    dest = M68K_EA_ReadRMW(as, mode, reg, size);
 
     /* Perform EOR */
     result = (dest ^ immediate) & mask;
 
     /* Write result */
-    M68K_EA_Write(as, mode, reg, size, result);
+    M68K_EA_WriteRMW(as, mode, reg, size, result);
 
     /* Set flags */
     M68K_SetNZ(as, result, size);
@@ -2847,7 +2857,7 @@ void M68K_Op_NBCD(M68KAddressSpace* as, UInt16 opcode)
     UInt8 x_flag = M68K_TestFlag(as, CCR_X) ? 1 : 0;
 
     /* Read destination */
-    dest = M68K_EA_Read(as, mode, reg, SIZE_BYTE) & 0xFF;
+    dest = M68K_EA_ReadRMW(as, mode, reg, SIZE_BYTE) & 0xFF;
 
     /* BCD negation: 0 - dest - X */
     SInt16 low_nibble = 0 - (dest & 0x0F) - x_flag;
@@ -2870,7 +2880,7 @@ void M68K_Op_NBCD(M68KAddressSpace* as, UInt16 opcode)
     result = ((high_nibble & 0x0F) << 4) | (low_nibble & 0x0F);
 
     /* Write result */
-    M68K_EA_Write(as, mode, reg, SIZE_BYTE, result);
+    M68K_EA_WriteRMW(as, mode, reg, SIZE_BYTE, result);
 
     /* Z flag: cleared if result non-zero, unchanged otherwise */
     if (result != 0) {

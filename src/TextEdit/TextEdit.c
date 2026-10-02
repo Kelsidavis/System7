@@ -284,6 +284,10 @@ void TESetText(const void *text, SInt32 length, TEHandle hTE) {
 
     TE_LOG("TESetText: Setting %d bytes of text\n", length);
 
+    /* The text is not redrawn - the caller does that (IM I-383) - but the
+     * caret, which is at a position about to mean something else, comes off */
+    TE_UpdateCaret(hTE, FALSE);
+
     HLock((Handle)hTE);
     pTE = (TEExtPtr)*hTE;
 
@@ -360,6 +364,9 @@ void TEReplaceSel(const void *text, SInt32 length, TEHandle hTE) {
         return;
     }
 
+    /* The caret comes off before the text under it changes */
+    TE_UpdateCaret(hTE, FALSE);
+
     TE_LOG("TEReplaceSel: Replacing sel [%d,%d] with %d bytes\n",
            pTE->base.selStart, pTE->base.selEnd, length);
 
@@ -409,6 +416,20 @@ void TEReplaceSel(const void *text, SInt32 length, TEHandle hTE) {
     /* Recalculate lines */
     TE_RecalcLines(hTE);
 
+    /* The text is redrawn by the update this asks for - every line from the
+     * change down, which may have moved. Nothing drew the change before:
+     * typed characters appeared only when something else redrew the window. */
+    {
+        GrafPtr save;
+        Rect r = pTE->base.viewRect;
+        GetPort(&save);
+        if (pTE->base.inPort) SetPort(pTE->base.inPort);
+        InvalRect(&r);
+        SetPort(save);
+    }
+    pTE->base.caretTime = TickCount();
+    TE_UpdateCaret(hTE, TRUE);
+
     HUnlock((Handle)hTE);
 }
 
@@ -443,19 +464,18 @@ void TESetSelect(SInt32 selStart, SInt32 selEnd, TEHandle hTE) {
     TE_LOG("TESetSelect: [%d,%d] -> [%d,%d]\n",
            pTE->base.selStart, pTE->base.selEnd, selStart, selEnd);
 
-    /* Invalidate old selection */
+    /* Invalidate old selection, the caret off first */
+    TE_UpdateCaret(hTE, FALSE);
     TE_InvalidateSelection(hTE);
 
     /* Set new selection */
     pTE->base.selStart = selStart;
     pTE->base.selEnd = selEnd;
 
-    /* Invalidate new selection */
+    /* Invalidate new selection, and the caret shown at once */
     TE_InvalidateSelection(hTE);
-
-    /* Reset caret blink */
-    pTE->base.caretState = 0xFF;
     pTE->base.caretTime = TickCount();
+    TE_UpdateCaret(hTE, TRUE);
 
     HUnlock((Handle)hTE);
 }
@@ -490,10 +510,7 @@ void TEActivate(TEHandle hTE) {
     TE_LOG("TEActivate: Activating TE\n");
 
     pTE->base.active = 1;
-    pTE->base.caretState = 0xFF;
     pTE->base.caretTime = TickCount();
-
-    /* Force caret visible */
     TE_UpdateCaret(hTE, TRUE);
 
     HUnlock((Handle)hTE);
@@ -512,13 +529,8 @@ void TEDeactivate(TEHandle hTE) {
 
     TE_LOG("TEDeactivate: Deactivating TE\n");
 
-    /* Hide caret */
-    if (pTE->base.caretState) {
-        TE_UpdateCaret(hTE, FALSE);
-    }
-
+    TE_UpdateCaret(hTE, FALSE);
     pTE->base.active = 0;
-    pTE->base.caretState = 0;
 
     HUnlock((Handle)hTE);
 }
@@ -907,3 +919,26 @@ extern void TE_RecalcLines(TEHandle hTE);
 extern SInt32 TE_OffsetToLine(TEHandle hTE, SInt32 offset);
 extern void TE_InvalidateSelection(TEHandle hTE);
 extern void TE_UpdateCaret(TEHandle hTE, Boolean forceOn);
+
+/*
+ * For code that keeps its own copy of a TextEdit record - the 68K TERec,
+ * whose program reads nLines and lineStarts from it and scrolls by moving
+ * destRect: the line table, and the scroll position as an offset.
+ */
+SInt16 TE_LineInfo(TEHandle hTE, const SInt32** starts) {
+    TEExtPtr pTE = (TEExtPtr)*hTE;
+    *starts = pTE->hLines ? (const SInt32*)*pTE->hLines : NULL;
+    return pTE->nLines;
+}
+
+void TE_GetScroll(TEHandle hTE, SInt16* dh, SInt16* dv) {
+    TEExtPtr pTE = (TEExtPtr)*hTE;
+    *dh = pTE->viewDH;
+    *dv = pTE->viewDV;
+}
+
+void TE_SetScroll(TEHandle hTE, SInt16 dh, SInt16 dv) {
+    TEExtPtr pTE = (TEExtPtr)*hTE;
+    pTE->viewDH = dh;
+    pTE->viewDV = dv;
+}

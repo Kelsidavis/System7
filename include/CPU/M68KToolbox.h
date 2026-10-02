@@ -11,11 +11,13 @@
 
 #include "SystemTypes.h"
 #include "SegmentLoader/SegmentLoader.h"
+#include "FS/hfs_types.h"
 
 /* Make the application's address space ready to run it: its heap, the
  * low-memory globals a program reads, and the traps it may call. */
 OSErr M68KToolbox_Prepare(SegmentLoaderContext* ctx, ConstStr255Param appName,
-                          SInt16 resRefNum, CPUAddr stackBase, CPUAddr stackTop);
+                          SInt16 resRefNum, CPUAddr stackBase, CPUAddr stackTop,
+                          VRefNum appVRef, DirID appDir);
 
 /* The application has stopped: give back what it held of the system's -
  * resources, the menu bar */

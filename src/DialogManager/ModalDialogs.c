@@ -202,6 +202,19 @@ void ModalDialog(ModalFilterProcPtr filterProc, SInt16* itemHit)
                 // DIALOG_LOG_DEBUG("ModalDialog: Cmd-. -> cancel item %d\n", *itemHit);
                 return;
             }
+            /* Anything else is typing, for the edit-text item with the focus;
+             * ModalDialog reports that item, as it reports a click (IM I-415).
+             * Typed keys went nowhere: a program's dialog with a text field
+             * could not be typed into. */
+            if (!cmd) {
+                DialogPtr which = NULL;
+                SInt16 item = 0;
+                if (DialogSelect(&evt, &which, &item) && which == dlg && item) {
+                    if (itemHit) *itemHit = item;
+                    return;
+                }
+            }
+            continue;
         }
 
         /* Mouse in dialog? Let DialogSelect process click tracking */

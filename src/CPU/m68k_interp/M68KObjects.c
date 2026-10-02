@@ -9,7 +9,8 @@
  * that change them; the pen and text state, which programs also set
  * directly, is read back before a drawing call.
  *
- * GrafPort, 108 bytes (IM I-163); WindowRecord, 156 (IM I-275).
+ * GrafPort, 108 bytes (IM I-163); WindowRecord, 156 (IM I-275); DialogRecord,
+ * 170 (IM I-408); ControlRecord, a handle of 296 (IM I-316).
  */
 
 #include <string.h>
@@ -21,8 +22,9 @@
 
 extern QDGlobals qd;
 
-enum { kPortSize = 108, kWindowSize = 156, kMaxObjects = 512 };
-enum { kKindPort, kKindWindow, kKindRegion };
+enum { kPortSize = 108, kWindowSize = 156, kDialogSize = 170, kControlSize = 296,
+       kMaxObjects = 512 };
+enum { kKindPort, kKindWindow, kKindRegion, kKindControl };
 
 typedef struct {
     UInt32 addr;            /* the record in the program's memory */
@@ -30,6 +32,7 @@ typedef struct {
     UInt8 kind;
     Boolean ownRecord;      /* allocated here, not storage the program gave */
     Boolean ownNative;      /* the program's: disposed when it quits */
+    UInt16 recordSize;
 } Object;
 
 static Object gObjects[kMaxObjects];
@@ -56,6 +59,7 @@ static Object* Add(UInt32 addr, void* native, UInt8 kind, Boolean ownRecord, Boo
     o->kind = kind;
     o->ownRecord = ownRecord;
     o->ownNative = ownNative;
+    o->recordSize = kind == kKindWindow ? kWindowSize : kind == kKindPort ? kPortSize : 0;
     return o;
 }
 
@@ -186,6 +190,7 @@ static void WriteWindowFields(Object* o) {
     W32(m + 118, Obj_RgnFor(w->contRgn));
     W32(m + 122, Obj_RgnFor(w->updateRgn));
     W16(m + 138, w->titleWidth);
+    W32(m + 140, w->controlList ? Obj_ControlFor(w->controlList) : 0);
     /* The next of the program's own windows; it does not see the Finder's */
     UInt32 next = 0;
     for (WindowPtr n = w->nextWindow; n; n = n->nextWindow) {
@@ -196,6 +201,12 @@ static void WriteWindowFields(Object* o) {
         }
     }
     W32(m + 144, next);
+    if (w->windowKind == 2 && o->recordSize >= kDialogSize) {   /* dialogKind */
+        DialogPeek d = (DialogPeek)w;
+        W16(m + 164, d->editField);
+        W16(m + 166, d->editOpen);
+        W16(m + 168, d->aDefItem);
+    }
 }
 
 void Obj_SyncPortOut(GrafPtr port) {
@@ -237,15 +248,17 @@ void Obj_SyncWindows(void) {
 }
 
 UInt32 Obj_NewWindowRecord(WindowPtr w, UInt32 storage) {
+    UInt16 size = w->windowKind == 2 ? kDialogSize : kWindowSize;
     Boolean own = storage == 0;
-    UInt32 m = own ? M68KHeap_NewPtr(kWindowSize, true) : storage;
+    UInt32 m = own ? M68KHeap_NewPtr(size, true) : storage;
     if (!m) return 0;
-    if (!own) for (int i = 0; i < kWindowSize; i++) W8(m + i, 0);
+    if (!own) for (int i = 0; i < size; i++) W8(m + i, 0);
     Object* o = Add(m, w, kKindWindow, own, true);
     if (!o) {
         if (own) M68KHeap_DisposePtr(m);
         return 0;
     }
+    o->recordSize = size;
     WritePort(o);
     WriteWindowFields(o);
     return o->addr;
@@ -303,6 +316,58 @@ void Obj_SetThePort(GrafPtr port) {
     SetPort(port);
     UInt32 g = M68KTB_QDGlobals();
     if (g) W32(g, Obj_PortFor(port));
+}
+
+/* ------------------------------------------------------------------------
+ * Controls: a handle to a ControlRecord; programs read contrlValue and
+ * contrlRect from it for themselves
+ * ------------------------------------------------------------------------ */
+
+void Obj_SyncControl(ControlHandle c) {
+    Object* o = c ? FindNative(c, kKindControl) : NULL;
+    if (!o || !*c) return;
+    UInt32 p = M68KHeap_Deref(o->addr);
+    if (!p) return;
+    ControlRecord* r = *c;
+    W32(p + 0, r->nextControl ? Obj_ControlFor(r->nextControl) : 0);
+    W32(p + 4, r->contrlOwner ? Obj_PortFor((GrafPtr)r->contrlOwner) : 0);
+    WriteRect(p + 8, &r->contrlRect);
+    W8(p + 16, r->contrlVis);
+    W8(p + 17, r->contrlHilite);
+    W16(p + 18, r->contrlValue);
+    W16(p + 20, r->contrlMin);
+    W16(p + 22, r->contrlMax);
+    WritePString(p + 40, r->contrlTitle);
+}
+
+UInt32 Obj_ControlFor(ControlHandle c) {
+    if (!c) return 0;
+    Object* o = FindNative(c, kKindControl);
+    if (o) return o->addr;
+    UInt32 h = M68KHeap_NewHandle(kControlSize, true);
+    if (!h) return 0;
+    o = Add(h, c, kKindControl, true, false);
+    if (!o) {
+        M68KHeap_DisposeHandle(h);
+        return 0;
+    }
+    UInt32 p = M68KHeap_Deref(h);
+    W32(p + 36, (UInt32)(*c)->contrlRfCon);
+    Obj_SyncControl(c);
+    return h;
+}
+
+ControlHandle Obj_Control(UInt32 h) {
+    Object* o = h ? FindAddr(h) : NULL;
+    return (o && o->kind == kKindControl) ? (ControlHandle)o->native : NULL;
+}
+
+void Obj_ForgetControl(ControlHandle c) {
+    Object* o = FindNative(c, kKindControl);
+    if (o) {
+        M68KHeap_DisposeHandle(o->addr);
+        Remove(o);
+    }
 }
 
 void Obj_Finish(void) {

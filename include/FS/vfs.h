@@ -60,6 +60,7 @@ bool VFS_WriteFile(VFSFile* file, const void* buffer, uint32_t length, uint32_t*
 bool VFS_SeekFile(VFSFile* file, uint32_t position);
 uint32_t VFS_GetFileSize(VFSFile* file);
 uint32_t VFS_GetFilePosition(VFSFile* file);
+bool VFS_SetFileSize(VFSFile* file, uint32_t size);
 
 /* Write operations (overlay-based, in-memory mutations) */
 bool VFS_CreateFolder(VRefNum vref, DirID parent, const char* name, DirID* newID);

@@ -22,6 +22,30 @@
 extern Boolean HandleUpdate(EventRecord* event);
 extern void GetMouseLocal(Point* mouseLoc);
 
+void M68KTB_ReadEvent(UInt32 a, EventRecord* e) {
+    e->what = R16(a + 0);
+    e->message = R32(a + 2);
+    e->when = R32(a + 6);
+    ReadPoint(a + 10, &e->where);
+    e->modifiers = R16(a + 14);
+    if (e->what == updateEvt || e->what == activateEvt) {
+        GrafPtr port = Obj_Port(e->message);
+        if (port) e->message = (UInt32)(uintptr_t)port;
+    }
+}
+
+void M68KTB_WriteEvent(UInt32 a, const EventRecord* e) {
+    UInt32 message = e->message;
+    if (e->what == updateEvt || e->what == activateEvt) {
+        message = Obj_PortFor((GrafPtr)(uintptr_t)e->message);
+    }
+    W16(a + 0, e->what);
+    W32(a + 2, message);
+    W32(a + 6, e->when);
+    WritePoint(a + 10, e->where);
+    W16(a + 14, e->modifiers);
+}
+
 static void WriteEvent(UInt32 a, const EventRecord* e, UInt32 message) {
     W16(a + 0, e->what);
     W32(a + 2, message);
@@ -30,13 +54,6 @@ static void WriteEvent(UInt32 a, const EventRecord* e, UInt32 message) {
     W16(a + 14, e->modifiers);
 }
 
-static void ReadEvent(UInt32 a, EventRecord* e) {
-    e->what = R16(a + 0);
-    e->message = R32(a + 2);
-    e->when = R32(a + 6);
-    ReadPoint(a + 10, &e->where);
-    e->modifiers = R16(a + 14);
-}
 
 /* Is the event the program's? If not it is handled here. On true, *message
  * is the message as the program should see it. */
@@ -152,7 +169,7 @@ TRAP(Trap_SystemClick) {
     UNUSED;
     WindowPtr w = (WindowPtr)Obj_Port(Pop32());
     EventRecord e;
-    ReadEvent(Pop32(), &e);
+    M68KTB_ReadEvent(Pop32(), &e);
     if (w) SystemClick(&e, (WindowRecord*)w);
     Obj_SyncWindows();
     return noErr;
@@ -161,7 +178,7 @@ TRAP(Trap_SystemClick) {
 TRAP(Trap_SystemEvent) {
     UNUSED;
     EventRecord e;
-    ReadEvent(Pop32(), &e);
+    M68KTB_ReadEvent(Pop32(), &e);
     ResultBool(false);          /* GetNextEvent already gave them theirs */
     return noErr;
 }

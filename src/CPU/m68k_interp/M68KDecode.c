@@ -48,6 +48,8 @@ UInt32 M68K_Fetch32(M68KAddressSpace* as);
 UInt32 M68K_EA_ComputeAddress(M68KAddressSpace* as, UInt8 mode, UInt8 reg, M68KSize size);
 UInt32 M68K_EA_Read(M68KAddressSpace* as, UInt8 mode, UInt8 reg, M68KSize size);
 void M68K_EA_Write(M68KAddressSpace* as, UInt8 mode, UInt8 reg, M68KSize size, UInt32 value);
+UInt32 M68K_EA_ReadRMW(M68KAddressSpace* as, UInt8 mode, UInt8 reg, M68KSize size);
+void M68K_EA_WriteRMW(M68KAddressSpace* as, UInt8 mode, UInt8 reg, M68KSize size, UInt32 value);
 
 /*
  * One-time logging flags
@@ -437,5 +439,47 @@ void M68K_EA_Write(M68KAddressSpace* as, UInt8 mode, UInt8 reg, M68KSize size, U
         } else {
             as->regs.a[reg] += SIZE_BYTES(size);
         }
+    }
+}
+
+/*
+ * Read-modify-write operands: ADDQ.W #4,58(SP), NOT.L -(A0), BSET #3,(A2)+.
+ *
+ * The operand's address is worked out once, by the read, and the write goes
+ * back to it. Reading and then writing through the ordinary calls worked it
+ * out twice - which fetched a displacement word twice, so the write landed
+ * at the base plus the next instruction's first word, and decremented or
+ * incremented an address register twice.
+ */
+UInt32 M68K_EA_ReadRMW(M68KAddressSpace* as, UInt8 mode, UInt8 reg, M68KSize size)
+{
+    if (mode == MODE_Dn || mode == MODE_An || (mode == MODE_OTHER && reg == OTHER_IMMEDIATE)) {
+        as->rmwValid = false;
+        return M68K_EA_Read(as, mode, reg, size);
+    }
+    UInt32 addr = M68K_EA_ComputeAddress(as, mode, reg, size);
+    if (mode == MODE_An_POST) {
+        as->regs.a[reg] += (size == SIZE_BYTE && reg == 7) ? 2 : SIZE_BYTES(size);
+    }
+    as->rmwAddr = addr;
+    as->rmwValid = true;
+    switch (size) {
+        case SIZE_BYTE: return M68K_Read8(as, addr);
+        case SIZE_WORD: return M68K_Read16(as, addr);
+        default:        return M68K_Read32(as, addr);
+    }
+}
+
+void M68K_EA_WriteRMW(M68KAddressSpace* as, UInt8 mode, UInt8 reg, M68KSize size, UInt32 value)
+{
+    if (!as->rmwValid) {
+        M68K_EA_Write(as, mode, reg, size, value);
+        return;
+    }
+    as->rmwValid = false;
+    switch (size) {
+        case SIZE_BYTE: M68K_Write8(as, as->rmwAddr, (UInt8)value); break;
+        case SIZE_WORD: M68K_Write16(as, as->rmwAddr, (UInt16)value); break;
+        default:        M68K_Write32(as, as->rmwAddr, value); break;
     }
 }

@@ -856,6 +856,7 @@ OSErr M68K_Step(M68KAddressSpace* as)
     /* Fetch opcode, remembering where the instruction began: that is the
      * address a fault is reported at */
     as->instrPC = as->regs.pc;
+    as->rmwValid = false;
     opcode = M68K_Fetch16(as);
 
     /* Decode and dispatch */
@@ -1215,6 +1216,37 @@ OSErr M68K_Step(M68KAddressSpace* as)
 }
 
 /*
+ * M68K_CallProc - call a procedure in the program from native code
+ *
+ * For the Toolbox calls that call back - a dialog's filter, a control's
+ * action procedure, a user item's drawing. The caller has pushed the
+ * procedure's arguments (and any result space) on the program's stack; this
+ * pushes a return address no code lives at, runs the program until it comes
+ * back there, and leaves things as they were for the instruction that made
+ * the trap. Its own PC and trap state are kept and put back, so a callback
+ * made in the middle of a trap does not disturb the trap.
+ */
+OSErr M68K_CallProc(M68KAddressSpace* as, UInt32 proc)
+{
+    extern UInt32 TickCount(void);
+    UInt32 savedPC = as->regs.pc, savedInstr = as->instrPC;
+    UInt16 savedTrap = as->currentTrap;
+    UInt32 n = 0;
+
+    as->regs.a[7] -= 4;
+    M68K_Write32(as, as->regs.a[7], kM68KCallSentinel);
+    as->regs.pc = proc & (M68K_MAX_ADDR - 1);
+    while (!as->halted && as->regs.pc != kM68KCallSentinel) {
+        M68K_Step(as);
+        if (++n % 20000 == 0) LMSetTicks(TickCount());
+    }
+    as->regs.pc = savedPC;
+    as->instrPC = savedInstr;
+    as->currentTrap = savedTrap;
+    return as->halted ? -1 : noErr;
+}
+
+/*
  * M68K_Execute - Execute up to maxInstructions
  */
 OSErr M68K_Execute(M68KAddressSpace* as, UInt32 startPC, UInt32 maxInstructions)
@@ -1424,6 +1456,19 @@ static const UInt8 kProgBytePush[] = {
 };
 static const M68KExpect kWantBytePush[] = { {15, 0x2FFFE}, {2, 1} };
 
+/* Read-modify-write through a displacement and a predecrement: each must
+ * find its operand once */
+static const UInt8 kProgRMW[] = {
+    0x2E, 0x7C, 0x00, 0x03, 0x00, 0x00,   /* MOVEA.L #$30000,A7     */
+    0x42, 0xAF, 0x00, 0x3A,               /* CLR.L   58(A7)         */
+    0x58, 0x6F, 0x00, 0x3A,               /* ADDQ.W  #4,58(A7)      */
+    0x58, 0x6F, 0x00, 0x3A,               /* ADDQ.W  #4,58(A7)      */
+    0x30, 0x2F, 0x00, 0x3A,               /* MOVE.W  58(A7),D0      */
+    0x20, 0x7C, 0x00, 0x03, 0x00, 0x10,   /* MOVEA.L #$30010,A0     */
+    0x46, 0xA0,                           /* NOT.L   -(A0)          */
+};
+static const M68KExpect kWantRMW[] = { {0, 8}, {8, 0x3000C} };
+
 
 /* MOVE.L #$FFFFFFFF,D0; MOVEQ #0,D1; MOVE.B D0,D1; MOVEQ #0,D2; MOVE.W D0,D2
  * A byte or word move touches only that much of the destination register. */
@@ -1604,6 +1649,7 @@ static const M68KTestCase kM68KTests[] = {
       kWantCompareBranch, 2, sizeof(kProgCompareBranch) },
     { "DBRA", kProgDbra, sizeof(kProgDbra), 10, kWantDbra, 2, sizeof(kProgDbra) },
     { "byte push", kProgBytePush, sizeof(kProgBytePush), 4, kWantBytePush, 2, sizeof(kProgBytePush) },
+    { "read-modify-write", kProgRMW, sizeof(kProgRMW), 7, kWantRMW, 2, sizeof(kProgRMW) },
     { "operand sizes", kProgSizes, sizeof(kProgSizes), 5,
       kWantSizes, 3, sizeof(kProgSizes) },
     { "increment addressing", kProgIncr, sizeof(kProgIncr), 6,

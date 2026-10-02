@@ -224,6 +224,271 @@ static inline void FlushEvents(short mask, short stop) {
     __asm__ volatile ("move.l %0,%%d0\n\t" TRAP(0xA032) :: "r"(d0) : CLOBBERS);
 }
 
+/* ---- More of the Toolbox: menus from resources, TextEdit, controls,
+ *      dialogs, packages, files ---- */
+
+typedef Handle TEHandle;
+typedef Handle ControlHandle;
+typedef GrafPtr DialogPtr;
+
+/* The part of a TERec these programs read (IM I-377) */
+typedef struct {
+    Rect destRect, viewRect, selRect;
+    short lineHeight, fontAscent;
+    Point selPoint;
+    short selStart, selEnd, active;
+    long wordBreak, clikLoop, clickTime;
+    short clickLoc;
+    long caretTime;
+    short caretState, just, teLength;
+    Handle hText;
+    short recalBack, recalLines, clikStuff, crOnly, txFont;
+    char txFace, filler;
+    short txMode, txSize;
+    GrafPtr inPort;
+    long highHook, caretHook;
+    short nLines;
+    short lineStarts[1];
+} TERec;
+
+typedef struct {
+    Boolean good, copy;
+    long fType;
+    short vRefNum, version;
+    unsigned char fName[64];
+} SFReply;
+
+enum { scrollBarProc = 16, inUpButton = 20, inDownButton = 21, inPageUp = 22, inPageDown = 23,
+       inThumb = 129 };
+
+static inline Handle GetNewMBar(short id) {
+    Handle r;
+    __asm__ volatile ("clr.l -(%%sp)\n\tmove.w %1,-(%%sp)\n\t" TRAP(0xA9C0) "move.l (%%sp)+,%0"
+                      : "=r"(r) : "d"(id) : CLOBBERS);
+    return r;
+}
+PROC_L(SetMenuBar, Handle, 0xA93C)
+static inline MenuHandle GetMHandle(short id) {
+    MenuHandle r;
+    __asm__ volatile ("clr.l -(%%sp)\n\tmove.w %1,-(%%sp)\n\t" TRAP(0xA949) "move.l (%%sp)+,%0"
+                      : "=r"(r) : "d"(id) : CLOBBERS);
+    return r;
+}
+#define ITEM_PROC(name, trap) \
+    static inline void name(MenuHandle m, short item) { \
+        __asm__ volatile ("move.l %0,-(%%sp)\n\tmove.w %1,-(%%sp)\n\t" TRAP(trap) \
+                          :: "r"(m), "d"(item) : CLOBBERS); }
+ITEM_PROC(EnableItem, 0xA939)
+ITEM_PROC(DisableItem, 0xA93A)
+
+static inline WindowPtr GetNewWindow(short id, void* storage, WindowPtr behind) {
+    WindowPtr r;
+    __asm__ volatile ("clr.l -(%%sp)\n\tmove.w %1,-(%%sp)\n\tmove.l %2,-(%%sp)\n\tmove.l %3,-(%%sp)\n\t"
+                      TRAP(0xA9BD) "move.l (%%sp)+,%0"
+                      : "=r"(r) : "d"(id), "r"(storage), "r"(behind) : CLOBBERS);
+    return r;
+}
+
+/* TextEdit */
+static inline TEHandle TENew(const Rect* dest, const Rect* view) {
+    TEHandle r;
+    __asm__ volatile ("clr.l -(%%sp)\n\tmove.l %1,-(%%sp)\n\tmove.l %2,-(%%sp)\n\t"
+                      TRAP(0xA9D2) "move.l (%%sp)+,%0"
+                      : "=r"(r) : "r"(dest), "r"(view) : CLOBBERS);
+    return r;
+}
+PROC_L(TEIdle, TEHandle, 0xA9DA)
+PROC_L(TECut, TEHandle, 0xA9D6)
+PROC_L(TECopy, TEHandle, 0xA9D5)
+PROC_L(TEPaste, TEHandle, 0xA9DB)
+PROC_L(TEDelete, TEHandle, 0xA9D7)
+PROC_L(TEActivate, TEHandle, 0xA9D8)
+PROC_L(TEDeactivate, TEHandle, 0xA9D9)
+PROC_L(TECalText, TEHandle, 0xA9D0)
+static inline void TEKey(short ch, TEHandle te) {
+    __asm__ volatile ("move.w %0,-(%%sp)\n\tmove.l %1,-(%%sp)\n\t" TRAP(0xA9DC)
+                      :: "d"(ch), "r"(te) : CLOBBERS);
+}
+static inline void TEClick(Point p, Boolean extend, TEHandle te) {
+    __asm__ volatile ("move.l %0,-(%%sp)\n\tmove.b %1,-(%%sp)\n\tmove.l %2,-(%%sp)\n\t" TRAP(0xA9D4)
+                      :: "d"(PointLong(p)), "d"(extend), "r"(te) : CLOBBERS);
+}
+static inline void TEUpdate(const Rect* r, TEHandle te) {
+    __asm__ volatile ("move.l %0,-(%%sp)\n\tmove.l %1,-(%%sp)\n\t" TRAP(0xA9D3)
+                      :: "r"(r), "r"(te) : CLOBBERS);
+}
+static inline void TESetText(const void* text, long len, TEHandle te) {
+    __asm__ volatile ("move.l %0,-(%%sp)\n\tmove.l %1,-(%%sp)\n\tmove.l %2,-(%%sp)\n\t" TRAP(0xA9CF)
+                      :: "r"(text), "r"(len), "r"(te) : CLOBBERS);
+}
+static inline Handle TEGetText(TEHandle te) {
+    Handle r;
+    __asm__ volatile ("clr.l -(%%sp)\n\tmove.l %1,-(%%sp)\n\t" TRAP(0xA9CB) "move.l (%%sp)+,%0"
+                      : "=r"(r) : "r"(te) : CLOBBERS);
+    return r;
+}
+static inline void TESetSelect(long start, long end, TEHandle te) {
+    __asm__ volatile ("move.l %0,-(%%sp)\n\tmove.l %1,-(%%sp)\n\tmove.l %2,-(%%sp)\n\t" TRAP(0xA9D1)
+                      :: "r"(start), "r"(end), "r"(te) : CLOBBERS);
+}
+static inline void TEScroll(short dh, short dv, TEHandle te) {
+    __asm__ volatile ("move.w %0,-(%%sp)\n\tmove.w %1,-(%%sp)\n\tmove.l %2,-(%%sp)\n\t" TRAP(0xA9DD)
+                      :: "d"(dh), "d"(dv), "r"(te) : CLOBBERS);
+}
+
+/* Controls */
+static inline ControlHandle NewControl(WindowPtr w, const Rect* r, ConstStr255Param title,
+                                       Boolean visible, short value, short min, short max,
+                                       short procID, long refCon) {
+    ControlHandle c;
+    __asm__ volatile ("clr.l -(%%sp)\n\tmove.l %1,-(%%sp)\n\tmove.l %2,-(%%sp)\n\tmove.l %3,-(%%sp)\n\t"
+                      "move.b %4,-(%%sp)\n\tmove.w %5,-(%%sp)\n\tmove.w %6,-(%%sp)\n\t"
+                      "move.w %7,-(%%sp)\n\tmove.w %8,-(%%sp)\n\tmove.l %9,-(%%sp)\n\t"
+                      TRAP(0xA954) "move.l (%%sp)+,%0"
+                      : "=r"(c)
+                      : "r"(w), "r"(r), "r"(title), "d"(visible), "d"(value), "d"(min), "d"(max),
+                        "d"(procID), "r"(refCon)
+                      : CLOBBERS);
+    return c;
+}
+#define CTL_SET(name, trap) \
+    static inline void name(ControlHandle c, short v) { \
+        __asm__ volatile ("move.l %0,-(%%sp)\n\tmove.w %1,-(%%sp)\n\t" TRAP(trap) \
+                          :: "r"(c), "d"(v) : CLOBBERS); }
+CTL_SET(SetCtlValue, 0xA963)
+CTL_SET(SetCtlMax, 0xA965)
+#define CTL_GET(name, trap) \
+    static inline short name(ControlHandle c) { short r; \
+        __asm__ volatile ("clr.w -(%%sp)\n\tmove.l %1,-(%%sp)\n\t" TRAP(trap) "move.w (%%sp)+,%0" \
+                          : "=d"(r) : "r"(c) : CLOBBERS); return r; }
+CTL_GET(GetCtlValue, 0xA960)
+CTL_GET(GetCtlMax, 0xA962)
+PROC_L(DrawControls, WindowPtr, 0xA969)
+static inline short FindControl(Point p, WindowPtr w, ControlHandle* c) {
+    short r;
+    __asm__ volatile ("clr.w -(%%sp)\n\tmove.l %1,-(%%sp)\n\tmove.l %2,-(%%sp)\n\tmove.l %3,-(%%sp)\n\t"
+                      TRAP(0xA96C) "move.w (%%sp)+,%0"
+                      : "=d"(r) : "d"(PointLong(p)), "r"(w), "r"(c) : CLOBBERS);
+    return r;
+}
+static inline short TrackControl(ControlHandle c, Point p, void* action) {
+    short r;
+    __asm__ volatile ("clr.w -(%%sp)\n\tmove.l %1,-(%%sp)\n\tmove.l %2,-(%%sp)\n\tmove.l %3,-(%%sp)\n\t"
+                      TRAP(0xA968) "move.w (%%sp)+,%0"
+                      : "=d"(r) : "r"(c), "d"(PointLong(p)), "r"(action) : CLOBBERS);
+    return r;
+}
+
+/* Dialogs and alerts */
+#define ALERT(name, trap) \
+    static inline short name(short id, void* filter) { short r; \
+        __asm__ volatile ("clr.w -(%%sp)\n\tmove.w %1,-(%%sp)\n\tmove.l %2,-(%%sp)\n\t" TRAP(trap) \
+                          "move.w (%%sp)+,%0" : "=d"(r) : "d"(id), "r"(filter) : CLOBBERS); return r; }
+ALERT(Alert, 0xA985)
+ALERT(CautionAlert, 0xA988)
+static inline void ParamText(ConstStr255Param a, ConstStr255Param b, ConstStr255Param c,
+                             ConstStr255Param d) {
+    __asm__ volatile ("move.l %0,-(%%sp)\n\tmove.l %1,-(%%sp)\n\tmove.l %2,-(%%sp)\n\tmove.l %3,-(%%sp)\n\t"
+                      TRAP(0xA98B) :: "r"(a), "r"(b), "r"(c), "r"(d) : CLOBBERS);
+}
+static inline DialogPtr GetNewDialog(short id, void* storage, WindowPtr behind) {
+    DialogPtr r;
+    __asm__ volatile ("clr.l -(%%sp)\n\tmove.w %1,-(%%sp)\n\tmove.l %2,-(%%sp)\n\tmove.l %3,-(%%sp)\n\t"
+                      TRAP(0xA97C) "move.l (%%sp)+,%0"
+                      : "=r"(r) : "d"(id), "r"(storage), "r"(behind) : CLOBBERS);
+    return r;
+}
+static inline void ModalDialog(void* filter, short* item) {
+    __asm__ volatile ("move.l %0,-(%%sp)\n\tmove.l %1,-(%%sp)\n\t" TRAP(0xA991)
+                      :: "r"(filter), "r"(item) : CLOBBERS);
+}
+PROC_L(DisposeDialog, DialogPtr, 0xA983)
+static inline void GetDItem(DialogPtr d, short item, short* type, Handle* h, Rect* box) {
+    __asm__ volatile ("move.l %0,-(%%sp)\n\tmove.w %1,-(%%sp)\n\tmove.l %2,-(%%sp)\n\t"
+                      "move.l %3,-(%%sp)\n\tmove.l %4,-(%%sp)\n\t" TRAP(0xA98D)
+                      :: "r"(d), "d"(item), "r"(type), "r"(h), "r"(box) : CLOBBERS);
+}
+static inline void GetIText(Handle h, unsigned char* text) {
+    __asm__ volatile ("move.l %0,-(%%sp)\n\tmove.l %1,-(%%sp)\n\t" TRAP(0xA990)
+                      :: "r"(h), "r"(text) : CLOBBERS);
+}
+static inline void SelIText(DialogPtr d, short item, short start, short end) {
+    __asm__ volatile ("move.l %0,-(%%sp)\n\tmove.w %1,-(%%sp)\n\tmove.w %2,-(%%sp)\n\tmove.w %3,-(%%sp)\n\t"
+                      TRAP(0xA97E) :: "r"(d), "d"(item), "d"(start), "d"(end) : CLOBBERS);
+}
+
+/* Packages */
+static inline void NumToString(long n, unsigned char* s) {
+    __asm__ volatile ("move.l %0,%%d0\n\tmove.l %1,%%a0\n\tclr.w -(%%sp)\n\t" TRAP(0xA9EE)
+                      :: "r"(n), "r"(s) : CLOBBERS);
+}
+static inline void SFGetFile(Point where, ConstStr255Param prompt, void* filter, short numTypes,
+                             const long* types, void* hook, SFReply* reply) {
+    __asm__ volatile ("move.l %0,-(%%sp)\n\tmove.l %1,-(%%sp)\n\tmove.l %2,-(%%sp)\n\t"
+                      "move.w %3,-(%%sp)\n\tmove.l %4,-(%%sp)\n\tmove.l %5,-(%%sp)\n\t"
+                      "move.l %6,-(%%sp)\n\tmove.w #2,-(%%sp)\n\t" TRAP(0xA9EA)
+                      :: "d"(PointLong(where)), "r"(prompt), "r"(filter), "d"(numTypes),
+                         "r"(types), "r"(hook), "r"(reply) : CLOBBERS);
+}
+static inline void SFPutFile(Point where, ConstStr255Param prompt, ConstStr255Param orig,
+                             void* hook, SFReply* reply) {
+    __asm__ volatile ("move.l %0,-(%%sp)\n\tmove.l %1,-(%%sp)\n\tmove.l %2,-(%%sp)\n\t"
+                      "move.l %3,-(%%sp)\n\tmove.l %4,-(%%sp)\n\tmove.w #1,-(%%sp)\n\t" TRAP(0xA9EA)
+                      :: "d"(PointLong(where)), "r"(prompt), "r"(orig), "r"(hook), "r"(reply)
+                      : CLOBBERS);
+}
+
+/* Memory */
+static inline long GetHandleSize(Handle h) {
+    long r;
+    __asm__ volatile ("move.l %1,%%a0\n\t" TRAP(0xA025) "move.l %%d0,%0"
+                      : "=r"(r) : "r"(h) : CLOBBERS);
+    return r;
+}
+static inline long Munger(Handle h, long offset, const void* p1, long l1, const void* p2, long l2) {
+    long r;
+    __asm__ volatile ("clr.l -(%%sp)\n\tmove.l %1,-(%%sp)\n\tmove.l %2,-(%%sp)\n\tmove.l %3,-(%%sp)\n\t"
+                      "move.l %4,-(%%sp)\n\tmove.l %5,-(%%sp)\n\tmove.l %6,-(%%sp)\n\t"
+                      TRAP(0xA9E0) "move.l (%%sp)+,%0"
+                      : "=r"(r) : "r"(h), "r"(offset), "r"(p1), "r"(l1), "r"(p2), "r"(l2) : CLOBBERS);
+    return r;
+}
+static inline void SetWTitle(WindowPtr w, ConstStr255Param s) {
+    __asm__ volatile ("move.l %0,-(%%sp)\n\tmove.l %1,-(%%sp)\n\t" TRAP(0xA91A)
+                      :: "r"(w), "r"(s) : CLOBBERS);
+}
+
+/* The File Manager, through parameter blocks (IM IV-115) */
+typedef struct {
+    long qLink;
+    short qType, ioTrap;
+    long ioCmdAddr, ioCompletion;
+    short ioResult;
+    const unsigned char* ioNamePtr;
+    short ioVRefNum, ioRefNum;
+    char ioVersNum, ioPermssn;
+    long ioMisc;
+    void* ioBuffer;
+    long ioReqCount, ioActCount;
+    short ioPosMode;
+    long ioPosOffset;
+    long finderInfo[8];         /* room for the FileParam fields */
+} ParamBlock;
+
+#define PB_CALL(name, trap) \
+    static inline short name(ParamBlock* pb) { short r; \
+        __asm__ volatile ("move.l %1,%%a0\n\t" TRAP(trap) "move.w %%d0,%0" \
+                          : "=d"(r) : "r"(pb) : CLOBBERS); return r; }
+PB_CALL(PBOpen, 0xA000)
+PB_CALL(PBClose, 0xA001)
+PB_CALL(PBRead, 0xA002)
+PB_CALL(PBWrite, 0xA003)
+PB_CALL(PBCreate, 0xA008)
+PB_CALL(PBGetFInfo, 0xA00C)
+PB_CALL(PBSetFInfo, 0xA00D)
+PB_CALL(PBGetEOF, 0xA011)
+PB_CALL(PBSetEOF, 0xA012)
+
 /* C strings into Pascal ones, for the calls that take them */
 static inline const unsigned char* PStr(unsigned char* buf, const char* s) {
     int n = 0;

@@ -81,6 +81,54 @@ def macbinary(name, ftype, creator, data_fork, rsrc_fork):
     return bytes(hdr) + pad(data_fork) + pad(rsrc_fork)
 
 
+# ---- Resource builders, for an application's NAME.r.py --------------------
+# Each returns the resource's data in the layout Inside Macintosh gives it.
+
+def pstr(s):
+    b = s.encode("mac_roman")
+    return bytes([len(b)]) + b
+
+def rect(top, left, bottom, right):
+    return struct.pack(">hhhh", top, left, bottom, right)
+
+def menu(menu_id, title, items):
+    """items: list of (text, key) - key "" for none; text "-" is a line.
+    Every item enabled but lines (IM I-364)."""
+    flags = 1
+    body = b""
+    for i, (text, key) in enumerate(items, 1):
+        if text != "-" and i < 32:
+            flags |= 1 << i
+        body += pstr(text) + bytes([0, ord(key) if key else 0, 0, 0])
+    return struct.pack(">hhhIi", menu_id, 0, 0, 0, flags) + pstr(title) + body + b"\0"
+
+def mbar(*ids):
+    return struct.pack(">h", len(ids)) + b"".join(struct.pack(">h", i) for i in ids)
+
+def wind(bounds, title, proc=0, visible=True, go_away=True, refcon=0):
+    return rect(*bounds) + struct.pack(">hhhi", proc, 0x100 if visible else 0,
+                                       0x100 if go_away else 0, refcon) + pstr(title)
+
+BUTTON, CHECKBOX, RADIO, STATTEXT, EDITTEXT, USERITEM = 4, 5, 6, 8, 16, 0
+
+def ditl(*items):
+    """items: (type, rect, text)"""
+    out = struct.pack(">h", len(items) - 1)
+    for kind, r, text in items:
+        data = text.encode("mac_roman")
+        out += b"\0\0\0\0" + rect(*r) + bytes([kind, len(data)]) + data
+        if len(data) & 1:
+            out += b"\0"
+    return out
+
+def alrt(bounds, ditl_id, stages=0x5555):
+    return rect(*bounds) + struct.pack(">hH", ditl_id, stages)
+
+def dlog(bounds, ditl_id, title="", proc=1, visible=True, go_away=False, refcon=0):
+    return rect(*bounds) + struct.pack(">hhhih", proc, 0x100 if visible else 0,
+                                       0x100 if go_away else 0, refcon, ditl_id) + pstr(title)
+
+
 def main():
     code_path, out_path, name = sys.argv[1:4]
     below_a5 = int(sys.argv[4], 0) if len(sys.argv) > 4 else 0x400
@@ -90,8 +138,17 @@ def main():
     code0 = struct.pack(">IIII", 32 + len(jt), below_a5, len(jt), 32) + jt
     code1 = struct.pack(">HH", 0, 1) + code
     size = struct.pack(">HII", 0x0080, 384 * 1024, 384 * 1024)
+    resources = [(b"CODE", 0, code0), (b"CODE", 1, code1), (b"SIZE", -1, size)]
 
-    fork = resource_fork([(b"CODE", 0, code0), (b"CODE", 1, code1), (b"SIZE", -1, size)])
+    # The application's other resources, if it describes any
+    import os
+    spec = os.path.join(os.path.dirname(os.path.abspath(__file__)), name + ".r.py")
+    if os.path.exists(spec):
+        env = dict(globals())
+        exec(open(spec).read(), env)
+        resources += env["RESOURCES"]
+
+    fork = resource_fork(resources)
     open(out_path, "wb").write(macbinary(name, b"APPL", b"????", b"", fork))
 
 
