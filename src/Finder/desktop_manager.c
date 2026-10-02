@@ -101,6 +101,7 @@ volatile Boolean gInMouseTracking = false;
 
 /* Index of icon being dragged (-1 if none) */
 static void Desktop_OpenItem(short i);
+static void Desktop_OpenVolume(VRefNum vref, const char* name);
 static short gDraggingIconIndex = -1;
 
 /* Global Desktop State */
@@ -2093,28 +2094,10 @@ OSErr HandleVolumeDoubleClick(Point clickPoint)
                     gDesktopIcons[i].position.v + 32);
 
             if (PtInRect(clickPoint, &iconRect)) {
-                /* Get volume info */
-                if (!VFS_GetVolumeInfo(gBootVolumeRef, &vcb)) {
+                if (!VFS_GetVolumeInfo(gDesktopIcons[i].data.volume.vRefNum, &vcb)) {
                     return ioErr;
                 }
-
-                /* Open root directory window */
-                FINDER_LOG_DEBUG("Opening volume: %s (root ID=%d)\n", vcb.name, vcb.rootID);
-
-                /* Convert C string to Pascal string for window title */
-                Str255 windowTitle;
-                int nameLen = strlen(vcb.name);
-                if (nameLen > 255) nameLen = 255;
-                windowTitle[0] = (unsigned char)nameLen;
-                memcpy(&windowTitle[1], vcb.name, nameLen);
-
-                /* Create folder window for root directory */
-                WindowPtr folderWin = FolderWindow_OpenFolder(gBootVolumeRef, vcb.rootID, windowTitle);
-                if (!folderWin) {
-                    FINDER_LOG_DEBUG("Failed to create folder window for root directory\n");
-                    return memFullErr;
-                }
-
+                Desktop_OpenVolume(gDesktopIcons[i].data.volume.vRefNum, gDesktopIcons[i].name);
                 return noErr;
             }
         }
@@ -2168,8 +2151,23 @@ void SelectNextDesktopIcon(void)
 /*
  * OpenSelectedDesktopIcon - Open window for currently selected desktop icon
  */
-/* Open desktop item i the one way: the disk by its own name, or the Trash,
- * through Finder_OpenDesktopItem, which brings an open window forward. */
+/* A disk's window: its top level, on that disk. Disks were opened by name
+ * alone, which put the startup disk's contents in every disk's window. */
+static void Desktop_OpenVolume(VRefNum vref, const char* name)
+{
+    extern WindowPtr FolderWindow_OpenFolder(VRefNum vref, DirID dirID, ConstStr255Param title);
+    VolumeControlBlock vcb;
+    unsigned char title[256];
+    int nlen = 0;
+    if (!VFS_GetVolumeInfo(vref, &vcb)) return;
+    while (name[nlen] && nlen < 255) nlen++;
+    title[0] = (unsigned char)nlen;
+    memcpy(&title[1], name, nlen);
+    FolderWindow_OpenFolder(vref, vcb.rootID, title);
+}
+
+/* Open desktop item i the one way: the disk, or the Trash through
+ * Finder_OpenDesktopItem, which brings an open window forward. */
 static void Desktop_OpenItem(short i)
 {
     extern WindowPtr Finder_OpenDesktopItem(Boolean isTrash, ConstStr255Param title);
@@ -2177,11 +2175,7 @@ static void Desktop_OpenItem(short i)
     DesktopItem *it = &gDesktopIcons[i];
     unsigned char title[256];
     if (it->type == kDesktopItemVolume) {
-        int nlen = 0;
-        while (it->name[nlen] && nlen < 255) nlen++;
-        title[0] = (unsigned char)nlen;
-        memcpy(&title[1], it->name, nlen);
-        Finder_OpenDesktopItem(false, title);
+        Desktop_OpenVolume(it->data.volume.vRefNum, it->name);
     } else if (it->type == kDesktopItemTrash) {
         memcpy(&title[1], "Trash", 5);
         title[0] = 5;
@@ -2281,17 +2275,9 @@ void Desktop_OpenSelectedIcon(void) {
     );
 
     switch (itemType) {
-        case kDesktopItemVolume: {
-            /* Open the volume (disk) window */
-            extern WindowPtr Finder_OpenDesktopItem(Boolean isTrash, ConstStr255Param title);
-            unsigned char pTitle[256];
-            int len = 0;
-            while (icon->name[len] && len < 255) len++;
-            pTitle[0] = (unsigned char)len;
-            memcpy(&pTitle[1], icon->name, len);
-            Finder_OpenDesktopItem(false, pTitle);
+        case kDesktopItemVolume:
+            Desktop_OpenVolume(icon->data.volume.vRefNum, icon->name);
             break;
-        }
         case kDesktopItemTrash: {
             /* Open the Trash window */
             extern WindowPtr Finder_OpenDesktopItem(Boolean isTrash, ConstStr255Param title);
