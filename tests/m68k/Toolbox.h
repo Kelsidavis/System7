@@ -114,6 +114,7 @@ PROC_W(DrawChar, 0xA883)
 PROC_WW(MoveTo, 0xA893)
 PROC_WW(LineTo, 0xA891)
 PROC_WW(PenSize, 0xA89B)
+PROC_WW(SetOrigin, 0xA878)
 
 static inline void AppendMenu(MenuHandle m, ConstStr255Param s) {
     __asm__ volatile ("move.l %0,-(%%sp)\n\tmove.l %1,-(%%sp)\n\t" TRAP(0xA933)

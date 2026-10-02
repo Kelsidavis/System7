@@ -159,12 +159,16 @@ static void FM_BlitGlyph(short x, short y, const ChicagoCharInfo* info,
 
         const Rect *b = &g_currentPort->portBits.bounds;
         if (b->right > b->left && b->bottom > b->top) {
-            clipLeft = b->left;   clipTop = b->top;
-            clipRight = b->right; clipBottom = b->bottom;
+            /* bounds is where the portRect's corner would be at origin
+             * (0,0); after SetOrigin the content starts at bounds plus
+             * portRect's top left */
+            SInt32 oh = g_currentPort->portRect.left, ov = g_currentPort->portRect.top;
+            clipLeft = b->left + oh;   clipTop = b->top + ov;
+            clipRight = b->right + oh; clipBottom = b->bottom + ov;
 
             if (destBase != (Ptr)framebuffer) {
-                destXOrigin = b->left;
-                destYOrigin = b->top;
+                destXOrigin = b->left + oh;
+                destYOrigin = b->top + ov;
             }
         }
     } else if (framebuffer) {

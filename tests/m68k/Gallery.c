@@ -119,6 +119,13 @@ static void Draw(WindowPtr w) {
     Rect pr = { 200, 10, 230, 120 };
     CallRectProc((void*)gProcs[2], 1, &pr);    /* paint */
     Label(130, 220, "StdRect through QDProcs");
+
+    /* 8. Drawn with the origin moved, as a scrolled document is */
+    SetOrigin(1000, 1000);
+    Rect q = { 1205, 1300, 1215, 1400 };
+    PaintRect(&q);
+    Label(1300, 1235, "After SetOrigin");
+    SetOrigin(0, 0);
 }
 
 MenuHandle gApple;

@@ -413,8 +413,13 @@ void QDPlatform_SetPixel(SInt32 x, SInt32 y, UInt32 color) {
             SInt16 rowBytes = g_currentPort->portBits.rowBytes & 0x3FFF;
             if (rowBytes <= 0) return;
 
-            SInt16 boundsLeft = g_currentPort->portBits.bounds.left;
-            SInt16 boundsTop = g_currentPort->portBits.bounds.top;
+            /* The buffer starts at the portRect's corner: a pixel is local
+             * plus bounds, so the corner is at bounds plus portRect's
+             * top left. Measured from bounds alone, everything drawn after
+             * SetOrigin - a scrolled document, during its update - fell
+             * outside the buffer and vanished. */
+            SInt16 boundsLeft = (SInt16)(g_currentPort->portBits.bounds.left + g_currentPort->portRect.left);
+            SInt16 boundsTop = (SInt16)(g_currentPort->portBits.bounds.top + g_currentPort->portRect.top);
             SInt16 localX = (SInt16)(x - boundsLeft);
             SInt16 localY = (SInt16)(y - boundsTop);
 
@@ -503,8 +508,9 @@ UInt32 QDPlatform_GetPixel(SInt32 x, SInt32 y) {
     SInt16 rowBytes = g_currentPort->portBits.rowBytes & 0x3FFF;
     if (rowBytes <= 0) return 0;
 
-    SInt16 localX = (SInt16)(x - g_currentPort->portBits.bounds.left);
-    SInt16 localY = (SInt16)(y - g_currentPort->portBits.bounds.top);
+    /* From the portRect's corner, as QDPlatform_SetPixel */
+    SInt16 localX = (SInt16)(x - g_currentPort->portBits.bounds.left - g_currentPort->portRect.left);
+    SInt16 localY = (SInt16)(y - g_currentPort->portBits.bounds.top - g_currentPort->portRect.top);
 
     SInt16 portWidth = g_currentPort->portRect.right - g_currentPort->portRect.left;
     SInt16 portHeight = g_currentPort->portRect.bottom - g_currentPort->portRect.top;
@@ -1278,8 +1284,9 @@ static SInt16 QDPlatform_DrawGlyph_Body(struct FontStrike *strike, UInt8 ch, SIn
         renderHeight = fb_height;
 
         if (port) {
-            pixelX = x - port->portRect.left + port->portBits.bounds.left;
-            pixelY = y - port->portRect.top + port->portBits.bounds.top;
+            /* local plus bounds, as QD_LocalToPixel */
+            pixelX = x + port->portBits.bounds.left;
+            pixelY = y + port->portBits.bounds.top;
         }
     }
 
