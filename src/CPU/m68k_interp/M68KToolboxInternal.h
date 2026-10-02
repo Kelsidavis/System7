@@ -166,6 +166,12 @@ extern const M68KTrapEntry kM68KTextEditTraps[];
 extern const int kM68KTextEditTrapCount;
 extern const M68KTrapEntry kM68KUtilityTraps[];
 extern const int kM68KUtilityTrapCount;
+extern const M68KTrapEntry kM68KSANETraps[];
+extern const int kM68KSANETrapCount;
+void M68KSANE_Reset(void);                   /* a new program: the default environment */
+struct SANEDecimalTag;
+void M68KSANE_ReadDecimal(UInt32 addr, struct SANEDecimalTag* d);
+void M68KSANE_WriteDecimal(UInt32 addr, const struct SANEDecimalTag* d);
 extern const M68KTrapEntry kM68KFileTraps[];
 extern const int kM68KFileTrapCount;
 void M68KFiles_Prepare(VRefNum vref, DirID dir);   /* the application's folder: the default */

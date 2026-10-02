@@ -1385,9 +1385,9 @@ static void Test_MacBinary_UnpackFile(void) {
     FInfo info;
     memset(&info, 0, sizeof info);
     OSErr infoErr = FSGetFInfo(kName, 0, &info);
-    UInt8 back[8];
+    UInt8 back[sizeof(data)];
     UInt32 dataEOF = 0, rsrcEOF = 0;
-    n = sizeof(back);
+    n = sizeof(back);                   /* the fork's length: past it is eofErr */
     Boolean dataOK = FSOpen(kName, 0, &ref) == noErr;
     if (dataOK) {
         dataOK = FSGetEOF(ref, &dataEOF) == noErr && FSRead(ref, &n, back) == noErr &&
@@ -1423,6 +1423,17 @@ static void Test_MacBinary_UnpackFile(void) {
 /* Enqueue, Dequeue, GetAppParms, UnloadSeg, the package calls, OSEventAvail
  * and SysError, called by a 68K program (M68KToolboxTest.c) */
 extern Boolean M68KToolbox_RunTrapTest(const char** why);
+
+extern Boolean M68KToolbox_RunSANETest(const char** why);
+
+/* Arithmetic, conversion, comparison and formatting through _FP68K and
+ * _Pack7, by a 68K program */
+static void Test_M68K_SANE(void) {
+    const char* test_name = "M68K_SANE";
+    const char* why = "";
+    CHECK(M68KToolbox_RunSANETest(&why), why);
+    RecordTest(test_name, true, "");
+}
 
 static void Test_M68K_Traps(void) {
     const char* test_name = "M68K_Traps";
@@ -1486,6 +1497,7 @@ void IntegrationTests_Run(void) {
 
     IT_LOG_INFO("--- 68K traps ---");
     Test_M68K_Traps();
+    Test_M68K_SANE();
 
     PrintTestSummary();
 }

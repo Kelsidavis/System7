@@ -17,6 +17,10 @@
 #include "M68KToolboxInternal.h"
 #include "ResourceManager.h"
 
+/* Called by IntegrationTests.c */
+Boolean M68KToolbox_RunTrapTest(const char** why);
+Boolean M68KToolbox_RunSANETest(const char** why);
+
 typedef struct {
     UInt16 words[128];
     int n;
@@ -37,34 +41,59 @@ enum {
     kDataSize = 0x180
 };
 
-Boolean M68KToolbox_RunTrapTest(const char** why)
-{
-    const ICPUBackend* be = CPUBackend_Get("m68k_interp");
-    CPUAddressSpace cas = NULL;
+/* A program's world: its memory, prepared as a launch prepares it */
+typedef struct {
+    const ICPUBackend* be;
+    CPUAddressSpace cas;
+    CPUAddr code, data, stack;
+    SInt16 refNum;
+} World;
+
+enum { kStack = 16 * 1024, kCodeSize = 1024 };
+
+static Boolean WorldBegin(World* w, const char** why) {
+    memset(w, 0, sizeof(*w));
+    w->be = CPUBackend_Get("m68k_interp");
     *why = "no 68K backend";
-    if (!be || be->CreateAddressSpace(NULL, &cas) != noErr) return false;
+    if (!w->be || w->be->CreateAddressSpace(NULL, &w->cas) != noErr) return false;
 
     SegmentLoaderContext ctx;
     memset(&ctx, 0, sizeof(ctx));
-    ctx.cpuAS = cas;
-    ctx.cpuBackend = be;
-
-    enum { kStack = 16 * 1024 };
-    CPUAddr code = 0, data = 0, stack = 0;
-    Boolean ok = be->AllocateMemory(cas, 1024, kCPUMapA5World, &code) == noErr &&
-                 be->AllocateMemory(cas, kDataSize, kCPUMapA5World, &data) == noErr &&
-                 be->AllocateMemory(cas, kStack, kCPUMapA5World, &stack) == noErr &&
-                 be->SetStacks(cas, stack + kStack, 0) == noErr;
+    ctx.cpuAS = w->cas;
+    ctx.cpuBackend = w->be;
+    Boolean ok = w->be->AllocateMemory(w->cas, kCodeSize, kCPUMapA5World, &w->code) == noErr &&
+                 w->be->AllocateMemory(w->cas, kDataSize, kCPUMapA5World, &w->data) == noErr &&
+                 w->be->AllocateMemory(w->cas, kStack, kCPUMapA5World, &w->stack) == noErr &&
+                 w->be->SetStacks(w->cas, w->stack + kStack, 0) == noErr;
     static const UInt8 kAppName[] = "\x05ITest";
-    SInt16 refNum = CurResFile();
-    if (ok) ok = M68KToolbox_Prepare(&ctx, kAppName, refNum, stack, stack + kStack, 0, 0) == noErr;
+    w->refNum = CurResFile();
+    if (ok) ok = M68KToolbox_Prepare(&ctx, kAppName, w->refNum, w->stack, w->stack + kStack, 0, 0) == noErr;
     if (!ok) {
         *why = "could not prepare the program";
         if (gM68KApp) M68KToolbox_Finish();
-        be->DestroyAddressSpace(cas);
+        w->be->DestroyAddressSpace(w->cas);
         return false;
     }
-    for (UInt32 i = 0; i < kDataSize; i += 4) M68K_Write32(gM68KApp, data + i, 0xDEADBEEF);
+    for (UInt32 i = 0; i < kDataSize; i += 4) M68K_Write32(gM68KApp, w->data + i, 0xDEADBEEF);
+    return true;
+}
+
+static OSErr WorldRun(World* w, const Asm* a) {
+    for (int i = 0; i < a->n; i++) M68K_Write16(gM68KApp, w->code + 2 * (UInt32)i, a->words[i]);
+    return w->be->EnterAt(w->cas, w->code, kEnterApp);
+}
+
+static void WorldEnd(World* w) {
+    M68KToolbox_Finish();
+    w->be->DestroyAddressSpace(w->cas);
+}
+
+Boolean M68KToolbox_RunTrapTest(const char** why)
+{
+    World w;
+    if (!WorldBegin(&w, why)) return false;
+    CPUAddr code = w.code, data = w.data;
+    SInt16 refNum = w.refNum;
 
     Asm a;
     a.n = 0;
@@ -99,10 +128,8 @@ Boolean M68KToolbox_RunTrapTest(const char** why)
     /* And stop the way a program in trouble does */
     W(&a, 0x303C); W(&a, 28); W(&a, 0xA9C9);            /* MOVE.W #28,D0; _SysError */
     W(&a, 0xA9F4);                                      /* _ExitToShell, if it did not */
-    for (int i = 0; i < a.n; i++) M68K_Write16(gM68KApp, code + 2 * i, a.words[i]);
-
     M68KAddressSpace* as = gM68KApp;
-    OSErr ran = be->EnterAt(cas, code, kEnterApp);
+    OSErr ran = WorldRun(&w, &a);
     const char* fault = as->faultReason;
 
     UInt32 hdr = data + kHdr;
@@ -123,8 +150,7 @@ Boolean M68KToolbox_RunTrapTest(const char** why)
     Boolean nullOK = M68K_Read16(as, data + kOSAvail) == 0xFFFF;
     Boolean sysErr = ran != noErr && fault && strcmp(fault, "system error 28") == 0;
 
-    M68KToolbox_Finish();
-    be->DestroyAddressSpace(cas);
+    WorldEnd(&w);
 
     if (!queued)   { *why = "Enqueue did not link the elements in order"; return false; }
     if (!dequeued) { *why = "Dequeue did not answer noErr then qErr"; return false; }
@@ -133,6 +159,95 @@ Boolean M68KToolbox_RunTrapTest(const char** why)
     if (!stackOK)  { *why = "a trap did not take its arguments off the stack"; return false; }
     if (!nullOK)   { *why = "OSEventAvail with no mask did not answer -1"; return false; }
     if (!sysErr)   { *why = "SysError did not stop the program with its number"; return false; }
+    *why = "";
+    return true;
+}
+
+/* ------------------------------------------------------------------------
+ * SANE: _FP68K, and _Pack7's decimal formatter
+ * ------------------------------------------------------------------------ */
+
+enum {
+    kOne = 0x00, kThree = 0x10, kTwo = 0x20,    /* extendeds */
+    kAsDouble = 0x30,
+    kForm = 0x38,                               /* decform: floating, 10 digits */
+    kDec = 0x40,                                /* decimal record */
+    kText = 0x60,                               /* DecStr */
+    kCCR = 0xB8
+};
+
+static void PutExt(UInt32 a, UInt16 se, UInt32 hi, UInt32 lo) {
+    M68K_Write16(gM68KApp, a, se);
+    M68K_Write32(gM68KApp, a + 2, hi);
+    M68K_Write32(gM68KApp, a + 6, lo);
+}
+
+static Boolean ExtIs(UInt32 a, UInt16 se, UInt32 hi, UInt32 lo) {
+    return M68K_Read16(gM68KApp, a) == se && M68K_Read32(gM68KApp, a + 2) == hi &&
+           M68K_Read32(gM68KApp, a + 6) == lo;
+}
+
+Boolean M68KToolbox_RunSANETest(const char** why)
+{
+    World w;
+    if (!WorldBegin(&w, why)) return false;
+    CPUAddr data = w.data;
+    PutExt(data + kOne, 0x3FFF, 0x80000000, 0);
+    PutExt(data + kThree, 0x4000, 0xC0000000, 0);
+    PutExt(data + kTwo, 0x4000, 0x80000000, 0);
+    M68K_Write16(gM68KApp, data + kForm, 0);            /* FLOATDECIMAL */
+    M68K_Write16(gM68KApp, data + kForm + 2, 10);
+
+    Asm a;
+    a.n = 0;
+    /* one := one / three (FDIVX) */
+    W(&a, 0x4879); L(&a, data + kThree);
+    W(&a, 0x4879); L(&a, data + kOne);
+    W(&a, 0x3F3C); W(&a, 0x0006); W(&a, 0xA9EB);
+    /* asDouble := one (FX2D) */
+    W(&a, 0x4879); L(&a, data + kOne);
+    W(&a, 0x4879); L(&a, data + kAsDouble);
+    W(&a, 0x3F3C); W(&a, 0x0810); W(&a, 0xA9EB);
+    /* compare one with asDouble (FCMPD), and keep the condition codes */
+    W(&a, 0x4879); L(&a, data + kAsDouble);
+    W(&a, 0x4879); L(&a, data + kOne);
+    W(&a, 0x3F3C); W(&a, 0x0808); W(&a, 0xA9EB);
+    W(&a, 0x40C1);                                      /* MOVE SR,D1 */
+    W(&a, 0x33C1); L(&a, data + kCCR);                  /* MOVE.W D1,ccr */
+    /* two := sqrt(two) (FSQRTX) */
+    W(&a, 0x4879); L(&a, data + kTwo);
+    W(&a, 0x3F3C); W(&a, 0x0012); W(&a, 0xA9EB);
+    /* dec := one, by form (FX2DEC) */
+    W(&a, 0x4879); L(&a, data + kForm);
+    W(&a, 0x4879); L(&a, data + kOne);
+    W(&a, 0x4879); L(&a, data + kDec);
+    W(&a, 0x3F3C); W(&a, 0x000B); W(&a, 0xA9EB);
+    /* Dec2Str(form, dec, text): the form itself on the stack */
+    W(&a, 0x2F3C); L(&a, 10);                           /* MOVE.L #$0000000A,-(SP) */
+    W(&a, 0x4879); L(&a, data + kDec);
+    W(&a, 0x4879); L(&a, data + kText);
+    W(&a, 0x3F3C); W(&a, 3); W(&a, 0xA9EE);
+    W(&a, 0xA9F4);
+
+    OSErr ran = WorldRun(&w, &a);
+    M68KAddressSpace* as = gM68KApp;
+    Boolean third = ExtIs(data + kOne, 0x3FFD, 0xAAAAAAAA, 0xAAAAAAAB);
+    Boolean dbl = M68K_Read32(as, data + kAsDouble) == 0x3FD55555 &&
+                  M68K_Read32(as, data + kAsDouble + 4) == 0x55555555;
+    Boolean greater = (M68K_Read16(as, data + kCCR) & 0x1F) == 0;
+    Boolean root = ExtIs(data + kTwo, 0x3FFF, 0xB504F333, 0xF9DE6484);
+    static const char kWant[] = " 3.333333333e-1";
+    Boolean text = M68K_Read8(as, data + kText) == sizeof(kWant) - 1;
+    for (UInt32 i = 0; text && i < sizeof(kWant) - 1; i++)
+        text = M68K_Read8(as, data + kText + 1 + i) == (UInt8)kWant[i];
+    WorldEnd(&w);
+
+    if (ran != noErr) { *why = "the program stopped with a fault"; return false; }
+    if (!third)   { *why = "1/3 in extended is not 3FFD AAAAAAAAAAAAAAAB"; return false; }
+    if (!dbl)     { *why = "1/3 to double is not 3FD5555555555555"; return false; }
+    if (!greater) { *why = "comparing 1/3 with its double did not say greater"; return false; }
+    if (!root)    { *why = "sqrt(2) in extended is not 3FFF B504F333F9DE6484"; return false; }
+    if (!text)    { *why = "Dec2Str of 1/3 to 10 digits is not ' 3.333333333e-1'"; return false; }
     *why = "";
     return true;
 }

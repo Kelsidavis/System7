@@ -10,6 +10,7 @@
 #include <string.h>
 
 #include "M68KToolboxInternal.h"
+#include "SANENumbers.h"
 #include "ScrapManager/ScrapManager.h"
 #include "MemoryMgr/MemoryManager.h"
 #include "System71StdLib.h"
@@ -40,6 +41,39 @@ TRAP(Trap_Pack7) {
         if (i <= s[0] && (s[i] == '-' || s[i] == '+')) neg = s[i++] == '-';
         for (; i <= s[0] && s[i] >= '0' && s[i] <= '9'; i++) n = n * 10 + (s[i] - '0');
         D(0) = (UInt32)(neg ? -n : n);
+    } else if (selector == 2 || selector == 4) {
+        /* PROCEDURE PStr2Dec / CStr2Dec(s; VAR index: INTEGER;
+         *   VAR d: decimal; VAR validPrefix: BOOLEAN). A Pascal string's
+         * index counts from 1, a C string's from 0. */
+        UInt32 valid = Pop32(), dec = Pop32(), index = Pop32(), str = Pop32();
+        static UInt8 text[1024];
+        int len = 0, base;
+        if (selector == 2) {
+            len = R8(str);
+            for (int i = 0; i < len; i++) text[i] = R8(str + 1 + i);
+            base = 1;
+        } else {
+            while (len < (int)sizeof(text) && (text[len] = R8(str + (UInt32)len)) != 0) len++;
+            base = 0;
+        }
+        int i = (SInt16)R16(index) - base;
+        if (i < 0) i = 0;
+        SANEDecimal d;
+        int validPrefix = 0;
+        SANE_Str2Dec(text, len, &i, &d, &validPrefix);
+        W16(index, (UInt16)(i + base));
+        M68KSANE_WriteDecimal(dec, &d);
+        W8(valid, validPrefix ? 1 : 0);
+    } else if (selector == 3) {
+        /* PROCEDURE Dec2Str(f: decform; d: decimal; VAR s: DecStr). The
+         * decform is four bytes, so it is on the stack itself. */
+        UInt32 out = Pop32(), dec = Pop32(), form = Pop32();
+        SANEDecForm f = { (form >> 24) != 0, (int16_t)(form & 0xFFFF) };
+        SANEDecimal d;
+        M68KSANE_ReadDecimal(dec, &d);
+        UInt8 s[kSANEDecStrLen + 1];
+        SANE_Dec2Str(&f, &d, s);
+        WritePString(out, s);
     }
     return noErr;
 }

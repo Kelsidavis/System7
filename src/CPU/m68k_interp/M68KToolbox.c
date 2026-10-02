@@ -993,6 +993,7 @@ OSErr M68KToolbox_Prepare(SegmentLoaderContext* ctx, ConstStr255Param appName,
     for (int i = 0; i < len; i++) W8(kLM_CurApName + 1 + i, appName[1 + i]);
     LMSetTicks(TickCount());
     M68KFiles_Prepare(appVRef, appDir);
+    M68KSANE_Reset();
     W32(0x02F0, GetDblTime());              /* DoubleTime */
     W32(0x02F4, 32);                        /* CaretTime: half a second */
 
@@ -1009,6 +1010,7 @@ OSErr M68KToolbox_Prepare(SegmentLoaderContext* ctx, ConstStr255Param appName,
         { kM68KTextEditTraps, kM68KTextEditTrapCount },
         { kM68KUtilityTraps, kM68KUtilityTrapCount },
         { kM68KFileTraps, kM68KFileTrapCount },
+        { kM68KSANETraps, kM68KSANETrapCount },
     };
     for (size_t k = 0; k < sizeof(tables) / sizeof(tables[0]); k++) {
         for (int i = 0; i < tables[k].n; i++) {
