@@ -83,15 +83,16 @@ MAKE_NUM=$(extract_version "$MAKE_VERSION")
 
 if version_ge "$MAKE_NUM" "4.0"; then
     echo -e "${GREEN}✓ Make $MAKE_NUM${NC} (minimum: 4.0)"
+elif [ "$(uname -s)" = "Darwin" ] && [ "$MAKE_NUM" = "3.81" ]; then
+    echo -e "${GREEN}✓ Make $MAKE_NUM${NC} (supported macOS system Make)"
 else
     echo -e "${YELLOW}⚠ Make $MAKE_NUM${NC} - recommended >= 4.0"
 fi
 
 # Check grub-mkrescue
 if ! command -v grub-mkrescue >/dev/null 2>&1; then
-    echo -e "${YELLOW}⚠ grub-mkrescue not found${NC}"
-    echo "  Install: sudo apt-get install grub-pc-bin grub-efi-amd64-bin xorriso mtools"
-    echo "  (Optional: only needed for ISO creation)"
+    echo "• grub-mkrescue unavailable (ISO creation disabled)"
+    echo "  Install: grub-pc-bin, grub-efi-amd64-bin, xorriso, and mtools."
 else
     echo -e "${GREEN}✓ grub-mkrescue available${NC}"
 fi
@@ -130,9 +131,8 @@ fi
 
 # Check QEMU (optional)
 if ! command -v qemu-system-i386 >/dev/null 2>&1; then
-    echo -e "${YELLOW}⚠ qemu-system-i386 not found${NC}"
-    echo "  Install: sudo apt-get install qemu-system-x86"
-    echo "  (Optional: only needed for testing)"
+    echo "• qemu-system-i386 unavailable (interactive x86 testing disabled)"
+    echo "  Install: qemu-system-x86."
 else
     echo -e "${GREEN}✓ QEMU available${NC}"
 fi
