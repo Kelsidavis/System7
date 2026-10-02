@@ -668,6 +668,7 @@ OSErr M68KToolbox_Prepare(SegmentLoaderContext* ctx, ConstStr255Param appName,
         { kTraps, (int)(sizeof(kTraps) / sizeof(kTraps[0])) },
         { kM68KQuickDrawTraps, kM68KQuickDrawTrapCount },
         { kM68KPortTraps, kM68KPortTrapCount },
+        { kM68KPictureTraps, kM68KPictureTrapCount },
         { kM68KWindowTraps, kM68KWindowTrapCount },
         { kM68KMenuTraps, kM68KMenuTrapCount },
         { kM68KEventTraps, kM68KEventTrapCount },
@@ -737,6 +738,7 @@ void M68KToolbox_Finish(void) {
     M68KUtils_Finish();
     Ports_Finish();
     M68KQD_Finish();
+    M68KPict_Finish();
     Obj_Finish();
     M68KMenus_Finish();
     /* Native resources the application still held */

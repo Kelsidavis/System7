@@ -437,6 +437,29 @@ void Ports_CopyBits(UInt32 srcBits, UInt32 dstBits, UInt32 srcRect, UInt32 dstRe
         }
     }
 
+    /* Into a port recording a picture: recorded, as a bitmap at the size it
+     * lands, not drawn */
+    if (Pict_Recording(cur)) {
+        UInt32 m = Obj_PortFor(cur);
+        Bits mine = ReadBits(m ? m + 2 : 0);
+        if (mine.ok && mine.base == dst.base && mine.rowBytes == dst.rowBytes &&
+            EqualRect(&mine.bounds, &dst.bounds)) {
+            SInt16 rb = (SInt16)(((dw + 15) / 16) * 2);
+            UInt8* bits = (UInt8*)NewPtrClear((Size)rb * dh);
+            if (bits) {
+                for (SInt32 y = 0; y < dh; y++)
+                    for (SInt32 x = 0; x < dw; x++)
+                        if (!IsWhite(px[y * dw + x])) bits[y * rb + (x >> 3)] |= (UInt8)(0x80 >> (x & 7));
+                Rect area = { 0, 0, (SInt16)dh, (SInt16)dw };
+                Pict_Bits(bits, rb, &area, &dr, mode);
+                DisposePtr((Ptr)bits);
+            }
+            SetPort(cur);
+            DisposePtr((Ptr)px);
+            return;
+        }
+    }
+
     Boolean notSrc = (mode & 4) != 0;
     int op = mode & 3;                  /* copy, or, xor, bic */
     /* The destination is clipped to the current port's clip region when the

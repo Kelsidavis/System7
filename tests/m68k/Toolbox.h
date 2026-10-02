@@ -552,6 +552,26 @@ static inline void GetFNum(ConstStr255Param name, short* num) {
     __asm__ volatile ("move.l %0,-(%%sp)\n\tmove.l %1,-(%%sp)\n\t" TRAP(0xA900)
                       :: "r"(name), "r"(num) : CLOBBERS);
 }
+typedef Handle PicHandle;
+static inline PicHandle OpenPicture(const Rect* frame) {
+    PicHandle r;
+    __asm__ volatile ("clr.l -(%%sp)\n\tmove.l %1,-(%%sp)\n\t" TRAP(0xA8F3) "move.l (%%sp)+,%0"
+                      : "=r"(r) : "r"(frame) : CLOBBERS);
+    return r;
+}
+PROC0(ClosePicture, 0xA8F4)
+PROC_L(KillPicture, PicHandle, 0xA8F5)
+static inline void DrawPicture(PicHandle pic, const Rect* r) {
+    __asm__ volatile ("move.l %0,-(%%sp)\n\tmove.l %1,-(%%sp)\n\t" TRAP(0xA8F6)
+                      :: "r"(pic), "r"(r) : CLOBBERS);
+}
+static inline PicHandle GetPicture(short id) {
+    PicHandle r;
+    __asm__ volatile ("clr.l -(%%sp)\n\tmove.w %1,-(%%sp)\n\t" TRAP(0xA9BC) "move.l (%%sp)+,%0"
+                      : "=r"(r) : "d"(id) : CLOBBERS);
+    return r;
+}
+
 /* A QDProcs record's rectProc, called as QuickDraw would */
 static inline void CallRectProc(void* proc, unsigned char verb, const Rect* r) {
     __asm__ volatile ("move.b %1,-(%%sp)\n\tmove.l %2,-(%%sp)\n\tmove.l %0,%%a0\n\tjsr (%%a0)"

@@ -16,6 +16,24 @@ static union { struct GrafPort port; char raw[108]; } gOff;
 static BitMap gBits;
 static PolyHandle gPoly;
 static long gProcs[13];
+static PicHandle gPicture;
+
+/* A picture recorded the way a program makes one for the Clipboard */
+static void MakePicture(WindowPtr w) {
+    Rect frame = { 0, 0, 40, 80 };
+    gPicture = OpenPicture(&frame);
+    Rect r = { 2, 2, 38, 78 };
+    FrameRect(&r);
+    Rect o = { 8, 8, 32, 32 };
+    PaintOval(&o);
+    MoveTo(40, 10);
+    LineTo(74, 34);
+    MoveTo(40, 34);
+    DrawString((const unsigned char*)"\x02Pi");
+    Rect src = gBits.bounds, dst = { 6, 50, 18, 66 };
+    CopyBits(&gBits, &w->portBits, &src, &dst, srcCopy, 0);
+    ClosePicture();
+}
 
 static void Label(short h, short v, const char* text) {
     unsigned char s[80];
@@ -126,6 +144,17 @@ static void Draw(WindowPtr w) {
     PaintRect(&q);
     Label(1300, 1235, "After SetOrigin");
     SetOrigin(0, 0);
+
+    /* 9. Pictures: the one recorded above, at size and twice it, and two
+     * from the resource file - version 1, and version 2 in colour */
+    Label(10, 250, "Pictures: recorded, and from PICT 128 and 129");
+    Rect p1 = { 260, 10, 300, 90 }, p2 = { 260, 100, 340, 260 };
+    DrawPicture(gPicture, &p1);
+    DrawPicture(gPicture, &p2);
+    PicHandle v1 = GetPicture(128), v2 = GetPicture(129);
+    Rect p3 = { 260, 280, 300, 360 }, p4 = { 310, 280, 390, 440 };
+    if (v1) DrawPicture(v1, &p3);
+    if (v2) DrawPicture(v2, &p4);
 }
 
 MenuHandle gApple;
@@ -151,7 +180,7 @@ void main(void) {
     InsertMenu(file, 0);
     DrawMenuBar();
 
-    Rect bounds = { 50, 20, 300, 500 };
+    Rect bounds = { 40, 20, 450, 500 };
     WindowPtr w = NewWindow(0, &bounds, PStr(s, "Gallery"), 1, documentProc,
                             (WindowPtr)-1, 1, 0);
     SetPort(w);
@@ -165,6 +194,7 @@ void main(void) {
     LineTo(300, 40);
     ClosePoly();
     SetStdProcs(gProcs);
+    MakePicture(w);
 
     for (Boolean quit = 0; !quit;) {
         EventRecord e;

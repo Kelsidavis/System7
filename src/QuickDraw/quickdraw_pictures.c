@@ -1,16 +1,24 @@
-/* #include "SystemTypes.h" */
 #include "QuickDraw/QuickDrawInternal.h"
 /*
- * QuickDraw Picture playback
+ * QuickDraw picture playback - DrawPicture
  *
- * Implements a minimal-but-functional PICT 1/2 interpreter capable of
- * rendering the monochrome PackBitsRect pictures used throughout the
- * System 7 resource set. Implementation derived from public documentation
- * (Inside Macintosh, TN1035) and clean-room investigation of the ROM.
+ * A picture is a header - picSize, picFrame - and a stream of opcodes, each
+ * followed by its data (Inside Macintosh: Imaging With QuickDraw, appendix
+ * A). Version 1 pictures have one-byte opcodes and unaligned data; version
+ * 2 pictures, which begin $0011 $02FF, have two-byte opcodes, each starting
+ * on an even byte. Everything is big-endian, as the resource file has it.
+ *
+ * Each opcode's data has a known size, so an opcode not drawn here is
+ * stepped over rather than ending the picture. Coordinates are mapped from
+ * picFrame onto the destination rectangle. The port's drawing state is
+ * saved before and put back after, so the picture's pen, text and clip do
+ * not leak into what the caller draws next.
  */
 
 #include "QuickDraw/QuickDraw.h"
 #include "QuickDraw/quickdraw_types.h"
+#include "QuickDraw/QuickDrawPlatform.h"
+#include "QuickDraw/ColorQuickDraw.h"
 #include "SystemTypes.h"
 #include "QuickDrawConstants.h"
 #include "MemoryMgr/MemoryManager.h"
@@ -18,594 +26,810 @@
 
 #include <string.h>
 
-/* Global current port - from QuickDrawCore.c */
 extern GrafPtr g_currentPort;
-#define thePort g_currentPort
+extern CGrafPtr g_currentCPort;
 
 typedef struct {
+    const UInt8* base;
     const UInt8* ptr;
     const UInt8* end;
-} PictStream;
+    Boolean v2;
+    Boolean bad;
+    Rect picFrame, dst;
+    SInt32 fw, fh, dw, dh;
+    Point origin;               /* OpOrigin's accumulated offset */
+    Point pen;                  /* the pen, in the picture's coordinates */
+    Point ovSize;
+    Rect lastRect, lastRRect, lastOval, lastArc;
+    SInt16 arcStart, arcAngle;
+    PolyHandle lastPoly;
+    RgnHandle lastRgn;
+    RgnHandle savedClip;        /* the caller's clip, which the picture's narrows */
+    UInt32 fgPixel, bgPixel;
+} Play;
 
-static Boolean pict_read_u8(PictStream* s, UInt8* value) {
-    if (s->ptr >= s->end) {
+/* ------------------------------------------------------------------------
+ * Reading the stream
+ * ------------------------------------------------------------------------ */
+
+static Boolean Need(Play* p, SInt32 n) {
+    if (n < 0 || p->end - p->ptr < n) {
+        p->bad = true;
         return false;
-    }
-    *value = *s->ptr++;
-    return true;
-}
-
-static Boolean pict_read_s16(PictStream* s, SInt16* value) {
-    if ((s->end - s->ptr) < 2) {
-        return false;
-    }
-    *value = (SInt16)((s->ptr[0] << 8) | s->ptr[1]);
-    s->ptr += 2;
-    return true;
-}
-
-static Boolean pict_read_u16(PictStream* s, UInt16* value) {
-    return pict_read_s16(s, (SInt16*)value);
-}
-
-static Boolean pict_read_u32(PictStream* s, UInt32* value) {
-    if ((s->end - s->ptr) < 4) {
-        return false;
-    }
-    *value = ((UInt32)s->ptr[0] << 24) |
-             ((UInt32)s->ptr[1] << 16) |
-             ((UInt32)s->ptr[2] << 8) |
-             (UInt32)s->ptr[3];
-    s->ptr += 4;
-    return true;
-}
-
-static Boolean pict_read_rect(PictStream* s, Rect* r) {
-    return pict_read_s16(s, &r->top) &&
-           pict_read_s16(s, &r->left) &&
-           pict_read_s16(s, &r->bottom) &&
-           pict_read_s16(s, &r->right);
-}
-
-static Rect pict_scale_rect(const Rect* src, const Rect* picFrame, const Rect* dstRect,
-                            SInt32 scaleX, SInt32 scaleY) {
-    Rect result;
-    result.left   = (SInt16)((((SInt32)(src->left   - picFrame->left)  * scaleX) >> 16) + dstRect->left);
-    result.top    = (SInt16)((((SInt32)(src->top    - picFrame->top)   * scaleY) >> 16) + dstRect->top);
-    result.right  = (SInt16)((((SInt32)(src->right  - picFrame->left)  * scaleX) >> 16) + dstRect->left);
-    result.bottom = (SInt16)((((SInt32)(src->bottom - picFrame->top)   * scaleY) >> 16) + dstRect->top);
-    return result;
-}
-
-static void pict_scale_point(Point* pt, const Rect* picFrame, const Rect* dstRect,
-                             SInt32 scaleX, SInt32 scaleY) {
-    pt->h = (SInt16)((((SInt32)(pt->h - picFrame->left) * scaleX) >> 16) + dstRect->left);
-    pt->v = (SInt16)((((SInt32)(pt->v - picFrame->top)  * scaleY) >> 16) + dstRect->top);
-}
-
-static Boolean pict_skip_bytes(PictStream* s, SInt32 count) {
-    if (count < 0 || (s->end - s->ptr) < count) {
-        return false;
-    }
-    s->ptr += count;
-    return true;
-}
-
-static Boolean pict_unpack_packbits_row(PictStream* s, UInt8* dst, SInt32 expected) {
-    UInt8* out = dst;
-    UInt8* outEnd = dst + expected;
-    while (out < outEnd) {
-        UInt8 control;
-        if (!pict_read_u8(s, &control)) {
-            return false;
-        }
-        SInt8 signedControl = (SInt8)control;
-        if (signedControl >= 0) {
-            SInt32 literalCount = (SInt32)signedControl + 1;
-            if ((outEnd - out) < literalCount || (s->end - s->ptr) < literalCount) {
-                return false;
-            }
-            memcpy(out, s->ptr, (size_t)literalCount);
-            s->ptr += literalCount;
-            out += literalCount;
-        } else if (signedControl >= -127) {
-            SInt32 repeatCount = 1 - (SInt32)signedControl;
-            UInt8 value;
-            if (!pict_read_u8(s, &value)) {
-                return false;
-            }
-            if ((outEnd - out) < repeatCount) {
-                return false;
-            }
-            memset(out, value, (size_t)repeatCount);
-            out += repeatCount;
-        } else {
-            /* -128: no-op */
-        }
     }
     return true;
 }
 
-static Boolean pict_unpack_packbits(PictStream* s, UInt8* buffer, SInt16 rowBytes,
-                                    SInt16 height) {
-    UInt8* rowPtr = buffer;
-    for (SInt16 row = 0; row < height; ++row) {
-        if (rowBytes < 8) {
-            UInt8 count;
-            if (!pict_read_u8(s, &count)) {
-                return false;
-            }
-        } else {
-            UInt16 count16;
-            if (!pict_read_u16(s, &count16)) {
-                return false;
-            }
-        }
-        if (!pict_unpack_packbits_row(s, rowPtr, rowBytes)) {
-            return false;
-        }
-        rowPtr += rowBytes;
-    }
-    return true;
+static UInt8 U8(Play* p) { return Need(p, 1) ? *p->ptr++ : 0; }
+static SInt8 S8(Play* p) { return (SInt8)U8(p); }
+
+static UInt16 U16(Play* p) {
+    if (!Need(p, 2)) return 0;
+    UInt16 v = (UInt16)((p->ptr[0] << 8) | p->ptr[1]);
+    p->ptr += 2;
+    return v;
 }
 
-static void pict_apply_clip(const Rect* r) {
-    if (!thePort->clipRgn) {
-        thePort->clipRgn = NewRgn();
-    }
-    if (thePort->clipRgn) {
-        RectRgn(thePort->clipRgn, r);
-    }
+static SInt16 S16(Play* p) { return (SInt16)U16(p); }
+
+static UInt32 U32(Play* p) {
+    UInt32 hi = U16(p);
+    return (hi << 16) | U16(p);
 }
 
-static Boolean pict_handle_bits_rect(PictStream* s, const Rect* picFrame,
-                                     const Rect* dstRect, SInt32 scaleX, SInt32 scaleY,
-                                     Boolean packBits) {
-    UInt16 rawRowBytes;
-    if (!pict_read_u16(s, &rawRowBytes)) {
-        return false;
+static void Skip(Play* p, SInt32 n) {
+    if (Need(p, n)) p->ptr += n;
+}
+
+static Rect ReadRect(Play* p) {
+    Rect r;
+    r.top = S16(p);
+    r.left = S16(p);
+    r.bottom = S16(p);
+    r.right = S16(p);
+    return r;
+}
+
+static Point ReadPoint(Play* p) {
+    Point pt;
+    pt.v = S16(p);
+    pt.h = S16(p);
+    return pt;
+}
+
+static void ReadPat(Play* p, Pattern* pat) {
+    for (int i = 0; i < 8; i++) pat->pat[i] = U8(p);
+}
+
+/* ------------------------------------------------------------------------
+ * From the picture's coordinates to the destination's
+ * ------------------------------------------------------------------------ */
+
+static SInt16 MapH(const Play* p, SInt32 h) {
+    h -= p->origin.h;
+    return (SInt16)(p->dst.left + ((h - p->picFrame.left) * p->dw) / p->fw);
+}
+
+static SInt16 MapV(const Play* p, SInt32 v) {
+    v -= p->origin.v;
+    return (SInt16)(p->dst.top + ((v - p->picFrame.top) * p->dh) / p->fh);
+}
+
+static Rect MapRectP(const Play* p, Rect r) {
+    Rect m;
+    m.left = MapH(p, r.left);
+    m.top = MapV(p, r.top);
+    m.right = MapH(p, r.right);
+    m.bottom = MapV(p, r.bottom);
+    return m;
+}
+
+static Point MapPointP(const Play* p, Point pt) {
+    Point m;
+    m.h = MapH(p, pt.h);
+    m.v = MapV(p, pt.v);
+    return m;
+}
+
+/* ------------------------------------------------------------------------
+ * Regions and polygons, from their stored form
+ * ------------------------------------------------------------------------ */
+
+/* A region: rgnSize, rgnBBox, then for a region that is not a rectangle,
+ * scan lines - v, then the h coordinates where inside and outside change
+ * from the line above, ended by $7FFF - and a final $7FFF. Made native as
+ * the union of the bands' spans, then mapped. */
+static RgnHandle ReadRegion(Play* p) {
+    const UInt8* start = p->ptr;
+    UInt16 size = U16(p);
+    Rect bbox = ReadRect(p);
+    RgnHandle rgn = NewRgn();
+    if (size < 10 || p->bad) {
+        p->ptr = start;
+        Skip(p, size < 2 ? 2 : size);
+        return rgn;
     }
-
-    Boolean hasPixMap = (rawRowBytes & 0x8000u) != 0;
-    SInt16 rowBytes = (SInt16)(rawRowBytes & 0x7FFFu);
-
-    Rect srcRect;
-    Rect dstLocal;
-    if (!pict_read_rect(s, &srcRect) || !pict_read_rect(s, &dstLocal)) {
-        return false;
+    if (!rgn) {
+        p->ptr = start;
+        Skip(p, size);
+        return NULL;
     }
-
-    dstLocal = pict_scale_rect(&dstLocal, picFrame, dstRect, scaleX, scaleY);
-
-    SInt16 mode;
-    if (!pict_read_s16(s, &mode)) {
-        return false;
-    }
-
-    if (hasPixMap) {
-        /* Skip PixMap header we do not currently use */
-        UInt16 pmVersion, packType, pixelType, pixelSize, cmpCount, cmpSize;
-        UInt32 packSize, hRes, vRes, planeBytes, pmTable, pmReserved;
-        if (!pict_read_u16(s, &pmVersion) ||
-            !pict_read_u16(s, &packType) ||
-            !pict_read_u32(s, &packSize) ||
-            !pict_read_u32(s, &hRes) ||
-            !pict_read_u32(s, &vRes) ||
-            !pict_read_u16(s, &pixelType) ||
-            !pict_read_u16(s, &pixelSize) ||
-            !pict_read_u16(s, &cmpCount) ||
-            !pict_read_u16(s, &cmpSize) ||
-            !pict_read_u32(s, &planeBytes) ||
-            !pict_read_u32(s, &pmTable) ||
-            !pict_read_u32(s, &pmReserved)) {
-            return false;
-        }
-
-        /* This simple implementation only supports 1-bit monochrome data */
-        if (pixelSize != 1 || cmpCount != 1 || cmpSize != 1) {
-            return false;
-        }
-    }
-
-    SInt16 height = (SInt16)(srcRect.bottom - srcRect.top);
-    if (rowBytes <= 0 || height <= 0) {
-        return false;
-    }
-
-    /* Check for integer overflow before multiplication */
-    if (rowBytes > (SInt16)(0x7FFF / height)) {
-        return false;
-    }
-
-    Size bufferSize = (Size)rowBytes * height;
-    Ptr pixelData = NewPtr(bufferSize);
-    if (!pixelData) {
-        return false;
-    }
-
-    Boolean ok = true;
-    if (packBits) {
-        ok = pict_unpack_packbits(s, (UInt8*)pixelData, rowBytes, height);
+    if (size == 10) {
+        RectRgn(rgn, &bbox);
     } else {
-        /* Cast to SInt32 before multiplication to avoid overflow (already validated above) */
-        SInt32 expected = (SInt32)rowBytes * (SInt32)height;
-        if ((s->end - s->ptr) < expected) {
-            ok = false;
-        } else {
-            memcpy(pixelData, s->ptr, (size_t)expected);
-            s->ptr += expected;
+        enum { kMaxX = 128 };
+        SInt16 xs[kMaxX];
+        int nx = 0;
+        const UInt8* stop = start + size;
+        RgnHandle band = NewRgn();
+        SInt16 prevV = 0;
+        Boolean have = false;
+        while (p->ptr + 2 <= stop && band) {
+            SInt16 v = S16(p);
+            if (v == 0x7FFF) break;
+            /* The band above this line ends here */
+            if (have) {
+                for (int i = 0; i + 1 < nx; i += 2) {
+                    SetRectRgn(band, xs[i], prevV, xs[i + 1], v);
+                    UnionRgn(rgn, band, rgn);
+                }
+            }
+            for (;;) {
+                if (p->ptr + 2 > stop) break;
+                SInt16 h = S16(p);
+                if (h == 0x7FFF) break;
+                /* An inversion: in the list, it goes; not, it joins */
+                int at = -1;
+                for (int i = 0; i < nx; i++) if (xs[i] == h) { at = i; break; }
+                if (at >= 0) {
+                    for (int i = at; i + 1 < nx; i++) xs[i] = xs[i + 1];
+                    nx--;
+                } else if (nx < kMaxX) {
+                    int i = nx++;
+                    while (i > 0 && xs[i - 1] > h) { xs[i] = xs[i - 1]; i--; }
+                    xs[i] = h;
+                }
+            }
+            prevV = v;
+            have = true;
+        }
+        if (band) DisposeRgn(band);
+        p->ptr = start;
+        Skip(p, size);
+    }
+    OffsetRgn(rgn, (SInt16)-p->origin.h, (SInt16)-p->origin.v);
+    MapRgn(rgn, &p->picFrame, &p->dst);
+    return rgn;
+}
+
+/* A polygon: polySize, polyBBox, polyPoints; native and mapped */
+static PolyHandle ReadPolygon(Play* p) {
+    const UInt8* start = p->ptr;
+    UInt16 size = U16(p);
+    if (size < 10) {
+        p->ptr = start;
+        Skip(p, 2);
+        return NULL;
+    }
+    Rect bbox = ReadRect(p);
+    SInt16 n = (SInt16)((size - 10) / 4);
+    PolyHandle poly = (PolyHandle)NewHandle((Size)(sizeof(SInt16) + sizeof(Rect) + n * sizeof(Point)));
+    if (!poly) {
+        p->ptr = start;
+        Skip(p, size);
+        return NULL;
+    }
+    (*poly)->polySize = (SInt16)(sizeof(SInt16) + sizeof(Rect) + n * sizeof(Point));
+    (*poly)->polyBBox = MapRectP(p, bbox);
+    for (SInt16 i = 0; i < n; i++) (*poly)->polyPoints[i] = MapPointP(p, ReadPoint(p));
+    p->ptr = start;
+    Skip(p, size);
+    return poly;
+}
+
+/* ------------------------------------------------------------------------
+ * The shape verbs - frame, paint, erase, invert, fill
+ * ------------------------------------------------------------------------ */
+
+static void RectVerb(int verb, const Rect* r) {
+    switch (verb) {
+        case 0: FrameRect(r); break;
+        case 1: PaintRect(r); break;
+        case 2: EraseRect(r); break;
+        case 3: InvertRect(r); break;
+        case 4: FillRect(r, &g_currentPort->fillPat); break;
+    }
+}
+
+static void OvalVerb(int verb, const Rect* r) {
+    switch (verb) {
+        case 0: FrameOval(r); break;
+        case 1: PaintOval(r); break;
+        case 2: EraseOval(r); break;
+        case 3: InvertOval(r); break;
+        case 4: FillOval(r, &g_currentPort->fillPat); break;
+    }
+}
+
+static void RRectVerb(int verb, const Rect* r, SInt16 ow, SInt16 oh) {
+    switch (verb) {
+        case 0: FrameRoundRect(r, ow, oh); break;
+        case 1: PaintRoundRect(r, ow, oh); break;
+        case 2: EraseRoundRect(r, ow, oh); break;
+        case 3: InvertRoundRect(r, ow, oh); break;
+        case 4: FillRoundRect(r, ow, oh, &g_currentPort->fillPat); break;
+    }
+}
+
+static void ArcVerb(int verb, const Rect* r, SInt16 start, SInt16 arc) {
+    switch (verb) {
+        case 0: FrameArc(r, start, arc); break;
+        case 1: PaintArc(r, start, arc); break;
+        case 2: EraseArc(r, start, arc); break;
+        case 3: InvertArc(r, start, arc); break;
+        case 4: FillArc(r, start, arc, &g_currentPort->fillPat); break;
+    }
+}
+
+static void PolyVerb(int verb, PolyHandle poly) {
+    if (!poly) return;
+    switch (verb) {
+        case 0: FramePoly(poly); break;
+        case 1: PaintPoly(poly); break;
+        case 2: ErasePoly(poly); break;
+        case 3: InvertPoly(poly); break;
+        case 4: FillPoly(poly, &g_currentPort->fillPat); break;
+    }
+}
+
+static void RgnVerb(int verb, RgnHandle rgn) {
+    if (!rgn) return;
+    switch (verb) {
+        case 0: FrameRgn(rgn); break;
+        case 1: PaintRgn(rgn); break;
+        case 2: EraseRgn(rgn); break;
+        case 3: InvertRgn(rgn); break;
+        case 4: FillRgn(rgn, &g_currentPort->fillPat); break;
+    }
+}
+
+/* ------------------------------------------------------------------------
+ * Pixel images: BitsRect, PackBitsRect, DirectBitsRect and the Rgn forms
+ * ------------------------------------------------------------------------ */
+
+/* PackBits: a count byte n, then n+1 literal bytes, or 1-n copies of the
+ * next byte (Inside Macintosh I-470) - or, for 16-bit pixels, of words */
+static void UnpackRow(const UInt8* src, SInt32 srcLen, UInt8* dst, SInt32 dstLen, int unit) {
+    SInt32 in = 0, out = 0;
+    while (in < srcLen && out < dstLen) {
+        SInt8 c = (SInt8)src[in++];
+        if (c >= 0) {
+            SInt32 n = ((SInt32)c + 1) * unit;
+            for (SInt32 k = 0; k < n && in < srcLen && out < dstLen; k++) dst[out++] = src[in++];
+        } else if (c != -128) {
+            SInt32 n = 1 - (SInt32)c;
+            if (in + unit > srcLen) break;
+            for (SInt32 k = 0; k < n; k++)
+                for (int u = 0; u < unit && out < dstLen; u++) dst[out++] = src[in + u];
+            in += unit;
         }
     }
+}
 
-    if (!ok) {
-        DisposePtr(pixelData);
-        return false;
+static UInt32 PixelFromRGB(UInt16 r, UInt16 g, UInt16 b) {
+    return QDPlatform_RGBToPixel((UInt8)(r >> 8), (UInt8)(g >> 8), (UInt8)(b >> 8));
+}
+
+/* The image's pixels, into the port: scaled from srcRect to dstRect, by
+ * the transfer mode, within the mask, the clip and what is visible */
+static void PutImage(Play* p, const UInt32* image, const Boolean* ink, SInt16 imgW, SInt16 imgH,
+                     const Rect* bounds, Rect srcRect, Rect dstRect, SInt16 mode, RgnHandle mask) {
+    GrafPtr port = g_currentPort;
+    if (!port) return;
+    Rect dst = MapRectP(p, dstRect);
+    SInt32 dw = dst.right - dst.left, dh = dst.bottom - dst.top;
+    SInt32 sw = srcRect.right - srcRect.left, sh = srcRect.bottom - srcRect.top;
+    if (dw <= 0 || dh <= 0 || sw <= 0 || sh <= 0) return;
+    int op = mode & 3;
+    Boolean notSrc = (mode & 4) != 0 && mode < 8;
+    if (mode >= 32) op = 0;             /* arithmetic and dither modes: a copy */
+    SInt16 bh = port->portBits.bounds.left, bv = port->portBits.bounds.top;
+    QD_ClipBegin(port);
+    for (SInt32 y = 0; y < dh; y++) {
+        SInt32 ly = dst.top + y;
+        SInt32 sy = srcRect.top + (y * sh) / dh - bounds->top;
+        if (sy < 0 || sy >= imgH) continue;
+        for (SInt32 x = 0; x < dw; x++) {
+            SInt32 lx = dst.left + x;
+            SInt32 sx = srcRect.left + (x * sw) / dw - bounds->left;
+            if (sx < 0 || sx >= imgW) continue;
+            Point lp = { (SInt16)ly, (SInt16)lx };
+            if (lx < port->portRect.left || lx >= port->portRect.right ||
+                ly < port->portRect.top || ly >= port->portRect.bottom) continue;
+            if (mask && !PtInRgn(lp, mask)) continue;
+            if (port->clipRgn) {
+                Point gp = { (SInt16)(ly + bv), (SInt16)(lx + bh) };
+                if (!PtInRgn(gp, port->clipRgn)) continue;
+            }
+            SInt32 at = sy * imgW + sx;
+            Boolean s = ink[at];
+            UInt32 c = image[at];
+            if (notSrc) {
+                s = !s;
+                c = s ? p->fgPixel : p->bgPixel;
+            }
+            SInt32 gx = lx + bh, gy = ly + bv;
+            switch (op) {
+                case 0: QDPlatform_SetPixel(gx, gy, c); break;
+                case 1: if (s) QDPlatform_SetPixel(gx, gy, p->fgPixel); break;
+                case 2: if (s) QDPlatform_SetPixel(gx, gy, QDPlatform_GetPixel(gx, gy) ^ 0x00FFFFFF); break;
+                case 3: if (s) QDPlatform_SetPixel(gx, gy, p->bgPixel); break;
+            }
+        }
+    }
+    QD_ClipEnd();
+}
+
+/* One opcode's worth of pixels. packed: the rows are PackBits-coded when
+ * rowBytes is 8 or more; withRgn: a mask region follows the mode; direct:
+ * DirectBitsRect, whose PixMap has a baseAddr in front and no colour table. */
+static void DoBits(Play* p, Boolean packed, Boolean withRgn, Boolean direct) {
+    if (direct) Skip(p, 4);                     /* baseAddr */
+    UInt16 rawRowBytes = U16(p);
+    Boolean pixMap = (rawRowBytes & 0x8000) != 0 || direct;
+    SInt32 rowBytes = rawRowBytes & 0x3FFF;
+    Rect bounds = ReadRect(p);
+    UInt16 packType = 0, pixelSize = 1, cmpCount = 1;
+    UInt32 ctab[256];
+    int ctabSize = 0;
+    ctab[0] = QDPlatform_RGBToPixel(255, 255, 255);
+    ctab[1] = QDPlatform_RGBToPixel(0, 0, 0);
+    if (pixMap) {
+        U16(p);                                 /* pmVersion */
+        packType = U16(p);
+        U32(p);                                 /* packSize */
+        U32(p); U32(p);                         /* hRes, vRes */
+        U16(p);                                 /* pixelType */
+        pixelSize = U16(p);
+        cmpCount = U16(p);
+        U16(p);                                 /* cmpSize */
+        U32(p); U32(p); U32(p);                 /* planeBytes, pmTable, pmReserved */
+        if (!direct) {
+            U32(p);                             /* ctSeed */
+            UInt16 flags = U16(p);
+            SInt16 n = S16(p);
+            for (SInt32 i = 0; i <= n && !p->bad; i++) {
+                UInt16 value = U16(p);
+                UInt16 r = U16(p), g = U16(p), b = U16(p);
+                SInt32 index = (flags & 0x8000) ? i : value;
+                if (index >= 0 && index < 256) {
+                    ctab[index] = PixelFromRGB(r, g, b);
+                    if (index >= ctabSize) ctabSize = (int)index + 1;
+                }
+            }
+        }
+    }
+    Rect srcRect = ReadRect(p), dstRect = ReadRect(p);
+    SInt16 mode = S16(p);
+    RgnHandle mask = withRgn ? ReadRegion(p) : NULL;
+    if (p->bad) {
+        if (mask) DisposeRgn(mask);
+        return;
     }
 
-    BitMap srcBits;
-    srcBits.baseAddr = pixelData;
-    srcBits.rowBytes = rowBytes;
-    srcBits.bounds = srcRect;
+    SInt16 w = (SInt16)(bounds.right - bounds.left), h = (SInt16)(bounds.bottom - bounds.top);
+    if (w <= 0 || h <= 0 || w > 4096 || h > 4096 || rowBytes <= 0) {
+        if (mask) DisposeRgn(mask);
+        p->bad = true;
+        return;
+    }
+    /* A 32-bit row PackBits-coded component by component is cmpCount
+     * planes of w bytes; otherwise rowBytes */
+    SInt32 rowLen = (direct && pixelSize == 32 && packType == 4) ? (SInt32)cmpCount * w : rowBytes;
+    UInt8* row = (UInt8*)NewPtr(rowLen + 16);
+    UInt32* image = (UInt32*)NewPtr((Size)w * h * 4);
+    Boolean* ink = (Boolean*)NewPtr((Size)w * h);
+    if (!row || !image || !ink) {
+        if (row) DisposePtr((Ptr)row);
+        if (image) DisposePtr((Ptr)image);
+        if (ink) DisposePtr((Ptr)ink);
+        if (mask) DisposeRgn(mask);
+        p->bad = true;
+        return;
+    }
+    Boolean isPacked = packed && rowBytes >= 8 && packType != 1 && packType != 2;
+    int unit = (direct && pixelSize == 16 && packType == 3) ? 2 : 1;
+    UInt32 white = QDPlatform_RGBToPixel(255, 255, 255);
+    for (SInt16 y = 0; y < h && !p->bad; y++) {
+        if (isPacked) {
+            SInt32 count = rowBytes > 250 ? U16(p) : U8(p);
+            if (!Need(p, count)) break;
+            memset(row, 0, (size_t)rowLen);
+            UnpackRow(p->ptr, count, row, rowLen, unit);
+            p->ptr += count;
+        } else {
+            SInt32 n = (direct && packType == 2) ? (SInt32)w * 3 : rowBytes;
+            if (!Need(p, n)) break;
+            if (direct && packType == 2) {
+                for (SInt16 x = 0; x < w && 4 * x + 3 < rowLen + 16; x++) {
+                    row[4 * x] = 0;
+                    row[4 * x + 1] = p->ptr[3 * x];
+                    row[4 * x + 2] = p->ptr[3 * x + 1];
+                    row[4 * x + 3] = p->ptr[3 * x + 2];
+                }
+            } else {
+                memcpy(row, p->ptr, (size_t)(n < rowLen ? n : rowLen));
+            }
+            p->ptr += n;
+        }
+        for (SInt16 x = 0; x < w; x++) {
+            UInt32 c;
+            if (!pixMap) {
+                Boolean b = (row[x >> 3] & (0x80 >> (x & 7))) != 0;
+                c = b ? p->fgPixel : p->bgPixel;
+            } else if (direct && pixelSize == 32) {
+                if (packType == 4) {
+                    int o = cmpCount == 4 ? 1 : 0;
+                    c = QDPlatform_RGBToPixel(row[(o + 0) * w + x], row[(o + 1) * w + x],
+                                              row[(o + 2) * w + x]);
+                } else {
+                    c = QDPlatform_RGBToPixel(row[4 * x + 1], row[4 * x + 2], row[4 * x + 3]);
+                }
+            } else if (direct && pixelSize == 16) {
+                UInt16 v = (UInt16)((row[2 * x] << 8) | row[2 * x + 1]);
+                UInt8 r = (UInt8)(((v >> 10) & 31) * 255 / 31);
+                UInt8 g = (UInt8)(((v >> 5) & 31) * 255 / 31);
+                UInt8 b = (UInt8)((v & 31) * 255 / 31);
+                c = QDPlatform_RGBToPixel(r, g, b);
+            } else {
+                int bits = pixelSize == 2 || pixelSize == 4 || pixelSize == 8 ? pixelSize : 1;
+                int perByte = 8 / bits;
+                UInt8 byte = row[x / perByte];
+                int shift = (perByte - 1 - (x % perByte)) * bits;
+                int index = (byte >> shift) & ((1 << bits) - 1);
+                if (bits == 1 && ctabSize < 2) c = index ? p->fgPixel : p->bgPixel;
+                else c = index < 256 ? ctab[index] : white;
+            }
+            image[(SInt32)y * w + x] = c;
+            ink[(SInt32)y * w + x] = (c & 0x00FFFFFF) != (white & 0x00FFFFFF);
+        }
+    }
+    if (!p->bad) PutImage(p, image, ink, w, h, &bounds, srcRect, dstRect, mode, mask);
+    DisposePtr((Ptr)row);
+    DisposePtr((Ptr)image);
+    DisposePtr((Ptr)ink);
+    if (mask) DisposeRgn(mask);
+}
 
-    BitMap dstBits = thePort->portBits;
+/* A PixPat (BkPixPat, PnPixPat, FillPixPat): its old-style pattern is used,
+ * the rest stepped over */
+static void DoPixPat(Play* p, Pattern* out) {
+    UInt16 type = U16(p);
+    ReadPat(p, out);
+    if (type == 2) {                            /* dither: an RGB */
+        Skip(p, 6);
+    } else if (type == 1) {                     /* a full pixel pattern */
+        UInt16 rowBytes = U16(p) & 0x3FFF;
+        Rect b = ReadRect(p);
+        Skip(p, 36);                            /* the rest of the PixMap */
+        U32(p);
+        U16(p);
+        SInt16 n = S16(p);
+        Skip(p, ((SInt32)n + 1) * 8);
+        SInt16 h = (SInt16)(b.bottom - b.top);
+        for (SInt16 y = 0; y < h && !p->bad; y++) {
+            if (rowBytes < 8) Skip(p, rowBytes);
+            else Skip(p, rowBytes > 250 ? U16(p) : U8(p));
+        }
+    }
+}
 
-    CopyBits(&srcBits, &dstBits, &srcRect, &dstLocal, mode, NULL);
+/* ------------------------------------------------------------------------
+ * Text
+ * ------------------------------------------------------------------------ */
 
-    DisposePtr(pixelData);
+static void DoText(Play* p) {
+    UInt8 n = U8(p);
+    if (!Need(p, n)) return;
+    Point at = MapPointP(p, p->pen);
+    MoveTo(at.h, at.v);
+    DrawText((const char*)p->ptr, 0, n);
+    p->ptr += n;
+}
+
+/* ------------------------------------------------------------------------
+ * The opcodes
+ * ------------------------------------------------------------------------ */
+
+static void SetPictureClip(Play* p, RgnHandle rgn) {
+    GrafPtr port = g_currentPort;
+    if (!rgn || !port || !port->clipRgn) return;
+    Boolean colour = g_currentCPort && (GrafPtr)g_currentCPort == port;
+    /* The clip is kept in global coordinates on a port of one bit */
+    if (!colour) OffsetRgn(rgn, port->portBits.bounds.left, port->portBits.bounds.top);
+    if (p->savedClip) SectRgn(rgn, p->savedClip, port->clipRgn);
+    else CopyRgn(rgn, port->clipRgn);
+}
+
+static void RGBOp(Play* p, Boolean fore) {
+    RGBColor c;
+    c.red = U16(p);
+    c.green = U16(p);
+    c.blue = U16(p);
+    if (g_currentCPort && (GrafPtr)g_currentCPort == g_currentPort) {
+        if (fore) RGBForeColor(&c);
+        else RGBBackColor(&c);
+    } else {
+        static const SInt32 kOld[8] = { blackColor, blueColor, greenColor, cyanColor,
+                                        redColor, magentaColor, yellowColor, whiteColor };
+        SInt32 old = kOld[(c.red >= 0x8000 ? 4 : 0) | (c.green >= 0x8000 ? 2 : 0) |
+                          (c.blue >= 0x8000 ? 1 : 0)];
+        if (fore) ForeColor(old);
+        else BackColor(old);
+    }
+    UInt32 px = PixelFromRGB(c.red, c.green, c.blue);
+    if (fore) p->fgPixel = px;
+    else p->bgPixel = px;
+}
+
+/* One opcode. False when the picture ends. */
+static Boolean DoOpcode(Play* p, UInt16 op) {
+    GrafPtr port = g_currentPort;
+    if (op >= 0x30 && op <= 0x8F) {
+        int verb = op & 7;
+        Boolean same = (op & 8) != 0;
+        int kind = (op - 0x30) >> 4;            /* rect, rrect, oval, arc, poly, rgn */
+        if (verb > 4) {                         /* reserved: data as the kind's */
+            if (!same) {
+                if (kind <= 2) Skip(p, 8);
+                else if (kind == 3) Skip(p, 12);
+                else Skip(p, U16(p) - 2);
+            } else if (kind == 3) {
+                Skip(p, 4);
+            }
+            return true;
+        }
+        switch (kind) {
+            case 0:
+                if (!same) p->lastRect = MapRectP(p, ReadRect(p));
+                RectVerb(verb, &p->lastRect);
+                break;
+            case 1:
+                if (!same) p->lastRRect = MapRectP(p, ReadRect(p));
+                RRectVerb(verb, &p->lastRRect,
+                          (SInt16)((p->ovSize.h * p->dw) / p->fw), (SInt16)((p->ovSize.v * p->dh) / p->fh));
+                break;
+            case 2:
+                if (!same) p->lastOval = MapRectP(p, ReadRect(p));
+                OvalVerb(verb, &p->lastOval);
+                break;
+            case 3:
+                if (!same) p->lastArc = MapRectP(p, ReadRect(p));
+                p->arcStart = S16(p);
+                p->arcAngle = S16(p);
+                ArcVerb(verb, &p->lastArc, p->arcStart, p->arcAngle);
+                break;
+            case 4:
+                if (!same) {
+                    if (p->lastPoly) KillPoly(p->lastPoly);
+                    p->lastPoly = ReadPolygon(p);
+                }
+                PolyVerb(verb, p->lastPoly);
+                break;
+            case 5:
+                if (!same) {
+                    if (p->lastRgn) DisposeRgn(p->lastRgn);
+                    p->lastRgn = ReadRegion(p);
+                }
+                RgnVerb(verb, p->lastRgn);
+                break;
+        }
+        return true;
+    }
+
+    switch (op) {
+        case 0x00: break;                                       /* NOP */
+        case 0x01: {                                            /* Clip */
+            RgnHandle rgn = ReadRegion(p);
+            SetPictureClip(p, rgn);
+            if (rgn) DisposeRgn(rgn);
+            break;
+        }
+        case 0x02: { Pattern pat; ReadPat(p, &pat); BackPat(&pat); break; }
+        case 0x03: TextFont(S16(p)); break;
+        case 0x04: TextFace((Style)U8(p)); break;
+        case 0x05: TextMode(S16(p)); break;
+        case 0x06: if (port) port->spExtra = (Fixed)U32(p); else U32(p); break;
+        case 0x07: { Point s = ReadPoint(p); PenSize(s.h, s.v); break; }
+        case 0x08: PenMode(S16(p)); break;
+        case 0x09: { Pattern pat; ReadPat(p, &pat); PenPat(&pat); break; }
+        case 0x0A: { Pattern pat; ReadPat(p, &pat); if (port) port->fillPat = pat; break; }
+        case 0x0B: p->ovSize = ReadPoint(p); break;
+        case 0x0C: {                                            /* Origin: dh, dv */
+            SInt16 dh = S16(p), dv = S16(p);
+            p->origin.h = (SInt16)(p->origin.h + dh);
+            p->origin.v = (SInt16)(p->origin.v + dv);
+            break;
+        }
+        case 0x0D: TextSize(S16(p)); break;
+        case 0x0E: { SInt32 c = (SInt32)U32(p); ForeColor(c); p->fgPixel = QDPlatform_MapQDColor(c); break; }
+        case 0x0F: { SInt32 c = (SInt32)U32(p); BackColor(c); p->bgPixel = QDPlatform_MapQDColor(c); break; }
+        case 0x10: Skip(p, 8); break;                           /* TxRatio */
+        case 0x11: Skip(p, p->v2 ? 2 : 1); break;               /* Version */
+        case 0x12: { Pattern pat; DoPixPat(p, &pat); BackPat(&pat); break; }
+        case 0x13: { Pattern pat; DoPixPat(p, &pat); PenPat(&pat); break; }
+        case 0x14: { Pattern pat; DoPixPat(p, &pat); if (port) port->fillPat = pat; break; }
+        case 0x15: case 0x16: Skip(p, 2); break;                /* PnLocHFrac, ChExtra */
+        case 0x17: case 0x18: case 0x19: break;
+        case 0x1A: RGBOp(p, true); break;
+        case 0x1B: RGBOp(p, false); break;
+        case 0x1C: case 0x1E: break;                            /* HiliteMode, DefHilite */
+        case 0x1D: case 0x1F: Skip(p, 6); break;                /* HiliteColor, OpColor */
+        case 0x20: {                                            /* Line */
+            Point from = ReadPoint(p), to = ReadPoint(p);
+            Point a = MapPointP(p, from), b = MapPointP(p, to);
+            MoveTo(a.h, a.v);
+            LineTo(b.h, b.v);
+            p->pen = to;
+            break;
+        }
+        case 0x21: {                                            /* LineFrom */
+            Point to = ReadPoint(p);
+            Point a = MapPointP(p, p->pen), b = MapPointP(p, to);
+            MoveTo(a.h, a.v);
+            LineTo(b.h, b.v);
+            p->pen = to;
+            break;
+        }
+        case 0x22: {                                            /* ShortLine */
+            Point from = ReadPoint(p);
+            SInt8 dh = S8(p), dv = S8(p);
+            Point to = { (SInt16)(from.v + dv), (SInt16)(from.h + dh) };
+            Point a = MapPointP(p, from), b = MapPointP(p, to);
+            MoveTo(a.h, a.v);
+            LineTo(b.h, b.v);
+            p->pen = to;
+            break;
+        }
+        case 0x23: {                                            /* ShortLineFrom */
+            SInt8 dh = S8(p), dv = S8(p);
+            Point to = { (SInt16)(p->pen.v + dv), (SInt16)(p->pen.h + dh) };
+            Point a = MapPointP(p, p->pen), b = MapPointP(p, to);
+            MoveTo(a.h, a.v);
+            LineTo(b.h, b.v);
+            p->pen = to;
+            break;
+        }
+        case 0x28: p->pen = ReadPoint(p); DoText(p); break;     /* LongText */
+        case 0x29: p->pen.h = (SInt16)(p->pen.h + U8(p)); DoText(p); break;    /* DHText */
+        case 0x2A: p->pen.v = (SInt16)(p->pen.v + U8(p)); DoText(p); break;    /* DVText */
+        case 0x2B: {                                            /* DHDVText */
+            p->pen.h = (SInt16)(p->pen.h + U8(p));
+            p->pen.v = (SInt16)(p->pen.v + U8(p));
+            DoText(p);
+            break;
+        }
+        case 0x90: DoBits(p, false, false, false); break;      /* BitsRect */
+        case 0x91: DoBits(p, false, true, false); break;       /* BitsRgn */
+        case 0x98: DoBits(p, true, false, false); break;       /* PackBitsRect */
+        case 0x99: DoBits(p, true, true, false); break;        /* PackBitsRgn */
+        case 0x9A: DoBits(p, true, false, true); break;        /* DirectBitsRect */
+        case 0x9B: DoBits(p, true, true, true); break;         /* DirectBitsRgn */
+        case 0xA0: Skip(p, 2); break;                           /* ShortComment */
+        case 0xA1: Skip(p, 2); Skip(p, U16(p)); break;          /* LongComment */
+        case 0xFF: return false;                                /* OpEndPic */
+        case 0x0C00: Skip(p, 24); break;                        /* HeaderOp */
+        default:
+            /* Reserved opcodes: the sizes appendix A gives them */
+            if ((op >= 0x24 && op <= 0x27) || (op >= 0x2C && op <= 0x2F) ||
+                (op >= 0x92 && op <= 0x97) || (op >= 0x9C && op <= 0x9F) ||
+                (op >= 0xA2 && op <= 0xAF)) {
+                Skip(p, U16(p));
+            } else if (op >= 0xB0 && op <= 0xCF) {
+                /* no data */
+            } else if (op >= 0xD0 && op <= 0xFE) {
+                Skip(p, (SInt32)U32(p));
+            } else if (op >= 0x0100 && op <= 0x7FFF) {
+                Skip(p, (op >> 8) * 2);
+            } else if (op >= 0x8000 && op <= 0x80FF) {
+                /* no data */
+            } else if (op >= 0x8100) {
+                Skip(p, (SInt32)U32(p));
+            } else {
+                p->bad = true;
+            }
+            break;
+    }
     return true;
 }
 
 /*
- * DrawPicture - draw picture resource
+ * DrawPicture - the picture into the current port, picFrame onto dstRect
  */
 void DrawPicture(PicHandle myPicture, const Rect* dstRect) {
-    if (!thePort || !myPicture || !dstRect || !*myPicture) {
-        return;
+    GrafPtr port = g_currentPort;
+    if (!port || !myPicture || !dstRect || !*myPicture) return;
+    Size size = GetHandleSize((Handle)myPicture);
+    if (size < 11) return;
+
+    Play p;
+    memset(&p, 0, sizeof(p));
+    p.base = (const UInt8*)*myPicture;
+    p.ptr = p.base;
+    /* picSize is the low word only for a picture over 32K; the handle says */
+    p.end = p.base + size;
+    U16(&p);
+    p.picFrame = ReadRect(&p);
+    p.dst = *dstRect;
+    p.fw = p.picFrame.right - p.picFrame.left;
+    p.fh = p.picFrame.bottom - p.picFrame.top;
+    p.dw = p.dst.right - p.dst.left;
+    p.dh = p.dst.bottom - p.dst.top;
+    if (p.fw <= 0 || p.fh <= 0 || p.dw <= 0 || p.dh <= 0) return;
+    if (p.end - p.ptr >= 4 && p.ptr[0] == 0x00 && p.ptr[1] == 0x11 &&
+        p.ptr[2] == 0x02 && p.ptr[3] == 0xFF) {
+        p.v2 = true;
+        p.ptr += 4;
+    } else if (p.end - p.ptr >= 2 && p.ptr[0] == 0x11 && p.ptr[1] == 0x01) {
+        p.ptr += 2;
     }
 
-    /* Validate picture handle size before reading header */
-    Size handleSize = GetHandleSize((Handle)myPicture);
-    if (handleSize < 10) {
-        return;  /* Picture too small to contain valid header */
-    }
+    /* The caller's drawing state, put back afterwards */
+    PenState pen;
+    GetPenState(&pen);
+    SInt16 txFont = port->txFont, txSize = port->txSize, txMode = port->txMode;
+    Style txFace = port->txFace;
+    Fixed spExtra = port->spExtra;
+    SInt32 fg = port->fgColor, bk = port->bkColor;
+    Pattern bkPat = port->bkPat, fillPat = port->fillPat;
+    p.savedClip = NewRgn();
+    if (p.savedClip && port->clipRgn) CopyRgn(port->clipRgn, p.savedClip);
 
-    const UInt8* raw = (const UInt8*)(*myPicture);
-    SInt16 picSize = (SInt16)((raw[0] << 8) | raw[1]);
-
-    /* Validate picSize against actual handle size */
-    if (picSize < 10 || picSize > handleSize) {
-        return;  /* Invalid picture size */
-    }
-    Rect picFrame;
-    picFrame.top = (raw[2] << 8) | raw[3];
-    picFrame.left = (raw[4] << 8) | raw[5];
-    picFrame.bottom = (raw[6] << 8) | raw[7];
-    picFrame.right = (raw[8] << 8) | raw[9];
-
-    PictStream stream;
-    stream.ptr = raw + 10;
-    stream.end = raw + picSize;
-
-    SInt16 picWidth = (SInt16)(picFrame.right - picFrame.left);
-    SInt16 picHeight = (SInt16)(picFrame.bottom - picFrame.top);
-    if (picWidth <= 0 || picHeight <= 0) {
-        return;
-    }
-
-    SInt16 dstWidth = (SInt16)(dstRect->right - dstRect->left);
-    SInt16 dstHeight = (SInt16)(dstRect->bottom - dstRect->top);
-    if (dstWidth <= 0 || dstHeight <= 0) {
-        return;
-    }
-
-    SInt32 scaleX = ((SInt32)dstWidth << 16) / picWidth;
-    SInt32 scaleY = ((SInt32)dstHeight << 16) / picHeight;
-
-    Boolean done = false;
-    while (!done && stream.ptr < stream.end) {
-        UInt8 opcode;
-        if (!pict_read_u8(&stream, &opcode)) {
-            break;
+    /* A picture states what differs from a new port's drawing state, so
+     * it is played from that state, not from whatever the caller had */
+    PenNormal();
+    TextFont(0);
+    TextFace(0);
+    TextSize(0);
+    TextMode(srcOr);
+    port->spExtra = 0;
+    ForeColor(blackColor);
+    BackColor(whiteColor);
+    memset(&port->fillPat, 0xFF, sizeof(port->fillPat));
+    memset(&port->bkPat, 0x00, sizeof(port->bkPat));
+    p.fgPixel = QDPlatform_MapQDColor(blackColor);
+    p.bgPixel = QDPlatform_MapQDColor(whiteColor);
+    while (!p.bad && p.ptr < p.end) {
+        UInt16 op;
+        if (p.v2) {
+            if ((p.ptr - p.base) & 1) p.ptr++;
+            op = U16(&p);
+        } else {
+            op = U8(&p);
         }
+        if (p.bad || !DoOpcode(&p, op)) break;
+    }
 
-        switch (opcode) {
-            case 0x00: /* NOP */
-                break;
-
-            case 0x01: { /* Clip */
-                UInt16 regionSize;
-                if (!pict_read_u16(&stream, &regionSize)) {
-                    done = true;
-                    break;
-                }
-                if (!pict_skip_bytes(&stream, regionSize - 2)) {
-                    done = true;
-                }
-                pict_apply_clip(dstRect);
-                break;
-            }
-
-            case 0x07: { /* Pen size */
-                Point pnSize;
-                if (!pict_read_s16(&stream, &pnSize.v) ||
-                    !pict_read_s16(&stream, &pnSize.h)) {
-                    done = true;
-                    break;
-                }
-                PenSize(pnSize.h, pnSize.v);
-                break;
-            }
-
-            case 0x08: { /* Pen mode */
-                SInt16 mode;
-                if (!pict_read_s16(&stream, &mode)) {
-                    done = true;
-                    break;
-                }
-                PenMode(mode);
-                break;
-            }
-
-            case 0x09: { /* Pen pattern */
-                if (!pict_skip_bytes(&stream, 8)) {
-                    done = true;
-                    break;
-                }
-                Pattern pat;
-                memcpy(pat.pat, stream.ptr - 8, sizeof(pat.pat));
-                PenPat(&pat);
-                break;
-            }
-
-            case 0x0A: { /* Fill pattern */
-                if (!pict_skip_bytes(&stream, 8)) {
-                    done = true;
-                    break;
-                }
-                memcpy(thePort->fillPat.pat, stream.ptr - 8, sizeof(thePort->fillPat.pat));
-                break;
-            }
-
-            case 0x03: { /* Text font */
-                SInt16 fontID;
-                if (!pict_read_s16(&stream, &fontID)) {
-                    done = true;
-                    break;
-                }
-                TextFont(fontID);
-                break;
-            }
-
-            case 0x04: { /* Text face */
-                UInt8 face;
-                if (!pict_read_u8(&stream, &face)) {
-                    done = true;
-                    break;
-                }
-                TextFace(face);
-                break;
-            }
-
-            case 0x0C: { /* Origin */
-                SInt16 dh, dv;
-                if (!pict_read_s16(&stream, &dh) || !pict_read_s16(&stream, &dv)) {
-                    done = true;
-                    break;
-                }
-                /* The opcode carries a change of origin, not an origin */
-                {
-                    extern GrafPtr g_currentPort;
-                    if (g_currentPort) {
-                        SetOrigin(g_currentPort->portRect.left + dh,
-                                  g_currentPort->portRect.top + dv);
-                    }
-                }
-                break;
-            }
-
-            case 0x0D: { /* Text size */
-                SInt16 size;
-                if (!pict_read_s16(&stream, &size)) {
-                    done = true;
-                    break;
-                }
-                TextSize(size);
-                break;
-            }
-
-            case 0x0E: /* ForeColor */
-            case 0x0F: /* BackColor */
-                if (!pict_skip_bytes(&stream, 4)) {
-                    done = true;
-                }
-                break;
-
-            case 0x10: /* Text ratio */
-                if (!pict_skip_bytes(&stream, 8)) {
-                    done = true;
-                }
-                break;
-
-            case 0x11: /* Version */
-                if (!pict_skip_bytes(&stream, 2)) {
-                    done = true;
-                }
-                break;
-
-            case 0x20: { /* Line */
-                Point pt;
-                if (!pict_read_s16(&stream, &pt.v) || !pict_read_s16(&stream, &pt.h)) {
-                    done = true;
-                    break;
-                }
-                pict_scale_point(&pt, &picFrame, dstRect, scaleX, scaleY);
-                LineTo(pt.h, pt.v);
-                break;
-            }
-
-            case 0x21: { /* LineFrom */
-                Point pt;
-                if (!pict_read_s16(&stream, &pt.v) || !pict_read_s16(&stream, &pt.h)) {
-                    done = true;
-                    break;
-                }
-                pict_scale_point(&pt, &picFrame, dstRect, scaleX, scaleY);
-                MoveTo(pt.h, pt.v);
-                break;
-            }
-
-            case 0x28: { /* DrawString */
-                UInt8 len;
-                if (!pict_read_u8(&stream, &len)) {
-                    done = true;
-                    break;
-                }
-                if (stream.ptr + len > stream.end) {
-                    done = true;
-                    break;
-                }
-                DrawText((const char*)stream.ptr, 0, len);
-                stream.ptr += len;
-                /* Pad to even byte boundary */
-                if (len % 2 == 0) {
-                    stream.ptr++;
-                }
-                break;
-            }
-
-            case 0x2C: /* FrameOval */
-            case 0x2D: /* PaintOval */
-            case 0x2E: /* EraseOval */
-            case 0x2F: { /* InvertOval */
-                Rect r;
-                if (!pict_read_rect(&stream, &r)) {
-                    done = true;
-                    break;
-                }
-                Rect scaled = pict_scale_rect(&r, &picFrame, dstRect, scaleX, scaleY);
-                if (opcode == 0x2C) FrameOval(&scaled);
-                else if (opcode == 0x2D) PaintOval(&scaled);
-                else if (opcode == 0x2E) EraseOval(&scaled);
-                else if (opcode == 0x2F) InvertOval(&scaled);
-                break;
-            }
-
-            case 0x30: /* FrameRect */
-            case 0x31: /* PaintRect */
-            case 0x32: /* EraseRect */
-            case 0x33: /* InvertRect */
-            case 0x34: { /* FillRect */
-                Rect r;
-                if (!pict_read_rect(&stream, &r)) {
-                    done = true;
-                    break;
-                }
-                Rect scaled = pict_scale_rect(&r, &picFrame, dstRect, scaleX, scaleY);
-                if (opcode == 0x30) FrameRect(&scaled);
-                else if (opcode == 0x31) PaintRect(&scaled);
-                else if (opcode == 0x32) EraseRect(&scaled);
-                else if (opcode == 0x33) InvertRect(&scaled);
-                else FillRect(&scaled, &thePort->fillPat);
-                break;
-            }
-
-            case 0x40: /* FrameRoundRect */
-            case 0x41: /* PaintRoundRect */
-            case 0x42: /* EraseRoundRect */
-            case 0x43: { /* InvertRoundRect */
-                Rect r;
-                if (!pict_read_rect(&stream, &r)) {
-                    done = true;
-                    break;
-                }
-                Rect scaled = pict_scale_rect(&r, &picFrame, dstRect, scaleX, scaleY);
-                /* Use fixed corner radius of 16 pixels */
-                if (opcode == 0x40) FrameRoundRect(&scaled, 16, 16);
-                else if (opcode == 0x41) PaintRoundRect(&scaled, 16, 16);
-                else if (opcode == 0x42) EraseRoundRect(&scaled, 16, 16);
-                else if (opcode == 0x43) InvertRoundRect(&scaled, 16, 16);
-                break;
-            }
-
-            case 0x50: /* FrameArc */
-            case 0x51: /* PaintArc */
-            case 0x52: /* EraseArc */
-            case 0x53: { /* InvertArc */
-                Rect r;
-                SInt16 startAngle, arcAngle;
-                if (!pict_read_rect(&stream, &r) ||
-                    !pict_read_s16(&stream, &startAngle) ||
-                    !pict_read_s16(&stream, &arcAngle)) {
-                    done = true;
-                    break;
-                }
-                Rect scaled = pict_scale_rect(&r, &picFrame, dstRect, scaleX, scaleY);
-                if (opcode == 0x50) FrameArc(&scaled, startAngle, arcAngle);
-                else if (opcode == 0x51) PaintArc(&scaled, startAngle, arcAngle);
-                else if (opcode == 0x52) EraseArc(&scaled, startAngle, arcAngle);
-                else if (opcode == 0x53) InvertArc(&scaled, startAngle, arcAngle);
-                break;
-            }
-
-            case 0x70: /* FramePoly */
-            case 0x71: { /* PaintPoly */
-                UInt16 polySize;
-                if (!pict_read_u16(&stream, &polySize)) {
-                    done = true;
-                    break;
-                }
-                /* Skip polygon data for now - just advance stream */
-                if (!pict_skip_bytes(&stream, polySize - 2)) {
-                    done = true;
-                }
-                break;
-            }
-
-            case 0x90: { /* BitsRect (uncompressed) */
-                if (!pict_handle_bits_rect(&stream, &picFrame, dstRect, scaleX, scaleY, false)) {
-                    done = true;
-                }
-                break;
-            }
-
-            case 0x98: { /* PackBitsRect */
-                if (!pict_handle_bits_rect(&stream, &picFrame, dstRect, scaleX, scaleY, true)) {
-                    done = true;
-                }
-                break;
-            }
-
-            case 0xA0: /* ShortComment */
-                if (!pict_skip_bytes(&stream, 2)) {
-                    done = true;
-                }
-                break;
-
-            case 0xA1: { /* LongComment */
-                SInt16 kind;
-                UInt16 length;
-                if (!pict_read_s16(&stream, &kind) ||
-                    !pict_read_u16(&stream, &length) ||
-                    !pict_skip_bytes(&stream, length)) {
-                    done = true;
-                }
-                break;
-            }
-
-            case 0xFF: /* EndPic */
-                done = true;
-                break;
-
-            default:
-                /* Unknown opcode – bail out to keep parser safe */
-                done = true;
-                break;
-        }
+    if (p.lastPoly) KillPoly(p.lastPoly);
+    if (p.lastRgn) DisposeRgn(p.lastRgn);
+    SetPenState(&pen);
+    TextFont(txFont);
+    TextSize(txSize);
+    TextMode(txMode);
+    TextFace(txFace);
+    port->spExtra = spExtra;
+    ForeColor(fg);
+    BackColor(bk);
+    port->bkPat = bkPat;
+    port->fillPat = fillPat;
+    if (p.savedClip) {
+        if (port->clipRgn) CopyRgn(p.savedClip, port->clipRgn);
+        DisposeRgn(p.savedClip);
     }
 }
 
 /* A picture from the resource file: 'PICT' theID (Inside Macintosh:
- * Imaging With QuickDraw, 7-30). Declared nowhere and never written. */
+ * Imaging With QuickDraw, 7-30) */
 PicHandle GetPicture(SInt16 picID) {
     extern Handle GetResource(ResType theType, SInt16 theID);
     return (PicHandle)GetResource('PICT', picID);

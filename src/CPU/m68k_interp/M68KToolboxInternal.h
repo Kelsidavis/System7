@@ -131,6 +131,22 @@ void M68KQD_Finish(void);
 extern const M68KTrapEntry kM68KPortTraps[];
 extern const int kM68KPortTrapCount;
 
+/* ---- M68KPictures.c: what is drawn while a picture is open ---- */
+Boolean Pict_Recording(GrafPtr port);
+void Pict_Rect(int verb, const Rect* r);
+void Pict_Oval(int verb, const Rect* r);
+void Pict_RRect(int verb, const Rect* r, SInt16 ow, SInt16 oh);
+void Pict_Arc(int verb, const Rect* r, SInt16 start, SInt16 arc);
+void Pict_Poly(int verb, UInt32 poly);
+void Pict_Rgn(int verb, RgnHandle rgn);
+void Pict_Line(Point from, Point to);
+void Pict_Text(Point at, const char* text, SInt16 n);
+void Pict_Bits(const UInt8* bits, SInt16 rowBytes, const Rect* srcRect, const Rect* dstRect,
+               SInt16 mode);
+void M68KPict_Finish(void);
+extern const M68KTrapEntry kM68KPictureTraps[];
+extern const int kM68KPictureTrapCount;
+
 extern const M68KTrapEntry kM68KQuickDrawTraps[];
 extern const int kM68KQuickDrawTrapCount;
 extern const M68KTrapEntry kM68KWindowTraps[];

@@ -34,6 +34,94 @@ static void End(void) {
     Obj_SyncPortOut(gQDPort);
 }
 
+/* ------------------------------------------------------------------------
+ * Drawing, or recording it when a picture is open on the port
+ * ------------------------------------------------------------------------ */
+
+enum { kVerbFrame, kVerbPaint, kVerbErase, kVerbInvert, kVerbFill };
+
+static Boolean Recording(void) { return Pict_Recording(gQDPort); }
+
+static void DoRect(int verb, const Rect* r, const Pattern* pat) {
+    if (pat) gQDPort->fillPat = *pat;
+    if (Recording()) { Pict_Rect(verb, r); return; }
+    switch (verb) {
+        case kVerbFrame: FrameRect(r); break;
+        case kVerbPaint: PaintRect(r); break;
+        case kVerbErase: EraseRect(r); break;
+        case kVerbInvert: InvertRect(r); break;
+        default: FillRect(r, &gQDPort->fillPat); break;
+    }
+}
+
+static void DoOval(int verb, const Rect* r, const Pattern* pat) {
+    if (pat) gQDPort->fillPat = *pat;
+    if (Recording()) { Pict_Oval(verb, r); return; }
+    switch (verb) {
+        case kVerbFrame: FrameOval(r); break;
+        case kVerbPaint: PaintOval(r); break;
+        case kVerbErase: EraseOval(r); break;
+        case kVerbInvert: InvertOval(r); break;
+        default: FillOval(r, &gQDPort->fillPat); break;
+    }
+}
+
+static void DoRRect(int verb, const Rect* r, SInt16 ow, SInt16 oh, const Pattern* pat) {
+    if (pat) gQDPort->fillPat = *pat;
+    if (Recording()) { Pict_RRect(verb, r, ow, oh); return; }
+    switch (verb) {
+        case kVerbFrame: FrameRoundRect(r, ow, oh); break;
+        case kVerbPaint: PaintRoundRect(r, ow, oh); break;
+        case kVerbErase: EraseRoundRect(r, ow, oh); break;
+        case kVerbInvert: InvertRoundRect(r, ow, oh); break;
+        default: FillRoundRect(r, ow, oh, &gQDPort->fillPat); break;
+    }
+}
+
+static void DoArc(int verb, const Rect* r, SInt16 start, SInt16 arc, const Pattern* pat) {
+    if (pat) gQDPort->fillPat = *pat;
+    if (Recording()) { Pict_Arc(verb, r, start, arc); return; }
+    switch (verb) {
+        case kVerbFrame: FrameArc(r, start, arc); break;
+        case kVerbPaint: PaintArc(r, start, arc); break;
+        case kVerbErase: EraseArc(r, start, arc); break;
+        case kVerbInvert: InvertArc(r, start, arc); break;
+        default: FillArc(r, start, arc, &gQDPort->fillPat); break;
+    }
+}
+
+static void DoRgn(int verb, RgnHandle rgn, const Pattern* pat) {
+    if (!rgn) return;
+    if (pat) gQDPort->fillPat = *pat;
+    if (Recording()) { Pict_Rgn(verb, rgn); return; }
+    switch (verb) {
+        case kVerbFrame: FrameRgn(rgn); break;
+        case kVerbPaint: PaintRgn(rgn); break;
+        case kVerbErase: EraseRgn(rgn); break;
+        case kVerbInvert: InvertRgn(rgn); break;
+        default: FillRgn(rgn, &gQDPort->fillPat); break;
+    }
+}
+
+static void DoLineTo(SInt16 h, SInt16 v) {
+    if (Recording()) {
+        Point to = { v, h };
+        Pict_Line(gQDPort->pnLoc, to);
+        MoveTo(h, v);
+        return;
+    }
+    LineTo(h, v);
+}
+
+static void DoText(const char* text, SInt16 n) {
+    if (Recording()) {
+        Pict_Text(gQDPort->pnLoc, text, n);
+        Move(TextWidth(text, 0, n), 0);
+        return;
+    }
+    DrawText(text, 0, n);
+}
+
 /* A rectangle argument, by address */
 static Rect PopRect(void) {
     Rect r;
@@ -130,8 +218,15 @@ TRAP(Trap_GetClip) {
 
 TRAP(Trap_MoveTo) { UNUSED; SInt16 v = (SInt16)Pop16(), h = (SInt16)Pop16(); Begin(); MoveTo(h, v); End(); return noErr; }
 TRAP(Trap_Move)   { UNUSED; SInt16 v = (SInt16)Pop16(), h = (SInt16)Pop16(); Begin(); Move(h, v); End(); return noErr; }
-TRAP(Trap_LineTo) { UNUSED; SInt16 v = (SInt16)Pop16(), h = (SInt16)Pop16(); Begin(); LineTo(h, v); End(); return noErr; }
-TRAP(Trap_Line)   { UNUSED; SInt16 v = (SInt16)Pop16(), h = (SInt16)Pop16(); Begin(); Line(h, v); End(); return noErr; }
+TRAP(Trap_LineTo) { UNUSED; SInt16 v = (SInt16)Pop16(), h = (SInt16)Pop16(); Begin(); DoLineTo(h, v); End(); return noErr; }
+TRAP(Trap_Line) {
+    UNUSED;
+    SInt16 v = (SInt16)Pop16(), h = (SInt16)Pop16();
+    Begin();
+    DoLineTo((SInt16)(gQDPort->pnLoc.h + h), (SInt16)(gQDPort->pnLoc.v + v));
+    End();
+    return noErr;
+}
 TRAP(Trap_PenSize){ UNUSED; SInt16 v = (SInt16)Pop16(), h = (SInt16)Pop16(); Begin(); PenSize(h, v); End(); return noErr; }
 TRAP(Trap_PenMode){ UNUSED; SInt16 m = (SInt16)Pop16(); Begin(); PenMode(m); End(); return noErr; }
 TRAP(Trap_PenPat) { UNUSED; Pattern p = PopPattern(); Begin(); PenPat(&p); End(); return noErr; }
@@ -200,9 +295,9 @@ TRAP(Trap_SpaceExtra) {
 
 TRAP(Trap_DrawChar) {
     UNUSED;
-    UInt8 ch = (UInt8)Pop16();
+    char ch = (char)Pop16();
     Begin();
-    DrawChar(ch);
+    DoText(&ch, 1);
     End();
     return noErr;
 }
@@ -212,7 +307,7 @@ TRAP(Trap_DrawString) {
     Str255 s;
     ReadPString(Pop32(), s);
     Begin();
-    DrawString(s);
+    DoText((const char*)s + 1, s[0]);
     End();
     return noErr;
 }
@@ -226,7 +321,7 @@ TRAP(Trap_DrawText) {
     if (count > (SInt16)sizeof(text)) count = sizeof(text);
     ReadBytes(buf + (UInt32)first, text, (UInt32)count);
     Begin();
-    DrawText(text, 0, count);
+    DoText(text, count);
     End();
     return noErr;
 }
@@ -286,7 +381,7 @@ TRAP(Trap_TextBox) {
     if (length > (SInt32)sizeof(buf)) length = sizeof(buf);
     ReadBytes(text, buf, (UInt32)length);
     Begin();
-    EraseRect(&box);
+    DoRect(kVerbErase, &box, NULL);
     SInt16 width = (SInt16)(box.right - box.left);
     SInt16 y = (SInt16)(box.top + CHICAGO_ASCENT);
     SInt32 at = 0;
@@ -303,7 +398,7 @@ TRAP(Trap_TextBox) {
         if (just == 1) x = (SInt16)(box.left + (width - w) / 2);
         else if (just == -1) x = (SInt16)(box.right - w);
         MoveTo(x, y);
-        DrawText(buf, (SInt16)at, (SInt16)(end - at));
+        DoText(buf + at, (SInt16)(end - at));
         at = end;
         if (at < length && (buf[at] == ' ' || buf[at] == '\r')) at++;
         y = (SInt16)(y + CHICAGO_HEIGHT + 1);
@@ -316,27 +411,27 @@ TRAP(Trap_TextBox) {
  * Shapes
  * ------------------------------------------------------------------------ */
 
-#define RECT_VERB(name, call) \
-    TRAP(name) { UNUSED; Rect r = PopRect(); Begin(); call(&r); End(); return noErr; }
-RECT_VERB(Trap_FrameRect, FrameRect)
-RECT_VERB(Trap_PaintRect, PaintRect)
-RECT_VERB(Trap_EraseRect, EraseRect)
-RECT_VERB(Trap_InvertRect, InvertRect)
-RECT_VERB(Trap_FrameOval, FrameOval)
-RECT_VERB(Trap_PaintOval, PaintOval)
-RECT_VERB(Trap_EraseOval, EraseOval)
-RECT_VERB(Trap_InvertOval, InvertOval)
+#define RECT_VERB(name, call, verb) \
+    TRAP(name) { UNUSED; Rect r = PopRect(); Begin(); call(verb, &r, NULL); End(); return noErr; }
+RECT_VERB(Trap_FrameRect, DoRect, kVerbFrame)
+RECT_VERB(Trap_PaintRect, DoRect, kVerbPaint)
+RECT_VERB(Trap_EraseRect, DoRect, kVerbErase)
+RECT_VERB(Trap_InvertRect, DoRect, kVerbInvert)
+RECT_VERB(Trap_FrameOval, DoOval, kVerbFrame)
+RECT_VERB(Trap_PaintOval, DoOval, kVerbPaint)
+RECT_VERB(Trap_EraseOval, DoOval, kVerbErase)
+RECT_VERB(Trap_InvertOval, DoOval, kVerbInvert)
 
-TRAP(Trap_FillRect) { UNUSED; Pattern p = PopPattern(); Rect r = PopRect(); Begin(); FillRect(&r, &p); End(); return noErr; }
-TRAP(Trap_FillOval) { UNUSED; Pattern p = PopPattern(); Rect r = PopRect(); Begin(); FillOval(&r, &p); End(); return noErr; }
+TRAP(Trap_FillRect) { UNUSED; Pattern p = PopPattern(); Rect r = PopRect(); Begin(); DoRect(kVerbFill, &r, &p); End(); return noErr; }
+TRAP(Trap_FillOval) { UNUSED; Pattern p = PopPattern(); Rect r = PopRect(); Begin(); DoOval(kVerbFill, &r, &p); End(); return noErr; }
 
-#define RRECT_VERB(name, call) \
+#define RRECT_VERB(name, verb) \
     TRAP(name) { UNUSED; SInt16 oh = (SInt16)Pop16(), ow = (SInt16)Pop16(); Rect r = PopRect(); \
-                 Begin(); call(&r, ow, oh); End(); return noErr; }
-RRECT_VERB(Trap_FrameRoundRect, FrameRoundRect)
-RRECT_VERB(Trap_PaintRoundRect, PaintRoundRect)
-RRECT_VERB(Trap_EraseRoundRect, EraseRoundRect)
-RRECT_VERB(Trap_InvertRoundRect, InvertRoundRect)
+                 Begin(); DoRRect(verb, &r, ow, oh, NULL); End(); return noErr; }
+RRECT_VERB(Trap_FrameRoundRect, kVerbFrame)
+RRECT_VERB(Trap_PaintRoundRect, kVerbPaint)
+RRECT_VERB(Trap_EraseRoundRect, kVerbErase)
+RRECT_VERB(Trap_InvertRoundRect, kVerbInvert)
 
 TRAP(Trap_FillRoundRect) {
     UNUSED;
@@ -344,18 +439,18 @@ TRAP(Trap_FillRoundRect) {
     SInt16 oh = (SInt16)Pop16(), ow = (SInt16)Pop16();
     Rect r = PopRect();
     Begin();
-    FillRoundRect(&r, ow, oh, &p);
+    DoRRect(kVerbFill, &r, ow, oh, &p);
     End();
     return noErr;
 }
 
-#define ARC_VERB(name, call) \
+#define ARC_VERB(name, verb) \
     TRAP(name) { UNUSED; SInt16 arc = (SInt16)Pop16(), start = (SInt16)Pop16(); Rect r = PopRect(); \
-                 Begin(); call(&r, start, arc); End(); return noErr; }
-ARC_VERB(Trap_FrameArc, FrameArc)
-ARC_VERB(Trap_PaintArc, PaintArc)
-ARC_VERB(Trap_EraseArc, EraseArc)
-ARC_VERB(Trap_InvertArc, InvertArc)
+                 Begin(); DoArc(verb, &r, start, arc, NULL); End(); return noErr; }
+ARC_VERB(Trap_FrameArc, kVerbFrame)
+ARC_VERB(Trap_PaintArc, kVerbPaint)
+ARC_VERB(Trap_EraseArc, kVerbErase)
+ARC_VERB(Trap_InvertArc, kVerbInvert)
 
 TRAP(Trap_FillArc) {
     UNUSED;
@@ -363,7 +458,7 @@ TRAP(Trap_FillArc) {
     SInt16 arc = (SInt16)Pop16(), start = (SInt16)Pop16();
     Rect r = PopRect();
     Begin();
-    FillArc(&r, start, arc, &p);
+    DoArc(kVerbFill, &r, start, arc, &p);
     End();
     return noErr;
 }
@@ -646,19 +741,19 @@ TRAP(Trap_EmptyRgn) {
     return noErr;
 }
 
-#define RGN_VERB(name, call) \
-    TRAP(name) { UNUSED; RgnHandle rgn = Obj_Rgn(Pop32()); Begin(); if (rgn) call(rgn); End(); return noErr; }
-RGN_VERB(Trap_FrameRgn, FrameRgn)
-RGN_VERB(Trap_PaintRgn, PaintRgn)
-RGN_VERB(Trap_EraseRgn, EraseRgn)
-RGN_VERB(Trap_InvertRgn, InvertRgn)
+#define RGN_VERB(name, verb) \
+    TRAP(name) { UNUSED; RgnHandle rgn = Obj_Rgn(Pop32()); Begin(); DoRgn(verb, rgn, NULL); End(); return noErr; }
+RGN_VERB(Trap_FrameRgn, kVerbFrame)
+RGN_VERB(Trap_PaintRgn, kVerbPaint)
+RGN_VERB(Trap_EraseRgn, kVerbErase)
+RGN_VERB(Trap_InvertRgn, kVerbInvert)
 
 TRAP(Trap_FillRgn) {
     UNUSED;
     Pattern p = PopPattern();
     RgnHandle rgn = Obj_Rgn(Pop32());
     Begin();
-    if (rgn) FillRgn(rgn, &p);
+    DoRgn(kVerbFill, rgn, &p);
     End();
     return noErr;
 }
@@ -811,25 +906,35 @@ TRAP(Trap_OffsetPoly) {
     return noErr;
 }
 
-#define POLY_VERB(name, call) \
-    TRAP(name) { UNUSED; PolyHandle np = NativePoly(Pop32()); Begin(); \
-                 if (np) call(np); \
-                 End(); \
-                 if (np) KillPoly(np); \
-                 return noErr; }
-POLY_VERB(Trap_FramePoly, FramePoly)
-POLY_VERB(Trap_PaintPoly, PaintPoly)
-POLY_VERB(Trap_ErasePoly, ErasePoly)
-POLY_VERB(Trap_InvertPoly, InvertPoly)
+static void DoPoly(int verb, UInt32 h, const Pattern* pat) {
+    if (pat) gQDPort->fillPat = *pat;
+    if (Recording()) { Pict_Poly(verb, h); return; }
+    PolyHandle np = NativePoly(h);
+    if (!np) return;
+    switch (verb) {
+        case kVerbFrame: FramePoly(np); break;
+        case kVerbPaint: PaintPoly(np); break;
+        case kVerbErase: ErasePoly(np); break;
+        case kVerbInvert: InvertPoly(np); break;
+        default: FillPoly(np, &gQDPort->fillPat); break;
+    }
+    KillPoly(np);
+}
+
+#define POLY_VERB(name, verb) \
+    TRAP(name) { UNUSED; UInt32 h = Pop32(); Begin(); DoPoly(verb, h, NULL); End(); return noErr; }
+POLY_VERB(Trap_FramePoly, kVerbFrame)
+POLY_VERB(Trap_PaintPoly, kVerbPaint)
+POLY_VERB(Trap_ErasePoly, kVerbErase)
+POLY_VERB(Trap_InvertPoly, kVerbInvert)
 
 TRAP(Trap_FillPoly) {
     UNUSED;
     Pattern pat = PopPattern();
-    PolyHandle np = NativePoly(Pop32());
+    UInt32 h = Pop32();
     Begin();
-    if (np) FillPoly(np, &pat);
+    DoPoly(kVerbFill, h, &pat);
     End();
-    if (np) KillPoly(np);
     return noErr;
 }
 
@@ -1025,8 +1130,6 @@ TRAP(Trap_SetFontLock) { UNUSED; SetFontLock(PopBool()); return noErr; }
  * of drawing, which a program may call itself or install in grafProcs
  * ------------------------------------------------------------------------ */
 
-enum { kVerbFrame, kVerbPaint, kVerbErase, kVerbInvert, kVerbFill };
-
 TRAP(Trap_StdText) {
     UNUSED;
     (void)Pop32();                                  /* denom */
@@ -1038,25 +1141,19 @@ TRAP(Trap_StdText) {
     if (count > (SInt16)sizeof(text)) count = sizeof(text);
     ReadBytes(buf, text, (UInt32)count);
     Begin();
-    DrawText(text, 0, count);
+    DoText(text, count);
     End();
     return noErr;
 }
 
-TRAP(Trap_StdLine) { UNUSED; Point p = PopPoint(); Begin(); LineTo(p.h, p.v); End(); return noErr; }
+TRAP(Trap_StdLine) { UNUSED; Point p = PopPoint(); Begin(); DoLineTo(p.h, p.v); End(); return noErr; }
 
 TRAP(Trap_StdRect) {
     UNUSED;
     Rect r = PopRect();
     UInt8 verb = PopByte();
     Begin();
-    switch (verb) {
-        case kVerbFrame: FrameRect(&r); break;
-        case kVerbPaint: PaintRect(&r); break;
-        case kVerbErase: EraseRect(&r); break;
-        case kVerbInvert: InvertRect(&r); break;
-        default: FillRect(&r, &gQDPort->fillPat); break;
-    }
+    DoRect(verb, &r, NULL);
     End();
     return noErr;
 }
@@ -1067,13 +1164,7 @@ TRAP(Trap_StdRRect) {
     Rect r = PopRect();
     UInt8 verb = PopByte();
     Begin();
-    switch (verb) {
-        case kVerbFrame: FrameRoundRect(&r, ow, oh); break;
-        case kVerbPaint: PaintRoundRect(&r, ow, oh); break;
-        case kVerbErase: EraseRoundRect(&r, ow, oh); break;
-        case kVerbInvert: InvertRoundRect(&r, ow, oh); break;
-        default: FillRoundRect(&r, ow, oh, &gQDPort->fillPat); break;
-    }
+    DoRRect(verb, &r, ow, oh, NULL);
     End();
     return noErr;
 }
@@ -1083,13 +1174,7 @@ TRAP(Trap_StdOval) {
     Rect r = PopRect();
     UInt8 verb = PopByte();
     Begin();
-    switch (verb) {
-        case kVerbFrame: FrameOval(&r); break;
-        case kVerbPaint: PaintOval(&r); break;
-        case kVerbErase: EraseOval(&r); break;
-        case kVerbInvert: InvertOval(&r); break;
-        default: FillOval(&r, &gQDPort->fillPat); break;
-    }
+    DoOval(verb, &r, NULL);
     End();
     return noErr;
 }
@@ -1100,33 +1185,18 @@ TRAP(Trap_StdArc) {
     Rect r = PopRect();
     UInt8 verb = PopByte();
     Begin();
-    switch (verb) {
-        case kVerbFrame: FrameArc(&r, start, arc); break;
-        case kVerbPaint: PaintArc(&r, start, arc); break;
-        case kVerbErase: EraseArc(&r, start, arc); break;
-        case kVerbInvert: InvertArc(&r, start, arc); break;
-        default: FillArc(&r, start, arc, &gQDPort->fillPat); break;
-    }
+    DoArc(verb, &r, start, arc, NULL);
     End();
     return noErr;
 }
 
 TRAP(Trap_StdPoly) {
     UNUSED;
-    PolyHandle np = NativePoly(Pop32());
+    UInt32 h = Pop32();
     UInt8 verb = PopByte();
     Begin();
-    if (np) {
-        switch (verb) {
-            case kVerbFrame: FramePoly(np); break;
-            case kVerbPaint: PaintPoly(np); break;
-            case kVerbErase: ErasePoly(np); break;
-            case kVerbInvert: InvertPoly(np); break;
-            default: FillPoly(np, &gQDPort->fillPat); break;
-        }
-    }
+    DoPoly(verb, h, NULL);
     End();
-    if (np) KillPoly(np);
     return noErr;
 }
 
@@ -1135,15 +1205,7 @@ TRAP(Trap_StdRgn) {
     RgnHandle rgn = Obj_Rgn(Pop32());
     UInt8 verb = PopByte();
     Begin();
-    if (rgn) {
-        switch (verb) {
-            case kVerbFrame: FrameRgn(rgn); break;
-            case kVerbPaint: PaintRgn(rgn); break;
-            case kVerbErase: EraseRgn(rgn); break;
-            case kVerbInvert: InvertRgn(rgn); break;
-            default: FillRgn(rgn, &gQDPort->fillPat); break;
-        }
-    }
+    DoRgn(verb, rgn, NULL);
     End();
     return noErr;
 }
