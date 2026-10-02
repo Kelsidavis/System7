@@ -16,6 +16,7 @@
 #include "WindowManager/WindowManager.h"
 #include "chicago_font.h"
 #include "FontManager/FontManager.h"
+#include "ResourceManager.h"
 #include "MemoryMgr/MemoryManager.h"
 #include "System71StdLib.h"
 
@@ -1281,6 +1282,182 @@ void M68KQD_Finish(void) {
     gOpenPoly = 0;
 }
 
+/* ------------------------------------------------------------------------
+ * _IconDispatch: System 7's Icon Utilities (IM: More Macintosh Toolbox 5)
+ *
+ * An icon from its family: 'ICN#' (32 by 32, image then mask) or, for a
+ * small space, 'ics#' (16 by 16), or failing both the old 'ICON'. The mask
+ * clears the icon's shape and the image is drawn into it, so an icon is its
+ * shape and not a white square; selected is the shape filled and the image
+ * cut out of it, disabled the image thinned to every other dot.
+ * ------------------------------------------------------------------------ */
+
+enum { kIconSuiteSize = 8 };            /* our suites: 'SUIT', the resource ID */
+
+typedef struct {
+    UInt8 bits[2][128];                 /* image, then mask: 32 rows of 4 bytes */
+    int size;                           /* 32 or 16 */
+    Boolean hasMask;
+} IconImage;
+
+static Boolean IconFromData(const UInt8* d, UInt32 n, Boolean small, IconImage* ic) {
+    memset(ic, 0, sizeof(*ic));
+    if (small) {
+        if (n < 32) return false;
+        ic->size = 16;
+        for (int r = 0; r < 16; r++) {
+            ic->bits[0][r * 4] = d[r * 2]; ic->bits[0][r * 4 + 1] = d[r * 2 + 1];
+            if (n >= 64) { ic->bits[1][r * 4] = d[32 + r * 2]; ic->bits[1][r * 4 + 1] = d[32 + r * 2 + 1]; }
+        }
+        ic->hasMask = n >= 64;
+        return true;
+    }
+    if (n < 128) return false;
+    ic->size = 32;
+    memcpy(ic->bits[0], d, 128);
+    if (n >= 256) memcpy(ic->bits[1], d + 128, 128);
+    ic->hasMask = n >= 256;
+    return true;
+}
+
+static Boolean IconFromResource(ResType type, SInt16 id, Boolean small, IconImage* ic) {
+    Handle h = GetResource(type, id);
+    return h && *h && IconFromData((const UInt8*)*h, (UInt32)GetHandleSize(h), small, ic);
+}
+
+/* The best of the family for a rectangle this size */
+static Boolean IconByID(SInt16 id, const Rect* r, IconImage* ic) {
+    Boolean small = r->bottom - r->top < 32 || r->right - r->left < 32;
+    if (small && IconFromResource('ics#', id, true, ic)) return true;
+    if (IconFromResource('ICN#', id, false, ic)) return true;
+    return IconFromResource('ICON', id, false, ic);
+}
+
+/* Where the icon goes: its own size placed by align, or stretched to the
+ * rectangle when there is no alignment */
+static Rect IconPlace(const Rect* r, SInt16 align, int size) {
+    if (align == 0) return *r;
+    Rect d;
+    SInt16 w = (SInt16)size, h = (SInt16)size;
+    switch (align & 0x0C) {
+        case 0x08: d.left = r->left; break;                                 /* left */
+        case 0x0C: d.left = (SInt16)(r->right - w); break;                  /* right */
+        default:   d.left = (SInt16)((r->left + r->right - w) / 2); break;  /* centred */
+    }
+    switch (align & 0x03) {
+        case 0x02: d.top = r->top; break;                                   /* top */
+        case 0x03: d.top = (SInt16)(r->bottom - h); break;                  /* bottom */
+        default:   d.top = (SInt16)((r->top + r->bottom - h) / 2); break;   /* centred */
+    }
+    d.right = (SInt16)(d.left + w);
+    d.bottom = (SInt16)(d.top + h);
+    return d;
+}
+
+static void DrawIcon(const IconImage* ic, const Rect* r, SInt16 align, SInt16 transform) {
+    UInt8 image[128], mask[128];
+    memcpy(image, ic->bits[0], 128);
+    if (ic->hasMask) memcpy(mask, ic->bits[1], 128);
+    else memset(mask, 0xFF, 128);                       /* no mask: the whole square */
+    if ((transform & 0xFF) == 1) {                      /* ttDisabled */
+        for (int row = 0; row < 32; row++)
+            for (int b = 0; b < 4; b++) image[row * 4 + b] &= (row & 1) ? 0x55 : 0xAA;
+    }
+    Rect dst = IconPlace(r, align, ic->size);
+    BitMap src = { (Ptr)image, 4, { 0, 0, (SInt16)ic->size, (SInt16)ic->size } };
+    BitMap msk = { (Ptr)mask, 4, { 0, 0, (SInt16)ic->size, (SInt16)ic->size } };
+    Begin();
+    Boolean selected = (transform & 0x4000) != 0;       /* ttSelected */
+    CopyBits(&msk, &gQDPort->portBits, &msk.bounds, &dst, selected ? srcOr : srcBic, NULL);
+    CopyBits(&src, &gQDPort->portBits, &src.bounds, &dst, selected ? srcBic : srcOr, NULL);
+    End();
+}
+
+enum {
+    kSelPlotIconID = 0x0500, kSelGetIconSuite = 0x0501, kSelDisposeIconSuite = 0x0302,
+    kSelPlotIconSuite = 0x0603, kSelPlotIconHandle = 0x061D, kSelPlotSICNHandle = 0x061E
+};
+
+/* _IconDispatch: D0 the selector - the routine in the low byte, the size of
+ * its arguments in words in the high byte. Each answers an OSErr. */
+TRAP(Trap_IconDispatch) {
+    UNUSED;
+    UInt16 selector = (UInt16)D(0);
+    IconImage ic;
+    OSErr err = noErr;
+    switch (selector) {
+    case kSelPlotIconID: {
+        SInt16 id = (SInt16)Pop16(), transform = (SInt16)Pop16(), align = (SInt16)Pop16();
+        Rect r = PopRect();
+        if (IconByID(id, &r, &ic)) DrawIcon(&ic, &r, align, transform);
+        else err = resNotFound;
+        break;
+    }
+    case kSelGetIconSuite: {
+        /* GetIconSuite(VAR theSuite; theResID: INTEGER; selector: IconSelectorValue) */
+        (void)Pop32();
+        SInt16 id = (SInt16)Pop16();
+        UInt32 var = Pop32();
+        Rect big = { 0, 0, 32, 32 };
+        UInt32 suite = 0;
+        if (IconByID(id, &big, &ic)) {
+            suite = M68KHeap_NewHandle(kIconSuiteSize, true);
+            if (suite) {
+                W32(M68KHeap_Deref(suite), 'SUIT');
+                W16(M68KHeap_Deref(suite) + 4, (UInt16)id);
+            }
+        }
+        W32(var, suite);
+        err = suite ? noErr : resNotFound;
+        break;
+    }
+    case kSelDisposeIconSuite: {
+        (void)PopBool();                                /* disposeData */
+        UInt32 suite = Pop32();
+        if (suite && M68KHeap_IsHandle(suite)) M68KHeap_DisposeHandle(suite);
+        break;
+    }
+    case kSelPlotIconSuite: {
+        UInt32 suite = Pop32();
+        SInt16 transform = (SInt16)Pop16(), align = (SInt16)Pop16();
+        Rect r = PopRect();
+        if (suite && M68KHeap_IsHandle(suite) && R32(M68KHeap_Deref(suite)) == 'SUIT' &&
+            IconByID((SInt16)R16(M68KHeap_Deref(suite) + 4), &r, &ic)) {
+            DrawIcon(&ic, &r, align, transform);
+        } else {
+            err = paramErr;
+        }
+        break;
+    }
+    case kSelPlotIconHandle: case kSelPlotSICNHandle: {
+        UInt32 h = Pop32();
+        SInt16 transform = (SInt16)Pop16(), align = (SInt16)Pop16();
+        Rect r = PopRect();
+        UInt32 n = h ? M68KHeap_GetHandleSize(h) : 0;
+        UInt8 data[256];
+        if (n > sizeof(data)) n = sizeof(data);
+        if (n) ReadBytes(M68KHeap_Deref(h), data, n);
+        /* An 'ICON' or 'ICN#' by its size; a SICN's first icon */
+        Boolean small = selector == kSelPlotSICNHandle;
+        if (small && n > 32) n = 32;
+        if (IconFromData(data, n, small, &ic)) DrawIcon(&ic, &r, align, transform);
+        else err = paramErr;
+        break;
+    }
+    default: {
+        static char why[48];
+        snprintf(why, sizeof(why), "Icon Utilities selector $%04X not implemented", selector);
+        gM68KApp->halted = true;
+        gM68KApp->lastException = M68K_VEC_LINE_A;
+        gM68KApp->faultReason = why;
+        gM68KApp->faultPC = gM68KApp->instrPC;
+        return noErr;
+    }
+    }
+    Result16((UInt16)err);
+    return noErr;
+}
+
 const M68KTrapEntry kM68KQuickDrawTraps[] = {
     { 0xA873, Trap_SetPort },       { 0xA874, Trap_GetPort },       { 0xA871, Trap_GlobalToLocal },
     { 0xA870, Trap_LocalToGlobal }, { 0xA878, Trap_SetOrigin },     { 0xA87B, Trap_ClipRect },
@@ -1318,7 +1495,7 @@ const M68KTrapEntry kM68KQuickDrawTraps[] = {
     { 0xA8D5, Trap_InvertRgn },     { 0xA8D6, Trap_FillRgn },
     { 0xA861, Trap_Random },        { 0xA865, Trap_GetPixel },      { 0xA851, Trap_SetCursor },
     { 0xA852, Trap_HideCursor },    { 0xA853, Trap_ShowCursor },    { 0xA856, Trap_ObscureCursor },
-    { 0xA8F6, Trap_DrawPicture },   { 0xA94B, Trap_PlotIcon },
+    { 0xA8F6, Trap_DrawPicture },   { 0xA94B, Trap_PlotIcon },      { 0xABC9, Trap_IconDispatch },
     { 0xA8CB, Trap_OpenPoly },      { 0xA8CC, Trap_ClosePoly },     { 0xA8CD, Trap_KillPoly },
     { 0xA8CE, Trap_OffsetPoly },    { 0xA8C6, Trap_FramePoly },     { 0xA8C7, Trap_PaintPoly },
     { 0xA8C8, Trap_ErasePoly },     { 0xA8C9, Trap_InvertPoly },    { 0xA8CA, Trap_FillPoly },

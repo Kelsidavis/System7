@@ -1466,6 +1466,16 @@ static void Test_M68K_Timers(void) {
     RecordTest(test_name, true, "");
 }
 
+extern Boolean M68KToolbox_RunIconTest(const char** why);
+
+/* An icon drawn through its mask, plain and selected, by _IconDispatch */
+static void Test_M68K_Icons(void) {
+    const char* test_name = "M68K_Icons";
+    const char* why = "";
+    CHECK(M68KToolbox_RunIconTest(&why), why);
+    RecordTest(test_name, true, "");
+}
+
 static void Test_M68K_Traps(void) {
     const char* test_name = "M68K_Traps";
     const char* why = "";
@@ -1532,6 +1542,7 @@ void IntegrationTests_Run(void) {
     Test_M68K_Lists();
     Test_M68K_WindowCalls();
     Test_M68K_Timers();
+    Test_M68K_Icons();
 
     PrintTestSummary();
 }

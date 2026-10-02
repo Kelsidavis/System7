@@ -16,6 +16,7 @@
 #include "CPU/M68KInterp.h"
 #include "M68KToolboxInternal.h"
 #include "ResourceManager.h"
+#include "System71StdLib.h"
 
 /* Called by IntegrationTests.c */
 Boolean M68KToolbox_RunTrapTest(const char** why);
@@ -23,6 +24,7 @@ Boolean M68KToolbox_RunSANETest(const char** why);
 Boolean M68KToolbox_RunListTest(const char** why);
 Boolean M68KToolbox_RunWindowTest(const char** why);
 Boolean M68KToolbox_RunTimerTest(const char** why);
+Boolean M68KToolbox_RunIconTest(const char** why);
 
 enum { kAsmWords = 512 };           /* the code area's size, in words */
 typedef struct {
@@ -569,6 +571,91 @@ Boolean M68KToolbox_RunTimerTest(const char** why)
     if (!removed) { *why = "VRemove did not take the task out, then answer qErr"; return false; }
     if (!fired)   { *why = "the Time Manager task did not run, with A1 the task"; return false; }
     if (!clock)   { *why = "Microseconds did not answer a running count"; return false; }
+    *why = "";
+    return true;
+}
+
+/* ------------------------------------------------------------------------
+ * _IconDispatch: an icon and its mask, into the program's own bits
+ * ------------------------------------------------------------------------ */
+
+enum {
+    kIPort = 0x00,                  /* GrafPort: 108 bytes */
+    kIBitMap1 = 0x70, kIBitMap2 = 0x80, kIRect = 0x90, kIHandle = 0x98,
+    kIErr1 = 0x9C, kIErr2 = 0x9E,
+    kIBits1 = 0x100, kIBits2 = 0x180
+};
+
+static void PutBitMap(UInt32 a, UInt32 bits) {
+    M68K_Write32(gM68KApp, a, bits);
+    M68K_Write16(gM68KApp, a + 4, 4);                   /* rowBytes */
+    Rect r = { 0, 0, 32, 32 };
+    WriteRect(a + 6, &r);
+}
+
+static void PlotIconHandleCall(Asm* a, UInt32 d, UInt32 bitmap, UInt16 transform, UInt32 errAt) {
+    PushAddr(a, d + bitmap); W(a, 0xA875);              /* SetPortBits */
+    W(a, 0x4267);                                       /* result */
+    PushAddr(a, d + kIRect); PushW(a, 0); PushW(a, transform); PushVar(a, d + kIHandle);
+    W(a, 0x303C); W(a, 0x061D);                         /* MOVE.W #PlotIconHandle,D0 */
+    W(a, 0xABC9);
+    PopW(a, d + errAt);
+}
+
+Boolean M68KToolbox_RunIconTest(const char** why)
+{
+    World w;
+    if (!WorldBegin(&w, why)) return false;
+    UInt32 d = w.data;
+    /* ICN#: the image a checkerboard, the mask the top half */
+    UInt32 icon = M68KHeap_NewHandle(256, false);
+    if (!icon) { WorldEnd(&w); *why = "no memory for the icon"; return false; }
+    UInt32 ip = M68KHeap_Deref(icon);
+    for (UInt32 row = 0; row < 32; row++) {
+        M68K_Write32(gM68KApp, ip + row * 4, 0xAAAAAAAA);
+        M68K_Write32(gM68KApp, ip + 128 + row * 4, row < 16 ? 0xFFFFFFFF : 0);
+    }
+    M68K_Write32(gM68KApp, d + kIHandle, icon);
+    PutBitMap(d + kIBitMap1, d + kIBits1);
+    PutBitMap(d + kIBitMap2, d + kIBits2);
+    for (UInt32 i = 0; i < 128; i += 4) {
+        M68K_Write32(gM68KApp, d + kIBits1 + i, 0xFFFFFFFF);   /* black */
+        M68K_Write32(gM68KApp, d + kIBits2 + i, 0);            /* white */
+    }
+    Rect r = { 0, 0, 32, 32 };
+    WriteRect(d + kIRect, &r);
+
+    Asm a;
+    a.n = 0;
+    PushAddr(&a, d + kIPort); W(&a, 0xA86F);            /* OpenPort */
+    PlotIconHandleCall(&a, d, kIBitMap1, 0, kIErr1);            /* plain, onto black */
+    PlotIconHandleCall(&a, d, kIBitMap2, 0x4000, kIErr2);       /* selected, onto white */
+    PushAddr(&a, d + kIPort); W(&a, 0xA87D);            /* ClosePort */
+    W(&a, 0xA9F4);
+
+    OSErr ran = WorldRun(&w, &a);
+    M68KAddressSpace* as = gM68KApp;
+    Boolean plain = true, selected = true;
+    static char detail[96];
+    for (UInt32 row = 0; row < 32; row++) {
+        UInt32 p = M68K_Read32(as, d + kIBits1 + row * 4), q = M68K_Read32(as, d + kIBits2 + row * 4);
+        if (plain && p != (row < 16 ? 0xAAAAAAAA : 0xFFFFFFFF)) {
+            plain = false;
+            snprintf(detail, sizeof(detail), "plain icon wrong from row %lu: %08lX",
+                     (unsigned long)row, (unsigned long)p);
+        }
+        if (selected && q != (row < 16 ? 0x55555555 : 0)) {
+            selected = false;
+            if (plain) snprintf(detail, sizeof(detail), "selected icon wrong from row %lu: %08lX",
+                                (unsigned long)row, (unsigned long)q);
+        }
+    }
+    Boolean errs = M68K_Read16(as, d + kIErr1) == 0 && M68K_Read16(as, d + kIErr2) == 0;
+    WorldEnd(&w);
+
+    if (ran != noErr) { *why = "the program stopped with a fault"; return false; }
+    if (!errs)        { *why = "PlotIconHandle answered an error"; return false; }
+    if (!plain || !selected) { *why = detail; return false; }
     *why = "";
     return true;
 }
