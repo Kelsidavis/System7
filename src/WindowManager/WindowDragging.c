@@ -251,7 +251,11 @@ void DragWindow(WindowPtr theWindow, Point startPt, const Rect* boundsRect) {
     UInt32 lastMovementTick    = dragStartTick;
     UInt32 releaseStartTick    = 0;      /* tick the button first read released */
     Boolean releaseInProgress  = false;
+    /* loopCount is only ever read inside WM_LOG_* macros, which
+         * expand to nothing in this build; (void) it so the
+         * compiler does not flag it as set-but-unused. */
     UInt32 loopCount           = 0;
+    (void)loopCount;
 
     while ((TickCount() - dragStartTick) < MAX_DRAG_TICKS) {
         loopCount++;
@@ -283,8 +287,10 @@ void DragWindow(WindowPtr theWindow, Point startPt, const Rect* boundsRect) {
              * window AND the drag has lasted the minimum duration. */
             if ((TickCount() - releaseStartTick) >= BUTTON_DEBOUNCE_TICKS &&
                 (TickCount() - dragStartTick) >= MIN_DRAG_TICKS) {
-                WM_LOG_DEBUG("DragWindow: Debounced button release after %u ticks (%u iterations)\n",
-                             (unsigned)(TickCount() - dragStartTick), loopCount);
+                // WM_LOG_* expands to nothing in this build;
+                // the arguments are still type-checked.
+                WM_LOG_DEBUG("DragWindow: Debounced button release after %lu ticks (%lu iterations)\n",
+                             (unsigned long)(TickCount() - dragStartTick), (unsigned long)loopCount);
                 break;  /* Exit drag loop normally */
             }
         } else {
@@ -304,8 +310,10 @@ void DragWindow(WindowPtr theWindow, Point startPt, const Rect* boundsRect) {
                             (unsigned)idleTicks);
                 break;
             } else if (idleTicks > NO_MOVEMENT_TIMEOUT * 10) {
-                WM_LOG_ERROR("DragWindow: Force exiting stuck loop after %u ticks with no release\n",
-                             (unsigned)idleTicks);
+                // WM_LOG_* expands to nothing in this build;
+                // the arguments are still type-checked.
+                WM_LOG_ERROR("DragWindow: Force exiting stuck loop after %lu ticks with no release\n",
+                             (unsigned long)idleTicks);
                 break;  /* Force exit to prevent an unbounded modal loop */
             }
         }
@@ -365,12 +373,16 @@ void DragWindow(WindowPtr theWindow, Point startPt, const Rect* boundsRect) {
 
     /* Check if we hit the safety timeout */
     if ((TickCount() - dragStartTick) >= MAX_DRAG_TICKS) {
-        WM_LOG_ERROR("DragWindow: TIMEOUT after %u ticks (%u iterations); StillDown() never returned false!\n",
-                     (unsigned)(TickCount() - dragStartTick), loopCount);
+        // WM_LOG_* expands to nothing in this build;
+        // the arguments are still type-checked.
+        WM_LOG_ERROR("DragWindow: TIMEOUT after %lu ticks (%lu iterations); StillDown() never returned false!\n",
+                     (unsigned long)(TickCount() - dragStartTick), (unsigned long)loopCount);
         WM_LOG_ERROR("DragWindow: This indicates mouse button tracking is broken.\n");
     } else {
-        WM_LOG_DEBUG("DragWindow: Exited drag loop normally after %u ticks (%u iterations)\n",
-                     (unsigned)(TickCount() - dragStartTick), loopCount);
+        // WM_LOG_* expands to nothing in this build;
+        // the arguments are still type-checked.
+        WM_LOG_DEBUG("DragWindow: Exited drag loop normally after %lu ticks (%lu iterations)\n",
+                     (unsigned long)(TickCount() - dragStartTick), (unsigned long)loopCount);
     }
 
     /* Erase final outline before moving window (XOR erases by redrawing) */

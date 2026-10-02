@@ -935,11 +935,11 @@ static void InitializeWindowRecord(WindowPtr window, const Rect* bounds,
     static int init_log = 0;
     if (init_log < 20) {
         char dbgbuf[256];
-        snprintf(dbgbuf, sizeof(dbgbuf), "[INITWIN] contentPos=(%d,%d) portBits.bounds=(%d,%d,%d,%d) fbOffset=%u refCon=0x%08x\n",
+        snprintf(dbgbuf, sizeof(dbgbuf), "[INITWIN] contentPos=(%d,%d) portBits.bounds=(%d,%d,%d,%d) fbOffset=%lu refCon=0x%08x\n",
                 contentLeft, contentTop,
                 window->port.portBits.bounds.left, window->port.portBits.bounds.top,
                 window->port.portBits.bounds.right, window->port.portBits.bounds.bottom,
-                fbOffset, (unsigned int)window->refCon);
+                (unsigned long)fbOffset, (unsigned int)window->refCon);
         serial_puts(dbgbuf);
         init_log++;
     }

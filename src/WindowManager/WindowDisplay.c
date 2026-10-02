@@ -68,7 +68,10 @@ void CheckWindowsNeedingUpdate(void) {
         WM_LOG_TRACE("CheckWindowsNeedingUpdate: #%d, frontWindow=0x%08x\n", call_count, (unsigned int)window);
     }
 
+    /* windowCount is only ever read inside WM_LOG_TRACE, which expands to
+     * nothing in this build; (void) it so the compiler does not flag it. */
     int windowCount = 0;
+    (void)windowCount;
     while (window) {
         windowCount++;
         Boolean hasUpdateRgn = (window->updateRgn != NULL);
