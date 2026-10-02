@@ -86,8 +86,7 @@ static void WriteByte(UInt8 byte) {
         }
 
         /* Update pointers since handle may have moved */
-        Picture *picPtr = *g_pictureState.currentPic;
-        g_pictureState.dataPtr = (UInt8 *)(picPtr + 1);
+        g_pictureState.dataPtr = (UInt8 *)(*g_pictureState.currentPic) + sizeof(Picture);
         g_pictureState.dataCapacity = newCapacity;
     }
 
@@ -119,16 +118,23 @@ PicHandle OpenPicture(const Rect *picFrame) {
     PicHandle pic = (PicHandle)NewHandle(sizeof(Picture) + 1024);  /* Initial data size */
     if (!pic || !*pic) return NULL;
 
-    Picture *picPtr = *pic;
-    picPtr->picSize = sizeof(Picture);
-    picPtr->picFrame = *picFrame;
+    /* The header big-endian, as a PICT is stored and DrawPicture reads it */
+    UInt8 *raw = (UInt8 *)*pic;
+    raw[0] = 0;
+    raw[1] = sizeof(Picture);
+    raw[2] = (UInt8)(picFrame->top >> 8);    raw[3] = (UInt8)picFrame->top;
+    raw[4] = (UInt8)(picFrame->left >> 8);   raw[5] = (UInt8)picFrame->left;
+    raw[6] = (UInt8)(picFrame->bottom >> 8); raw[7] = (UInt8)picFrame->bottom;
+    raw[8] = (UInt8)(picFrame->right >> 8);  raw[9] = (UInt8)picFrame->right;
 
     /* Initialize recording state */
     g_pictureState.recording = true;
     g_pictureState.currentPic = pic;
-    g_pictureState.dataPtr = (UInt8 *)(picPtr + 1);  /* Data follows header */
+    g_pictureState.dataPtr = (UInt8 *)(*pic) + sizeof(Picture);  /* Data follows header */
     g_pictureState.dataSize = 0;
     g_pictureState.dataCapacity = 1024;
+    WriteByte(0x11);                    /* version 1 */
+    WriteByte(0x01);
 
     return pic;
 }
@@ -142,10 +148,12 @@ void ClosePicture(void) {
     /* Write end-of-picture opcode */
     WriteByte(picOpEndPic);
 
-    /* Update picture size */
+    /* Update picture size, big-endian */
     if (g_pictureState.currentPic && *g_pictureState.currentPic) {
-        Picture *pic = *g_pictureState.currentPic;
-        pic->picSize = sizeof(Picture) + g_pictureState.dataSize;
+        UInt16 size = (UInt16)(sizeof(Picture) + g_pictureState.dataSize);
+        UInt8 *raw = (UInt8 *)*g_pictureState.currentPic;
+        raw[0] = (UInt8)(size >> 8);
+        raw[1] = (UInt8)size;
     }
 
     /* Stop recording */
