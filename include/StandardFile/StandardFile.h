@@ -100,6 +100,10 @@ void StandardGetFile(FileFilterProcPtr fileFilter,
                     ConstSFTypeListPtr typeList,
                     StandardFileReply *reply);
 
+/* Where the next dialog opens; each dialog leaves it where it was closed */
+void StandardFile_SetStartLocation(short vRefNum, long dirID);
+void StandardFile_GetStartLocation(short *vRefNum, long *dirID);
+
 void CustomPutFile(ConstStr255Param prompt,
                   ConstStr255Param defaultName,
                   StandardFileReply *reply,

@@ -18,6 +18,7 @@
  */
 
 #include "StandardFile/StandardFile.h"
+#include "FS/vfs.h"
 #include "StandardFile/StandardFileHAL.h"
 #include "DialogManager/DialogManager.h"
 #include "WindowManager/WindowManager.h"
@@ -689,8 +690,31 @@ static void SF_SelectFile(short index) {
 /*
  * Get current location
  */
+/* Where the next dialog opens: where the last one was left, or where a
+ * launched application's folder is (Inside Macintosh: Files, 3-19 - the
+ * SFSaveDisk and CurDirStore globals). Every dialog opened at the startup
+ * disk's root, whatever folder it had been left in. */
+static Boolean gSFStartSet = false;
+static short gSFStartVRef;
+static long gSFStartDir;
+
+void StandardFile_SetStartLocation(short vRefNum, long dirID) {
+    gSFStartVRef = vRefNum;
+    gSFStartDir = dirID;
+    gSFStartSet = true;
+}
+
+void StandardFile_GetStartLocation(short *vRefNum, long *dirID) {
+    SF_GetCurrentLocation(vRefNum, dirID);
+}
+
 static OSErr SF_GetCurrentLocation(short *vRefNum, long *dirID) {
-    /* Use HAL to get default directory */
+    VolumeControlBlock vcb;
+    if (gSFStartSet && gSFStartDir > 0 && VFS_GetVolumeInfo(gSFStartVRef, &vcb)) {
+        *vRefNum = gSFStartVRef;
+        *dirID = gSFStartDir;
+        return noErr;
+    }
     return StandardFile_HAL_GetDefaultLocation(vRefNum, dirID);
 }
 
@@ -709,6 +733,7 @@ static void SF_NavigateToFolder(FSSpec *folder) {
  * Clean up dialog state
  */
 static void SF_DisposeDialog(void) {
+    StandardFile_SetStartLocation(gSFState.vRefNum, gSFState.dirID);
     if (gSFState.files) {
         DisposePtr((Ptr)gSFState.files);
         gSFState.files = NULL;

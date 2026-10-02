@@ -888,8 +888,6 @@ static void ReplyPlace(const StandardFileReply* r, VRefNum* vref, DirID* dir) {
         VFS_GetVolumeInfo(*vref, &vcb);
     }
     *dir = r->sfFile.parID > 0 ? (DirID)r->sfFile.parID : vcb.rootID;
-    W16(kLM_SFSaveDisk, (UInt16)(-VolRef(*vref)));
-    W32(kLM_CurDirStore, *dir);
 }
 
 /* SFReply: good, copy, fType, vRefNum (a working directory), version, fName */
@@ -934,6 +932,9 @@ TRAP(Trap_Pack3) {
     UInt16 selector = Pop16();
     StandardFileReply r;
     memset(&r, 0, sizeof(r));
+    /* The dialog opens where the globals say - a program may set them to
+     * choose the folder - and they say where it was left */
+    StandardFile_SetStartLocation((short)R16(kLM_SFSaveDisk), (long)R32(kLM_CurDirStore));
     switch (selector) {
         case 1:                                      /* SFPutFile */
         case 3: {                                    /* SFPPutFile */
@@ -993,6 +994,11 @@ TRAP(Trap_Pack3) {
         default:
             break;
     }
+    short sv;
+    long sd;
+    StandardFile_GetStartLocation(&sv, &sd);
+    W16(kLM_SFSaveDisk, (UInt16)sv);
+    W32(kLM_CurDirStore, (UInt32)sd);
     Obj_SyncWindows();
     return noErr;
 }
