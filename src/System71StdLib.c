@@ -3,6 +3,7 @@
 #include "System71StdLib.h"
 #include "MacTypes.h"
 #include "SystemInternal.h"
+#include "MemoryMgr/MemoryManager.h"
 
 #include <stdbool.h>
 
@@ -237,8 +238,7 @@ int setenv(const char* name, const char* value, int overwrite) {
             if (!overwrite) return 0;
 
             /* Free old value and set new one */
-            extern void free(void* ptr);
-            if (env_vars[i].value) free(env_vars[i].value);
+            if (env_vars[i].value) DisposePtr(env_vars[i].value);
             env_vars[i].value = strdup(value);
             return env_vars[i].value ? 0 : -1;
         }
@@ -259,12 +259,11 @@ int setenv(const char* name, const char* value, int overwrite) {
 int unsetenv(const char* name) {
     if (!name) return -1;
 
-    extern void free(void* ptr);
     for (int i = 0; i < env_count; i++) {
         if (env_vars[i].name && strcmp(env_vars[i].name, name) == 0) {
             /* Free name and value */
-            if (env_vars[i].name) free(env_vars[i].name);
-            if (env_vars[i].value) free(env_vars[i].value);
+            if (env_vars[i].name) DisposePtr(env_vars[i].name);
+            if (env_vars[i].value) DisposePtr(env_vars[i].value);
 
             /* Shift remaining entries down */
             for (int j = i; j < env_count - 1; j++) {
@@ -705,9 +704,8 @@ char* strdup(const char* s) {
     /* Duplicate string (allocates memory) */
     if (!s) return NULL;
 
-    extern void* malloc(size_t size);
     size_t len = strlen(s) + 1;
-    char* dup = (char*)malloc(len);
+    char* dup = (char*)NewPtr((u32)len);
     if (dup) {
         memcpy(dup, s, len);
     }
@@ -718,11 +716,10 @@ char* strndup(const char* s, size_t n) {
     /* Duplicate at most n characters of string (allocates memory) */
     if (!s) return NULL;
 
-    extern void* malloc(size_t size);
     size_t len = strlen(s);
     if (len > n) len = n;
 
-    char* dup = (char*)malloc(len + 1);
+    char* dup = (char*)NewPtr((u32)(len + 1));
     if (dup) {
         memcpy(dup, s, len);
         dup[len] = '\0';
@@ -2577,7 +2574,7 @@ int vasprintf(char** strp, const char* format, va_list args) {
 
     /* Try with initial buffer size */
     size_t size = 256;
-    char* buf = (char*)malloc(size);
+    char* buf = (char*)NewPtr((u32)size);
     if (!buf) {
         *strp = NULL;
         return -1;
@@ -2590,24 +2587,25 @@ int vasprintf(char** strp, const char* format, va_list args) {
     va_end(args_copy);
 
     if (needed < 0) {
-        free(buf);
+        DisposePtr(buf);
         *strp = NULL;
         return -1;
     }
 
     /* Check if buffer was large enough */
     if ((size_t)needed >= size) {
-        /* Reallocate with exact size needed */
-        char* newbuf = (char*)realloc(buf, needed + 1);
+        /* Allocate an exact-size replacement from the Memory Manager. */
+        char* newbuf = (char*)NewPtr((u32)(needed + 1));
         if (!newbuf) {
-            free(buf);
+            DisposePtr(buf);
             *strp = NULL;
             return -1;
         }
-        buf = newbuf;
 
         /* Format again with correct size */
-        vsnprintf(buf, needed + 1, format, args);
+        vsnprintf(newbuf, needed + 1, format, args);
+        DisposePtr(buf);
+        buf = newbuf;
     }
 
     *strp = buf;
