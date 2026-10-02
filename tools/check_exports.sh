@@ -7,6 +7,8 @@
 # [Audit B] Platform layer must not define WM_ symbols except WDEF refs
 set -euo pipefail
 
+OBJ_DIR="${OBJ_DIR:-build/obj}"
+
 # Generate current exports
 nm -g --defined-only kernel.elf | awk '{print $3}' | sort -u > build/symbols.exports.txt
 
@@ -27,8 +29,8 @@ echo "Required export surface OK."
 
 # [Audit B] Check Platform layer for WM_ symbol definitions
 # Platform/*.o may reference WM_*DefProc (WDEF handles) but must not define other WM_ symbols
-if [ -d build/obj ]; then
-  nm -o build/obj/WindowPlatform.o 2>/dev/null | \
+if [ -f "$OBJ_DIR/WindowPlatform.o" ]; then
+  nm -o "$OBJ_DIR/WindowPlatform.o" 2>/dev/null | \
     grep -E ' T WM_' | \
     grep -v 'WM_.*DefProc' > /tmp/platform_wm_violations.txt || true
 

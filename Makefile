@@ -1461,7 +1461,7 @@ info:
 
 # Check exported symbols against allowlist
 check-exports: kernel.elf
-	@bash tools/check_exports.sh
+	@OBJ_DIR="$(OBJ_DIR)" bash tools/check_exports.sh
 
 # Reject direct use of host-style allocation APIs in kernel code.
 .PHONY: check-malloc
