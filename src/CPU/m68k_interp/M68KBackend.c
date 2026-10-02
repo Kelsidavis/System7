@@ -207,10 +207,10 @@ void* M68K_GetPage(M68KAddressSpace* as, UInt32 addr, Boolean allocate)
     UInt32 pageNum;
     void* page;
 
-    /* Check address range */
-    if (addr >= M68K_MAX_ADDR) {
-        return NULL;
-    }
+    /* A 68000 has 24 address lines: the top byte of an address is not
+     * looked at, and programs of the period kept flags there - the Memory
+     * Manager's in master pointers among them. */
+    addr &= M68K_MAX_ADDR - 1;
 
     pageNum = addr >> M68K_PAGE_SHIFT;
     page = as->pageTable[pageNum];

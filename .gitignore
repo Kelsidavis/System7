@@ -70,3 +70,4 @@ NEXT_IMPLEMENTATION_TARGETS.md
 Patterns.rsrc
 src/patterns_rsrc.c
 src/strings_*_rsrc.c
+tests/m68k/out/

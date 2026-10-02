@@ -128,6 +128,8 @@ typedef struct M68KAddressSpace {
      * same address, and code was put on top of the low-memory globals. */
     UInt32 nextAlloc;
 
+    UInt16 currentTrap;       /* the trap word being answered, for its flag bits */
+
     /* Execution state */
     Boolean halted;           /* CPU halted due to fault or completion */
     UInt16 lastException;     /* Last exception vector number */

@@ -36,6 +36,11 @@
 #include "CPU/M68KInterp.h"
 #include "CPU/M68KToolbox.h"
 #include "ResourceManager.h"
+#include "DialogManager/DialogManager.h"
+#include "DialogManager/DITLBuilder.h"
+#include "DialogManager/DialogHelpers.h"
+#include "WindowManager/WindowManager.h"
+#include <string.h>
 #include "EventManager/EventManager.h"
 #include "MemoryMgr/MemoryManager.h"
 #include "EventManager/AppSwitcher.h"
@@ -287,6 +292,38 @@ OSErr Context_Switch(ProcessControlBlock* targetProcess)
 }
 
 /*
+ * "The application has unexpectedly quit" - with what stopped it, which for
+ * an application from another era is most often a call this system does not
+ * answer yet.
+ */
+extern void SysBeep(short duration);
+
+static void Process_ReportUnexpectedQuit(const char* app, const char* why)
+{
+    char message[200];
+    snprintf(message, sizeof(message),
+             "The application \322%s\323 has unexpectedly quit (%s).", app, why);
+    DITLBuilder b;
+    if (!DITL_Begin(&b, 512)) return;
+    DITL_AddButton(&b, 86, 250, 106, 320, "OK");
+    DITL_AddText(&b, 14, 20, 76, 320, message);
+    Handle ditl = DITL_Finish(&b);
+    if (!ditl) return;
+    Rect bounds = { 0, 0, 120, 340 };
+    DialogPtr dlg = NewDialog(NULL, &bounds, (ConstStr255Param)"\0", false, dBoxProc,
+                              (WindowPtr)-1, false, 0, ditl);
+    if (!dlg) {
+        DisposeHandle(ditl);
+        return;
+    }
+    CenterDialogOnScreen(dlg);
+    ShowWindow((WindowPtr)dlg);
+    SysBeep(1);
+    RunModalDialogBox(dlg, 1, 1);
+    DisposeDialog(dlg);
+}
+
+/*
  * Launch Application - Main entry point for starting new processes
 
  */
@@ -361,23 +398,42 @@ OSErr LaunchApplication(LaunchParamBlockRec* launchParams)
     if (err == noErr) err = segLoader->cpuBackend->SetStacks(segLoader->cpuAS, stackTop, 0);
     if (err == noErr) {
         err = M68KToolbox_Prepare(segLoader, launchParams->launchAppSpec->name,
-                                  appRes, stackTop);
+                                  appRes, stackBase, stackTop);
     }
 
     /* Into the program the way the Segment Loader goes in: through the first
      * jump table entry, whose instructions start two bytes into it */
+    char appName[64];
+    {
+        const unsigned char* pn = launchParams->launchAppSpec->name;
+        int n = pn[0] < sizeof(appName) - 1 ? pn[0] : (int)sizeof(appName) - 1;
+        memcpy(appName, &pn[1], (size_t)n);
+        appName[n] = '\0';
+    }
+    const char* why = NULL;
     if (err == noErr) {
         newProcess->processState = kProcessRunning;
+        { char line[96]; snprintf(line, sizeof(line), "[PROC] '%s' started\n", appName); serial_puts(line); }
         err = segLoader->cpuBackend->EnterAt(segLoader->cpuAS,
                                             segLoader->a5World.jtBase + 2, kEnterApp);
-        if (err != noErr) {
-            PROCESS_LOG_DEBUG("LaunchApplication: the application stopped with an error\n");
-        }
+        M68KAddressSpace* mas = (M68KAddressSpace*)segLoader->cpuAS;
+        why = err != noErr ? (mas->faultReason ? mas->faultReason : "an error") : NULL;
+        { char line[160]; snprintf(line, sizeof(line), "[PROC] '%s' %s%s\n", appName, why ? "quit: " : "quit", why ? why : ""); serial_puts(line); }
+    } else {
+        why = "it could not be loaded";
+        { char line[96]; snprintf(line, sizeof(line), "[PROC] '%s' could not be loaded (%d)\n", appName, err); serial_puts(line); }
     }
 
+    M68KToolbox_Finish();
     SegmentLoader_Cleanup(segLoader);
     UseResFile(savedResFile);
     Process_Cleanup(&newProcess->processID);
+
+    /* An application that did not end by quitting is reported, as System 7
+     * reports one: it was gone with nothing on the screen to say so */
+    if (why) {
+        Process_ReportUnexpectedQuit(appName, why);
+    }
     return err;
 }
 

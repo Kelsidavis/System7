@@ -1,13 +1,13 @@
 #!/bin/sh
 # Build the 68K test applications and the disk image that carries them.
 #
-# Needs binutils-m68k-linux-gnu and hfsutils. Writes build/m68k/apps.img, an
+# Needs binutils-m68k-linux-gnu and hfsutils. Writes tests/m68k/out/apps.img, an
 # HFS volume "Test Apps"; give it to QEMU as an IDE disk and it mounts on the
 # desktop beside the startup disk:
-#     qemu-system-i386 -cdrom system71.iso -hda build/m68k/apps.img -boot d ...
+#     qemu-system-i386 -cdrom system71.iso -hda tests/m68k/out/apps.img -boot d ...
 set -e
 here=$(dirname "$0")
-out=${1:-build/m68k}
+out=${1:-tests/m68k/out}
 mkdir -p "$out"
 
 for app in Hello; do

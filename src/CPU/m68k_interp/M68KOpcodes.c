@@ -760,11 +760,38 @@ void M68K_Op_TRAP(M68KAddressSpace* as, UInt16 opcode)
     /* Look up trap handler, through the same slot mapping that installed it */
     int slot = M68K_TrapSlot(opcode);
     if (slot >= 0 && as->trapHandlers[slot]) {
+        /* An OS trap (bit 11 clear) is called the way the Trap Dispatcher
+         * calls one: the trap word in D1, and A1, D1 and D2 kept for the
+         * caller - A0 too, unless bit 8 says the call returns something
+         * there. Afterwards the condition codes say what D0 says, because
+         * compiled code branches on them straight after the trap. */
+        Boolean osTrap = (opcode & 0x0800) == 0;
+        UInt32 a0 = as->regs.a[0], a1 = as->regs.a[1];
+        UInt32 d1 = as->regs.d[1], d2 = as->regs.d[2];
+        if (osTrap) as->regs.d[1] = opcode;
+
+        as->currentTrap = opcode;
         err = as->trapHandlers[slot](
             as->trapContexts[slot],
             &as->regs.pc,
             as->regs.d  /* Pass registers array */
         );
+
+        if (osTrap && !as->halted) {
+            as->regs.a[1] = a1;
+            as->regs.d[1] = d1;
+            as->regs.d[2] = d2;
+            if (!(opcode & 0x0100)) as->regs.a[0] = a0;
+            SInt16 result = (SInt16)(as->regs.d[0] & 0xFFFF);
+            M68K_ClearFlag(as, CCR_N | CCR_Z | CCR_V | CCR_C);
+            if (result == 0) M68K_SetFlag(as, CCR_Z);
+            if (result < 0) M68K_SetFlag(as, CCR_N);
+        } else if (!osTrap && (opcode & 0x0400) && !as->halted) {
+            /* Auto-pop: the trap was the body of a routine JSRed to; go back
+             * to that routine's caller */
+            as->regs.pc = M68K_Read32(as, as->regs.a[7]);
+            as->regs.a[7] += 4;
+        }
 
         if (err != noErr) {
             serial_printf("[M68K] TRAP handler returned error %d\n", err);

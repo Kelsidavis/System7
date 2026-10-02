@@ -75,10 +75,7 @@ UInt16 M68K_Fetch16(M68KAddressSpace* as)
     UInt16 value;
     UInt8 b0, b1;
 
-    if (as->regs.pc + 1 >= M68K_MAX_ADDR) {
-        M68K_Fault(as, "PC out of bounds in Fetch16");
-        return 0;
-    }
+    as->regs.pc &= M68K_MAX_ADDR - 1;       /* 24-bit, as everywhere */
 
     b0 = M68K_Read8(as, as->regs.pc);
     b1 = M68K_Read8(as, as->regs.pc + 1);

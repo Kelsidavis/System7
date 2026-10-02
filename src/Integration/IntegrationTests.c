@@ -53,6 +53,12 @@ extern OSErr FSpGetFInfo(const FSSpec* spec, FInfo* fndrInfo);
 extern OSErr FSpDelete(const FSSpec* spec);
 extern OSErr HGetFInfo(short vRefNum, long dirID, ConstStr255Param fileName, FInfo* fndrInfo);
 #include <string.h>
+#include "CPU/CPUBackend.h"
+#include "CPU/M68KInterp.h"
+#include "CPU/M68KHeap.h"
+
+extern UInt32 M68K_Read32(M68KAddressSpace* as, UInt32 addr);
+extern void M68K_Write32(M68KAddressSpace* as, UInt32 addr, UInt32 value);
 
 /* Straight to the serial port. Results are the point of a test build, and
  * serial_logf filters the System module below Warn - which is why the old
@@ -1060,6 +1066,48 @@ static void Test_Draw_CopyBits1Bit(void) {
     RecordTest(test_name, true, "");
 }
 
+/* A 68K application's heap: handles follow their blocks when they grow,
+ * RecoverHandle finds the master pointer, flags live in its top byte. */
+static void Test_M68K_Heap(void) {
+    const char* test_name = "M68K_Heap";
+    const ICPUBackend* be = CPUBackend_Get("m68k_interp");
+    CHECK(be, "no 68K backend");
+    CPUAddressSpace cas = NULL;
+    CHECK(be->CreateAddressSpace(NULL, &cas) == noErr, "CreateAddressSpace failed");
+    M68KAddressSpace* as = (M68KAddressSpace*)cas;
+    CPUAddr base = 0;
+    CHECK(be->AllocateMemory(cas, 64 * 1024, kCPUMapA5World, &base) == noErr, "no heap memory");
+    M68KHeap_Init(as, base, 64 * 1024);
+
+    UInt32 h = M68KHeap_NewHandle(16, true);
+    UInt32 p = M68KHeap_NewPtr(32, false);     /* right after it: h cannot grow in place */
+    Boolean ok = h && p && M68KHeap_GetHandleSize(h) == 16;
+    UInt32 first = ok ? M68KHeap_Deref(h) : 0;
+    if (ok) {
+        M68K_Write32(as, first, 0x12345678);
+        ok = M68KHeap_SetHandleSize(h, 4000) == noErr && M68KHeap_GetHandleSize(h) == 4000;
+    }
+    Boolean moved = ok && M68KHeap_Deref(h) != first;
+    Boolean kept = ok && M68K_Read32(as, M68KHeap_Deref(h)) == 0x12345678;
+    Boolean recovered = ok && M68KHeap_RecoverHandle(M68KHeap_Deref(h)) == h;
+    UInt32 after = ok ? M68KHeap_NewPtr(100, false) : 0;   /* now h cannot grow in place */
+    if (ok) M68KHeap_SetState(h, 0x80);
+    Boolean locked = ok && M68KHeap_GetState(h) == 0x80 && M68KHeap_Deref(h) != 0;
+    Boolean lockedStays = ok && M68KHeap_SetHandleSize(h, 60000) == memFullErr;
+    Boolean freed = ok && M68KHeap_DisposeHandle(h) == noErr && M68KHeap_DisposePtr(p) == noErr &&
+                    M68KHeap_DisposePtr(after) == noErr && M68KHeap_FreeBytes() > 60000;
+    be->DestroyAddressSpace(cas);
+
+    CHECK(ok, "allocation or growth failed");
+    CHECK(moved, "the block did not move when it could not grow in place");
+    CHECK(kept, "growing lost the contents");
+    CHECK(recovered, "RecoverHandle did not find the master pointer");
+    CHECK(locked, "the lock flag is not in the master pointer's top byte");
+    CHECK(lockedStays, "a locked handle was moved");
+    CHECK(freed, "disposing did not give the memory back");
+    RecordTest(test_name, true, "");
+}
+
 static void Test_Resource_CreateAndOpenResFile(void) {
     const char* test_name = "Resource_CreateAndOpenResFile";
     FSSpec spec;
@@ -1196,6 +1244,7 @@ void IntegrationTests_Run(void) {
     Test_Resource_ReleaseThenGet();
     Test_Draw_PolygonRecording();
     Test_Draw_CopyBits1Bit();
+    Test_M68K_Heap();
     Test_Dialog_AlertLayout();
     Test_Dialog_IconItem();
     Test_Window_ReorderAndHide();
