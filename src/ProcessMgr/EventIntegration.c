@@ -227,7 +227,7 @@ OSErr Proc_PostEventWithModifiers(EventMask what, UInt32 message, UInt16 modifie
     gQueueTail = (gQueueTail + 1) % EVENT_QUEUE_SIZE;
     gQueueCount++;
 
-    PROCESS_LOG_DEBUG("EventMgr: Posted event %d msg=0x%08x\n", what, message);
+    PROCESS_LOG_DEBUG("EventMgr: Posted event %ld msg=0x%08lx\n", (long)what, (unsigned long)message);
 
     /* Unblock any process waiting for this event */
     Proc_UnblockEvent(&evt);
@@ -256,8 +256,8 @@ static void Proc_FlushEvents(EventMask whichMask, EventMask stopMask) {
     UInt16 writeIdx = gQueueHead;
     UInt16 count = gQueueCount;
 
-    PROCESS_LOG_DEBUG("EventMgr: Flushing events mask=0x%04x stop=0x%04x\n",
-                  whichMask, stopMask);
+    PROCESS_LOG_DEBUG("EventMgr: Flushing events mask=0x%04lx stop=0x%04lx\n",
+                  (unsigned long)whichMask, (unsigned long)stopMask);
 
     while (count > 0) {
         EventRecord* evt = &gEventQueue[readIdx];
@@ -465,8 +465,8 @@ void Event_DumpQueue(void) {
             case kHighLevelEvent: typeStr = "hlev"; break;
         }
 
-        PROCESS_LOG_DEBUG("[%2d] %-4s msg=0x%08x time=%u pos=(%d,%d)\n",
-                     i, typeStr, evt->message, evt->when,
+        PROCESS_LOG_DEBUG("[%2d] %-4s msg=0x%08lx time=%lu pos=(%d,%d)\n",
+                     i, typeStr, (unsigned long)evt->message, (unsigned long)evt->when,
                      evt->where.h, evt->where.v);
 
         index = (index + 1) % EVENT_QUEUE_SIZE;
@@ -501,4 +501,3 @@ OSErr PostEventWithModifiers(EventMask what, UInt32 message, UInt16 modifiers) {
 void FlushEvents(EventMask whichMask, EventMask stopMask) {
     Proc_FlushEvents(whichMask, stopMask);
 }
-

@@ -169,8 +169,8 @@ ProcessID Proc_New(const char* name, void* entry, void* arg,
     /* Add to ready queue */
     AddToReadyQueue(proc);
 
-    PROC_LOG_DEBUG("Created process %d '%s' pri=%d\n",
-                   proc->pid, proc->name, proc->priority);
+    PROC_LOG_DEBUG("Created process %lu '%s' pri=%d\n",
+                   (unsigned long)proc->pid, proc->name, proc->priority);
 
     return proc->pid;
 }
@@ -211,12 +211,13 @@ void Proc_Yield(void) {
         next->state = PROC_RUNNING;
         next->aging = 0;  /* Reset aging on run */
 
-        PROC_LOG_TRACE("Switch %d->%d\n", prev->pid, next->pid);
+        PROC_LOG_TRACE("Switch %lu->%lu\n",
+                       (unsigned long)prev->pid, (unsigned long)next->pid);
 
         /* First-time execution of tasklet */
         if (next->neverStarted && next->entry) {
             next->neverStarted = false;
-            PROC_LOG_TRACE("Starting tasklet %d\n", next->pid);
+            PROC_LOG_TRACE("Starting tasklet %lu\n", (unsigned long)next->pid);
             next->entry(next->arg);
             /* If entry returns, mark process as free */
             next->state = PROC_FREE;
@@ -252,8 +253,8 @@ void Proc_Sleep(UInt32 microseconds) {
     RemoveFromReadyQueue(gCurrentProcess);
     gCurrentProcess->state = PROC_SLEEPING;
 
-    PROC_LOG_TRACE("Process %d sleeping for %u us\n",
-                   gCurrentProcess->pid, (unsigned int)microseconds);
+    PROC_LOG_TRACE("Process %lu sleeping for %u us\n",
+                   (unsigned long)gCurrentProcess->pid, (unsigned int)microseconds);
 
     /* Yield to next process */
     Proc_Yield();
@@ -279,8 +280,8 @@ void Proc_BlockOnEvent(EventMask mask, EventRecord* evt) {
     RemoveFromReadyQueue(gCurrentProcess);
     gCurrentProcess->state = PROC_BLOCKED;
 
-    PROC_LOG_TRACE("Process %d blocked on events 0x%08x\n",
-                   gCurrentProcess->pid, mask);
+    PROC_LOG_TRACE("Process %lu blocked on events 0x%08lx\n",
+                   (unsigned long)gCurrentProcess->pid, (unsigned long)mask);
 
     /* Yield to next process */
     Proc_Yield();
@@ -315,7 +316,7 @@ void Proc_Wake(ProcessID pid) {
         proc->state = PROC_READY;
         AddToReadyQueue(proc);
 
-        PROC_LOG_TRACE("Woke sleeping process %d\n", pid);
+        PROC_LOG_TRACE("Woke sleeping process %lu\n", (unsigned long)pid);
     }
     else if (proc->state == PROC_BLOCKED) {
         /* Clear event blocking */
@@ -326,7 +327,7 @@ void Proc_Wake(ProcessID pid) {
         proc->state = PROC_READY;
         AddToReadyQueue(proc);
 
-        PROC_LOG_TRACE("Woke blocked process %d\n", pid);
+        PROC_LOG_TRACE("Woke blocked process %lu\n", (unsigned long)pid);
     }
 }
 
@@ -351,8 +352,8 @@ void Proc_UnblockEvent(EventRecord* evt) {
             proc->state = PROC_READY;
             AddToReadyQueue(proc);
 
-            PROC_LOG_TRACE("Unblocked process %d for event %d\n",
-                            proc->pid, evt->what);
+            PROC_LOG_TRACE("Unblocked process %lu for event %d\n",
+                            (unsigned long)proc->pid, evt->what);
         }
     }
 }
@@ -462,7 +463,7 @@ static void WakeTimerCallback(TMTaskPtr tmTaskPtr) {
         proc->state = PROC_READY;
         AddToReadyQueue(proc);
 
-        PROC_LOG_TRACE("Timer woke process %d\n", proc->pid);
+        PROC_LOG_TRACE("Timer woke process %lu\n", (unsigned long)proc->pid);
     }
 }
 
@@ -471,7 +472,7 @@ static void WakeTimerCallback(TMTaskPtr tmTaskPtr) {
  */
 void Proc_DumpTable(void) {
     PROC_LOG_INFO("\n=== Process Table ===\n");
-    PROC_LOG_INFO("Current: %d\n", gCurrentProcess ? gCurrentProcess->pid : -1);
+    PROC_LOG_INFO("Current: %ld\n", (long)(gCurrentProcess ? gCurrentProcess->pid : -1));
 
     for (int i = 0; i < MAX_PROCESSES; i++) {
         ProcessCB* proc = &gProcessTable[i];
@@ -484,8 +485,8 @@ void Proc_DumpTable(void) {
                 case PROC_SLEEPING: stateStr = "SLEEP"; break;
             }
 
-            PROC_LOG_INFO("Slot %d state=%s pid=%d pri=%d age=%d name='%s'\n",
-                          i, stateStr, proc->pid, proc->priority,
+            PROC_LOG_INFO("Slot %d state=%s pid=%lu pri=%d age=%d name='%s'\n",
+                          i, stateStr, (unsigned long)proc->pid, proc->priority,
                           proc->aging, proc->name);
         }
     }

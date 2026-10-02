@@ -267,6 +267,7 @@ OSErr InitTimeBase(void) {
 
         /* Calculate deltas */
         uint32_t sum = 0;
+        (void)sum; /* Only ever printed via a debug log that expands to nothing */
         for (int i = 1; i < K; i++) {
             uint32_t delta = times[i].lo - times[i-1].lo;
             deltas[i-1] = delta;

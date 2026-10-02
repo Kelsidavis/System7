@@ -188,8 +188,8 @@ void Scrap_Zero(void)
     extern ProcessID Proc_GetCurrent(void);
     gScrap.owner = Proc_GetCurrent();
 
-    SCRAP_LOG("Zeroed, changeCnt=%lu owner=%d\n",
-             (unsigned long)gScrap.changeCnt, gScrap.owner);
+    SCRAP_LOG("Zeroed, changeCnt=%lu owner=%lu\n",
+             (unsigned long)gScrap.changeCnt, (unsigned long)gScrap.owner);
 }
 
 /*
