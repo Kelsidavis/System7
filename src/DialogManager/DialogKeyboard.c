@@ -451,6 +451,24 @@ static SInt16 DM_ItemFromControl(DialogPtr d, ControlHandle c) {
     return 0;
 }
 
+/*
+ * The default or cancel item when it is a push button the Dialog Manager
+ * draws itself, as every button from a DITL is: such a dialog has no
+ * controls at all, so looking for a button control found nothing and Return
+ * and Escape did nothing in it - Return never pressed Save in the Save
+ * dialog. 0 if the item is not an enabled push button.
+ */
+static SInt16 DM_ButtonItem(WindowPtr dialog, Boolean wantDefault) {
+    SInt16 item = wantDefault ? GetDialogDefaultItem((DialogPtr)dialog)
+                              : GetDialogCancelItem((DialogPtr)dialog);
+    if (item <= 0) return 0;
+    SInt16 itemType;
+    Handle itemHandle;
+    Rect itemRect;
+    GetDialogItem((DialogPtr)dialog, item, &itemType, &itemHandle, &itemRect);
+    return (itemType == (ctrlItem + btnCtrl)) ? item : 0;
+}
+
 /**
  * Handle Return key (activate default button)
  */
@@ -474,6 +492,11 @@ Boolean DM_HandleReturnKey(WindowPtr dialog, SInt16* itemHit) {
     DM_LOG_TRACE("DM_HandleReturnKey: Finding default button\n");
     defaultButton = DM_FindDefaultButton(dialog);
     if (!defaultButton) {
+        item = DM_ButtonItem(dialog, true);
+        if (item > 0) {
+            *itemHit = item;
+            return true;
+        }
         DM_LOG_TRACE("DM_HandleReturnKey: No default button found\n");
         return false; /* No default button */
     }
@@ -508,6 +531,11 @@ Boolean DM_HandleEscapeKey(WindowPtr dialog, SInt16* itemHit) {
 
     cancelButton = DM_FindCancelButton(dialog);
     if (!cancelButton) {
+        item = DM_ButtonItem(dialog, false);
+        if (item > 0) {
+            *itemHit = item;
+            return true;
+        }
         return false; /* No cancel button */
     }
 
