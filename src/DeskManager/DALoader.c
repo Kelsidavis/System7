@@ -416,7 +416,7 @@ int DA_Status(DeskAccessory *da, SInt16 statusCode, DAControlPB *params)
 
     switch (statusCode) {
         case DA_STATUS_STATE:
-            *(DAState *)params->csParam = da->state;
+            params->csParam[0] = (SInt32)da->state;
             break;
 
         case DA_STATUS_VERSION:
