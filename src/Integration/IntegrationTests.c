@@ -987,7 +987,7 @@ static void Test_Resource_ReleaseThenGet(void) {
     const char* test_name = "Resource_ReleaseThenGet";
     Handle h1 = GetResource('ppat', 304);
     CHECK(h1 && *h1, "ppat 304 did not load");
-    Size size1 = GetHandleSize(h1);
+    u32 size1 = GetHandleSize(h1);
     UInt8 head[8];
     memcpy(head, *h1, sizeof(head));
     ReleaseResource(h1);
