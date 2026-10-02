@@ -251,7 +251,7 @@ OSErr InitTimeBase(void) {
 
     /* Measure overhead empirically */
     {
-        UnsignedWide times[16];
+        UnsignedWide times[16] = {0};
         uint32_t deltas[15];
         const int K = 16;
 

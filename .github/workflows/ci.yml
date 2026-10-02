@@ -132,6 +132,9 @@ jobs:
           name: kernel-arm64
           path: kernel.elf
 
+      - name: Run GCC static analyzer
+        run: make analyze-arm64
+
   test-stdlib:
     name: C Library Differential Test
     runs-on: ubuntu-latest
