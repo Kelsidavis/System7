@@ -1668,8 +1668,11 @@ OSErr InitializeVolumeIcon(void)
             VolumeControlBlock vcb2;
             memset(&vcb2, 0, sizeof(vcb2));
             if (VFS_GetVolumeInfo(gBootVolumeRef, &vcb2) && vcb2.name[0]) {
-                strncpy(item->name, vcb2.name, sizeof(item->name) - 1);
-                item->name[sizeof(item->name) - 1] = '\0';
+                /* The VCB name field is 32 bytes while DesktopItem's is 64.
+                 * Bound the read by the source field, then terminate in the
+                 * larger destination even if the source lacks a NUL byte. */
+                strncpy(item->name, vcb2.name, sizeof(vcb2.name));
+                item->name[sizeof(vcb2.name)] = '\0';
             } else {
                 strncpy(item->name, "Macintosh HD", sizeof(item->name) - 1);
                 item->name[sizeof(item->name) - 1] = '\0';

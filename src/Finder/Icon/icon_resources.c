@@ -133,8 +133,7 @@ bool IconRes_LoadCustomIconForPath(const char* path, IconFamily* out) {
     }
 
     /* Build path to Icon\r file */
-    strncpy(iconPath, path, sizeof(iconPath) - 1);
-    iconPath[sizeof(iconPath) - 1] = '\0';
+    memcpy(iconPath, path, pathLen + 1);
     {
         size_t len = strlen(iconPath);
         if (len > 0 && iconPath[len - 1] != '/') {

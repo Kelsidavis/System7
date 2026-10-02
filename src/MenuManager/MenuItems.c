@@ -139,7 +139,7 @@ static MenuExtData* GetMenuExtData(MenuHandle theMenu) {
  * Fills in item fields; caller must have set the defaults first.
  */
 static void ParseItemMeta(Str255 itemText, MenuItemRec* item) {
-    unsigned char out[256];
+    unsigned char out[256] = {0};
     short len = itemText[0];
     short outLen = 0;
     short i;

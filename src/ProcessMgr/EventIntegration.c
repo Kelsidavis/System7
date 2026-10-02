@@ -28,12 +28,21 @@ extern UInt16 GetModifierState(void);  /* From KeyboardEvents.c */
 
 /* String function from System71StdLib */
 extern void* memset(void* s, int c, size_t n);
-extern void* memcpy(void* dest, const void* src, size_t n);
 
 /* Forward declarations */
 static UInt16 GetModifiers(void);
 static Boolean DequeueEvent(EventMask mask, EventRecord* evt);
 static Boolean CheckSystemEvents(EventMask mask, EventRecord* evt);
+
+/* Copy fields directly so queue rotation remains defined when a full ring's
+ * head and tail identify the same slot. */
+static void CopyEventRecord(EventRecord* dest, const EventRecord* src) {
+    dest->what = src->what;
+    dest->message = src->message;
+    dest->when = src->when;
+    dest->where = src->where;
+    dest->modifiers = src->modifiers;
+}
 
 /*
  * Proc_GetNextEvent - Process-aware get next event matching mask
@@ -137,7 +146,7 @@ Boolean OSEventAvail(SInt16 mask, EventRecord* evt) {
     UInt16 index = gQueueHead;
     for (UInt16 count = gQueueCount; count > 0; count--) {
         if ((1 << gEventQueue[index].what) & (UInt16)mask) {
-            memcpy(evt, &gEventQueue[index], sizeof(EventRecord));
+            CopyEventRecord(evt, &gEventQueue[index]);
             return true;
         }
         index = (index + 1) % EVENT_QUEUE_SIZE;
@@ -168,8 +177,7 @@ Boolean Proc_EventAvail(EventMask mask, EventRecord* evt) {
         if ((1 << qEvt->what) & mask) {
             /* Found matching event - copy but don't remove */
             /* Use memcpy to avoid struct assignment on ARM64 */
-            extern void* memcpy(void* dest, const void* src, size_t n);
-            memcpy(evt, qEvt, sizeof(EventRecord));
+            CopyEventRecord(evt, qEvt);
             return true;
         }
 
@@ -222,8 +230,7 @@ OSErr Proc_PostEventWithModifiers(EventMask what, UInt32 message, UInt16 modifie
     evt.modifiers = modifiers;
 
     /* Add to queue - use memcpy to avoid struct assignment on ARM64 */
-    extern void* memcpy(void* dest, const void* src, size_t n);
-    memcpy(&gEventQueue[gQueueTail], &evt, sizeof(EventRecord));
+    CopyEventRecord(&gEventQueue[gQueueTail], &evt);
     gQueueTail = (gQueueTail + 1) % EVENT_QUEUE_SIZE;
     gQueueCount++;
 
@@ -271,9 +278,7 @@ static void Proc_FlushEvents(EventMask whichMask, EventMask stopMask) {
         /* Keep event if not in flush mask */
         if (!(evtBit & whichMask)) {
             if (writeIdx != readIdx) {
-                /* Use memcpy to avoid struct assignment on ARM64 */
-                extern void* memcpy(void* dest, const void* src, size_t n);
-                memcpy(&gEventQueue[writeIdx], evt, sizeof(EventRecord));
+                CopyEventRecord(&gEventQueue[writeIdx], evt);
             }
             writeIdx = (writeIdx + 1) % EVENT_QUEUE_SIZE;
         } else {
@@ -308,9 +313,7 @@ static Boolean DequeueEvent(EventMask mask, EventRecord* evt) {
         /* Check if head matches mask */
         if ((1 << headEvt->what) & mask) {
             /* Found match at head - dequeue it */
-            /* Use memcpy to avoid struct assignment on ARM64 */
-            extern void* memcpy(void* dest, const void* src, size_t n);
-            memcpy(evt, headEvt, sizeof(EventRecord));
+            CopyEventRecord(evt, headEvt);
             gQueueHead = (gQueueHead + 1) % EVENT_QUEUE_SIZE;
             gQueueCount--;
 
@@ -319,9 +322,7 @@ static Boolean DequeueEvent(EventMask mask, EventRecord* evt) {
         }
 
         /* No match - rotate this event to back */
-        /* Use memcpy to avoid struct assignment on ARM64 */
-        extern void* memcpy(void* dest, const void* src, size_t n);
-        memcpy(&gEventQueue[gQueueTail], headEvt, sizeof(EventRecord));
+        CopyEventRecord(&gEventQueue[gQueueTail], headEvt);
         gQueueHead = (gQueueHead + 1) % EVENT_QUEUE_SIZE;
         gQueueTail = (gQueueTail + 1) % EVENT_QUEUE_SIZE;
         rotations++;

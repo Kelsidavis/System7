@@ -866,6 +866,10 @@ OSErr hal_storage_get_drive_info(int drive_index, hal_storage_info_t* info) {
         return paramErr;
     }
 
+    if (drive_index < 0) {
+        return paramErr;
+    }
+
     if (drive_index >= g_device_count) {
         uint8_t dev = 0;
         uint8_t lun = 0;
@@ -885,6 +889,9 @@ OSErr hal_storage_get_drive_info(int drive_index, hal_storage_info_t* info) {
     }
 
     ATADevice* device = ATA_GetDevice(drive_index);
+    if (!device) {
+        return paramErr;
+    }
 
     if (device->type == ATA_DEVICE_PATAPI || device->type == ATA_DEVICE_SATAPI) {
         info->block_size = ATAPI_SECTOR_SIZE;
@@ -898,6 +905,10 @@ OSErr hal_storage_get_drive_info(int drive_index, hal_storage_info_t* info) {
 }
 
 OSErr hal_storage_read_blocks(int drive_index, uint64_t start_block, uint32_t block_count, void* buffer) {
+    if (drive_index < 0) {
+        return paramErr;
+    }
+
     if (drive_index >= g_device_count) {
         uint8_t dev = 0;
         uint8_t lun = 0;
@@ -908,6 +919,9 @@ OSErr hal_storage_read_blocks(int drive_index, uint64_t start_block, uint32_t bl
     }
 
     ATADevice* device = ATA_GetDevice(drive_index);
+    if (!device) {
+        return paramErr;
+    }
 
     if (device->type == ATA_DEVICE_PATAPI || device->type == ATA_DEVICE_SATAPI) {
         uint8_t* buf = (uint8_t*)buffer;
@@ -953,6 +967,10 @@ OSErr hal_storage_read_blocks(int drive_index, uint64_t start_block, uint32_t bl
 }
 
 OSErr hal_storage_write_blocks(int drive_index, uint64_t start_block, uint32_t block_count, const void* buffer) {
+    if (drive_index < 0) {
+        return paramErr;
+    }
+
     if (drive_index >= g_device_count) {
         uint8_t dev = 0;
         uint8_t lun = 0;
@@ -963,6 +981,9 @@ OSErr hal_storage_write_blocks(int drive_index, uint64_t start_block, uint32_t b
     }
 
     ATADevice* device = ATA_GetDevice(drive_index);
+    if (!device) {
+        return paramErr;
+    }
 
     if (device->type == ATA_DEVICE_PATAPI || device->type == ATA_DEVICE_SATAPI) {
         return wPrErr;

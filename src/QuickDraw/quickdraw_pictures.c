@@ -158,7 +158,7 @@ static RgnHandle ReadRegion(Play* p) {
         RectRgn(rgn, &bbox);
     } else {
         enum { kMaxX = 128 };
-        SInt16 xs[kMaxX];
+        SInt16 xs[kMaxX] = {0};
         int nx = 0;
         const UInt8* stop = start + size;
         RgnHandle band = NewRgn();

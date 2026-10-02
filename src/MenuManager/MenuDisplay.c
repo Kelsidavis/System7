@@ -917,7 +917,7 @@ void FlashMenuItem(MenuHandle theMenu, short item, short flashes)
     }
 
     /* Get item properties to build draw info */
-    Rect itemRect;
+    Rect itemRect = {0};
     Style tempStyle;
     CalcMenuItemRect(theMenu, item, &gCurrentMenuRect, &itemRect);
 
@@ -1467,7 +1467,7 @@ static void DrawMenuItemCmdKeyInternal(const Rect* cmdRect, unsigned char cmdCha
 static void CalcMenuItemRects(MenuHandle theMenu, short item, const Rect* menuRect,
                             Rect* textRect, Rect* iconRect, Rect* markRect, Rect* cmdRect)
 {
-    Rect itemRect;
+    Rect itemRect = {0};
 
     CalcMenuItemRect(theMenu, item, menuRect, &itemRect);
 
