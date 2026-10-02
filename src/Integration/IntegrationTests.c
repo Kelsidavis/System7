@@ -41,6 +41,7 @@ extern OSErr FSSetFPos(FileRefNum refNum, UInt16 posMode, SInt32 posOffset);
 extern OSErr FSGetEOF(FileRefNum refNum, UInt32* eof);
 extern OSErr FSSetEOF(FileRefNum refNum, UInt32 eof);
 extern OSErr FSGetFInfo(ConstStr255Param fileName, VolumeRefNum vRefNum, FInfo* fndrInfo);
+extern OSErr FSOpenRF(ConstStr255Param fileName, VolumeRefNum vRefNum, FileRefNum* refNum);
 extern OSErr FSCreateDir(ConstStr255Param dirName, VolumeRefNum vRefNum, DirID* createdDirID);
 extern OSErr FSDeleteDir(ConstStr255Param dirName, VolumeRefNum vRefNum);
 extern OSErr FSOpenWD(VolumeRefNum vRefNum, DirID dirID, UInt32 procID, WDRefNum* wdRefNum);
@@ -56,6 +57,7 @@ extern OSErr HGetFInfo(short vRefNum, long dirID, ConstStr255Param fileName, FIn
 #include "CPU/CPUBackend.h"
 #include "CPU/M68KInterp.h"
 #include "CPU/M68KHeap.h"
+#include "SegmentLoader/MacBinary.h"
 
 extern UInt32 M68K_Read32(M68KAddressSpace* as, UInt32 addr);
 extern void M68K_Write32(M68KAddressSpace* as, UInt32 addr, UInt32 value);
@@ -1264,6 +1266,160 @@ static void PrintTestSummary(void) {
     IT_LOG_INFO("%s", "");
 }
 
+static void PutBE16(UInt8* p, UInt16 v) { p[0] = v >> 8; p[1] = v; }
+static void PutBE32(UInt8* p, UInt32 v) { PutBE16(p, v >> 16); PutBE16(p + 2, v); }
+
+/* Lays out a MacBinary II archive as tests/m68k/mkapp.py writes one: forks
+ * padded to 128 bytes, header CRC at 124. Returns its length. */
+static UInt32 BuildMacBinary(UInt8* a, const UInt8* data, UInt32 dataLen,
+                             const UInt8* rsrc, UInt32 rsrcLen) {
+    memset(a, 0, 128);
+    a[1] = 5;
+    memcpy(a + 2, "Hello", 5);
+    memcpy(a + 65, "APPL", 4);
+    memcpy(a + 69, "DMSE", 4);
+    PutBE32(a + 83, dataLen);
+    PutBE32(a + 87, rsrcLen);
+    a[122] = kMacBinVersionII;
+    a[123] = kMacBinVersionII;
+    PutBE16(a + 124, MacBinary_CRC16(a, 124));
+    UInt32 dataPadded = (dataLen + 127) & ~127u;
+    memset(a + 128, 0, dataPadded);
+    memcpy(a + 128, data, dataLen);
+    memcpy(a + 128 + dataPadded, rsrc, rsrcLen);
+    return 128 + dataPadded + rsrcLen;
+}
+
+static void Test_MacBinary_Unpack(void) {
+    const char* test_name = "MacBinary_Unpack";
+    static UInt8 archive[1024];
+    UInt8 rsrc[16 + 28];
+    const UInt8 data[] = {0x4E, 0x71, 0x4E, 0x75};
+    MacBinaryArchive out;
+
+    /* An empty resource fork: header, no data, a bare 28-byte map. */
+    memset(rsrc, 0, sizeof(rsrc));
+    PutBE32(rsrc + 0, 16);
+    PutBE32(rsrc + 4, 16);
+    PutBE32(rsrc + 8, 0);
+    PutBE32(rsrc + 12, 28);
+
+    UInt32 size = BuildMacBinary(archive, data, sizeof(data), rsrc, sizeof(rsrc));
+    CHECK(MacBinary_IsMacBinary(archive, size), "MacBinary II archive not recognised");
+    CHECK(MacBinary_Parse(archive, size, &out) == noErr, "MacBinary II archive did not parse");
+    CHECK(out.header.version == kMacBinVersionII, "version not read from byte 122");
+    CHECK(out.header.fileName[0] == 5 && memcmp(out.header.fileName + 1, "Hello", 5) == 0,
+          "file name wrong");
+    CHECK(memcmp(out.header.fileTypeId, "APPL", 4) == 0, "type not read from byte 65");
+    CHECK(memcmp(out.header.fileCreator, "DMSE", 4) == 0, "creator not read from byte 69");
+    CHECK(out.dataFork == archive + 128 && out.dataForkSize == sizeof(data),
+          "data fork not at 128");
+    CHECK(out.resourceFork == archive + 256 && out.resourceForkSize == sizeof(rsrc),
+          "resource fork not at the next 128-byte boundary");
+
+    /* MacBinary I has no CRC; the zero bytes and fork lengths identify it. */
+    memset(archive + 99, 0, 29);
+    CHECK(MacBinary_Parse(archive, size, &out) == noErr && out.header.version == 0,
+          "MacBinary I archive not accepted");
+    archive[82] = 1;
+    CHECK(!MacBinary_IsMacBinary(archive, size), "byte 82 set and no CRC was accepted");
+
+    /* Text that happens to start with a zero byte is not MacBinary. */
+    size = BuildMacBinary(archive, data, sizeof(data), rsrc, sizeof(rsrc));
+    archive[0] = 'H';
+    CHECK(!MacBinary_IsMacBinary(archive, size), "nonzero byte 0 accepted");
+
+    /* Forks that run past the end of the file. */
+    size = BuildMacBinary(archive, data, sizeof(data), rsrc, sizeof(rsrc));
+    CHECK(MacBinary_Parse(archive, size - 1, &out) != noErr, "truncated resource fork accepted");
+    PutBE32(archive + 83, 0xFFFFFF80);
+    PutBE16(archive + 124, MacBinary_CRC16(archive, 124));
+    CHECK(MacBinary_Parse(archive, size, &out) != noErr, "wrapping data fork length accepted");
+
+    /* A resource map that points outside the fork. */
+    PutBE32(rsrc + 4, 17);
+    size = BuildMacBinary(archive, data, sizeof(data), rsrc, sizeof(rsrc));
+    CHECK(MacBinary_Parse(archive, size, &out) == mapReadErr, "resource map outside the fork accepted");
+
+    CHECK(MacBinary_Parse(NULL, size, &out) != noErr && MacBinary_Parse(archive, size, NULL) != noErr,
+          "NULL accepted");
+    RecordTest(test_name, true, "");
+}
+
+/* An archive on disk unpacks into the file it carries, beside it, and a
+ * second unpack does not overwrite the first. */
+static void Test_MacBinary_UnpackFile(void) {
+    const char* test_name = "MacBinary_UnpackFile";
+    static UInt8 archive[1024];
+    UInt8 rsrc[16 + 28];
+    const UInt8 data[] = {'d', 'a', 't', 'a'};
+    FSSpec spec, out;
+    SetSpec(&spec, "ITest Archive.bin");
+    static const UInt8 kName[] = "\005Hello";
+    static const UInt8 kName1[] = "\007Hello.1";
+    FSDelete(spec.name, 0);
+    FSDelete(kName, 0);
+    FSDelete(kName1, 0);
+
+    memset(rsrc, 0, sizeof(rsrc));
+    PutBE32(rsrc + 0, 16);
+    PutBE32(rsrc + 4, 16);
+    PutBE32(rsrc + 12, 28);
+    UInt32 size = BuildMacBinary(archive, data, sizeof(data), rsrc, sizeof(rsrc));
+    archive[73] = 0x01;      /* kHasBeenInited's byte: a sender's Finder state */
+    archive[101] = 0x01;     /* kIsOnDesk */
+    PutBE16(archive + 124, MacBinary_CRC16(archive, 124));
+
+    CHECK(FSCreate(spec.name, 0, 'BINA', 'BINA') == noErr, "FSCreate failed");
+    FileRefNum ref = 0;
+    CHECK(FSOpen(spec.name, 0, &ref) == noErr, "FSOpen failed");
+    UInt32 n = size;
+    OSErr err = FSWrite(ref, &n, archive);
+    FSClose(ref);
+    CHECK(err == noErr && n == size, "writing the archive failed");
+
+    CHECK(MacBinary_IsMacBinaryFile(0, 0, spec.name), "archive on disk not recognised");
+    err = MacBinary_UnpackFile(0, 0, spec.name, &out);
+    Boolean named = err == noErr && memcmp(out.name, kName, sizeof(kName) - 1) == 0;
+
+    FInfo info;
+    memset(&info, 0, sizeof info);
+    OSErr infoErr = FSGetFInfo(kName, 0, &info);
+    UInt8 back[8];
+    UInt32 dataEOF = 0, rsrcEOF = 0;
+    n = sizeof(back);
+    Boolean dataOK = FSOpen(kName, 0, &ref) == noErr;
+    if (dataOK) {
+        dataOK = FSGetEOF(ref, &dataEOF) == noErr && FSRead(ref, &n, back) == noErr &&
+                 dataEOF == sizeof(data) && memcmp(back, data, sizeof(data)) == 0;
+        FSClose(ref);
+    }
+    Boolean rsrcOK = FSOpenRF(kName, 0, &ref) == noErr;
+    if (rsrcOK) {
+        rsrcOK = FSGetEOF(ref, &rsrcEOF) == noErr && rsrcEOF == sizeof(rsrc);
+        FSClose(ref);
+    }
+    OSErr again = MacBinary_UnpackFile(0, 0, spec.name, &out);
+    Boolean named1 = again == noErr && memcmp(out.name, kName1, sizeof(kName1) - 1) == 0;
+    Boolean archiveKept = MacBinary_IsMacBinaryFile(0, 0, spec.name);
+    Boolean textIsNot = !MacBinary_IsMacBinaryFile(0, 0, kName);
+
+    FSDelete(spec.name, 0);
+    FSDelete(kName, 0);
+    FSDelete(kName1, 0);
+    CHECK(err == noErr, "unpacking failed");
+    CHECK(named, "unpacked file not named from the header");
+    CHECK(infoErr == noErr && info.fdType == 'APPL' && info.fdCreator == 'DMSE',
+          "type and creator not carried over");
+    CHECK((info.fdFlags & kMacBinSenderFinderFlags) == 0, "sender's Finder state kept");
+    CHECK(dataOK, "data fork not written");
+    CHECK(rsrcOK, "resource fork not written");
+    CHECK(named1, "second unpack did not take the next free name");
+    CHECK(archiveKept, "the archive was changed");
+    CHECK(textIsNot, "an unpacked file was taken for an archive");
+    RecordTest(test_name, true, "");
+}
+
 void IntegrationTests_Run(void) {
     IT_LOG_INFO("%s", "");
     IT_LOG_INFO("============================================");
@@ -1312,6 +1468,10 @@ void IntegrationTests_Run(void) {
     Test_Resource_CreateAndOpenResFile();
     Test_Resource_WriteAndReadBack();
     Test_Resource_OpenMissingResFile();
+
+    IT_LOG_INFO("--- Segment Loader ---");
+    Test_MacBinary_Unpack();
+    Test_MacBinary_UnpackFile();
 
     PrintTestSummary();
 }

@@ -40,6 +40,7 @@
 #include "ControlPanels/ControlStrip.h"
 #include "Datetime/datetime_cdev.h"
 #include "ProcessMgr/ProcessTypes.h"
+#include "SegmentLoader/MacBinary.h"
 extern OSErr LaunchApplication(LaunchParamBlockRec* launchParams);
 extern void MoveTo(short h, short v);
 extern void LineTo(short h, short v);
@@ -2679,6 +2680,24 @@ void FolderWindow_DeleteSelected(WindowPtr w) {
     }
 }
 
+extern OSErr HGetFInfo(short vRefNum, long dirID, ConstStr255Param fileName, FInfo* fndrInfo);
+
+static void FolderWindow_PascalName(const char* name, Str255 out)
+{
+    size_t len = strlen(name) > 31 ? 31 : strlen(name);
+    out[0] = (UInt8)len;
+    memcpy(&out[1], name, len);
+}
+
+/* A MacBinary archive copied on as-is has no type the Finder knows, so the
+ * only way to tell is to look at its header. */
+static Boolean FolderWindow_IsMacBinary(FolderWindowState* state, const char* name)
+{
+    Str255 pname;
+    FolderWindow_PascalName(name, pname);
+    return MacBinary_IsMacBinaryFile(state->vref, state->currentDir, pname);
+}
+
 /*
  * FolderWindow_OpenSelected - Open the currently selected item
  * Extracted from double-click handler for use with Return/Enter keys and File > Open
@@ -2815,6 +2834,28 @@ static void FolderWindow_OpenFileNamed(FolderWindowState* state,
             if (err != noErr) {
                 FINDER_LOG_DEBUG("FW: Failed to launch \"%s\" (err=%d)\n", name, err);
             }
+        }
+    } else if (FolderWindow_IsMacBinary(state, name)) {
+        /* A MacBinary archive is one file carrying another, so unpack it
+         * beside itself, as StuffIt Expander would have; an application
+         * that comes out is then launched, which is what opening the
+         * archive was for. Opening it as text showed its header bytes. */
+        FSSpec unpacked;
+        Str255 pname;
+        FolderWindow_PascalName(name, pname);
+        OSErr err = MacBinary_UnpackFile(state->vref, state->currentDir, pname, &unpacked);
+        if (err != noErr) {
+            FINDER_LOG_DEBUG("FW: could not unpack \"%s\" (err=%d)\n", name, err);
+            SysBeep(1);
+            return;
+        }
+        FInfo info;
+        char unpackedName[32];
+        memcpy(unpackedName, &unpacked.name[1], unpacked.name[0]);
+        unpackedName[unpacked.name[0]] = '\0';
+        if (HGetFInfo(unpacked.vRefNum, unpacked.parID, unpacked.name, &info) == noErr &&
+            info.fdType == 'APPL') {
+            FolderWindow_OpenFileNamed(state, unpackedName, 'APPL');
         }
     } else {
         /* Unknown document type - try to open with SimpleText as fallback */

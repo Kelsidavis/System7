@@ -478,6 +478,8 @@ C_SOURCES = src/main.c \
             src/SegmentLoader/SegmentLoader.c \
             src/SegmentLoader/CodeParser.c \
             src/SegmentLoader/A5World.c \
+            src/SegmentLoader/MacBinary.c \
+            src/SegmentLoader/MacBinaryFile.c \
             src/SegmentLoader/SegmentLoaderTest.c \
             src/TextEdit/TextEdit.c \
             src/TextEdit/TextEditDraw.c \
