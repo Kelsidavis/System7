@@ -158,7 +158,8 @@ OSErr BuildJumpTable(SegmentLoaderContext* ctx, const void* jtData, Size jtBytes
         return segmentBadFormat;
     }
 
-    SEG_LOG_INFO("Copying %d jump table entries to 0x%08X", jtCount, jtBase);
+    /* jtCount/jtBase are 32-bit: %d/%X would pass 4-byte ints. */
+    SEG_LOG_INFO("Copying %ld jump table entries to 0x%08lX", (long)jtCount, (unsigned long)jtBase);
 
     /*
      * The jump table is the application's, not ours to invent.
@@ -183,8 +184,9 @@ OSErr BuildJumpTable(SegmentLoaderContext* ctx, const void* jtData, Size jtBytes
          * not something this loader can honour, and jumping into it would run
          * whatever bytes happen to be there. Say so instead. */
         if (pushOpcode != 0x3F3C || trapWord != 0xA9F0) {
-            SEG_LOG_ERROR("JT[%d] is not an unloaded entry (%04X %04X)",
-                          i, pushOpcode, trapWord);
+            /* pushOpcode/trapWord are 32-bit: %X would pass 4-byte ints. */
+            SEG_LOG_ERROR("JT[%d] is not an unloaded entry (%04lX %04lX)",
+                          i, (unsigned long)pushOpcode, (unsigned long)trapWord);
             return segmentBadFormat;
         }
 
@@ -195,11 +197,14 @@ OSErr BuildJumpTable(SegmentLoaderContext* ctx, const void* jtData, Size jtBytes
             return err;
         }
 
-        SEG_LOG_INFO("  JT[%d] = A5%+d (0x%08X) -> CODE %d +%u", i,
-                     (int)(ctx->code0Info.jtOffsetFromA5 + i * ctx->a5World.jtEntrySize),
-                     slotAddr, segID, routineOffset);
+        /* The offset/segID/routineOffset/slotAddr are 32-bit:
+         * %d/%X/%u would pass 4-byte ints to printf. */
+        SEG_LOG_INFO("  JT[%d] = A5%+ld (0x%08lX) -> CODE %ld +%lu", i,
+                     (long)(ctx->code0Info.jtOffsetFromA5 + i * ctx->a5World.jtEntrySize),
+                     (unsigned long)slotAddr, (long)segID, (unsigned long)routineOffset);
     }
 
-    SEG_LOG_INFO("All %d entries installed", jtCount);
+    /* jtCount is 32-bit: %d would pass a 4-byte int to printf. */
+    SEG_LOG_INFO("All %ld entries installed", (long)jtCount);
     return noErr;
 }

@@ -245,8 +245,9 @@ OSErr LoadSegment(SegmentLoaderContext* ctx, SInt16 segID)
         SEG_LOG_ERROR("CODE %d resource not found", segID);
         return segmentNotFound;
     }
-    SEG_LOG_INFO("CODE %d resource loaded: handle=%p size=%u", segID, codeHandle,
-                 codeHandle ? GetHandleSize(codeHandle) : 0);
+    /* GetHandleSize returns Size (long): %u would pass a 4-byte int. */
+    SEG_LOG_INFO("CODE %d resource loaded: handle=%p size=%lu", segID, codeHandle,
+                 codeHandle ? (unsigned long)GetHandleSize(codeHandle) : 0UL);
 
     HLock(codeHandle);
     codeData = (const UInt8*)*codeHandle;
@@ -343,11 +344,16 @@ OSErr LoadSegment(SegmentLoaderContext* ctx, SInt16 segID)
     }
 
     SEG_LOG_INFO("CODE %d loaded successfully:", segID);
-    SEG_LOG_INFO("  baseAddr  = 0x%08X", baseAddr);
-    SEG_LOG_INFO("  entryAddr = 0x%08X, JT entries %u..%u", entryAddr,
-                 (unsigned)(info.firstJTEntry / JT_ENTRY_SIZE),
-                 (unsigned)(info.firstJTEntry / JT_ENTRY_SIZE + info.jtEntryCount));
-    SEG_LOG_INFO("  size      = 0x%X bytes", executableSize);
+    /* baseAddr is CPUAddr (uint32_t): %X would pass a 4-byte int. */
+    SEG_LOG_INFO("  baseAddr  = 0x%08lX", (unsigned long)baseAddr);
+    /* entryAddr is CPUAddr and the division/sum is Size (long):
+     * %X/%u would pass 4-byte ints where printf reads 8. */
+    SEG_LOG_INFO("  entryAddr = 0x%08lX, JT entries %lu..%lu",
+                 (unsigned long)entryAddr,
+                 (unsigned long)(info.firstJTEntry / JT_ENTRY_SIZE),
+                 (unsigned long)(info.firstJTEntry / JT_ENTRY_SIZE + info.jtEntryCount));
+    /* executableSize is Size (long): %X would pass a 4-byte int. */
+    SEG_LOG_INFO("  size      = 0x%lX bytes", (unsigned long)executableSize);
 
     /* Clean up */
     FreeRelocationTable(&info.relocTable);
@@ -414,8 +420,10 @@ OSErr PatchSegmentJumpTable(SegmentLoaderContext* ctx, SInt16 segID)
         return noErr;
     }
     if (first + count > ctx->a5World.jtCount) {
-        SEG_LOG_ERROR("CODE %d claims JT entries %u..%u, past the table's %u",
-                      segID, first, first + count, ctx->a5World.jtCount);
+        /* first/count/jtCount are 32-bit: %u would pass 4-byte ints. */
+        SEG_LOG_ERROR("CODE %d claims JT entries %lu..%lu, past the table's %lu",
+                      segID, (unsigned long)first, (unsigned long)(first + count),
+                      (unsigned long)ctx->a5World.jtCount);
         return segmentBadFormat;
     }
 
@@ -443,8 +451,10 @@ OSErr PatchSegmentJumpTable(SegmentLoaderContext* ctx, SInt16 segID)
             SEG_LOG_ERROR("Could not patch JT[%d] for CODE %d", i, segID);
             return err;
         }
-        SEG_LOG_INFO("JT[%d] -> CODE %d +%u (0x%08X)", i, segID,
-                     routineOffset, target);
+        /* routineOffset is UInt16 (int), target is CPUAddr (uint32_t):
+     * %u/%X would pass 4-byte ints where printf reads 8. */
+        SEG_LOG_INFO("JT[%d] -> CODE %d +%lu (0x%08lX)", i, segID,
+                     (unsigned long)routineOffset, (unsigned long)target);
     }
 
     return noErr;
@@ -529,7 +539,8 @@ static OSErr LoadSeg_TrapHandler(void* trapCtx, CPUAddr* pc, CPUAddr* registers)
 
     OSErr err = LoadSegment(ctx, segID);
     if (err != noErr) {
-        SEG_LOG_ERROR("_LoadSeg: CODE %d could not be loaded: %d", segID, err);
+        /* err is OSErr (long): %d would pass a 4-byte int to printf. */
+        SEG_LOG_ERROR("_LoadSeg: CODE %d could not be loaded: %ld", segID, (long)err);
         return err;
     }
 

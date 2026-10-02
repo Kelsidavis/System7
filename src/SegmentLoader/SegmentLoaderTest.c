@@ -53,12 +53,14 @@ static void InstallTestResources(void)
 
     /* Save current resource file and use system resource file for tests */
     savedResFile = CurResFile();
-    SEG_LOG_INFO("Current resource file before: refNum=%d", savedResFile);
+    /* savedResFile is SInt16 (short): %d would pass a 4-byte int. */
+    SEG_LOG_INFO("Current resource file before: refNum=%hd", savedResFile);
 
     /* Use system resource file (refNum 0) for synthetic resources */
     UseResFile(0);
     SInt16 sysResFile = CurResFile();
-    SEG_LOG_INFO("Switched to system resource file: refNum=%d", sysResFile);
+    /* sysResFile is SInt16 (short): %d would pass a 4-byte int. */
+    SEG_LOG_INFO("Switched to system resource file: refNum=%hd", sysResFile);
 
     /* --- CODE 0: A5 World Metadata --- */
     /* Layout:
@@ -93,7 +95,8 @@ static void InstallTestResources(void)
     }
 
     Handle h0 = MakeHandleFromBytes(code0, sizeof(code0));
-    SEG_LOG_INFO("InstallTestResources: CODE 0 handle=%p size=%u", h0, (unsigned)sizeof(code0));
+    /* sizeof(code0) is 4-byte size_t: %u would pass it as an int. */
+    SEG_LOG_INFO("InstallTestResources: CODE 0 handle=%p size=%lu", h0, (unsigned long)sizeof(code0));
     AddResource(h0, 'CODE', 0, NULL);
 
     /* --- CODE 1: Entry Segment --- */
@@ -130,7 +133,7 @@ static void InstallTestResources(void)
     code1[16] = 0x4E; code1[17] = 0x71;
 
     Handle h1 = MakeHandleFromBytes(code1, sizeof(code1));
-    SEG_LOG_INFO("InstallTestResources: CODE 1 handle=%p size=%u", h1, (unsigned)sizeof(code1));
+    SEG_LOG_INFO("InstallTestResources: CODE 1 handle=%p size=%lu", h1, (unsigned long)sizeof(code1));
     AddResource(h1, 'CODE', 1, NULL);
 
     /* --- CODE 2: Trace Segment --- */
@@ -168,11 +171,12 @@ static void InstallTestResources(void)
     code2[22] = 0x4E; code2[23] = 0x71; // NOP
 
     Handle h2 = MakeHandleFromBytes(code2, sizeof(code2));
-    SEG_LOG_INFO("InstallTestResources: CODE 2 handle=%p size=%u", h2, (unsigned)sizeof(code2));
+    SEG_LOG_INFO("InstallTestResources: CODE 2 handle=%p size=%lu", h2, (unsigned long)sizeof(code2));
     AddResource(h2, 'CODE', 2, NULL);
 
     /* Keep system resource file as current so GetResource() works */
-    SEG_LOG_INFO("System resource file refNum=%d is now current", sysResFile);
+    /* sysResFile is SInt16 (short): %d would pass a 4-byte int. */
+    SEG_LOG_INFO("System resource file refNum=%hd is now current", sysResFile);
     (void)savedResFile; /* Will stay on system file for the duration of test */
 }
 
@@ -207,27 +211,32 @@ OSErr SegmentLoader_RunSmokeChecks(SegmentLoaderContext* ctx)
     /* Check: a5BelowBase + a5BelowSize == a5Base */
     if (a5->a5BelowBase + a5->a5BelowSize != a5->a5Base) {
         SEG_TEST_FAILED("a5BelowBase(0x");
-        SEG_LOG_ERROR("FAIL: a5BelowBase(0x%08X) + a5BelowSize(0x%X) != a5Base(0x%08X)",
-                     a5->a5BelowBase, a5->a5BelowSize, a5->a5Base);
+        /* All three are 32-bit: %X would pass 4-byte ints to printf. */
+        SEG_LOG_ERROR("FAIL: a5BelowBase(0x%08lX) + a5BelowSize(0x%lX) != a5Base(0x%08lX)",
+                     (unsigned long)a5->a5BelowBase, (unsigned long)a5->a5BelowSize, (unsigned long)a5->a5Base);
         return segmentA5WorldErr;
     }
-    SEG_LOG_INFO("PASS: a5BelowBase + a5BelowSize == a5Base (0x%08X)", a5->a5Base);
+    /* a5Base is 32-bit: %X would pass a 4-byte int to printf. */
+    SEG_LOG_INFO("PASS: a5BelowBase + a5BelowSize == a5Base (0x%08lX)", (unsigned long)a5->a5Base);
 
     /* Check: jtBase == a5Base + jtOffsetFromA5 */
     CPUAddr expectedJT = a5->a5Base + ctx->code0Info.jtOffsetFromA5;
     if (a5->jtBase != expectedJT) {
         SEG_TEST_FAILED("jtBase(0x");
-        SEG_LOG_ERROR("FAIL: jtBase(0x%08X) != a5Base(0x%08X) + jtOffset(0x%X)",
-                     a5->jtBase, a5->a5Base, ctx->code0Info.jtOffsetFromA5);
+        /* All three are 32-bit: %X would pass 4-byte ints to printf. */
+        SEG_LOG_ERROR("FAIL: jtBase(0x%08lX) != a5Base(0x%08lX) + jtOffset(0x%lX)",
+                     (unsigned long)a5->jtBase, (unsigned long)a5->a5Base, (unsigned long)ctx->code0Info.jtOffsetFromA5);
         return segmentJTErr;
     }
-    SEG_LOG_INFO("PASS: jtBase == a5Base + jtOffset (0x%08X)", a5->jtBase);
+    /* jtBase is 32-bit: %X would pass a 4-byte int to printf. */
+    SEG_LOG_INFO("PASS: jtBase == a5Base + jtOffset (0x%08lX)", (unsigned long)a5->jtBase);
 
     /* Check: jtCount > 0 and all slots materialized */
     if (a5->jtCount == 0) {
         SEG_LOG_WARN("jtCount is 0 (no jump table entries)");
     } else {
-        SEG_LOG_INFO("PASS: jtCount = %d, all slots materialized", a5->jtCount);
+        /* jtCount is 32-bit: %d would pass a 4-byte int to printf. */
+        SEG_LOG_INFO("PASS: jtCount = %ld, all slots materialized", (long)a5->jtCount);
 
         /*
          * Every entry should be the unloaded form CODE 0 supplied, naming its
@@ -305,16 +314,19 @@ OSErr LoadSeg_TrapHandler(void* context, CPUAddr* pc, CPUAddr* registers)
     /* Adjust stack (pop the argument) */
     mas->regs.a[7] += 2;
 
-    SEG_LOG_INFO("_LoadSeg trap: segID=%d from SP=0x%08X", segID, sp);
+    /* segID is UInt16, sp is CPUAddr: %d/%X would pass ints. */
+    SEG_LOG_INFO("_LoadSeg trap: segID=%hu from SP=0x%08lX", segID, (unsigned long)sp);
 
     /* Load the segment */
     err = LoadSegment(ctx, segID);
     if (err != noErr) {
-        SEG_LOG_ERROR("_LoadSeg: LoadSegment(%d) failed: %d", segID, err);
+        /* segID is UInt16, err is OSErr (long): %d would pass ints. */
+        SEG_LOG_ERROR("_LoadSeg: LoadSegment(%hu) failed: %ld", segID, (long)err);
         return err;
     }
 
-    SEG_LOG_INFO("_LoadSeg: segment %d loaded successfully", segID);
+    /* segID is UInt16: %d would pass a 4-byte int to printf. */
+    SEG_LOG_INFO("_LoadSeg: segment %hu loaded successfully", segID);
 
     /* Put every entry the segment owns into loaded form. This is the loader's
      * own routine, so the test cannot drift away from what it does. */
@@ -344,7 +356,8 @@ OSErr LoadSeg_TrapHandler(void* context, CPUAddr* pc, CPUAddr* registers)
             BE_Read16(slot + 2) == 0x4EF9) {
             CPUAddr target = ((CPUAddr)slot[4] << 24) | ((CPUAddr)slot[5] << 16) |
                              ((CPUAddr)slot[6] << 8) | (CPUAddr)slot[7];
-            SEG_LOG_INFO("_LoadSeg: continuing into 0x%08X", target);
+            /* target is CPUAddr (uint32_t): %X passes a 4-byte int. */
+            SEG_LOG_INFO("_LoadSeg: continuing into 0x%08lX", (unsigned long)target);
             *pc = target;
         }
     }
@@ -370,7 +383,8 @@ OSErr Trace_TrapHandler(void* context, CPUAddr* pc, CPUAddr* registers)
 
     SEG_LOG_INFO("========================================");
     SEG_LOG_INFO("*** CODE 2 EXECUTED! ***");
-    SEG_LOG_INFO("Trace trap hit at PC=0x%08X", pc ? *pc : 0);
+    /* *pc is 32-bit: %X would pass a 4-byte int to printf. */
+    SEG_LOG_INFO("Trace trap hit at PC=0x%08lX", (unsigned long)(pc ? *pc : 0));
     SEG_LOG_INFO("Lazy segment loading WORKS!");
     SEG_LOG_INFO("========================================");
 
@@ -441,7 +455,8 @@ static void RunTestBoot(void)
     err = SegmentLoader_Initialize(&testPCB, "m68k_interp", &ctx);
     if (err != noErr) {
         SEG_TEST_FAILED("SegmentLoader_Initialize returned");
-        SEG_LOG_ERROR("FAIL: SegmentLoader_Initialize returned %d", err);
+        /* err is OSErr (long): %d would pass a 4-byte int to printf. */
+        SEG_LOG_ERROR("FAIL: SegmentLoader_Initialize returned %ld", (long)err);
         return;
     }
 
@@ -449,7 +464,8 @@ static void RunTestBoot(void)
     err = MemoryManager_MapToM68K((struct M68KAddressSpace*)ctx->cpuAS);
     if (err != noErr) {
         SEG_TEST_FAILED("MemoryManager_MapToM68K returned");
-        SEG_LOG_ERROR("FAIL: MemoryManager_MapToM68K returned %d", err);
+        /* err is OSErr (long): %d would pass a 4-byte int to printf. */
+        SEG_LOG_ERROR("FAIL: MemoryManager_MapToM68K returned %ld", (long)err);
         SegmentLoader_Cleanup(ctx);
         return;
     }
@@ -465,7 +481,8 @@ static void RunTestBoot(void)
 
     err = OSUtils_InstallTraps(ctx);
     if (err != noErr) {
-        SEG_LOG_INFO("OSUtils_InstallTraps returned %d (continuing)", err);
+        /* err is OSErr (long): %d would pass a 4-byte int to printf. */
+        SEG_LOG_INFO("OSUtils_InstallTraps returned %ld (continuing)", (long)err);
     }
 
     /* Load CODE 0 and CODE 1 */
@@ -473,7 +490,8 @@ static void RunTestBoot(void)
     err = EnsureEntrySegmentsLoaded(ctx);
     if (err != noErr) {
         SEG_TEST_FAILED("EnsureEntrySegmentsLoaded returned");
-        SEG_LOG_ERROR("FAIL: EnsureEntrySegmentsLoaded returned %d", err);
+        /* err is OSErr (long): %d would pass a 4-byte int to printf. */
+        SEG_LOG_ERROR("FAIL: EnsureEntrySegmentsLoaded returned %ld", (long)err);
         SegmentLoader_Cleanup(ctx);
         return;
     }
@@ -491,12 +509,16 @@ static void RunTestBoot(void)
     /* Log A5, USP, entry */
     SEG_LOG_INFO("");
     SEG_LOG_INFO("Entry State:");
-    SEG_LOG_INFO("  A5 = 0x%08X (a5Base)", ctx->a5World.a5Base);
-    SEG_LOG_INFO("  JT = 0x%08X (jtBase)", ctx->a5World.jtBase);
+    /* a5Base is 32-bit: %X would pass a 4-byte int to printf. */
+    SEG_LOG_INFO("  A5 = 0x%08lX (a5Base)", (unsigned long)ctx->a5World.a5Base);
+    /* jtBase is 32-bit: %X would pass a 4-byte int to printf. */
+    SEG_LOG_INFO("  JT = 0x%08lX (jtBase)", (unsigned long)ctx->a5World.jtBase);
 
     M68KAddressSpace* mas = (M68KAddressSpace*)ctx->cpuAS;
-    SEG_LOG_INFO("  USP = 0x%08X", mas->regs.usp);
-    SEG_LOG_INFO("  A5(reg) = 0x%08X", mas->regs.a[5]);
+    /* usp is 32-bit: %X would pass a 4-byte int to printf. */
+    SEG_LOG_INFO("  USP = 0x%08lX", (unsigned long)mas->regs.usp);
+    /* a[5] is 32-bit: %X would pass a 4-byte int to printf. */
+    SEG_LOG_INFO("  A5(reg) = 0x%08lX", (unsigned long)mas->regs.a[5]);
 
     err = GetSegmentEntryPoint(ctx, 1, &entry);
     if (err != noErr) {
@@ -505,21 +527,24 @@ static void RunTestBoot(void)
         SegmentLoader_Cleanup(ctx);
         return;
     }
-    SEG_LOG_INFO("  Entry = 0x%08X (CODE 1)", entry);
+    /* entry is CPUAddr (uint32_t): %X passes a 4-byte int. */
+    SEG_LOG_INFO("  Entry = 0x%08lX (CODE 1)", (unsigned long)entry);
     SEG_LOG_INFO("");
 
     /* Execute CODE 1 via M68K interpreter! */
     SEG_LOG_INFO("");
     SEG_LOG_INFO("========================================");
     SEG_LOG_INFO("*** ENTERING M68K INTERPRETER ***");
-    SEG_LOG_INFO("Calling EnterAt(0x%08X) with timeslice...", entry);
+    /* entry is CPUAddr (uint32_t): %X passes a 4-byte int. */
+    SEG_LOG_INFO("Calling EnterAt(0x%08lX) with timeslice...", (unsigned long)entry);
     SEG_LOG_INFO("========================================");
     SEG_LOG_INFO("");
 
     err = ctx->cpuBackend->EnterAt(ctx->cpuAS, entry, 0);
     if (err != noErr) {
         SEG_TEST_FAILED("EnterAt returned");
-        SEG_LOG_ERROR("FAIL: EnterAt returned %d", err);
+        /* err is OSErr (long): %d would pass a 4-byte int to printf. */
+        SEG_LOG_ERROR("FAIL: EnterAt returned %ld", (long)err);
         SegmentLoader_Cleanup(ctx);
         return;
     }
