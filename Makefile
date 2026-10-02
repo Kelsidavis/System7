@@ -1197,7 +1197,7 @@ $(KERNEL): $(OBJECTS) | $(BUILD_DIR)
     elif [ "$(PLATFORM)" = "arm" ]; then \
         $(CC) $(LDFLAGS) -Wl,-T,$(LINKER_SCRIPT) -nostdlib -static -o $(KERNEL) $(OBJECTS) $(LIBM) -lgcc; \
     else \
-        $(CC) -m32 -Wl,-T,$(LINKER_SCRIPT) -nostdlib -no-pie -static -o $(KERNEL) $(OBJECTS) $(LIBM) -lgcc; \
+        $(CC) -m32 -Wl,-T,$(LINKER_SCRIPT) -Wl,-z,noexecstack -nostdlib -no-pie -static -o $(KERNEL) $(OBJECTS) $(LIBM) -lgcc; \
 	fi
 	@test -f $(KERNEL) || { echo "ERROR: Kernel not created"; exit 1; }
 	@echo "✓ Kernel linked successfully ($(shell stat -c%s $(KERNEL) 2>/dev/null || stat -f%z $(KERNEL) 2>/dev/null) bytes)"
