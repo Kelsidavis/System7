@@ -78,7 +78,8 @@ void TE_RecalcLines(TEHandle hTE) {
     HLock((Handle)hTE);
     pTE = (TEExtPtr)*hTE;
 
-    TEB_LOG("TE_RecalcLines: recalculating for %d bytes\n", pTE->base.teLength);
+    /* teLength is 32-bit: %d would pass a 4-byte int to printf. */
+    TEB_LOG("TE_RecalcLines: recalculating for %ld bytes\n", (long)pTE->base.teLength);
 
     /* Calculate maximum line width */
     if (pTE->wordWrap) {
@@ -152,7 +153,8 @@ void TE_RecalcLines(TEHandle hTE) {
     pTE->hLines = newLines;
     pTE->nLines = lineNum;
 
-    TEB_LOG("TE_RecalcLines: found %d lines\n", lineNum);
+    /* lineNum is 32-bit: %d would pass a 4-byte int to printf. */
+    TEB_LOG("TE_RecalcLines: found %ld lines\n", (long)lineNum);
 
     HUnlock((Handle)hTE);
 }

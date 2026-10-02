@@ -106,6 +106,7 @@ void TEUpdate(const Rect *updateRect, TEHandle hTE) {
     HLock((Handle)hTE);
     pTE = (TEExtPtr)*hTE;
 
+    /* All four are 16-bit VRect fields: %d would pass ints. */
     TED_LOG("TEUpdate: updating rect (%d,%d,%d,%d)\n",
             updateRect->top, updateRect->left,
             updateRect->bottom, updateRect->right);
@@ -167,7 +168,8 @@ void TETextBox(const void *text, SInt32 length, const Rect *box, SInt16 just) {
     TEHandle hTE;
     Rect destRect, viewRect;
 
-    TED_LOG("TETextBox: %d bytes, just=%d\n", length, just);
+    /* length and just are 32-bit: %d would pass 4-byte ints. */
+    TED_LOG("TETextBox: %ld bytes, just=%d\n", (long)length, just);
 
     /* Create temporary TE record */
     destRect = *box;
@@ -218,8 +220,9 @@ void TE_DrawLine(TEHandle hTE, SInt32 lineNum, SInt16 y) {
         HUnlock(pTE->base.hText);
     }
 
-    TED_LOG("TE_DrawLine: line %d [%d,%d) at y=%d\n",
-            lineNum, lineStart, lineEnd, y);
+    /* lineNum/lineStart/lineEnd/y are 32-bit: %d passes ints. */
+    TED_LOG("TE_DrawLine: line %ld [%ld,%ld) at y=%ld\n",
+            (long)lineNum, (long)lineStart, (long)lineEnd, (long)y);
 
     /* Calculate starting X based on justification */
     x = pTE->base.viewRect.left - pTE->viewDH;
@@ -508,7 +511,8 @@ Point TEGetPoint(SInt16 offset, TEHandle hTE) {
         pt.h += TE_MeasureText(hTE, lineStart, offset - lineStart);
     }
 
-    TED_LOG("TEGetPoint: offset %d -> (%d,%d)\n", offset, pt.h, pt.v);
+    /* offset/pt.h/pt.v are 32-bit: %d would pass 4-byte ints. */
+    TED_LOG("TEGetPoint: offset %ld -> (%d,%d)\n", (long)offset, pt.h, pt.v);
 
     HUnlock((Handle)hTE);
 
@@ -578,7 +582,8 @@ SInt16 TEGetOffset(Point pt, TEHandle hTE) {
 
     HUnlock(pTE->base.hText);
 
-    TED_LOG("TEGetOffset: (%d,%d) -> %d\n", pt.h, pt.v, offset);
+    /* pt.h/pt.v/offset are 32-bit: %d would pass 4-byte ints. */
+    TED_LOG("TEGetOffset: (%d,%d) -> %ld\n", pt.h, pt.v, (long)offset);
 
     HUnlock((Handle)hTE);
 

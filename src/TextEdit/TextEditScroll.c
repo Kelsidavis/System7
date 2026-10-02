@@ -77,8 +77,9 @@ void TEScroll(SInt16 dh, SInt16 dv, TEHandle hTE) {
     HLock((Handle)hTE);
     pTE = (TEExtPtr)*hTE;
 
-    TES_LOG("TEScroll: dh=%d, dv=%d, current=(%d,%d)\n",
-            dh, dv, pTE->viewDH, pTE->viewDV);
+    /* All four are 32-bit: %d would pass 4-byte ints to printf. */
+    TES_LOG("TEScroll: dh=%ld, dv=%ld, current=(%ld,%ld)\n",
+            (long)dh, (long)dv, (long)pTE->viewDH, (long)pTE->viewDV);
 
     /* Calculate max scroll values */
     maxScroll = pTE->nLines * pTE->base.lineHeight -
@@ -158,7 +159,9 @@ void TESelView(TEHandle hTE) {
     /* Get line containing selection end */
     selLine = TE_OffsetToLine(hTE, pTE->base.selEnd);
 
-    TES_LOG("TESelView: selEnd=%d, line=%d\n", pTE->base.selEnd, selLine);
+    /* selEnd and selLine are 32-bit: %d would pass 4-byte ints. */
+    /* selLine is 32-bit: %d would pass a 4-byte int to printf. */
+    TES_LOG("TESelView: selEnd=%ld, line=%ld\n", (long)pTE->base.selEnd, (long)selLine);
 
     /* Check if line is visible */
     if (!TE_IsLineVisible(hTE, selLine)) {
@@ -212,7 +215,8 @@ void TEPinScroll(SInt16 dh, SInt16 dv, TEHandle hTE) {
     HLock((Handle)hTE);
     pTE = (TEExtPtr)*hTE;
 
-    TES_LOG("TEPinScroll: dh=%d, dv=%d\n", dh, dv);
+    /* dh and dv are 32-bit: %d would pass 4-byte ints to printf. */
+    TES_LOG("TEPinScroll: dh=%ld, dv=%ld\n", (long)dh, (long)dv);
 
     /* Calculate maximum scroll values */
     maxVScroll = pTE->nLines * pTE->base.lineHeight -
@@ -278,6 +282,7 @@ void TEAutoView(Boolean autoView, TEHandle hTE) {
     HLock((Handle)hTE);
     pTE = (TEExtPtr)*hTE;
 
+    /* autoView is 32-bit: %d would pass a 4-byte int to printf. */
     TES_LOG("TEAutoView: autoView=%d\n", autoView);
 
     if (!pTE) {
@@ -485,7 +490,8 @@ SInt32 TE_OffsetToLine(TEHandle hTE, SInt32 offset) {
     HUnlock(pTE->hLines);
     HUnlock((Handle)hTE);
 
-    TES_LOG("TE_OffsetToLine: offset %d -> line %d\n", offset, lineNum);
+    /* offset and lineNum are 32-bit: %d would pass 4-byte ints. */
+    TES_LOG("TE_OffsetToLine: offset %ld -> line %ld\n", (long)offset, (long)lineNum);
 
     return lineNum;
 }
@@ -515,7 +521,8 @@ SInt32 TE_LineToOffset(TEHandle hTE, SInt32 line) {
 
     HUnlock((Handle)hTE);
 
-    TES_LOG("TE_LineToOffset: line %d -> offset %d\n", line, offset);
+    /* line and offset are 32-bit: %d would pass 4-byte ints. */
+    TES_LOG("TE_LineToOffset: line %ld -> offset %ld\n", (long)line, (long)offset);
 
     return offset;
 }

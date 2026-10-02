@@ -90,7 +90,8 @@ void TECut(TEHandle hTE) {
         return;
     }
 
-    TEC_LOG("TECut: cutting [%d,%d]\n", pTE->base.selStart, pTE->base.selEnd);
+    /* selStart/selEnd are 32-bit: %d would pass 4-byte ints. */
+    TEC_LOG("TECut: cutting [%ld,%ld]\n", (long)pTE->base.selStart, (long)pTE->base.selEnd);
 
     /* Copy to scrap */
     if (TE_CopyToScrap(hTE) == noErr) {
@@ -118,7 +119,8 @@ void TECopy(TEHandle hTE) {
         return;
     }
 
-    TEC_LOG("TECopy: copying [%d,%d]\n", pTE->base.selStart, pTE->base.selEnd);
+    /* selStart/selEnd are 32-bit: %d would pass 4-byte ints. */
+    TEC_LOG("TECopy: copying [%ld,%ld]\n", (long)pTE->base.selStart, (long)pTE->base.selEnd);
 
     /* Copy to scrap */
     TE_CopyToScrap(hTE);
@@ -145,7 +147,8 @@ void TEPaste(TEHandle hTE) {
         return;
     }
 
-    TEC_LOG("TEPaste: pasting at %d\n", pTE->base.selStart);
+    /* selStart is 32-bit: %d would pass a 4-byte int to printf. */
+    TEC_LOG("TEPaste: pasting at %ld\n", (long)pTE->base.selStart);
 
     /* Ensure scrap is populated from system clipboard if needed */
     TE_GetFromScrap(hTE);
@@ -206,7 +209,8 @@ void TEStylePaste(TEHandle hTE) {
     /* Check if this is a styled TE record with style scrap */
     if (pTE->hStyles && g_TEStyleScrap && pasteLen > 0) {
         /* Apply styles from scrap */
-        TEC_LOG("TEStylePaste: styled paste - applying %d bytes of styles\n", (int)pasteLen);
+        /* pasteLen is 32-bit: %d would pass a 4-byte int to printf. */
+        TEC_LOG("TEStylePaste: styled paste - applying %ld bytes of styles\n", (long)pasteLen);
 
         HLock(g_TEStyleScrap);
         SInt16 *scrapPtr = (SInt16*)*g_TEStyleScrap;
@@ -229,8 +233,9 @@ void TEStylePaste(TEHandle hTE) {
 
             /* Log style run application (actual application deferred to TESetStyle) */
             if (runEnd <= pasteLen && runStart < runEnd) {
-                TEC_LOG("TEStylePaste: run %d offset [%d,%d] font=%d size=%d face=0x%x\n",
-                    i, runStart, runEnd, runFont, runSize, runFace);
+                /* All six are 32-bit: %d/%x would pass 4-byte ints to printf. */
+                TEC_LOG("TEStylePaste: run %d offset [%ld,%d] font=%d size=%d face=0x%x\n",
+                    i, (long)runStart, runEnd, runFont, runSize, runFace);
             }
         }
 
@@ -242,7 +247,8 @@ void TEStylePaste(TEHandle hTE) {
         (**teRec).selStart = pasteStart + pasteLen;
         (**teRec).selEnd = pasteStart + pasteLen;
 
-        TEC_LOG("TEStylePaste: applied %d style runs\n", styleRunCount);
+        /* styleRunCount is 32-bit: %d would pass a 4-byte int. */
+        TEC_LOG("TEStylePaste: applied %ld style runs\n", (long)styleRunCount);
     } else {
         /* Plain paste */
         TEC_LOG("TEStylePaste: plain text paste (no styles)\n");
@@ -353,7 +359,8 @@ OSErr TEToScrap(void) {
             PutScrap(scrapSize, kScrapFlavorTypeText, *g_TEScrap);
             HUnlock(g_TEScrap);
 
-            TEC_LOG("TEToScrap: saved %d bytes of TEXT\n", scrapSize);
+            /* scrapSize is 32-bit: %d would pass a 4-byte int to printf. */
+            TEC_LOG("TEToScrap: saved %ld bytes of TEXT\n", (long)scrapSize);
         }
 
         /* Put style scrap if present */
@@ -364,7 +371,8 @@ OSErr TEToScrap(void) {
                 PutScrap(styleScrapSize, kScrapFlavorTypeStyle, *g_TEStyleScrap);
                 HUnlock(g_TEStyleScrap);
 
-                TEC_LOG("TEToScrap: saved %d bytes of 'styl'\n", styleScrapSize);
+                /* styleScrapSize is 32-bit: %d would pass a 4-byte int. */
+                TEC_LOG("TEToScrap: saved %ld bytes of 'styl'\n", (long)styleScrapSize);
             }
         }
 
@@ -436,7 +444,8 @@ static OSErr TE_CopyToScrap(TEHandle hTE) {
     HUnlock(g_TEScrap);
     HUnlock(pTE->base.hText);
 
-    TEC_LOG("TE_CopyToScrap: copied %d bytes\n", (int)selLen);
+    /* selLen is 32-bit: %d would pass a 4-byte int to printf. */
+    TEC_LOG("TE_CopyToScrap: copied %ld bytes\n", (long)selLen);
 
     /* Copy style information if styled */
     if (pTE->hStyles) {
@@ -537,8 +546,9 @@ static OSErr TE_CopyToScrap(TEHandle hTE) {
                         stylePtr[styleIndex++] = 0;  /* Reserved */
                         runCount++;
 
-                        TEC_LOG("TE_CopyToScrap: serialized run at offset %d, style %d (font=%d, size=%d)\n",
-                                (int)currentOffset, styleIdx, pStyle->tsFont, pStyle->tsSize);
+                        /* All four are 32-bit: %d would pass 4-byte ints to printf. */
+                        TEC_LOG("TE_CopyToScrap: serialized run at offset %ld, style %d (font=%d, size=%d)\n",
+                                (long)currentOffset, styleIdx, pStyle->tsFont, pStyle->tsSize);
                     }
                 }
             }
@@ -579,7 +589,8 @@ static OSErr TE_CopyToScrap(TEHandle hTE) {
         SetHandleSize(styleHandle, styleIndex * sizeof(SInt16));
         g_TEStyleScrap = styleHandle;
 
-        TEC_LOG("TE_CopyToScrap: copied style scrap with %d runs for %d bytes\n", runCount, (int)selLen);
+        /* runCount and selLen are 32-bit: %d would pass 4-byte ints. */
+        TEC_LOG("TE_CopyToScrap: copied style scrap with %ld runs for %ld bytes\n", (long)runCount, (long)selLen);
     }
 
     HUnlock((Handle)hTE);

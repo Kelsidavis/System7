@@ -112,6 +112,7 @@ TEHandle TENew(const Rect *destRect, const Rect *viewRect) {
     TEHandle hTE;
     TEExtPtr pTE;
 
+    /* All rects are 16-bit VRect fields: %d would pass 4-byte ints. */
     TE_LOG("TENew: dest=(%d,%d,%d,%d) view=(%d,%d,%d,%d)\n",
            destRect->top, destRect->left, destRect->bottom, destRect->right,
            viewRect->top, viewRect->left, viewRect->bottom, viewRect->right);
@@ -282,7 +283,8 @@ void TESetText(const void *text, SInt32 length, TEHandle hTE) {
 
     if (!hTE || !text || length < 0) return;
 
-    TE_LOG("TESetText: Setting %d bytes of text\n", length);
+    /* length is SInt32 (long): %d would pass a 4-byte int. */
+    TE_LOG("TESetText: Setting %ld bytes of text\n", (long)length);
 
     /* The text is not redrawn - the caller does that (IM I-383) - but the
      * caret, which is at a position about to mean something else, comes off */
@@ -367,8 +369,9 @@ void TEReplaceSel(const void *text, SInt32 length, TEHandle hTE) {
     /* The caret comes off before the text under it changes */
     TE_UpdateCaret(hTE, FALSE);
 
-    TE_LOG("TEReplaceSel: Replacing sel [%d,%d] with %d bytes\n",
-           pTE->base.selStart, pTE->base.selEnd, length);
+    /* selStart/selEnd/length are 32-bit: %d would pass 4-byte ints. */
+    TE_LOG("TEReplaceSel: Replacing sel [%ld,%ld] with %ld bytes\n",
+           (long)pTE->base.selStart, (long)pTE->base.selEnd, (long)length);
 
     /* Calculate sizes */
     selLen = pTE->base.selEnd - pTE->base.selStart;
@@ -461,8 +464,9 @@ void TESetSelect(SInt32 selStart, SInt32 selEnd, TEHandle hTE) {
         selEnd = temp;
     }
 
-    TE_LOG("TESetSelect: [%d,%d] -> [%d,%d]\n",
-           pTE->base.selStart, pTE->base.selEnd, selStart, selEnd);
+    /* All four are 32-bit: %d would pass 4-byte ints to printf. */
+    TE_LOG("TESetSelect: [%ld,%ld] -> [%ld,%ld]\n",
+           (long)pTE->base.selStart, (long)pTE->base.selEnd, (long)selStart, (long)selEnd);
 
     /* Invalidate old selection, the caret off first */
     TE_UpdateCaret(hTE, FALSE);
@@ -682,6 +686,7 @@ static void TE_SetDefaultStyle(TEHandle hTE) {
     pTE->base.lineHeight = metrics.ascent + metrics.descent + metrics.leading;
     pTE->base.fontAscent = metrics.ascent;
 
+    /* All four are 16-bit fields: %d would pass 4-byte ints. */
     TE_LOG("Default style: font=%d size=%d height=%d ascent=%d\n",
            pTE->base.txFont, pTE->base.txSize, pTE->base.lineHeight, pTE->base.fontAscent);
 }
@@ -692,7 +697,8 @@ static void TE_SetDefaultStyle(TEHandle hTE) {
 static OSErr TE_GrowTextBuffer(TEHandle hTE, SInt32 newSize) {
     TEExtPtr pTE = (TEExtPtr)*hTE;
 
-    TE_LOG("TE_GrowTextBuffer: Growing to %d bytes\n", newSize);
+    /* newSize is SInt32 (long): %d would pass a 4-byte int. */
+    TE_LOG("TE_GrowTextBuffer: Growing to %ld bytes\n", (long)newSize);
 
     SetHandleSize(pTE->base.hText, newSize);
     return MemError();
@@ -851,7 +857,8 @@ void TextEdit_LoadFile(const char* path) {
                         TESetText(*fileBuffer, bytesRead, g_appTE);
                         DisposeHandle(fileBuffer);
                         FSClose(refNum);
-                        TE_LOG("TextEdit_LoadFile: Loaded %u bytes from %s\n", bytesRead, path);
+                        /* bytesRead is 32-bit: %u would pass a 4-byte int to printf. */
+                        TE_LOG("TextEdit_LoadFile: Loaded %lu bytes from %s\n", (unsigned long)bytesRead, path);
                         goto update_title;
                     }
                     DisposeHandle(fileBuffer);

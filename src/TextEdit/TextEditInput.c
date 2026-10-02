@@ -109,6 +109,7 @@ void TEKey(CharParameter key, TEHandle hTE) {
     option = TE_IsOptionDown();
     command = TE_IsCommandDown();
 
+    /* All four are 16-bit: %X/%d would pass 4-byte ints. */
     TEI_LOG("TEKey: key=0x%02X shift=%d option=%d cmd=%d\n",
             key, shift, option, command);
 
@@ -256,8 +257,9 @@ void TEClick(Point pt, Boolean extendSelection, TEHandle hTE) {
     /* Get click offset */
     offset = TEGetOffset(pt, hTE);
 
-    TEI_LOG("TEClick: pt=(%d,%d) offset=%d extend=%d\n",
-            pt.h, pt.v, offset, extendSelection);
+    /* pt.h/pt.v/offset/extendSelection are 32-bit: %d passes ints. */
+    TEI_LOG("TEClick: pt=(%d,%d) offset=%ld extend=%d\n",
+            pt.h, pt.v, (long)offset, extendSelection);
 
     /* Check for multi-click */
     if (!extendSelection && currentTime - pTE->lastClickTime < DOUBLE_CLICK_TIME) {
@@ -330,6 +332,7 @@ static void TE_TrackMouse(TEHandle hTE, Point startPt) {
     HLock((Handle)hTE);
     pTE = (TEExtPtr)*hTE;
 
+    /* startPt.h/startPt.v are 16-bit: %d would pass 4-byte ints. */
     TEI_LOG("TE_TrackMouse: starting drag from (%d,%d)\n", startPt.h, startPt.v);
 
     /* Track until mouse up */
@@ -371,13 +374,15 @@ static void TE_TrackMouse(TEHandle hTE, Point startPt) {
 
     if (loopCount >= MAX_DRAG_ITERATIONS) {
         /* Safety timeout reached - log warning */
-        TEI_LOG("TE_TrackMouse: drag loop timeout after %u iterations\n", loopCount);
+        /* loopCount is 32-bit: %u would pass a 4-byte int to printf. */
+        TEI_LOG("TE_TrackMouse: drag loop timeout after %lu iterations\n", (unsigned long)loopCount);
     }
 
     pTE->inDragSel = FALSE;
 
-    TEI_LOG("TE_TrackMouse: ended with selection [%d,%d]\n",
-            pTE->base.selStart, pTE->base.selEnd);
+    /* selStart/selEnd are 32-bit: %d would pass 4-byte ints. */
+    TEI_LOG("TE_TrackMouse: ended with selection [%ld,%d]\n",
+            (long)pTE->base.selStart, pTE->base.selEnd);
 
     HUnlock((Handle)hTE);
 }
@@ -524,8 +529,10 @@ SInt32 TE_FindWordBoundary(TEHandle hTE, SInt32 offset, Boolean forward) {
     HUnlock(pTE->base.hText);
     HUnlock((Handle)hTE);
 
-    TEI_LOG("TE_FindWordBoundary: %d %s -> %d\n",
-            offset, forward ? "forward" : "backward", pos);
+    /* offset and pos are 32-bit: %d would pass 4-byte ints. */
+    /* pos is 32-bit: %d would pass a 4-byte int to printf. */
+    TEI_LOG("TE_FindWordBoundary: %ld %s -> %ld\n",
+            (long)offset, forward ? "forward" : "backward", (long)pos);
 
     return pos;
 }
