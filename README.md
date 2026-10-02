@@ -73,8 +73,10 @@ Also verified headless in QEMU on both firmware paths — 5,000 timer ticks at
 | BIOS (SeaBIOS, `qemu-system-i386`) | ✅ reaches event loop, interrupts live |
 | UEFI (OVMF, `qemu-system-x86_64`) | ✅ reaches event loop, interrupts live |
 
-**Still true:** the 68K interpreter is not wired up, so real Mac applications
-still don't run. Broader hardware coverage is thin — one confirmed machine is
+**Now true:** 68K applications launch from the Finder and run under the
+interpreter — see [Running 68K applications](#running-68k-applications).
+Only small test programs have been run so far; real Apple applications are
+untested. Broader hardware coverage is thin — one confirmed machine is
 not a compatibility matrix. If you have a vintage or modern box to try it on,
 we would love your test results — please [open an issue](https://github.com/Kelsidavis/System7/issues).
 
@@ -158,7 +160,7 @@ Full roadmap: [BARE_METAL_IMPROVEMENTS.md](docs/BARE_METAL_IMPROVEMENTS.md)
 - **Control Manager**: Standard and scrollbar controls with CDEF implementation
 - **Dialog Manager**: Keyboard navigation, focus rings, keyboard shortcuts
 - **Segment Loader**: Portable ISA-agnostic 68K segment loading system with relocation
-- **M68K Interpreter**: Full instruction dispatch with 84 opcode handlers, all 14 addressing modes, exception/trap framework
+- **M68K Interpreter**: Runs 68000 applications from an HFS disk: resource fork, A5 world, jump table and `_LoadSeg`, with Toolbox traps for memory, resources, QuickDraw, windows, menus, events, dialogs, controls, TextEdit, files and Standard File bridged to the native managers
 - **Sound Manager**: Command processing, MIDI conversion, channel management, callbacks
 - **Device Manager**: DCE management, driver installation/removal, and I/O operations
 - **Startup Screen**: Complete boot UI with progress tracking, phase management, and splash screen
@@ -168,7 +170,7 @@ Full roadmap: [BARE_METAL_IMPROVEMENTS.md](docs/BARE_METAL_IMPROVEMENTS.md)
 
 ### Partially Implemented ⚠️
 
-- **Application Integration**: M68K interpreter and segment loader complete; integration testing needed to verify real applications execute
+- **68K Applications**: The test programs in `tests/m68k` run fully; traps an application uses that are not bridged yet stop it with the trap's name
 - **Window Definition Procedures (WDEF)**: Core structure in place, partial dispatch
 - **Speech Manager**: API framework and audio passthrough only; speech synthesis engine not implemented
 - **Exception Handling (RTE)**: Return from exception partially implemented (currently halts instead of restoring context)
@@ -316,10 +318,29 @@ make debug
 3. Goal: behavioral parity with original System 7, not modernization
 4. Clean-room implementation (no original Apple source code)
 
+## Running 68K applications
+
+`tests/m68k/build.sh` (needs `gcc-m68k-linux-gnu`, `binutils-m68k-linux-gnu`
+and `hfsutils`) builds three test programs — Hello in assembly, Sampler and
+Notes in C — and writes them to an HFS disk image:
+
+```sh
+sh tests/m68k/build.sh
+qemu-system-i386 -cdrom system71.iso -hda tests/m68k/out/apps.img -boot d \
+    -m 1024 -vga std -device qemu-xhci,id=xhci -device usb-tablet,bus=xhci.0
+```
+
+The disk mounts on the desktop as "Test Apps"; double-click a program to
+launch it. Notes is a small editor with a menu bar, a scrolling TextEdit
+window, alerts, a Find dialog and Open/Save. Any 68000 application on an HFS
+image can be launched the same way. A trap that is not implemented yet
+stops the program with an alert naming it, and the serial log has the trap
+and where it was called from.
+
 ## 🐛 Known Issues
 
 1. **Icon Drag Artifacts**: Minor visual artifacts during desktop icon dragging
-2. **M68K Execution Stubbed**: Segment loader complete, execution loop not implemented
+2. **68K Coverage**: Only the Toolbox traps the test programs use are bridged; real Apple applications are untested
 3. **No TrueType Support**: Bitmap fonts only (Chicago)
 4. **HFS Read-Only**: Virtual file system, no real disk write-back
 5. **No Stability Guarantees**: Crashes and unexpected behavior are common
@@ -377,7 +398,7 @@ This is a **clean-room reimplementation** for educational and preservation purpo
 
 **Planned Work**:
 
-- Complete M68K interpreter execution loop
+- Run real 68K applications and bridge the traps they need
 - Add TrueType font support
 - CJK bitmap font resources for Japanese, Chinese, and Korean rendering
 - Implement additional controls (text fields, pop-ups, sliders)

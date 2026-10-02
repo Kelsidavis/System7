@@ -96,7 +96,7 @@ make INTEGRATION_TESTS=1     # with the integration tests, which run at boot
 - Font rendering (Chicago bitmap font)
 
 ⚠️ **Partially Working**
-- M68K application execution (loader ready, execution needs work)
+- 68K applications (test programs run; real applications untested)
 - Window/Control/Dialog frameworks
 - Some System tools
 
