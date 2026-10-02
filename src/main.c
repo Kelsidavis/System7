@@ -396,7 +396,8 @@ static void parse_multiboot2(uint32_t magic, uint32_t* mb2_info) {
     serial_puts("\n");
 
     /* Skip the size field */
-    struct multiboot_tag* tag = (struct multiboot_tag*)((uint8_t*)mb2_info + 8);
+    struct multiboot_tag* tag = (struct multiboot_tag*)__builtin_assume_aligned(
+        (uint8_t*)mb2_info + 8, _Alignof(struct multiboot_tag));
 
     while (tag->type != MULTIBOOT_TAG_TYPE_END) {
         console_puts("Tag type: ");
@@ -449,7 +450,8 @@ static void parse_multiboot2(uint32_t magic, uint32_t* mb2_info) {
             case MULTIBOOT_TAG_TYPE_FRAMEBUFFER:
                 {
                     struct multiboot_tag_framebuffer* fb_tag =
-                        (struct multiboot_tag_framebuffer*)tag;
+                        (struct multiboot_tag_framebuffer*)__builtin_assume_aligned(
+                            tag, _Alignof(struct multiboot_tag_framebuffer));
 
                     /* Map framebuffer address properly */
                     if (fb_tag->framebuffer_addr < 0x100000000ULL) {
@@ -539,7 +541,8 @@ static void parse_multiboot2(uint32_t magic, uint32_t* mb2_info) {
         }
 
         /* Move to next tag (aligned to 8 bytes) */
-        tag = (struct multiboot_tag*)((uint8_t*)tag + ((tag->size + 7) & ~7));
+        tag = (struct multiboot_tag*)__builtin_assume_aligned(
+            (uint8_t*)tag + ((tag->size + 7) & ~7), _Alignof(struct multiboot_tag));
     }
 }
 
@@ -1353,7 +1356,9 @@ static bool Pointer_Pixel(int row, int col, uint32_t** px) {
     extern uint32_t fb_width, fb_height, fb_pitch;
     int x = gPointer.x + col, y = gPointer.y + row;
     if (!framebuffer || x < 0 || y < 0 || x >= (int)fb_width || y >= (int)fb_height) return false;
-    *px = (uint32_t*)((uint8_t*)framebuffer + y * fb_pitch) + x;
+    *px = (uint32_t*)__builtin_assume_aligned(
+        (uint8_t*)framebuffer + y * fb_pitch + x * sizeof(uint32_t),
+        _Alignof(uint32_t));
     return true;
 }
 

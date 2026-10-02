@@ -60,8 +60,6 @@ rpi_model_t usb_detect_rpi_model(void) {
      */
 
     /* Try reading XHCI registers (Pi 4/5) */
-    volatile uint32_t *xhci_status = (volatile uint32_t *)0x00000000;  /* Placeholder */
-
     /* Try reading DWCOTG registers (Pi 3) */
     volatile uint32_t *dwcotg_hwcfg = (volatile uint32_t *)0x20980000;
     uint32_t dwcotg_val = *(volatile uint32_t *)dwcotg_hwcfg;

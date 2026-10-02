@@ -2006,7 +2006,7 @@ static void SysLogClassifyMessage(const char* fmt, SystemLogModule* outModule, S
 }
 
 static bool SysLogShouldEmit(SystemLogModule module, SystemLogLevel level) {
-    if (module < 0 || module >= kLogModuleCount) {
+    if ((unsigned)module >= kLogModuleCount) {
         module = kLogModuleGeneral;
     }
 
@@ -2056,14 +2056,14 @@ SystemLogLevel SysLogGetGlobalLevel(void) {
 }
 
 void SysLogSetModuleLevel(SystemLogModule module, SystemLogLevel level) {
-    if (module < 0 || module >= kLogModuleCount) {
+    if ((unsigned)module >= kLogModuleCount) {
         return;
     }
     g_moduleLevels[module] = level;
 }
 
 SystemLogLevel SysLogGetModuleLevel(SystemLogModule module) {
-    if (module < 0 || module >= kLogModuleCount) {
+    if ((unsigned)module >= kLogModuleCount) {
         return g_moduleLevels[kLogModuleGeneral];
     }
     return g_moduleLevels[module];

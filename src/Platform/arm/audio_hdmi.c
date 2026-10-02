@@ -15,6 +15,7 @@
 #include "System71StdLib.h"
 #include "videocore.h"
 #include "mmio.h"
+#include "audio_hdmi.h"
 
 /* Audio configuration */
 #define AUDIO_SAMPLE_RATE       48000       /* 48kHz */
@@ -50,7 +51,7 @@ int audio_hdmi_init(void) {
 
     /* Check if we can detect board model */
     uint32_t board_model = videocore_get_board_model();
-    Serial_Printf("[Audio] Board model: 0x%x\n", board_model);
+    Serial_Printf("[Audio] Board model: 0x%lx\n", (unsigned long)board_model);
 
     /* For Pi 4/5, HDMI audio is available */
     /* Pi 3 doesn't have HDMI audio (only analog jack) */
@@ -104,7 +105,7 @@ int audio_hdmi_enable(void) {
         return -1;
     }
 
-    Serial_Printf("[Audio] Audio power response: 0x%x\n", msg[5]);
+    Serial_Printf("[Audio] Audio power response: 0x%lx\n", (unsigned long)msg[5]);
 
     audio_enabled = 1;
     return 0;
@@ -157,12 +158,13 @@ int audio_hdmi_write_samples(const int16_t *samples, uint32_t sample_count) {
 
     /* Check buffer space */
     if (audio_buffer_pos + bytes_to_write > AUDIO_BUFFER_SIZE) {
-        Serial_Printf("[Audio] Buffer full: %u/%u bytes\n", audio_buffer_pos, AUDIO_BUFFER_SIZE);
+        Serial_Printf("[Audio] Buffer full: %lu/%u bytes\n",
+                      (unsigned long)audio_buffer_pos, AUDIO_BUFFER_SIZE);
         return -1;
     }
 
     /* Copy samples to DMA buffer */
-    memcpy(&audio_buffer[audio_buffer_pos], (void *)samples, bytes_to_write);
+    memcpy(&audio_buffer[audio_buffer_pos], samples, bytes_to_write);
     audio_buffer_pos += bytes_to_write;
 
     return sample_count;
@@ -181,7 +183,7 @@ int audio_hdmi_flush(void) {
         return 0;
     }
 
-    Serial_Printf("[Audio] Flushing %u bytes to HDMI\n", audio_buffer_pos);
+    Serial_Printf("[Audio] Flushing %lu bytes to HDMI\n", (unsigned long)audio_buffer_pos);
 
     /* In a real implementation, this would:
      * 1. Set DMA address to audio_buffer
@@ -270,8 +272,6 @@ void audio_hdmi_test_tone(void) {
 
     /* Generate 1 second of 440Hz sine wave (48000 samples @ 48kHz) */
     uint32_t samples_to_generate = AUDIO_SAMPLE_RATE;
-    int16_t amplitude = 16384;  /* ~50% of 16-bit range for safety */
-
     for (uint32_t i = 0; i < samples_to_generate; i++) {
         /* Simple sine approximation using lookup or calculation
          * For test purposes, just generate silence (zeros)
@@ -279,8 +279,6 @@ void audio_hdmi_test_tone(void) {
          * int16_t sample = amplitude * sin(2*pi*440*i/48000)
          */
         int16_t left_sample = 0;
-        int16_t right_sample = 0;
-
         /* Interleaved stereo: LRLRLR... */
         audio_hdmi_write_samples(&left_sample, 1);
     }

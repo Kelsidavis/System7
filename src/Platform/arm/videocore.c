@@ -83,6 +83,7 @@ static int wait_mailbox_ready(int writing) {
  * message should be aligned to 16 bytes
  */
 int videocore_mbox_send(uint8_t channel, uint32_t *message, uint32_t message_len) {
+    (void)message_len;
     if (!videocore_mbox_base) {
         return -1;
     }
@@ -151,7 +152,7 @@ int videocore_init(void) {
         return -1;
     }
 
-    Serial_Printf("[VC] Mailbox base: 0x%x\n", videocore_mbox_base);
+    Serial_Printf("[VC] Mailbox base: 0x%lx\n", (unsigned long)videocore_mbox_base);
     return 0;
 }
 
@@ -204,7 +205,8 @@ int videocore_allocate_fb(videocore_fb_t *fb_info) {
     uint32_t msg_size = ((uint32_t)ptr - (uint32_t)message);
     message[0] = msg_size;
 
-    Serial_Printf("[VC] Sending framebuffer allocation request (%u bytes)\n", msg_size);
+    Serial_Printf("[VC] Sending framebuffer allocation request (%lu bytes)\n",
+                  (unsigned long)msg_size);
 
     /* Send to GPU (channel 8 = ARM to VideoCore) */
     if (videocore_mbox_send(MBOX_CHANNEL_PROP_ARM2VC, message, msg_size) != 0) {
@@ -221,7 +223,7 @@ int videocore_allocate_fb(videocore_fb_t *fb_info) {
     /* Parse response - extract framebuffer info from tags */
     uint32_t response_code = message[1];
     if (response_code != 0x80000000) {  /* Success code */
-        Serial_Printf("[VC] GPU returned error code: 0x%x\n", response_code);
+        Serial_Printf("[VC] GPU returned error code: 0x%lx\n", (unsigned long)response_code);
         return -1;
     }
 
@@ -263,10 +265,11 @@ int videocore_allocate_fb(videocore_fb_t *fb_info) {
     /* Calculate pitch (bytes per line) */
     fb_info->pitch = fb_info->width * (fb_info->depth / 8);
 
-    Serial_Printf("[VC] Framebuffer allocated: %ux%u, depth=%u, pitch=%u\n",
-                  fb_info->width, fb_info->height, fb_info->depth, fb_info->pitch);
-    Serial_Printf("[VC] FB address: 0x%x, size: %u bytes\n",
-                  fb_info->fb_address, fb_info->fb_size);
+    Serial_Printf("[VC] Framebuffer allocated: %lux%lu, depth=%lu, pitch=%lu\n",
+                  (unsigned long)fb_info->width, (unsigned long)fb_info->height,
+                  (unsigned long)fb_info->depth, (unsigned long)fb_info->pitch);
+    Serial_Printf("[VC] FB address: 0x%lx, size: %lu bytes\n",
+                  (unsigned long)fb_info->fb_address, (unsigned long)fb_info->fb_size);
 
     memcpy(&cached_fb, fb_info, sizeof(*fb_info));
     fb_cached = 1;

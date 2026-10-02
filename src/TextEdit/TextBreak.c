@@ -96,7 +96,13 @@ void TE_RecalcLines(TEHandle hTE) {
     }
 
     HLock(newLines);
-    pLines = (SInt32*)*newLines;
+    pLines = (SInt32*)HandleDataAligned(newLines);
+    if (!pLines) {
+        HUnlock(newLines);
+        DisposeHandle(newLines);
+        HUnlock((Handle)hTE);
+        return;
+    }
 
     /* Set font for measurement */
     TextFont(pTE->base.txFont);

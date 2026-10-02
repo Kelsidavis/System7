@@ -144,7 +144,8 @@ OSErr NewGWorld(GWorldPtr *offscreenGWorld, SInt16 pixelDepth,
     /* Clear pixel buffer to white (0xFFFFFFFF for 32-bit ARGB) */
     if (pixelDepth == 32) {
         /* Fill with white: 0xFFFFFFFF for 32-bit ARGB */
-        UInt32 *pixels = (UInt32*)pixelBuffer;
+        UInt32 *pixels = (UInt32*)__builtin_assume_aligned(
+            pixelBuffer, _Alignof(UInt32));
         UInt32 pixelCount = bufferSize / 4;
         for (UInt32 i = 0; i < pixelCount; i++) {
             pixels[i] = 0xFFFFFFFF;

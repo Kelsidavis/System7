@@ -882,7 +882,8 @@ static OSErr Extension_CallInitEntry(Extension *ext)
      */
 
     /* Cast to function pointer (returns OSErr) */
-    InitEntryProc initEntry = (InitEntryProc)codePtr;
+    InitEntryProc initEntry = (InitEntryProc)__builtin_assume_aligned(
+        codePtr, _Alignof(InitEntryProc));
 
     /* Record start time for statistics */
     SInt32 startTime = TickCount();
@@ -907,4 +908,3 @@ static OSErr Extension_CallInitEntry(Extension *ext)
 
     return extNoErr;
 }
-

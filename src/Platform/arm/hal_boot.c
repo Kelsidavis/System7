@@ -67,7 +67,8 @@ void hal_boot_init(void *boot_ptr) {
 
     /* Get actual memory size from DTB or estimate */
     boot_info.memory_size = device_tree_get_memory_size();
-    Serial_Printf("[ARM] Detected memory: %u MB\n", boot_info.memory_size / (1024 * 1024));
+    Serial_Printf("[ARM] Detected memory: %lu MB\n",
+                  (unsigned long)(boot_info.memory_size / (1024 * 1024)));
 
     Serial_WriteString("[ARM] Boot initialization complete\n");
 }

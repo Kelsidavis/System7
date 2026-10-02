@@ -8,6 +8,7 @@
 #include <string.h>
 #include "System71StdLib.h"
 #include "mmio.h"
+#include "sdhci.h"
 
 /* ===== SD Card Command Codes ===== */
 #define CMD0    0   /* GO_IDLE_STATE */
@@ -49,6 +50,7 @@ static int card_version_2 = 0;          /* v2.0 vs v1.0 */
  * Build command word for SDHCI_COMMAND register
  */
 static uint32_t build_command(uint8_t index, uint16_t arg, uint8_t resp_type) {
+    (void)arg;
     uint32_t cmd = 0;
 
     /* Command index (bits 13:8) */
@@ -168,7 +170,8 @@ int sdhci_init_card(uint32_t sdhci_base) {
 
     /* CMD8: SEND_IF_COND - Check voltage and get version */
     if (sdhci_send_command(sdhci_base, CMD8, 0x000001AA, RESP_R7, response) == 0) {
-        Serial_Printf("[SDHCI] SD v2.0 card detected (CMD8 response: 0x%x)\n", response[0]);
+        Serial_Printf("[SDHCI] SD v2.0 card detected (CMD8 response: 0x%lx)\n",
+                      (unsigned long)response[0]);
         card_version_2 = 1;
     } else {
         Serial_WriteString("[SDHCI] SD v1.0 card detected (CMD8 failed)\n");
@@ -198,7 +201,7 @@ int sdhci_init_card(uint32_t sdhci_base) {
 
         /* Check if card is ready (bit 31 = ready) */
         if (card_ocr & 0x80000000) {
-            Serial_Printf("[SDHCI] Card ready, OCR: 0x%x\n", card_ocr);
+            Serial_Printf("[SDHCI] Card ready, OCR: 0x%lx\n", (unsigned long)card_ocr);
             break;
         }
 
@@ -226,7 +229,7 @@ int sdhci_init_card(uint32_t sdhci_base) {
         return -1;
     }
     card_rca = (response[0] >> 16) & 0xFFFF;
-    Serial_Printf("[SDHCI] Card RCA: 0x%x (CMD3 OK)\n", card_rca);
+    Serial_Printf("[SDHCI] Card RCA: 0x%lx (CMD3 OK)\n", (unsigned long)card_rca);
 
     /* CMD7: SELECT_CARD - Select card for data transfer */
     if (sdhci_send_command(sdhci_base, CMD7, (card_rca << 16), RESP_R1, response) != 0) {
@@ -264,7 +267,7 @@ int sdhci_read_block(uint32_t sdhci_base, uint32_t block_addr, void *buffer) {
 
     /* CMD17: READ_SINGLE_BLOCK */
     if (sdhci_send_command(sdhci_base, CMD17, addr, RESP_R1, response) != 0) {
-        Serial_Printf("[SDHCI] CMD17 failed for block 0x%x\n", block_addr);
+        Serial_Printf("[SDHCI] CMD17 failed for block 0x%lx\n", (unsigned long)block_addr);
         return -1;
     }
 
@@ -293,7 +296,7 @@ int sdhci_write_block(uint32_t sdhci_base, uint32_t block_addr, const void *buff
 
     /* CMD24: WRITE_BLOCK */
     if (sdhci_send_command(sdhci_base, CMD24, addr, RESP_R1, response) != 0) {
-        Serial_Printf("[SDHCI] CMD24 failed for block 0x%x\n", block_addr);
+        Serial_Printf("[SDHCI] CMD24 failed for block 0x%lx\n", (unsigned long)block_addr);
         return -1;
     }
 

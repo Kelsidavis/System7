@@ -108,11 +108,12 @@ static Boolean KeyMapHasKey(const KeyMap map, UInt16 scanCode)
         return false;
     }
 
-    const UInt32 *words = (const UInt32 *)map;
     UInt16 arrayIndex = scanCode / 32;
     UInt16 bitIndex = scanCode % 32;
+    UInt32 word;
+    memcpy(&word, map + arrayIndex * sizeof(word), sizeof(word));
 
-    return (words[arrayIndex] & (1U << bitIndex)) != 0;
+    return (word & (1U << bitIndex)) != 0;
 }
 
 static void KeyMapSetKey(KeyMap map, UInt16 scanCode, Boolean isDown)
@@ -121,15 +122,17 @@ static void KeyMapSetKey(KeyMap map, UInt16 scanCode, Boolean isDown)
         return;
     }
 
-    UInt32 *words = (UInt32 *)map;
     UInt16 arrayIndex = scanCode / 32;
     UInt32 mask = (1U << (scanCode % 32));
+    UInt32 word;
+    memcpy(&word, map + arrayIndex * sizeof(word), sizeof(word));
 
     if (isDown) {
-        words[arrayIndex] |= mask;
+        word |= mask;
     } else {
-        words[arrayIndex] &= ~mask;
+        word &= ~mask;
     }
+    memcpy(map + arrayIndex * sizeof(word), &word, sizeof(word));
 }
 
 static UInt16 ComputeModifiersFromKeyMap(const KeyMap map, UInt8 buttonState)

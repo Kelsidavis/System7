@@ -102,8 +102,8 @@ bool HFS_BD_InitSDHCI(HFS_BlockDev* bd, int drive_index, bool readonly) {
     bd->sectorSize = info.block_size;
     bd->readonly = readonly;
 
-    FS_LOG_DEBUG("HFS: SDHCI block device initialized (size=%u MB)\n",
-                 (uint32_t)(bd->size / (1024 * 1024)));
+    FS_LOG_DEBUG("HFS: SDHCI block device initialized (size=%lu MB)\n",
+                 (unsigned long)(bd->size / (1024 * 1024)));
 
     return true;
     #else

@@ -11,6 +11,7 @@
 #include "FontManager/FontTypes.h"  /* For FontStrike */
 #include <stdlib.h>  /* For abs() */
 #include <math.h>
+#include <string.h>
 #include "QuickDraw/QDLogging.h"
 
 /* Define M_PI if not defined */
@@ -29,6 +30,10 @@ extern uint32_t fb_width;
 extern uint32_t fb_height;
 extern uint32_t fb_pitch;
 extern uint32_t pack_color(uint8_t r, uint8_t g, uint8_t b);
+
+/* Framebuffer and 32-bit PixMap pixel starts are four-byte aligned. */
+#define QD_PIXEL_PTR(address) \
+    ((uint32_t*)__builtin_assume_aligned((address), _Alignof(uint32_t)))
 
 /* Platform framebuffer instance */
 static PlatformFramebuffer g_platformFB;
@@ -324,10 +329,11 @@ static void QD_ClipAddRegion(RgnHandle rgn) {
         gQDClip.rects[gQDClip.count++] = r->rgnBBox;
         return;
     }
-    SInt16 n = *(SInt16*)((UInt8*)r + 10);
-    const Rect* list = (const Rect*)((UInt8*)r + 12);
+    SInt16 n;
+    memcpy(&n, (UInt8*)r + 10, sizeof(n));
+    const UInt8* list = (const UInt8*)r + 12;
     for (SInt16 i = 0; i < n && gQDClip.count < kQDClipMaxRects; i++) {
-        gQDClip.rects[gQDClip.count++] = list[i];
+        memcpy(&gQDClip.rects[gQDClip.count++], list + i * sizeof(Rect), sizeof(Rect));
     }
 }
 
@@ -378,7 +384,7 @@ void QDPlatform_SetPixel(SInt32 x, SInt32 y, UInt32 color) {
         /* No port - draw to framebuffer */
         if (!framebuffer) return;
         if (x < 0 || (UInt32)x >= fb_width || y < 0 || (UInt32)y >= fb_height) return;
-        uint32_t* pixel = (uint32_t*)((uint8_t*)framebuffer + y * fb_pitch + x * 4);
+        uint32_t* pixel = QD_PIXEL_PTR((uint8_t*)framebuffer + y * fb_pitch + x * 4);
         *pixel = color;
         return;
     }
@@ -400,7 +406,7 @@ void QDPlatform_SetPixel(SInt32 x, SInt32 y, UInt32 color) {
             if (x < 0 || x >= width || y < 0 || y >= height) return;
 
             /* Draw to GWorld buffer */
-            uint32_t* pixel = (uint32_t*)((uint8_t*)baseAddr + y * rowBytes + x * 4);
+            uint32_t* pixel = QD_PIXEL_PTR((uint8_t*)baseAddr + y * rowBytes + x * 4);
             *pixel = color;
         }
     } else {
@@ -409,7 +415,7 @@ void QDPlatform_SetPixel(SInt32 x, SInt32 y, UInt32 color) {
             /* Drawing to framebuffer - x,y are global screen coords */
             if (x < 0 || (UInt32)x >= fb_width || y < 0 || (UInt32)y >= fb_height) return;
             if (!QD_ClipHas(x, y)) return;
-            uint32_t* pixel = (uint32_t*)((uint8_t*)framebuffer + y * fb_pitch + x * 4);
+            uint32_t* pixel = QD_PIXEL_PTR((uint8_t*)framebuffer + y * fb_pitch + x * 4);
             *pixel = color;
         } else {
             /* Drawing to offscreen basic bitmap (e.g., window GWorld backing or Direct Framebuffer) */
@@ -447,7 +453,7 @@ void QDPlatform_SetPixel(SInt32 x, SInt32 y, UInt32 color) {
                 return;
             }
 
-            uint32_t* pixel = (uint32_t*)((uint8_t*)baseAddr + localY * rowBytes + localX * 4);
+            uint32_t* pixel = QD_PIXEL_PTR((uint8_t*)baseAddr + localY * rowBytes + localX * 4);
             *pixel = color;
             /* Do not fall back to framebuffer when drawing to offscreen port */
             return;
@@ -479,7 +485,7 @@ UInt32 QDPlatform_GetPixel(SInt32 x, SInt32 y) {
     if (!g_currentPort) {
         if (!framebuffer) return 0;
         if (x < 0 || (UInt32)x >= fb_width || y < 0 || (UInt32)y >= fb_height) return 0;
-        return *(uint32_t*)((uint8_t*)framebuffer + y * fb_pitch + x * 4);
+        return *QD_PIXEL_PTR((uint8_t*)framebuffer + y * fb_pitch + x * 4);
     }
 
     Boolean isColorPort = (g_currentCPort != NULL && (GrafPtr)g_currentCPort == g_currentPort);
@@ -496,7 +502,7 @@ UInt32 QDPlatform_GetPixel(SInt32 x, SInt32 y) {
             if (!baseAddr || rowBytes <= 0) return 0;
             if (x < 0 || x >= width || y < 0 || y >= height) return 0;
 
-            return *(uint32_t*)((uint8_t*)baseAddr + y * rowBytes + x * 4);
+            return *QD_PIXEL_PTR((uint8_t*)baseAddr + y * rowBytes + x * 4);
         }
         return 0;
     }
@@ -504,7 +510,7 @@ UInt32 QDPlatform_GetPixel(SInt32 x, SInt32 y) {
     if (g_currentPort->portBits.baseAddr == (Ptr)framebuffer) {
         if (!framebuffer) return 0;
         if (x < 0 || (UInt32)x >= fb_width || y < 0 || (UInt32)y >= fb_height) return 0;
-        return *(uint32_t*)((uint8_t*)framebuffer + y * fb_pitch + x * 4);
+        return *QD_PIXEL_PTR((uint8_t*)framebuffer + y * fb_pitch + x * 4);
     }
 
     /* Offscreen basic bitmap - same global-to-local mapping SetPixel uses */
@@ -522,7 +528,7 @@ UInt32 QDPlatform_GetPixel(SInt32 x, SInt32 y) {
     SInt16 portHeight = g_currentPort->portRect.bottom - g_currentPort->portRect.top;
     if (localX < 0 || localY < 0 || localX >= portWidth || localY >= portHeight) return 0;
 
-    return *(uint32_t*)((uint8_t*)baseAddr + localY * rowBytes + localX * 4);
+    return *QD_PIXEL_PTR((uint8_t*)baseAddr + localY * rowBytes + localX * 4);
 }
 
 /* Draw line accelerated - return false to use software implementation */
@@ -548,7 +554,7 @@ Boolean QDPlatform_FillRectAccelerated(SInt32 left, SInt32 top, SInt32 right, SI
 
     for (SInt32 y = top; y < bottom; y++) {
         for (SInt32 x = left; x < right; x++) {
-            uint32_t* pixel = (uint32_t*)((uint8_t*)framebuffer + y * fb_pitch + x * 4);
+            uint32_t* pixel = QD_PIXEL_PTR((uint8_t*)framebuffer + y * fb_pitch + x * 4);
             *pixel = color;
         }
     }
@@ -1153,12 +1159,20 @@ static void QDPlatform_DrawRegion_Body(RgnHandle rgn, short mode, const Pattern*
     SInt16 dv = colour ? g_currentPort->portBits.bounds.top - g_currentPort->portRect.top : 0;
 
     Region* region = *rgn;
-    SInt16 n = (region->rgnSize <= 10) ? (EmptyRect(&region->rgnBBox) ? 0 : 1)
-                                       : *(SInt16*)((UInt8*)region + 10);
+    SInt16 n;
+    if (region->rgnSize <= 10) {
+        n = EmptyRect(&region->rgnBBox) ? 0 : 1;
+    } else {
+        memcpy(&n, (UInt8*)region + 10, sizeof(n));
+    }
     for (SInt16 k = 0; k < n; k++) {
         region = *rgn;
-        Rect r = (region->rgnSize <= 10) ? region->rgnBBox
-                                         : ((const Rect*)((UInt8*)region + 12))[k];
+        Rect r;
+        if (region->rgnSize <= 10) {
+            r = region->rgnBBox;
+        } else {
+            memcpy(&r, (UInt8*)region + 12 + k * sizeof(Rect), sizeof(r));
+        }
         if (!colour) {
             EraseRect(&r);
             continue;
@@ -1172,7 +1186,7 @@ static void QDPlatform_DrawRegion_Body(RgnHandle rgn, short mode, const Pattern*
             for (int x = left; x < right; x++) {
                 if (!QD_ClipHas(x, y)) continue;
                 uint32_t c = colorPattern[(y & 7) * 8 + (x & 7)];
-                *(uint32_t*)((uint8_t*)framebuffer + y * fb_pitch + x * 4) =
+                *QD_PIXEL_PTR((uint8_t*)framebuffer + y * fb_pitch + x * 4) =
                     pack_color((c >> 16) & 0xFF, (c >> 8) & 0xFF, c & 0xFF);
             }
         }
@@ -1315,7 +1329,8 @@ static SInt16 QDPlatform_DrawGlyph_Body(struct FontStrike *strike, UInt8 ch, SIn
     if (!renderBuffer) return charWidth;
 
     /* Draw the glyph */
-    UInt32 *pixels = (UInt32 *)renderBuffer;
+    UInt32 *pixels = (UInt32 *)__builtin_assume_aligned(
+        renderBuffer, _Alignof(UInt32));
     SInt16 rowWords = strike->rowWords;
 
     for (SInt16 row = 0; row < strike->fRectHeight; row++) {
@@ -1421,7 +1436,8 @@ static void QDPlatform_DrawGlyphBitmap_Body(GrafPtr port, Point pen,
     }
 
     /* Get framebuffer pointer */
-    uint32_t *pixels = (uint32_t *)destBits->baseAddr;
+    uint32_t *pixels = (uint32_t *)__builtin_assume_aligned(
+        destBits->baseAddr, _Alignof(uint32_t));
     SInt32 pixelPitch = destRowBytes / 4;
 
     /* Draw each pixel of the glyph */

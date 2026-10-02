@@ -69,7 +69,7 @@ static const SoundEffectDataEntry kSoundEffectTable[kSoundEffectCount] = {
 
 OSErr SoundEffects_Play(SoundEffectId effect)
 {
-    if (effect < 0 || effect >= kSoundEffectCount) {
+    if ((unsigned)effect >= kSoundEffectCount) {
         return paramErr;
     }
 

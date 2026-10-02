@@ -68,12 +68,13 @@ static int rpi_framebuffer_init(void) {
     rpi_store_fb_info();
     framebuffer_ready = 1;
 
-    Serial_Printf("[FB] Framebuffer ready: %ux%u @ %u-bit (pitch %u)\n",
-                  arm_framebuffer.width,
-                  arm_framebuffer.height,
-                  arm_framebuffer.depth,
-                  arm_framebuffer.pitch);
-    Serial_Printf("[FB] Physical address: 0x%x\n", arm_framebuffer.fb_address);
+    Serial_Printf("[FB] Framebuffer ready: %lux%lu @ %lu-bit (pitch %lu)\n",
+                  (unsigned long)arm_framebuffer.width,
+                  (unsigned long)arm_framebuffer.height,
+                  (unsigned long)arm_framebuffer.depth,
+                  (unsigned long)arm_framebuffer.pitch);
+    Serial_Printf("[FB] Physical address: 0x%lx\n",
+                  (unsigned long)arm_framebuffer.fb_address);
     return 0;
 }
 
@@ -83,8 +84,8 @@ static int rpi_set_framebuffer_size(uint32_t width, uint32_t height, uint32_t de
         return -1;
     }
 
-    Serial_Printf("[FB] Requesting framebuffer resize: %ux%u @ %u-bit\n",
-                  width, height, depth);
+    Serial_Printf("[FB] Requesting framebuffer resize: %lux%lu @ %lu-bit\n",
+                  (unsigned long)width, (unsigned long)height, (unsigned long)depth);
 
     if (videocore_set_fb_size(width, height, depth) != 0) {
         Serial_WriteString("[FB] Failed to resize framebuffer\n");

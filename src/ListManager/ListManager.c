@@ -298,7 +298,13 @@ OSErr LAddRow(ListHandle lh, short count, short afterRow)
     }
     
     HLock(newRows);
-    newRowArray = (RowData*)(*newRows);
+    newRowArray = (RowData*)HandleDataAligned(newRows);
+    if (!newRowArray) {
+        HUnlock(newRows);
+        DisposeHandle(newRows);
+        HUnlock((Handle)lh);
+        return memFullErr;
+    }
     
     /* Copy existing rows */
     if (list->rows) {

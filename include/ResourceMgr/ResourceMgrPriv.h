@@ -21,7 +21,7 @@ typedef struct ResourceHeader {
 } ResourceHeader;
 
 /* Resource map header (at mapOffset) */
-typedef struct ResMapHeader {
+typedef struct __attribute__((packed)) ResMapHeader {
     /* Copy of resource header */
     UInt32 dataOffset;      /* Copy from header */
     UInt32 mapOffset;       /* Copy from header */
@@ -37,14 +37,14 @@ typedef struct ResMapHeader {
 } ResMapHeader;
 
 /* Type list entry */
-typedef struct TypeListEntry {
+typedef struct __attribute__((packed)) TypeListEntry {
     ResType resType;        /* 4-character resource type */
     UInt16  count;          /* Number of resources of this type minus 1 */
     UInt16  refListOffset;  /* Offset from type list start to reference list */
 } TypeListEntry;
 
 /* Reference list entry (one per resource) */
-typedef struct RefListEntry {
+typedef struct __attribute__((packed)) RefListEntry {
     ResID   resID;          /* Resource ID */
     UInt16  nameOffset;     /* Offset into name list, or 0xFFFF if no name */
     UInt8   attributes;     /* Resource attributes */

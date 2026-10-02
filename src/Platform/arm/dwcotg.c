@@ -26,7 +26,8 @@ static int dwcotg_discover_base(void) {
     volatile uint32_t *hwcfg2 = (volatile uint32_t *)(dwcotg_base + DWCOTG_GHWCFG2);
     uint32_t hwcfg2_val = mmio_read32((uint32_t)hwcfg2);
 
-    Serial_Printf("[DWCOTG] Base: 0x%x, HWCFG2: 0x%x\n", dwcotg_base, hwcfg2_val);
+    Serial_Printf("[DWCOTG] Base: 0x%lx, HWCFG2: 0x%lx\n",
+                  (unsigned long)dwcotg_base, (unsigned long)hwcfg2_val);
 
     /* Check if we can read a sane value
      * HWCFG2 should have some bits set

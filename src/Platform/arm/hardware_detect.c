@@ -130,11 +130,13 @@ rpi_model_t hardware_detect_model(char *model_string, uint32_t string_len) {
                 if (model == PI_MODEL_3) {
                     strncpy(detected_model_string, "Raspberry Pi 3 (via HW revision)",
                             sizeof(detected_model_string) - 1);
-                    Serial_Printf("[HW] Detected via HW revision: Pi 3 (rev=0x%08x)\n", hw_revision);
+                    Serial_Printf("[HW] Detected via HW revision: Pi 3 (rev=0x%08lx)\n",
+                                  (unsigned long)hw_revision);
                 } else if (model == PI_MODEL_4) {
                     strncpy(detected_model_string, "Raspberry Pi 4 (via HW revision)",
                             sizeof(detected_model_string) - 1);
-                    Serial_Printf("[HW] Detected via HW revision: Pi 4 (rev=0x%08x)\n", hw_revision);
+                    Serial_Printf("[HW] Detected via HW revision: Pi 4 (rev=0x%08lx)\n",
+                                  (unsigned long)hw_revision);
                 }
 
                 goto detection_complete;

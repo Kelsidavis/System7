@@ -348,7 +348,8 @@ static void InitBitmapDescriptor(const BitMap *bitmap, BitmapDescriptor *desc) {
         desc->pixMap = pm;
         desc->pixelSize = pm->pixelSize;
         if (pm->pmTable) {
-            desc->colorTable = (ColorTable *)*((Handle)pm->pmTable);
+            Handle colorTable = (Handle)pm->pmTable;
+            desc->colorTable = (ColorTable *)HandleDataAligned(colorTable);
         }
         return;
     }
@@ -362,7 +363,8 @@ static void InitBitmapDescriptor(const BitMap *bitmap, BitmapDescriptor *desc) {
         desc->pixMap = pm;
         desc->pixelSize = pm->pixelSize;
         if (pm->pmTable) {
-            desc->colorTable = (ColorTable *)*((Handle)pm->pmTable);
+            Handle colorTable = (Handle)pm->pmTable;
+            desc->colorTable = (ColorTable *)HandleDataAligned(colorTable);
         }
         return;
     }
@@ -949,8 +951,10 @@ void ScrollRect(const Rect *r, SInt16 dh, SInt16 dv, RgnHandle updateRgn) {
             SInt16 line = (dv > 0) ? (SInt16)(h - 1 - n) : n;
             SInt32 sy = sg.top + line, dy = dg.top + line;
             if (sy < 0 || dy < 0 || sy >= (SInt32)fb_height || dy >= (SInt32)fb_height) continue;
-            uint32_t* srow = (uint32_t*)((uint8_t*)framebuffer + sy * fb_pitch);
-            uint32_t* drow = (uint32_t*)((uint8_t*)framebuffer + dy * fb_pitch);
+            uint32_t* srow = (uint32_t*)__builtin_assume_aligned(
+                (uint8_t*)framebuffer + sy * fb_pitch, _Alignof(uint32_t));
+            uint32_t* drow = (uint32_t*)__builtin_assume_aligned(
+                (uint8_t*)framebuffer + dy * fb_pitch, _Alignof(uint32_t));
             for (SInt16 m = 0; m < w; m++) {
                 SInt16 col = (dh > 0) ? (SInt16)(w - 1 - m) : m;
                 SInt32 sx = sg.left + col, dx = dg.left + col;
@@ -1038,7 +1042,8 @@ void ScrollRect(const Rect *r, SInt16 dh, SInt16 dv, RgnHandle updateRgn) {
 
 /* Helper: Get pixel value at coordinates */
 static Boolean GetPixelBit(const UInt8 *bitmap, SInt16 rowBytes, SInt16 x, SInt16 y) {
-    const UInt16 *row = (const UInt16 *)(bitmap + y * rowBytes);
+    const UInt16 *row = (const UInt16 *)__builtin_assume_aligned(
+        bitmap + y * rowBytes, _Alignof(UInt16));
     UInt16 wordIndex = x / 16;
     UInt16 bitIndex = x % 16;
     return (row[wordIndex] & (1 << (15 - bitIndex))) != 0;
@@ -1046,7 +1051,8 @@ static Boolean GetPixelBit(const UInt8 *bitmap, SInt16 rowBytes, SInt16 x, SInt1
 
 /* Helper: Set pixel value at coordinates */
 static void SetPixelBit(UInt8 *bitmap, SInt16 rowBytes, SInt16 x, SInt16 y) {
-    UInt16 *row = (UInt16 *)(bitmap + y * rowBytes);
+    UInt16 *row = (UInt16 *)__builtin_assume_aligned(
+        bitmap + y * rowBytes, _Alignof(UInt16));
     UInt16 wordIndex = x / 16;
     UInt16 bitIndex = x % 16;
     row[wordIndex] |= (1 << (15 - bitIndex));
@@ -1257,11 +1263,13 @@ static UInt32 GetPixelValue(const BitMap *bitmap, SInt16 x, SInt16 y) {
             case 8:
                 return pixel[relativeX];
             case 16: {
-                const UInt16 *pixel16 = (const UInt16 *)pixel;
+                const UInt16 *pixel16 = (const UInt16 *)__builtin_assume_aligned(
+                    pixel, _Alignof(UInt16));
                 return pixel16[relativeX];
             }
             case 32: {
-                const UInt32 *pixel32 = (const UInt32 *)pixel;
+                const UInt32 *pixel32 = (const UInt32 *)__builtin_assume_aligned(
+                    pixel, _Alignof(UInt32));
                 return pixel32[relativeX];
             }
             default:
@@ -1311,12 +1319,14 @@ static void SetPixelValue(const BitMap *bitmap, SInt16 x, SInt16 y, UInt32 value
                 pixel[relativeX] = (UInt8)value;
                 break;
             case 16: {
-                UInt16 *pixel16 = (UInt16 *)pixel;
+                UInt16 *pixel16 = (UInt16 *)__builtin_assume_aligned(
+                    pixel, _Alignof(UInt16));
                 pixel16[relativeX] = (UInt16)value;
                 break;
             }
             case 32: {
-                UInt32 *pixel32 = (UInt32 *)pixel;
+                UInt32 *pixel32 = (UInt32 *)__builtin_assume_aligned(
+                    pixel, _Alignof(UInt32));
                 pixel32[relativeX] = value;
                 break;
             }

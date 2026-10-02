@@ -12,6 +12,11 @@ typedef uint32_t u32;
 typedef uint16_t u16;
 typedef uint8_t  u8;
 
+/* NewHandle payloads begin after an 8-byte-aligned block header. */
+static inline void* HandleDataAligned(Handle handle) {
+    return handle && *handle ? __builtin_assume_aligned(*handle, 8) : NULL;
+}
+
 /* Block flags */
 enum {
     BF_FREE      = 1<<0,       /* On free list */

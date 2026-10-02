@@ -213,7 +213,11 @@ void TEStylePaste(TEHandle hTE) {
         TEC_LOG("TEStylePaste: styled paste - applying %ld bytes of styles\n", (long)pasteLen);
 
         HLock(g_TEStyleScrap);
-        SInt16 *scrapPtr = (SInt16*)*g_TEStyleScrap;
+        SInt16 *scrapPtr = (SInt16*)HandleDataAligned(g_TEStyleScrap);
+        if (!scrapPtr) {
+            HUnlock(g_TEStyleScrap);
+            return;
+        }
         SInt16 styleRunCount = scrapPtr[0];  /* First word: number of runs */
 
         /* Each style run is: offset (SInt16), font (SInt16), size (SInt16), face (SInt16), color (3 x SInt16) */
@@ -492,25 +496,31 @@ static OSErr TE_CopyToScrap(TEHandle hTE) {
         }
 
         HLock(styleHandle);
-        stylePtr = (SInt16*)*styleHandle;
+        stylePtr = (SInt16*)HandleDataAligned(styleHandle);
+        if (!stylePtr) {
+            HUnlock(styleHandle);
+            DisposeHandle(styleHandle);
+            HUnlock((Handle)hTE);
+            return memFullErr;
+        }
         styleIndex = 1;  /* Leave room for count */
         runCount = 0;
 
         /* Lock style data to access run array and style table */
         HLock(pTE->hStyles);
-        stRec = (STRec_Style*)*pTE->hStyles;
+        stRec = (STRec_Style*)HandleDataAligned(pTE->hStyles);
 
-        if (stRec->runArray && *stRec->runArray &&
+        if (stRec && stRec->runArray && *stRec->runArray &&
             stRec->styleTab && *stRec->styleTab) {
             /* Access run array and style table */
             HLock(stRec->runArray);
             HLock(stRec->styleTab);
 
-            runArr = (RunArray*)*stRec->runArray;
-            styleTab = (StyleTable*)*stRec->styleTab;
+            runArr = (RunArray*)HandleDataAligned(stRec->runArray);
+            styleTab = (StyleTable*)HandleDataAligned(stRec->styleTab);
 
             /* Iterate through style runs, finding those that overlap selection */
-            for (runIndex = 0; runIndex < runArr->nRuns &&
+            for (runIndex = 0; runArr && styleTab && runIndex < runArr->nRuns &&
                  runIndex < 1000; runIndex++) {  /* 1000 = safety limit */
 
                 SInt32 runStart = runArr->runs[runIndex].startChar;

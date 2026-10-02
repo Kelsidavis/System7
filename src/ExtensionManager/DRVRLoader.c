@@ -436,7 +436,8 @@ static OSErr DRVREntry_LoadCode(DRVREntry *entry, Handle resourceHandle)
     /* DRVR resources contain the driver entry point
      * The entry point is typically at offset 0 in the resource
      */
-    entry->driverProc = (DriverEntryProc)codePtr;
+    entry->driverProc = (DriverEntryProc)__builtin_assume_aligned(
+        codePtr, _Alignof(DriverEntryProc));
 
     DRVR_LOG("Loaded code for DRVR %s\n", entry->name);
     return extNoErr;

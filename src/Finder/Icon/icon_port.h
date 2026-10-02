@@ -2,6 +2,7 @@
 
 #include <stdint.h>
 #include <stddef.h>
+#include <string.h>
 #include "QuickDraw/QuickDraw.h"
 #include "QuickDraw/QuickDrawPlatform.h"
 
@@ -48,14 +49,14 @@ static inline void IconPort_WritePixel(int x, int y, uint32_t color) {
             uint8_t* fbBase = (uint8_t*)framebuffer;
             size_t offset = (size_t)globalY * (size_t)fb_pitch +
                             (size_t)globalX * sizeof(uint32_t);
-            *(uint32_t*)(fbBase + offset) = color;
+            memcpy(fbBase + offset, &color, sizeof(color));
         } else {
             if (relX < 0 || relY < 0) {
                 return;
             }
             size_t offset = (size_t)relY * (size_t)rowBytes +
                             (size_t)relX * sizeof(uint32_t);
-            *(uint32_t*)(baseAddr + offset) = color;
+            memcpy(baseAddr + offset, &color, sizeof(color));
         }
         return;
     }
@@ -71,5 +72,5 @@ static inline void IconPort_WritePixel(int x, int y, uint32_t color) {
 
     uint8_t* fbBase = (uint8_t*)framebuffer;
     size_t offset = (size_t)y * (size_t)fb_pitch + (size_t)x * sizeof(uint32_t);
-    *(uint32_t*)(fbBase + offset) = color;
+    memcpy(fbBase + offset, &color, sizeof(color));
 }

@@ -498,13 +498,19 @@ void ZoomWindow(WindowPtr theWindow, short partCode, Boolean front) {
 WindowStateData* WM_GetWindowStateData(WindowPtr window) {
     if (window == NULL) return NULL;
     if (window->dataHandle && *window->dataHandle) {
-        return (WindowStateData*)*window->dataHandle;
+        return (WindowStateData*)HandleDataAligned(window->dataHandle);
     }
     Handle h = NewHandleClear(sizeof(WindowStateData));
     if (!h) return NULL;
     HLock(h);
     window->dataHandle = h;
-    WindowStateData* stateData = (WindowStateData*)*h;
+    WindowStateData* stateData = (WindowStateData*)HandleDataAligned(h);
+    if (!stateData) {
+        window->dataHandle = NULL;
+        HUnlock(h);
+        DisposeHandle(h);
+        return NULL;
+    }
     if (window->contRgn && *window->contRgn) {
         stateData->userState = (*window->contRgn)->rgnBBox;
         stateData->hasUserState = true;

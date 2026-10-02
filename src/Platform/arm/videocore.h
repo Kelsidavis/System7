@@ -31,8 +31,8 @@ extern uint32_t videocore_mbox_base;
 #define MBOX_CONFIG  0x1C
 
 /* Status register bit flags */
-#define MBOX_STATUS_EMPTY   (1 << 30)  /* Read queue is empty */
-#define MBOX_STATUS_FULL    (1 << 31)  /* Write queue is full */
+#define MBOX_STATUS_EMPTY   (UINT32_C(1) << 30)  /* Read queue is empty */
+#define MBOX_STATUS_FULL    (UINT32_C(1) << 31)  /* Write queue is full */
 
 /* ===== Mailbox channels ===== */
 #define MBOX_CHANNEL_POWER      0

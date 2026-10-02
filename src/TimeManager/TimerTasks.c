@@ -73,7 +73,10 @@ void TimeManager_DrainDeferred(UInt32 maxTasks, UInt32 maxMicros) {
         UInt32 currentGen = Core_GetTaskGeneration(entry.task);
         if (entry.task && entry.task->tmAddr && entry.gen == currentGen) {
             /* Generation matches, safe to invoke */
-            ((void(*)(TMTask*))entry.task->tmAddr)(entry.task);
+            typedef void (*TMTaskProc)(TMTask*);
+            TMTaskProc taskProc = (TMTaskProc)__builtin_assume_aligned(
+                entry.task->tmAddr, _Alignof(TMTaskProc));
+            taskProc(entry.task);
         }
         /* else: task was cancelled or reused, skip callback */
         

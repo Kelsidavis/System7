@@ -148,7 +148,8 @@ short MenuAppIcon_Draw(GrafPtr port, short left, short top, Boolean highlighted)
         return MENU_APP_ICON_WIDTH;
     }
 
-    UInt32* pixels = (UInt32*)port->portBits.baseAddr;
+    UInt32* pixels = (UInt32*)__builtin_assume_aligned(
+        port->portBits.baseAddr, _Alignof(UInt32));
     const int stride = rowBytes / 4; /* 32-bit pixels */
     const UInt32 fgColor = highlighted ? pack_color(255, 255, 255) : pack_color(0, 0, 0);
     const UInt32 bgColor = highlighted ? pack_color(0, 0, 0) : pack_color(255, 255, 255);

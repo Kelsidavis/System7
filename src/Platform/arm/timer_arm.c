@@ -13,6 +13,7 @@
 
 #include <stdint.h>
 #include "System71StdLib.h"
+#include "timer_arm.h"
 
 /* ARM generic timer frequency on Raspberry Pi
  * Most Raspberry Pi boards use 19.2 MHz (19,200,000 Hz)
@@ -85,7 +86,8 @@ int arm_platform_timer_init(void) {
      *
      * For now, use safe defaults and log the timer frequency
      */
-    Serial_Printf("[TIMER] ARM timer initialized, frequency: %u Hz\n", arm_timer_freq);
+    Serial_Printf("[TIMER] ARM timer initialized, frequency: %lu Hz\n",
+                  (unsigned long)arm_timer_freq);
     Serial_Printf("[TIMER] Initial counter: 0x%llx\n", count1);
 
     timer_initialized = 1;
@@ -119,7 +121,7 @@ uint32_t arm_get_timer_frequency(void) {
 void arm_set_timer_frequency(uint32_t freq_hz) {
     if (freq_hz > 0) {
         arm_timer_freq = freq_hz;
-        Serial_Printf("[TIMER] Timer frequency set to %u Hz\n", freq_hz);
+        Serial_Printf("[TIMER] Timer frequency set to %lu Hz\n", (unsigned long)freq_hz);
     }
 }
 
@@ -147,7 +149,8 @@ uint32_t arm_calibrate_timer(void) {
     uint64_t ticks_after = arm_read_timer();
     uint64_t ticks_delta = ticks_after - ticks_before;
 
-    Serial_Printf("[TIMER] Ticks per millisecond (approx): %u\n", (uint32_t)ticks_delta);
+    Serial_Printf("[TIMER] Ticks per millisecond (approx): %lu\n",
+                  (unsigned long)(uint32_t)ticks_delta);
 
     return (uint32_t)ticks_delta;
 }

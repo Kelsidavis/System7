@@ -562,6 +562,11 @@ OSErr DisposeIconSuite(Handle theIconSuite, Boolean disposeData) {
         ICON_LOG("DisposeIconSuite: NULL suite\n");
         return paramErr;
     }
+    if (*theIconSuite == NULL) {
+        ICON_LOG("DisposeIconSuite: empty suite handle\n");
+        DisposeHandle(theIconSuite);
+        return noErr;
+    }
 
     ICON_LOG("DisposeIconSuite: suite=%p disposeData=%d\n",
              (void*)theIconSuite, disposeData);
@@ -572,13 +577,19 @@ OSErr DisposeIconSuite(Handle theIconSuite, Boolean disposeData) {
 
         /* Icon suite contains up to 16 icon pointers */
         HLock(theIconSuite);
-        Ptr* iconPtrs = (Ptr*)*theIconSuite;
+        Ptr* iconPtrs = (Ptr*)HandleDataAligned(theIconSuite);
+        if (!iconPtrs) {
+            HUnlock(theIconSuite);
+            DisposeHandle(theIconSuite);
+            return noErr;
+        }
 
         for (int i = 0; i < 16; i++) {
             if (iconPtrs[i] != NULL) {
                 /* Release icon resource */
                 extern void ReleaseResource(Handle resource);
-                ReleaseResource((Handle)iconPtrs[i]);
+                ReleaseResource((Handle)__builtin_assume_aligned(
+                    iconPtrs[i], _Alignof(Handle)));
                 iconPtrs[i] = NULL;
             }
         }

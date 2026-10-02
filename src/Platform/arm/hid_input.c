@@ -12,6 +12,7 @@
 #include <stddef.h>
 #include <string.h>
 #include "System71StdLib.h"
+#include "hid_input.h"
 #include "xhci.h"
 
 /* ===== HID Class Codes ===== */
@@ -132,7 +133,7 @@ int hid_process_keyboard_report(const uint8_t *report, uint32_t report_len) {
         return -1;
     }
 
-    hid_keyboard_report_t *kb_report = (hid_keyboard_report_t *)report;
+    const hid_keyboard_report_t *kb_report = (const hid_keyboard_report_t *)report;
     hid_keyboard_report_t *last_report = (hid_keyboard_report_t *)last_keyboard_report;
 
     /* Check for modifier key changes */
@@ -224,7 +225,7 @@ int hid_process_mouse_report(const uint8_t *report, uint32_t report_len) {
         return -1;
     }
 
-    hid_mouse_report_t *mouse_report = (hid_mouse_report_t *)report;
+    const hid_mouse_report_t *mouse_report = (const hid_mouse_report_t *)report;
     hid_mouse_report_t *last_report = (hid_mouse_report_t *)last_mouse_report;
 
     /* Check for button changes */

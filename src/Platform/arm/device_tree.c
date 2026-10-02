@@ -123,13 +123,15 @@ void device_tree_init(void *dtb_ptr) {
 
     /* Validate DTB magic number */
     if (device_tree->magic != 0xedfe0dd0) {  /* Byte-swapped for little-endian ARM */
-        Serial_WriteString("[DTB] Invalid device tree magic (0x%x)\n", device_tree->magic);
+        Serial_WriteString("[DTB] Invalid device tree magic (0x%lx)\n",
+                           (unsigned long)device_tree->magic);
         device_tree = NULL;
         return;
     }
 
-    Serial_Printf("[DTB] Device tree found (size: %u bytes, version: %u)\n",
-                  device_tree->totalsize, device_tree->version);
+    Serial_Printf("[DTB] Device tree found (size: %lu bytes, version: %lu)\n",
+                  (unsigned long)device_tree->totalsize,
+                  (unsigned long)device_tree->version);
 
     /* Cache device info */
     memset(&device_info, 0, sizeof(device_info));
@@ -368,21 +370,23 @@ void device_tree_dump(void) {
         return;
     }
 
-    Serial_Printf("[DTB] Total size: %u bytes\n", device_tree->totalsize);
-    Serial_Printf("[DTB] Structure offset: 0x%x\n", device_tree->off_dt_struct);
-    Serial_Printf("[DTB] Strings offset: 0x%x\n", device_tree->off_dt_strings);
-    Serial_Printf("[DTB] Version: %u\n", device_tree->version);
-    Serial_Printf("[DTB] Boot CPU: %u\n", device_tree->boot_cpuid_phys);
+    Serial_Printf("[DTB] Total size: %lu bytes\n", (unsigned long)device_tree->totalsize);
+    Serial_Printf("[DTB] Structure offset: 0x%lx\n", (unsigned long)device_tree->off_dt_struct);
+    Serial_Printf("[DTB] Strings offset: 0x%lx\n", (unsigned long)device_tree->off_dt_strings);
+    Serial_Printf("[DTB] Version: %lu\n", (unsigned long)device_tree->version);
+    Serial_Printf("[DTB] Boot CPU: %lu\n", (unsigned long)device_tree->boot_cpuid_phys);
 
     if (device_info_cached) {
         if (device_info.model[0] != '\0') {
             Serial_Printf("[DTB] Model: %s\n", device_info.model);
         }
         if (device_info.memory_size > 0) {
-            Serial_Printf("[DTB] Memory: %u MB\n", device_info.memory_size / (1024 * 1024));
+            Serial_Printf("[DTB] Memory: %lu MB\n",
+                          (unsigned long)(device_info.memory_size / (1024 * 1024)));
         }
         if (device_info.cpu_freq > 0) {
-            Serial_Printf("[DTB] CPU Freq: %u MHz\n", device_info.cpu_freq / 1000000);
+            Serial_Printf("[DTB] CPU Freq: %lu MHz\n",
+                          (unsigned long)(device_info.cpu_freq / 1000000));
         }
     }
 }

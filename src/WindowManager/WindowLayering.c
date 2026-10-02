@@ -171,12 +171,11 @@ void WM_RecalculateWindowOrder(void) {
         WindowLayer layer = Local_GetWindowLayer(current);
 
         /* Validate layer value and calculate safe index */
-        if (layer < 0) layer = 0;
         if (layer > 500) layer = 500;
         int layerIndex = (layer / 100) % 6;
 
         /* Ensure layerIndex is within bounds (defensive) */
-        if (layerIndex < 0 || layerIndex >= 6) layerIndex = 0;
+        if (layerIndex >= 6) layerIndex = 0;
 
         /* Add to appropriate layer list */
         current->nextWindow = NULL;

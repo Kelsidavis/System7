@@ -55,6 +55,15 @@ static inline u32 align_up(u32 n) {
     return (n + (ALIGN-1)) & ~(ALIGN-1);
 }
 
+/* Heap layout keeps every block and free-list payload ALIGN-byte aligned. */
+static inline BlockHeader* block_header_at(void* address) {
+    return (BlockHeader*)__builtin_assume_aligned(address, ALIGN);
+}
+
+static inline FreeNode* free_node_at(void* address) {
+    return (FreeNode*)__builtin_assume_aligned(address, ALIGN);
+}
+
 /* Get size class index for a block size (segregated freelists) */
 static inline u32 get_size_class(u32 size) {
     if (size <= 64) return 0;
@@ -143,11 +152,11 @@ static u32 g_debug_suspect_size = 0;
 /* ======================== Free List Management ======================== */
 
 static FreeNode* block_to_freenode(BlockHeader* b) {
-    return (FreeNode*)((u8*)b + BLKHDR_SZ);
+    return free_node_at((u8*)b + BLKHDR_SZ);
 }
 
 static BlockHeader* freenode_to_block(FreeNode* n) {
-    return (BlockHeader*)((u8*)n - BLKHDR_SZ);
+    return block_header_at((u8*)n - BLKHDR_SZ);
 }
 
 /* Validate that a FreeNode pointer is within zone bounds */
@@ -449,7 +458,7 @@ static BlockHeader* coalesce_forward(ZoneInfo* z, BlockHeader* b) {
     /* Bounds check: end must be within zone */
     if (end >= z->limit) return b;
 
-    BlockHeader* next = (BlockHeader*)end;
+    BlockHeader* next = block_header_at(end);
 
     /* Validate next block is fully within bounds */
     if ((u8*)next + BLKHDR_SZ > z->limit) return b;
@@ -479,7 +488,7 @@ static BlockHeader* coalesce_forward(ZoneInfo* z, BlockHeader* b) {
         /* Update following block's prevSize */
         u8* after = (u8*)b + b->size;
         if (after < z->limit && after + BLKHDR_SZ <= z->limit) {
-            BlockHeader* nxt = (BlockHeader*)after;
+            BlockHeader* nxt = block_header_at(after);
             nxt->prevSize = b->size;
         }
 
@@ -511,7 +520,7 @@ static BlockHeader* coalesce_backward(ZoneInfo* z, BlockHeader* b) {
         return b;  /* Corrupted prevSize, don't coalesce */
     }
 
-    BlockHeader* prev = (BlockHeader*)((u8*)b - b->prevSize);
+    BlockHeader* prev = block_header_at((u8*)b - b->prevSize);
 
     /* Validate prev is within bounds */
     if ((u8*)prev < z->base) return b;
@@ -541,7 +550,7 @@ static BlockHeader* coalesce_backward(ZoneInfo* z, BlockHeader* b) {
         /* Update following block's prevSize */
         u8* after = (u8*)prev + prev->size;
         if (after < z->limit && after + BLKHDR_SZ <= z->limit) {
-            BlockHeader* nxt = (BlockHeader*)after;
+            BlockHeader* nxt = block_header_at(after);
             nxt->prevSize = prev->size;
         }
 
@@ -577,7 +586,11 @@ void MemoryManager_CheckSuspectBlock(const char* tag) {
 
 void InitZone(ZoneInfo* zone, void* memory, u32 size, void** masterTable, u32 masterCount) {
     memset(zone, 0, sizeof(*zone));
-    zone->base = (u8*)memory;
+    uintptr_t rawBase = (uintptr_t)memory;
+    uintptr_t alignedBase = (rawBase + ALIGN - 1) & ~(uintptr_t)(ALIGN - 1);
+    u32 skipped = (u32)(alignedBase - rawBase);
+    zone->base = (u8*)alignedBase;
+    size = size > skipped ? size - skipped : 0;
     zone->limit = zone->base + size;
 
     /* Initialize all segregated freelists to NULL */
@@ -585,20 +598,24 @@ void InitZone(ZoneInfo* zone, void* memory, u32 size, void** masterTable, u32 ma
         zone->freelists[i] = NULL;
     }
 
-    /* Create one big free block spanning the zone */
-    BlockHeader* b = (BlockHeader*)zone->base;
-    /* Align DOWN to ensure the block fits within the zone */
+    /* Create one big free block spanning the zone when it can hold metadata. */
     u32 total = size & ~(ALIGN - 1);
-    b->size = total;
-    b->flags = BF_FREE;
-    b->prevSize = 0;
-    b->masterPtr = NULL;
+    if (total >= MIN_BLOCK_SIZE) {
+        BlockHeader* b = block_header_at(zone->base);
+        b->size = total;
+        b->flags = BF_FREE;
+        b->prevSize = 0;
+        b->masterPtr = NULL;
 
-    /* Insert initial block into appropriate size class */
-    u32 sc = get_size_class(b->size);
-    FreeNode* n = (FreeNode*)((u8*)b + BLKHDR_SZ);
-    n->next = n->prev = n;
-    zone->freelists[sc] = n;
+        /* Insert initial block into appropriate size class */
+        u32 sc = get_size_class(b->size);
+        FreeNode* n = free_node_at((u8*)b + BLKHDR_SZ);
+        n->next = n->prev = n;
+        zone->freelists[sc] = n;
+    } else {
+        total = 0;
+        zone->limit = zone->base;
+    }
 
     /* Track metrics: nothing allocated yet */
     zone->bytesFree = total;
@@ -826,7 +843,7 @@ static void split_block(ZoneInfo* z, BlockHeader* b, u32 need) {
             }
         }
         /* Create a tail free block */
-        BlockHeader* tail = (BlockHeader*)((u8*)b + need);
+        BlockHeader* tail = block_header_at((u8*)b + need);
         tail->size = remain;
         tail->flags = BF_FREE;
         tail->prevSize = need;
@@ -839,7 +856,7 @@ static void split_block(ZoneInfo* z, BlockHeader* b, u32 need) {
         /* Fix next block's prevSize */
         u8* after = (u8*)tail + tail->size;
         if (after < z->limit) {
-            BlockHeader* nxt = (BlockHeader*)after;
+            BlockHeader* nxt = block_header_at(after);
             nxt->prevSize = tail->size;
         }
 
@@ -1001,7 +1018,7 @@ void DisposePtr(void* p) {
     }
     DISPOSE_LOG("[DISPOSE] Freelist valid before disposal\n");
 
-    BlockHeader* b = (BlockHeader*)((u8*)p - BLKHDR_SZ);
+    BlockHeader* b = block_header_at((u8*)p - BLKHDR_SZ);
     DISPOSE_LOG("[DISPOSE] BlockHeader calculated\n");
 
     /* Validate the block being freed */
@@ -1086,7 +1103,7 @@ void DisposePtr(void* p) {
 /* The size asked for, as GetHandleSize. */
 u32 GetPtrSize(void* p) {
     if (!p) return 0;
-    BlockHeader* b = (BlockHeader*)((u8*)p - BLKHDR_SZ);
+    BlockHeader* b = block_header_at((u8*)p - BLKHDR_SZ);
     return b->logicalSize;
 }
 
@@ -1177,7 +1194,7 @@ void DisposeHandle(Handle h) {
     }
 
     u8* p = (u8*)*h;
-    BlockHeader* b = (BlockHeader*)(p - BLKHDR_SZ);
+    BlockHeader* b = block_header_at(p - BLKHDR_SZ);
 
     /* Validate block being freed */
     if (!validate_block(z, b)) {
@@ -1213,7 +1230,7 @@ void DisposeHandle(Handle h) {
 
 void HLock(Handle h) {
     if (h && *h) {
-        BlockHeader* b = (BlockHeader*)((u8*)*h - BLKHDR_SZ);
+        BlockHeader* b = block_header_at((u8*)*h - BLKHDR_SZ);
         if (b->lockCount < 0xFFFF) {
             b->lockCount++;
         }
@@ -1223,7 +1240,7 @@ void HLock(Handle h) {
 
 void HUnlock(Handle h) {
     if (h && *h) {
-        BlockHeader* b = (BlockHeader*)((u8*)*h - BLKHDR_SZ);
+        BlockHeader* b = block_header_at((u8*)*h - BLKHDR_SZ);
         if (b->lockCount > 0) {
             b->lockCount--;
         }
@@ -1235,13 +1252,13 @@ void HUnlock(Handle h) {
 
 void HPurge(Handle h) {
     if (!h || !*h) return;
-    BlockHeader* b = (BlockHeader*)((u8*)*h - BLKHDR_SZ);
+    BlockHeader* b = block_header_at((u8*)*h - BLKHDR_SZ);
     b->flags |= BF_PURGEABLE;
 }
 
 void HNoPurge(Handle h) {
     if (!h || !*h) return;
-    BlockHeader* b = (BlockHeader*)((u8*)*h - BLKHDR_SZ);
+    BlockHeader* b = block_header_at((u8*)*h - BLKHDR_SZ);
     b->flags &= ~BF_PURGEABLE;
 }
 
@@ -1261,7 +1278,7 @@ void HNoPurge(Handle h) {
  */
 UInt8 HGetState(Handle h) {
     if (!h || !*h) return 0;
-    BlockHeader* b = (BlockHeader*)((u8*)*h - BLKHDR_SZ);
+    BlockHeader* b = block_header_at((u8*)*h - BLKHDR_SZ);
     UInt8 state = 0;
     if (b->flags & BF_LOCKED)    state |= 0x80;
     if (b->flags & BF_PURGEABLE) state |= 0x40;
@@ -1271,7 +1288,7 @@ UInt8 HGetState(Handle h) {
 
 void HSetState(Handle h, UInt8 state) {
     if (!h || !*h) return;
-    BlockHeader* b = (BlockHeader*)((u8*)*h - BLKHDR_SZ);
+    BlockHeader* b = block_header_at((u8*)*h - BLKHDR_SZ);
     if (state & 0x80) {
         if (!(b->flags & BF_LOCKED)) {
             b->lockCount = 1;
@@ -1288,7 +1305,7 @@ void HSetState(Handle h, UInt8 state) {
 /* The size asked for (Inside Macintosh: Memory, 2-48), not the block's. */
 u32 GetHandleSize(Handle h) {
     if (!h || !*h) return 0;
-    BlockHeader* b = (BlockHeader*)((u8*)*h - BLKHDR_SZ);
+    BlockHeader* b = block_header_at((u8*)*h - BLKHDR_SZ);
     return b->logicalSize;
 }
 
@@ -1312,7 +1329,7 @@ void EmptyHandle(Handle h) {
     ZoneInfo* z = gCurrentZone;
     if (!z) return;
 
-    BlockHeader* b = (BlockHeader*)((u8*)*h - BLKHDR_SZ);
+    BlockHeader* b = block_header_at((u8*)*h - BLKHDR_SZ);
     b->flags &= ~(BF_HANDLE | BF_LOCKED | BF_PURGEABLE);
     b->lockCount = 0;
     b->masterPtr = NULL;
@@ -1328,7 +1345,7 @@ void EmptyHandle(Handle h) {
 bool RecoverHandle(void* p, Handle* outHandle) {
     if (!p || !outHandle) return false;
 
-    BlockHeader* b = (BlockHeader*)((u8*)p - BLKHDR_SZ);
+    BlockHeader* b = block_header_at((u8*)p - BLKHDR_SZ);
     if (!(b->flags & BF_HANDLE) || !b->masterPtr) {
         return false;
     }
@@ -1346,7 +1363,7 @@ bool RecoverHandle(void* p, Handle* outHandle) {
 bool SetPtrSize(void* p, u32 newSize) {
     if (!p) return false;
 
-    BlockHeader* b = (BlockHeader*)((u8*)p - BLKHDR_SZ);
+    BlockHeader* b = block_header_at((u8*)p - BLKHDR_SZ);
     if (!(b->flags & BF_PTR)) return false;
 
     u32 room = b->size - BLKHDR_SZ - CANARY_SIZE;
@@ -1363,7 +1380,7 @@ bool SetHandleSize(Handle h, u32 newSize) {
 
     /* Get current block */
     u8* p = (u8*)*h;
-    BlockHeader* b = (BlockHeader*)(p - BLKHDR_SZ);
+    BlockHeader* b = block_header_at(p - BLKHDR_SZ);
     u32 oldSize = b->size - BLKHDR_SZ;
     u32 newTotalSize = align_up(newSize + BLKHDR_SZ);
 
@@ -1397,7 +1414,7 @@ bool SetHandleSize(Handle h, u32 newSize) {
     }
 
     /* Get new block header */
-    BlockHeader* newBlock = (BlockHeader*)((u8*)*newHandle - BLKHDR_SZ);
+    BlockHeader* newBlock = block_header_at((u8*)*newHandle - BLKHDR_SZ);
 
     /* Update master pointer to point to new data */
     Handle masterPtr = b->masterPtr;
@@ -1458,7 +1475,7 @@ u32 CompactMem(u32 cbNeeded) {
     bool walk_aborted = false;
 
     while (scan < z->limit) {
-        BlockHeader* b = (BlockHeader*)scan;
+        BlockHeader* b = block_header_at(scan);
         block_count++;
 
         if (block_count % 100 == 0) {
@@ -1482,7 +1499,7 @@ u32 CompactMem(u32 cbNeeded) {
         if ((b->flags & BF_HANDLE) && !(b->flags & BF_LOCKED)) {
             if (scan != dest) {
                 /* Move the block */
-                BlockHeader* d = (BlockHeader*)dest;
+                BlockHeader* d = block_header_at(dest);
                 /* dataSize not needed; full header+data copied above */
 
                 /* Copy block header and data */
@@ -1496,7 +1513,7 @@ u32 CompactMem(u32 cbNeeded) {
                 /* Update prevSize of following block */
                 u8* after = dest + d->size;
                 if (after < z->limit) {
-                    BlockHeader* nxt = (BlockHeader*)after;
+                    BlockHeader* nxt = block_header_at(after);
                     nxt->prevSize = d->size;
                 }
 
@@ -1515,7 +1532,7 @@ u32 CompactMem(u32 cbNeeded) {
             u32 aligned_gap = gap & ~(ALIGN - 1);
             if (aligned_gap >= MIN_BLOCK_SIZE) {
                 /* Create free block in the gap */
-                BlockHeader* fb = (BlockHeader*)dest;
+                BlockHeader* fb = block_header_at(dest);
                 fb->size = aligned_gap;
                 fb->flags = BF_FREE;
                 /* Set prevSize to size of block that ends at 'dest' */
@@ -1524,7 +1541,7 @@ u32 CompactMem(u32 cbNeeded) {
                 freelist_insert(z, fb);
 
                 /* The next block at 'scan' now follows 'fb'; fix its prevSize */
-                BlockHeader* next_block = (BlockHeader*)scan;
+                BlockHeader* next_block = block_header_at(scan);
                 next_block->prevSize = fb->size;
 
                 /* Note: do not advance 'dest' here; we leave a gap and keep 'scan' at b */
@@ -1555,7 +1572,7 @@ u32 CompactMem(u32 cbNeeded) {
         /* CRITICAL: Align remaining DOWN to avoid exceeding zone limit! */
         u32 aligned_remaining = remaining & ~(ALIGN - 1);
         if (aligned_remaining >= MIN_BLOCK_SIZE) {
-            BlockHeader* tail = (BlockHeader*)dest;
+            BlockHeader* tail = block_header_at(dest);
             tail->flags = BF_FREE;
             tail->size = aligned_remaining;
             /* Set prevSize based on the last committed block size */
@@ -1578,7 +1595,7 @@ void PurgeMem(u32 cbNeeded) {
     /* Walk heap looking for purgeable handles */
     u8* scan = z->base;
     while (scan < z->limit) {
-        BlockHeader* b = (BlockHeader*)scan;
+        BlockHeader* b = block_header_at(scan);
 
         /* This walk steps by b->size, so a zero size never advances it and the
          * loop spins with interrupts enabled and nothing on the serial port.
@@ -1847,7 +1864,7 @@ void CheckHeap(ZoneInfo* zone) {
 
     u8* scan = zone->base;
     while (scan < zone->limit) {
-        BlockHeader* b = (BlockHeader*)scan;
+        BlockHeader* b = block_header_at(scan);
         blockCount++;
 
         if (b->flags & BF_FREE) {
@@ -1875,7 +1892,7 @@ void DumpHeap(ZoneInfo* zone) {
 
     u8* scan = zone->base;
     while (scan < zone->limit) {
-        BlockHeader* b = (BlockHeader*)scan;
+        BlockHeader* b = block_header_at(scan);
 
         char* type = "????";
         if (b->flags & BF_FREE) type = "FREE";

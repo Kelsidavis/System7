@@ -68,6 +68,11 @@ typedef struct MenuBarList {
     MenuListEntry menus[1];  /* Variable length array */
 } MenuBarList;
 
+#define MENU_BAR_LIST(ptr) \
+    ((MenuBarList*)__builtin_assume_aligned((ptr), _Alignof(MenuBarList)))
+#define MENU_LIST_HANDLE(ptr) \
+    ((Handle)__builtin_assume_aligned((ptr), _Alignof(Handle)))
+
 /* Menu error codes */
 #define menuInvalidErr -150
 #define hierMenu -1
@@ -232,7 +237,7 @@ Handle GetMenuBar(void)
         return NULL;
     }
 
-    return (Handle)gMenuList;  /* Cast Ptr to Handle for API compatibility */
+    return MENU_LIST_HANDLE(gMenuList);  /* Cast Ptr to Handle for API compatibility */
 }
 
 /*
@@ -260,7 +265,7 @@ MenuBarList* MenuMgr_GetMenuBarList(void)
         return NULL;
     }
 
-    return (MenuBarList*)gMenuList;
+    return MENU_BAR_LIST(gMenuList);
 }
 
 /*
@@ -280,14 +285,14 @@ Handle GetNewMBar(short menuBarID)
         MENU_LOG_WARN("GetNewMBar: MBAR resource %d not found\n", menuBarID);
         /* Return empty menu list instead of NULL */
         size_t menuBarSize = sizeof(MenuBarList) + (MAX_MENUS - 1) * sizeof(MenuListEntry);
-        MenuBarList* menuBar = (MenuBarList*)NewPtr(menuBarSize);
+        MenuBarList* menuBar = MENU_BAR_LIST(NewPtr(menuBarSize));
         if (menuBar) {
             menuBar->numMenus = 0;
             menuBar->totalWidth = 0;
             menuBar->lastRight = 0;
             menuBar->mbResID = menuBarID;
         }
-        return (Handle)menuBar;  /* Cast Ptr to Handle for API compatibility */
+        return MENU_LIST_HANDLE(menuBar);  /* Cast Ptr to Handle for API compatibility */
     }
 
     /* Parse MBAR resource to get menu ID array */
@@ -302,7 +307,7 @@ Handle GetNewMBar(short menuBarID)
 
     /* Allocate MenuBarList for the menus */
     size_t menuBarSize = sizeof(MenuBarList) + (menuCount - 1) * sizeof(MenuListEntry);
-    MenuBarList* menuBar = (MenuBarList*)NewPtr(menuBarSize);
+    MenuBarList* menuBar = MENU_BAR_LIST(NewPtr(menuBarSize));
     if (!menuBar) {
         DisposePtr((Ptr)menuIDs);
         return NULL;
@@ -329,7 +334,7 @@ Handle GetNewMBar(short menuBarID)
     DisposePtr((Ptr)menuIDs);
 
     MENU_LOG_DEBUG("GetNewMBar: Created menu bar %d with %d menus\n", menuBarID, menuCount);
-    return (Handle)menuBar;  /* Cast Ptr to Handle for API compatibility */
+    return MENU_LIST_HANDLE(menuBar);  /* Cast Ptr to Handle for API compatibility */
 }
 
 /*
@@ -402,7 +407,7 @@ void SetupDefaultMenus(void)
         return;
     }
 
-    menuBar = (MenuBarList*)gMenuList;
+    menuBar = MENU_BAR_LIST(gMenuList);
 
     /* If menus already exist (Finder populated them), leave them intact */
     if (menuBar->numMenus > 0) {
@@ -632,7 +637,7 @@ void DrawMenuBar(void)
     /* Debug output removed from loop - was causing severe performance issues */
     if (gMenuMgrState) {
         if (gMenuMgrState->menuBar) {
-            MenuBarList* menuBar = (MenuBarList*)gMenuMgrState->menuBar;
+            MenuBarList* menuBar = MENU_BAR_LIST(gMenuMgrState->menuBar);
             MENU_LOG_DEBUG("DrawMenuBar: numMenus = %d\n", menuBar->numMenus);
 
             for (int i = 0; i < menuBar->numMenus; i++) {
@@ -987,13 +992,13 @@ void InsertMenu(MenuHandle theMenu, short beforeID)
         if (gMenuList == NULL) {
             return;
         }
-        menuBar = (MenuBarList*)gMenuList;
+        menuBar = MENU_BAR_LIST(gMenuList);
         menuBar->numMenus = 0;
         menuBar->totalWidth = 0;
         menuBar->lastRight = 0;
         menuBar->mbResID = 0;
     } else {
-        menuBar = (MenuBarList*)gMenuList;
+        menuBar = MENU_BAR_LIST(gMenuList);
     }
 
     /* Make sure menu bar is set in state */
@@ -1027,7 +1032,7 @@ void InsertMenu(MenuHandle theMenu, short beforeID)
     /* CRITICAL: Dispose old buffer and immediately update all pointers */
     Ptr oldMenuList = gMenuList;  /* Save old pointer for disposal */
     gMenuList = newMenuList;      /* Update global first */
-    menuBar = (MenuBarList*)gMenuList;  /* Update local pointer */
+    menuBar = MENU_BAR_LIST(gMenuList);  /* Update local pointer */
     if (gMenuMgrState) {
         gMenuMgrState->menuBar = gMenuList;  /* Update state */
     }
@@ -1068,7 +1073,7 @@ void DeleteMenu(short menuID)
         return;
     }
 
-    menuBar = (MenuBarList*)gMenuList;
+    menuBar = MENU_BAR_LIST(gMenuList);
 
     /* Find menu in list */
     for (int i = 0; i < menuBar->numMenus; i++) {
@@ -1367,7 +1372,7 @@ static Boolean IsRightAlignedMenuID(short id)
 static short MenuBar_SystemMenusLeft(void)
 {
     short left = qd.screenBits.bounds.right;
-    MenuBarList* menuBar = (MenuBarList*)gMenuList;
+    MenuBarList* menuBar = MENU_BAR_LIST(gMenuList);
     if (menuBar) {
         for (int i = 0; i < menuBar->numMenus; i++) {
             if (IsRightAlignedMenuID(menuBar->menus[i].menuID) &&
@@ -1389,7 +1394,7 @@ static void UpdateMenuBarLayout(void)
         return;
     }
 
-    menuBar = (MenuBarList*)gMenuList;
+    menuBar = MENU_BAR_LIST(gMenuList);
 
     /* Position application (non-system) menus from left, system menus from right */
     short screenWidth = qd.screenBits.bounds.right;

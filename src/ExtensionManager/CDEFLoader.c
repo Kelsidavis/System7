@@ -391,7 +391,8 @@ static OSErr CDEFEntry_LoadCode(CDEFEntry *entry, Handle resourceHandle)
      * For now, assume it's a direct function pointer to the CDEF procedure
      * The entry point is at offset 0 in the resource
      */
-    entry->defProc = (ControlDefProcPtr)codePtr;
+    entry->defProc = (ControlDefProcPtr)__builtin_assume_aligned(
+        codePtr, _Alignof(ControlDefProcPtr));
 
     CDEF_LOG("Loaded code for CDEF %s\n", entry->name);
     return extNoErr;

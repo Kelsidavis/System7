@@ -266,7 +266,9 @@ void CopyPixMap(PixMapHandle srcPM, PixMapHandle dstPM) {
 
     /* Duplicate color table if present */
     if (src->pmTable) {
-        ColorTable* srcTable = (ColorTable*)*((Handle)src->pmTable);
+        Handle srcTableHandle = (Handle)src->pmTable;
+        ColorTable* srcTable = (ColorTable*)HandleDataAligned(srcTableHandle);
+        if (!srcTable) return;
 
         /* Check for integer overflow in size calculation */
         if (srcTable->ctSize < 0 ||
@@ -279,7 +281,12 @@ void CopyPixMap(PixMapHandle srcPM, PixMapHandle dstPM) {
             return;  /* NULL check: allocation failed */
         }
 
-        ColorTable* dstTable = (ColorTable*)*((Handle)dst->pmTable);
+        ColorTable* dstTable = (ColorTable*)HandleDataAligned((Handle)dst->pmTable);
+        if (!dstTable) {
+            DisposeHandle((Handle)dst->pmTable);
+            dst->pmTable = NULL;
+            return;
+        }
         memcpy(dstTable, srcTable,
                sizeof(ColorTable) + srcTable->ctSize * sizeof(ColorSpec));
     }

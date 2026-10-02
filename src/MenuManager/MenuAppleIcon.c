@@ -26,7 +26,8 @@ short MenuAppleIcon_Draw(GrafPtr port, short left, short top, Boolean highlighte
         return MENU_APPLE_ICON_WIDTH;
     }
 
-    UInt32* pixels = (UInt32*)port->portBits.baseAddr;
+    UInt32* pixels = (UInt32*)__builtin_assume_aligned(
+        port->portBits.baseAddr, _Alignof(UInt32));
     const int stride = rowBytes / 4; /* 32-bit pixels */
 
     const int iconLeft = left + (MENU_APPLE_ICON_WIDTH - APPLE16_W) / 2;

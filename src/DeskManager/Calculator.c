@@ -1029,7 +1029,7 @@ static int Calculator_DAEvent(DeskAccessory *da, const EventRecord *event)
         case autoKey: {
             /* Map key presses to calculator buttons */
             char ch = (char)(event->message & charCodeMask);
-            CalcButtonID btn = -1;
+            int btn = -1;
             if (ch >= '0' && ch <= '9') btn = CALC_BTN_0 + (ch - '0');
             else if (ch == '+') btn = CALC_BTN_ADD;
             else if (ch == '-') btn = CALC_BTN_SUBTRACT;
@@ -1041,7 +1041,7 @@ static int Calculator_DAEvent(DeskAccessory *da, const EventRecord *event)
             else if (ch == 0x1B) btn = CALC_BTN_CLEAR_ALL;  /* Escape */
 
             if (btn >= 0) {
-                Calculator_PressButton(calc, btn);
+                Calculator_PressButton(calc, (CalcButtonID)btn);
             }
             break;
         }

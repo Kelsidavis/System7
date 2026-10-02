@@ -234,21 +234,22 @@ bool HFS_BT_GetRecord(void* node, uint16_t nodeSize, uint16_t recordNum,
     if (recordNum >= numRecords) return false;
 
     /* Record offsets are at the end of the node */
-    uint16_t* offsets = (uint16_t*)((uint8_t*)node + nodeSize - 2);
+    uint8_t* offsetTableEnd = (uint8_t*)node + nodeSize - 2;
 
     /* Offsets are stored backwards from the end */
-    uint16_t offset = be16_read(&offsets[-(recordNum)]);
+    uint8_t* offsetEntry = offsetTableEnd - (size_t)recordNum * sizeof(uint16_t);
+    uint16_t offset = be16_read(offsetEntry);
 
     /* DEBUG: Show offset details for first few records */
     if (recordNum < 3) {
         FS_LOG_DEBUG("HFS_BT_GetRecord: rec=%d offset=%d offsetAddr=%p\n",
-                     recordNum, offset, (void*)&offsets[-(recordNum)]);
+                     recordNum, offset, offsetEntry);
     }
 
     uint16_t nextOffset;
 
     if (recordNum + 1 < numRecords) {
-        nextOffset = be16_read(&offsets[-(recordNum + 1)]);
+        nextOffset = be16_read(offsetTableEnd - (size_t)(recordNum + 1) * sizeof(uint16_t));
     } else {
         /* Last record extends to the offset table */
         nextOffset = nodeSize - (numRecords + 1) * 2;

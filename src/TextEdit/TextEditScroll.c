@@ -108,8 +108,8 @@ void TEScroll(SInt16 dh, SInt16 dv, TEHandle hTE) {
             HLock(pTE->base.hText);
             text = *pTE->base.hText;
             HLock(pTE->hLines);
-            lines = (SInt32*)*pTE->hLines;
-            for (SInt16 i = 0; i < pTE->nLines; i++) {
+            lines = (SInt32*)HandleDataAligned(pTE->hLines);
+            for (SInt16 i = 0; lines && i < pTE->nLines; i++) {
                 SInt32 start = lines[i];
                 SInt32 end = (i + 1 < pTE->nLines) ? lines[i + 1] : pTE->base.teLength;
                 SInt16 lineWidth = 0;
@@ -236,7 +236,7 @@ void TEPinScroll(SInt16 dh, SInt16 dv, TEHandle hTE) {
             HLock(pTE->base.hText);
             text = *pTE->base.hText;
             HLock(pTE->hLines);
-            lines = (SInt32*)*pTE->hLines;
+            lines = (SInt32*)HandleDataAligned(pTE->hLines);
             for (SInt16 i = 0; i < pTE->nLines; i++) {
                 SInt32 start = lines[i];
                 SInt32 end = (i + 1 < pTE->nLines) ? lines[i + 1] : pTE->base.teLength;
@@ -470,7 +470,12 @@ SInt32 TE_OffsetToLine(TEHandle hTE, SInt32 offset) {
 
     /* Binary search for line containing offset */
     HLock(pTE->hLines);
-    pLines = (SInt32*)*pTE->hLines;
+    pLines = (SInt32*)HandleDataAligned(pTE->hLines);
+    if (!pLines) {
+        HUnlock(pTE->hLines);
+        HUnlock((Handle)hTE);
+        return 0;
+    }
 
     lineNum = 0;
     for (SInt32 i = 0; i < pTE->nLines; i++) {
@@ -514,7 +519,7 @@ SInt32 TE_LineToOffset(TEHandle hTE, SInt32 line) {
         offset = pTE->base.teLength;
     } else {
         HLock(pTE->hLines);
-        pLines = (SInt32*)*pTE->hLines;
+        pLines = (SInt32*)HandleDataAligned(pTE->hLines);
         offset = pLines[line];
         HUnlock(pTE->hLines);
     }

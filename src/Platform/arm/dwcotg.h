@@ -80,7 +80,7 @@ extern uint32_t dwcotg_base;
 #define DWCOTG_GRSTCTL_RXFFLSH      (1 << 4)   /* RxFIFO Flush */
 #define DWCOTG_GRSTCTL_TXFFLSH      (1 << 5)   /* TxFIFO Flush */
 #define DWCOTG_GRSTCTL_TXFNUM       (0x1F << 6) /* TxFIFO Number */
-#define DWCOTG_GRSTCTL_AHBIDL       (1 << 31)  /* AHB Master Idle */
+#define DWCOTG_GRSTCTL_AHBIDL       (UINT32_C(1) << 31)  /* AHB Master Idle */
 
 /* ===== HCFG Register Bits ===== */
 #define DWCOTG_HCFG_FSLSPSUPP       (0x3 << 0)   /* FS/LS PHY Clock Select */

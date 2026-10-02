@@ -237,7 +237,12 @@ OSErr RestoreBits(Handle bitsHandle) {
 
     /* CRITICAL: Lock handle before dereferencing to prevent heap compaction issues */
     HLock(bitsHandle);
-    SavedBitsPtr savedBits = (SavedBitsPtr)*bitsHandle;
+    SavedBitsPtr savedBits = (SavedBitsPtr)HandleDataAligned(bitsHandle);
+    if (!savedBits) {
+        HUnlock(bitsHandle);
+        DisposeHandle(bitsHandle);
+        return paramErr;
+    }
 
     serial_logf((SystemLogModule)3, (SystemLogLevel)2, "[SAVEBITS] RestoreBits: savedBits=%p valid=%d bitsData=%p\n",
                savedBits, savedBits->valid, savedBits->bitsData);
@@ -313,7 +318,12 @@ OSErr DiscardBits(Handle bitsHandle) {
 
     /* CRITICAL: Lock handle before dereferencing to prevent heap compaction issues */
     HLock(bitsHandle);
-    SavedBitsPtr savedBits = (SavedBitsPtr)*bitsHandle;
+    SavedBitsPtr savedBits = (SavedBitsPtr)HandleDataAligned(bitsHandle);
+    if (!savedBits) {
+        HUnlock(bitsHandle);
+        DisposeHandle(bitsHandle);
+        return paramErr;
+    }
 
     snprintf(buf, sizeof(buf), "[SAVEBITS] DiscardBits: savedBits=%p valid=%d fromPool=%d bitsData=%p\n",
             savedBits, savedBits->valid, savedBits->fromPool, savedBits->bitsData);

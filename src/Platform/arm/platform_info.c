@@ -7,10 +7,12 @@
 #include "System71StdLib.h"
 #include "hardware_detect.h"
 
+static char g_model_string[64];
+
 static platform_info_t g_platform_info = {
     .type = PLATFORM_ARM_PI4,  /* Default, will be updated */
     .platform_name = "Raspberry Pi",
-    .model_string = "",
+    .model_string = g_model_string,
     .cpu_name = "ARM Cortex",
     .memory_bytes = 0,
     .cpu_freq_mhz = 0,
@@ -59,8 +61,8 @@ static void platform_info_init(void) {
 
     /* Set model string */
     if (model_str && model_str[0] != '\0') {
-        strncpy((char*)g_platform_info.model_string, model_str, 63);
-        ((char*)g_platform_info.model_string)[63] = '\0';
+        strncpy(g_model_string, model_str, sizeof(g_model_string) - 1);
+        g_model_string[sizeof(g_model_string) - 1] = '\0';
     }
 
     /* Set memory */
@@ -98,12 +100,13 @@ const char* platform_format_memory_gb(void) {
 
     if (mb_remainder > 512) {
         gb++;
-        snprintf(g_memory_gb_str, sizeof(g_memory_gb_str), "%u GB", gb);
+        snprintf(g_memory_gb_str, sizeof(g_memory_gb_str), "%lu GB", (unsigned long)gb);
     } else if (mb_remainder > 0) {
         uint32_t decimal = (mb_remainder * 10) / 1024;
-        snprintf(g_memory_gb_str, sizeof(g_memory_gb_str), "%u.%u GB", gb, decimal);
+        snprintf(g_memory_gb_str, sizeof(g_memory_gb_str), "%lu.%lu GB",
+                 (unsigned long)gb, (unsigned long)decimal);
     } else {
-        snprintf(g_memory_gb_str, sizeof(g_memory_gb_str), "%u GB", gb);
+        snprintf(g_memory_gb_str, sizeof(g_memory_gb_str), "%lu GB", (unsigned long)gb);
     }
 
     return g_memory_gb_str;
@@ -114,10 +117,11 @@ void platform_format_memory_kb(uint32_t bytes, char *buf, size_t buf_size) {
 
     uint32_t kb = bytes / 1024;
     if (kb < 1000) {
-        snprintf(buf, buf_size, "%uK", kb);
+        snprintf(buf, buf_size, "%luK", (unsigned long)kb);
     } else {
         uint32_t thousands = kb / 1000;
         uint32_t remainder = kb % 1000;
-        snprintf(buf, buf_size, "%u,%03uK", thousands, remainder);
+        snprintf(buf, buf_size, "%lu,%03luK",
+                 (unsigned long)thousands, (unsigned long)remainder);
     }
 }

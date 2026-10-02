@@ -12,5 +12,9 @@ uint32_t hal_inl(uint16_t port);
 
 /* I/O delay for timing */
 void hal_io_wait(void);
+void hal_io_delay(uint32_t cycles);
+void hal_io_flush(void);
+void uart_flush(void);
+void uart_puts(const char* s);
 
 #endif /* HAL_IO_H */

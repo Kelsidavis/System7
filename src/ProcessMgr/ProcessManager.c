@@ -157,7 +157,8 @@ OSErr Process_Create(const void* appSpec, Size memorySize, LaunchFlags flags)
     newProcess->processSize = memorySize;
 
     /* Setup heap zone */
-    newProcess->processHeapZone = (THz)newProcess->processLocation;
+    newProcess->processHeapZone = (THz)__builtin_assume_aligned(
+        newProcess->processLocation, _Alignof(Zone));
     InitZone(NULL, (void*)newProcess->processHeapZone, memorySize, NULL, 0);
 
     /* Initialize stack */
@@ -253,8 +254,10 @@ OSErr Context_Switch(ProcessControlBlock* targetProcess)
         return noErr; /* No switch needed */
     }
 
-    currentContext = (ProcessContext*)gCurrentProcess->processContextSave;
-    targetContext = (ProcessContext*)targetProcess->processContextSave;
+    currentContext = (ProcessContext*)__builtin_assume_aligned(
+        gCurrentProcess->processContextSave, _Alignof(ProcessContext));
+    targetContext = (ProcessContext*)__builtin_assume_aligned(
+        targetProcess->processContextSave, _Alignof(ProcessContext));
 
     if (!currentContext || !targetContext) {
         return memFullErr;

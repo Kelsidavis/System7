@@ -281,7 +281,7 @@ static OSErr ValidateAliasFile(FSSpec *aliasFile)
 
     /* Validate alias record structure */
     HLock(aliasResource);
-    Boolean valid = IsValidAliasRecord((AliasRecord*)*aliasResource);
+    Boolean valid = IsValidAliasRecord((AliasRecord*)HandleDataAligned(aliasResource));
     HUnlock(aliasResource);
     if (!valid) {
         ReleaseResource(aliasResource);

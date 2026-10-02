@@ -556,7 +556,7 @@ SInt32 TE_FindLineStart(TEHandle hTE, SInt32 offset) {
 
     /* Get line start */
     HLock(pTE->hLines);
-    pLines = (SInt32*)*pTE->hLines;
+    pLines = (SInt32*)HandleDataAligned(pTE->hLines);
     lineStart = pLines[lineNum];
     HUnlock(pTE->hLines);
 
@@ -585,7 +585,7 @@ SInt32 TE_FindLineEnd(TEHandle hTE, SInt32 offset) {
 
     /* Get line end */
     HLock(pTE->hLines);
-    pLines = (SInt32*)*pTE->hLines;
+    pLines = (SInt32*)HandleDataAligned(pTE->hLines);
     lineEnd = (lineNum + 1 < pTE->nLines) ? pLines[lineNum + 1] : pTE->base.teLength;
     HUnlock(pTE->hLines);
 

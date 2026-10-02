@@ -58,7 +58,8 @@ OSErr hal_storage_init(void) {
     if (sdhci_card_present()) {
         if (sdhci_get_card_info(&drives[0].block_count) == 0) {
             drives[0].present = 1;
-            Serial_Printf("[Storage] Drive 0: %u blocks detected\n", drives[0].block_count);
+            Serial_Printf("[Storage] Drive 0: %lu blocks detected\n",
+                          (unsigned long)drives[0].block_count);
         }
     }
 
@@ -150,7 +151,8 @@ OSErr hal_storage_read_blocks(int drive_index, uint64_t start_block, uint32_t bl
     }
 
     if (result != (int)block_count) {
-        Serial_Printf("[Storage] Partial read: got %d blocks, expected %u\n", result, block_count);
+        Serial_Printf("[Storage] Partial read: got %d blocks, expected %lu\n",
+                      result, (unsigned long)block_count);
         return ioErr;
     }
 
@@ -195,7 +197,8 @@ OSErr hal_storage_write_blocks(int drive_index, uint64_t start_block, uint32_t b
     }
 
     if (result != (int)block_count) {
-        Serial_Printf("[Storage] Partial write: wrote %d blocks, expected %u\n", result, block_count);
+        Serial_Printf("[Storage] Partial write: wrote %d blocks, expected %lu\n",
+                      result, (unsigned long)block_count);
         return ioErr;
     }
 

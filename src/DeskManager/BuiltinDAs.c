@@ -96,7 +96,7 @@ static void CalcDA_GetButtonRect(int row, int col, Rect* r) {
 }
 
 /* Hit-test: convert local coordinates to CalcButtonID, or -1 if no hit */
-static CalcButtonID CalcDA_HitTest(short localH, short localV) {
+static int CalcDA_HitTest(short localH, short localV) {
     for (int row = 0; row < CALC_BTN_ROWS; row++) {
         for (int col = 0; col < CALC_BTN_COLS; col++) {
             /* Skip the second cell of the wide "0" button */
@@ -111,7 +111,7 @@ static CalcButtonID CalcDA_HitTest(short localH, short localV) {
             }
         }
     }
-    return (CalcButtonID)-1;
+    return -1;
 }
 
 /* Draw the full calculator UI: display + buttons */
@@ -422,14 +422,14 @@ static int Calculator_DAProcessEvent(DeskAccessory *da, const DAEventInfo *event
         case 1: /* mouseDown */
             {
                 /* Hit-test against calculator buttons using local coordinates */
-                CalcButtonID hitBtn = CalcDA_HitTest(event->h, event->v);
-                if ((int)hitBtn >= 0) {
+                int hitBtn = CalcDA_HitTest(event->h, event->v);
+                if (hitBtn >= 0) {
                     /* Visual feedback: briefly invert the button */
                     int row = -1, col = -1;
                     for (int r = 0; r < CALC_BTN_ROWS && row < 0; r++) {
                         for (int c = 0; c < CALC_BTN_COLS; c++) {
                             if (r == 4 && c == 1) continue;
-                            if (kCalcButtons[r][c].id == hitBtn) {
+                            if (kCalcButtons[r][c].id == (CalcButtonID)hitBtn) {
                                 row = r; col = c; break;
                             }
                         }
@@ -441,7 +441,7 @@ static int Calculator_DAProcessEvent(DeskAccessory *da, const DAEventInfo *event
                     }
 
                     /* Process the button press */
-                    Calculator_PressButton(calc, hitBtn);
+                    Calculator_PressButton(calc, (CalcButtonID)hitBtn);
 
                     /* Redraw the calculator to show updated display */
                     CalcDA_Draw(da);

@@ -60,7 +60,8 @@ int xhci_init(void) {
     uint8_t caplength = mmio_read8(xhci_base + XHCI_CAP_CAPLENGTH);
     xhci_capability_length = caplength;
 
-    Serial_Printf("[XHCI] Base: 0x%x, Capability Length: %u\n", xhci_base, caplength);
+    Serial_Printf("[XHCI] Base: 0x%lx, Capability Length: %u\n",
+                  (unsigned long)xhci_base, caplength);
 
     /* Verify XHCI version */
     uint16_t version = mmio_read16(xhci_base + XHCI_CAP_HCIVERSION);
@@ -69,7 +70,7 @@ int xhci_init(void) {
     /* Read structural parameters to detect port count */
     uint32_t params1 = mmio_read32(xhci_base + XHCI_CAP_HCSPARAMS1);
     uint32_t max_ports = params1 & 0xFF;
-    Serial_Printf("[XHCI] Maximum ports: %u\n", max_ports);
+    Serial_Printf("[XHCI] Maximum ports: %lu\n", (unsigned long)max_ports);
 
     /* Reset controller if needed */
     if (xhci_reset_controller() != 0) {
@@ -217,7 +218,7 @@ int xhci_enumerate_devices(void) {
         }
     }
 
-    Serial_Printf("[XHCI] Found %u devices\n", device_count);
+    Serial_Printf("[XHCI] Found %lu devices\n", (unsigned long)device_count);
 
     /* TODO: Parse device descriptors and find HID devices
      * Set keyboard_found and mouse_found flags

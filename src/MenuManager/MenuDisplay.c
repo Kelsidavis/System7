@@ -352,7 +352,7 @@ short CalcMenuBarLayout(Handle menuList, const Rect* menuBarRect,
         return 0;
     }
 
-    menuBar = (MenuBarList*)menuList;
+    menuBar = (MenuBarList*)__builtin_assume_aligned(menuList, _Alignof(MenuBarList));
     if (menuBar->numMenus == 0) {
         return 0;
     }
@@ -500,6 +500,7 @@ void DrawMenu(MenuHandle theMenu, const Rect* menuRect, short hiliteItem)
     for (short i = 1; i <= itemCount; i++) {
         Rect itemRect;
         Style tempStyle;
+        short markChar = 0, cmdChar = 0;
         CalcMenuItemRect(theMenu, i, menuRect, &itemRect);
 
         MenuItemDrawInfo itemDrawInfo;
@@ -515,8 +516,10 @@ void DrawMenu(MenuHandle theMenu, const Rect* menuRect, short hiliteItem)
         /* Get item properties */
         GetMenuItemText(theMenu, i, itemDrawInfo.itemText);
         GetItemIcon(theMenu, i, (short*)&itemDrawInfo.iconID);
-        GetItemMark(theMenu, i, (short*)&itemDrawInfo.markChar);
-        GetItemCmd(theMenu, i, (short*)&itemDrawInfo.cmdChar);
+        GetItemMark(theMenu, i, &markChar);
+        GetItemCmd(theMenu, i, &cmdChar);
+        itemDrawInfo.markChar = (unsigned char)markChar;
+        itemDrawInfo.cmdChar = (unsigned char)cmdChar;
         GetItemStyle(theMenu, i, &tempStyle);
         itemDrawInfo.textStyle = tempStyle;
 
@@ -920,6 +923,7 @@ void FlashMenuItem(MenuHandle theMenu, short item, short flashes)
     /* Get item properties to build draw info */
     Rect itemRect = {0};
     Style tempStyle;
+    short markChar = 0, cmdChar = 0;
     CalcMenuItemRect(theMenu, item, &gCurrentMenuRect, &itemRect);
 
     MenuItemDrawInfo itemDrawInfo;
@@ -932,8 +936,10 @@ void FlashMenuItem(MenuHandle theMenu, short item, short flashes)
     /* Get item properties */
     GetMenuItemText(theMenu, item, itemDrawInfo.itemText);
     GetItemIcon(theMenu, item, (short*)&itemDrawInfo.iconID);
-    GetItemMark(theMenu, item, (short*)&itemDrawInfo.markChar);
-    GetItemCmd(theMenu, item, (short*)&itemDrawInfo.cmdChar);
+    GetItemMark(theMenu, item, &markChar);
+    GetItemCmd(theMenu, item, &cmdChar);
+    itemDrawInfo.markChar = (unsigned char)markChar;
+    itemDrawInfo.cmdChar = (unsigned char)cmdChar;
     GetItemStyle(theMenu, item, &tempStyle);
     itemDrawInfo.textStyle = tempStyle;
 

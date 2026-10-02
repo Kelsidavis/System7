@@ -205,7 +205,7 @@ void TE_DrawLine(TEHandle hTE, SInt32 lineNum, SInt16 y) {
 
     /* Get line boundaries */
     HLock(pTE->hLines);
-    pLines = (SInt32*)*pTE->hLines;
+    pLines = (SInt32*)HandleDataAligned(pTE->hLines);
     lineStart = pLines[lineNum];
     lineEnd = (lineNum + 1 < pTE->nLines) ? pLines[lineNum + 1] : pTE->base.teLength;
     HUnlock(pTE->hLines);
@@ -496,7 +496,7 @@ Point TEGetPoint(SInt16 offset, TEHandle hTE) {
 
     /* Get line start */
     HLock(pTE->hLines);
-    pLines = (SInt32*)*pTE->hLines;
+    pLines = (SInt32*)HandleDataAligned(pTE->hLines);
     lineStart = pLines[lineNum];
     HUnlock(pTE->hLines);
 
@@ -549,7 +549,7 @@ SInt16 TEGetOffset(Point pt, TEHandle hTE) {
 
     /* Get line boundaries */
     HLock(pTE->hLines);
-    pLines = (SInt32*)*pTE->hLines;
+    pLines = (SInt32*)HandleDataAligned(pTE->hLines);
     lineStart = pLines[lineNum];
     lineEnd = (lineNum + 1 < pTE->nLines) ? pLines[lineNum + 1] : pTE->base.teLength;
     HUnlock(pTE->hLines);
@@ -624,7 +624,7 @@ static void TE_DrawStyledSegment(TEHandle hTE, SInt32 start, SInt32 end,
         return;
     }
 
-    stRec = (STRec_Internal*)*pTE->hStyles;
+    stRec = (STRec_Internal*)HandleDataAligned(pTE->hStyles);
     if (!stRec->runArray || !*stRec->runArray ||
         !stRec->styleTab || !*stRec->styleTab) {
         /* Invalid style record */
@@ -633,8 +633,8 @@ static void TE_DrawStyledSegment(TEHandle hTE, SInt32 start, SInt32 end,
         return;
     }
 
-    runArr = (RunArray*)*stRec->runArray;
-    styleTab = (StyleTable*)*stRec->styleTab;
+    runArr = (RunArray*)HandleDataAligned(stRec->runArray);
+    styleTab = (StyleTable*)HandleDataAligned(stRec->styleTab);
 
     HLock(pTE->base.hText);
     pText = *pTE->base.hText;
@@ -796,7 +796,7 @@ static SInt16 TE_MeasureText(TEHandle hTE, SInt32 start, SInt32 length) {
         return width;
     }
 
-    stRec = (STRec_Internal*)*pTE->hStyles;
+    stRec = (STRec_Internal*)HandleDataAligned(pTE->hStyles);
     if (!stRec->runArray || !*stRec->runArray ||
         !stRec->styleTab || !*stRec->styleTab) {
         /* Invalid style record - use plain measurement */
@@ -812,8 +812,8 @@ static SInt16 TE_MeasureText(TEHandle hTE, SInt32 start, SInt32 length) {
         return width;
     }
 
-    runArr = (RunArray*)*stRec->runArray;
-    styleTab = (StyleTable*)*stRec->styleTab;
+    runArr = (RunArray*)HandleDataAligned(stRec->runArray);
+    styleTab = (StyleTable*)HandleDataAligned(stRec->styleTab);
 
     HLock(pTE->base.hText);
     pText = *pTE->base.hText;

@@ -160,7 +160,16 @@ TEHandle TENew(const Rect *destRect, const Rect *viewRect) {
 
     /* Initialize with one line at offset 0 */
     HLock(pTE->hLines);
-    *((SInt32*)*pTE->hLines) = 0;
+    SInt32* lineStarts = (SInt32*)HandleDataAligned(pTE->hLines);
+    if (!lineStarts) {
+        HUnlock(pTE->hLines);
+        DisposeHandle(pTE->hLines);
+        DisposeHandle(pTE->base.hText);
+        HUnlock((Handle)hTE);
+        DisposeHandle((Handle)hTE);
+        return NULL;
+    }
+    *lineStarts = 0;
     HUnlock(pTE->hLines);
     pTE->nLines = 1;
 
@@ -197,7 +206,13 @@ TEHandle TEStyleNew(const Rect *destRect, const Rect *viewRect) {
 
     /* Initialize style record - validate each sub-allocation */
     HLock(hStyles);
-    pStyles = (STRec*)*hStyles;
+    pStyles = (STRec*)HandleDataAligned(hStyles);
+    if (!pStyles) {
+        HUnlock(hStyles);
+        DisposeHandle(hStyles);
+        TEDispose(hTE);
+        return NULL;
+    }
     pStyles->nRuns = 0;
     pStyles->nStyles = 0;
     pStyles->styleTab = NewHandle(sizeof(TextStyle) * 16);
@@ -207,7 +222,13 @@ TEHandle TEStyleNew(const Rect *destRect, const Rect *viewRect) {
 
     /* Verify all sub-allocations succeeded */
     HLock(hStyles);
-    pStyles = (STRec*)*hStyles;
+    pStyles = (STRec*)HandleDataAligned(hStyles);
+    if (!pStyles) {
+        HUnlock(hStyles);
+        DisposeHandle(hStyles);
+        TEDispose(hTE);
+        return NULL;
+    }
     if (!pStyles->styleTab || !pStyles->runArray || !pStyles->lineHeights) {
         if (pStyles->styleTab) DisposeHandle(pStyles->styleTab);
         if (pStyles->runArray) DisposeHandle(pStyles->runArray);
@@ -258,10 +279,12 @@ void TEDispose(TEHandle hTE) {
         Handle hStyles = pTE->hStyles;
         STRec* pStyles;
         HLock(hStyles);
-        pStyles = (STRec*)*hStyles;
-        if (pStyles->styleTab) DisposeHandle(pStyles->styleTab);
-        if (pStyles->runArray) DisposeHandle(pStyles->runArray);
-        if (pStyles->lineHeights) DisposeHandle(pStyles->lineHeights);
+        pStyles = (STRec*)HandleDataAligned(hStyles);
+        if (pStyles) {
+            if (pStyles->styleTab) DisposeHandle(pStyles->styleTab);
+            if (pStyles->runArray) DisposeHandle(pStyles->runArray);
+            if (pStyles->lineHeights) DisposeHandle(pStyles->lineHeights);
+        }
         HUnlock(hStyles);
         DisposeHandle(hStyles);
     }
@@ -934,7 +957,7 @@ extern void TE_UpdateCaret(TEHandle hTE, Boolean forceOn);
  */
 SInt16 TE_LineInfo(TEHandle hTE, const SInt32** starts) {
     TEExtPtr pTE = (TEExtPtr)*hTE;
-    *starts = pTE->hLines ? (const SInt32*)*pTE->hLines : NULL;
+    *starts = pTE->hLines ? (const SInt32*)HandleDataAligned(pTE->hLines) : NULL;
     return pTE->nLines;
 }
 

@@ -166,7 +166,8 @@ RgnHandle NewRgn(void) {
     region->rgnSize = kMinRegionSize;
     SetRect(&region->rgnBBox, 0, 0, 0, 0);
 
-    BlockHeader* header = (BlockHeader*)((UInt8*)region - sizeof(BlockHeader));
+    BlockHeader* header = (BlockHeader*)__builtin_assume_aligned(
+        (UInt8*)region - sizeof(BlockHeader), _Alignof(BlockHeader));
     region_log_message("NewRgn", rgn, region, header);
     region_dump_bytes("NewRgn init", region, kMinRegionSize + 28);
 
@@ -178,8 +179,10 @@ void DisposeRgn(RgnHandle rgn) {
     if (!rgn || !*rgn) return;
 
     Region* region = *rgn;
-    BlockHeader* regionHeader = (BlockHeader*)((UInt8*)region - sizeof(BlockHeader));
-    BlockHeader* handleHeader = (BlockHeader*)((UInt8*)rgn - sizeof(BlockHeader));
+    BlockHeader* regionHeader = (BlockHeader*)__builtin_assume_aligned(
+        (UInt8*)region - sizeof(BlockHeader), _Alignof(BlockHeader));
+    BlockHeader* handleHeader = (BlockHeader*)__builtin_assume_aligned(
+        (UInt8*)rgn - sizeof(BlockHeader), _Alignof(BlockHeader));
     region_log_message("DisposeRgn", rgn, region, regionHeader);
     region_dump_bytes("DisposeRgn pre", region, kMinRegionSize + 28);
 
@@ -410,11 +413,14 @@ static SInt16 RgnRectCount(Region *region) {
     if (!region) return 0;
     if (EmptyRect(&region->rgnBBox)) return 0;
     if (region->rgnSize <= kMinRegionSize) return 1;   /* the bbox itself */
-    return *(SInt16 *)((UInt8 *)region + kMinRegionSize);
+    const SInt16* count = (const SInt16*)__builtin_assume_aligned(
+        (UInt8*)region + kMinRegionSize, _Alignof(SInt16));
+    return *count;
 }
 
 static Rect *RgnRectList(Region *region) {
-    return (Rect *)((UInt8 *)region + kMinRegionSize + sizeof(SInt16));
+    return (Rect *)__builtin_assume_aligned(
+        (UInt8 *)region + kMinRegionSize + sizeof(SInt16), _Alignof(Rect));
 }
 
 /* Copy out rectangle i, whether the region is rectangular or a list. */
@@ -486,9 +492,12 @@ static void SetRgnRects(RgnHandle rgn, Rect *rects, SInt16 count) {
 
     region->rgnSize = needed;
     region->rgnBBox = bbox;
-    *(SInt16 *)((UInt8 *)region + kMinRegionSize) = kept;
+    SInt16* countPtr = (SInt16*)__builtin_assume_aligned(
+        (UInt8*)region + kMinRegionSize, _Alignof(SInt16));
+    *countPtr = kept;
 
-    Rect *dst = (Rect *)((UInt8 *)region + kMinRegionSize + sizeof(SInt16));
+    Rect *dst = (Rect *)__builtin_assume_aligned(
+        (UInt8 *)region + kMinRegionSize + sizeof(SInt16), _Alignof(Rect));
     for (SInt16 i = 0; i < count; i++) {
         if (EmptyRect(&rects[i])) continue;
         *dst++ = rects[i];
@@ -918,7 +927,8 @@ SInt16 GetRegionComplexity(RgnHandle rgn) {
         /* Bounds check: ensure we can read y value */
         if (dataPtr + sizeof(SInt16) > endPtr) break;
 
-        SInt16 y = *(SInt16 *)dataPtr;
+        SInt16 y;
+        memcpy(&y, dataPtr, sizeof(y));
         if (y == 0x7FFF) break;
 
         complexity++;
@@ -927,7 +937,8 @@ SInt16 GetRegionComplexity(RgnHandle rgn) {
         /* Bounds check: ensure we can read count value */
         if (dataPtr + sizeof(SInt16) > endPtr) break;
 
-        SInt16 count = *(SInt16 *)dataPtr;
+        SInt16 count;
+        memcpy(&count, dataPtr, sizeof(count));
 
         /* Reject negative counts to prevent signed-to-unsigned overflow */
         if (count < 0) break;

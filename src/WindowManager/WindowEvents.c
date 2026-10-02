@@ -558,7 +558,7 @@ void BeginUpdate(WindowPtr theWindow) {
              * (EraseRect doesn't properly handle 32-bit ARGB) */
             PixMapPtr pm = *pmHandle;
             if (pm->pixelSize == 32 && pm->baseAddr) {
-                UInt32* pixels = (UInt32*)pm->baseAddr;
+                void* pixels = pm->baseAddr;
                 SInt16 height = gwBounds.bottom - gwBounds.top;
                 SInt16 rowBytes = pm->rowBytes & 0x3FFF;
 

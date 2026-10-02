@@ -39,6 +39,10 @@ extern void serial_puts(const char* str);
 #define kIntl2ResID   2  /* Calendar information */
 #define kIntl3ResID   3  /* Additional locale data */
 
+/* NewHandle payloads are aligned to the Memory Manager's 8-byte boundary. */
+#define HANDLE_DATA_AS(type, handle) \
+    ((type*)__builtin_assume_aligned(*(handle), _Alignof(type)))
+
 /* Global cache for international resources */
 static Handle g_intl0Handle = NULL;
 static Handle g_intl1Handle = NULL;
@@ -120,7 +124,7 @@ static Handle CreateDefaultIntl0(void) {
 
     /* Lock handle and fill in default US English settings */
     HLock(h);
-    intlPtr = (Intl0Rec*)*h;
+    intlPtr = HANDLE_DATA_AS(Intl0Rec, h);
 
     /* Number formatting */
     intlPtr->decimalPt = '.';        /* Period for decimal point */
@@ -196,7 +200,7 @@ static Handle CreateDefaultIntl1(void) {
 
     /* Lock handle and fill in default collation table */
     HLock(h);
-    intlPtr = (Intl1Rec*)*h;
+    intlPtr = HANDLE_DATA_AS(Intl1Rec, h);
 
     /* Build case-insensitive ASCII collation table
      * This table maps characters to their sort order values.
@@ -252,7 +256,7 @@ static Handle CreateDefaultIntl2(void) {
 
     /* Lock handle and fill in default calendar data */
     HLock(h);
-    intlPtr = (Intl2Rec*)*h;
+    intlPtr = HANDLE_DATA_AS(Intl2Rec, h);
 
     /* Date ordering: month/day/year (US format) */
     intlPtr->dateOrder = 0;  /* 0=MDY, 1=DMY, 2=YMD */
@@ -316,7 +320,7 @@ static Handle CreateDefaultIntl3(void) {
 
     /* Lock handle and fill in default locale data */
     HLock(h);
-    intlPtr = (Intl3Rec*)*h;
+    intlPtr = HANDLE_DATA_AS(Intl3Rec, h);
 
     /* Initialize untoken table - maps lowercase to uppercase for text processing */
     for (i = 0; i < 256; i++) {
@@ -556,7 +560,7 @@ Boolean IUMetric(void) {
     intl0 = IUGetIntl(kIntl0ResID);
     if (intl0 != NULL) {
         HLock(intl0);
-        intlPtr = (Intl0Rec*)*intl0;
+        intlPtr = HANDLE_DATA_AS(Intl0Rec, intl0);
 
         /* Check metricSys flag: 0 = Imperial, 255 = Metric */
         isMetric = (intlPtr->metricSys != 0);

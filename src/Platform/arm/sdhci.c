@@ -24,6 +24,7 @@
 #include <string.h>
 #include "System71StdLib.h"
 #include "mmio.h"
+#include "sdhci.h"
 
 /* SDHCI register base addresses
  * These vary by Raspberry Pi model
@@ -95,13 +96,6 @@ typedef struct {
     uint32_t block_count;
 } sd_card_info_t;
 
-static sd_card_info_t card_info = {0};
-
-/* Forward declaration - implemented in sdhci_commands.c */
-extern int sdhci_send_command(uint32_t sdhci_base, uint8_t cmd_index, uint32_t cmd_arg,
-                              uint8_t resp_type, uint32_t *response);
-extern int sdhci_init_card(uint32_t sdhci_base);
-
 /*
  * Initialize SDHCI controller with DMA support
  */
@@ -121,8 +115,11 @@ int sdhci_init(void) {
         return -1;
     }
 
-    Serial_Printf("[SDHCI] Base address: 0x%x, Capabilities: 0x%x\n", sdhci_base, caps);
-    Serial_Printf("[SDHCI] DMA buffer: 0x%x (size: %u MB)\n", (uint32_t)&dma_buffer[0], DMA_BUFFER_SIZE / (1024 * 1024));
+    Serial_Printf("[SDHCI] Base address: 0x%lx, Capabilities: 0x%lx\n",
+                  (unsigned long)sdhci_base, (unsigned long)caps);
+    Serial_Printf("[SDHCI] DMA buffer: 0x%lx (size: %lu MB)\n",
+                  (unsigned long)(uintptr_t)&dma_buffer[0],
+                  (unsigned long)(DMA_BUFFER_SIZE / (1024 * 1024)));
 
     /* Reset controller */
     uint8_t reset = mmio_read8(sdhci_base + SDHCI_SOFTWARE_RESET);
@@ -209,11 +206,12 @@ int sdhci_read_blocks(uint32_t addr, uint32_t count, void *buffer) {
     }
 
     if (count == 0 || count > DMA_MAX_BLOCKS) {
-        Serial_Printf("[SDHCI] Error: Invalid block count %u\n", count);
+        Serial_Printf("[SDHCI] Error: Invalid block count %lu\n", (unsigned long)count);
         return -1;
     }
 
-    Serial_Printf("[SDHCI] Reading %u blocks from LBA 0x%x to 0x%x\n", count, addr, (uint32_t)buffer);
+    Serial_Printf("[SDHCI] Reading %lu blocks from LBA 0x%lx to 0x%lx\n",
+                  (unsigned long)count, (unsigned long)addr, (unsigned long)(uintptr_t)buffer);
 
     /* Use DMA buffer for transfer */
     void *xfer_buffer = &dma_buffer[0];
@@ -231,7 +229,7 @@ int sdhci_read_blocks(uint32_t addr, uint32_t count, void *buffer) {
     uint8_t cmd = (count == 1) ? CMD17 : CMD18;
 
     if (sdhci_send_command(sdhci_base, cmd, addr, 1, response) != 0) {
-        Serial_Printf("[SDHCI] Read command failed for block 0x%x\n", addr);
+        Serial_Printf("[SDHCI] Read command failed for block 0x%lx\n", (unsigned long)addr);
         return -1;
     }
 
@@ -239,12 +237,12 @@ int sdhci_read_blocks(uint32_t addr, uint32_t count, void *buffer) {
     uint32_t status = sdhci_wait_interrupt(5000);  /* 5 second timeout */
 
     if (!(status & INT_DATA_END)) {
-        Serial_Printf("[SDHCI] Data transfer timeout (status: 0x%x)\n", status);
+        Serial_Printf("[SDHCI] Data transfer timeout (status: 0x%lx)\n", (unsigned long)status);
         return -1;
     }
 
     if (status & INT_ERROR) {
-        Serial_Printf("[SDHCI] Read error (status: 0x%x)\n", status);
+        Serial_Printf("[SDHCI] Read error (status: 0x%lx)\n", (unsigned long)status);
         return -1;
     }
 
@@ -258,7 +256,7 @@ int sdhci_read_blocks(uint32_t addr, uint32_t count, void *buffer) {
     uint32_t bytes_to_copy = count * 512;
     memcpy(buffer, xfer_buffer, bytes_to_copy);
 
-    Serial_Printf("[SDHCI] Successfully read %u blocks\n", count);
+    Serial_Printf("[SDHCI] Successfully read %lu blocks\n", (unsigned long)count);
     return count;
 }
 
@@ -275,11 +273,12 @@ int sdhci_write_blocks(uint32_t addr, uint32_t count, const void *buffer) {
     }
 
     if (count == 0 || count > DMA_MAX_BLOCKS) {
-        Serial_Printf("[SDHCI] Error: Invalid block count %u\n", count);
+        Serial_Printf("[SDHCI] Error: Invalid block count %lu\n", (unsigned long)count);
         return -1;
     }
 
-    Serial_Printf("[SDHCI] Writing %u blocks to LBA 0x%x from 0x%x\n", count, addr, (uint32_t)buffer);
+    Serial_Printf("[SDHCI] Writing %lu blocks to LBA 0x%lx from 0x%lx\n",
+                  (unsigned long)count, (unsigned long)addr, (unsigned long)(uintptr_t)buffer);
 
     /* Copy data to DMA buffer first */
     void *xfer_buffer = &dma_buffer[0];
@@ -300,7 +299,7 @@ int sdhci_write_blocks(uint32_t addr, uint32_t count, const void *buffer) {
     uint8_t cmd = (count == 1) ? CMD24 : CMD25;
 
     if (sdhci_send_command(sdhci_base, cmd, addr, 1, response) != 0) {
-        Serial_Printf("[SDHCI] Write command failed for block 0x%x\n", addr);
+        Serial_Printf("[SDHCI] Write command failed for block 0x%lx\n", (unsigned long)addr);
         return -1;
     }
 
@@ -308,12 +307,12 @@ int sdhci_write_blocks(uint32_t addr, uint32_t count, const void *buffer) {
     uint32_t status = sdhci_wait_interrupt(5000);  /* 5 second timeout */
 
     if (!(status & INT_DATA_END)) {
-        Serial_Printf("[SDHCI] Data transfer timeout (status: 0x%x)\n", status);
+        Serial_Printf("[SDHCI] Data transfer timeout (status: 0x%lx)\n", (unsigned long)status);
         return -1;
     }
 
     if (status & INT_ERROR) {
-        Serial_Printf("[SDHCI] Write error (status: 0x%x)\n", status);
+        Serial_Printf("[SDHCI] Write error (status: 0x%lx)\n", (unsigned long)status);
         return -1;
     }
 
@@ -323,7 +322,7 @@ int sdhci_write_blocks(uint32_t addr, uint32_t count, const void *buffer) {
         sdhci_send_command(sdhci_base, 12, 0, 1, stop_response);  /* CMD12: STOP_TRANSMISSION */
     }
 
-    Serial_Printf("[SDHCI] Successfully wrote %u blocks\n", count);
+    Serial_Printf("[SDHCI] Successfully wrote %lu blocks\n", (unsigned long)count);
     return count;
 }
 
@@ -340,7 +339,7 @@ int sdhci_get_card_info(uint32_t *block_count) {
      * For now, use a default value (typical 2GB for test cards)
      * In production, parse CSD register to get actual capacity
      */
-    *block_count = (2 * 1024 * 1024 * 1024) / 512;  /* 2GB = 4194304 blocks */
+    *block_count = (UINT32_C(2) * 1024 * 1024 * 1024) / 512;
 
     return 0;
 }

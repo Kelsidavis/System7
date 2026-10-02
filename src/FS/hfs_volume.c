@@ -291,7 +291,7 @@ bool HFS_CreateBlankVolume(void* buffer, uint64_t size, const char* volName) {
 
     /* Build catalog records - write them sequentially after the node descriptor */
     uint8_t* recData = leafNode + sizeof(HFS_BTNodeDesc);
-    uint16_t* offsets = (uint16_t*)(leafNode + 1024 - 2);  /* Point to last 2 bytes of node */
+    uint8_t* offsetTableEnd = leafNode + 1024 - 2;  /* Point to last 2 bytes of node */
     uint16_t offset = sizeof(HFS_BTNodeDesc);
     int recNum = 0;
 
@@ -330,7 +330,7 @@ bool HFS_CreateBlankVolume(void* buffer, uint64_t size, const char* volName) {
         memset(folder->finderInfo, 0, 16); \
         memset(folder->reserved, 0, 16); \
         uint16_t rec_size = keySpan + sizeof(HFS_CatFolderRec); \
-        be16_write(&offsets[-(recNum)], offset); \
+        be16_write(offsetTableEnd - (size_t)recNum * sizeof(uint16_t), offset); \
         recData += rec_size; \
         offset += rec_size; \
         recNum++; \
@@ -371,7 +371,7 @@ bool HFS_CreateBlankVolume(void* buffer, uint64_t size, const char* volName) {
         memset(file->rsrcExtents, 0, sizeof(file->rsrcExtents)); \
         be32_write(&file->reserved, 0); \
         uint16_t rec_size = keySpan + sizeof(HFS_CatFileRec); \
-        be16_write(&offsets[-(recNum)], offset); \
+        be16_write(offsetTableEnd - (size_t)recNum * sizeof(uint16_t), offset); \
         recData += rec_size; \
         offset += rec_size; \
         recNum++; \
