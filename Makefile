@@ -92,11 +92,20 @@ else ifeq ($(PLATFORM),ppc)
     LD = $(CROSS_COMPILE)ld
     OBJCOPY = $(CROSS_COMPILE)objcopy
 else
-    # x86 native compiler
-    CC = gcc
-    AS = as
-    LD = ld
-    OBJCOPY = objcopy
+    # x86 toolchain. macOS has no native 32-bit GCC or GNU binutils, so use
+    # the i686-elf toolchain documented in CLAUDE.md when it is available.
+    ifeq ($(shell uname -s),Darwin)
+        CROSS_COMPILE ?= i686-elf-
+        CC = $(CROSS_COMPILE)gcc
+        AS = $(CROSS_COMPILE)as
+        LD = $(CROSS_COMPILE)ld
+        OBJCOPY = $(CROSS_COMPILE)objcopy
+    else
+        CC = gcc
+        AS = as
+        LD = ld
+        OBJCOPY = objcopy
+    endif
 endif
 
 # Common tools (non-platform specific)
@@ -600,7 +609,7 @@ PYTHON_MIN_VERSION = 3.6
 # Check build tools (run once per make invocation)
 .PHONY: check-tools
 check-tools:
-	@PLATFORM=$(PLATFORM) scripts/check_tool_versions.sh $(GCC_MIN_VERSION) $(PYTHON_MIN_VERSION)
+	@PLATFORM=$(PLATFORM) CC="$(CC)" scripts/check_tool_versions.sh $(GCC_MIN_VERSION) $(PYTHON_MIN_VERSION)
 
 # Default target
 all: check-tools $(RSRC_BIN) $(KERNEL)
@@ -1171,10 +1180,14 @@ $(shell mkdir -p $(BUILD_DIR); \
         printf '%s' '$(CFLAGS)' | cmp -s - $(CFLAGS_STAMP) 2>/dev/null || \
         printf '%s' '$(CFLAGS)' > $(CFLAGS_STAMP))
 
-# The kernel has its own maths (System71Math.c); -lm is linked in case a
-# host compiler reaches for it. A bare-metal toolchain such as i686-elf-gcc
-# has no libm at all: build with LIBM= there.
+# The kernel has its own maths (System71Math.c). The macOS i686-elf toolchain
+# has no libm, while native Linux builds may need it for compiler-generated
+# helpers.
+ifeq ($(shell uname -s),Darwin)
+LIBM ?=
+else
 LIBM ?= -lm
+endif
 
 # Link kernel
 $(KERNEL): $(OBJECTS) | $(BUILD_DIR)

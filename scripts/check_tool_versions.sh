@@ -11,6 +11,7 @@ NC='\033[0m' # No Color
 # Parse arguments
 GCC_MIN_VERSION="${1:-7.0}"
 PYTHON_MIN_VERSION="${2:-3.6}"
+CC="${CC:-gcc}"
 
 # Version comparison function
 version_ge() {
@@ -26,26 +27,26 @@ extract_version() {
 echo "Checking build tool versions..."
 echo ""
 
-# Check GCC
-if ! command -v gcc >/dev/null 2>&1; then
-    echo -e "${RED}✗ GCC not found${NC}"
+# Check the compiler selected by Make.
+if ! command -v "$CC" >/dev/null 2>&1; then
+    echo -e "${RED}✗ C compiler not found: $CC${NC}"
     exit 1
 fi
 
-GCC_VERSION=$(gcc --version | head -1)
+GCC_VERSION=$("$CC" --version | head -1)
 GCC_NUM=$(extract_version "$GCC_VERSION")
 
 if version_ge "$GCC_NUM" "$GCC_MIN_VERSION"; then
-    echo -e "${GREEN}✓ GCC $GCC_NUM${NC} (minimum: $GCC_MIN_VERSION)"
+    echo -e "${GREEN}✓ C compiler ($CC) $GCC_NUM${NC} (minimum: $GCC_MIN_VERSION)"
 else
-    echo -e "${RED}✗ GCC $GCC_NUM${NC} - requires >= $GCC_MIN_VERSION"
+    echo -e "${RED}✗ C compiler ($CC) $GCC_NUM${NC} - requires >= $GCC_MIN_VERSION"
     exit 1
 fi
 
 # Check for 32-bit support (skip for non-x86 platforms)
 if [ "${PLATFORM:-x86}" = "x86" ]; then
-    if ! gcc -m32 -x c -c /dev/null -o /dev/null 2>/dev/null; then
-        echo -e "${YELLOW}⚠ GCC 32-bit support not available${NC}"
+    if ! "$CC" -m32 -x c -c /dev/null -o /dev/null 2>/dev/null; then
+        echo -e "${YELLOW}⚠ C compiler 32-bit support not available${NC}"
         echo "  Install: sudo apt-get install gcc-multilib"
         # Don't exit - allow build to proceed, will fail later if 32-bit is actually needed
     else
