@@ -332,6 +332,7 @@ static void SyncFile(SInt16 refNum) {
         if (!gResMap[i].dirty) continue;
         if (refNum >= 0 && HomeResFile(gResMap[i].native) != refNum) continue;
         SyncRes(i);
+        ChangedResource(gResMap[i].native);
     }
 }
 
@@ -542,6 +543,8 @@ TRAP(Trap_AddResource) {
         W16(kLM_ResErr, (UInt16)addResFailed);
         return noErr;
     }
+    UInt32 p = M68KHeap_Deref(h);
+    for (UInt32 k = 0; k < n; k++) ((UInt8*)*native)[k] = R8(p + k);
     AddResource(native, type, id, name);
     OSErr err = ResError();
     if (err != noErr) {
