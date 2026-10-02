@@ -129,6 +129,7 @@ typedef struct M68KAddressSpace {
     UInt32 nextAlloc;
 
     UInt16 currentTrap;       /* the trap word being answered, for its flag bits */
+    UInt32 instrPC;           /* where the instruction being executed began */
 
     /* Execution state */
     Boolean halted;           /* CPU halted due to fault or completion */

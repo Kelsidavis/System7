@@ -842,7 +842,9 @@ OSErr M68K_Step(M68KAddressSpace* as)
         return noErr;
     }
 
-    /* Fetch opcode */
+    /* Fetch opcode, remembering where the instruction began: that is the
+     * address a fault is reported at */
+    as->instrPC = as->regs.pc;
     opcode = M68K_Fetch16(as);
 
     /* Decode and dispatch */
@@ -1181,8 +1183,9 @@ OSErr M68K_Step(M68KAddressSpace* as)
             break;
         }
     } else {
-        serial_printf("[M68K] ILLEGAL opcode 0x%04X at PC=0x%08X\n", opcode, as->regs.pc - 2);
-        M68K_Fault(as, "Illegal opcode");
+        static char why[40];
+        snprintf(why, sizeof(why), "illegal instruction $%04X", opcode);
+        M68K_Fault(as, why);
     }
 
     return noErr;
@@ -1275,6 +1278,17 @@ static const UInt8 kProgBranch[] = {
     0x74, 0x01,
 };
 static const M68KExpect kWantBranch[] = { {0, 0}, {1, 0}, {2, 1} };
+
+/* BRA.W +4; MOVEQ #1,D0; MOVEQ #2,D1
+ * A 16-bit displacement counts from its own word: the branch lands on the
+ * second MOVEQ. Counted from past that word, it landed in the middle of an
+ * instruction, which is how the first compiled application died. */
+static const UInt8 kProgLongBranch[] = {
+    0x60, 0x00, 0x00, 0x04,
+    0x70, 0x01,
+    0x72, 0x02,
+};
+static const M68KExpect kWantLongBranch[] = { {0, 0}, {1, 2} };
 
 
 /* MOVE.L #$FFFFFFFF,D0; MOVEQ #0,D1; MOVE.B D0,D1; MOVEQ #0,D2; MOVE.W D0,D2
@@ -1438,6 +1452,8 @@ static const M68KTestCase kM68KTests[] = {
       kWantAddr,   3, sizeof(kProgAddr) },
     { "flags and branch", kProgBranch, sizeof(kProgBranch), 4,
       kWantBranch, 3, sizeof(kProgBranch) },
+    { "16-bit branch", kProgLongBranch, sizeof(kProgLongBranch), 2,
+      kWantLongBranch, 2, sizeof(kProgLongBranch) },
     { "operand sizes", kProgSizes, sizeof(kProgSizes), 5,
       kWantSizes, 3, sizeof(kProgSizes) },
     { "increment addressing", kProgIncr, sizeof(kProgIncr), 6,

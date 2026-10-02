@@ -39,7 +39,7 @@ static void M68K_RaiseException(M68KAddressSpace* as, UInt16 vector, const char*
     /* Keep what went wrong and where, so whoever asked for this program to run
      * can say so. The PC has already moved past the opcode being executed. */
     as->faultReason = reason;
-    as->faultPC = as->regs.pc;
+    as->faultPC = as->instrPC;
 
     /* Map vector number to name */
     switch (vector) {
@@ -520,14 +520,6 @@ void M68K_Op_JSR(M68KAddressSpace* as, UInt16 opcode)
     /* Push return address */
     M68K_Push32(as, as->regs.pc);
 
-    /* Jump - log with A5-relative info if using d16(A5) */
-    if (mode == MODE_An_DISP && reg == 5) {
-        /* JSR d16(A5) - log A5-relative offset */
-        SInt32 offsetFromA5 = (SInt32)target - (SInt32)as->regs.a[5];
-        serial_printf("[M68K] JSR (A5%+d) -> 0x%08X\n", offsetFromA5, target);
-    } else {
-        serial_printf("[M68K] JSR 0x%08X -> 0x%08X\n", as->regs.pc - 2, target);
-    }
     as->regs.pc = target;
 
     /* JSR does not affect flags */
@@ -546,10 +538,25 @@ void M68K_Op_JMP(M68KAddressSpace* as, UInt16 opcode)
     target = M68K_EA_ComputeAddress(as, mode, reg, SIZE_LONG);
 
     /* Jump */
-    serial_printf("[M68K] JMP 0x%08X -> 0x%08X\n", as->regs.pc - 2, target);
     as->regs.pc = target;
 
     /* JMP does not affect flags */
+}
+
+/*
+ * A branch's displacement, and what it counts from: the word after the
+ * opcode. That is where the PC is for an 8-bit displacement, which is in
+ * the opcode; a 16-bit one is that word itself, and counting from past it
+ * put every long branch two bytes beyond its target.
+ */
+static UInt32 BranchDisplacement(M68KAddressSpace* as, UInt16 opcode, SInt32* disp)
+{
+    UInt32 base = as->regs.pc;
+    *disp = (SInt8)(opcode & 0xFF);
+    if (*disp == 0) {
+        *disp = SIGN_EXTEND_WORD(M68K_Fetch16(as));
+    }
+    return base;
 }
 
 /*
@@ -560,14 +567,8 @@ void M68K_Op_BRA(M68KAddressSpace* as, UInt16 opcode)
     SInt32 disp;
     UInt32 target;
 
-    disp = (SInt8)(opcode & 0xFF);
-    if (disp == 0) {
-        /* 16-bit displacement */
-        disp = SIGN_EXTEND_WORD(M68K_Fetch16(as));
-    }
-
-    target = as->regs.pc + disp;
-    serial_printf("[M68K] BRA 0x%08X -> 0x%08X (disp=%d)\n", as->regs.pc - 2, target, disp);
+    UInt32 base = BranchDisplacement(as, opcode, &disp);
+    target = base + disp;
     as->regs.pc = target;
 
     /* BRA does not affect flags */
@@ -581,19 +582,11 @@ void M68K_Op_BSR(M68KAddressSpace* as, UInt16 opcode)
     SInt32 disp;
     UInt32 target;
 
-    disp = (SInt8)(opcode & 0xFF);
-    if (disp == 0) {
-        /* 16-bit displacement */
-        disp = SIGN_EXTEND_WORD(M68K_Fetch16(as));
-    }
+    UInt32 base = BranchDisplacement(as, opcode, &disp);
+    target = base + disp;
 
-    target = as->regs.pc + disp;
-
-    /* Push return address */
+    /* Push return address: past the displacement word, if there was one */
     M68K_Push32(as, as->regs.pc);
-
-    /* Jump */
-    serial_printf("[M68K] BSR 0x%08X -> 0x%08X (disp=%d)\n", as->regs.pc - 2, target, disp);
     as->regs.pc = target;
 
     /* BSR does not affect flags */
@@ -608,18 +601,11 @@ void M68K_Op_Bcc(M68KAddressSpace* as, UInt16 opcode)
     SInt32 disp;
     UInt32 target;
 
-    disp = (SInt8)(opcode & 0xFF);
-    if (disp == 0) {
-        /* 16-bit displacement */
-        disp = SIGN_EXTEND_WORD(M68K_Fetch16(as));
-    }
+    UInt32 base = BranchDisplacement(as, opcode, &disp);
 
     if (M68K_TestCondition(as->regs.sr, cc)) {
-        target = as->regs.pc + disp;
-        serial_printf("[M68K] Bcc (cc=%d) taken: 0x%08X -> 0x%08X\n", cc, as->regs.pc - 2, target);
+        target = base + disp;
         as->regs.pc = target;
-    } else {
-        serial_printf("[M68K] Bcc (cc=%d) not taken\n", cc);
     }
 
     /* Bcc does not affect flags */
@@ -638,7 +624,6 @@ void M68K_Op_RTS(M68KAddressSpace* as, UInt16 opcode)
     return_addr = M68K_Pop32(as);
 
     /* Jump */
-    serial_printf("[M68K] RTS to 0x%08X\n", return_addr);
     as->regs.pc = return_addr;
 
     /* RTS does not affect flags */
@@ -694,10 +679,8 @@ void M68K_Op_Scc(M68KAddressSpace* as, UInt16 opcode)
     /* Test condition */
     if (M68K_TestCondition(as->regs.sr, cc)) {
         value = 0xFF;
-        serial_printf("[M68K] Scc (cc=%d) true -> set 0xFF\n", cc);
     } else {
         value = 0x00;
-        serial_printf("[M68K] Scc (cc=%d) false -> set 0x00\n", cc);
     }
 
     /* Write byte to EA */
@@ -732,16 +715,12 @@ void M68K_Op_DBcc(M68KAddressSpace* as, UInt16 opcode)
         if (counter != -1) {
             /* Branch */
             target = (as->regs.pc - 2) + disp;  /* PC-2 because we already fetched disp */
-            serial_printf("[M68K] DBcc (cc=%d) false, D%d=%d -> branch to 0x%08X\n",
-                         cc, reg, counter, target);
             as->regs.pc = target;
         } else {
             /* Counter expired - fall through */
-            serial_printf("[M68K] DBcc (cc=%d) false, D%d=-1 -> fall through\n", cc, reg);
         }
     } else {
         /* Condition true - fall through */
-        serial_printf("[M68K] DBcc (cc=%d) true -> fall through\n", cc);
     }
 
     /* DBcc does not affect flags */
@@ -809,7 +788,7 @@ void M68K_Op_TRAP(M68KAddressSpace* as, UInt16 opcode)
         as->halted = true;
         as->lastException = M68K_VEC_LINE_A;
         as->faultReason = why;
-        as->faultPC = saved_pc - 2;
+        as->faultPC = as->instrPC;
         return;
     }
 
