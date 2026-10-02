@@ -505,9 +505,11 @@ static OSErr M68K_EnterAt(CPUAddressSpace as, CPUAddr entry, CPUEnterFlags flags
     if (flags & kEnterApp) {
         extern UInt32 TickCount(void);
         mas->regs.pc = entry;
+        extern void M68KTimers_Service(void);
         while (!mas->halted) {
             M68K_Run(mas, 20000);
             LMSetTicks(TickCount());
+            M68KTimers_Service();       /* the program's VBL and Time Manager tasks */
         }
     } else {
         M68K_Execute(mas, entry, max_instructions);

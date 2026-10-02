@@ -102,6 +102,7 @@ static Boolean ForProgram(EventRecord* e, UInt32* message) {
 /* FUNCTION GetNextEvent(eventMask: INTEGER; VAR theEvent: EventRecord): BOOLEAN */
 TRAP(Trap_GetNextEvent) {
     UNUSED;
+    M68KTimers_Service();
     UInt32 var = Pop32();
     UInt16 mask = Pop16();
     EventRecord e;
@@ -122,6 +123,7 @@ TRAP(Trap_GetNextEvent) {
  *   sleep: LONGINT; mouseRgn: RgnHandle): BOOLEAN */
 TRAP(Trap_WaitNextEvent) {
     UNUSED;
+    M68KTimers_Service();
     UInt32 rgn = Pop32();
     UInt32 sleep = Pop32();
     UInt32 var = Pop32();
@@ -142,6 +144,7 @@ TRAP(Trap_WaitNextEvent) {
 
 TRAP(Trap_EventAvail) {
     UNUSED;
+    M68KTimers_Service();
     UInt32 var = Pop32();
     UInt16 mask = Pop16();
     EventRecord e;
@@ -240,7 +243,10 @@ TRAP(Trap_Delay) {
     UNUSED;
     extern UInt32 TickCount(void);
     UInt32 until = TickCount() + A(0);
-    while (TickCount() < until) SystemTask();
+    while (TickCount() < until) {
+        SystemTask();
+        M68KTimers_Service();
+    }
     D(0) = TickCount();
     return noErr;
 }

@@ -41,6 +41,7 @@ static const TrapName kOSTraps[] = {
     { 0xA04B, "_SetGrowZone" },   { 0xA04C, "_CompactMem" },   { 0xA04D, "_PurgeMem" },
     { 0xA04E, "_AddDrive" },      { 0xA04F, "_RDrvrInstall" }, { 0xA050, "_RelString" },
     { 0xA054, "_UprString" },     { 0xA055, "_StripAddress" }, { 0xA057, "_SetAppBase" },
+    { 0xA058, "_InsTime" },       { 0xA059, "_RmvTime" },      { 0xA05A, "_PrimeTime" },
     { 0xA05D, "_SwapMMUMode" },   { 0xA060, "_HFSDispatch" },  { 0xA061, "_MaxBlock" },
     { 0xA062, "_PurgeSpace" },    { 0xA063, "_MaxApplZone" },  { 0xA064, "_MoveHHi" },
     { 0xA065, "_StackSpace" },    { 0xA066, "_NewEmptyHandle" },{ 0xA067, "_HSetRBit" },
@@ -48,6 +49,7 @@ static const TrapName kOSTraps[] = {
     { 0xA06C, "_InitFS" },        { 0xA06D, "_InitEvents" },   { 0xA08F, "_DeferUserFn" },
     { 0xA090, "_SysEnvirons" },   { 0xA0A4, "_HeapDispatch" }, { 0xA0AD, "_Gestalt" },
     { 0xA0BD, "_FlushCodeCache" },{ 0xA11D, "_MaxMem" },       { 0xA260, "_HFSDispatch" },
+    { 0xA193, "_Microseconds" },
 };
 
 static const TrapName kToolboxTraps[] = {

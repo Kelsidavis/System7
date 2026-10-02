@@ -168,6 +168,10 @@ extern const M68KTrapEntry kM68KTextEditTraps[];
 extern const int kM68KTextEditTrapCount;
 extern const M68KTrapEntry kM68KUtilityTraps[];
 extern const int kM68KUtilityTrapCount;
+extern const M68KTrapEntry kM68KTimerTraps[];
+extern const int kM68KTimerTrapCount;
+void M68KTimers_Reset(void);                 /* a new program: no tasks */
+void M68KTimers_Service(void);               /* VBL and Time Manager tasks that are due */
 extern const M68KTrapEntry kM68KListTraps[];
 extern const int kM68KListTrapCount;
 extern const M68KTrapEntry kM68KSANETraps[];

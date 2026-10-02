@@ -475,6 +475,7 @@ C_SOURCES = src/main.c \
             src/CPU/m68k_interp/M68KFiles.c \
             src/CPU/m68k_interp/M68KSANE.c \
             src/CPU/m68k_interp/M68KLists.c \
+            src/CPU/m68k_interp/M68KTimers.c \
             src/CPU/m68k_interp/SANENumbers.c \
             src/CPU/ppc_interp/PPCBackend.c \
             src/CPU/ppc_interp/PPCOpcodes.c \

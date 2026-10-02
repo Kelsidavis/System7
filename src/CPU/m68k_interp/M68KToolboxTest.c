@@ -22,6 +22,7 @@ Boolean M68KToolbox_RunTrapTest(const char** why);
 Boolean M68KToolbox_RunSANETest(const char** why);
 Boolean M68KToolbox_RunListTest(const char** why);
 Boolean M68KToolbox_RunWindowTest(const char** why);
+Boolean M68KToolbox_RunTimerTest(const char** why);
 
 enum { kAsmWords = 512 };           /* the code area's size, in words */
 typedef struct {
@@ -480,6 +481,94 @@ Boolean M68KToolbox_RunWindowTest(const char** why)
     if (!keys) { *why = "KeyTrans did not translate through the KCHR"; return false; }
     if (!pic)  { *why = "GetWindowPic did not answer what SetWindowPic set"; return false; }
     if (!drag) { *why = "DragGrayRgn pinned to its start did not answer no movement"; return false; }
+    *why = "";
+    return true;
+}
+
+/* ------------------------------------------------------------------------
+ * VBL and Time Manager tasks, and _Microseconds
+ * ------------------------------------------------------------------------ */
+
+enum {
+    kTVBL = 0x00,                   /* VBLTask: 14 bytes */
+    kTTM = 0x10,                    /* extended TMTask: 20 bytes */
+    kTTicks = 0x30, kTVInst = 0x32, kTVRem = 0x34, kTVRemAgain = 0x36,
+    kTFired = 0x38, kTFiredA1 = 0x3C, kTUs1 = 0x40, kTUs2 = 0x44,
+    kTRoutines = 0x380              /* in the code area, after the program */
+};
+
+/* A wait for the word at addr to reach at least value, given up after a
+ * couple of million turns so that a timer that never fires fails the test
+ * rather than hanging it: MOVE.L #n,D7; loop: CMPI.W #v,addr; BGE done;
+ * SUBQ.L #1,D7; BNE loop; done: */
+static void WaitFor(Asm* a, UInt32 addr, UInt16 value) {
+    W(a, 0x2E3C); L(a, 2000000);
+    W(a, 0x0C79); W(a, value); L(a, addr);
+    W(a, 0x6C04);
+    W(a, 0x5387);
+    W(a, 0x66F2);
+}
+
+Boolean M68KToolbox_RunTimerTest(const char** why)
+{
+    World w;
+    if (!WorldBegin(&w, why)) return false;
+    UInt32 d = w.data, vblProc = w.code + kTRoutines, tmProc = vblProc + 0x20;
+    for (UInt32 i = 0; i < 0x50; i += 2) M68K_Write16(gM68KApp, d + i, 0);
+
+    /* The VBL task counts, and asks to be called again next tick:
+     * ADDQ.W #1,ticks; MOVE.W #1,10(A0); RTS */
+    UInt16 vbl[] = { 0x5279, 0, 0, 0x317C, 1, 10, 0x4E75 };
+    vbl[1] = (UInt16)((d + kTTicks) >> 16); vbl[2] = (UInt16)(d + kTTicks);
+    for (int i = 0; i < 7; i++) M68K_Write16(gM68KApp, vblProc + 2 * (UInt32)i, vbl[i]);
+    /* The Time Manager task says it ran, and with what in A1:
+     * MOVE.W #1,fired; MOVE.L A1,firedA1; RTS */
+    UInt16 tm[] = { 0x33FC, 1, 0, 0, 0x23C9, 0, 0, 0x4E75 };
+    tm[2] = (UInt16)((d + kTFired) >> 16); tm[3] = (UInt16)(d + kTFired);
+    tm[5] = (UInt16)((d + kTFiredA1) >> 16); tm[6] = (UInt16)(d + kTFiredA1);
+    for (int i = 0; i < 8; i++) M68K_Write16(gM68KApp, tmProc + 2 * (UInt32)i, tm[i]);
+
+    M68K_Write16(gM68KApp, d + kTVBL + 4, 1);                  /* qType: vType */
+    M68K_Write32(gM68KApp, d + kTVBL + 6, vblProc);
+    M68K_Write16(gM68KApp, d + kTVBL + 10, 1);                 /* vblCount */
+    M68K_Write32(gM68KApp, d + kTTM + 6, tmProc);
+
+    Asm a;
+    a.n = 0;
+    /* VInstall, three ticks, VRemove twice */
+    W(&a, 0x41F9); L(&a, d + kTVBL); W(&a, 0xA033);
+    W(&a, 0x33C0); L(&a, d + kTVInst);
+    WaitFor(&a, d + kTTicks, 3);
+    W(&a, 0x41F9); L(&a, d + kTVBL); W(&a, 0xA034);
+    W(&a, 0x33C0); L(&a, d + kTVRem);
+    W(&a, 0x41F9); L(&a, d + kTVBL); W(&a, 0xA034);
+    W(&a, 0x33C0); L(&a, d + kTVRemAgain);
+    /* InsXTime, PrimeTime 5 ms, wait, RmvTime */
+    W(&a, 0x41F9); L(&a, d + kTTM); W(&a, 0xA458);
+    W(&a, 0x41F9); L(&a, d + kTTM); W(&a, 0x7005); W(&a, 0xA05A);
+    WaitFor(&a, d + kTFired, 1);
+    W(&a, 0x41F9); L(&a, d + kTTM); W(&a, 0xA059);
+    /* Microseconds, twice */
+    W(&a, 0xA193); W(&a, 0x23C0); L(&a, d + kTUs1);
+    W(&a, 0xA193); W(&a, 0x23C0); L(&a, d + kTUs2);
+    W(&a, 0xA9F4);
+
+    OSErr ran = (UInt32)a.n * 2 > kTRoutines ? paramErr : WorldRun(&w, &a);
+    M68KAddressSpace* as = gM68KApp;
+    Boolean vbl3 = M68K_Read16(as, d + kTVInst) == 0 && (SInt16)M68K_Read16(as, d + kTTicks) >= 3;
+    Boolean removed = M68K_Read16(as, d + kTVRem) == 0 && M68K_Read16(as, d + kTVRemAgain) == 0xFFFF &&
+                      M68K_Read32(as, 0x0162) == 0;
+    Boolean fired = M68K_Read16(as, d + kTFired) == 1 && M68K_Read32(as, d + kTFiredA1) == d + kTTM &&
+                    (M68K_Read16(as, d + kTTM + 4) & 0x8000) == 0;
+    UInt32 us1 = M68K_Read32(as, d + kTUs1), us2 = M68K_Read32(as, d + kTUs2);
+    Boolean clock = us1 != 0 && us2 - us1 < 1000000;
+    WorldEnd(&w);
+
+    if (ran != noErr) { *why = "the program stopped with a fault"; return false; }
+    if (!vbl3)    { *why = "the VBL task did not run each tick"; return false; }
+    if (!removed) { *why = "VRemove did not take the task out, then answer qErr"; return false; }
+    if (!fired)   { *why = "the Time Manager task did not run, with A1 the task"; return false; }
+    if (!clock)   { *why = "Microseconds did not answer a running count"; return false; }
     *why = "";
     return true;
 }
