@@ -163,7 +163,7 @@ void DoMenuCommand(short menuID, short item)
                  * characters, so the alert showed five bytes past it. */
                 if (item == 1) {
                     ParamText(PSTR("Balloon Help is not available in this version."),
-                              "\000", "\000", "\000");
+                              PSTR(""), PSTR(""), PSTR(""));
                     NoteAlert(130, NULL);
                 }
             } else {
@@ -935,7 +935,7 @@ static void HandleSpecialMenu(short item)
 
             /* Confirmation dialog — real System 7 asks before restarting */
             ParamText(PSTR("Are you sure you want to\rrestart your computer?"),
-                      "\000", "\000", "\000");
+                      PSTR(""), PSTR(""), PSTR(""));
             if (CautionAlert(128, NULL) != 1) break;  /* Cancel */
 
             /* Display restart message before rebooting */
@@ -971,7 +971,7 @@ static void HandleSpecialMenu(short item)
 
             /* Confirmation dialog — real System 7 asks before shutting down */
             ParamText(PSTR("Are you sure you want to shut\rdown your computer?"),
-                      "\000", "\000", "\000");
+                      PSTR(""), PSTR(""), PSTR(""));
             if (CautionAlert(128, NULL) != 1) break;  /* Cancel */
 
             /* Display the classic "It is now safe to turn off your Macintosh"

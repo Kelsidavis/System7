@@ -320,7 +320,7 @@ static OSErr FindTrashFolder(FSSpec *trashSpec)
     /* Get system volume */
     err = FindFolder(kOnSystemDisk, kTrashFolderType, kDontCreateFolder, &vRefNum, &dirID);
     if (err == noErr) {
-        err = FSMakeFSSpec(vRefNum, dirID, "\000", trashSpec);
+        err = FSMakeFSSpec(vRefNum, dirID, PSTR(""), trashSpec);
     } else {
         /* If FindFolder fails, look for Trash folder in root directory */
         err = FSMakeFSSpec(0, fsRtDirID, kTrashFolderName, trashSpec);

@@ -211,7 +211,7 @@ OSErr FSRename(ConstStr255Param oldName, ConstStr255Param newName, VolumeRefNum 
     memset(&pb, 0, sizeof(pb));
     pb.ioNamePtr = CONST_CAST_STRINGPTR(oldName);
     pb.ioVRefNum = vRefNum;
-    pb.u.ioParam.ioMisc = CONST_CAST_STRINGPTR(newName);
+    pb.u.ioParam.ioMisc = (Ptr)CONST_CAST_STRINGPTR(newName);
 
     return PBHRenameSync(&pb);
 }

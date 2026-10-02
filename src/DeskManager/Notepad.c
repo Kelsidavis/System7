@@ -500,13 +500,13 @@ static void Notepad_DrawPageIndicator(NotePadGlobals *notepad) {
     if (notepad->currentPage > 0) {
         /* Previous arrow */
         MoveTo(20, 20);
-        DrawString("<");  /* Simple < instead of unicode arrow */
+        DrawString(PSTR("<"));  /* Simple < instead of unicode arrow */
     }
 
     if (notepad->currentPage < NOTEPAD_MAX_PAGES - 1) {
         /* Next arrow */
         MoveTo(360, 20);
-        DrawString(">");  /* Simple > instead of unicode arrow */
+        DrawString(PSTR(">"));  /* Simple > instead of unicode arrow */
     }
 }
 
@@ -558,7 +558,7 @@ static OSErr Notepad_LoadFile(NotePadGlobals *notepad) {
     /* Build file spec for Note Pad File in System Folder */
     err = FSMakeFSSpec(notepad->systemFolderVRefNum,
                       notepad->systemFolderDirID,
-                      NOTEPAD_FILE_NAME,
+                      PSTR(NOTEPAD_FILE_NAME),
                       &fileSpec);
 
     if (err != noErr) {
@@ -630,7 +630,7 @@ static OSErr Notepad_SaveFile(NotePadGlobals *notepad) {
     /* Build file spec */
     err = FSMakeFSSpec(notepad->systemFolderVRefNum,
                       notepad->systemFolderDirID,
-                      NOTEPAD_FILE_NAME,
+                      PSTR(NOTEPAD_FILE_NAME),
                       &fileSpec);
 
     if (err == fnfErr) {

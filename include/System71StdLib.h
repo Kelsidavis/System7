@@ -294,5 +294,5 @@ void LongMul(SInt32 a, SInt32 b, wide* result);
  */
 #define PSTR(lit) ((ConstStr255Param)&(const struct { \
         unsigned char len;                            \
-        char txt[sizeof(lit)];                        \
+        unsigned char txt[sizeof(lit)];               \
     }){ (unsigned char)(sizeof(lit) - 1), lit })

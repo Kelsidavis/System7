@@ -71,11 +71,11 @@ typedef struct Menu **MenuHandle;
 typedef struct ListRec **ListHandle;
 typedef struct PixPat **PixPatHandle;
 
-// Pointer aliases
+// Pascal strings are unsigned byte sequences; Ptr remains for raw char storage.
 typedef void* VoidPtr;
-typedef char* StringPtr;
+typedef unsigned char* StringPtr;
 typedef unsigned char* UCharPtr;
-typedef const char* ConstStr255Param;
+typedef const unsigned char* ConstStr255Param;
 typedef unsigned char** StringHandle;
 
 // Point and Rect
@@ -1899,7 +1899,7 @@ typedef struct MemoryBlock {
 
 // Additional utility types
 typedef char Str15[16];
-typedef char Str27[28];
+typedef unsigned char Str27[28];
 
 // Boot Loader types
 typedef struct DeviceSpec {
@@ -3229,4 +3229,3 @@ typedef struct wide {
 #endif
 
 #endif /* SYSTEMTYPES_TIME_MANAGER_SHIM */
-

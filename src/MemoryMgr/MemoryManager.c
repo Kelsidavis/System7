@@ -1490,7 +1490,7 @@ u32 CompactMem(u32 cbNeeded) {
 
                 /* Update master pointer */
                 if (d->masterPtr && *(d->masterPtr)) {
-                    *(d->masterPtr) = (u8*)d + BLKHDR_SZ;
+                    *(d->masterPtr) = (Ptr)((u8*)d + BLKHDR_SZ);
                 }
 
                 /* Update prevSize of following block */

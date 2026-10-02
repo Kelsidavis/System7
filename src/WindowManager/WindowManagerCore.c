@@ -1178,7 +1178,7 @@ void SetWTitle(WindowPtr window, ConstStr255Param title) {
         if (window->titleHandle) {
             /* Lock handle for copying */
             HLock((Handle)window->titleHandle);
-            Ptr titleStr = *window->titleHandle;
+            StringPtr titleStr = *window->titleHandle;
 
             /* Copy Pascal string */
             titleStr[0] = len;

@@ -612,7 +612,7 @@ OSErr ShowErrorDialog(ConstStr255Param message, OSErr errorCode)
     BlockMove(message, errorText, message[0] + 1);
 
     /* Show alert dialog */
-    ParamText(errorText, "\000", "\000", "\000");
+    ParamText(errorText, PSTR(""), PSTR(""), PSTR(""));
     Alert(128, nil);  /* Error alert dialog */
 
     return noErr;

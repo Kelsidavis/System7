@@ -695,7 +695,7 @@ SInt16 ProcessDiskInsertion(SInt16 driveNumber, const char* volumeName)
     diskInfo.eventTime = TickCount();
 
     if (volumeName) {
-        strncpy(diskInfo.volumeName, volumeName, sizeof(diskInfo.volumeName) - 1);
+        strncpy((char*)diskInfo.volumeName, volumeName, sizeof(diskInfo.volumeName) - 1);
         diskInfo.volumeName[sizeof(diskInfo.volumeName) - 1] = '\0';
     }
 
