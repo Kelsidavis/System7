@@ -821,6 +821,20 @@ extern void M68K_Op_SBCD(M68KAddressSpace* as, UInt16 opcode);
 extern void M68K_Op_NBCD(M68KAddressSpace* as, UInt16 opcode);
 extern void M68K_Op_MOVEP(M68KAddressSpace* as, UInt16 opcode);
 extern void M68K_Op_CMPM(M68KAddressSpace* as, UInt16 opcode);
+/* The 68020's (M68K68020.c) */
+extern void M68K_Op_MULL(M68KAddressSpace* as, UInt16 opcode);
+extern void M68K_Op_DIVL(M68KAddressSpace* as, UInt16 opcode);
+extern void M68K_Op_EXTB(M68KAddressSpace* as, UInt16 opcode);
+extern void M68K_Op_LINKL(M68KAddressSpace* as, UInt16 opcode);
+extern void M68K_Op_CHKL(M68KAddressSpace* as, UInt16 opcode);
+extern void M68K_Op_CMP2(M68KAddressSpace* as, UInt16 opcode);
+extern void M68K_Op_CAS(M68KAddressSpace* as, UInt16 opcode);
+extern void M68K_Op_Bitfield(M68KAddressSpace* as, UInt16 opcode);
+extern void M68K_Op_PACK(M68KAddressSpace* as, UInt16 opcode);
+extern void M68K_Op_UNPK(M68KAddressSpace* as, UInt16 opcode);
+extern void M68K_Op_RTD(M68KAddressSpace* as, UInt16 opcode);
+extern void M68K_Op_TRAPcc(M68KAddressSpace* as, UInt16 opcode);
+extern void M68K_Op_BKPT(M68KAddressSpace* as, UInt16 opcode);
 extern void M68K_Op_ILLEGAL(M68KAddressSpace* as, UInt16 opcode);
 extern void M68K_Op_RESET(M68KAddressSpace* as, UInt16 opcode);
 extern void M68K_Op_TRAPV(M68KAddressSpace* as, UInt16 opcode);
@@ -866,7 +880,14 @@ OSErr M68K_Step(M68KAddressSpace* as)
         /* 0xxx - Bit manipulation, MOVEP, immediate. MOVEP is a bit
          * operation's encoding with An as the operand, which no bit
          * operation takes - so it is told apart first. */
-        if ((opcode & 0xF138) == 0x0108) {
+        /* The 68020's, inside size-11 encodings that were otherwise not
+         * instructions: CMP2/CHK2 (ORI, ANDI, SUBI .s=11) and CAS/CAS2
+         * (EORI, CMPI .s=11, and 0x0EC0) */
+        if ((opcode & 0xF9C0) == 0x00C0 && ((opcode >> 9) & 3) != 3) {
+            M68K_Op_CMP2(as, opcode);
+        } else if ((opcode & 0xF9C0) == 0x08C0 && ((opcode >> 9) & 3) != 0) {
+            M68K_Op_CAS(as, opcode);
+        } else if ((opcode & 0xF138) == 0x0108) {
             M68K_Op_MOVEP(as, opcode);
         } else if ((opcode & 0xF1C0) == 0x0100) {
             /* BTST with register */
@@ -965,6 +986,27 @@ OSErr M68K_Step(M68KAddressSpace* as)
             } else {
                 M68K_Op_MOVE(as, opcode);
             }
+        } else if ((opcode & 0xFFF8) == 0x49C0) {
+            /* EXTB.L - LEA's pattern with a data register */
+            M68K_Op_EXTB(as, opcode);
+        } else if ((opcode & 0xFFC0) == 0x4C00) {
+            /* MULS.L, MULU.L */
+            M68K_Op_MULL(as, opcode);
+        } else if ((opcode & 0xFFC0) == 0x4C40) {
+            /* DIVS.L, DIVU.L */
+            M68K_Op_DIVL(as, opcode);
+        } else if ((opcode & 0xFFF8) == 0x4808) {
+            /* LINK.L - NBCD's pattern with an address register */
+            M68K_Op_LINKL(as, opcode);
+        } else if ((opcode & 0xFFF8) == 0x4848) {
+            /* BKPT - PEA's pattern with a data register past SWAP's */
+            M68K_Op_BKPT(as, opcode);
+        } else if ((opcode & 0xF1C0) == 0x4100) {
+            /* CHK.L */
+            M68K_Op_CHKL(as, opcode);
+        } else if ((opcode & 0xFFFF) == 0x4E74) {
+            /* RTD */
+            M68K_Op_RTD(as, opcode);
         } else if ((opcode & 0xF1C0) == 0x41C0) {
             /* LEA */
             M68K_Op_LEA(as, opcode);
@@ -1065,7 +1107,10 @@ OSErr M68K_Step(M68KAddressSpace* as)
         }
     } else if ((opcode & 0xF000) == 0x5000) {
         /* 5xxx - Scc, DBcc, ADDQ, SUBQ */
-        if ((opcode & 0xF0C0) == 0x50C0) {
+        if ((opcode & 0xF0F8) == 0x50F8 && (opcode & 7) >= 2 && (opcode & 7) <= 4) {
+            /* TRAPcc - Scc's pattern with an immediate or no operand */
+            M68K_Op_TRAPcc(as, opcode);
+        } else if ((opcode & 0xF0C0) == 0x50C0) {
             /* Scc or DBcc - both have 0101 cccc 11xx xxxx pattern */
             if ((opcode & 0x0038) == 0x0008) {
                 /* DBcc - register mode (bits 5-3 = 001) */
@@ -1107,6 +1152,12 @@ OSErr M68K_Step(M68KAddressSpace* as)
         } else if ((opcode & 0xF1F0) == 0x8100) {
             /* SBCD - subtract decimal with extend */
             M68K_Op_SBCD(as, opcode);
+        } else if ((opcode & 0xF1F0) == 0x8140) {
+            /* PACK - OR's pattern to a data register */
+            M68K_Op_PACK(as, opcode);
+        } else if ((opcode & 0xF1F0) == 0x8180) {
+            /* UNPK */
+            M68K_Op_UNPK(as, opcode);
         } else {
             /* OR */
             M68K_Op_OR(as, opcode);
@@ -1191,6 +1242,11 @@ OSErr M68K_Step(M68KAddressSpace* as)
          * plain LSL never ran: it was dispatched to ROL, and LSR, ASL, ROXL
          * and ROXR were unreachable.
          */
+        if ((opcode & 0xF8C0) == 0xE8C0) {
+            /* The 68020's bit fields: a memory shift's pattern with bit 11 */
+            M68K_Op_Bitfield(as, opcode);
+            return noErr;
+        }
         UInt8 type = (opcode >> 3) & 3;
         Boolean left = (opcode & 0x0100) != 0;
 

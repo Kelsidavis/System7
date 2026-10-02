@@ -770,9 +770,9 @@ TRAP(Trap_SysEnvirons) {
     UNUSED;
     UInt32 r = A(0);
     W16(r + 0, 2);              /* environsVersion */
-    W16(r + 2, 4);              /* machineType: a Macintosh Plus, by its traps */
+    W16(r + 2, 4);              /* machineType: envMacII */
     W16(r + 4, 0x0710);         /* systemVersion */
-    W16(r + 6, 1);              /* processor: 68000 */
+    W16(r + 6, 3);              /* processor: env68020 - the interpreter runs its code */
     W8(r + 8, 0);               /* hasFPU */
     W8(r + 9, 0);               /* hasColorQD */
     W16(r + 10, 4);             /* keyBoardType: Mac Plus keyboard */
@@ -788,7 +788,8 @@ TRAP(Trap_Gestalt) {
     switch (D(0)) {
         case 'sysv': A(0) = 0x0710; D(0) = 0; break;
         case 'qd  ': A(0) = 0x0000; D(0) = 0; break;   /* original QuickDraw */
-        case 'proc': A(0) = 1;      D(0) = 0; break;   /* 68000 */
+        case 'proc': A(0) = 3;      D(0) = 0; break;   /* gestalt68020 */
+        case 'cput': A(0) = 2;      D(0) = 0; break;   /* gestaltCPU68020 */
         case 'fpu ': A(0) = 0;      D(0) = 0; break;
         case 'addr': A(0) = 0;      D(0) = 0; break;   /* 24-bit */
         case 'ram ': A(0) = M68K_MAX_ADDR; D(0) = 0; break;
@@ -1044,6 +1045,7 @@ OSErr M68KToolbox_Prepare(SegmentLoaderContext* ctx, ConstStr255Param appName,
     W32(LMG_HeapEnd, heap + kHeapSize);
     W32(LMG_ApplLimit, heap + kHeapSize);
     W16(kLM_ROM85, 0x7FFF);                 /* 128K ROM, no Color QuickDraw */
+    W8(0x012F, 2);                          /* CPUFlag: a 68020 */
     W16(kLM_CurApRefNum, (UInt16)resRefNum);
     /* Opened from the Finder with no documents: message appOpen, count 0
      * (IM II-57). CountAppFiles and GetAppFiles are glue that read this

@@ -1477,6 +1477,16 @@ static void Test_M68K_Icons(void) {
     RecordTest(test_name, true, "");
 }
 
+extern Boolean M68KToolbox_Run68020Test(const char** why);
+
+/* The 68020's instructions and addressing modes, run by a 68K program */
+static void Test_M68K_68020(void) {
+    const char* test_name = "M68K_68020";
+    const char* why = "";
+    CHECK(M68KToolbox_Run68020Test(&why), why);
+    RecordTest(test_name, true, "");
+}
+
 static void Test_M68K_Traps(void) {
     const char* test_name = "M68K_Traps";
     const char* why = "";
@@ -1649,6 +1659,7 @@ void IntegrationTests_Run(void) {
     Test_M68K_Timers();
     Test_M68K_Icons();
     Test_M68K_Launch();
+    Test_M68K_68020();
 
     PrintTestSummary();
 }

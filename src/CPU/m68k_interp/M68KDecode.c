@@ -79,6 +79,13 @@ UInt16 M68K_Fetch16(M68KAddressSpace* as)
 
     as->regs.pc &= M68K_MAX_ADDR - 1;       /* 24-bit, as everywhere */
 
+    /* Instructions are words, on every 68K: a jump to an odd address is an
+     * address error even on the 68020, which lets data be anywhere */
+    if (as->regs.pc & 1) {
+        M68K_Fault(as, "Address error: instruction fetch from an odd address");
+        return 0x4E71;                      /* a NOP: the fault has stopped it */
+    }
+
     b0 = M68K_Read8(as, as->regs.pc);
     b1 = M68K_Read8(as, as->regs.pc + 1);
     value = (b0 << 8) | b1;
@@ -128,12 +135,8 @@ UInt16 M68K_Read16(M68KAddressSpace* as, UInt32 addr)
 {
     UInt8 b0, b1;
 
-    /* Check word alignment */
-    if (addr & 1) {
-        M68K_LOG_ERROR("ADDRESS ERROR: Read16 PC=0x%08X EA=0x%08X (odd address)\\n", as->regs.pc, addr);
-        M68K_Fault(as, "Address error: Read16 odd address");
-        return 0;
-    }
+    /* Any address: the 68020 reads and writes words and longs at odd
+     * addresses, and programs written for it count on that */
 
     b0 = M68K_Read8(as, addr);
     b1 = M68K_Read8(as, addr + 1);
@@ -147,12 +150,8 @@ UInt32 M68K_Read32(M68KAddressSpace* as, UInt32 addr)
 {
     UInt32 hi, lo;
 
-    /* Check word alignment */
-    if (addr & 1) {
-        M68K_LOG_ERROR("ADDRESS ERROR: Read32 PC=0x%08X EA=0x%08X (odd address)\\n", as->regs.pc, addr);
-        M68K_Fault(as, "Address error: Read32 odd address");
-        return 0;
-    }
+    /* Any address: the 68020 reads and writes words and longs at odd
+     * addresses, and programs written for it count on that */
 
     hi = M68K_Read16(as, addr);
     lo = M68K_Read16(as, addr + 2);
@@ -182,12 +181,8 @@ void M68K_Write8(M68KAddressSpace* as, UInt32 addr, UInt8 value)
  */
 void M68K_Write16(M68KAddressSpace* as, UInt32 addr, UInt16 value)
 {
-    /* Check word alignment */
-    if (addr & 1) {
-        M68K_LOG_ERROR("ADDRESS ERROR: Write16 PC=0x%08X EA=0x%08X (odd address)\\n", as->regs.pc, addr);
-        M68K_Fault(as, "Address error: Write16 odd address");
-        return;
-    }
+    /* Any address: the 68020 reads and writes words and longs at odd
+     * addresses, and programs written for it count on that */
 
     M68K_Write8(as, addr, (value >> 8) & 0xFF);
     M68K_Write8(as, addr + 1, value & 0xFF);
@@ -198,15 +193,73 @@ void M68K_Write16(M68KAddressSpace* as, UInt32 addr, UInt16 value)
  */
 void M68K_Write32(M68KAddressSpace* as, UInt32 addr, UInt32 value)
 {
-    /* Check word alignment */
-    if (addr & 1) {
-        M68K_LOG_ERROR("ADDRESS ERROR: Write32 PC=0x%08X EA=0x%08X (odd address)\\n", as->regs.pc, addr);
-        M68K_Fault(as, "Address error: Write32 odd address");
-        return;
-    }
+    /* Any address: the 68020 reads and writes words and longs at odd
+     * addresses, and programs written for it count on that */
 
     M68K_Write16(as, addr, value >> 16);
     M68K_Write16(as, addr + 2, value & 0xFFFF);
+}
+
+/*
+ * Indexed addressing: (d8,An,Xn) and (d8,PC,Xn), and everything the 68020
+ * put behind the same two modes.
+ *
+ * The extension word's bit 8 says which form. Clear, it is the brief form:
+ * an 8-bit displacement and an index register, scaled by 1, 2, 4 or 8
+ * (bits 10-9; the 68000 ignored them, and compilers for it leave them 0).
+ * Set, it is the full form (MC68020 User's Manual 2.2): the base register
+ * and the index each suppressible, a 16- or 32-bit base displacement, and
+ * optionally a long read through memory - before the index is added
+ * (preindexed) or after (postindexed) - with an outer displacement.
+ *
+ * 'base' is An, or the address of the extension word for the PC forms.
+ * The brief form's scale bits were ignored here, and a full extension word
+ * was read as a brief one: 68020 code ran on with addresses that were not
+ * the ones it meant.
+ */
+static UInt32 M68K_IndexedAddress(M68KAddressSpace* as, UInt32 base)
+{
+    UInt16 ext = M68K_Fetch16(as);
+    UInt8 xn = (ext >> 12) & 0xF;
+    SInt32 index = (xn & 8) ? (SInt32)as->regs.a[xn & 7] : (SInt32)as->regs.d[xn & 7];
+    if (!(ext & 0x0800)) index = SIGN_EXTEND_WORD(index & 0xFFFF);
+    index *= 1 << ((ext >> 9) & 3);
+
+    if (!(ext & 0x0100)) {
+        return base + SIGN_EXTEND_BYTE(ext & 0xFF) + index;
+    }
+
+    if (ext & 0x0080) base = 0;                     /* BS: base suppressed */
+    if (ext & 0x0040) index = 0;                    /* IS: index suppressed */
+    SInt32 bd = 0;
+    switch ((ext >> 4) & 3) {
+        case 2: bd = SIGN_EXTEND_WORD(M68K_Fetch16(as)); break;
+        case 3: bd = (SInt32)M68K_Fetch32(as); break;
+        case 1: break;                              /* null displacement */
+        default:
+            M68K_Fault(as, "reserved base displacement size in extension word");
+            return 0;
+    }
+    UInt8 iis = ext & 7;
+    if (iis == 0) return base + bd + index;         /* no memory indirection */
+    if ((ext & 0x0040) && iis > 3) {
+        M68K_Fault(as, "reserved indirection in extension word");
+        return 0;
+    }
+    if (iis == 4) {
+        M68K_Fault(as, "reserved indirection in extension word");
+        return 0;
+    }
+    SInt32 od = 0;
+    switch (iis & 3) {
+        case 2: od = SIGN_EXTEND_WORD(M68K_Fetch16(as)); break;
+        case 3: od = (SInt32)M68K_Fetch32(as); break;
+        default: break;                             /* null outer displacement */
+    }
+    if (iis & 4) {                                  /* postindexed: ([bd,base],Xn,od) */
+        return M68K_Read32(as, base + bd) + index + od;
+    }
+    return M68K_Read32(as, base + bd + index) + od; /* preindexed: ([bd,base,Xn],od) */
 }
 
 /*
@@ -216,10 +269,7 @@ void M68K_Write32(M68KAddressSpace* as, UInt32 addr, UInt32 value)
 UInt32 M68K_EA_ComputeAddress(M68KAddressSpace* as, UInt8 mode, UInt8 reg, M68KSize size)
 {
     UInt32 addr;
-    UInt16 ext;
     SInt16 disp;
-    UInt8 xn_reg, xn_type;
-    SInt32 index;
 
     switch (mode) {
         case MODE_Dn:
@@ -253,24 +303,8 @@ UInt32 M68K_EA_ComputeAddress(M68KAddressSpace* as, UInt8 mode, UInt8 reg, M68KS
             return as->regs.a[reg] + disp;
 
         case MODE_An_INDEX:
-            /* d8(An,Xn) */
-            ext = M68K_Fetch16(as);
-            disp = SIGN_EXTEND_BYTE(ext & 0xFF);
-            xn_reg = (ext >> 12) & 0xF;
-            xn_type = (ext >> 15) & 1;  /* 0=Dn, 1=An */
-
-            if (xn_type) {
-                index = as->regs.a[xn_reg & 7];
-            } else {
-                index = as->regs.d[xn_reg & 7];
-            }
-
-            /* Check index size (bit 11: 0=sign-extend word, 1=long) */
-            if (!(ext & 0x800)) {
-                index = SIGN_EXTEND_WORD(index & 0xFFFF);
-            }
-
-            return as->regs.a[reg] + disp + index;
+            /* (d8,An,Xn), and the 68020's forms */
+            return M68K_IndexedAddress(as, as->regs.a[reg]);
 
         case MODE_OTHER:
             switch (reg) {
@@ -290,25 +324,10 @@ UInt32 M68K_EA_ComputeAddress(M68KAddressSpace* as, UInt8 mode, UInt8 reg, M68KS
                     return addr + disp;
 
                 case OTHER_PC_INDEX:
-                    /* d8(PC,Xn) */
+                    /* (d8,PC,Xn), and the 68020's forms: PC is the
+                     * extension word's address */
                     M68K_LogOnce(&g_pcRelLogged, "PC-rel enabled: (d16,PC) & (d8,PC,Xn)");
-                    addr = as->regs.pc;
-                    ext = M68K_Fetch16(as);
-                    disp = SIGN_EXTEND_BYTE(ext & 0xFF);
-                    xn_reg = (ext >> 12) & 0xF;
-                    xn_type = (ext >> 15) & 1;
-
-                    if (xn_type) {
-                        index = as->regs.a[xn_reg & 7];
-                    } else {
-                        index = as->regs.d[xn_reg & 7];
-                    }
-
-                    if (!(ext & 0x800)) {
-                        index = SIGN_EXTEND_WORD(index & 0xFFFF);
-                    }
-
-                    return addr + disp + index;
+                    return M68K_IndexedAddress(as, as->regs.pc);
 
                 case OTHER_IMMEDIATE:
                     /* #<data> - return PC, caller fetches immediate */

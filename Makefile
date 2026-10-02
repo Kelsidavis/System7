@@ -456,6 +456,7 @@ C_SOURCES = src/main.c \
             src/CPU/CPUBackend.c \
             src/CPU/m68k_interp/M68KBackend.c \
             src/CPU/m68k_interp/M68KDecode.c \
+            src/CPU/m68k_interp/M68K68020.c \
             src/CPU/m68k_interp/M68KOpcodes.c \
             src/CPU/m68k_interp/LowMemGlobals.c \
             src/CPU/m68k_interp/M68KTrapNames.c \

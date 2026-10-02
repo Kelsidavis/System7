@@ -210,6 +210,21 @@ extern void M68K_Op_NOP(M68KAddressSpace* as, UInt16 opcode);
 
 /* Bit manipulation */
 extern void M68K_Op_EXT(M68KAddressSpace* as, UInt16 opcode);
+
+/* The 68020's (M68K68020.c) */
+extern void M68K_Op_MULL(M68KAddressSpace* as, UInt16 opcode);
+extern void M68K_Op_DIVL(M68KAddressSpace* as, UInt16 opcode);
+extern void M68K_Op_EXTB(M68KAddressSpace* as, UInt16 opcode);
+extern void M68K_Op_LINKL(M68KAddressSpace* as, UInt16 opcode);
+extern void M68K_Op_CHKL(M68KAddressSpace* as, UInt16 opcode);
+extern void M68K_Op_CMP2(M68KAddressSpace* as, UInt16 opcode);
+extern void M68K_Op_CAS(M68KAddressSpace* as, UInt16 opcode);
+extern void M68K_Op_Bitfield(M68KAddressSpace* as, UInt16 opcode);
+extern void M68K_Op_PACK(M68KAddressSpace* as, UInt16 opcode);
+extern void M68K_Op_UNPK(M68KAddressSpace* as, UInt16 opcode);
+extern void M68K_Op_RTD(M68KAddressSpace* as, UInt16 opcode);
+extern void M68K_Op_TRAPcc(M68KAddressSpace* as, UInt16 opcode);
+extern void M68K_Op_BKPT(M68KAddressSpace* as, UInt16 opcode);
 extern void M68K_Op_SWAP(M68KAddressSpace* as, UInt16 opcode);
 extern void M68K_Op_EXG(M68KAddressSpace* as, UInt16 opcode);
 extern void M68K_Op_BTST(M68KAddressSpace* as, UInt16 opcode);

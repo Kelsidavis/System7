@@ -25,6 +25,7 @@ Boolean M68KToolbox_RunListTest(const char** why);
 Boolean M68KToolbox_RunWindowTest(const char** why);
 Boolean M68KToolbox_RunTimerTest(const char** why);
 Boolean M68KToolbox_RunIconTest(const char** why);
+Boolean M68KToolbox_Run68020Test(const char** why);
 
 enum { kAsmWords = 512 };           /* the code area's size, in words */
 typedef struct {
@@ -656,6 +657,204 @@ Boolean M68KToolbox_RunIconTest(const char** why)
     if (ran != noErr) { *why = "the program stopped with a fault"; return false; }
     if (!errs)        { *why = "PlotIconHandle answered an error"; return false; }
     if (!plain || !selected) { *why = detail; return false; }
+    *why = "";
+    return true;
+}
+
+/* ------------------------------------------------------------------------
+ * The 68020's instructions and addressing modes
+ * ------------------------------------------------------------------------ */
+
+enum {
+    kXTable = 0x00,                 /* 4 longs: 0x11111111, 0x22222222, ... */
+    kXPtr = 0x10,                   /* the table's address */
+    kXPtrs = 0x14,                  /* 4 longs; [3] = &table[1] */
+    kXBits = 0x24,                  /* 0x0F 0xF0 */
+    kXBits2 = 0x28,                 /* 4 zero bytes, a field put into them */
+    kXCas = 0x2C, kXCas2 = 0x30,
+    kXBounds = 0x34,                /* 10, 20 */
+    kXOdd = 0x3C,                   /* 0x11223344 at kXOdd + 1 */
+    kXOut = 0x80                    /* results, a long each */
+};
+
+enum {
+    rScaled, rPost, rPre, rMulLo, rMulHi, rMulsSR, rDivQ, rDivR, rDivuQ, rDivuR,
+    rExtb, rBfextu, rBfexts, rBfffo, rBfset, rCasMem, rCasDc, rCmpIn, rCmpOut,
+    rPack, rUnpk, rSkipped, rLinkSP, rLinkSP0, rRtdSP, rRtdSP0, rOdd, rProc, rCount
+};
+
+static void StoreD(Asm* a, UInt32 d, int dn, int slot) {     /* MOVE.L Dn,out[slot] */
+    W(a, (UInt16)(0x23C0 | dn)); L(a, d + kXOut + 4 * (UInt32)slot);
+}
+static void StoreSR(Asm* a, UInt32 d, int slot) {            /* MOVE SR,D7; MOVE.L D7,slot */
+    W(a, 0x40C7); StoreD(a, d, 7, slot);
+}
+static void MoveqTo(Asm* a, int dn, SInt8 v) { W(a, (UInt16)(0x7000 | (dn << 9) | (UInt8)v)); }
+static void MoveL(Asm* a, int dn, UInt32 v) { W(a, (UInt16)(0x203C | (dn << 9))); L(a, v); }
+
+Boolean M68KToolbox_Run68020Test(const char** why)
+{
+    World w;
+    if (!WorldBegin(&w, why)) return false;
+    UInt32 d = w.data, sub = w.code + 0x3C0;
+    for (UInt32 i = 0; i < 0x80 + 4 * rCount; i += 4) M68K_Write32(gM68KApp, d + i, 0);
+    for (UInt32 i = 0; i < 4; i++) M68K_Write32(gM68KApp, d + kXTable + 4 * i, 0x11111111u * (i + 1));
+    M68K_Write32(gM68KApp, d + kXPtr, d + kXTable);
+    M68K_Write32(gM68KApp, d + kXPtrs + 12, d + kXTable + 4);
+    M68K_Write8(gM68KApp, d + kXBits, 0x0F);
+    M68K_Write8(gM68KApp, d + kXBits + 1, 0xF0);
+    M68K_Write32(gM68KApp, d + kXCas, 5);
+    M68K_Write32(gM68KApp, d + kXCas2, 9);
+    M68K_Write32(gM68KApp, d + kXBounds, 10);
+    M68K_Write32(gM68KApp, d + kXBounds + 4, 20);
+    M68K_Write8(gM68KApp, d + kXOdd + 1, 0x11);
+    M68K_Write8(gM68KApp, d + kXOdd + 2, 0x22);
+    M68K_Write8(gM68KApp, d + kXOdd + 3, 0x33);
+    M68K_Write8(gM68KApp, d + kXOdd + 4, 0x44);
+    /* The RTD subroutine: RTD #4 */
+    M68K_Write16(gM68KApp, sub, 0x4E74);
+    M68K_Write16(gM68KApp, sub + 2, 4);
+
+    Asm a;
+    a.n = 0;
+    /* (0,A0,D1.L*4): table[3] */
+    W(&a, 0x207C); L(&a, d + kXTable);                  /* MOVEA.L #table,A0 */
+    MoveqTo(&a, 1, 3);
+    W(&a, 0x2430); W(&a, 0x1C00);                       /* MOVE.L (0,A0,D1.L*4),D2 */
+    StoreD(&a, d, 2, rScaled);
+    /* ([4,A1],D1.L*2,2): through the pointer, then index and outer: table[2] */
+    W(&a, 0x227C); L(&a, d + kXPtr - 4);                /* MOVEA.L #ptr-4,A1 */
+    W(&a, 0x2631); W(&a, 0x1B26); W(&a, 4); W(&a, 2);   /* MOVE.L ([4,A1],D1.L*2,2),D3 */
+    StoreD(&a, d, 3, rPost);
+    /* ([A2,D1.L*4]): ptrs[3], which is &table[1] */
+    W(&a, 0x247C); L(&a, d + kXPtrs);                   /* MOVEA.L #ptrs,A2 */
+    W(&a, 0x2832); W(&a, 0x1D11);                       /* MOVE.L ([A2,D1.L*4]),D4 */
+    StoreD(&a, d, 4, rPre);
+    /* MULU.L #$9ABCDEF0,D6:D5 with D5 = $12345678 */
+    MoveL(&a, 5, 0x12345678);
+    W(&a, 0x4C3C); W(&a, 0x5406); L(&a, 0x9ABCDEF0);
+    StoreD(&a, d, 5, rMulLo); StoreD(&a, d, 6, rMulHi);
+    /* MULS.L #-2,D0 with D0 = $40000001: overflows, V */
+    MoveL(&a, 0, 0x40000001);
+    W(&a, 0x4C3C); W(&a, 0x0800); L(&a, 0xFFFFFFFE);
+    StoreSR(&a, d, rMulsSR);
+    /* DIVS.L #7,D1:D0 with D1:D0 = -100: -14 remainder -2 */
+    MoveL(&a, 1, 0xFFFFFFFF); MoveL(&a, 0, 0xFFFFFF9C);
+    W(&a, 0x4C7C); W(&a, 0x0C01); L(&a, 7);
+    StoreD(&a, d, 0, rDivQ); StoreD(&a, d, 1, rDivR);
+    /* DIVUL.L #10,D3:D2 with D2 = 1234: 123 remainder 4 */
+    MoveL(&a, 2, 1234);
+    W(&a, 0x4C7C); W(&a, 0x2003); L(&a, 10);
+    StoreD(&a, d, 2, rDivuQ); StoreD(&a, d, 3, rDivuR);
+    /* EXTB.L D0 with D0 = $F0 */
+    MoveL(&a, 0, 0xF0);
+    W(&a, 0x49C0);
+    StoreD(&a, d, 0, rExtb);
+    /* BFEXTU D0{4:8},D1 with D0 = $12345678: $23 */
+    MoveL(&a, 0, 0x12345678);
+    W(&a, 0xE9C0); W(&a, 0x1108);
+    StoreD(&a, d, 1, rBfextu);
+    /* BFEXTS bits{4:8},D2 where bits are $0F $F0: $FF, signed */
+    W(&a, 0xEBF9); W(&a, 0x2108); L(&a, d + kXBits);
+    StoreD(&a, d, 2, rBfexts);
+    /* BFINS D3,bits2{12:8} with D3 = $AB: 00 0A B0 00 */
+    MoveL(&a, 3, 0xAB);
+    W(&a, 0xEFF9); W(&a, 0x3308); L(&a, d + kXBits2);
+    /* BFFFO D4{0:32},D5 with D4 = $00400000: 9 */
+    MoveL(&a, 4, 0x00400000);
+    W(&a, 0xEDC4); W(&a, 0x5000);
+    StoreD(&a, d, 5, rBfffo);
+    /* BFSET D6{28:8} with D6 = 0: round the end, $F000000F */
+    MoveqTo(&a, 6, 0);
+    W(&a, 0xEEC6); W(&a, 0x0708);
+    StoreD(&a, d, 6, rBfset);
+    /* CAS.L D0,D1,cas: 5 equals 5, 77 goes in. CAS.L D2,D3,cas2: 1 is not
+     * 9, so D2 gets 9 */
+    MoveqTo(&a, 0, 5); MoveqTo(&a, 1, 77);
+    W(&a, 0x0EF9); W(&a, 0x0040); L(&a, d + kXCas);
+    MoveqTo(&a, 2, 1); MoveqTo(&a, 3, 50);
+    W(&a, 0x0EF9); W(&a, 0x00C2); L(&a, d + kXCas2);
+    StoreD(&a, d, 2, rCasDc);
+    /* CMP2.L bounds,D0: 15 within [10,20]; 25 not */
+    MoveqTo(&a, 0, 15);
+    W(&a, 0x04F9); W(&a, 0x0000); L(&a, d + kXBounds);
+    StoreSR(&a, d, rCmpIn);
+    MoveqTo(&a, 0, 25);
+    W(&a, 0x04F9); W(&a, 0x0000); L(&a, d + kXBounds);
+    StoreSR(&a, d, rCmpOut);
+    /* PACK D0,D1,#0 with D0 = $0305: $35. UNPK D1,D2,#$3030: $3335 */
+    MoveL(&a, 0, 0x0305); MoveqTo(&a, 1, 0);
+    W(&a, 0x8340); W(&a, 0);
+    StoreD(&a, d, 1, rPack);
+    MoveqTo(&a, 2, 0);
+    W(&a, 0x8581); W(&a, 0x3030);
+    StoreD(&a, d, 2, rUnpk);
+    /* BRA.L over a MOVE that would mark it not taken */
+    W(&a, 0x60FF); L(&a, 12);
+    W(&a, 0x33FC); W(&a, 1); L(&a, d + kXOut + 4 * rSkipped);
+    /* LINK.L A6,#-$100, the SP it leaves, UNLK */
+    W(&a, 0x23CF); L(&a, d + kXOut + 4 * rLinkSP0);     /* MOVE.L A7,before */
+    W(&a, 0x480E); L(&a, 0xFFFFFF00);
+    W(&a, 0x23CF); L(&a, d + kXOut + 4 * rLinkSP);
+    W(&a, 0x4E5E);                                      /* UNLK A6 */
+    /* An argument pushed, JSR to RTD #4: the stack as it was */
+    W(&a, 0x23CF); L(&a, d + kXOut + 4 * rRtdSP0);
+    W(&a, 0x2F3C); L(&a, 0);                            /* MOVE.L #0,-(SP) */
+    W(&a, 0x4EB9); L(&a, sub);                          /* JSR sub */
+    W(&a, 0x23CF); L(&a, d + kXOut + 4 * rRtdSP);
+    /* TRAPF: never traps */
+    W(&a, 0x51FC);
+    /* A long at an odd address */
+    W(&a, 0x2039); L(&a, d + kXOdd + 1);                /* MOVE.L odd,D0 */
+    StoreD(&a, d, 0, rOdd);
+    /* Gestalt('proc') */
+    MoveL(&a, 0, 0x70726F63);
+    W(&a, 0xA1AD);
+    W(&a, 0x2008);                                      /* MOVE.L A0,D0 */
+    StoreD(&a, d, 0, rProc);
+    W(&a, 0xA9F4);
+
+    OSErr ran = (UInt32)a.n * 2 > 0x3C0 ? paramErr : WorldRun(&w, &a);
+    M68KAddressSpace* as = gM68KApp;
+    UInt32 r[rCount];
+    for (int i = 0; i < rCount; i++) r[i] = M68K_Read32(as, d + kXOut + 4 * (UInt32)i);
+    UInt64 product = (UInt64)0x12345678 * 0x9ABCDEF0;
+    UInt32 bits2 = M68K_Read32(as, d + kXBits2);
+    UInt32 cas = M68K_Read32(as, d + kXCas);
+    WorldEnd(&w);
+
+    static char detail[96];
+    struct { Boolean ok; const char* what; } checks[] = {
+        { r[rScaled] == 0x44444444, "scaled index (0,A0,D1.L*4)" },
+        { r[rPost] == 0x33333333, "postindexed memory indirect ([4,A1],D1.L*2,2)" },
+        { r[rPre] == 0x22222222, "preindexed memory indirect ([A2,D1.L*4])" },
+        { r[rMulLo] == (UInt32)product && r[rMulHi] == (UInt32)(product >> 32), "MULU.L 64-bit" },
+        { (r[rMulsSR] & 0x02) != 0, "MULS.L overflow did not set V" },
+        { r[rDivQ] == (UInt32)-14 && r[rDivR] == (UInt32)-2, "DIVS.L 64-bit dividend" },
+        { r[rDivuQ] == 123 && r[rDivuR] == 4, "DIVUL.L" },
+        { r[rExtb] == 0xFFFFFFF0, "EXTB.L" },
+        { r[rBfextu] == 0x23, "BFEXTU from a register" },
+        { r[rBfexts] == 0xFFFFFFFF, "BFEXTS from memory" },
+        { bits2 == 0x000AB000, "BFINS into memory" },
+        { r[rBfffo] == 9, "BFFFO" },
+        { r[rBfset] == 0xF000000F, "BFSET wrapping round a register" },
+        { cas == 77 && r[rCasDc] == 9, "CAS" },
+        { (r[rCmpIn] & 0x05) == 0 && (r[rCmpOut] & 0x01) != 0, "CMP2" },
+        { (r[rPack] & 0xFF) == 0x35 && (r[rUnpk] & 0xFFFF) == 0x3335, "PACK and UNPK" },
+        { r[rSkipped] == 0, "BRA.L did not branch over" },
+        { r[rLinkSP] == r[rLinkSP0] - 4 - 0x100, "LINK.L" },
+        { r[rRtdSP] == r[rRtdSP0], "RTD did not take its argument off" },
+        { r[rOdd] == 0x11223344, "a long at an odd address" },
+        { r[rProc] == 3, "Gestalt does not say a 68020" },
+    };
+    if (ran != noErr) { *why = "the program stopped with a fault"; return false; }
+    for (unsigned i = 0; i < sizeof(checks) / sizeof(checks[0]); i++) {
+        if (!checks[i].ok) {
+            snprintf(detail, sizeof(detail), "%s", checks[i].what);
+            *why = detail;
+            return false;
+        }
+    }
     *why = "";
     return true;
 }

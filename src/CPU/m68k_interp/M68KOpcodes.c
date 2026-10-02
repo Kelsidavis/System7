@@ -563,6 +563,8 @@ static UInt32 BranchDisplacement(M68KAddressSpace* as, UInt16 opcode, SInt32* di
     *disp = (SInt8)(opcode & 0xFF);
     if (*disp == 0) {
         *disp = SIGN_EXTEND_WORD(M68K_Fetch16(as));
+    } else if ((opcode & 0xFF) == 0xFF) {
+        *disp = (SInt32)M68K_Fetch32(as);       /* the 68020's 32-bit displacement */
     }
     return base;
 }
