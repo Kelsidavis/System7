@@ -1215,7 +1215,6 @@ OSErr FM_SetProcessOwner(FileRefNum refNum, UInt32 processID)
 
 OSErr FM_ReleaseProcessFiles(UInt32 processID)
 {
-    int closedCount = 0;
 
 
     /* Close all files owned by this process */
@@ -1223,7 +1222,6 @@ OSErr FM_ReleaseProcessFiles(UInt32 processID)
         FCB* fcb = &g_FSGlobals.fcbArray[i];
         if (fcb->base.fcbFlNm != 0 && fcb->fcbProcessID == processID) {
             FCB_Close(fcb);
-            closedCount++;
         }
     }
 

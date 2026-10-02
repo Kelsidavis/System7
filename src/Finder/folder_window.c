@@ -474,8 +474,8 @@ static DirID FW_ControlPanelsDir(void)
 static void InitializeFolderContentsEx(WindowPtr w, Boolean isTrash, VRefNum vref, DirID dirID) {
         FolderWindowState* state = NULL;
 
-    FINDER_LOG_DEBUG("InitializeFolderContentsEx: ENTRY, w=0x%08x isTrash=%d vref=%d dirID=%d\n",
-                 (unsigned int)w, (int)isTrash, (int)vref, (int)dirID);
+    FINDER_LOG_DEBUG("InitializeFolderContentsEx: ENTRY, w=0x%08x isTrash=%d vref=%ld dirID=%ld\n",
+                 (unsigned int)w, (int)isTrash, (long)vref, (long)dirID);
 
     /* Find the state we just created */
     for (int i = 0; i < MAX_FOLDER_WINDOWS; i++) {
@@ -510,8 +510,8 @@ static void InitializeFolderContentsEx(WindowPtr w, Boolean isTrash, VRefNum vre
         OSErr err = FindFolder(kOnSystemDisk, kTrashFolderType, kDontCreateFolder, &trashVRefNum, &trashDirID);
 
         if (err != noErr || trashDirID == 0) {
-            FINDER_LOG_DEBUG("InitializeFolderContentsEx: FindFolder failed or returned invalid ID, err=%d dirID=%d\n",
-                         err, (int)trashDirID);
+            FINDER_LOG_DEBUG("InitializeFolderContentsEx: FindFolder failed or returned invalid ID, err=%d dirID=%ld\n",
+                         err, (long)trashDirID);
             state->itemCount = 0;
             state->items = NULL;
             return;
@@ -573,8 +573,8 @@ static void InitializeFolderContentsEx(WindowPtr w, Boolean isTrash, VRefNum vre
             state->items[i].isAlias = Finder_IsAliasEntry(&entries[i]);
             state->items[i].creator = entries[i].creator;
 
-            FINDER_LOG_DEBUG("InitializeFolderContentsEx: trash item %d: %s (id=%d, folder=%d)\n",
-                         i, state->items[i].name, (int)state->items[i].fileID, state->items[i].isFolder);
+            FINDER_LOG_DEBUG("InitializeFolderContentsEx: trash item %d: %s (id=%ld, folder=%d)\n",
+                         i, state->items[i].name, (long)state->items[i].fileID, state->items[i].isFolder);
         }
 
         /* Lay the icons out on the shared grid. */
@@ -1055,11 +1055,11 @@ static Boolean TrackFolderItemDrag(WindowPtr w, FolderWindowState* state, short 
             state->draggingIndex = itemIndex;
             state->dragStartGlobal = startGlobal;
 
-            FINDER_LOG_DEBUG("FW: DRAG STARTED: item='%s' fileID=%d vref=%d dir=%d\n",
+            FINDER_LOG_DEBUG("FW: DRAG STARTED: item='%s' fileID=%ld vref=%ld dir=%ld\n",
                          state->items[itemIndex].name,
-                         state->items[itemIndex].fileID,
-                         state->vref,
-                         state->currentDir);
+                         (long)state->items[itemIndex].fileID,
+                         (long)state->vref,
+                         (long)state->currentDir);
 
             /* Calculate ghost rect from item position (32x32 icon) */
             FolderItem* item = &state->items[itemIndex];
@@ -2039,13 +2039,10 @@ void FolderWindow_Draw(WindowPtr w) {
         MoveTo(left, statusY);
         LineTo(right, statusY);
 
-        /* Calculate total size of items in this folder */
-        uint64_t totalSize = 0;
-        if (state->items) {
-            for (short i = 0; i < state->itemCount; i++) {
-                totalSize += state->items[i].size;
-            }
-        }
+        /* Total size of the folder's contents is never shown here - the
+         * status line only reports disk space and the selection's size -
+         * so there is nothing to accumulate. Removed rather than silenced
+         * with (void)totalSize. */
 
         /* Query disk space from VFS */
         uint64_t diskUsed = 0;
@@ -2537,8 +2534,8 @@ Boolean FolderWindow_GetSelectedItem(WindowPtr w, VRefNum* outVref, FileID* outF
     *outVref = state->vref;
     *outFileID = item->fileID;
 
-    FINDER_LOG_DEBUG("FolderWindow_GetSelectedItem: vref=%d fileID=%d name=%s\n",
-                     (int)*outVref, (int)*outFileID, item->name);
+    FINDER_LOG_DEBUG("FolderWindow_GetSelectedItem: vref=%ld fileID=%ld name=%s\n",
+                     (long)*outVref, (long)*outFileID, item->name);
 
     return true;
 }
@@ -2994,8 +2991,8 @@ void FolderWindow_DuplicateSelected(WindowPtr w) {
 
         if (shouldDuplicate) {
             FolderItem* item = &state->items[i];
-            FINDER_LOG_DEBUG("FolderWindow_DuplicateSelected: Duplicating '%s' (fileID=%d)\n",
-                           item->name, item->fileID);
+            FINDER_LOG_DEBUG("FolderWindow_DuplicateSelected: Duplicating '%s' (fileID=%ld)\n",
+                           item->name, (long)item->fileID);
 
             /* Generate unique name for the copy */
             char copyName[256];
@@ -3015,7 +3012,7 @@ void FolderWindow_DuplicateSelected(WindowPtr w) {
                                   state->currentDir, copyName, &newID);
 
             if (copied && newID != 0) {
-                FINDER_LOG_DEBUG("FolderWindow_DuplicateSelected: VFS_Copy succeeded, newID=%d\n", newID);
+                FINDER_LOG_DEBUG("FolderWindow_DuplicateSelected: VFS_Copy succeeded, newID=%ld\n", (long)newID);
 
                 /* items[] is refreshed once below; the new file only needs
                  * to be remembered so it can be selected afterwards. */
@@ -3100,8 +3097,8 @@ short FolderWindow_GetSelectedAsSpecs(WindowPtr w, FSSpec** outSpecs) {
             specs[specIndex].name[0] = (unsigned char)len;
             memcpy(&specs[specIndex].name[1], item->name, len);
 
-            FINDER_LOG_DEBUG("FolderWindow_GetSelectedAsSpecs: [%d] name='%s' vref=%d parID=%d\n",
-                           specIndex, item->name, state->vref, state->currentDir);
+            FINDER_LOG_DEBUG("FolderWindow_GetSelectedAsSpecs: [%d] name='%s' vref=%ld parID=%ld\n",
+                           specIndex, item->name, (long)state->vref, (long)state->currentDir);
 
             specIndex++;
         }

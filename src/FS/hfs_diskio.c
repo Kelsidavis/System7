@@ -65,8 +65,10 @@ bool HFS_BD_InitATA(HFS_BlockDev* bd, int device_index, bool readonly) {
     bd->sectorSize = 512;
     bd->readonly = readonly;
 
-    FS_LOG_DEBUG("HFS: ATA block device initialized (size=%u MB)\n",
-                 (uint32_t)(bd->size / (1024 * 1024)));
+    /* bd->size is uint64_t: %u would pass a 4-byte int where
+     * the printf expects a long. */
+    FS_LOG_DEBUG("HFS: ATA block device initialized (size=%lu MB)\n",
+                 (unsigned long)(bd->size / (1024 * 1024)));
 
     return true;
 #endif

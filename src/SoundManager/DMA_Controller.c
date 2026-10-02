@@ -59,7 +59,8 @@ static int DMA_Setup8Bit(const void* buffer, uint32_t size) {
     uint32_t addr = (uint32_t)(uintptr_t)buffer;
 
     SND_LOG_DEBUG("DMA: Setting up 8-bit DMA on channel %d\n", channel);
-    SND_LOG_DEBUG("DMA: Buffer at 0x%08x, size %u bytes\n", addr, size);
+    /* addr/size are uint32_t: %x/%u would pass a 4-byte int to printf. */
+    SND_LOG_DEBUG("DMA: Buffer at 0x%08lx, size %lu bytes\n", (unsigned long)addr, (unsigned long)size);
 
     /* Check alignment */
     if (size > 65536) {
@@ -105,7 +106,7 @@ static int DMA_Setup16Bit(const void* buffer, uint32_t size) {
     uint32_t addr = (uint32_t)(uintptr_t)buffer;
 
     SND_LOG_DEBUG("DMA: Setting up 16-bit DMA on channel %d\n", channel);
-    SND_LOG_DEBUG("DMA: Buffer at 0x%08x, size %u bytes\n", addr, size);
+    SND_LOG_DEBUG("DMA: Buffer at 0x%08lx, size %lu bytes\n", (unsigned long)addr, (unsigned long)size);
 
     /* 16-bit DMA works in words, so size and address must be word-aligned */
     if (addr & 1) {
@@ -191,7 +192,7 @@ int SB16_PlayDMA(const uint8_t* data, uint32_t size,
         dma_count = size - 1;        /* Length in bytes */
     }
 
-    SND_LOG_DEBUG("DMA: size=%u bytes (%u bytes per frame)\n", size, sample_size);
+    SND_LOG_DEBUG("DMA: size=%lu bytes (%lu bytes per frame)\n", (unsigned long)size, (unsigned long)sample_size);
 
     /* Select DSP command based on bit depth and channels */
     uint8_t dsp_cmd;

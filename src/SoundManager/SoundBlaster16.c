@@ -230,7 +230,8 @@ void SB16_Shutdown(void) {
  */
 static bool sb16_set_sample_rate(uint32_t sample_rate) {
 
-    SND_LOG_DEBUG("SB16: Setting sample rate to %u Hz\n", sample_rate);
+    /* sample_rate is uint32_t: %u would pass a 4-byte int to printf. */
+    SND_LOG_DEBUG("SB16: Setting sample rate to %lu Hz\n", (unsigned long)sample_rate);
 
     if (!sb16_dsp_write(DSP_CMD_SET_SAMPLE_RATE)) {
         return false;
@@ -263,8 +264,8 @@ int SB16_PlayWAV(const uint8_t* data, uint32_t size,
         return -1;
     }
 
-    SND_LOG_DEBUG("SB16: Playing WAV - %u Hz, %u channels, %u bits, %u bytes\n",
-                 sample_rate, channels, bits_per_sample, size);
+    SND_LOG_DEBUG("SB16: Playing WAV - %lu Hz, %u channels, %u bits, %lu bytes\n",
+                 (unsigned long)sample_rate, channels, bits_per_sample, (unsigned long)size);
 
     /* Set sample rate */
     if (!sb16_set_sample_rate(sample_rate)) {

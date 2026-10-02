@@ -187,10 +187,14 @@ void* PPC_GetPage(PPCAddressSpace* as, UInt32 addr, Boolean allocate)
         if (page) {
             memset(page, 0, PPC_PAGE_SIZE);
             as->pageTable[pageNum] = page;
-            serial_printf("[PPC] Allocated page %u for addr 0x%08X\n", pageNum, addr);
+            /* pageNum/addr are 32-bit: %u/%X would pass 4-byte ints
+             * where the printf expects longs. */
+            serial_printf("[PPC] Allocated page %lu for addr 0x%08lX\n", (unsigned long)pageNum, (unsigned long)addr);
         } else {
-            serial_printf("[PPC] FAIL: page %u allocation failed, MemError=%d\n",
-                         pageNum, MemError());
+            /* pageNum is UInt32, MemError() is OSErr (long): %u/%d
+                         * would pass 4-byte ints to printf. */
+            serial_printf("[PPC] FAIL: page %lu allocation failed, MemError=%ld\n",
+                         (unsigned long)pageNum, (long)MemError());
         }
     }
 
@@ -424,7 +428,9 @@ static OSErr PPC_EnterAt(CPUAddressSpace as, CPUAddr entry, CPUEnterFlags flags)
         return paramErr;
     }
 
-    serial_printf("[PPC] EnterAt: entry=0x%08X flags=0x%04X\n", entry, flags);
+    /* entry/flags are 32-bit: %X/%X would pass 4-byte ints
+     * where the printf expects longs. */
+    serial_printf("[PPC] EnterAt: entry=0x%08lX flags=0x%04lX\n", (unsigned long)entry, (unsigned long)flags);
 
     /* Clear halted flag */
     pas->halted = false;
@@ -433,9 +439,11 @@ static OSErr PPC_EnterAt(CPUAddressSpace as, CPUAddr entry, CPUEnterFlags flags)
     PPC_Execute(pas, entry, max_instructions);
 
     if (pas->halted) {
-        serial_printf("[PPC] Execution halted at PC=0x%08X\n", pas->regs.pc);
+        /* pas->regs.pc is 32-bit: %X would pass a 4-byte int. */
+        serial_printf("[PPC] Execution halted at PC=0x%08lX\n", (unsigned long)pas->regs.pc);
     } else {
-        serial_printf("[PPC] Execution completed after %u instructions\n", max_instructions);
+        /* max_instructions is UInt32: %u would pass a 4-byte int. */
+        serial_printf("[PPC] Execution completed after %lu instructions\n", (unsigned long)max_instructions);
     }
 
     (void)flags; /* Unused for now */
@@ -465,8 +473,10 @@ static OSErr PPC_Relocate(CPUAddressSpace as, CPUCodeHandle code,
         return paramErr;
     }
 
-    serial_printf("[RELOC] Applying %d relocations to PowerPC segment at 0x%08X\n",
-                  relocs->count, segBase);
+    /* count is int, segBase is 32-bit: %d/%X would pass
+     * 4-byte ints where the printf expects longs. */
+    serial_printf("[RELOC] Applying %d relocations to PowerPC segment at 0x%08lX\n",
+                  relocs->count, (unsigned long)segBase);
 
     /* Apply each relocation */
     for (UInt16 i = 0; i < relocs->count; i++) {
@@ -477,8 +487,10 @@ static OSErr PPC_Relocate(CPUAddressSpace as, CPUCodeHandle code,
         UInt32 patch_pc;
 
         if (offset + 4 > phandle->size) {
-            serial_printf("[RELOC] ERROR: offset 0x%X exceeds segment size 0x%X\n",
-                         offset, phandle->size);
+            /* offset and phandle->size are 32-bit: 0x%X would pass
+                         * a 4-byte int where the printf expects a long. */
+            serial_printf("[RELOC] ERROR: offset 0x%lX exceeds segment size 0x%lX\n",
+                         (unsigned long)offset, (unsigned long)phandle->size);
             return segmentRelocErr;
         }
 
@@ -491,8 +503,10 @@ static OSErr PPC_Relocate(CPUAddressSpace as, CPUCodeHandle code,
                 codeData[offset + 1] = (value >> 16) & 0xFF;
                 codeData[offset + 2] = (value >> 8) & 0xFF;
                 codeData[offset + 3] = value & 0xFF;
-                serial_printf("[RELOC] apply kind=%s at off=0x%X -> val=0x%08X (base=0x%08X addend=%d)\n",
-                             kindName, offset, value, segBase, reloc->addend);
+                /* All four are 32-bit: %X/%d would pass 4-byte ints
+                             * where the printf expects longs. */
+                serial_printf("[RELOC] apply kind=%s at off=0x%lX -> val=0x%08lX (base=0x%08lX addend=%ld)\n",
+                             kindName, (unsigned long)offset, (unsigned long)value, (unsigned long)segBase, (long)reloc->addend);
                 break;
 
             case kRelocA5Relative:
@@ -503,8 +517,10 @@ static OSErr PPC_Relocate(CPUAddressSpace as, CPUCodeHandle code,
                 codeData[offset + 1] = (value >> 16) & 0xFF;
                 codeData[offset + 2] = (value >> 8) & 0xFF;
                 codeData[offset + 3] = value & 0xFF;
-                serial_printf("[RELOC] apply kind=%s at off=0x%X -> val=0x%08X (A5=0x%08X addend=%d)\n",
-                             kindName, offset, value, a5Base, reloc->addend);
+                /* All four are 32-bit: %X/%d would pass 4-byte ints
+                             * where the printf expects longs. */
+                serial_printf("[RELOC] apply kind=%s at off=0x%lX -> val=0x%08lX (A5=0x%08lX addend=%ld)\n",
+                             kindName, (unsigned long)offset, (unsigned long)value, (unsigned long)a5Base, (long)reloc->addend);
                 break;
 
             case kRelocJTImport:
@@ -523,8 +539,10 @@ static OSErr PPC_Relocate(CPUAddressSpace as, CPUCodeHandle code,
                 codeData[offset + 1] = (value >> 16) & 0xFF;
                 codeData[offset + 2] = (value >> 8) & 0xFF;
                 codeData[offset + 3] = value & 0xFF;
-                serial_printf("[RELOC] apply kind=%s at off=0x%X -> val=0x%08X (JT[%d])\n",
-                             kindName, offset, value, reloc->jtIndex);
+                /* All three are 32-bit: %X/%d would pass 4-byte ints
+                             * where the printf expects longs. */
+                serial_printf("[RELOC] apply kind=%s at off=0x%lX -> val=0x%08lX (JT[%ld])\n",
+                             kindName, (unsigned long)offset, (unsigned long)value, (long)reloc->jtIndex);
                 break;
 
             case kRelocPCRel16:
@@ -538,19 +556,23 @@ static OSErr PPC_Relocate(CPUAddressSpace as, CPUCodeHandle code,
                 pcrel_offset = (SInt32)value - (SInt32)patch_pc;
                 /* Check alignment (must be multiple of 4) */
                 if (pcrel_offset & 3) {
-                    serial_printf("[RELOC] ERROR: PC_REL16 not 4-byte aligned: offset=%d\n", pcrel_offset);
+                    /* pcrel_offset is SInt32 (long): %d would pass a 4-byte int. */
+                    serial_printf("[RELOC] ERROR: PC_REL16 not 4-byte aligned: offset=%ld\n", (long)pcrel_offset);
                     return segmentRelocErr;
                 }
                 /* Check 16-bit signed range (divided by 4 for instruction encoding) */
                 if (pcrel_offset < -32768 || pcrel_offset > 32767) {
-                    serial_printf("[RELOC] ERROR: PC_REL16 out of range: offset=%d\n", pcrel_offset);
+                    /* pcrel_offset is SInt32 (long): %d would pass a 4-byte int. */
+                    serial_printf("[RELOC] ERROR: PC_REL16 out of range: offset=%ld\n", (long)pcrel_offset);
                     return segmentRelocErr;
                 }
                 /* Patch as big-endian 16-bit in lower halfword of instruction */
                 codeData[offset + 2] = (pcrel_offset >> 8) & 0xFF;
                 codeData[offset + 3] = pcrel_offset & 0xFF;
-                serial_printf("[RELOC] apply kind=%s at off=0x%X -> disp=%+d (target=0x%08X PC=0x%08X)\n",
-                             kindName, offset, pcrel_offset, value, patch_pc);
+                /* All four are 32-bit: %X/%d would pass 4-byte ints
+                             * where the printf expects longs. */
+                serial_printf("[RELOC] apply kind=%s at off=0x%lX -> disp=%+ld (target=0x%08lX PC=0x%08lX)\n",
+                             kindName, (unsigned long)offset, (long)pcrel_offset, (unsigned long)value, (unsigned long)patch_pc);
                 break;
 
             case kRelocPCRel32:
@@ -561,7 +583,8 @@ static OSErr PPC_Relocate(CPUAddressSpace as, CPUCodeHandle code,
                 pcrel_offset = (SInt32)value - (SInt32)patch_pc;
                 /* Check alignment */
                 if (pcrel_offset & 3) {
-                    serial_printf("[RELOC] ERROR: PC_REL32 not 4-byte aligned: offset=%d\n", pcrel_offset);
+                    /* pcrel_offset is SInt32 (long): %d would pass a 4-byte int. */
+                    serial_printf("[RELOC] ERROR: PC_REL32 not 4-byte aligned: offset=%ld\n", (long)pcrel_offset);
                     return segmentRelocErr;
                 }
                 /* Patch 24-bit field in instruction (shift right 2 for encoding) */
@@ -569,8 +592,10 @@ static OSErr PPC_Relocate(CPUAddressSpace as, CPUCodeHandle code,
                 codeData[offset + 1] = (pcrel_offset >> 16) & 0xFF;
                 codeData[offset + 2] = (pcrel_offset >> 8) & 0xFF;
                 codeData[offset + 3] = pcrel_offset & 0xFC; /* Clear LK and AA bits */
-                serial_printf("[RELOC] apply kind=%s at off=0x%X -> disp=%+d (target=0x%08X PC=0x%08X)\n",
-                             kindName, offset, pcrel_offset, value, patch_pc);
+                /* All four are 32-bit: %X/%d would pass 4-byte ints
+                             * where the printf expects longs. */
+                serial_printf("[RELOC] apply kind=%s at off=0x%lX -> disp=%+ld (target=0x%08lX PC=0x%08lX)\n",
+                             kindName, (unsigned long)offset, (long)pcrel_offset, (unsigned long)value, (unsigned long)patch_pc);
                 break;
 
             case kRelocSegmentRef:
@@ -581,8 +606,10 @@ static OSErr PPC_Relocate(CPUAddressSpace as, CPUCodeHandle code,
                 codeData[offset + 1] = (value >> 16) & 0xFF;
                 codeData[offset + 2] = (value >> 8) & 0xFF;
                 codeData[offset + 3] = value & 0xFF;
-                serial_printf("[RELOC] apply kind=%s at off=0x%X -> val=0x%08X (seg=%d addend=%d)\n",
-                             kindName, offset, value, reloc->targetSegment, reloc->addend);
+                /* All four are 32-bit: %X/%d would pass 4-byte ints
+                             * where the printf expects longs. */
+                serial_printf("[RELOC] apply kind=%s at off=0x%lX -> val=0x%08lX (seg=%ld addend=%ld)\n",
+                             kindName, (unsigned long)offset, (unsigned long)value, (long)reloc->targetSegment, (long)reloc->addend);
                 break;
 
             default:
@@ -2232,8 +2259,10 @@ OSErr PPC_Step(PPCAddressSpace* as)
             break;
 
         default:
-            serial_printf("[PPC] ILLEGAL opcode 0x%08X (primary=0x%02X) at PC=0x%08X\n",
-                         insn, primary, as->regs.pc - 4);
+            /* insn and as->regs.pc are 32-bit: %X would pass 4-byte
+                     * ints where the printf expects longs. */
+            serial_printf("[PPC] ILLEGAL opcode 0x%08lX (primary=0x%02X) at PC=0x%08lX\n",
+                         (unsigned long)insn, primary, (unsigned long)(as->regs.pc - 4));
             PPC_Fault(as, "Illegal opcode");
             break;
     }

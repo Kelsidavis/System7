@@ -225,9 +225,11 @@ HFSFile* HFS_FileOpen(HFS_Catalog* cat, FileID id, bool resourceFork) {
 
     file->position = 0;
 
-    FS_LOG_DEBUG("HFS File: Opened file ID %u (%s fork, %u bytes)\n",
-                  id, resourceFork ? "rsrc" : "data",
-                  resourceFork ? file->rsrcSize : file->dataSize);
+    /* id and the fork size are 32-bit: %u would pass a 4-byte
+     * int where the printf expects a long. */
+    FS_LOG_DEBUG("HFS File: Opened file ID %lu (%s fork, %lu bytes)\n",
+                  (unsigned long)id, resourceFork ? "rsrc" : "data",
+                  (unsigned long)(resourceFork ? file->rsrcSize : file->dataSize));
 
     return file;
 }

@@ -28,8 +28,10 @@ static OSErr SoundBackendHDA_PlayPCM(const uint8_t* data,
                                      uint8_t channels,
                                      uint8_t bitsPerSample)
 {
-    SND_LOG_WARN("SoundBackend(HDA): PCM playback not implemented (size=%u, rate=%u, ch=%u, bits=%u)\n",
-                 sizeBytes, sampleRate, channels, bitsPerSample);
+    /* sizeBytes/sampleRate are uint32_t: %u would pass a 4-byte int
+     * where the printf expects a long. */
+    SND_LOG_WARN("SoundBackend(HDA): PCM playback not implemented (size=%lu, rate=%lu, ch=%u, bits=%u)\n",
+                 (unsigned long)sizeBytes, (unsigned long)sampleRate, channels, bitsPerSample);
     return unimpErr;
 }
 

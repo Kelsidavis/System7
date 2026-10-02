@@ -381,7 +381,9 @@ bool VFS_MountATA(int ata_device_index, const char* volName, VRefNum* vref) {
     volName = vol->name;
     VFS_FinishMount(vol);
 
-    FS_LOG_DEBUG("VFS: Mounted ATA volume '%s' as vRef %d\n", volName, vol->vref);
+    /* vol->vref is VRefNum (long on x86-32): %d would pass 4 bytes
+     * where the printf expects a long. */
+    FS_LOG_DEBUG("VFS: Mounted ATA volume '%s' as vRef %ld\n", volName, (long)vol->vref);
 
     /* Return vref */
     if (vref) {
@@ -492,7 +494,7 @@ bool VFS_MountSDHCI(int drive_index, const char* volName, VRefNum* vref) {
     vol->name[sizeof(vol->name) - 1] = '\0';
     VFS_FinishMount(vol);
 
-    FS_LOG_DEBUG("VFS: Mounted SDHCI volume '%s' as vRef %d\n", volName, vol->vref);
+    FS_LOG_DEBUG("VFS: Mounted SDHCI volume '%s' as vRef %ld\n", volName, (long)vol->vref);
 
     /* Return vref */
     if (vref) {
@@ -526,7 +528,7 @@ bool VFS_Unmount(VRefNum vref) {
     /* Mark as unmounted */
     vol->mounted = false;
 
-    FS_LOG_DEBUG("VFS: Unmounted volume vRef %d\n", vref);
+    FS_LOG_DEBUG("VFS: Unmounted volume vRef %ld\n", (long)vref);
     return true;
 }
 
@@ -725,7 +727,7 @@ VRefNum VFS_GetBootVRef(void) {
 
 bool VFS_Enumerate(VRefNum vref, DirID dir, CatEntry* entries, int maxEntries, int* count) {
 
-    FS_LOG_DEBUG("VFS_Enumerate: ENTRY vref=%d dir=%d maxEntries=%d\n", (int)vref, (int)dir, maxEntries);
+    FS_LOG_DEBUG("VFS_Enumerate: ENTRY vref=%ld dir=%ld maxEntries=%d\n", (long)vref, (long)dir, maxEntries);
 
     if (!g_vfs.initialized || !entries || !count) {
         FS_LOG_DEBUG("VFS_Enumerate: Invalid params\n");
@@ -734,7 +736,7 @@ bool VFS_Enumerate(VRefNum vref, DirID dir, CatEntry* entries, int maxEntries, i
 
     VFSVolume* vol = VFS_FindVolume(vref);
     if (!vol || !vol->mounted) {
-        FS_LOG_DEBUG("VFS_Enumerate: vref %d not found or not mounted\n", (int)vref);
+        FS_LOG_DEBUG("VFS_Enumerate: vref %ld not found or not mounted\n", (long)vref);
         return false;
     }
 
@@ -780,7 +782,7 @@ bool VFS_Enumerate(VRefNum vref, DirID dir, CatEntry* entries, int maxEntries, i
     }
 
     *count = n;
-    FS_LOG_DEBUG("VFS_Enumerate: returned %d entries\n", n);
+    FS_LOG_DEBUG("VFS_Enumerate: returned %ld entries\n", (long)n);
     return true;
 }
 
@@ -1156,7 +1158,7 @@ bool VFS_MoveOverlay(VRefNum vref, FileID id, DirID newParent,
         oe->renamed = true;
     }
 
-    FS_LOG_DEBUG("VFS_MoveOverlay: Moved ID %u to parent %u\n", id, newParent);
+    FS_LOG_DEBUG("VFS_MoveOverlay: Moved ID %lu to parent %lu\n", (unsigned long)id, (unsigned long)newParent);
     return true;
 }
 
@@ -1184,7 +1186,7 @@ static void VFS_DirectoryChanged(VRefNum vref, DirID dir) {
 
 /* Write operations */
 bool VFS_CreateFolder(VRefNum vref, DirID parent, const char* name, DirID* newID) {
-    FS_LOG_DEBUG("VFS_CreateFolder: Creating folder '%s' in parent %d\n", name, parent);
+    FS_LOG_DEBUG("VFS_CreateFolder: Creating folder '%s' in parent %ld\n", name, (long)parent);
 
     if (!name || !newID) return false;
 
@@ -1211,7 +1213,7 @@ bool VFS_CreateFolder(VRefNum vref, DirID parent, const char* name, DirID* newID
     oe->entry.modTime = now;
 
     *newID = id;
-    FS_LOG_DEBUG("VFS_CreateFolder: Created folder '%s' with ID %u\n", name, id);
+    FS_LOG_DEBUG("VFS_CreateFolder: Created folder '%s' with ID %lu\n", name, (unsigned long)id);
     VFS_DirectoryChanged(vref, parent);
         return true;
 }
@@ -1247,13 +1249,13 @@ bool VFS_CreateFile(VRefNum vref, DirID parent, const char* name,
     oe->entry.modTime = now;
 
     *newID = id;
-    FS_LOG_DEBUG("VFS_CreateFile: Created file '%s' with ID %u\n", name, id);
+    FS_LOG_DEBUG("VFS_CreateFile: Created file '%s' with ID %lu\n", name, (unsigned long)id);
     VFS_DirectoryChanged(vref, parent);
         return true;
 }
 
 bool VFS_Rename(VRefNum vref, FileID id, const char* newName) {
-    FS_LOG_DEBUG("VFS_Rename: Renaming file/folder %u to '%s'\n", id, newName);
+    FS_LOG_DEBUG("VFS_Rename: Renaming file/folder %lu to '%s'\n", (unsigned long)id, newName);
 
     if (!newName || strlen(newName) == 0 || strlen(newName) > 31) return false;
 
@@ -1291,7 +1293,7 @@ bool VFS_Rename(VRefNum vref, FileID id, const char* newName) {
     strncpy(oe->entry.name, newName, 31);
     oe->entry.name[31] = '\0';
 
-    FS_LOG_DEBUG("VFS_Rename: Successfully renamed ID %u to '%s'\n", id, newName);
+    FS_LOG_DEBUG("VFS_Rename: Successfully renamed ID %lu to '%s'\n", (unsigned long)id, newName);
     {
             CatEntry changed;
             if (VFS_GetByID(vref, id, &changed)) {
@@ -1302,7 +1304,7 @@ bool VFS_Rename(VRefNum vref, FileID id, const char* newName) {
 }
 
 bool VFS_Delete(VRefNum vref, FileID id) {
-    FS_LOG_DEBUG("VFS_Delete: Deleting file/folder ID %u\n", id);
+    FS_LOG_DEBUG("VFS_Delete: Deleting file/folder ID %lu\n", (unsigned long)id);
 
     /* Protect root and system folders */
     if (id <= 2) return false;
@@ -1345,7 +1347,7 @@ bool VFS_Delete(VRefNum vref, FileID id) {
     oe->id = id;
     oe->deleted = true;
 
-    FS_LOG_DEBUG("VFS_Delete: Marked ID %u as deleted\n", id);
+    FS_LOG_DEBUG("VFS_Delete: Marked ID %lu as deleted\n", (unsigned long)id);
     {
             CatEntry changed;
             if (VFS_GetByID(vref, id, &changed)) {

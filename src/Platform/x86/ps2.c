@@ -803,9 +803,10 @@ void PollPS2Input(void) {
     extern void serial_puts(const char* str);
     if (!g_ps2Initialized) return;
 
-    static int mouse_byte_count = 0;
+    /* mouse_byte_count and packet_count were only ever incremented - the
+     * single debug print using mouse_byte_count is commented out below -
+     * so both counters were dead. */
     static int call_count = 0;
-    static int packet_count = 0;
 
     /* First call notification */
     if (call_count == 0) {
@@ -835,7 +836,6 @@ void PollPS2Input(void) {
                 continue;
             }
             /* --- Mouse byte --- */
-            mouse_byte_count++;
             /* PLATFORM_LOG_DEBUG("POLL: Got mouse byte 0x%02x (status=0x%02x) idx=%d enabled=%d count=%d\n",
                           data, status, g_mouseState.packet_index, g_mouseEnabled, mouse_byte_count); */
 
@@ -858,7 +858,6 @@ void PollPS2Input(void) {
             g_mouseState.packet[g_mouseState.packet_index++] = data;
 
             if (g_mouseState.packet_index >= g_mouseState.packet_size) {
-                packet_count++;
                 process_mouse_packet(); /* resets packet_index to 0 */
             }
         } else {

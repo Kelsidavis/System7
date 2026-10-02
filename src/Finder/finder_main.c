@@ -103,7 +103,8 @@ void OnVolumeMount(VRefNum vref, const char* volName)
 {
     extern OSErr Desktop_AddVolumeIcon(const char* name, VRefNum vref);
 
-    FINDER_LOG_DEBUG("Finder: Volume '%s' (vRef %d) mounted - adding desktop icon\n", volName, vref);
+    /* VRefNum is uint32_t; %d (and %u) would pass a long to serial_logf. */
+    FINDER_LOG_DEBUG("Finder: Volume '%s' (vRef %lu) mounted - adding desktop icon\n", volName, (unsigned long)vref);
 
     OSErr err = Desktop_AddVolumeIcon(volName, vref);
     if (err != noErr) {

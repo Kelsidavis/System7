@@ -335,8 +335,10 @@ static void ATA_TestATAPI(ATADevice* device) {
     Boolean is_dir = false;
     err = iso_find_path(device, "/boot/grub/grub.cfg", &file_lba, &file_size, &is_dir);
     if (err == noErr && !is_dir) {
-        PLATFORM_LOG_DEBUG("ATAPI: Found /boot/grub/grub.cfg at LBA %u size %u\n",
-                           file_lba, file_size);
+        /* file_lba/file_size are uint32_t: %u passes a 4-byte int
+         * where the printf expects a long. */
+        PLATFORM_LOG_DEBUG("ATAPI: Found /boot/grub/grub.cfg at LBA %lu size %lu\n",
+                           (unsigned long)file_lba, (unsigned long)file_size);
         if (file_size > 0) {
             uint8_t file_sector[ATAPI_SECTOR_SIZE];
             OSErr read_err = ATA_ReadATAPISectors(device, file_lba, 1, file_sector);
@@ -668,7 +670,7 @@ OSErr ATA_WriteSectors(ATADevice* device, uint32_t lba, uint8_t count, const voi
     uint16_t control_io = device->control_io;
     const uint16_t* buf16 = (const uint16_t*)buffer;
 
-    PLATFORM_LOG_DEBUG("ATA: Writing %u sector(s) to LBA %u\n", count, lba);
+    PLATFORM_LOG_DEBUG("ATA: Writing %lu sector(s) to LBA %lu\n", (unsigned long)count, (unsigned long)lba);
 
     /* Wait for drive to be ready */
     ATA_WaitReady(base_io);
@@ -848,9 +850,9 @@ void ATA_PrintDeviceInfo(ATADevice* device) {
     PLATFORM_LOG_DEBUG("ATA:   Model: %s\n", device->model);
     PLATFORM_LOG_DEBUG("ATA:   Serial: %s\n", device->serial);
     PLATFORM_LOG_DEBUG("ATA:   Firmware: %s\n", device->firmware);
-    PLATFORM_LOG_DEBUG("ATA:   Sectors: %u (%u MB)\n",
-                 device->sectors,
-                 (device->sectors / 2048));  /* sectors * 512 / 1024 / 1024 */
+    PLATFORM_LOG_DEBUG("ATA:   Sectors: %lu (%lu MB)\n",
+                 (unsigned long)device->sectors,
+                 (unsigned long)(device->sectors / 2048));  /* sectors * 512 / 1024 / 1024 */
     PLATFORM_LOG_DEBUG("ATA:   LBA48: %s\n", device->lba48_supported ? "Yes" : "No");
     PLATFORM_LOG_DEBUG("ATA:   DMA: %s\n", device->dma_supported ? "Yes" : "No");
 }

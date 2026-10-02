@@ -601,10 +601,13 @@ OSErr ProcessManager_SetFrontProcess(ProcessSerialNumber psn) {
     Proc_PostEvent(activateEvt, 1);  /* message=1 means activate */
 
     serial_printf("[ProcessManager] Switched to front process: signature=%c%c%c%c\n",
-                 (newFrontProcess->processSignature >> 24) & 0xFF,
-                 (newFrontProcess->processSignature >> 16) & 0xFF,
-                 (newFrontProcess->processSignature >> 8) & 0xFF,
-                 newFrontProcess->processSignature & 0xFF);
+                 /* processSignature is uint32_t: the arithmetic widens
+     * to long, so %c would get an 8-byte argument.  Cast
+     * each byte back down to char. */
+                 (char)((newFrontProcess->processSignature >> 24) & 0xFF),
+                 (char)((newFrontProcess->processSignature >> 16) & 0xFF),
+                 (char)((newFrontProcess->processSignature >> 8) & 0xFF),
+                 (char)(newFrontProcess->processSignature & 0xFF));
 
     return noErr;
 }

@@ -63,7 +63,6 @@ OSErr EmptyTrash(Boolean force)
     short itemIndex = 1;
     Boolean hasLockedItems = false;
     Boolean confirmed = false;
-    UInt32 deletedCount = 0;
 
     /* Check if trash can be emptied */
     if (!force && !CanEmptyTrash()) {
@@ -100,7 +99,6 @@ OSErr EmptyTrash(Boolean force)
                 /* Delete the item */
                 err = DeleteTrashItem(&itemSpec);
                 if (err == noErr) {
-                    deletedCount++;
                     /* Don't increment itemIndex - next item shifts down */
                 } else {
                     itemIndex++;
@@ -110,6 +108,9 @@ OSErr EmptyTrash(Boolean force)
             }
         }
     } while (err == noErr);
+
+    /* deletedCount was counted but never read back (no log, no dialog),
+     * so the whole counter was dead code. */
 
     /* Update trash info */
     UInt32 tempItemCount, tempTotalSize;

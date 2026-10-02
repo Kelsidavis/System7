@@ -151,7 +151,8 @@ long MenuSelect(Point startPt)
     long trackResult;
     long result;
     short item;
-    volatile int stack_align;
+    /* stack_align was only ever written (a leftover "fix stack
+     * alignment" hack that could never work in C); removed. */
 
     GetPort(&savedPort);
     GetWMgrPort(&wmgrPort);
@@ -182,8 +183,6 @@ long MenuSelect(Point startPt)
         extern void HiliteMenu(short menuID);
         HiliteMenu(menuID);
         serial_puts("DEBUG: Returned from HiliteMenu\n");
-        stack_align = 0;  /* Fix stack alignment after HiliteMenu */
-        stack_align++;
         serial_puts("DEBUG: After stack_align\n");
 
         /* Get the actual menu title position for proper dropdown placement */
@@ -205,8 +204,6 @@ long MenuSelect(Point startPt)
         }
 
         serial_puts("DEBUG: About to call TrackMenu\n");
-        stack_align = 0;  /* Fix stack before TrackMenu call */
-        stack_align++;
         /* Show dropdown and track item selection; follow the pointer from
          * title to title while it is dragged along the bar */
         extern short TrackMenu_TakeSwitch(void);

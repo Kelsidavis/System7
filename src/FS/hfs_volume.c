@@ -78,7 +78,7 @@ bool HFS_VolumeFromMDB(HFS_Volume* vol, const uint8_t* b) {
     /* A multiple of 512, and a power of two; HFS allows up to 2^16 blocks. */
     uint32_t bs = mdb->drAlBlkSiz;
     if (bs < 512 || (bs & (bs - 1)) != 0) {
-        FS_LOG_WARN("HFS: allocation block size %u is not one a volume can have\n", bs);
+        FS_LOG_WARN("HFS: allocation block size %lu is not one a volume can have\n", (unsigned long)bs);
         return false;
     }
 
@@ -97,8 +97,8 @@ bool HFS_VolumeFromMDB(HFS_Volume* vol, const uint8_t* b) {
 }
 
 bool HFS_VolumeMountMemory(HFS_Volume* vol, void* buffer, uint64_t size, VRefNum vRefNum) {
-    FS_LOG_DEBUG("HFS: VolumeMountMemory: ENTRY vol=%p buffer=%p size=%d\n",
-                 (void*)vol, buffer, (int)size);
+    FS_LOG_DEBUG("HFS: VolumeMountMemory: ENTRY vol=%p buffer=%p size=%ld\n",
+                 (void*)vol, buffer, (long)size);
 
     if (!vol || !buffer || size < 1024 * 1024) {
         /* FS_LOG_DEBUG("HFS: Invalid parameters for mount\n"); */
@@ -434,8 +434,9 @@ bool HFS_FormatVolume(HFS_BlockDev* bd, const char* volName) {
 
     /* Calculate volume size from block device */
     uint64_t size = bd->size;
-    FS_LOG_DEBUG("HFS: Formatting volume '%s' (size=%u MB)\n",
-                  volName, (uint32_t)(size / 1024 / 1024));
+    /* size/1024/1024 is uint32_t: %u would pass a 4-byte int to printf. */
+    FS_LOG_DEBUG("HFS: Formatting volume '%s' (size=%lu MB)\n",
+                  volName, (unsigned long)(size / 1024 / 1024));
 
     /* Calculate volume parameters */
     uint32_t alBlkSize = 512;  /* Start with 512 byte allocation blocks */

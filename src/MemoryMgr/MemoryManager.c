@@ -1730,8 +1730,10 @@ void InitMemoryManager(void) {
 
     /* Report detected memory (comes from multiboot2) */
     extern uint32_t g_total_memory_kb;
-    MEMORY_LOG_DEBUG("MM: Total memory: %u KB (%u MB)\n",
-                 g_total_memory_kb, g_total_memory_kb / 1024);
+    /* g_total_memory_kb is uint32_t: %u would pass a 4-byte int
+       where the printf expects a long. */
+    MEMORY_LOG_DEBUG("MM: Total memory: %lu KB (%lu MB)\n",
+                 (unsigned long)g_total_memory_kb, (unsigned long)(g_total_memory_kb / 1024));
 
     serial_puts("MM: InitMemoryManager complete\n");
 }
@@ -1858,8 +1860,11 @@ void CheckHeap(ZoneInfo* zone) {
         scan += b->size;
     }
 
-    MEMORY_LOG_DEBUG("Heap check: %u blocks, %u used, %u free, %u total\n",
-                  blockCount, usedSize, freeSize, totalSize);
+    /* All four are uint32_t: %u would pass 4-byte ints where
+       the printf expects longs. */
+    MEMORY_LOG_DEBUG("Heap check: %lu blocks, %lu used, %lu free, %lu total\n",
+                  (unsigned long)blockCount, (unsigned long)usedSize,
+                  (unsigned long)freeSize, (unsigned long)totalSize);
 }
 
 void DumpHeap(ZoneInfo* zone) {
@@ -1883,8 +1888,10 @@ void DumpHeap(ZoneInfo* zone) {
             }
         }
 
-        MEMORY_LOG_DEBUG("  %p: %s size=%5u prev=%5u",
-                      (void*)scan, type, b->size, b->prevSize);
+        /* size/prevSize are u32: %5u would pass 4-byte ints where
+           the printf expects longs. */
+        MEMORY_LOG_DEBUG("  %p: %s size=%5lu prev=%5lu",
+                      (void*)scan, type, (unsigned long)b->size, (unsigned long)b->prevSize);
 
         if (b->flags & BF_HANDLE && b->masterPtr) {
             MEMORY_LOG_DEBUG(" mp=%p", (void*)b->masterPtr);

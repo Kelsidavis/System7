@@ -53,7 +53,8 @@ UInt32 LMGetLong(UInt32 addr)
     if (!as) return 0;
 
     if (addr >= M68K_LOW_MEM_SIZE) {
-        M68K_LOG_WARN("WARNING: LMGetLong(0x%04X) beyond low memory\n", addr);
+        /* addr is 32-bit: %X would pass a 4-byte int to printf. */
+        M68K_LOG_WARN("WARNING: LMGetLong(0x%04lX) beyond low memory\n", (unsigned long)addr);
         return 0;
     }
 
@@ -66,7 +67,8 @@ void LMSetLong(UInt32 addr, UInt32 value)
     if (!as) return;
 
     if (addr >= M68K_LOW_MEM_SIZE) {
-        M68K_LOG_WARN("WARNING: LMSetLong(0x%04X) beyond low memory\n", addr);
+        /* addr is 32-bit: %X would pass a 4-byte int to printf. */
+        M68K_LOG_WARN("WARNING: LMSetLong(0x%04lX) beyond low memory\n", (unsigned long)addr);
         return;
     }
 
@@ -79,7 +81,8 @@ UInt16 LMGetWord(UInt32 addr)
     if (!as) return 0;
 
     if (addr >= M68K_LOW_MEM_SIZE) {
-        M68K_LOG_WARN("WARNING: LMGetWord(0x%04X) beyond low memory\n", addr);
+        /* addr is 32-bit: %X would pass a 4-byte int to printf. */
+        M68K_LOG_WARN("WARNING: LMGetWord(0x%04lX) beyond low memory\n", (unsigned long)addr);
         return 0;
     }
 
@@ -92,7 +95,8 @@ void LMSetWord(UInt32 addr, UInt16 value)
     if (!as) return;
 
     if (addr >= M68K_LOW_MEM_SIZE) {
-        M68K_LOG_WARN("WARNING: LMSetWord(0x%04X) beyond low memory\n", addr);
+        /* addr is 32-bit: %X would pass a 4-byte int to printf. */
+        M68K_LOG_WARN("WARNING: LMSetWord(0x%04lX) beyond low memory\n", (unsigned long)addr);
         return;
     }
 
@@ -105,7 +109,8 @@ UInt8 LMGetByte(UInt32 addr)
     if (!as) return 0;
 
     if (addr >= M68K_LOW_MEM_SIZE) {
-        M68K_LOG_WARN("WARNING: LMGetByte(0x%04X) beyond low memory\n", addr);
+        /* addr is 32-bit: %X would pass a 4-byte int to printf. */
+        M68K_LOG_WARN("WARNING: LMGetByte(0x%04lX) beyond low memory\n", (unsigned long)addr);
         return 0;
     }
 
@@ -118,7 +123,8 @@ void LMSetByte(UInt32 addr, UInt8 value)
     if (!as) return;
 
     if (addr >= M68K_LOW_MEM_SIZE) {
-        M68K_LOG_WARN("WARNING: LMSetByte(0x%04X) beyond low memory\n", addr);
+        /* addr is 32-bit: %X would pass a 4-byte int to printf. */
+        M68K_LOG_WARN("WARNING: LMSetByte(0x%04lX) beyond low memory\n", (unsigned long)addr);
         return;
     }
 
@@ -137,7 +143,8 @@ UInt32 LMGetCurrentA5(void)
 void LMSetCurrentA5(UInt32 a5)
 {
     LMSetLong(LMG_CurrentA5, a5);
-    M68K_LOG_DEBUG("CurrentA5 set to 0x%08X\n", a5);
+    /* a5 is 32-bit: %X would pass a 4-byte int to printf. */
+    M68K_LOG_DEBUG("CurrentA5 set to 0x%08lX\n", (unsigned long)a5);
 }
 
 UInt32 LMGetExpandMem(void)
@@ -148,7 +155,8 @@ UInt32 LMGetExpandMem(void)
 void LMSetExpandMem(UInt32 expandMem)
 {
     LMSetLong(LMG_ExpandMem, expandMem);
-    M68K_LOG_DEBUG("ExpandMem set to 0x%08X\n", expandMem);
+    /* expandMem is 32-bit: %X would pass a 4-byte int to printf. */
+    M68K_LOG_DEBUG("ExpandMem set to 0x%08lX\n", (unsigned long)expandMem);
 }
 
 UInt32 LMGetTicks(void)

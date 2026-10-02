@@ -101,8 +101,10 @@ static OSErr M68K_CreateAddressSpace(void* processHandle, CPUAddressSpace* out)
 
     (void)processHandle; /* Unused for now */
 
-    M68K_LOG_INFO("CreateAddressSpace: allocating M68KAddressSpace struct size=%u\n",
-                  (unsigned)sizeof(M68KAddressSpace));
+    /* sizeof is size_t (8 bytes here): %u would pass a 4-byte
+     * int where the printf expects a long. */
+    M68K_LOG_INFO("CreateAddressSpace: allocating M68KAddressSpace struct size=%lu\n",
+                  (unsigned long)sizeof(M68KAddressSpace));
     as = (M68KAddressSpace*)NewPtr(sizeof(M68KAddressSpace));
     if (!as) {
         M68K_LOG_ERROR("FAIL: struct allocation memFullErr, MemError=%d\n", MemError());
@@ -117,14 +119,16 @@ static OSErr M68K_CreateAddressSpace(void* processHandle, CPUAddressSpace* out)
     memset(as->pageTable, 0, sizeof(as->pageTable));
 
     /* Pre-allocate low memory pages (0x0000-0xFFFF = first 16 pages) */
-    M68K_LOG_INFO("CreateAddressSpace: pre-allocating %d low memory pages (%u KB)\n",
-                  M68K_LOW_MEM_PAGES, M68K_LOW_MEM_SIZE / 1024);
+    M68K_LOG_INFO("CreateAddressSpace: pre-allocating %d low memory pages (%lu KB)\n",
+                  M68K_LOW_MEM_PAGES, (unsigned long)(M68K_LOW_MEM_SIZE / 1024));
 
     for (int i = 0; i < M68K_LOW_MEM_PAGES; i++) {
         as->pageTable[i] = NewPtr(M68K_PAGE_SIZE);
         if (!as->pageTable[i]) {
-            M68K_LOG_ERROR("FAIL: low memory page %d allocation failed, MemError=%d\n",
-                         i, MemError());
+            /* i is int, MemError() is OSErr (long): %d would pass a
+                         * 4-byte int where the printf expects a long. */
+            M68K_LOG_ERROR("FAIL: low memory page %d allocation failed, MemError=%ld\n",
+                         i, (long)MemError());
             /* Free already allocated pages */
             for (int j = 0; j < i; j++) {
                 if (as->pageTable[j]) {
@@ -221,10 +225,12 @@ void* M68K_GetPage(M68KAddressSpace* as, UInt32 addr, Boolean allocate)
         if (page) {
             memset(page, 0, M68K_PAGE_SIZE);
             as->pageTable[pageNum] = page;
-            M68K_LOG_DEBUG("Allocated page %u for addr 0x%08X\n", pageNum, addr);
+            /* pageNum/addr are UInt32: %u/%X would pass 4-byte ints
+     * where the printf expects longs. */
+            M68K_LOG_DEBUG("Allocated page %lu for addr 0x%08lX\n", (unsigned long)pageNum, (unsigned long)addr);
         } else {
-            serial_printf("[M68K] FAIL: page %u allocation failed, MemError=%d\n",
-                         pageNum, MemError());
+            serial_printf("[M68K] FAIL: page %lu allocation failed, MemError=%ld\n",
+                         (unsigned long)pageNum, (long)MemError());
         }
     }
 
@@ -466,7 +472,10 @@ static OSErr M68K_EnterAt(CPUAddressSpace as, CPUAddr entry, CPUEnterFlags flags
         return paramErr;
     }
 
-    M68K_LOG_DEBUG("EnterAt: entry=0x%08X flags=0x%04X\n", entry, flags);
+    /* entry/flags are 32-bit: %X/%X would pass 4-byte ints where
+     * the printf expects longs. */
+    M68K_LOG_DEBUG("EnterAt: entry=0x%08lX flags=0x%04lX\n",
+                   (unsigned long)entry, (unsigned long)flags);
 
     /*
      * A program with no stack cannot run - the first thing almost any 68K
@@ -530,25 +539,27 @@ static OSErr M68K_EnterAt(CPUAddressSpace as, CPUAddr entry, CPUEnterFlags flags
              * without them says where execution died but not why it was
              * there. */
             snprintf(b, sizeof(b),
-                     "[M68K] %s at PC=0x%08X (A5=0x%08X A7=0x%08X D0=0x%08X)\n",
+                     "[M68K] %s at PC=0x%08lX (A5=0x%08lX A7=0x%08lX D0=0x%08lX)\n",
                      mas->faultReason ? mas->faultReason : "fault",
-                     (unsigned)mas->faultPC,
-                     (unsigned)mas->regs.a[5], (unsigned)mas->regs.a[7],
-                     (unsigned)mas->regs.d[0]);
+                     (unsigned long)mas->faultPC,
+                     (unsigned long)mas->regs.a[5], (unsigned long)mas->regs.a[7],
+                     (unsigned long)mas->regs.d[0]);
             serial_puts(b);
             for (int i = 0; i < 8; i++) {
                 int k = (mas->recentTrapNext + i) & 7;
                 if (!mas->recentTraps[k].trap) continue;
                 const char* name = M68K_TrapName(mas->recentTraps[k].trap);
-                snprintf(b, sizeof(b), "[M68K]   trap $%04X %s at 0x%08X, SP 0x%08X -> 0x%08X\n",
+                snprintf(b, sizeof(b), "[M68K]   trap $%04X %s at 0x%08lX, SP 0x%08lX -> 0x%08lX\n",
                          mas->recentTraps[k].trap, name ? name : "",
-                         (unsigned)mas->recentTraps[k].pc, (unsigned)mas->recentTraps[k].spBefore,
-                         (unsigned)mas->recentTraps[k].spAfter);
+                         (unsigned long)mas->recentTraps[k].pc, (unsigned long)mas->recentTraps[k].spBefore,
+                         (unsigned long)mas->recentTraps[k].spAfter);
                 serial_puts(b);
             }
             return -1;
         }
-        M68K_LOG_INFO("Execution halted at PC=0x%08X\n", mas->regs.pc);
+        /* mas->regs.pc is CPUAddr (uint32_t): %X would pass a 4-byte
+         * int where the printf expects a long. */
+        M68K_LOG_INFO("Execution halted at PC=0x%08lX\n", (unsigned long)mas->regs.pc);
         return noErr;
     }
 
@@ -585,8 +596,10 @@ static OSErr M68K_Relocate(CPUAddressSpace as, CPUCodeHandle code,
      */
     (void)codeData;
 
-    serial_printf("[RELOC] Applying %d relocations to segment at 0x%08X\n",
-                  relocs->count, segBase);
+    /* count is int, segBase is CPUAddr (uint32_t): %d/%X would
+     * pass a 4-byte int where the printf expects a long. */
+    serial_printf("[RELOC] Applying %d relocations to segment at 0x%08lX\n",
+                  relocs->count, (unsigned long)segBase);
 
     /* Apply each relocation */
     for (UInt16 i = 0; i < relocs->count; i++) {
@@ -597,8 +610,10 @@ static OSErr M68K_Relocate(CPUAddressSpace as, CPUCodeHandle code,
         UInt32 patch_pc;
 
         if (offset + 4 > mhandle->size) {
-            serial_printf("[RELOC] ERROR: offset 0x%X exceeds segment size 0x%X\n",
-                         offset, mhandle->size);
+            /* offset and mhandle->size are 32-bit: 0x%X would pass a
+     * 4-byte int where the printf expects a long. */
+        serial_printf("[RELOC] ERROR: offset 0x%lX exceeds segment size 0x%lX\n",
+                         (unsigned long)offset, (unsigned long)mhandle->size);
             return segmentRelocErr;
         }
 
@@ -608,8 +623,10 @@ static OSErr M68K_Relocate(CPUAddressSpace as, CPUCodeHandle code,
                 kindName = "ABS_SEG_BASE";
                 value = segBase + reloc->addend;
                 M68K_Write32(mas, segBase + offset, value);
-                serial_printf("[RELOC] apply kind=%s at off=0x%X -> val=0x%08X (base=0x%08X addend=%d)\n",
-                             kindName, offset, value, segBase, reloc->addend);
+                /* offset/value/segBase are 32-bit: %X/%d would pass
+                             * 4-byte ints where printf expects longs. */
+                serial_printf("[RELOC] apply kind=%s at off=0x%lX -> val=0x%08lX (base=0x%08lX addend=%ld)\n",
+                             kindName, (unsigned long)offset, (unsigned long)value, (unsigned long)segBase, (long)reloc->addend);
                 break;
 
             case kRelocA5Relative:
@@ -617,8 +634,10 @@ static OSErr M68K_Relocate(CPUAddressSpace as, CPUCodeHandle code,
                 kindName = "A5_REL";
                 value = a5Base + reloc->addend;
                 M68K_Write32(mas, segBase + offset, value);
-                serial_printf("[RELOC] apply kind=%s at off=0x%X -> val=0x%08X (A5=0x%08X addend=%d)\n",
-                             kindName, offset, value, a5Base, reloc->addend);
+                /* offset/value/a5Base are 32-bit: %X/%d would pass
+                             * 4-byte ints where printf expects longs. */
+                serial_printf("[RELOC] apply kind=%s at off=0x%lX -> val=0x%08lX (A5=0x%08lX addend=%ld)\n",
+                             kindName, (unsigned long)offset, (unsigned long)value, (unsigned long)a5Base, (long)reloc->addend);
                 break;
 
             case kRelocJTImport:
@@ -634,8 +653,10 @@ static OSErr M68K_Relocate(CPUAddressSpace as, CPUCodeHandle code,
                     value = jtBase + jtOffset;
                 }
                 M68K_Write32(mas, segBase + offset, value);
-                serial_printf("[RELOC] apply kind=%s at off=0x%X -> val=0x%08X (JT[%d])\n",
-                             kindName, offset, value, reloc->jtIndex);
+                /* offset/value/jtIndex are 32-bit: %X/%d would pass
+                             * 4-byte ints where printf expects longs. */
+                serial_printf("[RELOC] apply kind=%s at off=0x%lX -> val=0x%08lX (JT[%ld])\n",
+                             kindName, (unsigned long)offset, (unsigned long)value, (long)reloc->jtIndex);
                 break;
 
             case kRelocPCRel16:
@@ -649,13 +670,17 @@ static OSErr M68K_Relocate(CPUAddressSpace as, CPUCodeHandle code,
                 pcrel_offset = (SInt32)value - (SInt32)patch_pc;
                 /* Check 16-bit signed range */
                 if (pcrel_offset < -32768 || pcrel_offset > 32767) {
-                    serial_printf("[RELOC] ERROR: PC_REL16 out of range: offset=%d\n", pcrel_offset);
+                    /* pcrel_offset is SInt32 (long): %d would pass a 4-byte
+                     * int where the printf expects a long. */
+                    serial_printf("[RELOC] ERROR: PC_REL16 out of range: offset=%ld\n", (long)pcrel_offset);
                     return segmentRelocErr;
                 }
                 /* Patch as big-endian 16-bit */
                 M68K_Write16(mas, segBase + offset, (UInt16)pcrel_offset);
-                serial_printf("[RELOC] apply kind=%s at off=0x%X -> disp=%+d (target=0x%08X PC=0x%08X)\n",
-                             kindName, offset, pcrel_offset, value, patch_pc);
+                /* offset/pcrel_offset/value/patch_pc are 32-bit: the
+                             * %X/%d would pass 4-byte ints to printf. */
+                serial_printf("[RELOC] apply kind=%s at off=0x%lX -> disp=%+ld (target=0x%08lX PC=0x%08lX)\n",
+                             kindName, (unsigned long)offset, (long)pcrel_offset, (unsigned long)value, (unsigned long)patch_pc);
                 break;
 
             case kRelocPCRel32:
@@ -665,8 +690,10 @@ static OSErr M68K_Relocate(CPUAddressSpace as, CPUCodeHandle code,
                 value = segBase + reloc->addend;
                 pcrel_offset = (SInt32)value - (SInt32)patch_pc;
                 M68K_Write32(mas, segBase + offset, (UInt32)pcrel_offset);
-                serial_printf("[RELOC] apply kind=%s at off=0x%X -> disp=%+d (target=0x%08X PC=0x%08X)\n",
-                             kindName, offset, pcrel_offset, value, patch_pc);
+                /* offset/pcrel_offset/value/patch_pc are 32-bit: the
+                             * %X/%d would pass 4-byte ints to printf. */
+                serial_printf("[RELOC] apply kind=%s at off=0x%lX -> disp=%+ld (target=0x%08lX PC=0x%08lX)\n",
+                             kindName, (unsigned long)offset, (long)pcrel_offset, (unsigned long)value, (unsigned long)patch_pc);
                 break;
 
             case kRelocSegmentRef:
@@ -675,8 +702,10 @@ static OSErr M68K_Relocate(CPUAddressSpace as, CPUCodeHandle code,
                 /* For now, treat as absolute (would need segment table lookup) */
                 value = segBase + reloc->addend;
                 M68K_Write32(mas, segBase + offset, value);
-                serial_printf("[RELOC] apply kind=%s at off=0x%X -> val=0x%08X (seg=%d addend=%d)\n",
-                             kindName, offset, value, reloc->targetSegment, reloc->addend);
+                /* All four are 32-bit: %X/%d would pass 4-byte ints
+                             * where the printf expects longs. */
+                serial_printf("[RELOC] apply kind=%s at off=0x%lX -> val=0x%08lX (seg=%ld addend=%ld)\n",
+                             kindName, (unsigned long)offset, (unsigned long)value, (long)reloc->targetSegment, (long)reloc->addend);
                 break;
 
             default:

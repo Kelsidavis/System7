@@ -116,13 +116,13 @@ const char* platform_format_memory_gb(void) {
     if (mb_remainder > 512) {
         /* Round up if >= 512 MB */
         gb++;
-        snprintf(g_memory_gb_str, sizeof(g_memory_gb_str), "%u GB", gb);
+        snprintf(g_memory_gb_str, sizeof(g_memory_gb_str), "%lu GB", (unsigned long)gb);
     } else if (mb_remainder > 0) {
         /* Show decimal if there's remainder */
         uint32_t decimal = (mb_remainder * 10) / 1024;
-        snprintf(g_memory_gb_str, sizeof(g_memory_gb_str), "%u.%u GB", gb, decimal);
+        snprintf(g_memory_gb_str, sizeof(g_memory_gb_str), "%lu.%lu GB", (unsigned long)gb, (unsigned long)decimal);
     } else {
-        snprintf(g_memory_gb_str, sizeof(g_memory_gb_str), "%u GB", gb);
+        snprintf(g_memory_gb_str, sizeof(g_memory_gb_str), "%lu GB", (unsigned long)gb);
     }
 
     return g_memory_gb_str;
@@ -133,10 +133,10 @@ void platform_format_memory_kb(uint32_t bytes, char *buf, size_t buf_size) {
 
     uint32_t kb = bytes / 1024;
     if (kb < 1000) {
-        snprintf(buf, buf_size, "%uK", kb);
+        snprintf(buf, buf_size, "%luK", (unsigned long)kb);
     } else {
         uint32_t thousands = kb / 1000;
         uint32_t remainder = kb % 1000;
-        snprintf(buf, buf_size, "%u,%03uK", thousands, remainder);
+        snprintf(buf, buf_size, "%lu,%03luK", (unsigned long)thousands, (unsigned long)remainder);
     }
 }

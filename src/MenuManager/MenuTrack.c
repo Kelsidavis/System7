@@ -403,8 +403,8 @@ static void DrawMenuOld(MenuHandle theMenu, short left, short top, short itemCou
 
     /* Draw white background */
     DrawMenuRect(left, top, left + menuWidth, top + itemCount * lineHeight + 4, 0xFFFFFFFF);
-    volatile int stack_align = 0;  /* Fix stack alignment issue */
-    stack_align++;  /* Prevent compiler optimization */
+    /* stack_align was a dead "fix stack alignment" hack (only ever
+       written); removed. */
 
     /* Draw border */
     DrawMenuRect(left, top, left + menuWidth, top + 1, 0xFF000000);
@@ -869,7 +869,6 @@ static long TrackMenu_Body(short menuID, Point *startPt) {
     Boolean tracking = true;
     Boolean buttonWasReleased = false;
     int updateCount = 0;
-    int buttonCheckCount = 0;
 
     /* Safety stop measured in ticks (1/60 s), not iterations.
      *
@@ -949,7 +948,6 @@ static long TrackMenu_Body(short menuID, Point *startPt) {
          * random depending on where the pointer happened to sit.
          *
          * GetMouseButtons() is the accessor ps2.c exports for exactly this. */
-        buttonCheckCount++;
         extern uint8_t GetMouseButtons(void);
         Boolean buttonState = (GetMouseButtons() & 0x01) != 0;
 

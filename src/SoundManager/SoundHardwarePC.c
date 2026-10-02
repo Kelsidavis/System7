@@ -86,7 +86,7 @@ static void delay_ms(uint32_t ms) {
 
 void PCSpkr_Beep(uint32_t frequency, uint32_t duration_ms) {
 
-    SND_LOG_DEBUG("PCSpkr_Beep: freq=%u Hz, duration=%u ms\n", frequency, duration_ms);
+    SND_LOG_DEBUG("PCSpkr_Beep: freq=%lu Hz, duration=%lu ms\n", (unsigned long)frequency, (unsigned long)duration_ms);
 
     /* Start tone */
     PCSpkr_SetFrequency(frequency);

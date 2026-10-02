@@ -70,7 +70,8 @@ OSErr InstallA5World(SegmentLoaderContext* ctx, const CODE0Info* info)
     if (ctx->cpuBackend && ctx->cpuBackend->SetRegisterA5) {
         OSErr a5Err = ctx->cpuBackend->SetRegisterA5(ctx->cpuAS, a5);
         if (a5Err != noErr) {
-            SEG_LOG_ERROR("Failed to load A5 = 0x%08X: %d", a5, a5Err);
+            /* a5/a5Err are 32-bit: %X/%d would pass 4-byte ints to printf. */
+            SEG_LOG_ERROR("Failed to load A5 = 0x%08lX: %ld", (unsigned long)a5, (long)a5Err);
             return a5Err;
         }
     }
@@ -105,22 +106,28 @@ OSErr InstallA5World(SegmentLoaderContext* ctx, const CODE0Info* info)
 
     /* A5 Invariant Assertions (smoke checks) */
     if (belowBase + info->a5BelowSize != a5) {
-        SEG_LOG_ERROR("FATAL: a5BelowBase(0x%08X) + size(0x%X) != a5(0x%08X)",
-                      belowBase, info->a5BelowSize, a5);
+        /* All three are 32-bit: %X would pass 4-byte ints to printf. */
+        SEG_LOG_ERROR("FATAL: a5BelowBase(0x%08lX) + size(0x%lX) != a5(0x%08lX)",
+                      (unsigned long)belowBase, (unsigned long)info->a5BelowSize, (unsigned long)a5);
         return segmentA5WorldErr;
     }
 
     if (ctx->a5World.jtBase != a5 + info->jtOffsetFromA5) {
-        SEG_LOG_ERROR("FATAL: jtBase(0x%08X) != a5(0x%08X) + offset(0x%X)",
-                      ctx->a5World.jtBase, a5, info->jtOffsetFromA5);
+        /* All three are 32-bit: %X would pass 4-byte ints to printf. */
+        SEG_LOG_ERROR("FATAL: jtBase(0x%08lX) != a5(0x%08lX) + offset(0x%lX)",
+                      (unsigned long)ctx->a5World.jtBase, (unsigned long)a5, (unsigned long)info->jtOffsetFromA5);
         return segmentA5WorldErr;
     }
 
     SEG_LOG_INFO("A5 world constructed successfully:");
-    SEG_LOG_INFO("  a5BelowBase = 0x%08X, size = 0x%X", belowBase, info->a5BelowSize);
-    SEG_LOG_INFO("  a5Base      = 0x%08X", a5);
-    SEG_LOG_INFO("  a5AboveBase = 0x%08X, size = 0x%X", aboveBase, info->a5AboveSize);
-    SEG_LOG_INFO("  jtBase      = 0x%08X, count = %d", ctx->a5World.jtBase, info->jtCount);
+    /* Both are 32-bit: %X would pass 4-byte ints to printf. */
+    SEG_LOG_INFO("  a5BelowBase = 0x%08lX, size = 0x%lX", (unsigned long)belowBase, (unsigned long)info->a5BelowSize);
+    /* a5 is 32-bit: %X would pass a 4-byte int to printf. */
+    SEG_LOG_INFO("  a5Base      = 0x%08lX", (unsigned long)a5);
+    /* Both are 32-bit: %X would pass 4-byte ints to printf. */
+    SEG_LOG_INFO("  a5AboveBase = 0x%08lX, size = 0x%lX", (unsigned long)aboveBase, (unsigned long)info->a5AboveSize);
+    /* Both are 32-bit: %X/%d would pass 4-byte ints to printf. */
+    SEG_LOG_INFO("  jtBase      = 0x%08lX, count = %ld", (unsigned long)ctx->a5World.jtBase, (long)info->jtCount);
 
     return noErr;
 }

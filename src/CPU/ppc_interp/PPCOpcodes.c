@@ -247,7 +247,8 @@ static void PPC_SetCR0(PPCAddressSpace* as, SInt32 result)
 /* Fault handler */
 void PPC_Fault(PPCAddressSpace* as, const char* reason)
 {
-    serial_printf("[PPC] FAULT at PC=0x%08X: %s\n", as->regs.pc - 4, reason);
+    /* as->regs.pc is 32-bit: %X would pass a 4-byte int to printf. */
+    serial_printf("[PPC] FAULT at PC=0x%08lX: %s\n", (unsigned long)(as->regs.pc - 4), reason);
     as->halted = true;
 }
 

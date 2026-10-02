@@ -11,8 +11,10 @@
 static bool read_btree_data(HFS_BTree* bt, uint32_t offset, void* buffer, uint32_t length) {
     if (!bt || !buffer) return false;
 
-    FS_LOG_DEBUG("read_btree_data: offset=%d length=%d fileSize=%d vol=%p bd.data=%p\n",
-                 (int)offset, (int)length, (int)bt->fileSize,
+    /* offset/length/fileSize are 32-bit: %d/%d/%d would pass 4-byte
+     * ints where the printf expects longs. */
+    FS_LOG_DEBUG("read_btree_data: offset=%ld length=%ld fileSize=%ld vol=%p bd.data=%p\n",
+                 (long)offset, (long)length, (long)bt->fileSize,
                  (void*)bt->vol, bt->vol->bd.data);
 
     uint32_t bytesRead = 0;
@@ -23,8 +25,9 @@ static bool read_btree_data(HFS_BTree* bt, uint32_t offset, void* buffer, uint32
             /* FS_LOG_DEBUG("read_btree_data: Extent %d has 0 blocks\n", i); */
             break;
         }
-        FS_LOG_DEBUG("read_btree_data: Extent %d - startBlock=%u, blockCount=%u\n",
-                     i, bt->extents[i].startBlock, bt->extents[i].blockCount);
+        FS_LOG_DEBUG("read_btree_data: Extent %d - startBlock=%lu, blockCount=%lu\n",
+                     i, (unsigned long)bt->extents[i].startBlock,
+                     (unsigned long)bt->extents[i].blockCount);
 
         uint32_t extentBytes = bt->extents[i].blockCount * bt->vol->alBlkSize;
 
@@ -105,7 +108,7 @@ static void load_catalog_overflow(HFS_BTree* bt) {
     }
     HFS_BT_Close(&ext);
     if (have < need) {
-        FS_LOG_WARN("HFS BTree: catalog extents cover %u of %u blocks\n", have, need);
+        FS_LOG_WARN("HFS BTree: catalog extents cover %lu of %lu blocks\n", (unsigned long)have, (unsigned long)need);
     }
 }
 
@@ -113,8 +116,8 @@ bool HFS_BT_Init(HFS_BTree* bt, HFS_Volume* vol, HFS_BTreeType type) {
     /* FS_LOG_DEBUG("HFS_BT_Init: ENTER (bt=%p, vol=%p, type=%d)\n", bt, vol, type); */
 
     if (!bt || !vol || !vol->mounted) {
-        FS_LOG_DEBUG("HFS_BT_Init: Invalid params (bt=%p, vol=%p, mounted=%d)\n",
-                     bt, vol, vol ? vol->mounted : 0);
+        FS_LOG_DEBUG("HFS_BT_Init: Invalid params (bt=%p, vol=%p, mounted=%ld)\n",
+                     bt, vol, (long)(vol ? vol->mounted : 0));
         return false;
     }
 
@@ -140,8 +143,9 @@ bool HFS_BT_Init(HFS_BTree* bt, HFS_Volume* vol, HFS_BTreeType type) {
 
     /* Check if we have valid extents */
     if (bt->fileSize == 0 || bt->extents[0].blockCount == 0) {
-        FS_LOG_DEBUG("HFS_BT_Init: No valid extents for B-tree (fileSize=%u, extent0.blocks=%u)\n",
-                     bt->fileSize, bt->extents[0].blockCount);
+        FS_LOG_DEBUG("HFS_BT_Init: No valid extents for B-tree (fileSize=%lu, extent0.blocks=%lu)\n",
+                     (unsigned long)bt->fileSize,
+                     (unsigned long)bt->extents[0].blockCount);
         return false;
     }
 
@@ -192,9 +196,12 @@ bool HFS_BT_Init(HFS_BTree* bt, HFS_Volume* vol, HFS_BTreeType type) {
         return false;
     }
 
-    FS_LOG_DEBUG("HFS BTree: Initialized %s tree (nodeSize=%u, root=%u, depth=%u)\n",
+    /* All three fields are 32-bit: %u would pass 4-byte ints
+     * where the printf expects longs. */
+    FS_LOG_DEBUG("HFS BTree: Initialized %s tree (nodeSize=%lu, root=%lu, depth=%lu)\n",
                   type == kBTreeCatalog ? "Catalog" : "Extents",
-                  bt->nodeSize, bt->rootNode, bt->treeDepth);
+                  (unsigned long)bt->nodeSize, (unsigned long)bt->rootNode,
+                  (unsigned long)bt->treeDepth);
 
     return true;
 }

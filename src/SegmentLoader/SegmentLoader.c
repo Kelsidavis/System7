@@ -165,8 +165,9 @@ static OSErr LoadCODE0AndSetupA5(SegmentLoaderContext* ctx)
     /* Defensive clamp: guard against bogus CODE 0 sizes */
     const UInt32 MAX_A5 = 1 * 1024 * 1024; /* 1MB guard */
     if (info.a5BelowSize > MAX_A5 || info.a5AboveSize > MAX_A5) {
-        SEG_LOG_ERROR("CODE 0 sizes too large: below=%u above=%u",
-                      info.a5BelowSize, info.a5AboveSize);
+        /* Both sizes are UInt32: %u would pass 4-byte ints to printf. */
+        SEG_LOG_ERROR("CODE 0 sizes too large: below=%lu above=%lu",
+                      (unsigned long)info.a5BelowSize, (unsigned long)info.a5AboveSize);
         HUnlock(code0Handle);
         ReleaseResource(code0Handle);
         return memFullErr;

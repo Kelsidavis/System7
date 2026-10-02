@@ -1193,15 +1193,17 @@ static void TrackIconDragSync(short iconIndex, Point startPt)
 
     /* Check if we hit timeout in threshold wait loop */
     if (loopCount >= MAX_DRAG_ITERATIONS) {
-        FINDER_LOG_ERROR("TrackIconDragSync: TIMEOUT in threshold wait! Looped %u times, button never released!\n", loopCount);
+        /* loopCount is UInt32; %u passes an int to serial_logf's printf. */
+    FINDER_LOG_ERROR("TrackIconDragSync: TIMEOUT in threshold wait! Looped %lu times, button never released!\n", (unsigned long)loopCount);
         FINDER_LOG_ERROR("TrackIconDragSync: This indicates mouse button tracking is broken.\n");
         gDraggingIconIndex = -1;
         gInMouseTracking = false;
         return;
     }
 
+    /* Same for the two loop-count messages below. */
     if ((gCurrentButtons & 1) == 0) {  /* released before threshold */
-        FINDER_LOG_DEBUG("TrackIconDragSync: button released before threshold (after %u iterations)\n", loopCount);
+        FINDER_LOG_DEBUG("TrackIconDragSync: button released before threshold (after %lu iterations)\n", (unsigned long)loopCount);
         gDraggingIconIndex = -1;
         gInMouseTracking = false;
         return;
@@ -1245,7 +1247,7 @@ static void TrackIconDragSync(short iconIndex, Point startPt)
 
     /* Check if we hit timeout in drag loop */
     if (loopCount >= MAX_DRAG_ITERATIONS) {
-        FINDER_LOG_ERROR("TrackIconDragSync: TIMEOUT in drag loop! Looped %u times, button never released!\n", loopCount);
+        FINDER_LOG_ERROR("TrackIconDragSync: TIMEOUT in drag loop! Looped %lu times, button never released!\n", (unsigned long)loopCount);
         FINDER_LOG_ERROR("TrackIconDragSync: This indicates mouse button tracking is broken.\n");
         GhostEraseIf();
         SetPort(savePort);
@@ -1257,7 +1259,7 @@ static void TrackIconDragSync(short iconIndex, Point startPt)
     /* Button released: erase ghost, restore port */
     GhostEraseIf();
     SetPort(savePort);
-    FINDER_LOG_DEBUG("TrackIconDragSync: drag complete after %u iterations, ghost erased\n", loopCount);
+    FINDER_LOG_DEBUG("TrackIconDragSync: drag complete after %lu iterations, ghost erased\n", (unsigned long)loopCount);
 
     /* Determine drop target and action */
     Point dropPoint = (Point){ .h = ghost.left + 20 + 16, .v = ghost.top + 16 };  /* Icon center */
@@ -1328,8 +1330,8 @@ static void TrackIconDragSync(short iconIndex, Point startPt)
             targetDir = FolderWindow_GetCurrentDir(hitWindow);
             vref = FolderWindow_GetVRef(hitWindow);
             if (targetDir != 0) {
-                FINDER_LOG_DEBUG("TrackIconDragSync: Dropped on folder window, targetDir=%d vref=%d\n",
-                             (int)targetDir, (int)vref);
+                FINDER_LOG_DEBUG("TrackIconDragSync: Dropped on folder window, targetDir=%ld vref=%ld\n",
+                             (long)targetDir, (long)vref);
             } else {
                 FINDER_LOG_DEBUG("TrackIconDragSync: Could not get folder directory, treating as desktop drop\n");
                 droppedOnFolder = false;
@@ -1385,7 +1387,7 @@ static void TrackIconDragSync(short iconIndex, Point startPt)
 
             FileID newID = 0;
             if (VFS_Copy(vref, sourceDir, item->iconID, targetDir, copyName, &newID)) {
-                FINDER_LOG_DEBUG("TrackIconDragSync: Copy succeeded, newID=%u\n", newID);
+                FINDER_LOG_DEBUG("TrackIconDragSync: Copy succeeded, newID=%ld\n", (long)newID);
             } else {
                 FINDER_LOG_DEBUG("TrackIconDragSync: Copy operation failed\n");
                 invalidDrop = true;
@@ -1682,7 +1684,7 @@ OSErr InitializeVolumeIcon(void)
         }
 
         FINDER_LOG_DEBUG("InitializeVolumeIcon: Added volume icon at (%d,%d)\n",
-                      fb_width - 100, 60);
+                      (int)(fb_width - 100), 60);
 
         gDesktopIconCount++;
         gVolumeIconVisible = true;
@@ -1734,8 +1736,9 @@ OSErr Desktop_AddVolumeIcon(const char* name, VRefNum vref) {
     item->movable = true;
     item->data.volume.vRefNum = vref;
 
-    FINDER_LOG_DEBUG("Desktop_AddVolumeIcon: Added '%s' (vRef %d) at index %d, pos=(%d,%d)\n",
-                  name, vref, gDesktopIconCount, item->position.h, item->position.v);
+    /* vRefNum is uint32_t; %d would pass a long to serial_logf. */
+    FINDER_LOG_DEBUG("Desktop_AddVolumeIcon: Added '%s' (vRef %lu) at index %d, pos=(%d,%d)\n",
+                  name, (unsigned long)vref, gDesktopIconCount, item->position.h, item->position.v);
 
     {
         extern void serial_puts(const char* str);
@@ -1771,7 +1774,7 @@ OSErr Desktop_RemoveVolumeIcon(VRefNum vref) {
         if (gDesktopIcons[i].type == kDesktopItemVolume &&
             gDesktopIcons[i].data.volume.vRefNum == vref) {
 
-            FINDER_LOG_DEBUG("Desktop_RemoveVolumeIcon: Removing volume icon for vRef %d at index %d\n", vref, i);
+            FINDER_LOG_DEBUG("Desktop_RemoveVolumeIcon: Removing volume icon for vRef %lu at index %d\n", (unsigned long)vref, i);
 
             /* Shift remaining icons down */
             for (int j = i; j < gDesktopIconCount - 1; j++) {
@@ -1786,7 +1789,7 @@ OSErr Desktop_RemoveVolumeIcon(VRefNum vref) {
         }
     }
 
-    FINDER_LOG_DEBUG("Desktop_RemoveVolumeIcon: Volume icon for vRef %d not found\n", vref);
+    FINDER_LOG_DEBUG("Desktop_RemoveVolumeIcon: Volume icon for vRef %lu not found\n", (unsigned long)vref);
     return fnfErr; /* Not found */
 }
 
@@ -1809,8 +1812,8 @@ OSErr Desktop_AddAliasIcon(const char* name, Point position, FileID targetID,
         return paramErr;
     }
 
-    FINDER_LOG_DEBUG("Desktop_AddAliasIcon: Creating alias '%s' at (%d,%d), targetID=%d, vref=%d\n",
-                 name, position.h, position.v, targetID, vref);
+    FINDER_LOG_DEBUG("Desktop_AddAliasIcon: Creating alias '%s' at (%d,%d), targetID=%ld, vref=%lu\n",
+                 name, position.h, position.v, (long)targetID, (unsigned long)vref);
 
     /* Add to desktop icons array */
     DesktopItem* item = &gDesktopIcons[gDesktopIconCount];

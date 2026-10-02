@@ -537,8 +537,10 @@ static void HandleFileMenu(short item)
             if (front && IsFolderWindow(front)) {
                 targetVRef = FolderWindow_GetVRef(front);
                 targetDir = FolderWindow_GetCurrentDir(front);
-                MENU_LOG_DEBUG("Creating folder in folder window (vref=%d, dir=%d)\n",
-                             targetVRef, targetDir);
+                /* targetVRef/targetDir are VRefNum/DirID: %d would
+                             * pass a 4-byte int where printf expects a long. */
+            MENU_LOG_DEBUG("Creating folder in folder window (vref=%lu, dir=%ld)\n",
+                             (unsigned long)targetVRef, (long)targetDir);
             } else {
                 MENU_LOG_DEBUG("Creating folder on desktop (dir=2)\n");
             }
@@ -1554,8 +1556,8 @@ void Finder_Paste(void) {
         memcpy(sourceName, &src->name[1], len);
         sourceName[len] = '\0';
 
-        MENU_LOG_DEBUG("Finder_Paste: Processing '%s' from vref=%d parID=%d\n",
-                     sourceName, src->vRefNum, src->parID);
+        MENU_LOG_DEBUG("Finder_Paste: Processing '%s' from vref=%lu parID=%ld\n",
+                     sourceName, (unsigned long)src->vRefNum, (long)src->parID);
 
         /* Get source file's catalog entry to get its FileID */
         CatEntry sourceEntry;
@@ -1571,8 +1573,8 @@ void Finder_Paste(void) {
             continue;
         }
 
-        MENU_LOG_DEBUG("Finder_Paste: Copying '%s' to '%s' in dir=%d\n",
-                     sourceName, destName, destDir);
+        MENU_LOG_DEBUG("Finder_Paste: Copying '%s' to '%s' in dir=%ld\n",
+                     sourceName, destName, (long)destDir);
 
         /* Copy the file */
         FileID newID = 0;
@@ -1580,8 +1582,8 @@ void Finder_Paste(void) {
                               destDir, destName, &newID);
 
         if (copied) {
-            MENU_LOG_DEBUG("Finder_Paste: Successfully pasted '%s' as '%s' (newID=%d)\n",
-                         sourceName, destName, newID);
+            MENU_LOG_DEBUG("Finder_Paste: Successfully pasted '%s' as '%s' (newID=%ld)\n",
+                         sourceName, destName, (long)newID);
             if (pastedCount < kMaxPastedTracked) {
                 strncpy(pastedNames[pastedCount], destName,
                         sizeof(pastedNames[0]) - 1);

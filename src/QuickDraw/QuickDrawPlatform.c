@@ -631,8 +631,11 @@ static void QDPlatform_DrawShape_Body(GrafPtr port, GrafVerb verb, const Rect* r
     SInt32 offsetX = 0;
     SInt32 offsetY = 0;
 
-    QD_LOG_TRACE("QDPlatform_DrawShape: verb=%d rect=(%d,%d,%d,%d) offset=(%d,%d)\n",
-                 verb, rect->left, rect->top, rect->right, rect->bottom, offsetX, offsetY);
+    /* offsetX/offsetY are SInt32 (long on x86-32 with this toolchain);
+     * %d would pass a 4-byte int where the printf expects 8 bytes. */
+    QD_LOG_TRACE("QDPlatform_DrawShape: verb=%d rect=(%d,%d,%d,%d) offset=(%ld,%ld)\n",
+                 verb, rect->left, rect->top, rect->right, rect->bottom,
+                 (long)offsetX, (long)offsetY);
 
     Pointer_Shield(rect->left, rect->top, rect->right, rect->bottom);
 

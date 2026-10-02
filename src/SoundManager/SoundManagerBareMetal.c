@@ -358,8 +358,8 @@ static UInt32 SndMidiNoteToFreq(UInt8 midiNote) {
 static void SndProcessCommand(SndChannelPtr chan, const SndCommand* cmd) {
     if (!cmd) return;
 
-    SND_LOG_DEBUG("SndDoCommand: Processing cmd=%d param1=%d param2=%d\n",
-                  cmd->cmd, cmd->param1, cmd->param2);
+    SND_LOG_DEBUG("SndDoCommand: Processing cmd=%d param1=%ld param2=%ld\n",
+                  cmd->cmd, (long)cmd->param1, (long)cmd->param2);
 
     switch (cmd->cmd) {
         case freqCmd:
@@ -390,8 +390,8 @@ static void SndProcessCommand(SndChannelPtr chan, const SndCommand* cmd) {
                 UInt32 noteFreq = SndMidiNoteToFreq((UInt8)cmd->param1);
                 UInt32 duration = cmd->param2 > 0 ? (UInt32)cmd->param2 : 200;
 
-                SND_LOG_DEBUG("SndProcessCommand: MIDI note %d -> %u Hz, duration %u ms\n",
-                              cmd->param1, noteFreq, duration);
+                SND_LOG_DEBUG("SndProcessCommand: MIDI note %ld -> %lu Hz, duration %lu ms\n",
+                              (long)cmd->param1, (unsigned long)noteFreq, (unsigned long)duration);
 
                 PCSpkr_Beep(noteFreq, duration);
             }
@@ -814,8 +814,8 @@ static OSErr SndPlaySoundHeader_Std(const UInt8* hdr, Size hdrMaxLen) {
     Size availData = hdrMaxLen - 22;
 
     if (length > (UInt32)availData) {
-        SND_LOG_WARN("SndPlaySoundHeader_Std: length %u exceeds available %d, clamping\n",
-                     length, (int)availData);
+        SND_LOG_WARN("SndPlaySoundHeader_Std: length %lu exceeds available %ld, clamping\n",
+                     (unsigned long)length, (long)availData);
         length = (UInt32)availData;
     }
 
@@ -823,7 +823,7 @@ static OSErr SndPlaySoundHeader_Std(const UInt8* hdr, Size hdrMaxLen) {
         return noErr;  /* Nothing to play */
     }
 
-    SND_LOG_INFO("SndPlaySoundHeader_Std: %u bytes, %u Hz, 8-bit mono\n", length, sampleRate);
+    SND_LOG_INFO("SndPlaySoundHeader_Std: %lu bytes, %lu Hz, 8-bit mono\n", (unsigned long)length, (unsigned long)sampleRate);
 
     return SoundManager_PlayPCM(samples, length, sampleRate, 1, 8);
 }
@@ -881,8 +881,8 @@ static OSErr SndPlaySoundHeader_Ext(const UInt8* hdr, Size hdrMaxLen) {
     Size availData = hdrMaxLen - 64;
 
     if (totalBytes > (UInt32)availData) {
-        SND_LOG_WARN("SndPlaySoundHeader_Ext: data %u exceeds available %d, clamping\n",
-                     totalBytes, (int)availData);
+        SND_LOG_WARN("SndPlaySoundHeader_Ext: data %lu exceeds available %ld, clamping\n",
+                     (unsigned long)totalBytes, (long)availData);
         totalBytes = (UInt32)availData;
         /* Re-align to frame boundary */
         if (bytesPerFrame > 0) {
@@ -894,8 +894,9 @@ static OSErr SndPlaySoundHeader_Ext(const UInt8* hdr, Size hdrMaxLen) {
         return noErr;
     }
 
-    SND_LOG_INFO("SndPlaySoundHeader_Ext: %u frames, %u Hz, %u-bit, %u ch (%u bytes)\n",
-                 numFrames, sampleRate, sampleSize, numChannels, totalBytes);
+    /* numChannels is UInt32: %u would pass a 4-byte int to printf. */
+    SND_LOG_INFO("SndPlaySoundHeader_Ext: %lu frames, %lu Hz, %u-bit, %lu ch (%lu bytes)\n",
+                 (unsigned long)numFrames, (unsigned long)sampleRate, sampleSize, (unsigned long)numChannels, (unsigned long)totalBytes);
 
     return SoundManager_PlayPCM(samples, totalBytes, sampleRate,
                                 (uint8_t)numChannels, (uint8_t)sampleSize);
@@ -982,14 +983,14 @@ static OSErr SndPlay_Format2(const UInt8* sndData, Size dataSize) {
         UInt16 rawCmd = cmd & ~kDataOffsetFlag;
         bool hasOffset = (cmd & kDataOffsetFlag) != 0;
 
-        SND_LOG_DEBUG("SndPlay_Format2: cmd=0x%04x raw=%d param1=%d param2=%d offset=%d\n",
-                      cmd, rawCmd, param1, param2, hasOffset);
+        SND_LOG_DEBUG("SndPlay_Format2: cmd=0x%04x raw=%ld param1=%ld param2=%ld offset=%d\n",
+                      cmd, (long)rawCmd, (long)param1, (long)param2, hasOffset);
 
         if ((rawCmd == kSndCmdSound || rawCmd == kSndCmdBuffer) && hasOffset) {
             /* param2 is offset from start of resource to sound header */
             SInt32 hdrOffset = param2;
             if (hdrOffset < 0 || hdrOffset >= (SInt32)dataSize) {
-                SND_LOG_ERROR("SndPlay_Format2: sound header offset %d out of range\n", hdrOffset);
+                SND_LOG_ERROR("SndPlay_Format2: sound header offset %ld out of range\n", (long)hdrOffset);
                 continue;
             }
 
@@ -1051,8 +1052,8 @@ static OSErr SndPlay_Format1(const UInt8* sndData, Size dataSize) {
                                  (UInt32)ptr[7]);
         ptr += 8;
 
-        SND_LOG_DEBUG("SndPlay_Format1: cmd=%d param1=%d param2=%d\n",
-                      cmd, param1, param2);
+        SND_LOG_DEBUG("SndPlay_Format1: cmd=%d param1=%ld param2=%ld\n",
+                      cmd, (long)param1, (long)param2);
 
         switch (cmd) {
             case freqCmd:
@@ -1080,8 +1081,8 @@ static OSErr SndPlay_Format1(const UInt8* sndData, Size dataSize) {
                     UInt32 noteFreq = SndMidiNoteToFreq((UInt8)param1);
                     currentDuration = 200;  /* Default duration if not specified */
 
-                    SND_LOG_DEBUG("SndPlay_Format1: MIDI note %d -> %u Hz, duration %u ms\n",
-                                  param1, noteFreq, currentDuration);
+                    SND_LOG_DEBUG("SndPlay_Format1: MIDI note %ld -> %lu Hz, duration %lu ms\n",
+                                  (long)param1, (unsigned long)noteFreq, (unsigned long)currentDuration);
 
                     PCSpkr_Beep(noteFreq, currentDuration);
                 }
@@ -1119,7 +1120,7 @@ OSErr SndPlay(SndChannelPtr chan, SndListHandle sndHandle, Boolean async) {
     /* Read format */
     UInt16 format = (sndData[0] << 8) | sndData[1];
 
-    SND_LOG_INFO("SndPlay: Playing sound (async=%d), format=%d, size=%d\n", async, format, dataSize);
+    SND_LOG_INFO("SndPlay: Playing sound (async=%d), format=%d, size=%ld\n", async, format, (long)dataSize);
 
     OSErr result = noErr;
 

@@ -132,7 +132,7 @@ OSErr NewGWorld(GWorldPtr *offscreenGWorld, SInt16 pixelDepth,
     UInt32 bufferSize = (UInt32)height * (UInt32)rowBytes;
     Ptr pixelBuffer = NewPtr(bufferSize);
     if (!pixelBuffer) {
-        serial_logf((SystemLogModule)3, (SystemLogLevel)2, "[GWORLD] NewGWorld: Failed to allocate pixel buffer (size=%u)\n", bufferSize);
+        serial_logf((SystemLogModule)3, (SystemLogLevel)2, "[GWORLD] NewGWorld: Failed to allocate pixel buffer (size=%lu)\n", (unsigned long)bufferSize);
         DisposePixMap(pmHandle);
         DisposePtr((Ptr)gworld);
         return memFullErr;

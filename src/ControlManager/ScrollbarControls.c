@@ -418,7 +418,7 @@ short TrackScrollbarAction(ControlHandle c, Point startLocal, short startPart,
 
         if (loopCount >= MAX_THUMB_ITERATIONS) {
             /* Safety timeout reached - log warning */
-            CTRL_LOG_DEBUG("ScrollbarControls: Thumb drag loop timeout after %u iterations\n", loopCount);
+            CTRL_LOG_DEBUG("ScrollbarControls: Thumb drag loop timeout after %lu iterations\n", (unsigned long)loopCount);
         }
     } else if (startPart == inUpButton || startPart == inDownButton ||
                startPart == inPageUp || startPart == inPageDown) {
@@ -504,7 +504,7 @@ short TrackScrollbarAction(ControlHandle c, Point startLocal, short startPart,
 
         if (loopCount >= MAX_REPEAT_ITERATIONS) {
             /* Safety timeout reached - log warning */
-            CTRL_LOG_DEBUG("ScrollbarControls: Repeat tracking loop timeout after %u iterations\n", loopCount);
+            CTRL_LOG_DEBUG("ScrollbarControls: Repeat tracking loop timeout after %lu iterations\n", (unsigned long)loopCount);
         }
     }
 

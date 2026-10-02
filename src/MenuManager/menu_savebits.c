@@ -160,8 +160,8 @@ Handle SaveBits(const Rect *bounds, SInt16 mode) {
     }
     savedBits->dataSize = width * height * 4;
 
-    snprintf(buf, sizeof(buf), "[SAVEBITS] SaveBits: Allocating %d bytes for pixel data\n",
-            savedBits->dataSize);
+    snprintf(buf, sizeof(buf), "[SAVEBITS] SaveBits: Allocating %lu bytes for pixel data\n",
+            (unsigned long)savedBits->dataSize);
     serial_puts(buf);
 
     /* CRITICAL: Allocate memory for pixel data using Memory Manager (not malloc!) */
@@ -173,8 +173,8 @@ Handle SaveBits(const Rect *bounds, SInt16 mode) {
         return NULL;
     }
 
-    snprintf(buf, sizeof(buf), "[SAVEBITS] SaveBits: bitsData=%p size=%d\n",
-            savedBits->bitsData, savedBits->dataSize);
+    snprintf(buf, sizeof(buf), "[SAVEBITS] SaveBits: bitsData=%p size=%lu\n",
+            savedBits->bitsData, (unsigned long)savedBits->dataSize);
     serial_puts(buf);
 
     /* Copy pixels from framebuffer to save buffer */

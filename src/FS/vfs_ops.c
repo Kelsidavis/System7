@@ -24,13 +24,16 @@ bool VFS_EnsureHiddenFolder(VRefNum vref, const char* name, DirID* outDir) {
 }
 
 bool VFS_Move(VRefNum vref, DirID fromDir, FileID id, DirID toDir, const char* newName) {
-    FS_LOG_DEBUG("VFS_Move: id=%u from dir=%u to dir=%u, newName=%s\n",
-                 id, fromDir, toDir, newName ? newName : "(null)");
+    /* id/fromDir/toDir are 32-bit: %u would pass 4-byte ints
+     * where the printf expects longs. */
+    FS_LOG_DEBUG("VFS_Move: id=%lu from dir=%lu to dir=%lu, newName=%s\n",
+                 (unsigned long)id, (unsigned long)fromDir, (unsigned long)toDir,
+                 newName ? newName : "(null)");
 
     /* Get current entry data */
     CatEntry entry;
     if (!VFS_GetByID(vref, id, &entry)) {
-        FS_LOG_DEBUG("VFS_Move: entry %u not found\n", id);
+        FS_LOG_DEBUG("VFS_Move: entry %lu not found\n", (unsigned long)id);
         return false;
     }
 
@@ -85,7 +88,8 @@ static bool VFS_CopyData(VRefNum vref, FileID from, FileID to) {
 
 bool VFS_Copy(VRefNum vref, DirID fromDir, FileID id, DirID toDir,
               const char* newName, FileID* newID) {
-    FS_LOG_DEBUG("VFS_Copy: id=%u from dir=%u to dir=%u\n", id, fromDir, toDir);
+    FS_LOG_DEBUG("VFS_Copy: id=%lu from dir=%lu to dir=%lu\n",
+                 (unsigned long)id, (unsigned long)fromDir, (unsigned long)toDir);
 
     /* Read source entry */
     CatEntry src;
@@ -131,7 +135,8 @@ bool VFS_Copy(VRefNum vref, DirID fromDir, FileID id, DirID toDir,
 }
 
 bool VFS_DeleteTree(VRefNum vref, DirID parent, FileID id) {
-    FS_LOG_DEBUG("VFS_DeleteTree: id=%u parent=%u\n", id, parent);
+    FS_LOG_DEBUG("VFS_DeleteTree: id=%lu parent=%lu\n",
+                 (unsigned long)id, (unsigned long)parent);
 
     /* Get entry info */
     CatEntry entry;

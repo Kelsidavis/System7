@@ -60,8 +60,10 @@ static void M68K_RaiseException(M68KAddressSpace* as, UInt16 vector, const char*
         default:                      vecName = "UNKNOWN"; break;
     }
 
-    M68K_LOG_ERROR("EXCEPTION vec=%d (%s) at PC=0x%08X: %s\n",
-                 vector, vecName, as->regs.pc, reason);
+    /* vector and as->regs.pc are 32-bit: %d/%X would pass
+     * 4-byte ints where the printf expects longs. */
+    M68K_LOG_ERROR("EXCEPTION vec=%ld (%s) at PC=0x%08lX: %s\n",
+                 (long)vector, vecName, (unsigned long)as->regs.pc, reason);
 
     as->lastException = vector;
 
@@ -76,11 +78,13 @@ static void M68K_RaiseException(M68KAddressSpace* as, UInt16 vector, const char*
 
         /* If handler is NULL or invalid, halt */
         if (handlerPC == 0 || handlerPC >= M68K_MAX_ADDR) {
-            M68K_LOG_ERROR("Exception handler NULL or invalid (0x%08X), halting\n", handlerPC);
+            /* handlerPC is 32-bit: %X would pass a 4-byte int to printf. */
+            M68K_LOG_ERROR("Exception handler NULL or invalid (0x%08lX), halting\n", (unsigned long)handlerPC);
             as->halted = true;
         } else {
             /* For now, just log and halt (RTE stub not yet implemented) */
-            M68K_LOG_WARN("Exception handler at 0x%08X (not invoking yet, halting)\n", handlerPC);
+            /* handlerPC is 32-bit: %X would pass a 4-byte int to printf. */
+            M68K_LOG_WARN("Exception handler at 0x%08lX (not invoking yet, halting)\n", (unsigned long)handlerPC);
             as->halted = true;
         }
     } else {
@@ -647,7 +651,9 @@ void M68K_Op_RTE(M68KAddressSpace* as, UInt16 opcode)
 {
     (void)opcode;
 
-    serial_printf("[M68K] RTE (stub) at PC=0x%08X - halting\n", as->regs.pc - 2);
+    /* as->regs.pc is CPUAddr (uint32_t): %X would pass a
+     * 4-byte int where the printf expects a long. */
+    serial_printf("[M68K] RTE (stub) at PC=0x%08lX - halting\n", (unsigned long)(as->regs.pc - 2));
 
     /* For now, RTE is a stub that just halts */
     /* Full implementation would pop SR and PC from supervisor stack */
@@ -667,8 +673,10 @@ void M68K_Op_STOP(M68KAddressSpace* as, UInt16 opcode)
     /* Fetch immediate SR value */
     sr_value = M68K_Fetch16(as);
 
-    serial_printf("[M68K] STOP #0x%04X at PC=0x%08X - treated as NOP\n",
-                 sr_value, as->regs.pc - 4);
+    /* sr_value and as->regs.pc are 32-bit: %X would pass a
+     * 4-byte int where the printf expects a long. */
+    serial_printf("[M68K] STOP #0x%04lX at PC=0x%08lX - treated as NOP\n",
+                 (unsigned long)sr_value, (unsigned long)(as->regs.pc - 4));
 
     /* For now, STOP is a NOP (don't actually stop execution) */
     /* Full implementation would halt until interrupt */
@@ -3311,8 +3319,9 @@ void M68K_CheckAddressAlignment(M68KAddressSpace* as, UInt32 addr, M68KSize size
 {
     if (size != SIZE_BYTE && (addr & 1)) {
         /* Address error - odd address for word/long access */
-        M68K_LOG_ERROR("Address error: %s access at odd address 0x%08X\n",
-                      size == SIZE_WORD ? "WORD" : "LONG", addr);
+        /* addr is 32-bit: %X would pass a 4-byte int to printf. */
+        M68K_LOG_ERROR("Address error: %s access at odd address 0x%08lX\n",
+                      size == SIZE_WORD ? "WORD" : "LONG", (unsigned long)addr);
         M68K_Fault(as, "Address error: unaligned word/long access");
     }
 }

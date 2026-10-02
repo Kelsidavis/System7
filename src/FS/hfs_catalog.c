@@ -165,8 +165,9 @@ bool HFS_CatalogInit(HFS_Catalog* cat, HFS_Volume* vol) {
     cat->vol = vol;
 
     /* Initialize B-tree */
-    FS_LOG_DEBUG("HFS_CatalogInit: About to initialize catalog B-tree (vol=%p, catFileSize=%u)\n",
-                 vol, vol->catFileSize);
+    /* catFileSize is uint32_t: %u would pass a 4-byte int to printf. */
+    FS_LOG_DEBUG("HFS_CatalogInit: About to initialize catalog B-tree (vol=%p, catFileSize=%lu)\n",
+                 vol, (unsigned long)vol->catFileSize);
     if (!HFS_BT_Init(&cat->bt, vol, kBTreeCatalog)) {
         /* FS_LOG_DEBUG("HFS_CatalogInit: B-tree init failed\n"); */
         return false;
