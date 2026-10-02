@@ -103,6 +103,9 @@ jobs:
       - name: Build CONFIG=release
         run: make clean && make PLATFORM=x86 CONFIG=release
 
+      - name: Run GCC static analyzer
+        run: make analyze
+
   build-arm64:
     name: Build ARM64
     runs-on: ubuntu-latest
