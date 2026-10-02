@@ -28,13 +28,20 @@
 #include "SANENumbers.h"
 #include "System71StdLib.h"
 
-#if defined(__i386__) || defined(__x86_64__)
+/* SANE_NO_X87 builds the portable path on x86 too, to check it compiles */
+#if (defined(__i386__) || defined(__x86_64__)) && !defined(SANE_NO_X87)
 #define SANE_X87 1
 #else
 #define SANE_X87 0
 #endif
 
+/* The x87's own extended. Elsewhere long double may be a software quad
+ * (aarch64), done by libgcc, which not every build links: double there. */
+#if SANE_X87
 typedef long double xf;
+#else
+typedef double xf;
+#endif
 
 static UInt16 gEnv;                     /* the environment word */
 static UInt32 gHaltVector;
@@ -194,7 +201,8 @@ static Boolean FPEnd(void) { return false; }
 #include "math.h"
 static xf X87Sqrt(xf x)  { return sqrt((double)x); }
 static xf X87Rint(xf x)  { double f = floor((double)x); double d = (double)x - f;
-                           return d > 0.5 || (d == 0.5 && fmod(f, 2) != 0) ? f + 1 : f; }
+                           Boolean odd = f / 2 != floor(f / 2);
+                           return d > 0.5 || (d == 0.5 && odd) ? f + 1 : f; }
 static xf X87Scale(xf x, xf n) { return ldexp((double)x, (int)n); }
 static xf X87Logb(xf x)  { int e; frexp((double)x, &e); return e - 1; }
 static xf X87Log2(xf x)  { return log((double)x) / log(2.0); }
@@ -202,7 +210,6 @@ static xf X87Ln(xf x)    { return log((double)x); }
 static xf X87Log2p1(xf x){ return log(1 + (double)x) / log(2.0); }
 static xf X87Exp2m1(xf x){ return exp((double)x * log(2.0)) - 1; }
 static xf X87Atan(xf x)  { return atan((double)x); }
-static xf X87Pi(void)    { return 3.14159265358979323846; }
 static xf X87Log2e(void) { return 1.44269504088896340736; }
 static xf X87Rem(xf x, xf y) { double q = (double)X87Rint(x / y); return x - q * y; }
 static xf X87RoundIn(xf x, UInt16 rc) {
@@ -323,7 +330,7 @@ TRAP(Trap_FP68K) {
         Boolean invalid = FPEnd();
         SInt32 n = 0;
         xf qa = q < 0 ? -q : q;
-        if (qa == qa && qa < 2147483648.0L) n = (SInt32)(UInt32)qa & 0x7F;
+        if (qa == qa && qa < 2147483648.0) n = (SInt32)(UInt32)qa & 0x7F;
         if (q < 0) n = -n;
         D(0) = (D(0) & 0xFFFF0000) | (UInt16)(SInt16)n;
         StoreExt(dst, Result(r, invalid, kNaNRem));
@@ -470,7 +477,7 @@ static xf Exp2(xf x) {
 
 /* log2(1 + x), accurately for small x */
 static xf Log21(xf x) {
-    if (x > -0.29L && x < 0.29L) return X87Log2p1(x);
+    if (x > -0.29 && x < 0.29) return X87Log2p1(x);
     return X87Log2(1 + x);
 }
 
