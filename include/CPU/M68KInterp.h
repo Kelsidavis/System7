@@ -63,6 +63,7 @@ typedef struct M68KRegs {
 #define M68K_NUM_PAGES      4096        /* 16MB / 4KB */
 #define M68K_LOW_MEM_SIZE   0x10000     /* 64KB low memory (always present) */
 #define M68K_LOW_MEM_PAGES  16          /* 64KB / 4KB */
+#define M68K_ALLOC_BASE     0x10000     /* code, A5 worlds, stacks: above low memory */
 
 /*
  * Where a program entered through EnterAt returns to.
@@ -121,6 +122,12 @@ typedef struct M68KAddressSpace {
     Size codeSegSizes[256];
     int numCodeSegs;
 
+    /* Where the next allocation goes. Code segments and other blocks were
+     * placed by two allocators that each started from a fixed address and
+     * looked only at code segments - so both halves of an A5 world got the
+     * same address, and code was put on top of the low-memory globals. */
+    UInt32 nextAlloc;
+
     /* Execution state */
     Boolean halted;           /* CPU halted due to fault or completion */
     UInt16 lastException;     /* Last exception vector number */
@@ -151,6 +158,10 @@ OSErr M68KBackend_Initialize(void);
  * M68K Interpreter Core (exposed for testing)
  */
 OSErr M68K_Execute(M68KAddressSpace* as, UInt32 startPC, UInt32 maxInstructions);
+OSErr M68K_Run(M68KAddressSpace* as, UInt32 maxInstructions);
+
+/* The name of a trap word, "_InitGraf"; NULL if it is not one this knows */
+const char* M68K_TrapName(UInt16 trapWord);
 OSErr M68K_Step(M68KAddressSpace* as);
 
 /* Run five instructions of known result. Silent unless one comes out wrong.

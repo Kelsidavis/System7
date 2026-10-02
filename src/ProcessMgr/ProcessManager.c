@@ -34,6 +34,8 @@
 #include "SegmentLoader/SegmentLoader.h"
 #include "CPU/CPUBackend.h"
 #include "CPU/M68KInterp.h"
+#include "CPU/M68KToolbox.h"
+#include "ResourceManager.h"
 #include "EventManager/EventManager.h"
 #include "MemoryMgr/MemoryManager.h"
 #include "EventManager/AppSwitcher.h"
@@ -293,25 +295,33 @@ OSErr LaunchApplication(LaunchParamBlockRec* launchParams)
     OSErr err;
     ProcessControlBlock* newProcess = NULL;
     SegmentLoaderContext* segLoader = NULL;
-    CPUAddr entryPoint;
     UInt32 targetPSN;
 
-    if (!launchParams) {
+    if (!launchParams || !launchParams->launchAppSpec) {
         return paramErr;
     }
 
-    /* Remember the next PSN before creating the process */
-    targetPSN = gNextProcessID;
+    /* The application's code is in its own resource fork, which goes in
+     * front of the System file for as long as it runs. Its CODE resources
+     * were looked for in whatever resource file happened to be current -
+     * the System's, which has none, so no application ever loaded. */
+    SInt16 savedResFile = CurResFile();
+    SInt16 appRes = FSpOpenResFile(launchParams->launchAppSpec, fsRdPerm);
+    if (appRes < 0) {
+        OSErr resErr = ResError();
+        return resErr != noErr ? resErr : resFNotFound;
+    }
+    UseResFile(appRes);
 
-    /* Create new process */
+    targetPSN = gNextProcessID;
     err = Process_Create(launchParams->launchAppSpec,
                         launchParams->launchPreferredSize,
                         launchParams->launchControlFlags);
     if (err != noErr) {
+        CloseResFile(appRes);
+        UseResFile(savedResFile);
         return err;
     }
-
-    /* Find the newly created process by PSN */
     for (int i = 1; i < kPM_MaxProcesses; i++) {
         if (gProcessTable[i].processID.lowLongOfPSN == targetPSN &&
             gProcessTable[i].processState != kProcessTerminated) {
@@ -319,67 +329,55 @@ OSErr LaunchApplication(LaunchParamBlockRec* launchParams)
             break;
         }
     }
-
     if (newProcess == NULL) {
-        return memFullErr; /* Could not find newly created process */
+        CloseResFile(appRes);
+        UseResFile(savedResFile);
+        return memFullErr;
     }
 
-    /* Initialize segment loader for this process */
     err = SegmentLoader_Initialize(newProcess, "m68k_interp", &segLoader);
     if (err != noErr) {
         Process_Cleanup(&newProcess->processID);
+        CloseResFile(appRes);
+        UseResFile(savedResFile);
         return err;
     }
+    segLoader->resFileRefNum = appRes;      /* closed by SegmentLoader_Cleanup */
 
-    /* Load CODE 0 and CODE 1 (entry segments) */
+    /* CODE 0 lays out the A5 world and its jump table; CODE 1 is the
+     * segment the program starts in */
     err = EnsureEntrySegmentsLoaded(segLoader);
-    if (err != noErr) {
-        SegmentLoader_Cleanup(segLoader);
-        Process_Cleanup(&newProcess->processID);
-        return err;
+    if (err == noErr) err = InstallLoadSegTrap(segLoader);
+
+    /* The stack, in the application's own memory: it was the address of a
+     * native block, which meant nothing in the 68K space */
+    enum { kAppStackSize = 64 * 1024 };
+    CPUAddr stackBase = 0, stackTop = 0;
+    if (err == noErr) {
+        err = segLoader->cpuBackend->AllocateMemory(segLoader->cpuAS, kAppStackSize,
+                                                   kCPUMapA5World, &stackBase);
+        stackTop = stackBase + kAppStackSize;
+    }
+    if (err == noErr) err = segLoader->cpuBackend->SetStacks(segLoader->cpuAS, stackTop, 0);
+    if (err == noErr) {
+        err = M68KToolbox_Prepare(segLoader, launchParams->launchAppSpec->name,
+                                  appRes, stackTop);
     }
 
-    /* Install _LoadSeg trap for lazy segment loading */
-    err = InstallLoadSegTrap(segLoader);
-    if (err != noErr) {
-        /* Non-fatal, continue */
+    /* Into the program the way the Segment Loader goes in: through the first
+     * jump table entry, whose instructions start two bytes into it */
+    if (err == noErr) {
+        newProcess->processState = kProcessRunning;
+        err = segLoader->cpuBackend->EnterAt(segLoader->cpuAS,
+                                            segLoader->a5World.jtBase + 2, kEnterApp);
+        if (err != noErr) {
+            PROCESS_LOG_DEBUG("LaunchApplication: the application stopped with an error\n");
+        }
     }
 
-    /* Get CODE 1 entry point */
-    err = GetSegmentEntryPoint(segLoader, 1, &entryPoint);
-    if (err != noErr) {
-        SegmentLoader_Cleanup(segLoader);
-        Process_Cleanup(&newProcess->processID);
-        return err;
-    }
-
-    /* Set up stack (user stack pointer) */
-    CPUAddr stackTop = (CPUAddr)(uintptr_t)newProcess->processStackBase +
-                       newProcess->processStackSize - 16;
-    err = segLoader->cpuBackend->SetStacks(segLoader->cpuAS, stackTop, 0);
-    if (err != noErr) {
-        SegmentLoader_Cleanup(segLoader);
-        Process_Cleanup(&newProcess->processID);
-        return err;
-    }
-
-    /* Add process to scheduler queue */
-    if (gProcessQueue->queueHead == NULL) {
-        gProcessQueue->queueHead = newProcess;
-        gProcessQueue->queueTail = newProcess;
-    } else {
-        gProcessQueue->queueTail->processNextProcess = newProcess;
-        gProcessQueue->queueTail = newProcess;
-    }
-    gProcessQueue->queueSize++;
-
-    /* Enter the application (this typically doesn't return) */
-    if (!(launchParams->launchControlFlags & kLaunchDontSwitch)) {
-        err = segLoader->cpuBackend->EnterAt(segLoader->cpuAS, entryPoint,
-                                            kEnterApp);
-        /* If we get here, the app returned or there was an error */
-    }
-
+    SegmentLoader_Cleanup(segLoader);
+    UseResFile(savedResFile);
+    Process_Cleanup(&newProcess->processID);
     return err;
 }
 

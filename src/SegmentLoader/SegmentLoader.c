@@ -331,6 +331,16 @@ OSErr LoadSegment(SegmentLoaderContext* ctx, SInt16 segID)
     ctx->segments[segID].segID = segID;
     ctx->segments[segID].refCount = 1;
 
+    /* Its jump table entries now go to it - which is what loading a segment
+     * means to the program, whose calls all go through the table */
+    err = PatchSegmentJumpTable(ctx, segID);
+    if (err != noErr) {
+        FreeRelocationTable(&info.relocTable);
+        HUnlock(codeHandle);
+        ReleaseResource(codeHandle);
+        return err;
+    }
+
     SEG_LOG_INFO("CODE %d loaded successfully:", segID);
     SEG_LOG_INFO("  baseAddr  = 0x%08X", baseAddr);
     SEG_LOG_INFO("  entryAddr = 0x%08X, JT entries %u..%u", entryAddr,
@@ -491,69 +501,47 @@ OSErr ResolveJumpIndex(SegmentLoaderContext* ctx, SInt16 jtIndex,
 }
 
 /*
- * LoadSeg_TrapHandler - _LoadSeg (0xA9F0) trap handler
+ * _LoadSeg (0xA9F0): load the segment whose number is on the stack.
  *
- * Classic Mac OS _LoadSeg trap handler for lazy segment loading.
- * Expects segment ID on stack (pushed by jump table stub).
- * Only available for 68K-based systems (not ARM64).
+ * A call through an unloaded jump table entry runs the entry's own two
+ * instructions, MOVE.W #seg,-(SP) and _LoadSeg. Loading the segment patches
+ * the entry into a JMP to the routine, so execution goes back to the entry
+ * and takes the JMP - on to the routine that was called, with the caller's
+ * return address still on the stack. It was registered through a cast from
+ * a one-argument function, so it never had the PC to go back with.
  */
-#ifdef __aarch64__
-/* ARM64: Skip 68K trap handler */
-static SInt32 LoadSeg_TrapHandler(void* trapCtx)
-{
-    /* Not supported on ARM64 */
-    SEG_LOG_ERROR("_LoadSeg: not supported on ARM64");
-    return segmentLoaderErr;
-}
-#else
-static SInt32 LoadSeg_TrapHandler(void* trapCtx)
+static OSErr LoadSeg_TrapHandler(void* trapCtx, CPUAddr* pc, CPUAddr* registers)
 {
     SegmentLoaderContext* ctx = (SegmentLoaderContext*)trapCtx;
-    M68KAddressSpace* mas;
-    OSErr err;
-    SInt16 segID;
-    CPUAddr sp;
-    UInt8 stackData[2];
+    UInt8 word[2];
+    (void)registers;
 
-    if (!ctx || !ctx->cpuBackend || !ctx->cpuAS) {
-        SEG_LOG_ERROR("_LoadSeg: invalid context");
+    if (!ctx || !ctx->cpuBackend || !ctx->cpuAS || !pc) {
         return segmentLoaderErr;
     }
-
-    /* Read segment ID from stack (pushed as MOVE.W #segID,-(SP)) */
-    /* Direct access to M68K address space structure */
-    mas = (M68KAddressSpace*)ctx->cpuAS;
-    sp = mas->regs.a[7];
-
-    err = ctx->cpuBackend->ReadMemory(ctx->cpuAS, sp, stackData, 2);
-    if (err != noErr) {
-        SEG_LOG_ERROR("_LoadSeg: failed to read segment ID from stack");
+    M68KAddressSpace* mas = (M68KAddressSpace*)ctx->cpuAS;
+    if (ctx->cpuBackend->ReadMemory(ctx->cpuAS, mas->regs.a[7], word, 2) != noErr) {
         return segmentLoaderErr;
     }
-
-    segID = BE_Read16(stackData);
-
-    /* Pop segment ID from stack */
+    SInt16 segID = (SInt16)BE_Read16(word);
     mas->regs.a[7] += 2;
 
-    SEG_LOG_INFO("_LoadSeg trap: loading segment %d", segID);
-
-    /* Load the segment */
-    err = LoadSegment(ctx, segID);
+    OSErr err = LoadSegment(ctx, segID);
     if (err != noErr) {
-        SEG_LOG_ERROR("_LoadSeg: LoadSegment(%d) failed: %d", segID, err);
+        SEG_LOG_ERROR("_LoadSeg: CODE %d could not be loaded: %d", segID, err);
         return err;
     }
 
-    SEG_LOG_INFO("_LoadSeg: segment %d loaded successfully", segID);
-
-    /* Try to hot-patch the jump table entry if we can determine which one called us */
-    /* This is an optimization to avoid re-executing the stub on subsequent calls */
-    /* Note: This is best-effort and may not always work */
-
+    /* Called from a jump table entry: take the JMP it now holds */
+    CPUAddr entry = *pc - 6;
+    if (entry >= ctx->a5World.jtBase &&
+        entry < ctx->a5World.jtBase + ctx->a5World.jtCount * ctx->a5World.jtEntrySize &&
+        ctx->cpuBackend->ReadMemory(ctx->cpuAS, entry, word, 2) == noErr &&
+        BE_Read16(word) == 0x4EF9) {
+        *pc = entry;
+    }
     return noErr;
 }
-#endif /* __aarch64__ */
 
 /*
  * InstallLoadSegTrap - Install _LoadSeg trap handler
@@ -567,8 +555,7 @@ OSErr InstallLoadSegTrap(SegmentLoaderContext* ctx)
     /* _LoadSeg is trap 0xA9F0 */
     /* Install trap handler using CPU backend if available */
     if (ctx->cpuBackend && ctx->cpuBackend->InstallTrap) {
-        ctx->cpuBackend->InstallTrap(ctx->cpuAS, 0xA9F0,
-                                     (void*)LoadSeg_TrapHandler, ctx);
+        ctx->cpuBackend->InstallTrap(ctx->cpuAS, 0xA9F0, LoadSeg_TrapHandler, ctx);
         SEG_LOG_INFO("Installed _LoadSeg trap handler at 0xA9F0");
         return noErr;
     }

@@ -111,6 +111,7 @@ static OSErr M68K_CreateAddressSpace(void* processHandle, CPUAddressSpace* out)
 
     memset(as, 0, sizeof(M68KAddressSpace));
     as->baseAddr = 0;
+    as->nextAlloc = M68K_ALLOC_BASE;
 
     /* Initialize page table (all NULL = not allocated) */
     memset(as->pageTable, 0, sizeof(as->pageTable));
@@ -231,6 +232,20 @@ void* M68K_GetPage(M68KAddressSpace* as, UInt32 addr, Boolean allocate)
 }
 
 /*
+ * M68K_Reserve - set aside len bytes of the address space, 16-byte aligned;
+ * 0 if they do not fit. Everything allocated in the space comes from here.
+ */
+static UInt32 M68K_Reserve(M68KAddressSpace* as, Size len)
+{
+    UInt32 addr = (as->nextAlloc + 15) & ~15u;
+    if (len < 0 || addr + (UInt32)len > M68K_MAX_ADDR || addr + (UInt32)len < addr) {
+        return 0;
+    }
+    as->nextAlloc = addr + (UInt32)len;
+    return addr;
+}
+
+/*
  * MapExecutable - Map code into address space
  */
 static OSErr M68K_MapExecutable(CPUAddressSpace as, const void* image, Size len,
@@ -251,20 +266,8 @@ static OSErr M68K_MapExecutable(CPUAddressSpace as, const void* image, Size len,
         return memFullErr;
     }
 
-    /* Find free address space (simple bump allocator) */
-    addr = 0x1000; /* Start at 4K to avoid null pointers */
-    for (int i = 0; i < mas->numCodeSegs; i++) {
-        UInt32 end = mas->codeSegBases[i] + mas->codeSegSizes[i];
-        if (end > addr) {
-            addr = end;
-        }
-    }
-
-    /* Align to 16-byte boundary */
-    addr = (addr + 15) & ~15;
-
-    /* Check bounds */
-    if (addr + len > M68K_MAX_ADDR) {
+    addr = M68K_Reserve(mas, len);
+    if (!addr) {
         DisposePtr((Ptr)handle);
         return memFullErr;
     }
@@ -495,8 +498,20 @@ static OSErr M68K_EnterAt(CPUAddressSpace as, CPUAddr entry, CPUEnterFlags flags
     /* Clear halted flag */
     mas->halted = false;
 
-    /* Execute from entry point */
-    M68K_Execute(mas, entry, max_instructions);
+    /* Run until the program stops. An application runs for as long as it
+     * likes - it ends by calling _ExitToShell, or by returning - so there is
+     * no instruction limit for one; between slices the system clock the
+     * program can read in low memory is brought up to date. */
+    if (flags & kEnterApp) {
+        extern UInt32 TickCount(void);
+        mas->regs.pc = entry;
+        while (!mas->halted) {
+            M68K_Run(mas, 20000);
+            LMSetTicks(TickCount());
+        }
+    } else {
+        M68K_Execute(mas, entry, max_instructions);
+    }
 
     /*
      * Report what happened. This returned noErr whether the code ran to
@@ -675,20 +690,8 @@ static OSErr M68K_AllocateMemory(CPUAddressSpace as, Size size,
         return paramErr;
     }
 
-    /* Find free space (simple bump allocator) */
-    addr = 0x10000; /* Start at 64K */
-    for (int i = 0; i < mas->numCodeSegs; i++) {
-        UInt32 end = mas->codeSegBases[i] + mas->codeSegSizes[i];
-        if (end > addr) {
-            addr = end;
-        }
-    }
-
-    /* Align to 16-byte boundary */
-    addr = (addr + 15) & ~15;
-
-    /* Check bounds */
-    if (addr + size > M68K_MAX_ADDR) {
+    addr = M68K_Reserve(mas, size);
+    if (!addr) {
         return memFullErr;
     }
 
@@ -1190,14 +1193,23 @@ OSErr M68K_Step(M68KAddressSpace* as)
  */
 OSErr M68K_Execute(M68KAddressSpace* as, UInt32 startPC, UInt32 maxInstructions)
 {
-    UInt32 count = 0;
-
     if (!as) {
         return paramErr;
     }
 
     as->regs.pc = startPC;
     as->halted = false;
+    return M68K_Run(as, maxInstructions);
+}
+
+/* Carry on from the current PC for at most maxInstructions */
+OSErr M68K_Run(M68KAddressSpace* as, UInt32 maxInstructions)
+{
+    UInt32 count = 0;
+
+    if (!as) {
+        return paramErr;
+    }
 
     while (count < maxInstructions && !as->halted) {
         if (as->regs.pc == kM68KReturnSentinel) {

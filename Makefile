@@ -458,6 +458,8 @@ C_SOURCES = src/main.c \
             src/CPU/m68k_interp/M68KDecode.c \
             src/CPU/m68k_interp/M68KOpcodes.c \
             src/CPU/m68k_interp/LowMemGlobals.c \
+            src/CPU/m68k_interp/M68KTrapNames.c \
+            src/CPU/m68k_interp/M68KToolbox.c \
             src/CPU/ppc_interp/PPCBackend.c \
             src/CPU/ppc_interp/PPCOpcodes.c \
             src/SegmentLoader/SegmentLoader.c \

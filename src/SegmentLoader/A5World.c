@@ -40,42 +40,18 @@ OSErr InstallA5World(SegmentLoaderContext* ctx, const CODE0Info* info)
         return segmentA5WorldErr;
     }
 
-    /* Allocate below-A5 area (application globals) */
-    if (info->a5BelowSize > 0) {
-        err = ctx->cpuBackend->AllocateMemory(ctx->cpuAS,
-                                             info->a5BelowSize,
-                                             kCPUMapA5World,
-                                             &belowBase);
-        if (err != noErr) {
-            return err;
-        }
-    } else {
-        belowBase = 0;
+    /* The globals below A5 and the jump table above it are one block, A5
+     * between them: the program addresses both from the one register. They
+     * were allocated separately, and the jump table written at A5 + 32
+     * whether or not the second block began at A5. */
+    err = ctx->cpuBackend->AllocateMemory(ctx->cpuAS,
+                                         info->a5BelowSize + info->a5AboveSize,
+                                         kCPUMapA5World, &belowBase);
+    if (err != noErr) {
+        return err;
     }
-
-    /* Calculate A5 register value */
     a5 = belowBase + info->a5BelowSize;
-
-    /* Allocate above-A5 area (jump table + params) */
-    if (info->a5AboveSize > 0) {
-        err = ctx->cpuBackend->AllocateMemory(ctx->cpuAS,
-                                             info->a5AboveSize,
-                                             kCPUMapA5World,
-                                             &aboveBase);
-        if (err != noErr) {
-            /* Below-A5 was allocated but above-A5 failed.
-             * DestroyAddressSpace will reclaim all allocations. */
-            return err;
-        }
-    } else {
-        aboveBase = a5;
-    }
-
-    /* Verify above-A5 base is immediately after A5 */
-    if (aboveBase != a5) {
-        /* Adjust if needed (simple allocator may not give contiguous) */
-        /* For MVP, we'll accept non-contiguous and use offset */
-    }
+    aboveBase = a5;
 
     /* Store A5 world layout in context */
     ctx->a5World.a5BelowBase = belowBase;

@@ -752,11 +752,10 @@ void M68K_Op_DBcc(M68KAddressSpace* as, UInt16 opcode)
  */
 void M68K_Op_TRAP(M68KAddressSpace* as, UInt16 opcode)
 {
-    UInt16 trap_num = opcode & 0x0FFF;
     UInt32 saved_pc = as->regs.pc;
     OSErr err;
 
-    serial_printf("[M68K] TRAP $A%03X at PC=0x%08X\n", trap_num, saved_pc - 2);
+    (void)saved_pc;
 
     /* Look up trap handler, through the same slot mapping that installed it */
     int slot = M68K_TrapSlot(opcode);
@@ -773,7 +772,18 @@ void M68K_Op_TRAP(M68KAddressSpace* as, UInt16 opcode)
             return;
         }
     } else {
-        serial_printf("[M68K] WARNING: Unhandled TRAP $A%03X\n", trap_num);
+        /* A call the system does not implement stops the program, and says
+         * which call: carrying on past it ran the rest of the program on
+         * whatever the call should have left behind, and the crash that
+         * followed was somewhere else entirely. */
+        static char why[64];
+        const char* name = M68K_TrapName(opcode);
+        snprintf(why, sizeof(why), "unimplemented trap $%04X %s", opcode, name ? name : "");
+        as->halted = true;
+        as->lastException = M68K_VEC_LINE_A;
+        as->faultReason = why;
+        as->faultPC = saved_pc - 2;
+        return;
     }
 
     /* PC is now at next instruction (set by handler or unchanged) */
