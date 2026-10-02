@@ -28,6 +28,7 @@ extern UInt16 GetModifierState(void);  /* From KeyboardEvents.c */
 
 /* String function from System71StdLib */
 extern void* memset(void* s, int c, size_t n);
+extern void* memcpy(void* dest, const void* src, size_t n);
 
 /* Forward declarations */
 static UInt16 GetModifiers(void);
@@ -99,6 +100,50 @@ Boolean Proc_GetNextEvent(EventMask mask, EventRecord* evt) {
     evt->modifiers = GetModifiers();
 
     return false;  /* false means null event */
+}
+
+/* No event: a null one, with the mouse and modifiers as they are now. */
+static void NullEventNow(EventRecord* evt) {
+    evt->what = nullEvent;
+    evt->message = 0;
+    evt->when = TickCount();
+    evt->where.h = 0;
+    evt->where.v = 0;
+    GetMouse(&evt->where);
+    evt->modifiers = GetModifiers();
+}
+
+/*
+ * GetOSEvent / OSEventAvail - the queue alone (IM I-254). What GetNextEvent
+ * adds - update and activate events, desk accessories' keystrokes - is the
+ * Toolbox Event Manager's, and a program calling these has asked for none
+ * of it. The hardware is pumped first, as GetNextEvent does, so a program
+ * polling GetOSEvent in a loop still sees the mouse.
+ */
+Boolean GetOSEvent(SInt16 mask, EventRecord* evt) {
+    if (!evt) return false;
+    extern void ProcessModernInput(void);
+    ProcessModernInput();
+    if (DequeueEvent((EventMask)(UInt16)mask, evt)) {
+        Proc_UnblockEvent(evt);
+        return true;
+    }
+    NullEventNow(evt);
+    return false;
+}
+
+Boolean OSEventAvail(SInt16 mask, EventRecord* evt) {
+    if (!evt) return false;
+    UInt16 index = gQueueHead;
+    for (UInt16 count = gQueueCount; count > 0; count--) {
+        if ((1 << gEventQueue[index].what) & (UInt16)mask) {
+            memcpy(evt, &gEventQueue[index], sizeof(EventRecord));
+            return true;
+        }
+        index = (index + 1) % EVENT_QUEUE_SIZE;
+    }
+    NullEventNow(evt);
+    return false;
 }
 
 /*

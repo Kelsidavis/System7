@@ -44,7 +44,8 @@ enum {
     kLM_ROM85       = 0x028E,
     kLM_ScrnBase    = 0x0824,
     kLM_CurApRefNum = 0x0900,
-    kLM_CurApName   = 0x0910    /* Str31 */
+    kLM_CurApName   = 0x0910,   /* Str31 */
+    kLM_AppParmHandle = 0x0AEC  /* the Finder's message: documents to open or print */
 };
 
 /* The application being answered; one runs at a time */
@@ -805,6 +806,87 @@ TRAP(Trap_ExitToShell) {
     return noErr;
 }
 
+/* _SysError: D0 the error. The Macintosh puts up the bomb box and goes no
+ * further; here the program stops, and the alert that says it quit names
+ * the error. */
+TRAP(Trap_SysError) {
+    UNUSED;
+    static char why[32];
+    snprintf(why, sizeof(why), "system error %d", (int)(SInt16)D(0));
+    gAS->halted = true;
+    gAS->lastException = M68K_VEC_LINE_A;
+    gAS->faultReason = why;
+    gAS->faultPC = gAS->instrPC;
+    return noErr;
+}
+
+/* _FlushCodeCache: a 68000 has no cache, nor has this interpreter */
+TRAP(Trap_FlushCodeCache) { UNUSED; D(0) = 0; return noErr; }
+
+/* PROCEDURE UnloadSeg(routineAddr: Ptr). The Macintosh only makes the
+ * segment purgeable, and loads it again if it was purged before its next
+ * call. Nothing here is short of memory enough to purge one, so the
+ * segment stays where it is and its jump table entries stay good. */
+TRAP(Trap_UnloadSeg) { UNUSED; (void)Pop32(); return noErr; }
+
+/* PROCEDURE InitPack(packID: INTEGER); InitAllPacks. Packages are answered
+ * when called; there is nothing to load ahead of time. */
+TRAP(Trap_InitPack) { UNUSED; (void)Pop16(); return noErr; }
+
+/* PROCEDURE GetAppParms(VAR apName: Str255; VAR apRefNum: INTEGER;
+ *   VAR apParam: Handle) - from the globals the launch set */
+TRAP(Trap_GetAppParms) {
+    UNUSED;
+    UInt32 param = Pop32();
+    UInt32 refNum = Pop32();
+    UInt32 name = Pop32();
+    for (int i = 0; i <= R8(kLM_CurApName); i++) W8(name + i, R8(kLM_CurApName + i));
+    W16(refNum, R16(kLM_CurApRefNum));
+    W32(param, R32(kLM_AppParmHandle));
+    return noErr;
+}
+
+/* Enqueue and Dequeue: A0 the element, A1 the queue header (IM II-382).
+ * Both are records in the program's memory: QHdr is qFlags, qHead,
+ * qTail; every element starts with its qLink. */
+enum { kQHead = 2, kQTail = 6, kQErr = -1 };
+
+TRAP(Trap_Enqueue) {
+    UNUSED;
+    UInt32 elem = A(0), hdr = A(1);
+    W32(elem, 0);
+    UInt32 tail = R32(hdr + kQTail);
+    if (R32(hdr + kQHead) == 0 || tail == 0) {
+        W32(hdr + kQHead, elem);
+    } else {
+        W32(tail, elem);
+    }
+    W32(hdr + kQTail, elem);
+    return noErr;
+}
+
+TRAP(Trap_Dequeue) {
+    UNUSED;
+    UInt32 elem = A(0), hdr = A(1);
+    UInt32 prev = 0;
+    /* A bound on the walk: a queue the program has corrupted into a cycle
+     * would otherwise hang the system. */
+    UInt32 cur = R32(hdr + kQHead);
+    for (int n = 0; cur && n < 65536; n++) {
+        if (cur == elem) {
+            UInt32 next = R32(cur);
+            if (prev) W32(prev, next); else W32(hdr + kQHead, next);
+            if (R32(hdr + kQTail) == elem) W32(hdr + kQTail, prev);
+            D(0) = noErr;
+            return noErr;
+        }
+        prev = cur;
+        cur = R32(cur);
+    }
+    D(0) = (UInt32)(SInt32)kQErr;
+    return noErr;
+}
+
 /* ------------------------------------------------------------------------ */
 
 static const M68KTrapEntry kTraps[] = {
@@ -858,7 +940,10 @@ static const M68KTrapEntry kTraps[] = {
     { 0xA850, Trap_InitCursor },    { 0xA032, Trap_FlushEvents },
     { 0xA975, Trap_TickCount },     { 0xA9C8, Trap_SysBeep },
     { 0xA090, Trap_SysEnvirons },   { 0xA1AD, Trap_Gestalt },
-    { 0xA9F4, Trap_ExitToShell },
+    { 0xA9F4, Trap_ExitToShell },   { 0xA9F5, Trap_GetAppParms },
+    { 0xA9F1, Trap_UnloadSeg },     { 0xA9E5, Trap_InitPack },     { 0xA9E6, Trap_NoOp },  /* InitAllPacks */
+    { 0xA9C9, Trap_SysError },      { 0xA0BD, Trap_FlushCodeCache },
+    { 0xA96F, Trap_Enqueue },       { 0xA96E, Trap_Dequeue },
 };
 
 OSErr M68KToolbox_Prepare(SegmentLoaderContext* ctx, ConstStr255Param appName,
@@ -897,6 +982,11 @@ OSErr M68KToolbox_Prepare(SegmentLoaderContext* ctx, ConstStr255Param appName,
     W32(LMG_ApplLimit, heap + kHeapSize);
     W16(kLM_ROM85, 0x7FFF);                 /* 128K ROM, no Color QuickDraw */
     W16(kLM_CurApRefNum, (UInt16)resRefNum);
+    /* Opened from the Finder with no documents: message appOpen, count 0
+     * (IM II-57). CountAppFiles and GetAppFiles are glue that read this
+     * handle directly, so a NIL one had them read low memory at 0. */
+    UInt32 appParms = M68KHeap_NewHandle(4, true);
+    W32(kLM_AppParmHandle, appParms);
     UInt8 len = appName ? appName[0] : 0;
     if (len > 31) len = 31;
     W8(kLM_CurApName, len);

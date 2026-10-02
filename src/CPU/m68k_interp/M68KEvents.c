@@ -229,12 +229,35 @@ TRAP(Trap_Delay) {
     return noErr;
 }
 
+/* GetOSEvent and OSEventAvail (OS): A0 the event record, D0 the mask; D0
+ * comes back 0 for an event, -1 for a null one. The queue holds no update
+ * or activate events, so no window in a message needs translating. */
+TRAP(Trap_GetOSEvent) {
+    UNUSED;
+    EventRecord e;
+    memset(&e, 0, sizeof(e));
+    Boolean got = GetOSEvent((SInt16)D(0), &e);
+    WriteEvent(A(0), &e, e.message);
+    D(0) = got ? 0 : (UInt32)-1;
+    return noErr;
+}
+
+TRAP(Trap_OSEventAvail) {
+    UNUSED;
+    EventRecord e;
+    memset(&e, 0, sizeof(e));
+    Boolean got = OSEventAvail((SInt16)D(0), &e);
+    WriteEvent(A(0), &e, e.message);
+    D(0) = got ? 0 : (UInt32)-1;
+    return noErr;
+}
+
 const M68KTrapEntry kM68KEventTraps[] = {
     { 0xA970, Trap_GetNextEvent },  { 0xA860, Trap_WaitNextEvent }, { 0xA971, Trap_EventAvail },
     { 0xA972, Trap_GetMouse },      { 0xA974, Trap_Button },        { 0xA973, Trap_StillDown },
     { 0xA977, Trap_WaitMouseUp },   { 0xA976, Trap_GetKeys },       { 0xA9B3, Trap_SystemClick },
     { 0xA9B2, Trap_SystemEvent },   { 0xA9B4, Trap_SystemTask },    { 0xA9C2, Trap_SystemEdit },
     { 0xA9B6, Trap_OpenDeskAcc },   { 0xA9B7, Trap_CloseDeskAcc },  { 0xA02F, Trap_PostEvent },
-    { 0xA03B, Trap_Delay },
+    { 0xA03B, Trap_Delay },         { 0xA031, Trap_GetOSEvent },    { 0xA030, Trap_OSEventAvail },
 };
 const int kM68KEventTrapCount = (int)(sizeof(kM68KEventTraps) / sizeof(kM68KEventTraps[0]));

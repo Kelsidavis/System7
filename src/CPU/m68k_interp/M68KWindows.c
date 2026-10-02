@@ -126,6 +126,16 @@ WINDOW_VERB(Trap_SelectWindow, SelectWindow)
 WINDOW_VERB(Trap_BringToFront, BringToFront)
 WINDOW_VERB(Trap_DrawGrowIcon, DrawGrowIcon)
 
+/* PROCEDURE ShowHide(theWindow: WindowPtr; showFlag: BOOLEAN) */
+TRAP(Trap_ShowHide) {
+    UNUSED;
+    Boolean show = PopBool();
+    WindowPtr w = PopWindow();
+    if (w) ShowHide(w, show);
+    Obj_SyncWindows();
+    return noErr;
+}
+
 TRAP(Trap_HiliteWindow) {
     UNUSED;
     Boolean on = PopBool();
@@ -333,6 +343,7 @@ TRAP(Trap_GetWMgrPort) {
 const M68KTrapEntry kM68KWindowTraps[] = {
     { 0xA913, Trap_NewWindow },     { 0xA9BD, Trap_GetNewWindow },  { 0xA914, Trap_DisposeWindow },
     { 0xA92D, Trap_DisposeWindow }, /* CloseWindow */
+    { 0xA908, Trap_ShowHide },
     { 0xA915, Trap_ShowWindow },    { 0xA916, Trap_HideWindow },    { 0xA91F, Trap_SelectWindow },
     { 0xA920, Trap_BringToFront },  { 0xA904, Trap_DrawGrowIcon },  { 0xA91C, Trap_HiliteWindow },
     { 0xA921, Trap_SendBehind },    { 0xA924, Trap_FrontWindow },   { 0xA92C, Trap_FindWindow },

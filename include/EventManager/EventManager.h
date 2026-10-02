@@ -140,6 +140,7 @@ OSErr PostEvent(EventMask evtType, UInt32 evtMessage);
  * @return true if event found
  */
 Boolean OSEventAvail(SInt16 mask, EventRecord* theEvent);
+Boolean GetOSEvent(SInt16 mask, EventRecord* theEvent);   /* and removes it */
 
 
 /**

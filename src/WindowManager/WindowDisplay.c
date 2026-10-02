@@ -1343,7 +1343,10 @@ void DrawGrowIcon(WindowPtr window) {
 /* Window Visibility Functions                                          */
 /*-----------------------------------------------------------------------*/
 
-void ShowWindow(WindowPtr window) {
+/* Shown, drawn and its update posted - but not made active, which is the
+ * difference between ShowWindow and ShowHide. Returns false if it already
+ * showed. */
+static Boolean WM_ShowWindowOnly(WindowPtr window) {
     extern void serial_puts(const char*);
     extern void uart_flush(void);
     serial_puts("[SHOWWIN] enter\n");
@@ -1352,7 +1355,7 @@ void ShowWindow(WindowPtr window) {
     if (!window || window->visible) {
         serial_puts("[SHOWWIN] early return\n");
         uart_flush();
-        return;
+        return false;
     }
 
     serial_puts("[SHOWWIN] set visible\n");
@@ -1437,19 +1440,22 @@ void ShowWindow(WindowPtr window) {
     /* Don't call PaintBehind here - background windows are already painted.
      * Calling PaintBehind would cause background windows to paint over the front window. */
 
+    serial_puts("[SHOWWIN] EXIT - window should be fully visible now\n");
+    WM_LOG_TRACE("ShowWindow: EXIT\n");
+    return true;
+}
+
+void ShowWindow(WindowPtr window) {
+    if (!WM_ShowWindowOnly(window)) return;
+
     /* A window shown at the front becomes the active one. Newly created
      * document windows arrive this way rather than through SelectWindow, and
      * without this nothing tells the application it now owns the front. */
-    {
-        WindowManagerState* wmState = GetWindowManagerState();
-        if (wmState && wmState->windowList == window) {
-            extern void WM_SetActiveWindow(WindowPtr w);
-            WM_SetActiveWindow(window);
-        }
+    WindowManagerState* wmState = GetWindowManagerState();
+    if (wmState && wmState->windowList == window) {
+        extern void WM_SetActiveWindow(WindowPtr w);
+        WM_SetActiveWindow(window);
     }
-
-    serial_puts("[SHOWWIN] EXIT - window should be fully visible now\n");
-    WM_LOG_TRACE("ShowWindow: EXIT\n");
 }
 
 /* Temporarily disable ALL WM logging to prevent heap corruption from variadic serial_logf */
@@ -1473,13 +1479,8 @@ static void WM_VisibleStructure(WindowPtr window, RgnHandle out) {
     }
 }
 
-void HideWindow(WindowPtr window) {
-    if (!window || !window->visible) {
-        return;
-    }
-    WindowManagerState* wm = GetWindowManagerState();
-    Boolean wasActive = window->hilited;
-
+/* Hidden and what it covered redrawn, with no other window made active. */
+static void WM_HideWindowOnly(WindowPtr window) {
     /* Only the part that was showing is uncovered */
     AutoRgnHandle clobbered = WM_NewAutoRgn();
     if (clobbered.rgn && window->strucRgn && *window->strucRgn) {
@@ -1499,6 +1500,15 @@ void HideWindow(WindowPtr window) {
         PaintBehind(window->nextWindow, clobbered.rgn);
     }
     WM_DisposeAutoRgn(&clobbered);
+}
+
+void HideWindow(WindowPtr window) {
+    if (!window || !window->visible) {
+        return;
+    }
+    WindowManagerState* wm = GetWindowManagerState();
+    Boolean wasActive = window->hilited;
+    WM_HideWindowOnly(window);
 
     /* Hiding the active window makes the next one active (4-91) */
     if (wasActive) {
@@ -1512,11 +1522,15 @@ void HideWindow(WindowPtr window) {
     }
 }
 
+/* ShowHide shows or hides and does nothing else: no window is highlighted
+ * or unhighlighted, and none becomes active (IM I-285). Calling ShowWindow
+ * and HideWindow for it activated the window it showed. */
 void ShowHide(WindowPtr window, Boolean showFlag) {
+    if (!window || window->visible == (showFlag != 0)) return;
     if (showFlag) {
-        ShowWindow(window);
+        WM_ShowWindowOnly(window);
     } else {
-        HideWindow(window);
+        WM_HideWindowOnly(window);
     }
 }
 

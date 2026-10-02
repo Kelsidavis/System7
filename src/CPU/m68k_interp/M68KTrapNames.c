@@ -55,7 +55,7 @@ static const TrapName kToolboxTraps[] = {
     { 0xA810, "_Unique1ID" },        { 0xA811, "_TESelView" },       { 0xA812, "_TEPinScroll" },
     { 0xA813, "_TEAutoView" },       { 0xA816, "_Pack8" },           { 0xA81C, "_Count1Types" },
     { 0xA81F, "_Get1Resource" },     { 0xA820, "_Get1NamedResource" },{ 0xA822, "_ResourceDispatch" },
-    { 0xA823, "_AliasDispatch" },    { 0xA826, "_InsMenuItem" },    { 0xA82B, "_Pack0" },           { 0xA82E, "_Pack11" },
+    { 0xA823, "_AliasDispatch" },    { 0xA826, "_InsMenuItem" },    { 0xA82B, "_Pack14" },          { 0xA82E, "_Pack11" },
     { 0xA831, "_PlotIconID" },       { 0xA833, "_ScrnBitMap" },      { 0xA834, "_SetFScaleDisable" },
     { 0xA83A, "_ZoomWindow" },       { 0xA83B, "_TrackBox" },        { 0xA84E, "_GetItemCmd" },
     { 0xA84F, "_SetItemCmd" },       { 0xA850, "_InitCursor" },      { 0xA851, "_SetCursor" },
