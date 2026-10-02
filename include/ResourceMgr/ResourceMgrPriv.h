@@ -67,8 +67,13 @@ typedef struct ResFile {
     UInt32      dataSize;       /* Size of resource fork */
     ResMapHeader* map;          /* Pointer to resource map in memory */
     UInt32      mapSize;        /* Size of resource map */
-    Handle      mapHandle;      /* Handle to map if loaded separately */
-    Str255      fileName;       /* File name for debugging */
+    Handle      mapHandle;      /* The fork, when it is ours to free and replace */
+    Str255      fileName;       /* The file, for writing it back */
+    short       vRefNum;
+    long        dirID;
+    UInt32      openSeq;        /* Order of opening: the search chain runs back from here */
+    Boolean     writable;       /* A file on disk, not the System file or memory */
+    Boolean     dirty;          /* Changed since last written */
 } ResFile;
 
 /* Global resource manager state */
@@ -77,8 +82,7 @@ typedef struct ResourceMgrGlobals {
     OSErr       resError;           /* Last error */
     Boolean     resLoad;            /* Auto-load resources */
     ResFile     resFiles[MAX_RES_FILES];  /* Open resource files */
-    Handle      systemResources;    /* Handle to system resource list */
-    UInt32      nextUniqueID;      /* For UniqueID generation */
+    UInt32      nextSeq;            /* openSeq for the next file opened */
 } ResourceMgrGlobals;
 
 /* Internal functions */

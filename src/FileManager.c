@@ -321,28 +321,17 @@ OSErr FSSetEOF(FileRefNum refNum, UInt32 eof)
         return wrPermErr;
     }
 
-    /* Growing writes zeros up to the new end. The VFS cannot shorten a
-     * file, so a smaller EOF is refused rather than pretended. */
-    if (eof > fcb->base.fcbEOF) {
-        static const UInt8 zeros[512];
-        UInt32 at = fcb->base.fcbEOF;
-        UInt32 savedPos = fcb->base.fcbCrPs;
-        err = noErr;
-        while (err == noErr && at < eof) {
-            UInt32 n = (eof - at > sizeof(zeros)) ? (UInt32)sizeof(zeros) : eof - at;
-            UInt32 wrote = 0;
-            err = IO_WriteFork(fcb, at, n, zeros, &wrote);
-            at += wrote;
-        }
-        fcb->base.fcbCrPs = savedPos;
-    } else if (eof < fcb->base.fcbEOF) {
-        err = ioErr;
+    /* The fork is made that long: cut off, or extended with zeros */
+    if (fcb->fcbVFSFile) {
+        err = VFS_SetFileSize((VFSFile*)fcb->fcbVFSFile, eof) ? noErr : ioErr;
     } else {
-        err = noErr;
+        err = rfNumErr;
     }
 
     if (err == noErr) {
         fcb->base.fcbEOF = eof;
+        fcb->base.fcbPLen = eof;
+        fcb->fcbPLen = eof;
         fcb->base.fcbFlags |= FCB_DIRTY;
 
         /* Adjust current position if beyond new EOF */

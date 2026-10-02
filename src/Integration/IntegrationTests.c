@@ -342,11 +342,13 @@ static void Test_File_Metadata(void) {
         for (UInt32 i = 0; i < n; i++) if (buf[i] != 0) zeros = false;
     }
     OSErr shrink = FSSetEOF(ref, 10);
+    UInt32 shrunk = 0;
+    if (shrink == noErr) shrink = FSGetEOF(ref, &shrunk);
     FSClose(ref);
     FSDelete(spec.name, 0);
     CHECK(err == noErr && eof == 100, "FSSetEOF did not grow the file");
     CHECK(zeros, "the grown part did not read back as zeros");
-    CHECK(shrink != noErr, "FSSetEOF reported shrinking a file it cannot shrink");
+    CHECK(shrink == noErr && shrunk == 10, "FSSetEOF did not shorten the file");
     RecordTest(test_name, true, "");
 }
 
@@ -1126,6 +1128,61 @@ static void Test_Resource_CreateAndOpenResFile(void) {
     RecordTest(test_name, true, "");
 }
 
+/* Added, closed, opened again: the resource is in the file. Then changed,
+ * renamed and removed, each surviving a close. */
+static void Test_Resource_WriteAndReadBack(void) {
+    const char* test_name = "Resource_WriteAndReadBack";
+    FSSpec spec;
+    SetSpec(&spec, "ITest Written");
+    FSpCreateResFile(&spec, 'ITst', 'rsrc', 0);
+    SInt16 saved = CurResFile();
+
+    SInt16 ref = FSpOpenResFile(&spec, 3);
+    CHECK(ref > 0, "could not open the new file");
+    Handle h = NewHandle(5);
+    BlockMoveData("hello", *h, 5);
+    AddResource(h, 'ITst', 200, PSTR("greeting"));
+    CHECK(ResError() == noErr, "AddResource failed");
+    Handle h2 = NewHandle(3);
+    BlockMoveData("bye", *h2, 3);
+    AddResource(h2, 'ITst', 201, NULL);
+    CloseResFile(ref);
+    CHECK(ResError() == noErr, "CloseResFile could not write the file");
+
+    ref = FSpOpenResFile(&spec, 3);
+    Handle back = Get1Resource('ITst', 200);
+    CHECK(back && GetHandleSize(back) == 5 && memcmp(*back, "hello", 5) == 0,
+          "the resource did not come back from the file");
+    Str255 name;
+    ResID id = 0;
+    ResType type = 0;
+    GetResInfo(back, &id, &type, (char*)name);
+    CHECK(id == 200 && type == 'ITst' && name[0] == 8 && memcmp(name + 1, "greeting", 8) == 0,
+          "GetResInfo did not give its ID, type and name");
+    CHECK(Count1Resources('ITst') == 2, "Count1Resources did not count both");
+
+    /* Changed: longer, and renumbered */
+    SetHandleSize(back, 7);
+    BlockMoveData("goodbye", *back, 7);
+    ChangedResource(back);
+    SetResInfo(back, 300, PSTR("farewell"));
+    RemoveResource(Get1Resource('ITst', 201));
+    UpdateResFile(ref);
+    CHECK(ResError() == noErr, "UpdateResFile could not write the file");
+    CloseResFile(ref);
+
+    ref = FSpOpenResFile(&spec, 3);
+    back = Get1Resource('ITst', 300);
+    CHECK(back && GetHandleSize(back) == 7 && memcmp(*back, "goodbye", 7) == 0,
+          "the changed resource did not come back");
+    CHECK(Get1Resource('ITst', 200) == NULL, "the old ID is still there");
+    CHECK(Get1Resource('ITst', 201) == NULL, "the removed resource is still there");
+    CloseResFile(ref);
+    UseResFile(saved);
+    FSDelete(spec.name, spec.vRefNum);
+    RecordTest(test_name, true, "");
+}
+
 static void Test_Resource_OpenMissingResFile(void) {
     const char* test_name = "Resource_OpenMissingResFile";
     FSSpec spec;
@@ -1253,6 +1310,7 @@ void IntegrationTests_Run(void) {
 
     IT_LOG_INFO("--- Resource Manager ---");
     Test_Resource_CreateAndOpenResFile();
+    Test_Resource_WriteAndReadBack();
     Test_Resource_OpenMissingResFile();
 
     PrintTestSummary();

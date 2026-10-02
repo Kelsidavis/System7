@@ -78,6 +78,9 @@ void CloseResMemory(SInt16 refNum);
 void AddResource(Handle theData, ResType theType, ResID theID, ConstStr255Param name);
 void RemoveResource(Handle theResource);
 void WriteResource(Handle theResource);
+void SetResInfo(Handle theResource, ResID theID, ConstStr255Param name);
+SInt16 GetResFileAttrs(SInt16 refNum);
+void SetResFileAttrs(SInt16 refNum, SInt16 attrs);
 
 /* Errors */
 OSErr ResError(void);

@@ -231,9 +231,11 @@ OSErr SegmentLoader_RunSmokeChecks(SegmentLoaderContext* ctx)
 
         /*
          * Every entry should be the unloaded form CODE 0 supplied, naming its
-         * own segment. Checking all of them, not just the first, is what
-         * catches the table being built from a rule instead of copied - a
-         * rule that gets slot zero right can still get the rest wrong.
+         * own segment - or, for a segment already loaded (the entry segment
+         * is), the loaded form: a JMP to the routine in it. Checking all of
+         * them, not just the first, is what catches the table being built
+         * from a rule instead of copied - a rule that gets slot zero right
+         * can still get the rest wrong.
          */
         for (UInt16 i = 0; i < a5->jtCount; i++) {
             UInt8 slotData[8];
@@ -241,6 +243,15 @@ OSErr SegmentLoader_RunSmokeChecks(SegmentLoaderContext* ctx)
             if (ctx->cpuBackend->ReadMemory(ctx->cpuAS, slotAddr, slotData, 8) != noErr) {
                 SEG_TEST_FAILED("could not read back a jump table entry");
                 break;
+            }
+            if (BE_Read16(slotData + 2) == 0x4EF9) {
+                CPUAddr seg = 0;
+                UInt32 target = BE_Read32(slotData + 4);
+                if (GetSegmentEntryPoint(ctx, (SInt16)(i + 1), &seg) != noErr || target != seg) {
+                    SEG_TEST_FAILED("a loaded jump table entry does not jump into its segment");
+                    break;
+                }
+                continue;
             }
             if (BE_Read16(slotData + 2) != 0x3F3C || BE_Read16(slotData + 6) != 0xA9F0) {
                 SEG_TEST_FAILED("a jump table entry is not in unloaded form");
@@ -369,7 +380,27 @@ OSErr Trace_TrapHandler(void* context, CPUAddr* pc, CPUAddr* registers)
 /*
  * Test Boot Entry Point
  */
+static void RunTestBoot(void);
+
+/* The test's CODE resources go again afterwards: they were added to the
+ * System file, where an application's own would otherwise be found after
+ * them */
 void SegmentLoader_TestBoot(void)
+{
+    SInt16 saved = CurResFile();
+    RunTestBoot();
+    UseResFile(0);
+    for (SInt16 id = 0; id <= 2; id++) {
+        Handle h = Get1Resource('CODE', id);
+        if (h) {
+            RemoveResource(h);
+            DisposeHandle(h);
+        }
+    }
+    UseResFile(saved);
+}
+
+static void RunTestBoot(void)
 {
     OSErr err;
     SegmentLoaderContext* ctx;
