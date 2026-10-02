@@ -808,12 +808,17 @@ static SInt16 OpenResNamed(SInt16 vRefNum, SInt32 dirID, ConstStr255Param name) 
     VRefNum vref;
     DirID dir;
     char leaf[64];
-    if (Resolve(vRefNum, dirID, name, &vref, &dir, leaf) != noErr || !leaf[0]) return -1;
+    if (Resolve(vRefNum, dirID, name, &vref, &dir, leaf) != noErr || !leaf[0]) {
+        W16(kLM_ResErr, (UInt16)fnfErr);
+        return -1;
+    }
     FSSpec spec;
     spec.vRefNum = (SInt16)vref;
     spec.parID = (SInt32)dir;
     c2pstrcpy(spec.name, leaf);
-    return FSpOpenResFile(&spec, 3);           /* fsRdWrPerm */
+    SInt16 ref = FSpOpenResFile(&spec, 3);     /* fsRdWrPerm */
+    M68KTB_SetResErr();
+    return ref;
 }
 
 /* FUNCTION OpenResFile(fileName: Str255): INTEGER */
@@ -851,7 +856,7 @@ TRAP(Trap_HOpenResFile) {
 
 TRAP(Trap_CloseResFile) {
     UNUSED;
-    CloseResFile((SInt16)Pop16());
+    M68KTB_CloseResFile((SInt16)Pop16());
     return noErr;
 }
 
@@ -869,7 +874,10 @@ TRAP(Trap_CreateResFile) {
         spec.parID = (SInt32)dir;
         c2pstrcpy(spec.name, leaf);
         FSpCreateResFile(&spec, kAnyType, kAnyType, 0);
+        M68KTB_SetResErr();
+        return noErr;
     }
+    W16(kLM_ResErr, (UInt16)bdNamErr);
     return noErr;
 }
 

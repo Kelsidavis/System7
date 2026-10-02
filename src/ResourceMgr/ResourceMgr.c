@@ -529,9 +529,15 @@ void SetResLoad(Boolean load) { gResMgr.resLoad = load; }
 
 /* The handle is no longer the resource's: the next GetResource reads it
  * afresh (1-91) */
+/* A changed resource stays until it is written (1-120) */
 void ReleaseResource(Handle theResource) {
-    if (!FindHandleInfo(theResource)) {
+    HandleInfo* info = FindHandleInfo(theResource);
+    if (!info) {
         gResMgr.resError = resNotFound;
+        return;
+    }
+    if (info->changed) {
+        gResMgr.resError = resAttrErr;
         return;
     }
     HandleInfoForget(theResource);
@@ -717,7 +723,7 @@ SInt16 FSpOpenResFile(const FSSpec* spec, SInt8 permission) {
     return OpenResFileIn(spec->vRefNum, spec->parID, spec->name);
 }
 
-/* An empty fork (1-121): a 256-byte header area with the map at 256, and a
+/* An empty fork (1-121) where there is none: a 256-byte header area with the map at 256, and a
  * map with no types */
 void FSpCreateResFile(const FSSpec* spec, OSType creator, OSType fileType, ScriptCode scriptTag) {
     (void)scriptTag;
@@ -745,6 +751,13 @@ void FSpCreateResFile(const FSSpec* spec, OSType creator, OSType fileType, Scrip
     err = HOpenRF(spec->vRefNum, spec->parID, spec->name, fsRdWrPerm, &ref);
     if (err != noErr) {
         gResMgr.resError = err;
+        return;
+    }
+    /* A fork already there is left as it is (1-114) */
+    UInt32 eof = 0;
+    if (FSGetEOF(ref, &eof) == noErr && eof > 0) {
+        FSClose(ref);
+        gResMgr.resError = dupFNErr;
         return;
     }
     UInt32 count = sizeof(fork);

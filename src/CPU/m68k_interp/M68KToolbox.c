@@ -44,8 +44,7 @@ enum {
     kLM_ROM85       = 0x028E,
     kLM_ScrnBase    = 0x0824,
     kLM_CurApRefNum = 0x0900,
-    kLM_CurApName   = 0x0910,   /* Str31 */
-    kLM_ResErr      = 0x0A60
+    kLM_CurApName   = 0x0910    /* Str31 */
 };
 
 /* The application being answered; one runs at a time */
@@ -272,7 +271,9 @@ TRAP(Trap_PtrAndHand) {
  * ------------------------------------------------------------------------ */
 
 enum { kMaxResMap = 1024 };
-static struct { Handle native; UInt32 h; } gResMap[kMaxResMap];
+/* dirty: the program has changed or added it, so its data goes to the
+ * native copy before the file is written */
+static struct { Handle native; UInt32 h; Boolean dirty; } gResMap[kMaxResMap];
 static int gResCount;
 
 static int ResIndexOf68K(UInt32 h) {
@@ -284,7 +285,7 @@ static void ForgetRes(int i) {
     gResMap[i] = gResMap[--gResCount];
 }
 
-static void SetResErr(void) {
+void M68KTB_SetResErr(void) {
     W16(kLM_ResErr, (UInt16)ResError());
 }
 
@@ -306,9 +307,53 @@ UInt32 M68KTB_ResHandleFor(Handle native) {
     if (gResCount < kMaxResMap) {
         gResMap[gResCount].native = native;
         gResMap[gResCount].h = h;
+        gResMap[gResCount].dirty = false;
         gResCount++;
     }
     return h;
+}
+
+/* The program's data into the native resource */
+static void SyncRes(int i) {
+    UInt32 h = gResMap[i].h;
+    Handle native = gResMap[i].native;
+    UInt32 p = M68KHeap_Deref(h);
+    UInt32 n = M68KHeap_GetHandleSize(h);
+    if (!p && n) return;
+    SetHandleSize(native, (Size)n);
+    if (MemError() != noErr) return;
+    UInt8* dst = (UInt8*)*native;
+    for (UInt32 k = 0; k < n; k++) dst[k] = R8(p + k);
+}
+
+/* Every changed resource of a file (or of all files, refNum -1) */
+static void SyncFile(SInt16 refNum) {
+    for (int i = 0; i < gResCount; i++) {
+        if (!gResMap[i].dirty) continue;
+        if (refNum >= 0 && HomeResFile(gResMap[i].native) != refNum) continue;
+        SyncRes(i);
+    }
+}
+
+/* A file the program closes: its changes written, and its resources gone
+ * from the program's heap as they are from the system's (IM I-115) */
+void M68KTB_CloseResFile(SInt16 refNum) {
+    if (refNum <= 0) {
+        CloseResFile(refNum);
+        W16(kLM_ResErr, (UInt16)ResError());
+        return;
+    }
+    SyncFile(refNum);
+    UInt32 gone[kMaxResMap];
+    int ng = 0;
+    for (int i = gResCount - 1; i >= 0; i--) {
+        if (HomeResFile(gResMap[i].native) != refNum) continue;
+        gone[ng++] = gResMap[i].h;
+        ForgetRes(i);
+    }
+    CloseResFile(refNum);
+    W16(kLM_ResErr, (UInt16)ResError());
+    for (int i = 0; i < ng; i++) M68KHeap_DisposeHandle(gone[i]);
 }
 
 static Handle NativeFor(UInt32 h) {
@@ -323,7 +368,7 @@ TRAP(Trap_GetResource) {
     ResType type = Pop32();
     Boolean one = (gAS->currentTrap & 0x03FF) == (0xA81F & 0x03FF);
     Handle n = one ? Get1Resource(type, id) : GetResource(type, id);
-    SetResErr();
+    M68KTB_SetResErr();
     Result32(M68KTB_ResHandleFor(n));
     return noErr;
 }
@@ -336,7 +381,7 @@ TRAP(Trap_GetNamedResource) {
     ResType type = Pop32();
     Boolean one = (gAS->currentTrap & 0x03FF) == (0xA820 & 0x03FF);
     Handle n = one ? Get1NamedResource(type, name) : GetNamedResource(type, name);
-    SetResErr();
+    M68KTB_SetResErr();
     Result32(M68KTB_ResHandleFor(n));
     return noErr;
 }
@@ -348,7 +393,7 @@ TRAP(Trap_GetIndResource) {
     ResType type = Pop32();
     Boolean one = (gAS->currentTrap & 0x03FF) == (0xA80E & 0x03FF);
     Handle n = one ? Get1IndResource(type, index) : GetIndResource(type, index);
-    SetResErr();
+    M68KTB_SetResErr();
     Result32(M68KTB_ResHandleFor(n));
     return noErr;
 }
@@ -367,13 +412,16 @@ TRAP(Trap_ReleaseResource) {
     UNUSED;
     UInt32 h = Pop32();
     int i = ResIndexOf68K(h);
-    if (i >= 0) {
-        Handle native = gResMap[i].native;
+    if (i < 0) {
+        W16(kLM_ResErr, (UInt16)resNotFound);
+        return noErr;
+    }
+    ReleaseResource(gResMap[i].native);
+    M68KTB_SetResErr();
+    if (ResError() == noErr) {
         ForgetRes(i);
         M68KHeap_DisposeHandle(h);
-        ReleaseResource(native);
     }
-    SetResErr();
     return noErr;
 }
 
@@ -396,14 +444,14 @@ TRAP(Trap_DetachResource) {
 TRAP(Trap_LoadResource)     { UNUSED; (void)Pop32(); W16(kLM_ResErr, 0); return noErr; }
 TRAP(Trap_ResError)         { UNUSED; Result16((UInt16)R16(kLM_ResErr)); return noErr; }
 TRAP(Trap_CurResFile)       { UNUSED; Result16((UInt16)CurResFile()); return noErr; }
-TRAP(Trap_UseResFile)       { UNUSED; UseResFile((SInt16)Pop16()); SetResErr(); return noErr; }
+TRAP(Trap_UseResFile)       { UNUSED; UseResFile((SInt16)Pop16()); M68KTB_SetResErr(); return noErr; }
 TRAP(Trap_SetResLoad)       { UNUSED; SetResLoad(PopBool()); return noErr; }
 
 TRAP(Trap_HomeResFile) {
     UNUSED;
     Handle n = NativeFor(Pop32());
     Result16((UInt16)(n ? HomeResFile(n) : -1));
-    SetResErr();
+    M68KTB_SetResErr();
     return noErr;
 }
 
@@ -433,21 +481,208 @@ TRAP(Trap_GetResInfo) {
     if (idAddr) W16(idAddr, (UInt16)id);
     if (typeAddr) W32(typeAddr, type);
     if (nameAddr) WritePString(nameAddr, name);
-    SetResErr();
+    M68KTB_SetResErr();
     return noErr;
 }
 
-/* Changes to resources stay in memory: the application's file is not
- * written. These answer as if they had been. */
-TRAP(Trap_ResNoOp1) { UNUSED; (void)Pop32(); W16(kLM_ResErr, 0); return noErr; }
-TRAP(Trap_UpdateResFile) { UNUSED; (void)Pop16(); W16(kLM_ResErr, 0); return noErr; }
+/* PROCEDURE ChangedResource(theResource: Handle) */
+TRAP(Trap_ChangedResource) {
+    UNUSED;
+    int i = ResIndexOf68K(Pop32());
+    if (i < 0) {
+        W16(kLM_ResErr, (UInt16)resNotFound);
+        return noErr;
+    }
+    gResMap[i].dirty = true;
+    SyncRes(i);
+    ChangedResource(gResMap[i].native);
+    M68KTB_SetResErr();
+    return noErr;
+}
+
+/* PROCEDURE WriteResource(theResource: Handle) */
+TRAP(Trap_WriteResource) {
+    UNUSED;
+    int i = ResIndexOf68K(Pop32());
+    if (i < 0) {
+        W16(kLM_ResErr, (UInt16)resNotFound);
+        return noErr;
+    }
+    SInt16 file = HomeResFile(gResMap[i].native);
+    SyncFile(file);
+    WriteResource(gResMap[i].native);
+    M68KTB_SetResErr();
+    return noErr;
+}
+
+/* PROCEDURE UpdateResFile(refNum: INTEGER) */
+TRAP(Trap_UpdateResFile) {
+    UNUSED;
+    SInt16 refNum = (SInt16)Pop16();
+    SyncFile(refNum);
+    UpdateResFile(refNum);
+    M68KTB_SetResErr();
+    return noErr;
+}
+
+/* PROCEDURE AddResource(theData: Handle; theType: ResType; theID: INTEGER;
+ *                       name: Str255) */
+TRAP(Trap_AddResource) {
+    UNUSED;
+    UInt32 nameAddr = Pop32();
+    SInt16 id = (SInt16)Pop16();
+    ResType type = Pop32();
+    UInt32 h = Pop32();
+    Str255 name;
+    name[0] = 0;
+    if (nameAddr) ReadPString(nameAddr, name);
+    UInt32 n = h ? M68KHeap_GetHandleSize(h) : 0;
+    Handle native = (h && ResIndexOf68K(h) < 0 && gResCount < kMaxResMap) ? NewHandle((Size)n) : NULL;
+    if (!native) {
+        W16(kLM_ResErr, (UInt16)addResFailed);
+        return noErr;
+    }
+    AddResource(native, type, id, name);
+    OSErr err = ResError();
+    if (err != noErr) {
+        DisposeHandle(native);
+        W16(kLM_ResErr, (UInt16)err);
+        return noErr;
+    }
+    gResMap[gResCount].native = native;
+    gResMap[gResCount].h = h & 0x00FFFFFF;
+    gResMap[gResCount].dirty = true;
+    gResCount++;
+    M68KHeap_SetState(h, (UInt8)(M68KHeap_GetState(h) | 0x20));
+    W16(kLM_ResErr, 0);
+    return noErr;
+}
+
+/* PROCEDURE RmveResource(theResource: Handle): out of the file; the handle
+ * stays, the program's own */
+TRAP(Trap_RmveResource) {
+    UNUSED;
+    UInt32 h = Pop32();
+    int i = ResIndexOf68K(h);
+    if (i < 0) {
+        W16(kLM_ResErr, (UInt16)rmvResFailed);
+        return noErr;
+    }
+    Handle native = gResMap[i].native;
+    RemoveResource(native);
+    OSErr err = ResError();
+    if (err == noErr) {
+        ForgetRes(i);
+        DisposeHandle(native);
+        M68KHeap_SetState(h, (UInt8)(M68KHeap_GetState(h) & ~0x20));
+    }
+    W16(kLM_ResErr, (UInt16)err);
+    return noErr;
+}
+
+/* PROCEDURE SetResInfo(theResource: Handle; theID: INTEGER; name: Str255) */
+TRAP(Trap_SetResInfo) {
+    UNUSED;
+    UInt32 nameAddr = Pop32();
+    SInt16 id = (SInt16)Pop16();
+    Handle n = NativeFor(Pop32());
+    Str255 name;
+    if (nameAddr) ReadPString(nameAddr, name);
+    if (!n) {
+        W16(kLM_ResErr, (UInt16)resNotFound);
+        return noErr;
+    }
+    SetResInfo(n, id, nameAddr ? name : NULL);
+    M68KTB_SetResErr();
+    return noErr;
+}
+
+TRAP(Trap_GetResAttrs) {
+    UNUSED;
+    Handle n = NativeFor(Pop32());
+    Result16(n ? (UInt16)GetResAttrs(n) : 0);
+    if (n) M68KTB_SetResErr();
+    else W16(kLM_ResErr, (UInt16)resNotFound);
+    return noErr;
+}
+
+TRAP(Trap_SetResAttrs) {
+    UNUSED;
+    SInt16 attrs = (SInt16)Pop16();
+    Handle n = NativeFor(Pop32());
+    if (n) {
+        SetResAttrs(n, attrs);
+        M68KTB_SetResErr();
+    } else {
+        W16(kLM_ResErr, (UInt16)resNotFound);
+    }
+    return noErr;
+}
+
+TRAP(Trap_MaxSizeRsrc) {
+    UNUSED;
+    UInt32 h = Pop32();
+    Handle n = NativeFor(h);
+    Result32(n ? (UInt32)GetMaxResourceSize(n) : M68KHeap_GetHandleSize(h));
+    return noErr;
+}
+
+/* FUNCTION CountTypes: INTEGER, and Count1Types */
+TRAP(Trap_CountTypes) {
+    UNUSED;
+    Boolean one = (gAS->currentTrap & 0x03FF) == (0xA81C & 0x03FF);
+    Result16((UInt16)(one ? Count1Types() : CountTypes()));
+    M68KTB_SetResErr();
+    return noErr;
+}
+
+/* PROCEDURE GetIndType(VAR theType: ResType; index: INTEGER), and Get1IxType */
+TRAP(Trap_GetIndType) {
+    UNUSED;
+    SInt16 index = (SInt16)Pop16();
+    UInt32 addr = Pop32();
+    Boolean one = (gAS->currentTrap & 0x03FF) == (0xA80F & 0x03FF);
+    ResType type = 0;
+    if (one) Get1IndType(&type, index);
+    else GetIndType(&type, index);
+    if (addr) W32(addr, type);
+    M68KTB_SetResErr();
+    return noErr;
+}
+
+/* FUNCTION UniqueID(theType: ResType): INTEGER, and Unique1ID */
+TRAP(Trap_UniqueID) {
+    UNUSED;
+    ResType type = Pop32();
+    Boolean one = (gAS->currentTrap & 0x03FF) == (0xA810 & 0x03FF);
+    Result16((UInt16)(one ? Unique1ID(type) : UniqueID(type)));
+    return noErr;
+}
+
+TRAP(Trap_GetResFileAttrs) {
+    UNUSED;
+    Result16((UInt16)GetResFileAttrs((SInt16)Pop16()));
+    M68KTB_SetResErr();
+    return noErr;
+}
+
+TRAP(Trap_SetResFileAttrs) {
+    UNUSED;
+    SInt16 attrs = (SInt16)Pop16();
+    SetResFileAttrs((SInt16)Pop16(), attrs);
+    M68KTB_SetResErr();
+    return noErr;
+}
+
+/* Resources are never purged here, so there is nothing to write first */
+TRAP(Trap_SetResPurge) { UNUSED; (void)Pop16(); return noErr; }
 
 /* FUNCTION GetString(stringID: INTEGER): StringHandle, and the others that
  * are GetResource with the type implied */
 static OSErr TypedResource(ResType type) {
     SInt16 id = (SInt16)Pop16();
     Handle n = GetResource(type, id);
-    SetResErr();
+    M68KTB_SetResErr();
     Result32(M68KTB_ResHandleFor(n));
     return noErr;
 }
@@ -602,9 +837,13 @@ static const M68KTrapEntry kTraps[] = {
     { 0xA9A2, Trap_LoadResource },  { 0xA9AF, Trap_ResError },     { 0xA994, Trap_CurResFile },
     { 0xA998, Trap_UseResFile },    { 0xA99B, Trap_SetResLoad },   { 0xA9A4, Trap_HomeResFile },
     { 0xA9A5, Trap_SizeResource },  { 0xA9A8, Trap_GetResInfo },
-    { 0xA9AA, Trap_ResNoOp1 },      /* ChangedResource */
-    { 0xA9B0, Trap_ResNoOp1 },      /* WriteResource */
-    { 0xA999, Trap_UpdateResFile },
+    { 0xA9AA, Trap_ChangedResource },{ 0xA9B0, Trap_WriteResource },{ 0xA999, Trap_UpdateResFile },
+    { 0xA9AB, Trap_AddResource },   { 0xA9AD, Trap_RmveResource }, { 0xA9A9, Trap_SetResInfo },
+    { 0xA9A6, Trap_GetResAttrs },   { 0xA9A7, Trap_SetResAttrs },  { 0xA821, Trap_MaxSizeRsrc },
+    { 0xA99E, Trap_CountTypes },    { 0xA81C, Trap_CountTypes },
+    { 0xA99F, Trap_GetIndType },    { 0xA80F, Trap_GetIndType },
+    { 0xA9C1, Trap_UniqueID },      { 0xA810, Trap_UniqueID },
+    { 0xA9F6, Trap_GetResFileAttrs },{ 0xA9F7, Trap_SetResFileAttrs },{ 0xA993, Trap_SetResPurge },
     { 0xA9BA, Trap_GetString },     { 0xA9B9, Trap_GetCursor },    { 0xA9B8, Trap_GetPattern },
     { 0xA9BB, Trap_GetIcon },       { 0xA9BC, Trap_GetPicture },
 

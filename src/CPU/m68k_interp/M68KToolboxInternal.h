@@ -88,6 +88,9 @@ typedef struct {
 
 /* ---- M68KToolbox.c ---- */
 UInt32 M68KTB_ResHandleFor(Handle native);   /* the application's copy of a resource */
+void M68KTB_CloseResFile(SInt16 refNum);     /* changes written, its resources gone */
+enum { kLM_ResErr = 0x0A60 };
+void M68KTB_SetResErr(void);                 /* ResError, where the program reads it */
 UInt32 M68KTB_ScreenBase(void);
 UInt32 M68KTB_QDGlobals(void);               /* address of thePort; 0 before InitGraf */
 void M68KTB_TrapEnter(UInt16 trap);          /* around every Toolbox trap: the port */

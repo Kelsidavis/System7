@@ -572,6 +572,68 @@ static inline PicHandle GetPicture(short id) {
     return r;
 }
 
+/* The Resource Manager, and the handles it works in */
+typedef long ResType;
+static inline Handle NewHandle(long size) {
+    Handle r;
+    __asm__ volatile ("move.l %1,%%d0\n\t" TRAP(0xA122) "move.l %%a0,%0"
+                      : "=r"(r) : "r"(size) : CLOBBERS);
+    return r;
+}
+static inline void DisposHandle(Handle h) {
+    __asm__ volatile ("move.l %0,%%a0\n\t" TRAP(0xA023) :: "r"(h) : CLOBBERS);
+}
+PROC_L(CreateResFile, ConstStr255Param, 0xA9B1)
+PROC_W(CloseResFile, 0xA99A)
+PROC_W(UseResFile, 0xA998)
+PROC_W(UpdateResFile, 0xA999)
+PROC_L(ChangedResource, Handle, 0xA9AA)
+PROC_L(WriteResource, Handle, 0xA9B0)
+PROC_L(RmveResource, Handle, 0xA9AD)
+PROC_L(ReleaseResource, Handle, 0xA9A3)
+#define FUNC0_W(name, trap) \
+    static inline short name(void) { \
+        short r; \
+        __asm__ volatile ("clr.w -(%%sp)\n\t" TRAP(trap) "move.w (%%sp)+,%0" : "=d"(r) :: CLOBBERS); \
+        return r; }
+FUNC0_W(ResError, 0xA9AF)
+FUNC0_W(CurResFile, 0xA994)
+FUNC0_W(Count1Types, 0xA81C)
+#define FUNC_L_W(name, type, trap) \
+    static inline short name(type x) { \
+        short r; \
+        __asm__ volatile ("clr.w -(%%sp)\n\tmove.l %1,-(%%sp)\n\t" TRAP(trap) "move.w (%%sp)+,%0" \
+                          : "=d"(r) : "r"(x) : CLOBBERS); \
+        return r; }
+FUNC_L_W(OpenResFile, ConstStr255Param, 0xA997)
+FUNC_L_W(Count1Resources, ResType, 0xA80D)
+FUNC_L_W(Unique1ID, ResType, 0xA810)
+FUNC_L_W(GetResAttrs, Handle, 0xA9A6)
+static inline Handle Get1Resource(ResType type, short id) {
+    Handle r;
+    __asm__ volatile ("clr.l -(%%sp)\n\tmove.l %1,-(%%sp)\n\tmove.w %2,-(%%sp)\n\t" TRAP(0xA81F)
+                      "move.l (%%sp)+,%0" : "=r"(r) : "r"(type), "d"(id) : CLOBBERS);
+    return r;
+}
+static inline void Get1IxType(ResType* type, short index) {
+    __asm__ volatile ("move.l %0,-(%%sp)\n\tmove.w %1,-(%%sp)\n\t" TRAP(0xA80F)
+                      :: "r"(type), "d"(index) : CLOBBERS);
+}
+static inline void AddResource(Handle h, ResType type, short id, ConstStr255Param name) {
+    __asm__ volatile ("move.l %0,-(%%sp)\n\tmove.l %1,-(%%sp)\n\tmove.w %2,-(%%sp)\n\t"
+                      "move.l %3,-(%%sp)\n\t" TRAP(0xA9AB)
+                      :: "r"(h), "r"(type), "d"(id), "r"(name) : CLOBBERS);
+}
+static inline void SetResInfo(Handle h, short id, ConstStr255Param name) {
+    __asm__ volatile ("move.l %0,-(%%sp)\n\tmove.w %1,-(%%sp)\n\tmove.l %2,-(%%sp)\n\t" TRAP(0xA9A9)
+                      :: "r"(h), "d"(id), "r"(name) : CLOBBERS);
+}
+static inline void GetResInfo(Handle h, short* id, ResType* type, unsigned char* name) {
+    __asm__ volatile ("move.l %0,-(%%sp)\n\tmove.l %1,-(%%sp)\n\tmove.l %2,-(%%sp)\n\t"
+                      "move.l %3,-(%%sp)\n\t" TRAP(0xA9A8)
+                      :: "r"(h), "r"(id), "r"(type), "r"(name) : CLOBBERS);
+}
+
 /* A QDProcs record's rectProc, called as QuickDraw would */
 static inline void CallRectProc(void* proc, unsigned char verb, const Rect* r) {
     __asm__ volatile ("move.b %1,-(%%sp)\n\tmove.l %2,-(%%sp)\n\tmove.l %0,%%a0\n\tjsr (%%a0)"

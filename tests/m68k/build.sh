@@ -21,7 +21,7 @@ CFLAGS="-Wno-multichar -m68000 -mpcrel -ffixed-a5 -Os -ffreestanding -fno-builti
 # libgcc is built for the 68020; runtime.c has what a 68000 needs instead.
 m68k-linux-gnu-as -m68000 -o "$out/crt0.o" "$here/crt0.s"
 m68k-linux-gnu-gcc $CFLAGS -O2 -c -o "$out/runtime.o" "$here/runtime.c"
-for app in Sampler Notes Gallery; do
+for app in Sampler Notes Gallery Keeper; do
     m68k-linux-gnu-gcc $CFLAGS -c -o "$out/$app.o" "$here/$app.c"
     m68k-linux-gnu-ld -T "$here/app.ld" -o "$out/$app.elf" "$out/crt0.o" "$out/$app.o" "$out/runtime.o"
     if m68k-linux-gnu-objdump -r "$out/crt0.o" "$out/$app.o" "$out/runtime.o" | grep -q R_68K_32; then
@@ -36,7 +36,7 @@ rm -f "$out/apps.img"
 dd if=/dev/zero of="$out/apps.img" bs=1024 count=2048 2>/dev/null
 hformat -l "Test Apps" "$out/apps.img" >/dev/null
 hmount "$out/apps.img" >/dev/null
-for app in Hello Sampler Notes Gallery; do
+for app in Hello Sampler Notes Gallery Keeper; do
     hcopy -m "$out/$app.bin" ":$app"
 done
 hls -l
