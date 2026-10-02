@@ -1,6 +1,6 @@
 /* Multiboot2 header for System 7.1 kernel with SVGA support */
 
-.section .multiboot2
+.section .multiboot2,"a"
 .align 8
 
 multiboot2_header_start:
@@ -45,7 +45,7 @@ stack_bottom:
 stack_top:
 
 /* Entry point */
-.section .text
+.section .text.boot,"ax"
 .global _start
 #ifndef _WIN32
 .type _start, @function
