@@ -8,6 +8,7 @@
 #include "FontManager/FontManager.h"
 #include "FontManager/FontResources.h"
 #include "FontManager/FontTypes.h"
+#include "MemoryMgr/MemoryManager.h"
 #include "SystemTypes.h"
 #include <string.h>
 #include "FontManager/FontLogging.h"
@@ -34,13 +35,6 @@ static int fm_abs(int x) {
 #define FRL_LOG(...)
 #endif
 
-/* Memory management stubs */
-extern Ptr NewPtr(Size byteCount);
-extern void DisposePtr(Ptr p);
-extern Size GetHandleSize(Handle h);
-extern void HLock(Handle h);
-extern void HUnlock(Handle h);
-
 /* ============================================================================
  * NFNT Resource Loading
  * ============================================================================ */
@@ -58,7 +52,11 @@ OSErr FM_LoadNFNTResource(Handle nfntHandle, NFNTResource **nfntOut) {
     }
 
     HLock(nfntHandle);
-    NFNTResource *nfnt = (NFNTResource*)*nfntHandle;
+    NFNTResource *nfnt = (NFNTResource*)HandleDataAligned(nfntHandle);
+    if (!nfnt) {
+        HUnlock(nfntHandle);
+        return memPurgedErr;
+    }
 
     /* Validate NFNT header */
     if ((nfnt->fontType & 0xF000) != 0x9000) {
@@ -68,7 +66,8 @@ OSErr FM_LoadNFNTResource(Handle nfntHandle, NFNTResource **nfntOut) {
     }
 
     /* Allocate our own copy */
-    NFNTResource *copy = (NFNTResource*)NewPtr(sizeof(NFNTResource));
+    NFNTResource *copy = (NFNTResource*)__builtin_assume_aligned(
+        NewPtr(sizeof(NFNTResource)), _Alignof(NFNTResource));
     if (!copy) {
         HUnlock(nfntHandle);
         return memFullErr;
@@ -223,10 +222,15 @@ OSErr FM_LoadFONDResource(Handle fondHandle, FONDResource **fondOut) {
     }
 
     HLock(fondHandle);
-    FONDResource *fond = (FONDResource*)*fondHandle;
+    FONDResource *fond = (FONDResource*)HandleDataAligned(fondHandle);
+    if (!fond) {
+        HUnlock(fondHandle);
+        return memPurgedErr;
+    }
 
     /* Allocate our own copy of header */
-    FONDResource *copy = (FONDResource*)NewPtr(sizeof(FONDResource));
+    FONDResource *copy = (FONDResource*)__builtin_assume_aligned(
+        NewPtr(sizeof(FONDResource)), _Alignof(FONDResource));
     if (!copy) {
         HUnlock(fondHandle);
         return memFullErr;
@@ -259,7 +263,8 @@ SInt16 FM_FindBestMatch(const FONDResource *fond, SInt16 size, Style face) {
     }
 
     /* Get pointer to font association table */
-    const FontAssocEntry *entries = (const FontAssocEntry*)((const UInt8*)fond + sizeof(FONDResource));
+    const FontAssocEntry *entries = (const FontAssocEntry*)__builtin_assume_aligned(
+        (const UInt8*)fond + sizeof(FONDResource), _Alignof(FontAssocEntry));
 
     SInt16 bestID = -1;
     SInt16 bestSizeDiff = 32767;
@@ -299,7 +304,8 @@ OSErr FM_GetFontAssociation(const FONDResource *fond, SInt16 index, const FontAs
         return paramErr;
     }
 
-    const FontAssocEntry *entries = (const FontAssocEntry*)((const UInt8*)fond + sizeof(FONDResource));
+    const FontAssocEntry *entries = (const FontAssocEntry*)__builtin_assume_aligned(
+        (const UInt8*)fond + sizeof(FONDResource), _Alignof(FontAssocEntry));
     *entryOut = &entries[index];
 
     return noErr;
@@ -316,7 +322,11 @@ Boolean FM_IsValidFOND(Handle fondHandle) {
     if (size < 0 || (size_t)size < sizeof(FONDResource)) return FALSE;
 
     HLock(fondHandle);
-    FONDResource *fond = (FONDResource*)*fondHandle;
+    FONDResource *fond = (FONDResource*)HandleDataAligned(fondHandle);
+    if (!fond) {
+        HUnlock(fondHandle);
+        return FALSE;
+    }
 
     /* Basic sanity checks */
     Boolean valid = (fond->ffFirstChar >= 0 &&
@@ -335,7 +345,11 @@ Boolean FM_IsValidNFNT(Handle nfntHandle) {
     if (size < 0 || (size_t)size < sizeof(NFNTResource)) return FALSE;
 
     HLock(nfntHandle);
-    NFNTResource *nfnt = (NFNTResource*)*nfntHandle;
+    NFNTResource *nfnt = (NFNTResource*)HandleDataAligned(nfntHandle);
+    if (!nfnt) {
+        HUnlock(nfntHandle);
+        return FALSE;
+    }
 
     /* Check for bitmap font type */
     Boolean valid = ((nfnt->fontType & 0xF000) == 0x9000);
@@ -376,7 +390,8 @@ void FM_DumpFOND(const FONDResource *fond) {
     FRL_LOG("  Associations: %d entries\n", fond->ffNumEntries);
 
     /* Dump associations */
-    const FontAssocEntry *entries = (const FontAssocEntry*)((const UInt8*)fond + sizeof(FONDResource));
+    const FontAssocEntry *entries = (const FontAssocEntry*)__builtin_assume_aligned(
+        (const UInt8*)fond + sizeof(FONDResource), _Alignof(FontAssocEntry));
     for (SInt16 i = 0; i < fond->ffNumEntries; i++) {
         FRL_LOG("    [%d] size=%d style=0x%02X -> NFNT %d\n",
                 i, entries[i].fontSize, entries[i].fontStyle, entries[i].fontID);

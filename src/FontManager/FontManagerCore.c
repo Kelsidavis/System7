@@ -219,7 +219,8 @@ static void FM_BlitGlyph(short x, short y, const ChicagoCharInfo* info,
                 (destBase != (Ptr)framebuffer || QD_ClipHas(destX, destY))) {
                 uint8_t* dstRow = (uint8_t*)destBase +
                                   (destY - destYOrigin) * destRowBytes;
-                uint32_t* dstPixels = (uint32_t*)dstRow;
+                uint32_t* dstPixels = (uint32_t*)__builtin_assume_aligned(
+                    dstRow, _Alignof(uint32_t));
                 dstPixels[destX - destXOrigin] = color;
                 if (first_pixel_x < 0) {
                     first_pixel_x = destX;
@@ -501,7 +502,8 @@ static FontStrike* FM_LoadFontStrike(short fontNum, short size, Style face) {
     }
 
     /* Allocate font strike structure */
-    FontStrike* strike = (FontStrike*)NewPtr(sizeof(FontStrike));
+    FontStrike* strike = (FontStrike*)__builtin_assume_aligned(
+        NewPtr(sizeof(FontStrike)), _Alignof(FontStrike));
     if (!strike) {
         FM_LOG("FM_LoadFontStrike: Failed to allocate strike\n");
         DisposePtr((Ptr)bitmapData);
@@ -529,7 +531,7 @@ static FontStrike* FM_LoadFontStrike(short fontNum, short size, Style face) {
     strike->fRectHeight = nfnt->fRectHeight;
     /* Cast Ptr to Handle (treating as opaque pointer since we're not using relocatable memory) */
     strike->bitmapData = (Handle)((void*)bitmapData);
-    strike->locTable = (short*)owt;  /* OWT serves as location table */
+    strike->locTable = (short*)__builtin_assume_aligned(owt, _Alignof(short));
     strike->widthTable = widths;
     strike->next = NULL;
     strike->prev = NULL;

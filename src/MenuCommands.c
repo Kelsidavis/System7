@@ -1507,9 +1507,10 @@ void Finder_Paste(void) {
 
     /* Unpack data: count, cutMode, FSSpec array */
     void* scrapData = *scrapHandle;
-    SInt16 sourceCount = *(SInt16*)scrapData;
+    SInt16 sourceCount;
+    memcpy(&sourceCount, scrapData, sizeof(sourceCount));
     UInt8 cutMode = *((UInt8*)scrapData + sizeof(SInt16));
-    FSSpec* sourceSpecs = (FSSpec*)((char*)scrapData + sizeof(SInt16) + sizeof(UInt8));
+    const UInt8* sourceSpecs = (const UInt8*)scrapData + sizeof(SInt16) + sizeof(UInt8);
 
     if (sourceCount == 0) {
         MENU_LOG_DEBUG("Finder_Paste: Empty file list on clipboard\n");
@@ -1547,7 +1548,9 @@ void Finder_Paste(void) {
     SInt16 pastedCount = 0;
 
     for (SInt16 i = 0; i < sourceCount; i++) {
-        FSSpec* src = &sourceSpecs[i];
+        FSSpec sourceSpec;
+        memcpy(&sourceSpec, sourceSpecs + (size_t)i * sizeof(sourceSpec), sizeof(sourceSpec));
+        FSSpec* src = &sourceSpec;
 
         /* Convert Pascal string name to C string */
         char sourceName[256];
@@ -1602,7 +1605,9 @@ void Finder_Paste(void) {
         extern bool VFS_Delete(VRefNum vref, FileID id);
 
         for (SInt16 i = 0; i < sourceCount; i++) {
-            FSSpec* src = &sourceSpecs[i];
+            FSSpec sourceSpec;
+            memcpy(&sourceSpec, sourceSpecs + (size_t)i * sizeof(sourceSpec), sizeof(sourceSpec));
+            FSSpec* src = &sourceSpec;
 
             /* Convert Pascal string name to C string */
             char sourceName[256];
