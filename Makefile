@@ -1203,7 +1203,7 @@ $(KERNEL): FORCE $(OBJECTS) | $(BUILD_DIR)
 	@if [ "$(PLATFORM)" = "arm64" ]; then \
         $(CC) $(LDFLAGS) -Wl,-T,$(LINKER_SCRIPT) -nostdlib -static -o $(KERNEL) $(OBJECTS); \
     elif [ "$(PLATFORM)" = "arm" ]; then \
-        $(CC) $(LDFLAGS) -Wl,-T,$(LINKER_SCRIPT) -nostdlib -static -o $(KERNEL) $(OBJECTS) $(LIBM) -lgcc; \
+        $(CC) $(CFLAGS_PI) $(LDFLAGS) -Wl,-z,noexecstack -Wl,-T,$(LINKER_SCRIPT) -nostdlib -static -o $(KERNEL) $(OBJECTS) $(LIBM) -lgcc; \
     else \
         $(CC) -m32 -Wl,-T,$(LINKER_SCRIPT) -Wl,-z,noexecstack -nostdlib -no-pie -static -o $(KERNEL) $(OBJECTS) $(LIBM) -lgcc; \
 	fi

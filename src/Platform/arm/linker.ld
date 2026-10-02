@@ -25,8 +25,8 @@ SECTIONS
     .boot ALIGN(8) :
     {
         /* ARM reset vector - must be first */
-        KEEP(build/obj/platform_boot.o(.text.boot))
-        KEEP(build/obj/platform_boot.o(.text.entry))
+        KEEP(build/obj/arm/platform_boot.o(.text.boot))
+        KEEP(build/obj/arm/platform_boot.o(.text.entry))
     } > RAM
 
     /* Text section - kernel code */

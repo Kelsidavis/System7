@@ -32,6 +32,10 @@ UInt8 GetMouseButtons(void);
 /* Like GetMouseButtons, but reports a press that arrived and released
  * between polls so a fast click is not lost. */
 UInt8 GetMouseButtonsLatched(void);
+void GetMouseLocal(Point* mouseLoc);
+Boolean PS2_IsInitialized(void);
+Boolean PS2_IsIRQDriven(void);
+Boolean PS2_DequeueKeyTransition(UInt8* macCode, Boolean* isPressed);
 Boolean Button(void);
 Boolean StillDown(void);
 Boolean WaitMouseUp(void);

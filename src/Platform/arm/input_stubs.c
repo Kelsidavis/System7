@@ -11,6 +11,7 @@
 #include "EventManager/EventTypes.h"
 #include "EventManager/EventGlobals.h"
 #include "Platform/PS2Input.h"
+#include "QuickDraw/QuickDraw.h"
 
 /* Shared state expected by ModernInput.c */
 Point g_mousePos = { 400, 300 };
@@ -21,6 +22,7 @@ struct {
     uint8_t packet[3];
     uint8_t packet_index;
 } g_mouseState = {0};
+static Boolean g_input_initialized = false;
 
 int event_post_key(uint8_t keycode, uint8_t modifiers, int key_down);
 int event_post_mouse(int16_t x_delta, int16_t y_delta, uint8_t buttons);
@@ -32,6 +34,7 @@ Boolean InitPS2Controller(void) {
     g_mouseState.buttons = 0;
     g_mouseState.packet_index = 0;
     memset(g_mouseState.packet, 0, sizeof(g_mouseState.packet));
+    g_input_initialized = true;
     return true;
 }
 
@@ -71,6 +74,34 @@ void SetMouseButtons(UInt8 buttons) {
 
 UInt8 GetMouseButtons(void) {
     return g_mouseState.buttons;
+}
+
+void GetMouseLocal(Point* mouseLoc) {
+    extern GrafPtr g_currentPort;
+    if (!mouseLoc) return;
+    GetMouse(mouseLoc);
+    if (g_currentPort) {
+        mouseLoc->h -= g_currentPort->portBits.bounds.left;
+        mouseLoc->v -= g_currentPort->portBits.bounds.top;
+    }
+}
+
+Boolean PS2_IsInitialized(void) {
+    return g_input_initialized;
+}
+
+Boolean PS2_IsIRQDriven(void) {
+    return false;
+}
+
+UInt8 GetMouseButtonsLatched(void) {
+    return g_mouseState.buttons;
+}
+
+Boolean PS2_DequeueKeyTransition(UInt8* macCode, Boolean* isPressed) {
+    (void)macCode;
+    (void)isPressed;
+    return false;
 }
 
 void SetModifiers(UInt16 mods) {
