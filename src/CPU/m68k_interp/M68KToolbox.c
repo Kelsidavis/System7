@@ -667,6 +667,7 @@ OSErr M68KToolbox_Prepare(SegmentLoaderContext* ctx, ConstStr255Param appName,
     const struct { const M68KTrapEntry* t; int n; } tables[] = {
         { kTraps, (int)(sizeof(kTraps) / sizeof(kTraps[0])) },
         { kM68KQuickDrawTraps, kM68KQuickDrawTrapCount },
+        { kM68KPortTraps, kM68KPortTrapCount },
         { kM68KWindowTraps, kM68KWindowTrapCount },
         { kM68KMenuTraps, kM68KMenuTrapCount },
         { kM68KEventTraps, kM68KEventTrapCount },
@@ -734,6 +735,8 @@ void M68KToolbox_Finish(void) {
     M68KDialogs_Finish();
     M68KFiles_Finish();
     M68KUtils_Finish();
+    Ports_Finish();
+    M68KQD_Finish();
     Obj_Finish();
     M68KMenus_Finish();
     /* Native resources the application still held */

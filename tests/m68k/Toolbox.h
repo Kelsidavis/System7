@@ -489,6 +489,74 @@ PB_CALL(PBSetFInfo, 0xA00D)
 PB_CALL(PBGetEOF, 0xA011)
 PB_CALL(PBSetEOF, 0xA012)
 
+
+/* ---- QuickDraw: ports of one's own, CopyBits, polygons, mapping ---- */
+
+typedef struct { Ptr baseAddr; short rowBytes; Rect bounds; } BitMap;
+typedef Handle PolyHandle;
+enum { srcCopy, srcOr, srcXor, srcBic };
+
+PROC_L(OpenPort, GrafPtr, 0xA86F)
+PROC_L(ClosePort, GrafPtr, 0xA87D)
+PROC_L(SetPortBits, const BitMap*, 0xA875)
+PROC_WW(PortSize, 0xA876)
+PROC0(ClosePoly, 0xA8CC)
+PROC_L(KillPoly, PolyHandle, 0xA8CD)
+PROC_L(FramePoly, PolyHandle, 0xA8C6)
+PROC_L(PaintPoly, PolyHandle, 0xA8C7)
+PROC_L(InvertPoly, PolyHandle, 0xA8C9)
+PROC_L(SetStdProcs, void*, 0xA8EA)
+
+static inline Ptr NewPtrClear(long size) {
+    Ptr r;
+    __asm__ volatile ("move.l %1,%%d0\n\t" TRAP(0xA31E) "move.l %%a0,%0"
+                      : "=r"(r) : "r"(size) : CLOBBERS);
+    return r;
+}
+static inline void CopyBits(const void* src, const void* dst, const Rect* sr, const Rect* dr,
+                            short mode, RgnHandle mask) {
+    __asm__ volatile ("move.l %0,-(%%sp)\n\tmove.l %1,-(%%sp)\n\tmove.l %2,-(%%sp)\n\t"
+                      "move.l %3,-(%%sp)\n\tmove.w %4,-(%%sp)\n\tmove.l %5,-(%%sp)\n\t"
+                      TRAP(0xA8EC)
+                      :: "r"(src), "r"(dst), "r"(sr), "r"(dr), "d"(mode), "r"(mask) : CLOBBERS);
+}
+static inline PolyHandle OpenPoly(void) {
+    PolyHandle r;
+    __asm__ volatile ("clr.l -(%%sp)\n\t" TRAP(0xA8CB) "move.l (%%sp)+,%0" : "=r"(r) :: CLOBBERS);
+    return r;
+}
+static inline void OffsetPoly(PolyHandle p, short dh, short dv) {
+    __asm__ volatile ("move.l %0,-(%%sp)\n\tmove.w %1,-(%%sp)\n\tmove.w %2,-(%%sp)\n\t"
+                      TRAP(0xA8CE) :: "r"(p), "d"(dh), "d"(dv) : CLOBBERS);
+}
+static inline void PackBits(Ptr* src, Ptr* dst, short n) {
+    __asm__ volatile ("move.l %0,-(%%sp)\n\tmove.l %1,-(%%sp)\n\tmove.w %2,-(%%sp)\n\t"
+                      TRAP(0xA8CF) :: "r"(src), "r"(dst), "d"(n) : CLOBBERS);
+}
+static inline void UnpackBits(Ptr* src, Ptr* dst, short n) {
+    __asm__ volatile ("move.l %0,-(%%sp)\n\tmove.l %1,-(%%sp)\n\tmove.w %2,-(%%sp)\n\t"
+                      TRAP(0xA8D0) :: "r"(src), "r"(dst), "d"(n) : CLOBBERS);
+}
+static inline void MapRect(Rect* r, const Rect* src, const Rect* dst) {
+    __asm__ volatile ("move.l %0,-(%%sp)\n\tmove.l %1,-(%%sp)\n\tmove.l %2,-(%%sp)\n\t"
+                      TRAP(0xA8FA) :: "r"(r), "r"(src), "r"(dst) : CLOBBERS);
+}
+static inline long PinRect(const Rect* r, Point p) {
+    long v;
+    __asm__ volatile ("clr.l -(%%sp)\n\tmove.l %1,-(%%sp)\n\tmove.l %2,-(%%sp)\n\t"
+                      TRAP(0xA94E) "move.l (%%sp)+,%0" : "=r"(v) : "r"(r), "d"(PointLong(p)) : CLOBBERS);
+    return v;
+}
+static inline void GetFNum(ConstStr255Param name, short* num) {
+    __asm__ volatile ("move.l %0,-(%%sp)\n\tmove.l %1,-(%%sp)\n\t" TRAP(0xA900)
+                      :: "r"(name), "r"(num) : CLOBBERS);
+}
+/* A QDProcs record's rectProc, called as QuickDraw would */
+static inline void CallRectProc(void* proc, unsigned char verb, const Rect* r) {
+    __asm__ volatile ("move.b %1,-(%%sp)\n\tmove.l %2,-(%%sp)\n\tmove.l %0,%%a0\n\tjsr (%%a0)"
+                      :: "r"(proc), "d"(verb), "r"(r) : CLOBBERS);
+}
+
 /* C strings into Pascal ones, for the calls that take them */
 static inline const unsigned char* PStr(unsigned char* buf, const char* s) {
     int n = 0;

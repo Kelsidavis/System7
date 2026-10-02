@@ -8,9 +8,11 @@
  */
 
 #include <string.h>
+#include <math.h>
 
 #include "M68KToolboxInternal.h"
 #include "QuickDraw/QuickDraw.h"
+#include "QuickDrawConstants.h"
 #include "WindowManager/WindowManager.h"
 #include "chicago_font.h"
 #include "FontManager/FontManager.h"
@@ -25,8 +27,10 @@ static GrafPtr gQDPort;
 static void Begin(void) {
     GetPort(&gQDPort);
     Obj_SyncPortIn(gQDPort);
+    Ports_BeforeDraw(gQDPort);
 }
 static void End(void) {
+    Ports_AfterDraw(gQDPort);
     Obj_SyncPortOut(gQDPort);
 }
 
@@ -86,6 +90,7 @@ TRAP(Trap_SetOrigin) {
     UNUSED;
     SInt16 v = (SInt16)Pop16(), h = (SInt16)Pop16();
     Begin();
+    Ports_Offset(gQDPort, (SInt16)(h - gQDPort->portRect.left), (SInt16)(v - gQDPort->portRect.top));
     SetOrigin(h, v);
     End();
     return noErr;
@@ -735,6 +740,480 @@ TRAP(Trap_PlotIcon) {
     return noErr;
 }
 
+
+/* ------------------------------------------------------------------------
+ * Polygons: the program's own handles - polySize, polyBBox, polyPoints
+ * (IM I-190) - which it may read; a native polygon is made from one for
+ * the length of a drawing call
+ * ------------------------------------------------------------------------ */
+
+static UInt32 gOpenPoly;            /* the program's handle being recorded */
+static PolyHandle gOpenNativePoly;
+
+static PolyHandle NativePoly(UInt32 h) {
+    UInt32 p = h ? M68KHeap_Deref(h) : 0;
+    if (!p) return NULL;
+    SInt16 size = (SInt16)R16(p);
+    SInt16 n = size >= 10 ? (SInt16)((size - 10) / 4) : 0;
+    PolyHandle np = (PolyHandle)NewHandle((Size)(sizeof(SInt16) + sizeof(Rect) + n * sizeof(Point)));
+    if (!np) return NULL;
+    (*np)->polySize = (SInt16)(sizeof(SInt16) + sizeof(Rect) + n * sizeof(Point));
+    ReadRect(p + 2, &(*np)->polyBBox);
+    for (SInt16 i = 0; i < n; i++) ReadPoint(p + 10 + 4u * (UInt32)i, &(*np)->polyPoints[i]);
+    return np;
+}
+
+static void WritePoly(UInt32 h, PolyHandle np) {
+    SInt16 n = (SInt16)(((*np)->polySize - (SInt16)(sizeof(SInt16) + sizeof(Rect))) / (SInt16)sizeof(Point));
+    if (n < 0) n = 0;
+    if (M68KHeap_SetHandleSize(h, 10u + 4u * (UInt32)n) != noErr) return;
+    UInt32 p = M68KHeap_Deref(h);
+    W16(p, 10 + 4 * n);
+    WriteRect(p + 2, &(*np)->polyBBox);
+    for (SInt16 i = 0; i < n; i++) WritePoint(p + 10 + 4u * (UInt32)i, (*np)->polyPoints[i]);
+}
+
+TRAP(Trap_OpenPoly) {
+    UNUSED;
+    Begin();
+    if (gOpenNativePoly) KillPoly(ClosePoly());
+    gOpenNativePoly = OpenPoly();
+    gOpenPoly = gOpenNativePoly ? M68KHeap_NewHandle(10, true) : 0;
+    if (gOpenPoly) W16(M68KHeap_Deref(gOpenPoly), 10);
+    End();
+    Result32(gOpenPoly);
+    return noErr;
+}
+
+TRAP(Trap_ClosePoly) {
+    UNUSED;
+    Begin();
+    PolyHandle np = gOpenNativePoly ? ClosePoly() : NULL;
+    if (np && gOpenPoly) WritePoly(gOpenPoly, np);
+    if (np) KillPoly(np);
+    gOpenNativePoly = NULL;
+    gOpenPoly = 0;
+    End();
+    return noErr;
+}
+
+TRAP(Trap_KillPoly) { UNUSED; UInt32 h = Pop32(); if (h) M68KHeap_DisposeHandle(h); return noErr; }
+
+TRAP(Trap_OffsetPoly) {
+    UNUSED;
+    SInt16 dv = (SInt16)Pop16(), dh = (SInt16)Pop16();
+    UInt32 h = Pop32();
+    PolyHandle np = NativePoly(h);
+    if (!np) return noErr;
+    OffsetPoly(np, dh, dv);
+    WritePoly(h, np);
+    KillPoly(np);
+    return noErr;
+}
+
+#define POLY_VERB(name, call) \
+    TRAP(name) { UNUSED; PolyHandle np = NativePoly(Pop32()); Begin(); \
+                 if (np) call(np); \
+                 End(); \
+                 if (np) KillPoly(np); \
+                 return noErr; }
+POLY_VERB(Trap_FramePoly, FramePoly)
+POLY_VERB(Trap_PaintPoly, PaintPoly)
+POLY_VERB(Trap_ErasePoly, ErasePoly)
+POLY_VERB(Trap_InvertPoly, InvertPoly)
+
+TRAP(Trap_FillPoly) {
+    UNUSED;
+    Pattern pat = PopPattern();
+    PolyHandle np = NativePoly(Pop32());
+    Begin();
+    if (np) FillPoly(np, &pat);
+    End();
+    if (np) KillPoly(np);
+    return noErr;
+}
+
+/* ------------------------------------------------------------------------
+ * Mapping between rectangles, and angles
+ * ------------------------------------------------------------------------ */
+
+TRAP(Trap_MapPt) {
+    UNUSED;
+    Rect dst = PopRect(), src = PopRect();
+    UInt32 var = Pop32();
+    Point p;
+    ReadPoint(var, &p);
+    MapPt(&p, &src, &dst);
+    WritePoint(var, p);
+    return noErr;
+}
+
+TRAP(Trap_ScalePt) {
+    UNUSED;
+    Rect dst = PopRect(), src = PopRect();
+    UInt32 var = Pop32();
+    Point p;
+    ReadPoint(var, &p);
+    ScalePt(&p, &src, &dst);
+    WritePoint(var, p);
+    return noErr;
+}
+
+TRAP(Trap_MapRect) {
+    UNUSED;
+    Rect dst = PopRect(), src = PopRect();
+    UInt32 var = Pop32();
+    Rect r;
+    ReadRect(var, &r);
+    MapRect(&r, &src, &dst);
+    WriteRect(var, &r);
+    return noErr;
+}
+
+TRAP(Trap_MapRgn) {
+    UNUSED;
+    Rect dst = PopRect(), src = PopRect();
+    RgnHandle rgn = Obj_Rgn(Pop32());
+    if (rgn) {
+        MapRgn(rgn, &src, &dst);
+        Obj_SyncRgn(rgn);
+    }
+    return noErr;
+}
+
+TRAP(Trap_MapPoly) {
+    UNUSED;
+    Rect dst = PopRect(), src = PopRect();
+    UInt32 h = Pop32();
+    PolyHandle np = NativePoly(h);
+    if (!np) return noErr;
+    MapPoly(np, &src, &dst);
+    WritePoly(h, np);
+    KillPoly(np);
+    return noErr;
+}
+
+/* PtToAngle(r, pt, VAR angle) */
+TRAP(Trap_PtToAngle) {
+    UNUSED;
+    UInt32 var = Pop32();
+    Point pt = PopPoint();
+    Rect r = PopRect();
+    SInt16 angle = 0;
+    PtToAngle(&r, pt, &angle);
+    W16(var, angle);
+    return noErr;
+}
+
+/* Angles are clockwise from twelve o'clock; the slope is dh/dv of a line
+ * at that angle, as Fixed (IM I-475) */
+TRAP(Trap_SlopeFromAngle) {
+    UNUSED;
+    SInt16 angle = (SInt16)Pop16();
+    angle = (SInt16)(((angle % 180) + 180) % 180);
+    SInt32 slope;
+    if (angle == 90) slope = 0x7FFFFFFF;
+    else slope = (SInt32)(-tan(angle * 3.14159265358979 / 180.0) * 65536.0);
+    Result32((UInt32)slope);
+    return noErr;
+}
+
+TRAP(Trap_AngleFromSlope) {
+    UNUSED;
+    SInt32 slope = (SInt32)Pop32();
+    double a = atan(-(double)slope / 65536.0) * 180.0 / 3.14159265358979;
+    SInt16 angle = (SInt16)(a < 0 ? a + 180.5 : a + 0.5);
+    if (angle == 0) angle = 180;
+    Result16((UInt16)angle);
+    return noErr;
+}
+
+/* PinRect(r, pt): the nearest point inside, the right and bottom edges
+ * being outside (IM I-293) */
+TRAP(Trap_PinRect) {
+    UNUSED;
+    Point pt = PopPoint();
+    Rect r = PopRect();
+    if (pt.h < r.left) pt.h = r.left;
+    if (pt.h >= r.right) pt.h = (SInt16)(r.right - 1);
+    if (pt.v < r.top) pt.v = r.top;
+    if (pt.v >= r.bottom) pt.v = (SInt16)(r.bottom - 1);
+    Result32(((UInt32)(UInt16)pt.v << 16) | (UInt16)pt.h);
+    return noErr;
+}
+
+/* DeltaPoint(a, b): a minus b, as a long (IM I-475) */
+TRAP(Trap_DeltaPoint) {
+    UNUSED;
+    Point b = PopPoint(), a = PopPoint();
+    Result32(((UInt32)(UInt16)(a.v - b.v) << 16) | (UInt16)(a.h - b.h));
+    return noErr;
+}
+
+/* ShieldCursor(r, offset): the cursor hidden for drawing there; ShowCursor
+ * brings it back */
+TRAP(Trap_ShieldCursor) { UNUSED; (void)Pop32(); (void)Pop32(); HideCursor(); return noErr; }
+
+/* ------------------------------------------------------------------------
+ * Colour, on a port of one bit: the nearest of QuickDraw's eight
+ * ------------------------------------------------------------------------ */
+
+static SInt32 NearestOldColor(UInt32 a) {
+    Boolean r = R16(a) >= 0x8000, g = R16(a + 2) >= 0x8000, b = R16(a + 4) >= 0x8000;
+    static const SInt32 kColors[8] = { blackColor, blueColor, greenColor, cyanColor,
+                                       redColor, magentaColor, yellowColor, whiteColor };
+    return kColors[(r ? 4 : 0) | (g ? 2 : 0) | (b ? 1 : 0)];
+}
+
+static void WriteOldColor(UInt32 a, SInt32 c) {
+    UInt16 r = 0, g = 0, b = 0;
+    switch (c) {
+        case whiteColor:   r = g = b = 0xFFFF; break;
+        case redColor:     r = 0xFFFF; break;
+        case greenColor:   g = 0xFFFF; break;
+        case blueColor:    b = 0xFFFF; break;
+        case cyanColor:    g = b = 0xFFFF; break;
+        case magentaColor: r = b = 0xFFFF; break;
+        case yellowColor:  r = g = 0xFFFF; break;
+        default: break;
+    }
+    W16(a, r); W16(a + 2, g); W16(a + 4, b);
+}
+
+TRAP(Trap_RGBForeColor) { UNUSED; SInt32 c = NearestOldColor(Pop32()); Begin(); ForeColor(c); End(); return noErr; }
+TRAP(Trap_RGBBackColor) { UNUSED; SInt32 c = NearestOldColor(Pop32()); Begin(); BackColor(c); End(); return noErr; }
+TRAP(Trap_GetForeColor) { UNUSED; UInt32 a = Pop32(); Begin(); WriteOldColor(a, gQDPort->fgColor); return noErr; }
+TRAP(Trap_GetBackColor) { UNUSED; UInt32 a = Pop32(); Begin(); WriteOldColor(a, gQDPort->bkColor); return noErr; }
+
+/* ------------------------------------------------------------------------
+ * Fonts by name and number
+ * ------------------------------------------------------------------------ */
+
+TRAP(Trap_GetFNum) {
+    UNUSED;
+    UInt32 var = Pop32();
+    Str255 name;
+    ReadPString(Pop32(), name);
+    short num = 0;
+    GetFNum(name, &num);
+    W16(var, (UInt16)num);
+    return noErr;
+}
+
+TRAP(Trap_GetFontName) {
+    UNUSED;
+    UInt32 var = Pop32();
+    SInt16 num = (SInt16)Pop16();
+    Str255 name;
+    name[0] = 0;
+    GetFontName(num, name);
+    WritePString(var, name);
+    return noErr;
+}
+
+TRAP(Trap_RealFont) {
+    UNUSED;
+    SInt16 size = (SInt16)Pop16(), num = (SInt16)Pop16();
+    ResultBool(RealFont(num, size));
+    return noErr;
+}
+
+TRAP(Trap_SetFontLock) { UNUSED; SetFontLock(PopBool()); return noErr; }
+
+/* ------------------------------------------------------------------------
+ * The bottleneck procedures (IM I-197): what QuickDraw calls for each kind
+ * of drawing, which a program may call itself or install in grafProcs
+ * ------------------------------------------------------------------------ */
+
+enum { kVerbFrame, kVerbPaint, kVerbErase, kVerbInvert, kVerbFill };
+
+TRAP(Trap_StdText) {
+    UNUSED;
+    (void)Pop32();                                  /* denom */
+    (void)Pop32();                                  /* numer */
+    UInt32 buf = Pop32();
+    SInt16 count = (SInt16)Pop16();
+    char text[512];
+    if (count < 0) count = 0;
+    if (count > (SInt16)sizeof(text)) count = sizeof(text);
+    ReadBytes(buf, text, (UInt32)count);
+    Begin();
+    DrawText(text, 0, count);
+    End();
+    return noErr;
+}
+
+TRAP(Trap_StdLine) { UNUSED; Point p = PopPoint(); Begin(); LineTo(p.h, p.v); End(); return noErr; }
+
+TRAP(Trap_StdRect) {
+    UNUSED;
+    Rect r = PopRect();
+    UInt8 verb = PopByte();
+    Begin();
+    switch (verb) {
+        case kVerbFrame: FrameRect(&r); break;
+        case kVerbPaint: PaintRect(&r); break;
+        case kVerbErase: EraseRect(&r); break;
+        case kVerbInvert: InvertRect(&r); break;
+        default: FillRect(&r, &gQDPort->fillPat); break;
+    }
+    End();
+    return noErr;
+}
+
+TRAP(Trap_StdRRect) {
+    UNUSED;
+    SInt16 oh = (SInt16)Pop16(), ow = (SInt16)Pop16();
+    Rect r = PopRect();
+    UInt8 verb = PopByte();
+    Begin();
+    switch (verb) {
+        case kVerbFrame: FrameRoundRect(&r, ow, oh); break;
+        case kVerbPaint: PaintRoundRect(&r, ow, oh); break;
+        case kVerbErase: EraseRoundRect(&r, ow, oh); break;
+        case kVerbInvert: InvertRoundRect(&r, ow, oh); break;
+        default: FillRoundRect(&r, ow, oh, &gQDPort->fillPat); break;
+    }
+    End();
+    return noErr;
+}
+
+TRAP(Trap_StdOval) {
+    UNUSED;
+    Rect r = PopRect();
+    UInt8 verb = PopByte();
+    Begin();
+    switch (verb) {
+        case kVerbFrame: FrameOval(&r); break;
+        case kVerbPaint: PaintOval(&r); break;
+        case kVerbErase: EraseOval(&r); break;
+        case kVerbInvert: InvertOval(&r); break;
+        default: FillOval(&r, &gQDPort->fillPat); break;
+    }
+    End();
+    return noErr;
+}
+
+TRAP(Trap_StdArc) {
+    UNUSED;
+    SInt16 arc = (SInt16)Pop16(), start = (SInt16)Pop16();
+    Rect r = PopRect();
+    UInt8 verb = PopByte();
+    Begin();
+    switch (verb) {
+        case kVerbFrame: FrameArc(&r, start, arc); break;
+        case kVerbPaint: PaintArc(&r, start, arc); break;
+        case kVerbErase: EraseArc(&r, start, arc); break;
+        case kVerbInvert: InvertArc(&r, start, arc); break;
+        default: FillArc(&r, start, arc, &gQDPort->fillPat); break;
+    }
+    End();
+    return noErr;
+}
+
+TRAP(Trap_StdPoly) {
+    UNUSED;
+    PolyHandle np = NativePoly(Pop32());
+    UInt8 verb = PopByte();
+    Begin();
+    if (np) {
+        switch (verb) {
+            case kVerbFrame: FramePoly(np); break;
+            case kVerbPaint: PaintPoly(np); break;
+            case kVerbErase: ErasePoly(np); break;
+            case kVerbInvert: InvertPoly(np); break;
+            default: FillPoly(np, &gQDPort->fillPat); break;
+        }
+    }
+    End();
+    if (np) KillPoly(np);
+    return noErr;
+}
+
+TRAP(Trap_StdRgn) {
+    UNUSED;
+    RgnHandle rgn = Obj_Rgn(Pop32());
+    UInt8 verb = PopByte();
+    Begin();
+    if (rgn) {
+        switch (verb) {
+            case kVerbFrame: FrameRgn(rgn); break;
+            case kVerbPaint: PaintRgn(rgn); break;
+            case kVerbErase: EraseRgn(rgn); break;
+            case kVerbInvert: InvertRgn(rgn); break;
+            default: FillRgn(rgn, &gQDPort->fillPat); break;
+        }
+    }
+    End();
+    return noErr;
+}
+
+/* StdBits(VAR srcBits; VAR srcRect, dstRect; mode; maskRgn): CopyBits into
+ * the current port's bitmap */
+TRAP(Trap_StdBits) {
+    UNUSED;
+    UInt32 mask = Pop32();
+    SInt16 mode = (SInt16)Pop16();
+    UInt32 dstRect = Pop32(), srcRect = Pop32(), srcBits = Pop32();
+    GrafPtr port;
+    GetPort(&port);
+    UInt32 m = Obj_PortFor(port);
+    if (m) Ports_CopyBits(srcBits, m + 2, srcRect, dstRect, mode, mask);
+    return noErr;
+}
+
+TRAP(Trap_StdComment) { UNUSED; (void)Pop32(); (void)Pop16(); (void)Pop16(); return noErr; }
+TRAP(Trap_StdGetPic)  { UNUSED; (void)Pop16(); (void)Pop32(); return noErr; }
+TRAP(Trap_StdPutPic)  { UNUSED; (void)Pop16(); (void)Pop32(); return noErr; }
+
+/* StdTxMeas(count, text, VAR numer, VAR denom, VAR info): the width, with
+ * no scaling */
+TRAP(Trap_StdTxMeas) {
+    UNUSED;
+    UInt32 info = Pop32();
+    (void)Pop32();
+    (void)Pop32();
+    UInt32 buf = Pop32();
+    SInt16 count = (SInt16)Pop16();
+    char text[512];
+    if (count < 0) count = 0;
+    if (count > (SInt16)sizeof(text)) count = sizeof(text);
+    ReadBytes(buf, text, (UInt32)count);
+    Begin();
+    W16(info + 0, CHICAGO_ASCENT);
+    W16(info + 2, CHICAGO_DESCENT);
+    W16(info + 4, 16);
+    W16(info + 6, 0);
+    Result16((UInt16)TextWidth(text, 0, count));
+    return noErr;
+}
+
+/* SetStdProcs(VAR procs): the thirteen standard procedures. Each is a trap
+ * word with the auto-pop bit, so a program calling one through the record
+ * returns straight from the trap. */
+static UInt32 gStdProcs;
+
+TRAP(Trap_SetStdProcs) {
+    UNUSED;
+    UInt32 procs = Pop32();
+    static const UInt16 kStd[13] = { 0xA882, 0xA890, 0xA8A0, 0xA8AF, 0xA8B6, 0xA8BD, 0xA8C5,
+                                     0xA8D1, 0xA8EB, 0xA8F1, 0xA8ED, 0xA8EE, 0xA8F0 };
+    if (!gStdProcs) {
+        gStdProcs = M68KHeap_NewPtr(2 * 13, false);
+        if (!gStdProcs) return noErr;
+        for (int i = 0; i < 13; i++) W16(gStdProcs + 2u * (UInt32)i, kStd[i] | 0x0400);
+    }
+    for (int i = 0; i < 13; i++) W32(procs + 4u * (UInt32)i, gStdProcs + 2u * (UInt32)i);
+    return noErr;
+}
+
+void M68KQD_Finish(void) {
+    gStdProcs = 0;
+    if (gOpenNativePoly) KillPoly(ClosePoly());
+    gOpenNativePoly = NULL;
+    gOpenPoly = 0;
+}
+
 const M68KTrapEntry kM68KQuickDrawTraps[] = {
     { 0xA873, Trap_SetPort },       { 0xA874, Trap_GetPort },       { 0xA871, Trap_GlobalToLocal },
     { 0xA870, Trap_LocalToGlobal }, { 0xA878, Trap_SetOrigin },     { 0xA87B, Trap_ClipRect },
@@ -773,5 +1252,21 @@ const M68KTrapEntry kM68KQuickDrawTraps[] = {
     { 0xA861, Trap_Random },        { 0xA865, Trap_GetPixel },      { 0xA851, Trap_SetCursor },
     { 0xA852, Trap_HideCursor },    { 0xA853, Trap_ShowCursor },    { 0xA856, Trap_ObscureCursor },
     { 0xA8F6, Trap_DrawPicture },   { 0xA94B, Trap_PlotIcon },
+    { 0xA8CB, Trap_OpenPoly },      { 0xA8CC, Trap_ClosePoly },     { 0xA8CD, Trap_KillPoly },
+    { 0xA8CE, Trap_OffsetPoly },    { 0xA8C6, Trap_FramePoly },     { 0xA8C7, Trap_PaintPoly },
+    { 0xA8C8, Trap_ErasePoly },     { 0xA8C9, Trap_InvertPoly },    { 0xA8CA, Trap_FillPoly },
+    { 0xA8F9, Trap_MapPt },         { 0xA8F8, Trap_ScalePt },       { 0xA8FA, Trap_MapRect },
+    { 0xA8FB, Trap_MapRgn },        { 0xA8FC, Trap_MapPoly },       { 0xA8C3, Trap_PtToAngle },
+    { 0xA8BC, Trap_SlopeFromAngle },{ 0xA8C4, Trap_AngleFromSlope },{ 0xA94E, Trap_PinRect },
+    { 0xA94F, Trap_DeltaPoint },    { 0xA855, Trap_ShieldCursor },
+    { 0xAA14, Trap_RGBForeColor },  { 0xAA15, Trap_RGBBackColor },  { 0xAA19, Trap_GetForeColor },
+    { 0xAA1A, Trap_GetBackColor },
+    { 0xA900, Trap_GetFNum },       { 0xA8FF, Trap_GetFontName },   { 0xA902, Trap_RealFont },
+    { 0xA903, Trap_SetFontLock },
+    { 0xA882, Trap_StdText },       { 0xA890, Trap_StdLine },       { 0xA8A0, Trap_StdRect },
+    { 0xA8AF, Trap_StdRRect },      { 0xA8B6, Trap_StdOval },       { 0xA8BD, Trap_StdArc },
+    { 0xA8C5, Trap_StdPoly },       { 0xA8D1, Trap_StdRgn },        { 0xA8EB, Trap_StdBits },
+    { 0xA8F1, Trap_StdComment },    { 0xA8ED, Trap_StdTxMeas },     { 0xA8EE, Trap_StdGetPic },
+    { 0xA8F0, Trap_StdPutPic },     { 0xA8EA, Trap_SetStdProcs },
 };
 const int kM68KQuickDrawTrapCount = (int)(sizeof(kM68KQuickDrawTraps) / sizeof(kM68KQuickDrawTraps[0]));

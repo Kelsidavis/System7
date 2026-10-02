@@ -148,13 +148,20 @@ static void WritePort(Object* o) {
     Point g = GlobalOrigin(p, isWindow);
 
     W16(m + 0, p->device);
-    /* portBits as the program expects it: the screen, its bounds placing
-     * local (0,0) at the window's corner - classic bounds are the negative
-     * of where the origin is */
-    W32(m + 2, M68KTB_ScreenBase());
+    UInt32 base;
+    Rect b;
+    if (Ports_Bits(p, &base, &rowBytes, &b)) {
+        /* A port the program opened: the bitmap it gave it */
+        W32(m + 2, base);
+    } else {
+        /* portBits as the program expects it: the screen, its bounds placing
+         * local (0,0) at the window's corner - classic bounds are the
+         * negative of where the origin is */
+        W32(m + 2, M68KTB_ScreenBase());
+        SetRect(&b, (SInt16)(screen.left - g.h), (SInt16)(screen.top - g.v),
+                (SInt16)(screen.right - g.h), (SInt16)(screen.bottom - g.v));
+    }
     W16(m + 6, rowBytes);
-    Rect b = { (SInt16)(screen.top - g.v), (SInt16)(screen.left - g.h),
-               (SInt16)(screen.bottom - g.v), (SInt16)(screen.right - g.h) };
     WriteRect(m + 8, &b);
     WriteRect(m + 16, &p->portRect);
     W32(m + 24, Obj_RgnFor(p->visRgn));
@@ -223,6 +230,7 @@ void Obj_SyncPortIn(GrafPtr port) {
     if (!o && port) o = FindNative(port, kKindPort);
     if (!o) return;
     UInt32 m = o->addr;
+    if (o->kind == kKindPort) Ports_ReadRecord(port, m);
     ReadPattern(m + 32, &port->bkPat);
     ReadPattern(m + 40, &port->fillPat);
     ReadPoint(m + 48, &port->pnLoc);
@@ -304,6 +312,16 @@ UInt32 Obj_PortFor(GrafPtr port) {
     WritePort(o);
     WriteWindowFields(o);
     return o->addr;
+}
+
+/* A port the program opened in its own 108 bytes */
+Boolean Obj_AddPort(UInt32 addr, GrafPtr port) {
+    return Add(addr, port, kKindPort, false, false) != NULL;
+}
+
+void Obj_ForgetPort(GrafPtr port) {
+    Object* o = FindNative(port, kKindPort);
+    if (o) Remove(o);
 }
 
 GrafPtr Obj_Port(UInt32 addr) {

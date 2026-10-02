@@ -96,6 +96,8 @@ void M68KTB_TrapLeave(UInt16 trap);
 /* ---- M68KObjects.c: native objects the application holds ---- */
 UInt32 Obj_PortFor(GrafPtr port);            /* its record, made if need be; 0 for none */
 GrafPtr Obj_Port(UInt32 addr);               /* the native port of a record, or NULL */
+Boolean Obj_AddPort(UInt32 addr, GrafPtr port);   /* a port the program opened */
+void Obj_ForgetPort(GrafPtr port);
 Boolean Obj_IsAppWindow(WindowPtr w);
 UInt32 Obj_NewWindowRecord(WindowPtr w, UInt32 storage);
 void Obj_ForgetWindow(WindowPtr w);
@@ -114,6 +116,20 @@ ControlHandle Obj_Control(UInt32 h);
 void Obj_SyncControl(ControlHandle c);
 void Obj_ForgetControl(ControlHandle c);
 void Obj_Finish(void);                       /* the program is done: its windows go */
+
+/* ---- M68KPorts.c: ports the program opens, and CopyBits ---- */
+Boolean Ports_Bits(GrafPtr port, UInt32* base, UInt16* rowBytes, Rect* bounds);
+void Ports_ReadRecord(GrafPtr port, UInt32 record);
+void Ports_BeforeDraw(GrafPtr port);         /* the program's bits into the drawing */
+void Ports_AfterDraw(GrafPtr port);          /* and the drawing back */
+Boolean Ports_IsOffscreen(GrafPtr port);
+void Ports_Offset(GrafPtr port, SInt16 dh, SInt16 dv);
+void Ports_Finish(void);
+void Ports_CopyBits(UInt32 srcBits, UInt32 dstBits, UInt32 srcRect, UInt32 dstRect,
+                    SInt16 mode, UInt32 maskRgn);
+void M68KQD_Finish(void);
+extern const M68KTrapEntry kM68KPortTraps[];
+extern const int kM68KPortTrapCount;
 
 extern const M68KTrapEntry kM68KQuickDrawTraps[];
 extern const int kM68KQuickDrawTrapCount;

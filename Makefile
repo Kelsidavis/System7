@@ -463,6 +463,7 @@ C_SOURCES = src/main.c \
             src/CPU/m68k_interp/M68KHeap.c \
             src/CPU/m68k_interp/M68KObjects.c \
             src/CPU/m68k_interp/M68KQuickDraw.c \
+            src/CPU/m68k_interp/M68KPorts.c \
             src/CPU/m68k_interp/M68KWindows.c \
             src/CPU/m68k_interp/M68KMenus.c \
             src/CPU/m68k_interp/M68KEvents.c \
