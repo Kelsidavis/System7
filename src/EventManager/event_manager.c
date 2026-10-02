@@ -179,7 +179,7 @@ extern void UpdateMouseState(Point newPos, UInt8 buttonState);
  * GenerateSystemEvent - Internal function to generate system events
  * Used by other system components to post events
  */
-void GenerateSystemEvent(short eventType, int message, Point where, short modifiers) {
+void GenerateSystemEvent(SInt16 eventType, SInt32 message, Point where, SInt16 modifiers) {
     EVT_LOG_DEBUG("GenerateSystemEvent: type=%d, msg=0x%x, where=(%d,%d), mod=0x%04x\n",
                   eventType, message, where.h, where.v, modifiers);
 

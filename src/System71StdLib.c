@@ -469,7 +469,7 @@ unsigned int sleep(unsigned int seconds) {
     return 0;  /* Full sleep completed */
 }
 
-int usleep(unsigned int usec) {
+int usleep(useconds_t usec) {
     /* Microsecond sleep - convert to ticks (1 tick ≈ 16667 μs at 60Hz) */
     extern void Delay(UInt32 numTicks, UInt32* finalTicks);
 

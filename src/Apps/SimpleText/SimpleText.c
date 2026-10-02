@@ -627,7 +627,7 @@ Boolean ST_ConfirmClose(STDocument* doc) {
     extern Boolean IsDialogEvent(const EventRecord*);
     extern Boolean DialogSelect(const EventRecord*, DialogPtr*, short*);
     extern void ShowWindow(WindowPtr);
-    extern Boolean GetNextEvent(unsigned int, EventRecord*);
+    extern Boolean GetNextEvent(EventMask, EventRecord*);
     extern void SystemTask(void);
 
     if (!doc) return true;
@@ -736,7 +736,7 @@ void ST_ShowAbout(void) {
     extern Boolean IsDialogEvent(const EventRecord*);
     extern Boolean DialogSelect(const EventRecord*, DialogPtr*, short*);
     extern void ShowWindow(WindowPtr);
-    extern Boolean GetNextEvent(unsigned int, EventRecord*);
+    extern Boolean GetNextEvent(EventMask, EventRecord*);
     extern void SystemTask(void);
 
     /* Built through DITLBuilder: see ST_ConfirmClose for why nothing here lays

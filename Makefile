@@ -1168,15 +1168,20 @@ $(shell mkdir -p $(BUILD_DIR); \
         printf '%s' '$(CFLAGS)' | cmp -s - $(CFLAGS_STAMP) 2>/dev/null || \
         printf '%s' '$(CFLAGS)' > $(CFLAGS_STAMP))
 
+# The kernel has its own maths (System71Math.c); -lm is linked in case a
+# host compiler reaches for it. A bare-metal toolchain such as i686-elf-gcc
+# has no libm at all: build with LIBM= there.
+LIBM ?= -lm
+
 # Link kernel
 $(KERNEL): $(OBJECTS) | $(BUILD_DIR)
 	@echo "LD $(KERNEL)"
 	@if [ "$(PLATFORM)" = "arm64" ]; then \
         $(CC) $(LDFLAGS) -Wl,-T,$(LINKER_SCRIPT) -nostdlib -static -o $(KERNEL) $(OBJECTS); \
     elif [ "$(PLATFORM)" = "arm" ]; then \
-        $(CC) $(LDFLAGS) -Wl,-T,$(LINKER_SCRIPT) -nostdlib -static -o $(KERNEL) $(OBJECTS) -lm -lgcc; \
+        $(CC) $(LDFLAGS) -Wl,-T,$(LINKER_SCRIPT) -nostdlib -static -o $(KERNEL) $(OBJECTS) $(LIBM) -lgcc; \
     else \
-        $(CC) -m32 -Wl,-T,$(LINKER_SCRIPT) -nostdlib -no-pie -static -o $(KERNEL) $(OBJECTS) -lm -lgcc; \
+        $(CC) -m32 -Wl,-T,$(LINKER_SCRIPT) -nostdlib -no-pie -static -o $(KERNEL) $(OBJECTS) $(LIBM) -lgcc; \
 	fi
 	@test -f $(KERNEL) || { echo "ERROR: Kernel not created"; exit 1; }
 	@echo "✓ Kernel linked successfully ($(shell stat -c%s $(KERNEL) 2>/dev/null || stat -f%z $(KERNEL) 2>/dev/null) bytes)"
