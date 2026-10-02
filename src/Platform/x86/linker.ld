@@ -11,8 +11,7 @@ SECTIONS
     /* Combine multiboot header and entry point in first section */
     .boot ALIGN(8) :
     {
-        KEEP(build/obj/platform_boot.o(.multiboot2))
-        KEEP(build/obj/platform_boot.o(.text))
+        KEEP(*(.multiboot2))
     }
 
     /* Text section */
