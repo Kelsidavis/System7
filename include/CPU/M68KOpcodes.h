@@ -211,6 +211,7 @@ extern void M68K_Op_NOP(M68KAddressSpace* as, UInt16 opcode);
 /* Bit manipulation */
 extern void M68K_Op_EXT(M68KAddressSpace* as, UInt16 opcode);
 extern void M68K_Op_SWAP(M68KAddressSpace* as, UInt16 opcode);
+extern void M68K_Op_EXG(M68KAddressSpace* as, UInt16 opcode);
 extern void M68K_Op_BTST(M68KAddressSpace* as, UInt16 opcode);
 extern void M68K_Op_BSET(M68KAddressSpace* as, UInt16 opcode);
 extern void M68K_Op_BCLR(M68KAddressSpace* as, UInt16 opcode);

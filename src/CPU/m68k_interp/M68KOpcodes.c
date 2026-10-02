@@ -3427,3 +3427,18 @@ void M68K_CheckAddressAlignment(M68KAddressSpace* as, UInt32 addr, M68KSize size
  *
  * Our implementation assumes proper alignment but doesn't enforce it.
  */
+
+/*
+ * EXG - exchange registers: Dx with Dy (opmode 01000), Ax with Ay (01001),
+ * Dx with Ay (10001)
+ */
+void M68K_Op_EXG(M68KAddressSpace* as, UInt16 opcode)
+{
+    UInt8 rx = (opcode >> 9) & 7, ry = opcode & 7;
+    UInt8 mode = (opcode >> 3) & 0x1F;
+    UInt32* x = mode == 0x09 ? &as->regs.a[rx] : &as->regs.d[rx];
+    UInt32* y = mode == 0x08 ? &as->regs.d[ry] : &as->regs.a[ry];
+    UInt32 t = *x;
+    *x = *y;
+    *y = t;
+}

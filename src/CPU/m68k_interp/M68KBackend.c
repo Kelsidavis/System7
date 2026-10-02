@@ -834,6 +834,7 @@ extern void M68K_Op_MOVE_SR(M68KAddressSpace* as, UInt16 opcode);
 extern void M68K_Op_MOVE_FROM_SR(M68KAddressSpace* as, UInt16 opcode);
 extern void M68K_Op_MOVE_FROM_CCR(M68KAddressSpace* as, UInt16 opcode);
 extern void M68K_Op_MOVE_USP(M68KAddressSpace* as, UInt16 opcode);
+extern void M68K_Op_EXG(M68KAddressSpace* as, UInt16 opcode);
 extern UInt16 M68K_Fetch16(M68KAddressSpace* as);
 extern void M68K_Fault(M68KAddressSpace* as, const char* reason);
 
@@ -859,8 +860,12 @@ OSErr M68K_Step(M68KAddressSpace* as)
 
     /* Decode and dispatch */
     if ((opcode & 0xF000) == 0x0000) {
-        /* 0xxx - Bit manipulation, MOVEP, immediate */
-        if ((opcode & 0xF1C0) == 0x0100) {
+        /* 0xxx - Bit manipulation, MOVEP, immediate. MOVEP is a bit
+         * operation's encoding with An as the operand, which no bit
+         * operation takes - so it is told apart first. */
+        if ((opcode & 0xF138) == 0x0108) {
+            M68K_Op_MOVEP(as, opcode);
+        } else if ((opcode & 0xF1C0) == 0x0100) {
             /* BTST with register */
             M68K_Op_BTST(as, opcode);
         } else if ((opcode & 0xFFC0) == 0x0800) {
@@ -920,9 +925,6 @@ OSErr M68K_Step(M68KAddressSpace* as)
         } else if ((opcode & 0xFF00) == 0x0A00) {
             /* EORI - EOR immediate */
             M68K_Op_EORI(as, opcode);
-        } else if ((opcode & 0xF1F8) == 0x0108) {
-            /* MOVEP - move peripheral data */
-            M68K_Op_MOVEP(as, opcode);
         } else if ((opcode & 0xFF00) == 0x4200) {
             M68K_Op_CLR(as, opcode);
         } else if ((opcode & 0xFF00) == 0x4600) {
@@ -963,6 +965,29 @@ OSErr M68K_Step(M68KAddressSpace* as)
         } else if ((opcode & 0xF1C0) == 0x41C0) {
             /* LEA */
             M68K_Op_LEA(as, opcode);
+        /* Encodings that sit inside broader ones come before them: SWAP is
+         * PEA's pattern with a data register, the MOVEs to and from SR and
+         * CCR are NEGX, NEG and NOT with size 11, TAS and ILLEGAL are TST's.
+         * Tested after, they were never reached - SWAP, in almost every
+         * compiled program, ran as a PEA. */
+        } else if ((opcode & 0xFFF8) == 0x4840) {
+            /* SWAP */
+            M68K_Op_SWAP(as, opcode);
+        } else if ((opcode & 0xFFC0) == 0x40C0) {
+            /* MOVE from SR */
+            M68K_Op_MOVE_FROM_SR(as, opcode);
+        } else if ((opcode & 0xFFC0) == 0x44C0) {
+            /* MOVE to CCR */
+            M68K_Op_MOVE_CCR(as, opcode);
+        } else if ((opcode & 0xFFC0) == 0x46C0) {
+            /* MOVE to SR */
+            M68K_Op_MOVE_SR(as, opcode);
+        } else if ((opcode & 0xFFFF) == 0x4AFC) {
+            /* ILLEGAL */
+            M68K_Op_ILLEGAL(as, opcode);
+        } else if ((opcode & 0xFFC0) == 0x4AC0) {
+            /* TAS */
+            M68K_Op_TAS(as, opcode);
         } else if ((opcode & 0xFFC0) == 0x4840) {
             /* PEA */
             M68K_Op_PEA(as, opcode);
@@ -996,9 +1021,6 @@ OSErr M68K_Step(M68KAddressSpace* as)
         } else if ((opcode & 0xFF00) == 0x4A00) {
             /* TST */
             M68K_Op_TST(as, opcode);
-        } else if ((opcode & 0xFFF8) == 0x4840) {
-            /* SWAP */
-            M68K_Op_SWAP(as, opcode);
         } else if ((opcode & 0xFFF8) == 0x4880 || (opcode & 0xFFF8) == 0x48C0) {
             /* EXT.W or EXT.L */
             M68K_Op_EXT(as, opcode);
@@ -1017,15 +1039,9 @@ OSErr M68K_Step(M68KAddressSpace* as)
         } else if ((opcode & 0xF1C0) == 0x4180) {
             /* CHK - check register against bounds */
             M68K_Op_CHK(as, opcode);
-        } else if ((opcode & 0xFFC0) == 0x4AC0) {
-            /* TAS - test and set */
-            M68K_Op_TAS(as, opcode);
         } else if ((opcode & 0xFFC0) == 0x4800) {
             /* NBCD - negate decimal with extend */
             M68K_Op_NBCD(as, opcode);
-        } else if ((opcode & 0xFFFF) == 0x4AFC) {
-            /* ILLEGAL */
-            M68K_Op_ILLEGAL(as, opcode);
         } else if ((opcode & 0xFFFF) == 0x4E70) {
             /* RESET */
             M68K_Op_RESET(as, opcode);
@@ -1035,15 +1051,6 @@ OSErr M68K_Step(M68KAddressSpace* as)
         } else if ((opcode & 0xFFFF) == 0x4E77) {
             /* RTR */
             M68K_Op_RTR(as, opcode);
-        } else if ((opcode & 0xFFC0) == 0x44C0) {
-            /* MOVE to CCR */
-            M68K_Op_MOVE_CCR(as, opcode);
-        } else if ((opcode & 0xFFC0) == 0x46C0) {
-            /* MOVE to SR */
-            M68K_Op_MOVE_SR(as, opcode);
-        } else if ((opcode & 0xFFC0) == 0x40C0) {
-            /* MOVE from SR */
-            M68K_Op_MOVE_FROM_SR(as, opcode);
         } else if ((opcode & 0xFFC0) == 0x42C0) {
             /* MOVE from CCR (undocumented on 68000, official in 68010+) */
             M68K_Op_MOVE_FROM_CCR(as, opcode);
@@ -1116,7 +1123,9 @@ OSErr M68K_Step(M68KAddressSpace* as)
     } else if ((opcode & 0xF000) == 0xA000) {
         /* Axxx - A-line trap */
         M68K_Op_TRAP(as, opcode);
-    } else if ((opcode & 0xF100) == 0xB000) {
+    } else if ((opcode & 0xF000) == 0xB000) {
+        /* All of Bxxx: the test was on bits 15-12 and 8, so every opcode
+         * with bit 8 set - CMPA.L, EOR, CMPM - was an illegal instruction */
         /* Bxxx - CMP/CMPA/EOR/CMPM */
         if ((opcode & 0x00C0) == 0x00C0) {
             /* CMPA - bits 7-6 = 11 */
@@ -1154,6 +1163,10 @@ OSErr M68K_Step(M68KAddressSpace* as)
         } else if ((opcode & 0xF1F0) == 0xC100) {
             /* ABCD - add decimal with extend */
             M68K_Op_ABCD(as, opcode);
+        } else if ((opcode & 0xF1F8) == 0xC140 || (opcode & 0xF1F8) == 0xC148 ||
+                   (opcode & 0xF1F8) == 0xC188) {
+            /* EXG - it was taken for an AND */
+            M68K_Op_EXG(as, opcode);
         } else {
             /* AND */
             M68K_Op_AND(as, opcode);
@@ -1330,6 +1343,87 @@ static const UInt8 kProgAddSub[] = {
 };
 static const M68KExpect kWantAddSub[] = { {4, 0x0002FFD8}, {0, 7}, {2, 4} };
 
+/* The everyday instructions of compiled code, a few at a time */
+static const UInt8 kProgCmpa[] = {
+    0x26, 0x7C, 0x00, 0x00, 0x10, 0x00,   /* MOVEA.L #$1000,A3   */
+    0x2E, 0x3C, 0x00, 0x00, 0x10, 0x00,   /* MOVE.L  #$1000,D7   */
+    0xB7, 0xC7,                           /* CMPA.L  D7,A3       */
+    0x57, 0xC0,                           /* SEQ     D0          */
+};
+static const M68KExpect kWantCmpa[] = { {0, 0xFF} };
+
+static const UInt8 kProgSwapExg[] = {
+    0x20, 0x3C, 0x12, 0x34, 0x56, 0x78,   /* MOVE.L #$12345678,D0 */
+    0x48, 0x40,                           /* SWAP   D0            */
+    0x72, 0x02,                           /* MOVEQ  #2,D1         */
+    0xC3, 0x40,                           /* EXG    D1,D0         */
+    0x20, 0x7C, 0x00, 0x00, 0x00, 0x10,   /* MOVEA.L #$10,A0      */
+    0xC3, 0x88,                           /* EXG    D1,A0         */
+};
+static const M68KExpect kWantSwapExg[] = { {0, 2}, {1, 0x10}, {8, 0x56781234} };
+
+static const UInt8 kProgExt[] = {
+    0x70, 0x00,                           /* MOVEQ  #0,D0         */
+    0x10, 0x3C, 0x00, 0x80,               /* MOVE.B #$80,D0       */
+    0x48, 0x80,                           /* EXT.W  D0            */
+    0x22, 0x00,                           /* MOVE.L D0,D1         */
+    0x48, 0xC0,                           /* EXT.L  D0            */
+};
+static const M68KExpect kWantExt[] = { {1, 0x0000FF80}, {0, 0xFFFFFF80} };
+
+static const UInt8 kProgAddrArith[] = {
+    0x20, 0x7C, 0x00, 0x01, 0x00, 0x00,   /* MOVEA.L #$10000,A0   */
+    0xD0, 0xFC, 0xFF, 0xFE,               /* ADDA.W  #-2,A0       */
+    0x91, 0xFC, 0x00, 0x00, 0x00, 0x10,   /* SUBA.L  #$10,A0      */
+    0x22, 0x7C, 0x00, 0x00, 0x01, 0x00,   /* MOVEA.L #$100,A1     */
+    0x58, 0x49,                           /* ADDQ.W  #4,A1        */
+    0x51, 0x89,                           /* SUBQ.L  #8,A1        */
+};
+static const M68KExpect kWantAddrArith[] = { {8, 0xFFEE}, {9, 0xFC} };
+
+static const UInt8 kProgMulDivSigned[] = {
+    0x30, 0x3C, 0xFF, 0xFD,               /* MOVE.W #-3,D0        */
+    0xC1, 0xFC, 0x00, 0x04,               /* MULS.W #4,D0         */
+    0x72, 0xF9,                           /* MOVEQ  #-7,D1        */
+    0x83, 0xFC, 0x00, 0x02,               /* DIVS.W #2,D1         */
+};
+static const M68KExpect kWantMulDivSigned[] = { {0, 0xFFFFFFF4}, {1, 0xFFFFFFFD} };
+
+static const UInt8 kProgShifts[] = {
+    0x70, 0x01,                           /* MOVEQ  #1,D0         */
+    0xE9, 0x88,                           /* LSL.L  #4,D0         */
+    0x72, 0xF0,                           /* MOVEQ  #-16,D1       */
+    0xE4, 0x81,                           /* ASR.L  #2,D1         */
+    0x24, 0x3C, 0x80, 0x00, 0x00, 0x01,   /* MOVE.L #$80000001,D2 */
+    0xE3, 0x9A,                           /* ROL.L  #1,D2         */
+};
+static const M68KExpect kWantShifts[] = { {0, 16}, {1, 0xFFFFFFFC}, {2, 3} };
+
+static const UInt8 kProgCompareBranch[] = {
+    0x70, 0x05,                           /* MOVEQ  #5,D0         */
+    0x0C, 0x80, 0x00, 0x00, 0x00, 0x06,   /* CMPI.L #6,D0         */
+    0x6D, 0x02,                           /* BLT.S  +2            */
+    0x76, 0x01,                           /* MOVEQ  #1,D3         */
+    0x78, 0x02,                           /* MOVEQ  #2,D4         */
+};
+static const M68KExpect kWantCompareBranch[] = { {3, 0}, {4, 2} };
+
+static const UInt8 kProgDbra[] = {
+    0x70, 0x03,                           /* MOVEQ  #3,D0         */
+    0x72, 0x00,                           /* MOVEQ  #0,D1         */
+    0x52, 0x81,                           /* loop: ADDQ.L #1,D1   */
+    0x51, 0xC8, 0xFF, 0xFC,               /* DBRA   D0,loop       */
+};
+static const M68KExpect kWantDbra[] = { {1, 4}, {0, 0xFFFF} };
+
+static const UInt8 kProgBytePush[] = {
+    0x2E, 0x7C, 0x00, 0x03, 0x00, 0x00,   /* MOVEA.L #$30000,A7   */
+    0x70, 0x01,                           /* MOVEQ   #1,D0        */
+    0x1F, 0x00,                           /* MOVE.B  D0,-(A7)     */
+    0x14, 0x17,                           /* MOVE.B  (A7),D2      */
+};
+static const M68KExpect kWantBytePush[] = { {15, 0x2FFFE}, {2, 1} };
+
 
 /* MOVE.L #$FFFFFFFF,D0; MOVEQ #0,D1; MOVE.B D0,D1; MOVEQ #0,D2; MOVE.W D0,D2
  * A byte or word move touches only that much of the destination register. */
@@ -1498,6 +1592,18 @@ static const M68KTestCase kM68KTests[] = {
       kWantFrame, 3, sizeof(kProgFrame) },
     { "add and subtract", kProgAddSub, sizeof(kProgAddSub), 11,
       kWantAddSub, 3, sizeof(kProgAddSub) },
+    { "CMPA", kProgCmpa, sizeof(kProgCmpa), 4, kWantCmpa, 1, sizeof(kProgCmpa) },
+    { "SWAP and EXG", kProgSwapExg, sizeof(kProgSwapExg), 6, kWantSwapExg, 3, sizeof(kProgSwapExg) },
+    { "EXT", kProgExt, sizeof(kProgExt), 5, kWantExt, 2, sizeof(kProgExt) },
+    { "address arithmetic", kProgAddrArith, sizeof(kProgAddrArith), 6,
+      kWantAddrArith, 2, sizeof(kProgAddrArith) },
+    { "signed multiply and divide", kProgMulDivSigned, sizeof(kProgMulDivSigned), 4,
+      kWantMulDivSigned, 2, sizeof(kProgMulDivSigned) },
+    { "shifts", kProgShifts, sizeof(kProgShifts), 6, kWantShifts, 3, sizeof(kProgShifts) },
+    { "compare and branch", kProgCompareBranch, sizeof(kProgCompareBranch), 4,
+      kWantCompareBranch, 2, sizeof(kProgCompareBranch) },
+    { "DBRA", kProgDbra, sizeof(kProgDbra), 10, kWantDbra, 2, sizeof(kProgDbra) },
+    { "byte push", kProgBytePush, sizeof(kProgBytePush), 4, kWantBytePush, 2, sizeof(kProgBytePush) },
     { "operand sizes", kProgSizes, sizeof(kProgSizes), 5,
       kWantSizes, 3, sizeof(kProgSizes) },
     { "increment addressing", kProgIncr, sizeof(kProgIncr), 6,
