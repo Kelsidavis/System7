@@ -3,6 +3,9 @@
 
 set -e
 
+SCRIPT_DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
+ROOT_DIR=$(cd "$SCRIPT_DIR/../../.." && pwd)
+
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 echo "ARM64 Platform Build and Test"
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
@@ -51,14 +54,14 @@ echo "━━━━━━━━━━━━━━━━━━━━━━━━�
 echo "Building ARM64 kernel..."
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 
-make clean
-make
+make -C "$ROOT_DIR" clean
+make -C "$ROOT_DIR" PLATFORM=arm64 all
 
-if [ -f build/kernel8.img ]; then
-    SIZE=$(stat -f%z build/kernel8.img)
+if [ -f "$ROOT_DIR/kernel.elf" ]; then
+    SIZE=$(stat -f%z "$ROOT_DIR/kernel.elf")
     echo ""
     echo "✓ Build successful!"
-    echo "  Output: build/kernel8.img (${SIZE} bytes)"
+    echo "  Output: kernel.elf (${SIZE} bytes)"
 else
     echo "✗ Build failed"
     exit 1
@@ -67,10 +70,16 @@ fi
 # Test
 echo ""
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-echo "Testing in QEMU (Raspberry Pi 3 emulation)"
+echo "Testing in QEMU virt"
 echo "Press Ctrl-C to exit"
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 echo ""
 
 sleep 1
-make qemu
+qemu-system-aarch64 \
+    -M virt \
+    -cpu cortex-a53 \
+    -m 1G \
+    -kernel "$ROOT_DIR/kernel.elf" \
+    -serial stdio \
+    -display none

@@ -1,10 +1,15 @@
 #!/bin/bash
-# Quick test script for QEMU virtio-gpu
-killall -9 qemu-system-aarch64 2>/dev/null
-make clean
-make QEMU=1
-timeout 5 qemu-system-aarch64 -M virt -cpu cortex-a53 -m 1G \
-    -kernel build/kernel8.elf \
-    -device virtio-gpu-device \
+# Quick QEMU virt smoke test for the maintained top-level ARM64 kernel.
+set -e
+
+SCRIPT_DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
+ROOT_DIR=$(cd "$SCRIPT_DIR/../../.." && pwd)
+
+make -C "$ROOT_DIR" PLATFORM=arm64 all
+timeout 5 qemu-system-aarch64 \
+    -M virt \
+    -cpu cortex-a53 \
+    -m 1G \
+    -kernel "$ROOT_DIR/kernel.elf" \
     -serial stdio \
     -display none 2>&1 | head -100

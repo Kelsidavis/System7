@@ -1219,7 +1219,7 @@ vpath %.c src:src/System:src/QuickDraw:src/WindowManager:src/MenuManager:src/Con
 vpath %.S $(HAL_DIR)
 
 # Compile assembly files
-$(OBJ_DIR)/%.o: %.S | $(OBJ_DIR)
+$(OBJ_DIR)/%.o: %.S $(CFLAGS_STAMP) | $(OBJ_DIR)
 	@mkdir -p $(dir $@)
 	@echo "AS $<"
 ifeq ($(PLATFORM),arm64)
