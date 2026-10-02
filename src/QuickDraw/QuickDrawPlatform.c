@@ -371,7 +371,7 @@ void QDPlatform_SetPixel(SInt32 x, SInt32 y, UInt32 color) {
     if (!g_currentPort) {
         /* No port - draw to framebuffer */
         if (!framebuffer) return;
-        if (x < 0 || x >= fb_width || y < 0 || y >= fb_height) return;
+        if (x < 0 || (UInt32)x >= fb_width || y < 0 || (UInt32)y >= fb_height) return;
         uint32_t* pixel = (uint32_t*)((uint8_t*)framebuffer + y * fb_pitch + x * 4);
         *pixel = color;
         return;
@@ -401,7 +401,7 @@ void QDPlatform_SetPixel(SInt32 x, SInt32 y, UInt32 color) {
         /* Drawing to basic GrafPort - check if it's the framebuffer */
         if (g_currentPort->portBits.baseAddr == (Ptr)framebuffer) {
             /* Drawing to framebuffer - x,y are global screen coords */
-            if (x < 0 || x >= fb_width || y < 0 || y >= fb_height) return;
+            if (x < 0 || (UInt32)x >= fb_width || y < 0 || (UInt32)y >= fb_height) return;
             if (!QD_ClipHas(x, y)) return;
             uint32_t* pixel = (uint32_t*)((uint8_t*)framebuffer + y * fb_pitch + x * 4);
             *pixel = color;
@@ -472,7 +472,7 @@ UInt32 QDPlatform_GetPixel(SInt32 x, SInt32 y) {
 
     if (!g_currentPort) {
         if (!framebuffer) return 0;
-        if (x < 0 || x >= fb_width || y < 0 || y >= fb_height) return 0;
+        if (x < 0 || (UInt32)x >= fb_width || y < 0 || (UInt32)y >= fb_height) return 0;
         return *(uint32_t*)((uint8_t*)framebuffer + y * fb_pitch + x * 4);
     }
 
@@ -497,7 +497,7 @@ UInt32 QDPlatform_GetPixel(SInt32 x, SInt32 y) {
 
     if (g_currentPort->portBits.baseAddr == (Ptr)framebuffer) {
         if (!framebuffer) return 0;
-        if (x < 0 || x >= fb_width || y < 0 || y >= fb_height) return 0;
+        if (x < 0 || (UInt32)x >= fb_width || y < 0 || (UInt32)y >= fb_height) return 0;
         return *(uint32_t*)((uint8_t*)framebuffer + y * fb_pitch + x * 4);
     }
 
@@ -531,8 +531,8 @@ Boolean QDPlatform_FillRectAccelerated(SInt32 left, SInt32 top, SInt32 right, SI
     /* Clip to screen bounds */
     if (left < 0) left = 0;
     if (top < 0) top = 0;
-    if (right > fb_width) right = fb_width;
-    if (bottom > fb_height) bottom = fb_height;
+    if (right >= 0 && (UInt32)right > fb_width) right = (SInt32)fb_width;
+    if (bottom >= 0 && (UInt32)bottom > fb_height) bottom = (SInt32)fb_height;
     Pointer_Shield(left, top, right, bottom);
 
     for (SInt32 y = top; y < bottom; y++) {
@@ -1300,7 +1300,7 @@ static SInt16 QDPlatform_DrawGlyph_Body(struct FontStrike *strike, UInt8 ch, SIn
     SInt16 rowWords = strike->rowWords;
 
     for (SInt16 row = 0; row < strike->fRectHeight; row++) {
-        if (pixelY + row < 0 || pixelY + row >= renderHeight) {
+        if (pixelY + row < 0 || (UInt32)(pixelY + row) >= renderHeight) {
             continue;
         }
 
@@ -1308,7 +1308,7 @@ static SInt16 QDPlatform_DrawGlyph_Body(struct FontStrike *strike, UInt8 ch, SIn
         SInt32 bitRowStart = row * rowWords * 16;  /* 16 bits per word */
 
         for (SInt16 col = 0; col < charWidth; col++) {
-            if (pixelX + col < 0 || pixelX + col >= renderWidth) {
+            if (pixelX + col < 0 || (UInt32)(pixelX + col) >= renderWidth) {
                 continue;
             }
 

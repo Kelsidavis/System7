@@ -988,7 +988,7 @@ static void Calculator_ConvertToBase(Calculator *calc, CalcBase newBase)
  */
 static Boolean Calculator_IsValidDigitForBase(int digit, CalcBase base)
 {
-    return (digit >= 0 && digit < base);
+    return (digit >= 0 && digit < (int)base);
 }
 
 /* DA Interface Implementation */

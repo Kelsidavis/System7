@@ -132,7 +132,7 @@ static bool enum_callback(void* keyPtr, uint16_t keyLen,
     FS_LOG_DEBUG("HFS enum_callback: entryParent=%d target=%d nameLen=%d\n",
                  (int)entryParent, (int)ctx->parentID, key->nameLength);
 
-    if (entryParent != ctx->parentID) {
+    if (ctx->parentID < 0 || entryParent != (uint32_t)ctx->parentID) {
         return true;  /* Continue iteration */
     }
 
@@ -241,7 +241,8 @@ static bool lookup_callback(void* keyPtr, uint16_t keyLen,
     (void)keyLen;
     LookupContext* ctx = (LookupContext*)context;
     HFS_CatKey* key = (HFS_CatKey*)keyPtr;
-    if (be32_read(&key->parentID) != ctx->parentID) return true;
+    if (ctx->parentID < 0 ||
+        be32_read(&key->parentID) != (uint32_t)ctx->parentID) return true;
 
     CatEntry entry;
     if (HFS_ParseCatalogRecord(key, dataPtr, dataLen, &entry) &&

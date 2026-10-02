@@ -40,8 +40,8 @@ void ProgramNextTimerInterrupt(UInt64 absDeadlineUS) {
         }
 
         /* Cap to 1 second maximum */
-        if (deltaUS > MICROSECONDS_PER_SECOND) {
-            deltaUS = MICROSECONDS_PER_SECOND;
+        if ((UInt64)deltaUS > MICROSECONDS_PER_SECOND) {
+            deltaUS = (int64_t)MICROSECONDS_PER_SECOND;
         }
 
         gTimerState.nextDeadlineUS = nowUS + deltaUS;

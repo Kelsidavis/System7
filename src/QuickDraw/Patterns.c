@@ -71,7 +71,7 @@ void GetIndPattern(Pattern *thePat, SInt16 patternListID, SInt16 index) {
     assert(thePat != NULL);
 
     /* For now, ignore patternListID and use standard patterns */
-    if (index >= 0 && index < NUM_STANDARD_PATTERNS) {
+    if (index >= 0 && index < (SInt16)NUM_STANDARD_PATTERNS) {
         *thePat = g_standardPatterns[index];
     } else {
         /* Default to 50% gray */
@@ -112,7 +112,6 @@ void GetIndPattern(Pattern *thePat, SInt16 patternListID, SInt16 index) {
 /* ================================================================
  * INTERNAL HELPER FUNCTIONS
  * ================================================================ */
-
 
 
 

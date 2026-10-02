@@ -86,7 +86,7 @@ OSErr MenuBitsPool_Init(SInt16 numBuffers, SInt32 bufferSize) {
     serial_puts("[MBPOOL] Params OK\n");
 
     /* Check for integer overflow in allocation size */
-    if (numBuffers > SIZE_MAX / sizeof(PoolEntry)) {
+    if ((size_t)numBuffers > SIZE_MAX / sizeof(PoolEntry)) {
         serial_puts("[MBPOOL] Overflow\n");
         return memFullErr;
     }

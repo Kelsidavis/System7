@@ -528,10 +528,12 @@ static void DrawHighlightRect(short left, short top, short right, short bottom, 
     uint32_t color = highlight ? 0xFF000000 : 0xFFFFFFFF; /* Black for highlight, white for clear */
 
     /* Fill rectangle */
-    for (int y = top; y < bottom && y < fb_height; y++) {
+    for (int y = top; y < bottom; y++) {
         if (y < 0) continue;
-        for (int x = left; x < right && x < fb_width; x++) {
+        if ((UInt32)y >= fb_height) break;
+        for (int x = left; x < right; x++) {
             if (x < 0) continue;
+            if ((UInt32)x >= fb_width) break;
             fb[y * (fb_pitch / 4) + x] = color;
         }
     }
@@ -1221,4 +1223,3 @@ void DrawMenuBarWithHighlight(short highlightMenuID) {
 
     lastHighlightMenuID = highlightMenuID;
 }
-

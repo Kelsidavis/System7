@@ -39,7 +39,7 @@ OSErr ValidateCODE0(const void* data, Size size)
     }
 
     /* Check that jump table fits in resource */
-    if (CODE0_HEADER_SIZE + jtSize > size) {
+    if (size < 0 || CODE0_HEADER_SIZE + jtSize > (UInt32)size) {
         return segmentBadFormat;
     }
 

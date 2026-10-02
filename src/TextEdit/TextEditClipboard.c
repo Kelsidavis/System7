@@ -217,9 +217,11 @@ void TEStylePaste(TEHandle hTE) {
         SInt16 styleRunCount = scrapPtr[0];  /* First word: number of runs */
 
         /* Each style run is: offset (SInt16), font (SInt16), size (SInt16), face (SInt16), color (3 x SInt16) */
-        SInt16 runOffset = 1;  /* Start after count word */
+        size_t runOffset = 1;  /* Start after count word */
+        Size scrapSize = GetHandleSize(g_TEStyleScrap);
 
-        for (i = 0; i < styleRunCount && runOffset + 8 <= GetHandleSize(g_TEStyleScrap) / 2; i++) {
+        for (i = 0; i < styleRunCount && scrapSize >= 0 &&
+             runOffset + 8 <= (size_t)scrapSize / sizeof(SInt16); i++) {
             SInt16 runStart = scrapPtr[runOffset++];
             SInt16 runFont = scrapPtr[runOffset++];
             SInt16 runSize = scrapPtr[runOffset++];

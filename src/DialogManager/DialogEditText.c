@@ -461,6 +461,7 @@ Boolean HandleDialogEditTextKey(DialogPtr theDialog, SInt16 itemNo, CharParamete
         SInt16 itemType;
         Rect itemBox;
         SInt32 textLen;
+        Size itemHandleSize;
         unsigned char* pText;
 
         hText = TEGetText(hTE);
@@ -481,10 +482,14 @@ Boolean HandleDialogEditTextKey(DialogPtr theDialog, SInt16 itemNo, CharParamete
              * text is copied in - otherwise typing past the initial length
              * writes off the end of the block. */
             if (itemHandle) {
-                if (GetHandleSize(itemHandle) < textLen + 1) {
+                itemHandleSize = GetHandleSize(itemHandle);
+                if (itemHandleSize < 0 ||
+                    (UInt32)itemHandleSize < (UInt32)textLen + 1u) {
                     SetHandleSize(itemHandle, textLen + 1);
                 }
-                if (GetHandleSize(itemHandle) >= textLen + 1) {
+                itemHandleSize = GetHandleSize(itemHandle);
+                if (itemHandleSize >= 0 &&
+                    (UInt32)itemHandleSize >= (UInt32)textLen + 1u) {
                     HLock(itemHandle);
                     pText = (unsigned char*)*itemHandle;
                     pText[0] = (unsigned char)textLen;

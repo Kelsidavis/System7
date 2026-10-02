@@ -486,7 +486,8 @@ static OSErr PPC_Relocate(CPUAddressSpace as, CPUCodeHandle code,
         SInt32 pcrel_offset;
         UInt32 patch_pc;
 
-        if (offset + 4 > phandle->size) {
+        if (phandle->size < 0 || offset > (UInt32)phandle->size ||
+            4u > (UInt32)phandle->size - offset) {
             /* offset and phandle->size are 32-bit: 0x%X would pass
                          * a 4-byte int where the printf expects a long. */
             serial_printf("[RELOC] ERROR: offset 0x%lX exceeds segment size 0x%lX\n",

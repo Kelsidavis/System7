@@ -106,7 +106,7 @@ static void BreakdownDateTime(UInt32 macTime, int *year, int *month, int *day,
     y = 1904;
     while (1) {
         isLeap = ((y % 4 == 0) && (y % 100 != 0)) || (y % 400 == 0);
-        int daysInYear = isLeap ? 366 : 365;
+        UInt32 daysInYear = isLeap ? 366u : 365u;
         if (days < daysInYear) break;
         days -= daysInYear;
         y++;
@@ -121,7 +121,7 @@ static void BreakdownDateTime(UInt32 macTime, int *year, int *month, int *day,
         daysInMonth = monthDays[m];
         if (m == 1 && isLeap) daysInMonth = 29;  /* February in leap year */
 
-        if (days < daysInMonth) break;
+        if (days < (UInt32)daysInMonth) break;
         days -= daysInMonth;
         m++;
         if (m >= 12) {

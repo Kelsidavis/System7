@@ -51,7 +51,7 @@ OSErr FM_LoadNFNTResource(Handle nfntHandle, NFNTResource **nfntOut) {
     }
 
     Size handleSize = GetHandleSize(nfntHandle);
-    if (handleSize < sizeof(NFNTResource)) {
+    if (handleSize < 0 || (size_t)handleSize < sizeof(NFNTResource)) {
         /* handleSize is Size (long on x86-32): %d would pass 4 bytes to printf. */
         FRL_LOG("NFNT handle too small: %ld bytes\n", (long)handleSize);
         return resNotFound;
@@ -113,7 +113,8 @@ OSErr FM_ParseOWTTable(const NFNTResource *nfnt, OWTEntry **owtOut) {
     }
 
     /* Allocate OWT array (+1 for the extra entry that defines last char's width) */
-    if (numChars > SIZE_MAX / sizeof(OWTEntry) - 1) {
+    if (numChars < 0 ||
+        (size_t)numChars > SIZE_MAX / sizeof(OWTEntry) - 1) {
         return memFullErr;
     }
     Size owtSize = (numChars + 1) * sizeof(OWTEntry);
@@ -216,7 +217,7 @@ OSErr FM_LoadFONDResource(Handle fondHandle, FONDResource **fondOut) {
     }
 
     Size handleSize = GetHandleSize(fondHandle);
-    if (handleSize < sizeof(FONDResource)) {
+    if (handleSize < 0 || (size_t)handleSize < sizeof(FONDResource)) {
         FRL_LOG("FOND handle too small: %ld bytes\n", (long)handleSize);
         return resNotFound;
     }
@@ -312,7 +313,7 @@ Boolean FM_IsValidFOND(Handle fondHandle) {
     if (!fondHandle) return FALSE;
 
     Size size = GetHandleSize(fondHandle);
-    if (size < sizeof(FONDResource)) return FALSE;
+    if (size < 0 || (size_t)size < sizeof(FONDResource)) return FALSE;
 
     HLock(fondHandle);
     FONDResource *fond = (FONDResource*)*fondHandle;
@@ -331,7 +332,7 @@ Boolean FM_IsValidNFNT(Handle nfntHandle) {
     if (!nfntHandle) return FALSE;
 
     Size size = GetHandleSize(nfntHandle);
-    if (size < sizeof(NFNTResource)) return FALSE;
+    if (size < 0 || (size_t)size < sizeof(NFNTResource)) return FALSE;
 
     HLock(nfntHandle);
     NFNTResource *nfnt = (NFNTResource*)*nfntHandle;

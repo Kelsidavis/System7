@@ -1492,7 +1492,8 @@ static OSErr LoadDesktopDatabase(short vRefNum)
         dataSize = sizeof(DesktopItem) * gDesktopIconCount;
         err = FSRead(databaseRefNum, &dataSize, gDesktopIcons);
         /* If read failed or didn't read all data, reset to defaults */
-        if (err != noErr || dataSize != sizeof(DesktopItem) * gDesktopIconCount) {
+        if (err != noErr || dataSize < 0 ||
+            (size_t)dataSize != sizeof(DesktopItem) * (size_t)gDesktopIconCount) {
             gDesktopIconCount = 0;  /* Force fallback to create trash icon */
             err = noErr;  /* Handled gracefully by fallback */
         }

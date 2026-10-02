@@ -472,7 +472,11 @@ static void WakeTimerCallback(TMTaskPtr tmTaskPtr) {
  */
 void Proc_DumpTable(void) {
     PROC_LOG_INFO("\n=== Process Table ===\n");
-    PROC_LOG_INFO("Current: %ld\n", (long)(gCurrentProcess ? gCurrentProcess->pid : -1));
+    if (gCurrentProcess) {
+        PROC_LOG_INFO("Current: %lu\n", (unsigned long)gCurrentProcess->pid);
+    } else {
+        PROC_LOG_INFO("Current: -1\n");
+    }
 
     for (int i = 0; i < MAX_PROCESSES; i++) {
         ProcessCB* proc = &gProcessTable[i];

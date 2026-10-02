@@ -294,7 +294,7 @@ void TESetText(const void *text, SInt32 length, TEHandle hTE) {
     pTE = (TEExtPtr)*hTE;
 
     /* Ensure buffer is large enough */
-    if (length > GetHandleSize(pTE->base.hText)) {
+    if ((u32)length > (u32)GetHandleSize(pTE->base.hText)) {
         if (TE_GrowTextBuffer(hTE, length + TE_INITIAL_BUFFER) != noErr) {
             HUnlock((Handle)hTE);
             return;
@@ -384,7 +384,7 @@ void TEReplaceSel(const void *text, SInt32 length, TEHandle hTE) {
     }
 
     /* Grow buffer if needed */
-    if (newLen > GetHandleSize(pTE->base.hText)) {
+    if ((u32)newLen > (u32)GetHandleSize(pTE->base.hText)) {
         if (TE_GrowTextBuffer(hTE, newLen + TE_INITIAL_BUFFER) != noErr) {
             HUnlock((Handle)hTE);
             return;

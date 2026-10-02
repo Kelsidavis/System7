@@ -413,7 +413,7 @@ void CustomGetFile(FileFilterYDProcPtr fileFilter,
     /* Copy type list */
     if (numTypes > 0 && typeList != NULL) {
         /* Check for integer overflow in allocation size */
-        if (numTypes > SIZE_MAX / sizeof(OSType)) {
+        if ((size_t)numTypes > SIZE_MAX / sizeof(OSType)) {
             return;
         }
         gSFState.typeList = (OSType*)NewPtr(numTypes * sizeof(OSType));
@@ -656,7 +656,7 @@ static void SF_PopulateFileList(void) {
     /* Copy final list */
     if (gSFState.numFiles > 0) {
         /* Check for integer overflow in allocation size */
-        if (gSFState.numFiles > SIZE_MAX / sizeof(FSSpec)) {
+        if ((size_t)gSFState.numFiles > SIZE_MAX / sizeof(FSSpec)) {
             DisposePtr((Ptr)tempFiles);
             return;
         }

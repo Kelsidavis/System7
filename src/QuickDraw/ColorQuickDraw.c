@@ -269,7 +269,8 @@ void CopyPixMap(PixMapHandle srcPM, PixMapHandle dstPM) {
         ColorTable* srcTable = (ColorTable*)*((Handle)src->pmTable);
 
         /* Check for integer overflow in size calculation */
-        if (srcTable->ctSize > (SIZE_MAX - sizeof(ColorTable)) / sizeof(ColorSpec)) {
+        if (srcTable->ctSize < 0 ||
+            (size_t)srcTable->ctSize > (SIZE_MAX - sizeof(ColorTable)) / sizeof(ColorSpec)) {
             return;  /* Size would overflow */
         }
 

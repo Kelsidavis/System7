@@ -3343,7 +3343,7 @@ void PPC_Op_LFS(PPCAddressSpace* as, UInt32 insn)
     UInt32 value;
     float f;
 
-    ea = (ra == 0) ? d : (as->regs.gpr[ra] + d);
+    ea = (ra == 0) ? (UInt32)(SInt32)d : (as->regs.gpr[ra] + d);
     value = PPC_Read32(as, ea);
 
     /* Convert bits to float, then to double */
@@ -3432,7 +3432,7 @@ void PPC_Op_LFD(PPCAddressSpace* as, UInt32 insn)
     UInt32 hi, lo;
     UInt64 value64;
 
-    ea = (ra == 0) ? d : (as->regs.gpr[ra] + d);
+    ea = (ra == 0) ? (UInt32)(SInt32)d : (as->regs.gpr[ra] + d);
     hi = PPC_Read32(as, ea);
     lo = PPC_Read32(as, ea + 4);
 
@@ -3524,7 +3524,7 @@ void PPC_Op_STFS(PPCAddressSpace* as, UInt32 insn)
     float f;
     UInt32 value;
 
-    ea = (ra == 0) ? d : (as->regs.gpr[ra] + d);
+    ea = (ra == 0) ? (UInt32)(SInt32)d : (as->regs.gpr[ra] + d);
     f = (float)as->regs.fpr[frs];
     memcpy(&value, &f, 4);
     PPC_Write32(as, ea, value);
@@ -3607,7 +3607,7 @@ void PPC_Op_STFD(PPCAddressSpace* as, UInt32 insn)
     UInt32 ea;
     UInt64 value64;
 
-    ea = (ra == 0) ? d : (as->regs.gpr[ra] + d);
+    ea = (ra == 0) ? (UInt32)(SInt32)d : (as->regs.gpr[ra] + d);
     memcpy(&value64, &as->regs.fpr[frs], 8);
     PPC_Write32(as, ea, (value64 >> 32) & 0xFFFFFFFF);
     PPC_Write32(as, ea + 4, value64 & 0xFFFFFFFF);
@@ -7892,4 +7892,3 @@ void PPC_Op_VUPKLPX(PPCAddressSpace* as, UInt32 insn)
  * Implementation Status: ~99.9% complete for Mac OS PowerPC applications
  * ==================================================
  */
-

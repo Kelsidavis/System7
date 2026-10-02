@@ -141,7 +141,7 @@ COMMON_CFLAGS = \
          -Wnull-dereference -Wjump-misses-init -Warray-bounds=2 -Wshift-overflow=2 \
          $(OPT_FLAGS) -fno-inline -fno-optimize-sibling-calls -I./include -I./src -std=c2x \
          -Wuninitialized -U_FORTIFY_SOURCE -D_FORTIFY_SOURCE=0 \
-         -Wno-multichar -Wno-pointer-sign -Wno-sign-compare \
+         -Wno-multichar -Wno-pointer-sign \
          $(WERROR) \
          $(EXTRA_CFLAGS) \
          -fno-common -fno-delete-null-pointer-checks \

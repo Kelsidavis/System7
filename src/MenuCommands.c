@@ -1375,7 +1375,7 @@ void Finder_Cut(void) {
 
     /* Calculate total size: count + cutMode + FSSpec array */
     /* Check for integer overflow: count and sizeof multiplication */
-    if (count > SIZE_MAX / sizeof(FSSpec)) {
+    if ((size_t)count > SIZE_MAX / sizeof(FSSpec)) {
         MENU_LOG_DEBUG("Finder_Cut: Integer overflow in clipboard data size calculation\n");
         DisposePtr((Ptr)specs);
         return;
@@ -1442,7 +1442,7 @@ void Finder_Copy(void) {
 
     /* Calculate total size: count + cutMode + FSSpec array */
     /* Check for integer overflow: count and sizeof multiplication */
-    if (count > SIZE_MAX / sizeof(FSSpec)) {
+    if ((size_t)count > SIZE_MAX / sizeof(FSSpec)) {
         MENU_LOG_DEBUG("Finder_Copy: Integer overflow in clipboard data size calculation\n");
         DisposePtr((Ptr)specs);
         return;
@@ -1499,7 +1499,7 @@ void Finder_Paste(void) {
     }
 
     long scrapSize = GetScrap(scrapHandle, 'fSSp', NULL);
-    if (scrapSize <= (sizeof(SInt16) + sizeof(UInt8))) {
+    if (scrapSize <= (long)(sizeof(SInt16) + sizeof(UInt8))) {
         MENU_LOG_DEBUG("Finder_Paste: No files on clipboard (size=%ld)\n", scrapSize);
         DisposeHandle(scrapHandle);
         return;
