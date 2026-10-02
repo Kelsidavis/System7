@@ -22,6 +22,7 @@
 #include "CPU/M68KToolbox.h"
 #include "CPU/M68KInterp.h"
 #include "CPU/M68KHeap.h"
+#include "M68KToolboxInternal.h"
 #include "CPU/LowMemGlobals.h"
 #include "ResourceManager.h"
 #include "MenuManager/MenuManager.h"
@@ -33,12 +34,6 @@ extern QDGlobals qd;
 extern UInt32 TickCount(void);
 extern void SysBeep(short duration);
 extern void InitCursor(void);
-extern UInt8 M68K_Read8(M68KAddressSpace* as, UInt32 addr);
-extern UInt16 M68K_Read16(M68KAddressSpace* as, UInt32 addr);
-extern UInt32 M68K_Read32(M68KAddressSpace* as, UInt32 addr);
-extern void M68K_Write8(M68KAddressSpace* as, UInt32 addr, UInt8 value);
-extern void M68K_Write16(M68KAddressSpace* as, UInt32 addr, UInt16 value);
-extern void M68K_Write32(M68KAddressSpace* as, UInt32 addr, UInt32 value);
 
 /* Low-memory globals this module keeps that LowMemGlobals.h does not name */
 enum {
@@ -53,43 +48,11 @@ enum {
 };
 
 /* The application being answered; one runs at a time */
-static M68KAddressSpace* gAS;
+M68KAddressSpace* gM68KApp;
+#define gAS gM68KApp
 static UInt32 gStackBase;
 static UInt32 gScreenBase;
 static Boolean gMenusTaken;
-
-/* ------------------------------------------------------------------------
- * The application's memory
- * ------------------------------------------------------------------------ */
-
-#define R8(a)       M68K_Read8(gAS, (a))
-#define R16(a)      M68K_Read16(gAS, (a))
-#define R32(a)      M68K_Read32(gAS, (a))
-#define W8(a, v)    M68K_Write8(gAS, (a), (UInt8)(v))
-#define W16(a, v)   M68K_Write16(gAS, (a), (UInt16)(v))
-#define W32(a, v)   M68K_Write32(gAS, (a), (UInt32)(v))
-
-#define D(n)        (gAS->regs.d[n])
-#define A(n)        (gAS->regs.a[n])
-
-static inline UInt16 Pop16(void) { UInt16 v = R16(A(7)); A(7) += 2; return v; }
-static inline UInt32 Pop32(void) { UInt32 v = R32(A(7)); A(7) += 4; return v; }
-static inline Boolean PopBool(void) { return (Pop16() & 0xFF00) != 0; }
-
-/* A function's result, in the space reserved under its arguments - which
- * is where the stack pointer is once they are popped */
-static inline void Result16(UInt16 v) { W16(A(7), v); }
-static inline void Result32(UInt32 v) { W32(A(7), v); }
-static inline void ResultBool(Boolean b) { W16(A(7), b ? 0x0100 : 0); }
-
-/* Strings between the two memories */
-static void ReadPString(UInt32 addr, Str255 out) {
-    out[0] = addr ? R8(addr) : 0;
-    for (int i = 1; i <= out[0]; i++) out[i] = R8(addr + i);
-}
-static void WritePString(UInt32 addr, ConstStr255Param s) {
-    for (int i = 0; i <= s[0]; i++) W8(addr + i, s[i]);
-}
 
 static void SetMemErr(OSErr err) {
     W16(kLM_MemErr, (UInt16)err);
@@ -101,9 +64,6 @@ static void SetMemErr(OSErr err) {
  * ------------------------------------------------------------------------ */
 
 static Boolean ClearFlag(void) { return (gAS->currentTrap & 0x0200) != 0; }
-
-#define TRAP(name) static OSErr name(void* ctx, CPUAddr* pc, CPUAddr* regs)
-#define UNUSED (void)ctx; (void)pc; (void)regs
 
 TRAP(Trap_NewPtr) {
     UNUSED;
@@ -326,7 +286,7 @@ static void SetResErr(void) {
 }
 
 /* The application's handle for a native resource handle; 0 for none */
-static UInt32 ResHandleFor(Handle native) {
+UInt32 M68KTB_ResHandleFor(Handle native) {
     if (!native) return 0;
     for (int i = 0; i < gResCount; i++) {
         if (gResMap[i].native == native) return gResMap[i].h;
@@ -361,7 +321,7 @@ TRAP(Trap_GetResource) {
     Boolean one = (gAS->currentTrap & 0x03FF) == (0xA81F & 0x03FF);
     Handle n = one ? Get1Resource(type, id) : GetResource(type, id);
     SetResErr();
-    Result32(ResHandleFor(n));
+    Result32(M68KTB_ResHandleFor(n));
     return noErr;
 }
 
@@ -374,7 +334,7 @@ TRAP(Trap_GetNamedResource) {
     Boolean one = (gAS->currentTrap & 0x03FF) == (0xA820 & 0x03FF);
     Handle n = one ? Get1NamedResource(type, name) : GetNamedResource(type, name);
     SetResErr();
-    Result32(ResHandleFor(n));
+    Result32(M68KTB_ResHandleFor(n));
     return noErr;
 }
 
@@ -386,7 +346,7 @@ TRAP(Trap_GetIndResource) {
     Boolean one = (gAS->currentTrap & 0x03FF) == (0xA80E & 0x03FF);
     Handle n = one ? Get1IndResource(type, index) : GetIndResource(type, index);
     SetResErr();
-    Result32(ResHandleFor(n));
+    Result32(M68KTB_ResHandleFor(n));
     return noErr;
 }
 
@@ -485,7 +445,7 @@ static OSErr TypedResource(ResType type) {
     SInt16 id = (SInt16)Pop16();
     Handle n = GetResource(type, id);
     SetResErr();
-    Result32(ResHandleFor(n));
+    Result32(M68KTB_ResHandleFor(n));
     return noErr;
 }
 TRAP(Trap_GetString)  { UNUSED; return TypedResource('STR '); }
@@ -606,12 +566,7 @@ TRAP(Trap_ExitToShell) {
 
 /* ------------------------------------------------------------------------ */
 
-typedef struct {
-    UInt16 trap;
-    CPUTrapHandler handler;
-} TrapEntry;
-
-static const TrapEntry kTraps[] = {
+static const M68KTrapEntry kTraps[] = {
     /* Memory Manager */
     { 0xA11E, Trap_NewPtr },        { 0xA01F, Trap_DisposePtr },   { 0xA021, Trap_GetPtrSize },
     { 0xA020, Trap_SetPtrSize },    { 0xA122, Trap_NewHandle },    { 0xA166, Trap_NewEmptyHandle },
@@ -656,7 +611,6 @@ static const TrapEntry kTraps[] = {
     { 0xA930, Trap_InitMenus },     { 0xA9CC, Trap_NoOp },         /* TEInit */
     { 0xA97B, Trap_PopLong },       /* InitDialogs */
     { 0xA850, Trap_InitCursor },    { 0xA032, Trap_FlushEvents },
-    { 0xA9B4, Trap_NoOp },          /* SystemTask */
     { 0xA975, Trap_TickCount },     { 0xA9C8, Trap_SysBeep },
     { 0xA090, Trap_SysEnvirons },   { 0xA1AD, Trap_Gestalt },
     { 0xA9F4, Trap_ExitToShell },
@@ -702,14 +656,34 @@ OSErr M68KToolbox_Prepare(SegmentLoaderContext* ctx, ConstStr255Param appName,
     for (int i = 0; i < len; i++) W8(kLM_CurApName + 1 + i, appName[1 + i]);
     LMSetTicks(TickCount());
 
-    for (size_t i = 0; i < sizeof(kTraps) / sizeof(kTraps[0]); i++) {
-        err = ctx->cpuBackend->InstallTrap(ctx->cpuAS, kTraps[i].trap, kTraps[i].handler, gAS);
-        if (err != noErr) return err;
+    const struct { const M68KTrapEntry* t; int n; } tables[] = {
+        { kTraps, (int)(sizeof(kTraps) / sizeof(kTraps[0])) },
+        { kM68KQuickDrawTraps, kM68KQuickDrawTrapCount },
+        { kM68KWindowTraps, kM68KWindowTrapCount },
+        { kM68KMenuTraps, kM68KMenuTrapCount },
+        { kM68KEventTraps, kM68KEventTrapCount },
+    };
+    for (size_t k = 0; k < sizeof(tables) / sizeof(tables[0]); k++) {
+        for (int i = 0; i < tables[k].n; i++) {
+            err = ctx->cpuBackend->InstallTrap(ctx->cpuAS, tables[k].t[i].trap,
+                                               tables[k].t[i].handler, gAS);
+            if (err != noErr) return err;
+        }
     }
     return noErr;
 }
 
+UInt32 M68KTB_ScreenBase(void) {
+    return gScreenBase;
+}
+
+UInt32 M68KTB_QDGlobals(void) {
+    return gAS ? R32(gAS->regs.a[5]) : 0;
+}
+
 void M68KToolbox_Finish(void) {
+    Obj_Finish();
+    M68KMenus_Finish();
     /* Native resources the application still held */
     for (int i = 0; i < gResCount; i++) ReleaseResource(gResMap[i].native);
     gResCount = 0;

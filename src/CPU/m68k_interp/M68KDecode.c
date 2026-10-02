@@ -108,7 +108,10 @@ UInt8 M68K_Read8(M68KAddressSpace* as, UInt32 addr)
 
     page = M68K_GetPage(as, addr, false);  /* Don't allocate on read */
     if (!page) {
-        M68K_Fault(as, "Read8 unmapped page");
+        /* "unmapped" marks it a bus error; the address says whose */
+        static char why[48];
+        snprintf(why, sizeof(why), "read of unmapped address $%06X", (unsigned)(addr & 0xFFFFFF));
+        M68K_Fault(as, why);
         return 0;
     }
 

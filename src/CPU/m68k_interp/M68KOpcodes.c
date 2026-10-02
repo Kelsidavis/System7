@@ -339,14 +339,18 @@ void M68K_Op_NOT(M68KAddressSpace* as, UInt16 opcode)
 void M68K_Op_ADD(M68KAddressSpace* as, UInt16 opcode)
 {
     UInt8 reg = (opcode >> 9) & 7;
-    UInt8 dir = (opcode >> 8) & 1;  /* 0=EA+Dn->EA, 1=Dn+EA->Dn */
+    /* Bit 8 of the opmode: clear for <ea> + Dn -> Dn, set for Dn + <ea> ->
+     * <ea>. It was read the other way round, so every ADD into a register
+     * was done into its operand instead - ADD.L A6,D4, how a compiler forms
+     * the address of a local, left D4 as it was. */
+    UInt8 toEA = (opcode >> 8) & 1;
     UInt8 size = (opcode >> 6) & 3;
     UInt8 ea_mode = (opcode >> 3) & 7;
     UInt8 ea_reg = opcode & 7;
     UInt32 src, dst, result;
     UInt32 mask = SIZE_MASK(size);
 
-    if (dir == 1) {
+    if (!toEA) {
         /* Dn + EA -> Dn */
         src = M68K_EA_Read(as, ea_mode, ea_reg, size);
         dst = as->regs.d[reg] & mask;
@@ -363,8 +367,8 @@ void M68K_Op_ADD(M68KAddressSpace* as, UInt16 opcode)
     /* Set flags */
     M68K_SetNZ(as, result, size);
 
-    /* Set C and X if carry occurred */
-    if ((dst + src) > mask) {
+    /* Set C and X if carry occurred - in 64 bits, or a long add never could */
+    if ((UInt64)dst + (UInt64)src > (UInt64)mask) {
         M68K_SetFlag(as, CCR_C | CCR_X);
     } else {
         M68K_ClearFlag(as, CCR_C | CCR_X);
@@ -391,14 +395,14 @@ void M68K_Op_ADD(M68KAddressSpace* as, UInt16 opcode)
 void M68K_Op_SUB(M68KAddressSpace* as, UInt16 opcode)
 {
     UInt8 reg = (opcode >> 9) & 7;
-    UInt8 dir = (opcode >> 8) & 1;  /* 0=Dn-EA->EA, 1=Dn-EA->Dn */
+    UInt8 toEA = (opcode >> 8) & 1;  /* as for ADD: clear for Dn - <ea> -> Dn */
     UInt8 size = (opcode >> 6) & 3;
     UInt8 ea_mode = (opcode >> 3) & 7;
     UInt8 ea_reg = opcode & 7;
     UInt32 src, dst, result;
     UInt32 mask = SIZE_MASK(size);
 
-    if (dir == 1) {
+    if (!toEA) {
         /* Dn - EA -> Dn */
         dst = as->regs.d[reg] & mask;
         src = M68K_EA_Read(as, ea_mode, ea_reg, size);
@@ -750,12 +754,17 @@ void M68K_Op_TRAP(M68KAddressSpace* as, UInt16 opcode)
         if (osTrap) as->regs.d[1] = opcode;
 
         as->currentTrap = opcode;
+        int r = as->recentTrapNext++ & 7;
+        as->recentTraps[r].trap = opcode;
+        as->recentTraps[r].pc = as->instrPC;
+        as->recentTraps[r].spBefore = as->regs.a[7];
         err = as->trapHandlers[slot](
             as->trapContexts[slot],
             &as->regs.pc,
             as->regs.d  /* Pass registers array */
         );
 
+        as->recentTraps[r].spAfter = as->regs.a[7];
         if (osTrap && !as->halted) {
             as->regs.a[1] = a1;
             as->regs.d[1] = d1;

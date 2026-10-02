@@ -18,12 +18,13 @@ python3 "$here/mkapp.py" "$out/Hello.code" "$out/Hello.bin" Hello
 # The rest are C. Code and data are one block addressed relative to the PC
 # (-mpcrel), A5 is left alone (-ffixed-a5): it is the application's.
 CFLAGS="-Wno-multichar -m68000 -mpcrel -ffixed-a5 -Os -ffreestanding -fno-builtin -nostdlib -fno-zero-initialized-in-bss -Wall"
+# libgcc is built for the 68020; runtime.c has what a 68000 needs instead.
 m68k-linux-gnu-as -m68000 -o "$out/crt0.o" "$here/crt0.s"
+m68k-linux-gnu-gcc $CFLAGS -O2 -c -o "$out/runtime.o" "$here/runtime.c"
 for app in Sampler; do
     m68k-linux-gnu-gcc $CFLAGS -c -o "$out/$app.o" "$here/$app.c"
-    m68k-linux-gnu-ld -T "$here/app.ld" -o "$out/$app.elf" "$out/crt0.o" "$out/$app.o" \
-        "$(m68k-linux-gnu-gcc -m68000 -print-libgcc-file-name)"
-    if m68k-linux-gnu-objdump -r "$out/crt0.o" "$out/$app.o" | grep -q R_68K_32; then
+    m68k-linux-gnu-ld -T "$here/app.ld" -o "$out/$app.elf" "$out/crt0.o" "$out/$app.o" "$out/runtime.o"
+    if m68k-linux-gnu-objdump -r "$out/crt0.o" "$out/$app.o" "$out/runtime.o" | grep -q R_68K_32; then
         echo "$app: absolute relocations - it would not run where it is loaded" >&2
         exit 1
     fi

@@ -131,6 +131,11 @@ typedef struct M68KAddressSpace {
     UInt16 currentTrap;       /* the trap word being answered, for its flag bits */
     UInt32 instrPC;           /* where the instruction being executed began */
 
+    /* The last traps called, for a fault report: which call left the stack
+     * or a register as the fault found it */
+    struct { UInt16 trap; UInt32 pc, spBefore, spAfter; } recentTraps[8];
+    UInt8 recentTrapNext;
+
     /* Execution state */
     Boolean halted;           /* CPU halted due to fault or completion */
     UInt16 lastException;     /* Last exception vector number */

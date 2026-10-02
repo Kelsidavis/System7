@@ -534,6 +534,16 @@ static OSErr M68K_EnterAt(CPUAddressSpace as, CPUAddr entry, CPUEnterFlags flags
                      (unsigned)mas->regs.a[5], (unsigned)mas->regs.a[7],
                      (unsigned)mas->regs.d[0]);
             serial_puts(b);
+            for (int i = 0; i < 8; i++) {
+                int k = (mas->recentTrapNext + i) & 7;
+                if (!mas->recentTraps[k].trap) continue;
+                const char* name = M68K_TrapName(mas->recentTraps[k].trap);
+                snprintf(b, sizeof(b), "[M68K]   trap $%04X %s at 0x%08X, SP 0x%08X -> 0x%08X\n",
+                         mas->recentTraps[k].trap, name ? name : "",
+                         (unsigned)mas->recentTraps[k].pc, (unsigned)mas->recentTraps[k].spBefore,
+                         (unsigned)mas->recentTraps[k].spAfter);
+                serial_puts(b);
+            }
             return -1;
         }
         M68K_LOG_INFO("Execution halted at PC=0x%08X\n", mas->regs.pc);
@@ -1290,6 +1300,36 @@ static const UInt8 kProgLongBranch[] = {
 };
 static const M68KExpect kWantLongBranch[] = { {0, 0}, {1, 2} };
 
+/* What a compiler makes of a Rect built on the stack: a 16-bit multiply by
+ * an immediate, a word moved into an address register and offset with LEA,
+ * and the address register stored as a word into the frame */
+static const UInt8 kProgFrame[] = {
+    0x2C, 0x7C, 0x00, 0x03, 0x00, 0x00,   /* MOVEA.L #$30000,A6     */
+    0x72, 0x02,                           /* MOVEQ   #2,D1          */
+    0xC3, 0xFC, 0x00, 0x14,               /* MULS.W  #20,D1         */
+    0x30, 0x41,                           /* MOVEA.W D1,A0          */
+    0x41, 0xE8, 0x00, 0x3C,               /* LEA     60(A0),A0      */
+    0x3D, 0x48, 0xFF, 0xD8,               /* MOVE.W  A0,-40(A6)     */
+    0x34, 0x2E, 0xFF, 0xD8,               /* MOVE.W  -40(A6),D2     */
+};
+static const M68KExpect kWantFrame[] = { {1, 40}, {8, 100}, {2, 100} };
+
+/* ADD and SUB both ways round: into a register, and into memory */
+static const UInt8 kProgAddSub[] = {
+    0x2C, 0x7C, 0x00, 0x03, 0x00, 0x00,   /* MOVEA.L #$30000,A6     */
+    0x78, 0xD8,                           /* MOVEQ   #-40,D4        */
+    0xD8, 0x8E,                           /* ADD.L   A6,D4          */
+    0x70, 0x0A,                           /* MOVEQ   #10,D0         */
+    0x72, 0x03,                           /* MOVEQ   #3,D1          */
+    0x90, 0x81,                           /* SUB.L   D1,D0          */
+    0x2C, 0x80,                           /* MOVE.L  D0,(A6)        */
+    0xD3, 0x96,                           /* ADD.L   D1,(A6)        */
+    0x93, 0x96,                           /* SUB.L   D1,(A6)        */
+    0x93, 0x96,                           /* SUB.L   D1,(A6)        */
+    0x24, 0x16,                           /* MOVE.L  (A6),D2        */
+};
+static const M68KExpect kWantAddSub[] = { {4, 0x0002FFD8}, {0, 7}, {2, 4} };
+
 
 /* MOVE.L #$FFFFFFFF,D0; MOVEQ #0,D1; MOVE.B D0,D1; MOVEQ #0,D2; MOVE.W D0,D2
  * A byte or word move touches only that much of the destination register. */
@@ -1454,6 +1494,10 @@ static const M68KTestCase kM68KTests[] = {
       kWantBranch, 3, sizeof(kProgBranch) },
     { "16-bit branch", kProgLongBranch, sizeof(kProgLongBranch), 2,
       kWantLongBranch, 2, sizeof(kProgLongBranch) },
+    { "a frame record", kProgFrame, sizeof(kProgFrame), 7,
+      kWantFrame, 3, sizeof(kProgFrame) },
+    { "add and subtract", kProgAddSub, sizeof(kProgAddSub), 11,
+      kWantAddSub, 3, sizeof(kProgAddSub) },
     { "operand sizes", kProgSizes, sizeof(kProgSizes), 5,
       kWantSizes, 3, sizeof(kProgSizes) },
     { "increment addressing", kProgIncr, sizeof(kProgIncr), 6,
