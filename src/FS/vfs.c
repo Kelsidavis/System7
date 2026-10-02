@@ -27,9 +27,16 @@ typedef struct {
     bool    renamed;        /* Name changed */
     DirID   newParent;      /* New parent dir if moved */
     CatEntry entry;         /* Full entry (for created entries, or modified state) */
-    /* File data storage for overlay-created files */
-    uint8_t* fileData;      /* Persisted file content */
-    uint32_t fileDataSize;  /* Size of file content */
+    /* Each fork's contents, once written: a fork with none here is still
+     * the catalog's (or, for a created file, empty). They were one buffer,
+     * so writing a file's resource fork replaced its data fork - a
+     * MacBinary file unpacked with both came out with the resource fork
+     * twice, and a resource file on the volume, once updated, opened its
+     * data fork as its resources. */
+    uint8_t* fileData;      /* Persisted data fork */
+    uint32_t fileDataSize;
+    uint8_t* rsrcData;      /* Persisted resource fork */
+    uint32_t rsrcDataSize;
 } VFSOverlayEntry;
 
 /* Mounted volume entry */
@@ -68,6 +75,7 @@ struct VFSFile {
     uint32_t memCapacity;   /* Buffer capacity */
     uint32_t memPosition;   /* Read/write position */
     bool     changed;       /* written to or resized: saved on close */
+    bool     resourceFork;  /* which fork this is */
 };
 
 /* Helper: Find volume by vref */
@@ -845,25 +853,28 @@ VFSFile* VFS_OpenFile(VRefNum vref, FileID id, bool resourceFork) {
      * save had worked, and nothing ever read the result. What matters here is
      * where the current contents live, so that is what is asked. */
     VFSOverlayEntry* oe = VFS_FindOverlay(vol, id);
-    if (oe && !oe->deleted && (oe->created || oe->fileData)) {
+    uint8_t* forkData = oe ? (resourceFork ? oe->rsrcData : oe->fileData) : NULL;
+    uint32_t forkSize = oe ? (resourceFork ? oe->rsrcDataSize : oe->fileDataSize) : 0;
+    if (oe && !oe->deleted && (oe->created || forkData)) {
         /* Overlay-backed file — use in-memory buffer */
         VFSFile* vfsFile = (VFSFile*)NewPtr(sizeof(VFSFile));
         if (!vfsFile) return NULL;
         memset(vfsFile, 0, sizeof(VFSFile));
         vfsFile->vref = vref;
         vfsFile->fileID = id;
+        vfsFile->resourceFork = resourceFork;
 
         /* Load any previously persisted data */
-        if (oe->fileData && oe->fileDataSize > 0) {
-            uint32_t cap = (oe->fileDataSize + 4095) & ~4095u;
+        if (forkData && forkSize > 0) {
+            uint32_t cap = (forkSize + 4095) & ~4095u;
             vfsFile->memData = (uint8_t*)NewPtr(cap);
             if (!vfsFile->memData) {
                 /* Allocation failed - cannot open file with existing data */
                 DisposePtr((Ptr)vfsFile);
                 return NULL;
             }
-            memcpy(vfsFile->memData, oe->fileData, oe->fileDataSize);
-            vfsFile->memSize = oe->fileDataSize;
+            memcpy(vfsFile->memData, forkData, forkSize);
+            vfsFile->memSize = forkSize;
             vfsFile->memCapacity = cap;
         }
         return vfsFile;
@@ -886,6 +897,7 @@ VFSFile* VFS_OpenFile(VRefNum vref, FileID id, bool resourceFork) {
      * so every write to a file that shipped with the volume was accepted,
      * buffered, and thrown away on close. */
     vfsFile->fileID = id;
+    vfsFile->resourceFork = resourceFork;
 
     return vfsFile;
 }
@@ -946,19 +958,21 @@ void VFS_CloseFile(VFSFile* file) {
             }
 
             if (oe) {
+                uint8_t** data = file->resourceFork ? &oe->rsrcData : &oe->fileData;
+                uint32_t* size = file->resourceFork ? &oe->rsrcDataSize : &oe->fileDataSize;
                 /* Free old persisted data */
-                if (oe->fileData) {
-                    DisposePtr((Ptr)oe->fileData);
-                    oe->fileData = NULL;
-                    oe->fileDataSize = 0;
+                if (*data) {
+                    DisposePtr((Ptr)*data);
+                    *data = NULL;
+                    *size = 0;
                 }
                 /* Copy current buffer to overlay */
-                oe->fileData = (uint8_t*)NewPtr(file->memSize ? file->memSize : 1);
-                if (oe->fileData) {
-                    if (file->memSize) memcpy(oe->fileData, file->memData, file->memSize);
-                    oe->fileDataSize = file->memSize;
-                    /* Update CatEntry size and modification time */
-                    oe->entry.size = file->memSize;
+                *data = (uint8_t*)NewPtr(file->memSize ? file->memSize : 1);
+                if (*data) {
+                    if (file->memSize) memcpy(*data, file->memData, file->memSize);
+                    *size = file->memSize;
+                    /* Update CatEntry size (the data fork's) and modification time */
+                    if (!file->resourceFork) oe->entry.size = file->memSize;
                     extern void GetDateTime(uint32_t* secs);
                     uint32_t now = 0;
                     GetDateTime(&now);
@@ -1304,6 +1318,10 @@ bool VFS_Delete(VRefNum vref, FileID id) {
             if (oe->fileData) {
                 DisposePtr((Ptr)oe->fileData);
                 oe->fileData = NULL;
+            }
+            if (oe->rsrcData) {
+                DisposePtr((Ptr)oe->rsrcData);
+                oe->rsrcData = NULL;
             }
             oe->active = false;
             vol->overlayCount--;
