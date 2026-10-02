@@ -160,6 +160,7 @@ static int DMA_Setup16Bit(const void* buffer, uint32_t size) {
  */
 int SB16_PlayDMA(const uint8_t* data, uint32_t size,
                  uint32_t sample_rate, uint8_t channels, uint8_t bits_per_sample) {
+    (void)sample_rate;
 
     /* DSP commands (single-cycle) */
     #define DSP_CMD_DMA16_MONO_SINGLE      0xB0

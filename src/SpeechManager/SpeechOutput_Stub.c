@@ -137,6 +137,7 @@ OSErr GetAudioOutputDeviceInfo(const char *deviceID, AudioOutputDevice *device) 
  * Creates an audio output stream
  */
 OSErr CreateAudioOutputStream(const AudioOutputConfig *config, AudioOutputStream **stream) {
+    (void)config;
     if (!stream) {
         return paramErr;
     }
@@ -343,11 +344,13 @@ OSErr GetAudioOutputDeviceCapabilities(const char *deviceID, AudioOutputFormat *
 }
 
 Boolean IsAudioOutputDeviceAvailable(const char *deviceID) {
+    (void)deviceID;
     return true;
 }
 
 OSErr GetAudioOutputDeviceStatus(const char *deviceID, Boolean *isActive, long *currentSampleRate,
                                  short *currentChannels) {
+    (void)deviceID;
     if (isActive) *isActive = true;
     if (currentSampleRate) *currentSampleRate = 22050;
     if (currentChannels) *currentChannels = 2;
@@ -361,37 +364,48 @@ OSErr CreateAudioOutputConfig(AudioOutputConfig **config) {
 }
 
 OSErr DisposeAudioOutputConfig(AudioOutputConfig *config) {
+    (void)config;
     return noErr;
 }
 
 OSErr SetAudioOutputConfig(const AudioOutputConfig *config) {
+    (void)config;
     return noErr;
 }
 
 OSErr GetAudioOutputConfig(AudioOutputConfig *config) {
+    (void)config;
     return noErr;
 }
 
 OSErr ValidateAudioOutputConfig(const AudioOutputConfig *config, Boolean *isValid,
                                 char **errorMessage) {
+    (void)config;
+    (void)errorMessage;
     if (isValid) *isValid = true;
     return noErr;
 }
 
 OSErr SetAudioOutputFormat(const AudioOutputFormat *format) {
+    (void)format;
     return noErr;
 }
 
 OSErr GetAudioOutputFormat(AudioOutputFormat *format) {
+    (void)format;
     return noErr;
 }
 
 OSErr GetBestAudioOutputFormat(const char *deviceID, AudioOutputQuality quality,
                                AudioOutputFormat *format) {
+    (void)deviceID;
+    (void)quality;
+    (void)format;
     return noErr;
 }
 
 OSErr SetAudioOutputBalance(Fixed balance) {
+    (void)balance;
     return noErr;
 }
 
@@ -401,16 +415,23 @@ OSErr GetAudioOutputBalance(Fixed *balance) {
 }
 
 OSErr SetChannelVolume(short channel, Fixed volume) {
+    (void)channel;
+    (void)volume;
     return noErr;
 }
 
 OSErr GetChannelVolume(short channel, Fixed *volume) {
+    (void)channel;
     if (volume) *volume = gAudioOutput.masterVolume;
     return noErr;
 }
 
 OSErr SetAudioStreamProperty(AudioOutputStream *stream, OSType property, const void *value,
                              long valueSize) {
+    (void)stream;
+    (void)property;
+    (void)value;
+    (void)valueSize;
     return noErr;
 }
 
@@ -422,48 +443,79 @@ OSErr GetAudioStreamProperty(AudioOutputStream *stream, OSType property, void *v
 }
 
 OSErr CreateAudioProcessor(AudioOutputFlags processingFlags, AudioProcessor **processor) {
+    (void)processingFlags;
     if (!processor) return paramErr;
     *processor = 0;
     return noErr;
 }
 
 OSErr DisposeAudioProcessor(AudioProcessor *processor) {
+    (void)processor;
     return noErr;
 }
 
 OSErr ProcessAudioData(AudioProcessor *processor, void *audioData, long dataSize) {
+    (void)processor;
+    (void)audioData;
+    (void)dataSize;
     return noErr;
 }
 
 OSErr ApplyVolumeControl(void *audioData, long dataSize, const AudioOutputFormat *format,
                          Fixed volume) {
+    (void)audioData;
+    (void)dataSize;
+    (void)format;
+    (void)volume;
     return noErr;
 }
 
 OSErr ApplyNormalization(void *audioData, long dataSize, const AudioOutputFormat *format) {
+    (void)audioData;
+    (void)dataSize;
+    (void)format;
     return noErr;
 }
 
 OSErr ApplyCompression(void *audioData, long dataSize, const AudioOutputFormat *format,
                        Fixed threshold, Fixed ratio) {
+    (void)audioData;
+    (void)dataSize;
+    (void)format;
+    (void)threshold;
+    (void)ratio;
     return noErr;
 }
 
 OSErr ApplyEqualization(void *audioData, long dataSize, const AudioOutputFormat *format,
                         Fixed *bandGains, short bandCount) {
+    (void)audioData;
+    (void)dataSize;
+    (void)format;
+    (void)bandGains;
+    (void)bandCount;
     return noErr;
 }
 
 OSErr RegisterAudioEffect(OSType effectType, AudioEffectProc effectProc, void *userData) {
+    (void)effectType;
+    (void)effectProc;
+    (void)userData;
     return noErr;
 }
 
 OSErr ApplyCustomEffect(OSType effectType, void *audioData, long dataSize,
                         const AudioOutputFormat *format, void *effectData) {
+    (void)effectType;
+    (void)audioData;
+    (void)dataSize;
+    (void)format;
+    (void)effectData;
     return noErr;
 }
 
 OSErr SetAudioRoutingMode(AudioRoutingMode mode) {
+    (void)mode;
     return noErr;
 }
 
@@ -473,6 +525,7 @@ OSErr GetAudioRoutingMode(AudioRoutingMode *mode) {
 }
 
 OSErr RouteAudioToDevice(const char *deviceID) {
+    (void)deviceID;
     return noErr;
 }
 
@@ -485,35 +538,44 @@ OSErr GetCurrentAudioRoute(char *deviceID, long deviceIDSize) {
 }
 
 OSErr EnableMultiDeviceOutput(Boolean enable) {
+    (void)enable;
     return noErr;
 }
 
 OSErr AddOutputDevice(const char *deviceID, Fixed volume) {
+    (void)deviceID;
+    (void)volume;
     return noErr;
 }
 
 OSErr RemoveOutputDevice(const char *deviceID) {
+    (void)deviceID;
     return noErr;
 }
 
 OSErr GetActiveOutputDevices(char ***deviceIDs, short *deviceCount) {
+    (void)deviceIDs;
     if (deviceCount) *deviceCount = 0;
     return noErr;
 }
 
 OSErr SetAudioInterruptionPolicy(Boolean allowInterruptions) {
+    (void)allowInterruptions;
     return noErr;
 }
 
 OSErr SetAudioDuckingEnabled(Boolean enable) {
+    (void)enable;
     return noErr;
 }
 
 OSErr SetAudioPriorityLevel(short priority) {
+    (void)priority;
     return noErr;
 }
 
 OSErr EnableAudioLevelMonitoring(Boolean enable) {
+    (void)enable;
     return noErr;
 }
 
@@ -534,18 +596,24 @@ OSErr ResetPeakLevels(void) {
 }
 
 OSErr EnableSpectrumAnalysis(Boolean enable) {
+    (void)enable;
     return noErr;
 }
 
 OSErr GetAudioSpectrum(Fixed *spectrum, short bandCount) {
+    (void)spectrum;
+    (void)bandCount;
     return noErr;
 }
 
 OSErr SetSpectrumAnalysisParameters(short fftSize, short overlap) {
+    (void)fftSize;
+    (void)overlap;
     return noErr;
 }
 
 OSErr GetAudioOutputStats(AudioOutputStats *stats) {
+    (void)stats;
     return noErr;
 }
 

@@ -210,6 +210,7 @@ short WM_GetWindowLayer(WindowPtr window) {
 }
 
 void WM_SetWindowLayer(WindowPtr window, short layer) {
+    (void)layer;
     if (!window) return;
     /* Would store layer information in window */
 }
@@ -309,10 +310,13 @@ Boolean WM_ValidateStateChecksum(WindowPtr window) {
 
 /* Drag/resize feedback */
 void WM_StartDragFeedback(WindowPtr window, Point startPt) {
+    (void)window;
+    (void)startPt;
     /* Initialize drag feedback */
 }
 
 void WM_UpdateDragFeedback(Point currentPt) {
+    (void)currentPt;
     /* Update drag feedback */
 }
 
@@ -333,10 +337,13 @@ void WM_CleanupDragState(void) {
 }
 
 void WM_StartResizeFeedback(WindowPtr window, Point startPt) {
+    (void)window;
+    (void)startPt;
     /* Initialize resize feedback */
 }
 
 void WM_UpdateResizeFeedback(Point currentPt) {
+    (void)currentPt;
     /* Update resize feedback */
 }
 
@@ -345,6 +352,8 @@ void WM_EndResizeFeedback(void) {
 }
 
 void WM_InitializeResizeState(WindowPtr window, Point startPt) {
+    (void)window;
+    (void)startPt;
     WindowManagerState* wmState = GetWindowManagerState();
     wmState->isGrowing = true;
 }
@@ -355,6 +364,8 @@ void WM_CleanupResizeState(void) {
 }
 
 void WM_GenerateResizeUpdateEvents(WindowPtr window, const Rect* oldBounds, const Rect* newBounds) {
+    (void)oldBounds;
+    (void)newBounds;
     if (!window) return;
 
     /* Generate update events for resized window */
@@ -372,6 +383,9 @@ void WM_GenerateResizeUpdateEvents(WindowPtr window, const Rect* oldBounds, cons
 
 /* Zoom animation */
 void WM_AnimateZoom(WindowPtr window, const Rect* fromRect, const Rect* toRect) {
+    (void)window;
+    (void)fromRect;
+    (void)toRect;
     /* Would animate zoom transition */
 }
 
@@ -391,14 +405,18 @@ void WM_InitializeSnapSizes(void) {
 }
 
 void WM_AddSnapSize(short width, short height) {
+    (void)width;
+    (void)height;
     /* Add a snap size */
 }
 
 void WM_ApplySnapToEdges(Rect* rect) {
+    (void)rect;
     /* Snap window to screen edges */
 }
 
 void WM_ApplySnapToSize(Rect* rect) {
+    (void)rect;
     /* Snap window to predefined size */
 }
 
@@ -424,6 +442,7 @@ Rect WM_CalculateNewSize(WindowPtr window, Point currentPt, const Rect* limits) 
 
 /* Window position calculation */
 Point WM_CalculateConstrainedWindowPosition(WindowPtr window, Point proposedPos) {
+    (void)window;
     Point result = proposedPos;
 
     /* Constrain to screen */
@@ -437,6 +456,7 @@ Point WM_CalculateConstrainedWindowPosition(WindowPtr window, Point proposedPos)
 }
 
 Point WM_CalculateFinalWindowPosition(WindowPtr window, Point startPt, Point currentPt) {
+    (void)startPt;
     WindowManagerState* wmState = GetWindowManagerState();
     Point result;
 
@@ -457,6 +477,7 @@ long WM_CalculateRegionArea(RgnHandle rgn) {
 
 /* Window visibility statistics */
 void WM_UpdateWindowVisibilityStats(WindowPtr window) {
+    (void)window;
     /* Track visibility statistics if needed */
 }
 

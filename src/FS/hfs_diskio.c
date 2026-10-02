@@ -75,6 +75,9 @@ bool HFS_BD_InitATA(HFS_BlockDev* bd, int device_index, bool readonly) {
 }
 
 bool HFS_BD_InitSDHCI(HFS_BlockDev* bd, int drive_index, bool readonly) {
+    (void)bd;
+    (void)drive_index;
+    (void)readonly;
     /* Initialize block device for SDHCI SD card (ARM/Raspberry Pi)
      * Uses HAL storage interface for cross-platform compatibility
      */

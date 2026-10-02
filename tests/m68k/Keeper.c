@@ -49,11 +49,11 @@ static void Run(void) {
     if (ref <= 0) return;
 
     /* The launch count: added the first time, changed after */
-    Handle count = Get1Resource('KEEP', 128);
+    Handle count = Get1Resource(FOURCC('K', 'E', 'E', 'P'), 128);
     if (!count) {
         count = NewHandle(4);
         *(long*)*count = 1;
-        AddResource(count, 'KEEP', 128, PStr(s, "launches"));
+        AddResource(count, FOURCC('K', 'E', 'E', 'P'), 128, PStr(s, "launches"));
         Note("AddResource", ResError() == 0);
     } else {
         *(long*)*count += 1;
@@ -65,19 +65,19 @@ static void Run(void) {
     Note("UpdateResFile", ResError() == 0);
 
     /* One added under a free ID, renamed, then removed */
-    short id = Unique1ID('TMPx');
+    short id = Unique1ID(FOURCC('T', 'M', 'P', 'x'));
     Handle tmp = NewHandle(6);
     for (int i = 0; i < 6; i++) (*tmp)[i] = (char)('a' + i);
-    AddResource(tmp, 'TMPx', id, PStr(s, "temp"));
+    AddResource(tmp, FOURCC('T', 'M', 'P', 'x'), id, PStr(s, "temp"));
     Note("Unique1ID, AddResource, Count1Resources",
-         ResError() == 0 && Count1Resources('TMPx') == 1);
+         ResError() == 0 && Count1Resources(FOURCC('T', 'M', 'P', 'x')) == 1);
 
     int found = 0;
     short types = Count1Types();
     for (short i = 1; i <= types; i++) {
         ResType t = 0;
         Get1IxType(&t, i);
-        if (t == 'TMPx') found = 1;
+        if (t == FOURCC('T', 'M', 'P', 'x')) found = 1;
     }
     Note("Count1Types and Get1IxType", types >= 2 && found);
 
@@ -87,10 +87,10 @@ static void Run(void) {
     unsigned char gotName[256];
     GetResInfo(tmp, &gotID, &gotType, gotName);
     Note("SetResInfo, read back with GetResInfo",
-         gotID == id + 1 && gotType == 'TMPx' && Same(gotName, "renamed"));
+         gotID == id + 1 && gotType == FOURCC('T', 'M', 'P', 'x') && Same(gotName, "renamed"));
 
     RmveResource(tmp);
-    Note("RmveResource", ResError() == 0 && Count1Resources('TMPx') == 0);
+    Note("RmveResource", ResError() == 0 && Count1Resources(FOURCC('T', 'M', 'P', 'x')) == 0);
     DisposHandle(tmp);
 
     CloseResFile(ref);
@@ -98,7 +98,7 @@ static void Run(void) {
 
     /* Opened again: the count is what was written */
     ref = OpenResFile(name);
-    Handle back = ref > 0 ? Get1Resource('KEEP', 128) : 0;
+    Handle back = ref > 0 ? Get1Resource(FOURCC('K', 'E', 'E', 'P'), 128) : 0;
     Note("The count came back from the file", back && *(long*)*back == gLaunches);
     if (ref > 0) CloseResFile(ref);
 }

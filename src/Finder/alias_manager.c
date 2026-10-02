@@ -462,6 +462,8 @@ OSErr ResolveAliasFile(const FSSpec* spec, FSSpec* target, Boolean* wasAliased, 
  * Basic stub implementation - allocates empty alias record
  */
 OSErr NewAlias(const FSSpec* fromFile, const FSSpec* target, AliasHandle* alias) {
+    (void)fromFile;
+    (void)target;
     if (alias) *alias = (AliasHandle)NewHandle(sizeof(AliasRecord));
     return noErr;
 }

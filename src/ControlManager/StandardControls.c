@@ -271,6 +271,7 @@ SInt32 ButtonCDEF(SInt16 varCode, ControlHandle theControl,
  */
 SInt32 CheckboxCDEF(SInt16 varCode, ControlHandle theControl,
                      SInt16 message, SInt32 param) {
+    (void)varCode;
     CheckboxData *checkData;
     Rect bounds;
     Point pt;
@@ -864,6 +865,7 @@ Boolean IsCancelButton(ControlHandle button) {
  * Draw text in rectangle (simple left-aligned version for checkboxes/radios)
  */
 static void DrawTextInRect(ConstStr255Param text, const Rect *rect, SInt16 alignment) {
+    (void)alignment;
     FontInfo fontInfo;
     SInt16 textHeight;
     SInt16 v;

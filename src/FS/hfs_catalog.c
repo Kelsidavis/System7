@@ -37,6 +37,7 @@ void HFS_MacRomanToASCII(char* dst, const uint8_t* src, uint8_t len, size_t maxD
 
 bool HFS_ParseCatalogRecord(const HFS_CatKey* key, const void* data, uint16_t dataLen,
                            CatEntry* entry) {
+    (void)dataLen;
     if (!key || !data || !entry) return false;
 
     memset(entry, 0, sizeof(CatEntry));
@@ -118,6 +119,7 @@ typedef struct {
 static bool enum_callback(void* keyPtr, uint16_t keyLen,
                          void* dataPtr, uint16_t dataLen,
                          void* context) {
+    (void)keyLen;
     EnumContext* ctx = (EnumContext*)context;
     HFS_CatKey* key = (HFS_CatKey*)keyPtr;
 
@@ -281,6 +283,7 @@ typedef struct {
 static bool getbyid_callback(void* keyPtr, uint16_t keyLen,
                             void* dataPtr, uint16_t dataLen,
                             void* context) {
+    (void)keyLen;
     GetByIDContext* ctx = (GetByIDContext*)context;
     HFS_CatKey* key = (HFS_CatKey*)keyPtr;
 

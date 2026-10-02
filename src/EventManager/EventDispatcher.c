@@ -225,6 +225,7 @@ Boolean DispatchEvent(EventRecord* event)
  */
 Boolean HandleNullEvent(EventRecord* event)
 {
+    (void)event;
     /* Null events are used for idle processing */
     /* Could be used for cursor animation, background tasks, etc. */
 
@@ -673,6 +674,7 @@ Boolean HandleKeyDownEvent(EventRecord* event)
  */
 Boolean HandleKeyUp(EventRecord* event)
 {
+    (void)event;
     /* Key up events are usually ignored unless tracking key state */
     return true;
 }

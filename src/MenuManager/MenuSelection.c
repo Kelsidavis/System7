@@ -509,6 +509,7 @@ short TrackMenuBar(Point startPt, MenuTrackInfo* trackInfo)
 short TrackPullDownMenu(MenuHandle theMenu, const Rect* menuRect,
                        Point startPt, MenuTrackInfo* trackInfo)
 {
+    (void)startPt;
     Point currentPt;
     Boolean buttonDown = false;
     short itemUnderMouse = 0;
@@ -569,6 +570,7 @@ short TrackPullDownMenu(MenuHandle theMenu, const Rect* menuRect,
  */
 Boolean FindMenuCommand(short cmdChar, unsigned long modifiers, MenuCmdSearch* search)
 {
+    (void)modifiers;
     MenuBarList* menuBar;
     int m, i;
     char searchChar;
@@ -951,6 +953,7 @@ static void CleanupTrackingState(MenuTrackInfo* state)
  */
 static Boolean HandleMenuBarTracking(Point mousePt, MenuTrackInfo* state)
 {
+    (void)mousePt;
     if (state == NULL) {
         return false;
     }
@@ -966,6 +969,7 @@ static Boolean HandleMenuBarTracking(Point mousePt, MenuTrackInfo* state)
  */
 static Boolean HandlePullDownTracking(Point mousePt, MenuTrackInfo* state)
 {
+    (void)mousePt;
     if (state == NULL) {
         return false;
     }

@@ -310,6 +310,7 @@ Boolean FM_IsSizeAvailable(short fontID, short size) {
  * FM_GetAvailableSizes - Get list of available sizes for font
  */
 short FM_GetAvailableSizes(short fontID, short* sizes, short maxSizes) {
+    (void)fontID;
     if (!sizes || maxSizes <= 0) return 0;
 
     short count = 0;

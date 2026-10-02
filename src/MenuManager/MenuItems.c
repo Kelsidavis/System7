@@ -856,6 +856,7 @@ void CalcMenuSize(MenuHandle theMenu) {
  *  scriptFilter - Script filter (0 = all scripts, currently unused)
  */
 void InsertFontResMenu(MenuHandle theMenu, short afterItem, short scriptFilter) {
+    (void)scriptFilter;
     extern Handle GetIndResource(ResType theType, SInt16 index);
     extern SInt16 CountResources(ResType theType);
     extern void GetResInfo(Handle theResource, ResID *theID, ResType *theType, char* name);

@@ -181,6 +181,7 @@ SInt32 TextEncodingToScript(SInt32 encoding) {
  * Based on Inside Macintosh: Text, Chapter 6
  */
 SInt32 ScriptToTextEncoding(ScriptCode script, LangCode language) {
+    (void)language;
     TEXTENC_LOG("ScriptToTextEncoding: script=%d, language=%d\n", script, language);
 
     /* Simple mapping of script codes to text encodings

@@ -196,6 +196,8 @@ void StartupChime(void) {
  * The bare-metal implementation uses a simple linked list of channels.
  */
 OSErr SndNewChannel(SndChannelPtr* chan, SInt16 synth, SInt32 init, SndCallBackProcPtr userRoutine) {
+    (void)synth;
+    (void)init;
     SndChannelPtr newChan;
 
     if (chan == NULL) {
@@ -437,6 +439,7 @@ static void SndProcessCommand(SndChannelPtr chan, const SndCommand* cmd) {
  * threading support, commands are executed immediately.
  */
 OSErr SndDoCommand(SndChannelPtr chan, const SndCommand* cmd, Boolean noWait) {
+    (void)noWait;
     if (chan == NULL || cmd == NULL) {
         return paramErr;
     }
@@ -1239,6 +1242,9 @@ OSErr SndManagerStatus(SInt16 theLength, SMStatus *theStatus) {
 
 /* Legacy Sound Manager 1.0 stubs */
 void StartSound(const void* soundPtr, SInt32 numBytes, SoundCompletionUPP completionRtn) {
+    (void)soundPtr;
+    (void)numBytes;
+    (void)completionRtn;
     /* No-op */
 }
 
@@ -1256,6 +1262,7 @@ void GetSysBeepVolume(SInt32* level) {
 }
 
 OSErr SetSysBeepVolume(SInt32 level) {
+    (void)level;
     /* No-op - PC speaker has no volume control */
     return noErr;
 }
@@ -1265,6 +1272,7 @@ void GetDefaultOutputVolume(SInt32* level) {
 }
 
 OSErr SetDefaultOutputVolume(SInt32 level) {
+    (void)level;
     /* No-op */
     return noErr;
 }
@@ -1274,5 +1282,6 @@ void GetSoundVol(SInt16* level) {
 }
 
 void SetSoundVol(SInt16 level) {
+    (void)level;
     /* No-op */
 }

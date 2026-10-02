@@ -111,6 +111,8 @@ void SFPutFile(Point where,
                ConstStr255Param origName,
                DlgHookProcPtr dlgHook,
                SFReply *reply) {
+    (void)where;
+    (void)dlgHook;
 
     StandardFileReply sfReply;
 
@@ -136,6 +138,8 @@ void SFPPutFile(Point where,
                 SFReply *reply,
                 short dlgID,
                 ModalFilterProcPtr filterProc) {
+    (void)dlgID;
+    (void)filterProc;
 
     /* For now, just use standard dialog */
     SFPutFile(where, prompt, origName, dlgHook, reply);
@@ -151,6 +155,9 @@ void SFGetFile(Point where,
                SFTypeList typeList,
                DlgHookProcPtr dlgHook,
                SFReply *reply) {
+    (void)where;
+    (void)prompt;
+    (void)dlgHook;
 
     StandardFileReply sfReply;
 
@@ -178,6 +185,8 @@ void SFPGetFile(Point where,
                 SFReply *reply,
                 short dlgID,
                 ModalFilterProcPtr filterProc) {
+    (void)dlgID;
+    (void)filterProc;
 
     /* For now, just use standard dialog */
     SFGetFile(where, prompt, fileFilter, numTypes, typeList, dlgHook, reply);
@@ -218,6 +227,9 @@ void CustomPutFile(ConstStr255Param prompt,
                   ModalFilterYDProcPtr modalFilter,
                   ActivateYDProcPtr activeList,
                   void *yourDataPtr) {
+    (void)dlgID;
+    (void)where;
+    (void)activeList;
 
     OSErr err;
     Boolean done = false;
@@ -391,6 +403,9 @@ void CustomGetFile(FileFilterYDProcPtr fileFilter,
                   ActivateYDProcPtr activeList,
                   void *yourDataPtr,
                   ConstStr255Param prompt) {
+    (void)dlgID;
+    (void)where;
+    (void)activeList;
 
     OSErr err;
     Boolean done = false;

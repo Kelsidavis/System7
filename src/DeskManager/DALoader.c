@@ -526,6 +526,7 @@ static void DA_FreeRegistryEntry(DARegistryEntry *entry)
 static int DA_LoadResourceData(SInt16 resourceID, UInt32 resourceType,
                                void **data, size_t *size)
 {
+    (void)resourceID;
     /* For now, return default templates based on resource type */
 
     switch (resourceType) {

@@ -426,6 +426,7 @@ void KeyCaps_Idle(KeyCaps *keyCaps, ModifierMask modifiers)
  */
 int KeyCaps_InsertChar(KeyCaps *keyCaps, UInt16 charCode)
 {
+    (void)charCode;
     if (!keyCaps) {
         return KEYCAPS_ERR_INVALID_CHAR;
     }

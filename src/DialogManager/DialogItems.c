@@ -312,6 +312,8 @@ void SetDialogItemText(Handle item, const unsigned char* text)
  */
 void SelectDialogItemText(DialogPtr theDialog, SInt16 itemNo, SInt16 strtSel, SInt16 endSel)
 {
+    (void)strtSel;
+    (void)endSel;
     DialogItemEx* itemEx;
 
     if (!theDialog || !ValidateItemNumber(theDialog, itemNo)) {

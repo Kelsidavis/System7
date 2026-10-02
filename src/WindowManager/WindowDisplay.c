@@ -562,6 +562,7 @@ Boolean WM_PortVisibleRgn(GrafPtr port, RgnHandle out) {
 }
 
 void CalcVisBehind(WindowPtr startWindow, RgnHandle clobberedRgn) {
+    (void)clobberedRgn;
     WindowManagerState* wmState = GetWindowManagerState();
     if (!wmState) return;
 
@@ -1570,6 +1571,7 @@ void HiliteWindow(WindowPtr window, Boolean fHilite) {
 /*-----------------------------------------------------------------------*/
 
 static void DumpWindowList(const char* context) {
+    (void)context;
     WindowManagerState* wmState = GetWindowManagerState();
     if (!wmState) {
         WM_LOG_TRACE("[WINLIST] %s: No WM state\n", context);

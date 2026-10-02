@@ -197,6 +197,7 @@ SInt16 FindControl(Point thePoint, WindowPtr theWindow,
  */
 void DragControl(ControlHandle theControl, Point startPt,
                  const Rect *limitRect, const Rect *slopRect, SInt16 axis) {
+    (void)slopRect;
     Point currentPt, lastPt;
     Rect bounds, limit;
     SInt16 dh, dv;

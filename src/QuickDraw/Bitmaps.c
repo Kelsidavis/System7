@@ -818,6 +818,7 @@ void CopyDeepMask(const BitMap *srcBits, const BitMap *maskBits,
                   const BitMap *dstBits, const Rect *srcRect,
                   const Rect *maskRect, const Rect *dstRect,
                   SInt16 mode, RgnHandle maskRgn) {
+    (void)maskRgn;
     assert(srcBits != NULL);
     assert(maskBits != NULL);
     assert(dstBits != NULL);

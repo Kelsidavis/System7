@@ -465,6 +465,8 @@ void PlotIconHandle(const Rect* theRect, IconAlignmentType align, IconTransformT
  * Based on Inside Macintosh: Macintosh Toolbox Essentials, Chapter 7-27
  */
 OSErr GetIconSuite(Handle* theIconSuite, short theResID, IconSelectorValue selector) {
+    (void)theResID;
+    (void)selector;
     if (theIconSuite == NULL) {
         ICON_LOG("GetIconSuite: NULL output parameter\n");
         return paramErr;
@@ -514,6 +516,8 @@ OSErr GetIconSuite(Handle* theIconSuite, short theResID, IconSelectorValue selec
  * Based on Inside Macintosh: Macintosh Toolbox Essentials, Chapter 7-29
  */
 OSErr PlotIconSuite(const Rect* theRect, IconAlignmentType align, IconTransformType transform, Handle theIconSuite) {
+    (void)align;
+    (void)transform;
     if (theRect == NULL || theIconSuite == NULL) {
         ICON_LOG("PlotIconSuite: NULL parameter\n");
         return paramErr;

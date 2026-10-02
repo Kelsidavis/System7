@@ -246,11 +246,13 @@ PlatformFramebuffer* QDPlatform_GetFramebuffer(void) {
 
 /* Lock framebuffer */
 void QDPlatform_LockFramebuffer(PlatformFramebuffer* fb) {
+    (void)fb;
     /* No locking needed in our simple implementation */
 }
 
 /* Unlock framebuffer */
 void QDPlatform_UnlockFramebuffer(PlatformFramebuffer* fb) {
+    (void)fb;
     /* No locking needed in our simple implementation */
 }
 
@@ -266,6 +268,10 @@ void QDPlatform_UnlockFramebuffer(PlatformFramebuffer* fb) {
 /* Wait for VGA vertical retrace (vsync) to ensure screen update */
 /* Update screen region */
 void QDPlatform_UpdateScreen(SInt32 left, SInt32 top, SInt32 right, SInt32 bottom) {
+    (void)left;
+    (void)top;
+    (void)right;
+    (void)bottom;
     /* Minimal delay to allow QEMU display refresh - faster than full vsync */
     volatile int delay;
     for (delay = 0; delay < 50; delay++) {
@@ -521,6 +527,11 @@ UInt32 QDPlatform_GetPixel(SInt32 x, SInt32 y) {
 
 /* Draw line accelerated - return false to use software implementation */
 Boolean QDPlatform_DrawLineAccelerated(SInt32 x1, SInt32 y1, SInt32 x2, SInt32 y2, UInt32 color) {
+    (void)x1;
+    (void)y1;
+    (void)x2;
+    (void)y2;
+    (void)color;
     return false;  /* Use software implementation */
 }
 
@@ -549,6 +560,14 @@ Boolean QDPlatform_FillRectAccelerated(SInt32 left, SInt32 top, SInt32 right, SI
 Boolean QDPlatform_BlitAccelerated(void* src, SInt32 srcX, SInt32 srcY,
                                 void* dst, SInt32 dstX, SInt32 dstY,
                                 SInt32 width, SInt32 height) {
+    (void)src;
+    (void)srcX;
+    (void)srcY;
+    (void)dst;
+    (void)dstX;
+    (void)dstY;
+    (void)width;
+    (void)height;
     return false;  /* Use software implementation */
 }
 
@@ -1356,6 +1375,7 @@ static void QDPlatform_DrawGlyphBitmap_Body(GrafPtr port, Point pen,
                          const uint8_t *bitmap,
                          SInt16 width, SInt16 height,
                          const Pattern *pattern, SInt16 mode) {
+    (void)pattern;
     static int call_count = 0;
 
     if (!port || !bitmap || width <= 0 || height <= 0) {

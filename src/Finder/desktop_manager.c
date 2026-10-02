@@ -1812,6 +1812,7 @@ OSErr Desktop_RemoveVolumeIcon(VRefNum vref) {
  */
 OSErr Desktop_AddAliasIcon(const char* name, Point position, FileID targetID,
                            VRefNum vref, Boolean isFolder) {
+    (void)vref;
     if (!name || gDesktopIconCount >= kMaxDesktopIcons) {
         return paramErr;
     }
@@ -1983,6 +1984,7 @@ void DrawVolumeIcon(void)
  */
 Boolean HandleDesktopClick(Point clickPoint, Boolean doubleClick)
 {
+    (void)doubleClick;
     short prevSelected = gSelectedIcon;
     short hitIcon;
     WindowPtr whichWindow;

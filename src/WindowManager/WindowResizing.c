@@ -596,6 +596,7 @@ static long Local_CalculateStateChecksum(WindowStateData* stateData) {
  * ============================================================================ */
 
 static void Local_AnimateZoom(WindowPtr window, const Rect* fromBounds, const Rect* toBounds) {
+    (void)window;
     if (!Platform_IsZoomAnimationEnabled()) return;
 
     WM_DEBUG("WM_AnimateZoom: Animating zoom transition");

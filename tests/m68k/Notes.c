@@ -135,8 +135,8 @@ static Boolean WriteDocument(void) {
     short err = PBCreate(&pb);
     if (err && err != kDupFNErr) return 0;
     if (PBGetFInfo(&pb) == 0) {
-        *(long*)(p + 32) = 'TEXT';          /* fdType */
-        *(long*)(p + 36) = 'NOTE';          /* fdCreator */
+        *(long*)(p + 32) = FOURCC('T', 'E', 'X', 'T'); /* fdType */
+        *(long*)(p + 36) = FOURCC('N', 'O', 'T', 'E'); /* fdCreator */
         PBSetFInfo(&pb);
     }
     pb.ioPermssn = 3;
@@ -180,7 +180,7 @@ static Boolean Save(void) {
 
 static void OpenDocument(void) {
     SFReply reply;
-    long types[1] = { 'TEXT' };
+    long types[1] = { FOURCC('T', 'E', 'X', 'T') };
     Point where = { 100, 120 };
     SFGetFile(where, (ConstStr255Param)"\0", 0, 1, types, 0, &reply);
     if (!reply.good) return;
@@ -337,7 +337,7 @@ void main(void) {
     FlushEvents(everyEvent, 0);
 
     SetMenuBar(GetNewMBar(128));
-    AddResMenu(GetMHandle(mApple), 'DRVR');
+    AddResMenu(GetMHandle(mApple), FOURCC('D', 'R', 'V', 'R'));
     DrawMenuBar();
 
     gWindow = GetNewWindow(128, 0, (WindowPtr)-1);

@@ -185,6 +185,8 @@ Boolean DialogSelect(const EventRecord* evt, DialogPtr* which, SInt16* itemHit)
  */
 void HandleDialogActivate(DialogPtr theDialog, const EventRecord* theEvent, Boolean activating)
 {
+    (void)theEvent;
+    (void)activating;
     if (!theDialog) {
         return;
     }
@@ -210,6 +212,7 @@ void ProcessDialogIdle(DialogPtr theDialog)
  */
 SInt16 AdvanceDialogFocus(DialogPtr theDialog, Boolean backward)
 {
+    (void)backward;
     if (!theDialog) {
         return 0;
     }

@@ -17,7 +17,7 @@ python3 "$here/mkapp.py" "$out/Hello.code" "$out/Hello.bin" Hello
 
 # The rest are C. Code and data are one block addressed relative to the PC
 # (-mpcrel), A5 is left alone (-ffixed-a5): it is the application's.
-CFLAGS="-Wno-multichar -m68000 -mpcrel -ffixed-a5 -Os -ffreestanding -fno-builtin -nostdlib -fno-zero-initialized-in-bss -Wall"
+CFLAGS="-m68000 -mpcrel -ffixed-a5 -Os -ffreestanding -fno-builtin -nostdlib -fno-zero-initialized-in-bss -Wall"
 # libgcc is built for the 68020; runtime.c has what a 68000 needs instead.
 m68k-linux-gnu-as -m68000 -o "$out/crt0.o" "$here/crt0.s"
 m68k-linux-gnu-gcc $CFLAGS -O2 -c -o "$out/runtime.o" "$here/runtime.c"

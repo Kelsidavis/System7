@@ -193,6 +193,7 @@ int atexit(void (*func)(void)) {
 }
 
 void exit(int status) {
+    (void)status;
     /* Call all registered exit handlers in reverse order */
     for (int i = atexit_count - 1; i >= 0; i--) {
         if (atexit_handlers[i]) {

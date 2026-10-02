@@ -138,7 +138,7 @@ COMMON_CFLAGS = \
          -ffreestanding -fno-builtin -fno-stack-protector -nostdlib \
          -fno-pic -fno-pie \
          -Wall -Wextra -Wformat=2 -Wmissing-prototypes -Wmissing-declarations -Wshadow -Wcast-qual \
-         -Wpointer-arith -Wstrict-prototypes -Wno-unused-parameter \
+         -Wpointer-arith -Wstrict-prototypes \
          -Wundef -Wvla -Wcast-align -Wlogical-op -Wduplicated-cond -Wduplicated-branches \
          -Wnull-dereference -Wjump-misses-init -Warray-bounds=2 -Wshift-overflow=2 \
          $(OPT_FLAGS) -fno-inline -fno-optimize-sibling-calls -I./include -I./src -std=c2x \

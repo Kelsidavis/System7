@@ -395,6 +395,7 @@ void DrawDialog(DialogPtr theDialog)
  */
 void UpdateDialog(DialogPtr theDialog, RgnHandle updateRgn)
 {
+    (void)updateRgn;
     GrafPtr savePort;
     SInt16 itemCount, i;
 
@@ -566,6 +567,7 @@ float DialogManager_GetScaleFactor(void)
 
 static DialogPtr CreateDialogStructure(void* storage, Boolean isColor)
 {
+    (void)isColor;
     DialogPtr dialog;
 
     if (storage) {
@@ -590,6 +592,13 @@ static void InitializeDialogRecord(DialogPtr dialog, const Rect* bounds,
                                    SInt16 procID, WindowPtr behind, Boolean goAway,
                                    SInt32 refCon, Handle itemList)
 {
+    (void)bounds;
+    (void)title;
+    (void)visible;
+    (void)procID;
+    (void)behind;
+    (void)goAway;
+    (void)refCon;
     /* This function would initialize the dialog record with the given parameters */
     /* For now, we'll just set the basic fields that we've defined */
     DialogRecord* dialogRec = (DialogRecord*)dialog;

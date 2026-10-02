@@ -159,6 +159,9 @@ void DMgrPopMenuState(void) {
  * DMgrCitationsCH - Citations character handling
  */
 void DMgrCitationsCH(SInt16 param1, SInt16 param2, SInt32 param3) {
+    (void)param1;
+    (void)param2;
+    (void)param3;
     /* Evidence suggests this is System 7 text services integration */
     /* Real implementation would handle citation character processing */
     /* For reverse engineering, provide stub implementation */
@@ -168,6 +171,10 @@ void DMgrCitationsCH(SInt16 param1, SInt16 param2, SInt32 param3) {
  * DMgrCitationsSH - Citations string handling
  */
 void DMgrCitationsSH(SInt16 param1, SInt32 param2, SInt32 param3, SInt16 param4) {
+    (void)param1;
+    (void)param2;
+    (void)param3;
+    (void)param4;
     /* Evidence suggests this is System 7 text services integration */
     /* Real implementation would handle citation string processing */
     /* For reverse engineering, provide stub implementation */
@@ -177,6 +184,11 @@ void DMgrCitationsSH(SInt16 param1, SInt32 param2, SInt32 param3, SInt16 param4)
  * DMgrCite4 - Four-parameter citation function
  */
 void DMgrCite4(SInt16 param1, SInt32 param2, SInt32 param3, SInt32 param4, SInt16 param5) {
+    (void)param1;
+    (void)param2;
+    (void)param3;
+    (void)param4;
+    (void)param5;
     /* Evidence suggests this is advanced System 7 text services */
     /* Real implementation would handle complex citation processing */
     /* For reverse engineering, provide stub implementation */

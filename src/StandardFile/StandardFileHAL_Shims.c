@@ -597,6 +597,7 @@ void StandardFile_HAL_RunDialog(DialogPtr dialog, short *itemHit) {
  * StandardFile_HAL_ClearFileList - Clear the file list
  */
 void StandardFile_HAL_ClearFileList(DialogPtr dialog) {
+    (void)dialog;
     SF_HAL_LOG_DEBUG("StandardFile HAL: ClearFileList\n");
 
     /* Clear list rows from ListHandle */
@@ -616,6 +617,7 @@ void StandardFile_HAL_ClearFileList(DialogPtr dialog) {
  * StandardFile_HAL_AddFileToList - Add a file to the list
  */
 void StandardFile_HAL_AddFileToList(DialogPtr dialog, const FSSpec *spec, OSType fileType) {
+    (void)dialog;
     if (!spec) return;
 
     /* Check if we need to expand the array */
@@ -696,6 +698,7 @@ void StandardFile_HAL_AddFileToList(DialogPtr dialog, const FSSpec *spec, OSType
  * StandardFile_HAL_UpdateFileList - Refresh the file list display
  */
 void StandardFile_HAL_UpdateFileList(DialogPtr dialog) {
+    (void)dialog;
     SF_HAL_LOG_DEBUG("StandardFile HAL: UpdateFileList count=%d\n", gFileListCount);
 
     /* Redraw the list control */
@@ -708,6 +711,7 @@ void StandardFile_HAL_UpdateFileList(DialogPtr dialog) {
  * StandardFile_HAL_SelectFile - Select a file in the list
  */
 void StandardFile_HAL_SelectFile(DialogPtr dialog, short index) {
+    (void)dialog;
     if (index >= 0 && index < gFileListCount) {
         gSelectedIndex = index;
 
@@ -736,6 +740,7 @@ void StandardFile_HAL_SelectFile(DialogPtr dialog, short index) {
  * StandardFile_HAL_GetSelectedFile - Get the selected file index
  */
 short StandardFile_HAL_GetSelectedFile(DialogPtr dialog) {
+    (void)dialog;
     /* Ask the list rather than trusting the mirror. */
     gSelectedIndex = SF_SelectedRow();
     SF_HAL_LOG_DEBUG("StandardFile HAL: GetSelectedFile returning %d\n", gSelectedIndex);
@@ -861,6 +866,7 @@ OSErr StandardFile_HAL_GetDefaultLocation(short *vRefNum, long *dirID) {
  * StandardFile_HAL_EjectVolume - Eject the current volume
  */
 OSErr StandardFile_HAL_EjectVolume(short vRefNum) {
+    (void)vRefNum;
     SF_HAL_LOG_DEBUG("StandardFile HAL: EjectVolume vRefNum=%d\n", vRefNum);
     /* Stub: not implemented */
     return noErr;

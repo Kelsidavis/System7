@@ -1451,6 +1451,7 @@ static bool FolderWindow_EnsureIconSystemInitialized(void) {
  * System 7 Finder shows: folders as "--", small files as "xK", large as "x.x MB"
  */
 static void FormatFileSize(uint32_t size, char* buf, int bufLen) {
+    (void)bufLen;
     if (size == 0) {
         /* Folders or empty files */
         buf[0] = '-'; buf[1] = '-'; buf[2] = '\0';
@@ -3454,6 +3455,7 @@ void FolderWindow_CleanUp(WindowPtr w, Boolean selectedOnly) {
 /* Update window proc for folder windows */
 void FolderWindowProc(WindowPtr window, short message, long param)
 {
+    (void)param;
     switch (message) {
         case 0:  /* wDraw = 0, draw content only */
             /* Draw window contents - NO CHROME! */

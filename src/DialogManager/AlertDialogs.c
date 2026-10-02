@@ -767,6 +767,7 @@ static DialogPtr CreateAlertDialogFromTemplate(const AlertTemplate* alertTemplat
 
 static void PlayAlertSoundForStage(SInt16 alertType, SInt16 stage)
 {
+    (void)stage;
     SoundEffectId effect = kSoundEffectBeep;
 
     if (alertType >= 0 && alertType <= 3) {
@@ -965,34 +966,47 @@ static void __attribute__((unused)) DrawAlertIcon(DialogPtr alertDialog, SInt16 
 
 void SetAlertAccessibility(Boolean enabled)
 {
+    (void)enabled;
     // printf("SetAlertAccessibility: %d\n", enabled);
 }
 
 void AnnounceAlert(const char* title, const char* message)
 {
+    (void)title;
+    (void)message;
     // printf("AnnounceAlert: %s - %s\n", title ? title : "", message ? message : "");
 }
 
 SInt16 ShowNativeAlert(const char* title, const char* message,
                        SInt16 buttons, SInt16 alertType)
 {
+    (void)title;
+    (void)message;
+    (void)buttons;
+    (void)alertType;
     // printf("ShowNativeAlert: %s - %s (buttons: %d, type: %d)\n", title ? title : "", message ? message : "", buttons, alertType);
     return 1; /* OK button */
 }
 
 void SetAlertTheme(const DialogTheme* theme)
 {
+    (void)theme;
     // printf("SetAlertTheme\n");
 }
 
 void GetAlertTheme(DialogTheme* theme)
 {
+    (void)theme;
     // printf("GetAlertTheme\n");
 }
 
 SInt16 ShowAlert(const char* title, const char* message,
                  SInt16 buttons, SInt16 alertType)
 {
+    (void)title;
+    (void)message;
+    (void)buttons;
+    (void)alertType;
     // printf("ShowAlert: %s - %s (buttons: %d, type: %d)\n", title ? title : "", message ? message : "", buttons, alertType);
     return 1; /* OK button */
 }
@@ -1002,12 +1016,22 @@ SInt16 ShowAlertWithParams(const char* title, const char* message,
                            const char* param0, const char* param1,
                            const char* param2, const char* param3)
 {
+    (void)title;
+    (void)message;
+    (void)buttons;
+    (void)alertType;
+    (void)param0;
+    (void)param1;
+    (void)param2;
+    (void)param3;
     // printf("ShowAlertWithParams: %s - %s\n", title ? title : "", message ? message : "");
     return 1; /* OK button */
 }
 
 void ProcessAlertStages(SInt16 alertType, SInt16 stage)
 {
+    (void)alertType;
+    (void)stage;
     // printf("ProcessAlertStages: type=%d, stage=%d\n", alertType, stage);
 }
 

@@ -400,6 +400,8 @@ bool VFS_MountATA(int ata_device_index, const char* volName, VRefNum* vref) {
 
 /* Format an SDHCI SD card with HFS filesystem - REQUIRES EXPLICIT CALL */
 bool VFS_FormatSDHCI(int drive_index, const char* volName) {
+    (void)drive_index;
+    (void)volName;
     extern bool HFS_FormatVolume(HFS_BlockDev* bd, const char* volName);
 
     if (!g_vfs.initialized) {
@@ -436,6 +438,9 @@ bool VFS_FormatSDHCI(int drive_index, const char* volName) {
 }
 
 bool VFS_MountSDHCI(int drive_index, const char* volName, VRefNum* vref) {
+    (void)drive_index;
+    (void)volName;
+    (void)vref;
     if (!g_vfs.initialized) {
         FS_LOG_DEBUG("VFS: Not initialized\n");
         return false;

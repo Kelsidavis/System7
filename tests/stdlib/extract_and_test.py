@@ -430,7 +430,7 @@ int main(void) {
             case 6: for (size_t i=0;i<sizeof zs/sizeof*zs;i++)         TRY(f, zs[i]);     break;
             case 7: for (size_t i=0;i<sizeof strs/sizeof*strs;i++)     TRY(f, strs[i]);   break;
             case 8: TRY(f, 'M'); TRY(f, 'z'); break;
-            case 9: TRY(f); break;
+            case 9: TRY(f, 0); break;
             case 10: TRY(f, 42, "Chooser", 0xBEEF); break;
             case 11: TRY(f, 0xCAFEuL, 7); break;
             }
@@ -500,8 +500,12 @@ int main(void) {
         }
 
         for (long i = 0; i < 200000; i++) {
-            unsigned long long a = XS() >> (XS() % 64);
-            unsigned long long b = XS() >> (XS() % 64);
+            unsigned long long aBits = XS();
+            unsigned long long aShift = XS();
+            unsigned long long bBits = XS();
+            unsigned long long bShift = XS();
+            unsigned long long a = aBits >> (aShift % 64);
+            unsigned long long b = bBits >> (bShift % 64);
             if (b == 0) b = 1;
             checks++;
             if (s7_udiv64(a, b) != a / b) {
@@ -544,10 +548,7 @@ def main():
             fh.write(HARNESS)
 
         cc = subprocess.run(
-            # -Wno-format-security: the harness deliberately passes non-literal
-            # format strings, which is the whole point of the comparison.
-            ['gcc', '-O1', '-fno-builtin', '-Wall', '-Wno-format-security',
-             '-o', binf, cfile],
+            ['gcc', '-O1', '-fno-builtin', '-Wall', '-Werror', '-o', binf, cfile],
             capture_output=True, text=True)
         if cc.returncode != 0:
             print(cc.stderr, file=sys.stderr)

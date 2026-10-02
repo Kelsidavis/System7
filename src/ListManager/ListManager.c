@@ -692,6 +692,7 @@ extern void List_InvalidateBand(ListMgrRec* list, short dRows);
 
 void LUpdate(ListHandle lh, RgnHandle updateRgn)
 {
+    (void)updateRgn;
     ListMgrRec* list;
     short row, col;
     short startRow, endRow;

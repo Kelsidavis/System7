@@ -623,6 +623,7 @@ Boolean IsModifierDown(UInt16 modifier)
  */
 SInt32 KeyTranslate(const void* transData, UInt16 keyCode, UInt32* state)
 {
+    (void)transData;
     if (!state) {
         return 0;
     }

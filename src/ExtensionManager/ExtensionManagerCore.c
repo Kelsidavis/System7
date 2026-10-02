@@ -116,6 +116,7 @@ Boolean ExtensionManager_IsInitialized(void)
  */
 SInt16 ExtensionManager_ScanForExtensions(Boolean rescan)
 {
+    (void)rescan;
     if (!g_extensionMgrInitialized) {
         return 0;
     }

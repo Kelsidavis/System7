@@ -410,6 +410,7 @@ DeviceInfo *Chooser_GetDefaultPrinter(Chooser *chooser)
  */
 void Chooser_Draw(Chooser *chooser, const Rect *updateRect)
 {
+    (void)updateRect;
     if (!chooser) {
         return;
     }
@@ -469,6 +470,7 @@ void Chooser_DrawDeviceInfo(Chooser *chooser)
  */
 int Chooser_HandleClick(Chooser *chooser, Point point, UInt16 modifiers)
 {
+    (void)modifiers;
     if (!chooser) {
         return CHOOSER_ERR_INVALID_DEVICE;
     }
@@ -529,6 +531,7 @@ int Chooser_HandleClick(Chooser *chooser, Point point, UInt16 modifiers)
  */
 int Chooser_HandleKeyPress(Chooser *chooser, char key, UInt16 modifiers)
 {
+    (void)modifiers;
     if (!chooser) {
         return CHOOSER_ERR_INVALID_DEVICE;
     }

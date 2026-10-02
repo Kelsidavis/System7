@@ -23,6 +23,13 @@ typedef GrafPtr WindowPtr;
 typedef Handle MenuHandle;
 typedef Handle RgnHandle;
 
+/* Resource and file types use Mac's big-endian four-character codes. */
+#define FOURCC(a, b, c, d) \
+    ((unsigned long)((unsigned long)(unsigned char)(a) << 24) | \
+     (unsigned long)((unsigned long)(unsigned char)(b) << 16) | \
+     (unsigned long)((unsigned long)(unsigned char)(c) << 8) | \
+     (unsigned long)(unsigned char)(d))
+
 typedef struct {
     unsigned short what;
     unsigned long message;

@@ -19,6 +19,9 @@ typedef struct {
 static bool find_file_callback(void* keyPtr, uint16_t keyLen,
                                void* dataPtr, uint16_t dataLen,
                                void* context) {
+    (void)keyPtr;
+    (void)keyLen;
+    (void)dataLen;
     FindContext* findCtx = (FindContext*)context;
     uint16_t recordType = be16_read(dataPtr);
 

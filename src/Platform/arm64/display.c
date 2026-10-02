@@ -33,6 +33,9 @@ bool display_init(uint32_t width, uint32_t height, uint32_t depth) {
     bool result;
 
 #ifdef QEMU_BUILD
+    (void)width;
+    (void)height;
+    (void)depth;
     result = virtio_gpu_init();
     if (result) {
         g_display_width = virtio_gpu_get_width();

@@ -258,6 +258,7 @@ static OSErr M68K_MapExecutable(CPUAddressSpace as, const void* image, Size len,
                                 CPUMapFlags flags, CPUCodeHandle* outHandle,
                                 CPUAddr* outBase)
 {
+    (void)flags;
     M68KAddressSpace* mas = (M68KAddressSpace*)as;
     M68KCodeHandle* handle;
     UInt32 addr;

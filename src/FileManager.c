@@ -1344,6 +1344,7 @@ const char* Error_String(OSErr err)
 
 void FM_GetStatistics(void* stats)
 {
+    (void)stats;
     /* Copy statistics structure */
     /* Implementation would fill in a statistics structure */
 }

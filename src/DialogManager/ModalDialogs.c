@@ -583,17 +583,23 @@ static void FlashButtonInternal(DialogPtr theDialog, SInt16 itemNo)
 
 void SetModalDialogTimeout(DialogPtr theDialog, UInt32 timeoutTicks, SInt16 defaultItem)
 {
+    (void)theDialog;
+    (void)timeoutTicks;
+    (void)defaultItem;
     /* This would be implemented with a timer system */
     // DIALOG_LOG_DEBUG("Set modal dialog timeout: %u ticks, default item %d\n", timeoutTicks, defaultItem);
 }
 
 void ClearModalDialogTimeout(DialogPtr theDialog)
 {
+    (void)theDialog;
     // DIALOG_LOG_DEBUG("Cleared modal dialog timeout\n");
 }
 
 void SetModalDialogDismissButton(DialogPtr theDialog, SInt16 itemNo)
 {
+    (void)theDialog;
+    (void)itemNo;
     /* This would configure which button dismisses the dialog */
     // DIALOG_LOG_DEBUG("Set dismiss button to item %d\n", itemNo);
 }
@@ -601,6 +607,10 @@ void SetModalDialogDismissButton(DialogPtr theDialog, SInt16 itemNo)
 SInt16 ShowNativeModal(const char* message, const char* title,
                        const char* buttons, SInt16 iconType)
 {
+    (void)message;
+    (void)title;
+    (void)buttons;
+    (void)iconType;
     /* Platform-specific native modal dialog */
     // DIALOG_LOG_DEBUG("Native modal: %s - %s (buttons: %s, icon: %d)\n", title, message, buttons, iconType);
     return 1; /* Default to OK */

@@ -211,6 +211,7 @@ void DrawDialogRadioButton(const Rect* bounds, const unsigned char* title,
 /* Draw static text */
 void DrawDialogStaticText(DialogPtr theDialog, const Rect* bounds, const unsigned char* text,
                          Boolean isEnabled) {
+    (void)isEnabled;
     SInt16 textV;
     GrafPtr savePort;
     unsigned char substitutedText[256];

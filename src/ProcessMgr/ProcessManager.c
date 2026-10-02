@@ -121,6 +121,8 @@ OSErr ProcessManager_Initialize(void)
  */
 OSErr Process_Create(const void* appSpec, Size memorySize, LaunchFlags flags)
 {
+    (void)appSpec;
+    (void)flags;
     ProcessControlBlock* newProcess = NULL;
     int freeSlot = -1;
 

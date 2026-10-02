@@ -183,16 +183,21 @@ bool VFS_GetDirItemCount(VRefNum vref, DirID dir, uint32_t* outCount, bool recur
 }
 
 bool VFS_IsOpenByAnyProcess(FileID id) {
+    (void)id;
     /* No process tracking yet */
     return false;
 }
 
 bool VFS_IsLocked(FileID id) {
+    (void)id;
     /* Check Finder info locked flag - no lock tracking yet */
     return false;
 }
 
 bool VFS_SetFinderFlags(FileID id, uint16_t setMask, uint16_t clearMask) {
+    (void)id;
+    (void)setMask;
+    (void)clearMask;
     /* Update Finder info flags - no metadata tracking yet */
     return true;
 }
@@ -241,6 +246,7 @@ bool VFS_Exists(VRefNum vref, DirID dir, const char* name) {
 }
 
 const char* VFS_GetNameByID(VRefNum vref, DirID parent, FileID id) {
+    (void)parent;
     static char nameBuf[32];
     CatEntry entry;
     if (VFS_GetByID(vref, id, &entry)) {
@@ -253,6 +259,7 @@ const char* VFS_GetNameByID(VRefNum vref, DirID parent, FileID id) {
 }
 
 VRefNum VFS_GetVRefByID(FileID id) {
+    (void)id;
     extern VRefNum VFS_GetBootVRef(void);
     return VFS_GetBootVRef();
 }

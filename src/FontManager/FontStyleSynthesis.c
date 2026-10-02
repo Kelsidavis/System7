@@ -121,6 +121,7 @@ short FM_GetItalicWidth(short normalWidth, short height) {
  * Position: baseline + descent/2 (per System 7.1)
  */
 static void FM_DrawUnderline(short x, short y, short width, uint32_t color) {
+    (void)color;
     short underlineY = y + UNDERLINE_OFFSET;
 
     FSS_LOG("DrawUnderline: from (%d,%d) width=%d\n", x, underlineY, width);

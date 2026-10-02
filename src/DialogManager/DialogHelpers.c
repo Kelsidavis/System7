@@ -228,6 +228,7 @@ SInt16 GetEditFocusItem(DialogPtr theDialog) {
 
 /* Handle key in edit field (simple implementation) */
 Boolean DialogEditKey(DialogPtr theDialog, char ch) {
+    (void)ch;
     if (!HasEditFocus(theDialog)) {
         return false;
     }

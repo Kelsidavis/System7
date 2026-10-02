@@ -285,6 +285,7 @@ OSErr SegmentLoader_RunSmokeChecks(SegmentLoaderContext* ctx)
  */
 OSErr LoadSeg_TrapHandler(void* context, CPUAddr* pc, CPUAddr* registers)
 {
+    (void)registers;
     SegmentLoaderContext* ctx = (SegmentLoaderContext*)context;
     M68KAddressSpace* mas;
     UInt16 segID;

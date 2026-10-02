@@ -778,6 +778,14 @@ void SeedCFill(const BitMap *srcBits, const BitMap *dstBits,
                const Rect *srcRect, const Rect *dstRect,
                SInt16 seedH, SInt16 seedV,
                ColorSearchProcPtr matchProc, SInt32 matchData) {
+    (void)srcBits;
+    (void)dstBits;
+    (void)srcRect;
+    (void)dstRect;
+    (void)seedH;
+    (void)seedV;
+    (void)matchProc;
+    (void)matchData;
     /* Placeholder for color-based seed fill */
     /* Would need to implement color matching logic */
 }
@@ -786,10 +794,18 @@ void CalcCMask(const BitMap *srcBits, const BitMap *dstBits,
                const Rect *srcRect, const Rect *dstRect,
                const RGBColor *seedRGB, ColorSearchProcPtr matchProc,
                SInt32 matchData) {
+    (void)srcBits;
+    (void)dstBits;
+    (void)srcRect;
+    (void)dstRect;
+    (void)seedRGB;
+    (void)matchProc;
+    (void)matchData;
     /* Placeholder for color mask calculation */
 }
 
 PicHandle OpenCPicture(const OpenCPicParams *newHeader) {
+    (void)newHeader;
     /* Create a new picture handle */
     PicHandle pic = (PicHandle)NewPtr(sizeof(Handle));
     if (!pic) {
@@ -829,11 +845,13 @@ void HiliteColor(const RGBColor *color) {
 /* Resource management and cursor operations (stubs) */
 
 CCrsrHandle GetCCursor(SInt16 crsrID) {
+    (void)crsrID;
     /* Placeholder for loading color cursor from resources */
     return NULL;
 }
 
 void SetCCursor(CCrsrHandle cCrsr) {
+    (void)cCrsr;
     /* Placeholder for setting color cursor */
 }
 
@@ -913,35 +931,45 @@ void SetStdCProcs(CQDProcs *procs) {
 }
 
 GDHandle GetMaxDevice(const Rect *globalRect) {
+    (void)globalRect;
     /* Return main device for now */
     return g_mainDevice;
 }
 
 void AddSearch(ColorSearchProcPtr searchProc) {
+    (void)searchProc;
     /* Placeholder for adding search procedure */
 }
 
 void AddComp(ColorComplementProcPtr compProc) {
+    (void)compProc;
     /* Placeholder for adding complement procedure */
 }
 
 void DelSearch(ColorSearchProcPtr searchProc) {
+    (void)searchProc;
     /* Placeholder for deleting search procedure */
 }
 
 void DelComp(ColorComplementProcPtr compProc) {
+    (void)compProc;
     /* Placeholder for deleting complement procedure */
 }
 
 void SetClientID(SInt16 id) {
+    (void)id;
     /* Placeholder for setting client ID */
 }
 
 void ProtectEntry(SInt16 index, Boolean protect) {
+    (void)index;
+    (void)protect;
     /* Placeholder for protecting color table entry */
 }
 
 void ReserveEntry(SInt16 index, Boolean reserve) {
+    (void)index;
+    (void)reserve;
     /* Placeholder for reserving color table entry */
 }
 
@@ -954,16 +982,26 @@ void SetEntries(SInt16 start, SInt16 count, const ColorSpec *aTable) {
 
 void SaveEntries(CTabHandle srcTable, CTabHandle resultTable,
                  ReqListRec *selection) {
+    (void)srcTable;
+    (void)resultTable;
+    (void)selection;
     /* Placeholder for saving color table entries */
 }
 
 void RestoreEntries(CTabHandle srcTable, CTabHandle dstTable,
                     ReqListRec *selection) {
+    (void)srcTable;
+    (void)dstTable;
+    (void)selection;
     /* Placeholder for restoring color table entries */
 }
 
 void DeviceLoop(RgnHandle drawingRgn, DeviceLoopDrawingProcPtr drawingProc,
                 SInt32 userData, SInt32 flags) {
+    (void)drawingRgn;
+    (void)drawingProc;
+    (void)userData;
+    (void)flags;
     /* Placeholder for device loop iteration */
 }
 
@@ -973,9 +1011,15 @@ Ptr GetMaskTable(void) {
 }
 
 void GetSubTable(CTabHandle myColors, SInt16 iTabRes, CTabHandle targetTbl) {
+    (void)myColors;
+    (void)iTabRes;
+    (void)targetTbl;
     /* Placeholder for getting color table subtable */
 }
 
 void MakeITable(CTabHandle cTabH, ITabHandle iTabH, SInt16 res) {
+    (void)cTabH;
+    (void)iTabH;
+    (void)res;
     /* Placeholder for making inverse table */
 }

@@ -397,6 +397,7 @@ Boolean StartMouseTracking(Point startPoint, SInt16 dragType, void* dragData)
  */
 Boolean UpdateMouseTracking(Point currentPoint, SInt16 modifiers)
 {
+    (void)modifiers;
     if (!g_mouseTracking.isDragging) {
         return false;
     }
@@ -419,6 +420,7 @@ Boolean UpdateMouseTracking(Point currentPoint, SInt16 modifiers)
  */
 SInt16 EndMouseTracking(Point endPoint)
 {
+    (void)endPoint;
     SInt16 result = g_mouseTracking.dragType;
 
     g_mouseTracking.isDragging = false;
@@ -620,6 +622,7 @@ EventRecord GenerateMouseDownEvent(Point position, SInt16 buttonID,
  */
 EventRecord GenerateMouseUpEvent(Point position, SInt16 buttonID, SInt16 modifiers)
 {
+    (void)buttonID;
     EventRecord event = {0};
 
     event.what = mouseUp;

@@ -200,6 +200,7 @@ long WM_DialogWindowDefProc(short varCode, WindowPtr theWindow, short message, l
  * ============================================================================ */
 
 void WM_DrawStandardWindowFrame(WindowPtr window, short varCode) {
+    (void)varCode;
     if (window == NULL) return;
 
     WM_DEBUG("WM_DrawStandardWindowFrame: Drawing standard window frame");
@@ -561,6 +562,7 @@ void WM_DrawGrowImage(WindowPtr window) {
  * ============================================================================ */
 
 void WM_CalculateStandardWindowRegions(WindowPtr window, short varCode) {
+    (void)varCode;
     extern void serial_puts(const char *str);
     extern void uart_flush(void);
     serial_puts("[CALCSTD] enter\n");
@@ -665,6 +667,7 @@ void WM_CalculateDialogWindowRegions(WindowPtr window, short varCode) {
  * ============================================================================ */
 
 void WM_InitializeWindowParts(WindowPtr window, short varCode) {
+    (void)varCode;
     if (window == NULL) return;
 
     WM_DEBUG("WM_InitializeWindowParts: Initializing window parts");
@@ -679,6 +682,7 @@ void WM_InitializeWindowParts(WindowPtr window, short varCode) {
 }
 
 void WM_InitializeDialogParts(WindowPtr window, short varCode) {
+    (void)varCode;
     if (window == NULL) return;
 
     WM_DEBUG("WM_InitializeDialogParts: Initializing dialog parts");

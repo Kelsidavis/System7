@@ -294,6 +294,7 @@ SInt16 GenerateSystemEventEx(SInt16 eventType, SInt16 eventSubtype,
  */
 SInt16 PostSystemEvent(SInt16 eventType, SInt32 message, SInt16 priority)
 {
+    (void)priority;
     /* Priority is informational for now */
     return PostEvent(eventType, message);
 }
@@ -515,6 +516,7 @@ SInt16 ProcessWindowActivation(WindowPtr window, Boolean isActivating)
  */
 EventRecord GenerateActivateEvent(WindowPtr window, Boolean isActivating, SInt16 activationType)
 {
+    (void)activationType;
     EventRecord event = {0};
 
     event.what = activateEvt;
@@ -739,6 +741,7 @@ SInt16 ProcessDiskEjection(SInt16 driveNumber)
  */
 EventRecord GenerateDiskEvent(SInt16 eventType, SInt16 driveNumber, SInt16 refNum)
 {
+    (void)refNum;
     EventRecord event = {0};
 
     event.what = diskEvt;
@@ -798,6 +801,7 @@ EventRecord GenerateOSEvent(SInt16 eventSubtype, SInt32 message)
  */
 SInt16 ProcessMultiFinderEvent(void* eventData)
 {
+    (void)eventData;
     /* Generate MultiFinder OS event */
     EventRecord event = GenerateOSEvent(kOSEventMultiFinder, 0);
     PostEvent(event.what, event.message);
@@ -863,6 +867,7 @@ void UnregisterSystemEventCallback(void* handle)
  */
 static void NotifyCallbacks(SInt16 eventType, SystemEventContext* context)
 {
+    (void)context;
     EventCallback* callback = g_eventCallbacks;
     while (callback) {
         if (callback->eventType == eventType && callback->callback) {

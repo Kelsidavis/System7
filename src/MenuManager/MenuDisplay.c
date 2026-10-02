@@ -391,6 +391,7 @@ short CalcMenuBarLayout(Handle menuList, const Rect* menuBarRect,
  */
 void ShowMenu(MenuHandle theMenu, Point location, const MenuDrawInfo* drawInfo)
 {
+    (void)drawInfo;
     Rect menuRect;
 
     if (theMenu == NULL) {
@@ -1110,6 +1111,7 @@ void DisposeMenuBits(Handle savedBits)
 void GetMenuColors(short menuID, short itemID, short componentID,
                   RGBColor* foreColor, RGBColor* backColor)
 {
+    (void)componentID;
     /* Default colors */
     if (foreColor != NULL) {
         foreColor->red = 0x0000;
@@ -1142,6 +1144,7 @@ void GetMenuColors(short menuID, short itemID, short componentID,
  */
 void SetMenuDrawingMode(Boolean useColor, Boolean antiAlias, Boolean usePatterns)
 {
+    (void)usePatterns;
     gColorMode = useColor;
     gAntiAlias = antiAlias;
 
@@ -1227,6 +1230,7 @@ static void DrawMenuItemTextInternal(const Rect* itemRect, ConstStr255Param item
                                    short textStyle, Boolean enabled, Boolean selected,
                                    Boolean isMenuTitle)
 {
+    (void)isMenuTitle;
     /* MENU_LOG_TRACE("Drawing item text: %.*s (enabled=%s, selected=%s)\n",
            itemText[0], &itemText[1], enabled ? "Yes" : "No", selected ? "Yes" : "No"); */
 

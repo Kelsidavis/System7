@@ -84,7 +84,7 @@ void main(void) {
 
     gApple = NewMenu(kAppleMenu, PStr(s, "\x14"));
     AppendMenu(gApple, PStr(s, "About Sampler;(-"));
-    AddResMenu(gApple, 'DRVR');
+    AddResMenu(gApple, FOURCC('D', 'R', 'V', 'R'));
     InsertMenu(gApple, 0);
     MenuHandle file = NewMenu(kFileMenu, PStr(s, "File"));
     AppendMenu(file, PStr(s, "New/N;Close/W;(-;Quit/Q"));

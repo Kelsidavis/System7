@@ -1117,6 +1117,7 @@ MenuHandle GetMenuHandle(short menuID)
  */
 void FlashMenuBar(short menuID)
 {
+    (void)menuID;
     if (!gMenuMgrInitialized) {
         return;
     }

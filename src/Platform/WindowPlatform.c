@@ -89,6 +89,7 @@ void Platform_CalculateWindowRegions(WindowPtr window) {
 
 /* Create native window (no-op for our framebuffer implementation) */
 void Platform_CreateNativeWindow(WindowPtr window) {
+    (void)window;
     /* No native window system - we draw directly to framebuffer */
 }
 
@@ -109,6 +110,7 @@ void Platform_CleanupWindowPort(WindowPtr window) {
 
 /* Destroy native window */
 void Platform_DestroyNativeWindow(WindowPtr window) {
+    (void)window;
     /* No native window system */
 }
 
@@ -141,6 +143,7 @@ void Platform_DisposeCTable(CTabHandle ctab) {
 
 /* Update window colors */
 void Platform_UpdateWindowColors(WindowPtr window) {
+    (void)window;
     /* Colors not implemented yet */
 }
 
@@ -291,6 +294,8 @@ Handle Platform_GetWindowDefProc(short procID) {
 
 /* Window drawing functions */
 void Platform_SetNativeWindowTitle(WindowPtr window, ConstStr255Param title) {
+    (void)window;
+    (void)title;
     /* No native window system - titles drawn manually */
 }
 
@@ -302,6 +307,7 @@ void Platform_BeginWindowDraw(WindowPtr window) {
 }
 
 void Platform_EndWindowDraw(WindowPtr window) {
+    (void)window;
     /* Nothing to do in our implementation */
 }
 
@@ -323,6 +329,8 @@ void Platform_InvalidateWindowFrame(WindowPtr window) {
 
 /* More platform stubs */
 void Platform_SendNativeWindowBehind(WindowPtr window, WindowPtr behindWindow) {
+    (void)window;
+    (void)behindWindow;
     /* No native window ordering */
 }
 
@@ -354,12 +362,15 @@ Boolean Platform_PtInRgn(Point pt, RgnHandle rgn) {
 }
 
 void Platform_ShowNativeWindow(WindowPtr window, Boolean show) {
+    (void)window;
+    (void)show;
     /* No native window system - visibility handled by Window Manager */
 }
 
 /* [WM-051] WM_InvalidateWindowsBelow moved to WindowLayering.c - no WM_ symbols in Platform */
 
 void Platform_BringNativeWindowToFront(WindowPtr window) {
+    (void)window;
     /* No native window system - ordering handled by Window Manager */
 }
 
@@ -555,6 +566,7 @@ void Platform_GetWindowFrameRect(WindowPtr window, Rect* rect) {
 
 /* Window highlighting */
 void Platform_HighlightWindowPart(WindowPtr window, short partCode, Boolean highlight) {
+    (void)highlight;
     /* Draw highlight feedback for window parts */
     if (!window) return;
 
@@ -718,6 +730,8 @@ void Platform_GetRegionBounds(RgnHandle rgn, Rect* bounds) {
 
 /* Window movement and sizing */
 void Platform_MoveNativeWindow(WindowPtr window, short h, short v) {
+    (void)h;
+    (void)v;
     if (window) {
         /* NOTE: We use Global Framebuffer approach where portBits.bounds stores the window's
          * GLOBAL screen position. WindowDragging.c updates portBits.bounds after moving the window.

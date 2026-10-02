@@ -606,6 +606,7 @@ WindowPtr Finder_OpenDesktopItem(Boolean isTrash, ConstStr255Param title)
  */
 OSErr ShowErrorDialog(ConstStr255Param message, OSErr errorCode)
 {
+    (void)errorCode;
     Str255 errorText;
 
     /* Format error message */

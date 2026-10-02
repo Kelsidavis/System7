@@ -1059,6 +1059,8 @@ static int Calculator_DAEvent(DeskAccessory *da, const EventRecord *event)
 
 static int Calculator_DAMenu(DeskAccessory *da, short menuID, short itemID)
 {
+    (void)menuID;
+    (void)itemID;
     if (!da) return DESK_ERR_INVALID_PARAM;
 
     /* Handle menu selections */
@@ -1074,6 +1076,7 @@ static void Calculator_DAIdle(DeskAccessory *da)
 
 static void Calculator_DAActivate(DeskAccessory *da, Boolean active)
 {
+    (void)active;
     if (!da) return;
 
     /* Handle activation/deactivation */

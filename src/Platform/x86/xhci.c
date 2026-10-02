@@ -1737,6 +1737,7 @@ static void xhci_msc_log_sense(xhci_msc_dev_t *dev, const char *prefix) {
 }
 
 static bool xhci_msc_retry_not_ready(xhci_msc_dev_t *dev, bool uasp, uint8_t lun) {
+    (void)uasp;
     if (dev->last_sense_key != 0x02) {
         return false;
     }

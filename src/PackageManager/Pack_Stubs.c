@@ -61,6 +61,7 @@ extern void serial_puts(const char* str);
  * Based on Inside Macintosh: Interapplication Communication
  */
 OSErr Pack8_Dispatch(short selector, void* params) {
+    (void)selector;
     (void)params;  /* Unused */
     STUB_LOG("Pack8 (Apple Events) selector %d not implemented\n", selector);
     return unimpErr;
@@ -83,6 +84,7 @@ OSErr Pack8_Dispatch(short selector, void* params) {
  * Based on Inside Macintosh: Interapplication Communication
  */
 OSErr Pack10_Dispatch(short selector, void* params) {
+    (void)selector;
     (void)params;  /* Unused */
     STUB_LOG("Pack10 (Edition Manager) selector %d not implemented\n", selector);
     return unimpErr;
@@ -103,6 +105,7 @@ OSErr Pack10_Dispatch(short selector, void* params) {
  * Based on Inside Macintosh: Text
  */
 OSErr Pack12_Dispatch(short selector, void* params) {
+    (void)selector;
     (void)params;  /* Unused */
     STUB_LOG("Pack12 (Dictionary Manager) selector %d not implemented\n", selector);
     return unimpErr;
@@ -125,6 +128,7 @@ OSErr Pack12_Dispatch(short selector, void* params) {
  * Based on Inside Macintosh: Interapplication Communication
  */
 OSErr Pack13_Dispatch(short selector, void* params) {
+    (void)selector;
     (void)params;  /* Unused */
     STUB_LOG("Pack13 (PPC Toolbox) selector %d not implemented\n", selector);
     return unimpErr;
@@ -145,6 +149,7 @@ OSErr Pack13_Dispatch(short selector, void* params) {
  * Based on Inside Macintosh: More Macintosh Toolbox
  */
 OSErr Pack14_Dispatch(short selector, void* params) {
+    (void)selector;
     (void)params;  /* Unused */
     STUB_LOG("Pack14 (Help Manager) selector %d not implemented\n", selector);
     return unimpErr;
@@ -167,6 +172,7 @@ OSErr Pack14_Dispatch(short selector, void* params) {
  * Based on Inside Macintosh: Imaging With QuickDraw
  */
 OSErr Pack15_Dispatch(short selector, void* params) {
+    (void)selector;
     (void)params;  /* Unused */
     STUB_LOG("Pack15 (Picture Utilities) selector %d not implemented\n", selector);
     return unimpErr;

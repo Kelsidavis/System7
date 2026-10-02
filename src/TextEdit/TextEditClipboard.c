@@ -605,6 +605,7 @@ static OSErr TE_CopyToScrap(TEHandle hTE) {
  * TE_GetFromScrap - Get text from scrap
  */
 static OSErr TE_GetFromScrap(TEHandle hTE) {
+    (void)hTE;
     /* Load from system scrap if needed */
     if (!g_TEScrap) {
         return TEFromScrap();

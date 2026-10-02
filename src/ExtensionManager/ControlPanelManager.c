@@ -100,6 +100,7 @@ Boolean ControlPanelManager_IsInitialized(void)
  */
 SInt16 ControlPanelManager_ScanForControlPanels(Boolean rescan)
 {
+    (void)rescan;
     if (!g_controlPanelMgrInitialized) {
         return 0;
     }

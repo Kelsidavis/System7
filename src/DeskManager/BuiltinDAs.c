@@ -356,6 +356,7 @@ int DeskManager_RegisterBuiltinDAs(void)
 
 static int Calculator_DAInitialize(DeskAccessory *da, const DADriverHeader *header)
 {
+    (void)header;
     if (!da) {
         return DESK_ERR_INVALID_PARAM;
     }
@@ -536,6 +537,7 @@ static int KeyCaps_DAIdle(DeskAccessory *da)
 
 static int KeyCaps_DAInitialize(DeskAccessory *da, const DADriverHeader *header)
 {
+    (void)header;
     if (!da) {
         return DESK_ERR_INVALID_PARAM;
     }
@@ -622,6 +624,7 @@ static int KeyCaps_DAProcessEvent(DeskAccessory *da, const DAEventInfo *event)
 
 static int AlarmClock_DAInitialize(DeskAccessory *da, const DADriverHeader *header)
 {
+    (void)header;
     if (!da) {
         return DESK_ERR_INVALID_PARAM;
     }
@@ -729,6 +732,7 @@ static int AlarmClock_DAIdle(DeskAccessory *da)
 
 static int Chooser_DAInitialize(DeskAccessory *da, const DADriverHeader *header)
 {
+    (void)header;
     if (!da) {
         return DESK_ERR_INVALID_PARAM;
     }

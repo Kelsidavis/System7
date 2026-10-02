@@ -210,6 +210,7 @@ short SpeechBusySystemWide(void) {
  * Sets the speaking rate for a speech channel
  */
 OSErr SetSpeechRate(SpeechChannel chan, Fixed rate) {
+    (void)rate;
     if (!chan) {
         return paramErr;
     }
@@ -249,6 +250,7 @@ OSErr GetSpeechRate(SpeechChannel chan, Fixed *rate) {
  * Sets the speaking pitch for a speech channel
  */
 OSErr SetSpeechPitch(SpeechChannel chan, Fixed pitch) {
+    (void)pitch;
     if (!chan) {
         return paramErr;
     }
@@ -288,6 +290,7 @@ OSErr GetSpeechPitch(SpeechChannel chan, Fixed *pitch) {
  * Sets various speech parameters using selector codes
  */
 OSErr SetSpeechInfo(SpeechChannel chan, OSType selector, void *speechInfo) {
+    (void)selector;
     if (!chan || !speechInfo) {
         return paramErr;
     }
@@ -307,6 +310,7 @@ OSErr SetSpeechInfo(SpeechChannel chan, OSType selector, void *speechInfo) {
  * Gets various speech parameters using selector codes
  */
 OSErr GetSpeechInfo(SpeechChannel chan, OSType selector, void *speechInfo) {
+    (void)selector;
     if (!chan || !speechInfo) {
         return paramErr;
     }
@@ -326,6 +330,7 @@ OSErr GetSpeechInfo(SpeechChannel chan, OSType selector, void *speechInfo) {
  * Associates a pronunciation dictionary with a speech channel
  */
 OSErr UseDictionary(SpeechChannel chan, void *dictionary) {
+    (void)dictionary;
     if (!chan) {
         return paramErr;
     }

@@ -68,6 +68,7 @@ static const Pattern g_standardPatterns[] = {
  * ================================================================ */
 
 void GetIndPattern(Pattern *thePat, SInt16 patternListID, SInt16 index) {
+    (void)patternListID;
     assert(thePat != NULL);
 
     /* For now, ignore patternListID and use standard patterns */

@@ -138,6 +138,7 @@ void Platform_DisposeScreenBits(Handle bits)
  */
 void Platform_DrawMenuBar(const void* drawInfo)
 {
+    (void)drawInfo;
     /* MenuDisplay module handles actual rendering */
     /* This is just a platform abstraction point */
 }
@@ -148,6 +149,7 @@ void Platform_DrawMenuBar(const void* drawInfo)
  */
 void Platform_DrawMenu(const void* drawInfo)
 {
+    (void)drawInfo;
     /* MenuDisplay module handles actual rendering */
 }
 
@@ -157,6 +159,7 @@ void Platform_DrawMenu(const void* drawInfo)
  */
 void Platform_DrawMenuItem(const void* drawInfo)
 {
+    (void)drawInfo;
     /* MenuDisplay module handles actual rendering */
 }
 
@@ -203,6 +206,7 @@ Boolean Platform_GetKeyModifiers(unsigned long* modifiers)
  */
 void Platform_SetMenuCursor(short cursorType)
 {
+    (void)cursorType;
     /* Cursor management delegated to platform layer */
     /* cursorType: 0=arrow, 1=pointer, 2=watch, etc. */
 }
@@ -224,6 +228,9 @@ Boolean Platform_IsMenuVisible(void* theMenu)
  */
 void Platform_MenuFeedback(short feedbackType, short menuID, short item)
 {
+    (void)feedbackType;
+    (void)menuID;
+    (void)item;
     /* feedbackType: 0=hilite, 1=unhilite, 2=flash, etc. */
     /* Could flash menu bar or provide other visual feedback */
 }
@@ -234,6 +241,9 @@ void Platform_MenuFeedback(short feedbackType, short menuID, short item)
  */
 void Platform_HiliteMenuItem(void* theMenu, short item, Boolean hilite)
 {
+    (void)theMenu;
+    (void)item;
+    (void)hilite;
     /* MenuItem highlighting delegated to MenuDisplay */
     /* hilite=true: draw item highlighted */
     /* hilite=false: draw item normal */

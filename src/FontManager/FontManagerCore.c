@@ -290,6 +290,7 @@ static FontFamily g_monacoFamily = {
 
 /* Helper to compare pascal strings */
 static Boolean EqualString(const unsigned char *s1, const unsigned char *s2, Boolean caseSensitive, Boolean diacSensitive) {
+    (void)diacSensitive;
     short len1 = s1[0];
     short len2 = s2[0];
     if (len1 != len2) return FALSE;
@@ -1165,6 +1166,7 @@ OSErr GetLastFontError(void) {
 }
 
 void SetFontErrorCallback(void (*callback)(OSErr error, const char *message)) {
+    (void)callback;
     /* Store callback for error notifications */
 }
 
@@ -1261,6 +1263,8 @@ void FMSetFontSize(SInt16 size) {
  * ============================================================================ */
 
 Boolean IsOutline(Point numer, Point denom) {
+    (void)numer;
+    (void)denom;
     /* No outline fonts yet */
     return FALSE;
 }
@@ -1268,6 +1272,15 @@ Boolean IsOutline(Point numer, Point denom) {
 OSErr OutlineMetrics(short byteCount, const void *textPtr, Point numer,
                      Point denom, short *yMax, short *yMin, Fixed* awArray,
                      Fixed* lsbArray, Rect* boundsArray) {
+    (void)byteCount;
+    (void)textPtr;
+    (void)numer;
+    (void)denom;
+    (void)yMax;
+    (void)yMin;
+    (void)awArray;
+    (void)lsbArray;
+    (void)boundsArray;
     /* Not implemented for bitmap fonts */
     return -1;  /* fontNotFoundErr */
 }

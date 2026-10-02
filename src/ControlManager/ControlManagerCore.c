@@ -808,6 +808,7 @@ static void InitializePlatformSettings(void) {
  */
 static OSErr ValidateControlParameters(WindowPtr theWindow, const Rect *boundsRect,
                                       SInt16 value, SInt16 min, SInt16 max) {
+    (void)value;
     if (!theWindow) {
         return paramErr;
     }

@@ -353,6 +353,7 @@ WindowPtr NewCWindow(void* wStorage, const Rect* boundsRect,
 }
 
 WindowPtr GetNewWindow(short windowID, void* wStorage, WindowPtr behind) {
+    (void)windowID;
     /* In a full implementation, this would load a WIND resource */
     /* For now, create a default window with reasonable parameters */
 
@@ -375,6 +376,7 @@ WindowPtr GetNewWindow(short windowID, void* wStorage, WindowPtr behind) {
 }
 
 WindowPtr GetNewCWindow(short windowID, void* wStorage, WindowPtr behind) {
+    (void)windowID;
     /* In a full implementation, this would load a WIND resource */
     /* For now, create a default color window */
 
@@ -765,6 +767,7 @@ static void DeallocateWindowRecord(WindowPtr window) {
 static void InitializeWindowRecord(WindowPtr window, const Rect* bounds,
                                  ConstStr255Param title, short procID,
                                  Boolean visible, Boolean goAwayFlag) {
+    (void)visible;
     if (window == NULL || bounds == NULL) return;
 
     /* Initialize embedded GrafPort so pattern/color state matches classic defaults */

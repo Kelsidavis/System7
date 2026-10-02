@@ -40,6 +40,9 @@ extern GrafPtr g_currentPort;
 OSErr NewGWorld(GWorldPtr *offscreenGWorld, SInt16 pixelDepth,
                 const Rect *boundsRect, CTabHandle cTable,
                 GDHandle aGDevice, GWorldFlags flags) {
+    (void)cTable;
+    (void)aGDevice;
+    (void)flags;
     extern void serial_puts(const char*);
     serial_puts("[GWORLD] enter\n");
 
