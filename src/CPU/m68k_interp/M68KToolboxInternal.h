@@ -183,6 +183,8 @@ void M68KSANE_WriteDecimal(UInt32 addr, const struct SANEDecimalTag* d);
 extern const M68KTrapEntry kM68KFileTraps[];
 extern const int kM68KFileTrapCount;
 void M68KFiles_Prepare(VRefNum vref, DirID dir);   /* the application's folder: the default */
+OSErr M68KFiles_ResolveName(SInt16 vRefNum, SInt32 dirID, ConstStr255Param name,
+                            VRefNum* vref, DirID* dir, char* leaf);
 void M68KFiles_Finish(void);
 void M68KUtils_Finish(void);
 void M68KDialogs_Finish(void);

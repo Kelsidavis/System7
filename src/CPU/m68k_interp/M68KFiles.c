@@ -1013,6 +1013,14 @@ TRAP(Trap_Pack3) {
 
 /* ------------------------------------------------------------------------ */
 
+/* A name as a program gives one, relative to vRefNum (a volume, a working
+ * directory, or 0 for the default) and dirID: the directory it is in, and
+ * the leaf. For _Launch. */
+OSErr M68KFiles_ResolveName(SInt16 vRefNum, SInt32 dirID, ConstStr255Param name,
+                            VRefNum* vref, DirID* dir, char* leaf) {
+    return Resolve(vRefNum, dirID, name, vref, dir, leaf);
+}
+
 void M68KFiles_Prepare(VRefNum vref, DirID dir) {
     memset(gWD, 0, sizeof(gWD));
     memset(gFCB, 0, sizeof(gFCB));

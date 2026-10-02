@@ -58,6 +58,7 @@ extern OSErr HGetFInfo(short vRefNum, long dirID, ConstStr255Param fileName, FIn
 #include "CPU/M68KInterp.h"
 #include "CPU/M68KHeap.h"
 #include "SegmentLoader/MacBinary.h"
+extern OSErr LaunchApplication(LaunchParamBlockRec* launchParams);
 
 extern UInt32 M68K_Read32(M68KAddressSpace* as, UInt32 addr);
 extern void M68K_Write32(M68KAddressSpace* as, UInt32 addr, UInt32 value);
@@ -1483,6 +1484,110 @@ static void Test_M68K_Traps(void) {
     RecordTest(test_name, true, "");
 }
 
+/* ------------------------------------------------------------------------
+ * _Launch: one 68K application starting another
+ *
+ * Two applications are made here, each a CODE 0 and a CODE 1 (as
+ * tests/m68k/mkapp.py makes them): the parent _Launches the child by name,
+ * and the child creates a file. The file is there afterwards only if the
+ * parent ran, launched, ended, and the child ran in its place.
+ * ------------------------------------------------------------------------ */
+
+static Handle HandleWith(const UInt8* bytes, Size n) {
+    Handle h = NewHandle(n);
+    if (h) BlockMoveData(bytes, *h, n);
+    return h;
+}
+
+static Boolean MakeApplication(const char* name, const UInt8* code, Size codeLen) {
+    FSSpec spec;
+    Str255 pname;
+    pname[0] = (UInt8)strlen(name);
+    memcpy(pname + 1, name, pname[0]);
+    FSMakeFSSpec(0, 0, pname, &spec);
+    FSpDelete(&spec);
+    FSpCreateResFile(&spec, 'ITst', 'APPL', 0);
+    SInt16 ref = FSpOpenResFile(&spec, 3);
+    if (ref <= 0) return false;
+
+    /* CODE 0: above A5 (the jump table), below A5, the table's size and its
+     * offset from A5 - then the table itself: one entry, CODE 1's offset 0,
+     * by _LoadSeg */
+    UInt8 code0[16 + 8];
+    PutBE32(code0 + 0, 32 + 8);
+    PutBE32(code0 + 4, 0x400);
+    PutBE32(code0 + 8, 8);
+    PutBE32(code0 + 12, 32);
+    PutBE16(code0 + 16, 0);
+    PutBE16(code0 + 18, 0x3F3C);
+    PutBE16(code0 + 20, 1);
+    PutBE16(code0 + 22, 0xA9F0);
+    UInt8 code1[256];
+    PutBE16(code1, 0);                                  /* first entry's offset */
+    PutBE16(code1 + 2, 1);                              /* one entry */
+    memcpy(code1 + 4, code, (size_t)codeLen);
+    AddResource(HandleWith(code0, sizeof(code0)), 'CODE', 0, NULL);
+    AddResource(HandleWith(code1, codeLen + 4), 'CODE', 1, NULL);
+    CloseResFile(ref);
+    return ResError() == noErr;
+}
+
+static void Test_M68K_Launch(void) {
+    const char* test_name = "M68K_Launch";
+    static const char kMark[] = "ITest Launched";
+
+    /* Child: LEA pb(PC),A0; LEA name(PC),A1; MOVE.L A1,18(A0); _Create;
+     * _ExitToShell; pb: 80 bytes; name: "ITest Launched" */
+    UInt8 child[16 + 80 + 16];
+    memset(child, 0, sizeof(child));
+    static const UInt16 kChild[] = { 0x41FA, 14, 0x43FA, 90, 0x2149, 18, 0xA008, 0xA9F4 };
+    for (int i = 0; i < 8; i++) PutBE16(child + 2 * i, kChild[i]);
+    child[96] = (UInt8)(sizeof(kMark) - 1);
+    memcpy(child + 97, kMark, sizeof(kMark) - 1);
+
+    /* Parent: LEA pb(PC),A0; LEA name(PC),A1; MOVE.L A1,(A0); _Launch;
+     * _ExitToShell; NOP; pb: name pointer and configuration; name */
+    UInt8 parent[24 + 12];
+    memset(parent, 0, sizeof(parent));
+    static const UInt16 kParent[] = { 0x41FA, 14, 0x43FA, 18, 0x2089, 0xA9F2, 0xA9F4, 0x4E71 };
+    for (int i = 0; i < 8; i++) PutBE16(parent + 2 * i, kParent[i]);
+    parent[24] = 11;
+    memcpy(parent + 25, "ITest Child", 11);
+
+    FSSpec mark;
+    Str255 pmark;
+    pmark[0] = (UInt8)(sizeof(kMark) - 1);
+    memcpy(pmark + 1, kMark, pmark[0]);
+    FSMakeFSSpec(0, 0, pmark, &mark);
+    FSpDelete(&mark);
+
+    Boolean made = MakeApplication("ITest Child", child, sizeof(child)) &&
+                   MakeApplication("ITest Parent", parent, sizeof(parent));
+    OSErr err = paramErr;
+    FSSpec app;
+    if (made) {
+        FSMakeFSSpec(0, 0, PSTR("ITest Parent"), &app);
+        LaunchParamBlockRec lp;
+        memset(&lp, 0, sizeof(lp));
+        lp.launchAppSpec = &app;
+        lp.launchPreferredSize = 512 * 1024;
+        err = LaunchApplication(&lp);
+    }
+    FInfo info;
+    Boolean childRan = FSpGetFInfo(&mark, &info) == noErr;
+
+    FSpDelete(&mark);
+    FSSpec gone;
+    FSMakeFSSpec(0, 0, PSTR("ITest Child"), &gone);
+    FSpDelete(&gone);
+    FSMakeFSSpec(0, 0, PSTR("ITest Parent"), &gone);
+    FSpDelete(&gone);
+    CHECK(made, "could not make the two applications");
+    CHECK(err == noErr, "LaunchApplication failed");
+    CHECK(childRan, "the launched application did not run");
+    RecordTest(test_name, true, "");
+}
+
 void IntegrationTests_Run(void) {
     IT_LOG_INFO("%s", "");
     IT_LOG_INFO("============================================");
@@ -1543,6 +1648,7 @@ void IntegrationTests_Run(void) {
     Test_M68K_WindowCalls();
     Test_M68K_Timers();
     Test_M68K_Icons();
+    Test_M68K_Launch();
 
     PrintTestSummary();
 }

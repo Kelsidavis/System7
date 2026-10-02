@@ -29,6 +29,7 @@
 #include "EventManager/EventManager.h"
 #include "QuickDraw/QuickDraw.h"
 #include "System71StdLib.h"
+#include "FS/vfs.h"
 
 extern QDGlobals qd;
 extern UInt32 TickCount(void);
@@ -887,6 +888,67 @@ TRAP(Trap_Dequeue) {
     return noErr;
 }
 
+/* The application a program asked _Launch for, started once it has gone */
+static FSSpec gNextApp;
+static Boolean gHaveNextApp;
+
+Boolean M68KToolbox_TakePendingLaunch(FSSpec* spec) {
+    if (!gHaveNextApp) return false;
+    *spec = gNextApp;
+    gHaveNextApp = false;
+    return true;
+}
+
+/* _Launch and _Chain: A0 a parameter block naming the application.
+ *
+ * The old block holds a pointer to its name, in the default directory; a
+ * System 7 block ('LC' at 6) an FSSpec pointer at 16 and the control flags
+ * at 14. One 68K program runs at a time, so this is a launch as System 6
+ * made one without MultiFinder: the program ends and the application is
+ * started in its place, by LaunchApplication. Asked to carry on alongside
+ * it (launchContinue), it is told there is not the memory. */
+TRAP(Trap_Launch) {
+    UNUSED;
+    enum { kExtendedBlock = 0x4C43, kContinueFlag = 0x4000, kMemFullErr = -108, kFnfErr = -43 };
+    UInt32 pb = A(0);
+    Str255 name;
+    SInt16 vRefNum = 0;
+    SInt32 dirID = 0;
+    if (R16(pb + 6) == kExtendedBlock) {
+        if (R16(pb + 14) & kContinueFlag) {
+            D(0) = (UInt32)(SInt32)kMemFullErr;
+            return noErr;
+        }
+        UInt32 spec = R32(pb + 16);
+        vRefNum = (SInt16)R16(spec);
+        dirID = (SInt32)R32(spec + 2);
+        ReadPString(spec + 6, name);
+    } else {
+        ReadPString(R32(pb), name);
+    }
+    VRefNum vref;
+    DirID dir;
+    char leaf[256];
+    CatEntry e;
+    if (M68KFiles_ResolveName(vRefNum, dirID, name, &vref, &dir, leaf) != noErr || !leaf[0] ||
+        !VFS_Lookup(vref, dir, leaf, &e) || e.kind == kNodeDir) {
+        D(0) = (UInt32)(SInt32)kFnfErr;
+        return noErr;
+    }
+    memset(&gNextApp, 0, sizeof(gNextApp));
+    gNextApp.vRefNum = (SInt16)vref;
+    gNextApp.parID = dir;
+    size_t n = strlen(leaf);
+    if (n > 63) n = 63;
+    gNextApp.name[0] = (UInt8)n;
+    memcpy(&gNextApp.name[1], leaf, n);
+    gHaveNextApp = true;
+    gAS->halted = true;                     /* it ends as _ExitToShell ends it */
+    gAS->lastException = 0;
+    gAS->faultReason = NULL;
+    return noErr;
+}
+
 /* ------------------------------------------------------------------------ */
 
 static const M68KTrapEntry kTraps[] = {
@@ -941,6 +1003,7 @@ static const M68KTrapEntry kTraps[] = {
     { 0xA975, Trap_TickCount },     { 0xA9C8, Trap_SysBeep },
     { 0xA090, Trap_SysEnvirons },   { 0xA1AD, Trap_Gestalt },
     { 0xA9F4, Trap_ExitToShell },   { 0xA9F5, Trap_GetAppParms },
+    { 0xA9F2, Trap_Launch },        { 0xA9F3, Trap_Launch },       /* _Chain */
     { 0xA9F1, Trap_UnloadSeg },     { 0xA9E5, Trap_InitPack },     { 0xA9E6, Trap_NoOp },  /* InitAllPacks */
     { 0xA9C9, Trap_SysError },      { 0xA0BD, Trap_FlushCodeCache },
     { 0xA96F, Trap_Enqueue },       { 0xA96E, Trap_Dequeue },
@@ -995,6 +1058,7 @@ OSErr M68KToolbox_Prepare(SegmentLoaderContext* ctx, ConstStr255Param appName,
     M68KFiles_Prepare(appVRef, appDir);
     M68KSANE_Reset();
     M68KTimers_Reset();
+    gHaveNextApp = false;
     W32(0x02F0, GetDblTime());              /* DoubleTime */
     W32(0x02F4, 32);                        /* CaretTime: half a second */
 

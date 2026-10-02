@@ -23,4 +23,8 @@ OSErr M68KToolbox_Prepare(SegmentLoaderContext* ctx, ConstStr255Param appName,
  * resources, the menu bar */
 void M68KToolbox_Finish(void);
 
+/* The application the program asked _Launch for, if it did: LaunchApplication
+ * starts it once the program has gone */
+Boolean M68KToolbox_TakePendingLaunch(FSSpec* spec);
+
 #endif /* M68K_TOOLBOX_H */

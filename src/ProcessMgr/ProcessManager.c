@@ -436,6 +436,14 @@ OSErr LaunchApplication(LaunchParamBlockRec* launchParams)
     if (why) {
         Process_ReportUnexpectedQuit(appName, why);
     }
+
+    /* It ended by launching another (_Launch): that one now, in its place */
+    FSSpec next;
+    if (!why && M68KToolbox_TakePendingLaunch(&next)) {
+        LaunchParamBlockRec chained = *launchParams;
+        chained.launchAppSpec = &next;
+        return LaunchApplication(&chained);
+    }
     return err;
 }
 
