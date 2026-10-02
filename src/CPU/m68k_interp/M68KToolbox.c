@@ -691,11 +691,11 @@ static OSErr TypedResource(ResType type) {
     Result32(M68KTB_ResHandleFor(n));
     return noErr;
 }
-TRAP(Trap_GetString)  { UNUSED; return TypedResource('STR '); }
-TRAP(Trap_GetCursor)  { UNUSED; return TypedResource('CURS'); }
-TRAP(Trap_GetPattern) { UNUSED; return TypedResource('PAT '); }
-TRAP(Trap_GetIcon)    { UNUSED; return TypedResource('ICON'); }
-TRAP(Trap_GetPicture) { UNUSED; return TypedResource('PICT'); }
+TRAP(Trap_GetString)  { UNUSED; return TypedResource(FOURCC('S','T','R',' ')); }
+TRAP(Trap_GetCursor)  { UNUSED; return TypedResource(FOURCC('C','U','R','S')); }
+TRAP(Trap_GetPattern) { UNUSED; return TypedResource(FOURCC('P','A','T',' ')); }
+TRAP(Trap_GetIcon)    { UNUSED; return TypedResource(FOURCC('I','C','O','N')); }
+TRAP(Trap_GetPicture) { UNUSED; return TypedResource(FOURCC('P','I','C','T')); }
 
 /* ------------------------------------------------------------------------
  * Starting up
@@ -786,13 +786,13 @@ TRAP(Trap_SysEnvirons) {
 TRAP(Trap_Gestalt) {
     UNUSED;
     switch (D(0)) {
-        case 'sysv': A(0) = 0x0710; D(0) = 0; break;
-        case 'qd  ': A(0) = 0x0000; D(0) = 0; break;   /* original QuickDraw */
-        case 'proc': A(0) = 3;      D(0) = 0; break;   /* gestalt68020 */
-        case 'cput': A(0) = 2;      D(0) = 0; break;   /* gestaltCPU68020 */
-        case 'fpu ': A(0) = 0;      D(0) = 0; break;
-        case 'addr': A(0) = 0;      D(0) = 0; break;   /* 24-bit */
-        case 'ram ': A(0) = M68K_MAX_ADDR; D(0) = 0; break;
+        case FOURCC('s','y','s','v'): A(0) = 0x0710; D(0) = 0; break;
+        case FOURCC('q','d',' ',' '): A(0) = 0x0000; D(0) = 0; break;   /* original QuickDraw */
+        case FOURCC('p','r','o','c'): A(0) = 3;      D(0) = 0; break;   /* gestalt68020 */
+        case FOURCC('c','p','u','t'): A(0) = 2;      D(0) = 0; break;   /* gestaltCPU68020 */
+        case FOURCC('f','p','u',' '): A(0) = 0;      D(0) = 0; break;
+        case FOURCC('a','d','d','r'): A(0) = 0;      D(0) = 0; break;   /* 24-bit */
+        case FOURCC('r','a','m',' '): A(0) = M68K_MAX_ADDR; D(0) = 0; break;
         default:     A(0) = 0;      D(0) = (UInt32)(SInt32)-5551; break;  /* undefined */
     }
     return noErr;

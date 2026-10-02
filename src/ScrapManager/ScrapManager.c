@@ -108,7 +108,7 @@ static void InitScrapIfNeeded(void)
     extern OSErr NewGestalt(OSType selector, OSErr (*proc)(long *response));
     extern OSErr ScrapGestaltProc(long *response);
 
-    OSErr err = NewGestalt('scra', ScrapGestaltProc);
+    OSErr err = NewGestalt(FOURCC('s','c','r','a'), ScrapGestaltProc);
     if (err == noErr) {
         SCRAP_LOG("Registered with Gestalt\n");
     } else if (err == gestaltDupSelectorErr) {
@@ -349,7 +349,7 @@ static void Scrap_SaveToVFS(void)
     FileID fid = 0;
 
     /* Create or open the clipboard file */
-    if (!VFS_CreateFile(vref, clipDir, "Clipboard", 'CLIP', 'MACS', &fid)) {
+    if (!VFS_CreateFile(vref, clipDir, "Clipboard", FOURCC('C','L','I','P'), FOURCC('M','A','C','S'), &fid)) {
         CatEntry entry;
         if (VFS_Lookup(vref, clipDir, "Clipboard", &entry)) {
             fid = entry.id;
@@ -665,7 +665,7 @@ void UnloadScrap(void) {
     FSDelete(fileName, 0);
 
     /* Create new clipboard file */
-    err = FSCreate(fileName, 0, 'CLIP', 'SYSL');
+    err = FSCreate(fileName, 0, FOURCC('C','L','I','P'), FOURCC('S','Y','S','L'));
     if (err != noErr) {
         SCRAP_LOG("UnloadScrap: Failed to create clipboard file (err=%d)\n", err);
         return;

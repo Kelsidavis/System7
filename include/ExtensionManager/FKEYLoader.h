@@ -22,7 +22,7 @@ extern "C" {
 #define MAX_FKEY_NAME               64      /* Max FKEY name length */
 
 /* FKEY resource type */
-#define FKEY_TYPE                   'FKEY'  /* Function key resource */
+#define FKEY_TYPE                   FOURCC('F', 'K', 'E', 'Y') /* Function key resource */
 
 /* ========================================================================
  * FUNCTION KEY ENTRY

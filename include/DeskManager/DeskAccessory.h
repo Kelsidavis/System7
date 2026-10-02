@@ -21,13 +21,13 @@
 #include "DeskManager.h"
 
 /* DA Resource Types */
-#define DA_RESOURCE_TYPE_DRVR   'DRVR'      /* Driver resource */
-#define DA_RESOURCE_TYPE_WIND   'WIND'      /* Window template */
-#define DA_RESOURCE_TYPE_DITL   'DITL'      /* Dialog item list */
-#define DA_RESOURCE_TYPE_DLOG   'DLOG'      /* Dialog template */
-#define DA_RESOURCE_TYPE_MENU   'MENU'      /* Menu resource */
-#define DA_RESOURCE_TYPE_STR    'STR '      /* String resource */
-#define DA_RESOURCE_TYPE_ICN    'ICN#'      /* Icon resource */
+#define DA_RESOURCE_TYPE_DRVR   FOURCC('D', 'R', 'V', 'R') /* Driver resource */
+#define DA_RESOURCE_TYPE_WIND   FOURCC('W', 'I', 'N', 'D') /* Window template */
+#define DA_RESOURCE_TYPE_DITL   FOURCC('D', 'I', 'T', 'L') /* Dialog item list */
+#define DA_RESOURCE_TYPE_DLOG   FOURCC('D', 'L', 'O', 'G') /* Dialog template */
+#define DA_RESOURCE_TYPE_MENU   FOURCC('M', 'E', 'N', 'U') /* Menu resource */
+#define DA_RESOURCE_TYPE_STR    FOURCC('S', 'T', 'R', ' ') /* String resource */
+#define DA_RESOURCE_TYPE_ICN    FOURCC('I', 'C', 'N', '#') /* Icon resource */
 
 /* Standard DA Resource IDs */
 #define DA_RESID_CALCULATOR     4           /* Calculator DA */

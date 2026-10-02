@@ -70,13 +70,6 @@ typedef struct {
 
 OSErr GetSysEnv(short versionRequested, SysEnvRec *answer);
 
-/* Helper macro for creating OSType from 4 characters - canonical, endian-safe */
-#ifndef FOURCC
-#define FOURCC(a,b,c,d) \
-  ((OSType)(((UInt32)(UInt8)(a) << 24) | ((UInt32)(UInt8)(b) << 16) | \
-            ((UInt32)(UInt8)(c) << 8)  |  (UInt32)(UInt8)(d)))
-#endif
-
 /* Endian detection for portable decisions (do NOT alter resource on-disk endianness) */
 #ifndef SYS71_LITTLE_ENDIAN
   #if defined(__BYTE_ORDER__) && defined(__ORDER_LITTLE_ENDIAN__) && (__BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__)

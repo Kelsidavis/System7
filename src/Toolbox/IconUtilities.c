@@ -82,10 +82,10 @@ extern void serial_puts(const char* str);
 #define FOUR_CHAR_CODE(x) (x)
 #endif
 
-#define kIconResourceType FOUR_CHAR_CODE('ICON')  /* 32x32 black and white */
-#define kSmallerIconType  FOUR_CHAR_CODE('ICN#')  /* 32x32 icon with mask */
-#define kSmallIconType    FOUR_CHAR_CODE('ics#')  /* 16x16 icon with mask */
-#define kColorIconType    FOUR_CHAR_CODE('cicn')  /* Color icon */
+#define kIconResourceType FOUR_CHAR_CODE(FOURCC('I', 'C', 'O', 'N'))  /* 32x32 black and white */
+#define kSmallerIconType  FOUR_CHAR_CODE(FOURCC('I', 'C', 'N', '#'))  /* 32x32 icon with mask */
+#define kSmallIconType    FOUR_CHAR_CODE(FOURCC('i', 'c', 's', '#'))  /* 16x16 icon with mask */
+#define kColorIconType    FOUR_CHAR_CODE(FOURCC('c', 'i', 'c', 'n'))  /* Color icon */
 
 /* Standard icon size */
 #define kIconWidth  32

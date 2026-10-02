@@ -93,7 +93,7 @@ TRAP(Trap_GetNewWindow) {
     UInt32 behind = Pop32();
     UInt32 storage = Pop32();
     SInt16 id = (SInt16)Pop16();
-    Handle wind = GetResource('WIND', id);
+    Handle wind = GetResource(FOURCC('W','I','N','D'), id);
     if (!wind || GetHandleSize(wind) < 19) {
         Result32(0);
         return noErr;

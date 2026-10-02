@@ -223,7 +223,7 @@ static void Desktop_BuildFileKind(const DesktopItem* item, FileKind* outKind)
                 const UInt8* crPtr = (const UInt8*)&item->data.file.creator;
                 OSType cr = ((UInt32)crPtr[0]) | ((UInt32)crPtr[1] << 8) |
                            ((UInt32)crPtr[2] << 16) | ((UInt32)crPtr[3] << 24);
-                outKind->type = ft ? ft : 'APPL';
+                outKind->type = ft ? ft : FOURCC('A','P','P','L');
                 outKind->creator = cr;
             }
             break;
@@ -240,7 +240,7 @@ static void Desktop_BuildFileKind(const DesktopItem* item, FileKind* outKind)
             }
             break;
         case kDesktopItemAlias:
-            outKind->type = 'alis';
+            outKind->type = FOURCC('a','l','i','s');
             break;
         default:
             break;
@@ -684,7 +684,7 @@ OSErr RebuildDesktopFile(short vRefNum)
     err = FSMakeFSSpec(vRefNum, fsRtDirID, kDesktopDatabaseName, &databaseSpec);
     if (err == fnfErr) {
         /* Database doesn't exist, create it */
-        err = FSpCreate(&databaseSpec, 'DMGR', 'DTBS', smSystemScript);
+        err = FSpCreate(&databaseSpec, FOURCC('D','M','G','R'), FOURCC('D','T','B','S'), smSystemScript);
         if (err != noErr && err != dupFNErr) {
             return err;
         }
@@ -1532,7 +1532,7 @@ static OSErr SaveDesktopDatabase(short vRefNum)
     err = FSMakeFSSpec(vRefNum, fsRtDirID, kDesktopDatabaseName, &databaseSpec);
     if (err == fnfErr) {
         /* Create database file */
-        err = FSpCreate(&databaseSpec, 'DMGR', 'DTBS', smSystemScript);
+        err = FSpCreate(&databaseSpec, FOURCC('D','M','G','R'), FOURCC('D','T','B','S'), smSystemScript);
         if (err != noErr && err != dupFNErr) {
             return err;
         }

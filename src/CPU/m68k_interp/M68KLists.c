@@ -746,7 +746,7 @@ static UInt32 NewList(const Rect* rView, const Rect* bounds, Point cs, SInt16 pr
     UInt32 def = 0;
     if (proc != 0) {
         /* A program's own definition, from its resources */
-        Handle native = GetResource('LDEF', proc);
+        Handle native = GetResource(FOURCC('L','D','E','F'), proc);
         def = native ? M68KTB_ResHandleFor(native) : 0;
         if (!def) {
             if (list) M68KHeap_DisposeHandle(list);

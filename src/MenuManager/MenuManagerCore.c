@@ -275,7 +275,7 @@ Handle GetNewMBar(short menuBarID)
     }
 
     /* Load MBAR resource */
-    Handle mbarHandle = GetResource('MBAR', menuBarID);
+    Handle mbarHandle = GetResource(FOURCC('M','B','A','R'), menuBarID);
     if (mbarHandle == NULL) {
         MENU_LOG_WARN("GetNewMBar: MBAR resource %d not found\n", menuBarID);
         /* Return empty menu list instead of NULL */
@@ -901,7 +901,7 @@ MenuHandle GetMenu(short resourceID)
     }
 
     /* Load MENU resource */
-    Handle menuHandle = GetResource('MENU', resourceID);
+    Handle menuHandle = GetResource(FOURCC('M','E','N','U'), resourceID);
     if (menuHandle == NULL) {
         MENU_LOG_WARN("GetMenu: MENU resource %d not found\n", resourceID);
         /* Return fallback menu with generic title */

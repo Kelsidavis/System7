@@ -1328,9 +1328,9 @@ static Boolean IconFromResource(ResType type, SInt16 id, Boolean small, IconImag
 /* The best of the family for a rectangle this size */
 static Boolean IconByID(SInt16 id, const Rect* r, IconImage* ic) {
     Boolean small = r->bottom - r->top < 32 || r->right - r->left < 32;
-    if (small && IconFromResource('ics#', id, true, ic)) return true;
-    if (IconFromResource('ICN#', id, false, ic)) return true;
-    return IconFromResource('ICON', id, false, ic);
+    if (small && IconFromResource(FOURCC('i','c','s','#'), id, true, ic)) return true;
+    if (IconFromResource(FOURCC('I','C','N','#'), id, false, ic)) return true;
+    return IconFromResource(FOURCC('I','C','O','N'), id, false, ic);
 }
 
 /* Where the icon goes: its own size placed by align, or stretched to the
@@ -1403,7 +1403,7 @@ TRAP(Trap_IconDispatch) {
         if (IconByID(id, &big, &ic)) {
             suite = M68KHeap_NewHandle(kIconSuiteSize, true);
             if (suite) {
-                W32(M68KHeap_Deref(suite), 'SUIT');
+                W32(M68KHeap_Deref(suite), FOURCC('S', 'U', 'I', 'T'));
                 W16(M68KHeap_Deref(suite) + 4, (UInt16)id);
             }
         }
@@ -1421,7 +1421,7 @@ TRAP(Trap_IconDispatch) {
         UInt32 suite = Pop32();
         SInt16 transform = (SInt16)Pop16(), align = (SInt16)Pop16();
         Rect r = PopRect();
-        if (suite && M68KHeap_IsHandle(suite) && R32(M68KHeap_Deref(suite)) == 'SUIT' &&
+        if (suite && M68KHeap_IsHandle(suite) && R32(M68KHeap_Deref(suite)) == FOURCC('S','U','I','T') &&
             IconByID((SInt16)R16(M68KHeap_Deref(suite) + 4), &r, &ic)) {
             DrawIcon(&ic, &r, align, transform);
         } else {

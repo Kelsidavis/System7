@@ -259,7 +259,7 @@ Handle GetResource(ResType theType, ResID theID) {
         if (ref) return LoadRef(files[i], theType, ref);
     }
     /* The standard patterns, when no file has them */
-    if (theType == 'PAT ' && theID >= 1 && theID <= 10) return BuiltinPattern(theID);
+    if (theType == FOURCC('P','A','T',' ') && theID >= 1 && theID <= 10) return BuiltinPattern(theID);
     gResMgr.resError = resNotFound;
     return NULL;
 }

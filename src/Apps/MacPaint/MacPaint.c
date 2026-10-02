@@ -114,7 +114,7 @@ static void BuildMenus(void) {
     gAppleMenu = NewMenu(mApple, appleTitle);
     if (gAppleMenu) {
         AppendItems(gAppleMenu, MP_APPLE_ITEMS(MP_TEXT));
-        AddResMenu(gAppleMenu, 'DRVR');
+        AddResMenu(gAppleMenu, FOURCC('D','R','V','R'));
     }
     gFileMenu = MakeMenu(mFile, "File", MP_FILE_ITEMS(MP_TEXT));
     gEditMenu = MakeMenu(mEdit, "Edit", MP_EDIT_ITEMS(MP_TEXT));
@@ -314,7 +314,7 @@ static Boolean WriteDocument(VRefNum vref, DirID dir, const char* name) {
         if (old.kind == kNodeDir || !VFS_Delete(vref, old.id)) return false;
     }
     FileID id;
-    if (!VFS_CreateFile(vref, dir, name, 'PNTG', 'MPNT', &id)) return false;
+    if (!VFS_CreateFile(vref, dir, name, FOURCC('P','N','T','G'), FOURCC('M','P','N','T'), &id)) return false;
     VFSFile* f = VFS_OpenFile(vref, id, false);
     if (!f) return false;
     uint32_t written = 0;
@@ -423,7 +423,7 @@ static void NewDocument(void) {
 static void OpenDialog(void) {
     if (!ConfirmDiscard("opening another picture")) return;
     StandardFileReply reply;
-    OSType types[1] = { 'PNTG' };
+    OSType types[1] = { FOURCC('P','N','T','G') };
     StandardGetFile(NULL, 1, types, &reply);
     if (!reply.sfGood || reply.sfFile.name[0] == 0) return;
 

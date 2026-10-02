@@ -13,8 +13,8 @@
 
 /* Resource types */
 #define FOUR_CHAR_CODE(x) ((UInt32)(x))
-#define kICN_Type  FOUR_CHAR_CODE('ICN#')
-#define kCicn_Type FOUR_CHAR_CODE('cicn')
+#define kICN_Type  FOUR_CHAR_CODE(FOURCC('I', 'C', 'N', '#'))
+#define kCicn_Type FOUR_CHAR_CODE(FOURCC('c', 'i', 'c', 'n'))
 
 /* Static buffers for icon data (persistent across calls) */
 static uint8_t gIconBitmap[128];
@@ -85,31 +85,31 @@ bool IconRes_MapTypeCreatorToIcon(uint32_t type, uint32_t creator, int16_t* outR
     /* Simple hardcoded mappings for now */
 
     /* Finder application */
-    if (creator == 'MACS' || type == 'FNDR') {
+    if (creator == FOURCC('M','A','C','S') || type == FOURCC('F','N','D','R')) {
         *outRsrcID = 999; /* Finder application icon (custom icon from finder.png) */
         return true;
     }
 
     /* Application */
-    if (type == 'APPL') {
+    if (type == FOURCC('A','P','P','L')) {
         *outRsrcID = 128;  /* Generic app icon */
         return true;
     }
 
     /* TeachText document */
-    if (type == 'TEXT' && creator == 'ttxt') {
+    if (type == FOURCC('T','E','X','T') && creator == FOURCC('t','t','x','t')) {
         *outRsrcID = 129;  /* TeachText document */
         return true;
     }
 
     /* SimpleText document */
-    if (type == 'TEXT' && creator == 'stxt') {
+    if (type == FOURCC('T','E','X','T') && creator == FOURCC('s','t','x','t')) {
         *outRsrcID = 130;
         return true;
     }
 
     /* Generic text file */
-    if (type == 'TEXT') {
+    if (type == FOURCC('T','E','X','T')) {
         *outRsrcID = 131;
         return true;
     }

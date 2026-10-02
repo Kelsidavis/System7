@@ -33,34 +33,34 @@ extern "C" {
 
 /* Scrap file constants */
 #define SCRAP_FILE_NAME          "Clipboard File"
-#define SCRAP_FILE_TYPE          'CLIP'
-#define SCRAP_FILE_CREATOR       'MACS'
+#define SCRAP_FILE_TYPE          FOURCC('C', 'L', 'I', 'P')
+#define SCRAP_FILE_CREATOR       FOURCC('M', 'A', 'C', 'S')
 #define SCRAP_TEMP_PREFIX        "ScrapTemp"
 
 /* Common scrap data types (ResType format) */
-#define SCRAP_TYPE_TEXT          'TEXT'        /* Plain text */
-#define SCRAP_TYPE_PICT          'PICT'        /* QuickDraw picture */
-#define SCRAP_TYPE_SOUND         'snd '        /* Sound resource */
-#define SCRAP_TYPE_STYLE         'styl'        /* TextEdit style info */
-#define SCRAP_TYPE_STRING        'STR '        /* Pascal string */
-#define SCRAP_TYPE_STRINGLIST    'STR#'        /* String list */
-#define SCRAP_TYPE_ICON          'ICON'        /* Icon */
-#define SCRAP_TYPE_CICN          'cicn'        /* Color icon */
-#define SCRAP_TYPE_MOVIE         'moov'        /* QuickTime movie */
-#define SCRAP_TYPE_FILE          'hfs '        /* File reference */
-#define SCRAP_TYPE_FOLDER        'fdrp'        /* Folder reference */
-#define SCRAP_TYPE_URL           'url '        /* URL string */
+#define SCRAP_TYPE_TEXT          FOURCC('T', 'E', 'X', 'T') /* Plain text */
+#define SCRAP_TYPE_PICT          FOURCC('P', 'I', 'C', 'T') /* QuickDraw picture */
+#define SCRAP_TYPE_SOUND         FOURCC('s', 'n', 'd', ' ') /* Sound resource */
+#define SCRAP_TYPE_STYLE         FOURCC('s', 't', 'y', 'l') /* TextEdit style info */
+#define SCRAP_TYPE_STRING        FOURCC('S', 'T', 'R', ' ') /* Pascal string */
+#define SCRAP_TYPE_STRINGLIST    FOURCC('S', 'T', 'R', '#') /* String list */
+#define SCRAP_TYPE_ICON          FOURCC('I', 'C', 'O', 'N') /* Icon */
+#define SCRAP_TYPE_CICN          FOURCC('c', 'i', 'c', 'n') /* Color icon */
+#define SCRAP_TYPE_MOVIE         FOURCC('m', 'o', 'o', 'v') /* QuickTime movie */
+#define SCRAP_TYPE_FILE          FOURCC('h', 'f', 's', ' ') /* File reference */
+#define SCRAP_TYPE_FOLDER        FOURCC('f', 'd', 'r', 'p') /* Folder reference */
+#define SCRAP_TYPE_URL           FOURCC('u', 'r', 'l', ' ') /* URL string */
 
 /* Modern clipboard format mappings */
-#define SCRAP_TYPE_UTF8          'utf8'        /* UTF-8 text */
-#define SCRAP_TYPE_RTF           'RTF '        /* Rich Text Format */
-#define SCRAP_TYPE_HTML          'HTML'        /* HTML markup */
+#define SCRAP_TYPE_UTF8          FOURCC('u', 't', 'f', '8') /* UTF-8 text */
+#define SCRAP_TYPE_RTF           FOURCC('R', 'T', 'F', ' ') /* Rich Text Format */
+#define SCRAP_TYPE_HTML          FOURCC('H', 'T', 'M', 'L') /* HTML markup */
 
 #include "SystemTypes.h"
-#define SCRAP_TYPE_PDF           'PDF '        /* PDF data */
-#define SCRAP_TYPE_PNG           'PNG '        /* PNG image */
-#define SCRAP_TYPE_JPEG          'JPEG'        /* JPEG image */
-#define SCRAP_TYPE_TIFF          'TIFF'        /* TIFF image */
+#define SCRAP_TYPE_PDF           FOURCC('P', 'D', 'F', ' ') /* PDF data */
+#define SCRAP_TYPE_PNG           FOURCC('P', 'N', 'G', ' ') /* PNG image */
+#define SCRAP_TYPE_JPEG          FOURCC('J', 'P', 'E', 'G') /* JPEG image */
+#define SCRAP_TYPE_TIFF          FOURCC('T', 'I', 'F', 'F') /* TIFF image */
 
 /* Error codes */
 
@@ -104,8 +104,8 @@ void   Scrap_Unload(void);
 ProcessID Scrap_GetOwner(void);
 
 /* Standard scrap types for MVP */
-#define kScrapTypeTEXT 'TEXT'
-#define kScrapTypePICT 'PICT'
+#define kScrapTypeTEXT FOURCC('T', 'E', 'X', 'T')
+#define kScrapTypePICT FOURCC('P', 'I', 'C', 'T')
 
 /* Classic Mac OS Scrap Manager API */
 void ZeroScrap(void);

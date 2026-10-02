@@ -413,7 +413,7 @@ static FontStrike* FM_LoadFontStrike(short fontNum, short size, Style face) {
     FM_LOG("FM_LoadFontStrike: Loading font %d size %d face 0x%02X\n", fontNum, size, face);
 
     /* Try to load FOND resource (family descriptor) */
-    Handle fondHandle = GetResource('FOND', fontNum);
+    Handle fondHandle = GetResource(FOURCC('F','O','N','D'), fontNum);
     if (!fondHandle) {
         FM_LOG("FM_LoadFontStrike: FOND %d not found\n", fontNum);
         return NULL;
@@ -440,7 +440,7 @@ static FontStrike* FM_LoadFontStrike(short fontNum, short size, Style face) {
     FM_LOG("FM_LoadFontStrike: Found NFNT ID %d\n", nfntID);
 
     /* Load NFNT resource */
-    Handle nfntHandle = GetResource('NFNT', nfntID);
+    Handle nfntHandle = GetResource(FOURCC('N','F','N','T'), nfntID);
     if (!nfntHandle) {
         FM_LOG("FM_LoadFontStrike: NFNT %d not found\n", nfntID);
         FM_DisposeFOND(fond);

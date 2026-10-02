@@ -18,8 +18,8 @@
 extern "C" {
 #endif
 
-#define kPatternResourceType  'PAT '
-#define kPixPatternResourceType 'ppat'
+#define kPatternResourceType  FOURCC('P', 'A', 'T', ' ')
+#define kPixPatternResourceType FOURCC('p', 'p', 'a', 't')
 
 /* Load an 8×8 1‑bit classic Pattern (8 bytes), mapped into QuickDraw Pattern */
 bool LoadPATResource(int16_t id, Pattern *outPat);

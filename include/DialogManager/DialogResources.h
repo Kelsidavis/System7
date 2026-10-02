@@ -16,9 +16,9 @@
 extern "C" {
 #endif
 
-#define kDialogResourceType     'DLOG'  /* Dialog template resource */
-#define kDialogItemResourceType 'DITL'  /* Dialog item list resource */
-#define kAlertResourceType      'ALRT'  /* Alert template resource */
+#define kDialogResourceType     FOURCC('D', 'L', 'O', 'G') /* Dialog template resource */
+#define kDialogItemResourceType FOURCC('D', 'I', 'T', 'L') /* Dialog item list resource */
+#define kAlertResourceType      FOURCC('A', 'L', 'R', 'T') /* Alert template resource */
 
 /* Load a 'DLOG' into a new template the caller disposes. */
 OSErr LoadDialogTemplate(SInt16 dialogID, DialogTemplate** template);

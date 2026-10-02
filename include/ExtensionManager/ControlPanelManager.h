@@ -22,7 +22,7 @@ extern "C" {
 #define MAX_CDEV_NAME               64      /* Max control panel name */
 
 /* Control Panel resource type */
-#define CDEV_TYPE                   'CDEV'  /* Control device resource */
+#define CDEV_TYPE                   FOURCC('C', 'D', 'E', 'V') /* Control device resource */
 
 /* Control Panel item types */
 #define CDEV_ITEM_SLIDER            1

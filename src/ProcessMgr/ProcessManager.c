@@ -102,8 +102,8 @@ OSErr ProcessManager_Initialize(void)
 
     /* Create system process entry */
     gProcessTable[0].processID = gSystemProcessPSN;
-    gProcessTable[0].processSignature = 'MACS';
-    gProcessTable[0].processType = 'INIT';
+    gProcessTable[0].processSignature = FOURCC('M','A','C','S');
+    gProcessTable[0].processType = FOURCC('I','N','I','T');
     gProcessTable[0].processState = kProcessRunning;
     gProcessTable[0].processMode = kProcessModeCooperative;
     gCurrentProcess = &gProcessTable[0];
@@ -141,8 +141,8 @@ OSErr Process_Create(const void* appSpec, Size memorySize, LaunchFlags flags)
     /* Initialize process control block */
     newProcess->processID.highLongOfPSN = 0;
     newProcess->processID.lowLongOfPSN = gNextProcessID++;
-    newProcess->processSignature = 'APPL'; /* Default application signature */
-    newProcess->processType = 'APPL';
+    newProcess->processSignature = FOURCC('A','P','P','L'); /* Default application signature */
+    newProcess->processType = FOURCC('A','P','P','L');
     newProcess->processState = kProcessSuspended;
     newProcess->processMode = kProcessModeCooperative | kProcessModeCanBackground;
 

@@ -297,7 +297,7 @@ void CustomPutFile(ConstStr255Param prompt,
                             /* New file */
                             reply->sfGood = true;
                             reply->sfReplacing = false;
-                            reply->sfType = 'TEXT';  /* Default type */
+                            reply->sfType = FOURCC('T','E','X','T');  /* Default type */
                             done = true;
                         }
                     }
@@ -646,7 +646,7 @@ static void SF_PopulateFileList(void) {
             gSFState.numFiles++;
 
             /* Add to dialog list */
-            OSType fileType = (cpb.u.hFileInfo.ioFlAttrib & 0x10) ? 'fold' : cpb.u.hFileInfo.ioFlFndrInfo.fdType;
+            OSType fileType = (cpb.u.hFileInfo.ioFlAttrib & 0x10) ? FOURCC('f','o','l','d') : cpb.u.hFileInfo.ioFlFndrInfo.fdType;
             StandardFile_HAL_AddFileToList(gSFState.dialog, &tempSpec, fileType);
         }
 

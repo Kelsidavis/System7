@@ -28,16 +28,16 @@ extern "C" {
 #define MAX_EXTENSIONS              64      /* Maximum concurrent extensions */
 #define MAX_EXTENSION_NAME          64      /* Max extension name length */
 #define MAX_INIT_PRIORITY           1000    /* Max INIT priority level */
-#define EXTENSION_SIGNATURE         'extx'  /* Extension registry signature */
+#define EXTENSION_SIGNATURE         FOURCC('e', 'x', 't', 'x') /* Extension registry signature */
 
 /* Resource types for extensions */
-#define INIT_TYPE                   'INIT'  /* System extension */
-#define CDEF_TYPE                   'CDEF'  /* Control definition */
-#define DRVR_TYPE                   'DRVR'  /* Device driver */
-#define FKEY_TYPE                   'FKEY'  /* Function key resource */
-#define WDEF_TYPE                   'WDEF'  /* Window definition */
-#define LDEF_TYPE                   'LDEF'  /* List definition */
-#define MDEF_TYPE                   'MDEF'  /* Menu definition */
+#define INIT_TYPE                   FOURCC('I', 'N', 'I', 'T') /* System extension */
+#define CDEF_TYPE                   FOURCC('C', 'D', 'E', 'F') /* Control definition */
+#define DRVR_TYPE                   FOURCC('D', 'R', 'V', 'R') /* Device driver */
+#define FKEY_TYPE                   FOURCC('F', 'K', 'E', 'Y') /* Function key resource */
+#define WDEF_TYPE                   FOURCC('W', 'D', 'E', 'F') /* Window definition */
+#define LDEF_TYPE                   FOURCC('L', 'D', 'E', 'F') /* List definition */
+#define MDEF_TYPE                   FOURCC('M', 'D', 'E', 'F') /* Menu definition */
 
 /* ========================================================================
  * EXTENSION STATES

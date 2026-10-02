@@ -44,6 +44,13 @@ typedef FourCharCode OSType;
 typedef UInt32   ResType;  /* 4-character resource type like 'PAT ' or 'ppat' */
 typedef SInt16   ResID;
 
+/* Build a portable big-endian FourCC without implementation-defined literals. */
+#ifndef FOURCC
+#define FOURCC(a,b,c,d) \
+    ((FourCharCode)(((UInt32)(UInt8)(a) << 24) | ((UInt32)(UInt8)(b) << 16) | \
+                    ((UInt32)(UInt8)(c) << 8) | (UInt32)(UInt8)(d)))
+#endif
+
 #define true  1
 #define false 0
 #define nil   NULL

@@ -654,16 +654,16 @@ OSErr FindFolder(SInt16 vRefNum, OSType folderType, Boolean createFolder,
     const char* name = NULL;
 
     switch (folderType) {
-        case 'macs': name = "System Folder"; break;
-        case 'trsh': name = "Trash"; break;
-        case 'desk': name = NULL; break;              /* Desktop is the root */
-        case 'temp': name = "Temporary Items"; break;
-        case 'pref': name = "Preferences";        inSystemFolder = "System Folder"; break;
-        case 'extn': name = "Extensions";         inSystemFolder = "System Folder"; break;
-        case 'ctrl': name = "Control Panels";     inSystemFolder = "System Folder"; break;
-        case 'font': name = "Fonts";              inSystemFolder = "System Folder"; break;
-        case 'strt': name = "Startup Items";      inSystemFolder = "System Folder"; break;
-        case 'amnu': name = "Apple Menu Items";   inSystemFolder = "System Folder"; break;
+        case FOURCC('m','a','c','s'): name = "System Folder"; break;
+        case FOURCC('t','r','s','h'): name = "Trash"; break;
+        case FOURCC('d','e','s','k'): name = NULL; break;              /* Desktop is the root */
+        case FOURCC('t','e','m','p'): name = "Temporary Items"; break;
+        case FOURCC('p','r','e','f'): name = "Preferences";        inSystemFolder = "System Folder"; break;
+        case FOURCC('e','x','t','n'): name = "Extensions";         inSystemFolder = "System Folder"; break;
+        case FOURCC('c','t','r','l'): name = "Control Panels";     inSystemFolder = "System Folder"; break;
+        case FOURCC('f','o','n','t'): name = "Fonts";              inSystemFolder = "System Folder"; break;
+        case FOURCC('s','t','r','t'): name = "Startup Items";      inSystemFolder = "System Folder"; break;
+        case FOURCC('a','m','n','u'): name = "Apple Menu Items";   inSystemFolder = "System Folder"; break;
         default:     name = NULL; break;              /* Unknown: the root */
     }
 

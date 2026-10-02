@@ -832,5 +832,5 @@ void DrawPicture(PicHandle myPicture, const Rect* dstRect) {
  * Imaging With QuickDraw, 7-30) */
 PicHandle GetPicture(SInt16 picID) {
     extern Handle GetResource(ResType theType, SInt16 theID);
-    return (PicHandle)GetResource('PICT', picID);
+    return (PicHandle)GetResource(FOURCC('P','I','C','T'), picID);
 }

@@ -872,7 +872,7 @@ void InsertFontResMenu(MenuHandle theMenu, short afterItem, short scriptFilter) 
     if (!theMenu) return;
 
     /* Count available FONT resources */
-    fontCount = CountResources('FONT');
+    fontCount = CountResources(FOURCC('F','O','N','T'));
     if (fontCount <= 0) return;
 
     /* Initialize insertion index */
@@ -881,7 +881,7 @@ void InsertFontResMenu(MenuHandle theMenu, short afterItem, short scriptFilter) 
     /* Iterate through each FONT resource */
     for (i = 1; i <= fontCount; i++) {
         /* Get the font resource by index */
-        fontHandle = GetIndResource('FONT', i);
+        fontHandle = GetIndResource(FOURCC('F','O','N','T'), i);
         if (!fontHandle) continue;
 
         /* Get resource information including name */

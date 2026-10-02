@@ -818,7 +818,7 @@ static void init_system71(void) {
         Handle h;
 
         /* Try to load a PAT resource */
-        h = GetResource('PAT ', 1);
+        h = GetResource(FOURCC('P','A','T',' '), 1);
         err = ResError();
         if (h && err == noErr) {
             serial_puts("[ResourceMgr] PAT 1 loaded successfully\n");
@@ -828,7 +828,7 @@ static void init_system71(void) {
         }
 
         /* Try to load a ppat resource */
-        h = GetResource('ppat', 100);
+        h = GetResource(FOURCC('p','p','a','t'), 100);
         err = ResError();
         if (h && err == noErr) {
             serial_puts("[ResourceMgr] ppat 100 loaded successfully\n");
@@ -838,7 +838,7 @@ static void init_system71(void) {
         }
 
         /* Try non-existent resource to test error handling */
-        h = GetResource('MENU', 256);
+        h = GetResource(FOURCC('M','E','N','U'), 256);
         err = ResError();
         if (err == resNotFound) {
             serial_puts("[ResourceMgr] MENU 256 correctly returned resNotFound\n");
@@ -1193,7 +1193,7 @@ static void bench_getresource(void) {
     /* Cold misses - first access */
     cold_start = rdtsc_now();
     for (int i = 0; i < N; i++) {
-        Handle h = GetResource('PAT ', 1 + (i % 10));
+        Handle h = GetResource(FOURCC('P','A','T',' '), 1 + (i % 10));
         if (h) ReleaseResource(h);
     }
     cold_end = rdtsc_now();
@@ -1201,7 +1201,7 @@ static void bench_getresource(void) {
     /* Warm hits - cached access */
     warm_start = rdtsc_now();
     for (int i = 0; i < N; i++) {
-        Handle h = GetResource('PAT ', 1 + (i % 10));
+        Handle h = GetResource(FOURCC('P','A','T',' '), 1 + (i % 10));
         if (h) ReleaseResource(h);
     }
     warm_end = rdtsc_now();

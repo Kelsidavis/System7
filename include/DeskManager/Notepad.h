@@ -24,9 +24,9 @@
 
 /* Constants */
 #define NOTEPAD_MAX_PAGES       8
-#define NOTEPAD_FILE_TYPE       'TEXT'
-#define NOTEPAD_CREATOR         'npad'
-#define NOTEPAD_SIGNATURE       'NPAD'
+#define NOTEPAD_FILE_TYPE       FOURCC('T', 'E', 'X', 'T')
+#define NOTEPAD_CREATOR         FOURCC('n', 'p', 'a', 'd')
+#define NOTEPAD_SIGNATURE       FOURCC('N', 'P', 'A', 'D')
 #define NOTEPAD_FILE_NAME       "Note Pad File"
 
 /* Menu Item IDs */

@@ -63,7 +63,7 @@ Boolean Finder_CreateAliasFile(VRefNum vref, DirID parentDir,
     if (!aliasName || !target) return false;
 
     FileID aliasID = 0;
-    if (!VFS_CreateFile(vref, parentDir, aliasName, 'alis', 'MACS', &aliasID)) {
+    if (!VFS_CreateFile(vref, parentDir, aliasName, FOURCC('a','l','i','s'), FOURCC('M','A','C','S'), &aliasID)) {
         FINDER_LOG_DEBUG("Alias: could not create '%s'\n", aliasName);
         return false;
     }
@@ -100,7 +100,7 @@ Boolean Finder_CreateAliasFile(VRefNum vref, DirID parentDir,
      * label bits the catalog already holds. */
     CatEntry created;
     if (VFS_GetByID(vref, aliasID, &created)) {
-        VFS_SetCatEntryInfo(vref, aliasID, 'alis', 'MACS',
+        VFS_SetCatEntryInfo(vref, aliasID, FOURCC('a','l','i','s'), FOURCC('M','A','C','S'),
                             (uint16_t)(created.flags | kFinderIsAliasFlag));
     }
 
@@ -159,5 +159,5 @@ Boolean Finder_ResolveAlias(VRefNum vref, FileID aliasID, CatEntry* outTarget)
 Boolean Finder_IsAliasEntry(const CatEntry* entry)
 {
     if (!entry) return false;
-    return (entry->type == 'alis') || ((entry->flags & kFinderIsAliasFlag) != 0);
+    return (entry->type == FOURCC('a','l','i','s')) || ((entry->flags & kFinderIsAliasFlag) != 0);
 }

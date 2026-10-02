@@ -38,8 +38,8 @@ STDocument* STDoc_New(void) {
     memset(doc, 0, sizeof(STDocument));
     doc->dirty = false;
     doc->untitled = true;
-    doc->fileType = 'TEXT';
-    doc->fileCreator = 'ttxt';
+    doc->fileType = FOURCC('T','E','X','T');
+    doc->fileCreator = FOURCC('t','t','x','t');
 
     /* Build untitled name */
     if (g_untitledCount == 1) {
@@ -114,8 +114,8 @@ STDocument* STDoc_Open(const char* path) {
     memset(doc, 0, sizeof(STDocument));
     doc->dirty = false;
     doc->untitled = false;
-    doc->fileType = 'TEXT';
-    doc->fileCreator = 'ttxt';
+    doc->fileType = FOURCC('T','E','X','T');
+    doc->fileCreator = FOURCC('t','t','x','t');
 
     /* Safe path copy with bounds checking */
     if (strlen(path) >= sizeof(doc->filePath)) {

@@ -144,7 +144,7 @@ static OSErr LoadCODE0AndSetupA5(SegmentLoaderContext* ctx)
     }
 
     /* Load CODE 0 resource */
-    code0Handle = GetResource('CODE', 0);
+    code0Handle = GetResource(FOURCC('C','O','D','E'), 0);
     if (!code0Handle) {
         SEG_LOG_ERROR("CODE 0 resource not found");
         return segmentNotFound;
@@ -240,7 +240,7 @@ OSErr LoadSegment(SegmentLoaderContext* ctx, SInt16 segID)
     SEG_LOG_INFO("Loading CODE %d...", segID);
 
     /* Load CODE resource */
-    codeHandle = GetResource('CODE', segID);
+    codeHandle = GetResource(FOURCC('C','O','D','E'), segID);
     if (!codeHandle) {
         SEG_LOG_ERROR("CODE %d resource not found", segID);
         return segmentNotFound;

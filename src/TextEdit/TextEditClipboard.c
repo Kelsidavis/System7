@@ -52,8 +52,8 @@ extern void BlockMove(const void *src, void *dest, Size size);
 #endif
 
 /* Scrap types */
-#define kScrapFlavorTypeText    'TEXT'
-#define kScrapFlavorTypeStyle   'styl'
+#define kScrapFlavorTypeText    FOURCC('T', 'E', 'X', 'T')
+#define kScrapFlavorTypeStyle   FOURCC('s', 't', 'y', 'l')
 
 /* Global TextEdit scrap */
 static Handle g_TEScrap = NULL;

@@ -246,7 +246,7 @@ TRAP(Trap_InfoScrap) {
         SInt32 size = 0;
         Handle h = NewHandle(0);
         if (h) {
-            static const OSType kTypes[2] = { 'TEXT', 'PICT' };
+            static const OSType kTypes[2] = { FOURCC('T','E','X','T'), FOURCC('P','I','C','T') };
             for (int i = 0; i < 2; i++) {
                 long off = 0;
                 long n = GetScrap(h, kTypes[i], &off);

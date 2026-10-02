@@ -38,13 +38,13 @@
 #define kIsAlias                0x8000      /* Item is an alias */
 
 /* Alias Type Constants - Evidence: Finder.h interface definitions */
-#define kContainerFolderAliasType       'fdrp'      /* Type for folder aliases */
-#define kContainerTrashAliasType        'trsh'      /* Type for trash folder aliases */
-#define kContainerHardDiskAliasType     'hdsk'      /* Type for hard disk aliases */
-#define kContainerFloppyAliasType       'flpy'      /* Type for floppy aliases */
-#define kContainerServerAliasType       'srvr'      /* Type for server aliases */
-#define kApplicationAliasType           'adrp'      /* Type for application aliases */
-#define kSystemFolderAliasType          'fasy'      /* Type for System Folder aliases */
+#define kContainerFolderAliasType       FOURCC('f', 'd', 'r', 'p') /* Type for folder aliases */
+#define kContainerTrashAliasType        FOURCC('t', 'r', 's', 'h') /* Type for trash folder aliases */
+#define kContainerHardDiskAliasType     FOURCC('h', 'd', 's', 'k') /* Type for hard disk aliases */
+#define kContainerFloppyAliasType       FOURCC('f', 'l', 'p', 'y') /* Type for floppy aliases */
+#define kContainerServerAliasType       FOURCC('s', 'r', 'v', 'r') /* Type for server aliases */
+#define kApplicationAliasType           FOURCC('a', 'd', 'r', 'p') /* Type for application aliases */
+#define kSystemFolderAliasType          FOURCC('f', 'a', 's', 'y') /* Type for System Folder aliases */
 
 /* Resource ID Constants - Evidence: FinderPriv.h */
 #define kCustomIconResource             -16455      /* Custom icon family resource ID */
@@ -52,7 +52,7 @@
 
 /* FindFolder Constants */
 #define kOnSystemDisk                   -32768      /* System disk */
-#define kTrashFolderType                'trsh'      /* Trash folder type */
+#define kTrashFolderType                FOURCC('t', 'r', 's', 'h') /* Trash folder type */
 #define kDontCreateFolder               false       /* Don't create if missing */
 
 /* View Type Constants - Evidence: "Icon Views", "List Views" strings */

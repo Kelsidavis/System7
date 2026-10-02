@@ -110,7 +110,7 @@ TRAP(Trap_GetMenu) {
         Result32(have->h);
         return noErr;
     }
-    Handle res = GetResource('MENU', resID);
+    Handle res = GetResource(FOURCC('M','E','N','U'), resID);
     if (!res || GetHandleSize(res) < 15) {
         Result32(0);
         return noErr;
@@ -422,7 +422,7 @@ static UInt32 NewMenuList(const SInt16* ids, int n) {
 TRAP(Trap_GetNewMBar) {
     UNUSED;
     SInt16 id = (SInt16)Pop16();
-    Handle mbar = GetResource('MBAR', id);
+    Handle mbar = GetResource(FOURCC('M','B','A','R'), id);
     if (!mbar || GetHandleSize(mbar) < 2) {
         Result32(0);
         return noErr;

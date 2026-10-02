@@ -204,11 +204,11 @@ static void STIO_UpdateDocumentMetadata(STDocument* doc,
     }
 
     if (entry) {
-        doc->fileType = entry->type ? entry->type : 'TEXT';
-        doc->fileCreator = entry->creator ? entry->creator : 'ttxt';
+        doc->fileType = entry->type ? entry->type : FOURCC('T','E','X','T');
+        doc->fileCreator = entry->creator ? entry->creator : FOURCC('t','t','x','t');
     } else {
-        doc->fileType = 'TEXT';
-        doc->fileCreator = 'ttxt';
+        doc->fileType = FOURCC('T','E','X','T');
+        doc->fileCreator = FOURCC('t','t','x','t');
     }
 
     doc->lastSaveLen = textLen;
@@ -380,8 +380,8 @@ Boolean STIO_ReadFile(STDocument* doc, const char* path)
         doc->fileName[0] = 0;
         doc->filePath[0] = '\0';
         doc->lastSaveLen = 0;
-        doc->fileType = 'TEXT';
-        doc->fileCreator = 'ttxt';
+        doc->fileType = FOURCC('T','E','X','T');
+        doc->fileCreator = FOURCC('t','t','x','t');
         return true;
     }
 
@@ -584,10 +584,10 @@ Boolean STIO_WriteFile(STDocument* doc, const char* path)
                            &parentDir, leafName, sizeof(leafName),
                            &leafEntry, &entryExists)) {
             if (!entryExists && leafName[0] != '\0') {
-                if (VFS_CreateFile(vcb.vRefNum, parentDir, leafName, 'TEXT', 'ttxt', &leafEntry.id)) {
+                if (VFS_CreateFile(vcb.vRefNum, parentDir, leafName, FOURCC('T','E','X','T'), FOURCC('t','t','x','t'), &leafEntry.id)) {
                     leafEntry.kind = kNodeFile;
-                    leafEntry.type = 'TEXT';
-                    leafEntry.creator = 'ttxt';
+                    leafEntry.type = FOURCC('T','E','X','T');
+                    leafEntry.creator = FOURCC('t','t','x','t');
                     entryExists = true;
                 }
             }
@@ -618,7 +618,7 @@ Boolean STIO_WriteFile(STDocument* doc, const char* path)
         leafName[sizeof(leafName) - 1] = '\0';
     }
 
-    STIO_SetFileInfo(path, 'TEXT', 'ttxt');
+    STIO_SetFileInfo(path, FOURCC('T','E','X','T'), FOURCC('t','t','x','t'));
     STIO_UpdateDocumentMetadata(doc, path, leafName, entryExists ? &leafEntry : NULL, textLen);
     doc->dirty = false;
     return true;
@@ -692,7 +692,7 @@ Boolean STIO_OpenDialog(char* pathOut)
 
     /* Show the Standard File open dialog - accept TEXT files */
     StandardFileReply reply;
-    OSType typeList[1] = { 'TEXT' };
+    OSType typeList[1] = { FOURCC('T','E','X','T') };
     extern void StandardGetFile(void* fileFilter, short numTypes,
                                 const OSType* typeList, StandardFileReply* reply);
     StandardGetFile(NULL, 1, typeList, &reply);

@@ -246,7 +246,7 @@ void Finder_AdjustMenus(void) {
          * Passing no destination handle asks GetScrap for the size only. */
         {
             extern long GetScrap(Handle hDest, OSType theType, long* offset);
-            long fileListSize = GetScrap(NULL, 'fSSp', NULL);
+            long fileListSize = GetScrap(NULL, FOURCC('f','S','S','p'), NULL);
             Boolean canPaste = hasFolderWindow &&
                                fileListSize > (long)(sizeof(SInt16) + sizeof(UInt8));
             if (canPaste) {
@@ -261,7 +261,7 @@ void Finder_AdjustMenus(void) {
     MenuHandle fileMenu = GetMenuHandle(kFileMenuID);
     if (fileMenu) {
         /* New Folder: disabled in Trash window (can't create folders there) */
-        Boolean isTrashWindow = (front && front->refCon == 'TRSH');
+        Boolean isTrashWindow = (front && front->refCon == FOURCC('T','R','S','H'));
         if (isTrashWindow) {
             DisableItem(fileMenu, kNewFolderItem);
         } else {
@@ -1199,7 +1199,7 @@ void PutAwaySelectedItems(WindowPtr w) {
     if (!w || !IsFolderWindow(w)) return;
 
     /* Only works in Trash window */
-    if (w->refCon != 'TRSH') {
+    if (w->refCon != FOURCC('T','R','S','H')) {
         MENU_LOG_DEBUG("PutAwaySelectedItems: Not a trash window\n");
         return;
     }
@@ -1394,7 +1394,7 @@ void Finder_Cut(void) {
     memcpy((char*)data + sizeof(SInt16) + sizeof(UInt8), specs, sizeof(FSSpec) * count);
 
     /* Put to scrap with 'fSSp' type */
-    PutScrap(dataSize, 'fSSp', data);
+    PutScrap(dataSize, FOURCC('f','S','S','p'), data);
 
     MENU_LOG_DEBUG("Finder_Cut: Successfully cut %d items to clipboard\n", count);
 
@@ -1461,7 +1461,7 @@ void Finder_Copy(void) {
     memcpy((char*)data + sizeof(SInt16) + sizeof(UInt8), specs, sizeof(FSSpec) * count);
 
     /* Put to scrap with 'fSSp' type (file FSSpec) */
-    PutScrap(dataSize, 'fSSp', data);
+    PutScrap(dataSize, FOURCC('f','S','S','p'), data);
 
     MENU_LOG_DEBUG("Finder_Copy: Successfully copied %d items to clipboard\n", count);
 
@@ -1498,7 +1498,7 @@ void Finder_Paste(void) {
         return;
     }
 
-    long scrapSize = GetScrap(scrapHandle, 'fSSp', NULL);
+    long scrapSize = GetScrap(scrapHandle, FOURCC('f','S','S','p'), NULL);
     if (scrapSize <= (long)(sizeof(SInt16) + sizeof(UInt8))) {
         MENU_LOG_DEBUG("Finder_Paste: No files on clipboard (size=%ld)\n", scrapSize);
         DisposeHandle(scrapHandle);

@@ -675,13 +675,13 @@ bool VFS_PopulateSystemFolder(void) {
         CatEntry existing;
         FileID madeID = 0;
         if (!VFS_Lookup(vref, systemID, "System", &existing)) {
-            VFS_CreateFile(vref, systemID, "System", 'zsys', 'MACS', &madeID);
+            VFS_CreateFile(vref, systemID, "System", FOURCC('z','s','y','s'), FOURCC('M','A','C','S'), &madeID);
         }
         if (!VFS_Lookup(vref, systemID, "Finder", &existing)) {
-            VFS_CreateFile(vref, systemID, "Finder", 'FNDR', 'MACS', &madeID);
+            VFS_CreateFile(vref, systemID, "Finder", FOURCC('F','N','D','R'), FOURCC('M','A','C','S'), &madeID);
         }
         if (!VFS_Lookup(vref, systemID, "Scrapbook File", &existing)) {
-            VFS_CreateFile(vref, systemID, "Scrapbook File", 'scrp', 'MACS', &madeID);
+            VFS_CreateFile(vref, systemID, "Scrapbook File", FOURCC('s','c','r','p'), FOURCC('M','A','C','S'), &madeID);
         }
     }
 
@@ -700,7 +700,7 @@ bool VFS_PopulateSystemFolder(void) {
             FileID madeID = 0;
             if (!VFS_Lookup(vref, controlPanelsID, kControlPanels[i], &existing)) {
                 VFS_CreateFile(vref, controlPanelsID, kControlPanels[i],
-                               'cdev', 'MACS', &madeID);
+                               FOURCC('c','d','e','v'), FOURCC('M','A','C','S'), &madeID);
             }
         }
     }

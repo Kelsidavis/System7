@@ -30,7 +30,7 @@
 
 
 /* Alias Manager Constants */
-#define kAliasResourceType      'alis'
+#define kAliasResourceType      FOURCC('a', 'l', 'i', 's')
 #define kAliasResourceID        0
 #define kAliasMinimumSize       50          /* Minimum valid alias size */
 #define kAliasMaximumSize       32767       /* Maximum alias size */
@@ -189,7 +189,7 @@ OSErr CreateAlias(FSSpec *target, FSSpec *aliasFile)
     }
 
     /* Create the alias file */
-    err = FSpCreate(aliasFile, 'MACS', 'alis', smSystemScript);
+    err = FSpCreate(aliasFile, FOURCC('M','A','C','S'), FOURCC('a','l','i','s'), smSystemScript);
     if (err != noErr && err != dupFNErr) {
         DisposeHandle((Handle)aliasHandle);
         return err;
@@ -255,7 +255,7 @@ static OSErr ValidateAliasFile(FSSpec *aliasFile)
     }
 
     /* Check file type */
-    if (finderInfo.fdType != 'alis') {
+    if (finderInfo.fdType != FOURCC('a','l','i','s')) {
         return paramErr; /* Wrong file type */
     }
 
@@ -311,7 +311,7 @@ static OSErr CreateAliasResource(FSSpec *target, FSSpec *aliasFile)
     }
 
     /* Create resource file */
-    FSpCreateResFile(aliasFile, 'MACS', 'alis', smSystemScript);
+    FSpCreateResFile(aliasFile, FOURCC('M','A','C','S'), FOURCC('a','l','i','s'), smSystemScript);
     err = ResError();
     if (err != noErr) {
         DisposeHandle((Handle)aliasHandle);
@@ -400,7 +400,7 @@ static OSErr LoadAliasTypeTable(void)
     }
 
     /* Load alias type mapping table from resource */
-    gAliasTypeTable = GetResource('fmap', rAliasTypeMapTable);
+    gAliasTypeTable = GetResource(FOURCC('f','m','a','p'), rAliasTypeMapTable);
     if (gAliasTypeTable == nil) {
         return ResError();
     }

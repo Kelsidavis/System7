@@ -97,7 +97,7 @@ static void InstallTestResources(void)
     Handle h0 = MakeHandleFromBytes(code0, sizeof(code0));
     /* sizeof(code0) is 4-byte size_t: %u would pass it as an int. */
     SEG_LOG_INFO("InstallTestResources: CODE 0 handle=%p size=%lu", h0, (unsigned long)sizeof(code0));
-    AddResource(h0, 'CODE', 0, NULL);
+    AddResource(h0, FOURCC('C','O','D','E'), 0, NULL);
 
     /* --- CODE 1: Entry Segment --- */
     /* Layout:
@@ -134,7 +134,7 @@ static void InstallTestResources(void)
 
     Handle h1 = MakeHandleFromBytes(code1, sizeof(code1));
     SEG_LOG_INFO("InstallTestResources: CODE 1 handle=%p size=%lu", h1, (unsigned long)sizeof(code1));
-    AddResource(h1, 'CODE', 1, NULL);
+    AddResource(h1, FOURCC('C','O','D','E'), 1, NULL);
 
     /* --- CODE 2: Trace Segment --- */
     /* Layout:
@@ -172,7 +172,7 @@ static void InstallTestResources(void)
 
     Handle h2 = MakeHandleFromBytes(code2, sizeof(code2));
     SEG_LOG_INFO("InstallTestResources: CODE 2 handle=%p size=%lu", h2, (unsigned long)sizeof(code2));
-    AddResource(h2, 'CODE', 2, NULL);
+    AddResource(h2, FOURCC('C','O','D','E'), 2, NULL);
 
     /* Keep system resource file as current so GetResource() works */
     /* sysResFile is SInt16 (short): %d would pass a 4-byte int. */
@@ -405,7 +405,7 @@ void SegmentLoader_TestBoot(void)
     RunTestBoot();
     UseResFile(0);
     for (SInt16 id = 0; id <= 2; id++) {
-        Handle h = Get1Resource('CODE', id);
+        Handle h = Get1Resource(FOURCC('C','O','D','E'), id);
         if (h) {
             RemoveResource(h);
             DisposeHandle(h);
@@ -431,9 +431,9 @@ static void RunTestBoot(void)
     InstallTestResources();
 
     /* Verify test resources are accessible via Resource Manager */
-    Handle h0 = GetResource('CODE', 0);
-    Handle h1 = GetResource('CODE', 1);
-    Handle h2 = GetResource('CODE', 2);
+    Handle h0 = GetResource(FOURCC('C','O','D','E'), 0);
+    Handle h1 = GetResource(FOURCC('C','O','D','E'), 1);
+    Handle h2 = GetResource(FOURCC('C','O','D','E'), 2);
 
     if (!h0 || !h1 || !h2) {
         SEG_TEST_FAILED("Test resources not accessible via RM (h0=");
@@ -446,8 +446,8 @@ static void RunTestBoot(void)
     /* Create minimal PCB for test */
     memset(&testPCB, 0, sizeof(testPCB));
     testPCB.processID.lowLongOfPSN = 9999;  // Test PSN
-    testPCB.processSignature = 'TEST';
-    testPCB.processType = 'APPL';
+    testPCB.processSignature = FOURCC('T','E','S','T');
+    testPCB.processType = FOURCC('A','P','P','L');
     testPCB.processState = kProcessRunning;
 
     /* Initialize segment loader */

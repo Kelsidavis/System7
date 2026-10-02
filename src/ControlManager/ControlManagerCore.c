@@ -230,7 +230,7 @@ ControlHandle GetNewControl(SInt16 controlID, WindowPtr owner) {
     }
 
     /* Load CNTL resource */
-    cntlRes = GetResource('CNTL', controlID);
+    cntlRes = GetResource(FOURCC('C','N','T','L'), controlID);
     if (cntlRes) {
         control = LoadControlFromResource(cntlRes, owner);
         ReleaseResource(cntlRes);

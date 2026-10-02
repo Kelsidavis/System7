@@ -48,8 +48,8 @@ enum {
 
 /* Resource Type Constants */
 enum {
-    kFONTResourceType = 'FONT',
-    kNFNTResourceType = 'NFNT'
+    kFONTResourceType = FOURCC('F','O','N','T'),
+    kNFNTResourceType = FOURCC('N','F','N','T')
 };
 
 /* Font Error Codes */

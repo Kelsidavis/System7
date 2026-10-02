@@ -129,7 +129,7 @@ void STClip_Paste(STDocument* doc)
      * disabled it never reached this function at all - MenuKey does not
      * report a dimmed item.
      */
-    scrapLen = GetScrap(NULL, 'TEXT', &scrapOffset);
+    scrapLen = GetScrap(NULL, FOURCC('T','E','X','T'), &scrapOffset);
     if (scrapLen <= 0) {
         ST_Log("No text in clipboard");
         return;
@@ -204,7 +204,7 @@ Boolean STClip_HasText(void)
     long scrapOffset = 0;
 
     /* The byte count comes back as the return value; see STClip_Paste. */
-    return (GetScrap(NULL, 'TEXT', &scrapOffset) > 0);
+    return (GetScrap(NULL, FOURCC('T','E','X','T'), &scrapOffset) > 0);
 }
 
 /* Undo last operation (single-level) */

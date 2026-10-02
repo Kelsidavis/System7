@@ -62,9 +62,9 @@ static uint32_t gDecoded[64];
 static void BuildCollection(void) {
     gPatternCount = 0;
 
-    SInt16 colours = CountResources('ppat');
+    SInt16 colours = CountResources(FOURCC('p','p','a','t'));
     for (SInt16 i = 1; i <= colours && gPatternCount < kMaxPatterns; i++) {
-        Handle h = GetIndResource('ppat', i);
+        Handle h = GetIndResource(FOURCC('p','p','a','t'), i);
         if (!h) continue;
         ResID id;
         ResType type;

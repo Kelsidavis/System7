@@ -39,7 +39,7 @@ void AddResMenu(MenuHandle theMenu, ResType theType) {
     /* Desk accessories: the ones the Desk Manager has, by name. They are
      * built in rather than DRVR resources, so a program's Apple menu - built
      * with AddResMenu(appleMenu, 'DRVR') like every program's - had none. */
-    if (theType == 'DRVR') {
+    if (theType == FOURCC('D','R','V','R')) {
         DARegistryEntry* entries[32];
         int n = DA_GetRegisteredDAs(entries, 32);
         for (int a = 1; a < n; a++) {

@@ -317,7 +317,7 @@ void FolderWindow_ContentsChanged(WindowPtr w) {
     }
 
     FileID priorAnchor = state->anchorID;
-    Boolean isTrash = (w->refCon == 'TRSH');
+    Boolean isTrash = (w->refCon == FOURCC('T','R','S','H'));
 
     InitializeFolderContentsEx(w, isTrash, state->vref, state->currentDir);
 
@@ -441,7 +441,7 @@ FolderWindowState* GetFolderState(WindowPtr w) {
 
             /* Initialize folder contents */
             FINDER_LOG_DEBUG("GetFolderState: About to call InitializeFolderContents\n");
-            InitializeFolderContents(w, (w->refCon == 'TRSH'));
+            InitializeFolderContents(w, (w->refCon == FOURCC('T','R','S','H')));
             FINDER_LOG_DEBUG("GetFolderState: InitializeFolderContents returned\n");
             return &gFolderWindows[i].state;
         }
@@ -464,7 +464,7 @@ static DirID FW_ControlPanelsDir(void)
     SInt16 vref = 0;
     SInt32 dir = 0;
 
-    if (FindFolder(kOnSystemDisk, 'ctrl', false, &vref, &dir) == noErr && dir != 2) {
+    if (FindFolder(kOnSystemDisk, FOURCC('c','t','r','l'), false, &vref, &dir) == noErr && dir != 2) {
         return (DirID)dir;
     }
     return (DirID)0;
@@ -606,8 +606,8 @@ static void InitializeFolderContentsEx(WindowPtr w, Boolean isTrash, VRefNum vre
         simpleText->isFolder = false;
         simpleText->fileID = 200;  /* Virtual ID */
         simpleText->parentID = dirID;
-        simpleText->type = 'APPL';
-        simpleText->creator = 'ttxt';
+        simpleText->type = FOURCC('A','P','P','L');
+        simpleText->creator = FOURCC('t','t','x','t');
 
         /* TextEdit */
         FolderItem *textEdit = &state->items[1];
@@ -616,8 +616,8 @@ static void InitializeFolderContentsEx(WindowPtr w, Boolean isTrash, VRefNum vre
         textEdit->isFolder = false;
         textEdit->fileID = 201;  /* Virtual ID */
         textEdit->parentID = dirID;
-        textEdit->type = 'APPL';
-        textEdit->creator = 'tedt';
+        textEdit->type = FOURCC('A','P','P','L');
+        textEdit->creator = FOURCC('t','e','d','t');
 
         /* MacPaint */
         FolderItem *macPaint = &state->items[2];
@@ -626,8 +626,8 @@ static void InitializeFolderContentsEx(WindowPtr w, Boolean isTrash, VRefNum vre
         macPaint->isFolder = false;
         macPaint->fileID = 202;  /* Virtual ID */
         macPaint->parentID = dirID;
-        macPaint->type = 'APPL';
-        macPaint->creator = 'MAPP';
+        macPaint->type = FOURCC('A','P','P','L');
+        macPaint->creator = FOURCC('M','A','P','P');
 
         /* Lay the icons out on the shared grid. */
         for (int i = 0; i < state->itemCount; i++) {
@@ -667,8 +667,8 @@ static void InitializeFolderContentsEx(WindowPtr w, Boolean isTrash, VRefNum vre
         desktop->isFolder = false;
         desktop->fileID = kControlPanelDesktopID;
         desktop->parentID = dirID;
-        desktop->type = 'APPL';
-        desktop->creator = 'cdev';
+        desktop->type = FOURCC('A','P','P','L');
+        desktop->creator = FOURCC('c','d','e','v');
 
         /* Date & Time */
         FolderItem *dateTime = &state->items[1];
@@ -677,8 +677,8 @@ static void InitializeFolderContentsEx(WindowPtr w, Boolean isTrash, VRefNum vre
         dateTime->isFolder = false;
         dateTime->fileID = kControlPanelTimeID;
         dateTime->parentID = dirID;
-        dateTime->type = 'APPL';
-        dateTime->creator = 'cdev';
+        dateTime->type = FOURCC('A','P','P','L');
+        dateTime->creator = FOURCC('c','d','e','v');
 
         /* Sound */
         FolderItem *sound = &state->items[2];
@@ -687,8 +687,8 @@ static void InitializeFolderContentsEx(WindowPtr w, Boolean isTrash, VRefNum vre
         sound->isFolder = false;
         sound->fileID = kControlPanelSoundID;
         sound->parentID = dirID;
-        sound->type = 'APPL';
-        sound->creator = 'cdev';
+        sound->type = FOURCC('A','P','P','L');
+        sound->creator = FOURCC('c','d','e','v');
 
         /* Mouse */
         FolderItem *mouse = &state->items[3];
@@ -697,8 +697,8 @@ static void InitializeFolderContentsEx(WindowPtr w, Boolean isTrash, VRefNum vre
         mouse->isFolder = false;
         mouse->fileID = kControlPanelMouseID;
         mouse->parentID = dirID;
-        mouse->type = 'APPL';
-        mouse->creator = 'cdev';
+        mouse->type = FOURCC('A','P','P','L');
+        mouse->creator = FOURCC('c','d','e','v');
 
         /* Keyboard */
         FolderItem *keyboard = &state->items[4];
@@ -707,8 +707,8 @@ static void InitializeFolderContentsEx(WindowPtr w, Boolean isTrash, VRefNum vre
         keyboard->isFolder = false;
         keyboard->fileID = kControlPanelKeyboardID;
         keyboard->parentID = dirID;
-        keyboard->type = 'APPL';
-        keyboard->creator = 'cdev';
+        keyboard->type = FOURCC('A','P','P','L');
+        keyboard->creator = FOURCC('c','d','e','v');
 
         FolderItem *strip = &state->items[5];
         memset(strip, 0, sizeof(FolderItem));
@@ -716,8 +716,8 @@ static void InitializeFolderContentsEx(WindowPtr w, Boolean isTrash, VRefNum vre
         strip->isFolder = false;
         strip->fileID = kControlStripID;
         strip->parentID = dirID;
-        strip->type = 'APPL';
-        strip->creator = 'cdev';
+        strip->type = FOURCC('A','P','P','L');
+        strip->creator = FOURCC('c','d','e','v');
 
         /* Lay the icons out on the shared grid. */
         for (int i = 0; i < state->itemCount; i++) {
@@ -845,7 +845,7 @@ WindowPtr FolderWindow_OpenFolder(VRefNum vref, DirID dirID, ConstStr255Param ti
         sCascadeOffset = 0;
     }
 
-    WindowPtr w = NewWindow(NULL, &r, title, true, zoomDocProc, (WindowPtr)-1, true, 'DISK');   /* Finder windows zoom */
+    WindowPtr w = NewWindow(NULL, &r, title, true, zoomDocProc, (WindowPtr)-1, true, FOURCC('D','I','S','K'));   /* Finder windows zoom */
 
     if (!w) {
         FINDER_LOG_DEBUG("FolderWindow_OpenFolder: Failed to create window\n");
@@ -1941,7 +1941,7 @@ void FolderWindow_Draw(WindowPtr w) {
     GhostEraseIf();
 
     FolderWindowState* state = GetFolderState(w);
-    Boolean isTrash = (w->refCon == 'TRSH');
+    Boolean isTrash = (w->refCon == FOURCC('T','R','S','H'));
 
     GrafPtr savePort;
     GetPort(&savePort);
@@ -2625,7 +2625,7 @@ void FolderWindow_DeleteSelected(WindowPtr w) {
     extern bool VFS_Delete(VRefNum vref, FileID id);
 
     /* Check if this window IS the trash - if so, permanently delete */
-    Boolean isTrashWindow = (w->refCon == 'TRSH');
+    Boolean isTrashWindow = (w->refCon == FOURCC('T','R','S','H'));
 
     FINDER_LOG_DEBUG("FolderWindow_DeleteSelected: itemCount=%d isTrash=%d\n",
                      state->itemCount, isTrashWindow);
@@ -2716,7 +2716,7 @@ static void FolderWindow_OpenFileNamed(FolderWindowState* state,
     const char* name = itemName;
 
     /* Check file type */
-    if (itemType == 'TEXT') {
+    if (itemType == FOURCC('T','E','X','T')) {
         isTextFile = true;
     }
 
@@ -2766,11 +2766,11 @@ static void FolderWindow_OpenFileNamed(FolderWindowState* state,
         /* Load file content into SimpleText window */
         SimpleText_OpenFile(fullPath);
         FINDER_LOG_DEBUG("FW: Opened file '%s' in SimpleText\n", name);
-    } else if (itemType == 'PNTG') {
+    } else if (itemType == FOURCC('P','N','T','G')) {
         /* A painting: MacPaint opens it from where it is */
         extern void MacPaint_OpenDocument(VRefNum vref, DirID dir, const char* name);
         MacPaint_OpenDocument(state->vref, state->currentDir, name);
-    } else if (itemType == 'APPL') {
+    } else if (itemType == FOURCC('A','P','P','L')) {
         /* Application file */
         if (strcmp(name, "TextEdit") == 0) {
             FINDER_LOG_DEBUG("FW: Launching TextEdit application\n");
@@ -2851,8 +2851,8 @@ static void FolderWindow_OpenFileNamed(FolderWindowState* state,
         memcpy(unpackedName, &unpacked.name[1], unpacked.name[0]);
         unpackedName[unpacked.name[0]] = '\0';
         if (HGetFInfo(unpacked.vRefNum, unpacked.parID, unpacked.name, &info) == noErr &&
-            info.fdType == 'APPL') {
-            FolderWindow_OpenFileNamed(state, unpackedName, 'APPL');
+            info.fdType == FOURCC('A','P','P','L')) {
+            FolderWindow_OpenFileNamed(state, unpackedName, FOURCC('A','P','P','L'));
         }
     } else {
         /* Unknown document type - try to open with SimpleText as fallback */
@@ -2890,7 +2890,7 @@ static void FolderWindow_OpenItem(WindowPtr w, FolderWindowState* state,
     /* An alias stands in for its target: resolve, then open that instead.
      * Resolution happens once - an alias to an alias is not followed, which
      * is also what stops a cycle of them from hanging the Finder. */
-    if (itemType == 'alis') {
+    if (itemType == FOURCC('a','l','i','s')) {
         CatEntry target;
         if (!Finder_ResolveAlias(state->vref, itemID, &target)) {
             FINDER_LOG_DEBUG("FW: alias '%s' could not be resolved\n", itemName);

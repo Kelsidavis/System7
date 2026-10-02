@@ -851,9 +851,9 @@ CIconHandle GetCIcon(SInt16 iconID) {
     /* Load color icon from resources. Try 'cicn' first, fall back to 'ICN#' */
     extern Handle GetResource(ResType theType, ResID theID);
 
-    Handle h = GetResource('cicn', iconID);
+    Handle h = GetResource(FOURCC('c','i','c','n'), iconID);
     if (!h) {
-        h = GetResource('ICN#', iconID);
+        h = GetResource(FOURCC('I','C','N','#'), iconID);
     }
     return (CIconHandle)h;
 }

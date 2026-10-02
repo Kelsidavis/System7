@@ -5,6 +5,7 @@
 #include "Finder/Icon/icon_types.h"
 #include "Finder/Icon/icon_resources.h"
 #include "Finder/Icon/icon_system.h"
+#include "SystemTypes.h"
 #include <stddef.h>
 #include <string.h>
 
@@ -50,7 +51,7 @@ bool Icon_Init(void) {
     IconFamily tempFamily;
     if (IconRes_LoadFamilyByID(ICON_ID_GENERIC_FOLDER, &tempFamily)) {
         /* Cache the folder icon for quick access */
-        gIconCache[0].type = 'fold';
+        gIconCache[0].type = FOURCC('f','o','l','d');
         gIconCache[0].creator = 0;
         gIconCache[0].rsrcID = ICON_ID_GENERIC_FOLDER;
         gIconCache[0].family = tempFamily;
@@ -60,7 +61,7 @@ bool Icon_Init(void) {
 
     /* Try to load generic document icon */
     if (IconRes_LoadFamilyByID(ICON_ID_GENERIC_DOCUMENT, &tempFamily)) {
-        gIconCache[1].type = 'TEXT';
+        gIconCache[1].type = FOURCC('T','E','X','T');
         gIconCache[1].creator = 0;
         gIconCache[1].rsrcID = ICON_ID_GENERIC_DOCUMENT;
         gIconCache[1].family = tempFamily;
@@ -70,7 +71,7 @@ bool Icon_Init(void) {
 
     /* Try to load generic application icon */
     if (IconRes_LoadFamilyByID(ICON_ID_GENERIC_APP, &tempFamily)) {
-        gIconCache[2].type = 'APPL';
+        gIconCache[2].type = FOURCC('A','P','P','L');
         gIconCache[2].creator = 0;
         gIconCache[2].rsrcID = ICON_ID_GENERIC_APP;
         gIconCache[2].family = tempFamily;
@@ -80,8 +81,8 @@ bool Icon_Init(void) {
 
     /* Try to load trash icons */
     if (IconRes_LoadFamilyByID(ICON_ID_TRASH_EMPTY, &tempFamily)) {
-        gIconCache[3].type = 'trsh';
-        gIconCache[3].creator = 'emty';
+        gIconCache[3].type = FOURCC('t','r','s','h');
+        gIconCache[3].creator = FOURCC('e','m','t','y');
         gIconCache[3].rsrcID = ICON_ID_TRASH_EMPTY;
         gIconCache[3].family = tempFamily;
         gIconCache[3].valid = true;
@@ -89,8 +90,8 @@ bool Icon_Init(void) {
     }
 
     if (IconRes_LoadFamilyByID(ICON_ID_TRASH_FULL, &tempFamily)) {
-        gIconCache[4].type = 'trsh';
-        gIconCache[4].creator = 'full';
+        gIconCache[4].type = FOURCC('t','r','s','h');
+        gIconCache[4].creator = FOURCC('f','u','l','l');
         gIconCache[4].rsrcID = ICON_ID_TRASH_FULL;
         gIconCache[4].family = tempFamily;
         gIconCache[4].valid = true;

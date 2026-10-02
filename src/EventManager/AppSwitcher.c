@@ -528,7 +528,7 @@ OSErr AppSwitcher_UpdateAppList(void) {
     while (process && count < kAppSwitcher_MaxApps) {
         /* Skip system process and terminated processes */
         if (process->processState == kProcessTerminated ||
-            process->processSignature == 'MACS') {  /* Skip system process */
+            process->processSignature == FOURCC('M','A','C','S')) {  /* Skip system process */
             process = process->processNextProcess;
             continue;
         }
@@ -544,11 +544,11 @@ OSErr AppSwitcher_UpdateAppList(void) {
         name[0] = 0;
         SInt16 iconID = 0;
 
-        if (process->processSignature == 'FNDR') {
+        if (process->processSignature == FOURCC('F','N','D','R')) {
             name[0] = 6;
             BlockMoveData("Finder", name + 1, 6);
             iconID = 999;  /* Custom Finder icon */
-        } else if (process->processSignature == 'ttxt') {
+        } else if (process->processSignature == FOURCC('t','t','x','t')) {
             name[0] = 9;
             BlockMoveData("TeachText", name + 1, 9);
             iconID = 130;  /* TeachText icon */
