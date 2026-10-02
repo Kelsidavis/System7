@@ -1200,7 +1200,8 @@ $(KERNEL): $(OBJECTS) | $(BUILD_DIR)
         $(CC) -m32 -Wl,-T,$(LINKER_SCRIPT) -Wl,-z,noexecstack -nostdlib -no-pie -static -o $(KERNEL) $(OBJECTS) $(LIBM) -lgcc; \
 	fi
 	@test -f $(KERNEL) || { echo "ERROR: Kernel not created"; exit 1; }
-	@echo "✓ Kernel linked successfully ($(shell stat -c%s $(KERNEL) 2>/dev/null || stat -f%z $(KERNEL) 2>/dev/null) bytes)"
+	@kernel_size=$$(stat -c%s $(KERNEL) 2>/dev/null || stat -f%z $(KERNEL) 2>/dev/null); \
+		echo "✓ Kernel linked successfully ($$kernel_size bytes)"
 
 # Define source directories for vpath search
 vpath %.c src:src/System:src/QuickDraw:src/WindowManager:src/MenuManager:src/ControlManager \
