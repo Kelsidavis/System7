@@ -92,6 +92,15 @@ static inline UInt32 MaskColor(UInt32 color) {
     return color & kColorMask;
 }
 
+/*
+ * The boolean modes are QuickDraw's on ink: a 1 bit is black, and srcOr
+ * puts black wherever the source has it (IM I-157). Colours here are the
+ * other way up - black is 0, white all ones - so each mode is its ink
+ * operation on the inverted values: op'(s, d) = ~op(~s, ~d). Done on the
+ * colours directly, srcOr let white win and srcBic cleared the black it
+ * should have kept, and an icon drawn through its mask came out as a
+ * square.
+ */
 static UInt32 TransferSrcCopy(UInt32 src, UInt32 dst, UInt32 pattern) {
     (void)dst;
     (void)pattern;
@@ -100,17 +109,17 @@ static UInt32 TransferSrcCopy(UInt32 src, UInt32 dst, UInt32 pattern) {
 
 static UInt32 TransferSrcOr(UInt32 src, UInt32 dst, UInt32 pattern) {
     (void)pattern;
-    return MaskColor(src | dst);
+    return MaskColor(src & dst);
 }
 
 static UInt32 TransferSrcXor(UInt32 src, UInt32 dst, UInt32 pattern) {
     (void)pattern;
-    return MaskColor(src ^ dst);
+    return MaskColor(~(src ^ dst));
 }
 
 static UInt32 TransferSrcBic(UInt32 src, UInt32 dst, UInt32 pattern) {
     (void)pattern;
-    return MaskColor(dst & (~src));
+    return MaskColor(dst | ~src);
 }
 
 static UInt32 TransferNotSrcCopy(UInt32 src, UInt32 dst, UInt32 pattern) {
@@ -121,17 +130,17 @@ static UInt32 TransferNotSrcCopy(UInt32 src, UInt32 dst, UInt32 pattern) {
 
 static UInt32 TransferNotSrcOr(UInt32 src, UInt32 dst, UInt32 pattern) {
     (void)pattern;
-    return MaskColor(~(src | dst));
+    return MaskColor(~src & dst);
 }
 
 static UInt32 TransferNotSrcXor(UInt32 src, UInt32 dst, UInt32 pattern) {
     (void)pattern;
-    return MaskColor(~(src ^ dst));
+    return MaskColor(src ^ dst);
 }
 
 static UInt32 TransferNotSrcBic(UInt32 src, UInt32 dst, UInt32 pattern) {
     (void)pattern;
-    return MaskColor(~(dst & (~src)));
+    return MaskColor(dst | src);
 }
 
 static UInt32 TransferPatCopy(UInt32 src, UInt32 dst, UInt32 pattern) {
@@ -142,17 +151,17 @@ static UInt32 TransferPatCopy(UInt32 src, UInt32 dst, UInt32 pattern) {
 
 static UInt32 TransferPatOr(UInt32 src, UInt32 dst, UInt32 pattern) {
     (void)src;
-    return MaskColor(pattern | dst);
+    return MaskColor(pattern & dst);
 }
 
 static UInt32 TransferPatXor(UInt32 src, UInt32 dst, UInt32 pattern) {
     (void)src;
-    return MaskColor(pattern ^ dst);
+    return MaskColor(~(pattern ^ dst));
 }
 
 static UInt32 TransferPatBic(UInt32 src, UInt32 dst, UInt32 pattern) {
     (void)src;
-    return MaskColor(dst & (~pattern));
+    return MaskColor(dst | ~pattern);
 }
 
 static UInt32 TransferNotPatCopy(UInt32 src, UInt32 dst, UInt32 pattern) {
@@ -163,17 +172,17 @@ static UInt32 TransferNotPatCopy(UInt32 src, UInt32 dst, UInt32 pattern) {
 
 static UInt32 TransferNotPatOr(UInt32 src, UInt32 dst, UInt32 pattern) {
     (void)src;
-    return MaskColor(~(pattern | dst));
+    return MaskColor(~pattern & dst);
 }
 
 static UInt32 TransferNotPatXor(UInt32 src, UInt32 dst, UInt32 pattern) {
     (void)src;
-    return MaskColor(~(pattern ^ dst));
+    return MaskColor(pattern ^ dst);
 }
 
 static UInt32 TransferNotPatBic(UInt32 src, UInt32 dst, UInt32 pattern) {
     (void)src;
-    return MaskColor(~(dst & (~pattern)));
+    return MaskColor(dst | pattern);
 }
 
 static const TransferModeInfo g_transferModes[] = {
