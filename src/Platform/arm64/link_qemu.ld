@@ -11,6 +11,7 @@ PHDRS
 {
     text PT_LOAD FLAGS(5); /* Read + execute */
     data PT_LOAD FLAGS(6); /* Read + write */
+    stack PT_GNU_STACK FLAGS(6); /* Read + write, never execute */
 }
 
 /* QEMU virt machine memory starts at 0x40000000 */
