@@ -1435,6 +1435,17 @@ static void Test_M68K_SANE(void) {
     RecordTest(test_name, true, "");
 }
 
+extern Boolean M68KToolbox_RunListTest(const char** why);
+
+/* A list in a window, built, read, searched and taken apart through _Pack0
+ * by a 68K program */
+static void Test_M68K_Lists(void) {
+    const char* test_name = "M68K_Lists";
+    const char* why = "";
+    CHECK(M68KToolbox_RunListTest(&why), why);
+    RecordTest(test_name, true, "");
+}
+
 static void Test_M68K_Traps(void) {
     const char* test_name = "M68K_Traps";
     const char* why = "";
@@ -1498,6 +1509,7 @@ void IntegrationTests_Run(void) {
     IT_LOG_INFO("--- 68K traps ---");
     Test_M68K_Traps();
     Test_M68K_SANE();
+    Test_M68K_Lists();
 
     PrintTestSummary();
 }

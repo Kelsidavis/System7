@@ -166,6 +166,8 @@ extern const M68KTrapEntry kM68KTextEditTraps[];
 extern const int kM68KTextEditTrapCount;
 extern const M68KTrapEntry kM68KUtilityTraps[];
 extern const int kM68KUtilityTrapCount;
+extern const M68KTrapEntry kM68KListTraps[];
+extern const int kM68KListTrapCount;
 extern const M68KTrapEntry kM68KSANETraps[];
 extern const int kM68KSANETrapCount;
 void M68KSANE_Reset(void);                   /* a new program: the default environment */

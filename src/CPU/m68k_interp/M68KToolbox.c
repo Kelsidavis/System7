@@ -1011,6 +1011,7 @@ OSErr M68KToolbox_Prepare(SegmentLoaderContext* ctx, ConstStr255Param appName,
         { kM68KUtilityTraps, kM68KUtilityTrapCount },
         { kM68KFileTraps, kM68KFileTrapCount },
         { kM68KSANETraps, kM68KSANETrapCount },
+        { kM68KListTraps, kM68KListTrapCount },
     };
     for (size_t k = 0; k < sizeof(tables) / sizeof(tables[0]); k++) {
         for (int i = 0; i < tables[k].n; i++) {
