@@ -132,6 +132,8 @@ endif
 WERROR ?= -Werror
 EXTRA_CFLAGS ?=
 
+# Many Toolbox-compatible callbacks and platform stubs must retain their ABI
+# parameters even when a particular backend does not use them.
 COMMON_CFLAGS = \
          -ffreestanding -fno-builtin -fno-stack-protector -nostdlib \
          -fno-pic -fno-pie \
