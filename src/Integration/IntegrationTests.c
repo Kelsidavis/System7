@@ -284,7 +284,7 @@ static void Test_File_WriteReadRoundTrip(void) {
     const UInt32 kLen = sizeof(kText) - 1;
     FSDelete(spec.name, 0);
 
-    CHECK(FSCreate(spec.name, 0, 'ITst', 'TEXT') == noErr, "FSCreate failed");
+    CHECK(FSCreate(spec.name, 0, FOURCC('I', 'T', 's', 't'), FOURCC('T', 'E', 'X', 'T')) == noErr, "FSCreate failed");
     FileRefNum ref = 0;
     CHECK(FSOpen(spec.name, 0, &ref) == noErr && ref > 0, "FSOpen failed");
 
@@ -325,11 +325,11 @@ static void Test_File_Metadata(void) {
     SetSpec(&spec, "ITest Meta");
     FSDelete(spec.name, 0);
 
-    CHECK(FSCreate(spec.name, 0, 'ITst', 'TEXT') == noErr, "FSCreate failed");
+    CHECK(FSCreate(spec.name, 0, FOURCC('I', 'T', 's', 't'), FOURCC('T', 'E', 'X', 'T')) == noErr, "FSCreate failed");
     FInfo info;
     memset(&info, 0, sizeof info);
     CHECK(FSGetFInfo(spec.name, 0, &info) == noErr, "FSGetFInfo failed");
-    CHECK(info.fdType == 'TEXT' && info.fdCreator == 'ITst',
+    CHECK(info.fdType == FOURCC('T', 'E', 'X', 'T') && info.fdCreator == FOURCC('I', 'T', 's', 't'),
           "the type and creator FSCreate set did not stick");
 
     FileRefNum ref = 0;
@@ -365,12 +365,12 @@ static void Test_File_FoldersAndWorkingDirectories(void) {
     CHECK(FSCreateDir(spec.name, 0, &dir) == noErr && dir > 2, "FSCreateDir failed");
 
     WDRefNum wd = 0;
-    CHECK(FSOpenWD(0, dir, 'ITst', &wd) == noErr && wd < 0, "FSOpenWD failed");
+    CHECK(FSOpenWD(0, dir, FOURCC('I', 'T', 's', 't'), &wd) == noErr && wd < 0, "FSOpenWD failed");
     DirID gotDir = 0;
     UInt32 gotProc = 0;
     OSErr err = FSGetWDInfo(wd, NULL, &gotDir, &gotProc);
     OSErr closed = FSCloseWD(wd);
-    CHECK(err == noErr && gotDir == dir && gotProc == 'ITst', "FSGetWDInfo gave back something else");
+    CHECK(err == noErr && gotDir == dir && gotProc == FOURCC('I', 'T', 's', 't'), "FSGetWDInfo gave back something else");
     CHECK(closed == noErr && FSGetWDInfo(wd, NULL, NULL, NULL) != noErr,
           "the working directory was still there after FSCloseWD");
 
@@ -394,7 +394,7 @@ static void Test_File_InFolder(void) {
     FSSpec spec;
     CHECK(FSMakeFSSpec(0, dir, file.name, &spec) == fnfErr, "FSMakeFSSpec found a file not yet made");
     CHECK(spec.parID == dir, "FSMakeFSSpec lost the folder");
-    OSErr made = FSpCreate(&spec, 'ITst', 'TEXT', 0);
+    OSErr made = FSpCreate(&spec, FOURCC('I', 'T', 's', 't'), FOURCC('T', 'E', 'X', 'T'), 0);
 
     FInfo info;
     OSErr inRoot = HGetFInfo(0, 0, file.name, &info);
@@ -402,7 +402,7 @@ static void Test_File_InFolder(void) {
     OSErr bySpec = FSpGetFInfo(&spec, &info);
 
     WDRefNum wd = 0;
-    OSErr viaWD = FSOpenWD(0, dir, 'ITst', &wd);
+    OSErr viaWD = FSOpenWD(0, dir, FOURCC('I', 'T', 's', 't'), &wd);
     FileRefNum ref = 0;
     if (viaWD == noErr) viaWD = FSOpen(file.name, wd, &ref);
     if (viaWD == noErr) FSClose(ref);
@@ -416,7 +416,7 @@ static void Test_File_InFolder(void) {
     CHECK(made == noErr, "FSpCreate in the folder failed");
     CHECK(inRoot == fnfErr, "the file was made in the root, not the folder");
     CHECK(byDir == noErr && bySpec == noErr, "the file was not found in its folder");
-    CHECK(info.fdType == 'TEXT', "the file in the folder lost its type");
+    CHECK(info.fdType == FOURCC('T', 'E', 'X', 'T'), "the file in the folder lost its type");
     CHECK(viaWD == noErr, "FSOpen through a working directory failed");
     CHECK(wdMake == noErr && wdSpec.parID == dir && wdSpec.vRefNum == spec.vRefNum,
           "FSMakeFSSpec did not turn the working directory into its volume and folder");
@@ -985,7 +985,7 @@ static void Test_Calculator_Arithmetic(void) {
 /* A released resource loads again intact, not as the freed handle. */
 static void Test_Resource_ReleaseThenGet(void) {
     const char* test_name = "Resource_ReleaseThenGet";
-    Handle h1 = GetResource('ppat', 304);
+    Handle h1 = GetResource(FOURCC('p', 'p', 'a', 't'), 304);
     CHECK(h1 && *h1, "ppat 304 did not load");
     u32 size1 = GetHandleSize(h1);
     UInt8 head[8];
@@ -997,7 +997,7 @@ static void Test_Resource_ReleaseThenGet(void) {
         churn[i] = NewHandle(13);
         if (churn[i]) memset(*churn[i], 0x5A, 13);
     }
-    Handle h2 = GetResource('ppat', 304);
+    Handle h2 = GetResource(FOURCC('p', 'p', 'a', 't'), 304);
     Boolean same = h2 && *h2 && GetHandleSize(h2) == size1 && memcmp(*h2, head, sizeof(head)) == 0;
     for (int i = 0; i < 8; i++) if (churn[i]) DisposeHandle(churn[i]);
     if (h2) ReleaseResource(h2);
@@ -1118,7 +1118,7 @@ static void Test_Resource_CreateAndOpenResFile(void) {
     FSSpec spec;
     SetSpec(&spec, "ITest Resources");
 
-    FSpCreateResFile(&spec, 'ITst', 'rsrc', 0);
+    FSpCreateResFile(&spec, FOURCC('I', 'T', 's', 't'), FOURCC('r', 's', 'r', 'c'), 0);
     OSErr createErr = ResError();
     if (createErr != noErr) IT_LOG_INFO("FSpCreateResFile: ResError %d", createErr);
     CHECK(createErr == noErr, "FSpCreateResFile reported an error");
@@ -1137,49 +1137,49 @@ static void Test_Resource_WriteAndReadBack(void) {
     const char* test_name = "Resource_WriteAndReadBack";
     FSSpec spec;
     SetSpec(&spec, "ITest Written");
-    FSpCreateResFile(&spec, 'ITst', 'rsrc', 0);
+    FSpCreateResFile(&spec, FOURCC('I', 'T', 's', 't'), FOURCC('r', 's', 'r', 'c'), 0);
     SInt16 saved = CurResFile();
 
     SInt16 ref = FSpOpenResFile(&spec, 3);
     CHECK(ref > 0, "could not open the new file");
     Handle h = NewHandle(5);
     BlockMoveData("hello", *h, 5);
-    AddResource(h, 'ITst', 200, PSTR("greeting"));
+    AddResource(h, FOURCC('I', 'T', 's', 't'), 200, PSTR("greeting"));
     CHECK(ResError() == noErr, "AddResource failed");
     Handle h2 = NewHandle(3);
     BlockMoveData("bye", *h2, 3);
-    AddResource(h2, 'ITst', 201, NULL);
+    AddResource(h2, FOURCC('I', 'T', 's', 't'), 201, NULL);
     CloseResFile(ref);
     CHECK(ResError() == noErr, "CloseResFile could not write the file");
 
     ref = FSpOpenResFile(&spec, 3);
-    Handle back = Get1Resource('ITst', 200);
+    Handle back = Get1Resource(FOURCC('I', 'T', 's', 't'), 200);
     CHECK(back && GetHandleSize(back) == 5 && memcmp(*back, "hello", 5) == 0,
           "the resource did not come back from the file");
     Str255 name;
     ResID id = 0;
     ResType type = 0;
     GetResInfo(back, &id, &type, (char*)name);
-    CHECK(id == 200 && type == 'ITst' && name[0] == 8 && memcmp(name + 1, "greeting", 8) == 0,
+    CHECK(id == 200 && type == FOURCC('I', 'T', 's', 't') && name[0] == 8 && memcmp(name + 1, "greeting", 8) == 0,
           "GetResInfo did not give its ID, type and name");
-    CHECK(Count1Resources('ITst') == 2, "Count1Resources did not count both");
+    CHECK(Count1Resources(FOURCC('I', 'T', 's', 't')) == 2, "Count1Resources did not count both");
 
     /* Changed: longer, and renumbered */
     SetHandleSize(back, 7);
     BlockMoveData("goodbye", *back, 7);
     ChangedResource(back);
     SetResInfo(back, 300, PSTR("farewell"));
-    RemoveResource(Get1Resource('ITst', 201));
+    RemoveResource(Get1Resource(FOURCC('I', 'T', 's', 't'), 201));
     UpdateResFile(ref);
     CHECK(ResError() == noErr, "UpdateResFile could not write the file");
     CloseResFile(ref);
 
     ref = FSpOpenResFile(&spec, 3);
-    back = Get1Resource('ITst', 300);
+    back = Get1Resource(FOURCC('I', 'T', 's', 't'), 300);
     CHECK(back && GetHandleSize(back) == 7 && memcmp(*back, "goodbye", 7) == 0,
           "the changed resource did not come back");
-    CHECK(Get1Resource('ITst', 200) == NULL, "the old ID is still there");
-    CHECK(Get1Resource('ITst', 201) == NULL, "the removed resource is still there");
+    CHECK(Get1Resource(FOURCC('I', 'T', 's', 't'), 200) == NULL, "the old ID is still there");
+    CHECK(Get1Resource(FOURCC('I', 'T', 's', 't'), 201) == NULL, "the removed resource is still there");
     CloseResFile(ref);
     UseResFile(saved);
     FSDelete(spec.name, spec.vRefNum);
@@ -1371,7 +1371,7 @@ static void Test_MacBinary_UnpackFile(void) {
     archive[101] = 0x01;     /* kIsOnDesk */
     PutBE16(archive + 124, MacBinary_CRC16(archive, 124));
 
-    CHECK(FSCreate(spec.name, 0, 'BINA', 'BINA') == noErr, "FSCreate failed");
+    CHECK(FSCreate(spec.name, 0, FOURCC('B', 'I', 'N', 'A'), FOURCC('B', 'I', 'N', 'A')) == noErr, "FSCreate failed");
     FileRefNum ref = 0;
     CHECK(FSOpen(spec.name, 0, &ref) == noErr, "FSOpen failed");
     UInt32 n = size;
@@ -1410,7 +1410,7 @@ static void Test_MacBinary_UnpackFile(void) {
     FSDelete(kName1, 0);
     CHECK(err == noErr, "unpacking failed");
     CHECK(named, "unpacked file not named from the header");
-    CHECK(infoErr == noErr && info.fdType == 'APPL' && info.fdCreator == 'DMSE',
+    CHECK(infoErr == noErr && info.fdType == FOURCC('A', 'P', 'P', 'L') && info.fdCreator == FOURCC('D', 'M', 'S', 'E'),
           "type and creator not carried over");
     CHECK((info.fdFlags & kMacBinSenderFinderFlags) == 0, "sender's Finder state kept");
     CHECK(dataOK, "data fork not written");
@@ -1516,7 +1516,7 @@ static Boolean MakeApplication(const char* name, const UInt8* code, Size codeLen
     memcpy(pname + 1, name, pname[0]);
     FSMakeFSSpec(0, 0, pname, &spec);
     FSpDelete(&spec);
-    FSpCreateResFile(&spec, 'ITst', 'APPL', 0);
+    FSpCreateResFile(&spec, FOURCC('I', 'T', 's', 't'), FOURCC('A', 'P', 'P', 'L'), 0);
     SInt16 ref = FSpOpenResFile(&spec, 3);
     if (ref <= 0) return false;
 
@@ -1536,8 +1536,8 @@ static Boolean MakeApplication(const char* name, const UInt8* code, Size codeLen
     PutBE16(code1, 0);                                  /* first entry's offset */
     PutBE16(code1 + 2, 1);                              /* one entry */
     memcpy(code1 + 4, code, (size_t)codeLen);
-    AddResource(HandleWith(code0, sizeof(code0)), 'CODE', 0, NULL);
-    AddResource(HandleWith(code1, codeLen + 4), 'CODE', 1, NULL);
+    AddResource(HandleWith(code0, sizeof(code0)), FOURCC('C', 'O', 'D', 'E'), 0, NULL);
+    AddResource(HandleWith(code1, codeLen + 4), FOURCC('C', 'O', 'D', 'E'), 1, NULL);
     CloseResFile(ref);
     return ResError() == noErr;
 }
