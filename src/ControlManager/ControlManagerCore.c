@@ -716,7 +716,9 @@ SInt16 GetControlVariant(ControlHandle theControl) {
 
     /* Extract variant from CDEF handle */
     /* High byte of first word contains variant */
-    return (*(SInt16 *)*(*theControl)->contrlDefProc) >> 8;
+    SInt16 firstWord;
+    memcpy(&firstWord, *(*theControl)->contrlDefProc, sizeof(firstWord));
+    return firstWord >> 8;
 }
 
 /*
@@ -729,7 +731,9 @@ ControlDefProcPtr GetControlDefFunction(ControlHandle theControl) {
         !*(*theControl)->contrlDefProc) {
         return NULL;
     }
-    return *(ControlDefProcPtr *)((char *)*(*theControl)->contrlDefProc + 2);
+    ControlDefProcPtr defProc;
+    memcpy(&defProc, (char *)*(*theControl)->contrlDefProc + 2, sizeof(defProc));
+    return defProc;
 }
 
 /**
@@ -966,8 +970,10 @@ SInt16 _CallControlDefProc(ControlHandle control, SInt16 message, SInt32 param) 
 
     /* Get CDEF procedure and variant */
     /* Variant is stored in first 2 bytes, function pointer at offset +2 */
-    variant = *(SInt16 *)*(*control)->contrlDefProc >> 8;
-    defProc = *(ControlDefProcPtr *)((char *)*(*control)->contrlDefProc + 2);
+    SInt16 firstWord;
+    memcpy(&firstWord, *(*control)->contrlDefProc, sizeof(firstWord));
+    variant = firstWord >> 8;
+    memcpy(&defProc, (char *)*(*control)->contrlDefProc + 2, sizeof(defProc));
 
     /* Call CDEF - it can now safely dereference the locked control handle */
     if (defProc) {
@@ -1037,10 +1043,10 @@ Handle _GetControlDefProc(SInt16 procID) {
     /* Lock handle before dereferencing */
     HLock(cdefHandle);
 
-    /* Store variant in high byte of first word */
-    *(SInt16 *)*cdefHandle = (procID & 0x0F) << 8;
-    /* Store procedure pointer */
-    *(ControlDefProcPtr *)((char *)*cdefHandle + 2) = defProc;
+    /* Store the legacy CDEF header without unaligned typed accesses. */
+    SInt16 firstWord = (procID & 0x0F) << 8;
+    memcpy(*cdefHandle, &firstWord, sizeof(firstWord));
+    memcpy((char *)*cdefHandle + 2, &defProc, sizeof(defProc));
 
     HUnlock(cdefHandle);
     return cdefHandle;

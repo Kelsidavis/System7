@@ -137,6 +137,9 @@ typedef struct CheckboxData {
     Rect textRect;           /* Text area rectangle */
 } CheckboxData;
 
+#define CONTROL_DATA_AS(type, handle) \
+    ((type*)__builtin_assume_aligned(*(handle), _Alignof(type)))
+
 /* Internal function prototypes */
 static void DrawCheckboxMark(ControlHandle checkbox);
 static void DrawRadioMark(ControlHandle radio);
@@ -180,7 +183,7 @@ SInt32 ButtonCDEF(SInt16 varCode, ControlHandle theControl,
         (*theControl)->contrlData = NewHandleClear(sizeof(ButtonData));
         if ((*theControl)->contrlData) {
             CTRL_LOG_DEBUG("ButtonCDEF initCntl: Button data allocated\n");
-            buttonData = (ButtonData *)*(*theControl)->contrlData;
+            buttonData = CONTROL_DATA_AS(ButtonData, (*theControl)->contrlData);
             buttonData->isDefault = (varCode & 1) != 0;
             buttonData->isCancel = (varCode & 2) != 0;
             buttonData->insetLevel = 2;
@@ -207,7 +210,7 @@ SInt32 ButtonCDEF(SInt16 varCode, ControlHandle theControl,
     case dispCntl:
         /* Dispose button data */
         if ((*theControl)->contrlData) {
-            buttonData = (ButtonData *)*(*theControl)->contrlData;
+            buttonData = CONTROL_DATA_AS(ButtonData, (*theControl)->contrlData);
             if (buttonData->buttonRegion) {
                 DisposeRgn(buttonData->buttonRegion);
             }
@@ -219,7 +222,7 @@ SInt32 ButtonCDEF(SInt16 varCode, ControlHandle theControl,
     case drawCntl:
         /* Draw button */
         if ((*theControl)->contrlData) {
-            buttonData = (ButtonData *)*(*theControl)->contrlData;
+            buttonData = CONTROL_DATA_AS(ButtonData, (*theControl)->contrlData);
             bounds = (*theControl)->contrlRect;
 
             CTL_DrawPushButton(&bounds, (*theControl)->contrlTitle,
@@ -248,7 +251,7 @@ SInt32 ButtonCDEF(SInt16 varCode, ControlHandle theControl,
     case posCntl:
         /* Handle button positioning/value changes */
         if ((*theControl)->contrlData) {
-            buttonData = (ButtonData *)*(*theControl)->contrlData;
+            buttonData = CONTROL_DATA_AS(ButtonData, (*theControl)->contrlData);
             buttonData->isPushed = ((*theControl)->contrlValue != 0);
         }
         break;
@@ -256,7 +259,7 @@ SInt32 ButtonCDEF(SInt16 varCode, ControlHandle theControl,
     case autoTrack:
         /* Handle automatic tracking */
         if ((*theControl)->contrlData) {
-            buttonData = (ButtonData *)*(*theControl)->contrlData;
+            buttonData = CONTROL_DATA_AS(ButtonData, (*theControl)->contrlData);
             buttonData->isPushed = true;
             Draw1Control(theControl);
         }
@@ -285,7 +288,7 @@ SInt32 CheckboxCDEF(SInt16 varCode, ControlHandle theControl,
         /* Allocate checkbox data */
         (*theControl)->contrlData = NewHandleClear(sizeof(CheckboxData));
         if ((*theControl)->contrlData) {
-            checkData = (CheckboxData *)*(*theControl)->contrlData;
+            checkData = CONTROL_DATA_AS(CheckboxData, (*theControl)->contrlData);
             checkData->isRadio = false;
             checkData->isMixed = false;
             checkData->groupID = 0;
@@ -306,7 +309,7 @@ SInt32 CheckboxCDEF(SInt16 varCode, ControlHandle theControl,
     case drawCntl:
         /* Draw checkbox */
         if ((*theControl)->contrlData) {
-            checkData = (CheckboxData *)*(*theControl)->contrlData;
+            checkData = CONTROL_DATA_AS(CheckboxData, (*theControl)->contrlData);
 
             /* The whole control is drawn afresh (Inside Macintosh: Toolbox
              * Essentials, 5-111): drawn over what was there, an unchecked box
@@ -385,7 +388,7 @@ SInt32 RadioButtonCDEF(SInt16 varCode, ControlHandle theControl,
         /* Allocate radio button data */
         (*theControl)->contrlData = NewHandleClear(sizeof(CheckboxData));
         if ((*theControl)->contrlData) {
-            radioData = (CheckboxData *)*(*theControl)->contrlData;
+            radioData = CONTROL_DATA_AS(CheckboxData, (*theControl)->contrlData);
             radioData->isRadio = true;
             radioData->isMixed = false;
             radioData->groupID = varCode; /* Use variant as group ID */
@@ -406,7 +409,7 @@ SInt32 RadioButtonCDEF(SInt16 varCode, ControlHandle theControl,
     case drawCntl:
         /* Draw radio button */
         if ((*theControl)->contrlData) {
-            radioData = (CheckboxData *)*(*theControl)->contrlData;
+            radioData = CONTROL_DATA_AS(CheckboxData, (*theControl)->contrlData);
 
             /* Drawn afresh, as the checkbox is */
             EraseRect(&(*theControl)->contrlRect);
@@ -561,7 +564,7 @@ static void DrawCheckboxMark(ControlHandle checkbox) {
         return;
     }
 
-    checkData = (CheckboxData *)*(*checkbox)->contrlData;
+    checkData = CONTROL_DATA_AS(CheckboxData, (*checkbox)->contrlData);
     markRect = checkData->boxRect;
 
     if (checkData->isMixed) {
@@ -591,7 +594,7 @@ static void DrawRadioMark(ControlHandle radio) {
         return;
     }
 
-    radioData = (CheckboxData *)*(*radio)->contrlData;
+    radioData = CONTROL_DATA_AS(CheckboxData, (*radio)->contrlData);
     markRect = radioData->boxRect;
 
     /* Draw filled circle in center */
@@ -611,7 +614,7 @@ static void CalculateButtonRects(ControlHandle button) {
         return;
     }
 
-    buttonData = (ButtonData *)*(*button)->contrlData;
+    buttonData = CONTROL_DATA_AS(ButtonData, (*button)->contrlData);
     bounds = (*button)->contrlRect;
 
     /* Content rectangle (inside frame) */
@@ -640,7 +643,7 @@ static void CalculateCheckboxRects(ControlHandle checkbox) {
         return;
     }
 
-    checkData = (CheckboxData *)*(*checkbox)->contrlData;
+    checkData = CONTROL_DATA_AS(CheckboxData, (*checkbox)->contrlData);
     bounds = (*checkbox)->contrlRect;
     boxSize = CHECKBOX_SIZE;  /* Same size for both (12 pixels) */
 
@@ -703,7 +706,7 @@ static void HandleRadioGroup(ControlHandle radio) {
         return;
     }
 
-    radioData = (CheckboxData *)*(*radio)->contrlData;
+    radioData = CONTROL_DATA_AS(CheckboxData, (*radio)->contrlData);
     window = (*radio)->contrlOwner;
 
     if (!window || !radioData->isRadio) {
@@ -717,7 +720,7 @@ static void HandleRadioGroup(ControlHandle radio) {
         if (control != radio && (*control)->contrlData) {
             /* Check if it's a radio button in the same group */
             if (IsRadioControl(control)) {
-                otherData = (CheckboxData *)*(*control)->contrlData;
+                otherData = CONTROL_DATA_AS(CheckboxData, (*control)->contrlData);
                 if (otherData->groupID == radioData->groupID) {
                     /* Deselect other radio button in group */
                     SetControlValue(control, 0);
@@ -780,7 +783,7 @@ void SetCheckboxMixed(ControlHandle checkbox, Boolean mixed) {
         return;
     }
 
-    checkData = (CheckboxData *)*(*checkbox)->contrlData;
+    checkData = CONTROL_DATA_AS(CheckboxData, (*checkbox)->contrlData);
     if (checkData->isMixed != mixed) {
         checkData->isMixed = mixed;
 
@@ -801,7 +804,7 @@ Boolean GetCheckboxMixed(ControlHandle checkbox) {
         return false;
     }
 
-    checkData = (CheckboxData *)*(*checkbox)->contrlData;
+    checkData = CONTROL_DATA_AS(CheckboxData, (*checkbox)->contrlData);
     return checkData->isMixed;
 }
 
@@ -815,7 +818,7 @@ void SetRadioGroup(ControlHandle radio, SInt16 groupID) {
         return;
     }
 
-    radioData = (CheckboxData *)*(*radio)->contrlData;
+    radioData = CONTROL_DATA_AS(CheckboxData, (*radio)->contrlData);
     radioData->groupID = groupID;
 }
 
@@ -829,7 +832,7 @@ SInt16 GetRadioGroup(ControlHandle radio) {
         return 0;
     }
 
-    radioData = (CheckboxData *)*(*radio)->contrlData;
+    radioData = CONTROL_DATA_AS(CheckboxData, (*radio)->contrlData);
     return radioData->groupID;
 }
 
@@ -843,7 +846,7 @@ Boolean IsDefaultButton(ControlHandle button) {
         return false;
     }
 
-    buttonData = (ButtonData *)*(*button)->contrlData;
+    buttonData = CONTROL_DATA_AS(ButtonData, (*button)->contrlData);
     return buttonData->isDefault;
 }
 
@@ -857,7 +860,7 @@ Boolean IsCancelButton(ControlHandle button) {
         return false;
     }
 
-    buttonData = (ButtonData *)*(*button)->contrlData;
+    buttonData = CONTROL_DATA_AS(ButtonData, (*button)->contrlData);
     return buttonData->isCancel;
 }
 

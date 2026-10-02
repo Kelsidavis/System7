@@ -22,6 +22,9 @@
 #include "MemoryMgr/MemoryManager.h"
 #include "System71StdLib.h"
 
+#define SCROLLBAR_DATA(handle) \
+    ((ScrollBarData*)__builtin_assume_aligned(*(handle), _Alignof(ScrollBarData)))
+
 /* External QuickDraw functions */
 extern void GetPort(GrafPtr* port);
 extern void SetPort(GrafPtr port);
@@ -126,7 +129,7 @@ ControlHandle NewVScrollBar(WindowPtr w, const Rect* bounds, short min, short ma
 
     /* Scrollbar data initialized in initCntl message */
     if ((*c)->contrlData) {
-        data = (ScrollBarData*)(*(*c)->contrlData);
+        data = SCROLLBAR_DATA((*c)->contrlData);
         data->vertical = true;
         data->visibleSpan = 1;
         CalcScrollbarRegions(c);
@@ -150,7 +153,7 @@ ControlHandle NewHScrollBar(WindowPtr w, const Rect* bounds, short min, short ma
     if (!c) return NULL;
 
     if ((*c)->contrlData) {
-        data = (ScrollBarData*)(*(*c)->contrlData);
+        data = SCROLLBAR_DATA((*c)->contrlData);
         data->vertical = false;
         data->visibleSpan = 1;
         CalcScrollbarRegions(c);
@@ -170,7 +173,7 @@ void UpdateScrollThumb(ControlHandle c, short value, short min, short max, short
 
     if (!c || !(*c)->contrlData) return;
 
-    data = (ScrollBarData*)(*(*c)->contrlData);
+    data = SCROLLBAR_DATA((*c)->contrlData);
 
     (*c)->contrlMin = min;
     (*c)->contrlMax = max;
@@ -203,7 +206,7 @@ SInt32 ScrollBarCDEF(SInt16 varCode, ControlHandle theControl, SInt16 message, S
         /* Allocate scrollbar data */
         (*theControl)->contrlData = NewHandle(sizeof(ScrollBarData));
         if ((*theControl)->contrlData) {
-            data = (ScrollBarData*)(*(*theControl)->contrlData);
+            data = SCROLLBAR_DATA((*theControl)->contrlData);
             bounds = (*theControl)->contrlRect;
 
             /* Determine orientation from aspect ratio */
@@ -261,7 +264,7 @@ void DrawScrollBar(ControlHandle scrollBar)
 
     if (!scrollBar || !(*scrollBar)->contrlData) return;
 
-    data = (ScrollBarData*)(*(*scrollBar)->contrlData);
+    data = SCROLLBAR_DATA((*scrollBar)->contrlData);
 
     /* Save QD state */
     GetPort(&savePort);
@@ -322,7 +325,7 @@ static void ScrollbarHilite(ControlHandle c, short part)
 
     if (!c || !(*c)->contrlData) return;
 
-    data = (ScrollBarData*)(*(*c)->contrlData);
+    data = SCROLLBAR_DATA((*c)->contrlData);
     data->pressedPart = part;
 
     if ((*c)->contrlVis) {
@@ -366,7 +369,7 @@ short TrackScrollbarAction(ControlHandle c, Point startLocal, short startPart,
     GetPort(&savePort);
     if ((*c)->contrlOwner) SetPort((GrafPtr)(*c)->contrlOwner);
 
-    data = (ScrollBarData*)(*(*c)->contrlData);
+    data = SCROLLBAR_DATA((*c)->contrlData);
     startValue = (*c)->contrlValue;  /* Save initial value for final delta */
     delta = 0;
     trackPart = startPart;
@@ -534,7 +537,7 @@ static void CalcScrollbarRegions(ControlHandle c)
 
     if (!c || !(*c)->contrlData) return;
 
-    data = (ScrollBarData*)(*(*c)->contrlData);
+    data = SCROLLBAR_DATA((*c)->contrlData);
     bounds = (*c)->contrlRect;
 
     if (data->vertical) {
@@ -573,7 +576,7 @@ static void CalcThumbRect(ControlHandle c)
 
     if (!c || !(*c)->contrlData) return;
 
-    data = (ScrollBarData*)(*(*c)->contrlData);
+    data = SCROLLBAR_DATA((*c)->contrlData);
     range = (*c)->contrlMax - (*c)->contrlMin;
     value = (*c)->contrlValue - (*c)->contrlMin;
 
@@ -642,7 +645,7 @@ static void CalcThumbRectForValue(ControlHandle c, short value, Rect* thumbRect)
 
     if (!c || !(*c)->contrlData || !thumbRect) return;
 
-    data = (ScrollBarData*)(*(*c)->contrlData);
+    data = SCROLLBAR_DATA((*c)->contrlData);
     range = (*c)->contrlMax - (*c)->contrlMin;
     relValue = value - (*c)->contrlMin;
 
@@ -769,7 +772,7 @@ static void DrawScrollbarThumb(GrafPtr port, ControlHandle c, Boolean hilite)
 
     if (!c || !(*c)->contrlData) return;
 
-    data = (ScrollBarData*)(*(*c)->contrlData);
+    data = SCROLLBAR_DATA((*c)->contrlData);
     thumb = data->thumbRect;
 
     /* Don't draw if too small */
@@ -851,7 +854,7 @@ static short HitTestScrollbar(ControlHandle c, Point pt)
         return 0;
     }
 
-    data = (ScrollBarData*)(*(*c)->contrlData);
+    data = SCROLLBAR_DATA((*c)->contrlData);
 
     if (PtInRect(pt, &data->upArrow)) return inUpButton;
     if (PtInRect(pt, &data->downArrow)) return inDownButton;
@@ -877,7 +880,7 @@ static short CalcThumbValue(ControlHandle c, Point pt, short grab)
 
     if (!c || !(*c)->contrlData) return (*c)->contrlValue;
 
-    data = (ScrollBarData*)(*(*c)->contrlData);
+    data = SCROLLBAR_DATA((*c)->contrlData);
     range = (*c)->contrlMax - (*c)->contrlMin;
 
     if (range <= 0) return (*c)->contrlValue;
@@ -934,7 +937,7 @@ void SetScrollBarPageSize(ControlHandle c, SInt16 pageSize)
 
     if (!c || !(*c)->contrlData || pageSize < 1) return;
 
-    data = (ScrollBarData*)(*(*c)->contrlData);
+    data = SCROLLBAR_DATA((*c)->contrlData);
     data->visibleSpan = pageSize;
 
     CalcThumbRect(c);
@@ -950,7 +953,7 @@ SInt16 GetScrollBarPageSize(ControlHandle c)
 
     if (!c || !(*c)->contrlData) return 0;
 
-    data = (ScrollBarData*)(*(*c)->contrlData);
+    data = SCROLLBAR_DATA((*c)->contrlData);
     return data->visibleSpan;
 }
 
