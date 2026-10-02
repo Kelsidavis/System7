@@ -20,6 +20,8 @@ extern UInt32 M68K_Fetch32(M68KAddressSpace* as);
 extern UInt8 M68K_Read8(M68KAddressSpace* as, UInt32 addr);
 extern UInt16 M68K_Read16(M68KAddressSpace* as, UInt32 addr);
 extern UInt32 M68K_Read32(M68KAddressSpace* as, UInt32 addr);
+extern void M68KTB_TrapEnter(UInt16 trap);
+extern void M68KTB_TrapLeave(UInt16 trap);
 extern UInt32 M68K_EA_ReadRMW(M68KAddressSpace* as, UInt8 mode, UInt8 reg, M68KSize size);
 extern void M68K_EA_WriteRMW(M68KAddressSpace* as, UInt8 mode, UInt8 reg, M68KSize size, UInt32 value);
 extern void M68K_Write8(M68KAddressSpace* as, UInt32 addr, UInt8 value);
@@ -767,6 +769,7 @@ void M68K_Op_TRAP(M68KAddressSpace* as, UInt16 opcode)
         }
 
         as->currentTrap = opcode;
+        if (!osTrap) M68KTB_TrapEnter(opcode);
         int r = as->recentTrapNext++ & 7;
         as->recentTraps[r].trap = opcode;
         as->recentTraps[r].pc = as->instrPC;
@@ -778,6 +781,7 @@ void M68K_Op_TRAP(M68KAddressSpace* as, UInt16 opcode)
         );
 
         as->recentTraps[r].spAfter = as->regs.a[7];
+        if (!osTrap) M68KTB_TrapLeave(opcode);
         if (osTrap && !as->halted) {
             as->regs.a[1] = a1;
             as->regs.d[1] = d1;

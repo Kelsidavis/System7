@@ -231,15 +231,22 @@ TRAP(Trap_TestControl) {
  * partCode: INTEGER), called while the mouse stays in the part */
 static UInt32 gAction;
 static ControlHandle gTracked;
+static SInt16 gTrackValue;      /* the value as the program last left it */
 
+/* The native TrackControl steps a scroll bar's value itself; a Macintosh's
+ * leaves that to the action procedure, which a program writes to do it - so
+ * each step moved the bar twice. The value is put back to the program's
+ * before each call to its procedure, and after the tracking. */
 static void ActionTrampoline(ControlHandle c, SInt16 part) {
     if (!gAction) return;
+    (*c)->contrlValue = gTrackValue;
     Obj_SyncControl(c);
     A(7) -= 4;
     W32(A(7), Obj_ControlFor(c));
     A(7) -= 2;
     W16(A(7), (UInt16)part);
     CallProgram(gAction);
+    gTrackValue = (*c)->contrlValue;
     Obj_SyncControl(c);
 }
 
@@ -258,11 +265,17 @@ TRAP(Trap_TrackControl) {
     if (action == 0xFFFFFFFF) action = R32(M68KHeap_Deref(h) + 32);
     UInt32 savedAction = gAction;
     ControlHandle savedTracked = gTracked;
+    SInt16 savedValue = gTrackValue;
     gAction = action;
     gTracked = c;
+    gTrackValue = (*c)->contrlValue;
     SInt16 part = TrackControl(c, p, action ? (ControlActionProcPtr)ActionTrampoline : NULL);
+    if (action && part && part != 129) {         /* not the thumb: the program's value */
+        if ((*c)->contrlValue != gTrackValue) SetControlValue(c, gTrackValue);
+    }
     gAction = savedAction;
     gTracked = savedTracked;
+    gTrackValue = savedValue;
     Obj_SyncControl(c);
     Result16((UInt16)part);
     return noErr;

@@ -96,14 +96,19 @@ static inline UInt32 ScrollGray(UInt8 level) {
     return QDPlatform_RGBToPixel(level, level, level);
 }
 
+/* A solid colour through the port, port current: into the window's
+ * off-screen buffer during an update, and clipped. Written straight to the
+ * screen, the fills showed while the lines drawn over them went to the
+ * buffer, which EndUpdate copies back only where the update was - a scroll
+ * bar outside it lost its frame and arrows. */
 static inline void FillSolidRectInPort(GrafPtr port, const Rect* r, UInt32 color) {
     if (!port || !r) return;
-    Rect global = *r;
-    global.left   += port->portBits.bounds.left;
-    global.right  += port->portBits.bounds.left;
-    global.top    += port->portBits.bounds.top;
-    global.bottom += port->portBits.bounds.top;
-    QDPlatform_FillRectAccelerated(global.left, global.top, global.right, global.bottom, color);
+    SInt32 dh = port->portBits.bounds.left, dv = port->portBits.bounds.top;
+    QD_ClipBegin(port);
+    for (SInt32 y = r->top + dv; y < r->bottom + dv; y++)
+        for (SInt32 x = r->left + dh; x < r->right + dh; x++)
+            QDPlatform_SetPixel(x, y, color);
+    QD_ClipEnd();
 }
 
 /**
@@ -221,6 +226,9 @@ SInt32 ScrollBarCDEF(SInt16 varCode, ControlHandle theControl, SInt16 message, S
         break;
 
     case drawCntl:
+        /* From the range as it is now: SetControlMaximum and
+         * SetControlMinimum change it without recalculating */
+        if ((*theControl)->contrlData) CalcThumbRect(theControl);
         DrawScrollBar(theControl);
         break;
 

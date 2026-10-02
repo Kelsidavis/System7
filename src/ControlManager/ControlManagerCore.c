@@ -74,7 +74,6 @@ static ControlManagerGlobals gControlMgr = {0};
 /* Internal utility functions */
 static void LinkControl(WindowPtr window, ControlHandle control);
 static void UnlinkControl(ControlHandle control);
-static void NotifyControlChange(ControlHandle control, SInt16 changeType);
 static AuxCtlHandle NewAuxCtlRec(ControlHandle control);
 static void DisposeAuxCtlRec(AuxCtlHandle auxRec);
 static void InitializePlatformSettings(void);
@@ -322,8 +321,6 @@ void ShowControl(ControlHandle theControl) {
     (*theControl)->contrlVis = 1;
     Draw1Control(theControl);
 
-    /* Notify of visibility change */
-    NotifyControlChange(theControl, kControlVisibilityChanged);
 }
 
 /**
@@ -361,8 +358,6 @@ void HideControl(ControlHandle theControl) {
     bounds = (*theControl)->contrlRect;
     CTL_InvalInOwner(theControl, bounds, true);
 
-    /* Notify of visibility change */
-    NotifyControlChange(theControl, kControlVisibilityChanged);
 }
 
 /**
@@ -467,8 +462,6 @@ void HiliteControl(ControlHandle theControl, SInt16 hiliteState) {
             Draw1Control(theControl);
         }
 
-        /* Notify of highlight change */
-        NotifyControlChange(theControl, kControlHighlightChanged);
     }
 }
 
@@ -509,8 +502,6 @@ void MoveControl(ControlHandle theControl, SInt16 h, SInt16 v) {
         CTL_InvalInOwner(theControl, newRect, false);
     }
 
-    /* Notify of position change */
-    NotifyControlChange(theControl, kControlPositionChanged);
 }
 
 /**
@@ -540,8 +531,6 @@ void SizeControl(ControlHandle theControl, SInt16 w, SInt16 h) {
         CTL_InvalInOwner(theControl, oldRect, true);
     }
 
-    /* Notify of size change */
-    NotifyControlChange(theControl, kControlSizeChanged);
 }
 
 /**
@@ -570,8 +559,6 @@ void SetControlValue(ControlHandle theControl, SInt16 theValue) {
             Draw1Control(theControl);
         }
 
-        /* Notify of value change */
-        NotifyControlChange(theControl, kControlValueChanged);
     }
 }
 
@@ -585,6 +572,18 @@ SInt16 GetControlValue(ControlHandle theControl) {
     return (*theControl)->contrlValue;
 }
 
+/*
+ * After a new minimum or maximum: the value back inside the range, and the
+ * control redrawn, as Inside Macintosh has SetCtlMin and SetCtlMax do. They
+ * redrew nothing, so a scroll bar kept the thumb of its old range.
+ */
+static void CTL_RangeChanged(ControlHandle c) {
+    if ((*c)->contrlValue < (*c)->contrlMin) (*c)->contrlValue = (*c)->contrlMin;
+    if ((*c)->contrlValue > (*c)->contrlMax) (*c)->contrlValue = (*c)->contrlMax;
+    _CallControlDefProc(c, posCntl, 0);
+    if ((*c)->contrlVis) Draw1Control(c);
+}
+
 /**
  * Set control minimum
  */
@@ -592,16 +591,8 @@ void SetControlMinimum(ControlHandle theControl, SInt16 minValue) {
     if (!theControl) {
         return;
     }
-
     (*theControl)->contrlMin = minValue;
-
-    /* Adjust value if necessary */
-    if ((*theControl)->contrlValue < minValue) {
-        SetControlValue(theControl, minValue);
-    }
-
-    /* Notify of range change */
-    NotifyControlChange(theControl, kControlRangeChanged);
+    CTL_RangeChanged(theControl);
 }
 
 /**
@@ -621,16 +612,8 @@ void SetControlMaximum(ControlHandle theControl, SInt16 maxValue) {
     if (!theControl) {
         return;
     }
-
     (*theControl)->contrlMax = maxValue;
-
-    /* Adjust value if necessary */
-    if ((*theControl)->contrlValue > maxValue) {
-        SetControlValue(theControl, maxValue);
-    }
-
-    /* Notify of range change */
-    NotifyControlChange(theControl, kControlRangeChanged);
+    CTL_RangeChanged(theControl);
 }
 
 /**
@@ -665,8 +648,6 @@ void SetControlTitle(ControlHandle theControl, ConstStr255Param title) {
         Draw1Control(theControl);
     }
 
-    /* Notify of title change */
-    NotifyControlChange(theControl, kControlTitleChanged);
 }
 
 /**
@@ -900,13 +881,6 @@ static void UnlinkControl(ControlHandle control) {
     }
 }
 
-/**
- * Notify of control change
- */
-static void NotifyControlChange(ControlHandle control, SInt16 changeType) {
-    /* Platform-specific notification could go here */
-    /* For accessibility, native control updates, etc. */
-}
 
 /**
  * Create new auxiliary control record

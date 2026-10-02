@@ -18,7 +18,7 @@ RESOURCES = [
     (b"DITL", 129, ditl((BUTTON, (85, 250, 105, 320), "Save"),
                         (BUTTON, (85, 170, 105, 240), "Cancel"),
                         (BUTTON, (85, 20, 105, 120), "Don’t Save"),
-                        (STATTEXT, (15, 20, 70, 320), "Save changes to “^0” before ^1?"))),
+                        (STATTEXT, (10, 70, 70, 320), "Save changes to “^0” before ^1?"))),
     (b"DLOG", 130, dlog((90, 120, 190, 420), 130)),
     (b"DITL", 130, ditl((BUTTON, (65, 210, 85, 280), "Find"),
                         (BUTTON, (65, 120, 85, 190), "Cancel"),

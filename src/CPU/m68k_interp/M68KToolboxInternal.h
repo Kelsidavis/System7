@@ -90,6 +90,8 @@ typedef struct {
 UInt32 M68KTB_ResHandleFor(Handle native);   /* the application's copy of a resource */
 UInt32 M68KTB_ScreenBase(void);
 UInt32 M68KTB_QDGlobals(void);               /* address of thePort; 0 before InitGraf */
+void M68KTB_TrapEnter(UInt16 trap);          /* around every Toolbox trap: the port */
+void M68KTB_TrapLeave(UInt16 trap);
 
 /* ---- M68KObjects.c: native objects the application holds ---- */
 UInt32 Obj_PortFor(GrafPtr port);            /* its record, made if need be; 0 for none */
@@ -106,6 +108,7 @@ UInt32 Obj_NewRgnRecord(RgnHandle rgn);
 void Obj_ForgetRgn(UInt32 h);
 void Obj_SyncRgn(RgnHandle rgn);
 void Obj_SetThePort(GrafPtr port);           /* and QuickDraw's thePort in the program */
+void Obj_LeavePort(GrafPtr going);           /* a port is going: not the current one any more */
 UInt32 Obj_ControlFor(ControlHandle c);      /* its ControlRecord handle, made if need be */
 ControlHandle Obj_Control(UInt32 h);
 void Obj_SyncControl(ControlHandle c);

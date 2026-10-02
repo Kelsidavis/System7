@@ -33,7 +33,6 @@ extern void ShowWindow(WindowPtr window);
 /* NewHandleClear, DisposeHandle, HLock, HUnlock now provided by MemoryManager.h */
 extern ControlHandle _GetFirstControl(WindowPtr window);
 extern void CenterDialogOnScreen(DialogPtr dlg);
-extern void InvalRect(const Rect* r);
 
 /* Global alert state */
 static struct {
@@ -457,9 +456,28 @@ static pascal void Alert_DrawIconWell(DialogPtr d, SInt16 itemNo)
     }
 }
 
-/* Whether the alert being built came from the fallback, whose last item is
- * the icon well. */
-static Boolean gAlertFromFallback = false;
+/* Whether the alert being built has an icon well as its last item */
+static Boolean gAlertIconWell = false;
+
+/* A user item for the icon where Inside Macintosh puts it, (10,20,42,52)
+ * (Toolbox Essentials, 6-31), at the end of an application's item list:
+ * its alerts were drawn with none, the DITL leaving the room empty. */
+static void Alert_AppendIconWell(Handle items)
+{
+    Size size = GetHandleSize(items);
+    if (size < 2) return;
+    SetHandleSize(items, size + 14);
+    if (MemError() != noErr) return;
+    UInt8* p = (UInt8*)*items;
+    UInt16 last = (UInt16)((p[0] << 8) | p[1]);
+    last++;
+    p[0] = (UInt8)(last >> 8);
+    p[1] = (UInt8)last;
+    static const UInt8 well[14] = { 0, 0, 0, 0,  0, 10, 0, 20, 0, 42, 0, 52,
+                                    userItem | itemDisable, 0 };
+    memcpy(p + size, well, sizeof well);
+    gAlertIconWell = true;
+}
 
 static Boolean LoadAlertWithFallback(SInt16 alertID, SInt16 alertType,
                                      DialogTemplate** outDLOG, Handle* outDITL,
@@ -473,7 +491,7 @@ static Boolean LoadAlertWithFallback(SInt16 alertID, SInt16 alertType,
         return false;
     }
 
-    gAlertFromFallback = false;
+    gAlertIconWell = false;
 
     /* The application's own ALRT and DITL, when it has them (Inside
      * Macintosh: Toolbox Essentials, 6-156). Every alert used to be built
@@ -493,6 +511,7 @@ static Boolean LoadAlertWithFallback(SInt16 alertID, SInt16 alertType,
                 *outDefItem = def;
                 *outCancelItem = (def == 1) ? 2 : 1;
                 *outIconKind = (alertType < 0) ? 0 : alertType + 1;
+                if (*outIconKind) Alert_AppendIconWell(items);
                 *outDLOG = t;
                 *outDITL = items;
                 DisposeAlertTemplate(alrt);
@@ -503,7 +522,7 @@ static Boolean LoadAlertWithFallback(SInt16 alertID, SInt16 alertType,
         if (alrt) DisposeAlertTemplate(alrt);
     }
 
-    gAlertFromFallback = true;
+    gAlertIconWell = true;
 
     /* Map alert ID to fallback spec */
     /* Standard alert IDs: 128=generic, 129=stop, 130=note, 131=caution */
@@ -646,8 +665,8 @@ static SInt16 RunAlertDialog(SInt16 alertID, ModalFilterProcPtr filterProc, SInt
         return 1;
     }
 
-    /* The fallback's icon well draws the alert's icon */
-    if (gAlertFromFallback && iconKind) {
+    /* The icon well draws the alert's icon */
+    if (gAlertIconWell && iconKind) {
         SInt16 well = CountDITL(alertDialog);
         SInt16 type;
         Handle h;
@@ -666,8 +685,9 @@ static SInt16 RunAlertDialog(SInt16 alertID, ModalFilterProcPtr filterProc, SInt
     CenterDialogOnScreen(alertDialog);
     ShowWindow((WindowPtr)alertDialog);
 
-    /* Force initial update */
-    InvalRect(&((GrafPtr)alertDialog)->portRect);
+    /* Force initial update - in the alert, not whatever port is current,
+     * which blanked that much of an application's window behind it */
+    InvalWindowRect((WindowPtr)alertDialog, &((GrafPtr)alertDialog)->portRect);
 
     /* Realize button controls so keyboard can find them */
     Alert_RealizeButtons(alertDialog);

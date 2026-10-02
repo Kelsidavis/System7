@@ -31,17 +31,6 @@ enum {
     drawThumbOutline = 12
 };
 
-/* Control Change Notification Codes */
-enum {
-    kControlPositionChanged = 1,
-    kControlSizeChanged = 2,
-    kControlValueChanged = 3,
-    kControlRangeChanged = 4,
-    kControlTitleChanged = 5,
-    kControlVisibilityChanged = 6,
-    kControlHighlightChanged = 7
-};
-
 /* Control Highlight States */
 enum {
     noHilite = 0,

@@ -370,6 +370,17 @@ void Obj_ForgetControl(ControlHandle c) {
     }
 }
 
+/* The port about to be disposed of is not left current, natively or as the
+ * program's thePort - it would be freed memory */
+void Obj_LeavePort(GrafPtr going) {
+    GrafPtr now;
+    GetPort(&now);
+    if (now != going) return;
+    GrafPtr wmgr = NULL;
+    GetWMgrPort(&wmgr);
+    if (wmgr) Obj_SetThePort(wmgr);
+}
+
 void Obj_Finish(void) {
     /* The program's windows close with it; regions it made are freed */
     for (int i = gObjectCount - 1; i >= 0; i--) {

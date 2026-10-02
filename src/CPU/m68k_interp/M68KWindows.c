@@ -110,6 +110,7 @@ TRAP(Trap_DisposeWindow) {
     UNUSED;
     WindowPtr w = PopWindow();
     if (w && Obj_IsAppWindow(w)) {
+        Obj_LeavePort((GrafPtr)w);
         Obj_ForgetWindow(w);
         DisposeWindow(w);
         Obj_SyncWindows();

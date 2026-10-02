@@ -181,6 +181,7 @@ TRAP(Trap_DisposeDialog) {
     UNUSED;
     DialogPtr d = PopDialog();
     if (d) {
+        Obj_LeavePort((GrafPtr)d);
         ForgetDialog(d);
         DisposeDialog(d);
         Obj_SyncWindows();
@@ -192,6 +193,7 @@ TRAP(Trap_CloseDialog) {
     UNUSED;
     DialogPtr d = PopDialog();
     if (d) {
+        Obj_LeavePort((GrafPtr)d);
         ForgetDialog(d);
         CloseDialog(d);
         Obj_SyncWindows();

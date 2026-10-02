@@ -52,6 +52,8 @@ enum {
 M68KAddressSpace* gM68KApp;
 #define gAS gM68KApp
 static UInt32 gStackBase;
+static GrafPtr gPortStack[16];      /* the port across each Toolbox call, nested */
+static int gPortDepth;
 static UInt32 gScreenBase;
 static Boolean gMenusTaken;
 
@@ -624,6 +626,7 @@ OSErr M68KToolbox_Prepare(SegmentLoaderContext* ctx, ConstStr255Param appName,
     if (!ctx || !ctx->cpuAS || !ctx->cpuBackend) return paramErr;
     gAS = (M68KAddressSpace*)ctx->cpuAS;
     gStackBase = stackBase;
+    gPortDepth = 0;
     gResCount = 0;
     gMenusTaken = false;
 
@@ -681,6 +684,41 @@ OSErr M68KToolbox_Prepare(SegmentLoaderContext* ctx, ConstStr255Param appName,
         }
     }
     return noErr;
+}
+
+/*
+ * The current port across a Toolbox call. The Macintosh's own calls put the
+ * caller's port back when they use another - MenuSelect, the alerts,
+ * ModalDialog, Standard File, DragWindow - and programs count on it: an
+ * InvalRect after choosing a menu item is in the window the program last
+ * set, not wherever the menu was drawn. These native calls do not all do
+ * that, so it is done around every one, except the calls whose work is to
+ * change the port, and those that may dispose of it.
+ */
+static Boolean ChangesPort(UInt16 trap) {
+    switch (trap & 0xFBFF) {
+        case 0xA873: case 0xA86F: case 0xA86D: case 0xA86E: case 0xA87D:   /* SetPort, OpenPort,
+                                                         InitPort, InitGraf, ClosePort */
+        case 0xA914: case 0xA92D: case 0xA983: case 0xA982:   /* the disposes */
+            return true;
+        default:
+            return false;
+    }
+}
+
+void M68KTB_TrapEnter(UInt16 trap) {
+    (void)trap;
+    if (gPortDepth < 16) GetPort(&gPortStack[gPortDepth]);
+    gPortDepth++;
+}
+
+void M68KTB_TrapLeave(UInt16 trap) {
+    if (gPortDepth <= 0) return;
+    gPortDepth--;
+    if (gPortDepth >= 16 || ChangesPort(trap)) return;
+    GrafPtr now;
+    GetPort(&now);
+    if (now != gPortStack[gPortDepth] && gPortStack[gPortDepth]) SetPort(gPortStack[gPortDepth]);
 }
 
 UInt32 M68KTB_ScreenBase(void) {
