@@ -2350,6 +2350,11 @@ static void fmt_number(FmtSink* sink, unsigned long long value, unsigned base,
     }
 }
 
+/* GCC's analyzer loses format-parser correlation here and treats every
+ * va_arg() as though it consumes the same pointer argument. Keep this
+ * suppression scoped to the formatter rather than disabling it project-wide. */
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wanalyzer-va-arg-type-mismatch"
 static int vsnprintf(char* str, size_t size, const char* format, va_list args) {
     FmtSink sink;
     sink.buf   = str;
@@ -2532,6 +2537,7 @@ static int vsnprintf(char* str, size_t size, const char* format, va_list args) {
     }
     return (int)sink.count;
 }
+#pragma GCC diagnostic pop
 
 /* Standard I/O functions */
 int vsprintf(char* str, const char* format, va_list args) {

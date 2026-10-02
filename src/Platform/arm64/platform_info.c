@@ -5,6 +5,7 @@
 
 #include <stdint.h>
 #include <stddef.h>
+#include "SystemTypes.h"
 #include "System71StdLib.h"
 #include "platform_info.h"
 
@@ -87,8 +88,8 @@ uint32_t platform_get_type(void) {
  */
 int32_t platform_get_gestalt_machine(void) {
 #ifdef QEMU_BUILD
-    return 'qemu';  /* QEMU identifier */
+    return FOURCC('q', 'e', 'm', 'u');  /* QEMU identifier */
 #else
-    return 'rasP';  /* Raspberry Pi identifier */
+    return FOURCC('r', 'a', 's', 'P');  /* Raspberry Pi identifier */
 #endif
 }

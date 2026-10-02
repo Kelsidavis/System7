@@ -1486,18 +1486,16 @@ test-stdlib:
 check: all check-x86-layout check-malloc test-stdlib check-exports
 
 # GCC's path-sensitive static analyzer adds ownership, bounds, and null-path
-# diagnostics to the standard strict x86 build. Its va_arg checker currently
-# mis-models this freestanding formatter's va_list and reports every valid
-# format conversion as a type mismatch, so that one diagnostic is excluded.
+# diagnostics to the standard strict builds.
 .PHONY: analyze
 analyze:
 	@$(MAKE) --no-print-directory PLATFORM=x86 \
-		EXTRA_CFLAGS='-fanalyzer -Wno-analyzer-va-arg-type-mismatch' all
+		EXTRA_CFLAGS='-fanalyzer' all
 
 .PHONY: analyze-arm64
 analyze-arm64:
 	@$(MAKE) --no-print-directory PLATFORM=arm64 \
-		EXTRA_CFLAGS='-fanalyzer -Wno-analyzer-va-arg-type-mismatch' all
+		EXTRA_CFLAGS='-fanalyzer' all
 
 .PHONY: check-x86-layout
 check-x86-layout: kernel.elf
