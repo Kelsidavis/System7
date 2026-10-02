@@ -238,7 +238,6 @@ static OSErr SetupMenus(void)
     GetLocalizedString(menuStr, kSTRListFinderAppleMenu, kStrAboutThisMacintosh);
     AppendMenu(gAppleMenu, menuStr);
     AppendMenu(gAppleMenu, PSTR("(-"));
-    AddResMenu(gAppleMenu, 'DRVR');
 
     /* Everything below the divider is the Apple Menu Items folder, which
      * System 7 lists alphabetically - Control Panels included, rather than
