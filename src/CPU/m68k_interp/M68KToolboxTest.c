@@ -21,6 +21,7 @@
 Boolean M68KToolbox_RunTrapTest(const char** why);
 Boolean M68KToolbox_RunSANETest(const char** why);
 Boolean M68KToolbox_RunListTest(const char** why);
+Boolean M68KToolbox_RunWindowTest(const char** why);
 
 enum { kAsmWords = 512 };           /* the code area's size, in words */
 typedef struct {
@@ -40,7 +41,7 @@ enum {
     kName = 0x50,       /* Str255 */
     kRefNum = 0x150, kParam = 0x154,
     kEvent = 0x160,
-    kDataSize = 0x200
+    kDataSize = 0x400
 };
 
 /* A program's world: its memory, prepared as a launch prepares it */
@@ -380,6 +381,105 @@ Boolean M68KToolbox_RunListTest(const char** why)
     if (!noNext)       { *why = "LNextCell went past the last cell"; return false; }
     if (!rectOK)       { *why = "LRect is not where the cell is"; return false; }
     if (!deleted)      { *why = "LDelRow did not move the cells up"; return false; }
+    *why = "";
+    return true;
+}
+
+/* ------------------------------------------------------------------------
+ * KeyTrans through a KCHR; SetWindowPic and GetWindowPic; DragGrayRgn
+ * ------------------------------------------------------------------------ */
+
+enum {
+    kMWindow = 0x00, kMBounds = 0x04, kMTitle = 0x0C, kMRgn = 0x10, kMLimit = 0x14,
+    kMSlop = 0x1C, kMState = 0x24, kMPic = 0x28, kMDrag = 0x2C,
+    kMKeys = 0x30,                              /* five LONGINT answers */
+    kMKCHR = 0x100                              /* 526 bytes */
+};
+
+/* A two-table KCHR: shift picks table 1; 'u' (key $22) is dead, and with
+ * 'e' (key $24) makes $8E */
+static void BuildKCHR(UInt32 k) {
+    M68K_Write16(gM68KApp, k, 0);                               /* version */
+    for (int m = 0; m < 256; m++) M68K_Write8(gM68KApp, k + 2 + (UInt32)m, (m & 0x02) ? 1 : 0);
+    M68K_Write16(gM68KApp, k + 258, 2);                         /* two tables */
+    for (int i = 0; i < 256; i++) M68K_Write8(gM68KApp, k + 260 + (UInt32)i, 0);
+    M68K_Write8(gM68KApp, k + 260 + 0x00, 'a');
+    M68K_Write8(gM68KApp, k + 260 + 0x22, 'u');
+    M68K_Write8(gM68KApp, k + 260 + 0x24, 'e');
+    M68K_Write8(gM68KApp, k + 260 + 128 + 0x00, 'A');
+    UInt32 dead = k + 260 + 256;
+    M68K_Write16(gM68KApp, dead, 1);                            /* one dead key */
+    M68K_Write8(gM68KApp, dead + 2, 0);                         /* table 0 */
+    M68K_Write8(gM68KApp, dead + 3, 0x22);                      /* key $22 */
+    M68K_Write16(gM68KApp, dead + 4, 1);                        /* one completor */
+    M68K_Write8(gM68KApp, dead + 6, 'e');
+    M68K_Write8(gM68KApp, dead + 7, 0x8E);
+    M68K_Write8(gM68KApp, dead + 8, 0);                         /* no match: */
+    M68K_Write8(gM68KApp, dead + 9, '\'');                       /* the accent alone */
+}
+
+static void KeyTransCall(Asm* a, UInt32 d, UInt16 keycode, int answer) {
+    W(a, 0x42A7);                                               /* result */
+    PushAddr(a, d + kMKCHR); PushW(a, keycode); PushAddr(a, d + kMState);
+    W(a, 0xA9C3);
+    PopL(a, d + kMKeys + 4 * (UInt32)answer);
+}
+
+Boolean M68KToolbox_RunWindowTest(const char** why)
+{
+    World w;
+    if (!WorldBegin(&w, why)) return false;
+    UInt32 d = w.data;
+    Rect bounds = { 50, 50, 250, 250 }, point = { 10, 10, 10, 10 }, slop = { 0, 0, 100, 100 };
+    WriteRect(d + kMBounds, &bounds);
+    WriteRect(d + kMLimit, &point);
+    WriteRect(d + kMSlop, &slop);
+    M68K_Write8(gM68KApp, d + kMTitle, 0);
+    M68K_Write32(gM68KApp, d + kMState, 0);
+    BuildKCHR(d + kMKCHR);
+
+    Asm a;
+    a.n = 0;
+    KeyTransCall(&a, d, 0x0000, 0);                             /* a */
+    KeyTransCall(&a, d, 0x0200, 1);                             /* shift-a */
+    KeyTransCall(&a, d, 0x0022, 2);                             /* dead u */
+    KeyTransCall(&a, d, 0x0024, 3);                             /* then e */
+    KeyTransCall(&a, d, 0x0022, 4);                             /* dead u again... */
+    KeyTransCall(&a, d, 0x0000, 4);                             /* ...then a */
+    /* window := NewWindow(...); SetWindowPic(window, $00ABCDE0); pic := GetWindowPic */
+    W(&a, 0x42A7);
+    PushL(&a, 0); PushAddr(&a, d + kMBounds); PushAddr(&a, d + kMTitle);
+    PushW(&a, 0x0100); PushW(&a, 0); PushL(&a, 0xFFFFFFFF); PushW(&a, 0); PushL(&a, 0);
+    W(&a, 0xA913);
+    PopL(&a, d + kMWindow);
+    PushVar(&a, d + kMWindow); PushL(&a, 0x00ABCDE0); W(&a, 0xA92E);
+    W(&a, 0x42A7); PushVar(&a, d + kMWindow); W(&a, 0xA92F); PopL(&a, d + kMPic);
+    PushVar(&a, d + kMWindow); PushL(&a, 0); W(&a, 0xA92E);   /* no picture again */
+    /* rgn := NewRgn; drag := DragGrayRgn(rgn, (10,10), point, slop, 0, NIL) */
+    W(&a, 0x42A7); W(&a, 0xA8D8); PopL(&a, d + kMRgn);
+    W(&a, 0x42A7);
+    PushVar(&a, d + kMRgn); PushL(&a, CellArg(10, 10)); PushAddr(&a, d + kMLimit); PushAddr(&a, d + kMSlop);
+    PushW(&a, 0); PushL(&a, 0);
+    W(&a, 0xA905);
+    PopL(&a, d + kMDrag);
+    PushVar(&a, d + kMRgn); W(&a, 0xA8D9);                      /* DisposeRgn */
+    PushVar(&a, d + kMWindow); W(&a, 0xA914);
+    W(&a, 0xA9F4);
+
+    OSErr ran = WorldRun(&w, &a);
+    M68KAddressSpace* as = gM68KApp;
+    UInt32 k[5];
+    for (int i = 0; i < 5; i++) k[i] = M68K_Read32(as, d + kMKeys + 4 * (UInt32)i);
+    Boolean keys = k[0] == 'a' && k[1] == 'A' && k[2] == 0 && k[3] == 0x8E &&
+                   k[4] == (((UInt32)'\'' << 16) | 'a') && M68K_Read32(as, d + kMState) == 0;
+    Boolean pic = M68K_Read32(as, d + kMPic) == 0x00ABCDE0;
+    Boolean drag = M68K_Read32(as, d + kMDrag) == 0;
+    WorldEnd(&w);
+
+    if (ran != noErr) { *why = "the program stopped with a fault"; return false; }
+    if (!keys) { *why = "KeyTrans did not translate through the KCHR"; return false; }
+    if (!pic)  { *why = "GetWindowPic did not answer what SetWindowPic set"; return false; }
+    if (!drag) { *why = "DragGrayRgn pinned to its start did not answer no movement"; return false; }
     *why = "";
     return true;
 }

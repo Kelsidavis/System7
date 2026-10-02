@@ -811,15 +811,20 @@ static Handle NativeCopy(UInt32 h) {
     return nh;
 }
 
+/* A program's picture drawn in the current port */
+void M68KQD_DrawPicture(UInt32 pic, const Rect* r) {
+    Handle nh = pic ? NativeCopy(pic) : NULL;
+    Begin();
+    if (nh) DrawPicture((PicHandle)nh, r);
+    End();
+    if (nh) DisposeHandle(nh);
+}
+
 TRAP(Trap_DrawPicture) {
     UNUSED;
     Rect r = PopRect();
     UInt32 pic = Pop32();
-    Handle nh = pic ? NativeCopy(pic) : NULL;
-    Begin();
-    if (nh) DrawPicture((PicHandle)nh, &r);
-    End();
-    if (nh) DisposeHandle(nh);
+    M68KQD_DrawPicture(pic, &r);
     return noErr;
 }
 

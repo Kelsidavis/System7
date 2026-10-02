@@ -16,6 +16,7 @@
 #include "M68KToolboxInternal.h"
 #include "EventManager/EventManager.h"
 #include "WindowManager/WindowManager.h"
+#include "QuickDraw/QuickDraw.h"
 #include "DeskManager/DeskManager.h"
 #include "System71StdLib.h"
 
@@ -64,6 +65,21 @@ static Boolean ForProgram(EventRecord* e, UInt32* message) {
         if (Obj_IsAppWindow(w)) {
             *message = Obj_PortFor((GrafPtr)w);
             Obj_SyncWindows();
+            /* A window with a picture is drawn from it, and the program
+             * gets no update for it (IM I-275) */
+            UInt32 pic = R32(*message + kWindowPicOffset);
+            if (e->what == updateEvt && pic) {
+                GrafPtr saved;
+                GetPort(&saved);
+                SetPort((GrafPtr)w);
+                BeginUpdate(w);
+                Rect frame;
+                ReadRect(M68KHeap_Deref(pic) + 2, &frame);          /* picFrame */
+                M68KQD_DrawPicture(pic, &frame);
+                EndUpdate(w);
+                SetPort(saved);
+                return false;
+            }
             return true;
         }
         if (w && w->windowKind < 0) {
@@ -252,12 +268,68 @@ TRAP(Trap_OSEventAvail) {
     return noErr;
 }
 
+/* FUNCTION KeyTrans(transData: Ptr; keycode: INTEGER; VAR state: LONGINT):
+ * LONGINT - a key through a KCHR resource (Inside Macintosh VI, the Script
+ * Manager's keyboard tables): the modifier table
+ * picks a character table, the key's virtual code a character in it, and
+ * a dead key waits in state for the key that completes it. keycode is the
+ * virtual key in bits 0-6, up in bit 7, the modifiers in the high byte. The
+ * answer is one character in bits 0-7, or two - the second in bits 16-23 -
+ * when a dead key is followed by one it does not combine with. */
+TRAP(Trap_KeyTrans) {
+    UNUSED;
+    UInt32 stateAddr = Pop32();
+    UInt16 keycode = Pop16();
+    UInt32 kchr = Pop32();
+    UInt32 state = R32(stateAddr);
+    if (!kchr) {
+        Result32((UInt32)KeyTranslate(NULL, keycode, &state));
+        W32(stateAddr, state);
+        return noErr;
+    }
+    Boolean up = (keycode & 0x80) != 0;
+    UInt8 vk = keycode & 0x7F;
+    UInt8 table = R8(kchr + 2 + (keycode >> 8));
+    UInt16 tables = R16(kchr + 258);
+    if (table >= tables) table = 0;
+    UInt8 ch = R8(kchr + 260 + (UInt32)table * 128 + vk);
+
+    /* The dead-key records follow the tables */
+    UInt32 dead = kchr + 260 + (UInt32)tables * 128;
+    UInt16 deadCount = R16(dead);
+    UInt32 rec = dead + 2;
+    if (state && !up) {
+        /* The key after a dead key: a completor makes one character, any
+         * other key gives the dead key's own and then its own */
+        UInt32 r = rec;
+        for (UInt32 i = 1; i < state && i <= deadCount; i++) r += 4 + 2 * (UInt32)R16(r + 2) + 2;
+        UInt16 n = R16(r + 2);
+        UInt32 result = ((UInt32)R8(r + 4 + 2 * (UInt32)n + 1) << 16) | ch;
+        for (UInt16 k = 0; k < n; k++) {
+            if (R8(r + 4 + 2 * (UInt32)k) == ch) { result = R8(r + 4 + 2 * (UInt32)k + 1); break; }
+        }
+        W32(stateAddr, 0);
+        Result32(result);
+        return noErr;
+    }
+    for (UInt16 i = 0; i < deadCount; i++) {
+        if (R8(rec) == table && R8(rec + 1) == vk) {
+            if (!up) W32(stateAddr, (UInt32)i + 1);
+            Result32(0);
+            return noErr;
+        }
+        rec += 4 + 2 * (UInt32)R16(rec + 2) + 2;
+    }
+    Result32(ch);
+    return noErr;
+}
+
 const M68KTrapEntry kM68KEventTraps[] = {
     { 0xA970, Trap_GetNextEvent },  { 0xA860, Trap_WaitNextEvent }, { 0xA971, Trap_EventAvail },
     { 0xA972, Trap_GetMouse },      { 0xA974, Trap_Button },        { 0xA973, Trap_StillDown },
     { 0xA977, Trap_WaitMouseUp },   { 0xA976, Trap_GetKeys },       { 0xA9B3, Trap_SystemClick },
     { 0xA9B2, Trap_SystemEvent },   { 0xA9B4, Trap_SystemTask },    { 0xA9C2, Trap_SystemEdit },
     { 0xA9B6, Trap_OpenDeskAcc },   { 0xA9B7, Trap_CloseDeskAcc },  { 0xA02F, Trap_PostEvent },
-    { 0xA03B, Trap_Delay },         { 0xA031, Trap_GetOSEvent },    { 0xA030, Trap_OSEventAvail },
+    { 0xA03B, Trap_Delay },         { 0xA9C3, Trap_KeyTrans },         { 0xA031, Trap_GetOSEvent },    { 0xA030, Trap_OSEventAvail },
 };
 const int kM68KEventTrapCount = (int)(sizeof(kM68KEventTraps) / sizeof(kM68KEventTraps[0]));

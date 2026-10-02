@@ -131,6 +131,8 @@ void Ports_Finish(void);
 void Ports_CopyBits(UInt32 srcBits, UInt32 dstBits, UInt32 srcRect, UInt32 dstRect,
                     SInt16 mode, UInt32 maskRgn);
 void M68KQD_Finish(void);
+void M68KQD_DrawPicture(UInt32 pic, const Rect* r);   /* a program's picture, in the current port */
+enum { kWindowPicOffset = 148 };             /* WindowRecord.windowPic (IM I-276) */
 extern const M68KTrapEntry kM68KPortTraps[];
 extern const int kM68KPortTrapCount;
 

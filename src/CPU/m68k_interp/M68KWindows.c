@@ -14,7 +14,14 @@
 #include "WindowManager/WindowManager.h"
 #include "ResourceManager.h"
 #include "QuickDraw/QuickDraw.h"
+#include "QuickDrawConstants.h"   /* patXor */
 #include "System71StdLib.h"
+
+extern QDGlobals qd;
+extern void GetMouseLocal(Point* pt);     /* the current port's coordinates */
+extern Boolean StillDown(void);
+extern void SystemTask(void);
+extern void InvalRect(const Rect* r);
 
 static WindowPtr PopWindow(void) {
     return (WindowPtr)Obj_Port(Pop32());
@@ -125,6 +132,106 @@ WINDOW_VERB(Trap_HideWindow, HideWindow)
 WINDOW_VERB(Trap_SelectWindow, SelectWindow)
 WINDOW_VERB(Trap_BringToFront, BringToFront)
 WINDOW_VERB(Trap_DrawGrowIcon, DrawGrowIcon)
+
+/* PROCEDURE SetWindowPic(theWindow: WindowPtr; pic: PicHandle). The picture
+ * is kept in the program's record, where GetWindowPic and the program find
+ * it; the update that follows draws it rather than reaching the program
+ * (M68KEvents.c). */
+TRAP(Trap_SetWindowPic) {
+    UNUSED;
+    UInt32 pic = Pop32();
+    UInt32 rec = Pop32();
+    WindowPtr w = (WindowPtr)Obj_Port(rec);
+    if (!w) return noErr;
+    W32(rec + kWindowPicOffset, pic);
+    GrafPtr saved;
+    GetPort(&saved);
+    SetPort((GrafPtr)w);
+    InvalRect(&w->port.portRect);
+    SetPort(saved);
+    return noErr;
+}
+
+TRAP(Trap_GetWindowPic) {
+    UNUSED;
+    UInt32 rec = Pop32();
+    Result32(Obj_Port(rec) ? R32(rec + kWindowPicOffset) : 0);
+    return noErr;
+}
+
+/* FUNCTION DragGrayRgn(theRgn: RgnHandle; startPt: Point; limitRect,
+ *   slopRect: Rect; axis: INTEGER; actionProc: ProcPtr): LONGINT
+ *
+ * The region's outline, in gray, follows the mouse in the current port
+ * until the button comes up (IM I-294). The answer is how far it went,
+ * vertical in the high word; or $80008000 if the mouse was let go outside
+ * slopRect. The mouse is kept within limitRect and, by axis, to one
+ * direction. */
+TRAP(Trap_DragGrayRgn) {
+    UNUSED;
+    UInt32 action = Pop32();
+    SInt16 axis = (SInt16)Pop16();
+    Rect slop, limit;
+    ReadRect(Pop32(), &slop);
+    ReadRect(Pop32(), &limit);
+    Point start = PopPoint();
+    RgnHandle rgn = Obj_Rgn(Pop32());
+    if (!rgn) {
+        Result32(0x80008000);
+        return noErr;
+    }
+    GrafPtr port;
+    GetPort(&port);
+    Obj_SyncPortIn(port);
+    PenState pen;
+    GetPenState(&pen);
+    PenMode(patXor);
+    PenPat(&qd.gray);
+    RgnHandle dragged = NewRgn();
+    CopyRgn(rgn, dragged);
+    Point at = start;                       /* where the dragged is drawn for */
+    Boolean shown = false, inside = true;
+    for (;;) {
+        Point m;
+        GetMouseLocal(&m);
+        if (axis == 1) m.v = start.v;       /* hAxisOnly */
+        if (axis == 2) m.h = start.h;       /* vAxisOnly */
+        if (m.h < limit.left) m.h = limit.left;
+        if (m.h > limit.right) m.h = limit.right;
+        if (m.v < limit.top) m.v = limit.top;
+        if (m.v > limit.bottom) m.v = limit.bottom;
+        inside = PtInRect(m, &slop);
+        Boolean moved = m.h != at.h || m.v != at.v;
+        if (shown && (!inside || moved)) {
+            Ports_BeforeDraw(port);
+            FrameRgn(dragged);              /* xor: off again */
+            Ports_AfterDraw(port);
+            shown = false;
+        }
+        if (inside && !shown) {
+            OffsetRgn(dragged, (SInt16)(m.h - at.h), (SInt16)(m.v - at.v));
+            at = m;
+            Ports_BeforeDraw(port);
+            FrameRgn(dragged);
+            Ports_AfterDraw(port);
+            shown = true;
+        }
+        if (action) CallProgram(action);
+        if (!StillDown()) break;
+        SystemTask();
+    }
+    if (shown) {
+        Ports_BeforeDraw(port);
+        FrameRgn(dragged);
+        Ports_AfterDraw(port);
+    }
+    DisposeRgn(dragged);
+    SetPenState(&pen);
+    Obj_SyncPortOut(port);
+    Result32(inside ? ((UInt32)(UInt16)(at.v - start.v) << 16) | (UInt16)(at.h - start.h)
+                    : 0x80008000);
+    return noErr;
+}
 
 /* PROCEDURE ShowHide(theWindow: WindowPtr; showFlag: BOOLEAN) */
 TRAP(Trap_ShowHide) {
@@ -343,7 +450,8 @@ TRAP(Trap_GetWMgrPort) {
 const M68KTrapEntry kM68KWindowTraps[] = {
     { 0xA913, Trap_NewWindow },     { 0xA9BD, Trap_GetNewWindow },  { 0xA914, Trap_DisposeWindow },
     { 0xA92D, Trap_DisposeWindow }, /* CloseWindow */
-    { 0xA908, Trap_ShowHide },
+    { 0xA908, Trap_ShowHide },      { 0xA905, Trap_DragGrayRgn },
+    { 0xA92E, Trap_SetWindowPic },  { 0xA92F, Trap_GetWindowPic },
     { 0xA915, Trap_ShowWindow },    { 0xA916, Trap_HideWindow },    { 0xA91F, Trap_SelectWindow },
     { 0xA920, Trap_BringToFront },  { 0xA904, Trap_DrawGrowIcon },  { 0xA91C, Trap_HiliteWindow },
     { 0xA921, Trap_SendBehind },    { 0xA924, Trap_FrontWindow },   { 0xA92C, Trap_FindWindow },

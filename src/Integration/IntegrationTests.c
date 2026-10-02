@@ -1446,6 +1446,16 @@ static void Test_M68K_Lists(void) {
     RecordTest(test_name, true, "");
 }
 
+extern Boolean M68KToolbox_RunWindowTest(const char** why);
+
+/* KeyTrans through a KCHR, a window's picture, and DragGrayRgn */
+static void Test_M68K_WindowCalls(void) {
+    const char* test_name = "M68K_WindowCalls";
+    const char* why = "";
+    CHECK(M68KToolbox_RunWindowTest(&why), why);
+    RecordTest(test_name, true, "");
+}
+
 static void Test_M68K_Traps(void) {
     const char* test_name = "M68K_Traps";
     const char* why = "";
@@ -1510,6 +1520,7 @@ void IntegrationTests_Run(void) {
     Test_M68K_Traps();
     Test_M68K_SANE();
     Test_M68K_Lists();
+    Test_M68K_WindowCalls();
 
     PrintTestSummary();
 }
