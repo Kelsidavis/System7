@@ -54,7 +54,6 @@ Boolean EqualPt(Point pt1, Point pt2) {
 }
 
 void LocalToGlobal(Point *pt) {
-    extern GrafPtr g_currentPort; /* From QuickDrawCore.c */
     assert(pt != NULL);
 
     if (g_currentPort) {
@@ -69,7 +68,6 @@ void LocalToGlobal(Point *pt) {
 }
 
 void GlobalToLocal(Point *pt) {
-    extern GrafPtr g_currentPort; /* From QuickDrawCore.c */
     assert(pt != NULL);
 
     if (g_currentPort) {
@@ -388,7 +386,6 @@ void StuffHex(void *thingPtr, ConstStr255Param s) {
 }
 
 Boolean GetPixel(SInt16 h, SInt16 v) {
-    extern GrafPtr g_currentPort; /* From QuickDrawCore.c */
 
     if (!g_currentPort || !g_currentPort->portBits.baseAddr) return false;
 

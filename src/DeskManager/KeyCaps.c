@@ -283,7 +283,6 @@ static void KeyCaps_DrawStrip(const KeyCaps *keyCaps)
 void KeyCaps_DrawKeyboard(KeyCaps *keyCaps, const Rect *updateRect)
 {
     extern void FrameRoundRect(const Rect* r, short ovalWidth, short ovalHeight);
-    extern GrafPtr g_currentPort;
     (void)updateRect;
     if (!keyCaps || !keyCaps->currentLayout || !g_currentPort) {
         return;

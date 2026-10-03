@@ -26,7 +26,6 @@
 
 #include <string.h>
 
-extern GrafPtr g_currentPort;
 extern CGrafPtr g_currentCPort;
 
 typedef struct {

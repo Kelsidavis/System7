@@ -27,7 +27,6 @@
 #include "QuickDraw/QuickDrawPlatform.h"
 
 /* Current QuickDraw port from QuickDrawCore.c */
-extern GrafPtr g_currentPort;
 extern CGrafPtr g_currentCPort;
 extern uint32_t pack_color(uint8_t r, uint8_t g, uint8_t b);
 

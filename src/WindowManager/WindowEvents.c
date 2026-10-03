@@ -513,7 +513,6 @@ void BeginUpdate(WindowPtr theWindow) {
             Platform_IntersectRgn(theWindow->contRgn, theWindow->updateRgn, updateClip);
             if (theWindow->offscreenGWorld) {
                 /* Check if current port's clipRgn is valid before calling SetClip */
-                extern GrafPtr g_currentPort;
                 if (g_currentPort && g_currentPort->clipRgn) {
                     /* SetClip copies the region, so we can safely dispose after */
                     SetClip(updateClip);
@@ -538,7 +537,6 @@ void BeginUpdate(WindowPtr theWindow) {
     } else if (theWindow->contRgn) {
         /* If no updateRgn, just use contRgn to prevent overdrawing chrome */
         if (theWindow->offscreenGWorld) {
-            extern GrafPtr g_currentPort;
             if (g_currentPort && g_currentPort->clipRgn) {
                 SetClip(theWindow->contRgn);
             }

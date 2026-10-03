@@ -373,7 +373,6 @@ Boolean QD_ClipHas(SInt32 x, SInt32 y) {
 
 /* Set a pixel */
 void QDPlatform_SetPixel(SInt32 x, SInt32 y, UInt32 color) {
-    extern GrafPtr g_currentPort;
     extern CGrafPtr g_currentCPort;  /* from ColorQuickDraw.c */
 
     if (!g_currentPort) {
@@ -475,7 +474,6 @@ void QDPlatform_SetPixel(SInt32 x, SInt32 y, UInt32 color) {
  * of icon labels in a black bar.
  */
 UInt32 QDPlatform_GetPixel(SInt32 x, SInt32 y) {
-    extern GrafPtr g_currentPort;
     extern CGrafPtr g_currentCPort;  /* from ColorQuickDraw.c */
 
     if (!g_currentPort) {
@@ -631,7 +629,6 @@ static void QDPlatform_DrawLine_Body(GrafPtr port, Point startPt, Point endPt,
 
 void QDPlatform_DrawLine(GrafPtr port, Point startPt, Point endPt,
                         const Pattern* pat, SInt16 mode) {
-    extern GrafPtr g_currentPort;
     QD_ClipBegin(port);
     QDPlatform_DrawLine_Body(port, startPt, endPt, pat, mode);
     QD_ClipEnd();
@@ -994,7 +991,6 @@ static void QDPlatform_DrawShape_Body(GrafPtr port, GrafVerb verb, const Rect* r
 void QDPlatform_DrawShape(GrafPtr port, GrafVerb verb, const Rect* rect,
                          SInt16 shapeType, const Pattern* pat,
                          SInt16 ovalWidth, SInt16 ovalHeight) {
-    extern GrafPtr g_currentPort;
     QD_ClipBegin(port);
     QDPlatform_DrawShape_Body(port, verb, rect, shapeType, pat, ovalWidth, ovalHeight);
     QD_ClipEnd();
@@ -1108,7 +1104,6 @@ static void QDPlatform_FillPoly_Body(GrafPtr port, PolyHandle poly, const Patter
 
 void QDPlatform_FillPoly(GrafPtr port, PolyHandle poly, const Pattern* pat,
                         SInt16 mode, GrafVerb verb) {
-    extern GrafPtr g_currentPort;
     QD_ClipBegin(port);
     QDPlatform_FillPoly_Body(port, poly, pat, mode, verb);
     QD_ClipEnd();
@@ -1141,7 +1136,6 @@ static void QDPlatform_DrawRegion_Body(RgnHandle rgn, short mode, const Pattern*
 
     extern bool PM_GetColorPattern(uint32_t** patternData);
     extern void EraseRect(const Rect* r);
-    extern GrafPtr g_currentPort;
     uint32_t* colorPattern = NULL;
     /* The desktop's pattern is for the desktop: a window erases to its own
      * background, through EraseRect. */
@@ -1197,7 +1191,6 @@ static void QDPlatform_DrawRegion_Body(RgnHandle rgn, short mode, const Pattern*
  * its preview with it.
  */
 void QD_FillRectColorPattern(const Rect* r, const uint32_t pattern[64]) {
-    extern GrafPtr g_currentPort;
     if (!r || !pattern || !g_currentPort) return;
     GrafPtr port = g_currentPort;
     QD_ClipBegin(port);
@@ -1212,7 +1205,6 @@ void QD_FillRectColorPattern(const Rect* r, const uint32_t pattern[64]) {
 }
 
 void QDPlatform_DrawRegion(RgnHandle rgn, short mode, const Pattern* pat) {
-    extern GrafPtr g_currentPort;
     QD_ClipBegin(g_currentPort);
     QDPlatform_DrawRegion_Body(rgn, mode, pat);
     QD_ClipEnd();
@@ -1487,7 +1479,6 @@ void QDPlatform_DrawGlyphBitmap(GrafPtr port, Point pen,
                          const uint8_t *bitmap,
                          SInt16 width, SInt16 height,
                          const Pattern *pattern, SInt16 mode) {
-    extern GrafPtr g_currentPort;
     QD_ClipBegin(port);
     QDPlatform_DrawGlyphBitmap_Body(port, pen, bitmap, width, height, pattern, mode);
     QD_ClipEnd();

@@ -70,7 +70,6 @@ extern void SetDeskHook(void (*hookProc)(RgnHandle));
 
 /* Chicago font data */
 extern const uint8_t chicago_bitmap[];
-extern GrafPtr g_currentPort;
 /* CHICAGO_HEIGHT is defined in chicago_font.h */
 #define CHICAGO_ASCENT 12
 #define CHICAGO_ROW_BYTES 140

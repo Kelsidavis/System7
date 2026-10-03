@@ -10,6 +10,7 @@
  */
 
 #include "SystemTypes.h"
+#include "QuickDraw/QuickDraw.h"
 #include "System71StdLib.h"
 
 #include "DeskManager/AlarmClock.h"
@@ -448,7 +449,6 @@ void AlarmClock_Draw(AlarmClock *clock, const Rect *updateRect)
     extern void TextFont(short font);
     extern void TextSize(short size);
     extern short TextWidth(const void* textBuf, short firstByte, short byteCount);
-    extern GrafPtr g_currentPort;
 
     (void)updateRect;
     if (!clock || !g_currentPort) {

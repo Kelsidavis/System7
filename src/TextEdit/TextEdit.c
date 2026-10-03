@@ -66,7 +66,6 @@ typedef TEExtRec *TEExtPtr, **TEExtHandle;
 static Boolean g_teInitialized = FALSE;
 
 /* External functions */
-extern GrafPtr g_currentPort;
 extern void BlockMove(const void *src, void *dest, Size size);
 extern OSErr MemError(void);
 #define FMGetFontMetrics GetFontMetrics  /* Use our FontManager function */

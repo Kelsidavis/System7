@@ -17,7 +17,6 @@
 #include <string.h>
 
 /* Current port from QuickDrawCore.c */
-extern GrafPtr g_currentPort;
 
 /* Picture opcodes (simplified PICT format subset) */
 #define picOpNop        0x00

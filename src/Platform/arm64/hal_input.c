@@ -7,6 +7,7 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include "SystemTypes.h"
+#include "QuickDraw/QuickDraw.h"
 #include "EventManager/EventTypes.h"
 #include "Platform/PS2Input.h"
 #include "PS2Controller.h"
@@ -230,7 +231,6 @@ UInt8 GetMouseButtons(void) {
 
 /* Mouse position in the current port's coordinates */
 void GetMouseLocal(Point* mouseLoc) {
-    extern GrafPtr g_currentPort;
     if (!mouseLoc) return;
     GetMouse(mouseLoc);
     /* local = global - bounds, the one rule every port follows */

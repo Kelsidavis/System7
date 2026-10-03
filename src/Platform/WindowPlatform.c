@@ -17,7 +17,6 @@ extern void QD_SetScreenPort(void);
 #include "TimeManager/TimeBase.h"
 
 /* External framebuffer and QuickDraw globals */
-extern GrafPtr g_currentPort;
 
 /* Initialize windowing system */
 void Platform_InitWindowing(void) {
@@ -642,12 +641,10 @@ void Platform_WaitTicks(short ticks) {
 
 /* Port management */
 GrafPtr Platform_GetCurrentPort(void) {
-    extern GrafPtr g_currentPort;
     return g_currentPort;
 }
 
 void Platform_SetCurrentPort(GrafPtr port) {
-    extern GrafPtr g_currentPort;
     g_currentPort = port;
 }
 

@@ -55,7 +55,6 @@ typedef TEExtRec *TEExtPtr, **TEExtHandle;
 #define CARET_BLINK     30      /* Ticks between blinks */
 
 /* External functions */
-extern GrafPtr g_currentPort;
 extern void InvertRect(const Rect *r);
 extern void EraseRect(const Rect *r);
 extern void InvalRect(const Rect *r);

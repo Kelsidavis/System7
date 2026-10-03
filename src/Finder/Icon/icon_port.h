@@ -8,7 +8,6 @@
 #include "QuickDraw/QuickDrawPlatform.h"
 
 /* Shared QuickDraw globals */
-extern GrafPtr g_currentPort;
 
 /* Write a single pixel at local (x, y) coordinates into the active QuickDraw port.
  * Falls back to the global framebuffer if no port is active. */

@@ -22,7 +22,6 @@ static CGrafPtr g_currentGWorld = NULL;
 static GDHandle g_currentGDevice = NULL;
 
 /* External QuickDraw globals */
-extern GrafPtr g_currentPort;
 
 /*
  * NewGWorld - Create new offscreen graphics world

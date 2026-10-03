@@ -239,7 +239,6 @@ void DrawMenuTitle(short menuID, const Rect* titleRect, Boolean hilited)
     /* Debug: Log coordinates being used */
     static char debugBuf[256];
     extern int snprintf(char*, size_t, const char*, ...);
-    extern GrafPtr g_currentPort;
     snprintf(debugBuf, sizeof(debugBuf), "[DRAWTITLE] titleRect=(%d,%d,%d,%d) bounds=(%d,%d,%d,%d) width=%d\n",
              titleRect->left, titleRect->top, titleRect->right, titleRect->bottom,
              g_currentPort->portBits.bounds.left, g_currentPort->portBits.bounds.top,
@@ -276,7 +275,6 @@ void DrawMenuTitle(short menuID, const Rect* titleRect, Boolean hilited)
 
     /* Draw the title text */
     extern void serial_puts(const char* str);
-    extern GrafPtr g_currentPort;
     static char pnLocBuf[256];
     extern int snprintf(char*, size_t, const char*, ...);
 

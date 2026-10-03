@@ -77,7 +77,6 @@ UInt8 GetMouseButtons(void) {
 }
 
 void GetMouseLocal(Point* mouseLoc) {
-    extern GrafPtr g_currentPort;
     if (!mouseLoc) return;
     GetMouse(mouseLoc);
     if (g_currentPort) {
