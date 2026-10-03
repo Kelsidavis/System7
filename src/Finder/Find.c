@@ -22,12 +22,9 @@
 #include "FS/hfs_types.h"
 #include "Finder/FinderLogging.h"
 #include "Finder/finder.h"
+#include "SoundManager/SoundManager.h"
 #include "System71StdLib.h"
 #include "MemoryMgr/MemoryManager.h"
-
-extern WindowPtr FolderWindow_OpenFolder(VRefNum vref, DirID dirID, ConstStr255Param title);
-extern void FolderWindow_SelectByName(WindowPtr w, const char* name);
-extern void SysBeep(short duration);
 
 #define MAX_RESULTS 100
 typedef struct {
