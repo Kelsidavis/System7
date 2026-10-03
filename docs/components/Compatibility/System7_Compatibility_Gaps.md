@@ -28,8 +28,6 @@ This checklist records significant differences between the current toolbox reimp
 - `src/TextEdit/TextEditScroll.c` – Horizontal and vertical scroll limits are shared by `TEScroll` and `TEPinScroll`; integration coverage checks both against a long, unwrapped line and multiple hard-returned lines. Mixed-font widths and scroll-bar integration remain unvalidated.
 - `src/TextEdit/TextEditClipboard.c` – TEXT and style scrap are copied to and from the Scrap Manager, but `TEStylePaste` currently parses/logs style runs without applying them to the pasted range.
 
-## Resource & File Systems
-
 ## Memory & Process Infrastructure
 - ~~`src/MemoryMgr/MemoryManager.c` – `SetHandleSize` faked success without reallocating; handle-based memory semantics must be honoured for legacy callers.~~ **FIXED** (2025-10-06): `SetHandleSize` now reallocates handles with data copying, respects locked handles, and maintains master pointer integrity.
 - ~~`src/System71StdLib.c:576`–`583` – `sprintf`/`snprintf` are placeholder implementations; Toolbox routines expecting formatted output (e.g., `NumToString`) will misbehave.~~ **FIXED** (2025-10-06): Implemented vsnprintf() with format specifiers (%s, %d, %u, %x, %c, %p); sprintf() and snprintf() now fully functional
