@@ -3,8 +3,6 @@
  *
  * Contains: Speech output device control and routing for Speech Manager
  *
- * Written by: Claude Code (Portable Implementation)
- *
  *
  * Description: This header provides speech audio output functionality
  *              including device management, routing, and audio processing.

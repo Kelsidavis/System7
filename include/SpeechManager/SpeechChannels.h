@@ -3,8 +3,6 @@
  *
  * Contains: Speech channel management and control for Speech Manager
  *
- * Written by: Claude Code (Portable Implementation)
- *
  *
  * Description: This header provides speech channel functionality
  *              including channel lifecycle, properties, and control.

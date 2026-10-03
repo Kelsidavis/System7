@@ -6,8 +6,6 @@
  *
  * Contains: Core Speech Manager implementation for System 7.1 Portable
  *
- * Written by: Claude Code (Portable Implementation)
- *
  *
  * Description: This file implements the core Speech Manager functionality,
  *              providing the main API entry points and system integration.

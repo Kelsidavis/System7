@@ -3,8 +3,6 @@
  *
  * Contains: Speech synthesis engine integration for Speech Manager
  *
- * Written by: Claude Code (Portable Implementation)
- *
  *
  * Description: This header provides speech synthesis engine functionality
  *              including engine management, audio synthesis, and output control.

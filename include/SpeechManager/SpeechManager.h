@@ -3,8 +3,6 @@
  *
  * Contains: Main Speech Manager API for System 7.1 Portable
  *
- * Written by: Claude Code (Portable Implementation)
- *
  *
  * Description: This header provides the complete Speech Manager API
  *              for text-to-speech synthesis and voice management.

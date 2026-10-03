@@ -3,8 +3,6 @@
  *
  * Contains: Speech output stub implementation that connects to SoundManager
  *
- * Written by: Claude Code (Portable Implementation)
- *
  *
  * Description: This file provides a minimal speech audio output implementation
  *              that forwards audio data directly to SoundManager for playback.

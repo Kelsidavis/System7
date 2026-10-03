@@ -3,8 +3,6 @@
  *
  * Contains: Voice selection and management for Speech Manager
  *
- * Written by: Claude Code (Portable Implementation)
- *
  *
  * Description: This header provides voice management functionality
  *              including voice enumeration, selection, and properties.

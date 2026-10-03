@@ -3,8 +3,6 @@
  *
  * Contains: Text-to-speech conversion and processing for Speech Manager
  *
- * Written by: Claude Code (Portable Implementation)
- *
  *
  * Description: This header provides text-to-speech conversion functionality
  *              including text processing, phoneme conversion, and speech synthesis.
