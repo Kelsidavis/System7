@@ -677,12 +677,15 @@ build that no longer compiled, while the copy that ran was in
 `ProcessMgr/EventIntegration.c`. Cooperative scheduling is now simply how the
 system is built; the `ENABLE_PROCESS_COOP` option is gone.
 
-`python3 scripts/find-shadowed-defs.py` after a build reports dead files and
-suspect copies; both are at zero. The 116 remaining "unbuilt copies" are
-deliberate alternates chosen by feature flags.
+After building the target under review, run
+`python3 scripts/find-shadowed-defs.py --platform x86`. The audit follows Make's
+dry-run compile commands, so it checks the selected target's objects rather
+than stale objects left by another platform build. Current x86, ARM, and ARM64
+audits find no dead files, suspect copies, or unbuilt copies; run it separately
+for another target after building that target.
 
 ⚠️ **Before editing a Toolbox-looking function, confirm which copy links:**
-`nm --defined-only build/obj/**/*.o | grep " T <name>"`.
+`find "build/obj/${PLATFORM:-x86}" -type f -name '*.o' -exec nm --defined-only {} + | grep ' T FunctionName$'`.
 
 ### ✅ Regions are rectangles: DiffRgn and XorRgn are stubs (REGION-001) — FIXED
 

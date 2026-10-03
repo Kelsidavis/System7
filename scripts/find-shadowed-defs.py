@@ -24,9 +24,10 @@ So this script flags an unbuilt copy as SUSPECT when the dead text advertises
 itself as canonical/primary/real - that combination is what misleads.
 
 Usage:
-    make && python3 scripts/find-shadowed-defs.py
+    make PLATFORM=x86 && python3 scripts/find-shadowed-defs.py --platform x86
 """
 
+import argparse
 import collections
 import os
 import re
@@ -59,10 +60,6 @@ def strip_if_zero(text):
     return ''.join(out)
 
 
-def obj_for(src):
-    return 'build/obj/' + src[4:-2] + '.o'
-
-
 def defined_symbols(obj):
     if not os.path.exists(obj):
         return set()
@@ -73,8 +70,37 @@ def defined_symbols(obj):
 
 
 def main():
-    if not os.path.isdir('build/obj'):
-        sys.exit('no build/obj - run make first')
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument(
+        '--platform', default=os.environ.get('PLATFORM', 'x86'),
+        help='Makefile platform whose objects to inspect (default: x86)',
+    )
+    parser.add_argument(
+        '--obj-dir', default=os.environ.get('OBJ_DIR'),
+        help='override the object directory used by the Makefile',
+    )
+    parser.add_argument(
+        '--make-arg', action='append', default=[], metavar='NAME=VALUE',
+        help='pass an additional Make variable, e.g. CONFIG=release',
+    )
+    args = parser.parse_args()
+    command = ['make', '-Bn', f'PLATFORM={args.platform}', *args.make_arg]
+    if args.obj_dir:
+        command.append(f'OBJ_DIR={args.obj_dir}')
+    make = subprocess.run(
+        command,
+        capture_output=True, text=True, check=True,
+    )
+    object_for_source = dict(re.findall(
+        r' -c (src/\S+\.c) -o (\S+\.o)(?:\s|$)', make.stdout,
+    ))
+    if not object_for_source:
+        sys.exit('could not read C compile commands from Make dry run')
+    missing_objects = [obj for obj in object_for_source.values()
+                       if not os.path.isfile(obj)]
+    if missing_objects:
+        sys.exit('missing objects; build the selected configuration first: '
+                 + ', '.join(missing_objects[:8]))
 
     makefile = open('Makefile').read()
     for extra in ('config/default.mk', 'config/release.mk', 'config/debug.mk'):
@@ -91,12 +117,18 @@ def main():
             path = os.path.join(root, name)
             (sources if path in makefile else dead_files).append(path)
 
-    # symbol -> objects providing it
+    # Make's dry-run compile commands identify the selected platform/config
+    # exactly; other build/obj directories may contain stale target objects.
+    compiled_sources = sorted(object_for_source)
+
+    # symbol -> objects providing it in the selected platform build
     sym2obj = collections.defaultdict(list)
-    for src in sources:
-        for sym in defined_symbols(obj_for(src)):
+    for src in compiled_sources:
+        for sym in defined_symbols(object_for_source[src]):
             sym2obj[sym].append(src)
 
+    print(f'=== CURRENT BUILD: PLATFORM={args.platform} '
+          f'({len(compiled_sources)} C objects) ===')
     print('=== DEAD FILES (never compiled by any configuration) ===')
     hits = 0
     for path in dead_files:
@@ -117,9 +149,9 @@ def main():
     print('Usually an intentional feature-flag alternate. SUSPECT marks a copy'
           '\nwhose own text calls itself canonical - that is what misleads.\n')
     suspect = plain = 0
-    for src in sources:
+    for src in compiled_sources:
         text = strip_if_zero(open(src, errors='ignore').read())
-        built = defined_symbols(obj_for(src))
+        built = defined_symbols(object_for_source[src])
         for m in FUNC.finditer(text):
             if 'static' in m.group(1).split():
                 continue
