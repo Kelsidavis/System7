@@ -404,7 +404,6 @@ C_SOURCES = src/main.c \
             src/Resources/Icons/hd_icon.c \
             src/color_icons.c \
             src/DeskManager/DeskManagerCore.c \
-            src/DeskManager/DeskManagerStubs.c \
             src/DeskManager/BuiltinDAs.c \
             src/DeskManager/DALoader.c \
             src/DeskManager/SystemMenu.c \
