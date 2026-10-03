@@ -1,9 +1,8 @@
 /*
  * SoundTypes.h - Sound Manager Data Types and Structures
  *
- * Defines all data structures, constants, and type definitions used by
- * the Mac OS Sound Manager. This header provides complete compatibility
- * with the original Sound Manager data types.
+ * Defines data structures, constants, and type definitions used by the
+ * portable Sound Manager. Compatibility coverage varies by type and API.
  *
  * Copyright (c) 2025 - System 7.1 Portable Project
  */

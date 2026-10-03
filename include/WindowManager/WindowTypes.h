@@ -2,8 +2,8 @@
  * WindowTypes.h - Window Manager Type Definitions
  *
  * This header defines all data structures, constants, and type definitions
- * used by the Window Manager. It provides complete type compatibility with
- * the original Apple Macintosh System 7.1 Window Manager.
+ * used by the portable Window Manager. Binary and behavioral compatibility
+ * is not guaranteed for every original Apple Macintosh System 7.1 interface.
  *
  * Copyright (c) 2025 - System 7.1 Portable Project
  */

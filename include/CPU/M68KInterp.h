@@ -11,10 +11,8 @@
  * - Alignment checks follow 68K rules (2-byte alignment), not host requirements
  * - Register file is generic (no host CPU registers used)
  *
- * Supported Host Architectures:
- * - x86/x86-64: Full support via direct interpretation
- * - ARM (all variants): Full support via direct interpretation
- * - PowerPC, MIPS, etc.: Should work with no modifications
+ * Host-architecture support does not imply complete guest 68K instruction or
+ * toolbox-call coverage.
  */
 
 #ifndef M68K_INTERP_H

@@ -1,7 +1,7 @@
 /*
  * TextEdit.h - System 7.1 TextEdit Manager
  *
- * Complete text editing subsystem with single and multi-style support
+ * Text editing APIs with single-style editing and partial styled-text support
  * Based on Inside Macintosh: Text (1993)
  */
 

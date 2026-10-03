@@ -2,9 +2,8 @@
  * @file EventManager.h
  * @brief Event Manager interfaces for System 7.1
  *
- * This file provides the main Event Manager API that maintains exact
- * compatibility with Mac OS System 7.1 event handling semantics while
- * providing modern cross-platform abstractions.
+ * This file declares the main Event Manager APIs and modern cross-platform
+ * abstractions. Implementation and compatibility coverage vary by API.
  *
  * The Event Manager is the core of all user interaction in System 7.1,
  * handling mouse events, keyboard input, system events, and providing
