@@ -15,6 +15,13 @@ permissions:
   actions: read
   contents: write
 
+# Keep actions/checkout's temporary repositories from emitting Git's
+# first-branch-name hint in every release job.
+env:
+  GIT_CONFIG_COUNT: 1
+  GIT_CONFIG_KEY_0: init.defaultBranch
+  GIT_CONFIG_VALUE_0: main
+
 jobs:
   # The ARM64 kernel is built in a job of its own, as CI builds it: the
   # aarch64 cross compiler cannot be installed beside gcc-multilib, which the
