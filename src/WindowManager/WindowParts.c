@@ -309,7 +309,6 @@ void WM_DrawDialogBorder(WindowPtr window) {
 void WM_DrawWindowTitleBar(WindowPtr window) {
     if (window == NULL) return;
 
-    WM_LOG_TRACE("*** WM_DrawWindowTitleBar called in WindowParts.c ***\n");
     WM_DEBUG("WM_DrawWindowTitleBar: Drawing title bar");
 
     Rect titleRect;
@@ -349,7 +348,6 @@ void WM_DrawWindowTitle(WindowPtr window, const Rect* titleRect) {
     if (window == NULL || titleRect == NULL) return;
     if (window->titleHandle == NULL || *(window->titleHandle) == NULL) return;
 
-    WM_LOG_TRACE("*** CODE PATH A: WM_DrawWindowTitle in WindowParts.c ***\n");
     WM_DEBUG("WM_DrawWindowTitle: Drawing window title with Font Manager");
 
     /* CRITICAL: Lock handle before dereferencing to prevent heap compaction issues */

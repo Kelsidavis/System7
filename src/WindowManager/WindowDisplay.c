@@ -963,15 +963,11 @@ static void DrawWindowFrame_Unclipped(WindowPtr window) {
                     }
 
                     /* Draw title text in normal black */
-                    WM_LOG_TRACE("*** CODE PATH B: DrawWindowFrame in WindowDisplay.c ***\n");
-                    WM_LOG_TRACE("TITLE: About to draw title, titleStr=%p\n", titleStr);
                     PenPat(&qd.black);
                     ForeColor(blackColor);  /* Ensure black text */
                     TextFace(0);  /* normal */
                     MoveTo(textLeft, textBaseline);
-                    WM_LOG_TRACE("TITLE: Calling DrawString now\n");
                     DrawString(titleStr);
-                    WM_LOG_TRACE("TITLE: DrawString returned\n");
                 } else {
                     /* Inactive window: no lozenge, gray text */
                     PenPat(&qd.gray);
