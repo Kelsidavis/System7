@@ -15,16 +15,6 @@
 #include "System71StdLib.h"
 #include "ListManager/ListLogging.h"
 
-/* QuickDraw state restoration macro for safe early returns */
-#define RESTORE_QD_STATE(savePort, savePen, saveClip) do { \
-    SetPenState(&savePen); \
-    if (saveClip) { \
-        SetClip(saveClip); \
-        DisposeRgn(saveClip); \
-    } \
-    SetPort(savePort); \
-} while(0)
-
 /* ================================================================
  * GEOMETRY CALCULATIONS
  * ================================================================ */
@@ -171,8 +161,12 @@ void List_DrawCell(ListMgrRec* list, const Rect* cellRect, short row, short col,
     MoveTo(textH, textV);
     DrawString(textBuf);
 
-    /* Restore QuickDraw state (safe for early returns) */
-    RESTORE_QD_STATE(savePort, savePen, saveClip);
+    SetPenState(&savePen);
+    if (saveClip) {
+        SetClip(saveClip);
+        DisposeRgn(saveClip);
+    }
+    SetPort(savePort);
 }
 
 void List_InvalidateAll(ListMgrRec* list)
