@@ -93,7 +93,7 @@ else ifeq ($(PLATFORM),ppc)
     OBJCOPY = $(CROSS_COMPILE)objcopy
 else
     # x86 toolchain. macOS has no native 32-bit GCC or GNU binutils, so use
-    # the i686-elf toolchain documented in CLAUDE.md when it is available.
+    # the i686-elf cross-toolchain documented in docs/GETTING_STARTED.md.
     ifeq ($(shell uname -s),Darwin)
         CROSS_COMPILE ?= i686-elf-
         CC = $(CROSS_COMPILE)gcc

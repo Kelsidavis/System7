@@ -618,7 +618,7 @@ and that was tried — it changed none of the symptoms above and could not be
 validated end to end at the time, so it was reverted. Worth revisiting now that
 the dialog can actually be dismissed.
 
-### ✅ Live dropdowns use the shared display path (MENU-001) — AUTOMATED, VISUAL CHECK PENDING
+### Live dropdown drawing (MENU-001)
 
 `MenuDisplay.c` owns the shared item renderer — `DrawMenuItem` — for both the
 normal dropdown painter and live tracking. `MenuTrack.c` supplies each tracked
@@ -627,9 +627,8 @@ text, icons, marks, command keys, submenu arrows, and disabled-item stippling
 then use the shared renderer. Tracked item rectangles and hit testing use
 `CalcMenuItemRect()` and `GetMenuItemHeight()`, so separators retain their
 shorter height. The initial tracked dropdown uses `DrawMenu()` for its frame,
-background, and rows; live highlight state remains in the tracker. The
-consolidation builds and passes the automated suite, but its final appearance
-still needs a booted visual check.
+background, and rows; live highlight state remains in the tracker. Automated
+tests do not assess the menu's visual appearance.
 
 Two bugs fell out of this, both now fixed:
 
