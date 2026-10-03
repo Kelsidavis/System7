@@ -26,9 +26,6 @@
 #include "FS/vfs.h"
 #include "FS/hfs_types.h"
 
-/* Defined in FileManager.c */
-extern FSGlobals g_FSGlobals;
-
 static Boolean Cat_NameToC(const UInt8* name, char out[32]);
 
 /* ============================================================================

@@ -122,7 +122,6 @@ Boolean WaitNextEvent(short eventMask, EventRecord* theEvent, UInt32 sleep, RgnH
 }
 
 /* UpdateMouseState is provided by ModernInput.c */
-extern void UpdateMouseState(Point newPos, UInt8 buttonState);
 
 /**
  * GenerateSystemEvent - Internal function to generate system events

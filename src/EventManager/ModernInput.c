@@ -275,7 +275,6 @@ void ProcessModernInput(void)
     /* For now, we'll use the global mouse state from PS2Controller */
     /* Latched variant: a press that was also released between two polls would
      * be invisible to level comparison and the click lost entirely. */
-    extern uint8_t GetMouseButtonsLatched(void);
 
     currentMousePos = g_mousePos;  /* Use file-scope extern */
     currentButtonState = GetMouseButtonsLatched();
@@ -288,7 +287,6 @@ void ProcessModernInput(void)
     }
 
     /* Update global button state for Button()/StillDown() */
-    extern volatile UInt8 gCurrentButtons;
     static int updateCount = 0;
     if (currentButtonState != gCurrentButtons) {
         EVT_LOG_TRACE("[MI] gCurrentButtons: 0x%02x -> 0x%02x (update #%d)\n",
@@ -460,7 +458,6 @@ void ProcessModernInput(void)
                      * in the next. Masking the char to 16 bits let it bleed
                      * into the key-code byte. */
                     SInt32 message = (SInt32)(charCode & 0xFF) | ((SInt32)(keyCode & 0xFF) << 8);
-                    extern OSErr PostEventWithModifiers(EventMask what, UInt32 message, UInt16 modifiers);
                     PostEventWithModifiers(isPressed ? keyDown : keyUp, message, modifiers);
                 }
             }
