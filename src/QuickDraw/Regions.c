@@ -4,10 +4,10 @@
 #include <string.h>
 #include "MemoryMgr/MemoryManager.h"
 /*
- * Regions.c - QuickDraw Region Implementation
+ * Regions.c - QuickDraw region implementation
  *
- * Complete implementation of QuickDraw regions including region arithmetic,
- * clipping operations, hit testing, and complex region manipulation.
+ * Provides region storage, rectangle and boolean operations, clipping, and
+ * hit testing.
  *
  * Copyright (c) 2025 - System 7.1 Portable Project
  * Derived from System 7 ROM analysis (Ghidra) QuickDraw
@@ -46,8 +46,6 @@ typedef struct {
 
 static RegionRecorder g_regionRecorder = {false, NULL, {0,0,0,0}, NULL, 0, 0};
 static QDErr g_lastRegionError = 0;
-
-/* Forward declarations - Commented out: not yet implemented */
 
 __attribute__((unused))
 static void region_log_hex(uint32_t value, int digits) {
@@ -809,7 +807,6 @@ static void RgnPaintOne(const Rect* r, ConstPatternParam pat)  { (void)pat; Pain
 static void RgnInvertOne(const Rect* r, ConstPatternParam pat) { (void)pat; InvertRect(r); }
 static void RgnFillOne(const Rect* r, ConstPatternParam pat)   { FillRect(r, pat); }
 
-/* The outline of a region is not drawn; nothing calls FrameRgn yet. */
 void FrameRgn(RgnHandle rgn) {
     (void)rgn;
 }
