@@ -31,6 +31,7 @@
 
 /* Platform framebuffer instance */
 static PlatformFramebuffer g_platformFB;
+extern CGrafPtr g_currentCPort;
 
 static inline Boolean QDPointInEllipse(SInt32 x, SInt32 y, const Rect* rect) {
     SInt32 width = rect->right - rect->left;
@@ -335,7 +336,6 @@ void QD_ClipBegin(GrafPtr port) {
     if (gQDClip.depth++ > 0) return;              /* the outer primitive's clip holds */
     gQDClip.active = false;
     gQDClip.count = 0;
-    extern CGrafPtr g_currentCPort;
     if (!port || !framebuffer || port->portBits.baseAddr != (Ptr)framebuffer) return;
     if (g_currentCPort && (GrafPtr)g_currentCPort == port) return;
 
@@ -371,8 +371,6 @@ Boolean QD_ClipHas(SInt32 x, SInt32 y) {
 
 /* Set a pixel */
 void QDPlatform_SetPixel(SInt32 x, SInt32 y, UInt32 color) {
-    extern CGrafPtr g_currentCPort;  /* from ColorQuickDraw.c */
-
     if (!g_currentPort) {
         /* No port - draw to framebuffer */
         if (!framebuffer) return;
@@ -435,7 +433,6 @@ void QDPlatform_SetPixel(SInt32 x, SInt32 y, UInt32 color) {
             static Boolean logged = false;
             if (!logged && baseAddr != (Ptr)framebuffer) {
                 logged = true;
-                extern void serial_printf(const char* fmt, ...);
                 serial_printf("[QDP-PIX] First pixel x=%d y=%d localX=%d localY=%d portWidth=%d portHeight=%d\n",
                              (int)x, (int)y, (int)localX, (int)localY, (int)portWidth, (int)portHeight);
                 serial_printf("[QDP-PIX] baseAddr=%p boundsLeft=%d boundsTop=%d rowBytes=%d\n",
@@ -472,8 +469,6 @@ void QDPlatform_SetPixel(SInt32 x, SInt32 y, UInt32 color) {
  * of icon labels in a black bar.
  */
 UInt32 QDPlatform_GetPixel(SInt32 x, SInt32 y) {
-    extern CGrafPtr g_currentCPort;  /* from ColorQuickDraw.c */
-
     if (!g_currentPort) {
         if (!framebuffer) return 0;
         if (x < 0 || (UInt32)x >= fb_width || y < 0 || (UInt32)y >= fb_height) return 0;
@@ -1132,12 +1127,9 @@ static void QDPlatform_DrawRegion_Body(RgnHandle rgn, short mode, const Pattern*
     (void)pat;
     if (mode != erase || !rgn || !*rgn || !framebuffer) return;
 
-    extern bool PM_GetColorPattern(uint32_t** patternData);
-    extern void EraseRect(const Rect* r);
     uint32_t* colorPattern = NULL;
     /* The desktop's pattern is for the desktop: a window erases to its own
      * background, through EraseRect. */
-    extern Boolean WM_PortVisibleRgn(GrafPtr port, RgnHandle out);
     static RgnHandle probe = NULL;
     if (!probe) probe = NewRgn();
     Boolean isWindow = g_currentPort && probe && WM_PortVisibleRgn(g_currentPort, probe);
@@ -1269,7 +1261,6 @@ static SInt16 QDPlatform_DrawGlyph_Body(struct FontStrike *strike, UInt8 ch, SIn
     SInt16 pixelY = y;
 
     /* Check if this is a color port (CGrafPtr) by checking current color port global */
-    extern CGrafPtr g_currentCPort;  /* from ColorQuickDraw.c */
     Boolean isColorPort = (g_currentCPort != NULL && (GrafPtr)g_currentCPort == port);
 
     if (isColorPort) {
@@ -1397,7 +1388,6 @@ static void QDPlatform_DrawGlyphBitmap_Body(GrafPtr port, Point pen,
 
     /* Debug first few calls */
     if (call_count < 30) {
-        extern void serial_printf(const char* fmt, ...);
         long baseOffset = (char*)destBits->baseAddr - (char*)framebuffer;
         serial_printf("[GLYPH] pen=(%d,%d) bounds=(%d,%d,%d,%d) dest=(%d,%d) fbOffset=%ld\n",
                      pen.h, pen.v,
