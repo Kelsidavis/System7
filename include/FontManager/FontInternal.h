@@ -8,6 +8,5 @@
 /* Font drawing internals */
 void FM_DrawChicagoCharInternal(short x, short y, unsigned char ch, uint32_t color);
 void DrawChar(SInt16 ch);
-void DrawText(const void *textBuf, SInt16 firstByte, SInt16 byteCount);
 
 #endif /* FONT_INTERNAL_H */

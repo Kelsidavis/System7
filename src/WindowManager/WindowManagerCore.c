@@ -744,8 +744,6 @@ static WindowPtr AllocateWindowRecord(Boolean isColorWindow) {
 }
 
 static void DeallocateWindowRecord(WindowPtr window) {
-    extern void DisposePtr(void* p);  /* Direct call to MemoryManager */
-
     serial_puts("[WM] DeallocateWindowRecord: ENTRY\n");
 
     if (window) {
@@ -782,22 +780,18 @@ static void InitializeWindowRecord(WindowPtr window, const Rect* bounds,
         WM_LOG_ERROR("InitializeWindowRecord: Failed to allocate window regions\n");
         /* Clean up any regions that were successfully allocated */
         if (window->strucRgn) {
-            extern void DisposeRgn(RgnHandle rgn);
             DisposeRgn(window->strucRgn);
             window->strucRgn = NULL;
         }
         if (window->contRgn) {
-            extern void DisposeRgn(RgnHandle rgn);
             DisposeRgn(window->contRgn);
             window->contRgn = NULL;
         }
         if (window->updateRgn) {
-            extern void DisposeRgn(RgnHandle rgn);
             DisposeRgn(window->updateRgn);
             window->updateRgn = NULL;
         }
         if (window->visRgn) {
-            extern void DisposeRgn(RgnHandle rgn);
             DisposeRgn(window->visRgn);
             window->visRgn = NULL;
         }
@@ -920,7 +914,6 @@ static void InitializeWindowRecord(WindowPtr window, const Rect* bounds,
     window->port.portBits.rowBytes = (fb_width * 4) | 0x8000;
 
     /* DEBUG: Log portBits initialization */
-    extern int snprintf(char* buf, size_t size, const char* fmt, ...);
     static int init_log = 0;
     if (init_log < 20) {
         char dbgbuf[256];
@@ -1005,7 +998,6 @@ static void RemoveWindowFromList(WindowPtr window) {
      * window below rather than simply evaporating, or nothing is active and
      * no application owns the menu bar. */
     if (g_wmState.activeWindow == window) {
-        extern void WM_ActiveWindowClosed(void);
         WM_ActiveWindowClosed();
     }
 

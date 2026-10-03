@@ -12,9 +12,6 @@
 #include "WindowManager/WMLogging.h"
 #include "QuickDraw/QuickDraw.h"
 
-/* GetWindowManagerState is defined in WindowManagerCore.c */
-extern WindowManagerState* GetWindowManagerState(void);
-
 /* Rectangle helpers */
 Boolean WM_PtInRect(Point pt, const Rect* rect) {
     if (!rect) return false;
@@ -107,7 +104,6 @@ void WM_InvalidateScreenRegion(RgnHandle rgn) {
  */
 void WM_XorFrame(const Rect* r) {
     if (!r || r->right - r->left < 2 || r->bottom - r->top < 2) return;
-    extern void InvertRect(const Rect* rect);
     GrafPtr save;
     GetPort(&save);
     GrafPtr wm = NULL;

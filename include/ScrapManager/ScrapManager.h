@@ -99,13 +99,6 @@ void Scrap_RunSelfTest(void);
  */
 
 
-/* Copy from scrap to TextEdit (legacy) */
-OSErr TEFromScrap(void);
-
-/* Copy from TextEdit to scrap (legacy) */
-OSErr TEToScrap(void);
-
-
 /*
  * Constants for backward compatibility
  */

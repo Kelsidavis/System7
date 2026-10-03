@@ -31,10 +31,6 @@
 #include "Platform/Framebuffer.h"
 #include "TimeManager/TimeBase.h"
 
-/* External logging function */
-extern void serial_logf(SystemLogModule module, SystemLogLevel level, const char* fmt, ...);
-extern void serial_putchar(char ch);
-
 static void wm_log_hex_u32(uint32_t value) {
     static const char hex[] = "0123456789ABCDEF";
     for (int i = 7; i >= 0; --i) {
@@ -161,7 +157,6 @@ Boolean TrackBox(WindowPtr theWindow, Point thePt, short partCode) {
         case inZoomIn:
         case inZoomOut:
             /* Check if window has zoom box */
-            extern Boolean WM_WindowHasZoomBox(WindowPtr window);
             if (WM_WindowHasZoomBox(theWindow)) {
                 Platform_GetWindowZoomBoxRect(theWindow, &partRect);
                 validPart = true;
@@ -169,7 +164,6 @@ Boolean TrackBox(WindowPtr theWindow, Point thePt, short partCode) {
             break;
         case inGrow:
             /* Check if window has grow box (resize capability) */
-            extern Boolean WM_WindowHasGrowBox(WindowPtr window);
             if (WM_WindowHasGrowBox(theWindow)) {
                 Platform_GetWindowGrowBoxRect(theWindow, &partRect);
                 validPart = true;
@@ -194,10 +188,6 @@ Boolean TrackBox(WindowPtr theWindow, Point thePt, short partCode) {
     /* Hide cursor before tracking to prevent cursor save-under from capturing
      * ghost pixels from InvertRect highlighting. We'll show it again after
      * tracking completes and the window/title bar has been redrawn. */
-    extern void HideCursor(void);
-    extern void ShowCursor(void);
-    extern void UpdateCursorDisplay(void);
-
     HideCursor();
 
     /* Force immediate cursor erase - HideCursor only sets a flag, we need
@@ -226,7 +216,6 @@ Boolean TrackBox(WindowPtr theWindow, Point thePt, short partCode) {
 
     /* Process input ONCE before checking button state to ensure gCurrentButtons
      * is up-to-date with the latest PS/2 events */
-    extern void ProcessModernInput(void);
     ProcessModernInput();
 
     while (buttonDown && (TickCount() - trackStartTick) < kMaxTrackTicks) {
@@ -267,7 +256,6 @@ Boolean TrackBox(WindowPtr theWindow, Point thePt, short partCode) {
     /* The pointer has usually moved while hidden, so the background saved at
      * the press point is stale and must not be written back over the new
      * location. */
-    extern void InvalidateCursor(void);
     InvalidateCursor();
     ShowCursor();
     UpdateCursorDisplay();
@@ -469,7 +457,6 @@ void BeginUpdate(WindowPtr theWindow) {
      * portBits.bounds maps local coords to global screen position. */
 
     /* DEBUG: Log portBits.bounds for control panel windows */
-    extern int snprintf(char* buf, size_t size, const char* fmt, ...);
     static int beginupd_log = 0;
     if (beginupd_log < 20) {
         char dbgbuf[256];
@@ -671,7 +658,6 @@ void EndUpdate(WindowPtr theWindow) {
                     /* Recompute rather than trust: the visible region is
                      * only as good as the last time something recalculated
                      * it, and this is the moment it has to be right. */
-                    extern void CalcVis(WindowPtr window);
                     CalcVis(theWindow);
 
                     /* "No region" and "an empty region" are different
@@ -981,19 +967,16 @@ long DragGrayRgn(RgnHandle theRgn, Point startPt, const Rect* limitRect,
  * ============================================================================ */
 
 static Boolean WM_IsMouseDown(void) {
-    extern Boolean Button(void);
     return Button();
 }
 
 static GrafPtr WM_GetCurrentPort(void) {
-    extern void GetPort(GrafPtr* port);
     GrafPtr currentPort;
     GetPort(&currentPort);
     return currentPort;
 }
 
 static Boolean WM_EmptyRgn(RgnHandle rgn) {
-    extern Boolean EmptyRgn(RgnHandle rgn);
     if (rgn == NULL) {
         return true;
     }
