@@ -19,19 +19,6 @@
 #include "EventManager/EventManager.h"
 #include "LocaleManager/StringIDs.h"
 
-/* Forward declarations */
-extern void MoveTo(short h, short v);
-extern void LineTo(short h, short v);
-extern void DrawText(const void* textBuf, short firstByte, short byteCount);
-extern void EraseRect(const Rect* r);
-extern void GetPort(GrafPtr* port);
-extern void SetPort(GrafPtr port);
-extern void SelectWindow(WindowPtr w);
-extern void BringToFront(WindowPtr w);
-extern void DisposeWindow(WindowPtr w);
-extern WindowPtr NewWindow(void* wStorage, const Rect* boundsRect, ConstStr255Param title,
-                           Boolean visible, short procID, WindowPtr behind, Boolean goAwayFlag, long refCon);
-
 #define kGetInfoRefCon 0x47494E46  /* 'GINF' */
 
 /* Global Get Info window */
