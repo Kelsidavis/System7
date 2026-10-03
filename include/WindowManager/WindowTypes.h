@@ -73,7 +73,7 @@ typedef struct WindowManagerState WindowManagerState;
 
 /* Handle is defined in MacTypes.h */
 
-/* ColorSpec is defined in QuickDraw/QDTypes.h */
+/* ColorSpec is defined in SystemTypes.h. */
 
 /* ============================================================================
  * Control and Event Types

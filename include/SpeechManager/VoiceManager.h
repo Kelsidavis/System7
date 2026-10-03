@@ -13,9 +13,6 @@
 
 #include "SystemTypes.h"
 
-/* Forward declarations */
-
-
 #include "SpeechManager.h"
 
 #ifdef __cplusplus
@@ -77,31 +74,12 @@ typedef Boolean (*VoiceFilterProc)(VoiceSpec *voice, void *filterData);
 /* Voice notification callback */
 typedef void (*VoiceNotificationProc)(VoiceSpec *voice, long notificationType, void *userData);
 
-/* ===== Extended Voice Structures ===== */
-
-/* Extended voice information already defined above */
-
-/* Voice enumeration callback already defined above */
-
 /* ===== Voice Management Functions ===== */
 
 /* Initialization and cleanup */
 OSErr InitializeVoiceManager(void);
 void CleanupVoiceManager(void);
-
-
-/* Voice filtering */
-
-
 /* ===== Voice Manager Notifications ===== */
-
-/* Voice change notification types */
-
-/* Voice notification callback */
-
-
-/* ===== Utility Functions ===== */
-
 
 #ifdef __cplusplus
 }

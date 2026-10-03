@@ -13,9 +13,6 @@
 
 #include "SystemTypes.h"
 
-/* Forward declarations */
-
-
 #include "SpeechManager.h"
 
 #ifdef __cplusplus
@@ -68,21 +65,7 @@ typedef void (*SynthesisCompletionProc)(SynthEngineRef engine, void *result, voi
 typedef void (*SynthesisErrorProc)(SynthEngineRef engine, OSErr error, void *userData);
 typedef void (*SynthesisAudioProc)(SynthEngineRef engine, const void *audioData, long audioLength, void *userData);
 
-/* ===== Synthesis Engine Structures ===== */
-
-/* Audio format descriptor */
-
-/* Synthesis engine information - opaque */
-
-/* Synthesis parameters - opaque */
-
-/* Synthesis progress information - opaque */
-
-/* Synthesis result - opaque */
-
 /* ===== Synthesis Engine Management ===== */
-
-/* Engine opaque handle already defined above */
 
 /* Engine initialization and cleanup */
 OSErr InitializeSpeechSynthesis(void);
@@ -108,39 +91,9 @@ OSErr SynthesizeSSML(SynthEngineRef engine, const char *ssmlText, long ssmlLengt
                      const SynthesisParameters *params, SynthesisResult **result);
 
 
-/* ===== Synthesis Control ===== */
-
-/* Synthesis state */
-
-
-/* ===== Synthesis Parameters ===== */
-
-
-/* ===== Synthesis Callbacks ===== */
-
-/* Synthesis progress callback */
-
-/* Synthesis completion callback */
-
-/* Synthesis error callback */
-
-/* Audio output callback */
-
-
-/* ===== Voice Engine Integration ===== */
-
-
-/* ===== Engine-Specific Features ===== */
-
-
 /* Engine statistics */
 OSErr GetEngineStatistics(SynthEngineRef engine, long *totalSyntheses, long *totalBytes,
                           long *averageSpeed, long *errorCount);
-
-/* ===== Advanced Synthesis Features ===== */
-
-/* Emotional synthesis */
-
 
 /* ===== Platform Integration ===== */
 

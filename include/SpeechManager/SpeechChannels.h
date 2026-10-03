@@ -14,9 +14,6 @@
 #include "SystemTypes.h"
 #include <stdio.h>
 
-/* Forward declarations */
-
-
 #include "SpeechManager.h"
 
 #ifdef __cplusplus
@@ -103,56 +100,12 @@ typedef struct {
 /* Channel event callback */
 typedef void (*SpeechChannelEventProc)(SpeechChannel chan, long eventType, void *eventData, void *userData);
 
-/* ===== Speech Channel Structures ===== */
-
-/* Channel information already defined above */
-
-/* Channel configuration already defined above */
-
-/* Channel statistics already defined above */
-
-/* ===== Channel Management ===== */
-
-
-/* ===== Channel Properties ===== */
-
-
-/* ===== Channel Information and Control ===== */
-
-
-/* ===== Channel Text Processing ===== */
-
-/* ===== Channel Monitoring ===== */
-
-
-/* Event monitoring */
-
-/* Event callback */
-
 OSErr SetSpeechChannelEventCallback(SpeechChannel chan, SpeechChannelEventProc callback,
                                     void *userData);
-
-/* ===== System Channel Management ===== */
-
-
-/* ===== Channel Resource Management ===== */
-
-
-/* ===== Channel Threading ===== */
-
-
-/* ===== Channel Configuration ===== */
-
 
 /* Configuration validation */
 OSErr ValidateChannelConfig(const SpeechChannelConfig *config, Boolean *isValid,
                             char **errorMessage);
-
-/* ===== Channel Debugging ===== */
-
-
-/* ===== Channel Utilities ===== */
-
 
 #ifdef __cplusplus
 }

@@ -7,6 +7,7 @@
 #define ERROR_CODES_H
 
 #include "MacTypes.h"
+#include "Errors/ErrorCodes.h"
 
 /* ScrapManager Error Codes */
 #define scrapNoError            0       /* No error */
@@ -14,10 +15,6 @@
 #define scrapCorruptError       -103    /* Scrap data corrupt */
 #define scrapConversionError    -104    /* Conversion failed */
 #define scrapMemoryError        -108    /* Not enough memory for scrap */
-
-/* QuickDraw Error Types */
-typedef short QDErr;
-typedef short RegionError;
 
 /* Standard QD Error Codes */
 #define qdNoError               0       /* No error */

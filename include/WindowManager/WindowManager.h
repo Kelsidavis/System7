@@ -76,7 +76,7 @@ extern "C" {
 /* Handle is defined in MacTypes.h */
 
 /* Color specification */
-/* ColorSpec is defined in QuickDraw/QDTypes.h */
+/* ColorSpec is defined in SystemTypes.h. */
 
 /* Color table */
 /* Handle is defined in MacTypes.h */

@@ -1,5 +1,5 @@
-#ifndef ERROR_CODES_H
-#define ERROR_CODES_H
+#ifndef SYSTEM7_ERRORS_ERROR_CODES_H
+#define SYSTEM7_ERRORS_ERROR_CODES_H
 
 #include "SystemTypes.h"
 
@@ -26,4 +26,4 @@
 #define dirNFErr -120
 #define nsvErr -35
 
-#endif
+#endif /* SYSTEM7_ERRORS_ERROR_CODES_H */

@@ -13,9 +13,6 @@
 
 #include "SystemTypes.h"
 
-/* Forward declarations */
-
-
 #include "SpeechManager.h"
 
 #ifdef __cplusplus

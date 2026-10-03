@@ -1294,7 +1294,6 @@ typedef enum {
 typedef void (*IOCompletionProc)(IOParamPtr pb);
 typedef void (*AsyncIOCompletionProc)(void* request, OSErr error);
 
-// Device Control Entry typedef already defined above
 typedef DCtlEntry DCE;
 typedef DCE* DCEPtr;
 typedef DCEPtr* DCEHandle;
@@ -1505,7 +1504,7 @@ typedef struct CIcon {
 typedef CIcon* CIconPtr;
 typedef CIconPtr* CIconHandle;
 
-// Additional missing types
+// TextEdit, VBL, and Control Manager types
 typedef Handle TEStyleHandle;
 typedef Handle STHandle;
 typedef SInt16 StyleField;
@@ -1725,7 +1724,7 @@ struct ADBManager {
     UInt16 auxFlags;
     UInt32 deviceTableOffset;
 
-    /* More missing members */
+    /* Device-specific state */
     UInt8 initAddress;
     UInt8 moveCount;
     UInt8 keyboardType;
@@ -1734,7 +1733,7 @@ struct ADBManager {
 
 
 
-// Missing ADB types
+// ADB types
 typedef struct ADBOpBlock {
     UInt8 command;
     void* buffer;
@@ -1750,7 +1749,7 @@ typedef struct ADBSetInfoBlock {
     void* siDataAreaAddr;
 } ADBSetInfoBlock;
 
-/* Missing ADB command queue entry type */
+/* ADB command queue entry */
 typedef struct ADBCmdQEntry {
     UInt8 command;
     void* buffer;
@@ -1758,7 +1757,7 @@ typedef struct ADBCmdQEntry {
     void* userData;
 } ADBCmdQEntry;
 
-/* Missing keyboard driver data type */
+/* Keyboard driver data */
 typedef struct KeyboardDriverData {
     UInt8 keyMap[16];
     UInt8 modifiers;
@@ -1772,12 +1771,12 @@ typedef struct KeyboardDriverData {
 typedef void (*ADBEventCallback)(UInt16 event, void* userData);
 typedef void (*ADBTimerCallback)(void* userData);
 
-// Missing Trap Dispatcher types
+// Trap Dispatcher types
 typedef void* TrapContext;
 typedef void* FLineTrapContext;
 typedef void (*TrapHandler)(void);
 
-// Missing Apple Event types
+// Apple Event types
 typedef OSType AEEventClass;
 typedef OSType AEEventID;
 typedef SInt32 AESendMode;
@@ -1789,21 +1788,21 @@ typedef void (*CoercionHandlerProcPtr)(DescType fromType, const void* fromData, 
 typedef Boolean (*IdleProcPtr)(EventRecord* event, SInt32* sleepTime, RgnHandle* mouseRgn);
 typedef Boolean (*EventFilterProcPtr)(EventRecord* event);
 
-// Missing OSA/AppleScript types
+// OSA and AppleScript types
 typedef struct OSAScript* OSAScript;
 typedef ComponentInstance OSAComponentInstance;
 
-// Missing Resource Manager types
+// Resource Manager types
 typedef SInt16 RefNum;
 typedef SInt16 ResAttributes;
 typedef struct ResourceEntry ResourceEntry;
 
-// Missing Event Manager types
+// Event Manager constants
 enum {
     kCoreEventClass = 0x61657674  /* 'aevt' */
 };
 
-// Missing constants for ADB (removed duplicates below)
+// ADB constants
 
 /* ADB service routine type */
 typedef void (*ADBServiceRoutineProcPtr)(Ptr buffer, UInt16 command, void* userData);
@@ -1820,7 +1819,7 @@ enum {
     ADB_ERROR_NO_DEVICE = -5
 };
 
-// Missing QuickDraw types
+// QuickDraw procedure types
 typedef struct QDProcs {
     void* textProc;
     void* lineProc;
@@ -1846,11 +1845,11 @@ typedef struct QDProcs {
 
 typedef QDProcs* QDProcsPtr;
 
-// Missing Resource Manager types
+// Resource Manager callback types
 typedef void (*ResErrProcPtr)(OSErr error);
 typedef Handle (*DecompressHookProc)(Handle rsrc);
 
-// Missing Window Manager types
+// Window Manager types
 typedef struct AuxWinRec {
     struct AuxWinRec* awNext;
     WindowPtr awOwner;
@@ -1874,10 +1873,10 @@ typedef CWindowRecord* CWindowPtr;
 /* Window Manager port type */
 typedef GrafPort WMgrPort;
 
-// Missing File Manager types
+// File Manager types
 typedef SInt16 FSIORefNum;
 
-// Missing Menu Manager types
+// Menu Manager types
 typedef struct MCInfo {
     MenuHandle mctMenu;
     SInt16 mctItem;
@@ -1891,7 +1890,7 @@ typedef struct MCInfo {
 
 typedef MCInfo* MCInfoPtr;
 
-// Missing Memory Manager types
+// Memory Manager types
 typedef struct MemoryBlock {
     struct MemoryBlock* next;
     SInt32 size;
@@ -1941,14 +1940,14 @@ typedef struct PenState {
     Pattern  pnPat;
 } PenState;
 
-// Missing Edition Manager types
+// Edition Manager types
 typedef SInt32 EditionRefNum;
 typedef struct Edition* EditionPtr;
 
-// Missing Component Manager types
+// Component Manager types
 typedef SInt32 ComponentResult;
 
-// Missing Dialog Manager types
+// Dialog Manager types
 typedef struct AlertTemplate {
     Rect boundsRect;
     SInt16 itemsID;
@@ -1958,14 +1957,14 @@ typedef struct AlertTemplate {
 typedef AlertTemplate* AlertTPtr;
 typedef AlertTPtr* AlertTHndl;
 
-// Missing List Manager types
+// List Manager types
 
 typedef Point LPoint;
 typedef LPoint* LPointPtr;
 typedef Rect LRect;
 typedef LRect* LRectPtr;
 
-// Missing TextEdit types
+// TextEdit types
 typedef struct TextStyle {
     SInt16 tsFont;
     Style tsFace;
@@ -2004,7 +2003,7 @@ typedef struct TextLineStart {
 typedef TextLineStart* LineStartPtr;
 typedef LineStartPtr* LineStartHandle;
 
-// Missing Print Manager types
+// Print Manager types
 typedef struct TPrInfo {
     SInt16 iDev;
     SInt16 iVRes;
@@ -2047,7 +2046,7 @@ typedef struct TPrJob {
     SInt8 bJobX;
 } TPrJob;
 
-// Missing Sound Manager types
+// Sound Manager types
 typedef struct SoundHeader {
     Ptr samplePtr;
     UInt32 length;
@@ -2082,7 +2081,7 @@ typedef struct ExtSoundHeader {
 
 typedef ExtSoundHeader* ExtSoundHeaderPtr;
 
-// Missing Script Manager types
+// Script Manager types
 typedef struct ItlbRecord {
     SInt16 itlbNumber;
     SInt16 itlbDate;
@@ -2333,8 +2332,6 @@ typedef struct ExpandMemRec {
 // ============================================================================
 // File Manager Types
 // ============================================================================
-// These types are already defined above with FILE_TYPES_DEFINED guard
-
 // Master Directory Block structure
 typedef struct MDB {
     UInt16  drSigWord;      // Volume signature
@@ -2478,12 +2475,10 @@ typedef struct DecompressStats {
 
 typedef OSErr (*DecompressProc)(DecompressContext* ctx);
 
-// Str27 already defined above, removing duplicate
-
-// Zone types already defined above, just add missing ZonePtr
+// Zone pointer type
 typedef Zone* ZonePtr;
 
-// PurgeProc and GrowZoneProc might be missing
+// Memory Manager callback types
 #ifndef PURGE_PROC_DEFINED
 #define PURGE_PROC_DEFINED
 typedef void (*PurgeProc)(Handle h);
@@ -2607,7 +2602,7 @@ typedef UInt32 AudioAPIType;
 typedef struct AudioDeviceInfo AudioDeviceInfo;
 typedef UInt32 AudioEncodingType;
 
-// Additional missing types
+// Font and Standard File types
 typedef struct FontInfo {
     SInt16 ascent;
     SInt16 descent;
@@ -2624,7 +2619,6 @@ typedef struct Cursor {
     UInt16 mask[16];
     Point hotSpot;
 } Cursor;
-typedef struct PixPat **PixPatHandle;
 // KeyMap - use the 16-byte version for compatibility
 typedef unsigned char KeyMap[16];
 
@@ -2655,9 +2649,7 @@ struct OpenResourceFile {
     Str63       fileName;           // File name
 };
 
-// ResourceTypeEntry struct
-
-// Other missing structs
+// Compatibility pointer types
 
 typedef void* DriverPtr;
 typedef void* DeviceDriver;
@@ -2668,7 +2660,7 @@ typedef void* CursHandle;
 typedef void* GWorldFlags;
 typedef void* QDErr_t;
 
-// Missing function types
+// Function pointer types
 typedef void (*ExceptionHandler)(void);
 typedef void (*TrapVector)(void);
 
@@ -2676,7 +2668,7 @@ typedef void (*TrapVector)(void);
 #define kSystemBootInProgress 1
 #define kSystemInitComplete 2
 
-// Missing Error Manager types
+// Error Manager types
 typedef OSErr ErrorCode;
 typedef void (*ErrorHandler)(ErrorCode err);
 
@@ -2689,18 +2681,10 @@ typedef struct System71Globals System71Globals;
 typedef struct System71Config System71Config;
 typedef struct System71ManagerState System71ManagerState;
 
-// Quickdraw missing types
+// QuickDraw picture types
 typedef struct QDPicture QDPicture;
 typedef QDPicture* QDPicturePtr;
 typedef QDPicturePtr* QDPictureHandle;
-
-
-
-
-// Missing struct definitions
-
-
-
 
 // FileMgr BTree types
 typedef struct BTHeader {
@@ -2946,8 +2930,6 @@ typedef struct PixPat {
 } PixPat;
 
 typedef PixPat* PixPatPtr;
-typedef PixPatPtr* PixPatHandle;
-
 // Polygon types
 typedef struct Polygon {
     SInt16 polySize;
@@ -2961,7 +2943,7 @@ typedef struct Picture {
     Rect picFrame;
 } Picture;
 
-// Additional missing stubs
+// Opaque compatibility types
 typedef void* BTNodePtr;
 typedef void* BTHeaderPtr;
 typedef void* HFSPlusVolumeHeaderPtr;
@@ -3077,12 +3059,12 @@ typedef struct DialogRecordEx {
 
 typedef DialogRecordEx* DialogPeekEx;
 
-// Add missing EditionManager types
+// Edition Manager types
 typedef short SectionType;
 typedef short FormatType;
 typedef short UpdateMode;
 
-// Add missing keyboard types
+// Keyboard layout type
 typedef struct KeyboardLayoutRec {
     short version;
     short keyMapID;
@@ -3090,13 +3072,13 @@ typedef struct KeyboardLayoutRec {
     Str255 layoutName;
 } KeyboardLayoutRec;
 
-// Ensure thePort is declared
+// Current QuickDraw port
 #ifndef THE_PORT_DECLARED
 #define THE_PORT_DECLARED
 extern GrafPtr thePort;
 #endif
 
-// Additional missing constants only if not defined
+// Shared menu and window dimensions
 #ifndef MENU_BAR_CONSTANTS_DEFINED
 #define MENU_BAR_CONSTANTS_DEFINED
 enum {
@@ -3107,7 +3089,7 @@ enum {
 };
 #endif
 
-// Missing dialog constants
+// Dialog item constants
 #ifndef DIALOG_ITEM_CONSTANTS_DEFINED
 #define DIALOG_ITEM_CONSTANTS_DEFINED
 enum {
@@ -3125,7 +3107,7 @@ enum {
 };
 #endif
 
-// Missing window constants
+// Window procedure constants
 #ifndef WINDOW_PROC_CONSTANTS_DEFINED
 #define WINDOW_PROC_CONSTANTS_DEFINED
 enum {
@@ -3141,7 +3123,7 @@ enum {
 };
 #endif
 
-// Missing event constants
+// Event type constants
 #ifndef EVENT_TYPE_CONSTANTS_DEFINED
 #define EVENT_TYPE_CONSTANTS_DEFINED
 enum {
@@ -3157,18 +3139,6 @@ enum {
     osEvt = 15,
     everyEvent = 0xFFFF
 };
-#endif
-
-// Only define CharsHandle if not already defined
-#ifndef CHARS_HANDLE_DEFINED
-#define CHARS_HANDLE_DEFINED
-typedef Handle CharsHandle;
-#endif
-
-// Only define Style if not already defined
-#ifndef STYLE_TYPE_DEFINED
-#define STYLE_TYPE_DEFINED
-typedef unsigned char Style;
 #endif
 
 #endif // DIALOG_PEEK_EXTENDED
@@ -3188,10 +3158,9 @@ enum {
 };
 #endif
 
-// Add missing GrafPort members if needed
+// GrafPort extension compatibility type
 #ifndef GRAFPORT_EXTENSIONS_DEFINED
 #define GRAFPORT_EXTENSIONS_DEFINED
-// Extension structure for missing members
 typedef struct {
     short h;
     short v;

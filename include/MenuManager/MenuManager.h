@@ -50,7 +50,7 @@ extern "C" {
 /* Pattern type defined in MacTypes.h */
 
 /* RGB Color specification */
-/* RGBColor is in QuickDraw/QDTypes.h */
+/* RGBColor is defined in SystemTypes.h. */
 
 /* Graphics port structure (simplified) */
 /* GrafPort is in WindowManager/WindowTypes.h */
@@ -65,7 +65,7 @@ extern "C" {
 
 /* System menu ID ranges */
 
-/* Text style constants - defined in QDTypes.h */
+/* Text style constants are defined in SystemTypes.h. */
 
 /* ============================================================================
  * Menu Manager Data Structures
