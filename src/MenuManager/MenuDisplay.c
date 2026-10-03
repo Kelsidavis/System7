@@ -161,18 +161,12 @@ void HiliteMenuTitle(short menuID, Boolean hilite)
 {
     Rect titleRect;
 
-    serial_puts("HiliteMenuTitle ENTRY\n");
-
     /* Get menu title rectangle using the tracking system */
     Boolean gotRect = GetMenuTitleRectByID(menuID, &titleRect);
 
     if (gotRect) {
-        serial_puts("HiliteMenuTitle: GetMenuTitleRectByID succeeded, calling DrawMenuTitle\n");
         /* Draw highlighted or normal title */
         DrawMenuTitle(menuID, &titleRect, hilite);
-        serial_puts("HiliteMenuTitle: DrawMenuTitle returned\n");
-    } else {
-        serial_puts("HiliteMenuTitle: GetMenuTitleRectByID FAILED\n");
     }
 }
 
@@ -245,30 +239,13 @@ void DrawMenuTitle(short menuID, const Rect* titleRect, Boolean hilited)
     textRect = *titleRect;
     textRect.top += 1;
 
-    if (hilited) {
-        serial_puts("[DRAWTITLE] HIGHLIGHTED menu title\n");
-    } else {
-        serial_puts("[DRAWTITLE] NORMAL menu title\n");
-    }
-
-    /* Debug: Log coordinates being used */
-    static char debugBuf[256];
-    snprintf(debugBuf, sizeof(debugBuf), "[DRAWTITLE] titleRect=(%d,%d,%d,%d) bounds=(%d,%d,%d,%d) width=%d\n",
-             titleRect->left, titleRect->top, titleRect->right, titleRect->bottom,
-             g_currentPort->portBits.bounds.left, g_currentPort->portBits.bounds.top,
-             g_currentPort->portBits.bounds.right, g_currentPort->portBits.bounds.bottom,
-             titleRect->right - titleRect->left);
-    serial_puts(debugBuf);
-
     /* CRITICAL: Always erase the title rect first to remove any old text
      * This prevents InvertRect from inverting old text, which would create
      * a "ghost" effect where inverted old text appears offset from new text.
      *
      * Use FillRect with white to erase, which goes through QuickDraw's
      * coordinate system and respects the port's clipping region. */
-    serial_puts("[DRAW-TITLE] About to call FillRect\n");
     FillRect(titleRect, &qd.white);
-    serial_puts("[DRAW-TITLE] FillRect returned\n");
 
     /* Set drawing colors based on hilite state */
     if (hilited) {
@@ -276,10 +253,7 @@ void DrawMenuTitle(short menuID, const Rect* titleRect, Boolean hilited)
          * We already erased the expanded region above to prevent ghost pixels,
          * but InvertRect must use the original titleRect to ensure text is
          * positioned correctly within the inverted area */
-        serial_puts("[DRAW-TITLE] About to call InvertRect\n");
         InvertRect(titleRect);
-        serial_puts("[DRAW-TITLE] InvertRect returned\n");
-
         MENU_LOG_TRACE("Drew highlighted menu title: %.*s\n", titleLen, &titleText[1]);
     } else {
         /* Normal state - already erased above */
@@ -287,11 +261,6 @@ void DrawMenuTitle(short menuID, const Rect* titleRect, Boolean hilited)
     }
 
     /* Draw the title text */
-    static char pnLocBuf[256];
-    snprintf(pnLocBuf, sizeof(pnLocBuf), "[MENU-PNLOC-BEFORE] pnLoc=(%d,%d) titleRect.left=%d\n",
-             g_currentPort->pnLoc.h, g_currentPort->pnLoc.v, titleRect->left);
-    serial_puts(pnLocBuf);
-
     /*
      * The Apple and Application menus have an icon for a title, not text.
      * Drawing them through DrawMenuItemTextInternal erased the icon and put
@@ -307,27 +276,7 @@ void DrawMenuTitle(short menuID, const Rect* titleRect, Boolean hilited)
     } else if (menuID == (short)kApplicationMenuID) {
         MenuAppIcon_Draw(menuPort, titleRect->left, titleRect->top, hilited);
     } else {
-        if (hilited) {
-            serial_puts("[MENU] Drawing HIGHLIGHTED menu title, calling DrawMenuItemTextInternal\n");
-        } else {
-            serial_puts("[MENU] Drawing NORMAL menu title, calling DrawMenuItemTextInternal\n");
-        }
         DrawMenuItemTextInternal(&textRect, titleText, normal, true, hilited, true);  /* true = isMenuTitle */
-    }
-
-    snprintf(pnLocBuf, sizeof(pnLocBuf), "[MENU-PNLOC-AFTER] pnLoc=(%d,%d)\n",
-             g_currentPort->pnLoc.h, g_currentPort->pnLoc.v);
-    serial_puts(pnLocBuf);
-    serial_puts("[MENU] DrawMenuItemTextInternal returned\n");
-
-    /* Check what InvertRect actually did */
-    if (hilited) {
-        short invLeft, invRight;
-        QD_GetLastInvertRect(&invLeft, &invRight);
-        static char invBuf[256];
-        snprintf(invBuf, sizeof(invBuf), "[MENU-INVERT-ACTUAL] left=%d right=%d titleRect.left=%d width=%d\n",
-                 invLeft, invRight, titleRect->left, titleRect->right - titleRect->left);
-        serial_puts(invBuf);
     }
 
     /* Restore the clip we narrowed to the menu bar, then the original port */

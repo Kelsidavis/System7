@@ -1262,37 +1262,20 @@ void DrawGrowIcon(WindowPtr window) {
  * difference between ShowWindow and ShowHide. Returns false if it already
  * showed. */
 static Boolean WM_ShowWindowOnly(WindowPtr window) {
-    serial_puts("[SHOWWIN] enter\n");
-    uart_flush();
-
     if (!window || window->visible) {
-        serial_puts("[SHOWWIN] early return\n");
-        uart_flush();
         return false;
     }
 
-    serial_puts("[SHOWWIN] set visible\n");
-    uart_flush();
     window->visible = true;
 
     /* Calculate window regions (structure and content) */
-    serial_puts("[SHOWWIN] CalcStdRgns\n");
-    uart_flush();
     WM_CalculateStandardWindowRegions(window, 0);
-    serial_puts("[SHOWWIN] CalcStdRgns done\n");
-    uart_flush();
 
     /* Calculate visible region */
-    serial_puts("[SHOWWIN] CalcVis\n");
-    uart_flush();
     CalcVis(window);
-    serial_puts("[SHOWWIN] CalcVis done\n");
-    uart_flush();
 
     /* CRITICAL: Redraw desktop icons BEFORE painting window to ensure icons appear behind window */
     if (g_deskHook && window->strucRgn) {
-        serial_puts("[SHOWWIN] Redrawing desktop icons before window\n");
-
         /* Create region for area under window */
         AutoRgnHandle windowRgn = WM_NewAutoRgn();
         if (windowRgn.rgn) {
@@ -1303,11 +1286,9 @@ static Boolean WM_ShowWindowOnly(WindowPtr window) {
     }
 
     /* Paint the window */
-    serial_puts("[SHOWWIN] About to call PaintOne for chrome\n");
     WM_LOG_TRACE("ShowWindow: About to call PaintOne\n");
     PaintOne(window, NULL);
     WM_LOG_TRACE("ShowWindow: PaintOne returned\n");
-    serial_puts("[SHOWWIN] PaintOne returned, chrome should be visible\n");
 
     /* Invalidate content region to generate update event for application to draw content */
     if (window->contRgn) {
@@ -1328,14 +1309,11 @@ static Boolean WM_ShowWindowOnly(WindowPtr window) {
     }
 
     /* Recalculate regions for windows behind */
-    serial_puts("[SHOWWIN] About to CalcVisBehind\n");
     CalcVisBehind(window->nextWindow, window->strucRgn);
-    serial_puts("[SHOWWIN] CalcVisBehind returned\n");
 
     /* Don't call PaintBehind here - background windows are already painted.
      * Calling PaintBehind would cause background windows to paint over the front window. */
 
-    serial_puts("[SHOWWIN] EXIT - window should be fully visible now\n");
     WM_LOG_TRACE("ShowWindow: EXIT\n");
     return true;
 }
