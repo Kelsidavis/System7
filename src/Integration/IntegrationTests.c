@@ -10,7 +10,9 @@
  */
 
 #include "SystemTypes.h"
+#include <string.h>
 #include "Errors/ErrorCodes.h"
+#include "FileManager.h"
 #include "FileManager_Internal.h"
 #include "System71StdLib.h"
 #include "MemoryMgr/MemoryManager.h"
@@ -18,9 +20,8 @@
 #include "ResourceManager.h"
 #include "WindowManager/WindowManager.h"
 #include "QuickDraw/QuickDraw.h"
+#include "QuickDraw/ColorQuickDraw.h"
 #include "Platform/Framebuffer.h"
-extern void DisposeGWorld(GWorldPtr);
-extern void InvalWindowRect(WindowPtr, const Rect*);
 #include "QuickDrawConstants.h"
 #include "DialogManager/DialogManager.h"
 #include "DialogManager/AlertDialogs.h"
@@ -34,36 +35,11 @@ extern void InvalWindowRect(WindowPtr, const Rect*);
 #include "MacTypes.h"
 #include "math.h"
 
-/* The File Manager calls the tests use, as FileManager.c defines them. */
-extern OSErr FSDelete(ConstStr255Param fileName, VolumeRefNum vRefNum);
-extern OSErr FSCreate(ConstStr255Param fileName, VolumeRefNum vRefNum, UInt32 creator, UInt32 fileType);
-extern OSErr FSOpen(ConstStr255Param fileName, VolumeRefNum vRefNum, FileRefNum* refNum);
-extern OSErr FSClose(FileRefNum refNum);
-extern OSErr FSRead(FileRefNum refNum, UInt32* count, void* buffer);
-extern OSErr FSWrite(FileRefNum refNum, UInt32* count, const void* buffer);
-extern OSErr FSSetFPos(FileRefNum refNum, UInt16 posMode, SInt32 posOffset);
-extern OSErr FSGetEOF(FileRefNum refNum, UInt32* eof);
-extern OSErr FSSetEOF(FileRefNum refNum, UInt32 eof);
-extern OSErr FSGetFInfo(ConstStr255Param fileName, VolumeRefNum vRefNum, FInfo* fndrInfo);
-extern OSErr FSOpenRF(ConstStr255Param fileName, VolumeRefNum vRefNum, FileRefNum* refNum);
-extern OSErr FSCreateDir(ConstStr255Param dirName, VolumeRefNum vRefNum, DirID* createdDirID);
-extern OSErr FSDeleteDir(ConstStr255Param dirName, VolumeRefNum vRefNum);
-extern OSErr FSOpenWD(VolumeRefNum vRefNum, DirID dirID, UInt32 procID, WDRefNum* wdRefNum);
-extern OSErr FSGetWDInfo(WDRefNum wdRefNum, VolumeRefNum* vRefNum, DirID* dirID, UInt32* procID);
-extern OSErr FSCloseWD(WDRefNum wdRefNum);
-extern OSErr FSMakeFSSpec(VolumeRefNum vRefNum, DirID dirID, ConstStr255Param fileName, FSSpec* spec);
-extern OSErr FSpCreate(const FSSpec* spec, OSType creator, OSType fileType, ScriptCode scriptTag);
-extern OSErr FSpOpenDF(const FSSpec* spec, SInt8 permission, FileRefNum* refNum);
-extern OSErr FSpGetFInfo(const FSSpec* spec, FInfo* fndrInfo);
-extern OSErr FSpDelete(const FSSpec* spec);
-extern OSErr HGetFInfo(short vRefNum, long dirID, ConstStr255Param fileName, FInfo* fndrInfo);
-#include <string.h>
 #include "CPU/CPUBackend.h"
 #include "CPU/M68KInterp.h"
 #include "CPU/M68KHeap.h"
 #include "SegmentLoader/MacBinary.h"
 extern OSErr LaunchApplication(LaunchParamBlockRec* launchParams);
-
 extern UInt32 M68K_Read32(M68KAddressSpace* as, UInt32 addr);
 extern void M68K_Write32(M68KAddressSpace* as, UInt32 addr, UInt32 value);
 
