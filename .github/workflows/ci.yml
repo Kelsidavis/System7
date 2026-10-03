@@ -18,40 +18,92 @@ jobs:
   cadence:
     name: Select CI runs
     runs-on: ubuntu-24.04
+    permissions:
+      actions: read
     outputs:
       run_ci: ${{ steps.select.outputs.run_ci }}
 
     steps:
-      - name: Checkout commit history
-        uses: actions/checkout@v6
-        with:
-          fetch-depth: 0
-
-      - name: Select scheduled CI commits
+      - name: Select scheduled push runs
         id: select
         env:
           EVENT_NAME: ${{ github.event_name }}
           REF_NAME: ${{ github.ref }}
-          BEFORE_SHA: ${{ github.event.before }}
-          AFTER_SHA: ${{ github.sha }}
+          BRANCH_NAME: ${{ github.ref_name }}
+          REPOSITORY: ${{ github.repository }}
+          RUN_ID: ${{ github.run_id }}
+          GH_TOKEN: ${{ github.token }}
         run: |
           if [[ "$EVENT_NAME" == "pull_request" || "$REF_NAME" == refs/tags/v* ]]; then
             echo "run_ci=true" >> "$GITHUB_OUTPUT"
             exit 0
           fi
 
-          after_count=$(git rev-list --count "$AFTER_SHA")
-          if [[ "$BEFORE_SHA" =~ ^0+$ ]] || ! git cat-file -e "$BEFORE_SHA^{commit}" 2>/dev/null; then
-            before_count=0
-          else
-            before_count=$(git rev-list --count "$BEFORE_SHA")
-          fi
+          python3 - <<'PY'
+          import json
+          import os
+          import sys
+          import urllib.parse
+          import urllib.request
 
-          if (( before_count / 10 < after_count / 10 )); then
-            echo "run_ci=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "run_ci=false" >> "$GITHUB_OUTPUT"
-          fi
+          per_page = 100
+          page = 1
+          run_id = int(os.environ["RUN_ID"])
+          total_count = None
+          try:
+              run_url = (
+                  "https://api.github.com/repos/"
+                  f"{os.environ['REPOSITORY']}/actions/runs/{run_id}"
+              )
+              run_request = urllib.request.Request(run_url, headers={
+                  "Accept": "application/vnd.github+json",
+                  "Authorization": f"Bearer {os.environ['GH_TOKEN']}",
+                  "X-GitHub-Api-Version": "2022-11-28",
+              })
+              with urllib.request.urlopen(run_request, timeout=30) as response:
+                  workflow_id = json.load(response)["workflow_id"]
+
+              while True:
+                  query = urllib.parse.urlencode({
+                      "branch": os.environ["BRANCH_NAME"],
+                      "event": "push",
+                      "per_page": per_page,
+                      "page": page,
+                  })
+                  url = (
+                      "https://api.github.com/repos/"
+                      f"{os.environ['REPOSITORY']}/actions/workflows/"
+                      f"{workflow_id}/runs?{query}"
+                  )
+                  request = urllib.request.Request(url, headers={
+                      "Accept": "application/vnd.github+json",
+                      "Authorization": f"Bearer {os.environ['GH_TOKEN']}",
+                      "X-GitHub-Api-Version": "2022-11-28",
+                  })
+                  with urllib.request.urlopen(request, timeout=30) as response:
+                      result = json.load(response)
+
+                  if total_count is None:
+                      total_count = result["total_count"]
+                  runs = result["workflow_runs"]
+                  for index, run in enumerate(runs):
+                      if run["id"] == run_id:
+                          if run["head_branch"] != os.environ["BRANCH_NAME"]:
+                              raise RuntimeError("current run branch did not match")
+                          ordinal = total_count - ((page - 1) * per_page + index)
+                          should_run = ordinal % 10 == 0
+                          with open(os.environ["GITHUB_OUTPUT"], "a") as output:
+                              output.write(f"run_ci={str(should_run).lower()}\n")
+                          print(f"Branch push run {ordinal}: full CI {'enabled' if should_run else 'skipped'}")
+                          sys.exit(0)
+
+                  if not runs:
+                      raise RuntimeError("current run was not found in Actions history")
+                  page += 1
+          except Exception as error:
+              print(f"Could not determine push cadence ({error}); running full CI", file=sys.stderr)
+              with open(os.environ["GITHUB_OUTPUT"], "a") as output:
+                  output.write("run_ci=true\n")
 
   build-x86:
     name: Build x86
