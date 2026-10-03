@@ -35,7 +35,6 @@ extern "C" {
 /* Standard window frame dimensions */
 #define WINDOW_TITLE_BAR_HEIGHT    20
 
-#include "SystemTypes.h"
 #define WINDOW_FRAME_WIDTH         1
 #define WINDOW_CLOSE_BOX_SIZE      12
 #define WINDOW_ZOOM_BOX_SIZE       12
@@ -45,11 +44,8 @@ extern "C" {
 #define MIN_WINDOW_WIDTH           80
 #define MIN_WINDOW_HEIGHT          60
 
-#include "SystemTypes.h"
 #define MAX_WINDOW_WIDTH           2048
 #define MAX_WINDOW_HEIGHT          2048
-
-#include "SystemTypes.h"
 
 /* Update timing */
 #define UPDATE_THROTTLE_MS         16  /* ~60 FPS */
@@ -439,20 +435,14 @@ WindowManagerState* GetWindowManagerState(void);
 #define WM_RECT_WIDTH(r) ((r)->right - (r)->left)
 #define WM_RECT_HEIGHT(r) ((r)->bottom - (r)->top)
 
-#include "SystemTypes.h"
 #define WM_RECT_CENTER_H(r) ((r)->left + WM_RECT_WIDTH(r) / 2)
 
-#include "SystemTypes.h"
 #define WM_RECT_CENTER_V(r) ((r)->top + WM_RECT_HEIGHT(r) / 2)
-
-#include "SystemTypes.h"
 
 /* Window property checks */
 #define WM_WINDOW_IS_VISIBLE(w) (WM_VALID_WINDOW(w) && (w)->visible)
 #define WM_WINDOW_IS_ACTIVE(w) (WM_VALID_WINDOW(w) && (w)->hilited)
 #define WM_WINDOW_HAS_CLOSE_BOX(w) (WM_VALID_WINDOW(w) && (w)->goAwayFlag)
-
-#include "SystemTypes.h"
 
 #ifdef __cplusplus
 }

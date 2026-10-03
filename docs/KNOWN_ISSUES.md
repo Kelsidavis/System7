@@ -1073,12 +1073,13 @@ Implemented dirty rectangle intersection when available:
 
 **Previously**: Manual synchronization of portRect (LOCAL), portBits.bounds (GLOBAL), and regions (GLOBAL) caused frequent bugs.
 
-**Fix**: Centralized rectangle and geometry helpers in `WindowManagerHelpers.c`; window creation and movement update the QuickDraw port's local and global bounds in the Window Manager.
+**Fix**: Rectangle and geometry helpers live in `WindowManagerHelpers.c`; the former `WindowGeometry.c` placeholder was empty and has been removed. Window creation and movement update the QuickDraw port's local and global bounds in the Window Manager.
 
 **Files**:
 - `src/WindowManager/WindowManagerHelpers.c`
 - `src/WindowManager/WindowManagerCore.c`
 - `src/WindowManager/WindowDragging.c`
+- `src/WindowManager/WindowRegions.c`
 
 **Impact**: Eliminates entire class of coordinate corruption bugs.
 
