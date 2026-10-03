@@ -349,7 +349,6 @@ static void TE_TrackMouse(TEHandle hTE, Point startPt) {
          * text - TEGetOffset clamped that to the end, and the click that
          * started the drag ended up selecting from there to the end of the
          * document. Typing then replaced all of it. */
-        extern void GetMouseLocal(Point* mouseLoc);
         GetMouseLocal(&pt);
 
         /* Get offset at current position */

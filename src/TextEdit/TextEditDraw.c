@@ -375,7 +375,6 @@ void TEIdle(TEHandle hTE) {
 
         {
             /* In the record's port: viewRect is local, GetMouse global */
-            extern void GetMouseLocal(Point* mouseLoc);
             GrafPtr save;
             GetPort(&save);
             if (pTE->base.inPort) SetPort(pTE->base.inPort);
