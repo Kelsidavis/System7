@@ -507,18 +507,8 @@ void BeginUpdate(WindowPtr theWindow) {
                 /* Platform_SetClipRgn copies the region data */
                 Platform_SetClipRgn(&theWindow->port, updateClip);
             }
-            /* FIXED: Properly dispose the temporary region after use
-             * SetClip/Platform_SetClipRgn copy the region data, so updateClip is safe to dispose.
-             * Only dispose if the region is not NULL and not being referenced. */
-            if (updateClip) {
-                /* Ensure region is not the same as any critical regions before disposing */
-                if (updateClip != theWindow->contRgn &&
-                    updateClip != theWindow->updateRgn &&
-                    updateClip != theWindow->visRgn &&
-                    updateClip != theWindow->strucRgn) {
-                    Platform_DisposeRgn(updateClip);
-                }
-            }
+            /* SetClip and Platform_SetClipRgn copy the region contents. */
+            Platform_DisposeRgn(updateClip);
         }
     } else if (theWindow->contRgn) {
         /* If no updateRgn, just use contRgn to prevent overdrawing chrome */

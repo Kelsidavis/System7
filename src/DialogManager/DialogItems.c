@@ -847,13 +847,6 @@ static Boolean ValidateItemNumber(DialogPtr theDialog, SInt16 itemNo)
 }
 
 
-/* NOTE: Text/Icon drawing functions moved to DialogDrawing.c unified dispatcher.
- * Keyboard focus tracking now implemented in DialogKeyboard.c
- * (see DM_SetKeyboardFocus, DM_GetKeyboardFocus, DM_FocusNextControl)
- */
-
-
-
 static void InvalidateItemRect(DialogPtr theDialog, const Rect* rect)
 {
     if (!theDialog || !rect) {

@@ -210,7 +210,6 @@ Boolean STClip_HasText(void)
 /* Undo last operation (single-level) */
 void STClip_Undo(STDocument* doc)
 {
-    /* Placeholders for future redo support removed to avoid warnings */
     SInt32 undoLen;
 
     ST_Log("STClip_Undo");

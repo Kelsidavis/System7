@@ -1,7 +1,7 @@
 /*
  * LayoutGuards.h - ABI/Layout Static Assertions for Window Manager
  *
- * [WM-055a] Compile-time guards to prevent silent struct layout drift
+ * Compile-time guards prevent silent struct layout drift.
  * Provenance: IM:Windows Vol I p. 2-13 - WindowRecord structure layout
  *
  * These assertions ensure that critical struct offsets match the canonical
@@ -26,7 +26,7 @@
 #define STATIC_ASSERT(COND, NAME) typedef char static_assert_##NAME[(COND) ? 1 : -1]
 #endif
 
-/* [WM-055a] IM:Windows p.2-13 — WindowRecord first field is GrafPort */
+/* IM:Windows p.2-13 specifies GrafPort as the first WindowRecord field. */
 STATIC_ASSERT(offsetof(WindowRecord, port) == 0, windowrecord_port_at_0);
 
 /* Ensure WindowRecord is at least as large as GrafPort (it embeds one) */
@@ -35,7 +35,6 @@ STATIC_ASSERT(sizeof(WindowRecord) >= sizeof(GrafPort), windowrecord_at_least_gr
 /* Ensure GrafPort actually contains portRect (prevents struct regressions) */
 STATIC_ASSERT(offsetof(GrafPort, portRect) < sizeof(GrafPort), grafport_has_portrect);
 
-/* Ensure visRgn exists if you depend on it (added in earlier work) */
 STATIC_ASSERT(offsetof(WindowRecord, visRgn) < sizeof(WindowRecord), windowrecord_has_visRgn);
 
 /* Ensure windowKind field exists and is properly aligned for short access */

@@ -41,45 +41,10 @@ static Point g_polyPoints[MAX_POLY_POINTS];
 static SInt16 g_polyPointCount = 0;
 static Rect g_polyBBox;
 
-/* Standard patterns
- *
- * CRITICAL PATTERN QUIRK - READ THIS TO AVOID CONFUSION:
- * ========================================================
- * QuickDraw Patterns are 8x8 1-bit bitmaps, NOT color values!
- * - Bit value 0 = WHITE pixel (background)
- * - Bit value 1 = BLACK pixel (foreground)
- *
- * This is COUNTER-INTUITIVE for modern developers because:
- * - 0x00 bytes = ALL ZEROS = WHITE (not black!)
- * - 0xFF bytes = ALL ONES  = BLACK (not white!)
- *
- * When filling with a solid color:
- * - Use Pattern with all 0x00 bytes for WHITE
- * - Use Pattern with all 0xFF bytes for BLACK
- *
- * Example from folder_window.c that caused confusion:
- *   Pattern whitePat;
- *   for (int i = 0; i < 8; i++) whitePat.pat[i] = 0x00;  // WHITE, not black!
- *   FillRect(&rect, &whitePat);
- *
- * This matches classic Macintosh QuickDraw behavior where patterns
- * are monochrome bitmaps expanded to screen depth during rendering.
- *
- * DEBUGGING HISTORY - TRANSPARENT WINDOW BUG (2025):
- * ===================================================
- * Symptom: Window backgrounds appeared transparent, only icons visible
- * Root cause: Used 0xFF pattern bytes thinking it meant white
- *
- * Debugging sequence that led to the fix:
- * 1. Initially removed EraseRect → windows became transparent
- * 2. Disabled GWorld double-buffering → still transparent
- * 3. Changed to FillRect with 0xFF pattern → windows became BLACK
- * 4. Discovered Pattern definition shows 0x00=white, 0xFF=black
- * 5. Changed pattern to 0x00 → FIXED, windows now white!
- *
- * Key insight: EraseRect uses port's background pattern (bkPat), which
- * may be set to the desktop pattern instead of white. Always use FillRect
- * with explicit white pattern (0x00) for guaranteed white backgrounds.
+/* QuickDraw patterns are 8x8 one-bit masks. In this renderer, zero selects
+ * the background color and one selects the foreground color. EraseRect uses
+ * the port's background pattern, so use an explicit white pattern when a
+ * white fill is required.
  */
 static const Pattern g_standardPatterns[] = {
     {{0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}}, /* white */

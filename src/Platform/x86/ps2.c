@@ -893,9 +893,6 @@ void GetMouseLocal(Point* mouseLoc) {
     GlobalToLocal(mouseLoc);
 }
 
-/* Button() moved to MouseEvents.c - reads gCurrentButtons instead of hardware */
-
-
 /* Get current keyboard modifiers as Event Manager modifier flags */
 UInt16 GetPS2Modifiers(void)
 {

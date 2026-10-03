@@ -1,5 +1,4 @@
-// Trash Icons from System 7.1
-// Fixed: white body with black outline and stripes
+// System 7.1 full and empty Trash icon bitmaps.
 
 #include <stdint.h>
 #include <stddef.h>

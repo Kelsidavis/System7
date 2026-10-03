@@ -28,8 +28,6 @@
 #include "QuickDraw/ColorQuickDraw.h"
 #include <math.h>
 
-/* [WM-017] Forward declarations for file-local helpers */
-/* Provenance: Standard C practice for static functions called before definition */
 typedef struct WindowStateData WindowStateData;
 WindowStateData* WM_GetWindowStateData(WindowPtr window);
 static void WM_CalculateStandardState(WindowPtr window, Rect* stdState);
@@ -110,7 +108,6 @@ void SizeWindow(WindowPtr theWindow, short w, short h, Boolean fUpdate) {
     if (h > MAX_RESIZE_HEIGHT) h = MAX_RESIZE_HEIGHT;
 
     /* Check if size actually needs to change */
-    /* [WM-009] IM:Windows p.2-13: WindowRecord first field is GrafPort */
     Rect currentBounds = theWindow->port.portRect;
     short currentWidth = currentBounds.right - currentBounds.left;
     short currentHeight = currentBounds.bottom - currentBounds.top;
@@ -453,7 +450,6 @@ void ZoomWindow(WindowPtr theWindow, short partCode, Boolean front) {
 
     /* Perform zoom animation */
     if (Platform_IsZoomAnimationEnabled()) {
-        /* [WM-009] Provenance: IM:Windows p.2-13 */
         Local_AnimateZoom(theWindow, &(*theWindow->contRgn)->rgnBBox, &targetBounds);
     }
 
@@ -555,7 +551,6 @@ static void WM_UpdateWindowUserState(WindowPtr window) {
 
     /* Update user state only if window is not currently zoomed */
     if (!stateData->isZoomed) {
-        /* [WM-009] Provenance: IM:Windows p.2-13 */
         if (window->contRgn && *window->contRgn) {
             stateData->userState = (*window->contRgn)->rgnBBox;
             stateData->hasUserState = true;
@@ -575,7 +570,6 @@ static long Local_CalculateStateChecksum(WindowStateData* stateData) {
     if (stateData == NULL) return 0;
 
     /* Simple checksum based on state data */
-    /* [WM-018] Window state validation */
     long checksum = 0x12345678; /* Magic number */
     checksum ^= stateData->userState.left;
     checksum ^= stateData->userState.top << 8;
@@ -682,5 +676,3 @@ static void Local_GenerateResizeUpdateEvents(WindowPtr window, short oldWidth, s
 }
 
 /* Platform functions are in WindowPlatform.c */
-
-/* Size feedback and zoom frame functions moved to WindowPlatform.c */

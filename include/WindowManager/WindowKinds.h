@@ -1,7 +1,7 @@
 /*
  * WindowKinds.h - Window Kind Constants
  *
- * [WM-055] Single source of truth for window kind constants
+ * Single source of truth for window kind constants
  * Provenance: IM:Windows Vol I p. 2-15 "Window Kinds"
  *
  * This header defines the canonical window kind values used to classify
@@ -24,7 +24,7 @@
 #ifndef WINDOW_KINDS_H
 #define WINDOW_KINDS_H
 
-/* [WM-055] Window Kind Constants from IM:Windows Vol I p. 2-15 */
+/* Window kind constants from IM:Windows Vol I p. 2-15 */
 #ifndef dialogKind
 #define dialogKind   2  /* Dialog window */
 #endif

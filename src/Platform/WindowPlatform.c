@@ -252,7 +252,7 @@ RgnHandle Platform_NewRgn(void) {
 
 /* Get window definition procedure */
 Handle Platform_GetWindowDefProc(short procID) {
-    /* [WM-039] WDEF dispatch - IM:Windows Vol I pp. 2-88 to 2-95 */
+    /* WDEF dispatch follows IM:Windows Vol I pp. 2-88 to 2-95. */
     switch (procID) {
         case documentProc:
         case noGrowDocProc:
@@ -350,8 +350,6 @@ void Platform_ShowNativeWindow(WindowPtr window, Boolean show) {
     (void)show;
     /* No native window system - visibility handled by Window Manager */
 }
-
-/* [WM-051] WM_InvalidateWindowsBelow moved to WindowLayering.c - no WM_ symbols in Platform */
 
 void Platform_BringNativeWindowToFront(WindowPtr window) {
     (void)window;

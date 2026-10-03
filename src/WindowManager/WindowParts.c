@@ -35,10 +35,9 @@
 #define whiteColor 30
 #include "WindowManager/WMLogging.h"
 
-/* [WM-031] File-local helpers; provenance: IM:Windows "Window Definition Procedures" */
+/* File-local dialog hit testing follows IM:Windows "Window Definition Procedures". */
 static short WM_DialogWindowHitTest(WindowPtr window, Point pt);
 
-/* [WM-054] WDEF constants now in canonical header */
 #include "WindowManager/WindowWDEF.h"
 
 /* ============================================================================
@@ -712,7 +711,7 @@ Boolean WM_WindowHasCloseBox(WindowPtr window) {
     return window && window->goAwayFlag && WM_WindowHasTitleBar(window);
 }
 
-/* [WM-035] Local zoom query; sources: IM:Windows "ZoomWindow" */
+/* Return whether Window Manager state marks a window as zoomed. */
 Boolean WM_WindowIsZoomed(WindowPtr window) {
     if (window == NULL) return false;
 
@@ -733,7 +732,7 @@ Boolean WM_WindowIsZoomed(WindowPtr window) {
  * Dialog Window Hit Testing
  * ============================================================================ */
 
-/* [WM-046] Used by WindowParts/WindowEvents; centralize later if shared */
+/* Hit-test the parts specific to dialog windows. */
 static short WM_DialogWindowHitTest(WindowPtr window, Point pt) {
     if (window == NULL) return wNoHit;
 

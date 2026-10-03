@@ -523,7 +523,7 @@ typedef WindowRecord* WindowPeek;
 #define kUpdateAll      2
 #define kUpdateFrame    4
 #define kUpdateContent  8
-/* [WM-054] wDraw and other WDEF messages now in WindowManager/WindowWDEF.h */
+/* Window part hit-test codes */
 #define wNoHit         0
 #define wInContent     1
 #define wInDrag        2
@@ -1873,8 +1873,6 @@ typedef CWindowRecord* CWindowPtr;
 
 /* Window Manager port type */
 typedef GrafPort WMgrPort;
-
-/* [WM-055] Window kind constants now in WindowManager/WindowKinds.h */
 
 // Missing File Manager types
 typedef SInt16 FSIORefNum;

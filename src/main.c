@@ -1708,8 +1708,6 @@ void kernel_main(uint32_t magic, uint32_t* mb2_info) {
             }
         }
 
-        /* Mouse button tracking moved to EventManager - events are properly dispatched now */
-
 skip_cursor_drawing:
         /* Re-enable SystemTask and GetNextEvent for event processing */
         if (framebuffer) {

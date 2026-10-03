@@ -1,4 +1,4 @@
-/* [WM-019] Provenance: IM:Windows Vol I pp. 2-54 to 2-58 */
+/* IM:Windows Vol I pp. 2-54 to 2-58 describes window ordering. */
 /*
  * WindowLayering.c - Window Z-Order and Layering Management
  *
@@ -23,11 +23,9 @@
 
 #include "WindowManager/WindowManagerInternal.h"
 
-/* [WM-055] Window kind constants now in canonical header */
 #include "WindowManager/WindowKinds.h"
 
-/* [WM-019] Forward declarations for file-local Z-order helpers */
-/* Provenance: IM:Windows Vol I pp. 2-54 to 2-58 "Window Ordering" */
+/* File-local helpers for z-order and visibility calculations. */
 static Boolean Local_IsFloatingWindow(WindowPtr window);
 static Boolean Local_IsAlertDialog(WindowPtr window);
 static void Local_UpdateWindowVisibilityStats(WindowPtr window, RgnHandle visibleRgn);
@@ -121,7 +119,7 @@ static Boolean Local_IsFloatingWindow(WindowPtr window) {
 static Boolean Local_IsAlertDialog(WindowPtr window) {
     if (window == NULL) return false;
 
-    /* [WM-021] Provenance: IM:Windows Vol I p.2-90 "Alert and Dialog WDEFs" */
+    /* IM:Windows Vol I p. 2-90 describes alert and dialog WDEFs. */
     /* Alert dialogs have dialogKind = 2 */
     return (window->windowKind == dialogKind);
 }
@@ -583,9 +581,8 @@ void WM_UpdateWindowLayers(void) {
  * Window Invalidation for Z-Order Changes
  * ============================================================================ */
 
-/* [WM-051] Canonical implementation: invalidate windows below topWindow
- * Provenance: IM:Windows "Update Events" + "Window Ordering"
- * When a window moves/changes, windows behind it may need repainting
+/* Invalidate portions of lower windows exposed by a window change.
+ * See IM:Windows "Update Events" and "Window Ordering".
  */
 void WM_InvalidateWindowsBelow(WindowPtr topWindow, const Rect* rect) {
     if (topWindow == NULL || rect == NULL) return;

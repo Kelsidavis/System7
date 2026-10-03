@@ -1,7 +1,7 @@
 /*
  * WindowWDEF.h - Window Definition Procedure (WDEF) Constants
  *
- * [WM-054] Single source of truth for WDEF message constants
+ * Single source of truth for WDEF message constants
  * Provenance: IM:Windows Vol I pp. 2-88 to 2-95 "Window Definition Procedures"
  *
  * This header defines the canonical WDEF message codes used by window definition
@@ -25,7 +25,7 @@
 #ifndef WINDOW_WDEF_H
 #define WINDOW_WDEF_H
 
-/* [WM-054] WDEF Message Constants from IM:Windows Vol I pp. 2-88 to 2-95 */
+/* WDEF message constants from IM:Windows Vol I pp. 2-88 to 2-95 */
 #ifndef wDraw
 #define wDraw        0  /* Draw window frame */
 #endif

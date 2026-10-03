@@ -308,9 +308,6 @@ Boolean SystemUpdate(WindowRecord *window, const EventRecord *event)
  */
 void SystemTask(void)
 {
-    /* FIXED: Removed direct PollPS2Input call - this bypasses event system! */
-    /* PS/2 input polling should ONLY happen in main event loop via ProcessModernInput */
-
     if (!g_deskMgrInitialized) {
         return;
     }
