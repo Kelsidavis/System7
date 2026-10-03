@@ -21,12 +21,11 @@
 #include "ResourceManager.h"
 #include "../include/EventManager/EventTypes.h"  /* Include EventTypes first to define activeFlag */
 #include "../include/EventManager/EventManager.h"
+#include "../include/EventManager/EventManagerInternal.h"
 #include "../include/System71StdLib.h"                 /* for serial_printf & friends */
 #include "../include/System/SystemLogging.h"
 #include "../include/MenuManager/MenuManager.h"
 
-/* Menu command dispatcher */
-extern void DoMenuCommand(short menuID, short item);
 #include "../include/DialogManager/DialogManager.h"
 #include "../include/ControlManager/ControlManager.h"
 #include "../include/ListManager/ListManager.h"
@@ -45,6 +44,7 @@ extern void DoMenuCommand(short menuID, short item);
 #include "../include/ExtensionManager/DefLoader.h"
 #include "../include/ProcessMgr/ProcessTypes.h"
 #include "../include/Finder/finder.h"
+#include "../include/DeskManager/DeskManager.h"
 
 #include "Platform/include/network.h"
 #include "Platform/include/input.h"
@@ -53,9 +53,6 @@ extern void DoMenuCommand(short menuID, short item);
 #include "Platform/x86/pic.h"
 #include "Platform/x86/xhci.h"
 #endif
-
-/* Forward declaration for DispatchEvent (no header available yet) */
-extern Boolean DispatchEvent(EventRecord* evt);
 
 #include "../include/SystemInternal.h"
 
@@ -555,38 +552,6 @@ static void parse_multiboot2(uint32_t magic, uint32_t* mb2_info) {
     }
 }
 
-
-/* External System 7.1 component initialization functions */
-extern void InitMemoryManager(void);
-extern void InitResourceManager(void);
-
-extern void InitGraf(void *globalPtr);
-extern void InitFonts(void);
-extern void InitWindows(void);
-extern void InitMenus(void);
-extern void InitDialogs(ResumeProcPtr resumeProc);
-extern SInt16 InitEvents(SInt16 numEvents);
-
-/* Window Manager functions */
-extern WindowPtr NewWindow(void* wStorage, const Rect* boundsRect,
-                          ConstStr255Param title, Boolean visible,
-                          short procID, WindowPtr behind, Boolean goAwayFlag,
-                          long refCon);
-extern void SetPort(GrafPtr port);
-extern void ShowWindow(WindowPtr window);
-extern void SelectWindow(WindowPtr window);
-extern void DrawControls(WindowPtr window);
-extern void DrawGrowIcon(WindowPtr window);
-
-/* Menu Manager functions */
-extern MenuHandle NewMenu(short menuID, ConstStr255Param menuTitle);
-extern void AppendMenu(MenuHandle menu, ConstStr255Param data);
-extern void InsertMenu(MenuHandle menu, short beforeID);
-extern void DrawMenuBar(void);
-
-/* Event Manager functions */
-/* GetNextEvent, EventAvail declared in EventManager.h */
-extern void SystemTask(void);
 
 #ifdef TM_SMOKE_TEST
 /* Time Manager test callback */
@@ -1315,15 +1280,6 @@ static void create_system71_windows(void) {
     serial_puts("MAIN: DrawMenuBar returned\n");
 
 }
-
-/* Mouse state from PS2 controller */
-extern struct {
-    int16_t x;
-    int16_t y;
-    uint8_t buttons;
-    uint8_t packet[3];
-    uint8_t packet_index;
-} g_mouseState;
 
 /*
  * The pointer, drawn in software over the framebuffer.
