@@ -82,42 +82,15 @@ we would love your test results — please [open an issue](https://github.com/Ke
 
 Full roadmap: [BARE_METAL_IMPROVEMENTS.md](docs/BARE_METAL_IMPROVEMENTS.md)
 
-## 🎯 Project Status
+## Project Status
 
-**Current State**: Active experimental development. Most features are exercised in QEMU; bare-metal testing is limited to a small number of machines, and compatibility with real System 7 applications remains unverified.
-
-### Latest Updates (October 2026)
-
-#### Desktop, Desk Accessories, and the Toolbox Underneath ✅
-- **Desktop Patterns** is laid out as Apple's System 7.5 control panel: one
-  pattern tiled in a preview, a scroll bar to step through the collection, and
-  a **Set Desktop Pattern** button. Colour patterns (`ppat`) come first,
-  including Apple's own 400 and 401, decoded by the Inside Macintosh `ppat`
-  layout, then the 32 black-and-white ones
-- **Desk accessories work**: clicks and keys reach them, each draws in its own
-  window, and closing one (close box or Close Window) closes it properly.
-  Calculator gets its arithmetic right, Alarm Clock shows the live time, and
-  Key Caps draws a keyboard and shows what you type
-- **Memory**: on x86 the application heap takes the machine's free RAM instead
-  of a fixed array — about 1 GB under QEMU with `-m 1024` — and About This
-  Macintosh names the processor (CPUID)
-- **QuickDraw**: `OpenPoly` returns the polygon, so polygon recording no longer
-  sticks on and stops every later line from drawing
-- **Windows**: screen size comes from the screen (no 640×480 assumption);
-  moving, shrinking and zooming repaint what they uncover; updates copy only
-  what was redrawn; hidden windows draw nothing
-- **Events**: the USB tablet works, its movement is no longer read as wheel
-  turns, and a full event queue drops its oldest event rather than new clicks;
-  modal dialogs keep the pointer and pass other windows' updates on
-- **Finder**: Find asks for a name and reveals each match, Find Again moves to
-  the next; menus, the menu-bar clock, alerts and Balloon Help's menu draw
-  correctly
-- **Resource Manager**: `ReleaseResource`, `DetachResource` and
-  `GetIndResource` keep the resource map and cache consistent
+The project is under active experimental development. Most features are
+exercised in QEMU; bare-metal testing is limited to a small number of machines,
+and compatibility with real System 7 applications remains unverified.
 
 ## Implementation Status
 
-### What Works Fully ✅
+### Implemented Components
 
 - **Hardware Abstraction Layer (HAL)**: x86 implementation is the primary
   validated target
@@ -153,7 +126,7 @@ Full roadmap: [BARE_METAL_IMPROVEMENTS.md](docs/BARE_METAL_IMPROVEMENTS.md)
 - **Desk Accessories**: Calculator, Alarm Clock, Key Caps, Note Pad and Chooser from the Apple menu, driven through `SystemClick`/`SystemEvent`
 - **Control Panels**: Desktop Patterns (with colour patterns), Date & Time, Sound, Mouse, Keyboard, Control Strip
 
-### Partially Implemented ⚠️
+### Partially Implemented
 
 - **68K Applications**: The test programs in `tests/m68k` run fully; traps an application uses that are not bridged yet stop it with the trap's name
 - **Window Definition Procedures (WDEF)**: Core structure in place, partial dispatch
@@ -163,7 +136,7 @@ Full roadmap: [BARE_METAL_IMPROVEMENTS.md](docs/BARE_METAL_IMPROVEMENTS.md)
   incomplete; PowerPC remains experimental (see [Platform Porting Status](docs/future/PORTING_PLAN.md))
 - **Networking**: Experimental x86 E1000 code handles ARP and ICMP echo requests; TCP, UDP, DHCP, and AppleTalk are not implemented, and other platforms have no network driver.
 
-### Not Yet Implemented ❌
+### Not Yet Implemented
 
 - **Printing**: No print system
 - **Apple Events**: Inter-application Apple Event messaging is not implemented
