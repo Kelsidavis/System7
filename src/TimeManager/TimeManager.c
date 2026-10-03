@@ -5,20 +5,8 @@
 
 #include "SystemTypes.h"
 #include "TimeManager/TimeManager.h"
+#include "TimeManager/TimeManagerPriv.h"
 #include "TimeManager/TimeBase.h"
-
-/* Core functions (implemented in TimeManagerCore.c) */
-extern OSErr Core_Initialize(void);
-extern void Core_Shutdown(void);
-extern OSErr Core_InsertTask(TMTask *task);
-extern OSErr Core_RemoveTask(TMTask *task);
-extern OSErr Core_PrimeTask(TMTask *task, UInt32 delayUS);
-extern OSErr Core_CancelTask(TMTask *task);
-extern UInt32 Core_GetActiveCount(void);
-
-/* Deferred queue (implemented in TimerTasks.c) */
-extern void InitDeferredQueue(void);
-extern void ShutdownDeferredQueue(void);
 
 OSErr InitTimeManager(void) {
     OSErr err = InitTimeBase();
