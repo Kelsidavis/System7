@@ -55,59 +55,6 @@ static void CenterRectOnScreen(Rect* rect, SInt16 width, SInt16 height) {
     rect->bottom = rect->top + height;
 }
 
-/**
- * Calculate layout position for app at index
- */
-static Rect __attribute__((unused)) GetAppIconRect(SInt16 index, const Rect* windowBounds) {
-    Rect rect = {0, 0, 0, 0};
-
-    if (!windowBounds) return rect;
-
-    /* Simple grid layout: 4 columns */
-    const SInt16 iconsPerRow = 4;
-    const SInt16 iconSize = kAppSwitcher_IconSize;
-    const SInt16 spacing = 20;
-    const SInt16 leftPadding = 20;
-    const SInt16 topPadding = 40;
-
-    SInt16 col = index % iconsPerRow;
-    SInt16 row = index / iconsPerRow;
-
-    rect.left = windowBounds->left + leftPadding + (col * (iconSize + spacing));
-    rect.top = windowBounds->top + topPadding + (row * (iconSize + spacing));
-    rect.right = rect.left + iconSize;
-    rect.bottom = rect.top + iconSize;
-
-    return rect;
-}
-
-/**
- * Get index of app at point
- */
-static SInt16 __attribute__((unused)) GetAppAtPoint(Point pt, const Rect* windowBounds) {
-    if (!windowBounds) return -1;
-
-    const SInt16 iconsPerRow = 4;
-    const SInt16 iconSize = kAppSwitcher_IconSize;
-    const SInt16 spacing = 20;
-    const SInt16 leftPadding = 20;
-    const SInt16 topPadding = 40;
-
-    SInt16 relX = pt.h - (windowBounds->left + leftPadding);
-    SInt16 relY = pt.v - (windowBounds->top + topPadding);
-
-    if (relX < 0 || relY < 0) return -1;
-
-    SInt16 col = relX / (iconSize + spacing);
-    SInt16 row = relY / (iconSize + spacing);
-
-    SInt16 index = row * iconsPerRow + col;
-
-    if (index < 0 || index >= gSwitcherState.appCount) return -1;
-
-    return index;
-}
-
 /*---------------------------------------------------------------------------
  * Initialization
  *---------------------------------------------------------------------------*/

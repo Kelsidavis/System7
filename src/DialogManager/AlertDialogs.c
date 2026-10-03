@@ -64,9 +64,6 @@ static const BuiltInAlertSpec kFallbackGeneric = {{160, 180, 320, 460}, 1, 2, 0,
 static SInt16 RunAlertDialog(SInt16 alertID, ModalFilterProcPtr filterProc, SInt16 alertType);
 static DialogPtr CreateAlertDialogFromTemplate(const AlertTemplate* alertTemplate);
 static void PlayAlertSoundForStage(SInt16 alertType, SInt16 stage);
-static void __attribute__((unused)) PositionAlertDialog(DialogPtr alertDialog);
-/* Forward declarations */
-static void __attribute__((unused)) DrawAlertIcon(DialogPtr alertDialog, SInt16 iconType);
 static OSErr BuildFallbackDLOG(const BuiltInAlertSpec* spec, DialogTemplate** outDLOG);
 static OSErr BuildFallbackDITL(SInt16 pseudoId, SInt16 iconKind, Handle* outDITL);
 static Boolean LoadAlertWithFallback(SInt16 alertID, SInt16 alertType,
@@ -787,26 +784,6 @@ static void PlayAlertSoundForStage(SInt16 alertType, SInt16 stage)
     SoundEffects_Play(effect);
 }
 
-static void __attribute__((unused)) PositionAlertDialog(DialogPtr alertDialog)
-{
-    if (!alertDialog) {
-        return;
-    }
-
-    /* In System 7, alerts are typically centered on the main screen */
-    /* The position can be specified in the ALRT resource:
-     * 0x0000 = use bounds as-is
-     * 0x300A = center on main screen
-     * 0x700A = center on deepest screen
-     * 0xB00A = center over frontmost window
-     */
-
-    /* For now, we'll just use the bounds from the template */
-    /* A full implementation would adjust position based on positioning code */
-
-    // printf("Positioning alert dialog at %p\n", (void*)alertDialog);
-}
-
 void SubstituteAlertParameters(unsigned char* text)
 {
     if (!text || !gAlertState.initialized) {
@@ -847,119 +824,6 @@ void SubstituteAlertParameters(unsigned char* text)
     /* Update original text with substituted result */
     result[0] = resultLen;
     memcpy(text, result, resultLen + 1);
-}
-
-static void __attribute__((unused)) DrawAlertIcon(DialogPtr alertDialog, SInt16 iconType)
-{
-    if (!alertDialog) {
-        return;
-    }
-
-    /* In System 7, alerts have standard icons:
-     * Stop (0) = stop sign icon (octagon with hand)
-     * Note (1) = information icon (speech bubble or note)
-     * Caution (2) = exclamation point icon (triangle with !)
-     */
-
-    /* Draw icon in standard location (left side of alert, typically 20x20 at 20,20) */
-    extern void SetPort(GrafPtr port);
-    extern void GetPort(GrafPtr *port);
-    extern void PaintRect(const Rect *r);
-    extern void FrameRect(const Rect *r);
-    extern void FrameOval(const Rect *r);
-    extern void MoveTo(SInt16 h, SInt16 v);
-    extern void LineTo(SInt16 h, SInt16 v);
-
-    GrafPtr savePort;
-    GetPort(&savePort);
-    SetPort((GrafPtr)alertDialog);
-
-    Rect iconRect;
-    iconRect.left = 20;
-    iconRect.top = 20;
-    iconRect.right = 52;  /* 32x32 icon */
-    iconRect.bottom = 52;
-
-    switch (iconType) {
-        case 0:  /* Stop Alert - draw octagonal stop sign */
-        {
-            /* Draw octagon approximation using rectangle and corners */
-            Rect innerRect = iconRect;
-            FrameOval(&innerRect);  /* Circle for stop sign */
-
-            /* Draw X or hand symbol inside */
-            SInt16 centerH = (iconRect.left + iconRect.right) / 2;
-            SInt16 centerV = (iconRect.top + iconRect.bottom) / 2;
-            SInt16 offset = 8;
-
-            /* Draw X */
-            MoveTo(centerH - offset, centerV - offset);
-            LineTo(centerH + offset, centerV + offset);
-            MoveTo(centerH + offset, centerV - offset);
-            LineTo(centerH - offset, centerV + offset);
-            break;
-        }
-
-        case 1:  /* Note Alert - draw note/info icon */
-        {
-            /* Draw circle */
-            FrameOval(&iconRect);
-
-            /* Draw lowercase 'i' in center */
-            SInt16 centerH = (iconRect.left + iconRect.right) / 2;
-            SInt16 topV = iconRect.top + 12;
-            SInt16 bottomV = iconRect.bottom - 8;
-
-            /* Dot of 'i' */
-            Rect dotRect;
-            dotRect.left = centerH - 2;
-            dotRect.right = centerH + 2;
-            dotRect.top = topV;
-            dotRect.bottom = topV + 4;
-            PaintRect(&dotRect);
-
-            /* Stem of 'i' */
-            MoveTo(centerH, topV + 6);
-            LineTo(centerH, bottomV);
-            break;
-        }
-
-        case 2:  /* Caution Alert - draw triangle with exclamation */
-        {
-            /* Draw triangle */
-            SInt16 topH = (iconRect.left + iconRect.right) / 2;
-            SInt16 topV = iconRect.top + 4;
-            SInt16 leftH = iconRect.left + 4;
-            SInt16 rightH = iconRect.right - 4;
-            SInt16 bottomV = iconRect.bottom - 4;
-
-            MoveTo(topH, topV);
-            LineTo(leftH, bottomV);
-            LineTo(rightH, bottomV);
-            LineTo(topH, topV);
-
-            /* Draw exclamation point */
-            SInt16 centerH = (iconRect.left + iconRect.right) / 2;
-            MoveTo(centerH, topV + 8);
-            LineTo(centerH, bottomV - 12);
-
-            /* Dot at bottom */
-            Rect dotRect;
-            dotRect.left = centerH - 2;
-            dotRect.right = centerH + 2;
-            dotRect.top = bottomV - 8;
-            dotRect.bottom = bottomV - 4;
-            PaintRect(&dotRect);
-            break;
-        }
-
-        default:
-            /* Unknown icon type - draw placeholder rectangle */
-            FrameRect(&iconRect);
-            break;
-    }
-
-    SetPort(savePort);
 }
 
 /* Stub implementations for additional alert functions */
