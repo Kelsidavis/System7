@@ -20,6 +20,7 @@ void    QD_SetScreenPort(void);
 
 #include "QDTypes.h"
 #include "QuickDraw/QuickDrawGlobals.h"
+#include "QuickDraw/QDRegions.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -139,30 +140,7 @@ void InvertArc(const Rect *r, SInt16 startAngle, SInt16 arcAngle);
 void FillArc(const Rect *r, SInt16 startAngle, SInt16 arcAngle,
              ConstPatternParam pat);
 
-/* Region Operations */
-RgnHandle NewRgn(void);
-void OpenRgn(void);
-void CloseRgn(RgnHandle dstRgn);
-void DisposeRgn(RgnHandle rgn);
-void CopyRgn(RgnHandle srcRgn, RgnHandle dstRgn);
-void SetEmptyRgn(RgnHandle rgn);
-void SetRectRgn(RgnHandle rgn, SInt16 left, SInt16 top,
-                SInt16 right, SInt16 bottom);
-void RectRgn(RgnHandle rgn, const Rect *r);
-void OffsetRgn(RgnHandle rgn, SInt16 dh, SInt16 dv);
-void InsetRgn(RgnHandle rgn, SInt16 dh, SInt16 dv);
-void SectRgn(RgnHandle srcRgnA, RgnHandle srcRgnB, RgnHandle dstRgn);
-void UnionRgn(RgnHandle srcRgnA, RgnHandle srcRgnB, RgnHandle dstRgn);
-void DiffRgn(RgnHandle srcRgnA, RgnHandle srcRgnB, RgnHandle dstRgn);
-void XorRgn(RgnHandle srcRgnA, RgnHandle srcRgnB, RgnHandle dstRgn);
-Boolean RectInRgn(const Rect *r, RgnHandle rgn);
-Boolean EqualRgn(RgnHandle rgnA, RgnHandle rgnB);
-Boolean EmptyRgn(RgnHandle rgn);
-void FrameRgn(RgnHandle rgn);
-void PaintRgn(RgnHandle rgn);
-void EraseRgn(RgnHandle rgn);
-void InvertRgn(RgnHandle rgn);
-void FillRgn(RgnHandle rgn, ConstPatternParam pat);
+/* Region operations are declared by QDRegions.h. */
 void ScrollRect(const Rect *r, SInt16 dh, SInt16 dv, RgnHandle updateRgn);
 
 /* Bit Transfer Operations */
@@ -217,19 +195,12 @@ void StdBits(const BitMap *srcBits, const Rect *srcRect, const Rect *dstRect,
 void AddPt(Point src, Point *dst);
 void SubPt(Point src, Point *dst);
 Boolean EqualPt(Point pt1, Point pt2);
-Boolean PtInRect(Point pt, const Rect *r);
 void Pt2Rect(Point pt1, Point pt2, Rect *dstRect);
 void PtToAngle(const Rect *r, Point pt, SInt16 *angle);
-Boolean PtInRgn(Point pt, RgnHandle rgn);
 
 /* Rectangle Operations */
 void SetRect(Rect *r, SInt16 left, SInt16 top, SInt16 right, SInt16 bottom);
-void OffsetRect(Rect *r, SInt16 dh, SInt16 dv);
-void InsetRect(Rect *r, SInt16 dh, SInt16 dv);
-Boolean SectRect(const Rect *src1, const Rect *src2, Rect *dstRect);
-void UnionRect(const Rect *src1, const Rect *src2, Rect *dstRect);
-Boolean EqualRect(const Rect *rect1, const Rect *rect2);
-Boolean EmptyRect(const Rect *r);
+/* Rectangle utility operations are declared by QDRegions.h. */
 
 /* Text Drawing */
 /* NOTE: QuickDraw's DrawChar is renamed to QD_DrawChar to avoid conflict with

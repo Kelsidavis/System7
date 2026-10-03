@@ -3,6 +3,10 @@
 
 #include "../SystemTypes.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 // Forward declarations
 Boolean PtInRect(Point pt, const Rect *r);
 Boolean EmptyRect(const Rect *r);
@@ -59,5 +63,9 @@ inline Boolean SimplePtInRgn(Point pt, RgnHandle region)
     if (IsEmptyRgn(region)) return false;
     return PtInRect(pt, &(*region)->rgnBBox);
 }
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif // QD_REGIONS_H

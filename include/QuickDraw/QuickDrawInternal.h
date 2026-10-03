@@ -4,14 +4,11 @@
 
 #include "SystemTypes.h"
 #include "QuickDraw/QuickDraw.h"
+#include "QuickDraw/QuickDrawPlatform.h"
 
 /* QuickDraw Core */
 void GetPenPat(Pattern* pat);
 void UpdateBackgroundPattern(const Pattern* pat);
-void QDPlatform_DrawGlyphBitmap(GrafPtr port, Point pen, const uint8_t *bitmap,
-                                 SInt16 width, SInt16 height,
-                                 const Pattern *pattern, SInt16 mode);
-
 /* Region functions */
 SInt16 GetRegionSize(RgnHandle rgn);
 void GetRegionBounds(RgnHandle rgn, Rect* bounds);
