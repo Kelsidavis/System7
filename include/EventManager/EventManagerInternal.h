@@ -19,9 +19,6 @@ typedef struct EventManagerState {
     UInt32 lastClickTime;
 } EventManagerState;
 
-// Internal functions
-Boolean DequeueEvent(EventRecord* event);
-
 // Event Dispatcher
 void InitEventDispatcher(void);
 Boolean DispatchEvent(EventRecord* evt);
@@ -38,11 +35,11 @@ const char* GetModernInputPlatform(void);
 SInt16 GenerateSystemEventEx(SInt16 eventType, SInt16 eventSubtype, void* eventData, WindowPtr targetWindow);
 
 // Process Manager Event Integration
-OSErr Proc_PostEvent(EventKind what, UInt32 message);
+OSErr Proc_PostEvent(EventMask what, UInt32 message);
 Boolean Proc_GetNextEvent(EventMask eventMask, EventRecord* theEvent);
 Boolean Proc_EventAvail(EventMask eventMask, EventRecord* theEvent);
 void Event_InitQueue(void);
-SInt16 Event_QueueCount(void);
+UInt16 Event_QueueCount(void);
 void Event_DumpQueue(void);
 /* GetNextEvent, EventAvail, PostEvent, FlushEvents declared in EventManager.h */
 

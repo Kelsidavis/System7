@@ -10,6 +10,7 @@
 #include "EventManager/EventTypes.h"
 #include "EventManager/EventManager.h"   /* PostEventWithModifiers */
 #include "ProcessMgr/ProcessMgr.h"
+#include "EventManager/EventManagerInternal.h"
 #include "ProcessMgr/ProcessLogging.h"
 #include "TimeManager/TimeBase.h"
 

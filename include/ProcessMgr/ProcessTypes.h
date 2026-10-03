@@ -48,11 +48,6 @@ void Proc_UnblockEvent(EventRecord* evt);
 ProcessID Proc_GetCurrent(void);
 void Proc_DumpTable(void);
 
-/* Event integration functions */
-void Event_InitQueue(void);
-UInt16 Event_QueueCount(void);
-void Event_DumpQueue(void);
-
 /* Process-aware event functions - declared in ProcessMgr.h */
 
 #endif /* PROCESS_TYPES_H */

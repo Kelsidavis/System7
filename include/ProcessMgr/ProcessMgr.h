@@ -159,11 +159,6 @@ Boolean Proc_GetNextEvent(EventMask mask, EventRecord* evt);
 Boolean Proc_EventAvail(EventMask mask, EventRecord* evt);
 OSErr Proc_PostEvent(EventMask evtType, UInt32 evtMessage);
 
-/* Event queue management */
-void Event_InitQueue(void);
-UInt16 Event_QueueCount(void);
-void Event_DumpQueue(void);
-
 /* Standard event functions - canonical implementations */
 Boolean GetNextEvent(EventMask mask, EventRecord* evt);
 Boolean EventAvail(EventMask mask, EventRecord* evt);

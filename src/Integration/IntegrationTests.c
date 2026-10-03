@@ -26,11 +26,11 @@ extern void InvalWindowRect(WindowPtr, const Rect*);
 #include "DialogManager/AlertDialogs.h"
 #include "DialogManager/DITLBuilder.h"
 #include "EventManager/EventManager.h"
+#include "EventManager/EventManagerInternal.h"
 #include "FontManager/FontManager.h"
 #include "TextEdit/TextEdit.h"
 #include "FS/vfs.h"
 #include "DeskManager/Calculator.h"
-extern UInt16 Event_QueueCount(void);
 #include "MacTypes.h"
 #include "math.h"
 

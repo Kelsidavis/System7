@@ -11,6 +11,7 @@
 #include "SystemTypes.h"
 #include "EventManager/EventTypes.h"
 #include "EventManager/EventManager.h"
+#include "EventManager/EventManagerInternal.h"
 #include "Platform/PS2Input.h"
 #include "ProcessMgr/ProcessMgr.h"
 #include "QuickDraw/QDRegions.h"
