@@ -96,8 +96,8 @@ CLAUDE.md                  # Claude Code guidance
 4. **Rebuild**: `make clean && make run`
 5. **Test**: Boot in QEMU, verify behavior
 6. **Check serial**: Look for error messages in QEMU output
-7. **Commit**: Create descriptive commit message
-8. **Push**: `git push origin main`
+7. **Commit**: Stage only the files for this change and create a descriptive commit
+8. **Push**: `git push -u origin HEAD` to publish the current branch
 
 ## Useful Grep Patterns
 
@@ -132,9 +132,9 @@ make PLATFORM=ppc          # PowerPC (experimental)
 ```bash
 git status                 # See what changed
 git diff                   # See changes in detail
-git add .                  # Stage all changes
+git add path/to/file      # Stage only the files for this change
 git commit -m "message"    # Create commit
-git push origin main       # Push to GitHub
+git push -u origin HEAD    # Push the current branch
 git log --oneline          # See recent commits
 git log -1                 # See latest commit details
 ```
