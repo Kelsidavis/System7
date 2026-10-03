@@ -1206,9 +1206,7 @@ static void DrawMenuItemTextInternal(const Rect* itemRect, ConstStr255Param item
 
     /* Set text color based on selected and enabled state */
     if (selected) {
-        /* CRITICAL: When menu is highlighted (inverted background), draw WHITE text */
-        extern void serial_puts(const char* str);
-        serial_puts("[HILITE-TEXT] Drawing highlighted text - setting ForeColor WHITE\n");
+        /* Highlighted items use white text on the inverted background. */
         ForeColor(whiteColor);  /* White text on black (inverted) background */
     } else if (!enabled) {
         ForeColor(8);  /* Gray color for disabled items */
@@ -1227,28 +1225,7 @@ static void DrawMenuItemTextInternal(const Rect* itemRect, ConstStr255Param item
     short textY = itemRect->top + ((itemHeight - textHeight) / 2) + fontAscent;
 
     /* Move to drawing position */
-    if (selected) {
-        extern void serial_puts(const char* str);
-        static char moveBuf[256];
-        extern int snprintf(char*, size_t, const char*, ...);
-        snprintf(moveBuf, sizeof(moveBuf), "[HILITE-TEXT] About to MoveTo(%d,%d), itemRect.left=%d+4 padding\n",
-                 textX, textY, itemRect->left);
-        serial_puts(moveBuf);
-    }
     MoveTo(textX, textY);
-    if (selected) {
-        extern void serial_puts(const char* str);
-        extern GrafPtr g_currentPort;
-        static char afterMoveBuf[256];
-        extern int snprintf(char*, size_t, const char*, ...);
-        snprintf(afterMoveBuf, sizeof(afterMoveBuf), "[HILITE-TEXT] After MoveTo, pnLoc=(%d,%d)\n",
-                 g_currentPort->pnLoc.h, g_currentPort->pnLoc.v);
-        serial_puts(afterMoveBuf);
-    }
-    if (selected) {
-        extern void serial_puts(const char* str);
-        serial_puts("[HILITE-TEXT] MoveTo completed\n");
-    }
 
     /* Draw the menu item text using Font Manager */
     DrawString(itemText);
