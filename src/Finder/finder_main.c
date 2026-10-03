@@ -14,7 +14,6 @@
  * This is the main entry point and initialization code for the Finder.
  */
 
-// #include "CompatibilityFix.h" // Removed
 #include "SystemTypes.h"
 
 #include "Finder/finder.h"

@@ -1,5 +1,4 @@
 #include "MemoryMgr/MemoryManager.h"
-// #include "CompatibilityFix.h" // Removed
 #include <string.h>
 /*
  * Chooser.c - Chooser Desk Accessory Implementation

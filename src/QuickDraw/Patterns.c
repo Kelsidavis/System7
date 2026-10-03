@@ -1,7 +1,6 @@
 /* #include "SystemTypes.h" */
 #include "QuickDraw/QuickDrawInternal.h"
 #include <string.h>
-// #include "CompatibilityFix.h" // Removed
 /*
  * Patterns.c - QuickDraw Pattern Operations Implementation
  *

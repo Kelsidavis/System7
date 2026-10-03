@@ -11,7 +11,6 @@
  * disposal, and basic management operations.
  */
 
-// #include "CompatibilityFix.h" // Removed
 #include "SystemTypes.h"
 #include <stddef.h>
 #include "System71StdLib.h"

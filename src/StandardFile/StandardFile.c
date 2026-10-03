@@ -6,7 +6,6 @@
  * MIT License - See LICENSE file
  */
 
-/* #include "CompatibilityFix.h" */
 #include "SystemTypes.h"
 #include "System71StdLib.h"
 

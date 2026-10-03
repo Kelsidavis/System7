@@ -11,7 +11,6 @@
  * Derived from ROM analysis (System 7)
  */
 
-// #include "CompatibilityFix.h" // Removed
 #include "SystemTypes.h"
 #include "System71StdLib.h"
 

@@ -10,7 +10,6 @@
  * -  (dispatch table)
  */
 
-// #include "CompatibilityFix.h" // Removed
 #include "SystemTypes.h"
 #include "EventManager/EventTypes.h"
 #include "WindowManager/WindowTypes.h"

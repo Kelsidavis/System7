@@ -11,7 +11,6 @@
  * Derived from System 7 ROM analysis (Ghidra) Menu Manager
  */
 
-// #include "CompatibilityFix.h" // Removed
 #include "SystemTypes.h"
 #include "System71StdLib.h"
 #include "ResourceManager.h"

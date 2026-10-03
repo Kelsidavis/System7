@@ -15,7 +15,6 @@
  * This module handles alias file creation, resolution, and management.
  */
 
-// #include "CompatibilityFix.h" // Removed
 #include "SystemTypes.h"
 
 #include "Finder/finder.h"

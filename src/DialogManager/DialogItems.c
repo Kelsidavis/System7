@@ -11,7 +11,6 @@
  * maintaining exact Mac System 7.1 behavioral compatibility.
  */
 
-// #include "CompatibilityFix.h" // Removed
 #include "SystemTypes.h"
 #include "System71StdLib.h"
 #include "DialogManager/DialogItems.h"

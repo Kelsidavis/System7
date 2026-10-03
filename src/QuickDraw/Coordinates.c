@@ -1,6 +1,5 @@
 /* #include "SystemTypes.h" */
 #include "QuickDraw/QuickDrawInternal.h"
-// #include "CompatibilityFix.h" // Removed
 /*
  * Coordinates.c - QuickDraw Coordinate System Implementation
  *

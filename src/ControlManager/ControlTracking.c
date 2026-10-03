@@ -1,4 +1,3 @@
-// #include "CompatibilityFix.h" // Removed
 /**
  * @file ControlTracking.c
  * @brief Control mouse tracking and user interaction implementation

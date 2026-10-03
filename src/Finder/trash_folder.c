@@ -14,7 +14,6 @@
  * This module handles all trash folder operations including empty trash functionality.
  */
 
-// #include "CompatibilityFix.h" // Removed
 #include "SystemTypes.h"
 #include "System71StdLib.h"
 

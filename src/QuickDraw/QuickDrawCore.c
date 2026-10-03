@@ -2,7 +2,6 @@
 #include "QuickDraw/QuickDrawInternal.h"
 #include "QuickDrawConstants.h"
 #include <string.h>
-// #include "CompatibilityFix.h" // Removed
 /*
  * QuickDrawCore.c - Core QuickDraw Graphics Implementation
  *

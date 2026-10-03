@@ -25,7 +25,6 @@
  * RE-AGENT-BANNER
  */
 
-// #include "CompatibilityFix.h" // Removed
 #include "SystemTypes.h"
 #include "System71StdLib.h"
 

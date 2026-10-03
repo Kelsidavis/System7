@@ -15,7 +15,6 @@ extern void QD_SetScreenPort(void);
  * Derived from System 7 ROM analysis (Ghidra) Menu Manager
  */
 
-// #include "CompatibilityFix.h" // Removed
 #include "SystemTypes.h"
 #include "System71StdLib.h"
 #include "QuickDraw/QuickDraw.h"

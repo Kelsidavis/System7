@@ -13,7 +13,6 @@
  * Based on the classic Mac OS System 7.1 Note Pad
  */
 
-// #include "CompatibilityFix.h" // Removed
 #include "SystemTypes.h"
 #include "System71StdLib.h"
 #include "DeskManager/Notepad.h"

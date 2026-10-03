@@ -1,5 +1,4 @@
 #include "MemoryMgr/MemoryManager.h"
-// #include "CompatibilityFix.h" // Removed
 #define DESKMANAGER_INCLUDED
 #include <stdlib.h>
 #include <string.h>

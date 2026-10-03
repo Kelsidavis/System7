@@ -15,7 +15,6 @@
  * All rights reserved.
  */
 
-// #include "CompatibilityFix.h" // Removed
 #include "SystemTypes.h"
 #include "System71StdLib.h"
 #include <time.h>

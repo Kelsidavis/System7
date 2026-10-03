@@ -19,7 +19,6 @@
  * Derived from System 7 ROM analysis (Ghidra) Window Manager
  */
 
-// #include "CompatibilityFix.h" // Removed
 #include "SystemTypes.h"
 #include <limits.h>
 

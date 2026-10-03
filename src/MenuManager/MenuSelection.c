@@ -13,7 +13,6 @@
  * Derived from System 7 ROM analysis (Ghidra) Menu Manager
  */
 
-// #include "CompatibilityFix.h" // Removed
 
 /* Disable optimization for this file to avoid stack alignment issues */
 #pragma GCC optimize ("O0")

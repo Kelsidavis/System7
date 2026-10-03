@@ -29,7 +29,6 @@
  * Licensed under MIT License
  */
 
-// #include "CompatibilityFix.h" // Removed
 #include "SystemTypes.h"
 #include "ControlManager/StandardControls.h"
 #include "ControlManager/ControlManager.h"

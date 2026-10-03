@@ -16,7 +16,6 @@
  * This module handles desktop icon positioning and desktop database management.
  */
 
-// #include "CompatibilityFix.h" // Removed
 #include "SystemTypes.h"
 #include <string.h>
 #include <stdlib.h>  /* For abs() */

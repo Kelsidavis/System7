@@ -14,7 +14,6 @@
  * Licensed under MIT License
  */
 
-// #include "CompatibilityFix.h" // Removed
 #include "SystemTypes.h"
 #include "System71StdLib.h"
 #include "ControlManager/ControlManager.h"
