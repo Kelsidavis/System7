@@ -26,9 +26,6 @@ extern "C" {
 #endif
 
 /* Forward declarations */
-/* KeyboardLayoutRec is already defined in SystemTypes.h */
-typedef KeyboardLayoutRec KeyboardLayout;
-
 /* Key state constants */
 
 /* Keyboard layout types */

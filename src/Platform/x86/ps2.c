@@ -250,7 +250,7 @@ Boolean PS2_DequeueKeyTransition(UInt8* macCode, Boolean* isPressed)
     return true;
 }
 
-static void ResetKeyboardState(void)
+static void ResetPS2KeyboardState(void)
 {
     memset(&g_keyboardState, 0, sizeof(g_keyboardState));
 }
@@ -591,7 +591,7 @@ static Boolean init_keyboard(void) {
         }
     }
 
-    ResetKeyboardState();
+    ResetPS2KeyboardState();
 
     g_keyboardEnabled = true;
     PLATFORM_LOG_DEBUG("PS/2 keyboard initialized\n");

@@ -53,8 +53,8 @@ static AutoRepeatState g_autoRepeatState = {0};
 static Boolean g_keyboardInitialized = false;
 
 /* Keyboard layouts */
-static KeyboardLayout* g_keyboardLayouts = NULL;
-static KeyboardLayout* g_activeLayout = NULL;
+static KeyboardLayoutRec* g_keyboardLayouts = NULL;
+static KeyboardLayoutRec* g_activeLayout = NULL;
 
 /* Dead key state */
 static DeadKeyState g_deadKeyState = {0};
@@ -443,9 +443,9 @@ void ShutdownKeyboardEvents(void)
     }
 
     /* Free keyboard layouts */
-    KeyboardLayout* layout = g_keyboardLayouts;
+    KeyboardLayoutRec* layout = g_keyboardLayouts;
     while (layout) {
-        KeyboardLayout* next = (KeyboardLayout*)layout->keyMapData; /* Use keyMapData as next pointer */
+        KeyboardLayoutRec* next = (KeyboardLayoutRec*)layout->keyMapData; /* Use keyMapData as next pointer */
         if (layout->keyMapData) {
             /* Note: keyMapData is Handle, would need proper disposal */
         }

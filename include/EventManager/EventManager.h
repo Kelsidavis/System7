@@ -28,6 +28,11 @@
 #define EVENT_MANAGER_H
 
 #include "SystemTypes.h"
+#include "EventManager/MouseEvents.h"
+#include "EventManager/KeyboardEvents.h"
+#include "EventManager/SystemEvents.h"
+#include "EventManager/EventGlobals.h"
+#include "TimeManager/TimeBase.h"
 
 /* Post an event carrying explicit modifier flags. Proc_ is the Process
  * Manager's implementation; the unprefixed name forwards to it. */
@@ -154,30 +159,6 @@ void FlushEvents(EventMask whichMask, EventMask stopMask);
  *---------------------------------------------------------------------------*/
 
 /**
- * Get current mouse position
- * @param mouseLoc Pointer to Point to fill with position
- */
-void GetMouse(Point* mouseLoc);
-
-/**
- * Check if mouse button is currently down
- * @return true if button is down
- */
-Boolean Button(void);
-
-/**
- * Check if mouse button is still down (since last check)
- * @return true if button is still down
- */
-Boolean StillDown(void);
-
-/**
- * Wait for mouse button release
- * @return true if button was released
- */
-Boolean WaitMouseUp(void);
-
-/**
  * Track mouse dragging
  * @param startPt Starting point of drag
  * @param limitRect Rectangle to limit dragging
@@ -193,12 +174,6 @@ SInt32 DragTheRgn(Point startPt, const struct Rect* limitRect,
  *---------------------------------------------------------------------------*/
 
 /**
- * Get current keyboard state
- * @param theKeys 128-bit keymap to fill
- */
-void GetKeys(KeyMap theKeys);
-
-/**
  * Translate key code using KCHR resource
  * @param transData Pointer to KCHR resource data
  * @param keycode Key code and modifier flags
@@ -212,12 +187,6 @@ SInt32 KeyTranslate(const void* transData, UInt16 keycode, UInt32* state);
  */
 #define KeyTrans KeyTranslate
 
-/**
- * Check for Command-Period abort
- * @return true if user pressed Cmd-Period
- */
-Boolean CheckAbort(void);
-
 /*---------------------------------------------------------------------------
  * Timing API
  *---------------------------------------------------------------------------*/
@@ -226,28 +195,17 @@ Boolean CheckAbort(void);
  * Get system tick count
  * @return Ticks since system startup
  */
-UInt32 TickCount(void);
 
 /**
  * Get double-click time threshold
  * @return Ticks for double-click timing
  */
-UInt32 GetDblTime(void);
 
 
 /*---------------------------------------------------------------------------
  * Event Manager Extended API
  *---------------------------------------------------------------------------*/
 
-
-/**
- * Generate system event (for internal use)
- * @param eventType Type of event to generate
- * @param message Event message
- * @param where Event location
- * @param modifiers Event modifiers
- */
-void GenerateSystemEvent(SInt16 eventType, SInt32 message, Point where, SInt16 modifiers);
 
 
 /*---------------------------------------------------------------------------

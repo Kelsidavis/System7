@@ -23,6 +23,7 @@
 #include "EventManager/EventStructs.h"
 #include "EventManager/EventLogging.h"
 #include "TimeManager/TimeBase.h"
+#include "QuickDraw/QuickDraw.h"
 /* Simple integer square root for distance calculations */
 static inline int isqrt(int n) {
     if (n < 0) return -1;
@@ -273,7 +274,14 @@ Boolean StillDown(void)
 void GetLocalMouse(WindowPtr window, Point* mouseLoc)
 {
     if (mouseLoc) {
-        *mouseLoc = GlobalToLocal(window, g_mouseTracking.currentPos);
+        *mouseLoc = g_mouseTracking.currentPos;
+        if (window) {
+            GrafPtr savedPort;
+            GetPort(&savedPort);
+            SetPort((GrafPtr)window);
+            GlobalToLocal(mouseLoc);
+            SetPort(savedPort);
+        }
     }
 }
 

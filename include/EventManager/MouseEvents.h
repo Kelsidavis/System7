@@ -284,22 +284,6 @@ EventRecord GenerateMouseMovedEvent(Point position, SInt16 modifiers);
  *---------------------------------------------------------------------------*/
 
 /**
- * Convert screen coordinates to window local coordinates
- * @param window Target window
- * @param globalPt Point in global coordinates
- * @return Point in local coordinates
- */
-Point GlobalToLocal(WindowPtr window, Point globalPt);
-
-/**
- * Convert window local coordinates to screen coordinates
- * @param window Source window
- * @param localPt Point in local coordinates
- * @return Point in global coordinates
- */
-Point LocalToGlobal(WindowPtr window, Point localPt);
-
-/**
  * Calculate distance between two points
  * @param pt1 First point
  * @param pt2 Second point
