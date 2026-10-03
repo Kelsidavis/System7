@@ -12,6 +12,7 @@
 
 #include "SystemTypes.h"
 #include "Errors/ErrorCodes.h"
+#include "FS/hfs_constants.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -32,10 +33,6 @@ extern "C" {
 #endif
 
 /* HFS Constants */
-#define HFS_SIGNATURE       0x4244      /* 'BD' - HFS signature */
-#define MFS_SIGNATURE       0xD2D7      /* MFS signature */
-#define HFS_PLUS_SIGNATURE  0x482B      /* 'H+' - HFS Plus signature */
-
 #define BLOCK_SIZE          512         /* Standard block size */
 #define MDB_BLOCK           2           /* Master Directory Block location */
 #define CATALOG_FILE_ID     4           /* Catalog file ID */

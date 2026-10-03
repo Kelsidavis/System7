@@ -1,0 +1,8 @@
+#ifndef HFS_CONSTANTS_H
+#define HFS_CONSTANTS_H
+
+#define HFS_SIGNATURE       0x4244
+#define MFS_SIGNATURE       0xD2D7
+#define HFS_PLUS_SIGNATURE  0x482B
+
+#endif /* HFS_CONSTANTS_H */

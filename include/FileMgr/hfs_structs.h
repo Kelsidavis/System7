@@ -9,14 +9,9 @@
 
 #include "SystemTypes.h"
 #include "Errors/ErrorCodes.h"
+#include "FS/hfs_constants.h"
 
 /* HFS Constants */
-#ifndef HFS_SIGNATURE
-#define HFS_SIGNATURE           0x4244      /* 'BD' - HFS signature */
-#endif
-#ifndef HFS_PLUS_SIGNATURE
-#define HFS_PLUS_SIGNATURE      0x482B      /* 'H+' - HFS Plus signature */
-#endif
 #define MAX_BTREE_DEPTH         8           /* Maximum tree depth */
 #define NUM_EXTENTS_PER_RECORD  3           /* Extents per extent record */
 #define EXTENT_RECORD_SIZE      12          /* Size of extent record */

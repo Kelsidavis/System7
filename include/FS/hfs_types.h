@@ -5,6 +5,7 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include "../SystemTypes.h"  /* For DirID */
+#include "hfs_constants.h"
 
 /* Volume and file references */
 typedef uint32_t VRefNum;
@@ -231,7 +232,6 @@ enum {
     kMDB_drCTFlSize  = 146,
     kMDB_drCTExtRec  = 150
 };
-#define HFS_SIGNATURE        0x4244  /* 'BD' */
 #define HFS_ROOT_CNID        1
 #define HFS_ROOT_PARENT_CNID 1
 #define HFS_FIRST_CNID       16
