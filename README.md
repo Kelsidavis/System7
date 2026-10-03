@@ -61,15 +61,14 @@ machine in the video froze; this one doesn't. The missing GDT was the real
 culprit behind the freezes, and the BIOS-only ISO was why newer machines
 wouldn't start at all.
 
-The CI workflow boots headless QEMU through both firmware paths and checks that
-the kernel reaches its event loop without logging a CPU exception. The BIOS
-check also requires a timer heartbeat; the UEFI check does not separately assert
-timer liveness:
+The CI workflow boots headless QEMU through both firmware paths and requires
+the kernel to reach its event loop, emit a timer heartbeat, and avoid logging a
+CPU exception:
 
 | Firmware | CI assertion |
 |---|---|
 | BIOS (SeaBIOS, `qemu-system-i386`) | Reaches event loop, emits timer heartbeat, no CPU exception log |
-| UEFI (OVMF, `qemu-system-x86_64`) | Reaches event loop, no CPU exception log |
+| UEFI (OVMF, `qemu-system-x86_64`) | Reaches event loop, emits timer heartbeat, no CPU exception log |
 
 **Now true:** 68K applications launch from the Finder and run under the
 interpreter — see [Running 68K applications](#running-68k-applications).

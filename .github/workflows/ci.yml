@@ -379,7 +379,11 @@ jobs:
             grep -A3 "CPU EXCEPTION" uefi-serial.log
             exit 1
           fi
-          echo "UEFI boot OK: reached event loop, no exceptions"
+          if ! grep -q "timer heartbeat" uefi-serial.log; then
+            echo "::error::Timer IRQ0 never fired under UEFI"
+            exit 1
+          fi
+          echo "UEFI boot OK: reached event loop, timer live, no exceptions"
 
       - name: Upload serial logs
         if: always()
