@@ -599,11 +599,6 @@ static void AdjustMenus(void) {
 }
 
 /*
- * IsDialogEvent - Check if event is for a dialog
- */
-/* IsDialogEvent removed - use DialogManager version */
-
-/*
  * ST_Beep - System beep
  */
 void ST_Beep(void) {

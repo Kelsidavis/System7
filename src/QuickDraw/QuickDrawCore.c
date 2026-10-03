@@ -764,8 +764,6 @@ void FillRect(const Rect *r, ConstPatternParam pat) {
     assert(pat != NULL);
     if (EmptyRect(r)) return;
 
-    /* Debug removed - serial_printf can hang on ARM64 */
-
     DrawPrimitive(fill, r, 0, pat, 0, 0);
 }
 
@@ -1182,4 +1180,3 @@ static Boolean PrepareDrawing(GrafPtr port) {
     g_lastError = 0;
     return true;
 }
-

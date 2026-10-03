@@ -344,7 +344,6 @@ void ProcessModernInput(void)
                 currentMousePos.h == g_modernInput.lastClickPos.h &&
                 currentMousePos.v == g_modernInput.lastClickPos.v) {
                 g_modernInput.coalescedPolls++;
-                /* EVT_LOG_TRACE removed - can hang on ARM64 */
                 /* Skip duplicate down event - already posted */
                 g_modernInput.lastButtonState = currentButtonState;
                 return;
