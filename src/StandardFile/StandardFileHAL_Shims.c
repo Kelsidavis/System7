@@ -99,7 +99,6 @@ static const Rect kSaveListBox = {50, 10, 220, 376};
 #define INITIAL_FILE_LIST_CAPACITY 100
 
 /* Forward declarations */
-extern void SF_PopulateFileList(void);
 static void StandardFile_HAL_NavigateToFolder(const FSSpec *folderSpec);
 static OSErr StandardFile_HAL_CreateListControl(DialogPtr dialog, ListHandle *outList,
                                                 const Rect *box);

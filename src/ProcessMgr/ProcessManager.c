@@ -43,6 +43,7 @@
 #include "EventManager/EventManager.h"
 #include "MemoryMgr/MemoryManager.h"
 #include "EventManager/AppSwitcher.h"
+#include "SoundManager/SoundManager.h"
 /* #include <Traps.h> - not available */
 /* #include <ToolUtils.h> - not available */
 
@@ -300,8 +301,6 @@ OSErr Context_Switch(ProcessControlBlock* targetProcess)
  * an application from another era is most often a call this system does not
  * answer yet.
  */
-extern void SysBeep(short duration);
-
 static void Process_ReportUnexpectedQuit(const char* app, const char* why)
 {
     char message[200];

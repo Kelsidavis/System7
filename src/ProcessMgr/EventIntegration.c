@@ -9,10 +9,12 @@
 #include "SystemTypes.h"
 #include "EventManager/EventTypes.h"
 #include "EventManager/EventManager.h"   /* PostEventWithModifiers */
+#include "EventManager/KeyboardEvents.h"
 #include "ProcessMgr/ProcessMgr.h"
 #include "EventManager/EventManagerInternal.h"
 #include "ProcessMgr/ProcessLogging.h"
 #include "TimeManager/TimeBase.h"
+#include "System71StdLib.h"
 
 /* Event queue - ring buffer */
 #define EVENT_QUEUE_SIZE 64
@@ -20,15 +22,6 @@ static EventRecord gEventQueue[EVENT_QUEUE_SIZE];
 static UInt16 gQueueHead = 0;
 static UInt16 gQueueTail = 0;
 static UInt16 gQueueCount = 0;
-
-/* External functions */
-extern void Proc_UnblockEvent(EventRecord* evt);
-extern void GetMouse(Point* pt);
-extern Boolean Button(void);
-extern UInt16 GetModifierState(void);  /* From KeyboardEvents.c */
-
-/* String function from System71StdLib */
-extern void* memset(void* s, int c, size_t n);
 
 /* Forward declarations */
 static UInt16 GetModifiers(void);
