@@ -143,7 +143,7 @@ Full roadmap: [BARE_METAL_IMPROVEMENTS.md](docs/BARE_METAL_IMPROVEMENTS.md)
 - **Desktop Rendering**: System 7 menu bar with rainbow Apple logo, icons, and desktop patterns
 - **Typography**: Chicago bitmap font with pixel-perfect rendering and proper kerning, extended Mac Roman (0x80-0xFF) for European accented characters
 - **Localization**: user-visible strings come from `STR#` resources through the Locale Manager, in 38 languages; build English only, one language, or all of them (`LOCALE_ALL=1`) and pick one at boot with `lang=xx`; CJK multi-byte encoding infrastructure
-- **Font Manager**: Font scaling and style synthesis; FOND/NFNT parsing is available but not yet connected to on-disk resource loading
+- **Font Manager**: Font scaling and style synthesis; FOND/NFNT loading is connected through `GetResource`, but validation against real application resource forks remains limited
 - **Input System**: PS/2 keyboard and mouse, and USB keyboards, mice and tablets (xHCI)
 - **Event Manager**: Cooperative multitasking via WaitNextEvent with unified event queue
 - **Memory Manager**: Zone-based allocation with 68K interpreter integration; on x86 the application zone takes the machine's free RAM

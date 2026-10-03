@@ -29,6 +29,6 @@ Coordinate creation, drawing, tracking, and activation of classic System 7 push 
 - Run `make check-exports` after modifying exported Toolbox traps to keep `docs/symbols_allowlist.txt` in sync
 
 ## Future Work
-- Replace hard-coded Chicago metrics with `GetFontInfo()` once additional Font Manager strikes land
+- Use `GetFontInfo()` for push-button title baselines, matching the checkbox and radio-button paths; the push-button renderer still hard-codes Chicago ascent and descent
 - Expand CDEF coverage (progress bars, disclosure triangles) as Resource Manager support matures
 - Add automated pixel-diff comparisons for control redraws once CI screenshots are available
