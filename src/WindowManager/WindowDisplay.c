@@ -613,61 +613,33 @@ static void DrawWindowFrame(WindowPtr window) {
 }
 
 static void DrawWindowFrame_Unclipped(WindowPtr window) {
-    serial_puts("[DRAWFRAME] enter\n");
-    uart_flush();
-
     if (!window) {
-        serial_puts("[DRAWFRAME] null window\n");
-        uart_flush();
         return;
     }
 
-    serial_puts("[DRAWFRAME] visible check\n");
-    uart_flush();
     if (!window->visible) {
-        serial_puts("[DRAWFRAME] not visible\n");
-        uart_flush();
         return;
     }
 
-    serial_puts("[DRAWFRAME] strucRgn check\n");
-    uart_flush();
     if (!window->strucRgn) {
-        serial_puts("[DRAWFRAME] no strucRgn\n");
-        uart_flush();
         return;
     }
 
     if (!*window->strucRgn) {
-        serial_puts("[DRAWFRAME] *strucRgn NULL\n");
-        uart_flush();
         return;
     }
 
-    serial_puts("[DRAWFRAME] GetWMgrPort\n");
-    uart_flush();
     GrafPtr savePort, wmgrPort;
     GetPort(&savePort);
     GetWMgrPort(&wmgrPort);
     SetPort(wmgrPort);
-    serial_puts("[DRAWFRAME] SetPort done\n");
-    uart_flush();
-
-    serial_puts("[DRAWFRAME] pen setup\n");
-    uart_flush();
 
     /* Set up pen for drawing black frames */
     static const Pattern blackPat = {{0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF}};
     PenNormal();  /* Reset pen to normal state */
-    serial_puts("[DRAWFRAME] PenPat\n");
-    uart_flush();
     PenPat(&blackPat);  /* Use black pattern for frames */
-    serial_puts("[DRAWFRAME] PenSize\n");
-    uart_flush();
     PenSize(1, 1);  /* 1-pixel pen */
 
-    serial_puts("[DRAWFRAME] get frame rect\n");
-    uart_flush();
     /* Get window's global bounds from structure region - use explicit field copy to avoid struct assignment on ARM64 */
     Rect frame;
     Rect* srcRect = &((*window->strucRgn)->rgnBBox);
@@ -675,9 +647,6 @@ static void DrawWindowFrame_Unclipped(WindowPtr window) {
     frame.left = srcRect->left;
     frame.bottom = srcRect->bottom;
     frame.right = srcRect->right;
-
-    serial_puts("[DRAWFRAME] FrameRect\n");
-    uart_flush();
 
     /* Draw the frame outline through the same gate as the rest of the chrome.
      * This was a QuickDraw FrameRect while everything around it wrote pixels
@@ -694,11 +663,6 @@ static void DrawWindowFrame_Unclipped(WindowPtr window) {
             WM_ChromePixel(frame.right - 1, y, frameBlack);
         }
     }
-    serial_puts("[DRAWFRAME] FrameRect done\n");
-    uart_flush();
-
-    serial_puts("[DRAWFRAME] 3D highlights\n");
-    uart_flush();
     /* Add 3D black highlights for depth effect */
     if (framebuffer) {
         uint32_t black = 0xFF000000;
@@ -730,8 +694,6 @@ static void DrawWindowFrame_Unclipped(WindowPtr window) {
         }
     }
 
-    serial_puts("[DRAWFRAME] title bar\n");
-    uart_flush();
     /* Draw title bar BEFORE filling content area */
 
     /* A title bar by the window's kind, not by whether it has a title: a
@@ -1030,13 +992,8 @@ static void DrawWindowFrame_Unclipped(WindowPtr window) {
         } else {
             WM_LOG_TRACE("TITLE_DRAW: No titleHandle or empty\n");
         }
-    } else {
-        serial_puts("[DRAWFRAME] no titleWidth\n");
-        uart_flush();
     }
 
-    serial_puts("[DRAWFRAME] done\n");
-    uart_flush();
     SetPort(savePort);
 }
 
@@ -1054,34 +1011,19 @@ static void DrawWindowControls(WindowPtr window) {
 }
 
 static void DrawWindowControls_Unclipped(WindowPtr window) {
-    serial_puts("[CONTROLS] enter\n");
-    uart_flush();
     if (!window || !window->visible) return;
-
-    serial_puts("[CONTROLS] visible check passed\n");
-    uart_flush();
 
     /* Set up WMgr port for global coordinate drawing */
     GrafPtr savePort, wmgrPort;
     GetPort(&savePort);
     GetWMgrPort(&wmgrPort);
     SetPort(wmgrPort);
-    serial_puts("[CONTROLS] port setup\n");
-    uart_flush();
 
     /* Set up pen for drawing black controls */
     static const Pattern blackPat = {{0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF}};
-    serial_puts("[CONTROLS] pen calls\n");
-    uart_flush();
     PenNormal();
-    serial_puts("[CONTROLS] PenNormal done\n");
-    uart_flush();
     PenPat(&blackPat);
-    serial_puts("[CONTROLS] PenPat done\n");
-    uart_flush();
     PenSize(1, 1);
-    serial_puts("[CONTROLS] PenSize done\n");
-    uart_flush();
 
     /* CRITICAL: Use global coordinates from strucRgn, not local portRect */
     /* Use explicit field copy to avoid struct assignment on ARM64 */
@@ -1099,9 +1041,6 @@ static void DrawWindowControls_Unclipped(WindowPtr window) {
         frame.bottom = window->port.portRect.bottom;
         frame.right = window->port.portRect.right;
     }
-    serial_puts("[CONTROLS] frame setup\n");
-    uart_flush();
-
     /* Close box is drawn in DrawWindowFrame, not here */
 
     /* Draw zoom box: only on a window that has one, and only while active */
@@ -1175,8 +1114,6 @@ static void DrawWindowControls_Unclipped(WindowPtr window) {
 
     /* Restore previous port */
     SetPort(savePort);
-    serial_puts("[CONTROLS] done\n");
-    uart_flush();
 }
 
 
