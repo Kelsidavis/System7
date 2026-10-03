@@ -33,6 +33,7 @@
 #include "Finder/FinderLogging.h"
 #include "DialogManager/DITLBuilder.h"
 #include "EventManager/EventManager.h"
+#include "EventManager/EventGlobals.h"
 #include "SoundManager/SoundManager.h"
 #include "DialogManager/DialogManager.h"
 #include "ControlPanels/DesktopPatterns.h"
@@ -44,20 +45,6 @@
 #include "ProcessMgr/ProcessTypes.h"
 #include "ProcessMgr/ProcessMgr.h"
 #include "SegmentLoader/MacBinary.h"
-extern void MoveTo(short h, short v);
-extern void LineTo(short h, short v);
-extern void FrameRect(const Rect* r);
-extern void ClipRect(const Rect* r);
-extern void EraseRect(const Rect* r);
-extern void GlobalToLocal(Point* pt);
-extern void GetPort(GrafPtr* port);
-extern void SetPort(GrafPtr port);
-extern UInt32 GetDblTime(void);
-/* PostEvent declared in EventManager.h */
-extern void GetMouse(Point* pt);
-extern volatile UInt8 gCurrentButtons;
-extern short FindWindow(Point thePoint, WindowPtr* theWindow);
-extern bool VFS_Delete(VRefNum vref, FileID id);
 
 /* Drag threshold for distinguishing clicks from drags */
 #define kDragThreshold 4
