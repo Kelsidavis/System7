@@ -980,6 +980,11 @@ check-exports: kernel.elf
 check-malloc:
 	@python3 scripts/check_malloc_violations.py
 
+# Reject source files and duplicate implementations that never reach the build.
+.PHONY: check-shadowed-defs
+check-shadowed-defs: all
+	@python3 scripts/find-shadowed-defs.py --platform $(PLATFORM) --obj-dir $(OBJ_DIR)
+
 # Differential test of the in-tree C string/memory routines against the host
 # libc, with guard bytes around every destination buffer. Needs no kernel
 # build - it extracts the pure routines from src/System71StdLib.c and compiles
@@ -994,9 +999,11 @@ test-integration-runner:
 	@PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s tests -p 'test_integration_runner.py'
 
 # Run the local x86 quality gate used before feature work: strict build,
-# allocator policy, differential libc tests, and required export checks.
+# dead-code and duplicate-definition checks, allocator policy, differential
+# libc tests, and required export checks.
 .PHONY: check
-check: all check-x86-layout check-malloc test-stdlib test-integration-runner check-exports
+check: all check-x86-layout check-malloc check-shadowed-defs \
+	test-stdlib test-integration-runner check-exports
 
 # GCC's path-sensitive static analyzer adds ownership, bounds, and null-path
 # diagnostics to the standard strict builds.
@@ -1062,6 +1069,7 @@ help: ## Show this help message
 	@echo "  check-x86-layout Verify Multiboot2 placement and ELF permissions"
 	@echo "  check-arm64      Build ARM64 and verify ELF segment permissions"
 	@echo "  check-malloc     Reject direct host allocator use in kernel code"
+	@echo "  check-shadowed-defs Run dead-code and duplicate-definition checks"
 	@echo "  check-exports    Validate exported symbol surface"
 	@echo "  info             Show build statistics"
 	@echo "  help             Show this help message"
