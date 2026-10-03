@@ -10,7 +10,7 @@
 #include "SystemInternal.h"
 #include "MenuManager/MenuLogging.h"
 #include "MenuManager/MenuTypes.h"
-#include "QuickDraw/QuickDraw.h"
+#include "QuickDraw.h"
 #include "QuickDrawConstants.h"
 #include "FontManager/FontManager.h"
 #include "EventManager/EventTypes.h"  /* For mouse masks */
@@ -21,7 +21,6 @@ extern SInt16 CountMenuItems(MenuHandle theMenu);
 
 /* External functions */
 extern void serial_puts(const char* str);
-extern QDGlobals qd;
 extern void QD_SetScreenPort(void);
 
 /* Menus draw anywhere on the screen, so the screen port is opened to all of

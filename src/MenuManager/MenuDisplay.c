@@ -16,7 +16,7 @@ extern void QD_SetScreenPort(void);
 
 #include "SystemTypes.h"
 #include "System71StdLib.h"
-#include "QuickDraw/QuickDraw.h"
+#include "QuickDraw.h"
 #include "QuickDraw/ColorQuickDraw.h"
 #include "QuickDrawConstants.h"
 
@@ -59,7 +59,6 @@ static Boolean gAntiAlias = true;
 static Handle gCurrentSavedBits = NULL;
 static MenuHandle gCurrentlyShownMenu = NULL;
 static Rect gCurrentMenuRect;
-extern QDGlobals qd;
 
 /* Platform function prototypes declared in menu_private.h */
 
@@ -181,7 +180,6 @@ void DrawMenuTitle(short menuID, const Rect* titleRect, Boolean hilited)
      * titleRect is in screen/global coordinates, so we need WMgrPort which has
      * portBits.bounds=(0,0,width,height) to avoid coordinate offset issues */
     GetPort(&savePort);
-    extern QDGlobals qd;
     QD_SetScreenPort();  /* bounds (0,0,w,h), matching the global titleRect */
 
     /*

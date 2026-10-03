@@ -16,7 +16,7 @@ extern void QD_SetScreenPort(void);
  */
 
 #include "../include/MacTypes.h"
-#include "../include/QuickDraw/QuickDraw.h"
+#include "QuickDraw.h"
 #include "../include/QuickDraw/DisplayBezel.h"
 #include "../include/QuickDrawConstants.h"
 #include "ResourceManager.h"
@@ -29,9 +29,6 @@ extern void QD_SetScreenPort(void);
 #include "../include/FontManager/FontManager.h"
 #include "MenuManager/MenuAppleIcon.h"
 #include "MenuManager/MenuAppIcon.h"
-
-/* QuickDraw globals */
-extern QDGlobals qd;
 
 /* Serial printf for debugging */
 extern void serial_puts(const char* str);
