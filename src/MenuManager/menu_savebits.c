@@ -167,8 +167,6 @@ Handle SaveBits(const Rect *bounds, SInt16 mode) {
  * RestoreBits - Restore saved screen bits
  */
 OSErr RestoreBits(Handle bitsHandle) {
-    extern void serial_logf(SystemLogModule module, SystemLogLevel level, const char* fmt, ...);
-
     serial_logf((SystemLogModule)3, (SystemLogLevel)2, "[SAVEBITS] RestoreBits: ENTRY bitsHandle=%p\n", bitsHandle);
 
     if (!bitsHandle || !*bitsHandle || !framebuffer) {

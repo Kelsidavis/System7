@@ -289,7 +289,6 @@ void Delay(UInt32 numTicks, UInt32* finalTicks) {
             lastTicks = now;
             passesSinceTick = 0;
         } else if (++passesSinceTick > 50000000u) {
-            extern void serial_printf(const char* fmt, ...);
             serial_printf("[Delay] TickCount has stopped; giving up the wait\n");
             break;
         }
