@@ -31,10 +31,6 @@ extern void QD_SetScreenPort(void);
 #include "MenuManager/MenuAppleIcon.h"
 #include "MenuManager/MenuAppIcon.h"
 
-/* Serial printf for debugging */
-extern void DrawText(const void* textBuf, short firstByte, short byteCount);
-extern short StringWidth(ConstStr255Param s);
-
 /* ============================================================================
  * Menu Manager Types and Structures
  * ============================================================================ */

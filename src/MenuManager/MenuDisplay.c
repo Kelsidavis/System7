@@ -2,7 +2,6 @@
 #include "MenuManager/menu_private.h"
 #include <string.h>
 
-extern void QD_SetScreenPort(void);
 /*
  * MenuDisplay.c - Menu Drawing and Visual Management
  *
