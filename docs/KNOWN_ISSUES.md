@@ -12,7 +12,9 @@ entries describe current limitations and should be revalidated before work.
 
 `make PLATFORM=arm64` builds and links (CI builds it), and under QEMU's `virt`
 machine the kernel starts, sets up its zones and the desktop pattern, then
-stops in `HFS_CreateBlankVolume` and goes no further. Not yet investigated.
+stops in `HFS_CreateBlankVolume` and goes no further. A bounded headless QEMU
+boot with no attached virtio block or GPU device reproduced the stall; its root
+cause remains unknown.
 
 **Files**: src/FS/ (HFS volume creation), src/Platform/arm64/.
 
