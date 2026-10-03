@@ -17,7 +17,7 @@ ifeq ($(QEMU),1)
 endif
 
 # Raspberry Pi model selection (for ARM platform builds)
-# Valid values: pi3, pi4, pi5 (or leave empty for runtime detection)
+# Valid values: pi3, pi4, pi5, virt (or leave empty for runtime detection)
 PI_MODEL ?=
 
 # Load build configuration (default or user-specified)
@@ -1077,6 +1077,7 @@ help: ## Show this help message
 	@echo "  PI_MODEL=pi3     Build for Raspberry Pi 3 (ARMv6z, Cortex-A53)"
 	@echo "  PI_MODEL=pi4     Build for Raspberry Pi 4 (ARMv7-A, Cortex-A72)"
 	@echo "  PI_MODEL=pi5     Build for Raspberry Pi 5 (ARMv7-A, Cortex-A76)"
+	@echo "  PI_MODEL=virt    Build for QEMU virt (ARMv7-A)"
 	@echo "  PI_MODEL=        Runtime detection (default)"
 
 .PHONY: import-icons
@@ -1106,6 +1107,7 @@ build-configurations:
 	@echo "  PI_MODEL=pi3             Raspberry Pi 3 (ARMv6z, 1.2 GHz Cortex-A53)"
 	@echo "  PI_MODEL=pi4             Raspberry Pi 4 (ARMv7-A, 1.5 GHz Cortex-A72)"
 	@echo "  PI_MODEL=pi5             Raspberry Pi 5 (ARMv7-A, 2.4 GHz Cortex-A76)"
+	@echo "  PI_MODEL=virt            QEMU virt (ARMv7-A)"
 	@echo "  PI_MODEL=                Runtime detection (default)"
 	@echo ""
 	@echo "FEATURE FLAGS (override in config/*.mk or command line):"
