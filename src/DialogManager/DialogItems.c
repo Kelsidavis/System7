@@ -18,6 +18,7 @@
 #include "DialogManager/DialogManagerInternal.h"
 #include "DialogManager/DialogDrawing.h"
 #include "DialogManager/DialogResourceParser.h"
+#include "WindowManager/WindowManager.h"
 #include <assert.h>
 #include "DialogManager/DialogLogging.h"
 #include "TimeManager/TimeBase.h"
@@ -40,11 +41,6 @@ static struct {
     SInt16         defaultFont;
     SInt16         defaultSize;
 } gDialogItemState = {0};
-
-/* External dependencies */
-extern DialogManagerState* GetDialogManagerState(void);
-extern OSErr ValidateDialogPtr(DialogPtr dialog);
-extern void InvalRect(const Rect* rect);
 
 /* Private function prototypes */
 static DialogItemCache* GetDialogItemCache(DialogPtr theDialog);
