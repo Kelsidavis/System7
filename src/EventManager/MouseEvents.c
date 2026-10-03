@@ -245,8 +245,6 @@ void ShutdownMouseEvents(void)
     g_mouseInitialized = false;
 }
 
-/* GetMouse is implemented in PS2Controller.c */
-
 /**
  * Button - Check if primary mouse button is currently pressed
  * Reads ModernInput's gCurrentButtons state (not hardware)
@@ -280,8 +278,6 @@ void GetLocalMouse(WindowPtr window, Point* mouseLoc)
         *mouseLoc = GlobalToLocal(window, g_mouseTracking.currentPos);
     }
 }
-
-/* Button is implemented in PS2Controller.c */
 
 /**
  * Check if specific mouse button is pressed

@@ -33,7 +33,7 @@ extern volatile Boolean gInMouseTracking;
 /* QEMU PS/2 jitter tolerance: allows tiny grace for packet arrival delays */
 #define QEMU_JITTER_HACK 1
 
-/* Global mouse position from PS2Controller.c */
+/* Global mouse position supplied by the selected platform input backend. */
 extern Point g_mousePos;
 
 /* Global event manager state - simplified for kernel use */

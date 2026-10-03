@@ -7,5 +7,3 @@
 void BlockMove(const void* srcPtr, void* destPtr, size_t byteCount) {
     memmove(destPtr, srcPtr, byteCount);
 }
-
-/* Note: BlockMoveData already exists in sys71_stubs.c */
