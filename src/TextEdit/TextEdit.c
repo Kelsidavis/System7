@@ -67,7 +67,6 @@ typedef TEExtRec *TEExtPtr, **TEExtHandle;
 static Boolean g_teInitialized = FALSE;
 
 /* External functions */
-extern OSErr MemError(void);
 #define FMGetFontMetrics GetFontMetrics  /* Use our FontManager function */
 
 /* Event constants */

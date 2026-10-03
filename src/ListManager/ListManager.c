@@ -41,12 +41,9 @@
 #include "MemoryMgr/MemoryManager.h"
 #include "EventManager/EventManager.h"
 #include "DeskManager/DeskManager.h"
+#include "WindowManager/WindowManager.h"
 #include "System71StdLib.h"
 #include "ListManager/ListLogging.h"
-
-/* External functions */
-extern OSErr MemError(void);
-extern void InvalRect(const Rect* r);
 
 /* Debug logging control */
 #ifndef LIST_DEBUG
