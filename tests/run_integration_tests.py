@@ -12,17 +12,15 @@ Automated test execution and result parsing for Phase 1 integration tests.
 Usage:
     python3 run_integration_tests.py                 # Run all tests
     python3 run_integration_tests.py --timeout 60    # Custom timeout
-    python3 run_integration_tests.py --output junit  # JUnit XML output
+    python3 run_integration_tests.py --output junit.xml  # JUnit XML output
 """
 
 import sys
-import os
 import subprocess
 import re
 import argparse
-import time
 from pathlib import Path
-from typing import List, Dict, Tuple
+from typing import List
 from datetime import datetime
 
 class TestResult:
@@ -30,7 +28,6 @@ class TestResult:
         self.name = name
         self.passed = passed
         self.reason = reason
-        self.timestamp = datetime.now()
 
     def __str__(self):
         status = "✓ PASS" if self.passed else "✗ FAIL"
@@ -43,7 +40,6 @@ class TestRunner:
         self.verbose = verbose
         self.results: List[TestResult] = []
         self.qemu_output = ""
-        self.build_success = False
 
     def log(self, msg: str, level: str = "INFO"):
         """Log message with timestamp"""
@@ -83,7 +79,6 @@ class TestRunner:
                 return False
 
             self.log("Build successful", "PASS")
-            self.build_success = True
             return True
 
         except subprocess.TimeoutExpired:
@@ -123,13 +118,24 @@ class TestRunner:
             self.qemu_output = result.stdout + result.stderr
             self.log(f"QEMU execution completed (timeout: {self.timeout}s)", "INFO")
 
+            if result.returncode != 0:
+                self.log(f"QEMU exited with status {result.returncode}", "FAIL")
+                return False
+
             if self.verbose:
                 self.log("QEMU output (first 2000 chars):", "DEBUG")
                 print(self.qemu_output[:2000])
 
             return True
 
-        except subprocess.TimeoutExpired:
+        except subprocess.TimeoutExpired as error:
+            stdout = error.stdout or ""
+            stderr = error.stderr or ""
+            if isinstance(stdout, bytes):
+                stdout = stdout.decode(errors="replace")
+            if isinstance(stderr, bytes):
+                stderr = stderr.decode(errors="replace")
+            self.qemu_output = stdout + stderr
             self.log(f"QEMU timeout after {self.timeout} seconds", "WARN")
             return True  # Still parse whatever output we got
         except Exception as e:
@@ -140,32 +146,55 @@ class TestRunner:
         """Parse test results from QEMU output"""
         self.log("Parsing test results...", "INFO")
 
-        # Look for test result markers
-        pass_pattern = r"✓ PASS: (.+?)(?:\s*\(|$)"
-        fail_pattern = r"✗ FAIL: (.+?)(?:\s*\(|$)"
+        pass_matches = re.findall(r"✓ PASS: ([^\r\n]+)", self.qemu_output)
+        pass_names = []
+        seen_passes = set()
+        for name in pass_matches:
+            name = name.strip()
+            if name != "ALL TESTS PASSED!" and name not in seen_passes:
+                pass_names.append(name)
+                seen_passes.add(name)
 
-        pass_matches = re.findall(pass_pattern, self.qemu_output)
-        fail_matches = re.findall(fail_pattern, self.qemu_output)
+        fail_matches = re.findall(r"✗ FAIL: ([^\r\n]+)", self.qemu_output)
+        failed_tests = {}
+        for failure in fail_matches:
+            if failure.startswith("[") and "]" in failure:
+                name, reason = failure[1:].split("]", 1)
+            else:
+                name, separator, reason = failure.partition(":")
+                if not separator:
+                    reason = ""
+            failed_tests.setdefault(name.strip(), reason.strip())
 
-        # Also look for summary line
+        self.results = [TestResult(name, True) for name in pass_names]
+        self.results.extend(
+            TestResult(name, False, reason)
+            for name, reason in failed_tests.items()
+        )
+
         summary_pattern = r"Total tests: (\d+)\s+Passed:\s+(\d+)\s+Failed:\s+(\d+)"
         summary_match = re.search(summary_pattern, self.qemu_output)
+        if not summary_match:
+            self.log(
+                "Integration test summary is missing; the suite may not have completed",
+                "FAIL",
+            )
+            return False
 
-        # Record all tests
-        for test_name in pass_matches:
-            self.results.append(TestResult(test_name.strip(), True))
-
-        for test_name in fail_matches:
-            self.results.append(TestResult(test_name.strip(), False))
+        total, passed, failed = map(int, summary_match.groups())
+        if (total != len(self.results)
+                or passed != len(pass_names)
+                or failed != len(failed_tests)):
+            self.log(
+                "Integration test summary does not match parsed results",
+                "FAIL",
+            )
+            return False
 
         # If no tests found, check if QEMU ran
         if not self.results:
-            if "INTEGRATION TEST SUITE" in self.qemu_output:
-                self.log("Tests ran but no results parsed", "WARN")
-                return True
-            else:
-                self.log("Integration tests did not run", "FAIL")
-                return False
+            self.log("Integration tests produced no test results", "FAIL")
+            return False
 
         self.log(f"Parsed {len(self.results)} test results", "INFO")
         return True
@@ -226,28 +255,6 @@ class TestRunner:
         except Exception as e:
             self.log(f"Failed to write JUnit report: {e}", "FAIL")
 
-    def run(self) -> bool:
-        """Execute full test pipeline"""
-        self.log("Starting System 7 Integration Test Suite", "INFO")
-        print()
-
-        # Build kernel
-        if not self.build_kernel():
-            return False
-
-        # Run tests
-        if not self.run_tests():
-            return False
-
-        # Parse results
-        if not self.parse_test_results():
-            return False
-
-        # Print results
-        success = self.print_results()
-
-        return success
-
 def main():
     parser = argparse.ArgumentParser(
         description="System 7 Integration Test Runner",
@@ -257,7 +264,7 @@ Examples:
   %(prog)s                              # Run tests with defaults
   %(prog)s --timeout 60                 # Use 60 second timeout
   %(prog)s --output junit.xml           # Generate JUnit report
-  %(prog)s --verbose --no-build         # Verbose output, reuse existing kernel
+  %(prog)s --verbose --no-build         # Verbose output, reuse existing ISO
         """
     )
 
@@ -268,13 +275,13 @@ Examples:
     parser.add_argument("--verbose", action="store_true",
                       help="Enable verbose output")
     parser.add_argument("--no-build", action="store_true",
-                      help="Skip kernel build, use existing kernel")
-    parser.add_argument("--project-root", type=str, default="/home/k/iteration2",
-                      help="Project root directory")
+                      help="Skip build and use the existing ISO")
+    default_project_root = Path(__file__).resolve().parent.parent
+    parser.add_argument("--project-root", type=str, default=str(default_project_root),
+                      help="Project root directory (defaults to this checkout)")
 
     args = parser.parse_args()
 
-    # Find project root if needed
     project_root = args.project_root
     if not Path(project_root).exists():
         print(f"Error: Project root not found: {project_root}", file=sys.stderr)
@@ -287,12 +294,8 @@ Examples:
         verbose=args.verbose
     )
 
-    # Skip build if requested
-    if args.no_build:
-        runner.build_success = True
-    else:
-        if not runner.build_kernel():
-            return 1
+    if not args.no_build and not runner.build_kernel():
+        return 1
 
     # Run tests
     if not runner.run_tests():

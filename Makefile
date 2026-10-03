@@ -1478,10 +1478,14 @@ check-malloc:
 test-stdlib:
 	@python3 tests/stdlib/extract_and_test.py
 
+.PHONY: test-integration-runner
+test-integration-runner:
+	@python3 -m unittest discover -s tests -p 'test_integration_runner.py'
+
 # Run the local x86 quality gate used before feature work: strict build,
 # allocator policy, differential libc tests, and required export checks.
 .PHONY: check
-check: all check-x86-layout check-malloc test-stdlib check-exports
+check: all check-x86-layout check-malloc test-stdlib test-integration-runner check-exports
 
 # GCC's path-sensitive static analyzer adds ownership, bounds, and null-path
 # diagnostics to the standard strict builds.
