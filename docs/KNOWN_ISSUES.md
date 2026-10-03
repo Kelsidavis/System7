@@ -120,67 +120,18 @@ place, all five accessories open with their handler tables intact,
 `DA_GetByName` finds them again, and a dispatched click returns instead of
 executing the struct it landed on.
 
-The six hypotheses below were all correctly ruled out; the fault was in
-`CompactMem`, which this entry had listed as not yet audited. What creates
-the zeroed header that starts the abort is still unknown - it is real, and
-`PurgeMem` used to spin on it forever - but it no longer costs live memory.
+The `CompactMem` tail is now bounded by the last successfully scanned
+address. The malformed header that aborts the walk still occurs, but its
+source remains unknown; `PurgeMem` also stops safely when it encounters one.
 
-### 🐞 (historical) The allocator hands out memory that is already in use
+### Historical allocator investigation
 
-Reproducible on every boot that opens a document and then the Find box:
-31 blocks are carved out of the middle of a block that is still live. The
-one that matters is a window's offscreen pixel buffer.
-
-**How to see it.** Log every `NewPtr` and `DisposePtr` with the *block*
-pointer (`(u8*)result - BLKHDR_SZ`) and `b->size`, boot with
-`wait 5; dbl on Read Me; wait 5; Cmd-F`, and replay the trace looking for
-a new block whose extent intersects one still live. It produces:
-
-```
-ev1119  A 0x0093E0E8 size 0x1CF38     <- a window's pixel buffer, never freed
-ev1125  A 0x00945588 size 0x28        <- inside it
-ev1128  A 0x00945568 size 0x20        <- inside it
-```
-
-**Why it matters.** The `0xFF` fill that clears a window's offscreen buffer
-in `BeginUpdate` writes over those blocks' headers. The heap then reads a
-block whose size is `0xFFFFFFFF`, and `DisposePtr` responds by dropping
-every freelist. Tens of kilobytes become unreachable, later allocations
-fail, `NewRgn` returns NULL, and a window created after that point has no
-`visRgn` or `strucRgn` and never draws. The visible symptom is a dialog
-that opens once and then stops appearing - five steps removed from the
-cause, which is why this took so long to find. SimpleText's Find box is
-the easiest way to see it.
-
-**Ruled out, each by measurement rather than by reading the code:**
-
-- Undersized splits. `find_fit` only returns a block with `b->size >= need`,
-  and the `[SPLIT] ERROR: block smaller than requested` path never fires.
-- Unaligned coalescing. Neither `[COALESCE_FWD]` nor `[COALESCE_BWD]`
-  warning fires.
-- A fill longer than the allocation. The `BeginUpdate` fill length equals
-  `pm->pmReserved` exactly on every call, so it stays inside its buffer.
-- Anything inside the buffer being freed. Nothing in its range is freed
-  before the overlapping allocations appear.
-- A freelist node surviving after its block is handed out. Scanning every
-  size-class ring for the block `NewPtr` is about to return finds nothing.
-- A zeroed or all-ones header being accepted as a block. `validate_block`
-  rejects size zero and unaligned sizes.
-
-So the stale free node covering that range is already in a ring *before*
-the pixel buffer is allocated, and where it comes from is the open
-question. `CompactMem` and the zone-extension paths in
-`src/MemoryMgr/MemoryManager.c` are the parts not yet audited.
-
-Desktop-icon storage is static by design because it is long-lived global
-state; it is not an allocator workaround. Suspect-address logging hooks remain
-in `src/MemoryMgr/MemoryManager.c` and should be removed once this allocator
-investigation is closed.
-
-**A shorter reproduction.** Opening the built-in desk accessories in
-sequence corrupts a live `DeskAccessory` struct within four opens, with no
-document, no Find box and no offscreen pixel buffer involved. See the desk
-accessory entry at the top of this file for the trace.
+The initial trace appeared to show allocations overlapping a window's
+offscreen buffer, and the investigation first focused on the buffer fill and
+freelists. The later heap audit above found the overlap came from `CompactMem`
+creating a trailing free block past the end of an aborted heap walk. That
+finding supersedes the earlier hypotheses and reproductions. The malformed
+header that aborts the walk can still occur; its source remains unknown.
 
 ### ✅ PurgeMem spun forever on a zero-size block header — FIXED
 
@@ -206,9 +157,9 @@ now breaks out of the walk on a zero or over-long size, and takes the step
 from where the block actually starts, since `coalesce_backward` can hand
 back a block beginning before `scan`.
 
-This is what made every desk accessory hang the machine. It does not
-address the corruption that puts a zeroed header there - that is the entry
-above.
+This is what made every desk accessory hang the machine. The source of the
+zeroed header remains unknown; the compaction failure it exposed is described
+in the allocator entry above.
 
 
 ### ✅ A loaded CODE segment cannot be reached through its jump table — FIXED
