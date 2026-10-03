@@ -670,14 +670,11 @@ WindowManagerState* GetWindowManagerState(void) {
  * ============================================================================ */
 
 static void InitializeWMgrPort(void) {
-    /* DEFENSIVE FIX: Use embedded port instead of heap allocation
-     * Previous code allocated wMgrPort on heap but only used g_wmState.port
-     * This matches desktop icons fix - avoid heap conflicts with regions */
-
-    /* Initialize the embedded graphics port */
+    /* Keep the manager port in state-owned storage for the lifetime of the
+     * Window Manager.
+     */
     Platform_InitializePort(&g_wmState.port);
 
-    /* Point wMgrPort to embedded port (no heap allocation needed) */
     g_wmState.wMgrPort = &g_wmState.port;
 
     /* Set Window Manager specific fields */
@@ -699,7 +696,6 @@ static void InitializeWMgrPort(void) {
 
     /* Initialize Color Window Manager port if available */
     if (g_wmState.colorQDAvailable) {
-        /* DEFENSIVE FIX: Use embedded cPort instead of heap allocation */
         memset(&g_wmState.cPort, 0, sizeof(CGrafPort));
         Platform_InitializeColorPort(&g_wmState.cPort);
         g_wmState.wMgrCPort = &g_wmState.cPort;
@@ -868,24 +864,6 @@ static void InitializeWindowRecord(WindowPtr window, const Rect* bounds,
                  window->port.portRect.right, window->port.portRect.bottom,
                  contentWidth, contentHeight);
 
-    /* CRITICAL FIX: Use "Direct Framebuffer" coordinate approach
-     *
-     * There are two ways to set up window coordinates:
-     *
-     * 1. GLOBAL COORDS (BROKEN with current drawing code):
-     *    - portBits.baseAddr = start of full framebuffer
-     *    - portBits.bounds = window position in global screen coords
-     *    - Drawing subtracts bounds to get local position, but then indexes
-     *      into baseAddr using that local position, drawing at WRONG location!
-     *
-     * 2. DIRECT FRAMEBUFFER (CORRECT - used by About This Mac):
-     *    - portBits.baseAddr = framebuffer + offset to window's content area
-     *    - portBits.bounds = (0, 0, width, height)
-     *    - Drawing works correctly because baseAddr already includes window offset
-     *
-     * We use approach #2 for consistency with QDPlatform_DrawGlyphBitmap.
-     */
-
     /* Calculate window's content position in global screen coordinates */
     SInt16 contentLeft = clampedBounds.left + kBorder;
     SInt16 contentTop = clampedBounds.top + kChromeTop;
@@ -894,18 +872,12 @@ static void InitializeWindowRecord(WindowPtr window, const Rect* bounds,
     uint32_t bytes_per_pixel = 4;
     uint32_t fbOffset = contentTop * fb_pitch + contentLeft * bytes_per_pixel;
 
-    /* CRITICAL FIX: Use Global Framebuffer approach instead of Direct Framebuffer
-     * Global Framebuffer:
-     *   - baseAddr = framebuffer (global start, not offset)
-     *   - portBits.bounds = CONTENT area's GLOBAL position on screen
-     *     (NOT structure bounds - that would include title bar offset!)
-     *   - rowBytes = fb_pitch (framebuffer width * 4)
-     * This approach is simpler and compatible with existing coordinate conversion code
+    /* QuickDraw applies the port bounds when drawing, so retain the framebuffer
+     * base and use the content rectangle in screen coordinates.
      */
     window->port.portBits.baseAddr = (Ptr)framebuffer;
 
-    /* Set bounds to CONTENT area's GLOBAL position on screen
-     * Content starts after title bar and borders */
+    /* Content starts after the title bar and borders. */
     SetRect(&window->port.portBits.bounds,
             contentLeft, contentTop,
             contentLeft + contentWidth, contentTop + contentHeight);
