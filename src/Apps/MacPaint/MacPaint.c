@@ -28,10 +28,8 @@
 #include "QuickDrawConstants.h"
 #include "System71StdLib.h"
 
-extern void GetMouseLocal(Point* mouseLoc);
 extern Boolean HandleUpdate(EventRecord* event);
 extern void Finder_InstallMenuBar(void);
-extern UInt32 GetDblTime(void);
 extern void SysBeep(short duration);
 
 /* ------------------------------------------------------------------------
