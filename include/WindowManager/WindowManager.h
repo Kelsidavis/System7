@@ -684,21 +684,6 @@ void WM_InvalidateDisplay_Public(void);
  */
 WindowManagerState* GetWindowManagerState(void);
 
-/*
- * Platform-specific functions that must be implemented by each platform:
- *
- * void Platform_InitWindowing(void);
- * void Platform_CreateNativeWindow(WindowPtr window);
- * void Platform_DestroyNativeWindow(WindowPtr window);
- * void Platform_ShowNativeWindow(WindowPtr window, Boolean show);
- * void Platform_MoveNativeWindow(WindowPtr window, short h, short v);
- * void Platform_SizeNativeWindow(WindowPtr window, short w, short h);
- * void Platform_SetNativeWindowTitle(WindowPtr window, ConstStr255Param title);
- * void Platform_InvalidateNativeWindow(WindowPtr window, const Rect* rect);
- * void Platform_BeginNativeWindowDraw(WindowPtr window);
- * void Platform_EndNativeWindowDraw(WindowPtr window);
- */
-
 /* ============================================================================
  * Utility Macros
  * ============================================================================ */

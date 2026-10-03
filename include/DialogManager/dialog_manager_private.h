@@ -1,18 +1,7 @@
-/*
- * dialog_manager_private.h - Private Dialog Manager API
- *
- * RE-AGENT-BANNER: This file implements private Dialog Manager functions
- * selectors, function signatures, and behavior patterns are based on
- * analysis.
- *
- * Evidence sources:
- * -  (dispatch selectors)
- */
+/* Private Dialog Manager selectors, state types, and implementation APIs. */
 
 #ifndef DIALOG_MANAGER_PRIVATE_H
 #define DIALOG_MANAGER_PRIVATE_H
-
-/* Forward declarations */
 
 #include "SystemTypes.h"
 
@@ -53,7 +42,7 @@ typedef enum {
     kModalClassAlert = 3
 } ModalWindowClass;
 
-/* DialogMgrGlobals structure - evidence from dialog_manager_private.c usage */
+/* Dialog Manager state shared by private implementation modules. */
 typedef struct DialogMgrGlobals {
     WindowPtr AnalyzedWindow;
     SInt16 AnalyzedWindowState;
@@ -94,7 +83,7 @@ void DMgrPushMenuState(void);
  */
 void DMgrPopMenuState(void);
 
-/* Citation functions - evidence suggests System 7 text services integration */
+/* Text Services citation handlers. */
 
 /*
  * CitationsCH - Citations character handling
@@ -125,7 +114,7 @@ void DMgrCite4(SInt16 param1, SInt32 param2, SInt32 param3, SInt32 param4, SInt1
 const void* GetDialogManagerDispatchTable(void);
 Boolean IsValidDialogManagerSelector(SInt16 selector);
 
-/* Global state manipulation - evidence from DialogMgrGlobals structure */
+/* Accessors for Dialog Manager state. */
 void SetAnalyzedWindowState(SInt16 state);
 SInt16 GetAnalyzedWindowState(void);
 void SetIsDialogState(SInt16 state);
@@ -140,15 +129,3 @@ void* GetSavedMenuState(void);
 #endif
 
 #endif /* DIALOG_MANAGER_PRIVATE_H */
-
-/*
- * RE-AGENT-TRAILER-JSON:
- * {
- *   "evidence_density": 0.92,
- *   "dispatch_selectors_mapped": 8,
- *   "private_functions_identified": 8,
- *   "global_state_functions": 8,
- *   "assembly_evidence_lines": 25,
- *   "system7_specific_features": 3
- * }
- */

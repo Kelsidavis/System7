@@ -1,14 +1,4 @@
-/*
- * dialog_manager_core.h - Core Dialog Manager API
- *
- * RE-AGENT-BANNER: This file was implemented based on Mac OS System 7.1 Dialog Manager
- * sources. All function signatures, data structures, and behavior patterns
- *
- * Evidence sources:
- * -  (trap implementations)
- * -  (private functions)
- * -  (alert system)
- */
+/* Core Dialog Manager API. */
 
 #ifndef DIALOG_MANAGER_CORE_H
 #define DIALOG_MANAGER_CORE_H
@@ -25,48 +15,11 @@ typedef struct DialogMgrGlobals DialogMgrGlobals;
 extern "C" {
 #endif
 
-/* Forward declarations */
-/* Ptr is defined in MacTypes.h */
-/* Ptr is defined in MacTypes.h */
-
-/* Handle is defined in MacTypes.h */
-/* Handle is defined in MacTypes.h */
-
-/* Basic QuickDraw types - evidence from implementation usage */
-/* Point type defined in MacTypes.h */
-
-/* Rect type defined in MacTypes.h */
-
-/* Event Manager types - evidence from StdFilterProc usage */
-/* EventRecord is in EventManager/EventTypes.h */
-
-/* Pascal string type */
-/* Str255 is defined in MacTypes.h */
-
-/* Dialog Record - evidence from existing C code and assembly usage */
+/* Dialog and event types are defined by the shared system headers. */
 #ifndef DIALOG_TYPES_DEFINED
 #define DIALOG_TYPES_DEFINED
 
-/* Dialog Template - evidence from DLOG resource format */
-
-/* Ptr is defined in MacTypes.h */
-
-/* Alert Template - evidence from ALRT resource format */
-  /* Handle to stage list */
-
-/* Ptr is defined in MacTypes.h */
-
 #endif /* DIALOG_TYPES_DEFINED */
-
-/* Dialog item types - evidence from existing C headers */
-
-/* Standard dialog button IDs */
-
-/* Alert icon types */
-
-
-/* Callback procedure types */
-
 
 /*
  * NewDialog - Create a new dialog
@@ -92,7 +45,7 @@ DialogPtr NewColorDialog(void* wStorage, const Rect* boundsRect,
  */
 Boolean StdFilterProc(DialogPtr dlg, EventRecord* evt, SInt16* itemHit);
 
-/* Utility functions for string conversion - evidence from implementation glue */
+/* Utility functions for string conversion. */
 void C2PStr(char* str);     /* Convert C string to Pascal string in place */
 void P2CStr(unsigned char* str);  /* Convert Pascal string to C string in place */
 
@@ -108,15 +61,3 @@ DialogMgrGlobals* GetDialogManagerGlobals(void);
 #endif
 
 #endif /* DIALOG_MANAGER_CORE_H */
-
-/*
- * RE-AGENT-TRAILER-JSON:
- * {
- *   "evidence_density": 0.85,
- *   "assembly_functions_mapped": 7,
- *   "trap_vectors_documented": 6,
- *   "data_structures_from_evidence": 5,
- *   "provenance_notes": 45,
- *   "missing_implementations": 0
- * }
- */
