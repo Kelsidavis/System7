@@ -1176,12 +1176,18 @@ endif
 # and half the other. Invalidate generated objects when flags differ; relying
 # on the stamp's timestamp can miss fast mode switches on coarse-resolution
 # filesystems.
+# Dry-run audits must not run this parse-time invalidation or remove objects.
 CFLAGS_STAMP := $(OBJ_DIR)/.cflags
+MAKE_DRY_RUN := $(or \
+    $(findstring n,$(filter-out --%,$(firstword $(MAKEFLAGS)))), \
+    $(filter --dry-run --just-print --recon,$(firstword $(MAKEFLAGS))))
+ifeq ($(MAKE_DRY_RUN),)
 $(shell mkdir -p $(OBJ_DIR); \
         if ! printf '%s' '$(CFLAGS)' | cmp -s - $(CFLAGS_STAMP) 2>/dev/null; then \
             printf '%s' '$(CFLAGS)' > $(CFLAGS_STAMP); \
             find $(OBJ_DIR) -type f \( -name '*.o' -o -name '*.d' \) -exec rm -f {} +; \
         fi)
+endif
 
 # The kernel has its own maths (System71Math.c). The macOS i686-elf toolchain
 # has no libm, while native Linux builds may need it for compiler-generated
