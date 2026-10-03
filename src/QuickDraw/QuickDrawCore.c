@@ -23,6 +23,7 @@
 
 /* Platform abstraction layer */
 #include "QuickDraw/QuickDrawPlatform.h"
+#include "Platform/Framebuffer.h"
 
 /* Picture recording hooks - from Pictures.c */
 extern void PictureRecordFrameRect(const Rect *r);
@@ -179,11 +180,6 @@ void InitGraf(void *globalPtr) {
     serial_puts("[QD] Platform done\n");
 
     /* Set up screen bitmap with actual framebuffer */
-    extern void* framebuffer;
-    extern uint32_t fb_width;
-    extern uint32_t fb_height;
-    extern uint32_t fb_pitch;
-
     serial_puts("[QD] Setting screenBits\n");
     qd.screenBits.baseAddr = (Ptr)framebuffer;
     qd.screenBits.rowBytes = fb_pitch;

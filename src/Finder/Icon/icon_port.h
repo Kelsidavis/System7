@@ -3,14 +3,11 @@
 #include <stdint.h>
 #include <stddef.h>
 #include <string.h>
+#include "Platform/Framebuffer.h"
 #include "QuickDraw/QuickDraw.h"
 #include "QuickDraw/QuickDrawPlatform.h"
 
 /* Shared QuickDraw globals */
-extern void* framebuffer;
-extern uint32_t fb_width;
-extern uint32_t fb_height;
-extern uint32_t fb_pitch;
 extern GrafPtr g_currentPort;
 
 /* Write a single pixel at local (x, y) coordinates into the active QuickDraw port.

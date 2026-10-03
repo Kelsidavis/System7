@@ -37,6 +37,7 @@ extern void DoMenuCommand(short menuID, short item);
 #include "../include/FS/vfs.h"
 #include "../include/MemoryMgr/MemoryManager.h"
 #include "Platform/include/boot.h"
+#include "Platform/Framebuffer.h"
 
 #include "../include/Gestalt/Gestalt.h"
 #include "../include/Resources/system7_resources.h"

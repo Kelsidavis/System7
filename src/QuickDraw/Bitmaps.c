@@ -1,4 +1,5 @@
 #include "QuickDraw/QuickDrawInternal.h"
+#include "Platform/Framebuffer.h"
 #include <string.h>
 #include <stdint.h>
 #include <limits.h>
@@ -925,8 +926,6 @@ void ScrollRect(const Rect *r, SInt16 dh, SInt16 dv, RgnHandle updateRgn) {
      * as a PixMap, from fields a BitMap does not have; and the area
      * uncovered was left as it was, where it is to be filled with the
      * background (Inside Macintosh: Imaging With QuickDraw, 3-140). */
-    extern void* framebuffer;
-    extern uint32_t fb_pitch, fb_width, fb_height;
     extern CGrafPtr g_currentCPort;
     Boolean colourPort = g_currentCPort && (GrafPtr)g_currentCPort == g_currentPort;
     if (!colourPort && framebuffer && g_currentPort->portBits.baseAddr == (Ptr)framebuffer) {

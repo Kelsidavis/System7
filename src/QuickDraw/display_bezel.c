@@ -1,12 +1,8 @@
 #include <stdint.h>
 
 #include "QuickDraw/DisplayBezel.h"
+#include "Platform/Framebuffer.h"
 #include "Gestalt/Gestalt.h"
-
-extern void* framebuffer;
-extern uint32_t fb_width;
-extern uint32_t fb_height;
-extern uint32_t fb_pitch;
 
 #ifndef DEFAULT_BEZEL_STYLE
 #define DEFAULT_BEZEL_STYLE 0

@@ -7,6 +7,7 @@
 #include "MacTypes.h"
 #include "QuickDraw/QuickDraw.h"
 #include "QuickDraw/QuickDrawPlatform.h"
+#include "Platform/Framebuffer.h"
 #include "QuickDrawConstants.h"  /* For paint, frame, erase, patCopy */
 #include "FontManager/FontTypes.h"  /* For FontStrike */
 #include <stdlib.h>  /* For abs() */
@@ -24,11 +25,6 @@
 #define MAX_POLY_POINTS 1024
 #endif
 
-/* External framebuffer from main.c */
-extern void* framebuffer;
-extern uint32_t fb_width;
-extern uint32_t fb_height;
-extern uint32_t fb_pitch;
 extern uint32_t pack_color(uint8_t r, uint8_t g, uint8_t b);
 
 /* Framebuffer and 32-bit PixMap pixel starts are four-byte aligned. */
@@ -1412,7 +1408,6 @@ static void QDPlatform_DrawGlyphBitmap_Body(GrafPtr port, Point pen,
     /* Debug first few calls */
     if (call_count < 30) {
         extern void serial_printf(const char* fmt, ...);
-        extern void* framebuffer;
         long baseOffset = (char*)destBits->baseAddr - (char*)framebuffer;
         serial_printf("[GLYPH] pen=(%d,%d) bounds=(%d,%d,%d,%d) dest=(%d,%d) fbOffset=%ld\n",
                      pen.h, pen.v,
