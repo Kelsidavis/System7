@@ -1,15 +1,10 @@
-/*
- * menu_private.h - Private Menu Manager Definitions
- *
- * Implementation of private Menu Manager functionality based on
- *
- * RE-AGENT-BANNER: Extracted from Mac OS System 7.1 Menu Manager assembly
- */
+/* Private Menu Manager constants and implementation-only declarations. */
 
 #ifndef __MENU_PRIVATE_H__
 #define __MENU_PRIVATE_H__
 
 #include "SystemTypes.h"
+#include "MenuManager/MenuManager.h"
 
 
 #ifdef __cplusplus
@@ -78,12 +73,6 @@ extern "C" {
 #define MBDFRectApps                -1
 #define MBDFRectSys                 -2
 
-/* Forward declarations */
-/* Handle is defined in MacTypes.h */
-
-/* Menu Manager private function prototypes */
-
-
 /* Menu item query functions (for MDEF and MenuKey) */
 Boolean CheckMenuItemEnabled(MenuHandle theMenu, short item);
 Boolean CheckMenuItemSeparator(MenuHandle theMenu, short item);
@@ -123,27 +112,12 @@ SInt16 FindMenuAtPoint_Internal(Point pt);
 /* Menu tracking */
 void BeginTrackMenu(void);
 void UpdateMenuTrackingNew(Point where);
-/* Returns the menu choice as a long, which is what MenuTrack.c defines and
- * what both callers read. This said void. */
+/* Returns the selected menu choice, or zero when tracking is cancelled. */
 long EndMenuTrackingNew(void);
 Boolean IsMenuTrackingNew(void);
 long TrackMenu(short menuID, Point *startPt);
 
-/* Menu save/restore bits - declared in MenuDisplay.h */
-
-/* Platform stubs - actual signatures vary by implementation */
-void Platform_RestoreScreenBits(Handle bits, const Rect* rect);
-void Platform_DisposeScreenBits(Handle bits);
-void Platform_DrawMenuBar(const void* drawInfo);
-void Platform_DrawMenu(const void* drawInfo);
-void Platform_DrawMenuItem(const void* drawInfo);
-Boolean Platform_TrackMouse(Point* mousePt, Boolean* isMouseDown);
-Boolean Platform_GetKeyModifiers(unsigned long* modifiers);
-void Platform_SetMenuCursor(short cursorType);
-Boolean Platform_IsMenuVisible(void* theMenu);
-void Platform_MenuFeedback(short feedbackType, short menuID, short item);
-void Platform_HiliteMenuItem(void* theMenu, short item, Boolean hilite);
-Handle Platform_SaveScreenBits(const Rect* rect);
+/* Implementation hook used by the platform save-bits wrapper. */
 void* Platform_SaveScreenBits_Impl(const Rect* rect);
 
 #ifdef __cplusplus
@@ -151,17 +125,3 @@ void* Platform_SaveScreenBits_Impl(const Rect* rect);
 #endif
 
 #endif /* __MENU_PRIVATE_H__ */
-
-/*
- * RE-AGENT-TRAILER-JSON: {
- *   "evidence_sources": [
- *     "
- *     "
- *     "
- *   ],
- *   "trap_numbers_extracted": ["0xA825", "0xA81E"],
- *   "constants_extracted": 23,
- *   "functions_declared": 12,
- *   "low_memory_globals": 6
- * }
- */

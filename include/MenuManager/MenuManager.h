@@ -818,15 +818,6 @@ MenuManagerState* GetMenuManagerState(void);
  * Platform Integration Hooks
  * ============================================================================ */
 
-/*
- * Platform-specific functions that must be implemented by each platform:
- *
- * void Platform_CleanupMenuSystem(void);
- * void Platform_DrawMenuBar(void);
- * void Platform_EraseMenuBar(void);
- * void Platform_FlashMenuBar(short menuID);
- */
-
 /* Platform-specific screen bit manipulation functions */
 void Platform_RestoreScreenBits(Handle bits, const Rect* rect);
 void Platform_DisposeScreenBits(Handle bits);
