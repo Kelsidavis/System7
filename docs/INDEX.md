@@ -12,7 +12,7 @@
 
 - [Memory Management](MEMORY_MANAGEMENT.md) — zones, handles, and how the heap is sized
 - [malloc Prevention](MALLOC_PREVENTION.md) — why the kernel does not use malloc/free
-- [Known Issues](KNOWN_ISSUES.md) — what is broken or missing, and why
+- [Known Issues](KNOWN_ISSUES.md) — current limitations and resolved incident history
 - [Compatibility Gaps](components/Compatibility/System7_Compatibility_Gaps.md) — where the Toolbox differs from Inside Macintosh
 - [Bare Metal](BARE_METAL_IMPROVEMENTS.md) — real-hardware support and what remains
 

@@ -82,9 +82,11 @@ System7/
 ## Code Style
 
 - Follow existing conventions in the codebase
-- Use `serial_printf()` for debugging, not `printf`
-- Explain non-obvious constraints in comments and reference authoritative
-  documentation or tests when useful
+- Prefer a subsystem logging helper or `serial_logf()` with an explicit module
+  and level. Use `serial_printf()` only where module-aware logging is unsuitable;
+  do not use hosted `printf()` in the kernel.
+- Use comments to explain behavior, invariants, constraints, or provenance.
+  Track work status in issues or planning documents, not code comments.
 - Document public APIs with clear comments
 - No malloc/free in kernel (use zone-based allocation)
 
