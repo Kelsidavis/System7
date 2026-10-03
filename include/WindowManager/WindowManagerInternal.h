@@ -85,7 +85,6 @@ void Platform_SetCurrentPort(GrafPtr port);
 GrafPtr Platform_GetUpdatePort(WindowPtr window);
 void Platform_SetUpdatePort(GrafPtr port);
 
-void Platform_CopyRgn(RgnHandle src, RgnHandle dst);
 void Platform_SetClipRgn(GrafPtr port, RgnHandle rgn);
 
 /*
@@ -97,8 +96,6 @@ void Platform_DisableWindow(WindowPtr window);
 /*
  * Hit testing
  */
-void Platform_HighlightWindowPart(WindowPtr window, short partCode, Boolean highlight);
-
 /*
  * Window definition procedures
  */

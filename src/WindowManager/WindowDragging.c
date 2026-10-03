@@ -31,8 +31,6 @@
 /* Forward declarations */
 Boolean WM_ValidateWindowPosition(WindowPtr window, const Rect* bounds);
 void WM_ConstrainWindowPosition(WindowPtr window, Rect* bounds);
-void WM_UpdateWindowVisibility(WindowPtr window);
-void WM_OffsetRect(Rect* rect, short deltaH, short deltaV);
 
 
 /* ============================================================================
@@ -200,8 +198,6 @@ void DragWindow(WindowPtr theWindow, Point startPt, const Rect* boundsRect) {
 
     /* QuickDraw functions for XOR outline */
     extern void QDPlatform_FlushScreen(void);
-    extern void GetWMgrPort(GrafPtr* port);
-    extern void SetPort(GrafPtr port);
 
     /* Set graphics port to Window Manager port for XOR drawing */
     GrafPtr wmPort;
@@ -338,7 +334,6 @@ void DragWindow(WindowPtr theWindow, Point startPt, const Rect* boundsRect) {
             if (newLeft != dragOutline.left || newTop != dragOutline.top) {
                 /* Erase old outline if it exists (XOR erases by redrawing) */
                 if (outlineDrawn) {
-                    extern void InvertRect(const Rect* rect);
                     WM_LOG_TRACE("DragWindow: Erasing old outline at (%d,%d,%d,%d)\n",
                                  dragOutline.left, dragOutline.top, dragOutline.right, dragOutline.bottom);
                     WM_XorFrame(&dragOutline);
@@ -352,7 +347,6 @@ void DragWindow(WindowPtr theWindow, Point startPt, const Rect* boundsRect) {
                 dragOutline.bottom = newTop + windowHeight;
 
                 /* Draw new outline */
-                extern void InvertRect(const Rect* rect);
                 WM_LOG_TRACE("DragWindow: Drawing new outline at (%d,%d,%d,%d)\n",
                              dragOutline.left, dragOutline.top, dragOutline.right, dragOutline.bottom);
                 WM_XorFrame(&dragOutline);
@@ -382,7 +376,6 @@ void DragWindow(WindowPtr theWindow, Point startPt, const Rect* boundsRect) {
 
     /* Erase final outline before moving window (XOR erases by redrawing) */
     if (outlineDrawn) {
-        extern void InvertRect(const Rect* rect);
         WM_LOG_TRACE("DragWindow: Erasing final outline\n");
         WM_XorFrame(&dragOutline);
         QDPlatform_FlushScreen();  /* Force screen update */
@@ -578,7 +571,6 @@ static void Local_ApplyWindowSnap(WindowPtr draggedWindow, short* newLeft, short
                                    short windowWidth, short windowHeight) {
     if (!draggedWindow || !newLeft || !newTop) return;
 
-    extern WindowManagerState* GetWindowManagerState(void);
     WindowManagerState* wmState = GetWindowManagerState();
     if (!wmState || !wmState->windowList) return;
 
