@@ -194,26 +194,26 @@ static const uint16_t kCheckGlyph[kCheckGlyphHeight] = {
     0x000,  /* ......... */
 };
 
-static void DrawCheckGlyph(short x, short y, uint32_t color) {
-    for (short row = 0; row < kCheckGlyphHeight; row++) {
-        uint16_t bits = kCheckGlyph[row];
-        for (short col = 0; col < kCheckGlyphWidth; col++) {
-            if (bits & (1 << (kCheckGlyphWidth - 1 - col))) {
+static void DrawMenuBitmapGlyph(const uint16_t* rows, short width, short height,
+                                short x, short y, uint32_t color) {
+    for (short row = 0; row < height; row++) {
+        uint16_t bits = rows[row];
+        for (short col = 0; col < width; col++) {
+            if (bits & (1u << (width - 1 - col))) {
                 DrawMenuRect(x + col, y + row, x + col + 1, y + row + 1, color);
             }
         }
     }
 }
 
+static void DrawCheckGlyph(short x, short y, uint32_t color) {
+    DrawMenuBitmapGlyph(kCheckGlyph, kCheckGlyphWidth, kCheckGlyphHeight,
+                        x, y, color);
+}
+
 static void DrawCommandGlyph(short x, short y, uint32_t color) {
-    for (short row = 0; row < kCmdGlyphHeight; row++) {
-        uint16_t bits = kCommandGlyph[row];
-        for (short col = 0; col < kCmdGlyphWidth; col++) {
-            if (bits & (1 << (kCmdGlyphWidth - 1 - col))) {
-                DrawMenuRect(x + col, y + row, x + col + 1, y + row + 1, color);
-            }
-        }
-    }
+    DrawMenuBitmapGlyph(kCommandGlyph, kCmdGlyphWidth, kCmdGlyphHeight,
+                        x, y, color);
 }
 
 /* Adapt the tracking row's baseline to MenuDisplay's shared text renderer. */
