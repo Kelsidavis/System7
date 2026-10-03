@@ -13,30 +13,6 @@
 #include "System71StdLib.h"
 #include "ListManager/ListManager.h"
 
-/* Forward declarations for List Manager functions */
-extern ListHandle LNew(const ListParams* params);
-extern void LDispose(ListHandle lh);
-extern void LSize(ListHandle lh, short newWidth, short newHeight);
-extern OSErr LAddRow(ListHandle lh, short count, short afterRow);
-extern OSErr LDelRow(ListHandle lh, short count, short fromRow);
-extern OSErr LAddColumn(ListHandle lh, short count, short afterCol);
-extern OSErr LDelColumn(ListHandle lh, short count, short fromCol);
-extern OSErr LSetCell(ListHandle lh, const void* data, short dataLen, Cell cell);
-extern void LSetRefCon(ListHandle lh, long refCon);
-extern void LUpdate(ListHandle lh, RgnHandle updateRgn);
-extern void LDraw(ListHandle lh);
-extern void LGetCellRect(ListHandle lh, Cell cell, Rect* outCellRect);
-extern void LScroll(ListHandle lh, short dRows, short dCols);
-extern Boolean LClick(ListHandle lh, Point localWhere, unsigned short mods, short* outItem);
-extern Boolean LGetSelect(ListHandle lh, Cell* outCell);
-extern void LSetSelect(ListHandle lh, Boolean sel, Cell cell);
-extern void LSelectAll(ListHandle lh);
-extern void LClearSelect(ListHandle lh);
-extern Boolean LLastClick(ListHandle lh, Cell* outCell, UInt32* outWhen, unsigned short* outMods);
-extern Boolean LSearch(ListHandle lh, const unsigned char* pStr, Boolean caseSensitive, Cell* outFound);
-extern Boolean LKey(ListHandle lh, char ch);
-extern void LAttachScrollbars(ListHandle lh, ControlHandle vScroll, ControlHandle hScroll);
-
 /* Forward declaration for Pack0 dispatcher */
 OSErr Pack0_Dispatch(short selector, void* params);
 
