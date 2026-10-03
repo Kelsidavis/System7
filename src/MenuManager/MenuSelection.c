@@ -90,7 +90,6 @@ enum {
  * ============================================================================ */
 
 static MenuTrackingState gTrackingState;
-/* static MenuSelection gLastSelection; */  /* Unused - reserved for future use */
 static Boolean gTrackingActive = false;
 static long gLastMenuChoice = 0;
 
@@ -115,7 +114,6 @@ static Boolean IsPointInMenu(Point pt, const Rect* menuRect);
 static void UpdateMenuHighlight(MenuTrackInfo* state, short newMenu, short newItem);
 static void ShowMenuAtPoint(short menuID, Point pt);
 static void HideCurrentMenu(void);
-/* static Boolean ProcessMenuCommand(short cmdChar, unsigned long modifiers, MenuSelection* result); */  /* Reserved for keyboard shortcut handling */
 static void FlashMenuFeedback(short menuID, short item);
 static Boolean ValidateMenuSelection(short menuID, short item);
 

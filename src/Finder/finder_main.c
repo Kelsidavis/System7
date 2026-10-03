@@ -479,7 +479,7 @@ static OSErr SetupMenus(void)
     DrawMenuBar();
     serial_puts("Finder: DrawMenuBar returned\n");
 
-    /* Temporary fallback: only run if the application menu didn't stick */
+    /* Try the fallback layout if the application menu was not registered. */
     extern void SetupDefaultMenus(void);
     MenuHandle existingAppMenu = GetMenuHandle(appMenuID);
     if (existingAppMenu == NULL) {

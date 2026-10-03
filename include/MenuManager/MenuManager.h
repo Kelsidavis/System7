@@ -196,7 +196,7 @@ Boolean MenuIsApplicationMenu(short menuID);
  * Call this after making changes to menu titles or menu bar contents.
  */
 void DrawMenuBar(void);
-void SetupDefaultMenus(void);  /* Temporary workaround for menu display */
+void SetupDefaultMenus(void);  /* Populate a fallback layout when the menu bar is empty */
 
 /*
  * InvalMenuBar - Mark menu bar as needing redraw

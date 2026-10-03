@@ -395,8 +395,7 @@ void ClearMenuBar(void)
 }
 
 /*
- * SetupDefaultMenus - Manually populate default menus for testing
- * This is a temporary workaround to ensure menus display
+ * SetupDefaultMenus - Populate a fallback menu layout when the menu bar is empty
  */
 void SetupDefaultMenus(void)
 {
