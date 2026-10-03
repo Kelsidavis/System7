@@ -25,6 +25,7 @@
 #include "MemoryMgr/MemoryManager.h"
 
 #include "WindowManager/WindowManagerInternal.h"
+#include "TimeManager/TimeBase.h"
 #include <math.h>
 
 /* Forward declarations */
@@ -220,8 +221,6 @@ void DragWindow(WindowPtr theWindow, Point startPt, const Rect* boundsRect) {
      * With safety timeout to prevent infinite loop if StillDown() gets stuck */
     extern void EventPumpYield(void);
     extern void UpdateCursorDisplay(void);
-    extern UInt32 TickCount(void);
-
     /* Every threshold here is measured in ticks (1/60 s) rather than loop
      * iterations.
      *

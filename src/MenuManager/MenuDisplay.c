@@ -26,6 +26,7 @@ extern void QD_SetScreenPort(void);
 #include "MenuManager/MenuDisplay.h"
 #include "FontManager/FontManager.h"
 #include "MenuManager/MenuLogging.h"
+#include "TimeManager/TimeBase.h"
 #include "FontManager/FontTypes.h"
 #include "FontManager/FontInternal.h"
 
@@ -947,7 +948,6 @@ void FlashMenuItem(MenuHandle theMenu, short item, short flashes)
     }
 
     /* Flash multiple times by redrawing item with highlight toggled */
-    extern UInt32 TickCount(void);
     extern void SystemTask(void);
 
     for (short i = 0; i < flashes; i++) {

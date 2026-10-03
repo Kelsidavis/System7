@@ -27,6 +27,7 @@
 #include "WindowManager/WindowRegions.h"
 #include "EventManager/EventManager.h"
 #include "MemoryMgr/MemoryManager.h"
+#include "TimeManager/TimeBase.h"
 
 /* External logging function */
 extern void serial_logf(SystemLogModule module, SystemLogLevel level, const char* fmt, ...);
@@ -219,7 +220,6 @@ Boolean TrackBox(WindowPtr theWindow, Point thePt, short partCode) {
      * how long the user is given to make up their mind - the same mistake the
      * drag loop in WindowDragging.c was carrying. This is a safety stop for a
      * button release we never observe, not a limit anyone should reach. */
-    extern UInt32 TickCount(void);
     const UInt32 kMaxTrackTicks = 60 * 30;   /* 30 seconds */
     const UInt32 trackStartTick = TickCount();
 
