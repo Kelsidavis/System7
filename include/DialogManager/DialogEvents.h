@@ -1,9 +1,8 @@
 /*
- * DialogEvents.h - Dialog Event Management API
+ * DialogEvents.h - Dialog event API declarations
  *
- * This header defines the dialog event handling functionality,
- * maintaining exact Mac System 7.1 behavioral compatibility
- * while providing modern event processing capabilities.
+ * This header declares the dialog event routines and helper interfaces.
+ * Implementation coverage varies by routine.
  */
 
 #ifndef DIALOG_EVENTS_H

@@ -1,8 +1,8 @@
 /*
- * DialogItems.h - Dialog Item Management API
+ * DialogItems.h - Dialog item API declarations
  *
- * This header defines the dialog item management functionality,
- * maintaining exact Mac System 7.1 behavioral compatibility.
+ * This header declares dialog item accessors and helper interfaces.
+ * Implementation coverage varies by routine.
  */
 
 #ifndef DIALOG_ITEMS_H

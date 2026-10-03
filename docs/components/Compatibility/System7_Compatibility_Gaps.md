@@ -15,6 +15,24 @@ This checklist records significant differences between the current toolbox reimp
 - ~~`src/QuickDraw/CursorManager.c` – Cursor show/hide/obscure/spin still defer to TODOs; Mac OS required hardware cursor toggles and watch-cursor animation tied to `SpinCursor`.~~ **OBSOLETE** (2026-10-01): `CursorManager_SetCursorInternal()` / `cursor_set_bit()` / `CursorManager_ShouldBeVisible()` implement the state machine now; the old TODOs are gone from the file.
 
 ## Window, Dialog, Control, and Menu Managers
+- `include/DialogManager/DialogEvents.h` and `DialogItems.h` declare helper APIs
+  with no definitions in `src/`:
+  `ProcessDialogEvent`, `HandleDialogMouseDown`, `HandleDialogKeyDown`,
+  `HandleDialogUpdate`, `SetDialogFocus`, `GetDialogFocus`,
+  `IsDialogItemFocusable`, `InstallDialogEventFilter`,
+  `RemoveDialogEventFilter`, `CallDialogEventFilter`,
+  `SetDialogKeyboardShortcut`, `RemoveDialogKeyboardShortcut`,
+  `ProcessDialogKeyboardShortcut`, `HandleDialogTextEdit`,
+  `GetDialogTextSelection`, `SetDialogTextSelection`, `SetDialogIdleProc`,
+  `GetDialogEventError`, `ConvertPlatformEvent`, `HandlePlatformDialogEvent`,
+  `SetDialogEventLogging`, `LogDialogEvent`, `NotifyDialogEventHandlers`,
+  `ValidateDialogEvent`, `CreatePlatformDialogItem`,
+  `DestroyPlatformDialogItem`, `GetDialogItemAccessibilityText`,
+  `GetDialogItemControl`, `GetDialogItemValue`, `SetDialogItemValue`,
+  `SetDialogItemControl`, `GetDialogItemRefCon`, `GetDialogItemUserData`,
+  `SetDialogItemRefCon`, `SetDialogItemUserData`, and
+  `SetDialogItemAccessibilityText`. Implement the supported contract or remove
+  declarations that are not part of the intended API.
 - ~~`src/WindowManager/WindowEvents.c` – Grow and drag tracking branches in `WM_TrackWindowPart` returned immediately; Window Manager must honour `inDrag`/`inGrow` parts with live XOR outlines and constraint callbacks like the classic implementation.~~ **FIXED** (2025-10-06): WM_TrackWindowPart now calls DragWindow() and GrowWindow() which provide full XOR feedback and mouse tracking
 - ~~`src/DialogManager/DialogDrawing.c` – Edit-text items ignore focus rings; System 7 drew a focus frame and moved the caret when the control is active.~~ **FIXED** (2025-10-06): Edit-text focus rings and caret blinking implemented in DialogEditText.c
 - ~~`src/DialogManager/dialog_manager_private.c` – `GetNextUserCancelEvent` is a stub; modal dialogs should scan the event queue for cancel gestures (Command-.) as the Classic API allowed.~~ **FIXED** (2025-10-06): IsUserCancelEvent/GetNextUserCancelEvent implemented, modal dialogs support Cmd-. and Escape
