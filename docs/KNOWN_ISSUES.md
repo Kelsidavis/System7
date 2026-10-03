@@ -844,7 +844,7 @@ Implemented hysteresis-based button state debouncing with two-part strategy:
 **Impact**: Window dragging is now reliable across rapid click sequences and QEMU timing quirks, with negligible latency impact (~100ms worst case for debouncing).
 
 **Files Modified**:
-- `src/WindowManager/WindowDragging.c` (lines 465-507): Added debouncing variables and state machine logic
+- `src/WindowManager/WindowDragging.c`: Added debouncing variables and state machine logic
 
 **Defense-in-Depth**: Original safety timeouts (100,000 iterations, no-movement detection) remain as secondary safeguards against complete button tracking failure.
 
@@ -857,8 +857,8 @@ Implemented hysteresis-based button state debouncing with two-part strategy:
 **Root Cause (at the time)**: The Finder's `DoUpdate()` function only handled specific window types. Unknown window types fell through without calling `BeginUpdate()`/`EndUpdate()` to clear the update region.
 
 **Investigation**:
-- `InvalRgn()` correctly posts `updateEvt` (WindowEvents.c:445)
-- Event loop correctly receives and dispatches update events (finder_main.c:484-486)
+- `InvalRgn()` correctly posts `updateEvt` (WindowEvents.c)
+- The event loop receives and dispatches update events through the event dispatcher
 - The then-active `DoUpdate()` path did nothing for generic windows
 - This was NOT an event system bug, but a missing default handler
 
@@ -874,7 +874,7 @@ Implemented hysteresis-based button state debouncing with two-part strategy:
 
 ### ✅ 3. Desktop Background Window Refilling - RESOLVED
 
-**Location**: `src/WindowManager/WindowDisplay.c:134-162`
+**Location**: `src/WindowManager/WindowDisplay.c`
 
 **Severity**: Low (Visual glitch)
 
@@ -885,7 +885,7 @@ Implemented hysteresis-based button state debouncing with two-part strategy:
 **Resolution**: The refCon field is specifically designed as an application-specific window identifier in Mac OS. Using it to distinguish the desktop window (refCon=0) is not fragile but rather proper utilization of Mac Toolbox conventions. The desktop window is created with `NewWindow(nil,...,0)`, establishing refCon=0 as the standard identifier.
 
 **Files Modified**:
-- `src/WindowManager/WindowDisplay.c` (lines 134-162): Added comprehensive documentation explaining the refCon pattern
+- `src/WindowManager/WindowDisplay.c`: Documents the refCon pattern
 
 **Impact**: Desktop icons no longer erased when updating window content. Uses intentional, well-established Mac OS pattern rather than a "fragile workaround".
 
@@ -941,7 +941,7 @@ Implemented proper region-based erasing for Direct Framebuffer:
 - Typical dragging: 30-60% improvement depending on window size
 
 **Files Modified**:
-- `src/WindowManager/WindowEvents.c` (lines 619-689): Replaced full-window fill with region-based erasing
+- `src/WindowManager/WindowEvents.c`: Replaced full-window fill with region-based erasing
 
 **Impact**: Windows redraw more efficiently with incremental updates, visual artifacts from incomplete erasing eliminated.
 
@@ -982,7 +982,7 @@ Several features are noted as incomplete:
 
 **Impact**: Dramatically improved drag performance - smooth, responsive window movement (changed from pixel-by-pixel stuttering to fluid dragging)
 
-**Location**: `src/WindowManager/WindowDragging.c:375-399, 413-421`
+**Location**: `src/WindowManager/WindowDragging.c`
 
 ---
 
@@ -1013,7 +1013,7 @@ Implemented two-part optimization strategy:
 - Practical constant factor reduction: 80-95% for typical desktops
 
 **Files Modified**:
-- `src/WindowManager/WindowDragging.c` (lines 1253-1388): Broad-phase culling and early exit logic
+- `src/WindowManager/WindowDragging.c`: Broad-phase culling and early exit logic
 
 **Algorithm Complexity**: Still O(n) in worst case (all windows in search box), but practical O(n×0.1) to O(n×0.2) in real usage.
 
@@ -1021,7 +1021,7 @@ Implemented two-part optimization strategy:
 
 ### ✅ 9. Dirty Rectangle Optimization - OPTIMIZED
 
-**Location**: `src/WindowManager/WindowDisplay.c` (PaintOne function, lines 191-211)
+**Location**: `PaintOne` in `src/WindowManager/WindowDisplay.c`
 
 **Severity**: Low (Performance)
 
@@ -1052,7 +1052,7 @@ Implemented dirty rectangle intersection when available:
 - Typical desktop scenario: ~35% framebuffer write reduction
 
 **Files Modified**:
-- `src/WindowManager/WindowDisplay.c` (lines 191-211): Added dirty rectangle intersection logic
+- `src/WindowManager/WindowDisplay.c`: Added dirty rectangle intersection logic
 
 **Impact**: Improved rendering performance for multi-window scenarios and incremental updates, particularly during window dragging and resizing operations.
 
