@@ -158,6 +158,23 @@ static void GetTrackedMenuItemRect(MenuHandle theMenu, short item, short left,
     CalcMenuItemRect(theMenu, item, &menuRect, itemRect);
 }
 
+static short TrackedMenuItemAtPoint(MenuHandle theMenu, Point point, short left,
+                                    short top, short menuWidth, short itemCount) {
+    if (point.h < left || point.h >= left + menuWidth) {
+        return 0;
+    }
+
+    for (short item = 1; item <= itemCount; item++) {
+        Rect itemRect;
+        GetTrackedMenuItemRect(theMenu, item, left, top, menuWidth, &itemRect);
+        if (point.v >= itemRect.top && point.v < itemRect.bottom) {
+            return item;
+        }
+    }
+
+    return 0;
+}
+
 static void DrawMenuItemRow(MenuHandle theMenu, short i, short left, short top,
                             short menuWidth, Boolean highlighted) {
     Rect itemRect;
@@ -319,32 +336,18 @@ void UpdateMenuTrackingNew(Point mousePt) {
     short itemCount = g_menuTrackState.itemCount;
     MenuHandle theMenu = g_menuTrackState.activeMenu;
 
-    /* Check if mouse is over a menu item - account for 2px top padding */
-    short newHighlight = 0;
-
-    /* First check if mouse is horizontally within menu */
-    if (mousePt.h >= left && mousePt.h < left + menuWidth) {
-        /* Check each item's position to find which one the mouse is over */
-        for (short i = 1; i <= itemCount; i++) {
-            Rect itemRect;
-            GetTrackedMenuItemRect(theMenu, i, left, top, menuWidth, &itemRect);
-
-            /* Check if mouse is vertically within this item */
-            if (mousePt.v >= itemRect.top && mousePt.v < itemRect.bottom) {
-                /* Dividers and disabled items never highlight in System 7.
-                 * Testing only for non-empty text let dividers highlight,
-                 * since a divider's text is "-". */
-                char itemText[64];
-                GetItemText(theMenu, i, itemText);
-                if (itemText[0] != 0 &&
-                    !CheckMenuItemSeparator(theMenu, i) &&
-                    CheckMenuItemEnabled(theMenu, i)) {
-                    newHighlight = i;
-                    MENU_LOG_TRACE("UpdateMenu: Mouse at (%d,%d) is over item %d\n",
-                                 mousePt.h, mousePt.v, i);
-                }
-                break;  /* Found the item, stop searching */
-            }
+    /* Dividers and disabled items never highlight in System 7. */
+    short newHighlight = TrackedMenuItemAtPoint(theMenu, mousePt, left, top,
+                                                menuWidth, itemCount);
+    if (newHighlight > 0) {
+        char itemText[64];
+        GetItemText(theMenu, newHighlight, itemText);
+        if (itemText[0] == 0 || CheckMenuItemSeparator(theMenu, newHighlight) ||
+            !CheckMenuItemEnabled(theMenu, newHighlight)) {
+            newHighlight = 0;
+        } else {
+            MENU_LOG_TRACE("UpdateMenu: Mouse at (%d,%d) is over item %d\n",
+                           mousePt.h, mousePt.v, newHighlight);
         }
     }
 
@@ -681,19 +684,8 @@ static long TrackMenu_Body(short menuID, Point *startPt) {
         const UInt32 RELEASE_DEBOUNCE   = 2;  /* ~33ms of steady release */
 
         /* Is the pointer over one of this menu's items right now? */
-        Boolean overItem = false;
-        {
-            if (mousePt.h >= left && mousePt.h < left + menuWidth) {
-                for (short i = 1; i <= itemCount; i++) {
-                    Rect itemRect;
-                    GetTrackedMenuItemRect(theMenu, i, left, top, menuWidth, &itemRect);
-                    if (mousePt.v >= itemRect.top && mousePt.v < itemRect.bottom) {
-                        overItem = true;
-                        break;
-                    }
-                }
-            }
-        }
+        Boolean overItem = TrackedMenuItemAtPoint(theMenu, mousePt, left, top,
+                                                   menuWidth, itemCount) > 0;
 
         Boolean commitSelection = false;
 
@@ -740,25 +732,16 @@ static long TrackMenu_Body(short menuID, Point *startPt) {
             /* Check if click is within the menu bounds */
             if (clickPt.h >= left && clickPt.h < left + menuWidth) {
                 if (clickPt.v >= top + 4 && clickPt.v < top + menuHeight - 4) {
-                    /* Click was within menu - find which item was clicked */
-                    /* Re-scan items to find which one the click was on */
-                    short clickedItem = 0;
-                    for (short i = 1; i <= itemCount; i++) {
-                        Rect itemRect;
-                        GetTrackedMenuItemRect(theMenu, i, left, top, menuWidth, &itemRect);
-                        if (clickPt.v >= itemRect.top && clickPt.v < itemRect.bottom) {
-                            char itemText[64];
-                            GetItemText(theMenu, i, itemText);
-                            /* A disabled item or a divider chooses nothing
-                             * (Inside Macintosh: Toolbox Essentials, 3-111);
-                             * only empty text used to be refused, so a
-                             * greyed command ran when released on. */
-                            if (itemText[0] != 0 &&
-                                !CheckMenuItemSeparator(theMenu, i) &&
-                                CheckMenuItemEnabled(theMenu, i)) {
-                                clickedItem = i;
-                            }
-                            break;
+                    short clickedItem = TrackedMenuItemAtPoint(
+                        theMenu, clickPt, left, top, menuWidth, itemCount);
+                    if (clickedItem > 0) {
+                        char itemText[64];
+                        GetItemText(theMenu, clickedItem, itemText);
+                        /* Disabled items and dividers choose nothing. */
+                        if (itemText[0] == 0 ||
+                            CheckMenuItemSeparator(theMenu, clickedItem) ||
+                            !CheckMenuItemEnabled(theMenu, clickedItem)) {
+                            clickedItem = 0;
                         }
                     }
 
