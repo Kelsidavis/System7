@@ -135,6 +135,20 @@ static void TrackIconDragSync(short iconIndex, Point startPt);
  *     strong candidate for the desktop artifacts seen after dragging a window.
  */
 
+static UInt32 Desktop_ReadU32LE(const void* address)
+{
+    const UInt8* bytes = address;
+    return ((UInt32)bytes[0]) |
+           ((UInt32)bytes[1] << 8) |
+           ((UInt32)bytes[2] << 16) |
+           ((UInt32)bytes[3] << 24);
+}
+
+static DesktopItemType Desktop_GetItemType(const DesktopItem* item)
+{
+    return (DesktopItemType)Desktop_ReadU32LE(&item->type);
+}
+
 static void Desktop_BuildFileKind(const DesktopItem* item, FileKind* outKind)
 {
     if (!item || !outKind) {
@@ -146,14 +160,7 @@ static void Desktop_BuildFileKind(const DesktopItem* item, FileKind* outKind)
     outKind->path = NULL;
     outKind->hasCustomIcon = false;
 
-    /* CRITICAL FIX: Use safe byte-by-byte read for item->type */
-    const UInt8* typePtr = (const UInt8*)&item->type;
-    DesktopItemType itemType = (DesktopItemType)(
-        ((UInt32)typePtr[0]) |
-        ((UInt32)typePtr[1] << 8) |
-        ((UInt32)typePtr[2] << 16) |
-        ((UInt32)typePtr[3] << 24)
-    );
+    DesktopItemType itemType = Desktop_GetItemType(item);
 
     switch (itemType) {
         case kDesktopItemTrash:
@@ -168,28 +175,14 @@ static void Desktop_BuildFileKind(const DesktopItem* item, FileKind* outKind)
             outKind->isFolder = true;
             break;
         case kDesktopItemApplication:
-            /* CRITICAL FIX: Safe read for fileType/creator */
-            {
-                const UInt8* ftPtr = (const UInt8*)&item->data.file.fileType;
-                OSType ft = ((UInt32)ftPtr[0]) | ((UInt32)ftPtr[1] << 8) |
-                           ((UInt32)ftPtr[2] << 16) | ((UInt32)ftPtr[3] << 24);
-                const UInt8* crPtr = (const UInt8*)&item->data.file.creator;
-                OSType cr = ((UInt32)crPtr[0]) | ((UInt32)crPtr[1] << 8) |
-                           ((UInt32)crPtr[2] << 16) | ((UInt32)crPtr[3] << 24);
-                outKind->type = ft ? ft : FOURCC('A','P','P','L');
-                outKind->creator = cr;
-            }
-            break;
         case kDesktopItemFile:
             {
-                const UInt8* ftPtr = (const UInt8*)&item->data.file.fileType;
-                OSType ft = ((UInt32)ftPtr[0]) | ((UInt32)ftPtr[1] << 8) |
-                           ((UInt32)ftPtr[2] << 16) | ((UInt32)ftPtr[3] << 24);
-                const UInt8* crPtr = (const UInt8*)&item->data.file.creator;
-                OSType cr = ((UInt32)crPtr[0]) | ((UInt32)crPtr[1] << 8) |
-                           ((UInt32)crPtr[2] << 16) | ((UInt32)crPtr[3] << 24);
-                outKind->type = ft;
-                outKind->creator = cr;
+                OSType fileType = (OSType)Desktop_ReadU32LE(&item->data.file.fileType);
+                outKind->type = fileType;
+                if (itemType == kDesktopItemApplication && !fileType) {
+                    outKind->type = FOURCC('A','P','P','L');
+                }
+                outKind->creator = (OSType)Desktop_ReadU32LE(&item->data.file.creator);
             }
             break;
         case kDesktopItemAlias:
@@ -206,14 +199,7 @@ static int Desktop_LabelOffsetForItem(const DesktopItem* item)
         return kIconH;
     }
 
-    /* CRITICAL FIX: Use byte-by-byte read to avoid ARM64 misaligned access hang */
-    const UInt8* typePtr = (const UInt8*)&item->type;
-    DesktopItemType itemType = (DesktopItemType)(
-        ((UInt32)typePtr[0]) |
-        ((UInt32)typePtr[1] << 8) |
-        ((UInt32)typePtr[2] << 16) |
-        ((UInt32)typePtr[3] << 24)
-    );
+    DesktopItemType itemType = Desktop_GetItemType(item);
 
     switch (itemType) {
         case kDesktopItemTrash:
@@ -288,14 +274,7 @@ static void Desktop_DrawIconsCommon(RgnHandle clip)
             continue;
         }
 
-        /* CRITICAL FIX: Use byte-by-byte read to avoid ARM64 misaligned access */
-        UInt8* typePtr = (UInt8*)&gDesktopIcons[i].type;
-        DesktopItemType itemType = (DesktopItemType)(
-            ((UInt32)typePtr[0]) |
-            ((UInt32)typePtr[1] << 8) |
-            ((UInt32)typePtr[2] << 16) |
-            ((UInt32)typePtr[3] << 24)
-        );
+        DesktopItemType itemType = Desktop_GetItemType(&gDesktopIcons[i]);
         if (itemType == kDesktopItemVolume && !gVolumeIconVisible) {
             continue;
         }
@@ -2129,11 +2108,7 @@ Boolean Desktop_GetSelectedIconInfo(VRefNum* outVref, FileID* outFileID) {
     *outFileID = gDesktopIcons[gSelectedIcon].iconID;
 
     /* Trash icon doesn't have a real file ID */
-    UInt8* typePtr = (UInt8*)&gDesktopIcons[gSelectedIcon].type;
-    DesktopItemType itemType = (DesktopItemType)(
-        ((UInt32)typePtr[0]) | ((UInt32)typePtr[1] << 8) |
-        ((UInt32)typePtr[2] << 16) | ((UInt32)typePtr[3] << 24)
-    );
+    DesktopItemType itemType = Desktop_GetItemType(&gDesktopIcons[gSelectedIcon]);
     if (itemType == kDesktopItemTrash) return false;  /* Can't Get Info on Trash */
 
     return (*outFileID != 0 && *outFileID != 0xFFFFFFFF);
@@ -2164,12 +2139,7 @@ void Desktop_OpenSelectedIcon(void) {
 
     DesktopItem* icon = &gDesktopIcons[gSelectedIcon];
 
-    /* Use byte-by-byte read for ARM64 safety */
-    UInt8* typePtr = (UInt8*)&icon->type;
-    DesktopItemType itemType = (DesktopItemType)(
-        ((UInt32)typePtr[0]) | ((UInt32)typePtr[1] << 8) |
-        ((UInt32)typePtr[2] << 16) | ((UInt32)typePtr[3] << 24)
-    );
+    DesktopItemType itemType = Desktop_GetItemType(icon);
 
     switch (itemType) {
         case kDesktopItemVolume:
