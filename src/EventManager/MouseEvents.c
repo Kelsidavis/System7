@@ -260,9 +260,7 @@ Boolean StillDown(void)
     return Button();
 }
 
-/**
- * Get mouse position in local coordinates
- */
+/* Get the mouse position relative to the current port. */
 void GetMouseLocal(Point* mouseLoc)
 {
     if (!mouseLoc) return;

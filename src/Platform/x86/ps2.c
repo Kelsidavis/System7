@@ -818,7 +818,7 @@ void PollPS2Input(void) {
  * and getting the window's origin added twice. It has caused the same bug
  * twice: dragging a Finder icon recorded drops offset by the window origin,
  * and TextEdit's drag-selection mapped every point past the end of the text
- * so a click selected from there to the end. Use GetMouseLocal below when
+ * so a click selected from there to the end. Use GetMouseLocal when
  * port-local coordinates are what is wanted - the name says which space you
  * are getting, which is the part that keeps being guessed wrong.
  */
