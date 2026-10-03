@@ -38,10 +38,6 @@
 /* [WM-031] File-local helpers; provenance: IM:Windows "Window Definition Procedures" */
 static short WM_DialogWindowHitTest(WindowPtr window, Point pt);
 
-/* [WM-038] WDEF Procedures from IM:Windows Vol I pp. 2-88 to 2-95 */
-long WM_StandardWindowDefProc(short varCode, WindowPtr theWindow, short message, long param);
-long WM_DialogWindowDefProc(short varCode, WindowPtr theWindow, short message, long param);
-
 /* [WM-054] WDEF constants now in canonical header */
 #include "WindowManager/WindowWDEF.h"
 
@@ -555,7 +551,6 @@ void WM_CalculateStandardWindowRegions(WindowPtr window, short varCode) {
     serial_puts("[CALCSTD] GetFrameRect\n");
     uart_flush();
 
-    extern int snprintf(char* buf, size_t size, const char* fmt, ...);
     if (window->refCon == 0x4449534b) {  /* DISK window */
         char dbgbuf[256];
         snprintf(dbgbuf, sizeof(dbgbuf), "[CALCRGN-CALLER] Called from caller - about to recalculate regions\n");
@@ -600,7 +595,6 @@ void WM_CalculateStandardWindowRegions(WindowPtr window, short varCode) {
     uart_flush();
 
     /* DEBUG: Log detailed state before changing contRgn */
-    extern int snprintf(char* buf, size_t size, const char* fmt, ...);
     static int calc_log = 0;
     if (calc_log < 30 && window->refCon == 0x4449534b) {
         char dbgbuf[256];
