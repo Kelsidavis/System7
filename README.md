@@ -32,22 +32,18 @@ An open-source reimplementation of Apple Macintosh System 7 for modern x86 hardw
 
 ## 💡 About This Project
 
-This started as a disciplined AI-assisted reverse engineering research project (published to Zenodo in 2025) that proved you could reconstruct a bootable System 7 prototype in days. We then asked: **"What if we just kept building?"**
+This began as an AI-assisted reverse-engineering research project, published to Zenodo in 2025, and has grown into a bootable System 7 reimplementation. The project remains experimental: its x86 target boots in QEMU and has been verified on one physical UEFI ThinkPad, while broad hardware compatibility and real-application compatibility are still unverified.
 
-**What happened**: We kept building. Faster. With less testing. Mostly in QEMU. Almost no bare metal validation — which caught up with us the moment someone put it on real hardware and it froze on every machine. Features exist everywhere, but edge cases crash constantly.
+The Action Retro video below captured an earlier revision that froze on the tested machines. Subsequent work fixed the reported boot, interrupt, and input problems; the historical findings and fixes are summarized below. QEMU coverage is substantially broader than bare-metal testing, and individual subsystems still have documented compatibility gaps.
 
-**Honest assessment**: This is a **sloperating system**™. It now boots to a responsive desktop on real hardware, which it did not do a week ago, but it is still far more useful for learning *about* System 7 than for *running* it. The code is readable and teaches you things; most subsystems are partially done, and hardware coverage is one confirmed machine deep.
-
-**Why it matters anyway**: It's still the most complete open-source System 7 implementation. Real code. Real architecture. Real bugs that teach you something.
-
-**Read [Project Evolution](docs/PROJECT_EVOLUTION.md)** for the detailed honest story about how this went from rigorous research to the sloppy experiment you're looking at.
+For the project's history and current limitations, see [Project Evolution](docs/PROJECT_EVOLUTION.md) and [Known Issues](docs/KNOWN_ISSUES.md).
 
 ### 🔧 What Action Retro Found — And What We Fixed
 
-He booted it on a Pentium 3, a ThinkPad X1 Carbon, and an 11" Intel MacBook Air.
-It booted on all three. It then froze on all three, the mouse did nothing, and
-GRUB was "goofy" on every single machine. He was right on every count, and
-chasing those symptoms turned up five genuine bare-metal bugs:
+In the video, he booted an earlier revision on a Pentium 3, a ThinkPad X1
+Carbon, and an 11" Intel MacBook Air. That revision froze, had non-working
+mouse input, and had a confusing GRUB boot flow. Investigating those reports
+identified several bare-metal bugs:
 
 | What he saw | What was actually wrong | Status |
 |---|---|---|
