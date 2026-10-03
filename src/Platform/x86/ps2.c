@@ -305,7 +305,9 @@ static Boolean ps2_read_data_safe(uint8_t *out) {
 
 /* Send command to mouse (via second PS/2 port) */
 static Boolean ps2_mouse_command(uint8_t cmd) {
-    /* CRITICAL FIX: Use 0xD4 prefix for ALL mouse commands */
+    /* The controller routes the next data byte to the auxiliary port after
+     * receiving the 0xD4 command prefix.
+     */
     ps2_wait_input();
     outb(PS2_COMMAND_PORT, 0xD4);  /* Write to aux port command */
     ps2_wait_input();
@@ -687,7 +689,6 @@ Boolean InitPS2Controller(void) {
 
     /* PLATFORM_LOG_DEBUG("Initializing PS/2 controller...\n"); */
 
-    /* CRITICAL FIX #1: Unmask IRQ12 and IRQ2 in PIC */
     /* PLATFORM_LOG_DEBUG("PS2: Unmasking IRQ12 and IRQ2 in PIC...\n"); */
     uint8_t pic1_mask = inb(PIC1_DATA);
     uint8_t pic2_mask = inb(PIC2_DATA);
@@ -725,7 +726,6 @@ Boolean InitPS2Controller(void) {
     uint8_t config = ps2_read_data();
     /* PLATFORM_LOG_DEBUG("PS2: Initial config byte: 0x%02x\n", config); */
 
-    /* CRITICAL FIX #2: Set bit 1 to enable IRQ12 for mouse */
     config |= 0x02;  /* Enable mouse IRQ (bit 1) */
     config |= 0x01;  /* Enable keyboard IRQ (bit 0) */
     config &= ~0x20; /* Enable AUX port (clear bit 5) */
