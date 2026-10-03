@@ -36,7 +36,6 @@ OSErr PostEventWithModifiers(EventMask what, UInt32 message, UInt16 modifiers);
 
 /* Forward declarations */
 
-#include "SystemTypes.h"
 #include "EventManager/EventTypes.h"
 #include "EventManager/EventStructs.h"
 

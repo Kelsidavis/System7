@@ -82,7 +82,6 @@ extern "C" {
 #define NODE_INDEX          0
 #define NODE_HEADER         1
 
-#include "SystemTypes.h"
 #define NODE_MAP            2
 #define NODE_LEAF           0xFF
 

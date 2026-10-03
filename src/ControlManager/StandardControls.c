@@ -39,7 +39,6 @@
 #include "QuickDrawConstants.h"
 #include "FontManager/FontManager.h"
 #include "System71StdLib.h"
-#include "SystemTypes.h"
 
 /* External QuickDraw functions */
 extern void GetPort(GrafPtr* port);

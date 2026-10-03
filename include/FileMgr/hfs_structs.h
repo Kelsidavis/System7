@@ -22,7 +22,6 @@
 
 /* Forward declarations */
 
-#include "SystemTypes.h"
 
 /* HFS Constants */
 #define HFS_SIGNATURE           0x4244      /* 'BD' - HFS signature */

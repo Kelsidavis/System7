@@ -14,7 +14,6 @@
 
 #include "SystemTypes.h"
 
-#include "SystemTypes.h"
 
 #include "MenuManager.h"
 

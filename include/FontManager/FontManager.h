@@ -13,7 +13,6 @@
 /* Forward declarations */
 
 #include "FontTypes.h"
-#include "SystemTypes.h"
 
 #ifdef __cplusplus
 extern "C" {

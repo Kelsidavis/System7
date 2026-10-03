@@ -19,7 +19,6 @@
 #include "EventManager/EventManager.h"
 #include "QuickDraw/QuickDraw.h"
 #include "DialogManager/DialogManager.h"
-#include "SystemTypes.h"
 
 
 /* Tracking state */

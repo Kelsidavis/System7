@@ -21,7 +21,6 @@
 
 /* Forward declarations */
 
-#include "SystemTypes.h"
 
 /* Basic types are already defined in SystemTypes.h */
 /* No need to redefine short, long, etc. */

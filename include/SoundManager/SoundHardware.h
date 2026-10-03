@@ -15,7 +15,6 @@
 
 /* Forward declarations */
 
-#include "SystemTypes.h"
 
 #include "SoundTypes.h"
 
@@ -204,7 +203,6 @@ void AudioConvertChannels(SInt16* srcBuffer, UInt16 srcChannels,
 #define AUDIO_ERROR_MEMORY_ERROR       -7
 #define AUDIO_ERROR_HARDWARE_ERROR     -8
 
-#include "SystemTypes.h"
 #define AUDIO_ERROR_NOT_INITIALIZED    -9
 #define AUDIO_ERROR_ALREADY_RUNNING    -10
 #define AUDIO_ERROR_NOT_RUNNING        -11
@@ -225,10 +223,8 @@ extern const AudioFormat AUDIO_FORMAT_PHONE;       /* 8kHz, 8-bit, mono */
 #define AUDIO_CAP_REALTIME              0x20
 #define AUDIO_CAP_HARDWARE_VOLUME       0x40
 
-#include "SystemTypes.h"
 #define AUDIO_CAP_HARDWARE_MUTE         0x80
 
-#include "SystemTypes.h"
 
 /* Recording Device State */
 

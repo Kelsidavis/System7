@@ -13,7 +13,6 @@
 
 /* Forward declarations */
 
-#include "SystemTypes.h"
 
 /* Control Messages */
 enum {

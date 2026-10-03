@@ -5,7 +5,6 @@
 
 /* Forward declarations */
 
-#include "SystemTypes.h"
 
 #include "NotificationManager/NotificationManager.h"
 
@@ -64,10 +63,8 @@ extern "C" {
 #define ALERT_MIN_WIDTH             200     /* Minimum alert width */
 #define ALERT_MIN_HEIGHT            100     /* Minimum alert height */
 
-#include "SystemTypes.h"
 #define ALERT_BUTTON_HEIGHT         20      /* Standard button height */
 
-#include "SystemTypes.h"
 #define ALERT_BUTTON_WIDTH          60      /* Standard button width */
 #define ALERT_MARGIN                12      /* Alert margin */
 #define ALERT_SPACING               8       /* Element spacing */

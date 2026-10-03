@@ -5,7 +5,6 @@
 
 /* Forward declarations */
 
-#include "SystemTypes.h"
 
 /*
  * AlarmClock.h - Alarm Clock Desk Accessory

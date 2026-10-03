@@ -15,7 +15,6 @@
 
 /* Forward declarations */
 
-#include "SystemTypes.h"
 
 #include "SoundTypes.h"
 
@@ -90,7 +89,6 @@ OSErr MixerFadeChannel(MixerPtr mixer, UInt16 channel,
 #define MIDI_CC_LEGATO_FOOTSWITCH   68
 #define MIDI_CC_HOLD_2              69
 
-#include "SystemTypes.h"
 #define MIDI_CC_SOUND_VARIATION     70
 #define MIDI_CC_RESONANCE           71
 #define MIDI_CC_SOUND_RELEASE_TIME  72

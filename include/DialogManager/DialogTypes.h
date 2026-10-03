@@ -12,7 +12,6 @@
 
 /* Forward declarations */
 
-#include "SystemTypes.h"
 
 #ifdef __cplusplus
 extern "C" {

@@ -17,7 +17,6 @@
 
 /* Forward declarations */
 
-#include "SystemTypes.h"
 #include "SoundTypes.h"
 #include "SoundSynthesis.h"
 #include "SoundHardware.h"

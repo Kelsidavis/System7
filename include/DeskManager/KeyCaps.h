@@ -5,7 +5,6 @@
 
 /* Forward declarations */
 
-#include "SystemTypes.h"
 
 /*
  * KeyCaps.h - Key Caps Desk Accessory

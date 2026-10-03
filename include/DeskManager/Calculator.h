@@ -5,7 +5,6 @@
 
 /* Forward declarations */
 
-#include "SystemTypes.h"
 
 /*
  * Calculator.h - Calculator Desk Accessory
@@ -25,7 +24,6 @@
 #define CALC_MEMORY_SLOTS       10          /* Number of memory slots */
 #define CALC_HISTORY_SIZE       20          /* Calculation history size */
 
-#include "SystemTypes.h"
 
 /* Calculator Modes */
 typedef enum {

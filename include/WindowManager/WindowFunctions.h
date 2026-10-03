@@ -10,7 +10,6 @@
 
 /* Forward declarations */
 
-#include "SystemTypes.h"
 #include "WindowManager/WindowTypes.h"
 
 #ifdef __cplusplus

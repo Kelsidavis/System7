@@ -5,7 +5,6 @@
 
 /* Forward declarations */
 
-#include "SystemTypes.h"
 
 #include "NotificationManager/NotificationManager.h"
 #include "NotificationManager/SystemAlerts.h"

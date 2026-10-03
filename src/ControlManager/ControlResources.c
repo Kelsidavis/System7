@@ -19,7 +19,6 @@
 #include "ControlManager/ControlInternal.h"
 #include "MemoryMgr/MemoryManager.h"
 #include "ResourceMgr/resource_types.h"
-#include "SystemTypes.h"
 #include "System71StdLib.h"
 
 

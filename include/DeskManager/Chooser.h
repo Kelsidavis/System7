@@ -5,7 +5,6 @@
 
 /* Forward declarations */
 
-#include "SystemTypes.h"
 
 /*
  * Chooser.h - Chooser Desk Accessory

@@ -13,7 +13,6 @@
 
 /* Forward declarations */
 
-#include "SystemTypes.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -56,7 +55,6 @@ extern "C" {
 #define SCRAP_TYPE_RTF           FOURCC('R', 'T', 'F', ' ') /* Rich Text Format */
 #define SCRAP_TYPE_HTML          FOURCC('H', 'T', 'M', 'L') /* HTML markup */
 
-#include "SystemTypes.h"
 #define SCRAP_TYPE_PDF           FOURCC('P', 'D', 'F', ' ') /* PDF data */
 #define SCRAP_TYPE_PNG           FOURCC('P', 'N', 'G', ' ') /* PNG image */
 #define SCRAP_TYPE_JPEG          FOURCC('J', 'P', 'E', 'G') /* JPEG image */

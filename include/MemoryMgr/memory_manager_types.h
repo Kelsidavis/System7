@@ -29,7 +29,6 @@
 
 /* Forward declarations */
 
-#include "SystemTypes.h"
 
 /* Basic Mac OS types */
 /* Ptr is defined in MacTypes.h */

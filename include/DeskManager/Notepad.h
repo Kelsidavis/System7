@@ -15,7 +15,6 @@
 
 /* Forward declarations */
 
-#include "SystemTypes.h"
 #include "QuickDraw/QuickDraw.h"
 #include "WindowManager/WindowTypes.h"
 #include "TextEdit/TextEdit.h"

@@ -17,7 +17,6 @@
 
 /* Forward declarations */
 
-#include "SystemTypes.h"
 
 #include "SpeechManager.h"
 

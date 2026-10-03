@@ -13,7 +13,6 @@
 
 #include "SystemTypes.h"
 
-#include "SystemTypes.h"
 
 /* Core QuickDraw headers */
 #include "QuickDraw/QDTypes.h"
@@ -169,7 +168,6 @@ extern QDGlobals qd;
 #define QD_RECT_WIDTH(r)   ((r)->right - (r)->left)
 #define QD_RECT_HEIGHT(r)  ((r)->bottom - (r)->top)
 
-#include "SystemTypes.h"
 #define QD_POINT_IN_RECT(pt, r) PtInRect(pt, r)
 #define QD_RECT_EMPTY(r)   EmptyRect(r)
 
@@ -184,21 +182,16 @@ extern QDGlobals qd;
 /* Check if Color QuickDraw is available */
 #define QD_HAS_COLOR_QUICKDRAW 1
 
-#include "SystemTypes.h"
 
 /* Check if specific features are available */
 #define QD_HAS_32BIT_QUICKDRAW 1
 
-#include "SystemTypes.h"
 #define QD_HAS_OFFSCREEN_PIXMAPS 1
 
-#include "SystemTypes.h"
 #define QD_HAS_DEEP_MASKS 1
 
-#include "SystemTypes.h"
 #define QD_HAS_DEVICE_LOOP 1
 
-#include "SystemTypes.h"
 
 
 #ifdef __cplusplus

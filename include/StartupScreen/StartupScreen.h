@@ -15,7 +15,6 @@
 
 /* Forward declarations */
 
-#include "SystemTypes.h"
 #include "EventManager/EventTypes.h"
 #include "WindowManager/WindowTypes.h"
 #include <QuickDraw.h>

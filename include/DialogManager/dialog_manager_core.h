@@ -18,7 +18,6 @@
 /* Forward declarations */
 typedef struct DialogMgrGlobals DialogMgrGlobals;
 
-#include "SystemTypes.h"
 
 #ifdef __cplusplus
 extern "C" {

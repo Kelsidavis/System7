@@ -16,7 +16,6 @@
 
 /* Forward declarations */
 
-#include "SystemTypes.h"
 
 /* Basic Mac OS types from MacTypes.h */
 

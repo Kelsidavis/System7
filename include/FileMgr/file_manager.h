@@ -13,7 +13,6 @@
 
 /* Forward declarations */
 
-#include "SystemTypes.h"
 
 #include "hfs_structs.h"
 
@@ -46,10 +45,8 @@ typedef const unsigned char* ConstStringPtr;
 #define HFS_ROOT_PARENT_ID      1
 #define MAX_HFS_FILENAME        31
 
-#include "SystemTypes.h"
 #define MAX_HFS_VOLUME_NAME     27
 
-#include "SystemTypes.h"
 
 /* File Manager Trap Numbers (Evidence: ROM File Manager code trap dispatch table) */
 #define kHFSDispatch            0xA060

@@ -32,7 +32,6 @@ extern ControlHandle LoadControlFromResource(Handle cntlRes, WindowPtr owner);
 #include "ResourceMgr/resource_types.h"
 #include "ResourceManager.h"
 #include "MemoryMgr/MemoryManager.h"
-#include "SystemTypes.h"
 #include "System71StdLib.h"
 
 /* Logging helpers */

@@ -18,7 +18,6 @@
 
 /* Forward declarations */
 
-#include "SystemTypes.h"
 #include "EventManager/EventTypes.h"  /* Must include before WindowTypes.h to avoid activeFlag conflict */
 #include "WindowManager/WindowTypes.h"
 

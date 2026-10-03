@@ -11,7 +11,6 @@
 
 #include "SystemTypes.h"
 
-#include "SystemTypes.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -32,7 +31,6 @@ extern "C" {
 #define MENU_FLASH_ADDR         0x0A24
 #define MBAR_HEIGHT_ADDR        0x0BAA
 
-#include "SystemTypes.h"
 
 #define MENU_BAR_INVALID_BIT            6
 #define MENU_BAR_INVALID_BYTE           0x0B21

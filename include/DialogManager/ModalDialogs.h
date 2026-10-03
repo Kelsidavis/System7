@@ -12,7 +12,6 @@
 
 /* Forward declarations */
 
-#include "SystemTypes.h"
 
 #include "DialogTypes.h"
 

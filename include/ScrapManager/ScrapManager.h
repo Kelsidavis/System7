@@ -14,7 +14,6 @@
 /* Forward declarations */
 
 #include "ScrapTypes.h"
-#include "SystemTypes.h"
 
 #ifdef __cplusplus
 extern "C" {

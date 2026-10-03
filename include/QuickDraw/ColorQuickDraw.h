@@ -13,7 +13,6 @@
 
 #include "SystemTypes.h"
 
-#include "SystemTypes.h"
 
 #include "QuickDraw.h"
 

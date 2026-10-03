@@ -29,7 +29,6 @@
 
 #include "SystemTypes.h"
 
-#include "SystemTypes.h"
 
 #ifdef __cplusplus
 extern "C" {

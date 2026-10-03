@@ -6,7 +6,6 @@
 
 /* Forward declarations */
 
-#include "SystemTypes.h"
 
 /*
  * DeskManager.h - Main Desk Manager API

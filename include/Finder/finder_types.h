@@ -18,7 +18,6 @@
 
 #include "SystemTypes.h"
 
-#include "SystemTypes.h"
 #include "WindowManager/WindowTypes.h"
 #include "FileMgr/file_manager.h"
 #include "QuickDraw/QuickDraw.h"

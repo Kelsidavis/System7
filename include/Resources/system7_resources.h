@@ -10,7 +10,6 @@
 
 /* Forward declarations */
 
-#include "SystemTypes.h"
 
 /* Calculator Icon (32x32 black and white) - extracted from Calculator.rsrc */
 static const unsigned char calculator_icon[] = {
@@ -131,28 +130,20 @@ static const unsigned char watch_cursor[] = {
 /* Cursor hotspot definitions */
 #define ARROW_HOTSPOT_X 1
 
-#include "SystemTypes.h"
 #define ARROW_HOTSPOT_Y 1
 
-#include "SystemTypes.h"
 #define IBEAM_HOTSPOT_X 7
 
-#include "SystemTypes.h"
 #define IBEAM_HOTSPOT_Y 7
 
-#include "SystemTypes.h"
 #define CROSSHAIR_HOTSPOT_X 7
 
-#include "SystemTypes.h"
 #define CROSSHAIR_HOTSPOT_Y 7
 
-#include "SystemTypes.h"
 #define WATCH_HOTSPOT_X 8
 
-#include "SystemTypes.h"
 #define WATCH_HOTSPOT_Y 8
 
-#include "SystemTypes.h"
 
 /* Window Control Box Icons (7x7) */
 

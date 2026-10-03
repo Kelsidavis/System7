@@ -6,7 +6,6 @@
 
 /* Forward declarations */
 
-#include "SystemTypes.h"
 
 /*
  * DeskAccessory.h - Desk Accessory Structures and Management
@@ -44,7 +43,6 @@
 #define DA_FLAG_MODAL           0x0020      /* DA is modal */
 #define DA_FLAG_SYSTEM_HEAP     0x0040      /* DA uses system heap */
 
-#include "SystemTypes.h"
 
 /* DA Window Attributes */
 

@@ -15,7 +15,6 @@
 
 /* Forward declarations */
 
-#include "SystemTypes.h"
 #include "QuickDraw/QuickDraw.h"
 
 /* Include the extracted System 7 resources */
