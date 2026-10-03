@@ -32,7 +32,7 @@ We chose to continue. And everything changed.
 
 ---
 
-## Phase 2: The Experiment Years (2025–Present)
+## Phase 2: The Experiment Years (2025–July 2026 snapshot)
 
 The project shifted from **"Can we do this rigorously?"** to **"How far can we actually push System 7 compatibility?"**
 
@@ -106,9 +106,9 @@ The project shifted from **"Can we do this rigorously?"** to **"How far can we a
 
 ---
 
-## The Current State: A Sloppy But Functional Operating System
+## The State at the Time of Writing
 
-What you have now is **not** the research prototype anymore. It's more honest to call it:
+At that point, the project was no longer just the research prototype. It was more honest to call it:
 
 **A proof-of-concept that works in QEMU but is rough around the edges everywhere.**
 
@@ -298,14 +298,14 @@ All of these are valid.
 | Phase | Goal | Method | Reality | Status |
 |-------|------|--------|---------|--------|
 | **Research** (3 days) | Prove AI-assisted RE works | Disciplined, audited, evidence-first | ✅ Worked perfectly | Complete |
-| **Experiment** (ongoing) | See how far we can push it | Build fast, test in QEMU only | ⚠️ Works in emulation, untested bare metal | Sloppy |
-| **Legacy** (future?) | Preserve/educate about Mac OS | Documentation + community? | ❓ Too early to say | TBD |
+| **Experiment** (active at snapshot) | See how far we can push it | Build fast, test in QEMU only | ⚠️ Works in emulation, untested bare metal | Sloppy |
+| **Legacy** (future at snapshot) | Preserve/educate about Mac OS | Documentation + community? | ❓ Too early to say | TBD |
 
 **The honest progression:**
 - Phase 1: "Can we do this carefully?" → Yes, and we proved it
 - Phase 2: "What if we don't have to be so careful?" → More features, less testing, more problems
 - Phase 3: "Do we fix this or keep building?" → Unknown
 
-We're solidly in Phase 2. Got excited. Built too much. Tested too little. QEMU is not hardware. All the warnings applied.
+At the time of writing, the project was in Phase 2. The author felt it had grown quickly, with less testing than its research phase. QEMU is not hardware; the warnings still applied to that snapshot.
 
 **That's the real story.** And it matters because it's honest.
