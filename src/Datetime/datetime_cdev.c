@@ -9,6 +9,7 @@
 #include "Datetime/datetime_cdev.h"
 
 #include "ControlManager/ControlManager.h"
+#include "../ControlPanels/ControlPanelInternal.h"
 #include "ControlManager/ControlTypes.h"
 #include "MenuManager/MenuManager.h"
 #include "QuickDraw/QuickDraw.h"
@@ -320,14 +321,11 @@ static void ensure_controls(void)
 
 static void destroy_controls(void)
 {
-    if (gPanel.use24HourCheck) {
-        DisposeControl(gPanel.use24HourCheck);
-        gPanel.use24HourCheck = NULL;
-    }
-    if (gPanel.showSecondsCheck) {
-        DisposeControl(gPanel.showSecondsCheck);
-        gPanel.showSecondsCheck = NULL;
-    }
+    ControlHandle* controls[] = {
+        &gPanel.use24HourCheck,
+        &gPanel.showSecondsCheck
+    };
+    ControlPanel_DisposeControls(controls, sizeof(controls) / sizeof(controls[0]));
 }
 
 static void request_redraw(void)

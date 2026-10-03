@@ -14,6 +14,7 @@
 #include "ControlPanels/Sound.h"
 
 #include "ControlManager/ControlManager.h"
+#include "ControlPanelInternal.h"
 #include "ControlManager/ControlTypes.h"
 #include "QuickDraw/QuickDraw.h"
 #include "WindowManager/WindowManager.h"
@@ -34,18 +35,12 @@ static SoundPanelState gSoundState = {0};
 
 static void dispose_controls(void)
 {
-    if (gSoundState.volumeDownButton) {
-        DisposeControl(gSoundState.volumeDownButton);
-        gSoundState.volumeDownButton = NULL;
-    }
-    if (gSoundState.volumeUpButton) {
-        DisposeControl(gSoundState.volumeUpButton);
-        gSoundState.volumeUpButton = NULL;
-    }
-    if (gSoundState.muteCheckbox) {
-        DisposeControl(gSoundState.muteCheckbox);
-        gSoundState.muteCheckbox = NULL;
-    }
+    ControlHandle* controls[] = {
+        &gSoundState.volumeDownButton,
+        &gSoundState.volumeUpButton,
+        &gSoundState.muteCheckbox
+    };
+    ControlPanel_DisposeControls(controls, sizeof(controls) / sizeof(controls[0]));
 }
 
 static void ensure_controls(void)

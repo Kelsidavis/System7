@@ -14,6 +14,7 @@
 #include "ControlPanels/Mouse.h"
 
 #include "ControlManager/ControlManager.h"
+#include "ControlPanelInternal.h"
 #include "ControlManager/ControlTypes.h"
 #include "QuickDraw/QuickDraw.h"
 #include "WindowManager/WindowManager.h"
@@ -36,22 +37,13 @@ static MousePanelState gMouseState = {0};
 
 static void dispose_controls(void)
 {
-    if (gMouseState.slowerButton) {
-        DisposeControl(gMouseState.slowerButton);
-        gMouseState.slowerButton = NULL;
-    }
-    if (gMouseState.fasterButton) {
-        DisposeControl(gMouseState.fasterButton);
-        gMouseState.fasterButton = NULL;
-    }
-    if (gMouseState.swapCheckbox) {
-        DisposeControl(gMouseState.swapCheckbox);
-        gMouseState.swapCheckbox = NULL;
-    }
-    if (gMouseState.doubleClickCheckbox) {
-        DisposeControl(gMouseState.doubleClickCheckbox);
-        gMouseState.doubleClickCheckbox = NULL;
-    }
+    ControlHandle* controls[] = {
+        &gMouseState.slowerButton,
+        &gMouseState.fasterButton,
+        &gMouseState.swapCheckbox,
+        &gMouseState.doubleClickCheckbox
+    };
+    ControlPanel_DisposeControls(controls, sizeof(controls) / sizeof(controls[0]));
 }
 
 static void ensure_controls(void)

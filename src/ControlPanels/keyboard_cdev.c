@@ -14,6 +14,7 @@
 #include "ControlPanels/Keyboard.h"
 
 #include "ControlManager/ControlManager.h"
+#include "ControlPanelInternal.h"
 #include "ControlManager/ControlTypes.h"
 #include "QuickDraw/QuickDraw.h"
 #include "WindowManager/WindowManager.h"
@@ -37,26 +38,14 @@ static KeyboardPanelState gKeyboardState = {0};
 
 static void dispose_controls(void)
 {
-    if (gKeyboardState.repeatSlower) {
-        DisposeControl(gKeyboardState.repeatSlower);
-        gKeyboardState.repeatSlower = NULL;
-    }
-    if (gKeyboardState.repeatFaster) {
-        DisposeControl(gKeyboardState.repeatFaster);
-        gKeyboardState.repeatFaster = NULL;
-    }
-    if (gKeyboardState.delayShorter) {
-        DisposeControl(gKeyboardState.delayShorter);
-        gKeyboardState.delayShorter = NULL;
-    }
-    if (gKeyboardState.delayLonger) {
-        DisposeControl(gKeyboardState.delayLonger);
-        gKeyboardState.delayLonger = NULL;
-    }
-    if (gKeyboardState.beepCheckbox) {
-        DisposeControl(gKeyboardState.beepCheckbox);
-        gKeyboardState.beepCheckbox = NULL;
-    }
+    ControlHandle* controls[] = {
+        &gKeyboardState.repeatSlower,
+        &gKeyboardState.repeatFaster,
+        &gKeyboardState.delayShorter,
+        &gKeyboardState.delayLonger,
+        &gKeyboardState.beepCheckbox
+    };
+    ControlPanel_DisposeControls(controls, sizeof(controls) / sizeof(controls[0]));
 }
 
 static void ensure_controls(void)
