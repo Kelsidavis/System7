@@ -7,6 +7,7 @@
 
 #include <string.h>
 #include "Apps/SimpleText.h"
+#include "DeskManager/DeskManager.h"
 #include "System71StdLib.h"
 #include "DialogManager/DITLBuilder.h"
 #include "MemoryMgr/MemoryManager.h"
@@ -621,7 +622,6 @@ Boolean ST_ConfirmClose(STDocument* doc) {
     extern Boolean DialogSelect(const EventRecord*, DialogPtr*, short*);
     extern void ShowWindow(WindowPtr);
     extern Boolean GetNextEvent(EventMask, EventRecord*);
-    extern void SystemTask(void);
 
     if (!doc) return true;
 
@@ -730,7 +730,6 @@ void ST_ShowAbout(void) {
     extern Boolean DialogSelect(const EventRecord*, DialogPtr*, short*);
     extern void ShowWindow(WindowPtr);
     extern Boolean GetNextEvent(EventMask, EventRecord*);
-    extern void SystemTask(void);
 
     /* Built through DITLBuilder: see ST_ConfirmClose for why nothing here lays
      * item bytes down by hand any more. */

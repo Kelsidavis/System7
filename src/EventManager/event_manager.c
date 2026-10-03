@@ -9,6 +9,7 @@
  */
 
 #include "SystemTypes.h"
+#include "DeskManager/DeskManager.h"
 #include "EventManager/EventTypes.h"
 #include "EventManager/EventManager.h"
 #include "EventManager/EventManagerInternal.h"
@@ -94,7 +95,6 @@ Boolean WaitNextEvent(short eventMask, EventRecord* theEvent, UInt32 sleep, RgnH
 
         /* Run system tasks (clock update, DA idle) during wait */
         {
-            extern void SystemTask(void);
             SystemTask();
         }
 

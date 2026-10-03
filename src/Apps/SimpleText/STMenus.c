@@ -8,6 +8,7 @@
 #include <string.h>
 #include "System71StdLib.h"
 #include "Apps/SimpleText.h"
+#include "DeskManager/DeskManager.h"
 #include "MemoryMgr/MemoryManager.h"
 #include "EventManager/EventManager.h"
 #include "DialogManager/DialogManager.h"
@@ -532,7 +533,6 @@ void STFind_ShowDialog(STDocument* doc) {
     if (!doc || !doc->hTE) return;
 
     extern void ShowWindow(WindowPtr);
-    extern void SystemTask(void);
 
     /*
      * Built through DITLBuilder rather than by hand.

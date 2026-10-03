@@ -14,6 +14,7 @@
  */
 
 #include "SystemTypes.h"
+#include "DeskManager/DeskManager.h"
 #include "System71StdLib.h"
 #include "QuickDraw.h"
 #include "QuickDraw/ColorQuickDraw.h"
@@ -937,7 +938,6 @@ void FlashMenuItem(MenuHandle theMenu, short item, short flashes)
     }
 
     /* Flash multiple times by redrawing item with highlight toggled */
-    extern void SystemTask(void);
 
     for (short i = 0; i < flashes; i++) {
         /* Draw highlighted */

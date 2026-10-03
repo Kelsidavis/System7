@@ -10,6 +10,7 @@
 
 #include "OSUtils/OSUtils.h"
 #include "SystemTypes.h"
+#include "DeskManager/DeskManager.h"
 #include "System71StdLib.h"
 #include "TimeManager/TimeBase.h"
 #include <time.h>
@@ -271,7 +272,6 @@ void Delay(UInt32 numTicks, UInt32* finalTicks) {
      * Note: Not suitable for precise timing due to cooperative scheduling
      * overhead. For animations, use actual elapsed time calculations.
      */
-    extern void SystemTask(void);
 
     /* Until the ticks have passed, however long each SystemTask takes. The
      * difference is unsigned, so the counter wrapping does not end it early.

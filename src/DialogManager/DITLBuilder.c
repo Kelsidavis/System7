@@ -21,21 +21,16 @@
  */
 
 #include "SystemTypes.h"
+#include "DeskManager/DeskManager.h"
 #include "System71StdLib.h"
 #include "MemoryMgr/MemoryManager.h"
 #include "QuickDraw/QuickDraw.h"   /* SetRect - was being called undeclared */
-#include "EventManager/EventTypes.h"
+#include "EventManager/EventManager.h"
 #include "DialogManager/DITLBuilder.h"
+#include "DialogManager/DialogManager.h"
 
 /* Header bytes before an item's data: 4 handle + 8 rect + 1 type + 1 length. */
 #define kDITLItemHeaderSize 14
-
-extern void DrawDialog(DialogPtr theDialog);
-extern Boolean IsDialogEvent(const EventRecord* theEvent);
-extern Boolean DialogSelect(const EventRecord* theEvent, DialogPtr* theDialog, SInt16* itemHit);
-extern Boolean GetNextEvent(short eventMask, EventRecord* theEvent);
-extern void SystemTask(void);
-extern void EventPumpYield(void);
 
 Boolean DITL_Begin(DITLBuilder* b, Size capacity)
 {

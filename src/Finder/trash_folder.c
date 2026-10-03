@@ -14,6 +14,7 @@
  */
 
 #include "SystemTypes.h"
+#include "DeskManager/DeskManager.h"
 #include "System71StdLib.h"
 
 #include "Finder/finder.h"
@@ -429,7 +430,6 @@ static Boolean IsItemLocked(FSSpec *item)
 static OSErr ConfirmEmptyTrash(Boolean *confirmed)
 {
     extern void ShowWindow(WindowPtr);
-    extern void SystemTask(void);
     extern void EventPumpYield(void);
 
     if (!confirmed) return paramErr;

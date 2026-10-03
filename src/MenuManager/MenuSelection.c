@@ -11,6 +11,7 @@
 
 #include <string.h>
 #include "SystemTypes.h"
+#include "DeskManager/DeskManager.h"
 #include "System71StdLib.h"
 #include "MemoryMgr/MemoryManager.h"
 #include "MenuManager/menu_private.h"
@@ -1140,7 +1141,6 @@ static void GetCurrentMouseState(Point* mousePt, Boolean* buttonDown, unsigned l
  */
 static Boolean WaitForMouseChange(unsigned long timeout)
 {
-    extern void SystemTask(void);
 
     Point startPt, currentPt;
     Boolean startMouseDown, currentMouseDown;

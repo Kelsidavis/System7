@@ -11,6 +11,7 @@
 #include <string.h>
 
 #include "M68KToolboxInternal.h"
+#include "DeskManager/DeskManager.h"
 #include "WindowManager/WindowManager.h"
 #include "ResourceManager.h"
 #include "QuickDraw/QuickDraw.h"
@@ -19,7 +20,6 @@
 
 extern void GetMouseLocal(Point* pt);     /* the current port's coordinates */
 extern Boolean StillDown(void);
-extern void SystemTask(void);
 extern void InvalRect(const Rect* r);
 
 static WindowPtr PopWindow(void) {

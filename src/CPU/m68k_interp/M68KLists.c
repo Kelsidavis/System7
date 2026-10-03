@@ -20,6 +20,7 @@
 
 #include <string.h>
 #include "M68KToolboxInternal.h"
+#include "DeskManager/DeskManager.h"
 #include "QuickDraw/QuickDraw.h"
 #include "ControlManager/ControlManager.h"
 #include "ControlManager/ControlTypes.h"
@@ -32,7 +33,6 @@
 #include "TimeManager/TimeBase.h"
 
 extern UInt32 GetDblTime(void);
-extern void SystemTask(void);
 extern void GetMouseLocal(Point* pt);     /* the current port's coordinates */
 
 /* ListRec (IM IV-262) */

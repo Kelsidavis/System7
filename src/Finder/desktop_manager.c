@@ -16,6 +16,7 @@
  */
 
 #include "SystemTypes.h"
+#include "DeskManager/DeskManager.h"
 #include <string.h>
 #include <stdlib.h>  /* For abs() */
 
@@ -1089,7 +1090,6 @@ static inline void GhostShowAt(const Rect* r)
  */
 static void DesktopYield(void)
 {
-    extern void SystemTask(void);
     extern void ProcessModernInput(void);
 
     /* Don't call EventPumpYield() here - it can cause re-entrancy issues during drag.
