@@ -20,6 +20,7 @@
 #include "DialogManager/DialogResourceParser.h"
 #include <assert.h>
 #include "DialogManager/DialogLogging.h"
+#include "TimeManager/TimeBase.h"
 
 
 /* Private structures for item management */
@@ -44,7 +45,6 @@ static struct {
 extern DialogManagerState* GetDialogManagerState(void);
 extern OSErr ValidateDialogPtr(DialogPtr dialog);
 extern void InvalRect(const Rect* rect);
-extern UInt32 TickCount(void);
 
 /* Private function prototypes */
 static DialogItemCache* GetDialogItemCache(DialogPtr theDialog);

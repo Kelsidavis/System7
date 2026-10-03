@@ -19,6 +19,7 @@
 #include "QuickDrawConstants.h"
 #include "System71StdLib.h"
 #include "DialogManager/DialogLogging.h"
+#include "TimeManager/TimeBase.h"
 
 /* Logging helpers */
 #define DM_LOG_DEBUG(fmt, ...) serial_logf(kLogModuleDialog, kLogLevelDebug, "[DM] " fmt, ##__VA_ARGS__)
@@ -42,7 +43,6 @@ extern void SetClip(RgnHandle rgn);
 extern void ClipRect(const Rect* r);
 extern RgnHandle NewRgn(void);
 extern void DisposeRgn(RgnHandle rgn);
-extern UInt32 TickCount(void);
 extern struct QDGlobals qd;
 
 /* Focus tracking - simple per-window storage */

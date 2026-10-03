@@ -15,6 +15,7 @@
 #include "DialogManager/DialogManagerInternal.h"
 #include "DialogManager/DialogItems.h"
 #include "DialogManager/DialogLogging.h"
+#include "TimeManager/TimeBase.h"
 
 /* DialogGlobals and DialogManagerState are now defined in DialogManagerInternal.h */
 
@@ -25,7 +26,6 @@ extern void PenSize(SInt16 width, SInt16 height);
 extern void PenNormal(void);
 extern Boolean StillDown(void);
 extern void GetMouse(Point* mouseLoc);
-extern UInt32 TickCount(void);
 
 /* Global to track which edit field has focus */
 static DialogPtr gFocusDialog = NULL;

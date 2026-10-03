@@ -25,10 +25,10 @@
 #include "ControlManager/ControlManager.h"
 #include "ControlManager/ControlTypes.h"
 #include "DialogManager/DialogLogging.h"
+#include "TimeManager/TimeBase.h"
 
 /* External dependencies */
 extern void SysBeep(SInt16 duration);
-extern UInt32 TickCount(void);
 extern void ShowWindow(WindowPtr window);
 /* NewHandleClear, DisposeHandle, HLock, HUnlock now provided by MemoryManager.h */
 extern ControlHandle _GetFirstControl(WindowPtr window);

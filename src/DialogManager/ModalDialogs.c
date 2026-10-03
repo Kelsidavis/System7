@@ -21,6 +21,7 @@
 #include "DialogManager/dialog_manager_private.h"
 #include <stdbool.h>
 #include "DialogManager/DialogLogging.h"
+#include "TimeManager/TimeBase.h"
 
 /* Event constants - matching Mac System 7.1 */
 #define kDialogEvent_Null         0
@@ -68,7 +69,6 @@
 /* External functions that need to be linked */
 extern Boolean GetNextEvent(SInt16 eventMask, EventRecord* theEvent);
 extern void SystemTask(void);
-extern UInt32 TickCount(void);
 extern void Delay(UInt32 ticks, UInt32* finalTicks);
 
 /* Private state for modal dialog processing */

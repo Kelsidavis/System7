@@ -21,9 +21,9 @@
 #include "DialogManager/DialogLogging.h"
 #include "MemoryMgr/MemoryManager.h"
 #include "TextEdit/TextEdit.h"
+#include "TimeManager/TimeBase.h"
 
 /* External dependencies */
-extern UInt32 TickCount(void);
 extern void InvalDialogItem(DialogPtr theDialog, SInt16 itemNo);
 extern void DrawDialogItem(DialogPtr theDialog, SInt16 itemNo);
 extern DialogManagerState* GetDialogManagerState(void);
