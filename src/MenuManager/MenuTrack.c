@@ -308,12 +308,9 @@ static void DrawMenuItemRowContents(MenuHandle theMenu, short i, short left, sho
     Style textStyle = normal;
     uint32_t ink = highlighted ? 0xFFFFFFFF : 0xFF000000;
 
-    /* A divider is a grey line across the menu, not its text. This renderer
-     * previously drew every item as plain text, so the Finder's dividers
-     * appeared as a literal "-" (and, before the metacharacter fix, as "(-",
-     * which reads on screen as a left arrow). MenuDisplay.c has a full item
-     * renderer with dividers, marks and icons, but nothing calls it; this is
-     * the live path. */
+    /* A divider is a grey line across the menu, not its text. This tracked
+     * path draws the stroke directly to preserve its row geometry; the
+     * alternative MenuDisplay renderer has its own separator path. */
     if (CheckMenuItemSeparator(theMenu, i)) {
         DrawMenuRect(left + 1, itemTop + lineHeight / 2,
                      left + menuWidth - 1, itemTop + lineHeight / 2 + 1,
