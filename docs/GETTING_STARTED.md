@@ -66,7 +66,7 @@ gdb kernel.elf -ex "target remote :1234"
 ```bash
 make                         # the kernel, x86, English
 make LOCALE_FR=1             # with French as well
-make LOCALE_ALL=1            # with all 38 languages; choose with lang=xx at boot
+make LOCALE_ALL=1            # English plus all 37 locales (38 languages total); choose with lang=xx at boot
 make PLATFORM=arm64          # ARM64 kernel for QEMU's virt machine
 make INTEGRATION_TESTS=1     # with the integration tests, which run at boot
                              # and report PASS/FAIL on the serial port

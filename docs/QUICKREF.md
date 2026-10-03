@@ -24,7 +24,7 @@ make INTEGRATION_TESTS=1 && make iso   # integration tests run at boot
 
 ```bash
 make LOCALE_FR=1        # English plus French
-make LOCALE_ALL=1       # all 38; choose one at boot with lang=xx
+make LOCALE_ALL=1       # English plus all 37 locales (38 languages total); choose with lang=xx
 ```
 
 ## Debugging

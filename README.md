@@ -238,7 +238,7 @@ make PLATFORM=ppc        # experimental; requires PowerPC ELF toolchain
 # Create bootable ISO
 make iso
 
-# Languages: English is always built in; add one, or all 38
+# Languages: English is built in; add one locale, or all 37 additional locales (38 total)
 make LOCALE_FR=1
 make LOCALE_ALL=1
 
