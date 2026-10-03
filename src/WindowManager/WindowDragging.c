@@ -162,7 +162,6 @@ void DragWindow(WindowPtr theWindow, Point startPt, const Rect* boundsRect) {
     if (boundsRect) {
         dragBounds = *boundsRect;
     } else {
-        extern QDGlobals qd;
         dragBounds.top = 20;     /* menubar height */
         dragBounds.left = qd.screenBits.bounds.left;
         dragBounds.bottom = qd.screenBits.bounds.bottom;

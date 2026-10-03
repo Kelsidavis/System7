@@ -10,6 +10,7 @@
 #include <string.h>
 #include "SystemTypes.h"
 #include "System71StdLib.h"
+#include "QuickDraw/QuickDraw.h"
 #include "QuickDrawConstants.h"
 #include "MemoryMgr/MemoryManager.h"
 #include "DialogManager/DialogManager.h"
@@ -43,9 +44,6 @@ extern short TextWidth(const void* textBuf, short firstByte, short byteCount);
 
 /* External Window Manager dependencies */
 extern void InvalRect(const Rect* rect);
-
-/* QuickDraw globals */
-extern QDGlobals qd;
 
 /* Dialog Manager state access */
 extern DialogManagerState* GetDialogManagerState(void);

@@ -17,7 +17,6 @@
 #include "QuickDrawConstants.h"   /* patXor */
 #include "System71StdLib.h"
 
-extern QDGlobals qd;
 extern void GetMouseLocal(Point* pt);     /* the current port's coordinates */
 extern Boolean StillDown(void);
 extern void SystemTask(void);

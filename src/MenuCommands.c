@@ -941,7 +941,6 @@ static void HandleSpecialMenu(short item)
             /* Display restart message before rebooting */
             {
                 extern void hal_framebuffer_present(void);
-                extern QDGlobals qd;
 
                 Pattern grayPat;
                 for (int i = 0; i < 8; i++)
@@ -978,7 +977,6 @@ static void HandleSpecialMenu(short item)
              * shutdown screen before halting. */
             {
                 extern void hal_framebuffer_present(void);
-                extern QDGlobals qd;
 
                 /* Fill entire screen with gray pattern */
                 Pattern grayPat;

@@ -24,10 +24,10 @@
 #include "StandardFile/StandardFile.h"
 #include "FS/vfs.h"
 #include "MemoryMgr/MemoryManager.h"
+#include "QuickDraw.h"
 #include "QuickDrawConstants.h"
 #include "System71StdLib.h"
 
-extern QDGlobals qd;
 extern void GetMouseLocal(Point* mouseLoc);
 extern Boolean HandleUpdate(EventRecord* event);
 extern void Finder_InstallMenuBar(void);

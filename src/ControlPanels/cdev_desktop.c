@@ -27,7 +27,6 @@
 #include "TimeManager/TimeBase.h"
 #include <string.h>
 
-extern QDGlobals qd;
 
 #define pushButProc   0
 #define scrollBarProc 16

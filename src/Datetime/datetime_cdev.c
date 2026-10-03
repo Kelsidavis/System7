@@ -21,7 +21,6 @@
 #include <string.h>
 #include <time.h>
 
-extern QDGlobals qd;
 
 /* ----------------------------------------------------------------------------
  * Helpers

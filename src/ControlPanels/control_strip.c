@@ -24,7 +24,6 @@
 #include "FontManager/FontInternal.h"
 #include "EventManager/EventManager.h"
 
-extern QDGlobals qd;
 
 typedef struct ControlStripState {
     Boolean isVisible;

@@ -32,7 +32,6 @@
 #include "FS/vfs.h"
 #include "TimeManager/TimeBase.h"
 
-extern QDGlobals qd;
 extern UInt32 GetDblTime(void);
 extern void SysBeep(short duration);
 extern void InitCursor(void);

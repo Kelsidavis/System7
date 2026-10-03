@@ -33,7 +33,6 @@ static struct {
 } gPM;
 
 /* External QuickDraw globals */
-extern QDGlobals qd;
 
 void PM_Init(void) {
     if (gPM.initialized) return;

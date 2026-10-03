@@ -22,7 +22,6 @@ extern void FrameRect(const Rect* r);
 extern void PaintRect(const Rect* r);
 
 /* External globals */
-extern QDGlobals qd;
 extern void QD_SetScreenPort(void);
 extern void EraseRect(const Rect* r);
 extern void InsetRect(Rect* r, short dh, short dv);
@@ -307,7 +306,6 @@ void PaintOne(WindowPtr window, RgnHandle clobberedRgn) {
 
         {
             extern void FillRgn(RgnHandle rgn, const Pattern* pat);
-            extern QDGlobals qd;
 
             if (window->refCon == 0x4449534b && window->contRgn && *(window->contRgn)) {
                 extern void serial_puts(const char *str);
@@ -320,7 +318,6 @@ void PaintOne(WindowPtr window, RgnHandle clobberedRgn) {
                 serial_puts(filldbg);
 
                 /* Log the current port state when filling */
-                extern QDGlobals qd;
                 GrafPtr currentPort = qd.thePort;
                 if (currentPort) {
                     extern void* framebuffer;

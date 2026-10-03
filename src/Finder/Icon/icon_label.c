@@ -248,7 +248,6 @@ static void DrawLabelLine(const char* s, int len, int cx, int topY, bool selecte
      * Nudging the label back inside is the lesser evil: slightly off-centre
      * beats truncated and unreadable. */
     {
-        extern QDGlobals qd;
         GrafPtr port = qd.thePort;
         if (port) {
             int minX = port->portRect.left + padding;

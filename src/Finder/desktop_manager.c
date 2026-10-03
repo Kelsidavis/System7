@@ -88,7 +88,6 @@ enum { kGridW = 8, kGridH = 12, kIconW = 32, kIconH = 32 };
 #define kDragThreshold 4
 
 /* External globals */
-extern QDGlobals qd;
 extern void QD_SetScreenPort(void);  /* QuickDraw globals from main.c */
 extern void* framebuffer;
 extern uint32_t fb_width, fb_height;
@@ -905,7 +904,6 @@ static OSErr AllocateDesktopIcons(void)
  */
 static Point SnapToGrid(Point p)
 {
-    extern QDGlobals qd;
 
     /* Round to nearest grid */
     p.h = ((p.h + kGridW / 2) / kGridW) * kGridW;
@@ -1965,7 +1963,6 @@ Boolean HandleDesktopClick(Point clickPoint, Boolean doubleClick)
     }
 
     /* Ensure we're in screen port for global coordinate hit testing */
-    extern QDGlobals qd;
     GrafPtr savePort;
     GetPort(&savePort);
     QD_SetScreenPort();

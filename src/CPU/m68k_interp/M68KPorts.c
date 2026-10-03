@@ -27,7 +27,6 @@
 #include "MemoryMgr/MemoryManager.h"
 #include "System71StdLib.h"
 
-extern QDGlobals qd;
 
 enum { kMaxPorts = 32 };
 

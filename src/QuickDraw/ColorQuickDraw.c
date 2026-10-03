@@ -25,9 +25,6 @@
 /* Platform abstraction layer */
 #include "QuickDraw/QuickDrawPlatform.h"
 
-/* QuickDraw globals from QuickDrawCore.c */
-extern QDGlobals qd;
-
 /* Color QuickDraw globals */
 static Boolean g_colorQDAvailable = false;
 CGrafPtr g_currentCPort = NULL;  /* Exported for QDPlatform_DrawGlyph */
@@ -890,7 +887,6 @@ void PlotCIcon(const Rect *theRect, CIconHandle theIcon) {
 
     /* For ICN# resources: 32x32 1-bit icon (128 bytes image + 128 bytes mask)
      * Render to current port using direct pixel setting */
-    extern QDGlobals qd;
     GrafPtr port = qd.thePort;
     if (!port) return;
 

@@ -30,15 +30,13 @@
 #include "DialogManager/DialogTypes.h"
 #include "WindowManager/WindowTypes.h"
 #include "WindowManager/WindowManager.h"
+#include "QuickDraw.h"
 #include "FS/vfs.h"
 #include "StandardFile/StandardFile.h"
 #include "System71StdLib.h"
 #include "ToolboxCompat.h"
 #include "Finder/AboutThisMac.h"
 #include "Finder/FinderLogging.h"
-
-/* External globals */
-extern QDGlobals qd;  /* QuickDraw globals from main.c */
 
 /* Global Variables */
 static Boolean gFinderInitialized = false;
@@ -722,7 +720,6 @@ Boolean Finder_HandleKey(EventRecord* event) {
         if (charCode == '3' && (event->modifiers & shiftKey)) {
             extern void SysBeep(short duration);
             extern void InvertRect(const Rect* r);
-            extern QDGlobals qd;
             extern void hal_framebuffer_present(void);
 
             /* Flash the screen white (visual feedback for screenshot) */

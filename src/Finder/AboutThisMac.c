@@ -66,8 +66,6 @@ extern UInt32 TotalRam(void);  /* Platform may provide this */
 extern uint32_t g_total_memory_kb;  /* Actual detected RAM from multiboot2 */
 
 /* Serial logging */
-/* QuickDraw globals access */
-extern QDGlobals qd;
 
 /* Window definition constants */
 #define documentProc 0

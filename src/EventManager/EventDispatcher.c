@@ -399,7 +399,6 @@ Boolean HandleMouseDown(EventRecord* event)
                  * Command is held */
 
                 /* Set up drag bounds (entire screen minus menu bar) */
-                extern QDGlobals qd;
                 dragBounds.top = 20;     /* Below menu bar */
                 dragBounds.left = qd.screenBits.bounds.left;
                 dragBounds.bottom = qd.screenBits.bounds.bottom;

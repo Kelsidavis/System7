@@ -20,7 +20,6 @@
 #include "QuickDraw/QuickDraw.h"
 #include "System71StdLib.h"
 
-extern QDGlobals qd;
 
 enum { kPortSize = 108, kWindowSize = 156, kDialogSize = 170, kControlSize = 296,
        kMaxObjects = 512 };

@@ -147,9 +147,6 @@ extern "C" {
  * - Invalid parameters are caught by assertions in debug builds
  */
 
-/* Global QuickDraw structure access */
-extern QDGlobals qd;
-
 /* Quick access macros for common patterns */
 #define QD_WHITE_PATTERN   (&qd.white)
 #define QD_BLACK_PATTERN   (&qd.black)

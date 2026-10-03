@@ -167,7 +167,6 @@ Boolean Platform_InitializePort(GrafPtr port) {
     RectRgn(port->visRgn, &port->portRect);
 
     /* Initialize patterns - use memcpy to avoid struct assignment */
-    extern QDGlobals qd;
     memcpy(&port->bkPat, &qd.white, sizeof(Pattern));
     memcpy(&port->fillPat, &qd.black, sizeof(Pattern));
     port->pnLoc.h = 0;
@@ -186,7 +185,6 @@ void Platform_GetScreenBounds(Rect* bounds) {
         /* The screen as it is. This answered a fixed 640x480, so on a
          * larger screen dialogs were centred in its top left corner,
          * windows were kept inside it, and zooming filled only that. */
-        extern QDGlobals qd;
         *bounds = qd.screenBits.bounds;
     }
 }

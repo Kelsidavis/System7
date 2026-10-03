@@ -53,7 +53,6 @@ extern void GetPort(GrafPtr* port);
 extern void SetPort(GrafPtr port);
 extern UInt32 GetDblTime(void);
 /* PostEvent declared in EventManager.h */
-extern QDGlobals qd;
 extern void GetMouse(Point* pt);
 extern volatile UInt8 gCurrentButtons;
 extern short FindWindow(Point thePoint, WindowPtr* theWindow);

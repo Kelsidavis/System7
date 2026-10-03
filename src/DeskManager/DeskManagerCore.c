@@ -233,7 +233,6 @@ void SystemClick(const EventRecord *event, WindowRecord *window)
     extern void DragWindow(WindowPtr theWindow, Point startPt, const Rect* boundsRect);
     extern Boolean TrackGoAway(WindowPtr theWindow, Point thePt);
     extern void SelectWindow(WindowPtr theWindow);
-    extern QDGlobals qd;
 
     short part = Platform_WindowHitTest(window, event->where);
 

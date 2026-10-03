@@ -19,7 +19,6 @@
 #include "WindowManager/WindowManager.h"
 #include "FontManager/FontInternal.h"
 
-extern QDGlobals qd;
 
 typedef struct MousePanelState {
     Boolean isOpen;

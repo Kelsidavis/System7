@@ -23,9 +23,6 @@
 #include "MemoryMgr/MemoryManager.h"
 #include "SoundManager/SoundManager.h"
 
-/* External QuickDraw globals */
-extern QDGlobals qd;
-
 /* Global Notepad state */
 static NotePadGlobals *gNotepad = NULL;
 

@@ -35,7 +35,6 @@ extern void PictureRecordEraseOval(const Rect *r);
 extern void PictureRecordInvertOval(const Rect *r);
 
 /* QuickDraw Globals */
-extern QDGlobals qd;  /* Global QD from main.c */
 static QDGlobalsPtr g_currentQD = &qd;
 static Boolean g_qdInitialized = false;
 GrafPtr g_currentPort = NULL;  /* Shared with Coordinates.c */
