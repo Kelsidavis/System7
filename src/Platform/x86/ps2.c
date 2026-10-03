@@ -144,10 +144,7 @@ uint8_t GetMouseButtonsLatched(void) {
     return level;
 }
 
-void UpdateMouseStateDelta(SInt16 dx, SInt16 dy, UInt8 buttons) {
-    g_mouseState.x += dx;
-    g_mouseState.y += dy;
-
+static void publish_mouse_state(UInt8 buttons) {
     if (g_mouseState.x < 0) g_mouseState.x = 0;
     if (g_mouseState.y < 0) g_mouseState.y = 0;
     if (fb_width > 0 && g_mouseState.x >= (int16_t)fb_width) g_mouseState.x = fb_width - 1;
@@ -158,18 +155,16 @@ void UpdateMouseStateDelta(SInt16 dx, SInt16 dy, UInt8 buttons) {
     g_mousePos.v = g_mouseState.y;
 }
 
+void UpdateMouseStateDelta(SInt16 dx, SInt16 dy, UInt8 buttons) {
+    g_mouseState.x += dx;
+    g_mouseState.y += dy;
+    publish_mouse_state(buttons);
+}
+
 void UpdateMouseStateAbsolute(SInt16 x, SInt16 y, UInt8 buttons) {
     g_mouseState.x = x;
     g_mouseState.y = y;
-
-    if (g_mouseState.x < 0) g_mouseState.x = 0;
-    if (g_mouseState.y < 0) g_mouseState.y = 0;
-    if (fb_width > 0 && g_mouseState.x >= (int16_t)fb_width) g_mouseState.x = fb_width - 1;
-    if (fb_height > 0 && g_mouseState.y >= (int16_t)fb_height) g_mouseState.y = fb_height - 1;
-
-    g_mouseState.buttons = buttons;
-    g_mousePos.h = g_mouseState.x;
-    g_mousePos.v = g_mouseState.y;
+    publish_mouse_state(buttons);
 }
 
 /* Keyboard state */
