@@ -19,7 +19,6 @@
 #include "ControlManager/ControlInternal.h"
 #include "MemoryMgr/MemoryManager.h"
 #include "ResourceMgr/resource_types.h"
-#include "System71StdLib.h"
 
 
 /* Internal CNTL template representation */

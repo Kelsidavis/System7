@@ -1622,7 +1622,6 @@ int rand(void) {
 #define outb(port, value) hal_outb(port, value)
 
 #if defined(__arm__) || defined(__aarch64__)
-#include <stdint.h>
 static uintptr_t g_pl011_uart_base = 0x09000000u;
 static inline volatile uint32_t* pl011_reg(uint32_t offset) {
     return (volatile uint32_t*)(g_pl011_uart_base + offset);

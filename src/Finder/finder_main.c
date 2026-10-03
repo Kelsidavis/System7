@@ -36,7 +36,6 @@
 #include "StandardFile/StandardFile.h"
 #include "System71StdLib.h"
 #include "ToolboxCompat.h"
-#include "System71StdLib.h"
 #include "Finder/AboutThisMac.h"
 #include "Finder/FinderLogging.h"
 

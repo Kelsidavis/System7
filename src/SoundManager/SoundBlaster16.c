@@ -9,7 +9,6 @@
 #include <stdbool.h>
 #include "SoundManager/SoundLogging.h"
 #include "SoundManager/SoundBlaster16.h"
-#include "SoundManager/SoundBlaster16.h"
 
 /* I/O port access */
 #include "Platform/include/io.h"

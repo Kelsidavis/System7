@@ -1,7 +1,6 @@
 /* #include "SystemTypes.h" */
 #include "MemoryMgr/MemoryManager.h"
 #include "MenuManager/menu_private.h"
-#include "MemoryMgr/MemoryManager.h"
 #include <string.h>
 /*
  * MenuResources.c - Menu Resource Loading Implementation

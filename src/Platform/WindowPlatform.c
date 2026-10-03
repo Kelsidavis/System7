@@ -1,17 +1,12 @@
-/*
-#include "MemoryMgr/MemoryManager.h"
- * WindowPlatform.c - Platform implementation for Window Manager
-#include "MemoryMgr/MemoryManager.h"
+/* WindowPlatform.c - Platform implementation for Window Manager
  * Provides platform-specific windowing functions
-#include "MemoryMgr/MemoryManager.h"
  */
+
 #include "MemoryMgr/MemoryManager.h"
 
 extern void QD_SetScreenPort(void);
 
-#include "MemoryMgr/MemoryManager.h"
 #include "MacTypes.h"
-#include "MemoryMgr/MemoryManager.h"
 #include "WindowManager/WindowManager.h"
 #include "WindowManager/WindowManagerInternal.h"
 #include "WindowManager/WindowPlatform.h"

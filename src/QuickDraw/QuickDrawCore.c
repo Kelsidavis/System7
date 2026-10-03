@@ -14,7 +14,6 @@
  */
 
 #include "SystemTypes.h"
-#include "QuickDrawConstants.h"
 #include "System71StdLib.h"
 #include "QuickDraw/QDLogging.h"
 

@@ -16,7 +16,6 @@
 
 // #include "CompatibilityFix.h" // Removed
 #include "SystemTypes.h"
-#include "QuickDrawConstants.h"
 #include "System71StdLib.h"
 
 #include "QuickDraw/QDRegions.h"
@@ -27,7 +26,6 @@
 
 /* Platform abstraction layer */
 #include "QuickDraw/QuickDrawPlatform.h"
-#include "MemoryMgr/MemoryManager.h"
 
 /* Serial logging for defensive diagnostics */
 extern void serial_puts(const char* str);

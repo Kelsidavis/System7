@@ -18,7 +18,6 @@
 #include "DialogManager/DialogTypes.h"
 #include "DialogManager/DialogManagerInternal.h"
 #include "DialogManager/DialogManagerStateExt.h"
-#include "DialogManager/DialogItems.h"
 #include "DialogManager/DialogLogging.h"
 #include "MemoryMgr/MemoryManager.h"
 #include "TextEdit/TextEdit.h"
