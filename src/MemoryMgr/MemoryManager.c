@@ -823,9 +823,9 @@ static void split_block(ZoneInfo* z, BlockHeader* b, u32 need) {
         log_suspect_block("split_post_sub", b, need, remain);
     }
 
-    /* CRITICAL FIX: Use MIN_BLOCK_SIZE instead of BLKHDR_SZ + ALIGN */
+    /* A free tail must fit both its header and free-list node. */
     if (remain >= MIN_BLOCK_SIZE) {
-        /* CRITICAL: Ensure remain is aligned! */
+        /* Keep the tail block aligned. */
         if ((remain & (ALIGN - 1)) != 0) {
             /* This should never happen - but if it does, align it down */
             serial_puts("[SPLIT] WARNING: remain not aligned, aligning down!\n");
@@ -942,8 +942,7 @@ void* NewPtr(u32 byteCount) {
     }
 #endif
 
-    /* CRITICAL FIX: Zero allocated memory to prevent garbage data corruption
-     * Without this, old data appears in desktop icons and window titles */
+    /* Clear reused storage before exposing it to callers. */
     memset(result, 0, byteCount);
 
     return result;
@@ -1156,17 +1155,14 @@ Handle NewHandle(u32 byteCount) {
     z->bytesUsed += b->size;
     z->bytesFree -= b->size;
 
-    /* CRITICAL FIX: Zero allocated memory to prevent garbage data corruption
-     * Without this, old data (like format strings) appears in window titles and corrupts desktop icons */
+    /* Clear reused storage before exposing it to callers. */
     memset(*mp, 0, byteCount);
 
     return (Handle)mp;
 }
 
 Handle NewHandleClear(u32 byteCount) {
-    Handle h = NewHandle(byteCount);
-    if (h && *h) memset(*h, 0, byteCount);
-    return h;
+    return NewHandle(byteCount);
 }
 
 void DisposeHandle(Handle h) {
@@ -1518,10 +1514,10 @@ u32 CompactMem(u32 cbNeeded) {
         }
 
         /* Non-movable or locked - skip any gap and continue */
-        /* CRITICAL FIX: Use MIN_BLOCK_SIZE instead of BLKHDR_SZ + ALIGN */
+        /* Only split gaps large enough to hold free-block metadata. */
         u32 gap = scan - dest;
         if (scan != dest && gap >= MIN_BLOCK_SIZE) {
-            /* CRITICAL: Align gap DOWN to avoid overflow! */
+            /* Round down so the free block stays within the gap. */
             u32 aligned_gap = gap & ~(ALIGN - 1);
             if (aligned_gap >= MIN_BLOCK_SIZE) {
                 /* Create free block in the gap */
