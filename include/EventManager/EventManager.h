@@ -27,12 +27,12 @@
 #ifndef EVENT_MANAGER_H
 #define EVENT_MANAGER_H
 
+#include "SystemTypes.h"
+
 /* Post an event carrying explicit modifier flags. Proc_ is the Process
  * Manager's implementation; the unprefixed name forwards to it. */
 OSErr Proc_PostEventWithModifiers(EventMask what, UInt32 message, UInt16 modifiers);
 OSErr PostEventWithModifiers(EventMask what, UInt32 message, UInt16 modifiers);
-
-#include "SystemTypes.h"
 
 /* Forward declarations */
 

@@ -95,7 +95,6 @@ void Platform_UpdateNativeWindowOrder(void);
 void Platform_DisableWindow(WindowPtr window);
 
 /*
-/*
  * Hit testing
  */
 void Platform_HighlightWindowPart(WindowPtr window, short partCode, Boolean highlight);
