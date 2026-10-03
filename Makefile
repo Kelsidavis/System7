@@ -120,15 +120,8 @@ ifeq ($(DEBUG_SYMBOLS),1)
 endif
 
 # Platform-independent base flags
-# Warnings are errors.
-#
-# The tree builds clean, so anything new is a regression and stops the build
-# rather than scrolling past. This exists because a Handle passed where a
-# TEHandle belonged was a warning on the GCC here and an error on the GCC a
-# contributor had, so it built for me and broke for them (issue #27).
-#
-# WERROR=0 turns it off for a bisect or a quick experiment. Do not commit with
-# it off.
+# Treat compiler warnings as errors so warning regressions fail the build.
+# WERROR=0 is available for local diagnosis; do not commit with it disabled.
 WERROR ?= -Werror
 EXTRA_CFLAGS ?=
 
