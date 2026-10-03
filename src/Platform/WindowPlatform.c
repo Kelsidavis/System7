@@ -98,9 +98,7 @@ Boolean Platform_InitializeColorWindowPort(WindowPtr window) {
 void Platform_CleanupWindowPort(WindowPtr window) {
     if (!window) return;
 
-    /* Regions are already disposed in CloseWindow() */
-    /* Disposing them again here causes a freeze, so skip it */
-    /* TODO: Investigate proper region lifecycle management */
+    /* CloseWindow owns and disposes the regions before calling this hook. */
 }
 
 /* Destroy native window */

@@ -76,11 +76,6 @@ static OSErr SetupMenus(void);
 extern OSErr InitializeDesktopDB(void);  /* From desktop_manager.c */
 extern OSErr InitializeTrashFolder(void);  /* From trash_manager.c */
 static OSErr InitializeWindowManager(void);
-/* HandleShutDown, HandleMenuChoice, HandleMouseDown, HandleKeyDown declared in #if 0 block below */
-/* DoActivate, DoBackgroundTasks declared in #if 0 block below */
-/* MainEventLoop declared in #if 0 block below */
-
-
 /*
  * InitializeWindowManager - Initialize window management for Finder
 

@@ -110,13 +110,8 @@ static VRefNum gBootVolumeRef = 0;          /* Boot volume reference */
 static Boolean gVolumeIconVisible = false;   /* Is volume icon shown on desktop */
 static DesktopItem gDesktopIconStorage[kMaxDesktopIcons];
 
-/* Icon selection and dragging state */
+/* Icon selection state */
 static short gSelectedIcon = -1;             /* Index of selected icon (-1 = none) */
-/* Unused - reserved for future drag/click tracking:
-static Point gOriginalPos = {0, 0};
-static UInt32 gLastClickTime = 0;
-static Point gLastClickPos = {0, 0};
-*/
 
 /* Same-icon double-click tracking (Classic Finder behavior) */
 static short sLastClickIcon = -1;            /* Icon clicked last time */
@@ -126,10 +121,6 @@ static UInt32 sLastClickTicks = 0;           /* When it was clicked */
 static OSErr LoadDesktopDatabase(short vRefNum);
 static OSErr SaveDesktopDatabase(short vRefNum);
 static OSErr AllocateDesktopIcons(void);
-/* Unused functions in #if 0 block:
-static Point CalculateNextIconPosition(void);
-static Boolean IsPositionOccupied(Point position);
-*/
 static OSErr ScanDirectoryForDesktopEntries(short vRefNum, long dirID, short databaseRefNum);
 static Point SnapToGrid(Point p);
 static void UpdateIconRect(short iconIndex, Rect *outRect);
