@@ -411,8 +411,6 @@ void DrawDialogIcon(const Rect* bounds, SInt16 iconID, Boolean isEnabled) {
 /* A picture item: the 'PICT' with the item's resource ID, drawn into the
  * item's rectangle. There was no case for it, so it drew as an empty frame. */
 void DrawDialogPicture(const Rect* bounds, SInt16 picID) {
-    extern PicHandle GetPicture(SInt16 picID);
-    extern void DrawPicture(PicHandle myPicture, const Rect* dstRect);
     EraseRect(bounds);
     PicHandle pic = GetPicture(picID);
     if (pic) {
