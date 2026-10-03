@@ -14,6 +14,8 @@
 #define DIALOG_MANAGER_CORE_H
 
 #include "SystemTypes.h"
+#include "DialogManager/DialogItems.h"
+#include "DialogManager/AlertDialogs.h"
 
 /* Forward declarations */
 typedef struct DialogMgrGlobals DialogMgrGlobals;
@@ -83,31 +85,6 @@ DialogPtr NewColorDialog(void* wStorage, const Rect* boundsRect,
                         const unsigned char* title, Boolean visible, SInt16 procID,
                         WindowPtr behind, Boolean goAwayFlag, SInt32 refCon,
                         Handle itmLstHndl);
-
-/*
- * ParamText - Set parameter text strings for dialog substitution
- * Assembly signature: paramtext proc EXPORT with 4 c2pstr/p2cstr conversions
- */
-void ParamText(const unsigned char* param0, const unsigned char* param1,
-               const unsigned char* param2, const unsigned char* param3);
-
-/*
- * GetDialogItemText (GetIText) - Retrieve text from dialog item
- * Assembly signature: getdialogitemtext proc EXPORT with p2cstr conversion
- */
-void GetDialogItemText(Handle item, unsigned char* text);
-
-/*
- * SetDialogItemText (SetIText) - Set text in dialog item
- * Assembly signature: setdialogitemtext proc EXPORT with c2pstr/p2cstr conversion
- */
-void SetDialogItemText(Handle item, const unsigned char* text);
-
-/*
- * FindDialogItem (FindDItem) - Find dialog item at point
- * Assembly signature: finddialogitem proc EXPORT with Point parameter handling
- */
-SInt16 FindDialogItem(DialogPtr theDialog, Point thePt);
 
 /*
  * StdFilterProc - Standard filter procedure for dialog events
