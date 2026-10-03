@@ -15,6 +15,7 @@
 #include "SystemTypes.h"
 
 #include "../../include/WindowManager/WindowManager.h"
+#include "WindowManager/WindowPlatform.h"
 #include "WindowManager/WMLogging.h"
 
 #ifdef __cplusplus
@@ -67,92 +68,36 @@ typedef enum {
 /* Window update flags */
 
 /* ============================================================================
- * Platform Abstraction Functions
+ * Platform Abstraction Functions Not in WindowPlatform.h
  * ============================================================================ */
-
-/*
- * Platform initialization and cleanup
- */
-void Platform_InitWindowing(void);
-void Platform_ShutdownWindowing(void);
-Boolean Platform_HasColorQuickDraw(void);
 
 /*
  * Mouse and input
  */
-Boolean Platform_IsMouseDown(void);
-void Platform_GetMousePosition(Point* pt);
-void Platform_WaitTicks(short ticks);
 Point Platform_LocalToGlobalPoint(WindowPtr window, Point localPt);
 Point Platform_GlobalToLocalPoint(WindowPtr window, Point globalPt);
 
 /*
  * Port and region management
  */
-Boolean Platform_InitializePort(GrafPtr port);
-Boolean Platform_InitializeColorPort(CGrafPtr port);
-Boolean Platform_InitializeWindowPort(WindowPtr window);
-Boolean Platform_InitializeColorWindowPort(WindowPtr window);
-void Platform_CleanupWindowPort(WindowPtr window);
 GrafPtr Platform_GetCurrentPort(void);
 void Platform_SetCurrentPort(GrafPtr port);
 GrafPtr Platform_GetUpdatePort(WindowPtr window);
 void Platform_SetUpdatePort(GrafPtr port);
 
-RgnHandle Platform_NewRgn(void);
-void Platform_DisposeRgn(RgnHandle rgn);
-void Platform_SetRectRgn(RgnHandle rgn, const Rect* rect);
-void Platform_UnionRgn(RgnHandle srcA, RgnHandle srcB, RgnHandle dst);
-void Platform_IntersectRgn(RgnHandle srcA, RgnHandle srcB, RgnHandle dst);
-void Platform_DiffRgn(RgnHandle srcA, RgnHandle srcB, RgnHandle dst);
-Boolean Platform_PtInRgn(Point pt, RgnHandle rgn);
-void Platform_GetRegionBounds(RgnHandle rgn, Rect* bounds);
-Boolean Platform_EmptyRgn(RgnHandle rgn);
 void Platform_CopyRgn(RgnHandle src, RgnHandle dst);
-void Platform_SetEmptyRgn(RgnHandle rgn);
-void Platform_OffsetRgn(RgnHandle rgn, short dh, short dv);
 void Platform_SetClipRgn(GrafPtr port, RgnHandle rgn);
 
 /*
  * Native window management
  */
-void Platform_CreateNativeWindow(WindowPtr window);
-void Platform_DestroyNativeWindow(WindowPtr window);
-void Platform_ShowNativeWindow(WindowPtr window, Boolean show);
-void Platform_MoveNativeWindow(WindowPtr window, short h, short v);
-void Platform_SizeNativeWindow(WindowPtr window, short w, short h);
-void Platform_SetNativeWindowTitle(WindowPtr window, ConstStr255Param title);
-void Platform_BringNativeWindowToFront(WindowPtr window);
-void Platform_SendNativeWindowBehind(WindowPtr window, WindowPtr behind);
 void Platform_UpdateNativeWindowOrder(void);
 void Platform_DisableWindow(WindowPtr window);
 
 /*
- * Window drawing and updating
- */
-void Platform_InvalidateWindowContent(WindowPtr window);
-void Platform_InvalidateWindowFrame(WindowPtr window);
-void Platform_InvalidateWindowRect(WindowPtr window, const Rect* rect);
-void Platform_BeginWindowDraw(WindowPtr window);
-void Platform_EndWindowDraw(WindowPtr window);
-void Platform_UpdateWindowColors(WindowPtr window);
-
-/*
- * Window region calculation
- */
-void Platform_CalculateWindowRegions(WindowPtr window);
-void Platform_GetWindowFrameRect(WindowPtr window, Rect* frameRect);
-void Platform_GetWindowContentRect(WindowPtr window, Rect* contentRect);
-void Platform_GetWindowTitleBarRect(WindowPtr window, Rect* titleRect);
-void Platform_GetWindowCloseBoxRect(WindowPtr window, Rect* closeRect);
-void Platform_GetWindowZoomBoxRect(WindowPtr window, Rect* zoomRect);
-void Platform_GetWindowGrowBoxRect(WindowPtr window, Rect* growRect);
-
 /*
  * Hit testing
  */
-short Platform_WindowHitTest(WindowPtr window, Point pt);
-Boolean Platform_PointInWindowPart(WindowPtr window, Point pt, short part);
 void Platform_HighlightWindowPart(WindowPtr window, short partCode, Boolean highlight);
 
 /*
@@ -161,29 +106,8 @@ void Platform_HighlightWindowPart(WindowPtr window, short partCode, Boolean high
 Handle Platform_GetWindowDefProc(short procID);
 
 /*
- * Screen and desktop management
- */
-void Platform_GetScreenBounds(Rect* bounds);
-void Platform_SetDesktopPattern(const Pattern* pattern);
-PixPatHandle Platform_CreateStandardGrayPixPat(void);
-
-/*
- * Color management
- */
-void Platform_DisposeCTable(CTabHandle ctab);
-
-/*
- * Event handling
- */
-void Platform_PostWindowEvent(WindowPtr window, short eventType, long eventData);
-Boolean Platform_ProcessPendingEvents(void);
-
-/*
  * Window feedback and visual effects
  */
-void Platform_ShowDragOutline(const Rect* rect);
-void Platform_HideDragOutline(const Rect* rect);
-void Platform_UpdateDragOutline(const Rect* oldRect, const Rect* newRect);
 void Platform_ShowDragRect(const Rect* rect);
 void Platform_HideDragRect(const Rect* rect);
 void Platform_UpdateDragRect(const Rect* oldRect, const Rect* newRect);
