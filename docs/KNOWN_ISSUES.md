@@ -71,45 +71,24 @@ short list of hardcoded numbers with no relationship to what the build
 actually ships, and nothing checks the two against each other.
 
 
-### 🐞 The Applications folder's contents live in the window, not the file system
+### ✅ Applications folder entries were duplicated in Finder — FIXED
 
-Opening Applications shows SimpleText, TextEdit and MacPaint. Get Info on
-the same folder says "Contains: 0 items", and it is the one telling the
-truth: those three are built in `src/Finder/folder_window.c`, in
-`InitializeFolderContentsEx`, under
+Finder used to hardcode SimpleText, TextEdit and MacPaint in
+`InitializeFolderContentsEx`, even though the boot volume is the source of
+truth for directory contents. The B-tree leaf advertised seven records while
+the seed code wrote eight, hiding SimpleText; adding the other two apps also
+exceeded the original 1 KiB leaf and overwrote its offset table.
 
-```c
-    /* Handle Applications folder with virtual apps */
-    if (dirID == 18) {
-        state->itemCount = 3;  /* SimpleText, TextEdit, MacPaint */
-```
+The seed now writes all ten catalog entries (three folders and seven files)
+into a 2 KiB leaf within the allocated catalog file, updates the catalog and
+volume counts, and stores all three applications under the Applications
+directory. Finder now uses ordinary VFS enumeration for that folder, so its
+contents and metadata come from one source.
 
-They are never created in the file system, so everything that asks the
-file system instead of the window disagrees with what is on screen - Get
-Info's count, and anything else that enumerates.
-
-**Measured, so the next person does not have to:**
-
-- `VFS_Enumerate(vref, 18, ...)` returns true with a count of zero.
-- The vref is 1 in both places, so this is not Get Info looking at a
-  different volume - the folder window logs the same one.
-- `src/FS/hfs_volume.c` seeds a real `SimpleText` into directory 18 with CNID
-  23 when it builds the boot volume, so the volume image and the mounted
-  file system disagree about that directory as well. TextEdit and MacPaint
-  are not seeded anywhere.
-
-**Why 18 is its own hazard.** The number is whatever CNID the Applications
-folder happened to get when the volume was laid out - `ADD_FOLDER(2,
-"Applications", 18)`. Nothing ties the window's constant to that line. If
-the seed order ever changes, three applications appear inside whatever
-folder inherits the number.
-
-**The fix is to delete the special case, not to teach Get Info about it.**
-Seed the three applications where SimpleText already is, let the window
-enumerate them like any other folder, and the count, the Open dialog and
-the status line all agree for free. That depends on why directory 18 comes
-back empty from the mounted volume when the image says otherwise, which is
-the part still unexplained.
+`VFS_ApplicationsCatalog` checks that the root catalog contains the
+Applications directory and that it enumerates exactly the three expected
+application entries with the right type, creator and parent. The integration
+suite passed in QEMU after the fix: 44 passed, 0 failed.
 
 
 ### ✅ The allocator hands out memory that is already in use — FIXED

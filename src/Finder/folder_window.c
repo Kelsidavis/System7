@@ -576,59 +576,6 @@ static void InitializeFolderContentsEx(WindowPtr w, Boolean isTrash, VRefNum vre
         return;
     }
 
-    /* Handle Applications folder with virtual apps */
-    if (dirID == 18) {
-        state->itemCount = 3;  /* SimpleText, TextEdit, MacPaint */
-        state->items = FW_AllocItems(state->itemCount);
-        if (!state->items) {
-            state->itemCount = 0;
-            return;
-        }
-
-        /* SimpleText */
-        FolderItem *simpleText = &state->items[0];
-        memset(simpleText, 0, sizeof(FolderItem));
-        strncpy(simpleText->name, "SimpleText", sizeof(simpleText->name) - 1);
-        simpleText->isFolder = false;
-        simpleText->fileID = 200;  /* Virtual ID */
-        simpleText->parentID = dirID;
-        simpleText->type = FOURCC('A','P','P','L');
-        simpleText->creator = FOURCC('t','t','x','t');
-
-        /* TextEdit */
-        FolderItem *textEdit = &state->items[1];
-        memset(textEdit, 0, sizeof(FolderItem));
-        strncpy(textEdit->name, "TextEdit", sizeof(textEdit->name) - 1);
-        textEdit->isFolder = false;
-        textEdit->fileID = 201;  /* Virtual ID */
-        textEdit->parentID = dirID;
-        textEdit->type = FOURCC('A','P','P','L');
-        textEdit->creator = FOURCC('t','e','d','t');
-
-        /* MacPaint */
-        FolderItem *macPaint = &state->items[2];
-        memset(macPaint, 0, sizeof(FolderItem));
-        strncpy(macPaint->name, "MacPaint", sizeof(macPaint->name) - 1);
-        macPaint->isFolder = false;
-        macPaint->fileID = 202;  /* Virtual ID */
-        macPaint->parentID = dirID;
-        macPaint->type = FOURCC('A','P','P','L');
-        macPaint->creator = FOURCC('M','A','P','P');
-
-        /* Lay the icons out on the shared grid. */
-        for (int i = 0; i < state->itemCount; i++) {
-            Point p_ = FW_GridPosition(w, (short)i);
-            state->items[i].position.h = p_.h;
-            state->items[i].position.v = p_.v;
-        }
-
-        FW_DeselectAll(state);
-
-        FINDER_LOG_DEBUG("InitializeFolderContentsEx: populated Applications folder with %d items\n",
-                         state->itemCount);
-        return;
-    }
-
     /*
      * The built-in control panels have no files behind them, so the Finder
      * lists them itself - but it was listing them under a "Control Panels"

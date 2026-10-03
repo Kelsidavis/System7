@@ -27,6 +27,7 @@ extern void InvalWindowRect(WindowPtr, const Rect*);
 #include "EventManager/EventManager.h"
 #include "FontManager/FontManager.h"
 #include "TextEdit/TextEdit.h"
+#include "FS/vfs.h"
 #include "DeskManager/Calculator.h"
 extern QDGlobals qd;
 extern UInt16 Event_QueueCount(void);
@@ -94,11 +95,11 @@ typedef struct {
     const char* reason;
 } TestResult;
 
-static TestResult results[32];
+static TestResult results[128];
 static int result_count = 0;
 
 static void RecordTest(const char* name, Boolean passed, const char* reason) {
-    if (result_count < 32) {
+    if (result_count < (int)(sizeof results / sizeof results[0])) {
         results[result_count].name = name;
         results[result_count].passed = passed;
         results[result_count].reason = reason;
@@ -379,6 +380,44 @@ static void Test_File_FoldersAndWorkingDirectories(void) {
 
     CHECK(FSDeleteDir(spec.name, 0) == noErr, "FSDeleteDir failed");
     CHECK(FSDeleteDir(spec.name, 0) != noErr, "the folder was still there after FSDeleteDir");
+    RecordTest(test_name, true, "");
+}
+
+static void Test_VFS_ApplicationsCatalog(void) {
+    const char* test_name = "VFS_ApplicationsCatalog";
+    VRefNum vref = VFS_GetBootVRef();
+    VolumeControlBlock volume;
+    CatEntry applications;
+    CatEntry entries[8];
+    int count = 0;
+    Boolean simpleText = false;
+    Boolean textEdit = false;
+    Boolean macPaint = false;
+
+    CHECK(VFS_GetVolumeInfo(vref, &volume), "could not read boot volume info");
+    CHECK(VFS_Lookup(vref, volume.rootID, "Applications", &applications) &&
+          applications.kind == kNodeDir,
+          "Applications directory was not in the root catalog");
+    CHECK(VFS_Enumerate(vref, applications.id, entries, 8, &count),
+          "could not enumerate the Applications directory");
+    CHECK(count == 3, "Applications did not enumerate exactly three entries");
+
+    for (int i = 0; i < count; i++) {
+        if (entries[i].kind != kNodeFile ||
+            entries[i].parent != (DirID)applications.id ||
+            entries[i].type != FOURCC('A', 'P', 'P', 'L')) {
+            continue;
+        }
+        if (strcmp(entries[i].name, "SimpleText") == 0 &&
+            entries[i].creator == FOURCC('t', 't', 'x', 't')) simpleText = true;
+        if (strcmp(entries[i].name, "TextEdit") == 0 &&
+            entries[i].creator == FOURCC('t', 'e', 'd', 't')) textEdit = true;
+        if (strcmp(entries[i].name, "MacPaint") == 0 &&
+            entries[i].creator == FOURCC('M', 'A', 'P', 'P')) macPaint = true;
+    }
+
+    CHECK(simpleText && textEdit && macPaint,
+          "built-in application catalog metadata was incomplete");
     RecordTest(test_name, true, "");
 }
 
@@ -1688,6 +1727,7 @@ void IntegrationTests_Run(void) {
     Test_File_WriteReadRoundTrip();
     Test_File_Metadata();
     Test_File_FoldersAndWorkingDirectories();
+    Test_VFS_ApplicationsCatalog();
     Test_File_InFolder();
     Test_Draw_ClippedToVisibleRegion();
     Test_Draw_PenModes();
