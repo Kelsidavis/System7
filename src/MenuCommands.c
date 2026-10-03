@@ -126,12 +126,10 @@ static void HandleControlPanelsMenu(short item);
 /* Main menu command dispatcher */
 void DoMenuCommand(short menuID, short item)
 {
-    serial_printf("*** DoMenuCommand: CALLED with menu=%d, item=%d\n", menuID, item);
     MENU_LOG_DEBUG("DoMenuCommand: menu=%d, item=%d\n", menuID, item);
 
     switch (menuID) {
         case kAppleMenuID:
-            serial_printf("*** DoMenuCommand: Calling HandleAppleMenu(%d)\n", item);
             HandleAppleMenu(item);
             break;
 

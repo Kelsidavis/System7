@@ -221,10 +221,7 @@ static void AboutWindow_CreateIfNeeded(void)
     Rect bounds;
     unsigned char title[32];
 
-    serial_puts("[ABOUT] CreateIfNeeded: ENTRY\n");
-
     if (sAboutWin) {
-        serial_puts("[ABOUT] CreateIfNeeded: Window already exists, returning\n");
         FINDER_LOG_DEBUG("AboutThisMac: Window already exists at 0x%08x\n", (unsigned int)P2UL(sAboutWin));
         return;
     }
@@ -238,8 +235,6 @@ static void AboutWindow_CreateIfNeeded(void)
     /* Create window with movable dialog box proc, close box enabled */
     GetLocalizedString(title, kSTRListFinderAbout, kStrAboutTitle);
 
-    serial_puts("[ABOUT] CreateIfNeeded: About to call NewWindow\n");
-
     sAboutWin = NewWindow(NULL, &bounds, title,
                          1,  /* visible */
                          movableDBoxProc,  /* Movable dialog box */
@@ -247,11 +242,8 @@ static void AboutWindow_CreateIfNeeded(void)
                          1,  /* Has close box */
                          kAboutRefCon);
 
-    serial_puts("[ABOUT] CreateIfNeeded: NewWindow returned\n");
-
     if (!sAboutWin) {
-        serial_puts("[ABOUT] CreateIfNeeded: FAILED - window is NULL\n");
-        FINDER_LOG_DEBUG("AboutThisMac: FAILED to create window!\n");
+        FINDER_LOG_ERROR("AboutThisMac: failed to create window\n");
         return;
     }
 
@@ -261,7 +253,6 @@ static void AboutWindow_CreateIfNeeded(void)
      * bounds, which bypassed the clip - the window behind showed through at
      * the top - and needed the address recomputed after every move. */
 
-    serial_puts("[ABOUT] CreateIfNeeded COMPLETE\n");
     FINDER_LOG_DEBUG("AboutThisMac: Created window at 0x%08x, refCon=0x%08X\n",
                      (unsigned int)P2UL(sAboutWin), (unsigned int)kAboutRefCon);
 }
@@ -278,20 +269,16 @@ void AboutWindow_ProcessPendingCreation(void)
         return;  /* Nothing to do */
     }
 
-    serial_puts("[ABOUT] ProcessPending: Creating deferred window\n");
     sPendingShowOrToggle = 0;
 
     if (!sAboutWin) {
-        serial_puts("[ABOUT] ProcessPending: Calling AboutWindow_CreateIfNeeded\n");
         AboutWindow_CreateIfNeeded();
     }
 
     if (!sAboutWin) {
-        serial_puts("[ABOUT] ProcessPending: FAILED - window is NULL\n");
         return;
     }
 
-    serial_puts("[ABOUT] ProcessPending: Bringing window to front\n");
     /* Bring to front and select */
     BringToFront(sAboutWin);
     SelectWindow(sAboutWin);
@@ -299,7 +286,6 @@ void AboutWindow_ProcessPendingCreation(void)
     /* Request update */
     PostEvent(updateEvt, (UInt32)(uintptr_t)sAboutWin);
 
-    serial_puts("[ABOUT] ProcessPending: Window shown successfully\n");
 }
 
 /*
@@ -311,12 +297,10 @@ void AboutWindow_ProcessPendingCreation(void)
  */
 void AboutWindow_ShowOrToggle(void)
 {
-    serial_puts("[ABOUT] ShowOrToggle: CALLED (deferred)\n");
     FINDER_LOG_DEBUG("AboutThisMac: ShowOrToggle called\n");
 
     if (sAboutWin) {
         /* Window already exists - bring to front immediately */
-        serial_puts("[ABOUT] ShowOrToggle: Window exists, bringing to front\n");
         BringToFront(sAboutWin);
         SelectWindow(sAboutWin);
         PostEvent(updateEvt, (UInt32)(uintptr_t)sAboutWin);
@@ -325,7 +309,6 @@ void AboutWindow_ShowOrToggle(void)
     }
 
     /* Request deferred creation (avoids event re-entry) */
-    serial_puts("[ABOUT] ShowOrToggle: Requesting deferred window creation\n");
     sPendingShowOrToggle = 1;
     FINDER_LOG_DEBUG("AboutThisMac: Deferred window creation requested\n");
 }
@@ -368,22 +351,7 @@ Boolean AboutWindow_HandleUpdate(WindowPtr w)
     GetPort(&savedPort);
     SetPort((GrafPtr)w);
 
-    serial_puts("[ABOUT] UPDATE: Before BeginUpdate\n");
-
     BeginUpdate(w);
-
-    serial_puts("[ABOUT] UPDATE: After BeginUpdate\n");
-
-    /* Debug: log port configuration */
-    static int update_debug = 0;
-    if (update_debug < 1) {
-        serial_printf("[ABOUT-DEBUG] portRect=(%d,%d,%d,%d) portBits.bounds=(%d,%d,%d,%d)\n",
-                     w->port.portRect.left, w->port.portRect.top,
-                     w->port.portRect.right, w->port.portRect.bottom,
-                     w->port.portBits.bounds.left, w->port.portBits.bounds.top,
-                     w->port.portBits.bounds.right, w->port.portBits.bounds.bottom);
-        update_debug++;
-    }
 
     /* Optional throttle: only recompute stats every N ticks to reduce overhead */
     currentTicks = TickCount();
@@ -402,8 +370,6 @@ Boolean AboutWindow_HandleUpdate(WindowPtr w)
     contentRect.right = w->port.portRect.right;
     contentRect.bottom = w->port.portRect.bottom;
 
-    serial_puts("[ABOUT] Drawing content\n");
-
     /* Clear */
     PenNormal();
     EraseRect(&contentRect);
@@ -413,8 +379,6 @@ Boolean AboutWindow_HandleUpdate(WindowPtr w)
     const char *model_string = platform_get_model_string();
     const char *memory_gb = platform_format_memory_gb();
 
-    serial_puts("[ABOUT] About to draw title\n");
-
     /* Title: Platform name (detected at boot) - Chicago (System), 12pt, centered */
     Str255 title;
     TextFont(0);            /* System (Chicago) */
@@ -422,9 +386,7 @@ Boolean AboutWindow_HandleUpdate(WindowPtr w)
     TextFace(0);            /* normal */
     ToPStr(platform_name, title);
 
-    serial_puts("[ABOUT] Calling CenterPStringInRect\n");
     CenterPStringInRect(title, &contentRect, contentRect.top + 20);
-    serial_puts("[ABOUT] Title drawn\n");
 
     /* Version and Memory: "System 7 - X GB" - Chicago 11, normal */
     Str255 ver;

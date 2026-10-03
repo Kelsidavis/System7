@@ -224,16 +224,14 @@ static void DrawTrackedMenu(MenuHandle theMenu, short left, short top,
 
 /* Begin tracking a menu - draws it and sets up state */
 long BeginTrackMenu(short menuID, Point *startPt) {
-    serial_puts("BeginTrackMenu: ENTER\n");
-
     /* Prevent re-entry */
     if (g_menuTrackState.isTracking) {
-        serial_puts("BeginTrackMenu: Already tracking, aborting to prevent re-entry\n");
+        MENU_LOG_WARN("BeginTrackMenu: already tracking\n");
         return 0;
     }
 
     if (!framebuffer) {
-        serial_puts("BeginTrackMenu: ERROR - No framebuffer!\n");
+        MENU_LOG_ERROR("BeginTrackMenu: framebuffer is unavailable\n");
         return 0;
     }
 
@@ -290,15 +288,11 @@ long BeginTrackMenu(short menuID, Point *startPt) {
     g_menuTrackState.titleLeft = titleX;
     g_menuTrackState.titleWidth = titleW;
 
-    serial_puts("BeginTrackMenu: About to call DrawMenuBarWithHighlight\n");
     /* Redraw the menu bar with the active menu highlighted */
     DrawMenuBarWithHighlight(menuID);
-    serial_puts("BeginTrackMenu: Returned from DrawMenuBarWithHighlight\n");
 
-    serial_puts("BeginTrackMenu: About to call DrawTrackedMenu\n");
     /* Draw the menu dropdown */
     DrawTrackedMenu(theMenu, left, top, menuWidth, g_menuTrackState.menuHeight);
-    serial_puts("BeginTrackMenu: Dropdown drawn, tracking started\n");
 
     /* Restore original port */
     if (savePort) SetPort(savePort);
@@ -328,11 +322,11 @@ void UpdateMenuTrackingNew(Point mousePt) {
 
     /* Validate tracking state to prevent crashes */
     if (!g_menuTrackState.activeMenu) {
-        serial_puts("UpdateMenuTracking: activeMenu is NULL, aborting\n");
+        MENU_LOG_ERROR("UpdateMenuTracking: active menu is null\n");
         return;
     }
     if (g_menuTrackState.itemCount <= 0) {
-        serial_puts("UpdateMenuTracking: itemCount is 0, aborting\n");
+        MENU_LOG_ERROR("UpdateMenuTracking: item count is invalid\n");
         return;
     }
 
@@ -380,13 +374,7 @@ void UpdateMenuTrackingNew(Point mousePt) {
 
 /* End menu tracking and return selection */
 long EndMenuTrackingNew(void) {
-    serial_printf("*** EndMenuTrackingNew: CALLED\n");
-    serial_printf("***   isTracking=%d\n", g_menuTrackState.isTracking);
-    serial_printf("***   menuID=%d\n", g_menuTrackState.menuID);
-    serial_printf("***   highlightedItem=%d\n", g_menuTrackState.highlightedItem);
-
     if (!g_menuTrackState.isTracking) {
-        serial_printf("***   Returning 0 (not tracking)\n");
         return 0;
     }
 
@@ -394,12 +382,8 @@ long EndMenuTrackingNew(void) {
     if (g_menuTrackState.highlightedItem > 0) {
         /* Pack menuID in high word, item in low word */
         result = ((long)g_menuTrackState.menuID << 16) | g_menuTrackState.highlightedItem;
-        serial_printf("***   Returning menuChoice=0x%lx (menu=%d, item=%d)\n",
-                     result, g_menuTrackState.menuID, g_menuTrackState.highlightedItem);
         MENU_LOG_TRACE("EndMenuTracking: Selected item %d from menu %d\n",
                      g_menuTrackState.highlightedItem, g_menuTrackState.menuID);
-    } else {
-        serial_printf("***   Returning 0 (no item highlighted)\n");
     }
 
     /* Clear tracking state */
@@ -471,11 +455,9 @@ static long TrackMenu_Body(short menuID, Point *startPt) {
     GetPort(&savePort);
     QD_SetScreenPort();
     Menu_ClipToScreen();
-    serial_puts("TrackMenu: SetPort done\n");
 
     /* Get the menu */
     MenuHandle theMenu = GetMenuHandle(menuID);
-    serial_puts("TrackMenu: GetMenuHandle returned\n");
     if (!theMenu) {
         if (savePort) SetPort(savePort);
         return 0;
@@ -486,24 +468,21 @@ static long TrackMenu_Body(short menuID, Point *startPt) {
     /* ARM64 heap addresses are typically in the 0x40000000+ range
      * x86 addresses are typically lower. Accept a wide range. */
     if (menuPtr < 0x1000 || menuPtr > 0x80000000) {
-        serial_puts("TrackMenu: Menu handle looks invalid (bad address range)\n");
+        MENU_LOG_WARN("TrackMenu: menu handle address is out of range\n");
         if (savePort) SetPort(savePort);
         return 0;
     }
-    serial_puts("TrackMenu: Menu handle address looks reasonable\n");
 
     /* Calculate menu geometry */
     short itemCount = CountMenuItems(theMenu);
-    serial_puts("TrackMenu: CountMenuItems returned\n");
     if (itemCount == 0) {
         itemCount = 5;
-    } else {
     }
 
 
     /* Validate geometry to prevent zero/negative sizes */
     if (itemCount <= 0) {
-        serial_puts("TrackMenu: Invalid itemCount, using default\n");
+        MENU_LOG_WARN("TrackMenu: invalid item count; using default\n");
         itemCount = 5;
     }
 
@@ -548,7 +527,7 @@ static long TrackMenu_Body(short menuID, Point *startPt) {
 
     /* Validate rect is non-empty after clipping */
     if (menuRect.right <= menuRect.left || menuRect.bottom <= menuRect.top) {
-        serial_puts("TrackMenu: Invalid rect after clipping, aborting\n");
+        MENU_LOG_WARN("TrackMenu: menu rectangle is empty after clipping\n");
         if (savePort) SetPort(savePort);
         return 0;
     }
@@ -561,7 +540,6 @@ static long TrackMenu_Body(short menuID, Point *startPt) {
      * would put a copy of it back where it was. */
     Pointer_TakeOffScreen();
     savedBits = SaveMenuBits(&menuRect);
-    serial_puts("TrackMenu: SaveMenuBits returned\n");
 
     /* Set up tracking state */
     g_menuTrackState.isTracking = true;
@@ -576,12 +554,9 @@ static long TrackMenu_Body(short menuID, Point *startPt) {
 
     /* Draw the menu bar with the active menu highlighted */
     DrawMenuBarWithHighlight(menuID);
-    serial_puts("TrackMenu: Menu bar highlight drawn\n");
 
     /* Draw the menu dropdown */
     DrawTrackedMenu(theMenu, left, top, menuWidth, menuHeight);
-    serial_puts("TrackMenu: DrawTrackedMenu returned\n");
-    serial_puts("TrackMenu: Menu drawn, entering tracking loop\n");
 
     /* Persistent menu tracking - menu stays open until user makes a selection or clicks outside */
     /* ADD SAFETY TIMEOUT: Prevent infinite tracking loop */
@@ -601,8 +576,6 @@ static long TrackMenu_Body(short menuID, Point *startPt) {
     const UInt32 MAX_TRACKING_TICKS = 60 * 120;  /* 2 minutes */
     const UInt32 trackStartTick = TickCount();
     UInt32 releaseStartTick = 0;  /* 0 = button not currently released */
-
-    serial_puts("TrackMenu: Starting persistent menu tracking\n");
 
     /* Track menu - menu stays open even after button is released */
     while (tracking && (TickCount() - trackStartTick) < MAX_TRACKING_TICKS) {
@@ -707,10 +680,8 @@ static long TrackMenu_Body(short menuID, Point *startPt) {
                  * still arms the menu for that second click. */
                 if (overItem) {
                     commitSelection = true;
-                    serial_puts("TrackMenu: Released over an item\n");
                 } else {
                     buttonWasReleased = true;
-                    serial_puts("TrackMenu: Button released, menu armed for selection\n");
                 }
             }
         } else {
@@ -723,7 +694,6 @@ static long TrackMenu_Body(short menuID, Point *startPt) {
 
         /* After the menu is armed, the next press makes the selection. */
         if (buttonWasReleased && buttonState) {
-            serial_puts("TrackMenu: Second click detected\n");
             commitSelection = true;
         }
 
@@ -745,18 +715,10 @@ static long TrackMenu_Body(short menuID, Point *startPt) {
                         short submenuID = 0;
                         GetItemSubmenu(theMenu, clickedItem, &submenuID);
 
-                        char itemText[64];
-                        GetItemText(theMenu, clickedItem, itemText);
-
-                        char debugBuf[128];
-                        snprintf(debugBuf, sizeof(debugBuf),
-                                "[TM] Item %d (%s) submenuID=%d\n",
-                                clickedItem, itemText, submenuID);
-                        serial_puts(debugBuf);
-
                         if (submenuID != 0) {
                             /* This item has a submenu - open it instead of returning */
-                            MENU_LOG_TRACE("TrackMenu: Item %d has submenu %d, opening it\n", clickedItem, submenuID);
+                            MENU_LOG_TRACE("TrackMenu: Item %d has submenu %d, opening it\n",
+                                           clickedItem, submenuID);
 
                             /* Calculate submenu position to the right of current menu */
                             Point submenuPt;
@@ -806,13 +768,10 @@ static long TrackMenu_Body(short menuID, Point *startPt) {
                       (unsigned)(TickCount() - trackStartTick), updateCount);
     }
 
-    serial_puts("TrackMenu: Menu tracking complete\n");
-
     /* Restore background */
     if (savedBits) {
         RestoreMenuBits(savedBits);
         DiscardMenuBits(savedBits);
-        serial_puts("TrackMenu: Background restored\n");
     }
 
     /* Clear tracking state */
