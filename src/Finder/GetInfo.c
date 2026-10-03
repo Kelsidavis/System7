@@ -309,9 +309,6 @@ Boolean GetInfo_HandleUpdate(WindowPtr w) {
         y += 20;
     } else if (sCurrentEntry.kind == kNodeDir) {
         /* For folders, show item count */
-        extern bool VFS_Enumerate(VRefNum vref, DirID dirID,
-                                  CatEntry* entries, int maxEntries, int* count);
-        extern VRefNum VFS_GetBootVRef(void);
         CatEntry countEntries[128];
         int folderItemCount = 0;
         VFS_Enumerate(VFS_GetBootVRef(), sCurrentEntry.id, countEntries, 128, &folderItemCount);
@@ -331,7 +328,6 @@ Boolean GetInfo_HandleUpdate(WindowPtr w) {
     {
         VolumeControlBlock vcb;
         const char* volName = "";
-        extern VRefNum VFS_GetBootVRef(void);
         if (VFS_GetVolumeInfo(VFS_GetBootVRef(), &vcb)) {
             volName = vcb.name;
         }
