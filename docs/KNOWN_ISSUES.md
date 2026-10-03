@@ -124,15 +124,6 @@ The `CompactMem` tail is now bounded by the last successfully scanned
 address. The malformed header that aborts the walk still occurs, but its
 source remains unknown; `PurgeMem` also stops safely when it encounters one.
 
-### Historical allocator investigation
-
-The initial trace appeared to show allocations overlapping a window's
-offscreen buffer, and the investigation first focused on the buffer fill and
-freelists. The later heap audit above found the overlap came from `CompactMem`
-creating a trailing free block past the end of an aborted heap walk. That
-finding supersedes the earlier hypotheses and reproductions. The malformed
-header that aborts the walk can still occur; its source remains unknown.
-
 ### ✅ PurgeMem spun forever on a zero-size block header — FIXED
 
 Any allocation that could not be satisfied from the freelists hung the
