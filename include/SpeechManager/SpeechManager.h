@@ -25,10 +25,6 @@ extern "C" {
 #define kTextToSpeechVoiceFileType  0x74747666  /* 'ttvf' */
 #define kTextToSpeechVoiceBundleType 0x74747662 /* 'ttvb' */
 
-/* Control flags for SpeakBuffer and TextDone callback */
-
-/* Constants for StopSpeechAt and PauseSpeechAt */
-
 /* GetSpeechInfo & SetSpeechInfo selectors */
 #define soStatus            0x73746174  /* 'stat' */
 #define soErrors            0x6572726F  /* 'erro' */
@@ -66,50 +62,10 @@ extern "C" {
 #define soVoiceDescription  0x696E666F  /* 'info' */
 #define soVoiceFile         0x66726566  /* 'fref' */
 
-/* Gender constants */
-
 /* ===== Basic Types ===== */
 
-/* OSType is defined in MacTypes.h */
-/* OSErr, Fixed, Ptr, and Str31 are defined in SystemTypes.h. */
-
-/* ===== Core Structures ===== */
-
-/* Speech Channel - opaque handle to speech synthesis channel */
-
-/* Voice specification structure */
-
-/* Detailed voice description */
-
-/* File specification for voices stored in files */
-
-/* Speech status information */
-
-/* Speech error tracking */
-
-/* Speech synthesis version information */
-
-/* Phoneme information */
-
-/* Phoneme descriptor */
-
-/* Speech extension data */
-
-/* Delimiter configuration */
-
-/* ===== Callback Function Types ===== */
-
-/* Text-done callback routine */
-
-/* Speech-done callback routine */
-
-/* Sync callback routine */
-
-/* Error callback routine */
-
-/* Phoneme callback routine */
-
-/* Word callback routine */
+/* OSType, OSErr, Fixed, Ptr, Str31, SpeechChannel, and VoiceSpec are defined
+ * in SystemTypes.h. */
 
 /* ===== Core Speech Manager API ===== */
 
