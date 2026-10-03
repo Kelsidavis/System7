@@ -160,16 +160,3 @@ typedef struct JumpVector {
 /* Processor optimization levels */
 
 #endif /* MEMORY_MANAGER_TYPES_H */
-
-/*
- * RE-AGENT-TRAILER-JSON: {
- *   "agent": "reimplementation",
- *   "file": "memory_manager_types.h",
- *   "timestamp": "2025-09-18T01:45:00Z",
- *   "structures_defined": 7,
- *   "constants_defined": 18,
- *   "provenance_functions": ["MMHPrologue", "CompactHp", "BlockMove68020", "a24/a32 variants"],
- *   "evidence_source": "evidence.memory_manager.json",
- *   "layout_source": "layouts.memory_manager.json"
- * }
- */

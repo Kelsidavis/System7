@@ -1,17 +1,4 @@
-/*
- * RE-AGENT-BANNER
- * Finder Data Structure Types
- *
- * Reverse-engineered from System 7 Finder.rsrc
- * Source:  3_resources/Finder.rsrc
- *
- * Evidence sources:
- * - layouts.curated.json structure analysis
- * - Standard Macintosh File Manager structures
- * - Resource fork format analysis
- *
- * This file defines the data structures used by the Finder implementation.
- */
+/* Data structures used by Finder components. */
 
 #ifndef __FINDER_TYPES_H__
 #define __FINDER_TYPES_H__
@@ -25,11 +12,7 @@
 
 #pragma pack(push, 2)  /* 68k alignment - even word boundaries */
 
-/* Standard FinderInfo Structure - Evidence: File Manager documentation */
-
-/* Extended FinderInfo for System 7 - Evidence: System 7 extended file information */
-
-/* Desktop Database Record - Evidence: "Rebuilding the desktop file" */
+/* Desktop database record. */
 typedef struct DesktopRecord {
     SInt16  recordType;     /* 0=file, 1=folder */
     OSType  fileType;       /* File type code */
@@ -38,15 +21,13 @@ typedef struct DesktopRecord {
     SInt16  iconType;       /* Icon type */
 } DesktopRecord;
 
-/* Window State Record - Evidence: "Icon Views", "List Views", window management */
-
-/* Icon Position Record - Evidence: "Clean Up Window", "Clean Up Desktop" */
+/* Icon position record. */
 typedef struct IconPosition {
     UInt32  iconID;      /* Unique identifier for the icon */
     Point   position;    /* Position on desktop or in window */
 } IconPosition;
 
-/* Desktop Item Type - Universal desktop icon system */
+/* Desktop item types. */
 typedef enum {
     kDesktopItemVolume = 0,  /* Mounted volume/disk */
     kDesktopItemTrash = 1,   /* Trash can */
@@ -56,7 +37,7 @@ typedef enum {
     kDesktopItemApplication = 5  /* Application */
 } DesktopItemType;
 
-/* Desktop Item - Universal structure for all desktop icons */
+/* Desktop item details. */
 typedef struct DesktopItem {
     DesktopItemType type;     /* Type of desktop item */
     UInt32  iconID;           /* Unique identifier (0xFFFFFFFF = special) */
@@ -84,11 +65,7 @@ typedef struct DesktopItem {
     } data;
 } DesktopItem;
 
-/* View Preferences Record - Evidence: view mode switching */
-
-/* Alias Record Structure - Evidence: alias resolution error strings */
-
-/* Trash Management Record - Evidence: "Empty Trash" functionality */
+/* Trash management record. */
 typedef struct TrashRecord {
     UInt16  flags;          /* Trash flags */
     UInt16  itemCount;      /* Number of items in trash */
@@ -97,28 +74,6 @@ typedef struct TrashRecord {
     UInt32  lastEmptied;    /* Last time trash was emptied */
 } TrashRecord;
 
-/* Resource Fork Header - Evidence: Resource fork analysis */
-
-/* Finder Window State - Internal structure for window management */
-
-/* Find Criteria Structure - Evidence: "Find and select items whose" */
-
 #pragma pack(pop)
 
 #endif /* __FINDER_TYPES_H__ */
-
-/*
- * RE-AGENT-TRAILER-JSON
- * {
- *   "module": "finder_types.h",
- *   "evidence_density": 0.90,
- *   "structures": 11,
- *   "total_fields": 67,
- *   "primary_evidence": [
- *     "layouts.curated.json structure definitions",
- *     "Standard Macintosh File Manager structures",
- *     "String analysis of functionality"
- *   ],
- *   "implementation_status": "types_complete"
- * }
- */
