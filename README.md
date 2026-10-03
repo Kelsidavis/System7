@@ -173,11 +173,11 @@ Full roadmap: [BARE_METAL_IMPROVEMENTS.md](docs/BARE_METAL_IMPROVEMENTS.md)
 - **Exception Handling (RTE)**: Return from exception partially implemented (currently halts instead of restoring context)
 - **Non-x86 platforms**: ARM/ARM64 build in CI, but ARM64 runtime startup is
   incomplete; PowerPC remains experimental (see [Platform Porting Status](docs/future/PORTING_PLAN.md))
+- **Networking**: Experimental x86 E1000 code handles ARP and ICMP echo requests; TCP, UDP, DHCP, and AppleTalk are not implemented, and other platforms have no network driver.
 
 ### Not Yet Implemented ❌
 
 - **Printing**: No print system
-- **Networking**: No AppleTalk or network functionality
 - **Apple Events**: Inter-application Apple Event messaging is not implemented
 - **Balloon Help**: the Help menu is there; balloons are not
 - **Advanced Audio**: Sample playback, mixing (PC speaker limitation)
@@ -330,7 +330,7 @@ and where it was called from.
 1. **Icon Drag Artifacts**: Minor visual artifacts during desktop icon dragging
 2. **68K Coverage**: Only the Toolbox traps the test programs use are bridged; real Apple applications are untested
 3. **No TrueType Support**: Bitmap fonts only (Chicago)
-4. **HFS Read-Only**: Virtual file system, no real disk write-back
+4. **HFS Disk Write-Back**: Mounted HFS files can be read, but VFS file edits are kept in a RAM overlay and are not flushed to disk
 5. **No Stability Guarantees**: Crashes and unexpected behavior are common
 
 ## 🤝 Contributing

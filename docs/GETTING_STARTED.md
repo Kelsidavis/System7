@@ -100,11 +100,11 @@ make INTEGRATION_TESTS=1     # with the integration tests, which run at boot
 - 68K applications (test programs run; real applications untested)
 - Window/Control/Dialog frameworks
 - Some System tools
+- Physical storage (x86 can mount HFS volumes from ATA devices, but VFS file edits remain in a RAM overlay and are not written back to disk)
+- Networking (experimental x86 E1000 support handles ARP and ICMP echo only; no TCP, UDP, DHCP, or AppleTalk)
 
 ❌ **Not Implemented**
 - Printing
-- Networking
-- Real hard drive access
 - TrueType fonts
 
 ## Exploring the System
