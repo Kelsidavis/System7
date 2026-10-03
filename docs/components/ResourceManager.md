@@ -8,7 +8,7 @@ Implements the classic Mac Resource Manager APIs used to load and update resourc
   lookup, serialization, and error handling (`GetResource`,
   `GetIndResource`, `GetNamedResource`, `OpenResFile`, `FSpOpenResFile`,
   `ReleaseResource`, `AddResource`, `RemoveResource`, …)
-- `src/ResourceMgr/StringResources.c` – `STRS`/`STR#` accessors
+- `src/ResourceMgr/StringResources.c` – `STR `/`STR#` accessors
 - `src/CPU/m68k_interp/M68KToolbox.c` – 68K Resource Manager trap dispatch
 - `src/Resources/` – generated data blobs (patterns and icons)
 - `src/PatternMgr/` & `src/color_icons.c` – consumers of PAT/ppat/icon resources

@@ -4,7 +4,7 @@
 Coordinate creation, drawing, tracking, and activation of classic System 7 push buttons, checkboxes, radio buttons, and scrollbars. The manager owns the control list attached to each window and bridges Dialog Manager, Window Manager, and QuickDraw.
 
 ## Source Layout
-- `src/ControlManager/ControlManagerCore.c` – entry points (`InitControls`, `NewControl`, `DisposeControl`, `Draw1Control`, `FindControl`, `TrackControl`, `HiliteControl`)
+- `src/ControlManager/ControlManagerCore.c` – entry points (`_InitControlManager`, `_CleanupControlManager`, `NewControl`, `DisposeControl`, `Draw1Control`, `FindControl`, `TrackControl`, `HiliteControl`)
 - `src/ControlManager/ControlTracking.c` – control hit testing and tracking state
 - `src/ControlManager/StandardControls.c` – push buttons, checkboxes, radio buttons and variant flag handling
 - `src/ControlManager/ScrollbarControls.c` – vertical/horizontal scrollbar CDEFs
