@@ -42,10 +42,9 @@ void InitMenuTitleTracking(void)
 /* Add a menu title to tracking */
 void AddMenuTitle(short menuID, short left, short width, const char* title)
 {
-    /* CRITICAL FIX: Check if this menuID already exists
-     * If it does, UPDATE the existing entry instead of creating a duplicate.
-     * This prevents multiple titleRect entries for the same menu which causes
-     * duplicate inversions when highlighting menus. */
+    /* Replace the existing title record so repeated layout passes do not
+     * create overlapping hit regions for the same menu.
+     */
     for (int i = 0; i < gMenuTitleCount; i++) {
         if (gMenuTitles[i].menuID == menuID) {
             /* Update existing entry */

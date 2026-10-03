@@ -687,15 +687,9 @@ void DrawMenuBar(void)
                         memcpy(titleText, &(**menu).menuData[1], titleLen);
                         titleText[titleLen] = '\0';
 
-                        /* CRITICAL FIX: Skip TEXT DRAWING (but not tracking!) if highlighted
-                         * DrawMenuBar should not redraw over a menu that HiliteMenu has inverted.
-                         * If we redraw now, we would erase the inverted highlight and leave
-                         * BOTH black text and inverted traces visible, creating the double-text
-                         * artifact.
-                         *
-                         * HOWEVER, we MUST still call AddMenuTitle to update the titleRect tracking,
-                         * otherwise the titleRect becomes invalid and the menu can't be opened again.
-                         * So we skip ONLY the text rendering, not the tracking update. */
+                        /* Do not redraw text over the inverted title, but keep
+                         * its hit region current for menu tracking.
+                         */
                         Boolean isHighlighted = (gMenuMgrState && gMenuMgrState->hiliteMenu == mptr->menuID);
 
                         if (!isHighlighted) {

@@ -225,10 +225,9 @@ void DrawMenuTitle(short menuID, const Rect* titleRect, Boolean hilited)
         ClipRect(&barRect);
     }
 
-    /* CRITICAL FIX: Reset pnLoc before drawing
-     * pnLoc may be left in a bad state (e.g., 321,146) from previous dropdown menu
-     * drawing or other operations. This causes text to be drawn at wrong position.
-     * Reset to (0,0) to ensure DrawChar positioning is correct. */
+    /* Earlier drawing can leave pnLoc at a nonzero position; title text starts
+     * from the screen port's origin.
+     */
     if (menuPort) {
         menuPort->pnLoc.h = 0;
         menuPort->pnLoc.v = 0;
