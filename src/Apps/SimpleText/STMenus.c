@@ -150,9 +150,6 @@ static void UpdateStyleMenu(void);
  * Menus are installed when the app's window becomes active, and removed when inactive.
  */
 void STMenu_Init(void) {
-
-    serial_puts("[ST] STMenu_Init: Creating menus (not yet installing)\n");
-
     /* Create Apple menu - but DON'T insert yet */
     static unsigned char appleTitle[] = {1, 0x14};  /* Apple symbol */
     g_ST.appleMenu = NewMenu(mApple, appleTitle);
@@ -208,7 +205,6 @@ void STMenu_Init(void) {
 
     /* DO NOT call DrawMenuBar here - menus are drawn when installed on activate */
 
-    serial_puts("[ST] STMenu_Init: Menus created successfully (not yet installed)\n");
 }
 
 /*
@@ -302,8 +298,6 @@ void STMenu_Install(void) {
     if (gSTMenusInstalled) {
         return;
     }
-    serial_puts("[ST] STMenu_Install: Installing SimpleText menus into menu bar\n");
-
     /* Only one application owns the menu bar at a time. The Finder's menus
      * come out before SimpleText's go in, or the bar would carry two File
      * menus and two Edit menus. */
@@ -333,7 +327,6 @@ void STMenu_Install(void) {
     DrawMenuBar();
 
     gSTMenusInstalled = true;
-    serial_puts("[ST] STMenu_Install: Menus installed successfully\n");
 }
 
 /*
@@ -347,8 +340,6 @@ void STMenu_Remove(void) {
     if (!gSTMenusInstalled) {
         return;
     }
-    serial_puts("[ST] STMenu_Remove: Removing SimpleText menus from menu bar\n");
-
     /* Delete menus in reverse order */
     if (g_ST.styleMenu) {
         DeleteMenu(mStyle);
@@ -379,7 +370,6 @@ void STMenu_Remove(void) {
         Finder_InstallMenuBar();
     }
 
-    serial_puts("[ST] STMenu_Remove: Menus removed successfully\n");
 }
 
 /*
