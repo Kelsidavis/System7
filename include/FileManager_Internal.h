@@ -13,23 +13,10 @@
 #include "SystemTypes.h"
 #include "Errors/ErrorCodes.h"
 #include "FS/hfs_constants.h"
+#include "FileMgr/errno_compat.h"
 
 #ifdef __cplusplus
 extern "C" {
-#endif
-
-/* Unix error codes */
-#ifndef ENOMEM
-#define ENOMEM  12
-#define EIO     5
-#define EMFILE  24
-#define ENOENT  2
-#define EACCES  13
-#define EEXIST  17
-#define ENOTDIR 20
-#define EISDIR  21
-#define ENOSPC  28
-#define EROFS   30
 #endif
 
 /* HFS Constants */

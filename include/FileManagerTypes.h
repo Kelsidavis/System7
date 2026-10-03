@@ -10,6 +10,7 @@
 
 #include "MacTypes.h"
 #include "Errors/ErrorCodes.h"
+#include "FileMgr/errno_compat.h"
 #include <time.h>
 
 /* Extended Volume Control Block for File Manager */
@@ -142,20 +143,6 @@ typedef struct {
 #define kioFlAttribDir  0x10   /* Directory attribute */
 #define notAFileErr     -1302  /* Not a file error */
 #define kioVAtrbOffline 0x0001 /* Volume offline */
-#endif
-
-/* Unix error codes */
-#ifndef ENOMEM
-#define ENOMEM  12
-#define EIO     5
-#define EMFILE  24
-#define ENOENT  2
-#define EACCES  13
-#define EEXIST  17
-#define ENOTDIR 20
-#define EISDIR  21
-#define ENOSPC  28
-#define EROFS   30
 #endif
 
 #endif /* __FILEMANAGERTYPES_H__ */
