@@ -479,15 +479,16 @@ void CTL_DrawPushButton(const Rect* bounds, const unsigned char* title,
     }
 
     if (title && title[0] > 0) {
-        SInt16 fontAscent = 9;   /* system font, 12pt */
-        SInt16 fontDescent = 2;
-        SInt16 textHeight = fontAscent + fontDescent;
-        SInt16 btnHeight = btnRect.bottom - btnRect.top;
-
         TextFont(0);
         TextSize(12);
         TextFace(0);
 
+        FontInfo fontInfo;
+        GetFontInfo(&fontInfo);
+        SInt16 fontAscent = fontInfo.ascent;
+        SInt16 fontDescent = fontInfo.descent;
+        SInt16 textHeight = fontAscent + fontDescent;
+        SInt16 btnHeight = btnRect.bottom - btnRect.top;
         SInt16 textWidth = StringWidth(title);
         SInt16 textH = btnRect.left + ((btnRect.right - btnRect.left - textWidth) / 2);
         SInt16 textV = btnRect.top + ((btnHeight - textHeight) / 2) + fontAscent;
