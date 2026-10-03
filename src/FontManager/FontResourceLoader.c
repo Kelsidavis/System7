@@ -1,5 +1,4 @@
 /*
-#include "FontManager/FontInternal.h"
  * FontResourceLoader.c - FOND/NFNT Resource Loading Implementation
  *
  * Parses System 7.1 font resources and builds font strikes

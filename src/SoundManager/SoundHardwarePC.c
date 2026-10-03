@@ -1,6 +1,4 @@
 /*
-#include "SoundManager/PCSpkr.h"
-#include "System71StdLib.h"
  * SoundHardwarePC.c - PC Speaker hardware driver for bare-metal x86
  *
  * Provides basic audio output using the PC speaker (I/O port 0x61)
@@ -11,6 +9,8 @@
 
 #include <stdint.h>
 #include <stdbool.h>
+#include "SoundManager/PCSpkr.h"
+#include "System71StdLib.h"
 #include "SoundManager/SoundLogging.h"
 
 /* I/O port access functions (implemented in platform code) */
@@ -33,11 +33,6 @@
 
 /* PIT base frequency (1.193182 MHz) */
 #define PIT_BASE_FREQ       1193182
-
-/* Forward declarations */
-void PCSpkr_Beep(uint32_t frequency, uint32_t duration_ms);
-int PCSpkr_Init(void);
-void PCSpkr_Shutdown(void);
 
 /*
  * PCSpkr_SetFrequency - Set PC speaker frequency using PIT channel 2

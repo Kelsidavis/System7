@@ -1,6 +1,5 @@
 #include "MemoryMgr/MemoryManager.h"
 /*
-#include "DialogManager/DialogInternal.h"
  * DialogResourceParser.c - DLOG and DITL Resource Parsing
  *
  * Implements faithful System 7.1-compatible resource parsing for dialog templates
