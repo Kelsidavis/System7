@@ -18,14 +18,6 @@
 #include "MenuManager/MenuTypes.h"
 #include "MenuManager/MenuLogging.h"
 
-/* Extern declarations for menu item metadata functions */
-extern void SetItemCmd(MenuHandle theMenu, short item, short cmdChar);
-extern void SetItemMark(MenuHandle theMenu, short item, short markChar);
-extern void SetItemStyle(MenuHandle theMenu, short item, short chStyle);
-extern void DisableItem(MenuHandle theMenu, short item);
-extern void SetItemSubmenu(MenuHandle theMenu, short item, short submenuID);
-extern short CountMItems(MenuHandle theMenu);
-
 /* ===== MENU Resource Parser ===== */
 
 /*
