@@ -1,4 +1,3 @@
-/* #include "SystemTypes.h" */
 /*
  * RE-AGENT-BANNER
  * Main Finder Implementation

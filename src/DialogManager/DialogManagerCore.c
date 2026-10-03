@@ -1,8 +1,6 @@
-/* #include "SystemTypes.h" */
 #include "DialogManager/DialogInternal.h"
 #include <stdlib.h>
 #include <string.h>
-/* #include <stdio.h> */
 /*
  * DialogManagerCore.c - Core Dialog Manager Implementation
  *

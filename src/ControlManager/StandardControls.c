@@ -1,4 +1,3 @@
-/* #include "SystemTypes.h" */
 /**
  * @file StandardControls.c
  * @brief Standard control type implementations (buttons, checkboxes, radio buttons)

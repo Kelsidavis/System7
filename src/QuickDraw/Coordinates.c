@@ -1,4 +1,3 @@
-/* #include "SystemTypes.h" */
 #include "QuickDraw/QuickDrawInternal.h"
 /*
  * Coordinates.c - QuickDraw Coordinate System Implementation

@@ -1,4 +1,3 @@
-/* #include "SystemTypes.h" */
 #include <stdlib.h>
 /*
  * RE-AGENT-BANNER

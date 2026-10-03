@@ -1,4 +1,3 @@
-/* #include "SystemTypes.h" */
 #include <string.h>
 /*
  * WindowDragging.c - Window Dragging and Positioning Implementation

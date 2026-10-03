@@ -1,6 +1,5 @@
 #include "SystemInternal.h"
 #include "MemoryMgr/MemoryManager.h"
-/* #include "SystemTypes.h" */
 /*
  * RE-AGENT-BANNER
  * Desktop Manager Implementation

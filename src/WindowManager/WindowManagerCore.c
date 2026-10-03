@@ -1,4 +1,3 @@
-/* #include "SystemTypes.h" */
 #include <stdlib.h>
 /* #include <stdio.h> - removed for bare metal compatibility */
 /*

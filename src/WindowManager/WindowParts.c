@@ -1,4 +1,3 @@
-/* #include "SystemTypes.h" */
 #include <string.h>
 /*
  * WindowParts.c - Window Parts and Controls Implementation

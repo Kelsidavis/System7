@@ -1,5 +1,4 @@
 #include "MemoryMgr/MemoryManager.h"
-/* #include "SystemTypes.h" */
 #include "DialogManager/DialogInternal.h"
 #include <stdlib.h>
 #include <string.h>

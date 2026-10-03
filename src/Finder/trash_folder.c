@@ -1,4 +1,3 @@
-/* #include "SystemTypes.h" */
 /*
  * RE-AGENT-BANNER
  * Trash Folder Implementation

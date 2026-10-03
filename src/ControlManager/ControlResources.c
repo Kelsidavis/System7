@@ -1,4 +1,3 @@
-/* #include "SystemTypes.h" */
 #include <string.h>
 /**
  * @file ControlResources.c

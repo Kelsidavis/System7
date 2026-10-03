@@ -1,4 +1,3 @@
-/* #include "SuperCompat.h" */
 #include <stdlib.h>
 #include <string.h>
 /*
@@ -25,7 +24,6 @@
 #include "FileMgr/file_manager.h"
 #include "MemoryMgr/MemoryManager.h"
 #include "ToolboxCompat.h"
-/* #include "ListManager/ListManager.h" */
 
 /* External File Manager functions not in file_manager.h */
 extern OSErr HGetFInfo(SInt16 vRefNum, SInt32 dirID, ConstStr255Param fileName, void* fInfo);

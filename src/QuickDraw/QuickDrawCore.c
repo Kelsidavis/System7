@@ -1,4 +1,3 @@
-/* #include "SystemTypes.h" */
 #include "QuickDraw/QuickDrawInternal.h"
 #include "QuickDrawConstants.h"
 #include <string.h>

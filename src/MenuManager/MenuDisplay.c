@@ -1,4 +1,3 @@
-/* #include "SystemTypes.h" */
 #include "MemoryMgr/MemoryManager.h"
 #include "MenuManager/menu_private.h"
 #include <string.h>
