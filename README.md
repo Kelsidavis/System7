@@ -141,7 +141,7 @@ Full roadmap: [BARE_METAL_IMPROVEMENTS.md](docs/BARE_METAL_IMPROVEMENTS.md)
 - **Serial Logging**: Module-based logging with runtime filtering (Error/Warn/Info/Debug/Trace)
 - **Graphics Foundation**: VESA framebuffer (800x600x32, 32-bit colour) with QuickDraw primitives including XOR mode
 - **Desktop Rendering**: System 7 menu bar with rainbow Apple logo, icons, and desktop patterns
-- **Typography**: Chicago bitmap font with pixel-perfect rendering and proper kerning, extended Mac Roman (0x80-0xFF) for European accented characters
+- **Typography**: Chicago bitmap font with per-character advance metrics, extended Mac Roman (0x80-0xFF) for European accented characters
 - **Localization**: user-visible strings come from `STR#` resources through the Locale Manager, in 38 languages; build English only, one language, or all of them (`LOCALE_ALL=1`) and pick one at boot with `lang=xx`; CJK multi-byte encoding infrastructure
 - **Font Manager**: Font scaling and style-width metrics, with bold/underline rendering and incomplete italic support; shadow, outline, and condense/extend rendering are not implemented. FOND/NFNT loading is connected through `GetResource`, but validation against real application resource forks remains limited
 - **Input System**: PS/2 keyboard and mouse, and USB keyboards, mice and tablets (xHCI)
