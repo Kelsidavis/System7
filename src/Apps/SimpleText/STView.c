@@ -377,7 +377,6 @@ void STView_Click(STDocument* doc, EventRecord* event) {
                 SInt16 offset = TEGetOffset(localPt, doc->hTE);
 
                 /* Find word boundaries */
-                extern SInt32 TE_FindWordBoundary(TEHandle hTE, SInt32 offset, Boolean forward);
                 SInt32 wordStart = TE_FindWordBoundary(doc->hTE, offset, false);
                 SInt32 wordEnd = TE_FindWordBoundary(doc->hTE, offset, true);
 
@@ -391,8 +390,6 @@ void STView_Click(STDocument* doc, EventRecord* event) {
                 SInt16 offset = TEGetOffset(localPt, doc->hTE);
 
                 /* Find line boundaries */
-                extern SInt32 TE_FindLineStart(TEHandle hTE, SInt32 offset);
-                extern SInt32 TE_FindLineEnd(TEHandle hTE, SInt32 offset);
                 SInt32 lineStart = TE_FindLineStart(doc->hTE, offset);
                 SInt32 lineEnd = TE_FindLineEnd(doc->hTE, offset);
 
@@ -459,7 +456,6 @@ void STView_Key(STDocument* doc, EventRecord* event) {
             if (selStart > 0) {
                 if (event->modifiers & cmdKey) {
                     /* Cmd-Left: beginning of line */
-                    extern SInt32 TE_FindLineStart(TEHandle hTE, SInt32 offset);
                     SInt32 lineStart = TE_FindLineStart(doc->hTE, selStart);
                     TESetSelect(lineStart, lineStart, doc->hTE);
                 } else {
@@ -472,7 +468,6 @@ void STView_Key(STDocument* doc, EventRecord* event) {
             if (selEnd < (*doc->hTE)->teLength) {
                 if (event->modifiers & cmdKey) {
                     /* Cmd-Right: end of line */
-                    extern SInt32 TE_FindLineEnd(TEHandle hTE, SInt32 offset);
                     SInt32 lineEnd = TE_FindLineEnd(doc->hTE, selEnd);
                     TESetSelect(lineEnd, lineEnd, doc->hTE);
                 } else {

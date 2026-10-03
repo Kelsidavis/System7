@@ -532,7 +532,6 @@ static void HandleEditMenu(short item) {
 void STFind_ShowDialog(STDocument* doc) {
     if (!doc || !doc->hTE) return;
 
-    extern void ShowWindow(WindowPtr);
 
     /*
      * Built through DITLBuilder rather than by hand.
@@ -586,8 +585,6 @@ void STFind_ShowDialog(STDocument* doc) {
         SInt16 itemType;
         Handle itemH;
         Rect itemBox;
-        extern void GetDialogItem(DialogPtr, SInt16, SInt16*, Handle*, Rect*);
-        extern void GetDialogItemText(Handle, unsigned char*);
         GetDialogItem(dlg, 3, &itemType, &itemH, &itemBox);
         if (itemH) {
             unsigned char pstr[256];
@@ -686,7 +683,6 @@ void STFind_Again(STDocument* doc) {
         TESetSelect(foundPos, foundPos + searchLen, doc->hTE);
         g_ST.searchOffset = foundPos + searchLen;
         /* Scroll to show selection */
-        extern void TESelView(TEHandle hTE);
         TESelView(doc->hTE);
     } else {
         SysBeep(10);  /* Not found beep */
