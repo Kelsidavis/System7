@@ -228,39 +228,6 @@ UInt8 GetMouseButtons(void) {
     return g_mouseState;
 }
 
-/*
- * Button - Check if mouse button is down
- * Returns true if button is pressed
- */
-Boolean Button(void) {
-    return (g_mouseState & 0x01) != 0;
-}
-
-/*
- * StillDown - Check if mouse button is still down
- * Returns true if button remains pressed
- */
-Boolean StillDown(void) {
-    return (g_mouseState & 0x01) != 0;
-}
-
-/*
- * WaitMouseUp - Wait for mouse button release
- * Returns true when button is released
- */
-Boolean WaitMouseUp(void) {
-    /* Poll input until button is released */
-    while (g_mouseState & 0x01) {
-        PollPS2Input();
-    }
-    return true;
-}
-
-/*
- * The rest of the input interface the shared code uses, as the x86 PS/2 driver
- * provides it. Without these the arm64 kernel did not link.
- */
-
 /* Mouse position in the current port's coordinates */
 void GetMouseLocal(Point* mouseLoc) {
     extern GrafPtr g_currentPort;

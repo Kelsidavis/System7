@@ -184,7 +184,7 @@ else ifeq ($(PLATFORM),arm64)
     AR = $(AARCH64_PREFIX)-ar
     CFLAGS = $(COMMON_CFLAGS) -march=armv8-a -ffreestanding -DQEMU_BUILD
     ASFLAGS = -march=armv8-a
-    LDFLAGS = -nostdlib -no-pie -Wl,--allow-multiple-definition -Wl,-z,noexecstack -Wl,--build-id=none
+    LDFLAGS = -nostdlib -no-pie -Wl,-z,noexecstack -Wl,--build-id=none
     LINKER_SCRIPT := $(HAL_DIR)/link_qemu.ld
     ifeq ($(strip $(GESTALT_MACHINE_TYPE)),)
       GESTALT_MACHINE_TYPE := arm64_virt
@@ -272,7 +272,6 @@ C_SOURCES = src/main.c \
             $(if $(filter arm64,$(PLATFORM)), \
               src/Platform/arm64/uart_qemu.c \
               src/Platform/arm64/hal_boot.c \
-              src/Platform/arm64/serial.c \
               src/Platform/arm64/timer.c \
               src/Platform/arm64/dtb.c \
               src/Platform/arm64/virtio_gpu.c \
@@ -282,8 +281,6 @@ C_SOURCES = src/main.c \
               src/Platform/arm64/mmu.c \
               src/Platform/arm64/cache.c \
               src/Platform/arm64/exception_handlers.c \
-              src/Platform/arm64/string.c \
-              src/Platform/arm64/printf.c \
               src/Platform/arm64/io.c \
               src/Platform/arm64/hal_input.c \
               src/Platform/arm64/platform_info.c \
