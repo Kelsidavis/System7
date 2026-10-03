@@ -32,6 +32,7 @@
 #include "../include/WindowManager/WindowManager.h"
 #include "../include/TextEdit/TextEdit.h"
 #include "../include/FontManager/FontManager.h"
+#include "../include/Gestalt/GestaltPriv.h"
 #include "../include/PS2Controller.h"
 #include "../include/FS/vfs.h"
 #include "../include/MemoryMgr/MemoryManager.h"
@@ -606,8 +607,6 @@ static void init_system71(void) {
 
     /* Gestalt Manager - must be after Memory Manager, before other subsystems query */
     {
-        extern void Gestalt_SetInitBit(int bit);
-
         OSErr err = Gestalt_Init();
         if (err == noErr) {
             serial_puts("  Gestalt Manager initialized\n");
@@ -640,7 +639,6 @@ static void init_system71(void) {
     }
 
     /* Mark Resource Manager as initialized */
-    extern void Gestalt_SetInitBit(int bit);
     Gestalt_SetInitBit(2);  /* kGestaltInitBit_ResourceMgr */
 
     /* Extension Manager - loads INIT resources and system extensions */
@@ -748,8 +746,6 @@ static void init_system71(void) {
         }
 
         /* Definition Loader - loads WDEF, LDEF, MDEF resources */
-        extern OSErr DefLoader_Initialize(void);
-        extern SInt16 DefLoader_LoadAllDefinitions(ResType defType);
         extErr = DefLoader_Initialize();
         if (extErr == noErr) {
             serial_puts("  Definition Loader initialized\n");
@@ -866,7 +862,6 @@ static void init_system71(void) {
      * control blocks to open anything into: FSOpen and every open built on it
      * failed with tmfoErr once a lookup succeeded. Ahead of the VFS, whose
      * volumes register with it as they mount. */
-    extern OSErr FM_Initialize(void);
     if (FM_Initialize() != noErr) {
         serial_puts("  WARNING: File Manager initialization failed\n");
     }
@@ -889,13 +884,11 @@ static void init_system71(void) {
         /* The root of the volume is built into the on-disk catalog, but the
          * System Folder's contents go in the RAM overlay - the hand-built
          * catalog leaf node has no room left. */
-        extern bool VFS_PopulateSystemFolder(void);
         if (VFS_PopulateSystemFolder()) {
             serial_puts("  System Folder populated\n");
         }
 
         {
-            extern bool VFS_SeedSampleDocuments(void);
             if (VFS_SeedSampleDocuments()) {
                 serial_puts("  Sample documents given their text\n");
             }
@@ -933,7 +926,6 @@ static void init_system71(void) {
     serial_puts("  Event Manager initialized\n");
 
     /* Event Dispatcher */
-    extern void InitEventDispatcher(void);
     InitEventDispatcher();
     serial_puts("  Event Dispatcher initialized\n");
 
@@ -1058,7 +1050,6 @@ static void init_system71(void) {
     }
 
     /* Initialize Modern Input System for PS/2 devices */
-    extern SInt16 InitModernInput(const char* platform);
     if (InitModernInput("PS2") == noErr) {
         serial_puts("  Modern Input System initialized for PS/2\n");
     } else {
@@ -1094,9 +1085,6 @@ static void init_system71(void) {
 
         /* Now mount ATA volumes (callback is registered) */
         extern int hal_storage_get_drive_count(void);
-        extern bool VFS_MountATA(int ata_device_index, const char* volName, VRefNum* vref);
-        extern bool VFS_FormatATA(int ata_device_index, const char* volName);
-
         int ata_count = hal_storage_get_drive_count();
         if (ata_count > 0) {
             serial_puts("  Mounting detected ATA volumes...\n");
@@ -1388,11 +1376,6 @@ void Pointer_Shield(int left, int top, int right, int bottom) {
 
 /* Bring the pointer up to date: position, image and visibility. */
 void UpdateCursorDisplay(void) {
-    extern int IsCursorVisible(void);
-    extern const Cursor* CursorManager_GetCurrentCursorImage(void);
-    extern Point CursorManager_GetCursorHotspot(void);
-    extern void CursorManager_HandleMouseMotion(Point newPos);
-
     const Cursor* image = CursorManager_GetCurrentCursorImage();
     Point mouse;
     GetMouse(&mouse);
@@ -1506,7 +1489,6 @@ void kernel_main(uint32_t magic, uint32_t* mb2_info) {
         /* Apply desktop background pattern to the port so EraseRgn draws gray, not white */
         {
             extern void PM_GetBackPat(Pattern *pat);
-            extern void BackPat(const Pattern *pat);
             Pattern deskPat;
             PM_GetBackPat(&deskPat);
             BackPat(&deskPat);
@@ -1642,7 +1624,6 @@ void kernel_main(uint32_t magic, uint32_t* mb2_info) {
 
     SYSTEM_LOG_DEBUG("MAIN: Entering main event loop NOW!\n");
     serial_puts("MAIN: Entering event loop\n");
-    extern void uart_flush(void);
     uart_flush();
 
 #if defined(__i386__) || defined(__x86_64__)
@@ -1685,7 +1666,6 @@ void kernel_main(uint32_t magic, uint32_t* mb2_info) {
 
             /* Process any pending deferred window creation (About dialog, etc.)
              * This must happen AFTER DispatchEvent completes to avoid event re-entry deadlock */
-            extern void AboutWindow_ProcessPendingCreation(void);
             AboutWindow_ProcessPendingCreation();
 
             MemoryManager_CheckSuspectBlock("after_dispatch(coop)");
@@ -1700,7 +1680,6 @@ void kernel_main(uint32_t magic, uint32_t* mb2_info) {
         xhci_poll_hid_x86();
 #endif
         /* Process modern input events (PS/2 keyboard and mouse) */
-        extern void ProcessModernInput(void);
         ProcessModernInput();
 
         /* Throttle ONLY cursor drawing, not event processing */

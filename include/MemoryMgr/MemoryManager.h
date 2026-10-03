@@ -120,14 +120,7 @@ u32     CompactMem(u32 cbNeeded);
 void    PurgeMem(u32 cbNeeded);
 
 /* Memory utility functions */
-void    BlockMoveData(const void* srcPtr, void* destPtr, Size byteCount);
 SInt16  MemError(void);
-
-/* Standard C library interface */
-void*   malloc(size_t size);
-void    free(void* ptr);
-void*   calloc(size_t nmemb, size_t size);
-void*   realloc(void* ptr, size_t size);
 
 /* Memory Manager initialization */
 void    InitMemoryManager(void);

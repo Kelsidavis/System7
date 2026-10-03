@@ -303,7 +303,6 @@ int getopt(int argc, char* const argv[], const char* optstring) {
     /* Check for invalid option */
     if (c == ':' || (cp = strchr(optstring, c)) == NULL) {
         if (opterr && optstring[0] != ':') {
-            extern void serial_putchar(char c);
             serial_puts("Unknown option: -");
             serial_putchar(c);
             serial_puts("\n");
@@ -323,7 +322,6 @@ int getopt(int argc, char* const argv[], const char* optstring) {
         } else if (++optind >= argc) {
             /* Missing argument */
             if (opterr && optstring[0] != ':') {
-                extern void serial_putchar(char c);
                 serial_puts("Option requires an argument: -");
                 serial_putchar(c);
                 serial_puts("\n");
@@ -395,8 +393,6 @@ const char* sys71_strerror(int errnum) {
 int errno = 0;
 
 void perror(const char* s) {
-    extern int errno;
-
     if (s && *s) {
         serial_puts(s);
         serial_puts(": ");
@@ -410,7 +406,6 @@ int open(const char* pathname, int flags, ...) {
     /* Stub: no file system in bare-metal */
     (void)pathname;
     (void)flags;
-    extern int errno;
     errno = 2;  /* ENOENT */
     return -1;
 }
@@ -418,7 +413,6 @@ int open(const char* pathname, int flags, ...) {
 int close(int fd) {
     /* Stub: no file descriptors */
     (void)fd;
-    extern int errno;
     errno = 9;  /* EBADF */
     return -1;
 }
@@ -428,7 +422,6 @@ ssize_t read(int fd, void* buf, size_t count) {
     (void)fd;
     (void)buf;
     (void)count;
-    extern int errno;
     errno = 9;  /* EBADF */
     return -1;
 }
@@ -446,7 +439,6 @@ ssize_t write(int fd, const void* buf, size_t count) {
 
     /* Other file descriptors not supported */
     (void)buf;
-    extern int errno;
     errno = 9;  /* EBADF */
     return -1;
 }
@@ -454,8 +446,6 @@ ssize_t write(int fd, const void* buf, size_t count) {
 /* Time and delay functions */
 unsigned int sleep(unsigned int seconds) {
     /* Simple busy-wait sleep (not accurate, cooperative) */
-    extern void Delay(UInt32 numTicks, UInt32* finalTicks);
-
     /* Mac ticks are ~60Hz, so multiply by 60 to get approximate seconds */
     UInt32 ticks = seconds * 60;
     UInt32 finalTicks;
@@ -466,8 +456,6 @@ unsigned int sleep(unsigned int seconds) {
 
 int usleep(useconds_t usec) {
     /* Microsecond sleep - convert to ticks (1 tick ≈ 16667 μs at 60Hz) */
-    extern void Delay(UInt32 numTicks, UInt32* finalTicks);
-
     UInt32 ticks = (usec + 16666) / 16667;  /* Round up */
     if (ticks == 0) ticks = 1;  /* At least 1 tick */
 
@@ -2015,11 +2003,6 @@ static bool SysLogShouldEmit(SystemLogModule module, SystemLogLevel level) {
     return true;
 }
 
-/* Defined below; the one formatter this file has that parses flags, width,
- * precision and length modifiers properly. */
-int vsnprintf(char* str, size_t size, const char* format, va_list args)
-    __attribute__((format(printf, 3, 0)));
-
 /*
  * SysLogFormatAndSend - render a log line and put it on the wire.
  *
@@ -2722,7 +2705,6 @@ double hypot(double x, double y) {
  * shifted from the Mac epoch of 1904 to the Unix epoch of 1970.
  */
 time_t time(time_t* t) {
-    extern void GetDateTime(UInt32* secs);
     const UInt32 kMacToUnixEpoch = 2082844800UL;  /* 1904 -> 1970 */
 
     UInt32 macSecs = 0;

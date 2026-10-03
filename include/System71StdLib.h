@@ -9,6 +9,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <math.h>
+#include <string.h>
 #include "Platform/Serial.h"
 
 /* Define POSIX types if not available */
@@ -72,10 +73,6 @@ void serial_logf(SystemLogModule module, SystemLogLevel level, const char* fmt, 
     __attribute__((format(printf, 3, 4)));
 
 /* Memory functions */
-void* memcpy(void* dest, const void* src, size_t n);
-void* memset(void* s, int c, size_t n);
-void* memmove(void* dest, const void* src, size_t n);
-int memcmp(const void* s1, const void* s2, size_t n);
 void* memchr(const void* s, int c, size_t n);
 void bzero(void* s, size_t n);
 void explicit_bzero(void* s, size_t n);
@@ -84,15 +81,7 @@ void bcopy(const void* src, void* dest, size_t n);
 int bcmp(const void* s1, const void* s2, size_t n);
 
 /* String functions */
-size_t strlen(const char* s);
-char* strcpy(char* dest, const char* src);
-char* strncpy(char* dest, const char* src, size_t n);
-int strcmp(const char* s1, const char* s2);
-int strncmp(const char* s1, const char* s2, size_t n);
-char* strcat(char* dest, const char* src);
-char* strchr(const char* s, int c);
 const char* sys71_strerror(int errnum);
-void perror(const char* s);
 size_t strspn(const char* s, const char* accept);
 size_t strcspn(const char* s, const char* reject);
 char* strpbrk(const char* s, const char* accept);
@@ -115,8 +104,6 @@ void p2cstrcpy(char* cstr, const unsigned char* pstr);
 unsigned char* CopyCStringToPascal(const char* src, unsigned char* dst);
 
 /* Conversion functions */
-int atoi(const char* str);
-long atol(const char* str);
 double atof(const char* str);
 unsigned long strtoul(const char* str, char** endptr, int base);
 
@@ -132,8 +119,6 @@ unsigned int sleep(unsigned int seconds);
 int usleep(useconds_t usec);
 
 /* Math functions */
-int abs(int n);
-long labs(long n);
 int min(int a, int b);
 int max(int a, int b);
 long lmin(long a, long b);

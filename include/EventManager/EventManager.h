@@ -180,8 +180,6 @@ SInt32 DragTheRgn(Point startPt, const struct Rect* limitRect,
  * @param state Pointer to translation state
  * @return Character code or function key code
  */
-SInt32 KeyTranslate(const void* transData, UInt16 keycode, UInt32* state);
-
 /**
  * Compatibility name for KeyTranslate
  */

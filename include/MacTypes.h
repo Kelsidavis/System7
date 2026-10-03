@@ -121,9 +121,6 @@ extern "C" {
 
 /* Driver types */
 
-/* Global pointers */
-extern GrafPtr thePort;
-
 /* Window record */
 /* Type moved to SystemTypes.h */
 
@@ -185,4 +182,3 @@ extern GrafPtr thePort;
 #endif
 
 #endif /* MACTYPES_H */
-

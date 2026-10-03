@@ -92,14 +92,6 @@ OSErr DisposeIconSuite(Handle theIconSuite, Boolean disposeData);
 #define kSmallIconWidth  16
 #define kSmallIconHeight 16
 
-/* External QuickDraw functions */
-extern void GetPort(GrafPtr* port);
-extern void SetPort(GrafPtr port);
-extern void PenMode(short mode);
-extern void CopyBits(const BitMap* srcBits, const BitMap* dstBits,
-                     const Rect* srcRect, const Rect* dstRect,
-                     short mode, RgnHandle maskRgn);
-
 /*
  * PlotIcon - Plot an icon at a location
  *
@@ -174,8 +166,6 @@ void PlotIcon(const Rect* theRect, Handle theIcon) {
     }
 
     /* Draw icon pixel by pixel */
-    extern void MoveTo(short h, short v);
-    extern void LineTo(short h, short v);
     PenMode(patCopy);
 
     for (int row = 0; row < iconHeight; row++) {
@@ -282,7 +272,6 @@ Handle GetIcon(short iconID) {
     ICON_LOG("GetIcon: iconID=%d\n", iconID);
 
     /* Load icon from resources */
-    extern Handle GetResource(ResType theType, short theID);
     Handle iconHandle = GetResource(kIconResourceType, iconID);
 
     if (iconHandle == NULL) {
@@ -383,8 +372,6 @@ void PlotIconHandle(const Rect* theRect, IconAlignmentType align, IconTransformT
         short destTop = alignedRect.top;
 
         /* Set up drawing */
-        extern void MoveTo(short h, short v);
-        extern void LineTo(short h, short v);
         GrafPtr savePort;
         GetPort(&savePort);
         PenMode(patCopy);
@@ -586,7 +573,6 @@ OSErr DisposeIconSuite(Handle theIconSuite, Boolean disposeData) {
         for (int i = 0; i < 16; i++) {
             if (iconPtrs[i] != NULL) {
                 /* Release icon resource */
-                extern void ReleaseResource(Handle resource);
                 ReleaseResource((Handle)__builtin_assume_aligned(
                     iconPtrs[i], _Alignof(Handle)));
                 iconPtrs[i] = NULL;
@@ -597,7 +583,6 @@ OSErr DisposeIconSuite(Handle theIconSuite, Boolean disposeData) {
     }
 
     /* Dispose the suite structure itself */
-    extern void DisposeHandle(Handle h);
     DisposeHandle(theIconSuite);
 
     ICON_LOG("DisposeIconSuite: Suite disposed\n");
