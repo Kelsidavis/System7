@@ -6,6 +6,13 @@ on:
   pull_request:
     branches: [ main, master ]
 
+# Keep actions/checkout's temporary repositories from emitting Git's
+# first-branch-name hint in every job.
+env:
+  GIT_CONFIG_COUNT: 1
+  GIT_CONFIG_KEY_0: init.defaultBranch
+  GIT_CONFIG_VALUE_0: main
+
 jobs:
   build-x86:
     name: Build x86
