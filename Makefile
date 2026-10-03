@@ -642,230 +642,24 @@ LOCALE_CODES := $(patsubst resources/strings/%.json,%,$(wildcard resources/strin
 $(foreach locale,$(LOCALE_CODES),$(eval $(call LOCALE_RESOURCE_RULES,$(locale))))
 
 # Optional locale resources (add LOCALE_XX=1 to build with additional languages)
-# LOCALE_ALL=1 builds every language in.
+# LOCALE_ALL=1 enables every locale listed here.
+LOCALE_OPTIONAL := \
+    FR:fr DE:de ES:es JA:ja ZH:zh KO:ko RU:ru UK:uk PL:pl CS:cs \
+    SQ:sq BG:bg HR:hr DA:da NL:nl ET:et FI:fi EL:el HU:hu IS:is \
+    IT:it LV:lv LT:lt MK:mk ME:me NO:no PT:pt RO:ro SK:sk SL:sl \
+    SV:sv TR:tr HI:hi TW:tw AR:ar BN:bn UR:ur
+
 ifeq ($(LOCALE_ALL),1)
-  LOCALE_FR := 1
-  LOCALE_DE := 1
-  LOCALE_ES := 1
-  LOCALE_JA := 1
-  LOCALE_ZH := 1
-  LOCALE_KO := 1
-  LOCALE_RU := 1
-  LOCALE_UK := 1
-  LOCALE_PL := 1
-  LOCALE_CS := 1
-  LOCALE_SQ := 1
-  LOCALE_BG := 1
-  LOCALE_HR := 1
-  LOCALE_DA := 1
-  LOCALE_NL := 1
-  LOCALE_ET := 1
-  LOCALE_FI := 1
-  LOCALE_EL := 1
-  LOCALE_HU := 1
-  LOCALE_IS := 1
-  LOCALE_IT := 1
-  LOCALE_LV := 1
-  LOCALE_LT := 1
-  LOCALE_MK := 1
-  LOCALE_ME := 1
-  LOCALE_NO := 1
-  LOCALE_PT := 1
-  LOCALE_RO := 1
-  LOCALE_SK := 1
-  LOCALE_SL := 1
-  LOCALE_SV := 1
-  LOCALE_TR := 1
-  LOCALE_HI := 1
-  LOCALE_TW := 1
-  LOCALE_AR := 1
-  LOCALE_BN := 1
-  LOCALE_UR := 1
-endif
-ifeq ($(LOCALE_FR),1)
-CFLAGS += -DLOCALE_FR=1
-C_SOURCES += src/strings_fr_rsrc.c
+$(foreach locale,$(LOCALE_OPTIONAL),$(eval LOCALE_$(firstword $(subst :, ,$(locale))) := 1))
 endif
 
-ifeq ($(LOCALE_DE),1)
-CFLAGS += -DLOCALE_DE=1
-C_SOURCES += src/strings_de_rsrc.c
+define ENABLE_LOCALE
+ifeq ($$(LOCALE_$(firstword $(subst :, ,$(1)))),1)
+CFLAGS += -DLOCALE_$(firstword $(subst :, ,$(1)))=1
+C_SOURCES += src/strings_$(lastword $(subst :, ,$(1)))_rsrc.c
 endif
-
-ifeq ($(LOCALE_ES),1)
-CFLAGS += -DLOCALE_ES=1
-C_SOURCES += src/strings_es_rsrc.c
-endif
-
-ifeq ($(LOCALE_JA),1)
-CFLAGS += -DLOCALE_JA=1
-C_SOURCES += src/strings_ja_rsrc.c
-endif
-
-ifeq ($(LOCALE_ZH),1)
-CFLAGS += -DLOCALE_ZH=1
-C_SOURCES += src/strings_zh_rsrc.c
-endif
-
-ifeq ($(LOCALE_KO),1)
-CFLAGS += -DLOCALE_KO=1
-C_SOURCES += src/strings_ko_rsrc.c
-endif
-
-ifeq ($(LOCALE_RU),1)
-CFLAGS += -DLOCALE_RU=1
-C_SOURCES += src/strings_ru_rsrc.c
-endif
-
-ifeq ($(LOCALE_UK),1)
-CFLAGS += -DLOCALE_UK=1
-C_SOURCES += src/strings_uk_rsrc.c
-endif
-
-ifeq ($(LOCALE_PL),1)
-CFLAGS += -DLOCALE_PL=1
-C_SOURCES += src/strings_pl_rsrc.c
-endif
-
-ifeq ($(LOCALE_CS),1)
-CFLAGS += -DLOCALE_CS=1
-C_SOURCES += src/strings_cs_rsrc.c
-endif
-
-ifeq ($(LOCALE_SQ),1)
-CFLAGS += -DLOCALE_SQ=1
-C_SOURCES += src/strings_sq_rsrc.c
-endif
-
-ifeq ($(LOCALE_BG),1)
-CFLAGS += -DLOCALE_BG=1
-C_SOURCES += src/strings_bg_rsrc.c
-endif
-
-ifeq ($(LOCALE_HR),1)
-CFLAGS += -DLOCALE_HR=1
-C_SOURCES += src/strings_hr_rsrc.c
-endif
-
-ifeq ($(LOCALE_DA),1)
-CFLAGS += -DLOCALE_DA=1
-C_SOURCES += src/strings_da_rsrc.c
-endif
-
-ifeq ($(LOCALE_NL),1)
-CFLAGS += -DLOCALE_NL=1
-C_SOURCES += src/strings_nl_rsrc.c
-endif
-
-ifeq ($(LOCALE_ET),1)
-CFLAGS += -DLOCALE_ET=1
-C_SOURCES += src/strings_et_rsrc.c
-endif
-
-ifeq ($(LOCALE_FI),1)
-CFLAGS += -DLOCALE_FI=1
-C_SOURCES += src/strings_fi_rsrc.c
-endif
-
-ifeq ($(LOCALE_EL),1)
-CFLAGS += -DLOCALE_EL=1
-C_SOURCES += src/strings_el_rsrc.c
-endif
-
-ifeq ($(LOCALE_HU),1)
-CFLAGS += -DLOCALE_HU=1
-C_SOURCES += src/strings_hu_rsrc.c
-endif
-
-ifeq ($(LOCALE_IS),1)
-CFLAGS += -DLOCALE_IS=1
-C_SOURCES += src/strings_is_rsrc.c
-endif
-
-ifeq ($(LOCALE_IT),1)
-CFLAGS += -DLOCALE_IT=1
-C_SOURCES += src/strings_it_rsrc.c
-endif
-
-ifeq ($(LOCALE_LV),1)
-CFLAGS += -DLOCALE_LV=1
-C_SOURCES += src/strings_lv_rsrc.c
-endif
-
-ifeq ($(LOCALE_LT),1)
-CFLAGS += -DLOCALE_LT=1
-C_SOURCES += src/strings_lt_rsrc.c
-endif
-
-ifeq ($(LOCALE_MK),1)
-CFLAGS += -DLOCALE_MK=1
-C_SOURCES += src/strings_mk_rsrc.c
-endif
-
-ifeq ($(LOCALE_ME),1)
-CFLAGS += -DLOCALE_ME=1
-C_SOURCES += src/strings_me_rsrc.c
-endif
-
-ifeq ($(LOCALE_NO),1)
-CFLAGS += -DLOCALE_NO=1
-C_SOURCES += src/strings_no_rsrc.c
-endif
-
-ifeq ($(LOCALE_PT),1)
-CFLAGS += -DLOCALE_PT=1
-C_SOURCES += src/strings_pt_rsrc.c
-endif
-
-ifeq ($(LOCALE_RO),1)
-CFLAGS += -DLOCALE_RO=1
-C_SOURCES += src/strings_ro_rsrc.c
-endif
-
-ifeq ($(LOCALE_SK),1)
-CFLAGS += -DLOCALE_SK=1
-C_SOURCES += src/strings_sk_rsrc.c
-endif
-
-ifeq ($(LOCALE_SL),1)
-CFLAGS += -DLOCALE_SL=1
-C_SOURCES += src/strings_sl_rsrc.c
-endif
-
-ifeq ($(LOCALE_SV),1)
-CFLAGS += -DLOCALE_SV=1
-C_SOURCES += src/strings_sv_rsrc.c
-endif
-
-ifeq ($(LOCALE_TR),1)
-CFLAGS += -DLOCALE_TR=1
-C_SOURCES += src/strings_tr_rsrc.c
-endif
-
-ifeq ($(LOCALE_HI),1)
-CFLAGS += -DLOCALE_HI=1
-C_SOURCES += src/strings_hi_rsrc.c
-endif
-
-ifeq ($(LOCALE_TW),1)
-CFLAGS += -DLOCALE_TW=1
-C_SOURCES += src/strings_tw_rsrc.c
-endif
-
-ifeq ($(LOCALE_AR),1)
-CFLAGS += -DLOCALE_AR=1
-C_SOURCES += src/strings_ar_rsrc.c
-endif
-
-ifeq ($(LOCALE_BN),1)
-CFLAGS += -DLOCALE_BN=1
-C_SOURCES += src/strings_bn_rsrc.c
-endif
-
-ifeq ($(LOCALE_UR),1)
-CFLAGS += -DLOCALE_UR=1
-C_SOURCES += src/strings_ur_rsrc.c
-endif
+endef
+$(foreach locale,$(LOCALE_OPTIONAL),$(eval $(call ENABLE_LOCALE,$(locale))))
 
 # Rebuild objects when the compile flags change.
 #
