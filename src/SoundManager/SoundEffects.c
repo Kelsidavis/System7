@@ -7,15 +7,6 @@
 #include "sound_effect_data.h"
 #include "boot_chime_data.h"
 
-/* PC speaker fallback */
-extern void PCSpkr_Beep(uint32_t frequency, uint32_t duration_ms);
-
-extern OSErr SoundManager_PlayPCM(const uint8_t* data,
-                                  uint32_t sizeBytes,
-                                  uint32_t sampleRate,
-                                  uint8_t channels,
-                                  uint8_t bitsPerSample);
-
 typedef struct {
     const uint8_t* data;
     uint32_t sizeBytes;

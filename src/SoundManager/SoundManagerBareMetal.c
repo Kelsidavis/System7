@@ -27,11 +27,6 @@
 #define notOpenErr (-28)
 #endif
 
-/* PC Speaker hardware functions */
-extern int PCSpkr_Init(void);
-extern void PCSpkr_Shutdown(void);
-extern void PCSpkr_Beep(uint32_t frequency, uint32_t duration_ms);
-
 /* Forward declaration for sound header playback */
 static OSErr SndPlaySoundHeader(const UInt8* hdr, Size hdrMaxLen);
 

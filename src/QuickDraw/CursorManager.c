@@ -138,8 +138,6 @@ static CursorState gCursorState = {
     .obscurePoint = {0, 0}
 };
 
-extern void InvalidateCursor(void);
-
 /* Check if menu tracking is active - don't switch cursor during menu operations */
 extern Boolean IsMenuTrackingNew(void);
 

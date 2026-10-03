@@ -77,7 +77,6 @@ static void WriteByte(UInt8 byte) {
         SInt32 newHandleSize = sizeof(Picture) + newCapacity;
 
         /* Resize the picture handle */
-        extern bool SetHandleSize(Handle h, uint32_t newSize);
         if (!SetHandleSize((Handle)g_pictureState.currentPic, newHandleSize)) {
             /* Resize failed - stop recording */
             return;

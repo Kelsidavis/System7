@@ -942,12 +942,6 @@ update_title:
     TE_LOG("TextEdit_LoadFile: Loaded sample text for %s\n", path);
 }
 
-/* These functions are implemented in other TextEdit source files */
-extern void TE_RecalcLines(TEHandle hTE);
-extern SInt32 TE_OffsetToLine(TEHandle hTE, SInt32 offset);
-extern void TE_InvalidateSelection(TEHandle hTE);
-extern void TE_UpdateCaret(TEHandle hTE, Boolean forceOn);
-
 /*
  * For code that keeps its own copy of a TextEdit record - the 68K TERec,
  * whose program reads nLines and lineStarts from it and scrolls by moving

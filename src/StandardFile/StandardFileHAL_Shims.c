@@ -68,7 +68,6 @@ static short SF_SelectedRow(void)
     Cell cell;
 
     if (gFileListHandle) {
-        extern void LResetSelect(ListHandle lh);
         /* LGetSelect walks from an iterator, so start it at the top. */
         LResetSelect(gFileListHandle);
         if (LGetSelect(gFileListHandle, &cell)) {
