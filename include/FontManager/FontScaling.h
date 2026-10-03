@@ -37,9 +37,6 @@ void FM_DrawTextAtSize(const void* textBuf, short firstByte, short byteCount,
 /* Metrics */
 void FM_GetScaledMetrics(short targetSize, FMetricRec* metrics);
 
-/* Cache Management */
-void FM_FlushScaleCache(void);
-
 /* Standard Mac font sizes */
 #define FM_SIZE_9PT     9
 #define FM_SIZE_10PT   10

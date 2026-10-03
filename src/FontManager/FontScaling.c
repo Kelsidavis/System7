@@ -8,10 +8,8 @@
 #include "FontManager/FontManager.h"
 #include "FontManager/FontTypes.h"
 #include "FontManager/FontScaling.h"
-/* FontInternal.h not included - this file implements simple wrapper API */
 #include "QuickDraw/QuickDraw.h"
 #include "SystemTypes.h"
-#include "MemoryMgr/MemoryManager.h"
 #include "chicago_font.h"
 #include <string.h>
 #include "FontManager/FontLogging.h"
@@ -48,18 +46,6 @@ extern void FM_DrawChicagoCharInternal(short x, short y, unsigned char ch, uint3
 /* Standard Mac font sizes (in points) */
 static const short g_standardSizes[] = {9, 10, 12, 14, 18, 24};
 #define NUM_STANDARD_SIZES 6
-
-/* Font scaling cache entry */
-typedef struct ScaledFont {
-    short           originalSize;   /* Source font size */
-    short           scaledSize;     /* Target font size */
-    Style           face;           /* Font style */
-    short           scaleFactor;    /* Scaling ratio (fixed-point, /256) */
-    struct ScaledFont* next;       /* Next in cache */
-} ScaledFont;
-
-/* Global scaled font cache */
-static ScaledFont* g_scaledFontCache = NULL;
 
 /* ============================================================================
  * Scaling Factor Calculation
@@ -316,66 +302,6 @@ short FM_GetAvailableSizes(short fontID, short* sizes, short maxSizes) {
 /* ============================================================================
  * Cache Management
  * ============================================================================ */
-
-/*
- * FM_CacheScaledFont - Add scaled font to cache
- */
-__attribute__((unused))
-static void FM_CacheScaledFont(short originalSize, short scaledSize,
-                              Style face, short scaleFactor) {
-    ScaledFont* entry = (ScaledFont*)NewPtr(sizeof(ScaledFont));
-    if (!entry) return;
-
-    entry->originalSize = originalSize;
-    entry->scaledSize = scaledSize;
-    entry->face = face;
-    entry->scaleFactor = scaleFactor;
-    entry->next = g_scaledFontCache;
-
-    g_scaledFontCache = entry;
-
-    FSC_LOG("CacheScaledFont: %dpt->%dpt, scale=%d/256, face=0x%02X\n",
-            originalSize, scaledSize, scaleFactor, face);
-}
-
-/*
- * FM_FindCachedScale - Look up cached scale factor
- */
-__attribute__((unused))
-static Boolean FM_FindCachedScale(short originalSize, short scaledSize,
-                                 Style face, short* scaleFactor) {
-    ScaledFont* entry = g_scaledFontCache;
-
-    while (entry) {
-        if (entry->originalSize == originalSize &&
-            entry->scaledSize == scaledSize &&
-            entry->face == face) {
-            *scaleFactor = entry->scaleFactor;
-            FSC_LOG("FindCachedScale: found %dpt->%dpt = %d/256\n",
-                    originalSize, scaledSize, *scaleFactor);
-            return TRUE;
-        }
-        entry = entry->next;
-    }
-
-    return FALSE;
-}
-
-/*
- * FM_FlushScaleCache - Clear scaled font cache
- */
-void FM_FlushScaleCache(void) {
-    ScaledFont* entry = g_scaledFontCache;
-
-    while (entry) {
-        ScaledFont* next = entry->next;
-        DisposePtr((Ptr)entry);
-        entry = next;
-    }
-
-    g_scaledFontCache = NULL;
-    FSC_LOG("FlushScaleCache: cache cleared\n");
-}
 
 /* ============================================================================
  * Integration with Font Manager
