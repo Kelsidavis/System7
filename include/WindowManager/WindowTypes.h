@@ -150,26 +150,6 @@ typedef struct WinCTab {
 
 /* Window classes for layering */
 
-/* ============================================================================
- * Utility Macros
- * ============================================================================ */
-
-/* Rectangle and Point utilities - implemented as functions in QuickDraw */
-/*
-#define EmptyRect(r) ((r)->left >= (r)->right || (r)->top >= (r)->bottom)
-#define EqualRect(r1, r2) ((r1)->left == (r2)->left && (r1)->top == (r2)->top && \
-                          (r1)->right == (r2)->right && (r1)->bottom == (r2)->bottom)
-#define EqualPt(p1, p2) ((p1).h == (p2).h && (p1).v == (p2).v)
-*/
-
-/* Window utilities */
-/* Temporarily disabled - conflicts with function declarations
-#define GetWindowPort(w) ((GrafPtr)(w))
-#define GetWindowFromPort(p) ((WindowPtr)(p))
-#define IsWindowVisible(w) ((w) && (w)->visible)
-#define IsWindowHilited(w) ((w) && (w)->hilited)
-*/
-
 /* Type checking macros */
 #define IsWindowPtr(w) ((w) != NULL)
 #define IsColorWindow(w) (sizeof(*(w)) == sizeof(CWindowRecord))
