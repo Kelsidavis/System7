@@ -265,7 +265,6 @@ struct WindowManagerState {
 };
 
 /* Access to Window Manager state */
-WindowManagerState* GetWindowManagerState(void);
 
 /* Extended window record for internal state tracking */
 
