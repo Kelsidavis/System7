@@ -43,13 +43,6 @@ quit                          # Exit GDB
 
 ## Testing
 
-```bash
-make run                                    # Quick test in QEMU
-make info                                   # Show build configuration
-make clean && make run                     # Clean rebuild + test
-qemu-system-i386 -cdrom system71.iso -m 1024 -vga std  # Manual QEMU launch
-```
-
 The repository quality gates are:
 
 ```bash
@@ -121,8 +114,8 @@ rg "malloc|free" include/ src/
 # Find unimplemented functions
 rg "NOT YET IMPLEMENTED" include/ src/
 
-# Find specific function definitions
-rg "^[a-zA-Z_][a-zA-Z0-9_]*\\(" include/ src/
+# Find likely function declarations and definitions
+rg -n '^[[:alnum:]_[:space:]*]+[[:space:]*][[:alnum:]_]+[[:space:]]*\\(' include/ src/
 ```
 
 ## Environment Variables
