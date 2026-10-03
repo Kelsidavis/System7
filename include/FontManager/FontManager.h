@@ -1,8 +1,8 @@
 /*
  * FontManager.h - Main Font Manager API
  *
- * Complete Font Manager API compatible with Mac OS 7.1
- * Supports bitmap fonts, TrueType fonts, and modern font formats.
+ * System 7.1 Font Manager API declarations.
+ * Runtime font support is bitmap-based; TrueType rendering is not implemented.
  */
 
 #ifndef FONT_MANAGER_H
