@@ -13,12 +13,13 @@ This checklist records significant differences between the current toolbox reimp
 - ~~`src/QuickDraw/quickdraw_pictures.c` – `SetClip`/`GetClip` do not copy regions, breaking callers that expect independent clip regions.~~ **VERIFIED** (2025-10-06): SetClip/GetClip in QuickDrawCore.c properly use CopyRgn() for independent region copies
 - ~~`src/QuickDraw/CursorManager.c` – Cursor show/hide/obscure/spin still defer to TODOs; Mac OS required hardware cursor toggles and watch-cursor animation tied to `SpinCursor`.~~ **OBSOLETE** (2026-10-01): `CursorManager_SetCursorInternal()` / `cursor_set_bit()` / `CursorManager_ShouldBeVisible()` implement the state machine now; the old TODOs are gone from the file.
 
-## Window, Dialog, and Control Managers
+## Window, Dialog, Control, and Menu Managers
 - ~~`src/WindowManager/WindowEvents.c` – Grow and drag tracking branches in `WM_TrackWindowPart` returned immediately; Window Manager must honour `inDrag`/`inGrow` parts with live XOR outlines and constraint callbacks like the classic implementation.~~ **FIXED** (2025-10-06): WM_TrackWindowPart now calls DragWindow() and GrowWindow() which provide full XOR feedback and mouse tracking
 - ~~`src/DialogManager/DialogDrawing.c` – Edit-text items ignore focus rings; System 7 drew a focus frame and moved the caret when the control is active.~~ **FIXED** (2025-10-06): Edit-text focus rings and caret blinking implemented in DialogEditText.c
 - ~~`src/DialogManager/dialog_manager_private.c` – `GetNextUserCancelEvent` is a stub; modal dialogs should scan the event queue for cancel gestures (Command-.) as the Classic API allowed.~~ **FIXED** (2025-10-06): IsUserCancelEvent/GetNextUserCancelEvent implemented, modal dialogs support Cmd-. and Escape
 - ~~`src/ControlManager/StandardControls.c` – Control metrics are hard-coded to Chicago 12; real `GetFontInfo` must come from the Font Manager so controls respect the active font.~~ **FIXED** (2026-10-01): `GetFontInfo()` queries Font Manager's `GetFontMetrics()` and only falls back to proportional scaling when the strike is missing.
 - Mixed-state checkbox paths remain unvalidated; native System 7 controls supported tri-state checkboxes.
+- `include/MenuManager/MenuManager.h` declares `PopUpMenuSelect`, but there is no definition in `src/`; implement popup tracking and return encoding, then add integration coverage.
 
 ## Event & Input Handling
 - ~~`src/EventManager/event_manager.c` – Posted events always reported `modifiers = 0`; modifier bits need to be sampled so Command shortcuts and shift-clicking behave correctly.~~ **FIXED** (2025-10-06): `PostEvent` now calls `GetPS2Modifiers()` to populate modifier fields from hardware.

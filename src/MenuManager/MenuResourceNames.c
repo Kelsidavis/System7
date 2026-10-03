@@ -5,7 +5,6 @@
  * - MenuManagerCore.c: Menu creation, disposal, menu bar, hiliting
  * - MenuItems.c: Item manipulation, properties, counting, sizing
  * - MenuSelection.c: MenuSelect, MenuKey, MenuChoice
- * - PopUpMenuSelect is declared in MenuManager.h but is not implemented.
  *
  * This file implements AddResMenu and InsertResMenu.
  */

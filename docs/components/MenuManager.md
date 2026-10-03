@@ -26,7 +26,6 @@ Recreates the System 7 menu bar and pull-down menu experience, from resource loa
 ## Integration Points
 - **Window Manager** coordinates activate/deactivate events; menus relinquish highlight when the application loses focus
 - **Event Manager** feeds mouse-down events to kick off `MenuSelect` and supplies repeated mouse moves during tracking
-- **Control Manager** supplies controls drawn in menus; the declared `PopUpMenuSelect` API is not implemented yet
 - **Resource Manager** provides 'MENU'/'MBAR' resources parsed by `MenuResources.c` and loaded by `GetMenu`/`GetNewMBar`
 - **Event Manager** routes Command-key shortcuts through `MenuKey` and selected commands through `DoMenuCommand`
 
@@ -37,5 +36,5 @@ Recreates the System 7 menu bar and pull-down menu experience, from resource loa
 - Edge cases: nested hierarchical menus, disabled items mid-track, SaveBits/RestoreBits correctness when overlapping windows
 
 ## Future Work
-- Implement `PopUpMenuSelect` and connect it to controls that need pop-up menus
+- Implement the [`PopUpMenuSelect` compatibility gap](Compatibility/System7_Compatibility_Gaps.md#window-dialog-control-and-menu-managers) and connect it to controls that need pop-up menus
 - Add auto-scroll for menus taller than the screen once Scroll Manager infrastructure is ready
