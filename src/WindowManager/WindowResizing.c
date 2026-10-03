@@ -116,7 +116,6 @@ void SizeWindow(WindowPtr theWindow, short w, short h, Boolean fUpdate) {
     short currentHeight = currentBounds.bottom - currentBounds.top;
 
     /* Log detailed info for debugging caller */
-    extern int snprintf(char* buf, size_t size, const char* fmt, ...);
     char dbgbuf[256];
     unsigned long refCon = (unsigned long)theWindow->refCon;
     /* Format refCon as printable ASCII or hex to avoid null byte truncation */
@@ -180,7 +179,6 @@ void SizeWindow(WindowPtr theWindow, short w, short h, Boolean fUpdate) {
         newStrucRect.right = newContRect.right + (oldStrucRect.right - oldContRect.right);
         newStrucRect.bottom = newContRect.bottom + (oldStrucRect.bottom - oldContRect.bottom);
 
-        extern void Platform_SetRectRgn(RgnHandle rgn, const Rect* rect);
         Platform_SetRectRgn(theWindow->strucRgn, &newStrucRect);
         Platform_SetRectRgn(theWindow->contRgn, &newContRect);
     }
@@ -275,7 +273,6 @@ void SizeWindow(WindowPtr theWindow, short w, short h, Boolean fUpdate) {
                  * frames back, not just their content. Back to front, so this
                  * window - painted below - ends up on top. */
                 if (!EmptyRgn(exposedDesktop) && theWindow->nextWindow) {
-                    extern void PaintBehind(WindowPtr startWindow, RgnHandle clobberedRgn);
                     PaintBehind(theWindow->nextWindow, exposedDesktop);
                 }
 
@@ -303,7 +300,6 @@ void SizeWindow(WindowPtr theWindow, short w, short h, Boolean fUpdate) {
          * PaintOne draws the frame and erases the content area under it; the
          * update events just queued then fill the content back in.
          */
-        extern void PaintOne(WindowPtr window, RgnHandle clobberedRgn);
         PaintOne(theWindow, theWindow->strucRgn);
     }
 
@@ -523,7 +519,6 @@ static void WM_CalculateStandardState(WindowPtr window, Rect* stdState) {
     Rect screenBounds;
     Platform_GetScreenBounds(&screenBounds);
 
-    extern int snprintf(char* buf, size_t size, const char* fmt, ...);
     char dbgbuf[256];
     snprintf(dbgbuf, sizeof(dbgbuf), "[ZW] screenBounds=(%d,%d,%d,%d)\n",
             screenBounds.left, screenBounds.top, screenBounds.right, screenBounds.bottom);
