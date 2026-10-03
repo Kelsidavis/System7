@@ -584,73 +584,40 @@ static void InitializeFolderContentsEx(WindowPtr w, Boolean isTrash, VRefNum vre
      * System Folder. The invented one carried no dates either, so it was the
      * one item in a by-Date listing with an empty column. They are listed in
      * the real folder now, found the same way everything else finds it.
-     */
+    */
     if (dirID == kControlPanelsDirID || dirID == FW_ControlPanelsDir()) {
-        state->itemCount = 6;
+        static const struct {
+            const char* name;
+            FileID fileID;
+        } builtInPanels[] = {
+            {"Desktop Patterns", kControlPanelDesktopID},
+            {"Date & Time", kControlPanelTimeID},
+            {"Sound", kControlPanelSoundID},
+            {"Mouse", kControlPanelMouseID},
+            {"Keyboard", kControlPanelKeyboardID},
+            {"Control Strip", kControlStripID}
+        };
+
+        state->itemCount = sizeof builtInPanels / sizeof builtInPanels[0];
         state->items = FW_AllocItems(state->itemCount);
         if (!state->items) {
             state->itemCount = 0;
             return;
         }
 
-        /* Desktop Patterns */
-        FolderItem *desktop = &state->items[0];
-        memset(desktop, 0, sizeof(FolderItem));
-        strncpy(desktop->name, "Desktop Patterns", sizeof(desktop->name) - 1);
-        desktop->isFolder = false;
-        desktop->fileID = kControlPanelDesktopID;
-        desktop->parentID = dirID;
-        desktop->type = FOURCC('A','P','P','L');
-        desktop->creator = FOURCC('c','d','e','v');
+        for (int i = 0; i < state->itemCount; i++) {
+            FolderItem* item = &state->items[i];
+            size_t nameLength = strlen(builtInPanels[i].name);
+            if (nameLength >= sizeof item->name) nameLength = sizeof item->name - 1;
 
-        /* Date & Time */
-        FolderItem *dateTime = &state->items[1];
-        memset(dateTime, 0, sizeof(FolderItem));
-        strncpy(dateTime->name, "Date & Time", sizeof(dateTime->name) - 1);
-        dateTime->isFolder = false;
-        dateTime->fileID = kControlPanelTimeID;
-        dateTime->parentID = dirID;
-        dateTime->type = FOURCC('A','P','P','L');
-        dateTime->creator = FOURCC('c','d','e','v');
-
-        /* Sound */
-        FolderItem *sound = &state->items[2];
-        memset(sound, 0, sizeof(FolderItem));
-        strncpy(sound->name, "Sound", sizeof(sound->name) - 1);
-        sound->isFolder = false;
-        sound->fileID = kControlPanelSoundID;
-        sound->parentID = dirID;
-        sound->type = FOURCC('A','P','P','L');
-        sound->creator = FOURCC('c','d','e','v');
-
-        /* Mouse */
-        FolderItem *mouse = &state->items[3];
-        memset(mouse, 0, sizeof(FolderItem));
-        strncpy(mouse->name, "Mouse", sizeof(mouse->name) - 1);
-        mouse->isFolder = false;
-        mouse->fileID = kControlPanelMouseID;
-        mouse->parentID = dirID;
-        mouse->type = FOURCC('A','P','P','L');
-        mouse->creator = FOURCC('c','d','e','v');
-
-        /* Keyboard */
-        FolderItem *keyboard = &state->items[4];
-        memset(keyboard, 0, sizeof(FolderItem));
-        strncpy(keyboard->name, "Keyboard", sizeof(keyboard->name) - 1);
-        keyboard->isFolder = false;
-        keyboard->fileID = kControlPanelKeyboardID;
-        keyboard->parentID = dirID;
-        keyboard->type = FOURCC('A','P','P','L');
-        keyboard->creator = FOURCC('c','d','e','v');
-
-        FolderItem *strip = &state->items[5];
-        memset(strip, 0, sizeof(FolderItem));
-        strncpy(strip->name, "Control Strip", sizeof(strip->name) - 1);
-        strip->isFolder = false;
-        strip->fileID = kControlStripID;
-        strip->parentID = dirID;
-        strip->type = FOURCC('A','P','P','L');
-        strip->creator = FOURCC('c','d','e','v');
+            memset(item, 0, sizeof(*item));
+            memcpy(item->name, builtInPanels[i].name, nameLength);
+            item->name[nameLength] = '\0';
+            item->fileID = builtInPanels[i].fileID;
+            item->parentID = dirID;
+            item->type = FOURCC('A','P','P','L');
+            item->creator = FOURCC('c','d','e','v');
+        }
 
         /* Lay the icons out on the shared grid. */
         for (int i = 0; i < state->itemCount; i++) {
