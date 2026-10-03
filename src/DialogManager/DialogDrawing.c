@@ -12,6 +12,9 @@
 #include "System71StdLib.h"
 #include "QuickDraw/QuickDraw.h"
 #include "QuickDrawConstants.h"
+#include "FontManager/FontManager.h"
+#include "WindowManager/WindowManager.h"
+#include "ControlManager/StandardControls.h"
 #include "MemoryMgr/MemoryManager.h"
 #include "DialogManager/DialogManager.h"
 #include "DialogManager/DialogTypes.h"
@@ -21,32 +24,6 @@
 #include "DialogManager/DialogManagerStateExt.h"   /* For extended state with focus tracking */
 #include "DialogManager/DialogLogging.h"
 #include "DialogManager/AlertDialogs.h"  /* For SubstituteAlertParameters */
-
-/* External QuickDraw dependencies */
-extern void SetPort(GrafPtr port);
-extern void GetPort(GrafPtr* port);
-extern void FrameRect(const Rect* r);
-extern void PaintRect(const Rect* r);
-extern void EraseRect(const Rect* r);
-extern void InvertRect(const Rect* r);
-extern void FillRect(const Rect* r, const Pattern* pat);
-extern void FrameRoundRect(const Rect* r, SInt16 ovalWidth, SInt16 ovalHeight);
-extern void PaintRoundRect(const Rect* r, SInt16 ovalWidth, SInt16 ovalHeight);
-extern void MoveTo(SInt16 h, SInt16 v);
-extern void LineTo(SInt16 h, SInt16 v);
-extern void PenSize(SInt16 width, SInt16 height);
-extern void PenNormal(void);
-extern void TextFont(SInt16 font);
-extern void TextSize(SInt16 size);
-extern void TextFace(Style face);
-extern SInt16 StringWidth(const unsigned char* s);
-extern short TextWidth(const void* textBuf, short firstByte, short byteCount);
-
-/* External Window Manager dependencies */
-extern void InvalRect(const Rect* rect);
-
-/* Dialog Manager state access */
-extern DialogManagerState* GetDialogManagerState(void);
 
 /* Draw push button or default button */
 void DrawDialogButton(DialogPtr theDialog, const Rect* bounds, const unsigned char* title,
@@ -64,12 +41,7 @@ void DrawDialogButton(DialogPtr theDialog, const Rect* bounds, const unsigned ch
      * control appearance - the Control Manager's button definition draws
      * through the same code, so a dialog's buttons and a NewControl button
      * cannot look different from each other. */
-    {
-        extern void CTL_DrawPushButton(const Rect* bounds, const unsigned char* title,
-                                       Boolean isDefault, Boolean isEnabled,
-                                       Boolean isPressed);
-        CTL_DrawPushButton(&btnRect, title, isDefault, isEnabled, isPressed);
-    }
+    CTL_DrawPushButton(&btnRect, title, isDefault, isEnabled, isPressed);
 
     SetPort(savePort);
 }
