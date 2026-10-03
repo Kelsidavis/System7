@@ -561,7 +561,7 @@ static void HandleFileMenu(short item)
 
         case kPrintItem: {
             MENU_LOG_INFO("File > Print\n");
-            /* Print selected item - used for printing documents from Finder */
+            /* Finder item printing is not implemented. */
             MENU_LOG_DEBUG("Print not implemented for Finder\n");
             break;
         }
@@ -586,7 +586,7 @@ static void HandleFileMenu(short item)
 
         case kSharingItem: {
             MENU_LOG_INFO("File > Sharing...\n");
-            /* Show Sharing settings for selected item */
+            /* Finder sharing settings are not implemented. */
             MENU_LOG_DEBUG("Sharing settings not implemented\n");
             break;
         }

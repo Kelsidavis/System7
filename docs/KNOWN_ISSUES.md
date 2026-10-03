@@ -912,7 +912,8 @@ Several features are noted as incomplete:
 
 - **Color QuickDraw**: `Platform_HasColorQuickDraw()` returns false (`src/Platform/WindowPlatform.c`)
 - **ARM64 Port**: builds and starts under QEMU `virt`, but stops while creating the boot volume (above)
-- **Many Menu Items**: Remain placeholders
+- **Finder File > Print and Sharing**: Both handlers are no-ops; neither
+  printing nor sharing settings are implemented.
 - **Graphics modes**: x86 requests a fixed VESA 800x600x32 framebuffer; no alternative modes can be selected.
 
 ---
