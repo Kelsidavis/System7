@@ -25,19 +25,19 @@ This checklist captures the most significant differences between the current too
 - ~~`src/EventManager/SystemEvents.c:331` & `:390` – Update regions are never merged or reduced after validation, causing duplicate `updateEvt`s; the classic manager subtracts validated areas from pending invalidations.~~ **FIXED** (2025-10-06): RequestWindowUpdate now merges update regions using UnionRgn; ValidateWindowRegion subtracts validated areas using DiffRgn
 
 ## Text Input & Editing
-- `src/TextEdit/TextEditScroll.c:91` & `:180` – Horizontal scroll limits are uncomputed, so TE windows cannot properly constrain scroll bars.
-- `src/TextEdit/TextEditClipboard.c:164`–`267` – Styled scrap handling is stubbed; classic TE mirrored styled text into the clipboard flavours.
+- `src/TextEdit/TextEditScroll.c` – Horizontal scroll is clamped against the widest line; validate this path with mixed fonts, long lines, and scroll-bar integration.
+- `src/TextEdit/TextEditClipboard.c` – TEXT and style scrap are copied to and from the Scrap Manager, but `TEStylePaste` currently parses/logs style runs without applying them to the pasted range.
 
 ## Resource & File Systems
 
 ## Memory & Process Infrastructure
 - ~~`src/MemoryMgr/MemoryManager.c` – `SetHandleSize` faked success without reallocating; handle-based memory semantics must be honoured for legacy callers.~~ **FIXED** (2025-10-06): `SetHandleSize` now reallocates handles with data copying, respects locked handles, and maintains master pointer integrity.
 - ~~`src/System71StdLib.c:576`–`583` – `sprintf`/`snprintf` are placeholder implementations; Toolbox routines expecting formatted output (e.g., `NumToString`) will misbehave.~~ **FIXED** (2025-10-06): Implemented vsnprintf() with format specifiers (%s, %d, %u, %x, %c, %p); sprintf() and snprintf() now fully functional
-- `src/ProcessMgr/ProcessManager.c` (~line 386) – `WaitNextEvent` still comes from `sys71_stubs.c`; multi-process scheduling remains experimental.
+- `src/ProcessMgr/ProcessManager.c` – Process Manager maintains a cooperative scheduler and process table, but end-to-end multi-process scheduling/context switching remains experimental. `WaitNextEvent` is implemented in `src/EventManager/event_manager.c`.
 
 ## Fonts & Typography
-- `docs/components/FontManager/README.md` & `src/FontManager/FontManagerCore.c` – Only the Chicago 12 strike is available; Geneva/Monaco map to Chicago metrics, and true resource-driven strike loading is pending, unlike System 7’s font ecosystem.
-- `src/FontManager/FontResourceLoader.c` – NFNT/FOND parsing and strike construction are implemented, but font resources are not yet fetched from disk or connected to the Resource Manager. Bridge resource lookup before treating runtime font loading as integrated.
+- `docs/components/FontManager/README.md` & `src/FontManager/FontManagerCore.c` – Only the Chicago 12 strike ships in-tree; Geneva/Monaco fall back to Chicago unless matching strikes are available as resources.
+- `src/FontManager/FontResourceLoader.c` – NFNT/FOND parsing and strike construction are implemented, and `FontManagerCore.c` looks up FOND/NFNT through `GetResource`. Validate loading against real resource forks and non-Chicago strikes before claiming broad font coverage.
 
 ## Peripheral Toolbox Managers
 - ~~`src/ListManager/ListManager.c:428`–`438` – Column APIs (`LAddColumn`, `LDelColumn`) return stub responses; System 7 supported dynamic column manipulation.~~ **FIXED** (2026-10-01): `LAddColumn`/`LDelColumn` (line ~433 onward) insert and remove columns and resize the cell matrix.

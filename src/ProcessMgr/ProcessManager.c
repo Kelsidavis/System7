@@ -452,7 +452,7 @@ OSErr LaunchApplication(LaunchParamBlockRec* launchParams)
     return err;
 }
 
-/* WaitNextEvent is defined in sys71_stubs.c - no need to redefine it here */
+/* WaitNextEvent is implemented by the Event Manager in event_manager.c. */
 
 /*
  * MultiFinder Integration

@@ -27,7 +27,7 @@ Implements the classic Mac Resource Manager APIs used to load and update resourc
 
 ## Integration Points
 - **Memory Manager** supplies zone-based handles used for resource storage
-- **Font Manager** can parse NFNT/FOND resources; connecting those APIs to application resource loading remains future work
+- **Font Manager** parses NFNT/FOND resources and resolves them through `GetResource`; validate the loader with representative application resource forks
 - **Menu/Dialog/Control Managers** load MENU/MBAR/DLOG/DITL/CNTL resources for UI construction
 - **Pattern/Icon systems** use PAT/ppat/icon resources for desktop rendering
   (`src/PatternMgr/` serves the pattern resources in `Patterns.rsrc`; the

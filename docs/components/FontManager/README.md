@@ -47,12 +47,12 @@ System 7.1-compatible Font Manager providing bitmap font support with the Chicag
 
 ### Known Limitations
 1. Only the Chicago 12 strike ships today; Geneva and Monaco reuse the same metrics
-2. Runtime resource loading exists but is not yet hooked to disk or the Resource Manager
+2. FOND/NFNT loading is connected to `GetResource`; end-to-end coverage against real resource forks and non-Chicago strikes is still limited
 3. TrueType support is still out of scope
 4. Italic rendering relies on bitmap shearing and is visually close but not pixel-perfect to ROM output
 5. Cache invalidation once additional strikes arrive still needs real-world tuning
 
 ### Next Steps
-- Bridge the Font Manager to the Resource Manager once we can fetch FOND/NFNT data from disk images
+- Validate FOND/NFNT loading from application resource forks and add representative Geneva/Monaco strikes
 - Harden the scaling/synthesis paths with regression images so new styles preserve System 7 look
 - Replace hard-coded Chicago metrics in Standard Controls once Geneva/Monaco become distinct strikes
