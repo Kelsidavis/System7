@@ -8,6 +8,7 @@
 #include "MemoryMgr/MemoryManager.h"
 #include "ScrapManager/ScrapManager.h"
 #include "ErrorCodes.h"
+#include "ToolboxCompat.h"
 #include <string.h>
 #include "TextEdit/TELogging.h"
 
@@ -38,9 +39,6 @@ typedef struct TEExtRec {
 } TEExtRec;
 
 typedef TEExtRec *TEExtPtr, **TEExtHandle;
-
-/* External functions */
-extern void BlockMove(const void *src, void *dest, Size size);
 
 /* Debug logging */
 #define TEC_DEBUG 1

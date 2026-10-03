@@ -23,13 +23,13 @@
 #include "ResourceMgr/ResourceMgrPriv.h"
 #include "ResourceMgr/ResourceLogging.h"
 #include "System71StdLib.h"
+#include "ToolboxCompat.h"
 #include <string.h>
 
 extern Handle NewHandle(UInt32 byteCount);
 extern void DisposeHandle(Handle h);
 extern void HLock(Handle h);
 extern void HUnlock(Handle h);
-extern void BlockMove(const void* srcPtr, void* destPtr, Size byteCount);
 
 static ResourceMgrGlobals gResMgr = {
     .curResFile = -1,

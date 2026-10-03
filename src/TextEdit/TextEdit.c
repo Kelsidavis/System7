@@ -19,6 +19,7 @@
 #include "WindowManager/WindowManager.h"
 #include "FileManager.h"
 #include "TextEdit/TELogging.h"
+#include "ToolboxCompat.h"
 #include "TimeManager/TimeBase.h"
 
 /* Boolean constants */
@@ -66,7 +67,6 @@ typedef TEExtRec *TEExtPtr, **TEExtHandle;
 static Boolean g_teInitialized = FALSE;
 
 /* External functions */
-extern void BlockMove(const void *src, void *dest, Size size);
 extern OSErr MemError(void);
 #define FMGetFontMetrics GetFontMetrics  /* Use our FontManager function */
 
