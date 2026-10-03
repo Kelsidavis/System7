@@ -10,9 +10,9 @@ Automated test execution and result parsing for Phase 1 integration tests.
 - Can be integrated into CI/CD pipelines
 
 Usage:
-    python3 run_integration_tests.py                 # Run all tests
-    python3 run_integration_tests.py --timeout 60    # Custom timeout
-    python3 run_integration_tests.py --output junit.xml  # JUnit XML output
+    python3 tests/run_integration_tests.py                  # Run all tests
+    python3 tests/run_integration_tests.py --timeout 60      # Custom timeout
+    python3 tests/run_integration_tests.py --output junit.xml  # JUnit XML output
 """
 
 import sys

@@ -2,7 +2,7 @@
 # Automated PowerPC boot script for QEMU
 # Sends boot commands to OpenBIOS to load and execute System 7 kernel
 
-set -e
+set -euo pipefail
 
 DISK_IMAGE="${1:-ppc_system71.img}"
 KERNEL="${2:-kernel.elf}"
@@ -27,23 +27,6 @@ echo "Starting QEMU with OpenBIOS..."
 echo "Boot commands will be sent automatically"
 echo "================================================"
 echo ""
-
-# Create a named pipe for two-way communication
-FIFO="/tmp/qemu_boot_$$.fifo"
-mkfifo "$FIFO" 2>/dev/null || true
-
-# Function to send commands to QEMU
-send_command() {
-    local cmd="$1"
-    echo "$cmd" >> "$FIFO" &
-    sleep 0.5
-}
-
-# Cleanup on exit
-cleanup() {
-    rm -f "$FIFO" 2>/dev/null || true
-}
-trap cleanup EXIT
 
 # Start QEMU and feed commands via stdin
 {
