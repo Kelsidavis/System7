@@ -12,6 +12,7 @@
 #include "MemoryMgr/MemoryManager.h"
 #include "SoundManager/SoundManager.h"
 #include "System71StdLib.h"
+#include "TimeManager/TimeBase.h"
 #include <string.h>
 
 /* Debug logging */
@@ -72,7 +73,6 @@ void InitNotificationManager(void) {
  * than NOTIFICATION_TIMEOUT_TICKS to prevent resource leaks.
  */
 static void CleanupExpiredNotifications(void) {
-    extern UInt32 TickCount(void);
     UInt32 currentTime = TickCount();
     NotificationQueueEntry* prev = NULL;
     NotificationQueueEntry* current = gNMState.queueHead;
@@ -121,7 +121,6 @@ static void CleanupExpiredNotifications(void) {
  * the settings in the NMRec structure.
  */
 OSErr NMInstall(NMRecPtr nmReqPtr) {
-    extern UInt32 TickCount(void);
     NotificationQueueEntry* entry;
 
     if (!gNMState.initialized) {

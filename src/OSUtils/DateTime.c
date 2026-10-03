@@ -11,6 +11,7 @@
 #include "OSUtils/OSUtils.h"
 #include "SystemTypes.h"
 #include "System71StdLib.h"
+#include "TimeManager/TimeBase.h"
 #include <time.h>
 #if defined(__i386__) || defined(__x86_64__)
 #include "Platform/x86/rtc.h"
@@ -271,7 +272,6 @@ void Delay(UInt32 numTicks, UInt32* finalTicks) {
      * Note: Not suitable for precise timing due to cooperative scheduling
      * overhead. For animations, use actual elapsed time calculations.
      */
-    extern UInt32 TickCount(void);
     extern void SystemTask(void);
 
     /* Until the ticks have passed, however long each SystemTask takes. The

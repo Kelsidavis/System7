@@ -13,6 +13,7 @@ extern void QD_SetScreenPort(void);
 #include "QuickDraw/QuickDraw.h"
 #include "System71StdLib.h"
 #include "Platform/PlatformLogging.h"
+#include "TimeManager/TimeBase.h"
 
 /* External framebuffer and QuickDraw globals */
 extern void* framebuffer;
@@ -617,7 +618,6 @@ void Platform_HighlightWindowPart(WindowPtr window, short partCode, Boolean high
 
 /* Wait functions */
 void Platform_WaitTicks(short ticks) {
-    extern UInt32 TickCount(void);
     extern void ProcessModernInput(void);  /* Poll PS/2 controller for button updates */
 
     if (ticks <= 0) return;

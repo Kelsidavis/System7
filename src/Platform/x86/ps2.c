@@ -13,6 +13,7 @@
 #include "Platform/include/input.h"
 #include <stdint.h>
 #include "Platform/PlatformLogging.h"
+#include "TimeManager/TimeBase.h"
 #include <string.h>
 
 /* Event modifier key constants */
@@ -74,8 +75,6 @@
 
 /* External functions */
 /* GetNextEvent and PostEvent declared in EventManager.h */
-extern UInt32 TickCount(void);
-
 /* External framebuffer dimensions from main.c */
 extern uint32_t fb_width;
 extern uint32_t fb_height;

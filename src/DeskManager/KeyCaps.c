@@ -18,6 +18,7 @@
 #include "QuickDraw/QuickDraw.h"
 #include "FontManager/FontManager.h"
 #include "DeskManager/DeskManager.h"
+#include "TimeManager/TimeBase.h"
 
 
 /* Default US keyboard layout */
@@ -318,7 +319,6 @@ void KeyCaps_DrawKeyboard(KeyCaps *keyCaps, const Rect *updateRect)
 /* Show key `index` pressed and add its character to the strip. */
 static void KeyCaps_Press(KeyCaps *keyCaps, int index, char c)
 {
-    extern UInt32 TickCount(void);
     if (c >= 32 && c < 127) {
         if (keyCaps->typedLen >= (SInt16)sizeof(keyCaps->typed)) {
             memmove(keyCaps->typed, keyCaps->typed + 1, sizeof(keyCaps->typed) - 1);
@@ -399,7 +399,6 @@ int KeyCaps_HandleKeyPress(KeyCaps *keyCaps, UInt16 charCode,
 
 void KeyCaps_Idle(KeyCaps *keyCaps, ModifierMask modifiers)
 {
-    extern UInt32 TickCount(void);
     if (!keyCaps || !keyCaps->currentLayout) {
         return;
     }
