@@ -838,7 +838,6 @@ void LScroll(ListHandle lh, short dRows, short dCols)
 
 Boolean LClick(ListHandle lh, Point localWhere, unsigned short mods, short* outItem)
 {
-    extern UInt32 GetDblTime(void);
     ListMgrRec* list;
     Cell hitCell;
     Boolean selChanged = false;
