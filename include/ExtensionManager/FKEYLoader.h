@@ -9,6 +9,7 @@
 #define FKEY_LOADER_H
 
 #include "SystemTypes.h"
+#include "ExtensionTypes.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -20,9 +21,6 @@ extern "C" {
 
 #define MAX_FKEYS                   32      /* Maximum function keys */
 #define MAX_FKEY_NAME               64      /* Max FKEY name length */
-
-/* FKEY resource type */
-#define FKEY_TYPE                   FOURCC('F', 'K', 'E', 'Y') /* Function key resource */
 
 /* ========================================================================
  * FUNCTION KEY ENTRY

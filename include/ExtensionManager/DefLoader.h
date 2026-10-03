@@ -9,6 +9,7 @@
 #define DEF_LOADER_H
 
 #include "SystemTypes.h"
+#include "ExtensionTypes.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -17,10 +18,6 @@ extern "C" {
 /* ========================================================================
  * DEFINITION RESOURCE TYPES
  * ======================================================================== */
-
-#define WDEF_TYPE                   FOURCC('W', 'D', 'E', 'F') /* Window definition */
-#define LDEF_TYPE                   FOURCC('L', 'D', 'E', 'F') /* List definition */
-#define MDEF_TYPE                   FOURCC('M', 'D', 'E', 'F') /* Menu definition */
 
 #define MAX_DEFS                    32      /* Maximum definitions */
 #define MAX_DEF_NAME                64      /* Max definition name */
