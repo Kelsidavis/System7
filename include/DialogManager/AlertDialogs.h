@@ -15,6 +15,7 @@
 
 
 #include "DialogTypes.h"
+#include "DialogResources.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -367,7 +368,6 @@ void PlayAlertSound(SInt16 alertType, SInt16 stage);
 /* Internal alert dialog functions */
 void InitAlertDialogs(void);
 void CleanupAlertDialogs(void);
-OSErr LoadAlertTemplate(SInt16 alertID, AlertTemplate** alertTemplate);
 void ProcessAlertStages(SInt16 alertType, SInt16 stage);
 void SubstituteParamText(char* text, size_t textSize);
 void SubstituteAlertParameters(unsigned char* text);
