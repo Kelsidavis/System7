@@ -90,8 +90,9 @@ bool ehci_init_x86(void) {
                 devices[i].bus, devices[i].slot, devices[i].func, 0x04, cmd);
 
             uintptr_t base = (uintptr_t)devices[i].bar_addrs[0];
-            serial_printf("[EHCI] MMIO base=0x%08x size=0x%08x\n",
-                          (uint32_t)base, devices[i].bar_sizes[0]);
+            serial_printf("[EHCI] MMIO base=0x%08lx size=0x%08lx\n",
+                          (unsigned long)base,
+                          (unsigned long)devices[i].bar_sizes[0]);
             usb_core_x86_register_controller(USB_CTRL_EHCI, base, true);
 
             uint8_t cap_len = (uint8_t)(mmio_read32(base, EHCI_CAPLENGTH) & 0xFF);
@@ -110,7 +111,8 @@ bool ehci_init_x86(void) {
             for (uint8_t p = 0; p < ports; p++) {
                 uint32_t portsc = mmio_read32(op_base, EHCI_PORTSC_BASE + p * EHCI_PORTSC_STRIDE);
                 if (portsc & 0x1) {
-                    serial_printf("[EHCI] port %u connected (PORTSC=0x%08x)\n", (unsigned)p + 1, portsc);
+                    serial_printf("[EHCI] port %u connected (PORTSC=0x%08lx)\n",
+                                  (unsigned)p + 1, (unsigned long)portsc);
                 }
             }
 

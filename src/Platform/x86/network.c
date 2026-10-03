@@ -24,9 +24,9 @@ int platform_network_init(void) {
         if (devices[i].vendor_id == E1000_VENDOR_ID &&
             devices[i].device_id == E1000_DEVICE_ID) {
 
-            serial_printf("[NETWORK] e1000 BAR0 = 0x%08x size=0x%08x\n",
-                          devices[i].bar_addrs[0],
-                          devices[i].bar_sizes[0]);
+            serial_printf("[NETWORK] e1000 BAR0 = 0x%08lx size=0x%08lx\n",
+                          (unsigned long)devices[i].bar_addrs[0],
+                          (unsigned long)devices[i].bar_sizes[0]);
             if (devices[i].bar_is_io[0]) {
                 serial_puts("BAR0 is I/O\n");
             } else {

@@ -476,8 +476,8 @@ static bool xhci_poll_transfer_complete(uintptr_t rt_base, uint8_t slot_id) {
                 uint8_t evt_slot = (uint8_t)((evt->dword3 >> 24) & 0xFF);
                 uint32_t comp = (evt->dword2 >> 24) & 0xFF;
                 uint32_t len = evt->dword2 & 0xFFFFFF;
-                serial_printf("[XHCI] Transfer complete slot=%u code=%u len=%u\n",
-                              evt_slot, comp, len);
+                serial_printf("[XHCI] Transfer complete slot=%u code=%lu len=%lu\n",
+                              evt_slot, (unsigned long)comp, (unsigned long)len);
 
                 g_evt_ring_index++;
                 if (g_evt_ring_index >= (sizeof(g_evt_ring) / sizeof(g_evt_ring[0]))) {
@@ -510,8 +510,8 @@ static bool xhci_poll_transfer_complete(uintptr_t rt_base, uint8_t slot_id) {
             }
         }
     }
-    serial_printf("[XHCI] Transfer poll timeout for slot %u (evt_idx=%u)\n",
-                  slot_id, g_evt_ring_index);
+    serial_printf("[XHCI] Transfer poll timeout for slot %u (evt_idx=%lu)\n",
+                  slot_id, (unsigned long)g_evt_ring_index);
     return false;
 }
 
@@ -1436,8 +1436,8 @@ static int xhci_poll_transfer_event(uintptr_t rt_base, uint8_t *out_slot) {
         /* 1 is Success and 13 Short Packet - how a HID report shorter
          * than its buffer ends, many times a second from a tablet */
         if (comp != 1 && comp != 13) {
-            serial_printf("[XHCI] Transfer complete slot=%u code=%u len=%u\n",
-                          evt_slot, comp, len);
+            serial_printf("[XHCI] Transfer complete slot=%u code=%lu len=%lu\n",
+                          evt_slot, (unsigned long)comp, (unsigned long)len);
         }
         if (out_slot) {
             *out_slot = evt_slot;
@@ -1889,8 +1889,8 @@ static bool xhci_msc_read_capacity(xhci_msc_dev_t *dev, uintptr_t base, uint32_t
             dev->block_size = blk_size;
             dev->block_count = last_lba64 + 1u;
         }
-        serial_printf("[XHCI] MSC capacity last_lba=%llu block_size=%u\n",
-                      (unsigned long long)last_lba64, blk_size);
+        serial_printf("[XHCI] MSC capacity last_lba=%llu block_size=%lu\n",
+                      (unsigned long long)last_lba64, (unsigned long)blk_size);
         return (blk_size != 0);
     }
     if (lun < MAX_MSC_LUNS) {
@@ -1902,7 +1902,8 @@ static bool xhci_msc_read_capacity(xhci_msc_dev_t *dev, uintptr_t base, uint32_t
         dev->block_size = blk_size;
         dev->block_count = (uint64_t)last_lba + 1u;
     }
-    serial_printf("[XHCI] MSC capacity last_lba=%u block_size=%u\n", last_lba, blk_size);
+    serial_printf("[XHCI] MSC capacity last_lba=%lu block_size=%lu\n",
+                  (unsigned long)last_lba, (unsigned long)blk_size);
     return (blk_size != 0);
 }
 
@@ -2021,8 +2022,9 @@ static void xhci_poll_ports_hotplug(void) {
         }
         bool connected = (portsc & XHCI_PORTSC_CCS) != 0;
         if (!logged_ports) {
-            serial_printf("[XHCI] port %u PORTSC=0x%08x CCS=%u\n",
-                          (unsigned)(p + 1), portsc, connected ? 1u : 0u);
+            serial_printf("[XHCI] port %u PORTSC=0x%08lx CCS=%u\n",
+                          (unsigned)(p + 1), (unsigned long)portsc,
+                          connected ? 1u : 0u);
         }
 
         if (!connected && g_port_connected[p]) {
@@ -2155,13 +2157,15 @@ static void xhci_enumerate_port(uint8_t port_index) {
     uintptr_t op_base = g_xhci_base + g_xhci_cap_len;
     uint32_t portsc = mmio_read32(op_base, XHCI_PORTSC_BASE + port_index * XHCI_PORTSC_STRIDE);
     if ((portsc & XHCI_PORTSC_CCS) == 0) {
-        serial_printf("[XHCI] port %u: no device (PORTSC=0x%08x)\n", port_index + 1, portsc);
+        serial_printf("[XHCI] port %u: no device (PORTSC=0x%08lx)\n",
+                      port_index + 1, (unsigned long)portsc);
         return;
     }
     g_xhci_enum_port = (uint8_t)(port_index + 1);
     g_port_connected[port_index] = true;
-    serial_printf("[XHCI] port %u connected (%s) PORTSC=0x%08x\n",
-                  (unsigned)g_xhci_enum_port, xhci_speed_name(portsc), portsc);
+    serial_printf("[XHCI] port %u connected (%s) PORTSC=0x%08lx\n",
+                  (unsigned)g_xhci_enum_port, xhci_speed_name(portsc),
+                  (unsigned long)portsc);
 
     if (!xhci_port_reset(op_base, port_index)) {
         serial_printf("[XHCI] port %u reset failed\n", (unsigned)g_xhci_enum_port);
@@ -2944,8 +2948,9 @@ bool xhci_init_x86(void) {
                 devices[i].bus, devices[i].slot, devices[i].func, 0x04, cmd);
 
             uintptr_t base = (uintptr_t)devices[i].bar_addrs[0];
-            serial_printf("[XHCI] MMIO base=0x%08x size=0x%08x\n",
-                          (uint32_t)base, devices[i].bar_sizes[0]);
+            serial_printf("[XHCI] MMIO base=0x%08lx size=0x%08lx\n",
+                          (unsigned long)base,
+                          (unsigned long)devices[i].bar_sizes[0]);
             usb_core_x86_register_controller(USB_CTRL_XHCI, base, true);
 
             uint8_t cap_len = (uint8_t)(mmio_read32(base, XHCI_CAPLENGTH) & 0xFF);
@@ -2966,7 +2971,9 @@ bool xhci_init_x86(void) {
 
             serial_printf("[XHCI] caplen=%u version=%x ports=%u slots=%u\n",
                           cap_len, version, ports, max_slots);
-            serial_printf("[XHCI] dboff=0x%08x rtsoff=0x%08x ctx=%u\n", dboff, rtsoff, g_ctx_size);
+            serial_printf("[XHCI] dboff=0x%08lx rtsoff=0x%08lx ctx=%u\n",
+                          (unsigned long)dboff, (unsigned long)rtsoff,
+                          (unsigned)g_ctx_size);
 
             if (!xhci_reset(base, cap_len)) {
                 serial_puts("[XHCI] reset timeout\n");

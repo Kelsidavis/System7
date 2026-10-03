@@ -40,8 +40,8 @@ bool usb_core_x86_register_controller(usb_controller_type_t type, uintptr_t base
 
     const char *name = (type == USB_CTRL_XHCI) ? "xHCI" :
                        (type == USB_CTRL_EHCI) ? "EHCI" : "UHCI";
-    serial_printf("[USB] registered %s controller base=0x%08x (%s)\n",
-                  name, (uint32_t)base, mmio ? "MMIO" : "PIO");
+    serial_printf("[USB] registered %s controller base=0x%08lx (%s)\n",
+                  name, (unsigned long)base, mmio ? "MMIO" : "PIO");
     return true;
 }
 
