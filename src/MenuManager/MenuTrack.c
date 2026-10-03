@@ -47,7 +47,6 @@ static struct {
     short menuHeight;          /* Height of dropdown */
     short itemCount;           /* Number of items */
     short highlightedItem;     /* Currently highlighted item (0=none) */
-    short lineHeight;          /* Height of each menu item */
     short titleLeft;           /* Left position of menu title in menu bar */
     short titleWidth;          /* Width of menu title in menu bar */
 } g_menuTrackState = {0};
@@ -198,10 +197,17 @@ static short CalcMenuWidth(MenuHandle theMenu, short itemCount) {
  * means whatever an item is made of gets restored.
  */
 /* Draw a tracked row through MenuDisplay's shared item renderer. */
-static void DrawMenuItemRow(MenuHandle theMenu, short i, short left, short itemTop,
-                            short menuWidth, short lineHeight, Boolean highlighted) {
-    Rect itemRect = {itemTop, left + 1, itemTop + lineHeight,
-                     left + menuWidth - 1};
+static void GetTrackedMenuItemRect(MenuHandle theMenu, short item, short left,
+                                   short top, short menuWidth, Rect* itemRect) {
+    Rect menuRect = {top, left, top + g_menuTrackState.menuHeight,
+                     left + menuWidth};
+    CalcMenuItemRect(theMenu, item, &menuRect, itemRect);
+}
+
+static void DrawMenuItemRow(MenuHandle theMenu, short i, short left, short top,
+                            short menuWidth, Boolean highlighted) {
+    Rect itemRect;
+    GetTrackedMenuItemRect(theMenu, i, left, top, menuWidth, &itemRect);
     DrawMenuItemAtRect(theMenu, i, &itemRect, highlighted);
 }
 
@@ -211,12 +217,11 @@ static void DrawMenuItemRow(MenuHandle theMenu, short i, short left, short itemT
  * 3-116). This held the highlight for 200000 turns of an untimed loop.
  */
 static void FlashChosenItem(MenuHandle theMenu, short item, short left, short top,
-                            short menuWidth, short lineHeight) {
-    short itemTop = top + 2 + (item - 1) * lineHeight;
+                            short menuWidth) {
     short flashes = GetMenuFlashCount();
     for (short n = 0; n < flashes; n++) {
         for (int on = 0; on <= 1; on++) {
-            DrawMenuItemRow(theMenu, item, left, itemTop, menuWidth, lineHeight, on);
+            DrawMenuItemRow(theMenu, item, left, top, menuWidth, on);
             UInt32 until = TickCount() + 3;
             while (TickCount() < until) {
                 SystemTask();
@@ -228,7 +233,7 @@ static void FlashChosenItem(MenuHandle theMenu, short item, short left, short to
 
 /* Draw dropdown menu */
 static void DrawTrackedMenu(MenuHandle theMenu, short left, short top,
-                            short itemCount, short menuWidth, short lineHeight) {
+                            short itemCount, short menuWidth, short menuHeight) {
     /* Save current port and ensure we're in screen port for menu drawing */
     GrafPtr savePort;
     GetPort(&savePort);
@@ -238,19 +243,18 @@ static void DrawTrackedMenu(MenuHandle theMenu, short left, short top,
     }
 
     /* Draw white background */
-    DrawMenuRect(left, top, left + menuWidth, top + itemCount * lineHeight + 4, 0xFFFFFFFF);
+    DrawMenuRect(left, top, left + menuWidth, top + menuHeight, 0xFFFFFFFF);
 
     /* Draw border */
     DrawMenuRect(left, top, left + menuWidth, top + 1, 0xFF000000);
-    DrawMenuRect(left, top + itemCount * lineHeight + 3, left + menuWidth, top + itemCount * lineHeight + 4, 0xFF000000);
-    DrawMenuRect(left, top, left + 1, top + itemCount * lineHeight + 4, 0xFF000000);
-    DrawMenuRect(left + menuWidth - 1, top, left + menuWidth, top + itemCount * lineHeight + 4, 0xFF000000);
+    DrawMenuRect(left, top + menuHeight - 1, left + menuWidth, top + menuHeight, 0xFF000000);
+    DrawMenuRect(left, top, left + 1, top + menuHeight, 0xFF000000);
+    DrawMenuRect(left + menuWidth - 1, top, left + menuWidth, top + menuHeight, 0xFF000000);
 
     /* Items - clamp iteration to prevent runaway loops */
     short maxItems = itemCount > 64 ? 64 : itemCount;
     for (short i = 1; i <= maxItems; i++) {
-        DrawMenuItemRow(theMenu, i, left, top + 2 + (i - 1) * lineHeight,
-                        menuWidth, lineHeight, false);
+        DrawMenuItemRow(theMenu, i, left, top, menuWidth, false);
     }
 
     /* Restore original port */
@@ -295,8 +299,6 @@ long BeginTrackMenu(short menuID, Point *startPt) {
     short left = startPt->h;
     short top = 20;       /* below menubar */
     short menuWidth = CalcMenuWidth(theMenu, itemCount);
-    short lineHeight = 16;
-
     /* Save menu tracking state */
     g_menuTrackState.isTracking = true;
     g_menuTrackState.activeMenu = theMenu;
@@ -305,12 +307,12 @@ long BeginTrackMenu(short menuID, Point *startPt) {
     g_menuTrackState.menuTop = top;
     g_menuTrackState.menuWidth = menuWidth;
     /* Use SInt32 to prevent overflow in height calculation */
-    SInt32 calcHeight = (SInt32)itemCount * (SInt32)lineHeight + 4;
+    SInt32 calcHeight = 8;
+    for (short i = 1; i <= itemCount; i++) calcHeight += GetMenuItemHeight(theMenu, i);
     if (calcHeight > 32767) calcHeight = 32767;  /* Clamp to max short */
     g_menuTrackState.menuHeight = (short)calcHeight;
     g_menuTrackState.itemCount = itemCount;
     g_menuTrackState.highlightedItem = 0;
-    g_menuTrackState.lineHeight = lineHeight;
     MENU_LOG_TRACE("BeginTrackMenu: Initial highlightedItem = %d\n", g_menuTrackState.highlightedItem);
 
     /* Store the menu title position, taken from what the menu bar actually
@@ -338,7 +340,7 @@ long BeginTrackMenu(short menuID, Point *startPt) {
 
     serial_puts("BeginTrackMenu: About to call DrawTrackedMenu\n");
     /* Draw the menu dropdown */
-    DrawTrackedMenu(theMenu, left, top, itemCount, menuWidth, lineHeight);
+    DrawTrackedMenu(theMenu, left, top, itemCount, menuWidth, (short)calcHeight);
     serial_puts("BeginTrackMenu: Dropdown drawn, tracking started\n");
 
     /* Restore original port */
@@ -380,23 +382,21 @@ void UpdateMenuTrackingNew(Point mousePt) {
     short left = g_menuTrackState.menuLeft;
     short top = g_menuTrackState.menuTop;
     short menuWidth = g_menuTrackState.menuWidth;
-    short lineHeight = g_menuTrackState.lineHeight;
     short itemCount = g_menuTrackState.itemCount;
     MenuHandle theMenu = g_menuTrackState.activeMenu;
 
     /* Check if mouse is over a menu item - account for 2px top padding */
     short newHighlight = 0;
-    short itemsTop = top + 2;  /* Menu items start 2 pixels below menu top */
 
     /* First check if mouse is horizontally within menu */
     if (mousePt.h >= left && mousePt.h < left + menuWidth) {
         /* Check each item's position to find which one the mouse is over */
         for (short i = 1; i <= itemCount; i++) {
-            short itemTop = itemsTop + (i - 1) * lineHeight;
-            short itemBottom = itemTop + lineHeight;
+            Rect itemRect;
+            GetTrackedMenuItemRect(theMenu, i, left, top, menuWidth, &itemRect);
 
             /* Check if mouse is vertically within this item */
-            if (mousePt.v >= itemTop && mousePt.v < itemBottom) {
+            if (mousePt.v >= itemRect.top && mousePt.v < itemRect.bottom) {
                 /* Dividers and disabled items never highlight in System 7.
                  * Testing only for non-empty text let dividers highlight,
                  * since a divider's text is "-". */
@@ -421,22 +421,19 @@ void UpdateMenuTrackingNew(Point mousePt) {
 
         /* Clear old highlight and redraw text */
         if (g_menuTrackState.highlightedItem > 0) {
-            short oldTop = top + 2 + (g_menuTrackState.highlightedItem - 1) * lineHeight;
-            MENU_LOG_TRACE("UpdateMenu: Clearing old highlight at y=%d\n", oldTop);
+            MENU_LOG_TRACE("UpdateMenu: Clearing old highlight at y=%d\n", top);
 
             /* Restore the row through the shared item renderer. */
             DrawMenuItemRow(theMenu, g_menuTrackState.highlightedItem,
-                            left, oldTop, menuWidth, lineHeight, false);
+                            left, top, menuWidth, false);
         }
 
         /* Draw new highlight and text */
         if (newHighlight > 0) {
-            short itemTop = top + 2 + (newHighlight - 1) * lineHeight;
-            MENU_LOG_TRACE("UpdateMenu: Drawing new highlight at y=%d for item %d\n", itemTop, newHighlight);
+            MENU_LOG_TRACE("UpdateMenu: Drawing new highlight at item %d\n", newHighlight);
 
             /* Draw the selected row through the shared item renderer. */
-            DrawMenuItemRow(theMenu, newHighlight, left, itemTop,
-                            menuWidth, lineHeight, true);
+            DrawMenuItemRow(theMenu, newHighlight, left, top, menuWidth, true);
         }
 
         g_menuTrackState.highlightedItem = newHighlight;
@@ -581,14 +578,9 @@ static long TrackMenu_Body(short menuID, Point *startPt) {
     }
 
 
-    short lineHeight = 16;
-    if (lineHeight <= 0) {
-        serial_puts("TrackMenu: Invalid lineHeight, using default\n");
-        lineHeight = 16;
-    }
-
     /* Use SInt32 to prevent overflow in height calculation */
-    SInt32 calcHeight = (SInt32)itemCount * (SInt32)lineHeight + 4;
+    SInt32 calcHeight = 8;
+    for (short i = 1; i <= itemCount; i++) calcHeight += GetMenuItemHeight(theMenu, i);
     if (calcHeight > 32767) calcHeight = 32767;  /* Clamp to max short */
     short menuHeight = (short)calcHeight;
 
@@ -652,14 +644,13 @@ static long TrackMenu_Body(short menuID, Point *startPt) {
     g_menuTrackState.menuHeight = menuHeight;
     g_menuTrackState.itemCount = itemCount;
     g_menuTrackState.highlightedItem = 0;
-    g_menuTrackState.lineHeight = lineHeight;
 
     /* Draw the menu bar with the active menu highlighted */
     DrawMenuBarWithHighlight(menuID);
     serial_puts("TrackMenu: Menu bar highlight drawn\n");
 
     /* Draw the menu dropdown */
-    DrawTrackedMenu(theMenu, left, top, itemCount, menuWidth, lineHeight);
+    DrawTrackedMenu(theMenu, left, top, itemCount, menuWidth, menuHeight);
     serial_puts("TrackMenu: DrawTrackedMenu returned\n");
     serial_puts("TrackMenu: Menu drawn, entering tracking loop\n");
 
@@ -767,11 +758,15 @@ static long TrackMenu_Body(short menuID, Point *startPt) {
         /* Is the pointer over one of this menu's items right now? */
         Boolean overItem = false;
         {
-            short itemsTop = top + 2;
-            if (mousePt.h >= left && mousePt.h < left + menuWidth &&
-                mousePt.v >= itemsTop &&
-                mousePt.v < itemsTop + itemCount * lineHeight) {
-                overItem = true;
+            if (mousePt.h >= left && mousePt.h < left + menuWidth) {
+                for (short i = 1; i <= itemCount; i++) {
+                    Rect itemRect;
+                    GetTrackedMenuItemRect(theMenu, i, left, top, menuWidth, &itemRect);
+                    if (mousePt.v >= itemRect.top && mousePt.v < itemRect.bottom) {
+                        overItem = true;
+                        break;
+                    }
+                }
             }
         }
 
@@ -819,15 +814,14 @@ static long TrackMenu_Body(short menuID, Point *startPt) {
 
             /* Check if click is within the menu bounds */
             if (clickPt.h >= left && clickPt.h < left + menuWidth) {
-                short itemsTop = top + 2;
-                if (clickPt.v >= itemsTop && clickPt.v < itemsTop + itemCount * lineHeight) {
+                if (clickPt.v >= top + 4 && clickPt.v < top + menuHeight - 4) {
                     /* Click was within menu - find which item was clicked */
                     /* Re-scan items to find which one the click was on */
                     short clickedItem = 0;
                     for (short i = 1; i <= itemCount; i++) {
-                        short itemTop = itemsTop + (i - 1) * lineHeight;
-                        short itemBottom = itemTop + lineHeight;
-                        if (clickPt.v >= itemTop && clickPt.v < itemBottom) {
+                        Rect itemRect;
+                        GetTrackedMenuItemRect(theMenu, i, left, top, menuWidth, &itemRect);
+                        if (clickPt.v >= itemRect.top && clickPt.v < itemRect.bottom) {
                             char itemText[64];
                             GetItemText(theMenu, i, itemText);
                             /* A disabled item or a divider chooses nothing
@@ -864,7 +858,10 @@ static long TrackMenu_Body(short menuID, Point *startPt) {
                             /* Calculate submenu position to the right of current menu */
                             Point submenuPt;
                             submenuPt.h = left + menuWidth;  /* Open to the right */
-                            submenuPt.v = top + 2 + (clickedItem - 1) * lineHeight;  /* Align with item */
+                            Rect clickedRect;
+                            GetTrackedMenuItemRect(theMenu, clickedItem, left, top,
+                                                   menuWidth, &clickedRect);
+                            submenuPt.v = clickedRect.top;
 
                             /* Track the submenu - it will return the final selection */
                             result = TrackMenu(submenuID, &submenuPt);
@@ -874,7 +871,7 @@ static long TrackMenu_Body(short menuID, Point *startPt) {
                             MENU_LOG_TRACE("TrackMenu: Item %d selected by click\n", clickedItem);
 
                             FlashChosenItem(theMenu, clickedItem, left, top,
-                                            menuWidth, lineHeight);
+                                            menuWidth);
                         }
                     }
                     tracking = false;

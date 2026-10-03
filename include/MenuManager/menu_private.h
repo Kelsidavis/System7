@@ -114,6 +114,9 @@ void DrawMenuItemText(const Rect* itemRect, ConstStr255Param itemText,
                       Style textStyle, Boolean enabled, Boolean selected);
 void DrawMenuItemAtRect(MenuHandle menu, short item, const Rect* itemRect,
                         Boolean selected);
+void CalcMenuItemRect(MenuHandle menu, short item, const Rect* menuRect,
+                      Rect* itemRect);
+short GetMenuItemHeight(MenuHandle menu, short item);
 long BeginTrackMenu(short menuID, Point* startPt);
 void UpdateMenuTrackingNew(Point where);
 /* Returns the selected menu choice, or zero when tracking is cancelled. */
