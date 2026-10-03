@@ -195,7 +195,6 @@ Full roadmap: [BARE_METAL_IMPROVEMENTS.md](docs/BARE_METAL_IMPROVEMENTS.md)
 - **Graphics**: VESA framebuffer, 800x600 @ 32-bit color
 - **Memory Layout**: Kernel loads at 1MB physical address (x86)
 - **Timing**: Architecture-agnostic with microsecond precision (RDTSC/timer registers)
-- **Performance**: Cold resource miss <15µs, cache hit <2µs, timer drift <100ppm
 
 ### Build Information
 
