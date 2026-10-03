@@ -128,13 +128,15 @@ Full roadmap: [BARE_METAL_IMPROVEMENTS.md](docs/BARE_METAL_IMPROVEMENTS.md)
   highest-priority active channel)
 - ✅ **Window Resize System**: interactive resizing with proper chrome handling, grow box, and desktop cleanup
 - ✅ **PS/2 Keyboard Translation**: Full set 1 scancode to Toolbox key code mapping
-- ✅ **Multi-platform HAL**: x86, ARM, and PowerPC support with clean abstraction
+- ✅ **Platform HAL**: x86 is the validated target; ARM and ARM64 build targets
+  exist, while PowerPC remains an experimental scaffold
 
 ## Implementation Status
 
 ### What Works Fully ✅
 
-- **Hardware Abstraction Layer (HAL)**: Complete platform abstraction for x86/ARM/PowerPC
+- **Hardware Abstraction Layer (HAL)**: x86 implementation is the primary
+  validated target
 - **Boot System**: Successfully boots via GRUB2/Multiboot2 on x86
 - **Serial Logging**: Module-based logging with runtime filtering (Error/Warn/Info/Debug/Trace)
 - **Graphics Foundation**: VESA framebuffer (800x600x32, 32-bit colour) with QuickDraw primitives including XOR mode
@@ -172,6 +174,8 @@ Full roadmap: [BARE_METAL_IMPROVEMENTS.md](docs/BARE_METAL_IMPROVEMENTS.md)
 - **Window Definition Procedures (WDEF)**: Core structure in place, partial dispatch
 - **Speech Manager**: API framework and audio passthrough only; speech synthesis engine not implemented
 - **Exception Handling (RTE)**: Return from exception partially implemented (currently halts instead of restoring context)
+- **Non-x86 platforms**: ARM/ARM64 build in CI, but ARM64 runtime startup is
+  incomplete; PowerPC remains experimental (see [Platform Porting Status](docs/future/PORTING_PLAN.md))
 
 ### Not Yet Implemented ❌
 
@@ -185,7 +189,8 @@ Full roadmap: [BARE_METAL_IMPROVEMENTS.md](docs/BARE_METAL_IMPROVEMENTS.md)
 
 ### Technical Specifications
 
-- **Architecture**: Multi-architecture via HAL (x86, ARM, PowerPC ready)
+- **Architecture**: x86 supported; ARM/ARM64 build targets and an experimental
+  PowerPC scaffold are selected through the HAL
 - **Boot Protocol**: Multiboot2 (x86), platform-specific bootloaders
 - **Graphics**: VESA framebuffer, 800x600 @ 32-bit color
 - **Memory Layout**: Kernel loads at 1MB physical address (x86)
@@ -229,6 +234,7 @@ make
 # Build for specific platform
 make PLATFORM=x86
 make PLATFORM=arm        # requires ARM bare-metal GCC
+make PLATFORM=arm64      # requires AArch64 bare-metal GCC
 make PLATFORM=ppc        # experimental; requires PowerPC ELF toolchain
 
 # Create bootable ISO
