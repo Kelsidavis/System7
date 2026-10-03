@@ -1,7 +1,7 @@
 /*
- * FontStyleSynthesis.h - Font Style Synthesis API
+ * FontStyleSynthesis.h - Font Style Metrics API
  *
- * Style generation functions for System 7.1 Font Manager
+ * Width and bounds calculations for System 7.1 text styles
  */
 
 #ifndef FONT_STYLE_SYNTHESIS_H
@@ -14,9 +14,7 @@
 extern "C" {
 #endif
 
-/* Individual Style Synthesis - internal functions, not exported */
-
-/* Width Calculations for Styles */
+/* Width adjustments for styled text */
 short FM_GetBoldWidth(short normalWidth);
 short FM_GetItalicWidth(short normalWidth, short height);
 short FM_GetShadowWidth(short normalWidth);
