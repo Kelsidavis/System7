@@ -27,24 +27,36 @@
 #include "MenuManager/menu_private.h"
 #include "MenuManager/MenuDisplay.h"
 #include "MenuManager/MenuBitsPool.h"
+#include "MenuManager/MenuBitsPrivate.h"
 #include "MemoryMgr/MemoryManager.h"
-
-
-/* Screen bits handle structure */
-typedef struct {
-    Rect bounds;        /* Rectangle that was saved */
-    SInt16 mode;       /* Save mode flags */
-    void *bitsData;     /* Saved pixel data */
-    SInt32 dataSize;   /* Size of saved data */
-    Boolean valid;      /* Handle is valid */
-    Boolean fromPool;   /* Buffer came from pool (not dynamically allocated) */
-} SavedBitsRec, *SavedBitsPtr, **SavedBitsHandle;
 
 /* External framebuffer access */
 extern void* framebuffer;
 extern uint32_t fb_width;
 extern uint32_t fb_height;
 extern uint32_t fb_pitch;
+
+static void CopyFramebufferToBuffer(const Rect *bounds, uint32_t *savePtr)
+{
+    const int width = bounds->right - bounds->left;
+    const int height = bounds->bottom - bounds->top;
+    const int pitch = fb_pitch / 4;
+    uint32_t *fb = (uint32_t*)framebuffer;
+    int bufferIndex = 0;
+
+    for (int y = 0; y < height; y++) {
+        const int screenY = bounds->top + y;
+        for (int x = 0; x < width; x++) {
+            const int screenX = bounds->left + x;
+            if (screenX < 0 || screenX >= (int)fb_width ||
+                screenY < 0 || screenY >= (int)fb_height) {
+                savePtr[bufferIndex++] = 0xFF000000;
+            } else {
+                savePtr[bufferIndex++] = fb[screenY * pitch + screenX];
+            }
+        }
+    }
+}
 
 /*
  * SaveBits - Save screen bits for menu display
@@ -94,33 +106,7 @@ Handle SaveBits(const Rect *bounds, SInt16 mode) {
         savedBits->valid = false;
         savedBits->fromPool = true;  /* Mark as from pool */
 
-        /* Copy pixels from framebuffer to pool buffer */
-        {
-            uint32_t* fb = (uint32_t*)framebuffer;
-            uint32_t* savePtr = (uint32_t*)savedBits->bitsData;
-            int pitch = fb_pitch / 4;
-            int y, x;
-            int bufferIndex = 0;
-
-            for (y = 0; y < height; y++) {
-                int screenY = bounds->top + y;
-                if (screenY < 0 || screenY >= (int)fb_height) {
-                    for (x = 0; x < width; x++) {
-                        savePtr[bufferIndex++] = 0xFF000000;
-                    }
-                    continue;
-                }
-
-                for (x = 0; x < width; x++) {
-                    int screenX = bounds->left + x;
-                    if (screenX < 0 || screenX >= (int)fb_width) {
-                        savePtr[bufferIndex++] = 0xFF000000;
-                    } else {
-                        savePtr[bufferIndex++] = fb[screenY * pitch + screenX];
-                    }
-                }
-            }
-        }
+        CopyFramebufferToBuffer(bounds, (uint32_t*)savedBits->bitsData);
 
         savedBits->valid = true;
         HUnlock(poolBits);
@@ -177,36 +163,7 @@ Handle SaveBits(const Rect *bounds, SInt16 mode) {
             savedBits->bitsData, (unsigned long)savedBits->dataSize);
     serial_puts(buf);
 
-    /* Copy pixels from framebuffer to save buffer */
-    /* CRITICAL: Use separate index for buffer to prevent overflow when bounds are clipped */
-    {
-        uint32_t* fb = (uint32_t*)framebuffer;
-        uint32_t* savePtr = (uint32_t*)savedBits->bitsData;
-        int pitch = fb_pitch / 4;
-        int y, x;
-        int bufferIndex = 0;
-
-        for (y = 0; y < height; y++) {
-            int screenY = bounds->top + y;
-            /* If row is out of bounds, fill with black/transparent */
-            if (screenY < 0 || screenY >= (int)fb_height) {
-                for (x = 0; x < width; x++) {
-                    savePtr[bufferIndex++] = 0xFF000000; /* Black */
-                }
-                continue;
-            }
-
-            for (x = 0; x < width; x++) {
-                int screenX = bounds->left + x;
-                /* If pixel is out of bounds, use black/transparent */
-                if (screenX < 0 || screenX >= (int)fb_width) {
-                    savePtr[bufferIndex++] = 0xFF000000; /* Black */
-                } else {
-                    savePtr[bufferIndex++] = fb[screenY * pitch + screenX];
-                }
-            }
-        }
-    }
+    CopyFramebufferToBuffer(bounds, (uint32_t*)savedBits->bitsData);
 
     savedBits->valid = true;
 

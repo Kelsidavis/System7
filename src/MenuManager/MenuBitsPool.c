@@ -13,6 +13,7 @@
 #include "System71StdLib.h"
 #include "MemoryMgr/MemoryManager.h"
 #include "MenuManager/MenuBitsPool.h"
+#include "MenuManager/MenuBitsPrivate.h"
 #include <string.h>
 
 /* Disabled debug printf - was causing slowdown on ARM64 */
@@ -21,16 +22,6 @@ static inline void serial_printf_disabled(const char* fmt, ...) { (void)fmt; }
 /*---------------------------------------------------------------------------
  * Pool Structure
  *---------------------------------------------------------------------------*/
-
-/* Saved bits record structure - matches what SaveBits uses */
-typedef struct {
-    Rect bounds;        /* Rectangle that was saved */
-    SInt16 mode;        /* Save mode flags */
-    void* bitsData;     /* Saved pixel data (preallocated from pool) */
-    SInt32 dataSize;    /* Size of saved data */
-    Boolean valid;      /* Handle is valid */
-    Boolean fromPool;   /* This buffer came from the pool */
-} SavedBitsRec, *SavedBitsPtr, **SavedBitsHandle;
 
 /* Pool entry - tracks a preallocated buffer */
 typedef struct {
