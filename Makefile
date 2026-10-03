@@ -201,7 +201,7 @@ else
     # x86 32-bit
     CFLAGS = $(COMMON_CFLAGS) -m32
     ASFLAGS = --32
-    LDFLAGS = -melf_i386 -nostdlib -no-pie -Wl,--build-id=none
+    LDFLAGS = -melf_i386 -nostdlib -no-pie
     ifeq ($(strip $(GESTALT_MACHINE_TYPE)),)
       GESTALT_MACHINE_TYPE := 0
     endif
@@ -1206,7 +1206,7 @@ $(KERNEL): FORCE $(OBJECTS) | $(BUILD_DIR)
     elif [ "$(PLATFORM)" = "arm" ]; then \
         $(CC) $(CFLAGS_PI) $(LDFLAGS) -Wl,-z,noexecstack -Wl,-T,$(LINKER_SCRIPT) -nostdlib -static -o $(KERNEL) $(OBJECTS) $(LIBM) -lgcc; \
     else \
-        $(CC) -m32 -Wl,-T,$(LINKER_SCRIPT) -Wl,-z,noexecstack -nostdlib -no-pie -static -o $(KERNEL) $(OBJECTS) $(LIBM) -lgcc; \
+        $(CC) -m32 -Wl,-T,$(LINKER_SCRIPT) -Wl,-z,noexecstack -Wl,--build-id=none -nostdlib -no-pie -static -o $(KERNEL) $(OBJECTS) $(LIBM) -lgcc; \
 	fi
 	@test -f $(KERNEL) || { echo "ERROR: Kernel not created"; exit 1; }
 	@kernel_size=$$(stat -c%s $(KERNEL) 2>/dev/null || stat -f%z $(KERNEL) 2>/dev/null); \
