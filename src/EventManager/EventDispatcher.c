@@ -31,24 +31,10 @@
 #include <stdlib.h>  /* For abs() */
 #include "EventManager/EventLogging.h"
 
-/* External functions */
-extern short FindWindow(Point thePoint, WindowPtr* theWindow);
-extern void SelectWindow(WindowPtr theWindow);
-extern void DragWindow(WindowPtr window, Point startPt, const struct Rect* boundsRect);
-extern Boolean TrackGoAway(WindowPtr window, Point thePt);
-extern void CloseWindow(WindowPtr window);
-extern void BeginUpdate(WindowPtr window);
-extern void EndUpdate(WindowPtr window);
-extern void DrawGrowIcon(WindowPtr window);
-extern long MenuSelect(Point startPt);
-extern void HiliteMenu(short menuID);
-extern long MenuKey(short ch);
-
 /* Menu tracking functions from MenuTrack.c */
 extern Boolean IsMenuTrackingNew(void);
 extern void UpdateMenuTrackingNew(Point mousePt);
 extern long EndMenuTrackingNew(void);
-extern void GetMouse(Point* mouseLoc);
 
 /* Forward declarations of event handler functions */
 Boolean HandleNullEvent(EventRecord* event);
@@ -163,7 +149,6 @@ Boolean DispatchEvent(EventRecord* event)
     /* IMPORTANT: Allow menu bar clicks to bypass Notepad interception */
     extern void Notepad_HandleEvent(EventRecord *event);
     extern WindowPtr Notepad_GetWindow(void);
-    extern short FindWindow(Point thePoint, WindowPtr* theWindow);
 
     if (Notepad_GetWindow() != NULL) {
         /* For mouseDown events, check if click is on menu bar */
@@ -234,13 +219,11 @@ Boolean HandleNullEvent(EventRecord* event)
 
     DateTimePanel_Tick();
 
-    extern void FolderWindow_IdleRename(void);
     FolderWindow_IdleRename();
 
     /* Check if we're tracking desktop drag */
     if (g_dispatcher.trackingDesktop) {
         /* Check if mouse button is still down */
-        extern Boolean Button(void);
         Boolean buttonDown = Button();
 
         /* Handle drag tracking */
@@ -274,15 +257,12 @@ Boolean HandleNullEvent(EventRecord* event)
  */
 static Boolean MenuBar_OwnedBySimpleText(void)
 {
-    extern Boolean STMenu_IsInstalled(void);
     return STMenu_IsInstalled();
 }
 
 /* Bring the owner's enable states up to date before its menus are searched. */
 static void MenuBar_PrepareForTracking(void)
 {
-    extern void STMenu_Update(void);
-    extern void Finder_AdjustMenus(void);
 
     if (MenuBar_OwnedBySimpleText()) {
         STMenu_Update();
@@ -294,7 +274,6 @@ static void MenuBar_PrepareForTracking(void)
 /* Run a MenuSelect/MenuKey result against whoever owns the bar. */
 static void MenuBar_DispatchChoice(long menuChoice)
 {
-    extern void STMenu_Handle(long menuResult);
 
     if (menuChoice == 0) return;
 
@@ -379,7 +358,6 @@ Boolean HandleMouseDown(EventRecord* event)
             EVT_LOG_DEBUG("HandleMouseDown: Window already front, handling content click\n");
 
             /* Route to centralized content click handler */
-            extern OSErr HandleContentClick(WindowPtr window, EventRecord* event);
 
             EVT_LOG_DEBUG("HandleMouseDown: Calling HandleContentClick for window=%p, refCon=0x%08x\n",
                          (void*)whichWindow, (unsigned int)whichWindow->refCon);
@@ -418,7 +396,6 @@ Boolean HandleMouseDown(EventRecord* event)
              * size, height high and width low; the resize is ours to do. */
             if (whichWindow) {
                 EVT_LOG_DEBUG("Grow window %p\n", (void*)whichWindow);
-                extern long GrowWindow(WindowPtr theWindow, Point startPt, const Rect* bBox);
 
                 /* Set minimum/maximum size bounds for resize */
                 Rect sizeRect;
@@ -432,8 +409,6 @@ Boolean HandleMouseDown(EventRecord* event)
                     SizeWindow(whichWindow, LoWord(newSize), HiWord(newSize), true);
 
                     /* A Finder window lays its icons out again for the new width. */
-                    extern short FolderWindow_GetViewMode(WindowPtr w);
-                    extern void FolderWindow_CleanUp(WindowPtr w, Boolean selectedOnly);
                     if (IsFolderWindow(whichWindow) && FolderWindow_GetViewMode(whichWindow) <= 1) {
                         FolderWindow_CleanUp(whichWindow, false);
                     }
@@ -444,7 +419,6 @@ Boolean HandleMouseDown(EventRecord* event)
         case inGoAway:
             /* Close box clicked. Option+click = close ALL windows (System 7 behavior) */
             if (whichWindow) {
-                extern OSErr CloseFinderWindow(WindowPtr w);
 
                 /* System 7 does not close on the press: TrackGoAway highlights
                  * the box while the button is held and returns false if the
@@ -478,7 +452,6 @@ Boolean HandleMouseDown(EventRecord* event)
         case inZoomOut:
             /* Zoom box clicked */
             if (whichWindow) {
-                extern void ZoomWindow(WindowPtr theWindow, short partCode, Boolean front);
                 /* Zoomed on release inside the box, as TrackBox decides; it
                  * zoomed on the press, with no highlight and no way to back out. */
                 if (TrackBox(whichWindow, event->where, windowPart)) {
@@ -498,7 +471,6 @@ Boolean HandleMouseDown(EventRecord* event)
                              clickCount, doubleClick, event->where.h, event->where.v);
 
                 /* Check if click was on a desktop icon */
-                extern Boolean HandleDesktopClick(Point clickPoint, Boolean doubleClick);
                 if (HandleDesktopClick(event->where, doubleClick)) {
                     EVT_LOG_DEBUG("Desktop icon clicked (clickCount=%d), trackingDesktop=true\n", clickCount);
                     /* Start tracking for potential drag */
@@ -585,7 +557,6 @@ Boolean HandleKeyDownEvent(EventRecord* event)
      * type-ahead, Return to rename, Command-Up and -Down, Command-Delete.
      * Tab and Return used to go to the desktop icons whatever was in front. */
     {
-        extern Boolean Finder_HandleKey(EventRecord* event);
         WindowPtr front = FrontWindow();
         if (front && IsFolderWindow(front) && Finder_HandleKey(event)) {
             return true;
@@ -597,7 +568,6 @@ Boolean HandleKeyDownEvent(EventRecord* event)
         switch (key) {
             case 0x09:  /* Tab key */
                 {
-                    extern void SelectNextDesktopIcon(void);
                     SelectNextDesktopIcon();
                     EVT_LOG_DEBUG("Tab pressed - selecting next desktop icon\n");
                 }
@@ -605,7 +575,6 @@ Boolean HandleKeyDownEvent(EventRecord* event)
 
             case 0x0D:  /* Enter/Return key */
                 {
-                    extern void OpenSelectedDesktopIcon(void);
                     OpenSelectedDesktopIcon();
                     EVT_LOG_DEBUG("Enter pressed - opening selected icon\n");
                 }
@@ -646,8 +615,6 @@ Boolean HandleKeyDownEvent(EventRecord* event)
     WindowPtr frontWindow = FrontWindow();
     if (frontWindow) {
         /* Check if this is the TextEdit window and forward to TEKey */
-        extern Boolean TextEdit_IsRunning(void);
-        extern void TextEdit_HandleEvent(EventRecord* event);
 
         if (TextEdit_IsRunning()) {
             EVT_LOG_DEBUG("Key '%c' (0x%02x) → TextEdit window %p\n",
@@ -725,7 +692,6 @@ Boolean HandleUpdate(EventRecord* event)
          * given - the same way About This Macintosh used to be wiped - and the
          * accessory shows an empty frame. */
         extern Boolean SystemUpdate(WindowRecord *window, const EventRecord *event);
-        extern Boolean Finder_DrawWindowContents(WindowPtr window);
         if (SystemUpdate((WindowRecord *)updateWindow, event)) {
             EVT_LOG_DEBUG("HandleUpdate: desk accessory redrew itself\n");
         } else if (!Finder_DrawWindowContents(updateWindow)) {
@@ -752,7 +718,6 @@ Boolean HandleUpdate(EventRecord* event)
     } else {
         /* NULL window = desktop/background update */
         EVT_LOG_DEBUG("HandleUpdate: NULL window, redrawing desktop\n");
-        extern void DrawDesktop(void);
         extern void DrawVolumeIcon(void);
         DrawDesktop();
         DrawVolumeIcon();
@@ -785,7 +750,6 @@ Boolean HandleActivate(EventRecord* event)
             WM_OnActivate(window);
 
             /* Update View menu checkmarks for the newly activated window */
-            extern void Finder_UpdateViewMenuForWindow(WindowPtr w);
             Finder_UpdateViewMenuForWindow(window);
         } else {
             /* Window is being deactivated */
