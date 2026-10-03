@@ -62,12 +62,12 @@ extern struct QDGlobals qd;
 void List_ComputeVisibleCells(ListMgrRec* list)
 {
     short viewWidth, viewHeight;
-    
+
     if (!list) return;
-    
+
     viewWidth = list->viewRect.right - list->viewRect.left;
     viewHeight = list->viewRect.bottom - list->viewRect.top;
-    
+
     list->visibleRows = 0;
     list->visibleCols = 0;
 
@@ -79,7 +79,7 @@ void List_ComputeVisibleCells(ListMgrRec* list)
     if (list->cellWidth > 0) {
         list->visibleCols = viewWidth / list->cellWidth;
     }
-    
+
     /* Update content rect (could reserve space for scrollbars) */
     list->contentRect = list->viewRect;
 }
@@ -87,21 +87,21 @@ void List_ComputeVisibleCells(ListMgrRec* list)
 void List_ClampScroll(ListMgrRec* list)
 {
     short maxTopRow;
-    
+
     if (!list) return;
-    
+
     /* Clamp topRow */
     if (list->topRow < 0) {
         list->topRow = 0;
     }
-    
+
     maxTopRow = list->rowCount - list->visibleRows + 1;
     if (maxTopRow < 0) maxTopRow = 0;
-    
+
     if (list->topRow > maxTopRow) {
         list->topRow = maxTopRow;
     }
-    
+
     /* Clamp leftCol */
     if (list->leftCol < 0) {
         list->leftCol = 0;
@@ -249,36 +249,36 @@ Boolean List_HitTest(ListMgrRec* list, Point localPt, Cell* outCell)
 {
     short relH, relV;
     short hitRow, hitCol;
-    
+
     if (!list || !outCell) return false;
-    
+
     /* Check if point is in view rect */
     if (localPt.h < list->contentRect.left || localPt.h >= list->contentRect.right ||
         localPt.v < list->contentRect.top || localPt.v >= list->contentRect.bottom) {
         return false;
     }
-    
+
     /* Compute relative position */
     relH = localPt.h - list->contentRect.left;
     relV = localPt.v - list->contentRect.top;
-    
+
     /* Compute cell indices */
     if (list->cellHeight > 0) {
         hitRow = list->topRow + (relV / list->cellHeight);
     } else {
         hitRow = 0;
     }
-    
+
     if (list->cellWidth > 0) {
         hitCol = list->leftCol + (relH / list->cellWidth);
     } else {
         hitCol = 0;
     }
-    
+
     /* Validate */
     if (hitRow < 0 || hitRow >= list->rowCount) return false;
     if (hitCol < 0 || hitCol >= list->colCount) return false;
-    
+
     outCell->v = hitRow;
     outCell->h = hitCol;
     return true;
@@ -291,10 +291,10 @@ Boolean List_HitTest(ListMgrRec* list, Point localPt, Cell* outCell)
 Boolean List_IsCellSelected(ListMgrRec* list, Cell cell)
 {
     RowData* rowArray;
-    
+
     if (!list || !List_ValidateCell(list, cell)) return false;
     if (!list->rows) return false;
-    
+
     rowArray = *(list->rows);
     return rowArray[cell.v].selected;
 }
@@ -302,10 +302,10 @@ Boolean List_IsCellSelected(ListMgrRec* list, Cell cell)
 void List_SetCellSelection(ListMgrRec* list, Cell cell, Boolean selected)
 {
     RowData* rowArray;
-    
+
     if (!list || !List_ValidateCell(list, cell)) return;
     if (!list->rows) return;
-    
+
     rowArray = *(list->rows);
     rowArray[cell.v].selected = selected;
 }
@@ -314,9 +314,9 @@ void List_ClearAllSelection(ListMgrRec* list)
 {
     RowData* rowArray;
     short i;
-    
+
     if (!list || !list->rows) return;
-    
+
     rowArray = *(list->rows);
     for (i = 0; i < list->rowCount; i++) {
         rowArray[i].selected = false;
@@ -330,15 +330,15 @@ void List_ClearAllSelection(ListMgrRec* list)
 CellData* List_GetCellData(ListMgrRec* list, Cell cell)
 {
     RowData* rowArray;
-    
+
     if (!list || !List_ValidateCell(list, cell)) return NULL;
     if (!list->rows) return NULL;
-    
+
     rowArray = *(list->rows);
     if (!rowArray[cell.v].cells) return NULL;
-    
+
     if (cell.h >= rowArray[cell.v].colCount) return NULL;
-    
+
     return &rowArray[cell.v].cells[cell.h];
 }
 

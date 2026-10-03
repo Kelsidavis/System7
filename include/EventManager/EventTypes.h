@@ -165,7 +165,7 @@ typedef struct EvQEl {
 /* Ptr is defined in MacTypes.h */
 
 /* Queue header structure */
-// 
+//
 
 /* Ptr is defined in MacTypes.h */
 

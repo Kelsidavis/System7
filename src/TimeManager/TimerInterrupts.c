@@ -51,11 +51,11 @@ void ProgramNextTimerInterrupt(UInt64 absDeadlineUS) {
 
 void TimeManager_TimerISR(void) {
     if (!gTimerState.armed) return;
-    
+
     UnsignedWide now;
     Microseconds(&now);
     UInt64 nowUS = ((UInt64)now.hi << 32) | now.lo;
-    
+
     /* Check if timer expired */
     if ((int64_t)(gTimerState.nextDeadlineUS - nowUS) <= 0) {
         gTimerState.armed = false;

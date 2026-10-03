@@ -62,33 +62,33 @@ struct ListMgrRec {
     short cellHeight;        /* Individual cell height */
     short visibleRows;       /* Number of visible rows */
     short visibleCols;       /* Number of visible columns */
-    
+
     /* Model */
     short rowCount;          /* Total number of rows */
     short colCount;          /* Total number of columns */
     RowData** rows;          /* Handle to array of RowData */
-    
+
     /* Selection */
     short selMode;           /* lsSingleSel or lsMultiSel */
     SelectionRange selRange; /* For range selection */
     short selectIterRow;     /* Iterator for LGetSelect */
     Cell anchorCell;         /* Anchor for Shift-extend */
-    
+
     /* Scrolling */
     short topRow;            /* First visible row */
     short leftCol;           /* First visible column */
     ControlHandle vScroll;   /* Vertical scrollbar (optional) */
     ControlHandle hScroll;   /* Horizontal scrollbar (optional) */
-    
+
     /* Owner */
     WindowPtr window;        /* Owning window */
-    
+
     /* Event state */
     LastClickInfo lastClick;
-    
+
     /* Client data */
     long refCon;
-    
+
     /* Flags */
     Boolean hasVScroll;      /* Has vertical scrollbar */
     Boolean hasHScroll;      /* Has horizontal scrollbar */

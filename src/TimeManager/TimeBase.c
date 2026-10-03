@@ -240,7 +240,7 @@ OSErr InitTimeBase(void) {
 
     /* Accurate frequency calibration */
     CalibrateFrequencyAccurate();
-    
+
     /* Compute conversion factors using software division */
     gTimeBase.nsPerCount_32_32 = udiv64((NANOSECONDS_PER_SECOND << 32), gTimeBase.counterFreq);
     gTimeBase.usPerCount_16_16 = (uint32_t)udiv64((MICROSECONDS_PER_SECOND << 16), gTimeBase.counterFreq);
@@ -293,7 +293,7 @@ OSErr InitTimeBase(void) {
     }
 
     gTimeBase.initialized = true;
-    
+
     return noErr;
 }
 
@@ -313,7 +313,7 @@ UInt32 GetTimerOverhead(void) {
 OSErr GetTimeBaseInfo(TimeBaseInfo *info) {
     if (!info) return paramErr;
     if (!gTimeBase.initialized) return tmNotActive;
-    
+
     info->counterFrequency = gTimeBase.counterFreq;
     info->resolutionNs = gTimeBase.resolutionNs;
     info->overheadUs = gTimeBase.overheadUs;
@@ -373,10 +373,10 @@ UInt32 TickCount(void) {
 
 OSErr AbsoluteToNanoseconds(UnsignedWide absolute, UnsignedWide *duration) {
     if (!duration) return paramErr;
-    
+
     uint64_t counts = ((uint64_t)absolute.hi << 32) | absolute.lo;
     uint64_t ns = (counts * gTimeBase.nsPerCount_32_32) >> 32;
-    
+
     duration->hi = (UInt32)(ns >> 32);
     duration->lo = (UInt32)(ns & 0xFFFFFFFF);
     return noErr;
@@ -387,7 +387,7 @@ OSErr NanosecondsToAbsolute(UnsignedWide duration, UnsignedWide *absolute) {
 
     uint64_t ns = ((uint64_t)duration.hi << 32) | duration.lo;
     uint64_t counts = udiv64((ns << 32), gTimeBase.nsPerCount_32_32);
-    
+
     absolute->hi = (UInt32)(counts >> 32);
     absolute->lo = (UInt32)(counts & 0xFFFFFFFF);
     return noErr;

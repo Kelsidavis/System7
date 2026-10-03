@@ -10,10 +10,10 @@
 
 OSErr AddWideTime(UnsignedWide a, UnsignedWide b, UnsignedWide *out) {
     if (!out) return paramErr;
-    
-    uint64_t sum = ((uint64_t)a.hi << 32 | a.lo) + 
+
+    uint64_t sum = ((uint64_t)a.hi << 32 | a.lo) +
                    ((uint64_t)b.hi << 32 | b.lo);
-    
+
     out->hi = (UInt32)(sum >> 32);
     out->lo = (UInt32)(sum & 0xFFFFFFFF);
     return noErr;
@@ -21,10 +21,10 @@ OSErr AddWideTime(UnsignedWide a, UnsignedWide b, UnsignedWide *out) {
 
 OSErr SubtractWideTime(UnsignedWide a, UnsignedWide b, UnsignedWide *out) {
     if (!out) return paramErr;
-    
-    uint64_t diff = ((uint64_t)a.hi << 32 | a.lo) - 
+
+    uint64_t diff = ((uint64_t)a.hi << 32 | a.lo) -
                     ((uint64_t)b.hi << 32 | b.lo);
-    
+
     out->hi = (UInt32)(diff >> 32);
     out->lo = (UInt32)(diff & 0xFFFFFFFF);
     return noErr;
@@ -37,7 +37,7 @@ OSErr MicrosecondDelay(UInt32 microseconds) {
     Microseconds(&start);
 
     uint64_t targetUs = ((uint64_t)start.hi << 32 | start.lo) + microseconds;
-    
+
     if (microseconds < 1000) {
         /* Busy wait for short delays */
         uint64_t startCycles = PlatformCounterNow();
@@ -59,13 +59,13 @@ OSErr MicrosecondDelay(UInt32 microseconds) {
             if (maxIters-- == 0) break;
         } while (((uint64_t)now.hi << 32 | now.lo) < targetUs);
     }
-    
+
     return noErr;
 }
 
 OSErr NanosecondDelay(uint64_t nanoseconds) {
     if (nanoseconds == 0) return noErr;
-    
+
     if (nanoseconds < NANOSECONDS_PER_MICROSECOND) {
         /* Sub-microsecond: direct counter spin */
         TimeBaseInfo info;
@@ -79,7 +79,7 @@ OSErr NanosecondDelay(uint64_t nanoseconds) {
         /* Use microsecond delay */
         return MicrosecondDelay((UInt32)udiv64(nanoseconds, NANOSECONDS_PER_MICROSECOND));
     }
-    
+
     return noErr;
 }
 
@@ -91,9 +91,9 @@ OSErr StartPerformanceTimer(UnsignedWide *start) {
 
 OSErr EndPerformanceTimer(UnsignedWide start, UnsignedWide *elapsed) {
     if (!elapsed) return paramErr;
-    
+
     UnsignedWide now;
     Microseconds(&now);
-    
+
     return SubtractWideTime(now, start, elapsed);
 }

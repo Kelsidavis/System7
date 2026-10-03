@@ -7,8 +7,8 @@
  *
  * Evidence sources:
  * - String analysis of Finder.rsrc
- * - Interface definitions from 
- * - Assembly interfaces from 
+ * - Interface definitions from
+ * - Assembly interfaces from
  *
  * This file provides the public API for the System 7 Finder functionality.
  */

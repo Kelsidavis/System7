@@ -185,7 +185,7 @@ void SystemClick(EventRecord *theEvent, WindowPtr whichWindow);
 
 /* Ptr is defined in MacTypes.h */
 
-// 
+//
 
 /* QElem and QElemPtr are defined in SystemTypes.h */
 

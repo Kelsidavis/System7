@@ -1784,7 +1784,7 @@ typedef SInt32 AESendMode;
 typedef SInt16 AESendPriority;
 typedef SInt16 AEInteractAllowed;
 typedef void (*EventHandlerProcPtr)(const AppleEvent* event, AppleEvent* reply, SInt32 refCon);
-typedef void (*CoercionHandlerProcPtr)(DescType fromType, const void* fromData, Size fromSize, 
+typedef void (*CoercionHandlerProcPtr)(DescType fromType, const void* fromData, Size fromSize,
                                        DescType toType, SInt32 refCon, void* toData, Size* toSize);
 typedef Boolean (*IdleProcPtr)(EventRecord* event, SInt32* sleepTime, RgnHandle* mouseRgn);
 typedef Boolean (*EventFilterProcPtr)(EventRecord* event);
@@ -2008,7 +2008,7 @@ typedef struct TextLineStart {
 typedef TextLineStart* LineStartPtr;
 typedef LineStartPtr* LineStartHandle;
 
-// Missing Print Manager types  
+// Missing Print Manager types
 typedef struct TPrInfo {
     SInt16 iDev;
     SInt16 iVRes;

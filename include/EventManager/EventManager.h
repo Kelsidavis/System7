@@ -67,7 +67,7 @@ extern "C" {
 /* EventRecord - the fundamental event structure */
 
 /* Event queue element */
-// 
+//
 
 /* KeyMap type defined in EventStructs.h */
 
@@ -75,13 +75,13 @@ extern "C" {
 /* Error codes defined elsewhere */;
 
 /* Double-click detection */
-// 
+//
 
 /* Mouse tracking state */
-// 
+//
 
 /* Keyboard state and auto-repeat */
-// 
+//
 
 /* System globals (would normally be at low memory addresses) */
 

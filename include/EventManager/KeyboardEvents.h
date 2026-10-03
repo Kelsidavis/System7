@@ -40,10 +40,10 @@ typedef KeyboardLayoutRec KeyboardLayout;
 /* KeyMap indices for modifier keys */
 
 /* Keyboard state structure */
-// 
+//
 
 /* Auto-repeat state */
-// 
+//
 
 /* Dead key state defined in EventStructs.h */
 

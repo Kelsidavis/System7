@@ -4,8 +4,8 @@
  *
  * implemented based on System.rsrc
  *
- * Evidence source: 
- * Layout source: 
+ * Evidence source:
+ * Layout source:
  *
  */
 

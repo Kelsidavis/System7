@@ -79,7 +79,7 @@ static void InitRegistryIfNeeded(void)
 {
     int i;
     if (gRegistryInited) return;
-    
+
     for (i = 0; i < MAX_DIALOG_LISTS; i++) {
         gDialogListRegistry[i].dialog = NULL;
         gDialogListRegistry[i].itemNo = 0;
@@ -93,9 +93,9 @@ DialogListAssoc* FindDialogListSlot(DialogPtr dlg, short itemNo, Boolean allocat
 {
     int i;
     DialogListAssoc* freeSlot = NULL;
-    
+
     InitRegistryIfNeeded();
-    
+
     /* First pass: find existing or free slot */
     for (i = 0; i < MAX_DIALOG_LISTS; i++) {
         if (gDialogListRegistry[i].active &&
@@ -107,7 +107,7 @@ DialogListAssoc* FindDialogListSlot(DialogPtr dlg, short itemNo, Boolean allocat
             freeSlot = &gDialogListRegistry[i];
         }
     }
-    
+
     /* Allocate if requested */
     if (allocate && freeSlot) {
         freeSlot->dialog = dlg;
@@ -115,7 +115,7 @@ DialogListAssoc* FindDialogListSlot(DialogPtr dlg, short itemNo, Boolean allocat
         freeSlot->active = true;
         return freeSlot;
     }
-    
+
     return NULL;
 }
 
@@ -144,60 +144,60 @@ ListHandle LNew(const ListParams* params)
         LIST_LOG_ERROR("LNew: failed to allocate list handle\n");
         return NULL;
     }
-    
+
     HLock((Handle)lh);
     list = *LIST_MGR_HANDLE(lh);
-    
+
     /* Initialize geometry */
     list->viewRect = params->viewRect;
     list->contentRect = params->viewRect;  /* Initially same */
-    
+
     /* Cell size from .right/.bottom of cellSizeRect */
     cellW = params->cellSizeRect.right;
     cellH = params->cellSizeRect.bottom;
     if (cellW <= 0) cellW = 200;  /* Default width */
     if (cellH <= 0) cellH = 16;   /* Default height */
-    
+
     list->cellWidth = cellW;
     list->cellHeight = cellH;
-    
+
     /* Initialize model */
     list->rowCount = 0;
     list->colCount = 1;  /* Default to single column */
     list->rows = NULL;
-    
+
     /* Initialize selection */
     list->selMode = params->selMode;
     list->selRange.active = false;
     list->selectIterRow = -1;
     list->anchorCell.h = 0;
     list->anchorCell.v = 0;
-    
+
     /* Initialize scroll */
     list->topRow = 0;
     list->leftCol = 0;
     list->vScroll = NULL;
     list->hScroll = NULL;
-    
+
     /* Owner */
     list->window = params->window;
-    
+
     /* Event state */
     list->lastClick.valid = false;
-    
+
     /* Client data */
     list->refCon = params->refCon;
-    
+
     /* Flags */
     list->hasVScroll = params->hasVScroll;
     list->hasHScroll = params->hasHScroll;
     list->active = true;
-    
+
     /* Compute visible cells */
     List_ComputeVisibleCells(list);
-    
+
     HUnlock((Handle)lh);
-    
+
     LIST_LOG("LNew: view=(%d,%d,%d,%d) cell=(%dx%d) mode=%d\n",
              params->viewRect.left, params->viewRect.top,
              params->viewRect.right, params->viewRect.bottom,
@@ -210,12 +210,12 @@ void LDispose(ListHandle lh)
 {
     ListMgrRec* list;
     short i;
-    
+
     if (!lh) return;
-    
+
     HLock((Handle)lh);
     list = *LIST_MGR_HANDLE(lh);
-    
+
     /* Free row data */
     if (list->rows) {
         RowData* rowArray = *(list->rows);
@@ -226,10 +226,10 @@ void LDispose(ListHandle lh)
         }
         DisposeHandle((Handle)list->rows);
     }
-    
+
     HUnlock((Handle)lh);
     DisposeHandle((Handle)lh);
-    
+
     LIST_LOG("LDispose: list disposed\n");
 }
 
@@ -278,17 +278,17 @@ OSErr LAddRow(ListHandle lh, short count, short afterRow)
     short newRowCount;
     short insertPos;
     short i, j;
-    
+
     if (!lh || count <= 0) return paramErr;
-    
+
     HLock((Handle)lh);
     list = *LIST_MGR_HANDLE(lh);
-    
+
     newRowCount = list->rowCount + count;
     insertPos = afterRow + 1;  /* Insert after specified row */
     if (insertPos < 0) insertPos = 0;
     if (insertPos > list->rowCount) insertPos = list->rowCount;
-    
+
     /* Allocate new row array */
     newRows = NewHandleClear((Size)(newRowCount * sizeof(RowData)));
     if (!newRows) {
@@ -296,7 +296,7 @@ OSErr LAddRow(ListHandle lh, short count, short afterRow)
         LIST_LOG_ERROR("LAddRow: failed to allocate row array\n");
         return memFullErr;
     }
-    
+
     HLock(newRows);
     newRowArray = (RowData*)HandleDataAligned(newRows);
     if (!newRowArray) {
@@ -305,7 +305,7 @@ OSErr LAddRow(ListHandle lh, short count, short afterRow)
         HUnlock((Handle)lh);
         return memFullErr;
     }
-    
+
     /* Copy existing rows */
     if (list->rows) {
         HLock((Handle)list->rows);  /* Lock handle before dereferencing */
@@ -323,13 +323,13 @@ OSErr LAddRow(ListHandle lh, short count, short afterRow)
 
         HUnlock((Handle)list->rows);  /* Unlock after done */
     }
-    
+
     /* Initialize new rows */
     for (i = insertPos; i < insertPos + count; i++) {
         newRowArray[i].colCount = list->colCount;
         newRowArray[i].cells = (CellData*)NewPtrClear((Size)(list->colCount * sizeof(CellData)));
         newRowArray[i].selected = false;
-        
+
         if (!newRowArray[i].cells) {
             /* Cleanup on failure */
             for (j = insertPos; j < i; j++) {
@@ -343,27 +343,27 @@ OSErr LAddRow(ListHandle lh, short count, short afterRow)
             return memFullErr;
         }
     }
-    
+
     HUnlock(newRows);
-    
+
     /* Replace row array */
     if (list->rows) {
         DisposeHandle((Handle)list->rows);
     }
     list->rows = (RowData**)newRows;
     list->rowCount = newRowCount;
-    
+
     /* Update scrollbars */
     List_UpdateScrollbars(list);
-    
+
     /* Invalidate */
     List_InvalidateAll(list);
-    
+
     HUnlock((Handle)lh);
-    
+
     LIST_LOG("LAddRow: count=%d after=%d -> rows=%d\n",
              count, afterRow, newRowCount);
-    
+
     return noErr;
 }
 
@@ -372,29 +372,29 @@ OSErr LDelRow(ListHandle lh, short count, short fromRow)
     ListMgrRec* list;
     RowData* rowArray;
     short i;
-    
+
     if (!lh || count <= 0) return paramErr;
-    
+
     HLock((Handle)lh);
     list = *LIST_MGR_HANDLE(lh);
-    
+
     if (fromRow < 0 || fromRow >= list->rowCount) {
         HUnlock((Handle)lh);
         return paramErr;
     }
-    
+
     if (fromRow + count > list->rowCount) {
         count = list->rowCount - fromRow;
     }
-    
+
     if (!list->rows) {
         HUnlock((Handle)lh);
         return paramErr;
     }
-    
+
     HLock((Handle)list->rows);
     rowArray = *(list->rows);
-    
+
     /* Free deleted rows */
     for (i = fromRow; i < fromRow + count; i++) {
         if (rowArray[i].cells) {
@@ -402,37 +402,37 @@ OSErr LDelRow(ListHandle lh, short count, short fromRow)
             rowArray[i].cells = NULL;
         }
     }
-    
+
     /* Shift remaining rows */
     for (i = fromRow + count; i < list->rowCount; i++) {
         rowArray[i - count] = rowArray[i];
     }
-    
+
     /* Clear vacated tail */
     for (i = list->rowCount - count; i < list->rowCount; i++) {
         rowArray[i].colCount = 0;
         rowArray[i].cells = NULL;
         rowArray[i].selected = false;
     }
-    
+
     HUnlock((Handle)list->rows);
-    
+
     list->rowCount -= count;
-    
+
     /* Clamp scroll */
     List_ClampScroll(list);
-    
+
     /* Update scrollbars */
     List_UpdateScrollbars(list);
-    
+
     /* Invalidate */
     List_InvalidateAll(list);
-    
+
     HUnlock((Handle)lh);
-    
+
     LIST_LOG("LDelRow: count=%d from=%d -> rows=%d\n",
              count, fromRow, list->rowCount);
-    
+
     return noErr;
 }
 
@@ -618,29 +618,29 @@ OSErr LSetCell(ListHandle lh, const void* data, short dataLen, Cell cell)
     ListMgrRec* list;
     CellData* cellData;
     short copyLen;
-    
+
     if (!lh || !data) return paramErr;
-    
+
     HLock((Handle)lh);
     list = *LIST_MGR_HANDLE(lh);
-    
+
     cellData = List_GetCellData(list, cell);
     if (!cellData) {
         HUnlock((Handle)lh);
         return paramErr;
     }
-    
+
     /* Cap length */
     copyLen = dataLen;
     if (copyLen > MAX_CELL_DATA) {
         copyLen = MAX_CELL_DATA;
     }
-    
+
     cellData->len = (unsigned char)copyLen;
     if (copyLen > 0) {
         memcpy(cellData->data, data, copyLen);
     }
-    
+
     HUnlock((Handle)lh);
     return noErr;
 }
@@ -650,27 +650,27 @@ short LGetCell(ListHandle lh, void* out, short outMax, Cell cell)
     ListMgrRec* list;
     CellData* cellData;
     short copyLen;
-    
+
     if (!lh || !out) return 0;
-    
+
     HLock((Handle)lh);
     list = *LIST_MGR_HANDLE(lh);
-    
+
     cellData = List_GetCellData(list, cell);
     if (!cellData) {
         HUnlock((Handle)lh);
         return 0;
     }
-    
+
     copyLen = cellData->len;
     if (copyLen > outMax) {
         copyLen = outMax;
     }
-    
+
     if (copyLen > 0) {
         memcpy(out, cellData->data, copyLen);
     }
-    
+
     HUnlock((Handle)lh);
     return copyLen;
 }
@@ -773,7 +773,7 @@ void LGetCellRect(ListHandle lh, Cell cell, Rect* outCellRect)
 
     rowOffset = (cell.v - list->topRow) * list->cellHeight;
     colOffset = (cell.h - list->leftCol) * list->cellWidth;
-    
+
     outCellRect->left = list->contentRect.left + colOffset;
     outCellRect->top = list->contentRect.top + rowOffset;
     outCellRect->right = outCellRect->left + list->cellWidth;
@@ -878,7 +878,7 @@ Boolean LClick(ListHandle lh, Point localWhere, unsigned short mods, short* outI
     list->lastClick.when = now;
     list->lastClick.mods = mods;
     list->lastClick.valid = true;
-    
+
     wasSelected = List_IsCellSelected(list, hitCell);
 
     if (list->selMode == lsSingleSel) {
@@ -926,16 +926,16 @@ Boolean LClick(ListHandle lh, Point localWhere, unsigned short mods, short* outI
             selChanged = true;
         }
     }
-    
+
     if (outItem) {
         *outItem = hitCell.v;  /* Return row index */
     }
-    
+
     /* Invalidate to show selection change */
     if (selChanged) {
         List_InvalidateAll(list);
     }
-    
+
     HUnlock((Handle)lh);
 
     LIST_LOG("LClick: cell(%d,%d) mods=0x%x sel=%d dblClick=%d\n",
@@ -968,22 +968,22 @@ Boolean LGetSelect(ListHandle lh, Cell* outCell)
 {
     ListMgrRec* list;
     short row;
-    
+
     if (!lh || !outCell) return false;
-    
+
     HLock((Handle)lh);
     list = *LIST_MGR_HANDLE(lh);
-    
+
     /* Iterate from selectIterRow */
     if (list->selectIterRow < 0) {
         list->selectIterRow = 0;
     }
-    
+
     for (row = list->selectIterRow; row < list->rowCount; row++) {
         Cell c;
         c.v = row;
         c.h = 0;
-        
+
         if (List_IsCellSelected(list, c)) {
             outCell->v = row;
             outCell->h = 0;
@@ -992,7 +992,7 @@ Boolean LGetSelect(ListHandle lh, Cell* outCell)
             return true;
         }
     }
-    
+
     /* Reset iterator */
     list->selectIterRow = -1;
     HUnlock((Handle)lh);
@@ -1017,18 +1017,18 @@ void LSelectAll(ListHandle lh)
     ListMgrRec* list;
     short row;
     Cell c;
-    
+
     if (!lh) return;
-    
+
     HLock((Handle)lh);
     list = *LIST_MGR_HANDLE(lh);
-    
+
     for (row = 0; row < list->rowCount; row++) {
         c.v = row;
         c.h = 0;
         List_SetCellSelection(list, c, true);
     }
-    
+
     List_InvalidateAll(list);
     HUnlock((Handle)lh);
 }
@@ -1049,16 +1049,16 @@ void LClearSelect(ListHandle lh)
 Boolean LLastClick(ListHandle lh, Cell* outCell, UInt32* outWhen, unsigned short* outMods)
 {
     ListMgrRec* list;
-    
+
     if (!lh) return false;
-    
+
     list = *LIST_MGR_HANDLE(lh);
     if (!list->lastClick.valid) return false;
-    
+
     if (outCell) *outCell = list->lastClick.cell;
     if (outWhen) *outWhen = list->lastClick.when;
     if (outMods) *outMods = list->lastClick.mods;
-    
+
     return true;
 }
 
@@ -1277,12 +1277,12 @@ Boolean LKey(ListHandle lh, char ch)
 void LAttachScrollbars(ListHandle lh, ControlHandle vScroll, ControlHandle hScroll)
 {
     if (!lh) return;
-    
+
     LIST_MGR_PTR(lh)->vScroll = vScroll;
     LIST_MGR_PTR(lh)->hScroll = hScroll;
 
     List_UpdateScrollbars(LIST_MGR_PTR(lh));
-    
+
     LIST_LOG("LAttachScrollbars: v=%p h=%p\n", vScroll, hScroll);
 }
 
@@ -1293,7 +1293,7 @@ void LAttachScrollbars(ListHandle lh, ControlHandle vScroll, ControlHandle hScro
 ListHandle ListFromDialogItem(DialogPtr dlg, short itemNo)
 {
     DialogListAssoc* assoc;
-    
+
     assoc = FindDialogListSlot(dlg, itemNo, false);
     if (assoc && assoc->active) {
         return assoc->list;
@@ -1304,7 +1304,7 @@ ListHandle ListFromDialogItem(DialogPtr dlg, short itemNo)
 void AttachListToDialogItem(DialogPtr dlg, short itemNo, ListHandle lh)
 {
     DialogListAssoc* assoc;
-    
+
     assoc = FindDialogListSlot(dlg, itemNo, true);
     if (assoc) {
         assoc->list = lh;

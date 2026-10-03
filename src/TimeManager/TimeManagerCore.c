@@ -131,17 +131,17 @@ static void HeapSiftDown(UInt32 index) {
         UInt32 left = 2 * index + 1;
         UInt32 right = 2 * index + 2;
         UInt32 smallest = index;
-        
+
         if ((int64_t)(gHeap[smallest]->absDeadlineUS - gHeap[left]->absDeadlineUS) > 0) {
             smallest = left;
         }
-        if (right < gHeapSize && 
+        if (right < gHeapSize &&
             (int64_t)(gHeap[smallest]->absDeadlineUS - gHeap[right]->absDeadlineUS) > 0) {
             smallest = right;
         }
-        
+
         if (smallest == index) break;
-        
+
         TMEntry* temp = gHeap[index];
         gHeap[index] = gHeap[smallest];
         gHeap[smallest] = temp;
@@ -153,7 +153,7 @@ static void HeapSiftDown(UInt32 index) {
 
 static void HeapPush(TMEntry* entry) {
     if (gHeapSize >= TM_MAX_TASKS) return;
-    
+
     gHeap[gHeapSize] = entry;
     entry->heapIndex = gHeapSize;
     entry->inHeap = 1;
@@ -163,33 +163,33 @@ static void HeapPush(TMEntry* entry) {
 
 static TMEntry* HeapPop(void) {
     if (gHeapSize == 0) return 0;
-    
+
     TMEntry* result = gHeap[0];
     result->inHeap = 0;
-    
+
     gHeapSize--;
     if (gHeapSize > 0) {
         gHeap[0] = gHeap[gHeapSize];
         gHeap[0]->heapIndex = 0;
         HeapSiftDown(0);
     }
-    
+
     return result;
 }
 
 static void HeapRemove(TMEntry* entry) {
     if (!entry->inHeap) return;
-    
+
     UInt32 index = entry->heapIndex;
     entry->inHeap = 0;
-    
+
     gHeapSize--;
     if (gHeapSize > 0 && index < gHeapSize) {
         gHeap[index] = gHeap[gHeapSize];
         gHeap[index]->heapIndex = index;
-        
+
         /* Fix heap property */
-        if (index > 0 && (int64_t)(gHeap[(index-1)/2]->absDeadlineUS - 
+        if (index > 0 && (int64_t)(gHeap[(index-1)/2]->absDeadlineUS -
                                     gHeap[index]->absDeadlineUS) > 0) {
             HeapSiftUp(index);
         } else {
@@ -227,9 +227,9 @@ void Core_Shutdown(void) {
 OSErr Core_InsertTask(TMTask *task) {
     if (!gInitialized) return tmNotActive;
     if (!task) return tmParamErr;
-    
+
     UInt32 irq = DisableInterrupts();
-    
+
     /* Find free entry */
     TMEntry* entry = 0;
     for (UInt32 i = 0; i < TM_MAX_TASKS; i++) {
@@ -238,18 +238,18 @@ OSErr Core_InsertTask(TMTask *task) {
             break;
         }
     }
-    
+
     if (!entry) {
         RestoreInterrupts(irq);
         return tmQueueFull;
     }
-    
+
     entry->task = task;
     entry->absDeadlineUS = 0;
     entry->periodUS = 0;
     entry->gen = gGenCounter++;
     entry->inHeap = 0;
-    
+
     RestoreInterrupts(irq);
     return noErr;
 }
@@ -257,23 +257,23 @@ OSErr Core_InsertTask(TMTask *task) {
 OSErr Core_RemoveTask(TMTask *task) {
     if (!gInitialized) return tmNotActive;
     if (!task) return tmParamErr;
-    
+
     UInt32 irq = DisableInterrupts();
-    
+
     TMEntry* entry = FindEntry(task);
     if (!entry) {
         RestoreInterrupts(irq);
         return tmNotActive;
     }
-    
+
     if (entry->inHeap) {
         HeapRemove(entry);
         RearmNextInterrupt();
     }
-    
+
     entry->task = 0;
     entry->gen++;
-    
+
     RestoreInterrupts(irq);
     return noErr;
 }
@@ -281,33 +281,33 @@ OSErr Core_RemoveTask(TMTask *task) {
 OSErr Core_PrimeTask(TMTask *task, UInt32 delayUS) {
     if (!gInitialized) return tmNotActive;
     if (!task) return tmParamErr;
-    
+
     UInt32 irq = DisableInterrupts();
-    
+
     TMEntry* entry = FindEntry(task);
     if (!entry) {
         RestoreInterrupts(irq);
         return tmNotActive;
     }
-    
+
     /* Remove from heap if already scheduled */
     if (entry->inHeap) {
         HeapRemove(entry);
     }
-    
+
     /* Compute deadline */
     UnsignedWide now;
     Microseconds(&now);
     UInt64 nowUS = ((UInt64)now.hi << 32) | now.lo;
-    
+
     entry->absDeadlineUS = nowUS + delayUS;
     entry->periodUS = (task->qType & TM_FLAG_PERIODIC) ? delayUS : 0;
     entry->gen++;
-    
+
     /* Insert into heap */
     HeapPush(entry);
     RearmNextInterrupt();
-    
+
     RestoreInterrupts(irq);
     return noErr;
 }
@@ -354,21 +354,21 @@ UInt32 Core_GetTaskGeneration(TMTask *task) {
 /* ISR callback - expire all due tasks */
 void Core_ExpireDue(UInt64 nowUS) {
     UInt32 irq = DisableInterrupts();
-    
+
     while (gHeapSize > 0) {
         TMEntry* entry = gHeap[0];
-        
+
         /* Check if expired */
         if ((int64_t)(entry->absDeadlineUS - nowUS) > 0) {
             break;
         }
-        
+
         /* Remove from heap */
         HeapPop();
-        
+
         /* Enqueue callback */
         EnqueueDeferred(entry->task, entry->gen);
-        
+
         /* Reschedule if periodic */
         if (entry->periodUS > 0) {
             /* Limit catch-up to prevent runaway loops */
@@ -386,7 +386,7 @@ void Core_ExpireDue(UInt64 nowUS) {
             HeapPush(entry);
         }
     }
-    
+
     RearmNextInterrupt();
     RestoreInterrupts(irq);
 }

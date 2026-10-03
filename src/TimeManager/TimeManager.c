@@ -23,15 +23,15 @@ extern void ShutdownDeferredQueue(void);
 OSErr InitTimeManager(void) {
     OSErr err = InitTimeBase();
     if (err != noErr) return err;
-    
+
     InitDeferredQueue();
-    
+
     err = Core_Initialize();
     if (err != noErr) {
         ShutdownTimeBase();
         return err;
     }
-    
+
     return noErr;
 }
 
