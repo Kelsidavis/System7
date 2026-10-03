@@ -9,6 +9,7 @@
 #include "EventManager/EventManager.h"
 #include <string.h>
 #include "TextEdit/TELogging.h"
+#include "TimeManager/TimeBase.h"
 
 /* Boolean constants */
 #ifndef TRUE
@@ -70,7 +71,6 @@ static void TE_TrackMouse(TEHandle hTE, Point startPt);
 #define TRIPLE_CLICK_TIME   45      /* Ticks for triple-click */
 
 /* External functions */
-extern UInt32 TickCount(void);
 /* Forward declarations */
 static void TE_HandleArrowKey(TEHandle hTE, CharParameter key, Boolean shift,
                               Boolean option, Boolean command);

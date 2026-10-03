@@ -11,6 +11,7 @@
 #include "EventManager/EventManager.h"
 #include <string.h>
 #include "TextEdit/TELogging.h"
+#include "TimeManager/TimeBase.h"
 
 /* Boolean constants */
 #ifndef TRUE
@@ -54,7 +55,6 @@ typedef TEExtRec *TEExtPtr, **TEExtHandle;
 #define CARET_BLINK     30      /* Ticks between blinks */
 
 /* External functions */
-extern UInt32 TickCount(void);
 extern GrafPtr g_currentPort;
 extern void InvertRect(const Rect *r);
 extern void EraseRect(const Rect *r);

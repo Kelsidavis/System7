@@ -19,6 +19,7 @@
 #include "WindowManager/WindowManager.h"
 #include "FileManager.h"
 #include "TextEdit/TELogging.h"
+#include "TimeManager/TimeBase.h"
 
 /* Boolean constants */
 #ifndef TRUE
@@ -65,7 +66,6 @@ typedef TEExtRec *TEExtPtr, **TEExtHandle;
 static Boolean g_teInitialized = FALSE;
 
 /* External functions */
-extern UInt32 TickCount(void);
 extern GrafPtr g_currentPort;
 extern void BlockMove(const void *src, void *dest, Size size);
 extern OSErr MemError(void);
