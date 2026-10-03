@@ -7,6 +7,9 @@
 #include "TimeManager/TimeManager.h"
 #include "TimeManager/TimeManagerPriv.h"
 #include "TimeManager/TimeBase.h"
+#ifdef TM_SELFTEST
+#include "System71StdLib.h"
+#endif
 
 #define TM_DEFERRED_QUEUE_SIZE 256
 
@@ -86,7 +89,6 @@ void TimeManager_DrainDeferred(UInt32 maxTasks, UInt32 maxMicros) {
 
 #ifdef TM_SELFTEST
 /* Self-test code */
-extern void serial_puts(const char *s);
 
 static volatile UInt32 gTestCounter = 0;
 static volatile UInt32 gTestPeriodic = 0;

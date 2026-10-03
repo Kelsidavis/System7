@@ -29,6 +29,10 @@ void InitDeferredQueue(void);
 void ShutdownDeferredQueue(void);
 void EnqueueDeferred(TMTaskPtr task, UInt32 gen);
 
+#ifdef TM_SELFTEST
+void TimeManager_RunSelfTest(void);
+#endif
+
 #ifdef __cplusplus
 }
 #endif

@@ -26,9 +26,6 @@ static struct {
 /* Forward declarations */
 UInt32 TickCount(void);
 
-/* External functions */
-extern void serial_puts(const char* s);
-
 #ifdef __i386__
 /* x86 CPUID support for frequency detection */
 static inline void cpuid(uint32_t leaf, uint32_t subleaf,
