@@ -1,21 +1,22 @@
 /**
-#include "EventManager/EventManagerInternal.h"
  * @file event_manager.c
- * @brief Canonical Event Manager Implementation for System 7.1
+ * @brief Event queue and WaitNextEvent implementation for System 7.1
  *
- * This is the single authoritative implementation of GetNextEvent and EventAvail.
- * All other files should call these functions, not reimplement them.
+ * GetNextEvent and EventAvail are process-aware wrappers in
+ * ProcessMgr/EventIntegration.c. This file owns WaitNextEvent and the base
+ * event queue operations.
  *
  * This file consolidates the working queue-based implementation from sys71_stubs.c
  * with proper Event Manager structure and debug logging.
  */
 
 #include <string.h>
-#include "../../include/MacTypes.h"
-#include "../../include/EventManager/EventTypes.h"
-#include "../../include/EventManager/EventManager.h"
-#include "../../include/ProcessMgr/ProcessMgr.h"
-#include "../../include/QuickDraw/QDRegions.h"
+#include "SystemTypes.h"
+#include "EventManager/EventTypes.h"
+#include "EventManager/EventManager.h"
+#include "Platform/PS2Input.h"
+#include "ProcessMgr/ProcessMgr.h"
+#include "QuickDraw/QDRegions.h"
 #include "EventManager/EventLogging.h"
 
 /* External serial print for debug logging */
@@ -31,12 +32,6 @@ static struct {
 
 /* Mouse and timing state */
 static Point g_mousePos = {100, 100};
-
-/* GetMouse is provided by PS2Controller.c */
-extern void GetMouse(Point* mouseLoc);
-
-/* GetPS2Modifiers is provided by PS2Controller.c */
-extern UInt16 GetPS2Modifiers(void);
 
 /* TickCount is in TimeManager/TimeBase.c */
 extern UInt32 TickCount(void);
@@ -58,7 +53,6 @@ extern UInt32 TickCount(void);
  * honoured. This was a stub in sys71_stubs.c that did nothing and said the
  * Event Manager was initialized elsewhere; nothing else emptied the queue.
  */
-SInt16 InitEvents(SInt16 numEvents);
 SInt16 InitEvents(SInt16 numEvents) {
     (void)numEvents;
     g_eventQueue.head = 0;
@@ -162,15 +156,6 @@ Boolean WaitNextEvent(short eventMask, EventRecord* theEvent, UInt32 sleep, RgnH
  * FlushEvents - Remove events from the queue
  * Used to clear unwanted events
  */
-
-/* Button is provided by PS2Controller.c */
-extern Boolean Button(void);
-
-/* StillDown is provided by control_stubs.c */
-extern Boolean StillDown(void);
-
-/* GetKeys is provided by KeyboardEvents.c */
-extern void GetKeys(KeyMap theKeys);
 
 /* UpdateMouseState is provided by ModernInput.c */
 extern void UpdateMouseState(Point newPos, UInt8 buttonState);
