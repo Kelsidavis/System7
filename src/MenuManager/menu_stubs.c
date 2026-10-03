@@ -15,10 +15,6 @@
 #include "ResourceManager.h"
 #include <string.h>
 
-/* Forward declarations */
-void AddResMenu(MenuHandle theMenu, ResType theType);
-void InsertResMenu(MenuHandle theMenu, ResType theType, short afterItem);
-
 /* Standard menu commands */
 
 /*
@@ -89,12 +85,6 @@ void AddResMenu(MenuHandle theMenu, ResType theType) {
  */
 void InsertResMenu(MenuHandle theMenu, ResType theType, short afterItem) {
     if (!theMenu) return;
-
-    /* Resource Manager functions - declared in ResourceManager.h */
-    extern SInt16 Count1Resources(ResType theType);
-    extern Handle Get1IndResource(ResType theType, SInt16 index);
-    extern void GetResInfo(Handle theResource, ResID* theID, ResType* theType, char* name);
-    /* InsertMenuItem is declared in MenuManager.h */
 
     /* Count resources of specified type */
     SInt16 count = Count1Resources(theType);
