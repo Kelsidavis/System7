@@ -113,8 +113,8 @@ DisposeHandle(h);
 
 ## Allocation Audit
 
-`make check-malloc` runs the source scanner in
-[`scripts/check_malloc_violations.sh`](../scripts/check_malloc_violations.sh).
+`make check-malloc` runs the C-aware source scanner in
+[`scripts/check_malloc_violations.py`](../scripts/check_malloc_violations.py).
 `make check` and CI include this check. It is a source-level audit rather than
 a compile-time ban; see [Kernel Allocation Policy](MALLOC_PREVENTION.md) for its
 scope and exception.

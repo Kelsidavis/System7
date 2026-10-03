@@ -18,11 +18,11 @@ make check-malloc
 ```
 
 `make check` and CI run this check as part of the quality gate. The checker
-scans the C sources under `src/`, excluding `src/MemoryMgr/MemoryManager.c`,
-where the compatibility wrappers are implemented. Comment-only lines are
-ignored, including the documented `realloc` caveats in `Regions.c`. It is a
-source scan, not a compile-time guard; review new allocations and keep the
-checker aligned with any intentional exceptions.
+scans C sources under `src/`, excluding `src/MemoryMgr/MemoryManager.c`, where
+the compatibility wrappers are implemented. Comments and string/character
+literals are ignored; unlike a compile-time guard, this remains a source scan.
+Review new allocations and keep the checker aligned with any intentional
+exceptions.
 
 ## Examples
 

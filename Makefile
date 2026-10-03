@@ -1466,7 +1466,7 @@ check-exports: kernel.elf
 # Reject direct use of host-style allocation APIs in kernel code.
 .PHONY: check-malloc
 check-malloc:
-	@scripts/check_malloc_violations.sh
+	@python3 scripts/check_malloc_violations.py
 
 # Differential test of the in-tree C string/memory routines against the host
 # libc, with guard bytes around every destination buffer. Needs no kernel
