@@ -105,9 +105,6 @@ static void InitScrapIfNeeded(void)
 
     /* Register with Gestalt */
     /* 'scra' - bit0: present, bit1: TEXT supported, bit2: PICT supported */
-    extern OSErr NewGestalt(OSType selector, OSErr (*proc)(long *response));
-    extern OSErr ScrapGestaltProc(long *response);
-
     OSErr err = NewGestalt(FOURCC('s','c','r','a'), ScrapGestaltProc);
     if (err == noErr) {
         SCRAP_LOG("Registered with Gestalt\n");
@@ -185,7 +182,6 @@ void Scrap_Zero(void)
     gScrap.dirty = true;
 
     /* Set owner to current process if ProcessMgr is available */
-    extern ProcessID Proc_GetCurrent(void);
     gScrap.owner = Proc_GetCurrent();
 
     SCRAP_LOG("Zeroed, changeCnt=%lu owner=%lu\n",
@@ -234,7 +230,6 @@ OSErr Scrap_Put(Size size, ResType type, const void* src)
     /* Update state and owner */
     gScrap.changeCnt++;
     gScrap.dirty = true;
-    extern ProcessID Proc_GetCurrent(void);
     gScrap.owner = Proc_GetCurrent();
 
     SCRAP_LOG("Put type='%c%c%c%c' size=%ld changeCnt=%lu\n",
