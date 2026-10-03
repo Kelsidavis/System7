@@ -2,6 +2,7 @@
 #define ASSERT_H
 
 /* Minimal assert implementation for freestanding builds */
+#include "Platform/Serial.h"
 
 #ifdef NDEBUG
 #define assert(expr) ((void)0)
@@ -11,7 +12,6 @@
 extern void uart_puts(const char *str);
 #define assert(expr) ((void)((expr) || (uart_puts("[ASSERT] " #expr "\n"), 0)))
 #else
-extern void serial_puts(const char *str);
 #define assert(expr) ((void)((expr) || (serial_puts("[ASSERT] " #expr "\n"), 0)))
 #endif
 #endif

@@ -25,15 +25,8 @@
 #include "QuickDraw/QuickDrawPlatform.h"
 #include "Platform/Framebuffer.h"
 
-/* Picture recording hooks - from Pictures.c */
-extern void PictureRecordFrameRect(const Rect *r);
-extern void PictureRecordPaintRect(const Rect *r);
-extern void PictureRecordEraseRect(const Rect *r);
-extern void PictureRecordInvertRect(const Rect *r);
-extern void PictureRecordFrameOval(const Rect *r);
-extern void PictureRecordPaintOval(const Rect *r);
-extern void PictureRecordEraseOval(const Rect *r);
-extern void PictureRecordInvertOval(const Rect *r);
+/* Shared color-port state, defined by ColorQuickDraw.c. */
+extern CGrafPtr g_currentCPort;
 
 /* QuickDraw Globals */
 static QDGlobalsPtr g_currentQD = &qd;
@@ -390,7 +383,6 @@ void SetOrigin(SInt16 h, SInt16 v) {
 
     OffsetRect(&g_currentPort->portRect, dh, dv);
 
-    extern CGrafPtr g_currentCPort;
     if (g_currentCPort && (GrafPtr)g_currentCPort == g_currentPort) {
         CGrafPtr cport = (CGrafPtr)g_currentPort;
         if (cport->portPixMap && *cport->portPixMap) {
@@ -425,7 +417,6 @@ void ClipRect(const Rect *r) {
     assert(g_currentPort != NULL);
     assert(r != NULL);
     RectRgn(g_currentPort->clipRgn, r);
-    extern CGrafPtr g_currentCPort;
     Boolean colour = g_currentCPort && (GrafPtr)g_currentCPort == g_currentPort;
     if (!colour) {
         /* local + bounds is global, whatever the origin */
@@ -1083,7 +1074,6 @@ static void DrawPrimitive(GrafVerb verb, const Rect *shape, int shapeType,
     globalRect.right = drawRect.right;
 
     /* Check if this is a color port (CGrafPtr/GWorld) */
-    extern CGrafPtr g_currentCPort;  /* from ColorQuickDraw.c */
     Boolean isColorPort = (g_currentCPort != NULL && (GrafPtr)g_currentCPort == g_currentPort);
 
     if (isColorPort) {
