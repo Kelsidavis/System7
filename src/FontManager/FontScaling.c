@@ -141,18 +141,6 @@ static void FM_ScaleCharNearestNeighbor(short srcX, short srcY, unsigned char ch
     }
 }
 
-/*
- * FM_ScaleCharBilinear - Scale character using bilinear interpolation
- * Provides smoother scaling for non-integer factors
- */
-__attribute__((unused))
-static void FM_ScaleCharBilinear(short srcX, short srcY, unsigned char ch,
-                                 short scale, uint32_t color) {
-    /* For System 7.1 compatibility, fall back to nearest-neighbor */
-    /* Bilinear would require anti-aliasing not available in 1992 */
-    FM_ScaleCharNearestNeighbor(srcX, srcY, ch, scale, color);
-}
-
 /* ============================================================================
  * Scaled Width Calculation
  * ============================================================================ */
