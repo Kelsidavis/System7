@@ -624,7 +624,8 @@ the dialog can actually be dismissed.
 normal dropdown painter and live tracking. `MenuTrack.c` supplies each tracked
 row's explicit rectangle and selection state through `DrawMenuItemAtRect()`;
 text, icons, marks, command keys, submenu arrows, and disabled-item stippling
-then use the shared renderer. Tracked item rectangles and hit testing use
+then use the shared renderer. Normal drawing and tracking share `CalcMenuWidth()`
+for the same text and glyph columns. Tracked item rectangles and hit testing use
 `CalcMenuItemRect()` and `GetMenuItemHeight()`, so separators retain their
 shorter height. The initial tracked dropdown uses `DrawMenu()` for its frame,
 background, and rows; live highlight state remains in the tracker. Automated

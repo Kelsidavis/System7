@@ -762,7 +762,7 @@ short CalcMenuHeight(MenuHandle theMenu, short itemCount)
 
 void CalcMenuRect(MenuHandle theMenu, Point location, Rect* menuRect)
 {
-    short itemCount, menuWidth = 0, menuHeight;
+    short itemCount, menuWidth, menuHeight;
 
     if (theMenu == NULL || menuRect == NULL) {
         return;
@@ -770,17 +770,7 @@ void CalcMenuRect(MenuHandle theMenu, Point location, Rect* menuRect)
 
     itemCount = CountMItems(theMenu);
 
-    /* Calculate menu width */
-    for (short i = 1; i <= itemCount; i++) {
-        short itemWidth = MeasureMenuItemWidth(theMenu, i);
-        if (itemWidth > menuWidth) {
-            menuWidth = itemWidth;
-        }
-    }
-
-    /* Add margins */
-    menuWidth += 32; /* Left and right margins */
-
+    menuWidth = CalcMenuWidth(theMenu, itemCount);
     menuHeight = CalcMenuHeight(theMenu, itemCount);
 
     /* Set up rectangle */
@@ -1465,9 +1455,32 @@ static short MeasureMenuItemWidth(MenuHandle theMenu, short item)
     GetMenuItemText(theMenu, item, itemText);
     textWidth = GetMenuItemTextWidth(itemText, normal);
 
-    totalWidth = kMenuItemContentInset + textWidth + 32;
+    /* The row reserves 30 pixels for marks/icons and 32 for trailing glyphs.
+     * The menu rectangle adds four pixels of outer inset on each side. */
+    totalWidth = kMenuItemContentInset + textWidth + 40;
 
     return totalWidth;
+}
+
+short CalcMenuWidth(MenuHandle theMenu, short itemCount)
+{
+    SInt32 menuWidth = 0;
+
+    if (theMenu == NULL || itemCount < 0) {
+        return 0;
+    }
+
+    for (SInt32 i = 1; i <= itemCount; i++) {
+        short itemWidth = MeasureMenuItemWidth(theMenu, (short)i);
+        if (itemWidth > menuWidth) {
+            menuWidth = itemWidth;
+        }
+    }
+
+    if (menuWidth < 100) {
+        menuWidth = 100;
+    }
+    return menuWidth > 32767 ? 32767 : (short)menuWidth;
 }
 
 /*

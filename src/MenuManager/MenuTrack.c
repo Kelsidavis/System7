@@ -11,7 +11,6 @@
 #include "SystemInternal.h"
 #include "MenuManager/MenuLogging.h"
 #include "MenuManager/MenuTypes.h"
-#include "MenuManager/MenuInternalTypes.h"
 #include "MenuManager/menu_private.h"
 #include "DeskManager/DeskManager.h"
 #include "QuickDraw.h"
@@ -141,46 +140,6 @@ static void GetItemText(MenuHandle theMenu, short index, char* text) {
         text[i] = itemString[i + 1];
     }
     text[len] = 0;
-}
-
-/*
- * CalcMenuWidth - size a menu to its widest item, as System 7 does.
- *
- * The widths used to be hardcoded per menu ID (120, or 150 for the Apple menu),
- * which left no room for the command-key column: once command keys were drawn,
- * "Close Window" ran straight into its own glyph. Measuring the items also means
- * a translated menu sizes itself instead of being clipped to an English width.
- */
-static short CalcMenuWidth(MenuHandle theMenu, short itemCount) {
-    short widest = 0;
-
-    for (short i = 1; i <= itemCount; i++) {
-        char itemText[64];
-        short w = 0;
-        short cmdChar = 0;
-        short subID = 0;
-
-        if (CheckMenuItemSeparator(theMenu, i)) continue;
-
-        GetItemText(theMenu, i, itemText);
-        for (short c = 0; itemText[c]; c++) {
-            w += CharWidth((short)(unsigned char)itemText[c]);
-        }
-
-        GetItemSubmenu(theMenu, i, &subID);
-        GetItemCmd(theMenu, i, &cmdChar);
-        if (subID != 0) {
-            w += 20;                                     /* triangle column */
-        } else if (cmdChar != 0) {
-            w += kMenuCommandGlyphWidth + 4 + CharWidth('W') + 8;
-        }
-
-        if (w > widest) widest = w;
-    }
-
-    widest += kMenuItemContentInset + 12;   /* content column, plus right margin */
-    if (widest < 100) widest = 100;
-    return widest;
 }
 
 /*
@@ -546,11 +505,6 @@ static long TrackMenu_Body(short menuID, Point *startPt) {
 
 
     short menuWidth = CalcMenuWidth(theMenu, itemCount);
-
-    if (menuWidth <= 0) {
-        serial_puts("TrackMenu: Invalid menuWidth, using default\n");
-        menuWidth = 120;
-    }
 
 
     short menuHeight = CalcMenuHeight(theMenu, itemCount);
