@@ -110,6 +110,10 @@ MenuHandle GetMenuTitleByIndex(SInt16 index);
 SInt16 FindMenuAtPoint_Internal(Point pt);
 
 /* Menu tracking */
+void DrawMenuItemText(const Rect* itemRect, ConstStr255Param itemText,
+                      Style textStyle, Boolean enabled, Boolean selected);
+void DrawMenuItemAtRect(MenuHandle menu, short item, const Rect* itemRect,
+                        Boolean selected);
 long BeginTrackMenu(short menuID, Point* startPt);
 void UpdateMenuTrackingNew(Point where);
 /* Returns the selected menu choice, or zero when tracking is cancelled. */

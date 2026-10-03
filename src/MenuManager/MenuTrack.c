@@ -11,6 +11,7 @@
 #include "SystemInternal.h"
 #include "MenuManager/MenuLogging.h"
 #include "MenuManager/MenuTypes.h"
+#include "MenuManager/MenuInternalTypes.h"
 #include "MenuManager/menu_private.h"
 #include "DeskManager/DeskManager.h"
 #include "QuickDraw.h"
@@ -20,9 +21,6 @@
 #include "EventManager/EventTypes.h"  /* For mouse masks */
 #include "TimeManager/TimeBase.h"
 #include "Platform/Framebuffer.h"
-
-extern void DrawMenuItemText(const Rect* itemRect, ConstStr255Param itemText,
-                             Style textStyle, Boolean enabled, Boolean selected);
 
 /* Menus draw anywhere on the screen, so the screen port is opened to all of
  * it: a clip someone else left there hid item text wherever it did not reach. */
@@ -97,28 +95,6 @@ static void DrawMenuRect(short left, short top, short right, short bottom, uint3
  * Sharing... - disabled on every pass through Finder_AdjustMenus - were drawn
  * in the same solid black as the items you can actually pick.
  */
-static void DimMenuRow(short left, short top, short right, short bottom,
-                       uint32_t background) {
-    if (!framebuffer) return;
-    Pointer_Shield(left, top, right, bottom);
-
-    uint32_t *fb = (uint32_t*)framebuffer;
-    int pitch = fb_pitch / 4;
-
-    if (left < 0) left = 0;
-    if (top < 0) top = 0;
-    if (right > (int)fb_width) right = fb_width;
-    if (bottom > (int)fb_height) bottom = fb_height;
-
-    for (int y = top; y < bottom; y++) {
-        for (int x = left; x < right; x++) {
-            if (((x + y) & 1) == 0) continue;
-            fb[y * pitch + x] = background;
-        }
-    }
-}
-
-
 /*
  * The command ("cloverleaf") symbol shown beside command-key equivalents.
  *
@@ -129,23 +105,6 @@ static void DimMenuRow(short left, short top, short right, short bottom,
  * the glyph is drawn geometrically - the standard looped square (U+2318): a
  * 5x5 centre square with a loop wrapped around each corner.
  */
-#define kCmdGlyphWidth  11
-#define kCmdGlyphHeight 11
-
-static const uint16_t kCommandGlyph[kCmdGlyphHeight] = {
-    0x306,  /* .##.....##. */
-    0x489,  /* #..#...#..# */
-    0x489,  /* #..#...#..# */
-    0x3FE,  /* .#########. */
-    0x088,  /* ...#...#... */
-    0x088,  /* ...#...#... */
-    0x088,  /* ...#...#... */
-    0x3FE,  /* .#########. */
-    0x489,  /* #..#...#..# */
-    0x489,  /* #..#...#..# */
-    0x306,  /* .##.....##. */
-};
-
 /*
  * The check mark shown against a chosen item - the View menu's current view,
  * for instance. Chicago carries it at character 18, which is outside the ASCII
@@ -154,46 +113,7 @@ static const uint16_t kCommandGlyph[kCmdGlyphHeight] = {
  */
 /* System 7 reserves a column on the left of every menu for the item mark, so
  * text starts clear of it and a check does not collide with the name. */
-#define kMenuMarkColumn 16
-
-#define kCheckGlyphWidth  9
-#define kCheckGlyphHeight 9
-
-static const uint16_t kCheckGlyph[kCheckGlyphHeight] = {
-    0x001,  /* ........# */
-    0x003,  /* .......## */
-    0x006,  /* ......##. */
-    0x00C,  /* .....##.. */
-    0x098,  /* #..##.... */
-    0x0F0,  /* .####.... */
-    0x060,  /* ..##..... */
-    0x040,  /* ...#..... */
-    0x000,  /* ......... */
-};
-
-static void DrawMenuBitmapGlyph(const uint16_t* rows, short width, short height,
-                                short x, short y, uint32_t color) {
-    for (short row = 0; row < height; row++) {
-        uint16_t bits = rows[row];
-        for (short col = 0; col < width; col++) {
-            if (bits & (1u << (width - 1 - col))) {
-                DrawMenuRect(x + col, y + row, x + col + 1, y + row + 1, color);
-            }
-        }
-    }
-}
-
-static void DrawCheckGlyph(short x, short y, uint32_t color) {
-    DrawMenuBitmapGlyph(kCheckGlyph, kCheckGlyphWidth, kCheckGlyphHeight,
-                        x, y, color);
-}
-
-static void DrawCommandGlyph(short x, short y, uint32_t color) {
-    DrawMenuBitmapGlyph(kCommandGlyph, kCmdGlyphWidth, kCmdGlyphHeight,
-                        x, y, color);
-}
-
-/* Adapt the tracking row's baseline to MenuDisplay's shared text renderer. */
+/* Menu bar titles still use the shared text renderer via a Pascal adapter. */
 static void DrawTrackedMenuText(const char* text, short x, short baseline,
                                 Style textStyle) {
     Str255 pascalText;
@@ -258,13 +178,13 @@ static short CalcMenuWidth(MenuHandle theMenu, short itemCount) {
         if (subID != 0) {
             w += 20;                                     /* triangle column */
         } else if (cmdChar != 0) {
-            w += kCmdGlyphWidth + 4 + CharWidth('W') + 8;
+            w += kMenuCommandGlyphWidth + 4 + CharWidth('W') + 8;
         }
 
         if (w > widest) widest = w;
     }
 
-    widest += kMenuMarkColumn + 12;   /* mark column, plus right margin */
+    widest += kMenuItemContentInset + 12;   /* content column, plus right margin */
     if (widest < 100) widest = 100;
     return widest;
 }
@@ -277,87 +197,12 @@ static short CalcMenuWidth(MenuHandle theMenu, short itemCount) {
  * erased its command key and left the row half drawn; going through one routine
  * means whatever an item is made of gets restored.
  */
-static void DrawMenuItemRowContents(MenuHandle theMenu, short i, short left, short itemTop,
-                                    short menuWidth, short lineHeight, Boolean highlighted) {
-    char itemText[64];
-    short cmdChar = 0;
-    short subID = 0;
-    Style textStyle = normal;
-    uint32_t ink = highlighted ? 0xFFFFFFFF : 0xFF000000;
-
-    /* A divider is a grey line across the menu, not its text. This tracked
-     * path draws the stroke directly to preserve its row geometry; the
-     * alternative MenuDisplay renderer has its own separator path. */
-    if (CheckMenuItemSeparator(theMenu, i)) {
-        DrawMenuRect(left + 1, itemTop + lineHeight / 2,
-                     left + menuWidth - 1, itemTop + lineHeight / 2 + 1,
-                     0xFF808080);
-        return;
-    }
-
-    GetItemText(theMenu, i, itemText);
-    if (itemText[0] == 0) return;
-    GetItemStyle(theMenu, i, &textStyle);
-
-    /* Highlighted text is the same text in white, through QuickDraw. It had
-     * its own glyph renderer reading the Chicago strike directly, which got
-     * several glyphs wrong: "Alarm Clock" read "Al arm0 ock". */
-    if (highlighted) ForeColor(whiteColor);
-    DrawTrackedMenuText(itemText, left + kMenuMarkColumn, itemTop + 12, textStyle);
-
-    /* Item mark - the View menu checks its current view. CheckItem has always
-     * maintained this; nothing drew it. */
-    {
-        short markChar = 0;
-        GetItemMark(theMenu, i, &markChar);
-        if (markChar != 0) {
-            DrawCheckGlyph(left + 4, itemTop + 4, ink);
-        }
-    }
-
-    /* A hierarchical item gets a filled right-pointing triangle at the right
-     * edge, as the System 7 MDEF draws - not a literal '>'. */
-    GetItemSubmenu(theMenu, i, &subID);
-    if (subID != 0) {
-        short tx = left + menuWidth - 12;
-        short cy = itemTop + lineHeight / 2;
-        for (short r = 0; r < 9; r++) {
-            short d = r - 4;
-            if (d < 0) d = -d;
-            short w = 5 - d;
-            if (w <= 0) continue;
-            DrawMenuRect(tx, cy - 4 + r, tx + w, cy - 3 + r, ink);
-        }
-        ForeColor(blackColor);
-        return;   /* hierarchical items carry no command key */
-    }
-
-    /* Command-key equivalent, right aligned as in System 7 */
-    GetItemCmd(theMenu, i, &cmdChar);
-    if (cmdChar != 0) {
-        char cmdBuf[2];
-        cmdBuf[0] = (char)((cmdChar >= 'a' && cmdChar <= 'z')
-                           ? cmdChar - 'a' + 'A' : cmdChar);
-        cmdBuf[1] = 0;
-        DrawCommandGlyph(left + menuWidth - 30, itemTop + 2, ink);
-        DrawTrackedMenuText(cmdBuf, left + menuWidth - 16, itemTop + 12, normal);
-    }
-    ForeColor(blackColor);
-}
-
-/*
- * Draw one row, then grey it if the item cannot be chosen. The dimming has to
- * come after everything else the row is made of - text, mark, command key,
- * submenu arrow - so it catches all of them.
- */
+/* Draw a tracked row through MenuDisplay's shared item renderer. */
 static void DrawMenuItemRow(MenuHandle theMenu, short i, short left, short itemTop,
                             short menuWidth, short lineHeight, Boolean highlighted) {
-    DrawMenuItemRowContents(theMenu, i, left, itemTop, menuWidth, lineHeight, highlighted);
-
-    if (!CheckMenuItemSeparator(theMenu, i) && !CheckMenuItemEnabled(theMenu, i)) {
-        DimMenuRow(left + 1, itemTop, left + menuWidth - 1, itemTop + lineHeight,
-                   highlighted ? 0xFF000000 : 0xFFFFFFFF);
-    }
+    Rect itemRect = {itemTop, left + 1, itemTop + lineHeight,
+                     left + menuWidth - 1};
+    DrawMenuItemAtRect(theMenu, i, &itemRect, highlighted);
 }
 
 /*
@@ -371,8 +216,6 @@ static void FlashChosenItem(MenuHandle theMenu, short item, short left, short to
     short flashes = GetMenuFlashCount();
     for (short n = 0; n < flashes; n++) {
         for (int on = 0; on <= 1; on++) {
-            DrawHighlightRect(left + 2, itemTop, left + menuWidth - 2,
-                              itemTop + lineHeight - 1, on);
             DrawMenuItemRow(theMenu, item, left, itemTop, menuWidth, lineHeight, on);
             UInt32 until = TickCount() + 3;
             while (TickCount() < until) {
@@ -384,7 +227,8 @@ static void FlashChosenItem(MenuHandle theMenu, short item, short left, short to
 }
 
 /* Draw dropdown menu */
-static void DrawMenuOld(MenuHandle theMenu, short left, short top, short itemCount, short menuWidth, short lineHeight) {
+static void DrawTrackedMenu(MenuHandle theMenu, short left, short top,
+                            short itemCount, short menuWidth, short lineHeight) {
     /* Save current port and ensure we're in screen port for menu drawing */
     GrafPtr savePort;
     GetPort(&savePort);
@@ -492,9 +336,9 @@ long BeginTrackMenu(short menuID, Point *startPt) {
     DrawMenuBarWithHighlight(menuID);
     serial_puts("BeginTrackMenu: Returned from DrawMenuBarWithHighlight\n");
 
-    serial_puts("BeginTrackMenu: About to call DrawMenuOld\n");
+    serial_puts("BeginTrackMenu: About to call DrawTrackedMenu\n");
     /* Draw the menu dropdown */
-    DrawMenuOld(theMenu, left, top, itemCount, menuWidth, lineHeight);
+    DrawTrackedMenu(theMenu, left, top, itemCount, menuWidth, lineHeight);
     serial_puts("BeginTrackMenu: Dropdown drawn, tracking started\n");
 
     /* Restore original port */
@@ -580,10 +424,7 @@ void UpdateMenuTrackingNew(Point mousePt) {
             short oldTop = top + 2 + (g_menuTrackState.highlightedItem - 1) * lineHeight;
             MENU_LOG_TRACE("UpdateMenu: Clearing old highlight at y=%d\n", oldTop);
 
-            /* Draw white background to clear the highlight */
-            DrawHighlightRect(left + 2, oldTop, left + menuWidth - 2, oldTop + lineHeight - 1, false);
-
-            /* Restore the whole row, not just its text */
+            /* Restore the row through the shared item renderer. */
             DrawMenuItemRow(theMenu, g_menuTrackState.highlightedItem,
                             left, oldTop, menuWidth, lineHeight, false);
         }
@@ -593,10 +434,7 @@ void UpdateMenuTrackingNew(Point mousePt) {
             short itemTop = top + 2 + (newHighlight - 1) * lineHeight;
             MENU_LOG_TRACE("UpdateMenu: Drawing new highlight at y=%d for item %d\n", itemTop, newHighlight);
 
-            /* Draw black background for highlight */
-            DrawHighlightRect(left + 2, itemTop, left + menuWidth - 2, itemTop + lineHeight - 1, true);
-
-            /* Redraw the whole row in white on black */
+            /* Draw the selected row through the shared item renderer. */
             DrawMenuItemRow(theMenu, newHighlight, left, itemTop,
                             menuWidth, lineHeight, true);
         }
@@ -821,8 +659,8 @@ static long TrackMenu_Body(short menuID, Point *startPt) {
     serial_puts("TrackMenu: Menu bar highlight drawn\n");
 
     /* Draw the menu dropdown */
-    DrawMenuOld(theMenu, left, top, itemCount, menuWidth, lineHeight);
-    serial_puts("TrackMenu: DrawMenuOld returned\n");
+    DrawTrackedMenu(theMenu, left, top, itemCount, menuWidth, lineHeight);
+    serial_puts("TrackMenu: DrawTrackedMenu returned\n");
     serial_puts("TrackMenu: Menu drawn, entering tracking loop\n");
 
     /* Persistent menu tracking - menu stays open until user makes a selection or clicks outside */

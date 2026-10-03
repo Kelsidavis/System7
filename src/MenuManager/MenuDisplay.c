@@ -14,6 +14,7 @@
  */
 
 #include "SystemTypes.h"
+#include "SystemInternal.h"
 #include "DeskManager/DeskManager.h"
 #include "System71StdLib.h"
 #include "QuickDraw.h"
@@ -49,6 +50,21 @@
 #define kMenuDrawNormal     0x0000
 #define kMenuItemNormal     0x0000
 
+#define kCommandGlyphWidth kMenuCommandGlyphWidth
+#define kCommandGlyphHeight 11
+#define kCheckGlyphWidth     9
+#define kCheckGlyphHeight    9
+
+/* Chicago's extracted strike omits the command and check-mark characters. */
+static const uint16_t kCommandGlyph[kCommandGlyphHeight] = {
+    0x306, 0x489, 0x489, 0x3FE, 0x088, 0x088,
+    0x088, 0x3FE, 0x489, 0x489, 0x306
+};
+
+static const uint16_t kCheckGlyph[kCheckGlyphHeight] = {
+    0x001, 0x003, 0x006, 0x00C, 0x098, 0x0F0, 0x060, 0x040, 0x000
+};
+
 
 /* ============================================================================
  * Display State and Context
@@ -82,8 +98,12 @@ static void DrawMenuItemMarkInternal(const Rect* markRect, unsigned char markCha
                                    Boolean enabled, Boolean selected);
 static void DrawMenuItemCmdKeyInternal(const Rect* cmdRect, unsigned char cmdChar,
                                      Boolean enabled, Boolean selected);
-static void CalcMenuItemRects(MenuHandle theMenu, short item, const Rect* menuRect,
+static void CalcMenuItemRects(const Rect* itemRect,
                             Rect* textRect, Rect* iconRect, Rect* markRect, Rect* cmdRect);
+static void DrawMenuGlyph(const uint16_t* rows, short width, short height,
+                          short x, short y);
+static void DrawMenuSubmenuArrow(const Rect* itemRect);
+static void DimMenuItem(const Rect* itemRect, uint32_t background);
 static short MeasureMenuItemWidth(MenuHandle theMenu, short item);
 static short GetMenuItemTextWidth(ConstStr255Param text, Style textStyle);
 
@@ -479,51 +499,8 @@ void DrawMenu(MenuHandle theMenu, const Rect* menuRect, short hiliteItem)
 
     for (short i = 1; i <= itemCount; i++) {
         Rect itemRect;
-        Style tempStyle;
-        short markChar = 0, cmdChar = 0;
         CalcMenuItemRect(theMenu, i, menuRect, &itemRect);
-
-        MenuItemDrawInfo itemDrawInfo;
-        itemDrawInfo.menu = theMenu;
-        itemDrawInfo.itemNum = i;
-        itemDrawInfo.itemRect = itemRect;
-        itemDrawInfo.itemFlags = kMenuItemNormal;
-        if (i == hiliteItem) {
-            itemDrawInfo.itemFlags |= kMenuItemSelected;
-        }
-        itemDrawInfo.context = &gDrawingContext;
-
-        /* Get item properties */
-        GetMenuItemText(theMenu, i, itemDrawInfo.itemText);
-        GetItemIcon(theMenu, i, (short*)&itemDrawInfo.iconID);
-        GetItemMark(theMenu, i, &markChar);
-        GetItemCmd(theMenu, i, &cmdChar);
-        itemDrawInfo.markChar = (unsigned char)markChar;
-        itemDrawInfo.cmdChar = (unsigned char)cmdChar;
-        GetItemStyle(theMenu, i, &tempStyle);
-        itemDrawInfo.textStyle = tempStyle;
-
-        /* Describe the item to DrawMenuItem. Only kMenuItemSelected was ever
-         * set, so every other branch in DrawMenuItem was unreachable: dividers
-         * drew as a literal "-" instead of the grey line, disabled items drew
-         * in solid black, and marks and icons never appeared at all. */
-        if (CheckMenuItemSeparator(theMenu, i)) {
-            itemDrawInfo.itemFlags |= kMenuItemIsSeparator;
-        }
-        if (!CheckMenuItemEnabled(theMenu, i)) {
-            itemDrawInfo.itemFlags |= kMenuItemDisabled;
-        }
-        if (itemDrawInfo.markChar != 0) {
-            itemDrawInfo.itemFlags |= kMenuItemChecked;
-        }
-        if (itemDrawInfo.iconID != 0) {
-            itemDrawInfo.itemFlags |= kMenuItemHasIcon;
-        }
-        if (itemDrawInfo.cmdChar != 0) {
-            itemDrawInfo.itemFlags |= kMenuItemHasCmdKey;
-        }
-
-        DrawMenuItem(&itemDrawInfo);
+        DrawMenuItemAtRect(theMenu, i, &itemRect, i == hiliteItem);
     }
 
     /* MENU_LOG_TRACE("Drew menu ID %d with %d items (hilite: %d)\n",
@@ -585,23 +562,24 @@ void DrawMenuItem(const MenuItemDrawInfo* drawInfo)
     selected = (drawInfo->itemFlags & kMenuItemSelected) != 0;
 
     /* Calculate item component rectangles */
-    CalcMenuItemRects(theMenu, drawInfo->itemNum, &drawInfo->itemRect,
+    CalcMenuItemRects(&drawInfo->itemRect,
                      &textRect, &iconRect, &markRect, &cmdRect);
 
     menuID = (*(MenuInfo**)theMenu)->menuID;
     SetupMenuDrawingColors(menuID, drawInfo->itemNum);
+    short submenuID = 0;
+    GetItemSubmenu(theMenu, drawInfo->itemNum, &submenuID);
 
-    /* Check for separator */
+    ForeColor(selected ? blackColor : whiteColor);
+    PaintRect(&drawInfo->itemRect);
+
     if (drawInfo->itemFlags & kMenuItemIsSeparator) {
-        DrawMenuSeparator(&drawInfo->itemRect, (*(MenuInfo**)(drawInfo->menu))->menuID);
+        DrawMenuSeparator(&drawInfo->itemRect, menuID);
+        ForeColor(blackColor);
         return;
     }
 
-    /* Draw selection background if selected */
-    if (selected) {
-        /* MENU_LOG_TRACE("Drawing selected background for item %d\n", drawInfo->itemNum); */
-        FillRect(&drawInfo->itemRect, &qd.ltGray);
-    }
+    ForeColor(selected ? whiteColor : (enabled ? blackColor : 8));
 
     /* Draw item components */
     if (drawInfo->itemFlags & kMenuItemHasIcon) {
@@ -615,9 +593,52 @@ void DrawMenuItem(const MenuItemDrawInfo* drawInfo)
     DrawMenuItemTextInternal(&textRect, drawInfo->itemText, drawInfo->textStyle,
                            enabled, selected, false);  /* false = not a menu title */
 
-    if (drawInfo->itemFlags & kMenuItemHasCmdKey) {
+    if ((drawInfo->itemFlags & kMenuItemHasCmdKey) && submenuID == 0) {
         DrawMenuItemCmdKeyInternal(&cmdRect, drawInfo->cmdChar, enabled, selected);
     }
+
+    if (submenuID != 0) {
+        ForeColor(selected ? whiteColor : (enabled ? blackColor : 8));
+        DrawMenuSubmenuArrow(&drawInfo->itemRect);
+        ForeColor(blackColor);
+    }
+
+    if (!enabled) {
+        DimMenuItem(&drawInfo->itemRect,
+                    selected ? 0xFF000000 : 0xFFFFFFFF);
+    }
+}
+
+void DrawMenuItemAtRect(MenuHandle menu, short item, const Rect* itemRect,
+                        Boolean selected)
+{
+    if (!menu || !itemRect || item < 1) return;
+
+    MenuItemDrawInfo info = {0};
+    short markChar = 0;
+    short cmdChar = 0;
+    Style textStyle = normal;
+
+    info.menu = menu;
+    info.itemNum = item;
+    info.itemRect = *itemRect;
+    GetMenuItemText(menu, item, info.itemText);
+    GetItemIcon(menu, item, &info.iconID);
+    GetItemMark(menu, item, &markChar);
+    GetItemCmd(menu, item, &cmdChar);
+    GetItemStyle(menu, item, &textStyle);
+    info.textStyle = textStyle;
+
+    if (selected) info.itemFlags |= kMenuItemSelected;
+    if (CheckMenuItemSeparator(menu, item)) info.itemFlags |= kMenuItemIsSeparator;
+    if (!CheckMenuItemEnabled(menu, item)) info.itemFlags |= kMenuItemDisabled;
+    if (markChar != 0) info.itemFlags |= kMenuItemChecked;
+    if (cmdChar != 0) info.itemFlags |= kMenuItemHasCmdKey;
+    if (info.iconID != 0) info.itemFlags |= kMenuItemHasIcon;
+    info.markChar = (char)markChar;
+    info.cmdChar = (char)cmdChar;
+
+    DrawMenuItem(&info);
 }
 
 /*
@@ -898,40 +919,14 @@ void FlashMenuItem(MenuHandle theMenu, short item, short flashes)
         return;
     }
 
-    /* Get item properties to build draw info */
     Rect itemRect = {0};
-    Style tempStyle;
-    short markChar = 0, cmdChar = 0;
     CalcMenuItemRect(theMenu, item, &gCurrentMenuRect, &itemRect);
-
-    MenuItemDrawInfo itemDrawInfo;
-    itemDrawInfo.menu = theMenu;
-    itemDrawInfo.itemNum = item;
-    itemDrawInfo.itemRect = itemRect;
-    itemDrawInfo.itemFlags = kMenuItemNormal;
-    itemDrawInfo.context = &gDrawingContext;
-
-    /* Get item properties */
-    GetMenuItemText(theMenu, item, itemDrawInfo.itemText);
-    GetItemIcon(theMenu, item, (short*)&itemDrawInfo.iconID);
-    GetItemMark(theMenu, item, &markChar);
-    GetItemCmd(theMenu, item, &cmdChar);
-    itemDrawInfo.markChar = (unsigned char)markChar;
-    itemDrawInfo.cmdChar = (unsigned char)cmdChar;
-    GetItemStyle(theMenu, item, &tempStyle);
-    itemDrawInfo.textStyle = tempStyle;
-
-    /* Check if item is disabled */
-    if (!CheckMenuItemEnabled(theMenu, item)) {
-        itemDrawInfo.itemFlags |= kMenuItemDisabled;
-    }
 
     /* Flash multiple times by redrawing item with highlight toggled */
 
     for (short i = 0; i < flashes; i++) {
         /* Draw highlighted */
-        itemDrawInfo.itemFlags |= kMenuItemSelected;
-        DrawMenuItem(&itemDrawInfo);
+        DrawMenuItemAtRect(theMenu, item, &itemRect, true);
 
         /* Brief delay ~5 ticks (83ms at 60Hz) */
         UInt32 startTick = TickCount();
@@ -940,8 +935,7 @@ void FlashMenuItem(MenuHandle theMenu, short item, short flashes)
         }
 
         /* Draw normal */
-        itemDrawInfo.itemFlags &= ~kMenuItemSelected;
-        DrawMenuItem(&itemDrawInfo);
+        DrawMenuItemAtRect(theMenu, item, &itemRect, false);
 
         /* Brief delay between flashes */
         if (i < flashes - 1) {
@@ -1294,27 +1288,20 @@ static void DrawMenuItemMarkInternal(const Rect* markRect, unsigned char markCha
     TextFont(chicagoFont);
     TextSize(12);
 
-    /* Set color based on enabled state */
-    if (!enabled) {
-        ForeColor(8);  /* Gray for disabled */
+    ForeColor(selected ? whiteColor : (enabled ? blackColor : 8));
+
+    if (markChar == 18) {
+        DrawMenuGlyph(kCheckGlyph, kCheckGlyphWidth, kCheckGlyphHeight,
+                      markRect->left + 3, markRect->top + 2);
+    } else {
+        TextFont(chicagoFont);
+        TextSize(12);
+        MoveTo(markRect->left + 2, markRect->bottom - 3);
+        markStr[0] = 1;
+        markStr[1] = markChar;
+        DrawString(markStr);
     }
-
-    /* Position mark character in mark column */
-    short markX = markRect->left + 2;
-    short markY = markRect->bottom - 3;
-    MoveTo(markX, markY);
-
-    /* Draw mark character (typically checkMark = 18) */
-    markStr[0] = 1;
-    markStr[1] = markChar;
-    DrawString(markStr);
-
-    /* Restore color */
-    if (!enabled) {
-        ForeColor(blackColor);  /* Restore to black */
-    }
-
-    (void)selected;
+    ForeColor(blackColor);
 }
 
 /*
@@ -1340,10 +1327,7 @@ static void DrawMenuItemCmdKeyInternal(const Rect* cmdRect, unsigned char cmdCha
 
     MENU_LOG_TRACE("DEBUG: Font set, checking enabled\n");
 
-    /* Set color based on enabled state */
-    if (!enabled) {
-        ForeColor(8);  /* Gray for disabled */
-    }
+    ForeColor(selected ? whiteColor : (enabled ? blackColor : 8));
 
     /* Convert command key to uppercase for display */
     upperChar = cmdChar;
@@ -1353,77 +1337,104 @@ static void DrawMenuItemCmdKeyInternal(const Rect* cmdRect, unsigned char cmdCha
 
     MENU_LOG_TRACE("DEBUG: Building cmd string\n");
 
-    /* Build command key string with ⌘ symbol (0x11) and key */
-    cmdStr[0] = 2;
-    cmdStr[1] = 0x11;  /* Command symbol */
-    cmdStr[2] = upperChar;
-
-    MENU_LOG_TRACE("DEBUG: Calling StringWidth\n");
-
-    /* Calculate width and right-align in command rectangle */
+    cmdStr[0] = 1;
+    cmdStr[1] = (unsigned char)upperChar;
     cmdWidth = StringWidth(cmdStr);
-
-    MENU_LOG_TRACE("DEBUG: StringWidth returned, calculating position\n");
-
     short cmdX = cmdRect->right - cmdWidth - 4;
     short cmdY = cmdRect->bottom - 3;
+    short glyphX = cmdX - 4 - kCommandGlyphWidth;
+    DrawMenuGlyph(kCommandGlyph, kCommandGlyphWidth, kCommandGlyphHeight,
+                  glyphX, cmdRect->top);
     MoveTo(cmdX, cmdY);
-
-    MENU_LOG_TRACE("DEBUG: About to DrawString cmd key\n");
-
-    /* Draw command key */
     DrawString(cmdStr);
+    ForeColor(blackColor);
+}
 
-    MENU_LOG_TRACE("DEBUG: Drew cmd key successfully\n");
-
-    /* Restore color */
-    if (!enabled) {
-        ForeColor(blackColor);  /* Restore to black */
+static void DrawMenuGlyph(const uint16_t* rows, short width, short height,
+                          short x, short y)
+{
+    for (short row = 0; row < height; row++) {
+        for (short col = 0; col < width; col++) {
+            if (rows[row] & (1u << (width - 1 - col))) {
+                Rect pixel = {y + row, x + col, y + row + 1, x + col + 1};
+                PaintRect(&pixel);
+            }
+        }
     }
+}
 
-    (void)selected;
+static void DrawMenuSubmenuArrow(const Rect* itemRect)
+{
+    short x = itemRect->right - 12;
+    short centerY = (short)((itemRect->top + itemRect->bottom) / 2);
+    for (short row = 0; row < 9; row++) {
+        short distance = row < 4 ? 4 - row : row - 4;
+        short width = 5 - distance;
+        if (width <= 0) continue;
+        Rect pixelRow = {centerY - 4 + row, x,
+                         centerY - 3 + row, x + width};
+        PaintRect(&pixelRow);
+    }
+}
+
+static void DimMenuItem(const Rect* itemRect, uint32_t background)
+{
+    if (!framebuffer || !itemRect) return;
+
+    Pointer_Shield(itemRect->left, itemRect->top,
+                   itemRect->right, itemRect->bottom);
+    uint32_t* pixels = (uint32_t*)framebuffer;
+    int pitch = (int)(fb_pitch / 4);
+    int left = itemRect->left < 0 ? 0 : itemRect->left;
+    int top = itemRect->top < 0 ? 0 : itemRect->top;
+    int right = itemRect->right > (int)fb_width ? (int)fb_width : itemRect->right;
+    int bottom = itemRect->bottom > (int)fb_height ? (int)fb_height : itemRect->bottom;
+
+    for (int y = top; y < bottom; y++) {
+        for (int x = left; x < right; x++) {
+            if ((x + y) & 1) pixels[y * pitch + x] = background;
+        }
+    }
 }
 
 /*
  * CalcMenuItemRects - Calculate rectangles for menu item components
  */
-static void CalcMenuItemRects(MenuHandle theMenu, short item, const Rect* menuRect,
-                            Rect* textRect, Rect* iconRect, Rect* markRect, Rect* cmdRect)
+static void CalcMenuItemRects(const Rect* itemRect, Rect* textRect,
+                              Rect* iconRect, Rect* markRect, Rect* cmdRect)
 {
-    Rect itemRect = {0};
-
-    CalcMenuItemRect(theMenu, item, menuRect, &itemRect);
+    if (!itemRect) return;
 
     /* Icon rectangle (left side) */
     if (iconRect != NULL) {
-        iconRect->left = itemRect.left + 2;
-        iconRect->top = itemRect.top + 2;
+        iconRect->left = itemRect->left + 2;
+        iconRect->top = itemRect->top + 2;
         iconRect->right = iconRect->left + 12;
         iconRect->bottom = iconRect->top + 12;
     }
 
     /* Mark rectangle (left side, after icon) */
     if (markRect != NULL) {
-        markRect->left = itemRect.left + 16;
-        markRect->top = itemRect.top + 2;
+        markRect->left = itemRect->left + 16;
+        markRect->top = itemRect->top + 2;
         markRect->right = markRect->left + 12;
         markRect->bottom = markRect->top + 12;
     }
 
     /* Command key rectangle (right side) */
     if (cmdRect != NULL) {
-        cmdRect->right = itemRect.right - 4;
-        cmdRect->top = itemRect.top + 2;
-        cmdRect->left = cmdRect->right - 16;
+        cmdRect->right = itemRect->right - 4;
+        cmdRect->top = itemRect->top + 2;
+        cmdRect->left = cmdRect->right - 28;
         cmdRect->bottom = cmdRect->top + 12;
     }
 
     /* Text rectangle (center, between mark and command key) */
     if (textRect != NULL) {
-        textRect->left = itemRect.left + 30;
-        textRect->top = itemRect.top + 2;
-        textRect->right = itemRect.right - 20;
-        textRect->bottom = itemRect.bottom - 2;
+        textRect->left = itemRect->left + kMenuItemContentInset;
+        textRect->top = itemRect->top + 2;
+        textRect->right = itemRect->right - 32;
+        textRect->bottom = itemRect->bottom - 2;
     }
 }
 
@@ -1443,7 +1454,7 @@ static short MeasureMenuItemWidth(MenuHandle theMenu, short item)
     GetMenuItemText(theMenu, item, itemText);
     textWidth = GetMenuItemTextWidth(itemText, normal);
 
-    totalWidth = 30 + textWidth + 20; /* Icon + mark + text + command key + margins */
+    totalWidth = kMenuItemContentInset + textWidth + 32;
 
     return totalWidth;
 }

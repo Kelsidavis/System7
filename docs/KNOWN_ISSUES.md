@@ -618,18 +618,19 @@ and that was tried — it changed none of the symptoms above and could not be
 validated end to end at the time, so it was reverted. Worth revisiting now that
 the dialog can actually be dismissed.
 
-### ⚠️ Live menu tracking still has a separate item renderer (MENU-001) — PARTLY ADDRESSED
+### ⚠️ Live menu tracking still has separate frame and row layout (MENU-001) — PARTLY ADDRESSED
 
-`MenuDisplay.c` has a complete System 7 item renderer — `DrawMenu` →
-`DrawMenuItem`, with `DrawMenuSeparator`, marks, icons, command keys and
-disabled styling. `ShowMenu()` calls `DrawMenu()`, but the live tracking path
-does not call `ShowMenu()`. `MenuTrack.c` still owns the tracked dropdown's
-frame, background, row geometry, adornments, and highlight updates; its row
-text now delegates to `MenuDisplay.DrawMenuItemText()` through an adapter that
-preserves the tracked row's baseline. The checkmark and command glyph bitmaps
-also share the tracker's `DrawMenuBitmapGlyph()` rasterizer. Two menu-item
-layout/rendering paths remain, and the full `DrawMenu()` behavior is not
-exercised by normal menu tracking.
+`MenuDisplay.c` owns the shared item renderer — `DrawMenuItem` — for both the
+normal dropdown painter and live tracking. `MenuTrack.c` supplies each tracked
+row's explicit rectangle and selection state through `DrawMenuItemAtRect()`;
+text, icons, marks, command keys, submenu arrows, and disabled-item stippling
+then use the shared renderer. The extracted Chicago strike omits the command
+and check-mark glyphs, so their bitmap definitions also live with that
+renderer. Live tracking still owns its dropdown frame/background, row
+positions, and highlight state, rather than using `DrawMenu()`'s frame and
+layout path. The consolidation builds and passes the automated suite, but
+still needs a booted visual check before the separate frame/layout code is
+removed.
 
 Two bugs fell out of this, both now fixed:
 
@@ -641,19 +642,21 @@ Two bugs fell out of this, both now fixed:
   arrow**. `ParseItemMeta` now implements the documented set: `(` disable,
   `^n` icon, `!c` mark, `<B/I/U/O/S` style, `/c` command key. Per Inside
   Macintosh, `SetMenuItemText` deliberately does *not* parse these.
-- **`DrawMenuOld` had no divider or command-key drawing.** It now draws dividers
-  as a grey line across the menu and right-aligns command keys, matching
-  System 7.1.
+- **The tracked dropdown had no divider or command-key drawing.** It now draws
+  dividers as a grey line across the menu and right-aligns command keys,
+  matching System 7.1.
 
 Still outstanding:
 
-- Route the live tracking path through one renderer and remove the duplicate
-  implementation after visual behavior is verified.
+- Route the live dropdown frame and row geometry through the shared display
+  path, then remove the remaining duplicate frame/layout implementation after
+  visual behavior is verified.
 - The ⌘ symbol is drawn **geometrically**, not from the font. Chicago carries it
   at char 0x11, but the extracted strike only covers ASCII 32–126 and
-  `FM_DrawChicagoCharInternal` rejects `ch < 32`. `DrawCommandGlyph` in
-  `MenuTrack.c` draws the standard looped square instead of fabricating font
-  data. If an authentic Chicago NFNT is ever imported, prefer the real glyph.
+  `FM_DrawChicagoCharInternal` rejects `ch < 32`. `DrawMenuItemCmdKeyInternal`
+  in `MenuDisplay.c` draws the standard looped square instead of fabricating
+  font data. If an authentic Chicago NFNT is ever imported, prefer the real
+  glyph.
 
 ### ✅ Source files that were never compiled, and a copy that claimed to be canonical (ARCH-002) — FIXED
 

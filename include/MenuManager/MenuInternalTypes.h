@@ -10,6 +10,11 @@
 #include "SystemTypes.h"
 #include "MenuTypes.h"
 
+enum {
+    kMenuItemContentInset = 30,
+    kMenuCommandGlyphWidth = 11
+};
+
 /* Menu tracking information */
 typedef struct MenuTrackingState MenuTrackInfo;
 
