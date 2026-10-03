@@ -17,7 +17,6 @@
 #define scrapMemoryError        -108    /* Not enough memory for scrap */
 
 /* Standard QD Error Codes */
-#define qdNoError               0       /* No error */
 #define qdMemoryError           -108    /* Not enough memory */
 #define qdRegionTooBigError     -147    /* Region too complex */
 #define qdPictureDataError      -148    /* Bad picture data */

@@ -9,6 +9,7 @@
 #define __FILEMANAGERTYPES_H__
 
 #include "SystemTypes.h"
+#include "Errors/ErrorCodes.h"
 #include <time.h>
 
 /* Extended Volume Control Block for File Manager */
@@ -157,27 +158,6 @@ typedef struct {
 #define EISDIR  21
 #define ENOSPC  28
 #define EROFS   30
-#endif
-
-/* Additional Mac error codes */
-#ifndef ioErr
-#define ioErr           -36    /* I/O error */
-#define vLckdErr        -46    /* Volume is locked */
-#define fBsyErr         -47    /* File is busy */
-#define opWrErr         -49    /* File already open for writing */
-#define volOffLinErr    -53    /* Volume is offline */
-#define permErr         -54    /* Permission error */
-#define nsvErr          -35    /* No such volume */
-#define fnOpnErr        -38    /* File not open */
-#define eofErr          -39    /* End of file */
-#define posErr          -40    /* Bad positioning */
-#define mFulErr         -41    /* Memory full */
-#define tmfoErr         -42    /* Too many files open */
-#define wPrErr          -44    /* Disk is write-protected */
-#define fLckdErr        -45    /* File is locked */
-#define dskFulErr       -34    /* Disk full */
-#define dirNFErr        -120   /* Directory not found */
-#define tmwdoErr        -121   /* Too many working directories open */
 #endif
 
 #endif /* __FILEMANAGERTYPES_H__ */

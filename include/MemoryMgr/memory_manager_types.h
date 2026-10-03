@@ -26,6 +26,7 @@
 #define MEMORY_MANAGER_TYPES_H
 
 #include "SystemTypes.h"
+#include "Errors/ErrorCodes.h"
 
 /* Forward declarations */
 
@@ -65,12 +66,6 @@
 #define HANDLE_NIL          ((Handle)0x00000000)
 #define HANDLE_PURGED       ((Handle)0x00000001)
 #define MINUS_ONE           0xFFFFFFFF
-
-/* OSErr codes */
-/* noErr is defined in MacTypes.h */
-#define memFullErr          -108    /* Not enough memory */
-#define nilHandleErr        -109    /* NIL master pointer */
-#define memWZErr            -111    /* Wrong zone */
 
 /*
  * Zone Header Structure

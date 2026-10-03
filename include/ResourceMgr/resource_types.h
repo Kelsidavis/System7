@@ -4,6 +4,7 @@
 #define RESOURCE_TYPES_H
 
 #include "SystemTypes.h"
+#include "Errors/ErrorCodes.h"
 
 /* Resource Manager Constants */
 #define kResourceForkHeaderSize    16
@@ -22,9 +23,7 @@
 #define resPreload      (1 << 2)  /* 4 - Preload resource */
 #define resChanged      (1 << 1)  /* 2 - Resource changed */
 
-/* Error Codes */
-/* noErr is defined in MacTypes.h */
-#define resNotFound    -192   /* Resource not found */
+/* Resource Manager errors */
 #define resFNotFound   -193   /* Resource file not found */
 #define addResFailed   -194   /* AddResource failed */
 #define rmvResFailed   -196   /* RemoveResource failed */

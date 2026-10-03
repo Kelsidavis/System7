@@ -8,6 +8,7 @@
 #define HFS_STRUCTS_H
 
 #include "SystemTypes.h"
+#include "Errors/ErrorCodes.h"
 
 /* HFS Constants */
 #ifndef HFS_SIGNATURE
@@ -34,13 +35,5 @@
 /* Fork Types */
 #define dataFk                  0x00        /* Data fork */
 #define rsrcFk                  0xFF        /* Resource fork */
-
-/* HFS error codes */
-#define memFullErr              -108
-#define ioErr                   -36
-#define fnfErr                  -43
-#define permErr                 -54
-#define dirNFErr                -120
-#define nsvErr                  -35
 
 #endif /* HFS_STRUCTS_H */

@@ -11,6 +11,7 @@
 #define __FILEMANAGER_INTERNAL_H__
 
 #include "SystemTypes.h"
+#include "Errors/ErrorCodes.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -30,30 +31,6 @@ extern "C" {
 #define EROFS   30
 #endif
 
-/* Mac error codes not in SystemTypes.h */
-#ifndef ioErr
-#define ioErr           -36    /* I/O error */
-#define vLckdErr        -46    /* Volume is locked */
-#define fBsyErr         -47    /* File is busy */
-#define opWrErr         -49    /* File already open for writing */
-#define volOffLinErr    -53    /* Volume is offline */
-#define permErr         -54    /* Permission error */
-#define nsvErr          -35    /* No such volume */
-#define fnOpnErr        -38    /* File not open */
-#define eofErr          -39    /* End of file */
-#define posErr          -40    /* Bad positioning */
-#define mFulErr         -41    /* Memory full */
-#define tmfoErr         -42    /* Too many files open */
-#define wPrErr          -44    /* Disk is write-protected */
-#define fLckdErr        -45    /* File is locked */
-#define dskFulErr       -34    /* Disk full */
-#define dirNFErr        -120   /* Directory not found */
-#define diffVolErr      -1303  /* Source and destination on different volumes */
-#define tmwdoErr        -121   /* Too many working directories open */
-#define btNoErr         0      /* B-tree no error */
-#define btRecNotFnd     -1300  /* B-tree record not found */
-#endif
-
 /* HFS Constants */
 #define HFS_SIGNATURE       0x4244      /* 'BD' - HFS signature */
 #define MFS_SIGNATURE       0xD2D7      /* MFS signature */
@@ -70,7 +47,6 @@ extern "C" {
 #define MAX_FCBS            348         /* Max open files (from System 7.1) */
 #define MAX_WDCBS           40          /* Max working directories */
 
-#define BTREE_NODE_SIZE     512         /* B-tree node size */
 #define BTREE_MAX_DEPTH     8           /* Max B-tree depth */
 #define BTREE_MAX_KEY_LEN   37          /* Max catalog key length */
 

@@ -12,6 +12,7 @@
 #define _SPEECHMANAGER_H_
 
 #include "SystemTypes.h"
+#include "Errors/ErrorCodes.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -109,10 +110,6 @@ OSErr UseDictionary(SpeechChannel chan, void *dictionary);
 
 /* ===== Error Codes ===== */
 
-/* noErr is defined in MacTypes.h */
-#define paramErr               -50
-#define memFullErr            -108
-#define resNotFound           -192
 #define voiceNotFound         -244
 #define noSynthFound          -245
 #define synthOpenFailed       -246
