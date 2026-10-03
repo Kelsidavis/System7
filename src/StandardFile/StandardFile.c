@@ -72,33 +72,8 @@ static void SF_SelectFile(short index);
 static void SF_NavigateToFolder(FSSpec *folder);
 static OSErr SF_GetCurrentLocation(short *vRefNum, long *dirID);
 
-/* Keyboard focus helpers */
-/*
- * The Standard File dialogs used to prime keyboard focus themselves, walking
- * what they took to be a chain of controls:
- *
- *     c = (ControlHandle)((DialogPeek)d)->items;
- *     while (c) { ... c = (*c)->nextControl; }
- *
- * items is the dialog's DITL handle, not a control chain. That walk read DITL
- * bytes as control records and followed whatever happened to sit at the
- * nextControl offset, and it never terminated - so Command-O and Command-S
- * drew the dialog frame and then hung the machine in this loop, which is why
- * the Open and Save dialogs appeared with their interior never painted and
- * nothing responded afterwards.
- *
- * There is nothing to replace it with: NewDialog already gives the first
- * edit-text item the focus through InitDialogEditTextFocus, which is how
- * every other dialog in the system gets primed. This one was a second,
- * broken copy of that.
- */
-
-
-static SInt16 __attribute__((unused)) SF_ItemFromControl(ControlHandle c)
-{
-    /* refCon is item number */
-    return (c && *c) ? (SInt16)(*c)->contrlRfCon : 0;
-}
+/* NewDialog gives the first edit-text item focus through
+ * InitDialogEditTextFocus; DITL items are not a control chain to walk. */
 
 /*
  * Classic SFPutFile - Save file dialog

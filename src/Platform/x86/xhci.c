@@ -717,15 +717,6 @@ static void xhci_ep0_ring_doorbell(uintptr_t base, uint32_t dboff, uint8_t slot_
     mmio_write32(base + dboff, XHCI_DB0 + (uint32_t)slot_id * 4, 1);
 }
 
-static void __attribute__((unused)) xhci_ep0_reset_ring(uint8_t slot_id) {
-    if (slot_id == 0 || slot_id > MAX_XHCI_SLOTS) {
-        return;
-    }
-    uint8_t slot_index = (uint8_t)(slot_id - 1);
-    g_ep0_ring_index[slot_index] = 0;
-    g_ep0_cycle[slot_index] = 1;
-}
-
 static bool xhci_ep0_control_no_data(uintptr_t base, uint32_t dboff, uintptr_t rt_base,
                                      uint8_t slot_id, const usb_setup_packet_t *setup) {
     if (!setup) {
