@@ -37,7 +37,6 @@ void SelectRadioInGroup(DialogPtr theDialog, SInt16 itemNo);
 void SetDialogEditFocus(DialogPtr theDialog, SInt16 itemNo);
 Boolean HasEditFocus(DialogPtr theDialog);
 SInt16 GetEditFocusItem(DialogPtr theDialog);
-Boolean DialogEditKey(DialogPtr theDialog, char ch);
 
 /* Dialog window management */
 DialogPtr FrontDialog(void);

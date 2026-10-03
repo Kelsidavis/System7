@@ -197,7 +197,6 @@ void SetDialogEditFocus(DialogPtr theDialog, SInt16 itemNo) {
 
     gFocusDialog = theDialog;
     gFocusItemNo = itemNo;
-
 }
 
 /* Check if dialog has edit focus */
@@ -213,23 +212,8 @@ SInt16 GetEditFocusItem(DialogPtr theDialog) {
     return 0;
 }
 
-/* Handle key in edit field (simple implementation) */
-Boolean DialogEditKey(DialogPtr theDialog, char ch) {
-    (void)ch;
-    if (!HasEditFocus(theDialog)) {
-        return false;
-    }
-
-    /* For now, just log key presses */
-    /* Full implementation would modify the text data */
-
-    return true;
-}
-
-/* Get front dialog (placeholder - should check window list) */
+/* Get the frontmost dialog tracked by Dialog Manager state. */
 DialogPtr FrontDialog(void) {
-    /* In full implementation, walk window list and find first dialog */
-    /* For now, return the front modal dialog from state */
     DialogManagerState* state = GetDialogManagerState();
 
     if (state) {
