@@ -3408,9 +3408,9 @@ void M68K_CheckAddressAlignment(M68KAddressSpace* as, UInt32 addr, M68KSize size
  *
  * Some illegal opcodes produce predictable results on real 68000 hardware:
  *
- * 1. Line-A (0xAxxx): Trap vector 10 - Used for Mac Toolbox traps ✅ Implemented
- * 2. Line-F (0xFxxx): Trap vector 11 - Used for FPU emulation (not implemented)
- * 3. 0x4AFC (ILLEGAL): Official illegal instruction ✅ Implemented
+ * 1. Line-A (0xAxxx): exception vector 10, used for Macintosh Toolbox traps.
+ * 2. Line-F (0xFxxx): exception vector 11, used by coprocessor instructions.
+ * 3. 0x4AFC: the ILLEGAL instruction encoding.
  * 4. Unimplemented effective addressing modes: Cause illegal instruction trap
  *
  * Most "illegal" opcodes will trigger our fault handler.
