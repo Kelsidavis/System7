@@ -983,7 +983,7 @@ RgnHandle EllipseToRegion(const Rect *bounds) {
     SInt16 radiusX = (bounds->right - bounds->left) / 2;
     SInt16 radiusY = (bounds->bottom - bounds->top) / 2;
 
-    (void)centerX;  /* Used in comment at line 820, reserved for full implementation */
+    (void)centerX;  /* Used when scanline spans are encoded in the region data. */
 
     if (radiusX <= 0 || radiusY <= 0) {
         SetEmptyRgn(rgn);
@@ -1019,7 +1019,7 @@ RgnHandle EllipseToRegion(const Rect *bounds) {
                 SInt16 dx = (SInt16)(radiusX * sqrt(term));
                 /* Scanline spans from (centerX - dx) to (centerX + dx) */
                 /* This represents the filled portion of the ellipse at this Y coordinate */
-                (void)dx; /* Scanline data would be stored here in full implementation */
+                (void)dx; /* Region span encoding is not implemented yet. */
             }
         }
     }

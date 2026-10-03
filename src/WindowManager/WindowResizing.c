@@ -155,7 +155,7 @@ void SizeWindow(WindowPtr theWindow, short w, short h, Boolean fUpdate) {
     (theWindow)->port.portRect.bottom = (theWindow)->port.portRect.top + h;
 
     /* NOTE: Do NOT update portBits.bounds here!
-     * portBits.bounds is updated later (line 212) after contRgn is recalculated.
+     * It is updated after contRgn is recalculated.
      * We use Global Framebuffer approach where portBits.bounds = content's GLOBAL position.
      * Overwriting it here with (0,0,w,h) would break the coordinate system. */
 
