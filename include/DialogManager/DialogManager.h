@@ -211,8 +211,6 @@ OSErr DialogManager_ShowSaveFileDialog(const char* title, const char* defaultPat
  */
 Handle GetDialogItemList(DialogPtr theDialog);
 void SetDialogItemList(DialogPtr theDialog, Handle itemList);
-SInt16 GetDialogDefaultItem(DialogPtr theDialog);
-SInt16 GetDialogCancelItem(DialogPtr theDialog);
 Boolean GetDialogTracksCursor(DialogPtr theDialog);
 
 /* Dialog state queries */

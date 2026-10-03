@@ -4,9 +4,6 @@
 
 #include "SystemTypes.h"
 
-/* Boot functions */
-void boot_main(uint32_t magic, uint32_t* mb2_info);
-
 /* Cursor management */
 void InvalidateCursor(void);
 void Pointer_TakeOffScreen(void);                        /* erase the pointer now */

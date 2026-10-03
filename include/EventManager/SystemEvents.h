@@ -404,10 +404,3 @@ void ResetSystemEventState(void);
 #endif
 
 #endif /* SYSTEM_EVENTS_H */
-/* Missing type stubs */
-typedef struct AppStateInfo AppStateInfo;
-typedef void (*DiskEventCallback)(void*);
-typedef void (*SystemEventCallback)(void*);
-typedef void (*UpdateEventCallback)(void*);
-typedef void (*ActivateEventCallback)(void*);
-typedef void (*StateChangeCallback)(void*);
