@@ -710,7 +710,6 @@ static long TrackMenu_Body(short menuID, Point *startPt) {
         return 0;
     }
 
-    /* Declare all variables at function start */
     GrafPtr savePort;
     Rect menuRect;
     Handle savedBits;
@@ -732,7 +731,6 @@ static long TrackMenu_Body(short menuID, Point *startPt) {
     serial_puts("TrackMenu: GetMenuHandle returned\n");
     if (!theMenu) {
         if (savePort) SetPort(savePort);
-        // s_inTrackMenu cleared
         return 0;
     }
 
@@ -743,7 +741,6 @@ static long TrackMenu_Body(short menuID, Point *startPt) {
     if (menuPtr < 0x1000 || menuPtr > 0x80000000) {
         serial_puts("TrackMenu: Menu handle looks invalid (bad address range)\n");
         if (savePort) SetPort(savePort);
-        // s_inTrackMenu cleared
         return 0;
     }
     serial_puts("TrackMenu: Menu handle address looks reasonable\n");
@@ -820,7 +817,6 @@ static long TrackMenu_Body(short menuID, Point *startPt) {
     if (menuRect.right <= menuRect.left || menuRect.bottom <= menuRect.top) {
         serial_puts("TrackMenu: Invalid rect after clipping, aborting\n");
         if (savePort) SetPort(savePort);
-        // s_inTrackMenu cleared
         return 0;
     }
 
@@ -942,8 +938,6 @@ static long TrackMenu_Body(short menuID, Point *startPt) {
          * GetMouseButtons() is the accessor ps2.c exports for exactly this. */
         extern uint8_t GetMouseButtons(void);
         Boolean buttonState = (GetMouseButtons() & 0x01) != 0;
-
-        /* Debug output removed - was causing x86 build failure */
 
         /* Arm the menu for selection only once the button has been steadily up
          * for a short window AND the menu has been open a moment.
@@ -1124,9 +1118,6 @@ static long TrackMenu_Body(short menuID, Point *startPt) {
     /* Invalidate cursor so it gets redrawn (menu operations corrupt cursor background) */
     extern void InvalidateCursor(void);
     InvalidateCursor();
-
-    /* Clear reentrancy flag before returning */
-        // s_inTrackMenu cleared
 
     return result;
 }

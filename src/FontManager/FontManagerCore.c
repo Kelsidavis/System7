@@ -924,7 +924,6 @@ void QD_LocalToPixel(short localX, short localY, short* pixelX, short* pixelY) {
  * is drawn via direct framebuffer rendering instead of glyph extraction
  */
 void DrawChar(short ch) {
-    /* Debug output removed - was causing severe slowdown on ARM64 */
     if (!g_currentPort) return;
 
     Style face = g_currentPort->txFace;
@@ -1008,7 +1007,6 @@ void DrawChar(short ch) {
  * DrawString - Draw a Pascal string at the current pen location
  */
 void DrawString(ConstStr255Param s) {
-    /* Debug output removed - was causing slowdown */
     if (!s || s[0] == 0 || !g_currentPort) {
         return;
     }

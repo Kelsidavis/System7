@@ -634,7 +634,6 @@ void DrawMenuBar(void)
     short x = 0;
     UpdateMenuBarLayout();
 
-    /* Debug output removed from loop - was causing severe performance issues */
     if (gMenuMgrState) {
         if (gMenuMgrState->menuBar) {
             MenuBarList* menuBar = MENU_BAR_LIST(gMenuMgrState->menuBar);
