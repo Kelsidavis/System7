@@ -39,7 +39,7 @@ void GlobalToLocalDialog(DialogPtr theDialog, Point* pt) {
      * outside the dialog's portRect, which starts at (0,0). The hit test
      * returned 0 for every point inside the dialog, so DialogSelect never
      * reported an item and no dialog button could ever be clicked. Clicking OK
-     * on the Empty Trash confirmation did nothing at all (DLG-001).
+     * on the Empty Trash confirmation did nothing at all.
      *
      * portBits.bounds carries the window's global rect in this tree (see the
      * note on the same convention in FM_DrawChicagoCharInternal), so the

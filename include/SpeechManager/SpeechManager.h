@@ -13,9 +13,6 @@
 
 #include "SystemTypes.h"
 
-/* Forward declarations */
-
-
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -74,9 +71,7 @@ extern "C" {
 /* ===== Basic Types ===== */
 
 /* OSType is defined in MacTypes.h */
-/* OSErr is defined in MacTypes.h *//* Fixed is defined in MacTypes.h *//* Ptr is defined in MacTypes.h */
-
-/* Str31 is defined in MacTypes.h */
+/* OSErr, Fixed, Ptr, and Str31 are defined in SystemTypes.h. */
 
 /* ===== Core Structures ===== */
 

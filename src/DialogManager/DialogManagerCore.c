@@ -199,7 +199,7 @@ DialogPtr NewDialog(void* wStorage, const Rect* boundsRect, const unsigned char*
      * FrontDialog(), so for a dialog created here and driven by its own event
      * loop every mouse click was rejected before it reached DialogSelect: the
      * Empty Trash confirmation drew correctly and then ignored its buttons
-     * entirely (DLG-001).
+     * entirely.
      */
     gDialogManagerState.currentDialog = dialog;
 

@@ -93,7 +93,7 @@ static void WM_AccumulateUpdateRgn(WindowPtr window, RgnHandle rgn);
  * here and again in the event dispatcher - one policy written twice, and
  * neither copy could be more precise than a rectangle intersection, so a
  * single pixel of overlap left a window blank until the cover moved away.
- * It stood in for real regions (REGION-001). Regions are real now: EndUpdate
+ * It stood in for real regions. EndUpdate
  * copies a window's offscreen buffer to the screen band by band through its
  * visible region, so repainting an overlapped window can only put back pixels
  * that window owns, and there is nothing left to defer.
@@ -323,11 +323,11 @@ void PaintOne(WindowPtr window, RgnHandle clobberedRgn) {
              * Both orderings occur in practice. Booting with a USB tablet
              * attached paints the Finder window before PaintOne and looks fine;
              * booting with only a PS/2 mouse and no input paints it after, and
-             * the Macintosh HD window stays blank forever (REDRAW-004) - which
+             * the Macintosh HD window stays blank forever, which
              * is what users see on real hardware.
              *
              * Note this over-invalidates: with regions still being rectangles
-             * (REGION-001) the union is a bounding box, so we may repaint more
+             * the union is a bounding box, so we may repaint more
              * than was erased. That is safe - it costs a redraw, never content.
              * EndUpdate empties updateRgn, so this cannot loop.
              *

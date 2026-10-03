@@ -390,7 +390,7 @@ void InsetRgn(RgnHandle rgn, SInt16 dh, SInt16 dv) {
  * These used to be stubs that returned a bounding box: DiffRgn returned
  * its first argument unchanged, so a window's visible region could never
  * have the window in front of it taken out, and a window behind repainted
- * straight over the one in front (REGION-001).
+ * straight over the one in front.
  * ================================================================ */
 
 /* A region that would need more rectangles than this collapses to its

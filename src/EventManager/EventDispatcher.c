@@ -673,7 +673,7 @@ Boolean HandleUpdate(EventRecord* event)
          * it, so a window can only ever put back pixels it owns. This used to
          * defer the update wholesale instead, which left a window that was
          * covered by so much as one pixel blank until the cover moved away
-         * (REGION-001). */
+         */
         EVT_LOG_DEBUG("HandleUpdate: calling BeginUpdate...\n");
         BeginUpdate(updateWindow);
         EVT_LOG_DEBUG("HandleUpdate: BeginUpdate returned\n");

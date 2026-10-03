@@ -49,7 +49,7 @@ static void CopyEventRecord(EventRecord* dest, const EventRecord* src) {
  * This is the GetNextEvent that runs: the public symbol at the bottom of this
  * file routes here. EventManager/event_manager.c once had a second copy, for a
  * non-cooperative build that no longer exists; a fix written there could never
- * execute (see REDRAW-004).
+ * execute.
  */
 Boolean Proc_GetNextEvent(EventMask mask, EventRecord* evt) {
     if (!evt) return false;
