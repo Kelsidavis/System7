@@ -201,7 +201,7 @@ else
     # x86 32-bit
     CFLAGS = $(COMMON_CFLAGS) -m32
     ASFLAGS = --32
-    LDFLAGS = -melf_i386 -nostdlib -no-pie
+    LDFLAGS = -melf_i386 -nostdlib -no-pie -Wl,--build-id=none
     ifeq ($(strip $(GESTALT_MACHINE_TYPE)),)
       GESTALT_MACHINE_TYPE := 0
     endif
@@ -296,6 +296,7 @@ C_SOURCES = src/main.c \
               src/Platform/arm64/display.c, \
             $(if $(filter arm,$(PLATFORM)), \
               src/Platform/arm/hal_boot.c \
+              src/Platform/arm/runtime_compat.c \
               src/Platform/arm/io.c \
               src/Platform/arm/device_tree.c \
               src/Platform/arm/hardware_detect.c \
