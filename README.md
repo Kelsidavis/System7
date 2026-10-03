@@ -179,18 +179,9 @@ Full roadmap: [BARE_METAL_IMPROVEMENTS.md](docs/BARE_METAL_IMPROVEMENTS.md)
 
 - **Printing**: No print system
 - **Networking**: No AppleTalk or network functionality
+- **Apple Events**: Inter-application Apple Event messaging is not implemented
 - **Balloon Help**: the Help menu is there; balloons are not
 - **Advanced Audio**: Sample playback, mixing (PC speaker limitation)
-
-### Subsystems Not Compiled 🔧
-
-The following have source code but aren't integrated into the kernel:
-- **AppleEventManager** (`src/CPU/m68k_interp` and `src/CPU/ppc_interp` only
-  carry the 68K/PowerPC interpreters; the Apple Event Manager itself has no
-  source at all): inter-application messaging would need pthread-style
-  primitives that don't exist in a freestanding kernel
-- **FontResources** (header only): Font resource type definitions; actual font
-  support is provided by the compiled `FontManager/FontResourceLoader.c`
 
 ## 🏗️ Architecture
 
@@ -205,12 +196,9 @@ The following have source code but aren't integrated into the kernel:
 
 ### Codebase Statistics
 
-- **306 source files** with ~218,000 lines of code (sources **and** headers)
-- **221 header files** across 57 subsystem directories under `src/`
+- **357 C source files** and **285 headers** (224 public under `include/`, 61 internal under `src/`)
+- **232,223 lines** across C sources, headers, and assembly files
 - **69 resource types** extracted from System 7.1, plus 17 colour (`ppat`) and 32 black-and-white (`PAT `) patterns in `Patterns.rsrc`
-- **Compilation time**: 3-5 seconds on modern hardware
-- **Kernel size**: ~4.4 MB (`kernel.elf`)
-- **ISO size**: ~16 MB (`system71.iso`)
 
 ## 🔨 Building
 

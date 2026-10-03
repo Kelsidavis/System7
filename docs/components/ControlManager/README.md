@@ -1,16 +1,14 @@
 # Control Manager
 
 ## Overview
-Coordinate creation, drawing, tracking, and activation of classic System 7 controls (push buttons, checkboxes, radios, scrollbars, popup controls). The manager owns the control list attached to each window and bridges Dialog Manager, Window Manager, and QuickDraw.
+Coordinate creation, drawing, tracking, and activation of classic System 7 push buttons, checkboxes, radio buttons, and scrollbars. The manager owns the control list attached to each window and bridges Dialog Manager, Window Manager, and QuickDraw.
 
 ## Source Layout
 - `src/ControlManager/ControlManagerCore.c` – entry points (`InitControls`, `NewControl`, `DisposeControl`, `Draw1Control`, `FindControl`, `TrackControl`, `HiliteControl`)
-- `ControlDrawing.c` / `ControlTracking.c` – shared drawing primitives and tracking state
-- `StandardControls.c` – push buttons, checkboxes, radio buttons and variant flag handling
-- `ScrollbarControls.c` – vertical/horizontal scrollbar CDEF with proportional thumbs, repeat timers
-- `PopupControls.c`, `TextControls.c`, `PlatformControls.c` – specialised control definitions and host platform glue
-- `ControlResources.c` – parsing of CNTL resources for future external definitions
-- `ControlSmoke.c` – test harness compiled with `CTRL_SMOKE_TEST=1`
+- `src/ControlManager/ControlTracking.c` – control hit testing and tracking state
+- `src/ControlManager/StandardControls.c` – push buttons, checkboxes, radio buttons and variant flag handling
+- `src/ControlManager/ScrollbarControls.c` – vertical/horizontal scrollbar CDEFs
+- `src/ControlManager/ControlResources.c` – parsing of CNTL resources
 
 ## Responsibilities
 - Maintain per-window linked list of controls (`contrlNext`) and manage lifetime via `DisposeControl`
@@ -26,7 +24,7 @@ Coordinate creation, drawing, tracking, and activation of classic System 7 contr
 - **Menu Manager / StandardFile** rely on scrollbars and list controls that originate here
 
 ## Testing & Debugging
-- Build smoke harness: `make CTRL_SMOKE_TEST=1 run` to exercise default/cancel buttons, checkbox/radio toggles, and focus traversal (keyboard + mouse)
+- Run `make check` for the automated project checks; use `make run` to exercise controls in QEMU
 - Serial logging is guarded with `[CTRL]` prefixes and whitelisted in `System71StdLib.c`
 - Run `make check-exports` after modifying exported Toolbox traps to keep `docs/symbols_allowlist.txt` in sync
 

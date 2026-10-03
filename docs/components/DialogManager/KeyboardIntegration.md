@@ -37,7 +37,6 @@ Modal dialogs exit automatically when default/cancel buttons activate because `i
 ## Control Manager Hooks
 - `IsDefaultButton()` / `IsCancelButton()` evaluate variant codes (`pushButProc | variant`)
 - Inactive controls bail out in `testCntl`, so both mouse and keyboard events pass through
-- `HandleControlSmokeKey()` in `ControlSmoke.c` wires the smoke test window to these handlers
 
 ## Logging
 - All debug output uses `[CTRL]` / `[DM]` prefixes, already whitelisted in `System71StdLib.c`
@@ -46,11 +45,10 @@ Modal dialogs exit automatically when default/cancel buttons activate because `i
 [DM] DM_HandleDialogKey: ch=0x0D (?)
 [CTRL] DM_HandleReturnKey: Activating default button
 [CTRL] DM_ActivatePushButton: Flashing button (refCon=1)
-[CTRL SMOKE] Keyboard handled: itemHit=1
 ```
 
 ## Manual Test Checklist
-1. Build with the smoke harness: `make clean && make CTRL_SMOKE_TEST=1 run`
+1. Build and launch with `make run`, then open a dialog containing keyboard-focusable controls.
 2. Tab through controls; watch the XOR ring move in order, skipping hidden/disabled controls.
 3. Shift+Tab walks backwards and wraps around to the bottom/top.
 4. Space toggles checkbox/radio state and prints updated refCons in the serial log.

@@ -28,7 +28,6 @@ System 7.1-compatible Font Manager providing bitmap font support with the Chicag
 ### Integration Points
 - **QuickDraw**: `FM_DrawRun()` and `DrawString()` emit glyphs by calling `FM_DrawChicagoCharInternal()` which reads from `chicago_bitmap` in `src/chicago_font_data.c`
 - **Window Manager**: window titles, menu tracking, and dialog chrome all call into `DrawString()` backed by the Font Manager
-- **Legacy note**: `src/deprecated/ChicagoRealFont.deprecated.c` contains the original bring-up renderer; it remains for archeology only and is not linked into the build
 
 ### Font Data
 - Source: `include/chicago_font.h` + `src/chicago_font_data.c`

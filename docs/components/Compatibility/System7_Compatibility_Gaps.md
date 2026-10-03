@@ -25,17 +25,10 @@ This checklist captures the most significant differences between the current too
 - ~~`src/EventManager/SystemEvents.c:331` & `:390` – Update regions are never merged or reduced after validation, causing duplicate `updateEvt`s; the classic manager subtracts validated areas from pending invalidations.~~ **FIXED** (2025-10-06): RequestWindowUpdate now merges update regions using UnionRgn; ValidateWindowRegion subtracts validated areas using DiffRgn
 
 ## Text Input & Editing
-- ~~`src/TextEdit/textedit_core.c:586`–`604` – Core TextEdit routines (`TECalcLines`, font setup, drawing, caret updates) remain TODOs; the current implementation cannot handle wrapping, styled runs, or caret management like System 7's TextEdit.~~ **FIXED** (2025-10-06): Implemented TECalcLines (word wrapping), TESetupFont (Font Manager integration), TEDrawText (QuickDraw rendering), and TEUpdateCaret (blinking caret with position calculation)
 - `src/TextEdit/TextEditScroll.c:91` & `:180` – Horizontal scroll limits are uncomputed, so TE windows cannot properly constrain scroll bars.
 - `src/TextEdit/TextEditClipboard.c:164`–`267` – Styled scrap handling is stubbed; classic TE mirrored styled text into the clipboard flavours.
-- ~~`src/TextEdit/textedit_core.c:192` – Several lesser-used TextEdit traps still carry TODO placeholders (e.g., point-to-char conversion, click bookkeeping), so applications relying on the full trap surface continue to observe incomplete behaviour.~~ **FILE GONE** (2026-10-01): `textedit_core.c` is no longer in the tree; check `src/TextEdit/` for what actually exists before acting on this.
 
 ## Resource & File Systems
-- ~~`src/ResourceManager.c:1095`–`1518` – Purge flags, map enumeration (`Count1Resources`, `Get1IndResource`, `CountTypes`, etc.), unique ID generation, and resource file attribute setters all return placeholders; full resource map traversal is required for ROM compatibility.~~ **STALE** (2026-10-01): `src/ResourceManager.c` never existed in the build (and is not in the tree); the live implementation is `src/ResourceMgr/ResourceMgr.c`.
-- `src/ResourceMgr/ResourceMgr.c` – `GetIndResource` now returns the resource's own handle and `ReleaseResource`/`DetachResource` forget the handle in the map and cache, but type enumeration and opening *separate* resource forks are still stubs, so clients cannot load application resources yet.
-- ~~`src/FileManagerStubs.c:340`–`366` – Block and fork I/O paths log “stub” and return `ioErr`; Finder-level file access must flow through HFS and block device drivers to match System 7 semantics.~~ **FILE GONE** (2026-10-01): `src/FileManagerStubs.c` is not in the build; see `src/FileManager.c` / `src/FileManagerVFS.c` for what exists.
-- `src/FS/vfs.c` – writes now go through `VFS_WriteFile`/`VFS_CreateFile`/`VFS_CreateFolder`, but the path is untested under stress; treat the "read-only" caveats elsewhere in these docs as out of date.
-- `src/ScrapManager/ScrapManager.c` – Clipboard persistence (`LoadScrap`, `UnloadScrap`) is still stubbed; System 7 wrote scrap data to the desktop file.
 
 ## Memory & Process Infrastructure
 - ~~`src/MemoryMgr/memory_manager_core.c:446`–`458` & `src/MemoryMgr/MemoryManager.c:399`–`465` – `SetHandleSize` fakes success without reallocating; handle-based memory semantics (moveable/relocatable blocks, zone compaction) must be honoured for legacy callers.~~ **FIXED** (2025-10-06): SetHandleSize now properly reallocates handles with data copying, respects locked handles, and maintains master pointer integrity
@@ -48,10 +41,8 @@ This checklist captures the most significant differences between the current too
 
 ## Peripheral Toolbox Managers
 - ~~`src/ListManager/ListManager.c:428`–`438` – Column APIs (`LAddColumn`, `LDelColumn`) return stub responses; System 7 supported dynamic column manipulation.~~ **FIXED** (2026-10-01): `LAddColumn`/`LDelColumn` (line ~433 onward) insert and remove columns and resize the cell matrix.
-- ~~`src/AppleEventManager/AppleEventManagerCore.c:541` & `:641` – Apple Event parameter coercion and event source attribution are TODOs; cross-process AppleEvents depend on these.~~ **FILE GONE** (2026-10-01): there is no `src/AppleEventManager/`; Apple Event support was never wired into the kernel.
 - ~~`src/SoundManager/SoundManagerBareMetal.c:150`–`205` – Core Sound Manager channels and playback APIs return `unimpErr`; only `SysBeep` exists, whereas System 7 provided channel-based audio playback.~~ **FIXED** (2026-10-01): the file was rewritten with channel-based routing, a shared `SndMidiNoteToFreq()` lookup table, and `SndPlaySoundHeader()`; `unimpErr` is only a fallback label now.
 - ~~`src/QuickDraw/PatternManager.c:286` – Desktop pattern installation is unimplemented, leaving the Finder without classic patterned backgrounds.~~ **MOVED** (2026-10-01): the pattern manager lives in `src/PatternMgr/` (`pattern_manager.c`, `pattern_resources.c`); the 34 `ppat` patterns in `Patterns.rsrc` back the Set Desktop Pattern control panel.
-- ~~`src/MenuManager/menu_geometry.c:157`–`166` – Menu bar string drawing defers to a stub; real menu titles should be rendered through QuickDraw so font changes and width calculations are correct.~~ **FILE GONE** (2026-10-01): no `menu_geometry.c` in the tree; menu titles draw through `DrawText` in white when highlighted.
 - `src/QuickDraw/quickdraw_pictures.c` – Region allocation/free still rely on `NewHandle` without proper zone management; classic QuickDraw used Region Manager semantics.
 
 ## Next Steps
