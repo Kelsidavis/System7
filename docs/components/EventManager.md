@@ -4,13 +4,13 @@
 Implements the cooperative event loop used by System 7 applications. Manages the unified event queue, dispatching keyboard/mouse/system events, honouring sleep times, and providing the `WaitNextEvent`/`GetNextEvent` API surface.
 
 ## Source Layout
-- `src/EventManager/event_manager.c` – top-level APIs exposed to Toolbox clients (`InitEvents`, `GetNextEvent`, `WaitNextEvent`, `PostEvent`)
-- `EventManagerCore.c` – queue data structures, scheduling, sleep calculation, idle time handling
-- `EventGlobals.c` – global state, application event mask, mouse button state, double-click timing
-- `EventDispatcher.c` – routes events to Window Manager, Dialog Manager, and Process Manager as required
-- `MouseEvents.c` / `KeyboardEvents.c` – low-level input decoding, click tracking, keyboard repeat, modifier bookkeeping
-- `ModernInput.c` – PS/2 device glue and translation into classic event records
-- `SystemEvents.c` – high-level events (activate/deactivate, suspend/resume) and cooperative multitasking hooks
+- `src/EventManager/event_manager.c` – public event APIs, queue operations, and `WaitNextEvent`
+- `src/EventManager/EventGlobals.c` – global event state and initialization
+- `src/EventManager/EventDispatcher.c` – routes events to Window Manager, Dialog Manager, and Process Manager
+- `src/EventManager/MouseEvents.c` and `KeyboardEvents.c` – mouse tracking and keyboard event handling
+- `src/EventManager/ModernInput.c` – platform input integration and translation into classic event records
+- `src/EventManager/SystemEvents.c` – activate/deactivate and other system events
+- `src/EventManager/AppSwitcher.c` – application-switching event behavior
 
 ## Responsibilities
 - Maintain an ordered queue of classic `EventRecord` entries with timestamping and priority stamping

@@ -9,7 +9,7 @@ Implements the classic Mac Resource Manager APIs used to load and update resourc
   `GetIndResource`, `GetNamedResource`, `OpenRFont`/`FOpenRFont`,
   `ReleaseResource`, `AddResource`, `RemoveResource`, …)
 - `src/ResourceMgr/StringResources.c` – `STRS`/`STR#` accessors
-- `src/ResourceMgr/resource_traps.c` – trap glue for legacy compatibility
+- `src/CPU/m68k_interp/M68KToolbox.c` – 68K Resource Manager trap dispatch
 - `src/Resources/` – generated data blobs (patterns and icons)
 - `src/PatternMgr/` & `src/color_icons.c` – consumers of PAT/ppat/icon resources
 
@@ -23,7 +23,7 @@ Implements the classic Mac Resource Manager APIs used to load and update resourc
 ## Tooling & Data Flow
 - JSON manifests feed the repository-root `gen_rsrc.py`, which emits resource files for inclusion at build time
 - Icon conversion and generation tools live under `tools/` and `scripts/`
-- `docs/symbols_allowlist.txt` tracks exported Resource Manager routines used by `tools/check_exports.sh`
+- `docs/symbols_allowlist.txt` tracks required exported routines checked by `tools/check_exports.sh`
 
 ## Integration Points
 - **Memory Manager** supplies zone-based handles used for resource storage

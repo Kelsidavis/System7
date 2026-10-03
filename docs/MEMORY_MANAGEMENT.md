@@ -19,7 +19,9 @@ first 16 MB of the application zone, which is all a 68K program can address.
 
 ## ⚠️ CRITICAL: Do Not Use Standard C Allocators
 
-**NEVER use `malloc()`, `free()`, `calloc()`, or `realloc()` in application code.**
+**Do not call `malloc()`, `free()`, `calloc()`, or `realloc()` directly in new
+kernel code.** Use the Toolbox Memory Manager API so allocation intent and
+ownership remain explicit.
 
 ### Why?
 
@@ -30,19 +32,11 @@ Mac OS System 7 uses a proprietary **Memory Manager** with its own heap structur
 - Master pointer tables
 - Circular linked lists for free blocks
 
-Standard C allocators (`malloc`/`free`) use a **completely separate heap**. Mixing them causes:
-- ❌ Heap corruption ("Broken circular link" errors)
-- ❌ Memory leaks (blocks tracked by wrong manager)
-- ❌ Crashes and system instability
-- ❌ Unpredictable behavior
-
-### Root Cause
-
-When you call `malloc()`, it allocates from the C runtime heap.
-When you call `free()` on a `NewPtr()` allocation, you corrupt the C heap.
-When you call `DisposePtr()` on a `malloc()` allocation, you corrupt the Memory Manager heap.
-
-**The two heaps are incompatible and must never be mixed.**
+The project's C-library compatibility functions are implemented by the Memory
+Manager and backed by its zone allocator, not by a separate host heap. The
+policy is still to prefer `NewPtr`/`DisposePtr` and handle APIs: they expose the
+Toolbox semantics explicitly and are covered by the repository's allocation
+audit. See [Kernel Allocation Policy](MALLOC_PREVENTION.md).
 
 ---
 
@@ -75,7 +69,8 @@ DisposePtr(buffer);
 
 ### Realloc Pattern
 
-`realloc()` doesn't exist in Memory Manager. Use this pattern instead:
+There is no Toolbox `realloc` routine. To resize a pointer allocation, allocate
+a replacement, copy the retained bytes, then dispose the old pointer:
 
 ```c
 // OLD (Standard C):
@@ -116,40 +111,13 @@ DisposeHandle(h);
 
 ---
 
-## 🛡️ Protection Mechanisms
+## Allocation Audit
 
-This codebase has **four layers of protection** to prevent malloc/free:
-
-### 1. Compile-Time Prevention
-
-Include `no_stdlib_alloc.h` in your source files:
-
-```c
-#include "no_stdlib_alloc.h"
-```
-
-This header redefines `malloc`, `free`, `calloc`, and `realloc` to produce **compile errors** with helpful messages:
-
-```
-error: 'DO_NOT_USE_MALLOC__USE_NewPtr_INSTEAD' undeclared
-```
-
-### 2. Pre-Commit Git Hook
-
-Automatically runs when you commit, checking all `.c` files for violations:
-
-```bash
-✗ VIOLATION: src/foo.c uses malloc() - use NewPtr() instead
-COMMIT REJECTED: Standard C allocators detected!
-```
-
-### 3. Build-Time Verification
-
-The build system checks for violations and fails with a clear error message.
-
-### 4. Code Review
-
-All pull requests are checked for Memory Manager compliance.
+`make check-malloc` runs the source scanner in
+[`scripts/check_malloc_violations.sh`](../scripts/check_malloc_violations.sh).
+`make check` and CI include this check. It is a source-level audit rather than
+a compile-time ban; see [Kernel Allocation Policy](MALLOC_PREVENTION.md) for its
+scope and exception.
 
 ---
 
@@ -190,20 +158,6 @@ Size    CompactMem(Size cbNeeded);           // Compact heap
 
 ---
 
-## 🚫 Exception: Memory Manager Implementation
-
-**Only** `src/MemoryMgr/MemoryManager.c` is allowed to use `malloc`/`free`.
-
-This file implements the Memory Manager itself and uses standard C allocators for the **underlying heap storage**. It must define:
-
-```c
-#define MEMORY_MANAGER_INTERNAL
-```
-
-before including any headers. This exempts it from the compile-time restrictions.
-
-**No other files should ever define this macro.**
-
 ---
 
 ## 📚 Additional Resources
@@ -211,7 +165,6 @@ before including any headers. This exempts it from the compile-time restrictions
 - **Inside Macintosh: Memory** - Original Apple documentation
 - `include/MemoryMgr/MemoryManager.h` - API declarations
 - `src/MemoryMgr/MemoryManager.c` - Implementation
-- Heap corruption audit report: `MALLOC_AUDIT_REPORT.md`
 
 ---
 
@@ -221,16 +174,6 @@ before including any headers. This exempts it from the compile-time restrictions
 
 **Cause:** Mixed malloc/free with NewPtr/DisposePtr
 **Solution:** Audit code for standard C allocators and convert to Memory Manager
-
-### Compile Error: "DO_NOT_USE_MALLOC"
-
-**Cause:** You used `malloc()` in a source file
-**Solution:** Change to `NewPtr()`
-
-### Pre-commit Hook Rejection
-
-**Cause:** Committed code contains malloc/free/calloc/realloc
-**Solution:** Convert to Memory Manager API before committing
 
 ### Memory Leak
 
@@ -243,8 +186,7 @@ before including any headers. This exempts it from the compile-time restrictions
 
 1. **ALWAYS** use Memory Manager (NewPtr/DisposePtr)
 2. **NEVER** use standard C allocators (malloc/free)
-3. **INCLUDE** `no_stdlib_alloc.h` in all source files
-4. **CHECK** that pre-commit hook is installed
-5. **REVIEW** this document when in doubt
+3. **RUN** `make check-malloc` after allocation-related changes
+4. **REVIEW** this document when in doubt
 
 **Following these guidelines prevents heap corruption and ensures system stability.**

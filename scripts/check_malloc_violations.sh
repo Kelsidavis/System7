@@ -20,30 +20,28 @@ for FILE in $C_FILES; do
     # This avoids false positives from comments containing "free" or "malloc"
 
     # Check for malloc (excluding comments)
-    if grep -v '^\s*//' "$FILE" | grep -v '^\s*\*' | grep '\bmalloc\s*(' > /dev/null 2>&1; then
+    if grep -v '^\s*//' "$FILE" | grep -v '^\s*/\*' | grep -v '^\s*\*' | grep '\bmalloc\s*(' > /dev/null 2>&1; then
         echo -e "${RED}VIOLATION${NC}: $FILE uses malloc()"
         VIOLATIONS=$((VIOLATIONS + 1))
     fi
 
     # Check for free (excluding comments and the word "free" in comments)
     # Only match "free(" to avoid matching "free" in documentation
-    if grep -v '^\s*//' "$FILE" | grep -v '^\s*\*' | grep -v 'PROVENANCE' | grep '\bfree\s*(' > /dev/null 2>&1; then
+    if grep -v '^\s*//' "$FILE" | grep -v '^\s*/\*' | grep -v '^\s*\*' | grep '\bfree\s*(' > /dev/null 2>&1; then
         echo -e "${RED}VIOLATION${NC}: $FILE uses free()"
         VIOLATIONS=$((VIOLATIONS + 1))
     fi
 
     # Check for calloc (excluding comments)
-    if grep -v '^\s*//' "$FILE" | grep -v '^\s*\*' | grep '\bcalloc\s*(' > /dev/null 2>&1; then
+    if grep -v '^\s*//' "$FILE" | grep -v '^\s*/\*' | grep -v '^\s*\*' | grep '\bcalloc\s*(' > /dev/null 2>&1; then
         echo -e "${RED}VIOLATION${NC}: $FILE uses calloc()"
         VIOLATIONS=$((VIOLATIONS + 1))
     fi
 
-    # Check for realloc (excluding comments and Regions.c which has commented-out realloc)
-    if [[ "$FILE" != *"Regions.c" ]]; then
-        if grep -v '^\s*//' "$FILE" | grep -v '^\s*\*' | grep '\brealloc\s*(' > /dev/null 2>&1; then
-            echo -e "${RED}VIOLATION${NC}: $FILE uses realloc()"
-            VIOLATIONS=$((VIOLATIONS + 1))
-        fi
+    # Check for realloc (excluding comment-only lines)
+    if grep -v '^\s*//' "$FILE" | grep -v '^\s*/\*' | grep -v '^\s*\*' | grep '\brealloc\s*(' > /dev/null 2>&1; then
+        echo -e "${RED}VIOLATION${NC}: $FILE uses realloc()"
+        VIOLATIONS=$((VIOLATIONS + 1))
     fi
 done
 
