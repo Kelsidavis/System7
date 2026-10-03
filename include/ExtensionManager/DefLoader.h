@@ -8,7 +8,6 @@
 #ifndef DEF_LOADER_H
 #define DEF_LOADER_H
 
-#include "SystemTypes.h"
 #include "ExtensionTypes.h"
 
 #ifdef __cplusplus
