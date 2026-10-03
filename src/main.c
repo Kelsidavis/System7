@@ -1313,7 +1313,6 @@ static void create_system71_windows(void) {
     DrawMenuBar();
     serial_puts("MAIN: DrawMenuBar returned\n");
 
-    /* Test windows removed - let Finder/applications create their own windows */
 }
 
 /* Mouse state from PS2 controller */

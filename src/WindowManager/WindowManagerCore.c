@@ -1,5 +1,4 @@
 #include <stdlib.h>
-/* #include <stdio.h> - removed for bare metal compatibility */
 /*
  * WindowManagerCore.c - Core Window Manager Implementation
  *

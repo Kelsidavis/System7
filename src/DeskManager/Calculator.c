@@ -65,11 +65,9 @@ static Calculator g_calculator = {0};
 static Boolean g_calculatorInitialized = false;
 
 /* Internal Function Prototypes */
-/* Calculator_ClearDisplay removed - Calculator_Clear/ClearAll used instead */
 static void Calculator_SetError(Calculator *calc, int errorCode, const char *message);
 static double Calculator_PerformArithmetic(double op1, double op2, CalcOperation operation);
 static double Calculator_PerformScientific(double operand, CalcOperation operation);
-/* Calculator_PerformBitwise removed - bitwise ops handled in main dispatch */
 static void Calculator_ConvertToBase(Calculator *calc, CalcBase newBase);
 static Boolean Calculator_IsValidDigitForBase(int digit, CalcBase base);
 

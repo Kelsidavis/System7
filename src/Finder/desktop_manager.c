@@ -1110,7 +1110,6 @@ static void DesktopYield(void)
 {
     extern void SystemTask(void);
     extern void ProcessModernInput(void);
-    (void)0;  /* Yield debug removed - was causing x86 build failure */
 
     /* Don't call EventPumpYield() here - it can cause re-entrancy issues during drag.
      * ProcessModernInput() polls PS/2 input AND updates gCurrentButtons */

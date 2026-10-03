@@ -1,5 +1,4 @@
 /* [WM-019] Provenance: IM:Windows Vol I pp. 2-54 to 2-58 */
-/* stdio.h removed - not needed for Window Manager internals */
 /*
  * WindowLayering.c - Window Z-Order and Layering Management
  *
