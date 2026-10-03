@@ -24,6 +24,12 @@ stops in `HFS_CreateBlankVolume` and goes no further. Not yet investigated.
 - **Find** searches the startup disk only, up to 100 matches and 64 items a
   folder, and has no More Choices.
 
+### ⚠️ SimpleText has no Redo operation
+
+The Edit menu provides single-level Undo, but there is no Redo command or
+redo-state storage. Undo also does not restore the selection that was active
+before the undone edit.
+
 ### ✅ Desk accessories open but were not driven — FIXED
 
 Clicks in an accessory's window were reported as `inSysWindow` and passed to

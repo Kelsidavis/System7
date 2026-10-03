@@ -218,7 +218,7 @@ void STClip_Undo(STDocument* doc)
         return;
     }
 
-    /* TODO: capture current selection for future redo support */
+    /* Undo restores the prior edit but does not retain redo state. */
 
     /* If we have undo text, it was a deletion - restore it */
     if (doc->undoText) {
