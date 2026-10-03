@@ -5,9 +5,9 @@
  */
 
 #include "Platform/include/input.h"
+#include "System71StdLib.h"
 #include "PS2Controller.h"
 
-extern void serial_puts(const char* str);
 
 /* Mouse source selection — defaults to PS/2, set once at init */
 static MouseSource g_mouseSource = kMouseSourcePS2;

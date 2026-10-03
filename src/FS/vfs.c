@@ -7,6 +7,7 @@
 #include "../../include/MemoryMgr/MemoryManager.h"
 #include <string.h>
 #include "FS/FSLogging.h"
+#include "System71StdLib.h"
 
 /* Serial debug output */
 
@@ -201,7 +202,6 @@ void VFS_Shutdown(void) {
 }
 
 bool VFS_MountBootVolume(const char* volName) {
-    extern void serial_puts(const char* str);
     extern void uart_flush(void);
 
     serial_puts("[VFS] MountBootVolume enter\n");

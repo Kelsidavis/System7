@@ -67,7 +67,6 @@ static void DisposeAuxiliaryWindowRecord(AuxWinHandle auxWin);
  * ============================================================================ */
 
 void InitWindows(void) {
-    extern void serial_puts(const char*);
     serial_puts("[WM] InitWindows enter\n");
     if (g_wmState.initialized) {
         return; /* Already initialized */
@@ -517,7 +516,6 @@ void CloseWindow(WindowPtr theWindow) {
 }
 
 void DisposeWindow(WindowPtr theWindow) {
-    extern void serial_puts(const char *str);
 
     serial_puts("[WM] DisposeWindow: ENTRY\n");
 
@@ -727,7 +725,6 @@ static void InitializeDesktopPattern(void) {
 }
 
 static WindowPtr AllocateWindowRecord(Boolean isColorWindow) {
-    extern void serial_puts(const char *str);
 
     size_t recordSize = isColorWindow ? sizeof(CWindowRecord) : sizeof(WindowRecord);
     /* NO serial_printf - variadic funcs corrupt heap before calloc! */
@@ -747,7 +744,6 @@ static WindowPtr AllocateWindowRecord(Boolean isColorWindow) {
 }
 
 static void DeallocateWindowRecord(WindowPtr window) {
-    extern void serial_puts(const char *str);
     extern void DisposePtr(void* p);  /* Direct call to MemoryManager */
 
     serial_puts("[WM] DeallocateWindowRecord: ENTRY\n");
@@ -924,7 +920,6 @@ static void InitializeWindowRecord(WindowPtr window, const Rect* bounds,
     window->port.portBits.rowBytes = (fb_width * 4) | 0x8000;
 
     /* DEBUG: Log portBits initialization */
-    extern void serial_puts(const char* str);
     extern int snprintf(char* buf, size_t size, const char* fmt, ...);
     static int init_log = 0;
     if (init_log < 20) {

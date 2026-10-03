@@ -141,7 +141,6 @@ void HiliteMenuTitle(short menuID, Boolean hilite)
 {
     Rect titleRect;
 
-    extern void serial_puts(const char* str);
     serial_puts("HiliteMenuTitle ENTRY\n");
 
     /* Get menu title rectangle using the tracking system */
@@ -229,7 +228,6 @@ void DrawMenuTitle(short menuID, const Rect* titleRect, Boolean hilited)
     textRect = *titleRect;
     textRect.top += 1;
 
-    extern void serial_puts(const char* str);
     if (hilited) {
         serial_puts("[DRAWTITLE] HIGHLIGHTED menu title\n");
     } else {
@@ -252,7 +250,6 @@ void DrawMenuTitle(short menuID, const Rect* titleRect, Boolean hilited)
      *
      * Use FillRect with white to erase, which goes through QuickDraw's
      * coordinate system and respects the port's clipping region. */
-    extern void serial_puts(const char* str);
     serial_puts("[DRAW-TITLE] About to call FillRect\n");
     FillRect(titleRect, &qd.white);
     serial_puts("[DRAW-TITLE] FillRect returned\n");
@@ -274,7 +271,6 @@ void DrawMenuTitle(short menuID, const Rect* titleRect, Boolean hilited)
     }
 
     /* Draw the title text */
-    extern void serial_puts(const char* str);
     static char pnLocBuf[256];
     extern int snprintf(char*, size_t, const char*, ...);
 

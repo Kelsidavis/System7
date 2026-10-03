@@ -1,5 +1,6 @@
 /*
 #include "SoundManager/PCSpkr.h"
+#include "System71StdLib.h"
  * SoundHardwarePC.c - PC Speaker hardware driver for bare-metal x86
  *
  * Provides basic audio output using the PC speaker (I/O port 0x61)
@@ -104,7 +105,6 @@ void PCSpkr_Beep(uint32_t frequency, uint32_t duration_ms) {
  * Returns 0 on success
  */
 int PCSpkr_Init(void) {
-    extern void serial_puts(const char* str);
 
     /* Ensure speaker is off */
     PCSpkr_SetFrequency(0);

@@ -1,6 +1,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include "MenuManager/menu_private.h"
+#include "System71StdLib.h"
 
 extern void QD_SetScreenPort(void);
 /*
@@ -31,7 +32,6 @@ extern void QD_SetScreenPort(void);
 #include "MenuManager/MenuAppIcon.h"
 
 /* Serial printf for debugging */
-extern void serial_puts(const char* str);
 extern void DrawText(const void* textBuf, short firstByte, short byteCount);
 extern short StringWidth(ConstStr255Param s);
 

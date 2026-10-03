@@ -22,7 +22,6 @@ void CopyP2CStr(const char* pString, char* cString);
 #define STR_UTIL_DEBUG 0
 
 #if STR_UTIL_DEBUG
-extern void serial_puts(const char* str);
 #define STRUTIL_LOG(...) do { \
     char buf[256]; \
     snprintf(buf, sizeof(buf), "[StrUtil] " __VA_ARGS__); \

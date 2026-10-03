@@ -24,7 +24,6 @@ void TrimString(char* theString);
 #define STR_MANIP_DEBUG 0
 
 #if STR_MANIP_DEBUG
-extern void serial_puts(const char* str);
 #define STRMANIP_LOG(...) do { \
     char buf[256]; \
     snprintf(buf, sizeof(buf), "[StrManip] " __VA_ARGS__); \

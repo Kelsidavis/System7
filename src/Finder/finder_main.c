@@ -132,7 +132,6 @@ OSErr InitializeFinder(void)
     }
 
     /* Set up menus - Evidence: Menu structure from string analysis */
-    extern void serial_puts(const char* str);
     serial_puts("Finder: Before SetupMenus\n");
     err = SetupMenus();
     serial_puts("Finder: After SetupMenus\n");
@@ -472,7 +471,6 @@ static OSErr SetupMenus(void)
     }
     InsertMenu(appMenu, 0);
 
-    extern void serial_puts(const char* str);
     serial_puts("Finder: About to call DrawMenuBar\n");
     DrawMenuBar();
     serial_puts("Finder: DrawMenuBar returned\n");

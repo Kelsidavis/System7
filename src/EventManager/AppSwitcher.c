@@ -63,7 +63,6 @@ static void CenterRectOnScreen(Rect* rect, SInt16 width, SInt16 height) {
  * Initialize application switcher
  */
 OSErr AppSwitcher_Init(void) {
-    extern void serial_puts(const char*);
     serial_puts("[AppSwitcher] Initializing\n");
 
     if (gSwitcherInitialized) {

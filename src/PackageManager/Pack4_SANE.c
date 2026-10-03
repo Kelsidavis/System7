@@ -20,7 +20,6 @@ OSErr Pack4_Dispatch(short selector, void* params);
 #define PACK4_DEBUG 0
 
 #if PACK4_DEBUG
-extern void serial_puts(const char* str);
 #define PACK4_LOG(...) do { \
     char buf[256]; \
     snprintf(buf, sizeof(buf), "[Pack4] " __VA_ARGS__); \

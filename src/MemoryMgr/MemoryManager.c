@@ -92,7 +92,6 @@ static inline bool is_suspect_block(BlockHeader* b) {
 }
 
 static void log_suspect_block(const char* tag, BlockHeader* b, u32 need, u32 remain) {
-    extern void serial_puts(const char* str);
     serial_puts("[HEAP][SUSPECT] ");
     serial_puts(tag);
     serial_puts(" block=0x");
@@ -217,7 +216,6 @@ static void dump_bytes(const u8* p, u32 len) {
 
 /* Validate block header integrity */
 static inline bool validate_block(ZoneInfo* z, BlockHeader* b) {
-    extern void serial_puts(const char* str);
 
     if (!b || !z) {
         serial_puts("[HEAP] validate_block: NULL block or zone\n");
@@ -292,7 +290,6 @@ static inline bool validate_block(ZoneInfo* z, BlockHeader* b) {
 
 /* Validate freelist integrity for segregated lists */
 static bool validate_freelist(ZoneInfo* z) {
-    extern void serial_puts(const char* str);
 
     if (!z) return false;
 
@@ -364,7 +361,6 @@ static void freelist_insert(ZoneInfo* z, BlockHeader* b) {
 
     /* CRITICAL: Block size must be aligned! */
     if ((b->size & (ALIGN - 1)) != 0) {
-        extern void serial_puts(const char* str);
         serial_puts("[FREELIST_INSERT] WARNING: block size not aligned, aligning down!\n");
         b->size = b->size & ~(ALIGN - 1);  /* Align down */
         if (b->size < MIN_BLOCK_SIZE) {
@@ -483,7 +479,6 @@ static BlockHeader* coalesce_forward(ZoneInfo* z, BlockHeader* b) {
 
         /* CRITICAL: Ensure coalesced size is aligned */
         if ((b->size & (ALIGN - 1)) != 0) {
-            extern void serial_puts(const char* str);
             serial_puts("[COALESCE_FWD] WARNING: merged size not aligned!\n");
             b->size = b->size & ~(ALIGN - 1);  /* Align down */
         }
@@ -545,7 +540,6 @@ static BlockHeader* coalesce_backward(ZoneInfo* z, BlockHeader* b) {
 
         /* CRITICAL: Ensure coalesced size is aligned */
         if ((prev->size & (ALIGN - 1)) != 0) {
-            extern void serial_puts(const char* str);
             serial_puts("[COALESCE_BWD] WARNING: merged size not aligned!\n");
             prev->size = prev->size & ~(ALIGN - 1);  /* Align down */
         }
@@ -814,7 +808,6 @@ static void split_block(ZoneInfo* z, BlockHeader* b, u32 need) {
 
     u32 remain = 0;
     if (b->size < need) {
-        extern void serial_puts(const char* str);
         serial_puts("[SPLIT] ERROR: block smaller than requested size, taking whole block\n");
         serial_puts("         block size=0x");
         mm_print_hex(b->size);
@@ -836,7 +829,6 @@ static void split_block(ZoneInfo* z, BlockHeader* b, u32 need) {
         /* CRITICAL: Ensure remain is aligned! */
         if ((remain & (ALIGN - 1)) != 0) {
             /* This should never happen - but if it does, align it down */
-            extern void serial_puts(const char* str);
             serial_puts("[SPLIT] WARNING: remain not aligned, aligning down!\n");
             remain = remain & ~(ALIGN - 1);
             if (remain < MIN_BLOCK_SIZE) {
@@ -964,7 +956,6 @@ void* NewPtrClear(u32 byteCount) {
 }
 
 void DisposePtr(void* p) {
-    extern void serial_puts(const char* str);
 
     DISPOSE_LOG("[DISPOSE] ENTRY ptr=0x");
     DISPOSE_LOG_HEX((u32)(uintptr_t)p);
@@ -1655,7 +1646,6 @@ void* malloc(size_t size) {
 }
 
 void free(void* ptr) {
-    extern void serial_puts(const char* str);
     serial_puts("[FREE] ENTRY\n");
     DisposePtr(ptr);
     serial_puts("[FREE] Complete\n");
@@ -1710,7 +1700,6 @@ void* realloc(void* ptr, size_t size) {
 
 void InitMemoryManager(void) {
     /* Use serial_puts for debugging */
-    extern void serial_puts(const char* str);
     serial_puts("MM: InitMemoryManager started\n");
 
     /* Initialize System Zone */

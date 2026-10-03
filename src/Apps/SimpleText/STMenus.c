@@ -149,7 +149,6 @@ static void UpdateStyleMenu(void);
  * Menus are installed when the app's window becomes active, and removed when inactive.
  */
 void STMenu_Init(void) {
-    extern void serial_puts(const char*);
 
     serial_puts("[ST] STMenu_Init: Creating menus (not yet installing)\n");
 
@@ -298,7 +297,6 @@ Boolean STMenu_IsInstalled(void) {
 }
 
 void STMenu_Install(void) {
-    extern void serial_puts(const char*);
 
     if (gSTMenusInstalled) {
         return;
@@ -344,7 +342,6 @@ void STMenu_Install(void) {
  * This allows Finder (or other apps) to show their own menus.
  */
 void STMenu_Remove(void) {
-    extern void serial_puts(const char*);
 
     if (!gSTMenusInstalled) {
         return;

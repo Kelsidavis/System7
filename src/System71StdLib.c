@@ -206,7 +206,6 @@ void exit(int status) {
 }
 
 void abort(void) {
-    extern void serial_puts(const char* s);
     serial_puts("ABORT: Program terminated abnormally\n");
     while (1) {}
 }
@@ -304,7 +303,6 @@ int getopt(int argc, char* const argv[], const char* optstring) {
     /* Check for invalid option */
     if (c == ':' || (cp = strchr(optstring, c)) == NULL) {
         if (opterr && optstring[0] != ':') {
-            extern void serial_puts(const char* s);
             extern void serial_putchar(char c);
             serial_puts("Unknown option: -");
             serial_putchar(c);
@@ -325,7 +323,6 @@ int getopt(int argc, char* const argv[], const char* optstring) {
         } else if (++optind >= argc) {
             /* Missing argument */
             if (opterr && optstring[0] != ':') {
-                extern void serial_puts(const char* s);
                 extern void serial_putchar(char c);
                 serial_puts("Option requires an argument: -");
                 serial_putchar(c);
@@ -398,7 +395,6 @@ const char* sys71_strerror(int errnum) {
 int errno = 0;
 
 void perror(const char* s) {
-    extern void serial_puts(const char* str);
     extern int errno;
 
     if (s && *s) {

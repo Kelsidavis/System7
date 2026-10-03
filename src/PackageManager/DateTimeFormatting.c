@@ -27,7 +27,6 @@ void IUTimeString(UInt32 dateTime, Boolean wantSeconds, char *result);
 #define DATETIME_FMT_DEBUG 0
 
 #if DATETIME_FMT_DEBUG
-extern void serial_puts(const char* str);
 #define DTFMT_LOG(...) do { \
     char buf[256]; \
     snprintf(buf, sizeof(buf), "[DateTimeFmt] " __VA_ARGS__); \

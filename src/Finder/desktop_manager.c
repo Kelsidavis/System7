@@ -59,7 +59,6 @@ void RefreshDesktopRect(const Rect* rectToRefresh);
 #endif
 
 /* Debug output */
-extern void serial_puts(const char* str);
 
 /* External function declarations */
 extern int snprintf(char* str, size_t size, const char* format, ...);
@@ -791,7 +790,6 @@ OSErr InitializeDesktopDB(void)
 {
     OSErr err;
 
-    extern void serial_puts(const char* str);
     serial_puts("Desktop: InitializeDesktopDB called\n");
 
     /* Initialize Pattern Manager first */
@@ -1697,7 +1695,6 @@ OSErr Desktop_AddVolumeIcon(const char* name, VRefNum vref) {
                   name, (unsigned long)vref, gDesktopIconCount, item->position.h, item->position.v);
 
     {
-        extern void serial_puts(const char* str);
         static char dbg[256];
         snprintf(dbg, sizeof(dbg), "[DESKTOP_INIT] Added volume icon: name='%s' pos=(%d,%d) index=%d\n",
                item->name, item->position.h, item->position.v, gDesktopIconCount);
@@ -1843,7 +1840,6 @@ Boolean Desktop_IsOverTrash(Point where) {
  */
 void DrawVolumeIcon(void)
 {
-    extern void serial_puts(const char* str);
     extern void uart_flush(void);
     static Boolean gInVolumeIconPaint = false;
     GrafPtr savePort;

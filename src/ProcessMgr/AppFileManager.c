@@ -23,7 +23,6 @@ void SetAppFileMessage(SInt16 message);
 #define APP_FILE_DEBUG 1
 
 #if APP_FILE_DEBUG
-extern void serial_puts(const char* str);
 #define APP_FILE_LOG(...) do { \
     char buf[256]; \
     snprintf(buf, sizeof(buf), "[AppFile] " __VA_ARGS__); \

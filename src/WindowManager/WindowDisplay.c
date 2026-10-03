@@ -1,4 +1,5 @@
 #include "SystemInternal.h"
+#include "System71StdLib.h"
 #include <stdio.h>
 
 #include "SystemTypes.h"
@@ -42,7 +43,6 @@ extern void GetClip(RgnHandle rgn);
 extern RgnHandle NewRgn(void);
 extern void DisposeRgn(RgnHandle rgn);
 extern void SetOrigin(SInt16 h, SInt16 v);
-extern void serial_puts(const char* str);
 
 /* Forward declarations */
 static void DumpWindowList(const char* context);
@@ -285,7 +285,6 @@ void PaintOne(WindowPtr window, RgnHandle clobberedRgn) {
      * application's own; control panels, dialogs, SimpleText and the rest
      * use 0, so their uncovered content was neither cleared nor redrawn, and
      * a control panel brought forward kept the other window's picture. */
-    extern void serial_puts(const char* str);
     static char dbgbuf[256];
     static int fill_log = 0;
 
@@ -306,7 +305,6 @@ void PaintOne(WindowPtr window, RgnHandle clobberedRgn) {
             extern void FillRgn(RgnHandle rgn, const Pattern* pat);
 
             if (window->refCon == 0x4449534b && window->contRgn && *(window->contRgn)) {
-                extern void serial_puts(const char *str);
                 extern int snprintf(char* buf, size_t size, const char* fmt, ...);
                 char filldbg[256];
                 /* Use pointer to avoid struct assignment on ARM64 */
@@ -675,7 +673,6 @@ static void DrawWindowFrame(WindowPtr window) {
 }
 
 static void DrawWindowFrame_Unclipped(WindowPtr window) {
-    extern void serial_puts(const char*);
     extern void uart_flush(void);
     serial_puts("[DRAWFRAME] enter\n");
     uart_flush();
@@ -1337,7 +1334,6 @@ void DrawGrowIcon(WindowPtr window) {
  * difference between ShowWindow and ShowHide. Returns false if it already
  * showed. */
 static Boolean WM_ShowWindowOnly(WindowPtr window) {
-    extern void serial_puts(const char*);
     extern void uart_flush(void);
     serial_puts("[SHOWWIN] enter\n");
     uart_flush();
@@ -1370,7 +1366,6 @@ static Boolean WM_ShowWindowOnly(WindowPtr window) {
     /* CRITICAL: Redraw desktop icons BEFORE painting window to ensure icons appear behind window */
     extern DeskHookProc g_deskHook;
     if (g_deskHook && window->strucRgn) {
-        extern void serial_puts(const char* str);
         serial_puts("[SHOWWIN] Redrawing desktop icons before window\n");
 
         /* Create region for area under window */
@@ -1383,7 +1378,6 @@ static Boolean WM_ShowWindowOnly(WindowPtr window) {
     }
 
     /* Paint the window */
-    extern void serial_puts(const char* str);
     serial_puts("[SHOWWIN] About to call PaintOne for chrome\n");
     WM_LOG_TRACE("ShowWindow: About to call PaintOne\n");
     PaintOne(window, NULL);

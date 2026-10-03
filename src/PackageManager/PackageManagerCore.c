@@ -33,7 +33,6 @@ extern OSErr Pack15_Dispatch(short selector, void* params); /* Picture Utilities
 #define PKG_MGR_DEBUG 0
 
 #if PKG_MGR_DEBUG
-extern void serial_puts(const char* str);
 #define PKG_LOG(...) do { \
     char buf[256]; \
     snprintf(buf, sizeof(buf), "[PkgMgr] " __VA_ARGS__); \

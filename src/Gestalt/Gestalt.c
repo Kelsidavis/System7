@@ -5,11 +5,11 @@
  */
 
 #include "SystemTypes.h"
+#include "System71StdLib.h"
 #include "Gestalt/Gestalt.h"
 #include "Gestalt/GestaltPriv.h"
 
 /* External serial logging */
-extern void serial_puts(const char *s);
 
 /* Static table for Gestalt entries.
  * ---------------------------------

@@ -11,6 +11,7 @@
 #include "virtio_input.h"
 #include "virtio_pci.h"
 #include "SystemTypes.h"
+#include "System71StdLib.h"
 
 /* VirtIO MMIO registers */
 #define VIRTIO_MMIO_MAGIC           0x000
@@ -376,7 +377,6 @@ static void virtio_input_process_event(struct virtio_input_event *evt) {
         case EV_KEY:
             /* Button or key event */
             if (evt->code == BTN_LEFT) {
-                extern void serial_puts(const char*);
                 if (evt->value) {
                     g_mouseState |= 0x01;
                     serial_puts("[CLICK] DOWN\n");

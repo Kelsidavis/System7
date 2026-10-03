@@ -67,7 +67,6 @@ OSErr DisposeIconSuite(Handle theIconSuite, Boolean disposeData);
 #define ICON_UTILS_DEBUG 0
 
 #if ICON_UTILS_DEBUG
-extern void serial_puts(const char* str);
 #define ICON_LOG(...) do { \
     char buf[256]; \
     snprintf(buf, sizeof(buf), "[IconUtils] " __VA_ARGS__); \

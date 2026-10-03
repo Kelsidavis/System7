@@ -16,7 +16,6 @@
 #define RESDATA_DEBUG 0
 
 #if RESDATA_DEBUG
-extern void serial_puts(const char* str);
 #define RESDATA_LOG(...) do { \
     char buf[256]; \
     snprintf(buf, sizeof(buf), "[ResData] " __VA_ARGS__); \

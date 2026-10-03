@@ -14,7 +14,6 @@
 
 /* Forward declaration */
 void STView_Draw(STDocument* doc);
-extern void serial_puts(const char* str);
 
 #define STIO_MAX_HFS_NAME   31
 #define STIO_MAX_CACHED_DOCS 16

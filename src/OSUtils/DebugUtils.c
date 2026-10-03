@@ -19,7 +19,6 @@ void Debugger(void);
 void DebugStr(ConstStr255Param debuggerMsg);
 
 /* External serial output function */
-extern void serial_puts(const char* str);
 
 /* Debug logging */
 #define DEBUG_UTILS_DEBUG 1

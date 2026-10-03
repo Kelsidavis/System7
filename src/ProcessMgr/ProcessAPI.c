@@ -16,7 +16,6 @@
 #define PROCAPI_DEBUG 0
 
 #if PROCAPI_DEBUG
-extern void serial_puts(const char* str);
 #define PROCAPI_LOG(...) do { \
     char buf[256]; \
     snprintf(buf, sizeof(buf), "[ProcAPI] " __VA_ARGS__); \

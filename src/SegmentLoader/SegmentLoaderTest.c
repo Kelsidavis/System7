@@ -191,7 +191,6 @@ static void InstallTestResources(void)
  * now, so it says nothing when it passes and says it plainly when it does not.
  */
 #define SEG_TEST_FAILED(what) do { \
-    extern void serial_puts(const char* s); \
     serial_puts("[SegmentLoader] smoke test FAILED: " what "\n"); \
 } while (0)
 

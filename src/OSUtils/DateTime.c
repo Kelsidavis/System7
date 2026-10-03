@@ -21,7 +21,6 @@
 #define DATETIME_DEBUG 0
 
 #if DATETIME_DEBUG
-extern void serial_puts(const char* str);
 #define DT_LOG(...) do { \
     char buf[256]; \
     snprintf(buf, sizeof(buf), "[DateTime] " __VA_ARGS__); \

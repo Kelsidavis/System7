@@ -15,6 +15,7 @@
 #include "QuickDraw/ColorQuickDraw.h"
 #include "WindowManager/window_manager.h"
 #include "MemoryMgr/MemoryManager.h"
+#include "System71StdLib.h"
 #include <string.h>
 #include <stdlib.h>
 
@@ -154,7 +155,6 @@ void PM_SaveDesktopPref(const DesktopPref *p) {
 }
 
 bool PM_ApplyDesktopPref(const DesktopPref *p) {
-    extern void serial_puts(const char* str);
     serial_puts("PM_ApplyDesktopPref called\n");
 
     if (!p) return false;

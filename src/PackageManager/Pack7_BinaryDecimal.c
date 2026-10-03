@@ -22,7 +22,6 @@ OSErr Pack7_Dispatch(short selector, void* params);
 #define PACK7_DEBUG 0
 
 #if PACK7_DEBUG
-extern void serial_puts(const char* str);
 #define PACK7_LOG(...) do { \
     char buf[256]; \
     snprintf(buf, sizeof(buf), "[Pack7] " __VA_ARGS__); \

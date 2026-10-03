@@ -5,6 +5,7 @@
  */
 
 #include "SystemTypes.h"
+#include "System71StdLib.h"
 #include "MenuManager/MenuManager.h"
 #include "WindowManager/WindowManager.h"
 #include "SystemInternal.h"
@@ -21,7 +22,6 @@
 extern SInt16 CountMenuItems(MenuHandle theMenu);
 
 /* External functions */
-extern void serial_puts(const char* str);
 extern void QD_SetScreenPort(void);
 
 /* Menus draw anywhere on the screen, so the screen port is opened to all of

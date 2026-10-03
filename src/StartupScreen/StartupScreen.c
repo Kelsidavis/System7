@@ -84,7 +84,6 @@ static Point GetNextExtensionPosition(void);
  * Initialize startup screen system
  */
 OSErr InitStartupScreen(const StartupScreenConfig* config) {
-    extern void serial_puts(const char*);
     serial_puts("[STARTUP] InitStartupScreen enter\n");
     OSErr err = noErr;
 
@@ -205,7 +204,6 @@ OSErr InitStartupScreen(const StartupScreenConfig* config) {
  * Create startup window
  */
 static OSErr CreateStartupWindow(void) {
-    extern void serial_puts(const char*);
     serial_puts("[STARTUP] CreateStartupWindow enter\n");
 
     /* Use explicit field copy to avoid struct assignment on ARM64 */
@@ -242,7 +240,6 @@ static OSErr CreateStartupWindow(void) {
  * Show welcome screen
  */
 OSErr ShowWelcomeScreen(void) {
-    extern void serial_puts(const char*);
     extern void uart_flush(void);
 
     serial_puts("[WELCOME] enter\n");

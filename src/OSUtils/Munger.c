@@ -17,7 +17,6 @@
 #define MUNGER_DEBUG 0
 
 #if MUNGER_DEBUG
-extern void serial_puts(const char* str);
 #define MUNGER_LOG(...) do { \
     char buf[256]; \
     snprintf(buf, sizeof(buf), "[Munger] " __VA_ARGS__); \

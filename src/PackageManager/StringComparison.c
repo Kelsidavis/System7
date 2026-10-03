@@ -22,7 +22,6 @@ SInt16 IUEqualString(const char* aStr, const char* bStr);
 #define STR_CMP_DEBUG 0
 
 #if STR_CMP_DEBUG
-extern void serial_puts(const char* str);
 #define STRCMP_LOG(...) do { \
     char buf[256]; \
     snprintf(buf, sizeof(buf), "[StrCmp] " __VA_ARGS__); \

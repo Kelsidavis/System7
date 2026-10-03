@@ -16,7 +16,6 @@
 #define STR_RES_DEBUG 0
 
 #if STR_RES_DEBUG
-extern void serial_puts(const char* str);
 #define STRRES_LOG(...) do { \
     char buf[256]; \
     snprintf(buf, sizeof(buf), "[StrRes] " __VA_ARGS__); \

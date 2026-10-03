@@ -42,7 +42,6 @@ OSErr NewGWorld(GWorldPtr *offscreenGWorld, SInt16 pixelDepth,
     (void)cTable;
     (void)aGDevice;
     (void)flags;
-    extern void serial_puts(const char*);
     serial_puts("[GWORLD] enter\n");
 
     if (!offscreenGWorld || !boundsRect) {
@@ -228,7 +227,6 @@ OSErr NewGWorld(GWorldPtr *offscreenGWorld, SInt16 pixelDepth,
  * DisposeGWorld - Dispose of offscreen graphics world
  */
 void DisposeGWorld(GWorldPtr offscreenGWorld) {
-    extern void serial_puts(const char* str);
     serial_puts("[GWORLD] DisposeGWorld ENTRY\n");
 
     if (!offscreenGWorld) {

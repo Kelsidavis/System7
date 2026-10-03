@@ -30,7 +30,6 @@ extern void DisposeHandle(Handle h);
 extern void HLock(Handle h);
 extern void HUnlock(Handle h);
 extern void BlockMove(const void* srcPtr, void* destPtr, Size byteCount);
-extern void serial_puts(const char* s);
 
 static ResourceMgrGlobals gResMgr = {
     .curResFile = -1,

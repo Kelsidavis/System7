@@ -28,7 +28,6 @@ Fixed Frac2Fix(Fract x);
 #define FIXED_DEBUG 0
 
 #if FIXED_DEBUG
-extern void serial_puts(const char* str);
 #define FIXED_LOG(...) do { \
     char buf[256]; \
     snprintf(buf, sizeof(buf), "[FixedMath] " __VA_ARGS__); \

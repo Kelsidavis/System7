@@ -911,7 +911,6 @@ void InsertFontResMenu(MenuHandle theMenu, short afterItem, short scriptFilter) 
  * All MenuExtData structures allocated via GetMenuExtData() are freed here.
  */
 void CleanupMenuExtData(void) {
-    extern void serial_puts(const char* str);
 
     serial_puts("CleanupMenuExtData: Freeing all menu extended data\n");
 

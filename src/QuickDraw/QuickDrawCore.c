@@ -136,7 +136,6 @@ void QD_SetScreenPort(void) {
 }
 
 void InitGraf(void *globalPtr) {
-    extern void serial_puts(const char*);
     serial_puts("[QD] InitGraf enter\n");
     assert(globalPtr != NULL);
     serial_puts("[QD] InitGraf after assert\n");
@@ -219,7 +218,6 @@ void InitGraf(void *globalPtr) {
 }
 
 void InitPort(GrafPtr port) {
-    extern void serial_puts(const char*);
     serial_puts("[QD] InitPort enter\n");
     assert(port != NULL);
     assert(g_qdInitialized);

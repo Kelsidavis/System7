@@ -1792,7 +1792,6 @@ static OSErr M68K_TestOtherTrapHandler(void* context, CPUAddr* pc, CPUAddr* regi
  */
 static void M68K_SelfTestTrap(const ICPUBackend* be, UInt32 base)
 {
-    extern void serial_puts(const char*);
 
     /* MOVEQ #7,D0 ; $A9FF ; $A8FF
      *
@@ -1843,7 +1842,6 @@ static void M68K_SelfTestTrap(const ICPUBackend* be, UInt32 base)
 
 void M68K_SelfTest(void)
 {
-    extern void serial_puts(const char*);
 
     const UInt32 base = 0x10000;
     const ICPUBackend* be = CPUBackend_GetDefault();

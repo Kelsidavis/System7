@@ -26,7 +26,6 @@ SInt32 BitShift(SInt32 value, SInt16 count);
 #define BITWISE_DEBUG 0
 
 #if BITWISE_DEBUG
-extern void serial_puts(const char* str);
 #define BITWISE_LOG(...) do { \
     char buf[256]; \
     snprintf(buf, sizeof(buf), "[Bitwise] " __VA_ARGS__); \

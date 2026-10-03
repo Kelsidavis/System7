@@ -34,7 +34,6 @@ OSErr Pack3_Dispatch(short selector, void* params);
 #define PACK3_DEBUG 0
 
 #if PACK3_DEBUG
-extern void serial_puts(const char* str);
 #define PACK3_LOG(...) do { \
     char buf[256]; \
     snprintf(buf, sizeof(buf), "[Pack3] " __VA_ARGS__); \

@@ -9,6 +9,7 @@
  */
 
 #include "PatternMgr/pattern_resources.h"
+#include "System71StdLib.h"
 #include "ResourceManager.h"
 #include "MemoryMgr/MemoryManager.h"
 #include <string.h>
@@ -149,7 +150,6 @@ static bool DecodeNativePPAT(const uint8_t* d, size_t n, uint32_t out[64]) {
 
 /* Decode PPAT8 format into RGBA pixels */
 bool DecodePPAT8(const uint8_t* p, size_t n, uint32_t outRGBA[64]) {
-    extern void serial_puts(const char* str);
     char msg[128];
     snprintf(msg, sizeof(msg), "DecodePPAT8: called with size %d\n", (int)n);
     serial_puts(msg);
@@ -170,11 +170,11 @@ bool DecodePPAT8(const uint8_t* p, size_t n, uint32_t outRGBA[64]) {
     /* Check if data starts with 4-byte length prefix from Resource Manager */
     if (n >= 10) { /* At least 4-byte length + 6-byte "PPAT8\0" magic */
         uint32_t beLen = ((uint32_t)p[0]<<24) | ((uint32_t)p[1]<<16) | ((uint32_t)p[2]<<8) | p[3];
-        snprintf(msg, sizeof(msg), "DecodePPAT8: Checking for length prefix: beLen=0x%08x, n=%d\n", beLen, (int)n);
+        snprintf(msg, sizeof(msg), "DecodePPAT8: Checking for length prefix: beLen=0x%08lx, n=%d\n", (unsigned long)beLen, (int)n);
         serial_puts(msg);
 
         if (beLen + 4 == n && memcmp(p + 4, "PPAT8\0", 6) == 0) {
-            snprintf(msg, sizeof(msg), "DecodePPAT8: Found and skipping 4-byte length prefix (0x%08x)\n", beLen);
+            snprintf(msg, sizeof(msg), "DecodePPAT8: Found and skipping 4-byte length prefix (0x%08lx)\n", (unsigned long)beLen);
             serial_puts(msg);
             p += 4;
             n -= 4;
@@ -231,7 +231,6 @@ bool DecodePPAT8(const uint8_t* p, size_t n, uint32_t outRGBA[64]) {
 }
 
 Handle LoadPPATResource(int16_t id) {
-    extern void serial_puts(const char* str);
     extern void uart_flush(void);
 
     /* CRITICAL FIX: Use serial_puts instead of sprintf to avoid ARM64 hang */

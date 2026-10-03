@@ -19,7 +19,6 @@
 #define NM_DEBUG 1
 
 #if NM_DEBUG
-extern void serial_puts(const char* str);
 #define NM_LOG(...) do { \
     char buf[256]; \
     snprintf(buf, sizeof(buf), "[NM] " __VA_ARGS__); \

@@ -26,7 +26,6 @@ Boolean IsPunct(char ch);
 #define CHAR_CLASS_DEBUG 0
 
 #if CHAR_CLASS_DEBUG
-extern void serial_puts(const char* str);
 #define CHARCLASS_LOG(...) do { \
     char buf[256]; \
     snprintf(buf, sizeof(buf), "[CharClass] " __VA_ARGS__); \

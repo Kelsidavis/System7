@@ -20,7 +20,6 @@ void BitClr(void* bytePtr, SInt32 bitNum);
 #define BIT_DEBUG 0
 
 #if BIT_DEBUG
-extern void serial_puts(const char* str);
 #define BIT_LOG(...) do { \
     char buf[256]; \
     snprintf(buf, sizeof(buf), "[BitManip] " __VA_ARGS__); \

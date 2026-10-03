@@ -24,7 +24,6 @@ OSErr Pack6_Dispatch(short selector, void* params);
 #define PACK6_DEBUG 0
 
 #if PACK6_DEBUG
-extern void serial_puts(const char* str);
 #define PACK6_LOG(...) do { \
     char buf[256]; \
     snprintf(buf, sizeof(buf), "[Pack6] " __VA_ARGS__); \

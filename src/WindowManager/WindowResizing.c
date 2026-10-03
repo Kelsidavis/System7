@@ -116,7 +116,6 @@ void SizeWindow(WindowPtr theWindow, short w, short h, Boolean fUpdate) {
     short currentHeight = currentBounds.bottom - currentBounds.top;
 
     /* Log detailed info for debugging caller */
-    extern void serial_puts(const char *str);
     extern int snprintf(char* buf, size_t size, const char* fmt, ...);
     char dbgbuf[256];
     unsigned long refCon = (unsigned long)theWindow->refCon;
@@ -468,7 +467,6 @@ void ZoomWindow(WindowPtr theWindow, short partCode, Boolean front) {
     short newHeight = targetBounds.bottom - targetBounds.top;
 
     MoveWindow(theWindow, targetBounds.left, targetBounds.top, false);
-    extern void serial_puts(const char *str);
     serial_puts("[ZW] >>> Calling SizeWindow from ZoomWindow\n");
     SizeWindow(theWindow, newWidth, newHeight, true);
 
@@ -525,7 +523,6 @@ static void WM_CalculateStandardState(WindowPtr window, Rect* stdState) {
     Rect screenBounds;
     Platform_GetScreenBounds(&screenBounds);
 
-    extern void serial_puts(const char *str);
     extern int snprintf(char* buf, size_t size, const char* fmt, ...);
     char dbgbuf[256];
     snprintf(dbgbuf, sizeof(dbgbuf), "[ZW] screenBounds=(%d,%d,%d,%d)\n",

@@ -24,7 +24,6 @@ void TruncString(SInt16 width, char* theString, SInt16 truncWhere);
 #define TEXT_ENC_DEBUG 0
 
 #if TEXT_ENC_DEBUG
-extern void serial_puts(const char* str);
 #define TEXTENC_LOG(...) do { \
     char buf[256]; \
     snprintf(buf, sizeof(buf), "[TextEnc] " __VA_ARGS__); \

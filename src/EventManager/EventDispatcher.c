@@ -11,6 +11,7 @@
  */
 
 #include "SystemTypes.h"
+#include "System71StdLib.h"
 #include "EventManager/EventManagerInternal.h"
 #include "EventManager/EventTypes.h"  /* Include EventTypes.h first to define activeFlag */
 #include "EventManager/EventManager.h"
@@ -106,7 +107,6 @@ static void DiscardMenuTrackingClicks(void)
  */
 void InitEventDispatcher(void)
 {
-    extern void serial_puts(const char* s);
     serial_puts("[INIT_DISP] InitEventDispatcher ENTRY\n");
 
     /* Zero entire structure to prevent partial-init regressions */
@@ -125,7 +125,6 @@ void InitEventDispatcher(void)
  */
 Boolean DispatchEvent(EventRecord* event)
 {
-    extern void serial_puts(const char* s);
 
     EVT_LOG_DEBUG("[DISP] >>> DispatchEvent ENTRY event=%p\n", event);
 

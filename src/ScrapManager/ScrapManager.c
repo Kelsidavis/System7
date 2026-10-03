@@ -772,7 +772,6 @@ long ScrapGetFlavorSize(OSType theType) {
  */
 void Scrap_RunSelfTest(void)
 {
-    extern void serial_puts(const char* str);
     serial_puts("[Scrap] Running self-test...\n");
 
     /* Test 1: Zero scrap */

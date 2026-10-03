@@ -23,7 +23,6 @@ SInt16 IUStringOrder(const char* aStr, const char* bStr, ScriptCode aScript, Scr
 #define IU_ORDER_DEBUG 0
 
 #if IU_ORDER_DEBUG
-extern void serial_puts(const char* str);
 #define ORDER_LOG(...) do { \
     char buf[256]; \
     snprintf(buf, sizeof(buf), "[IUOrder] " __VA_ARGS__); \

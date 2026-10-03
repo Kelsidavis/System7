@@ -31,7 +31,6 @@ OSErr Pack15_Dispatch(short selector, void* params);
 #define PACK_STUBS_DEBUG 0
 
 #if PACK_STUBS_DEBUG
-extern void serial_puts(const char* str);
 #define STUB_LOG(...) do { \
     char buf[256]; \
     snprintf(buf, sizeof(buf), "[PackStub] " __VA_ARGS__); \

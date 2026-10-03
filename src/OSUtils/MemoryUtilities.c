@@ -18,7 +18,6 @@ void LongMul(SInt32 a, SInt32 b, wide* result);
 #define MEM_UTIL_DEBUG 0
 
 #if MEM_UTIL_DEBUG
-extern void serial_puts(const char* str);
 #define MEMUTIL_LOG(...) do { \
     char buf[256]; \
     snprintf(buf, sizeof(buf), "[MemUtil] " __VA_ARGS__); \

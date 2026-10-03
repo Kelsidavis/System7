@@ -6,6 +6,7 @@
  */
 
 #include "SystemTypes.h"
+#include "System71StdLib.h"
 #include "EventManager/EventTypes.h"
 #include "EventManager/EventManager.h"
 #include "Platform/PS2Input.h"
@@ -797,7 +798,6 @@ Boolean InitPS2Controller(void) {
 
 /* Poll for PS/2 input (call this regularly) */
 void PollPS2Input(void) {
-    extern void serial_puts(const char* str);
     if (!g_ps2Initialized) return;
 
     /* mouse_byte_count and packet_count were only ever incremented - the
@@ -827,7 +827,6 @@ void PollPS2Input(void) {
                 static int ps2_discard_count = 0;
                 ps2_discard_count++;
                 if (ps2_discard_count <= 5 || (ps2_discard_count % 1000) == 0) {
-                    extern void serial_puts(const char* str);
                     serial_puts("[PS2] Discarding mouse byte (USB tablet active)\n");
                 }
                 continue;

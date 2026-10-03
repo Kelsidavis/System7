@@ -6,6 +6,7 @@
 #include "Finder/Icon/icon_resources.h"
 #include "Finder/Icon/icon_system.h"
 #include "SystemTypes.h"
+#include "System71StdLib.h"
 #include <stddef.h>
 #include <string.h>
 
@@ -239,7 +240,6 @@ bool Icon_ResolveForNode(const FileKind* fk, IconHandle* out) {
          * not. Said once, because the alternative is a line per icon per
          * redraw.
          */
-        extern void serial_puts(const char* s);
         static bool toldAboutMissingIcon = false;
         if (!toldAboutMissingIcon) {
             toldAboutMissingIcon = true;

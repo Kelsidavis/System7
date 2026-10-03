@@ -561,7 +561,6 @@ void WM_DrawGrowImage(WindowPtr window) {
 
 void WM_CalculateStandardWindowRegions(WindowPtr window, short varCode) {
     (void)varCode;
-    extern void serial_puts(const char *str);
     extern void uart_flush(void);
     serial_puts("[CALCSTD] enter\n");
     uart_flush();
@@ -616,7 +615,6 @@ void WM_CalculateStandardWindowRegions(WindowPtr window, short varCode) {
     uart_flush();
 
     /* DEBUG: Log detailed state before changing contRgn */
-    extern void serial_puts(const char* str);
     extern int snprintf(char* buf, size_t size, const char* fmt, ...);
     static int calc_log = 0;
     if (calc_log < 30 && window->refCon == 0x4449534b) {

@@ -19,7 +19,6 @@ void NumToString(SInt32 theNum, char *theString);
 #define STR_CONV_DEBUG 0
 
 #if STR_CONV_DEBUG
-extern void serial_puts(const char* str);
 #define STRCONV_LOG(...) do { \
     char buf[256]; \
     snprintf(buf, sizeof(buf), "[StrConv] " __VA_ARGS__); \

@@ -26,7 +26,6 @@
 #include "QuickDraw/QuickDrawPlatform.h"
 
 /* Serial logging for defensive diagnostics */
-extern void serial_puts(const char* str);
 extern void serial_putchar(char ch);
 
 /* REGION_DEBUG: Set to 1 to enable verbose region logging

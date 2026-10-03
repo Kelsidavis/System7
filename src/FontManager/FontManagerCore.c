@@ -19,6 +19,7 @@
 #include "chicago_font_extended.h"
 #include <string.h>
 #include "FontManager/FontLogging.h"
+#include "System71StdLib.h"
 
 /* Debug logging */
 #define FM_DEBUG 1
@@ -640,7 +641,6 @@ void TextFont(short font) {
      * Once, not per call: TextFont runs for every run of text drawn.
      */
     {
-        extern void serial_puts(const char* str);
         static Boolean toldAboutFontFallback = false;
         if (!toldAboutFontFallback && font != chicagoFont) {
             toldAboutFontFallback = true;

@@ -61,7 +61,6 @@ static void CopyFramebufferToBuffer(const Rect *bounds, uint32_t *savePtr)
  * Falls back to dynamic allocation if pool unavailable.
  */
 Handle SaveBits(const Rect *bounds, SInt16 mode) {
-    extern void serial_puts(const char* str);
     char buf[256];
 
     SAVEBITS_LOG("[SAVEBITS] SaveBits: ENTRY\n");
@@ -253,7 +252,6 @@ OSErr RestoreBits(Handle bitsHandle) {
  * Otherwise uses normal disposal for dynamically allocated buffers.
  */
 OSErr DiscardBits(Handle bitsHandle) {
-    extern void serial_puts(const char* str);
     char buf[256];
 
     SAVEBITS_LOG("[SAVEBITS] DiscardBits: ENTRY\n");

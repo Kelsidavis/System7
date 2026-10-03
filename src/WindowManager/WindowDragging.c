@@ -129,7 +129,6 @@ void MoveWindow(WindowPtr theWindow, short hGlobal, short vGlobal, Boolean front
  * ============================================================================ */
 
 void DragWindow(WindowPtr theWindow, Point startPt, const Rect* boundsRect) {
-    extern void serial_puts(const char *str);
     serial_puts("[WM_DRAG] DragWindow ENTRY\n");
 
     if (theWindow == NULL) {

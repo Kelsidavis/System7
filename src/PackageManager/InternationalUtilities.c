@@ -23,7 +23,6 @@ void IUClearCache(void);
 #define INTL_UTIL_DEBUG 0
 
 #if INTL_UTIL_DEBUG
-extern void serial_puts(const char* str);
 #define INTL_LOG(...) do { \
     char buf[256]; \
     snprintf(buf, sizeof(buf), "[IntlUtil] " __VA_ARGS__); \

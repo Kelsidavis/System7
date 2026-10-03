@@ -6,12 +6,12 @@
 
 #include <string.h>
 #include <stdio.h>
+#include "System71StdLib.h"
 #include "Apps/SimpleText.h"
 #include "MemoryMgr/MemoryManager.h"
 #include "FontManager/FontManager.h"
 #include "QuickDraw/QuickDrawPlatform.h"
 
-extern void serial_puts(const char* str);
 
 /* Internal TextEdit record extension (mirrors TextEdit modules) */
 typedef struct TEExtRec {

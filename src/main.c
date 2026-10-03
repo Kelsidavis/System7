@@ -824,7 +824,6 @@ static void init_system71(void) {
 
     /* Resource Manager smoke test */
     {
-        extern void serial_puts(const char*);
         OSErr err;
         Handle h;
 

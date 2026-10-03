@@ -451,7 +451,6 @@ void Platform_GetWindowContentRect(WindowPtr window, Rect* rect) {
     Rect* strucRectPtr = &((**(window->strucRgn)).rgnBBox);
 
     if (window->refCon == 0x4449534b) {
-        extern void serial_puts(const char *str);
         extern int snprintf(char* buf, size_t size, const char* fmt, ...);
         char dbgbuf[256];
         snprintf(dbgbuf, sizeof(dbgbuf), "[GETCONTENT] DISK: strucRgn rgnBBox=(%d,%d,%d,%d)\n",
@@ -534,7 +533,6 @@ void Platform_GetWindowFrameRect(WindowPtr window, Rect* rect) {
     }
 
     if (window->refCon == 0x4449534b) {
-        extern void serial_puts(const char *str);
         extern int snprintf(char* buf, size_t size, const char* fmt, ...);
         Rect* beforePtr = &((**(window->strucRgn)).rgnBBox);
         char dbgbuf[256];
@@ -731,7 +729,6 @@ void Platform_MoveNativeWindow(WindowPtr window, short h, short v) {
 void Platform_SizeNativeWindow(WindowPtr window, short width, short height) {
     if (window) {
         if (window->refCon == 0x4449534b) {
-            extern void serial_puts(const char *str);
             extern int snprintf(char* buf, size_t size, const char* fmt, ...);
             char dbgbuf[256];
             snprintf(dbgbuf, sizeof(dbgbuf), "[SIZENATIVE] DISK: width=%d height=%d oldPortRect=(%d,%d,%d,%d)\n",
@@ -756,7 +753,6 @@ void Platform_SizeNativeWindow(WindowPtr window, short width, short height) {
          * not reset here. This ensures proper coordinate conversion with Global Framebuffer. */
 
         if (window->refCon == 0x4449534b) {
-            extern void serial_puts(const char *str);
             extern int snprintf(char* buf, size_t size, const char* fmt, ...);
             char dbgbuf[256];
             snprintf(dbgbuf, sizeof(dbgbuf), "[SIZENATIVE] DISK: newPortRect=(%d,%d,%d,%d)\n",

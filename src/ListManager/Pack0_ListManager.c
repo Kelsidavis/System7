@@ -44,7 +44,6 @@ OSErr Pack0_Dispatch(short selector, void* params);
 #define PACK0_DEBUG 0
 
 #if PACK0_DEBUG
-extern void serial_puts(const char* str);
 #define PACK0_LOG(...) do { \
     char buf[256]; \
     snprintf(buf, sizeof(buf), "[Pack0] " __VA_ARGS__); \

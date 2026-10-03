@@ -17,6 +17,7 @@
  */
 
 #include "SystemInternal.h"
+#include "System71StdLib.h"
 #include "SystemTypes.h"
 #include "QuickDraw/QuickDraw.h"
 #include "QuickDraw/ColorQuickDraw.h"
@@ -32,7 +33,6 @@
 
 /* External logging function */
 extern void serial_logf(SystemLogModule module, SystemLogLevel level, const char* fmt, ...);
-extern void serial_puts(const char* str);
 extern void serial_putchar(char ch);
 
 static void wm_log_hex_u32(uint32_t value) {
@@ -469,7 +469,6 @@ void BeginUpdate(WindowPtr theWindow) {
      * portBits.bounds maps local coords to global screen position. */
 
     /* DEBUG: Log portBits.bounds for control panel windows */
-    extern void serial_puts(const char* str);
     extern int snprintf(char* buf, size_t size, const char* fmt, ...);
     static int beginupd_log = 0;
     if (beginupd_log < 20) {

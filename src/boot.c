@@ -8,7 +8,6 @@ extern void kernel_main(uint32_t magic, uint32_t* mb2_info);
 
 void boot_main(uint32_t magic, uint32_t* mb2_info) {
     /* Use serial_puts directly to bypass logging system during early boot */
-    extern void serial_puts(const char* str);
 #if defined(__aarch64__)
     extern void uart_puts(const char *s);
 #endif
