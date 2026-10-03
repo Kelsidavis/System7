@@ -30,12 +30,14 @@ Implements the classic Mac Resource Manager APIs used to load and update resourc
 - **Font Manager** parses NFNT/FOND resources and resolves them through `GetResource`; validate the loader with representative application resource forks
 - **Menu/Dialog/Control Managers** load MENU/MBAR/DLOG/DITL/CNTL resources for UI construction
 - **Pattern/Icon systems** use PAT/ppat/icon resources for desktop rendering
-  (`src/PatternMgr/` serves the pattern resources in `Patterns.rsrc`; the
-  Set Desktop Pattern control panel previews the selection live)
+  (`patterns.json` generates `Patterns.rsrc`, embedded in the build; `src/PatternMgr/`
+  serves its pattern resources, and the Set Desktop Pattern control panel
+  previews the selection live)
 
 ## Testing & Debugging
 - Run `make check-exports` to ensure expected Resource Manager traps remain exported
-- Resource loading currently relies on generated assets; inspect `Patterns.rsrc` for correctness when adding new resources
+- Resource loading currently relies on generated assets; inspect the generated
+  `Patterns.rsrc` when validating output from `patterns.json`
 - Serial logging tagged `[RSRC]` can be enabled to trace cache hits/misses (ensure whitelist in `System71StdLib.c` includes the tag)
 
 ## Future Work

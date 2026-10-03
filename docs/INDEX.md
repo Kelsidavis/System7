@@ -29,7 +29,7 @@
 | Resource Manager | [ResourceManager.md](components/ResourceManager.md) |
 | Serial Logging | [System/Logging.md](components/System/Logging.md) |
 | Desk Accessories | `src/DeskManager/` — Calculator, Alarm Clock, Key Caps, Note Pad, Chooser |
-| Patterns | `src/PatternMgr/` and `Patterns.rsrc` — 17 colour and 32 black-and-white patterns |
+| Patterns | `src/PatternMgr/` and `patterns.json` — 17 colour `ppat` and 32 black-and-white `PAT` resources; `Patterns.rsrc` is generated during the build |
 
 [Components index](components/README.md)
 

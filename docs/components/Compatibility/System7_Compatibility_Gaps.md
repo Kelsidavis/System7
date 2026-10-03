@@ -1,6 +1,6 @@
 # System 7.1 API Compatibility Gaps
 
-This checklist captures the most significant differences between the current toolbox reimplementation and the classic System 7.1 APIs. Each bullet calls out the incomplete behaviour, the file/line where the gap is documented in code, and the work expected to regain parity.
+This checklist records significant differences between the current toolbox reimplementation and the classic System 7.1 APIs. Unstruck entries describe open gaps; struck-through entries are retained as a record of work already fixed or verified. File paths and line numbers in historical entries may have moved.
 
 ## QuickDraw & Graphics Pipeline
 - ~~`src/QuickDraw/Bitmaps.c:134` – `CopyBits` still needs full mask handling, colour depth conversion, and transfer-mode coverage to match the System 7 trap.~~ **FIXED** (2025-10-07): CopyBits now clips and aligns rectangles, supports scaling, region masking, and pattern modes, and performs depth conversion for 1/8/16/32-bit sources and destinations.
@@ -42,8 +42,8 @@ This checklist captures the most significant differences between the current too
 ## Peripheral Toolbox Managers
 - ~~`src/ListManager/ListManager.c:428`–`438` – Column APIs (`LAddColumn`, `LDelColumn`) return stub responses; System 7 supported dynamic column manipulation.~~ **FIXED** (2026-10-01): `LAddColumn`/`LDelColumn` (line ~433 onward) insert and remove columns and resize the cell matrix.
 - ~~`src/SoundManager/SoundManagerBareMetal.c:150`–`205` – Core Sound Manager channels and playback APIs return `unimpErr`; only `SysBeep` exists, whereas System 7 provided channel-based audio playback.~~ **FIXED** (2026-10-01): the file was rewritten with channel-based routing, a shared `SndMidiNoteToFreq()` lookup table, and `SndPlaySoundHeader()`; `unimpErr` is only a fallback label now.
-- ~~`src/PatternMgr/pattern_manager.c` – Desktop pattern installation was unimplemented, leaving the Finder without classic patterned backgrounds.~~ **FIXED** (2026-10-01): the pattern manager and resources live in `src/PatternMgr/`; the 34 `ppat` patterns in `Patterns.rsrc` back the Set Desktop Pattern control panel.
+- ~~`src/PatternMgr/pattern_manager.c` – Desktop pattern installation was unimplemented, leaving the Finder without classic patterned backgrounds.~~ **FIXED** (2026-10-01): the pattern manager in `src/PatternMgr/` serves 17 colour `ppat` and 32 black-and-white `PAT` resources defined by `patterns.json` and embedded from the generated `Patterns.rsrc`; these back the Set Desktop Pattern control panel.
 - `src/QuickDraw/quickdraw_pictures.c` – Region allocation/free still rely on `NewHandle` without proper zone management; classic QuickDraw used Region Manager semantics.
 
 ## Next Steps
-The items above should be prioritised for implementation or alignment work. Restoring these behaviours will unblock compatibility with classic System 7 applications that rely on the documented Toolbox contract.
+Prioritize the unstruck entries above for implementation or validation; the struck-through entries are historical and are not remaining work. Closing the open gaps will improve compatibility with classic System 7 applications that rely on the documented Toolbox contract.
