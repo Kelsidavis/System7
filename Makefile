@@ -386,7 +386,7 @@ C_SOURCES = src/main.c \
             src/ControlPanels/control_strip.c \
             src/Datetime/datetime_cdev.c \
             src/patterns_rsrc.c \
-            src/strings_en_rsrc.c \
+            $(BUILD_DIR)/generated/strings_en_rsrc.c \
             src/LocaleManager/LocaleManager.c \
             src/chicago_font_extended_data.c \
             src/chicago_accents_data.c \
@@ -578,7 +578,9 @@ ASM_SOURCES += $(HAL_DIR)/exceptions.S
 endif
 
 # Object files
-C_OBJECTS = $(patsubst src/%.c,$(OBJ_DIR)/%.o,$(C_SOURCES))
+C_OBJECTS = $(patsubst src/%.c,$(OBJ_DIR)/%.o,$(filter src/%,$(C_SOURCES))) \
+	$(patsubst $(BUILD_DIR)/generated/%.c,$(OBJ_DIR)/generated/%.o, \
+		$(filter $(BUILD_DIR)/generated/%.c,$(C_SOURCES)))
 ASM_OBJECTS = $(patsubst %.S,$(OBJ_DIR)/%.o,$(notdir $(ASM_SOURCES)))
 OBJECTS = $(ASM_OBJECTS) $(C_OBJECTS)
 
@@ -589,7 +591,7 @@ DEPS = $(C_OBJECTS:.o=.d)
 -include $(DEPS)
 
 # Build directories (created as order-only prerequisites for parallel builds)
-BUILD_DIRS = $(BUILD_DIR) $(OBJ_DIR) $(BIN_DIR) $(ISO_DIR)/boot/grub
+BUILD_DIRS = $(BUILD_DIR) $(BUILD_DIR)/generated $(OBJ_DIR) $(BIN_DIR) $(ISO_DIR)/boot/grub
 
 $(BUILD_DIRS):
 	@mkdir -p $@
@@ -629,7 +631,7 @@ $(BUILD_DIR)/Strings_$(1).rsrc: resources/strings/$(1).json gen_rsrc.py | $(BUIL
 	@echo "GEN Strings_$(1).rsrc"
 	@python3 gen_rsrc.py $$< $$@
 
-src/strings_$(1)_rsrc.c: $(BUILD_DIR)/Strings_$(1).rsrc
+$(BUILD_DIR)/generated/strings_$(1)_rsrc.c: $(BUILD_DIR)/Strings_$(1).rsrc | $(BUILD_DIR)/generated
 	@echo "XXDC Strings_$(1).rsrc"
 	@echo '/* Auto-generated from Strings_$(1).rsrc */' > $$@
 	@echo 'const unsigned char strings_$(1)_rsrc_data[] = {' >> $$@
@@ -656,7 +658,7 @@ endif
 define ENABLE_LOCALE
 ifeq ($$(LOCALE_$(firstword $(subst :, ,$(1)))),1)
 CFLAGS += -DLOCALE_$(firstword $(subst :, ,$(1)))=1
-C_SOURCES += src/strings_$(lastword $(subst :, ,$(1)))_rsrc.c
+C_SOURCES += $(BUILD_DIR)/generated/strings_$(lastword $(subst :, ,$(1)))_rsrc.c
 endif
 endef
 $(foreach locale,$(LOCALE_OPTIONAL),$(eval $(call ENABLE_LOCALE,$(locale))))
@@ -738,6 +740,11 @@ else
 endif
 
 # Compile C files (single rule for all directories via vpath)
+$(OBJ_DIR)/generated/%.o: $(BUILD_DIR)/generated/%.c $(CFLAGS_STAMP) | $(OBJ_DIR)
+	@mkdir -p $(dir $@)
+	@echo "CC $<"
+	@$(CC) $(CFLAGS) -c $< -o $@
+
 $(OBJ_DIR)/%.o: %.c $(CFLAGS_STAMP) | $(OBJ_DIR)
 	@mkdir -p $(dir $@)
 	@echo "CC $<"
@@ -941,7 +948,7 @@ endif
 
 # Clean
 clean:
-	rm -rf $(BUILD_DIR) obj isodir iso system71.iso kernel.elf src/patterns_rsrc.c src/strings_*_rsrc.c
+	rm -rf $(BUILD_DIR) obj isodir iso system71.iso kernel.elf src/patterns_rsrc.c
 
 # Show compilation info
 info:
