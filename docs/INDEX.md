@@ -5,8 +5,8 @@
 - [README](../README.md) — what this is, what works, how to build and run it
 - [Getting Started](GETTING_STARTED.md) — first build and first boot
 - [Quick Reference](QUICKREF.md) — build, run and debug commands on one page
-- [Project Evolution](PROJECT_EVOLUTION.md) — how the project got here
-- [Featured In](FEATURED_IN.md) — the Action Retro video and what it found
+- [Project Evolution Retrospective](PROJECT_EVOLUTION.md) — a historical account of the project's development
+- [Featured In](FEATURED_IN.md) — the Action Retro video and its findings on the tested revision
 
 ## Understanding the System
 

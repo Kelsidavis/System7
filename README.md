@@ -26,7 +26,7 @@ An open-source reimplementation of Apple Macintosh System 7 for modern x86 hardw
 
 ## 📖 Quick Links
 
-**New here?** Start with [Getting Started](docs/GETTING_STARTED.md) | **All docs?** See [Documentation Index](docs/INDEX.md) | **Context?** Read [Project Evolution](docs/PROJECT_EVOLUTION.md) | **Contribute?** See [Contributing](docs/CONTRIBUTING.md)
+**New here?** Start with [Getting Started](docs/GETTING_STARTED.md) | **All docs?** See [Documentation Index](docs/INDEX.md) | **History?** Read the [Project Evolution retrospective](docs/PROJECT_EVOLUTION.md) | **Contribute?** See [Contributing](docs/CONTRIBUTING.md)
 
 **Using Claude Code?** See [CLAUDE.md](CLAUDE.md) for project-specific guidance
 
@@ -36,7 +36,7 @@ This began as an AI-assisted reverse-engineering research project, published to 
 
 The Action Retro video below captured an earlier revision that froze on the tested machines. Subsequent work fixed the reported boot, interrupt, and input problems; the historical findings and fixes are summarized below. QEMU coverage is substantially broader than bare-metal testing, and individual subsystems still have documented compatibility gaps.
 
-For the project's history and current limitations, see [Project Evolution](docs/PROJECT_EVOLUTION.md) and [Known Issues](docs/KNOWN_ISSUES.md).
+For the project's history, see the [Project Evolution retrospective](docs/PROJECT_EVOLUTION.md). For current limitations, see [Known Issues](docs/KNOWN_ISSUES.md) and [Compatibility Gaps](docs/components/Compatibility/System7_Compatibility_Gaps.md).
 
 ### 🔧 What Action Retro Found — And What We Fixed
 
