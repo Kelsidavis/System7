@@ -61,9 +61,6 @@ static void AddWindowToList(WindowPtr window, WindowPtr behind);
 static void RemoveWindowFromList(WindowPtr window);
 static AuxWinHandle CreateAuxiliaryWindowRecord(WindowPtr owner);
 static void DisposeAuxiliaryWindowRecord(AuxWinHandle auxWin);
-/* Pascal string helpers - using the one from SuperCompat.h */
-#define WM_CopyPascalString CopyPascalString
-
 /* ============================================================================
  * Window Manager Initialization
  * ============================================================================ */

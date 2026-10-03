@@ -279,8 +279,6 @@ Handle Platform_GetWindowDefProc(short procID) {
     }
 }
 
-/* WM_ScheduleWindowUpdate is now in WindowDisplay.c */
-
 /* Debug/error logging defined in WindowManagerHelpers.c */
 
 /* CopyPascalString is defined in WindowManagerCore.c */
