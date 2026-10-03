@@ -4,8 +4,6 @@
 
 #include "MemoryMgr/MemoryManager.h"
 
-extern void QD_SetScreenPort(void);
-
 #include "MacTypes.h"
 #include "WindowManager/WindowManager.h"
 #include "WindowManager/WindowManagerInternal.h"
