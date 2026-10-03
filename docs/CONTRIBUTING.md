@@ -89,16 +89,13 @@ System7/
 
 ## Commit Messages
 
-Write clear commit messages:
+Use a concise imperative summary, matching the repository's recent history.
+Add a body only when the summary needs context; reference an issue when relevant.
 ```
-<type>: <short description>
+Refresh component guide with current commands
 
-<longer explanation if needed>
-
-Fixes #123
+Explain any non-obvious motivation or trade-off here.
 ```
-
-Types: `feat`, `fix`, `docs`, `test`, `refactor`, `perf`, `style`
 
 ## Getting Help
 
