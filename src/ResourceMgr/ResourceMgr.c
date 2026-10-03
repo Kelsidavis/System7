@@ -26,11 +26,6 @@
 #include "ToolboxCompat.h"
 #include <string.h>
 
-extern Handle NewHandle(UInt32 byteCount);
-extern void DisposeHandle(Handle h);
-extern void HLock(Handle h);
-extern void HUnlock(Handle h);
-
 static ResourceMgrGlobals gResMgr = {
     .curResFile = -1,
     .resError = noErr,
