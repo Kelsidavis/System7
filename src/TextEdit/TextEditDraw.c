@@ -9,6 +9,7 @@
 #include "FontManager/FontManager.h"
 #include "QuickDraw/QuickDraw.h"
 #include "EventManager/EventManager.h"
+#include "WindowManager/WindowManager.h"
 #include <string.h>
 #include "TextEdit/TELogging.h"
 #include "TimeManager/TimeBase.h"
@@ -53,12 +54,6 @@ typedef TEExtRec *TEExtPtr, **TEExtHandle;
 /* Constants */
 #define CARET_WIDTH     1
 #define CARET_BLINK     30      /* Ticks between blinks */
-
-/* External functions */
-extern void InvertRect(const Rect *r);
-extern void EraseRect(const Rect *r);
-extern void InvalRect(const Rect *r);
-extern void DrawText(const void *text, SInt16 firstByte, SInt16 byteCount);
 
 /* Style structures - must match TextFormatting.c */
 typedef struct StyleTable {
