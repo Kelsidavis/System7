@@ -1,8 +1,8 @@
 /*
  * QuickDraw.h - Main QuickDraw Graphics System API
  *
- * Complete Apple QuickDraw API implementation for modern platforms.
- * This header provides all the core QuickDraw drawing functions.
+ * System 7 QuickDraw API declarations.
+ * Runtime coverage varies by routine; see the compatibility gaps guide.
  *
  * Copyright (c) 2025 - System 7.1 Portable Project
  * Derived from System 7 ROM analysis (Ghidra) QuickDraw
@@ -13,11 +13,6 @@
 
 #include "SystemTypes.h"
 
-/* The screen port - the GrafPtr that draws straight to the framebuffer.
- * Declared here so callers stop writing their own extern for it. */
-GrafPtr QD_GetScreenPort(void);
-void    QD_SetScreenPort(void);
-
 #include "QDTypes.h"
 #include "QuickDraw/QuickDrawGlobals.h"
 #include "QuickDraw/QDRegions.h"
@@ -25,6 +20,10 @@ void    QD_SetScreenPort(void);
 #ifdef __cplusplus
 extern "C" {
 #endif
+
+/* The screen port that draws to the framebuffer. */
+GrafPtr QD_GetScreenPort(void);
+void    QD_SetScreenPort(void);
 
 /* Forward declarations for drawing procedure records */
 

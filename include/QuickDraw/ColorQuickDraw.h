@@ -1,8 +1,8 @@
 /*
  * ColorQuickDraw.h - Color QuickDraw Extensions API
  *
- * Complete Apple Color QuickDraw API implementation for modern platforms.
- * This header provides all the color-specific QuickDraw functions.
+ * System 7 Color QuickDraw API declarations.
+ * Runtime coverage varies by routine; see the compatibility gaps guide.
  *
  * Copyright (c) 2025 - System 7.1 Portable Project
  * Derived from System 7 ROM analysis (Ghidra) Color QuickDraw
@@ -12,8 +12,6 @@
 #define __COLORQUICKDRAW_H__
 
 #include "SystemTypes.h"
-
-
 #include "QuickDraw.h"
 
 #ifdef __cplusplus
