@@ -4,7 +4,7 @@
 Implements the cooperative event loop used by System 7 applications. Manages the unified event queue, dispatching keyboard/mouse/system events, honouring sleep times, and providing the `WaitNextEvent`/`GetNextEvent` API surface.
 
 ## Source Layout
-- `src/EventManager/event_manager.c` – public event APIs, queue operations, and `WaitNextEvent`
+- `src/EventManager/event_manager.c` – event queue operations and `WaitNextEvent`; process-aware `GetNextEvent` and `EventAvail` wrappers live in `src/ProcessMgr/EventIntegration.c`
 - `src/EventManager/EventGlobals.c` – global event state and initialization
 - `src/EventManager/EventDispatcher.c` – routes events to Window Manager, Dialog Manager, and Process Manager
 - `src/EventManager/MouseEvents.c` and `KeyboardEvents.c` – mouse tracking and keyboard event handling
