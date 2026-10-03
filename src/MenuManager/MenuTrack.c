@@ -415,8 +415,6 @@ static void DrawMenuOld(MenuHandle theMenu, short left, short top, short itemCou
 
     /* Draw white background */
     DrawMenuRect(left, top, left + menuWidth, top + itemCount * lineHeight + 4, 0xFFFFFFFF);
-    /* stack_align was a dead "fix stack alignment" hack (only ever
-       written); removed. */
 
     /* Draw border */
     DrawMenuRect(left, top, left + menuWidth, top + 1, 0xFF000000);
@@ -836,8 +834,6 @@ static long TrackMenu_Body(short menuID, Point *startPt) {
     Pointer_TakeOffScreen();
     savedBits = SaveMenuBits(&menuRect);
     serial_puts("TrackMenu: SaveMenuBits returned\n");
-    if (savedBits) {
-    }
 
     /* Set up tracking state */
     g_menuTrackState.isTracking = true;
