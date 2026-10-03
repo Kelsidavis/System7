@@ -6,7 +6,7 @@ Implements the classic Mac Resource Manager APIs used to load and update resourc
 ## Source Layout
 - `src/ResourceMgr/ResourceMgr.c` – resource map parsing, handle management,
   lookup, serialization, and error handling (`GetResource`,
-  `GetIndResource`, `GetNamedResource`, `OpenRFont`/`FOpenRFont`,
+  `GetIndResource`, `GetNamedResource`, `OpenResFile`, `FSpOpenResFile`,
   `ReleaseResource`, `AddResource`, `RemoveResource`, …)
 - `src/ResourceMgr/StringResources.c` – `STRS`/`STR#` accessors
 - `src/CPU/m68k_interp/M68KToolbox.c` – 68K Resource Manager trap dispatch
