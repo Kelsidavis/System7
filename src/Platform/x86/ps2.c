@@ -298,37 +298,31 @@ static Boolean ps2_read_data_safe(uint8_t *out) {
     return true;
 }
 
-/* Send command to mouse (via second PS/2 port) */
-static Boolean ps2_mouse_command(uint8_t cmd) {
+/* Send one byte to the mouse through the controller's auxiliary port. */
+static Boolean ps2_mouse_send_byte(uint8_t value) {
     /* The controller routes the next data byte to the auxiliary port after
      * receiving the 0xD4 command prefix.
      */
     ps2_wait_input();
-    outb(PS2_COMMAND_PORT, 0xD4);  /* Write to aux port command */
+    outb(PS2_COMMAND_PORT, PS2_CMD_WRITE_PORT2);
     ps2_wait_input();
-    outb(PS2_DATA_PORT, cmd);      /* The actual mouse command */
+    outb(PS2_DATA_PORT, value);
 
-    /* Wait for ACK */
     if (ps2_wait_output()) {
         uint8_t response = ps2_read_data();
-        return (response == 0xFA); /* ACK */
+        return response == 0xFA;
     }
     return false;
 }
 
+/* Send command to mouse (via second PS/2 port) */
+static Boolean ps2_mouse_command(uint8_t cmd) {
+    return ps2_mouse_send_byte(cmd);
+}
+
 /* Send a mouse command followed by a data byte (e.g., set sample rate) */
 static Boolean ps2_mouse_command_data(uint8_t cmd, uint8_t data) {
-    if (!ps2_mouse_command(cmd)) return false;
-    /* Send the data byte through the aux port */
-    ps2_wait_input();
-    outb(PS2_COMMAND_PORT, 0xD4);
-    ps2_wait_input();
-    outb(PS2_DATA_PORT, data);
-    if (ps2_wait_output()) {
-        uint8_t response = ps2_read_data();
-        return (response == 0xFA);
-    }
-    return false;
+    return ps2_mouse_send_byte(cmd) && ps2_mouse_send_byte(data);
 }
 
 /*
