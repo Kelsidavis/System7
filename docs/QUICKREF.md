@@ -74,15 +74,12 @@ make check-arm64     # ARM64 build and segment-permission checks
 
 ## Documentation
 
-```bash
-# Navigate documentation
-docs/INDEX.md              # Start here for docs
-docs/GETTING_STARTED.md    # 5-minute quick start
-docs/PROJECT_EVOLUTION.md  # Understand the project
-docs/KNOWN_ISSUES.md       # Known limitations
-docs/components/           # Component deep dives
-CLAUDE.md                  # Claude Code guidance
-```
+- [Documentation index](INDEX.md) — start here
+- [Getting started](GETTING_STARTED.md) — setup and first run
+- [Known issues](KNOWN_ISSUES.md) — limitations and workarounds
+- [Component guides](components/README.md) — subsystem references
+- [Contributing](CONTRIBUTING.md) — development setup and conventions
+- [Claude Code guidance](../CLAUDE.md)
 
 ## Common Issues
 
@@ -201,16 +198,6 @@ python3 scripts/create_color_icons.py
 - **QEMU**: Emulator used for testing
 - **Bare metal**: Real hardware (untested)
 - **HACK**: Workaround in code that may need follow-up
-
-## Documentation Files
-
-- **README.md** — Start here
-- **CLAUDE.md** — Claude Code guidance
-- **docs/INDEX.md** — Docs navigation
-- **docs/GETTING_STARTED.md** — Quick start
-- **docs/PROJECT_EVOLUTION.md** — Project history
-- **docs/KNOWN_ISSUES.md** — Known problems
-- **docs/components/** — Component guides
 
 ## Need Help?
 
