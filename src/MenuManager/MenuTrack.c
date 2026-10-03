@@ -79,16 +79,23 @@ extern uint32_t fb_pitch;
 extern void SetRect(Rect* rect, short left, short top, short right, short bottom);
 extern void InvalRect(const Rect* rect);
 
-/* Draw filled rectangle */
-static void DrawMenuRect(short left, short top, short right, short bottom, uint32_t color) {
+static void FillFramebufferRect(short left, short top, short right, short bottom,
+                                uint32_t color, Boolean shieldPointer)
+{
     if (!framebuffer) return;
-    Pointer_Shield(left, top, right, bottom);
+    if (shieldPointer) {
+        Pointer_Shield(left, top, right, bottom);
+    }
 
     uint32_t *fb = (uint32_t*)framebuffer;
     int pitch = fb_pitch / 4;
 
     if (left < 0) left = 0;
     if (top < 0) top = 0;
+    if (left > (int)fb_width) left = fb_width;
+    if (top > (int)fb_height) top = fb_height;
+    if (right < 0) right = 0;
+    if (bottom < 0) bottom = 0;
     if (right > (int)fb_width) right = fb_width;
     if (bottom > (int)fb_height) bottom = fb_height;
     if (left >= right || top >= bottom) return;
@@ -98,6 +105,11 @@ static void DrawMenuRect(short left, short top, short right, short bottom, uint3
             fb[y * pitch + x] = color;
         }
     }
+}
+
+/* Draw filled rectangle and protect the pointer from redraw artifacts. */
+static void DrawMenuRect(short left, short top, short right, short bottom, uint32_t color) {
+    FillFramebufferRect(left, top, right, bottom, color, true);
 }
 
 /*
@@ -517,26 +529,8 @@ long BeginTrackMenu(short menuID, Point *startPt) {
 
 /* Draw rectangle with specified color */
 static void DrawHighlightRect(short left, short top, short right, short bottom, Boolean highlight) {
-    extern void* framebuffer;
-    extern uint32_t fb_width;
-    extern uint32_t fb_height;
-    extern uint32_t fb_pitch;
-
-    if (!framebuffer) return;
-
-    uint32_t* fb = (uint32_t*)framebuffer;
-    uint32_t color = highlight ? 0xFF000000 : 0xFFFFFFFF; /* Black for highlight, white for clear */
-
-    /* Fill rectangle */
-    for (int y = top; y < bottom; y++) {
-        if (y < 0) continue;
-        if ((UInt32)y >= fb_height) break;
-        for (int x = left; x < right; x++) {
-            if (x < 0) continue;
-            if ((UInt32)x >= fb_width) break;
-            fb[y * (fb_pitch / 4) + x] = color;
-        }
-    }
+    uint32_t color = highlight ? 0xFF000000 : 0xFFFFFFFF;
+    FillFramebufferRect(left, top, right, bottom, color, false);
 }
 
 /* Handle mouse movement while tracking menu */
