@@ -23,11 +23,6 @@
 #include "TextEdit/TextEdit.h"
 #include "TimeManager/TimeBase.h"
 
-/* External dependencies */
-extern void InvalDialogItem(DialogPtr theDialog, SInt16 itemNo);
-extern void DrawDialogItem(DialogPtr theDialog, SInt16 itemNo);
-extern DialogManagerState* GetDialogManagerState(void);
-
 /* Caret blink rate in ticks (System 7 standard was ~30 ticks = 0.5 seconds) */
 #define kCaretBlinkRate 30
 

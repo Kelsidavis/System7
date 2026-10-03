@@ -1,6 +1,4 @@
-/*
-#include "DialogManager/DialogInternal.h"
- * DialogEvents.c - Dialog Event Handling Implementation
+/* DialogEvents.c - Dialog Event Handling Implementation
  *
  * This module provides event handling for dialogs in Mac System 7.1.
  * Implements IsDialogEvent and DialogSelect for modeless dialog support.
@@ -19,10 +17,7 @@
 #include "DialogManager/DialogLogging.h"
 #include "DialogManager/DialogEditText.h"
 #include "EventManager/EventTypes.h"
-
-/* External Window Manager dependencies */
-extern void BeginUpdate(WindowPtr window);
-extern void EndUpdate(WindowPtr window);
+#include "WindowManager/WindowManager.h"
 
 /* Global event state */
 static struct {
