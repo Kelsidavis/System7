@@ -23,6 +23,7 @@
 #include "EventManager/EventStructs.h"
 #include "EventManager/EventLogging.h"
 #include "EventManager/AppSwitcher.h"
+#include "TimeManager/TimeBase.h"
 /* ctype.h not available in kernel - use simple implementations */
 static inline int islower(int c) { return c >= 'a' && c <= 'z'; }
 static inline int isupper(int c) { return c >= 'A' && c <= 'Z'; }
@@ -66,7 +67,6 @@ static Boolean g_abortPressed = false;
 
 /* External references */
 /* PostEvent declared in EventManager.h */
-extern UInt32 TickCount(void);
 extern void UpdateKeyboardState(const KeyMap newKeyMap);
 
 /*---------------------------------------------------------------------------

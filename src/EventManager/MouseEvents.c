@@ -22,6 +22,7 @@
 #include "EventManager/EventManager.h"
 #include "EventManager/EventStructs.h"
 #include "EventManager/EventLogging.h"
+#include "TimeManager/TimeBase.h"
 /* Simple integer square root for distance calculations */
 static inline int isqrt(int n) {
     if (n < 0) return -1;
@@ -132,7 +133,6 @@ static SInt16 g_lastButtonState = 0;
 /* External references */
 extern void UpdateMouseState(Point newPos, UInt8 buttonState);
 /* PostEvent declared in EventManager.h */
-extern UInt32 TickCount(void);
 extern UInt32 GetDblTime(void);
 
 /*---------------------------------------------------------------------------

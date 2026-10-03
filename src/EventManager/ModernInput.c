@@ -11,6 +11,7 @@
  */
 
 #include "SystemTypes.h"
+#include "TimeManager/TimeBase.h"
 #include "EventManager/EventManagerInternal.h"
 #include "EventManager/EventManager.h"
 #include "EventManager/EventTypes.h"
@@ -25,8 +26,6 @@
 
 /* External functions */
 /* PostEvent declared in EventManager.h */
-extern UInt32 TickCount(void);
-
 /* Tracking guard to suppress events during modal drag loops */
 extern volatile Boolean gInMouseTracking;
 

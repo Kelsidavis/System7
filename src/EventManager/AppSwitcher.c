@@ -15,6 +15,7 @@
 #include "Finder/Icon/icon_port.h"
 #include "MemoryMgr/MemoryManager.h"
 #include "System71StdLib.h"
+#include "TimeManager/TimeBase.h"
 #include <string.h>
 #include <stdlib.h>
 
@@ -29,7 +30,6 @@ static UInt32 gHideTimeout = 0;
 static UInt32 gHideTimeoutStart = 0;
 
 /* External functions */
-extern UInt32 TickCount(void);
 extern OSErr ProcessManager_SetFrontProcess(ProcessSerialNumber psn);
 extern ProcessSerialNumber ProcessManager_GetFrontProcess(void);
 extern ProcessQueue* ProcessManager_GetProcessQueue(void);

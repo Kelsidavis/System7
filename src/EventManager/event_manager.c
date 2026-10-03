@@ -15,12 +15,10 @@
 #include "ProcessMgr/ProcessMgr.h"
 #include "QuickDraw/QDRegions.h"
 #include "EventManager/EventLogging.h"
+#include "TimeManager/TimeBase.h"
 
 /* Mouse and timing state */
 static Point g_mousePos = {100, 100};
-
-/* TickCount is in TimeManager/TimeBase.c */
-extern UInt32 TickCount(void);
 
 /*
  * InitEvents - initialize the process-aware Event Manager queue.

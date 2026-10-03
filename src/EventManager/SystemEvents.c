@@ -21,6 +21,7 @@
 #include "EventManager/SystemEvents.h"
 #include "EventManager/EventManager.h"
 #include "EventManager/EventLogging.h"
+#include "TimeManager/TimeBase.h"
 #include "QuickDraw/QuickDraw.h"
 
 
@@ -137,8 +138,6 @@ static void* g_diskEventUserData = NULL;
 
 /* External references */
 /* PostEvent declared in EventManager.h */
-extern UInt32 TickCount(void);
-
 /*---------------------------------------------------------------------------
  * Private Function Declarations
  *---------------------------------------------------------------------------*/
