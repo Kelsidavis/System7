@@ -77,7 +77,7 @@ extern OSErr InitializeDesktopDB(void);  /* From desktop_manager.c */
 extern OSErr InitializeTrashFolder(void);  /* From trash_manager.c */
 static OSErr InitializeWindowManager(void);
 /* HandleShutDown, HandleMenuChoice, HandleMouseDown, HandleKeyDown declared in #if 0 block below */
-/* DoUpdate, DoActivate, DoBackgroundTasks declared in #if 0 block below */
+/* DoActivate, DoBackgroundTasks declared in #if 0 block below */
 /* MainEventLoop declared in #if 0 block below */
 
 
@@ -583,9 +583,6 @@ WindowPtr Finder_OpenDesktopItem(Boolean isTrash, ConstStr255Param title)
     FINDER_LOG_DEBUG("[WIN_OPEN] Calling SelectWindow\n");
     SelectWindow(w);
 
-    /* Window Manager will generate update event for content drawing */
-    /* Application's update event handler (main.c) will call FolderWindowProc */
-
     FINDER_LOG_DEBUG("[WIN_OPEN] Complete, window created - content will be drawn via update event\n");
     return w;
 }
@@ -991,19 +988,12 @@ OSErr CloseFinderWindow(WindowPtr window) {
 }
 
 /*
- * DoUpdate - Handle window update events
- */
-/*
  * Finder_DrawWindowContents - draw the content of whichever Finder window
  * this is. Returns false if it is not one the Finder knows.
  *
  * The caller owns BeginUpdate/EndUpdate; this only paints. That split is the
- * point: the live update path in EventDispatcher already brackets the draw,
- * and it only knew how to paint folder windows - so About This Macintosh,
- * Get Info and Find opened, got their content erased, and stayed blank. Each
- * of them has had a working draw handler the whole time and nothing called
- * it, because the dispatch that knew about them lived in DoUpdate, which no
- * longer has any callers.
+ * point: EventDispatcher brackets this call, then lets the About, Get Info,
+ * and folder handlers paint their own content.
  */
 Boolean Finder_DrawWindowContents(WindowPtr window) {
     if (!window) return false;
@@ -1022,26 +1012,6 @@ Boolean Finder_DrawWindowContents(WindowPtr window) {
     }
 
     return false;
-}
-
-void DoUpdate(WindowPtr window) {
-    if (!window) return;
-
-    BeginUpdate(window);
-
-    GrafPtr savePort;
-    GetPort(&savePort);
-    SetPort((GrafPtr)window);
-
-    if (!Finder_DrawWindowContents(window)) {
-        /* Not a Finder window - clear the content so stale pixels do not
-         * survive a drag or resize. */
-        Rect contentRect = window->port.portRect;
-        EraseRect(&contentRect);
-    }
-
-    SetPort(savePort);
-    EndUpdate(window);
 }
 
 /*

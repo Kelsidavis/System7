@@ -3352,28 +3352,6 @@ void FolderWindow_CleanUp(WindowPtr w, Boolean selectedOnly) {
     FINDER_LOG_DEBUG("FolderWindow_CleanUp: Complete\n");
 }
 
-/* Update window proc for folder windows */
-void FolderWindowProc(WindowPtr window, short message, long param)
-{
-    (void)param;
-    switch (message) {
-        case 0:  /* wDraw = 0, draw content only */
-            /* Draw window contents - NO CHROME! */
-            FINDER_LOG_DEBUG("Finder: FolderWindowProc drawing content\n");
-            FolderWindow_Draw(window);
-            break;
-
-        case 1:  /* wHit = 1, handle click in content */
-            /* Handle click in content */
-            FINDER_LOG_DEBUG("Click in folder window at (%d,%d)\n",
-                         (short)(param >> 16), (short)(param & 0xFFFF));
-            break;
-
-        default:
-            break;
-    }
-}
-
 /*
  * GhostEraseIf stub - desktop_manager.c has the real implementation
  * This is needed because FolderWindow_Draw calls it to be safe

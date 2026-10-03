@@ -72,7 +72,6 @@ Boolean Finder_HandleKey(EventRecord* event);   /* true if the Finder took the k
 short FolderWindow_GetSelectedIndex(WindowPtr w); /* the selection's anchor, or -1 */
 OSErr HandleContentClick(WindowPtr window, EventRecord* event);
 OSErr CloseFinderWindow(WindowPtr window);
-void DoUpdate(WindowPtr window);
 OSErr FindFolder(SInt16 vRefNum, OSType folderType, Boolean createFolder, SInt16* foundVRefNum, SInt32* foundDirID);
 
 /* Menu Commands */
@@ -138,7 +137,6 @@ VRefNum FolderWindow_GetVRef(WindowPtr w);
 DirID FolderWindow_GetCurrentDir(WindowPtr w);
 void FolderWindow_CleanUp(WindowPtr w, Boolean selectedOnly);
 void FolderWindow_SortAndArrange(WindowPtr w, short sortType);
-void FolderWindowProc(WindowPtr window, short message, long param);
 void CleanupFolderWindow(WindowPtr w);
 void FolderWindow_SetLabelOnSelected(WindowPtr w, short labelIndex);
 

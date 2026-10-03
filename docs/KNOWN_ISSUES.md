@@ -348,7 +348,7 @@ obvious thing to reach for.
 ---
 
 
-### ⚠️ Window content had many competing redraw paths (ARCH-001) — MOSTLY FIXED
+### ✅ Window content had many competing redraw paths (ARCH-001) — FIXED
 
 The structural problem underneath most of the redraw bugs, and what made them
 expensive to diagnose.
@@ -370,6 +370,8 @@ stale.
   since update events aren't flowing through"*. Removing it **fixed REDRAW-002**.
 - `WindowResizing.c` — wrapped its draw in `BeginUpdate`/`EndUpdate`, consuming
   the update region so the event path could never run for a resize.
+- `WindowDisplay.c` `ShowWindow` — directly drew folder content after
+  invalidation because update events were thought not to flow.
 - `WindowDisplay.c` `PaintBehind` phase 2 — redrew content from inside a
   chrome-painting routine.
 
@@ -379,10 +381,13 @@ placeholder folder with a layout disagreeing with `FolderWindow_Draw`. It had
 time by looking like a live second renderer; an earlier revision of this entry
 wrongly blamed it for a layout discrepancy.
 
-**Still open:** `WindowEvents.c`, `finder_main.c` ×2, `folder_window.c` retain
-direct `FolderWindow_Draw` calls. These are the legitimate update-event handlers
-plus the Finder's own paths, so they need individual review rather than
-deletion.
+**Current update path:** `ShowWindow` invalidates content; `GetNextEvent`
+synthesizes an update event for dirty windows; and `EventDispatcher.c` owns
+`BeginUpdate`/`EndUpdate` while calling `Finder_DrawWindowContents()` for Finder
+windows. That handler dispatches to About, Get Info, or the folder renderer. The
+uncalled `DoUpdate()` wrapper and `FolderWindowProc()` stub were removed; new
+folder windows use the standard `zoomDocProc`. There is no direct folder draw
+outside the update handler.
 
 **Resolved — it was a double coordinate conversion in the glyph rasteriser.**
 `FolderWindow_Draw` instruments its status line at local (8,313) → global y=414,
@@ -849,19 +854,19 @@ Implemented hysteresis-based button state debouncing with two-part strategy:
 
 **Previously**: After dragging windows, window content did not redraw. Windows showed empty or stale content after being moved.
 
-**Root Cause**: The Finder's `DoUpdate()` function (src/Finder/finder_main.c:853-885) only handled specific window types (About, GetInfo, Find, Folder). Unknown window types fell through to a no-op default case, never calling `BeginUpdate()`/`EndUpdate()` to clear the update region.
+**Root Cause (at the time)**: The Finder's `DoUpdate()` function only handled specific window types. Unknown window types fell through without calling `BeginUpdate()`/`EndUpdate()` to clear the update region.
 
 **Investigation**:
 - `InvalRgn()` correctly posts `updateEvt` (WindowEvents.c:445)
 - Event loop correctly receives and dispatches update events (finder_main.c:484-486)
-- `DoUpdate()` was called but did nothing for generic windows
+- The then-active `DoUpdate()` path did nothing for generic windows
 - This was NOT an event system bug, but a missing default handler
 
-**Fix**: Added generic update handler in `DoUpdate()` that calls `BeginUpdate()`, `EraseRect()`, and `EndUpdate()` for unknown window types.
+**Fix**: A generic update handler was added, then update dispatch was consolidated in `EventDispatcher.c`. Today it brackets updates, calls `Finder_DrawWindowContents()` for Finder windows, and erases unhandled content. The old, uncalled `DoUpdate()` implementation has since been removed.
 
 **Impact**: ALL windows now redraw their content after drag/resize operations, not just DISK/TRSH/About windows
 
-**Location**: `src/Finder/finder_main.c:884-900`
+**Current implementation**: `src/EventManager/EventDispatcher.c`, with Finder-specific content dispatch in `src/Finder/finder_main.c`.
 
 ---
 
