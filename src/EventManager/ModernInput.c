@@ -323,20 +323,10 @@ void ProcessModernInput(void)
 
     /* Check for mouse button changes */
     if (currentButtonState != g_modernInput.lastButtonState) {
-        extern void uart_flush(void);
-        extern void serial_puts(const char*);
-        /* Simple debug: log button state changes */
-        if (currentButtonState & 0x01) {
-            serial_puts("[CLICK] Button DOWN\n");
-        } else {
-            serial_puts("[CLICK] Button UP\n");
-        }
-
         UInt32 currentTime = TickCount();
 
         if ((currentButtonState & 1) && !(g_modernInput.lastButtonState & 1)) {
             /* Mouse button pressed - down transition */
-            extern volatile Boolean gInMouseTracking;
 
 #if QEMU_JITTER_HACK
             /* QEMU PS/2 jitter: coalesce rapid downs in same tick AND same position */
