@@ -31,18 +31,6 @@ extern "C" {
 /* Handle is defined in MacTypes.h */
 /* Str255 is defined in MacTypes.h */
 
-#ifndef NULL
-#define NULL ((void*)0)
-#endif
-
-#ifndef true
-#define true 1
-#endif
-
-#ifndef false
-#define false 0
-#endif
-
 /* Four Character Code macro */
 #define FOUR_CHAR_CODE(x) ((UInt32)(x))
 

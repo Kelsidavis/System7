@@ -12,11 +12,6 @@
 
 #include "SystemTypes.h"
 
-/* Pascal calling convention (ignored on modern systems) */
-#ifndef pascal
-#define pascal
-#endif
-
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -35,24 +30,6 @@ extern "C" {
 /* ============================================================================
  * Common Constants
  * ============================================================================ */
-
-/* Boolean values */
-#ifndef true
-#define true    1
-#endif
-
-#ifndef false
-#define false   0
-#endif
-
-/* NULL definitions */
-#ifndef NULL
-#define NULL    ((void*)0)
-#endif
-
-#ifndef nil
-#define nil     NULL
-#endif
 
 /* File permissions */
 #define fsRdPerm    1       /* Read permission */

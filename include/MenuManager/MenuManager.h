@@ -20,15 +20,6 @@ extern "C" {
 /* ResType is in MacTypes.h */
 /* Style is defined in MacTypes.h */
 
-#ifndef true
-#define true 1
-#define false 0
-#endif
-
-#ifndef NULL
-#define NULL 0
-#endif
-
 /* ============================================================================
  * Basic Geometry Types
  * ============================================================================ */

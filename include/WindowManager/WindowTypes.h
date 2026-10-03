@@ -42,11 +42,6 @@ typedef struct WindowManagerState WindowManagerState;
 /* Basic types are defined in MacTypes.h */
 /* Handle is defined in MacTypes.h */
 
-#ifndef true
-#define true 1
-#define false 0
-#endif
-
 /* Window Part Codes are defined in SystemTypes.h */
 
 /* ============================================================================
