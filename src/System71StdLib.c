@@ -8,9 +8,6 @@
 #include <stdbool.h>
 
 /* Forward declarations for character classification functions */
-int tolower(int c);
-int toupper(int c);
-
 #if defined(__powerpc__) || defined(__powerpc64__)
 #include "Platform/PowerPC/OpenFirmware.h"
 #include "Platform/PowerPC/escc_uart.h"
@@ -1120,7 +1117,7 @@ int isspace(int c) {
     return (c == ' ' || c == '\t' || c == '\n' || c == '\r' || c == '\f' || c == '\v');
 }
 
-static inline int isalpha(int c) {
+int isalpha(int c) {
     return ((c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z'));
 }
 
@@ -1128,11 +1125,11 @@ int isalnum(int c) {
     return isalpha(c) || isdigit(c);
 }
 
-static inline int isupper(int c) {
+int isupper(int c) {
     return (c >= 'A' && c <= 'Z');
 }
 
-static inline int islower(int c) {
+int islower(int c) {
     return (c >= 'a' && c <= 'z');
 }
 

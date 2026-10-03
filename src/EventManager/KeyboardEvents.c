@@ -24,14 +24,6 @@
 #include "EventManager/EventLogging.h"
 #include "EventManager/AppSwitcher.h"
 #include "TimeManager/TimeBase.h"
-/* ctype.h not available in kernel - use simple implementations */
-static inline int islower(int c) { return c >= 'a' && c <= 'z'; }
-static inline int isupper(int c) { return c >= 'A' && c <= 'Z'; }
-static inline int isalpha(int c) { return islower(c) || isupper(c); }
-static inline int tolower(int c) { return isupper(c) ? c + 32 : c; }
-static inline int toupper(int c) { return islower(c) ? c - 32 : c; }
-
-
 /*---------------------------------------------------------------------------
  * Global State
  *---------------------------------------------------------------------------*/

@@ -39,7 +39,7 @@ WANTED = [
     'strspn', 'strcspn', 'strpbrk',
     'c2pstrcpy_bounded',
     # support routines the above call
-    'toupper', 'tolower', 'isupper', 'islower',
+    'toupper', 'tolower', 'isalpha', 'isupper', 'islower',
     # formatted output, plus the helpers it dispatches to
     'vsnprintf', 'fmt_emit', 'fmt_pad', 'fmt_number', 'fmt_double',
     # 64-bit division - the freestanding build has no libgcc __udivdi3

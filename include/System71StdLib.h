@@ -134,10 +134,14 @@ int vasprintf(char** strp, const char* format, va_list ap)
     __attribute__((format(printf, 2, 0)));
 
 /* Character classification functions */
-/* Note: isalpha, isupper, islower are defined as static inline in KeyboardEvents.c */
+int isalpha(int c);
 int isalnum(int c);
 int isdigit(int c);
 int isspace(int c);
+int isupper(int c);
+int islower(int c);
+int toupper(int c);
+int tolower(int c);
 int isxdigit(int c);
 int isprint(int c);
 int isgraph(int c);
