@@ -11578,7 +11578,6 @@ const int gIconGenCount = 155;
 
 
 bool IconGen_FindByID(int16_t id, IconFamily* out) {
-    /* CRITICAL FIX: Use memcpy instead of struct assignment to avoid ARM64 hang */
     extern void* memcpy(void*, const void*, unsigned long);
 
     for (int i=0;i<gIconGenCount;i++){

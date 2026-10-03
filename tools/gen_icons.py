@@ -187,7 +187,6 @@ def main():
     c.append(f"const int gIconGenCount = {len(gen_table)};\n")
     c.append("\n")
     c.append("bool IconGen_FindByID(int16_t id, IconFamily* out) {\n")
-    c.append("    /* CRITICAL FIX: Use memcpy instead of struct assignment to avoid ARM64 hang */\n")
     c.append("    extern void* memcpy(void*, const void*, unsigned long);\n")
     c.append("\n")
     c.append("    for (int i=0;i<gIconGenCount;i++){\n")

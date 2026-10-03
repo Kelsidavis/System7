@@ -9,7 +9,7 @@
 #include "QuickDraw/QuickDraw.h"
 #include "Finder/Icon/icon_port.h"
 
-/* CRITICAL FIX: Disable logging on ARM64 - serial_logf uses va_list which hangs */
+/* serial_logf's variadic path hangs on ARM64, so disable debug logging there. */
 #if defined(__aarch64__) || defined(__arm64__)
 #define FINDER_ICON_LOG_DEBUG(fmt, ...) ((void)0)
 #else
