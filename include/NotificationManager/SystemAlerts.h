@@ -3,24 +3,20 @@
 
 #include "SystemTypes.h"
 
-/* Forward declarations */
-
-
 #include "NotificationManager/NotificationManager.h"
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-/* Alert Types */
-
-/* Alert Button Types */
-
-/* Alert Response Codes */
+typedef SInt16 AlertType;
+typedef SInt16 AlertButtonType;
+typedef SInt16 AlertResponse;
 
 /* Alert Configuration */
-               /* Alert type */
-    AlertButtonType buttonType;         /* Button configuration */
+typedef struct AlertConfig {
+    AlertType       alertType;
+    AlertButtonType buttonType;
     StringPtr       title;              /* Alert title */
     StringPtr       message;            /* Alert message */
     StringPtr       detailText;         /* Additional detail text */
@@ -39,7 +35,8 @@ extern "C" {
 } AlertConfig, *AlertConfigPtr;
 
 /* Alert Instance */
-             /* Alert configuration */
+typedef struct AlertInstance {
+    AlertConfig     config;             /* Alert configuration */
     DialogPtr       dialog;             /* Dialog pointer */
     Boolean         isVisible;          /* Alert is visible */
     Boolean         isModal;            /* Alert is modal */
@@ -47,15 +44,10 @@ extern "C" {
     UInt32          timeoutTime;        /* When alert times out */
     AlertResponse   response;           /* User response */
     Boolean         responded;          /* User has responded */
-    NMExtendedRecPtr notification;      /* Associated notification */
+    NMRecPtr        notification;      /* Associated notification */
     void           *platformData;       /* Platform-specific data */
     struct AlertInstance *next;         /* Next alert in chain */
 } AlertInstance, *AlertInstancePtr;
-
-/* Alert Manager State */
-
-/* Alert Callback Functions */
-
 
 /* Constants */
 #define ALERT_MAX_CONCURRENT        10      /* Maximum concurrent alerts */
