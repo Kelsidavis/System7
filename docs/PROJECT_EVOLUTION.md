@@ -1,5 +1,13 @@
 # System 7: From Research Paper to Living Experiment
 
+> **Historical perspective (written 2026-07-26).** This essay records the
+> project's state and the author's assessment at that time; descriptions of
+> the codebase, testing, quality, and roadmap below are not a current status
+> report. The repository has continued to change since then. For current
+> implementation status, consult the component guides, compatibility gaps,
+> and the build/test targets rather than treating this retrospective as an
+> inventory.
+
 ## The Beginning: A Disciplined Research Sprint (2025)
 
 This project started with a clear, bounded mission: **Can we use AI-assisted reverse engineering to reconstruct a bootable System 7 prototype in days rather than months?**
