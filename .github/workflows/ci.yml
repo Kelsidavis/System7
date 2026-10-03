@@ -244,6 +244,9 @@ jobs:
       - name: Run GCC static analyzer
         run: make analyze-arm64
 
+      - name: Check shadowed definitions
+        run: python3 scripts/find-shadowed-defs.py --platform arm64 --obj-dir build/obj/arm64
+
   test-stdlib:
     name: C Library Differential Test
     runs-on: ubuntu-24.04
@@ -285,6 +288,9 @@ jobs:
 
       - name: Run GCC static analyzer (ARM32)
         run: make analyze-arm
+
+      - name: Check shadowed definitions (ARM32)
+        run: python3 scripts/find-shadowed-defs.py --platform arm --obj-dir build/obj/arm
 
       - name: Upload ARM kernel artifact
         uses: actions/upload-artifact@v7
