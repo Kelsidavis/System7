@@ -176,10 +176,7 @@ MenuHandle GetMenuTitleByIndex(SInt16 index)
         return NULL;
     }
 
-    /* Get the menu by ID - this requires GetMenuHandle which is in MenuList.c */
-    /* For now, return NULL as we don't have access to the menu list here */
-    extern MenuHandle GetMenuHandle(short menuID);
-
+    /* Resolve the tracked menu through the Menu Manager. */
     MenuTitleSlot* slot = &gMenuTitles[index];
     return GetMenuHandle(slot->menuID);
 }
