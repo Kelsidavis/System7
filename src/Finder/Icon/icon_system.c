@@ -174,8 +174,6 @@ static const uint8_t gDocImg32[128] = {
     0x00, 0x00, 0x00, 0x00   /* 31 */
 };
 
-/* Old placeholder trash icons - replaced with authentic ones from trash_icons.c */
-
 /* Icon families */
 static IconFamily gVolumeIF = {
     .large = {32, 32, kIconColor32, g_HDIconMask, g_HDIcon, icon_HD_color},
