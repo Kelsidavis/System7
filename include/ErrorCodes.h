@@ -25,9 +25,6 @@ typedef short RegionError;
 #define qdRegionTooBigError     -147    /* Region too complex */
 #define qdPictureDataError      -148    /* Bad picture data */
 
-/* Memory Manager Error Function */
-OSErr MemError(void);
-
 /* Zone Operation Results */
 #define zoneOK                  0       /* Zone operation successful */
 #define zoneError               -111    /* Generic zone error */

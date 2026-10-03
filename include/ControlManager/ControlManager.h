@@ -185,8 +185,6 @@ void DrawScrollBar(ControlHandle scrollBar);
 /* Internal Functions (not part of public API) */
 void _InitControlManager(void);
 void _CleanupControlManager(void);
-ControlHandle _GetFirstControl(WindowPtr window);
-void _SetFirstControl(WindowPtr window, ControlHandle control);
 SInt16 _CallControlDefProc(ControlHandle control, SInt16 message, SInt32 param);
 Handle _GetControlDefProc(SInt16 procID);
 

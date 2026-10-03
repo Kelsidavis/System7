@@ -90,7 +90,6 @@ short* ParseMBARResource(Handle resourceHandle, short* outMenuCount);
 
 
 /* Menu command handling */
-void DoMenuCommand(short menuID, short item);
 
 /* Menu item functions */
 SInt16 CountMenuItems(MenuHandle theMenu);

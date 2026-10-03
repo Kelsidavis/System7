@@ -16,6 +16,7 @@
 #include "SystemTypes.h"
 #include "System71StdLib.h"
 #include "ControlManager/ControlManager.h"
+#include "ControlManager/ControlInternal.h"
 #include "ControlManager/ControlTypes.h"
 /* ControlDrawing.h not needed */
 /* ControlTracking.h local */

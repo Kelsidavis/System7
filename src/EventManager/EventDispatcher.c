@@ -40,7 +40,6 @@ extern void CloseWindow(WindowPtr window);
 extern void BeginUpdate(WindowPtr window);
 extern void EndUpdate(WindowPtr window);
 extern void DrawGrowIcon(WindowPtr window);
-extern void DoMenuCommand(short menuID, short item);
 extern long MenuSelect(Point startPt);
 extern void HiliteMenu(short menuID);
 extern long MenuKey(short ch);

@@ -22,6 +22,7 @@
 #include "DialogManager/DialogResources.h"
 #include "DialogManager/DialogItems.h"
 #include "ControlManager/ControlManager.h"
+#include "ControlManager/ControlInternal.h"
 #include "ControlManager/ControlTypes.h"
 #include "DialogManager/DialogLogging.h"
 #include "TimeManager/TimeBase.h"
@@ -30,7 +31,6 @@
 extern void SysBeep(SInt16 duration);
 extern void ShowWindow(WindowPtr window);
 /* NewHandleClear, DisposeHandle, HLock, HUnlock now provided by MemoryManager.h */
-extern ControlHandle _GetFirstControl(WindowPtr window);
 extern void CenterDialogOnScreen(DialogPtr dlg);
 
 /* Global alert state */

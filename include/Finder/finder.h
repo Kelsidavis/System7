@@ -62,7 +62,6 @@ OSErr CloseFinderWindow(WindowPtr window);
 OSErr FindFolder(SInt16 vRefNum, OSType folderType, Boolean createFolder, SInt16* foundVRefNum, SInt32* foundDirID);
 
 /* Menu Commands */
-void DoMenuCommand(short menuID, short item);
 void OpenSelectedItems(void);
 void ShowGetInfoDialog(WindowPtr w);
 void DuplicateSelectedItems(WindowPtr w);

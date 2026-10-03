@@ -12,6 +12,7 @@
 #include "SystemTypes.h"
 #include "DialogManager/DialogManager.h"
 #include "ControlManager/ControlManager.h"
+#include "ControlManager/ControlInternal.h"
 #include "ControlManager/ControlTypes.h"
 #include "WindowManager/WindowManager.h"
 #include "EventManager/EventManager.h"

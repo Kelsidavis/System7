@@ -765,6 +765,9 @@ void InitProcMenu(short resID);
  * Menu Manager Internal Functions
  * ============================================================================ */
 
+/* Dispatch a selected menu item to its command handler. */
+void DoMenuCommand(short menuID, short item);
+
 /*
  * GetMenuManagerState - Get global Menu Manager state
  *

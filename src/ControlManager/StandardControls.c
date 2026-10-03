@@ -31,6 +31,7 @@
 #include "SystemTypes.h"
 #include "ControlManager/StandardControls.h"
 #include "ControlManager/ControlManager.h"
+#include "ControlManager/ControlInternal.h"
 /* ControlDrawing.h not needed */
 #include "ControlManager/ControlTypes.h"
 #include "QuickDraw/QuickDraw.h"
