@@ -207,8 +207,8 @@ void DrawMenuTitle(short menuID, const Rect* titleRect, Boolean hilited)
      * drawn, which is fine while a menu is being tracked but not afterwards:
      * choosing an item runs the command, that redraws a window and narrows the
      * clip to it, and the unhighlight that follows was then clipped away
-     * entirely. The title kept its black highlight even though DrawMenuTitle
-     * had dutifully filled it white (MENU-002).
+     * entirely, leaving the title's black highlight visible even though
+     * DrawMenuTitle had filled it white.
      */
     GrafPtr menuPort = QD_GetScreenPort();
     RgnHandle saveClip = NULL;
