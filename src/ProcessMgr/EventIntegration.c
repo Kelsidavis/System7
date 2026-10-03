@@ -73,7 +73,6 @@ Boolean Proc_GetNextEvent(EventMask mask, EventRecord* evt) {
      * main loop drew it, so inside an alert's ModalDialog loop it vanished and
      * stayed gone until the alert was dismissed. */
     {
-        extern void ProcessModernInput(void);
         extern void UpdateCursorDisplay(void);
         ProcessModernInput();
         UpdateCursorDisplay();
@@ -125,7 +124,6 @@ static void NullEventNow(EventRecord* evt) {
  */
 Boolean GetOSEvent(SInt16 mask, EventRecord* evt) {
     if (!evt) return false;
-    extern void ProcessModernInput(void);
     ProcessModernInput();
     if (DequeueEvent((EventMask)(UInt16)mask, evt)) {
         Proc_UnblockEvent(evt);
@@ -377,7 +375,6 @@ static Boolean CheckSystemEvents(EventMask mask, EventRecord* evt) {
      * test mask & nullEvent - and nullEvent is 0, so it never ran and no
      * null event was ever seen: no blinking caret, no ticking clock. */
     {
-        extern void GetMouse(Point* mouseLoc);
         evt->what = nullEvent;
         evt->message = 0;
         evt->when = TickCount();
