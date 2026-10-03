@@ -9,4 +9,6 @@ extern uint32_t fb_width;
 extern uint32_t fb_height;
 extern uint32_t fb_pitch;
 
+uint32_t pack_color(uint8_t red, uint8_t green, uint8_t blue);
+
 #endif /* SYSTEM7_PLATFORM_FRAMEBUFFER_H */

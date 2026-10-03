@@ -88,7 +88,6 @@ enum { kGridW = 8, kGridH = 12, kIconW = 32, kIconH = 32 };
 
 /* External globals */
 extern void QD_SetScreenPort(void);  /* QuickDraw globals from main.c */
-extern uint32_t pack_color(uint8_t r, uint8_t g, uint8_t b);
 
 /* Global tracking guard for modal drag loops */
 volatile Boolean gInMouseTracking = false;

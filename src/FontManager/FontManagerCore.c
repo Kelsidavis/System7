@@ -40,9 +40,6 @@
 
 /* External dependencies */
 
-/* External framebuffer from multiboot */
-extern uint32_t pack_color(uint8_t r, uint8_t g, uint8_t b);
-
 /* Global Font Manager state */
 static FontManagerState g_fmState = {0};
 

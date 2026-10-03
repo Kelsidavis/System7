@@ -4,6 +4,7 @@
  */
 #include "MenuManager/MenuAppIcon.h"
 #include "QuickDraw/QuickDraw.h"
+#include "Platform/Framebuffer.h"
 #include "Resources/system7_resources.h"
 #include "System71StdLib.h"
 #include "Finder/Icon/icon_types.h"
@@ -51,8 +52,6 @@ static const unsigned char gFinderMenuImage16[32] = {
     0xC0, 0x03,
     0xFF, 0xFF
 };
-
-extern UInt32 pack_color(uint8_t r, uint8_t g, uint8_t b);
 
 /* application_icon_16 is 16x16, 1-bit, 2 bytes per row */
 short MenuAppIcon_Draw(GrafPtr port, short left, short top, Boolean highlighted)

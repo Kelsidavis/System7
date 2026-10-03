@@ -25,8 +25,6 @@
 #define MAX_POLY_POINTS 1024
 #endif
 
-extern uint32_t pack_color(uint8_t r, uint8_t g, uint8_t b);
-
 /* Framebuffer and 32-bit PixMap pixel starts are four-byte aligned. */
 #define QD_PIXEL_PTR(address) \
     ((uint32_t*)__builtin_assume_aligned((address), _Alignof(uint32_t)))

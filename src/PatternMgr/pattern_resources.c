@@ -9,6 +9,7 @@
  */
 
 #include "PatternMgr/pattern_resources.h"
+#include "Platform/Framebuffer.h"
 #include "System71StdLib.h"
 #include "ResourceManager.h"
 #include "MemoryMgr/MemoryManager.h"
@@ -17,7 +18,6 @@
 
 /* External functions */
 extern int snprintf(char* str, size_t size, const char* format, ...);
-extern uint32_t pack_color(uint8_t r, uint8_t g, uint8_t b);
 
 /* External function from pattern_data.c */
 extern const uint8_t* GetBuiltInPatternData(int16_t patternID);

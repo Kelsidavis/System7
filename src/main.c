@@ -62,7 +62,6 @@ extern Boolean DispatchEvent(EventRecord* evt);
 #if DEBUG_SERIAL_MENU_COMMANDS
 static void process_serial_command(void);
 #endif
-uint32_t pack_color(uint8_t r, uint8_t g, uint8_t b);
 static void console_putchar(char c);
 static void console_puts(const char* str);
 static void console_clear(void);

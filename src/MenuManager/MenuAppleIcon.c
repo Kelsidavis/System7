@@ -2,12 +2,11 @@
 #include "MenuManager/menu_private.h"
 
 #include <stdint.h>
+#include "Platform/Framebuffer.h"
 #include "QuickDraw/QuickDraw.h"
 #include "SystemTypes.h"
 #include "System71StdLib.h"
 #include "apple16.h"
-
-extern UInt32 pack_color(uint8_t r, uint8_t g, uint8_t b);
 
 short MenuAppleIcon_Draw(GrafPtr port, short left, short top, Boolean highlighted)
 {

@@ -28,8 +28,6 @@
 
 /* Current QuickDraw port from QuickDrawCore.c */
 extern CGrafPtr g_currentCPort;
-extern uint32_t pack_color(uint8_t r, uint8_t g, uint8_t b);
-
 static const UInt32 kColorMask = 0x00FFFFFF;
 
 typedef struct {
