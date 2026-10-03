@@ -923,12 +923,8 @@ void ScrollRect(const Rect *r, SInt16 dh, SInt16 dv, RgnHandle updateRgn) {
      * as a PixMap, from fields a BitMap does not have; and the area
      * uncovered was left as it was, where it is to be filled with the
      * background (Inside Macintosh: Imaging With QuickDraw, 3-140). */
-    extern CGrafPtr g_currentCPort;
     Boolean colourPort = g_currentCPort && (GrafPtr)g_currentCPort == g_currentPort;
     if (!colourPort && framebuffer && g_currentPort->portBits.baseAddr == (Ptr)framebuffer) {
-        extern void QD_ClipBegin(GrafPtr port);
-        extern void QD_ClipEnd(void);
-        extern Boolean QD_ClipHas(SInt32 x, SInt32 y);
         extern Boolean WM_PortVisibleRgn(GrafPtr port, RgnHandle out);
         extern void Pointer_Shield(int left, int top, int right, int bottom);
         SInt16 bh = g_currentPort->portBits.bounds.left, bv = g_currentPort->portBits.bounds.top;
