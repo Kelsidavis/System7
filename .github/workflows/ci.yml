@@ -31,8 +31,8 @@ jobs:
       - name: Build kernel (English)
         run: make PLATFORM=x86
 
-      - name: Check x86 kernel layout
-        run: make check-x86-layout
+      - name: Run x86 quality gate
+        run: make check
 
       - name: Build ISO (English)
         run: make iso
