@@ -157,14 +157,17 @@ System7/
 - Try headless mode: `make run` should work with default VGA
 
 ### Serial output is empty
-- Serial logging uses printf - compile with `PLATFORM=x86`
-- Check kernel.log or specify: `-serial file:/tmp/serial.log`
+- `make run` writes QEMU serial output to `/tmp/serial.log`; inspect it with
+  `tail -f /tmp/serial.log`.
+- For a direct QEMU command, use `-serial stdio` to send serial output to the
+  terminal.
 
 ## Questions?
 
 - **GitHub Issues**: Report bugs and ask questions
 - **Documentation**: Check `docs/` folder
-- **Code**: Comments include Finding IDs referencing Inside Macintosh
+- **Code**: Comments explain non-obvious constraints and reference relevant
+  documentation or tests when useful
 
 ---
 

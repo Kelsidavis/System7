@@ -83,7 +83,8 @@ System7/
 
 - Follow existing conventions in the codebase
 - Use `serial_printf()` for debugging, not `printf`
-- Include Finding IDs in comments for non-obvious design decisions
+- Explain non-obvious constraints in comments and reference authoritative
+  documentation or tests when useful
 - Document public APIs with clear comments
 - No malloc/free in kernel (use zone-based allocation)
 

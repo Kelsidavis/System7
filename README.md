@@ -305,7 +305,8 @@ make debug
 
 **Archaeological Approach** with evidence-based implementation:
 1. Backed by Inside Macintosh documentation and MPW Universal Interfaces
-2. All major decisions tagged with Finding IDs referencing supporting evidence
+2. Important compatibility decisions are grounded in documentation, tests, or
+   recorded investigation
 3. Goal: behavioral parity with original System 7, not modernization
 4. Clean-room implementation (no original Apple source code)
 
