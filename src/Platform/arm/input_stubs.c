@@ -76,15 +76,6 @@ UInt8 GetMouseButtons(void) {
     return g_mouseState.buttons;
 }
 
-void GetMouseLocal(Point* mouseLoc) {
-    if (!mouseLoc) return;
-    GetMouse(mouseLoc);
-    if (g_currentPort) {
-        mouseLoc->h -= g_currentPort->portBits.bounds.left;
-        mouseLoc->v -= g_currentPort->portBits.bounds.top;
-    }
-}
-
 Boolean PS2_IsInitialized(void) {
     return g_input_initialized;
 }

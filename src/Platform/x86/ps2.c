@@ -830,14 +830,6 @@ void GetMouse(Point* mouseLoc) {
     }
 }
 
-/* Mouse position in the current port's coordinates. */
-void GetMouseLocal(Point* mouseLoc) {
-    extern void GlobalToLocal(Point* pt);
-    if (!mouseLoc) return;
-    GetMouse(mouseLoc);
-    GlobalToLocal(mouseLoc);
-}
-
 /* Get current keyboard modifiers as Event Manager modifier flags */
 UInt16 GetPS2Modifiers(void)
 {

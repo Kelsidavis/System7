@@ -263,6 +263,13 @@ Boolean StillDown(void)
 /**
  * Get mouse position in local coordinates
  */
+void GetMouseLocal(Point* mouseLoc)
+{
+    if (!mouseLoc) return;
+    GetMouse(mouseLoc);
+    GlobalToLocal(mouseLoc);
+}
+
 void GetLocalMouse(WindowPtr window, Point* mouseLoc)
 {
     if (mouseLoc) {
