@@ -983,20 +983,14 @@ long DragGrayRgn(RgnHandle theRgn, Point startPt, const Rect* limitRect,
  * Internal Helper Functions
  * ============================================================================ */
 
-/* [WM-051] WM_InvalidateWindowsBelow moved to WindowLayering.c - canonical Z-order invalidation */
-
 /* ============================================================================
  * Platform Abstraction Helpers
  * ============================================================================ */
-
-/* These functions would be implemented by the platform layer */
 
 static Boolean WM_IsMouseDown(void) {
     extern Boolean Button(void);
     return Button();
 }
-
-/* [WM-050] Platform_* functions removed - implemented in WindowPlatform.c */
 
 static GrafPtr WM_GetCurrentPort(void) {
     extern void GetPort(GrafPtr* port);
@@ -1005,10 +999,6 @@ static GrafPtr WM_GetCurrentPort(void) {
     return currentPort;
 }
 
-/* [WM-050] Platform port functions removed - stubs only */
-
-/* [WM-050] Platform_SetClipRgn removed - stub only */
-
 static Boolean WM_EmptyRgn(RgnHandle rgn) {
     extern Boolean EmptyRgn(RgnHandle rgn);
     if (rgn == NULL) {
@@ -1016,5 +1006,3 @@ static Boolean WM_EmptyRgn(RgnHandle rgn) {
     }
     return EmptyRgn(rgn);
 }
-
-/* [WM-050] Platform region/drag functions removed - implemented in WindowPlatform.c or stubs only */

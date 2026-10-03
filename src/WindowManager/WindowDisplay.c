@@ -1938,9 +1938,6 @@ WindowPtr WM_GetPreviousWindow(WindowPtr window) {
     return current;
 }
 
-/* FindWindow - Determine which part of the screen was clicked */
-/* [WM-050] FindWindow canonical implementation in WindowEvents.c - removed incomplete duplicate */
-
 /*-----------------------------------------------------------------------*/
 /* Desktop Hook and Display Update Functions                            */
 /*-----------------------------------------------------------------------*/
@@ -2086,8 +2083,6 @@ void WM_Update(void) {
     }
 
     /* Mouse cursor is now drawn separately in main.c for better performance */
-    /* Old cursor drawing code removed to prevent double cursor issue */
-
     SetPort(savePort);
 }
 

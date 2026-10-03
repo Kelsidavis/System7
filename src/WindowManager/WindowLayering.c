@@ -618,12 +618,6 @@ void WM_InvalidateWindowsBelow(WindowPtr topWindow, const Rect* rect) {
 }
 
 /* ============================================================================
- * Platform Abstraction Functions for Layering
- * ============================================================================ */
-
-/* [WM-050] Platform_* functions removed - implemented in WindowPlatform.c */
-
-/* ============================================================================
  * Debug and Diagnostic Functions
  * ============================================================================ */
 

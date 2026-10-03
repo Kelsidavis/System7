@@ -153,20 +153,6 @@ static void FolderWindow_OpenItem(WindowPtr w, FolderWindowState* state,
 void InitializeFolderContents(WindowPtr w, Boolean isTrash);
 static void GhostEraseIf(void);  /* Forward declaration for ghost system */
 
-/* Draw a simple file/folder icon */
-/* DrawFileIcon removed: it drew a placeholder folder or document shape and
- * nothing called it. Icons come from Icon_DrawWithLabel, which resolves the
- * real family for the node. */
-
-/* Draw folder window contents - Content Only, No Chrome */
-/* DrawFolderWindowContents() was removed: it was dead code.
- * It rendered a hardcoded placeholder folder ("System Folder",
- * "Applications", a "5 items ... MB in disk" status line) with a layout
- * that disagreed with FolderWindow_Draw, but nothing had called it in a
- * long time - only two stale extern declarations referred to it. It cost
- * real debugging time by looking like a live second renderer. See ARCH-001. */
-
-
 /* Helper: Find folder window state slot */
 /* ============================================================================
  * Icon grid

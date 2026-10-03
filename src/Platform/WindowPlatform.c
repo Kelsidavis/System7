@@ -895,10 +895,6 @@ void Platform_InvalidateWindowRect(WindowPtr window, const Rect* rect) {
     }
 }
 
-/* Pattern creation - removed duplicate, see line 162 */
-
-/* Window definition procedure - removed duplicate, see line 172 */
-
 /* Point testing */
 Boolean Platform_PointInWindowPart(WindowPtr window, Point pt, short partCode) {
     if (!window) return false;
