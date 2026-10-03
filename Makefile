@@ -1480,7 +1480,7 @@ test-stdlib:
 
 .PHONY: test-integration-runner
 test-integration-runner:
-	@python3 -m unittest discover -s tests -p 'test_integration_runner.py'
+	@PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s tests -p 'test_integration_runner.py'
 
 # Run the local x86 quality gate used before feature work: strict build,
 # allocator policy, differential libc tests, and required export checks.
