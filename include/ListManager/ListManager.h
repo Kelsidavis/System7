@@ -216,15 +216,15 @@ void LClearSelect(ListHandle lh);
 Boolean LLastClick(ListHandle lh, Cell* outCell, UInt32* outWhen, unsigned short* outMods);
 
 /* ================================================================
- * SEARCH (Optional - may be stubbed)
+ * SEARCH
  * ================================================================ */
 
 /*
  * LSearch - Search for text in list
- * pStr: Pascal string to search for
+ * pStr: Pascal string prefix to search for
  * caseSensitive: perform case-sensitive match
  * outFound: receives cell where found
- * Returns: true if found
+ * Returns: true if a cell begins with the requested prefix
  */
 Boolean LSearch(ListHandle lh, const unsigned char* pStr, Boolean caseSensitive, Cell* outFound);
 

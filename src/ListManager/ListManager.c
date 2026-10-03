@@ -11,7 +11,7 @@
  *   Selection:   LClick, LGetSelect, LSetSelect, LSelectAll, LClearSelect, LLastClick
  *   Keyboard:    LKey (Up/Down/PageUp/PageDown/Home/End/Space)
  *   Integration: LAttachScrollbars, ListFromDialogItem, AttachListToDialogItem
- *   Optional:    LSearch (stub)
+ *   Search:      LSearch (prefix match across cells)
  *
  * USAGE:
  *   1. Call LNew() with ListParams to create a list
@@ -1054,7 +1054,7 @@ Boolean LLastClick(ListHandle lh, Cell* outCell, UInt32* outWhen, unsigned short
 }
 
 /* ================================================================
- * SEARCH (Stubbed)
+ * SEARCH
  * ================================================================ */
 
 Boolean LSearch(ListHandle lh, const unsigned char* pStr, Boolean caseSensitive, Cell* outFound)
