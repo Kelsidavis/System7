@@ -100,6 +100,7 @@ char* strrev(char* s);
 char* basename(const char* path);
 char* dirname(const char* path);
 void c2pstrcpy(unsigned char* pstr, const char* cstr);
+void c2pstrcpy_bounded(unsigned char* pstr, const char* cstr, size_t maxChars);
 void p2cstrcpy(char* cstr, const unsigned char* pstr);
 unsigned char* CopyCStringToPascal(const char* src, unsigned char* dst);
 

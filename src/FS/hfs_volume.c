@@ -6,6 +6,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include "FS/FSLogging.h"
+#include "System71StdLib.h"
 
 /* Serial debug output */
 
@@ -15,14 +16,6 @@ static void pstr_to_cstr(char* dst, const uint8_t* src, size_t maxlen) {
     if (len > maxlen - 1) len = maxlen - 1;
     memcpy(dst, src + 1, len);
     dst[len] = '\0';
-}
-
-/* C string to Pascal string conversion */
-static void cstr_to_pstr(uint8_t* dst, const char* src, size_t maxlen) {
-    size_t len = strlen(src);
-    if (len > maxlen) len = maxlen;
-    dst[0] = len;
-    memcpy(dst + 1, src, len);
 }
 
 /*
@@ -220,7 +213,7 @@ bool HFS_CreateBlankVolume(void* buffer, uint64_t size, const char* volName) {
     /* Volume name */
     uint8_t pname[28];
     memset(pname, 0, sizeof(pname));
-    cstr_to_pstr(pname, volName, 27);
+    c2pstrcpy_bounded(pname, volName, 27);
     memcpy(&mdb[kMDB_drVN], pname, 28);                     /* drVN */
 
     /* Catalog file - allocate 10 blocks */
@@ -509,7 +502,7 @@ bool HFS_FormatVolume(HFS_BlockDev* bd, const char* volName) {
     /* Volume name */
     uint8_t pname[28];
     memset(pname, 0, sizeof(pname));
-    cstr_to_pstr(pname, volName, 27);
+    c2pstrcpy_bounded(pname, volName, 27);
     memcpy(&mdb[kMDB_drVN], pname, 28);                     /* drVN */
 
     /* Catalog file - 10 allocation blocks */

@@ -35,15 +35,6 @@ typedef struct KeyboardPanelState {
 
 static KeyboardPanelState gKeyboardState = {0};
 
-static void cstr_to_pstr(const char *src, Str255 dst)
-{
-    if (!src || !dst) return;
-    size_t len = strlen(src);
-    if (len > 255) len = 255;
-    dst[0] = (UInt8)len;
-    memcpy(&dst[1], src, len);
-}
-
 static void dispose_controls(void)
 {
     if (gKeyboardState.repeatSlower) {
@@ -190,25 +181,25 @@ static void draw_contents(void)
     char buffer[64];
     snprintf(buffer, sizeof(buffer), "Key Repeat Rate: %d", gKeyboardState.repeatRate);
     Str255 str;
-    cstr_to_pstr(buffer, str);
+    c2pstrcpy(str, buffer);
     MoveTo(20, 40);
     DrawString(str);
 
     snprintf(buffer, sizeof(buffer), "Delay Until Repeat: %d", gKeyboardState.delayTicks);
-    cstr_to_pstr(buffer, str);
+    c2pstrcpy(str, buffer);
     MoveTo(20, 60);
     DrawString(str);
 
     if (gKeyboardState.keyClick) {
-        cstr_to_pstr("Key click sound: Enabled", str);
+        c2pstrcpy(str, "Key click sound: Enabled");
     } else {
-        cstr_to_pstr("Key click sound: Disabled", str);
+        c2pstrcpy(str, "Key click sound: Disabled");
     }
     MoveTo(20, 100);
     DrawString(str);
 
     const char *tip = "Adjust keyboard responsiveness to your preference.";
-    cstr_to_pstr(tip, str);
+    c2pstrcpy(str, tip);
     MoveTo(20, 120);
     DrawString(str);
 

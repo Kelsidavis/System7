@@ -37,6 +37,7 @@ WANTED = [
     'strcasecmp', 'strncasecmp', 'strcat', 'strncat',
     'strlcpy', 'strlcat', 'strchr', 'strrchr', 'strstr',
     'strspn', 'strcspn', 'strpbrk',
+    'c2pstrcpy_bounded',
     # support routines the above call
     'toupper', 'tolower', 'isupper', 'islower',
     # formatted output, plus the helpers it dispatches to
@@ -193,6 +194,21 @@ static const char *SAMPLES[] = {
 int main(void) {
     Guarded g1, g2;
     char detail[160];
+
+    /* C-to-Pascal conversion must honor smaller destinations such as HFS
+       volume-name fields, not just the 255-byte Pascal string maximum. */
+    {
+        unsigned char raw[32];
+        memset(raw, GUARD, sizeof raw);
+        s7_c2pstrcpy_bounded(raw + 2,
+                             "012345678901234567890123456789", 27);
+        checks++;
+        if (raw[2] != 27 || memcmp(raw + 3, "012345678901234567890123456", 27) != 0 ||
+            raw[30] != GUARD || raw[31] != GUARD) {
+            printf("FAIL c2pstrcpy   bounded conversion or guard bytes differ\n");
+            failures++;
+        }
+    }
 
     for (size_t s = 0; s < NSAMPLES; s++) {
         const char *src = SAMPLES[s];

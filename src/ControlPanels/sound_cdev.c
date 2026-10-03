@@ -32,19 +32,6 @@ typedef struct SoundPanelState {
 
 static SoundPanelState gSoundState = {0};
 
-static void cstr_to_pstr(const char *src, Str255 dst)
-{
-    if (!src || !dst) {
-        return;
-    }
-    size_t len = strlen(src);
-    if (len > 255) {
-        len = 255;
-    }
-    dst[0] = (UInt8)len;
-    memcpy(&dst[1], src, len);
-}
-
 static void dispose_controls(void)
 {
     if (gSoundState.volumeDownButton) {
@@ -155,19 +142,19 @@ static void draw_contents(void)
     char line[64];
     snprintf(line, sizeof(line), "Output Volume: %d%%", gSoundState.volume);
     Str255 volumeStr;
-    cstr_to_pstr(line, volumeStr);
+    c2pstrcpy(volumeStr, line);
     MoveTo(20, 40);
     DrawString(volumeStr);
 
     const char *muteText = gSoundState.muted ? "Status: Muted" : "Status: Active";
     Str255 muteStr;
-    cstr_to_pstr(muteText, muteStr);
+    c2pstrcpy(muteStr, muteText);
     MoveTo(20, 60);
     DrawString(muteStr);
 
     const char *tipText = "Use the buttons below to adjust volume.";
     Str255 tipStr;
-    cstr_to_pstr(tipText, tipStr);
+    c2pstrcpy(tipStr, tipText);
     MoveTo(20, 90);
     DrawString(tipStr);
 

@@ -34,17 +34,6 @@ typedef struct MousePanelState {
 
 static MousePanelState gMouseState = {0};
 
-static void cstr_to_pstr(const char *src, Str255 dst)
-{
-    if (!src || !dst) {
-        return;
-    }
-    size_t len = strlen(src);
-    if (len > 255) len = 255;
-    dst[0] = (UInt8)len;
-    memcpy(&dst[1], src, len);
-}
-
 static void dispose_controls(void)
 {
     if (gMouseState.slowerButton) {
@@ -174,27 +163,27 @@ static void draw_contents(void)
     char buffer[64];
     snprintf(buffer, sizeof(buffer), "Tracking Speed: %d", gMouseState.trackingSpeed);
     Str255 str;
-    cstr_to_pstr(buffer, str);
+    c2pstrcpy(str, buffer);
     MoveTo(20, 40);
     DrawString(str);
 
     const char *tips = "Adjust how quickly the pointer moves.";
-    cstr_to_pstr(tips, str);
+    c2pstrcpy(str, tips);
     MoveTo(20, 60);
     DrawString(str);
 
     if (gMouseState.swapButtons) {
-        cstr_to_pstr("Left-handed mode: ON", str);
+        c2pstrcpy(str, "Left-handed mode: ON");
     } else {
-        cstr_to_pstr("Left-handed mode: OFF", str);
+        c2pstrcpy(str, "Left-handed mode: OFF");
     }
     MoveTo(20, 100);
     DrawString(str);
 
     if (gMouseState.doubleClickAssist) {
-        cstr_to_pstr("Double-click assistance enabled.", str);
+        c2pstrcpy(str, "Double-click assistance enabled.");
     } else {
-        cstr_to_pstr("Double-click assistance disabled.", str);
+        c2pstrcpy(str, "Double-click assistance disabled.");
     }
     MoveTo(20, 120);
     DrawString(str);

@@ -973,10 +973,15 @@ char* dirname(const char* path) {
 
 /* Pascal string utilities */
 void c2pstrcpy(unsigned char* dst, const char* src) {
-    /* Copy C string to Pascal string (safe version that doesn't modify src) */
+    c2pstrcpy_bounded(dst, src, 255);
+}
+
+void c2pstrcpy_bounded(unsigned char* dst, const char* src, size_t maxChars) {
+    /* Copy a C string to a Pascal string without exceeding its destination. */
     if (!dst || !src) return;
 
     size_t len = strlen(src);
+    if (len > maxChars) len = maxChars;
     if (len > 255) len = 255;  /* Pascal strings limited to 255 characters */
 
     dst[0] = (unsigned char)len;  /* Set length byte */

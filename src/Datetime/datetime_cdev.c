@@ -87,22 +87,6 @@ static const char *kMonthNames[12] = {
     "December"
 };
 
-/* Convert a C string to a Pascal Str255. */
-static void cstr_to_pstr(const char *src, Str255 dst)
-{
-    if (!src || !dst) {
-        return;
-    }
-
-    size_t len = strlen(src);
-    if (len > 255) {
-        len = 255;
-    }
-
-    dst[0] = (UInt8)len;
-    memcpy(&dst[1], src, len);
-}
-
 static UInt32 current_mac_time(void)
 {
     /* Ask the system clock directly. Going out to Unix time and back only
@@ -265,11 +249,11 @@ static void draw_panel_contents(void)
 
     Str255 pascalStr;
     MoveTo(gPanel.textRect.left, gPanel.textRect.top + 20);
-    cstr_to_pstr(dateBuf, pascalStr);
+    c2pstrcpy(pascalStr, dateBuf);
     DrawString(pascalStr);
 
     MoveTo(gPanel.textRect.left, gPanel.textRect.top + 44);
-    cstr_to_pstr(timeBuf, pascalStr);
+    c2pstrcpy(pascalStr, timeBuf);
     DrawString(pascalStr);
 
     SetPort(previousPort);
