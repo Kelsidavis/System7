@@ -1,17 +1,4 @@
-/*
- * RE-AGENT-BANNER
- * Finder Interface Header
- *
- * Reverse-engineered from System 7 Finder.rsrc
- * Source:  3_resources/Finder.rsrc
- *
- * Evidence sources:
- * - String analysis of Finder.rsrc
- * - Interface definitions from
- * - Assembly interfaces from
- *
- * This file provides the public API for the System 7 Finder functionality.
- */
+/* Public interfaces for Finder functionality. */
 
 #ifndef __FINDER_H__
 #define __FINDER_H__
@@ -255,19 +242,3 @@ void DoActivate(WindowPtr window, Boolean becomingActive);
 void DoBackgroundTasks(void);
 
 #endif /* __FINDER_H__ */
-
-/*
- * RE-AGENT-TRAILER-JSON
- * {
- *   "module": "finder.h",
- *   "evidence_density": 0.85,
- *   "api_functions": 23,
- *   "constants": 15,
- *   "primary_evidence": [
- *     "String analysis of Finder functionality",
- *     "Interface definitions from System 7 source",
- *     "Resource structure analysis"
- *   ],
- *   "implementation_status": "header_complete"
- * }
- */

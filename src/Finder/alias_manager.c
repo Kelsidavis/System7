@@ -1,18 +1,4 @@
-/*
- * RE-AGENT-BANNER
- * Alias Manager Implementation
- *
- * Reverse-engineered from System 7 Finder.rsrc
- * Source:  3_resources/Finder.rsrc
- *
- * Evidence sources:
- * - String analysis: "the original item,## could not be found%The alias"
- * - String analysis: "this item is really not an alias (oops!)"
- * - Alias type constants from Finder.h interface
- * - String analysis: "Find Original" functionality
- *
- * This module handles alias file creation, resolution, and management.
- */
+/* Alias file creation and resolution. */
 
 #include "SystemTypes.h"
 

@@ -1,12 +1,4 @@
-/*
- * RE-AGENT-BANNER
- * Pattern Manager Implementation
- * System 7.1 Desktop Pattern Management
- *
- * Manages the desktop pattern state that QuickDraw uses for erasing.
- * This mirrors the classic Mac OS architecture where the Pattern Manager
- * owns the background state and QuickDraw consumes it.
- */
+/* Desktop pattern state consumed by QuickDraw. */
 
 #include "PatternMgr/pattern_manager.h"
 #include "PatternMgr/pattern_resources.h"

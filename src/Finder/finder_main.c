@@ -1,17 +1,4 @@
-/*
- * RE-AGENT-BANNER
- * Main Finder Implementation
- *
- * Reverse-engineered from System 7 Finder.rsrc
- * Source:  3_resources/Finder.rsrc
- *
- * Evidence sources:
- * - String analysis: "Macintosh Finder Version 7.1", "About The Finder"
- * - Functionality analysis from evidence.curated.json
- * - API mappings from mappings.json
- *
- * This is the main entry point and initialization code for the Finder.
- */
+/* Finder initialization and main event handling. */
 
 #include "SystemTypes.h"
 

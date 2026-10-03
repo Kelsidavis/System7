@@ -1,12 +1,4 @@
-/*
- * RE-AGENT-BANNER
- * Pattern Resources Implementation
- * System 7.1 Pattern Resource Loading
- *
- * Loads 'PAT ' and 'ppat' resources from resource files.
- * Classic 'PAT ' data is exactly 8 bytes (one row per byte, bit7 leftmost).
- * PixPat resources are more complex and stored as opaque handles.
- */
+/* Load classic Pattern and PixPat resources. */
 
 #include "PatternMgr/pattern_resources.h"
 #include "Platform/Framebuffer.h"

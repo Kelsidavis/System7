@@ -1,19 +1,6 @@
 #include "SystemInternal.h"
 #include "MemoryMgr/MemoryManager.h"
-/*
- * RE-AGENT-BANNER
- * Desktop Manager Implementation
- *
- * Reverse-engineered from System 7 Finder.rsrc
- * Source:  3_resources/Finder.rsrc
- *
- * Evidence sources:
- * - String analysis: "Clean Up Desktop", "Rebuilding the desktop file"
- * - String analysis: "was found on the desktop", "on the desktop"
- * - Desktop database management functionality
- *
- * This module handles desktop icon positioning and desktop database management.
- */
+/* Desktop icon positioning and desktop database management. */
 
 #include "SystemTypes.h"
 #include "DeskManager/DeskManager.h"

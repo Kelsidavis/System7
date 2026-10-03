@@ -1,28 +1,5 @@
 #include <stdlib.h>
-/*
- * RE-AGENT-BANNER
- * ProcessManager.c - Mac OS System 7 Process Manager Core Implementation
- *
- * implemented based on System.rsrc
- *
- * This implements the cooperative multitasking Process Manager for System 7.
- * The Process Manager enables multiple applications to run simultaneously
- * through cooperative scheduling where applications voluntarily yield control
- * by calling WaitNextEvent or GetNextEvent.
- *
- * Key cooperative multitasking features:
- * - Event-driven scheduling through WaitNextEvent
- * - Process Control Blocks for state management
- * - Memory partition management per process
- * - Context switching for 68k processors
- * - MultiFinder integration for background processing
- *
- * Evidence sources:
- * - evidence.process_manager.json: Function analysis from radare2
- * - mappings.process_manager.json: Function name mappings
- * - layouts.process_manager.json: Data structure layouts
- * RE-AGENT-BANNER
- */
+/* Process lifecycle, cooperative scheduling, and MultiFinder integration. */
 
 #include "SystemTypes.h"
 #include "System71StdLib.h"

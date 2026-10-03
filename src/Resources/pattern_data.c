@@ -1,11 +1,4 @@
-/*
- * RE-AGENT-BANNER
- * Pattern Resources Data
- * System 7.1 Desktop Pattern Resources
- *
- * Contains built-in desktop pattern data.
- * These patterns are loaded as resources with IDs 16-47.
- */
+/* Built-in classic desktop pattern data. */
 
 #include "SystemTypes.h"
 #include "PatternMgr/pattern_resources.h"

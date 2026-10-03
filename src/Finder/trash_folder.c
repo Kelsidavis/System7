@@ -1,17 +1,4 @@
-/*
- * RE-AGENT-BANNER
- * Trash Folder Implementation
- *
- * Reverse-engineered from System 7 Finder.rsrc
- * Source:  3_resources/Finder.rsrc
- *
- * Evidence sources:
- * - String analysis: "Empty Trash", "The Trash cannot be emptied"
- * - String analysis: "The Trash cannot be moved off the desktop"
- * - String analysis: "Items from 400K disks cannot be left in the Trash"
- *
- * This module handles all trash folder operations including empty trash functionality.
- */
+/* Trash folder operations. */
 
 #include "SystemTypes.h"
 #include "DeskManager/DeskManager.h"
