@@ -4,30 +4,30 @@ Thank you for your interest in the System 7 reimplementation project! This is an
 
 ## Ways to Contribute
 
-### 🐛 Bug Reports
+### Bug Reports
 - Check [existing issues](https://github.com/Kelsidavis/System7/issues) first to avoid duplicates
 - Include detailed reproduction steps
 - Specify your hardware/emulator and OS
 - Attach screenshots or logs if relevant
 
-### 📚 Documentation
+### Documentation
 - Improve existing guides in `docs/components/`
 - Add architectural explanations
 - Document undiscovered System 7 behaviors
 - Fix typos or clarify complex sections
 
-### 🌍 Translations
+### Translations
 - Help translate the README into additional languages
 - Add language-specific resource files in `resources/strings/`
 - Create locale-specific documentation
 
-### 💻 Code Improvements
+### Code Improvements
 - Fix bugs identified in [known issues](KNOWN_ISSUES.md)
 - Improve code quality (test coverage, documentation)
 - Optimize performance
 - For major features, open an issue first to discuss approach
 
-### 🧪 Testing
+### Testing
 - Report compatibility issues on different hardware/emulators
 - Test on various QEMU configurations
 - Verify language-specific features
