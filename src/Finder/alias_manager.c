@@ -24,7 +24,6 @@
 #include "MemoryMgr/MemoryManager.h"
 #include "ResourceManager.h"
 #include "Finder/FinderLogging.h"
-/* Note: Aliases.h may not exist yet */
 
 
 /* Alias Manager Constants */
@@ -66,7 +65,6 @@ OSErr ResolveAlias(FSSpec *alias, FSSpec *target, Boolean *wasChanged)
     /* Validate that this is actually an alias file */
     err = ValidateAliasFile(alias);
     if (err != noErr) {
-        /* ShowErrorDialog("\pThis item is really not an alias. The problem has now been corrected.", err); */
         return err;
     }
 
@@ -97,8 +95,6 @@ OSErr ResolveAlias(FSSpec *alias, FSSpec *target, Boolean *wasChanged)
         if (targetChanged) {
             err = UpdateAliasFile(alias, target);
         }
-    } else {
-        /* ShowErrorDialog("\pThe alias could not be resolved because the original item could not be found.", err); */
     }
 
     /* Clean up */
@@ -148,10 +144,6 @@ OSErr FixBrokenAlias(FSSpec *alias)
             BlockMoveData(&finderInfo, &pb.u.hFileInfo.ioFlFndrInfo, sizeof(FInfo));
             pb.u.hFileInfo.ioDirID = alias->parID;
             err = PBSetCatInfoSync(&pb);
-
-            if (err == noErr) {
-                /* ShowErrorDialog("\pThe problem has now been corrected. Please try again.", noErr); */
-            }
         }
     }
 
@@ -166,7 +158,6 @@ OSErr CreateAlias(FSSpec *target, FSSpec *aliasFile)
 {
     OSErr err;
     AliasHandle aliasHandle = nil;
-    /* short aliasRefNum; */ /* TODO: Resource file reference for alias storage */
     CInfoPBRec pb;
     FInfo finderInfo;
 
