@@ -138,59 +138,45 @@ WindowPtr NewWindow(void* wStorage, const Rect* boundsRect,
                    short theProc, WindowPtr behind,
                    Boolean goAwayFlag, long refCon) {
 
-    serial_puts("[NEWWIN] enter\n");
-
     if (!g_wmState.initialized) {
-        serial_puts("[NEWWIN] InitWindows\n");
         InitWindows();
     }
 
     if (boundsRect == NULL) {
-        serial_puts("[NEWWIN] boundsRect NULL\n");
         return NULL;
     }
-
-    serial_puts("[NEWWIN] bounds OK\n");
 
     WindowPtr window;
 
     /* Allocate window storage if not provided */
     if (wStorage == NULL) {
-        serial_puts("[NEWWIN] alloc storage\n");
         window = AllocateWindowRecord(false); /* Black & white window */
         if (window == NULL) {
-            serial_puts("[NEWWIN] alloc FAILED\n");
+            serial_puts("[NEWWIN] window allocation failed\n");
             return NULL;
         }
-        serial_puts("[NEWWIN] alloc OK\n");
     } else {
-        serial_puts("[NEWWIN] using provided storage\n");
         window = (WindowPtr)wStorage;
         memset(window, 0, sizeof(WindowRecord));
     }
 
-    serial_puts("[NEWWIN] InitializeWindowRecord\n");
     /* Initialize the window record */
     InitializeWindowRecord(window, boundsRect, title, theProc, visible, goAwayFlag);
     window->refCon = refCon;
-    serial_puts("[NEWWIN] InitializeWindowRecord done\n");
 
-    serial_puts("[NEWWIN] InitWindowPort\n");
     /* Initialize the window's graphics port */
     if (!Platform_InitializeWindowPort(window)) {
-        serial_puts("[NEWWIN] port init FAILED\n");
+        serial_puts("[NEWWIN] port initialization failed\n");
         if (wStorage == NULL) {
             DeallocateWindowRecord(window);
         }
         return NULL;
     }
-    serial_puts("[NEWWIN] InitWindowPort done\n");
 
     /* Regions already initialized in InitializeWindowRecord - don't recalculate */
     /* Platform_CalculateWindowRegions would overwrite with local coordinates */
 
     /* Create offscreen GWorld for double-buffering */
-    serial_puts("[NEWWIN] GWorld\n");
     /* Use explicit field copy to avoid struct assignment on ARM64 */
     Rect contentRect;
     contentRect.top = window->port.portRect.top;
@@ -203,39 +189,24 @@ WindowPtr NewWindow(void* wStorage, const Rect* boundsRect,
     if (width > 0 && height > 0) {
         OSErr err = NewGWorld(&window->offscreenGWorld, 32, &contentRect, NULL, NULL, 0);
         if (err != noErr) {
-            serial_puts("[NEWWIN] GWorld FAILED\n");
+            serial_puts("[NEWWIN] offscreen buffer unavailable\n");
             window->offscreenGWorld = NULL;
-        } else {
-            serial_puts("[NEWWIN] GWorld OK\n");
         }
     } else {
         window->offscreenGWorld = NULL;
     }
 
-    serial_puts("[NEWWIN] AddWindowToList\n");
-    extern void uart_flush(void);
-    uart_flush();
     /* Add window to the window list */
     AddWindowToList(window, behind);
 
-    serial_puts("[NEWWIN] Platform_CreateNativeWindow\n");
-    uart_flush();
     /* Create native platform window */
     Platform_CreateNativeWindow(window);
 
-    serial_puts("[NEWWIN] visible check\n");
-    uart_flush();
     /* Make visible if requested */
     if (visible) {
-        serial_puts("[NEWWIN] ShowWindow\n");
-        uart_flush();
         ShowWindow(window);
-        serial_puts("[NEWWIN] ShowWindow done\n");
-        uart_flush();
     }
 
-    serial_puts("[NEWWIN] returning\n");
-    uart_flush();
     #ifdef DEBUG_WINDOW_MANAGER
     printf("NewWindow: Created window at (%d,%d) size (%d,%d)\n",
            boundsRect->left, boundsRect->top,
@@ -516,19 +487,13 @@ void CloseWindow(WindowPtr theWindow) {
 }
 
 void DisposeWindow(WindowPtr theWindow) {
-
-    serial_puts("[WM] DisposeWindow: ENTRY\n");
-
     if (theWindow == NULL) {
-        serial_puts("[WM] DisposeWindow: NULL window\n");
         return;
     }
 
     DM_ClearFocusForWindow(theWindow);
     CloseWindow(theWindow);
     DeallocateWindowRecord(theWindow);
-
-    serial_puts("[WM] DisposeWindow: EXIT\n");
 }
 
 /**
