@@ -4,17 +4,7 @@
 #include "System71StdLib.h"
 
 extern void QD_SetScreenPort(void);
-/*
- * MenuManagerCore.c - Core Menu Manager Implementation
- *
- * This file implements the core Menu Manager functionality including
- * menu creation, disposal, menu bar management, and the fundamental
- * menu operations. This is THE FINAL CRITICAL COMPONENT that completes
- * the essential Mac OS interface for System 7.1 compatibility.
- *
- * Copyright (c) 2025 - System 7.1 Portable Project
- * Derived from System 7 ROM analysis (Ghidra) Menu Manager
- */
+/* Core Menu Manager implementation. */
 
 #include "../include/MacTypes.h"
 #include "QuickDraw.h"

@@ -9,15 +9,7 @@
 #define SAVEBITS_LOG(msg) ((void)0)
 #endif
 
-/*
- * menu_savebits.c - Menu Manager Screen Bits Save/Restore
- *
- * Implementation of screen bits save/restore functions based on
- * Uses MenuBitsPool to prevent heap fragmentation from repeated
- * allocation/deallocation of large menu background buffers.
- *
- * RE-AGENT-BANNER: Extracted from Mac OS System 7.1 SaveRestoreBits trap
- */
+/* Screen-bit save/restore implementation using MenuBitsPool buffers. */
 
 #include "SystemTypes.h"
 #include "SystemInternal.h"

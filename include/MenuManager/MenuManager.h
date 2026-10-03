@@ -1,28 +1,4 @@
-/*
- * MenuManager.h - Complete Portable Menu Manager API
- *
- * This is the main header for the Portable Menu Manager implementation
- * that provides exact Apple Macintosh System 7.1 Menu Manager compatibility
- * on modern platforms. This implementation completes the essential Mac OS
- * interface - it's THE FINAL CRITICAL COMPONENT for System 7.1 compatibility.
- *
- * The Menu Manager provides:
- * - Complete menu bar management and display
- * - Pull-down menu creation and tracking
- * - Menu item management (enable/disable, checkmarks, styles)
- * - Popup menu support with positioning
- * - Hierarchical menu (submenu) support
- * - Menu command key processing
- * - MENU resource loading and management
- * - Menu bar application switching
- * - Complete Mac OS Menu Manager API compatibility
- *
- * With this component, System 7.1 Portable has 100% of essential Mac
- * functionality and can run authentic Mac applications.
- *
- * Copyright (c) 2025 - System 7.1 Portable Project
- * Derived from System 7 ROM analysis (Ghidra) Menu Manager
- */
+/* Public Menu Manager interfaces for menus, menu items, and menu tracking. */
 
 #ifndef __MENU_MANAGER_H__
 #define __MENU_MANAGER_H__

@@ -1,13 +1,5 @@
 #include "DialogManager/DialogInternal.h"
-/*
- * dialog_manager_private.c - Private Dialog Manager Implementation
- *
- * RE-AGENT-BANNER: This file implements private Dialog Manager functions
- * selectors and function implementations are based on analysis.
- *
- * Evidence sources:
- * -  (dispatch table)
- */
+/* Private Dialog Manager implementation. */
 
 #include "SystemTypes.h"
 #include "EventManager/EventTypes.h"
@@ -17,7 +9,7 @@
 #include "DialogManager/DialogLogging.h"
 
 
-/* Private global state access - evidence from DialogMgrGlobals */
+/* Private global state access. */
 extern DialogMgrGlobals* GetDialogManagerGlobals(void);
 
 /*
