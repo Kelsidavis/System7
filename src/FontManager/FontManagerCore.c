@@ -662,7 +662,7 @@ void TextFace(Style face) {
     g_currentPort->txFace = face;
     FM_LOG("TextFace: Set to 0x%02x\n", face);
 
-    /* Would update strike here for style synthesis */
+    /* TextFace affects glyph drawing and width metrics, not strike selection. */
 }
 
 void TextSize(short size) {
