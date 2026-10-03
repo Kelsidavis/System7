@@ -20,8 +20,14 @@ sudo apt-get install build-essential gcc-multilib grub-pc-bin grub-efi-amd64-bin
 **macOS**:
 ```bash
 # Requires Homebrew: https://brew.sh
-brew install i386-elf-toolchain qemu xorriso
+brew install i686-elf-gcc qemu xorriso
 ```
+
+The compiler formula supplies the `i686-elf-*` tools used by the build. To run
+`make run` or create an ISO, also install a host `grub-mkrescue` configured
+with both BIOS (`i386-pc`) and UEFI (`x86_64-efi`) modules, plus `mtools`.
+Homebrew's target-prefixed GRUB formulas build for one platform each and do not
+provide that hybrid host setup.
 
 ### 2. Clone & Build
 
