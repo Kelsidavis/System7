@@ -50,14 +50,10 @@ void RefreshDesktopRect(const Rect* rectToRefresh);
 /* Debug output */
 
 /* External function declarations */
-extern int snprintf(char* str, size_t size, const char* format, ...);
 extern bool Trash_IsEmptyAll(void);
 /* NewPtr now provided by MemoryManager.h */
-extern void InvalRect(const Rect* badRect);
 extern void SetDeskHook(void (*hookProc)(RgnHandle));
 
-/* Chicago font data */
-extern const uint8_t chicago_bitmap[];
 /* CHICAGO_HEIGHT is defined in chicago_font.h */
 #define CHICAGO_ASCENT 12
 #define CHICAGO_ROW_BYTES 140
@@ -74,9 +70,6 @@ enum { kGridW = 8, kGridH = 12, kIconW = 32, kIconH = 32 };
 
 /* Drag threshold for distinguishing clicks from drags */
 #define kDragThreshold 4
-
-/* External globals */
-extern void QD_SetScreenPort(void);  /* QuickDraw globals from main.c */
 
 /* Global tracking guard for modal drag loops */
 volatile Boolean gInMouseTracking = false;
@@ -261,7 +254,6 @@ static void Desktop_DrawIconsCommon(RgnHandle clip)
      * desktop redraw the tablet boot never reaches, which is why the volume and
      * Trash icons were missing there and present with a tablet attached.
      */
-    extern GrafPtr QD_GetScreenPort(void);
     GrafPtr screenPort = QD_GetScreenPort();
     GrafPtr iconSavePort;
     RgnHandle iconSaveClip = NULL;
@@ -483,8 +475,6 @@ static void Finder_DeskHook(RgnHandle invalidRgn)
     /* Set the desktop background pattern from Pattern Manager before erasing.
      * PM_SetBackPat intentionally keeps port bkPat as white (for windows),
      * but the desktop needs the actual gray/custom pattern. */
-    extern void PM_GetBackPat(Pattern *pat);
-    extern void BackPat(const Pattern *pat);
     Pattern desktopPat;
     PM_GetBackPat(&desktopPat);
     BackPat(&desktopPat);
@@ -1077,8 +1067,6 @@ static inline void GhostShowAt(const Rect* r)
  */
 static void DesktopYield(void)
 {
-    extern void ProcessModernInput(void);
-
     /* Don't call EventPumpYield() here - it can cause re-entrancy issues during drag.
      * ProcessModernInput() polls PS/2 input AND updates gCurrentButtons */
     ProcessModernInput();  /* Update mouse/keyboard state including gCurrentButtons */
@@ -1094,9 +1082,6 @@ static void TrackIconDragSync(short iconIndex, Point startPt)
     Rect ghost;
     Boolean didDrag = false;  /* Track if icon actually moved during drag */
     GrafPtr savePort;
-
-    extern Boolean StillDown(void);
-    extern void GetMouse(Point *pt);
 
     if (iconIndex < 0 || iconIndex >= gDesktopIconCount) return;
 
@@ -1120,8 +1105,6 @@ static void TrackIconDragSync(short iconIndex, Point startPt)
 
     /* Threshold using current button state (PS/2/USB safe) */
     Point last = startPt, cur;
-    extern volatile UInt8 gCurrentButtons;
-
     while ((gCurrentButtons & 1) != 0 && loopCount < MAX_DRAG_ITERATIONS) {
         loopCount++;
         GetMouse(&cur);
@@ -1209,7 +1192,6 @@ static void TrackIconDragSync(short iconIndex, Point startPt)
     Boolean invalidDrop = false;
 
     /* Get modifier keys to determine action (option = alias, cmd = copy) */
-    extern void GetKeys(KeyMap theKeys);
     KeyMap keys;
     GetKeys(keys);
     /* Check for option key (0x3A = option key scancode, byte 7, bit 2) */
@@ -1226,8 +1208,6 @@ static void TrackIconDragSync(short iconIndex, Point startPt)
         FINDER_LOG_DEBUG("TrackIconDragSync: Dropped on trash! Moving to trash folder\n");
 
         extern bool Trash_MoveNode(VRefNum vref, DirID parent, FileID id);
-        extern VRefNum VFS_GetBootVRef(void);
-
         if (item->iconID != 0xFFFFFFFF) {
             VRefNum vref = VFS_GetBootVRef();
             if (Trash_MoveNode(vref, HFS_ROOT_DIR_ID, item->iconID)) {
@@ -1252,12 +1232,9 @@ static void TrackIconDragSync(short iconIndex, Point startPt)
         invalidDrop = true;
     } else {
         /* DROP TARGET: Desktop or folder window */
-        extern short FindWindow(Point thePoint, WindowPtr* theWindow);
         extern VRefNum VFS_GetVRefByID(FileID id);
-        extern VRefNum VFS_GetBootVRef(void);
         extern bool VFS_GetParentDir(VRefNum vref, FileID id, DirID* parentDir);
         extern bool VFS_Copy(VRefNum vref, DirID fromDir, FileID id, DirID toDir, const char* newName, FileID* newID);
-        extern OSErr CreateAlias(FSSpec* target, FSSpec* aliasFile);
 
         WindowPtr hitWindow = NULL;
         short partCode = FindWindow(dropPoint, &hitWindow);
@@ -1923,8 +1900,6 @@ Boolean HandleDesktopClick(Point clickPoint, Boolean doubleClick)
     short hitIcon;
     WindowPtr whichWindow;
 
-    extern short FindWindow(Point thePoint, WindowPtr* theWindow);
-
     FINDER_LOG_DEBUG("HandleDesktopClick: click at (%d,%d), doubleClick=%d\n",
                   clickPoint.h, clickPoint.v, doubleClick);
 
@@ -1959,7 +1934,6 @@ Boolean HandleDesktopClick(Point clickPoint, Boolean doubleClick)
     }
 
     /* Check for double-click ourselves using time threshold (ignore broken event flag) */
-    extern UInt32 GetDblTime(void);
     UInt32 currentTicks = TickCount();
     UInt32 timeSinceLastClick = currentTicks - sLastClickTicks;
     Boolean isDoubleClick = (hitIcon == sLastClickIcon && timeSinceLastClick <= GetDblTime());
@@ -1971,7 +1945,6 @@ Boolean HandleDesktopClick(Point clickPoint, Boolean doubleClick)
     /* Double-click on SAME icon: open immediately, never drag */
     if (isDoubleClick && hitIcon >= 0 && hitIcon < gDesktopIconCount) {
         FINDER_LOG_DEBUG("[DBLCLK SAME ICON] Opening icon %d\n", hitIcon);
-        extern WindowPtr Finder_OpenDesktopItem(Boolean isTrash, ConstStr255Param title);
         DesktopItem *it = &gDesktopIcons[hitIcon];
 
         /* Ensure any ghost from prior drag is erased */
@@ -1999,7 +1972,6 @@ Boolean HandleDesktopClick(Point clickPoint, Boolean doubleClick)
 
         FINDER_LOG_DEBUG("Single-click: icon %d selected, sLastClickIcon=%d\n", hitIcon, sLastClickIcon);
 
-        extern volatile UInt8 gCurrentButtons;
         if ((gCurrentButtons & 1) != 0) {  /* mouse still down? arm drag */
             FINDER_LOG_DEBUG("Single-click: button still down, starting drag tracking\n");
             SetPort(savePort);
@@ -2095,7 +2067,6 @@ void SelectNextDesktopIcon(void)
  * alone, which put the startup disk's contents in every disk's window. */
 static void Desktop_OpenVolume(VRefNum vref, const char* name)
 {
-    extern WindowPtr FolderWindow_OpenFolder(VRefNum vref, DirID dirID, ConstStr255Param title);
     VolumeControlBlock vcb;
     unsigned char title[256];
     int nlen = 0;
@@ -2110,7 +2081,6 @@ static void Desktop_OpenVolume(VRefNum vref, const char* name)
  * Finder_OpenDesktopItem, which brings an open window forward. */
 static void Desktop_OpenItem(short i)
 {
-    extern WindowPtr Finder_OpenDesktopItem(Boolean isTrash, ConstStr255Param title);
     if (i < 0 || i >= gDesktopIconCount) return;
     DesktopItem *it = &gDesktopIcons[i];
     unsigned char title[256];
@@ -2167,7 +2137,6 @@ Boolean Desktop_GetSelectedIconInfo(VRefNum* outVref, FileID* outFileID) {
     if (gSelectedIcon < 0 || gSelectedIcon >= gDesktopIconCount) return false;
     if (!outVref || !outFileID) return false;
 
-    extern VRefNum VFS_GetBootVRef(void);
     *outVref = VFS_GetBootVRef();
     *outFileID = gDesktopIcons[gSelectedIcon].iconID;
 
@@ -2220,7 +2189,6 @@ void Desktop_OpenSelectedIcon(void) {
             break;
         case kDesktopItemTrash: {
             /* Open the Trash window */
-            extern WindowPtr Finder_OpenDesktopItem(Boolean isTrash, ConstStr255Param title);
             static Str255 trashTitle;
             c2pstrcpy(trashTitle, "Trash");
             Finder_OpenDesktopItem(true, trashTitle);
