@@ -1,10 +1,8 @@
 /*
- * ResourceManager.h - the Resource Manager
+ * ResourceManager.h - public Resource Manager declarations
  *
- * Inside Macintosh: More Macintosh Toolbox, chapter 1. Every prototype here
- * is copied from the function's definition in src/ResourceMgr/ResourceMgr.c;
- * this header replaces three that declared the same calls with differing
- * types, two of them behind the same include guard.
+ * This is the canonical header for Resource Manager APIs. Implementations
+ * are split across src/ResourceMgr/ and src/ResourceMgr/StringResources.c.
  */
 
 #ifndef RESOURCE_MANAGER_H
@@ -32,7 +30,6 @@ enum {
 /* Setting up */
 void InitResourceManager(void);
 void ShutdownResourceManager(void);
-OSErr ResourceManagerInit(void);
 
 /* Reading resources */
 Handle GetResource(ResType theType, ResID theID);
