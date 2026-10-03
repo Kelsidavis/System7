@@ -561,12 +561,10 @@ correcting the prompt length from 66 to 67 made one odd and the parser read the
 next item header a byte out, losing both buttons. Any hand-built DITL needs the
 pad.
 
-**Also still true:** `NewDialog` `memcpy`s the window record into the dialog
-struct, leaving the Window Manager's list and the dialog holding separate
-copies. `DialogRecord` starts with a `WindowRecord` so it can be built in place,
-and that was tried — it changed none of the symptoms above and could not be
-validated end to end at the time, so it was reverted. Worth revisiting now that
-the dialog can actually be dismissed.
+**Fixed since:** `NewDialog` now passes the embedded `DialogRecord.window`
+storage directly to `NewWindow`, so the Window Manager and Dialog Manager use
+the same window record. This removes the stale-copy, window-list, and double-
+disposal problems described above.
 
 ### Live dropdown drawing (MENU-001)
 
