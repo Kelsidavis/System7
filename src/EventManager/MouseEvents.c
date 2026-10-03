@@ -158,10 +158,7 @@ SInt16 PointDistance(Point pt1, Point pt2)
  */
 Boolean PointInRect(Point pt, const Rect* rect)
 {
-    if (!rect) return false;
-
-    return (pt.h >= rect->left && pt.h < rect->right &&
-            pt.v >= rect->top && pt.v < rect->bottom);
+    return rect && PtInRect(pt, rect);
 }
 
 

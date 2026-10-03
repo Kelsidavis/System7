@@ -14,9 +14,7 @@
 
 /* Rectangle helpers */
 Boolean WM_PtInRect(Point pt, const Rect* rect) {
-    if (!rect) return false;
-    return (pt.h >= rect->left && pt.h < rect->right &&
-            pt.v >= rect->top && pt.v < rect->bottom);
+    return rect && PtInRect(pt, rect);
 }
 
 void WM_SetRect(Rect* rect, short left, short top, short right, short bottom) {
