@@ -1,6 +1,3 @@
-#include "MemoryMgr/MemoryManager.h"
-#include "MenuManager/menu_private.h"
-#include <string.h>
 /*
  * MenuSelection.c - Menu Tracking and Selection Implementation
  *
@@ -12,13 +9,11 @@
  * Derived from System 7 ROM analysis (Ghidra) Menu Manager
  */
 
-
-/* Disable optimization for this file to avoid stack alignment issues */
-#pragma GCC optimize ("O0")
-
+#include <string.h>
 #include "SystemTypes.h"
 #include "System71StdLib.h"
-
+#include "MemoryMgr/MemoryManager.h"
+#include "MenuManager/menu_private.h"
 #include "MenuManager/MenuManager.h"
 #include "MenuManager/MenuLogging.h"
 #include "MenuManager/MenuTypes.h"
@@ -27,6 +22,9 @@
 #include "SoundManager/SoundEffects.h"
 #include "MenuManager/MenuDisplay.h"
 #include "TimeManager/TimeBase.h"
+
+/* Disable optimization for this file to avoid stack alignment issues */
+#pragma GCC optimize ("O0")
 
 /* Serial output functions */
 
@@ -96,12 +94,6 @@ static long gLastMenuChoice = 0;
 
 /* Platform function prototypes */
 /* Platform functions declared in menu_private.h */
-
-/* External function from MenuTitleTracking.c */
-extern short FindMenuAtPoint_Internal(Point pt);
-
-/* External function from MenuTrack.c */
-extern long TrackMenu(short menuID, Point *startPt);
 
 /* Internal function prototypes */
 static void InitializeTrackingState(MenuTrackInfo* state);
