@@ -9,7 +9,7 @@ on:
 jobs:
   build-x86:
     name: Build x86
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
 
     steps:
       - name: Checkout repository
@@ -54,7 +54,7 @@ jobs:
 
   build-x86-all-languages:
     name: Build x86 (all languages)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
 
     steps:
       - name: Checkout repository
@@ -87,7 +87,7 @@ jobs:
 
   build-x86-configs:
     name: Build x86 (debug and release configs)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
 
     steps:
       - name: Checkout repository
@@ -111,7 +111,7 @@ jobs:
 
   build-arm64:
     name: Build ARM64
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
 
     steps:
       - name: Checkout repository
@@ -140,7 +140,7 @@ jobs:
 
   test-stdlib:
     name: C Library Differential Test
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
 
     steps:
       - name: Checkout repository
@@ -155,7 +155,7 @@ jobs:
 
   build-arm:
     name: Build ARM
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
 
     steps:
       - name: Checkout repository
@@ -185,7 +185,7 @@ jobs:
 
   test-qemu:
     name: QEMU Boot Test
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     needs: build-x86
 
     steps:

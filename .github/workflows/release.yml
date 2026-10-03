@@ -20,7 +20,7 @@ jobs:
   # x86 builds need, and asking apt for both failed every release.
   build-arm64:
     name: Build ARM64
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     if: |
       github.event_name == 'push' ||
       github.event_name == 'workflow_dispatch' ||
@@ -54,7 +54,7 @@ jobs:
 
   build-release:
     name: Build Release
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     needs: build-arm64
     # Only run if: tag push, manual trigger, or CI succeeded
     if: |
