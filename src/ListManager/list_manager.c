@@ -15,25 +15,6 @@
 #include "System71StdLib.h"
 #include "ListManager/ListLogging.h"
 
-/* External functions */
-extern void SetPort(GrafPtr port);
-extern void GetPort(GrafPtr* port);
-extern void ClipRect(const Rect* r);
-extern void GetClip(RgnHandle rgn);
-extern void SetClip(RgnHandle rgn);
-extern void GetPenState(PenState* pnState);
-extern void SetPenState(const PenState* pnState);
-extern void InvalRect(const Rect* r);
-extern void EraseRect(const Rect* r);
-extern void FrameRect(const Rect* r);
-extern void InvertRect(const Rect* r);
-extern void MoveTo(short h, short v);
-extern void FillRect(const Rect* r, const Pattern* pat);
-extern RgnHandle NewRgn(void);
-extern void DisposeRgn(RgnHandle rgn);
-/* qd is the QuickDraw globals structure */
-extern struct QDGlobals qd;
-
 /* Debug logging */
 #ifndef LIST_DEBUG
 #define LIST_DEBUG 1

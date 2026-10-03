@@ -11,18 +11,21 @@
 #include "SystemInternal.h"
 #include "MenuManager/MenuLogging.h"
 #include "MenuManager/MenuTypes.h"
+#include "DeskManager/DeskManager.h"
 #include "QuickDraw.h"
 #include "QuickDrawConstants.h"
 #include "FontManager/FontManager.h"
+#include "EventManager/EventManager.h"
 #include "EventManager/EventTypes.h"  /* For mouse masks */
 #include "TimeManager/TimeBase.h"
 #include "Platform/Framebuffer.h"
 
-/* Function declarations */
 extern SInt16 CountMenuItems(MenuHandle theMenu);
-
-/* External functions */
-extern void QD_SetScreenPort(void);
+extern Boolean CheckMenuItemSeparator(MenuHandle theMenu, short item);
+extern Boolean CheckMenuItemEnabled(MenuHandle theMenu, short item);
+extern void DrawMenuItemText(const Rect* itemRect, ConstStr255Param itemText,
+                             Style textStyle, Boolean enabled, Boolean selected);
+extern short FindMenuAtPoint_Internal(Point pt);
 
 /* Menus draw anywhere on the screen, so the screen port is opened to all of
  * it: a clip someone else left there hid item text wherever it did not reach. */
@@ -31,17 +34,6 @@ static void Menu_ClipToScreen(void) {
 }
 extern void DrawDesktop(void);
 extern void DrawVolumeIcon(void);
-extern Boolean Button(void);          /* Check if mouse button is pressed */
-extern void GetMouse(Point* mouseLoc);
-extern void DrawMenuBar(void);        /* Redraw the menu bar */
-extern Boolean CheckMenuItemSeparator(MenuHandle theMenu, short item);
-extern Boolean CheckMenuItemEnabled(MenuHandle theMenu, short item);
-extern void GetItemCmd(MenuHandle theMenu, short item, short* cmdChar);
-extern void GetItemMark(MenuHandle theMenu, short item, short* markChar);
-extern void GetItemSubmenu(MenuHandle theMenu, short item, short* submenuID);
-extern void GetItemStyle(MenuHandle theMenu, short item, Style* style);
-extern void DrawMenuItemText(const Rect* itemRect, ConstStr255Param itemText,
-                             Style textStyle, Boolean enabled, Boolean selected);
 
 /* Forward declarations for static functions */
 static void DrawHighlightRect(short left, short top, short right, short bottom, Boolean highlight);
@@ -73,8 +65,6 @@ static struct {
 
 /* Global framebuffer from main.c */
 /* Rect helpers */
-extern void SetRect(Rect* rect, short left, short top, short right, short bottom);
-extern void InvalRect(const Rect* rect);
 
 static void FillFramebufferRect(short left, short top, short right, short bottom,
                                 uint32_t color, Boolean shieldPointer)
@@ -384,8 +374,6 @@ static void DrawMenuItemRow(MenuHandle theMenu, short i, short left, short itemT
  * each way, ending highlighted (Inside Macintosh: Toolbox Essentials,
  * 3-116). This held the highlight for 200000 turns of an untimed loop.
  */
-extern void SystemTask(void);
-extern void EventPumpYield(void);
 static void FlashChosenItem(MenuHandle theMenu, short item, short left, short top,
                             short menuWidth, short lineHeight) {
     short itemTop = top + 2 + (item - 1) * lineHeight;
@@ -717,10 +705,6 @@ static long TrackMenu_Body(short menuID, Point *startPt) {
     Point mousePt;
     long result = 0;
 
-    /* External functions for event pumping */
-    extern void SystemTask(void);
-    extern void EventPumpYield(void);
-
     /* Save current port */
     GetPort(&savePort);
     QD_SetScreenPort();
@@ -898,7 +882,6 @@ static long TrackMenu_Body(short menuID, Point *startPt) {
          * Only a click on another title used to change menus, and it took
          * two - this one cancelled, then a fresh click. */
         if (gTrackDepth == 1 && mousePt.v >= 0 && mousePt.v < 20) {
-            extern short FindMenuAtPoint_Internal(Point pt);
             short over = FindMenuAtPoint_Internal(mousePt);
             if (over != 0 && over != menuID) {
                 gMenuSwitchTo = over;
