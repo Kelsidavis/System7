@@ -25,6 +25,8 @@ extern void InvalWindowRect(WindowPtr, const Rect*);
 #include "DialogManager/AlertDialogs.h"
 #include "DialogManager/DITLBuilder.h"
 #include "EventManager/EventManager.h"
+#include "FontManager/FontManager.h"
+#include "TextEdit/TextEdit.h"
 #include "DeskManager/Calculator.h"
 extern QDGlobals qd;
 extern UInt16 Event_QueueCount(void);
@@ -968,6 +970,65 @@ static void Test_Event_FullQueueKeepsNewest(void) {
     RecordTest(test_name, true, "");
 }
 
+/* Both scrolling entry points clamp to the same measured content bounds. */
+static void Test_TextEditScrollBounds(void) {
+    const char* test_name = "TextEdit_ScrollBounds";
+    Rect rect = {0, 0, 16, 24};
+    char text[64];
+    SInt32 length = 0;
+    for (int i = 0; i < 40; i++) text[length++] = 'W';
+    const char* tail = "\rA\rB\rC\rD";
+    while (*tail) text[length++] = *tail++;
+
+    TEHandle hTE = TENew(&rect, &rect);
+    if (!hTE) {
+        RecordTest(test_name, false, "TENew failed");
+        return;
+    }
+
+    TESetWordWrap(false, hTE);
+    TESetText(text, length, hTE);
+    TECalText(hTE);
+
+    GrafPtr savedPort = NULL;
+    GetPort(&savedPort);
+    short savedFont = savedPort ? savedPort->txFont : chicagoFont;
+    short savedSize = savedPort ? savedPort->txSize : 12;
+    UInt8 savedFace = savedPort ? savedPort->txFace : normal;
+    TextFont((**hTE).txFont);
+    TextSize((**hTE).txSize);
+    TextFace((**hTE).txFace);
+
+    SInt16 maxHScroll = (SInt16)(CharWidth('W') * 40 - (rect.right - rect.left));
+    if (maxHScroll < 0) maxHScroll = 0;
+    const SInt32* lineStarts = NULL;
+    SInt16 lineCount = TE_LineInfo(hTE, &lineStarts);
+    SInt16 maxVScroll = (SInt16)(lineCount * (**hTE).lineHeight -
+                                 (rect.bottom - rect.top));
+    if (maxVScroll < 0) maxVScroll = 0;
+
+    SInt16 dh = 0, dv = 0;
+    TEScroll(32767, 32767, hTE);
+    TE_GetScroll(hTE, &dh, &dv);
+    Boolean directScrollOK = dh == maxHScroll && dv == maxVScroll;
+
+    TE_SetScroll(hTE, 0, 0);
+    TEPinScroll(32767, 32767, hTE);
+    TE_GetScroll(hTE, &dh, &dv);
+    Boolean pinnedScrollOK = dh == maxHScroll && dv == maxVScroll;
+
+    TextFont(savedFont);
+    TextSize(savedSize);
+    TextFace(savedFace);
+    TEDispose(hTE);
+
+    if (!directScrollOK || !pinnedScrollOK) {
+        RecordTest(test_name, false, "scroll limits did not match measured text bounds");
+        return;
+    }
+    RecordTest(test_name, true, "");
+}
+
 /* The Calculator keeps its first operand: 7 + 8 = is 15. */
 static double CalcRun(Calculator* c, const char* keys) {
     Calculator_ClearAll(c);
@@ -1637,6 +1698,7 @@ void IntegrationTests_Run(void) {
     Test_Window_UpdateWithoutBuffer();
     Test_Window_MoveRepaintsUncovered();
     Test_Event_FullQueueKeepsNewest();
+    Test_TextEditScrollBounds();
     Test_Calculator_Arithmetic();
     Test_Resource_ReleaseThenGet();
     Test_Draw_PolygonRecording();
