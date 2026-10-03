@@ -424,38 +424,20 @@ paint_windows:
             GetPort(&savePort);
             SetPort((GrafPtr)w);
 
-            /* CRITICAL: Calculate visible region and clip to it to prevent overdraw!
-             *
-             * COPY visRgn into clipRgn - do not ALIAS the handles. This is the
-             * same defect that was already found and fixed further down this
-             * file (see the CopyRgn(window->contRgn, window->port.clipRgn) call
-             * and its comment): assigning the handle leaves two owners for one
-             * region, so a later ClipRect() writes through clipRgn and silently
-             * destroys visRgn, while CalcVis() writing visRgn silently changes
-             * the active clip. Whichever handle is disposed first leaves the
-             * other dangling, and the freed block then reads back as the
-             * allocator's poison - which is exactly what showed up during a
-             * resize as portRect (-12851,-12851,-21589,-21589), i.e. 0xCDCD and
-             * 0xABAB, the padding fill and the canary byte. */
+            /* Keep clipRgn separate from visRgn because QuickDraw mutates the
+             * clip while calculating visibility and drawing content.
+             */
             CalcVis(w);
             if (w->visRgn && *w->visRgn && w->port.clipRgn && *w->port.clipRgn) {
                 CopyRgn(w->visRgn, w->port.clipRgn);
             }
 
-            /* Marking the content dirty is all that is needed. The direct
-             * FolderWindow_Draw call that used to follow was a workaround for
-             * update events not being delivered; that is fixed (they are now
-             * synthesised in GetNextEvent rather than posted into a queue they
-             * overflowed), so the update event repaints this. Redrawing content
-             * from inside a chrome-painting routine is also what let repaints
-             * from different callers disagree - see ARCH-001. */
+            /* Let the window's update event repaint content after chrome. */
             WM_InvalGlobalRgn(w, w->contRgn);
 
             SetPort(savePort);
 
-            /* NOTE: Removed second PaintOne call - it was causing double rendering
-             * The chrome is already drawn in Phase 1, and QuickDraw will preserve it
-             * since we set proper clipRgn during content drawing */
+            /* Chrome is painted first, then content is constrained by clipRgn. */
         }
     }
 
@@ -1335,14 +1317,9 @@ static Boolean WM_ShowWindowOnly(WindowPtr window) {
         GetPort(&savePort);
         SetPort((GrafPtr)window);
 
-        /* CRITICAL FIX: COPY contRgn to clipRgn, don't ALIAS the handles!
-         *
-         * BUG: Previous code did `clipRgn = contRgn` which made both handles point to
-         * the SAME region. Later code calling ClipRect(&qd.screenBits.bounds) would
-         * overwrite clipRgn, which accidentally overwrote contRgn to (0,0,800,600)!
-         *
-         * FIX: Use CopyRgn to copy region DATA, keeping handles separate.
-         * This prevents content from overdrawing chrome while preserving contRgn. */
+        /* Keep clipRgn separate from contRgn because QuickDraw mutates the
+         * active clip while the content geometry must remain unchanged.
+         */
         CopyRgn(window->contRgn, window->port.clipRgn);
 
         WM_InvalGlobalRgn(window, window->contRgn);
