@@ -7,6 +7,8 @@
 #include <stddef.h>
 #include <stdarg.h>
 #include <stdlib.h>
+#include <stdio.h>
+#include <math.h>
 #include "Platform/Serial.h"
 
 /* Define POSIX types if not available */
@@ -136,22 +138,10 @@ int min(int a, int b);
 int max(int a, int b);
 long lmin(long a, long b);
 long lmax(long a, long b);
-double fmin(double a, double b);
-double fmax(double a, double b);
 
 /* Compatibility aliases used by some platform ports */
 #define Serial_WriteString(...) serial_printf(__VA_ARGS__)
 #define Serial_Printf(...)      serial_printf(__VA_ARGS__)
-int sprintf(char* str, const char* format, ...)
-    __attribute__((format(printf, 2, 3)));
-int snprintf(char* str, size_t size, const char* format, ...)
-    __attribute__((format(printf, 3, 4)));
-int printf(const char* format, ...)
-    __attribute__((format(printf, 1, 2)));
-int vprintf(const char* format, va_list ap)
-    __attribute__((format(printf, 1, 0)));
-int vsprintf(char* str, const char* format, va_list ap)
-    __attribute__((format(printf, 2, 0)));
 int asprintf(char** strp, const char* format, ...)
     __attribute__((format(printf, 2, 3)));
 int vasprintf(char** strp, const char* format, va_list ap)
@@ -171,10 +161,7 @@ int isblank(int c);
 int isascii(int c);
 int toascii(int c);
 
-/* Standard I/O functions */
-int putchar(int c);
-int puts(const char* s);
-int getchar(void);
+/* Standard I/O functions are declared by stdio.h. */
 char* gets(char* s);
 
 /* Utility functions */
@@ -185,12 +172,6 @@ void* bsearch(const void* key, const void* base, size_t nmemb, size_t size,
               int (*compar)(const void*, const void*));
 void srand(unsigned int seed);
 int rand(void);
-
-/* Math functions (extended) */
-double frexp(double x, int* exponent);
-double ldexp(double x, int exponent);
-double modf(double x, double* intpart);
-double hypot(double x, double y);
 
 /* POSIX file I/O functions */
 int open(const char* pathname, int flags, ...);

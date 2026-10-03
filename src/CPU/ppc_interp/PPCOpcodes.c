@@ -15,7 +15,7 @@
  * Math functions for freestanding environment
  * (Simple implementations for interpreter use)
  */
-static inline double fabs(double x) {
+static inline double PPC_fabs(double x) {
     return (x < 0.0) ? -x : x;
 }
 
@@ -26,20 +26,20 @@ static inline float sqrtf(float x) {
     float epsilon = 0.00001f;
     for (int i = 0; i < 10; i++) {
         float next = 0.5f * (guess + x / guess);
-        if (fabs(next - guess) < epsilon) break;
+        if (PPC_fabs(next - guess) < epsilon) break;
         guess = next;
     }
     return guess;
 }
 
-static inline double sqrt(double x) {
+static inline double PPC_sqrt(double x) {
     /* Newton-Raphson approximation for square root */
     if (x <= 0.0) return 0.0;
     double guess = x;
     double epsilon = 0.00000001;
     for (int i = 0; i < 15; i++) {
         double next = 0.5 * (guess + x / guess);
-        if (fabs(next - guess) < epsilon) break;
+        if (PPC_fabs(next - guess) < epsilon) break;
         guess = next;
     }
     return guess;
@@ -3867,7 +3867,7 @@ void PPC_Op_FSQRT(PPCAddressSpace* as, UInt32 insn)
     UInt8 frb = PPC_RB(insn);
     Boolean rc = PPC_RC(insn);
 
-    as->regs.fpr[frd] = sqrt(as->regs.fpr[frb]);
+    as->regs.fpr[frd] = PPC_sqrt(as->regs.fpr[frb]);
 
     if (rc) {
         PPC_UpdateFPSCR(as, as->regs.fpr[frd]);
@@ -3915,7 +3915,7 @@ void PPC_Op_FRSQRTE(PPCAddressSpace* as, UInt32 insn)
     UInt8 frb = PPC_RB(insn);
     Boolean rc = PPC_RC(insn);
 
-    as->regs.fpr[frd] = 1.0 / sqrt(as->regs.fpr[frb]);
+    as->regs.fpr[frd] = 1.0 / PPC_sqrt(as->regs.fpr[frb]);
 
     if (rc) {
         PPC_UpdateFPSCR(as, as->regs.fpr[frd]);
@@ -4083,7 +4083,7 @@ void PPC_Op_FABS(PPCAddressSpace* as, UInt32 insn)
     UInt8 frb = PPC_RB(insn);
     Boolean rc = PPC_RC(insn);
 
-    as->regs.fpr[frd] = fabs(as->regs.fpr[frb]);
+    as->regs.fpr[frd] = PPC_fabs(as->regs.fpr[frb]);
 
     if (rc) {
         PPC_UpdateFPSCR(as, as->regs.fpr[frd]);
@@ -4115,7 +4115,7 @@ void PPC_Op_FNABS(PPCAddressSpace* as, UInt32 insn)
     UInt8 frb = PPC_RB(insn);
     Boolean rc = PPC_RC(insn);
 
-    as->regs.fpr[frd] = -fabs(as->regs.fpr[frb]);
+    as->regs.fpr[frd] = -PPC_fabs(as->regs.fpr[frb]);
 
     if (rc) {
         PPC_UpdateFPSCR(as, as->regs.fpr[frd]);

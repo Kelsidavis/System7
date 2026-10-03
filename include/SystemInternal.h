@@ -4,6 +4,7 @@
 
 #include "SystemTypes.h"
 #include "OSUtils/OSUtils.h"
+#include <math.h>
 
 /* Cursor management */
 void InvalidateCursor(void);
@@ -20,6 +21,5 @@ void InitListManager(void);
 
 /* Standard library functions */
 void __assert_fail(const char* expr, const char* file, int line, const char* func);
-double sqrt(double x);
 
 #endif /* SYSTEM_INTERNAL_H */

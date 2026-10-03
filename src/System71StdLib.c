@@ -2017,7 +2017,7 @@ static bool SysLogShouldEmit(SystemLogModule module, SystemLogLevel level) {
 
 /* Defined below; the one formatter this file has that parses flags, width,
  * precision and length modifiers properly. */
-static int vsnprintf(char* str, size_t size, const char* format, va_list args)
+int vsnprintf(char* str, size_t size, const char* format, va_list args)
     __attribute__((format(printf, 3, 0)));
 
 /*
@@ -2351,7 +2351,7 @@ static void fmt_number(FmtSink* sink, unsigned long long value, unsigned base,
  * that false-positive exception local to the parser. */
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wanalyzer-va-arg-type-mismatch"
-static int vsnprintf(char* str, size_t size, const char* format, va_list args) {
+int vsnprintf(char* str, size_t size, const char* format, va_list args) {
     FmtSink sink;
     sink.buf   = str;
     sink.size  = size;
