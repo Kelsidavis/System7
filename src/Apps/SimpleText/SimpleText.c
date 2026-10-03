@@ -11,6 +11,7 @@
 #include "DialogManager/DITLBuilder.h"
 #include "MemoryMgr/MemoryManager.h"
 #include "SoundManager/SoundManager.h"
+#include "WindowManager/WindowManager.h"
 #include "TimeManager/TimeBase.h"
 
 /* Utility macros for packing/unpacking longs */
@@ -388,7 +389,6 @@ void SimpleText_Idle(void) {
         extern void SetCursor(const Cursor* crsr);
         extern void InitCursor(void);
         extern const Cursor* CursorManager_GetIBeamCursor(void);
-        extern WindowPtr FrontWindow(void);
 
         WindowPtr front = FrontWindow();
         STDocument* doc = front ? STDoc_FindByWindow(front) : NULL;

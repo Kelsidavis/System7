@@ -10,6 +10,7 @@
 #include "System71StdLib.h"
 #include "Finder/FinderLogging.h"
 #include "Finder/finder.h"
+#include "WindowManager/WindowManager.h"
 #include "QuickDraw/QuickDraw.h"
 #include "Platform/platform_info.h"
 #include "Platform/Framebuffer.h"
@@ -49,7 +50,6 @@ extern void ShowWindow(WindowPtr window);
 extern void SelectWindow(WindowPtr window);
 extern void BringToFront(WindowPtr window);
 extern void DisposeWindow(WindowPtr window);
-extern WindowPtr FrontWindow(void);
 extern void DragWindow(WindowPtr window, Point startPt, const Rect* boundsRect);
 extern Boolean TrackGoAway(WindowPtr window, Point pt);
 

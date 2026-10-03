@@ -2392,7 +2392,6 @@ void FolderWindow_TypeAhead(WindowPtr w, char ch) {
  * Positive delta = scroll up, negative = scroll down (PS/2 convention).
  */
 void FolderWindow_ScrollWheel(int8_t delta) {
-    extern WindowPtr FrontWindow(void);
     WindowPtr front = FrontWindow();
     if (!front || !IsFolderWindow(front)) return;
 

@@ -13,6 +13,7 @@
 #include "Finder/AboutThisMac.h"
 #include "Finder/GetInfo.h"
 #include "Finder/finder.h"
+#include "WindowManager/WindowManager.h"
 #include "QuickDraw/QuickDraw.h"
 #include "QuickDrawConstants.h"
 #include "FontManager/FontManager.h"
@@ -182,8 +183,6 @@ void DoMenuCommand(short menuID, short item)
  * This is the standard System 7 menu adjustment pattern.
  */
 void Finder_AdjustMenus(void) {
-    extern WindowPtr FrontWindow(void);
-    extern Boolean IsFolderWindow(WindowPtr w);
     extern MenuHandle GetMenuHandle(short menuID);
     extern void EnableItem(MenuHandle theMenu, short item);
     extern void DisableItem(MenuHandle theMenu, short item);
@@ -516,7 +515,6 @@ static void HandleControlPanelsMenu(short item)
 /* File Menu Handler - Finder specific */
 static void HandleFileMenu(short item)
 {
-    extern WindowPtr FrontWindow(void);
     extern void DrawDesktop(void);
 
     switch (item) {
@@ -525,7 +523,6 @@ static void HandleFileMenu(short item)
             /* Create new folder in current window or desktop */
             extern bool VFS_CreateFolder(VRefNum vref, DirID parent, const char* name, DirID* newID);
             extern bool VFS_GenerateUniqueName(VRefNum vref, DirID dir, const char* base, char* out);
-            extern Boolean IsFolderWindow(WindowPtr w);
             extern VRefNum FolderWindow_GetVRef(WindowPtr w);
             extern DirID FolderWindow_GetCurrentDir(WindowPtr w);
 
@@ -689,7 +686,6 @@ static void HandleFileMenu(short item)
 /* Edit Menu Handler - System 7.1 standard */
 static void HandleEditMenu(short item)
 {
-    extern WindowPtr FrontWindow(void);
     extern Boolean SystemEdit(SInt16 editCmd);
 
     /*
@@ -777,7 +773,6 @@ static void UpdateViewMenuCheckmarks(short activeViewMode) {
 
 static void HandleViewMenu(short item)
 {
-    extern WindowPtr FrontWindow(void);
     extern void SetWindowViewMode(WindowPtr w, short viewMode);
 
     WindowPtr front = FrontWindow();
@@ -830,7 +825,6 @@ static void HandleViewMenu(short item)
  * Called when a window becomes frontmost (window activation).
  */
 void Finder_UpdateViewMenuForWindow(WindowPtr w) {
-    extern Boolean IsFolderWindow(WindowPtr w);
     extern short FolderWindow_GetViewMode(WindowPtr w);
 
     if (w && IsFolderWindow(w)) {
@@ -844,7 +838,6 @@ void Finder_UpdateViewMenuForWindow(WindowPtr w) {
 /* Label Menu Handler - System 7.1 label colors */
 static void HandleLabelMenu(short item)
 {
-    extern WindowPtr FrontWindow(void);
     extern void ApplyLabelToSelection(WindowPtr w, short labelIndex);
 
     const char* labelNames[] = {
@@ -879,7 +872,6 @@ static void HandleSpecialMenu(short item)
 
     switch (item) {
         case 1: {  /* Clean Up Selection / Window / Desktop */
-            extern WindowPtr FrontWindow(void);
             WindowPtr front = FrontWindow();
             if (front && IsFolderWindow(front)) {
                 extern void FolderWindow_CleanUp(WindowPtr w, Boolean selectedOnly);
@@ -1022,11 +1014,9 @@ void OpenSelectedItems(void) {
     MENU_LOG_DEBUG("OpenSelectedItems called\n");
 
     /* Get front window */
-    extern WindowPtr FrontWindow(void);
     WindowPtr frontWin = FrontWindow();
 
     /* If no folder window is front, try to open the selected desktop icon */
-    extern Boolean IsFolderWindow(WindowPtr w);
     if (!frontWin || !IsFolderWindow(frontWin)) {
         extern void Desktop_OpenSelectedIcon(void);
         Desktop_OpenSelectedIcon();
@@ -1042,7 +1032,6 @@ void OpenSelectedItems(void) {
 void ShowGetInfoDialog(WindowPtr w) {
     MENU_LOG_DEBUG("ShowGetInfoDialog called\n");
 
-    extern Boolean IsFolderWindow(WindowPtr w);
     extern Boolean FolderWindow_GetSelectedItem(WindowPtr w, VRefNum* outVref, FileID* outFileID);
     extern void GetInfo_Show(VRefNum vref, FileID fileID);
 
@@ -1073,7 +1062,6 @@ void DuplicateSelectedItems(WindowPtr w) {
 
     if (!w) {
         /* Get front window if not specified */
-        extern WindowPtr FrontWindow(void);
         w = FrontWindow();
     }
 
@@ -1083,7 +1071,6 @@ void DuplicateSelectedItems(WindowPtr w) {
     }
 
     /* Check if it's a folder window */
-    extern Boolean IsFolderWindow(WindowPtr w);
     if (!IsFolderWindow(w)) {
         MENU_LOG_DEBUG("DuplicateSelectedItems: Window is not a folder window\n");
         return;
@@ -1100,7 +1087,6 @@ void MakeAliasOfSelectedItems(WindowPtr w) {
 
     if (!w) {
         /* Get front window if not specified */
-        extern WindowPtr FrontWindow(void);
         w = FrontWindow();
     }
 
@@ -1110,7 +1096,6 @@ void MakeAliasOfSelectedItems(WindowPtr w) {
     }
 
     /* Check if it's a folder window */
-    extern Boolean IsFolderWindow(WindowPtr w);
     if (!IsFolderWindow(w)) {
         MENU_LOG_DEBUG("MakeAliasOfSelectedItems: Window is not a folder window\n");
         return;
@@ -1185,8 +1170,6 @@ void PutAwaySelectedItems(WindowPtr w) {
 
     /* Put Away restores selected items from Trash to their original location.
      * This mirrors Finder_Undo's trash restore logic. */
-    extern WindowPtr FrontWindow(void);
-    extern Boolean IsFolderWindow(WindowPtr w);
     extern bool Trash_GetDir(VRefNum vref, DirID* trashDir);
     extern bool VFS_Move(VRefNum vref, DirID fromDir, FileID id,
                          DirID toDir, const char* newName);
@@ -1317,8 +1300,6 @@ void Finder_Undo(void) {
                       restored, g_finderUndo.count);
 
         /* Refresh the front window to show restored items */
-        extern WindowPtr FrontWindow(void);
-        extern Boolean IsFolderWindow(WindowPtr w);
         WindowPtr front = FrontWindow();
         if (front && IsFolderWindow(front)) {
             FolderWindow_ContentsChanged(front);
@@ -1338,7 +1319,6 @@ void Finder_Cut(void) {
     MENU_LOG_DEBUG("Finder_Cut called\n");
 
     /* Get front window */
-    extern WindowPtr FrontWindow(void);
     WindowPtr frontWin = FrontWindow();
     if (!frontWin) {
         MENU_LOG_DEBUG("Finder_Cut: No front window\n");
@@ -1346,7 +1326,6 @@ void Finder_Cut(void) {
     }
 
     /* Check if it's a folder window */
-    extern Boolean IsFolderWindow(WindowPtr w);
     if (!IsFolderWindow(frontWin)) {
         MENU_LOG_DEBUG("Finder_Cut: Front window is not a folder window\n");
         return;
@@ -1405,7 +1384,6 @@ void Finder_Copy(void) {
     MENU_LOG_DEBUG("Finder_Copy called\n");
 
     /* Get front window */
-    extern WindowPtr FrontWindow(void);
     WindowPtr frontWin = FrontWindow();
     if (!frontWin) {
         MENU_LOG_DEBUG("Finder_Copy: No front window\n");
@@ -1413,7 +1391,6 @@ void Finder_Copy(void) {
     }
 
     /* Check if it's a folder window */
-    extern Boolean IsFolderWindow(WindowPtr w);
     if (!IsFolderWindow(frontWin)) {
         MENU_LOG_DEBUG("Finder_Copy: Front window is not a folder window\n");
         return;
@@ -1472,7 +1449,6 @@ void Finder_Paste(void) {
     MENU_LOG_DEBUG("Finder_Paste called\n");
 
     /* Get front window */
-    extern WindowPtr FrontWindow(void);
     WindowPtr frontWin = FrontWindow();
     if (!frontWin) {
         MENU_LOG_DEBUG("Finder_Paste: No front window\n");
@@ -1480,7 +1456,6 @@ void Finder_Paste(void) {
     }
 
     /* Check if it's a folder window */
-    extern Boolean IsFolderWindow(WindowPtr w);
     if (!IsFolderWindow(frontWin)) {
         MENU_LOG_DEBUG("Finder_Paste: Front window is not a folder window\n");
         return;
@@ -1665,7 +1640,6 @@ void Finder_Clear(void) {
     MENU_LOG_DEBUG("Finder_Clear called\n");
 
     /* Get front window */
-    extern WindowPtr FrontWindow(void);
     WindowPtr frontWin = FrontWindow();
     if (!frontWin) {
         MENU_LOG_DEBUG("Finder_Clear: No front window\n");
@@ -1673,7 +1647,6 @@ void Finder_Clear(void) {
     }
 
     /* Check if it's a folder window */
-    extern Boolean IsFolderWindow(WindowPtr w);
     if (!IsFolderWindow(frontWin)) {
         MENU_LOG_DEBUG("Finder_Clear: Front window is not a folder window\n");
         return;
@@ -1688,8 +1661,6 @@ void Finder_Clear(void) {
 void Finder_SelectAll(void) {
     MENU_LOG_DEBUG("Finder_SelectAll called\n");
 
-    extern WindowPtr FrontWindow(void);
-    extern Boolean IsFolderWindow(WindowPtr w);
 
     WindowPtr frontWin = FrontWindow();
 
@@ -1713,7 +1684,6 @@ void SetWindowViewMode(WindowPtr w, short viewMode) {
     MENU_LOG_DEBUG("SetWindowViewMode called with mode=%d\n", viewMode);
 
     /* Check if it's a folder window */
-    extern Boolean IsFolderWindow(WindowPtr w);
     extern void FolderWindow_SortAndArrange(WindowPtr w, short sortType);
 
     if (IsFolderWindow(w)) {
@@ -1732,7 +1702,6 @@ void ApplyLabelToSelection(WindowPtr w, short labelIndex) {
     MENU_LOG_DEBUG("ApplyLabelToSelection called with label=%d\n", labelIndex);
 
     /* Check if it's a folder window */
-    extern Boolean IsFolderWindow(WindowPtr w);
     if (!IsFolderWindow(w)) {
         MENU_LOG_DEBUG("ApplyLabelToSelection: Window is not a folder window\n");
         return;

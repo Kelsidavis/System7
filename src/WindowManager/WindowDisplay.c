@@ -55,7 +55,6 @@ void CheckWindowsNeedingUpdate(void);
 /* Check windows for update events (called by GetNextEvent) */
 void CheckWindowsNeedingUpdate(void) {
     /* PostEvent declared in EventManager.h */
-    extern WindowPtr FrontWindow(void);
     extern Boolean EmptyRgn(RgnHandle rgn);
 
     static int call_count = 0;
@@ -129,7 +128,6 @@ static void WM_AccumulateUpdateRgn(WindowPtr window, RgnHandle rgn);
  * that window owns, and there is nothing left to defer.
  */
 WindowPtr WM_FindWindowNeedingUpdate(void) {
-    extern WindowPtr FrontWindow(void);
     extern Boolean EmptyRgn(RgnHandle rgn);
 
     WindowPtr window = FrontWindow();
@@ -1969,7 +1967,6 @@ void WM_Update(void) {
 
     int currentWindowCount = 0;
     {
-        extern WindowPtr FrontWindow(void);
         for (WindowPtr w = FrontWindow(); w; w = w->nextWindow) {
             currentWindowCount++;
         }
@@ -2004,7 +2001,6 @@ void WM_Update(void) {
     /* 3. Draw all visible windows on top of desktop icons */
     /* Use Window Manager's PaintOne to properly render windows */
     {
-        extern WindowPtr FrontWindow(void);
         extern void PaintOne(WindowPtr window, RgnHandle clobberedRgn);
 
         /* Build window list (back to front order) */

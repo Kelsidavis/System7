@@ -753,8 +753,6 @@ Boolean Finder_HandleKey(EventRecord* event) {
         /* Cmd+Up Arrow = Navigate to parent folder */
         /* Cmd+Down Arrow = Open selected item */
         if (charCode == 0x1E || charCode == 0x1F) {
-            extern WindowPtr FrontWindow(void);
-            extern Boolean IsFolderWindow(WindowPtr w);
 
             WindowPtr front = FrontWindow();
             if (front && IsFolderWindow(front)) {
@@ -802,9 +800,7 @@ Boolean Finder_HandleKey(EventRecord* event) {
 
         /* Cmd+Option+W = Close all windows (power-user shortcut) */
         if ((charCode == 'w' || charCode == 'W') && (event->modifiers & optionKey)) {
-            extern WindowPtr FrontWindow(void);
             extern OSErr CloseFinderWindow(WindowPtr w);
-            extern Boolean IsFolderWindow(WindowPtr w);
 
             /* Close all folder windows */
             WindowPtr w;
@@ -817,7 +813,6 @@ Boolean Finder_HandleKey(EventRecord* event) {
 
         /* Cmd+` = Cycle to next window (standard Mac OS shortcut) */
         if (charCode == '`' || charCode == '~') {
-            extern WindowPtr FrontWindow(void);
             extern void SelectWindow(WindowPtr w);
             extern void SendBehind(WindowPtr window, WindowPtr behindWindow);
 
@@ -847,8 +842,6 @@ Boolean Finder_HandleKey(EventRecord* event) {
         /* Return/Enter edits the selected item's name, as in System 7;
          * opening is Command-O or Command-Down. */
         if (charCode == kReturnKey || charCode == kEnterKey) {
-            extern WindowPtr FrontWindow(void);
-            extern Boolean IsFolderWindow(WindowPtr w);
             extern short FolderWindow_GetSelectedIndex(WindowPtr w);
             WindowPtr front = FrontWindow();
             if (front && IsFolderWindow(front)) {
@@ -861,8 +854,6 @@ Boolean Finder_HandleKey(EventRecord* event) {
         /* Arrow keys - navigate selection in folder windows.
          * Shift+arrow extends selection (System 7 behavior). */
         if (charCode >= 0x1C && charCode <= 0x1F) {
-            extern WindowPtr FrontWindow(void);
-            extern Boolean IsFolderWindow(WindowPtr w);
             extern void FolderWindow_ArrowKey(WindowPtr w, Boolean isDown, Boolean extend);
             extern void FolderWindow_ArrowKeyLR(WindowPtr w, Boolean isRight);
 
@@ -880,8 +871,6 @@ Boolean Finder_HandleKey(EventRecord* event) {
 
         /* Tab/Shift+Tab - cycle selection to next/previous item */
         if (charCode == 0x09) {  /* Tab */
-            extern WindowPtr FrontWindow(void);
-            extern Boolean IsFolderWindow(WindowPtr w);
             extern void FolderWindow_TabKey(WindowPtr w, Boolean reverse);
 
             WindowPtr front = FrontWindow();
@@ -893,8 +882,6 @@ Boolean Finder_HandleKey(EventRecord* event) {
 
         /* Type-ahead selection: typing letters jumps to matching file */
         if (charCode >= 0x20 && charCode <= 0x7E) {
-            extern WindowPtr FrontWindow(void);
-            extern Boolean IsFolderWindow(WindowPtr w);
             extern void FolderWindow_TypeAhead(WindowPtr w, char ch);
 
             WindowPtr front = FrontWindow();
@@ -918,7 +905,6 @@ OSErr HandleContentClick(WindowPtr window, EventRecord* event) {
     }
 
     /* Check if this is a folder window */
-    extern Boolean IsFolderWindow(WindowPtr w);
     extern Boolean HandleFolderWindowClick(WindowPtr w, EventRecord *ev, Boolean isDoubleClick);
 
     if (IsFolderWindow(window)) {
@@ -948,7 +934,6 @@ OSErr CloseFinderWindow(WindowPtr window) {
     extern Boolean AboutWindow_CloseIf(WindowPtr w);
     extern Boolean GetInfo_CloseIf(WindowPtr w);
     extern void CleanupFolderWindow(WindowPtr w);
-    extern Boolean IsFolderWindow(WindowPtr w);
 
     /* Each of these disposes the window itself when it owns it, so the first
      * one that claims it ends the sequence - falling through to the dispose
@@ -991,7 +976,6 @@ Boolean Finder_DrawWindowContents(WindowPtr window) {
     extern Boolean AboutWindow_HandleUpdate(WindowPtr w);
     extern Boolean GetInfo_HandleUpdate(WindowPtr w);
     extern void FolderWindow_Draw(WindowPtr w);
-    extern Boolean IsFolderWindow(WindowPtr w);
 
     if (AboutWindow_HandleUpdate(window)) return true;
     if (GetInfo_HandleUpdate(window))     return true;
@@ -1011,7 +995,6 @@ OSErr CleanUpWindow(WindowPtr window, SInt16 cleanupType) {
     if (!window) return paramErr;
 
     /* Check if it's a folder window */
-    extern Boolean IsFolderWindow(WindowPtr w);
     extern void FolderWindow_CleanUp(WindowPtr w, Boolean selectedOnly);
 
     if (IsFolderWindow(window)) {

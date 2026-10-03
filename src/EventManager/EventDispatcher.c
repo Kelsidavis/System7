@@ -15,6 +15,7 @@
 #include "EventManager/EventManagerInternal.h"
 #include "EventManager/EventTypes.h"  /* Include EventTypes.h first to define activeFlag */
 #include "EventManager/EventManager.h"
+#include "Finder/finder.h"
 #include "WindowManager/WindowManager.h"
 #include "MenuManager/MenuManager.h"
 #include "ControlPanels/DesktopPatterns.h"
@@ -32,7 +33,6 @@
 
 /* External functions */
 extern short FindWindow(Point thePoint, WindowPtr* theWindow);
-extern WindowPtr FrontWindow(void);
 extern void SelectWindow(WindowPtr theWindow);
 extern void DragWindow(WindowPtr window, Point startPt, const struct Rect* boundsRect);
 extern Boolean TrackGoAway(WindowPtr window, Point thePt);
@@ -433,7 +433,6 @@ Boolean HandleMouseDown(EventRecord* event)
                     SizeWindow(whichWindow, LoWord(newSize), HiWord(newSize), true);
 
                     /* A Finder window lays its icons out again for the new width. */
-                    extern Boolean IsFolderWindow(WindowPtr w);
                     extern short FolderWindow_GetViewMode(WindowPtr w);
                     extern void FolderWindow_CleanUp(WindowPtr w, Boolean selectedOnly);
                     if (IsFolderWindow(whichWindow) && FolderWindow_GetViewMode(whichWindow) <= 1) {
@@ -446,7 +445,6 @@ Boolean HandleMouseDown(EventRecord* event)
         case inGoAway:
             /* Close box clicked. Option+click = close ALL windows (System 7 behavior) */
             if (whichWindow) {
-                extern Boolean IsFolderWindow(WindowPtr w);
                 extern OSErr CloseFinderWindow(WindowPtr w);
 
                 /* System 7 does not close on the press: TrackGoAway highlights
@@ -588,7 +586,6 @@ Boolean HandleKeyDownEvent(EventRecord* event)
      * type-ahead, Return to rename, Command-Up and -Down, Command-Delete.
      * Tab and Return used to go to the desktop icons whatever was in front. */
     {
-        extern Boolean IsFolderWindow(WindowPtr w);
         extern Boolean Finder_HandleKey(EventRecord* event);
         WindowPtr front = FrontWindow();
         if (front && IsFolderWindow(front) && Finder_HandleKey(event)) {
