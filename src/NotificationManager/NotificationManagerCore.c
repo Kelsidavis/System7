@@ -167,7 +167,6 @@ OSErr NMInstall(NMRecPtr nmReqPtr) {
     /* Play notification sound if specified */
     if (nmReqPtr->nmSound != NULL) {
         /* Simple beep for now - could be enhanced to play actual sound handle */
-        extern void SysBeep(SInt16 duration);
         SysBeep(10);
         NM_LOG("NMInstall: Played notification sound\n");
     }
