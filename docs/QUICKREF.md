@@ -58,8 +58,8 @@ qemu-system-i386 -cdrom system71.iso ...   # Manual QEMU launch
 | Documentation | `docs/` |
 | Component guides | `docs/components/` |
 | Getting started | `docs/GETTING_STARTED.md` |
-| API headers | `include/ComponentName/` |
-| Implementation | `src/ComponentName/` |
+| API headers | `include/` (organized by subsystem) |
+| Implementation | `src/` (organized by subsystem/platform) |
 | Localization | `resources/strings/*.json` |
 | Build config | `Makefile` |
 

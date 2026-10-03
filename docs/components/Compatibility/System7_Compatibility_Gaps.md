@@ -37,7 +37,7 @@ This checklist captures the most significant differences between the current too
 
 ## Fonts & Typography
 - `docs/components/FontManager/README.md` & `src/FontManager/FontManagerCore.c` – Only the Chicago 12 strike is available; Geneva/Monaco map to Chicago metrics, and true resource-driven strike loading is pending, unlike System 7’s font ecosystem.
-- `src/FontManager/FontResourceLoader.c` – `NewPtr`/`DisposePtr`/`GetHandleSize`/`HLock`/`HUnlock` are declared as externs and remain stubs, blocking runtime NFNT/FOND ingestion.
+- `src/FontManager/FontResourceLoader.c` – NFNT/FOND parsing and strike construction are implemented, but font resources are not yet fetched from disk or connected to the Resource Manager. Bridge resource lookup before treating runtime font loading as integrated.
 
 ## Peripheral Toolbox Managers
 - ~~`src/ListManager/ListManager.c:428`–`438` – Column APIs (`LAddColumn`, `LDelColumn`) return stub responses; System 7 supported dynamic column manipulation.~~ **FIXED** (2026-10-01): `LAddColumn`/`LDelColumn` (line ~433 onward) insert and remove columns and resize the cell matrix.
