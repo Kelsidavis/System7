@@ -1,10 +1,10 @@
 # Event Manager
 
 ## Overview
-Implements the cooperative event loop used by System 7 applications. Manages the unified event queue, dispatching keyboard/mouse/system events, honouring sleep times, and providing the `WaitNextEvent`/`GetNextEvent` API surface.
+Provides the Event Manager event-loop API and dispatch integration for System 7 applications. `WaitNextEvent` is implemented here; the active, process-aware event queue and public `GetNextEvent`/`EventAvail` entries live in `src/ProcessMgr/EventIntegration.c`.
 
 ## Source Layout
-- `src/EventManager/event_manager.c` – event queue operations and `WaitNextEvent`; process-aware `GetNextEvent` and `EventAvail` wrappers live in `src/ProcessMgr/EventIntegration.c`
+- `src/EventManager/event_manager.c` – `InitEvents` and `WaitNextEvent`; the active queue and process-aware `GetNextEvent`/`EventAvail` entries live in `src/ProcessMgr/EventIntegration.c`
 - `src/EventManager/EventGlobals.c` – global event state and initialization
 - `src/EventManager/EventDispatcher.c` – routes events to Window Manager, Dialog Manager, and Process Manager
 - `src/EventManager/MouseEvents.c` and `KeyboardEvents.c` – mouse tracking and keyboard event handling
@@ -13,8 +13,8 @@ Implements the cooperative event loop used by System 7 applications. Manages the
 - `src/EventManager/AppSwitcher.c` – application-switching event behavior
 
 ## Responsibilities
-- Maintain an ordered queue of classic `EventRecord` entries with timestamping and priority stamping
-- Honour `eventMask` filters and convert raw device input into toolbox events
+- Initialize the active Process Manager event queue through `InitEvents`
+- Honour event masks and coordinate input, system-event dispatch, and cooperative waiting
 - Provide `WaitNextEvent` sleep semantics using Time Manager tick scheduling
 - Track mouse button transitions, double-click thresholds, and cursor location (`globalMouse`)
 - Coordinate application activation/deactivation and propagate activate events to windows

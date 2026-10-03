@@ -1,13 +1,11 @@
 /**
  * @file event_manager.c
- * @brief Event queue and WaitNextEvent implementation for System 7.1
+ * @brief Event-loop integration and WaitNextEvent for System 7.1
  *
- * GetNextEvent and EventAvail are process-aware wrappers in
- * ProcessMgr/EventIntegration.c. This file owns WaitNextEvent and the base
- * event queue operations.
+ * GetNextEvent and EventAvail use the process-aware queue in
+ * ProcessMgr/EventIntegration.c. This file owns WaitNextEvent and initializes
+ * the active queue through InitEvents.
  *
- * This file consolidates the working queue-based implementation from sys71_stubs.c
- * with proper Event Manager structure and debug logging.
  */
 
 #include "SystemTypes.h"
@@ -18,23 +16,11 @@
 #include "QuickDraw/QDRegions.h"
 #include "EventManager/EventLogging.h"
 
-/* External serial print for debug logging */
-
 /* Mouse and timing state */
 static Point g_mousePos = {100, 100};
 
 /* TickCount is in TimeManager/TimeBase.c */
 extern UInt32 TickCount(void);
-
-/**
- * EventAvail - Check if event is available without removing it
- * New function added for System 7.1 compatibility
- */
-
-/**
- * PostEvent - Post an event to the queue
- * Core function for adding events to the system
- */
 
 /*
  * InitEvents - initialize the process-aware Event Manager queue.
@@ -135,11 +121,6 @@ Boolean WaitNextEvent(short eventMask, EventRecord* theEvent, UInt32 sleep, RgnH
 
     return eventAvailable;
 }
-
-/**
- * FlushEvents - Remove events from the queue
- * Used to clear unwanted events
- */
 
 /* UpdateMouseState is provided by ModernInput.c */
 extern void UpdateMouseState(Point newPos, UInt8 buttonState);
