@@ -56,7 +56,9 @@ extern Boolean DispatchEvent(EventRecord* evt);
 #include "../include/SystemInternal.h"
 
 /* Forward declarations for static functions in this file */
+#if DEBUG_SERIAL_MENU_COMMANDS
 static void process_serial_command(void);
+#endif
 uint32_t pack_color(uint8_t r, uint8_t g, uint8_t b);
 static void console_putchar(char c);
 static void console_puts(const char* str);
@@ -86,10 +88,9 @@ static void log_ppc_memory_map(void);
 
 /* Serial functions are declared in System71StdLib.h */
 
-/* Process serial commands for menu testing */
-static void process_serial_command(void) __attribute__((unused));
-static void process_serial_command(void) {
 #if DEBUG_SERIAL_MENU_COMMANDS
+/* Process serial commands for menu testing */
+static void process_serial_command(void) {
     if (!serial_data_ready()) return;
 
     char cmd = serial_getchar();
@@ -219,8 +220,8 @@ static void process_serial_command(void) {
             SYSTEM_LOG_DEBUG("Unknown command '%c' (0x%02x). Press 'h' for help.\n", cmd, cmd);
             break;
     }
-#endif /* DEBUG_SERIAL_MENU_COMMANDS */
 }
+#endif /* DEBUG_SERIAL_MENU_COMMANDS */
 
 #if defined(__i386__) || defined(__x86_64__)
 /* VGA text mode for early output (x86 only) */
