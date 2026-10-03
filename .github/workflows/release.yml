@@ -4,11 +4,6 @@ on:
   push:
     tags:
       - 'v*'
-  workflow_run:
-    workflows: ["CI"]
-    types:
-      - completed
-    branches: [ main ]
   workflow_dispatch:
 
 permissions:
@@ -23,22 +18,16 @@ env:
   GIT_CONFIG_VALUE_0: main
 
 jobs:
-  # The ARM64 kernel is built in a job of its own, as CI builds it: the
-  # aarch64 cross compiler cannot be installed beside gcc-multilib, which the
-  # x86 builds need, and asking apt for both failed every release.
+  # The ARM64 kernel is built separately because its cross-compiler conflicts
+  # with the x86 build dependencies.
   build-arm64:
     name: Build ARM64
     runs-on: ubuntu-24.04
-    if: |
-      github.event_name == 'push' ||
-      github.event_name == 'workflow_dispatch' ||
-      (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success')
-
     steps:
       - name: Checkout repository
         uses: actions/checkout@v6
         with:
-          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+          ref: ${{ github.sha }}
 
       - name: Install dependencies
         run: |
@@ -64,20 +53,12 @@ jobs:
     name: Build Release
     runs-on: ubuntu-24.04
     needs: build-arm64
-    # Only run if: tag push, manual trigger, or CI succeeded
-    if: |
-      github.event_name == 'push' ||
-      github.event_name == 'workflow_dispatch' ||
-      (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success')
 
     steps:
       - name: Get commit SHA
         id: get_sha
         run: |
-          if [[ "${{ github.event_name }}" == "workflow_run" ]]; then
-            echo "SHA=${{ github.event.workflow_run.head_sha }}" >> $GITHUB_OUTPUT
-            echo "IS_TAG=false" >> $GITHUB_OUTPUT
-          elif [[ "${{ github.ref }}" == refs/tags/v* ]]; then
+          if [[ "${{ github.ref }}" == refs/tags/v* ]]; then
             echo "SHA=${{ github.sha }}" >> $GITHUB_OUTPUT
             echo "IS_TAG=true" >> $GITHUB_OUTPUT
             echo "TAG_NAME=${{ github.ref_name }}" >> $GITHUB_OUTPUT

@@ -3,6 +3,7 @@ name: CI
 on:
   push:
     branches: [ main, master ]
+    tags: [ 'v*' ]
   pull_request:
     branches: [ main, master ]
 
@@ -14,9 +15,49 @@ env:
   GIT_CONFIG_VALUE_0: main
 
 jobs:
+  cadence:
+    name: Select CI runs
+    runs-on: ubuntu-24.04
+    outputs:
+      run_ci: ${{ steps.select.outputs.run_ci }}
+
+    steps:
+      - name: Checkout commit history
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Select scheduled CI commits
+        id: select
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          REF_NAME: ${{ github.ref }}
+          BEFORE_SHA: ${{ github.event.before }}
+          AFTER_SHA: ${{ github.sha }}
+        run: |
+          if [[ "$EVENT_NAME" == "pull_request" || "$REF_NAME" == refs/tags/v* ]]; then
+            echo "run_ci=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          after_count=$(git rev-list --count "$AFTER_SHA")
+          if [[ "$BEFORE_SHA" =~ ^0+$ ]] || ! git cat-file -e "$BEFORE_SHA^{commit}" 2>/dev/null; then
+            before_count=0
+          else
+            before_count=$(git rev-list --count "$BEFORE_SHA")
+          fi
+
+          if (( before_count / 10 < after_count / 10 )); then
+            echo "run_ci=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "run_ci=false" >> "$GITHUB_OUTPUT"
+          fi
+
   build-x86:
     name: Build x86
     runs-on: ubuntu-24.04
+    needs: cadence
+    if: needs.cadence.outputs.run_ci == 'true'
 
     steps:
       - name: Checkout repository
@@ -62,6 +103,8 @@ jobs:
   build-x86-all-languages:
     name: Build x86 (all languages)
     runs-on: ubuntu-24.04
+    needs: cadence
+    if: needs.cadence.outputs.run_ci == 'true'
 
     steps:
       - name: Checkout repository
@@ -95,6 +138,8 @@ jobs:
   build-x86-configs:
     name: Build x86 (debug and release configs)
     runs-on: ubuntu-24.04
+    needs: cadence
+    if: needs.cadence.outputs.run_ci == 'true'
 
     steps:
       - name: Checkout repository
@@ -119,6 +164,8 @@ jobs:
   build-arm64:
     name: Build ARM64
     runs-on: ubuntu-24.04
+    needs: cadence
+    if: needs.cadence.outputs.run_ci == 'true'
 
     steps:
       - name: Checkout repository
@@ -148,6 +195,8 @@ jobs:
   test-stdlib:
     name: C Library Differential Test
     runs-on: ubuntu-24.04
+    needs: cadence
+    if: needs.cadence.outputs.run_ci == 'true'
 
     steps:
       - name: Checkout repository
@@ -163,6 +212,8 @@ jobs:
   build-arm:
     name: Build ARM
     runs-on: ubuntu-24.04
+    needs: cadence
+    if: needs.cadence.outputs.run_ci == 'true'
 
     steps:
       - name: Checkout repository
@@ -193,7 +244,8 @@ jobs:
   test-qemu:
     name: QEMU Boot Test
     runs-on: ubuntu-24.04
-    needs: build-x86
+    needs: [ cadence, build-x86 ]
+    if: needs.cadence.outputs.run_ci == 'true'
     permissions:
       actions: read
       contents: read
