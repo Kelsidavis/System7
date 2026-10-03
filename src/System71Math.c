@@ -1,9 +1,9 @@
 /*
  * System71Math.c - the C math functions the Toolbox uses
  *
- * QuickDraw's arcs, the Calculator and SANE (Pack4) call these. They were in
- * sys71_stubs.c as short Taylor series with no argument reduction worth the
- * name: cos was out by 0.026 near pi, atan by 0.03 near 1, and exp lost all
+ * QuickDraw's arcs, the Calculator and SANE (Pack4) call these. The earlier
+ * implementations used short Taylor series without useful argument
+ * reduction: cos was out by 0.026 near pi, atan by 0.03 near 1, and exp lost
  * accuracy past |x| of about 10.
  *
  * These follow fdlibm (Sun Microsystems, freely distributable), which most C

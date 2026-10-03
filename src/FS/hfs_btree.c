@@ -376,11 +376,9 @@ int HFS_CompareExtentsKeys(const void* key1, const void* key2) {
  * *recordLen holds the buffer's size going in and the data's length coming
  * out.
  *
- * Declared in hfs_btree.h and never written: the only definition was a stub
- * in sys71_stubs.c taking four arguments where the caller passes five, which
- * answered -1 - true, to the caller - and filled nothing in. The leaf chain
- * is walked in key order; a record's data starts after its key, on a word
- * boundary.
+ * Earlier callers had only a mismatched stub that always failed and filled
+ * nothing in. The leaf chain is walked in key order; a record's data starts
+ * after its key, on a word boundary.
  */
 bool HFS_BT_FindRecord(HFS_BTree* bt, const void* key, uint16_t keyLen,
                        void* recordBuffer, uint16_t* recordLen) {

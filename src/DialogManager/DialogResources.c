@@ -1,11 +1,9 @@
 /*
  * DialogResources.c - loading dialog and alert templates from resources
  *
- * The Dialog Manager's GetNewDialog and the Alert family call these. They
- * were stubs in sys71_stubs.c with the wrong signatures - one argument where
- * the callers pass two, a pointer returned where they read an OSErr - so the
- * callers' templates were never filled in and every dialog or alert built
- * from a resource failed.
+ * The Dialog Manager's GetNewDialog and the Alert family call these. Earlier
+ * stub implementations had mismatched signatures, so callers' templates
+ * were never filled in and dialogs or alerts built from resources failed.
  *
  * Layouts from Inside Macintosh: Macintosh Toolbox Essentials:
  *
