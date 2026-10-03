@@ -149,16 +149,24 @@ static DesktopItemType Desktop_GetItemType(const DesktopItem* item)
     return (DesktopItemType)Desktop_ReadU32LE(&item->type);
 }
 
+static void Desktop_CopyScreenBounds(Rect* outBounds)
+{
+    const Rect* screenBounds = &qd.screenBits.bounds;
+    outBounds->top = screenBounds->top;
+    outBounds->left = screenBounds->left;
+    outBounds->bottom = screenBounds->bottom;
+    outBounds->right = screenBounds->right;
+}
+
 static void Desktop_BuildFileKind(const DesktopItem* item, FileKind* outKind)
 {
     if (!item || !outKind) {
         return;
     }
 
-    /* CRITICAL FIX: Use memset instead of aggregate init to avoid ARM64 hang */
+    /* Initialize fields that are not populated for every item type. */
     memset(outKind, 0, sizeof(FileKind));
     outKind->path = NULL;
-    outKind->hasCustomIcon = false;
 
     DesktopItemType itemType = Desktop_GetItemType(item);
 
@@ -279,12 +287,10 @@ static void Desktop_DrawIconsCommon(RgnHandle clip)
             continue;
         }
 
-        /* CRITICAL FIX: Use memset instead of aggregate init to avoid ARM64 hang */
         FileKind fk;
-        memset(&fk, 0, sizeof(FileKind));
         Desktop_BuildFileKind(&gDesktopIcons[i], &fk);
 
-        /* CRITICAL FIX: Use memset instead of aggregate init to avoid ARM64 hang */
+        /* The resolver leaves italicLabel unchanged; initialize it to false. */
         IconHandle handle;
         memset(&handle, 0, sizeof(IconHandle));
         bool resolved = Icon_ResolveForNode(&fk, &handle);
@@ -312,15 +318,9 @@ static void Desktop_DrawIconsCommon(RgnHandle clip)
         bool selected = (gSelectedIcon == i);
         handle.selected = selected;
 
-        /* Desktop icons use global screen coordinates - no conversion needed
-         * gDesktopIcons[i].position is already in global screen coordinates */
-        /* CRITICAL FIX: Explicit field copy instead of struct assignment */
-        Point screenPos;
-        screenPos.h = gDesktopIcons[i].position.h;
-        screenPos.v = gDesktopIcons[i].position.v;
-
-        int centerX = screenPos.h + (kIconW / 2);
-        int topY = screenPos.v;
+        /* Desktop icon positions already use global screen coordinates. */
+        int centerX = gDesktopIcons[i].position.h + (kIconW / 2);
+        int topY = gDesktopIcons[i].position.v;
         int labelOffset = Desktop_LabelOffsetForItem(&gDesktopIcons[i]);
 
         Icon_DrawWithLabelOffset(&handle,
@@ -423,12 +423,8 @@ static void Finder_DeskHook(RgnHandle invalidRgn)
     /* Clip to the invalid region */
     RgnHandle desktopClip = NewRgn();
     if (desktopClip) {
-        /* CRITICAL FIX: Explicit field copy instead of struct assignment for ARM64 */
         Rect desktopRect;
-        desktopRect.top = qd.screenBits.bounds.top;
-        desktopRect.left = qd.screenBits.bounds.left;
-        desktopRect.bottom = qd.screenBits.bounds.bottom;
-        desktopRect.right = qd.screenBits.bounds.right;
+        Desktop_CopyScreenBounds(&desktopRect);
         desktopRect.top = 20;  /* Exclude menu bar */
         RectRgn(desktopClip, &desktopRect);
         if (invalidRgn) {
@@ -455,12 +451,8 @@ static void Finder_DeskHook(RgnHandle invalidRgn)
         } else if (desktopClip) {
             CopyRgn(desktopClip, paintRgn);
         } else {
-            /* CRITICAL FIX: Explicit field copy instead of struct assignment for ARM64 */
             Rect screenRect;
-            screenRect.top = qd.screenBits.bounds.top;
-            screenRect.left = qd.screenBits.bounds.left;
-            screenRect.bottom = qd.screenBits.bounds.bottom;
-            screenRect.right = qd.screenBits.bounds.right;
+            Desktop_CopyScreenBounds(&screenRect);
             RectRgn(paintRgn, &screenRect);
         }
 
@@ -560,12 +552,8 @@ void DrawDesktop(void)
         gInDesktopPaint = false;
         return;
     }
-    /* CRITICAL FIX: Explicit field copy instead of struct assignment for ARM64 */
     Rect desktopRect;
-    desktopRect.top = qd.screenBits.bounds.top;
-    desktopRect.left = qd.screenBits.bounds.left;
-    desktopRect.bottom = qd.screenBits.bounds.bottom;
-    desktopRect.right = qd.screenBits.bounds.right;
+    Desktop_CopyScreenBounds(&desktopRect);
     desktopRect.top = 20;  /* Start below menu bar */
     RectRgn(desktopRgn, &desktopRect);
 
@@ -1811,12 +1799,8 @@ void DrawVolumeIcon(void)
     }
 
     DVI_LOG("[DVI] get desktopBounds\n");
-    /* CRITICAL FIX: Use explicit field copy instead of struct assignment */
     Rect desktopBounds;
-    desktopBounds.top = qd.screenBits.bounds.top;
-    desktopBounds.left = qd.screenBits.bounds.left;
-    desktopBounds.bottom = qd.screenBits.bounds.bottom;
-    desktopBounds.right = qd.screenBits.bounds.right;
+    Desktop_CopyScreenBounds(&desktopBounds);
     DVI_LOG("[DVI] desktopBounds copied\n");
     desktopBounds.top = 20; /* Keep menu bar clear */
     DVI_LOG("[DVI] ClipRect\n");
@@ -1847,7 +1831,6 @@ void DrawVolumeIcon(void)
         SetClip(savedClip);
         DisposeRgn(savedClip);
     } else {
-        /* CRITICAL FIX: Use pointer to avoid struct copy */
         ClipRect(&qd.screenBits.bounds);
     }
     SetPort(savePort);
