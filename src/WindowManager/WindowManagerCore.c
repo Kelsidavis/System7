@@ -25,6 +25,7 @@
 #include "WindowManager/WindowManagerInternal.h"
 #include "WindowManager/WindowKinds.h"
 #include "WindowManager/LayoutGuards.h"
+#include "Platform/Framebuffer.h"
 #include "QuickDraw/QuickDraw.h"
 #include "QuickDraw/ColorQuickDraw.h"
 #include "DialogManager/DialogManager.h"
@@ -896,10 +897,6 @@ static void InitializeWindowRecord(WindowPtr window, const Rect* bounds,
      */
 
     /* Calculate window's content position in global screen coordinates */
-    extern void* framebuffer;
-    extern uint32_t fb_width;
-    extern uint32_t fb_pitch;
-
     SInt16 contentLeft = clampedBounds.left + kBorder;
     SInt16 contentTop = clampedBounds.top + kChromeTop;
 

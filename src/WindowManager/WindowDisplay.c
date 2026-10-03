@@ -11,6 +11,7 @@
 #include "WindowManager/WMLogging.h"
 #include "EventManager/EventManager.h"
 #include "MemoryMgr/MemoryManager.h"
+#include "Platform/Framebuffer.h"
 
 /* Color constants */
 #define blackColor 33
@@ -214,9 +215,6 @@ static void WM_EndChromeClip(AutoRgnHandle* holder) {
 
 /* Paint one pixel of window chrome, if this window owns it. */
 static void WM_ChromePixel(int x, int y, uint32_t colour) {
-    extern void* framebuffer;
-    extern uint32_t fb_width, fb_height, fb_pitch;
-
     if (!framebuffer) return;
     if (x < 0 || y < 0 || x >= (int)fb_width || y >= (int)fb_height) return;
 
@@ -320,7 +318,6 @@ void PaintOne(WindowPtr window, RgnHandle clobberedRgn) {
                 /* Log the current port state when filling */
                 GrafPtr currentPort = qd.thePort;
                 if (currentPort) {
-                    extern void* framebuffer;
                     uint8_t* fbStart = (uint8_t*)framebuffer;
                     uint8_t* baseAddr = (uint8_t*)currentPort->portBits.baseAddr;
                     int offset = baseAddr - fbStart;
@@ -770,8 +767,6 @@ static void DrawWindowFrame_Unclipped(WindowPtr window) {
     serial_puts("[DRAWFRAME] 3D highlights\n");
     uart_flush();
     /* Add 3D black highlights for depth effect */
-    extern void* framebuffer;
-    extern uint32_t fb_width, fb_height, fb_pitch;
     if (framebuffer) {
         uint32_t black = 0xFF000000;
 
@@ -818,9 +813,6 @@ static void DrawWindowFrame_Unclipped(WindowPtr window) {
         titleBar.bottom = frame.top + 20;  /* Extends to separator line */
 
         /* Fill title bar background */
-        extern void* framebuffer;
-        extern uint32_t fb_width, fb_height, fb_pitch;
-
         if (window->hilited) {
             /* Active window: solid light grey background with darker horizontal stripes */
             if (framebuffer) {
@@ -1211,9 +1203,6 @@ static void DrawWindowControls_Unclipped(WindowPtr window) {
         Rect growBox;
         SetRect(&growBox, frame.right - 16, frame.bottom - 16,
                 frame.right, frame.bottom);
-
-        extern void* framebuffer;
-        extern uint32_t fb_width, fb_height, fb_pitch;
 
         if (framebuffer) {
             uint32_t black = 0xFF000000;

@@ -1359,8 +1359,6 @@ static struct {
 } gPointer;
 
 static bool Pointer_Pixel(int row, int col, uint32_t** px) {
-    extern void* framebuffer;
-    extern uint32_t fb_width, fb_height, fb_pitch;
     int x = gPointer.x + col, y = gPointer.y + row;
     if (!framebuffer || x < 0 || y < 0 || x >= (int)fb_width || y >= (int)fb_height) return false;
     *px = (uint32_t*)__builtin_assume_aligned(

@@ -11,6 +11,7 @@
 
 #include "SystemTypes.h"
 #include "System71StdLib.h"
+#include "Platform/Framebuffer.h"
 #include "MemoryMgr/MemoryManager.h"
 #include "MenuManager/MenuBitsPool.h"
 #include "MenuManager/MenuBitsPrivate.h"
@@ -41,11 +42,6 @@ typedef struct {
 static MenuBitsPoolState gMenuBitsPool = {0};
 
 /* External framebuffer access */
-extern void* framebuffer;
-extern uint32_t fb_width;
-extern uint32_t fb_height;
-extern uint32_t fb_pitch;
-
 /*---------------------------------------------------------------------------
  * Pool Initialization and Shutdown
  *---------------------------------------------------------------------------*/

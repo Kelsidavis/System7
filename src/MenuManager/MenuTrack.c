@@ -15,6 +15,7 @@
 #include "FontManager/FontManager.h"
 #include "EventManager/EventTypes.h"  /* For mouse masks */
 #include "TimeManager/TimeBase.h"
+#include "Platform/Framebuffer.h"
 
 /* Function declarations */
 extern SInt16 CountMenuItems(MenuHandle theMenu);
@@ -71,11 +72,6 @@ static struct {
 } g_menuTrackState = {0};
 
 /* Global framebuffer from main.c */
-extern void* framebuffer;
-extern uint32_t fb_width;
-extern uint32_t fb_height;
-extern uint32_t fb_pitch;
-
 /* Rect helpers */
 extern void SetRect(Rect* rect, short left, short top, short right, short bottom);
 extern void InvalRect(const Rect* rect);

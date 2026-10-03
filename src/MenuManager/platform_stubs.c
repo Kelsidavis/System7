@@ -9,6 +9,7 @@
 #include "MenuManager/MenuManager.h"
 #include "MenuManager/menu_private.h"
 #include "MemoryMgr/MemoryManager.h"
+#include "Platform/Framebuffer.h"
 #include <stdlib.h>
 #include <string.h>
 
@@ -28,8 +29,6 @@ typedef struct ScreenBits {
  */
 void* Platform_SaveScreenBits_Impl(const Rect* rect)
 {
-    extern void* framebuffer;
-    extern uint32_t fb_width, fb_height, fb_pitch;
 
     if (!rect || !framebuffer) {
         return NULL;
@@ -80,8 +79,6 @@ void* Platform_SaveScreenBits_Impl(const Rect* rect)
  */
 void Platform_RestoreScreenBits(Handle bits, const Rect* rect)
 {
-    extern void* framebuffer;
-    extern uint32_t fb_pitch;
 
     if (!bits || !rect || !framebuffer) {
         return;

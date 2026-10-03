@@ -18,6 +18,7 @@
 #include "ResourceManager.h"
 #include "WindowManager/WindowManager.h"
 #include "QuickDraw/QuickDraw.h"
+#include "Platform/Framebuffer.h"
 extern void DisposeGWorld(GWorldPtr);
 extern void InvalWindowRect(WindowPtr, const Rect*);
 #include "QuickDrawConstants.h"
@@ -529,8 +530,6 @@ static void Test_File_ReadThroughExtentsOverflow(void) {
  * covered part: rectangles and text, read back from the screen.
  */
 static UInt32 ScreenPixel(int x, int y) {
-    extern void* framebuffer;
-    extern uint32_t fb_pitch;
     return *(UInt32*)((UInt8*)framebuffer + y * fb_pitch + x * 4);
 }
 

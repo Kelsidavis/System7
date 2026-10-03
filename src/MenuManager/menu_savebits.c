@@ -21,6 +21,7 @@
 
 #include "SystemTypes.h"
 #include "SystemInternal.h"
+#include "Platform/Framebuffer.h"
 #include "System71StdLib.h"
 
 #include "MenuManager/menu_private.h"
@@ -30,11 +31,6 @@
 #include "MemoryMgr/MemoryManager.h"
 
 /* External framebuffer access */
-extern void* framebuffer;
-extern uint32_t fb_width;
-extern uint32_t fb_height;
-extern uint32_t fb_pitch;
-
 static void CopyFramebufferToBuffer(const Rect *bounds, uint32_t *savePtr)
 {
     const int width = bounds->right - bounds->left;

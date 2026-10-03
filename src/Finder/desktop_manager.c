@@ -21,6 +21,7 @@
 
 #include "Finder/finder.h"
 #include "Finder/finder_types.h"
+#include "Platform/Framebuffer.h"
 #include "TimeManager/TimeBase.h"
 #include "FileMgr/file_manager.h"
 /* Use local headers instead of system headers */
@@ -89,9 +90,6 @@ enum { kGridW = 8, kGridH = 12, kIconW = 32, kIconH = 32 };
 
 /* External globals */
 extern void QD_SetScreenPort(void);  /* QuickDraw globals from main.c */
-extern void* framebuffer;
-extern uint32_t fb_width, fb_height;
-extern uint32_t fb_pitch;
 extern uint32_t pack_color(uint8_t r, uint8_t g, uint8_t b);
 
 /* Global tracking guard for modal drag loops */
@@ -993,9 +991,6 @@ static void GhostXOR(const Rect* r)
 {
     Pointer_Shield(r->left, r->top, r->right, r->bottom);   /* XOR under the pointer would leave a ghost of it */
     /* Direct XOR rectangle drawing to framebuffer for immediate visibility */
-    extern void* framebuffer;
-    extern uint32_t fb_width, fb_height, fb_pitch;
-
     if (!framebuffer || !r) return;
 
     FINDER_LOG_DEBUG("GhostXOR: received Rect top=%d left=%d bottom=%d right=%d\n",
@@ -1668,8 +1663,6 @@ OSErr InitializeVolumeIcon(void)
  * Returns: OSErr (noErr on success)
  */
 OSErr Desktop_AddVolumeIcon(const char* name, VRefNum vref) {
-    extern uint32_t fb_width, fb_height;
-
     if (!name || gDesktopIconCount >= kMaxDesktopIcons) {
         return paramErr;
     }

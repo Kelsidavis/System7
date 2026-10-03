@@ -20,12 +20,10 @@
 #include "FileManagerTypes.h"
 #include "Platform/include/storage.h"
 #include "EventManager/SystemEvents.h"
+#include "Platform/Framebuffer.h"
 #include <stdint.h>
 #include <string.h>
 #include <limits.h>
-
-extern uint32_t fb_width;
-extern uint32_t fb_height;
 
 #define XHCI_CLASS_CODE 0x0C
 #define XHCI_SUBCLASS   0x03

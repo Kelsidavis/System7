@@ -13,12 +13,10 @@ extern void QD_SetScreenPort(void);
 #include "QuickDraw/QuickDraw.h"
 #include "System71StdLib.h"
 #include "Platform/PlatformLogging.h"
+#include "Platform/Framebuffer.h"
 #include "TimeManager/TimeBase.h"
 
 /* External framebuffer and QuickDraw globals */
-extern void* framebuffer;
-extern uint32_t fb_width;
-extern uint32_t fb_height;
 extern GrafPtr g_currentPort;
 
 /* Initialize windowing system */

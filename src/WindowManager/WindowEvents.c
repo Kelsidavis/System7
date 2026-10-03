@@ -27,6 +27,7 @@
 #include "WindowManager/WindowRegions.h"
 #include "EventManager/EventManager.h"
 #include "MemoryMgr/MemoryManager.h"
+#include "Platform/Framebuffer.h"
 #include "TimeManager/TimeBase.h"
 
 /* External logging function */
@@ -621,11 +622,6 @@ void EndUpdate(WindowPtr theWindow) {
                 /* CRITICAL: Create a proper PixMap for the framebuffer destination
                  * The window's portBits is a BitMap, but the framebuffer is actually 32-bit ARGB.
                  * We need to create a temporary PixMap to describe it properly for CopyBits. */
-                extern void* framebuffer;
-                extern uint32_t fb_width;
-                extern uint32_t fb_pitch;
-                extern uint32_t fb_height;
-
                 /* Clamp destination rectangle to visible framebuffer region and adjust source accordingly */
                 Rect clippedDst = dstRect;
                 if (clippedDst.left < 0) clippedDst.left = 0;

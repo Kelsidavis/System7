@@ -5,6 +5,7 @@
  */
 
 #include "Platform/include/boot.h"
+#include "Platform/Framebuffer.h"
 #include "MemoryMgr/MemoryManager.h"
 #include "Platform/include/serial.h"
 #include "pic.h"
@@ -19,10 +20,6 @@
 #include "ehci.h"
 #include "uhci.h"
 
-extern void* framebuffer;
-extern uint32_t fb_width;
-extern uint32_t fb_height;
-extern uint32_t fb_pitch;
 extern uint8_t fb_bpp;
 extern uint8_t fb_red_pos;
 extern uint8_t fb_red_size;
@@ -148,7 +145,6 @@ int hal_framebuffer_present(void) {
 bool Platform_GetFreeMemory(void** base, uint32_t* size) {
     extern char kernel_end[];
     extern uint32_t g_mem_upper_kb;
-    extern void* framebuffer;
     if (!base || !size || g_mem_upper_kb == 0) return false;
 
     uintptr_t start = ((uintptr_t)kernel_end + 0xFFFu) & ~(uintptr_t)0xFFFu;

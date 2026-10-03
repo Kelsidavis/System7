@@ -13,6 +13,7 @@
 #include "SystemTypes.h"
 #include "System71StdLib.h"
 #include "SystemInternal.h"
+#include "Platform/Framebuffer.h"
 
 #include "StartupScreen/StartupScreen.h"
 #include "WindowManager/WindowManager.h"
@@ -78,9 +79,6 @@ static void DrawWelcomeScreen(void);
 static void DrawHappyMac(const Rect* bounds);
 static void DrawExtensionIcon(const ExtensionInfo* extension, Point position);
 static Point GetNextExtensionPosition(void);
-
-extern uint32_t fb_width;
-extern uint32_t fb_height;
 
 /*
  * Initialize startup screen system

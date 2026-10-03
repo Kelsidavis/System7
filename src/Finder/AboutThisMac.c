@@ -12,6 +12,7 @@
 #include "Finder/finder.h"
 #include "QuickDraw/QuickDraw.h"
 #include "Platform/platform_info.h"
+#include "Platform/Framebuffer.h"
 #include "Gestalt/Gestalt.h"
 #include "Platform/include/boot.h"
 #include "LocaleManager/LocaleManager.h"
@@ -20,9 +21,6 @@
 
 /* For debug logging */
 extern void serial_printf(const char* fmt, ...);
-
-extern uint32_t fb_width;
-extern uint32_t fb_height;
 
 /* External QuickDraw & Window Manager APIs */
 extern void GetPort(GrafPtr* port);

@@ -26,6 +26,7 @@ extern void QD_SetScreenPort(void);
 #include "MenuManager/MenuDisplay.h"
 #include "FontManager/FontManager.h"
 #include "MenuManager/MenuLogging.h"
+#include "Platform/Framebuffer.h"
 #include "TimeManager/TimeBase.h"
 #include "FontManager/FontTypes.h"
 #include "FontManager/FontInternal.h"
@@ -434,9 +435,6 @@ void HideMenu(void)
     } else {
         /* CRITICAL: Manually erase menu rect if SaveBits failed
          * This happens when memory is low and SaveBits couldn't allocate */
-        extern void* framebuffer;
-        extern uint32_t fb_pitch;
-
         if (framebuffer) {
             uint32_t bytes_per_pixel = 4;
             SInt16 width = gCurrentMenuRect.right - gCurrentMenuRect.left;

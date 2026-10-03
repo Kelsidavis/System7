@@ -25,6 +25,7 @@
 #include "Finder/Icon/icon_label.h"
 #include "TimeManager/TimeBase.h"
 #include "Finder/Icon/icon_system.h"
+#include "Platform/Framebuffer.h"
 #include "Finder/finder.h"
 #include "FS/vfs.h"
 #include "FS/hfs_types.h"
@@ -738,7 +739,6 @@ WindowPtr FolderWindow_OpenFolder(VRefNum vref, DirID dirID, ConstStr255Param ti
     r.bottom = 420 + sCascadeOffset;
 
     /* Advance cascade, wrap before windows go off screen */
-    extern uint32_t fb_width, fb_height;
     sCascadeOffset += 20;
     if (r.bottom > (short)fb_height - 40 || r.right > (short)fb_width - 40) {
         sCascadeOffset = 0;

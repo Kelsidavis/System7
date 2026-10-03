@@ -13,6 +13,7 @@
 #include "FontManager/FontResources.h"
 #include "QuickDraw/ColorQuickDraw.h"
 #include "QuickDraw/QuickDraw.h"
+#include "Platform/Framebuffer.h"
 #include "SystemTypes.h"
 #include "chicago_font.h"
 #include "chicago_font_extended.h"
@@ -40,10 +41,6 @@
 extern GrafPtr g_currentPort;
 
 /* External framebuffer from multiboot */
-extern void* framebuffer;
-extern uint32_t fb_width;
-extern uint32_t fb_height;
-extern uint32_t fb_pitch;
 extern uint32_t pack_color(uint8_t r, uint8_t g, uint8_t b);
 
 /* Global Font Manager state */
