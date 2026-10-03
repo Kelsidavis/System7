@@ -639,9 +639,12 @@ the dialog can actually be dismissed.
 `MenuDisplay.c` has a complete System 7 item renderer — `DrawMenu` →
 `DrawMenuItem`, with `DrawMenuSeparator`, marks, icons, command keys and
 disabled styling. `ShowMenu()` calls `DrawMenu()`, but the live tracking path
-does not call `ShowMenu()`; `MenuTrack.c` draws the menus through its separate
-`DrawMenuOld()` framebuffer routine. This leaves two drawing implementations,
-and the full renderer's behavior is not exercised by normal menu tracking.
+does not call `ShowMenu()`. `MenuTrack.c` still owns the tracked dropdown's
+frame, background, row geometry, adornments, and highlight updates; its row
+text now delegates to `MenuDisplay.DrawMenuItemText()` through an adapter that
+preserves the tracked row's baseline. This removes the duplicate text-drawing
+implementation, but leaves two menu-item layout/rendering paths, and the full
+`DrawMenu()` behavior is not exercised by normal menu tracking.
 
 Two bugs fell out of this, both now fixed:
 

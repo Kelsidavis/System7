@@ -29,17 +29,18 @@ static void Menu_ClipToScreen(void) {
     ClipRect(&qd.screenBits.bounds);
 }
 extern void DrawDesktop(void);
-extern void DrawText(const void* textBuf, short firstByte, short byteCount);
 extern void DrawVolumeIcon(void);
 extern Boolean Button(void);          /* Check if mouse button is pressed */
 extern void GetMouse(Point* mouseLoc);
-extern void MoveTo(short h, short v);
 extern void DrawMenuBar(void);        /* Redraw the menu bar */
 extern Boolean CheckMenuItemSeparator(MenuHandle theMenu, short item);
 extern Boolean CheckMenuItemEnabled(MenuHandle theMenu, short item);
 extern void GetItemCmd(MenuHandle theMenu, short item, short* cmdChar);
 extern void GetItemMark(MenuHandle theMenu, short item, short* markChar);
 extern void GetItemSubmenu(MenuHandle theMenu, short item, short* submenuID);
+extern void GetItemStyle(MenuHandle theMenu, short item, Style* style);
+extern void DrawMenuItemText(const Rect* itemRect, ConstStr255Param itemText,
+                             Style textStyle, Boolean enabled, Boolean selected);
 
 /* Forward declarations for static functions */
 static void DrawHighlightRect(short left, short top, short right, short bottom, Boolean highlight);
@@ -215,14 +216,20 @@ static void DrawCommandGlyph(short x, short y, uint32_t color) {
     }
 }
 
-/* Draw text */
-static void DrawMenuItemText(const char* text, short x, short y) {
-    MoveTo(x, y);
-    short len = 0;
-    while (text[len] != 0) len++;
-    if (len > 0) DrawText(text, 0, len);
+/* Adapt the tracking row's baseline to MenuDisplay's shared text renderer. */
+static void DrawTrackedMenuText(const char* text, short x, short baseline,
+                                Style textStyle) {
+    Str255 pascalText;
+    short length = 0;
+    while (text[length] != '\0' && length < 255) {
+        pascalText[length + 1] = (unsigned char)text[length];
+        length++;
+    }
+    if (length == 0) return;
+    pascalText[0] = (unsigned char)length;
 
-    MENU_LOG_TRACE("Drawing menu item: %s at (%d,%d)\n", text, x, y);
+    Rect textRect = {baseline - 11, x - 4, baseline + 5, x + 251};
+    DrawMenuItemText(&textRect, pascalText, textStyle, true, false);
 }
 
 /* --- Get actual menu items from menu handle --- */
@@ -298,6 +305,7 @@ static void DrawMenuItemRowContents(MenuHandle theMenu, short i, short left, sho
     char itemText[64];
     short cmdChar = 0;
     short subID = 0;
+    Style textStyle = normal;
     uint32_t ink = highlighted ? 0xFFFFFFFF : 0xFF000000;
 
     /* A divider is a grey line across the menu, not its text. This renderer
@@ -315,12 +323,13 @@ static void DrawMenuItemRowContents(MenuHandle theMenu, short i, short left, sho
 
     GetItemText(theMenu, i, itemText);
     if (itemText[0] == 0) return;
+    GetItemStyle(theMenu, i, &textStyle);
 
     /* Highlighted text is the same text in white, through QuickDraw. It had
      * its own glyph renderer reading the Chicago strike directly, which got
      * several glyphs wrong: "Alarm Clock" read "Al arm0 ock". */
     if (highlighted) ForeColor(whiteColor);
-    DrawMenuItemText(itemText, left + kMenuMarkColumn, itemTop + 12);
+    DrawTrackedMenuText(itemText, left + kMenuMarkColumn, itemTop + 12, textStyle);
 
     /* Item mark - the View menu checks its current view. CheckItem has always
      * maintained this; nothing drew it. */
@@ -357,7 +366,7 @@ static void DrawMenuItemRowContents(MenuHandle theMenu, short i, short left, sho
                            ? cmdChar - 'a' + 'A' : cmdChar);
         cmdBuf[1] = 0;
         DrawCommandGlyph(left + menuWidth - 30, itemTop + 2, ink);
-        DrawMenuItemText(cmdBuf, left + menuWidth - 16, itemTop + 12);
+        DrawTrackedMenuText(cmdBuf, left + menuWidth - 16, itemTop + 12, normal);
     }
     ForeColor(blackColor);
 }
@@ -1196,7 +1205,7 @@ void DrawMenuBarWithHighlight(short highlightMenuID) {
             QD_SetScreenPort();
             Menu_ClipToScreen();
             ForeColor(whiteColor);
-            DrawMenuItemText(titleText, titleX + 4, 14);
+            DrawTrackedMenuText(titleText, titleX + 4, 14, normal);
             ForeColor(blackColor);
             SetPort(savePort);
         }
