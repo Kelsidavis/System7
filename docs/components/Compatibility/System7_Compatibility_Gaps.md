@@ -15,6 +15,11 @@ This checklist records significant differences between the current toolbox reimp
 - ~~`src/QuickDraw/CursorManager.c` – Cursor show/hide/obscure/spin still defer to TODOs; Mac OS required hardware cursor toggles and watch-cursor animation tied to `SpinCursor`.~~ **OBSOLETE** (2026-10-01): `CursorManager_SetCursorInternal()` / `cursor_set_bit()` / `CursorManager_ShouldBeVisible()` implement the state machine now; the old TODOs are gone from the file.
 
 ## Window, Dialog, Control, and Menu Managers
+- `include/DialogManager/DialogManager.h` declares `DialogCut`, `DialogCopy`,
+  `DialogPaste`, `DialogDelete`, `DialogManager_ShowOpenFileDialog`, and
+  `DialogManager_ShowSaveFileDialog`, and `ModalDialogs.h` declares
+  `AnnounceModalDialog`; none has a definition in `src/`. Implement the
+  intended contracts or remove declarations that are not supported APIs.
 - `include/DialogManager/DialogEvents.h` and `DialogItems.h` declare helper APIs
   with no definitions in `src/`:
   `ProcessDialogEvent`, `HandleDialogMouseDown`, `HandleDialogKeyDown`,

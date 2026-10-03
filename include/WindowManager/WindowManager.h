@@ -1,10 +1,9 @@
 /*
- * WindowManager.h - Complete Portable Window Manager API
+ * WindowManager.h - Portable Window Manager API
  *
  * This is the main header for the Portable Window Manager implementation
- * that provides exact Apple Macintosh System 7.1 Window Manager compatibility
- * on modern platforms. This implementation is CRITICAL for System 7.1
- * application compatibility as ALL Mac applications depend on windows.
+ * that provides Window Manager services on modern platforms. Implemented
+ * behavior and compatibility coverage vary across the declared API.
  *
  * The Window Manager provides:
  * - Window creation, disposal, and management

@@ -1,8 +1,8 @@
 /*
  * ModalDialogs.h - Modal Dialog Management API
  *
- * This header defines the modal dialog processing functionality,
- * maintaining exact Mac System 7.1 behavioral compatibility.
+ * This header declares modal dialog processing APIs. Implementation and
+ * compatibility coverage vary by API.
  */
 
 #ifndef MODAL_DIALOGS_H

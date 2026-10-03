@@ -1,9 +1,8 @@
 /*
  * DialogManager.h - Macintosh System 7.1 Dialog Manager API
  *
- * This header provides the complete Dialog Manager interface for Mac System 7.1,
- * maintaining exact behavioral compatibility while providing modern platform
- * integration capabilities.
+ * This header declares Dialog Manager APIs for the System 7.1 toolbox
+ * reimplementation. Implementation and compatibility coverage vary by API.
  *
  * The Dialog Manager is essential for:
  * - Modal and modeless dialog handling
@@ -77,8 +76,7 @@ extern "C" {
 /* Extended dialog features flags */
 
 /*
- * CORE DIALOG MANAGER API
- * These functions provide exact Mac System 7.1 Dialog Manager compatibility
+ * Core Dialog Manager API declarations
  */
 
 /* Dialog creation and disposal */

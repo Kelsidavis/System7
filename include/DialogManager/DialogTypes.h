@@ -2,7 +2,8 @@
  * DialogTypes.h - Dialog Manager Type Definitions
  *
  * This header defines all the internal structures and types used by the
- * Dialog Manager, maintaining exact compatibility with Mac System 7.1.
+ * Dialog Manager. These declarations support the implemented Dialog Manager
+ * APIs; compatibility coverage varies by type and operation.
  */
 
 #ifndef DIALOG_TYPES_H
