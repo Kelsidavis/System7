@@ -169,7 +169,6 @@ jobs:
 
       - name: Build kernel (ARM)
         run: make PLATFORM=arm
-        continue-on-error: true
 
       - name: Upload ARM kernel artifact
         uses: actions/upload-artifact@v4
