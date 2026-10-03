@@ -20,53 +20,10 @@
 
 /* Forward declarations */
 static void DumpWindowList(const char* context);
-void CheckWindowsNeedingUpdate(void);
 
 /*-----------------------------------------------------------------------*/
 /* Window Display Functions                                             */
 /*-----------------------------------------------------------------------*/
-
-/* Check windows for update events (called by GetNextEvent) */
-void CheckWindowsNeedingUpdate(void) {
-    static int call_count = 0;
-    call_count++;
-
-    /* Walk all visible windows and post update events for windows with non-empty updateRgn */
-    WindowPtr window = FrontWindow();
-
-    if (call_count <= 10 || (call_count % 500) == 0) {
-        WM_LOG_TRACE("CheckWindowsNeedingUpdate: #%d, frontWindow=0x%08x\n", call_count, (unsigned int)window);
-    }
-
-    /* windowCount is only ever read inside WM_LOG_TRACE, which expands to
-     * nothing in this build; (void) it so the compiler does not flag it. */
-    int windowCount = 0;
-    (void)windowCount;
-    while (window) {
-        windowCount++;
-        Boolean hasUpdateRgn = (window->updateRgn != NULL);
-        Boolean isEmpty = hasUpdateRgn ? EmptyRgn(window->updateRgn) : true;
-
-        if (call_count <= 10 || (call_count % 500) == 0) {
-            WM_LOG_TRACE("CheckWindowsNeedingUpdate:   Window %d: 0x%08x, visible=%d, updateRgn=0x%08x, empty=%d\n",
-                         windowCount, (unsigned int)window, window->visible, (unsigned int)window->updateRgn, isEmpty);
-            if (hasUpdateRgn) {
-                Region* rgn = *(window->updateRgn);
-                WM_LOG_TRACE("CheckWindowsNeedingUpdate:     updateRgn bbox=(%d,%d,%d,%d)\n",
-                             rgn->rgnBBox.left, rgn->rgnBBox.top, rgn->rgnBBox.right, rgn->rgnBBox.bottom);
-                (void)rgn; /* Used only in WM_LOG_TRACE (debug builds) */
-            }
-        }
-        (void)isEmpty; /* Used only in WM_LOG_TRACE (debug builds) */
-
-        if (window->visible && window->updateRgn && !EmptyRgn(window->updateRgn)) {
-            /* Deliberately does NOT post an event here - see
-             * WM_FindWindowNeedingUpdate() below and its use in GetNextEvent. */
-            WM_LOG_TRACE("CheckWindowsNeedingUpdate: window %p needs update\n", (void*)window);
-        }
-        window = window->nextWindow;
-    }
-}
 
 /*
  * WM_FindWindowNeedingUpdate - front-most visible window with a dirty updateRgn.
