@@ -42,8 +42,8 @@
 #include "ControlPanels/ControlStrip.h"
 #include "Datetime/datetime_cdev.h"
 #include "ProcessMgr/ProcessTypes.h"
+#include "ProcessMgr/ProcessMgr.h"
 #include "SegmentLoader/MacBinary.h"
-extern OSErr LaunchApplication(LaunchParamBlockRec* launchParams);
 extern void MoveTo(short h, short v);
 extern void LineTo(short h, short v);
 extern void FrameRect(const Rect* r);
