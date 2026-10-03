@@ -110,8 +110,7 @@ static short gDesktopIconCount = 0;         /* Number of icons on desktop */
 static Boolean gDesktopNeedsCleanup = false; /* Desktop needs reorganization */
 static VRefNum gBootVolumeRef = 0;          /* Boot volume reference */
 static Boolean gVolumeIconVisible = false;   /* Is volume icon shown on desktop */
-static DesktopItem gDesktopIconStatic[kMaxDesktopIcons]; /* Static fallback storage */
-static Boolean gDesktopIconStaticInUse = false;
+static DesktopItem gDesktopIconStorage[kMaxDesktopIcons];
 
 /* Icon selection and dragging state */
 static short gSelectedIcon = -1;             /* Index of selected icon (-1 = none) */
@@ -884,12 +883,10 @@ static OSErr AllocateDesktopIcons(void)
         return noErr; /* Already allocated */
     }
 
-    /* DEFENSIVE: Use static storage to avoid heap corruption issue
-     * TODO: Fix root cause of heap being overwritten with x86 code (8B 87 5D 88) */
-    serial_puts("Desktop: AllocateDesktopIcons using static storage (heap corruption workaround)\n");
-    gDesktopIcons = gDesktopIconStatic;
-    memset(gDesktopIcons, 0, sizeof(gDesktopIconStatic));
-    gDesktopIconStaticInUse = true;
+    /* Desktop icon state is long-lived global data, so keep it outside the
+     * relocatable heap. */
+    gDesktopIcons = gDesktopIconStorage;
+    memset(gDesktopIcons, 0, sizeof(gDesktopIconStorage));
 
     /* Initialize trash as the first desktop item */
     gDesktopIcons[0].type = kDesktopItemTrash;
@@ -902,26 +899,6 @@ static OSErr AllocateDesktopIcons(void)
     gDesktopIcons[0].movable = false;  /* Trash stays in place */
     gDesktopIconCount = 1;  /* Start with trash */
     gVolumeIconVisible = true;  /* Ensure trash renders even if volume add fails */
-
-    {
-        extern void serial_puts(const char* str);
-        static char dbg[256];
-        snprintf(dbg, sizeof(dbg), "[DESKTOP_INIT] gDesktopIcons allocated at 0x%08X\n", (unsigned int)(uintptr_t)gDesktopIcons);
-        serial_puts(dbg);
-        snprintf(dbg, sizeof(dbg), "[DESKTOP_INIT] Created Trash icon: name='%s' pos=(%d,%d)\n",
-               gDesktopIcons[0].name, gDesktopIcons[0].position.h, gDesktopIcons[0].position.v);
-        serial_puts(dbg);
-
-        /* Memory dump of icon 0 to verify data */
-        serial_puts("[DESKTOP_INIT] Icon 0 memory dump (first 96 bytes):\n");
-        unsigned char* ptr = (unsigned char*)&gDesktopIcons[0];
-        for (int i = 0; i < 96; i++) {
-            snprintf(dbg, sizeof(dbg), "%02X ", ptr[i]);
-            serial_puts(dbg);
-            if ((i + 1) % 16 == 0) serial_puts("\n");
-        }
-        serial_puts("\n");
-    }
 
     {
         char msg[96];

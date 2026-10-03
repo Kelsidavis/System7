@@ -189,9 +189,10 @@ the pixel buffer is allocated, and where it comes from is the open
 question. `CompactMem` and the zone-extension paths around
 `MemoryManager.c:1458` and `:1485` are the parts not yet audited.
 
-**Existing workarounds that are probably this same bug:** the static
-storage in `AllocateDesktopIcons` ("heap corruption workaround"), and the
-suspect-address logging hooks left in `MemoryManager.c`.
+Desktop-icon storage is static by design because it is long-lived global
+state; it is not an allocator workaround. Suspect-address logging hooks remain
+in `MemoryManager.c` and should be removed once this allocator investigation is
+closed.
 
 **A shorter reproduction.** Opening the built-in desk accessories in
 sequence corrupts a live `DeskAccessory` struct within four opens, with no

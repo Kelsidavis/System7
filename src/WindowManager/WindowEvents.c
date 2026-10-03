@@ -54,7 +54,6 @@ static void wm_log_memfill(const char* tag, const void* base, size_t length) {
 /* Forward declarations for internal helpers */
 static Boolean WM_IsMouseDown(void);
 static GrafPtr WM_GetCurrentPort(void);
-/* static GrafPtr WM_GetUpdatePort(WindowPtr window); */
 static Boolean WM_EmptyRgn(RgnHandle rgn);
 
 /* ============================================================================
@@ -1007,11 +1006,6 @@ static GrafPtr WM_GetCurrentPort(void) {
 }
 
 /* [WM-050] Platform port functions removed - stubs only */
-
-/* static GrafPtr WM_GetUpdatePort(WindowPtr window) {
-    // TODO: Implement platform-specific update port retrieval
-    return NULL;
-} */
 
 /* [WM-050] Platform_SetClipRgn removed - stub only */
 
