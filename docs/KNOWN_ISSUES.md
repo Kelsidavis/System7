@@ -1112,11 +1112,7 @@ Implemented dirty rectangle intersection when available:
 When adding workarounds or discovering new issues:
 
 1. Document the issue in this file
-2. Add a comment in the code with the issue ID (e.g., `/* KNOWN ISSUE: UPDATE-001 */`)
+2. Keep code comments focused on behavior, invariants, and non-obvious constraints
 3. Describe the root cause if known
 4. Note files involved for future investigation
-5. Update when fixed or if new information discovered
-
----
-
-*Last Updated: 2025-11-24 (Dirty Rectangle Optimization - Issue #9 resolved)*
+5. Update the issue entry when it is fixed or new information is verified
