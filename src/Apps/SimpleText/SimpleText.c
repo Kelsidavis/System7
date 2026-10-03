@@ -292,7 +292,6 @@ static void HandleKeyDown(EventRecord* event) {
         /* Regular key - pass to active document */
         if (g_ST.activeDoc) {
             /* Hide cursor while typing — classic Mac behavior */
-            extern void ObscureCursor(void);
             ObscureCursor();
 
             STView_Key(g_ST.activeDoc, event);
@@ -386,9 +385,6 @@ void SimpleText_Idle(void) {
     /* Adjust cursor: I-beam over text area, arrow elsewhere.
      * This is classic Mac behavior — the cursor changes shape based on context. */
     {
-        extern void GetMouse(Point* pt);
-        extern void SetCursor(const Cursor* crsr);
-        extern void InitCursor(void);
         extern const Cursor* CursorManager_GetIBeamCursor(void);
 
         WindowPtr front = FrontWindow();
@@ -615,13 +611,6 @@ void ST_Beep(void) {
  * Returns true if close should proceed, false if cancelled.
  */
 Boolean ST_ConfirmClose(STDocument* doc) {
-    extern DialogPtr NewDialog(void*, const Rect*, const unsigned char*, Boolean, SInt16,
-                               WindowPtr, Boolean, SInt32, Handle);
-    extern void DisposeDialog(DialogPtr);
-    extern Boolean IsDialogEvent(const EventRecord*);
-    extern Boolean DialogSelect(const EventRecord*, DialogPtr*, short*);
-    extern void ShowWindow(WindowPtr);
-    extern Boolean GetNextEvent(EventMask, EventRecord*);
 
     if (!doc) return true;
 
@@ -703,7 +692,6 @@ Boolean ST_ConfirmClose(STDocument* doc) {
     switch (itemHit) {
         case 2: {
             /* Save - save the document then proceed with close */
-            extern void STDoc_Save(STDocument* doc);
             STDoc_Save(doc);
             return true;  /* Proceed with close */
         }
@@ -723,13 +711,6 @@ Boolean ST_ConfirmClose(STDocument* doc) {
  * ST_ShowAbout - Show About dialog
  */
 void ST_ShowAbout(void) {
-    extern DialogPtr NewDialog(void*, const Rect*, const unsigned char*, Boolean, SInt16,
-                               WindowPtr, Boolean, SInt32, Handle);
-    extern void DisposeDialog(DialogPtr);
-    extern Boolean IsDialogEvent(const EventRecord*);
-    extern Boolean DialogSelect(const EventRecord*, DialogPtr*, short*);
-    extern void ShowWindow(WindowPtr);
-    extern Boolean GetNextEvent(EventMask, EventRecord*);
 
     /* Built through DITLBuilder: see ST_ConfirmClose for why nothing here lays
      * item bytes down by hand any more. */
@@ -783,9 +764,6 @@ void ST_ErrorAlert(const char* message) {
     ST_Beep();
 
     /* Show a NoteAlert with the error message */
-    extern void ParamText(const unsigned char*, const unsigned char*,
-                          const unsigned char*, const unsigned char*);
-    extern void ClearParamText(void);
 
     /* Convert C string to Pascal string for ParamText */
     unsigned char pMsg[256];
@@ -801,7 +779,6 @@ void ST_ErrorAlert(const char* message) {
               (const unsigned char *)PSTR(" "),
               (const unsigned char *)PSTR(" "),
               (const unsigned char *)PSTR(" "));
-    extern SInt16 Alert(SInt16 alertID, ModalFilterProcPtr filterProc);
     Alert(130, NULL);
 }
 
