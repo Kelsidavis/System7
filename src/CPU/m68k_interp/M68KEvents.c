@@ -19,6 +19,7 @@
 #include "QuickDraw/QuickDraw.h"
 #include "DeskManager/DeskManager.h"
 #include "System71StdLib.h"
+#include "TimeManager/TimeBase.h"
 
 extern Boolean HandleUpdate(EventRecord* event);
 extern void GetMouseLocal(Point* mouseLoc);
@@ -241,7 +242,6 @@ TRAP(Trap_PostEvent) {
 /* Delay (OS): A0 ticks to wait; D0 the tick count after */
 TRAP(Trap_Delay) {
     UNUSED;
-    extern UInt32 TickCount(void);
     UInt32 until = TickCount() + A(0);
     while (TickCount() < until) {
         SystemTask();

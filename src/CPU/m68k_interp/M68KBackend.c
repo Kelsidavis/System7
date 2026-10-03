@@ -30,6 +30,7 @@
 #include "SegmentLoader/SegmentLoader.h"
 #include "MemoryMgr/MemoryManager.h"
 #include "System71StdLib.h"
+#include "TimeManager/TimeBase.h"
 #include "CPU/CPULogging.h"
 #include <string.h>
 
@@ -513,7 +514,6 @@ static OSErr M68K_EnterAt(CPUAddressSpace as, CPUAddr entry, CPUEnterFlags flags
      * no instruction limit for one; between slices the system clock the
      * program can read in low memory is brought up to date. */
     if (flags & kEnterApp) {
-        extern UInt32 TickCount(void);
         mas->regs.pc = entry;
         extern void M68KTimers_Service(void);
         while (!mas->halted) {
@@ -1317,7 +1317,6 @@ OSErr M68K_Step(M68KAddressSpace* as)
  */
 OSErr M68K_CallProc(M68KAddressSpace* as, UInt32 proc)
 {
-    extern UInt32 TickCount(void);
     UInt32 savedPC = as->regs.pc, savedInstr = as->instrPC;
     UInt16 savedTrap = as->currentTrap;
     UInt32 n = 0;

@@ -29,8 +29,8 @@
 #include "MemoryMgr/MemoryManager.h"
 #include "chicago_font.h"
 #include "System71StdLib.h"
+#include "TimeManager/TimeBase.h"
 
-extern UInt32 TickCount(void);
 extern UInt32 GetDblTime(void);
 extern void SystemTask(void);
 extern void GetMouseLocal(Point* pt);     /* the current port's coordinates */

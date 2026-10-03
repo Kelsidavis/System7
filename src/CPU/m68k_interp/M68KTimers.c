@@ -18,8 +18,6 @@
 #include "CPU/LowMemGlobals.h"
 #include "TimeManager/TimeBase.h"
 
-extern UInt32 TickCount(void);
-
 enum {
     kVBLQueue = 0x0160,             /* QHdr: qFlags, qHead, qTail */
     kVType = 1,

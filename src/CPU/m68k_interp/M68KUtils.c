@@ -14,9 +14,9 @@
 #include "ScrapManager/ScrapManager.h"
 #include "MemoryMgr/MemoryManager.h"
 #include "System71StdLib.h"
+#include "TimeManager/TimeBase.h"
 
 extern void GetDateTime(UInt32* secs);
-extern UInt32 TickCount(void);
 
 /* ------------------------------------------------------------------------
  * Pack 7: NumToString and StringToNum - the selector on the stack, the
