@@ -10,6 +10,7 @@
 
 #include "SystemTypes.h"
 #include "System71StdLib.h"
+#include "StringCompareInternal.h"
 #include <string.h>
 
 /* Forward declarations */
@@ -30,27 +31,6 @@ SInt16 IUEqualString(const char* aStr, const char* bStr);
 #else
 #define STRCMP_LOG(...)
 #endif
-
-/*
- * Helper function to compare two bytes case-insensitively
- */
-static SInt16 CompareBytesIgnoreCase(UInt8 a, UInt8 b) {
-    /* Convert to lowercase for comparison */
-    if (a >= 'A' && a <= 'Z') {
-        a = a + ('a' - 'A');
-    }
-    if (b >= 'A' && b <= 'Z') {
-        b = b + ('a' - 'A');
-    }
-
-    if (a < b) {
-        return -1;
-    } else if (a > b) {
-        return 1;
-    } else {
-        return 0;
-    }
-}
 
 /*
  * IUMagString - Compare strings with magnitude ordering (case-insensitive)
@@ -98,7 +78,7 @@ SInt16 IUMagString(const void* aPtr, const void* bPtr, SInt16 aLen, SInt16 bLen)
     minLen = (aLen < bLen) ? aLen : bLen;
 
     for (i = 0; i < minLen; i++) {
-        cmp = CompareBytesIgnoreCase(aBytes[i], bBytes[i]);
+        cmp = PackageManager_CompareBytesIgnoreCase(aBytes[i], bBytes[i]);
         if (cmp != 0) {
             STRCMP_LOG("IUMagString: Differ at position %d\n", i);
             return cmp;

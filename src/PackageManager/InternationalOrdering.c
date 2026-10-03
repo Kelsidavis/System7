@@ -10,6 +10,7 @@
 
 #include "SystemTypes.h"
 #include "System71StdLib.h"
+#include "StringCompareInternal.h"
 
 /* Forward declarations */
 SInt16 IUScriptOrder(ScriptCode aScript, ScriptCode bScript);
@@ -31,25 +32,6 @@ SInt16 IUStringOrder(const char* aStr, const char* bStr, ScriptCode aScript, Scr
 #else
 #define ORDER_LOG(...)
 #endif
-
-/* Helper function to compare bytes case-insensitively (from StringComparison.c) */
-static SInt16 CompareBytesIgnoreCase(UInt8 a, UInt8 b) {
-    /* Convert to lowercase for comparison */
-    if (a >= 'A' && a <= 'Z') {
-        a = a + ('a' - 'A');
-    }
-    if (b >= 'A' && b <= 'Z') {
-        b = b + ('a' - 'A');
-    }
-
-    if (a < b) {
-        return -1;
-    } else if (a > b) {
-        return 1;
-    } else {
-        return 0;
-    }
-}
 
 /*
  * IUScriptOrder - Compare two script codes for ordering
@@ -204,7 +186,7 @@ SInt16 IUTextOrder(const void* aPtr, const void* bPtr, SInt16 aLen, SInt16 bLen,
          * Other scripts would use script-specific collation
          */
         if (aScript == 0) {  /* smRoman */
-            cmp = CompareBytesIgnoreCase(aBytes[i], bBytes[i]);
+            cmp = PackageManager_CompareBytesIgnoreCase(aBytes[i], bBytes[i]);
         } else {
             /* For non-Roman scripts, use byte comparison
              * Full implementation would use script-specific collation
