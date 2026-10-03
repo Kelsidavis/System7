@@ -36,42 +36,8 @@
 #include "QuickDraw/QuickDraw.h"
 #include "QuickDrawConstants.h"
 #include "FontManager/FontManager.h"
+#include "MemoryMgr/MemoryManager.h"
 #include "System71StdLib.h"
-
-/* External QuickDraw functions */
-extern void GetPort(GrafPtr* port);
-extern void SetPort(GrafPtr port);
-extern void GetClip(RgnHandle rgn);
-extern void SetClip(RgnHandle rgn);
-extern RgnHandle NewRgn(void);
-extern void DisposeRgn(RgnHandle rgn);
-extern void ClipRect(const Rect* r);
-extern void FrameRect(const Rect* r);
-extern void PaintRect(const Rect* r);
-extern void EraseRect(const Rect* r);
-extern void InvertRect(const Rect* r);
-extern void InvertOval(const Rect* r);
-extern void FrameOval(const Rect* r);
-extern void PaintOval(const Rect* r);
-extern void FrameRoundRect(const Rect* r, short ovalWidth, short ovalHeight);
-extern void MoveTo(short h, short v);
-extern void LineTo(short h, short v);
-extern void PenPat(const Pattern* pat);
-extern void PenMode(short mode);
-extern void PenSize(short width, short height);
-extern Boolean PtInRect(Point pt, const Rect* r);
-extern void RectRgn(RgnHandle rgn, const Rect* r);
-extern void OffsetRect(Rect* r, short dh, short dv);
-extern void InsetRect(Rect* r, short dh, short dv);
-extern short StringWidth(ConstStr255Param s);
-extern void DrawString(ConstStr255Param s);
-extern struct QDGlobals qd;
-
-/* External Control Manager functions */
-extern Handle NewHandleClear(Size byteCount);
-extern void DisposeHandle(Handle h);
-extern void HLock(Handle h);
-extern void HUnlock(Handle h);
 
 /* Logging helpers */
 #define CTRL_LOG_DEBUG(fmt, ...) serial_logf(kLogModuleControl, kLogLevelDebug, "[CTRL] " fmt, ##__VA_ARGS__)

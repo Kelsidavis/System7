@@ -25,26 +25,6 @@
 #define SCROLLBAR_DATA(handle) \
     ((ScrollBarData*)__builtin_assume_aligned(*(handle), _Alignof(ScrollBarData)))
 
-/* External QuickDraw functions */
-extern void GetPort(GrafPtr* port);
-extern void SetPort(GrafPtr port);
-extern void GetClip(RgnHandle rgn);
-extern void SetClip(RgnHandle rgn);
-extern RgnHandle NewRgn(void);
-extern void DisposeRgn(RgnHandle rgn);
-extern void ClipRect(const Rect* r);
-extern void FrameRect(const Rect* r);
-extern void PaintRect(const Rect* r);
-extern void EraseRect(const Rect* r);
-extern void InvertRect(const Rect* r);
-extern void MoveTo(short h, short v);
-extern void LineTo(short h, short v);
-extern void FillRect(const Rect* r, const Pattern* pat);
-extern void PenPat(const Pattern* pat);
-extern void PenMode(short mode);
-extern Boolean PtInRect(Point pt, const Rect* r);
-extern struct QDGlobals qd;
-
 /* Logging helpers */
 #define CTRL_LOG_DEBUG(fmt, ...) serial_logf(kLogModuleControl, kLogLevelDebug, "[CTRL] " fmt, ##__VA_ARGS__)
 #define CTRL_LOG_TRACE(fmt, ...) serial_logf(kLogModuleControl, kLogLevelTrace, "[CTRL] " fmt, ##__VA_ARGS__)
