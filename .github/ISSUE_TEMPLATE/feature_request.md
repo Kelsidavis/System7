@@ -26,7 +26,7 @@ Which subsystem does this relate to?
 - [ ] Sound Manager
 - [ ] M68K Interpreter
 - [ ] Device Manager
-- [ ] Other: 
+- [ ] Other:
 
 ## Research Notes
 - Any relevant System 7 documentation or Inside Macintosh references?

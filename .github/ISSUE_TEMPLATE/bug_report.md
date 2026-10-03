@@ -12,7 +12,7 @@ A clear and concise description of what the bug is.
 
 ## Environment
 - **Testing Environment**: QEMU / Bare Metal / Other
-- **QEMU Version** (if applicable): 
+- **QEMU Version** (if applicable):
 - **Host OS**: Ubuntu/Debian/macOS/Other
 - **Build Configuration**: English only / Multi-language / Custom
 
