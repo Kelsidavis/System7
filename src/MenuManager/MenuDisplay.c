@@ -745,9 +745,24 @@ void HiliteMenuItem(MenuHandle theMenu, short item, Boolean hilite)
 /*
  * CalcMenuRect - Calculate menu rectangle
  */
+short CalcMenuHeight(MenuHandle theMenu, short itemCount)
+{
+    SInt32 menuHeight = 8; /* Top and bottom margins */
+
+    if (theMenu == NULL || itemCount < 0) {
+        return 0;
+    }
+
+    for (SInt32 i = 1; i <= itemCount; i++) {
+        menuHeight += GetMenuItemHeight(theMenu, (short)i);
+    }
+
+    return menuHeight > 32767 ? 32767 : (short)menuHeight;
+}
+
 void CalcMenuRect(MenuHandle theMenu, Point location, Rect* menuRect)
 {
-    short itemCount, menuWidth = 0, menuHeight = 0;
+    short itemCount, menuWidth = 0, menuHeight;
 
     if (theMenu == NULL || menuRect == NULL) {
         return;
@@ -766,11 +781,7 @@ void CalcMenuRect(MenuHandle theMenu, Point location, Rect* menuRect)
     /* Add margins */
     menuWidth += 32; /* Left and right margins */
 
-    /* Calculate menu height - sum actual item heights */
-    menuHeight = 8; /* Top and bottom margins */
-    for (short i = 1; i <= itemCount; i++) {
-        menuHeight += GetMenuItemHeight(theMenu, i);
-    }
+    menuHeight = CalcMenuHeight(theMenu, itemCount);
 
     /* Set up rectangle */
     menuRect->left = location.h;

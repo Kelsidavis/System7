@@ -117,6 +117,7 @@ void DrawMenuItemAtRect(MenuHandle menu, short item, const Rect* itemRect,
                         Boolean selected);
 void CalcMenuItemRect(MenuHandle menu, short item, const Rect* menuRect,
                       Rect* itemRect);
+short CalcMenuHeight(MenuHandle menu, short itemCount);
 short GetMenuItemHeight(MenuHandle menu, short item);
 long BeginTrackMenu(short menuID, Point* startPt);
 void UpdateMenuTrackingNew(Point where);

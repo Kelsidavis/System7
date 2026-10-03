@@ -285,11 +285,7 @@ long BeginTrackMenu(short menuID, Point *startPt) {
     g_menuTrackState.menuLeft = left;
     g_menuTrackState.menuTop = top;
     g_menuTrackState.menuWidth = menuWidth;
-    /* Use SInt32 to prevent overflow in height calculation */
-    SInt32 calcHeight = 8;
-    for (short i = 1; i <= itemCount; i++) calcHeight += GetMenuItemHeight(theMenu, i);
-    if (calcHeight > 32767) calcHeight = 32767;  /* Clamp to max short */
-    g_menuTrackState.menuHeight = (short)calcHeight;
+    g_menuTrackState.menuHeight = CalcMenuHeight(theMenu, itemCount);
     g_menuTrackState.itemCount = itemCount;
     g_menuTrackState.highlightedItem = 0;
     MENU_LOG_TRACE("BeginTrackMenu: Initial highlightedItem = %d\n", g_menuTrackState.highlightedItem);
@@ -319,7 +315,7 @@ long BeginTrackMenu(short menuID, Point *startPt) {
 
     serial_puts("BeginTrackMenu: About to call DrawTrackedMenu\n");
     /* Draw the menu dropdown */
-    DrawTrackedMenu(theMenu, left, top, menuWidth, (short)calcHeight);
+    DrawTrackedMenu(theMenu, left, top, menuWidth, g_menuTrackState.menuHeight);
     serial_puts("BeginTrackMenu: Dropdown drawn, tracking started\n");
 
     /* Restore original port */
@@ -557,11 +553,7 @@ static long TrackMenu_Body(short menuID, Point *startPt) {
     }
 
 
-    /* Use SInt32 to prevent overflow in height calculation */
-    SInt32 calcHeight = 8;
-    for (short i = 1; i <= itemCount; i++) calcHeight += GetMenuItemHeight(theMenu, i);
-    if (calcHeight > 32767) calcHeight = 32767;  /* Clamp to max short */
-    short menuHeight = (short)calcHeight;
+    short menuHeight = CalcMenuHeight(theMenu, itemCount);
 
     /* Get coordinates from startPt (already validated non-NULL earlier) */
     short left = startPt->h;
