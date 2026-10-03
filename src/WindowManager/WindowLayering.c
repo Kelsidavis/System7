@@ -66,10 +66,9 @@ typedef struct WindowVisibility {
 
 static struct {
     WindowPtr modalWindow;      /* Current modal window */
-    WindowPtr floatingHead;     /* Head of floating window list */
     Boolean layersInvalid;     /* True if layers need recalculation */
     unsigned long updateCounter; /* Layer update counter */
-} g_layerState = { NULL, NULL, true, 0 };
+} g_layerState = { NULL, true, 0 };
 
 /* ============================================================================
  * Window Layer Queries and Management
@@ -459,8 +458,7 @@ void WM_AddFloatingWindow(WindowPtr window) {
     /* Set floating layer */
     Local_SetWindowLayer(window, kLayerFloating);
 
-    /* Add to floating window list */
-    /* TODO: Maintain separate floating window list if needed */
+    /* Floating membership is derived from awFlags during layer recalculation. */
 
     /* Recalculate window order */
     WM_RecalculateWindowOrder();
