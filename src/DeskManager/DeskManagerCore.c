@@ -17,6 +17,7 @@
 
 #include "DeskManager/DeskManager.h"
 #include "DeskManager/DeskAccessory.h"
+#include "MenuManager/MenuManager.h"
 
 
 /* Global Desk Manager State */
@@ -319,7 +320,6 @@ void SystemTask(void)
     }
 
     /* Update menu bar clock (lightweight - only redraws if minute changed) */
-    extern void MenuBar_UpdateClock(void);
     MenuBar_UpdateClock();
 
     /* Call idle routine for all open DAs */

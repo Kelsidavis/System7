@@ -2,8 +2,8 @@
 #include <string.h>
 #include "MenuManager/menu_private.h"
 #include "System71StdLib.h"
+#include "Platform/x86/rtc.h"
 
-extern void QD_SetScreenPort(void);
 /* Core Menu Manager implementation. */
 
 #include "../include/MacTypes.h"
@@ -279,7 +279,6 @@ Handle GetNewMBar(short menuBarID)
     }
 
     /* Parse MBAR resource to get menu ID array */
-    extern short* ParseMBARResource(Handle resourceHandle, short* outMenuCount);
     short menuCount = 0;
     short* menuIDs = ParseMBARResource(mbarHandle, &menuCount);
 
@@ -467,8 +466,7 @@ static uint8_t g_lastClockMinute __attribute__((unused)) = 0xFF;   /* the clock 
  */
 static void MenuBar_DrawClock(void) {
 #if defined(__i386__) || defined(__x86_64__)
-    extern bool rtc_read_datetime(void *out);
-    struct { uint16_t year; uint8_t month, day, hour, minute, second; } rtcTime;
+    rtc_datetime_t rtcTime;
     if (!rtc_read_datetime(&rtcTime)) return;
 
     uint8_t hour = rtcTime.hour;
@@ -533,15 +531,11 @@ static void MenuBar_DrawClock(void) {
  * Called periodically from SystemTask or the main event loop.
  * Only redraws when the minute changes — very lightweight.
  */
-void MenuBar_UpdateClock(void); /* prototype */
-/* Forward declaration */
-void MenuBar_UpdateClock(void);
 void MenuBar_UpdateClock(void) {
 #if defined(__i386__) || defined(__x86_64__)
     if (!gMenuMgrInitialized) return;
 
-    extern bool rtc_read_datetime(void *out);
-    struct { uint16_t year; uint8_t month, day, hour, minute, second; } rtcTime;
+    rtc_datetime_t rtcTime;
     if (!rtc_read_datetime(&rtcTime)) return;
 
     /* Only redraw if the minute has changed */
@@ -608,8 +602,6 @@ void DrawMenuBar(void)
     LineTo(qd.screenBits.bounds.right - 1, 19);
 
     /* Initialize menu title tracking */
-    extern void InitMenuTitleTracking(void);
-    extern void AddMenuTitle(short menuID, short left, short width, const char* title);
     InitMenuTitleTracking();
 
     /* Draw menu titles */
@@ -781,7 +773,6 @@ void HiliteMenu(short menuID)
     MENU_LOG_TRACE("HiliteMenu: Current hilite=%d\n", gMenuMgrState->hiliteMenu);
     /* Unhighlight previous menu if any */
     if (gMenuMgrState->hiliteMenu != 0 && gMenuMgrState->hiliteMenu != menuID) {
-        extern void HiliteMenuTitle(short menuID, Boolean hilite);
         serial_puts("HiliteMenu: About to unhighlight previous\n");
         HiliteMenuTitle(gMenuMgrState->hiliteMenu, false);
         serial_puts("HiliteMenu: Unhighlighted previous\n");
@@ -792,7 +783,6 @@ void HiliteMenu(short menuID)
 
     /* Highlight new menu if not 0 */
     if (menuID != 0) {
-        extern void HiliteMenuTitle(short menuID, Boolean hilite);
         serial_puts("HiliteMenu: About to highlight new menu\n");
         HiliteMenuTitle(menuID, true);
         serial_puts("HiliteMenu: Highlighted new menu\n");
@@ -898,7 +888,6 @@ MenuHandle GetMenu(short resourceID)
     }
 
     /* Parse MENU resource to create menu */
-    extern MenuHandle ParseMENUResource(Handle resourceHandle);
     MenuHandle theMenu = ParseMENUResource(menuHandle);
 
     if (!theMenu) {

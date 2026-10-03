@@ -160,6 +160,7 @@ void SetMenuBar(Handle menuList);
  * Does not dispose of the individual menus.
  */
 void ClearMenuBar(void);
+void MenuBar_UpdateClock(void);
 
 /* Does this menu draw as the Apple glyph? Decided by its title, not its ID. */
 Boolean MenuIsAppleMenu(short menuID);

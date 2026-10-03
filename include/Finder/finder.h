@@ -222,7 +222,6 @@ short Finder_GetUndoType(void);
 /* ============================================================================
  * Cursor Functions (CursorManager.c)
  * ============================================================================ */
-void MenuBar_UpdateClock(void);
 void SetWatchCursor(void);
 const Cursor* CursorManager_GetIBeamCursor(void);
 

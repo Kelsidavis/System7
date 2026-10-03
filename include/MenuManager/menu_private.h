@@ -98,6 +98,7 @@ void CleanupMenuExtData(void);  /* Free all menu extended data - must be called 
 /* Menu title tracking */
 void InitMenuTitleTracking(void);
 void AddMenuTitle(short menuID, short left, short width, const char* title);
+void HiliteMenuTitle(short menuID, Boolean hilite);
 void ClearMenuTitles(void);
 
 Boolean MenuTitleAt(Point pt, SInt16* outMenuID);

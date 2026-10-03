@@ -144,7 +144,6 @@ void HiliteMenuTitle(short menuID, Boolean hilite)
     serial_puts("HiliteMenuTitle ENTRY\n");
 
     /* Get menu title rectangle using the tracking system */
-    extern Boolean GetMenuTitleRectByID(short menuID, Rect* outRect);
     Boolean gotRect = GetMenuTitleRectByID(menuID, &titleRect);
 
     if (gotRect) {
@@ -191,7 +190,6 @@ void DrawMenuTitle(short menuID, const Rect* titleRect, Boolean hilited)
      * entirely. The title kept its black highlight even though DrawMenuTitle
      * had dutifully filled it white (MENU-002).
      */
-    extern GrafPtr QD_GetScreenPort(void);
     GrafPtr menuPort = QD_GetScreenPort();
     RgnHandle saveClip = NULL;
     if (menuPort) {
@@ -236,7 +234,6 @@ void DrawMenuTitle(short menuID, const Rect* titleRect, Boolean hilited)
 
     /* Debug: Log coordinates being used */
     static char debugBuf[256];
-    extern int snprintf(char*, size_t, const char*, ...);
     snprintf(debugBuf, sizeof(debugBuf), "[DRAWTITLE] titleRect=(%d,%d,%d,%d) bounds=(%d,%d,%d,%d) width=%d\n",
              titleRect->left, titleRect->top, titleRect->right, titleRect->bottom,
              g_currentPort->portBits.bounds.left, g_currentPort->portBits.bounds.top,
@@ -272,8 +269,6 @@ void DrawMenuTitle(short menuID, const Rect* titleRect, Boolean hilited)
 
     /* Draw the title text */
     static char pnLocBuf[256];
-    extern int snprintf(char*, size_t, const char*, ...);
-
     snprintf(pnLocBuf, sizeof(pnLocBuf), "[MENU-PNLOC-BEFORE] pnLoc=(%d,%d) titleRect.left=%d\n",
              g_currentPort->pnLoc.h, g_currentPort->pnLoc.v, titleRect->left);
     serial_puts(pnLocBuf);
@@ -287,8 +282,6 @@ void DrawMenuTitle(short menuID, const Rect* titleRect, Boolean hilited)
      */
     extern short MenuAppleIcon_Draw(GrafPtr port, short x, short y, Boolean inverted);
     extern short MenuAppIcon_Draw(GrafPtr port, short x, short y, Boolean inverted);
-
-    extern Boolean MenuIsAppleMenu(short menuID);
 
     if (MenuIsAppleMenu(menuID)) {
         MenuAppleIcon_Draw(menuPort, titleRect->left, titleRect->top, hilited);
@@ -310,7 +303,6 @@ void DrawMenuTitle(short menuID, const Rect* titleRect, Boolean hilited)
 
     /* Check what InvertRect actually did */
     if (hilited) {
-        extern void QD_GetLastInvertRect(short* left, short* right);
         short invLeft, invRight;
         QD_GetLastInvertRect(&invLeft, &invRight);
         static char invBuf[256];
@@ -849,8 +841,6 @@ void MeasureMenuText(ConstStr255Param text, Style textStyle, short textSize,
  */
 short GetMenuItemHeight(MenuHandle theMenu, short item)
 {
-    extern Boolean CheckMenuItemSeparator(MenuHandle theMenu, short item);
-
     if (theMenu == NULL || item < 1) {
         return 0;
     }
@@ -932,7 +922,6 @@ void FlashMenuItem(MenuHandle theMenu, short item, short flashes)
     itemDrawInfo.textStyle = tempStyle;
 
     /* Check if item is disabled */
-    extern Boolean CheckMenuItemEnabled(MenuHandle theMenu, short item);
     if (!CheckMenuItemEnabled(theMenu, item)) {
         itemDrawInfo.itemFlags |= kMenuItemDisabled;
     }
@@ -1080,7 +1069,6 @@ void GetMenuColors(short menuID, short itemID, short componentID,
     }
 
     /* Look up colors in menu color table if available */
-    extern MCEntryPtr GetMCEntry(short menuID, short menuItem);
     MCEntryPtr colorEntry = GetMCEntry(menuID, itemID);
     if (colorEntry != NULL) {
         /* Apply custom colors from menu color table */

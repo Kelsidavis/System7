@@ -73,7 +73,6 @@ void EraseMenuBar(const Rect* menuBarRect);
  *   menuID - Menu ID to highlight (0 = unhighlight all)
  *   hilite - TRUE to highlight, FALSE to unhighlight
  */
-void HiliteMenuTitle(short menuID, Boolean hilite);
 
 /*
  * DrawMenuTitle - Draw individual menu title
