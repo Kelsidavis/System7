@@ -360,16 +360,6 @@ WindowPtr GetNewCWindow(short windowID, void* wStorage, WindowPtr behind) {
  * Window Disposal Functions
  * ============================================================================ */
 
-/* Temporarily disable ALL WM logging to prevent heap corruption from variadic serial_logf */
-#undef WM_LOG_DEBUG
-#undef WM_LOG_TRACE
-#undef WM_LOG_WARN
-#undef WM_LOG_ERROR
-#define WM_LOG_DEBUG(...) do {} while(0)
-#define WM_LOG_TRACE(...) do {} while(0)
-#define WM_LOG_WARN(...) do {} while(0)
-#define WM_LOG_ERROR(...) do {} while(0)
-
 void CloseWindow(WindowPtr theWindow) {
     extern void CleanupFolderWindow(WindowPtr w);
 
@@ -382,8 +372,6 @@ void CloseWindow(WindowPtr theWindow) {
     /* Clean up folder window state if this is a folder window */
     WM_LOG_DEBUG("CloseWindow: Calling CleanupFolderWindow\n");
     CleanupFolderWindow(theWindow);
-    __asm__ volatile("nop");  /* Marker after call */
-    /* NO LOGGING - WM_LOG_DEBUG uses variadic serial_logf which corrupts stack! */
 
     #ifdef DEBUG_WINDOW_MANAGER
     printf("CloseWindow: Closing window\n");
@@ -396,9 +384,7 @@ void CloseWindow(WindowPtr theWindow) {
     WM_LOG_DEBUG("CloseWindow: visible flag=%d\n", isVisible);
     if (isVisible) {
         WM_LOG_DEBUG("CloseWindow: Window is visible, about to call HideWindow(0x%08x)\n", (unsigned int)P2UL(theWindow));
-        __asm__ volatile("nop; nop; nop;");
         HideWindow(theWindow);
-        __asm__ volatile("nop; nop; nop;");
         WM_LOG_DEBUG("CloseWindow: HideWindow returned\n");
     } else {
         WM_LOG_DEBUG("CloseWindow: Window not visible, skipping HideWindow\n");

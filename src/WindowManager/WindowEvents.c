@@ -378,18 +378,6 @@ void InvalRect(const Rect* badRect) {
     if (bad) Platform_DisposeRgn(bad);
 }
 
-/* Temporarily disable ALL WM logging to prevent heap corruption from variadic serial_logf */
-#undef WM_LOG_DEBUG
-#undef WM_LOG_TRACE
-#undef WM_LOG_WARN
-#undef WM_LOG_ERROR
-#undef WM_DEBUG
-#define WM_LOG_DEBUG(...) do {} while(0)
-#define WM_LOG_TRACE(...) do {} while(0)
-#define WM_LOG_WARN(...) do {} while(0)
-#define WM_LOG_ERROR(...) do {} while(0)
-#define WM_DEBUG(...) do {} while(0)
-
 void InvalRgn(RgnHandle badRgn) {
     if (badRgn == NULL) return;
 
