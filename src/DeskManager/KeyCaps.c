@@ -244,7 +244,6 @@ static char KeyCaps_Label(const KeyCaps *keyCaps, const KeyInfo *key)
 
 static void KeyCaps_DrawKey(const KeyCaps *keyCaps, int index)
 {
-    extern void FrameRoundRect(const Rect* r, short ovalWidth, short ovalHeight);
     const KeyInfo *key = &keyCaps->currentLayout->keys[index];
     Rect r = key->bounds;
     EraseRect(&r);
@@ -282,7 +281,6 @@ static void KeyCaps_DrawStrip(const KeyCaps *keyCaps)
  */
 void KeyCaps_DrawKeyboard(KeyCaps *keyCaps, const Rect *updateRect)
 {
-    extern void FrameRoundRect(const Rect* r, short ovalWidth, short ovalHeight);
     (void)updateRect;
     if (!keyCaps || !keyCaps->currentLayout || !g_currentPort) {
         return;

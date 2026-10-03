@@ -167,7 +167,6 @@ void CloseDeskAcc(SInt16 refNum)
 
     /* And its window: nothing took it down, so a closed accessory's window
      * stayed on screen with its record freed underneath it. */
-    extern void DA_DestroyWindow(DeskAccessory *da);
     DA_DestroyWindow(da);
 
     /* Remove from system menu */
@@ -231,9 +230,6 @@ void SystemClick(const EventRecord *event, WindowRecord *window)
      * moved or closed.
      */
     extern short Platform_WindowHitTest(WindowPtr window, Point pt);
-    extern void DragWindow(WindowPtr theWindow, Point startPt, const Rect* boundsRect);
-    extern Boolean TrackGoAway(WindowPtr theWindow, Point thePt);
-    extern void SelectWindow(WindowPtr theWindow);
 
     short part = Platform_WindowHitTest(window, event->where);
 
