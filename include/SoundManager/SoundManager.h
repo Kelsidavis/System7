@@ -1,11 +1,8 @@
 /*
- * SoundManager.h - Mac OS Sound Manager API
+ * SoundManager.h - System 7 Sound Manager API declarations
  *
- * Complete implementation of the Mac OS Sound Manager for System 7.1
- * providing audio playback, recording, synthesis, and device management.
- *
- * This implementation preserves exact Mac OS Sound Manager behavior while
- * providing portable abstractions for modern audio systems.
+ * The kernel implements a backend-dependent subset of this API; recording
+ * and full sound synthesis are not provided by the current implementation.
  *
  * Copyright (c) 2025 - System 7.1 Portable Project
  */

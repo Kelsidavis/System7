@@ -6,8 +6,8 @@
 /*
  * Bitmaps.c - QuickDraw Bitmap and CopyBits Implementation
  *
- * Complete implementation of bitmap operations including CopyBits,
- * scaling, transfer modes, masking, and pixel manipulation.
+ * Implements bitmap operations including CopyBits, scaling, transfer modes,
+ * masking, and pixel manipulation.
  *
  * Copyright (c) 2025 - System 7.1 Portable Project
  * Derived from System 7 ROM analysis (Ghidra) QuickDraw

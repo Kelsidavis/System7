@@ -4,16 +4,8 @@
  * Implements ICPUBackend interface for PowerPC code execution via interpretation.
  * Runs on any host ISA (x86, ARM, Raspberry Pi, etc.) by interpreting PowerPC instructions.
  *
- * PLATFORM SUPPORT:
- * - x86 (IA32): Fully supported
- * - ARM (ARMv6, ARMv7, ARMv8): Fully supported, enables PowerPC compatibility on Raspberry Pi
- * - Other architectures: Should work with no source modifications due to explicit byte ordering
- *
- * CROSS-PLATFORM GUARANTEES:
- * - All PowerPC values are stored in big-endian format (PowerPC byte order)
- * - Memory operations use explicit byte reconstruction, never assume host endianness
- * - Page allocation is generic and works on all architectures
- * - No inline assembly or architecture-specific tricks
+ * Host portability: the interpreter uses explicit big-endian memory access
+ * and contains no host-ISA-specific assembly.
  */
 
 #include "CPU/PPCInterp.h"

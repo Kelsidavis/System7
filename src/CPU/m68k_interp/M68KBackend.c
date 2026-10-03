@@ -4,24 +4,8 @@
  * Implements ICPUBackend interface for 68K code execution via interpretation.
  * Runs on any host ISA (x86, ARM, Raspberry Pi, etc.) by interpreting 68K instructions.
  *
- * PLATFORM SUPPORT:
- * - x86 (IA32): Fully supported, primary development platform
- * - ARM (ARMv6, ARMv7, ARMv8): Fully supported, enables 68K compatibility on Raspberry Pi 3/4/5
- * - Other architectures: Should work with no source modifications due to explicit byte ordering
- *
- * CROSS-PLATFORM GUARANTEES:
- * - All 68K values are stored in big-endian format (Motorola byte order)
- * - Memory operations use explicit byte reconstruction, never assume host endianness
- * - Page allocation is generic and works on all architectures
- * - No inline assembly or architecture-specific tricks
- *
- * ARM RASPBERRY PI INTEGRATION:
- * The 68K interpreter is automatically compiled and linked when PLATFORM=arm,
- * allowing System 7.1 classic Mac applications to run on Raspberry Pi 3/4/5.
- * Build with:
- *   make PLATFORM=arm PI_MODEL=pi3 clean all   # Raspberry Pi 3
- *   make PLATFORM=arm PI_MODEL=pi4 clean all   # Raspberry Pi 4
- *   make PLATFORM=arm PI_MODEL=pi5 clean all   # Raspberry Pi 5
+ * Host portability: the interpreter uses explicit big-endian memory access
+ * and contains no host-ISA-specific assembly.
  */
 
 #include "CPU/M68KInterp.h"
