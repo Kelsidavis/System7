@@ -19,7 +19,9 @@
 #include "WindowManager/WindowManager.h"
 #include "QuickDraw.h"
 #include "FS/vfs.h"
+#include "FS/vfs_ops.h"
 #include "StandardFile/StandardFile.h"
+#include "SoundManager/SoundManager.h"
 #include "System71StdLib.h"
 #include "ToolboxCompat.h"
 #include "Finder/AboutThisMac.h"
@@ -75,8 +77,6 @@ static OSErr InitializeWindowManager(void)
  */
 void OnVolumeMount(VRefNum vref, const char* volName)
 {
-    extern OSErr Desktop_AddVolumeIcon(const char* name, VRefNum vref);
-
     /* VRefNum is uint32_t; %d (and %u) would pass a long to serial_logf. */
     FINDER_LOG_DEBUG("Finder: Volume '%s' (vRef %lu) mounted - adding desktop icon\n", volName, (unsigned long)vref);
 
@@ -111,7 +111,6 @@ OSErr InitializeFinder(void)
 
     /* Initialize Desk Manager so DAs are registered before menu setup */
     {
-        extern int DeskManager_Initialize(void);
         DeskManager_Initialize();
     }
 
@@ -131,8 +130,6 @@ OSErr InitializeFinder(void)
     if (err != noErr) return err;
 
     /* Set up volume mount callback */
-    extern void VFS_SetMountCallback(void (*callback)(VRefNum, const char*));
-    extern void OnVolumeMount(VRefNum vref, const char* volName);
     VFS_SetMountCallback(OnVolumeMount);
     serial_puts("Finder: Volume mount callback registered\n");
 
@@ -157,7 +154,6 @@ OSErr InitializeFinder(void)
     }
 
     /* Play classic System 7 startup chime */
-    extern void StartupChime(void);
     serial_puts("Finder: Playing System 7 startup chime\n");
     StartupChime();
 
@@ -165,11 +161,6 @@ OSErr InitializeFinder(void)
      * The boot volume window opens automatically so users can see
      * their files immediately without double-clicking the disk icon. */
     {
-        extern WindowPtr FolderWindow_OpenFolder(VRefNum vref, DirID dirID,
-                                                  ConstStr255Param title);
-        extern VRefNum VFS_GetBootVRef(void);
-
-        extern bool VFS_GetVolumeInfo(VRefNum vref, VolumeControlBlock* vcb);
         VRefNum bootVref = VFS_GetBootVRef();
 
         /* Get actual volume name from VFS instead of hardcoding "Macintosh HD" */
@@ -222,8 +213,6 @@ static OSErr SetupMenus(void)
      * "Note Pad" resolves through OpenDeskAcc. */
     {
         extern SInt16 CountMenuItems(MenuHandle theMenu);
-        extern void SetItemSubmenu(MenuHandle theMenu, short item, short submenuID);
-
         /* static: 20x64 plus scratch is over 1.3K, too much for the kernel
          * stack this runs on - taking it as locals wiped the rest of the menu. */
         static char names[20][64];
@@ -384,7 +373,6 @@ static OSErr SetupMenus(void)
      * CheckItem was already being called on selection - nothing had set the
      * initial state, so the menu opened with no view marked at all. */
     {
-        extern void CheckItem(MenuHandle theMenu, short item, Boolean checked);
         CheckItem(gViewMenu, 1, true);
     }
 
@@ -460,7 +448,6 @@ static OSErr SetupMenus(void)
     serial_puts("Finder: DrawMenuBar returned\n");
 
     /* Try the fallback layout if the application menu was not registered. */
-    extern void SetupDefaultMenus(void);
     MenuHandle existingAppMenu = GetMenuHandle(appMenuID);
     if (existingAppMenu == NULL) {
         serial_puts("Finder: App menu handle missing, invoking SetupDefaultMenus\n");
@@ -480,11 +467,6 @@ static OSErr SetupMenus(void)
  */
 WindowPtr Finder_OpenDesktopItem(Boolean isTrash, ConstStr255Param title)
 {
-    extern WindowPtr NewWindow(void *, const Rect *, ConstStr255Param, Boolean, short,
-                               WindowPtr, Boolean, long);
-    extern void ShowWindow(WindowPtr);
-    extern void SelectWindow(WindowPtr);
-
     static Rect r;
     r.left = 10;
     r.top = 80;
@@ -618,8 +600,6 @@ StringPtr GetFinderVersion(void)
  */
 OSErr FindFolder(SInt16 vRefNum, OSType folderType, Boolean createFolder,
                  SInt16* foundVRefNum, SInt32* foundDirID) {
-    extern VRefNum VFS_GetBootVRef(void);
-
     const char* inSystemFolder = NULL;   /* NULL means "at the root" */
     const char* name = NULL;
 
@@ -700,8 +680,6 @@ Boolean Finder_HandleKey(EventRecord* event) {
     if (event->modifiers & cmdKey) {
         /* Cmd+Shift+3 = Screenshot (classic Mac shortcut, FKEY 3) */
         if (charCode == '3' && (event->modifiers & shiftKey)) {
-            extern void SysBeep(short duration);
-            extern void InvertRect(const Rect* r);
             extern void hal_framebuffer_present(void);
 
             /* Flash the screen white (visual feedback for screenshot) */
@@ -725,10 +703,8 @@ Boolean Finder_HandleKey(EventRecord* event) {
         /* Cmd+Delete = Move selected to Trash */
         if (charCode == kDeleteKey) {
             if (event->modifiers & shiftKey) {
-                extern OSErr EmptyTrash(Boolean force);
-                EmptyTrash(false);  /* false = show confirmation dialog */
+            EmptyTrash(false);  /* false = show confirmation dialog */
             } else {
-                extern void Finder_Clear(void);
                 Finder_Clear();
             }
             return true;
@@ -742,16 +718,9 @@ Boolean Finder_HandleKey(EventRecord* event) {
             if (front && IsFolderWindow(front)) {
                 if (charCode == 0x1F) {
                     /* Cmd+Down = Open selected (same as Return/Enter) */
-                    extern void FolderWindow_OpenSelected(WindowPtr w);
                     FolderWindow_OpenSelected(front);
                 } else {
                     /* Cmd+Up = Navigate to parent folder */
-                    extern DirID FolderWindow_GetCurrentDir(WindowPtr w);
-                    extern VRefNum FolderWindow_GetVRef(WindowPtr w);
-                    extern WindowPtr FolderWindow_OpenFolder(VRefNum vref, DirID dirID,
-                                                              ConstStr255Param title);
-                    extern bool VFS_GetParentDir(VRefNum vref, DirID dirID, DirID* parentID);
-
                     VRefNum vref = FolderWindow_GetVRef(front);
                     DirID currentDir = FolderWindow_GetCurrentDir(front);
 
@@ -759,7 +728,6 @@ Boolean Finder_HandleKey(EventRecord* event) {
                         DirID parentDir = 0;
                         if (VFS_GetParentDir(vref, currentDir, &parentDir) && parentDir >= 2) {
                             /* Build parent folder title */
-                            extern const char* VFS_GetNameByID(VRefNum vref, DirID dir, FileID id);
                             const char* parentName = VFS_GetNameByID(vref, parentDir, parentDir);
                             unsigned char pTitle[256];
                             if (parentName) {
@@ -774,7 +742,6 @@ Boolean Finder_HandleKey(EventRecord* event) {
                             FolderWindow_OpenFolder(vref, parentDir, pTitle);
                         }
                     } else {
-                        extern void SysBeep(short duration);
                         SysBeep(1);  /* Already at root */
                     }
                 }
@@ -784,8 +751,6 @@ Boolean Finder_HandleKey(EventRecord* event) {
 
         /* Cmd+Option+W = Close all windows (power-user shortcut) */
         if ((charCode == 'w' || charCode == 'W') && (event->modifiers & optionKey)) {
-            extern OSErr CloseFinderWindow(WindowPtr w);
-
             /* Close all folder windows */
             WindowPtr w;
             while ((w = FrontWindow()) != NULL) {
@@ -797,9 +762,6 @@ Boolean Finder_HandleKey(EventRecord* event) {
 
         /* Cmd+` = Cycle to next window (standard Mac OS shortcut) */
         if (charCode == '`' || charCode == '~') {
-            extern void SelectWindow(WindowPtr w);
-            extern void SendBehind(WindowPtr window, WindowPtr behindWindow);
-
             WindowPtr front = FrontWindow();
             if (front && front->nextWindow) {
                 /* Send the front window to the back, bringing the next one forward */
@@ -818,7 +780,6 @@ Boolean Finder_HandleKey(EventRecord* event) {
     if (!(event->modifiers & cmdKey)) {
         /* Delete key - delete selected items */
         if (charCode == kDeleteKey) {
-            extern void Finder_Clear(void);
             Finder_Clear();
             return true;
         }
@@ -826,7 +787,6 @@ Boolean Finder_HandleKey(EventRecord* event) {
         /* Return/Enter edits the selected item's name, as in System 7;
          * opening is Command-O or Command-Down. */
         if (charCode == kReturnKey || charCode == kEnterKey) {
-            extern short FolderWindow_GetSelectedIndex(WindowPtr w);
             WindowPtr front = FrontWindow();
             if (front && IsFolderWindow(front)) {
                 short sel = FolderWindow_GetSelectedIndex(front);
@@ -838,9 +798,6 @@ Boolean Finder_HandleKey(EventRecord* event) {
         /* Arrow keys - navigate selection in folder windows.
          * Shift+arrow extends selection (System 7 behavior). */
         if (charCode >= 0x1C && charCode <= 0x1F) {
-            extern void FolderWindow_ArrowKey(WindowPtr w, Boolean isDown, Boolean extend);
-            extern void FolderWindow_ArrowKeyLR(WindowPtr w, Boolean isRight);
-
             WindowPtr front = FrontWindow();
             Boolean shiftExtend = (event->modifiers & shiftKey) != 0;
             if (front && IsFolderWindow(front)) {
@@ -855,8 +812,6 @@ Boolean Finder_HandleKey(EventRecord* event) {
 
         /* Tab/Shift+Tab - cycle selection to next/previous item */
         if (charCode == 0x09) {  /* Tab */
-            extern void FolderWindow_TabKey(WindowPtr w, Boolean reverse);
-
             WindowPtr front = FrontWindow();
             if (front && IsFolderWindow(front)) {
                 FolderWindow_TabKey(front, (event->modifiers & shiftKey) != 0);
@@ -866,8 +821,6 @@ Boolean Finder_HandleKey(EventRecord* event) {
 
         /* Type-ahead selection: typing letters jumps to matching file */
         if (charCode >= 0x20 && charCode <= 0x7E) {
-            extern void FolderWindow_TypeAhead(WindowPtr w, char ch);
-
             WindowPtr front = FrontWindow();
             if (front && IsFolderWindow(front)) {
                 FolderWindow_TypeAhead(front, charCode);
@@ -889,8 +842,6 @@ OSErr HandleContentClick(WindowPtr window, EventRecord* event) {
     }
 
     /* Check if this is a folder window */
-    extern Boolean HandleFolderWindowClick(WindowPtr w, EventRecord *ev, Boolean isDoubleClick);
-
     if (IsFolderWindow(window)) {
         /* Extract double-click flag from event message */
         UInt16 clickCount = (event->message >> 16) & 0xFFFF;
@@ -915,9 +866,7 @@ OSErr CloseFinderWindow(WindowPtr window) {
     }
 
     /* Try to close special windows first */
-    extern Boolean AboutWindow_CloseIf(WindowPtr w);
     extern Boolean GetInfo_CloseIf(WindowPtr w);
-    extern void CleanupFolderWindow(WindowPtr w);
 
     /* Each of these disposes the window itself when it owns it, so the first
      * one that claims it ends the sequence - falling through to the dispose
@@ -929,7 +878,6 @@ OSErr CloseFinderWindow(WindowPtr window) {
      * and its record (windowKind is minus its reference number). Disposing
      * the window here left the accessory running with a freed window. */
     if (window->windowKind < 0) {
-        extern void CloseDeskAcc(SInt16 refNum);
         CloseDeskAcc((SInt16)-window->windowKind);
         return noErr;
     }
@@ -957,9 +905,7 @@ OSErr CloseFinderWindow(WindowPtr window) {
 Boolean Finder_DrawWindowContents(WindowPtr window) {
     if (!window) return false;
 
-    extern Boolean AboutWindow_HandleUpdate(WindowPtr w);
     extern Boolean GetInfo_HandleUpdate(WindowPtr w);
-    extern void FolderWindow_Draw(WindowPtr w);
 
     if (AboutWindow_HandleUpdate(window)) return true;
     if (GetInfo_HandleUpdate(window))     return true;
@@ -979,8 +925,6 @@ OSErr CleanUpWindow(WindowPtr window, SInt16 cleanupType) {
     if (!window) return paramErr;
 
     /* Check if it's a folder window */
-    extern void FolderWindow_CleanUp(WindowPtr w, Boolean selectedOnly);
-
     if (IsFolderWindow(window)) {
         /* cleanupType: 0 = all items, 1 = selected only */
         Boolean selectedOnly = (cleanupType == 1);
