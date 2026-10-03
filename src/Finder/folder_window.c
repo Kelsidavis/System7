@@ -2573,8 +2573,6 @@ void FolderWindow_DeleteSelected(WindowPtr w) {
     }
 }
 
-extern OSErr HGetFInfo(short vRefNum, long dirID, ConstStr255Param fileName, FInfo* fndrInfo);
-
 static void FolderWindow_PascalName(const char* name, Str255 out)
 {
     size_t len = strlen(name) > 31 ? 31 : strlen(name);
