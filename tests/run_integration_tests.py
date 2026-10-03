@@ -22,6 +22,7 @@ import argparse
 from pathlib import Path
 from typing import List
 from datetime import datetime
+import xml.etree.ElementTree as ET
 
 class TestResult:
     def __init__(self, name: str, passed: bool, reason: str = ""):
@@ -231,29 +232,45 @@ class TestRunner:
             self.log("No tests were run", "WARN")
             return False
 
-    def generate_junit_report(self, output_file: str):
+    def generate_junit_report(self, output_file: str) -> bool:
         """Generate JUnit XML report for CI/CD integration"""
         self.log(f"Generating JUnit report: {output_file}", "INFO")
 
-        xml = '<?xml version="1.0" encoding="UTF-8"?>\n'
-        xml += f'<testsuites name="System7-IntegrationTests" tests="{len(self.results)}">\n'
-        xml += f'  <testsuite name="Phase1-IntegrationTests" tests="{len(self.results)}">\n'
+        failed = sum(not result.passed for result in self.results)
+        attributes = {
+            "tests": str(len(self.results)),
+            "failures": str(failed),
+        }
+        root = ET.Element(
+            "testsuites",
+            {"name": "System7-IntegrationTests", **attributes},
+        )
+        suite = ET.SubElement(
+            root,
+            "testsuite",
+            {"name": "Phase1-IntegrationTests", **attributes},
+        )
 
         for result in self.results:
-            xml += f'    <testcase name="{result.name}" time="0">\n'
+            case = ET.SubElement(
+                suite,
+                "testcase",
+                {"name": result.name, "time": "0"},
+            )
             if not result.passed:
-                xml += f'      <failure message="{result.reason}"/>\n'
-            xml += '    </testcase>\n'
-
-        xml += '  </testsuite>\n'
-        xml += '</testsuites>\n'
+                ET.SubElement(case, "failure", {"message": result.reason})
 
         try:
-            with open(output_file, 'w') as f:
-                f.write(xml)
+            ET.ElementTree(root).write(
+                output_file,
+                encoding="utf-8",
+                xml_declaration=True,
+            )
             self.log(f"JUnit report written: {output_file}", "PASS")
+            return True
         except Exception as e:
             self.log(f"Failed to write JUnit report: {e}", "FAIL")
+            return False
 
 def main():
     parser = argparse.ArgumentParser(
@@ -309,8 +326,8 @@ Examples:
     success = runner.print_results()
 
     # Generate report if requested
-    if args.output:
-        runner.generate_junit_report(args.output)
+    if args.output and not runner.generate_junit_report(args.output):
+        return 1
 
     return 0 if success else 1
 

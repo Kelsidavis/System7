@@ -23,7 +23,6 @@ ISO="${ISO:-system71.iso}"
 [ -f "$ISO" ] || { echo "No $ISO - run 'make iso' first" >&2; exit 1; }
 
 WORK="$(mktemp -d)"
-trap 'rm -rf "$WORK"' EXIT
 SOCK="$WORK/mon.sock"
 
 qemu-system-i386 -cdrom "$ISO" -m 1024 -vga std -display none \

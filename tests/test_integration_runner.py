@@ -2,6 +2,7 @@ import importlib.util
 import subprocess
 import tempfile
 import unittest
+import xml.etree.ElementTree as ET
 from pathlib import Path
 from unittest.mock import patch
 
@@ -81,6 +82,27 @@ Failed:      0"""
 
             with patch("subprocess.run", return_value=result):
                 self.assertFalse(runner.run_tests())
+
+    def test_junit_report_escapes_values_and_reports_failures(self):
+        with tempfile.TemporaryDirectory() as directory:
+            output = Path(directory) / "results.xml"
+            runner = integration_runner.TestRunner(str(ROOT))
+            runner.results = [
+                integration_runner.TestResult("test <one>", True),
+                integration_runner.TestResult("test two", False, "expected <x> & got <y>"),
+            ]
+
+            self.assertTrue(runner.generate_junit_report(str(output)))
+            root = ET.parse(output).getroot()
+            self.assertEqual(root.attrib["tests"], "2")
+            self.assertEqual(root.attrib["failures"], "1")
+            failure = root.find("./testsuite/testcase/failure")
+            self.assertEqual(failure.attrib["message"], "expected <x> & got <y>")
+
+    def test_junit_report_failure_is_returned_to_caller(self):
+        runner = integration_runner.TestRunner(str(ROOT))
+        with patch("xml.etree.ElementTree.ElementTree.write", side_effect=OSError("write failed")):
+            self.assertFalse(runner.generate_junit_report("unwritable.xml"))
 
 
 if __name__ == "__main__":
