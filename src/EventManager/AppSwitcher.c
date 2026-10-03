@@ -29,12 +29,6 @@ static Boolean gSwitcherVisible = false;
 static UInt32 gHideTimeout = 0;
 static UInt32 gHideTimeoutStart = 0;
 
-/* External functions */
-extern OSErr ProcessManager_SetFrontProcess(ProcessSerialNumber psn);
-extern ProcessSerialNumber ProcessManager_GetFrontProcess(void);
-extern ProcessQueue* ProcessManager_GetProcessQueue(void);
-extern void serial_printf(const char* fmt, ...);
-
 /*---------------------------------------------------------------------------
  * Utility Functions
  *---------------------------------------------------------------------------*/
@@ -150,7 +144,6 @@ Boolean AppSwitcher_ShowWindow(void) {
     gSwitcherState.activationTime = TickCount();
 
     /* Mark display as needing update so WM_Update will render the switcher */
-    extern void WM_InvalidateDisplay_Public(void);
     WM_InvalidateDisplay_Public();
 
     serial_printf("[AppSwitcher] Window shown with %d apps\n", gSwitcherState.appCount);
@@ -169,7 +162,6 @@ void AppSwitcher_HideWindow(void) {
     gHideTimeout = 0;
 
     /* Mark display as needing update so switcher gets erased */
-    extern void WM_InvalidateDisplay_Public(void);
     WM_InvalidateDisplay_Public();
 
     serial_printf("[AppSwitcher] Window hidden\n");
