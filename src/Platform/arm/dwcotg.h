@@ -12,6 +12,7 @@
 #define ARM_DWCOTG_H
 
 #include <stdint.h>
+#include "usb_controller.h"
 
 /* ===== DWCOTG Controller Base Address ===== */
 
@@ -149,10 +150,10 @@ int dwcotg_init(void);
 int dwcotg_enumerate_devices(void);
 
 /* Find HID keyboard device */
-int dwcotg_find_keyboard(void *kb_info);
+int dwcotg_find_keyboard(hid_device_info_t *kb_info);
 
 /* Find HID mouse device */
-int dwcotg_find_mouse(void *mouse_info);
+int dwcotg_find_mouse(hid_device_info_t *mouse_info);
 
 /* Poll keyboard for input */
 int dwcotg_poll_keyboard(uint8_t *key_code, uint8_t *modifiers);

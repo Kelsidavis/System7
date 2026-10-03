@@ -227,7 +227,7 @@ int dwcotg_enumerate_devices(void) {
 /*
  * Find HID keyboard
  */
-int dwcotg_find_keyboard(void *kb_info) {
+int dwcotg_find_keyboard(hid_device_info_t *kb_info) {
     if (!kb_info) {
         return -1;
     }
@@ -239,7 +239,7 @@ int dwcotg_find_keyboard(void *kb_info) {
 /*
  * Find HID mouse
  */
-int dwcotg_find_mouse(void *mouse_info) {
+int dwcotg_find_mouse(hid_device_info_t *mouse_info) {
     if (!mouse_info) {
         return -1;
     }

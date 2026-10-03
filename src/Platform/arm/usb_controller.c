@@ -7,25 +7,8 @@
 #include <stddef.h>
 #include "System71StdLib.h"
 #include "usb_controller.h"
-
-/* Forward declarations */
-extern int xhci_init(void);
-extern int xhci_enumerate_devices(void);
-extern int xhci_find_keyboard(void *kb_info);
-extern int xhci_find_mouse(void *mouse_info);
-extern int xhci_poll_keyboard(uint8_t *key_code, uint8_t *modifiers);
-extern int xhci_poll_mouse(int8_t *dx, int8_t *dy, uint8_t *buttons);
-extern uint32_t xhci_device_count(void);
-extern void xhci_shutdown(void);
-
-extern int dwcotg_init(void);
-extern int dwcotg_enumerate_devices(void);
-extern int dwcotg_find_keyboard(void *kb_info);
-extern int dwcotg_find_mouse(void *mouse_info);
-extern int dwcotg_poll_keyboard(uint8_t *key_code, uint8_t *modifiers);
-extern int dwcotg_poll_mouse(int8_t *dx, int8_t *dy, uint8_t *buttons);
-extern uint32_t dwcotg_device_count(void);
-extern void dwcotg_shutdown(void);
+#include "xhci.h"
+#include "dwcotg.h"
 
 /* Global state */
 static rpi_model_t detected_model = PI_MODEL_UNKNOWN;
@@ -34,8 +17,8 @@ static int controller_initialized = 0;
 /* Function pointers for abstraction */
 static int (*usb_init_fn)(void) = NULL;
 static int (*usb_enumerate_fn)(void) = NULL;
-static int (*usb_find_kb_fn)(void *) = NULL;
-static int (*usb_find_mouse_fn)(void *) = NULL;
+static int (*usb_find_kb_fn)(hid_device_info_t *) = NULL;
+static int (*usb_find_mouse_fn)(hid_device_info_t *) = NULL;
 static int (*usb_poll_kb_fn)(uint8_t *, uint8_t *) = NULL;
 static int (*usb_poll_mouse_fn)(int8_t *, int8_t *, uint8_t *) = NULL;
 static uint32_t (*usb_device_count_fn)(void) = NULL;
@@ -142,7 +125,7 @@ int usb_controller_enumerate(void) {
 /*
  * Find HID keyboard
  */
-int usb_find_keyboard(void *kb_info) {
+int usb_find_keyboard(hid_device_info_t *kb_info) {
     if (!controller_initialized || !usb_find_kb_fn) {
         return -1;
     }
@@ -153,7 +136,7 @@ int usb_find_keyboard(void *kb_info) {
 /*
  * Find HID mouse
  */
-int usb_find_mouse(void *mouse_info) {
+int usb_find_mouse(hid_device_info_t *mouse_info) {
     if (!controller_initialized || !usb_find_mouse_fn) {
         return -1;
     }

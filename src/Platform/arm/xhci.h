@@ -12,6 +12,7 @@
 #define ARM_XHCI_H
 
 #include <stdint.h>
+#include "usb_controller.h"
 
 /* ===== XHCI Controller Base Addresses ===== */
 
@@ -126,18 +127,6 @@ typedef struct {
     uint16_t wMaxPacketSize;
     uint8_t  bInterval;
 } usb_endpoint_descriptor_t;
-
-/* ===== HID Device Info ===== */
-typedef struct {
-    uint16_t idVendor;
-    uint16_t idProduct;
-    uint8_t  bInterfaceClass;      /* HID_CLASS = 0x03 */
-    uint8_t  bInterfaceSubClass;   /* 1=keyboard, 2=mouse */
-    uint8_t  bInterfaceProtocol;   /* 1=keyboard, 2=mouse */
-    uint8_t  ep_in;                /* Input endpoint address */
-    uint8_t  ep_in_interval;       /* Polling interval (ms) */
-    uint8_t  ep_in_max_packet;     /* Max packet size */
-} hid_device_info_t;
 
 /* ===== Public API ===== */
 

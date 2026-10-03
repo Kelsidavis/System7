@@ -16,6 +16,18 @@ typedef enum {
     PI_MODEL_5       = 5,
 } rpi_model_t;
 
+/* HID device details shared by the platform USB controllers. */
+typedef struct {
+    uint16_t idVendor;
+    uint16_t idProduct;
+    uint8_t  bInterfaceClass;      /* HID class = 0x03 */
+    uint8_t  bInterfaceSubClass;   /* 1=keyboard, 2=mouse */
+    uint8_t  bInterfaceProtocol;   /* 1=keyboard, 2=mouse */
+    uint8_t  ep_in;                /* Input endpoint address */
+    uint8_t  ep_in_interval;       /* Polling interval (ms) */
+    uint8_t  ep_in_max_packet;     /* Max packet size */
+} hid_device_info_t;
+
 /* ===== Public API ===== */
 
 /* Detect Raspberry Pi model */
@@ -28,10 +40,10 @@ int usb_controller_init(void);
 int usb_controller_enumerate(void);
 
 /* Find HID keyboard */
-int usb_find_keyboard(void *kb_info);
+int usb_find_keyboard(hid_device_info_t *kb_info);
 
 /* Find HID mouse */
-int usb_find_mouse(void *mouse_info);
+int usb_find_mouse(hid_device_info_t *mouse_info);
 
 /* Poll keyboard */
 int usb_poll_keyboard(uint8_t *key_code, uint8_t *modifiers);
