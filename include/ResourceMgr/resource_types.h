@@ -1,23 +1,9 @@
-/*
- * RE-AGENT-BANNER
- * Apple System 7.1 Resource Manager - Type Definitions
- *
- * implemented based on System.rsrc
- *
- * Evidence source:
- * Layout source:
- *
- */
+/* Resource Manager constants and data structures. */
 
 #ifndef RESOURCE_TYPES_H
 #define RESOURCE_TYPES_H
 
 #include "SystemTypes.h"
-
-/* Forward declarations */
-
-
-/* Basic Mac OS types from MacTypes.h */
 
 /* Resource Manager Constants */
 #define kResourceForkHeaderSize    16
@@ -26,15 +12,6 @@
 #define kResourceRefEntrySize      12
 #define kResourceDataHeaderSize    4
 
-/* Resource Type Constants */
-/* Commented out - may conflict with other definitions
-#define kKeyboardCharResourceType    0x4B434852
-#define kKeyboardMapResourceType     0x4B4D4150
-#define kKeyboardCapsResourceType    0x4B434150
-#define kFileRefResourceType         0x46524546
-#define kIconListResourceType        0x49434E23
-#define kCacheResourceType           0x43414348
-*/
 #define kControlDefResourceType      0x43444546  /* 'CDEF' */
 
 /* Resource Attributes */
@@ -158,19 +135,3 @@ typedef struct FileControlBlock {
 } FileControlBlock;
 
 #endif /* RESOURCE_TYPES_H */
-
-/*
- * RE-AGENT-TRAILER-JSON
- * {
- *   "component": "resource_manager_types",
- *   "evidence_density": 0.85,
- *   "structures_defined": 6,
- *   "constants_defined": 18,
- *   "provenance": {
- *     "r2_analysis": "
- *     "evidence": "
- *     "layouts": "
- *   },
- *   "confidence": "high"
- * }
- */

@@ -1,12 +1,4 @@
-/*
- * RE-AGENT-BANNER
- * PRAM Desktop Preferences Implementation
- * System 7.1 Desktop Pattern Persistence
- *
- * Provides PRAM-style persistent storage for desktop patterns.
- * In real System 7, this would use Parameter RAM; we use a simple
- * in-memory storage that simulates PRAM.
- */
+/* In-memory persistence for desktop pattern preferences. */
 
 #include "PatternMgr/pram_prefs.h"
 #include <string.h>

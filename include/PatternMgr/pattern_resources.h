@@ -1,11 +1,4 @@
-/*
- * RE-AGENT-BANNER
- * Pattern Resources Header
- * System 7.1 Pattern Resource Loading
- *
- * Loads 'PAT ' and 'ppat' resources from resource files.
- * Mirrors the pattern resource loading in classic Mac OS.
- */
+/* Load classic Pattern and PixPat resources. */
 
 #pragma once
 

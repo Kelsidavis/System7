@@ -1,11 +1,4 @@
-/*
- * RE-AGENT-BANNER
- * PRAM Desktop Preferences Header
- * System 7.1 Desktop Pattern Persistence
- *
- * Provides PRAM-style persistent storage for desktop patterns.
- * In System 7, this would use Parameter RAM; we use a simple file.
- */
+/* Persistent desktop pattern preferences. */
 
 #pragma once
 

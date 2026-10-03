@@ -1,12 +1,4 @@
-/*
- * RE-AGENT-BANNER
- * Pattern Manager Header
- * System 7.1 Desktop Pattern Management
- *
- * Manages desktop patterns and background colors for System 7.1.
- * The Pattern Manager owns the background state that QuickDraw uses
- * when erasing regions and rectangles.
- */
+/* Desktop patterns, background state, and pattern resource interfaces. */
 
 #pragma once
 
