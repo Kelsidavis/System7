@@ -1,5 +1,5 @@
 /*
- * string.h - Minimal string functions for bare-metal ARM64 kernel
+ * string.h - Minimal string functions for the freestanding kernel
  *
  * Provides essential string and memory functions for cross-platform builds
  */
