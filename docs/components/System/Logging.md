@@ -1,6 +1,6 @@
 # Serial Logging
 
-The System 7.1 portable kernel uses a hierarchical module-based logging framework in `src/System71StdLib.c`. All subsystems use module-specific logging macros (e.g., `WM_LOG_DEBUG()`, `CTRL_LOG_DEBUG()`) that route through `serial_logf()`. Logs are grouped by module and filtered by verbosity level.
+The System 7.1 portable kernel provides a hierarchical module-based logging framework in `src/System71StdLib.c`. Logs written through `serial_logf()` are grouped by module and filtered by verbosity level; helper macros are available for some subsystems.
 
 ## Levels
 
@@ -11,16 +11,16 @@ Levels follow the familiar severity ordering:
 - `kLogLevelDebug`
 - `kLogLevelTrace`
 
-A message is emitted only when its level is at or above both the global threshold and the threshold for its module.
+A message is emitted when its severity is no more verbose than both the global threshold and the threshold for its module (`Error` is least verbose; `Trace` is most verbose).
 
 ## Modules
 
-`System71StdLib.h` defines `SystemLogModule` identifiers (`kLogModuleWindow`, `kLogModuleControl`, `kLogModuleEvent`, etc.). Each subsystem has a dedicated logging header (e.g., `WindowManager/WMLogging.h`, `ControlManager/CtrlLogging.h`) that defines module-specific macros like:
+`System71StdLib.h` defines the `SystemLogModule` identifiers (`kLogModuleWindow`, `kLogModuleControl`, `kLogModuleEvent`, etc.). Some subsystems provide logging headers under `include/`, such as `WindowManager/WMLogging.h` and `FontManager/FontLogging.h`; there is no `ControlManager/CtrlLogging.h`. The Window Manager macros currently compile to no-ops, so they do not emit messages. For modules without an active helper, call `serial_logf()` with the appropriate module and level:
 
 ```c
-// From WindowManager/WMLogging.h
-#define WM_LOG_DEBUG(fmt, ...) serial_logf(kLogModuleWindow, kLogLevelDebug, "[WM] " fmt, ##__VA_ARGS__)
-#define WM_LOG_WARN(fmt, ...)  serial_logf(kLogModuleWindow, kLogLevelWarn,  "[WM] " fmt, ##__VA_ARGS__)
+// Direct API; use a subsystem helper header when it provides an active macro.
+serial_logf(kLogModuleControl, kLogLevelDebug,
+            "[CTRL] tracking button id=%d state=%d\n", controlID, state);
 ```
 
 Legacy `serial_printf()` calls are auto-classified via bracket tag parsing (`[CTRL]`, `[WM]`, etc.) and default to `kLogModuleGeneral`/`kLogLevelDebug` if no tag is found.
@@ -30,11 +30,10 @@ Legacy `serial_printf()` calls are auto-classified via bracket tag parsing (`[CT
 ```c
 #include "System71StdLib.h"
 
-// Drop everything to WARN globally
-typedef enum { ... } SystemLogLevel; // see header
+// Drop everything more verbose than WARN globally.
 SysLogSetGlobalLevel(kLogLevelWarn);
 
-// Re-enable verbose Window Manager traces
+// Allow verbose messages passed to serial_logf() for the Window Manager module.
 SysLogSetModuleLevel(kLogModuleWindow, kLogLevelDebug);
 ```
 
@@ -42,27 +41,19 @@ SysLogSetModuleLevel(kLogModuleWindow, kLogLevelDebug);
 
 ## Emitting logs
 
-**Always use the module-specific macros** defined in each subsystem's logging header:
+Use an active subsystem helper macro when one exists. For example, `FontManager/FontLogging.h` defines `FONT_LOG_DEBUG`. Otherwise use `serial_logf()` directly, supplying the module and level:
 
 ```c
-#include "ControlManager/CtrlLogging.h"
+#include "FontManager/FontLogging.h"
 
-CTRL_LOG_DEBUG("tracking button id=%d state=%d\n", controlID, state);
-CTRL_LOG_WARN("invalid control handle: %p\n", (void*)controlHandle);
+FONT_LOG_DEBUG("loaded font id=%d\n", fontID);
 ```
 
-For direct API access when implementing new subsystems:
+Legacy `serial_printf()` calls are still supported. A recognized bracket tag (`[WM]`, `[CTRL]`, etc.) selects a module and optional level; untagged messages default to `kLogLevelDebug` under `kLogModuleGeneral`.
 
-```c
-serial_logf(kLogModuleControl, kLogLevelDebug,
-            "[CTRL] tracking button id=%d state=%d\n", controlID, state);
-```
+## Recognized bracket tags
 
-Legacy `serial_printf()` calls are still supported for backward compatibility. They are classified via bracket tag parsing (`[WM]`, `[CTRL]`, etc.). Untagged messages default to `kLogLevelDebug` under `kLogModuleGeneral`, so they remain silent unless you raise that module's threshold.
-
-## Custom tags
-
-Strings that begin with a bracketed tag are parsed as `[MODULE[:LEVEL]]`. Example:
+`serial_printf()` recognizes tags from the table in `System71StdLib.c`; use a listed tag with an optional level suffix (`[TAG:LEVEL]`). Unknown tags fall back to General/Debug. For example:
 
 ```
 serial_printf("[DM:TRACE] focus advanced to item %d\n", item);
