@@ -194,6 +194,9 @@ jobs:
     name: QEMU Boot Test
     runs-on: ubuntu-24.04
     needs: build-x86
+    permissions:
+      actions: read
+      contents: read
 
     steps:
       - name: Checkout repository
@@ -206,9 +209,9 @@ jobs:
             qemu-system-x86
 
       - name: Download ISO artifact
-        uses: actions/download-artifact@v8
-        with:
-          name: system71-iso
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh run download "$GITHUB_RUN_ID" --name system71-iso --dir .
 
       # This step used to pipe everything to `|| true` and echo success
       # unconditionally, so it passed even when the kernel never started at all.

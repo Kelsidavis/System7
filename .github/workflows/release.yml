@@ -12,6 +12,7 @@ on:
   workflow_dispatch:
 
 permissions:
+  actions: read
   contents: write
 
 jobs:
@@ -113,10 +114,9 @@ jobs:
           cp system71.iso system71-all-languages.iso
 
       - name: Fetch the ARM64 kernel
-        uses: actions/download-artifact@v8
-        with:
-          name: release-kernel-arm64
-          path: .
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh run download "$GITHUB_RUN_ID" --name release-kernel-arm64 --dir .
 
       - name: Generate version
         id: version
