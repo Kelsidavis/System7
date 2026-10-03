@@ -899,14 +899,11 @@ OSErr PBSetCatInfoSync(CInfoPBPtr paramBlock)
     return err;
 }
 
-/* ============================================================================
- * Asynchronous Operations (stubbed for now - would use thread pool)
- * ============================================================================ */
+/* The asynchronous entry points below currently perform the operation
+ * synchronously and return its result directly. */
 
 OSErr PBOpenAsync(ParmBlkPtr paramBlock)
 {
-    /* For now, just call synchronous version */
-    /* In a full implementation, this would queue the operation */
     return PBOpenSync(paramBlock);
 }
 
