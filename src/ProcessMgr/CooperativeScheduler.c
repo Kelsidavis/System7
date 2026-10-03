@@ -78,11 +78,6 @@ static void WakeTimerCallback(TMTaskPtr tmTaskPtr);
 #define PROC_LOG_WARN(fmt, ...)  serial_logf(kLogModuleSystem, kLogLevelWarn,  "[PROC] " fmt, ##__VA_ARGS__)
 #define PROC_LOG_INFO(fmt, ...)  serial_logf(kLogModuleSystem, kLogLevelInfo, "[PROC] " fmt, ##__VA_ARGS__)
 
-/* String functions from System71StdLib */
-extern void* memset(void* s, int c, size_t n);
-extern char* strcpy(char* dest, const char* src);
-extern char* strncpy(char* dest, const char* src, size_t n);
-
 /*
  * Proc_Init - Initialize cooperative scheduler
  */

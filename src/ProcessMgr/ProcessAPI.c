@@ -25,14 +25,6 @@
 #define PROCAPI_LOG(...)
 #endif
 
-/* External references to internal ProcessManager state */
-extern ProcessControlBlock* gCurrentProcess;
-extern ProcessQueue* gProcessQueue;
-
-/* External function prototypes */
-extern ProcessSerialNumber ProcessManager_GetFrontProcess(void);
-extern OSErr ProcessManager_SetFrontProcess(ProcessSerialNumber psn);
-
 /*
  * GetCurrentProcess - Get the process serial number of the current process
  *
