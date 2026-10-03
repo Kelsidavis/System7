@@ -197,11 +197,10 @@ Full roadmap: [BARE_METAL_IMPROVEMENTS.md](docs/BARE_METAL_IMPROVEMENTS.md)
 - **Timing**: Architecture-agnostic with microsecond precision (RDTSC/timer registers)
 - **Performance**: Cold resource miss <15µs, cache hit <2µs, timer drift <100ppm
 
-### Codebase Statistics
+### Build Information
 
-- **357 C source files** and **285 headers** (224 public under `include/`, 61 internal under `src/`)
-- **232,223 lines** across C sources, headers, and assembly files
-- **69 resource types** extracted from System 7.1, plus 17 colour (`ppat`) and 32 black-and-white (`PAT `) patterns in `Patterns.rsrc`
+Build source and object counts depend on the selected platform and options.
+Run `make info` to see the current counts for your configuration.
 
 ## 🔨 Building
 
