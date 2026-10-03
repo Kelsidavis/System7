@@ -18,6 +18,7 @@ typedef struct {
 } hal_framebuffer_info_t;
 
 void hal_boot_init(void *boot_arg);
+void boot_main(uint32_t magic, uint32_t* mb2_info);
 int hal_get_framebuffer_info(hal_framebuffer_info_t *info);
 uint32_t hal_get_memory_size(void);
 uint32_t hal_get_irq0_ticks(void);

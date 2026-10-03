@@ -10,6 +10,8 @@
 #include "uart.h"
 #include "timer.h"
 #include "dtb.h"
+#include "exception_handlers.h"
+#include "mmu.h"
 #include "hal_boot_arm64.h"
 #include "Platform/include/boot.h"
 
@@ -48,7 +50,6 @@ void arm64_boot_main(void *dtb_ptr) {
     timer_init();
 
     /* Initialize exception handlers */
-    extern void exceptions_init(void);
     exceptions_init();
 
     /* Save DTB address */
@@ -190,9 +191,6 @@ void arm64_boot_main(void *dtb_ptr) {
     }
 
     /* Initialize MMU with fixed TCR configuration */
-    extern bool mmu_init(void);
-    extern void mmu_enable(void);
-
     uart_puts("[ARM64] Initializing MMU...\n");
     if (mmu_init()) {
         uart_puts("[ARM64] MMU page tables configured\n");
@@ -264,7 +262,6 @@ void arm64_boot_main(void *dtb_ptr) {
     /* Jump to System7 boot entry point via HAL */
     uart_puts("[ARM64] About to call boot_main()...\n");
     uart_flush();
-    extern void boot_main(uint32_t magic, uint32_t* mb2_info);
     boot_main(0, NULL);  /* No multiboot on ARM64, pass NULL */
     uart_puts("[ARM64] boot_main() returned\n");
 
@@ -342,7 +339,6 @@ void hal_platform_shutdown(void) {
 
 #ifndef QEMU_BUILD
     /* Power off peripherals on real hardware */
-    extern bool mailbox_power_off(void);
     mailbox_power_off();
     uart_puts("[ARM64] Peripherals powered off\n");
 #endif

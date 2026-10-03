@@ -7,10 +7,8 @@
 #include <stddef.h>
 #include "SystemTypes.h"
 #include "System71StdLib.h"
+#include "Platform/include/boot.h"
 #include "platform_info.h"
-
-/* Forward declaration */
-extern uint32_t hal_get_memory_size(void);
 
 /*
  * Get display name string
