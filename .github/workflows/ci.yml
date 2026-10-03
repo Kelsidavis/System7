@@ -41,13 +41,13 @@ jobs:
         run: make info
 
       - name: Upload kernel artifact
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: kernel-x86
           path: kernel.elf
 
       - name: Upload ISO artifact
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: system71-iso
           path: system71.iso
@@ -80,7 +80,7 @@ jobs:
         run: make iso
 
       - name: Upload ISO artifact
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: system71-all-languages-iso
           path: system71.iso
@@ -130,7 +130,7 @@ jobs:
         run: make PLATFORM=arm64
 
       - name: Upload ARM64 kernel artifact
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: kernel-arm64
           path: kernel.elf
@@ -177,7 +177,7 @@ jobs:
         run: make analyze-arm
 
       - name: Upload ARM kernel artifact
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         if: success()
         with:
           name: kernel-arm
@@ -199,7 +199,7 @@ jobs:
             qemu-system-x86
 
       - name: Download ISO artifact
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@v8
         with:
           name: system71-iso
 
@@ -269,7 +269,7 @@ jobs:
 
       - name: Upload serial logs
         if: always()
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: boot-serial-logs
           path: "*-serial.log"

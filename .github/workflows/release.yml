@@ -47,7 +47,7 @@ jobs:
           cp kernel.elf kernel-arm64.elf
 
       - name: Upload ARM64 kernel
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: release-kernel-arm64
           path: kernel-arm64.elf
@@ -113,7 +113,7 @@ jobs:
           cp system71.iso system71-all-languages.iso
 
       - name: Fetch the ARM64 kernel
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@v8
         with:
           name: release-kernel-arm64
           path: .
