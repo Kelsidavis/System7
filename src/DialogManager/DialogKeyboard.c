@@ -1,5 +1,4 @@
 /**
-#include "DialogManager/DialogInternal.h"
  * @file DialogKeyboard.c
  * @brief Dialog Manager keyboard navigation and control activation
  *
@@ -16,7 +15,9 @@
 #include "ControlManager/ControlTypes.h"
 #include "WindowManager/WindowManager.h"
 #include "EventManager/EventManager.h"
+#include "QuickDraw/QuickDraw.h"
 #include "QuickDrawConstants.h"
+#include "OSUtils/OSUtils.h"
 #include "System71StdLib.h"
 #include "DialogManager/DialogLogging.h"
 #include "TimeManager/TimeBase.h"
@@ -25,25 +26,6 @@
 #define DM_LOG_DEBUG(fmt, ...) serial_logf(kLogModuleDialog, kLogLevelDebug, "[DM] " fmt, ##__VA_ARGS__)
 #define DM_LOG_TRACE(fmt, ...) serial_logf(kLogModuleDialog, kLogLevelTrace, "[DM] " fmt, ##__VA_ARGS__)
 #define DM_LOG_WARN(fmt, ...)  serial_logf(kLogModuleDialog, kLogLevelWarn,  "[DM] " fmt, ##__VA_ARGS__)
-
-/* External functions */
-extern void Delay(UInt32 numTicks, UInt32* finalTicks);
-extern void PenMode(SInt16 mode);
-extern void InvertRect(const Rect* r);
-extern void FrameRect(const Rect* r);
-extern void InsetRect(Rect* r, SInt16 dh, SInt16 dv);
-extern void OffsetRect(Rect* r, SInt16 dh, SInt16 dv);
-extern void PenPat(const Pattern* pat);
-extern void MoveTo(SInt16 h, SInt16 v);
-extern void LineTo(SInt16 h, SInt16 v);
-extern void GetPort(GrafPtr* port);
-extern void SetPort(GrafPtr port);
-extern void GetClip(RgnHandle rgn);
-extern void SetClip(RgnHandle rgn);
-extern void ClipRect(const Rect* r);
-extern RgnHandle NewRgn(void);
-extern void DisposeRgn(RgnHandle rgn);
-extern struct QDGlobals qd;
 
 /* Focus tracking - simple per-window storage */
 #define MAX_DIALOGS 16
