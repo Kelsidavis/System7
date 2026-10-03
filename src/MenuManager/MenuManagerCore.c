@@ -760,16 +760,13 @@ void HiliteMenu(short menuID)
 {
     MENU_LOG_TRACE("HiliteMenu ENTER: menuID=%d\n", menuID);
     if (!gMenuMgrInitialized) {
-        serial_puts("HiliteMenu: Not initialized\n");
         return;
     }
 
     MENU_LOG_TRACE("HiliteMenu: Current hilite=%d\n", gMenuMgrState->hiliteMenu);
     /* Unhighlight previous menu if any */
     if (gMenuMgrState->hiliteMenu != 0 && gMenuMgrState->hiliteMenu != menuID) {
-        serial_puts("HiliteMenu: About to unhighlight previous\n");
         HiliteMenuTitle(gMenuMgrState->hiliteMenu, false);
-        serial_puts("HiliteMenu: Unhighlighted previous\n");
     }
 
     /* Set new hilite menu */
@@ -777,11 +774,8 @@ void HiliteMenu(short menuID)
 
     /* Highlight new menu if not 0 */
     if (menuID != 0) {
-        serial_puts("HiliteMenu: About to highlight new menu\n");
         HiliteMenuTitle(menuID, true);
-        serial_puts("HiliteMenu: Highlighted new menu\n");
     }
-    serial_puts("HiliteMenu EXIT\n");
 }
 
 /* GetMBarHeight is defined as a macro in MenuManager.h */

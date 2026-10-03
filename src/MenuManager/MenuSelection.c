@@ -166,26 +166,19 @@ long MenuSelect(Point startPt)
 
         /* Highlight the menu title */
         HiliteMenu(menuID);
-        serial_puts("DEBUG: Returned from HiliteMenu\n");
 
         /* Get the actual menu title position for proper dropdown placement */
-
-        serial_puts("DEBUG: About to call GetMenuTitleRectByID\n");
         if (GetMenuTitleRectByID(menuID, &titleRect)) {
-            serial_puts("DEBUG: GetMenuTitleRectByID returned TRUE\n");
             /* Use the left edge of the menu title */
             MENU_LOG_TRACE("DEBUG: titleRect.left=%d\n", titleRect.left);
             dropdownPt.h = titleRect.left;
-            serial_puts("DEBUG: Set dropdownPt.h\n");
             dropdownPt.v = 20; /* Position below menu bar */
-            serial_puts("DEBUG: Set dropdownPt.v\n");
         } else {
             /* Fallback to mouse position if title rect not found */
             dropdownPt.h = startPt.h;
             dropdownPt.v = 20;
         }
 
-        serial_puts("DEBUG: About to call TrackMenu\n");
         /* Show dropdown and track item selection; follow the pointer from
          * title to title while it is dragged along the bar */
         extern short TrackMenu_TakeSwitch(void);
