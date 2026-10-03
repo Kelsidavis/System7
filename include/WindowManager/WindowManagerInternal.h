@@ -212,7 +212,6 @@ void WM_UpdateWindowVisibility(WindowPtr window);
 WindowPtr WM_FindWindowAt(Point pt);
 WindowPtr WM_GetNextVisibleWindow(WindowPtr window);
 WindowPtr WM_GetPreviousWindow(WindowPtr window);
-Boolean WM_WindowsOverlap(WindowPtr window1, WindowPtr window2);
 
 /*
  * Modal window management (WindowLayering.c)
@@ -254,11 +253,9 @@ Boolean WM_ValidateStateChecksum(WindowPtr window);
  */
 void WM_InvalidateWindowsBelow(WindowPtr topWindow, const Rect* rect);
 void WM_InvalidateScreenRegion(RgnHandle rgn);
-void WM_InvalGlobalRgn(WindowPtr window, RgnHandle globalRgn);
-void WM_XorFrame(const Rect* r);
-Boolean WM_PortVisibleRgn(GrafPtr port, RgnHandle out);   /* a window's uncovered content, global */   /* inverted 1-pixel outline, global coordinates */   /* add a global region to updateRgn */
-void WM_CalculateWindowVisibility(WindowPtr window);
-void WM_UpdateWindowVisibilityStats(WindowPtr window);
+void WM_InvalGlobalRgn(WindowPtr window, RgnHandle globalRgn); /* Add a global region to updateRgn. */
+void WM_XorFrame(const Rect* r); /* Invert a one-pixel outline in global coordinates. */
+Boolean WM_PortVisibleRgn(GrafPtr port, RgnHandle out); /* Get a window's uncovered content region in global coordinates. */
 
 /*
  * Window tracking and interaction

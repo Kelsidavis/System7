@@ -151,50 +151,6 @@ void WM_ConstrainToRect(Rect* rect, const Rect* bounds) {
     }
 }
 
-/* CopyPascalString is defined in WindowManagerCore.c */
-extern void CopyPascalString(const unsigned char* src, unsigned char* dst);
-
-/* Window visibility calculation */
-void WM_CalculateWindowVisibility(WindowPtr window) {
-    if (!window) return;
-
-    /* Calculate visible region based on windows above */
-    if (!window->port.visRgn) {
-        window->port.visRgn = NewRgn();
-        if (!window->port.visRgn) {
-            /* Out of memory - can't calculate visible region */
-            return;
-        }
-    }
-
-    /* Start with full window region */
-    CopyRgn(window->strucRgn, window->port.visRgn);
-
-    /* Subtract regions of windows above */
-    WindowManagerState* wmState = GetWindowManagerState();
-    WindowPtr above = wmState->windowList;
-    while (above && above != window) {
-        if (above->visible && above->strucRgn) {
-            /* Would need DiffRgn here */
-            Platform_DiffRgn(window->port.visRgn, above->strucRgn, window->port.visRgn);
-        }
-        above = above->nextWindow;
-    }
-}
-
-/* Window overlap testing */
-Boolean WM_WindowsOverlap(WindowPtr window1, WindowPtr window2) {
-    if (!window1 || !window2) return false;
-    if (!window1->strucRgn || !window2->strucRgn) return false;
-
-    /* Check if structure regions overlap */
-    Rect bounds1, bounds2;
-    Platform_GetRegionBounds(window1->strucRgn, &bounds1);
-    Platform_GetRegionBounds(window2->strucRgn, &bounds2);
-
-    return WM_RectsIntersect(&bounds1, &bounds2);
-}
-
 /* Window invalidation */
 void WM_InvalidateScreenRegion(RgnHandle rgn) {
     if (!rgn) return;
@@ -427,12 +383,6 @@ long WM_CalculateRegionArea(RgnHandle rgn) {
     /* Simple approximation using bounding box */
     Rect bounds = (*rgn)->rgnBBox;
     return (long)WM_RECT_WIDTH(&bounds) * (long)WM_RECT_HEIGHT(&bounds);
-}
-
-/* Window visibility statistics */
-void WM_UpdateWindowVisibilityStats(WindowPtr window) {
-    (void)window;
-    /* Track visibility statistics if needed */
 }
 
 /* Platform window order update */
