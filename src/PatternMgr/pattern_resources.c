@@ -18,21 +18,6 @@
 extern int snprintf(char* str, size_t size, const char* format, ...);
 extern uint32_t pack_color(uint8_t r, uint8_t g, uint8_t b);
 
-/*
- * Helper to extract 8 bytes from resource data
- * Some resource forks wrap the pattern data; we look for an 8‑byte block.
- */
-__attribute__((unused))
-static bool find8(const uint8_t *p, int32_t n, const uint8_t **out) {
-    if (n < 8) return false;
-    /* Fast path: if size is 8 or more, use first 8 bytes */
-    if (n >= 8) {
-        *out = p;
-        return true;
-    }
-    return false;
-}
-
 /* External function from pattern_data.c */
 extern const uint8_t* GetBuiltInPatternData(int16_t patternID);
 

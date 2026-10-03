@@ -4,16 +4,6 @@
 #include <stdint.h>
 #include <stddef.h>
 
-typedef struct {
-    const uint8_t* mask;
-    const uint8_t* image;
-} IconData;
-
-typedef struct {
-    IconData large;   // 32x32 icon
-    IconData small;   // 16x16 icon
-} IconFamily;
-
 // Full trash can icon (ID: -3984)
 const uint8_t icon_TrashFull_mask[128] = {
     0x00, 0x00, 0x00, 0x00, 0x00, 0x07, 0xE0, 0x00,
@@ -51,17 +41,6 @@ const uint8_t icon_TrashFull_image[128] = {
     0x01, 0x00, 0x00, 0x80, 0x01, 0xFF, 0xFF, 0x80,
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
-};
-
-static const IconFamily iconFamily_TrashFull = {
-    .large = {
-        .mask = icon_TrashFull_mask,
-        .image = icon_TrashFull_image
-    },
-    .small = {
-        .mask = NULL,  // No 16x16 version available
-        .image = NULL
-    }
 };
 
 // Empty trash can icon (ID: -3993)
@@ -102,38 +81,3 @@ const uint8_t icon_TrashEmpty_image[128] = {
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
 };
-
-static const IconFamily iconFamily_TrashEmpty = {
-    .large = {
-        .mask = icon_TrashEmpty_mask,
-        .image = icon_TrashEmpty_image
-    },
-    .small = {
-        .mask = NULL,  // No 16x16 version available
-        .image = NULL
-    }
-};
-
-// Icon registry for easy lookup
-typedef struct {
-    int16_t id;
-    const char* name;
-    const IconFamily* family;
-} IconEntry;
-
-static const IconEntry trash_icons[] = {
-    { -3984, "TrashFull", &iconFamily_TrashFull },
-    { -3993, "TrashEmpty", &iconFamily_TrashEmpty },
-    { 0, NULL, NULL }  // Sentinel
-};
-
-// Helper function to get icon by ID
-__attribute__((unused))
-static const IconFamily* GetTrashIcon(int16_t id) {
-    for (int i = 0; trash_icons[i].name != NULL; i++) {
-        if (trash_icons[i].id == id) {
-            return trash_icons[i].family;
-        }
-    }
-    return NULL;
-}
