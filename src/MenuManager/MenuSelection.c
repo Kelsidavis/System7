@@ -331,7 +331,7 @@ short MenuSelectEx(Point startPt, MenuTrackInfo* trackInfo, MenuSelection* selec
                     }
                 }
             }
-        } else if (!mouseDown && !isInMenuBar && !isInMenu) {
+        } else if (!buttonDown && !isInMenuBar && !isInMenu) {
             /* Mouse released outside menu AND menu bar - cancel selection */
             if (currentMenu != 0) {
                 HideCurrentMenu();
@@ -342,7 +342,7 @@ short MenuSelectEx(Point startPt, MenuTrackInfo* trackInfo, MenuSelection* selec
         }
 
         /* Check for mouse release in menu item */
-        if (!mouseDown && currentMenu != 0 && currentItem != 0) {
+        if (!buttonDown && currentMenu != 0 && currentItem != 0) {
             /* Validate selection */
             if (ValidateMenuSelection(currentMenu, currentItem)) {
                 selection->menuID = currentMenu;
