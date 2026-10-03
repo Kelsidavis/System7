@@ -194,9 +194,6 @@ static void FM_BlitGlyph(short x, short y, const ChicagoCharInfo* info,
         return;
     }
 
-    int pixels_drawn = 0;
-    int first_pixel_x = -1, first_pixel_y = -1;
-
     /* Text on screen is clipped like everything else: it used to be held
      * only to portBits.bounds, so a window behind wrote its text over the
      * ones in front. */
@@ -222,21 +219,12 @@ static void FM_BlitGlyph(short x, short y, const ChicagoCharInfo* info,
                 uint32_t* dstPixels = (uint32_t*)__builtin_assume_aligned(
                     dstRow, _Alignof(uint32_t));
                 dstPixels[destX - destXOrigin] = color;
-                if (first_pixel_x < 0) {
-                    first_pixel_x = destX;
-                    first_pixel_y = destY;
-                }
-                pixels_drawn++;
             }
         }
     }
 
     QD_ClipEnd();
 
-    /* Debug removed - serial_printf can hang on ARM64 */
-    (void)pixels_drawn;
-    (void)first_pixel_x;
-    (void)first_pixel_y;
 }
 
 /* Built-in Chicago font strike (from chicago_font.h) */
@@ -911,18 +899,13 @@ void QD_LocalToPixel(short localX, short localY, short* pixelX, short* pixelY) {
      * had moved it. */
     *pixelX = localX + g_currentPort->portBits.bounds.left;
     *pixelY = localY + g_currentPort->portBits.bounds.top;
-    /* Debug removed - serial_printf can hang on ARM64 */
 }
 
 /* ============================================================================
  * QuickDraw Text Drawing Functions
  * ============================================================================ */
 
-/*
- * DrawChar - Draw a single character at the current pen location
- * NOTE: This shadows the QuickDraw/Text.c version to ensure menu title text
- * is drawn via direct framebuffer rendering instead of glyph extraction
- */
+/* Draw one character at the current pen using the active strike and port style. */
 void DrawChar(short ch) {
     if (!g_currentPort) return;
 
