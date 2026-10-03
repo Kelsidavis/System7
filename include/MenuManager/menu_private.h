@@ -109,7 +109,7 @@ MenuHandle GetMenuTitleByIndex(SInt16 index);
 SInt16 FindMenuAtPoint_Internal(Point pt);
 
 /* Menu tracking */
-void BeginTrackMenu(void);
+long BeginTrackMenu(short menuID, Point* startPt);
 void UpdateMenuTrackingNew(Point where);
 /* Returns the selected menu choice, or zero when tracking is cancelled. */
 long EndMenuTrackingNew(void);

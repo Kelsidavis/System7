@@ -11,6 +11,7 @@
 #include "SystemInternal.h"
 #include "MenuManager/MenuLogging.h"
 #include "MenuManager/MenuTypes.h"
+#include "MenuManager/menu_private.h"
 #include "DeskManager/DeskManager.h"
 #include "QuickDraw.h"
 #include "QuickDrawConstants.h"
@@ -20,12 +21,8 @@
 #include "TimeManager/TimeBase.h"
 #include "Platform/Framebuffer.h"
 
-extern SInt16 CountMenuItems(MenuHandle theMenu);
-extern Boolean CheckMenuItemSeparator(MenuHandle theMenu, short item);
-extern Boolean CheckMenuItemEnabled(MenuHandle theMenu, short item);
 extern void DrawMenuItemText(const Rect* itemRect, ConstStr255Param itemText,
                              Style textStyle, Boolean enabled, Boolean selected);
-extern short FindMenuAtPoint_Internal(Point pt);
 
 /* Menus draw anywhere on the screen, so the screen port is opened to all of
  * it: a clip someone else left there hid item text wherever it did not reach. */
@@ -39,12 +36,6 @@ extern void DrawVolumeIcon(void);
 static void DrawHighlightRect(short left, short top, short right, short bottom, Boolean highlight);
 void DrawMenuBarWithHighlight(short highlightMenuID);
 
-/* Forward declarations for menu tracking functions */
-long BeginTrackMenu(short menuID, Point *startPt);
-void UpdateMenuTrackingNew(Point mousePt);
-long EndMenuTrackingNew(void);
-Boolean IsMenuTrackingNew(void);
-long TrackMenu(short menuID, Point *startPt);
 short TrackMenu_TakeSwitch(void);
 
 /* Global menu tracking state for event-based menu handling */
@@ -486,7 +477,6 @@ long BeginTrackMenu(short menuID, Point *startPt) {
     short titleX = 0;
     short titleW = 30;
     {
-        extern Boolean GetMenuTitleRectByID(short menuID, Rect* outRect);
         Rect tr;
         if (GetMenuTitleRectByID(menuID, &tr)) {
             titleX = tr.left;
@@ -617,7 +607,6 @@ void UpdateMenuTrackingNew(Point mousePt) {
 
 /* End menu tracking and return selection */
 long EndMenuTrackingNew(void) {
-    extern void serial_printf(const char* fmt, ...);
     serial_printf("*** EndMenuTrackingNew: CALLED\n");
     serial_printf("***   isTracking=%d\n", g_menuTrackState.isTracking);
     serial_printf("***   menuID=%d\n", g_menuTrackState.menuID);
@@ -811,7 +800,6 @@ static long TrackMenu_Body(short menuID, Point *startPt) {
 
     /* The saved pixels must not include the pointer, or restoring them
      * would put a copy of it back where it was. */
-    extern void Pointer_TakeOffScreen(void);
     Pointer_TakeOffScreen();
     savedBits = SaveMenuBits(&menuRect);
     serial_puts("TrackMenu: SaveMenuBits returned\n");
@@ -868,7 +856,6 @@ static long TrackMenu_Body(short menuID, Point *startPt) {
         updateCount++;
 
         /* Draw cursor (menu tracking has its own event loop that bypasses main loop) */
-        extern void UpdateCursorDisplay(void);
         UpdateCursorDisplay();
 
         /* Get current mouse position */
@@ -1099,7 +1086,6 @@ static long TrackMenu_Body(short menuID, Point *startPt) {
     if (savePort) SetPort(savePort);
 
     /* Invalidate cursor so it gets redrawn (menu operations corrupt cursor background) */
-    extern void InvalidateCursor(void);
     InvalidateCursor();
 
     return result;
@@ -1139,7 +1125,6 @@ void DrawMenuBarWithHighlight(short highlightMenuID) {
      * meant a translated build highlighted a region computed from English
      * widths, and drew English text into it.
      */
-    extern Boolean GetMenuTitleRectByID(short menuID, Rect* outRect);
     Rect titleRect;
     if (!GetMenuTitleRectByID(highlightMenuID, &titleRect)) {
         return;
