@@ -45,17 +45,6 @@
 #include "System71StdLib.h"
 #include "ListManager/ListLogging.h"
 
-/* Debug logging control */
-#ifndef LIST_DEBUG
-#define LIST_DEBUG 1
-#endif
-
-#if LIST_DEBUG
-#define LIST_LOG(...) LIST_LOG_DEBUG(__VA_ARGS__)
-#else
-#define LIST_LOG(...)
-#endif
-
 /* Error codes */
 #ifndef memFullErr
 #define memFullErr (-108)

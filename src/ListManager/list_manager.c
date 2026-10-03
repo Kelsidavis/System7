@@ -15,17 +15,6 @@
 #include "System71StdLib.h"
 #include "ListManager/ListLogging.h"
 
-/* Debug logging */
-#ifndef LIST_DEBUG
-#define LIST_DEBUG 1
-#endif
-
-#if LIST_DEBUG
-#define LIST_LOG(...) LIST_LOG_DEBUG(__VA_ARGS__)
-#else
-#define LIST_LOG(...)
-#endif
-
 /* QuickDraw state restoration macro for safe early returns */
 #define RESTORE_QD_STATE(savePort, savePen, saveClip) do { \
     SetPenState(&savePen); \
