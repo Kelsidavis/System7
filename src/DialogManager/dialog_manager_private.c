@@ -9,9 +9,6 @@
 #include "DialogManager/DialogLogging.h"
 
 
-/* Private global state access. */
-extern DialogMgrGlobals* GetDialogManagerGlobals(void);
-
 /*
  * GetFrontWindowModalClass - Get modal class of front window
  */

@@ -29,7 +29,6 @@
 
 /* External dependencies */
 extern void SysBeep(SInt16 duration);
-extern void ShowWindow(WindowPtr window);
 /* NewHandleClear, DisposeHandle, HLock, HUnlock now provided by MemoryManager.h */
 extern void CenterDialogOnScreen(DialogPtr dlg);
 

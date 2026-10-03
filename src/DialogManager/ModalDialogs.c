@@ -84,7 +84,6 @@ static struct {
 } gModalState = {0};
 
 /* Function prototypes */
-Boolean ProcessModalEvent(DialogPtr theDialog, EventRecord* theEvent, SInt16* itemHit);
 static Boolean ProcessStandardModalKeys(DialogPtr theDialog, EventRecord* theEvent, SInt16* itemHit);
 static void FlashButtonInternal(DialogPtr theDialog, SInt16 itemNo);
 

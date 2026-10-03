@@ -20,10 +20,6 @@
 /* DialogGlobals and DialogManagerState are now defined in DialogManagerInternal.h */
 
 /* External dependencies */
-extern void InvertRect(const Rect* r);
-extern void FrameRect(const Rect* r);
-extern void PenSize(SInt16 width, SInt16 height);
-extern void PenNormal(void);
 extern Boolean StillDown(void);
 extern void GetMouse(Point* mouseLoc);
 
@@ -238,7 +234,6 @@ Boolean DialogEditKey(DialogPtr theDialog, char ch) {
 DialogPtr FrontDialog(void) {
     /* In full implementation, walk window list and find first dialog */
     /* For now, return the front modal dialog from state */
-    extern DialogManagerState* GetDialogManagerState(void);
     DialogManagerState* state = GetDialogManagerState();
 
     if (state) {

@@ -197,11 +197,9 @@ SInt16 RunModalDialogBox(DialogPtr dlg, SInt16 defaultItem, SInt16 cancelItem)
      * these runtime alerts is the message text - a static text item never draws
      * a ring, so no button ever got one. */
     if (defaultItem > 0) {
-        extern OSErr SetDialogDefaultItem(DialogPtr theDialog, SInt16 newItem);
         SetDialogDefaultItem(dlg, defaultItem);
     }
     if (cancelItem > 0) {
-        extern OSErr SetDialogCancelItem(DialogPtr theDialog, SInt16 newItem);
         SetDialogCancelItem(dlg, cancelItem);
     }
 
