@@ -19,6 +19,9 @@
 #include "FontManager/FontManager.h"
 #include "SoundManager/SoundManager.h"
 #include "FS/hfs_types.h"
+#include "FS/trash.h"
+#include "FS/vfs_ops.h"
+#include "ScrapManager/ScrapTypes.h"
 #include "ControlPanels/DesktopPatterns.h"
 #include "ControlPanels/Sound.h"
 #include "ControlPanels/Mouse.h"
@@ -26,10 +29,12 @@
 #include "ControlPanels/ControlStrip.h"
 #include "Datetime/datetime_cdev.h"
 #include "DeskManager/Notepad.h"
+#include "DeskManager/DeskManager.h"
 #include "DialogManager/DialogManager.h"
 #include "LocaleManager/LocaleManager.h"
 #include "LocaleManager/StringIDs.h"
 #include "Platform/Halt.h"
+#include "Platform/include/boot.h"
 #include "Platform/include/io.h"
 
 #include <string.h>
@@ -121,7 +126,6 @@ static void HandleControlPanelsMenu(short item);
 /* Main menu command dispatcher */
 void DoMenuCommand(short menuID, short item)
 {
-    extern void serial_printf(const char* fmt, ...);
     serial_printf("*** DoMenuCommand: CALLED with menu=%d, item=%d\n", menuID, item);
     MENU_LOG_DEBUG("DoMenuCommand: menu=%d, item=%d\n", menuID, item);
 
@@ -183,10 +187,6 @@ void DoMenuCommand(short menuID, short item)
  * This is the standard System 7 menu adjustment pattern.
  */
 void Finder_AdjustMenus(void) {
-    extern MenuHandle GetMenuHandle(short menuID);
-    extern void EnableItem(MenuHandle theMenu, short item);
-    extern void DisableItem(MenuHandle theMenu, short item);
-
     WindowPtr front = FrontWindow();
     Boolean hasFolderWindow = (front && IsFolderWindow(front));
     Boolean hasSelection = false;
@@ -194,24 +194,18 @@ void Finder_AdjustMenus(void) {
     /* Check if any items are selected in the front folder window
      * or if a desktop icon is selected when no window is front */
     if (hasFolderWindow) {
-        extern Boolean FolderWindow_HasSelection(WindowPtr w);
         hasSelection = FolderWindow_HasSelection(front);
     } else {
         /* Check for selected desktop icon */
-        extern Boolean Desktop_HasSelectedIcon(void);
         hasSelection = Desktop_HasSelectedIcon();
     }
 
     /* Adjust Edit menu */
     MenuHandle editMenu = GetMenuHandle(kEditMenuID);
     if (editMenu) {
-        extern void SetMenuItemText(MenuHandle theMenu, short item,
-                                     ConstStr255Param itemString);
-
         /* Dynamic Undo text based on undo state.
          * g_finderUndo is defined later in this file — use extern-like access
          * via a helper to avoid forward-reference issues. */
-        extern short Finder_GetUndoType(void);
         Boolean canUndo = (Finder_GetUndoType() == 1 /* kFinderUndoTrash */);
         Str255 undoStr;
 
@@ -242,9 +236,8 @@ void Finder_AdjustMenus(void) {
          * at the enabled state it was built with and stayed that way for the
          * session - offering to paste with an empty clipboard, and still
          * offering it when the front window is not somewhere files can go.
-         * Passing no destination handle asks GetScrap for the size only. */
+        * Passing no destination handle asks GetScrap for the size only. */
         {
-            extern long GetScrap(Handle hDest, OSType theType, long* offset);
             long fileListSize = GetScrap(NULL, FOURCC('f','S','S','p'), NULL);
             Boolean canPaste = hasFolderWindow &&
                                fileListSize > (long)(sizeof(SInt16) + sizeof(UInt8));
@@ -299,8 +292,6 @@ void Finder_AdjustMenus(void) {
          * System 7 shows "Close Window" for Finder windows, "Close" for others. */
         if (front) {
             EnableItem(fileMenu, kCloseItem);
-            extern void SetMenuItemText(MenuHandle theMenu, short item,
-                                         ConstStr255Param itemString);
             Str255 closeStr;
             GetLocalizedString(closeStr, kSTRListFinderFileMenu,
                                hasFolderWindow ? kStrCloseWindow : kStrClosePlain);
@@ -313,12 +304,10 @@ void Finder_AdjustMenus(void) {
     /* Adjust Label menu — checkmark the selected item's label */
     MenuHandle labelMenu = GetMenuHandle(kLabelMenuID);
     if (labelMenu) {
-        extern void CheckItem(MenuHandle theMenu, short item, Boolean checked);
         short activeLabel = -1;
 
         /* Get the label of the first selected item */
         if (hasFolderWindow && hasSelection) {
-            extern short FolderWindow_GetSelectedLabel(WindowPtr w);
             activeLabel = FolderWindow_GetSelectedLabel(front);
         }
 
@@ -339,8 +328,6 @@ void Finder_AdjustMenus(void) {
          * function, so every localised build flipped the item back to English
          * the moment a window came forward. They come from the Special menu's
          * own STR# now, like every other item in the menu. */
-        extern void SetMenuItemText(MenuHandle theMenu, short item,
-                                     ConstStr255Param itemString);
         Str255 cleanUpStr;
         SInt16 whichCleanUp = kStrCleanUpDesktop;
         if (hasFolderWindow) {
@@ -350,7 +337,6 @@ void Finder_AdjustMenus(void) {
         SetMenuItemText(specialMenu, 1, cleanUpStr);
 
         /* Empty Trash grayed when trash is empty */
-        extern bool Trash_IsEmptyAll(void);
         if (Trash_IsEmptyAll()) {
             DisableItem(specialMenu, 2);
         } else {
@@ -397,7 +383,6 @@ static void HandleAppleMenu(short item)
 
     if (strcmp(itemName, "About This Macintosh") == 0) {
         MENU_LOG_DEBUG("About This Macintosh...\n");
-        extern void AboutWindow_ShowOrToggle(void);
         AboutWindow_ShowOrToggle();
         return;
     }
@@ -451,9 +436,8 @@ static void HandleAppleMenu(short item)
 
     /* Try to open as a desk accessory via OpenDeskAcc.
      * This handles Calculator, Key Caps, Alarm Clock, and any
-     * other DAs registered with the Desk Manager. */
+    * other DAs registered with the Desk Manager. */
     {
-        extern SInt16 OpenDeskAcc(const char* name);
         SInt16 refNum = OpenDeskAcc(itemName);
         if (refNum >= 0) {
             MENU_LOG_DEBUG("Apple Menu: Opened DA '%s' (refNum=%d)\n", itemName, refNum);
@@ -515,17 +499,10 @@ static void HandleControlPanelsMenu(short item)
 /* File Menu Handler - Finder specific */
 static void HandleFileMenu(short item)
 {
-    extern void DrawDesktop(void);
-
     switch (item) {
         case kNewFolderItem: {
             MENU_LOG_INFO("File > New Folder\n");
             /* Create new folder in current window or desktop */
-            extern bool VFS_CreateFolder(VRefNum vref, DirID parent, const char* name, DirID* newID);
-            extern bool VFS_GenerateUniqueName(VRefNum vref, DirID dir, const char* base, char* out);
-            extern VRefNum FolderWindow_GetVRef(WindowPtr w);
-            extern DirID FolderWindow_GetCurrentDir(WindowPtr w);
-
             WindowPtr front = FrontWindow();
             VRefNum targetVRef = 0;
             DirID targetDir = 2;  /* Default to desktop */
@@ -561,9 +538,6 @@ static void HandleFileMenu(short item)
                     /* Select the new folder and initiate rename.
                      * In System 7, New Folder creates the item selected
                      * with its name ready for editing. */
-                    extern void FolderWindow_SelectByName(WindowPtr w, const char* name);
-                    extern void FolderWindow_RenameItem(WindowPtr w, short itemIndex);
-                    extern short FolderWindow_FindItemByName(WindowPtr w, const char* name);
                     FolderWindow_SelectByName(front, folderName);
                     short newIdx = FolderWindow_FindItemByName(front, folderName);
                     if (newIdx >= 0) {
@@ -583,7 +557,6 @@ static void HandleFileMenu(short item)
         case kOpenItem: {
             MENU_LOG_INFO("File > Open\n");
             /* Open selected item in Finder window - or open front window's selected item */
-            extern void OpenSelectedItems(void);
             OpenSelectedItems();
             break;
         }
@@ -598,7 +571,6 @@ static void HandleFileMenu(short item)
         case kCloseItem: {
             MENU_LOG_INFO("File > Close\n");
             /* Close current window - standard close operation */
-            extern void CloseWindow(WindowPtr window);
             WindowPtr front = FrontWindow();
             if (front && front->visible) {
                 MENU_LOG_DEBUG("Closing front window 0x%08x\n", (unsigned int)P2UL(front));
@@ -610,7 +582,6 @@ static void HandleFileMenu(short item)
         case kGetInfoItem: {
             MENU_LOG_INFO("File > Get Info\n");
             /* Show Get Info for selected item — works from folder windows and desktop */
-            extern void ShowGetInfoDialog(WindowPtr w);
             ShowGetInfoDialog(FrontWindow());  /* NULL = desktop selection */
             break;
         }
@@ -625,7 +596,6 @@ static void HandleFileMenu(short item)
         case kDuplicateItem: {
             MENU_LOG_INFO("File > Duplicate\n");
             /* Duplicate selected items in Finder */
-            extern void DuplicateSelectedItems(WindowPtr w);
             WindowPtr front = FrontWindow();
             if (front) {
                 DuplicateSelectedItems(front);
@@ -636,7 +606,6 @@ static void HandleFileMenu(short item)
         case kMakeAliasItem: {
             MENU_LOG_INFO("File > Make Alias\n");
             /* Create alias of selected items */
-            extern void MakeAliasOfSelectedItems(WindowPtr w);
             WindowPtr front = FrontWindow();
             if (front) {
                 MakeAliasOfSelectedItems(front);
@@ -647,7 +616,6 @@ static void HandleFileMenu(short item)
         case kPutAwayItem: {
             MENU_LOG_INFO("File > Put Away\n");
             /* Put away selected item - move to trash or eject volume */
-            extern void PutAwaySelectedItems(WindowPtr w);
             WindowPtr front = FrontWindow();
             if (front) {
                 PutAwaySelectedItems(front);
@@ -658,7 +626,6 @@ static void HandleFileMenu(short item)
         case kFindItem: {
             MENU_LOG_INFO("File > Find...\n");
             /* Show Find dialog to search for files */
-            extern OSErr ShowFind(void);
             OSErr err = ShowFind();
             if (err != noErr) {
                 MENU_LOG_DEBUG("ShowFind failed with error %d\n", err);
@@ -669,7 +636,6 @@ static void HandleFileMenu(short item)
         case kFindAgainItem: {
             MENU_LOG_INFO("File > Find Again\n");
             /* Repeat the last find operation */
-            extern OSErr FindAgain(void);
             OSErr err = FindAgain();
             if (err != noErr) {
                 MENU_LOG_DEBUG("FindAgain failed with error %d\n", err);
@@ -686,8 +652,6 @@ static void HandleFileMenu(short item)
 /* Edit Menu Handler - System 7.1 standard */
 static void HandleEditMenu(short item)
 {
-    extern Boolean SystemEdit(SInt16 editCmd);
-
     /*
      * System 7 Edit menu routing: Always call SystemEdit() first.
      * If a desk accessory is active, it handles the edit command and
@@ -707,42 +671,36 @@ static void HandleEditMenu(short item)
     switch (item) {
         case kUndoItem: {
             MENU_LOG_INFO("Edit > Undo\n");
-            extern void Finder_Undo(void);
             Finder_Undo();
             break;
         }
 
         case kCutItem: {
             MENU_LOG_INFO("Edit > Cut\n");
-            extern void Finder_Cut(void);
             Finder_Cut();
             break;
         }
 
         case kCopyItem: {
             MENU_LOG_INFO("Edit > Copy\n");
-            extern void Finder_Copy(void);
             Finder_Copy();
             break;
         }
 
         case kPasteItem: {
             MENU_LOG_INFO("Edit > Paste\n");
-            extern void Finder_Paste(void);
             Finder_Paste();
             break;
         }
 
         case kClearItem: {
             MENU_LOG_INFO("Edit > Clear\n");
-            extern void Finder_Clear(void);
             Finder_Clear();
             break;
         }
 
         case kSelectAllItem: {
             MENU_LOG_INFO("Edit > Select All\n");
-            extern void Finder_SelectAll(void);
             Finder_SelectAll();
             break;
         }
@@ -759,9 +717,6 @@ static void HandleEditMenu(short item)
  * Called when switching views and when the front window changes.
  */
 static void UpdateViewMenuCheckmarks(short activeViewMode) {
-    extern MenuHandle GetMenuHandle(short menuID);
-    extern void CheckItem(MenuHandle theMenu, short item, Boolean checked);
-
     MenuHandle viewMenu = GetMenuHandle(kViewMenuID);
     if (!viewMenu) return;
 
@@ -773,8 +728,6 @@ static void UpdateViewMenuCheckmarks(short activeViewMode) {
 
 static void HandleViewMenu(short item)
 {
-    extern void SetWindowViewMode(WindowPtr w, short viewMode);
-
     WindowPtr front = FrontWindow();
 
     switch (item) {
@@ -825,8 +778,6 @@ static void HandleViewMenu(short item)
  * Called when a window becomes frontmost (window activation).
  */
 void Finder_UpdateViewMenuForWindow(WindowPtr w) {
-    extern short FolderWindow_GetViewMode(WindowPtr w);
-
     if (w && IsFolderWindow(w)) {
         short mode = FolderWindow_GetViewMode(w);
         if (mode >= 1 && mode <= 6) {
@@ -838,8 +789,6 @@ void Finder_UpdateViewMenuForWindow(WindowPtr w) {
 /* Label Menu Handler - System 7.1 label colors */
 static void HandleLabelMenu(short item)
 {
-    extern void ApplyLabelToSelection(WindowPtr w, short labelIndex);
-
     const char* labelNames[] = {
         "None",
         "Essential",
@@ -867,16 +816,10 @@ static void HandleLabelMenu(short item)
 /* Special Menu Handler - System 7.1 Special menu */
 static void HandleSpecialMenu(short item)
 {
-    extern void ArrangeDesktopIcons(void);
-    extern OSErr EmptyTrash(Boolean force);
-
     switch (item) {
         case 1: {  /* Clean Up Selection / Window / Desktop */
             WindowPtr front = FrontWindow();
             if (front && IsFolderWindow(front)) {
-                extern void FolderWindow_CleanUp(WindowPtr w, Boolean selectedOnly);
-                extern Boolean FolderWindow_GetSelectedItem(WindowPtr w, VRefNum* outVref,
-                                                            FileID* outFileID);
                 VRefNum vref;
                 FileID fid;
                 Boolean hasSelection = FolderWindow_GetSelectedItem(front, &vref, &fid);
@@ -932,8 +875,6 @@ static void HandleSpecialMenu(short item)
 
             /* Display restart message before rebooting */
             {
-                extern void hal_framebuffer_present(void);
-
                 Pattern grayPat;
                 for (int i = 0; i < 8; i++)
                     grayPat.pat[i] = (i & 1) ? 0xAA : 0x55;
@@ -968,8 +909,6 @@ static void HandleSpecialMenu(short item)
             /* Display the classic "It is now safe to turn off your Macintosh"
              * shutdown screen before halting. */
             {
-                extern void hal_framebuffer_present(void);
-
                 /* Fill entire screen with gray pattern */
                 Pattern grayPat;
                 for (int i = 0; i < 8; i++)
@@ -1018,22 +957,17 @@ void OpenSelectedItems(void) {
 
     /* If no folder window is front, try to open the selected desktop icon */
     if (!frontWin || !IsFolderWindow(frontWin)) {
-        extern void Desktop_OpenSelectedIcon(void);
         Desktop_OpenSelectedIcon();
         return;
     }
 
     /* Call folder window open helper - simulates double-click on selected item */
-    extern void FolderWindow_OpenSelected(WindowPtr w);
     FolderWindow_OpenSelected(frontWin);
     MENU_LOG_DEBUG("OpenSelectedItems: Opened selected item\n");
 }
 
 void ShowGetInfoDialog(WindowPtr w) {
     MENU_LOG_DEBUG("ShowGetInfoDialog called\n");
-
-    extern Boolean FolderWindow_GetSelectedItem(WindowPtr w, VRefNum* outVref, FileID* outFileID);
-    extern void GetInfo_Show(VRefNum vref, FileID fileID);
 
     VRefNum vref;
     FileID fileID;
@@ -1046,7 +980,6 @@ void ShowGetInfoDialog(WindowPtr w) {
         }
     } else {
         /* Try desktop icon selection */
-        extern Boolean Desktop_GetSelectedIconInfo(VRefNum* vref, FileID* fileID);
         if (!Desktop_GetSelectedIconInfo(&vref, &fileID)) {
             MENU_LOG_DEBUG("ShowGetInfoDialog: No desktop icon selected\n");
             return;
@@ -1077,7 +1010,6 @@ void DuplicateSelectedItems(WindowPtr w) {
     }
 
     /* Call folder window duplicate helper */
-    extern void FolderWindow_DuplicateSelected(WindowPtr w);
     FolderWindow_DuplicateSelected(w);
     MENU_LOG_DEBUG("DuplicateSelectedItems: Duplicated selected items\n");
 }
@@ -1102,7 +1034,6 @@ void MakeAliasOfSelectedItems(WindowPtr w) {
     }
 
     /* Get selected items as FSSpec array */
-    extern short FolderWindow_GetSelectedAsSpecs(WindowPtr w, FSSpec** outSpecs);
     FSSpec* specs = NULL;
     short count = FolderWindow_GetSelectedAsSpecs(w, &specs);
 
@@ -1114,8 +1045,6 @@ void MakeAliasOfSelectedItems(WindowPtr w) {
     MENU_LOG_DEBUG("MakeAliasOfSelectedItems: Creating aliases for %d items\n", count);
 
     /* Get current folder location */
-    extern VRefNum FolderWindow_GetVRef(WindowPtr w);
-    extern DirID FolderWindow_GetCurrentDir(WindowPtr w);
     VRefNum vref = FolderWindow_GetVRef(w);
     DirID dirID = FolderWindow_GetCurrentDir(w);
 
@@ -1126,9 +1055,6 @@ void MakeAliasOfSelectedItems(WindowPtr w) {
      * FSMakeFSSpec returned nsvErr before an alias was ever attempted and the
      * command silently did nothing. Aliases are created on the VFS now, like
      * every other Finder operation that works. */
-    extern bool VFS_Lookup(VRefNum vref, DirID dir, const char* name, CatEntry* entry);
-    extern bool VFS_GenerateUniqueName(VRefNum vref, DirID dir, const char* base, char* out);
-
     for (short i = 0; i < count; i++) {
         unsigned char nameLen = specs[i].name[0];
         char cName[256];
@@ -1170,12 +1096,6 @@ void PutAwaySelectedItems(WindowPtr w) {
 
     /* Put Away restores selected items from Trash to their original location.
      * This mirrors Finder_Undo's trash restore logic. */
-    extern bool Trash_GetDir(VRefNum vref, DirID* trashDir);
-    extern bool VFS_Move(VRefNum vref, DirID fromDir, FileID id,
-                         DirID toDir, const char* newName);
-    extern bool VFS_GetByID(VRefNum vref, FileID id, CatEntry* entry);
-    extern VRefNum VFS_GetBootVRef(void);
-
     if (!w) w = FrontWindow();
     if (!w || !IsFolderWindow(w)) return;
 
@@ -1184,9 +1104,6 @@ void PutAwaySelectedItems(WindowPtr w) {
         MENU_LOG_DEBUG("PutAwaySelectedItems: Not a trash window\n");
         return;
     }
-
-    extern VRefNum FolderWindow_GetVRef(WindowPtr w);
-    extern void FolderWindow_GetSelectedFileIDs(WindowPtr w, FileID* ids, short* count);
 
     VRefNum vref = FolderWindow_GetVRef(w);
     if (vref == 0) vref = VFS_GetBootVRef();
@@ -1265,8 +1182,6 @@ void Finder_RecordTrashUndo(VRefNum vref, DirID parentDir, FileID fileID) {
 
 /* Edit Operations */
 void Finder_Undo(void) {
-    extern void SysBeep(short duration);
-
     if (g_finderUndo.type == kFinderUndoNone || g_finderUndo.count == 0) {
         SysBeep(1);  /* Nothing to undo */
         return;
@@ -1274,11 +1189,6 @@ void Finder_Undo(void) {
 
     if (g_finderUndo.type == kFinderUndoTrash) {
         /* Undo Move to Trash: move items back from Trash to original location */
-        extern bool Trash_GetDir(VRefNum vref, DirID* trashDir);
-        extern bool VFS_Move(VRefNum vref, DirID fromDir, FileID id,
-                             DirID toDir, const char* newName);
-        extern const char* VFS_GetNameByID(VRefNum vref, DirID dir, FileID id);
-
         DirID trashDir = 0;
         if (!Trash_GetDir(g_finderUndo.vref, &trashDir)) {
             SysBeep(1);
@@ -1306,7 +1216,6 @@ void Finder_Undo(void) {
         }
 
         /* Refresh trash icon */
-        extern void Desktop_RefreshTrashIcon(void);
         Desktop_RefreshTrashIcon();
 
         /* Clear undo state */
@@ -1332,7 +1241,6 @@ void Finder_Cut(void) {
     }
 
     /* Get selected items as FSSpec array */
-    extern short FolderWindow_GetSelectedAsSpecs(WindowPtr w, FSSpec** outSpecs);
     FSSpec* specs = NULL;
     short count = FolderWindow_GetSelectedAsSpecs(frontWin, &specs);
 
@@ -1345,9 +1253,6 @@ void Finder_Cut(void) {
 
     /* Copy to clipboard with CUT flag set */
     /* Format: [count:2 bytes][cutMode:1 byte][FSSpec array] */
-    extern void ZeroScrap(void);
-    extern void PutScrap(long byteCount, OSType theType, const void* sourcePtr);
-
     ZeroScrap();  /* Clear clipboard */
 
     /* Calculate total size: count + cutMode + FSSpec array */
@@ -1397,7 +1302,6 @@ void Finder_Copy(void) {
     }
 
     /* Get selected items as FSSpec array */
-    extern short FolderWindow_GetSelectedAsSpecs(WindowPtr w, FSSpec** outSpecs);
     FSSpec* specs = NULL;
     short count = FolderWindow_GetSelectedAsSpecs(frontWin, &specs);
 
@@ -1410,9 +1314,6 @@ void Finder_Copy(void) {
 
     /* Copy to clipboard using basic Scrap Manager */
     /* Format: [count:2 bytes][cutMode:1 byte][FSSpec array] */
-    extern void ZeroScrap(void);
-    extern void PutScrap(long byteCount, OSType theType, const void* sourcePtr);
-
     ZeroScrap();  /* Clear clipboard */
 
     /* Calculate total size: count + cutMode + FSSpec array */
@@ -1462,7 +1363,6 @@ void Finder_Paste(void) {
     }
 
     /* Get files from clipboard using basic Scrap Manager */
-    extern long GetScrap(Handle hDest, OSType theType, long* offset);
     /* NewHandle, DisposeHandle now provided by MemoryManager.h */
 
     Handle scrapHandle = NewHandle(0);
@@ -1494,8 +1394,6 @@ void Finder_Paste(void) {
     MENU_LOG_DEBUG("Finder_Paste: Pasting %d items from clipboard (cutMode=%d)\n", sourceCount, cutMode);
 
     /* Get destination folder info */
-    extern VRefNum FolderWindow_GetVRef(WindowPtr w);
-    extern DirID FolderWindow_GetCurrentDir(WindowPtr w);
     VRefNum destVRef = FolderWindow_GetVRef(frontWin);
     DirID destDir = FolderWindow_GetCurrentDir(frontWin);
 
@@ -1510,10 +1408,6 @@ void Finder_Paste(void) {
     }
 
     /* Copy each file to the destination folder */
-    extern bool VFS_GenerateUniqueName(VRefNum vref, DirID dir, const char* base, char* out);
-    extern bool VFS_Copy(VRefNum vref, DirID fromDir, FileID id, DirID toDir, const char* newName, FileID* newID);
-    extern bool VFS_Lookup(VRefNum vref, DirID dir, const char* name, CatEntry* entry);
-
     /* Names of what actually landed, so the selection can be put on them
      * after the reload below. */
     #define kMaxPastedTracked 32
@@ -1575,8 +1469,6 @@ void Finder_Paste(void) {
     if (cutMode == 1) {
         MENU_LOG_DEBUG("Finder_Paste: Cut mode - deleting source files\n");
 
-        extern bool VFS_Delete(VRefNum vref, FileID id);
-
         for (SInt16 i = 0; i < sourceCount; i++) {
             FSSpec sourceSpec;
             memcpy(&sourceSpec, sourceSpecs + (size_t)i * sizeof(sourceSpec), sizeof(sourceSpec));
@@ -1606,7 +1498,6 @@ void Finder_Paste(void) {
         }
 
         /* Clear the clipboard after cut/paste */
-        extern void ZeroScrap(void);
         ZeroScrap();
     }
 
@@ -1653,7 +1544,6 @@ void Finder_Clear(void) {
     }
 
     /* Call folder window delete helper */
-    extern void FolderWindow_DeleteSelected(WindowPtr w);
     FolderWindow_DeleteSelected(frontWin);
     MENU_LOG_DEBUG("Finder_Clear: Deleted selected items\n");
 }
@@ -1666,12 +1556,10 @@ void Finder_SelectAll(void) {
 
     if (frontWin && IsFolderWindow(frontWin)) {
         /* Select all items in the folder window */
-        extern void FolderWindow_SelectAll(WindowPtr w);
         FolderWindow_SelectAll(frontWin);
         MENU_LOG_DEBUG("Finder_SelectAll: Selected all items in folder window\n");
     } else {
         /* No folder window front — select all desktop icons */
-        extern void Desktop_SelectAllIcons(void);
         Desktop_SelectAllIcons();
         MENU_LOG_DEBUG("Finder_SelectAll: Selected all desktop icons\n");
     }
@@ -1684,8 +1572,6 @@ void SetWindowViewMode(WindowPtr w, short viewMode) {
     MENU_LOG_DEBUG("SetWindowViewMode called with mode=%d\n", viewMode);
 
     /* Check if it's a folder window */
-    extern void FolderWindow_SortAndArrange(WindowPtr w, short sortType);
-
     if (IsFolderWindow(w)) {
         /* viewMode: 1=by Icon, 2=by Name, 3=by Size, 4=by Kind, 5=by Label, 6=by Date */
         FolderWindow_SortAndArrange(w, viewMode);
@@ -1708,7 +1594,6 @@ void ApplyLabelToSelection(WindowPtr w, short labelIndex) {
     }
 
     /* Apply label to selected items */
-    extern void FolderWindow_SetLabelOnSelected(WindowPtr w, short labelIndex);
     FolderWindow_SetLabelOnSelected(w, labelIndex);
 
     MENU_LOG_DEBUG("ApplyLabelToSelection: Applied label %d to selected items\n", labelIndex);
