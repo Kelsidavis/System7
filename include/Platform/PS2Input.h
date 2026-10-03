@@ -11,7 +11,7 @@
 #define __PS2INPUT_H__
 
 #include "SystemTypes.h"
-#include "EventManager/EventTypes.h"
+#include "EventManager/MouseEvents.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -24,7 +24,6 @@ Boolean InitPS2Controller(void);
 void PollPS2Input(void);
 
 /* Mouse Functions */
-void GetMouse(Point* mouseLoc);
 void SetMousePosition(SInt16 x, SInt16 y);
 void SetMouseButtons(UInt8 buttons);
 UInt8 GetMouseButtons(void);
@@ -32,13 +31,9 @@ UInt8 GetMouseButtons(void);
 /* Like GetMouseButtons, but reports a press that arrived and released
  * between polls so a fast click is not lost. */
 UInt8 GetMouseButtonsLatched(void);
-void GetMouseLocal(Point* mouseLoc);
 Boolean PS2_IsInitialized(void);
 Boolean PS2_IsIRQDriven(void);
 Boolean PS2_DequeueKeyTransition(UInt8* macCode, Boolean* isPressed);
-Boolean Button(void);
-Boolean StillDown(void);
-Boolean WaitMouseUp(void);
 
 /* Keyboard Functions */
 UInt16 GetPS2Modifiers(void);

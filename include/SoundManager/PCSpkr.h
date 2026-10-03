@@ -10,18 +10,11 @@
 #ifndef __PCSPKR_H__
 #define __PCSPKR_H__
 
-#include <stdint.h>
+#include "SoundManager/SoundHardware.h"
 
 #ifdef __cplusplus
 extern "C" {
 #endif
-
-/* PC Speaker initialization and shutdown */
-int PCSpkr_Init(void);
-void PCSpkr_Shutdown(void);
-
-/* PC Speaker beep output */
-void PCSpkr_Beep(uint32_t frequency, uint32_t duration_ms);
 
 #ifdef __cplusplus
 }

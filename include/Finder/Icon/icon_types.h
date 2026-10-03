@@ -73,8 +73,5 @@ bool Icon_ResolveForNode(const FileKind* fk, IconHandle* out); /* Lookup by cust
 void Icon_Draw32(const IconHandle* h, int x, int y, bool selected);  /* Draw at 32×32, optionally darkened if selected */
 void Icon_Draw16(const IconHandle* h, int x, int y);           /* Draw at 16×16 (list views) */
 
-/* Icon with label */
-IconRect Icon_DrawWithLabel(const IconHandle* h, const char* name, int centerX, int iconTopY, bool selected);
-
 /* Hit testing */
 int Icon_HitTest(const IconSlot* slots, int count, int x, int y);

@@ -124,18 +124,6 @@ typedef void (*SpeechChannelEventProc)(SpeechChannel chan, long eventType, void 
 
 /* ===== Channel Text Processing ===== */
 
-/* Text speaking */
-OSErr SpeakText(SpeechChannel chan, void *textBuf, long textBytes);
-OSErr SpeakBuffer(SpeechChannel chan, void *textBuf, long textBytes, long controlFlags);
-
-
-/* ===== Channel Control ===== */
-
-/* Speech control */
-OSErr StopSpeechAt(SpeechChannel chan, long whereToStop);
-OSErr PauseSpeechAt(SpeechChannel chan, long whereToPause);
-
-
 /* ===== Channel Monitoring ===== */
 
 

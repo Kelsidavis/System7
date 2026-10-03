@@ -10,6 +10,7 @@
 #include "EventManager/EventTypes.h"  /* Include before WindowTypes.h to avoid activeFlag conflict */
 #include "WindowManager/WindowTypes.h"
 #include "FS/hfs_types.h"  /* For VRefNum, FileID */
+#include "Finder/AboutThisMac.h"
 
 /* Finder Flag Constants - Evidence: Finder.h interface definitions */
 #define kIsOnDesk               0x0001      /* Item is positioned on desktop */
@@ -153,12 +154,6 @@ OSErr CreateAlias(FSSpec *target, FSSpec *aliasFile);
 /* About Dialog API - Evidence: "About The Finder", "Macintosh Finder Version 7.1" */
 OSErr ShowAboutFinder(void);
 StringPtr GetFinderVersion(void);
-void AboutWindow_ShowOrToggle(void);
-Boolean AboutWindow_CloseIf(WindowPtr w);
-Boolean AboutWindow_HandleUpdate(WindowPtr w);
-Boolean AboutWindow_HandleMouseDown(WindowPtr w, short part, Point localPt);
-Boolean AboutWindow_IsOurs(WindowPtr w);
-void AboutWindow_ProcessPendingCreation(void);
 
 /* Utility Functions */
 OSErr ShowErrorDialog(ConstStr255Param message, OSErr errorCode);
