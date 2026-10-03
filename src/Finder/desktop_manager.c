@@ -30,16 +30,9 @@
 #include "EventManager/EventManager.h"
 #include "WindowManager/WindowManager.h"
 
-/* HD Icon data - still needed by icon_system.c */
-extern const uint8_t g_HDIcon[128];
-extern const uint8_t g_HDIconMask[128];
-
 /* DVI_DEBUG: Set to 1 to enable verbose DrawVolumeIcon debugging
  * WARNING: Enabling causes performance impact on ARM64 */
 #define DVI_DEBUG 0
-
-/* Forward declarations */
-void RefreshDesktopRect(const Rect* rectToRefresh);
 
 #if DVI_DEBUG
 #define DVI_LOG(msg) do { extern void serial_puts(const char*); extern void uart_flush(void); serial_puts(msg); uart_flush(); } while(0)
@@ -2138,20 +2131,4 @@ void Desktop_OpenSelectedIcon(void) {
         default:
             break;
     }
-}
-
-/*
- * RefreshDesktopRect - Refresh a specific rectangular area of the desktop
- *
- * This function redraws a specific region of the desktop to clean up
- * artifacts like cursor ghosts or temporary drawing operations.
- */
-void RefreshDesktopRect(const Rect* rectToRefresh)
-{
-    if (rectToRefresh == NULL) {
-        return;
-    }
-
-    /* Stub implementation - full refresh implementation pending desktop drawing infrastructure */
-    InvalRect(rectToRefresh);  /* Mark region as needing redraw */
 }
