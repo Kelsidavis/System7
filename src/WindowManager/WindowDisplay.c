@@ -347,9 +347,6 @@ void PaintOne(WindowPtr window, RgnHandle clobberedRgn) {
     DrawWindowControls(window);
     WM_LOG_TRACE("PaintOne: DrawWindowControls returned\n");
 
-    /* Test content drawing temporarily disabled until Font Manager is linked */
-    WM_LOG_TRACE("[TEXT] Text drawing disabled - Font Manager not linked\n");
-
     /* Window Manager draws chrome only - content is application's job */
     /* Application must draw content via BeginUpdate/EndUpdate in update event handler */
 
