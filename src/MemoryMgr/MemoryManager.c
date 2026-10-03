@@ -1641,9 +1641,7 @@ void* malloc(size_t size) {
 }
 
 void free(void* ptr) {
-    serial_puts("[FREE] ENTRY\n");
     DisposePtr(ptr);
-    serial_puts("[FREE] Complete\n");
 }
 
 void* calloc(size_t nmemb, size_t size) {
