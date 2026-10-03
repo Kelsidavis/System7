@@ -1,18 +1,7 @@
 /* HFS Endian Conversion Utilities */
 #pragma once
 #include <stdint.h>
-
-/* Read big-endian values from memory */
-static inline uint16_t be16_read(const void* p) {
-    const uint8_t* s = (const uint8_t*)p;
-    return ((uint16_t)s[0] << 8) | s[1];
-}
-
-static inline uint32_t be32_read(const void* p) {
-    const uint8_t* s = (const uint8_t*)p;
-    return ((uint32_t)s[0] << 24) | ((uint32_t)s[1] << 16) |
-           ((uint32_t)s[2] << 8)  | s[3];
-}
+#include "ByteOrder.h"
 
 /* Write big-endian values to memory */
 static inline void be16_write(void* p, uint16_t v) {

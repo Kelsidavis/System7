@@ -21,6 +21,7 @@
 #include "DialogManager/DialogResources.h"
 #include "ResourceManager.h"
 #include "MemoryMgr/MemoryManager.h"
+#include "ByteOrder.h"
 #include <string.h>
 
 enum {
@@ -29,12 +30,11 @@ enum {
 };
 
 static SInt16 ReadBE16(const UInt8* p) {
-    return (SInt16)(((UInt16)p[0] << 8) | p[1]);
+    return (SInt16)be16_read(p);
 }
 
 static SInt32 ReadBE32(const UInt8* p) {
-    return (SInt32)(((UInt32)p[0] << 24) | ((UInt32)p[1] << 16) |
-                    ((UInt32)p[2] << 8) | p[3]);
+    return (SInt32)be32_read(p);
 }
 
 static void ReadRect(const UInt8* p, Rect* r) {

@@ -3,6 +3,7 @@
 #include "PatternMgr/pattern_resources.h"
 #include "Platform/Framebuffer.h"
 #include "System71StdLib.h"
+#include "ByteOrder.h"
 #include "ResourceManager.h"
 #include "MemoryMgr/MemoryManager.h"
 #include <string.h>
@@ -62,11 +63,11 @@ bool LoadPATResource(int16_t id, Pattern *outPat) {
 
 /* Parse big-endian 16-bit value */
 static uint16_t ReadBE16(const uint8_t* p) {
-    return (p[0] << 8) | p[1];
+    return be16_read(p);
 }
 
 static uint32_t ReadBE32(const uint8_t* p) {
-    return ((uint32_t)p[0] << 24) | ((uint32_t)p[1] << 16) | ((uint32_t)p[2] << 8) | p[3];
+    return be32_read(p);
 }
 
 /*
