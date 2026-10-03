@@ -18,6 +18,7 @@
 #include "ToolboxCompat.h"
 #include "WindowManager/WindowManager.h"
 #include "QuickDraw/QuickDraw.h"
+#include "QuickDraw/QuickDrawInternal.h"
 #include "QuickDrawConstants.h"   /* blackColor / whiteColor */
 #include "LocaleManager/LocaleManager.h"
 #include "LocaleManager/StringIDs.h"
@@ -28,6 +29,7 @@
 #include "Platform/Framebuffer.h"
 #include "Finder/finder.h"
 #include "FS/vfs.h"
+#include "FS/trash.h"
 #include "FS/hfs_types.h"
 #include "System71StdLib.h"
 #include "Finder/FinderLogging.h"
@@ -45,6 +47,7 @@
 #include "ProcessMgr/ProcessTypes.h"
 #include "ProcessMgr/ProcessMgr.h"
 #include "SegmentLoader/MacBinary.h"
+#include "Apps/SimpleText.h"
 
 /* Drag threshold for distinguishing clicks from drags */
 #define kDragThreshold 4
@@ -432,8 +435,6 @@ FolderWindowState* GetFolderState(WindowPtr w) {
  */
 static DirID FW_ControlPanelsDir(void)
 {
-    extern OSErr FindFolder(SInt16 vRefNum, OSType folderType, Boolean createFolder,
-                            SInt16* foundVRefNum, SInt32* foundDirID);
     SInt16 vref = 0;
     SInt32 dir = 0;
 
@@ -477,7 +478,6 @@ static void InitializeFolderContentsEx(WindowPtr w, Boolean isTrash, VRefNum vre
         FINDER_LOG_DEBUG("InitializeFolderContentsEx: enumerating trash folder\n");
 
         /* Get trash directory ID using FindFolder */
-        extern OSErr FindFolder(SInt16 vRefNum, OSType folderType, Boolean createFolder, SInt16* foundVRefNum, SInt32* foundDirID);
         SInt16 trashVRefNum;
         SInt32 trashDirID;
         OSErr err = FindFolder(kOnSystemDisk, kTrashFolderType, kDontCreateFolder, &trashVRefNum, &trashDirID);
@@ -697,10 +697,6 @@ void InitializeFolderContents(WindowPtr w, Boolean isTrash) {
 
 /* Open a folder window for a specific directory */
 WindowPtr FolderWindow_OpenFolder(VRefNum vref, DirID dirID, ConstStr255Param title) {
-        extern WindowPtr NewWindow(void *, const Rect *, ConstStr255Param, Boolean, short,
-                               WindowPtr, Boolean, long);
-    extern void ShowWindow(WindowPtr);
-    extern void SelectWindow(WindowPtr);
 
     FINDER_LOG_DEBUG("FolderWindow_OpenFolder: vref=%d dirID=%d\n", (int)vref, (int)dirID);
 
@@ -744,7 +740,6 @@ WindowPtr FolderWindow_OpenFolder(VRefNum vref, DirID dirID, ConstStr255Param ti
         /* No folder window slots available — close the empty window and alert */
         FINDER_LOG_WARN("FolderWindow_OpenFolder: No window slots (limit=%d)\n",
                         MAX_FOLDER_WINDOWS);
-        extern void DisposeWindow(WindowPtr window);
         DisposeWindow(w);
         SysBeep(10);  /* Audible feedback */
         return NULL;
@@ -859,8 +854,6 @@ static short FW_IconAtPoint(WindowPtr w, Point localPt) {
             else                          sortMode = kViewByDate;
 
             if (sortMode > 0) {
-                extern void FolderWindow_SortAndArrange(WindowPtr w, short sortType);
-                extern void Finder_UpdateViewMenuForWindow(WindowPtr w);
                 FolderWindow_SortAndArrange(w, sortMode);
                 Finder_UpdateViewMenuForWindow(w);
                 FINDER_LOG_DEBUG("FW: column header click -> sort mode %d\n", sortMode);
@@ -919,7 +912,6 @@ static Boolean TrackFolderItemDrag(WindowPtr w, FolderWindowState* state, short 
 
     /* Wait for drag threshold or button release */
     Point cur;
-    extern void ProcessModernInput(void);
 
     while ((gCurrentButtons & 1) != 0) {
         ProcessModernInput();  /* Update gCurrentButtons */
@@ -1006,7 +998,6 @@ static Boolean TrackFolderItemDrag(WindowPtr w, FolderWindowState* state, short 
             ClipRect(&qd.screenBits.bounds);
 
             /* Show initial ghost */
-            extern void Desktop_GhostShowAt(const Rect* r);
             Desktop_GhostShowAt(&ghost);
             FINDER_LOG_DEBUG("FW: Ghost visible, entering drag loop\n");
 
@@ -1028,7 +1019,6 @@ static Boolean TrackFolderItemDrag(WindowPtr w, FolderWindowState* state, short 
 
                 /* Update ghost position if mouse moved */
                 if (cur.h != lastPos.h || cur.v != lastPos.v) {
-                    extern void OffsetRect(Rect* r, short dh, short dv);
                     FINDER_LOG_DEBUG("FW: Mouse moved, offsetting ghost by (%d,%d)\n",
                                  cur.h - lastPos.h, cur.v - lastPos.v);
                     OffsetRect(&ghost, cur.h - lastPos.h, cur.v - lastPos.v);
@@ -1038,7 +1028,6 @@ static Boolean TrackFolderItemDrag(WindowPtr w, FolderWindowState* state, short 
             }
 
             /* Erase ghost before processing drop */
-            extern void Desktop_GhostEraseIf(void);
             Desktop_GhostEraseIf();
 
             /* Restore port */
@@ -1052,20 +1041,17 @@ static Boolean TrackFolderItemDrag(WindowPtr w, FolderWindowState* state, short 
                              item->name);
 
                 /* Move to Trash (not permanent delete) — matches System 7 behavior */
-                extern bool Trash_MoveNode(VRefNum vref, DirID parent, FileID id);
                 bool moved = Trash_MoveNode(state->vref, state->currentDir, item->fileID);
 
                 if (moved) {
                     FINDER_LOG_DEBUG("FW: Moved to Trash successfully\n");
 
                     /* Record for Undo */
-                    extern void Finder_RecordTrashUndo(VRefNum vref, DirID parentDir, FileID fileID);
                     Finder_RecordTrashUndo(state->vref, state->currentDir, item->fileID);
 
                     /* Say the folder changed and let the one refresh handle
                      * it - this was a fourth place patching items[] by hand. */
                     FolderWindow_ContentsChanged(w);
-                    extern void Desktop_RefreshTrashIcon(void);
                     Desktop_RefreshTrashIcon();
                 } else {
                     FINDER_LOG_DEBUG("FW: ERROR: Trash_MoveNode failed\n");
@@ -1096,7 +1082,6 @@ static Boolean TrackFolderItemDrag(WindowPtr w, FolderWindowState* state, short 
 
                     /* Convert global drop position to local window coordinates */
                     Point dropLocal = cur;
-                    extern void GlobalToLocalWindow(WindowPtr window, Point *pt);
                     GlobalToLocalWindow(w, &dropLocal);
 
                     /* Snap to grid for cleaner alignment */
@@ -1151,14 +1136,12 @@ static struct { WindowPtr w; short item; UInt32 at; } gPendingRename;
 
 /* Called at idle: start a rename whose wait is over. */
 void FolderWindow_IdleRename(void) {
-    extern Boolean Button(void);
     if (!gPendingRename.w || TickCount() < gPendingRename.at || Button()) return;
     WindowPtr w = gPendingRename.w;
     short item = gPendingRename.item;
     gPendingRename.w = NULL;
     for (WindowPtr open = FrontWindow(); open; open = open->nextWindow) {
         if (open == w) {
-            extern void FolderWindow_RenameItem(WindowPtr w, short itemIndex);
             FolderWindow_RenameItem(w, item);
             return;
         }
@@ -1178,7 +1161,6 @@ Boolean HandleFolderWindowClick(WindowPtr w, EventRecord *ev, Boolean isDoubleCl
      * Use GlobalToLocalWindow which uses contRgn for actual conversion.
      */
     Point localPt = ev->where;  /* Start with global coords */
-    extern void GlobalToLocalWindow(WindowPtr window, Point *pt);
     GlobalToLocalWindow(w, &localPt);
 
     GrafPtr savePort;
@@ -1299,7 +1281,6 @@ Boolean HandleFolderWindowClick(WindowPtr w, EventRecord *ev, Boolean isDoubleCl
                               localPt.v >= nameRect.top  && localPt.v < nameRect.bottom);
 
             if (oldSel == hitIndex && !shiftHeld && onName) {
-                extern UInt32 GetDblTime(void);
                 gPendingRename.w = w;
                 gPendingRename.item = hitIndex;
                 gPendingRename.at = TickCount() + GetDblTime();
@@ -1835,7 +1816,6 @@ void FolderWindow_Draw(WindowPtr w) {
 
     /* Debug: log portBits bounds at draw time */
     if (w->refCon == 0x4449534b) {
-        extern int snprintf(char* buf, size_t size, const char* fmt, ...);
         char dbgbuf[256];
         snprintf(dbgbuf, sizeof(dbgbuf), "[FLDRAW] portBits.bounds at draw time: (%d,%d,%d,%d) portRect: (%d,%d,%d,%d)\n",
                 w->port.portBits.bounds.left, w->port.portBits.bounds.top,
@@ -1932,7 +1912,6 @@ void FolderWindow_Draw(WindowPtr w) {
         uint64_t diskUsed = 0;
         uint64_t diskFree = 0;
         {
-            extern bool VFS_GetVolumeInfo(VRefNum vref, VolumeControlBlock* vcb);
             VolumeControlBlock vcb;
             memset(&vcb, 0, sizeof(vcb));
             if (VFS_GetVolumeInfo(state->vref, &vcb)) {
@@ -2434,12 +2413,6 @@ void FolderWindow_RenameItem(WindowPtr w, short itemIndex) {
     FolderWindowState* state = GetFolderState(w);
     if (!state || !state->items || itemIndex < 0 || itemIndex >= state->itemCount) return;
 
-    extern DialogPtr NewDialog(void*, const Rect*, const unsigned char*, Boolean, SInt16,
-                               WindowPtr, Boolean, SInt32, Handle);
-    extern void DisposeDialog(DialogPtr);
-    extern void ShowWindow(WindowPtr);
-    extern void GetDialogItem(DialogPtr, SInt16, SInt16*, Handle*, Rect*);
-    extern void GetDialogItemText(Handle, unsigned char*);
 
     /* Build DITL: prompt(1), Rename(2), Cancel(3), edit text(4) */
     DITLBuilder ditlb;
@@ -2477,7 +2450,6 @@ void FolderWindow_RenameItem(WindowPtr w, short itemIndex) {
 
                 /* Only rename if name actually changed */
                 if (strcmp(newName, state->items[itemIndex].name) != 0) {
-                    extern bool VFS_Rename(VRefNum vref, FileID id, const char* newName);
                     if (VFS_Rename(state->vref,
                                    state->items[itemIndex].fileID, newName)) {
                         strncpy(state->items[itemIndex].name, newName, 255);
@@ -2493,8 +2465,6 @@ void FolderWindow_RenameItem(WindowPtr w, short itemIndex) {
 }
 
 void FolderWindow_DeleteSelected(WindowPtr w) {
-    extern void SetWatchCursor(void);
-    extern void InitCursor(void);
 
     if (!w || !IsFolderWindow(w)) return;
 
@@ -2504,8 +2474,6 @@ void FolderWindow_DeleteSelected(WindowPtr w) {
     FolderWindowState* state = GetFolderState(w);
     if (!state || !state->items) return;
 
-    extern bool Trash_MoveNode(VRefNum vref, DirID parent, FileID id);
-    extern bool VFS_Delete(VRefNum vref, FileID id);
 
     /* Check if this window IS the trash - if so, permanently delete */
     Boolean isTrashWindow = (w->refCon == FOURCC('T','R','S','H'));
@@ -2535,7 +2503,6 @@ void FolderWindow_DeleteSelected(WindowPtr w) {
                 success = Trash_MoveNode(state->vref, state->currentDir, item->fileID);
                 if (success) {
                     /* Record for Undo */
-                    extern void Finder_RecordTrashUndo(VRefNum vref, DirID parentDir, FileID fileID);
                     Finder_RecordTrashUndo(state->vref, state->currentDir, item->fileID);
                 }
             }
@@ -2555,7 +2522,6 @@ void FolderWindow_DeleteSelected(WindowPtr w) {
 
     FolderWindow_ContentsChanged(w);
     {
-        extern void Desktop_RefreshTrashIcon(void);
         Desktop_RefreshTrashIcon();
     }
 }
@@ -2630,7 +2596,6 @@ static void FolderWindow_OpenFileNamed(FolderWindowState* state,
 
     if (isTextFile) {
         FINDER_LOG_DEBUG("FW: Opening text file \"%s\" with SimpleText\n", name);
-        extern void SimpleText_OpenFile(const char* path);
 
         /* Not SimpleText_Launch first: launching with no document open makes
          * an empty Untitled one, and then opening the file makes a second.
@@ -2655,11 +2620,9 @@ static void FolderWindow_OpenFileNamed(FolderWindowState* state,
         /* Application file */
         if (strcmp(name, "TextEdit") == 0) {
             FINDER_LOG_DEBUG("FW: Launching TextEdit application\n");
-            extern void TextEdit_InitApp(void);
             TextEdit_InitApp();
         } else if (strcmp(name, "SimpleText") == 0) {
             FINDER_LOG_DEBUG("FW: Launching SimpleText application\n");
-            extern void SimpleText_Launch(void);
             SimpleText_Launch();
         } else if (strcmp(name, "MacPaint") == 0) {
             FINDER_LOG_DEBUG("FW: Launching MacPaint application\n");
@@ -2667,27 +2630,21 @@ static void FolderWindow_OpenFileNamed(FolderWindowState* state,
             MacPaint_Launch();
         } else if (strcmp(name, "Desktop Patterns") == 0) {
             FINDER_LOG_DEBUG("FW: Opening Desktop Patterns control panel\n");
-            extern void OpenDesktopCdev(void);
             OpenDesktopCdev();
         } else if (strcmp(name, "Date & Time") == 0) {
             FINDER_LOG_DEBUG("FW: Opening Date & Time control panel\n");
-            extern void DateTimePanel_Open(void);
             DateTimePanel_Open();
         } else if (strcmp(name, "Sound") == 0) {
             FINDER_LOG_DEBUG("FW: Opening Sound control panel\n");
-            extern void SoundPanel_Open(void);
             SoundPanel_Open();
         } else if (strcmp(name, "Mouse") == 0) {
             FINDER_LOG_DEBUG("FW: Opening Mouse control panel\n");
-            extern void MousePanel_Open(void);
             MousePanel_Open();
         } else if (strcmp(name, "Keyboard") == 0) {
             FINDER_LOG_DEBUG("FW: Opening Keyboard control panel\n");
-            extern void KeyboardPanel_Open(void);
             KeyboardPanel_Open();
         } else if (strcmp(name, "Control Strip") == 0) {
             FINDER_LOG_DEBUG("FW: Toggling Control Strip palette\n");
-            extern void ControlStrip_Toggle(void);
             ControlStrip_Toggle();
         } else {
             /* Generic app launch via LaunchApplication */
@@ -2738,9 +2695,6 @@ static void FolderWindow_OpenFileNamed(FolderWindowState* state,
     } else {
         /* Unknown document type - try to open with SimpleText as fallback */
         FINDER_LOG_DEBUG("FW: Opening document \"%s\" with SimpleText (fallback)\n", name);
-        extern void SimpleText_Launch(void);
-        extern Boolean SimpleText_IsRunning(void);
-        extern void SimpleText_OpenFile(const char* path);
 
         if (!SimpleText_IsRunning()) {
             SimpleText_Launch();
@@ -2789,8 +2743,6 @@ static void FolderWindow_OpenItem(WindowPtr w, FolderWindowState* state,
     }
 
     if (isFolder) {
-        extern WindowPtr FolderWindow_OpenFolder(VRefNum vref, DirID dirID,
-                                                 ConstStr255Param title);
         Str255 pTitle;
         size_t len = strlen(itemName);
         if (len > 255) len = 255;
@@ -2840,8 +2792,6 @@ void FolderWindow_OpenSelected(WindowPtr w) {
  * FolderWindow_DuplicateSelected - Duplicate selected items in current folder
  */
 void FolderWindow_DuplicateSelected(WindowPtr w) {
-    extern void SetWatchCursor(void);
-    extern void InitCursor(void);
 
     if (!w || !IsFolderWindow(w)) return;
 
@@ -2853,7 +2803,6 @@ void FolderWindow_DuplicateSelected(WindowPtr w) {
 
     extern bool VFS_GenerateUniqueName(VRefNum vref, DirID dir, const char* base, char* out);
     extern bool VFS_Copy(VRefNum vref, DirID fromDir, FileID id, DirID toDir, const char* newName, FileID* newID);
-    extern bool VFS_GetByID(VRefNum vref, FileID id, CatEntry* outEntry);
 
     FINDER_LOG_DEBUG("FolderWindow_DuplicateSelected: itemCount=%d\n", state->itemCount);
 
@@ -3254,9 +3203,6 @@ void FolderWindow_SetLabelOnSelected(WindowPtr w, short labelIndex) {
 
             /* Persist label to VFS overlay via Finder flags bits 1-3 */
             {
-                extern bool VFS_GetByID(VRefNum vref, FileID id, CatEntry* entry);
-                extern bool VFS_SetCatEntryInfo(VRefNum vref, FileID id,
-                                                 uint32_t type, uint32_t creator, uint16_t flags);
                 CatEntry ce;
                 if (VFS_GetByID(state->vref, state->items[i].fileID, &ce)) {
                     uint16_t newFlags = (ce.flags & ~0x000E) | ((labelIndex & 0x07) << 1);
@@ -3338,7 +3284,6 @@ void FolderWindow_CleanUp(WindowPtr w, Boolean selectedOnly) {
  */
 static void GhostEraseIf(void) {
     /* Call the real ghost eraser from desktop_manager.c */
-    extern void Desktop_GhostEraseIf(void);
     Desktop_GhostEraseIf();
 }
 
