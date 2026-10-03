@@ -114,19 +114,6 @@ Full roadmap: [BARE_METAL_IMPROVEMENTS.md](docs/BARE_METAL_IMPROVEMENTS.md)
 - **Resource Manager**: `ReleaseResource`, `DetachResource` and
   `GetIndResource` keep the resource map and cache consistent
 
-#### Previous Session Accomplishments
-- ✅ **Bare Metal Fixes**: GDT installation, hybrid BIOS+UEFI ISO, PIC mask
-  handling, bounded UART spin, read-only CMOS — all verified on a physical UEFI ThinkPad
-- ✅ **Sound Manager**: shared `SndMidiNoteToFreq()` with 37-entry lookup table
-  (C3–B5 plus octave fallback for MIDI 0–127), async playback callbacks
-  (`FilePlayCompletionUPP`, `SndCallBackProcPtr`), and 4-level priority channel
-  routing with per-channel mute/enable (`SndGetActiveChannel()` picks the
-  highest-priority active channel)
-- ✅ **Window Resize System**: interactive resizing with proper chrome handling, grow box, and desktop cleanup
-- ✅ **PS/2 Keyboard Translation**: Full set 1 scancode to Toolbox key code mapping
-- ✅ **Platform HAL**: x86 is the validated target; ARM and ARM64 build targets
-  exist, while PowerPC remains an experimental scaffold
-
 ## Implementation Status
 
 ### What Works Fully ✅
@@ -386,7 +373,5 @@ This is a **clean-room reimplementation** for educational and preservation purpo
 ---
 
 **Status**: Experimental - Educational - In Development
-
-**Last Updated**: October 2026
 
 For questions, issues, or discussion, please use GitHub Issues.
