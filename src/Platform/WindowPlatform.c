@@ -30,18 +30,8 @@ Boolean Platform_HasColorQuickDraw(void) {
 Boolean Platform_InitializeWindowPort(WindowPtr window) {
     if (!window) return false;
 
-    /* CRITICAL: DO NOT overwrite portBits.baseAddr or portBits.bounds!
-     *
-     * InitializeWindowRecord has already set up portBits correctly using the
-     * "Direct Framebuffer" approach:
-     * - portBits.baseAddr = framebuffer + offset to window's content area
-     * - portBits.bounds = (0, 0, width, height) [LOCAL coordinates]
-     * - portBits.rowBytes = set correctly
-     *
-     * If we overwrite baseAddr here, we break the coordinate system and cause
-     * window content to render at the wrong screen position!
-     *
-     * FIX: Don't touch portBits at all - it's already correctly initialized.
+    /* InitializeWindowRecord establishes the framebuffer mapping and local
+     * bounds; this hook only initializes the window's clipping regions.
      */
 
     /* Initialize clipping regions */
@@ -62,17 +52,8 @@ Boolean Platform_InitializeWindowPort(WindowPtr window) {
 void Platform_CalculateWindowRegions(WindowPtr window) {
     if (!window) return;
 
-    /* CRITICAL FIX: Use the standard region calculation that properly handles chrome
-     *
-     * BUG: Previous code set contRgn = strucRgn (full window including frame)
-     * This caused contRgn to cover areas outside the actual content, including
-     * title bar and borders, leading to (0,20,800,600) full-screen regions.
-     *
-     * FIX: Use WM_CalculateStandardWindowRegions which correctly calculates:
-     * - strucRgn from Platform_GetWindowFrameRect (portBits.bounds + chrome)
-     * - contRgn from Platform_GetWindowContentRect (portBits.bounds directly)
-     *
-     * This ensures contRgn excludes the title bar and borders.
+    /* The structure region includes window chrome; the content region does
+     * not. The shared helper derives both from the platform window geometry.
      */
     WM_CalculateStandardWindowRegions(window, 0);
 }
