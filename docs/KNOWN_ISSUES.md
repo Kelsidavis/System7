@@ -645,8 +645,6 @@ Two bugs fell out of this, both now fixed:
   dividers as a grey line across the menu and right-aligns command keys,
   matching System 7.1.
 
-Tracked item rectangles and hit testing use the same normal menu geometry.
-
 - The ⌘ symbol is drawn **geometrically**, not from the font. Chicago carries it
   at char 0x11, but the extracted strike only covers ASCII 32–126 and
   `FM_DrawChicagoCharInternal` rejects `ch < 32`. `DrawMenuItemCmdKeyInternal`
@@ -667,9 +665,9 @@ system is built; the `ENABLE_PROCESS_COOP` option is gone.
 After building the target under review, run
 `python3 scripts/find-shadowed-defs.py --platform x86`. The audit follows Make's
 dry-run compile commands, so it checks the selected target's objects rather
-than stale objects left by another platform build. Current x86, ARM, and ARM64
-audits find no dead files, suspect copies, or unbuilt copies; run it separately
-for another target after building that target.
+than stale objects left by another platform build. The current x86 and ARM64
+audits find no dead files, suspect copies, or unbuilt copies. Run the audit
+separately for each target after building that target.
 
 ⚠️ **Before editing a Toolbox-looking function, confirm which copy links:**
 `find "build/obj/${PLATFORM:-x86}" -type f -name '*.o' -exec nm --defined-only {} + | grep ' T FunctionName$'`.
@@ -958,7 +956,7 @@ Implemented proper region-based erasing for Direct Framebuffer:
 
 ---
 
-### 7. Missing Features
+### Missing Features
 
 Several features are noted as incomplete:
 
