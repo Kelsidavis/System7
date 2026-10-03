@@ -597,7 +597,8 @@ $(BUILD_DIRS):
 	@mkdir -p $@
 
 # Tool version requirements
-GCC_MIN_VERSION = 7.0
+# GCC 10 introduced the -std=c2x mode required by COMMON_CFLAGS.
+GCC_MIN_VERSION = 10.0
 PYTHON_MIN_VERSION = 3.6
 
 # Check build tools (run once per make invocation)

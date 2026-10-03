@@ -9,7 +9,7 @@ YELLOW='\033[1;33m'
 NC='\033[0m' # No Color
 
 # Parse arguments
-GCC_MIN_VERSION="${1:-7.0}"
+GCC_MIN_VERSION="${1:-10.0}"
 PYTHON_MIN_VERSION="${2:-3.6}"
 CC="${CC:-gcc}"
 
