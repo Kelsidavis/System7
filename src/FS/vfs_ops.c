@@ -38,8 +38,6 @@ bool VFS_Move(VRefNum vref, DirID fromDir, FileID id, DirID toDir, const char* n
     }
 
     /* Use internal overlay access — VFS_MoveOverlay updates parent */
-    extern bool VFS_MoveOverlay(VRefNum vref, FileID id, DirID newParent,
-                                const char* newName, const CatEntry* current);
     return VFS_MoveOverlay(vref, id, toDir, newName, &entry);
 }
 
@@ -260,7 +258,6 @@ const char* VFS_GetNameByID(VRefNum vref, DirID parent, FileID id) {
 
 VRefNum VFS_GetVRefByID(FileID id) {
     (void)id;
-    extern VRefNum VFS_GetBootVRef(void);
     return VFS_GetBootVRef();
 }
 

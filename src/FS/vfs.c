@@ -8,6 +8,7 @@
 #include <string.h>
 #include "FS/FSLogging.h"
 #include "System71StdLib.h"
+#include "OSUtils/OSUtils.h"
 
 /* Serial debug output */
 
@@ -284,7 +285,6 @@ bool VFS_MountBootVolume(const char* volName) {
 
 /* Format an ATA disk with HFS filesystem - REQUIRES EXPLICIT CALL */
 bool VFS_FormatATA(int ata_device_index, const char* volName) {
-    extern bool HFS_FormatVolume(HFS_BlockDev* bd, const char* volName);
 
     if (!g_vfs.initialized) {
         FS_LOG_DEBUG("VFS: Not initialized\n");
@@ -402,7 +402,6 @@ bool VFS_MountATA(int ata_device_index, const char* volName, VRefNum* vref) {
 bool VFS_FormatSDHCI(int drive_index, const char* volName) {
     (void)drive_index;
     (void)volName;
-    extern bool HFS_FormatVolume(HFS_BlockDev* bd, const char* volName);
 
     if (!g_vfs.initialized) {
         FS_LOG_DEBUG("VFS: Not initialized\n");
@@ -980,7 +979,6 @@ void VFS_CloseFile(VFSFile* file) {
                     *size = file->memSize;
                     /* Update CatEntry size (the data fork's) and modification time */
                     if (!file->resourceFork) oe->entry.size = file->memSize;
-                    extern void GetDateTime(uint32_t* secs);
                     uint32_t now = 0;
                     GetDateTime(&now);
                     if (now != 0) {
@@ -1202,7 +1200,6 @@ bool VFS_CreateFolder(VRefNum vref, DirID parent, const char* name, DirID* newID
     if (!oe) return false;
 
     /* Get current time for timestamps */
-    extern void GetDateTime(uint32_t* secs);
     uint32_t now = 0;
     GetDateTime(&now);
 
@@ -1236,7 +1233,6 @@ bool VFS_CreateFile(VRefNum vref, DirID parent, const char* name,
     if (!oe) return false;
 
     /* Get current time for timestamps */
-    extern void GetDateTime(uint32_t* secs);
     uint32_t now = 0;
     GetDateTime(&now);
 
