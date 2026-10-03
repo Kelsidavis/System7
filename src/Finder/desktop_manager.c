@@ -1640,13 +1640,9 @@ OSErr InitializeVolumeIcon(void)
         DesktopItem* item = &gDesktopIcons[gDesktopIconCount];
         memset(item, 0, sizeof(DesktopItem));
 
-        /* ARM64-safe byte-level field writes to avoid alignment issues */
-        {
-            DesktopItemType t = kDesktopItemVolume;
-            UInt8* dst = (UInt8*)&item->type;
-            UInt8* src = (UInt8*)&t;
-            dst[0] = src[0]; dst[1] = src[1]; dst[2] = src[2]; dst[3] = src[3];
-        }
+        /* The enum field itself is naturally aligned; only packed fields
+         * below need byte-wise writes on ARM. */
+        item->type = kDesktopItemVolume;
         {
             UInt32 id = 0xFFFFFFFF;
             UInt8* dst = (UInt8*)&item->iconID;

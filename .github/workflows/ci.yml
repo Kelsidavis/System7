@@ -173,6 +173,9 @@ jobs:
       - name: Build kernel (ARM)
         run: make PLATFORM=arm
 
+      - name: Run GCC static analyzer (ARM32)
+        run: make analyze-arm
+
       - name: Upload ARM kernel artifact
         uses: actions/upload-artifact@v6
         if: success()

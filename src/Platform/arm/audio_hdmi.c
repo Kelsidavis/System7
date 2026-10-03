@@ -278,9 +278,9 @@ void audio_hdmi_test_tone(void) {
          * Real implementation would use:
          * int16_t sample = amplitude * sin(2*pi*440*i/48000)
          */
-        int16_t left_sample = 0;
+        int16_t stereo_frame[AUDIO_CHANNELS] = {0, 0};
         /* Interleaved stereo: LRLRLR... */
-        audio_hdmi_write_samples(&left_sample, 1);
+        audio_hdmi_write_samples(stereo_frame, 1);
     }
 
     audio_hdmi_flush();
