@@ -7,6 +7,7 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include <stddef.h>
+#include "cache.h"
 #include "uart.h"
 #include "virtio_input.h"
 #include "virtio_pci.h"
@@ -202,11 +203,6 @@ struct input_device {
 static struct input_device devices[MAX_INPUT_DEVICES];
 static int num_devices = 0;
 static bool input_initialized = false;
-
-/* Input state - exported for hal_input.c */
-/* MUST match volatile declarations in hal_input.c */
-extern volatile Point g_mousePos;
-extern volatile uint8_t g_mouseState;
 
 /* Mouse bounds - match GPU framebuffer resolution */
 #define MOUSE_MAX_X     639
@@ -665,8 +661,6 @@ bool virtio_input_init(void) {
  */
 void virtio_input_poll(void) {
     if (!input_initialized) return;
-
-    extern void dcache_invalidate_range(void *start, size_t length);
 
     /* Poll all active devices */
     for (int d = 0; d < num_devices; d++) {

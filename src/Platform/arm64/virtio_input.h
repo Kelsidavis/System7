@@ -8,6 +8,11 @@
 
 #include <stdint.h>
 #include <stdbool.h>
+#include "SystemTypes.h"
+
+/* Shared mouse state updated by the VirtIO driver and consumed by the input HAL. */
+extern volatile Point g_mousePos;
+extern volatile uint8_t g_mouseState;
 
 /* Initialize virtio-input device */
 bool virtio_input_init(void);

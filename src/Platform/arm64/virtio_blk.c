@@ -7,6 +7,7 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include <stddef.h>
+#include "cache.h"
 #include "uart.h"
 #include "virtio_blk.h"
 #include "virtio_pci.h"
@@ -173,10 +174,6 @@ static void notify_queue(uint16_t queue_idx) {
         virtio_write32(VIRTIO_MMIO_QUEUE_NOTIFY, queue_idx);
     }
 }
-
-/* Cache maintenance functions */
-extern void dcache_clean_range(void *start, size_t length);
-extern void dcache_invalidate_range(void *start, size_t length);
 
 /* Send block request and wait for completion */
 static bool virtio_blk_request(uint32_t type, uint64_t sector, void *buffer, uint32_t count) {
