@@ -142,15 +142,6 @@ static void GetItemText(MenuHandle theMenu, short index, char* text) {
     text[len] = 0;
 }
 
-/*
- * DrawMenuItemRow - draw one menu item, normal or highlighted.
- *
- * Shared by the initial menu draw and by highlight tracking. Tracking used to
- * redraw only the item's text, so moving the mouse across "New Folder <cmd>N"
- * erased its command key and left the row half drawn; going through one routine
- * means whatever an item is made of gets restored.
- */
-/* Draw a tracked row through MenuDisplay's shared item renderer. */
 static void GetTrackedMenuItemRect(MenuHandle theMenu, short item, short left,
                                    short top, short menuWidth, Rect* itemRect) {
     Rect menuRect = {top, left, top + g_menuTrackState.menuHeight,
@@ -175,6 +166,21 @@ static short TrackedMenuItemAtPoint(MenuHandle theMenu, Point point, short left,
     return 0;
 }
 
+static Boolean IsTrackedMenuItemSelectable(MenuHandle theMenu, short item) {
+    char itemText[64];
+    GetItemText(theMenu, item, itemText);
+    return itemText[0] != 0 && !CheckMenuItemSeparator(theMenu, item) &&
+           CheckMenuItemEnabled(theMenu, item);
+}
+
+/*
+ * DrawMenuItemRow - draw one menu item, normal or highlighted.
+ *
+ * Shared by the initial menu draw and by highlight tracking. Tracking used to
+ * redraw only the item's text, so moving the mouse across "New Folder <cmd>N"
+ * erased its command key and left the row half drawn; going through one routine
+ * means whatever an item is made of gets restored.
+ */
 static void DrawMenuItemRow(MenuHandle theMenu, short i, short left, short top,
                             short menuWidth, Boolean highlighted) {
     Rect itemRect;
@@ -339,16 +345,11 @@ void UpdateMenuTrackingNew(Point mousePt) {
     /* Dividers and disabled items never highlight in System 7. */
     short newHighlight = TrackedMenuItemAtPoint(theMenu, mousePt, left, top,
                                                 menuWidth, itemCount);
-    if (newHighlight > 0) {
-        char itemText[64];
-        GetItemText(theMenu, newHighlight, itemText);
-        if (itemText[0] == 0 || CheckMenuItemSeparator(theMenu, newHighlight) ||
-            !CheckMenuItemEnabled(theMenu, newHighlight)) {
-            newHighlight = 0;
-        } else {
-            MENU_LOG_TRACE("UpdateMenu: Mouse at (%d,%d) is over item %d\n",
-                           mousePt.h, mousePt.v, newHighlight);
-        }
+    if (newHighlight > 0 && !IsTrackedMenuItemSelectable(theMenu, newHighlight)) {
+        newHighlight = 0;
+    } else if (newHighlight > 0) {
+        MENU_LOG_TRACE("UpdateMenu: Mouse at (%d,%d) is over item %d\n",
+                       mousePt.h, mousePt.v, newHighlight);
     }
 
     /* Update highlight if changed */
@@ -734,15 +735,9 @@ static long TrackMenu_Body(short menuID, Point *startPt) {
                 if (clickPt.v >= top + 4 && clickPt.v < top + menuHeight - 4) {
                     short clickedItem = TrackedMenuItemAtPoint(
                         theMenu, clickPt, left, top, menuWidth, itemCount);
-                    if (clickedItem > 0) {
-                        char itemText[64];
-                        GetItemText(theMenu, clickedItem, itemText);
-                        /* Disabled items and dividers choose nothing. */
-                        if (itemText[0] == 0 ||
-                            CheckMenuItemSeparator(theMenu, clickedItem) ||
-                            !CheckMenuItemEnabled(theMenu, clickedItem)) {
-                            clickedItem = 0;
-                        }
+                    if (clickedItem > 0 &&
+                        !IsTrackedMenuItemSelectable(theMenu, clickedItem)) {
+                        clickedItem = 0;
                     }
 
                     if (clickedItem > 0) {
