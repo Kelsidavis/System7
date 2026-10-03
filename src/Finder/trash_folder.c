@@ -113,7 +113,6 @@ OSErr EmptyTrash(Boolean force)
 
     /* Refresh trash icon on desktop to show empty state */
     {
-        extern void Desktop_RefreshTrashIcon(void);
         Desktop_RefreshTrashIcon();
     }
 
@@ -416,9 +415,6 @@ static Boolean IsItemLocked(FSSpec *item)
  */
 static OSErr ConfirmEmptyTrash(Boolean *confirmed)
 {
-    extern void ShowWindow(WindowPtr);
-    extern void EventPumpYield(void);
-
     if (!confirmed) return paramErr;
     *confirmed = false;
 
