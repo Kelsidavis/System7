@@ -21,19 +21,8 @@
 #include "EventManager/EventTypes.h"
 #include "DeskManager/AlarmClock.h"
 #include "DeskManager/Chooser.h"
-
-
-/* QuickDraw drawing for DAs */
-extern void MoveTo(short h, short v);
-extern void LineTo(short h, short v);
-extern void FrameRect(const Rect* r);
-extern void EraseRect(const Rect* r);
-extern void InvertRect(const Rect* r);
-extern void DrawText(const void* textBuf, SInt16 firstByte, SInt16 byteCount);
-extern void FillRect(const Rect* r, const Pattern* pat);
-extern void GetPort(GrafPtr* port);
-extern void SetPort(GrafPtr port);
-extern void PenSize(short width, short height);
+#include "DeskManager/Notepad.h"
+#include "QuickDraw/QuickDraw.h"
 
 /* Forward declarations for DA interfaces */
 static int Calculator_DAInitialize(DeskAccessory *da, const DADriverHeader *header);
@@ -715,8 +704,6 @@ static int AlarmClock_DAIdle(DeskAccessory *da)
 
     /* Redraw when the time shown changes - every idle pass flickered */
     if (da->window && memcmp(shown, clock->timeString, sizeof(shown)) != 0) {
-        extern void GetPort(GrafPtr* port);
-        extern void SetPort(GrafPtr port);
         GrafPtr savePort;
         GetPort(&savePort);
         SetPort((GrafPtr)da->window);
@@ -816,13 +803,6 @@ static int Chooser_DAProcessEvent(DeskAccessory *da, const DAEventInfo *event)
 }
 
 /* Note Pad DA Interface Wrappers */
-
-extern OSErr Notepad_Initialize(void);
-extern void Notepad_Shutdown(void);
-extern OSErr Notepad_Open(WindowPtr *window);
-extern void Notepad_Close(void);
-extern void Notepad_HandleEvent(EventRecord *event);
-extern void Notepad_Draw(void);
 
 static int Notepad_DAInitialize(DeskAccessory *da, const DADriverHeader *header)
 {
