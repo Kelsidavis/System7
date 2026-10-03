@@ -316,10 +316,8 @@ static Boolean ps2_mouse_command(uint8_t cmd) {
     /* Wait for ACK */
     if (ps2_wait_output()) {
         uint8_t response = ps2_read_data();
-        /* PLATFORM_LOG_DEBUG("MOUSE CMD 0x%02x response: 0x%02x\n", cmd, response); */
         return (response == 0xFA); /* ACK */
     }
-    /* PLATFORM_LOG_DEBUG("MOUSE CMD 0x%02x: NO RESPONSE\n", cmd); */
     return false;
 }
 
@@ -517,7 +515,6 @@ static void process_mouse_packet(void) {
     if (!(status & 0x08)) {
         /* Lost sync - discard packet and resync */
         g_mouseState.packet_index = 0;
-        /* PLATFORM_LOG_DEBUG("Mouse packet lost sync, resetting\n"); */
         return;
     }
 
@@ -527,7 +524,6 @@ static void process_mouse_packet(void) {
     /* Check for overflow */
     if (status & 0x40 || status & 0x80) {
         g_mouseState.packet_index = 0;
-        /* PLATFORM_LOG_DEBUG("MOUSE OVERFLOW detected\n"); */
         return;
     }
 
@@ -569,7 +565,6 @@ static Boolean init_keyboard(void) {
     if (ps2_wait_output()) {
         uint8_t response = ps2_read_data();
         if (response != 0xFA) {
-            /* PLATFORM_LOG_DEBUG("Keyboard reset failed: 0x%02x\n", response); */
             return false;
         }
     }
@@ -578,7 +573,6 @@ static Boolean init_keyboard(void) {
     if (ps2_wait_output()) {
         uint8_t result = ps2_read_data();
         if (result != 0xAA) {
-            /* PLATFORM_LOG_DEBUG("Keyboard self-test failed: 0x%02x\n", result); */
             return false;
         }
     }
@@ -588,7 +582,6 @@ static Boolean init_keyboard(void) {
     if (ps2_wait_output()) {
         uint8_t response = ps2_read_data();
         if (response != 0xFA) {
-            /* PLATFORM_LOG_DEBUG("Failed to enable keyboard scanning: 0x%02x\n", response); */
             return false;
         }
     }
@@ -602,53 +595,35 @@ static Boolean init_keyboard(void) {
 
 /* Initialize PS/2 mouse */
 static Boolean init_mouse(void) {
-    /* PLATFORM_LOG_DEBUG("Initializing PS/2 mouse...\n"); */
 
     /* Enable second PS/2 port for mouse */
-    /* PLATFORM_LOG_DEBUG("MOUSE: Enabling port 2...\n"); */
     ps2_send_command(PS2_CMD_ENABLE_PORT2);
 
     /* Reset mouse */
-    /* PLATFORM_LOG_DEBUG("MOUSE: Sending reset command (0xFF)...\n"); */
     if (!ps2_mouse_command(PS2_DEV_RESET)) {
-        /* PLATFORM_LOG_DEBUG("MOUSE: Reset failed - no ACK\n"); */
         return false;
     }
-    /* PLATFORM_LOG_DEBUG("MOUSE: Reset ACK received\n"); */
 
     /* Wait for self-test result */
-    /* PLATFORM_LOG_DEBUG("MOUSE: Waiting for self-test result...\n"); */
     if (ps2_wait_output()) {
         uint8_t result = ps2_read_data();
-        /* PLATFORM_LOG_DEBUG("MOUSE: Self-test result: 0x%02x\n", result); */
         if (result != 0xAA) {
-            /* PLATFORM_LOG_DEBUG("MOUSE: Self-test FAILED (expected 0xAA)\n"); */
             return false;
         }
-        /* PLATFORM_LOG_DEBUG("MOUSE: Self-test PASSED\n"); */
     } else {
-        /* PLATFORM_LOG_DEBUG("MOUSE: Self-test timeout\n"); */
         return false;
     }
 
     /* Read and discard mouse ID */
-    /* PLATFORM_LOG_DEBUG("MOUSE: Reading mouse ID...\n"); */
 
     if (ps2_wait_output()) {
-        uint8_t id = ps2_read_data();
-        (void)id;
-        /* PLATFORM_LOG_DEBUG("MOUSE: Mouse ID: 0x%02x\n", id); */
-    } else {
-        /* PLATFORM_LOG_DEBUG("MOUSE: No mouse ID received\n"); */
+        (void)ps2_read_data();
     }
 
     /* Set defaults */
-    /* PLATFORM_LOG_DEBUG("MOUSE: Setting defaults (0xF6)...\n"); */
     if (!ps2_mouse_command(PS2_MOUSE_SET_DEFAULTS)) {
-        /* PLATFORM_LOG_DEBUG("MOUSE: Failed to set defaults - no ACK\n"); */
         return false;
     }
-    /* PLATFORM_LOG_DEBUG("MOUSE: Defaults set\n"); */
 
     /* Try to enable Intellimouse scroll wheel extension */
     ps2_enable_intellimouse();
@@ -679,7 +654,6 @@ static Boolean init_mouse(void) {
     }
 
     g_mouseEnabled = true;
-    /* PLATFORM_LOG_DEBUG("PS/2 mouse initialized successfully\n"); */
     return true;
 }
 
@@ -687,12 +661,9 @@ static Boolean init_mouse(void) {
 Boolean InitPS2Controller(void) {
     if (g_ps2Initialized) return true;
 
-    /* PLATFORM_LOG_DEBUG("Initializing PS/2 controller...\n"); */
 
-    /* PLATFORM_LOG_DEBUG("PS2: Unmasking IRQ12 and IRQ2 in PIC...\n"); */
     uint8_t pic1_mask = inb(PIC1_DATA);
     uint8_t pic2_mask = inb(PIC2_DATA);
-    /* PLATFORM_LOG_DEBUG("PS2: PIC1 mask before: 0x%02x, PIC2 mask before: 0x%02x\n", pic1_mask, pic2_mask); */
 
     pic1_mask &= ~0x04;  /* Unmask IRQ2 (cascade) */
     pic1_mask &= ~0x02;  /* Unmask IRQ1 (keyboard) - bit 1 */
@@ -710,7 +681,6 @@ Boolean InitPS2Controller(void) {
 
     pic1_mask = inb(PIC1_DATA);
     pic2_mask = inb(PIC2_DATA);
-    /* PLATFORM_LOG_DEBUG("PS2: PIC1 mask after: 0x%02x, PIC2 mask after: 0x%02x\n", pic1_mask, pic2_mask); */
 
     /* Disable both PS/2 ports during initialization */
     ps2_send_command(PS2_CMD_DISABLE_PORT1);
@@ -724,14 +694,12 @@ Boolean InitPS2Controller(void) {
     /* Get controller configuration */
     ps2_send_command(PS2_CMD_READ_CONFIG);
     uint8_t config = ps2_read_data();
-    /* PLATFORM_LOG_DEBUG("PS2: Initial config byte: 0x%02x\n", config); */
 
     config |= 0x02;  /* Enable mouse IRQ (bit 1) */
     config |= 0x01;  /* Enable keyboard IRQ (bit 0) */
     config &= ~0x20; /* Enable AUX port (clear bit 5) */
     config |= 0x40;  /* Enable set 1 translation */
 
-    /* PLATFORM_LOG_DEBUG("PS2: New config byte: 0x%02x\n", config); */
 
     /* Write configuration back */
     ps2_send_command(PS2_CMD_WRITE_CONFIG);
@@ -742,7 +710,6 @@ Boolean InitPS2Controller(void) {
     if (ps2_wait_output()) {
         uint8_t result = ps2_read_data();
         if (result != 0x55) {
-            /* PLATFORM_LOG_DEBUG("PS/2 controller self-test failed: 0x%02x\n", result); */
             return false;
         }
     }
@@ -752,7 +719,6 @@ Boolean InitPS2Controller(void) {
     if (ps2_wait_output()) {
         uint8_t result = ps2_read_data();
         if (result != 0x00) {
-            /* PLATFORM_LOG_DEBUG("PS/2 port 1 test failed: 0x%02x\n", result); */
             return false;
         }
     }
@@ -762,7 +728,6 @@ Boolean InitPS2Controller(void) {
     if (ps2_wait_output()) {
         uint8_t result = ps2_read_data();
         if (result != 0x00) {
-            /* PLATFORM_LOG_DEBUG("PS/2 port 2 test failed: 0x%02x\n", result); */
             /* Mouse is optional, continue anyway */
         }
     }
@@ -779,9 +744,7 @@ Boolean InitPS2Controller(void) {
     ps2_send_command(PS2_CMD_ENABLE_PORT2);
 
     /* Initialize mouse */
-    if (!init_mouse()) {
-        /* PLATFORM_LOG_DEBUG("Warning: Mouse initialization failed\n"); */
-    }
+    (void)init_mouse();
 
     /* Center mouse cursor at actual screen center (not hardcoded) */
     if (fb_width > 0 && fb_height > 0) {
@@ -792,7 +755,6 @@ Boolean InitPS2Controller(void) {
     }
 
     g_ps2Initialized = true;
-    /* PLATFORM_LOG_DEBUG("PS/2 controller initialized\n"); */
     return true;
 }
 
@@ -800,9 +762,6 @@ Boolean InitPS2Controller(void) {
 void PollPS2Input(void) {
     if (!g_ps2Initialized) return;
 
-    /* mouse_byte_count and packet_count were only ever incremented - the
-     * single debug print using mouse_byte_count is commented out below -
-     * so both counters were dead. */
     static int call_count = 0;
 
     /* First call notification */
@@ -810,7 +769,6 @@ void PollPS2Input(void) {
         PLATFORM_LOG_DEBUG("PS2: PollPS2Input first call!\n");
     }
 
-    /* Disabled polling debug output to reduce serial log noise */
     call_count++;
 
     /* Drain the controller completely this tick */
@@ -832,8 +790,6 @@ void PollPS2Input(void) {
                 continue;
             }
             /* --- Mouse byte --- */
-            /* PLATFORM_LOG_DEBUG("POLL: Got mouse byte 0x%02x (status=0x%02x) idx=%d enabled=%d count=%d\n",
-                          data, status, g_mouseState.packet_index, g_mouseEnabled, mouse_byte_count); */
 
             if (!g_mouseEnabled) {
                 continue; /* ignore until fully enabled */
@@ -842,7 +798,7 @@ void PollPS2Input(void) {
             /* Enforce sync only when starting a new packet; don't exit polling */
             if (g_mouseState.packet_index == 0 && !(data & 0x08)) {
                 /* Not a valid first byte; wait for one that has sync bit set */
-                continue; /* (was 'return' before; that aborted the drain) */
+                continue;
             }
 
             /* Buffer overflow guard: packet[] is 4 bytes */
