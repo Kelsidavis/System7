@@ -21,6 +21,8 @@
 #include "DialogManager/AlertDialogs.h"
 #include "DialogManager/DialogManagerStateExt.h"
 #include "DialogManager/dialog_manager_private.h"  /* For DialogMgrGlobals */
+#include "WindowManager/WindowManager.h"
+#include "QuickDraw/QuickDraw.h"
 #include "MemoryMgr/MemoryManager.h"
 #include <assert.h>
 #include "DialogManager/DialogLogging.h"
@@ -44,19 +46,6 @@ static union {
 _Static_assert(sizeof(DialogManagerState) <= offsetof(DialogManagerState_Extended, teHandles),
                "the extended Dialog Manager state must extend the base one");
 static Boolean gDialogManagerInitialized = false;
-
-/* External dependencies that need to be linked */
-/* NewWindow is already declared in WindowManager.h */
-extern void DisposeWindow(WindowPtr window);
-extern void ShowWindow(WindowPtr window);
-extern void HideWindow(WindowPtr window);
-extern void DrawWindow(WindowPtr window);
-extern void InvalRect(const Rect* rect);
-extern void BeginUpdate(WindowPtr window);
-extern void EndUpdate(WindowPtr window);
-extern void EraseRect(const Rect* r);
-extern void GetPort(GrafPtr* port);
-extern void SetPort(GrafPtr port);
 
 /* Private function prototypes */
 static DialogPtr CreateDialogStructure(void* storage, Boolean isColor);
