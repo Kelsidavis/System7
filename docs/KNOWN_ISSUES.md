@@ -618,18 +618,18 @@ and that was tried — it changed none of the symptoms above and could not be
 validated end to end at the time, so it was reverted. Worth revisiting now that
 the dialog can actually be dismissed.
 
-### ⚠️ Live menu tracking still has a separate frame path (MENU-001) — PARTLY ADDRESSED
+### ✅ Live dropdowns use the shared display path (MENU-001) — AUTOMATED, VISUAL CHECK PENDING
 
 `MenuDisplay.c` owns the shared item renderer — `DrawMenuItem` — for both the
 normal dropdown painter and live tracking. `MenuTrack.c` supplies each tracked
 row's explicit rectangle and selection state through `DrawMenuItemAtRect()`;
 text, icons, marks, command keys, submenu arrows, and disabled-item stippling
-then use the shared renderer. The extracted Chicago strike omits the command
-and check-mark glyphs, so their bitmap definitions also live with that
-renderer. Live tracking still owns its dropdown frame/background and highlight
-state, rather than using `DrawMenu()`'s frame path. The consolidation builds
-and passes the automated suite, but still needs a booted visual check before
-the separate frame code is removed.
+then use the shared renderer. Tracked item rectangles and hit testing use
+`CalcMenuItemRect()` and `GetMenuItemHeight()`, so separators retain their
+shorter height. The initial tracked dropdown uses `DrawMenu()` for its frame,
+background, and rows; live highlight state remains in the tracker. The
+consolidation builds and passes the automated suite, but its final appearance
+still needs a booted visual check.
 
 Two bugs fell out of this, both now fixed:
 
@@ -645,11 +645,8 @@ Two bugs fell out of this, both now fixed:
   dividers as a grey line across the menu and right-aligns command keys,
   matching System 7.1.
 
-Tracked item rectangles and hit testing now use `CalcMenuItemRect()` and
-`GetMenuItemHeight()`, the same geometry used by normal menu drawing; this also
-gives separators their shorter height. Still outstanding: route the live
-dropdown frame/background through the shared display path and remove the
-remaining duplicate frame implementation after visual behavior is verified.
+Tracked item rectangles and hit testing use the same normal menu geometry.
+
 - The ⌘ symbol is drawn **geometrically**, not from the font. Chicago carries it
   at char 0x11, but the extracted strike only covers ASCII 32–126 and
   `FM_DrawChicagoCharInternal` rejects `ch < 32`. `DrawMenuItemCmdKeyInternal`

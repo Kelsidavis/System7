@@ -112,6 +112,7 @@ SInt16 FindMenuAtPoint_Internal(Point pt);
 /* Menu tracking */
 void DrawMenuItemText(const Rect* itemRect, ConstStr255Param itemText,
                       Style textStyle, Boolean enabled, Boolean selected);
+void DrawMenu(MenuHandle menu, const Rect* menuRect, short hiliteItem);
 void DrawMenuItemAtRect(MenuHandle menu, short item, const Rect* itemRect,
                         Boolean selected);
 void CalcMenuItemRect(MenuHandle menu, short item, const Rect* menuRect,

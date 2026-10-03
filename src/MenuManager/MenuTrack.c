@@ -82,11 +82,6 @@ static void FillFramebufferRect(short left, short top, short right, short bottom
     }
 }
 
-/* Draw filled rectangle and protect the pointer from redraw artifacts. */
-static void DrawMenuRect(short left, short top, short right, short bottom, uint32_t color) {
-    FillFramebufferRect(left, top, right, bottom, color, true);
-}
-
 /*
  * Grey out a drawn row by removing every other pixel, which is what the System
  * 7 MDEF gets by drawing the item and then applying the 50% grey pattern in
@@ -233,31 +228,15 @@ static void FlashChosenItem(MenuHandle theMenu, short item, short left, short to
 
 /* Draw dropdown menu */
 static void DrawTrackedMenu(MenuHandle theMenu, short left, short top,
-                            short itemCount, short menuWidth, short menuHeight) {
-    /* Save current port and ensure we're in screen port for menu drawing */
+                            short menuWidth, short menuHeight) {
+    Rect menuRect = {top, left, top + menuHeight, left + menuWidth};
     GrafPtr savePort;
     GetPort(&savePort);
     if (qd.thePort) {
-        QD_SetScreenPort();  /* menus use global coordinates */
+        QD_SetScreenPort();
         Menu_ClipToScreen();
     }
-
-    /* Draw white background */
-    DrawMenuRect(left, top, left + menuWidth, top + menuHeight, 0xFFFFFFFF);
-
-    /* Draw border */
-    DrawMenuRect(left, top, left + menuWidth, top + 1, 0xFF000000);
-    DrawMenuRect(left, top + menuHeight - 1, left + menuWidth, top + menuHeight, 0xFF000000);
-    DrawMenuRect(left, top, left + 1, top + menuHeight, 0xFF000000);
-    DrawMenuRect(left + menuWidth - 1, top, left + menuWidth, top + menuHeight, 0xFF000000);
-
-    /* Items - clamp iteration to prevent runaway loops */
-    short maxItems = itemCount > 64 ? 64 : itemCount;
-    for (short i = 1; i <= maxItems; i++) {
-        DrawMenuItemRow(theMenu, i, left, top, menuWidth, false);
-    }
-
-    /* Restore original port */
+    DrawMenu(theMenu, &menuRect, 0);
     if (savePort) SetPort(savePort);
 }
 
@@ -340,7 +319,7 @@ long BeginTrackMenu(short menuID, Point *startPt) {
 
     serial_puts("BeginTrackMenu: About to call DrawTrackedMenu\n");
     /* Draw the menu dropdown */
-    DrawTrackedMenu(theMenu, left, top, itemCount, menuWidth, (short)calcHeight);
+    DrawTrackedMenu(theMenu, left, top, menuWidth, (short)calcHeight);
     serial_puts("BeginTrackMenu: Dropdown drawn, tracking started\n");
 
     /* Restore original port */
@@ -650,7 +629,7 @@ static long TrackMenu_Body(short menuID, Point *startPt) {
     serial_puts("TrackMenu: Menu bar highlight drawn\n");
 
     /* Draw the menu dropdown */
-    DrawTrackedMenu(theMenu, left, top, itemCount, menuWidth, menuHeight);
+    DrawTrackedMenu(theMenu, left, top, menuWidth, menuHeight);
     serial_puts("TrackMenu: DrawTrackedMenu returned\n");
     serial_puts("TrackMenu: Menu drawn, entering tracking loop\n");
 
