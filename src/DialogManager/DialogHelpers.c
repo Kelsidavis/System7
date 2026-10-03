@@ -31,12 +31,6 @@ extern UInt32 TickCount(void);
 static DialogPtr gFocusDialog = NULL;
 static SInt16 gFocusItemNo = 0;
 
-/* Helper: Check if point is in rect (renamed to avoid QuickDraw conflict) */
-static Boolean __attribute__((unused)) DlgPtInRect(Point pt, const Rect* r) {
-    return (pt.h >= r->left && pt.h < r->right &&
-            pt.v >= r->top && pt.v < r->bottom);
-}
-
 /* Convert global point to dialog-local coordinates */
 void GlobalToLocalDialog(DialogPtr theDialog, Point* pt) {
     if (!theDialog || !pt) return;

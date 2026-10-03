@@ -50,12 +50,6 @@ extern QDGlobals qd;
 /* Dialog Manager state access */
 extern DialogManagerState* GetDialogManagerState(void);
 
-/* Helper: Check if point is in rect (renamed to avoid QuickDraw conflict) */
-static Boolean __attribute__((unused)) DlgPtInRect(Point pt, const Rect* r) {
-    return (pt.h >= r->left && pt.h < r->right &&
-            pt.v >= r->top && pt.v < r->bottom);
-}
-
 /* Draw push button or default button */
 void DrawDialogButton(DialogPtr theDialog, const Rect* bounds, const unsigned char* title,
                      Boolean isDefault, Boolean isEnabled, Boolean isPressed) {
