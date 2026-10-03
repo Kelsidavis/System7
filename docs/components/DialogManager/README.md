@@ -17,7 +17,7 @@ Provides modal and modeless dialog services, resource loading, draw/update cycle
 ## Responsibilities
 - Construct dialog windows from DLOG/DITL resources and attach cloned controls
 - Maintain the dialog item list, including text item state, control handles, and icon references
-- Provide modal loop entry points (`ModalDialog`, `StandardAlert`) that block until an item is activated
+- Provide modal loop entry points (`ModalDialog`, `Alert`, `StopAlert`, `NoteAlert`, `CautionAlert`) that block until an item is activated
 - Integrate keyboard focus and control activation semantics (default, cancel, Tab order)
 - Coordinate dialog invalidation/redraw by deferring to Control Manager for control items and TextEdit for editable fields
 
@@ -30,7 +30,7 @@ Provides modal and modeless dialog services, resource loading, draw/update cycle
 ## Testing & Debugging
 - Run `make check` for the automated project checks, then use `make run` to exercise dialog interaction in QEMU
 - Use `DialogManager` serial logs (`[DM]` / `[CTRL]`) for tracing; whitelist entries live in `System71StdLib.c`
-- Alerts can be exercised through `StandardAlert` from an application or integration test
+- Alert dialogs can be exercised through `Alert`, `StopAlert`, `NoteAlert`, or `CautionAlert`; integration tests exercise `CautionAlert`
 
 ## Future Work
 - Hook modal dialogs into StandardFile file selection once List Manager and File Manager APIs stabilise
