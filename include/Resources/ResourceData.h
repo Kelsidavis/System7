@@ -13,18 +13,10 @@
 
 #include "SystemTypes.h"
 
-/* Forward declarations */
-
 #include "QuickDraw/QuickDraw.h"
 
-/* Include the extracted System 7 resources */
+/* Embedded System 7 resources */
 #include "system7_resources.h"
-
-/* Resource types */
-
-/* Resource IDs for standard System 7 resources */
-
-/* Resource data structure */
 
 /* Public API */
 
@@ -35,7 +27,7 @@ OSErr InitResourceData(void);
 Boolean GetResourceDataInitialized(void);
 
 
-/* Draw icon at location */
+/* Draw an embedded icon at the given location. */
 void DrawResourceIcon(UInt16 iconID, short x, short y);
 
 

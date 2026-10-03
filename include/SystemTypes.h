@@ -2997,7 +2997,7 @@ typedef Pattern* PatHandle;
 #define kRegionOverflowError -3
 #define kMaxRegionSize 32767
 
-/* Additional missing types */
+/* Region compatibility types */
 typedef RgnHandle RgnPtr;
 
 typedef struct PatternList {
@@ -3015,7 +3015,7 @@ typedef struct ResourceData {
 
 typedef UInt32 ResourceDataType;
 
-// Fix BTHeader member names
+// B-tree header compatibility field names
 #define bthDepth treeDepth
 #define bthRoot rootNode
 #define bthNRecs leafRecords
@@ -3026,13 +3026,13 @@ typedef UInt32 ResourceDataType;
 #define bthNNodes totalNodes
 #define bthFree freeNodes
 
-// Fix BTNode member names
+// B-tree node compatibility field names
 #define ndType kind
 #define ndNHeight numRecords
 #define ndNRecs numRecords
 #define ndData data
 
-// Add missing constants
+// B-tree and File Manager constants
 #define ndHdrNode 1
 #define ndIndexNode 0
 #define ndLeafNode 255
@@ -3042,8 +3042,6 @@ typedef UInt32 ResourceDataType;
 #define BTREE_NODE_SIZE 512
 
 #define MAX_OPEN_RES_FILES 128
-// OpenResourceFile already defined above
-
 /* File seek constants */
 #define SEEK_SET 0
 #define SEEK_CUR 1

@@ -395,11 +395,9 @@ static void DrawExtensionIcon(const ExtensionInfo* extension, Point position) {
     GetPort(&savePort);
     SetPort((GrafPtr)gStartupScreen.window);
 
-    /* Draw icon if available */
+    /* Draw the generic icon when an extension has an icon resource. */
     if (extension->iconID != 0) {
-        /* DrawResourceIcon(extension->iconID, position.h, position.v); */ /* Commented out - ResourceData not available */
-        /* Draw generic icon instead */
-        /* Draw generic extension icon */
+        /* Draw a generic extension icon. */
         Rect iconRect;
         SetRect(&iconRect,
                 position.h, position.v,

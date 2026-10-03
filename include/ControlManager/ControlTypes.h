@@ -11,9 +11,6 @@
 
 #include "SystemTypes.h"
 
-/* Forward declarations */
-
-
 /* Control Messages */
 enum {
     drawCntl    = 0,
@@ -73,9 +70,4 @@ enum {
     popupMenuProc   = 1008  /* Popup menu control */
 };
 
-/* Control Color Types */
-
-/* Forward declarations for headers */
-
-#endif /* CONTROLTYPES_H *//* Control color types */
-
+#endif /* CONTROLTYPES_H */
