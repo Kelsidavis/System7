@@ -25,9 +25,6 @@
 /* Platform abstraction layer */
 #include "QuickDraw/QuickDrawPlatform.h"
 
-/* Serial logging for defensive diagnostics */
-extern void serial_putchar(char ch);
-
 /* REGION_DEBUG: Set to 1 to enable verbose region logging
  * WARNING: Enabling this causes SEVERE performance degradation on ARM64 */
 #define REGION_DEBUG 0
