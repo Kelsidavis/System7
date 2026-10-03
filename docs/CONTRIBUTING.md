@@ -22,7 +22,7 @@ Thank you for your interest in the System 7 reimplementation project! This is an
 - Create locale-specific documentation
 
 ### 💻 Code Improvements
-- Fix bugs identified in [known issues](docs/KNOWN_ISSUES.md)
+- Fix bugs identified in [known issues](KNOWN_ISSUES.md)
 - Improve code quality (test coverage, documentation)
 - Optimize performance
 - For major features, open an issue first to discuss approach
@@ -52,8 +52,8 @@ make
 make LOCALE_ALL=1
 make LOCALE_FR=1
 
-# Build with the integration tests, which run at boot
-make INTEGRATION_TESTS=1
+# Build, boot and collect integration-test results
+python3 tests/run_integration_tests.py
 
 # Run in QEMU
 make run
@@ -67,7 +67,7 @@ make debug
 ```
 System7/
 ├── include/              # Header files for all subsystems
-├── src/                  # Source files (not shown, would be same structure)
+├── src/                  # Code by subsystem, plus Platform/ and Integration/
 ├── docs/                 # Project documentation
 │   ├── components/       # Detailed component guides
 │   ├── future/           # Planning documents
