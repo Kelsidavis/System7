@@ -65,9 +65,7 @@ static KeyTransState g_globalTransState = {0};
 /* Abort detection */
 static Boolean g_abortPressed = false;
 
-/* External references */
 /* PostEvent declared in EventManager.h */
-extern void UpdateKeyboardState(const KeyMap newKeyMap);
 
 /*---------------------------------------------------------------------------
  * Key Translation Tables

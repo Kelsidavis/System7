@@ -131,10 +131,7 @@ static SInt16 g_clickCount = 0;
 static SInt16 g_currentButtonState = 0;
 static SInt16 g_lastButtonState = 0;
 
-/* External references */
-extern void UpdateMouseState(Point newPos, UInt8 buttonState);
 /* PostEvent declared in EventManager.h */
-extern UInt32 GetDblTime(void);
 
 /*---------------------------------------------------------------------------
  * Private Function Declarations
@@ -253,8 +250,6 @@ Boolean Button(void)
     /* Read the hardware first: the state is otherwise only refreshed by
      * the main loop, so a tracking loop that did not pump never saw the
      * button come up. */
-    extern void EventPumpYield(void);
-    extern volatile UInt8 gCurrentButtons;
     EventPumpYield();
     return (gCurrentButtons & 1) != 0;
 }

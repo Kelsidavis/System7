@@ -143,7 +143,6 @@ static void* g_diskEventUserData = NULL;
  *---------------------------------------------------------------------------*/
 
 static void NotifyCallbacks(SInt16 eventType, SystemEventContext* context);
-EventRecord GenerateOSEvent(SInt16 eventSubtype, SInt32 message);
 static UpdateRegion* FindUpdateRegion(WindowPtr window);
 static void RemoveUpdateRegion(UpdateRegion* region);
 
