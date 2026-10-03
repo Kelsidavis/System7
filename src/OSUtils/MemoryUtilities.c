@@ -11,9 +11,6 @@
 #include "SystemTypes.h"
 #include "System71StdLib.h"
 
-/* Forward declarations */
-void LongMul(SInt32 a, SInt32 b, wide* result);
-
 /* Debug logging */
 #define MEM_UTIL_DEBUG 0
 

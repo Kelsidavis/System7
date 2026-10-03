@@ -869,8 +869,6 @@ void DisposeCCursor(CCrsrHandle cCrsr) {
 
 CIconHandle GetCIcon(SInt16 iconID) {
     /* Load color icon from resources. Try 'cicn' first, fall back to 'ICN#' */
-    extern Handle GetResource(ResType theType, ResID theID);
-
     Handle h = GetResource(FOURCC('c','i','c','n'), iconID);
     if (!h) {
         h = GetResource(FOURCC('I','C','N','#'), iconID);
@@ -920,7 +918,6 @@ void PlotCIcon(const Rect *theRect, CIconHandle theIcon) {
 
 void DisposeCIcon(CIconHandle theIcon) {
     if (theIcon) {
-        extern void ReleaseResource(Handle h);
         ReleaseResource((Handle)theIcon);
     }
 }

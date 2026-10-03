@@ -13,11 +13,6 @@
 #include <stddef.h>
 #include "Platform/PlatformLogging.h"
 
-/* External functions */
-extern void* memset(void* s, int c, size_t n);
-extern void* memcpy(void* dest, const void* src, size_t n);
-extern size_t strlen(const char* s);
-
 #define ATAPI_SECTOR_SIZE 2048
 #define ATAPI_CMD_READ_10 0x28
 #define ATAPI_PACKET_SIZE 12

@@ -8,12 +8,6 @@
 #include <string.h>
 #include <stdlib.h>
 
-/* External functions */
-extern int snprintf(char* str, size_t size, const char* format, ...);
-
-/* External function from pattern_data.c */
-extern const uint8_t* GetBuiltInPatternData(int16_t patternID);
-
 bool LoadPATResource(int16_t id, Pattern *outPat) {
     if (!outPat) return false;
 

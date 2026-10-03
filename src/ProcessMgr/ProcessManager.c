@@ -18,6 +18,7 @@
 #include "WindowManager/WindowManager.h"
 #include <string.h>
 #include "EventManager/EventManager.h"
+#include "EventManager/EventManagerInternal.h"
 #include "MemoryMgr/MemoryManager.h"
 #include "EventManager/AppSwitcher.h"
 #include "SoundManager/SoundManager.h"
@@ -50,7 +51,6 @@ OSErr ProcessManager_Initialize(void)
     if (err == noErr) {
         /* Nothing runs 68K code yet, so this is what notices if the
          * interpreter stops working. Silent unless it fails. */
-        extern void M68K_SelfTest(void);
         M68K_SelfTest();
     }
     if (err != noErr) {
@@ -571,12 +571,10 @@ OSErr ProcessManager_SetFrontProcess(ProcessSerialNumber psn) {
     /* Send deactivate event to old front process if it exists */
     if (oldFrontProcess) {
         /* Post deactivate event */
-        extern OSErr Proc_PostEvent(EventMask what, UInt32 message);
         Proc_PostEvent(activateEvt, 0);  /* message=0 means deactivate */
     }
 
     /* Send activate event to new front process */
-    extern OSErr Proc_PostEvent(EventMask what, UInt32 message);
     Proc_PostEvent(activateEvt, 1);  /* message=1 means activate */
 
     serial_printf("[ProcessManager] Switched to front process: signature=%c%c%c%c\n",
