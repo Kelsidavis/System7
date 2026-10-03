@@ -21,6 +21,7 @@
 
 #include "Finder/finder.h"
 #include "Finder/finder_types.h"
+#include "TimeManager/TimeBase.h"
 #include "FileMgr/file_manager.h"
 /* Use local headers instead of system headers */
 #include "MemoryMgr/memory_manager_types.h"
@@ -1987,7 +1988,6 @@ Boolean HandleDesktopClick(Point clickPoint, Boolean doubleClick)
     }
 
     /* Check for double-click ourselves using time threshold (ignore broken event flag) */
-    extern UInt32 TickCount(void);
     extern UInt32 GetDblTime(void);
     UInt32 currentTicks = TickCount();
     UInt32 timeSinceLastClick = currentTicks - sLastClickTicks;
@@ -2021,7 +2021,6 @@ Boolean HandleDesktopClick(Point clickPoint, Boolean doubleClick)
         gSelectedIcon = hitIcon;
 
         /* Update same-icon tracking for next potential double-click */
-        extern UInt32 TickCount(void);
         sLastClickIcon = hitIcon;
         sLastClickTicks = TickCount();
 

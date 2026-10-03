@@ -23,6 +23,7 @@
 #include "LocaleManager/StringIDs.h"
 #include "Finder/Icon/icon_types.h"
 #include "Finder/Icon/icon_label.h"
+#include "TimeManager/TimeBase.h"
 #include "Finder/Icon/icon_system.h"
 #include "Finder/finder.h"
 #include "FS/vfs.h"
@@ -50,7 +51,6 @@ extern void EraseRect(const Rect* r);
 extern void GlobalToLocal(Point* pt);
 extern void GetPort(GrafPtr* port);
 extern void SetPort(GrafPtr port);
-extern UInt32 TickCount(void);
 extern UInt32 GetDblTime(void);
 /* PostEvent declared in EventManager.h */
 extern QDGlobals qd;
@@ -1165,7 +1165,6 @@ static struct { WindowPtr w; short item; UInt32 at; } gPendingRename;
 
 /* Called at idle: start a rename whose wait is over. */
 void FolderWindow_IdleRename(void) {
-    extern UInt32 TickCount(void);
     extern Boolean Button(void);
     if (!gPendingRename.w || TickCount() < gPendingRename.at || Button()) return;
     WindowPtr w = gPendingRename.w;
@@ -1315,7 +1314,6 @@ Boolean HandleFolderWindowClick(WindowPtr w, EventRecord *ev, Boolean isDoubleCl
 
             if (oldSel == hitIndex && !shiftHeld && onName) {
                 extern UInt32 GetDblTime(void);
-                extern UInt32 TickCount(void);
                 gPendingRename.w = w;
                 gPendingRename.item = hitIndex;
                 gPendingRename.at = TickCount() + GetDblTime();

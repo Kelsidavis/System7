@@ -16,6 +16,7 @@
 #include "Platform/include/boot.h"
 #include "LocaleManager/LocaleManager.h"
 #include "LocaleManager/StringIDs.h"
+#include "TimeManager/TimeBase.h"
 
 /* For debug logging */
 extern void serial_printf(const char* fmt, ...);
@@ -398,8 +399,6 @@ Boolean AboutWindow_HandleUpdate(WindowPtr w)
     Rect box, bar, seg;
     short wSys, wApp, wCac;  /* Memory segment widths for bar graph */
     UInt32 currentTicks;
-    extern UInt32 TickCount(void);
-
     if (!w || w != sAboutWin) {
         return 0;  /* false */
     }
