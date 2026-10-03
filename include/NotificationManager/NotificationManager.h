@@ -43,9 +43,6 @@ OSErr NMRemove(NMRecPtr nmReqPtr);
 #define nmType          8       /* Notification queue type */
 
 /* Notification Manager error codes */
-#ifndef qErr
-#define qErr            -1      /* Queue error (full or not found) */
-#endif
 #ifndef nmTypeErr
 #define nmTypeErr       -299    /* Notification Manager type error */
 #endif
