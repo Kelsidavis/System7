@@ -34,8 +34,10 @@ System 7.1-compatible Font Manager providing bitmap font support with the Chicag
 - Metrics: ascent 12 px, descent 3 px, leading 3 px, printable ASCII 0x20–0x7E
 - `ChicagoCharInfo` table supplies bit offsets, ink widths, side bearings, and logical advances; space has an explicit +3 px adjustment to match System 7 spacing
 
-### Style Synthesis ✓
-- `FontStyleSynthesis.c` implements bold (1 px embolden), italic shear, underline, shadow, outline, condense/extend spacing adjustments, and combined effects using the same internal renderer hooks
+### Text Styles
+- `FontStyleSynthesis.c` calculates style-adjusted character/string widths and extra bounds; it does not draw styled glyphs
+- `FontManagerCore.c` draws bold glyphs with a one-pixel offset and draws underline after a string. Italic offset is only applied by the Chicago fallback path when no font strike is available; the strike-rendering path does not currently shear glyphs
+- Shadow, outline, and condense/extend drawing are not implemented
 - `FontScaling.c` contains nearest-neighbour upsizing for larger point sizes, sharing the Chicago strike as a base
 
 ### Caching Strategy (current vs. future)
@@ -49,8 +51,9 @@ System 7.1-compatible Font Manager providing bitmap font support with the Chicag
 1. Only the Chicago 12 strike ships in-tree; Geneva and Monaco reuse the same metrics
 2. FOND/NFNT loading is connected to `GetResource`; end-to-end coverage against real resource forks and non-Chicago strikes is still limited
 3. TrueType support is still out of scope
-4. Italic rendering relies on bitmap shearing and is visually close but not pixel-perfect to ROM output
-5. Cache invalidation once additional strikes arrive still needs real-world tuning
+4. Italic rendering is incomplete: only the no-strike Chicago fallback applies a one-pixel offset; strike-backed glyphs are not sheared
+5. Shadow, outline, and condense/extend are measured by style helpers but are not rendered
+6. Cache invalidation once additional strikes arrive still needs real-world tuning
 
 ### Next Steps
 - Validate FOND/NFNT loading from application resource forks and add representative Geneva/Monaco strikes
