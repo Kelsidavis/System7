@@ -44,6 +44,7 @@ extern void DoMenuCommand(short menuID, short item);
 #include "../include/TimeManager/TimeManager.h"
 #include "../include/ExtensionManager/DefLoader.h"
 #include "../include/ProcessMgr/ProcessTypes.h"
+#include "../include/Finder/finder.h"
 
 #include "Platform/include/network.h"
 #include "Platform/include/input.h"
@@ -586,12 +587,6 @@ extern void DrawMenuBar(void);
 /* Event Manager functions */
 /* GetNextEvent, EventAvail declared in EventManager.h */
 extern void SystemTask(void);
-
-/* Finder functions */
-extern OSErr InitializeFinder(void);
-extern void FinderEventLoop(void);
-extern OSErr CleanUpDesktop(void);
-extern void DrawDesktop(void);
 
 #ifdef TM_SMOKE_TEST
 /* Time Manager test callback */

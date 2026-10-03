@@ -404,7 +404,6 @@ static void Desktop_DrawIconsCommon(RgnHandle clip)
 }
 
 /* Public function to draw the desktop */
-void DrawDesktop(void);
 void DrawVolumeIcon(void);
 
 /*

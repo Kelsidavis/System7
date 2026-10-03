@@ -69,10 +69,7 @@ void Finder_InstallMenuBar(void)
 }
 
 /* Forward Declarations */
-OSErr InitializeFinder(void);  /* Made public for kernel integration */
 static OSErr SetupMenus(void);
-extern OSErr InitializeDesktopDB(void);  /* From desktop_manager.c */
-extern OSErr InitializeTrashFolder(void);  /* From trash_manager.c */
 static OSErr InitializeWindowManager(void);
 /*
  * InitializeWindowManager - Initialize window management for Finder
