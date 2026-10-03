@@ -264,7 +264,6 @@ void SizeWindow(WindowPtr theWindow, short w, short h, Boolean fUpdate) {
                  * pattern left out the icons, so the Trash vanished when a
                  * zoomed window shrank back off it. The hook paints only
                  * where no window is. */
-                extern DeskHookProc g_deskHook;  /* WindowDisplay.c */
                 if (g_deskHook) {
                     g_deskHook(exposedDesktop);
                 }

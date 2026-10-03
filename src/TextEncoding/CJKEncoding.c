@@ -22,12 +22,6 @@
 
 #include "TextEncoding/CJKEncoding.h"
 
-/* Forward declarations */
-Boolean IsMultiByteScript(ScriptCode script);
-Boolean IsLeadByte(ScriptCode script, UInt8 b);
-SInt16 CharByteCount(ScriptCode script, UInt8 b);
-OSErr DecodeCJKChar(ScriptCode script, UInt8 lead, UInt8 trail, UInt32 *outIndex);
-
 Boolean IsMultiByteScript(ScriptCode script) {
     switch (script) {
         case kScriptJapanese:

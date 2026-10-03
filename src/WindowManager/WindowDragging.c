@@ -546,7 +546,6 @@ static void Local_InvalidateScreenRegion(RgnHandle rgn) {
      * desktop was left out, so whatever a moved window uncovered kept the
      * window's old frame - zooming back in left the zoomed title bar and
      * edges on screen. The desk hook paints only where no window is. */
-    extern DeskHookProc g_deskHook;  /* WindowDisplay.c */
     if (g_deskHook) {
         g_deskHook(rgn);
     }
