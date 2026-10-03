@@ -32,7 +32,7 @@ Recreates the System 7 menu bar and pull-down menu experience, from resource loa
 
 ## Testing & Debugging
 - Use `make run` and interact with the Finder or SimpleText to exercise menu tracking; verify highlights and Command-key shortcuts
-- Serial logs are tagged with `[MENU]` (enable in `System71StdLib.c`)
+- Menu logs use the `[MENU]` tag; include `System71StdLib.h` and call `SysLogSetModuleLevel(kLogModuleMenu, kLogLevelDebug)` to enable debug-level output
 - `make check-exports` confirms exported menu traps remain aligned with `docs/symbols_allowlist.txt`
 - Edge cases: nested hierarchical menus, disabled items mid-track, SaveBits/RestoreBits correctness when overlapping windows
 
