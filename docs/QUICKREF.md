@@ -168,10 +168,8 @@ make run
 ```
 
 ### Level 5: Bare metal?
-```bash
-# This is mostly untested
-# If you have hardware, try it and document findings!
-```
+Physical validation is limited to one UEFI ThinkPad. Broader hardware coverage
+is unverified; report the machine and configuration with any new results.
 
 ## Resource Generation
 
@@ -189,7 +187,7 @@ python3 scripts/create_color_icons.py
 - **Resource**: Data type (STR#, PPAT, ICON, etc.)
 - **Manager**: System subsystem (Window, Menu, Event)
 - **QEMU**: Emulator used for testing
-- **Bare metal**: Real hardware (untested)
+- **Bare metal**: Physical hardware; currently verified on one UEFI ThinkPad
 - **HACK**: Workaround in code that may need follow-up
 
 ## Need Help?

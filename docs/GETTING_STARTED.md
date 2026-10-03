@@ -6,7 +6,7 @@ Welcome! This guide will help you get System 7 up and running in minutes.
 
 This is an open-source reimplementation of Apple's classic Macintosh System 7 operating system. It runs on modern x86 hardware via QEMU emulation and demonstrates how the classic Mac OS worked internally.
 
-**Status**: Experimental reimplementation. Core desktop features run in QEMU; compatibility with original hardware and real System 7 applications is still under active testing.
+**Status**: Experimental reimplementation. Core desktop features run in QEMU, and one physical UEFI ThinkPad has been verified. Broader hardware compatibility and real System 7 application compatibility remain unverified.
 
 ## Quick Start (5 minutes)
 
