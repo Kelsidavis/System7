@@ -1297,20 +1297,6 @@ Boolean HandleFolderWindowClick(WindowPtr w, EventRecord *ev, Boolean isDoubleCl
     return true;
 }
 
-/* Safe folder window drawing with ghost integration
- * Called from EventDispatcher HandleUpdate when window is a folder window
- */
-static bool FolderWindow_EnsureIconSystemInitialized(void) {
-    static bool sIconInitAttempted = false;
-    static bool sIconInitResult = false;
-
-    if (!sIconInitAttempted) {
-        sIconInitResult = Icon_Init();
-        sIconInitAttempted = true;
-    }
-    return sIconInitResult;
-}
-
 /*
  * Format a file size in bytes into a human-readable string (K or MB).
  * System 7 Finder shows: folders as "--", small files as "xK", large as "x.x MB"
@@ -1843,7 +1829,7 @@ void FolderWindow_Draw(WindowPtr w) {
     }
     /* If we have state, draw icons with selection highlighting (icon view) */
     else if (state && state->items) {
-        bool iconSystemReady = FolderWindow_EnsureIconSystemInitialized();
+        bool iconSystemReady = Icon_Init();
 
         for (short i = 0; i < state->itemCount; i++) {
             Boolean selected = state->items[i].selected;

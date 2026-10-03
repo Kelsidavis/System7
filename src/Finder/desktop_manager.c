@@ -135,18 +135,6 @@ static void TrackIconDragSync(short iconIndex, Point startPt);
  *     strong candidate for the desktop artifacts seen after dragging a window.
  */
 
-static bool EnsureIconSystemInitialized(void)
-{
-    static bool sIconInitAttempted = false;
-    static bool sIconInitResult = false;
-
-    if (!sIconInitAttempted) {
-        sIconInitResult = Icon_Init();
-        sIconInitAttempted = true;
-    }
-    return sIconInitResult;
-}
-
 static void Desktop_BuildFileKind(const DesktopItem* item, FileKind* outKind)
 {
     if (!item || !outKind) {
@@ -239,7 +227,7 @@ static int Desktop_LabelOffsetForItem(const DesktopItem* item)
 
 static void Desktop_DrawIconsCommon(RgnHandle clip)
 {
-    if (!EnsureIconSystemInitialized()) {
+    if (!Icon_Init()) {
         return;
     }
 
