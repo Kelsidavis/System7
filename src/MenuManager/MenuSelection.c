@@ -26,6 +26,7 @@
 #include "MenuManager/MenuSelection.h"
 #include "SoundManager/SoundEffects.h"
 #include "MenuManager/MenuDisplay.h"
+#include "TimeManager/TimeBase.h"
 
 /* Serial output functions */
 
@@ -1147,7 +1148,6 @@ static void GetCurrentMouseState(Point* mousePt, Boolean* buttonDown, unsigned l
  */
 static Boolean WaitForMouseChange(unsigned long timeout)
 {
-    extern UInt32 TickCount(void);
     extern void SystemTask(void);
 
     Point startPt, currentPt;
@@ -1177,7 +1177,6 @@ static Boolean WaitForMouseChange(unsigned long timeout)
  */
 static unsigned long GetCurrentTime(void)
 {
-    extern UInt32 TickCount(void);
     return TickCount();
 }
 

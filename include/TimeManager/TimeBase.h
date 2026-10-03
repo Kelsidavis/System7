@@ -27,6 +27,7 @@ uint64_t PlatformCounterNow(void);
 
 /* Classic trap */
 void Microseconds(UnsignedWide *microTickCount);
+UInt32 TickCount(void);
 
 /* Conversions */
 OSErr AbsoluteToNanoseconds(UnsignedWide absolute, UnsignedWide *duration);

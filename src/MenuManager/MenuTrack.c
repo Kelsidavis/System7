@@ -14,6 +14,7 @@
 #include "QuickDrawConstants.h"
 #include "FontManager/FontManager.h"
 #include "EventManager/EventTypes.h"  /* For mouse masks */
+#include "TimeManager/TimeBase.h"
 
 /* Function declarations */
 extern SInt16 CountMenuItems(MenuHandle theMenu);
@@ -388,7 +389,6 @@ static void DrawMenuItemRow(MenuHandle theMenu, short i, short left, short itemT
  * each way, ending highlighted (Inside Macintosh: Toolbox Essentials,
  * 3-116). This held the highlight for 200000 turns of an untimed loop.
  */
-extern UInt32 TickCount(void);
 extern void SystemTask(void);
 extern void EventPumpYield(void);
 static void FlashChosenItem(MenuHandle theMenu, short item, short left, short top,
@@ -873,7 +873,6 @@ static long TrackMenu_Body(short menuID, Point *startPt) {
      * couple of seconds of real time - and on a faster machine, sooner - which
      * closed open menus out from under the user. Two minutes of wall time is a
      * genuine runaway; a fast loop is not. */
-    extern UInt32 TickCount(void);
     const UInt32 MAX_TRACKING_TICKS = 60 * 120;  /* 2 minutes */
     const UInt32 trackStartTick = TickCount();
     UInt32 releaseStartTick = 0;  /* 0 = button not currently released */

@@ -24,6 +24,7 @@
 #include "QuickDrawConstants.h"
 #include "ResourceManager.h"
 #include "System71StdLib.h"
+#include "TimeManager/TimeBase.h"
 #include <string.h>
 
 extern QDGlobals qd;
@@ -155,7 +156,6 @@ enum { kStepTicks = 20 };   /* one pattern per third of a second while held */
  * ordinary click.
  */
 static void ScrollAction(ControlHandle control, SInt16 part) {
-    extern UInt32 TickCount(void);
     SInt16 value = GetControlValue(control);
     if (value == gShown || value < 0 || value >= gPatternCount) return;
     if (part == inUpButton || part == inDownButton) {

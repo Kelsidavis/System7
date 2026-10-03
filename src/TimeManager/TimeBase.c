@@ -23,9 +23,6 @@ static struct {
     Boolean  initialized;
 } gTimeBase = {0};
 
-/* Forward declarations */
-UInt32 TickCount(void);
-
 #ifdef __i386__
 /* x86 CPUID support for frequency detection */
 static inline void cpuid(uint32_t leaf, uint32_t subleaf,
