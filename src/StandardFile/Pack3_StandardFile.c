@@ -11,21 +11,7 @@
 
 #include "SystemTypes.h"
 #include "System71StdLib.h"
-
-/* Forward declarations for Standard File functions */
-extern void SFGetFile(Point where,
-                      const unsigned char* prompt,
-                      void* fileFilter,
-                      SInt16 numTypes,
-                      const OSType* typeList,
-                      void* dlgHook,
-                      void* reply);
-
-extern void SFPutFile(Point where,
-                      const unsigned char* prompt,
-                      const unsigned char* origName,
-                      void* dlgHook,
-                      void* reply);
+#include "StandardFile/StandardFile.h"
 
 /* Forward declaration for Pack3 dispatcher */
 OSErr Pack3_Dispatch(short selector, void* params);

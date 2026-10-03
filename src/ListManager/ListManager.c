@@ -684,11 +684,6 @@ long LGetRefCon(ListHandle lh)
     return LIST_MGR_PTR(lh)->refCon;
 }
 
-/* Forward declarations for internal functions */
-extern void List_DrawCell(ListMgrRec* list, const Rect* cellRect, short row, short col, Boolean selected);
-extern void List_EraseBackground(ListMgrRec* list, const Rect* updateRect);
-extern void List_InvalidateBand(ListMgrRec* list, short dRows);
-
 /* ================================================================
  * DRAWING AND UPDATE
  * ================================================================ */
