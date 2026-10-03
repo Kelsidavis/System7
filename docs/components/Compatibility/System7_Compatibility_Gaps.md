@@ -39,6 +39,8 @@ This checklist records significant differences between the current toolbox reimp
 - ~~`src/ControlManager/StandardControls.c` – Control metrics are hard-coded to Chicago 12; real `GetFontInfo` must come from the Font Manager so controls respect the active font.~~ **FIXED** (2026-10-01): `GetFontInfo()` queries Font Manager's `GetFontMetrics()` and only falls back to proportional scaling when the strike is missing.
 - Mixed-state checkbox paths remain unvalidated; native System 7 controls supported tri-state checkboxes.
 - `include/MenuManager/MenuManager.h` declares `PopUpMenuSelect`, but there is no definition in `src/`; implement popup tracking and return encoding, then add integration coverage.
+- `include/MenuManager/MenuManager.h` also declares `InsertIntlResMenu` and `InitProcMenu`, with no definitions in `src/`.
+- `include/ControlManager/ControlManager.h` declares `NewEditTextControl`, `NewStaticTextControl`, and `NewPopupControl`, but none has a definition in `src/`.
 
 ## Event & Input Handling
 - ~~`src/EventManager/event_manager.c` – Posted events always reported `modifiers = 0`; modifier bits need to be sampled so Command shortcuts and shift-clicking behave correctly.~~ **FIXED** (2025-10-06): `PostEvent` now calls `GetPS2Modifiers()` to populate modifier fields from hardware.

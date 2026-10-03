@@ -195,16 +195,6 @@ void InvalMenuBar(void);
 void HiliteMenu(short menuID);
 
 /*
- * GetMBarHeight - Get menu bar height
- *
- * Returns the current height of the menu bar in pixels.
- * Standard menu bar height is 20 pixels.
- *
- * Returns: Height of menu bar in pixels
- */
-short GetMBarHeight(void);
-
-/*
  * FlashMenuBar - Flash menu bar for feedback
  *
  * Flashes the specified menu title in the menu bar for user feedback.
