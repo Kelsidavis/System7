@@ -912,7 +912,6 @@ void DrawChar(short ch) {
     /* Check if strike has valid bitmap data */
     if (!strike || !strike->locTable || !strike->bitmapData) {
         /* Fallback to Chicago bitmap (direct framebuffer drawing) */
-        extern UInt32 QDPlatform_MapQDColor(SInt32 qdColor);
         /* Use explicit field copy to avoid struct assignment on ARM64 */
         Point pen;
         pen.h = g_currentPort->pnLoc.h;
@@ -940,7 +939,6 @@ void DrawChar(short ch) {
     }
 
     /* Get foreground color from port */
-    extern UInt32 QDPlatform_MapQDColor(SInt32 qdColor);
     UInt32 color = QDPlatform_MapQDColor(g_currentPort->fgColor);
 
     /* Calculate glyph position (baseline - ascent) */
@@ -952,9 +950,6 @@ void DrawChar(short ch) {
     short glyphY = pen.v - strike->ascent;
 
     /* Draw the glyph using platform layer */
-    extern SInt16 QDPlatform_DrawGlyph(FontStrike *strike, UInt8 ch, SInt16 x, SInt16 y,
-                                       GrafPtr port, UInt32 color);
-
     if (hasBold) {
         /* Bold: draw twice with 1 pixel offset */
         SInt16 advance = QDPlatform_DrawGlyph(strike, (UInt8)ch, glyphX, glyphY,

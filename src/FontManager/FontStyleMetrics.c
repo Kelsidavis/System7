@@ -94,7 +94,6 @@ short FM_GetExtendedWidth(short normalWidth) {
 short FM_GetStyledCharWidth(unsigned char ch, Style face) {
     /* Not CharWidth: that consults the port's style and would call straight
      * back here for any styled text, recursing until the stack gave out. */
-    extern short FM_GetPlainCharWidth(short ch);
     short width = FM_GetPlainCharWidth((short)(unsigned char)ch);
 
     /* Apply style modifiers */

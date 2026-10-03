@@ -203,7 +203,6 @@ static void freelist_unlink_node_sc(ZoneInfo* z, u32 sc, FreeNode* n) {
 
 /* Helper for on-demand hex dumping without printf */
 static void dump_bytes(const u8* p, u32 len) {
-    extern void serial_putchar(char c);
     for (u32 i = 0; i < len; i++) {
         u8 byte = p[i];
         const char hex[] = "0123456789ABCDEF";

@@ -10,14 +10,6 @@
 #include "FontManager/CJKFont.h"
 #include "TextEncoding/CJKEncoding.h"
 
-/* Forward declarations */
-void InitCJKFonts(void);
-OSErr LoadCJKFont(ScriptCode script);
-const CJKFontData* GetCJKFont(ScriptCode script);
-OSErr GetCJKGlyph(const CJKFontData *font, UInt32 glyphIndex,
-                  UInt8 *outBitmap, SInt16 *outWidth, SInt16 *outHeight);
-SInt16 CJKCharWidth(ScriptCode script, UInt8 lead, UInt8 trail);
-
 /* Font slots for each CJK script */
 #define kCJKSlotJapanese    0
 #define kCJKSlotChinese     1
