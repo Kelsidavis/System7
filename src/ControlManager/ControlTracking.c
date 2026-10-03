@@ -16,6 +16,7 @@
 #include "ControlManager/ControlInternal.h"
 #include "ControlManager/ControlTypes.h"
 #include "EventManager/EventManager.h"
+#include "EventManager/MouseEvents.h"
 #include "QuickDraw/QuickDraw.h"
 #include "DialogManager/DialogManager.h"
 
@@ -111,8 +112,6 @@ SInt16 TrackControl(ControlHandle theControl, Point thePoint,
      * outside the control at once - a held button let go of its highlight
      * and reported nothing. Nor is there a cap on the loop any more: after
      * 5000 turns, a fraction of a second, a held button fired. */
-    extern void GetMouseLocal(Point* mouseLoc);
-    extern void EventPumpYield(void);
     GrafPtr savePort;
     GetPort(&savePort);
     if ((*theControl)->contrlOwner) SetPort((GrafPtr)(*theControl)->contrlOwner);
@@ -213,7 +212,6 @@ void DragControl(ControlHandle theControl, Point startPt,
     }
 
     /* Track mouse, in the control's window's coordinates */
-    extern void GetMouseLocal(Point* mouseLoc);
     lastPt = startPt;
     while (StillDown()) {
         GetMouseLocal(&currentPt);

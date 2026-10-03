@@ -344,7 +344,6 @@ short TrackScrollbarAction(ControlHandle c, Point startLocal, short startPart,
     short trackPart;
 
     if (!c || !(*c)->contrlData || !outDelta) return 0;
-    extern void GetMouseLocal(Point* mouseLoc);
     GrafPtr savePort;
     GetPort(&savePort);
     if ((*c)->contrlOwner) SetPort((GrafPtr)(*c)->contrlOwner);
@@ -381,7 +380,6 @@ short TrackScrollbarAction(ControlHandle c, Point startLocal, short startPart,
                 CalcThumbRectForValue(c, newValue, &newThumbRect);
 
                 /* Get union of old and new thumb rectangles */
-                extern void UnionRect(const Rect* src1, const Rect* src2, Rect* dstRect);
                 UnionRect(&oldThumbRect, &newThumbRect, &updateRect);
 
                 /* Update the control value without full redraw */

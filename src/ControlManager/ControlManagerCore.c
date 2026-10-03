@@ -23,8 +23,6 @@
 /* ControlResources.h local */
 #include "QuickDraw/QuickDraw.h"
 
-/* External function declarations */
-extern ControlHandle LoadControlFromResource(Handle cntlRes, WindowPtr owner);
 #include "WindowManager/WindowManager.h"
 #include "EventManager/EventManager.h"
 #include "DialogManager/DialogManager.h"

@@ -9,12 +9,6 @@ ControlHandle GetTrackingControl(void);
 SInt16 GetTrackingPart(void);
 Boolean IsControlTracking(ControlHandle control);
 
-/* Standard controls */
-void SetCheckboxMixed(ControlHandle ctrl, Boolean mixed);
-Boolean GetCheckboxMixed(ControlHandle ctrl);
-void SetRadioGroup(ControlHandle ctrl, SInt16 groupID);
-SInt16 GetRadioGroup(ControlHandle ctrl);
-
 /* Control list helpers (WM interop) */
 ControlHandle _GetFirstControl(WindowPtr window);
 void _SetFirstControl(WindowPtr window, ControlHandle control);

@@ -56,7 +56,6 @@ static void GetFontInfo(FontInfo* info) {
 
     if (port) {
         /* Try to get actual metrics from Font Manager first */
-        extern void GetFontMetrics(FMetricRec *theMetrics);
         FMetricRec fmetrics;
         GetFontMetrics(&fmetrics);
 
