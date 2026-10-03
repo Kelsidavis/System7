@@ -610,8 +610,7 @@ static void init_system71(void) {
 
         /* Process Manager cooperative scheduling */
         Proc_Init();
-        Event_InitQueue();
-        serial_puts("  ProcessMgr (coop) + Event queue initialized\n");
+        serial_puts("  ProcessMgr (coop) initialized\n");
 
         /* Initialize ScrapManager after ProcessMgr */
         extern void Scrap_Zero(void);
@@ -963,7 +962,7 @@ static void init_system71(void) {
     serial_puts("  List Manager initialized\n");
 
     /* Event Manager */
-    InitEvents(20);  /* Initialize with 20 event queue entries */
+    InitEvents(20);  /* Initializes the fixed-capacity event queue */
     serial_puts("  Event Manager initialized\n");
 
     /* Event Dispatcher */

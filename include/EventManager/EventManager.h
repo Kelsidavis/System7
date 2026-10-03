@@ -91,7 +91,7 @@ extern "C" {
 
 /**
  * Initialize the Event Manager
- * @param numEvents Number of event queue elements to allocate
+ * @param numEvents Requested capacity; currently ignored because the queue is fixed-size
  * @return Error code (0 = success)
  */
 SInt16 InitEvents(SInt16 numEvents);

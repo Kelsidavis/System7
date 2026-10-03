@@ -27,6 +27,7 @@ extern void InvalWindowRect(WindowPtr, const Rect*);
 #include "EventManager/EventManager.h"
 #include "DeskManager/Calculator.h"
 extern QDGlobals qd;
+extern UInt16 Event_QueueCount(void);
 #include "MacTypes.h"
 #include "math.h"
 
@@ -947,6 +948,11 @@ static void Test_Window_MoveRepaintsUncovered(void) {
 static void Test_Event_FullQueueKeepsNewest(void) {
     const char* test_name = "Event_FullQueueKeepsNewest";
     FlushEvents(everyEvent, 0);
+    PostEvent(osEvt, 0);
+    CHECK(Event_QueueCount() == 1, "posted event was not counted");
+    InitEvents(20);
+    CHECK(Event_QueueCount() == 0, "InitEvents did not reset the active queue");
+
     for (int i = 0; i < 100; i++) {
         PostEvent(osEvt, 0);
     }

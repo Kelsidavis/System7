@@ -10,7 +10,6 @@
  * with proper Event Manager structure and debug logging.
  */
 
-#include <string.h>
 #include "SystemTypes.h"
 #include "EventManager/EventTypes.h"
 #include "EventManager/EventManager.h"
@@ -20,15 +19,6 @@
 #include "EventManager/EventLogging.h"
 
 /* External serial print for debug logging */
-
-/* Simple event queue implementation */
-#define MAX_EVENTS 32
-static struct {
-    EventRecord events[MAX_EVENTS];
-    int head;
-    int tail;
-    int count;
-} g_eventQueue __attribute__((unused)) = {0};
 
 /* Mouse and timing state */
 static Point g_mousePos = {100, 100};
@@ -47,17 +37,11 @@ extern UInt32 TickCount(void);
  */
 
 /*
- * InitEvents - empty the event queue.
- *
- * The queue is a fixed MAX_EVENTS entries, so the size asked for is not
- * honoured. This was a stub in sys71_stubs.c that did nothing and said the
- * Event Manager was initialized elsewhere; nothing else emptied the queue.
+ * InitEvents - initialize the process-aware Event Manager queue.
  */
 SInt16 InitEvents(SInt16 numEvents) {
     (void)numEvents;
-    g_eventQueue.head = 0;
-    g_eventQueue.tail = 0;
-    g_eventQueue.count = 0;
+    Event_InitQueue();
     return 0;
 }
 
