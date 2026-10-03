@@ -7,7 +7,7 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include "SystemTypes.h"
-#include "QuickDraw/QuickDraw.h"
+#include "QuickDraw/QuickDrawGlobals.h"
 #include "EventManager/EventTypes.h"
 #include "Platform/PS2Input.h"
 #include "PS2Controller.h"

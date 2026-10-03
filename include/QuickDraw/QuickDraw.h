@@ -18,10 +18,7 @@ void    QD_SetScreenPort(void);
 
 #include "SystemTypes.h"
 #include "QDTypes.h"
-
-/* Shared QuickDraw globals, available to every QuickDraw client. */
-extern QDGlobals qd;
-extern GrafPtr g_currentPort;
+#include "QuickDraw/QuickDrawGlobals.h"
 
 #ifdef __cplusplus
 extern "C" {

@@ -10,7 +10,7 @@
  */
 
 #include "SystemTypes.h"
-#include "QuickDraw/QuickDraw.h"
+#include "QuickDraw/QuickDrawGlobals.h"
 #include "System71StdLib.h"
 
 #include "DeskManager/AlarmClock.h"
