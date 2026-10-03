@@ -101,9 +101,9 @@ jobs:
                       raise RuntimeError("current run was not found in Actions history")
                   page += 1
           except Exception as error:
-              print(f"Could not determine push cadence ({error}); running full CI", file=sys.stderr)
+              print(f"Could not determine push cadence ({error}); skipping full CI", file=sys.stderr)
               with open(os.environ["GITHUB_OUTPUT"], "a") as output:
-                  output.write("run_ci=true\n")
+                  output.write("run_ci=false\n")
 
   build-x86:
     name: Build x86
