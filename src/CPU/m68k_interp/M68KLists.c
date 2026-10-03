@@ -32,8 +32,6 @@
 #include "System71StdLib.h"
 #include "TimeManager/TimeBase.h"
 
-extern UInt32 GetDblTime(void);
-extern void GetMouseLocal(Point* pt);     /* the current port's coordinates */
 
 /* ListRec (IM IV-262) */
 enum {

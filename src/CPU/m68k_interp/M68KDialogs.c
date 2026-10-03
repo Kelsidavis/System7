@@ -23,7 +23,6 @@
 #include "MemoryMgr/MemoryManager.h"
 #include "System71StdLib.h"
 
-extern Boolean DM_IsControlOf(WindowPtr w, Handle h);
 
 /* ------------------------------------------------------------------------
  * Item handles the program holds

@@ -409,7 +409,6 @@ static OSErr M68K_WriteJumpTableSlot(CPUAddressSpace as, CPUAddr slotAddr,
      * The executable part starts at +2, exactly where the unloaded form's
      * does, so callers are unaffected by the change.
      */
-    extern void M68K_Write8(M68KAddressSpace* as, UInt32 addr, UInt8 value);
     M68K_Write8(mas, slotAddr + 0, (segID >> 8) & 0xFF);
     M68K_Write8(mas, slotAddr + 1, segID & 0xFF);
     M68K_Write8(mas, slotAddr + 2, 0x4E);
@@ -434,7 +433,6 @@ static OSErr M68K_MakeLazyJTStub(CPUAddressSpace as, CPUAddr slotAddr,
         return paramErr;
     }
 
-    extern void M68K_Write8(M68KAddressSpace* as, UInt32 addr, UInt8 value);
 
     /*
      * Unloaded form of a jump table entry:
@@ -739,7 +737,9 @@ static OSErr M68K_AllocateMemory(CPUAddressSpace as, Size size,
     }
 
     /* Zero memory */
-    for (Size i = 0; i < size; i++) { extern void M68K_Write8(M68KAddressSpace* as, UInt32 addr, UInt8 value); M68K_Write8(mas, addr + i, 0); }
+    for (Size i = 0; i < size; i++) {
+        M68K_Write8(mas, addr + i, 0);
+    }
 
     *outAddr = addr;
 
@@ -760,8 +760,7 @@ static OSErr M68K_WriteMemory(CPUAddressSpace as, CPUAddr addr,
         return paramErr;
     }
 
-    { extern OSErr M68K_MemCopy(M68KAddressSpace* as, UInt32 addr, const void* src, Size len); return M68K_MemCopy(mas, addr, data, len); }
-    return noErr;
+    return M68K_MemCopy(mas, addr, data, len);
 }
 
 /*

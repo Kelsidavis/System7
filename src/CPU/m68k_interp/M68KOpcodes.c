@@ -70,7 +70,6 @@ static void M68K_RaiseException(M68KAddressSpace* as, UInt16 vector, const char*
     /* Read exception vector from memory (vectors at 0x0000 + vec*4) */
     vectorAddr = vector * 4;
     if (vectorAddr + 3 < M68K_MAX_ADDR) {
-        extern UInt8 M68K_Read8(M68KAddressSpace* as, UInt32 addr);
         handlerPC = (M68K_Read8(as, vectorAddr) << 24) |
                    (M68K_Read8(as, vectorAddr + 1) << 16) |
                    (M68K_Read8(as, vectorAddr + 2) << 8) |

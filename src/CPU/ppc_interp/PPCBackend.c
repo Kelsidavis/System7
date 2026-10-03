@@ -357,7 +357,6 @@ static OSErr PPC_WriteJumpTableSlot(CPUAddressSpace as, CPUAddr slotAddr,
     (void)segID; /* PowerPC entries have no room to keep it; 68K ones do */
 
     PPCAddressSpace* pas = (PPCAddressSpace*)as;
-    extern void PPC_Write32(PPCAddressSpace* as, UInt32 addr, UInt32 value);
 
     if (!pas || slotAddr >= PPC_MAX_ADDR) {
         return paramErr;
@@ -390,7 +389,6 @@ static OSErr PPC_MakeLazyJTStub(CPUAddressSpace as, CPUAddr slotAddr,
                                 SInt16 segID, UInt16 routineOffset)
 {
     PPCAddressSpace* pas = (PPCAddressSpace*)as;
-    extern void PPC_Write32(PPCAddressSpace* as, UInt32 addr, UInt32 value);
 
     if (!pas || slotAddr >= PPC_MAX_ADDR) {
         return paramErr;
@@ -631,7 +629,6 @@ static OSErr PPC_AllocateMemory(CPUAddressSpace as, Size size,
 {
     PPCAddressSpace* pas = (PPCAddressSpace*)as;
     UInt32 addr;
-    extern void PPC_Write8(PPCAddressSpace* as, UInt32 addr, UInt8 value);
 
     if (!pas || !outAddr) {
         return paramErr;
@@ -688,7 +685,6 @@ static OSErr PPC_ReadMemory(CPUAddressSpace as, CPUAddr addr,
                             void* data, Size len)
 {
     PPCAddressSpace* pas = (PPCAddressSpace*)as;
-    extern UInt8 PPC_Read8(PPCAddressSpace* as, UInt32 addr);
 
     if (!pas || !data || addr + len > PPC_MAX_ADDR) {
         return paramErr;
@@ -704,7 +700,6 @@ static OSErr PPC_ReadMemory(CPUAddressSpace as, CPUAddr addr,
 /*
  * Opcode Handler Forward Declarations (from PPCOpcodes.c)
  */
-extern UInt32 PPC_Fetch32(PPCAddressSpace* as);
 
 /*
  * PPC_Step - Fetch and execute one instruction

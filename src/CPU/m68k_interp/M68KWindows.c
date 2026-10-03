@@ -18,9 +18,6 @@
 #include "QuickDrawConstants.h"   /* patXor */
 #include "System71StdLib.h"
 
-extern void GetMouseLocal(Point* pt);     /* the current port's coordinates */
-extern Boolean StillDown(void);
-extern void InvalRect(const Rect* r);
 
 static WindowPtr PopWindow(void) {
     return (WindowPtr)Obj_Port(Pop32());

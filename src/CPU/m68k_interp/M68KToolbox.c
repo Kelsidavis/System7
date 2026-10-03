@@ -32,9 +32,7 @@
 #include "FS/vfs.h"
 #include "TimeManager/TimeBase.h"
 
-extern UInt32 GetDblTime(void);
 extern void SysBeep(short duration);
-extern void InitCursor(void);
 
 /* Low-memory globals this module keeps that LowMemGlobals.h does not name */
 enum {

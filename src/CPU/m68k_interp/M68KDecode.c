@@ -30,11 +30,6 @@
 #include <string.h>
 
 /*
- * Forward declarations from M68KOpcodes.c
- */
-extern void M68K_Fault(M68KAddressSpace* as, const char* reason);
-
-/*
  * Forward declarations for memory access (to avoid implicit declarations)
  */
 UInt8 M68K_Read8(M68KAddressSpace* as, UInt32 addr);

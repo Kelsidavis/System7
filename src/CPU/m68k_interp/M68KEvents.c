@@ -22,7 +22,6 @@
 #include "TimeManager/TimeBase.h"
 
 extern Boolean HandleUpdate(EventRecord* event);
-extern void GetMouseLocal(Point* mouseLoc);
 
 void M68KTB_ReadEvent(UInt32 a, EventRecord* e) {
     e->what = R16(a + 0);
