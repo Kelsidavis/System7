@@ -43,8 +43,7 @@ System 7.1-compatible Font Manager providing bitmap font support with the Chicag
 - **Planned**: LRU-managed strike list with memory caps (~256 KB) as additional bitmap sizes/styles land
 
 ### Testing Hooks
-- `test_fontmgr.c` exercises family enumeration, metrics, width calculations, style synthesis, and `FMSwapFont()` behaviour
-- Standard window/menu smoke runs hit the drawing path continually; any regression shows as blank text immediately
+- Fonts are exercised through desktop and application rendering; there is no dedicated font regression suite yet
 
 ### Known Limitations
 1. Only the Chicago 12 strike ships today; Geneva and Monaco reuse the same metrics

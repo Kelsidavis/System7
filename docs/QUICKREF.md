@@ -45,7 +45,7 @@ quit                          # Exit GDB
 
 ```bash
 make run                                    # Quick test in QEMU
-make PLATFORM=x86                          # Verbose build output
+make info                                   # Show build configuration
 make clean && make run                     # Clean rebuild + test
 qemu-system-i386 -cdrom system71.iso ...   # Manual QEMU launch
 ```
@@ -103,19 +103,19 @@ CLAUDE.md                  # Claude Code guidance
 
 ```bash
 # Find TODO/FIXME comments
-grep -r "TODO\|FIXME" include/ src/
+rg "TODO|FIXME" include/ src/
 
 # Find HACK comments (workarounds)
-grep -r "HACK:" include/ src/
+rg "HACK:" include/ src/
 
 # Find malloc violations (kernel code shouldn't use malloc)
-grep -r "malloc\|free" include/ src/
+rg "malloc|free" include/ src/
 
 # Find unimplemented functions
-grep -r "NOT YET IMPLEMENTED" include/ src/
+rg "NOT YET IMPLEMENTED" include/ src/
 
 # Find specific function definitions
-grep -r "^[a-zA-Z_][a-zA-Z0-9_]*(" include/ src/
+rg "^[a-zA-Z_][a-zA-Z0-9_]*\\(" include/ src/
 ```
 
 ## Environment Variables
@@ -175,11 +175,11 @@ make run
 ## Resource Generation
 
 ```bash
-# Generate a resource file from JSON
-python3 gen_rsrc.py resources/strings/en.json output.rsrc
+# Generate a resource file from a JSON manifest
+python3 gen_rsrc.py patterns.json /tmp/system7-patterns-preview.rsrc
 
-# Extract color icons
-python3 scripts/create_color_icons.py input.icns output.png
+# Regenerate the built-in color icon source
+python3 scripts/create_color_icons.py
 ```
 
 ## Key Concepts
@@ -189,8 +189,7 @@ python3 scripts/create_color_icons.py input.icns output.png
 - **Manager**: System subsystem (Window, Menu, Event)
 - **QEMU**: Emulator used for testing
 - **Bare metal**: Real hardware (untested)
-- **Sloppy**: Honest description of code quality
-- **HACK**: Workaround in code
+- **HACK**: Workaround in code that may need follow-up
 
 ## Documentation Files
 

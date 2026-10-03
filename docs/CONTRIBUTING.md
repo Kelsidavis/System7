@@ -5,7 +5,7 @@ Thank you for your interest in the System 7 reimplementation project! This is an
 ## Ways to Contribute
 
 ### 🐛 Bug Reports
-- Check [existing issues](https://github.com/Mikecraft1224/System7/issues) first to avoid duplicates
+- Check [existing issues](https://github.com/Kelsidavis/System7/issues) first to avoid duplicates
 - Include detailed reproduction steps
 - Specify your hardware/emulator and OS
 - Attach screenshots or logs if relevant

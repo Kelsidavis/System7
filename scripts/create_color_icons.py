@@ -4,6 +4,8 @@ Create color variants of System 7 icons.
 Generates 32x32 ARGB data arrays for trash and HD icons.
 """
 
+from pathlib import Path
+
 def create_color_trash_full():
     """Create a color trash icon (full) - silver/gray metallic with shading"""
     pixels = []
@@ -177,7 +179,8 @@ c_code += "/* Color hard drive icon - 32x32 ARGB */\n"
 c_code += format_color_array(hd_color, "icon_HD_color") + "\n"
 
 # Save the color icons
-with open('/home/k/iteration2/src/color_icons.c', 'w') as f:
+output_path = Path(__file__).resolve().parents[1] / "src" / "color_icons.c"
+with output_path.open("w") as f:
     f.write(c_code)
 
-print("Created color_icons.c with color variants")
+print(f"Created {output_path} with color variants")

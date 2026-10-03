@@ -87,7 +87,7 @@ Full roadmap: [BARE_METAL_IMPROVEMENTS.md](docs/BARE_METAL_IMPROVEMENTS.md)
 
 ## 🎯 Project Status
 
-**Current State**: Active experimental development. ~94% of core subsystems have *something* implemented. Most work in QEMU. Bare metal now boots to a responsive desktop on one confirmed machine (UEFI ThinkPad) — broader hardware coverage is untested. Stability? Low. Edge cases crash.
+**Current State**: Active experimental development. Most features are exercised in QEMU; bare-metal testing is limited to a small number of machines, and compatibility with real System 7 applications remains unverified.
 
 ### Latest Updates (October 2026)
 
@@ -130,9 +130,7 @@ Full roadmap: [BARE_METAL_IMPROVEMENTS.md](docs/BARE_METAL_IMPROVEMENTS.md)
 - ✅ **PS/2 Keyboard Translation**: Full set 1 scancode to Toolbox key code mapping
 - ✅ **Multi-platform HAL**: x86, ARM, and PowerPC support with clean abstraction
 
-## 📊 Project Completeness
-
-**Overall Core Functionality**: ~94% complete (estimated)
+## Implementation Status
 
 ### What Works Fully ✅
 
@@ -143,7 +141,7 @@ Full roadmap: [BARE_METAL_IMPROVEMENTS.md](docs/BARE_METAL_IMPROVEMENTS.md)
 - **Desktop Rendering**: System 7 menu bar with rainbow Apple logo, icons, and desktop patterns
 - **Typography**: Chicago bitmap font with pixel-perfect rendering and proper kerning, extended Mac Roman (0x80-0xFF) for European accented characters
 - **Localization**: user-visible strings come from `STR#` resources through the Locale Manager, in 38 languages; build English only, one language, or all of them (`LOCALE_ALL=1`) and pick one at boot with `lang=xx`; CJK multi-byte encoding infrastructure
-- **Font Manager**: Multi-size support (9-24pt), style synthesis, FOND/NFNT parsing, LRU caching
+- **Font Manager**: Font scaling and style synthesis; FOND/NFNT parsing is available but not yet connected to on-disk resource loading
 - **Input System**: PS/2 keyboard and mouse, and USB keyboards, mice and tablets (xHCI)
 - **Event Manager**: Cooperative multitasking via WaitNextEvent with unified event queue
 - **Memory Manager**: Zone-based allocation with 68K interpreter integration; on x86 the application zone takes the machine's free RAM
@@ -151,7 +149,7 @@ Full roadmap: [BARE_METAL_IMPROVEMENTS.md](docs/BARE_METAL_IMPROVEMENTS.md)
 - **File System**: HFS with B-tree implementation, folder windows with VFS enumeration
 - **Window Manager**: Dragging, resizing (with grow box), layering, activation
 - **Time Manager**: Accurate TSC calibration, microsecond precision, generation checking
-- **Resource Manager**: O(log n) binary search, LRU cache, comprehensive validation
+- **Resource Manager**: Resource-map lookup, handle-based loading, and resource-fork updates
 - **Gestalt Manager**: Multi-architecture system information with architecture detection
 - **TextEdit Manager**: Complete text editing with clipboard integration
 - **Scrap Manager**: Classic Mac OS clipboard with multiple flavor support
@@ -370,17 +368,6 @@ This is a **clean-room reimplementation** for educational and preservation purpo
 - **Inside Macintosh authors** for comprehensive documentation
 - **Classic Mac preservation community** for keeping the platform alive
 - **68k.news and Macintosh Garden** for resource archives
-
-## 📊 Development Statistics
-
-- **Lines of Code**: ~218,000 (headers **and** sources; ~57,500 was the figure
-  when the audit was written — the codebase has roughly quadrupled since)
-- **Compilation Time**: ~3-5 seconds
-- **Kernel Size**: ~4.4 MB (`kernel.elf`)
-- **ISO Size**: ~16 MB (`system71.iso`)
-- **Error Reduction**: 94% of core functionality working
-- **Major Subsystems**: 57+ directories under `src/` (Font, Window, Menu,
-  Control, Dialog, TextEdit, DeskManager, PatternMgr, Finder, …)
 
 ## 🔮 Future Direction
 

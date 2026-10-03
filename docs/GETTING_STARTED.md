@@ -6,12 +6,7 @@ Welcome! This guide will help you get System 7 up and running in minutes.
 
 This is an open-source reimplementation of Apple's classic Macintosh System 7 operating system. It runs on modern x86 hardware via QEMU emulation and demonstrates how the classic Mac OS worked internally.
 
-**Status**: Proof of concept (~94% of core functionality complete)
-
-> Note: the audit that produced the ~85% figure is from November 2025 and
-> predates the 2026 work (desktop patterns, dialog/window redraw fixes, Finder
-> search, CPU-named About This Macintosh). Treat its file/line references as
-> hints, not gospel.
+**Status**: Experimental reimplementation. Core desktop features run in QEMU; compatibility with original hardware and real System 7 applications is still under active testing.
 
 ## Quick Start (5 minutes)
 
@@ -31,7 +26,7 @@ brew install i386-elf-toolchain qemu xorriso
 ### 2. Clone & Build
 
 ```bash
-git clone https://github.com/Mikecraft1224/System7.git
+git clone https://github.com/Kelsidavis/System7.git
 cd System7
 make run
 ```
@@ -89,7 +84,7 @@ make INTEGRATION_TESTS=1     # with the integration tests, which run at boot
 - SimpleText editor (working MDI text editor with save/load)
 
 ✅ **System Features**
-- Localization (37 languages)
+- Localization (38 languages)
 - PS/2 keyboard and mouse
 - File browser (HFS virtual filesystem)
 - Sound Manager with MIDI
