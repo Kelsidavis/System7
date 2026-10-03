@@ -74,7 +74,6 @@ void Platform_CalculateWindowRegions(WindowPtr window) {
      *
      * This ensures contRgn excludes the title bar and borders.
      */
-    extern void WM_CalculateStandardWindowRegions(WindowPtr window, short varCode);
     WM_CalculateStandardWindowRegions(window, 0);
 }
 
@@ -386,11 +385,6 @@ short Platform_WindowHitTest(WindowPtr window, Point pt) {
      * boxes only while it is active - an inactive window shows neither, so
      * a click there selects it. Every window used to report all three, and
      * a dialog with no title bar was draggable by its top 20 pixels. */
-    extern Boolean WM_WindowHasCloseBox(WindowPtr);
-    extern Boolean WM_WindowHasZoomBox(WindowPtr);
-    extern Boolean WM_WindowHasGrowBox(WindowPtr);
-    extern Boolean WM_WindowHasTitleBar(WindowPtr);
-
     if (window->hilited && WM_WindowHasCloseBox(window)) {
         Platform_GetWindowCloseBoxRect(window, &closeBox);
         if (PtInRect(pt, &closeBox)) return wInGoAway;
@@ -449,7 +443,6 @@ void Platform_GetWindowContentRect(WindowPtr window, Rect* rect) {
     Rect* strucRectPtr = &((**(window->strucRgn)).rgnBBox);
 
     if (window->refCon == 0x4449534b) {
-        extern int snprintf(char* buf, size_t size, const char* fmt, ...);
         char dbgbuf[256];
         snprintf(dbgbuf, sizeof(dbgbuf), "[GETCONTENT] DISK: strucRgn rgnBBox=(%d,%d,%d,%d)\n",
                 strucRectPtr->left, strucRectPtr->top, strucRectPtr->right, strucRectPtr->bottom);
@@ -472,7 +465,6 @@ void Platform_GetWindowContentRect(WindowPtr window, Rect* rect) {
      * its own frame. Nothing painted that strip, and the Finder window showed
      * through the top of the dialog.
      */
-    extern Boolean WM_WindowHasTitleBar(WindowPtr window);
     SInt16 chromeTop = WM_WindowHasTitleBar(window) ? kTitleBar + kSeparator : kBorder;
 
     /* Content is inside the frame, as NewWindow lays it out: 1 pixel at the
@@ -531,7 +523,6 @@ void Platform_GetWindowFrameRect(WindowPtr window, Rect* rect) {
     }
 
     if (window->refCon == 0x4449534b) {
-        extern int snprintf(char* buf, size_t size, const char* fmt, ...);
         Rect* beforePtr = &((**(window->strucRgn)).rgnBBox);
         char dbgbuf[256];
         snprintf(dbgbuf, sizeof(dbgbuf), "[GETFRAME] strucRgn->rgnBBox=(%d,%d,%d,%d)\n",
@@ -558,7 +549,6 @@ void Platform_HighlightWindowPart(WindowPtr window, short partCode, Boolean high
      * issued against &window->port never appeared on screen. Chrome is drawn in
      * the Window Manager port, in global coordinates - the same port and space
      * the part rectangles below are computed in. */
-    extern void GetWMgrPort(GrafPtr* port);
     GrafPtr savePort, wmgrPort;
     GetPort(&savePort);
     GetWMgrPort(&wmgrPort);
@@ -727,7 +717,6 @@ void Platform_MoveNativeWindow(WindowPtr window, short h, short v) {
 void Platform_SizeNativeWindow(WindowPtr window, short width, short height) {
     if (window) {
         if (window->refCon == 0x4449534b) {
-            extern int snprintf(char* buf, size_t size, const char* fmt, ...);
             char dbgbuf[256];
             snprintf(dbgbuf, sizeof(dbgbuf), "[SIZENATIVE] DISK: width=%d height=%d oldPortRect=(%d,%d,%d,%d)\n",
                     width, height,
@@ -751,7 +740,6 @@ void Platform_SizeNativeWindow(WindowPtr window, short width, short height) {
          * not reset here. This ensures proper coordinate conversion with Global Framebuffer. */
 
         if (window->refCon == 0x4449534b) {
-            extern int snprintf(char* buf, size_t size, const char* fmt, ...);
             char dbgbuf[256];
             snprintf(dbgbuf, sizeof(dbgbuf), "[SIZENATIVE] DISK: newPortRect=(%d,%d,%d,%d)\n",
                     window->port.portRect.left, window->port.portRect.top,
