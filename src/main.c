@@ -7,8 +7,10 @@
 #include <stdbool.h>
 #include <limits.h>
 
-/* Debug flag for serial menu commands - set to 1 to enable, 0 to disable */
+/* Set with EXTRA_CFLAGS=-DDEBUG_SERIAL_MENU_COMMANDS=1 to enable. */
+#ifndef DEBUG_SERIAL_MENU_COMMANDS
 #define DEBUG_SERIAL_MENU_COMMANDS 0
+#endif
 #ifndef DEBUG_PERFORMANCE_TESTS
 #define DEBUG_PERFORMANCE_TESTS 0
 #endif
