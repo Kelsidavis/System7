@@ -47,7 +47,16 @@ quit                          # Exit GDB
 make run                                    # Quick test in QEMU
 make info                                   # Show build configuration
 make clean && make run                     # Clean rebuild + test
-qemu-system-i386 -cdrom system71.iso ...   # Manual QEMU launch
+qemu-system-i386 -cdrom system71.iso -m 1024 -vga std  # Manual QEMU launch
+```
+
+The repository quality gates are:
+
+```bash
+make check           # x86 build, layout, allocator, libc, and export checks
+make analyze         # x86 build with GCC's static analyzer
+make analyze-arm64   # ARM64 build with GCC's static analyzer
+make check-arm64     # ARM64 build and segment-permission checks
 ```
 
 ## File Locations
@@ -125,6 +134,7 @@ rg "^[a-zA-Z_][a-zA-Z0-9_]*\\(" include/ src/
 # Set build platform
 make PLATFORM=x86          # x86 (default)
 make PLATFORM=arm          # ARM (experimental)
+make PLATFORM=arm64        # ARM64
 make PLATFORM=ppc          # PowerPC (experimental)
 ```
 
