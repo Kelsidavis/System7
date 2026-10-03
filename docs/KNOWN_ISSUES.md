@@ -20,7 +20,7 @@ stops in `HFS_CreateBlankVolume` and goes no further. Not yet investigated.
 
 - **Balloon Help**: the Help menu is there and About Balloon Help says so, but
   balloons are not implemented; Show Balloons is dimmed.
-- **Alarm Clock** shows the time but cannot set an alarm.
+- **Alarm Clock** has alarm-creation and polling APIs, but its desk-accessory mouse handler is empty, so users cannot configure alarms through the UI.
 - **Find** searches the startup disk only, up to 100 matches and 64 items a
   folder, and has no More Choices.
 
@@ -75,7 +75,7 @@ actually ships, and nothing checks the two against each other.
 
 Opening Applications shows SimpleText, TextEdit and MacPaint. Get Info on
 the same folder says "Contains: 0 items", and it is the one telling the
-truth: those three are built in `folder_window.c`, in
+truth: those three are built in `src/Finder/folder_window.c`, in
 `InitializeFolderContentsEx`, under
 
 ```c
@@ -93,7 +93,7 @@ Info's count, and anything else that enumerates.
 - `VFS_Enumerate(vref, 18, ...)` returns true with a count of zero.
 - The vref is 1 in both places, so this is not Get Info looking at a
   different volume - the folder window logs the same one.
-- `hfs_volume.c:443` seeds a real `SimpleText` into directory 18 with CNID
+- `src/FS/hfs_volume.c` seeds a real `SimpleText` into directory 18 with CNID
   23 when it builds the boot volume, so the volume image and the mounted
   file system disagree about that directory as well. TextEdit and MacPaint
   are not seeded anywhere.
@@ -190,13 +190,13 @@ the easiest way to see it.
 
 So the stale free node covering that range is already in a ring *before*
 the pixel buffer is allocated, and where it comes from is the open
-question. `CompactMem` and the zone-extension paths around
-`MemoryManager.c:1458` and `:1485` are the parts not yet audited.
+question. `CompactMem` and the zone-extension paths in
+`src/MemoryMgr/MemoryManager.c` are the parts not yet audited.
 
 Desktop-icon storage is static by design because it is long-lived global
 state; it is not an allocator workaround. Suspect-address logging hooks remain
-in `MemoryManager.c` and should be removed once this allocator investigation is
-closed.
+in `src/MemoryMgr/MemoryManager.c` and should be removed once this allocator
+investigation is closed.
 
 **A shorter reproduction.** Opening the built-in desk accessories in
 sequence corrupts a live `DeskAccessory` struct within four opens, with no

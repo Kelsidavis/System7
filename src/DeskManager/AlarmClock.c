@@ -84,27 +84,14 @@ int AlarmClock_Initialize(AlarmClock *clock)
     clock->autoUpdate = true;
     clock->updateInterval = 1000;  /* 1 second */
 
-    /* Set window bounds */
-    (clock)->windowBounds.left = 100;
-    (clock)->windowBounds.top = 100;
-    (clock)->windowBounds.right = 300;
-    (clock)->windowBounds.bottom = 200;
-
-    /* Set display areas */
-    (clock)->windowBounds.left = 20;
-    (clock)->windowBounds.top = 40;
-    (clock)->windowBounds.right = 180;
-    (clock)->windowBounds.bottom = 70;
-
-    (clock)->windowBounds.left = 20;
-    (clock)->windowBounds.top = 80;
-    (clock)->windowBounds.right = 180;
-    (clock)->windowBounds.bottom = 100;
-
-    (clock)->windowBounds.left = 20;
-    (clock)->windowBounds.top = 110;
-    (clock)->windowBounds.right = 180;
-    (clock)->windowBounds.bottom = 130;
+    clock->windowBounds = (Rect){.top = 100, .left = 100,
+                                 .bottom = 200, .right = 300};
+    clock->timeDisplayRect = (Rect){.top = 40, .left = 20,
+                                    .bottom = 70, .right = 180};
+    clock->dateDisplayRect = (Rect){.top = 80, .left = 20,
+                                    .bottom = 100, .right = 180};
+    clock->alarmIndicatorRect = (Rect){.top = 110, .left = 20,
+                                       .bottom = 130, .right = 180};
 
     /* Initialize time */
     AlarmClock_UpdateTime(clock);
