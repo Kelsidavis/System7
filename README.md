@@ -149,7 +149,8 @@ Full roadmap: [BARE_METAL_IMPROVEMENTS.md](docs/BARE_METAL_IMPROVEMENTS.md)
 - **Time Manager**: Accurate TSC calibration, microsecond precision, generation checking
 - **Resource Manager**: Resource-map lookup, handle-based loading, and resource-fork updates
 - **Gestalt Manager**: Multi-architecture system information with architecture detection
-- **TextEdit Manager**: Text editing with clipboard integration; mixed-font scrolling and styled paste remain partial (see [compatibility gaps](docs/components/Compatibility/System7_Compatibility_Gaps.md))
+- **TextEdit Manager**: Text editing with clipboard integration; mixed-font scrolling and
+  styled paste remain partial (see [compatibility gaps](docs/components/Compatibility/System7_Compatibility_Gaps.md))
 - **Scrap Manager**: Classic Mac OS clipboard with multiple flavor support
 - **SimpleText Application**: Full-featured MDI text editor with cut/copy/paste
 - **List Manager**: System 7-compatible list controls with keyboard navigation

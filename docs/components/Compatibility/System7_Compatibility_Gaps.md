@@ -6,7 +6,10 @@ This checklist records significant differences between the current toolbox reimp
 - ~~`src/QuickDraw/Bitmaps.c` – `CopyBits` still needs full mask handling, colour depth conversion, and transfer-mode coverage to match the System 7 trap.~~ **FIXED** (2025-10-07): CopyBits now clips and aligns rectangles, supports scaling, region masking, and pattern modes, and performs depth conversion for 1/8/16/32-bit sources and destinations.
 - `include/QuickDraw/QuickDraw.h` declares `QD_DrawChar`, but no implementation is present in `src/`. The 68K `Trap_DrawChar` currently routes through `DoText`; add and test the native QuickDraw entry point before claiming full trap coverage.
 - ~~`src/QuickDraw/QuickDrawCore.c` – patterned fills (`FillRect`, `FillOval`, `FillRgn`, etc.) did not rasterize geometry.~~ **VERIFIED** (2025-10-06): `QuickDrawCore.c` implements patterned fills through `DrawPrimitive()`; there is no separate `PatternManager.c` in the current tree.
-- `src/QuickDraw/quickdraw_pictures.c` (`DrawPicture`) – the player handles core v1/v2 PICT state, shape, text, clipping, and bitmap opcodes, including scaling and region masks. Reserved or unsupported opcodes are skipped where their lengths are known; broad opcode coverage and malformed-picture validation remain incomplete.
+- `src/QuickDraw/quickdraw_pictures.c` (`DrawPicture`) – the player handles core v1/v2
+  PICT state, shape, text, clipping, and bitmap opcodes, including scaling and region
+  masks. Reserved or unsupported opcodes are skipped where their lengths are known;
+  broad opcode coverage and malformed-picture validation remain incomplete.
 - ~~`src/QuickDraw/quickdraw_pictures.c` – `SetClip`/`GetClip` do not copy regions, breaking callers that expect independent clip regions.~~ **VERIFIED** (2025-10-06): SetClip/GetClip in QuickDrawCore.c properly use CopyRgn() for independent region copies
 - ~~`src/QuickDraw/CursorManager.c` – Cursor show/hide/obscure/spin still defer to TODOs; Mac OS required hardware cursor toggles and watch-cursor animation tied to `SpinCursor`.~~ **OBSOLETE** (2026-10-01): `CursorManager_SetCursorInternal()` / `cursor_set_bit()` / `CursorManager_ShouldBeVisible()` implement the state machine now; the old TODOs are gone from the file.
 

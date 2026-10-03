@@ -90,7 +90,8 @@ CLAUDE.md                  # Claude Code guidance
 
 ## Development Workflow
 
-1. **Understand component**: Read the relevant guide in `docs/components/`; guides may be a Markdown file or a subsystem directory (see [the documentation index](INDEX.md#components))
+1. **Understand component**: Read the relevant guide in `docs/components/`; guides may
+   be a Markdown file or a subsystem directory (see [the documentation index](INDEX.md#components)).
 2. **Locate code**: Find in `include/` and `src/`
 3. **Make change**: Edit the relevant file
 4. **Rebuild**: `make clean && make run`
