@@ -1410,7 +1410,6 @@ void BringToFront(WindowPtr window) {
 
     WM_DEBUG("BringToFront: Moving window to front");
     DumpWindowList("BringToFront - START");
-    serial_puts("[MEM] BringToFront start\n");
     MemoryManager_CheckSuspectBlock("BringToFront_start");
 
     /* CRITICAL: Save the current front window BEFORE modifying the list */
@@ -1419,11 +1418,7 @@ void BringToFront(WindowPtr window) {
     /* If already at front, just ensure it's hilited */
     if (prevFront == window) {
         WM_LOG_TRACE("[HILITE] Window already at front, ensuring hilited\n");
-        serial_puts("[BTF] Already at front, calling HiliteWindow\n");
-        uart_flush();
         HiliteWindow(window, true);
-        serial_puts("[BTF] HiliteWindow done, returning\n");
-        uart_flush();
         return;
     }
 
@@ -1467,19 +1462,11 @@ void BringToFront(WindowPtr window) {
 
     /* Now hilite and paint the new front window */
     MemoryManager_CheckSuspectBlock("BringToFront_pre_hilite_new");
-    serial_puts("[BTF] HiliteWindow new\n");
-    uart_flush();
     HiliteWindow(window, true);
-    serial_puts("[BTF] HiliteWindow done\n");
-    uart_flush();
     MemoryManager_CheckSuspectBlock("BringToFront_post_hilite_new");
 
     /* Recalculate visible regions */
-    serial_puts("[BTF] CalcVisBehind\n");
-    uart_flush();
     CalcVisBehind(window, NULL);
-    serial_puts("[BTF] CalcVisBehind done\n");
-    uart_flush();
     MemoryManager_CheckSuspectBlock("BringToFront_post_CalcVisBehind");
 
     /* Draw the window, and in its content only what was covered (Inside
@@ -1487,13 +1474,9 @@ void BringToFront(WindowPtr window) {
      * so the whole screen flickered at each click on a window behind. */
     PaintOne(window, exposed.rgn);
     WM_DisposeAutoRgn(&exposed);
-    serial_puts("[BTF] PaintBehind done\n");
-    uart_flush();
     MemoryManager_CheckSuspectBlock("BringToFront_post_PaintBehind");
 
     DumpWindowList("BringToFront - END");
-    serial_puts("[BTF] BringToFront done\n");
-    uart_flush();
 }
 
 void SendBehind(WindowPtr window, WindowPtr behindWindow) {
