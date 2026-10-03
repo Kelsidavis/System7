@@ -1,8 +1,9 @@
 /*
- * QuickDraw.h - Complete QuickDraw Graphics System
+ * QuickDraw.h - QuickDraw Graphics System
  *
  * Master header file that includes all QuickDraw components.
- * This provides the complete Apple QuickDraw API for modern platforms.
+ * This aggregates QuickDraw headers for the portable implementation. API
+ * and behavioral coverage vary across the included components.
  *
  * Copyright (c) 2025 - System 7.1 Portable Project
  * Derived from System 7 ROM analysis (Ghidra) QuickDraw

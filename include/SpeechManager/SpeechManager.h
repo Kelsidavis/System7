@@ -4,8 +4,8 @@
  * Contains: Main Speech Manager API for System 7.1 Portable
  *
  *
- * Description: This header provides the complete Speech Manager API
- *              for text-to-speech synthesis and voice management.
+ * Description: This header declares Speech Manager APIs for text-to-speech
+ *              synthesis and voice management. Implementation coverage varies.
  */
 
 #ifndef _SPEECHMANAGER_H_

@@ -2,9 +2,8 @@
  * @file ControlManager.h
  * @brief Main Control Manager header for System 7.1 Portable
  *
- * This file provides the complete Control Manager API for System 7.1 Portable,
- * supporting all standard control types and behaviors. This is THE FINAL ESSENTIAL
- * COMPONENT for complete Mac application UI toolkit functionality.
+ * This file declares Control Manager APIs for the System 7.1 portable
+ * implementation. Supported control types and behavior vary by API.
  *
  * Copyright (c) 2024 - System 7.1 Portable Toolbox Project
  * Licensed under MIT License
