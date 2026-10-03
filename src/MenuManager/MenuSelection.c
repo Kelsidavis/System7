@@ -140,7 +140,6 @@ long MenuSelect(Point startPt)
     extern void SetPort(GrafPtr port);
     extern void GetWMgrPort(GrafPtr* wmgrPort);
 
-    /* Declare ALL local variables at function start to avoid mid-function stack issues */
     GrafPtr savedPort, wmgrPort;
     short menuID;
     Rect titleRect;
@@ -148,8 +147,6 @@ long MenuSelect(Point startPt)
     long trackResult;
     long result;
     short item;
-    /* stack_align was only ever written (a leftover "fix stack
-     * alignment" hack that could never work in C); removed. */
 
     GetPort(&savedPort);
     GetWMgrPort(&wmgrPort);
@@ -180,7 +177,6 @@ long MenuSelect(Point startPt)
         extern void HiliteMenu(short menuID);
         HiliteMenu(menuID);
         serial_puts("DEBUG: Returned from HiliteMenu\n");
-        serial_puts("DEBUG: After stack_align\n");
 
         /* Get the actual menu title position for proper dropdown placement */
 
