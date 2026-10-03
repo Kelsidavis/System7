@@ -54,8 +54,6 @@ extern uint32_t fb_pitch;
  * Initialize the menu bits pool with preallocated buffers
  */
 OSErr MenuBitsPool_Init(SInt16 numBuffers, SInt32 bufferSize) {
-    extern void serial_printf_disabled(const char* fmt, ...);
-    extern void serial_puts(const char*);
     serial_puts("[MBPOOL] MenuBitsPool_Init enter\n");
 
     if (gMenuBitsPool.initialized) {
@@ -130,8 +128,6 @@ OSErr MenuBitsPool_Init(SInt16 numBuffers, SInt32 bufferSize) {
  * Shutdown the pool and free all resources
  */
 OSErr MenuBitsPool_Shutdown(void) {
-    extern void serial_printf_disabled(const char* fmt, ...);
-
     if (!gMenuBitsPool.initialized) {
         return noErr;
     }
@@ -164,8 +160,6 @@ OSErr MenuBitsPool_Shutdown(void) {
  * Returns pointer to pixel buffer or NULL if none available
  */
 static void* MenuBitsPool_GetBuffer(SInt16* outIndex) {
-    extern void serial_printf_disabled(const char* fmt, ...);
-
     if (!gMenuBitsPool.initialized) {
         return NULL;
     }
@@ -198,7 +192,6 @@ static void* MenuBitsPool_GetBuffer(SInt16* outIndex) {
  * Caller must create SavedBitsRec with NewHandle, with bitsData pointing to returned buffer
  */
 Handle MenuBitsPool_Allocate(const Rect* bounds) {
-    extern void serial_printf_disabled(const char* fmt, ...);
     SInt16 poolIndex = -1;
 
     if (!gMenuBitsPool.initialized) {
@@ -257,8 +250,6 @@ Handle MenuBitsPool_Allocate(const Rect* bounds) {
  * Return a buffer to the pool
  */
 OSErr MenuBitsPool_Free(Handle poolHandle) {
-    extern void serial_printf_disabled(const char* fmt, ...);
-
     if (!gMenuBitsPool.initialized || !poolHandle) {
         return paramErr;
     }
