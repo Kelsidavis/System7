@@ -2,7 +2,11 @@
 
 This document tracks known issues, workarounds, and technical debt in the System 7 codebase.
 
-## Open Issues
+## Issue Inventory
+
+This inventory retains detailed incident notes for historical context. A ✅
+heading is a resolved report, not an open task; unmarked or warning-marked
+entries describe current limitations and should be revalidated before work.
 
 ### ⚠️ ARM64 boot stops while creating the boot volume
 
@@ -821,7 +825,7 @@ rather than keeping an undersized buffer.
 appear anywhere in the log, zero CPU exceptions, and a screenshot shows the
 resized window with its title bar, complete icon labels and status line intact.
 
-## Critical Issues
+## Resolved Critical Incidents
 
 ### ✅ 1. Mouse Button Tracking May Get Stuck (TIMEOUT-001) - FIXED
 
@@ -878,7 +882,7 @@ Implemented hysteresis-based button state debouncing with two-part strategy:
 
 ---
 
-## Medium Priority Issues
+## Resolved Medium-Priority Incidents
 
 ### ✅ 3. Desktop Background Window Refilling - RESOLVED
 
@@ -955,7 +959,7 @@ Implemented proper region-based erasing for Direct Framebuffer:
 
 ---
 
-## Low Priority / Technical Debt
+## Incomplete Features and Remaining Technical Debt
 
 ### ✅ 6. Dead Code: Disabled Drag State System (FIXED)
 
@@ -971,14 +975,14 @@ Implemented proper region-based erasing for Direct Framebuffer:
 
 Several features are noted as incomplete:
 
-- **Color QuickDraw**: `Platform_HasColorQuickDraw()` returns false (WindowPlatform.c:32)
+- **Color QuickDraw**: `Platform_HasColorQuickDraw()` returns false (`src/Platform/WindowPlatform.c`)
 - **ARM64 Port**: builds and starts under QEMU `virt`, but stops while creating the boot volume (above)
 - **Many Menu Items**: Remain placeholders
 - **Graphics Mode**: Stuck in classic VGA mode
 
 ---
 
-## Performance Issues
+## Resolved Performance Work
 
 ### ✅ 7. Excessive Screen Flushes During Window Drag (FIXED)
 
@@ -1066,7 +1070,7 @@ Implemented dirty rectangle intersection when available:
 
 ---
 
-## Fixed Issues
+## Earlier Fixed Issues
 
 ### ✅ 10. Coordinate System Fragmentation (FIXED)
 
