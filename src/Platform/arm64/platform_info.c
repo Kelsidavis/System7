@@ -50,6 +50,10 @@ const char* platform_format_memory_gb(void) {
     return buf;
 }
 
+uint32_t platform_get_memory_bytes(void) {
+    return hal_get_memory_size();
+}
+
 /*
  * Get CPU name string
  */

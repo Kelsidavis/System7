@@ -12,56 +12,19 @@
 #include "Finder/finder.h"
 #include "WindowManager/WindowManager.h"
 #include "QuickDraw/QuickDraw.h"
+#include "MemoryMgr/MemoryManager.h"
 #include "Platform/platform_info.h"
 #include "Platform/Framebuffer.h"
 #include "Gestalt/Gestalt.h"
+#include "FontManager/FontManager.h"
 #include "Platform/include/boot.h"
+#include "Platform/Serial.h"
 #include "LocaleManager/LocaleManager.h"
 #include "LocaleManager/StringIDs.h"
 #include "TimeManager/TimeBase.h"
 
-/* For debug logging */
-extern void serial_printf(const char* fmt, ...);
-
-/* External QuickDraw & Window Manager APIs */
-extern void GetPort(GrafPtr* port);
-extern void SetPort(GrafPtr port);
-extern void BeginUpdate(WindowPtr window);
-extern void EndUpdate(WindowPtr window);
-extern void EraseRect(const Rect* r);
-extern void FrameRect(const Rect* r);
-extern void PaintRect(const Rect* r);
-extern void InsetRect(Rect* r, short dh, short dv);
-extern void MoveTo(short h, short v);
-extern void LineTo(short h, short v);
-extern void TextFont(short font);
-extern void TextSize(short size);
-extern void TextFace(short face);
-extern void PenPat(const Pattern* pat);
-extern void PenNormal(void);
-extern void FillRect(const Rect* r, const Pattern* pat);
-extern short StringWidth(ConstStr255Param s);
-
-extern WindowPtr NewWindow(void* wStorage, const Rect* boundsRect,
-                          const unsigned char* title, Boolean visible,
-                          short procID, WindowPtr behind, Boolean goAwayFlag,
-                          long refCon);
-extern void ShowWindow(WindowPtr window);
-extern void SelectWindow(WindowPtr window);
-extern void BringToFront(WindowPtr window);
-extern void DisposeWindow(WindowPtr window);
-extern void DragWindow(WindowPtr window, Point startPt, const Rect* boundsRect);
-extern Boolean TrackGoAway(WindowPtr window, Point pt);
-
 /* External Event Manager */
 #include "EventManager/EventManager.h"
-
-/* External memory introspection - try to use real APIs if available */
-extern Size FreeMem(void);
-extern Size MaxMem(void);      /* the real one takes no argument */
-extern Size HeapUsed(void);
-extern UInt32 TotalRam(void);  /* Platform may provide this */
-extern uint32_t g_total_memory_kb;  /* Actual detected RAM from multiboot2 */
 
 /* Serial logging */
 
@@ -192,8 +155,8 @@ static void GetMemorySnapshot(MemSnapshot* m)
 
     memset(m, 0, sizeof(MemSnapshot));
 
-    /* Get total RAM from multiboot2 detection (g_total_memory_kb is in KB) */
-    totalBytes = (UInt32)g_total_memory_kb * 1024;  /* Convert KB to bytes */
+    /* Use the platform abstraction rather than depending on the x86 boot ABI. */
+    totalBytes = platform_get_memory_bytes();
     if (totalBytes == 0) {
         totalBytes = 0x01000000;  /* Fallback: 16 MB if detection failed */
     }

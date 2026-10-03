@@ -17,6 +17,9 @@ const char* platform_get_model_string(void);
 /* Format memory size in GB */
 const char* platform_format_memory_gb(void);
 
+/* Get memory size in bytes */
+uint32_t platform_get_memory_bytes(void);
+
 /* Get CPU name string */
 const char* platform_get_cpu_name(void);
 
