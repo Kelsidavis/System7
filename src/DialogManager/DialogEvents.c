@@ -34,7 +34,6 @@ void InitDialogEvents(void)
     }
 
     gDialogEventState.initialized = true;
-    // printf("Dialog event subsystem initialized\n");
 }
 
 /*
@@ -115,8 +114,6 @@ Boolean DialogSelect(const EventRecord* evt, DialogPtr* which, SInt16* itemHit)
             return false;
         }
 
-        // DIALOG_LOG_DEBUG("Dialog: DialogSelect hit item %d\n", hit);
-
         /* Push buttons, checkboxes and radio buttons count only if the
          * button comes up inside them. */
         if (DialogItemIsPushButton(dlg, hit)) {
@@ -186,8 +183,6 @@ void HandleDialogActivate(DialogPtr theDialog, const EventRecord* theEvent, Bool
         return;
     }
 
-    // printf("HandleDialogActivate: dialog=%p, activating=%d\n",
-    // (void*)theDialog, activating);
 }
 
 /*
@@ -212,9 +207,6 @@ SInt16 AdvanceDialogFocus(DialogPtr theDialog, Boolean backward)
         return 0;
     }
 
-    // printf("AdvanceDialogFocus: dialog=%p, backward=%d\n",
-    // (void*)theDialog, backward);
-
     return 0; /* Success */
 }
 
@@ -228,5 +220,4 @@ void CleanupDialogEvents(void)
     }
 
     gDialogEventState.initialized = false;
-    // printf("Dialog event subsystem cleaned up\n");
 }

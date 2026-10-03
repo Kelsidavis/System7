@@ -36,7 +36,6 @@ void DrawDialogButton(DialogPtr theDialog, const Rect* bounds, const unsigned ch
         SetPort((GrafPtr)theDialog);
     }
 
-
     /* One routine draws a push button, and it belongs with the rest of the
      * control appearance - the Control Manager's button definition draws
      * through the same code, so a dialog's buttons and a NewControl button
@@ -125,7 +124,6 @@ void DrawDialogRadioButton(const Rect* bounds, const unsigned char* title,
 
     EraseRect(bounds);   /* drawn afresh, as the checkbox is */
 
-
     /* Radio button is 13x13 circle on left */
     circleRect.top = bounds->top + 1;
     circleRect.left = bounds->left;
@@ -189,8 +187,6 @@ void DrawDialogStaticText(DialogPtr theDialog, const Rect* bounds, const unsigne
         SetPort(savePort);
         return;
     }
-
-    // DIALOG_LOG_DEBUG("Dialog: DrawStaticText '%.*s'\n", text[0], (const char*)&text[1]);
 
     /* Make a copy and perform parameter substitution (^0, ^1, ^2, ^3) */
     /* Note: text[0] is unsigned char, always < 256 */
@@ -292,7 +288,6 @@ void DrawDialogEditText(const Rect* bounds, const unsigned char* text,
             selEnd = (**hTE).selEnd;
         }
     }
-
 
     /* Draw recessed frame */
     EraseRect(&frameRect);
@@ -425,8 +420,6 @@ void DrawDialogUserItem(DialogPtr theDialog, SInt16 itemNo, const Rect* bounds,
 
     GetPort(&savePort);
 
-    // DIALOG_LOG_DEBUG("Dialog: DrawUserItem %d\n", itemNo);
-
     if (userProc) {
         /* Call user's drawing procedure */
         userProc(theDialog, itemNo);
@@ -471,7 +464,6 @@ void DrawDialogItemByType(DialogPtr theDialog, SInt16 itemNo,
                                 item->enabled);
         } else {
             /* Unknown control type */
-            // DIALOG_LOG_DEBUG("Dialog: Unknown control type %d\n", controlType);
             FrameRect(&item->bounds);
         }
         return;
@@ -511,7 +503,6 @@ void DrawDialogItemByType(DialogPtr theDialog, SInt16 itemNo,
         }
 
         default:
-            // DIALOG_LOG_DEBUG("Dialog: Unknown item type %d\n", baseType);
             FrameRect(&item->bounds);
             break;
     }

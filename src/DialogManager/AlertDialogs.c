@@ -103,7 +103,6 @@ void InitAlertDialogs(void)
     gAlertState.alertIcons[2] = 2; /* Caution icon */
     gAlertState.alertIcons[3] = 0; /* Reserved */
 
-    // printf("Alert dialog subsystem initialized\n");
 }
 
 /*
@@ -158,7 +157,6 @@ void ResetAlertStage(void)
         return;
     }
     gAlertState.alertStage = 0;
-    // printf("Alert stage reset to 0\n");
 }
 
 /*
@@ -171,7 +169,6 @@ void SetAlertStage(SInt16 stage)
     }
     if (stage >= 0 && stage <= 3) {
         gAlertState.alertStage = stage;
-    // printf("Alert stage set to %d\n", stage);
     }
 }
 
@@ -289,14 +286,12 @@ DialogPtr CreateAlertFromTemplate(SInt16 alertID)
     OSErr err;
 
     if (!gAlertState.initialized) {
-    // printf("Error: Alert subsystem not initialized\n");
         return NULL;
     }
 
     /* Load alert template */
     err = LoadAlertTemplate(alertID, &alertTemplate);
     if (err != noErr || !alertTemplate) {
-    // printf("Error: Failed to load ALRT resource %d (error %d)\n", alertID, err);
         return NULL;
     }
 
@@ -357,7 +352,6 @@ void CleanupAlertDialogs(void)
     }
 
     gAlertState.initialized = false;
-    // printf("Alert dialog subsystem cleaned up\n");
 }
 
 /*
@@ -538,21 +532,17 @@ static Boolean LoadAlertWithFallback(SInt16 alertID, SInt16 alertType,
     /* Build fallback DLOG and DITL */
     err = BuildFallbackDLOG(spec, outDLOG);
     if (err != noErr) {
-    // printf("Failed to build fallback DLOG: error %d\n", err);
         return false;
     }
 
     err = BuildFallbackDITL(spec->ditlId, spec->icon, outDITL);
     if (err != noErr) {
-    // printf("Failed to build fallback DITL: error %d\n", err);
         if (*outDLOG) {
             DisposePtr((Ptr)*outDLOG);
             *outDLOG = NULL;
         }
         return false;
     }
-
-    // printf("Using fallback alert template for ID %d (icon=%d, def=%d, cancel=%d)\n", alertID, *outIconKind, *outDefItem, *outCancelItem);
 
     return true;
 }
@@ -582,7 +572,6 @@ static void Alert_RealizeButtons(DialogPtr d)
         itemHandle = NULL;
 
         GetDialogItem(d, i, &itemType, &itemHandle, &r);
-        // DIALOG_LOG_DEBUG("[ALERT] GetDialogItem returned: item=%d, type=%d, rect=(%d,%d,%d,%d)\n", i, itemType, r.top, r.left, r.bottom, r.right);
 
         /* Classic Mac encoding: low 7 bits carry the base type */
         if (((itemType & 0x7F) == (ctrlItem + btnCtrl)) && itemHandle == NULL) {
@@ -592,7 +581,6 @@ static void Alert_RealizeButtons(DialogPtr d)
             title[2] = 'K';
 
             /* Create the standard push button control */
-            // DIALOG_LOG_DEBUG("[ALERT] About to create button control for item %d\n", i);
             c = NewControl(
                 (WindowPtr)d,
                 &r,
@@ -608,12 +596,10 @@ static void Alert_RealizeButtons(DialogPtr d)
             if (c) {
                 /* Store handle back into the dialog item */
                 SetDialogItem(d, i, itemType, (Handle)c, &r);
-                // DIALOG_LOG_DEBUG("[ALERT] Realized button item=%d, rect=(%d,%d,%d,%d)\n", i, r.left, r.top, r.right, r.bottom);
 
                 /* Verify control was linked to window */
                 (void)_GetFirstControl((WindowPtr)d);
             } else {
-                // DIALOG_LOG_DEBUG("[ALERT] Failed to realize button item=%d\n", i);
             }
         }
     }
@@ -629,7 +615,6 @@ static SInt16 RunAlertDialog(SInt16 alertID, ModalFilterProcPtr filterProc, SInt
     ConstStr255Param alertTitle = PSTR("Alert");
 
     if (!gAlertState.initialized) {
-    // printf("Error: Alert subsystem not initialized\n");
         return 1;
     }
 
@@ -639,7 +624,6 @@ static SInt16 RunAlertDialog(SInt16 alertID, ModalFilterProcPtr filterProc, SInt
     /* Load alert with fallback */
     if (!LoadAlertWithFallback(alertID, alertType, &dlogTemplate, &ditlHandle,
                                &defItem, &cancelItem, &iconKind)) {
-    // printf("Error: Failed to load/create alert %d\n", alertID);
         SysBeep(30);
         return 1;
     }
@@ -654,7 +638,6 @@ static SInt16 RunAlertDialog(SInt16 alertID, ModalFilterProcPtr filterProc, SInt
                            ditlHandle);
 
     if (!alertDialog) {
-    // printf("Error: Failed to create alert dialog\n");
         if (dlogTemplate) DisposePtr((Ptr)dlogTemplate);
         if (ditlHandle) DisposeHandle(ditlHandle);
         return 1;
@@ -719,8 +702,6 @@ static SInt16 RunAlertDialog(SInt16 alertID, ModalFilterProcPtr filterProc, SInt
         gAlertState.alertStage++;
     }
 
-    // printf("Alert %d completed, item hit: %d, new stage: %d\n", alertID, itemHit, gAlertState.alertStage);
-
     return itemHit;
 }
 
@@ -738,7 +719,6 @@ static DialogPtr CreateAlertDialogFromTemplate(const AlertTemplate* alertTemplat
     /* Load item list for the alert */
     err = LoadDialogItemList(alertTemplate->itemsID, &itemList);
     if (err != noErr || !itemList) {
-    // printf("Error: Failed to load DITL resource %d for alert (error %d)\n", alertTemplate->itemsID, err);
         return NULL;
     }
 
@@ -829,14 +809,12 @@ void SubstituteAlertParameters(unsigned char* text)
 void SetAlertAccessibility(Boolean enabled)
 {
     (void)enabled;
-    // printf("SetAlertAccessibility: %d\n", enabled);
 }
 
 void AnnounceAlert(const char* title, const char* message)
 {
     (void)title;
     (void)message;
-    // printf("AnnounceAlert: %s - %s\n", title ? title : "", message ? message : "");
 }
 
 SInt16 ShowNativeAlert(const char* title, const char* message,
@@ -846,20 +824,17 @@ SInt16 ShowNativeAlert(const char* title, const char* message,
     (void)message;
     (void)buttons;
     (void)alertType;
-    // printf("ShowNativeAlert: %s - %s (buttons: %d, type: %d)\n", title ? title : "", message ? message : "", buttons, alertType);
     return 1; /* OK button */
 }
 
 void SetAlertTheme(const DialogTheme* theme)
 {
     (void)theme;
-    // printf("SetAlertTheme\n");
 }
 
 void GetAlertTheme(DialogTheme* theme)
 {
     (void)theme;
-    // printf("GetAlertTheme\n");
 }
 
 SInt16 ShowAlert(const char* title, const char* message,
@@ -869,7 +844,6 @@ SInt16 ShowAlert(const char* title, const char* message,
     (void)message;
     (void)buttons;
     (void)alertType;
-    // printf("ShowAlert: %s - %s (buttons: %d, type: %d)\n", title ? title : "", message ? message : "", buttons, alertType);
     return 1; /* OK button */
 }
 
@@ -886,7 +860,6 @@ SInt16 ShowAlertWithParams(const char* title, const char* message,
     (void)param1;
     (void)param2;
     (void)param3;
-    // printf("ShowAlertWithParams: %s - %s\n", title ? title : "", message ? message : "");
     return 1; /* OK button */
 }
 
@@ -894,7 +867,6 @@ void ProcessAlertStages(SInt16 alertType, SInt16 stage)
 {
     (void)alertType;
     (void)stage;
-    // printf("ProcessAlertStages: type=%d, stage=%d\n", alertType, stage);
 }
 
 void SubstituteParamText(char* text, size_t textSize)

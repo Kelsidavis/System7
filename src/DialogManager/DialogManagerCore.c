@@ -27,7 +27,6 @@
 #include <assert.h>
 #include "DialogManager/DialogLogging.h"
 
-
 /* Global Dialog Manager state */
 /*
  * The Dialog Manager's state, sized for the extended view of it
@@ -107,7 +106,6 @@ void InitDialogs(ResumeProcPtr resumeProc)
 
     gDialogManagerInitialized = true;
 
-    // DIALOG_LOG_DEBUG("Dialog Manager initialized successfully\n");
 }
 
 /*
@@ -136,19 +134,16 @@ DialogPtr NewDialog(void* wStorage, const Rect* boundsRect, const unsigned char*
     WindowPtr window;
 
     if (!gDialogManagerInitialized) {
-        // printf("Error: Dialog Manager not initialized\n");
         return NULL;
     }
 
     if (!boundsRect || !itmLstHndl) {
-        // printf("Error: Invalid parameters to NewDialog\n");
         return NULL;
     }
 
     /* Allocate dialog structure */
     dialog = CreateDialogStructure(wStorage, false);
     if (!dialog) {
-        // printf("Error: Failed to create dialog structure\n");
         return NULL;
     }
 
@@ -171,7 +166,6 @@ DialogPtr NewDialog(void* wStorage, const Rect* boundsRect, const unsigned char*
                        false, /* Start hidden until items are set up */
                        procID, behind, goAwayFlag, refCon);
     if (!window) {
-        // printf("Error: Failed to create dialog window\n");
         if (!wStorage) {
             DisposePtr((Ptr)dialog);
         }
@@ -220,7 +214,6 @@ DialogPtr NewDialog(void* wStorage, const Rect* boundsRect, const unsigned char*
         ShowWindow((WindowPtr)dialog);
     }
 
-    // printf("Created new dialog at %p\n", (void*)dialog);
     return dialog;
 }
 
@@ -235,21 +228,18 @@ DialogPtr GetNewDialog(SInt16 dialogID, void* dStorage, WindowPtr behind)
     OSErr err;
 
     if (!gDialogManagerInitialized) {
-        // printf("Error: Dialog Manager not initialized\n");
         return NULL;
     }
 
     /* Load dialog template from resource */
     err = LoadDialogTemplate(dialogID, &template);
     if (err != 0 || !template) {
-        // printf("Error: Failed to load DLOG resource %d (error %d)\n", dialogID, err);
         return NULL;
     }
 
     /* Load dialog item list from resource */
     err = LoadDialogItemList(template->itemsID, &itemList);
     if (err != 0 || !itemList) {
-        // printf("Error: Failed to load DITL resource %d (error %d)\n", template->itemsID, err);
         DisposeDialogTemplate(template);
         return NULL;
     }
@@ -264,11 +254,9 @@ DialogPtr GetNewDialog(SInt16 dialogID, void* dStorage, WindowPtr behind)
 
     if (!dialog) {
         DisposeDialogItemList(itemList);
-        // printf("Error: Failed to create dialog from template\n");
         return NULL;
     }
 
-    // printf("Created dialog from DLOG resource %d\n", dialogID);
     return dialog;
 }
 
@@ -287,7 +275,6 @@ DialogPtr NewColorDialog(void* dStorage, const Rect* boundsRect, const unsigned 
                        behind, goAwayFlag, refCon, items);
 
     if (dialog) {
-        // printf("Created new color dialog at %p\n", (void*)dialog);
     }
 
     return dialog;
@@ -370,7 +357,6 @@ void DrawDialog(DialogPtr theDialog)
     /* Restore port */
     SetPort(savePort);
 
-    // printf("Drew dialog at %p with %d items\n", (void*)theDialog, itemCount);
 }
 
 /*
@@ -408,7 +394,6 @@ void UpdateDialog(DialogPtr theDialog, RgnHandle updateRgn)
     /* Restore port */
     SetPort(savePort);
 
-    // DIALOG_LOG_DEBUG("Dialog: Updated dialog %p\n", (void*)theDialog);
 }
 
 /*
@@ -497,11 +482,6 @@ void ParamText(const unsigned char* param0, const unsigned char* param1,
         gDialogManagerState.globals.paramText[3][0] = 0;
     }
 
-    // printf("Set parameter text: param0='%.*s', param1='%.*s', param2='%.*s', param3='%.*s'\n",
-    //        gDialogManagerState.globals.paramText[0][0], &gDialogManagerState.globals.paramText[0][1],
-    //        gDialogManagerState.globals.paramText[1][0], &gDialogManagerState.globals.paramText[1][1],
-    //        gDialogManagerState.globals.paramText[2][0], &gDialogManagerState.globals.paramText[2][1],
-    //        gDialogManagerState.globals.paramText[3][0], &gDialogManagerState.globals.paramText[3][1]);
 }
 
 /*
@@ -659,8 +639,6 @@ static void SetupDialogDefaults(DialogPtr dialog)
     dialogRec->editField = -1; /* No edit field active initially */
     dialogRec->editOpen = 0;
 }
-
-
 
 /*
  * Internal utility functions for other modules

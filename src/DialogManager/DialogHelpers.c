@@ -62,8 +62,6 @@ SInt16 DialogHitTest(DialogPtr theDialog, Point localPt) {
     /* Use FindDialogItem which already does hit testing */
     itemNo = FindDialogItem(theDialog, localPt);
 
-    // DIALOG_LOG_DEBUG("Dialog: HitTest at (%d,%d) -> item %d\n", localPt.h, localPt.v, itemNo);
-
     return itemNo;
 }
 
@@ -200,7 +198,6 @@ void SetDialogEditFocus(DialogPtr theDialog, SInt16 itemNo) {
     gFocusDialog = theDialog;
     gFocusItemNo = itemNo;
 
-    // DIALOG_LOG_DEBUG("Dialog: Set edit focus to item %d\n", itemNo);
 }
 
 /* Check if dialog has edit focus */
@@ -225,7 +222,6 @@ Boolean DialogEditKey(DialogPtr theDialog, char ch) {
 
     /* For now, just log key presses */
     /* Full implementation would modify the text data */
-    // DIALOG_LOG_DEBUG("Dialog: Edit key '%c' in item %d\n", ch, gFocusItemNo);
 
     return true;
 }

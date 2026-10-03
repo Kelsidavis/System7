@@ -76,11 +76,9 @@ void SetDialogEditTextFocus(DialogPtr theDialog, SInt16 itemNo) {
         InvalDialogItem(theDialog, itemNo);
         DrawDialogItem(theDialog, itemNo);
 
-        // DIALOG_LOG_DEBUG("Edit-text focus set to item %d\n", itemNo);
     } else {
         extState->focusedEditTextItem = 0;
         extState->caretVisible = false;
-        // DIALOG_LOG_DEBUG("Edit-text focus cleared\n");
     }
 }
 
@@ -148,7 +146,6 @@ void UpdateDialogCaret(DialogPtr theDialog) {
         InvalDialogItem(theDialog, extState->focusedEditTextItem);
         DrawDialogItem(theDialog, extState->focusedEditTextItem);
 
-        // DIALOG_LOG_DEBUG("Caret blink: %s\n", extState->caretVisible ? "visible" : "hidden");
     }
 }
 
@@ -269,7 +266,6 @@ void InitDialogEditTextFocus(DialogPtr theDialog) {
         GetDialogItem(theDialog, i, &itemType, &itemHandle, &itemBox);
         if ((itemType & 0x7F) == editText) {
             SetDialogEditTextFocus(theDialog, i);
-            // DIALOG_LOG_DEBUG("Initial edit-text focus set to item %d\n", i);
             return;
         }
     }
@@ -328,7 +324,6 @@ TEHandle GetOrCreateDialogTEHandle(DialogPtr theDialog, SInt16 itemNo) {
         return NULL;
     }
 
-
     /* A different dialog's fields are still here; they are not ours to reuse
      * and nobody else will free them. */
     if (extState->teOwner && extState->teOwner != theDialog) {
@@ -360,7 +355,6 @@ TEHandle GetOrCreateDialogTEHandle(DialogPtr theDialog, SInt16 itemNo) {
         SetPort(savePort);
     }
     if (!hTE) {
-        // DIALOG_LOG_DEBUG("Failed to create TEHandle for dialog item %d\n", itemNo);
         return NULL;
     }
 
@@ -383,7 +377,6 @@ TEHandle GetOrCreateDialogTEHandle(DialogPtr theDialog, SInt16 itemNo) {
     extState->teHandles[itemNo] = (void*)hTE;
     extState->teOwner = theDialog;
 
-    // DIALOG_LOG_DEBUG("Created TEHandle for dialog item %d\n", itemNo);
     return hTE;
 }
 
@@ -410,7 +403,6 @@ Boolean HandleDialogEditTextClick(DialogPtr theDialog, SInt16 itemNo, Point mous
     /* Pass click to TextEdit */
     TEClick(mousePt, false, hTE);
 
-    // DIALOG_LOG_DEBUG("Handled edit-text click at item %d\n", itemNo);
     return true;
 }
 
@@ -505,7 +497,6 @@ Boolean HandleDialogEditTextKey(DialogPtr theDialog, SInt16 itemNo, CharParamete
         }
     }
 
-    // DIALOG_LOG_DEBUG("Handled edit-text key %c in item %d\n", key, itemNo);
     return true;
 }
 
@@ -556,7 +547,6 @@ void HandleDialogCut(DialogPtr theDialog) {
     hTE = GetOrCreateDialogTEHandle(theDialog, itemNo);
     if (hTE) {
         TECut(hTE);
-        // DIALOG_LOG_DEBUG("Cut from edit-text item %d\n", itemNo);
     }
 }
 
@@ -584,7 +574,6 @@ void HandleDialogCopy(DialogPtr theDialog) {
     hTE = GetOrCreateDialogTEHandle(theDialog, itemNo);
     if (hTE) {
         TECopy(hTE);
-        // DIALOG_LOG_DEBUG("Copied from edit-text item %d\n", itemNo);
     }
 }
 
@@ -615,6 +604,5 @@ void HandleDialogPaste(DialogPtr theDialog) {
         /* Update dialog item after paste */
         InvalDialogItem(theDialog, itemNo);
         DrawDialogItem(theDialog, itemNo);
-        // DIALOG_LOG_DEBUG("Pasted into edit-text item %d\n", itemNo);
     }
 }

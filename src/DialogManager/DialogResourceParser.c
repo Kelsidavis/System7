@@ -40,12 +40,10 @@ OSErr ParseDITL(Handle ditlHandle, DialogItemEx** items, SInt16* itemCount) {
     DialogItemEx* itemArray;
 
     if (!ditlHandle || !items || !itemCount) {
-        // DIALOG_LOG_DEBUG("Dialog: ParseDITL - invalid parameters\n");
         return -1;
     }
 
     if (!*ditlHandle) {
-        // DIALOG_LOG_DEBUG("Dialog: ParseDITL - null handle data\n");
         return -1;
     }
 
@@ -73,7 +71,6 @@ OSErr ParseDITL(Handle ditlHandle, DialogItemEx** items, SInt16* itemCount) {
 
     /* Validate raw count value before adding 1 to prevent integer overflow */
     if (count < 0 || count >= 256) {
-        // DIALOG_LOG_DEBUG("Dialog: ParseDITL - invalid raw item count %d\n", count);
         HUnlock(ditlHandle);
         return -1;
     }
@@ -81,7 +78,6 @@ OSErr ParseDITL(Handle ditlHandle, DialogItemEx** items, SInt16* itemCount) {
     count += 1;  /* Actual count is stored value + 1 */
 
     *itemCount = count;
-    // DIALOG_LOG_DEBUG("Dialog: Parsing DITL with %d items\n", count);
 
     /* Check for integer overflow in allocation size */
     if ((size_t)count > SIZE_MAX / sizeof(DialogItemEx)) {
@@ -92,7 +88,6 @@ OSErr ParseDITL(Handle ditlHandle, DialogItemEx** items, SInt16* itemCount) {
     /* Allocate item array */
     itemArray = (DialogItemEx*)NewPtr(count * sizeof(DialogItemEx));
     if (!itemArray) {
-        // DIALOG_LOG_DEBUG("Dialog: ParseDITL - malloc failed\n");
         HUnlock(ditlHandle);
         return -108;  /* memFullErr */
     }
@@ -107,7 +102,6 @@ OSErr ParseDITL(Handle ditlHandle, DialogItemEx** items, SInt16* itemCount) {
 
         /* Validate we have enough bytes for item header (4 + 8 + 1 + 1 = 14 bytes minimum) */
         if (p + 14 > pEnd) {
-            // DIALOG_LOG_DEBUG("Dialog: ParseDITL - truncated item data at item %d\n", i);
             DisposePtr((Ptr)itemArray);
             HUnlock(ditlHandle);
             return -1;
@@ -264,7 +258,6 @@ OSErr ParseDITL(Handle ditlHandle, DialogItemEx** items, SInt16* itemCount) {
             p++;
         }
 
-        // DIALOG_LOG_DEBUG("Dialog: Item %d: type=%d bounds=(%d,%d,%d,%d)\n", i+1, itemType, bounds.top, bounds.left, bounds.bottom, bounds.right);
     }
 
     *items = itemArray;

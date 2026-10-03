@@ -23,7 +23,6 @@
 #include "DialogManager/DialogLogging.h"
 #include "TimeManager/TimeBase.h"
 
-
 /* Private structures for item management */
 typedef struct DialogItemCache {
     DialogPtr       dialog;
@@ -75,7 +74,6 @@ void InitDialogItems(void)
         gDialogItemState.cache[i].lastUpdateTime = 0;
     }
 
-    // DIALOG_LOG_DEBUG("Dialog item subsystem initialized\n");
 }
 
 /*
@@ -97,11 +95,8 @@ void GetDialogItem(DialogPtr theDialog, SInt16 itemNo, SInt16* itemType,
 
     itemEx = GetDialogItemEx(theDialog, itemNo);
     if (!itemEx) {
-        // DIALOG_LOG_DEBUG("GetDialogItem: GetDialogItemEx returned NULL for item %d\n", itemNo);
         return;
     }
-
-    // DIALOG_LOG_DEBUG("GetDialogItem: item %d, index=%d, bounds=(%d,%d,%d,%d)\n", itemNo, (itemEx)->index, (itemEx)->bounds.top, (itemEx)->bounds.left, (itemEx)->bounds.bottom, (itemEx)->bounds.right);
 
     /* Return item information */
     if (itemType) {
@@ -114,7 +109,6 @@ void GetDialogItem(DialogPtr theDialog, SInt16 itemNo, SInt16* itemType,
         *box = (itemEx)->bounds;
     }
 
-    // DIALOG_LOG_DEBUG("GetDialogItem: item %d, type %d\n", itemNo, (itemEx)->type);
 }
 
 /*
@@ -167,7 +161,6 @@ void SetDialogItem(DialogPtr theDialog, SInt16 itemNo, SInt16 itemType,
     /* Mark for redraw */
     InvalDialogItem(theDialog, itemNo);
 
-    // DIALOG_LOG_DEBUG("SetDialogItem: item %d, type %d\n", itemNo, itemType);
 }
 
 /*
@@ -192,7 +185,6 @@ void HideDialogItem(DialogPtr theDialog, SInt16 itemNo)
         InvalidateItemRect(theDialog, &(itemEx)->bounds);
     }
 
-    // DIALOG_LOG_DEBUG("Hid dialog item %d\n", itemNo);
 }
 
 /*
@@ -217,7 +209,6 @@ void ShowDialogItem(DialogPtr theDialog, SInt16 itemNo)
         DrawDialogItem(theDialog, itemNo);
     }
 
-    // DIALOG_LOG_DEBUG("Showed dialog item %d\n", itemNo);
 }
 
 /*
@@ -250,7 +241,6 @@ SInt16 FindDialogItem(DialogPtr theDialog, Point thePt)
         }
     }
 
-    // DIALOG_LOG_DEBUG("FindDialogItem at (%d, %d): found item %d\n", thePt.h, thePt.v, foundItem);
     return foundItem;
 }
 
@@ -326,7 +316,6 @@ void SelectDialogItemText(DialogPtr theDialog, SInt16 itemNo, SInt16 strtSel, SI
     }
 
     /* In a full implementation, this would work with TextEdit */
-    // DIALOG_LOG_DEBUG("SelectDialogItemText: item %d, selection %d-%d\n", itemNo, strtSel, endSel);
 }
 
 /*
@@ -353,7 +342,6 @@ void EnableDialogItem(DialogPtr theDialog, SInt16 itemNo)
         InvalDialogItem(theDialog, itemNo);
     }
 
-    // DIALOG_LOG_DEBUG("Enabled dialog item %d\n", itemNo);
 }
 
 /*
@@ -380,7 +368,6 @@ void DisableDialogItem(DialogPtr theDialog, SInt16 itemNo)
         InvalDialogItem(theDialog, itemNo);
     }
 
-    // DIALOG_LOG_DEBUG("Disabled dialog item %d\n", itemNo);
 }
 
 /*
@@ -530,14 +517,12 @@ void AppendDITL(DialogPtr theDialog, Handle theHandle, DITLMethod method)
     /* Check for integer overflow in addition */
     if (totalItems < cache->itemCount || totalItems < newItemCount) {
         DisposePtr((Ptr)newItems);
-        // DIALOG_LOG_DEBUG("Error: Integer overflow in item count\n");
         return;
     }
 
     /* Check for integer overflow in multiplication */
     if (totalItems > 0 && SIZE_MAX / totalItems < sizeof(DialogItemEx)) {
         DisposePtr((Ptr)newItems);
-        // DIALOG_LOG_DEBUG("Error: Integer overflow in size calculation\n");
         return;
     }
 
@@ -545,7 +530,6 @@ void AppendDITL(DialogPtr theDialog, Handle theHandle, DITLMethod method)
     DialogItemEx* expandedItems = (DialogItemEx*)NewPtr(totalItems * sizeof(DialogItemEx));
     if (!expandedItems) {
         DisposePtr((Ptr)newItems);
-        // DIALOG_LOG_DEBUG("Error: Failed to expand item cache\n");
         return;
     }
 
@@ -563,7 +547,6 @@ void AppendDITL(DialogPtr theDialog, Handle theHandle, DITLMethod method)
 
     DisposePtr((Ptr)newItems);
 
-    // DIALOG_LOG_DEBUG("Appended %d items to dialog (method %d), total now %d\n", newItemCount, method, totalItems);
 }
 
 /*
@@ -635,7 +618,6 @@ void ShortenDITL(DialogPtr theDialog, SInt16 numberItems)
 
     cache->needsUpdate = true;
 
-    // DIALOG_LOG_DEBUG("Shortened DITL by %d items, %d items remaining\n", numberItems, cache->itemCount);
 }
 
 /*
@@ -663,7 +645,6 @@ void SetUserItemProc(DialogPtr theDialog, SInt16 itemNo, UserItemProcPtr procPtr
     /* Set the procedure as the item handle */
     (itemEx)->handle = (Handle)procPtr;
 
-    // DIALOG_LOG_DEBUG("Set user item procedure for item %d\n", itemNo);
 }
 
 /*
@@ -716,7 +697,6 @@ void DrawDialogItem(DialogPtr theDialog, SInt16 itemNo)
     DrawDialogItemByType(theDialog, itemNo, itemEx);
     SetPort(savePort);
 
-    // DIALOG_LOG_DEBUG("Drew dialog item %d (type %d)\n", itemNo, itemEx->type & itemTypeMask);
 }
 
 /*
@@ -762,7 +742,6 @@ void FrameDialogItem(DialogPtr theDialog, SInt16 itemNo)
     frameRect.bottom += 4;
 
     /* In a full implementation, this would draw an actual frame */
-    // DIALOG_LOG_DEBUG("Framing dialog item %d at (%d,%d,%d,%d)\n", itemNo, frameRect.left, frameRect.top, frameRect.right, frameRect.bottom);
 }
 
 /*
@@ -804,14 +783,11 @@ static DialogItemCache* CreateDialogItemCache(DialogPtr theDialog)
     if (itemList) {
         OSErr err = ParseDialogItemList(itemList, &cache->items, &cache->itemCount);
         if (err != 0) {
-            // DIALOG_LOG_DEBUG("Error: Failed to parse dialog item list (error %d)\n", err);
             return NULL;
         }
     }
 
     gDialogItemState.cacheCount++;
-
-    // DIALOG_LOG_DEBUG("Created item cache for dialog at %p with %d items\n", (void*)theDialog, cache->itemCount);
 
     return cache;
 }
@@ -846,7 +822,6 @@ static Boolean ValidateItemNumber(DialogPtr theDialog, SInt16 itemNo)
     return (itemNo <= cache->itemCount);
 }
 
-
 static void InvalidateItemRect(DialogPtr theDialog, const Rect* rect)
 {
     if (!theDialog || !rect) {
@@ -875,7 +850,6 @@ void CleanupDialogItems(void)
     gDialogItemState.cacheCount = 0;
     gDialogItemState.initialized = false;
 
-    // DIALOG_LOG_DEBUG("Dialog item subsystem cleaned up\n");
 }
 
 static void DisposeDialogItemCache(DialogItemCache* cache)
