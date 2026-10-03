@@ -178,7 +178,8 @@ void TEPaste(TEHandle hTE) {
 /*
  * TEStylePaste - Paste with style information
  *
- * Pastes text and applies style runs from clipboard if available
+ * Pastes text and reads style runs from the clipboard when available.
+ * Applying those runs to the pasted range remains unimplemented.
  */
 void TEStylePaste(TEHandle hTE) {
     TEExtPtr pTE;
@@ -208,7 +209,8 @@ void TEStylePaste(TEHandle hTE) {
     if (pTE->hStyles && g_TEStyleScrap && pasteLen > 0) {
         /* Apply styles from scrap */
         /* pasteLen is 32-bit: %d would pass a 4-byte int to printf. */
-        TEC_LOG("TEStylePaste: styled paste - applying %ld bytes of styles\n", (long)pasteLen);
+        TEC_LOG("TEStylePaste: styled paste - %ld bytes of style metadata available\n",
+                (long)pasteLen);
 
         HLock(g_TEStyleScrap);
         SInt16 *scrapPtr = (SInt16*)HandleDataAligned(g_TEStyleScrap);
@@ -252,7 +254,8 @@ void TEStylePaste(TEHandle hTE) {
         (**teRec).selEnd = pasteStart + pasteLen;
 
         /* styleRunCount is 32-bit: %d would pass a 4-byte int. */
-        TEC_LOG("TEStylePaste: applied %ld style runs\n", (long)styleRunCount);
+        TEC_LOG("TEStylePaste: %ld style runs recorded; application deferred\n",
+                (long)styleRunCount);
     } else {
         /* Plain paste */
         TEC_LOG("TEStylePaste: plain text paste (no styles)\n");
