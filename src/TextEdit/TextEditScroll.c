@@ -90,6 +90,12 @@ static SInt16 TE_MaxHScroll(TEExtPtr pTE) {
     return maxHScroll > 0 ? maxHScroll : 0;
 }
 
+static SInt16 TE_MaxVScroll(TEExtPtr pTE) {
+    SInt16 maxVScroll = pTE->nLines * pTE->base.lineHeight -
+                        (pTE->base.viewRect.bottom - pTE->base.viewRect.top);
+    return maxVScroll > 0 ? maxVScroll : 0;
+}
+
 /* Forward declarations */
 static void TE_ScrollToLine(TEHandle hTE, SInt32 lineNum);
 static void TE_ScrollToOffset(TEHandle hTE, SInt32 offset);
@@ -106,7 +112,7 @@ static Boolean TE_IsLineVisible(TEHandle hTE, SInt32 lineNum);
 void TEScroll(SInt16 dh, SInt16 dv, TEHandle hTE) {
     TEExtPtr pTE;
     Rect updateRect;
-    SInt16 maxScroll;
+    SInt16 maxVScroll;
 
     if (!hTE) return;
 
@@ -117,10 +123,7 @@ void TEScroll(SInt16 dh, SInt16 dv, TEHandle hTE) {
     TES_LOG("TEScroll: dh=%ld, dv=%ld, current=(%ld,%ld)\n",
             (long)dh, (long)dv, (long)pTE->viewDH, (long)pTE->viewDV);
 
-    /* Calculate max scroll values */
-    maxScroll = pTE->nLines * pTE->base.lineHeight -
-                (pTE->base.viewRect.bottom - pTE->base.viewRect.top);
-    if (maxScroll < 0) maxScroll = 0;
+    maxVScroll = TE_MaxVScroll(pTE);
 
     /* Update scroll position */
     pTE->viewDH += dh;
@@ -137,8 +140,8 @@ void TEScroll(SInt16 dh, SInt16 dv, TEHandle hTE) {
     if (pTE->viewDV < 0) {
         pTE->viewDV = 0;
     }
-    if (pTE->viewDV > maxScroll) {
-        pTE->viewDV = maxScroll;
+    if (pTE->viewDV > maxVScroll) {
+        pTE->viewDV = maxVScroll;
     }
 
     /* Invalidate view rect for redraw */
@@ -225,9 +228,7 @@ void TEPinScroll(SInt16 dh, SInt16 dv, TEHandle hTE) {
     TES_LOG("TEPinScroll: dh=%ld, dv=%ld\n", (long)dh, (long)dv);
 
     /* Calculate maximum scroll values */
-    maxVScroll = pTE->nLines * pTE->base.lineHeight -
-                 (pTE->base.viewRect.bottom - pTE->base.viewRect.top);
-    if (maxVScroll < 0) maxVScroll = 0;
+    maxVScroll = TE_MaxVScroll(pTE);
 
     maxHScroll = TE_MaxHScroll(pTE);
 
