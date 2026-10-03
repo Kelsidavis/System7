@@ -21,6 +21,10 @@ make -C src/Platform/arm64
 src/Platform/arm64/test-qemu.sh
 ```
 
+The script captures the complete serial log and succeeds only after the kernel
+reaches boot-volume creation. It is an early-boot check, not a full boot test;
+the current boot-volume stall is documented in `docs/KNOWN_ISSUES.md`.
+
 Or run the kernel interactively:
 
 ```bash
