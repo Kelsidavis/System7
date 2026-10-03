@@ -1,4 +1,3 @@
-#include <string.h>
 /*
  * WindowParts.c - Window Parts and Controls Implementation
  *
@@ -23,32 +22,18 @@
 #include "System71StdLib.h"
 
 #include "WindowManager/WindowManagerInternal.h"
+#include "QuickDraw/QuickDraw.h"
 #include "QuickDraw/ColorQuickDraw.h"
 #include "FontManager/FontManager.h"
 #include "FontManager/FontTypes.h"
 #include "MemoryMgr/MemoryManager.h"
+#include <string.h>
 #include <math.h>
 
 /* Color constants */
 #define blackColor 33
 #define whiteColor 30
 #include "WindowManager/WMLogging.h"
-
-/* QuickDraw drawing primitives used by window chrome */
-extern void EraseRect(const Rect* r);
-extern void FrameRect(const Rect* r);
-extern void PaintRect(const Rect* r);
-extern void InsetRect(Rect* r, short dh, short dv);
-extern void MoveTo(short h, short v);
-extern void LineTo(short h, short v);
-extern void ForeColor(SInt32 color);
-extern void GetPort(GrafPtr* port);
-extern void SetPort(GrafPtr port);
-extern void TextFont(short);
-extern void TextSize(short);
-extern void TextFace(Style);
-extern short StringWidth(ConstStr255Param);
-extern void DrawString(ConstStr255Param);
 
 /* [WM-031] File-local helpers; provenance: IM:Windows "Window Definition Procedures" */
 static short WM_DialogWindowHitTest(WindowPtr window, Point pt);
