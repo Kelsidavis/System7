@@ -736,19 +736,19 @@ But it never added the erased area to `updateRgn`, so no update was ever
 requested. Whether content survived was pure luck of ordering. `PaintOne` now
 accumulates the erased region into the window's update region.
 
-**Bug 2 — the update synthesis was in a function that does not link.** The fix
-in 293388f added on-demand update synthesis to `GetNextEvent` in
-`EventManager/event_manager.c`. With `ENABLE_PROCESS_COOP`, the override in
-`ProcessMgr/EventIntegration.c` wins and routes `GetNextEvent` to
-`Proc_GetNextEvent` — which had **no update synthesis at all**. Its own comment
-still claims "the canonical GetNextEvent is in EventManager/event_manager.c".
-`WM_FindWindowNeedingUpdate` was never called once during a whole boot. The
-synthesis now lives in the path that actually runs.
+**Bug 2 — the update synthesis was in a function that did not link.** The fix
+in 293388f added on-demand update synthesis to a duplicate `GetNextEvent` in
+`EventManager/event_manager.c`, while the process-aware implementation in
+`ProcessMgr/EventIntegration.c` was the one that ran and had **no update
+synthesis at all**. `WM_FindWindowNeedingUpdate` was never called once during a
+whole boot. The synthesis now lives in the process-aware path. The duplicate
+implementation and its stale comments have since been removed.
 
-⚠️ **When touching the event path, check which `GetNextEvent` links** —
-`nm build/obj/**/*.o | grep " T GetNextEvent"`. Two definitions exist and the
-non-obvious one wins. The same trap exists for `DrawText` (see the Font Manager
-entry) and `PaintOne`-adjacent code.
+The event path previously had duplicate definitions, so checking the linked
+symbol was necessary during that fix. That warning is historical; the current
+public `GetNextEvent` definition routes to `Proc_GetNextEvent` in
+`ProcessMgr/EventIntegration.c`. The same trap still exists for `DrawText` (see
+the Font Manager entry) and `PaintOne`-adjacent code.
 
 **REGION-001 fallout.** Invalidating covered windows made them repaint over the
 window on top — opening About This Macintosh drew the Finder's icons across the

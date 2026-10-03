@@ -158,8 +158,8 @@ Boolean OSEventAvail(SInt16 mask, EventRecord* evt) {
 /*
  * Proc_EventAvail - Process-aware check if event available without removing
  *
- * NOTE: This is a process-aware version. The canonical EventAvail
- * is in EventManager/event_manager.c
+ * The public EventAvail entry point below routes here so availability checks
+ * use the same process-aware event queue as GetNextEvent.
  */
 Boolean Proc_EventAvail(EventMask mask, EventRecord* evt) {
     UInt16 index;
