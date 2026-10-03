@@ -1,6 +1,6 @@
 /**
  * @file EventManager.h
- * @brief Complete Event Manager Implementation for System 7.1
+ * @brief Event Manager interfaces for System 7.1
  *
  * This file provides the main Event Manager API that maintains exact
  * compatibility with Mac OS System 7.1 event handling semantics while
@@ -11,7 +11,7 @@
  * the foundation for all Mac applications.
  *
  * Features:
- * - Complete Mac OS Event Manager API compatibility
+ * - Classic event handling interfaces
  * - Mouse event handling (clicks, drags, movement)
  * - Keyboard event processing (keys, modifiers, auto-repeat)
  * - System events (update, activate, suspend/resume)

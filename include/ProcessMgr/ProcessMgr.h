@@ -1,19 +1,4 @@
-/*
- * RE-AGENT-BANNER
- * ProcessMgr.h - Mac OS System 7 Process Manager Interface
- *
- * implemented based on System.rsrc
- *
- * This file implements the cooperative multitasking Process Manager that was
- * introduced with System 7, enabling multiple applications to run simultaneously
- * through cooperative scheduling based on WaitNextEvent calls.
- *
- * Evidence sources:
- * - evidence.process_manager.json: Function signatures and system identifiers
- * - layouts.process_manager.json: Process control block and data structure layouts
- * - mappings.process_manager.json: Function and resource mappings
- * RE-AGENT-BANNER
- */
+/* Process Manager interfaces and shared process data structures. */
 
 #ifndef __PROCESSMGR_H__
 #define __PROCESSMGR_H__
@@ -27,10 +12,7 @@
 extern "C" {
 #endif
 
-/*
- * Process Manager Constants
-
- */
+/* Process Manager constants. */
 #define kPM_MaxProcesses        32
 #define kPM_InvalidProcessID    0xFFFFFFFF
 #define kPM_SystemProcessID     0x00000001
@@ -47,10 +29,7 @@ typedef struct AppFile {
     Str255 fName;       /* Filename */
 } AppFile;
 
-/*
- * Process States for Cooperative Multitasking
-
- */
+/* Process states for cooperative scheduling. */
 typedef enum {
     kProcessTerminated = 0,
     kProcessSuspended = 1,
@@ -58,41 +37,28 @@ typedef enum {
     kProcessBackground = 3
 } ProcessState;
 
-/*
- * Process Mode Flags
-
- */
+/* Process mode flags. */
 enum {
     kProcessModeCooperative = 0x0001,
     kProcessModeCanBackground = 0x0002,
     kProcessModeNeedsActivate = 0x0004
 };
 
-/*
- * Launch Control Flags
-
- */
+/* Launch control flags. */
 enum {
     kLaunchDontSwitch = 0x0001,
     kLaunchNoFileFlags = 0x0002,
     kLaunchContinue = 0x0004
 };
 
-/*
- * Process Context Save Area for 68k Context Switching
-
- */
+/* Minimal context saved by the current process-switching implementation. */
 typedef struct ProcessContext {
     UInt32 savedA5;
     UInt32 savedStackPointer;
     /* Additional 68k registers would be saved here */
 } ProcessContext;
 
-/*
- * Process Control Block - Core data structure for each process
-
- * Size: 256 bytes, aligned to 4 bytes
- */
+/* Process control block. */
 struct ProcessControlBlock {
     ProcessSerialNumber processID;
     OSType processSignature;
@@ -113,27 +79,13 @@ struct ProcessControlBlock {
     struct ProcessControlBlock* processNextProcess;
 };
 
-/*
- * Launch Parameter Block for starting new processes
-
- * (Defined in SystemTypes.h)
- */
-
-/*
- * Process Queue for Cooperative Scheduling
-
- */
+/* Process queue for cooperative scheduling. */
 struct ProcessQueue {
     ProcessControlBlock* queueHead;
     ProcessControlBlock* queueTail;
     short queueSize;
     ProcessControlBlock* currentProcess;
 };
-
-/*
- * Process Manager Function Prototypes
-
- */
 
 /* Process Lifecycle Management */
 OSErr ProcessManager_Initialize(void);
@@ -153,18 +105,6 @@ OSErr SetFrontProcess(const ProcessSerialNumber* psn);
 OSErr GetFrontProcess(ProcessSerialNumber* frontPSN);
 OSErr SameProcess(const ProcessSerialNumber* psn1, const ProcessSerialNumber* psn2, Boolean* result);
 
-/* Event Integration for Cooperative Multitasking */
-/* Process-aware event functions that integrate with the scheduler */
-Boolean Proc_GetNextEvent(EventMask mask, EventRecord* evt);
-Boolean Proc_EventAvail(EventMask mask, EventRecord* evt);
-OSErr Proc_PostEvent(EventMask evtType, UInt32 evtMessage);
-
-/* Standard event functions - canonical implementations */
-Boolean GetNextEvent(EventMask mask, EventRecord* evt);
-Boolean EventAvail(EventMask mask, EventRecord* evt);
-OSErr PostEvent(EventMask evtType, UInt32 evtMessage);
-void FlushEvents(EventMask whichMask, EventMask stopMask);
-
 /* Keyboard modifier state */
 UInt16 GetCurrentModifiers(void);
 
@@ -183,10 +123,7 @@ void CountAppFiles(SInt16* message, SInt16* count);
 OSErr GetAppFiles(SInt16 index, AppFile* theFile);
 void ClrAppFiles(SInt16 index);
 
-/*
- * Global Process Manager Variables
-
- */
+/* Global Process Manager state. */
 extern ProcessQueue* gProcessQueue;
 extern ProcessControlBlock* gCurrentProcess;
 extern ProcessSerialNumber gSystemProcessPSN;
@@ -197,27 +134,3 @@ extern Boolean gMultiFinderActive;
 #endif
 
 #endif /* __PROCESSMGR_H__ */
-
-/*
- * RE-AGENT-TRAILER-JSON
- * {
- *   "file": "ProcessMgr.h",
- *   "type": "header",
- *   "component": "process_manager",
- *   "evidence_sources": [
- *     "evidence.process_manager.json:functions",
- *     "layouts.process_manager.json:process_control_block",
- *     "mappings.process_manager.json:function_mappings"
- *   ],
- *   "structures_defined": [
- *     "ProcessControlBlock",
- *     "LaunchParamBlockRec",
- *     "ProcessQueue",
- *     "ProcessContext"
- *   ],
- *   "functions_declared": 25,
- *   "provenance_density": 0.87,
- *   "cooperative_multitasking_coverage": "complete"
- * }
- * RE-AGENT-TRAILER-JSON
- */
