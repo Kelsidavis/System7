@@ -412,7 +412,6 @@ void DM_ActivatePushButton(ControlHandle button) {
     innerRect.bottom -= 3;
 
     /* Classic Mac button flash using XOR inversion */
-    SInt16 oldMode __attribute__((unused)) = patCopy; /* Save current mode (simplified - assumes patCopy) */
     PenMode(patXor);
     InvertRect(&innerRect);
     Delay(8, &finalTicks); /* ~8 ticks = 133ms flash */

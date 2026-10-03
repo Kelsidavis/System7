@@ -1659,9 +1659,6 @@ void kernel_main(uint32_t magic, uint32_t* mb2_info) {
     run_performance_tests();
     #endif
 
-    /* Main event loop using real Event Manager (console_puts would corrupt framebuffer) */
-    EventRecord event __attribute__((unused));
-
     /* Initial desktop draw now handled by Finder/Desktop Manager */
     serial_puts("MAIN: Desktop init complete\n");
 
@@ -1684,8 +1681,6 @@ void kernel_main(uint32_t magic, uint32_t* mb2_info) {
     GetMouse(&lastMousePos);
     int16_t last_mouse_x = lastMousePos.h;
     int16_t last_mouse_y = lastMousePos.v;
-    volatile uint32_t debug_counter __attribute__((unused)) = 0;
-
     /* Add cursor update counter to throttle cursor redraws */
     static uint32_t cursor_update_counter = 0;
 
