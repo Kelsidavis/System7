@@ -18,6 +18,7 @@ typedef struct {
 } exception_context_t;
 
 /* Exception handler functions */
+void exception_vectors(void);
 void exceptions_init(void);
 void handle_sync_exception(exception_context_t *ctx);
 void handle_irq_exception(exception_context_t *ctx);

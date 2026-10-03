@@ -7,9 +7,7 @@
 #include <stdbool.h>
 #include <stddef.h>
 #include "mmu.h"
-
-/* String function declaration */
-extern void *memset(void *s, int c, size_t n);
+#include "System71StdLib.h"
 
 /* Page table entry attributes */
 #define PTE_VALID           (1ULL << 0)

@@ -7,10 +7,7 @@
 #include <stdbool.h>
 #include <stddef.h>
 #include "dtb.h"
-
-/* String function declarations */
-extern size_t strlen(const char *s);
-extern int strcmp(const char *s1, const char *s2);
+#include "System71StdLib.h"
 
 /* DTB header structure */
 typedef struct {

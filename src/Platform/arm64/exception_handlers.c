@@ -5,11 +5,7 @@
 
 #include <stdint.h>
 #include "exception_handlers.h"
-
-/* External functions */
-extern void exception_vectors(void);
-extern void uart_putc(char c);
-extern void uart_puts(const char *s);
+#include "uart.h"
 
 /*
  * Install exception vector table

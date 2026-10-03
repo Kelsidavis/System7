@@ -8,17 +8,7 @@
 #ifdef QEMU_BUILD
 #include "virtio_gpu.h"
 #else
-/* Forward declarations for framebuffer functions (no header file) */
-extern bool framebuffer_init(uint32_t width, uint32_t height, uint32_t depth);
-extern bool framebuffer_is_initialized(void);
-extern uint32_t framebuffer_get_width(void);
-extern uint32_t framebuffer_get_height(void);
-extern uint32_t framebuffer_get_depth(void);
-extern uint32_t framebuffer_get_pitch(void);
-extern void *framebuffer_get_buffer(void);
-extern void framebuffer_clear(uint32_t color);
-extern void framebuffer_set_pixel(uint32_t x, uint32_t y, uint32_t color);
-extern void framebuffer_draw_rect(uint32_t x, uint32_t y, uint32_t width, uint32_t height, uint32_t color);
+#include "framebuffer.h"
 #endif
 
 /* Stored dimensions for when display is initialized */

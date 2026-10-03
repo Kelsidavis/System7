@@ -6,6 +6,7 @@
 #include <stdint.h>
 #include <stddef.h>
 #include <stdbool.h>
+#include "System71StdLib.h"
 #include "uart.h"
 #include "timer.h"
 #include "dtb.h"
@@ -19,10 +20,6 @@
 #else
 #include "virtio_gpu.h"
 #endif
-
-/* Minimal snprintf declaration */
-extern int snprintf(char *str, size_t size, const char *format, ...);
-extern char *strncpy(char *dest, const char *src, size_t n);
 
 /* ARM64-specific boot information */
 typedef struct {
