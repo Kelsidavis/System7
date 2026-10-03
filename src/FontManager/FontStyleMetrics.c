@@ -1,12 +1,12 @@
 /*
- * FontStyleSynthesis.c - Font Style Metrics
+ * FontStyleMetrics.c - Font Style Metrics
  *
  * Computes style-adjusted character and string widths and text bounds.
  */
 
 #include "FontManager/FontManager.h"
 #include "FontManager/FontTypes.h"
-#include "FontManager/FontStyleSynthesis.h"
+#include "FontManager/FontStyleMetrics.h"
 #include "FontManager/FontInternal.h"
 #include "SystemTypes.h"
 #include "FontManager/FontLogging.h"

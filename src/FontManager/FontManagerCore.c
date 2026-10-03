@@ -8,6 +8,7 @@
 #include "QuickDraw/QuickDrawPlatform.h"
 #include "FontManager/FontInternal.h"
 #include "FontManager/FontManager.h"
+#include "FontManager/FontStyleMetrics.h"
 #include "FontManager/FontTypes.h"
 #include "FontManager/FontResources.h"
 #include "QuickDraw/ColorQuickDraw.h"
@@ -807,7 +808,6 @@ short FM_GetPlainCharWidth(short ch) {
 
 short CharWidth(short ch) {
     if (g_currentPort && g_currentPort->txFace != normal) {
-        extern short FM_GetStyledCharWidth(unsigned char ch, Style face);
         return FM_GetStyledCharWidth((unsigned char)ch, g_currentPort->txFace);
     }
 

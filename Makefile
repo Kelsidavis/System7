@@ -372,7 +372,7 @@ C_SOURCES = src/main.c \
             src/chicago_font_data.c \
             src/FontManager/FontManagerCore.c \
             src/FontManager/FontResourceLoader.c \
-            src/FontManager/FontStyleSynthesis.c \
+            src/FontManager/FontStyleMetrics.c \
             src/FontManager/FontScaling.c \
             src/PatternMgr/pattern_manager.c \
             src/PatternMgr/pattern_resources.c \

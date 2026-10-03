@@ -1,11 +1,11 @@
 /*
- * FontStyleSynthesis.h - Font Style Metrics API
+ * FontStyleMetrics.h - Font Style Metrics API
  *
  * Width and bounds calculations for System 7.1 text styles
  */
 
-#ifndef FONT_STYLE_SYNTHESIS_H
-#define FONT_STYLE_SYNTHESIS_H
+#ifndef FONT_STYLE_METRICS_H
+#define FONT_STYLE_METRICS_H
 
 #include "SystemTypes.h"
 #include "FontTypes.h"
@@ -36,4 +36,4 @@ short FM_GetStyleExtraHeight(Style face);
 }
 #endif
 
-#endif /* FONT_STYLE_SYNTHESIS_H */
+#endif /* FONT_STYLE_METRICS_H */

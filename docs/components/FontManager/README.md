@@ -35,7 +35,7 @@ System 7.1-compatible Font Manager providing bitmap font support with the Chicag
 - `ChicagoCharInfo` table supplies bit offsets, ink widths, side bearings, and logical advances; space has an explicit +3 px adjustment to match System 7 spacing
 
 ### Text Styles
-- `FontStyleSynthesis.c` calculates style-adjusted character/string widths and extra bounds; it does not draw styled glyphs
+- `FontStyleMetrics.c` calculates style-adjusted character/string widths and extra bounds; it does not draw styled glyphs
 - `FontManagerCore.c` draws bold glyphs with a one-pixel offset and draws underline after a string. Italic offset is only applied by the Chicago fallback path when no font strike is available; the strike-rendering path does not currently shear glyphs
 - Shadow, outline, and condense/extend drawing are not implemented
 - `FontScaling.c` contains nearest-neighbour upsizing for larger point sizes, sharing the Chicago strike as a base
