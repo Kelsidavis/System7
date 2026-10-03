@@ -11,6 +11,7 @@
 #include "EventManager/EventManager.h"   /* PostEventWithModifiers */
 #include "ProcessMgr/ProcessMgr.h"
 #include "ProcessMgr/ProcessLogging.h"
+#include "TimeManager/TimeBase.h"
 
 /* Event queue - ring buffer */
 #define EVENT_QUEUE_SIZE 64
@@ -21,7 +22,6 @@ static UInt16 gQueueCount = 0;
 
 /* External functions */
 extern void Proc_UnblockEvent(EventRecord* evt);
-extern UInt32 TickCount(void);
 extern void GetMouse(Point* pt);
 extern Boolean Button(void);
 extern UInt16 GetModifierState(void);  /* From KeyboardEvents.c */
@@ -367,8 +367,6 @@ static Boolean CheckSystemEvents(EventMask mask, EventRecord* evt) {
      * update forever. */
     if (mask & updateMask) {
         extern WindowPtr WM_FindWindowNeedingUpdate(void);
-        extern UInt32 TickCount(void);
-
         WindowPtr needy = WM_FindWindowNeedingUpdate();
         if (needy) {
             evt->what = updateEvt;
@@ -386,8 +384,6 @@ static Boolean CheckSystemEvents(EventMask mask, EventRecord* evt) {
      * null event was ever seen: no blinking caret, no ticking clock. */
     {
         extern void GetMouse(Point* mouseLoc);
-        extern UInt32 TickCount(void);
-
         evt->what = nullEvent;
         evt->message = 0;
         evt->when = TickCount();

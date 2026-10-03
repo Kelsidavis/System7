@@ -26,6 +26,7 @@
 
 #include "SystemTypes.h"
 #include "System71StdLib.h"
+#include "TimeManager/TimeBase.h"
 
 #include "ProcessMgr/ProcessMgr.h"
 #include "ProcessMgr/ProcessLogging.h"
@@ -552,7 +553,6 @@ ProcessSerialNumber ProcessManager_GetFrontProcess(void) {
  * Set front process - bring app to front (used by AppSwitcher)
  */
 OSErr ProcessManager_SetFrontProcess(ProcessSerialNumber psn) {
-    extern UInt32 TickCount(void);
     ProcessControlBlock* oldFrontProcess;
     ProcessControlBlock* newFrontProcess;
 
