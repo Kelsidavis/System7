@@ -17,8 +17,7 @@
 #include "MacPaintInternal.h"
 #include "EventManager/EventManager.h"
 #include "chicago_font.h"
-
-extern UInt32 TickCount(void);
+#include "TimeManager/TimeBase.h"
 
 /* MacPaint's patterns, as its palette shows them */
 const UInt8 kPatterns[kPatternCount][8] = {

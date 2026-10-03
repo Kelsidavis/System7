@@ -10,9 +10,7 @@
 #include "DialogManager/DITLBuilder.h"
 #include "MemoryMgr/MemoryManager.h"
 #include "SoundManager/SoundManager.h"
-
-/* External functions */
-extern UInt32 TickCount(void);
+#include "TimeManager/TimeBase.h"
 
 /* Utility macros for packing/unpacking longs */
 #define HiWord(x) ((short)(((unsigned long)(x) >> 16) & 0xFFFF))
