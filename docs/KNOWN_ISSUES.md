@@ -634,9 +634,10 @@ the dialog can actually be dismissed.
 
 `MenuDisplay.c` has a complete System 7 item renderer — `DrawMenu` →
 `DrawMenuItem`, with `DrawMenuSeparator`, marks, icons, command keys and
-disabled styling. **Nothing calls `DrawMenu`.** The menus you see are drawn by
-`MenuTrack.c`'s `DrawMenuOld`, a hand-rolled framebuffer routine that drew every
-item as plain left-aligned text and nothing else.
+disabled styling. `ShowMenu()` calls `DrawMenu()`, but the live tracking path
+does not call `ShowMenu()`; `MenuTrack.c` draws the menus through its separate
+`DrawMenuOld()` framebuffer routine. This leaves two drawing implementations,
+and the full renderer's behavior is not exercised by normal menu tracking.
 
 Two bugs fell out of this, both now fixed:
 
@@ -654,18 +655,13 @@ Two bugs fell out of this, both now fixed:
 
 Still outstanding:
 
-- `DrawMenu`/`DrawMenuItem` in `MenuDisplay.c` remain unreachable. The real fix
-  is to route menu drawing through them rather than keep extending
-  `DrawMenuOld`. Their `itemFlags` are now populated correctly, so they are
-  ready to use.
+- Route the live tracking path through one renderer and remove the duplicate
+  implementation after visual behavior is verified.
 - The ⌘ symbol is drawn **geometrically**, not from the font. Chicago carries it
   at char 0x11, but the extracted strike only covers ASCII 32–126 and
   `FM_DrawChicagoCharInternal` rejects `ch < 32`. `DrawCommandGlyph` in
   `MenuTrack.c` draws the standard looped square instead of fabricating font
   data. If an authentic Chicago NFNT is ever imported, prefer the real glyph.
-- Disabled and separator items may still highlight during tracking.
-- The Control Panels submenu is linked and drawn as hierarchical, but selecting
-  it does not open the submenu yet.
 
 ### ✅ Source files that were never compiled, and a copy that claimed to be canonical (ARCH-002) — FIXED
 
