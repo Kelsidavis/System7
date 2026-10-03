@@ -14,7 +14,6 @@
 
 
 #include "DialogTypes.h"
-#include "DialogManager.h"
 
 #ifdef __cplusplus
 extern "C" {

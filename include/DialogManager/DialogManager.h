@@ -18,6 +18,7 @@
 #define DIALOG_MANAGER_H
 
 #include "SystemTypes.h"
+#include "DialogManager/DialogItems.h"
 
 /* Forward declarations */
 
@@ -116,33 +117,14 @@ SInt16 GetAlertStage(void);
 void ResetAlertStage(void);
 void ResetAlrtStage(void);
 
-/* Dialog item management */
-void GetDialogItem(DialogPtr theDialog, SInt16 itemNo, SInt16* itemType,
-                   Handle* item, Rect* box);
-void SetDialogItem(DialogPtr theDialog, SInt16 itemNo, SInt16 itemType,
-                   Handle item, const Rect* box);
-void HideDialogItem(DialogPtr theDialog, SInt16 itemNo);
-void ShowDialogItem(DialogPtr theDialog, SInt16 itemNo);
-SInt16 FindDialogItem(DialogPtr theDialog, Point thePt);
-
-/* Dialog text management */
-void GetDialogItemText(Handle item, unsigned char* text);
-void SetDialogItemText(Handle item, const unsigned char* text);
-void SelectDialogItemText(DialogPtr theDialog, SInt16 itemNo, SInt16 strtSel, SInt16 endSel);
-unsigned char* DM_ParamTextSlot(SInt16 index);   /* ParamText's string for ^index */
-void ParamText(const unsigned char* param0, const unsigned char* param1,
-               const unsigned char* param2, const unsigned char* param3);
-
 /* Dialog edit operations */
 void DialogCut(DialogPtr theDialog);
 void DialogCopy(DialogPtr theDialog);
 void DialogPaste(DialogPtr theDialog);
 void DialogDelete(DialogPtr theDialog);
-
-/* Dialog item list manipulation */
-void AppendDITL(DialogPtr theDialog, Handle theHandle, DITLMethod method);
-SInt16 CountDITL(DialogPtr theDialog);
-void ShortenDITL(DialogPtr theDialog, SInt16 numberItems);
+unsigned char* DM_ParamTextSlot(SInt16 index);   /* ParamText's string for ^index */
+void ParamText(const unsigned char* param0, const unsigned char* param1,
+               const unsigned char* param2, const unsigned char* param3);
 
 /* Dialog settings */
 void SetDialogFont(SInt16 fontNum);
@@ -164,14 +146,6 @@ SInt16 GetWindowModalClass(WindowPtr theWindow, SInt16* modalClass);
  * BACKWARDS COMPATIBILITY ALIASES
  * These maintain compatibility with existing Mac code
  */
-#define GetDItem        GetDialogItem
-#define SetDItem        SetDialogItem
-#define HideDItem       HideDialogItem
-#define ShowDItem       ShowDialogItem
-#define SelIText        SelectDialogItemText
-#define GetIText        GetDialogItemText
-#define SetIText        SetDialogItemText
-#define FindDItem       FindDialogItem
 #define GetAlrtStage    GetAlertStage
 #define DlgCut          DialogCut
 #define DlgCopy         DialogCopy
