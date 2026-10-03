@@ -44,14 +44,17 @@
 ```
 System7/
 ├── README.md
-├── docs/                  # this documentation
+├── config/                # build configurations
+├── docs/                  # project and subsystem documentation
 │   ├── components/        # subsystem guides
-│   └── future/            # plans
+│   └── future/            # planning documents
 ├── include/               # headers, by subsystem
+├── resources/             # localized strings, patterns, and device trees
+├── scripts/               # repository checks and generation helpers
 ├── src/                   # implementation, by subsystem
-├── resources/strings/     # STR# tables, one per language (LOCALE_ALL=1 builds them all)
-├── patterns.json          # pattern sources for Patterns.rsrc
-└── tests/                 # test notes and harnesses
+├── tests/                 # test harnesses, guest programs, and test notes
+├── tools/                 # asset and image utilities
+└── patterns.json          # pattern sources for the generated Patterns.rsrc
 ```
 
 The integration tests live in `src/Integration/IntegrationTests.c` and run when
