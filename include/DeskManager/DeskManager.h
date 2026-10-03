@@ -295,7 +295,6 @@ Boolean DeskManager_IsDAAvailable(const char *name);
 int DeskManager_RegisterBuiltinDAs(void);
 
 /* Error Codes - most defined in DeskManagerTypes.h */
-#define DESK_ERR_NONE           0       /* No error */
 /* DESK_ERR_NOT_FOUND, DESK_ERR_ALREADY_OPEN, DESK_ERR_SYSTEM_ERROR defined in DeskManagerTypes.h */
 #define DESK_ERR_INVALID_PARAM  -4      /* Invalid parameter (overlaps with DeskManagerTypes) */
 #define DESK_ERR_DA_ERROR       -6      /* DA-specific error */

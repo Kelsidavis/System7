@@ -28,22 +28,6 @@
 #define DA_RESOURCE_TYPE_STR    FOURCC('S', 'T', 'R', ' ') /* String resource */
 #define DA_RESOURCE_TYPE_ICN    FOURCC('I', 'C', 'N', '#') /* Icon resource */
 
-/* Standard DA Resource IDs */
-#define DA_RESID_CALCULATOR     4           /* Calculator DA */
-#define DA_RESID_KEYCAPS        11          /* Key Caps DA */
-#define DA_RESID_ALARM          15          /* Alarm Clock DA */
-#define DA_RESID_CHOOSER        7           /* Chooser DA */
-
-/* DA Driver Flags */
-#define DA_FLAG_NEEDS_EVENTS    0x0001      /* DA processes events */
-#define DA_FLAG_NEEDS_TIME      0x0002      /* DA needs periodic calls */
-#define DA_FLAG_NEEDS_CURSOR    0x0004      /* DA controls cursor */
-#define DA_FLAG_NEEDS_MENU      0x0008      /* DA has menus */
-#define DA_FLAG_NEEDS_EDIT      0x0010      /* DA supports edit ops */
-#define DA_FLAG_MODAL           0x0020      /* DA is modal */
-#define DA_FLAG_SYSTEM_HEAP     0x0040      /* DA uses system heap */
-
-
 /* DA Window Attributes */
 
 /* DA Driver Header (matches Mac OS DRVR format) */

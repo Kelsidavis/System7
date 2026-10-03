@@ -8,7 +8,7 @@
 #ifndef __FILEMANAGERTYPES_H__
 #define __FILEMANAGERTYPES_H__
 
-#include "SystemTypes.h"
+#include "MacTypes.h"
 #include "Errors/ErrorCodes.h"
 #include <time.h>
 
@@ -138,9 +138,7 @@ typedef struct {
 /* Additional error codes */
 #ifndef wrPermErr
 #define wrPermErr       -61    /* Write permission error */
-#define fsRdWrPerm      3      /* Read/write permission */
 /* Note: fsAtMark, fsFromStart, fsFromLEOF defined in MacTypes.h */
-#define fsFromMark      3      /* From current mark */
 #define kioFlAttribDir  0x10   /* Directory attribute */
 #define notAFileErr     -1302  /* Not a file error */
 #define kioVAtrbOffline 0x0001 /* Volume offline */
