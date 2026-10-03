@@ -7,7 +7,7 @@
  * - MenuSelection.c: MenuSelect, MenuKey, MenuChoice
  * - PopUpMenuSelect is declared in MenuManager.h but is not implemented.
  *
- * The filename is historical: this file implements AddResMenu and InsertResMenu.
+ * This file implements AddResMenu and InsertResMenu.
  */
 #include "MenuManager/MenuManager.h"
 #include "SystemTypes.h"

@@ -361,7 +361,7 @@ C_SOURCES = src/main.c \
             src/MenuManager/MenuItems.c \
             src/MenuManager/MenuResources.c \
             src/MenuManager/platform_stubs.c \
-            src/MenuManager/menu_stubs.c \
+            src/MenuManager/MenuResourceNames.c \
             src/MenuCommands.c \
             src/Finder/Icon/icon_system.c \
             src/Finder/Icon/icon_resources.c \

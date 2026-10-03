@@ -336,4 +336,4 @@ short* ParseMBARResource(Handle resourceHandle, short* outMenuCount)
     return menuIDs;
 }
 
-/* AddResMenu and InsertResMenu are in menu_stubs.c, InsertFontResMenu in MenuItems.c. */
+/* AddResMenu and InsertResMenu are in MenuResourceNames.c; InsertFontResMenu is in MenuItems.c. */
