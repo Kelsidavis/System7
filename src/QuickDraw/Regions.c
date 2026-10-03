@@ -1,6 +1,5 @@
 #include "QuickDraw/QuickDrawInternal.h"
 #include "QuickDrawConstants.h"
-#include <stdlib.h>
 #include <string.h>
 #include "MemoryMgr/MemoryManager.h"
 /*
@@ -20,15 +19,9 @@
 #include "QuickDraw/QuickDraw.h"
 #include <assert.h>
 #include <math.h>
-#include <stdint.h>
 
 /* Platform abstraction layer */
 #include "QuickDraw/QuickDrawPlatform.h"
-
-/* REGION_DEBUG: Set to 1 to enable verbose region logging
- * WARNING: Enabling this causes SEVERE performance degradation on ARM64 */
-#define REGION_DEBUG 0
-
 
 /* Region constants */
 #define kMaxScanLines 4096
@@ -47,39 +40,6 @@ typedef struct {
 static RegionRecorder g_regionRecorder = {false, NULL, {0,0,0,0}, NULL, 0, 0};
 static QDErr g_lastRegionError = 0;
 
-__attribute__((unused))
-static void region_log_hex(uint32_t value, int digits) {
-    static const char hex[] = "0123456789ABCDEF";
-    for (int i = digits - 1; i >= 0; --i) {
-        serial_putchar(hex[(value >> (i * 4)) & 0xF]);
-    }
-}
-
-static void region_log_message(const char* context,
-                               RgnHandle handle,
-                               Region* region,
-                               BlockHeader* header) {
-#if REGION_DEBUG
-    serial_puts("[REGION] ");
-    serial_puts(context);
-    serial_puts(" handle=0x");
-    region_log_hex((uint32_t)(uintptr_t)handle, 8);
-    serial_puts(" region=0x");
-    region_log_hex((uint32_t)(uintptr_t)region, 8);
-    serial_puts(" size=0x");
-    region_log_hex(region ? (uint32_t)(uint16_t)region->rgnSize : 0, 4);
-    serial_puts(" hdrSize=0x");
-    region_log_hex(header ? header->size : 0, 8);
-    serial_puts(" flags=0x");
-    region_log_hex(header ? header->flags : 0, 4);
-    serial_puts(" prev=0x");
-    region_log_hex(header ? header->prevSize : 0, 8);
-    serial_putchar('\n');
-#else
-    (void)context; (void)handle; (void)region; (void)header;
-#endif
-}
-
 /* Region rectangle-list accessors; defined with the set operations below. */
 static SInt16 RgnRectCount(Region *region);
 static Rect  *RgnRectList(Region *region);
@@ -95,42 +55,9 @@ static SInt16 sanitize_region_size(Region* region, const char* label) {
         return (SInt16)size;
     }
 
-#if REGION_DEBUG
-    serial_puts("[REGION] ");
-    serial_puts(label);
-    serial_puts(": invalid rgnSize=0x");
-    region_log_hex((uint32_t)size, 8);
-    serial_puts(" at 0x");
-    region_log_hex((uint32_t)(uintptr_t)region, 8);
-    serial_puts(", clamping to 0x");
-    region_log_hex((uint32_t)kMinRegionSize, 4);
-    serial_putchar('\n');
-#else
     (void)label;
-#endif
     region->rgnSize = kMinRegionSize;
     return kMinRegionSize;
-}
-
-static void region_dump_bytes(const char* context, Region* region, SInt16 byteCount) {
-#if REGION_DEBUG
-    serial_puts("[REGION] ");
-    serial_puts(context);
-    serial_puts(" bytes:");
-    if (!region) {
-        serial_puts(" <null>\n");
-        return;
-    }
-
-    UInt8* data = (UInt8*)region;
-    for (SInt16 i = 0; i < byteCount; i++) {
-        serial_putchar(' ');
-        region_log_hex(data[i], 2);
-    }
-    serial_putchar('\n');
-#else
-    (void)context; (void)region; (void)byteCount;
-#endif
 }
 
 /* ================================================================
@@ -156,11 +83,6 @@ RgnHandle NewRgn(void) {
     region->rgnSize = kMinRegionSize;
     SetRect(&region->rgnBBox, 0, 0, 0, 0);
 
-    BlockHeader* header = (BlockHeader*)__builtin_assume_aligned(
-        (UInt8*)region - sizeof(BlockHeader), _Alignof(BlockHeader));
-    region_log_message("NewRgn", rgn, region, header);
-    region_dump_bytes("NewRgn init", region, kMinRegionSize + 28);
-
     g_lastRegionError = 0;
     return rgn;
 }
@@ -168,17 +90,8 @@ RgnHandle NewRgn(void) {
 void DisposeRgn(RgnHandle rgn) {
     if (!rgn || !*rgn) return;
 
-    Region* region = *rgn;
-    BlockHeader* regionHeader = (BlockHeader*)__builtin_assume_aligned(
-        (UInt8*)region - sizeof(BlockHeader), _Alignof(BlockHeader));
-    BlockHeader* handleHeader = (BlockHeader*)__builtin_assume_aligned(
-        (UInt8*)rgn - sizeof(BlockHeader), _Alignof(BlockHeader));
-    region_log_message("DisposeRgn", rgn, region, regionHeader);
-    region_dump_bytes("DisposeRgn pre", region, kMinRegionSize + 28);
-
     /* Use DisposePtr instead of free - free is broken in bare-metal kernel */
     DisposePtr((Ptr)*rgn);
-    region_log_message("DisposeRgn handle block", rgn, NULL, handleHeader);
     DisposePtr((Ptr)rgn);
 }
 
