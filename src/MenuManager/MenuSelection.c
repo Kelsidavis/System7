@@ -130,7 +130,6 @@ long MenuSelect(Point startPt)
      * The WMgrPort has portBits.bounds at screen coordinates (0,0,width,height). */
     extern void GetPort(GrafPtr* port);
     extern void SetPort(GrafPtr port);
-    extern void GetWMgrPort(GrafPtr* wmgrPort);
 
     GrafPtr savedPort, wmgrPort;
     short menuID;
@@ -166,13 +165,11 @@ long MenuSelect(Point startPt)
                      menuID, startPt.h, startPt.v);
 
         /* Highlight the menu title */
-        extern void HiliteMenu(short menuID);
         HiliteMenu(menuID);
         serial_puts("DEBUG: Returned from HiliteMenu\n");
 
         /* Get the actual menu title position for proper dropdown placement */
 
-        extern Boolean GetMenuTitleRectByID(short menuID, Rect* outRect);
         serial_puts("DEBUG: About to call GetMenuTitleRectByID\n");
         if (GetMenuTitleRectByID(menuID, &titleRect)) {
             serial_puts("DEBUG: GetMenuTitleRectByID returned TRUE\n");
@@ -216,7 +213,6 @@ long MenuSelect(Point startPt)
         }
 
         /* Unhighlight the menu title */
-        extern void HiliteMenu(short menuID);
         HiliteMenu(0);
 
         gLastMenuChoice = result;
@@ -559,10 +555,6 @@ Boolean FindMenuCommand(short cmdChar, unsigned long modifiers, MenuCmdSearch* s
     int m, i;
     char searchChar;
 
-    /* Forward declarations for internal query functions */
-    extern Boolean CheckMenuItemEnabled(MenuHandle theMenu, short item);
-    extern char GetMenuItemCmdKey(MenuHandle theMenu, short item);
-
     if (search == NULL) {
         return false;
     }
@@ -575,7 +567,6 @@ Boolean FindMenuCommand(short cmdChar, unsigned long modifiers, MenuCmdSearch* s
 
     /* Get menu bar. The list is a non-relocatable block, so there is nothing
      * to lock and nothing to dereference - see MenuMgr_GetMenuBarList. */
-    extern MenuBarList* MenuMgr_GetMenuBarList(void);
     menuBar = MenuMgr_GetMenuBarList();
     if (menuBar == NULL) {
         return false;
@@ -744,8 +735,6 @@ void FlashMenuSelection(short menuID, short item, short flashes)
     }
 
     /* Flash menu item AND title for complete feedback */
-    extern void FlashMenuItem(MenuHandle theMenu, short item, short flashes);
-
     /* Flash menu title in menu bar */
     for (short i = 0; i < flashes; i++) {
         HiliteMenu(menuID);
@@ -790,7 +779,6 @@ void AnimateMenuSelection(const MenuSelection* selection, short animation)
     }
 
     /* Flash the menu item itself (if menu is currently shown) */
-    extern void FlashMenuItem(MenuHandle theMenu, short item, short flashes);
     FlashMenuItem(theMenu, selection->itemID, flashes);
 }
 
@@ -977,7 +965,6 @@ static short FindMenuAtPoint(Point pt)
  */
 static short FindMenuItemAtPoint(MenuHandle theMenu, Point pt, const Rect* menuRect)
 {
-    extern short GetMenuItemHeight(MenuHandle theMenu, short item);
     short itemCount, i;
     short currentY;
 
@@ -1075,7 +1062,6 @@ static void ShowMenuAtPoint(short menuID, Point pt)
     Rect titleRect;
     Point menuLocation;
 
-    extern Boolean GetMenuTitleRectByID(short menuID, Rect* outRect);
     if (GetMenuTitleRectByID(menuID, &titleRect)) {
         /* Use the left edge of the menu title */
         menuLocation.h = titleRect.left;
@@ -1118,9 +1104,6 @@ static void FlashMenuFeedback(short menuID, short item)
  */
 static void GetCurrentMouseState(Point* mousePt, Boolean* buttonDown, unsigned long* modifiers)
 {
-    extern void GetMouse(Point* mouseLoc);
-    extern Boolean Button(void);
-
     if (mousePt != NULL) {
         /* Get actual mouse position */
         GetMouse(mousePt);
