@@ -25,7 +25,7 @@ This checklist records significant differences between the current toolbox reimp
 - ~~`src/EventManager/SystemEvents.c:331` & `:390` – Update regions are never merged or reduced after validation, causing duplicate `updateEvt`s; the classic manager subtracts validated areas from pending invalidations.~~ **FIXED** (2025-10-06): RequestWindowUpdate now merges update regions using UnionRgn; ValidateWindowRegion subtracts validated areas using DiffRgn
 
 ## Text Input & Editing
-- `src/TextEdit/TextEditScroll.c` – Horizontal scroll is clamped against the widest line; validate this path with mixed fonts, long lines, and scroll-bar integration.
+- `src/TextEdit/TextEditScroll.c` – Horizontal and vertical scroll limits are shared by `TEScroll` and `TEPinScroll`; integration coverage checks both against a long, unwrapped line and multiple hard-returned lines. Mixed-font widths and scroll-bar integration remain unvalidated.
 - `src/TextEdit/TextEditClipboard.c` – TEXT and style scrap are copied to and from the Scrap Manager, but `TEStylePaste` currently parses/logs style runs without applying them to the pasted range.
 
 ## Resource & File Systems
