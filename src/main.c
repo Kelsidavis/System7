@@ -9,6 +9,9 @@
 
 /* Debug flag for serial menu commands - set to 1 to enable, 0 to disable */
 #define DEBUG_SERIAL_MENU_COMMANDS 0
+#ifndef DEBUG_PERFORMANCE_TESTS
+#define DEBUG_PERFORMANCE_TESTS 0
+#endif
 
 /* Include actual System 7.1 headers */
 #include "../include/MacTypes.h"
@@ -61,7 +64,9 @@ static void console_clear(void);
 static void print_hex(uint32_t value);
 static void parse_multiboot2(uint32_t magic, uint32_t* mb2_info);
 static void init_system71(void);
+#if DEBUG_PERFORMANCE_TESTS
 static void run_performance_tests(void);
+#endif
 static void create_system71_windows(void);
 void kernel_main(uint32_t magic, uint32_t* mb2_info);
 #if defined(__powerpc__) || defined(__powerpc64__)
@@ -1170,7 +1175,7 @@ static void init_system71(void) {
 
 }
 
-#if 1  /* Performance tests always available */
+#if DEBUG_PERFORMANCE_TESTS
 /* Performance measurement helpers */
 static inline uint64_t rdtsc_now(void) {
 #ifdef __i386__
@@ -1654,10 +1659,10 @@ void kernel_main(uint32_t magic, uint32_t* mb2_info) {
         serial_puts("=== Gestalt Test Complete ===\n\n");
     }
 
-    /* Always run performance tests after initialization for debugging */
-    #if 1  /* Enable performance tests */
+    /* Optional diagnostics; disabled in normal builds. */
+#if DEBUG_PERFORMANCE_TESTS
     run_performance_tests();
-    #endif
+#endif
 
     /* Initial desktop draw now handled by Finder/Desktop Manager */
     serial_puts("MAIN: Desktop init complete\n");
@@ -1777,7 +1782,6 @@ void kernel_main(uint32_t magic, uint32_t* mb2_info) {
 
 skip_cursor_drawing:
         /* Re-enable SystemTask and GetNextEvent for event processing */
-#if 1
         if (framebuffer) {
             hal_framebuffer_present();
         }
@@ -1803,7 +1807,6 @@ skip_cursor_drawing:
          */
         TimeManager_DrainDeferred(16, 1000); /* up to 16 callbacks or 1ms of work */
         TimeManager_TimerISR(); /* Poll timer (simulated ISR) - must be called each loop */
-#endif /* #if 1 */
 
         /* Yield CPU hint - PAUSE reduces power in spin-wait loops and signals
          * the hypervisor that we're idle. Unlike HLT, PAUSE doesn't block

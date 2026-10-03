@@ -43,6 +43,9 @@ _Static_assert(sizeof(BlockHeader) % 8 == 0, "block data must stay 8-aligned");
 
 /* Optional debug canary to detect Ptr buffer overruns */
 #define MEM_DEBUG_CANARY 1
+#ifndef MEM_DEBUG_TRACE_SUSPECT_RANGE
+#define MEM_DEBUG_TRACE_SUSPECT_RANGE 0
+#endif
 #if MEM_DEBUG_CANARY
 #define CANARY_SIZE 8u
 #define CANARY_BYTE 0xABu
@@ -937,7 +940,7 @@ void* NewPtr(u32 byteCount) {
     }
 #endif
 
-#if 1
+#if MEM_DEBUG_TRACE_SUSPECT_RANGE
     uintptr_t addr = (uintptr_t)result;
     if (addr >= 0x007A4000 && addr <= 0x007B6000) {
         serial_puts("[HEAP] NewPtr near suspect range addr=0x");
