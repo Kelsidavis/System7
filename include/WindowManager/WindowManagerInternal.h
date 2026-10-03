@@ -212,10 +212,6 @@ void WM_UpdateWindowVisibility(WindowPtr window);
 WindowPtr WM_FindWindowAt(Point pt);
 WindowPtr WM_GetNextVisibleWindow(WindowPtr window);
 WindowPtr WM_GetPreviousWindow(WindowPtr window);
-short WM_GetWindowLayer(WindowPtr window);
-void WM_SetWindowLayer(WindowPtr window, short layer);
-Boolean WM_IsFloatingWindow(WindowPtr window);
-Boolean WM_IsAlertDialog(WindowPtr window);
 Boolean WM_WindowsOverlap(WindowPtr window1, WindowPtr window2);
 
 /*

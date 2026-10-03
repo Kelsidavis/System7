@@ -15,9 +15,6 @@
 /* External globals */
 extern QDGlobals qd;
 
-/* Forward declarations */
-Boolean WM_IsFloatingWindow(WindowPtr window);
-
 /* GetWindowManagerState is defined in WindowManagerCore.c */
 extern WindowManagerState* GetWindowManagerState(void);
 
@@ -183,49 +180,6 @@ void WM_CalculateWindowVisibility(WindowPtr window) {
         }
         above = above->nextWindow;
     }
-}
-
-/* Window layer management */
-short WM_GetWindowLayer(WindowPtr window) {
-    if (!window) return 0;
-
-    /* Determine window layer based on window type */
-    if (window->windowKind < 0) {
-        return 3;  /* System window */
-    }
-
-    /* Check if floating window */
-    if (WM_IsFloatingWindow(window)) {
-        return 2;  /* Floating window */
-    }
-
-    /* Check if modal dialog - cast windowDefProc to short for resource ID comparison */
-    if ((short)(long)window->windowDefProc == dBoxProc ||
-        (short)(long)window->windowDefProc == plainDBox ||
-        (short)(long)window->windowDefProc == altDBoxProc) {
-        return 1;  /* Modal dialog */
-    }
-
-    return 0;  /* Normal window */
-}
-
-void WM_SetWindowLayer(WindowPtr window, short layer) {
-    (void)layer;
-    if (!window) return;
-    /* Would store layer information in window */
-}
-
-Boolean WM_IsFloatingWindow(WindowPtr window) {
-    if (!window) return false;
-    /* Check for floating window proc - simplified check */
-    return false;  /* No floating windows in basic implementation */
-}
-
-Boolean WM_IsAlertDialog(WindowPtr window) {
-    if (!window) return false;
-    return ((short)(long)window->windowDefProc == dBoxProc ||
-            (short)(long)window->windowDefProc == plainDBox ||
-            (short)(long)window->windowDefProc == altDBoxProc);
 }
 
 /* Window overlap testing */
