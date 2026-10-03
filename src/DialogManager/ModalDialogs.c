@@ -22,6 +22,10 @@
 #include <stdbool.h>
 #include "DialogManager/DialogLogging.h"
 #include "TimeManager/TimeBase.h"
+#include "EventManager/EventManager.h"
+#include "DeskManager/DeskManager.h"
+#include "OSUtils/OSUtils.h"
+#include "WindowManager/WindowManager.h"
 
 /* Event constants - matching Mac System 7.1 */
 #define kDialogEvent_Null         0
@@ -66,11 +70,6 @@
 #define kDialogEventResult_Handled      1
 
 
-/* External functions that need to be linked */
-extern Boolean GetNextEvent(SInt16 eventMask, EventRecord* theEvent);
-extern void SystemTask(void);
-extern void Delay(UInt32 ticks, UInt32* finalTicks);
-
 /* Private state for modal dialog processing */
 static struct {
     Boolean            initialized;
@@ -88,9 +87,6 @@ static struct {
 Boolean ProcessModalEvent(DialogPtr theDialog, EventRecord* theEvent, SInt16* itemHit);
 static Boolean ProcessStandardModalKeys(DialogPtr theDialog, EventRecord* theEvent, SInt16* itemHit);
 static void FlashButtonInternal(DialogPtr theDialog, SInt16 itemNo);
-
-/* Global Dialog Manager state access */
-extern DialogManagerState* GetDialogManagerState(void);
 
 /*
  * InitModalDialogs - Initialize modal dialog subsystem
@@ -447,8 +443,6 @@ Boolean HandleModalMouse(DialogPtr theDialog, EventRecord* theEvent, SInt16* ite
  */
 void BringModalToFront(DialogPtr theDialog)
 {
-    extern void SelectWindow(WindowPtr theWindow);
-
     if (!theDialog) {
         return;
     }
