@@ -98,13 +98,7 @@ long WM_StandardWindowDefProc(short varCode, WindowPtr theWindow, short message,
             break;
 
         case wNew:
-            /* Initialize window */
-            WM_InitializeWindowParts(theWindow, varCode);
-            break;
-
         case wDispose:
-            /* Clean up window */
-            WM_CleanupWindowParts(theWindow);
             break;
 
         case wGrow:
@@ -151,13 +145,7 @@ long WM_DialogWindowDefProc(short varCode, WindowPtr theWindow, short message, l
             break;
 
         case wNew:
-            /* Initialize dialog */
-            WM_InitializeDialogParts(theWindow, varCode);
-            break;
-
         case wDispose:
-            /* Clean up dialog */
-            WM_CleanupWindowParts(theWindow);
             break;
 
         case wGrow:
@@ -637,43 +625,6 @@ void WM_CalculateDialogWindowRegions(WindowPtr window, short varCode) {
 /* ============================================================================
  * Window Part Initialization and Cleanup
  * ============================================================================ */
-
-void WM_InitializeWindowParts(WindowPtr window, short varCode) {
-    (void)varCode;
-    if (window == NULL) return;
-
-    WM_DEBUG("WM_InitializeWindowParts: Initializing window parts");
-
-    /* Set window capabilities based on procID */
-    /* This information is used by hit testing and drawing functions */
-
-    /* All these settings are implicitly handled by the procID,
-     * but we could store additional state here if needed */
-
-    WM_DEBUG("WM_InitializeWindowParts: Window parts initialized");
-}
-
-void WM_InitializeDialogParts(WindowPtr window, short varCode) {
-    (void)varCode;
-    if (window == NULL) return;
-
-    WM_DEBUG("WM_InitializeDialogParts: Initializing dialog parts");
-
-    /* Dialogs have fewer parts than standard windows */
-
-    WM_DEBUG("WM_InitializeDialogParts: Dialog parts initialized");
-}
-
-void WM_CleanupWindowParts(WindowPtr window) {
-    if (window == NULL) return;
-
-    WM_DEBUG("WM_CleanupWindowParts: Cleaning up window parts");
-
-    /* Clean up any part-specific resources */
-    /* For now, this is just a placeholder */
-
-    WM_DEBUG("WM_CleanupWindowParts: Cleanup complete");
-}
 
 /* ============================================================================
  * Window Capability Queries

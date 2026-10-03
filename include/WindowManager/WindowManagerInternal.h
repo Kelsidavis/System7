@@ -213,14 +213,6 @@ void WM_CalculateStandardWindowRegions(WindowPtr window, short varCode);
 void WM_CalculateDialogWindowRegions(WindowPtr window, short varCode);
 
 /*
- * Window parts initialization (WindowParts.c)
- */
-void WM_InitializeWindowParts(WindowPtr window, short varCode);
-void WM_InitializeDialogParts(WindowPtr window, short varCode);
-void WM_CleanupWindowParts(WindowPtr window);
-
-
-/*
  * Geometry utilities
  */
 void WM_SetRect(Rect* rect, short left, short top, short right, short bottom);
