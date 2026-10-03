@@ -158,7 +158,7 @@ Full roadmap: [BARE_METAL_IMPROVEMENTS.md](docs/BARE_METAL_IMPROVEMENTS.md)
 - **Dialog Manager**: Keyboard navigation, focus rings, keyboard shortcuts
 - **Segment Loader**: Portable ISA-agnostic 68K segment loading system with relocation
 - **M68K Interpreter**: Runs 68000 applications from an HFS disk: resource fork, A5 world, jump table and `_LoadSeg`, with Toolbox traps for memory, resources, QuickDraw, windows, menus, events, dialogs, controls, TextEdit, files and Standard File bridged to the native managers
-- **Sound Manager**: Command processing, MIDI conversion, channel management, callbacks
+- **Sound Manager**: Command processing, MIDI-note tone playback, channel management, and callbacks; full MIDI synthesis is not implemented
 - **Device Manager**: DCE management, driver installation/removal, and I/O operations
 - **Startup Screen**: Complete boot UI with progress tracking, phase management, and splash screen
 - **Color Manager**: Color state management with QuickDraw integration

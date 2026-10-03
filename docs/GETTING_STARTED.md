@@ -93,7 +93,7 @@ make INTEGRATION_TESTS=1     # with the integration tests, which run at boot
 - Localization (38 languages)
 - PS/2 keyboard and mouse
 - File browser (HFS virtual filesystem)
-- Sound Manager with MIDI
+- Sound Manager with basic MIDI-note tone playback; full MIDI synthesis is not implemented
 - Font rendering (Chicago bitmap font)
 
 ⚠️ **Partially Working**
