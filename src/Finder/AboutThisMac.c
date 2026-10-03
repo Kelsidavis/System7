@@ -375,7 +375,6 @@ Boolean AboutWindow_HandleUpdate(WindowPtr w)
     serial_puts("[ABOUT] UPDATE: After BeginUpdate\n");
 
     /* Debug: log port configuration */
-    extern void serial_printf(const char* fmt, ...);
     static int update_debug = 0;
     if (update_debug < 1) {
         serial_printf("[ABOUT-DEBUG] portRect=(%d,%d,%d,%d) portBits.bounds=(%d,%d,%d,%d)\n",
