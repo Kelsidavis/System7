@@ -4,15 +4,17 @@
 Recreates the System 7 menu bar and pull-down menu experience, from resource loading to live tracking. Handles menu creation, insertion/sorting, drawing, highlighting, tracking loops, and command dispatch.
 
 ## Source Layout
-- `src/MenuManager/MenuManagerCore.c` – registration APIs (`InitMenus`, `NewMenu`, `InsertMenu`, `AppendMenu`, `DisposeMenu`, `DrawMenuBar`)
-- `MenuBarManager.c` – menu bar layout, width calculations, and invalidate logic
-- `MenuDisplay.c` / `MenuTrack.c` / `MenuSelection.c` – render dropdowns, track mouse, resolve selections, manage flashing
-- `MenuItems.c` – menu item manipulation (enable/disable, check marks, hierarchical menus)
-- `MenuTitleTracking.c` – top-level title interaction and click routing
-- `menu_savebits.c` – `SaveBits`/`RestoreBits` implementations for flicker-free drawing
-- `MenuResources.c` – parsing of 'MENU' resources and population of menu structures
-- `menu_dispatch.c` – bridges to Menu Command handlers (e.g. `DoMenuCommand` in `MenuCommands.c`)
-- `PopupMenus.c` – popup menu variants used by controls
+- `src/MenuManager/MenuManagerCore.c` – menu creation and bar APIs, including `GetMenu` and `GetNewMBar`
+- `src/MenuManager/MenuDisplay.c` / `MenuTrack.c` – draw menus and track pointer interaction
+- `src/MenuManager/MenuSelection.c` – `MenuSelect`, `MenuKey`, and `MenuChoice`
+- `src/MenuManager/MenuItems.c` – item manipulation, command keys, and hierarchical menu support
+- `src/MenuManager/MenuTitleTracking.c` – top-level title interaction
+- `src/MenuManager/MenuResources.c` – parse 'MENU' and 'MBAR' resources
+- `src/MenuManager/menu_savebits.c` – save and restore screen bits during menu tracking
+- `src/MenuManager/menu_stubs.c` – resource-name menu population (`AddResMenu`, `InsertResMenu`); the filename is historical
+- `src/MenuManager/MenuBitsPool.c`, `MenuAppleIcon.c`, and `MenuAppIcon.c` – menu drawing support
+- `src/MenuManager/platform_stubs.c` – platform compatibility routines
+- `src/MenuCommands.c` – dispatch selected menu commands through `DoMenuCommand`
 
 ## Responsibilities
 - Maintain the menu list and menu bar data structures populated during `InitMenus`
@@ -24,16 +26,16 @@ Recreates the System 7 menu bar and pull-down menu experience, from resource loa
 ## Integration Points
 - **Window Manager** coordinates activate/deactivate events; menus relinquish highlight when the application loses focus
 - **Event Manager** feeds mouse-down events to kick off `MenuSelect` and supplies repeated mouse moves during tracking
-- **Control Manager** uses `PopupMenus.c` for pop-up control variants
-- **Resource Manager** provides menu templates through 'MENU'/ 'MBAR' resources (tooling currently stubs some calls)
+- **Control Manager** supplies controls drawn in menus; the declared `PopUpMenuSelect` API is not implemented yet
+- **Resource Manager** provides 'MENU'/'MBAR' resources parsed by `MenuResources.c` and loaded by `GetMenu`/`GetNewMBar`
+- **Event Manager** routes Command-key shortcuts through `MenuKey` and selected commands through `DoMenuCommand`
 
 ## Testing & Debugging
-- Use `make run` and interact with the Finder or SimpleText to exercise menu tracking; verify highlights, scrolling, and keyboard shortcuts (via `MenuKey` once wired)
+- Use `make run` and interact with the Finder or SimpleText to exercise menu tracking; verify highlights and Command-key shortcuts
 - Serial logs are tagged with `[MENU]` (enable in `System71StdLib.c`)
 - `make check-exports` confirms exported menu traps remain aligned with `docs/symbols_allowlist.txt`
 - Edge cases: nested hierarchical menus, disabled items mid-track, SaveBits/RestoreBits correctness when overlapping windows
 
 ## Future Work
-- Hook in keyboard shortcuts (`MenuKey`) once command tables stabilise
-- Implement dynamic menu building from resource forks using the Resource Manager loader
+- Implement `PopUpMenuSelect` and connect it to controls that need pop-up menus
 - Add auto-scroll for menus taller than the screen once Scroll Manager infrastructure is ready

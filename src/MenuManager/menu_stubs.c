@@ -1,16 +1,13 @@
 /*
- * Menu Manager Stubs - Quarantined stub functions
+ * Menu resource-name menu routines
  *
  * NOTE: Most Menu Manager functions have real implementations in:
  * - MenuManagerCore.c: Menu creation, disposal, menu bar, hiliting
  * - MenuItems.c: Item manipulation, properties, counting, sizing
  * - MenuSelection.c: MenuSelect, MenuKey, MenuChoice
- * - PopupMenus.c: PopUpMenuSelect
+ * - PopUpMenuSelect is declared in MenuManager.h but is not implemented.
  *
- * This file previously contained stubs that shadowed real implementations.
- * All such stubs have been removed to avoid link conflicts.
- *
- * Remaining stubs are functions without implementations yet.
+ * The filename is historical: this file implements AddResMenu and InsertResMenu.
  */
 #include "MenuManager/MenuManager.h"
 #include "SystemTypes.h"

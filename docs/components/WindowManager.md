@@ -5,13 +5,13 @@ Provides classic System 7 window services: creation, drawing, drag/resize intera
 
 ## Source Layout
 - `src/WindowManager/WindowManagerCore.c` – primary APIs (`InitWindows`, `NewWindow`, `DisposeWindow`, `ShowWindow`, `HideWindow`, `MoveWindow`, `SelectWindow`, `FrontWindow`)
-- `WindowDisplay.c` – chrome drawing (title bars, grow box, drag outline, close box), update handling, window frame rendering
-- `WindowLayering.c` – z-order management, `BringToFront`, `SendBehind`, active window tracking
-- `WindowEvents.c` – hit testing, grow/drag event dispatch, tracking rectangles
-- `WindowDragging.c` – XOR outline drawing, drag limits, ghost window implementation
-- `WindowResizing.c` – grow region, size constraints, update propagation after resize
-- `WindowManagerHelpers.c` – utility routines for region math, title measurement, cross-module helpers
-- `WindowParts.c` – legacy/stubbed window definition parts retained for future reference
+- `src/WindowManager/WindowDisplay.c` – chrome drawing (title bars, grow box, drag outline, close box), update handling, window frame rendering
+- `src/WindowManager/WindowLayering.c` – z-order management, `BringToFront`, `SendBehind`, active window tracking
+- `src/WindowManager/WindowEvents.c` – hit testing, grow/drag event dispatch, tracking rectangles
+- `src/WindowManager/WindowDragging.c` – XOR outline drawing, drag limits, ghost window implementation
+- `src/WindowManager/WindowResizing.c` – grow region, size constraints, zoom, and update propagation after resize
+- `src/WindowManager/WindowManagerHelpers.c` – utility routines for region math, title measurement, cross-module helpers
+- `src/WindowManager/WindowParts.c` – active standard and dialog window definition procedures, drawing, and hit testing
 
 ## Responsibilities
 - Maintain linked list of windows and associated QuickDraw ports (including the desktop window/`qd.wMgrPort`)
@@ -34,6 +34,5 @@ Provides classic System 7 window services: creation, drawing, drag/resize intera
 - Visual verification: ensure XOR drag outline erases cleanly, active title shading toggles when switching windows, and updates occur after resize
 
 ## Future Work
-- Implement zoom box semantics and window collapse once Resource Manager assets are available
-- Support custom window definition procs beyond the standard document window
+- Implement window collapse and support custom window definition procedures beyond the standard document and dialog definitions
 - Integrate Scroll Manager once ready to drive scroll bar invalidation regions automatically
