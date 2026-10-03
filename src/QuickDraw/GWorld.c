@@ -41,62 +41,45 @@ OSErr NewGWorld(GWorldPtr *offscreenGWorld, SInt16 pixelDepth,
     (void)cTable;
     (void)aGDevice;
     (void)flags;
-    serial_puts("[GWORLD] enter\n");
-
     if (!offscreenGWorld || !boundsRect) {
-        serial_puts("[GWORLD] paramErr\n");
         return paramErr;
     }
-    serial_puts("[GWORLD] params OK\n");
 
     /* Calculate dimensions */
     SInt16 width = boundsRect->right - boundsRect->left;
     SInt16 height = boundsRect->bottom - boundsRect->top;
 
     if (width <= 0 || height <= 0) {
-        serial_puts("[GWORLD] bad dims\n");
         return paramErr;
     }
-    serial_puts("[GWORLD] dims OK\n");
 
     /* Validate pixel depth */
     if (pixelDepth != 1 && pixelDepth != 2 && pixelDepth != 4 &&
         pixelDepth != 8 && pixelDepth != 16 && pixelDepth != 32) {
-        serial_puts("[GWORLD] bad depth\n");
         return paramErr;
     }
-    serial_puts("[GWORLD] depth OK\n");
 
     /* Allocate CGrafPort structure */
-    serial_puts("[GWORLD] alloc CGraf\n");
     CGrafPtr gworld = (CGrafPtr)NewPtr(sizeof(CGrafPort));
     if (!gworld) {
-        serial_puts("[GWORLD] CGraf FAILED\n");
         return memFullErr;
     }
-    serial_puts("[GWORLD] CGraf OK\n");
 
     /* Initialize port structure */
-    serial_puts("[GWORLD] memset\n");
     memset(gworld, 0, sizeof(CGrafPort));
-    serial_puts("[GWORLD] memset done\n");
     /* Explicit field copy to avoid struct assignment on ARM64 */
     gworld->portRect.top = boundsRect->top;
     gworld->portRect.left = boundsRect->left;
     gworld->portRect.bottom = boundsRect->bottom;
     gworld->portRect.right = boundsRect->right;
     gworld->portVersion = 0xC000;  /* Color port version */
-    serial_puts("[GWORLD] portRect done\n");
 
     /* Allocate PixMap */
-    serial_puts("[GWORLD] NewPixMap\n");
     PixMapHandle pmHandle = NewPixMap();
     if (!pmHandle || !*pmHandle) {
-        serial_puts("[GWORLD] NewPixMap FAILED\n");
         DisposePtr((Ptr)gworld);
         return memFullErr;
     }
-    serial_puts("[GWORLD] NewPixMap OK\n");
 
     /* CRITICAL: Lock handle before dereferencing to prevent heap compaction issues */
     HLock((Handle)pmHandle);
@@ -159,21 +142,11 @@ OSErr NewGWorld(GWorldPtr *offscreenGWorld, SInt16 pixelDepth,
 
     /* Unlock pmHandle now that we're done initializing it */
     HUnlock((Handle)pmHandle);
-    serial_puts("[GWORLD] pixmap done\n");
-    extern void uart_flush(void);
-    uart_flush();
 
     /* Initialize regions */
-    serial_puts("[GWORLD] visRgn\n");
-    uart_flush();
     gworld->visRgn = NewRgn();
-    serial_puts("[GWORLD] clipRgn\n");
-    uart_flush();
     gworld->clipRgn = NewRgn();
-    serial_puts("[GWORLD] regions done\n");
-    uart_flush();
     if (!gworld->visRgn || !gworld->clipRgn) {
-        serial_puts("[GWORLD] regions FAILED\n");
         if (gworld->visRgn) DisposeRgn(gworld->visRgn);
         if (gworld->clipRgn) DisposeRgn(gworld->clipRgn);
         DisposePtr(pixelBuffer);
@@ -183,14 +156,8 @@ OSErr NewGWorld(GWorldPtr *offscreenGWorld, SInt16 pixelDepth,
     }
 
     /* Set regions to full bounds */
-    serial_puts("[GWORLD] RectRgn1\n");
-    uart_flush();
     RectRgn(gworld->visRgn, boundsRect);
-    serial_puts("[GWORLD] RectRgn2\n");
-    uart_flush();
     RectRgn(gworld->clipRgn, boundsRect);
-    serial_puts("[GWORLD] RectRgn done\n");
-    uart_flush();
 
     /* Initialize color fields */
     gworld->rgbFgColor.red = 0x0000;
@@ -217,8 +184,6 @@ OSErr NewGWorld(GWorldPtr *offscreenGWorld, SInt16 pixelDepth,
     gworld->txSize = 12;
 
     *offscreenGWorld = gworld;
-    serial_puts("[GWORLD] NewGWorld COMPLETE\n");
-    uart_flush();
     return noErr;
 }
 
@@ -226,59 +191,39 @@ OSErr NewGWorld(GWorldPtr *offscreenGWorld, SInt16 pixelDepth,
  * DisposeGWorld - Dispose of offscreen graphics world
  */
 void DisposeGWorld(GWorldPtr offscreenGWorld) {
-    serial_puts("[GWORLD] DisposeGWorld ENTRY\n");
-
     if (!offscreenGWorld) {
-        serial_puts("[GWORLD] DisposeGWorld: NULL gworld, returning\n");
         return;
     }
 
     /* Free pixel buffer */
-    serial_puts("[GWORLD] About to check portPixMap\n");
     if (offscreenGWorld->portPixMap && *offscreenGWorld->portPixMap) {
         PixMapPtr pm = *offscreenGWorld->portPixMap;
-        serial_puts("[GWORLD] About to check baseAddr\n");
         if (pm->baseAddr) {
-            serial_puts("[GWORLD] About to call DisposePtr for pixel buffer\n");
             DisposePtr(pm->baseAddr);
-            serial_puts("[GWORLD] DisposePtr for pixel buffer returned\n");
             pm->baseAddr = NULL;
         }
     }
 
     /* Free PixMap */
-    serial_puts("[GWORLD] About to check portPixMap for DisposePixMap\n");
     if (offscreenGWorld->portPixMap) {
-        serial_puts("[GWORLD] About to call DisposePixMap\n");
         DisposePixMap(offscreenGWorld->portPixMap);
-        serial_puts("[GWORLD] DisposePixMap returned\n");
     }
 
     /* Free regions */
-    serial_puts("[GWORLD] About to check visRgn\n");
     if (offscreenGWorld->visRgn) {
-        serial_puts("[GWORLD] About to call DisposeRgn for visRgn\n");
         DisposeRgn(offscreenGWorld->visRgn);
-        serial_puts("[GWORLD] DisposeRgn for visRgn returned\n");
     }
-    serial_puts("[GWORLD] About to check clipRgn\n");
     if (offscreenGWorld->clipRgn) {
-        serial_puts("[GWORLD] About to call DisposeRgn for clipRgn\n");
         DisposeRgn(offscreenGWorld->clipRgn);
-        serial_puts("[GWORLD] DisposeRgn for clipRgn returned\n");
     }
 
     /* Clear current if this was current */
-    serial_puts("[GWORLD] About to check if this is current gworld\n");
     if (g_currentGWorld == offscreenGWorld) {
         g_currentGWorld = NULL;
-        serial_puts("[GWORLD] Cleared current gworld\n");
     }
 
     /* Free port structure */
-    serial_puts("[GWORLD] About to call DisposePtr for port structure\n");
     DisposePtr((Ptr)offscreenGWorld);
-    serial_puts("[GWORLD] DisposeGWorld RETURN\n");
 }
 
 /*
