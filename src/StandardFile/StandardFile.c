@@ -21,14 +21,9 @@
 #include "DialogManager/DialogManager.h"
 #include "WindowManager/WindowManager.h"
 #include "ControlManager/ControlManager.h"
-#include "FileMgr/file_manager.h"
+#include "FileManager.h"
 #include "MemoryMgr/MemoryManager.h"
 #include "ToolboxCompat.h"
-
-/* External File Manager functions not in file_manager.h */
-extern OSErr HGetFInfo(SInt16 vRefNum, SInt32 dirID, ConstStr255Param fileName, void* fInfo);
-extern OSErr DirCreate(SInt16 vRefNum, SInt32 parentDirID, ConstStr255Param dirName, SInt32* createdDirID);
-
 
 /* Dialog state */
 typedef struct {
@@ -324,7 +319,7 @@ void CustomPutFile(ConstStr255Param prompt,
                     if (StandardFile_HAL_GetNewFolderName(folderName)) {
                         long newDirID;
                         err = DirCreate(gSFState.vRefNum, gSFState.dirID,
-                                      folderName, (SInt32 *)&newDirID);
+                                      folderName, &newDirID);
                         if (err == noErr) {
                             /* Navigate into newly created folder */
                             gSFState.dirID = newDirID;

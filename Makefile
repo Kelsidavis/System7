@@ -1166,19 +1166,22 @@ src/strings_ur_rsrc.c: $(BUILD_DIR)/Strings_ur.rsrc
 	@echo 'const unsigned int strings_ur_rsrc_size = sizeof(strings_ur_rsrc_data);' >> $@
 endif
 
-# Rebuild everything when the compile flags change.
+# Rebuild objects when the compile flags change.
 #
 # The flags are not all fixed by the platform: LOCALE_XX adds both a -D and a
 # source file, so switching one between builds leaves objects compiled against
 # a set of locales that no longer exists. Make sees the sources unchanged and
 # skips them, and the link fails on a symbol whose generator is no longer in
 # the build - or, worse, does not fail and produces a kernel built half one way
-# and half the other. Recording the flags and depending on that record makes
-# the change visible to Make, which is the only thing that can act on it.
+# and half the other. Invalidate generated objects when flags differ; relying
+# on the stamp's timestamp can miss fast mode switches on coarse-resolution
+# filesystems.
 CFLAGS_STAMP := $(OBJ_DIR)/.cflags
 $(shell mkdir -p $(OBJ_DIR); \
-        printf '%s' '$(CFLAGS)' | cmp -s - $(CFLAGS_STAMP) 2>/dev/null || \
-        printf '%s' '$(CFLAGS)' > $(CFLAGS_STAMP))
+        if ! printf '%s' '$(CFLAGS)' | cmp -s - $(CFLAGS_STAMP) 2>/dev/null; then \
+            printf '%s' '$(CFLAGS)' > $(CFLAGS_STAMP); \
+            find $(OBJ_DIR) -type f \( -name '*.o' -o -name '*.d' \) -exec rm -f {} +; \
+        fi)
 
 # The kernel has its own maths (System71Math.c). The macOS i686-elf toolchain
 # has no libm, while native Linux builds may need it for compiler-generated

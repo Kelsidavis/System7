@@ -21,7 +21,7 @@
 #include "SystemTypes.h"
 #include "ProcessMgr/ProcessTypes.h"
 #include "EventManager/EventTypes.h"
-#include "FileMgr/file_manager.h"
+#include "FileManager.h"
 
 #ifdef __cplusplus
 extern "C" {

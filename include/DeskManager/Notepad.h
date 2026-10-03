@@ -19,7 +19,7 @@
 #include "WindowManager/WindowTypes.h"
 #include "TextEdit/TextEdit.h"
 #include "EventManager/EventTypes.h"
-#include "FileMgr/file_manager.h"
+#include "FileManager.h"
 
 /* Constants */
 #define NOTEPAD_MAX_PAGES       8

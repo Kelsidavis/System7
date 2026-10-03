@@ -19,7 +19,7 @@
 #include "SystemTypes.h"
 
 #include "WindowManager/WindowTypes.h"
-#include "FileMgr/file_manager.h"
+#include "FileManager.h"
 #include "QuickDraw/QuickDraw.h"
 #include "FS/hfs_types.h"  /* For VRefNum */
 

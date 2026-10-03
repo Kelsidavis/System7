@@ -23,7 +23,8 @@
 #include "Finder/finder_types.h"
 #include "Platform/Framebuffer.h"
 #include "TimeManager/TimeBase.h"
-#include "FileMgr/file_manager.h"
+#include "FileManager.h"
+#include "FileManagerTypes.h"
 /* Use local headers instead of system headers */
 #include "MemoryMgr/memory_manager_types.h"
 #include "ResourceManager.h"
@@ -1415,7 +1416,7 @@ static OSErr LoadDesktopDatabase(short vRefNum)
     OSErr err;
     FSSpec databaseSpec;
     short databaseRefNum;
-    long dataSize;
+    UInt32 dataSize;
 
     /* Create FSSpec for desktop database */
     err = FSMakeFSSpec(vRefNum, fsRtDirID, kDesktopDatabaseName, &databaseSpec);
@@ -1447,7 +1448,7 @@ static OSErr LoadDesktopDatabase(short vRefNum)
         dataSize = sizeof(DesktopItem) * gDesktopIconCount;
         err = FSRead(databaseRefNum, &dataSize, gDesktopIcons);
         /* If read failed or didn't read all data, reset to defaults */
-        if (err != noErr || dataSize < 0 ||
+        if (err != noErr ||
             (size_t)dataSize != sizeof(DesktopItem) * (size_t)gDesktopIconCount) {
             gDesktopIconCount = 0;  /* Force fallback to create trash icon */
             err = noErr;  /* Handled gracefully by fallback */
@@ -1481,7 +1482,7 @@ static OSErr SaveDesktopDatabase(short vRefNum)
     OSErr err;
     FSSpec databaseSpec;
     short databaseRefNum;
-    long dataSize;
+    UInt32 dataSize;
 
     /* Create FSSpec for desktop database */
     err = FSMakeFSSpec(vRefNum, fsRtDirID, kDesktopDatabaseName, &databaseSpec);
@@ -1530,7 +1531,7 @@ static OSErr ScanDirectoryForDesktopEntries(short vRefNum, long dirID, short dat
     Str255 itemName;
     short itemIndex = 1;
     DesktopRecord record;
-    long dataSize;
+    UInt32 dataSize;
 
     /* Scan all items in directory */
     do {

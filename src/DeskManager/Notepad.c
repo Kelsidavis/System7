@@ -546,7 +546,7 @@ static void Notepad_HandleEdit(NotePadGlobals *notepad, short item) {
 static OSErr Notepad_LoadFile(NotePadGlobals *notepad) {
     OSErr err;
     short refNum;
-    long fileSize;
+    UInt32 fileSize;
     NotePadFileHeader header;
     FSSpec fileSpec;
 
@@ -576,10 +576,10 @@ static OSErr Notepad_LoadFile(NotePadGlobals *notepad) {
 
     /* Read each page */
     for (short i = 0; i < NOTEPAD_MAX_PAGES; i++) {
-        long pageSize;
+        SInt32 pageSize;
 
         /* Read page size */
-        fileSize = sizeof(long);
+        fileSize = sizeof(pageSize);
         err = FSRead(refNum, &fileSize, &pageSize);
         if (err != noErr) {
             break;
@@ -588,13 +588,14 @@ static OSErr Notepad_LoadFile(NotePadGlobals *notepad) {
         /* Allocate and read page data */
         if (pageSize > 0) {
             long originalSize = pageSize;
+            UInt32 bytesRead = (UInt32)pageSize;
             SetHandleSize(notepad->pageData[i], pageSize);
             if (MemError() == noErr) {
                 HLock(notepad->pageData[i]);
-                err = FSRead(refNum, &pageSize, *notepad->pageData[i]);
+                err = FSRead(refNum, &bytesRead, *notepad->pageData[i]);
                 HUnlock(notepad->pageData[i]);
                 /* If read failed or short read, clear page data */
-                if (err != noErr || pageSize != originalSize) {
+                if (err != noErr || bytesRead != (UInt32)originalSize) {
                     SetHandleSize(notepad->pageData[i], 1);
                     *(*notepad->pageData[i]) = 0;
                 }
@@ -615,7 +616,7 @@ static OSErr Notepad_LoadFile(NotePadGlobals *notepad) {
 static OSErr Notepad_SaveFile(NotePadGlobals *notepad) {
     OSErr err;
     short refNum;
-    long count;
+    UInt32 count;
     NotePadFileHeader header;
     FSSpec fileSpec;
 
@@ -653,16 +654,17 @@ static OSErr Notepad_SaveFile(NotePadGlobals *notepad) {
 
     /* Write each page */
     for (short i = 0; i < NOTEPAD_MAX_PAGES; i++) {
-        long pageSize = GetHandleSize(notepad->pageData[i]);
+        SInt32 pageSize = (SInt32)GetHandleSize(notepad->pageData[i]);
 
         /* Write page size */
-        count = sizeof(long);
+        count = sizeof(pageSize);
         err = FSWrite(refNum, &count, &pageSize);
 
         /* Write page data */
         if (pageSize > 0) {
             HLock(notepad->pageData[i]);
-            err = FSWrite(refNum, &pageSize, *notepad->pageData[i]);
+            count = pageSize;
+            err = FSWrite(refNum, &count, *notepad->pageData[i]);
             HUnlock(notepad->pageData[i]);
         }
     }

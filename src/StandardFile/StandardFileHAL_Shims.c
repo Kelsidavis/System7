@@ -18,7 +18,7 @@
 #include "ControlManager/ControlManager.h"
 #include "EventManager/EventManager.h"
 #include "QuickDraw/QuickDraw.h"
-#include "FileMgr/file_manager.h"
+#include "FileManager.h"
 #include "DeskManager/DeskManager.h"
 #include "ListManager/ListManager.h"
 #include "ToolboxCompat.h"

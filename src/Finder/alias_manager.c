@@ -18,7 +18,7 @@
 
 #include "Finder/finder.h"
 #include "Finder/finder_types.h"
-#include "FileMgr/file_manager.h"
+#include "FileManager.h"
 /* Use local headers instead of system headers */
 #include "MemoryMgr/memory_manager_types.h"
 #include "MemoryMgr/MemoryManager.h"

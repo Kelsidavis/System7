@@ -32,6 +32,7 @@
 #include "TextEdit/TextEdit.h"
 #include "FS/vfs.h"
 #include "DeskManager/Calculator.h"
+#include "ProcessMgr/ProcessMgr.h"
 #include "MacTypes.h"
 #include "math.h"
 
@@ -39,7 +40,6 @@
 #include "CPU/M68KInterp.h"
 #include "CPU/M68KHeap.h"
 #include "SegmentLoader/MacBinary.h"
-extern OSErr LaunchApplication(LaunchParamBlockRec* launchParams);
 extern UInt32 M68K_Read32(M68KAddressSpace* as, UInt32 addr);
 extern void M68K_Write32(M68KAddressSpace* as, UInt32 addr, UInt32 value);
 
