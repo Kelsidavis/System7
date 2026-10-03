@@ -1,5 +1,6 @@
 #include "SystemInternal.h"
 #include "System71StdLib.h"
+#include "Platform/include/io.h"
 #include <stdio.h>
 
 #include "SystemTypes.h"
@@ -98,8 +99,6 @@ static void WM_AccumulateUpdateRgn(WindowPtr window, RgnHandle rgn);
  * that window owns, and there is nothing left to defer.
  */
 WindowPtr WM_FindWindowNeedingUpdate(void) {
-    extern Boolean EmptyRgn(RgnHandle rgn);
-
     WindowPtr window = FrontWindow();
     int guard = 0;
     while (window && guard++ < 64) {
@@ -121,8 +120,6 @@ WindowPtr WM_FindWindowNeedingUpdate(void) {
  * rgn is in global coordinates, matching contRgn and updateRgn.
  */
 static void WM_AccumulateUpdateRgn(WindowPtr window, RgnHandle rgn) {
-    extern void UnionRgn(RgnHandle srcRgnA, RgnHandle srcRgnB, RgnHandle dstRgn);
-
     if (!window || !rgn || !*rgn) return;
 
     if (!window->updateRgn) {
@@ -216,7 +213,6 @@ void PaintOne(WindowPtr window, RgnHandle clobberedRgn) {
     WM_LOG_TRACE("PaintOne: About to GetPort/SetPort\n");
 
     /* Save current port */
-    extern void GetWMgrPort(GrafPtr* port);
     GrafPtr savePort, wmgrPort;
     GetPort(&savePort);
     GetWMgrPort(&wmgrPort);
@@ -270,10 +266,7 @@ void PaintOne(WindowPtr window, RgnHandle clobberedRgn) {
         }
 
         {
-            extern void FillRgn(RgnHandle rgn, const Pattern* pat);
-
             if (window->refCon == 0x4449534b && window->contRgn && *(window->contRgn)) {
-                extern int snprintf(char* buf, size_t size, const char* fmt, ...);
                 char filldbg[256];
                 /* Use pointer to avoid struct assignment on ARM64 */
                 Rect* fillBBoxPtr = &((*(window->contRgn))->rgnBBox);
@@ -303,7 +296,6 @@ void PaintOne(WindowPtr window, RgnHandle clobberedRgn) {
 
             if (clobberedRgn && *clobberedRgn) {
                 /* Calculate intersection of clobbered region with content region */
-                extern void SectRgn(RgnHandle srcRgnA, RgnHandle srcRgnB, RgnHandle dstRgn);
                 dirtyContent = WM_NewAutoRgn();
                 if (dirtyContent.rgn) {
                     SectRgn(clobberedRgn, window->contRgn, dirtyContent.rgn);
@@ -428,7 +420,6 @@ paint_windows:
         /* Phase 2: Paint content with proper clipping */
         if (w->contRgn) {
             WM_LOG_TRACE("[PaintBehind] Painting content for window %p\n", w);
-            extern void InvalRgn(RgnHandle badRgn);
             GrafPtr savePort;
             GetPort(&savePort);
             SetPort((GrafPtr)w);
@@ -584,7 +575,6 @@ void DrawNew(WindowPtr window, Boolean update) {
     WM_DEBUG("DrawNew: Drawing window");
 
     /* Save current port */
-    extern void GetWMgrPort(GrafPtr* port);
     GrafPtr savePort, wmgrPort;
     GetPort(&savePort);
     GetWMgrPort(&wmgrPort);
@@ -641,7 +631,6 @@ static void DrawWindowFrame(WindowPtr window) {
 }
 
 static void DrawWindowFrame_Unclipped(WindowPtr window) {
-    extern void uart_flush(void);
     serial_puts("[DRAWFRAME] enter\n");
     uart_flush();
 
@@ -675,7 +664,6 @@ static void DrawWindowFrame_Unclipped(WindowPtr window) {
 
     serial_puts("[DRAWFRAME] GetWMgrPort\n");
     uart_flush();
-    extern void GetWMgrPort(GrafPtr* port);
     GrafPtr savePort, wmgrPort;
     GetPort(&savePort);
     GetWMgrPort(&wmgrPort);
@@ -687,8 +675,6 @@ static void DrawWindowFrame_Unclipped(WindowPtr window) {
     uart_flush();
 
     /* Set up pen for drawing black frames */
-    extern void PenNormal(void);
-    extern void PenSize(short width, short height);
     static const Pattern blackPat = {{0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF}};
     PenNormal();  /* Reset pen to normal state */
     serial_puts("[DRAWFRAME] PenPat\n");
@@ -985,9 +971,6 @@ static void DrawWindowFrame_Unclipped(WindowPtr window) {
             if (titleLen > 0 && titleLen < 128) {
                 extern short StringWidth(ConstStr255Param str);
                 extern void TextFace(short face);
-                extern void PaintRoundRect(const Rect* r, short ovalWidth, short ovalHeight);
-                extern void FrameRoundRect(const Rect* r, short ovalWidth, short ovalHeight);
-                extern void InsetRect(Rect* r, short dh, short dv);
 
                 short textWidth = StringWidth(titleStr);
 
@@ -1089,7 +1072,6 @@ static void DrawWindowControls(WindowPtr window) {
 }
 
 static void DrawWindowControls_Unclipped(WindowPtr window) {
-    extern void uart_flush(void);
     serial_puts("[CONTROLS] enter\n");
     uart_flush();
     if (!window || !window->visible) return;
@@ -1098,7 +1080,6 @@ static void DrawWindowControls_Unclipped(WindowPtr window) {
     uart_flush();
 
     /* Set up WMgr port for global coordinate drawing */
-    extern void GetWMgrPort(GrafPtr* port);
     GrafPtr savePort, wmgrPort;
     GetPort(&savePort);
     GetWMgrPort(&wmgrPort);
@@ -1107,8 +1088,6 @@ static void DrawWindowControls_Unclipped(WindowPtr window) {
     uart_flush();
 
     /* Set up pen for drawing black controls */
-    extern void PenNormal(void);
-    extern void PenSize(short width, short height);
     static const Pattern blackPat = {{0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF}};
     serial_puts("[CONTROLS] pen calls\n");
     uart_flush();
@@ -1233,7 +1212,6 @@ void DrawWindow(WindowPtr window) {
                   window->titleHandle ? (char*)*window->titleHandle : "Untitled");
 
     /* Save current port */
-    extern void GetWMgrPort(GrafPtr* port);
     GrafPtr savePort, wmgrPort;
     GetPort(&savePort);
     GetWMgrPort(&wmgrPort);
@@ -1302,7 +1280,6 @@ void DrawGrowIcon(WindowPtr window) {
  * difference between ShowWindow and ShowHide. Returns false if it already
  * showed. */
 static Boolean WM_ShowWindowOnly(WindowPtr window) {
-    extern void uart_flush(void);
     serial_puts("[SHOWWIN] enter\n");
     uart_flush();
 
@@ -1319,7 +1296,6 @@ static Boolean WM_ShowWindowOnly(WindowPtr window) {
     /* Calculate window regions (structure and content) */
     serial_puts("[SHOWWIN] CalcStdRgns\n");
     uart_flush();
-    extern void WM_CalculateStandardWindowRegions(WindowPtr window, short varCode);
     WM_CalculateStandardWindowRegions(window, 0);
     serial_puts("[SHOWWIN] CalcStdRgns done\n");
     uart_flush();
@@ -1332,7 +1308,6 @@ static Boolean WM_ShowWindowOnly(WindowPtr window) {
     uart_flush();
 
     /* CRITICAL: Redraw desktop icons BEFORE painting window to ensure icons appear behind window */
-    extern DeskHookProc g_deskHook;
     if (g_deskHook && window->strucRgn) {
         serial_puts("[SHOWWIN] Redrawing desktop icons before window\n");
 
@@ -1355,9 +1330,6 @@ static Boolean WM_ShowWindowOnly(WindowPtr window) {
     /* Invalidate content region to generate update event for application to draw content */
     if (window->contRgn) {
         WM_LOG_TRACE("ShowWindow: Invalidating content region to trigger update event\n");
-        extern void InvalRgn(RgnHandle badRgn);
-        extern void SetPort(GrafPtr port);
-
         /* InvalRgn operates on current port, so set port to window first */
         GrafPtr savePort;
         GetPort(&savePort);
@@ -1399,7 +1371,6 @@ void ShowWindow(WindowPtr window) {
      * without this nothing tells the application it now owns the front. */
     WindowManagerState* wmState = GetWindowManagerState();
     if (wmState && wmState->windowList == window) {
-        extern void WM_SetActiveWindow(WindowPtr w);
         WM_SetActiveWindow(window);
     }
 }
@@ -1438,7 +1409,6 @@ static void WM_HideWindowOnly(WindowPtr window) {
      * window's whole area in the Window Manager port's background - white -
      * over any window in front, and never put the desktop back. */
     if (clobbered.rgn && !EmptyRgn(clobbered.rgn)) {
-        extern DeskHookProc g_deskHook;
         if (g_deskHook) {
             g_deskHook(clobbered.rgn);
         }
@@ -1558,7 +1528,6 @@ void BringToFront(WindowPtr window) {
     if (prevFront == window) {
         WM_LOG_TRACE("[HILITE] Window already at front, ensuring hilited\n");
         serial_puts("[BTF] Already at front, calling HiliteWindow\n");
-        extern void uart_flush(void);
         uart_flush();
         HiliteWindow(window, true);
         serial_puts("[BTF] HiliteWindow done, returning\n");
@@ -1607,7 +1576,6 @@ void BringToFront(WindowPtr window) {
     /* Now hilite and paint the new front window */
     MemoryManager_CheckSuspectBlock("BringToFront_pre_hilite_new");
     serial_puts("[BTF] HiliteWindow new\n");
-    extern void uart_flush(void);
     uart_flush();
     HiliteWindow(window, true);
     serial_puts("[BTF] HiliteWindow done\n");
@@ -1721,11 +1689,6 @@ void SendBehind(WindowPtr window, WindowPtr behindWindow) {
  */
 void WM_SetActiveWindow(WindowPtr window)
 {
-    extern OSErr PostEventWithModifiers(EventMask what, UInt32 message,
-                                        UInt16 modifiers);
-    extern void WM_OnActivate(WindowPtr w);
-    extern void WM_OnDeactivate(WindowPtr w);
-
     WindowManagerState* wmState = GetWindowManagerState();
     if (!wmState) return;
 
@@ -1961,7 +1924,6 @@ void WM_Update(void) {
         /* Create a region for the desktop */
         AutoRgnHandle desktopRgn = WM_NewAutoRgn();
         if (desktopRgn.rgn) {
-            extern void RectRgn(RgnHandle rgn, const Rect* r);
             RectRgn(desktopRgn.rgn, &desktopRect);
             g_deskHook(desktopRgn.rgn);
         }
@@ -1971,8 +1933,6 @@ void WM_Update(void) {
     /* 3. Draw all visible windows on top of desktop icons */
     /* Use Window Manager's PaintOne to properly render windows */
     {
-        extern void PaintOne(WindowPtr window, RgnHandle clobberedRgn);
-
         /* Build window list (back to front order) */
         WindowPtr window = FrontWindow();
         WindowPtr* windowStack = NULL;
@@ -2040,7 +2000,6 @@ void WM_UpdateWindowVisibility(WindowPtr window) {
     /* Update window visibility state */
     if (window->visible) {
         /* Ensure window is drawn */
-        extern void InvalRect(const Rect* rect);
         GrafPort* port = (GrafPort*)window;
         InvalRect(&port->portRect);
     }

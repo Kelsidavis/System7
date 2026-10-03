@@ -22,6 +22,7 @@
 extern "C" {
 #endif
 
+
 /* ============================================================================
  * Debug Configuration
  * ============================================================================ */
@@ -312,6 +313,7 @@ struct WindowManagerState {
 
 /* The desktop's redraw hook, and redrawing what has been invalidated. */
 typedef void (*DeskHookProc)(RgnHandle invalidRgn);
+extern DeskHookProc g_deskHook;
 
 /* Windows whose offscreen buffer failed to reallocate on a resize, so the next
  * resize tries again (WindowResizing.c). */
