@@ -2,13 +2,14 @@
 """
 gen_rsrc.py  —  Minimal Mac OS .rsrc file generator (classic Resource Manager format)
 
-Currently supports generating 'PAT ' (8x8, 1-bpp classic pattern) resources.
-You pass a JSON manifest describing resources and their data; we write a faithful
-resource file with a data area and a resource map (types, refs, name list).
+Supports classic `PAT `, color `ppat` (structured `ppat8` or raw bytes),
+`STR#`, and `STR ` resources. Pass one or more JSON manifests describing the
+resources; later manifests replace earlier entries with the same type and ID.
+The output includes a data area and a resource map (types, references, names).
 
 USAGE
 -----
-    python3 gen_rsrc.py patterns.json Patterns.rsrc
+    python3 gen_rsrc.py patterns.json [additional.json ...] Patterns.rsrc
 
 MANIFEST FORMAT (JSON)
 ----------------------
@@ -44,6 +45,9 @@ MANIFEST FORMAT (JSON)
   ]
 }
 
+Other supported resource entries use `type` values `ppat`, `ppat_raw`, `STR#`,
+or `STR `; inspect `parse_manifest()` for their accepted `data` fields.
+
 DATA ENCODING
 -------------
 For 'PAT ', you can specify the 8 rows as:
@@ -60,10 +64,10 @@ This is suitable for loaders that expect real Mac .rsrc files.
 
 LIMITATIONS
 -----------
-- Only 'PAT ' is implemented. (Extendable for 'ppat' and others later.)
+- Unsupported resource types raise `NotImplementedError`.
 - Names are stored in the map's name list as Pascal strings (max 255 chars).
 
-(c) 2025 — Kelsi + helper
+(c) 2025 — Kelsi Davis
 """
 import sys, json, struct, os
 
