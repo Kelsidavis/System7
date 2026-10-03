@@ -17,33 +17,6 @@
 /* Color constants */
 #define blackColor 33
 
-/* External functions */
-extern void LineTo(short h, short v);
-extern void MoveTo(short h, short v);
-extern void FrameRect(const Rect* r);
-extern void PaintRect(const Rect* r);
-
-/* External globals */
-extern void QD_SetScreenPort(void);
-extern void EraseRect(const Rect* r);
-extern void InsetRect(Rect* r, short dh, short dv);
-extern void SetRect(Rect* r, short left, short top, short right, short bottom);
-extern Boolean PtInRect(Point pt, const Rect* r);
-extern Boolean EqualRect(const Rect* rect1, const Rect* rect2);
-extern void UnionRect(const Rect* src1, const Rect* src2, Rect* dstRect);
-extern Boolean EmptyRect(const Rect* r);
-extern void CopyRgn(RgnHandle srcRgn, RgnHandle dstRgn);
-extern void SetRectRgn(RgnHandle rgn, short left, short top, short right, short bottom);
-extern void OffsetRgn(RgnHandle rgn, short dh, short dv);
-extern void GetPort(GrafPtr* port);
-extern void SetPort(GrafPtr port);
-extern void ClipRect(const Rect* r);
-extern void SetClip(RgnHandle rgn);
-extern void GetClip(RgnHandle rgn);
-extern RgnHandle NewRgn(void);
-extern void DisposeRgn(RgnHandle rgn);
-extern void SetOrigin(SInt16 h, SInt16 v);
-
 /* Forward declarations */
 static void DumpWindowList(const char* context);
 void CheckWindowsNeedingUpdate(void);
@@ -54,9 +27,6 @@ void CheckWindowsNeedingUpdate(void);
 
 /* Check windows for update events (called by GetNextEvent) */
 void CheckWindowsNeedingUpdate(void) {
-    /* PostEvent declared in EventManager.h */
-    extern Boolean EmptyRgn(RgnHandle rgn);
-
     static int call_count = 0;
     call_count++;
 
