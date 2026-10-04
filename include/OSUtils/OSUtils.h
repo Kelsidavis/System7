@@ -40,10 +40,24 @@ SInt32 Munger(Handle h, SInt32 offset, const void* ptr1, SInt32 len1,
               const void* ptr2, SInt32 len2);
 
 /* Date/Time utilities */
+typedef struct {
+    SInt16 year;
+    SInt16 month;
+    SInt16 day;
+    SInt16 hour;
+    SInt16 minute;
+    SInt16 second;
+    SInt16 dayOfWeek; /* 1=Sunday through 7=Saturday */
+} DateTimeRec;
+
 void InitDateTime(void);
 void GetDateTime(UInt32* secs);
 void SetDateTime(UInt32 secs);
 void ReadDateTime(UInt32* secs);
+void Secs2Date(UInt32 secs, DateTimeRec* date);
+void SecondsToDate(UInt32 secs, DateTimeRec* date);
+void Date2Secs(const DateTimeRec* date, UInt32* secs);
+void DateToSeconds(const DateTimeRec* date, UInt32* secs);
 
 /* Delay utilities */
 void Delay(UInt32 numTicks, UInt32* finalTicks);

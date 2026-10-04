@@ -182,26 +182,7 @@ void InitDateTime(void) {
 #endif
 }
 
-/*
- * DateTimeRec structure (matches Inside Macintosh)
- */
-typedef struct {
-    SInt16 year;
-    SInt16 month;
-    SInt16 day;
-    SInt16 hour;
-    SInt16 minute;
-    SInt16 second;
-    SInt16 dayOfWeek;
-} DateTimeRec;
-
-/* Forward declarations */
-void Secs2Date(UInt32 secs, DateTimeRec *d);
-void SecondsToDate(UInt32 secs, DateTimeRec *d);
-void Date2Secs(const DateTimeRec *d, UInt32 *secs);
-void DateToSeconds(const DateTimeRec *d, UInt32 *secs);
-
-void Secs2Date(UInt32 secs, DateTimeRec *d) {
+void Secs2Date(UInt32 secs, DateTimeRec* d) {
     if (!d) return;
 
     UInt32 totalDays = secs / 86400;
@@ -211,8 +192,8 @@ void Secs2Date(UInt32 secs, DateTimeRec *d) {
     d->minute = (SInt16)((secsInDay % 3600) / 60);
     d->second = (SInt16)(secsInDay % 60);
 
-    /* Day of week: Jan 1, 1904 was a Friday (dayOfWeek=6) */
-    d->dayOfWeek = (SInt16)((totalDays + 6) % 7) + 1;
+    /* Day of week: Jan 1, 1904 was a Friday (dayOfWeek=6). */
+    d->dayOfWeek = (SInt16)((totalDays + 5) % 7) + 1;
 
     /* Calculate year from days since 1904-01-01 */
     SInt16 year = 1904;
@@ -240,7 +221,7 @@ void Secs2Date(UInt32 secs, DateTimeRec *d) {
 }
 
 /* Alias for compatibility */
-void SecondsToDate(UInt32 secs, DateTimeRec *d) {
+void SecondsToDate(UInt32 secs, DateTimeRec* d) {
     Secs2Date(secs, d);
 }
 
@@ -248,7 +229,7 @@ void SecondsToDate(UInt32 secs, DateTimeRec *d) {
  * Date2Secs - Convert DateTimeRec to Mac epoch seconds
  * (Also known as DateToSeconds in some headers)
  */
-void Date2Secs(const DateTimeRec *d, UInt32 *secs) {
+void Date2Secs(const DateTimeRec* d, UInt32* secs) {
     if (!d || !secs) return;
 
     static const SInt16 daysInMonth[] = {31,28,31,30,31,30,31,31,30,31,30,31};
@@ -275,7 +256,7 @@ void Date2Secs(const DateTimeRec *d, UInt32 *secs) {
 }
 
 /* Alias for compatibility */
-void DateToSeconds(const DateTimeRec *d, UInt32 *secs) {
+void DateToSeconds(const DateTimeRec* d, UInt32* secs) {
     Date2Secs(d, secs);
 }
 

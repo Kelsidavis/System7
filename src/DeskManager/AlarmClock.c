@@ -15,6 +15,7 @@
 
 #include "DeskManager/AlarmClock.h"
 #include "DeskManager/DeskManager.h"
+#include "OSUtils/OSUtils.h"
 #include "SoundManager/SoundEffects.h"
 
 static inline int ac_tolower(int c) {
@@ -352,15 +353,7 @@ void AlarmClock_GetCurrentTime(DateTime *dateTime)
         return;
     }
 
-    /* Use Mac OS GetDateTime + Secs2Date instead of Unix time functions */
-    extern void GetDateTime(UInt32* secs);
-    typedef struct {
-        SInt16 year; SInt16 month; SInt16 day;
-        SInt16 hour; SInt16 minute; SInt16 second;
-        SInt16 dayOfWeek;
-    } DateTimeRec;
-    extern void Secs2Date(UInt32 secs, DateTimeRec *d);
-
+    /* Use Mac OS GetDateTime and Secs2Date instead of Unix time functions. */
     UInt32 macSecs;
     GetDateTime(&macSecs);
 
@@ -522,14 +515,7 @@ SInt32 AlarmClock_DateTimeToTimestamp(const DateTime *dateTime)
         return 0;
     }
 
-    /* Use Mac OS Date2Secs instead of Unix mktime */
-    typedef struct {
-        SInt16 year; SInt16 month; SInt16 day;
-        SInt16 hour; SInt16 minute; SInt16 second;
-        SInt16 dayOfWeek;
-    } DateTimeRec;
-    extern void Date2Secs(const DateTimeRec *d, UInt32 *secs);
-
+    /* Use Mac OS Date2Secs instead of Unix mktime. */
     DateTimeRec rec;
     rec.year = (SInt16)dateTime->year;
     rec.month = (SInt16)dateTime->month;

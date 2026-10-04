@@ -5,6 +5,7 @@
 
 #include "SystemTypes.h"
 #include "System71StdLib.h"
+#include "OSUtils/OSUtils.h"
 
 #include "Datetime/datetime_cdev.h"
 
@@ -51,16 +52,6 @@ static DateTimePanelState gPanel = {
     .textRect = { 40, 20, 100, PANEL_WIDTH - 20 }
 };
 
-typedef struct DateTimeParts {
-    int year;
-    int month;
-    int day;
-    int hour;
-    int minute;
-    int second;
-    int dayOfWeek; /* 1=Sunday .. 7=Saturday */
-} DateTimeParts;
-
 static const char *kWeekdayNames[7] = {
     "Sunday",
     "Monday",
@@ -90,7 +81,6 @@ static UInt32 current_mac_time(void)
 {
     /* Ask the system clock directly. Going out to Unix time and back only
      * added a conversion either side of the same answer. */
-    extern void GetDateTime(UInt32* secs);
     UInt32 secs = 0;
     GetDateTime(&secs);
     return secs;
@@ -101,76 +91,7 @@ static UInt32 compute_display_key(UInt32 macTime)
     return gPanel.showSeconds ? macTime : (macTime / 60U);
 }
 
-static Boolean is_leap_year(int year)
-{
-    if ((year % 4) != 0) {
-        return false;
-    }
-    if ((year % 100) != 0) {
-        return true;
-    }
-    return (year % 400) == 0;
-}
-
-static int days_in_month(int year, int month)
-{
-    static const int baseDays[12] = {31,28,31,30,31,30,31,31,30,31,30,31};
-    /* Validate month to prevent array out-of-bounds */
-    if (month < 1 || month > 12) {
-        return 31;  /* Default to 31 for invalid months */
-    }
-    int days = baseDays[month - 1];
-    if (month == 2 && is_leap_year(year)) {
-        days = 29;
-    }
-    return days;
-}
-
-static void mac_time_to_parts(UInt32 macTime, DateTimeParts *parts)
-{
-    if (!parts) {
-        return;
-    }
-
-    const UInt32 secondsPerDay = 24U * 60U * 60U;
-    UInt32 days = macTime / secondsPerDay;
-    UInt32 seconds = macTime % secondsPerDay;
-
-    parts->hour = (int)(seconds / 3600U);
-    seconds %= 3600U;
-    parts->minute = (int)(seconds / 60U);
-    parts->second = (int)(seconds % 60U);
-
-    int year = 1904;
-    while (true) {
-        UInt32 yearDays = is_leap_year(year) ? 366U : 365U;
-        if (days < yearDays) {
-            break;
-        }
-        days -= yearDays;
-        year++;
-    }
-    parts->year = year;
-
-    int month = 1;
-    while (month <= 12) {
-        int dim = days_in_month(year, month);
-        if (days < (UInt32)dim) {
-            break;
-        }
-        days -= (UInt32)dim;
-        month++;
-    }
-    /* Clamp month to valid range [1-12] to prevent out-of-bounds access */
-    if (month > 12) month = 12;
-    parts->month = month;
-    parts->day = (int)days + 1;
-
-    /* Day of week: Mac epoch 1904-01-01 was Friday (6) */
-    parts->dayOfWeek = (int)(((macTime / secondsPerDay) + 5) % 7) + 1;
-}
-
-static void format_date_string(const DateTimeParts *parts, char *buffer, size_t bufferSize)
+static void format_date_string(const DateTimeRec* parts, char* buffer, size_t bufferSize)
 {
     if (!buffer || bufferSize == 0) {
         return;
@@ -185,7 +106,7 @@ static void format_date_string(const DateTimeParts *parts, char *buffer, size_t 
              weekday, month, parts->day, parts->year);
 }
 
-static void format_time_string(const DateTimeParts *parts, char *buffer, size_t bufferSize)
+static void format_time_string(const DateTimeRec* parts, char* buffer, size_t bufferSize)
 {
     if (!buffer || bufferSize == 0) {
         return;
@@ -238,8 +159,8 @@ static void draw_panel_contents(void)
     UInt32 macTime = current_mac_time();
     gPanel.lastDisplayKey = compute_display_key(macTime);
 
-    DateTimeParts parts = {0};
-    mac_time_to_parts(macTime, &parts);
+    DateTimeRec parts = {0};
+    Secs2Date(macTime, &parts);
 
     char dateBuf[64];
     char timeBuf[32];

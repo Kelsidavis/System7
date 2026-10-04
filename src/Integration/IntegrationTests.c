@@ -36,6 +36,7 @@
 #include "ExtensionManager/ResourceLoader.h"
 #include "FontManager/FontManager.h"
 #include "FontManager/CJKFont.h"
+#include "TextEncoding/CJKEncoding.h"
 #include "TextEdit/TextEdit.h"
 #include "FS/vfs.h"
 #include "DeskManager/Calculator.h"
@@ -171,6 +172,35 @@ static void Test_Memory_LogicalSizes(void) {
     Boolean pregrew = SetPtrSize(p, 40) && GetPtrSize(p) == 40;
     DisposePtr(p);
     CHECK(pshrank && pregrew, "SetPtrSize could not change size within its block");
+    RecordTest(test_name, true, "");
+}
+
+static void Test_DateTime_CalendarConversions(void) {
+    const char* test_name = "DateTime_CalendarConversions";
+    DateTimeRec date;
+
+    Secs2Date(0, &date);
+    CHECK(date.year == 1904 && date.month == 1 && date.day == 1,
+          "Mac epoch did not decode to 1904-01-01");
+    CHECK(date.dayOfWeek == 6, "Mac epoch weekday was not Friday");
+
+    const UInt32 leapDayEnd = 59u * 86400u + 86399u;
+    Secs2Date(leapDayEnd, &date);
+    CHECK(date.year == 1904 && date.month == 2 && date.day == 29,
+          "1904 leap day did not decode correctly");
+    CHECK(date.hour == 23 && date.minute == 59 && date.second == 59,
+          "end-of-day time fields did not decode correctly");
+    CHECK(date.dayOfWeek == 2, "1904-02-29 weekday was not Monday");
+
+    UInt32 roundTrip = 0;
+    Date2Secs(&date, &roundTrip);
+    CHECK(roundTrip == leapDayEnd, "date-to-seconds did not round-trip leap day");
+
+    Secs2Date(3029529600u, &date);
+    CHECK(date.year == 2000 && date.month == 1 && date.day == 1,
+          "Unix epoch conversion did not decode to 2000-01-01");
+    CHECK(date.dayOfWeek == 7, "2000-01-01 weekday was not Saturday");
+
     RecordTest(test_name, true, "");
 }
 
@@ -2041,6 +2071,9 @@ void IntegrationTests_Run(void) {
     IT_LOG_INFO("--- Memory Manager ---");
     Test_Memory_HandleStateRoundTrip();
     Test_Memory_LogicalSizes();
+
+    IT_LOG_INFO("--- Date & Time ---");
+    Test_DateTime_CalendarConversions();
 
     IT_LOG_INFO("--- Dialog Manager ---");
     Test_Dialog_ParseDLOG();

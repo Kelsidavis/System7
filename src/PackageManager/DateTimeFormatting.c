@@ -9,6 +9,7 @@
  */
 
 #include "SystemTypes.h"
+#include "OSUtils/OSUtils.h"
 #include "System71StdLib.h"
 #include <string.h>
 
@@ -73,60 +74,18 @@ static const char* kDayNames[] = {
  *
  * Based on Inside Macintosh: Text, Chapter 6
  */
-/*
- * Simple date/time breakdown - converts seconds since epoch to date components
- * This is a simplified implementation that doesn't account for all edge cases
- * but is sufficient for basic date/time formatting without using the C library.
- */
+/* Adapt the OS Utilities date record to the formatter's zero-based weekday. */
 static void BreakdownDateTime(UInt32 macTime, int *year, int *month, int *day,
                               int *hour, int *minute, int *second, int *dayOfWeek) {
-    UInt32 days;
-    UInt32 secs;
-    int y, m;
-    int daysInMonth;
-    int isLeap;
-
-    /* Calculate total days since Mac epoch (Jan 1, 1904) */
-    days = macTime / 86400;
-    secs = macTime % 86400;
-
-    /* Calculate time components */
-    *hour = secs / 3600;
-    *minute = (secs % 3600) / 60;
-    *second = secs % 60;
-
-    /* Calculate day of week (Jan 1, 1904 was a Friday = 5) */
-    *dayOfWeek = (days + 5) % 7;
-
-    /* Calculate year */
-    y = 1904;
-    while (1) {
-        isLeap = ((y % 4 == 0) && (y % 100 != 0)) || (y % 400 == 0);
-        UInt32 daysInYear = isLeap ? 366u : 365u;
-        if (days < daysInYear) break;
-        days -= daysInYear;
-        y++;
-    }
-    *year = y;
-
-    /* Calculate month and day */
-    m = 0;
-    while (1) {
-        /* Days in each month */
-        static const int monthDays[] = {31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31};
-        daysInMonth = monthDays[m];
-        if (m == 1 && isLeap) daysInMonth = 29;  /* February in leap year */
-
-        if (days < (UInt32)daysInMonth) break;
-        days -= daysInMonth;
-        m++;
-        if (m >= 12) {
-            m = 0;
-            y++;
-        }
-    }
-    *month = m + 1;  /* 1-based month */
-    *day = days + 1; /* 1-based day */
+    DateTimeRec date;
+    Secs2Date(macTime, &date);
+    *year = date.year;
+    *month = date.month;
+    *day = date.day;
+    *hour = date.hour;
+    *minute = date.minute;
+    *second = date.second;
+    *dayOfWeek = date.dayOfWeek - 1;
 }
 
 void IUDateString(UInt32 dateTime, DateForm longFlag, char *result) {
