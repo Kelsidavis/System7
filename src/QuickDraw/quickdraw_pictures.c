@@ -27,8 +27,6 @@
 
 #include <string.h>
 
-extern CGrafPtr g_currentCPort;
-
 typedef struct {
     const UInt8* base;
     const UInt8* ptr;

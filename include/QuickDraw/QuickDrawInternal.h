@@ -7,6 +7,7 @@
 #include "QuickDraw/QuickDrawPlatform.h"
 
 /* QuickDraw Core */
+extern CGrafPtr g_currentCPort;
 void GetPenPat(Pattern* pat);
 void UpdateBackgroundPattern(const Pattern* pat);
 /* Region functions */

@@ -25,9 +25,6 @@
 #include "QuickDraw/QuickDrawPlatform.h"
 #include "Platform/Framebuffer.h"
 
-/* Shared color-port state, defined by ColorQuickDraw.c. */
-extern CGrafPtr g_currentCPort;
-
 /* QuickDraw Globals */
 static QDGlobalsPtr g_currentQD = &qd;
 static Boolean g_qdInitialized = false;

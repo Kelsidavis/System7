@@ -21,14 +21,14 @@
 #include "QuickDraw/QuickDraw.h"
 #include "QuickDraw/ColorQuickDraw.h"
 #include "QuickDraw/QDRegions.h"
+#include "SystemInternal.h"
 #include "WindowManager/WindowManager.h"
+#include "WindowManager/WindowManagerInternal.h"
 #include <assert.h>
 
 /* Platform abstraction layer */
 #include "QuickDraw/QuickDrawPlatform.h"
 
-/* Current QuickDraw port from QuickDrawCore.c */
-extern CGrafPtr g_currentCPort;
 static const UInt32 kColorMask = 0x00FFFFFF;
 
 typedef struct {
@@ -926,8 +926,6 @@ void ScrollRect(const Rect *r, SInt16 dh, SInt16 dv, RgnHandle updateRgn) {
      * background (Inside Macintosh: Imaging With QuickDraw, 3-140). */
     Boolean colourPort = g_currentCPort && (GrafPtr)g_currentCPort == g_currentPort;
     if (!colourPort && framebuffer && g_currentPort->portBits.baseAddr == (Ptr)framebuffer) {
-        extern Boolean WM_PortVisibleRgn(GrafPtr port, RgnHandle out);
-        extern void Pointer_Shield(int left, int top, int right, int bottom);
         SInt16 bh = g_currentPort->portBits.bounds.left, bv = g_currentPort->portBits.bounds.top;
         Rect sg = copySrcLocal, dg = copyDstAligned;
         OffsetRect(&sg, bh, bv);

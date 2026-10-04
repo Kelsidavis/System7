@@ -5,11 +5,14 @@
 #include "QuickDraw/QuickDrawInternal.h"
 
 #include "MacTypes.h"
+#include "SystemInternal.h"
 #include "QuickDraw/QuickDraw.h"
 #include "QuickDraw/QuickDrawPlatform.h"
 #include "Platform/Framebuffer.h"
 #include "QuickDrawConstants.h"  /* For paint, frame, erase, patCopy */
 #include "FontManager/FontTypes.h"  /* For FontStrike */
+#include "WindowManager/WindowManagerInternal.h"
+#include "PatternMgr/pattern_manager.h"
 #include <stdlib.h>  /* For abs() */
 #include <math.h>
 #include <string.h>
@@ -29,7 +32,6 @@
 #define QD_PIXEL_PTR(address) \
     ((uint32_t*)__builtin_assume_aligned((address), _Alignof(uint32_t)))
 
-extern CGrafPtr g_currentCPort;
 
 static inline Boolean QDPointInEllipse(SInt32 x, SInt32 y, const Rect* rect) {
     SInt32 width = rect->right - rect->left;
@@ -222,8 +224,6 @@ static inline Boolean QDPointInArc(SInt32 x, SInt32 y, const Rect* rect,
 }
 
 /* Initialize platform layer */
-extern void Pointer_Shield(int left, int top, int right, int bottom);
-
 Boolean QDPlatform_Initialize(void) {
     return (framebuffer != NULL);
 }
@@ -287,8 +287,6 @@ static struct {
     int    count;
     Rect   rects[kQDClipMaxRects];
 } gQDClip;
-
-extern Boolean WM_PortVisibleRgn(GrafPtr port, RgnHandle out);
 
 static void QD_ClipAddRegion(RgnHandle rgn) {
     Region* r = *rgn;
@@ -599,9 +597,6 @@ void QDPlatform_DrawLine(GrafPtr port, Point startPt, Point endPt,
     QDPlatform_DrawLine_Body(port, startPt, endPt, pat, mode);
     QD_ClipEnd();
 }
-
-/* For Pattern Manager color patterns */
-extern bool PM_GetColorPattern(uint32_t** patternData);
 
 /* Draw a shape using platform capabilities - called from QuickDrawCore */
 static void QDPlatform_DrawShape_Body(GrafPtr port, GrafVerb verb, const Rect* rect,

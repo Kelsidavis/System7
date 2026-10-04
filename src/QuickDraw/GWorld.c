@@ -11,6 +11,7 @@
 #include "SystemTypes.h"
 #include "QuickDraw/QuickDraw.h"
 #include "QuickDraw/ColorQuickDraw.h"
+#include "QuickDraw/QuickDrawInternal.h"
 #include "QuickDrawConstants.h"
 #include "MemoryMgr/MemoryManager.h"
 #include "System71StdLib.h"
@@ -286,7 +287,6 @@ void SetGWorld(CGrafPtr port, GDHandle gdh) {
 
     /* Also set as current port for QuickDraw */
     if (port) {
-        extern CGrafPtr g_currentCPort;  /* from ColorQuickDraw.c */
         g_currentPort = (GrafPtr)port;
         g_currentCPort = port;  /* CRITICAL: Set color port for port type detection */
     }
