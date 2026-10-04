@@ -57,11 +57,15 @@ source .venv/bin/activate
 # Build kernel
 make
 
+# Run the local quality gate (strict build, lint, documentation, and tests)
+make check
+
 # Build with every language, or one more than English
 make LOCALE_ALL=1
 make LOCALE_FR=1
 
-# Build, boot and collect integration-test results
+# Build a bootable image, run it in QEMU, and collect integration-test results
+# Requires grub-mkrescue and QEMU in addition to the build dependencies
 make test-integration
 
 # Run in QEMU

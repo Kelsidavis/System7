@@ -17,7 +17,6 @@ make info         # Show build statistics
 qemu-system-i386 -cdrom system71.iso -m 1024 -vga std \
     -device qemu-xhci,id=xhci -device usb-tablet,bus=xhci.0 \
     -serial file:/tmp/serial.log
-make test-integration        # build, boot, and collect integration-test results
 ```
 
 ## Languages
@@ -51,11 +50,12 @@ make analyze         # x86 build with GCC's static analyzer
 make analyze-arm     # ARM32 build with GCC's static analyzer
 make analyze-arm64   # ARM64 build with GCC's static analyzer
 make check-arm64     # ARM64 build and segment-permission checks
+make test-integration # build the ISO, boot it in QEMU, and collect test results
 ```
 
 `make check` requires Ruff for Python lint and formatting. See the
 [development setup](CONTRIBUTING.md#development-setup) for installing the pinned
-tool.
+tool. `make test-integration` requires `grub-mkrescue` and QEMU.
 
 ## File Locations
 
@@ -98,8 +98,8 @@ tool.
    be a Markdown file or a subsystem directory (see [the documentation index](INDEX.md#components)).
 2. **Locate code**: Find in `include/` and `src/`
 3. **Make change**: Edit the relevant file
-4. **Rebuild**: `make clean && make run`
-5. **Test**: Boot in QEMU, verify behavior
+4. **Validate**: Run `make check` for the local quality gate
+5. **Test behavior**: Run `make run` and verify the change in QEMU when applicable
 6. **Check serial**: Look for error messages in QEMU output
 7. **Commit**: Stage only the files for this change and create a descriptive commit
 8. **Push**: `git push -u origin HEAD` to publish the current branch
