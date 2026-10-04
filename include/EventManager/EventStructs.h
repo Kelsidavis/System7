@@ -48,10 +48,14 @@ typedef struct MouseState {
 #ifndef KEYBOARDSTATE_DEFINED
 #define KEYBOARDSTATE_DEFINED
 typedef struct KeyboardState {
-    KeyMap      keyMap;         /* Current key state */
-    KeyMap      currentKeyMap;  /* Alias for keyMap */
-    UInt16      modifiers;      /* Current modifier state */
-    UInt16      modifierState;  /* Alias for modifiers */
+    union {
+        KeyMap keyMap;
+        KeyMap currentKeyMap;
+    };
+    union {
+        UInt16 modifiers;
+        UInt16 modifierState;
+    };
     UInt16      lastKeyCode;    /* Last key pressed */
     UInt32      lastKeyTime;    /* Time of last key press */
     UInt32      lastEventTime;  /* Time of last event */

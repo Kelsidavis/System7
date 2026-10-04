@@ -11,6 +11,7 @@ Provides the Event Manager event-loop API and dispatch integration for System 7 
 - `src/EventManager/EventDispatcher.c` – routes events to Window Manager, Dialog Manager, and Process Manager
 - `src/EventManager/MouseEvents.c` and `KeyboardEvents.c` – mouse tracking and keyboard event handling
 - `src/EventManager/ModernInput.c` – platform input integration and translation into classic event records
+- `include/EventManager/KeyMap.h` – alignment-safe key-map access and shared modifier decoding
 - `src/EventManager/SystemEvents.c` – activate/deactivate and other system events
 - `src/EventManager/AppSwitcher.c` – application-switching event behavior
 
@@ -25,13 +26,14 @@ Provides the Event Manager event-loop API and dispatch integration for System 7 
 ## Integration Points
 
 - **Platform input backends** supply mouse position, button state, and queued keyboard transitions to `ModernInput.c`
+- The ARM64 VirtIO backend supplies ordered keyboard transitions. The Raspberry Pi USB HID branch currently exposes snapshots but has no keyboard transition queue.
 - **Window Manager** receives activate/deactivate, update, and mouse events through `EventDispatcher`
 - **Dialog Manager** hooks into `DialogSelect` using `WaitNextEvent` output when in modal loops
 - **Time Manager** supplies ticks for sleep intervals and double-click windows
 
 ## Testing & Debugging
 
-- `make test-input` checks mouse motion during polling, click counting, modal drag suppression, keyboard modifier replay, platform stub coordinates, and C++ linkage. Queue tests cover selective-read order, stop-event flushing, full-ring wraparound, and mask bounds, plus 20,000 operations checked against a linear-list model. It also runs as part of `make check`.
+- `make test-input` checks mouse motion during polling, click counting, modal drag suppression, keyboard modifier replay, platform stub coordinates, and C++ linkage. The ARM64 fixture emulates VirtIO completions to check keyboard delivery, all 128 key positions, unaligned bitmaps, right-hand modifiers, Caps Lock, and ring wraparound. Queue tests cover selective-read order, stop-event flushing, full-ring wraparound, and mask bounds, plus 20,000 operations checked against a linear-list model. It also runs as part of `make check`.
 - Use `make run` for interactive input checks. Enable event traces with `SysLogSetGlobalLevel(kLogLevelTrace)` and `SysLogSetModuleLevel(kLogModuleEvent, kLogLevelTrace)`.
 - `Event_DumpQueue` logs the shared event queue when diagnosing starvation; enable the Process Manager log module at debug level to see its output.
 

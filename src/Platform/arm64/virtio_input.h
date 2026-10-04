@@ -20,7 +20,7 @@ bool virtio_input_init(void);
 /* Poll for input events - call this regularly */
 void virtio_input_poll(void);
 
-/* Get current modifier key state */
+/* Get current modifier key state in Event Manager format. */
 uint16_t virtio_input_get_modifiers(void);
 
 /* Check if a key event is available */
@@ -28,7 +28,7 @@ bool virtio_input_key_available(void);
 
 /* Get next key event from queue
  * Returns true if event was available */
-bool virtio_input_get_key(uint8_t *keycode, uint8_t *modifiers, bool *pressed);
+bool virtio_input_get_key(uint8_t *keycode, bool *pressed);
 
 /* Check if input device is initialized */
 bool virtio_input_is_initialized(void);

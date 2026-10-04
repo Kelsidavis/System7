@@ -26,8 +26,7 @@
 #include "dwc2.h"
 #endif
 
-/* Mouse state globals - referenced by EventManager and virtio_input.c */
-/* MUST be volatile - modified by polling, read in tight loops */
+/* Shared with the VirtIO driver; Event Manager uses GetMouse and GetMouseButtons. */
 volatile Point g_mousePos = {0, 0};
 volatile uint8_t g_mouseState = 0;
 
@@ -92,14 +91,11 @@ Boolean GetPS2KeyboardState(KeyMap keyMap) {
     if (!keyMap) {
         return false;
     }
-    /* Clear the keymap first */
-    for (int i = 0; i < 4; i++) {
-        ((uint32_t*)keyMap)[i] = 0;
-    }
+    memset(keyMap, 0, sizeof(KeyMap));
 #ifdef QEMU_BUILD
     if (g_virtio_input_available) {
         /* Get keyboard state from VirtIO input driver */
-        virtio_input_get_keyboard_state((uint8_t*)keyMap);
+        virtio_input_get_keyboard_state(keyMap);
     }
 #else
     if (g_usb_hid_available && usb_hid_keyboard_connected()) {
@@ -109,7 +105,7 @@ Boolean GetPS2KeyboardState(KeyMap keyMap) {
                 uint8_t mac_key = usb_hid_to_mac_keycode(usb_key);
                 if (mac_key != 0xFF && mac_key < 128) {
                     /* Set the bit in keyMap */
-                    ((uint8_t*)keyMap)[mac_key >> 3] |= (1 << (mac_key & 7));
+                    keyMap[mac_key >> 3] |= (1U << (mac_key & 7));
                 }
             }
         }
@@ -244,9 +240,19 @@ UInt8 GetMouseButtonsLatched(void) {
     return g_mouseState;
 }
 
-/* Keys arrive through the VirtIO and USB HID drivers, not a transition queue */
 Boolean PS2_DequeueKeyTransition(UInt8* macCode, Boolean* isPressed) {
+#ifdef QEMU_BUILD
+    if (g_virtio_input_available && macCode && isPressed) {
+        bool pressed;
+        if (virtio_input_get_key(macCode, &pressed)) {
+            *isPressed = pressed;
+            return true;
+        }
+    }
+#else
+    /* The USB HID backend does not provide a transition queue. */
     (void)macCode;
     (void)isPressed;
+#endif
     return false;
 }

@@ -19,6 +19,7 @@
 #include "EventManager/MouseEvents.h"
 #include "EventManager/KeyboardEvents.h"
 #include "EventManager/EventLogging.h"
+#include "EventManager/KeyMap.h"
 #include "Platform/PS2Input.h"
 #include <string.h>
 
@@ -34,89 +35,23 @@ static struct {
     Boolean initialized;
     const char* platform;
     UInt8 lastButtonState;
-    KeyMap lastKeyMap;
     UInt32 lastClickTime;
     Point lastClickPos;
     UInt16 clickCount;
-    Boolean capsLockLatched;
 #if QEMU_JITTER_HACK
     UInt32 lastDownTick;  /* Tick of last mouseDown to coalesce jitter */
 #endif
 } g_modernInput = {0};
 
-static Boolean KeyMapHasKey(const KeyMap map, UInt16 scanCode)
-{
-    if (scanCode >= 128) {
-        return false;
-    }
-
-    UInt16 arrayIndex = scanCode / 32;
-    UInt16 bitIndex = scanCode % 32;
-    UInt32 word;
-    memcpy(&word, map + arrayIndex * sizeof(word), sizeof(word));
-
-    return (word & (1U << bitIndex)) != 0;
-}
-
-static void KeyMapSetKey(KeyMap map, UInt16 scanCode, Boolean isDown)
-{
-    if (scanCode >= 128) {
-        return;
-    }
-
-    UInt16 arrayIndex = scanCode / 32;
-    UInt32 mask = (1U << (scanCode % 32));
-    UInt32 word;
-    memcpy(&word, map + arrayIndex * sizeof(word), sizeof(word));
-
-    if (isDown) {
-        word |= mask;
-    } else {
-        word &= ~mask;
-    }
-    memcpy(map + arrayIndex * sizeof(word), &word, sizeof(word));
-}
-
 static UInt16 ComputeModifiersFromKeyMap(const KeyMap map, UInt8 buttonState)
 {
-    UInt16 mods = 0;
+    UInt16 mods = KeyMapModifiers(map) & ~alphaLock;
 
     if (buttonState & 1) {
         mods |= btnState;
     }
 
-    if (KeyMapHasKey(map, kScanCommand)) {
-        mods |= cmdKey;
-    }
-    /* Some keyboards report right command as 0x36 */
-    if (KeyMapHasKey(map, 0x36)) {
-        mods |= cmdKey;
-    }
-
-    if (KeyMapHasKey(map, kScanShift)) {
-        mods |= shiftKey;
-    }
-    if (KeyMapHasKey(map, kScanRightShift)) {
-        mods |= shiftKey | rightShiftKey;
-    }
-
-    if (KeyMapHasKey(map, kScanOption)) {
-        mods |= optionKey;
-    }
-    if (KeyMapHasKey(map, kScanRightOption)) {
-        mods |= optionKey | rightOptionKey;
-    }
-
-    if (KeyMapHasKey(map, kScanControl)) {
-        mods |= controlKey;
-    }
-    if (KeyMapHasKey(map, kScanRightControl)) {
-        mods |= controlKey | rightControlKey;
-    }
-
-    if (KeyMapHasKey(map, kScanCapsLock) || g_modernInput.capsLockLatched) {
-        mods |= alphaLock;
-    }
+    mods |= GetModifierState() & alphaLock;
 
     return mods;
 }
@@ -154,12 +89,10 @@ SInt16 InitModernInput(const char* platform)
 
     /* Initialize state */
     g_modernInput.lastButtonState = 0;
-    memset(g_modernInput.lastKeyMap, 0, sizeof(KeyMap));
     g_modernInput.lastClickTime = 0;
     g_modernInput.lastClickPos.h = 0;
     g_modernInput.lastClickPos.v = 0;
     g_modernInput.clickCount = 0;
-    g_modernInput.capsLockLatched = false;
 
     g_modernInput.initialized = true;
 
@@ -184,7 +117,6 @@ void ProcessModernInput(void)
 {
     Point currentMousePos;
     UInt8 currentButtonState;
-    KeyMap currentKeyMap;
 
     if (!g_modernInput.initialized) {
         return;
@@ -212,12 +144,6 @@ void ProcessModernInput(void)
                      gCurrentButtons, currentButtonState);
     }
     gCurrentButtons = currentButtonState;
-
-    /* Get keyboard state from PS/2 controller */
-    if (!GetPS2KeyboardState(currentKeyMap)) {
-        /* If no keyboard state available, clear the map */
-        memset(currentKeyMap, 0, sizeof(KeyMap));
-    }
 
     /* Check for mouse button changes */
     if (currentButtonState != g_modernInput.lastButtonState) {
@@ -302,40 +228,20 @@ void ProcessModernInput(void)
         g_modernInput.lastButtonState = currentButtonState;
     }
 
-    /* Drain queued key transitions.
-     *
-     * This used to diff currentKeyMap against the previous snapshot. A key
-     * pressed and released between two polls left no trace, and two such keys
-     * could cancel out entirely - typing three characters into a dialog field
-     * delivered one. The scancode handler now records every transition in
-     * order and this drains the ring, so nothing depends on poll timing.
-     * currentKeyMap is still maintained for GetKeys and for the modifier
-     * state, which is a level, not an edge. */
+    /* Drain queued key transitions in arrival order. */
     {
         UInt8 macCode;
         Boolean isPressed;
         KeyMap running;
 
-        /* Replay the transitions against a running key map rather than reading
-         * the modifier state off a single sample.
-         *
-         * currentKeyMap is one snapshot taken at the top of this function, but
-         * the ring can hold a whole chord that opened and closed since the last
-         * call. Command-N arrives as four transitions - command down, N down, N
-         * up, command up - and by sampling time nothing is held, so the N would
-         * be reported with no modifiers and the menu equivalent never fired.
-         * Rebuilding the map as each transition is applied gives each key the
-         * modifier state that was actually in effect when it was pressed. */
-        memcpy(running, g_modernInput.lastKeyMap, sizeof(KeyMap));
+        /* Replay modifier changes so a chord completed between polls still
+         * carries the modifier state of each intervening keystroke. */
+        GetKeys(running);
 
         while (PS2_DequeueKeyTransition(&macCode, &isPressed)) {
             UInt16 keyCode = macCode;
 
             KeyMapSetKey(running, keyCode, isPressed);
-
-            if (isPressed && keyCode == kScanCapsLock) {
-                g_modernInput.capsLockLatched = !g_modernInput.capsLockLatched;
-            }
 
             UInt16 modifiers = ComputeModifiersFromKeyMap(running, currentButtonState);
             UInt32 timestamp = TickCount();
@@ -354,8 +260,6 @@ void ProcessModernInput(void)
                 }
             }
         }
-
-        memcpy(g_modernInput.lastKeyMap, running, sizeof(KeyMap));
     }
 }
 

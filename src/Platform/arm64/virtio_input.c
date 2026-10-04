@@ -13,6 +13,7 @@
 #include "virtio_pci.h"
 #include "SystemTypes.h"
 #include "System71StdLib.h"
+#include "EventManager/KeyMap.h"
 #include "Platform/include/virtio_mmio.h"
 
 /* VirtIO device IDs */
@@ -158,7 +159,7 @@ struct input_device {
     virtio_pci_device_t pci_dev;
     volatile uint32_t *mmio_base;
     struct input_virtqueue eventq __attribute__((aligned(4096)));
-    struct virtio_input_event event_buffers[64] __attribute__((aligned(16)));
+    struct virtio_input_event event_buffers[INPUT_QUEUE_SIZE] __attribute__((aligned(16)));
     uint16_t avail_idx;
     uint16_t used_idx;
 };
@@ -172,28 +173,17 @@ static bool input_initialized = false;
 #define MOUSE_MAX_X     639
 #define MOUSE_MAX_Y     479
 
-/* Modifier keys state */
-static uint16_t modifier_state = 0;
-
-/* Modifier key bits */
-#define MOD_SHIFT   0x0001
-#define MOD_CTRL    0x0002
-#define MOD_ALT     0x0004
-#define MOD_META    0x0008
-
 /* Key event queue for keyboard input */
 #define KEY_QUEUE_SIZE  32
 static struct {
     uint8_t keycode;
-    uint8_t modifiers;
     bool pressed;
 } key_queue[KEY_QUEUE_SIZE];
 static volatile int key_queue_head = 0;
 static volatile int key_queue_tail = 0;
 
-/* Keyboard state bitmap - 128 bits (16 bytes) for Mac keycodes 0-127 */
-/* Each bit represents whether that Mac keycode is currently pressed */
-static volatile uint8_t keyboard_state[16] = {0};
+/* Updated only by the input polling loop. */
+static KeyMap keyboard_state = {0};
 
 /* Helper to read MMIO register for a device */
 static inline uint32_t mmio_read32(struct input_device *dev, uint32_t offset) {
@@ -216,7 +206,7 @@ static void notify_queue_dev(struct input_device *dev, uint16_t queue_idx) {
 
 /* Add buffer to available ring for a device */
 static void virtio_input_add_buffer_dev(struct input_device *dev, uint16_t desc_idx) {
-    dev->eventq.avail.ring[dev->avail_idx % 64] = desc_idx;
+    dev->eventq.avail.ring[dev->avail_idx % INPUT_QUEUE_SIZE] = desc_idx;
     __sync_synchronize();
     dev->eventq.avail.idx = ++dev->avail_idx;
     __sync_synchronize();
@@ -225,7 +215,7 @@ static void virtio_input_add_buffer_dev(struct input_device *dev, uint16_t desc_
 
 /* Initialize all event buffers for a device */
 static void virtio_input_setup_buffers_dev(struct input_device *dev) {
-    for (int i = 0; i < 64; i++) {
+    for (int i = 0; i < INPUT_QUEUE_SIZE; i++) {
         dev->eventq.desc[i].addr = (uint64_t)(uintptr_t)&dev->event_buffers[i];
         dev->eventq.desc[i].len = sizeof(struct virtio_input_event);
         dev->eventq.desc[i].flags = VIRTQ_DESC_F_WRITE;
@@ -290,6 +280,15 @@ static uint8_t linux_to_mac_keycode(uint16_t linux_code) {
         case KEY_GRAVE: return 0x32;
         case KEY_BACKSPACE: return 0x33;
         case KEY_ESC: return 0x35;
+        case KEY_LEFTMETA: return kScanCommand;
+        case KEY_RIGHTMETA: return kScanRightCommand;
+        case KEY_LEFTSHIFT: return kScanShift;
+        case KEY_RIGHTSHIFT: return kScanRightShift;
+        case KEY_LEFTCTRL: return kScanControl;
+        case KEY_RIGHTCTRL: return kScanRightControl;
+        case KEY_LEFTALT: return kScanOption;
+        case KEY_RIGHTALT: return kScanRightOption;
+        case KEY_CAPSLOCK: return kScanCapsLock;
         case KEY_LEFT: return 0x7B;
         case KEY_RIGHT: return 0x7C;
         case KEY_DOWN: return 0x7D;
@@ -357,54 +356,19 @@ static void virtio_input_process_event(struct virtio_input_event *evt) {
                     g_mouseState &= ~0x04;
                 }
             } else {
-                /* Keyboard key */
-                /* Update modifier state */
+                /* Keyboard Events owns auto-repeat; this queue carries only edges. */
+                if (evt->value > 1) break;
+                uint8_t mac_key = linux_to_mac_keycode(evt->code);
+                if (mac_key == 0xFF) break;
                 bool pressed = (evt->value != 0);
-                switch (evt->code) {
-                    case KEY_LEFTSHIFT:
-                    case KEY_RIGHTSHIFT:
-                        if (pressed) modifier_state |= MOD_SHIFT;
-                        else modifier_state &= ~MOD_SHIFT;
-                        break;
-                    case KEY_LEFTCTRL:
-                    case KEY_RIGHTCTRL:
-                        if (pressed) modifier_state |= MOD_CTRL;
-                        else modifier_state &= ~MOD_CTRL;
-                        break;
-                    case KEY_LEFTALT:
-                    case KEY_RIGHTALT:
-                        if (pressed) modifier_state |= MOD_ALT;
-                        else modifier_state &= ~MOD_ALT;
-                        break;
-                    case KEY_LEFTMETA:
-                    case KEY_RIGHTMETA:
-                        if (pressed) modifier_state |= MOD_META;
-                        else modifier_state &= ~MOD_META;
-                        break;
-                    default: {
-                        /* Regular key - queue it and update state bitmap */
-                        uint8_t mac_key = linux_to_mac_keycode(evt->code);
-                        if (mac_key != 0xFF && mac_key < 128) {
-                            /* Update keyboard state bitmap */
-                            uint8_t byte_idx = mac_key / 8;
-                            uint8_t bit_idx = mac_key % 8;
-                            if (pressed) {
-                                keyboard_state[byte_idx] |= (1 << bit_idx);
-                            } else {
-                                keyboard_state[byte_idx] &= ~(1 << bit_idx);
-                            }
+                if (KeyMapHasKey(keyboard_state, mac_key) == pressed) break;
+                KeyMapSetKey(keyboard_state, mac_key, pressed);
 
-                            /* Queue the key event */
-                            int next_head = (key_queue_head + 1) % KEY_QUEUE_SIZE;
-                            if (next_head != key_queue_tail) {
-                                key_queue[key_queue_head].keycode = mac_key;
-                                key_queue[key_queue_head].modifiers = modifier_state;
-                                key_queue[key_queue_head].pressed = pressed;
-                                key_queue_head = next_head;
-                            }
-                        }
-                        break;
-                    }
+                int next_head = (key_queue_head + 1) % KEY_QUEUE_SIZE;
+                if (next_head != key_queue_tail) {
+                    key_queue[key_queue_head].keycode = mac_key;
+                    key_queue[key_queue_head].pressed = pressed;
+                    key_queue_head = next_head;
                 }
             }
             break;
@@ -447,7 +411,7 @@ static bool init_pci_transport(void) {
                                     dev->eventq.desc,
                                     (struct virtq_avail *)&dev->eventq.avail,
                                     (struct virtq_used *)&dev->eventq.used,
-                                    64)) {
+                                    INPUT_QUEUE_SIZE)) {
             uart_puts("[VIRTIO-INPUT] Queue setup failed, skipping\n");
             start_slot = dev->pci_dev.device + 1;
             continue;
@@ -512,12 +476,12 @@ static bool init_mmio_device(struct input_device *dev) {
     mmio_write32(dev, VIRTIO_MMIO_QUEUE_SEL, 0);
 
     uint32_t max_queue_size = mmio_read32(dev, VIRTIO_MMIO_QUEUE_NUM_MAX);
-    if (max_queue_size < 64) {
+    if (max_queue_size < INPUT_QUEUE_SIZE) {
         uart_puts("[VIRTIO-INPUT] Queue too small\n");
         return false;
     }
 
-    mmio_write32(dev, VIRTIO_MMIO_QUEUE_NUM, 64);
+    mmio_write32(dev, VIRTIO_MMIO_QUEUE_NUM, INPUT_QUEUE_SIZE);
 
     /* Set queue addresses */
     uint64_t desc_addr = (uint64_t)(uintptr_t)&dev->eventq.desc;
@@ -636,7 +600,7 @@ void virtio_input_poll(void) {
 
         /* Process all pending events for this device */
         while (dev->eventq.used.idx != dev->used_idx) {
-            uint16_t idx = dev->used_idx % 64;
+            uint16_t idx = dev->used_idx % INPUT_QUEUE_SIZE;
             uint32_t desc_idx = dev->eventq.used.ring[idx].id;
 
             /* Invalidate the event buffer to see DMA data */
@@ -657,7 +621,7 @@ void virtio_input_poll(void) {
  * Get current modifier state
  */
 uint16_t virtio_input_get_modifiers(void) {
-    return modifier_state;
+    return KeyMapModifiers(keyboard_state);
 }
 
 /*
@@ -671,13 +635,12 @@ bool virtio_input_key_available(void) {
  * Get next key event
  * Returns true if event was available
  */
-bool virtio_input_get_key(uint8_t *keycode, uint8_t *modifiers, bool *pressed) {
-    if (key_queue_head == key_queue_tail) {
+bool virtio_input_get_key(uint8_t *keycode, bool *pressed) {
+    if (!keycode || !pressed || key_queue_head == key_queue_tail) {
         return false;
     }
 
     *keycode = key_queue[key_queue_tail].keycode;
-    *modifiers = key_queue[key_queue_tail].modifiers;
     *pressed = key_queue[key_queue_tail].pressed;
 
     key_queue_tail = (key_queue_tail + 1) % KEY_QUEUE_SIZE;
@@ -698,8 +661,6 @@ bool virtio_input_is_initialized(void) {
  */
 void virtio_input_get_keyboard_state(uint8_t *state) {
     if (state) {
-        for (int i = 0; i < 16; i++) {
-            state[i] = keyboard_state[i];
-        }
+        memcpy(state, keyboard_state, sizeof(keyboard_state));
     }
 }

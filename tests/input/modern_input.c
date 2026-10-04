@@ -35,6 +35,12 @@ void xhci_poll_hid_x86(void) {}
 SInt16 InitKeyboardEvents(void) { return noErr; }
 void ShutdownKeyboardEvents(void) {}
 UInt32 TickCount(void) { return ticks; }
+UInt16 GetModifierState(void) { return 0; }
+
+void GetKeys(KeyMap keys)
+{
+    memset(keys, 0, sizeof(KeyMap));
+}
 
 void GetMouse(Point* position) { *position = backendPosition; }
 
@@ -46,12 +52,6 @@ UInt8 GetMouseButtonsLatched(void)
         injectMotion = false;
     }
     return buttons;
-}
-
-Boolean GetPS2KeyboardState(KeyMap map)
-{
-    memset(map, 0, sizeof(KeyMap));
-    return true;
 }
 
 Boolean PS2_DequeueKeyTransition(UInt8* code, Boolean* pressed)

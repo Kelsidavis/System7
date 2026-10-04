@@ -91,6 +91,7 @@ enum {
     kScanSpace          = 0x31,
     kScanDelete         = 0x33,
     kScanEscape         = 0x35,
+    kScanRightCommand    = 0x36,
     kScanCommand        = 0x37,
     kScanShift          = 0x38,
     kScanCapsLock       = 0x39,

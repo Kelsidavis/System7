@@ -1,8 +1,8 @@
 /*
  * PS2Input.h - PS/2 Keyboard and Mouse Input
  *
- * Provides PS/2 controller initialization and input polling
- * for keyboard and mouse on x86 platforms.
+ * Shared PS/2-compatible interface for keyboard and mouse backends.
+ * x86 uses PS/2 and USB; ARM64 uses VirtIO or USB HID.
  *
  * Copyright (c) 2025 - System 7.1 Portable Project
  */

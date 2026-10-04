@@ -1043,7 +1043,7 @@ test-stdlib:
 test-input:
 	@set -eu; \
 		input_test_dir=$$(mktemp -d); \
-		trap 'rm -f "$$input_test_dir/modern-input" "$$input_test_dir/platform-stubs" "$$input_test_dir/event-queue"; rmdir "$$input_test_dir"' EXIT HUP INT TERM; \
+		trap 'rm -f "$$input_test_dir/modern-input" "$$input_test_dir/platform-stubs" "$$input_test_dir/event-queue" "$$input_test_dir/arm64-virtio"; rmdir "$$input_test_dir"' EXIT HUP INT TERM; \
 		$(HOST_CC) -std=gnu11 -Wall -Wextra -Werror -Iinclude -Isrc \
 			tests/input/modern_input.c src/EventManager/ModernInput.c \
 			src/EventManager/EventGlobals.c -o "$$input_test_dir/modern-input"; \
@@ -1056,6 +1056,11 @@ test-input:
 			tests/input/event_queue.c src/ProcessMgr/EventIntegration.c \
 			-o "$$input_test_dir/event-queue"; \
 		"$$input_test_dir/event-queue"; \
+		$(HOST_CC) -std=gnu11 -Wall -Wextra -Werror -DQEMU_BUILD -Iinclude -Isrc \
+			tests/input/arm64_virtio.c src/Platform/arm64/hal_input.c \
+			src/EventManager/ModernInput.c src/EventManager/KeyboardEvents.c \
+			src/EventManager/EventGlobals.c -o "$$input_test_dir/arm64-virtio"; \
+		"$$input_test_dir/arm64-virtio"; \
 		$(HOST_CXX) -std=c++17 -Wall -Wextra -Werror -fsyntax-only -Iinclude \
 			tests/input/linkage.cpp; \
 		echo "Native input and event-queue regressions passed."

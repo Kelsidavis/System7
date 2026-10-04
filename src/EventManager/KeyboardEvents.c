@@ -1,6 +1,3 @@
-#include "MemoryMgr/MemoryManager.h"
-#include <stdlib.h>
-#include <string.h>
 /**
  * @file KeyboardEvents.c
  * @brief Keyboard Event Processing Implementation for System 7.1
@@ -15,9 +12,12 @@
 
 #include "SystemTypes.h"
 #include "System71StdLib.h"
-#include <time.h>
+#include "MemoryMgr/MemoryManager.h"
+#include <stdlib.h>
+#include <string.h>
 
 #include "EventManager/KeyboardEvents.h"
+#include "EventManager/KeyMap.h"
 #include "EventManager/EventManager.h"
 #include "EventManager/EventStructs.h"
 #include "EventManager/EventLogging.h"
@@ -174,7 +174,6 @@ static void StartAutoRepeatForKey(UInt16 scanCode, UInt32 charCode);
 static void StopCurrentAutoRepeat(void);
 static SInt16 GetDeadKeyTypeForScanCode(UInt16 scanCode, UInt16 modifiers);
 static UInt32 LookupDeadKeyComposition(SInt16 deadKeyType, UInt32 baseChar);
-static void UpdateKeyMapForScanCode(UInt16 scanCode, Boolean isPressed);
 
 /*---------------------------------------------------------------------------
  * Key Translation Functions
@@ -218,6 +217,7 @@ static Boolean IsModifierKey(UInt16 scanCode)
 {
     switch (scanCode) {
         case kScanCommand:
+        case kScanRightCommand:
         case kScanShift:
         case kScanCapsLock:
         case kScanOption:
@@ -237,67 +237,11 @@ static Boolean IsModifierKey(UInt16 scanCode)
  */
 static void UpdateModifierState(UInt16 scanCode, Boolean isPressed)
 {
-    UInt16 modifierBit = 0;
-
-    switch (scanCode) {
-        case kScanCommand:
-            modifierBit = cmdKey;
-            break;
-        case kScanShift:
-            modifierBit = shiftKey;
-            break;
-        case kScanCapsLock:
-            modifierBit = alphaLock;
-            if (isPressed) {
-                /* Caps lock toggles */
-                g_keyboardState.modifierState ^= modifierBit;
-                g_keyboardState.capsLockState = !g_keyboardState.capsLockState;
-                return;
-            }
-            break;
-        case kScanOption:
-            modifierBit = optionKey;
-            break;
-        case kScanControl:
-            modifierBit = controlKey;
-            break;
-        case kScanRightShift:
-            modifierBit = rightShiftKey;
-            break;
-        case kScanRightOption:
-            modifierBit = rightOptionKey;
-            break;
-        case kScanRightControl:
-            modifierBit = rightControlKey;
-            break;
+    if (scanCode == kScanCapsLock && isPressed) {
+        g_keyboardState.capsLockState = !g_keyboardState.capsLockState;
     }
-
-    if (modifierBit) {
-        if (isPressed) {
-            g_keyboardState.modifierState |= modifierBit;
-        } else {
-            g_keyboardState.modifierState &= ~modifierBit;
-        }
-    }
-}
-
-/**
- * Update KeyMap for scan code
- */
-static void UpdateKeyMapForScanCode(UInt16 scanCode, Boolean isPressed)
-{
-    if (scanCode >= 128) return;
-
-    UInt16 arrayIndex = scanCode / 32;
-    UInt16 bitIndex = scanCode % 32;
-
-    if (arrayIndex < 4) {
-        if (isPressed) {
-            g_keyboardState.currentKeyMap[arrayIndex] |= (1U << bitIndex);
-        } else {
-            g_keyboardState.currentKeyMap[arrayIndex] &= ~(1U << bitIndex);
-        }
-    }
+    g_keyboardState.modifierState = KeyMapModifiers(g_keyboardState.currentKeyMap) & ~alphaLock;
+    if (g_keyboardState.capsLockState) g_keyboardState.modifierState |= alphaLock;
 }
 
 /*---------------------------------------------------------------------------
@@ -457,7 +401,7 @@ SInt16 ProcessRawKeyboardEvent(UInt16 scanCode, Boolean isKeyDown,
     SInt16 eventsGenerated = 0;
 
     /* Update key map */
-    UpdateKeyMapForScanCode(scanCode, isKeyDown);
+    KeyMapSetKey(g_keyboardState.currentKeyMap, scanCode, isKeyDown);
 
     /* Handle modifier keys */
     if (IsModifierKey(scanCode)) {
@@ -570,16 +514,7 @@ void GetKeys(KeyMap theKeys)
  */
 Boolean IsKeyDown(UInt16 scanCode)
 {
-    if (scanCode >= 128) return false;
-
-    UInt16 arrayIndex = scanCode / 32;
-    UInt16 bitIndex = scanCode % 32;
-
-    if (arrayIndex < 4) {
-        return (g_keyboardState.currentKeyMap[arrayIndex] & (1U << bitIndex)) != 0;
-    }
-
-    return false;
+    return KeyMapHasKey(g_keyboardState.currentKeyMap, scanCode);
 }
 
 /**
