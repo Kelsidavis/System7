@@ -28,6 +28,7 @@
 #include "Platform/Framebuffer.h"
 #include "QuickDraw/QuickDraw.h"
 #include "QuickDraw/ColorQuickDraw.h"
+#include "FontManager/FontManager.h"
 #include "DialogManager/DialogManager.h"
 #include "WindowManager/WMLogging.h"
 #include "MemoryMgr/MemoryManager.h"
@@ -1081,7 +1082,6 @@ void SetWTitle(WindowPtr window, ConstStr255Param title) {
                          window->titleHandle, *window->titleHandle);
 
             /* Calculate title width for title bar rendering (only if allocation succeeded) */
-            extern SInt16 StringWidth(ConstStr255Param s);
             window->titleWidth = StringWidth(title) + 40;  /* Add margins for close box and padding */
         } else {
             /* Allocation failed - handle error gracefully */

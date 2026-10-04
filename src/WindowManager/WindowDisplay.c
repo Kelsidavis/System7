@@ -8,6 +8,7 @@
 #include "WindowManager/WindowManagerInternal.h"
 #include "WindowManager/WindowRegions.h"
 #include "QuickDraw/QuickDraw.h"
+#include "FontManager/FontManager.h"
 #include "ControlManager/ControlTypes.h"
 #include "SystemTheme.h"
 #include "WindowManager/WMLogging.h"
@@ -867,9 +868,6 @@ static void DrawWindowFrame_Unclipped(WindowPtr window) {
 
             /* Basic validation: just check length is positive and not obviously corrupt */
             if (titleLen > 0 && titleLen < 128) {
-                extern short StringWidth(ConstStr255Param str);
-                extern void TextFace(short face);
-
                 short textWidth = StringWidth(titleStr);
 
                 /* System 7 lozenge calculations (exact pixel metrics) */

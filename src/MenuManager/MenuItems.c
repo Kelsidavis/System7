@@ -18,6 +18,7 @@
 #include "System71StdLib.h"
 #include "MemoryMgr/MemoryManager.h"
 #include "ResourceManager.h"
+#include "FontManager/FontManager.h"
 #include "MenuManager/menu_private.h"    /* Must come before MenuManager.h for internal prototypes */
 #include "MenuManager/MenuManager.h"
 #include "MenuManager/MenuLogging.h"
@@ -807,8 +808,6 @@ void CalcMenuSize(MenuHandle theMenu) {
     MenuInfo* menu;
     short i, itemCount, maxWidth, totalHeight;
     short itemWidth;
-    extern short StringWidth(ConstStr255Param str);
-
     if (!theMenu || !*theMenu) return;
 
     menu = (MenuInfo*)*theMenu;

@@ -23,6 +23,7 @@
 #include "QuickDrawConstants.h"
 #include "MemoryMgr/MemoryManager.h"
 #include "FontManager/FontManager.h"
+#include "ResourceManager.h"
 
 #include <string.h>
 
@@ -830,6 +831,5 @@ void DrawPicture(PicHandle myPicture, const Rect* dstRect) {
 /* A picture from the resource file: 'PICT' theID (Inside Macintosh:
  * Imaging With QuickDraw, 7-30) */
 PicHandle GetPicture(SInt16 picID) {
-    extern Handle GetResource(ResType theType, SInt16 theID);
     return (PicHandle)GetResource(FOURCC('P','I','C','T'), picID);
 }

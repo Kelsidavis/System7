@@ -17,6 +17,7 @@
 #include "EventManager/EventManager.h"
 #include "MemoryMgr/MemoryManager.h"
 #include "QuickDraw/QuickDraw.h"
+#include "ResourceManager.h"
 #include "SystemInternal.h"
 
 /* Standard cursor definitions */
@@ -297,8 +298,6 @@ void SetWatchCursor(void) {
 /* Get cursor from resource */
 CursHandle GetCursor(short cursorID) {
     /* Load CURS resource from Resource Manager */
-    extern Handle GetResource(ResType theType, ResID theID);
-
     /* CURS resource type is 'CURS' = 0x43555253 */
     return (CursHandle)GetResource(0x43555253, cursorID);
 }
