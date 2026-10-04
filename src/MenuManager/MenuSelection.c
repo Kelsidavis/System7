@@ -11,6 +11,7 @@
 
 #include <string.h>
 #include "SystemTypes.h"
+#include "QuickDraw/QuickDraw.h"
 #include "DeskManager/DeskManager.h"
 #include "System71StdLib.h"
 #include "MemoryMgr/MemoryManager.h"
@@ -128,9 +129,6 @@ long MenuSelect(Point startPt)
     /* CRITICAL: Menu drawing must use WMgrPort, NOT the current port!
      * If a window port is active, its portBits.bounds offset will cause menus to render offset.
      * The WMgrPort has portBits.bounds at screen coordinates (0,0,width,height). */
-    extern void GetPort(GrafPtr* port);
-    extern void SetPort(GrafPtr port);
-
     GrafPtr savedPort, wmgrPort;
     short menuID;
     Rect titleRect;
@@ -846,9 +844,6 @@ Boolean WaitForMouseMove(unsigned long timeout)
  */
 void ConvertMenuPoint(Point* pt, Boolean fromGlobal)
 {
-    extern void GlobalToLocal(Point* pt);
-    extern void LocalToGlobal(Point* pt);
-
     if (pt == NULL) {
         return;
     }
@@ -891,7 +886,6 @@ static void CleanupTrackingState(MenuTrackInfo* state)
 
     /* Clean up any allocated resources */
     if (state->savedRegion != NULL) {
-        extern void DisposeRgn(RgnHandle rgn);
         DisposeRgn((RgnHandle)state->savedRegion);
         state->savedRegion = NULL;
     }
