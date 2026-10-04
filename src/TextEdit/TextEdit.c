@@ -268,6 +268,7 @@ void TEGetStyle(SInt32 offset, TextStyle *theStyle,
     TextStyle style;
     SInt16 height;
     SInt16 ascent;
+    GrafPtr textPort;
 
     if (!hTE) return;
 
@@ -281,6 +282,7 @@ void TEGetStyle(SInt32 offset, TextStyle *theStyle,
     style.tsColor.blue = 0;
     height = pTE->base.lineHeight;
     ascent = pTE->base.fontAscent;
+    textPort = pTE->base.inPort;
 
     if (pTE->hStyles && *pTE->hStyles) {
         HLock(pTE->hStyles);
@@ -311,10 +313,40 @@ void TEGetStyle(SInt32 offset, TextStyle *theStyle,
         HUnlock(pTE->hStyles);
     }
 
+    HUnlock((Handle)hTE);
+
+    if (textPort && (lineHeight || fontAscent)) {
+        GrafPtr savedPort = NULL;
+        GrafPort *port = (GrafPort *)textPort;
+        SInt16 savedFont = port->txFont;
+        SInt16 savedSize = port->txSize;
+        Style savedFace = port->txFace;
+        FMetricRec metrics;
+
+        GetPort(&savedPort);
+        SetPort(textPort);
+        TextFont(style.tsFont);
+        TextFace(style.tsFace);
+        TextSize(style.tsSize);
+        GetFontMetrics(&metrics);
+
+        SInt32 styledHeight = metrics.ascent + metrics.descent + metrics.leading;
+        if (styledHeight > INT16_MAX) styledHeight = INT16_MAX;
+        if (styledHeight < INT16_MIN) styledHeight = INT16_MIN;
+        if (metrics.ascent > INT16_MAX) metrics.ascent = INT16_MAX;
+        if (metrics.ascent < INT16_MIN) metrics.ascent = INT16_MIN;
+        height = (SInt16)styledHeight;
+        ascent = (SInt16)metrics.ascent;
+
+        TextFont(savedFont);
+        TextFace(savedFace);
+        TextSize(savedSize);
+        if (savedPort) SetPort(savedPort);
+    }
+
     if (theStyle) *theStyle = style;
     if (lineHeight) *lineHeight = height;
     if (fontAscent) *fontAscent = ascent;
-    HUnlock((Handle)hTE);
 }
 
 static Boolean TE_SameTextStyle(const TextStyle *left, const TextStyle *right) {

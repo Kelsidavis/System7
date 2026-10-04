@@ -1799,6 +1799,15 @@ static void Test_TextEditGetStyle(void) {
                              inside.tsFace == bold &&
                              after.tsFace == normal;
 
+    requested.tsSize = 24;
+    TESetStyle(doSize, &requested, false, hTE);
+    SInt16 styledLineHeight = 0;
+    SInt16 styledFontAscent = 0;
+    TextStyle largeStyle = {0};
+    TEGetStyle(1, &largeStyle, &styledLineHeight, &styledFontAscent, hTE);
+    Boolean perStyleMetrics = largeStyle.tsSize == 24 &&
+                              styledLineHeight > 0 && styledFontAscent > 0;
+
     StScrpHandle scrap = (StScrpHandle)NewHandleClear(
         sizeof(SInt16) + 2 * sizeof(ScrpSTElement));
     if (!scrap) {
@@ -1855,6 +1864,8 @@ static void Test_TextEditGetStyle(void) {
           "TEGetStyle did not return the initialized styled-text attributes");
     CHECK(selectionStyle,
           "TESetStyle changed text outside the selected range");
+    CHECK(perStyleMetrics,
+          "TEGetStyle did not return metrics for the run's font style");
     CHECK(scrapStyleOK,
           "TEUseStyleScrap did not apply each run or restore selection");
     CHECK(styledInsertOK,
