@@ -102,7 +102,7 @@ typedef struct CodeSegment {
     UInt32  jtEntryCount;     /* How many JT entries belong to this segment */
     UInt32 size;              /* Segment size */
     SegmentState state;       /* Current state */
-    Boolean purgeable;        /* Can be unloaded */
+    Boolean purgeable;        /* Marked purgeable; current backends retain it */
     UInt16 segID;             /* Segment ID */
     UInt16 refCount;          /* Reference count */
 } CodeSegment;
@@ -192,8 +192,8 @@ OSErr EnsureEntrySegmentsLoaded(SegmentLoaderContext* ctx);
  */
 OSErr LoadSegment(SegmentLoaderContext* ctx, SInt16 segID);
 
-/*
- * UnloadSegment - Unload segment (mark purgeable)
+/* Mark a loaded segment purgeable. Current backends keep its mapping resident,
+ * and a later LoadSegment call reuses that mapping.
  *
  * @param ctx               Segment loader context
  * @param segID             Segment ID to unload
