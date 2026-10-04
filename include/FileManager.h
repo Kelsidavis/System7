@@ -24,39 +24,6 @@
 extern "C" {
 #endif
 
-/* Platform configuration */
-#define FM_PLATFORM_X86 1
-
-
-/* Forward declarations */
-
-/* File Manager specific types */
-
-/* DirID is defined in SystemTypes.h as long */
-
-/* Mac OS date/time (seconds since Jan 1, 1904) */
-
-/* Additional File System Error Codes beyond MacTypes.h */
-
-/* File attributes */
-
-/* Volume attributes */
-
-/* Fork types */
-
-/* FInfo and FXInfo are defined in SystemTypes.h */
-
-/* FSSpec - File System Specification */
-/* FSSpec is defined in SystemTypes.h */
-
-/* HFS Extent descriptor */
-
-/* HFS Extent record (3 extents) */
-
-/* ParamBlockRec, CInfoPBRec, WDPBRec, and FCBPBRec are defined in SystemTypes.h */
-
-/* Volume mount info */
-
 /* ============================================================================
  * File Manager Public API
  * ============================================================================ */

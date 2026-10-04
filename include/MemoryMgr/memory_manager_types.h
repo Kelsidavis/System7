@@ -28,15 +28,6 @@
 #include "SystemTypes.h"
 #include "Errors/ErrorCodes.h"
 
-/* Forward declarations */
-
-
-/* Basic Mac OS types */
-/* Ptr is defined in MacTypes.h */
-/* Handle is defined in MacTypes.h */
-/* Size is defined in MacTypes.h */
-/* OSErr is defined in MacTypes.h */
-/* Byte is defined in MacTypes.h */
 // Zone management types - Zone is defined in System71Types.h
 
 /* Memory Manager constants from implementation analysis */
