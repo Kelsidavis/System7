@@ -39,7 +39,14 @@ OSErr ParseDITL(Handle ditlHandle, DialogItemEx** items, SInt16* itemCount) {
     SInt16 i;
     DialogItemEx* itemArray;
 
-    if (!ditlHandle || !items || !itemCount) {
+    if (!items || !itemCount) {
+        return -1;
+    }
+
+    *items = NULL;
+    *itemCount = 0;
+
+    if (!ditlHandle) {
         return -1;
     }
 
@@ -77,8 +84,6 @@ OSErr ParseDITL(Handle ditlHandle, DialogItemEx** items, SInt16* itemCount) {
 
     count += 1;  /* Actual count is stored value + 1 */
 
-    *itemCount = count;
-
     /* Check for integer overflow in allocation size */
     if ((size_t)count > SIZE_MAX / sizeof(DialogItemEx)) {
         HUnlock(ditlHandle);
@@ -102,7 +107,7 @@ OSErr ParseDITL(Handle ditlHandle, DialogItemEx** items, SInt16* itemCount) {
 
         /* Validate we have enough bytes for item header (4 + 8 + 1 + 1 = 14 bytes minimum) */
         if (p + 14 > pEnd) {
-            DisposePtr((Ptr)itemArray);
+            FreeParsedDITL(itemArray, i);
             HUnlock(ditlHandle);
             return -1;
         }
@@ -125,7 +130,7 @@ OSErr ParseDITL(Handle ditlHandle, DialogItemEx** items, SInt16* itemCount) {
         if (dataLen == 0xFF) {
             /* Validate we have 2 more bytes for long length */
             if (p + 2 > pEnd) {
-                DisposePtr((Ptr)itemArray);
+                FreeParsedDITL(itemArray, i);
                 HUnlock(ditlHandle);
                 return -1;
             }
@@ -180,7 +185,7 @@ OSErr ParseDITL(Handle ditlHandle, DialogItemEx** items, SInt16* itemCount) {
                 if (dataLen > 0) {
                     /* Validate we have enough bytes available */
                     if (p + dataLen > pEnd) {
-                        DisposePtr((Ptr)itemArray);
+                        FreeParsedDITL(itemArray, i);
                         HUnlock(ditlHandle);
                         return -1;
                     }
@@ -232,7 +237,7 @@ OSErr ParseDITL(Handle ditlHandle, DialogItemEx** items, SInt16* itemCount) {
                 /* Resource ID stored as 2-byte integer */
                 if (dataLen >= 2) {
                     if (p + 2 > pEnd) {
-                        DisposePtr((Ptr)itemArray);
+                        FreeParsedDITL(itemArray, i);
                         HUnlock(ditlHandle);
                         return -1;
                     }
@@ -247,7 +252,7 @@ OSErr ParseDITL(Handle ditlHandle, DialogItemEx** items, SInt16* itemCount) {
 
         /* Validate pointer advance won't exceed bounds */
         if (p + dataLen > pEnd) {
-            DisposePtr((Ptr)itemArray);
+            FreeParsedDITL(itemArray, i + 1);
             HUnlock(ditlHandle);
             return -1;
         }
@@ -261,6 +266,7 @@ OSErr ParseDITL(Handle ditlHandle, DialogItemEx** items, SInt16* itemCount) {
     }
 
     *items = itemArray;
+    *itemCount = count;
     HUnlock(ditlHandle);
     return 0;  /* noErr */
 }

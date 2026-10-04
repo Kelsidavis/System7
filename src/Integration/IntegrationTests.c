@@ -17,6 +17,7 @@
 #include "System71StdLib.h"
 #include "MemoryMgr/MemoryManager.h"
 #include "DialogManager/DialogResources.h"
+#include "DialogManager/DialogResourceParser.h"
 #include "ResourceManager.h"
 #include "WindowManager/WindowManager.h"
 #include "QuickDraw/QuickDraw.h"
@@ -236,6 +237,28 @@ static void Test_Dialog_ParseDLOGTruncated(void) {
     DisposeHandle(h);
     CHECK(err != noErr, "accepted ten bytes as a dialog template");
     CHECK(t == NULL, "left a template behind after failing");
+    RecordTest(test_name, true, "");
+}
+
+static void Test_Dialog_ParseDITLTruncatedAfterText(void) {
+    const char* test_name = "Dialog_ParseDITLTruncatedAfterText";
+    static const UInt8 ditl[] = {
+        0x00, 0x01,                                      /* two items */
+        0x00, 0x00, 0x00, 0x00,                          /* item 1 handle */
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x0A, 0x00, 0x14, /* bounds */
+        statText, 0x01, 'A', 0x00,                       /* text and padding */
+        0x00, 0x00, 0x00, 0x00, 0x00                     /* truncated item 2 */
+    };
+    Handle h = HandleFromBytes(ditl, sizeof ditl);
+    CHECK(h, "NewHandle failed");
+
+    DialogItemEx* items = (DialogItemEx*)1;
+    SInt16 itemCount = 1;
+    OSErr err = ParseDITL(h, &items, &itemCount);
+    DisposeHandle(h);
+    CHECK(err != noErr, "accepted a truncated second item");
+    CHECK(items == NULL && itemCount == 0,
+          "left partial parser output after a DITL error");
     RecordTest(test_name, true, "");
 }
 
@@ -1768,6 +1791,7 @@ void IntegrationTests_Run(void) {
     Test_Dialog_ParseDLOG();
     Test_Dialog_ParseALRT();
     Test_Dialog_ParseDLOGTruncated();
+    Test_Dialog_ParseDITLTruncatedAfterText();
     Test_Dialog_LoadMissingTemplate();
     Test_Dialog_ActionDebounce();
 
