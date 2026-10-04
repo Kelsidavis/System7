@@ -30,19 +30,20 @@ echo "Required export surface OK."
 # [Audit B] Check Platform layer for WM_ symbol definitions
 # Platform/*.o may reference WM_*DefProc (WDEF handles) but must not define other WM_ symbols
 if [ -f "$OBJ_DIR/WindowPlatform.o" ]; then
-  nm -o "$OBJ_DIR/WindowPlatform.o" 2>/dev/null | \
-    grep -E ' T WM_' | \
-    grep -v 'WM_.*DefProc' > /tmp/platform_wm_violations.txt || true
-
-  if [ -s /tmp/platform_wm_violations.txt ]; then
-    echo "ERROR: Platform layer defines WM_ symbols (should only reference WM_*DefProc):"
-    cat /tmp/platform_wm_violations.txt
-    echo ""
-    echo "Hint: Platform layer should not define WM_ symbols. Move to src/WindowManager/"
-    rm -f /tmp/platform_wm_violations.txt
+  if ! platform_symbols=$(nm -o "$OBJ_DIR/WindowPlatform.o" 2>/dev/null); then
+    echo "ERROR: Could not inspect $OBJ_DIR/WindowPlatform.o with nm" >&2
     exit 1
   fi
-  rm -f /tmp/platform_wm_violations.txt
+  violations=$(printf '%s\n' "$platform_symbols" | \
+    grep -E ' T WM_' | grep -v 'WM_.*DefProc' || true)
+
+  if [ -n "$violations" ]; then
+    echo "ERROR: Platform layer defines WM_ symbols (should only reference WM_*DefProc):"
+    printf '%s\n' "$violations"
+    echo
+    echo "Hint: Platform layer should not define WM_ symbols. Move to src/WindowManager/"
+    exit 1
+  fi
 fi
 
 echo "Audit B: Platform layer WM_ separation OK."
