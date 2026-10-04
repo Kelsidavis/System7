@@ -126,8 +126,6 @@ void DrawMenuBarEx(const MenuBarDrawInfo* drawInfo)
     /* Use platform-specific drawing if available */
     Platform_DrawMenuBar(drawInfo);
 
-    /* MENU_LOG_TRACE("Drawing menu bar (mode: %d, hilite: %d)\n",
-           drawInfo->drawMode, drawInfo->hiliteMenu); */
 }
 
 /*
@@ -148,9 +146,6 @@ void EraseMenuBar(const Rect* menuBarRect)
     }
 
     /* Fill with background pattern */
-    /* MENU_LOG_TRACE("Erasing menu bar rect (%d,%d,%d,%d)\n",
-           eraseRect.left, eraseRect.top, eraseRect.right, eraseRect.bottom); */
-
     FillRect(&eraseRect, &qd.white);
 }
 
@@ -368,8 +363,6 @@ void ShowMenu(MenuHandle theMenu, Point location, const MenuDrawInfo* drawInfo)
     gCurrentlyShownMenu = theMenu;
     gCurrentMenuRect = menuRect;
 
-    /* MENU_LOG_TRACE("Showing menu ID %d at (%d,%d)\n",
-           (*(MenuInfo**)theMenu)->menuID, location.h, location.v); */
 }
 
 /*
@@ -410,8 +403,6 @@ void HideMenu(void)
         }
     }
 
-    /* MENU_LOG_TRACE("Hiding menu ID %d\n", (*(MenuInfo**)gCurrentlyShownMenu)->menuID); */
-
     ShowCursor();
 
     gCurrentlyShownMenu = NULL;
@@ -450,9 +441,6 @@ void DrawMenu(MenuHandle theMenu, const Rect* menuRect, short hiliteItem)
         CalcMenuItemRect(theMenu, i, menuRect, &itemRect);
         DrawMenuItemAtRect(theMenu, i, &itemRect, i == hiliteItem);
     }
-
-    /* MENU_LOG_TRACE("Drew menu ID %d with %d items (hilite: %d)\n",
-           (*(MenuInfo**)theMenu)->menuID, itemCount, hiliteItem); */
 
     if (cursorHidden) {
         ShowCursor();
@@ -659,8 +647,6 @@ void DrawMenuSeparator(const Rect* itemRect, short menuID)
     lineRect.top += (RectHeight(itemRect) / 2) - 1;
     lineRect.bottom = lineRect.top + 1;
 
-    /* MENU_LOG_TRACE("Drawing separator line in menu %d\n", menuID); */
-
     (void)menuID;
 
     PenNormal();
@@ -681,9 +667,6 @@ void HiliteMenuItem(MenuHandle theMenu, short item, Boolean hilite)
     /* Use platform-specific highlighting if available */
     Platform_HiliteMenuItem(theMenu, item, hilite);
 
-    /* MENU_LOG_TRACE("%s menu item %d in menu %d\n",
-           hilite ? "Highlighting" : "Unhighlighting",
-           item, (*(MenuInfo**)theMenu)->menuID); */
 }
 
 /* ============================================================================
@@ -1033,8 +1016,6 @@ void SetMenuDrawingMode(Boolean useColor, Boolean antiAlias, Boolean usePatterns
     gColorMode = useColor;
     gAntiAlias = antiAlias;
 
-    /* MENU_LOG_TRACE("Set menu drawing mode: color=%s, antiAlias=%s, patterns=%s\n",
-           useColor ? "Yes" : "No", antiAlias ? "Yes" : "No", usePatterns ? "Yes" : "No"); */
 }
 
 /* ============================================================================
@@ -1083,10 +1064,6 @@ static void SetupMenuDrawingColors(short menuID, short itemID)
  */
 static void DrawMenuFrameInternal(const Rect* menuRect, Boolean selected)
 {
-    /* MENU_LOG_TRACE("Drawing menu frame (%d,%d,%d,%d) selected=%s\n",
-           menuRect->left, menuRect->top, menuRect->right, menuRect->bottom,
-           selected ? "Yes" : "No"); */
-
     (void)selected;
 
     PenNormal();
@@ -1099,8 +1076,6 @@ static void DrawMenuFrameInternal(const Rect* menuRect, Boolean selected)
  */
 static void DrawMenuBackgroundInternal(const Rect* menuRect, short menuID)
 {
-    /* MENU_LOG_TRACE("Drawing menu background for menu %d\n", menuID); */
-
     (void)menuID;
 
     FillRect(menuRect, &qd.white);
@@ -1116,9 +1091,6 @@ static void DrawMenuItemTextInternal(const Rect* itemRect, ConstStr255Param item
                                    Boolean isMenuTitle)
 {
     (void)isMenuTitle;
-    /* MENU_LOG_TRACE("Drawing item text: %.*s (enabled=%s, selected=%s)\n",
-           itemText[0], &itemText[1], enabled ? "Yes" : "No", selected ? "Yes" : "No"); */
-
     /* Set font for menu items (Chicago 12pt) */
     TextFont(chicagoFont);
     TextSize(12);
@@ -1162,9 +1134,6 @@ static void DrawMenuItemTextInternal(const Rect* itemRect, ConstStr255Param item
 static void DrawMenuItemIconInternal(const Rect* iconRect, short iconID,
                                    Boolean enabled, Boolean selected)
 {
-    /* MENU_LOG_TRACE("Drawing item icon %d (enabled=%s, selected=%s)\n",
-           iconID, enabled ? "Yes" : "No", selected ? "Yes" : "No"); */
-
     /* Draw icon if iconID is specified */
     if (iconID > 0 && iconRect != NULL) {
         /* Save graphics state */
@@ -1225,9 +1194,6 @@ static void DrawMenuItemMarkInternal(const Rect* markRect, unsigned char markCha
                                    Boolean enabled, Boolean selected)
 {
     Str255 markStr;
-
-    /* MENU_LOG_TRACE("Drawing item mark '%c' (enabled=%s, selected=%s)\n",
-           markChar, enabled ? "Yes" : "No", selected ? "Yes" : "No"); */
 
     if (markChar == 0) {
         return;
@@ -1467,25 +1433,3 @@ static short GetMenuItemTextWidth(ConstStr255Param text, Style textStyle)
 
     return width;
 }
-
-/* ============================================================================
- * Debug Functions
- * ============================================================================ */
-
-#ifdef DEBUG
-void PrintMenuDisplayState(void)
-{
-    /* MENU_LOG_TRACE("=== Menu Display State ===\n"); */
-    /* MENU_LOG_TRACE("Color mode: %s\n", gColorMode ? "Yes" : "No"); */
-    /* MENU_LOG_TRACE("Anti-alias: %s\n", gAntiAlias ? "Yes" : "No"); */
-    /* MENU_LOG_TRACE("Current menu: %s\n", gCurrentlyShownMenu ? "Yes" : "No"); */
-    if (gCurrentlyShownMenu != NULL) {
-        /* MENU_LOG_TRACE("  Menu ID: %d\n", (*gCurrentlyShownMenu)->menuID); */
-        /* MENU_LOG_TRACE("  Menu rect: (%d,%d,%d,%d)\n",
-               gCurrentMenuRect.left, gCurrentMenuRect.top,
-               gCurrentMenuRect.right, gCurrentMenuRect.bottom); */
-    }
-    /* MENU_LOG_TRACE("Saved bits: %s\n", gCurrentSavedBits ? "Yes" : "No"); */
-    /* MENU_LOG_TRACE("========================\n"); */
-}
-#endif
