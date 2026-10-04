@@ -313,8 +313,8 @@ void SetDialogIdleProc(DialogPtr theDialog, void (*idleProc)(DialogPtr));
 /*
  * ProcessDialogIdle - Process idle time for dialog
  *
- * This function should be called regularly during modal dialog
- * processing to handle idle tasks and animations.
+ * This function advances the focused edit-text caret blink state. Call it
+ * when the dialog event loop has no event to process.
  *
  * Parameters:
  *   theDialog - The dialog to process idle time for

@@ -167,6 +167,7 @@ Boolean DialogSelect(const EventRecord* evt, DialogPtr* which, SInt16* itemHit)
         }
     }
 
+    ProcessDialogIdle(dlg);
     return false;
 }
 
@@ -192,7 +193,7 @@ void ProcessDialogIdle(DialogPtr theDialog)
         return;
     }
 
-    /* Stub - would handle idle processing like text cursor blinking */
+    UpdateDialogCaret(theDialog);
 }
 
 /*
