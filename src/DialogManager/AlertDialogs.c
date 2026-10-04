@@ -25,13 +25,12 @@
 #include "ControlManager/ControlInternal.h"
 #include "ControlManager/ControlTypes.h"
 #include "DialogManager/DialogLogging.h"
+#include "DialogManager/DialogHelpers.h"
 #include "TimeManager/TimeBase.h"
 #include "Resources/ResourceData.h"
+#include "SoundManager/SoundManager.h"
 
-/* External dependencies */
-extern void SysBeep(SInt16 duration);
 /* NewHandleClear, DisposeHandle, HLock, HUnlock now provided by MemoryManager.h */
-extern void CenterDialogOnScreen(DialogPtr dlg);
 
 /* Global alert state */
 static struct {

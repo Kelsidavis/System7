@@ -374,9 +374,6 @@ void DrawDialogIcon(const Rect* bounds, SInt16 iconID, Boolean isEnabled) {
     (void)isEnabled;   /* an item's itemDisable bit is about clicks */
     EraseRect(bounds);
 
-    extern CIconHandle GetCIcon(SInt16 iconID);
-    extern void PlotCIcon(const Rect* theRect, CIconHandle theIcon);
-    extern void DisposeCIcon(CIconHandle theIcon);
     CIconHandle cicn = GetCIcon(iconID);
     if (cicn) {
         PlotCIcon(bounds, cicn);
