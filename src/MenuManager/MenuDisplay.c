@@ -552,6 +552,7 @@ void DrawMenuItemAtRect(MenuHandle menu, short item, const Rect* itemRect,
     MenuItemDrawInfo info = {0};
     short markChar = 0;
     short cmdChar = 0;
+    Boolean scriptItem;
     Style textStyle = normal;
 
     info.menu = menu;
@@ -563,13 +564,14 @@ void DrawMenuItemAtRect(MenuHandle menu, short item, const Rect* itemRect,
     GetItemCmd(menu, item, &cmdChar);
     GetItemStyle(menu, item, &textStyle);
     info.textStyle = textStyle;
+    scriptItem = cmdChar == MENU_SCRIPT_ITEM_COMMAND;
 
     if (selected) info.itemFlags |= kMenuItemSelected;
     if (CheckMenuItemSeparator(menu, item)) info.itemFlags |= kMenuItemIsSeparator;
     if (!CheckMenuItemEnabled(menu, item)) info.itemFlags |= kMenuItemDisabled;
     if (markChar != 0) info.itemFlags |= kMenuItemChecked;
-    if (cmdChar != 0) info.itemFlags |= kMenuItemHasCmdKey;
-    if (info.iconID != 0) info.itemFlags |= kMenuItemHasIcon;
+    if (cmdChar != 0 && !scriptItem) info.itemFlags |= kMenuItemHasCmdKey;
+    if (info.iconID != 0 && !scriptItem) info.itemFlags |= kMenuItemHasIcon;
     info.markChar = (char)markChar;
     info.cmdChar = (char)cmdChar;
 

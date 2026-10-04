@@ -1759,6 +1759,13 @@ static Boolean Test_MenuContainsName(MenuHandle menu, const char* expected) {
     return false;
 }
 
+static short Test_MenuFindItem(MenuHandle menu, const char* expected) {
+    for (short item = 1; item <= CountMItems(menu); ++item) {
+        if (Test_MenuHasName(menu, item, expected)) return item;
+    }
+    return 0;
+}
+
 static void Test_MenuResourceNames(void) {
     const char* test_name = "Menu_ResourceNames";
     const ResType type = FOURCC('M', 'N', 't', 's');
@@ -1799,6 +1806,8 @@ static void Test_MenuResourceNames(void) {
     Boolean fontAndFamilyInserted = false;
     Boolean fontAPIInserted = false;
     Boolean intlScriptFilters = false;
+    Boolean fontScriptMetadata = false;
+    Boolean filteredFontAPIInserted = false;
     if (setup) {
         Handle fond = NewHandle(1);
         Handle font = NewHandle(1);
@@ -1819,6 +1828,19 @@ static void Test_MenuResourceNames(void) {
                 if (ResError() != noErr) {
                     DisposeHandle(font);
                     setup = false;
+                } else {
+                    Handle japaneseFond = NewHandle(1);
+                    if (!japaneseFond) {
+                        setup = false;
+                    } else {
+                        **japaneseFond = 'j';
+                        AddResource(japaneseFond, FOURCC('F', 'O', 'N', 'D'), 0x4000,
+                                    PSTR("Menu Test Japanese"));
+                        if (ResError() != noErr) {
+                            DisposeHandle(japaneseFond);
+                            setup = false;
+                        }
+                    }
                 }
             }
         }
@@ -1874,12 +1896,26 @@ static void Test_MenuResourceNames(void) {
         InsertResMenu(menu, FOURCC('F', 'O', 'N', 'T'), 1);
         fontAndFamilyInserted = Test_MenuContainsName(menu, "Menu Test Family") &&
                                 Test_MenuContainsName(menu, "Menu Test Strike");
+        short japaneseItem = Test_MenuFindItem(menu, "Menu Test Japanese");
+        if (japaneseItem) {
+            short itemCommand = 0;
+            short itemScript = 0;
+            GetItemCmd(menu, japaneseItem, &itemCommand);
+            GetItemIcon(menu, japaneseItem, &itemScript);
+            fontScriptMetadata = itemCommand == 0x1C && itemScript == smJapanese;
+        }
         MenuHandle fontMenu = NewMenu(-30200, PSTR("Font test"));
         if (fontMenu) {
             InsertFontResMenu(fontMenu, 0, smRoman);
             fontAPIInserted = Test_MenuContainsName(fontMenu, "Menu Test Family") &&
                               Test_MenuContainsName(fontMenu, "Menu Test Strike");
             DisposeMenu(fontMenu);
+        }
+        MenuHandle japaneseMenu = NewMenu(-30201, PSTR("Japanese font test"));
+        if (japaneseMenu) {
+            InsertFontResMenu(japaneseMenu, 0, smJapanese);
+            filteredFontAPIInserted = Test_MenuContainsName(japaneseMenu, "Menu Test Japanese");
+            DisposeMenu(japaneseMenu);
         }
     }
     DisposeMenu(menu);
@@ -1894,6 +1930,8 @@ static void Test_MenuResourceNames(void) {
     CHECK(literal, "a resource name was interpreted as menu-command metadata");
     CHECK(fontAndFamilyInserted, "FONT insertion did not include both FONT and FOND resources");
     CHECK(fontAPIInserted, "InsertFontResMenu omitted a matching FONT or FOND resource");
+    CHECK(fontScriptMetadata, "international FOND metadata was not stored in the menu item");
+    CHECK(filteredFontAPIInserted, "InsertFontResMenu did not filter by FOND script ID");
     CHECK(intlScriptFilters, "international resource insertion did not filter by script code");
     RecordTest(test_name, true, NULL);
 }

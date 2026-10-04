@@ -25,6 +25,8 @@ short Menu_InsertSortedName(MenuHandle menu, ConstStr255Param name, short first,
 #define _MenuDispatch       0xA825
 #define _SaveRestoreBits    0xA81E
 
+#define MENU_SCRIPT_ITEM_COMMAND 0x1C
+
 #define MENULIST_ADDR           0x0A1C
 #define SYSTEM_MENULIST_ADDR    0x0286
 #define THE_MENU_ADDR           0x0A26

@@ -575,7 +575,8 @@ Boolean FindMenuCommand(short cmdChar, unsigned long modifiers, MenuCmdSearch* s
         for (i = 1; i <= itemCount; i++) {
             char itemCmd = GetMenuItemCmdKey(theMenu, i);
 
-            if (itemCmd == searchChar && itemCmd != 0) {
+            if (itemCmd == searchChar && itemCmd != 0 &&
+                itemCmd != MENU_SCRIPT_ITEM_COMMAND) {
                 /* Found matching command key */
                 search->found = true;
                 search->foundMenuID = menuBar->menus[m].menuID;

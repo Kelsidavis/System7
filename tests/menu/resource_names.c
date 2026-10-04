@@ -75,6 +75,16 @@ void SetMenuItemText(MenuHandle handle, short index, ConstStr255Param name)
     memcpy(items[index - 1], name, name[0] + 1);
     ++writes;
 }
+void SetItemCmd(MenuHandle handle, short index, short command)
+{
+    CHECK(handle == menu && index >= 1 && index <= itemCount);
+    CHECK(command == MENU_SCRIPT_ITEM_COMMAND);
+}
+void SetItemIcon(MenuHandle handle, short index, short icon)
+{
+    CHECK(handle == menu && index >= 1 && index <= itemCount);
+    CHECK(icon > smRoman && icon <= 64);
+}
 
 const DARegistryEntry* DA_GetFirstRegisteredDA(void) { return firstEntry; }
 void SetResLoad(Boolean load) { resourcesLoaded = load; }

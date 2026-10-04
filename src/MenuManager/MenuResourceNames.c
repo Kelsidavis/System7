@@ -91,7 +91,15 @@ static Boolean InsertNamedResources(MenuHandle menu, ResType type, short first, 
         GetResInfo(resource, &id, &resourceType, (char*)name);
         if (filterByScript && ScriptCodeForResourceID(id) != script) continue;
         if (!IsResourceMenuName(name)) continue;
-        if (!Menu_InsertSortedName(menu, name, first, *last)) return false;
+        short item = Menu_InsertSortedName(menu, name, first, *last);
+        if (!item) return false;
+        if (type == FOURCC('F', 'O', 'N', 'D')) {
+            ScriptCode itemScript = ScriptCodeForResourceID(id);
+            if (itemScript > smRoman && itemScript <= 64) {
+                SetItemCmd(menu, item, MENU_SCRIPT_ITEM_COMMAND);
+                SetItemIcon(menu, item, itemScript);
+            }
+        }
         ++*last;
     }
     return true;
