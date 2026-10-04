@@ -27,12 +27,11 @@
 #include "ResourceManager.h"
 #include "MenuManager/MenuManager.h"
 #include "EventManager/EventManager.h"
+#include "SoundManager/SoundManager.h"
 #include "QuickDraw/QuickDraw.h"
 #include "System71StdLib.h"
 #include "FS/vfs.h"
 #include "TimeManager/TimeBase.h"
-
-extern void SysBeep(short duration);
 
 /* Low-memory globals this module keeps that LowMemGlobals.h does not name */
 enum {

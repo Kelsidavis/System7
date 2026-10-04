@@ -16,12 +16,11 @@
 #include "WindowManager/WindowManager.h"
 #include "chicago_font.h"
 #include "FontManager/FontManager.h"
+#include "FontManager/FontInternal.h"
 #include "ResourceManager.h"
 #include "MemoryMgr/MemoryManager.h"
 #include "System71StdLib.h"
 #include "Toolbox/IconUtilities.h"
-
-extern void DrawChar(short ch);
 
 static GrafPtr gQDPort;
 
