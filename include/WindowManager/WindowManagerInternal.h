@@ -14,7 +14,7 @@
 
 #include "SystemTypes.h"
 
-#include "../../include/WindowManager/WindowManager.h"
+#include "WindowManager/WindowManager.h"
 #include "WindowManager/WindowPlatform.h"
 #include "WindowManager/WMLogging.h"
 
@@ -254,20 +254,6 @@ struct WindowManagerState {
     Boolean         isGrowing;         /* Window resize in progress */
 };
 
-/* Access to Window Manager state */
-
-/* Extended window record for internal state tracking */
-
-/* Window update queue entry */
-
-/* Platform-specific data structure */
-
-/* ============================================================================
- * Global State Extensions
- * ============================================================================ */
-
-/* Extended Window Manager state (internal) */
-
 /* ============================================================================
  * Utility Macros
  * ============================================================================ */
@@ -299,10 +285,6 @@ struct WindowManagerState {
 #define WM_WINDOW_IS_ACTIVE(w) (WM_VALID_WINDOW(w) && (w)->hilited)
 #define WM_WINDOW_HAS_CLOSE_BOX(w) (WM_VALID_WINDOW(w) && (w)->goAwayFlag)
 
-#ifdef __cplusplus
-}
-#endif
-
 /* The desktop's redraw hook, and redrawing what has been invalidated. */
 typedef void (*DeskHookProc)(RgnHandle invalidRgn);
 extern DeskHookProc g_deskHook;
@@ -313,5 +295,9 @@ Boolean WM_BufferLost(WindowPtr theWindow, Boolean mark);
 void WM_ForgetLostBuffer(WindowPtr theWindow);
 void SetDeskHook(DeskHookProc proc);
 void WM_Update(void);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* __WINDOW_MANAGER_INTERNAL_H__ */

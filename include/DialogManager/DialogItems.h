@@ -421,11 +421,11 @@ void RemoveDialogItemCache(DialogPtr theDialog);
 #define SetIText        SetDialogItemText
 #define FindDItem       FindDialogItem
 
+/* Refresh an item's cached text pointer after its handle has been written. */
+void DialogItem_SyncText(DialogPtr theDialog, SInt16 itemNo);
+
 #ifdef __cplusplus
 }
 #endif
-
-/* Refresh an item's cached text pointer after its handle has been written. */
-void DialogItem_SyncText(DialogPtr theDialog, SInt16 itemNo);
 
 #endif /* DIALOG_ITEMS_H */
