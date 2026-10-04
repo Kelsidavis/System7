@@ -23,6 +23,8 @@
 #include "DialogManager/DialogLogging.h"
 #include "TimeManager/TimeBase.h"
 
+#define DIALOG_ITEM_CACHE_CAPACITY 32
+
 /* Private structures for item management */
 typedef struct DialogItemCache {
     DialogPtr       dialog;
@@ -35,7 +37,7 @@ typedef struct DialogItemCache {
 /* Global state for dialog items */
 static struct {
     Boolean            initialized;
-    DialogItemCache cache[32];  /* Cache for up to 32 dialogs */
+    DialogItemCache cache[DIALOG_ITEM_CACHE_CAPACITY];
     SInt16         cacheCount;
     SInt16         defaultFont;
     SInt16         defaultSize;
@@ -66,7 +68,7 @@ void InitDialogItems(void)
     gDialogItemState.defaultSize = 12;
 
     /* Initialize cache entries */
-    for (int i = 0; i < 32; i++) {
+    for (int i = 0; i < DIALOG_ITEM_CACHE_CAPACITY; i++) {
         gDialogItemState.cache[i].dialog = NULL;
         gDialogItemState.cache[i].itemCount = 0;
         gDialogItemState.cache[i].items = NULL;
@@ -767,7 +769,8 @@ static DialogItemCache* GetDialogItemCache(DialogPtr theDialog)
 
 static DialogItemCache* CreateDialogItemCache(DialogPtr theDialog)
 {
-    if (!theDialog || gDialogItemState.cacheCount >= 32) {
+    if (!theDialog ||
+        gDialogItemState.cacheCount >= DIALOG_ITEM_CACHE_CAPACITY) {
         return NULL;
     }
 
