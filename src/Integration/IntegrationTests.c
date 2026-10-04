@@ -1179,12 +1179,21 @@ static void Test_Event_FullQueueKeepsNewest(void) {
     }
     OSErr err = PostEvent(mouseDown, 0x1234);
     EventRecord e;
+    EventRecord available;
+    UInt16 queuedBeforePeek = Event_QueueCount();
+    Boolean toolboxPeek = EventAvail(mDownMask, &available) &&
+                          available.what == mouseDown && available.message == 0x1234;
+    Boolean osPeek = OSEventAvail((SInt16)mDownMask, &available) &&
+                     available.what == mouseDown && available.message == 0x1234;
+    Boolean peeksPreservedQueue = Event_QueueCount() == queuedBeforePeek;
     Boolean got = false;
     for (int i = 0; i < 4 && !got; i++) {
         got = GetNextEvent(mDownMask, &e) && e.what == mouseDown && e.message == 0x1234;
     }
     FlushEvents(everyEvent, 0);
     CHECK(err == noErr, "posting to a full queue failed");
+    CHECK(toolboxPeek && osPeek, "event availability did not find the queued click");
+    CHECK(peeksPreservedQueue, "event availability consumed a queued event");
     CHECK(got, "the click posted after the flood was lost");
     RecordTest(test_name, true, "");
 }

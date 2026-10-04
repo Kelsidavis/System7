@@ -26,6 +26,7 @@ static UInt16 gQueueCount = 0;
 /* Forward declarations */
 static UInt16 GetModifiers(void);
 static Boolean DequeueEvent(EventMask mask, EventRecord* evt);
+static Boolean FindQueuedEvent(EventMask mask, EventRecord* evt);
 static Boolean CheckSystemEvents(EventMask mask, EventRecord* evt);
 
 /* Copy fields directly so queue rotation remains defined when a full ring's
@@ -135,15 +136,30 @@ Boolean GetOSEvent(SInt16 mask, EventRecord* evt) {
 
 Boolean OSEventAvail(SInt16 mask, EventRecord* evt) {
     if (!evt) return false;
-    UInt16 index = gQueueHead;
-    for (UInt16 count = gQueueCount; count > 0; count--) {
-        if ((1 << gEventQueue[index].what) & (UInt16)mask) {
-            CopyEventRecord(evt, &gEventQueue[index]);
-            return true;
-        }
-        index = (index + 1) % EVENT_QUEUE_SIZE;
+    if (FindQueuedEvent((EventMask)(UInt16)mask, evt)) {
+        return true;
     }
     NullEventNow(evt);
+    return false;
+}
+
+/* Copy, but do not remove, the first queued event matching mask. */
+static Boolean FindQueuedEvent(EventMask mask, EventRecord* evt) {
+    UInt16 index = gQueueHead;
+    UInt16 count = gQueueCount;
+
+    while (count > 0) {
+        EventRecord* queuedEvent = &gEventQueue[index];
+        EventMask eventBit = (EventMask)1U << queuedEvent->what;
+        if (eventBit & mask) {
+            CopyEventRecord(evt, queuedEvent);
+            return true;
+        }
+
+        index = (index + 1) % EVENT_QUEUE_SIZE;
+        count--;
+    }
+
     return false;
 }
 
@@ -154,27 +170,10 @@ Boolean OSEventAvail(SInt16 mask, EventRecord* evt) {
  * use the same process-aware event queue as GetNextEvent.
  */
 Boolean Proc_EventAvail(EventMask mask, EventRecord* evt) {
-    UInt16 index;
-    UInt16 count;
-
     if (!evt) return false;
 
-    /* Scan queue for matching event */
-    index = gQueueHead;
-    count = gQueueCount;
-
-    while (count > 0) {
-        EventRecord* qEvt = &gEventQueue[index];
-
-        if ((1 << qEvt->what) & mask) {
-            /* Found matching event - copy but don't remove */
-            /* Use memcpy to avoid struct assignment on ARM64 */
-            CopyEventRecord(evt, qEvt);
-            return true;
-        }
-
-        index = (index + 1) % EVENT_QUEUE_SIZE;
-        count--;
+    if (FindQueuedEvent(mask, evt)) {
+        return true;
     }
 
     /* Check system events without consuming */
