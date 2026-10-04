@@ -1006,6 +1006,47 @@ static void Test_Region_Hole(void) {
     RecordTest(test_name, true, "");
 }
 
+static void Test_Region_SetOperations(void) {
+    const char* test_name = "Region_SetOperations";
+    RgnHandle a = NewRgn(), b = NewRgn(), result = NewRgn();
+    if (!a || !b || !result) {
+        if (a) DisposeRgn(a);
+        if (b) DisposeRgn(b);
+        if (result) DisposeRgn(result);
+        RecordTest(test_name, false, "NewRgn failed");
+        return;
+    }
+
+    Rect rectA = { 0, 0, 60, 60 }, rectB = { 20, 20, 80, 80 };
+    Point probes[] = { { 10, 10 }, { 30, 30 }, { 70, 70 }, { 90, 90 } };
+    Boolean difference[4], intersection[4], unionResult[4], xorResult[4];
+    RectRgn(a, &rectA);
+    RectRgn(b, &rectB);
+
+    DiffRgn(a, b, result);
+    for (int i = 0; i < 4; i++) difference[i] = PtInRgn(probes[i], result);
+    SectRgn(a, b, result);
+    for (int i = 0; i < 4; i++) intersection[i] = PtInRgn(probes[i], result);
+    UnionRgn(a, b, result);
+    for (int i = 0; i < 4; i++) unionResult[i] = PtInRgn(probes[i], result);
+    XorRgn(a, b, result);
+    for (int i = 0; i < 4; i++) xorResult[i] = PtInRgn(probes[i], result);
+
+    DisposeRgn(a);
+    DisposeRgn(b);
+    DisposeRgn(result);
+
+    CHECK(difference[0] && !difference[1] && !difference[2] && !difference[3],
+          "DiffRgn returned incorrect membership for overlapping rectangles");
+    CHECK(!intersection[0] && intersection[1] && !intersection[2] && !intersection[3],
+          "SectRgn returned incorrect membership for overlapping rectangles");
+    CHECK(unionResult[0] && unionResult[1] && unionResult[2] && !unionResult[3],
+          "UnionRgn returned incorrect membership for overlapping rectangles");
+    CHECK(xorResult[0] && !xorResult[1] && xorResult[2] && !xorResult[3],
+          "XorRgn returned incorrect membership for overlapping rectangles");
+    RecordTest(test_name, true, "");
+}
+
 /* Repainting a window behind leaves a window inside it alone. */
 static void Test_Window_RepaintAroundInner(void) {
     const char* test_name = "Window_RepaintAroundInner";
@@ -1831,6 +1872,7 @@ void IntegrationTests_Run(void) {
     Test_Draw_SetOrigin();
     Test_Draw_ScrollRect();
     Test_Region_Hole();
+    Test_Region_SetOperations();
     Test_Window_RepaintAroundInner();
     Test_Window_UpdateWithoutBuffer();
     Test_Window_MoveRepaintsUncovered();

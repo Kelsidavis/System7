@@ -632,10 +632,11 @@ pieces. `PtInRgn` and `RectInRgn` test the rectangles rather than the bounding
 box. A region needing more rectangles than the cap collapses to its bounding
 box, which overstates it in the same direction the stubs always did.
 
-Verified with a boot-time test over an L-shaped case: difference,
-intersection, union and xor all produced exact areas, a point in the notch
-tested outside, full coverage gave an empty region, and a disjoint subtrahend
-left the original untouched.
+Integration coverage checks difference, intersection, union, and xor for
+overlapping rectangular regions, and separately checks that subtracting an
+interior rectangle leaves a hole that `PtInRgn` and `RectInRgn` report as
+outside. The tests do not exhaustively verify region fragmentation limits or
+all degenerate and disjoint cases.
 
 **What this unblocked**: the overlapped-window repaint above, and the update
 deferral that stood in for it. `Finder_DeskHook()` now subtracts every visible
