@@ -7,6 +7,7 @@
 #define ARM64_UART_H
 
 #include <stdbool.h>
+#include "Platform/Serial.h"
 
 /* Initialize UART hardware */
 void uart_init(void);
@@ -17,16 +18,10 @@ void uart_putc(char c);
 /* Read single character (returns -1 if none available) */
 int uart_getc(void);
 
-/* Write null-terminated string */
-void uart_puts(const char *str);
-
 /* Check if UART is available */
 bool uart_is_available(void);
 
 /* Check if data is available to read (non-blocking) */
 bool uart_data_ready(void);
-
-/* Flush UART output buffer */
-void uart_flush(void);
 
 #endif /* ARM64_UART_H */

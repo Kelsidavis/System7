@@ -239,8 +239,6 @@ static OSErr CreateStartupWindow(void) {
  * Show welcome screen
  */
 OSErr ShowWelcomeScreen(void) {
-    extern void uart_flush(void);
-
     serial_puts("[WELCOME] enter\n");
     uart_flush();
 

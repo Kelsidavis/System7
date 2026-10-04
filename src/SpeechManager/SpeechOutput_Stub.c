@@ -12,13 +12,7 @@
 
 #include "SystemTypes.h"
 #include "SpeechManager/SpeechOutput.h"
-
-/* Forward declaration of SoundManager function */
-extern OSErr SoundManager_PlayPCM(const uint8_t* data,
-                                  uint32_t sizeBytes,
-                                  uint32_t sampleRate,
-                                  uint8_t channels,
-                                  uint8_t bitsPerSample);
+#include "SoundManager/SoundManager.h"
 
 /* ===== Audio Output Implementation ===== */
 

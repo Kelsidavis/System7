@@ -218,8 +218,6 @@ bool DecodePPAT8(const uint8_t* p, size_t n, uint32_t outRGBA[64]) {
 }
 
 Handle LoadPPATResource(int16_t id) {
-    extern void uart_flush(void);
-
     serial_puts("LoadPPATResource: Loading ppat\n");
     uart_flush();
 

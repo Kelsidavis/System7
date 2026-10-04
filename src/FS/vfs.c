@@ -11,10 +11,6 @@
 #include "OSUtils/OSUtils.h"
 #include "FileManager.h"
 
-/* Serial debug output */
-
-/* Volume buffer - allocated from heap */
-
 /* Maximum mounted volumes */
 #define VFS_MAX_VOLUMES 8
 
@@ -200,8 +196,6 @@ void VFS_Shutdown(void) {
 }
 
 bool VFS_MountBootVolume(const char* volName) {
-    extern void uart_flush(void);
-
     serial_puts("[VFS] MountBootVolume enter\n");
     uart_flush();
 

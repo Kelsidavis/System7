@@ -527,7 +527,6 @@ void WM_DrawGrowImage(WindowPtr window) {
 
 void WM_CalculateStandardWindowRegions(WindowPtr window, short varCode) {
     (void)varCode;
-    extern void uart_flush(void);
     serial_puts("[CALCSTD] enter\n");
     uart_flush();
 

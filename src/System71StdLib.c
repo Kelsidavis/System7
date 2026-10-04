@@ -1,6 +1,7 @@
 /* System 7.1 Standard Library Implementation */
 
 #include "System71StdLib.h"
+#include "Platform/include/io.h"
 #include "DateTime.h"
 #include "MacTypes.h"
 #include "SystemInternal.h"
@@ -8,7 +9,6 @@
 
 #include <stdbool.h>
 
-/* Forward declarations for character classification functions */
 #if defined(__powerpc__) || defined(__powerpc64__)
 #include "Platform/PowerPC/OpenFirmware.h"
 #include "Platform/PowerPC/escc_uart.h"
@@ -1602,8 +1602,6 @@ int rand(void) {
  * whole boot. */
 #define SERIAL_TX_SPIN_LIMIT 100000
 
-#include "Platform/include/io.h"
-
 #define inb(port) hal_inb(port)
 #define outb(port, value) hal_outb(port, value)
 
@@ -1721,7 +1719,6 @@ void serial_puts(const char* str) {
     if (!str) return;
 #if defined(__arm__) || defined(__aarch64__)
     /* ARM/ARM64: use UART driver */
-    extern void uart_puts(const char *s);
     uart_puts(str);
 #elif defined(__powerpc__) || defined(__powerpc64__)
     /* Try OF console first, then fall back to MMIO or just return */

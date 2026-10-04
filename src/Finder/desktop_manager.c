@@ -40,15 +40,13 @@
 #define DVI_DEBUG 0
 
 #if DVI_DEBUG
-#define DVI_LOG(msg) do { extern void serial_puts(const char*); extern void uart_flush(void); serial_puts(msg); uart_flush(); } while(0)
+#define DVI_LOG(msg) do { \
+    serial_puts(msg); \
+    uart_flush(); \
+} while (0)
 #else
 #define DVI_LOG(msg) ((void)0)
 #endif
-
-/* Debug output */
-
-/* External function declarations */
-/* NewPtr now provided by MemoryManager.h */
 
 /* CHICAGO_HEIGHT is defined in chicago_font.h */
 #define CHICAGO_ASCENT 12
@@ -1717,7 +1715,6 @@ Boolean Desktop_IsOverTrash(Point where) {
  */
 void DrawVolumeIcon(void)
 {
-    extern void uart_flush(void);
     static Boolean gInVolumeIconPaint = false;
     GrafPtr savePort;
     RgnHandle savedClip = NULL;

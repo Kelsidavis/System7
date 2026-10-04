@@ -2,6 +2,7 @@
 #define HAL_IO_H
 
 #include <stdint.h>
+#include "Platform/Serial.h"
 
 void hal_outb(uint16_t port, uint8_t value);
 uint8_t hal_inb(uint16_t port);
@@ -14,7 +15,5 @@ uint32_t hal_inl(uint16_t port);
 void hal_io_wait(void);
 void hal_io_delay(uint32_t cycles);
 void hal_io_flush(void);
-void uart_flush(void);
-void uart_puts(const char* s);
 
 #endif /* HAL_IO_H */
