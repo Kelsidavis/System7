@@ -101,7 +101,7 @@ and compatibility with real System 7 applications remains unverified.
 - **Typography**: Chicago bitmap font with per-character advance metrics, extended Mac Roman (0x80-0xFF) for European accented characters
 - **Localization**: user-visible strings come from `STR#` resources through the Locale Manager, in 38 languages; build English only, one language, or all of them (`LOCALE_ALL=1`) and pick one at boot with `lang=xx`; CJK multi-byte encoding infrastructure
 - **Font Manager**: Font scaling and style-width metrics, with bold/underline rendering and incomplete italic support; shadow, outline, and condense/extend rendering are not implemented. FOND/NFNT loading is connected through `GetResource`, but validation against real application resource forks remains limited
-- **Input System**: PS/2 keyboard and mouse, and USB keyboards, mice and tablets (xHCI)
+- **Input System (x86)**: PS/2 keyboard and mouse, plus USB keyboards, mice and tablets (xHCI)
 - **Event Manager**: Cooperative multitasking via WaitNextEvent with unified event queue
 - **Memory Manager**: Zone-based allocation with 68K interpreter integration; on x86 the application zone takes the machine's free RAM
 - **Menu Manager**: Complete dropdown menus with mouse tracking and SaveBits/RestoreBits
