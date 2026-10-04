@@ -417,17 +417,14 @@ void Event_DumpQueue(void) {
 
 /* The Event Manager's public calls, routed to the process-aware versions */
 
-/* Override the canonical GetNextEvent */
 Boolean GetNextEvent(EventMask mask, EventRecord* evt) {
     return Proc_GetNextEvent(mask, evt);
 }
 
-/* Override the canonical EventAvail */
 Boolean EventAvail(EventMask mask, EventRecord* evt) {
     return Proc_EventAvail(mask, evt);
 }
 
-/* Override the canonical PostEvent */
 OSErr PostEvent(EventMask what, UInt32 message) {
     return Proc_PostEvent(what, message);
 }
@@ -436,7 +433,6 @@ OSErr PostEventWithModifiers(EventMask what, UInt32 message, UInt16 modifiers) {
     return Proc_PostEventWithModifiers(what, message, modifiers);
 }
 
-/* Override the canonical FlushEvents */
 void FlushEvents(EventMask whichMask, EventMask stopMask) {
     Proc_FlushEvents(whichMask, stopMask);
 }
