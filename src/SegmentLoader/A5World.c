@@ -77,11 +77,16 @@ OSErr InstallA5World(SegmentLoaderContext* ctx, const CODE0Info* info)
     /* Initialize QuickDraw globals area (below A5, offset -0xA00) */
     if (info->a5BelowSize > 0) {
         UInt8* zeroBuffer = (UInt8*)NewPtr(info->a5BelowSize);
-        if (zeroBuffer) {
-            memset(zeroBuffer, 0, info->a5BelowSize);
-            ctx->cpuBackend->WriteMemory(ctx->cpuAS, belowBase,
-                                        zeroBuffer, info->a5BelowSize);
-            DisposePtr((Ptr)zeroBuffer);
+        if (!zeroBuffer) {
+            return memFullErr;
+        }
+
+        memset(zeroBuffer, 0, info->a5BelowSize);
+        err = ctx->cpuBackend->WriteMemory(ctx->cpuAS, belowBase,
+                                           zeroBuffer, info->a5BelowSize);
+        DisposePtr((Ptr)zeroBuffer);
+        if (err != noErr) {
+            return err;
         }
     }
 
