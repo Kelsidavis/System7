@@ -835,28 +835,26 @@ Implemented hysteresis-based button state debouncing with two-part strategy:
 
 **Previously**: Uncertainty about proper region lifecycle and potential memory leaks.
 
-**Audit Completed**: Comprehensive audit of all NewRgn() calls in WindowManager (January 2025).
+**Historical audit**: An audit of the then-current `NewRgn()` calls was recorded in January 2025. The inventory below describes that audit, not every region allocation in the current tree.
 
-**Findings**:
-- All 6 temporary region allocations properly disposed
-- Window structure regions correctly managed by window lifecycle
-- Global regions (grayRgn) intentionally never disposed
+**Recorded findings**:
+- The temporary regions counted in that audit had matching disposal paths
+- Window structure regions were managed by the window lifecycle
+- The global `grayRgn` was intentionally retained
 - **No memory leaks found**
 
-**Files Audited**:
-- WindowDisplay.c: 5 temporary regions - all properly disposed
-- WindowManagerHelpers.c: 1 temporary region - properly disposed with error handling
-- WindowManagerCore.c: 1 global region - intentionally never disposed
-- WindowRegions.c: AutoRgnHandle infrastructure - correct implementation
+**Files listed in the historical audit**:
+- `WindowDisplay.c`, `WindowManagerHelpers.c`, and `WindowManagerCore.c`
+- `WindowRegions.c` for the ownership-wrapper implementation
 
-**Resolution**: No changes needed. All region management is correct. WindowRegions.h provides AutoRgnHandle pattern for future code.
+**Resolution at the time**: No leak was identified in the audited paths. This does not establish that every current region allocation is leak-free.
 
 **AutoRgnHandle Conversion - FALSE DIAGNOSIS CORRECTED (2025-01-24)**:
 - **Initial attempts** (commits f723621, 0f8364d): Converted temporary regions to AutoRgnHandle but encountered regressions (text rendering outside windows, window dragging broken). Reverted.
 - **False conclusion**: Initially believed AutoRgnHandle pattern was fundamentally broken.
 - **Root cause discovered**: Bugs were **PRE-EXISTING** from commit 4a68085 "Fix window resize and drag coordinate system bugs" which actually BROKE coordinate handling by forcing portRect to LOCAL (0,0,w,h) instead of preserving position offsets.
 - **Resolution** (commit a6964a7): Reverted all WindowManager code to commit 7117509 (last known good state). Both bugs fixed - AutoRgnHandle was never the problem!
-- **Status**: AutoRgnHandle pattern is CORRECT and ready for use. Converting temporary regions to AutoRgnHandle is safe and will improve code clarity.
+- **Status at the time**: The ownership wrapper was considered usable. It tracks ownership but does not automatically dispose regions; callers must explicitly clean up on every exit path.
 
 ---
 
@@ -1021,13 +1019,13 @@ Implemented dirty rectangle intersection when available:
 
 **Previously**: Manual `DisposeRgn()` calls were easily forgotten on error paths.
 
-**Fix**: Implemented `AutoRgnHandle` RAII-style pattern with guaranteed cleanup.
+**Fix**: Added `AutoRgnHandle` ownership tracking and explicit cleanup helpers. This is not RAII: callers must invoke `WM_DisposeAutoRgn()` on every owning exit path.
 
 **Files**:
 - `include/WindowManager/WindowRegions.h`
 - `src/WindowManager/WindowRegions.c`
 
-**Impact**: Prevents region leaks even on early returns.
+**Impact**: Makes region ownership explicit and provides a shared disposal operation; cleanup on early returns remains the caller's responsibility.
 
 ---
 
