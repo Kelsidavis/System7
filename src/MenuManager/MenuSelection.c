@@ -335,7 +335,6 @@ short MenuSelectEx(Point startPt, MenuTrackInfo* trackInfo, MenuSelection* selec
                 /* Provide feedback */
                 FlashMenuFeedback(currentMenu, currentItem);
 
-                /* MENU_LOG_TRACE("Menu selection: menu %d, item %d\n", currentMenu, currentItem); */
                 break;
             } else {
                 /* Invalid selection - cancel */
@@ -414,8 +413,6 @@ long MenuKeyEx(short keyChar, unsigned long modifiers, MenuCmdSearch* search)
             MENU_LOG_TRACE("Command key '%c' found but disabled: menu %d, item %d\n",
                    keyChar, search->foundMenuID, search->foundItem);
         }
-    } else {
-        /* MENU_LOG_TRACE("Command key '%c' not found\n", keyChar); */
     }
 
     /* Store last choice */
@@ -451,8 +448,6 @@ short TrackMenuBar(Point startPt, MenuTrackInfo* trackInfo)
 
     /* Find menu under initial point */
     menuUnderMouse = FindMenuAtPoint(startPt);
-
-    /* MENU_LOG_TRACE("Tracking menu bar starting at menu %d\n", menuUnderMouse); */
 
     /* Track mouse until it leaves menu bar or button is released */
     do {
@@ -491,8 +486,6 @@ short TrackPullDownMenu(MenuHandle theMenu, const Rect* menuRect,
     if (theMenu == NULL || menuRect == NULL) {
         return 0;
     }
-
-    /* MENU_LOG_TRACE("Tracking pull-down menu %d\n", (*(MenuInfo**)theMenu)->menuID); */
 
     /* Track mouse in menu */
     do {
@@ -637,8 +630,6 @@ Boolean ExecuteMenuCommand(short menuID, short item, Boolean flash)
     /* Store as last choice */
     gLastMenuChoice = PackMenuChoice(menuID, item);
 
-    /* MENU_LOG_TRACE("Executed menu command: menu %d, item %d\n", menuID, item); */
-
     return true;
 }
 
@@ -658,7 +649,6 @@ void BeginMenuTracking(MenuTrackInfo* trackInfo)
     InitializeTrackingState(trackInfo);
     gTrackingActive = true;
 
-    /* MENU_LOG_TRACE("Beginning menu tracking session\n"); */
 }
 
 /*
@@ -673,7 +663,6 @@ void EndMenuTracking(MenuTrackInfo* trackInfo)
     CleanupTrackingState(trackInfo);
     gTrackingActive = false;
 
-    /* MENU_LOG_TRACE("Ending menu tracking session\n"); */
 }
 
 /*
@@ -1147,27 +1136,3 @@ static unsigned long GetCurrentTime(void)
 {
     return TickCount();
 }
-
-/* ============================================================================
- * Debug Functions
- * ============================================================================ */
-
-#ifdef DEBUG
-void PrintMenuSelectionState(void)
-{
-    /* MENU_LOG_TRACE("=== Menu Selection State ===\n"); */
-    /* MENU_LOG_TRACE("Tracking active: %s\n", gTrackingActive ? "Yes" : "No"); */
-    /* MENU_LOG_TRACE("Last menu choice: 0x%08lX\n", gLastMenuChoice); */
-    /* MENU_LOG_TRACE("Last selection:\n"); */
-    /* MENU_LOG_TRACE("  Menu ID: %d\n", gLastSelection.menuID); */
-    /* MENU_LOG_TRACE("  Item ID: %d\n", gLastSelection.itemID); */
-    /* MENU_LOG_TRACE("  Valid: %s\n", gLastSelection.valid ? "Yes" : "No"); */
-    /* MENU_LOG_TRACE("  Cancelled: %s\n", gLastSelection.cancelled ? "Yes" : "No"); */
-    /* MENU_LOG_TRACE("Tracking state:\n"); */
-    /* MENU_LOG_TRACE("  State: %d\n", gTrackingState.trackingState); */
-    /* MENU_LOG_TRACE("  Current menu: %s\n", gTrackingState.currentMenu ? "Yes" : "No"); */
-    /* MENU_LOG_TRACE("  Current item: %d\n", gTrackingState.currentItem); */
-    /* MENU_LOG_TRACE("  Mouse down: %s\n", gTrackingState.mouseDown ? "Yes" : "No"); */
-    /* MENU_LOG_TRACE("==========================\n"); */
-}
-#endif
