@@ -291,6 +291,7 @@ C_SOURCES = src/main.c \
               src/Platform/arm/device_tree.c \
               src/Platform/arm/hardware_detect.c \
               src/Platform/arm/platform_info.c \
+              src/Platform/platform_info_common.c \
               src/Platform/arm/mmio.c \
               src/Platform/arm/videocore.c \
               src/Platform/arm/framebuffer.c \
@@ -309,6 +310,7 @@ C_SOURCES = src/main.c \
                 src/Platform/ppc/hal_boot.c \
                 src/Platform/ppc/io.c \
                 src/Platform/ppc/platform_info.c \
+                src/Platform/platform_info_common.c \
                 src/Platform/ppc/hal_input.c \
                 src/Platform/ppc/storage.c \
                 src/Platform/ppc/open_firmware.c \
@@ -332,6 +334,7 @@ C_SOURCES = src/main.c \
                 src/Platform/x86/pit.c \
                 src/Platform/x86/rtc.c \
                 src/Platform/x86/platform_info.c \
+                src/Platform/platform_info_common.c \
                 src/Platform/x86/hal_boot.c \
                 src/Platform/x86/hal_input.c))) \
             src/SoundManager/SoundManagerBareMetal.c \

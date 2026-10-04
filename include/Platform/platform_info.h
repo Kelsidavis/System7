@@ -6,6 +6,7 @@
 #ifndef PLATFORM_INFO_H
 #define PLATFORM_INFO_H
 
+#include <stddef.h>
 #include <stdint.h>
 
 /* Platform types */
