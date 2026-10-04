@@ -2,9 +2,8 @@
  * @file MouseEvents.h
  * @brief Mouse Event Processing for System 7.1 Event Manager
  *
- * This file provides comprehensive mouse event handling including
- * clicks, drags, movement detection, and modern mouse features
- * like scroll wheels and multi-button mice.
+ * This file provides mouse event handling for clicks, drags, pointer
+ * movement, multi-button input, and mouse settings.
  *
  * Copyright (c) 2024 System 7.1 Portable Project
  * All rights reserved.
@@ -15,33 +14,13 @@
 
 #include "SystemTypes.h"
 
-/* Forward declarations */
-
-
 #include "EventTypes.h"
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-/* Forward declarations */
 typedef struct MouseTrackingState MouseTrackingState;
-
-/* Mouse button identifiers */
-
-/* Mouse event subtypes */
-
-/* Drag operation types */
-
-/* Mouse tracking state */
-
-/* Multi-click detection */
-
-/* Mouse region tracking */
-
-/* Mouse event context */
-
-/* Callback function types */
 
 /*---------------------------------------------------------------------------
  * Core Mouse Event API

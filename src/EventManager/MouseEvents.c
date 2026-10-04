@@ -6,9 +6,8 @@
  * @file MouseEvents.c
  * @brief Mouse Event Processing Implementation for System 7.1
  *
- * This file provides comprehensive mouse event handling including
- * clicks, drags, movement detection, double-click timing, and
- * modern mouse features like scroll wheels and multi-button support.
+ * This file provides mouse event handling for clicks, drags, pointer
+ * movement, multi-button input, and mouse settings.
  *
  * Copyright (c) 2024 System 7.1 Portable Project
  * All rights reserved.
