@@ -22,6 +22,7 @@
 #include "WindowManager/WindowManager.h"
 #include "QuickDraw/QuickDraw.h"
 #include "QuickDraw/ColorQuickDraw.h"
+#include "SystemInternal.h"
 #include "Platform/Framebuffer.h"
 #include "QuickDrawConstants.h"
 #include "DialogManager/DialogManager.h"
@@ -1355,6 +1356,40 @@ static void Test_Draw_CopyBits1Bit(void) {
     RecordTest(test_name, true, "");
 }
 
+static void Test_Cursor_VisibilityAndObscure(void) {
+    const char* test_name = "Cursor_VisibilityAndObscure";
+    Point mouse, moved;
+
+    InitCursor();
+    Boolean initializedVisible = IsCursorVisible();
+    GetMouse(&mouse);
+    CursorManager_HandleMouseMotion(mouse);
+
+    HideCursor();
+    HideCursor();
+    Boolean hidden = !IsCursorVisible();
+    ShowCursor();
+    Boolean nestedHidePreserved = !IsCursorVisible();
+    ShowCursor();
+    Boolean shown = IsCursorVisible();
+
+    ObscureCursor();
+    Boolean obscured = !IsCursorVisible();
+    moved = mouse;
+    moved.h = moved.h == 32767 ? moved.h - 1 : moved.h + 1;
+    CursorManager_HandleMouseMotion(moved);
+    Boolean revealed = IsCursorVisible();
+
+    InitCursor();
+    CHECK(initializedVisible, "InitCursor did not make the cursor visible");
+    CHECK(hidden, "HideCursor did not hide the cursor");
+    CHECK(nestedHidePreserved, "ShowCursor cleared more than one hide level");
+    CHECK(shown, "balanced ShowCursor calls did not reveal the cursor");
+    CHECK(obscured, "ObscureCursor did not hide the cursor");
+    CHECK(revealed, "mouse movement did not reveal the obscured cursor");
+    RecordTest(test_name, true, "");
+}
+
 /* A 68K application's heap: handles follow their blocks when they grow,
  * RecoverHandle finds the master pointer, flags live in its top byte. */
 static void Test_M68K_Heap(void) {
@@ -1933,6 +1968,7 @@ void IntegrationTests_Run(void) {
     Test_Resource_ReleaseThenGet();
     Test_Draw_PolygonRecording();
     Test_Draw_CopyBits1Bit();
+    Test_Cursor_VisibilityAndObscure();
     Test_M68K_Heap();
     Test_Dialog_AlertLayout();
     Test_Dialog_IconItem();
