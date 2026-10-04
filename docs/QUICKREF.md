@@ -46,12 +46,16 @@ quit                          # Exit GDB
 The repository quality gates are:
 
 ```bash
-make check           # x86 build/layout, allocator and definition audits, docs, tests, and exports
+make check           # x86 build/layout, allocators, docs, Python style, tests, and exports
 make analyze         # x86 build with GCC's static analyzer
 make analyze-arm     # ARM32 build with GCC's static analyzer
 make analyze-arm64   # ARM64 build with GCC's static analyzer
 make check-arm64     # ARM64 build and segment-permission checks
 ```
+
+`make check` requires Ruff for Python lint and formatting. See the
+[development setup](CONTRIBUTING.md#development-setup) for installing the pinned
+tool.
 
 ## File Locations
 

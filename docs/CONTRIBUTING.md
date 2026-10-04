@@ -38,9 +38,18 @@ Thank you for your interest in the System 7 reimplementation project! This is an
 ### Prerequisites
 ```bash
 # Ubuntu/Debian
-sudo apt-get install build-essential gcc-multilib grub-pc-bin grub-efi-amd64-bin mtools xorriso qemu-system-x86 python3 vim-common
+sudo apt-get install build-essential gcc-multilib grub-pc-bin grub-efi-amd64-bin mtools xorriso qemu-system-x86 python3 python3-venv vim-common
 
 # Other distros - install equivalent packages
+```
+
+Install the pinned Python lint and formatting tool before running the quality
+gate:
+
+```bash
+python3 -m venv .venv
+.venv/bin/pip install -r requirements-dev.txt
+source .venv/bin/activate
 ```
 
 ### Building

@@ -1004,6 +1004,12 @@ check-doc-links:
 test-doc-links:
 	@PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s tests -p 'test_markdown_links.py'
 
+# Enforce the checked-in Python lint and formatting configuration.
+.PHONY: check-python-style
+check-python-style:
+	@ruff check .
+	@ruff format --check .
+
 # Differential test of the in-tree C string/memory routines against the host
 # libc, with guard bytes around every destination buffer. Needs no kernel
 # build - it extracts the pure routines from src/System71StdLib.c and compiles
@@ -1026,7 +1032,7 @@ test-integration:
 # references, differential libc tests, and required export checks.
 .PHONY: check
 check: all check-x86-layout check-malloc check-shadowed-defs check-doc-links \
-	test-doc-links test-stdlib test-integration-runner check-exports
+	test-doc-links check-python-style test-stdlib test-integration-runner check-exports
 
 # GCC's path-sensitive static analyzer adds ownership, bounds, and null-path
 # diagnostics to the standard strict builds.
@@ -1095,6 +1101,7 @@ help: ## Show this help message
 	@echo "  check-shadowed-defs Run dead-code and duplicate-definition checks"
 	@echo "  check-doc-links  Reject broken Markdown links and repository paths"
 	@echo "  test-doc-links   Test the Markdown reference checker"
+	@echo "  check-python-style Run Python lint and formatting checks"
 	@echo "  check-exports    Validate exported symbol surface"
 	@echo "  test-integration Build, boot, and run guest integration tests"
 	@echo "  info             Show build statistics"
