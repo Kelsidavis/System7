@@ -437,27 +437,9 @@ static OSErr TE_CopyToScrap(TEHandle hTE) {
 
     /* Copy style information if styled */
     if (pTE->hStyles) {
-        /* Define style structures - internal to this file */
-        typedef struct {
-            SInt16 nStyles;
-            TextStyle styles[1];
-        } StyleTable;
-
-        typedef struct {
-            SInt16 nRuns;
-            StyleRun runs[1];
-        } RunArray;
-
-        typedef struct {
-            SInt16 nRuns;
-            SInt16 nStyles;
-            Handle styleTab;
-            Handle runArray;
-        } STRec_Style;
-
-        STRec_Style *stRec;
-        StyleTable *styleTab;
-        RunArray *runArr;
+        STRec *stRec;
+        TEStyleTable *styleTab;
+        TERunArray *runArr;
         SInt16 runIndex;
         SInt32 currentOffset;
         SInt32 selStart = (**teRec).selStart;
@@ -490,7 +472,7 @@ static OSErr TE_CopyToScrap(TEHandle hTE) {
 
         /* Lock style data to access run array and style table */
         HLock(pTE->hStyles);
-        stRec = (STRec_Style*)HandleDataAligned(pTE->hStyles);
+        stRec = (STRec*)HandleDataAligned(pTE->hStyles);
 
         if (stRec && stRec->runArray && *stRec->runArray &&
             stRec->styleTab && *stRec->styleTab) {
@@ -498,8 +480,8 @@ static OSErr TE_CopyToScrap(TEHandle hTE) {
             HLock(stRec->runArray);
             HLock(stRec->styleTab);
 
-            runArr = (RunArray*)HandleDataAligned(stRec->runArray);
-            styleTab = (StyleTable*)HandleDataAligned(stRec->styleTab);
+            runArr = (TERunArray*)HandleDataAligned(stRec->runArray);
+            styleTab = (TEStyleTable*)HandleDataAligned(stRec->styleTab);
 
             /* Iterate through style runs, finding those that overlap selection */
             for (runIndex = 0; runArr && styleTab && runIndex < runArr->nRuns &&

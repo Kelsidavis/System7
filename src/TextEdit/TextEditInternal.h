@@ -3,6 +3,16 @@
 
 #include "TextEdit/TextEdit.h"
 
+typedef struct TEStyleTable {
+    SInt16 nStyles;
+    TextStyle styles[1];
+} TEStyleTable;
+
+typedef struct TERunArray {
+    SInt16 nRuns;
+    StyleRun runs[1];
+} TERunArray;
+
 typedef struct TEExtRec {
     TERec base;
     Handle hLines;

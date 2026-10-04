@@ -36,25 +36,6 @@
 #define CARET_WIDTH     1
 #define CARET_BLINK     30      /* Ticks between blinks */
 
-/* Style structures - must match TextFormatting.c */
-typedef struct StyleTable {
-    SInt16      nStyles;
-    TextStyle   styles[1];
-} StyleTable;
-
-typedef struct RunArray {
-    SInt16      nRuns;
-    StyleRun    runs[1];
-} RunArray;
-
-typedef struct STRec_Internal {
-    SInt16      nRuns;
-    SInt16      nStyles;
-    Handle      styleTab;
-    Handle      runArray;
-    Handle      lineHeights;
-} STRec_Internal;
-
 /* Forward declarations */
 static void TE_DrawLineSegment(TEHandle hTE, SInt32 start, SInt32 end,
                                SInt16 x, SInt16 y, Boolean selected);
@@ -577,9 +558,9 @@ SInt16 TEGetOffset(Point pt, TEHandle hTE) {
 static void TE_DrawStyledSegment(TEHandle hTE, SInt32 start, SInt32 end,
                                  SInt16 x, SInt16 y, Boolean selected) {
     TEExtPtr pTE;
-    STRec_Internal* stRec;
-    RunArray* runArr;
-    StyleTable* styleTab;
+    STRec* stRec;
+    TERunArray* runArr;
+    TEStyleTable* styleTab;
     char *pText;
     SInt32 pos, nextPos;
     SInt16 currentX;
@@ -598,7 +579,7 @@ static void TE_DrawStyledSegment(TEHandle hTE, SInt32 start, SInt32 end,
         return;
     }
 
-    stRec = (STRec_Internal*)HandleDataAligned(pTE->hStyles);
+    stRec = (STRec*)HandleDataAligned(pTE->hStyles);
     if (!stRec->runArray || !*stRec->runArray ||
         !stRec->styleTab || !*stRec->styleTab) {
         /* Invalid style record */
@@ -607,8 +588,8 @@ static void TE_DrawStyledSegment(TEHandle hTE, SInt32 start, SInt32 end,
         return;
     }
 
-    runArr = (RunArray*)HandleDataAligned(stRec->runArray);
-    styleTab = (StyleTable*)HandleDataAligned(stRec->styleTab);
+    runArr = (TERunArray*)HandleDataAligned(stRec->runArray);
+    styleTab = (TEStyleTable*)HandleDataAligned(stRec->styleTab);
 
     HLock(pTE->base.hText);
     pText = *pTE->base.hText;
@@ -740,9 +721,9 @@ static void TE_DrawLineSegment(TEHandle hTE, SInt32 start, SInt32 end,
  */
 static SInt16 TE_MeasureText(TEHandle hTE, SInt32 start, SInt32 length) {
     TEExtPtr pTE;
-    STRec_Internal* stRec;
-    RunArray* runArr;
-    StyleTable* styleTab;
+    STRec* stRec;
+    TERunArray* runArr;
+    TEStyleTable* styleTab;
     char *pText;
     SInt16 width;
     SInt32 pos, end, nextPos;
@@ -770,7 +751,7 @@ static SInt16 TE_MeasureText(TEHandle hTE, SInt32 start, SInt32 length) {
         return width;
     }
 
-    stRec = (STRec_Internal*)HandleDataAligned(pTE->hStyles);
+    stRec = (STRec*)HandleDataAligned(pTE->hStyles);
     if (!stRec->runArray || !*stRec->runArray ||
         !stRec->styleTab || !*stRec->styleTab) {
         /* Invalid style record - use plain measurement */
@@ -786,8 +767,8 @@ static SInt16 TE_MeasureText(TEHandle hTE, SInt32 start, SInt32 length) {
         return width;
     }
 
-    runArr = (RunArray*)HandleDataAligned(stRec->runArray);
-    styleTab = (StyleTable*)HandleDataAligned(stRec->styleTab);
+    runArr = (TERunArray*)HandleDataAligned(stRec->runArray);
+    styleTab = (TEStyleTable*)HandleDataAligned(stRec->styleTab);
 
     HLock(pTE->base.hText);
     pText = *pTE->base.hText;

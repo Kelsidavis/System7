@@ -63,16 +63,6 @@ static void TE_InitRecord(TEHandle hTE, const Rect *destRect, const Rect *viewRe
 static OSErr TE_GrowTextBuffer(TEHandle hTE, SInt32 newSize);
 static void TE_SetDefaultStyle(TEHandle hTE);
 
-typedef struct TEStyleTableForQuery {
-    SInt16 nStyles;
-    TextStyle styles[1];
-} TEStyleTableForQuery;
-
-typedef struct TERunArrayForQuery {
-    SInt16 nRuns;
-    StyleRun runs[1];
-} TERunArrayForQuery;
-
 /* ============================================================================
  * Initialization
  * ============================================================================ */
@@ -231,8 +221,8 @@ TEHandle TEStyleNew(const Rect *destRect, const Rect *viewRect) {
     HLock((Handle)hTE);
     pTE = (TEExtPtr)*hTE;
     HLock(pStyles->styleTab);
-    TEStyleTableForQuery *styleTable =
-        (TEStyleTableForQuery *)HandleDataAligned(pStyles->styleTab);
+    TEStyleTable *styleTable =
+        (TEStyleTable *)HandleDataAligned(pStyles->styleTab);
     if (styleTable) {
         styleTable->nStyles = 1;
         styleTable->styles[0].tsFont = pTE->base.txFont;
@@ -242,8 +232,8 @@ TEHandle TEStyleNew(const Rect *destRect, const Rect *viewRect) {
     HUnlock(pStyles->styleTab);
 
     HLock(pStyles->runArray);
-    TERunArrayForQuery *runArray =
-        (TERunArrayForQuery *)HandleDataAligned(pStyles->runArray);
+    TERunArray *runArray =
+        (TERunArray *)HandleDataAligned(pStyles->runArray);
     if (runArray) {
         runArray->nRuns = 1;
         runArray->runs[0].startChar = 0;
@@ -293,26 +283,17 @@ void TEGetStyle(SInt32 offset, TextStyle *theStyle,
     ascent = pTE->base.fontAscent;
 
     if (pTE->hStyles && *pTE->hStyles) {
-        typedef struct TEStyleRecordForQuery {
-            SInt16 nRuns;
-            SInt16 nStyles;
-            Handle styleTab;
-            Handle runArray;
-            Handle lineHeights;
-        } TEStyleRecordForQuery;
-
         HLock(pTE->hStyles);
-        TEStyleRecordForQuery *styleRec =
-            (TEStyleRecordForQuery *)HandleDataAligned(pTE->hStyles);
+        STRec *styleRec = (STRec *)HandleDataAligned(pTE->hStyles);
         if (styleRec && styleRec->styleTab && *styleRec->styleTab) {
             HLock(styleRec->styleTab);
-            TEStyleTableForQuery *table =
-                (TEStyleTableForQuery *)HandleDataAligned(styleRec->styleTab);
+            TEStyleTable *table =
+                (TEStyleTable *)HandleDataAligned(styleRec->styleTab);
             SInt16 styleIndex = 0;
             if (styleRec->runArray && *styleRec->runArray) {
                 HLock(styleRec->runArray);
-                TERunArrayForQuery *runs =
-                    (TERunArrayForQuery *)HandleDataAligned(styleRec->runArray);
+                TERunArray *runs =
+                    (TERunArray *)HandleDataAligned(styleRec->runArray);
                 if (runs) {
                     for (SInt16 i = 0; i < runs->nRuns; i++) {
                         if (runs->runs[i].startChar > offset) break;
