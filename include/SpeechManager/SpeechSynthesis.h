@@ -95,19 +95,6 @@ OSErr SynthesizeSSML(SynthEngineRef engine, const char *ssmlText, long ssmlLengt
 OSErr GetEngineStatistics(SynthEngineRef engine, long *totalSyntheses, long *totalBytes,
                           long *averageSpeed, long *errorCount);
 
-/* ===== Platform Integration ===== */
-
-/* Platform-specific engine support */
-#ifdef PLATFORM_REMOVED_WIN32
-#endif
-
-#ifdef PLATFORM_REMOVED_APPLE
-#endif
-
-#ifdef PLATFORM_REMOVED_LINUX
-#endif
-
-
 #ifdef __cplusplus
 }
 #endif

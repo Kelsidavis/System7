@@ -227,19 +227,6 @@ OSErr WriteAudioToFile(const char *filePath, const void *audioData, long dataSiz
 /* Buffer callback */
 
 
-/* ===== Platform Integration ===== */
-
-/* Platform-specific audio support */
-#ifdef PLATFORM_REMOVED_WIN32
-#endif
-
-#ifdef PLATFORM_REMOVED_APPLE
-#endif
-
-#ifdef PLATFORM_REMOVED_LINUX
-#endif
-
-
 /* ===== Audio Utilities ===== */
 
 /* Format conversion */

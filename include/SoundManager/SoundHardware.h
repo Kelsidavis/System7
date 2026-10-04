@@ -167,17 +167,6 @@ void AudioConvertChannels(SInt16* srcBuffer, UInt16 srcChannels,
                          SInt16* dstBuffer, UInt16 dstChannels,
                          UInt32 frameCount);
 
-/* Platform-specific Hardware Implementations */
-#ifdef PLATFORM_REMOVED_LINUX
-#endif
-
-#ifdef PLATFORM_REMOVED_APPLE
-#endif
-
-#ifdef PLATFORM_REMOVED_WIN32
-#endif
-
-
 /* Stream Event Types */
 #define AUDIO_STREAM_EVENT_STARTED      1
 #define AUDIO_STREAM_EVENT_STOPPED      2
