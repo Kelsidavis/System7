@@ -2,20 +2,22 @@
 """
 Convert WAV file to C header with embedded data
 """
+
 import sys
 import struct
 
+
 def parse_wav(filename):
-    with open(filename, 'rb') as f:
+    with open(filename, "rb") as f:
         # Read RIFF header
         riff = f.read(4)
-        if riff != b'RIFF':
+        if riff != b"RIFF":
             print("Error: Not a RIFF file", file=sys.stderr)
             return None
 
-        _file_size = struct.unpack('<I', f.read(4))[0]
+        _file_size = struct.unpack("<I", f.read(4))[0]
         wave = f.read(4)
-        if wave != b'WAVE':
+        if wave != b"WAVE":
             print("Error: Not a WAVE file", file=sys.stderr)
             return None
 
@@ -24,33 +26,33 @@ def parse_wav(filename):
             chunk_id = f.read(4)
             if not chunk_id:
                 break
-            chunk_size = struct.unpack('<I', f.read(4))[0]
+            chunk_size = struct.unpack("<I", f.read(4))[0]
 
-            if chunk_id == b'fmt ':
+            if chunk_id == b"fmt ":
                 fmt_data = f.read(chunk_size)
-                audio_format = struct.unpack('<H', fmt_data[0:2])[0]
-                num_channels = struct.unpack('<H', fmt_data[2:4])[0]
-                sample_rate = struct.unpack('<I', fmt_data[4:8])[0]
-                _byte_rate = struct.unpack('<I', fmt_data[8:12])[0]
-                _block_align = struct.unpack('<H', fmt_data[12:14])[0]
-                bits_per_sample = struct.unpack('<H', fmt_data[14:16])[0]
+                audio_format = struct.unpack("<H", fmt_data[0:2])[0]
+                num_channels = struct.unpack("<H", fmt_data[2:4])[0]
+                sample_rate = struct.unpack("<I", fmt_data[4:8])[0]
+                _byte_rate = struct.unpack("<I", fmt_data[8:12])[0]
+                _block_align = struct.unpack("<H", fmt_data[12:14])[0]
+                bits_per_sample = struct.unpack("<H", fmt_data[14:16])[0]
 
                 print(f"// WAV Format: {audio_format} (1=PCM)", file=sys.stderr)
                 print(f"// Channels: {num_channels}", file=sys.stderr)
                 print(f"// Sample Rate: {sample_rate} Hz", file=sys.stderr)
                 print(f"// Bit Depth: {bits_per_sample}", file=sys.stderr)
 
-            elif chunk_id == b'data':
+            elif chunk_id == b"data":
                 data_size = chunk_size
                 data = f.read(chunk_size)
                 print(f"// Data Size: {data_size} bytes", file=sys.stderr)
 
                 return {
-                    'sample_rate': sample_rate,
-                    'channels': num_channels,
-                    'bits_per_sample': bits_per_sample,
-                    'data': data,
-                    'data_size': data_size
+                    "sample_rate": sample_rate,
+                    "channels": num_channels,
+                    "bits_per_sample": bits_per_sample,
+                    "data": data,
+                    "data_size": data_size,
                 }
             else:
                 # Skip unknown chunk
@@ -58,8 +60,9 @@ def parse_wav(filename):
 
         return None
 
+
 def generate_c_header(wav_info, output_file):
-    with open(output_file, 'w') as f:
+    with open(output_file, "w") as f:
         f.write("/* Auto-generated WAV data */\n\n")
         f.write("#ifndef CHIME_WAV_DATA_H\n")
         f.write("#define CHIME_WAV_DATA_H\n\n")
@@ -72,16 +75,17 @@ def generate_c_header(wav_info, output_file):
 
         f.write("const uint8_t chime_wav_data[] = {\n")
 
-        data = wav_info['data']
+        data = wav_info["data"]
         for i in range(0, len(data), 16):
-            chunk = data[i:i+16]
-            hex_values = ', '.join(f'0x{b:02x}' for b in chunk)
+            chunk = data[i : i + 16]
+            hex_values = ", ".join(f"0x{b:02x}" for b in chunk)
             f.write(f"    {hex_values},\n")
 
         f.write("};\n\n")
         f.write("#endif /* CHIME_WAV_DATA_H */\n")
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     if len(sys.argv) != 3:
         print(f"Usage: {sys.argv[0]} <input.wav> <output.h>")
         sys.exit(1)

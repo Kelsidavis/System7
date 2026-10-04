@@ -8,6 +8,7 @@ only jump table entry; CODE 0 gives the A5 world's sizes and that entry, and
 SIZE -1 asks for a 384K partition. MacBinary carries both forks and the
 Finder type and creator, which is how hcopy -m puts a file on an HFS disk.
 """
+
 import struct
 import sys
 import time
@@ -29,10 +30,14 @@ def resource_fork(resources):
 
     type_list = struct.pack(">h", len(types) - 1)
     ref_lists = b""
-    ref_base = 2 + 8 * len(types)          # from the start of the type list
+    ref_base = 2 + 8 * len(types)  # from the start of the type list
     for rtype in types:
-        refs = [(rid, off) for (t, rid, _), off in zip(resources, offsets) if t == rtype]
-        type_list += rtype + struct.pack(">hH", len(refs) - 1, ref_base + len(ref_lists))
+        refs = [
+            (rid, off) for (t, rid, _), off in zip(resources, offsets) if t == rtype
+        ]
+        type_list += rtype + struct.pack(
+            ">hH", len(refs) - 1, ref_base + len(ref_lists)
+        )
         for rid, off in refs:
             ref_lists += struct.pack(">hhI I", rid, -1, off & 0xFFFFFF, 0)
 
@@ -60,11 +65,11 @@ def crc16(data):
 
 
 def macbinary(name, ftype, creator, data_fork, rsrc_fork):
-    now = int(time.time()) + 2082844800      # seconds since 1904
+    now = int(time.time()) + 2082844800  # seconds since 1904
     hdr = bytearray(128)
     nb = name.encode("mac_roman")
     hdr[1] = len(nb)
-    hdr[2:2 + len(nb)] = nb
+    hdr[2 : 2 + len(nb)] = nb
     hdr[65:69] = ftype
     hdr[69:73] = creator
     hdr[83:87] = struct.pack(">I", len(data_fork))
@@ -84,12 +89,15 @@ def macbinary(name, ftype, creator, data_fork, rsrc_fork):
 # ---- Resource builders, for an application's NAME.r.py --------------------
 # Each returns the resource's data in the layout Inside Macintosh gives it.
 
+
 def pstr(s):
     b = s.encode("mac_roman")
     return bytes([len(b)]) + b
 
+
 def rect(top, left, bottom, right):
     return struct.pack(">hhhh", top, left, bottom, right)
+
 
 def menu(menu_id, title, items):
     """items: list of (text, key) - key "" for none; text "-" is a line.
@@ -102,14 +110,23 @@ def menu(menu_id, title, items):
         body += pstr(text) + bytes([0, ord(key) if key else 0, 0, 0])
     return struct.pack(">hhhIi", menu_id, 0, 0, 0, flags) + pstr(title) + body + b"\0"
 
+
 def mbar(*ids):
     return struct.pack(">h", len(ids)) + b"".join(struct.pack(">h", i) for i in ids)
 
+
 def wind(bounds, title, proc=0, visible=True, go_away=True, refcon=0):
-    return rect(*bounds) + struct.pack(">hhhi", proc, 0x100 if visible else 0,
-                                       0x100 if go_away else 0, refcon) + pstr(title)
+    return (
+        rect(*bounds)
+        + struct.pack(
+            ">hhhi", proc, 0x100 if visible else 0, 0x100 if go_away else 0, refcon
+        )
+        + pstr(title)
+    )
+
 
 BUTTON, CHECKBOX, RADIO, STATTEXT, EDITTEXT, USERITEM = 4, 5, 6, 8, 16, 0
+
 
 def ditl(*items):
     """items: (type, rect, text)"""
@@ -121,12 +138,24 @@ def ditl(*items):
             out += b"\0"
     return out
 
+
 def alrt(bounds, ditl_id, stages=0x5555):
     return rect(*bounds) + struct.pack(">hH", ditl_id, stages)
 
+
 def dlog(bounds, ditl_id, title="", proc=1, visible=True, go_away=False, refcon=0):
-    return rect(*bounds) + struct.pack(">hhhih", proc, 0x100 if visible else 0,
-                                       0x100 if go_away else 0, refcon, ditl_id) + pstr(title)
+    return (
+        rect(*bounds)
+        + struct.pack(
+            ">hhhih",
+            proc,
+            0x100 if visible else 0,
+            0x100 if go_away else 0,
+            refcon,
+            ditl_id,
+        )
+        + pstr(title)
+    )
 
 
 def main():
@@ -134,7 +163,7 @@ def main():
     below_a5 = int(sys.argv[4], 0) if len(sys.argv) > 4 else 0x400
     code = open(code_path, "rb").read()
 
-    jt = struct.pack(">HHhH", 0, 0x3F3C, 1, 0xA9F0)   # CODE 1 +0, _LoadSeg
+    jt = struct.pack(">HHhH", 0, 0x3F3C, 1, 0xA9F0)  # CODE 1 +0, _LoadSeg
     code0 = struct.pack(">IIII", 32 + len(jt), below_a5, len(jt), 32) + jt
     code1 = struct.pack(">HH", 0, 1) + code
     size = struct.pack(">HII", 0x0080, 384 * 1024, 384 * 1024)
@@ -142,6 +171,7 @@ def main():
 
     # The application's other resources, if it describes any
     import os
+
     spec = os.path.join(os.path.dirname(os.path.abspath(__file__)), name + ".r.py")
     if os.path.exists(spec):
         env = dict(globals())

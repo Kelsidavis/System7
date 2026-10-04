@@ -26,59 +26,85 @@ import sys
 import tempfile
 
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-SRC = os.path.join(ROOT, 'src', 'System71StdLib.c')
+SRC = os.path.join(ROOT, "src", "System71StdLib.c")
 
 # Pure routines worth testing. Excluded: strdup/strndup (need the kernel
 # allocator), strtok/strsep (carry static state), strupr/strlwr/strrev
 # (non-standard, nothing to compare against).
 WANTED = [
-    'memcpy', 'memset', 'memmove', 'memcmp', 'memchr',
-    'strlen', 'strcpy', 'strncpy', 'strcmp', 'strncmp',
-    'strcasecmp', 'strncasecmp', 'strcat', 'strncat',
-    'strlcpy', 'strlcat', 'strchr', 'strrchr', 'strstr',
-    'strspn', 'strcspn', 'strpbrk',
-    'c2pstrcpy_bounded',
+    "memcpy",
+    "memset",
+    "memmove",
+    "memcmp",
+    "memchr",
+    "strlen",
+    "strcpy",
+    "strncpy",
+    "strcmp",
+    "strncmp",
+    "strcasecmp",
+    "strncasecmp",
+    "strcat",
+    "strncat",
+    "strlcpy",
+    "strlcat",
+    "strchr",
+    "strrchr",
+    "strstr",
+    "strspn",
+    "strcspn",
+    "strpbrk",
+    "c2pstrcpy_bounded",
     # support routines the above call
-    'toupper', 'tolower', 'isalpha', 'isupper', 'islower',
+    "toupper",
+    "tolower",
+    "isalpha",
+    "isupper",
+    "islower",
     # formatted output, plus the helpers it dispatches to
-    'vsnprintf', 'fmt_emit', 'fmt_pad', 'fmt_number', 'fmt_double',
+    "vsnprintf",
+    "fmt_emit",
+    "fmt_pad",
+    "fmt_number",
+    "fmt_double",
     # 64-bit division - the freestanding build has no libgcc __udivdi3
-    'udiv64',
+    "udiv64",
 ]
 
 # Types the extracted formatter needs that live in the kernel headers.
-PREAMBLE_EXTRA = '''
+PREAMBLE_EXTRA = """
 #include <stdarg.h>
 typedef struct {
     char*  buf;
     size_t size;
     size_t count;
 } FmtSink;
-'''
+"""
 
 
 def extract(text, name):
     """Pull one top-level function definition out by brace matching."""
     pat = re.compile(
-        r'^[A-Za-z_][A-Za-z0-9_\s\*]*?\b' + re.escape(name) + r'\s*\([^;{]*\)\s*\{',
-        re.M)
+        r"^[A-Za-z_][A-Za-z0-9_\s\*]*?\b" + re.escape(name) + r"\s*\([^;{]*\)\s*\{",
+        re.M,
+    )
     m = pat.search(text)
     if not m:
         return None
-    i = text.index('{', m.start())
+    i = text.index("{", m.start())
     depth = 0
     for j in range(i, len(text)):
-        if text[j] == '{':
+        if text[j] == "{":
             depth += 1
-        elif text[j] == '}':
+        elif text[j] == "}":
             depth -= 1
             if depth == 0:
-                return text[m.start():j + 1]
+                return text[m.start() : j + 1]
     return None
 
 
 def build_source():
-    text = open(SRC, errors='ignore').read()
+    text = open(SRC, errors="ignore").read()
     bodies, missing = [], []
     for name in WANTED:
         body = extract(text, name)
@@ -87,35 +113,48 @@ def build_source():
         else:
             bodies.append(body)
     if missing:
-        print('could not extract: %s' % ', '.join(missing), file=sys.stderr)
-    src = '\n\n'.join(bodies)
+        print("could not extract: %s" % ", ".join(missing), file=sys.stderr)
+    src = "\n\n".join(bodies)
 
     # Rename every extracted symbol, definitions and internal calls alike, so
     # the copies under test never resolve to libc.
     for name in WANTED:
-        src = re.sub(r'\b' + re.escape(name) + r'\b', 's7_' + name, src)
+        src = re.sub(r"\b" + re.escape(name) + r"\b", "s7_" + name, src)
 
     # The extracted bodies keep source order, so a routine may call one defined
     # further down. Emit prototypes first rather than trying to topologically
     # sort them.
     protos = []
     for body in bodies:
-        head = body[:body.index('{')].strip()
+        head = body[: body.index("{")].strip()
         for name in WANTED:
-            if re.search(r'\bs7_?' + re.escape(name) + r'\b', head) or \
-               re.search(r'\b' + re.escape(name) + r'\b', head):
-                protos.append(head + ';')
+            if re.search(r"\bs7_?" + re.escape(name) + r"\b", head) or re.search(
+                r"\b" + re.escape(name) + r"\b", head
+            ):
+                protos.append(head + ";")
                 break
-    protos = [re.sub(r'\b(' + '|'.join(map(re.escape, WANTED)) + r')\b',
-                     lambda m: 's7_' + m.group(1), p) for p in protos]
-    protos = [re.sub(r'^static inline\b', 'static', p) for p in protos]
+    protos = [
+        re.sub(
+            r"\b(" + "|".join(map(re.escape, WANTED)) + r")\b",
+            lambda m: "s7_" + m.group(1),
+            p,
+        )
+        for p in protos
+    ]
+    protos = [re.sub(r"^static inline\b", "static", p) for p in protos]
 
-    return ('#include <stddef.h>\n#include <stdint.h>\n'
-            '#include <stdbool.h>\n' + PREAMBLE_EXTRA + '\ntypedef int OSErr;\n\n'
-            + '\n'.join(protos) + '\n\n' + src)
+    return (
+        "#include <stddef.h>\n#include <stdint.h>\n"
+        "#include <stdbool.h>\n"
+        + PREAMBLE_EXTRA
+        + "\ntypedef int OSErr;\n\n"
+        + "\n".join(protos)
+        + "\n\n"
+        + src
+    )
 
 
-HARNESS = r'''
+HARNESS = r"""
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
@@ -545,27 +584,29 @@ int main(void) {
     printf("\n%d checks, %d failures\n", checks, failures);
     return failures ? 1 : 0;
 }
-'''
+"""
 
 
 def main():
     generated = build_source()
-    keep = os.environ.get('KEEP_GENERATED')
+    keep = os.environ.get("KEEP_GENERATED")
     if keep:
-        with open(keep, 'w') as fh:
+        with open(keep, "w") as fh:
             fh.write(generated)
             fh.write(HARNESS)
-        print('wrote %s' % keep)
+        print("wrote %s" % keep)
     with tempfile.TemporaryDirectory() as tmp:
-        cfile = os.path.join(tmp, 'stdlib_test.c')
-        binf = os.path.join(tmp, 'stdlib_test')
-        with open(cfile, 'w') as fh:
+        cfile = os.path.join(tmp, "stdlib_test.c")
+        binf = os.path.join(tmp, "stdlib_test")
+        with open(cfile, "w") as fh:
             fh.write(generated)
             fh.write(HARNESS)
 
         cc = subprocess.run(
-            ['gcc', '-O1', '-fno-builtin', '-Wall', '-Werror', '-o', binf, cfile],
-            capture_output=True, text=True)
+            ["gcc", "-O1", "-fno-builtin", "-Wall", "-Werror", "-o", binf, cfile],
+            capture_output=True,
+            text=True,
+        )
         if cc.returncode != 0:
             print(cc.stderr, file=sys.stderr)
             return 2
@@ -577,5 +618,5 @@ def main():
         return run.returncode
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     sys.exit(main())

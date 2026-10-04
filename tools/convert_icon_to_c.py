@@ -13,9 +13,9 @@ HEIGHT = 128
 
 def convert_to_c_array(input_file: Path, output_file: Path) -> None:
     with Image.open(input_file) as source_image:
-        image = source_image.resize(
-            (WIDTH, HEIGHT), Image.Resampling.LANCZOS
-        ).convert("RGBA")
+        image = source_image.resize((WIDTH, HEIGHT), Image.Resampling.LANCZOS).convert(
+            "RGBA"
+        )
     pixels = image.load()
 
     with output_file.open("w", encoding="utf-8", newline="\n") as output:
@@ -31,9 +31,7 @@ def convert_to_c_array(input_file: Path, output_file: Path) -> None:
             output.write("    ")
             for x in range(WIDTH):
                 red, green, blue, alpha = pixels[x, y]
-                output.write(
-                    f"0x{red:02X},0x{green:02X},0x{blue:02X},0x{alpha:02X},"
-                )
+                output.write(f"0x{red:02X},0x{green:02X},0x{blue:02X},0x{alpha:02X},")
                 output.write("\n    " if (x + 1) % 4 == 0 else " ")
             output.write(f" /* row {y} */\n")
 

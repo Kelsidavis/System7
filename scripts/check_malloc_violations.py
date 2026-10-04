@@ -80,7 +80,9 @@ def main():
     default_root = Path(__file__).resolve().parent.parent
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
-        "--root", type=Path, default=default_root,
+        "--root",
+        type=Path,
+        default=default_root,
         help="repository root (default: detected from this script)",
     )
     args = parser.parse_args()
@@ -103,8 +105,7 @@ def main():
     if violations:
         for path, line, function in violations:
             print(
-                f"{path}:{line}: direct {function}() call; "
-                "use the Memory Manager API",
+                f"{path}:{line}: direct {function}() call; use the Memory Manager API",
                 file=sys.stderr,
             )
         print(

@@ -17,6 +17,7 @@ Outputs:
 Dependencies:
   - Pillow (pip install pillow)
 """
+
 import sys
 import re
 import pathlib
@@ -52,37 +53,43 @@ TEMPLATE_C_PREFIX = """
 
 """
 
+
 def to_c_ident(name: str) -> str:
-    s = re.sub(r"[^A-Za-z0-9]+","_", name)
+    s = re.sub(r"[^A-Za-z0-9]+", "_", name)
     if re.match(r"^[0-9]", s):
         s = "_" + s
     return s
 
+
 def pack_argb32(img: Image.Image) -> List[int]:
-    if img.mode != 'RGBA':
-        img = img.convert('RGBA')
-    w,h = img.size
+    if img.mode != "RGBA":
+        img = img.convert("RGBA")
+    w, h = img.size
     # Pillow 12.1 adds get_flattened_data and deprecates getdata.
     get_flattened_data = getattr(img, "get_flattened_data", None)
     pixels = get_flattened_data() if get_flattened_data else img.getdata()
     out = []
-    for (r,g,b,a) in pixels:
-        out.append(((a & 0xFF)<<24) | ((r & 0xFF)<<16) | ((g & 0xFF)<<8) | (b & 0xFF))
+    for r, g, b, a in pixels:
+        out.append(
+            ((a & 0xFF) << 24) | ((r & 0xFF) << 16) | ((g & 0xFF) << 8) | (b & 0xFF)
+        )
     return out
+
 
 def emit_array(name: str, values: List[int]) -> str:
     lines = []
     lines.append(f"static const uint32_t {name}[] = {{")
     row = []
-    for i,v in enumerate(values):
+    for i, v in enumerate(values):
         row.append(f"0x{v:08X}")
-        if (i+1)%8==0:
+        if (i + 1) % 8 == 0:
             lines.append("    " + ", ".join(row) + ",")
-            row=[]
+            row = []
     if row:
         lines.append("    " + ", ".join(row) + ",")
     lines.append("};\n")
     return "\n".join(lines)
+
 
 def main():
     if len(sys.argv) < 3:
@@ -113,40 +120,40 @@ def main():
         except Exception as e:
             print("Skip", png, e, file=sys.stderr)
             continue
-        w,h = img.size
+        w, h = img.size
         # Decide target slot
         if w >= 32 or h >= 32:
-            tgt = img.resize((32,32), Image.NEAREST)
+            tgt = img.resize((32, 32), Image.NEAREST)
             arr_name = to_c_ident(f"icon_{name}_32")
             data = pack_argb32(tgt)
             arrays.append(emit_array(arr_name, data))
             fam_name = to_c_ident(f"fam_{name}")
-            families.append((fam_name, arr_name, 32,32))
-        elif w==16 and h==16:
+            families.append((fam_name, arr_name, 32, 32))
+        elif w == 16 and h == 16:
             tgt = img
             arr_name = to_c_ident(f"icon_{name}_16")
             data = pack_argb32(tgt)
             arrays.append(emit_array(arr_name, data))
             fam_name = to_c_ident(f"fam_{name}")
-            families.append((fam_name, arr_name, 16,16))
+            families.append((fam_name, arr_name, 16, 16))
         else:
             # Resize small to 16x16
-            tgt = img.resize((16,16), Image.NEAREST)
+            tgt = img.resize((16, 16), Image.NEAREST)
             arr_name = to_c_ident(f"icon_{name}_16")
             data = pack_argb32(tgt)
             arrays.append(emit_array(arr_name, data))
             fam_name = to_c_ident(f"fam_{name}")
-            families.append((fam_name, arr_name, 16,16))
+            families.append((fam_name, arr_name, 16, 16))
         entries.append((rid, name, fam_name))
 
     # Merge families with both sizes under same fam if share base name
     fam_map = {}
     fam_defs = []
-    for fam_name, arr_name, w,h in families:
+    for fam_name, arr_name, w, h in families:
         base = fam_name
         if base not in fam_map:
             fam_map[base] = {"large": None, "small": None}
-        if w==32:
+        if w == 32:
             fam_map[base]["large"] = arr_name
         else:
             fam_map[base]["small"] = arr_name
@@ -175,18 +182,18 @@ def main():
     gen_table = []
     for rid, name, fam_name in entries:
         base = fam_name
-        gen_table.append((rid if rid is not None else -1, name, base+"_def"))
+        gen_table.append((rid if rid is not None else -1, name, base + "_def"))
 
     # Write header
-    (out_inc/"icons_generated.h").write_text(ICON_H)
+    (out_inc / "icons_generated.h").write_text(ICON_H)
 
     # Write C
     c = [TEMPLATE_C_PREFIX]
     c.extend(arrays)
     c.extend(fam_defs)
     c.append("const IconGenEntry gIconGenTable[] = {\n")
-    for rid,name, famref in gen_table:
-        c.append(f"    {{{rid}, \"{name}\", &{famref}}},\n")
+    for rid, name, famref in gen_table:
+        c.append(f'    {{{rid}, "{name}", &{famref}}},\n')
     c.append("};\n")
     c.append(f"const int gIconGenCount = {len(gen_table)};\n")
     c.append("\n")
@@ -204,9 +211,10 @@ def main():
     c.append("\n")
     c.append("    return false;\n}\n")
 
-    (out_src/"icons_generated.c").write_text("\n".join(c))
+    (out_src / "icons_generated.c").write_text("\n".join(c))
 
     print("Generated", len(gen_table), "icons")
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     main()

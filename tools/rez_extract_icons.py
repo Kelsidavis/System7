@@ -19,6 +19,7 @@ Output naming:
 Notes:
   - Only 1‑bit icons are handled here. Color cicn parsing can be added later.
 """
+
 import argparse
 import struct
 from pathlib import Path
@@ -59,7 +60,7 @@ def parse_macbinary(fp: Path) -> bytes:
     if res_fork_end > len(data):
         # Fallback: sometimes resource fork placed right after header
         return data
-    return data[res_fork_start:res_fork_start + rlen]
+    return data[res_fork_start : res_fork_start + rlen]
 
 
 def parse_resource_fork(res: bytes) -> Dict[str, List[Tuple[int, bytes]]]:
@@ -71,8 +72,8 @@ def parse_resource_fork(res: bytes) -> Dict[str, List[Tuple[int, bytes]]]:
     map_len = read_be32(res, 12)
     if map_off + map_len > len(res) or data_off + data_len > len(res):
         raise ValueError("Invalid offsets in resource fork")
-    data_sec = res[data_off:data_off + data_len]
-    rmap = res[map_off:map_off + map_len]
+    data_sec = res[data_off : data_off + data_len]
+    rmap = res[map_off : map_off + map_len]
     # Offsets within map are relative to start of map
     # The type list offset is at byte 24 in the map (per TN 1041).
     type_list_off = read_be16(rmap, 24)
@@ -84,7 +85,7 @@ def parse_resource_fork(res: bytes) -> Dict[str, List[Tuple[int, bytes]]]:
     out: Dict[str, List[Tuple[int, bytes]]] = {}
     for i in range(num_types):
         te_off = tl_base + 2 + i * 8
-        rtype = rmap[te_off:te_off + 4].decode('mac_roman', errors='ignore')
+        rtype = rmap[te_off : te_off + 4].decode("mac_roman", errors="ignore")
         num_res = read_be16(rmap, te_off + 4) + 1
         ref_list_off = read_be16(rmap, te_off + 6)
         rl_base = tl_base + ref_list_off
@@ -92,7 +93,7 @@ def parse_resource_fork(res: bytes) -> Dict[str, List[Tuple[int, bytes]]]:
             re_off = rl_base + j * 12
             res_id = struct.unpack_from(">h", rmap, re_off)[0]
             # Attributes at +4, data offset (24-bit) at +5..+7 relative to data section
-            data_ofs_24 = int.from_bytes(rmap[re_off + 5:re_off + 8], 'big')
+            data_ofs_24 = int.from_bytes(rmap[re_off + 5 : re_off + 8], "big")
             # Data record: at data_ofs_24 in data section is 4‑byte length then data
             if data_ofs_24 + 4 > len(data_sec):
                 continue
@@ -100,7 +101,7 @@ def parse_resource_fork(res: bytes) -> Dict[str, List[Tuple[int, bytes]]]:
             dstart = data_ofs_24 + 4
             if dstart + dlen > len(data_sec):
                 continue
-            blob = data_sec[dstart:dstart + dlen]
+            blob = data_sec[dstart : dstart + dlen]
             out.setdefault(rtype, []).append((res_id, blob))
     return out
 
@@ -115,21 +116,35 @@ def save_icn_bitmap(blob: bytes, size: int, out_png: Path):
     if len(blob) < plane_bytes:
         return
     img_plane = blob[:plane_bytes]
-    mask_plane = blob[plane_bytes:plane_bytes * 2] if len(blob) >= plane_bytes * 2 else None
+    mask_plane = (
+        blob[plane_bytes : plane_bytes * 2] if len(blob) >= plane_bytes * 2 else None
+    )
     # Create RGBA
-    im = Image.new('RGBA', (size, size), (255, 255, 255, 0))
+    im = Image.new("RGBA", (size, size), (255, 255, 255, 0))
     px = im.load()
     for y in range(size):
-        row = img_plane[y * bytes_per_row:(y + 1) * bytes_per_row]
-        mask_row = mask_plane[y * bytes_per_row:(y + 1) * bytes_per_row] if mask_plane else None
+        row = img_plane[y * bytes_per_row : (y + 1) * bytes_per_row]
+        mask_row = (
+            mask_plane[y * bytes_per_row : (y + 1) * bytes_per_row]
+            if mask_plane
+            else None
+        )
         for x in range(size):
             byte = row[x // 8]
             bit = (byte >> (7 - (x % 8))) & 1
             if bit:
-                alpha = 255 if (not mask_row) else (255 if ((mask_row[x // 8] >> (7 - (x % 8))) & 1) else 0)
+                alpha = (
+                    255
+                    if (not mask_row)
+                    else (255 if ((mask_row[x // 8] >> (7 - (x % 8))) & 1) else 0)
+                )
                 px[x, y] = (0, 0, 0, alpha)
             else:
-                alpha = 0 if (mask_row and ((mask_row[x // 8] >> (7 - (x % 8))) & 1) == 0) else 0
+                alpha = (
+                    0
+                    if (mask_row and ((mask_row[x // 8] >> (7 - (x % 8))) & 1) == 0)
+                    else 0
+                )
                 px[x, y] = (255, 255, 255, alpha)
     im.save(out_png)
 
@@ -152,7 +167,11 @@ def parse_color_table(blob: bytes) -> List[Tuple[int, int, int]]:
     return colors
 
 
-def parse_cicn(blob: bytes, out_png: Path, fallback_palettes: Optional[Dict[int, List[Tuple[int, int, int]]]] = None):
+def parse_cicn(
+    blob: bytes,
+    out_png: Path,
+    fallback_palettes: Optional[Dict[int, List[Tuple[int, int, int]]]] = None,
+):
     # Parse Color Icon (cicn) minimally: PixMap + CTab + pixel data + 1-bit mask
     try:
         if len(blob) < 50:
@@ -219,7 +238,7 @@ def parse_cicn(blob: bytes, out_png: Path, fallback_palettes: Optional[Dict[int,
         mask_row_bytes = ((width + 15) // 16) * 2
         mask_bytes = mask_row_bytes * height
         has_mask = mask_off + mask_bytes <= len(blob)
-        im = Image.new('RGBA', (width, height), (0, 0, 0, 0))
+        im = Image.new("RGBA", (width, height), (0, 0, 0, 0))
         px = im.load()
 
         def sample_pixel(row: bytes, x: int) -> int:
@@ -250,10 +269,12 @@ def parse_cicn(blob: bytes, out_png: Path, fallback_palettes: Optional[Dict[int,
             return (grey, grey, grey)
 
         for y in range(height):
-            row = blob[pixel_off + y * rowBytes: pixel_off + (y + 1) * rowBytes]
+            row = blob[pixel_off + y * rowBytes : pixel_off + (y + 1) * rowBytes]
             mrow = None
             if has_mask:
-                mrow = blob[mask_off + y * mask_row_bytes: mask_off + (y + 1) * mask_row_bytes]
+                mrow = blob[
+                    mask_off + y * mask_row_bytes : mask_off + (y + 1) * mask_row_bytes
+                ]
             for x in range(width):
                 idx = sample_pixel(row, x)
                 r, g, b = palette_lookup(idx)
@@ -284,7 +305,7 @@ def process_file(path: Path, outdir: Path):
     # Gather colour palettes from any clut resources for fallback usage.
     clut_palettes: Dict[int, List[Tuple[int, int, int]]] = {}
     fallback_palettes: Dict[int, List[Tuple[int, int, int]]] = {}
-    for rid, blob in types.get('clut', []):
+    for rid, blob in types.get("clut", []):
         palette = parse_color_table(blob)
         if not palette:
             continue
@@ -301,26 +322,26 @@ def process_file(path: Path, outdir: Path):
     if 1 not in fallback_palettes:
         fallback_palettes[1] = [(0, 0, 0), (255, 255, 255)]
     # ICN# 32x32 (mono)
-    for rid, blob in types.get('ICN#', []):
+    for rid, blob in types.get("ICN#", []):
         out_png = outdir / f"ICN#_{rid}_32.png"
         save_icn_bitmap(blob, 32, out_png)
     # ics# 16x16 (mono)
-    for rid, blob in types.get('ics#', []):
+    for rid, blob in types.get("ics#", []):
         out_png = outdir / f"ics#_{rid}_16.png"
         save_icn_bitmap(blob, 16, out_png)
-    for rid, blob in types.get('SICN', []):
+    for rid, blob in types.get("SICN", []):
         out_png = outdir / f"SICN_{rid}_16.png"
         save_icn_bitmap(blob, 16, out_png)
     # cicn color icons (use palette + optional mask)
-    for rid, blob in types.get('cicn', []):
+    for rid, blob in types.get("cicn", []):
         out_png = outdir / f"cicn_{rid}_32.png"
         parse_cicn(blob, out_png, fallback_palettes)
 
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument('inputs', nargs='+', help='MacBinary .bin or .rsrc files')
-    ap.add_argument('--out', required=True, help='Output directory for PNGs')
+    ap.add_argument("inputs", nargs="+", help="MacBinary .bin or .rsrc files")
+    ap.add_argument("--out", required=True, help="Output directory for PNGs")
     args = ap.parse_args()
     outdir = Path(args.out)
     outdir.mkdir(parents=True, exist_ok=True)
@@ -329,5 +350,5 @@ def main():
     print("Extraction completed to:", outdir)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

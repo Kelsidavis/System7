@@ -89,7 +89,9 @@ Failed:      0"""
             runner = integration_runner.TestRunner(str(ROOT))
             runner.results = [
                 integration_runner.TestResult("test <one>", True),
-                integration_runner.TestResult("test two", False, "expected <x> & got <y>"),
+                integration_runner.TestResult(
+                    "test two", False, "expected <x> & got <y>"
+                ),
             ]
 
             self.assertTrue(runner.generate_junit_report(str(output)))
@@ -101,7 +103,10 @@ Failed:      0"""
 
     def test_junit_report_failure_is_returned_to_caller(self):
         runner = integration_runner.TestRunner(str(ROOT))
-        with patch("xml.etree.ElementTree.ElementTree.write", side_effect=OSError("write failed")):
+        with patch(
+            "xml.etree.ElementTree.ElementTree.write",
+            side_effect=OSError("write failed"),
+        ):
             self.assertFalse(runner.generate_junit_report("unwritable.xml"))
 
 

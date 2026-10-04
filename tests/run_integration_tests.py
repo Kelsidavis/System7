@@ -24,6 +24,7 @@ from typing import List
 from datetime import datetime
 import xml.etree.ElementTree as ET
 
+
 class TestResult:
     def __init__(self, name: str, passed: bool, reason: str = ""):
         self.name = name
@@ -33,6 +34,7 @@ class TestResult:
     def __str__(self):
         status = "✓ PASS" if self.passed else "✗ FAIL"
         return f"{status}: {self.name}" + (f" ({self.reason})" if self.reason else "")
+
 
 class TestRunner:
     def __init__(self, project_root: str, timeout: int = 120, verbose: bool = False):
@@ -50,7 +52,7 @@ class TestRunner:
             "PASS": "[+]",
             "FAIL": "[!]",
             "WARN": "[~]",
-            "DEBUG": "[D]"
+            "DEBUG": "[D]",
         }.get(level, "[?]")
         print(f"{prefix} [{timestamp}] {msg}")
 
@@ -59,8 +61,12 @@ class TestRunner:
         self.log("Building kernel with INTEGRATION_TESTS=1...", "INFO")
 
         build_cmd = [
-            "make", "-C", str(self.project_root),
-            "INTEGRATION_TESTS=1", "clean", "iso"
+            "make",
+            "-C",
+            str(self.project_root),
+            "INTEGRATION_TESTS=1",
+            "clean",
+            "iso",
         ]
 
         try:
@@ -69,7 +75,7 @@ class TestRunner:
                 capture_output=True,
                 text=True,
                 timeout=600,
-                cwd=str(self.project_root)
+                cwd=str(self.project_root),
             )
 
             if result.returncode != 0:
@@ -100,11 +106,15 @@ class TestRunner:
 
         qemu_cmd = [
             "qemu-system-i386",
-            "-cdrom", str(iso_path),
-            "-m", "512",
-            "-serial", "stdio",
+            "-cdrom",
+            str(iso_path),
+            "-m",
+            "512",
+            "-serial",
+            "stdio",
             "-nographic",
-            "-monitor", "none"
+            "-monitor",
+            "none",
         ]
 
         try:
@@ -113,7 +123,7 @@ class TestRunner:
                 capture_output=True,
                 text=True,
                 timeout=self.timeout,
-                cwd=str(self.project_root)
+                cwd=str(self.project_root),
             )
 
             self.qemu_output = result.stdout + result.stderr
@@ -169,8 +179,7 @@ class TestRunner:
 
         self.results = [TestResult(name, True) for name in pass_names]
         self.results.extend(
-            TestResult(name, False, reason)
-            for name, reason in failed_tests.items()
+            TestResult(name, False, reason) for name, reason in failed_tests.items()
         )
 
         summary_pattern = r"Total tests: (\d+)\s+Passed:\s+(\d+)\s+Failed:\s+(\d+)"
@@ -183,9 +192,11 @@ class TestRunner:
             return False
 
         total, passed, failed = map(int, summary_match.groups())
-        if (total != len(self.results)
-                or passed != len(pass_names)
-                or failed != len(failed_tests)):
+        if (
+            total != len(self.results)
+            or passed != len(pass_names)
+            or failed != len(failed_tests)
+        ):
             self.log(
                 "Integration test summary does not match parsed results",
                 "FAIL",
@@ -202,9 +213,9 @@ class TestRunner:
 
     def print_results(self):
         """Print human-readable test results"""
-        print("\n" + "="*60)
+        print("\n" + "=" * 60)
         print("INTEGRATION TEST RESULTS")
-        print("="*60)
+        print("=" * 60)
 
         passed = sum(1 for r in self.results if r.passed)
         failed = sum(1 for r in self.results if r.passed is False)
@@ -216,11 +227,11 @@ class TestRunner:
             if result.reason and not result.passed:
                 print(f"      Reason: {result.reason}")
 
-        print("\n" + "-"*60)
+        print("\n" + "-" * 60)
         print(f"Total:  {total}")
         print(f"Passed: {passed}")
         print(f"Failed: {failed}")
-        print("="*60 + "\n")
+        print("=" * 60 + "\n")
 
         if failed == 0 and total > 0:
             self.log("ALL TESTS PASSED!", "PASS")
@@ -272,6 +283,7 @@ class TestRunner:
             self.log(f"Failed to write JUnit report: {e}", "FAIL")
             return False
 
+
 def main():
     parser = argparse.ArgumentParser(
         description="System 7 Integration Test Runner",
@@ -282,20 +294,29 @@ Examples:
   %(prog)s --timeout 60                 # Use 60 second timeout
   %(prog)s --output junit.xml           # Generate JUnit report
   %(prog)s --verbose --no-build         # Verbose output, reuse existing ISO
-        """
+        """,
     )
 
-    parser.add_argument("--timeout", type=int, default=120,
-                      help="QEMU execution timeout in seconds (default: 120)")
-    parser.add_argument("--output", type=str, metavar="FILE",
-                      help="Generate JUnit XML report to FILE")
-    parser.add_argument("--verbose", action="store_true",
-                      help="Enable verbose output")
-    parser.add_argument("--no-build", action="store_true",
-                      help="Skip build and use the existing ISO")
+    parser.add_argument(
+        "--timeout",
+        type=int,
+        default=120,
+        help="QEMU execution timeout in seconds (default: 120)",
+    )
+    parser.add_argument(
+        "--output", type=str, metavar="FILE", help="Generate JUnit XML report to FILE"
+    )
+    parser.add_argument("--verbose", action="store_true", help="Enable verbose output")
+    parser.add_argument(
+        "--no-build", action="store_true", help="Skip build and use the existing ISO"
+    )
     default_project_root = Path(__file__).resolve().parent.parent
-    parser.add_argument("--project-root", type=str, default=str(default_project_root),
-                      help="Project root directory (defaults to this checkout)")
+    parser.add_argument(
+        "--project-root",
+        type=str,
+        default=str(default_project_root),
+        help="Project root directory (defaults to this checkout)",
+    )
 
     args = parser.parse_args()
 
@@ -306,9 +327,7 @@ Examples:
 
     # Create test runner
     runner = TestRunner(
-        project_root=project_root,
-        timeout=args.timeout,
-        verbose=args.verbose
+        project_root=project_root, timeout=args.timeout, verbose=args.verbose
     )
 
     if not args.no_build and not runner.build_kernel():
@@ -330,6 +349,7 @@ Examples:
         return 1
 
     return 0 if success else 1
+
 
 if __name__ == "__main__":
     sys.exit(main())

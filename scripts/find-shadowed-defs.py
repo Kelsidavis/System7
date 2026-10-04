@@ -35,11 +35,11 @@ import subprocess
 import sys
 
 FUNC = re.compile(
-    r'^([A-Za-z_][A-Za-z0-9_\s\*]*?\**\s*)([A-Za-z_][A-Za-z0-9_]*)\s*\([^;]*\)\s*\{',
-    re.M)
-KEYWORDS = {'if', 'for', 'while', 'switch', 'return', 'sizeof', 'defined'}
-CANONICAL = re.compile(r'canonical|primary implementation|the real (one|impl)',
-                       re.I)
+    r"^([A-Za-z_][A-Za-z0-9_\s\*]*?\**\s*)([A-Za-z_][A-Za-z0-9_]*)\s*\([^;]*\)\s*\{",
+    re.M,
+)
+KEYWORDS = {"if", "for", "while", "switch", "return", "sizeof", "defined"}
+CANONICAL = re.compile(r"canonical|primary implementation|the real (one|impl)", re.I)
 
 
 def strip_if_zero(text):
@@ -48,71 +48,88 @@ def strip_if_zero(text):
     for line in text.splitlines(keepends=True):
         s = line.lstrip()
         if skip:
-            if re.match(r'#\s*if', s):
+            if re.match(r"#\s*if", s):
                 skip += 1
-            elif re.match(r'#\s*endif', s):
+            elif re.match(r"#\s*endif", s):
                 skip -= 1
             continue
-        if re.match(r'#\s*if\s+0(\s|$)', s):
+        if re.match(r"#\s*if\s+0(\s|$)", s):
             skip = 1
             continue
         out.append(line)
-    return ''.join(out)
+    return "".join(out)
 
 
 def defined_symbols(obj):
     if not os.path.exists(obj):
         return set()
-    out = subprocess.run(['nm', '--defined-only', obj],
-                         capture_output=True, text=True).stdout
-    return {p[2] for p in (line.split() for line in out.splitlines())
-            if len(p) == 3 and p[1] == 'T'}
+    out = subprocess.run(
+        ["nm", "--defined-only", obj], capture_output=True, text=True
+    ).stdout
+    return {
+        p[2]
+        for p in (line.split() for line in out.splitlines())
+        if len(p) == 3 and p[1] == "T"
+    }
 
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
-        '--platform', default=os.environ.get('PLATFORM', 'x86'),
-        help='Makefile platform whose objects to inspect (default: x86)',
+        "--platform",
+        default=os.environ.get("PLATFORM", "x86"),
+        help="Makefile platform whose objects to inspect (default: x86)",
     )
     parser.add_argument(
-        '--obj-dir', default=os.environ.get('OBJ_DIR'),
-        help='override the object directory used by the Makefile',
+        "--obj-dir",
+        default=os.environ.get("OBJ_DIR"),
+        help="override the object directory used by the Makefile",
     )
     parser.add_argument(
-        '--make-arg', action='append', default=[], metavar='NAME=VALUE',
-        help='pass an additional Make variable, e.g. CONFIG=release',
+        "--make-arg",
+        action="append",
+        default=[],
+        metavar="NAME=VALUE",
+        help="pass an additional Make variable, e.g. CONFIG=release",
     )
     args = parser.parse_args()
-    command = ['make', '-Bn', f'PLATFORM={args.platform}', *args.make_arg]
+    command = ["make", "-Bn", f"PLATFORM={args.platform}", *args.make_arg]
     if args.obj_dir:
-        command.append(f'OBJ_DIR={args.obj_dir}')
+        command.append(f"OBJ_DIR={args.obj_dir}")
     make = subprocess.run(
         command,
-        capture_output=True, text=True, check=True,
+        capture_output=True,
+        text=True,
+        check=True,
     )
-    object_for_source = dict(re.findall(
-        r' -c (src/\S+\.c) -o (\S+\.o)(?:\s|$)', make.stdout,
-    ))
+    object_for_source = dict(
+        re.findall(
+            r" -c (src/\S+\.c) -o (\S+\.o)(?:\s|$)",
+            make.stdout,
+        )
+    )
     if not object_for_source:
-        sys.exit('could not read C compile commands from Make dry run')
-    missing_objects = [obj for obj in object_for_source.values()
-                       if not os.path.isfile(obj)]
+        sys.exit("could not read C compile commands from Make dry run")
+    missing_objects = [
+        obj for obj in object_for_source.values() if not os.path.isfile(obj)
+    ]
     if missing_objects:
-        sys.exit('missing objects; build the selected configuration first: '
-                 + ', '.join(missing_objects[:8]))
+        sys.exit(
+            "missing objects; build the selected configuration first: "
+            + ", ".join(missing_objects[:8])
+        )
 
-    makefile = open('Makefile').read()
-    for extra in ('config/default.mk', 'config/release.mk', 'config/debug.mk'):
+    makefile = open("Makefile").read()
+    for extra in ("config/default.mk", "config/release.mk", "config/debug.mk"):
         if os.path.exists(extra):
             makefile += open(extra).read()
 
     sources, dead_files = [], []
-    for root, _dirs, files in os.walk('src'):
-        if 'deprecated' in root:
+    for root, _dirs, files in os.walk("src"):
+        if "deprecated" in root:
             continue
         for name in sorted(files):
-            if not name.endswith('.c'):
+            if not name.endswith(".c"):
                 continue
             path = os.path.join(root, name)
             (sources if path in makefile else dead_files).append(path)
@@ -127,51 +144,62 @@ def main():
         for sym in defined_symbols(object_for_source[src]):
             sym2obj[sym].append(src)
 
-    print(f'=== CURRENT BUILD: PLATFORM={args.platform} '
-          f'({len(compiled_sources)} C objects) ===')
-    print('=== DEAD FILES (never compiled by any configuration) ===')
+    print(
+        f"=== CURRENT BUILD: PLATFORM={args.platform} "
+        f"({len(compiled_sources)} C objects) ==="
+    )
+    print("=== DEAD FILES (never compiled by any configuration) ===")
     hits = 0
     for path in dead_files:
-        text = strip_if_zero(open(path, errors='ignore').read())
-        names = {m.group(2) for m in FUNC.finditer(text)
-                 if 'static' not in m.group(1).split()
-                 and m.group(2) not in KEYWORDS}
+        text = strip_if_zero(open(path, errors="ignore").read())
+        names = {
+            m.group(2)
+            for m in FUNC.finditer(text)
+            if "static" not in m.group(1).split() and m.group(2) not in KEYWORDS
+        }
         shadowing = sorted(n for n in names if n in sym2obj)
         if shadowing:
             hits += 1
-            print(f'{path}\n    defines, but the live copy is elsewhere: '
-                  f'{", ".join(shadowing[:8])}'
-                  f'{" ..." if len(shadowing) > 8 else ""}')
+            print(
+                f"{path}\n    defines, but the live copy is elsewhere: "
+                f"{', '.join(shadowing[:8])}"
+                f"{' ...' if len(shadowing) > 8 else ''}"
+            )
     if not hits:
-        print('  (none)')
+        print("  (none)")
 
-    print('\n=== UNBUILT COPIES (in a compiled file, excluded from its .o) ===')
-    print('Usually an intentional feature-flag alternate. SUSPECT marks a copy'
-          '\nwhose own text calls itself canonical - that is what misleads.\n')
+    print("\n=== UNBUILT COPIES (in a compiled file, excluded from its .o) ===")
+    print(
+        "Usually an intentional feature-flag alternate. SUSPECT marks a copy"
+        "\nwhose own text calls itself canonical - that is what misleads.\n"
+    )
     suspect = plain = 0
     for src in compiled_sources:
-        text = strip_if_zero(open(src, errors='ignore').read())
+        text = strip_if_zero(open(src, errors="ignore").read())
         built = defined_symbols(object_for_source[src])
         for m in FUNC.finditer(text):
-            if 'static' in m.group(1).split():
+            if "static" in m.group(1).split():
                 continue
             fn = m.group(2)
             if fn in KEYWORDS or fn in built or fn not in sym2obj:
                 continue
-            near = text[max(0, m.start() - 400):m.start()]
+            near = text[max(0, m.start() - 400) : m.start()]
             flag = CANONICAL.search(near)
             if flag:
                 suspect += 1
-                print(f'SUSPECT {fn}\n    dead copy : {src} '
-                      f'(claims "{flag.group(0)}")\n'
-                      f'    links from: {", ".join(sym2obj[fn])}')
+                print(
+                    f"SUSPECT {fn}\n    dead copy : {src} "
+                    f'(claims "{flag.group(0)}")\n'
+                    f"    links from: {', '.join(sym2obj[fn])}"
+                )
             else:
                 plain += 1
 
-    print(f'\nsuspect: {suspect}    other unbuilt copies: {plain}'
-          f'    dead files: {hits}')
+    print(
+        f"\nsuspect: {suspect}    other unbuilt copies: {plain}    dead files: {hits}"
+    )
     return 1 if (suspect or hits) else 0
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     sys.exit(main())

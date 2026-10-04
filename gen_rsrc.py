@@ -69,25 +69,40 @@ LIMITATIONS
 
 (c) 2025 — Kelsi Davis
 """
+
 import sys
 import json
 import struct
 import os
 
-def be16(x): return struct.pack(">H", x & 0xFFFF)
-def be16s(x): return struct.pack(">h", x if -32768 <= x <= 32767 else ((x+0x8000)&0xFFFF)-0x8000)
-def be32(x): return struct.pack(">I", x & 0xFFFFFFFF)
+
+def be16(x):
+    return struct.pack(">H", x & 0xFFFF)
+
+
+def be16s(x):
+    return struct.pack(
+        ">h", x if -32768 <= x <= 32767 else ((x + 0x8000) & 0xFFFF) - 0x8000
+    )
+
+
+def be32(x):
+    return struct.pack(">I", x & 0xFFFFFFFF)
+
 
 def fourcc(s):
-    return s.encode("mac_roman")[:4].ljust(4, b'\x00')
+    return s.encode("mac_roman")[:4].ljust(4, b"\x00")
+
 
 class Resource:
-    __slots__ = ("rtype","rid","name","data")
+    __slots__ = ("rtype", "rid", "name", "data")
+
     def __init__(self, rtype: bytes, rid: int, name: str, data: bytes):
         self.rtype = rtype  # 4 bytes
-        self.rid   = rid    # int16
-        self.name  = name or ""
-        self.data  = data   # raw data (without 4-byte length)
+        self.rid = rid  # int16
+        self.name = name or ""
+        self.data = data  # raw data (without 4-byte length)
+
 
 def parse_pat_data(entry):
     d = entry.get("data", {})
@@ -115,11 +130,12 @@ def parse_pat_data(entry):
                 if ch not in ("0", "1"):
                     raise ValueError("PAT row chars must be '0' or '1'")
                 bit = 1 if ch == "1" else 0
-                b |= (bit << (7 - x))  # leftmost char = bit7
+                b |= bit << (7 - x)  # leftmost char = bit7
             out[y] = b
         return bytes(out)
     else:
         raise ValueError("PAT data requires 'bytes' or 'rows'")
+
 
 def parse_ppat8_data(entry):
     """Parse PPAT8 color pattern data"""
@@ -166,6 +182,7 @@ def parse_ppat8_data(entry):
 
     return bytes(out)
 
+
 def parse_str_data(entry):
     """Parse STR (single string) resource data."""
     d = entry.get("data", {})
@@ -174,6 +191,7 @@ def parse_str_data(entry):
     if len(encoded) > 255:
         encoded = encoded[:255]
     return bytes([len(encoded)]) + encoded
+
 
 def parse_str_list_data(entry):
     """Parse STR# (string list) resource data.
@@ -193,6 +211,7 @@ def parse_str_list_data(entry):
         out += encoded
     return bytes(out)
 
+
 def parse_ppat_raw(entry):
     """Parse raw ppat hex data"""
     d = entry.get("data", {})
@@ -201,12 +220,13 @@ def parse_ppat_raw(entry):
     hex_str = hex_str.replace(" ", "")
     return bytes.fromhex(hex_str)
 
+
 def parse_manifest(manifest):
     resources = []
     for ent in manifest.get("resources", []):
         rtype = ent["type"]
         rid = int(ent["id"])
-        name = ent.get("name","")
+        name = ent.get("name", "")
         if rtype == "PAT ":
             data = parse_pat_data(ent)
         elif rtype == "ppat":
@@ -240,6 +260,7 @@ def parse_manifest(manifest):
             raise NotImplementedError(f"Unsupported type: {rtype}")
         resources.append(Resource(fourcc(rtype), rid, name, data))
     return resources
+
 
 def build_rsrc(resources):
     # Group by type
@@ -342,7 +363,9 @@ def build_rsrc(resources):
     map_area += name_list
 
     # Now we know final sizes; we can fill the file header and map header copies
-    data_off = 256  # We place header at 0..15, then pad to 256 for alignment (classic habit)
+    data_off = (
+        256  # We place header at 0..15, then pad to 256 for alignment (classic habit)
+    )
     data_len = len(data_area)
     map_off = data_off + data_len
     map_len = len(map_area)
@@ -373,6 +396,7 @@ def build_rsrc(resources):
 
     return file_bytes
 
+
 def main():
     if len(sys.argv) < 3:
         print("Usage: gen_rsrc.py <manifest.json> [additional.json ...] <out.rsrc>")
@@ -393,7 +417,9 @@ def main():
             for ent in manifest.get("resources", []):
                 rtype = "ppat" if ent["type"] == "ppat_raw" else ent["type"]
                 merged[(rtype, int(ent["id"]))] = ent
-            print(f"Loaded {len(manifest.get('resources', []))} resources from {json_path}")
+            print(
+                f"Loaded {len(manifest.get('resources', []))} resources from {json_path}"
+            )
     merged_resources = list(merged.values())
 
     # Create merged manifest
@@ -406,6 +432,7 @@ def main():
     with open(out_path, "wb") as f:
         f.write(out)
     print(f"Wrote {len(out)} bytes to {out_path}")
+
 
 if __name__ == "__main__":
     main()

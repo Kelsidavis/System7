@@ -6,6 +6,7 @@ Generates 32x32 ARGB data arrays for trash and HD icons.
 
 from pathlib import Path
 
+
 def create_color_trash_full():
     """Create a color trash icon (full) - silver/gray metallic with shading"""
     pixels = []
@@ -54,6 +55,7 @@ def create_color_trash_full():
             pixels.append(pixel)
 
     return pixels
+
 
 def create_color_trash_empty():
     """Create a color trash icon (empty) - silver/gray metallic"""
@@ -104,6 +106,7 @@ def create_color_trash_empty():
 
     return pixels
 
+
 def create_color_hd_icon():
     """Create a color hard drive icon - beige/platinum classic Mac color"""
     pixels = []
@@ -146,15 +149,17 @@ def create_color_hd_icon():
 
     return pixels
 
+
 def format_color_array(pixels, name):
     """Format pixel data as C uint32_t array"""
     lines = []
     for i in range(0, len(pixels), 8):
-        line = ", ".join(f"0x{p:08X}" for p in pixels[i:i+8])
+        line = ", ".join(f"0x{p:08X}" for p in pixels[i : i + 8])
         if i < len(pixels) - 8:
             line += ","
         lines.append(f"    {line}")
     return f"const uint32_t {name}[1024] = {{\n" + "\n".join(lines) + "\n};"
+
 
 # Generate color icon data
 trash_full_color = create_color_trash_full()
