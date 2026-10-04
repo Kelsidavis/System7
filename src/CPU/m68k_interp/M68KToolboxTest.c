@@ -696,9 +696,12 @@ static void MoveL(Asm* a, int dn, UInt32 v) { W(a, (UInt16)(0x203C | (dn << 9)))
 
 Boolean M68KToolbox_RunCMPFlagsTest(const char** why)
 {
-    enum { kOverflowFlags = 0x200, kNoOverflowFlags = 0x204 };
+    enum { kOverflowFlags = 0x200, kNoOverflowFlags = 0x204, kCmpmStack = 0x208 };
     World w;
     if (!WorldBegin(&w, why)) return false;
+    UInt32 testStack = w.stack + 0x1000;
+    M68K_Write8(gM68KApp, testStack, 0x7F);
+    M68K_Write8(gM68KApp, testStack + 2, 0x80);
 
     Asm a;
     a.n = 0;
@@ -715,11 +718,17 @@ Boolean M68KToolbox_RunCMPFlagsTest(const char** why)
     W(&a, 0xB200);                  /* CMP.B D0,D1: 1 - 2 does not overflow */
     W(&a, 0x40C2);
     W(&a, 0x23C2); L(&a, w.data + kNoOverflowFlags);
+    MoveL(&a, 0, testStack);
+    W(&a, 0x2E40);                  /* MOVEA.L D0,A7 */
+    W(&a, 0xBF0F);                  /* CMPM.B (A7)+,(A7)+ */
+    W(&a, 0x260F);                  /* MOVE.L A7,D3 */
+    W(&a, 0x23C3); L(&a, w.data + kCmpmStack);
     W(&a, 0xA9F4);                  /* _ExitToShell */
 
     OSErr runResult = WorldRun(&w, &a);
     UInt16 overflowFlags = M68K_Read16(gM68KApp, w.data + kOverflowFlags);
     UInt16 noOverflowFlags = M68K_Read16(gM68KApp, w.data + kNoOverflowFlags);
+    UInt32 cmpmStack = M68K_Read32(gM68KApp, w.data + kCmpmStack);
     WorldEnd(&w);
 
     if (runResult != noErr) {
@@ -734,6 +743,10 @@ Boolean M68KToolbox_RunCMPFlagsTest(const char** why)
     if ((noOverflowFlags & (CCR_X | CCR_N | CCR_Z | CCR_V | CCR_C)) !=
         (CCR_X | CCR_N | CCR_C)) {
         *why = "CMP did not clear V or preserve X for a non-overflowing subtraction";
+        return false;
+    }
+    if (cmpmStack != testStack + 4) {
+        *why = "CMPM.B did not advance A7 by two bytes per operand";
         return false;
     }
 

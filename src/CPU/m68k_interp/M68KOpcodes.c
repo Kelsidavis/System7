@@ -2949,8 +2949,8 @@ void M68K_Op_CMPM(M68KAddressSpace* as, UInt16 opcode)
     UInt8 size = (opcode >> 6) & 3;
     UInt32 src, dst, result;
     UInt32 mask = SIZE_MASK(size);
-    UInt32 sign_bit = SIZE_SIGN_BIT(size);
-    UInt8 byte_count = SIZE_BYTES(size);
+    UInt8 axIncrement = size == SIZE_BYTE && ax_reg == 7 ? 2 : SIZE_BYTES(size);
+    UInt8 ayIncrement = size == SIZE_BYTE && ay_reg == 7 ? 2 : SIZE_BYTES(size);
 
     /* Read from (Ax)+ */
     if (size == SIZE_BYTE) {
@@ -2960,7 +2960,7 @@ void M68K_Op_CMPM(M68KAddressSpace* as, UInt16 opcode)
     } else {
         src = M68K_Read32(as, as->regs.a[ax_reg]);
     }
-    as->regs.a[ax_reg] += byte_count;
+    as->regs.a[ax_reg] += axIncrement;
 
     /* Read from (Ay)+ */
     if (size == SIZE_BYTE) {
@@ -2970,30 +2970,12 @@ void M68K_Op_CMPM(M68KAddressSpace* as, UInt16 opcode)
     } else {
         dst = M68K_Read32(as, as->regs.a[ay_reg]);
     }
-    as->regs.a[ay_reg] += byte_count;
+    as->regs.a[ay_reg] += ayIncrement;
 
     /* Perform comparison (dst - src) */
     result = (dst - src) & mask;
 
-    /* Set flags */
-    M68K_SetNZ(as, result, size);
-
-    /* Carry flag */
-    if (src > dst) {
-        M68K_SetFlag(as, CCR_C);
-    } else {
-        M68K_ClearFlag(as, CCR_C);
-    }
-
-    /* Overflow flag */
-    Boolean dst_neg = (dst & sign_bit) != 0;
-    Boolean src_neg = (src & sign_bit) != 0;
-    Boolean res_neg = (result & sign_bit) != 0;
-    if ((dst_neg != src_neg) && (dst_neg != res_neg)) {
-        M68K_SetFlag(as, CCR_V);
-    } else {
-        M68K_ClearFlag(as, CCR_V);
-    }
+    M68K_SetSubFlags(as, src, dst, result, size, false);
 }
 
 /*
