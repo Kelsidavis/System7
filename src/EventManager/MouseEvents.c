@@ -103,7 +103,6 @@ enum {
 
 /* Mouse constants */
 #define kDragStartThreshold 5      /* pixels */
-#define kDoubleClickTolerance 5    /* pixels */
 #define kMaxClickCount 3           /* triple-click max */
 #define kMouseMoveThreshold 2      /* pixels */
 #define kMaxMouseButtons 3         /* left, right, middle */
@@ -201,7 +200,7 @@ SInt16 InitMouseEvents(void)
 
     /* Set up multi-click detection */
     g_multiClick.maxClickCount = kMaxClickCount;
-    g_multiClick.clickTolerance = kDoubleClickTolerance;
+    g_multiClick.clickTolerance = kDoubleClickDistance;
     g_multiClick.clickTimeThreshold = kDefaultDoubleClickTime;
 
     /* Initialize button state */
