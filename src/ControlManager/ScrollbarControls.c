@@ -15,6 +15,7 @@
 #include "SystemTypes.h"
 #include "ControlManager/ControlManager.h"
 #include "ControlManager/ControlTypes.h"
+#include "WindowManager/WindowManager.h"
 #include "QuickDraw/QuickDraw.h"
 #include "QuickDrawConstants.h"
 #include "QuickDraw/QuickDrawPlatform.h"
@@ -387,7 +388,6 @@ short TrackScrollbarAction(ControlHandle c, Point startLocal, short startPart,
 
                 /* Invalidate only the affected region for efficient redraw */
                 if ((*c)->contrlOwner) {
-                    extern void InvalRect(const Rect* badRect);
                     InvalRect(&updateRect);
                 }
 

@@ -4,14 +4,13 @@
 #include "PatternMgr/pattern_resources.h"
 #include "PatternMgr/pram_prefs.h"
 #include "QuickDraw/QuickDraw.h"
+#include "QuickDraw/QuickDrawInternal.h"
 #include "QuickDraw/ColorQuickDraw.h"
+#include "WindowManager/WindowManager.h"
 #include "MemoryMgr/MemoryManager.h"
 #include "System71StdLib.h"
 #include <string.h>
 #include <stdlib.h>
-
-/* Forward declarations */
-extern void InvalRect(const Rect* r);
 
 /* Global Pattern Manager state */
 static struct {
@@ -41,9 +40,6 @@ void PM_Init(void) {
 
     gPM.initialized = true;
 }
-
-/* External function to update quickdraw_impl's pattern */
-extern void UpdateBackgroundPattern(const Pattern* pat);
 
 void PM_SetBackPat(const Pattern *pat) {
     if (!pat) return;

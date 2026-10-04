@@ -21,6 +21,7 @@
 #include "QuickDraw/QuickDraw.h"
 #include "QuickDraw/ColorQuickDraw.h"
 #include "QuickDraw/QDRegions.h"
+#include "WindowManager/WindowManager.h"
 #include <assert.h>
 
 /* Platform abstraction layer */
@@ -979,7 +980,6 @@ void ScrollRect(const Rect *r, SInt16 dh, SInt16 dv, RgnHandle updateRgn) {
                 RectRgn(part, &sGlobal);
                 DiffRgn(part, vis, part);
                 if (!EmptyRgn(part)) {
-                    extern void InvalRect(const Rect* badRect);
                     InvalRect(&srcRectLocal);
                     if (updateRgn && *updateRgn) RectRgn(updateRgn, &srcRectLocal);
                 }
