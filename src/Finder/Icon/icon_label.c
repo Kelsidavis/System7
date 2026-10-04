@@ -38,6 +38,7 @@ static void FillRectLocal(int left, int top, int right, int bottom, uint32_t col
 static bool gItalicLabel = false;
 
 #define kIconLabelItalicLean 3   /* pixels of lean over the glyph's height */
+#define kIconLabelGlyphHeight 9
 
 static int IconLabel_Shear(int row) {
     if (!gItalicLabel) return 0;
@@ -53,16 +54,26 @@ static void DrawCharBitmap(char ch, int x, int y, uint32_t color) {
 
     ChicagoCharInfo info = chicago_ascii[ch - 32];
 
-    for (int row = 0; row < 15; row++) {  /* Chicago font actual height is 15 */
-        const uint8_t* strike_row = chicago_bitmap + (row * 140);  /* 140 bytes per row */
+    for (int row = 0; row < kIconLabelGlyphHeight; row++) {
+        int firstSourceRow = row * 15 / kIconLabelGlyphHeight;
+        int afterLastSourceRow = (row + 1) * 15 / kIconLabelGlyphHeight;
 
         for (int col = 0; col < info.bit_width; col++) {
             int bit_position = info.bit_start + col;
             int byte_index = bit_position >> 3;
             int bit_offset = 7 - (bit_position & 7);
 
-            if (strike_row[byte_index] & (1 << bit_offset)) {
-                IconPort_WritePixel(x + col + IconLabel_Shear(row), y + row, color);
+            bool set = false;
+            for (int sourceRow = firstSourceRow; sourceRow < afterLastSourceRow; sourceRow++) {
+                const uint8_t* strike_row = chicago_bitmap + sourceRow * 140;
+                if (strike_row[byte_index] & (1 << bit_offset)) {
+                    set = true;
+                    break;
+                }
+            }
+            if (set) {
+                int lean = (IconLabel_Shear(firstSourceRow) * kIconLabelGlyphHeight + 7) / 15;
+                IconPort_WritePixel(x + col + lean, y + row, color);
             }
         }
     }
@@ -85,7 +96,7 @@ void IconLabel_Measure(const char* name, int* outWidth, int* outHeight) {
     if (gItalicLabel) width += kIconLabelItalicLean;
 
     *outWidth = width;
-    *outHeight = 15;  /* Chicago font actual height */
+    *outHeight = kIconLabelGlyphHeight;
 }
 
 /*
@@ -98,7 +109,7 @@ void IconLabel_Measure(const char* name, int* outWidth, int* outHeight) {
  * onto a second line rather than letting it collide.
  */
 #define kIconLabelMaxWidth 80
-#define kIconLabelLineStep 13
+#define kIconLabelLineStep 10
 
 /* Width of the first `len` characters, using the same metrics as
  * IconLabel_Measure. */
@@ -117,7 +128,7 @@ static int MeasureRun(const char* s, int len) {
 /* Draw one line of label text, centred on cx and clamped inside the port. */
 static void DrawLabelLine(const char* s, int len, int cx, int topY, bool selected) {
     int textWidth = MeasureRun(s, len);
-    int textHeight = 15;
+    int textHeight = kIconLabelGlyphHeight;
     int textX = cx - (textWidth / 2);
     int padding = 2;
 
@@ -248,10 +259,7 @@ IconRect Icon_DrawWithLabel(const IconHandle* h, const char* name,
     FINDER_ICON_LOG_DEBUG("Icon_DrawWithLabel: calling Icon_Draw32 at X=%d Y=%d selected=%d\n", iconLeft, iconTopY, selected);
     Icon_Draw32(h, iconLeft, iconTopY, selected);
 
-    /* Draw label below icon with proper spacing
-     * Icon visibly extends to row 27 (28px tall), label background extends 12px above baseline
-     * So baseline needs to be at iconTopY + 28 (icon bottom) + 12 (background height above) = 40 */
-    int labelTop = iconTopY + 40;
+    int labelTop = iconTopY + 34;
     IconLabel_SetItalic(h && h->italicLabel);
     IconLabel_Draw(name, centerX, labelTop, selected);
     IconLabel_SetItalic(false);
