@@ -941,8 +941,7 @@ Handle SaveMenuBits_Display(const Rect* menuRect)
         return NULL;
     }
 
-    /* Use platform-specific screen capture if available */
-    return Platform_SaveScreenBits(menuRect);
+    return SaveMenuBits(menuRect);
 }
 
 /*
@@ -954,7 +953,7 @@ void RestoreMenuBits_Display(Handle savedBits, const Rect* menuRect)
         return;
     }
 
-    Platform_RestoreScreenBits(savedBits, menuRect);
+    (void)RestoreMenuBits(savedBits);
 }
 
 /*
@@ -966,7 +965,7 @@ void DisposeMenuBits(Handle savedBits)
         return;
     }
 
-    Platform_DisposeScreenBits(savedBits);
+    (void)DiscardMenuBits(savedBits);
 }
 
 /* ============================================================================

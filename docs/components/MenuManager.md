@@ -18,7 +18,7 @@ Recreates the System 7 menu bar and pull-down menu experience, from resource loa
 
 ## Responsibilities
 - Maintain the menu list and menu bar data structures populated during `InitMenus`
-- Draw the menu bar chrome (lozenge, titles) and each dropdown into off-screen buffers to reduce flicker
+- Draw menu bar chrome and dropdowns directly to the framebuffer; save and restore the affected screen regions through the shared pooled SaveBits path
 - Track mouse movement during a menu session, highlighting items and switching between menus when the pointer crosses titles
 - Deliver final selections through the application-provided `MenuSelect`/`MenuChoice` loop and clean up saved bits
 - Manage highlighting state, checkmarks, and enabling/disabling of items in response to application state

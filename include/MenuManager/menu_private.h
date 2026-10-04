@@ -127,9 +127,6 @@ long EndMenuTrackingNew(void);
 Boolean IsMenuTrackingNew(void);
 long TrackMenu(short menuID, Point *startPt);
 
-/* Implementation hook used by the platform save-bits wrapper. */
-void* Platform_SaveScreenBits_Impl(const Rect* rect);
-
 #ifdef __cplusplus
 }
 #endif

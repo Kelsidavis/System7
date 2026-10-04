@@ -1,133 +1,27 @@
 /*
  * MenuPlatform.c - Platform integration for the Menu Manager
  *
- * Provides framebuffer save/restore, input tracking, and compatibility
- * fallbacks for menu operations not handled directly by MenuDisplay.
+ * Provides input tracking and compatibility fallbacks for menu operations
+ * not handled directly by MenuDisplay. Legacy save-bit hooks delegate to the
+ * shared menu save/restore implementation.
  */
 
 #include "SystemTypes.h"
 #include "EventManager/EventManager.h"
 #include "MenuManager/MenuManager.h"
+#include "MenuManager/MenuDisplay.h"
 #include "MenuManager/menu_private.h"
-#include "MemoryMgr/MemoryManager.h"
-#include "Platform/Framebuffer.h"
 #include "Platform/PS2Input.h"
-#include <stdlib.h>
-#include <string.h>
 
-/* Screen bits buffer structure for saving/restoring menu drawing */
-typedef struct ScreenBits {
-    uint32_t width;
-    uint32_t height;
-    uint32_t pitch;
-    uint8_t* pixelData;
-    size_t dataSize;
-} ScreenBits;
-
-/* Platform screen bit functions - implementation */
-/*
- * Platform_SaveScreenBits
- * Captures screen area for later restoration before drawing menus
- */
-void* Platform_SaveScreenBits_Impl(const Rect* rect)
-{
-
-    if (!rect || !framebuffer) {
-        return NULL;
-    }
-
-    ScreenBits* bits = (ScreenBits*)NewPtr(sizeof(ScreenBits));
-    if (!bits) {
-        return NULL;
-    }
-
-    /* Calculate region dimensions */
-    uint32_t width = rect->right - rect->left;
-    uint32_t height = rect->bottom - rect->top;
-
-    if (width <= 0 || height <= 0 || width > fb_width || height > fb_height) {
-        DisposePtr((Ptr)bits);
-        return NULL;
-    }
-
-    bits->width = width;
-    bits->height = height;
-    bits->pitch = fb_pitch;
-    bits->dataSize = height * fb_pitch;
-
-    /* Allocate buffer for screen data */
-    bits->pixelData = (uint8_t*)NewPtr(bits->dataSize);
-    if (!bits->pixelData) {
-        DisposePtr((Ptr)bits);
-        return NULL;
-    }
-
-    /* Capture screen region */
-    uint8_t* src = (uint8_t*)framebuffer + (rect->top * fb_pitch) + (rect->left * 4);
-    uint8_t* dst = bits->pixelData;
-
-    for (uint32_t y = 0; y < height; y++) {
-        memcpy(dst, src, width * 4);
-        src += fb_pitch;
-        dst += fb_pitch;
-    }
-
-    return (void*)bits;
-}
-
-/*
- * Platform_RestoreScreenBits
- * Restores previously saved screen region
- */
 void Platform_RestoreScreenBits(Handle bits, const Rect* rect)
 {
-
-    if (!bits || !rect || !framebuffer) {
-        return;
-    }
-
-    ScreenBits* screenBits = (ScreenBits*)bits;
-
-    if (!screenBits->pixelData) {
-        return;
-    }
-
-    uint32_t width = rect->right - rect->left;
-    uint32_t height = rect->bottom - rect->top;
-
-    if (width != screenBits->width || height != screenBits->height) {
-        return;  /* Size mismatch, don't restore */
-    }
-
-    /* Restore screen region */
-    uint8_t* dst = (uint8_t*)framebuffer + (rect->top * fb_pitch) + (rect->left * 4);
-    uint8_t* src = screenBits->pixelData;
-
-    for (uint32_t y = 0; y < height; y++) {
-        memcpy(dst, src, width * 4);
-        src += fb_pitch;
-        dst += fb_pitch;
-    }
+    (void)rect;
+    (void)RestoreMenuBits(bits);
 }
 
-/*
- * Platform_DisposeScreenBits
- * Releases screen bits buffer
- */
 void Platform_DisposeScreenBits(Handle bits)
 {
-    if (!bits) {
-        return;
-    }
-
-    ScreenBits* screenBits = (ScreenBits*)bits;
-
-    if (screenBits->pixelData) {
-        DisposePtr((Ptr)screenBits->pixelData);
-        screenBits->pixelData = NULL;
-    }
-
-    DisposePtr((Ptr)screenBits);
+    (void)DiscardMenuBits(bits);
 }
 
 /* Platform drawing functions - forward to MenuDisplay routines */
@@ -244,11 +138,7 @@ void Platform_HiliteMenuItem(void* theMenu, short item, Boolean hilite)
     /* hilite=false: draw item normal */
 }
 
-/*
- * Platform_SaveScreenBits (public wrapper)
- * Wrapper around internal implementation
- */
 Handle Platform_SaveScreenBits(const Rect* rect)
 {
-    return (Handle)Platform_SaveScreenBits_Impl(rect);
+    return SaveMenuBits(rect);
 }
