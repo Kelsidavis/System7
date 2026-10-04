@@ -12,32 +12,12 @@
 #include "Platform/include/boot.h"
 #endif
 
-/* Define selector constants using canonical FOURCC. The ROM stored these as
- * four-byte ASCII codes; keeping the character spelling here aids cross-
- * referencing with Inside Macintosh docs. */
 #ifndef DEFAULT_GESTALT_MACHINE_TYPE
 #define DEFAULT_GESTALT_MACHINE_TYPE 0
 #endif
 
 #if defined(__powerpc__) || defined(__powerpc64__)
 static OSErr gestalt_mmap(long *response);
-#endif
-
-#ifndef DEFAULT_BEZEL_STYLE
-#define DEFAULT_BEZEL_STYLE 0
-#endif
-
-static const OSType kSel_sysv = FOURCC('s','y','s','v');
-static const OSType kSel_qtim = FOURCC('q','t','i','m');
-static const OSType kSel_rsrc = FOURCC('r','s','r','c');
-static const OSType kSel_mach = FOURCC('m','a','c','h');
-static const OSType kSel_proc = FOURCC('p','r','o','c');
-static const OSType kSel_fpu_ = FOURCC('f','p','u',' ');
-static const OSType kSel_init = FOURCC('i','n','i','t');
-static const OSType kSel_evnt = FOURCC('e','v','n','t');
-static const OSType kSel_pcop = FOURCC('p','c','o','p');  /* Process coop */
-#if defined(__powerpc__) || defined(__powerpc64__)
-static const OSType kSel_mmap = FOURCC('m','m','a','p');
 #endif
 
 /* Global init bits for tracking subsystem initialization */
@@ -57,61 +37,6 @@ void Gestalt_SetMachineType(UInt16 machineType) {
 
 UInt16 Gestalt_GetMachineType(void) {
     return gGestaltMachineType;
-}
-
-/* Architecture-agnostic FPU detection
- * -------------------------------
- * Classic System 7 would poke 68k coprocessor state; on modern hardware we
- * have to probe per CPU family.  We avoid libc and only touch registers that
- * are architecturally safe in freestanding mode. */
-static int probe_fpu_present(void) {
-#if defined(__x86_64__) || defined(__i386__)
-    /* CPUID leaf 1, EDX bit 0 (x87 FPU) */
-    unsigned int a = 1, b = 0, c = 0, d = 0;
-
-    #if defined(__i386__) && defined(__PIC__)
-    /* inline asm clobbers ebx; save/restore for PIC */
-    __asm__ __volatile__(
-        "xchgl %%ebx, %1\n\t"
-        "cpuid\n\t"
-        "xchgl %%ebx, %1"
-        : "+a"(a), "+r"(b), "+c"(c), "+d"(d));
-    #else
-    __asm__ __volatile__("cpuid" : "+a"(a), "+b"(b), "+c"(c), "+d"(d));   /* a is the leaf */
-    #endif
-
-    return (d & 0x00000001u) ? 1 : 0;
-
-#elif defined(__aarch64__)
-    /* AArch64 mandates FP/ASIMD */
-    return 1;
-
-#elif defined(__arm__)
-    /* Don't touch coprocessor regs in freestanding; default off */
-    return 0;
-
-#elif defined(__riscv) || defined(__riscv__)
-    /* Try reading misa CSR if available */
-    #if defined(__GNUC__) || defined(__clang__)
-        unsigned long misa = 0;
-        #if defined(__riscv_xlen) && (__riscv_xlen == 64)
-        __asm__ __volatile__("csrr %0, misa" : "=r"(misa));
-        return ((misa && ((misa & (1UL<<(5))) || (misa & (1UL<<(3))))) ? 1 : 0); /* F=5, D=3 */
-        #else
-        return 0; /* 32-bit RISC-V: conservatively assume no FPU */
-        #endif
-    #else
-    return 0;
-    #endif
-
-#elif defined(__powerpc__) || defined(__powerpc64__)
-    /* Conservative: PPC usually has FPU in our targets */
-    return 1;
-
-#else
-    /* Unknown architecture */
-    return 0;
-#endif
 }
 
 /* Built-in selector: System version */
@@ -224,8 +149,8 @@ static OSErr gestalt_proc(long *response) {
 static OSErr gestalt_fpu(long *response) {
     if (!response) return paramErr;
 
-    /* Call architecture-specific FPU probe */
-    *response = probe_fpu_present();
+    /* The current 68K execution path does not provide an emulated FPU. */
+    *response = gestaltNoFPU;
 
     return noErr;
 }
@@ -280,38 +205,38 @@ void Gestalt_Register_Builtins(void) {
     OSErr err;
 
     /* System version - always register */
-    err = NewGestalt(kSel_sysv, gestalt_sysv);
+    err = NewGestalt(gestaltSystemVersion, gestalt_sysv);
     /* Ignore error - may already be registered */
 
     /* Machine type - always register */
-    err = NewGestalt(kSel_mach, gestalt_mach);
+    err = NewGestalt(gestaltMachineType, gestalt_mach);
 
     /* Processor type - always register */
-    err = NewGestalt(kSel_proc, gestalt_proc);
+    err = NewGestalt(gestaltProcessorType, gestalt_proc);
 
     /* FPU type - always register */
-    err = NewGestalt(kSel_fpu_, gestalt_fpu);
+    err = NewGestalt(gestaltFPUType, gestalt_fpu);
 
     /* Init bits - always register */
-    err = NewGestalt(kSel_init, gestalt_init);
+    err = NewGestalt(gestaltInitBits, gestalt_init);
 
 #if defined(__powerpc__) || defined(__powerpc64__)
-    err = NewGestalt(kSel_mmap, gestalt_mmap);
+    err = NewGestalt(gestaltMemoryMap, gestalt_mmap);
 #endif
 
     /* Time Manager - only register if initialized */
     if (gGestaltInitBits & (1UL << kGestaltInitBit_TimeMgr)) {
-        err = NewGestalt(kSel_qtim, gestalt_qtim);
+        err = NewGestalt(gestaltTimeMgrVersion, gestalt_qtim);
     }
 
     /* Resource Manager - only register if compiled in */
-    err = NewGestalt(kSel_rsrc, gestalt_rsrc);
+    err = NewGestalt(gestaltResourceMgrVers, gestalt_rsrc);
 
     /* Event Manager features */
-    err = NewGestalt(kSel_evnt, gestalt_evnt);
+    err = NewGestalt(gestaltEventFeatures, gestalt_evnt);
 
     /* Process Manager cooperative features */
-    err = NewGestalt(kSel_pcop, gestalt_pcop);
+    err = NewGestalt(gestaltProcessFeatures, gestalt_pcop);
 
     /* Unused variable warning suppression */
     (void)err;

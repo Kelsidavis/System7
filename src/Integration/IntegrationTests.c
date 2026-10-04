@@ -54,6 +54,7 @@
 #include "DeskManager/Chooser.h"
 #include "DeskManager/DeskAccessory.h"
 #include "SoundManager/SoundManager.h"
+#include "Gestalt/Gestalt.h"
 #include "MenuManager/MenuManager.h"
 #include "MenuManager/MenuDisplay.h"
 #include "MenuManager/MenuInternalTypes.h"
@@ -1241,6 +1242,21 @@ static void Test_SoundInputUnavailable(void) {
           SPBMillisecondsToBytes(12345, &duration) == siBadSoundInDevice &&
           SPBBytesToMilliseconds(12345, &duration) == siBadSoundInDevice,
           "sound input device helpers accepted an invalid device reference");
+    RecordTest(test_name, true, "");
+}
+
+static void Test_GestaltFPUType(void) {
+    const char* test_name = "Gestalt_FPUType";
+    long fpuType = -1;
+    SysEnvRec environment;
+
+    CHECK(Gestalt(gestaltFPUType, &fpuType) == noErr &&
+          fpuType == gestaltNoFPU,
+          "Gestalt reported a host FPU as a Motorola 68K coprocessor");
+    CHECK(GetSysEnv(1, &environment) == noErr && environment.hasFPU == 0,
+          "GetSysEnv reported an FPU unavailable to the 68K execution path");
+    CHECK(gestalt68881 == 1 && gestalt68882 == 2 && gestalt68040FPU == 3,
+          "Gestalt FPU constants do not match the classic Toolbox values");
     RecordTest(test_name, true, "");
 }
 
@@ -2785,6 +2801,9 @@ void IntegrationTests_Run(void) {
 
     IT_LOG_INFO("--- Sound Input ---");
     Test_SoundInputUnavailable();
+
+    IT_LOG_INFO("--- Gestalt ---");
+    Test_GestaltFPUType();
 
     IT_LOG_INFO("--- Math ---");
     Test_Math_Accuracy();

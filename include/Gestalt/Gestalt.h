@@ -88,6 +88,15 @@ OSErr GetSysEnv(short versionRequested, SysEnvRec *answer);
 #define gestaltFPUType          FOURCC('f','p','u',' ')
 #define gestaltInitBits         FOURCC('i','n','i','t')
 #define gestaltMemoryMap        FOURCC('m','m','a','p')
+#define gestaltEventFeatures    FOURCC('e','v','n','t')
+#define gestaltProcessFeatures  FOURCC('p','c','o','p')
+
+enum {
+    gestaltNoFPU = 0,
+    gestalt68881 = 1,
+    gestalt68882 = 2,
+    gestalt68040FPU = 3
+};
 
 #ifdef __cplusplus
 }

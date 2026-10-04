@@ -48,6 +48,9 @@ This checklist records significant differences between the current toolbox reimp
 - ~~`src/System71StdLib.c` – `sprintf`/`snprintf` are placeholder implementations; Toolbox routines expecting formatted output (e.g., `NumToString`) will misbehave.~~ **FIXED** (2025-10-06): Implemented vsnprintf() with format specifiers (%s, %d, %u, %x, %c, %p); sprintf() and snprintf() now fully functional
 - `src/ProcessMgr/ProcessManager.c` – Process Manager maintains a cooperative scheduler and process table, but end-to-end multi-process scheduling/context switching remains experimental.
 
+## System Information
+- ~~`Gestalt('fpu ')` reported a Boolean host-CPU FPU probe as a Motorola coprocessor type.~~ **FIXED** (2026-10-04): the selector now reports `gestaltNoFPU` while the 68K execution path lacks FPU emulation; classic type constants and guest-level regression coverage are defined.
+
 ## Fonts & Typography
 - `docs/components/FontManager/README.md` & `src/FontManager/FontManagerCore.c` – Only the Chicago 12 strike ships in-tree; Geneva/Monaco fall back to Chicago unless matching strikes are available as resources.
 - `src/FontManager/FontResourceLoader.c` – NFNT/FOND parsing and strike construction are implemented, and `FontManagerCore.c` looks up FOND/NFNT through `GetResource`. Validate loading against real resource forks and non-Chicago strikes before claiming broad font coverage.
