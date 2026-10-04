@@ -12,38 +12,13 @@
 #define __MENU_SELECTION_H__
 
 #include "SystemTypes.h"
-
-
 #include "MenuManager.h"
 #include "MenuTypes.h"
+#include "MenuManager/MenuInternalTypes.h"
 
 #ifdef __cplusplus
 extern "C" {
 #endif
-
-/* ============================================================================
- * Menu Selection Constants
- * ============================================================================ */
-
-/* Menu tracking states */
-
-/* Menu selection results */
-
-/* Mouse tracking constants */
-
-/* Command key modifiers */
-
-/* ============================================================================
- * Menu Selection Data Structures
- * ============================================================================ */
-
-/* Menu selection result */
-
-/* Menu tracking information */
-
-/* Command key search information */
-
-/* Hierarchical menu tracking */
 
 /* ============================================================================
  * Menu Selection Core Functions
