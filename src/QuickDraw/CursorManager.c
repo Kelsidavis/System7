@@ -15,6 +15,7 @@
 #include "System71StdLib.h"
 
 #include "EventManager/EventManager.h"
+#include "MenuManager/menu_private.h"
 #include "MemoryMgr/MemoryManager.h"
 #include "QuickDraw/QuickDraw.h"
 #include "ResourceManager.h"
@@ -138,9 +139,6 @@ static CursorState gCursorState = {
     .lastMouseValid = false,
     .obscurePoint = {0, 0}
 };
-
-/* Check if menu tracking is active - don't switch cursor during menu operations */
-extern Boolean IsMenuTrackingNew(void);
 
 static inline UInt16 cursor_get_bit(UInt16 row, int col) {
     return (UInt16)((row >> (15 - col)) & 0x1);

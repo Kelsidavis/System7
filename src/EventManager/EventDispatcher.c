@@ -18,6 +18,7 @@
 #include "Finder/finder.h"
 #include "WindowManager/WindowManager.h"
 #include "MenuManager/MenuManager.h"
+#include "MenuManager/menu_private.h"
 #include "ControlPanels/DesktopPatterns.h"
 #include "ControlPanels/Sound.h"
 #include "ControlPanels/Mouse.h"
@@ -30,11 +31,6 @@
 #include "Apps/SimpleText.h"
 #include <stdlib.h>  /* For abs() */
 #include "EventManager/EventLogging.h"
-
-/* Menu tracking functions from MenuTrack.c */
-extern Boolean IsMenuTrackingNew(void);
-extern void UpdateMenuTrackingNew(Point mousePt);
-extern long EndMenuTrackingNew(void);
 
 /* Forward declarations of event handler functions */
 Boolean HandleNullEvent(EventRecord* event);
