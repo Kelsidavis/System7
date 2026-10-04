@@ -1206,6 +1206,123 @@ OSErr SndStopFilePlay(SndChannelPtr chan, Boolean quietNow) {
     return unimpErr;
 }
 
+OSErr SndRecord(ModalFilterProcPtr filterProc, Point corner, OSType quality,
+               SndListHandle *sndHandle) {
+    (void)filterProc;
+    (void)corner;
+    (void)quality;
+    if (!sndHandle) return paramErr;
+    return notEnoughHardwareErr;
+}
+
+OSErr SndRecordToFile(ModalFilterProcPtr filterProc, Point corner,
+                      OSType quality, SInt16 fRefNum) {
+    (void)filterProc;
+    (void)corner;
+    (void)quality;
+    (void)fRefNum;
+    return notEnoughHardwareErr;
+}
+
+OSErr SPBOpenDevice(const Str255 deviceName, SInt16 permission,
+                    SInt32 *inRefNum) {
+    (void)permission;
+    if (!deviceName || !inRefNum) return paramErr;
+    return notEnoughHardwareErr;
+}
+
+OSErr SPBGetIndexedDevice(SInt16 count, Str255 deviceName,
+                          Handle *deviceIconHandle) {
+    (void)count;
+    (void)deviceName;
+    (void)deviceIconHandle;
+    return siBadSoundInDevice;
+}
+
+OSErr SPBSignInDevice(SInt16 deviceRefNum, ConstStr255Param deviceName) {
+    (void)deviceRefNum;
+    (void)deviceName;
+    return siBadSoundInDevice;
+}
+
+OSErr SPBSignOutDevice(SInt16 deviceRefNum) {
+    (void)deviceRefNum;
+    return siBadSoundInDevice;
+}
+
+OSErr SPBCloseDevice(SInt32 inRefNum) {
+    (void)inRefNum;
+    return siBadSoundInDevice;
+}
+
+OSErr SPBRecord(SPBPtr inParamPtr, Boolean asynchFlag) {
+    (void)asynchFlag;
+    if (!inParamPtr) return paramErr;
+    inParamPtr->error = notEnoughHardwareErr;
+    return notEnoughHardwareErr;
+}
+
+OSErr SPBRecordToFile(SInt16 fRefNum, SPBPtr inParamPtr, Boolean asynchFlag) {
+    (void)fRefNum;
+    return SPBRecord(inParamPtr, asynchFlag);
+}
+
+OSErr SPBPauseRecording(SInt32 inRefNum) {
+    (void)inRefNum;
+    return siBadSoundInDevice;
+}
+
+OSErr SPBResumeRecording(SInt32 inRefNum) {
+    (void)inRefNum;
+    return siBadSoundInDevice;
+}
+
+OSErr SPBStopRecording(SInt32 inRefNum) {
+    (void)inRefNum;
+    return siBadSoundInDevice;
+}
+
+OSErr SPBGetRecordingStatus(SInt32 inRefNum, SInt16 *recordingStatus,
+                            SInt16 *meterLevel, UInt32 *totalSamplesToRecord,
+                            UInt32 *numberOfSamplesRecorded,
+                            UInt32 *totalMsecsToRecord,
+                            UInt32 *numberOfMsecsRecorded) {
+    (void)inRefNum;
+    (void)recordingStatus;
+    (void)meterLevel;
+    (void)totalSamplesToRecord;
+    (void)numberOfSamplesRecorded;
+    (void)totalMsecsToRecord;
+    (void)numberOfMsecsRecorded;
+    return siBadSoundInDevice;
+}
+
+OSErr SPBGetDeviceInfo(SInt32 inRefNum, OSType infoType, void *infoData) {
+    (void)inRefNum;
+    (void)infoType;
+    (void)infoData;
+    return siBadSoundInDevice;
+}
+
+OSErr SPBSetDeviceInfo(SInt32 inRefNum, OSType infoType, void *infoData) {
+    (void)inRefNum;
+    (void)infoType;
+    (void)infoData;
+    return siBadSoundInDevice;
+}
+
+OSErr SPBMillisecondsToBytes(SInt32 inRefNum, SInt32 *milliseconds) {
+    (void)inRefNum;
+    (void)milliseconds;
+    return siBadSoundInDevice;
+}
+
+OSErr SPBBytesToMilliseconds(SInt32 inRefNum, SInt32 *byteCount) {
+    (void)inRefNum;
+    (void)byteCount;
+    return siBadSoundInDevice;
+}
+
 void GetSoundHeaderOffset(SndListHandle sndHandle, SInt32 *offset) {
     if (!offset) return;
     *offset = 0;

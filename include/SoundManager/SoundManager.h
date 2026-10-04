@@ -141,7 +141,16 @@ OSErr SndRecordToFile(ModalFilterProcPtr filterProc,
 OSErr SPBOpenDevice(const Str255 deviceName,
                    SInt16 permission,
                    SInt32 *inRefNum);
-
+OSErr SPBGetIndexedDevice(SInt16 count, Str255 deviceName,
+                          Handle *deviceIconHandle);
+OSErr SPBSignInDevice(SInt16 deviceRefNum, ConstStr255Param deviceName);
+OSErr SPBSignOutDevice(SInt16 deviceRefNum);
+OSErr SPBCloseDevice(SInt32 inRefNum);
+OSErr SPBRecord(SPBPtr inParamPtr, Boolean asynchFlag);
+OSErr SPBRecordToFile(SInt16 fRefNum, SPBPtr inParamPtr, Boolean asynchFlag);
+OSErr SPBPauseRecording(SInt32 inRefNum);
+OSErr SPBResumeRecording(SInt32 inRefNum);
+OSErr SPBStopRecording(SInt32 inRefNum);
 
 OSErr SPBGetRecordingStatus(SInt32 inRefNum,
                            SInt16 *recordingStatus,

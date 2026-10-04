@@ -53,6 +53,7 @@
 #include "DeskManager/Calculator.h"
 #include "DeskManager/Chooser.h"
 #include "DeskManager/DeskAccessory.h"
+#include "SoundManager/SoundManager.h"
 #include "MenuManager/MenuManager.h"
 #include "MenuManager/MenuDisplay.h"
 #include "MenuManager/MenuInternalTypes.h"
@@ -1159,6 +1160,55 @@ static void Test_Dialog_EditTextFocusBeyond32Items(void) {
     CHECK(!DialogSelect(&editEvent, &selectedDialog, &activatedItem) && activatedItem == 0,
           "DialogSelect reported a key event from a disabled edit item");
     DisposeDialog(d);
+    RecordTest(test_name, true, "");
+}
+
+static void Test_SoundInputUnavailable(void) {
+    const char* test_name = "SoundInput_Unavailable";
+    Str255 defaultDevice = {0};
+    SInt32 inputRefNum = 12345;
+    SPB input = {0};
+    SndListHandle recordedSound = NULL;
+    SInt16 recordingStatus = 7;
+    SInt32 duration = 2000;
+
+    CHECK(SPBOpenDevice(defaultDevice, 0, &inputRefNum) == notEnoughHardwareErr &&
+          inputRefNum == 12345,
+          "SPBOpenDevice did not report unavailable input hardware safely");
+    CHECK(SPBOpenDevice(defaultDevice, 0, NULL) == paramErr &&
+          SPBOpenDevice(NULL, 0, &inputRefNum) == paramErr,
+          "SPBOpenDevice did not validate its required parameters");
+    CHECK(SPBRecord(&input, false) == notEnoughHardwareErr &&
+          input.error == notEnoughHardwareErr,
+          "SPBRecord did not report unavailable input hardware");
+    input.error = noErr;
+    CHECK(SPBRecordToFile(1, &input, true) == notEnoughHardwareErr &&
+          input.error == notEnoughHardwareErr,
+          "SPBRecordToFile did not report unavailable input hardware");
+    CHECK(SndRecord(NULL, (Point){0, 0}, 0, &recordedSound) ==
+              notEnoughHardwareErr && recordedSound == NULL &&
+          SndRecord(NULL, (Point){0, 0}, 0, NULL) == paramErr &&
+          SndRecordToFile(NULL, (Point){0, 0}, 0, 1) == notEnoughHardwareErr,
+          "modal recording APIs did not report unavailable input hardware");
+    CHECK(SPBRecord(NULL, false) == paramErr,
+          "SPBRecord did not reject a null parameter block");
+    CHECK(SPBCloseDevice(12345) == siBadSoundInDevice &&
+          SPBGetIndexedDevice(1, defaultDevice, NULL) == siBadSoundInDevice &&
+          SPBSignInDevice(1, defaultDevice) == siBadSoundInDevice &&
+          SPBSignOutDevice(1) == siBadSoundInDevice &&
+          SPBPauseRecording(12345) == siBadSoundInDevice &&
+          SPBResumeRecording(12345) == siBadSoundInDevice &&
+          SPBStopRecording(12345) == siBadSoundInDevice,
+          "sound input operations did not reject an invalid device reference");
+    CHECK(SPBGetRecordingStatus(12345, &recordingStatus, NULL, NULL, NULL,
+                                NULL, NULL) == siBadSoundInDevice &&
+          recordingStatus == 7,
+          "recording status query modified outputs for an invalid device");
+    CHECK(SPBGetDeviceInfo(12345, 0, NULL) == siBadSoundInDevice &&
+          SPBSetDeviceInfo(12345, 0, NULL) == siBadSoundInDevice &&
+          SPBMillisecondsToBytes(12345, &duration) == siBadSoundInDevice &&
+          SPBBytesToMilliseconds(12345, &duration) == siBadSoundInDevice,
+          "sound input device helpers accepted an invalid device reference");
     RecordTest(test_name, true, "");
 }
 
@@ -2700,6 +2750,9 @@ void IntegrationTests_Run(void) {
     Test_Dialog_ParseDITLRejectsNegativeLongLength();
     Test_Dialog_LoadMissingTemplate();
     Test_Dialog_ActionDebounce();
+
+    IT_LOG_INFO("--- Sound Input ---");
+    Test_SoundInputUnavailable();
 
     IT_LOG_INFO("--- Math ---");
     Test_Math_Accuracy();

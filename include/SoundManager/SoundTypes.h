@@ -12,6 +12,12 @@
 
 #include "SystemTypes.h"
 
+enum {
+    notEnoughHardwareErr = -201,
+    siBadSoundInDevice = -221,
+    siBadDeviceName = -228
+};
+
 #ifdef __cplusplus
 extern "C" {
 #endif
