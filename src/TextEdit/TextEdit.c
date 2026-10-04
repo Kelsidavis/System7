@@ -197,6 +197,16 @@ TEHandle TEStyleNew(const Rect *destRect, const Rect *viewRect) {
     pStyles->styleTab = NewHandleClear(sizeof(SInt16) + sizeof(TextStyle) * 16);
     pStyles->runArray = NewHandleClear(sizeof(SInt16) + sizeof(StyleRun) * 16);
     pStyles->lineHeights = NewHandle(sizeof(LHElement) * 32);
+    pStyles->nullStyle = (NullStHandle)NewHandleClear(sizeof(NullStRec));
+    if (pStyles->nullStyle) {
+        HLock((Handle)pStyles->nullStyle);
+        NullStRec *nullStyle = (NullStRec *)HandleDataAligned((Handle)pStyles->nullStyle);
+        if (nullStyle) {
+            nullStyle->nullScrap = (StScrpHandle)NewHandleClear(
+                sizeof(SInt16) + sizeof(ScrpSTElement));
+        }
+        HUnlock((Handle)pStyles->nullStyle);
+    }
     HUnlock(hStyles);
 
     /* Verify all sub-allocations succeeded */
@@ -208,10 +218,29 @@ TEHandle TEStyleNew(const Rect *destRect, const Rect *viewRect) {
         TEDispose(hTE);
         return NULL;
     }
-    if (!pStyles->styleTab || !pStyles->runArray || !pStyles->lineHeights) {
+    Boolean nullScrapReady = false;
+    if (pStyles->nullStyle) {
+        HLock((Handle)pStyles->nullStyle);
+        NullStRec *nullStyle = (NullStRec *)HandleDataAligned((Handle)pStyles->nullStyle);
+        nullScrapReady = nullStyle && nullStyle->nullScrap &&
+            GetHandleSize((Handle)nullStyle->nullScrap) >=
+                sizeof(SInt16) + sizeof(ScrpSTElement);
+        HUnlock((Handle)pStyles->nullStyle);
+    }
+    if (!pStyles->styleTab || !pStyles->runArray || !pStyles->lineHeights ||
+        !pStyles->nullStyle || !nullScrapReady) {
         if (pStyles->styleTab) DisposeHandle(pStyles->styleTab);
         if (pStyles->runArray) DisposeHandle(pStyles->runArray);
         if (pStyles->lineHeights) DisposeHandle(pStyles->lineHeights);
+        if (pStyles->nullStyle) {
+            HLock((Handle)pStyles->nullStyle);
+            NullStRec *nullStyle = (NullStRec *)HandleDataAligned((Handle)pStyles->nullStyle);
+            if (nullStyle && nullStyle->nullScrap) {
+                DisposeHandle((Handle)nullStyle->nullScrap);
+            }
+            HUnlock((Handle)pStyles->nullStyle);
+            DisposeHandle((Handle)pStyles->nullStyle);
+        }
         HUnlock(hStyles);
         DisposeHandle(hStyles);
         TEDispose(hTE);
@@ -262,59 +291,12 @@ TEHandle TEStyleNew(const Rect *destRect, const Rect *viewRect) {
     return hTE;
 }
 
-void TEGetStyle(SInt32 offset, TextStyle *theStyle,
-                SInt16 *lineHeight, SInt16 *fontAscent, TEHandle hTE) {
-    TEExtPtr pTE;
-    TextStyle style;
-    SInt16 height;
-    SInt16 ascent;
-    GrafPtr textPort;
-
-    if (!hTE) return;
-
-    HLock((Handle)hTE);
-    pTE = (TEExtPtr)*hTE;
-    style.tsFont = pTE->base.txFont;
-    style.tsFace = pTE->base.txFace;
-    style.tsSize = pTE->base.txSize;
-    style.tsColor.red = 0;
-    style.tsColor.green = 0;
-    style.tsColor.blue = 0;
-    height = pTE->base.lineHeight;
-    ascent = pTE->base.fontAscent;
-    textPort = pTE->base.inPort;
-
-    if (pTE->hStyles && *pTE->hStyles) {
-        HLock(pTE->hStyles);
-        STRec *styleRec = (STRec *)HandleDataAligned(pTE->hStyles);
-        if (styleRec && styleRec->styleTab && *styleRec->styleTab) {
-            HLock(styleRec->styleTab);
-            TEStyleTable *table =
-                (TEStyleTable *)HandleDataAligned(styleRec->styleTab);
-            SInt16 styleIndex = 0;
-            if (styleRec->runArray && *styleRec->runArray) {
-                HLock(styleRec->runArray);
-                TERunArray *runs =
-                    (TERunArray *)HandleDataAligned(styleRec->runArray);
-                if (runs) {
-                    for (SInt16 i = 0; i < runs->nRuns; i++) {
-                        if (runs->runs[i].startChar > offset) break;
-                        styleIndex = runs->runs[i].styleIndex;
-                    }
-                }
-                HUnlock(styleRec->runArray);
-            }
-            if (table && table->nStyles > 0 && styleIndex >= 0 &&
-                styleIndex < table->nStyles) {
-                style = table->styles[styleIndex];
-            }
-            HUnlock(styleRec->styleTab);
-        }
-        HUnlock(pTE->hStyles);
-    }
-
-    HUnlock((Handle)hTE);
-
+static void TE_GetStyleMetrics(TextStyle style, GrafPtr textPort,
+                               SInt16 fallbackHeight,
+                               SInt16 fallbackAscent,
+                               SInt16 *lineHeight, SInt16 *fontAscent) {
+    SInt16 height = fallbackHeight;
+    SInt16 ascent = fallbackAscent;
     if (textPort && (lineHeight || fontAscent)) {
         GrafPtr savedPort = NULL;
         GrafPort *port = (GrafPort *)textPort;
@@ -343,6 +325,181 @@ void TEGetStyle(SInt32 offset, TextStyle *theStyle,
         TextSize(savedSize);
         if (savedPort) SetPort(savedPort);
     }
+    if (lineHeight) *lineHeight = height;
+    if (fontAscent) *fontAscent = ascent;
+}
+
+static Boolean TE_ReadNullStyle(TEExtPtr pTE, TextStyle *style) {
+    if (!pTE || !style || !pTE->hStyles) return false;
+    HLock(pTE->hStyles);
+    STRec *styleRec = (STRec *)HandleDataAligned(pTE->hStyles);
+    Boolean found = false;
+    if (styleRec && styleRec->nullStyle) {
+        HLock((Handle)styleRec->nullStyle);
+        NullStRec *nullRecord =
+            (NullStRec *)HandleDataAligned((Handle)styleRec->nullStyle);
+        if (nullRecord && nullRecord->nullScrap) {
+            HLock((Handle)nullRecord->nullScrap);
+            StScrpRec *nullScrap = (StScrpRec *)HandleDataAligned(
+                (Handle)nullRecord->nullScrap);
+            if (nullScrap && nullScrap->scrpNStyles == 1) {
+                ScrpSTElement *element = &nullScrap->scrpStyleTab[0];
+                style->tsFont = element->scrpFont;
+                style->tsFace = element->scrpFace;
+                style->tsSize = element->scrpSize;
+                style->tsColor = element->scrpColor;
+                found = true;
+            }
+            HUnlock((Handle)nullRecord->nullScrap);
+        }
+        HUnlock((Handle)styleRec->nullStyle);
+    }
+    HUnlock(pTE->hStyles);
+    return found;
+}
+
+static void TE_ClearNullStyle(TEExtPtr pTE) {
+    if (!pTE || !pTE->hStyles) return;
+    HLock(pTE->hStyles);
+    STRec *styleRec = (STRec *)HandleDataAligned(pTE->hStyles);
+    if (styleRec && styleRec->nullStyle) {
+        HLock((Handle)styleRec->nullStyle);
+        NullStRec *nullRecord =
+            (NullStRec *)HandleDataAligned((Handle)styleRec->nullStyle);
+        if (nullRecord && nullRecord->nullScrap) {
+            HLock((Handle)nullRecord->nullScrap);
+            StScrpRec *nullScrap = (StScrpRec *)HandleDataAligned(
+                (Handle)nullRecord->nullScrap);
+            if (nullScrap) nullScrap->scrpNStyles = 0;
+            HUnlock((Handle)nullRecord->nullScrap);
+        }
+        HUnlock((Handle)styleRec->nullStyle);
+    }
+    HUnlock(pTE->hStyles);
+}
+
+static void TE_ResetStyleRuns(TEExtPtr pTE) {
+    if (!pTE || !pTE->hStyles) return;
+    HLock(pTE->hStyles);
+    STRec *styleRec = (STRec *)HandleDataAligned(pTE->hStyles);
+    if (styleRec && styleRec->runArray) {
+        HLock(styleRec->runArray);
+        TERunArray *runs = (TERunArray *)HandleDataAligned(styleRec->runArray);
+        if (runs && GetHandleSize(styleRec->runArray) >=
+            sizeof(SInt16) + sizeof(StyleRun)) {
+            runs->nRuns = 1;
+            runs->runs[0].startChar = 0;
+            runs->runs[0].styleIndex = 0;
+            styleRec->nRuns = 1;
+        }
+        HUnlock(styleRec->runArray);
+    }
+    HUnlock(pTE->hStyles);
+}
+
+static Boolean TE_WriteNullStyle(TEExtPtr pTE, TextStyle style) {
+    if (!pTE || !pTE->hStyles) return false;
+    SInt16 styleHeight;
+    SInt16 styleAscent;
+    TE_GetStyleMetrics(style, pTE->base.inPort, pTE->base.lineHeight,
+                       pTE->base.fontAscent, &styleHeight, &styleAscent);
+    HLock(pTE->hStyles);
+    STRec *styleRec = (STRec *)HandleDataAligned(pTE->hStyles);
+    if (!styleRec || !styleRec->nullStyle) {
+        HUnlock(pTE->hStyles);
+        return false;
+    }
+    HLock((Handle)styleRec->nullStyle);
+    NullStRec *nullRecord =
+        (NullStRec *)HandleDataAligned((Handle)styleRec->nullStyle);
+    if (!nullRecord || !nullRecord->nullScrap) {
+        HUnlock((Handle)styleRec->nullStyle);
+        HUnlock(pTE->hStyles);
+        return false;
+    }
+    HLock((Handle)nullRecord->nullScrap);
+    StScrpRec *nullScrap = (StScrpRec *)HandleDataAligned(
+        (Handle)nullRecord->nullScrap);
+    if (nullScrap) {
+        nullScrap->scrpNStyles = 1;
+        ScrpSTElement *element = &nullScrap->scrpStyleTab[0];
+        element->scrpStartChar = 0;
+        element->scrpHeight = styleHeight;
+        element->scrpAscent = styleAscent;
+        element->scrpFont = style.tsFont;
+        element->scrpFace = style.tsFace;
+        element->scrpSize = style.tsSize;
+        element->scrpColor = style.tsColor;
+    }
+    HUnlock((Handle)nullRecord->nullScrap);
+    HUnlock((Handle)styleRec->nullStyle);
+    HUnlock(pTE->hStyles);
+    return nullScrap != NULL;
+}
+
+void TEGetStyle(SInt32 offset, TextStyle *theStyle,
+                SInt16 *lineHeight, SInt16 *fontAscent, TEHandle hTE) {
+    TEExtPtr pTE;
+    TextStyle style;
+    SInt16 height;
+    SInt16 ascent;
+    GrafPtr textPort;
+    SInt32 styleOffset;
+
+    if (!hTE) return;
+
+    HLock((Handle)hTE);
+    pTE = (TEExtPtr)*hTE;
+    style.tsFont = pTE->base.txFont;
+    style.tsFace = pTE->base.txFace;
+    style.tsSize = pTE->base.txSize;
+    style.tsColor.red = 0;
+    style.tsColor.green = 0;
+    style.tsColor.blue = 0;
+    height = pTE->base.lineHeight;
+    ascent = pTE->base.fontAscent;
+    textPort = pTE->base.inPort;
+
+    Boolean hasNullStyle = pTE->base.selStart == pTE->base.selEnd &&
+        offset == pTE->base.selStart && TE_ReadNullStyle(pTE, &style);
+    styleOffset = offset;
+    if (!hasNullStyle && pTE->base.selStart == pTE->base.selEnd &&
+        offset == pTE->base.selStart && offset > 0) {
+        styleOffset--;
+    }
+
+    if (!hasNullStyle && pTE->hStyles && *pTE->hStyles) {
+        HLock(pTE->hStyles);
+        STRec *styleRec = (STRec *)HandleDataAligned(pTE->hStyles);
+        if (styleRec && styleRec->styleTab && *styleRec->styleTab) {
+            HLock(styleRec->styleTab);
+            TEStyleTable *table =
+                (TEStyleTable *)HandleDataAligned(styleRec->styleTab);
+            SInt16 styleIndex = 0;
+            if (styleRec->runArray && *styleRec->runArray) {
+                HLock(styleRec->runArray);
+                TERunArray *runs =
+                    (TERunArray *)HandleDataAligned(styleRec->runArray);
+                if (runs) {
+                    for (SInt16 i = 0; i < runs->nRuns; i++) {
+                        if (runs->runs[i].startChar > styleOffset) break;
+                        styleIndex = runs->runs[i].styleIndex;
+                    }
+                }
+                HUnlock(styleRec->runArray);
+            }
+            if (table && table->nStyles > 0 && styleIndex >= 0 &&
+                styleIndex < table->nStyles) {
+                style = table->styles[styleIndex];
+            }
+            HUnlock(styleRec->styleTab);
+        }
+        HUnlock(pTE->hStyles);
+    }
+
+    HUnlock((Handle)hTE);
+
+    TE_GetStyleMetrics(style, textPort, height, ascent, &height, &ascent);
 
     if (theStyle) *theStyle = style;
     if (lineHeight) *lineHeight = height;
@@ -417,6 +574,49 @@ void TESetStyle(SInt16 mode, const TextStyle *newStyle,
     selectionStart = pTE->base.selStart;
     selectionEnd = pTE->base.selEnd;
     textLength = pTE->base.teLength;
+    if (selectionStart == selectionEnd) {
+        HUnlock((Handle)hTE);
+
+        TextStyle currentStyle;
+        HLock((Handle)hTE);
+        pTE = (TEExtPtr)*hTE;
+        Boolean explicitStyle = TE_ReadNullStyle(pTE, &currentStyle);
+        HUnlock((Handle)hTE);
+        if (!explicitStyle) {
+            SInt32 styleOffset = selectionStart > 0 ? selectionStart - 1 : 0;
+            TEGetStyle(styleOffset, &currentStyle, NULL, NULL, hTE);
+        }
+
+        SInt16 applyMode = mode;
+        Boolean removeFaces = false;
+        if ((mode & (doFace | doToggle)) == (doFace | doToggle)) {
+            applyMode = (SInt16)(mode & (SInt16)~(doFace | doToggle));
+            removeFaces = (currentStyle.tsFace & newStyle->tsFace) ==
+                          newStyle->tsFace;
+        }
+        TextStyle changedStyle =
+            TE_ApplyStyleMode(currentStyle, applyMode, newStyle);
+        if ((mode & (doFace | doToggle)) == (doFace | doToggle)) {
+            if (removeFaces) {
+                changedStyle.tsFace &= (Style)~newStyle->tsFace;
+            } else {
+                changedStyle.tsFace |= newStyle->tsFace;
+            }
+        }
+
+        HLock((Handle)hTE);
+        pTE = (TEExtPtr)*hTE;
+        Boolean stored = TE_WriteNullStyle(pTE, changedStyle);
+        if (stored) {
+            pTE->base.txFont = changedStyle.tsFont;
+            pTE->base.txFace = changedStyle.tsFace;
+            pTE->base.txSize = changedStyle.tsSize;
+            pTE->dirty = TRUE;
+        }
+        HUnlock((Handle)hTE);
+        if (stored && redraw) TEUpdate(NULL, hTE);
+        return;
+    }
     if (selectionStart < 0) selectionStart = 0;
     if (selectionEnd > textLength) selectionEnd = textLength;
     if (selectionStart >= selectionEnd || textLength <= 0) {
@@ -711,6 +911,16 @@ void TEDispose(TEHandle hTE) {
             if (pStyles->styleTab) DisposeHandle(pStyles->styleTab);
             if (pStyles->runArray) DisposeHandle(pStyles->runArray);
             if (pStyles->lineHeights) DisposeHandle(pStyles->lineHeights);
+            if (pStyles->nullStyle) {
+                HLock((Handle)pStyles->nullStyle);
+                NullStRec *nullStyle =
+                    (NullStRec *)HandleDataAligned((Handle)pStyles->nullStyle);
+                if (nullStyle && nullStyle->nullScrap) {
+                    DisposeHandle((Handle)nullStyle->nullScrap);
+                }
+                HUnlock((Handle)pStyles->nullStyle);
+                DisposeHandle((Handle)pStyles->nullStyle);
+            }
         }
         HUnlock(hStyles);
         DisposeHandle(hStyles);
@@ -763,6 +973,8 @@ void TESetText(const void *text, SInt32 length, TEHandle hTE) {
     /* Reset selection */
     pTE->base.selStart = 0;
     pTE->base.selEnd = 0;
+    TE_ClearNullStyle(pTE);
+    TE_ResetStyleRuns(pTE);
 
     /* Mark dirty for recalc */
     pTE->dirty = TRUE;
@@ -799,6 +1011,7 @@ void TEDelete(TEHandle hTE) {
 
 static Boolean TE_PrepareStyleRunsForReplace(TEExtPtr pTE, SInt32 start,
                                              SInt32 end, SInt32 insertLength,
+                                             const TextStyle *overrideStyle,
                                              Handle *newRunsOut,
                                              SInt16 *newRunCountOut) {
     STRec *styleRec;
@@ -808,8 +1021,10 @@ static Boolean TE_PrepareStyleRunsForReplace(TEExtPtr pTE, SInt32 start,
     Handle newRunHandle;
     SInt16 oldRunCount;
     SInt16 insertedStyle = 0;
+    SInt16 suffixStyle = 0;
     SInt16 newRunCount = 0;
     SInt32 delta = insertLength - (end - start);
+    Boolean hasSuffix = end < pTE->base.teLength;
 
     *newRunsOut = NULL;
     *newRunCountOut = 0;
@@ -818,7 +1033,7 @@ static Boolean TE_PrepareStyleRunsForReplace(TEExtPtr pTE, SInt32 start,
     HLock(pTE->hStyles);
     styleRec = (STRec *)HandleDataAligned(pTE->hStyles);
     if (!styleRec || !styleRec->runArray || !styleRec->styleTab ||
-        styleRec->nRuns <= 0) {
+        styleRec->nRuns <= 0 || styleRec->nRuns > INT16_MAX - 2) {
         HUnlock(pTE->hStyles);
         return false;
     }
@@ -853,16 +1068,63 @@ static Boolean TE_PrepareStyleRunsForReplace(TEExtPtr pTE, SInt32 start,
             (start == end && runStart < start) || (start == 0 && i == 0)) {
             insertedStyle = styleIndex;
         }
+        if (runStart <= end) suffixStyle = styleIndex;
     }
 
     newRunHandle = NewHandleClear(sizeof(SInt16) +
-                                  (u32)(oldRunCount + 1) * sizeof(StyleRun));
+                                  (u32)(oldRunCount + 2) * sizeof(StyleRun));
     if (!newRunHandle) {
         HUnlock(styleRec->styleTab);
         HUnlock(oldRunHandle);
         HUnlock(pTE->hStyles);
         return false;
     }
+
+    if (insertLength > 0 && overrideStyle) {
+        SInt16 matchingStyle = -1;
+        for (SInt16 i = 0; i < styleTable->nStyles; i++) {
+            if (TE_SameTextStyle(&styleTable->styles[i], overrideStyle)) {
+                matchingStyle = i;
+                break;
+            }
+        }
+        if (matchingStyle < 0) {
+            if (styleTable->nStyles == INT16_MAX) {
+                HUnlock(styleRec->styleTab);
+                HUnlock(oldRunHandle);
+                HUnlock(pTE->hStyles);
+                DisposeHandle(newRunHandle);
+                return false;
+            }
+            u32 requiredSize = sizeof(SInt16) +
+                (u32)(styleTable->nStyles + 1) * sizeof(TextStyle);
+            Handle styleTableHandle = styleRec->styleTab;
+            if (GetHandleSize(styleTableHandle) < requiredSize) {
+                HUnlock(styleTableHandle);
+                OSErr resizeErr = SetHandleSize(styleTableHandle, requiredSize);
+                if (resizeErr != noErr) {
+                    HUnlock(oldRunHandle);
+                    HUnlock(pTE->hStyles);
+                    DisposeHandle(newRunHandle);
+                    return false;
+                }
+                HLock(styleTableHandle);
+                styleTable = (TEStyleTable *)HandleDataAligned(styleTableHandle);
+                if (!styleTable) {
+                    HUnlock(styleTableHandle);
+                    HUnlock(oldRunHandle);
+                    HUnlock(pTE->hStyles);
+                    DisposeHandle(newRunHandle);
+                    return false;
+                }
+            }
+            matchingStyle = styleTable->nStyles++;
+            styleTable->styles[matchingStyle] = *overrideStyle;
+            styleRec->nStyles = styleTable->nStyles;
+        }
+        insertedStyle = matchingStyle;
+    }
+
     HLock(newRunHandle);
     TERunArray *newRuns = (TERunArray *)HandleDataAligned(newRunHandle);
     if (!newRuns) {
@@ -887,6 +1149,12 @@ static Boolean TE_PrepareStyleRunsForReplace(TEExtPtr pTE, SInt32 start,
          newRuns->runs[newRunCount - 1].styleIndex != insertedStyle)) {
         newRuns->runs[newRunCount].startChar = (SInt16)start;
         newRuns->runs[newRunCount++].styleIndex = insertedStyle;
+    }
+    if (hasSuffix &&
+        (newRunCount == 0 ||
+         newRuns->runs[newRunCount - 1].styleIndex != suffixStyle)) {
+        newRuns->runs[newRunCount].startChar = (SInt16)(start + insertLength);
+        newRuns->runs[newRunCount++].styleIndex = suffixStyle;
     }
     for (SInt16 i = 0; i < oldRunCount; i++) {
         StyleRun run = oldRuns->runs[i];
@@ -941,6 +1209,8 @@ void TEReplaceSel(const void *text, SInt32 length, TEHandle hTE) {
     SInt32 selectionStart, selectionEnd;
     Handle newRunHandle = NULL;
     SInt16 newRunCount = 0;
+    TextStyle nullStyle;
+    const TextStyle *overrideStyle = NULL;
 
     if (!hTE || length < 0) return;
 
@@ -980,8 +1250,14 @@ void TEReplaceSel(const void *text, SInt32 length, TEHandle hTE) {
         }
     }
 
+    if (length > 0 && selectionStart == selectionEnd &&
+        TE_ReadNullStyle(pTE, &nullStyle)) {
+        overrideStyle = &nullStyle;
+    }
+
     if (!TE_PrepareStyleRunsForReplace(pTE, selectionStart, selectionEnd,
-                                       length, &newRunHandle, &newRunCount)) {
+                                       length, overrideStyle, &newRunHandle,
+                                       &newRunCount)) {
         HUnlock((Handle)hTE);
         return;
     }
@@ -1011,6 +1287,7 @@ void TEReplaceSel(const void *text, SInt32 length, TEHandle hTE) {
     pTE->base.selEnd = pTE->base.selStart;
     pTE->dirty = TRUE;
     TE_CommitStyleRuns(pTE, newRunHandle, newRunCount);
+    TE_ClearNullStyle(pTE);
 
     /* Recalculate lines */
     TE_RecalcLines(hTE);
@@ -1063,6 +1340,10 @@ void TESetSelect(SInt32 selStart, SInt32 selEnd, TEHandle hTE) {
     /* All four are 32-bit: %d would pass 4-byte ints to printf. */
     TE_LOG("TESetSelect: [%ld,%ld] -> [%ld,%ld]\n",
            (long)pTE->base.selStart, (long)pTE->base.selEnd, (long)selStart, (long)selEnd);
+
+    if (selStart != pTE->base.selStart || selEnd != pTE->base.selEnd) {
+        TE_ClearNullStyle(pTE);
+    }
 
     /* Invalidate old selection, the caret off first */
     TE_UpdateCaret(hTE, FALSE);

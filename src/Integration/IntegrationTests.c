@@ -1877,24 +1877,55 @@ static void Test_TextEditGetStyle(void) {
 
     TEHandle edited = TEStyleNew(&rect, &rect);
     Boolean editRunsOK = false;
+    Boolean nullStyleOK = false;
+    Boolean nullStyleCleared = false;
     if (edited) {
         TESetText(text, 4, edited);
         TextStyle editedStyle = {0};
         editedStyle.tsFace = bold;
-        TESetSelect(1, 2, edited);
-        TESetStyle(doFace, &editedStyle, false, edited);
         TESetSelect(2, 2, edited);
+        TESetStyle(doFace, &editedStyle, false, edited);
+        TextStyle caretStyle = {0};
+        TEGetStyle(2, &caretStyle, NULL, NULL, edited);
+        nullStyleOK = caretStyle.tsFace == bold;
+
+        TESetSelect(1, 1, edited);
+        TEGetStyle(1, &caretStyle, NULL, NULL, edited);
+        nullStyleCleared = caretStyle.tsFace == normal;
+
+        TESetSelect(2, 2, edited);
+        TESetStyle(doFace, &editedStyle, false, edited);
+        TEGetStyle(2, &caretStyle, NULL, NULL, edited);
+        Boolean nullStyleApplied = caretStyle.tsFace == bold;
         TEInsert("X", 1, edited);
-        TextStyle runStyles[5] = {{0}};
-        for (SInt32 i = 0; i < 5; i++) {
-            TEGetStyle(i, &runStyles[i], NULL, NULL, edited);
+        TEGetStyle(2, &caretStyle, NULL, NULL, edited);
+        nullStyleOK = nullStyleOK && nullStyleApplied &&
+                      caretStyle.tsFace == bold;
+        TESetSelect(3, 4, edited);
+        TEGetStyle(3, &caretStyle, NULL, NULL, edited);
+        nullStyleOK = nullStyleOK && (**edited).teLength == 5 &&
+                      caretStyle.tsFace == normal;
+        TEDispose(edited);
+
+        edited = TEStyleNew(&rect, &rect);
+        if (edited) {
+            TESetText(text, 4, edited);
+            TESetSelect(1, 2, edited);
+            editedStyle.tsFace = bold;
+            TESetStyle(doFace, &editedStyle, false, edited);
+            TESetSelect(2, 2, edited);
+            TEInsert("X", 1, edited);
+            TextStyle runStyles[5] = {{0}};
+            for (SInt32 i = 0; i < 5; i++) {
+                TEGetStyle(i, &runStyles[i], NULL, NULL, edited);
+            }
+            editRunsOK = (**edited).teLength == 5 &&
+                         runStyles[0].tsFace == normal &&
+                         runStyles[1].tsFace == bold &&
+                         runStyles[2].tsFace == bold &&
+                         runStyles[3].tsFace == normal &&
+                         runStyles[4].tsFace == normal;
         }
-        editRunsOK = (**edited).teLength == 5 &&
-                     runStyles[0].tsFace == normal &&
-                     runStyles[1].tsFace == bold &&
-                     runStyles[2].tsFace == bold &&
-                     runStyles[3].tsFace == normal &&
-                     runStyles[4].tsFace == normal;
         TEDispose(edited);
     }
     DisposeHandle((Handle)scrap);
@@ -1916,6 +1947,8 @@ static void Test_TextEditGetStyle(void) {
           "TEStylePaste did not round-trip classic styled scrap");
     CHECK(editRunsOK,
           "Text insertion did not preserve and shift adjacent style runs");
+    CHECK(nullStyleOK && nullStyleCleared,
+          "TESetStyle did not set or clear the styled TextEdit null style");
     RecordTest(test_name, true, "");
 }
 

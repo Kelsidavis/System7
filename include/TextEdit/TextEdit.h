@@ -59,12 +59,21 @@ typedef struct StyleRun {
     SInt16      styleIndex;     /* Index into style table */
 } StyleRun;
 
+typedef struct NullStRec {
+    SInt32       teReserved;
+    StScrpHandle nullScrap;
+} NullStRec;
+
+typedef NullStRec *NullStPtr;
+typedef NullStPtr *NullStHandle;
+
 typedef struct STRec {
     SInt16      nRuns;          /* Number of style runs */
     SInt16      nStyles;        /* Number of unique styles */
     Handle      styleTab;       /* Handle to style table */
     Handle      runArray;       /* Handle to run array */
     Handle      lineHeights;    /* Handle to line height array */
+    NullStHandle nullStyle;     /* Handle to the null-style record */
 } STRec;
 
 /* Line height record */
