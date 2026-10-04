@@ -148,8 +148,6 @@ SInt16 InitModernInput(const char* platform)
         return noErr;
     }
 
-    g_modernInput.platform = platform;
-
     /* Initialize platform-specific input */
     if (platform && strcmp(platform, "PS2") == 0) {
         /* Initialize PS/2 controller for keyboard and mouse if needed */
@@ -162,6 +160,13 @@ SInt16 InitModernInput(const char* platform)
         EVT_LOG_INFO("ModernInput PS/2 controller ready\n");
     }
     /* Add other platform initializations here (USB, etc.) */
+
+    if (InitKeyboardEvents() != noErr) {
+        EVT_LOG_ERROR("ModernInput failed to initialize keyboard events\n");
+        return -1;
+    }
+
+    g_modernInput.platform = platform;
 
     /* Initialize state */
     g_modernInput.lastMousePos.h = 400;
@@ -434,6 +439,7 @@ void ShutdownModernInput(void)
     /* Cleanup platform-specific resources */
     /* PS/2 doesn't need explicit cleanup */
 
+    ShutdownKeyboardEvents();
     g_modernInput.initialized = false;
     g_modernInput.platform = NULL;
 }

@@ -32,6 +32,7 @@
 #include "OSUtils/OSUtils.h"
 #include "EventManager/EventManager.h"
 #include "EventManager/EventManagerInternal.h"
+#include "EventManager/KeyboardEvents.h"
 #include "FontManager/FontManager.h"
 #include "TextEdit/TextEdit.h"
 #include "FS/vfs.h"
@@ -1198,6 +1199,29 @@ static void Test_Event_FullQueueKeepsNewest(void) {
     RecordTest(test_name, true, "");
 }
 
+static void Test_KeyboardManagerTracksKeyState(void) {
+    const char* test_name = "KeyboardManager_TracksKeyState";
+    KeyMap keys;
+
+    ProcessRawKeyboardEvent(kScanCommand, true, 0, TickCount());
+    GetKeys(keys);
+    Boolean commandDown =
+        (keys[kScanCommand / 32] & (1U << (kScanCommand % 32))) != 0;
+    Boolean modifierDown = (GetModifierState() & cmdKey) != 0;
+
+    ProcessRawKeyboardEvent(kScanCommand, false, 0, TickCount());
+    GetKeys(keys);
+    Boolean commandReleased =
+        (keys[kScanCommand / 32] & (1U << (kScanCommand % 32))) == 0;
+    Boolean modifierReleased = (GetModifierState() & cmdKey) == 0;
+
+    CHECK(commandDown && modifierDown,
+          "keyboard manager did not track the command-key press");
+    CHECK(commandReleased && modifierReleased,
+          "keyboard manager did not track the command-key release");
+    RecordTest(test_name, true, "");
+}
+
 /* Both scrolling entry points clamp to the same measured content bounds. */
 static void Test_TextEditScrollBounds(void) {
     const char* test_name = "TextEdit_ScrollBounds";
@@ -2001,6 +2025,7 @@ void IntegrationTests_Run(void) {
     Test_Window_UpdateWithoutBuffer();
     Test_Window_MoveRepaintsUncovered();
     Test_Event_FullQueueKeepsNewest();
+    Test_KeyboardManagerTracksKeyState();
     Test_TextEditScrollBounds();
     Test_Calculator_Arithmetic();
     Test_Resource_ReleaseThenGet();
