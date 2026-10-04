@@ -396,6 +396,42 @@ Boolean HandleDialogEditTextClick(DialogPtr theDialog, SInt16 itemNo, Point mous
     return true;
 }
 
+static void StoreDialogTEText(DialogPtr theDialog, SInt16 itemNo, TEHandle hTE)
+{
+    Handle text = TEGetText(hTE);
+    Handle itemHandle;
+    SInt16 itemType;
+    Rect itemBox;
+    SInt32 textLength = (**hTE).teLength;
+    Size itemHandleSize;
+
+    if (!text) return;
+    if (textLength < 0) textLength = 0;
+    if (textLength > 255) textLength = 255;
+
+    GetDialogItem(theDialog, itemNo, &itemType, &itemHandle, &itemBox);
+    if (!itemHandle) return;
+
+    HLock(text);
+    itemHandleSize = GetHandleSize(itemHandle);
+    if (itemHandleSize < 0 || (UInt32)itemHandleSize < (UInt32)textLength + 1u) {
+        SetHandleSize(itemHandle, textLength + 1);
+    }
+    itemHandleSize = GetHandleSize(itemHandle);
+    if (itemHandleSize >= 0 && (UInt32)itemHandleSize >= (UInt32)textLength + 1u) {
+        HLock(itemHandle);
+        unsigned char* itemText = (unsigned char*)*itemHandle;
+        itemText[0] = (unsigned char)textLength;
+        if (textLength > 0) memcpy(&itemText[1], *text, (size_t)textLength);
+        HUnlock(itemHandle);
+        DialogItem_SyncText(theDialog, itemNo);
+    }
+    HUnlock(text);
+
+    InvalDialogItem(theDialog, itemNo);
+    DrawDialogItem(theDialog, itemNo);
+}
+
 /*
  * HandleDialogEditTextKey - Handle keyboard events in edit-text items
  *
@@ -430,62 +466,7 @@ Boolean HandleDialogEditTextKey(DialogPtr theDialog, SInt16 itemNo, CharParamete
     /* Pass key to TextEdit */
     TEKey(key, hTE);
 
-    /* Store updated text back to dialog item */
-    {
-        Handle hText;
-        Handle itemHandle;
-        SInt16 itemType;
-        Rect itemBox;
-        SInt32 textLen;
-        Size itemHandleSize;
-        unsigned char* pText;
-
-        hText = TEGetText(hTE);
-        if (hText) {
-            GetDialogItem(theDialog, itemNo, &itemType, &itemHandle, &itemBox);
-            HLock(hText);
-            /* teLength, not the handle size: TENew allocates a fixed buffer
-             * and TextEdit tracks how much of it is in use, so GetHandleSize
-             * reports the capacity. Using it here copied the whole buffer -
-             * the typed characters plus a kilobyte of uninitialised memory -
-             * and set the item's Pascal length to 255. */
-            textLen = (SInt32)(**hTE).teLength;
-            if (textLen < 0) textLen = 0;
-            if (textLen > 255) textLen = 255;
-
-            /* Convert to Pascal string. The item handle was sized for the
-             * text the list was built with, so it has to grow before longer
-             * text is copied in - otherwise typing past the initial length
-             * writes off the end of the block. */
-            if (itemHandle) {
-                itemHandleSize = GetHandleSize(itemHandle);
-                if (itemHandleSize < 0 ||
-                    (UInt32)itemHandleSize < (UInt32)textLen + 1u) {
-                    SetHandleSize(itemHandle, textLen + 1);
-                }
-                itemHandleSize = GetHandleSize(itemHandle);
-                if (itemHandleSize >= 0 &&
-                    (UInt32)itemHandleSize >= (UInt32)textLen + 1u) {
-                    HLock(itemHandle);
-                    pText = (unsigned char*)*itemHandle;
-                    pText[0] = (unsigned char)textLen;
-                    if (textLen > 0) {
-                        memcpy(&pText[1], *hText, textLen);
-                    }
-                    HUnlock(itemHandle);
-                }
-            }
-            HUnlock(hText);
-
-            /* The handle may have moved when it grew, so refresh the cached
-             * pointer the drawing code reads before asking for a redraw. */
-            DialogItem_SyncText(theDialog, itemNo);
-
-            /* Redraw item */
-            InvalDialogItem(theDialog, itemNo);
-            DrawDialogItem(theDialog, itemNo);
-        }
-    }
+    StoreDialogTEText(theDialog, itemNo, hTE);
 
     return true;
 }
@@ -535,6 +516,7 @@ void HandleDialogCut(DialogPtr theDialog) {
     hTE = GetOrCreateDialogTEHandle(theDialog, itemNo);
     if (hTE) {
         TECut(hTE);
+        StoreDialogTEText(theDialog, itemNo, hTE);
     }
 }
 
@@ -585,8 +567,23 @@ void HandleDialogPaste(DialogPtr theDialog) {
     hTE = GetOrCreateDialogTEHandle(theDialog, itemNo);
     if (hTE) {
         TEPaste(hTE);
-        /* Update dialog item after paste */
-        InvalDialogItem(theDialog, itemNo);
-        DrawDialogItem(theDialog, itemNo);
+        StoreDialogTEText(theDialog, itemNo, hTE);
     }
+}
+
+void DialogCut(DialogPtr theDialog) { HandleDialogCut(theDialog); }
+void DialogCopy(DialogPtr theDialog) { HandleDialogCopy(theDialog); }
+void DialogPaste(DialogPtr theDialog) { HandleDialogPaste(theDialog); }
+
+void DialogDelete(DialogPtr theDialog)
+{
+    DialogManagerState* state = GetDialogManagerState();
+    if (!state || !theDialog || state->focusedEditTextItem < 1) return;
+
+    SInt16 itemNo = state->focusedEditTextItem;
+    TEHandle hTE = GetOrCreateDialogTEHandle(theDialog, itemNo);
+    if (!hTE) return;
+
+    TEDelete(hTE);
+    StoreDialogTEText(theDialog, itemNo, hTE);
 }

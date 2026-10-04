@@ -1005,6 +1005,16 @@ static void Test_Dialog_EditTextFocusBeyond32Items(void) {
     AdvanceDialogEditTextFocus(d, true);
     CHECK(GetDialogEditTextFocus(d) == 33,
           "backward focus traversal did not return to edit item 33");
+    TEHandle editText = GetOrCreateDialogTEHandle(d, 33);
+    CHECK(editText, "focused edit item did not provide a TextEdit handle");
+    TESetSelect(0, 5, editText);
+    DialogDelete(d);
+    Handle editTextData = NULL;
+    Str255 remainingText = {0};
+    GetDialogItem(d, 33, NULL, &editTextData, NULL);
+    GetDialogItemText(editTextData, remainingText);
+    CHECK(remainingText[0] == 0,
+          "DialogDelete did not delete the focused edit-text selection");
     DisposeDialog(d);
     RecordTest(test_name, true, "");
 }

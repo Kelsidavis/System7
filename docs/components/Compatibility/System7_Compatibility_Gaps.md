@@ -15,10 +15,10 @@ This checklist records significant differences between the current toolbox reimp
 - `src/QuickDraw/CursorManager.c` implements software cursor visibility, obscuring until mouse movement, and watch-frame cycling through `SpinCursor()`. `IntegrationTests.c` covers nested hide/show and movement-based reveal; screen-level background restoration and watch-frame stepping remain unverified.
 
 ## Window, Dialog, Control, and Menu Managers
-- `include/DialogManager/DialogManager.h` declares `DialogCut`, `DialogCopy`,
-  `DialogPaste`, `DialogDelete`, `DialogManager_ShowOpenFileDialog`, and
-  `DialogManager_ShowSaveFileDialog`, and `ModalDialogs.h` declares
-  `AnnounceModalDialog`; none has a definition in `src/`. Implement the
+- `DialogCut`, `DialogCopy`, `DialogPaste`, and `DialogDelete` now route through
+  the focused dialog edit-text field and update its item data. The extended
+  `DialogManager_ShowOpenFileDialog`, `DialogManager_ShowSaveFileDialog`, and
+  `AnnounceModalDialog` declarations still have no implementation; define their
   intended contracts or remove declarations that are not supported APIs.
 - `include/DialogManager/DialogEvents.h` and `DialogItems.h` declare helper APIs
   with no definitions in `src/`:
