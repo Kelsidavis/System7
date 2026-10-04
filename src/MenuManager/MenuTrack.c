@@ -35,8 +35,6 @@ static void Menu_ClipToScreen(void) {
 static void DrawHighlightRect(short left, short top, short right, short bottom, Boolean highlight);
 void DrawMenuBarWithHighlight(short highlightMenuID);
 
-short TrackMenu_TakeSwitch(void);
-
 /* Global menu tracking state for event-based menu handling */
 static struct {
     Boolean isTracking;        /* Are we currently tracking a menu? */

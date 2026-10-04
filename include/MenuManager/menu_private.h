@@ -126,6 +126,7 @@ void UpdateMenuTrackingNew(Point where);
 long EndMenuTrackingNew(void);
 Boolean IsMenuTrackingNew(void);
 long TrackMenu(short menuID, Point *startPt);
+short TrackMenu_TakeSwitch(void);
 
 #ifdef __cplusplus
 }

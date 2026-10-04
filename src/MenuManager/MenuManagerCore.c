@@ -122,10 +122,6 @@ static void UpdateMenuBarLayout(void);
 static short MenuBar_SystemMenusLeft(void) __attribute__((unused));   /* the clock, x86 only */
 static void InvalidateMenuBar(void);
 
-/* Platform function prototypes (implemented elsewhere) */
-/* Platform_DrawMenuBar declared in menu_private.h */
-extern void Platform_EraseMenuBar(void);
-
 /* ============================================================================
  * Menu Manager Initialization and Cleanup
  * ============================================================================ */

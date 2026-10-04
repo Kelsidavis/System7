@@ -85,7 +85,6 @@ static Rect gCurrentMenuRect;
 /* Forward declarations */
 Handle SaveMenuBits_Display(const Rect* menuRect);
 void RestoreMenuBits_Display(Handle savedBits, const Rect* menuRect);
-extern void Platform_FlashMenuBar(short menuID);
 
 /* Internal function prototypes */
 static void InitializeDrawingContext(MenuDrawContext* context);

@@ -179,7 +179,6 @@ long MenuSelect(Point startPt)
 
         /* Show dropdown and track item selection; follow the pointer from
          * title to title while it is dragged along the bar */
-        extern short TrackMenu_TakeSwitch(void);
         for (;;) {
             trackResult = TrackMenu(menuID, &dropdownPt);
             short next = TrackMenu_TakeSwitch();
