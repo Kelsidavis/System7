@@ -1072,7 +1072,8 @@ test-input:
 			tests/input/x86_ps2.c -o "$$input_test_dir/x86-ps2"; \
 		"$$input_test_dir/x86-ps2"; \
 		$(HOST_CC) $(INPUT_TEST_FLAGS) tests/input/keyboard.c \
-			src/EventManager/KeyboardEvents.c -o "$$input_test_dir/keyboard"; \
+			src/EventManager/KeyboardEvents.c src/DeskManager/KeyCaps.c \
+			-o "$$input_test_dir/keyboard"; \
 		"$$input_test_dir/keyboard"; \
 		$(HOST_CXX) -std=c++17 -Wall -Wextra -Werror -fsyntax-only -Iinclude \
 			tests/input/linkage.cpp; \

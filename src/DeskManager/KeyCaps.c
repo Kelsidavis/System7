@@ -1,56 +1,33 @@
-#include "MemoryMgr/MemoryManager.h"
-#include <stdlib.h>
-#include <string.h>
-/*
- * KeyCaps.c - Key Caps Desk Accessory Implementation
- *
- * Provides a visual keyboard layout display showing all available characters
- * for the current keyboard layout. Users can see what characters are produced
- * by different key combinations and can click to insert characters.
- *
- * Derived from ROM analysis (System 7)
- */
-
-#include "SystemTypes.h"
-#include "System71StdLib.h"
-
+/* Key Caps uses the Event Manager's built-in US translation. */
 #include "DeskManager/KeyCaps.h"
-#include "QuickDraw/QuickDraw.h"
+#include "EventManager/KeyboardEvents.h"
 #include "FontManager/FontManager.h"
-#include "DeskManager/DeskManager.h"
+#include "QuickDraw/QuickDraw.h"
 #include "TimeManager/TimeBase.h"
+#include <string.h>
 
-
-/* Default US keyboard layout */
-static const char *g_defaultKeyLabels[KEYCAPS_MAX_KEYS] = {
-    "`", "1", "2", "3", "4", "5", "6", "7", "8", "9", "0", "-", "=",
-    "q", "w", "e", "r", "t", "y", "u", "i", "o", "p", "[", "]", "\\",
-    "a", "s", "d", "f", "g", "h", "j", "k", "l", ";", "'",
-    "z", "x", "c", "v", "b", "n", "m", ",", ".", "/"
+/* Virtual key codes in display order, not character or translation tables. */
+static const UInt8 kKeyCodes[] = {
+    0x32, 0x12, 0x13, 0x14, 0x15, 0x17, 0x16, 0x1a, 0x1c, 0x19, 0x1d, 0x1b, 0x18,
+    0x0c, 0x0d, 0x0e, 0x0f, 0x11, 0x10, 0x20, 0x22, 0x1f, 0x23, 0x21, 0x1e, 0x2a,
+    0x00, 0x01, 0x02, 0x03, 0x05, 0x04, 0x26, 0x28, 0x25, 0x29, 0x27,
+    0x06, 0x07, 0x08, 0x09, 0x0b, 0x2d, 0x2e, 0x2b, 0x2f, 0x2c
 };
 
-/* What each of those types with Shift, in the same order */
-static const char g_shiftedChars[KEYCAPS_MAX_KEYS + 1] =
-    "~!@#$%^&*()_+" "QWERTYUIOP{}|" "ASDFGHJKL:\"" "ZXCVBNM<>?";
-
-/*
- * The keyboard as drawn: four rows of character keys, the first key of each
- * row starting further right as on the real thing, with the wide keys either
- * side and the space bar below. Key rectangles are in the window's local
- * coordinates; everything is measured from these.
- */
 enum {
+    kKeyCount = sizeof(kKeyCodes) / sizeof(kKeyCodes[0]),
     kKeyW = 24, kKeyH = 22, kKeyPitch = 26, kRowPitch = 24,
     kStripTop = 8, kStripBottom = 30, kKeysTop = 40, kLeft = 10,
-    kRowCount = 4
+    kRowCount = 4,
+    kLabelModifiers = shiftKey | alphaLock | optionKey
 };
 static const SInt16 kRowStart[kRowCount] = { kLeft, kLeft + 36, kLeft + 42, kLeft + 54 };
-static const SInt16 kRowKeys[kRowCount]  = { 13, 13, 11, 10 };
+static const SInt16 kRowKeys[kRowCount] = { 13, 13, 11, 10 };
 
-/* The keys that type nothing, drawn so the keyboard looks like one */
+/* Non-character keys are outlines; the space bar accepts clicks separately. */
 typedef struct { SInt16 row, left, right; } WideKey;
 static const WideKey kWideKeys[] = {
-    { 0, kLeft + 13 * kKeyPitch, kLeft + 13 * kKeyPitch + 36 },   /* delete */
+    { 0, kLeft + 13 * kKeyPitch, kLeft + 13 * kKeyPitch + 36 },       /* delete */
     { 1, kLeft, kLeft + 34 },                                      /* tab */
     { 2, kLeft, kLeft + 40 },                                      /* caps lock */
     { 2, kLeft + 42 + 11 * kKeyPitch, kLeft + 42 + 11 * kKeyPitch + 46 }, /* return */
@@ -58,199 +35,45 @@ static const WideKey kWideKeys[] = {
     { 3, kLeft + 54 + 10 * kKeyPitch, kLeft + 54 + 10 * kKeyPitch + 60 }, /* shift */
 };
 
-/*
- * Initialize Key Caps
- */
-int KeyCaps_Initialize(KeyCaps *keyCaps)
+static Rect KeyCaps_KeyBounds(int index)
 {
-    if (!keyCaps) {
-        return KEYCAPS_ERR_INVALID_LAYOUT;
+    int row = 0, col = index;
+    while (row < kRowCount - 1 && col >= kRowKeys[row]) {
+        col -= kRowKeys[row++];
     }
-
-    memset(keyCaps, 0, sizeof(KeyCaps));
-
-    /* Create default keyboard layout */
-    keyCaps->currentLayout = NewPtr(sizeof(KeyboardLayout));
-    if (!keyCaps->currentLayout) {
-        return KEYCAPS_ERR_NO_LAYOUT;
-    }
-
-    KeyboardLayout *layout = keyCaps->currentLayout;
-    strncpy(layout->name, "US", sizeof(layout->name) - 1);
-    layout->name[sizeof(layout->name) - 1] = '\0';
-    layout->layoutID = KBD_LAYOUT_US;
-    layout->scriptCode = 0;
-    layout->languageCode = 0;
-    layout->numKeys = 47;  /* Basic QWERTY keys */
-    strncpy(layout->fontName, "Monaco", sizeof(layout->fontName) - 1);
-    layout->fontName[sizeof(layout->fontName) - 1] = '\0';
-    layout->fontSize = KEYCAPS_FONT_SIZE;
-
-    /* Initialize key mappings */
-    for (int i = 0; i < layout->numKeys && i < KEYCAPS_MAX_KEYS; i++) {
-        KeyInfo *key = &layout->keys[i];
-        key->scanCode = i;
-        key->type = KEY_TYPE_NORMAL;
-        strncpy(key->label, g_defaultKeyLabels[i], sizeof(key->label) - 1);
-        key->baseChar = g_defaultKeyLabels[i][0];
-        key->shiftChar = (key->baseChar >= 'a' && key->baseChar <= 'z') ?
-                         (key->baseChar - 'a' + 'A') : key->baseChar;
-        key->optionChar = key->baseChar;
-        key->shiftOptionChar = key->shiftChar;
-        key->isDeadKey = false;
-
-        key->shiftChar = (UInt8)g_shiftedChars[i];
-        key->shiftOptionChar = key->shiftChar;
-
-        int row = 0, col = i;
-        while (row < kRowCount - 1 && col >= kRowKeys[row]) {
-            col -= kRowKeys[row];
-            row++;
-        }
-        key->bounds.left = (SInt16)(kRowStart[row] + col * kKeyPitch);
-        key->bounds.top = (SInt16)(kKeysTop + row * kRowPitch);
-        key->bounds.right = (SInt16)(key->bounds.left + kKeyW);
-        key->bounds.bottom = (SInt16)(key->bounds.top + kKeyH);
-    }
-    keyCaps->litKey = -1;
-
-    /* Set window bounds */
-    (keyCaps)->windowBounds.left = 100;
-    (keyCaps)->windowBounds.top = 100;
-    (keyCaps)->windowBounds.right = 500;
-    (keyCaps)->windowBounds.bottom = 300;
-
-    /* Set keyboard display area */
-    (keyCaps)->windowBounds.left = 10;
-    (keyCaps)->windowBounds.top = 30;
-    (keyCaps)->windowBounds.right = 390;
-    (keyCaps)->windowBounds.bottom = 150;
-
-    /* Set character display area */
-    (keyCaps)->windowBounds.left = 10;
-    (keyCaps)->windowBounds.top = 160;
-    (keyCaps)->windowBounds.right = 390;
-    (keyCaps)->windowBounds.bottom = 190;
-
-    keyCaps->showModifiers = true;
-    keyCaps->showCharInfo = true;
-    keyCaps->windowVisible = false;
-
-    return KEYCAPS_ERR_NONE;
+    SInt16 left = (SInt16)(kRowStart[row] + col * kKeyPitch);
+    SInt16 top = (SInt16)(kKeysTop + row * kRowPitch);
+    return (Rect){ top, left, (SInt16)(top + kKeyH), (SInt16)(left + kKeyW) };
 }
 
-/*
- * Shutdown Key Caps
- */
-void KeyCaps_Shutdown(KeyCaps *keyCaps)
+static int KeyCaps_KeyIndex(UInt8 scanCode)
 {
-    if (keyCaps) {
-        DisposePtr((Ptr)keyCaps->currentLayout);
-        keyCaps->currentLayout = NULL;
+    for (int i = 0; i < kKeyCount; ++i) {
+        if (kKeyCodes[i] == scanCode) return i;
     }
+    return -1;
 }
 
-/*
- * Reset Key Caps to default state
- */
-void KeyCaps_Reset(KeyCaps *keyCaps)
+/* A local translation stream shows a dead key's standalone accent without
+ * consuming either live keyboard input or a pending mouse composition. */
+static UInt8 KeyCaps_Label(const KeyCaps *keyCaps, int index)
 {
-    if (keyCaps) {
-        keyCaps->modifiers = MOD_NONE;
-        keyCaps->stickyMods = MOD_NONE;
-        keyCaps->capsLockOn = false;
-        keyCaps->deadKeyActive = false;
-        keyCaps->selectedChar = 0;
-    }
-}
-
-/*
- * Get character for key with modifiers
- */
-UInt16 KeyCaps_GetCharForKey(KeyCaps *keyCaps, UInt8 scanCode,
-                               ModifierMask modifiers)
-{
-    if (!keyCaps || !keyCaps->currentLayout || scanCode >= keyCaps->currentLayout->numKeys) {
-        return 0;
-    }
-
-    const KeyInfo *key = &keyCaps->currentLayout->keys[scanCode];
-
-    if (modifiers & MOD_SHIFT) {
-        if (modifiers & MOD_OPTION) {
-            return key->shiftOptionChar;
-        } else {
-            return key->shiftChar;
-        }
-    } else if (modifiers & MOD_OPTION) {
-        return key->optionChar;
-    } else {
-        return key->baseChar;
-    }
-}
-
-/*
- * Get key information by scan code
- */
-const KeyInfo *KeyCaps_GetKeyInfo(KeyCaps *keyCaps, UInt8 scanCode)
-{
-    if (!keyCaps || !keyCaps->currentLayout || scanCode >= keyCaps->currentLayout->numKeys) {
-        return NULL;
-    }
-
-    return &keyCaps->currentLayout->keys[scanCode];
-}
-
-/*
- * Set modifier key state
- */
-void KeyCaps_SetModifiers(KeyCaps *keyCaps, ModifierMask modifiers)
-{
-    if (keyCaps) {
-        keyCaps->modifiers = modifiers;
-    }
-}
-
-/*
- * Toggle modifier key
- */
-void KeyCaps_ToggleModifier(KeyCaps *keyCaps, ModifierMask modifier)
-{
-    if (keyCaps) {
-        keyCaps->modifiers ^= modifier;
-    }
-}
-
-/*
- * Check if modifier is active
- */
-Boolean KeyCaps_IsModifierActive(KeyCaps *keyCaps, ModifierMask modifier)
-{
-    return keyCaps ? (keyCaps->modifiers & modifier) != 0 : false;
-}
-
-/* The character a key shows: Shift gives the shifted set, Caps Lock the
- * capital letters. */
-static char KeyCaps_Label(const KeyCaps *keyCaps, const KeyInfo *key)
-{
-    char c = (char)key->baseChar;
-    if (keyCaps->modifiers & MOD_SHIFT) {
-        c = (char)key->shiftChar;
-    } else if ((keyCaps->modifiers & MOD_CAPS_LOCK) && c >= 'a' && c <= 'z') {
-        c = (char)(c - 'a' + 'A');
-    }
-    return c;
+    UInt32 state = 0;
+    UInt32 character = (UInt32)KeyTranslate(NULL,
+        kKeyCodes[index] | (keyCaps->modifiers & kLabelModifiers), &state);
+    if (state) character = (UInt32)KeyTranslate(NULL, kScanSpace, &state);
+    return (UInt8)character;
 }
 
 static void KeyCaps_DrawKey(const KeyCaps *keyCaps, int index)
 {
-    const KeyInfo *key = &keyCaps->currentLayout->keys[index];
-    Rect r = key->bounds;
+    if (!g_currentPort) return;
+    Rect r = KeyCaps_KeyBounds(index);
     EraseRect(&r);
     FrameRoundRect(&r, 6, 6);
-    char c = KeyCaps_Label(keyCaps, key);
-    short w = TextWidth(&c, 0, 1);
-    MoveTo((short)((r.left + r.right - w) / 2), (short)(r.top + 15));
+    UInt8 c = KeyCaps_Label(keyCaps, index);
+    short width = TextWidth(&c, 0, 1);
+    MoveTo((short)((r.left + r.right - width) / 2), (short)(r.top + 15));
     DrawText(&c, 0, 1);
     if (index == keyCaps->litKey) {
         InsetRect(&r, 1, 1);
@@ -260,47 +83,58 @@ static void KeyCaps_DrawKey(const KeyCaps *keyCaps, int index)
 
 static void KeyCaps_DrawStrip(const KeyCaps *keyCaps)
 {
+    if (!g_currentPort) return;
     Rect strip = { kStripTop, kLeft, kStripBottom, kLeft + 13 * kKeyPitch + 36 };
     EraseRect(&strip);
     FrameRect(&strip);
-    /* The most recent characters that fit */
     SInt16 start = 0;
     while (start < keyCaps->typedLen &&
            TextWidth(keyCaps->typed, start, (short)(keyCaps->typedLen - start)) >
                strip.right - strip.left - 8) {
-        start++;
+        ++start;
     }
     MoveTo((short)(strip.left + 4), (short)(strip.top + 15));
     DrawText(keyCaps->typed, start, (short)(keyCaps->typedLen - start));
 }
 
-/*
- * Draw keyboard layout - the whole window, in the current port.
- *
- * This was an empty placeholder, so Key Caps opened to a blank window.
- */
-void KeyCaps_DrawKeyboard(KeyCaps *keyCaps, const Rect *updateRect)
+static void KeyCaps_SetModifiers(KeyCaps *keyCaps, UInt16 modifiers)
 {
-    (void)updateRect;
-    if (!keyCaps || !keyCaps->currentLayout || !g_currentPort) {
-        return;
+    Boolean changed = ((keyCaps->modifiers ^ modifiers) & kLabelModifiers) != 0;
+    keyCaps->modifiers = modifiers;
+    if (changed) {
+        for (int i = 0; i < kKeyCount; ++i) KeyCaps_DrawKey(keyCaps, i);
     }
+}
 
+int KeyCaps_Initialize(KeyCaps *keyCaps)
+{
+    if (!keyCaps) return KEYCAPS_ERR_INVALID_PARAM;
+    memset(keyCaps, 0, sizeof(*keyCaps));
+    keyCaps->litKey = -1;
+    return KEYCAPS_ERR_NONE;
+}
+
+void KeyCaps_Reset(KeyCaps *keyCaps)
+{
+    if (!keyCaps) return;
+    KeyCaps_Initialize(keyCaps);
+    KeyCaps_DrawKeyboard(keyCaps);
+}
+
+void KeyCaps_DrawKeyboard(KeyCaps *keyCaps)
+{
+    if (!keyCaps || !g_currentPort) return;
     Rect all = g_currentPort->portRect;
     EraseRect(&all);
     TextFont(0);
     TextSize(12);
-
     KeyCaps_DrawStrip(keyCaps);
-    for (int i = 0; i < keyCaps->currentLayout->numKeys; i++) {
-        KeyCaps_DrawKey(keyCaps, i);
-    }
-    for (size_t k = 0; k < sizeof(kWideKeys) / sizeof(kWideKeys[0]); k++) {
+    for (int i = 0; i < kKeyCount; ++i) KeyCaps_DrawKey(keyCaps, i);
+    for (size_t k = 0; k < sizeof(kWideKeys) / sizeof(kWideKeys[0]); ++k) {
         Rect r = { (SInt16)(kKeysTop + kWideKeys[k].row * kRowPitch), kWideKeys[k].left,
                    (SInt16)(kKeysTop + kWideKeys[k].row * kRowPitch + kKeyH), kWideKeys[k].right };
         FrameRoundRect(&r, 6, 6);
     }
-    /* The bottom row: option and command either side of the space bar */
     SInt16 top = (SInt16)(kKeysTop + kRowCount * kRowPitch);
     Rect space = { top, kLeft + 90, (SInt16)(top + kKeyH), kLeft + 290 };
     FrameRoundRect(&space, 6, 6);
@@ -310,24 +144,27 @@ void KeyCaps_DrawKeyboard(KeyCaps *keyCaps, const Rect *updateRect)
         { top, kLeft + 294, (SInt16)(top + kKeyH), kLeft + 340 },
         { top, kLeft + 344, (SInt16)(top + kKeyH), kLeft + 13 * kKeyPitch + 36 },
     };
-    for (int m = 0; m < 4; m++) FrameRoundRect(&mods[m], 6, 6);
+    for (int m = 0; m < 4; ++m) FrameRoundRect(&mods[m], 6, 6);
 }
 
-/* Show key `index` pressed and add its character to the strip. */
-static void KeyCaps_Press(KeyCaps *keyCaps, int index, char c)
+static void KeyCaps_Append(KeyCaps *keyCaps, UInt8 character)
 {
-    if (c >= 32 && c < 127) {
-        if (keyCaps->typedLen >= (SInt16)sizeof(keyCaps->typed)) {
+    if (IsCharacterPrintable(character)) {
+        if (keyCaps->typedLen == (SInt16)sizeof(keyCaps->typed)) {
             memmove(keyCaps->typed, keyCaps->typed + 1, sizeof(keyCaps->typed) - 1);
-            keyCaps->typedLen--;
+            --keyCaps->typedLen;
         }
-        keyCaps->typed[keyCaps->typedLen++] = c;
-    } else if (c == 8 && keyCaps->typedLen > 0) {
-        keyCaps->typedLen--;
+        keyCaps->typed[keyCaps->typedLen++] = (char)character;
+    } else if (character == 8 && keyCaps->typedLen > 0) {
+        --keyCaps->typedLen;
     }
-    keyCaps->selectedChar = (UInt8)c;
-    KeyCaps_DrawStrip(keyCaps);
+}
 
+static void KeyCaps_Press(KeyCaps *keyCaps, int index, UInt32 character)
+{
+    if (character >> 16) KeyCaps_Append(keyCaps, (UInt8)(character >> 16));
+    KeyCaps_Append(keyCaps, (UInt8)character);
+    KeyCaps_DrawStrip(keyCaps);
     int old = keyCaps->litKey;
     keyCaps->litKey = (SInt16)index;
     keyCaps->litTick = TickCount();
@@ -335,117 +172,57 @@ static void KeyCaps_Press(KeyCaps *keyCaps, int index, char c)
     if (index >= 0) KeyCaps_DrawKey(keyCaps, index);
 }
 
-/*
- * Handle mouse click in Key Caps window
- */
-int KeyCaps_HandleClick(KeyCaps *keyCaps, Point point, ModifierMask modifiers)
+int KeyCaps_HandleClick(KeyCaps *keyCaps, Point point, UInt16 modifiers)
 {
-    (void)modifiers;
-    if (!keyCaps || !keyCaps->currentLayout) {
-        return KEYCAPS_ERR_NO_LAYOUT;
-    }
-
+    if (!keyCaps) return KEYCAPS_ERR_INVALID_PARAM;
     TextFont(0);
     TextSize(12);
-    for (int i = 0; i < keyCaps->currentLayout->numKeys; i++) {
-        const KeyInfo *key = &keyCaps->currentLayout->keys[i];
-        if (point.h >= key->bounds.left && point.h < key->bounds.right &&
-            point.v >= key->bounds.top && point.v < key->bounds.bottom) {
-            KeyCaps_Press(keyCaps, i, KeyCaps_Label(keyCaps, key));
-            return KEYCAPS_ERR_NONE;
+    KeyCaps_SetModifiers(keyCaps, modifiers);
+    int index = -1;
+    UInt8 scanCode = kScanSpace;
+    for (int i = 0; i < kKeyCount; ++i) {
+        Rect bounds = KeyCaps_KeyBounds(i);
+        if (point.h >= bounds.left && point.h < bounds.right &&
+            point.v >= bounds.top && point.v < bounds.bottom) {
+            index = i;
+            scanCode = kKeyCodes[i];
+            break;
         }
     }
-
-    /* The space bar */
-    SInt16 top = (SInt16)(kKeysTop + kRowCount * kRowPitch);
-    if (point.v >= top && point.v < top + kKeyH &&
-        point.h >= kLeft + 90 && point.h < kLeft + 290) {
-        KeyCaps_Press(keyCaps, -1, ' ');
-        return KEYCAPS_ERR_NONE;
-    }
-    return KEYCAPS_ERR_INVALID_KEY;
-}
-
-/*
- * Handle key press - found by the character it types, which is what the
- * keyboard reports; the scan code this took was compared with the key's
- * index, so no typed key was ever shown.
- */
-int KeyCaps_HandleKeyPress(KeyCaps *keyCaps, UInt16 charCode,
-                           ModifierMask modifiers)
-{
-    if (!keyCaps || !keyCaps->currentLayout) {
-        return KEYCAPS_ERR_NO_LAYOUT;
-    }
-
-    keyCaps->modifiers = modifiers;
-    char c = (char)charCode;
-    int found = -1;
-    for (int i = 0; i < keyCaps->currentLayout->numKeys && found < 0; i++) {
-        const KeyInfo *key = &keyCaps->currentLayout->keys[i];
-        char lower = (c >= 'A' && c <= 'Z') ? (char)(c - 'A' + 'a') : c;
-        if ((char)key->baseChar == lower || (char)key->shiftChar == c) {
-            found = i;
+    if (index < 0) {
+        SInt16 top = (SInt16)(kKeysTop + kRowCount * kRowPitch);
+        if (point.v < top || point.v >= top + kKeyH ||
+            point.h < kLeft + 90 || point.h >= kLeft + 290) {
+            return KEYCAPS_ERR_INVALID_KEY;
         }
     }
-    TextFont(0);
-    TextSize(12);
-    KeyCaps_Press(keyCaps, found, c);
+    UInt32 character = (UInt32)KeyTranslate(NULL, scanCode | (modifiers & kLabelModifiers),
+                                          &keyCaps->clickState);
+    KeyCaps_Press(keyCaps, index, character);
     return KEYCAPS_ERR_NONE;
 }
 
-void KeyCaps_Idle(KeyCaps *keyCaps, ModifierMask modifiers)
+int KeyCaps_HandleKeyPress(KeyCaps *keyCaps, UInt16 keyCode, UInt16 modifiers)
 {
-    if (!keyCaps || !keyCaps->currentLayout) {
-        return;
-    }
-
+    if (!keyCaps) return KEYCAPS_ERR_INVALID_PARAM;
+    if ((keyCode >> 8) >= 128) return KEYCAPS_ERR_INVALID_KEY;
     TextFont(0);
     TextSize(12);
-    ModifierMask shown = (ModifierMask)(modifiers & (MOD_SHIFT | MOD_CAPS_LOCK));
-    if (shown != (keyCaps->modifiers & (MOD_SHIFT | MOD_CAPS_LOCK))) {
-        keyCaps->modifiers = shown;
-        for (int i = 0; i < keyCaps->currentLayout->numKeys; i++) {
-            KeyCaps_DrawKey(keyCaps, i);
-        }
-    }
+    KeyCaps_SetModifiers(keyCaps, modifiers);
+    keyCaps->clickState = 0;
+    KeyCaps_Press(keyCaps, KeyCaps_KeyIndex((UInt8)(keyCode >> 8)), (UInt8)keyCode);
+    return KEYCAPS_ERR_NONE;
+}
+
+void KeyCaps_Idle(KeyCaps *keyCaps, UInt16 modifiers)
+{
+    if (!keyCaps) return;
+    TextFont(0);
+    TextSize(12);
+    KeyCaps_SetModifiers(keyCaps, modifiers);
     if (keyCaps->litKey >= 0 && TickCount() - keyCaps->litTick > 12) {
         int lit = keyCaps->litKey;
         keyCaps->litKey = -1;
         KeyCaps_DrawKey(keyCaps, lit);
     }
-}
-
-/*
- * Insert character into target window
- */
-int KeyCaps_InsertChar(KeyCaps *keyCaps, UInt16 charCode)
-{
-    (void)charCode;
-    if (!keyCaps) {
-        return KEYCAPS_ERR_INVALID_CHAR;
-    }
-
-    /* In a real implementation, this would insert the character
-     * into the active text field or document */
-
-    return KEYCAPS_ERR_NONE;
-}
-
-/*
- * Register Key Caps as a desk accessory
- */
-int KeyCaps_RegisterDA(void)
-{
-    /* This is handled in BuiltinDAs.c */
-    return KEYCAPS_ERR_NONE;
-}
-
-/*
- * Create Key Caps DA instance
- */
-DeskAccessory *KeyCaps_CreateDA(void)
-{
-    /* This is handled in BuiltinDAs.c */
-    return NULL;
 }

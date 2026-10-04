@@ -1,13 +1,56 @@
 #include "EventManager/KeyboardEvents.h"
 #include "EventManager/EventManager.h"
 #include "EventManager/AppSwitcher.h"
+#include "DeskManager/KeyCaps.h"
+#include "QuickDraw/QuickDraw.h"
+#include "FontManager/FontManager.h"
 #include "check.h"
 #include <string.h>
 
 static EventRecord posted[8];
 static unsigned postedCount;
+static UInt32 currentTick = 100;
+static GrafPort drawingPort;
+GrafPtr g_currentPort = &drawingPort;
+static SInt16 penV;
+static UInt8 labels[47];
+static unsigned labelCount;
+static unsigned invertedCount;
+static const char keyCapsPlain[] = "`1234567890-=qwertyuiop[]\\asdfghjkl;'zxcvbnm,./";
+static const char keyCapsShifted[] = "~!@#$%^&*()_+QWERTYUIOP{}|ASDFGHJKL:\"ZXCVBNM<>?";
 
-UInt32 TickCount(void) { return 100; }
+UInt32 TickCount(void) { return currentTick; }
+void TextFont(short font) { (void)font; }
+void TextSize(short size) { (void)size; }
+short TextWidth(const void* text, short first, short count)
+{
+    (void)text;
+    (void)first;
+    return (short)(count * 6);
+}
+void MoveTo(SInt16 h, SInt16 v) { (void)h; penV = v; }
+void DrawText(const void* text, short first, short count)
+{
+    if (penV >= 55 && penV <= 127 && count == 1 && labelCount < sizeof(labels)) {
+        labels[labelCount++] = ((const UInt8*)text)[first];
+    }
+}
+void EraseRect(const Rect* rect) { (void)rect; }
+void FrameRect(const Rect* rect) { (void)rect; }
+void FrameRoundRect(const Rect* rect, SInt16 width, SInt16 height)
+{
+    (void)rect;
+    (void)width;
+    (void)height;
+}
+void InsetRect(Rect* rect, short dh, short dv)
+{
+    rect->left += dh;
+    rect->right -= dh;
+    rect->top += dv;
+    rect->bottom -= dv;
+}
+void InvertRect(const Rect* rect) { (void)rect; ++invertedCount; }
 void GetMouse(Point* point) { *point = (Point){.h = 123, .v = 234}; }
 void AppSwitcher_CycleForward(void) {}
 void AppSwitcher_CycleBackward(void) {}
@@ -168,6 +211,126 @@ static int TestAbortChord(void)
     return 0;
 }
 
+static int TestKeyCapsLabels(void)
+{
+    KeyCaps caps;
+    CHECK(KeyCaps_Initialize(&caps) == 0 && caps.litKey == -1, 1);
+    labelCount = 0;
+    KeyCaps_DrawKeyboard(&caps);
+    CHECK(labelCount == sizeof(labels) && memcmp(labels, keyCapsPlain, sizeof(labels)) == 0, 2);
+    labelCount = 0;
+    KeyCaps_Idle(&caps, shiftKey);
+    CHECK(labelCount == sizeof(labels) && memcmp(labels, keyCapsShifted, sizeof(labels)) == 0, 3);
+    labelCount = 0;
+    KeyCaps_Idle(&caps, shiftKey | alphaLock);
+    for (unsigned i = 0; i < sizeof(labels); ++i) {
+        UInt8 expected = keyCapsPlain[i] >= 'a' && keyCapsPlain[i] <= 'z' ?
+                         (UInt8)keyCapsPlain[i] : (UInt8)keyCapsShifted[i];
+        CHECK(labels[i] == expected, 4);
+    }
+    labelCount = 0;
+    KeyCaps_Idle(&caps, optionKey);
+    CHECK(labelCount == sizeof(labels), 5);
+    CHECK(labels[0] == '`' && labels[15] == 0xab && labels[20] == 0xf6 &&
+          labels[19] == 0xac && labels[42] == 0xf7, 6);
+    CHECK(caps.typedLen == 0 && caps.clickState == 0, 7);
+    ResetKeyboardState();
+    postedCount = 0;
+    CHECK(ProcessRawKeyboardEvent(0x0e, true, optionKey, 100) == 0, 8);
+    KeyCaps_DrawKeyboard(&caps);
+    CHECK(ProcessRawKeyboardEvent(0, true, 0, 100) == 1, 9);
+    CHECK(postedCount == 1 && posted[0].message == 0x87, 10);
+    ResetKeyboardState();
+    return 0;
+}
+
+static int TestKeyCapsEveryKey(void)
+{
+    static const SInt16 starts[] = {10, 46, 52, 64};
+    static const unsigned lengths[] = {13, 13, 11, 10};
+    static const UInt16 modifiers[] = {0, shiftKey, alphaLock, shiftKey | alphaLock};
+    KeyCaps caps;
+    for (unsigned mode = 0; mode < sizeof(modifiers) / sizeof(modifiers[0]); ++mode) {
+        unsigned index = 0;
+        for (unsigned row = 0; row < sizeof(lengths) / sizeof(lengths[0]); ++row) {
+            for (unsigned col = 0; col < lengths[row]; ++col, ++index) {
+                KeyCaps_Initialize(&caps);
+                Point point = {.h = (SInt16)(starts[row] + 26 * col), .v = (SInt16)(40 + 24 * row)};
+                CHECK(KeyCaps_HandleClick(&caps, point, modifiers[mode]) == 0, 1);
+                char expected = modifiers[mode] & shiftKey ? keyCapsShifted[index] : keyCapsPlain[index];
+                if ((modifiers[mode] & alphaLock) && keyCapsPlain[index] >= 'a' && keyCapsPlain[index] <= 'z') {
+                    expected = modifiers[mode] & shiftKey ? keyCapsPlain[index] : keyCapsShifted[index];
+                }
+                CHECK(caps.typedLen == 1 && caps.typed[0] == expected && caps.litKey == (SInt16)index, 2);
+            }
+        }
+        CHECK(index == sizeof(labels), 3);
+    }
+    return 0;
+}
+
+static int TestKeyCapsInput(void)
+{
+    KeyCaps caps;
+    KeyCaps_Initialize(&caps);
+    Point a = {.h = 53, .v = 89};
+    Point e = {.h = 99, .v = 65};
+    Point n = {.h = 195, .v = 113};
+    Point space = {.h = 150, .v = 140};
+    CHECK(KeyCaps_HandleClick(&caps, a, shiftKey | alphaLock) == 0, 1);
+    CHECK(caps.typedLen == 1 && caps.typed[0] == 'a' && caps.litKey == 26, 2);
+    CHECK(KeyCaps_HandleClick(&caps, a, shiftKey) == 0 && caps.typed[1] == 'A', 3);
+    CHECK(KeyCaps_HandleClick(&caps, e, optionKey) == 0, 4);
+    CHECK(caps.clickState == kDeadKeyAcute && caps.typedLen == 2 && caps.litKey == 15, 5);
+    KeyCaps_Idle(&caps, 0);
+    CHECK(caps.clickState == kDeadKeyAcute, 6);
+    CHECK(KeyCaps_HandleClick(&caps, a, 0) == 0 && (UInt8)caps.typed[2] == 0x87, 7);
+    CHECK(caps.clickState == 0 && caps.typedLen == 3, 8);
+    KeyCaps_HandleClick(&caps, e, optionKey);
+    KeyCaps_HandleClick(&caps, n, 0);
+    CHECK(caps.typedLen == 5 && (UInt8)caps.typed[3] == 0xab && caps.typed[4] == 'n', 9);
+    KeyCaps_HandleClick(&caps, e, optionKey);
+    KeyCaps_HandleClick(&caps, space, 0);
+    CHECK(caps.typedLen == 6 && (UInt8)caps.typed[5] == 0xab && caps.litKey == -1, 10);
+    SInt16 count = caps.typedLen;
+    CHECK(KeyCaps_HandleClick(&caps, (Point){.h = 34, .v = 40}, 0) == KEYCAPS_ERR_INVALID_KEY, 11);
+    CHECK(caps.typedLen == count, 12);
+    KeyCaps_HandleClick(&caps, e, optionKey);
+    invertedCount = 0;
+    CHECK(KeyCaps_HandleKeyPress(&caps, 0x0e8e, 0) == 0, 13);
+    CHECK(caps.clickState == 0 && caps.litKey == 15 && invertedCount > 0, 14);
+    CHECK((UInt8)caps.typed[caps.typedLen - 1] == 0x8e, 15);
+    KeyCaps_HandleKeyPress(&caps, 0x3308, 0);
+    CHECK(caps.typedLen == count && caps.litKey == -1, 16);
+    CHECK(KeyCaps_HandleKeyPress(&caps, 0x80ff, 0) == KEYCAPS_ERR_INVALID_KEY, 17);
+    KeyCaps_Reset(&caps);
+    CHECK(caps.typedLen == 0 && caps.litKey == -1 && caps.modifiers == 0 && caps.clickState == 0, 18);
+    for (unsigned i = 0; i < 100; ++i) KeyCaps_HandleKeyPress(&caps, (UInt16)(0x1200 | (32 + i)), 0);
+    CHECK(caps.typedLen == 64, 19);
+    /* DEL is ignored; the retained bytes are the latest 64 printable inputs. */
+    CHECK((UInt8)caps.typed[0] == 67 && (UInt8)caps.typed[63] == 131, 20);
+    currentTick = 0xfffffff8;
+    KeyCaps_HandleKeyPress(&caps, 0x0061, 0);
+    currentTick = 4;
+    KeyCaps_Idle(&caps, 0);
+    CHECK(caps.litKey == 26, 21);
+    currentTick = 5;
+    KeyCaps_Idle(&caps, 0);
+    CHECK(caps.litKey == -1, 22);
+    currentTick = 100;
+    g_currentPort = NULL;
+    KeyCaps_HandleKeyPress(&caps, 0x0061, shiftKey);
+    KeyCaps_Reset(&caps);
+    g_currentPort = &drawingPort;
+    CHECK(KeyCaps_Initialize(NULL) == KEYCAPS_ERR_INVALID_PARAM, 23);
+    CHECK(KeyCaps_HandleClick(NULL, a, 0) == KEYCAPS_ERR_INVALID_PARAM, 24);
+    CHECK(KeyCaps_HandleKeyPress(NULL, 0, 0) == KEYCAPS_ERR_INVALID_PARAM, 25);
+    KeyCaps_Reset(NULL);
+    KeyCaps_Idle(NULL, 0);
+    KeyCaps_DrawKeyboard(NULL);
+    return 0;
+}
+
 int main(void)
 {
     CHECK(InitKeyboardEvents() == noErr, 1);
@@ -178,6 +341,9 @@ int main(void)
     result |= TestEventBuilders();
     result |= TestNamesAndPrintable();
     result |= TestAbortChord();
+    result |= TestKeyCapsLabels();
+    result |= TestKeyCapsEveryKey();
+    result |= TestKeyCapsInput();
     ShutdownKeyboardEvents();
     return result;
 }

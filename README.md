@@ -123,7 +123,7 @@ and compatibility with real System 7 applications remains unverified.
 - **Device Manager**: DCE management, driver installation/removal, and I/O operations
 - **Startup Screen**: Complete boot UI with progress tracking, phase management, and splash screen
 - **Color Manager**: Color state management with QuickDraw integration
-- **Desk Accessories**: Calculator, Alarm Clock, Key Caps and Note Pad are driven through `SystemClick`/`SystemEvent`; Chooser has selection scaffolding but no content drawing or live device/AppleTalk discovery (see [Known Issues](docs/KNOWN_ISSUES.md))
+- **Desk Accessories**: Calculator, Alarm Clock, Key Caps and Note Pad are driven through `SystemClick`/`SystemEvent`. Key Caps uses the built-in US keyboard translation and displays typed or clicked Mac Roman characters; custom layouts and insertion into other windows are not implemented. Chooser has selection scaffolding but no content drawing or live device/AppleTalk discovery (see [Known Issues](docs/KNOWN_ISSUES.md))
 - **Control Panels**: Desktop Patterns (with colour patterns), Date & Time, Sound, Mouse, Keyboard, Control Strip
 
 ### Partially Implemented

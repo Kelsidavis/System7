@@ -503,23 +503,12 @@ static int Calculator_DAIdle(DeskAccessory *da)
 
 /* Key Caps Interface Implementation */
 
-/* Event modifiers, as the Event Manager reports them, in Key Caps' terms */
-static ModifierMask KeyCaps_Modifiers(UInt16 mods)
-{
-    int m = MOD_NONE;
-    if (mods & shiftKey)  m |= MOD_SHIFT;
-    if (mods & alphaLock) m |= MOD_CAPS_LOCK;
-    if (mods & optionKey) m |= MOD_OPTION;
-    if (mods & cmdKey)    m |= MOD_COMMAND;
-    return (ModifierMask)m;
-}
-
 static int KeyCaps_DAIdle(DeskAccessory *da)
 {
     if (!da || !da->driverData) {
         return DESK_ERR_INVALID_PARAM;
     }
-    KeyCaps_Idle((KeyCaps *)da->driverData, KeyCaps_Modifiers(GetCurrentModifiers()));
+    KeyCaps_Idle((KeyCaps *)da->driverData, GetCurrentModifiers());
     return DESK_ERR_NONE;
 }
 
@@ -569,7 +558,6 @@ static int KeyCaps_DATerminate(DeskAccessory *da)
     }
 
     KeyCaps *keyCaps = (KeyCaps *)da->driverData;
-    KeyCaps_Shutdown(keyCaps);
     DisposePtr((Ptr)keyCaps);
     da->driverData = NULL;
 
@@ -589,16 +577,15 @@ static int KeyCaps_DAProcessEvent(DeskAccessory *da, const DAEventInfo *event)
         case 1: /* mouseDown */
             {
                 Point point = { .v = event->v, .h = event->h };
-                return KeyCaps_HandleClick(keyCaps, point, KeyCaps_Modifiers(event->modifiers));
+                return KeyCaps_HandleClick(keyCaps, point, event->modifiers);
             }
 
         case 3: /* keyDown */
         case 5: /* autoKey */
-            return KeyCaps_HandleKeyPress(keyCaps, (UInt16)(event->message & 0xFF),
-                                          KeyCaps_Modifiers(event->modifiers));
+            return KeyCaps_HandleKeyPress(keyCaps, (UInt16)event->message, event->modifiers);
 
         case 6: /* updateEvt */
-            KeyCaps_DrawKeyboard(keyCaps, NULL);
+            KeyCaps_DrawKeyboard(keyCaps);
             break;
 
         default:
