@@ -1,4 +1,5 @@
 #include "SystemTypes.h"
+#include "System71StdLib.h"
 #include <stdbool.h>
 #include <string.h>
 #include <limits.h>
@@ -22,25 +23,6 @@
 
 static uint8_t g_sb16ChunkBuffer[SB16_DMA_CHUNK_BYTES] __attribute__((aligned(32)));
 static bool g_sb16Ready = false;
-
-static uint64_t sb16_div_u64_32(uint64_t num, uint32_t den)
-{
-    if (den == 0) {
-        return 0;
-    }
-
-    uint64_t quotient = 0;
-    uint64_t remainder = 0;
-
-    for (int i = 63; i >= 0; --i) {
-        remainder = (remainder << 1) | ((num >> i) & 1ULL);
-        if (remainder >= den) {
-            remainder -= den;
-            quotient |= (1ULL << i);
-        }
-    }
-    return quotient;
-}
 
 static OSErr SoundBackendSB16_Init(void)
 {
@@ -106,7 +88,7 @@ static OSErr SoundBackendSB16_PlayPCM(const uint8_t* data,
 
         if (frameBytes > 0) {
             uint64_t frames = chunk / frameBytes;
-            uint64_t usec64 = sb16_div_u64_32(frames * 1000000ULL, sampleRate);
+            uint64_t usec64 = udiv64(frames * 1000000ULL, sampleRate);
             if (usec64 > 0) {
                 UInt32 clamped = (usec64 > UINT32_MAX) ? UINT32_MAX : (UInt32)usec64;
                 SND_LOG_INFO("SoundBackend(SB16): Waiting %lu us for chunk\n", (unsigned long)clamped);

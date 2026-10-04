@@ -21,13 +21,6 @@ const SoundBackendOps* SoundBackend_GetOps(SoundBackendType type)
 
 const char* SoundBackend_Name(SoundBackendType type)
 {
-    switch (type) {
-        case kSoundBackendHDA:
-            return "Intel HDA";
-        case kSoundBackendSB16:
-            return "Sound Blaster 16";
-        default:
-            return "None";
-    }
+    const SoundBackendOps* ops = SoundBackend_GetOps(type);
+    return ops ? ops->name : "None";
 }
-
