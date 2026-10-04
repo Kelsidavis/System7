@@ -1747,6 +1747,16 @@ static void Test_TextEditScrollBounds(void) {
     TE_GetScroll(hTE, &dh, &dv);
     Boolean directScrollOK = dh == maxHScroll && dv == maxVScroll;
 
+    TE_SetScroll(hTE, 32767, 32767);
+    TEScroll(1, 1, hTE);
+    TE_GetScroll(hTE, &dh, &dv);
+    Boolean positiveOverflowClamped = dh == maxHScroll && dv == maxVScroll;
+
+    TE_SetScroll(hTE, -32768, -32768);
+    TEScroll(-1, -1, hTE);
+    TE_GetScroll(hTE, &dh, &dv);
+    Boolean negativeOverflowClamped = dh == 0 && dv == 0;
+
     TE_SetScroll(hTE, 0, 0);
     TEPinScroll(32767, 32767, hTE);
     TE_GetScroll(hTE, &dh, &dv);
@@ -1757,7 +1767,8 @@ static void Test_TextEditScrollBounds(void) {
     TextFace(savedFace);
     TEDispose(hTE);
 
-    if (!directScrollOK || !pinnedScrollOK) {
+    if (!directScrollOK || !positiveOverflowClamped ||
+        !negativeOverflowClamped || !pinnedScrollOK) {
         RecordTest(test_name, false, "scroll limits did not match measured text bounds");
         return;
     }
