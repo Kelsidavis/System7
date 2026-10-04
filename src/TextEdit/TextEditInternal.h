@@ -32,4 +32,6 @@ typedef struct TEExtRec {
 
 typedef TEExtRec *TEExtPtr, **TEExtHandle;
 
+SInt16 TE_MeasureText(TEHandle hTE, SInt32 start, SInt32 length);
+
 #endif

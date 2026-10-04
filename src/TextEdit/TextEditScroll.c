@@ -34,7 +34,7 @@
 /* Constants */
 #define SCROLL_MARGIN   2       /* Lines to keep visible above/below */
 
-static SInt16 TE_MaxHScroll(TEExtPtr pTE) {
+static SInt16 TE_MaxHScroll(TEHandle hTE, TEExtPtr pTE) {
     SInt16 viewWidth = (SInt16)(pTE->base.viewRect.right - pTE->base.viewRect.left);
     SInt16 maxWidth = 0;
 
@@ -42,9 +42,6 @@ static SInt16 TE_MaxHScroll(TEExtPtr pTE) {
         char* text;
         SInt32* lines;
 
-        TextFont(pTE->base.txFont);
-        TextSize(pTE->base.txSize);
-        TextFace(pTE->base.txFace);
         HLock(pTE->base.hText);
         text = *pTE->base.hText;
         HLock(pTE->hLines);
@@ -57,7 +54,7 @@ static SInt16 TE_MaxHScroll(TEExtPtr pTE) {
 
             for (SInt32 pos = start; pos < end; pos++) {
                 if (text[pos] == '\r') break;
-                lineWidth += CharWidth(text[pos]);
+                lineWidth += TE_MeasureText(hTE, pos, 1);
             }
             if (lineWidth > maxWidth) maxWidth = lineWidth;
         }
@@ -113,7 +110,7 @@ void TEScroll(SInt16 dh, SInt16 dv, TEHandle hTE) {
     if (pTE->viewDH < 0) {
         pTE->viewDH = 0;
     }
-    SInt16 maxHScroll = TE_MaxHScroll(pTE);
+    SInt16 maxHScroll = TE_MaxHScroll(hTE, pTE);
     if (pTE->viewDH > maxHScroll) pTE->viewDH = maxHScroll;
 
     /* Clamp vertical scroll */
@@ -210,7 +207,7 @@ void TEPinScroll(SInt16 dh, SInt16 dv, TEHandle hTE) {
     /* Calculate maximum scroll values */
     maxVScroll = TE_MaxVScroll(pTE);
 
-    maxHScroll = TE_MaxHScroll(pTE);
+    maxHScroll = TE_MaxHScroll(hTE, pTE);
 
     /* Calculate new positions */
     newDH = pTE->viewDH + dh;

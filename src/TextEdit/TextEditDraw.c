@@ -41,7 +41,6 @@ static void TE_DrawLineSegment(TEHandle hTE, SInt32 start, SInt32 end,
                                SInt16 x, SInt16 y, Boolean selected);
 static void TE_DrawStyledSegment(TEHandle hTE, SInt32 start, SInt32 end,
                                  SInt16 x, SInt16 y, Boolean selected);
-static SInt16 TE_MeasureText(TEHandle hTE, SInt32 start, SInt32 length);
 
 /* ============================================================================
  * Main Drawing Functions
@@ -523,7 +522,7 @@ SInt16 TEGetOffset(Point pt, TEHandle hTE) {
         }
 
         /* Measure next character */
-        SInt16 charWidth = CharWidth(pText[offset]);
+        SInt16 charWidth = TE_MeasureText(hTE, offset, 1);
         if (charWidth <= 0) charWidth = 1;  /* Prevent zero/negative width */
 
         /* Check if we've passed the point */
@@ -719,7 +718,7 @@ static void TE_DrawLineSegment(TEHandle hTE, SInt32 start, SInt32 end,
 /*
  * TE_MeasureText - Measure text width (handles styled text)
  */
-static SInt16 TE_MeasureText(TEHandle hTE, SInt32 start, SInt32 length) {
+SInt16 TE_MeasureText(TEHandle hTE, SInt32 start, SInt32 length) {
     TEExtPtr pTE;
     STRec* stRec;
     TERunArray* runArr;
