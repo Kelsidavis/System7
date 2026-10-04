@@ -139,9 +139,14 @@ typedef struct {
 /* Additional error codes */
 #ifndef wrPermErr
 #define wrPermErr       -61    /* Write permission error */
-/* Note: fsAtMark, fsFromStart, fsFromLEOF defined in MacTypes.h */
+#endif
+#ifndef kioFlAttribDir
 #define kioFlAttribDir  0x10   /* Directory attribute */
+#endif
+#ifndef notAFileErr
 #define notAFileErr     -1302  /* Not a file error */
+#endif
+#ifndef kioVAtrbOffline
 #define kioVAtrbOffline 0x0001 /* Volume offline */
 #endif
 
