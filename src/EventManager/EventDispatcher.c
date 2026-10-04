@@ -718,7 +718,6 @@ Boolean HandleUpdate(EventRecord* event)
     } else {
         /* NULL window = desktop/background update */
         EVT_LOG_DEBUG("HandleUpdate: NULL window, redrawing desktop\n");
-        extern void DrawVolumeIcon(void);
         DrawDesktop();
         DrawVolumeIcon();
     }

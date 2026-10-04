@@ -319,9 +319,6 @@ static void Desktop_DrawIconsCommon(RgnHandle clip)
     }
 }
 
-/* Public function to draw the desktop */
-void DrawVolumeIcon(void);
-
 /*
  * CleanUpDesktop - Arranges all desktop icons in a grid pattern
 

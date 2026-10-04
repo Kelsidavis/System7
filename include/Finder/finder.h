@@ -80,6 +80,7 @@ void ApplyLabelToSelection(WindowPtr w, short labelIndex);
 /* Desktop Manager API - Evidence: "Clean Up Desktop", "Rebuilding the desktop file" */
 OSErr InitializeFinder(void);
 void DrawDesktop(void);
+void DrawVolumeIcon(void);
 OSErr CleanUpDesktop(void);
 OSErr RebuildDesktopFile(short vRefNum);
 OSErr GetDesktopIconPosition(FSSpec *item, Point *position);

@@ -10,6 +10,7 @@
 #include "MenuManager/MenuDisplay.h"
 #include "MenuManager/MenuAppleIcon.h"
 #include "MenuManager/MenuAppIcon.h"
+#include "Finder/finder.h"
 #include "WindowManager/WindowManager.h"
 #include "SystemInternal.h"
 #include "MenuManager/MenuLogging.h"
@@ -29,9 +30,6 @@
 static void Menu_ClipToScreen(void) {
     ClipRect(&qd.screenBits.bounds);
 }
-extern void DrawDesktop(void);
-extern void DrawVolumeIcon(void);
-
 /* Forward declarations for static functions */
 static void DrawHighlightRect(short left, short top, short right, short bottom, Boolean highlight);
 void DrawMenuBarWithHighlight(short highlightMenuID);

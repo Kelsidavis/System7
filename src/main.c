@@ -1601,7 +1601,6 @@ void kernel_main(uint32_t magic, uint32_t* mb2_info) {
     serial_puts("MAIN: Desktop init complete\n");
 
     /* Draw the volume and trash icons */
-    extern void DrawVolumeIcon(void);
     serial_puts("MAIN: About to call DrawVolumeIcon\n");
     DrawVolumeIcon();
     serial_puts("MAIN: DrawVolumeIcon returned\n");
