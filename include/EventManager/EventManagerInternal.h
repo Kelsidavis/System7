@@ -26,8 +26,6 @@ WindowPtr GetActiveWindow(void);
 void SetActiveWindow(WindowPtr window);
 
 // Modern Input
-void UpdateMouseState(Point newPos, UInt8 buttonState);
-void UpdateKeyboardState(const KeyMap newKeyMap);
 Boolean IsModernInputInitialized(void);
 const char* GetModernInputPlatform(void);
 

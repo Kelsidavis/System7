@@ -1,5 +1,4 @@
 #include "MemoryMgr/MemoryManager.h"
-#include "EventManager/EventManagerInternal.h"
 #include <stdlib.h>
 #include <string.h>
 /**
@@ -299,9 +298,6 @@ static void UpdateKeyMapForScanCode(UInt16 scanCode, Boolean isPressed)
             g_keyboardState.currentKeyMap[arrayIndex] &= ~(1U << bitIndex);
         }
     }
-
-    /* Update global keymap */
-    UpdateKeyboardState(g_keyboardState.currentKeyMap);
 }
 
 /*---------------------------------------------------------------------------

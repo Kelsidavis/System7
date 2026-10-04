@@ -15,7 +15,6 @@
 #include "EventManager/EventManagerInternal.h"
 #include "EventManager/EventManager.h"
 #include "EventManager/EventTypes.h"
-#include "EventManager/EventStructs.h"
 #include "EventManager/EventGlobals.h"
 #include "EventManager/MouseEvents.h"
 #include "EventManager/KeyboardEvents.h"
@@ -35,29 +34,12 @@ extern volatile Boolean gInMouseTracking;
 /* Global mouse position supplied by the selected platform input backend. */
 extern Point g_mousePos;
 
-/* Global event manager state - simplified for kernel use */
-static UInt8 g_mouseButtonState = 0;
-static KeyMap g_keyMapState = {0};
-static EventMgrGlobals g_eventGlobals = {0};
-
 /**
  * Update mouse state (called by mouse input system)
  */
-void UpdateMouseState(Point newPos, UInt8 buttonState)
+static void UpdateMouseState(Point newPos)
 {
     g_mousePos = newPos;
-    g_mouseButtonState = buttonState;
-    g_eventGlobals.Mouse = newPos;
-    g_eventGlobals.MBState = buttonState;
-}
-
-/**
- * Update keyboard state (called by keyboard input system)
- */
-void UpdateKeyboardState(const KeyMap newKeyMap)
-{
-    memcpy(g_keyMapState, newKeyMap, sizeof(KeyMap));
-    memcpy(g_eventGlobals.KeyMapState, newKeyMap, sizeof(KeyMap));
 }
 
 /* GetDblTime() is now provided by EventGlobals.c */
@@ -313,7 +295,7 @@ void ProcessModernInput(void)
         currentMousePos.v != g_modernInput.lastMousePos.v) {
 
         /* Update Event Manager mouse state */
-        UpdateMouseState(currentMousePos, currentButtonState);
+        UpdateMouseState(currentMousePos);
 
         g_modernInput.lastMousePos = currentMousePos;
     }
@@ -375,7 +357,7 @@ void ProcessModernInput(void)
             }
 
             /* Update Event Manager mouse position BEFORE posting event */
-            UpdateMouseState(currentMousePos, currentButtonState);
+            UpdateMouseState(currentMousePos);
 
             /* Generate mouseDown event with classic System 7 encoding:
              * message = (clickCount << 16) | (SInt16)partCode
@@ -395,7 +377,7 @@ void ProcessModernInput(void)
         } else if (!(currentButtonState & 1) && (g_modernInput.lastButtonState & 1)) {
             /* Mouse button released - up transition */
             /* Update position before posting event */
-            UpdateMouseState(currentMousePos, currentButtonState);
+            UpdateMouseState(currentMousePos);
             if (!gInMouseTracking) {
                 /* mouseUp: same encoding as mouseDown - high word = click count */
                 SInt16 partCode = 0;
