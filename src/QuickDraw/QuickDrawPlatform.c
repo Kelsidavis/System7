@@ -29,8 +29,6 @@
 #define QD_PIXEL_PTR(address) \
     ((uint32_t*)__builtin_assume_aligned((address), _Alignof(uint32_t)))
 
-/* Platform framebuffer instance */
-static PlatformFramebuffer g_platformFB;
 extern CGrafPtr g_currentCPort;
 
 static inline Boolean QDPointInEllipse(SInt32 x, SInt32 y, const Rect* rect) {
@@ -227,33 +225,12 @@ static inline Boolean QDPointInArc(SInt32 x, SInt32 y, const Rect* rect,
 extern void Pointer_Shield(int left, int top, int right, int bottom);
 
 Boolean QDPlatform_Initialize(void) {
-    g_platformFB.baseAddr = framebuffer;
-    g_platformFB.width = fb_width;
-    g_platformFB.height = fb_height;
-    g_platformFB.pitch = fb_pitch;
     return (framebuffer != NULL);
 }
 
 /* Shutdown platform layer */
 void QDPlatform_Shutdown(void) {
     /* Nothing to do */
-}
-
-/* Get framebuffer */
-PlatformFramebuffer* QDPlatform_GetFramebuffer(void) {
-    return &g_platformFB;
-}
-
-/* Lock framebuffer */
-void QDPlatform_LockFramebuffer(PlatformFramebuffer* fb) {
-    (void)fb;
-    /* No locking needed in our simple implementation */
-}
-
-/* Unlock framebuffer */
-void QDPlatform_UnlockFramebuffer(PlatformFramebuffer* fb) {
-    (void)fb;
-    /* No locking needed in our simple implementation */
 }
 
 /* VGA status register port for vsync detection */

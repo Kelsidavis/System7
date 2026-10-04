@@ -18,26 +18,9 @@ extern "C" {
 /* Forward declarations */
 struct FontStrike;
 
-/* Platform-specific pixel format definitions */
-
-/* Platform framebuffer structure */
-typedef struct PlatformFramebuffer {
-    void* baseAddr;
-    UInt32 width;
-    UInt32 height;
-    UInt32 pitch;
-} PlatformFramebuffer;
-
-/* Platform graphics context */
-
 /* Platform initialization */
 Boolean QDPlatform_Initialize(void);
 void QDPlatform_Shutdown(void);
-
-/* Framebuffer access */
-PlatformFramebuffer* QDPlatform_GetFramebuffer(void);
-void QDPlatform_LockFramebuffer(PlatformFramebuffer* fb);
-void QDPlatform_UnlockFramebuffer(PlatformFramebuffer* fb);
 
 /* Screen update */
 void QDPlatform_UpdateScreen(SInt32 left, SInt32 top, SInt32 right, SInt32 bottom);
