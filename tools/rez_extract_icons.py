@@ -20,14 +20,13 @@ Notes:
   - Only 1‑bit icons are handled here. Color cicn parsing can be added later.
 """
 import argparse
-import os
 import struct
 from pathlib import Path
 from typing import Dict, List, Tuple, Optional
 
 try:
     from PIL import Image
-except Exception as e:
+except Exception:
     raise SystemExit("Pillow is required: pip install pillow")
 
 
@@ -75,9 +74,8 @@ def parse_resource_fork(res: bytes) -> Dict[str, List[Tuple[int, bytes]]]:
     data_sec = res[data_off:data_off + data_len]
     rmap = res[map_off:map_off + map_len]
     # Offsets within map are relative to start of map
-    # Type list and name list offsets: at 24 and 26 within map (per TN 1041)
+    # The type list offset is at byte 24 in the map (per TN 1041).
     type_list_off = read_be16(rmap, 24)
-    name_list_off = read_be16(rmap, 26)
     if type_list_off == 0xFFFF:
         return {}
     # Type list: numTypesMinus1 at type_list_off
@@ -93,7 +91,6 @@ def parse_resource_fork(res: bytes) -> Dict[str, List[Tuple[int, bytes]]]:
         for j in range(num_res):
             re_off = rl_base + j * 12
             res_id = struct.unpack_from(">h", rmap, re_off)[0]
-            name_off = read_be16(rmap, re_off + 2)  # may be 0xFFFF
             # Attributes at +4, data offset (24-bit) at +5..+7 relative to data section
             data_ofs_24 = int.from_bytes(rmap[re_off + 5:re_off + 8], 'big')
             # Data record: at data_ofs_24 in data section is 4‑byte length then data
@@ -147,7 +144,6 @@ def parse_color_table(blob: bytes) -> List[Tuple[int, int, int]]:
         if pos + 8 > len(blob):
             break
         # Value field is often sequential but not guaranteed; we rely on table order.
-        val = read_be16(blob, pos)
         r = read_be16(blob, pos + 2) >> 8
         g = read_be16(blob, pos + 4) >> 8
         b = read_be16(blob, pos + 6) >> 8
@@ -162,24 +158,24 @@ def parse_cicn(blob: bytes, out_png: Path, fallback_palettes: Optional[Dict[int,
         if len(blob) < 50:
             return
         # PixMap
-        baseAddr = read_be32(blob, 0)
+        _base_addr = read_be32(blob, 0)
         rowBytes = struct.unpack_from(">H", blob, 4)[0] & 0x3FFF
         top = struct.unpack_from(">h", blob, 6)[0]
         left = struct.unpack_from(">h", blob, 8)[0]
         bottom = struct.unpack_from(">h", blob, 10)[0]
         right = struct.unpack_from(">h", blob, 12)[0]
-        pmVersion = read_be16(blob, 14)
+        _pm_version = read_be16(blob, 14)
         packType = read_be16(blob, 16)
-        packSize = read_be32(blob, 18)
-        hRes = read_be32(blob, 22)
-        vRes = read_be32(blob, 26)
-        pixelType = read_be16(blob, 30)
+        _pack_size = read_be32(blob, 18)
+        _h_res = read_be32(blob, 22)
+        _v_res = read_be32(blob, 26)
+        _pixel_type = read_be16(blob, 30)
         pixelSize = read_be16(blob, 32)
         cmpCount = read_be16(blob, 34)
-        cmpSize = read_be16(blob, 36)
-        planeBytes = read_be32(blob, 38)
+        _cmp_size = read_be16(blob, 36)
+        _plane_bytes = read_be32(blob, 38)
         pmTable = read_be32(blob, 42)
-        pmReserved = read_be32(blob, 46)
+        _pm_reserved = read_be32(blob, 46)
         width = right - left
         height = bottom - top
         if width <= 0 or height <= 0:
@@ -192,8 +188,8 @@ def parse_cicn(blob: bytes, out_png: Path, fallback_palettes: Optional[Dict[int,
         # Read ColorTable
         if ct_off + 8 > len(blob):
             return
-        ctSeed = read_be32(blob, ct_off)
-        ctFlags = read_be16(blob, ct_off + 4)
+        _ct_seed = read_be32(blob, ct_off)
+        _ct_flags = read_be16(blob, ct_off + 4)
         ctSize = read_be16(blob, ct_off + 6)
         ncolors = ctSize + 1
         colors_map: Dict[int, Tuple[int, int, int]] = {}
@@ -283,7 +279,7 @@ def process_file(path: Path, outdir: Path):
             return
     try:
         types = parse_resource_fork(resfork)
-    except Exception as e:
+    except Exception:
         return
     # Gather colour palettes from any clut resources for fallback usage.
     clut_palettes: Dict[int, List[Tuple[int, int, int]]] = {}

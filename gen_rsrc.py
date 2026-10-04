@@ -69,13 +69,17 @@ LIMITATIONS
 
 (c) 2025 — Kelsi Davis
 """
-import sys, json, struct, os
+import sys
+import json
+import struct
+import os
 
 def be16(x): return struct.pack(">H", x & 0xFFFF)
 def be16s(x): return struct.pack(">h", x if -32768 <= x <= 32767 else ((x+0x8000)&0xFFFF)-0x8000)
 def be32(x): return struct.pack(">I", x & 0xFFFFFFFF)
 
-FOURCC = lambda s: s.encode("mac_roman")[:4].ljust(4, b'\x00')
+def fourcc(s):
+    return s.encode("mac_roman")[:4].ljust(4, b'\x00')
 
 class Resource:
     __slots__ = ("rtype","rid","name","data")
@@ -104,10 +108,12 @@ def parse_pat_data(entry):
             raise ValueError("PAT 'rows' must have 8 strings of 8 chars ('0'/'1')")
         out = bytearray(8)
         for y, row in enumerate(rows):
-            if len(row) != 8: raise ValueError("Each PAT row must be length 8")
+            if len(row) != 8:
+                raise ValueError("Each PAT row must be length 8")
             b = 0
             for x, ch in enumerate(row):
-                if ch not in ("0","1"): raise ValueError("PAT row chars must be '0' or '1'")
+                if ch not in ("0", "1"):
+                    raise ValueError("PAT row chars must be '0' or '1'")
                 bit = 1 if ch == "1" else 0
                 b |= (bit << (7 - x))  # leftmost char = bit7
             out[y] = b
@@ -152,7 +158,7 @@ def parse_ppat8_data(entry):
     for row_str in indices:
         row_indices = list(map(int, row_str.split()))
         if len(row_indices) != 8:
-            raise ValueError(f"Each index row must have 8 values")
+            raise ValueError("Each index row must have 8 values")
         for idx in row_indices:
             if idx >= len(palette):
                 raise ValueError(f"Index {idx} out of palette range")
@@ -232,7 +238,7 @@ def parse_manifest(manifest):
             data = parse_str_data(ent)
         else:
             raise NotImplementedError(f"Unsupported type: {rtype}")
-        resources.append(Resource(FOURCC(rtype), rid, name, data))
+        resources.append(Resource(fourcc(rtype), rid, name, data))
     return resources
 
 def build_rsrc(resources):
@@ -266,7 +272,8 @@ def build_rsrc(resources):
                 continue
             off = len(name_list)
             nm = r.name.encode("mac_roman", errors="replace")
-            if len(nm) > 255: nm = nm[:255]
+            if len(nm) > 255:
+                nm = nm[:255]
             name_list.append(len(nm))
             name_list += nm
             name_offsets[r.name] = off
@@ -282,8 +289,6 @@ def build_rsrc(resources):
     #       int16 id | int16 name offset (from name list start or -1) |
     #       1 byte attributes | 3 bytes data offset (from start of data area) | 4 bytes handle (reserved)
     #
-    type_records = []
-    ref_lists = bytearray()
     # offset within type list: after 2-byte count and N type records comes ref_lists.
     # First, compute sizes to know the offsets.
     num_types = len(by_type)

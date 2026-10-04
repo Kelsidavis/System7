@@ -17,12 +17,14 @@ Outputs:
 Dependencies:
   - Pillow (pip install pillow)
 """
-import sys, re, os, pathlib, json
-from typing import List, Tuple
+import sys
+import re
+import pathlib
+from typing import List
 
 try:
     from PIL import Image
-except Exception as e:
+except Exception:
     sys.stderr.write("ERROR: Pillow not installed. Run: pip install pillow\n")
     sys.exit(2)
 
@@ -60,7 +62,9 @@ def pack_argb32(img: Image.Image) -> List[int]:
     if img.mode != 'RGBA':
         img = img.convert('RGBA')
     w,h = img.size
-    pixels = list(img.getdata())
+    # Pillow 12.1 adds get_flattened_data and deprecates getdata.
+    get_flattened_data = getattr(img, "get_flattened_data", None)
+    pixels = get_flattened_data() if get_flattened_data else img.getdata()
     out = []
     for (r,g,b,a) in pixels:
         out.append(((a & 0xFF)<<24) | ((r & 0xFF)<<16) | ((g & 0xFF)<<8) | (b & 0xFF))
@@ -156,14 +160,14 @@ def main():
         if large:
             lines.append(f"    .large = {{32,32,kIconColor32, NULL, NULL, {large}}},")
         else:
-            lines.append(f"    .large = {{0,0,kIconColor32, NULL, NULL, NULL}},")
+            lines.append("    .large = {0,0,kIconColor32, NULL, NULL, NULL},")
         # small
         if small:
             lines.append(f"    .small = {{16,16,kIconColor32, NULL, NULL, {small}}},")
-            lines.append(f"    .hasSmall = true,")
+            lines.append("    .hasSmall = true,")
         else:
-            lines.append(f"    .small = {{0,0,kIconColor32, NULL, NULL, NULL}},")
-            lines.append(f"    .hasSmall = false,")
+            lines.append("    .small = {0,0,kIconColor32, NULL, NULL, NULL},")
+            lines.append("    .hasSmall = false,")
         lines.append("};\n")
         fam_defs.append("\n".join(lines))
 

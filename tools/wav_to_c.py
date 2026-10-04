@@ -10,13 +10,13 @@ def parse_wav(filename):
         # Read RIFF header
         riff = f.read(4)
         if riff != b'RIFF':
-            print(f"Error: Not a RIFF file", file=sys.stderr)
+            print("Error: Not a RIFF file", file=sys.stderr)
             return None
 
-        file_size = struct.unpack('<I', f.read(4))[0]
+        _file_size = struct.unpack('<I', f.read(4))[0]
         wave = f.read(4)
         if wave != b'WAVE':
-            print(f"Error: Not a WAVE file", file=sys.stderr)
+            print("Error: Not a WAVE file", file=sys.stderr)
             return None
 
         # Find fmt chunk
@@ -31,8 +31,8 @@ def parse_wav(filename):
                 audio_format = struct.unpack('<H', fmt_data[0:2])[0]
                 num_channels = struct.unpack('<H', fmt_data[2:4])[0]
                 sample_rate = struct.unpack('<I', fmt_data[4:8])[0]
-                byte_rate = struct.unpack('<I', fmt_data[8:12])[0]
-                block_align = struct.unpack('<H', fmt_data[12:14])[0]
+                _byte_rate = struct.unpack('<I', fmt_data[8:12])[0]
+                _block_align = struct.unpack('<H', fmt_data[12:14])[0]
                 bits_per_sample = struct.unpack('<H', fmt_data[14:16])[0]
 
                 print(f"// WAV Format: {audio_format} (1=PCM)", file=sys.stderr)
