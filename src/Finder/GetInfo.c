@@ -18,6 +18,7 @@
 #include "Finder/GetInfo.h"
 #include "OSUtils/OSUtils.h"
 #include "EventManager/EventManager.h"
+#include "LocaleManager/LocaleManager.h"
 #include "LocaleManager/StringIDs.h"
 
 #define kGetInfoRefCon 0x47494E46  /* 'GINF' */
@@ -89,7 +90,6 @@ static void FormatOSType(uint32_t type, char* out) {
 static const char* GetInfo_Label(SInt16 which)
 {
     static Str255 buf;
-    extern void GetLocalizedString(unsigned char* out, SInt16 listID, SInt16 index);
     static char cstr[256];
 
     GetLocalizedString(buf, kSTRListFinderGetInfo, which);
