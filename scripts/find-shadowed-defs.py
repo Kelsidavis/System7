@@ -65,7 +65,7 @@ def defined_symbols(obj):
         return set()
     out = subprocess.run(['nm', '--defined-only', obj],
                          capture_output=True, text=True).stdout
-    return {p[2] for p in (l.split() for l in out.splitlines())
+    return {p[2] for p in (line.split() for line in out.splitlines())
             if len(p) == 3 and p[1] == 'T'}
 
 

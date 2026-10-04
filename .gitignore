@@ -24,6 +24,10 @@ debug*.log
 .vscode/
 .idea/
 
+# Python bytecode
+__pycache__/
+*.py[cod]
+
 # QEMU files
 *.qcow2
 *.img

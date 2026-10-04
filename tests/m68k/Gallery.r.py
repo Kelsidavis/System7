@@ -3,8 +3,8 @@
 # a version 2 one with colour and an 8-bit image - for DrawPicture to play.
 import struct as _s
 
-def _rect(t, l, b, r):
-    return _s.pack(">hhhh", t, l, b, r)
+def _rect(top, left, bottom, right):
+    return _s.pack(">hhhh", top, left, bottom, right)
 
 def _pict_v1():
     ops = b"\x11\x01"
