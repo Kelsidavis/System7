@@ -79,6 +79,14 @@ OSErr SndChannelStatus(SndChannelPtr chan,
 
 /* Sound Playback */
 OSErr SndPlay(SndChannelPtr chan, SndListHandle sndHandle, Boolean async);
+OSErr SetupSndHeader(Handle sndHandle,
+                     SInt16 numChannels,
+                     Fixed sampleRate,
+                     SInt16 sampleSize,
+                     OSType compressionType,
+                     SInt16 baseFrequency,
+                     SInt32 numBytes,
+                     SInt16 *headerLen);
 
 OSErr SndStartFilePlay(SndChannelPtr chan,
                       SInt16 fRefNum,

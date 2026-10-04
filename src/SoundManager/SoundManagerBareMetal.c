@@ -780,6 +780,92 @@ typedef struct SndFormat1 {
 #define kExtSH  0xFF
 #define kCmpSH  0xFE
 
+#define kSampledSynth 5
+#define kFormat1BufferCommandOffset 20
+#define kSoundHeaderLength 22
+#define kExtSoundHeaderLength 64
+
+static void SndWriteBE16(UInt8 *dst, UInt16 value) {
+    dst[0] = (UInt8)(value >> 8);
+    dst[1] = (UInt8)value;
+}
+
+static void SndWriteBE32(UInt8 *dst, UInt32 value) {
+    dst[0] = (UInt8)(value >> 24);
+    dst[1] = (UInt8)(value >> 16);
+    dst[2] = (UInt8)(value >> 8);
+    dst[3] = (UInt8)value;
+}
+
+OSErr SetupSndHeader(Handle sndHandle,
+                     SInt16 numChannels,
+                     Fixed sampleRate,
+                     SInt16 sampleSize,
+                     OSType compressionType,
+                     SInt16 baseFrequency,
+                     SInt32 numBytes,
+                     SInt16 *headerLen) {
+    const OSType kNoCompression = ((OSType)'N' << 24) | ((OSType)'O' << 16) |
+                                  ((OSType)'N' << 8) | (OSType)'E';
+    UInt8 *resource;
+    UInt8 *header;
+    UInt16 soundHeaderLength;
+    UInt32 bytesPerFrame;
+    UInt32 numFrames;
+
+    if (!sndHandle || !*sndHandle || !headerLen || numBytes < 0 ||
+        (numChannels != 1 && numChannels != 2) || sampleRate == 0 ||
+        (sampleSize != 8 && sampleSize != 16)) {
+        return paramErr;
+    }
+    if (compressionType != kNoCompression) {
+        return siInvalidCompression;
+    }
+    soundHeaderLength = (numChannels == 1 && sampleSize == 8)
+        ? kSoundHeaderLength : kExtSoundHeaderLength;
+    if (soundHeaderLength == kExtSoundHeaderLength) {
+        bytesPerFrame = (UInt32)numChannels * (UInt32)(sampleSize / 8);
+        if ((UInt32)numBytes % bytesPerFrame != 0) {
+            return paramErr;
+        }
+    }
+    if (GetHandleSize(sndHandle) <
+        (UInt32)(kFormat1BufferCommandOffset + soundHeaderLength)) {
+        return memFullErr;
+    }
+
+    UInt8 handleState = HGetState(sndHandle);
+    HLock(sndHandle);
+    resource = (UInt8 *)*sndHandle;
+    memset(resource, 0, (size_t)(kFormat1BufferCommandOffset + soundHeaderLength));
+
+    /* Format 1 resource: sampled synthesizer, one inline buffer command. */
+    SndWriteBE16(resource, 1);
+    SndWriteBE16(resource + 2, 1);
+    SndWriteBE16(resource + 4, kSampledSynth);
+    SndWriteBE16(resource + 10, 1);
+    SndWriteBE16(resource + 12, (UInt16)(kSndCmdBuffer | kDataOffsetFlag));
+    SndWriteBE32(resource + 16, kFormat1BufferCommandOffset);
+
+    header = resource + kFormat1BufferCommandOffset;
+    header[20] = (numChannels == 1 && sampleSize == 8) ? kStdSH : kExtSH;
+    header[21] = (UInt8)baseFrequency;
+    if (header[20] == kStdSH) {
+        SndWriteBE32(header + 4, (UInt32)numBytes);
+        SndWriteBE32(header + 8, (UInt32)sampleRate);
+    } else {
+        bytesPerFrame = (UInt32)numChannels * (UInt32)(sampleSize / 8);
+        numFrames = (UInt32)numBytes / bytesPerFrame;
+        SndWriteBE32(header + 4, (UInt32)numChannels);
+        SndWriteBE32(header + 8, (UInt32)sampleRate);
+        SndWriteBE32(header + 22, numFrames);
+        SndWriteBE16(header + 48, (UInt16)sampleSize);
+    }
+    *headerLen = (SInt16)(kFormat1BufferCommandOffset + soundHeaderLength);
+    HSetState(sndHandle, handleState);
+    return noErr;
+}
+
 /*
  * Parse a standard sound header (encode == 0x00) and play via SB16 backend.
  *
@@ -1043,6 +1129,7 @@ static OSErr SndPlay_Format1(const UInt8* sndData, Size dataSize) {
     for (UInt16 i = 0; i < numCmds && (ptr + 8) <= (sndData + dataSize); i++) {
         /* Read command */
         UInt16 cmd = (ptr[0] << 8) | ptr[1];
+        UInt16 rawCmd = cmd & ~kDataOffsetFlag;
         SInt16 param1 = (SInt16)((ptr[2] << 8) | ptr[3]);
         SInt32 param2 = (SInt32)(((UInt32)ptr[4] << 24) |
                                  ((UInt32)ptr[5] << 16) |
@@ -1053,7 +1140,18 @@ static OSErr SndPlay_Format1(const UInt8* sndData, Size dataSize) {
         SND_LOG_DEBUG("SndPlay_Format1: cmd=%d param1=%ld param2=%ld\n",
                       cmd, (long)param1, (long)param2);
 
-        switch (cmd) {
+        switch (rawCmd) {
+            case kSndCmdSound:
+            case kSndCmdBuffer: {
+                bool hasOffset = (cmd & kDataOffsetFlag) != 0;
+                if (hasOffset && param2 >= 0 && param2 < dataSize) {
+                    OSErr err = SndPlaySoundHeader(sndData + param2,
+                                                   dataSize - param2);
+                    return err;
+                }
+                break;
+            }
+
             case freqCmd:
                 /* Set frequency for next sound */
                 currentFreq = (UInt32)param2;

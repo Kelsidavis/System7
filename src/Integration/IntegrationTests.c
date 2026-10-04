@@ -1171,6 +1171,35 @@ static void Test_SoundInputUnavailable(void) {
     SndListHandle recordedSound = NULL;
     SInt16 recordingStatus = 7;
     SInt32 duration = 2000;
+    Handle soundHeader = NewHandleClear(100);
+    SInt16 headerLen = -1;
+
+    CHECK(soundHeader != NULL,
+          "could not allocate a sound resource header test handle");
+    CHECK(SetupSndHeader(soundHeader, 1, 22050L << 16, 8,
+                         ((OSType)'N' << 24) | ((OSType)'O' << 16) |
+                             ((OSType)'N' << 8) | (OSType)'E',
+                         60, 4, &headerLen) == noErr && headerLen == 42 &&
+          (UInt8)(*soundHeader)[0] == 0 && (UInt8)(*soundHeader)[1] == 1 &&
+          (UInt8)(*soundHeader)[12] == 0x80 &&
+          (UInt8)(*soundHeader)[13] == 0x51 &&
+          (UInt8)(*soundHeader)[40] == 0 &&
+          (UInt8)(*soundHeader)[41] == 60,
+          "SetupSndHeader did not create a format-1 mono 8-bit resource");
+    CHECK(SetupSndHeader(soundHeader, 2, rate44khz, 16,
+                         ((OSType)'N' << 24) | ((OSType)'O' << 16) |
+                             ((OSType)'N' << 8) | (OSType)'E',
+                         60, 8, &headerLen) == noErr && headerLen == 84 &&
+          (UInt8)(*soundHeader)[40] == 0xFF &&
+          (UInt8)(*soundHeader)[24] == 0 &&
+          (UInt8)(*soundHeader)[27] == 2 &&
+          (UInt8)(*soundHeader)[68] == 0 &&
+          (UInt8)(*soundHeader)[69] == 16,
+          "SetupSndHeader did not create an extended stereo resource");
+    CHECK(SetupSndHeader(soundHeader, 1, 22050L << 16, 8, 0,
+                         60, 4, &headerLen) == siInvalidCompression,
+          "SetupSndHeader accepted an unsupported compression type");
+    DisposeHandle(soundHeader);
 
     CHECK(siReadPermission == 0 && siWritePermission == 1 &&
           unitTypeSeconds == 0 && unitTypeNoSelection == 0xFFFF,
