@@ -90,7 +90,7 @@ typedef struct ScrapItem {
     Handle data;
 } ScrapItem;
 
-/* ScrapManager API - MVP functions (prefixed to avoid conflicts) */
+/* Prefixed Scrap Manager API, kept separate from the classic API below. */
 void   Scrap_Zero(void);
 Size   Scrap_Get(void* dest, ResType type);
 OSErr  Scrap_Put(Size size, ResType type, const void* src);
@@ -101,7 +101,7 @@ void   Scrap_Unload(void);
 #include "ProcessMgr/ProcessTypes.h"  /* Get ProcessID type */
 ProcessID Scrap_GetOwner(void);
 
-/* Standard scrap types for MVP */
+/* Compatibility names for the standard text and picture scrap types. */
 #define kScrapTypeTEXT FOURCC('T', 'E', 'X', 'T')
 #define kScrapTypePICT FOURCC('P', 'I', 'C', 'T')
 

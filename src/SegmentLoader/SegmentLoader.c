@@ -388,7 +388,7 @@ OSErr UnloadSegment(SegmentLoaderContext* ctx, SInt16 segID)
         seg->state = kSegmentPurgeable;
         seg->purgeable = true;
 
-        /* Could unmap here, but for MVP we keep it loaded */
+        /* The mapping stays resident; purge-on-demand is not implemented. */
     }
 
     return noErr;
