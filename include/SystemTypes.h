@@ -1974,16 +1974,35 @@ typedef TextStyle* TextStylePtr;
 typedef TextStylePtr* TextStyleHandle;
 
 typedef struct STElement {
-    SInt32 stCount;
-    SInt32 stHeight;
-    SInt32 stAscent;
-    SInt32 stFont;
+    SInt16 stCount;
+    SInt16 stHeight;
+    SInt16 stAscent;
+    SInt16 stFont;
     Style stFace;
     SInt16 stSize;
     RGBColor stColor;
 } STElement;
 
 typedef STElement* STPtr;
+
+#pragma pack(push, 2)
+typedef struct ScrpSTElement {
+    SInt32 scrpStartChar;
+    SInt16 scrpHeight;
+    SInt16 scrpAscent;
+    SInt16 scrpFont;
+    Style scrpFace;
+    SInt16 scrpSize;
+    RGBColor scrpColor;
+} ScrpSTElement;
+
+typedef struct StScrpRec {
+    SInt16 scrpNStyles;
+    ScrpSTElement scrpStyleTab[1];
+} StScrpRec;
+
+typedef StScrpRec* StScrpPtr;
+#pragma pack(pop)
 
 typedef struct LongSTElement {
     SInt32 lCount;

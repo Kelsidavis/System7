@@ -514,6 +514,105 @@ void TESetStyle(SInt16 mode, const TextStyle *newStyle,
     }
 }
 
+void TEUseStyleScrap(SInt32 rangeStart, SInt32 rangeEnd,
+                     StScrpHandle newStyles, Boolean redraw, TEHandle hTE) {
+    StScrpRec *scrap;
+    SInt32 selectionStart;
+    SInt32 selectionEnd;
+    SInt32 textLength;
+    u32 scrapSize;
+
+    if (!hTE || !newStyles || !*newStyles || rangeStart >= rangeEnd) return;
+
+    HLock((Handle)hTE);
+    TEExtPtr pTE = (TEExtPtr)*hTE;
+    textLength = pTE->base.teLength;
+    selectionStart = pTE->base.selStart;
+    selectionEnd = pTE->base.selEnd;
+    HUnlock((Handle)hTE);
+
+    if (rangeStart < 0) rangeStart = 0;
+    if (rangeEnd > textLength) rangeEnd = textLength;
+    if (rangeStart >= rangeEnd) return;
+
+    scrapSize = GetHandleSize((Handle)newStyles);
+    if (scrapSize < sizeof(SInt16)) return;
+    HLock((Handle)newStyles);
+    scrap = (StScrpRec *)HandleDataAligned((Handle)newStyles);
+    if (!scrap || scrap->scrpNStyles <= 0 ||
+        (u32)sizeof(SInt16) +
+            (u32)scrap->scrpNStyles * sizeof(ScrpSTElement) > scrapSize) {
+        HUnlock((Handle)newStyles);
+        return;
+    }
+
+    SInt32 previousStart = -1;
+    SInt32 rangeLength = rangeEnd - rangeStart;
+    for (SInt16 i = 0; i < scrap->scrpNStyles; i++) {
+        SInt32 start = scrap->scrpStyleTab[i].scrpStartChar;
+        if (start < 0 || start > rangeLength || start < previousStart) {
+            HUnlock((Handle)newStyles);
+            return;
+        }
+        previousStart = start;
+    }
+
+    for (SInt16 i = 0; i < scrap->scrpNStyles; i++) {
+        SInt32 start = scrap->scrpStyleTab[i].scrpStartChar;
+        SInt32 end = (i + 1 < scrap->scrpNStyles) ?
+            scrap->scrpStyleTab[i + 1].scrpStartChar : rangeLength;
+        if (start >= end) continue;
+
+        ScrpSTElement *scrapStyle = &scrap->scrpStyleTab[i];
+        TextStyle style = {
+            .tsFont = scrapStyle->scrpFont,
+            .tsFace = scrapStyle->scrpFace,
+            .tsSize = scrapStyle->scrpSize,
+            .tsColor = scrapStyle->scrpColor
+        };
+        TESetSelect(rangeStart + start, rangeStart + end, hTE);
+        TESetStyle(doAll, &style, false, hTE);
+    }
+    HUnlock((Handle)newStyles);
+
+    TESetSelect(selectionStart, selectionEnd, hTE);
+    if (redraw) TEUpdate(NULL, hTE);
+}
+
+void TEStyleInsert(const void *text, SInt32 length,
+                   StScrpHandle styles, TEHandle hTE) {
+    SInt32 selectionStart;
+    SInt32 selectionEnd;
+    SInt32 oldLength;
+    SInt32 newLength;
+    SInt32 insertedLength;
+
+    if (!hTE || !text || length <= 0) return;
+
+    HLock((Handle)hTE);
+    TEExtPtr pTE = (TEExtPtr)*hTE;
+    selectionStart = pTE->base.selStart;
+    selectionEnd = pTE->base.selEnd;
+    oldLength = pTE->base.teLength;
+    HUnlock((Handle)hTE);
+
+    TEReplaceSel(text, length, hTE);
+
+    HLock((Handle)hTE);
+    pTE = (TEExtPtr)*hTE;
+    newLength = pTE->base.teLength;
+    HUnlock((Handle)hTE);
+
+    insertedLength = newLength - (oldLength - (selectionEnd - selectionStart));
+    if (styles && insertedLength > 0) {
+        TEUseStyleScrap(selectionStart, selectionStart + insertedLength,
+                        styles, false, hTE);
+        TESetSelect(selectionStart + insertedLength,
+                    selectionStart + insertedLength, hTE);
+        TEUpdate(NULL, hTE);
+    }
+}
+
 /*
  * TEDispose - Dispose of a TextEdit record
  */

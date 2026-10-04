@@ -1766,6 +1766,9 @@ static void Test_TextEditScrollBounds(void) {
 
 static void Test_TextEditGetStyle(void) {
     const char* test_name = "TextEdit_GetStyle";
+    CHECK(offsetof(StScrpRec, scrpStyleTab) == sizeof(SInt16) &&
+          sizeof(ScrpSTElement) == 20,
+          "classic style scrap record layout was not preserved");
     Rect rect = {0, 0, 40, 120};
     TEHandle hTE = TEStyleNew(&rect, &rect);
     if (!hTE) {
@@ -1795,12 +1798,53 @@ static void Test_TextEditGetStyle(void) {
     Boolean selectionStyle = before.tsFace == normal &&
                              inside.tsFace == bold &&
                              after.tsFace == normal;
+
+    StScrpHandle scrap = (StScrpHandle)NewHandleClear(
+        sizeof(SInt16) + 2 * sizeof(ScrpSTElement));
+    if (!scrap) {
+        TEDispose(hTE);
+        RecordTest(test_name, false, "style scrap allocation failed");
+        return;
+    }
+    HLock((Handle)scrap);
+    StScrpRec *scrapRecord = (StScrpRec *)HandleDataAligned((Handle)scrap);
+    scrapRecord->scrpNStyles = 2;
+    scrapRecord->scrpStyleTab[0].scrpStartChar = 0;
+    scrapRecord->scrpStyleTab[0].scrpFont = style.tsFont;
+    scrapRecord->scrpStyleTab[0].scrpFace = bold;
+    scrapRecord->scrpStyleTab[0].scrpSize = style.tsSize;
+    scrapRecord->scrpStyleTab[1] = scrapRecord->scrpStyleTab[0];
+    scrapRecord->scrpStyleTab[1].scrpStartChar = 2;
+    scrapRecord->scrpStyleTab[1].scrpFace = italic;
+    HUnlock((Handle)scrap);
+
+    TEUseStyleScrap(0, 4, scrap, false, hTE);
+    TextStyle firstRun = {0}, secondRun = {0};
+    TEGetStyle(1, &firstRun, NULL, NULL, hTE);
+    TEGetStyle(2, &secondRun, NULL, NULL, hTE);
+    SInt32 restoredStart = 0, restoredEnd = 0;
+    TEGetSelection(&restoredStart, &restoredEnd, hTE);
+    Boolean scrapStyleOK = firstRun.tsFace == bold &&
+                           secondRun.tsFace == italic &&
+                           restoredStart == 1 && restoredEnd == 3;
+
+    const char inserted[] = "xy";
+    TEStyleInsert(inserted, 2, scrap, hTE);
+    TextStyle insertedStyle = {0};
+    TEGetStyle(1, &insertedStyle, NULL, NULL, hTE);
+    Boolean styledInsertOK = insertedStyle.tsFace == bold &&
+                             (**hTE).selStart == 3 && (**hTE).selEnd == 3;
+    DisposeHandle((Handle)scrap);
     TEDispose(hTE);
 
     CHECK(defaultStyle,
           "TEGetStyle did not return the initialized styled-text attributes");
     CHECK(selectionStyle,
           "TESetStyle changed text outside the selected range");
+    CHECK(scrapStyleOK,
+          "TEUseStyleScrap did not apply each run or restore selection");
+    CHECK(styledInsertOK,
+          "TEStyleInsert did not preserve pasted run style or caret");
     RecordTest(test_name, true, "");
 }
 
