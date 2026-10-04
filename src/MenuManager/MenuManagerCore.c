@@ -216,6 +216,26 @@ MenuBarList* MenuMgr_GetMenuBarList(void)
     return MENU_BAR_LIST(gMenuList);
 }
 
+static MenuBarList* EnsureMenuBarList(void)
+{
+    if (!gMenuMgrInitialized) return NULL;
+
+    if (gMenuList == NULL) {
+        size_t menuBarSize = sizeof(MenuBarList) + (MAX_MENUS - 1) * sizeof(MenuListEntry);
+        gMenuList = NewPtr(menuBarSize);
+        if (gMenuList == NULL) return NULL;
+
+        MenuBarList* menuBar = MENU_BAR_LIST(gMenuList);
+        menuBar->numMenus = 0;
+        menuBar->totalWidth = 0;
+        menuBar->lastRight = 0;
+        menuBar->mbResID = 0;
+    }
+
+    if (gMenuMgrState) gMenuMgrState->menuBar = gMenuList;
+    return MENU_BAR_LIST(gMenuList);
+}
+
 /*
  * GetNewMBar - Create menu list from MBAR resource
  *
@@ -343,8 +363,9 @@ void ClearMenuBar(void)
 
 void InitProcMenu(short resID)
 {
-    MenuBarList* menuBar = MenuMgr_GetMenuBarList();
+    if (!gMenuMgrInitialized) InitMenus();
 
+    MenuBarList* menuBar = EnsureMenuBarList();
     if (menuBar == NULL) {
         return;
     }
@@ -915,27 +936,8 @@ void InsertMenu(MenuHandle theMenu, short beforeID)
         return;
     }
 
-    /* Create menu list if it doesn't exist */
-    if (gMenuList == NULL) {
-        /* Allocate space for MenuBarList + room for MAX_MENUS menu entries */
-        size_t menuBarSize = sizeof(MenuBarList) + (MAX_MENUS - 1) * sizeof(MenuListEntry);
-        gMenuList = NewPtr(menuBarSize);
-        if (gMenuList == NULL) {
-            return;
-        }
-        menuBar = MENU_BAR_LIST(gMenuList);
-        menuBar->numMenus = 0;
-        menuBar->totalWidth = 0;
-        menuBar->lastRight = 0;
-        menuBar->mbResID = 0;
-    } else {
-        menuBar = MENU_BAR_LIST(gMenuList);
-    }
-
-    /* Make sure menu bar is set in state */
-    if (gMenuMgrState) {
-        gMenuMgrState->menuBar = gMenuList;  /* Already a Ptr */
-    }
+    menuBar = EnsureMenuBarList();
+    if (!menuBar) return;
 
     /* Find insertion point */
     insertIndex = menuBar->numMenus; /* Default to end */

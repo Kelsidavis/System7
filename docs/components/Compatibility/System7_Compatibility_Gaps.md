@@ -44,7 +44,7 @@ This checklist records significant differences between the current toolbox reimp
 - ~~`src/ControlManager/StandardControls.c` – Push-button title baselines used hard-coded ascent/descent values instead of the selected system font metrics.~~ **FIXED**: push-button, checkbox, and radio labels now use `GetFontInfo()`, which queries Font Manager metrics and falls back to fixed defaults when unavailable.
 - Mixed-state checkbox paths remain unvalidated; native System 7 controls supported tri-state checkboxes.
 - `PopUpMenuSelect()` uses the existing menu tracker, positions the previous item at the closed pop-up box, and leaves the menu bar untouched. Guest coverage verifies pointer selection and the packed menu ID/item result. Off-screen placement, scrolling, and custom MDEF behavior still need validation against System 7.
-- `include/MenuManager/MenuManager.h` also declares `InsertIntlResMenu` and `InitProcMenu`, with no definitions in `src/`.
+- `InsertIntlResMenu` is implemented in `src/MenuManager/MenuResourceNames.c` and filters named resources by script. `InitProcMenu` now initializes the current menu list and stores the requested `mbResID`, but the Menu Manager does not yet load or invoke custom `'MBDF'` resources for menu-bar drawing and tracking.
 - `include/ControlManager/ControlManager.h` declares `NewEditTextControl`, `NewStaticTextControl`, and `NewPopupControl`, but none has a definition in `src/`.
 
 ## Event & Input Handling

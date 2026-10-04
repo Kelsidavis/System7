@@ -664,7 +664,9 @@ void DeleteMCEntries(short menuID, short menuItem);
 /*
  * InitProcMenu - Initialize procedural menu
  *
- * Initializes a menu that uses a custom menu definition procedure.
+ * Stores the resource ID of the application's custom menu bar definition
+ * procedure in the current menu list. The Menu Manager does not yet load or
+ * invoke custom MBDF resources.
  *
  * Parameters:
  *   resID - Resource ID of menu definition procedure
