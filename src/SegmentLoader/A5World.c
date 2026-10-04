@@ -57,23 +57,13 @@ OSErr InstallA5World(SegmentLoaderContext* ctx, const CODE0Info* info)
     ctx->a5World.a5BelowBase = belowBase;
     ctx->a5World.a5BelowSize = info->a5BelowSize;
     ctx->a5World.a5Base = a5;
-    /*
-     * Load A5 into the register it is named for.
-     *
-     * The A5 world was laid out and its base recorded, and nothing in the
-     * system ever called SetRegisterA5 - so A5 held zero while every jump
-     * table entry was addressed as an offset from it. A JSR through the table
-     * went to the offset itself, low in memory, and execution wandered into
-     * unmapped pages. The layout is this code's to build, so loading the
-     * register that addresses it belongs here rather than with each caller.
-     */
-    if (ctx->cpuBackend && ctx->cpuBackend->SetRegisterA5) {
-        OSErr a5Err = ctx->cpuBackend->SetRegisterA5(ctx->cpuAS, a5);
-        if (a5Err != noErr) {
-            /* a5/a5Err are 32-bit: %X/%d would pass 4-byte ints to printf. */
-            SEG_LOG_ERROR("Failed to load A5 = 0x%08lX: %ld", (unsigned long)a5, (long)a5Err);
-            return a5Err;
-        }
+    if (!ctx->cpuBackend->SetRegisterA5) {
+        return segmentA5WorldErr;
+    }
+    err = ctx->cpuBackend->SetRegisterA5(ctx->cpuAS, a5);
+    if (err != noErr) {
+        SEG_LOG_ERROR("Failed to load A5 = 0x%08lX: %ld", (unsigned long)a5, (long)err);
+        return err;
     }
 
     ctx->a5World.a5AboveBase = aboveBase;
@@ -84,14 +74,7 @@ OSErr InstallA5World(SegmentLoaderContext* ctx, const CODE0Info* info)
     ctx->a5World.jtCount = info->jtCount;
     ctx->a5World.jtEntrySize = info->jtEntrySize;
 
-    /* Set A5 register in CPU */
-    err = ctx->cpuBackend->SetRegisterA5(ctx->cpuAS, a5);
-    if (err != noErr) {
-        return err;
-    }
-
     /* Initialize QuickDraw globals area (below A5, offset -0xA00) */
-    /* For MVP, just zero the area */
     if (info->a5BelowSize > 0) {
         UInt8* zeroBuffer = (UInt8*)NewPtr(info->a5BelowSize);
         if (zeroBuffer) {
