@@ -114,7 +114,7 @@ static void Test_Memory_HandleStateRoundTrip(void) {
     HPurge(h);
     CHECK(HGetState(h) == 0xC0, "lock and purge not reported in bits 7 and 6");
 
-    /* Save, lock, restore - the pattern the stub broke. */
+    /* Restoring the saved state must restore every handle flag. */
     HSetState(h, saved);
     CHECK(HGetState(h) == 0, "HSetState did not restore the saved state");
 
