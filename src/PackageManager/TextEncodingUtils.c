@@ -10,15 +10,7 @@
 
 #include "SystemTypes.h"
 #include "System71StdLib.h"
-
-/* Forward declarations */
-SInt32 TextEncodingToScript(SInt32 encoding);
-SInt32 ScriptToTextEncoding(ScriptCode script, LangCode language);
-void SetStringPackageScript(ScriptCode script);
-ScriptCode GetStringPackageScript(void);
-void SetStringPackageLanguage(LangCode language);
-LangCode GetStringPackageLanguage(void);
-void TruncString(SInt16 width, char* theString, SInt16 truncWhere);
+#include "TextEncoding/TextEncodingUtils.h"
 
 /* Debug logging */
 #define TEXT_ENC_DEBUG 0

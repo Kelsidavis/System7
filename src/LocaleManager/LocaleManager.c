@@ -9,6 +9,7 @@
 
 #include "LocaleManager/LocaleManager.h"
 #include "LocaleManager/StringIDs.h"
+#include "TextEncoding/TextEncodingUtils.h"
 #include "ResourceManager.h"
 #include "System71StdLib.h"
 #include <string.h>
@@ -687,8 +688,6 @@ void SetCurrentLocaleByID(SInt16 localeID) {
     }
 
     /* Update the text encoding system */
-    extern void SetStringPackageScript(ScriptCode script);
-    extern void SetStringPackageLanguage(LangCode language);
     SetStringPackageScript(gLocaleTable[localeID].locale.script);
     SetStringPackageLanguage(gLocaleTable[localeID].locale.language);
 }
