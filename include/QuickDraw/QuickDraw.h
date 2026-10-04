@@ -25,41 +25,6 @@ extern "C" {
 GrafPtr QD_GetScreenPort(void);
 void    QD_SetScreenPort(void);
 
-/* Forward declarations for drawing procedure records */
-
-/* Ptr is defined in MacTypes.h */
-
-/* Ptr is defined in MacTypes.h */
-
-/* Ptr is defined in MacTypes.h */
-/* Handle is defined in MacTypes.h */
-
-/* GrafPort - Basic drawing environment */
-/* GrafPort is in WindowManager/WindowTypes.h */
-
-/* Ptr is defined in MacTypes.h */
-/* WindowPtr is defined in WindowManager/WindowTypes.h */
-
-/* CGrafPort and CGrafPtr are defined in MacTypes.h */
-/* CWindowPtr is defined in WindowManager/WindowTypes.h */
-
-/* Graphics device */
-
-/* Ptr is defined in MacTypes.h */
-/* Handle is defined in MacTypes.h */
-
-/* QuickDraw procedures record */
-
-/* Color QuickDraw procedures record */
-
-/* GrafVars - Additional color port fields */
-
-/* QuickDraw Globals Structure */
-
-/* Ptr is defined in MacTypes.h */
-
-/* QuickDraw error type */
-
 /* ================================================================
  * FUNCTION PROTOTYPES
  * ================================================================ */
