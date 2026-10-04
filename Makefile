@@ -1010,6 +1010,11 @@ check-python-style:
 	@ruff check .
 	@ruff format --check .
 
+# Parse the maintenance and build shell scripts with Bash without executing them.
+.PHONY: check-shell-syntax
+check-shell-syntax:
+	@set -e; for script in scripts/*.sh tools/*.sh; do bash -n "$$script"; done
+
 # Differential test of the in-tree C string/memory routines against the host
 # libc, with guard bytes around every destination buffer. Needs no kernel
 # build - it extracts the pure routines from src/System71StdLib.c and compiles
@@ -1032,7 +1037,8 @@ test-integration:
 # references, differential libc tests, and required export checks.
 .PHONY: check
 check: all check-x86-layout check-malloc check-shadowed-defs check-doc-links \
-	test-doc-links check-python-style test-stdlib test-integration-runner check-exports
+	test-doc-links check-python-style check-shell-syntax test-stdlib \
+	test-integration-runner check-exports
 
 # GCC's path-sensitive static analyzer adds ownership, bounds, and null-path
 # diagnostics to the standard strict builds.
@@ -1102,6 +1108,7 @@ help: ## Show this help message
 	@echo "  check-doc-links  Reject broken Markdown links and repository paths"
 	@echo "  test-doc-links   Test the Markdown reference checker"
 	@echo "  check-python-style Run Python lint and formatting checks"
+	@echo "  check-shell-syntax Parse shell scripts with Bash"
 	@echo "  check-exports    Validate exported symbol surface"
 	@echo "  test-integration Build, boot, and run guest integration tests"
 	@echo "  info             Show build statistics"
