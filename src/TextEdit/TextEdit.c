@@ -317,6 +317,203 @@ void TEGetStyle(SInt32 offset, TextStyle *theStyle,
     HUnlock((Handle)hTE);
 }
 
+static Boolean TE_SameTextStyle(const TextStyle *left, const TextStyle *right) {
+    return left->tsFont == right->tsFont && left->tsFace == right->tsFace &&
+           left->tsSize == right->tsSize &&
+           left->tsColor.red == right->tsColor.red &&
+           left->tsColor.green == right->tsColor.green &&
+           left->tsColor.blue == right->tsColor.blue;
+}
+
+static TextStyle TE_ApplyStyleMode(TextStyle current, SInt16 mode,
+                                   const TextStyle *requested) {
+    if (mode & doFont) current.tsFont = requested->tsFont;
+    if (mode & doFace) current.tsFace = requested->tsFace;
+    if (mode & doSize) current.tsSize = requested->tsSize;
+    if (mode & doColor) current.tsColor = requested->tsColor;
+    if (mode & addSize) {
+        SInt32 size = (SInt32)current.tsSize + requested->tsSize;
+        if (size < 1) size = 1;
+        if (size > 127) size = 127;
+        current.tsSize = (SInt16)size;
+    }
+    if (mode & doToggle) current.tsFace ^= requested->tsFace;
+    return current;
+}
+
+static SInt16 TE_FindOrAddStyle(TEStyleTable *table, TextStyle style) {
+    for (SInt16 i = 0; i < table->nStyles; i++) {
+        if (TE_SameTextStyle(&table->styles[i], &style)) return i;
+    }
+    if (table->nStyles == INT16_MAX) return -1;
+    table->styles[table->nStyles] = style;
+    return table->nStyles++;
+}
+
+void TESetStyle(SInt16 mode, const TextStyle *newStyle,
+                Boolean redraw, TEHandle hTE) {
+    TEExtPtr pTE;
+    Handle hStyles;
+    Handle hStyleTable;
+    Handle hRunArray;
+    Handle hNewRuns;
+    STRec *styleRec;
+    TEStyleTable *styleTable;
+    TERunArray *runArray;
+    TERunArray *newRuns;
+    SInt16 oldRunCount;
+    SInt16 oldStyleCount;
+    SInt32 selectionStart;
+    SInt32 selectionEnd;
+    SInt32 textLength;
+    SInt32 position;
+    SInt16 runIndex;
+    SInt16 newRunCount;
+    Boolean applied = false;
+
+    if (!hTE || !newStyle || mode == 0) return;
+
+    HLock((Handle)hTE);
+    pTE = (TEExtPtr)*hTE;
+    hStyles = pTE->hStyles;
+    if (!hStyles || !*hStyles) {
+        HUnlock((Handle)hTE);
+        return;
+    }
+
+    selectionStart = pTE->base.selStart;
+    selectionEnd = pTE->base.selEnd;
+    textLength = pTE->base.teLength;
+    if (selectionStart < 0) selectionStart = 0;
+    if (selectionEnd > textLength) selectionEnd = textLength;
+    if (selectionStart >= selectionEnd || textLength <= 0) {
+        HUnlock((Handle)hTE);
+        return;
+    }
+
+    HLock(hStyles);
+    styleRec = (STRec *)HandleDataAligned(hStyles);
+    if (!styleRec || !styleRec->styleTab || !styleRec->runArray ||
+        styleRec->nRuns <= 0 || styleRec->nStyles <= 0) {
+        HUnlock(hStyles);
+        HUnlock((Handle)hTE);
+        return;
+    }
+    hStyleTable = styleRec->styleTab;
+    hRunArray = styleRec->runArray;
+    oldRunCount = styleRec->nRuns;
+    oldStyleCount = styleRec->nStyles;
+    HUnlock(hStyles);
+
+    hNewRuns = NewHandleClear(sizeof(SInt16) +
+                              (u32)(oldRunCount + 2) * sizeof(StyleRun));
+    if (!hNewRuns) {
+        HUnlock((Handle)hTE);
+        return;
+    }
+
+    u32 requiredStyleBytes = (u32)(sizeof(SInt16) +
+        (u32)(oldStyleCount + oldRunCount) * sizeof(TextStyle));
+    u32 requiredRunBytes = (u32)(sizeof(SInt16) +
+        (u32)(oldRunCount + 2) * sizeof(StyleRun));
+    if (GetHandleSize(hStyleTable) < requiredStyleBytes &&
+        !SetHandleSize(hStyleTable, requiredStyleBytes)) {
+        DisposeHandle(hNewRuns);
+        HUnlock((Handle)hTE);
+        return;
+    }
+    if (GetHandleSize(hRunArray) < requiredRunBytes &&
+        !SetHandleSize(hRunArray, requiredRunBytes)) {
+        DisposeHandle(hNewRuns);
+        HUnlock((Handle)hTE);
+        return;
+    }
+
+    HLock(hStyles);
+    styleRec = (STRec *)HandleDataAligned(hStyles);
+    HLock(hStyleTable);
+    styleTable = (TEStyleTable *)HandleDataAligned(hStyleTable);
+    HLock(hRunArray);
+    runArray = (TERunArray *)HandleDataAligned(hRunArray);
+    HLock(hNewRuns);
+    newRuns = (TERunArray *)HandleDataAligned(hNewRuns);
+    if (!styleRec || !styleTable || !runArray || !newRuns ||
+        runArray->nRuns != oldRunCount || styleTable->nStyles != oldStyleCount) {
+        HUnlock(hNewRuns);
+        HUnlock(hRunArray);
+        HUnlock(hStyleTable);
+        HUnlock(hStyles);
+        DisposeHandle(hNewRuns);
+        HUnlock((Handle)hTE);
+        return;
+    }
+
+    newRunCount = 0;
+    runIndex = 0;
+    position = 0;
+    while (position < textLength) {
+        while (runIndex + 1 < oldRunCount &&
+               runArray->runs[runIndex + 1].startChar <= position) {
+            runIndex++;
+        }
+
+        SInt32 nextPosition = textLength;
+        if (runIndex + 1 < oldRunCount &&
+            runArray->runs[runIndex + 1].startChar < nextPosition) {
+            nextPosition = runArray->runs[runIndex + 1].startChar;
+        }
+        if (selectionStart > position && selectionStart < nextPosition) {
+            nextPosition = selectionStart;
+        }
+        if (selectionEnd > position && selectionEnd < nextPosition) {
+            nextPosition = selectionEnd;
+        }
+        if (nextPosition <= position) break;
+
+        SInt16 styleIndex = runArray->runs[runIndex].styleIndex;
+        if (styleIndex < 0 || styleIndex >= styleTable->nStyles) break;
+        if (position >= selectionStart && position < selectionEnd) {
+            TextStyle changed = TE_ApplyStyleMode(
+                styleTable->styles[styleIndex], mode, newStyle);
+            styleIndex = TE_FindOrAddStyle(styleTable, changed);
+            if (styleIndex < 0) break;
+        }
+
+        if (newRunCount == 0 || newRuns->runs[newRunCount - 1].styleIndex !=
+                                     styleIndex) {
+            newRuns->runs[newRunCount].startChar = (SInt16)position;
+            newRuns->runs[newRunCount].styleIndex = styleIndex;
+            newRunCount++;
+        }
+        position = nextPosition;
+    }
+
+    if (position == textLength && newRunCount > 0) {
+        newRuns->nRuns = newRunCount;
+        styleRec->nStyles = styleTable->nStyles;
+        BlockMove(newRuns, runArray,
+                  sizeof(SInt16) + (u32)newRunCount * sizeof(StyleRun));
+        styleRec->nRuns = newRunCount;
+        pTE->dirty = TRUE;
+        applied = true;
+    } else {
+        styleTable->nStyles = oldStyleCount;
+        styleRec->nStyles = oldStyleCount;
+    }
+
+    HUnlock(hNewRuns);
+    HUnlock(hRunArray);
+    HUnlock(hStyleTable);
+    HUnlock(hStyles);
+    DisposeHandle(hNewRuns);
+    HUnlock((Handle)hTE);
+
+    if (applied) {
+        TE_RecalcLines(hTE);
+        if (redraw) TEUpdate(NULL, hTE);
+    }
+}
+
 /*
  * TEDispose - Dispose of a TextEdit record
  */

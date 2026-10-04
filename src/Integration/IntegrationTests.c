@@ -1773,6 +1773,8 @@ static void Test_TextEditGetStyle(void) {
         return;
     }
 
+    const char text[] = "abcd";
+    TESetText(text, 4, hTE);
     TextStyle style = {0};
     SInt16 lineHeight = 0;
     SInt16 fontAscent = 0;
@@ -1782,10 +1784,23 @@ static void Test_TextEditGetStyle(void) {
                           style.tsSize == (**hTE).txSize &&
                           lineHeight == (**hTE).lineHeight &&
                           fontAscent == (**hTE).fontAscent;
+    TextStyle requested = {0};
+    requested.tsFace = bold;
+    TESetSelect(1, 3, hTE);
+    TESetStyle(doFace, &requested, false, hTE);
+    TextStyle before = {0}, inside = {0}, after = {0};
+    TEGetStyle(0, &before, NULL, NULL, hTE);
+    TEGetStyle(1, &inside, NULL, NULL, hTE);
+    TEGetStyle(3, &after, NULL, NULL, hTE);
+    Boolean selectionStyle = before.tsFace == normal &&
+                             inside.tsFace == bold &&
+                             after.tsFace == normal;
     TEDispose(hTE);
 
     CHECK(defaultStyle,
           "TEGetStyle did not return the initialized styled-text attributes");
+    CHECK(selectionStyle,
+          "TESetStyle changed text outside the selected range");
     RecordTest(test_name, true, "");
 }
 
