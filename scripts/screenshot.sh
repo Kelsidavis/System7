@@ -53,7 +53,9 @@ if [ ! -s "$WORK/shot.ppm" ]; then
     exit 1
 fi
 
-if command -v convert >/dev/null 2>&1; then
+if command -v magick >/dev/null 2>&1; then
+    magick "$WORK/shot.ppm" "$OUT"
+elif command -v convert >/dev/null 2>&1; then
     convert "$WORK/shot.ppm" "$OUT"
 elif command -v pnmtopng >/dev/null 2>&1; then
     pnmtopng "$WORK/shot.ppm" > "$OUT"

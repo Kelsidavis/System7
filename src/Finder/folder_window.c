@@ -91,6 +91,7 @@ typedef struct FolderItem {
 /* List view layout constants matching classic Mac OS Finder */
 #define kListRowHeight      16  /* Height of each row in list view */
 #define kListHeaderHeight   16  /* Height of the column header bar */
+#define kFWStatusHeight     16  /* Disk summary below the title bar */
 #define kListIconSize       16  /* Small icon size in list view */
 #define kListLeftMargin      4  /* Left margin before icon */
 #define kListNameColWidth  160  /* Width of the Name column */
@@ -796,7 +797,7 @@ static short FW_IconAtPoint(WindowPtr w, Point localPt) {
 
     /* List view hit testing with scroll offset and scrollbar handling */
     if (state->viewMode >= kViewByName) {
-        short top = w->port.portRect.top;
+        short top = w->port.portRect.top + kFWStatusHeight;
         short right = w->port.portRect.right;
         short bottom = w->port.portRect.bottom;
         short contentHeight = bottom - top - kListHeaderHeight;
@@ -1512,7 +1513,7 @@ static void FolderWindow_DrawListHeader(const Rect* portRect, short viewMode) {
 static void FolderWindow_DrawListScrollbar(WindowPtr w, FolderWindowState* state,
                                             short visibleRows) {
     short right = w->port.portRect.right;
-    short top = w->port.portRect.top + kListHeaderHeight;
+    short top = w->port.portRect.top + kFWStatusHeight + kListHeaderHeight;
     short bottom = w->port.portRect.bottom;
     short sbLeft = right - kListScrollBarWidth;
 
@@ -1578,7 +1579,7 @@ static void FolderWindow_DrawListScrollbar(WindowPtr w, FolderWindowState* state
 }
 
 static void FolderWindow_DrawListView(WindowPtr w, FolderWindowState* state) {
-    short top = w->port.portRect.top;
+    short top = w->port.portRect.top + kFWStatusHeight;
     short left = w->port.portRect.left;
     short contentRight = w->port.portRect.right - kListScrollBarWidth;
     short contentHeight = w->port.portRect.bottom - top - kListHeaderHeight;
@@ -1595,6 +1596,7 @@ static void FolderWindow_DrawListView(WindowPtr w, FolderWindowState* state) {
 
     /* Draw column headers (adjusted for scrollbar) */
     Rect headerPortRect = w->port.portRect;
+    headerPortRect.top += kFWStatusHeight;
     headerPortRect.right = contentRight;
     FolderWindow_DrawListHeader(&headerPortRect, state->viewMode);
 
@@ -1857,7 +1859,7 @@ void FolderWindow_Draw(WindowPtr w) {
         }
     }
 
-    /* Draw status bar at bottom of window with item count and disk space.
+    /* Draw the disk summary below the title bar.
      *
      * Gated on `state` alone, not `state->items`: an empty folder has no item
      * array, and requiring one meant an empty window drew no status line at all
@@ -1865,12 +1867,12 @@ void FolderWindow_Draw(WindowPtr w) {
      * "0 items" for an empty folder. The size loop below runs itemCount times,
      * so it is naturally a no-op when there is nothing to total. */
     if (state) {
-        short bottom = w->port.portRect.bottom;
+        short top = w->port.portRect.top;
         short left = w->port.portRect.left;
         short right = w->port.portRect.right;
 
-        /* Draw separator line above status bar */
-        short statusY = bottom - 16;
+        /* The summary is separated from the icon/list area by one rule. */
+        short statusY = top + kFWStatusHeight - 1;
         MoveTo(left, statusY);
         LineTo(right, statusY);
 
@@ -1960,8 +1962,17 @@ void FolderWindow_Draw(WindowPtr w) {
         }
 #undef STATUS_APPEND
 
-        MoveTo(left + 8, bottom - 4);
+        short savedFont = w->port.txFont;
+        short savedSize = w->port.txSize;
+        Style savedFace = w->port.txFace;
+        TextFont(3);
+        TextSize(9);
+        TextFace(0);
+        MoveTo(left + 8, top + 12);
         DrawText(statusBuf, 0, pos);
+        TextFont(savedFont);
+        TextSize(savedSize);
+        TextFace(savedFace);
     }
 
     SetPort(savePort);
@@ -2147,7 +2158,7 @@ void FolderWindow_ArrowKey(WindowPtr w, Boolean isDown, Boolean extendSel) {
 
     /* Auto-scroll in list view to keep selection visible */
     if (state->viewMode >= kViewByName) {
-        short contentHeight = w->port.portRect.bottom - w->port.portRect.top - kListHeaderHeight;
+        short contentHeight = w->port.portRect.bottom - w->port.portRect.top - kListHeaderHeight - kFWStatusHeight;
         short visibleRows = contentHeight / kListRowHeight;
         if (visibleRows < 1) visibleRows = 1;
 
@@ -2239,7 +2250,7 @@ void FolderWindow_TabKey(WindowPtr w, Boolean reverse) {
 
     /* Auto-scroll in list view */
     if (state->viewMode >= kViewByName) {
-        short contentHeight = w->port.portRect.bottom - w->port.portRect.top - kListHeaderHeight;
+        short contentHeight = w->port.portRect.bottom - w->port.portRect.top - kListHeaderHeight - kFWStatusHeight;
         short visibleRows = contentHeight / kListRowHeight;
         if (visibleRows < 1) visibleRows = 1;
         if (newIndex < state->scrollOffset) {
@@ -2304,7 +2315,7 @@ void FolderWindow_TypeAhead(WindowPtr w, char ch) {
 
             /* Auto-scroll in list view */
             if (state->viewMode >= kViewByName) {
-                short contentHeight = w->port.portRect.bottom - w->port.portRect.top - kListHeaderHeight;
+                short contentHeight = w->port.portRect.bottom - w->port.portRect.top - kListHeaderHeight - kFWStatusHeight;
                 short visibleRows = contentHeight / kListRowHeight;
                 if (visibleRows < 1) visibleRows = 1;
                 if (i < state->scrollOffset) {
@@ -2340,7 +2351,7 @@ void FolderWindow_ScrollWheel(int8_t delta) {
     state->scrollOffset += scrollAmount;
 
     /* Clamp */
-    short contentHeight = front->port.portRect.bottom - front->port.portRect.top - kListHeaderHeight;
+    short contentHeight = front->port.portRect.bottom - front->port.portRect.top - kListHeaderHeight - kFWStatusHeight;
     short visibleRows = contentHeight / kListRowHeight;
     if (visibleRows < 1) visibleRows = 1;
     short maxScroll = state->itemCount - visibleRows;

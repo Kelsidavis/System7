@@ -9,9 +9,9 @@
 #include "WindowManager/WindowRegions.h"
 #include "MenuManager/MenuManager.h"
 #include "QuickDraw/QuickDraw.h"
+#include "QuickDrawConstants.h"
 #include "FontManager/FontManager.h"
 #include "ControlManager/ControlTypes.h"
-#include "SystemTheme.h"
 #include "WindowManager/WMLogging.h"
 #include "EventManager/EventManager.h"
 #include "EventManager/AppSwitcher.h"
@@ -110,7 +110,7 @@ static void WM_AccumulateUpdateRgn(WindowPtr window, RgnHandle rgn) {
 
 static RgnHandle gChromeClipRgn = NULL;
 
-/* Compute what is visible of a window's frame. The caller owns the region. */
+/* Compute what is visible of a window's windowFrame. The caller owns the region. */
 static void WM_BeginChromeClip(WindowPtr window, AutoRgnHandle* holder) {
     *holder = WM_NewAutoRgn();
     if (!holder->rgn || !window->strucRgn) {
@@ -569,381 +569,108 @@ static void DrawWindowFrame(WindowPtr window) {
     WM_EndChromeClip(&chromeClip);
 }
 
+static void WM_ChromeFill(const Rect* rect, uint32_t color) {
+    for (int y = rect->top; y < rect->bottom; ++y) {
+        for (int x = rect->left; x < rect->right; ++x) {
+            WM_ChromePixel(x, y, color);
+        }
+    }
+}
+
+static void WM_ChromeOutline(const Rect* rect) {
+    for (int x = rect->left; x < rect->right; ++x) {
+        WM_ChromePixel(x, rect->top, 0xFF000000);
+        WM_ChromePixel(x, rect->bottom - 1, 0xFF000000);
+    }
+    for (int y = rect->top; y < rect->bottom; ++y) {
+        WM_ChromePixel(rect->left, y, 0xFF000000);
+        WM_ChromePixel(rect->right - 1, y, 0xFF000000);
+    }
+}
+
 static void DrawWindowFrame_Unclipped(WindowPtr window) {
-    if (!window) {
-        return;
+    if (!window || !window->visible || !window->strucRgn || !*window->strucRgn) return;
+
+    Rect windowFrame = (*window->strucRgn)->rgnBBox;
+    WM_ChromeOutline(&windowFrame);
+    if (!WM_WindowHasTitleBar(window)) return;
+
+    Rect titleBar;
+    Platform_GetWindowTitleBarRect(window, &titleBar);
+    InsetRect(&titleBar, 1, 1);
+    WM_ChromeFill(&titleBar, 0xFFFFFFFF);
+    if (window->hilited) {
+        /* Six one-pixel rules, separated by one white row. */
+        for (int row = 0; row < 6; ++row) {
+            int y = windowFrame.top + 4 + row * 2;
+            for (int x = titleBar.left + 2; x < titleBar.right - 2; ++x) {
+                WM_ChromePixel(x, y, 0xFF000000);
+            }
+        }
+    }
+    for (int x = windowFrame.left; x < windowFrame.right; ++x) {
+        WM_ChromePixel(x, windowFrame.top + 20, 0xFF000000);
     }
 
-    if (!window->visible) {
-        return;
+    Rect closeBox, zoomBox;
+    Platform_GetWindowCloseBoxRect(window, &closeBox);
+    Platform_GetWindowZoomBoxRect(window, &zoomBox);
+    if (window->hilited && WM_WindowHasCloseBox(window)) {
+        Rect gap = closeBox;
+        InsetRect(&gap, -2, -1);
+        WM_ChromeFill(&gap, 0xFFFFFFFF);
+        WM_ChromeOutline(&closeBox);
     }
 
-    if (!window->strucRgn) {
-        return;
-    }
-
-    if (!*window->strucRgn) {
-        return;
-    }
-
+    if (!window->titleHandle || !*window->titleHandle) return;
     GrafPtr savePort, wmgrPort;
     GetPort(&savePort);
     GetWMgrPort(&wmgrPort);
+    if (!wmgrPort) return;
     SetPort(wmgrPort);
+    short savedFont = wmgrPort->txFont;
+    short savedSize = wmgrPort->txSize;
+    Style savedFace = wmgrPort->txFace;
+    short savedMode = wmgrPort->txMode;
+    SInt32 savedFore = wmgrPort->fgColor;
+    SInt32 savedBack = wmgrPort->bkColor;
+    RgnHandle savedClip = wmgrPort->clipRgn;
+    TextFont(0);
+    TextSize(12);
+    TextFace(0);
+    TextMode(srcOr);
+    ForeColor(window->hilited ? blackColor : 8);
+    BackColor(30);
 
-    /* Set up pen for drawing black frames */
-    static const Pattern blackPat = {{0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF}};
-    PenNormal();  /* Reset pen to normal state */
-    PenPat(&blackPat);  /* Use black pattern for frames */
-    PenSize(1, 1);  /* 1-pixel pen */
-
-    /* Get window's global bounds from structure region - use explicit field copy to avoid struct assignment on ARM64 */
-    Rect frame;
-    Rect* srcRect = &((*window->strucRgn)->rgnBBox);
-    frame.top = srcRect->top;
-    frame.left = srcRect->left;
-    frame.bottom = srcRect->bottom;
-    frame.right = srcRect->right;
-
-    /* Draw the frame outline through the same gate as the rest of the chrome.
-     * This was a QuickDraw FrameRect while everything around it wrote pixels
-     * directly, so the outline obeyed one set of rules and the title bar and
-     * highlights obeyed another - and neither obeyed the windows in front. */
-    {
-        uint32_t frameBlack = 0xFF000000;
-        for (int x = frame.left; x < frame.right; x++) {
-            WM_ChromePixel(x, frame.top, frameBlack);
-            WM_ChromePixel(x, frame.bottom - 1, frameBlack);
+    HLock((Handle)window->titleHandle);
+    ConstStr255Param title = (ConstStr255Param)*window->titleHandle;
+    short width = StringWidth(title);
+    short textLeft = (windowFrame.left + windowFrame.right - width) / 2;
+    Rect lozenge = {windowFrame.top + 2, textLeft - 5, windowFrame.top + 18, textLeft + width + 5};
+    short leftLimit = WM_WindowHasCloseBox(window) ? closeBox.right + 4 : windowFrame.left + 4;
+    short rightLimit = window->spareFlag ? zoomBox.left - 4 : windowFrame.right - 4;
+    if (lozenge.left < leftLimit) lozenge.left = leftLimit;
+    if (lozenge.right > rightLimit) lozenge.right = rightLimit;
+    if (lozenge.left < lozenge.right) {
+        if (window->hilited) WM_ChromeFill(&lozenge, 0xFFFFFFFF);
+        AutoRgnHandle textClip = WM_NewAutoRgn();
+        if (textClip.rgn) {
+            RectRgn(textClip.rgn, &lozenge);
+            SectRgn(textClip.rgn, gChromeClipRgn ? gChromeClipRgn : savedClip, textClip.rgn);
+            wmgrPort->clipRgn = textClip.rgn;
+            MoveTo(textLeft, windowFrame.top + 14);
+            DrawString(title);
+            wmgrPort->clipRgn = savedClip;
         }
-        for (int y = frame.top; y < frame.bottom; y++) {
-            WM_ChromePixel(frame.left, y, frameBlack);
-            WM_ChromePixel(frame.right - 1, y, frameBlack);
-        }
+        WM_DisposeAutoRgn(&textClip);
     }
-    /* Add 3D black highlights for depth effect */
-    if (framebuffer) {
-        uint32_t black = 0xFF000000;
-
-        /* Right side highlight: 2px wide, starting 1px down from top and extending to bottom */
-        int highlightStartY = frame.top + 1;
-        for (int y = highlightStartY; y < frame.bottom - 1 && y < (int)fb_height; y++) {
-            if (y >= 0) {
-                /* Draw 2 pixels on the right side (inside the frame) */
-                for (int dx = 1; dx <= 2; dx++) {
-                    int x = frame.right - 1 - dx;
-                    if (x >= 0 && x < (int)fb_width) {
-                        WM_ChromePixel(x, y, black);
-                    }
-                }
-            }
-        }
-
-        /* Bottom highlight: 2px thick */
-        for (int dy = 1; dy <= 2; dy++) {
-            int y = frame.bottom - 1 - dy;
-            if (y >= 0 && y < (int)fb_height) {
-                for (int x = frame.left + 1; x < frame.right - 3 && x < (int)fb_width; x++) {
-                    if (x >= 0) {
-                        WM_ChromePixel(x, y, black);
-                    }
-                }
-            }
-        }
-    }
-
-    /* Draw title bar BEFORE filling content area */
-
-    /* A title bar by the window's kind, not by whether it has a title: a
-     * document window with an empty title still has one, a dBoxProc dialog
-     * with a title does not. */
-    if (WM_WindowHasTitleBar(window)) {
-        /* Title bar background should be INSIDE the frame, not overlap it */
-        Rect titleBar;
-        titleBar.left = frame.left + 1;    /* Inset from left frame edge */
-        titleBar.top = frame.top + 1;      /* Inset from top frame edge */
-        titleBar.right = frame.right - 2;  /* Inset 2px from right to not overlap frame */
-        titleBar.bottom = frame.top + 20;  /* Extends to separator line */
-
-        /* Fill title bar background */
-        if (window->hilited) {
-            /* Active window: solid light grey background with darker horizontal stripes */
-            if (framebuffer) {
-                uint32_t lightGrey = 0xFFE8E8E8;  /* Solid lighter grey RGB(232,232,232) */
-                uint32_t darkGrey = 0xFF808080;   /* Solid darker grey RGB(128,128,128) for stripes */
-
-                /* Fill entire title bar with light grey */
-                for (int y = titleBar.top; y < titleBar.bottom && y < (int)fb_height; y++) {
-                    if (y >= 0) {
-                        for (int x = titleBar.left; x < titleBar.right && x < (int)fb_width; x++) {
-                            if (x >= 0) {
-                                WM_ChromePixel(x, y, lightGrey);
-                            }
-                        }
-                    }
-                }
-
-                /* Draw 6 evenly spaced darker horizontal stripes (every 3 pixels starting at offset 3) */
-                int stripePositions[6] = {3, 6, 9, 12, 15, 18};
-                for (int i = 0; i < 6; i++) {
-                    int y = titleBar.top + stripePositions[i];
-                    if (y >= 0 && y < (int)fb_height) {
-                        for (int x = titleBar.left; x < titleBar.right && x < (int)fb_width; x++) {
-                            if (x >= 0) {
-                                WM_ChromePixel(x, y, darkGrey);
-                            }
-                        }
-                    }
-                }
-
-                /* Draw 1px themed highlight border inside title bar */
-                SystemTheme* theme = GetSystemTheme();
-                RGBColor highlight = theme->highlightColor;
-                /* Convert 16-bit Mac OS color to 8-bit framebuffer RGB */
-                uint32_t highlightColor = 0xFF000000 | ((highlight.red >> 8) << 16) | ((highlight.green >> 8) << 8) | (highlight.blue >> 8);
-
-                /* Top border - 1px inside */
-                int y = titleBar.top;
-                if (y >= 0 && y < (int)fb_height) {
-                    for (int x = titleBar.left; x < titleBar.right && x < (int)fb_width; x++) {
-                        if (x >= 0) WM_ChromePixel(x, y, highlightColor);
-                    }
-                }
-
-                /* Bottom border - 1px inside (at separator line) */
-                y = titleBar.bottom - 1;
-                if (y >= 0 && y < (int)fb_height) {
-                    for (int x = titleBar.left; x < titleBar.right && x < (int)fb_width; x++) {
-                        if (x >= 0) WM_ChromePixel(x, y, highlightColor);
-                    }
-                }
-
-                /* Left border - 1px inside */
-                int x = titleBar.left;
-                if (x >= 0 && x < (int)fb_width) {
-                    for (y = titleBar.top; y < titleBar.bottom && y < (int)fb_height; y++) {
-                        if (y >= 0) WM_ChromePixel(x, y, highlightColor);
-                    }
-                }
-
-                /* Right border - 1px inside */
-                x = titleBar.right - 1;
-                if (x >= 0 && x < (int)fb_width) {
-                    for (y = titleBar.top; y < titleBar.bottom && y < (int)fb_height; y++) {
-                        if (y >= 0) WM_ChromePixel(x, y, highlightColor);
-                    }
-                }
-            }
-        } else {
-            /* Inactive window: white background */
-            EraseRect(&titleBar);
-        }
-
-        /* Draw System 7 close box - 14x14 at left side
-         * Design: Black outline (left/top only for 3D), 1px theme highlight inside, grey fill.
-         * Only for a window made with one (goAwayFlag), and only while it is
-         * active, as System 7 shows it; it was drawn on every window. */
-        if (framebuffer && WM_WindowHasCloseBox(window) && window->hilited) {
-            /* Geometry comes from the platform rect so hit testing, press
-             * highlighting and this paint cannot drift apart. */
-            Rect closeBoxRect;
-            Platform_GetWindowCloseBoxRect(window, &closeBoxRect);
-            int boxLeft = closeBoxRect.left;
-            int boxTop = closeBoxRect.top;
-            int boxSize = closeBoxRect.right - closeBoxRect.left;
-
-            uint32_t black = 0xFF000000;
-            uint32_t grey = 0xFF808080;  /* Same grey as title bar stripes */
-
-            /* Get theme highlight color if window is active */
-            uint32_t highlightColor = grey;
-            if (window->hilited) {
-                SystemTheme* theme = GetSystemTheme();
-                RGBColor highlight = theme->highlightColor;
-                highlightColor = 0xFF000000 | ((highlight.red >> 8) << 16) | ((highlight.green >> 8) << 8) | (highlight.blue >> 8);
-            }
-
-            /* Draw black outline on LEFT and TOP only (3D effect) */
-            /* Top edge */
-            for (int x = boxLeft; x < boxLeft + boxSize - 1 && x < (int)fb_width; x++) {
-                if (x >= 0 && boxTop >= 0 && boxTop < (int)fb_height) {
-                    WM_ChromePixel(x, boxTop, black);
-                }
-            }
-            /* Left edge */
-            for (int y = boxTop; y < boxTop + boxSize - 1 && y < (int)fb_height; y++) {
-                if (y >= 0 && boxLeft >= 0 && boxLeft < (int)fb_width) {
-                    WM_ChromePixel(boxLeft, y, black);
-                }
-            }
-
-            /* Draw 1px themed highlight border (complete box around grey) */
-            /* Top highlight line */
-            int y = boxTop + 1;
-            if (y >= 0 && y < (int)fb_height) {
-                for (int x = boxLeft + 1; x < boxLeft + boxSize - 1 && x < (int)fb_width; x++) {
-                    if (x >= 0) WM_ChromePixel(x, y, highlightColor);
-                }
-            }
-            /* Left highlight line */
-            int x = boxLeft + 1;
-            if (x >= 0 && x < (int)fb_width) {
-                for (y = boxTop + 2; y < boxTop + boxSize - 2 && y < (int)fb_height; y++) {
-                    if (y >= 0) WM_ChromePixel(x, y, highlightColor);
-                }
-            }
-            /* Right highlight line */
-            x = boxLeft + boxSize - 2;
-            if (x >= 0 && x < (int)fb_width) {
-                for (y = boxTop + 1; y < boxTop + boxSize - 1 && y < (int)fb_height; y++) {
-                    if (y >= 0) WM_ChromePixel(x, y, highlightColor);
-                }
-            }
-            /* Bottom highlight line */
-            y = boxTop + boxSize - 2;
-            if (y >= 0 && y < (int)fb_height) {
-                for (x = boxLeft + 1; x < boxLeft + boxSize - 1 && x < (int)fb_width; x++) {
-                    if (x >= 0) WM_ChromePixel(x, y, highlightColor);
-                }
-            }
-
-            /* Fill interior with solid grey (reduced by 1px on bottom and right for shadow) */
-            for (y = boxTop + 2; y < boxTop + boxSize - 3 && y < (int)fb_height; y++) {
-                if (y >= 0) {
-                    for (x = boxLeft + 2; x < boxLeft + boxSize - 3 && x < (int)fb_width; x++) {
-                        if (x >= 0) WM_ChromePixel(x, y, grey);
-                    }
-                }
-            }
-
-            /* Draw black 3D shadow on bottom and right edges of grey */
-            /* Bottom shadow */
-            y = boxTop + boxSize - 3;
-            if (y >= 0 && y < (int)fb_height) {
-                for (x = boxLeft + 2; x < boxLeft + boxSize - 2 && x < (int)fb_width; x++) {
-                    if (x >= 0) WM_ChromePixel(x, y, black);
-                }
-            }
-            /* Right shadow */
-            x = boxLeft + boxSize - 3;
-            if (x >= 0 && x < (int)fb_width) {
-                for (y = boxTop + 2; y < boxTop + boxSize - 3 && y < (int)fb_height; y++) {
-                    if (y >= 0) WM_ChromePixel(x, y, black);
-                }
-            }
-
-            /* Draw light grey separator columns on either side of close box
-             * This separates the teal highlight from the dark grey horizontal stripes */
-            uint32_t lightGrey = 0xFFE0E0E0;  /* Match title bar background */
-
-            /* Left separator column - same height as black outline */
-            int sepX = boxLeft - 1;
-            if (sepX >= 0 && sepX < (int)fb_width) {
-                for (y = boxTop; y < boxTop + boxSize - 1 && y < (int)fb_height; y++) {
-                    if (y >= 0) WM_ChromePixel(sepX, y, lightGrey);
-                }
-            }
-
-            /* Right separator column - right against the close box */
-            sepX = boxLeft + boxSize - 1;
-            if (sepX >= 0 && sepX < (int)fb_width) {
-                for (y = boxTop; y < boxTop + boxSize - 1 && y < (int)fb_height; y++) {
-                    if (y >= 0) WM_ChromePixel(sepX, y, lightGrey);
-                }
-            }
-        }
-
-        /* Draw title bar separator */
-        MoveTo(frame.left, frame.top + 20);
-        LineTo(frame.right - 1, frame.top + 20);
-
-        /* Draw window title with System 7 lozenge */
-        WM_LOG_TRACE("TITLE_DRAW: titleHandle=%p, *titleHandle=%p\n",
-                     window->titleHandle, window->titleHandle ? *window->titleHandle : NULL);
-
-        if (window->titleHandle && *window->titleHandle) {
-            /* CRITICAL: Lock handle before dereferencing to prevent heap compaction issues */
-            HLock((Handle)window->titleHandle);
-            unsigned char* titleStr = (unsigned char*)*window->titleHandle;
-            unsigned char titleLen = titleStr[0];
-
-            WM_LOG_TRACE("TITLE_DRAW: titleLen=%d\n", titleLen);
-
-            /* Basic validation: just check length is positive and not obviously corrupt */
-            if (titleLen > 0 && titleLen < 128) {
-                short textWidth = StringWidth(titleStr);
-
-                /* System 7 lozenge calculations (exact pixel metrics) */
-                short barTop = frame.top;
-                short barBottom = barTop + 20;
-                short barMidX = (frame.left + frame.right) / 2;
-                short textLeft = barMidX - textWidth / 2;
-                short textBaseline = barTop + 14;
-
-                /* Lozenge rect (before clipping) */
-                Rect loz;
-                loz.top = barTop + 3;
-                loz.bottom = barBottom - 3;
-                loz.left = textLeft - 10;
-                loz.right = textLeft + textWidth + 10;
-
-                /* Clip lozenge to avoid controls (4px clearance) */
-                short ctrlPad = 4;
-                Rect cbRect, zbRect;
-                Platform_GetWindowCloseBoxRect(window, &cbRect);
-                Platform_GetWindowZoomBoxRect(window, &zbRect);
-                short closeRight = cbRect.right;
-                short zoomLeft = zbRect.left;
-
-                if (loz.left < closeRight + ctrlPad) loz.left = closeRight + ctrlPad;
-                if (loz.right > zoomLeft - ctrlPad) loz.right = zoomLeft - ctrlPad;
-
-                if (window->hilited) {
-                    /* Active window: draw rectangular area behind text to cover stripes */
-
-                    /* Fill rectangular lozenge with grey at framebuffer level */
-                    if (framebuffer) {
-                        uint32_t lightGrey = 0xFFE8E8E8;  /* Same as title bar background */
-
-                        /* Simple rectangular fill to cleanly cover stripes */
-                        for (int y = loz.top; y < loz.bottom; y++) {
-                            if (y >= 0 && y < (int)fb_height) {
-                                for (int x = loz.left; x < loz.right; x++) {
-                                    if (x >= 0 && x < (int)fb_width) {
-                                        WM_ChromePixel(x, y, lightGrey);
-                                    }
-                                }
-                            }
-                        }
-                    }
-
-                    /* Draw title text in normal black */
-                    PenPat(&qd.black);
-                    ForeColor(blackColor);  /* Ensure black text */
-                    TextFace(0);  /* normal */
-                    MoveTo(textLeft, textBaseline);
-                    DrawString(titleStr);
-                } else {
-                    /* Inactive window: no lozenge, gray text */
-                    PenPat(&qd.gray);
-                    ForeColor(8);  /* Gray color for inactive title */
-                    TextFace(0);  /* normal */
-                    MoveTo(textLeft, textBaseline);
-                    DrawString(titleStr);
-                    PenPat(&qd.black);  /* reset to black */
-                    ForeColor(blackColor);  /* reset to black */
-                }
-
-                WM_LOG_TRACE("TITLE_DRAW: Drew title at baseline %d\n", textBaseline);
-            } else {
-                WM_LOG_TRACE("TITLE_DRAW: titleLen %d out of range\n", titleLen);
-            }
-            /* Unlock handle after use */
-            HUnlock((Handle)window->titleHandle);
-        } else {
-            WM_LOG_TRACE("TITLE_DRAW: No titleHandle or empty\n");
-        }
-    }
-
+    HUnlock((Handle)window->titleHandle);
+    TextFont(savedFont);
+    TextSize(savedSize);
+    TextFace(savedFace);
+    TextMode(savedMode);
+    ForeColor(savedFore);
+    BackColor(savedBack);
     SetPort(savePort);
 }
 
@@ -977,19 +704,19 @@ static void DrawWindowControls_Unclipped(WindowPtr window) {
 
     /* CRITICAL: Use global coordinates from strucRgn, not local portRect */
     /* Use explicit field copy to avoid struct assignment on ARM64 */
-    Rect frame;
+    Rect windowFrame;
     if (window->strucRgn && *window->strucRgn) {
         Rect* srcRect = &((*window->strucRgn)->rgnBBox);
-        frame.top = srcRect->top;
-        frame.left = srcRect->left;
-        frame.bottom = srcRect->bottom;
-        frame.right = srcRect->right;
+        windowFrame.top = srcRect->top;
+        windowFrame.left = srcRect->left;
+        windowFrame.bottom = srcRect->bottom;
+        windowFrame.right = srcRect->right;
     } else {
         /* Fallback to portRect if strucRgn not set */
-        frame.top = window->port.portRect.top;
-        frame.left = window->port.portRect.left;
-        frame.bottom = window->port.portRect.bottom;
-        frame.right = window->port.portRect.right;
+        windowFrame.top = window->port.portRect.top;
+        windowFrame.left = window->port.portRect.left;
+        windowFrame.bottom = window->port.portRect.bottom;
+        windowFrame.right = window->port.portRect.right;
     }
     /* Close box is drawn in DrawWindowFrame, not here */
 
@@ -997,18 +724,13 @@ static void DrawWindowControls_Unclipped(WindowPtr window) {
     if (window->spareFlag && window->hilited) {
         Rect zoomBox;
         Platform_GetWindowZoomBoxRect(window, &zoomBox);
-        FrameRect(&zoomBox);
-
-        if (window->hilited) {
-            /* Draw zoom box lines - use explicit field copy to avoid struct assignment on ARM64 */
-            Rect innerBox;
-            innerBox.top = zoomBox.top;
-            innerBox.left = zoomBox.left;
-            innerBox.bottom = zoomBox.bottom;
-            innerBox.right = zoomBox.right;
-            InsetRect(&innerBox, 2, 2);
-            FrameRect(&innerBox);
-        }
+        Rect gap = zoomBox;
+        InsetRect(&gap, -2, -1);
+        WM_ChromeFill(&gap, 0xFFFFFFFF);
+        WM_ChromeOutline(&zoomBox);
+        Rect innerBox = zoomBox;
+        InsetRect(&innerBox, 2, 2);
+        WM_ChromeOutline(&innerBox);
     }
 
     /* Draw grow box: only on a kind of window that has one. This went by
@@ -1016,8 +738,8 @@ static void DrawWindowControls_Unclipped(WindowPtr window) {
     if (WM_WindowHasGrowBox(window)) {
         /* Grow box in bottom-right corner */
         Rect growBox;
-        SetRect(&growBox, frame.right - 16, frame.bottom - 16,
-                frame.right, frame.bottom);
+        SetRect(&growBox, windowFrame.right - 16, windowFrame.bottom - 16,
+                windowFrame.right, windowFrame.bottom);
 
         if (framebuffer) {
             uint32_t black = 0xFF000000;
@@ -1118,14 +840,14 @@ void DrawGrowIcon(WindowPtr window) {
     SetPort((GrafPtr)window);
 
     /* Draw grow icon in bottom-right corner - use explicit field copy to avoid struct assignment on ARM64 */
-    Rect frame;
-    frame.top = window->port.portRect.top;
-    frame.left = window->port.portRect.left;
-    frame.bottom = window->port.portRect.bottom;
-    frame.right = window->port.portRect.right;
+    Rect windowFrame;
+    windowFrame.top = window->port.portRect.top;
+    windowFrame.left = window->port.portRect.left;
+    windowFrame.bottom = window->port.portRect.bottom;
+    windowFrame.right = window->port.portRect.right;
     Rect growBox;
-    SetRect(&growBox, frame.right - 16, frame.bottom - 16,
-            frame.right, frame.bottom);
+    SetRect(&growBox, windowFrame.right - 16, windowFrame.bottom - 16,
+            windowFrame.right, windowFrame.bottom);
 
     /* Clear the grow box area first */
     EraseRect(&growBox);

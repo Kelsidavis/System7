@@ -690,48 +690,8 @@ OSErr InitializeDesktopDB(void)
     /* Initialize Pattern Manager first */
     PM_Init();
 
-    /* Try different ppat IDs to see which ones work */
-    DesktopPref pref;
-    serial_puts("Desktop: Testing different ppat patterns\n");
-
-    /* Try custom PPAT8 patterns that we know have color data */
-    int16_t ppat_ids[] = {304}; /* Pattern 304 - BluePixel custom pattern */
-    int num_ppats = sizeof(ppat_ids) / sizeof(ppat_ids[0]);
-
-    bool found_working = false;
-    for (int i = 0; i < num_ppats; i++) {
-        char msg[80];
-        snprintf(msg, sizeof(msg), "Desktop: Trying ppat ID %d\n", ppat_ids[i]);
-        serial_puts(msg);
-
-        pref.usePixPat = true;
-        pref.patID = 16;      /* Fallback PAT if ppat fails */
-        pref.ppatID = ppat_ids[i];
-        pref.backColor.red = 0xC000;
-        pref.backColor.green = 0xC000;
-        pref.backColor.blue = 0xC000;
-
-        if (PM_ApplyDesktopPref(&pref)) {
-            /* Recorded, so Desktop Patterns knows what is current and its
-             * Cancel can put it back */
-            PM_SaveDesktopPref(&pref);
-            snprintf(msg, sizeof(msg), "Desktop: SUCCESS - ppat ID %d loaded!\n", ppat_ids[i]);
-            serial_puts(msg);
-            found_working = true;
-            break;  /* Use the first one that works */
-        } else {
-            snprintf(msg, sizeof(msg), "Desktop: Failed ppat ID %d\n", ppat_ids[i]);
-            serial_puts(msg);
-        }
-    }
-
-    if (!found_working) {
-        serial_puts("Desktop: No ppat patterns loaded successfully, using fallback\n");
-        pref.usePixPat = false;
-        pref.patID = 16;  /* Use dots pattern as fallback */
-        PM_ApplyDesktopPref(&pref);
-        PM_SaveDesktopPref(&pref);
-    }
+    DesktopPref pref = PM_GetSavedDesktopPref();
+    PM_ApplyDesktopPref(&pref);
 
     /* Allocate desktop icons array */
     err = AllocateDesktopIcons();

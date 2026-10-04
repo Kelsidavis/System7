@@ -8,7 +8,7 @@ static DesktopPref gStoredPref = {
     .usePixPat = false,
     .patID = 16,  /* Default to pattern ID 16 */
     .ppatID = 0,
-    .backColor = { 0xC000, 0xC000, 0xC000 }  /* Light gray */
+    .backColor = { 0xFFFF, 0xFFFF, 0xFFFF }  /* White background for the gray stipple */
 };
 static bool gPrefInitialized = false;
 

@@ -26,6 +26,8 @@
 #include "QuickDraw/ColorQuickDraw.h"
 #include "SystemInternal.h"
 #include "Platform/Framebuffer.h"
+#include "WindowManager/WindowPlatform.h"
+#include "PatternMgr/pattern_manager.h"
 #include "QuickDrawConstants.h"
 #include "DialogManager/DialogManager.h"
 #include "DialogManager/DialogEditText.h"
@@ -1203,16 +1205,30 @@ static void Test_Window_UpdateWithoutBuffer(void) {
 static void Test_Window_MoveRepaintsUncovered(void) {
     const char* test_name = "Window_MoveRepaintsUncovered";
     Rect r = { 470, 560, 570, 760 };   /* over the desktop, clear of the Finder's windows */
-    WindowPtr w = NewWindow(NULL, &r, (ConstStr255Param)"\x04Move", true, 0, (WindowPtr)-1, false, 0);
+    WindowPtr w = NewWindow(NULL, &r, (ConstStr255Param)"\x04Move", false, 0, (WindowPtr)-1, false, 0);
     CHECK(w, "NewWindow failed");
-    PaintContent(w, true);
     int x = (*w->contRgn)->rgnBBox.left + 10, y = (*w->contRgn)->rgnBBox.top + 10;
+    PM_RedrawDesktop();
+    UInt32 expected[4];
+    for (int i = 0; i < 4; ++i) expected[i] = ScreenPixel(x + (i & 1), y + (i >> 1)) & 0xFFFFFF;
+    ShowWindow(w);
+    PaintContent(w, true);
     UInt32 before = ScreenPixel(x, y);
     MoveWindow(w, 560, 300, false);
-    UInt32 after = ScreenPixel(x, y);
+    Boolean restored = true;
+    for (int i = 0; i < 4; ++i) {
+        UInt32 actual = ScreenPixel(x + (i & 1), y + (i >> 1)) & 0xFFFFFF;
+        if (actual != expected[i]) {
+            char detail[96];
+            snprintf(detail, sizeof(detail), "[IT] Desktop pixel %d: expected 0x%06x, got 0x%06x\n",
+                     i, (unsigned)expected[i], (unsigned)actual);
+            serial_puts(detail);
+            restored = false;
+        }
+    }
     DisposeWindow(w);
     CHECK((before & 0x00FFFFFF) == 0, "the window was not black to begin with");
-    CHECK((after & 0x00FFFFFF) != 0, "the uncovered area still shows the window");
+    CHECK(restored, "the uncovered area did not restore the desktop pixels");
     RecordTest(test_name, true, "");
 }
 
@@ -1450,6 +1466,37 @@ static void Test_Calculator_EntryAndHistory(void) {
     CHECK(calc->historyCount == CALC_HISTORY_SIZE && Calculator_GetHistoryEntry(calc, 0) &&
           !Calculator_GetHistoryEntry(calc, CALC_HISTORY_SIZE), "history bounds failed");
     CHECK(guarded.before == 0x12345678 && guarded.after == 0x87654321, "history damaged adjacent storage");
+    RecordTest(test_name, true, "");
+}
+
+static void Test_Window_ClassicChrome(void) {
+    const char* test_name = "Window_ClassicChrome";
+    Rect bounds = {100, 100, 240, 380};
+    WindowPtr window = NewWindow(NULL, &bounds, (ConstStr255Param)"\x06" "Chrome",
+                                 true, 0, (WindowPtr)-1, true, 0);
+    CHECK(window && framebuffer, "window or framebuffer unavailable");
+    SelectWindow(window);
+    HiliteWindow(window, true);
+    Rect windowFrame, closeBox, zoomBox;
+    Platform_GetWindowFrameRect(window, &windowFrame);
+    Platform_GetWindowCloseBoxRect(window, &closeBox);
+    Platform_GetWindowZoomBoxRect(window, &zoomBox);
+    UInt32* pixels = (UInt32*)framebuffer;
+    UInt32 stride = fb_pitch / 4;
+    short x = windowFrame.left + 30;
+    Boolean activeRules = (pixels[(windowFrame.top + 4) * stride + x] & 0xFFFFFF) == 0 &&
+                          (pixels[(windowFrame.top + 5) * stride + x] & 0xFFFFFF) == 0xFFFFFF;
+    Boolean closeDrawn = (pixels[closeBox.top * stride + closeBox.left] & 0xFFFFFF) == 0 &&
+                        (pixels[(closeBox.top + 1) * stride + closeBox.left + 1] & 0xFFFFFF) == 0xFFFFFF;
+    Boolean geometry = closeBox.right - closeBox.left == 11 && closeBox.bottom - closeBox.top == 11 &&
+                       zoomBox.right - zoomBox.left == 11 && closeBox.left == windowFrame.left + 6;
+    HiliteWindow(window, false);
+    Boolean inactiveBlank = (pixels[(windowFrame.top + 4) * stride + x] & 0xFFFFFF) == 0xFFFFFF &&
+                            (pixels[closeBox.top * stride + closeBox.left] & 0xFFFFFF) == 0xFFFFFF;
+    DisposeWindow(window);
+    CHECK(activeRules && closeDrawn, "active title rules or close box pixels are incorrect");
+    CHECK(geometry, "window control geometry is incorrect");
+    CHECK(inactiveBlank, "inactive title bar retained rules or controls");
     RecordTest(test_name, true, "");
 }
 
@@ -2275,6 +2322,7 @@ void IntegrationTests_Run(void) {
     Test_TextEditScrollBounds();
     Test_Calculator_Arithmetic();
     Test_Calculator_EntryAndHistory();
+    Test_Window_ClassicChrome();
     Test_DARegistrationRollback();
     Test_Resource_ReleaseThenGet();
     Test_Draw_PolygonRecording();

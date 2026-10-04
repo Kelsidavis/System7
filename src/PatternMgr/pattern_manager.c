@@ -30,10 +30,10 @@ void PM_Init(void) {
     if (gPM.initialized) return;
     memset(&gPM, 0, sizeof(gPM));
 
-    /* Default classic platinum gray */
-    gPM.backColor.red   = 0xC000;
-    gPM.backColor.green = 0xC000;
-    gPM.backColor.blue  = 0xC000;
+    /* The classic gray desktop is a black and white stipple. */
+    gPM.backColor.red   = 0xFFFF;
+    gPM.backColor.green = 0xFFFF;
+    gPM.backColor.blue  = 0xFFFF;
 
     /* A simple 50% stipple pattern */
     static const uint8_t dither[8] = {0xAA,0x55,0xAA,0x55,0xAA,0x55,0xAA,0x55};
@@ -128,7 +128,7 @@ DesktopPref PM_GetSavedDesktopPref(void) {
         p.usePixPat = false;
         p.patID = 16; /* kDesktopPatternID from SystemTypes.h */
         p.ppatID = 0;
-        p.backColor.red = p.backColor.green = p.backColor.blue = 0xC000;
+        p.backColor.red = p.backColor.green = p.backColor.blue = 0xFFFF;
     }
     return p;
 }

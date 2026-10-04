@@ -466,23 +466,23 @@ void Platform_GetWindowContentRect(WindowPtr window, Rect* rect) {
 void Platform_GetWindowCloseBoxRect(WindowPtr window, Rect* rect) {
     if (!window || !rect) return;
 
-    /* 14x14, inset 10 from the left edge of the frame and 4 from the top. */
+    /* 11x11, inset six from the frame's left and four from its top. */
     Platform_GetWindowTitleBarRect(window, rect);
-    rect->left  = rect->left + 10;
+    rect->left  = rect->left + 6;
     rect->top   = rect->top + 4;
-    rect->right = rect->left + 14;
-    rect->bottom = rect->top + 14;
+    rect->right = rect->left + 11;
+    rect->bottom = rect->top + 11;
 }
 
 void Platform_GetWindowZoomBoxRect(WindowPtr window, Rect* rect) {
     if (!window || !rect) return;
 
-    /* 12x12, inset 8 from the right edge of the frame and 4 from the top. */
+    /* 11x11, inset six from the frame's right and four from its top. */
     Platform_GetWindowTitleBarRect(window, rect);
-    rect->left   = rect->right - 20;
+    rect->left   = rect->right - 17;
     rect->top    = rect->top + 4;
-    rect->right  = rect->left + 12;
-    rect->bottom = rect->top + 12;
+    rect->right  = rect->left + 11;
+    rect->bottom = rect->top + 11;
 }
 
 void Platform_GetWindowFrameRect(WindowPtr window, Rect* rect) {
