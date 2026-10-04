@@ -122,7 +122,7 @@ endif
 # Platform-independent base flags
 # Treat compiler warnings as errors so warning regressions fail the build.
 # WERROR=0 is available for local diagnosis; do not commit with it disabled.
-WERROR ?= -Werror
+WERROR ?= 1
 EXTRA_CFLAGS ?=
 
 # Many Toolbox-compatible callbacks and platform stubs must retain their ABI
@@ -136,10 +136,13 @@ COMMON_CFLAGS = \
          -Wnull-dereference -Wjump-misses-init -Warray-bounds=2 -Wshift-overflow=2 \
          $(OPT_FLAGS) -fno-inline -fno-optimize-sibling-calls -I./include -I./src -std=c2x \
          -Wuninitialized -U_FORTIFY_SOURCE -D_FORTIFY_SOURCE=0 \
-         $(WERROR) \
          $(EXTRA_CFLAGS) \
          -fno-common -fno-delete-null-pointer-checks \
          -MMD -MP
+
+ifeq ($(WERROR),1)
+  COMMON_CFLAGS += -Werror
+endif
 
 # Platform-specific compiler flags
 ifeq ($(PLATFORM),arm)
