@@ -32,6 +32,14 @@
 /* Maximum data length for dialog item text - prevents excessive allocations */
 #define MAX_DIALOG_ITEM_DATA 4096
 
+static OSErr FailDITLParse(Handle ditlHandle, DialogItemEx* items,
+                           SInt16 itemCount)
+{
+    FreeParsedDITL(items, itemCount);
+    HUnlock(ditlHandle);
+    return -1;
+}
+
 /* Parse DITL resource into DialogItemEx array */
 OSErr ParseDITL(Handle ditlHandle, DialogItemEx** items, SInt16* itemCount) {
     unsigned char* p;
@@ -106,10 +114,8 @@ OSErr ParseDITL(Handle ditlHandle, DialogItemEx** items, SInt16* itemCount) {
         Rect bounds;
 
         /* Validate we have enough bytes for item header (4 + 8 + 1 + 1 = 14 bytes minimum) */
-        if (p + 14 > pEnd) {
-            FreeParsedDITL(itemArray, i);
-            HUnlock(ditlHandle);
-            return -1;
+        if ((size_t)(pEnd - p) < 14) {
+            return FailDITLParse(ditlHandle, itemArray, i);
         }
 
         /* Skip placeholder (4 bytes) */
@@ -129,19 +135,21 @@ OSErr ParseDITL(Handle ditlHandle, DialogItemEx** items, SInt16* itemCount) {
         dataLen = *p++;
         if (dataLen == 0xFF) {
             /* Validate we have 2 more bytes for long length */
-            if (p + 2 > pEnd) {
-                FreeParsedDITL(itemArray, i);
-                HUnlock(ditlHandle);
-                return -1;
+            if ((size_t)(pEnd - p) < 2) {
+                return FailDITLParse(ditlHandle, itemArray, i);
             }
             /* Long data length (next word) */
             dataLen = ((SInt16)p[0] << 8) | p[1];
             p += 2;
         }
 
-        /* Cap dataLen to prevent excessive allocations */
+        if (dataLen < 0) {
+            return FailDITLParse(ditlHandle, itemArray, i);
+        }
+
+        /* Reject oversized item data rather than truncating the item cursor. */
         if (dataLen > MAX_DIALOG_ITEM_DATA) {
-            dataLen = MAX_DIALOG_ITEM_DATA;
+            return FailDITLParse(ditlHandle, itemArray, i);
         }
 
         /* Initialize item */
@@ -184,10 +192,8 @@ OSErr ParseDITL(Handle ditlHandle, DialogItemEx** items, SInt16* itemCount) {
                  * "OK" became a 79-character string starting at 'K'. */
                 if (dataLen > 0) {
                     /* Validate we have enough bytes available */
-                    if (p + dataLen > pEnd) {
-                        FreeParsedDITL(itemArray, i);
-                        HUnlock(ditlHandle);
-                        return -1;
+                    if ((size_t)(pEnd - p) < (size_t)dataLen) {
+                        return FailDITLParse(ditlHandle, itemArray, i);
                     }
                     SInt16 pascalLen = (dataLen > 255) ? 255 : dataLen;
                     /*
@@ -236,10 +242,8 @@ OSErr ParseDITL(Handle ditlHandle, DialogItemEx** items, SInt16* itemCount) {
             } else if (baseType == iconItem || baseType == picItem) {
                 /* Resource ID stored as 2-byte integer */
                 if (dataLen >= 2) {
-                    if (p + 2 > pEnd) {
-                        FreeParsedDITL(itemArray, i);
-                        HUnlock(ditlHandle);
-                        return -1;
+                    if ((size_t)(pEnd - p) < 2) {
+                        return FailDITLParse(ditlHandle, itemArray, i);
                     }
                     SInt16 resID = ((SInt16)p[0] << 8) | p[1];
                     itemArray[i].refCon = resID;
@@ -251,16 +255,18 @@ OSErr ParseDITL(Handle ditlHandle, DialogItemEx** items, SInt16* itemCount) {
         }
 
         /* Validate pointer advance won't exceed bounds */
-        if (p + dataLen > pEnd) {
-            FreeParsedDITL(itemArray, i + 1);
-            HUnlock(ditlHandle);
-            return -1;
+        if ((size_t)(pEnd - p) < (size_t)dataLen) {
+            return FailDITLParse(ditlHandle, itemArray, i + 1);
         }
         p += dataLen;
 
         /* Align to word boundary */
-        if ((unsigned long)p & 1) {
+        if (((unsigned long)p & 1) && p < pEnd) {
             p++;
+        }
+
+        if (i + 1 < count && (size_t)(pEnd - p) < 14) {
+            return FailDITLParse(ditlHandle, itemArray, i + 1);
         }
 
     }

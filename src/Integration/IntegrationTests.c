@@ -262,6 +262,27 @@ static void Test_Dialog_ParseDITLTruncatedAfterText(void) {
     RecordTest(test_name, true, "");
 }
 
+static void Test_Dialog_ParseDITLRejectsNegativeLongLength(void) {
+    const char* test_name = "Dialog_ParseDITLRejectsNegativeLongLength";
+    static const UInt8 ditl[] = {
+        0x00, 0x00,                                      /* one item */
+        0x00, 0x00, 0x00, 0x00,                          /* item handle */
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x0A, 0x00, 0x14, /* bounds */
+        statText, 0xFF, 0x80, 0x00                       /* negative signed length */
+    };
+    Handle h = HandleFromBytes(ditl, sizeof ditl);
+    CHECK(h, "NewHandle failed");
+
+    DialogItemEx* items = (DialogItemEx*)1;
+    SInt16 itemCount = 1;
+    OSErr err = ParseDITL(h, &items, &itemCount);
+    DisposeHandle(h);
+    CHECK(err != noErr, "accepted a long data length with its high bit set");
+    CHECK(items == NULL && itemCount == 0,
+          "left parser outputs set after rejecting a negative length");
+    RecordTest(test_name, true, "");
+}
+
 static void Test_Dialog_LoadMissingTemplate(void) {
     const char* test_name = "Dialog_LoadMissingTemplate";
     DialogTemplate* t = (DialogTemplate*)1;
@@ -1792,6 +1813,7 @@ void IntegrationTests_Run(void) {
     Test_Dialog_ParseALRT();
     Test_Dialog_ParseDLOGTruncated();
     Test_Dialog_ParseDITLTruncatedAfterText();
+    Test_Dialog_ParseDITLRejectsNegativeLongLength();
     Test_Dialog_LoadMissingTemplate();
     Test_Dialog_ActionDebounce();
 
