@@ -65,21 +65,13 @@ static SInt16 sanitize_region_size(Region* region, const char* label) {
  * ================================================================ */
 
 RgnHandle NewRgn(void) {
-    /* Use NewPtr instead of calloc - calloc is broken in bare-metal kernel */
-    RgnHandle rgn = (RgnHandle)NewPtr(sizeof(RgnPtr));
+    RgnHandle rgn = (RgnHandle)NewHandleClear(kMinRegionSize);
     if (!rgn) {
         g_lastRegionError = rgnOverflowErr;
         return NULL;
     }
 
-    Region *region = (Region *)NewPtr(kMinRegionSize);
-    if (!region) {
-        DisposePtr((Ptr)rgn);
-        g_lastRegionError = rgnOverflowErr;
-        return NULL;
-    }
-
-    *rgn = region;
+    Region *region = *rgn;
     region->rgnSize = kMinRegionSize;
     SetRect(&region->rgnBBox, 0, 0, 0, 0);
 
@@ -88,13 +80,8 @@ RgnHandle NewRgn(void) {
 }
 
 void DisposeRgn(RgnHandle rgn) {
-    if (!rgn || !*rgn) return;
-
-    /* Use DisposePtr instead of free - free is broken in bare-metal kernel */
-    DisposePtr((Ptr)*rgn);
-    DisposePtr((Ptr)rgn);
+    if (rgn) DisposeHandle((Handle)rgn);
 }
-
 
 void SetEmptyRgn(RgnHandle rgn) {
     assert(rgn != NULL && *rgn != NULL);
@@ -103,8 +90,7 @@ void SetEmptyRgn(RgnHandle rgn) {
     HLock((Handle)rgn);
     Region *region = *rgn;
 
-    /* Don't resize - just mark as empty
-     * realloc() is broken in bare-metal kernel and causes freeze */
+    /* Retain the allocation so the region can be reused without growing again. */
     region->rgnSize = kMinRegionSize;
     SetRect(&region->rgnBBox, 0, 0, 0, 0);
 
@@ -124,9 +110,6 @@ void SetRectRgn(RgnHandle rgn, SInt16 left, SInt16 top, SInt16 right, SInt16 bot
         SetEmptyRgn(rgn);
         return;
     }
-
-    /* Don't resize - realloc() is broken in bare-metal kernel
-     * Just use existing allocation */
 
     region->rgnSize = kMinRegionSize;
     SetRect(&region->rgnBBox, left, top, right, bottom);
@@ -150,29 +133,25 @@ void CopyRgn(RgnHandle srcRgn, RgnHandle dstRgn) {
     assert(srcRgn != NULL && *srcRgn != NULL);
     assert(dstRgn != NULL && *dstRgn != NULL);
 
+    if (srcRgn == dstRgn) return;
+
+    HLock((Handle)srcRgn);
     Region *src = *srcRgn;
-    Region *dst = *dstRgn;
 
     SInt16 srcSize = sanitize_region_size(src, "CopyRgn(src)");
-    SInt16 dstSize = sanitize_region_size(dst, "CopyRgn(dst)");
-
-    /* Reallocate destination if needed without using realloc() */
-    if (srcSize > dstSize) {
-        Region *newDst = (Region *)NewPtr((u32)srcSize);
-        if (!newDst) {
-            g_lastRegionError = rgnOverflowErr;
-            return;
-        }
-
-        memcpy(newDst, src, (size_t)srcSize);
-        DisposePtr((Ptr)dst);
-        *dstRgn = newDst;
-        g_lastRegionError = 0;
+    if (GetHandleSize((Handle)dstRgn) < (u32)srcSize &&
+        !SetHandleSize((Handle)dstRgn, (u32)srcSize)) {
+        HUnlock((Handle)srcRgn);
+        g_lastRegionError = rgnOverflowErr;
         return;
     }
 
-    /* Copy the region data */
+    UInt8 dstState = HGetState((Handle)dstRgn);
+    if (!(dstState & 0x80)) HLock((Handle)dstRgn);
+    Region *dst = *dstRgn;
     memcpy(dst, src, (size_t)srcSize);
+    if (!(dstState & 0x80)) HUnlock((Handle)dstRgn);
+    HUnlock((Handle)srcRgn);
     g_lastRegionError = 0;
 }
 
@@ -378,21 +357,17 @@ static void SetRgnRects(RgnHandle rgn, Rect *rects, SInt16 count) {
     }
 
     SInt16 needed = (SInt16)(kMinRegionSize + sizeof(SInt16) + kept * sizeof(Rect));
-    Region *region = *rgn;
-
-    if (region->rgnSize < needed) {
-        Region *grown = (Region *)NewPtr((u32)needed);
-        if (!grown) {
-            /* Cannot describe the shape exactly; the bounding box covers it. */
-            g_lastRegionError = rgnOverflowErr;
-            RectRgn(rgn, &bbox);
-            return;
-        }
-        DisposePtr((Ptr)region);
-        *rgn = grown;
-        region = grown;
+    if (GetHandleSize((Handle)rgn) < (u32)needed &&
+        !SetHandleSize((Handle)rgn, (u32)needed)) {
+        /* Cannot describe the shape exactly; the bounding box covers it. */
+        g_lastRegionError = rgnOverflowErr;
+        RectRgn(rgn, &bbox);
+        return;
     }
 
+    UInt8 handleState = HGetState((Handle)rgn);
+    if (!(handleState & 0x80)) HLock((Handle)rgn);
+    Region *region = *rgn;
     region->rgnSize = needed;
     region->rgnBBox = bbox;
     SInt16* countPtr = (SInt16*)__builtin_assume_aligned(
@@ -406,6 +381,7 @@ static void SetRgnRects(RgnHandle rgn, Rect *rects, SInt16 count) {
         *dst++ = rects[i];
     }
 
+    if (!(handleState & 0x80)) HUnlock((Handle)rgn);
     g_lastRegionError = 0;
 }
 

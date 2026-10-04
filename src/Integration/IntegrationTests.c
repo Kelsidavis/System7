@@ -1373,15 +1373,24 @@ static void Test_Region_Hole(void) {
     RectRgn(a, &ra);
     RectRgn(b, &rb);
     DiffRgn(a, b, a);
+    Handle recovered = NULL;
+    Boolean handleBacked = RecoverHandle(*a, &recovered) &&
+                           recovered == (Handle)a;
     Point inHole = { 30, 30 }, left = { 30, 10 }, below = { 60, 30 }, right = { 30, 60 }, above = { 10, 30 };
     Boolean ok = !PtInRgn(inHole, a) && PtInRgn(left, a) && PtInRgn(below, a) &&
                  PtInRgn(right, a) && PtInRgn(above, a);
     Rect probe = { 25, 25, 45, 45 };
     Boolean holeEmpty = !RectInRgn(&probe, a);
+    CopyRgn(a, b);
+    Boolean copyGrewHandle = EqualRgn(a, b) &&
+                             RecoverHandle(*b, &recovered) &&
+                             recovered == (Handle)b;
     DisposeRgn(a);
     DisposeRgn(b);
     CHECK(ok, "DiffRgn did not leave a hole surrounded by the rest");
     CHECK(holeEmpty, "RectInRgn found the rectangle inside the hole");
+    CHECK(handleBacked && copyGrewHandle,
+          "region storage was not a valid, growable Memory Manager handle");
     RecordTest(test_name, true, "");
 }
 
