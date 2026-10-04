@@ -15,6 +15,41 @@ SPEC.loader.exec_module(integration_runner)
 
 
 class IntegrationRunnerTests(unittest.TestCase):
+    def test_build_cleans_and_builds_in_separate_make_processes(self):
+        runner = integration_runner.TestRunner(str(ROOT))
+        results = [
+            subprocess.CompletedProcess(["make", "clean"], 0, "", ""),
+            subprocess.CompletedProcess(["make", "iso"], 0, "", ""),
+        ]
+
+        with patch("subprocess.run", side_effect=results) as run:
+            self.assertTrue(runner.build_kernel())
+
+        self.assertEqual(run.call_count, 2)
+        self.assertEqual(run.call_args_list[0].args[0][-1], "clean")
+        self.assertEqual(
+            run.call_args_list[1].args[0][-2:], ["INTEGRATION_TESTS=1", "iso"]
+        )
+
+    def test_build_failure_includes_captured_diagnostics(self):
+        runner = integration_runner.TestRunner(str(ROOT))
+        results = [
+            subprocess.CompletedProcess(["make", "clean"], 0, "", ""),
+            subprocess.CompletedProcess(
+                ["make", "iso"], 2, "compile output", "compiler error"
+            ),
+        ]
+
+        with (
+            patch("subprocess.run", side_effect=results),
+            patch("builtins.print") as output,
+        ):
+            self.assertFalse(runner.build_kernel())
+
+        printed = [call.args[0] for call in output.call_args_list]
+        self.assertTrue(any("compile output" in message for message in printed))
+        self.assertTrue(any("compiler error" in message for message in printed))
+
     def test_duplicate_failure_records_match_summary_once(self):
         runner = integration_runner.TestRunner(str(ROOT))
         runner.qemu_output = """✓ PASS: first

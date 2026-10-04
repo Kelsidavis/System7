@@ -60,40 +60,55 @@ class TestRunner:
         """Build kernel and ISO with integration tests enabled"""
         self.log("Building kernel with INTEGRATION_TESTS=1...", "INFO")
 
+        clean_cmd = ["make", "-C", str(self.project_root), "clean"]
         build_cmd = [
             "make",
             "-C",
             str(self.project_root),
             "INTEGRATION_TESTS=1",
-            "clean",
             "iso",
         ]
 
         try:
-            result = subprocess.run(
-                build_cmd,
-                capture_output=True,
-                text=True,
-                timeout=600,
-                cwd=str(self.project_root),
-            )
+            for phase, command in (("Clean", clean_cmd), ("Build", build_cmd)):
+                result = subprocess.run(
+                    command,
+                    capture_output=True,
+                    text=True,
+                    timeout=600,
+                    cwd=str(self.project_root),
+                )
 
-            if result.returncode != 0:
-                self.log("Build failed!", "FAIL")
-                if self.verbose:
-                    self.log("Build stderr:", "DEBUG")
-                    print(result.stderr)
-                return False
+                if result.returncode != 0:
+                    self.log(
+                        f"{phase} failed with exit status {result.returncode}",
+                        "FAIL",
+                    )
+                    self._print_build_output(phase, result.stdout, result.stderr)
+                    return False
 
             self.log("Build successful", "PASS")
             return True
 
-        except subprocess.TimeoutExpired:
+        except subprocess.TimeoutExpired as error:
             self.log("Build timeout after 600 seconds", "FAIL")
+            stdout = error.stdout or ""
+            stderr = error.stderr or ""
+            if isinstance(stdout, bytes):
+                stdout = stdout.decode(errors="replace")
+            if isinstance(stderr, bytes):
+                stderr = stderr.decode(errors="replace")
+            self._print_build_output("Build", stdout, stderr)
             return False
         except Exception as e:
             self.log(f"Build error: {e}", "FAIL")
             return False
+
+    def _print_build_output(self, phase: str, stdout: str, stderr: str):
+        for name, output in (("stdout", stdout), ("stderr", stderr)):
+            if output.strip():
+                self.log(f"{phase} {name} (last 12000 characters):", "DEBUG")
+                print(output[-12000:])
 
     def run_tests(self) -> bool:
         """Run QEMU with serial output capture"""
