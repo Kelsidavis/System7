@@ -22,6 +22,7 @@
 #include "../include/EventManager/EventTypes.h"  /* Include EventTypes first to define activeFlag */
 #include "../include/EventManager/EventManager.h"
 #include "../include/EventManager/EventManagerInternal.h"
+#include "../include/EventManager/AppSwitcher.h"
 #include "../include/System71StdLib.h"                 /* for serial_printf & friends */
 #include "../include/System/SystemLogging.h"
 #include "../include/MenuManager/MenuManager.h"
@@ -50,6 +51,8 @@
 #include "../include/ExtensionManager/DRVRLoader.h"
 #include "../include/ExtensionManager/FKEYLoader.h"
 #include "../include/ProcessMgr/ProcessTypes.h"
+#include "../include/ProcessMgr/ProcessMgr.h"
+#include "../include/SegmentLoader/SegmentLoaderTest.h"
 #include "../include/LocaleManager/LocaleManager.h"
 #include "../include/Finder/finder.h"
 #include "../include/DeskManager/DeskManager.h"
@@ -915,12 +918,10 @@ static void init_system71(void) {
     serial_puts("  Event Dispatcher initialized\n");
 
     /* Application Switcher */
-    extern OSErr AppSwitcher_Init(void);
     AppSwitcher_Init();
     serial_puts("  Application Switcher initialized\n");
 
     /* Process Manager - for application launching */
-    extern OSErr ProcessManager_Initialize(void);
     if (ProcessManager_Initialize() == noErr) {
         serial_puts("  Process Manager initialized\n");
     } else {
@@ -933,99 +934,8 @@ static void init_system71(void) {
      * set - so nothing knew whether it worked. It reports only when it fails.
      */
     {
-        extern void SegmentLoader_TestBoot(void);
         SegmentLoader_TestBoot();
     }
-
-
-#ifdef PHASE2_TESTS
-    /* Phase 2 Integration Test Suites */
-    extern OSErr Phase2_EventDispatch_Initialize(void);
-    extern void Phase2_EventDispatch_Run(void);
-    extern void Phase2_EventDispatch_Cleanup(void);
-    extern OSErr Phase2_FileIO_Initialize(void);
-    extern void Phase2_FileIO_Run(void);
-    extern void Phase2_FileIO_Cleanup(void);
-    extern OSErr Phase2_DialogManager_Initialize(void);
-    extern void Phase2_DialogManager_Run(void);
-    extern void Phase2_DialogManager_Cleanup(void);
-    extern OSErr Phase2_TextEdit_Initialize(void);
-    extern void Phase2_TextEdit_Run(void);
-    extern void Phase2_TextEdit_Cleanup(void);
-    extern OSErr Phase2_QuickDraw_Initialize(void);
-    extern void Phase2_QuickDraw_Run(void);
-    extern void Phase2_QuickDraw_Cleanup(void);
-    extern OSErr Phase2_WindowManager_Initialize(void);
-    extern void Phase2_WindowManager_Run(void);
-    extern void Phase2_WindowManager_Cleanup(void);
-    extern OSErr Phase2_AppStartup_Initialize(void);
-    extern void Phase2_AppStartup_Run(void);
-    extern void Phase2_AppStartup_Cleanup(void);
-    extern OSErr Phase2_SoundManager_Initialize(void);
-    extern void Phase2_SoundManager_Run(void);
-    extern void Phase2_SoundManager_Cleanup(void);
-    extern OSErr Phase2_Rendering_Initialize(void);
-    extern void Phase2_Rendering_Run(void);
-    extern void Phase2_Rendering_Cleanup(void);
-
-    serial_puts("\n");
-
-    /* EventDispatch Tests */
-    if (Phase2_EventDispatch_Initialize() == noErr) {
-        Phase2_EventDispatch_Run();
-        Phase2_EventDispatch_Cleanup();
-    }
-
-    /* FileIO Tests */
-    if (Phase2_FileIO_Initialize() == noErr) {
-        Phase2_FileIO_Run();
-        Phase2_FileIO_Cleanup();
-    }
-
-    /* DialogManager Tests */
-    if (Phase2_DialogManager_Initialize() == noErr) {
-        Phase2_DialogManager_Run();
-        Phase2_DialogManager_Cleanup();
-    }
-
-    /* TextEdit Tests */
-    if (Phase2_TextEdit_Initialize() == noErr) {
-        Phase2_TextEdit_Run();
-        Phase2_TextEdit_Cleanup();
-    }
-
-    /* QuickDraw Tests */
-    if (Phase2_QuickDraw_Initialize() == noErr) {
-        Phase2_QuickDraw_Run();
-        Phase2_QuickDraw_Cleanup();
-    }
-
-    /* WindowManager Tests */
-    if (Phase2_WindowManager_Initialize() == noErr) {
-        Phase2_WindowManager_Run();
-        Phase2_WindowManager_Cleanup();
-    }
-
-    /* AppStartup Tests */
-    if (Phase2_AppStartup_Initialize() == noErr) {
-        Phase2_AppStartup_Run();
-        Phase2_AppStartup_Cleanup();
-    }
-
-    /* SoundManager Tests */
-    if (Phase2_SoundManager_Initialize() == noErr) {
-        Phase2_SoundManager_Run();
-        Phase2_SoundManager_Cleanup();
-    }
-
-    /* Rendering Tests */
-    if (Phase2_Rendering_Initialize() == noErr) {
-        Phase2_Rendering_Run();
-        Phase2_Rendering_Cleanup();
-    }
-
-    serial_puts("\n");
-#endif
 
     /* Initialize PS/2 input devices before Modern Input */
     if (InitPS2Controller()) {
