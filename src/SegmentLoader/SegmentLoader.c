@@ -231,10 +231,18 @@ OSErr LoadSegment(SegmentLoaderContext* ctx, SInt16 segID)
         return paramErr;
     }
 
-    /* Check if already loaded */
-    if (segID < ctx->numSegments && ctx->segments[segID].state == kSegmentLoaded) {
-        SEG_LOG_DEBUG("Segment %d already loaded, skipping", segID);
-        return noErr; /* Already loaded */
+    if (segID < ctx->numSegments) {
+        CodeSegment* segment = &ctx->segments[segID];
+        if (segment->state == kSegmentLoaded) {
+            SEG_LOG_DEBUG("Segment %d already loaded, skipping", segID);
+            return noErr;
+        }
+        if (segment->state == kSegmentPurgeable && segment->handle) {
+            segment->state = kSegmentLoaded;
+            segment->purgeable = false;
+            segment->refCount = 1;
+            return noErr;
+        }
     }
 
     SEG_LOG_INFO("Loading CODE %d...", segID);

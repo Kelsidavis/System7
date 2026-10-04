@@ -45,6 +45,7 @@
 #include "CPU/M68KInterp.h"
 #include "CPU/M68KHeap.h"
 #include "SegmentLoader/MacBinary.h"
+#include "SegmentLoader/SegmentLoader.h"
 extern UInt32 M68K_Read32(M68KAddressSpace* as, UInt32 addr);
 extern void M68K_Write32(M68KAddressSpace* as, UInt32 addr, UInt32 value);
 
@@ -1610,6 +1611,34 @@ static UInt32 BuildMacBinary(UInt8* a, const UInt8* data, UInt32 dataLen,
     return 128 + dataPadded + rsrcLen;
 }
 
+static void Test_SegmentLoader_RevivePurgeableMapping(void) {
+    const char* test_name = "SegmentLoader_RevivePurgeableMapping";
+    SegmentLoaderContext ctx;
+    memset(&ctx, 0, sizeof ctx);
+    ctx.initialized = true;
+    ctx.numSegments = 1;
+
+    CodeSegment* segment = &ctx.segments[0];
+    segment->handle = (CPUCodeHandle)(void*)&ctx;
+    segment->baseAddr = 0x123400;
+    segment->entryAddr = 0x123420;
+    segment->state = kSegmentLoaded;
+    segment->refCount = 1;
+    CPUCodeHandle originalHandle = segment->handle;
+    CPUAddr originalBase = segment->baseAddr;
+
+    OSErr unloadErr = UnloadSegment(&ctx, 0);
+    OSErr reloadErr = LoadSegment(&ctx, 0);
+    Boolean revived = segment->state == kSegmentLoaded && !segment->purgeable &&
+                      segment->refCount == 1 && segment->handle == originalHandle &&
+                      segment->baseAddr == originalBase;
+
+    CHECK(unloadErr == noErr, "UnloadSegment failed");
+    CHECK(reloadErr == noErr, "LoadSegment did not revive the resident mapping");
+    CHECK(revived, "reviving the mapping replaced or corrupted its descriptor");
+    RecordTest(test_name, true, "");
+}
+
 static void Test_MacBinary_Unpack(void) {
     const char* test_name = "MacBinary_Unpack";
     static UInt8 archive[1024];
@@ -1985,6 +2014,7 @@ void IntegrationTests_Run(void) {
     Test_Resource_OpenMissingResFile();
 
     IT_LOG_INFO("--- Segment Loader ---");
+    Test_SegmentLoader_RevivePurgeableMapping();
     Test_MacBinary_Unpack();
     Test_MacBinary_UnpackFile();
 
