@@ -1,9 +1,8 @@
 /*
  * DialogTypes.h - Dialog Manager Type Definitions
  *
- * This header defines all the internal structures and types used by the
- * Dialog Manager. These declarations support the implemented Dialog Manager
- * APIs; compatibility coverage varies by type and operation.
+ * This header declares dialog-specific types and constants not provided by
+ * SystemTypes.h. Compatibility coverage varies by type and operation.
  */
 
 #ifndef DIALOG_TYPES_H
@@ -11,24 +10,10 @@
 
 #include "SystemTypes.h"
 
-/* Forward declarations */
-
-
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-/* Include base types */
-#ifndef DIALOG_MANAGER_H
-/* Rect, Point, Str255, Handle, and OSErr are defined in MacTypes.h */
-/* Handle is defined in MacTypes.h */
-/* Ptr is defined in MacTypes.h */
-/* Handle is defined in MacTypes.h */
-#endif
-
-/* Dialog Manager globals structure */
-
-/* Stage list structure for alert dialogs */
 typedef union {
     struct {
         unsigned sound1:3;      /* Sound for stage 1 */
@@ -46,35 +31,6 @@ typedef union {
     } stages;
 } StageListUnion;
 
-/* Dialog item internal structure */
-
-/* Dialog item list header */
-
-/* Extended dialog item structure for internal use */
-
-/* Dialog resource structures */
-
-/* DLOG resource structure */
-
-/* DITL resource structure */
-
-/* ALRT resource structure */
-
-/* Dialog manager internal state */
-
-/* Dialog event handling state */
-
-/* Dialog drawing state */
-
-/* Platform abstraction structure */
-
-/* Error codes specific to Dialog Manager */
-
-/* Dialog Manager feature flags */
-
-/* Dialog item type masks and flags */
-/* Note: Most dialog item constants are defined in SystemTypes.h */
-/* Only define the ones that are missing */
 #ifndef itemTypeMask
 enum {
     itemTypeMask = 0x7F       /* Mask for item type (127) */
@@ -82,18 +38,11 @@ enum {
 #endif
 
 /* DITL append methods */
-typedef short DITLMethod;
 enum {
     overlayDITL = 0,          /* Overlay items */
     appendDITLRight = 1,      /* Append to right */
     appendDITLBottom = 2      /* Append to bottom */
 };
-
-/* Dialog window classes and styles */
-
-/* Color theme structure for modern platforms */
-
-/* Accessibility information */
 
 #ifdef __cplusplus
 }
