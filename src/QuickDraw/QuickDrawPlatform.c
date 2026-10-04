@@ -233,38 +233,34 @@ void QDPlatform_Shutdown(void) {
     /* Nothing to do */
 }
 
-/* VGA status register port for vsync detection */
+/* VGA input-status register */
 #define VGA_INPUT_STATUS_1 0x3DA
-#define VGA_VRETRACE_BIT 0x08
 
 #include "Platform/include/io.h"
 
-/* Inline assembly helpers for VGA I/O */
+/* VGA status-port access */
 #define inb_vga(port) hal_inb(port)
 
-/* Wait for VGA vertical retrace (vsync) to ensure screen update */
+static void QDPlatform_RefreshDelay(void) {
+    volatile int delay;
+    for (delay = 0; delay < 50; delay++) {
+        /* Briefly delay after framebuffer writes without waiting for retrace. */
+        (void)inb_vga(VGA_INPUT_STATUS_1);
+    }
+}
+
 /* Update screen region */
 void QDPlatform_UpdateScreen(SInt32 left, SInt32 top, SInt32 right, SInt32 bottom) {
     (void)left;
     (void)top;
     (void)right;
     (void)bottom;
-    /* Minimal delay to allow QEMU display refresh - faster than full vsync */
-    volatile int delay;
-    for (delay = 0; delay < 50; delay++) {
-        /* Read VGA status register to yield CPU time to QEMU */
-        (void)inb_vga(VGA_INPUT_STATUS_1);
-    }
+    QDPlatform_RefreshDelay();
 }
 
 /* Flush entire screen */
 void QDPlatform_FlushScreen(void) {
-    /* Minimal delay to allow QEMU display refresh - faster than full vsync */
-    volatile int delay;
-    for (delay = 0; delay < 50; delay++) {
-        /* Read VGA status register to yield CPU time to QEMU */
-        (void)inb_vga(VGA_INPUT_STATUS_1);
-    }
+    QDPlatform_RefreshDelay();
 }
 
 
