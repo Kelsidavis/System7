@@ -720,11 +720,8 @@ void DrawMenuBar(void)
                     MENU_LOG_DEBUG("DrawMenuBar: GetMenuHandle returned NULL for ID %d\n", currentMenuID);
                 }
             }
-        } else {
-            /* serial_puts("DrawMenuBar: menuBar is NULL\n"); */
         }
     } else {
-        /* serial_puts("DrawMenuBar: gMenuMgrState is NULL\n"); */
         /* Draw default Apple menu if no menus installed */
         (void)MenuAppleIcon_Draw(qd.thePort, x, 0, false);
     }
