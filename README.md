@@ -113,7 +113,7 @@ and compatibility with real System 7 applications remains unverified.
 - **TextEdit Manager**: Text editing with clipboard integration; mixed-font scrolling and
   styled paste remain partial (see [compatibility gaps](docs/components/Compatibility/System7_Compatibility_Gaps.md))
 - **Scrap Manager**: Classic Mac OS clipboard with multiple flavor support
-- **SimpleText Application**: Full-featured MDI text editor with cut/copy/paste
+- **SimpleText Application**: MDI text editor with open/save and clipboard operations; single-level Undo only, with no Redo
 - **List Manager**: System 7-compatible list controls with keyboard navigation
 - **Control Manager**: Standard and scrollbar controls with CDEF implementation
 - **Dialog Manager**: Keyboard navigation, focus rings, keyboard shortcuts
