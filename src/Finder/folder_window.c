@@ -100,6 +100,7 @@ typedef struct FolderItem {
 #define kListLabelColWidth  60  /* Width of the Label column */
 #define kListDateColWidth   80  /* Width of the Date column */
 #define kListScrollBarWidth 15  /* Width of vertical scrollbar track */
+#define kFolderScrollbarHit (-2)
 
 /* Folder window state (per window) */
 typedef struct FolderWindowState {
@@ -839,7 +840,7 @@ static short FW_IconAtPoint(WindowPtr w, Point localPt) {
                 }
                 PostEvent(updateEvt, (UInt32)(uintptr_t)w);
             }
-            return -1;  /* Scrollbar click, not an item */
+            return kFolderScrollbarHit;
         }
 
         short contentY = localPt.v - top - kListHeaderHeight;
@@ -905,7 +906,7 @@ static short FW_IconAtPoint(WindowPtr w, Point localPt) {
             if (state->scrollOffset > maxScroll) state->scrollOffset = maxScroll;
         }
         PostEvent(updateEvt, (UInt32)(uintptr_t)w);
-        return -1;
+        return kFolderScrollbarHit;
     }
     if (localPt.v >= bottom - kListScrollBarWidth) return -1;
 
@@ -1212,6 +1213,12 @@ Boolean HandleFolderWindowClick(WindowPtr w, EventRecord *ev, Boolean isDoubleCl
 
     /* Hit test against icons */
     short hitIndex = FW_IconAtPoint(w, localPt);
+
+    if (hitIndex == kFolderScrollbarHit) {
+        state->lastClickIndex = -1;
+        SetPort(savePort);
+        return true;
+    }
 
     if (hitIndex == -1) {
         /* Clicked empty space - deselect all */
