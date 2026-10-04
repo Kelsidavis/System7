@@ -11,6 +11,7 @@ LINK = re.compile(r"\]\(\s*(?:<([^>]+)>|([^\s)]+))")
 REFERENCE_LINK = re.compile(r"(?m)^\s{0,3}\[[^]\n]+\]:\s*(?:<([^>]+)>|([^\s]+))")
 REPO_PATH = re.compile(r"`((?:src|include|tests|scripts|tools|docs)/[A-Za-z0-9_./-]+)`")
 FENCED_BLOCK = re.compile(r"(?ms)^\s*(```|~~~).*?^\s*\1\s*$")
+INLINE_CODE_SPAN = re.compile(r"(?<!`)(`+)(?!`).*?(?<!`)\1(?!`)", re.DOTALL)
 SKIP_DIRS = {".git", "build", "node_modules", ".venv"}
 
 
@@ -30,11 +31,19 @@ def is_broken_relative_link(document, target):
     return not destination.exists()
 
 
+def mask_inline_code(text):
+    return INLINE_CODE_SPAN.sub(
+        lambda match: "".join("\n" if char == "\n" else " " for char in match.group()),
+        text,
+    )
+
+
 def broken_links(root):
     for document in markdown_files(root):
         text = FENCED_BLOCK.sub("", document.read_text(errors="replace"))
+        link_text = mask_inline_code(text)
         for pattern in (LINK, REFERENCE_LINK):
-            for match in pattern.finditer(text):
+            for match in pattern.finditer(link_text):
                 target = match.group(1) or match.group(2)
                 if is_broken_relative_link(document, target):
                     yield document, target

@@ -56,6 +56,13 @@ class MarkdownReferenceTests(unittest.TestCase):
 
             self.assertEqual(list(broken_links(root)), [])
 
+    def test_links_in_inline_code_are_ignored(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / "guide.md").write_text("Use `[example](missing.md)` literally.\n")
+
+            self.assertEqual(list(broken_links(root)), [])
+
     def test_url_encoded_path_is_resolved(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
