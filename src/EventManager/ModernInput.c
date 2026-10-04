@@ -342,9 +342,6 @@ void ProcessModernInput(void)
             /* Check for multi-click using GetDblTime() and gDoubleClickSlop */
             UInt32 threshold = GetDblTime();
 
-            /* Hardcoded slop value - gDoubleClickSlop global not working */
-            const UInt16 kClickSlop = 6;
-
             SInt16 dx = currentMousePos.h - g_modernInput.lastClickPos.h;
             SInt16 dy = currentMousePos.v - g_modernInput.lastClickPos.v;
 
@@ -366,7 +363,8 @@ void ProcessModernInput(void)
                 UInt32 effectiveThreshold = threshold;
 #endif
 
-                if (dt <= effectiveThreshold && dx <= kClickSlop && dy <= kClickSlop) {
+                if (dt <= effectiveThreshold &&
+                    dx <= gDoubleClickSlop && dy <= gDoubleClickSlop) {
                     /* Within time and distance - increment click count (cap at 3) */
                     g_modernInput.clickCount = (g_modernInput.clickCount < 3)
                         ? (g_modernInput.clickCount + 1) : 3;
