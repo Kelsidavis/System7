@@ -4,8 +4,6 @@ on:
   push:
     branches: [ main, master ]
     tags: [ 'v*' ]
-  pull_request:
-    branches: [ main, master ]
 
 # Keep actions/checkout's temporary repositories from emitting Git's
 # first-branch-name hint in every job.
@@ -27,14 +25,13 @@ jobs:
       - name: Select scheduled push runs
         id: select
         env:
-          EVENT_NAME: ${{ github.event_name }}
           REF_NAME: ${{ github.ref }}
           BRANCH_NAME: ${{ github.ref_name }}
           REPOSITORY: ${{ github.repository }}
           RUN_ID: ${{ github.run_id }}
           GH_TOKEN: ${{ github.token }}
         run: |
-          if [[ "$EVENT_NAME" == "pull_request" || "$REF_NAME" == refs/tags/v* ]]; then
+          if [[ "$REF_NAME" == refs/tags/v* ]]; then
             echo "run_ci=true" >> "$GITHUB_OUTPUT"
             exit 0
           fi
@@ -104,6 +101,7 @@ jobs:
               print(f"Could not determine push cadence ({error}); skipping full CI", file=sys.stderr)
               with open(os.environ["GITHUB_OUTPUT"], "a") as output:
                   output.write("run_ci=false\n")
+          PY
 
   build-x86:
     name: Build x86
