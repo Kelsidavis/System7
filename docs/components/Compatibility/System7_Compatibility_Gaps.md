@@ -12,7 +12,7 @@ This checklist records significant differences between the current toolbox reimp
   masks. Reserved or unsupported opcodes are skipped where their lengths are known;
   broad opcode coverage and malformed-picture validation remain incomplete.
 - ~~`src/QuickDraw/quickdraw_pictures.c` – `SetClip`/`GetClip` do not copy regions, breaking callers that expect independent clip regions.~~ **VERIFIED** (2025-10-06): SetClip/GetClip in QuickDrawCore.c properly use CopyRgn() for independent region copies
-- ~~`src/QuickDraw/CursorManager.c` – Cursor show/hide/obscure/spin still defer to TODOs; Mac OS required hardware cursor toggles and watch-cursor animation tied to `SpinCursor`.~~ **OBSOLETE** (2026-10-01): `CursorManager_SetCursorInternal()` / `cursor_set_bit()` / `CursorManager_ShouldBeVisible()` implement the state machine now; the old TODOs are gone from the file.
+- `src/QuickDraw/CursorManager.c` implements software cursor visibility, obscuring until mouse movement, and watch-frame cycling through `SpinCursor()`. Hardware-cursor integration and regression coverage for nested hide/show, background restoration, and watch-frame stepping remain unverified.
 
 ## Window, Dialog, Control, and Menu Managers
 - `include/DialogManager/DialogManager.h` declares `DialogCut`, `DialogCopy`,
