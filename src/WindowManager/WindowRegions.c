@@ -9,7 +9,7 @@
 #include <stddef.h>
 
 /* ============================================================================
- * Auto-Disposing Region Functions
+ * Region Ownership Functions
  * ============================================================================ */
 
 AutoRgnHandle WM_NewAutoRgn(void) {

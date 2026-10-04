@@ -1,14 +1,13 @@
 /*
- * WindowRegions.h - Safe Region Management with Auto-Disposal
+ * WindowRegions.h - Explicit ownership helpers for QuickDraw regions
  *
- * This header defines RAII-style wrappers for QuickDraw regions that prevent
- * memory leaks by ensuring regions are always disposed properly.
+ * This header defines ownership wrappers for QuickDraw regions. They make
+ * ownership explicit, but callers must dispose owned regions themselves.
  *
- * PROBLEM SOLVED:
- * Previously, NewRgn() allocations scattered throughout window management code
- * could leak if early returns or error paths skipped the corresponding
- * DisposeRgn() call. This was particularly problematic in complex functions
- * like MoveWindow() and DragWindow() with multiple exit points.
+ * OWNERSHIP MODEL:
+ * The wrapper records whether its region is owned and provides a common
+ * disposal operation. It does not provide automatic cleanup: every owning
+ * caller must call WM_DisposeAutoRgn() on all exit paths.
  *
  * Copyright (c) 2025 - System 7.1 Portable Project
  */
@@ -23,15 +22,15 @@ extern "C" {
 #endif
 
 /* ============================================================================
- * Auto-Disposing Region Handle
+ * Owned Region Handle
  * ============================================================================ */
 
 /*
- * AutoRgnHandle - RAII-style region handle with automatic disposal
+ * AutoRgnHandle - region handle with explicit ownership tracking
  *
  * This structure tracks whether a region handle is "owned" and should be
- * disposed when no longer needed. Use WM_DisposeAutoRgn() to clean up,
- * even on early returns.
+ * disposed when no longer needed. Call WM_DisposeAutoRgn() on every exit path
+ * that owns the region; this C wrapper does not clean up automatically.
  *
  * Example usage:
  *   void MyFunction(void) {
@@ -43,7 +42,7 @@ extern "C" {
  *       // Use tempRgn.rgn for work...
  *       RectRgn(tempRgn.rgn, &someRect);
  *
- *       // Early return is safe
+ *       // An early return must dispose the region first
  *       if (someError) {
  *           WM_DisposeAutoRgn(&tempRgn);
  *           return;  // No leak
@@ -59,13 +58,13 @@ typedef struct AutoRgnHandle {
 } AutoRgnHandle;
 
 /* ============================================================================
- * Auto-Disposing Region Functions
+ * Region Ownership Functions
  * ============================================================================ */
 
 /*
- * WM_NewAutoRgn - Create new auto-disposing region
+ * WM_NewAutoRgn - Create a region and mark it as owned
  *
- * Allocates a new region that will be tracked for disposal.
+ * Allocates a new region and records that the returned wrapper owns it.
  *
  * Returns: AutoRgnHandle with owned=true and rgn=NewRgn() result
  *          If allocation fails, rgn will be NULL but structure is still valid
@@ -75,9 +74,9 @@ typedef struct AutoRgnHandle {
 AutoRgnHandle WM_NewAutoRgn(void);
 
 /*
- * WM_WrapRgn - Wrap existing region for auto-disposal
+ * WM_WrapRgn - Wrap an existing region with explicit ownership
  *
- * Wraps an existing region handle so it will be auto-disposed.
+ * Wraps an existing region handle and records whether the wrapper owns it.
  * Useful when taking ownership of a region from another function.
  *
  * Parameters:
@@ -89,7 +88,7 @@ AutoRgnHandle WM_NewAutoRgn(void);
 AutoRgnHandle WM_WrapRgn(RgnHandle rgn, Boolean takeOwnership);
 
 /*
- * WM_DisposeAutoRgn - Dispose auto-disposing region
+ * WM_DisposeAutoRgn - Dispose an owned region
  *
  * Disposes the region if owned, then marks as no longer owned.
  * Safe to call multiple times on the same AutoRgnHandle.
@@ -118,10 +117,10 @@ RgnHandle WM_ReleaseAutoRgn(AutoRgnHandle* handle);
  * ============================================================================ */
 
 /*
- * WM_WITH_AUTO_RGN - Declare and auto-dispose region in function scope
+ * WM_WITH_AUTO_RGN - Declare an owned region wrapper in function scope
  *
- * Declares an AutoRgnHandle that will be automatically disposed when
- * the function returns (requires manual cleanup still, but easier to track).
+ * Declares an AutoRgnHandle. The wrapper is not automatically disposed when
+ * the function returns; pair it with WM_CLEANUP_AUTO_RGN() on each exit path.
  *
  * Example:
  *   void MyFunction(void) {
@@ -147,9 +146,9 @@ RgnHandle WM_ReleaseAutoRgn(AutoRgnHandle* handle);
  * ============================================================================ */
 
 /*
- * WM_CopyToAutoRgn - Copy region into auto-disposing handle
+ * WM_CopyToAutoRgn - Copy region into an owned handle
  *
- * Creates a new auto-disposing region and copies source region into it.
+ * Creates a new owned region and copies source region into it.
  * Handles allocation failure gracefully.
  *
  * Parameters:
@@ -160,9 +159,9 @@ RgnHandle WM_ReleaseAutoRgn(AutoRgnHandle* handle);
 AutoRgnHandle WM_CopyToAutoRgn(RgnHandle srcRgn);
 
 /*
- * WM_RectToAutoRgn - Create rectangular auto-disposing region
+ * WM_RectToAutoRgn - Create an owned rectangular region
  *
- * Creates a new auto-disposing region from a rectangle.
+ * Creates a new owned region from a rectangle.
  *
  * Parameters:
  *   rect - Rectangle to convert to region
