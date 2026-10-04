@@ -50,6 +50,12 @@ static struct {
     short titleWidth;          /* Width of menu title in menu bar */
 } g_menuTrackState = {0};
 
+static Boolean g_popupTracking = false;
+static MenuHandle g_popupMenu = NULL;
+static short g_popupTop = 0;
+static short g_popupLeft = 0;
+static short g_popupItem = 0;
+
 /* Global framebuffer from main.c */
 /* Rect helpers */
 
@@ -450,6 +456,8 @@ static long TrackMenu_Body(short menuID, Point *startPt) {
     Handle savedBits;
     Point mousePt;
     long result = 0;
+    Boolean popup = g_popupTracking;
+    Boolean popupRoot = popup && gTrackDepth == 1;
 
     /* Save current port */
     GetPort(&savePort);
@@ -457,7 +465,7 @@ static long TrackMenu_Body(short menuID, Point *startPt) {
     Menu_ClipToScreen();
 
     /* Get the menu */
-    MenuHandle theMenu = GetMenuHandle(menuID);
+    MenuHandle theMenu = popupRoot ? g_popupMenu : GetMenuHandle(menuID);
     if (!theMenu) {
         if (savePort) SetPort(savePort);
         return 0;
@@ -493,9 +501,18 @@ static long TrackMenu_Body(short menuID, Point *startPt) {
     short menuHeight = CalcMenuHeight(theMenu, itemCount);
 
     /* Get coordinates from startPt (already validated non-NULL earlier) */
-    short left = startPt->h;
+    short left = popupRoot ? g_popupLeft : startPt->h;
     /* A submenu opens beside its item; it was pinned under the menu bar. */
     short top = (gTrackDepth > 1) ? (short)(startPt->v - 2) : 20;
+    short initialItem = 0;
+    if (popupRoot) {
+        initialItem = g_popupItem + 1;
+        if (initialItem < 1 || initialItem > itemCount) initialItem = 1;
+        Rect itemRect;
+        Rect layout = {0, 0, menuHeight, menuWidth};
+        CalcMenuItemRect(theMenu, initialItem, &layout, &itemRect);
+        top = g_popupTop - itemRect.top;
+    }
 
     /* A menu that would run off the right of the screen is moved left to
      * fit (Inside Macintosh: Toolbox Essentials, 3-10). This clipped to a
@@ -505,8 +522,10 @@ static long TrackMenu_Body(short menuID, Point *startPt) {
      * part, leaving the rest on screen. */
     short screenRight = qd.screenBits.bounds.right;
     short screenBottom = qd.screenBits.bounds.bottom;
+    short screenLeft = qd.screenBits.bounds.left;
+    short screenTop = qd.screenBits.bounds.top;
     if (left + menuWidth > screenRight) left = screenRight - menuWidth;
-    if (left < 0) left = 0;
+    if (left < screenLeft) left = screenLeft;
 
     /* Calculate menu rectangle */
     menuRect.left = left;
@@ -515,13 +534,17 @@ static long TrackMenu_Body(short menuID, Point *startPt) {
     menuRect.bottom = top + menuHeight;
 
     /* A submenu that would run off the bottom moves up to fit */
-    if (gTrackDepth > 1 && top + menuHeight > screenBottom) {
+    if (popupRoot) {
+        if (top < screenTop) top = screenTop;
+        if (top + menuHeight > screenBottom) top = screenBottom - menuHeight;
+        if (top < screenTop) top = screenTop;
+    } else if (gTrackDepth > 1 && top + menuHeight > screenBottom) {
         top = screenBottom - menuHeight;
         if (top < 20) top = 20;
-        menuRect.top = top;
-        menuRect.bottom = top + menuHeight;
     }
 
+    menuRect.top = top;
+    menuRect.bottom = top + menuHeight;
     if (menuRect.right > screenRight) menuRect.right = screenRight;
     if (menuRect.bottom > screenBottom) menuRect.bottom = screenBottom;
 
@@ -546,13 +569,18 @@ static long TrackMenu_Body(short menuID, Point *startPt) {
     g_menuTrackState.menuWidth = menuWidth;
     g_menuTrackState.menuHeight = menuHeight;
     g_menuTrackState.itemCount = itemCount;
-    g_menuTrackState.highlightedItem = 0;
+    g_menuTrackState.highlightedItem = popupRoot &&
+        IsTrackedMenuItemSelectable(theMenu, initialItem) ? initialItem : 0;
 
     /* Draw the menu bar with the active menu highlighted */
-    DrawMenuBarWithHighlight(menuID);
+    if (!popup) DrawMenuBarWithHighlight(menuID);
 
     /* Draw the menu dropdown */
     DrawTrackedMenu(theMenu, left, top, menuWidth, menuHeight);
+    if (g_menuTrackState.highlightedItem > 0) {
+        DrawMenuItemRow(theMenu, g_menuTrackState.highlightedItem,
+                        left, top, menuWidth, true);
+    }
 
     /* Persistent menu tracking - menu stays open until user makes a selection or clicks outside */
     /* ADD SAFETY TIMEOUT: Prevent infinite tracking loop */
@@ -649,7 +677,7 @@ static long TrackMenu_Body(short menuID, Point *startPt) {
          *
          * Both gates are in ticks, so they describe real time rather than however
          * fast this loop happens to spin. */
-        const UInt32 MENU_ARM_TICKS     = 12; /* ~200ms open before selectable */
+        const UInt32 MENU_ARM_TICKS     = popup ? 0 : 12; /* ~200ms for pull-down menus */
         const UInt32 RELEASE_DEBOUNCE   = 2;  /* ~33ms of steady release */
 
         /* Is the pointer over one of this menu's items right now? */
@@ -696,7 +724,7 @@ static long TrackMenu_Body(short menuID, Point *startPt) {
             Point clickPt = mousePt;  /* Capture the indicated position */
 
             /* Check if click is within the menu bounds */
-            if (clickPt.h >= left && clickPt.h < left + menuWidth) {
+        if (clickPt.h >= left && clickPt.h < left + menuWidth) {
                 if (clickPt.v >= top + 4 && clickPt.v < top + menuHeight - 4) {
                     short clickedItem = TrackedMenuItemAtPoint(
                         theMenu, clickPt, left, top, menuWidth, itemCount);
@@ -780,6 +808,27 @@ static long TrackMenu_Body(short menuID, Point *startPt) {
     /* Invalidate cursor so it gets redrawn (menu operations corrupt cursor background) */
     InvalidateCursor();
 
+    return result;
+}
+
+long PopUpMenuSelect(MenuHandle menu, short top, short left, short popUpItem) {
+    if (!menu || !*menu || g_popupTracking || g_menuTrackState.isTracking) return 0;
+
+    g_popupMenu = menu;
+    g_popupTop = top;
+    g_popupLeft = left;
+    g_popupItem = popUpItem;
+    g_popupTracking = true;
+
+    Point anchor = { .v = top, .h = left };
+    short menuID = (*(MenuInfo**)menu)->menuID;
+    long result = TrackMenu(menuID, &anchor);
+
+    g_popupTracking = false;
+    g_popupMenu = NULL;
+    g_popupTop = 0;
+    g_popupLeft = 0;
+    g_popupItem = 0;
     return result;
 }
 

@@ -556,14 +556,15 @@ void InsertIntlResMenu(MenuHandle theMenu, ResType theType, short afterItem, sho
 /*
  * PopUpMenuSelect - Display popup menu
  *
- * Displays a popup menu at the specified location and tracks user selection.
- * Popup menus can appear anywhere on screen and don't affect the menu bar.
+ * Displays a popup menu at the closed control's screen location and tracks
+ * user selection without changing the menu bar.
  *
  * Parameters:
  *   menu      - Handle to menu to display
- *   top       - Top coordinate for menu (global)
- *   left      - Left coordinate for menu (global)
- *   popUpItem - Item to position at click point (0 = top of menu)
+ *   top       - Top coordinate of the closed pop-up box (global)
+ *   left      - Left coordinate of the closed pop-up box (global)
+ *   popUpItem - Previous item number minus one; the corresponding row opens
+ *               highlighted at the box location
  *
  * Returns: Menu selection as long (menu ID in high word, item in low word)
  *          Returns 0 if no selection was made

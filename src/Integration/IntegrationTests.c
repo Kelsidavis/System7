@@ -1816,6 +1816,13 @@ static void Test_MenuResourceNames(void) {
     RecordTest(test_name, true, NULL);
 }
 
+static void Test_Menu_PopUpNullMenu(void) {
+    const char* test_name = "Menu_PopUpNullMenu";
+    CHECK(PopUpMenuSelect(NULL, 0, 0, 0) == 0,
+          "a null menu should cancel without entering tracking");
+    RecordTest(test_name, true, "");
+}
+
 static void Test_Resource_CreateAndOpenResFile(void) {
     const char* test_name = "Resource_CreateAndOpenResFile";
     FSSpec spec;
@@ -2422,6 +2429,7 @@ void IntegrationTests_Run(void) {
     Test_Resource_CreateAndOpenResFile();
     Test_Resource_WriteAndReadBack();
     Test_MenuResourceNames();
+    Test_Menu_PopUpNullMenu();
     Test_Resource_OpenMissingResFile();
 
     IT_LOG_INFO("--- Segment Loader ---");

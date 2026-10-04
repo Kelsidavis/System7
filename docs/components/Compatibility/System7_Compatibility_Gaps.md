@@ -43,7 +43,7 @@ This checklist records significant differences between the current toolbox reimp
 - ~~`src/DialogManager/dialog_manager_private.c` – `GetNextUserCancelEvent` is a stub; modal dialogs should scan the event queue for cancel gestures (Command-.) as the Classic API allowed.~~ **FIXED** (2025-10-06): IsUserCancelEvent/GetNextUserCancelEvent implemented, modal dialogs support Cmd-. and Escape
 - ~~`src/ControlManager/StandardControls.c` – Push-button title baselines used hard-coded ascent/descent values instead of the selected system font metrics.~~ **FIXED**: push-button, checkbox, and radio labels now use `GetFontInfo()`, which queries Font Manager metrics and falls back to fixed defaults when unavailable.
 - Mixed-state checkbox paths remain unvalidated; native System 7 controls supported tri-state checkboxes.
-- `include/MenuManager/MenuManager.h` declares `PopUpMenuSelect`, but there is no definition in `src/`; implement popup tracking and return encoding, then add integration coverage.
+- `PopUpMenuSelect()` now uses the existing menu tracker, positions the previous item at the closed pop-up box, and leaves the menu bar untouched. End-to-end pointer selection, off-screen placement, and scrolling/custom MDEF behavior still need validation against System 7.
 - `include/MenuManager/MenuManager.h` also declares `InsertIntlResMenu` and `InitProcMenu`, with no definitions in `src/`.
 - `include/ControlManager/ControlManager.h` declares `NewEditTextControl`, `NewStaticTextControl`, and `NewPopupControl`, but none has a definition in `src/`.
 
