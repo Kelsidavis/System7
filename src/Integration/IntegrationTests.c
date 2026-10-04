@@ -1834,6 +1834,20 @@ static void Test_TextEditGetStyle(void) {
     TEGetStyle(1, &insertedStyle, NULL, NULL, hTE);
     Boolean styledInsertOK = insertedStyle.tsFace == bold &&
                              (**hTE).selStart == 3 && (**hTE).selEnd == 3;
+
+    TESetSelect(0, 4, hTE);
+    TECopy(hTE);
+    TEHandle pasted = TEStyleNew(&rect, &rect);
+    Boolean stylePasteOK = false;
+    if (pasted) {
+        TEStylePaste(pasted);
+        TextStyle pastedFirst = {0}, pastedLast = {0};
+        TEGetStyle(0, &pastedFirst, NULL, NULL, pasted);
+        TEGetStyle(3, &pastedLast, NULL, NULL, pasted);
+        stylePasteOK = (**pasted).teLength == 4 &&
+                       pastedFirst.tsFace == bold && pastedLast.tsFace == italic;
+        TEDispose(pasted);
+    }
     DisposeHandle((Handle)scrap);
     TEDispose(hTE);
 
@@ -1845,6 +1859,8 @@ static void Test_TextEditGetStyle(void) {
           "TEUseStyleScrap did not apply each run or restore selection");
     CHECK(styledInsertOK,
           "TEStyleInsert did not preserve pasted run style or caret");
+    CHECK(stylePasteOK,
+          "TEStylePaste did not round-trip classic styled scrap");
     RecordTest(test_name, true, "");
 }
 

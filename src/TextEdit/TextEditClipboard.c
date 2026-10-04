@@ -7,6 +7,7 @@
 #include "TextEdit/TextEdit.h"
 #include "MemoryMgr/MemoryManager.h"
 #include "ScrapManager/ScrapManager.h"
+#include "FontManager/FontManager.h"
 #include "ErrorCodes.h"
 #include "ToolboxCompat.h"
 #include <string.h>
@@ -38,9 +39,244 @@
 static Handle g_TEScrap = NULL;
 static Handle g_TEStyleScrap = NULL;
 
+static UInt16 TE_ReadBigEndian16(const UInt8 *bytes) {
+    return (UInt16)(((UInt16)bytes[0] << 8) | bytes[1]);
+}
+
+static UInt32 TE_ReadBigEndian32(const UInt8 *bytes) {
+    return ((UInt32)bytes[0] << 24) | ((UInt32)bytes[1] << 16) |
+           ((UInt32)bytes[2] << 8) | bytes[3];
+}
+
+static void TE_WriteBigEndian16(UInt8 *bytes, UInt16 value) {
+    bytes[0] = (UInt8)(value >> 8);
+    bytes[1] = (UInt8)value;
+}
+
+static void TE_WriteBigEndian32(UInt8 *bytes, UInt32 value) {
+    bytes[0] = (UInt8)(value >> 24);
+    bytes[1] = (UInt8)(value >> 16);
+    bytes[2] = (UInt8)(value >> 8);
+    bytes[3] = (UInt8)value;
+}
+
+static Handle TE_DecodeStyleScrap(Handle classicScrap) {
+    const u32 recordHeaderSize = sizeof(SInt16);
+    const u32 elementSize = 20;
+    u32 classicSize;
+    SInt16 styleCount;
+    Handle nativeScrap;
+
+    if (!classicScrap) return NULL;
+    classicSize = GetHandleSize(classicScrap);
+    if (classicSize < recordHeaderSize) return NULL;
+
+    HLock(classicScrap);
+    const UInt8 *bytes = (const UInt8 *)*classicScrap;
+    styleCount = (SInt16)TE_ReadBigEndian16(bytes);
+    if (styleCount < 0 || styleCount > 1601 ||
+        recordHeaderSize + (u32)styleCount * elementSize > classicSize) {
+        HUnlock(classicScrap);
+        return NULL;
+    }
+
+    nativeScrap = NewHandleClear(recordHeaderSize +
+                                 (u32)styleCount * sizeof(ScrpSTElement));
+    if (!nativeScrap) {
+        HUnlock(classicScrap);
+        return NULL;
+    }
+    HLock(nativeScrap);
+    StScrpRec *record = (StScrpRec *)HandleDataAligned(nativeScrap);
+    if (!record) {
+        HUnlock(nativeScrap);
+        DisposeHandle(nativeScrap);
+        HUnlock(classicScrap);
+        return NULL;
+    }
+
+    record->scrpNStyles = styleCount;
+    for (SInt16 i = 0; i < styleCount; i++) {
+        const UInt8 *source = bytes + recordHeaderSize + (u32)i * elementSize;
+        ScrpSTElement *style = &record->scrpStyleTab[i];
+        style->scrpStartChar = (SInt32)TE_ReadBigEndian32(source);
+        style->scrpHeight = (SInt16)TE_ReadBigEndian16(source + 4);
+        style->scrpAscent = (SInt16)TE_ReadBigEndian16(source + 6);
+        style->scrpFont = (SInt16)TE_ReadBigEndian16(source + 8);
+        style->scrpFace = source[10];
+        style->scrpSize = (SInt16)TE_ReadBigEndian16(source + 12);
+        style->scrpColor.red = TE_ReadBigEndian16(source + 14);
+        style->scrpColor.green = TE_ReadBigEndian16(source + 16);
+        style->scrpColor.blue = TE_ReadBigEndian16(source + 18);
+    }
+
+    HUnlock(nativeScrap);
+    HUnlock(classicScrap);
+    return nativeScrap;
+}
+
+static Handle TE_EncodeStyleScrap(Handle nativeScrap) {
+    const u32 recordHeaderSize = sizeof(SInt16);
+    const u32 elementSize = 20;
+    u32 nativeSize;
+    u32 classicSize;
+    Handle classicScrap;
+
+    if (!nativeScrap) return NULL;
+    nativeSize = GetHandleSize(nativeScrap);
+    if (nativeSize < recordHeaderSize) return NULL;
+
+    HLock(nativeScrap);
+    StScrpRec *record = (StScrpRec *)HandleDataAligned(nativeScrap);
+    if (!record || record->scrpNStyles < 0 || record->scrpNStyles > 1601 ||
+        recordHeaderSize + (u32)record->scrpNStyles * sizeof(ScrpSTElement) >
+            nativeSize) {
+        HUnlock(nativeScrap);
+        return NULL;
+    }
+
+    classicSize = recordHeaderSize + (u32)record->scrpNStyles * elementSize;
+    classicScrap = NewHandleClear(classicSize);
+    if (!classicScrap) {
+        HUnlock(nativeScrap);
+        return NULL;
+    }
+    HLock(classicScrap);
+    UInt8 *bytes = (UInt8 *)*classicScrap;
+    TE_WriteBigEndian16(bytes, (UInt16)record->scrpNStyles);
+    for (SInt16 i = 0; i < record->scrpNStyles; i++) {
+        const ScrpSTElement *style = &record->scrpStyleTab[i];
+        UInt8 *destination = bytes + recordHeaderSize + (u32)i * elementSize;
+        TE_WriteBigEndian32(destination, (UInt32)style->scrpStartChar);
+        TE_WriteBigEndian16(destination + 4, (UInt16)style->scrpHeight);
+        TE_WriteBigEndian16(destination + 6, (UInt16)style->scrpAscent);
+        TE_WriteBigEndian16(destination + 8, (UInt16)style->scrpFont);
+        destination[10] = style->scrpFace;
+        TE_WriteBigEndian16(destination + 12, (UInt16)style->scrpSize);
+        TE_WriteBigEndian16(destination + 14, style->scrpColor.red);
+        TE_WriteBigEndian16(destination + 16, style->scrpColor.green);
+        TE_WriteBigEndian16(destination + 18, style->scrpColor.blue);
+    }
+    HUnlock(classicScrap);
+    HUnlock(nativeScrap);
+    return classicScrap;
+}
+
 /* Forward declarations */
 static OSErr TE_CopyToScrap(TEHandle hTE);
 static OSErr TE_GetFromScrap(TEHandle hTE);
+
+static Handle TE_CreateStyleScrap(TEExtPtr pTE, SInt32 selectionStart,
+                                  SInt32 selectionEnd) {
+    STRec *styleRec;
+    TEStyleTable *styleTable;
+    TERunArray *runArray;
+    SInt16 runCount = 0;
+    Handle styleScrap;
+
+    if (!pTE->hStyles) return NULL;
+    HLock(pTE->hStyles);
+    styleRec = (STRec *)HandleDataAligned(pTE->hStyles);
+    if (!styleRec || !styleRec->runArray || !styleRec->styleTab ||
+        styleRec->nRuns <= 0) {
+        HUnlock(pTE->hStyles);
+        return NULL;
+    }
+    HLock(styleRec->runArray);
+    HLock(styleRec->styleTab);
+    runArray = (TERunArray *)HandleDataAligned(styleRec->runArray);
+    styleTable = (TEStyleTable *)HandleDataAligned(styleRec->styleTab);
+    if (!runArray || !styleTable || runArray->nRuns <= 0 ||
+        styleTable->nStyles <= 0) {
+        HUnlock(styleRec->styleTab);
+        HUnlock(styleRec->runArray);
+        HUnlock(pTE->hStyles);
+        return NULL;
+    }
+
+    for (SInt16 i = 0; i < runArray->nRuns; i++) {
+        SInt32 runStart = runArray->runs[i].startChar;
+        SInt32 runEnd = (i + 1 < runArray->nRuns) ?
+            runArray->runs[i + 1].startChar : pTE->base.teLength;
+        if (runEnd > selectionStart && runStart < selectionEnd) runCount++;
+    }
+    if (runCount == 0) runCount = 1;
+    if (runCount > 1601) {
+        HUnlock(styleRec->styleTab);
+        HUnlock(styleRec->runArray);
+        HUnlock(pTE->hStyles);
+        return NULL;
+    }
+
+    styleScrap = NewHandleClear(sizeof(SInt16) +
+                                (u32)runCount * sizeof(ScrpSTElement));
+    if (styleScrap) {
+        HLock(styleScrap);
+        StScrpRec *scrap = (StScrpRec *)HandleDataAligned(styleScrap);
+        if (scrap) {
+            scrap->scrpNStyles = runCount;
+            SInt16 outIndex = 0;
+            GrafPtr savedPort = NULL;
+            GetPort(&savedPort);
+            if (pTE->base.inPort) SetPort(pTE->base.inPort);
+
+            for (SInt16 i = 0; i < runArray->nRuns && outIndex < runCount; i++) {
+                SInt32 runStart = runArray->runs[i].startChar;
+                SInt32 runEnd = (i + 1 < runArray->nRuns) ?
+                    runArray->runs[i + 1].startChar : pTE->base.teLength;
+                if (runEnd <= selectionStart || runStart >= selectionEnd) continue;
+
+                SInt16 styleIndex = runArray->runs[i].styleIndex;
+                if (styleIndex < 0 || styleIndex >= styleTable->nStyles) continue;
+                TextStyle *source = &styleTable->styles[styleIndex];
+                ScrpSTElement *destination = &scrap->scrpStyleTab[outIndex++];
+                destination->scrpStartChar =
+                    (runStart > selectionStart ? runStart : selectionStart) -
+                    selectionStart;
+                destination->scrpFont = source->tsFont;
+                destination->scrpFace = source->tsFace;
+                destination->scrpSize = source->tsSize;
+                destination->scrpColor = source->tsColor;
+
+                GrafPort *port = (GrafPort *)pTE->base.inPort;
+                SInt16 oldFont = port ? port->txFont : 0;
+                SInt16 oldSize = port ? port->txSize : 12;
+                Style oldFace = port ? port->txFace : normal;
+                if (port) {
+                    TextFont(source->tsFont);
+                    TextSize(source->tsSize);
+                    TextFace(source->tsFace);
+                }
+                FMetricRec metrics;
+                GetFontMetrics(&metrics);
+                destination->scrpHeight = (SInt16)(metrics.ascent +
+                    metrics.descent + metrics.leading);
+                destination->scrpAscent = (SInt16)metrics.ascent;
+                if (port) {
+                    TextFont(oldFont);
+                    TextSize(oldSize);
+                    TextFace(oldFace);
+                }
+            }
+            if (savedPort) SetPort(savedPort);
+            if (outIndex != runCount) {
+                HUnlock(styleScrap);
+                DisposeHandle(styleScrap);
+                styleScrap = NULL;
+            }
+        } else {
+            HUnlock(styleScrap);
+            DisposeHandle(styleScrap);
+            styleScrap = NULL;
+        }
+        if (styleScrap) HUnlock(styleScrap);
+    }
+
+    HUnlock(styleRec->styleTab);
+    HUnlock(styleRec->runArray);
+    HUnlock(pTE->hStyles);
+    return styleScrap;
+}
 
 /* ============================================================================
  * Cut/Copy/Paste Operations
@@ -146,103 +382,40 @@ void TEPaste(TEHandle hTE) {
         }
     }
 
-    /* Handle style scrap for styled text */
-    if (pTE->hStyles && g_TEStyleScrap) {
-        /* If we have style information, we could apply it to the pasted text */
-        /* For now, just note that styles were available during paste */
-        TEC_LOG("TEPaste: style scrap available for styled text\n");
-    }
-
     HUnlock((Handle)hTE);
 }
 
-/*
- * TEStylePaste - Paste with style information
- *
- * Pastes text and reads style runs from the clipboard when available.
- * Applying those runs to the pasted range remains unimplemented.
- */
 void TEStylePaste(TEHandle hTE) {
     TEExtPtr pTE;
-    TERec **teRec;
-    SInt16 pasteStart;
-    SInt32 pasteLen;
-    SInt16 i;
+    SInt32 pasteStart;
+    SInt32 pasteEnd;
+    Boolean styled;
 
     if (!hTE) return;
 
     HLock((Handle)hTE);
     pTE = (TEExtPtr)*hTE;
-    teRec = (TERec **)hTE;
+    pasteStart = pTE->base.selStart;
+    styled = pTE->hStyles != NULL;
+    HUnlock((Handle)hTE);
 
-    /* Remember paste starting position */
-    pasteStart = (**teRec).selStart;
-
-    /* First, paste the text normally */
-    TEPaste(hTE);
-
-    /* Re-get pTE pointer after TEPaste */
-    pTE = (TEExtPtr)*hTE;
-    teRec = (TERec **)hTE;
-    pasteLen = (**teRec).selStart - pasteStart;
-
-    /* Check if this is a styled TE record with style scrap */
-    if (pTE->hStyles && g_TEStyleScrap && pasteLen > 0) {
-        /* Apply styles from scrap */
-        /* pasteLen is 32-bit: %d would pass a 4-byte int to printf. */
-        TEC_LOG("TEStylePaste: styled paste - %ld bytes of style metadata available\n",
-                (long)pasteLen);
-
-        HLock(g_TEStyleScrap);
-        SInt16 *scrapPtr = (SInt16*)HandleDataAligned(g_TEStyleScrap);
-        if (!scrapPtr) {
-            HUnlock(g_TEStyleScrap);
-            return;
-        }
-        SInt16 styleRunCount = scrapPtr[0];  /* First word: number of runs */
-
-        /* Each style run is: offset (SInt16), font (SInt16), size (SInt16), face (SInt16), color (3 x SInt16) */
-        size_t runOffset = 1;  /* Start after count word */
-        Size scrapSize = GetHandleSize(g_TEStyleScrap);
-
-        for (i = 0; i < styleRunCount && scrapSize >= 0 &&
-             runOffset + 8 <= (size_t)scrapSize / sizeof(SInt16); i++) {
-            SInt16 runStart = scrapPtr[runOffset++];
-            SInt16 runFont = scrapPtr[runOffset++];
-            SInt16 runSize = scrapPtr[runOffset++];
-            SInt16 runFace = scrapPtr[runOffset++];
-
-            /* Skip color fields (3 words) */
-            runOffset += 3;
-
-            /* Calculate end of this run or use paste length */
-            SInt16 runEnd = (i + 1 < styleRunCount) ? scrapPtr[runOffset] : (SInt16)pasteLen;
-
-            /* Log style run application (actual application deferred to TESetStyle) */
-            if (runEnd <= pasteLen && runStart < runEnd) {
-                /* All six are 32-bit: %d/%x would pass 4-byte ints to printf. */
-                TEC_LOG("TEStylePaste: run %d offset [%ld,%d] font=%d size=%d face=0x%x\n",
-                    i, (long)runStart, runEnd, runFont, runSize, runFace);
-            }
-        }
-
-        HUnlock(g_TEStyleScrap);
-
-        /* Reset selection to end of pasted text */
-        pTE = (TEExtPtr)*hTE;
-        teRec = (TERec **)hTE;
-        (**teRec).selStart = pasteStart + pasteLen;
-        (**teRec).selEnd = pasteStart + pasteLen;
-
-        /* styleRunCount is 32-bit: %d would pass a 4-byte int. */
-        TEC_LOG("TEStylePaste: %ld style runs recorded; application deferred\n",
-                (long)styleRunCount);
-    } else {
-        /* Plain paste */
-        TEC_LOG("TEStylePaste: plain text paste (no styles)\n");
+    if (!styled) {
+        TEPaste(hTE);
+        return;
     }
 
+    TEFromScrap();
+    TEPaste(hTE);
+
+    HLock((Handle)hTE);
+    pTE = (TEExtPtr)*hTE;
+    pasteEnd = pTE->base.selStart;
     HUnlock((Handle)hTE);
+
+    if (pasteEnd > pasteStart && g_TEStyleScrap) {
+        TEUseStyleScrap(pasteStart, pasteEnd, g_TEStyleScrap, false, hTE);
+        TEUpdate(NULL, hTE);
+    }
 }
 
 /* ============================================================================
@@ -311,7 +484,13 @@ OSErr TEFromScrap(void) {
                     SetHandleSize(g_TEStyleScrap, styleScrapSize);
                     styleErr = MemError();
                     if (styleErr == noErr) {
-                        TEC_LOG("TEFromScrap: loaded %ld bytes of style scrap\n", styleScrapSize);
+                        Handle decoded = TE_DecodeStyleScrap(g_TEStyleScrap);
+                        DisposeHandle(g_TEStyleScrap);
+                        g_TEStyleScrap = decoded;
+                        if (decoded) {
+                            TEC_LOG("TEFromScrap: loaded %ld bytes of style scrap\n",
+                                    styleScrapSize);
+                        }
                     } else {
                         DisposeHandle(g_TEStyleScrap);
                         g_TEStyleScrap = NULL;
@@ -353,14 +532,20 @@ OSErr TEToScrap(void) {
 
         /* Put style scrap if present */
         if (g_TEStyleScrap) {
-            SInt32 styleScrapSize = GetHandleSize(g_TEStyleScrap);
-            if (styleScrapSize > 0) {
-                HLock(g_TEStyleScrap);
-                PutScrap(styleScrapSize, kScrapFlavorTypeStyle, *g_TEStyleScrap);
-                HUnlock(g_TEStyleScrap);
+            Handle classicStyleScrap = TE_EncodeStyleScrap(g_TEStyleScrap);
+            if (classicStyleScrap) {
+                SInt32 styleScrapSize = GetHandleSize(classicStyleScrap);
+                if (styleScrapSize > 0) {
+                    HLock(classicStyleScrap);
+                    PutScrap(styleScrapSize, kScrapFlavorTypeStyle,
+                             *classicStyleScrap);
+                    HUnlock(classicStyleScrap);
 
-                /* styleScrapSize is 32-bit: %d would pass a 4-byte int. */
-                TEC_LOG("TEToScrap: saved %ld bytes of 'styl'\n", (long)styleScrapSize);
+                    /* styleScrapSize is 32-bit: %d would pass a 4-byte int. */
+                    TEC_LOG("TEToScrap: saved %ld bytes of 'styl'\n",
+                            (long)styleScrapSize);
+                }
+                DisposeHandle(classicStyleScrap);
             }
         }
 
@@ -391,11 +576,6 @@ static OSErr TE_CopyToScrap(TEHandle hTE) {
     TERec **teRec;
     SInt32 selLen;
     char *pText;
-    SInt16 runCount;
-    TextStyle currentStyle;
-    Handle styleHandle;
-    SInt16 *stylePtr;
-    SInt16 styleIndex;
 
     if (!hTE) return paramErr;
 
@@ -435,138 +615,17 @@ static OSErr TE_CopyToScrap(TEHandle hTE) {
     /* selLen is 32-bit: %d would pass a 4-byte int to printf. */
     TEC_LOG("TE_CopyToScrap: copied %ld bytes\n", (long)selLen);
 
-    /* Copy style information if styled */
+    if (g_TEStyleScrap) {
+        DisposeHandle(g_TEStyleScrap);
+        g_TEStyleScrap = NULL;
+    }
     if (pTE->hStyles) {
-        STRec *stRec;
-        TEStyleTable *styleTab;
-        TERunArray *runArr;
-        SInt16 runIndex;
-        SInt32 currentOffset;
-        SInt32 selStart = (**teRec).selStart;
-        SInt32 selEnd = (**teRec).selEnd;
-
-        /* Create style scrap for styled text */
-        if (g_TEStyleScrap) {
-            DisposeHandle(g_TEStyleScrap);
-            g_TEStyleScrap = NULL;
-        }
-
-        /* Allocate temporary handle for style runs */
-        /* Format: [count][offset, font, size, face, color(3), reserved]×N */
-        styleHandle = NewHandle((selLen + 1) * sizeof(SInt16) * 10);
-        if (!styleHandle) {
+        g_TEStyleScrap = TE_CreateStyleScrap(pTE, (**teRec).selStart,
+                                             (**teRec).selEnd);
+        if (!g_TEStyleScrap) {
             HUnlock((Handle)hTE);
             return memFullErr;
         }
-
-        HLock(styleHandle);
-        stylePtr = (SInt16*)HandleDataAligned(styleHandle);
-        if (!stylePtr) {
-            HUnlock(styleHandle);
-            DisposeHandle(styleHandle);
-            HUnlock((Handle)hTE);
-            return memFullErr;
-        }
-        styleIndex = 1;  /* Leave room for count */
-        runCount = 0;
-
-        /* Lock style data to access run array and style table */
-        HLock(pTE->hStyles);
-        stRec = (STRec*)HandleDataAligned(pTE->hStyles);
-
-        if (stRec && stRec->runArray && *stRec->runArray &&
-            stRec->styleTab && *stRec->styleTab) {
-            /* Access run array and style table */
-            HLock(stRec->runArray);
-            HLock(stRec->styleTab);
-
-            runArr = (TERunArray*)HandleDataAligned(stRec->runArray);
-            styleTab = (TEStyleTable*)HandleDataAligned(stRec->styleTab);
-
-            /* Iterate through style runs, finding those that overlap selection */
-            for (runIndex = 0; runArr && styleTab && runIndex < runArr->nRuns &&
-                 runIndex < 1000; runIndex++) {  /* 1000 = safety limit */
-
-                SInt32 runStart = runArr->runs[runIndex].startChar;
-                SInt32 nextRunStart = (runIndex + 1 < runArr->nRuns) ?
-                    runArr->runs[runIndex + 1].startChar : (**teRec).teLength;
-
-                /* Skip runs before selection */
-                if (nextRunStart <= selStart) {
-                    continue;
-                }
-
-                /* Stop after selection ends */
-                if (runStart >= selEnd) {
-                    break;
-                }
-
-                /* Calculate offset relative to selection start */
-                currentOffset = (runStart >= selStart) ? (runStart - selStart) : 0;
-                (void)((nextRunStart > selEnd) ? (selEnd - selStart) : (nextRunStart - selStart));
-
-                /* Get style for this run */
-                SInt16 styleIdx = runArr->runs[runIndex].styleIndex;
-                if (styleIdx >= 0 && styleIdx < styleTab->nStyles) {
-                    TextStyle *pStyle = &styleTab->styles[styleIdx];
-
-                    /* Emit style run */
-                    if (styleIndex + 8 < (selLen + 1) * 10) {
-                        stylePtr[styleIndex++] = (SInt16)currentOffset;
-                        stylePtr[styleIndex++] = pStyle->tsFont;
-                        stylePtr[styleIndex++] = pStyle->tsSize;
-                        stylePtr[styleIndex++] = pStyle->tsFace;
-                        stylePtr[styleIndex++] = pStyle->tsColor.red;
-                        stylePtr[styleIndex++] = pStyle->tsColor.green;
-                        stylePtr[styleIndex++] = pStyle->tsColor.blue;
-                        stylePtr[styleIndex++] = 0;  /* Reserved */
-                        runCount++;
-
-                        /* All four are 32-bit: %d would pass 4-byte ints to printf. */
-                        TEC_LOG("TE_CopyToScrap: serialized run at offset %ld, style %d (font=%d, size=%d)\n",
-                                (long)currentOffset, styleIdx, pStyle->tsFont, pStyle->tsSize);
-                    }
-                }
-            }
-
-            HUnlock(stRec->styleTab);
-            HUnlock(stRec->runArray);
-        } else {
-            /* Fallback to uniform style if structures invalid */
-            TEC_LOG("TE_CopyToScrap: style structures invalid, using fallback\n");
-            currentStyle.tsFont = (**teRec).txFont;
-            currentStyle.tsSize = (**teRec).txSize;
-            currentStyle.tsFace = (**teRec).txFace;
-            currentStyle.tsColor.red = 0;
-            currentStyle.tsColor.green = 0;
-            currentStyle.tsColor.blue = 0;
-
-            if (styleIndex + 8 < (selLen + 1) * 10) {
-                stylePtr[styleIndex++] = 0;  /* Start offset */
-                stylePtr[styleIndex++] = currentStyle.tsFont;
-                stylePtr[styleIndex++] = currentStyle.tsSize;
-                stylePtr[styleIndex++] = currentStyle.tsFace;
-                stylePtr[styleIndex++] = currentStyle.tsColor.red;
-                stylePtr[styleIndex++] = currentStyle.tsColor.green;
-                stylePtr[styleIndex++] = currentStyle.tsColor.blue;
-                stylePtr[styleIndex++] = 0;  /* Reserved */
-                runCount = 1;
-            }
-        }
-
-        HUnlock(pTE->hStyles);
-
-        /* Store count at beginning */
-        stylePtr[0] = runCount;
-
-        HUnlock(styleHandle);
-
-        /* Resize handle to actual size used */
-        SetHandleSize(styleHandle, styleIndex * sizeof(SInt16));
-        g_TEStyleScrap = styleHandle;
-
-        /* runCount and selLen are 32-bit: %d would pass 4-byte ints. */
-        TEC_LOG("TE_CopyToScrap: copied style scrap with %ld runs for %ld bytes\n", (long)runCount, (long)selLen);
     }
 
     HUnlock((Handle)hTE);
