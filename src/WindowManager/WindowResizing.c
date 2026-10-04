@@ -31,6 +31,7 @@
 #include <math.h>
 
 typedef struct WindowStateData WindowStateData;
+static WindowStateData* WM_GetWindowStateData(WindowPtr window);
 static void WM_CalculateStandardState(WindowPtr window, Rect* stdState);
 static void WM_UpdateWindowUserState(WindowPtr window);
 static void Local_UpdateStateChecksum(WindowStateData* stateData);
@@ -478,7 +479,7 @@ void ZoomWindow(WindowPtr theWindow, short partCode, Boolean front) {
  * in an auxiliary record that does not exist, so each call made new ones -
  * leaking them, and forgetting where the window had been before zooming.
  */
-WindowStateData* WM_GetWindowStateData(WindowPtr window) {
+static WindowStateData* WM_GetWindowStateData(WindowPtr window) {
     if (window == NULL) return NULL;
     if (window->dataHandle && *window->dataHandle) {
         return (WindowStateData*)HandleDataAligned(window->dataHandle);
@@ -499,6 +500,11 @@ WindowStateData* WM_GetWindowStateData(WindowPtr window) {
         stateData->hasUserState = true;
     }
     return stateData;
+}
+
+Boolean WM_WindowIsZoomed(WindowPtr window) {
+    WindowStateData* stateData = WM_GetWindowStateData(window);
+    return stateData ? stateData->isZoomed : false;
 }
 
 static void WM_CalculateStandardState(WindowPtr window, Rect* stdState) {

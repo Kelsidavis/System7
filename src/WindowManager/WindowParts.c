@@ -656,22 +656,6 @@ Boolean WM_WindowHasCloseBox(WindowPtr window) {
     return window && window->goAwayFlag && WM_WindowHasTitleBar(window);
 }
 
-/* Return whether Window Manager state marks a window as zoomed. */
-Boolean WM_WindowIsZoomed(WindowPtr window) {
-    if (window == NULL) return false;
-
-    /* Get window state data from WindowResizing module */
-    struct WindowStateData* statePtr = WM_GetWindowStateData(window);
-    if (statePtr == NULL) {
-        return false;
-    }
-
-    /* WindowStateData structure: first field is Boolean isZoomed */
-    /* Access at offset 0 since isZoomed is the first member */
-    Boolean* isZoomed = (Boolean*)statePtr;
-    return *isZoomed;
-}
-
 /* ============================================================================
  * Dialog Window Hit Testing
  * ============================================================================ */

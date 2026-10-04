@@ -307,9 +307,6 @@ struct WindowManagerState {
 typedef void (*DeskHookProc)(RgnHandle invalidRgn);
 extern DeskHookProc g_deskHook;
 
-struct WindowStateData;
-struct WindowStateData* WM_GetWindowStateData(WindowPtr window);
-
 /* Windows whose offscreen buffer failed to reallocate on a resize, so the next
  * resize tries again (WindowResizing.c). */
 Boolean WM_BufferLost(WindowPtr theWindow, Boolean mark);

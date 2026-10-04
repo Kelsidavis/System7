@@ -21,6 +21,7 @@
 #include "DialogManager/DialogResourceParser.h"
 #include "ResourceManager.h"
 #include "WindowManager/WindowManager.h"
+#include "WindowManager/WindowManagerInternal.h"
 #include "QuickDraw/QuickDraw.h"
 #include "QuickDraw/ColorQuickDraw.h"
 #include "SystemInternal.h"
@@ -850,6 +851,25 @@ static void Test_Dialog_NestedModalWindowState(void) {
     if (back) DisposeWindow(back);
     RecordTest(test_name, passed,
                "modal windows were not disabled, restored, or cleared in stack order");
+}
+
+static void Test_Window_ZoomState(void) {
+    const char* test_name = "Window_ZoomState";
+    Rect bounds = { 150, 100, 300, 350 };
+    WindowPtr window = NewWindow(NULL, &bounds, (ConstStr255Param)"\x04" "Zoom",
+                                 true, zoomDocProc, (WindowPtr)-1, true, 0);
+    CHECK(window, "NewWindow failed");
+
+    Boolean before = WM_WindowIsZoomed(window);
+    ZoomWindow(window, inZoomIn, false);
+    Boolean zoomed = WM_WindowIsZoomed(window);
+    ZoomWindow(window, inZoomOut, false);
+    Boolean after = WM_WindowIsZoomed(window);
+    DisposeWindow(window);
+
+    CHECK(!before && zoomed && !after && !WM_WindowIsZoomed(NULL),
+          "zoom-state query did not follow zoom-in and zoom-out transitions");
+    RecordTest(test_name, true, "");
 }
 
 /* MoveWindow places the content's corner, for any kind of window; zooming
@@ -2114,6 +2134,7 @@ void IntegrationTests_Run(void) {
     Test_Chooser_InitializeLayout();
     Test_Window_ReorderAndHide();
     Test_Dialog_NestedModalWindowState();
+    Test_Window_ZoomState();
     Test_Window_MoveAndZoom();
     Test_File_ReadThroughExtentsOverflow();
 
