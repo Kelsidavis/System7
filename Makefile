@@ -1013,7 +1013,7 @@ check-python-style:
 # Parse the maintenance and build shell scripts with Bash without executing them.
 .PHONY: check-shell-syntax
 check-shell-syntax:
-	@set -e; for script in scripts/*.sh tools/*.sh; do bash -n "$$script"; done
+	@git ls-files -z -- '*.sh' | xargs -0 -n 1 bash -n
 
 # Differential test of the in-tree C string/memory routines against the host
 # libc, with guard bytes around every destination buffer. Needs no kernel
