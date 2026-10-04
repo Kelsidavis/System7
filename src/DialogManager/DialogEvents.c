@@ -159,10 +159,8 @@ Boolean DialogSelect(const EventRecord* evt, DialogPtr* which, SInt16* itemHit)
             return false;
         }
 
-        /* Type into the focused edit field. This goes through TextEdit rather
-         * than the placeholder in DialogHelpers.c, which never touched the
-         * item's text - which is why typing into a dialog did nothing even
-         * after the field had been clicked. */
+        /* Route key events through TextEdit so the focused field's selection,
+         * caret, and text remain consistent with the dialog item. */
         SInt16 focus = GetDialogEditTextFocus(dlg);
         if (focus > 0 && HandleDialogEditTextKey(dlg, focus, ch)) {
             return false;
