@@ -7,11 +7,11 @@
 #include <stddef.h>
 #include "System71StdLib.h"
 #include "usb_controller.h"
+#include "hardware_detect.h"
 #include "xhci.h"
 #include "dwcotg.h"
 
 /* Global state */
-static rpi_model_t detected_model = PI_MODEL_UNKNOWN;
 static int controller_initialized = 0;
 
 /* Function pointers for abstraction */
@@ -24,40 +24,8 @@ static int (*usb_poll_mouse_fn)(int8_t *, int8_t *, uint8_t *) = NULL;
 static uint32_t (*usb_device_count_fn)(void) = NULL;
 static void (*usb_shutdown_fn)(void) = NULL;
 
-/*
- * Detect Raspberry Pi model from hardware
- * Uses device tree or hardware registers
- */
 rpi_model_t usb_detect_rpi_model(void) {
-    if (detected_model != PI_MODEL_UNKNOWN) {
-        /* Already detected */
-        return detected_model;
-    }
-
-    Serial_WriteString("[USB] Detecting Raspberry Pi model...\n");
-
-    /* TODO: Read from device tree (/proc/device-tree/model)
-     * or use hardware revision register
-     *
-     * For now, use heuristic: check for XHCI vs DWCOTG presence
-     */
-
-    /* Try reading XHCI registers (Pi 4/5) */
-    /* Try reading DWCOTG registers (Pi 3) */
-    volatile uint32_t *dwcotg_hwcfg = (volatile uint32_t *)0x20980000;
-    uint32_t dwcotg_val = *(volatile uint32_t *)dwcotg_hwcfg;
-
-    if (dwcotg_val != 0 && dwcotg_val != 0xFFFFFFFF) {
-        /* Looks like Pi 3 with DWCOTG */
-        detected_model = PI_MODEL_3;
-        Serial_WriteString("[USB] Detected: Raspberry Pi 3 (DWCOTG)\n");
-        return PI_MODEL_3;
-    }
-
-    /* Default to Pi 4 (XHCI) if detection is uncertain */
-    detected_model = PI_MODEL_4;
-    Serial_WriteString("[USB] Detected: Raspberry Pi 4 or 5 (XHCI)\n");
-    return PI_MODEL_4;
+    return hardware_get_model();
 }
 
 /*
