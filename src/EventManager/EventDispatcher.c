@@ -38,7 +38,6 @@ Boolean HandleMouseDown(EventRecord* event);
 Boolean HandleMouseUp(EventRecord* event);
 Boolean HandleKeyDownEvent(EventRecord* event);
 Boolean HandleKeyUp(EventRecord* event);
-Boolean HandleUpdate(EventRecord* event);
 Boolean HandleActivate(EventRecord* event);
 Boolean HandleDisk(EventRecord* event);
 Boolean HandleOSEvent(EventRecord* event);

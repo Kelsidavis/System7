@@ -22,6 +22,7 @@ typedef struct EventManagerState {
 // Event Dispatcher
 void InitEventDispatcher(void);
 Boolean DispatchEvent(EventRecord* evt);
+Boolean HandleUpdate(EventRecord* event);
 WindowPtr GetActiveWindow(void);
 void SetActiveWindow(WindowPtr window);
 

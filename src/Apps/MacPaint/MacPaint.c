@@ -14,6 +14,8 @@
 
 #include "MacPaintInternal.h"
 #include "Apps/MacPaint.h"
+#include "EventManager/EventManagerInternal.h"
+#include "Finder/finder.h"
 #include "WindowManager/WindowManager.h"
 #include "MenuManager/MenuManager.h"
 #include "EventManager/EventManager.h"
@@ -24,13 +26,10 @@
 #include "StandardFile/StandardFile.h"
 #include "FS/vfs.h"
 #include "MemoryMgr/MemoryManager.h"
+#include "SoundManager/SoundManager.h"
 #include "QuickDraw.h"
 #include "QuickDrawConstants.h"
 #include "System71StdLib.h"
-
-extern Boolean HandleUpdate(EventRecord* event);
-extern void Finder_InstallMenuBar(void);
-extern void SysBeep(short duration);
 
 /* ------------------------------------------------------------------------
  * Menus

@@ -15,13 +15,12 @@
 
 #include "M68KToolboxInternal.h"
 #include "EventManager/EventManager.h"
+#include "EventManager/EventManagerInternal.h"
 #include "WindowManager/WindowManager.h"
 #include "QuickDraw/QuickDraw.h"
 #include "DeskManager/DeskManager.h"
 #include "System71StdLib.h"
 #include "TimeManager/TimeBase.h"
-
-extern Boolean HandleUpdate(EventRecord* event);
 
 void M68KTB_ReadEvent(UInt32 a, EventRecord* e) {
     e->what = R16(a + 0);

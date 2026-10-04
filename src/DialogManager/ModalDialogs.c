@@ -23,6 +23,7 @@
 #include "DialogManager/DialogLogging.h"
 #include "TimeManager/TimeBase.h"
 #include "EventManager/EventManager.h"
+#include "EventManager/EventManagerInternal.h"
 #include "DeskManager/DeskManager.h"
 #include "OSUtils/OSUtils.h"
 #include "WindowManager/WindowManager.h"
@@ -219,7 +220,6 @@ void ModalDialog(ModalFilterProcPtr filterProc, SInt16* itemHit)
                 /* Another window's: its owner draws it. Answering it by
                  * redrawing the dialog left that window's update pending,
                  * so the same event came back without end. */
-                extern Boolean HandleUpdate(EventRecord* event);
                 HandleUpdate(&evt);
             }
         }
