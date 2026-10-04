@@ -25,6 +25,8 @@
 #include "MenuManager/MenuTypes.h"
 #include "MenuManager/MenuInternalTypes.h"
 #include "MenuManager/MenuDisplay.h"
+#include "MenuManager/MenuAppleIcon.h"
+#include "MenuManager/MenuAppIcon.h"
 #include "FontManager/FontManager.h"
 #include "MenuManager/MenuLogging.h"
 #include "Platform/Framebuffer.h"
@@ -263,9 +265,6 @@ void DrawMenuTitle(short menuID, const Rect* titleRect, Boolean hilited)
      * outside the ASCII strike anyway. Selecting the Apple menu and then
      * another one used to leave a blank gap where the apple had been.
      */
-    extern short MenuAppleIcon_Draw(GrafPtr port, short x, short y, Boolean inverted);
-    extern short MenuAppIcon_Draw(GrafPtr port, short x, short y, Boolean inverted);
-
     if (MenuIsAppleMenu(menuID)) {
         MenuAppleIcon_Draw(menuPort, titleRect->left, titleRect->top, hilited);
     } else if (menuID == (short)kApplicationMenuID) {

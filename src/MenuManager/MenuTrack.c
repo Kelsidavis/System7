@@ -7,6 +7,9 @@
 #include "SystemTypes.h"
 #include "System71StdLib.h"
 #include "MenuManager/MenuManager.h"
+#include "MenuManager/MenuDisplay.h"
+#include "MenuManager/MenuAppleIcon.h"
+#include "MenuManager/MenuAppIcon.h"
 #include "WindowManager/WindowManager.h"
 #include "SystemInternal.h"
 #include "MenuManager/MenuLogging.h"
@@ -532,10 +535,6 @@ static long TrackMenu_Body(short menuID, Point *startPt) {
         return 0;
     }
 
-    extern Handle SaveMenuBits(const Rect *menuRect);
-    extern OSErr RestoreMenuBits(Handle bitsHandle);
-    extern OSErr DiscardMenuBits(Handle bitsHandle);
-
     /* The saved pixels must not include the pointer, or restoring them
      * would put a copy of it back where it was. */
     Pointer_TakeOffScreen();
@@ -835,8 +834,6 @@ void DrawMenuBarWithHighlight(short highlightMenuID) {
     /* The Apple and Application menus have icons for titles, drawn as
      * DrawMenuTitle draws them; this drew a hand-made 11x13 apple four
      * pixels right of the real one, and the Application menu as a box. */
-    extern short MenuAppleIcon_Draw(GrafPtr port, short x, short y, Boolean inverted);
-    extern short MenuAppIcon_Draw(GrafPtr port, short x, short y, Boolean inverted);
     if (MenuIsAppleMenu(highlightMenuID) || MenuIsApplicationMenu(highlightMenuID)) {
         GrafPtr screen = NULL;
         GetWMgrPort(&screen);
