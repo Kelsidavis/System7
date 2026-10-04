@@ -11,6 +11,7 @@
 #define __FILEMANAGER_INTERNAL_H__
 
 #include "SystemTypes.h"
+#include "DateTime.h"
 #include "Errors/ErrorCodes.h"
 #include "FS/hfs_constants.h"
 #include "FileMgr/errno_compat.h"
@@ -228,11 +229,6 @@ OSErr IO_WriteBlocks(VCB* vcb, UInt32 startBlock, UInt32 blockCount, const void*
 OSErr IO_ReadFork(FCB* fcb, UInt32 offset, UInt32 count, void* buffer, UInt32* actual);
 OSErr IO_WriteFork(FCB* fcb, UInt32 offset, UInt32 count, const void* buffer, UInt32* actual);
 
-
-/* Date/Time Utilities */
-UInt32 DateTime_Current(void);
-UInt32 DateTime_FromUnix(time_t unixTime);
-time_t DateTime_ToUnix(UInt32 macTime);
 
 /* Error Handling */
 OSErr Error_Map(int platformError);

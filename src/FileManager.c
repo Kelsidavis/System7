@@ -11,13 +11,8 @@
 
 #include "SystemTypes.h"
 #include "MacTypes.h"
-#include "DateTime.h"
 #include <stdlib.h>
 #include <string.h>
-#include <time.h>
-#if defined(__i386__) || defined(__x86_64__)
-#include "Platform/x86/rtc.h"
-#endif
 #include "System71StdLib.h"
 #include "FileManager_Internal.h"
 #include "FS/FSLogging.h"
@@ -1232,56 +1227,6 @@ OSErr FM_ReleaseProcessFiles(UInt32 processID)
     return noErr;
 }
 
-
-/* ============================================================================
- * Date/Time Utilities
- * ============================================================================ */
-
-UInt32 DateTime_Current(void)
-{
-#if defined(__i386__) || defined(__x86_64__)
-    rtc_datetime_t dt;
-    if (rtc_read_datetime(&dt)) {
-        int y = (int)dt.year;
-        int m = (int)dt.month;
-        int d = (int)dt.day;
-        int hour = (int)dt.hour;
-        int minute = (int)dt.minute;
-        int second = (int)dt.second;
-
-        int adj_y = y - (m <= 2);
-        int era = (adj_y >= 0 ? adj_y : adj_y - 399) / 400;
-        unsigned yoe = (unsigned)(adj_y - era * 400);
-        unsigned doy = (153 * (m + (m > 2 ? -3 : 9)) + 2) / 5 + (unsigned)d - 1;
-        unsigned doe = yoe * 365 + yoe / 4 - yoe / 100 + doy;
-        int64_t days = (int64_t)(era * 146097 + (int)doe) - 719468;
-
-        int64_t unix_time = days * 86400 + hour * 3600 + minute * 60 + second;
-        if (unix_time < 0) {
-            unix_time = 0;
-        }
-        return DateTime_FromUnix((time_t)unix_time);
-    }
-#endif
-    /* No wall clock is available on this platform. Avoid time(), which uses
-     * GetDateTime() and would recurse back into this function. */
-    return 0;
-}
-
-UInt32 DateTime_FromUnix(time_t unixTime)
-{
-    /* Convert Unix time to Mac time (seconds since 1904) */
-    return (UInt32)(unixTime + MAC_UNIX_EPOCH_OFFSET);
-}
-
-time_t DateTime_ToUnix(UInt32 macTime)
-{
-    /* Convert Mac time to Unix time */
-    if (macTime < MAC_UNIX_EPOCH_OFFSET) {
-        return 0;  /* Before Unix epoch */
-    }
-    return (time_t)(macTime - MAC_UNIX_EPOCH_OFFSET);
-}
 
 /* ============================================================================
  * Error Mapping

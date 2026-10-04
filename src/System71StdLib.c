@@ -2715,9 +2715,7 @@ time_t time(time_t* t) {
     UInt32 macSecs = 0;
     GetDateTime(&macSecs);
 
-    time_t now = (macSecs >= MAC_UNIX_EPOCH_OFFSET)
-                     ? (time_t)(macSecs - MAC_UNIX_EPOCH_OFFSET)
-                     : (time_t)0;
+    time_t now = DateTime_ToUnix(macSecs);
 
     if (t) *t = now;
     return now;
