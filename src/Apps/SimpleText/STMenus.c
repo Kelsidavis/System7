@@ -13,6 +13,7 @@
 #include "EventManager/EventManager.h"
 #include "DialogManager/DialogManager.h"
 #include "SoundManager/SoundManager.h"
+#include "Finder/finder.h"
 
 /* Utility macros for packing/unpacking longs */
 #define HiWord(x) ((short)(((unsigned long)(x) >> 16) & 0xFFFF))
@@ -366,7 +367,6 @@ void STMenu_Remove(void) {
      * would leave the bar empty - the Finder's menus were cleared when
      * SimpleText took over, and something has to put them back. */
     {
-        extern void Finder_InstallMenuBar(void);
         Finder_InstallMenuBar();
     }
 

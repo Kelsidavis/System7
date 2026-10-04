@@ -8,11 +8,13 @@
 #include <string.h>
 #include "Apps/SimpleText.h"
 #include "DeskManager/DeskManager.h"
+#include "Finder/finder.h"
 #include "System71StdLib.h"
 #include "DialogManager/DITLBuilder.h"
 #include "MemoryMgr/MemoryManager.h"
 #include "SoundManager/SoundManager.h"
 #include "WindowManager/WindowManager.h"
+#include "QuickDraw/QuickDrawInternal.h"
 #include "TimeManager/TimeBase.h"
 
 /* Utility macros for packing/unpacking longs */
@@ -385,8 +387,6 @@ void SimpleText_Idle(void) {
     /* Adjust cursor: I-beam over text area, arrow elsewhere.
      * This is classic Mac behavior — the cursor changes shape based on context. */
     {
-        extern const Cursor* CursorManager_GetIBeamCursor(void);
-
         WindowPtr front = FrontWindow();
         STDocument* doc = front ? STDoc_FindByWindow(front) : NULL;
 
@@ -395,7 +395,6 @@ void SimpleText_Idle(void) {
             GetMouse(&mouse);
 
             /* Convert global to local */
-            extern void GlobalToLocalWindow(WindowPtr window, Point *pt);
             GlobalToLocalWindow(front, &mouse);
 
             /* Check if mouse is in the text view rect */

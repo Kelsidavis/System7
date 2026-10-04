@@ -17,6 +17,7 @@
 #include "WindowManager/WindowManager.h"
 #include "QuickDraw/QuickDraw.h"
 #include "DialogManager/DialogManager.h"
+#include "DialogManager/DialogHelpers.h"
 #include "DialogManager/DITLBuilder.h"
 #include "FS/vfs.h"
 #include "FS/hfs_types.h"
@@ -137,7 +138,6 @@ static Boolean Find_AskForName(void) {
         DisposeHandle(ditl);
         return false;
     }
-    extern void CenterDialogOnScreen(DialogPtr dlg);
     CenterDialogOnScreen(dlg);
     ShowWindow((WindowPtr)dlg);
     SelectDialogItemText(dlg, 3, 0, 32767);
