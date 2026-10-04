@@ -15,6 +15,8 @@
 #include "QuickDraw/QuickDraw.h"
 #include "Platform/Framebuffer.h"
 #include "SystemTypes.h"
+#include "ResourceManager.h"
+#include "MemoryMgr/MemoryManager.h"
 #include "chicago_font.h"
 #include "chicago_font_extended.h"
 #include <string.h>
@@ -390,11 +392,6 @@ void GetFNum(ConstStr255Param name, short *familyID) {
 
 /* Load a font strike from FOND/NFNT resources */
 static FontStrike* FM_LoadFontStrike(short fontNum, short size, Style face) {
-    extern Handle GetResource(ResType theType, short theID);
-    extern void ReleaseResource(Handle theResource);
-    extern Ptr NewPtr(Size byteCount);
-    extern void DisposePtr(Ptr p);
-
     FM_LOG("FM_LoadFontStrike: Loading font %d size %d face 0x%02X\n", fontNum, size, face);
 
     /* Try to load FOND resource (family descriptor) */
