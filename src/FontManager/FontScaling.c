@@ -6,6 +6,7 @@
  */
 
 #include "FontManager/FontManager.h"
+#include "FontManager/FontInternal.h"
 #include "FontManager/FontTypes.h"
 #include "FontManager/FontScaling.h"
 #include "QuickDraw/QuickDraw.h"
@@ -38,9 +39,6 @@
 #endif
 
 /* External dependencies */
-
-/* Internal Font Manager drawing function */
-extern void FM_DrawChicagoCharInternal(short x, short y, unsigned char ch, uint32_t color);
 
 /* Standard Mac font sizes (in points) */
 static const short g_standardSizes[] = {9, 10, 12, 14, 18, 24};

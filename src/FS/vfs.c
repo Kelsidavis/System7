@@ -9,6 +9,7 @@
 #include "FS/FSLogging.h"
 #include "System71StdLib.h"
 #include "OSUtils/OSUtils.h"
+#include "FileManager.h"
 
 /* Serial debug output */
 
@@ -153,7 +154,6 @@ static VFSOverlayEntry* VFS_AllocOverlay(VFSVolume* vol) {
  */
 static void VFS_FinishMount(VFSVolume* vol)
 {
-    extern void FM_RegisterVFSVolume(SInt16 vref, const char* name);
     FM_RegisterVFSVolume((SInt16)vol->vref, vol->name);
 }
 

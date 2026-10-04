@@ -17,8 +17,6 @@
 #include "ScrapManager/ScrapLogging.h"
 #include "FileManager.h"
 
-/* Additional function declarations */
-extern OSErr Gestalt_RegisterSelector(OSType selector, SInt32 value);
 /* Note: BlockMoveData and MemError declared in MemoryMgr/MemoryManager.h */
 
 /* Debug logging control */

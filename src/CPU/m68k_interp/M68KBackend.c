@@ -18,6 +18,7 @@
 #include "System71StdLib.h"
 #include "TimeManager/TimeBase.h"
 #include "CPU/CPULogging.h"
+#include "M68KToolboxInternal.h"
 #include <string.h>
 
 static OSErr M68K_CreateAddressSpace(void* processHandle, CPUAddressSpace* out);
@@ -493,7 +494,6 @@ static OSErr M68K_EnterAt(CPUAddressSpace as, CPUAddr entry, CPUEnterFlags flags
      * program can read in low memory is brought up to date. */
     if (flags & kEnterApp) {
         mas->regs.pc = entry;
-        extern void M68KTimers_Service(void);
         while (!mas->halted) {
             M68K_Run(mas, 20000);
             LMSetTicks(TickCount());

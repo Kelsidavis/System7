@@ -40,7 +40,16 @@ if (( boot_offset >= 32768 )); then
 fi
 
 read -r magic architecture header_length checksum < <(
-    od -An -N16 -j "$boot_offset" -tx4 "$kernel"
+    python3 -c '
+import struct
+import sys
+
+with open(sys.argv[1], "rb") as kernel_file:
+    kernel_file.seek(int(sys.argv[2]))
+    header = kernel_file.read(16)
+if len(header) == 16:
+    print(" ".join(f"{value:08x}" for value in struct.unpack("<4I", header)))
+' "$kernel" "$boot_offset"
 )
 if [[ "$magic" != "e85250d6" || -z "$architecture" || -z "$header_length" || -z "$checksum" ]]; then
     echo "ERROR: x86 .boot section does not start with a complete Multiboot2 header" >&2

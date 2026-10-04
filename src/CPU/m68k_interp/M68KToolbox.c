@@ -26,6 +26,7 @@
 #include "CPU/LowMemGlobals.h"
 #include "ResourceManager.h"
 #include "MenuManager/MenuManager.h"
+#include "Finder/finder.h"
 #include "EventManager/EventManager.h"
 #include "SoundManager/SoundManager.h"
 #include "QuickDraw/QuickDraw.h"
@@ -1144,7 +1145,6 @@ void M68KToolbox_Finish(void) {
     for (int i = 0; i < gResCount; i++) ReleaseResource(gResMap[i].native);
     gResCount = 0;
     if (gMenusTaken) {
-        extern void Finder_InstallMenuBar(void);
         ClearMenuBar();
         Finder_InstallMenuBar();
         gMenusTaken = false;

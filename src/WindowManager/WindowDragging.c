@@ -27,6 +27,7 @@
 #include "QuickDraw/QuickDraw.h"
 #include "QuickDraw/QuickDrawPlatform.h"
 #include "MemoryMgr/MemoryManager.h"
+#include "Finder/AboutThisMac.h"
 
 #include "WindowManager/WindowManagerInternal.h"
 #include "ProcessMgr/ProcessMgr.h"
@@ -56,8 +57,6 @@ static void Local_InvalidateScreenRegion(RgnHandle region);
 static Boolean Local_RectsIntersect(const Rect* rect1, const Rect* rect2);
 
 /* Finder About box helpers (avoid direct Finder dependencies elsewhere) */
-extern Boolean AboutWindow_IsOurs(WindowPtr w);
-extern Boolean AboutWindow_HandleUpdate(WindowPtr w);
 static void Local_ApplyWindowSnap(WindowPtr draggedWindow, short* newLeft, short* newTop, short windowWidth, short windowHeight);
 
 

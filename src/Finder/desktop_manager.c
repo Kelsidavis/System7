@@ -32,6 +32,8 @@
 #include "Finder/FinderLogging.h"
 #include "EventManager/EventManager.h"
 #include "WindowManager/WindowManager.h"
+#include "WindowManager/WindowManagerInternal.h"
+#include "SoundManager/SoundManager.h"
 
 /* DVI_DEBUG: Set to 1 to enable verbose DrawVolumeIcon debugging
  * WARNING: Enabling causes performance impact on ARM64 */
@@ -46,9 +48,7 @@
 /* Debug output */
 
 /* External function declarations */
-extern bool Trash_IsEmptyAll(void);
 /* NewPtr now provided by MemoryManager.h */
-extern void SetDeskHook(void (*hookProc)(RgnHandle));
 
 /* CHICAGO_HEIGHT is defined in chicago_font.h */
 #define CHICAGO_ASCENT 12
@@ -1254,7 +1254,6 @@ static void TrackIconDragSync(short iconIndex, Point startPt)
     if (invalidDrop) {
         /* Invalid drop: beep and restore to original position */
         FINDER_LOG_DEBUG("TrackIconDragSync: Invalid drop - would beep here\n");
-        extern void SysBeep(short duration);
         SysBeep(1);  /* System beep */
         /* Icon position already unchanged for invalid drops */
     }
