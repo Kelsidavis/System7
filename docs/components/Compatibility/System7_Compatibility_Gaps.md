@@ -18,10 +18,16 @@ This checklist records significant differences between the current toolbox reimp
 ## Window, Dialog, Control, and Menu Managers
 - ~~`NewDialog` created its window with `userKind`, and `IsDialogEvent` excluded null and activate events.~~ **FIXED** (2026-10-04): dialogs now use `dialogKind`; `IsDialogEvent` recognizes any event for a front dialog and update/activate events targeted at a dialog. `DialogSelect` handles targeted activation events and updates the focused edit caret.
 - ~~`DialogSelect` edited enabled edit-text items but did not return their item number for key or mouse events.~~ **FIXED** (2026-10-04): it now reports the enabled item in `itemHit` while keeping disabled edit fields interactive without reporting them.
-- `DialogCut`, `DialogCopy`, `DialogPaste`, and `DialogDelete` now route through
-  the focused dialog edit-text field and update its item data.
+- ~~`DialogCut`, `DialogCopy`, `DialogPaste`, and `DialogDelete` route through
+  the focused dialog edit-text field.~~ **IMPLEMENTED** (2026-10-04): all four
+  operations use the focused field; cut, paste, and delete synchronize the
+  updated text back to the dialog item. Integration regression coverage checks
+  clipboard transfer and selection deletion.
 - ~~Dialog headers advertised non-classic helper APIs without definitions, including platform-native dialog controls, per-dialog event filters, and accessibility text accessors.~~ **FIXED** (2026-10-04): removed declarations for unsupported helpers from `DialogEvents.h`, `DialogItems.h`, `DialogManager.h`, `ModalDialogs.h`, and `ControlManager.h`; retained the implemented classic event, item, and modal APIs.
-- Dialog edit-text and control focus state is owned per live dialog and has no fixed dialog-count ceiling; state is released when each dialog is disposed.
+- ~~Dialog edit-text and control focus state is owned per live dialog.~~
+  **IMPLEMENTED** (2026-10-04): state is released on disposal; integration
+  regression coverage checks independent state across more than sixteen
+  simultaneous dialogs.
 - ~~`AdvanceDialogFocus()` returned 0 without moving keyboard focus.~~ **FIXED**
   (2026-10-04): It now uses the edit-text focus traversal for Tab and Shift-Tab,
   returning the new item number; the guest regression checks both directions.
