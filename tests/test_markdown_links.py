@@ -28,6 +28,27 @@ class MarkdownReferenceTests(unittest.TestCase):
                 list(broken_links(root)), [(root / "guide.md", "missing.md")]
             )
 
+    def test_reference_style_links_are_checked(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / "README.md").touch()
+            document = root / "guide.md"
+            document.write_text(
+                "[readme][project]\n\n"
+                "[project]: README.md\n"
+                "[website]: https://example.com\n"
+            )
+
+            self.assertEqual(list(broken_links(root)), [])
+
+    def test_missing_reference_style_link_is_reported(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            document = root / "guide.md"
+            document.write_text("[missing]: absent.md\n")
+
+            self.assertEqual(list(broken_links(root)), [(document, "absent.md")])
+
     def test_links_in_fenced_code_are_ignored(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
