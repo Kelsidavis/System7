@@ -72,6 +72,8 @@ typedef struct LocaleRef {
  * Defaults to English. Parses boot command line for lang= parameter. */
 OSErr InitLocaleManager(void);
 
+extern const char* g_boot_cmdline;
+
 /* ---- Locale Selection --------------------------------------------------- */
 
 /* Set the active locale by ID */

@@ -26,6 +26,7 @@
 #include "../include/System71StdLib.h"                 /* for serial_printf & friends */
 #include "../include/System/SystemLogging.h"
 #include "../include/MenuManager/MenuManager.h"
+#include "../include/MenuManager/menu_private.h"
 
 #include "../include/DialogManager/DialogManager.h"
 #include "../include/ControlManager/ControlManager.h"
@@ -62,6 +63,11 @@
 #include "../include/MenuManager/MenuBitsPool.h"
 #include "../include/StartupScreen/StartupScreen.h"
 #include "../include/FS/trash.h"
+#include "../include/Integration/IntegrationTests.h"
+#include "../include/PatternMgr/pattern_manager.h"
+#include "../include/SoundManager/SoundManager.h"
+#include "../include/SpeechManager/SpeechManager.h"
+#include "../include/WindowManager/WindowManagerInternal.h"
 
 #include "Platform/include/network.h"
 #include "Platform/include/input.h"
@@ -459,7 +465,6 @@ static void parse_multiboot2(uint32_t magic, uint32_t* mb2_info) {
                 {
                     struct multiboot_tag_string* cmdline_tag =
                         (struct multiboot_tag_string*)tag;
-                    extern const char* g_boot_cmdline;
                     g_boot_cmdline = cmdline_tag->string;
                     serial_puts("Command line: ");
                     serial_puts(cmdline_tag->string);
@@ -953,7 +958,6 @@ static void init_system71(void) {
     }
 
     /* Initialize Sound Manager */
-    extern OSErr SoundManagerInit(void);
     if (SoundManagerInit() == noErr) {
         serial_puts("  Sound Manager initialized\n");
     } else {
@@ -961,7 +965,6 @@ static void init_system71(void) {
     }
 
     /* Initialize Speech Manager */
-    extern OSErr SpeechManagerInit(void);
     if (SpeechManagerInit() == noErr) {
         serial_puts("  Speech Manager initialized\n");
     } else {
@@ -1007,9 +1010,6 @@ static void init_system71(void) {
 
 #ifdef INTEGRATION_TESTS
     /* Integration tests: last, so the volumes on ATA disks are mounted. */
-    extern OSErr IntegrationTests_Initialize(void);
-    extern void IntegrationTests_Run(void);
-    extern void IntegrationTests_Cleanup(void);
     serial_puts("\n");
     if (IntegrationTests_Initialize() == noErr) {
         IntegrationTests_Run();
@@ -1385,7 +1385,6 @@ void kernel_main(uint32_t magic, uint32_t* mb2_info) {
 
         /* Apply desktop background pattern to the port so EraseRgn draws gray, not white */
         {
-            extern void PM_GetBackPat(Pattern *pat);
             Pattern deskPat;
             PM_GetBackPat(&deskPat);
             BackPat(&deskPat);
@@ -1592,8 +1591,6 @@ void kernel_main(uint32_t magic, uint32_t* mb2_info) {
                 last_mouse_y = currentMouse.v;
 
                 /* Update menu highlighting if tracking */
-                extern Boolean IsMenuTrackingNew(void);
-                extern void UpdateMenuTrackingNew(Point mousePt);
                 if (IsMenuTrackingNew()) {
                     UpdateMenuTrackingNew(currentMouse);
                 }
@@ -1608,7 +1605,6 @@ skip_cursor_drawing:
         /* System 7.1 cooperative multitasking */
         SystemTask();
         /* Update and render windows */
-        extern void WM_Update(void);
         WM_Update();
 
         /* PS/2 polling is now done inside ProcessModernInput() above.

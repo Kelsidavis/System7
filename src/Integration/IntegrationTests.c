@@ -10,6 +10,7 @@
  */
 
 #include "SystemTypes.h"
+#include "Integration/IntegrationTests.h"
 #include <string.h>
 #include "Errors/ErrorCodes.h"
 #include "FileManager.h"
@@ -65,11 +66,6 @@ extern void M68K_Write32(M68KAddressSpace* as, UInt32 addr, UInt32 value);
 #define IT_LOG_PASS(fmt, ...) IT_OUT("✓ PASS: ", fmt, ##__VA_ARGS__)
 #define IT_LOG_FAIL(fmt, ...) IT_OUT("✗ FAIL: ", fmt, ##__VA_ARGS__)
 #define IT_LOG_WARN(fmt, ...) IT_OUT("⚠ WARN: ", fmt, ##__VA_ARGS__)
-
-/* Called from main.c when the kernel is built with INTEGRATION_TESTS=1. */
-OSErr IntegrationTests_Initialize(void);
-void IntegrationTests_Run(void);
-void IntegrationTests_Cleanup(void);
 
 static int test_count = 0;
 static int test_pass = 0;
