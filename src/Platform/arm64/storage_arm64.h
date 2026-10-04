@@ -8,6 +8,7 @@
 
 #include <stdint.h>
 #include <stdbool.h>
+#include "SystemTypes.h"
 
 /* Drive info structure */
 typedef struct {
@@ -19,7 +20,7 @@ typedef struct {
 } hal_drive_info_t;
 
 /* Initialize storage subsystem */
-void hal_storage_init(void);
+OSErr hal_storage_init(void);
 
 /* Get number of available drives */
 int hal_storage_get_drive_count(void);

@@ -37,6 +37,7 @@
 #include "../include/FS/vfs.h"
 #include "../include/MemoryMgr/MemoryManager.h"
 #include "Platform/include/boot.h"
+#include "Platform/include/storage.h"
 #include "Platform/Framebuffer.h"
 
 #include "../include/Gestalt/Gestalt.h"
@@ -53,6 +54,10 @@
 #include "../include/Finder/finder.h"
 #include "../include/DeskManager/DeskManager.h"
 #include "../include/TimeManager/TimeBase.h"
+#include "../include/ScrapManager/ScrapManager.h"
+#include "../include/MenuManager/MenuBitsPool.h"
+#include "../include/StartupScreen/StartupScreen.h"
+#include "../include/FS/trash.h"
 
 #include "Platform/include/network.h"
 #include "Platform/include/input.h"
@@ -586,12 +591,10 @@ static void init_system71(void) {
         serial_puts("  ProcessMgr (coop) initialized\n");
 
         /* Initialize ScrapManager after ProcessMgr */
-        extern void Scrap_Zero(void);
         Scrap_Zero();
         serial_puts("  ScrapManager initialized\n");
 #ifdef SCRAP_SELFTEST
         serial_puts("  About to run Scrap self-test\n");
-        extern void Scrap_RunSelfTest(void);
         Scrap_RunSelfTest();
         serial_puts("  Scrap self-test complete\n");
 #endif
@@ -819,16 +822,11 @@ static void init_system71(void) {
     serial_puts("  Menu Manager initialized\n");
 
     /* Menu Bits Pool - prevents heap fragmentation from menu operations */
-    extern OSErr MenuBitsPool_Init(SInt16 numBuffers, SInt32 bufferSize);
     MenuBitsPool_Init(4, 160 * 1024);  /* 4 buffers × 160KB = 640KB pool */
     serial_puts("  Menu Bits Pool initialized (4 × 160KB buffers)\n");
 
     /* Startup Screen - show "Welcome to Macintosh" */
     serial_puts("  InitStartupScreen...\n");
-    extern OSErr InitStartupScreen(const void* config);
-    extern OSErr ShowWelcomeScreen(void);
-    extern OSErr SetStartupPhase(int phase);
-    extern void HideStartupScreen(void);
     if (InitStartupScreen(NULL) == noErr) {
         serial_puts("  Startup Screen initialized\n");
         serial_puts("  ShowWelcomeScreen...\n");
@@ -839,7 +837,6 @@ static void init_system71(void) {
     }
 
     /* Storage HAL (ATA/IDE Driver) */
-    extern OSErr hal_storage_init(void);
     serial_puts("  Initializing storage subsystem...\n");
     OSErr ata_err = hal_storage_init();
     if (ata_err != noErr) {
@@ -865,8 +862,6 @@ static void init_system71(void) {
         serial_puts("  Boot volume 'Macintosh HD' mounted\n");
 
         /* Initialize trash system for boot volume */
-        extern bool Trash_Init(void);
-        extern bool Trash_OnVolumeMount(uint32_t vref);
         Trash_Init();
         Trash_OnVolumeMount(1);  /* Boot volume is always vRef 1 */
         serial_puts("  Trash system initialized\n");
@@ -1074,7 +1069,6 @@ static void init_system71(void) {
         serial_puts("  Finder initialized\n");
 
         /* Now mount ATA volumes (callback is registered) */
-        extern int hal_storage_get_drive_count(void);
         int ata_count = hal_storage_get_drive_count();
         if (ata_count > 0) {
             serial_puts("  Mounting detected ATA volumes...\n");

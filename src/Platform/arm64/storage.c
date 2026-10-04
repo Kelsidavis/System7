@@ -6,6 +6,7 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include <stddef.h>
+#include "Errors/ErrorCodes.h"
 #include "storage_arm64.h"
 
 #ifdef QEMU_BUILD
@@ -29,18 +30,19 @@ static void copy_string(char *dest, const char *src, int max_len) {
 /*
  * Initialize storage subsystem
  */
-void hal_storage_init(void) {
-    if (storage_initialized) return;
+OSErr hal_storage_init(void) {
+    if (storage_initialized) return noErr;
 
 #ifdef QEMU_BUILD
     /* Initialize VirtIO block device */
-    virtio_blk_init();
+    if (!virtio_blk_init()) return ioErr;
 #else
     /* Initialize SDHCI controller for Raspberry Pi */
-    sdhci_init();
+    if (!sdhci_init()) return ioErr;
 #endif
 
     storage_initialized = true;
+    return noErr;
 }
 
 /*
