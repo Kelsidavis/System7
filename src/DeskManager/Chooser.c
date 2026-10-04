@@ -1,11 +1,12 @@
 #include "MemoryMgr/MemoryManager.h"
 #include <string.h>
+
 /*
  * Chooser.c - Chooser Desk Accessory Implementation
  *
- * Provides device selection interface for printers, network devices, and other
- * shared resources. Allows users to browse available devices, configure
- * connections, and manage device preferences.
+ * Provides partial device and zone selection APIs. Device discovery currently
+ * returns sample devices; drawing and AppleTalk zone discovery are not
+ * implemented.
  *
  * Derived from ROM analysis (System 7)
  */
@@ -18,10 +19,10 @@
 
 static SInt32 Chooser_GetTime(void) {
     extern void GetDateTime(UInt32* secs);
-    UInt32 now; GetDateTime(&now);
+    UInt32 now;
+    GetDateTime(&now);
     return (SInt32)now;
 }
-
 
 /*
  * Initialize Chooser
@@ -35,10 +36,10 @@ int Chooser_Initialize(Chooser *chooser)
     memset(chooser, 0, sizeof(Chooser));
 
     /* Set window bounds */
-    (chooser)->windowBounds.left = 100;
-    (chooser)->windowBounds.top = 100;
-    (chooser)->windowBounds.right = 500;
-    (chooser)->windowBounds.bottom = 400;
+    chooser->windowBounds.left = 100;
+    chooser->windowBounds.top = 100;
+    chooser->windowBounds.right = 500;
+    chooser->windowBounds.bottom = 400;
 
     /* Set display areas */
     chooser->deviceListRect.left = 20;

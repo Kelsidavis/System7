@@ -3,15 +3,12 @@
 
 #include "SystemTypes.h"
 
-/* Forward declarations */
-
-
 /*
  * Chooser.h - Chooser Desk Accessory
  *
- * Provides device selection interface for printers, network devices, and other
- * shared resources. Allows users to browse available devices, configure
- * connections, and manage device preferences.
+ * Provides a partial API for device and zone selection. Device discovery
+ * currently returns sample devices; drawing and AppleTalk zone discovery are
+ * not implemented.
  *
  * Derived from ROM analysis (System 7)
  */
@@ -188,7 +185,6 @@ void Chooser_SetDiscoveryCallback(Chooser *chooser,
  */
 int Chooser_AddDevice(Chooser *chooser, const DeviceInfo *device);
 
-
 /**
  * Update device information
  * @param chooser Pointer to chooser structure
@@ -206,7 +202,6 @@ int Chooser_UpdateDevice(Chooser *chooser, const char *deviceName,
  * @return Pointer to device info or NULL if not found
  */
 DeviceInfo *Chooser_GetDevice(Chooser *chooser, const char *deviceName);
-
 
 /**
  * Select device
@@ -231,7 +226,6 @@ DeviceInfo *Chooser_GetSelectedDevice(Chooser *chooser);
  * @return Number of zones found
  */
 int Chooser_ScanZones(Chooser *chooser);
-
 
 /**
  * Select zone
@@ -269,7 +263,6 @@ int Chooser_SetDefaultPrinter(Chooser *chooser, const char *printerName);
  */
 DeviceInfo *Chooser_GetDefaultPrinter(Chooser *chooser);
 
-
 /**
  * Get printer status
  * @param chooser Pointer to chooser structure
@@ -282,7 +275,6 @@ int Chooser_GetPrinterStatus(Chooser *chooser, const char *printerName,
                              char *status, int statusSize);
 
 /* Driver Management Functions */
-
 
 /**
  * Get available drivers
@@ -321,7 +313,6 @@ void Chooser_DrawZoneList(Chooser *chooser);
  */
 void Chooser_DrawDeviceInfo(Chooser *chooser);
 
-
 /* Event Handling */
 
 /**
@@ -332,7 +323,6 @@ void Chooser_DrawDeviceInfo(Chooser *chooser);
  * @return 0 on success, negative on error
  */
 int Chooser_HandleClick(Chooser *chooser, Point point, UInt16 modifiers);
-
 
 /**
  * Handle key press
@@ -381,7 +371,6 @@ void Chooser_FormatAddress(const char *host, SInt16 port,
                            char *buffer, int bufferSize);
 
 /* Settings Functions */
-
 
 /* Desk Accessory Integration */
 
