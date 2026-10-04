@@ -396,7 +396,7 @@ void CursorManager_HandleMouseMotion(Point newPos) {
     }
 }
 
-int IsCursorVisible(void) {
+Boolean IsCursorVisible(void) {
     return CursorManager_ShouldBeVisible();
 }
 
