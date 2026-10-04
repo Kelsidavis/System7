@@ -25,7 +25,7 @@ Provides classic System 7 window services: creation, drawing, drag/resize intera
 - **Font Manager** supplies title glyph rendering via `DrawString`
 - **Control Manager** draws and tracks attached controls during window updates
 - **Menu Manager** uses `FrontWindow` and activation changes to keep menu state coherent
-- **Finder / Apps** rely on `WindowRecord` layout captured in `docs/layouts/layouts.json`
+- **Finder / Apps** use the native `WindowRecord` from `SystemTypes.h`; 68K applications receive the separate guest ABI layout serialized by `M68KObjects.c` and documented in `docs/layouts/layouts.json`
 
 ## Testing & Debugging
 - Finder desktop and SimpleText windows exercise drag, grow, and update flows under `make run`
