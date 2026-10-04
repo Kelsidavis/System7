@@ -124,7 +124,7 @@ typedef struct FolderWindowState {
     Point dragStartGlobal; /* Global coordinates where drag started */
     short draggingIndex;   /* Index of item being dragged (-1 = none) */
     short viewMode;        /* Current view mode (kViewByIcon..kViewByDate) */
-    short scrollOffset;    /* Scroll offset in items for list view */
+    short scrollOffset;    /* Scrolled rows in list or icon view */
     char typeAheadBuf[16]; /* Type-ahead search buffer */
     short typeAheadLen;    /* Characters in type-ahead buffer */
     UInt32 typeAheadTime;  /* Tick count of last type-ahead keystroke */
