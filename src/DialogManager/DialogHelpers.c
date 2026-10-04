@@ -16,6 +16,8 @@
 #include "DialogManager/DialogItems.h"
 #include "DialogManager/DialogLogging.h"
 #include "EventManager/EventManager.h"
+#include "WindowManager/WindowManager.h"
+#include "WindowManager/WindowPlatform.h"
 #include "TimeManager/TimeBase.h"
 
 /* DialogGlobals and DialogManagerState are now defined in DialogManagerInternal.h */
@@ -244,7 +246,6 @@ void CenterDialogOnScreen(DialogPtr theDialog) {
     if (!theDialog) return;
 
     /* Get screen bounds */
-    extern void Platform_GetScreenBounds(Rect* bounds);
     Platform_GetScreenBounds(&screenBounds);
 
     /* Account for menu bar at top (20 pixels) */
@@ -275,6 +276,5 @@ void CenterDialogOnScreen(DialogPtr theDialog) {
     }
 
     /* Move the dialog window */
-    extern void MoveWindow(WindowPtr window, short hGlobal, short vGlobal, Boolean front);
     MoveWindow(window, newLeft, newTop, false);
 }
