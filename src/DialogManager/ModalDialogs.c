@@ -458,14 +458,9 @@ void EnableNonModalWindows(void)
     WM_ClearModalWindow();
 }
 
-/*
- * Private implementation functions
- */
-
-/* ProcessModalEvent - DEPRECATED - now uses DialogSelect */
+/* Compatibility wrapper for callers of the earlier modal-event API. */
 Boolean ProcessModalEvent(DialogPtr theDialog, EventRecord* theEvent, SInt16* itemHit)
 {
-    /* Forward to DialogSelect */
     return DialogSelect(theEvent, &theDialog, itemHit);
 }
 

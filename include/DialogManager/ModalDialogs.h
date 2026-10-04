@@ -294,6 +294,8 @@ SInt16 ShowNativeModal(const char* message, const char* title,
 /* Internal modal dialog functions */
 void InitModalDialogs(void);
 void CleanupModalDialogs(void);
+
+/* Deprecated compatibility entry point; prefer DialogSelect for new code. */
 Boolean ProcessModalEvent(DialogPtr theDialog, EventRecord* theEvent, SInt16* itemHit);
 
 #ifdef __cplusplus
