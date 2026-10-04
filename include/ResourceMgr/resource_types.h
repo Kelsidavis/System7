@@ -40,25 +40,6 @@
 #define trapResError        0xA9AF
 #define trapReleaseResource 0xA9A3
 
-/*
- * ResourceForkHeader - Resource fork file header (16 bytes)
-
- */
-
-/*
- * ResourceMapHeader - Resource map header (30 bytes)
-
- */
-
-/*
- * ResourceTypeEntry - Resource type list entry (8 bytes)
-
- */
-
-/*
- * ResourceRefEntry - Resource reference entry (12 bytes)
-
- */
 typedef struct ResourceRefEntry {
     SInt16 resourceID;               /* Resource ID */
     UInt16 nameOffset;               /* Offset to name (0xFFFF if none) */
@@ -66,21 +47,6 @@ typedef struct ResourceRefEntry {
     UInt32 dataOffset : 24;         /* 24-bit data offset */
     Handle resourceHandle;             /* Handle if loaded */
 } __attribute__((packed)) ResourceRefEntry;
-
-/*
- * HandleBlock - Memory handle block structure
-
- */
-
-/*
- * ResourceDataHeader - Resource data block header (4 bytes)
-
- */
-
-/*
- * FileControlBlock - Open resource file control block
-
- */
 
 /* Resource Map structures */
 typedef struct ResourceMapHeader {
@@ -108,9 +74,7 @@ typedef struct ResourceEntry {
     Handle  resourceHandle;
 } ResourceEntry;
 
-// OpenResourceFile is defined in SystemTypes.h
-
-/* Missing Resource Manager structures */
+/* Resource file structures */
 typedef struct ResourceDataHeader {
     UInt32 dataSize;
     UInt32 dataOffset;

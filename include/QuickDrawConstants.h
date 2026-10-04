@@ -43,8 +43,6 @@ enum QuickDrawPatterns {
 #define insufficientStackErr -149
 #endif
 
-/* Text styles - defined in SystemTypes.h */
-
 /* Standard colors */
 #ifndef blackColor
 #define blackColor 33
