@@ -15,6 +15,7 @@
 #include "DialogManager/DialogManagerInternal.h"
 #include "DialogManager/DialogItems.h"
 #include "DialogManager/DialogLogging.h"
+#include "EventManager/EventManager.h"
 #include "TimeManager/TimeBase.h"
 
 /* DialogGlobals and DialogManagerState are now defined in DialogManagerInternal.h */
@@ -122,7 +123,6 @@ Boolean DialogItemIsEditText(DialogPtr theDialog, SInt16 itemNo) {
  */
 Boolean DialogTrackButton(DialogPtr theDialog, SInt16 itemNo, Point startPt,
                           Boolean autoHilite) {
-    extern void EventPumpYield(void);
     Rect itemBounds;
     SInt16 itemType;
     Handle itemHandle;
