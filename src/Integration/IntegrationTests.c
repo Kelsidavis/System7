@@ -1074,6 +1074,17 @@ static void Test_Dialog_EditTextFocusBeyond32Items(void) {
     GetDialogItemText(editTextData, remainingText);
     CHECK(remainingText[0] == 1 && remainingText[1] == 'x',
           "DialogSelect did not apply the edit-text keystroke");
+    EventRecord clickEvent = { .what = mouseDown, .where = { .h = 105, .v = 117 } };
+    selectedDialog = NULL;
+    activatedItem = 0;
+    CHECK(DialogSelect(&clickEvent, &selectedDialog, &activatedItem) &&
+          selectedDialog == d && activatedItem == 33,
+          "DialogSelect did not report a mouse event in an enabled edit item");
+    DisableDialogItem(d, 33);
+    editEvent.message = 'y';
+    activatedItem = 0;
+    CHECK(!DialogSelect(&editEvent, &selectedDialog, &activatedItem) && activatedItem == 0,
+          "DialogSelect reported a key event from a disabled edit item");
     DisposeDialog(d);
     RecordTest(test_name, true, "");
 }
