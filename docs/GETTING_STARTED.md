@@ -121,25 +121,7 @@ Click the SimpleText icon to open the included text editor.
 ### Check Serial Output
 Debug information appears in the QEMU serial console or log file.
 
-## Directory Map
-
-```
-System7/
-├── README.md                      # Main documentation
-├── docs/
-│   ├── GETTING_STARTED.md        # This file
-│   ├── CONTRIBUTING.md           # How to contribute
-│   ├── KNOWN_ISSUES.md           # Current limitations
-│   ├── components/               # Deep technical guides
-│   └── future/                   # Planned improvements
-├── include/                       # Public headers (subsystems)
-├── resources/
-│   ├── strings/                  # STR# tables, one per language
-│   └── device-tree/              # QEMU configuration
-├── scripts/                       # Utility scripts
-├── Makefile                       # Build system
-└── gen_rsrc.py                   # Resource generator
-```
+For the current repository layout, see the [Documentation Index](INDEX.md).
 
 ## Next Steps
 
