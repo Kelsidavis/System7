@@ -7,7 +7,6 @@
 #include "TextEdit/TextEdit.h"
 #include "MemoryMgr/MemoryManager.h"
 #include "QuickDraw/QuickDraw.h"
-#include "FontManager/FontManager.h"
 #include "WindowManager/WindowManager.h"
 #include "TextEdit/TextEditInternal.h"
 
@@ -50,12 +49,8 @@ static SInt16 TE_MaxHScroll(TEHandle hTE, TEExtPtr pTE) {
         for (SInt16 i = 0; lines && i < pTE->nLines; i++) {
             SInt32 start = lines[i];
             SInt32 end = (i + 1 < pTE->nLines) ? lines[i + 1] : pTE->base.teLength;
-            SInt32 lineWidth = 0;
-
-            for (SInt32 pos = start; pos < end; pos++) {
-                if (text[pos] == '\r') break;
-                lineWidth += TE_MeasureText(hTE, pos, 1);
-            }
+            if (end > start && text[end - 1] == '\r') end--;
+            SInt32 lineWidth = TE_MeasureText(hTE, start, end - start);
             if (lineWidth > maxWidth) maxWidth = lineWidth;
         }
 
