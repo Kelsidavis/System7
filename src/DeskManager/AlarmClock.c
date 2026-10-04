@@ -10,7 +10,9 @@
  */
 
 #include "SystemTypes.h"
+#include "QuickDraw/QuickDraw.h"
 #include "QuickDraw/QuickDrawGlobals.h"
+#include "FontManager/FontManager.h"
 #include "System71StdLib.h"
 
 #include "DeskManager/AlarmClock.h"
@@ -436,13 +438,6 @@ void AlarmClock_FlashMenuBar(int duration)
  */
 void AlarmClock_Draw(AlarmClock *clock, const Rect *updateRect)
 {
-    extern void MoveTo(short h, short v);
-    extern void DrawText(const void* textBuf, short firstByte, short byteCount);
-    extern void EraseRect(const Rect* r);
-    extern void TextFont(short font);
-    extern void TextSize(short size);
-    extern short TextWidth(const void* textBuf, short firstByte, short byteCount);
-
     (void)updateRect;
     if (!clock || !g_currentPort) {
         return;
