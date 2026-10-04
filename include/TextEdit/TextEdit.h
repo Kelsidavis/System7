@@ -53,15 +53,11 @@
 typedef struct TERec **TEHandle;
 typedef struct TERec *TEPtr;
 
-/* TextStyle is already defined in SystemTypes.h */
-
 /* Style run - associates style with text range */
 typedef struct StyleRun {
     SInt32      startChar;      /* Starting character position */
     SInt16      styleIndex;     /* Index into style table */
 } StyleRun;
-
-/* STElement is already defined in SystemTypes.h */
 
 typedef struct STRec {
     SInt32      nRuns;          /* Number of style runs */
@@ -70,10 +66,6 @@ typedef struct STRec {
     Handle      runArray;       /* Handle to run array */
     Handle      lineHeights;    /* Handle to line height array */
 } STRec;
-
-/* STPtr and STHandle already defined in SystemTypes.h */
-
-/* StScrpRec already defined in SystemTypes.h */
 
 /* Line height record */
 typedef struct LHElement {
@@ -90,7 +82,6 @@ typedef pascal Boolean (*TEClickLoopProcPtr)(TEHandle hTE);
 typedef pascal void (*TEDoTextProcPtr)(TEHandle hTE, SInt16 firstByte,
                                        SInt16 byteCount, SInt16 selector);
 
-/* TERec is already defined in SystemTypes.h - we extend it with additional fields */
 /* Note: Our implementation adds extra fields not in the standard TERec */
 
 /* ============================================================================

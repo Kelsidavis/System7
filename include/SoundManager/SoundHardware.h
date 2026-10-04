@@ -13,9 +13,6 @@
 
 #include "SystemTypes.h"
 
-/* Forward declarations */
-
-
 #include "SoundTypes.h"
 
 #ifdef __cplusplus
@@ -23,7 +20,6 @@ extern "C" {
 #endif
 
 /* Platform Audio API Types */
-/* AudioAPIType is defined in SystemTypes.h as UInt32 */
 #define AUDIO_API_DUMMY      0
 #define AUDIO_API_ALSA       1
 #define AUDIO_API_PULSE      2
@@ -224,11 +220,6 @@ extern const AudioFormat AUDIO_FORMAT_PHONE;       /* 8kHz, 8-bit, mono */
 #define AUDIO_CAP_HARDWARE_VOLUME       0x40
 
 #define AUDIO_CAP_HARDWARE_MUTE         0x80
-
-
-/* Recording Device State */
-
-/* Ptr is defined in MacTypes.h */
 
 
 /* PC Speaker Functions (x86 platform) */

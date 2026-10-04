@@ -12,32 +12,15 @@
 
 #include "SystemTypes.h"
 
-/* Forward declarations */
-
-
 #ifdef __cplusplus
 extern "C" {
 #endif
-
-/* Basic Mac OS types compatibility */
-/* OSErr is defined in MacTypes.h */
-/* OSType is defined in MacTypes.h */
-/* Fixed is defined in MacTypes.h */
-/* Boolean is defined in MacTypes.h */
-/* SInt16 is defined in MacTypes.h */
-/* SInt32 is defined in MacTypes.h */
-/* UInt16 is defined in MacTypes.h */
-/* UInt32 is defined in MacTypes.h */
-/* Handle is defined in MacTypes.h */
-/* Str255 is defined in MacTypes.h */
 
 /* Four Character Code macro */
 #define FOUR_CHAR_CODE(x) ((UInt32)(x))
 
 /* UnsignedFixed type */
 typedef UInt32 UnsignedFixed;
-
-/* SndCommand, SndChannel, SndChannelPtr, ModalFilterProcPtr are defined in SystemTypes.h */
 
 /* Sound channel handle types */
 typedef struct SndListResource** SndListHandle;

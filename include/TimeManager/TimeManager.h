@@ -7,7 +7,6 @@
 extern "C" {
 #endif
 
-/* TMTask and TMTaskPtr are already defined in SystemTypes.h */
 /* We extend TMTask with private scheduling fields via a parallel structure */
 
 /* Flags */

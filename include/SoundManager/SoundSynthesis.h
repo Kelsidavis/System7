@@ -13,39 +13,11 @@
 
 #include "SystemTypes.h"
 
-/* Forward declarations */
-
-
 #include "SoundTypes.h"
 
 #ifdef __cplusplus
 extern "C" {
 #endif
-
-/* Synthesizer State Structure */
-
-/* Ptr is defined in MacTypes.h */
-
-/* Wave Table Entry */
-
-/* Wave Table */
-
-/* Square Wave Synthesizer State */
-
-/* Sampled Sound Synthesizer State */
-
-/* Wave Table Synthesizer State */
-
-/* MIDI Voice State */
-
-/* MIDI Synthesizer State */
-
-/* Mixer Channel State */
-
-/* Audio Mixer State */
-
-/* Ptr is defined in MacTypes.h */
-
 
 /* Wave Table Management */
 OSErr WaveTableAddWave(WaveTable* table, UInt16 index,
@@ -109,11 +81,6 @@ extern const UInt16 MIDI_NOTE_FREQUENCIES[128];
 
 /* General MIDI Program Names */
 extern const char* GM_PROGRAM_NAMES[128];
-
-/* Envelope Phases */
-
-/* Interpolation Modes */
-
 
 /* Audio Processing Utilities */
 void ConvertSampleFormat(void* src, void* dest, UInt32 samples,

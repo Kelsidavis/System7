@@ -45,18 +45,6 @@
 #define sfHookOpenFolder        103
 #define sfHookLastCall          (-2)
 
-/* File types */
-
-/* Ptr is defined in MacTypes.h */
-
-/* Classic reply structure */
-
-/* System 7 reply structure */
-
-/* Callback types */
-
-/* System 7 callbacks with user data */
-
 /* Classic Standard File routines */
 void SFPutFile(Point where,
                ConstStr255Param prompt,

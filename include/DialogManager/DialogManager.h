@@ -20,64 +20,9 @@
 #include "DialogManager/ModalDialogs.h"
 #include "DialogManager/dialog_manager_core.h"
 
-/* Forward declarations */
-
-
 #ifdef __cplusplus
 extern "C" {
 #endif
-
-/* Forward declarations for Mac types */
-/* Rect and Point types are defined in MacTypes.h */
-/* Str255 is defined in MacTypes.h */
-/* OSErr is defined in MacTypes.h */
-/* Handle is defined in MacTypes.h */
-/* Window and Event Manager dependencies */
-/* Ptr is defined in MacTypes.h */
-/* EventRecord defined in EventTypes.h */
-
-/* TextEdit dependencies */
-/* Handle is defined in MacTypes.h */
-
-/* Dialog Manager core types */
-/* Ptr is defined in MacTypes.h */
-
-/* Dialog item types and constants */
-
-/* Standard dialog button IDs */
-
-/* Alert icon types */
-
-/* Dialog item list manipulation methods */
-
-/* Stage list type for alerts */
-
-/* Callback procedure types */
-
-/* Dialog record - internal structure exactly matching Mac OS */
-/* DialogRecord is defined in SystemTypes.h */
-
-/* Dialog template structure for DLOG resources */
-
-/* Ptr is defined in MacTypes.h */
-
-/* Alert template structure for ALRT resources */
-
-/* Ptr is defined in MacTypes.h */
-
-/* Dialog item structure for DITL resources */
-
-/* Dialog item list (DITL) structure */
-
-/* Handle is defined in MacTypes.h */
-
-/* Modal dialog window classes */
-
-/* Extended dialog features flags */
-
-/*
- * Core Dialog Manager API declarations
- */
 
 /* Dialog creation and disposal */
 DialogPtr GetNewDialog(SInt16 dialogID, void* dStorage, WindowPtr behind);

@@ -15,44 +15,9 @@
 #include "SystemTypes.h"
 #include "MacTypes.h"
 
-/* Forward declarations */
-
 #ifdef __cplusplus
 extern "C" {
 #endif
-
-/* Control Definition IDs (procIDs) */
-
-/* Control Part Codes */
-
-/* Control Messages for CDEFs */
-
-/* Control Highlight States */
-
-/* Control Change Notification Types */
-
-/* Popup Menu Style Flags */
-
-/* Drag Constraints */
-
-/* Forward declarations */
-/* Handle is defined in MacTypes.h */
-
-/* Control action procedure */
-
-/* Control definition function */
-
-/* Text validation procedure */
-
-/* ControlRecord is defined in MacTypes.h */
-
-/* Color Table for Controls */
-
-/* Handle is defined in MacTypes.h */
-
-/* AuxCtlRec is defined in MacTypes.h */
-
-/* Handle is defined in MacTypes.h */
 
 /* Control Creation and Disposal */
 ControlHandle NewControl(WindowPtr theWindow, const Rect *boundsRect,

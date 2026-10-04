@@ -18,8 +18,6 @@ struct FontFamily;
 extern "C" {
 #endif
 
-/* Style type is already defined in SystemTypes.h */
-
 /* Font Constants */
 enum {
     systemFont = 0,
@@ -152,8 +150,6 @@ typedef struct FamRec {
     short       ffIntl[2];      /* International info */
     short       ffVersion;      /* Version number */
 } FamRec;
-
-/* Font Metrics Record - FMetricRec is already defined in SystemTypes.h */
 
 /* Font Metrics Record */
 typedef struct FontMetrics {
