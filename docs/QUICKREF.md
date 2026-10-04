@@ -79,7 +79,7 @@ make check-arm64     # ARM64 build and segment-permission checks
 
 | Problem | Solution |
 |---------|----------|
-| `gcc: command not found` | Install `build-essential` |
+| Compiler not found | Install the selected platform toolchain; macOS x86: `brew install i686-elf-gcc` |
 | `grub-mkrescue not found` | Install `grub-pc-bin` |
 | `xorriso not found` | Install `xorriso` |
 | `qemu-system-i386 not found` | Install `qemu-system-x86` |
