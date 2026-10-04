@@ -720,8 +720,69 @@ static void RgnPaintOne(const Rect* r, ConstPatternParam pat)  { (void)pat; Pain
 static void RgnInvertOne(const Rect* r, ConstPatternParam pat) { (void)pat; InvertRect(r); }
 static void RgnFillOne(const Rect* r, ConstPatternParam pat)   { FillRect(r, pat); }
 
+static Boolean RgnContainsCoordinate(RgnHandle rgn, SInt32 h, SInt32 v) {
+    if (h < -32768 || h > 32767 || v < -32768 || v > 32767) return false;
+    Point point = { .v = (SInt16)v, .h = (SInt16)h };
+    return PtInRgn(point, rgn);
+}
+
+static void RgnDrawFrameRun(SInt32 start, SInt32 end, SInt32 h, SInt32 v,
+                            Boolean horizontal) {
+    SInt16 startH = (SInt16)(horizontal ? start : h);
+    SInt16 startV = (SInt16)(horizontal ? v : start);
+    SInt16 endH = (SInt16)(horizontal ? end : h);
+    SInt16 endV = (SInt16)(horizontal ? v : end);
+    MoveTo(startH, startV);
+    LineTo(endH, endV);
+}
+
+static void RgnFrameEdge(RgnHandle rgn, SInt32 start, SInt32 end,
+                         SInt32 h, SInt32 v, SInt32 dh, SInt32 dv,
+                         SInt32 step, Boolean horizontal) {
+    if ((step > 0 && start > end) || (step < 0 && start < end)) return;
+    Boolean drawing = false;
+    SInt32 runStart = 0;
+    SInt32 runEnd = 0;
+    for (SInt32 coordinate = start;; coordinate += step) {
+        SInt32 pointH = horizontal ? coordinate : h;
+        SInt32 pointV = horizontal ? v : coordinate;
+        Boolean exposed = !RgnContainsCoordinate(rgn, pointH + dh, pointV + dv);
+        if (exposed) {
+            if (!drawing) runStart = coordinate;
+            runEnd = coordinate;
+            drawing = true;
+        } else if (drawing) {
+            RgnDrawFrameRun(runStart, runEnd, h, v, horizontal);
+            drawing = false;
+        }
+        if (coordinate == end) {
+            if (drawing) RgnDrawFrameRun(runStart, runEnd, h, v, horizontal);
+            break;
+        }
+    }
+}
+
 void FrameRgn(RgnHandle rgn) {
-    (void)rgn;
+    if (!rgn || !*rgn || !qd.thePort || EmptyRgn(rgn)) return;
+
+    Point savedPen;
+    GetPen(&savedPen);
+    SInt16 count = RgnRectCount(*rgn);
+    for (SInt16 i = 0; i < count; i++) {
+        Rect rect;
+        RgnGetRect(*rgn, i, &rect);
+        if (EmptyRect(&rect)) continue;
+
+        RgnFrameEdge(rgn, rect.left, rect.right - 1, rect.left, rect.top,
+                     0, -1, 1, true);
+        RgnFrameEdge(rgn, rect.top + 1, rect.bottom - 2, rect.right - 1,
+                     rect.top, 1, 0, 1, false);
+        RgnFrameEdge(rgn, rect.right - 2, rect.left + 1, rect.left,
+                     rect.bottom - 1, 0, 1, -1, true);
+        RgnFrameEdge(rgn, rect.bottom - 2, rect.top + 1, rect.left,
+                     rect.top, -1, 0, -1, false);
+    }
+    MoveTo(savedPen.h, savedPen.v);
 }
 
 void PaintRgn(RgnHandle rgn) {

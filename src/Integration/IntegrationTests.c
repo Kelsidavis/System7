@@ -1131,6 +1131,57 @@ static void Test_Region_Hole(void) {
     RecordTest(test_name, true, "");
 }
 
+static void Test_Region_FrameBoundary(void) {
+    const char* test_name = "Region_FrameBoundary";
+    Rect wr = { 150, 520, 300, 700 };
+    WindowPtr w = NewWindow(NULL, &wr, (ConstStr255Param)"\x08ITFrameR", true,
+                            0, (WindowPtr)-1, false, 0);
+    CHECK(w, "NewWindow failed");
+    RgnHandle outer = NewRgn();
+    RgnHandle hole = NewRgn();
+    if (!outer || !hole) {
+        if (outer) DisposeRgn(outer);
+        if (hole) DisposeRgn(hole);
+        DisposeWindow(w);
+        RecordTest(test_name, false, "NewRgn failed");
+        return;
+    }
+    Rect outerRect = { 10, 10, 70, 70 };
+    Rect holeRect = { 30, 30, 50, 50 };
+    RectRgn(outer, &outerRect);
+    RectRgn(hole, &holeRect);
+    DiffRgn(outer, hole, outer);
+
+    GrafPtr save;
+    GetPort(&save);
+    SetPort((GrafPtr)w);
+    EraseRect(&w->port.portRect);
+    PenNormal();
+    MoveTo(5, 5);
+    FrameRgn(outer);
+    Point pen;
+    GetPen(&pen);
+    SetPort(save);
+
+    int gx = (*w->contRgn)->rgnBBox.left;
+    int gy = (*w->contRgn)->rgnBBox.top;
+    UInt32 outerEdge = ScreenPixel(gx + 40, gy + 10);
+    UInt32 holeEdge = ScreenPixel(gx + 40, gy + 29);
+    UInt32 internalSeam = ScreenPixel(gx + 20, gy + 29);
+    UInt32 interior = ScreenPixel(gx + 20, gy + 20);
+    DisposeRgn(outer);
+    DisposeRgn(hole);
+    DisposeWindow(w);
+
+    CHECK((outerEdge & 0x00FFFFFF) == 0, "the outer contour was not framed");
+    CHECK((holeEdge & 0x00FFFFFF) == 0, "the hole contour was not framed");
+    CHECK((internalSeam & 0x00FFFFFF) == 0x00FFFFFF,
+          "FrameRgn drew an internal seam between region rectangles");
+    CHECK((interior & 0x00FFFFFF) == 0x00FFFFFF, "FrameRgn filled the region interior");
+    CHECK(pen.h == 5 && pen.v == 5, "FrameRgn changed the current pen location");
+    RecordTest(test_name, true, "");
+}
+
 static void Test_Region_SetOperations(void) {
     const char* test_name = "Region_SetOperations";
     RgnHandle a = NewRgn(), b = NewRgn(), result = NewRgn();
@@ -2339,6 +2390,7 @@ void IntegrationTests_Run(void) {
     Test_Draw_SetOrigin();
     Test_Draw_ScrollRect();
     Test_Region_Hole();
+    Test_Region_FrameBoundary();
     Test_Region_SetOperations();
     Test_Window_RepaintAroundInner();
     Test_Window_UpdateWithoutBuffer();
