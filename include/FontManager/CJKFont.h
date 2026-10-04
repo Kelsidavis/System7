@@ -2,11 +2,11 @@
  * CJKFont.h - CJK Bitmap Font Support
  *
  * Provides on-demand loading and rendering of CJK bitmap fonts.
- * Each CJK script (Japanese, Chinese, Korean) has its own font
- * resource containing thousands of 12x12 pixel glyphs.
+ * Each CJK script has a runtime slot for 12x12 pixel glyphs. Font
+ * resources are not currently provided, so missing glyphs use a tofu
+ * fallback until bitmap data is added.
  *
- * Font resources are loaded on demand when a CJK script becomes
- * active, keeping memory usage low when only Latin text is displayed.
+ * Script slots are initialized on demand when a CJK script is requested.
  */
 
 #ifndef CJK_FONT_H
@@ -32,7 +32,7 @@ typedef struct {
     SInt16       ascent;      /* Font ascent */
     SInt16       descent;     /* Font descent */
     SInt16       leading;     /* Inter-line leading */
-    Boolean      loaded;      /* true if font data is available */
+    Boolean      loaded;      /* true if the script slot was initialized */
 } CJKFontData;
 
 /*
@@ -46,17 +46,17 @@ void InitCJKFonts(void);
 /*
  * LoadCJKFont - Load font data for a CJK script
  *
- * Loads the bitmap font resource for the specified script.
- * Returns noErr if the font is loaded (or was already loaded),
- * fontNotFoundErr if no font resource exists for this script.
+ * Initializes the script slot. No bitmap font resources are currently
+ * available, so the slot uses the tofu fallback for every glyph.
+ * Returns noErr for a supported script, or paramErr otherwise.
  */
 OSErr LoadCJKFont(ScriptCode script);
 
 /*
  * GetCJKFont - Get the loaded font for a script
  *
- * Returns a pointer to the CJKFontData for the given script,
- * or NULL if the font is not loaded.
+ * Initializes the slot on demand and returns its state, or NULL for an
+ * unsupported script.
  */
 const CJKFontData* GetCJKFont(ScriptCode script);
 
@@ -74,7 +74,8 @@ const CJKFontData* GetCJKFont(ScriptCode script);
  *   outHeight  - Receives glyph height
  *
  * Returns:
- *   noErr if glyph found, paramErr if index out of range
+ *   noErr if the glyph or tofu fallback was copied, paramErr if font or
+ *   output buffer is NULL
  */
 OSErr GetCJKGlyph(const CJKFontData *font, UInt32 glyphIndex,
                   UInt8 *outBitmap, SInt16 *outWidth, SInt16 *outHeight);
