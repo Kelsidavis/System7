@@ -3,6 +3,7 @@
 #define SYSTEM7_TEXT_ENCODING_UTILS_H
 
 #include "SystemTypes.h"
+#include "ScriptManager/ScriptManager.h"
 
 #ifdef __cplusplus
 extern "C" {

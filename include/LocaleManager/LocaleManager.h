@@ -11,6 +11,7 @@
 #define LOCALE_MANAGER_H
 
 #include "SystemTypes.h"
+#include "ScriptManager/ScriptManager.h"
 
 #ifdef __cplusplus
 extern "C" {

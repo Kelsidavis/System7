@@ -18,6 +18,7 @@
 #define smGreek         ((ScriptCode)6)
 #define smCyrillic      ((ScriptCode)7)
 #define smRSymbol       ((ScriptCode)8)
+#define smRightLeft     smRSymbol
 #define smDevanagari    ((ScriptCode)9)
 #define smGurmukhi      ((ScriptCode)10)
 #define smGujarati      ((ScriptCode)11)
@@ -32,6 +33,7 @@
 #define smKhmer         ((ScriptCode)20)
 #define smThai          ((ScriptCode)21)
 #define smLaotian       ((ScriptCode)22)
+#define smLao           smLaotian
 #define smGeorgian      ((ScriptCode)23)
 #define smArmenian      ((ScriptCode)24)
 #define smSimpChinese   ((ScriptCode)25)
@@ -41,6 +43,7 @@
 #define smEthiopic      smGeez
 #define smEastEurRoman  ((ScriptCode)29)
 #define smSlavic        smEastEurRoman
+#define smCentralEuroRoman smEastEurRoman
 #define smVietnamese    ((ScriptCode)30)
 #define smExtArabic     ((ScriptCode)31)
 #define smUninterp      ((ScriptCode)32)

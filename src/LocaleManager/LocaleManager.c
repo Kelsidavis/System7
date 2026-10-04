@@ -23,15 +23,6 @@
 #define LOCALE_LOG(...) ((void)0)
 #endif
 
-/* Script codes (matching TextEncodingUtils.c) */
-#ifndef smRoman
-#define smRoman         0
-#define smJapanese      1
-#define smTradChinese   2
-#define smKorean        3
-#define smSimpChinese   25
-#endif
-
 /* Language codes */
 #ifndef langEnglish
 #define langEnglish     0
@@ -72,36 +63,6 @@
 #define langArabic      12
 #define langBengali     67
 #define langUrdu        20
-#endif
-
-/* Script codes for Cyrillic */
-#ifndef smCyrillic
-#define smCyrillic      7
-#endif
-
-/* Script codes for Central European */
-#ifndef smCentralEuroRoman
-#define smCentralEuroRoman 29
-#endif
-
-/* Script codes for Greek */
-#ifndef smGreek
-#define smGreek         6
-#endif
-
-/* Script codes for Devanagari */
-#ifndef smDevanagari
-#define smDevanagari    9
-#endif
-
-/* Script codes for Arabic */
-#ifndef smArabic
-#define smArabic        4
-#endif
-
-/* Script codes for Bengali */
-#ifndef smBengali
-#define smBengali       13
 #endif
 
 /* ---- Locale Table ------------------------------------------------------- */

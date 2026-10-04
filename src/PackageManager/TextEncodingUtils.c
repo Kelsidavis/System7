@@ -25,42 +25,6 @@
 #define TEXTENC_LOG(...)
 #endif
 
-/* Script codes (from Inside Macintosh: Text) */
-#ifndef smRoman
-#define smRoman         0
-#define smJapanese      1
-#define smTradChinese   2
-#define smKorean        3
-#define smArabic        4
-#define smHebrew        5
-#define smGreek         6
-#define smCyrillic      7
-#define smRightLeft     8
-#define smDevanagari    9
-#define smGurmukhi      10
-#define smGujarati      11
-#define smOriya         12
-#define smBengali       13
-#define smTamil         14
-#define smTelugu        15
-#define smKannada       16
-#define smMalayalam     17
-#define smSinhalese     18
-#define smBurmese       19
-#define smKhmer         20
-#define smThai          21
-#define smLao           22
-#define smGeorgian      23
-#define smArmenian      24
-#define smSimpChinese   25
-#define smTibetan       26
-#define smMongolian     27
-#define smEthiopic      28
-#define smCentralEuroRoman 29
-#define smVietnamese    30
-#define smExtArabic     31
-#endif
-
 /* Language codes (from Inside Macintosh: Text) */
 #ifndef langEnglish
 #define langEnglish     0
