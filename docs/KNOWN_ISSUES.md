@@ -642,9 +642,9 @@ tested outside, full coverage gave an empty region, and a disjoint subtrahend
 left the original untouched.
 
 **What this unblocked**: the overlapped-window repaint above, and the update
-deferral that stood in for it. `DragWindow()`'s uncovered-desktop area and
-`Finder_DeskHook()`'s hold-back are now expressible too, though they have not
-been revisited yet.
+deferral that stood in for it. `Finder_DeskHook()` now subtracts every visible
+window before erasing the desktop, and window move/resize invalidation routes
+exposed desktop regions through that hook before repainting windows behind it.
 
 ### ✅ Macintosh HD window booted with completely blank content (REDRAW-004) — FIXED
 
