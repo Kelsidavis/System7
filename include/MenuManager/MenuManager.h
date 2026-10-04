@@ -525,13 +525,13 @@ void InsertResMenu(MenuHandle theMenu, ResType theType, short afterItem);
 /*
  * InsertFontResMenu - Insert font resources into menu
  *
- * Specialized function for inserting font names into a menu,
- * with optional script filtering for international support.
+ * Inserts font-family and font-resource names in sorted order. The legacy
+ * scriptFilter parameter is accepted but is not currently applied.
  *
  * Parameters:
  *   theMenu      - Handle to menu to modify
  *   afterItem    - Item number to insert after
- *   scriptFilter - Script filter (0 = all scripts)
+ *   scriptFilter - Legacy script filter; currently ignored
  */
 void InsertFontResMenu(MenuHandle theMenu, short afterItem, short scriptFilter);
 
