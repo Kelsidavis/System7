@@ -25,6 +25,9 @@ cause remains unknown.
 - **Alarm Clock** has alarm-creation and polling APIs, but its desk-accessory mouse handler is empty, so users cannot configure alarms through the UI.
 - **Find** searches the startup disk only, up to 100 matches and 64 items a
   folder, and has no More Choices.
+- **Chooser** opens from the Apple menu, but its window drawing is empty. Device
+  discovery returns hard-coded sample devices, and zone scanning does not
+  discover AppleTalk zones.
 
 ### ⚠️ SimpleText has no Redo operation
 

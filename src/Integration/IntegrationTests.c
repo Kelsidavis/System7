@@ -34,6 +34,7 @@
 #include "TextEdit/TextEdit.h"
 #include "FS/vfs.h"
 #include "DeskManager/Calculator.h"
+#include "DeskManager/Chooser.h"
 #include "ProcessMgr/ProcessMgr.h"
 #include "MacTypes.h"
 #include "math.h"
@@ -833,6 +834,37 @@ static void Test_Dialog_EditTextFocusBeyond32Items(void) {
     CHECK(GetDialogEditTextFocus(d) == 33,
           "backward focus traversal did not return to edit item 33");
     DisposeDialog(d);
+    RecordTest(test_name, true, "");
+}
+
+static void Test_Chooser_InitializeLayout(void) {
+    const char* test_name = "Chooser_InitializeLayout";
+    Chooser chooser;
+    CHECK(Chooser_Initialize(&chooser) == CHOOSER_ERR_NONE,
+          "Chooser_Initialize failed");
+    CHECK(chooser.windowBounds.left == 100 && chooser.windowBounds.top == 100 &&
+          chooser.windowBounds.right == 500 && chooser.windowBounds.bottom == 400,
+          "Chooser window bounds were overwritten by a content rectangle");
+    CHECK(chooser.deviceListRect.left == 20 && chooser.deviceListRect.top == 40 &&
+          chooser.deviceListRect.right == 180 && chooser.deviceListRect.bottom == 200,
+          "Chooser device-list bounds were not initialized");
+    CHECK(chooser.zoneListRect.left == 200 && chooser.zoneListRect.top == 40 &&
+          chooser.zoneListRect.right == 360 && chooser.zoneListRect.bottom == 120,
+          "Chooser zone-list bounds were not initialized");
+    CHECK(chooser.deviceInfoRect.left == 20 && chooser.deviceInfoRect.top == 220 &&
+          chooser.deviceInfoRect.right == 380 && chooser.deviceInfoRect.bottom == 280,
+          "Chooser device-info bounds were not initialized");
+    CHECK(Chooser_ScanDevices(&chooser, DEVICE_TYPE_UNKNOWN) == 2,
+          "Chooser sample scan did not return both devices");
+    Point devicePoint = { .v = 45, .h = 25 };
+    CHECK(Chooser_HandleClick(&chooser, devicePoint, 0) == CHOOSER_ERR_NONE &&
+          chooser.selectedDeviceIndex == 0,
+          "device-list click did not select the first device");
+    Point zonePoint = { .v = 45, .h = 205 };
+    CHECK(Chooser_HandleClick(&chooser, zonePoint, 0) == CHOOSER_ERR_NONE &&
+          chooser.selectedZoneIndex == 0,
+          "zone-list click did not select the default zone");
+    Chooser_Shutdown(&chooser);
     RecordTest(test_name, true, "");
 }
 
@@ -1766,6 +1798,7 @@ void IntegrationTests_Run(void) {
     Test_Dialog_AlertLayout();
     Test_Dialog_IconItem();
     Test_Dialog_EditTextFocusBeyond32Items();
+    Test_Chooser_InitializeLayout();
     Test_Window_ReorderAndHide();
     Test_Window_MoveAndZoom();
     Test_File_ReadThroughExtentsOverflow();
