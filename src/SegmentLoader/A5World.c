@@ -39,6 +39,11 @@ OSErr InstallA5World(SegmentLoaderContext* ctx, const CODE0Info* info)
     if (!ctx->cpuBackend) {
         return segmentA5WorldErr;
     }
+    if (!ctx->cpuBackend->AllocateMemory ||
+        !ctx->cpuBackend->SetRegisterA5 ||
+        !ctx->cpuBackend->WriteMemory) {
+        return segmentA5WorldErr;
+    }
 
     /* The globals below A5 and the jump table above it are one block, A5
      * between them: the program addresses both from the one register. They
@@ -57,9 +62,6 @@ OSErr InstallA5World(SegmentLoaderContext* ctx, const CODE0Info* info)
     ctx->a5World.a5BelowBase = belowBase;
     ctx->a5World.a5BelowSize = info->a5BelowSize;
     ctx->a5World.a5Base = a5;
-    if (!ctx->cpuBackend->SetRegisterA5) {
-        return segmentA5WorldErr;
-    }
     err = ctx->cpuBackend->SetRegisterA5(ctx->cpuAS, a5);
     if (err != noErr) {
         SEG_LOG_ERROR("Failed to load A5 = 0x%08lX: %ld", (unsigned long)a5, (long)err);
