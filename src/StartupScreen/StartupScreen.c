@@ -17,6 +17,7 @@
 
 #include "StartupScreen/StartupScreen.h"
 #include "WindowManager/WindowManager.h"
+#include "WindowManager/WindowPlatform.h"
 #include "QuickDraw/QuickDraw.h"
 #include "QuickDraw/ColorQuickDraw.h"
 #include "QuickDraw/DisplayBezel.h"
@@ -28,9 +29,6 @@
 #include "MemoryMgr/MemoryManager.h"
 #include "EventManager/EventManager.h"
 #include "SoundManager/SoundEffects.h"
-
-extern void PlatformDrawRGBABitmap(const UInt8* rgba_data, int width, int height, int dest_x, int dest_y);
-
 
 /* Classic "Welcome to Macintosh" text */
 #define WELCOME_TEXT "Welcome to Macintosh"
