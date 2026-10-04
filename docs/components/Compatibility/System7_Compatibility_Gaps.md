@@ -38,6 +38,9 @@ This checklist records significant differences between the current toolbox reimp
   `SetDialogItemRefCon`, `SetDialogItemUserData`, and
   `SetDialogItemAccessibilityText`. Implement the supported contract or remove
   declarations that are not part of the intended API.
+- ~~`AdvanceDialogFocus()` returned 0 without moving keyboard focus.~~ **FIXED**
+  (2026-10-04): It now uses the edit-text focus traversal for Tab and Shift-Tab,
+  returning the new item number; the guest regression checks both directions.
 - ~~Window Manager mouse-down handling returned immediately for `inDrag`/`inGrow` parts instead of starting window tracking.~~ **FIXED** (2025-10-06): The current routing is in `src/EventManager/EventDispatcher.c`: `inDrag` calls `DragWindow`, while `inGrow` calls `GrowWindow` and applies its returned dimensions with `SizeWindow`.
 - ~~`src/DialogManager/DialogDrawing.c` – Edit-text items ignore focus rings; System 7 drew a focus frame and moved the caret when the control is active.~~ **FIXED** (2025-10-06): Edit-text focus rings and caret blinking implemented in DialogEditText.c
 - ~~`src/DialogManager/dialog_manager_private.c` – `GetNextUserCancelEvent` is a stub; modal dialogs should scan the event queue for cancel gestures (Command-.) as the Classic API allowed.~~ **FIXED** (2025-10-06): IsUserCancelEvent/GetNextUserCancelEvent implemented, modal dialogs support Cmd-. and Escape

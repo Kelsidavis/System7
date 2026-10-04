@@ -200,12 +200,12 @@ void ProcessDialogIdle(DialogPtr theDialog)
  */
 SInt16 AdvanceDialogFocus(DialogPtr theDialog, Boolean backward)
 {
-    (void)backward;
     if (!theDialog) {
         return 0;
     }
 
-    return 0; /* Success */
+    AdvanceDialogEditTextFocus(theDialog, backward);
+    return GetDialogEditTextFocus(theDialog);
 }
 
 /*

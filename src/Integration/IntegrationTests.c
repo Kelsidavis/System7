@@ -30,6 +30,7 @@
 #include "PatternMgr/pattern_manager.h"
 #include "QuickDrawConstants.h"
 #include "DialogManager/DialogManager.h"
+#include "DialogManager/DialogEvents.h"
 #include "DialogManager/DialogEditText.h"
 #include "DialogManager/AlertDialogs.h"
 #include "DialogManager/DITLBuilder.h"
@@ -999,11 +1000,9 @@ static void Test_Dialog_EditTextFocusBeyond32Items(void) {
     CHECK(d, "NewDialog failed");
     CHECK(GetDialogEditTextFocus(d) == 33,
           "dialog initialization did not focus edit item 33");
-    AdvanceDialogEditTextFocus(d, false);
-    CHECK(GetDialogEditTextFocus(d) == 34,
+    CHECK(AdvanceDialogFocus(d, false) == 34 && GetDialogEditTextFocus(d) == 34,
           "forward focus traversal did not reach edit item 34");
-    AdvanceDialogEditTextFocus(d, true);
-    CHECK(GetDialogEditTextFocus(d) == 33,
+    CHECK(AdvanceDialogFocus(d, true) == 33 && GetDialogEditTextFocus(d) == 33,
           "backward focus traversal did not return to edit item 33");
     TEHandle editText = GetOrCreateDialogTEHandle(d, 33);
     CHECK(editText, "focused edit item did not provide a TextEdit handle");
