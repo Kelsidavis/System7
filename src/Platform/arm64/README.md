@@ -7,10 +7,10 @@ ARM64/AArch64 implementation for System 7.1 targeting QEMU's `virt` machine.
 - **Bootstrap**: EL2 to EL1 exception level transition
 - **Serial I/O**: PL011 UART driver
 - **Timing**: ARM Generic Timer with microsecond precision
-- **Interrupts**: GICv2 Generic Interrupt Controller
+- **Interrupts**: GICv2 initialization on non-QEMU builds; the QEMU build skips it
 - **Memory**: MMU with 4GB identity mapping
 - **Cache**: Data and instruction cache management
-- **Graphics**: Framebuffer driver via VideoCore mailbox
+- **Graphics**: VirtIO-GPU on QEMU builds; Raspberry Pi builds use the VideoCore mailbox
 - **Hardware Detection**: Device Tree Blob parser
 
 ## Building
@@ -44,6 +44,9 @@ This produces `kernel.elf` at the repository root. The platform directory's
 ```bash
 make -C src/Platform/arm64 qemu-virt
 ```
+
+The default QEMU launch does not attach a VirtIO-GPU or storage device, so the
+kernel continues without graphics and cannot mount a pre-existing boot volume.
 
 ## Memory Map
 

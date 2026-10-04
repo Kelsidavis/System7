@@ -37,8 +37,9 @@ qemu-system-aarch64 \
   -display none
 ```
 
-The kernel currently boots through desktop setup in QEMU and then stops while
-creating the boot volume; see `docs/KNOWN_ISSUES.md` for the current status.
+The current smoke test reaches the welcome screen, then stops at
+`HFS_CreateBlankVolume` while creating the boot volume. It does not reach
+desktop setup; see `docs/KNOWN_ISSUES.md` for the current status.
 
 ## Runtime layout
 
