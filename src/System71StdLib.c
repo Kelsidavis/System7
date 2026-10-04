@@ -1793,9 +1793,6 @@ char serial_getchar(void) {
 }
 
 void serial_print_hex(uint32_t value) {
-    /* DISABLED - Serial output was somehow appearing in GUI menu bar */
-    return;
-
     const char* hex = "0123456789ABCDEF";
     serial_puts("0x");
     for (int i = 7; i >= 0; i--) {
