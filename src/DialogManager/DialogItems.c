@@ -63,7 +63,6 @@ void InitDialogItems(void)
 
     memset(&gDialogItemState, 0, sizeof(gDialogItemState));
     gDialogItemState.initialized = true;
-    gDialogItemState.defaultFont = 0; /* System font */
     gDialogItemState.defaultSize = 12;
 }
 
