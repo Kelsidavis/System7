@@ -169,8 +169,11 @@ ifeq ($(PLATFORM),arm)
     endif
 else ifeq ($(PLATFORM),arm64)
     # ARM 64-bit (AArch64) for QEMU virt machine
-    # Use aarch64 cross-compiler (prefer elf, fallback to linux-gnu)
-    AARCH64_PREFIX := $(shell command -v aarch64-elf-gcc >/dev/null 2>&1 && echo aarch64-elf || echo aarch64-linux-gnu)
+    # Prefer the Homebrew elf toolchain, then none-elf, then Linux GNU.
+    AARCH64_PREFIX := $(shell \
+        if command -v aarch64-elf-gcc >/dev/null 2>&1; then echo aarch64-elf; \
+        elif command -v aarch64-none-elf-gcc >/dev/null 2>&1; then echo aarch64-none-elf; \
+        else echo aarch64-linux-gnu; fi)
     CC = $(AARCH64_PREFIX)-gcc
     AS = $(AARCH64_PREFIX)-as
     LD = $(AARCH64_PREFIX)-ld

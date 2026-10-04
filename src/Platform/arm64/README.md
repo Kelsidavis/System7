@@ -17,7 +17,8 @@ ARM64/AArch64 implementation for System 7.1 targeting QEMU's `virt` machine.
 
 ### Requirements
 
-- `aarch64-none-elf-gcc` toolchain
+- `aarch64-elf-gcc` or `aarch64-none-elf-gcc`; the build also accepts
+  `aarch64-linux-gnu-gcc`
 - `qemu-system-aarch64` for testing
 
 ### Install Toolchain on macOS
