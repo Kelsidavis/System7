@@ -11,7 +11,7 @@
  * - Window positioning and movement (MoveWindow)
  * - Drag constraint enforcement
  * - Drag feedback and visual tracking
- * - Multi-monitor and screen boundary handling
+ * - Window positioning and screen-boundary constraints
  * - Window snapping and alignment
  *
  * Copyright (c) 2025 - System 7.1 Portable Project
@@ -20,6 +20,9 @@
 
 #include "SystemTypes.h"
 #include "System71StdLib.h"
+#include "SystemInternal.h"
+#include "EventManager/EventManager.h"
+#include "EventManager/MouseEvents.h"
 #include "WindowManager/WMLogging.h"
 #include "QuickDraw/QuickDraw.h"
 #include "QuickDraw/QuickDrawPlatform.h"
@@ -186,9 +189,6 @@ void DragWindow(WindowPtr theWindow, Point startPt, const Rect* boundsRect) {
     }
 
     /* System 7 modal drag loop using StillDown/GetMouse */
-    extern Boolean StillDown(void);
-    extern void GetMouse(Point* mouseLoc);
-
     Point ptG;
     Point lastPos = startPt;
     Boolean moved = false;
@@ -204,15 +204,11 @@ void DragWindow(WindowPtr theWindow, Point startPt, const Rect* boundsRect) {
         SetPort(wmPort);
     }
 
-    extern void InvalidateCursor(void);  /* Force cursor redraw */
-
     /* Invalidate cursor state before drag to prevent stale background artifacts */
     InvalidateCursor();
 
     /* Main modal drag loop - System 7 idiom with XOR outline feedback
      * With safety timeout to prevent infinite loop if StillDown() gets stuck */
-    extern void EventPumpYield(void);
-    extern void UpdateCursorDisplay(void);
     /* Every threshold here is measured in ticks (1/60 s) rather than loop
      * iterations.
      *
