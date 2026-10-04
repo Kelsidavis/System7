@@ -1715,26 +1715,23 @@ static void Test_TextEditScrollBounds(void) {
     const char* tail = "\rA\rB\rC\rD";
     while (*tail) text[length++] = *tail++;
 
-    TEHandle hTE = TENew(&rect, &rect);
+    TEHandle hTE = TEStyleNew(&rect, &rect);
     if (!hTE) {
-        RecordTest(test_name, false, "TENew failed");
+        RecordTest(test_name, false, "TEStyleNew failed");
         return;
     }
 
     TESetWordWrap(false, hTE);
     TESetText(text, length, hTE);
+    TextStyle boldStyle = {0};
+    boldStyle.tsFace = bold;
+    TESetSelect(0, 20, hTE);
+    TESetStyle(doFace, &boldStyle, false, hTE);
+    TESetSelect(0, 0, hTE);
     TECalText(hTE);
 
-    GrafPtr savedPort = NULL;
-    GetPort(&savedPort);
-    short savedFont = savedPort ? savedPort->txFont : chicagoFont;
-    short savedSize = savedPort ? savedPort->txSize : 12;
-    UInt8 savedFace = savedPort ? savedPort->txFace : normal;
-    TextFont((**hTE).txFont);
-    TextSize((**hTE).txSize);
-    TextFace((**hTE).txFace);
-
-    SInt16 maxHScroll = (SInt16)(CharWidth('W') * 40 - (rect.right - rect.left));
+    Point lineEnd = TEGetPoint(40, hTE);
+    SInt16 maxHScroll = (SInt16)(lineEnd.h - rect.right);
     if (maxHScroll < 0) maxHScroll = 0;
     const SInt32* lineStarts = NULL;
     SInt16 lineCount = TE_LineInfo(hTE, &lineStarts);
@@ -1762,9 +1759,6 @@ static void Test_TextEditScrollBounds(void) {
     TE_GetScroll(hTE, &dh, &dv);
     Boolean pinnedScrollOK = dh == maxHScroll && dv == maxVScroll;
 
-    TextFont(savedFont);
-    TextSize(savedSize);
-    TextFace(savedFace);
     TEDispose(hTE);
 
     if (!directScrollOK || !positiveOverflowClamped ||
