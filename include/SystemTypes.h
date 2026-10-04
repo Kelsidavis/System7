@@ -807,7 +807,7 @@ typedef AuxDCE* AuxDCEPtr;
 typedef AuxDCEPtr* AuxDCEHandle;
 
 // Component Manager
-typedef struct Component* ComponentInstance;
+typedef struct ComponentInstanceRecord* ComponentInstance;
 typedef struct ComponentRecord* Component;
 
 typedef struct ComponentDescription {
@@ -838,7 +838,7 @@ typedef struct ComponentParameters {
 
 typedef long (*ComponentRoutine)(ComponentParameters* params, Handle storage);
 typedef ComponentRoutine ComponentFunction;
-typedef struct ComponentMutex* ComponentMutex;
+typedef struct ComponentMutexRecord* ComponentMutex;
 
 typedef struct ComponentRegistryEntry {
     Component               component;
@@ -1789,7 +1789,7 @@ typedef Boolean (*IdleProcPtr)(EventRecord* event, SInt32* sleepTime, RgnHandle*
 typedef Boolean (*EventFilterProcPtr)(EventRecord* event);
 
 // OSA and AppleScript types
-typedef struct OSAScript* OSAScript;
+typedef struct OSAScriptRecord* OSAScript;
 typedef ComponentInstance OSAComponentInstance;
 
 // Resource Manager types
