@@ -1764,6 +1764,31 @@ static void Test_TextEditScrollBounds(void) {
     RecordTest(test_name, true, "");
 }
 
+static void Test_TextEditGetStyle(void) {
+    const char* test_name = "TextEdit_GetStyle";
+    Rect rect = {0, 0, 40, 120};
+    TEHandle hTE = TEStyleNew(&rect, &rect);
+    if (!hTE) {
+        RecordTest(test_name, false, "TEStyleNew failed");
+        return;
+    }
+
+    TextStyle style = {0};
+    SInt16 lineHeight = 0;
+    SInt16 fontAscent = 0;
+    TEGetStyle(0, &style, &lineHeight, &fontAscent, hTE);
+    Boolean defaultStyle = style.tsFont == (**hTE).txFont &&
+                          style.tsFace == (**hTE).txFace &&
+                          style.tsSize == (**hTE).txSize &&
+                          lineHeight == (**hTE).lineHeight &&
+                          fontAscent == (**hTE).fontAscent;
+    TEDispose(hTE);
+
+    CHECK(defaultStyle,
+          "TEGetStyle did not return the initialized styled-text attributes");
+    RecordTest(test_name, true, "");
+}
+
 /* The Calculator keeps its first operand: 7 + 8 = is 15. */
 static double CalcRun(Calculator* c, const char* keys) {
     Calculator_ClearAll(c);
@@ -2892,6 +2917,7 @@ void IntegrationTests_Run(void) {
     Test_KeyboardManagerTracksKeyState();
     Test_CJKFontFallback();
     Test_TextEditScrollBounds();
+    Test_TextEditGetStyle();
     Test_Calculator_Arithmetic();
     Test_Calculator_EntryAndHistory();
     Test_Window_ClassicChrome();

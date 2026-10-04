@@ -449,8 +449,8 @@ static OSErr TE_CopyToScrap(TEHandle hTE) {
         } RunArray;
 
         typedef struct {
-            SInt32 nRuns;
-            SInt32 nStyles;
+            SInt16 nRuns;
+            SInt16 nStyles;
             Handle styleTab;
             Handle runArray;
         } STRec_Style;

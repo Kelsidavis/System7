@@ -55,13 +55,13 @@ typedef struct TERec *TEPtr;
 
 /* Style run - associates style with text range */
 typedef struct StyleRun {
-    SInt32      startChar;      /* Starting character position */
+    SInt16      startChar;      /* Starting character position */
     SInt16      styleIndex;     /* Index into style table */
 } StyleRun;
 
 typedef struct STRec {
-    SInt32      nRuns;          /* Number of style runs */
-    SInt32      nStyles;        /* Number of unique styles */
+    SInt16      nRuns;          /* Number of style runs */
+    SInt16      nStyles;        /* Number of unique styles */
     Handle      styleTab;       /* Handle to style table */
     Handle      runArray;       /* Handle to run array */
     Handle      lineHeights;    /* Handle to line height array */
