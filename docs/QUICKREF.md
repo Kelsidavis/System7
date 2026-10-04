@@ -46,7 +46,7 @@ quit                          # Exit GDB
 The repository quality gates are:
 
 ```bash
-make check           # x86 build, layout, allocator, libc, and export checks
+make check           # x86 build/layout, allocator and definition audits, docs, tests, and exports
 make analyze         # x86 build with GCC's static analyzer
 make analyze-arm64   # ARM64 build with GCC's static analyzer
 make check-arm64     # ARM64 build and segment-permission checks
