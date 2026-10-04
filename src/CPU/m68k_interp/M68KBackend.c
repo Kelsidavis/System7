@@ -9,6 +9,7 @@
  */
 
 #include "CPU/M68KInterp.h"
+#include "CPU/M68KOpcodes.h"
 #include "CPU/CPUBackend.h"
 #include "CPU/LowMemGlobals.h"
 #include "SegmentLoader/SegmentLoader.h"
@@ -18,8 +19,8 @@
 #include "CPU/CPULogging.h"
 #include <string.h>
 
-/* Forward declarations of ICPUBackend methods */
-/* Guest memory accessors, defined with the opcode implementations. */
+/* Guest memory accessors, implemented in M68KDecode.c. */
+UInt16 M68K_Fetch16(M68KAddressSpace* as);
 void M68K_Write8(M68KAddressSpace* as, UInt32 addr, UInt8 value);
 void M68K_Write16(M68KAddressSpace* as, UInt32 addr, UInt16 value);
 void M68K_Write32(M68KAddressSpace* as, UInt32 addr, UInt32 value);
@@ -762,111 +763,6 @@ static OSErr M68K_ReadMemory(CPUAddressSpace as, CPUAddr addr,
     { extern UInt8 M68K_Read8(M68KAddressSpace* as, UInt32 addr); for (Size i = 0; i < len; i++) { ((UInt8*)data)[i] = M68K_Read8(mas, addr + i); } }
     return noErr;
 }
-
-/*
- * Opcode Handler Declarations (from M68KOpcodes.c)
- */
-extern void M68K_Op_MOVE(M68KAddressSpace* as, UInt16 opcode);
-extern void M68K_Op_MOVEA(M68KAddressSpace* as, UInt16 opcode);
-extern void M68K_Op_LEA(M68KAddressSpace* as, UInt16 opcode);
-extern void M68K_Op_PEA(M68KAddressSpace* as, UInt16 opcode);
-extern void M68K_Op_CLR(M68KAddressSpace* as, UInt16 opcode);
-extern void M68K_Op_NOT(M68KAddressSpace* as, UInt16 opcode);
-extern void M68K_Op_ADD(M68KAddressSpace* as, UInt16 opcode);
-extern void M68K_Op_SUB(M68KAddressSpace* as, UInt16 opcode);
-extern void M68K_Op_CMP(M68KAddressSpace* as, UInt16 opcode);
-extern void M68K_Op_LINK(M68KAddressSpace* as, UInt16 opcode);
-extern void M68K_Op_UNLK(M68KAddressSpace* as, UInt16 opcode);
-extern void M68K_Op_JSR(M68KAddressSpace* as, UInt16 opcode);
-extern void M68K_Op_JMP(M68KAddressSpace* as, UInt16 opcode);
-extern void M68K_Op_BRA(M68KAddressSpace* as, UInt16 opcode);
-extern void M68K_Op_BSR(M68KAddressSpace* as, UInt16 opcode);
-extern void M68K_Op_Bcc(M68KAddressSpace* as, UInt16 opcode);
-extern void M68K_Op_RTS(M68KAddressSpace* as, UInt16 opcode);
-extern void M68K_Op_RTE(M68KAddressSpace* as, UInt16 opcode);
-extern void M68K_Op_STOP(M68KAddressSpace* as, UInt16 opcode);
-extern void M68K_Op_Scc(M68KAddressSpace* as, UInt16 opcode);
-extern void M68K_Op_DBcc(M68KAddressSpace* as, UInt16 opcode);
-extern void M68K_Op_TRAP(M68KAddressSpace* as, UInt16 opcode);
-extern void M68K_Op_MOVEQ(M68KAddressSpace* as, UInt16 opcode);
-extern void M68K_Op_TST(M68KAddressSpace* as, UInt16 opcode);
-extern void M68K_Op_EXT(M68KAddressSpace* as, UInt16 opcode);
-extern void M68K_Op_SWAP(M68KAddressSpace* as, UInt16 opcode);
-extern void M68K_Op_ADDQ(M68KAddressSpace* as, UInt16 opcode);
-extern void M68K_Op_SUBQ(M68KAddressSpace* as, UInt16 opcode);
-extern void M68K_Op_AND(M68KAddressSpace* as, UInt16 opcode);
-extern void M68K_Op_OR(M68KAddressSpace* as, UInt16 opcode);
-extern void M68K_Op_EOR(M68KAddressSpace* as, UInt16 opcode);
-extern void M68K_Op_NOP(M68KAddressSpace* as, UInt16 opcode);
-extern void M68K_Op_ADDA(M68KAddressSpace* as, UInt16 opcode);
-extern void M68K_Op_SUBA(M68KAddressSpace* as, UInt16 opcode);
-extern void M68K_Op_CMPA(M68KAddressSpace* as, UInt16 opcode);
-extern void M68K_Op_MOVEM(M68KAddressSpace* as, UInt16 opcode);
-extern void M68K_Op_LSL(M68KAddressSpace* as, UInt16 opcode);
-extern void M68K_Op_LSR(M68KAddressSpace* as, UInt16 opcode);
-extern void M68K_Op_ASL(M68KAddressSpace* as, UInt16 opcode);
-extern void M68K_Op_ASR(M68KAddressSpace* as, UInt16 opcode);
-extern void M68K_Op_MULU(M68KAddressSpace* as, UInt16 opcode);
-extern void M68K_Op_MULS(M68KAddressSpace* as, UInt16 opcode);
-extern void M68K_Op_DIVU(M68KAddressSpace* as, UInt16 opcode);
-extern void M68K_Op_DIVS(M68KAddressSpace* as, UInt16 opcode);
-extern void M68K_Op_BTST(M68KAddressSpace* as, UInt16 opcode);
-extern void M68K_Op_BSET(M68KAddressSpace* as, UInt16 opcode);
-extern void M68K_Op_BCLR(M68KAddressSpace* as, UInt16 opcode);
-extern void M68K_Op_BCHG(M68KAddressSpace* as, UInt16 opcode);
-extern void M68K_Op_ROL(M68KAddressSpace* as, UInt16 opcode);
-extern void M68K_Op_ROR(M68KAddressSpace* as, UInt16 opcode);
-extern void M68K_Op_NEG(M68KAddressSpace* as, UInt16 opcode);
-extern void M68K_Op_ROXL(M68KAddressSpace* as, UInt16 opcode);
-extern void M68K_Op_ROXR(M68KAddressSpace* as, UInt16 opcode);
-extern void M68K_Op_ADDX(M68KAddressSpace* as, UInt16 opcode);
-extern void M68K_Op_SUBX(M68KAddressSpace* as, UInt16 opcode);
-extern void M68K_Op_NEGX(M68KAddressSpace* as, UInt16 opcode);
-extern void M68K_Op_CHK(M68KAddressSpace* as, UInt16 opcode);
-extern void M68K_Op_TAS(M68KAddressSpace* as, UInt16 opcode);
-extern void M68K_Op_CMPI(M68KAddressSpace* as, UInt16 opcode);
-extern void M68K_Op_ADDI(M68KAddressSpace* as, UInt16 opcode);
-extern void M68K_Op_SUBI(M68KAddressSpace* as, UInt16 opcode);
-extern void M68K_Op_ANDI(M68KAddressSpace* as, UInt16 opcode);
-extern void M68K_Op_ORI(M68KAddressSpace* as, UInt16 opcode);
-extern void M68K_Op_EORI(M68KAddressSpace* as, UInt16 opcode);
-extern void M68K_Op_ABCD(M68KAddressSpace* as, UInt16 opcode);
-extern void M68K_Op_SBCD(M68KAddressSpace* as, UInt16 opcode);
-extern void M68K_Op_NBCD(M68KAddressSpace* as, UInt16 opcode);
-extern void M68K_Op_MOVEP(M68KAddressSpace* as, UInt16 opcode);
-extern void M68K_Op_CMPM(M68KAddressSpace* as, UInt16 opcode);
-/* The 68020's (M68K68020.c) */
-extern void M68K_Op_MULL(M68KAddressSpace* as, UInt16 opcode);
-extern void M68K_Op_DIVL(M68KAddressSpace* as, UInt16 opcode);
-extern void M68K_Op_EXTB(M68KAddressSpace* as, UInt16 opcode);
-extern void M68K_Op_LINKL(M68KAddressSpace* as, UInt16 opcode);
-extern void M68K_Op_CHKL(M68KAddressSpace* as, UInt16 opcode);
-extern void M68K_Op_CMP2(M68KAddressSpace* as, UInt16 opcode);
-extern void M68K_Op_CAS(M68KAddressSpace* as, UInt16 opcode);
-extern void M68K_Op_Bitfield(M68KAddressSpace* as, UInt16 opcode);
-extern void M68K_Op_PACK(M68KAddressSpace* as, UInt16 opcode);
-extern void M68K_Op_UNPK(M68KAddressSpace* as, UInt16 opcode);
-extern void M68K_Op_RTD(M68KAddressSpace* as, UInt16 opcode);
-extern void M68K_Op_TRAPcc(M68KAddressSpace* as, UInt16 opcode);
-extern void M68K_Op_BKPT(M68KAddressSpace* as, UInt16 opcode);
-extern void M68K_Op_ILLEGAL(M68KAddressSpace* as, UInt16 opcode);
-extern void M68K_Op_RESET(M68KAddressSpace* as, UInt16 opcode);
-extern void M68K_Op_TRAPV(M68KAddressSpace* as, UInt16 opcode);
-extern void M68K_Op_RTR(M68KAddressSpace* as, UInt16 opcode);
-extern void M68K_Op_ANDI_CCR(M68KAddressSpace* as, UInt16 opcode);
-extern void M68K_Op_ANDI_SR(M68KAddressSpace* as, UInt16 opcode);
-extern void M68K_Op_ORI_CCR(M68KAddressSpace* as, UInt16 opcode);
-extern void M68K_Op_ORI_SR(M68KAddressSpace* as, UInt16 opcode);
-extern void M68K_Op_EORI_CCR(M68KAddressSpace* as, UInt16 opcode);
-extern void M68K_Op_EORI_SR(M68KAddressSpace* as, UInt16 opcode);
-extern void M68K_Op_MOVE_CCR(M68KAddressSpace* as, UInt16 opcode);
-extern void M68K_Op_MOVE_SR(M68KAddressSpace* as, UInt16 opcode);
-extern void M68K_Op_MOVE_FROM_SR(M68KAddressSpace* as, UInt16 opcode);
-extern void M68K_Op_MOVE_FROM_CCR(M68KAddressSpace* as, UInt16 opcode);
-extern void M68K_Op_MOVE_USP(M68KAddressSpace* as, UInt16 opcode);
-extern void M68K_Op_EXG(M68KAddressSpace* as, UInt16 opcode);
-extern UInt16 M68K_Fetch16(M68KAddressSpace* as);
-extern void M68K_Fault(M68KAddressSpace* as, const char* reason);
 
 /*
  * M68K_Step - Fetch and execute one instruction
