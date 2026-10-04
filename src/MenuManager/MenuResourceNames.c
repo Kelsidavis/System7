@@ -36,6 +36,22 @@ static Boolean IsResourceMenuName(ConstStr255Param name)
     return name[0] && name[1] != '.' && name[1] != '%';
 }
 
+static void InsertNamedResources(MenuHandle menu, ResType type, short first, short *last)
+{
+    SInt16 resourceCount = CountResources(type);
+    for (int index = 1; index <= resourceCount; ++index) {
+        Handle resource = GetIndResource(type, (SInt16)index);
+        if (!resource) continue;
+        ResID id;
+        ResType resourceType;
+        Str255 name = {0};
+        GetResInfo(resource, &id, &resourceType, (char*)name);
+        if (!IsResourceMenuName(name)) continue;
+        if (!Menu_InsertSortedName(menu, name, first, *last)) return;
+        ++*last;
+    }
+}
+
 void InsertResMenu(MenuHandle menu, ResType type, short afterItem)
 {
     if (!menu) return;
@@ -59,17 +75,11 @@ void InsertResMenu(MenuHandle menu, ResType type, short afterItem)
         return;
     }
 
-    SInt16 resources = CountResources(type);
-    for (int index = 1; index <= resources; ++index) {
-        Handle resource = GetIndResource(type, (SInt16)index);
-        if (!resource) continue;
-        ResID id;
-        ResType resourceType;
-        Str255 name = {0};
-        GetResInfo(resource, &id, &resourceType, (char*)name);
-        if (!IsResourceMenuName(name)) continue;
-        if (!Menu_InsertSortedName(menu, name, first, last)) break;
-        ++last;
+    if (type == FOURCC('F', 'O', 'N', 'T') || type == FOURCC('F', 'O', 'N', 'D')) {
+        InsertNamedResources(menu, FOURCC('F', 'O', 'N', 'D'), first, &last);
+        InsertNamedResources(menu, FOURCC('F', 'O', 'N', 'T'), first, &last);
+    } else {
+        InsertNamedResources(menu, type, first, &last);
     }
 }
 

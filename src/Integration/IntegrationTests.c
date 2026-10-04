@@ -1752,6 +1752,13 @@ static Boolean Test_MenuHasName(MenuHandle menu, short item, const char* expecte
     return name[0] == length && memcmp(name + 1, expected, length) == 0;
 }
 
+static Boolean Test_MenuContainsName(MenuHandle menu, const char* expected) {
+    for (short item = 1; item <= CountMItems(menu); ++item) {
+        if (Test_MenuHasName(menu, item, expected)) return true;
+    }
+    return false;
+}
+
 static void Test_MenuResourceNames(void) {
     const char* test_name = "Menu_ResourceNames";
     const ResType type = FOURCC('M', 'N', 't', 's');
@@ -1789,6 +1796,31 @@ static void Test_MenuResourceNames(void) {
     Boolean inserted = false;
     Boolean appended = false;
     Boolean literal = false;
+    Boolean fontAndFamilyInserted = false;
+    if (setup) {
+        Handle fond = NewHandle(1);
+        Handle font = NewHandle(1);
+        if (!fond || !font) {
+            if (fond) DisposeHandle(fond);
+            if (font) DisposeHandle(font);
+            setup = false;
+        } else {
+            **fond = 'f';
+            **font = 'n';
+            AddResource(fond, FOURCC('F', 'O', 'N', 'D'), 901, PSTR("Menu Test Family"));
+            if (ResError() != noErr) {
+                DisposeHandle(fond);
+                DisposeHandle(font);
+                setup = false;
+            } else {
+                AddResource(font, FOURCC('F', 'O', 'N', 'T'), 902, PSTR("Menu Test Strike"));
+                if (ResError() != noErr) {
+                    DisposeHandle(font);
+                    setup = false;
+                }
+            }
+        }
+    }
     if (setup) {
         SetResLoad(false);
         InsertResMenu(menu, type, 1);
@@ -1805,6 +1837,9 @@ static void Test_MenuResourceNames(void) {
         appended = CountMItems(menu) == 5 && Test_MenuHasName(menu, 2, "Suffix") &&
                    Test_MenuHasName(menu, 3, "A;B/X") && Test_MenuHasName(menu, 4, "Alpha") &&
                    Test_MenuHasName(menu, 5, "Zulu");
+        InsertResMenu(menu, FOURCC('F', 'O', 'N', 'T'), 1);
+        fontAndFamilyInserted = Test_MenuContainsName(menu, "Menu Test Family") &&
+                                Test_MenuContainsName(menu, "Menu Test Strike");
     }
     DisposeMenu(menu);
     for (int file = 1; file >= 0; --file) {
@@ -1816,6 +1851,7 @@ static void Test_MenuResourceNames(void) {
     CHECK(setup, "could not create the resource files");
     CHECK(inserted && appended, "resource names did not include both open files in sorted order");
     CHECK(literal, "a resource name was interpreted as menu-command metadata");
+    CHECK(fontAndFamilyInserted, "FONT insertion did not include both FONT and FOND resources");
     RecordTest(test_name, true, NULL);
 }
 
