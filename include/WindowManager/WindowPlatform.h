@@ -30,20 +30,6 @@ extern "C" {
 void Platform_InitWindowing(void);
 
 /*
- * Platform_ShutdownWindowing - Shutdown platform windowing system
- *
- * Cleans up platform resources and shuts down windowing system.
- */
-void Platform_ShutdownWindowing(void);
-
-/*
- * Platform_GetCapabilities - Get platform capabilities
- *
- * Returns a bitmask of supported platform features.
- */
-UInt32 Platform_GetCapabilities(void);
-
-/*
  * Platform_HasColorQuickDraw - Check for Color QuickDraw support
  *
  * Returns true if platform supports color graphics operations.
@@ -60,27 +46,6 @@ Boolean Platform_HasColorQuickDraw(void);
  * Returns the bounds of the main display in global coordinates.
  */
 void Platform_GetScreenBounds(Rect* bounds);
-
-/*
- * Platform_GetScreenCount - Get number of screens
- *
- * Returns the number of available displays.
- */
-short Platform_GetScreenCount(void);
-
-/*
- * Platform_GetScreenBoundsForIndex - Get bounds for specific screen
- *
- * Returns the bounds of the specified display.
- */
-void Platform_GetScreenBoundsForIndex(short screenIndex, Rect* bounds);
-
-/*
- * Platform_GetScreenFromPoint - Find screen containing point
- *
- * Returns the index of the screen containing the specified point.
- */
-short Platform_GetScreenFromPoint(Point pt);
 
 /* ============================================================================
  * Native Window Management
@@ -450,13 +415,6 @@ void Platform_HideDragOutline(const Rect* rect);
  */
 void Platform_PostWindowEvent(WindowPtr window, short eventType, long eventData);
 
-/*
- * Platform_ProcessPendingEvents - Process pending events
- *
- * Processes any pending platform events. Returns true if events were processed.
- */
-Boolean Platform_ProcessPendingEvents(void);
-
 /* ============================================================================
  * Color and Pattern Management
  * ============================================================================ */
@@ -469,106 +427,11 @@ Boolean Platform_ProcessPendingEvents(void);
 PixPatHandle Platform_CreateStandardGrayPixPat(void);
 
 /*
- * Platform_SetDesktopPattern - Set desktop background pattern
- *
- * Sets the pattern used for the desktop background.
- */
-void Platform_SetDesktopPattern(const Pattern* pattern);
-
-/*
  * Platform_DisposeCTable - Dispose color table
  *
  * Releases memory used by a color table.
  */
 void Platform_DisposeCTable(CTabHandle ctab);
-
-/* ============================================================================
- * Platform-Specific Extensions
- * ============================================================================ */
-
-/*
- * Platform_GetPlatformWindowData - Get platform-specific data
- *
- * Returns platform-specific data associated with a window.
- */
-void* Platform_GetPlatformWindowData(WindowPtr window);
-
-/*
- * Platform_SetPlatformWindowData - Set platform-specific data
- *
- * Associates platform-specific data with a window.
- */
-void Platform_SetPlatformWindowData(WindowPtr window, void* data);
-
-/*
- * Platform_GetNativeWindowHandle - Get native window handle
- *
- * Returns the native window handle for platform-specific operations.
- */
-void* Platform_GetNativeWindowHandle(WindowPtr window);
-
-/*
- * Platform_PerformNativeWindowOperation - Perform native operation
- *
- * Performs a platform-specific operation on the native window.
- */
-Boolean Platform_PerformNativeWindowOperation(WindowPtr window, UInt32 operation, void* data);
-
-/* ============================================================================
- * Error Handling and Debugging
- * ============================================================================ */
-
-/*
- * Platform_GetLastError - Get last platform error
- *
- * Returns a description of the last platform error that occurred.
- */
-const char* Platform_GetLastError(void);
-
-/*
- * Platform_ClearLastError - Clear last error
- *
- * Clears the last recorded platform error.
- */
-void Platform_ClearLastError(void);
-
-/*
- * Platform_DebugPrint - Platform debug output
- *
- * Outputs debug information using platform-appropriate mechanisms.
- */
-void Platform_DebugPrint(const char* format, ...);
-
-/* ============================================================================
- * Platform Detection Macros
- * ============================================================================ */
-
-/* Platform identification */
-#if defined(__APPLE__) && defined(__MACH__)
-    #define PLATFORM_MACOS 1
-    #if TARGET_OS_IPHONE
-        #define PLATFORM_IOS 1
-    #endif
-#elif defined(_WIN32) || defined(_WIN64)
-    #define PLATFORM_WINDOWS 1
-#elif defined(__linux__)
-    #define PLATFORM_LINUX 1
-#elif defined(__unix__) || defined(__unix)
-    #define PLATFORM_UNIX 1
-#endif
-
-/* Windowing system detection */
-#if defined(PLATFORM_MACOS) && !defined(PLATFORM_IOS)
-    #define WINDOWING_COCOA 1
-#elif defined(PLATFORM_WINDOWS)
-    #define WINDOWING_WIN32 1
-#elif defined(PLATFORM_LINUX) || defined(PLATFORM_UNIX)
-    #if defined(WAYLAND_AVAILABLE)
-        #define WINDOWING_WAYLAND 1
-    #else
-        #define WINDOWING_X11 1
-    #endif
-#endif
 
 void PlatformDrawRGBABitmap(const UInt8* rgba_data, int width, int height, int dest_x, int dest_y);
 
