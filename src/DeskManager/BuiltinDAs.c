@@ -22,6 +22,7 @@
 #include "DeskManager/AlarmClock.h"
 #include "DeskManager/Chooser.h"
 #include "DeskManager/Notepad.h"
+#include "ProcessMgr/ProcessMgr.h"
 #include "QuickDraw/QuickDraw.h"
 
 /* Forward declarations for DA interfaces */
@@ -518,7 +519,6 @@ static int KeyCaps_DAIdle(DeskAccessory *da)
     if (!da || !da->driverData) {
         return DESK_ERR_INVALID_PARAM;
     }
-    extern UInt16 GetCurrentModifiers(void);
     KeyCaps_Idle((KeyCaps *)da->driverData, KeyCaps_Modifiers(GetCurrentModifiers()));
     return DESK_ERR_NONE;
 }

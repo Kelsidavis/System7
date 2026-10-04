@@ -22,6 +22,7 @@
 #include "FontManager/FontManager.h"
 #include "EventManager/EventManager.h"
 #include "EventManager/EventTypes.h"  /* For mouse masks */
+#include "Platform/PS2Input.h"
 #include "TimeManager/TimeBase.h"
 #include "Platform/Framebuffer.h"
 
@@ -634,7 +635,6 @@ static long TrackMenu_Body(short menuID, Point *startPt) {
          * random depending on where the pointer happened to sit.
          *
          * GetMouseButtons() is the accessor ps2.c exports for exactly this. */
-        extern uint8_t GetMouseButtons(void);
         Boolean buttonState = (GetMouseButtons() & 0x01) != 0;
 
         /* Arm the menu for selection only once the button has been steadily up

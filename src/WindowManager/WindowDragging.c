@@ -29,6 +29,7 @@
 #include "MemoryMgr/MemoryManager.h"
 
 #include "WindowManager/WindowManagerInternal.h"
+#include "ProcessMgr/ProcessMgr.h"
 #include "TimeManager/TimeBase.h"
 #include <math.h>
 
@@ -388,7 +389,6 @@ void DragWindow(WindowPtr theWindow, Point startPt, const Rect* boundsRect) {
     /* Dragging a window brings it forward unless Command is held (Inside
      * Macintosh: Toolbox Essentials, 4-111). Only the Finder's own dispatch
      * selected first; a control panel dragged from behind stayed behind. */
-    extern UInt16 GetCurrentModifiers(void);
     if (!(GetCurrentModifiers() & cmdKey) && theWindow != FrontWindow()) {
         SelectWindow(theWindow);
     }
