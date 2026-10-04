@@ -19,6 +19,7 @@
 #include "../include/MenuManager/MenuTypes.h"
 #include "../include/MenuManager/MenuLogging.h"
 #include "../include/WindowManager/WindowManager.h"
+#include "../include/WindowManager/WindowPlatform.h"
 #include "../include/FontManager/FontManager.h"
 #include "MenuManager/MenuAppleIcon.h"
 #include "MenuManager/MenuAppIcon.h"
@@ -1088,7 +1089,6 @@ void FlashMenuBar(short menuID)
     for (int i = 0; i < gMenuFlash; i++) {
         /* Get menu bar rectangle - standard Mac menu bar is full screen width, 20 pixels high */
         Rect menuBarRect;
-        extern void Platform_GetScreenBounds(Rect* bounds);
         Platform_GetScreenBounds(&menuBarRect);
         menuBarRect.bottom = menuBarRect.top + 20; /* Menu bar height */
 
@@ -1096,7 +1096,6 @@ void FlashMenuBar(short menuID)
         InvertRect(&menuBarRect);
 
         /* Brief delay for visual effect */
-        extern void Platform_WaitTicks(short ticks);
         Platform_WaitTicks(2); /* ~33ms at 60 Hz */
 
         /* Invert back to restore */

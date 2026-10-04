@@ -27,6 +27,7 @@
 #include "MenuManager/MenuDisplay.h"
 #include "MenuManager/MenuAppleIcon.h"
 #include "MenuManager/MenuAppIcon.h"
+#include "WindowManager/WindowPlatform.h"
 #include "FontManager/FontManager.h"
 #include "MenuManager/MenuLogging.h"
 #include "Platform/Framebuffer.h"
@@ -904,7 +905,6 @@ static void AnimateMenuTransition(MenuHandle theMenu, const Rect* startRect,
 
             FrameRect(&currentRect);
 
-            extern void Platform_WaitTicks(short ticks);
             Platform_WaitTicks(1);
 
             FrameRect(&currentRect);
