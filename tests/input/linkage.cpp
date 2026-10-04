@@ -1,6 +1,8 @@
 #include "EventManager/EventManagerInternal.h"
 #include "PS2Controller.h"
 #include "DeskManager/KeyCaps.h"
+#include "DeskManager/DeskAccessory.h"
+#include "DeskManager/Calculator.h"
 
 extern "C" {
 OSErr Proc_PostEventWithModifiers(EventMask, UInt32, UInt16);
@@ -13,4 +15,7 @@ extern volatile Boolean gInMouseTracking;
 int KeyCaps_HandleClick(KeyCaps*, Point, UInt16);
 int KeyCaps_HandleKeyPress(KeyCaps*, UInt16, UInt16);
 void KeyCaps_DrawKeyboard(KeyCaps*);
+SInt16 OpenDeskAcc(const char*);
+int DA_Register(const DARegistryEntry*);
+int Calculator_Initialize(Calculator*);
 }

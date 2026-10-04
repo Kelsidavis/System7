@@ -1,5 +1,4 @@
 #include "MemoryMgr/MemoryManager.h"
-#include <stdlib.h>
 #include <string.h>
 /*
  * Calculator.c - Calculator Desk Accessory Implementation
@@ -15,8 +14,6 @@
 #include "System71StdLib.h"
 
 #include "DeskManager/Calculator.h"
-#include "DeskManager/DeskManager.h"
-#include "Resources/ResourceData.h"
 #include <math.h>
 
 /* Simple atof implementation for bare-metal kernel */
@@ -60,39 +57,12 @@ static double simple_atof(const char* str) {
 
 #define atof simple_atof
 
-/* Calculator Implementation */
-static Calculator g_calculator = {0};
-static Boolean g_calculatorInitialized = false;
-
 /* Internal Function Prototypes */
 static void Calculator_SetError(Calculator *calc, int errorCode, const char *message);
 static double Calculator_PerformArithmetic(double op1, double op2, CalcOperation operation);
 static double Calculator_PerformScientific(double operand, CalcOperation operation);
 static void Calculator_ConvertToBase(Calculator *calc, CalcBase newBase);
 static Boolean Calculator_IsValidDigitForBase(int digit, CalcBase base);
-
-/* Calculator Interface Functions */
-static int Calculator_DAOpen(DeskAccessory *da);
-static void Calculator_DAClose(DeskAccessory *da);
-static int Calculator_DAEvent(DeskAccessory *da, const EventRecord *event);
-static int Calculator_DAMenu(DeskAccessory *da, short menuID, short itemID);
-static void Calculator_DAIdle(DeskAccessory *da);
-static void Calculator_DAActivate(DeskAccessory *da, Boolean active);
-static void Calculator_DAUpdate(DeskAccessory *da);
-
-/* Calculator DA Interface */
-static DAInterface g_calculatorInterface = {
-    .initialize = NULL,  /* Will be set during registration */
-    .terminate = NULL,
-    .processEvent = NULL,
-    .handleMenu = NULL,
-    .doEdit = NULL,
-    .idle = NULL,
-    .updateCursor = NULL,
-    .activate = NULL,
-    .update = NULL,
-    .resize = NULL
-};
 
 /*
  * Initialize calculator
@@ -832,52 +802,6 @@ void Calculator_FormatNumber(const CalcNumber *number, char *buffer, int bufferS
     }
 }
 
-/*
- * Register Calculator as a desk accessory
- */
-int Calculator_RegisterDA(void)
-{
-    DARegistryEntry entry = {0};
-    strncpy(entry.name, "Calculator", sizeof(entry.name) - 1);
-    entry.name[sizeof(entry.name) - 1] = '\0';
-    entry.type = DA_TYPE_CALCULATOR;
-    entry.resourceID = DA_RESID_CALCULATOR;
-    entry.flags = DA_FLAG_NEEDS_EVENTS | DA_FLAG_NEEDS_MENU;
-    entry.interface = &g_calculatorInterface;
-
-    return DA_Register(&entry);
-}
-
-/*
- * Create Calculator DA instance
- */
-DeskAccessory *Calculator_CreateDA(void)
-{
-    DeskAccessory *da = DA_CreateInstance("Calculator");
-    if (!da) {
-        return NULL;
-    }
-
-    /* Set up function pointers */
-    da->open = Calculator_DAOpen;
-    da->close = Calculator_DAClose;
-    da->event = Calculator_DAEvent;
-    da->menu = Calculator_DAMenu;
-    da->idle = Calculator_DAIdle;
-    da->activate = Calculator_DAActivate;
-    da->update = Calculator_DAUpdate;
-
-    /* Initialize calculator data */
-    da->driverData = &g_calculator;
-    if (Calculator_Initialize(&g_calculator) != CALC_ERR_NONE) {
-        DA_DestroyInstance(da);
-        return NULL;
-    }
-
-    g_calculatorInitialized = true;
-    return da;
-}
-
 /* Internal Functions */
 
 /*
@@ -986,106 +910,4 @@ static void Calculator_ConvertToBase(Calculator *calc, CalcBase newBase)
 static Boolean Calculator_IsValidDigitForBase(int digit, CalcBase base)
 {
     return (digit >= 0 && digit < (int)base);
-}
-
-/* DA Interface Implementation */
-
-static int Calculator_DAOpen(DeskAccessory *da)
-{
-    if (!da) return DESK_ERR_INVALID_PARAM;
-
-    /* Initialize resource data for icon access */
-    InitResourceData();
-
-    /* Create window */
-    DAWindowAttr attr;
-    DA_LoadWindowTemplate(DA_RESID_CALCULATOR, &attr);
-    strncpy(attr.title, "Calculator", sizeof(attr.title) - 1);
-    attr.title[sizeof(attr.title) - 1] = '\0';
-
-    return DA_CreateWindow(da, &attr);
-}
-
-static void Calculator_DAClose(DeskAccessory *da)
-{
-    if (!da) return;
-
-    Calculator_Shutdown((Calculator *)da->driverData);
-    DA_DestroyWindow(da);
-}
-
-static int Calculator_DAEvent(DeskAccessory *da, const EventRecord *event)
-{
-    if (!da || !event) return DESK_ERR_INVALID_PARAM;
-
-    Calculator *calc = (Calculator *)da->driverData;
-    if (!calc) return DESK_ERR_INVALID_PARAM;
-
-    switch (event->what) {
-        case keyDown:
-        case autoKey: {
-            /* Map key presses to calculator buttons */
-            char ch = (char)(event->message & charCodeMask);
-            int btn = -1;
-            if (ch >= '0' && ch <= '9') btn = CALC_BTN_0 + (ch - '0');
-            else if (ch == '+') btn = CALC_BTN_ADD;
-            else if (ch == '-') btn = CALC_BTN_SUBTRACT;
-            else if (ch == '*') btn = CALC_BTN_MULTIPLY;
-            else if (ch == '/') btn = CALC_BTN_DIVIDE;
-            else if (ch == '=' || ch == '\r') btn = CALC_BTN_EQUALS;
-            else if (ch == '.') btn = CALC_BTN_DECIMAL;
-            else if (ch == 'c' || ch == 'C') btn = CALC_BTN_CLEAR;
-            else if (ch == 0x1B) btn = CALC_BTN_CLEAR_ALL;  /* Escape */
-
-            if (btn >= 0) {
-                Calculator_PressButton(calc, (CalcButtonID)btn);
-            }
-            break;
-        }
-
-        case updateEvt:
-            Calculator_UpdateDisplay(calc);
-            break;
-
-        default:
-            break;
-    }
-
-    return DESK_ERR_NONE;
-}
-
-static int Calculator_DAMenu(DeskAccessory *da, short menuID, short itemID)
-{
-    (void)menuID;
-    (void)itemID;
-    if (!da) return DESK_ERR_INVALID_PARAM;
-
-    /* Handle menu selections */
-    return DESK_ERR_NONE;
-}
-
-static void Calculator_DAIdle(DeskAccessory *da)
-{
-    if (!da) return;
-
-    /* Periodic processing */
-}
-
-static void Calculator_DAActivate(DeskAccessory *da, Boolean active)
-{
-    (void)active;
-    if (!da) return;
-
-    /* Handle activation/deactivation */
-}
-
-static void Calculator_DAUpdate(DeskAccessory *da)
-{
-    if (!da) return;
-
-    /* Update display */
-    Calculator *calc = (Calculator *)da->driverData;
-    if (calc) {
-        Calculator_UpdateDisplay(calc);
-    }
 }

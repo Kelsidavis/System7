@@ -44,6 +44,7 @@
 #include "FS/vfs.h"
 #include "DeskManager/Calculator.h"
 #include "DeskManager/Chooser.h"
+#include "DeskManager/DeskAccessory.h"
 #include "ProcessMgr/ProcessMgr.h"
 #include "MacTypes.h"
 #include "math.h"
@@ -1362,6 +1363,43 @@ static double CalcRun(Calculator* c, const char* keys) {
     return c->value;
 }
 
+static void Test_DARegistrationRollback(void) {
+    const char* test_name = "DeskManager_RegistrationRollback";
+    DARegistryEntry *calculator = DA_FindRegistryEntry("Calculator");
+    DARegistryEntry *keyCaps = DA_FindRegistryEntry("Key Caps");
+    DARegistryEntry *chooser = DA_FindRegistryEntry("Chooser");
+    DARegistryEntry *alarm = DA_FindRegistryEntry("Alarm Clock");
+    DARegistryEntry *notepad = DA_FindRegistryEntry("Note Pad");
+    CHECK(calculator && keyCaps && chooser && alarm && notepad,
+          "built-in registry entries are missing");
+    DARegistryEntry chooserCopy = *chooser;
+    DA_Unregister("Calculator");
+    DA_Unregister("Key Caps");
+    DA_Unregister("Chooser");
+    DARegistryEntry conflict = chooserCopy;
+    conflict.interface = NULL;
+    int conflictResult = DA_Register(&conflict);
+    int result = DeskManager_RegisterBuiltinDAs();
+    Boolean rolledBack = result == DESK_ERR_ALREADY_OPEN &&
+                         !DA_FindRegistryEntry("Calculator") &&
+                         !DA_FindRegistryEntry("Key Caps") &&
+                         DA_FindRegistryEntry("Alarm Clock") == alarm &&
+                         DA_FindRegistryEntry("Note Pad") == notepad;
+    DA_Unregister("Chooser");
+    int restoreChooser = DA_Register(&chooserCopy);
+    int restored = DeskManager_RegisterBuiltinDAs();
+    DARegistryEntry* entries[6];
+    int count = DA_GetRegisteredDAs(entries, 6);
+    int repeated = DeskManager_RegisterBuiltinDAs();
+    CHECK(conflictResult == DESK_ERR_NONE && rolledBack,
+          "failed registration did not preserve existing entries and undo additions");
+    CHECK(restoreChooser == DESK_ERR_NONE && restored == DESK_ERR_NONE && count == 5,
+          "built-in registry could not be restored");
+    CHECK(repeated == DESK_ERR_NONE && DA_GetRegisteredDAs(entries, 6) == 5,
+          "built-in registration is not idempotent");
+    RecordTest(test_name, true, NULL);
+}
+
 static void Test_Calculator_Arithmetic(void) {
     const char* test_name = "Calculator_Arithmetic";
     static Calculator calc;
@@ -2122,6 +2160,7 @@ void IntegrationTests_Run(void) {
     Test_CJKFontFallback();
     Test_TextEditScrollBounds();
     Test_Calculator_Arithmetic();
+    Test_DARegistrationRollback();
     Test_Resource_ReleaseThenGet();
     Test_Draw_PolygonRecording();
     Test_Draw_CopyBits1Bit();

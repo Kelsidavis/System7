@@ -3,9 +3,6 @@
 
 #include "SystemTypes.h"
 
-/* Forward declarations */
-
-
 /*
  * Calculator.h - Calculator Desk Accessory
  *
@@ -16,7 +13,9 @@
  * Derived from ROM analysis (System 7)
  */
 
-#include "DeskAccessory.h"
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 /* Calculator Constants */
 #define CALC_VERSION            0x0200      /* Calculator version 2.0 */
@@ -360,20 +359,6 @@ void Calculator_UpdateDisplay(Calculator *calc);
  */
 void Calculator_FormatNumber(const CalcNumber *number, char *buffer, int bufferSize);
 
-/* Desk Accessory Integration */
-
-/**
- * Register Calculator as a desk accessory
- * @return 0 on success, negative on error
- */
-int Calculator_RegisterDA(void);
-
-/**
- * Create Calculator DA instance
- * @return Pointer to DA instance or NULL on error
- */
-DeskAccessory *Calculator_CreateDA(void);
-
 /* Calculator Error Codes */
 #define CALC_ERR_NONE           0       /* No error */
 #define CALC_ERR_DIVIDE_BY_ZERO -1      /* Division by zero */
@@ -383,5 +368,9 @@ DeskAccessory *Calculator_CreateDA(void);
 #define CALC_ERR_INVALID_OP     -5      /* Invalid operation */
 #define CALC_ERR_INVALID_BASE   -6      /* Invalid number base */
 #define CALC_ERR_MEMORY_EMPTY   -7      /* Memory slot empty */
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* CALCULATOR_H */

@@ -1,9 +1,9 @@
 #ifndef DESKMANAGER_TYPES_H_DEFS
 #define DESKMANAGER_TYPES_H_DEFS
 
-#include "../MacTypes.h"
-#include "../WindowManager/WindowManager.h"
-#include "../EventManager/EventManager.h"
+#include "SystemTypes.h"
+#include "WindowManager/WindowManager.h"
+#include "EventManager/EventManager.h"
 
 /* Desk Accessory Constants - Note: Additional constants are in DeskManager.h */
 #define DA_FLAG_NEEDS_EVENTS    0x0001
@@ -16,11 +16,8 @@
 
 /* Forward declarations */
 typedef struct DeskAccessory DeskAccessory;
-typedef struct DADriverHeader DADriverHeader;
 typedef struct DAWindowAttr DAWindowAttr;
 typedef struct DARegistryEntry DARegistryEntry;
-typedef struct DeskManagerState DeskManagerState;
-typedef struct DAControlPB DAControlPB;
 typedef struct DAEventInfo DAEventInfo;
 typedef struct DAMenuInfo DAMenuInfo;
 typedef struct DAInterface DAInterface;
@@ -62,38 +59,13 @@ struct DAWindowAttr {
     SInt32 refCon;
 };
 
-/* DA Control Parameter Block */
-struct DAControlPB {
-    void *ioCompletion;
-    SInt16 ioResult;
-    char *ioNamePtr;
-    SInt16 ioVRefNum;
-    SInt16 ioCRefNum;
-    SInt16 csCode;
-    SInt32 csParam[11];
-};
-
-/* DA Driver Header */
-struct DADriverHeader {
-    UInt16 flags;
-    UInt16 delay;
-    UInt16 eventMask;
-    UInt16 menuID;
-    UInt16 openOffset;
-    UInt16 primeOffset;
-    UInt16 controlOffset;
-    UInt16 statusOffset;
-    UInt16 closeOffset;
-    char name[32];
-};
-
 /* DA Event Information */
 typedef struct DAEventInfo {
-    SInt16 what;
-    SInt32 message;
-    unsigned long when;
+    UInt16 what;
+    UInt32 message;
+    UInt32 when;
     Point where;
-    SInt16 modifiers;
+    UInt16 modifiers;
     SInt16 v;
     SInt16 h;
 } DAEventInfo;
@@ -106,20 +78,18 @@ typedef struct DAMenuInfo {
 
 /* DA Interface Structure */
 typedef struct DAInterface {
-    int (*initialize)(DeskAccessory *da, const DADriverHeader *header);
+    /* terminate must release partially initialized driver state after a
+     * failed initialize as well as after a successful open. */
+    int (*initialize)(DeskAccessory *da);
     int (*terminate)(DeskAccessory *da);
     int (*processEvent)(DeskAccessory *da, const DAEventInfo *event);
     int (*handleMenu)(DeskAccessory *da, const DAMenuInfo *menu);
     int (*doEdit)(DeskAccessory *da, DAMessage editOp);
     int (*idle)(DeskAccessory *da);
-    int (*updateCursor)(DeskAccessory *da);
     int (*activate)(DeskAccessory *da, Boolean active);
     int (*update)(DeskAccessory *da);
-    int (*resize)(DeskAccessory *da, Rect newBounds);
     int (*suspend)(DeskAccessory *da);
     int (*resume)(DeskAccessory *da);
-    int (*sleep)(DeskAccessory *da);
-    int (*wakeup)(DeskAccessory *da);
 } DAInterface;
 
 /* DA Function Pointers */
@@ -146,7 +116,6 @@ struct DARegistryEntry {
     UInt32 flags;
     SInt16 menuID;
     SInt16 type;
-    SInt16 resourceID;
     DAInterface *interface;
     struct DARegistryEntry *next;
 };
@@ -156,8 +125,6 @@ struct DeskAccessory {
     SInt16 refNum;
     char name[32];
     WindowPtr window;
-    void *window_obj;
-    Boolean active;
     UInt32 flags;
     SInt16 menuID;
     DAState state;
@@ -177,30 +144,10 @@ struct DeskAccessory {
     DAInterface *interface;
 
     /* Private data */
-    void *privateData;
     void *driverData;
-    void *userData;
 
     /* List management */
     DeskAccessory *next;
-    DeskAccessory *prev;
-};
-
-/* Desk Manager State */
-struct DeskManagerState {
-    DeskAccessory *firstDA;
-    DeskAccessory *lastDA;
-    DeskAccessory *activeDA;
-    SInt16 nextRefNum;
-    Handle systemMenuHandle;
-    Boolean systemMenuEnabled;
-    SInt16 openDACount;
-    SInt16 numDAs;
-
-    /* These should be on activeDA, not here */
-    DAEventProc event;
-    DAMenuProc menu;
-    DAActivateProc activate;
     DeskAccessory *prev;
 };
 

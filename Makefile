@@ -416,7 +416,7 @@ C_SOURCES = src/main.c \
             src/color_icons.c \
             src/DeskManager/DeskManagerCore.c \
             src/DeskManager/BuiltinDAs.c \
-            src/DeskManager/DALoader.c \
+            src/DeskManager/DeskAccessory.c \
             src/DeskManager/SystemMenu.c \
             src/DeskManager/KeyCaps.c \
             src/DeskManager/Notepad.c \
@@ -1044,40 +1044,51 @@ test-stdlib:
 	@python3 tests/stdlib/extract_and_test.py
 
 # Exercise input polling, the event queue, and the shared platform stubs natively.
-INPUT_TEST_FLAGS := -std=gnu11 -Wall -Wextra -Werror -Wshadow \
+NATIVE_TEST_FLAGS := -std=gnu11 -Wall -Wextra -Werror -Wshadow \
 	-Wmissing-prototypes -Wmissing-declarations -Iinclude -Isrc
 .PHONY: test-input
 test-input:
 	@set -eu; \
 		input_test_dir=$$(mktemp -d); \
 		trap 'rm -f "$$input_test_dir/modern-input" "$$input_test_dir/platform-stubs" "$$input_test_dir/event-queue" "$$input_test_dir/arm64-virtio" "$$input_test_dir/x86-ps2" "$$input_test_dir/keyboard"; rmdir "$$input_test_dir"' EXIT HUP INT TERM; \
-		$(HOST_CC) $(INPUT_TEST_FLAGS) \
+		$(HOST_CC) $(NATIVE_TEST_FLAGS) \
 			tests/input/modern_input.c src/EventManager/ModernInput.c \
 			src/EventManager/EventGlobals.c -o "$$input_test_dir/modern-input"; \
 		"$$input_test_dir/modern-input"; \
-		$(HOST_CC) $(INPUT_TEST_FLAGS) \
+		$(HOST_CC) $(NATIVE_TEST_FLAGS) \
 			tests/input/platform_stubs.c src/Platform/input_stubs.c \
 			src/EventManager/EventGlobals.c -o "$$input_test_dir/platform-stubs"; \
 		"$$input_test_dir/platform-stubs"; \
-		$(HOST_CC) $(INPUT_TEST_FLAGS) \
+		$(HOST_CC) $(NATIVE_TEST_FLAGS) \
 			tests/input/event_queue.c src/ProcessMgr/EventIntegration.c \
 			-o "$$input_test_dir/event-queue"; \
 		"$$input_test_dir/event-queue"; \
-		$(HOST_CC) $(INPUT_TEST_FLAGS) -DQEMU_BUILD \
+		$(HOST_CC) $(NATIVE_TEST_FLAGS) -DQEMU_BUILD \
 			tests/input/arm64_virtio.c src/Platform/arm64/hal_input.c \
 			src/EventManager/ModernInput.c src/EventManager/KeyboardEvents.c \
 			src/EventManager/EventGlobals.c -o "$$input_test_dir/arm64-virtio"; \
 		"$$input_test_dir/arm64-virtio"; \
-		$(HOST_CC) $(INPUT_TEST_FLAGS) \
+		$(HOST_CC) $(NATIVE_TEST_FLAGS) \
 			tests/input/x86_ps2.c -o "$$input_test_dir/x86-ps2"; \
 		"$$input_test_dir/x86-ps2"; \
-		$(HOST_CC) $(INPUT_TEST_FLAGS) tests/input/keyboard.c \
+		$(HOST_CC) $(NATIVE_TEST_FLAGS) tests/input/keyboard.c \
 			src/EventManager/KeyboardEvents.c src/DeskManager/KeyCaps.c \
 			-o "$$input_test_dir/keyboard"; \
 		"$$input_test_dir/keyboard"; \
 		$(HOST_CXX) -std=c++17 -Wall -Wextra -Werror -fsyntax-only -Iinclude \
 			tests/input/linkage.cpp; \
 		echo "Native input and event-queue regressions passed."
+
+# Exercise native registry, open rollback, window ownership, and reference IDs.
+.PHONY: test-desk
+test-desk:
+	@set -eu; \
+		desk_test_dir=$$(mktemp -d); \
+		trap 'rm -f "$$desk_test_dir/desk-manager"; rmdir "$$desk_test_dir"' EXIT HUP INT TERM; \
+		$(HOST_CC) $(NATIVE_TEST_FLAGS) tests/desk/desk_manager.c \
+			src/DeskManager/DeskManagerCore.c src/DeskManager/DeskAccessory.c \
+			-o "$$desk_test_dir/desk-manager"; \
+		"$$desk_test_dir/desk-manager"
 
 .PHONY: test-integration-runner
 test-integration-runner:
@@ -1093,7 +1104,7 @@ test-integration:
 .PHONY: check
 check: all check-x86-layout check-malloc check-shadowed-defs check-doc-links \
 	check-headers test-headers test-doc-links check-python-style check-shell-syntax test-stdlib \
-	test-input test-integration-runner check-exports
+	test-input test-desk test-integration-runner check-exports
 
 # GCC's path-sensitive static analyzer adds ownership, bounds, and null-path
 # diagnostics to the standard strict builds.
@@ -1165,6 +1176,7 @@ help: ## Show this help message
 	@echo "  test-headers     Test strict header checks and portable layout assertions"
 	@echo "  test-doc-links   Test the Markdown reference checker"
 	@echo "  test-input       Run native input, event-queue, and platform stub regressions"
+	@echo "  test-desk        Test desk accessory lifecycle and registry ownership"
 	@echo "  check-python-style Run Python lint and formatting checks"
 	@echo "  check-shell-syntax Parse shell scripts with Bash"
 	@echo "  check-exports    Validate exported symbol surface"

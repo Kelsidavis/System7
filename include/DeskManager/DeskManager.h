@@ -14,10 +14,14 @@
 #include "SystemTypes.h"
 #include "DeskManagerTypes.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /* Desk Manager Constants */
 #define DESK_MGR_VERSION        0x0701      /* System 7.1 */
 #define MAX_DESK_ACCESSORIES    64          /* Maximum concurrent DAs */
-#define DA_NAME_LENGTH          255         /* Maximum DA name length */
+#define DA_NAME_LENGTH          31          /* Maximum native DA name length */
 
 /* Desk Accessory Types */
 #define DA_TYPE_CALCULATOR      1
@@ -25,12 +29,6 @@
 #define DA_TYPE_ALARM           3
 #define DA_TYPE_CHOOSER         4
 #define DA_TYPE_NOTEPAD         5
-
-#define DA_RESID_CALCULATOR     4
-#define DA_RESID_KEYCAPS        11
-#define DA_RESID_ALARM          15
-#define DA_RESID_CHOOSER        7
-#define DA_RESID_NOTEPAD        5
 
 /**
  * Initialize the Desk Manager
@@ -282,5 +280,9 @@ int DeskManager_RegisterBuiltinDAs(void);
 /* Additional error-code names and legacy spelling. */
 #define DESK_ERR_INVALID_PARAM  DESK_ERR_PARAM_ERROR
 #define DESK_ERR_DA_ERROR       -6      /* DA-specific error */
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* DESKMANAGER_H */

@@ -1,6 +1,4 @@
 #include "MemoryMgr/MemoryManager.h"
-#define DESKMANAGER_INCLUDED
-#include <stdlib.h>
 #include <string.h>
 /*
  * DeskManagerCore.c - Core Desk Manager Implementation
@@ -22,13 +20,19 @@
 #include "WindowManager/WindowPlatform.h"
 
 
-/* Global Desk Manager State */
+/* List and reference allocation are private to the manager. */
+typedef struct DeskManagerState {
+    DeskAccessory *firstDA;
+    DeskAccessory *activeDA;
+    SInt16 nextRefNum;
+    SInt16 numDAs;
+} DeskManagerState;
+
 static DeskManagerState g_deskMgr = {0};
 static Boolean g_deskMgrInitialized = false;
 
 /* Internal Function Prototypes */
 static int DA_AllocateRefNum(void);
-static void DA_FreeRefNum(SInt16 refNum);
 static DeskAccessory *DA_AllocateInstance(void);
 static void DA_FreeInstance(DeskAccessory *da);
 static int DA_LoadFromRegistry(DeskAccessory *da, const char *name);
@@ -47,7 +51,6 @@ int DeskManager_Initialize(void)
     /* Initialize state */
     memset(&g_deskMgr, 0, sizeof(g_deskMgr));
     g_deskMgr.nextRefNum = 1;
-    g_deskMgr.systemMenuEnabled = true;
 
     /* Register built-in desk accessories */
     if (DeskManager_RegisterBuiltinDAs() != 0) {
@@ -78,8 +81,7 @@ void DeskManager_Shutdown(void)
         da = next;
     }
 
-    /* Clean up system menu */
-    g_deskMgr.systemMenuHandle = NULL;
+    SystemMenu_Shutdown();
 
     g_deskMgrInitialized = false;
 }
@@ -101,6 +103,10 @@ SInt16 OpenDeskAcc(const char *name)
         return existing->refNum;
     }
 
+    if (g_deskMgr.numDAs >= MAX_DESK_ACCESSORIES) {
+        return DESK_ERR_NO_MEMORY;
+    }
+
     /* Allocate new DA instance */
     DeskAccessory *da = DA_AllocateInstance();
     if (!da) {
@@ -108,8 +114,6 @@ SInt16 OpenDeskAcc(const char *name)
     }
 
     /* Set basic properties */
-    /* Bounded by the field, 32 bytes: DA_NAME_LENGTH is 255, and both the
-     * copy and the terminator went past the end of it */
     strncpy(da->name, name, sizeof(da->name) - 1);
     da->name[sizeof(da->name) - 1] = '\0';
     da->refNum = DA_AllocateRefNum();
@@ -124,11 +128,17 @@ SInt16 OpenDeskAcc(const char *name)
 
     /* Initialize the DA */
     if (da->open) {
+        GrafPtr savedPort;
+        GetPort(&savedPort);
         result = da->open(da);
         if (result != 0) {
+            if (da->close) da->close(da);
+            DA_DestroyWindow(da);
+            SetPort(savedPort);
             DA_FreeInstance(da);
             return result;
         }
+        SetPort(savedPort);
     }
 
     /* Add to DA list */
@@ -159,16 +169,12 @@ void CloseDeskAcc(SInt16 refNum)
         return;
     }
 
-    /* Send goodbye message */
-    DA_SendMessage(da, DA_MSG_GOODBYE, NULL, NULL);
-
     /* Close the DA */
     if (da->close) {
         da->close(da);
     }
 
-    /* And its window: nothing took it down, so a closed accessory's window
-     * stayed on screen with its record freed underneath it. */
+    /* The close callback releases driver state; the manager owns the window. */
     DA_DestroyWindow(da);
 
     /* Remove from system menu */
@@ -180,11 +186,11 @@ void CloseDeskAcc(SInt16 refNum)
 
     /* Update active DA */
     if (g_deskMgr.activeDA == da) {
-        g_deskMgr.activeDA = g_deskMgr.firstDA;
+        g_deskMgr.activeDA = NULL;
+        DA_SetActive(g_deskMgr.firstDA);
     }
 
     /* Free the DA */
-    DA_FreeRefNum(refNum);
     DA_FreeInstance(da);
 }
 
@@ -535,16 +541,14 @@ Boolean DeskManager_IsDAAvailable(const char *name)
  */
 static int DA_AllocateRefNum(void)
 {
-    return g_deskMgr.nextRefNum++;
-}
-
-/*
- * Free a reference number
- */
-static void DA_FreeRefNum(SInt16 refNum)
-{
-    /* In a real implementation, might want to track and reuse ref nums */
-    (void)refNum;
+    /* At most 64 positive IDs are occupied. Wrap without signed overflow and
+     * skip IDs still owned by open accessories. */
+    SInt16 candidate;
+    do {
+        candidate = g_deskMgr.nextRefNum;
+        g_deskMgr.nextRefNum = candidate == INT16_MAX ? 1 : (SInt16)(candidate + 1);
+    } while (DA_GetByRefNum(candidate));
+    return candidate;
 }
 
 /*
@@ -569,28 +573,8 @@ static void DA_FreeInstance(DeskAccessory *da)
     }
 }
 
-/*
- * Load DA from registry
- */
-/*
- * Adapters from DAInterface to the per-instance handlers.
- *
- * A desk accessory supplies either the individual procs on its registry entry
- * or a DAInterface, and every built-in supplies the interface. The two do not
- * line up exactly - initialize takes a driver header the instance path has not
- * got, and four of them return void here and int there - which is why the
- * mapping below used to be an empty "this would need to be implemented" and
- * every DA came out with a NULL open handler.
- *
- * processEvent and handleMenu take DAEventInfo and DAMenuInfo where the
- * instance procs take an EventRecord and a menu/item pair, so those two get a
- * conversion rather than a cast. See DA_EventViaInterface for the part of it
- * that is not a field copy.
- */
-/* An accessory draws in its own window, so its port is current while it runs
- * (as the Desk Manager arranges for a driver's calls). Left to whatever port
- * was current, the Calculator's display redrew into the Finder's window and
- * stayed at 0 however its keys were pressed. */
+/* Interface adapters convert event/menu arguments and select the accessory's
+ * port while callbacks run. Registry callbacks take precedence over adapters. */
 static GrafPtr DA_EnterPort(DeskAccessory *da)
 {
     GrafPtr save;
@@ -602,7 +586,7 @@ static GrafPtr DA_EnterPort(DeskAccessory *da)
 static int DA_OpenViaInterface(DeskAccessory *da)
 {
     if (!da || !da->interface || !da->interface->initialize) return DESK_ERR_NONE;
-    return da->interface->initialize(da, NULL);   /* built-ins ignore the header */
+    return da->interface->initialize(da);
 }
 
 static void DA_CloseViaInterface(DeskAccessory *da)
@@ -639,18 +623,8 @@ static void DA_UpdateViaInterface(DeskAccessory *da)
     }
 }
 
-/*
- * DAEventInfo carries the same five fields an EventRecord does, plus a separate
- * v/h pair. The pair is not a copy of `where`: every built-in hit-tests with it
- * against its own content - CalcDA_HitTest takes button coordinates, KeyCaps
- * and Chooser build a Point from it for their click handlers - so it holds the
- * point in the DA window's local space while `where` stays global. Copying
- * `where` into it would put every click in the wrong place, off by the window
- * origin, which is why this needed more than a cast.
- *
- * GlobalToLocalWindow works off the window's contRgn rather than the current
- * port, so no SetPort dance is needed here.
- */
+/* Preserve global where, but provide window-local v/h for content hit tests.
+ * GlobalToLocalWindow does not depend on the current port. */
 static int DA_EventViaInterface(DeskAccessory *da, const EventRecord *event)
 {
     if (!da || !event) {
@@ -705,6 +679,8 @@ static int DA_LoadFromRegistry(DeskAccessory *da, const char *name)
 
     /* Set DA properties from registry */
     da->type = entry->type;
+    da->flags = entry->flags;
+    da->menuID = entry->menuID;
 
     /* Whatever the entry names directly wins; it is the more specific. */
     da->open     = entry->open;
@@ -717,16 +693,8 @@ static int DA_LoadFromRegistry(DeskAccessory *da, const char *name)
     da->menu     = entry->menu;
 
     /* Otherwise go through the interface, if it supplied one. */
-    /*
-     * Each adapter is installed only where the interface actually implements
-     * the call behind it. An adapter over an empty slot is worse than a NULL
-     * handler: it is not NULL, so every `if (da->update)` in the tree takes it
-     * for a working one and calls into something that returns without doing
-     * anything. That is exactly what kept accessories from drawing - all five
-     * leave the interface's update NULL and paint from the updateEvt arm of
-     * processEvent instead, but SystemUpdate saw a non-NULL da->update, called
-     * it, and never fell through to deliver the event.
-     */
+    /* An absent update callback must remain NULL so SystemUpdate can forward
+     * updateEvt to the event handler instead. */
     da->interface = entry->interface;
     if (entry->interface) {
         DAInterface *itf = entry->interface;

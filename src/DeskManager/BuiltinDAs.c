@@ -26,7 +26,7 @@
 #include "QuickDraw/QuickDraw.h"
 
 /* Forward declarations for DA interfaces */
-static int Calculator_DAInitialize(DeskAccessory *da, const DADriverHeader *header);
+static int Calculator_DAInitialize(DeskAccessory *da);
 static int Calculator_DATerminate(DeskAccessory *da);
 static int Calculator_DAProcessEvent(DeskAccessory *da, const DAEventInfo *event);
 static int Calculator_DAHandleMenu(DeskAccessory *da, const DAMenuInfo *menu);
@@ -156,23 +156,22 @@ static void CalcDA_Draw(DeskAccessory *da) {
         }
     }
 }
-static int Calculator_DAIdle(DeskAccessory *da);
 
-static int KeyCaps_DAInitialize(DeskAccessory *da, const DADriverHeader *header);
+static int KeyCaps_DAInitialize(DeskAccessory *da);
 static int KeyCaps_DATerminate(DeskAccessory *da);
 static int KeyCaps_DAProcessEvent(DeskAccessory *da, const DAEventInfo *event);
 static int KeyCaps_DAIdle(DeskAccessory *da);
 
-static int AlarmClock_DAInitialize(DeskAccessory *da, const DADriverHeader *header);
+static int AlarmClock_DAInitialize(DeskAccessory *da);
 static int AlarmClock_DATerminate(DeskAccessory *da);
 static int AlarmClock_DAProcessEvent(DeskAccessory *da, const DAEventInfo *event);
 static int AlarmClock_DAIdle(DeskAccessory *da);
 
-static int Chooser_DAInitialize(DeskAccessory *da, const DADriverHeader *header);
+static int Chooser_DAInitialize(DeskAccessory *da);
 static int Chooser_DATerminate(DeskAccessory *da);
 static int Chooser_DAProcessEvent(DeskAccessory *da, const DAEventInfo *event);
 
-static int Notepad_DAInitialize(DeskAccessory *da, const DADriverHeader *header);
+static int Notepad_DAInitialize(DeskAccessory *da);
 static int Notepad_DATerminate(DeskAccessory *da);
 static int Notepad_DAProcessEvent(DeskAccessory *da, const DAEventInfo *event);
 
@@ -183,15 +182,11 @@ static DAInterface g_calculatorInterface = {
     .processEvent = Calculator_DAProcessEvent,
     .handleMenu = Calculator_DAHandleMenu,
     .doEdit = NULL,
-    .idle = Calculator_DAIdle,
-    .updateCursor = NULL,
+    .idle = NULL,
     .activate = NULL,
     .update = NULL,
-    .resize = NULL,
     .suspend = NULL,
     .resume = NULL,
-    .sleep = NULL,
-    .wakeup = NULL
 };
 
 static DAInterface g_keyCapsInterface = {
@@ -201,14 +196,10 @@ static DAInterface g_keyCapsInterface = {
     .handleMenu = NULL,
     .doEdit = NULL,
     .idle = KeyCaps_DAIdle,
-    .updateCursor = NULL,
     .activate = NULL,
     .update = NULL,
-    .resize = NULL,
     .suspend = NULL,
     .resume = NULL,
-    .sleep = NULL,
-    .wakeup = NULL
 };
 
 static DAInterface g_alarmClockInterface = {
@@ -218,14 +209,10 @@ static DAInterface g_alarmClockInterface = {
     .handleMenu = NULL,
     .doEdit = NULL,
     .idle = AlarmClock_DAIdle,
-    .updateCursor = NULL,
     .activate = NULL,
     .update = NULL,
-    .resize = NULL,
     .suspend = NULL,
     .resume = NULL,
-    .sleep = NULL,
-    .wakeup = NULL
 };
 
 static DAInterface g_notepadInterface = {
@@ -235,13 +222,9 @@ static DAInterface g_notepadInterface = {
     .handleMenu = NULL,
     .doEdit = NULL,
     .idle = NULL,
-    .updateCursor = NULL,
     .activate = NULL,
-    .resize = NULL,
     .suspend = NULL,
     .resume = NULL,
-    .sleep = NULL,
-    .wakeup = NULL
 };
 
 static DAInterface g_chooserInterface = {
@@ -251,14 +234,10 @@ static DAInterface g_chooserInterface = {
     .handleMenu = NULL,
     .doEdit = NULL,
     .idle = NULL,
-    .updateCursor = NULL,
     .activate = NULL,
     .update = NULL,
-    .resize = NULL,
     .suspend = NULL,
     .resume = NULL,
-    .sleep = NULL,
-    .wakeup = NULL
 };
 
 /*
@@ -266,86 +245,49 @@ static DAInterface g_chooserInterface = {
  */
 int DeskManager_RegisterBuiltinDAs(void)
 {
-    int result;
+    static const DARegistryEntry entries[] = {
+        {.name = "Calculator", .type = DA_TYPE_CALCULATOR,
+         .flags = DA_FLAG_NEEDS_EVENTS | DA_FLAG_NEEDS_MENU, .interface = &g_calculatorInterface},
+        {.name = "Key Caps", .type = DA_TYPE_KEYCAPS,
+         .flags = DA_FLAG_NEEDS_EVENTS | DA_FLAG_NEEDS_TIME, .interface = &g_keyCapsInterface},
+        {.name = "Alarm Clock", .type = DA_TYPE_ALARM,
+         .flags = DA_FLAG_NEEDS_EVENTS | DA_FLAG_NEEDS_TIME, .interface = &g_alarmClockInterface},
+        {.name = "Chooser", .type = DA_TYPE_CHOOSER,
+         .flags = DA_FLAG_NEEDS_EVENTS, .interface = &g_chooserInterface},
+        {.name = "Note Pad", .type = DA_TYPE_NOTEPAD,
+         .flags = DA_FLAG_NEEDS_EVENTS, .interface = &g_notepadInterface}
+    };
+    enum { kBuiltinCount = sizeof(entries) / sizeof(entries[0]) };
+    Boolean added[kBuiltinCount] = {false};
+    int result = DESK_ERR_NONE;
 
-    /* Register Calculator */
-    DARegistryEntry calculatorEntry = {0};
-    strncpy(calculatorEntry.name, "Calculator", sizeof(calculatorEntry.name) - 1);
-    calculatorEntry.name[sizeof(calculatorEntry.name) - 1] = '\0';
-    calculatorEntry.type = DA_TYPE_CALCULATOR;
-    calculatorEntry.resourceID = DA_RESID_CALCULATOR;
-    calculatorEntry.flags = DA_FLAG_NEEDS_EVENTS | DA_FLAG_NEEDS_TIME | DA_FLAG_NEEDS_MENU;
-    calculatorEntry.interface = &g_calculatorInterface;
-
-    result = DA_Register(&calculatorEntry);
-    if (result != 0) {
-        return result;
+    for (int i = 0; i < kBuiltinCount; ++i) {
+        DARegistryEntry *existing = DA_FindRegistryEntry(entries[i].name);
+        if (existing) {
+            if (existing->interface == entries[i].interface &&
+                existing->type == entries[i].type && existing->flags == entries[i].flags) {
+                continue;
+            }
+            result = DESK_ERR_ALREADY_OPEN;
+        } else {
+            result = DA_Register(&entries[i]);
+            added[i] = result == DESK_ERR_NONE;
+        }
+        if (result != DESK_ERR_NONE) {
+            /* Preserve earlier registrations; undo only this call's additions. */
+            for (int j = 0; j < i; ++j) {
+                if (added[j]) DA_Unregister(entries[j].name);
+            }
+            return result;
+        }
     }
-
-    /* Register Key Caps */
-    DARegistryEntry keyCapsEntry = {0};
-    strncpy(keyCapsEntry.name, "Key Caps", sizeof(keyCapsEntry.name) - 1);
-    keyCapsEntry.name[sizeof(keyCapsEntry.name) - 1] = '\0';
-    keyCapsEntry.type = DA_TYPE_KEYCAPS;
-    keyCapsEntry.resourceID = DA_RESID_KEYCAPS;
-    keyCapsEntry.flags = DA_FLAG_NEEDS_EVENTS | DA_FLAG_NEEDS_CURSOR;
-    keyCapsEntry.interface = &g_keyCapsInterface;
-
-    result = DA_Register(&keyCapsEntry);
-    if (result != 0) {
-        return result;
-    }
-
-    /* Register Alarm Clock DA */
-    DARegistryEntry alarmEntry = {0};
-    strncpy(alarmEntry.name, "Alarm Clock", sizeof(alarmEntry.name) - 1);
-    alarmEntry.name[sizeof(alarmEntry.name) - 1] = '\0';
-    alarmEntry.type = DA_TYPE_ALARM;
-    alarmEntry.resourceID = DA_RESID_ALARM;
-    alarmEntry.flags = DA_FLAG_NEEDS_EVENTS | DA_FLAG_NEEDS_TIME;
-    alarmEntry.interface = &g_alarmClockInterface;
-
-    result = DA_Register(&alarmEntry);
-    if (result != 0) {
-        return result;
-    }
-
-    /* Register Chooser DA */
-    DARegistryEntry chooserEntry = {0};
-    strncpy(chooserEntry.name, "Chooser", sizeof(chooserEntry.name) - 1);
-    chooserEntry.name[sizeof(chooserEntry.name) - 1] = '\0';
-    chooserEntry.type = DA_TYPE_CHOOSER;
-    chooserEntry.resourceID = DA_RESID_CHOOSER;
-    chooserEntry.flags = DA_FLAG_NEEDS_EVENTS;
-    chooserEntry.interface = &g_chooserInterface;
-
-    result = DA_Register(&chooserEntry);
-    if (result != 0) {
-        return result;
-    }
-
-    /* Register Note Pad DA */
-    DARegistryEntry notepadEntry = {0};
-    strncpy(notepadEntry.name, "Note Pad", sizeof(notepadEntry.name) - 1);
-    notepadEntry.name[sizeof(notepadEntry.name) - 1] = '\0';
-    notepadEntry.type = DA_TYPE_NOTEPAD;
-    notepadEntry.resourceID = DA_RESID_NOTEPAD;
-    notepadEntry.flags = DA_FLAG_NEEDS_EVENTS;
-    notepadEntry.interface = &g_notepadInterface;
-
-    result = DA_Register(&notepadEntry);
-    if (result != 0) {
-        return result;
-    }
-
     return DESK_ERR_NONE;
 }
 
 /* Calculator Interface Implementation */
 
-static int Calculator_DAInitialize(DeskAccessory *da, const DADriverHeader *header)
+static int Calculator_DAInitialize(DeskAccessory *da)
 {
-    (void)header;
     if (!da) {
         return DESK_ERR_INVALID_PARAM;
     }
@@ -491,16 +433,6 @@ static int Calculator_DAHandleMenu(DeskAccessory *da, const DAMenuInfo *menu)
     return DESK_ERR_NONE;
 }
 
-static int Calculator_DAIdle(DeskAccessory *da)
-{
-    if (!da || !da->driverData) {
-        return DESK_ERR_INVALID_PARAM;
-    }
-
-    /* Calculator doesn't need idle processing */
-    return DESK_ERR_NONE;
-}
-
 /* Key Caps Interface Implementation */
 
 static int KeyCaps_DAIdle(DeskAccessory *da)
@@ -512,9 +444,8 @@ static int KeyCaps_DAIdle(DeskAccessory *da)
     return DESK_ERR_NONE;
 }
 
-static int KeyCaps_DAInitialize(DeskAccessory *da, const DADriverHeader *header)
+static int KeyCaps_DAInitialize(DeskAccessory *da)
 {
-    (void)header;
     if (!da) {
         return DESK_ERR_INVALID_PARAM;
     }
@@ -597,9 +528,8 @@ static int KeyCaps_DAProcessEvent(DeskAccessory *da, const DAEventInfo *event)
 
 /* Alarm Clock Interface Implementation */
 
-static int AlarmClock_DAInitialize(DeskAccessory *da, const DADriverHeader *header)
+static int AlarmClock_DAInitialize(DeskAccessory *da)
 {
-    (void)header;
     if (!da) {
         return DESK_ERR_INVALID_PARAM;
     }
@@ -702,9 +632,8 @@ static int AlarmClock_DAIdle(DeskAccessory *da)
 
 /* Chooser Interface Implementation */
 
-static int Chooser_DAInitialize(DeskAccessory *da, const DADriverHeader *header)
+static int Chooser_DAInitialize(DeskAccessory *da)
 {
-    (void)header;
     if (!da) {
         return DESK_ERR_INVALID_PARAM;
     }
@@ -790,9 +719,8 @@ static int Chooser_DAProcessEvent(DeskAccessory *da, const DAEventInfo *event)
 
 /* Note Pad DA Interface Wrappers */
 
-static int Notepad_DAInitialize(DeskAccessory *da, const DADriverHeader *header)
+static int Notepad_DAInitialize(DeskAccessory *da)
 {
-    (void)header;
     if (!da) return DESK_ERR_INVALID_PARAM;
 
     OSErr err = Notepad_Initialize();
