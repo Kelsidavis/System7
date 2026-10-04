@@ -80,10 +80,9 @@ void ProcessSystemEvents(void);
 /**
  * Generate system event
  * @param eventType Type of system event
- * @param eventSubtype Event subtype
- * @param eventData Event-specific data
- * @param targetWindow Target window (can be NULL)
- * @return Error code
+ * @param message Event message
+ * @param where Event location
+ * @param modifiers Event modifier flags
  */
 void GenerateSystemEvent(SInt16 eventType, SInt32 message,
                          Point where, SInt16 modifiers);
