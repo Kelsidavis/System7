@@ -132,8 +132,9 @@ and compatibility with real System 7 applications remains unverified.
 - **Window Definition Procedures (WDEF)**: Core structure in place, partial dispatch
 - **Speech Manager**: API framework and audio passthrough only; speech synthesis engine not implemented
 - **Exception Handling (RTE)**: Return from exception partially implemented (currently halts instead of restoring context)
-- **Non-x86 platforms**: ARM/ARM64 build in CI, but ARM64 runtime startup is
-  incomplete; PowerPC remains experimental (see [Platform Porting Status](docs/future/PORTING_PLAN.md))
+- **Non-x86 platforms**: ARM/ARM64 build in CI, and ARM64 mounts its boot volume
+  and reaches the event loop in headless QEMU. Physical hardware startup remains
+  unverified; PowerPC remains experimental (see [Platform Porting Status](docs/future/PORTING_PLAN.md))
 - **Networking**: Experimental x86 E1000 code handles ARP and ICMP echo requests; TCP, UDP, DHCP, and AppleTalk are not implemented, and other platforms have no network driver.
 
 ### Not Yet Implemented
