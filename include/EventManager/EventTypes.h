@@ -15,17 +15,9 @@
 
 #include "SystemTypes.h"
 
-/* Forward declarations */
-
-
 #ifdef __cplusplus
 extern "C" {
 #endif
-
-/* Basic geometric types */
-/* Point type defined in MacTypes.h */
-
-/* Rect type defined in MacTypes.h */
 
 /* Pack/unpack Point into/from a 32-bit message */
 #define PACK_POINT(h, v)   (((UInt32)(h) << 16) | ((UInt16)(v)))
@@ -33,21 +25,6 @@ extern "C" {
 #define UNPACK_V(msg)      ((SInt16)((msg) & 0xFFFF))
 
 /* Event types - exact Mac OS System 7.1 values */
-/* These are already defined in SystemTypes.h
-enum {
-    nullEvent           = 0,
-    mouseDown           = 1,
-    mouseUp             = 2,
-    keyDown             = 3,
-    keyUp               = 4,
-    autoKey             = 5,
-    updateEvt           = 6,
-    diskEvt             = 7,
-    activateEvt         = 8,
-    osEvt               = 15,
-    kHighLevelEvent     = 23
-};
-*/
 #ifndef kHighLevelEvent
 #define kHighLevelEvent 23
 #endif
@@ -145,9 +122,6 @@ enum {
     kScanUpArrow        = 0x7E
 };
 
-/* EventRecord - the fundamental event structure */
-/* EventRecord is in EventManager/EventTypes.h */
-
 /* Event queue element structure */
 typedef struct EvQEl {
     QElemPtr    qLink;         /* Next element in queue */
@@ -159,24 +133,6 @@ typedef struct EvQEl {
     SInt16      evtQModifiers; /* Event modifiers */
     EventRecord eventRecord;   /* Full event record */
 } EvQEl;
-
-/* KeyMap type */
-
-/* Ptr is defined in MacTypes.h */
-
-/* Queue header structure */
-//
-
-/* Ptr is defined in MacTypes.h */
-
-/* KeyMap type for keyboard state - 128 bits total */
-
-/* Window pointer type */
-/* Ptr is defined in MacTypes.h */
-/* Ptr is defined in MacTypes.h */
-
-/* Region handle type */
-/* Handle is defined in MacTypes.h */
 
 /* Error codes specific to Event Manager */
 enum {
@@ -203,18 +159,6 @@ enum {
 enum {
     kDoubleClickDistance = 5       /* Pixels for double-click radius */
 };
-
-/* Extended event information */
-
-/* Click state tracking */
-
-/* Keyboard auto-repeat state */
-
-/* Platform-specific input state */
-
-/* Event filter callback function type */
-
-/* Modern input event types (for internal use) */
 
 #ifdef __cplusplus
 }
