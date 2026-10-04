@@ -255,7 +255,6 @@ void DragWindow(WindowPtr theWindow, Point startPt, const Rect* boundsRect) {
 
         /* Button state debouncing: check if button is released
          * Use StillDown() as primary check, but apply debouncing */
-        extern Boolean Button(void);
         Boolean isButtonDown = StillDown();
 
         if (!isButtonDown) {

@@ -6,10 +6,12 @@
  */
 
 #include "SystemTypes.h"
+#include "EventManager/EventManager.h"
 #include "MenuManager/MenuManager.h"
 #include "MenuManager/menu_private.h"
 #include "MemoryMgr/MemoryManager.h"
 #include "Platform/Framebuffer.h"
+#include "Platform/PS2Input.h"
 #include <stdlib.h>
 #include <string.h>
 
@@ -172,9 +174,6 @@ Boolean Platform_TrackMouse(Point* mousePt, Boolean* isMouseDown)
     }
 
     /* Get current mouse state from system */
-    extern void GetMouse(Point* mouseLoc);
-    extern Boolean Button(void);
-
     GetMouse(mousePt);
     *isMouseDown = Button();
 
@@ -192,7 +191,6 @@ Boolean Platform_GetKeyModifiers(unsigned long* modifiers)
     }
 
     /* Get current modifier key state from PS2 controller */
-    extern UInt16 GetPS2Modifiers(void);
     *modifiers = (unsigned long)GetPS2Modifiers();
     return true;
 }
