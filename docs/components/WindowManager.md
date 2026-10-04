@@ -35,4 +35,4 @@ Provides classic System 7 window services: creation, drawing, drag/resize intera
 
 ## Future Work
 - Implement window collapse and support custom window definition procedures beyond the standard document and dialog definitions
-- Integrate Scroll Manager once ready to drive scroll bar invalidation regions automatically
+- Connect standard scrollbar tracking to content scrolling and invalidation for window content beyond the existing List Manager integration

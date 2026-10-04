@@ -37,4 +37,4 @@ Recreates the System 7 menu bar and pull-down menu experience, from resource loa
 
 ## Future Work
 - Implement the remaining [Menu Manager compatibility gaps](Compatibility/System7_Compatibility_Gaps.md#window-dialog-control-and-menu-managers), including popup tracking, international resource insertion, and procedural menu setup
-- Add auto-scroll for menus taller than the screen once Scroll Manager infrastructure is ready
+- Add automatic scrolling during tracking for menus taller than the screen
