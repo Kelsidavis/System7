@@ -1,6 +1,5 @@
 #include "EventManager/EventManagerInternal.h"
 #include "EventManager/AppSwitcher.h"
-#include "MemoryMgr/MemoryManager.h"
 #include "Platform/PS2Input.h"
 #include "Platform/x86/xhci.h"
 #include "Platform/arm64/display.h"
@@ -23,7 +22,6 @@ void uart_putc(char character) { (void)character; }
 void serial_puts(const char* text) { (void)text; }
 void xhci_poll_hid_x86(void) {}
 void dcache_invalidate_range(void* start, size_t length) { (void)start; (void)length; }
-void DisposePtr(void* pointer) { (void)pointer; }
 void AppSwitcher_CycleForward(void) { ++switcherCycles; switcherActive = true; }
 void AppSwitcher_CycleBackward(void) { ++switcherCycles; switcherActive = true; }
 void AppSwitcher_HandleKeyUp(void) { switcherActive = false; }

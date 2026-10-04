@@ -2,9 +2,8 @@
  * @file KeyboardEvents.c
  * @brief Keyboard Event Processing Implementation for System 7.1
  *
- * This file provides comprehensive keyboard event handling including
- * key presses, modifier keys, auto-repeat, international layouts,
- * dead key processing, and modern keyboard features.
+ * Handles key edges, modifiers, auto-repeat, and the built-in US layout's
+ * Mac Roman characters and dead-key composition.
  *
  * Copyright (c) 2024 System 7.1 Portable Project
  * All rights reserved.
@@ -12,8 +11,6 @@
 
 #include "SystemTypes.h"
 #include "System71StdLib.h"
-#include "MemoryMgr/MemoryManager.h"
-#include <stdlib.h>
 #include <string.h>
 
 #include "EventManager/KeyboardEvents.h"
@@ -27,34 +24,16 @@
  * Global State
  *---------------------------------------------------------------------------*/
 
-/* Dead key type constants */
-enum {
-    kDeadKeyNone = 0,
-    kDeadKeyAcute = 1,
-    kDeadKeyGrave = 2,
-    kDeadKeyCircumflex = 3,
-    kDeadKeyUmlaut = 4,
-    kDeadKeyTilde = 5
-};
-
-
 /* Keyboard state */
 static KeyboardState g_keyboardState = {0};
 static AutoRepeatState g_autoRepeatState = {0};
 static Boolean g_keyboardInitialized = false;
 
-/* Keyboard layouts */
-static KeyboardLayoutRec* g_keyboardLayouts = NULL;
-static KeyboardLayoutRec* g_activeLayout = NULL;
-
-/* Dead key state */
-static DeadKeyState g_deadKeyState = {0};
+/* Live input and explicit translation streams have independent dead-key state. */
+static UInt32 g_eventDeadKeyState;
 
 /* Key translation state */
 static KeyTransState g_globalTransState = {0};
-
-/* Abort detection */
-static Boolean g_abortPressed = false;
 
 /*---------------------------------------------------------------------------
  * Key Translation Tables
@@ -76,14 +55,12 @@ static const UInt8 g_usKeyTransTable[128] = {
     0, '=', '0', '1', '2', '3', '4', '5', '6', '7', 0, '8', '9', 0, 0, 0,
     /* 0x60-0x6F */
     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-    /* 0x70-0x7F: help, home, page up, forward delete, end, page down and the
-     * arrows (left, right, down, up) carry their US layout codes; they were
-     * 0, so no key event was posted and arrow keys did nothing anywhere. */
+    /* 0x70-0x7F: navigation keys and arrows */
     0, 0, 0x05, 0x01, 0x0B, 0x7F, 0, 0x04, 0, 0x0C, 0, 0x1C, 0x1D, 0x1F, 0x1E, 0
 };
 
 /* Shifted character table */
-static const UInt8 g_usShiftedTable[128] = {
+static const UInt8 g_usShiftedTable[64] = {
     /* 0x00-0x0F */
     'A', 'S', 'D', 'F', 'H', 'G', 'Z', 'X', 'C', 'V', 0, 'B', 'Q', 'W', 'E', 'R',
     /* 0x10-0x1F */
@@ -91,14 +68,7 @@ static const UInt8 g_usShiftedTable[128] = {
     /* 0x20-0x2F */
     'U', '{', 'I', 'P', 0x0D, 'L', 'J', '"', 'K', ':', '|', '<', '?', 'N', 'M', '>',
     /* 0x30-0x3F */
-    0x09, ' ', '~', 0x08, 0, 0x1B, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-    /* 0x40-0x7F as unshifted. The comment said so but the rows were not
-     * there, so a shifted keypad or arrow key gave nothing - Shift-arrow
-     * could not extend a selection. */
-    0, '.', 0, '*', 0, '+', 0, 0, 0, 0, 0, '/', 0x03, 0, 0, '-',
-    0, '=', '0', '1', '2', '3', '4', '5', '6', '7', 0, '8', '9', 0, 0, 0,
-    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-    0, 0, 0x05, 0x01, 0x0B, 0x7F, 0, 0x04, 0, 0x0C, 0, 0x1C, 0x1D, 0x1F, 0x1E, 0
+    0x09, ' ', '~', 0x08, 0, 0x1B, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
 /* Dead key composition table */
@@ -108,54 +78,64 @@ typedef struct DeadKeyComposition {
     UInt32 composedChar;
 } DeadKeyComposition;
 
+/* Character bytes use Mac Roman, not Unicode/Latin-1 code points. */
 static const DeadKeyComposition g_deadKeyTable[] = {
     /* Acute accent */
-    {kDeadKeyAcute, 'a', 0xE1}, /* á */
-    {kDeadKeyAcute, 'e', 0xE9}, /* é */
-    {kDeadKeyAcute, 'i', 0xED}, /* í */
-    {kDeadKeyAcute, 'o', 0xF3}, /* ó */
-    {kDeadKeyAcute, 'u', 0xFA}, /* ú */
-    {kDeadKeyAcute, 'A', 0xC1}, /* Á */
-    {kDeadKeyAcute, 'E', 0xC9}, /* É */
-    {kDeadKeyAcute, 'I', 0xCD}, /* Í */
-    {kDeadKeyAcute, 'O', 0xD3}, /* Ó */
-    {kDeadKeyAcute, 'U', 0xDA}, /* Ú */
+    {kDeadKeyAcute, 'a', 0x87}, /* á */
+    {kDeadKeyAcute, 'e', 0x8E}, /* é */
+    {kDeadKeyAcute, 'i', 0x92}, /* í */
+    {kDeadKeyAcute, 'o', 0x97}, /* ó */
+    {kDeadKeyAcute, 'u', 0x9C}, /* ú */
+    {kDeadKeyAcute, 'A', 0xE7}, /* Á */
+    {kDeadKeyAcute, 'E', 0x83}, /* É */
+    {kDeadKeyAcute, 'I', 0xEA}, /* Í */
+    {kDeadKeyAcute, 'O', 0xEE}, /* Ó */
+    {kDeadKeyAcute, 'U', 0xF2}, /* Ú */
 
     /* Grave accent */
-    {kDeadKeyGrave, 'a', 0xE0}, /* à */
-    {kDeadKeyGrave, 'e', 0xE8}, /* è */
-    {kDeadKeyGrave, 'i', 0xEC}, /* ì */
-    {kDeadKeyGrave, 'o', 0xF2}, /* ò */
-    {kDeadKeyGrave, 'u', 0xF9}, /* ù */
-    {kDeadKeyGrave, 'A', 0xC0}, /* À */
-    {kDeadKeyGrave, 'E', 0xC8}, /* È */
-    {kDeadKeyGrave, 'I', 0xCC}, /* Ì */
-    {kDeadKeyGrave, 'O', 0xD2}, /* Ò */
-    {kDeadKeyGrave, 'U', 0xD9}, /* Ù */
+    {kDeadKeyGrave, 'a', 0x88}, /* à */
+    {kDeadKeyGrave, 'e', 0x8F}, /* è */
+    {kDeadKeyGrave, 'i', 0x93}, /* ì */
+    {kDeadKeyGrave, 'o', 0x98}, /* ò */
+    {kDeadKeyGrave, 'u', 0x9D}, /* ù */
+    {kDeadKeyGrave, 'A', 0xCB}, /* À */
+    {kDeadKeyGrave, 'E', 0xE9}, /* È */
+    {kDeadKeyGrave, 'I', 0xED}, /* Ì */
+    {kDeadKeyGrave, 'O', 0xF1}, /* Ò */
+    {kDeadKeyGrave, 'U', 0xF4}, /* Ù */
 
     /* Circumflex */
-    {kDeadKeyCircumflex, 'a', 0xE2}, /* â */
-    {kDeadKeyCircumflex, 'e', 0xEA}, /* ê */
-    {kDeadKeyCircumflex, 'i', 0xEE}, /* î */
-    {kDeadKeyCircumflex, 'o', 0xF4}, /* ô */
-    {kDeadKeyCircumflex, 'u', 0xFB}, /* û */
-    {kDeadKeyCircumflex, 'A', 0xC2}, /* Â */
-    {kDeadKeyCircumflex, 'E', 0xCA}, /* Ê */
-    {kDeadKeyCircumflex, 'I', 0xCE}, /* Î */
-    {kDeadKeyCircumflex, 'O', 0xD4}, /* Ô */
-    {kDeadKeyCircumflex, 'U', 0xDB}, /* Û */
+    {kDeadKeyCircumflex, 'a', 0x89}, /* â */
+    {kDeadKeyCircumflex, 'e', 0x90}, /* ê */
+    {kDeadKeyCircumflex, 'i', 0x94}, /* î */
+    {kDeadKeyCircumflex, 'o', 0x99}, /* ô */
+    {kDeadKeyCircumflex, 'u', 0x9E}, /* û */
+    {kDeadKeyCircumflex, 'A', 0xE5}, /* Â */
+    {kDeadKeyCircumflex, 'E', 0xE6}, /* Ê */
+    {kDeadKeyCircumflex, 'I', 0xEB}, /* Î */
+    {kDeadKeyCircumflex, 'O', 0xEF}, /* Ô */
+    {kDeadKeyCircumflex, 'U', 0xF3}, /* Û */
 
     /* Umlaut */
-    {kDeadKeyUmlaut, 'a', 0xE4}, /* ä */
-    {kDeadKeyUmlaut, 'e', 0xEB}, /* ë */
-    {kDeadKeyUmlaut, 'i', 0xEF}, /* ï */
-    {kDeadKeyUmlaut, 'o', 0xF6}, /* ö */
-    {kDeadKeyUmlaut, 'u', 0xFC}, /* ü */
-    {kDeadKeyUmlaut, 'A', 0xC4}, /* Ä */
-    {kDeadKeyUmlaut, 'E', 0xCB}, /* Ë */
-    {kDeadKeyUmlaut, 'I', 0xCF}, /* Ï */
-    {kDeadKeyUmlaut, 'O', 0xD6}, /* Ö */
-    {kDeadKeyUmlaut, 'U', 0xDC}, /* Ü */
+    {kDeadKeyUmlaut, 'a', 0x8A}, /* ä */
+    {kDeadKeyUmlaut, 'e', 0x91}, /* ë */
+    {kDeadKeyUmlaut, 'i', 0x95}, /* ï */
+    {kDeadKeyUmlaut, 'o', 0x9A}, /* ö */
+    {kDeadKeyUmlaut, 'u', 0x9F}, /* ü */
+    {kDeadKeyUmlaut, 'y', 0xD8}, /* ÿ */
+    {kDeadKeyUmlaut, 'A', 0x80}, /* Ä */
+    {kDeadKeyUmlaut, 'E', 0xE8}, /* Ë */
+    {kDeadKeyUmlaut, 'I', 0xEC}, /* Ï */
+    {kDeadKeyUmlaut, 'O', 0x85}, /* Ö */
+    {kDeadKeyUmlaut, 'U', 0x86}, /* Ü */
+    {kDeadKeyUmlaut, 'Y', 0xD9}, /* Ÿ */
+
+    {kDeadKeyTilde, 'a', 0x8B}, /* ã */
+    {kDeadKeyTilde, 'n', 0x96}, /* ñ */
+    {kDeadKeyTilde, 'o', 0x9B}, /* õ */
+    {kDeadKeyTilde, 'A', 0xCC}, /* Ã */
+    {kDeadKeyTilde, 'N', 0x84}, /* Ñ */
+    {kDeadKeyTilde, 'O', 0xCD}, /* Õ */
 
     {kDeadKeyNone, 0, 0} /* Terminator */
 };
@@ -172,6 +152,12 @@ static void StartAutoRepeatForKey(UInt16 scanCode, UInt32 charCode);
 static void StopCurrentAutoRepeat(void);
 static SInt16 GetDeadKeyTypeForScanCode(UInt16 scanCode, UInt16 modifiers);
 static UInt32 LookupDeadKeyComposition(SInt16 deadKeyType, UInt32 baseChar);
+static UInt32 TranslateUSKey(UInt16 scanCode, UInt16 modifiers, Boolean isKeyUp, UInt32* state);
+
+static UInt32 KeyMessage(UInt16 scanCode, UInt32 charCode)
+{
+    return (charCode & charCodeMask) | (((UInt32)scanCode << 8) & keyCodeMask);
+}
 
 /*---------------------------------------------------------------------------
  * Key Translation Functions
@@ -190,7 +176,7 @@ static UInt32 TranslateKeyToASCII(UInt16 scanCode, UInt16 modifiers)
     Boolean capsLock = (modifiers & alphaLock) != 0;
 
     UInt32 baseChar;
-    if (shifted) {
+    if (shifted && scanCode < sizeof(g_usShiftedTable)) {
         baseChar = g_usShiftedTable[scanCode];
     } else {
         baseChar = g_usKeyTransTable[scanCode];
@@ -261,8 +247,7 @@ static void CheckForAutoRepeat(void)
         ? g_autoRepeatState.repeatRate : g_autoRepeatState.initialDelay;
 
     if (elapsed >= delay) {
-        UInt32 message = (g_autoRepeatState.charCode & 0xFFU) |
-            ((UInt32)(g_autoRepeatState.keyCode & 0xFFU) << 8);
+        UInt32 message = KeyMessage(g_autoRepeatState.keyCode, g_autoRepeatState.charCode);
         PostEvent(autoKey, message);
         g_autoRepeatState.lastRepeatTime = currentTime;
         g_autoRepeatState.repeating = true;
@@ -306,14 +291,13 @@ static void StopCurrentAutoRepeat(void)
  */
 static SInt16 GetDeadKeyTypeForScanCode(UInt16 scanCode, UInt16 modifiers)
 {
-    /* Simple mapping - in real implementation this would use KCHR resource */
-    if (modifiers & optionKey) {
-        switch (scanCode) {
-            case 0x18: return kDeadKeyAcute;    /* Option+E */
-            case 0x32: return kDeadKeyGrave;    /* Option+` */
-            case 0x1A: return kDeadKeyCircumflex; /* Option+I */
-            case 0x1C: return kDeadKeyUmlaut;   /* Option+U */
-            case 0x1D: return kDeadKeyTilde;    /* Option+N */
+    if (scanCode < 128 && (modifiers & optionKey)) {
+        switch (g_usKeyTransTable[scanCode]) {
+            case 'e': return kDeadKeyAcute;
+            case '`': return kDeadKeyGrave;
+            case 'i': return kDeadKeyCircumflex;
+            case 'u': return kDeadKeyUmlaut;
+            case 'n': return kDeadKeyTilde;
         }
     }
 
@@ -337,6 +321,39 @@ static UInt32 LookupDeadKeyComposition(SInt16 deadKeyType, UInt32 baseChar)
     return baseChar; /* No composition found */
 }
 
+static UInt32 DeadKeyAccent(SInt16 type)
+{
+    static const UInt8 accents[] = {0, 0xAB, '`', 0xF6, 0xAC, 0xF7};
+    return type > kDeadKeyNone && type <= kDeadKeyTilde ? accents[type] : 0;
+}
+
+/* Returns one Mac Roman byte, or the preceding accent in bits 16-23 as well. */
+static UInt32 TranslateUSKey(UInt16 scanCode, UInt16 modifiers, Boolean isKeyUp, UInt32* state)
+{
+    if (scanCode >= 128) return 0;
+    UInt32 character = TranslateKeyToASCII(scanCode, modifiers);
+    SInt16 deadKey = GetDeadKeyTypeForScanCode(scanCode, modifiers);
+    if (isKeyUp) return deadKey ? 0 : character;
+
+    if (*state > kDeadKeyTilde) *state = 0;
+    if (*state && (character || deadKey)) {
+        SInt16 previous = (SInt16)*state;
+        *state = 0;
+        UInt32 accent = DeadKeyAccent(previous);
+        if (deadKey) {
+            return deadKey == previous ? accent : (accent << 16) | DeadKeyAccent(deadKey);
+        }
+        if (character == ' ') return accent;
+        UInt32 composed = LookupDeadKeyComposition(previous, character);
+        return composed != character ? composed : (accent << 16) | character;
+    }
+    if (deadKey) {
+        *state = (UInt32)deadKey;
+        return 0;
+    }
+    return character;
+}
+
 /*---------------------------------------------------------------------------
  * Core Keyboard Event API
  *---------------------------------------------------------------------------*/
@@ -353,7 +370,7 @@ SInt16 InitKeyboardEvents(void)
     /* Initialize keyboard state */
     memset(&g_keyboardState, 0, sizeof(KeyboardState));
     memset(&g_autoRepeatState, 0, sizeof(AutoRepeatState));
-    memset(&g_deadKeyState, 0, sizeof(DeadKeyState));
+    g_eventDeadKeyState = 0;
 
     /* Set default auto-repeat parameters */
     g_autoRepeatState.initialDelay = kDefaultKeyRepeatDelay;
@@ -375,19 +392,6 @@ void ShutdownKeyboardEvents(void)
     if (!g_keyboardInitialized) {
         return;
     }
-
-    /* Free keyboard layouts */
-    KeyboardLayoutRec* layout = g_keyboardLayouts;
-    while (layout) {
-        KeyboardLayoutRec* next = (KeyboardLayoutRec*)layout->keyMapData; /* Use keyMapData as next pointer */
-        if (layout->keyMapData) {
-            /* Note: keyMapData is Handle, would need proper disposal */
-        }
-        DisposePtr((Ptr)layout);
-        layout = next;
-    }
-    g_keyboardLayouts = NULL;
-    g_activeLayout = NULL;
 
     StopCurrentAutoRepeat();
     g_keyboardInitialized = false;
@@ -417,34 +421,8 @@ SInt16 ProcessRawKeyboardEvent(UInt16 scanCode, Boolean isKeyDown,
 
     if (isKeyDown) {
         /* Key pressed */
-        UInt32 charCode = 0;
-
-        /* Check for dead key */
-        SInt16 deadKeyType = GetDeadKeyTypeForScanCode(scanCode, modifiers);
-        if (deadKeyType != kDeadKeyNone) {
-            g_deadKeyState.deadKeyType = deadKeyType;
-            g_deadKeyState.deadKeyScanCode = scanCode;
-            g_deadKeyState.deadKeyTime = timestamp;
-            g_deadKeyState.waitingForNext = true;
-            /* Dead keys don't generate immediate character events */
-            return 0;
-        }
-
-        /* Translate to character */
-        charCode = TranslateKeyToASCII(scanCode, modifiers);
-
-        /* Handle dead key composition */
-        if (g_deadKeyState.waitingForNext && charCode != 0) {
-            UInt32 composedChar = LookupDeadKeyComposition(g_deadKeyState.deadKeyType, charCode);
-            if (composedChar != charCode) {
-                charCode = composedChar;
-            }
-            g_deadKeyState.waitingForNext = false;
-            g_deadKeyState.deadKeyType = kDeadKeyNone;
-        }
-
         /* Check for Command-Tab application switcher */
-        if (scanCode == 0x30 && (modifiers & cmdKey)) { /* Tab key with Command */
+        if (scanCode == kScanTab && (modifiers & cmdKey)) {
             if (modifiers & shiftKey) {
                 /* Shift-Command-Tab: cycle backward */
                 AppSwitcher_CycleBackward();
@@ -455,27 +433,31 @@ SInt16 ProcessRawKeyboardEvent(UInt16 scanCode, Boolean isKeyDown,
             /* Don't post the normal Tab event when Command is held */
             return eventsGenerated;
         }
+        UInt32 charCode = TranslateUSKey(scanCode, modifiers, false, &g_eventDeadKeyState);
+        if (charCode == 0 && GetDeadKeyTypeForScanCode(scanCode, modifiers)) {
+            StopCurrentAutoRepeat();
+            return 0;
+        }
+        if (charCode & 0x00FF0000U) {
+            PostEventWithModifiers(keyDown, KeyMessage(scanCode, charCode >> 16), modifiers);
+            eventsGenerated++;
+        }
 
         /* Generate key down event */
-        UInt32 message = (charCode & 0xFFU) | ((UInt32)scanCode << 8);
+        UInt32 message = KeyMessage(scanCode, charCode);
         PostEventWithModifiers(keyDown, message, modifiers);
         eventsGenerated++;
 
         /* Start auto-repeat */
         if (charCode != 0) {
-            StartAutoRepeatForKey(scanCode, charCode);
-        }
-
-        /* Check for abort sequence (Cmd+Period) */
-        if (scanCode == 0x2F && (modifiers & cmdKey)) { /* Period key */
-            g_abortPressed = true;
+            StartAutoRepeatForKey(scanCode, charCode & charCodeMask);
         }
 
     } else {
         /* Key released */
 
         /* Check for Tab key release when command-tab switcher is active */
-        if (scanCode == 0x30 && AppSwitcher_IsActive()) {
+        if (scanCode == kScanTab && AppSwitcher_IsActive()) {
             AppSwitcher_HandleKeyUp();
             /* Don't post normal Tab keyUp event */
             return eventsGenerated;
@@ -487,15 +469,10 @@ SInt16 ProcessRawKeyboardEvent(UInt16 scanCode, Boolean isKeyDown,
         }
 
         /* Generate key up event */
-        UInt32 charCode = TranslateKeyToASCII(scanCode, modifiers);
-        UInt32 message = (charCode & 0xFFU) | ((UInt32)scanCode << 8);
+        UInt32 charCode = TranslateUSKey(scanCode, modifiers, true, &g_eventDeadKeyState);
+        UInt32 message = KeyMessage(scanCode, charCode);
         PostEventWithModifiers(keyUp, message, modifiers);
         eventsGenerated++;
-
-        /* Clear abort if Command or Period released */
-        if (scanCode == kScanCommand || scanCode == 0x2F) {
-            g_abortPressed = false;
-        }
     }
 
     /* Update timing */
@@ -543,7 +520,7 @@ Boolean IsModifierDown(UInt16 modifier)
  *---------------------------------------------------------------------------*/
 
 /**
- * Key translation using KCHR resource
+ * Built-in US translation; native KCHR resource parsing is not implemented.
  */
 SInt32 KeyTranslate(const void* transData, UInt16 keyCode, UInt32* state)
 {
@@ -552,32 +529,8 @@ SInt32 KeyTranslate(const void* transData, UInt16 keyCode, UInt32* state)
         return 0;
     }
 
-    /* Extract scan code and modifiers */
-    UInt16 scanCode = keyCode & 0xFF;
-    UInt16 modifiers = (keyCode >> 8) & 0xFF;
-
-    /* For now, use simple ASCII translation */
-    /* Real implementation would process KCHR resource */
-    UInt32 charCode = TranslateKeyToASCII(scanCode, modifiers);
-
-    /* Handle dead key state */
-    if (g_deadKeyState.waitingForNext && charCode != 0) {
-        UInt32 composedChar = LookupDeadKeyComposition(g_deadKeyState.deadKeyType, charCode);
-        if (composedChar != charCode) {
-            *state = 0; /* Reset state after composition */
-            g_deadKeyState.waitingForNext = false;
-            return composedChar;
-        }
-    }
-
-    /* Check if this is a dead key */
-    SInt16 deadKeyType = GetDeadKeyTypeForScanCode(scanCode, modifiers);
-    if (deadKeyType != kDeadKeyNone) {
-        *state = deadKeyType; /* Store dead key type in state */
-        return 0; /* Dead key produces no immediate character */
-    }
-
-    return charCode;
+    return (SInt32)TranslateUSKey(keyCode & 0x7F, keyCode & 0xFF00,
+                                  (keyCode & 0x80) != 0, state);
 }
 
 /**
@@ -585,16 +538,12 @@ SInt32 KeyTranslate(const void* transData, UInt16 keyCode, UInt32* state)
  */
 UInt32 TranslateScanCode(UInt16 scanCode, UInt16 modifiers, KeyTransState* transState)
 {
+    if (scanCode >= 128) return 0;
     if (!transState) {
         transState = &g_globalTransState;
     }
 
-    UInt32 state = transState->state;
-    UInt16 keyCode = scanCode | (modifiers << 8);
-    SInt32 result = KeyTranslate(NULL, keyCode, &state);
-    transState->state = state;
-
-    return (UInt32)result;
+    return TranslateUSKey(scanCode, modifiers, false, &transState->state);
 }
 
 /**
@@ -699,7 +648,7 @@ void StopAutoRepeat(void)
  */
 UInt32 ProcessDeadKey(UInt16 deadKeyCode, UInt32 nextChar)
 {
-    SInt16 deadKeyType = GetDeadKeyTypeForScanCode(deadKeyCode, 0);
+    SInt16 deadKeyType = GetDeadKeyTypeForScanCode(deadKeyCode, optionKey);
     if (deadKeyType == kDeadKeyNone) {
         return nextChar;
     }
@@ -728,28 +677,32 @@ UInt32 ComposeCharacter(UInt32 baseChar, SInt16 accentType)
  */
 void ResetDeadKeyState(void)
 {
-    memset(&g_deadKeyState, 0, sizeof(DeadKeyState));
+    g_eventDeadKeyState = 0;
+    ResetKeyTransState(&g_globalTransState);
 }
 
 /*---------------------------------------------------------------------------
  * Event Generation
  *---------------------------------------------------------------------------*/
 
+static EventRecord GenerateKeyboardEvent(EventMask what, UInt16 scanCode,
+                                         UInt32 charCode, UInt16 modifiers)
+{
+    EventRecord event = {0};
+    event.what = what;
+    event.message = KeyMessage(scanCode, charCode);
+    event.when = TickCount();
+    GetMouse(&event.where);
+    event.modifiers = modifiers;
+    return event;
+}
+
 /**
  * Generate key down event
  */
 EventRecord GenerateKeyDownEvent(UInt16 scanCode, UInt32 charCode, UInt16 modifiers)
 {
-    EventRecord event = {0};
-
-    event.what = keyDown;
-    event.message = charCode | (scanCode << 8);
-    event.when = TickCount();
-    event.where.h = 0;
-    event.where.v = 0;
-    event.modifiers = modifiers;
-
-    return event;
+    return GenerateKeyboardEvent(keyDown, scanCode, charCode, modifiers);
 }
 
 /**
@@ -757,16 +710,7 @@ EventRecord GenerateKeyDownEvent(UInt16 scanCode, UInt32 charCode, UInt16 modifi
  */
 EventRecord GenerateKeyUpEvent(UInt16 scanCode, UInt32 charCode, UInt16 modifiers)
 {
-    EventRecord event = {0};
-
-    event.what = keyUp;
-    event.message = charCode | (scanCode << 8);
-    event.when = TickCount();
-    event.where.h = 0;
-    event.where.v = 0;
-    event.modifiers = modifiers;
-
-    return event;
+    return GenerateKeyboardEvent(keyUp, scanCode, charCode, modifiers);
 }
 
 /**
@@ -774,23 +718,17 @@ EventRecord GenerateKeyUpEvent(UInt16 scanCode, UInt32 charCode, UInt16 modifier
  */
 EventRecord GenerateAutoKeyEvent(UInt16 scanCode, UInt32 charCode, UInt16 modifiers)
 {
-    EventRecord event = {0};
-
-    event.what = autoKey;
-    event.message = charCode | (scanCode << 8);
-    event.when = TickCount();
-    event.where.h = 0;
-    event.where.v = 0;
-    event.modifiers = modifiers;
-
-    return event;
+    return GenerateKeyboardEvent(autoKey, scanCode, charCode, modifiers);
 }
 
 /*---------------------------------------------------------------------------
  * Utility Functions
  *---------------------------------------------------------------------------*/
 
-/* CheckAbort is implemented in EventManagerCore.c */
+Boolean CheckAbort(void)
+{
+    return IsModifierDown(cmdKey) && IsKeyDown(0x2F); /* Command-Period */
+}
 
 /**
  * Convert scan code to virtual key code
@@ -823,16 +761,20 @@ SInt16 GetKeyName(UInt16 scanCode, UInt16 modifiers, char* buffer, SInt16 buffer
     const char* keyName = "Unknown";
 
     switch (scanCode) {
-        case 0x24: keyName = "Return"; break;
-        case 0x30: keyName = "Tab"; break;
-        case 0x31: keyName = "Space"; break;
-        case 0x33: keyName = "Delete"; break;
-        case 0x35: keyName = "Escape"; break;
-        case 0x37: keyName = "Command"; break;
-        case 0x38: keyName = "Shift"; break;
-        case 0x39: keyName = "Caps Lock"; break;
-        case 0x3A: keyName = "Option"; break;
-        case 0x3B: keyName = "Control"; break;
+        case kScanReturn: keyName = "Return"; break;
+        case kScanTab: keyName = "Tab"; break;
+        case kScanSpace: keyName = "Space"; break;
+        case kScanDelete: keyName = "Delete"; break;
+        case kScanEscape: keyName = "Escape"; break;
+        case kScanCommand: keyName = "Command"; break;
+        case kScanShift: keyName = "Shift"; break;
+        case kScanCapsLock: keyName = "Caps Lock"; break;
+        case kScanOption: keyName = "Option"; break;
+        case kScanControl: keyName = "Control"; break;
+        case kScanRightCommand: keyName = "Right Command"; break;
+        case kScanRightShift: keyName = "Right Shift"; break;
+        case kScanRightOption: keyName = "Right Option"; break;
+        case kScanRightControl: keyName = "Right Control"; break;
         case kScanF1: keyName = "F1"; break;
         case kScanF2: keyName = "F2"; break;
         case kScanF3: keyName = "F3"; break;
@@ -852,6 +794,10 @@ SInt16 GetKeyName(UInt16 scanCode, UInt16 modifiers, char* buffer, SInt16 buffer
         default: {
             UInt32 charCode = TranslateKeyToASCII(scanCode, modifiers);
             if (charCode >= 32 && charCode <= 126) {
+                if (bufferSize == 1) {
+                    buffer[0] = '\0';
+                    return 0;
+                }
                 buffer[0] = (char)charCode;
                 buffer[1] = '\0';
                 return 1;
@@ -875,7 +821,7 @@ SInt16 GetKeyName(UInt16 scanCode, UInt16 modifiers, char* buffer, SInt16 buffer
  */
 Boolean IsCharacterPrintable(UInt32 charCode)
 {
-    return (charCode >= 32 && charCode <= 126) || (charCode >= 160 && charCode <= 255);
+    return charCode >= 32 && charCode <= 255 && charCode != 127;
 }
 
 /**

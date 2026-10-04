@@ -2,9 +2,7 @@
  * @file KeyboardEvents.h
  * @brief Keyboard Event Processing for System 7.1 Event Manager
  *
- * This file provides comprehensive keyboard event handling including
- * key presses, modifier keys, auto-repeat, international layouts,
- * and modern keyboard features.
+ * Keyboard edges, modifier state, auto-repeat, and built-in US translation.
  *
  * Copyright (c) 2024 System 7.1 Portable Project
  * All rights reserved.
@@ -80,11 +78,11 @@ Boolean IsModifierDown(UInt16 modifier);
  *---------------------------------------------------------------------------*/
 
 /**
- * Translate key using KCHR resource
- * @param transData Pointer to KCHR resource
- * @param keyCode Key code and modifier information
- * @param state Pointer to translation state
- * @return Character code or function key code
+ * Built-in US translation using the KeyTranslate calling convention.
+ * @param transData Reserved; native KCHR parsing is not implemented
+ * @param keyCode Virtual key in bits 0-6, key-up in bit 7, modifiers in bits 8-15
+ * @param state Caller-owned dead-key state, initially zero
+ * @return Mac Roman byte in bits 0-7, optionally a preceding accent in bits 16-23
  */
 SInt32 KeyTranslate(const void* transData, UInt16 keyCode, UInt32* state);
 
@@ -92,7 +90,7 @@ SInt32 KeyTranslate(const void* transData, UInt16 keyCode, UInt32* state);
 #define KeyTrans KeyTranslate
 
 /**
- * Translate scan code to character using current layout
+ * Translate a virtual key using the built-in US layout
  * @param scanCode Hardware scan code
  * @param modifiers Modifier key state
  * @param transState Translation state
@@ -173,11 +171,20 @@ void StopAutoRepeat(void);
  * International Input Support
  *---------------------------------------------------------------------------*/
 
+enum {
+    kDeadKeyNone = 0,
+    kDeadKeyAcute = 1,
+    kDeadKeyGrave = 2,
+    kDeadKeyCircumflex = 3,
+    kDeadKeyUmlaut = 4,
+    kDeadKeyTilde = 5
+};
+
 /**
  * Process dead key input
  * @param deadKeyCode Dead key scan code
  * @param nextChar Next character input
- * @return Composed character or 0
+ * @return Composed Mac Roman byte, or nextChar if no composition exists
  */
 UInt32 ProcessDeadKey(UInt16 deadKeyCode, UInt32 nextChar);
 

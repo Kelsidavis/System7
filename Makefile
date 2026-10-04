@@ -1039,13 +1039,13 @@ test-stdlib:
 	@python3 tests/stdlib/extract_and_test.py
 
 # Exercise input polling, the event queue, and the shared platform stubs natively.
-INPUT_TEST_FLAGS := -std=gnu11 -Wall -Wextra -Werror \
+INPUT_TEST_FLAGS := -std=gnu11 -Wall -Wextra -Werror -Wshadow \
 	-Wmissing-prototypes -Wmissing-declarations -Iinclude -Isrc
 .PHONY: test-input
 test-input:
 	@set -eu; \
 		input_test_dir=$$(mktemp -d); \
-		trap 'rm -f "$$input_test_dir/modern-input" "$$input_test_dir/platform-stubs" "$$input_test_dir/event-queue" "$$input_test_dir/arm64-virtio" "$$input_test_dir/x86-ps2"; rmdir "$$input_test_dir"' EXIT HUP INT TERM; \
+		trap 'rm -f "$$input_test_dir/modern-input" "$$input_test_dir/platform-stubs" "$$input_test_dir/event-queue" "$$input_test_dir/arm64-virtio" "$$input_test_dir/x86-ps2" "$$input_test_dir/keyboard"; rmdir "$$input_test_dir"' EXIT HUP INT TERM; \
 		$(HOST_CC) $(INPUT_TEST_FLAGS) \
 			tests/input/modern_input.c src/EventManager/ModernInput.c \
 			src/EventManager/EventGlobals.c -o "$$input_test_dir/modern-input"; \
@@ -1066,6 +1066,9 @@ test-input:
 		$(HOST_CC) $(INPUT_TEST_FLAGS) \
 			tests/input/x86_ps2.c -o "$$input_test_dir/x86-ps2"; \
 		"$$input_test_dir/x86-ps2"; \
+		$(HOST_CC) $(INPUT_TEST_FLAGS) tests/input/keyboard.c \
+			src/EventManager/KeyboardEvents.c -o "$$input_test_dir/keyboard"; \
+		"$$input_test_dir/keyboard"; \
 		$(HOST_CXX) -std=c++17 -Wall -Wextra -Werror -fsyntax-only -Iinclude \
 			tests/input/linkage.cpp; \
 		echo "Native input and event-queue regressions passed."
