@@ -2,7 +2,7 @@
  * M68KOpcodes.h - 68K Instruction Definitions and Helpers
  *
  * Defines CCR flags, instruction sizes, and helper macros for the
- * Phase-1 MVP 68K interpreter implementation.
+ * 68K interpreter.
  */
 
 #ifndef M68K_OPCODES_H

@@ -1,8 +1,8 @@
 /*
  * M68KDecode.c - 68K Instruction Fetch and Effective Address Decoding
  *
- * Provides fetch helpers, EA computation, and EA read/write operations
- * for the Phase-1 MVP 68K interpreter.
+ * Provides fetch helpers, effective-address computation, and memory access
+ * operations for the 68K interpreter.
  *
  * CROSS-PLATFORM DESIGN:
  * This module uses EXPLICIT BIG-ENDIAN byte ordering for all multi-byte values.
@@ -16,11 +16,8 @@
  * - No host byte order assumptions anywhere in the code
  * - Alignment checks enforce 68K requirements (2-byte words), not host CPU needs
  *
- * This design enables the 68K interpreter to run on:
- * - x86 (little-endian): Full compatibility
- * - ARM (little-endian): Full compatibility, Raspberry Pi support
- * - PowerPC (big-endian): Should work unchanged
- * - Any other ISA: Should work as long as basic C types work correctly
+ * This design keeps guest memory behavior independent of host byte order on
+ * x86, ARM, PowerPC, and other hosts with compatible C integer types.
  */
 
 #include "CPU/M68KInterp.h"

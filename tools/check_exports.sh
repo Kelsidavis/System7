@@ -1,10 +1,9 @@
 #!/usr/bin/env bash
-# [WM-056] Required public symbol manifest + CI diff
 # Ensures required Toolbox APIs remain exported from kernel.elf.
 # The freestanding kernel has no visibility boundary, so `nm -g` also reports
 # internal globals; this manifest is deliberately a required subset rather
 # than an exhaustive list of every linker-visible symbol.
-# [Audit B] Platform layer must not define WM_ symbols except WDEF refs
+# Platform code must not define Window Manager symbols other than WDEF entries.
 set -euo pipefail
 
 OBJ_DIR="${OBJ_DIR:-build/obj}"
@@ -27,7 +26,7 @@ fi
 
 echo "Required export surface OK."
 
-# [Audit B] Check Platform layer for WM_ symbol definitions
+# Check Platform layer for Window Manager symbol definitions.
 # Platform/*.o may reference WM_*DefProc (WDEF handles) but must not define other WM_ symbols
 if [ -f "$OBJ_DIR/WindowPlatform.o" ]; then
   if ! platform_symbols=$(nm -o "$OBJ_DIR/WindowPlatform.o" 2>/dev/null); then
@@ -46,4 +45,4 @@ if [ -f "$OBJ_DIR/WindowPlatform.o" ]; then
   fi
 fi
 
-echo "Audit B: Platform layer WM_ separation OK."
+echo "Platform layer Window Manager symbol ownership OK."

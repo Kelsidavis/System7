@@ -1,9 +1,8 @@
 /*
- * M68KOpcodes.c - 68K Instruction Handlers (Phase-1 MVP)
+ * M68KOpcodes.c - 68K Instruction Handlers
  *
- * Implements opcode handlers for the MVP instruction set:
- * MOVE, MOVEA, LEA, PEA, CLR, NOT, ADD, SUB, CMP, LINK, UNLK,
- * JSR, JMP, BRA, Bcc, BSR, RTS, TRAP
+ * Implements the supported 68K instruction handlers. Unsupported opcodes
+ * are reported through the interpreter's illegal-instruction path.
  */
 
 #include "CPU/M68KInterp.h"
