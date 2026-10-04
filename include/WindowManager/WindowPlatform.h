@@ -1,9 +1,9 @@
 /*
- * WindowPlatform.h - Window Manager Platform Abstraction Layer
+ * WindowPlatform.h - Window Manager platform hooks
  *
- * This header defines the platform abstraction layer for the Window Manager,
- * providing interfaces that must be implemented by each target platform
- * (X11, Cocoa, Win32, Wayland, etc.) to support native windowing.
+ * The Window Manager draws directly to the kernel framebuffer. Native-window
+ * hooks remain for compatibility, but the current implementation does not
+ * create host windows or depend on a desktop window system.
  *
  * Copyright (c) 2025 - System 7.1 Portable Project
  */
@@ -12,21 +12,11 @@
 #define __WINDOW_PLATFORM_H__
 
 #include "SystemTypes.h"
-
-
 #include "WindowTypes.h"
 
 #ifdef __cplusplus
 extern "C" {
 #endif
-
-/* ============================================================================
- * Platform Configuration
- * ============================================================================ */
-
-/* Platform capabilities flags */
-
-/* Platform-specific window data */
 
 /* ============================================================================
  * Platform Initialization and Shutdown
