@@ -168,9 +168,7 @@ void AdvanceDialogEditTextFocus(DialogPtr theDialog, Boolean backward) {
         return;
     }
 
-    /* Get item count - this is a placeholder, real implementation would
-       query the dialog's item list */
-    itemCount = 32; /* Conservative maximum */
+    itemCount = CountDITL(theDialog);
     currentFocus = state->focusedEditTextItem;
     nextFocus = 0;
 
