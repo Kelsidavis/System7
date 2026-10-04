@@ -606,9 +606,9 @@ system is built; the `ENABLE_PROCESS_COOP` option is gone.
 After building the target under review, run
 `python3 scripts/find-shadowed-defs.py --platform x86`. The audit follows Make's
 dry-run compile commands, so it checks the selected target's objects rather
-than stale objects left by another platform build. The current x86 and ARM64
-audits find no dead files, suspect copies, or unbuilt copies. Run the audit
-separately for each target after building that target.
+than stale objects left by another platform build. The current x86, ARM32, and
+ARM64 audits find no dead files, suspect copies, or unbuilt copies. Run the
+audit separately for each target after building that target.
 
 ⚠️ **Before editing a Toolbox-looking function, confirm which copy links:**
 `find "build/obj/${PLATFORM:-x86}" -type f -name '*.o' -exec nm --defined-only {} + | grep ' T FunctionName$'`.
