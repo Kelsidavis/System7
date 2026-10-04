@@ -34,6 +34,7 @@
 #include "EventManager/EventManagerInternal.h"
 #include "EventManager/KeyboardEvents.h"
 #include "FontManager/FontManager.h"
+#include "FontManager/CJKFont.h"
 #include "TextEdit/TextEdit.h"
 #include "FS/vfs.h"
 #include "DeskManager/Calculator.h"
@@ -1222,6 +1223,33 @@ static void Test_KeyboardManagerTracksKeyState(void) {
     RecordTest(test_name, true, "");
 }
 
+static void Test_CJKFontFallback(void) {
+    const char* test_name = "CJKFont_TofuFallback";
+    const CJKFontData* font;
+    UInt8 bitmap[CJK_GLYPH_BYTES];
+    SInt16 width;
+    SInt16 height;
+    SInt16 unsupportedScript = (ScriptCode)0x7FFF;
+
+    InitCJKFonts();
+    font = GetCJKFont(kScriptJapanese);
+    CHECK(font != NULL && font->loaded,
+          "supported CJK font slot was not initialized");
+    CHECK(GetCJKGlyph(font, 0, bitmap, &width, &height) == noErr,
+          "missing CJK glyph did not return the fallback");
+    CHECK(width == CJK_GLYPH_WIDTH && height == CJK_GLYPH_HEIGHT,
+          "CJK fallback dimensions were incorrect");
+    CHECK(bitmap[0] == 0xFF && bitmap[1] == 0xF0 &&
+          bitmap[2] == 0x80 && bitmap[3] == 0x10 &&
+          bitmap[CJK_GLYPH_BYTES - 2] == 0xFF &&
+          bitmap[CJK_GLYPH_BYTES - 1] == 0xF0,
+          "CJK tofu glyph bitmap was incorrect");
+    CHECK(GetCJKFont(unsupportedScript) == NULL &&
+          LoadCJKFont(unsupportedScript) == paramErr,
+          "unsupported CJK script was accepted");
+    RecordTest(test_name, true, "");
+}
+
 /* Both scrolling entry points clamp to the same measured content bounds. */
 static void Test_TextEditScrollBounds(void) {
     const char* test_name = "TextEdit_ScrollBounds";
@@ -2026,6 +2054,7 @@ void IntegrationTests_Run(void) {
     Test_Window_MoveRepaintsUncovered();
     Test_Event_FullQueueKeepsNewest();
     Test_KeyboardManagerTracksKeyState();
+    Test_CJKFontFallback();
     Test_TextEditScrollBounds();
     Test_Calculator_Arithmetic();
     Test_Resource_ReleaseThenGet();
