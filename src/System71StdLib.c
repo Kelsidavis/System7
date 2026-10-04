@@ -1717,8 +1717,6 @@ void serial_putchar(char c) {
 
 void serial_puts(const char* str) {
     /* Direct serial output only - no framebuffer interaction */
-
-    /* Direct serial output only - no framebuffer interaction */
     if (!str) return;
 #if defined(__arm__) || defined(__aarch64__)
     /* ARM/ARM64: use UART driver */

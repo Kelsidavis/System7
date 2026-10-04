@@ -46,6 +46,7 @@
 #include "../include/ProcessMgr/ProcessTypes.h"
 #include "../include/Finder/finder.h"
 #include "../include/DeskManager/DeskManager.h"
+#include "../include/TimeManager/TimeBase.h"
 
 #include "Platform/include/network.h"
 #include "Platform/include/input.h"
@@ -1141,11 +1142,13 @@ static inline uint64_t rdtsc_now(void) {
 static void bench_getresource(void) {
     const int N = 100;
     uint64_t cold_start, cold_end, warm_start, warm_end;
-    uint64_t tsc_hz = 2000000000ULL;  /* Default 2GHz if not available */
-
-    /* Try to get actual frequency from TimeBase */
-    /* For now, use default 2GHz - would need to expose TimeBase info properly */
-    /* This would need to be exposed from TimeBase.c in a real implementation */
+    TimeBaseInfo timeBaseInfo;
+    if (GetTimeBaseInfo(&timeBaseInfo) != noErr ||
+        timeBaseInfo.counterFrequency == 0) {
+        serial_puts("[RM PERF] skipped: timer frequency unavailable\n");
+        return;
+    }
+    uint64_t tsc_hz = timeBaseInfo.counterFrequency;
 
     /* Cold misses - first access */
     cold_start = rdtsc_now();
