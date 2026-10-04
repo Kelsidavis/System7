@@ -1798,6 +1798,8 @@ static void Test_TextEditGetStyle(void) {
     Boolean selectionStyle = before.tsFace == normal &&
                              inside.tsFace == bold &&
                              after.tsFace == normal;
+    Point styledEnd = TEGetPoint(3, hTE);
+    Boolean styledHitTest = TEGetOffset(styledEnd, hTE) == 3;
 
     requested.tsFace = bold;
     TESetSelect(0, 4, hTE);
@@ -1935,6 +1937,8 @@ static void Test_TextEditGetStyle(void) {
           "TEGetStyle did not return the initialized styled-text attributes");
     CHECK(selectionStyle,
           "TESetStyle changed text outside the selected range");
+    CHECK(styledHitTest,
+          "TEGetOffset did not round-trip a point across styled runs");
     CHECK(mixedToggleAdds && uniformToggleRemoves,
           "TESetStyle doToggle did not toggle the face uniformly");
     CHECK(perStyleMetrics,

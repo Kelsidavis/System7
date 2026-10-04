@@ -727,11 +727,22 @@ SInt16 TE_MeasureText(TEHandle hTE, SInt32 start, SInt32 length) {
     SInt16 width;
     SInt32 pos, end, nextPos;
     SInt16 i;
+    GrafPtr savedPort;
+    GrafPtr measurePort;
+    SInt16 savedFont, savedSize;
+    UInt8 savedFace;
 
-    if (length <= 0) return 0;
+    if (length <= 0 || !hTE) return 0;
 
     HLock((Handle)hTE);
     pTE = (TEExtPtr)*hTE;
+
+    GetPort(&savedPort);
+    measurePort = pTE->base.inPort ? pTE->base.inPort : savedPort;
+    SetPort(measurePort);
+    savedFont = measurePort->txFont;
+    savedSize = measurePort->txSize;
+    savedFace = measurePort->txFace;
 
     end = start + length;
 
@@ -746,8 +757,7 @@ SInt16 TE_MeasureText(TEHandle hTE, SInt32 start, SInt32 length) {
         pText = *pTE->base.hText;
         width = TextWidth(pText, start, length);
         HUnlock(pTE->base.hText);
-        HUnlock((Handle)hTE);
-        return width;
+        goto finish;
     }
 
     stRec = (STRec*)HandleDataAligned(pTE->hStyles);
@@ -762,8 +772,7 @@ SInt16 TE_MeasureText(TEHandle hTE, SInt32 start, SInt32 length) {
         pText = *pTE->base.hText;
         width = TextWidth(pText, start, length);
         HUnlock(pTE->base.hText);
-        HUnlock((Handle)hTE);
-        return width;
+        goto finish;
     }
 
     runArr = (TERunArray*)HandleDataAligned(stRec->runArray);
@@ -815,6 +824,12 @@ SInt16 TE_MeasureText(TEHandle hTE, SInt32 start, SInt32 length) {
     }
 
     HUnlock(pTE->base.hText);
+
+finish:
+    TextFont(savedFont);
+    TextSize(savedSize);
+    TextFace(savedFace);
+    SetPort(savedPort);
     HUnlock((Handle)hTE);
     return width;
 }
