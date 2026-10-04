@@ -5,16 +5,9 @@
 #include "Finder/Icon/icon_types.h"
 #include <stdint.h>
 #include <stddef.h>
-#include "System71StdLib.h"
 #include "QuickDraw/QuickDraw.h"
 #include "Finder/Icon/icon_port.h"
-
-/* serial_logf's variadic path hangs on ARM64, so disable debug logging there. */
-#if defined(__aarch64__) || defined(__arm64__)
-#define FINDER_ICON_LOG_DEBUG(fmt, ...) ((void)0)
-#else
-#define FINDER_ICON_LOG_DEBUG(fmt, ...) serial_logf(kLogModuleFinder, kLogLevelDebug, fmt, ##__VA_ARGS__)
-#endif
+#include "icon_logging.h"
 
 /* Helper: Get bit from bitmap */
 static inline uint8_t GetBit(const uint8_t* row, int x) {
