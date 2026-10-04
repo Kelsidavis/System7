@@ -15,8 +15,6 @@
 
 #include "SystemTypes.h"
 
-/* Forward declarations */
-
 #include "EventManager/EventStructs.h"
 
 #include "EventTypes.h"
@@ -24,34 +22,6 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
-
-/* Forward declarations */
-/* Key state constants */
-
-/* Keyboard layout types */
-
-/* Dead key types for international layouts */
-
-/* Special key codes (scan codes) */
-
-/* KeyMap indices for modifier keys */
-
-/* Keyboard state structure */
-//
-
-/* Auto-repeat state */
-//
-
-/* Dead key state defined in EventStructs.h */
-
-/* Keyboard layout information */
-
-/* Key translation state */
-/* KeyTransState defined in EventStructs.h */
-
-/* Keyboard event context */
-
-/* Callback function types */
 
 /*---------------------------------------------------------------------------
  * Core Keyboard Event API
@@ -200,11 +170,6 @@ void StartAutoRepeat(UInt16 scanCode, UInt32 charCode);
 void StopAutoRepeat(void);
 
 /*---------------------------------------------------------------------------
- * Keyboard Layout Management
- *---------------------------------------------------------------------------*/
-
-
-/*---------------------------------------------------------------------------
  * International Input Support
  *---------------------------------------------------------------------------*/
 
@@ -236,11 +201,6 @@ UInt32 ComposeCharacter(UInt32 baseChar, SInt16 accentType);
  * Reset dead key state
  */
 void ResetDeadKeyState(void);
-
-/*---------------------------------------------------------------------------
- * Modern Keyboard Features
- *---------------------------------------------------------------------------*/
-
 
 /*---------------------------------------------------------------------------
  * Event Generation
