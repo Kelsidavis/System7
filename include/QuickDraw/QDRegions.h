@@ -7,7 +7,7 @@
 extern "C" {
 #endif
 
-// Forward declarations
+/* Rectangle operations */
 Boolean PtInRect(Point pt, const Rect *r);
 Boolean EmptyRect(const Rect *r);
 void InsetRect(Rect* r, short dh, short dv);
@@ -36,14 +36,14 @@ Boolean RectInRgn(const Rect* r, RgnHandle rgn);
 Boolean EqualRgn(RgnHandle rgnA, RgnHandle rgnB);
 Boolean EmptyRgn(RgnHandle rgn);
 
-// Frame and paint operations
+/* Frame and paint operations */
 void FrameRgn(RgnHandle rgn);
 void PaintRgn(RgnHandle rgn);
 void EraseRgn(RgnHandle rgn);
 void InvertRgn(RgnHandle rgn);
 void FillRgn(RgnHandle rgn, const Pattern* pat);
 
-// Inline implementations for simple checks
+/* Inline implementations for simple checks */
 inline Boolean IsEmptyRgn(RgnHandle region)
 {
     if (region == NULL) return true;
@@ -68,4 +68,4 @@ inline Boolean SimplePtInRgn(Point pt, RgnHandle region)
 }
 #endif
 
-#endif // QD_REGIONS_H
+#endif /* QD_REGIONS_H */
