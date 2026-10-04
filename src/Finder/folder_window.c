@@ -841,6 +841,7 @@ static FWHorizontalScrollMetrics FW_IconHorizontalScrollMetrics(
         ? (short)(((SInt32)visibleWidth * trackWidth) /
                   (visibleWidth + metrics.maxScroll))
         : trackWidth;
+    if (thumbWidth < 1) thumbWidth = 1;
     if (thumbWidth < 16 && trackWidth >= 16) thumbWidth = 16;
     if (thumbWidth > trackWidth) thumbWidth = trackWidth;
 
