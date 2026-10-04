@@ -22,6 +22,9 @@ extern UInt16 gDoubleClickSlop;
 /* Current button state (updated by ModernInput) */
 extern volatile UInt8 gCurrentButtons;
 
+/* Suppress queued mouse events while a modal drag loop consumes input. */
+extern volatile Boolean gInMouseTracking;
+
 /**
  * GetDblTime - Get current double-click time threshold
  * @return Double-click time in ticks

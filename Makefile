@@ -1038,6 +1038,24 @@ check-shell-syntax:
 test-stdlib:
 	@python3 tests/stdlib/extract_and_test.py
 
+# Exercise input polling, queued transitions, and the shared platform stubs natively.
+.PHONY: test-input
+test-input:
+	@set -eu; \
+		input_test_dir=$$(mktemp -d); \
+		trap 'rm -f "$$input_test_dir/modern-input" "$$input_test_dir/platform-stubs"; rmdir "$$input_test_dir"' EXIT HUP INT TERM; \
+		$(HOST_CC) -std=gnu11 -Wall -Wextra -Werror -Iinclude -Isrc \
+			tests/input/modern_input.c src/EventManager/ModernInput.c \
+			src/EventManager/EventGlobals.c -o "$$input_test_dir/modern-input"; \
+		"$$input_test_dir/modern-input"; \
+		$(HOST_CC) -std=gnu11 -Wall -Wextra -Werror -Iinclude -Isrc \
+			tests/input/platform_stubs.c src/Platform/input_stubs.c \
+			src/EventManager/EventGlobals.c -o "$$input_test_dir/platform-stubs"; \
+		"$$input_test_dir/platform-stubs"; \
+		$(HOST_CXX) -std=c++17 -Wall -Wextra -Werror -fsyntax-only -Iinclude \
+			tests/input/linkage.cpp; \
+		echo "Native input regressions passed."
+
 .PHONY: test-integration-runner
 test-integration-runner:
 	@PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s tests -p 'test_integration_runner.py'
@@ -1048,11 +1066,11 @@ test-integration:
 
 # Run the local x86 quality gate used before feature work: strict build,
 # dead-code and duplicate-definition checks, allocator policy, documentation
-# references, differential libc tests, and required export checks.
+# references, native input and differential libc tests, and required export checks.
 .PHONY: check
 check: all check-x86-layout check-malloc check-shadowed-defs check-doc-links \
 	check-headers test-doc-links check-python-style check-shell-syntax test-stdlib \
-	test-integration-runner check-exports
+	test-input test-integration-runner check-exports
 
 # GCC's path-sensitive static analyzer adds ownership, bounds, and null-path
 # diagnostics to the standard strict builds.
@@ -1122,6 +1140,7 @@ help: ## Show this help message
 	@echo "  check-doc-links  Reject broken Markdown links and repository paths"
 	@echo "  check-headers    Compile public headers standalone as C and C++"
 	@echo "  test-doc-links   Test the Markdown reference checker"
+	@echo "  test-input       Run native input polling and platform stub regressions"
 	@echo "  check-python-style Run Python lint and formatting checks"
 	@echo "  check-shell-syntax Parse shell scripts with Bash"
 	@echo "  check-exports    Validate exported symbol surface"

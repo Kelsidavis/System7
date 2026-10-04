@@ -17,6 +17,8 @@ UInt16 gDoubleClickSlop = 6;
 /* Current button state (bit 0 = primary button) */
 volatile UInt8 gCurrentButtons = 0;
 
+volatile Boolean gInMouseTracking = false;
+
 /**
  * GetDblTime - Get current double-click time threshold
  * Classic System 7 API for retrieving double-click timing

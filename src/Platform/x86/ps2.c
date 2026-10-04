@@ -90,13 +90,8 @@ static Boolean g_mouseEnabled = false;
 static Boolean g_keyboardEnabled = false;
 static Boolean g_irqDriven = false;
 
-/* Global mouse position - shared with Event Manager
- * Note: Initialized to center of default 800x600 screen, will be adjusted
- * to actual screen center once framebuffer dimensions are known */
-Point g_mousePos = {400, 300};
-
-/* Mouse state - exported for cursor drawing */
-struct {
+/* Mouse state in screen coordinates, initially centered in an 800x600 display. */
+static struct {
     int16_t x;
     int16_t y;
     uint8_t buttons;
@@ -151,8 +146,6 @@ static void publish_mouse_state(UInt8 buttons) {
     if (fb_height > 0 && g_mouseState.y >= (int16_t)fb_height) g_mouseState.y = fb_height - 1;
 
     g_mouseState.buttons = buttons;
-    g_mousePos.h = g_mouseState.x;
-    g_mousePos.v = g_mouseState.y;
 }
 
 void UpdateMouseStateDelta(SInt16 dx, SInt16 dy, UInt8 buttons) {
@@ -739,8 +732,6 @@ Boolean InitPS2Controller(void) {
     if (fb_width > 0 && fb_height > 0) {
         g_mouseState.x = fb_width / 2;
         g_mouseState.y = fb_height / 2;
-        g_mousePos.h = g_mouseState.x;
-        g_mousePos.v = g_mouseState.y;
     }
 
     g_ps2Initialized = true;

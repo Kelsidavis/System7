@@ -19,9 +19,6 @@
 #include "EventManager/EventLogging.h"
 #include "TimeManager/TimeBase.h"
 
-/* Mouse and timing state */
-static Point g_mousePos = {100, 100};
-
 /*
  * InitEvents - initialize the process-aware Event Manager queue.
  */
@@ -121,26 +118,14 @@ Boolean WaitNextEvent(short eventMask, EventRecord* theEvent, UInt32 sleep, RgnH
     return eventAvailable;
 }
 
-/* UpdateMouseState is provided by ModernInput.c */
-
 /**
  * GenerateSystemEvent - Internal function to generate system events
  * Used by other system components to post events
  */
 void GenerateSystemEvent(SInt16 eventType, SInt32 message, Point where, SInt16 modifiers) {
-    /* All five are 32-bit: %d/%x would pass 4-byte ints where
-     * the printf expects longs. */
     EVT_LOG_DEBUG("GenerateSystemEvent: type=%ld, msg=0x%lx, where=(%ld,%ld), mod=0x%04lx\n",
                   (long)eventType, (unsigned long)message,
                   (long)where.h, (long)where.v, (unsigned long)modifiers);
-
-    /* Update cached mouse position if provided */
-    if (where.h != 0 || where.v != 0) {
-        g_mousePos = where;
-    } else {
-        /* Get current mouse position */
-        GetMouse(&g_mousePos);
-    }
 
     /* Post the event */
     PostEvent(eventType, message);

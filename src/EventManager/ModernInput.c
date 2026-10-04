@@ -20,35 +20,19 @@
 #include "EventManager/KeyboardEvents.h"
 #include "EventManager/EventLogging.h"
 #include "Platform/PS2Input.h"
-#include "PS2Controller.h"
 #include <string.h>
 
-/* External functions */
-/* PostEvent declared in EventManager.h */
-/* Tracking guard to suppress events during modal drag loops */
-extern volatile Boolean gInMouseTracking;
+#if defined(__i386__) || defined(__x86_64__)
+#include "Platform/x86/xhci.h"
+#endif
 
 /* QEMU PS/2 jitter tolerance: allows tiny grace for packet arrival delays */
 #define QEMU_JITTER_HACK 1
-
-/* Global mouse position supplied by the selected platform input backend. */
-extern Point g_mousePos;
-
-/**
- * Update mouse state (called by mouse input system)
- */
-static void UpdateMouseState(Point newPos)
-{
-    g_mousePos = newPos;
-}
-
-/* GetDblTime() is now provided by EventGlobals.c */
 
 /* Global input state */
 static struct {
     Boolean initialized;
     const char* platform;
-    Point lastMousePos;
     UInt8 lastButtonState;
     KeyMap lastKeyMap;
     UInt32 lastClickTime;
@@ -169,8 +153,6 @@ SInt16 InitModernInput(const char* platform)
     g_modernInput.platform = platform;
 
     /* Initialize state */
-    g_modernInput.lastMousePos.h = 400;
-    g_modernInput.lastMousePos.v = 300;
     g_modernInput.lastButtonState = 0;
     memset(g_modernInput.lastKeyMap, 0, sizeof(KeyMap));
     g_modernInput.lastClickTime = 0;
@@ -211,10 +193,7 @@ void ProcessModernInput(void)
     /* USB HID devices too: only the main loop polled them, so with a USB
      * mouse every nested tracking loop saw the pointer and button frozen. */
 #if defined(__i386__) || defined(__x86_64__)
-    {
-        extern void xhci_poll_hid_x86(void);
-        xhci_poll_hid_x86();
-    }
+    xhci_poll_hid_x86();
 #endif
 
     /* Poll input devices unless IRQ-driven input is enabled */
@@ -222,12 +201,9 @@ void ProcessModernInput(void)
         PollPS2Input();
     }
 
-    /* Get current input state from hardware abstraction layer */
-    /* For now, we'll use the global mouse state from PS2Controller */
+    GetMouse(&currentMousePos);
     /* Latched variant: a press that was also released between two polls would
      * be invisible to level comparison and the click lost entirely. */
-
-    currentMousePos = g_mousePos;  /* Use file-scope extern */
     currentButtonState = GetMouseButtonsLatched();
 
     /* Update global button state for Button()/StillDown() */
@@ -241,16 +217,6 @@ void ProcessModernInput(void)
     if (!GetPS2KeyboardState(currentKeyMap)) {
         /* If no keyboard state available, clear the map */
         memset(currentKeyMap, 0, sizeof(KeyMap));
-    }
-
-    /* Check for mouse movement */
-    if (currentMousePos.h != g_modernInput.lastMousePos.h ||
-        currentMousePos.v != g_modernInput.lastMousePos.v) {
-
-        /* Update Event Manager mouse state */
-        UpdateMouseState(currentMousePos);
-
-        g_modernInput.lastMousePos = currentMousePos;
     }
 
     /* Check for mouse button changes */
@@ -307,9 +273,6 @@ void ProcessModernInput(void)
                 }
             }
 
-            /* Update Event Manager mouse position BEFORE posting event */
-            UpdateMouseState(currentMousePos);
-
             /* Generate mouseDown event with classic System 7 encoding:
              * message = (clickCount << 16) | (SInt16)partCode
              * High word: click count (1, 2, or 3)
@@ -327,8 +290,6 @@ void ProcessModernInput(void)
 
         } else if (!(currentButtonState & 1) && (g_modernInput.lastButtonState & 1)) {
             /* Mouse button released - up transition */
-            /* Update position before posting event */
-            UpdateMouseState(currentMousePos);
             if (!gInMouseTracking) {
                 /* mouseUp: same encoding as mouseDown - high word = click count */
                 SInt16 partCode = 0;

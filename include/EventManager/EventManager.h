@@ -33,17 +33,17 @@
 #include "EventManager/EventGlobals.h"
 #include "TimeManager/TimeBase.h"
 
-/* Post an event carrying explicit modifier flags. Proc_ is the Process
- * Manager's implementation; the unprefixed name forwards to it. */
-OSErr Proc_PostEventWithModifiers(EventMask what, UInt32 message, UInt16 modifiers);
-OSErr PostEventWithModifiers(EventMask what, UInt32 message, UInt16 modifiers);
-
 #include "EventManager/EventTypes.h"
 #include "EventManager/EventStructs.h"
 
 #ifdef __cplusplus
 extern "C" {
 #endif
+
+/* Post an event carrying explicit modifier flags. Proc_ is the Process
+ * Manager's implementation; the unprefixed name forwards to it. */
+OSErr Proc_PostEventWithModifiers(EventMask what, UInt32 message, UInt16 modifiers);
+OSErr PostEventWithModifiers(EventMask what, UInt32 message, UInt16 modifiers);
 
 /*---------------------------------------------------------------------------
  * Core Event Manager API

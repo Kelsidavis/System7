@@ -65,9 +65,6 @@ enum { kGridW = 8, kGridH = 12, kIconW = 32, kIconH = 32 };
 /* Drag threshold for distinguishing clicks from drags */
 #define kDragThreshold 4
 
-/* Global tracking guard for modal drag loops */
-volatile Boolean gInMouseTracking = false;
-
 /* Index of icon being dragged (-1 if none) */
 static void Desktop_OpenItem(short i);
 static void Desktop_OpenVolume(VRefNum vref, const char* name);

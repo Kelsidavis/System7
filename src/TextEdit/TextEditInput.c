@@ -322,7 +322,7 @@ static void TE_TrackMouse(TEHandle hTE, Point startPt) {
 
     while (StillDown() && loopCount < MAX_DRAG_ITERATIONS) {
         loopCount++;
-        ProcessModernInput();  /* Update gCurrentButtons/g_mousePos */
+        ProcessModernInput();
 
         /* TEGetOffset measures against viewRect and destRect, which are in
          * the port's coordinates. GetMouse answers in screen coordinates, so

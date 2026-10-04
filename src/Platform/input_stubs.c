@@ -9,15 +9,8 @@
 #include "EventManager/EventGlobals.h"
 #include "Platform/PS2Input.h"
 
-Point g_mousePos = { 400, 300 };
-
-struct {
-    int16_t x;
-    int16_t y;
-    uint8_t buttons;
-    uint8_t packet[3];
-    uint8_t packet_index;
-} g_mouseState = {0};
+static Point g_mousePos = {.h = 400, .v = 300};
+static UInt8 g_mouseButtons = 0;
 
 static Boolean g_input_initialized = false;
 
@@ -25,11 +18,7 @@ int event_post_key(uint8_t keycode, uint8_t modifiers, int key_down);
 int event_post_mouse(int16_t x_delta, int16_t y_delta, uint8_t buttons);
 
 Boolean InitPS2Controller(void) {
-    g_mouseState.x = g_mousePos.h;
-    g_mouseState.y = g_mousePos.v;
-    g_mouseState.buttons = 0;
-    g_mouseState.packet_index = 0;
-    memset(g_mouseState.packet, 0, sizeof(g_mouseState.packet));
+    g_mouseButtons = 0;
     g_input_initialized = true;
     return true;
 }
@@ -58,21 +47,19 @@ Boolean GetPS2KeyboardState(KeyMap keyMap) {
 void SetMousePosition(SInt16 x, SInt16 y) {
     g_mousePos.h = x;
     g_mousePos.v = y;
-    g_mouseState.x = x;
-    g_mouseState.y = y;
 }
 
 void SetMouseButtons(UInt8 buttons) {
-    g_mouseState.buttons = buttons;
+    g_mouseButtons = buttons;
     gCurrentButtons = buttons;
 }
 
 UInt8 GetMouseButtons(void) {
-    return g_mouseState.buttons;
+    return g_mouseButtons;
 }
 
 UInt8 GetMouseButtonsLatched(void) {
-    return g_mouseState.buttons;
+    return g_mouseButtons;
 }
 
 Boolean PS2_IsInitialized(void) {
@@ -103,9 +90,6 @@ int event_post_key(uint8_t keycode, uint8_t modifiers, int key_down) {
 int event_post_mouse(int16_t x_delta, int16_t y_delta, uint8_t buttons) {
     g_mousePos.h += x_delta;
     g_mousePos.v += y_delta;
-    g_mouseState.x = g_mousePos.h;
-    g_mouseState.y = g_mousePos.v;
-    g_mouseState.buttons = buttons;
-    gCurrentButtons = buttons;
+    SetMouseButtons(buttons);
     return 0;
 }
