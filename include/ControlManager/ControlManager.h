@@ -102,19 +102,6 @@ SInt16 TrackScrollbar(ControlHandle scrollBar, Point startLocal, SInt16 startPar
 SInt16 TrackScrollbarAction(ControlHandle scrollBar, Point startLocal, SInt16 startPart,
                             ControlActionProcPtr action, SInt16* outDelta);
 
-/* Text Controls */
-ControlHandle NewEditTextControl(WindowPtr window, const Rect *bounds,
-                                ConstStr255Param text, Boolean visible,
-                                SInt16 maxLength, SInt32 refCon);
-ControlHandle NewStaticTextControl(WindowPtr window, const Rect *bounds,
-                                  ConstStr255Param text, Boolean visible,
-                                  SInt16 alignment, SInt32 refCon);
-
-/* Popup Controls */
-ControlHandle NewPopupControl(WindowPtr window, const Rect *bounds,
-                             ConstStr255Param title, Boolean visible,
-                             SInt16 menuID, SInt16 variation, SInt32 refCon);
-
 /* Control Type Registration */
 void RegisterControlType(SInt16 procID, ControlDefProcPtr defProc);
 ControlDefProcPtr GetControlDefProc(SInt16 procID);

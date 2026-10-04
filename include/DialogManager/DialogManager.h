@@ -1,16 +1,16 @@
 /*
  * DialogManager.h - Macintosh System 7.1 Dialog Manager API
  *
- * This header declares Dialog Manager APIs for the System 7.1 toolbox
- * reimplementation. Implementation and compatibility coverage vary by API.
+ * This header declares the implemented Dialog Manager APIs for the System 7.1
+ * Toolbox reimplementation.
  *
  * The Dialog Manager is essential for:
  * - Modal and modeless dialog handling
- * - Alert dialogs and system notifications
+ * - Alert dialogs
  * - File dialogs (Standard File Package)
  * - Dialog item management and interaction
  * - Resource-based dialog templates (DLOG/DITL)
- * - Keyboard navigation and accessibility
+ * - Keyboard navigation and edit-text handling
  */
 
 #ifndef DIALOG_MANAGER_H
@@ -81,14 +81,6 @@ Boolean DialogManager_GetAccessibilityEnabled(void);
 /* High-DPI support */
 void DialogManager_SetScaleFactor(float scale);
 float DialogManager_GetScaleFactor(void);
-
-/* File dialog integration */
-OSErr DialogManager_ShowOpenFileDialog(const char* title, const char* defaultPath,
-                                      const char* fileTypes, char* selectedPath,
-                                      size_t pathSize);
-OSErr DialogManager_ShowSaveFileDialog(const char* title, const char* defaultPath,
-                                      const char* defaultName, char* selectedPath,
-                                      size_t pathSize);
 
 /* Color and theme support */
 

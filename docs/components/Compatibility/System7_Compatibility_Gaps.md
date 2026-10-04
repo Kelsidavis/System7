@@ -18,28 +18,9 @@ This checklist records significant differences between the current toolbox reimp
 - ~~`NewDialog` created its window with `userKind`, and `IsDialogEvent` excluded null and activate events.~~ **FIXED** (2026-10-04): dialogs now use `dialogKind`; `IsDialogEvent` recognizes any event for a front dialog and update/activate events targeted at a dialog. `DialogSelect` handles targeted activation events and updates the focused edit caret.
 - ~~`DialogSelect` edited enabled edit-text items but did not return their item number for key or mouse events.~~ **FIXED** (2026-10-04): it now reports the enabled item in `itemHit` while keeping disabled edit fields interactive without reporting them.
 - `DialogCut`, `DialogCopy`, `DialogPaste`, and `DialogDelete` now route through
-  the focused dialog edit-text field and update its item data. The extended
-  `DialogManager_ShowOpenFileDialog`, `DialogManager_ShowSaveFileDialog`, and
-  `AnnounceModalDialog` declarations still have no implementation; define their
-  intended contracts or remove declarations that are not supported APIs.
-- `include/DialogManager/DialogEvents.h` and `DialogItems.h` declare helper APIs
-  with no definitions in `src/`:
-  `ProcessDialogEvent`, `HandleDialogMouseDown`, `HandleDialogKeyDown`,
-  `HandleDialogUpdate`, `SetDialogFocus`, `GetDialogFocus`,
-  `IsDialogItemFocusable`, `InstallDialogEventFilter`,
-  `RemoveDialogEventFilter`, `CallDialogEventFilter`,
-  `SetDialogKeyboardShortcut`, `RemoveDialogKeyboardShortcut`,
-  `ProcessDialogKeyboardShortcut`, `HandleDialogTextEdit`,
-  `GetDialogTextSelection`, `SetDialogTextSelection`, `SetDialogIdleProc`,
-  `GetDialogEventError`, `ConvertPlatformEvent`, `HandlePlatformDialogEvent`,
-  `SetDialogEventLogging`, `LogDialogEvent`, `NotifyDialogEventHandlers`,
-  `ValidateDialogEvent`, `CreatePlatformDialogItem`,
-  `DestroyPlatformDialogItem`, `GetDialogItemAccessibilityText`,
-  `GetDialogItemControl`, `GetDialogItemValue`, `SetDialogItemValue`,
-  `SetDialogItemControl`, `GetDialogItemRefCon`, `GetDialogItemUserData`,
-  `SetDialogItemRefCon`, `SetDialogItemUserData`, and
-  `SetDialogItemAccessibilityText`. Implement the supported contract or remove
-  declarations that are not part of the intended API.
+  the focused dialog edit-text field and update its item data.
+- ~~Dialog headers advertised non-classic helper APIs without definitions, including platform-native dialog controls, per-dialog event filters, and accessibility text accessors.~~ **FIXED** (2026-10-04): removed declarations for unsupported helpers from `DialogEvents.h`, `DialogItems.h`, `DialogManager.h`, `ModalDialogs.h`, and `ControlManager.h`; retained the implemented classic event, item, and modal APIs.
+- Dialog edit-text and control focus state is owned per live dialog and has no fixed dialog-count ceiling; state is released when each dialog is disposed.
 - ~~`AdvanceDialogFocus()` returned 0 without moving keyboard focus.~~ **FIXED**
   (2026-10-04): It now uses the edit-text focus traversal for Tab and Shift-Tab,
   returning the new item number; the guest regression checks both directions.
@@ -50,7 +31,6 @@ This checklist records significant differences between the current toolbox reimp
 - Mixed-state checkbox paths remain unvalidated; native System 7 controls supported tri-state checkboxes.
 - `PopUpMenuSelect()` uses the existing menu tracker, positions the previous item at the closed pop-up box, and leaves the menu bar untouched. Guest coverage verifies pointer selection and the packed menu ID/item result. Off-screen placement, scrolling, and custom MDEF behavior still need validation against System 7.
 - `InsertIntlResMenu` is implemented in `src/MenuManager/MenuResourceNames.c` and filters named resources by script. `InitProcMenu` now initializes the current menu list and stores the requested `mbResID`, but the Menu Manager does not yet load or invoke custom `'MBDF'` resources for menu-bar drawing and tracking.
-- `include/ControlManager/ControlManager.h` declares `NewEditTextControl`, `NewStaticTextControl`, and `NewPopupControl`, but none has a definition in `src/`.
 
 ## Event & Input Handling
 - ~~`src/EventManager/event_manager.c` – Posted events always reported `modifiers = 0`; modifier bits need to be sampled so Command shortcuts and shift-clicking behave correctly.~~ **FIXED** (2025-10-06): `PostEvent` now calls `GetPS2Modifiers()` to populate modifier fields from hardware.

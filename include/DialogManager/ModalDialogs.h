@@ -214,28 +214,6 @@ void DisableNonModalWindows(void);
  */
 void EnableNonModalWindows(void);
 
-/* Modal dialog accessibility */
-
-/*
- * AnnounceModalDialog - Announce modal dialog to screen reader
- *
- * This function announces the modal dialog to accessibility
- * technologies when it becomes active.
- *
- * Parameters:
- *   theDialog - The modal dialog to announce
- */
-void AnnounceModalDialog(DialogPtr theDialog);
-
-/*
- * SetModalDialogHelp - Set help text for modal dialog
- *
- * Parameters:
- *   theDialog - The dialog to set help for
- *   helpText  - The help text to display
- */
-void SetModalDialogHelp(DialogPtr theDialog, const char* helpText);
-
 /* Advanced modal dialog features */
 
 /*

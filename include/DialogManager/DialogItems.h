@@ -1,17 +1,9 @@
-/*
- * DialogItems.h - Dialog item API declarations
- *
- * This header declares dialog item accessors and helper interfaces.
- * Implementation coverage varies by routine.
- */
+/* DialogItems.h - Dialog item API declarations */
 
 #ifndef DIALOG_ITEMS_H
 #define DIALOG_ITEMS_H
 
 #include "SystemTypes.h"
-
-/* Forward declarations */
-
 
 #include "DialogTypes.h"
 
@@ -228,54 +220,6 @@ void SetUserItemProc(DialogPtr theDialog, SInt16 itemNo, UserItemProcPtr procPtr
  */
 UserItemProcPtr GetUserItemProc(DialogPtr theDialog, SInt16 itemNo);
 
-/* Control item management */
-
-/*
- * GetDialogItemControl - Get control handle from dialog item
- *
- * This function returns the control handle for a control item.
- *
- * Parameters:
- *   theDialog - The dialog containing the item
- *   itemNo    - The control item number
- *
- * Returns:
- *   Handle to the control, or NULL if not a control item
- */
-Handle GetDialogItemControl(DialogPtr theDialog, SInt16 itemNo);
-
-/*
- * SetDialogItemControl - Set control for dialog item
- *
- * Parameters:
- *   theDialog   - The dialog containing the item
- *   itemNo      - The item number
- *   controlHdl  - Handle to the control
- */
-void SetDialogItemControl(DialogPtr theDialog, SInt16 itemNo, Handle controlHdl);
-
-/*
- * GetDialogItemValue - Get value of control item
- *
- * Parameters:
- *   theDialog - The dialog containing the item
- *   itemNo    - The control item number
- *
- * Returns:
- *   The control's current value
- */
-SInt16 GetDialogItemValue(DialogPtr theDialog, SInt16 itemNo);
-
-/*
- * SetDialogItemValue - Set value of control item
- *
- * Parameters:
- *   theDialog - The dialog containing the item
- *   itemNo    - The control item number
- *   value     - The new value to set
- */
-void SetDialogItemValue(DialogPtr theDialog, SInt16 itemNo, SInt16 value);
-
 /* Dialog item drawing */
 
 /*
@@ -307,104 +251,6 @@ void InvalDialogItem(DialogPtr theDialog, SInt16 itemNo);
  *   itemNo    - The item number to frame
  */
 void FrameDialogItem(DialogPtr theDialog, SInt16 itemNo);
-
-/* Advanced dialog item features */
-
-/*
- * SetDialogItemRefCon - Set reference constant for item
- *
- * Parameters:
- *   theDialog - The dialog containing the item
- *   itemNo    - The item number
- *   refCon    - The reference constant to set
- */
-void SetDialogItemRefCon(DialogPtr theDialog, SInt16 itemNo, SInt32 refCon);
-
-/*
- * GetDialogItemRefCon - Get reference constant for item
- *
- * Parameters:
- *   theDialog - The dialog containing the item
- *   itemNo    - The item number
- *
- * Returns:
- *   The item's reference constant
- */
-SInt32 GetDialogItemRefCon(DialogPtr theDialog, SInt16 itemNo);
-
-/*
- * SetDialogItemUserData - Set user data for item
- *
- * Parameters:
- *   theDialog - The dialog containing the item
- *   itemNo    - The item number
- *   userData  - Pointer to user data
- */
-void SetDialogItemUserData(DialogPtr theDialog, SInt16 itemNo, void* userData);
-
-/*
- * GetDialogItemUserData - Get user data for item
- *
- * Parameters:
- *   theDialog - The dialog containing the item
- *   itemNo    - The item number
- *
- * Returns:
- *   Pointer to user data, or NULL
- */
-void* GetDialogItemUserData(DialogPtr theDialog, SInt16 itemNo);
-
-/* Dialog item accessibility */
-
-/*
- * SetDialogItemAccessibilityText - Set accessibility text
- *
- * Parameters:
- *   theDialog       - The dialog containing the item
- *   itemNo          - The item number
- *   accessibilityText - Text for screen readers
- */
-void SetDialogItemAccessibilityText(DialogPtr theDialog, SInt16 itemNo,
-                                   const char* accessibilityText);
-
-/*
- * GetDialogItemAccessibilityText - Get accessibility text
- *
- * Parameters:
- *   theDialog - The dialog containing the item
- *   itemNo    - The item number
- *
- * Returns:
- *   Accessibility text or NULL
- */
-const char* GetDialogItemAccessibilityText(DialogPtr theDialog, SInt16 itemNo);
-
-/* Dialog item platform integration */
-
-/*
- * CreatePlatformDialogItem - Create platform-native item
- *
- * This function creates a platform-native widget for a dialog item
- * when supported by the current platform.
- *
- * Parameters:
- *   theDialog - The dialog containing the item
- *   itemNo    - The item number
- *   itemType  - The type of item to create
- *
- * Returns:
- *   true if platform item was created successfully
- */
-Boolean CreatePlatformDialogItem(DialogPtr theDialog, SInt16 itemNo, SInt16 itemType);
-
-/*
- * DestroyPlatformDialogItem - Destroy platform-native item
- *
- * Parameters:
- *   theDialog - The dialog containing the item
- *   itemNo    - The item number
- */
-void DestroyPlatformDialogItem(DialogPtr theDialog, SInt16 itemNo);
 
 /* Internal dialog item functions */
 void InitDialogItems(void);
