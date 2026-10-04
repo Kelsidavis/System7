@@ -33,6 +33,7 @@
 #include "EventManager/EventManager.h"
 #include "EventManager/EventManagerInternal.h"
 #include "EventManager/KeyboardEvents.h"
+#include "ExtensionManager/ResourceLoader.h"
 #include "FontManager/FontManager.h"
 #include "FontManager/CJKFont.h"
 #include "TextEdit/TextEdit.h"
@@ -1543,6 +1544,22 @@ static void Test_Resource_WriteAndReadBack(void) {
     GetResInfo(back, &id, &type, (char*)name);
     CHECK(id == 200 && type == FOURCC('I', 'T', 's', 't') && name[0] == 8 && memcmp(name + 1, "greeting", 8) == 0,
           "GetResInfo did not give its ID, type and name");
+    char cName[EXTENSION_RESOURCE_NAME_SIZE];
+    Extension_GetResourceInfo(back, NULL, NULL, cName);
+    CHECK(strcmp(cName, "greeting") == 0,
+          "Extension Manager did not convert the Pascal resource name");
+    Handle loaded = NULL;
+    char loadedName[EXTENSION_RESOURCE_NAME_SIZE];
+    CHECK(Extension_LoadResource(FOURCC('I', 'T', 's', 't'), 200,
+                                 &loaded, loadedName) == noErr &&
+          loaded == back && strcmp(loadedName, "greeting") == 0,
+          "Extension Manager did not load a named resource");
+    Handle missing = (Handle)1;
+    char missingName[EXTENSION_RESOURCE_NAME_SIZE];
+    CHECK(Extension_LoadResource(FOURCC('I', 'T', 's', 't'), 999,
+                                 &missing, missingName) == extBadResource &&
+          missing == NULL && missingName[0] == '\0',
+          "Extension Manager did not clear a missing resource result");
     CHECK(Count1Resources(FOURCC('I', 'T', 's', 't')) == 2, "Count1Resources did not count both");
 
     /* Changed: longer, and renumbered */

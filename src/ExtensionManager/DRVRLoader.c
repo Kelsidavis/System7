@@ -10,6 +10,7 @@
 #include "System71StdLib.h"
 #include "ExtensionManager/DRVRLoader.h"
 #include "ExtensionManager/ExtensionTypes.h"
+#include "ExtensionManager/ResourceLoader.h"
 #include "ResourceManager.h"
 #include "MemoryMgr/MemoryManager.h"
 #include "System/SystemLogging.h"
@@ -104,26 +105,13 @@ OSErr DRVRLoader_LoadDriver(SInt16 resourceID, SInt16 *outUnitNumber)
         return extAlreadyLoaded;
     }
 
-    /* Load resource from file */
-    Handle resourceHandle = GetResource(DRVR_TYPE, resourceID);
-    if (!resourceHandle) {
-        DRVR_LOG("Failed to get DRVR resource %d\n", resourceID);
+    Handle resourceHandle;
+    char resName[EXTENSION_RESOURCE_NAME_SIZE];
+    if (Extension_LoadResource(DRVR_TYPE, resourceID, &resourceHandle,
+                               resName) != extNoErr) {
+        DRVR_LOG("Failed to load DRVR resource %d\n", resourceID);
         return extBadResource;
     }
-
-    /* Load resource data into memory */
-    LoadResource(resourceHandle);
-    if (!*resourceHandle) {
-        DRVR_LOG("Failed to load DRVR resource %d into memory\n", resourceID);
-        ReleaseResource(resourceHandle);
-        return extBadResource;
-    }
-
-    /* Get resource info */
-    ResID resID = 0;
-    ResType resType = 0;
-    char resName[256] = {0};
-    GetResInfo(resourceHandle, &resID, &resType, resName);
 
     /* Allocate DRVR entry */
     DRVREntry *entry = DRVREntry_Allocate();
@@ -208,9 +196,7 @@ SInt16 DRVRLoader_LoadAllDrivers(void)
 
         /* Get resource ID */
         ResID resID = 0;
-        ResType resType = 0;
-        char resName[256] = {0};
-        GetResInfo(drvrResource, &resID, &resType, resName);
+        GetResInfo(drvrResource, &resID, NULL, NULL);
 
         /* Try to load this driver */
         SInt16 unitNumber = 0;

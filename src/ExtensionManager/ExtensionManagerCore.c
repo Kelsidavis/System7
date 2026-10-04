@@ -20,6 +20,7 @@
 #include "System71StdLib.h"
 #include "ExtensionManager/ExtensionManager.h"
 #include "ExtensionManager/ExtensionTypes.h"
+#include "ExtensionManager/ResourceLoader.h"
 #include "ResourceManager.h"
 #include "MemoryMgr/MemoryManager.h"
 #include "System/SystemLogging.h"
@@ -135,9 +136,9 @@ SInt16 ExtensionManager_ScanForExtensions(Boolean rescan)
 
         /* Get resource info */
         ResID resourceID = 0;
-        ResType resourceType = 0;
-        char resourceName[256] = {0};
-        GetResInfo(initResource, &resourceID, &resourceType, resourceName);
+        char resourceName[EXTENSION_RESOURCE_NAME_SIZE];
+        Extension_GetResourceInfo(initResource, &resourceID, NULL,
+                                  resourceName);
 
         /* Allocate extension record */
         Extension *ext = Extension_Allocate();
@@ -347,30 +348,15 @@ OSErr ExtensionManager_LoadByID(OSType resourceType, SInt16 resourceID,
         current = current->next;
     }
 
-    /* Load resource from file */
-    Handle resourceHandle = GetResource(resourceType, resourceID);
-    if (!resourceHandle) {
-        EXT_LOG("Failed to get resource type=%c%c%c%c id=%d\n",
+    Handle resourceHandle;
+    char resName[EXTENSION_RESOURCE_NAME_SIZE];
+    if (Extension_LoadResource(resourceType, resourceID, &resourceHandle,
+                               resName) != extNoErr) {
+        EXT_LOG("Failed to load resource type=%c%c%c%c id=%d\n",
                 (char)(resourceType >> 24), (char)(resourceType >> 16),
                 (char)(resourceType >> 8), (char)resourceType, resourceID);
         return extBadResource;
     }
-
-    /* Load resource data into memory */
-    LoadResource(resourceHandle);
-    if (!*resourceHandle) {
-        EXT_LOG("Failed to load resource data for type=%c%c%c%c id=%d\n",
-                (char)(resourceType >> 24), (char)(resourceType >> 16),
-                (char)(resourceType >> 8), (char)resourceType, resourceID);
-        ReleaseResource(resourceHandle);
-        return extBadResource;
-    }
-
-    /* Get resource info */
-    ResID resID = 0;
-    ResType resType = 0;
-    char resName[256] = {0};
-    GetResInfo(resourceHandle, &resID, &resType, resName);
 
     /* Create extension record */
     Extension *ext = Extension_Allocate();

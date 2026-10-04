@@ -10,6 +10,7 @@
 #include "System71StdLib.h"
 #include "ExtensionManager/FKEYLoader.h"
 #include "ExtensionManager/ExtensionTypes.h"
+#include "ExtensionManager/ResourceLoader.h"
 #include "ResourceManager.h"
 #include "MemoryMgr/MemoryManager.h"
 #include "System/SystemLogging.h"
@@ -96,26 +97,13 @@ OSErr FKEYLoader_LoadFKEY(SInt16 resourceID)
         return extAlreadyLoaded;
     }
 
-    /* Load resource from file */
-    Handle resourceHandle = GetResource(FKEY_TYPE, resourceID);
-    if (!resourceHandle) {
-        FKEY_LOG("Failed to get FKEY resource %d\n", resourceID);
+    Handle resourceHandle;
+    char resName[EXTENSION_RESOURCE_NAME_SIZE];
+    if (Extension_LoadResource(FKEY_TYPE, resourceID, &resourceHandle,
+                               resName) != extNoErr) {
+        FKEY_LOG("Failed to load FKEY resource %d\n", resourceID);
         return extBadResource;
     }
-
-    /* Load resource data into memory */
-    LoadResource(resourceHandle);
-    if (!*resourceHandle) {
-        FKEY_LOG("Failed to load FKEY resource %d into memory\n", resourceID);
-        ReleaseResource(resourceHandle);
-        return extBadResource;
-    }
-
-    /* Get resource info */
-    ResID resID = 0;
-    ResType resType = 0;
-    char resName[256] = {0};
-    GetResInfo(resourceHandle, &resID, &resType, resName);
 
     /* Allocate FKEY entry */
     FKEYEntry *entry = FKEYEntry_Allocate();
@@ -185,9 +173,7 @@ SInt16 FKEYLoader_LoadAllFKEYs(void)
 
         /* Get resource ID */
         ResID resID = 0;
-        ResType resType = 0;
-        char resName[256] = {0};
-        GetResInfo(fkeyResource, &resID, &resType, resName);
+        GetResInfo(fkeyResource, &resID, NULL, NULL);
 
         /* Try to load this FKEY */
         OSErr err = FKEYLoader_LoadFKEY(resID);

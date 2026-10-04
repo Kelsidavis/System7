@@ -560,7 +560,8 @@ C_SOURCES += src/ExtensionManager/ExtensionManagerCore.c \
              src/ExtensionManager/ControlPanelManager.c \
              src/ExtensionManager/DRVRLoader.c \
              src/ExtensionManager/FKEYLoader.c \
-             src/ExtensionManager/DefLoader.c
+             src/ExtensionManager/DefLoader.c \
+             src/ExtensionManager/ResourceLoader.c
 CFLAGS += -DENABLE_EXTENSIONS=1
 
 # Speech Manager - Minimal implementation with SoundManager integration

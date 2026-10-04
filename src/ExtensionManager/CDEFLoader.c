@@ -9,6 +9,7 @@
 #include "SystemTypes.h"
 #include "System71StdLib.h"
 #include "ExtensionManager/CDEFLoader.h"
+#include "ExtensionManager/ResourceLoader.h"
 #include "ResourceManager.h"
 #include "MemoryMgr/MemoryManager.h"
 #include "ControlManager/ControlManager.h"
@@ -102,26 +103,13 @@ OSErr CDEFLoader_LoadCDEF(SInt16 resourceID, SInt16 *outProcID)
         return extAlreadyLoaded;
     }
 
-    /* Load resource from file */
-    Handle resourceHandle = GetResource(CDEF_TYPE, resourceID);
-    if (!resourceHandle) {
-        CDEF_LOG("Failed to get CDEF resource %d\n", resourceID);
+    Handle resourceHandle;
+    char resName[EXTENSION_RESOURCE_NAME_SIZE];
+    if (Extension_LoadResource(CDEF_TYPE, resourceID, &resourceHandle,
+                               resName) != extNoErr) {
+        CDEF_LOG("Failed to load CDEF resource %d\n", resourceID);
         return extBadResource;
     }
-
-    /* Load resource data into memory */
-    LoadResource(resourceHandle);
-    if (!*resourceHandle) {
-        CDEF_LOG("Failed to load CDEF resource %d into memory\n", resourceID);
-        ReleaseResource(resourceHandle);
-        return extBadResource;
-    }
-
-    /* Get resource info */
-    ResID resID = 0;
-    ResType resType = 0;
-    char resName[256] = {0};
-    GetResInfo(resourceHandle, &resID, &resType, resName);
 
     /* Allocate CDEF entry */
     CDEFEntry *entry = CDEFEntry_Allocate();
@@ -201,9 +189,7 @@ SInt16 CDEFLoader_LoadAllCDEFs(void)
 
         /* Get resource ID */
         ResID resID = 0;
-        ResType resType = 0;
-        char resName[256] = {0};
-        GetResInfo(cdefResource, &resID, &resType, resName);
+        GetResInfo(cdefResource, &resID, NULL, NULL);
 
         /* Try to load this CDEF */
         SInt16 procID = 0;

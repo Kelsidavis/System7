@@ -10,6 +10,7 @@
 #include "System71StdLib.h"
 #include "ExtensionManager/DefLoader.h"
 #include "ExtensionManager/ExtensionTypes.h"
+#include "ExtensionManager/ResourceLoader.h"
 #include "ResourceManager.h"
 #include "MemoryMgr/MemoryManager.h"
 #include "System/SystemLogging.h"
@@ -108,26 +109,14 @@ OSErr DefLoader_LoadDefinition(ResType defType, SInt16 resourceID)
         return extAlreadyLoaded;
     }
 
-    /* Load resource from file */
-    Handle resourceHandle = GetResource(defType, resourceID);
-    if (!resourceHandle) {
-        DEF_LOG("Failed to get %s resource %d\n", DefTypeToString(defType), resourceID);
+    Handle resourceHandle;
+    char resName[EXTENSION_RESOURCE_NAME_SIZE];
+    if (Extension_LoadResource(defType, resourceID, &resourceHandle,
+                               resName) != extNoErr) {
+        DEF_LOG("Failed to load %s resource %d\n",
+                DefTypeToString(defType), resourceID);
         return extBadResource;
     }
-
-    /* Load resource data into memory */
-    LoadResource(resourceHandle);
-    if (!*resourceHandle) {
-        DEF_LOG("Failed to load %s resource %d into memory\n", DefTypeToString(defType), resourceID);
-        ReleaseResource(resourceHandle);
-        return extBadResource;
-    }
-
-    /* Get resource info */
-    ResID resID = 0;
-    ResType resType = 0;
-    char resName[256] = {0};
-    GetResInfo(resourceHandle, &resID, &resType, resName);
 
     /* Allocate definition entry */
     DefEntry *entry = DefEntry_Allocate();
@@ -207,9 +196,7 @@ SInt16 DefLoader_LoadAllDefinitions(ResType defType)
 
         /* Get resource ID */
         ResID resID = 0;
-        ResType resType = 0;
-        char resName[256] = {0};
-        GetResInfo(defResource, &resID, &resType, resName);
+        GetResInfo(defResource, &resID, NULL, NULL);
 
         /* Try to load this definition */
         OSErr err = DefLoader_LoadDefinition(defType, resID);
