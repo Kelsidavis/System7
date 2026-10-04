@@ -1,6 +1,7 @@
 /*
  * Platform Information Interface
- * Provides unified API for hardware detection across x86 and ARM platforms
+ * Shared platform information API for x86, ARM32, and PowerPC. ARM64 uses a
+ * platform-specific interface.
  */
 
 #ifndef PLATFORM_INFO_H
