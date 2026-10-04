@@ -11,6 +11,7 @@
 #include "Apps/SimpleText.h"
 #include "MemoryMgr/MemoryManager.h"
 #include "FS/vfs.h"
+#include "StandardFile/StandardFile.h"
 
 #define STIO_MAX_HFS_NAME   31
 #define STIO_MAX_CACHED_DOCS 16
@@ -653,9 +654,6 @@ Boolean STIO_SaveDialog(STDocument* doc, char* pathOut)
 
     /* Show the Standard File save dialog */
     StandardFileReply reply;
-    extern void StandardPutFile(const unsigned char* prompt,
-                                const unsigned char* defaultName,
-                                StandardFileReply* reply);
     StandardPutFile(prompt, defaultName, &reply);
 
     if (!reply.sfGood) {
@@ -689,8 +687,6 @@ Boolean STIO_OpenDialog(char* pathOut)
     /* Show the Standard File open dialog - accept TEXT files */
     StandardFileReply reply;
     OSType typeList[1] = { FOURCC('T','E','X','T') };
-    extern void StandardGetFile(void* fileFilter, short numTypes,
-                                const OSType* typeList, StandardFileReply* reply);
     StandardGetFile(NULL, 1, typeList, &reply);
 
     if (!reply.sfGood) {
