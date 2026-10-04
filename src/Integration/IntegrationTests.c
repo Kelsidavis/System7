@@ -1008,6 +1008,27 @@ static void Test_Dialog_EditTextFocusBeyond32Items(void) {
     TEHandle editText = GetOrCreateDialogTEHandle(d, 33);
     CHECK(editText, "focused edit item did not provide a TextEdit handle");
     TESetSelect(0, 5, editText);
+    DialogCopy(d);
+
+    SetDialogEditTextFocus(d, 34);
+    TEHandle secondEditText = GetOrCreateDialogTEHandle(d, 34);
+    CHECK(secondEditText, "second edit item did not provide a TextEdit handle");
+    TESetSelect(0, 6, secondEditText);
+    DialogPaste(d);
+    Handle secondEditData = NULL;
+    Str255 secondText = {0};
+    GetDialogItem(d, 34, NULL, &secondEditData, NULL);
+    GetDialogItemText(secondEditData, secondText);
+    CHECK(secondText[0] == 5 && memcmp(&secondText[1], "first", 5) == 0,
+          "DialogCopy and DialogPaste did not transfer the selected text");
+
+    TESetSelect(0, 5, secondEditText);
+    DialogCut(d);
+    GetDialogItemText(secondEditData, secondText);
+    CHECK(secondText[0] == 0, "DialogCut did not remove the selected text");
+
+    SetDialogEditTextFocus(d, 33);
+    TESetSelect(0, 5, editText);
     DialogDelete(d);
     Handle editTextData = NULL;
     Str255 remainingText = {0};
