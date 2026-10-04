@@ -402,6 +402,7 @@ void TESetStyle(SInt16 mode, const TextStyle *newStyle,
     SInt16 runIndex;
     SInt16 newRunCount;
     Boolean applied = false;
+    Boolean removeToggleFaces = true;
 
     if (!hTE || !newStyle || mode == 0) return;
 
@@ -480,6 +481,27 @@ void TESetStyle(SInt16 mode, const TextStyle *newStyle,
         return;
     }
 
+    if ((mode & (doFace | doToggle)) == (doFace | doToggle)) {
+        Boolean foundRun = false;
+        for (SInt16 i = 0; i < runArray->nRuns; i++) {
+            SInt32 runStart = runArray->runs[i].startChar;
+            SInt32 runEnd = (i + 1 < runArray->nRuns) ?
+                runArray->runs[i + 1].startChar : textLength;
+            SInt16 styleIndex = runArray->runs[i].styleIndex;
+            if (runEnd <= selectionStart || runStart >= selectionEnd ||
+                styleIndex < 0 || styleIndex >= styleTable->nStyles) {
+                continue;
+            }
+            foundRun = true;
+            if ((styleTable->styles[styleIndex].tsFace & newStyle->tsFace) !=
+                newStyle->tsFace) {
+                removeToggleFaces = false;
+                break;
+            }
+        }
+        if (!foundRun) removeToggleFaces = false;
+    }
+
     newRunCount = 0;
     runIndex = 0;
     position = 0;
@@ -505,8 +527,19 @@ void TESetStyle(SInt16 mode, const TextStyle *newStyle,
         SInt16 styleIndex = runArray->runs[runIndex].styleIndex;
         if (styleIndex < 0 || styleIndex >= styleTable->nStyles) break;
         if (position >= selectionStart && position < selectionEnd) {
+            SInt16 applyMode = mode;
+            if ((mode & (doFace | doToggle)) == (doFace | doToggle)) {
+                applyMode = (SInt16)(mode & (SInt16)~(doFace | doToggle));
+            }
             TextStyle changed = TE_ApplyStyleMode(
-                styleTable->styles[styleIndex], mode, newStyle);
+                styleTable->styles[styleIndex], applyMode, newStyle);
+            if ((mode & (doFace | doToggle)) == (doFace | doToggle)) {
+                if (removeToggleFaces) {
+                    changed.tsFace &= (Style)~newStyle->tsFace;
+                } else {
+                    changed.tsFace |= newStyle->tsFace;
+                }
+            }
             styleIndex = TE_FindOrAddStyle(styleTable, changed);
             if (styleIndex < 0) break;
         }

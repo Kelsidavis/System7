@@ -1799,6 +1799,23 @@ static void Test_TextEditGetStyle(void) {
                              inside.tsFace == bold &&
                              after.tsFace == normal;
 
+    requested.tsFace = bold;
+    TESetSelect(0, 4, hTE);
+    TESetStyle(doFace | doToggle, &requested, false, hTE);
+    TextStyle toggled[4] = {{0}};
+    for (SInt32 i = 0; i < 4; i++) TEGetStyle(i, &toggled[i], NULL, NULL, hTE);
+    Boolean mixedToggleAdds = true;
+    for (SInt32 i = 0; i < 4; i++) {
+        if (toggled[i].tsFace != bold) mixedToggleAdds = false;
+    }
+    TESetStyle(doFace | doToggle, &requested, false, hTE);
+    Boolean uniformToggleRemoves = true;
+    for (SInt32 i = 0; i < 4; i++) {
+        TEGetStyle(i, &toggled[i], NULL, NULL, hTE);
+        if (toggled[i].tsFace != normal) uniformToggleRemoves = false;
+    }
+    TESetSelect(1, 3, hTE);
+
     requested.tsSize = 24;
     TESetStyle(doSize, &requested, false, hTE);
     SInt16 styledLineHeight = 0;
@@ -1864,6 +1881,8 @@ static void Test_TextEditGetStyle(void) {
           "TEGetStyle did not return the initialized styled-text attributes");
     CHECK(selectionStyle,
           "TESetStyle changed text outside the selected range");
+    CHECK(mixedToggleAdds && uniformToggleRemoves,
+          "TESetStyle doToggle did not toggle the face uniformly");
     CHECK(perStyleMetrics,
           "TEGetStyle did not return metrics for the run's font style");
     CHECK(scrapStyleOK,
