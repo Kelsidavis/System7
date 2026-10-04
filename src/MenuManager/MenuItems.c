@@ -17,6 +17,7 @@
 #include "SystemTypes.h"
 #include "System71StdLib.h"
 #include "MemoryMgr/MemoryManager.h"
+#include "ResourceManager.h"
 #include "MenuManager/menu_private.h"    /* Must come before MenuManager.h for internal prototypes */
 #include "MenuManager/MenuManager.h"
 #include "MenuManager/MenuLogging.h"
@@ -857,9 +858,6 @@ void CalcMenuSize(MenuHandle theMenu) {
  */
 void InsertFontResMenu(MenuHandle theMenu, short afterItem, short scriptFilter) {
     (void)scriptFilter;
-    extern Handle GetIndResource(ResType theType, SInt16 index);
-    extern SInt16 CountResources(ResType theType);
-    extern void GetResInfo(Handle theResource, ResID *theID, ResType *theType, char* name);
 
     SInt16 fontCount;
     SInt16 i;

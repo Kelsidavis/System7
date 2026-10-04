@@ -9,6 +9,7 @@
 #include "SystemTypes.h"
 #include "System71StdLib.h"
 #include "ExtensionManager/ControlPanelManager.h"
+#include "ExtensionManager/ResourceLoader.h"
 #include "ExtensionManager/ExtensionTypes.h"
 #include "ResourceManager.h"
 #include "MemoryMgr/MemoryManager.h"
@@ -119,9 +120,9 @@ SInt16 ControlPanelManager_ScanForControlPanels(Boolean rescan)
 
         /* Get resource info */
         ResID resourceID = 0;
-        ResType resourceType = 0;
-        char resourceName[256] = {0};
-        GetResInfo(cdevResource, &resourceID, &resourceType, resourceName);
+        char resourceName[EXTENSION_RESOURCE_NAME_SIZE];
+        Extension_GetResourceInfo(cdevResource, &resourceID, NULL,
+                                  resourceName);
 
         /* Allocate control panel entry */
         ControlPanelEntry *entry = ControlPanelEntry_Allocate();

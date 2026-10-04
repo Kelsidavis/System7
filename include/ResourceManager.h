@@ -41,6 +41,7 @@ void ReleaseResource(Handle theResource);
 void DetachResource(Handle theResource);
 Size GetResourceSizeOnDisk(Handle theResource);
 Size GetMaxResourceSize(Handle theResource);
+/* name receives a Pascal string (Str255) when non-NULL. */
 void GetResInfo(Handle theResource, ResID *theID, ResType *theType, char* name);
 SInt16 GetResAttrs(Handle theResource);
 void SetResAttrs(Handle theResource, SInt16 attrs);
