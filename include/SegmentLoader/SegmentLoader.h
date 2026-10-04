@@ -202,7 +202,7 @@ OSErr LoadSegment(SegmentLoaderContext* ctx, SInt16 segID);
 OSErr UnloadSegment(SegmentLoaderContext* ctx, SInt16 segID);
 
 /*
- * ResolveJumpIndex - Resolve jump table index to executable address
+ * ResolveJumpIndex - Resolve a 68K jump table index to executable address
  *
  * @param ctx               Segment loader context
  * @param jtIndex           Jump table index
