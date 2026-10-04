@@ -22,6 +22,7 @@
 #include "DialogManager/DialogManagerStateExt.h"
 #include "DialogManager/dialog_manager_private.h"  /* For DialogMgrGlobals */
 #include "WindowManager/WindowManager.h"
+#include "WindowManager/WindowKinds.h"
 #include "QuickDraw/QuickDraw.h"
 #include "MemoryMgr/MemoryManager.h"
 #include <assert.h>
@@ -170,6 +171,8 @@ DialogPtr NewDialog(void* wStorage, const Rect* boundsRect, const unsigned char*
         }
         return NULL;
     }
+
+    window->windowKind = dialogKind;
 
     /* Initialize dialog record */
     InitializeDialogRecord(dialog, boundsRect, title, visible, procID,

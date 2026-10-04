@@ -15,6 +15,7 @@ This checklist records significant differences between the current toolbox reimp
 - `src/QuickDraw/CursorManager.c` implements software cursor visibility, obscuring until mouse movement, and watch-frame cycling through `SpinCursor()`. `IntegrationTests.c` covers nested hide/show and movement-based reveal; screen-level background restoration and watch-frame stepping remain unverified.
 
 ## Window, Dialog, Control, and Menu Managers
+- ~~`NewDialog` created its window with `userKind`, and `IsDialogEvent` excluded null and activate events.~~ **FIXED** (2026-10-04): dialogs now use `dialogKind`; `IsDialogEvent` recognizes any event for a front dialog and update/activate events targeted at a dialog. `DialogSelect` handles targeted activation events and updates the focused edit caret.
 - `DialogCut`, `DialogCopy`, `DialogPaste`, and `DialogDelete` now route through
   the focused dialog edit-text field and update its item data. The extended
   `DialogManager_ShowOpenFileDialog`, `DialogManager_ShowSaveFileDialog`, and

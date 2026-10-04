@@ -27,10 +27,13 @@
 #include "SystemInternal.h"
 #include "Platform/Framebuffer.h"
 #include "WindowManager/WindowPlatform.h"
+#include "WindowManager/WindowKinds.h"
 #include "PatternMgr/pattern_manager.h"
 #include "QuickDrawConstants.h"
 #include "DialogManager/DialogManager.h"
 #include "DialogManager/DialogEvents.h"
+#include "DialogManager/DialogInternal.h"
+#include "DialogManager/DialogManagerInternal.h"
 #include "DialogManager/DialogEditText.h"
 #include "DialogManager/AlertDialogs.h"
 #include "DialogManager/DITLBuilder.h"
@@ -998,8 +1001,25 @@ static void Test_Dialog_EditTextFocusBeyond32Items(void) {
     DialogPtr d = NewDialog(NULL, &bounds, (ConstStr255Param)"", false,
                             dBoxProc, (WindowPtr)-1, false, 0, items);
     CHECK(d, "NewDialog failed");
+    CHECK(((WindowPtr)d)->windowKind == dialogKind,
+          "NewDialog did not mark the window as a dialog");
     CHECK(GetDialogEditTextFocus(d) == 33,
           "dialog initialization did not focus edit item 33");
+    EventRecord activateEvent = {
+        .what = activateEvt,
+        .message = (UInt32)(uintptr_t)d
+    };
+    DialogPtr selectedDialog = NULL;
+    SInt16 activatedItem = 0;
+    CHECK(IsDialogEvent(&activateEvent),
+          "IsDialogEvent rejected an activation event for a dialog window");
+    CHECK(!DialogSelect(&activateEvent, &selectedDialog, &activatedItem) &&
+          selectedDialog == d && !GetDialogManagerState()->caretVisible,
+          "DialogSelect did not deactivate the dialog caret");
+    activateEvent.modifiers = activeFlag;
+    CHECK(!DialogSelect(&activateEvent, &selectedDialog, &activatedItem) &&
+          GetDialogManagerState()->caretVisible,
+          "DialogSelect did not activate the dialog caret");
     EventRecord tabEvent = { .what = keyDown, .message = '\t' };
     SInt16 keyItem = 0;
     CHECK(DM_HandleDialogKey((WindowPtr)d, &tabEvent, &keyItem) &&

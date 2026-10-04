@@ -17,6 +17,7 @@
 #include "DialogManager/DialogLogging.h"
 #include "EventManager/EventManager.h"
 #include "WindowManager/WindowManager.h"
+#include "WindowManager/WindowKinds.h"
 #include "WindowManager/WindowPlatform.h"
 #include "TimeManager/TimeBase.h"
 
@@ -230,7 +231,8 @@ DialogPtr FrontDialog(void) {
 
 /* Check if front window is a dialog */
 Boolean FrontWindowIsDialog(void) {
-    return (FrontDialog() != NULL);
+    WindowPtr window = FrontWindow();
+    return window && window->windowKind == dialogKind;
 }
 
 /* Center dialog on screen */

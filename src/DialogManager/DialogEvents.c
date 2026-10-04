@@ -11,13 +11,17 @@
 #include "System71StdLib.h"
 #include "DialogManager/DialogEvents.h"
 #include "DialogManager/DialogManager.h"
+#include "DialogManager/DialogManagerInternal.h"
+#include "DialogManager/DialogInternal.h"
 #include "DialogManager/DialogTypes.h"
 #include "DialogManager/DialogHelpers.h"
 #include "DialogManager/DialogItems.h"
 #include "DialogManager/DialogLogging.h"
 #include "DialogManager/DialogEditText.h"
 #include "EventManager/EventTypes.h"
+#include "TimeManager/TimeBase.h"
 #include "WindowManager/WindowManager.h"
+#include "WindowManager/WindowKinds.h"
 
 /* Global event state */
 static struct {
@@ -47,18 +51,12 @@ Boolean IsDialogEvent(const EventRecord* evt)
         return false;
     }
 
-    switch (evt->what) {
-        case mouseDown:
-        case mouseUp:
-        case keyDown:
-        case autoKey:
-        case updateEvt:
-            /* If front window is a dialog, claim it */
-            return FrontWindowIsDialog();
-
-        default:
-            return false;
+    if (evt->what == updateEvt || evt->what == activateEvt) {
+        WindowPtr target = (WindowPtr)(uintptr_t)evt->message;
+        return target && target->windowKind == dialogKind;
     }
+
+    return FrontWindowIsDialog();
 }
 
 /*
@@ -76,13 +74,22 @@ Boolean DialogSelect(const EventRecord* evt, DialogPtr* which, SInt16* itemHit)
         return false;
     }
 
-    dlg = FrontDialog();
-    if (!dlg) {
+    WindowPtr target = FrontWindow();
+    if (evt->what == updateEvt || evt->what == activateEvt) {
+        target = (WindowPtr)(uintptr_t)evt->message;
+    }
+    if (!target || target->windowKind != dialogKind) {
         return false;
     }
+    dlg = (DialogPtr)target;
 
     *which = dlg;
     *itemHit = 0;
+
+    if (evt->what == activateEvt) {
+        HandleDialogActivate(dlg, evt, (evt->modifiers & activeFlag) != 0);
+        return false;
+    }
 
     /* Handle update events.
      *
@@ -176,12 +183,16 @@ Boolean DialogSelect(const EventRecord* evt, DialogPtr* which, SInt16* itemHit)
  */
 void HandleDialogActivate(DialogPtr theDialog, const EventRecord* theEvent, Boolean activating)
 {
-    (void)theEvent;
-    (void)activating;
-    if (!theDialog) {
-        return;
-    }
+    DialogManagerState* state = GetDialogManagerState();
+    if (!state || !theDialog || !theEvent ||
+        (WindowPtr)(uintptr_t)theEvent->message != (WindowPtr)theDialog) return;
 
+    state->caretVisible = activating;
+    state->caretBlinkTime = TickCount();
+    if (state->focusedEditTextItem > 0) {
+        InvalDialogItem(theDialog, state->focusedEditTextItem);
+        DrawDialogItem(theDialog, state->focusedEditTextItem);
+    }
 }
 
 /*
