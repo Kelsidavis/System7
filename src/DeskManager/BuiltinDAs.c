@@ -674,7 +674,6 @@ static int AlarmClock_DAProcessEvent(DeskAccessory *da, const DAEventInfo *event
     /* Convert event to Alarm Clock input */
     switch (event->what) {
         case 1: /* mouseDown */
-            /* Handle clock clicks */
             break;
 
         case 6: /* updateEvt */

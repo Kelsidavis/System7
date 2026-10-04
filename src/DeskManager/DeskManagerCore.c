@@ -269,10 +269,9 @@ void SystemClick(const EventRecord *event, WindowRecord *window)
  * Returns false if the window is not an accessory's, so the caller can fall
  * back to whatever it does for windows it does not recognise.
  *
- * The built-ins draw from the updateEvt arm of processEvent - CalcDA_Draw,
- * KeyCaps_DrawKeyboard, Chooser_Draw - and every one of them leaves the
- * interface's update slot NULL, so the event is what has to be delivered.
- * update is tried first anyway, for any accessory that does supply one.
+ * Some accessories handle redraws in their event callback instead of a
+ * dedicated update callback. Prefer update when supplied; otherwise forward
+ * the event to the accessory.
  */
 Boolean SystemUpdate(WindowRecord *window, const EventRecord *event)
 {

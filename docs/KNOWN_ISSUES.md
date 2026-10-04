@@ -22,7 +22,8 @@ test checks those milestones.
 
 - **Balloon Help**: the Help menu is there and About Balloon Help says so, but
   balloons are not implemented; Show Balloons is dimmed.
-- **Alarm Clock** has alarm-creation and polling APIs, but its desk-accessory mouse handler is empty, so users cannot configure alarms through the UI.
+- **Alarm Clock** has alarm-creation and polling APIs, but its desk-accessory
+  mouse handler is empty, so users cannot configure alarms through the UI.
 - **Find** searches the startup disk only, up to 100 matches and 64 items a
   folder, and has no More Choices.
 - **Chooser** opens from the Apple menu, but its window drawing is empty. Device
