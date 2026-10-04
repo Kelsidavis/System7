@@ -9,6 +9,10 @@ ControlHandle GetTrackingControl(void);
 SInt16 GetTrackingPart(void);
 Boolean IsControlTracking(ControlHandle control);
 
+/* Shared drawing primitive used by the Control and Dialog Managers. */
+void CTL_DrawPushButton(const Rect *bounds, const unsigned char *title,
+                       Boolean isDefault, Boolean isEnabled, Boolean isPressed);
+
 /* Control list helpers (WM interop) */
 ControlHandle _GetFirstControl(WindowPtr window);
 void _SetFirstControl(WindowPtr window, ControlHandle control);

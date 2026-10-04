@@ -1261,6 +1261,40 @@ static void Test_GestaltFPUType(void) {
     RecordTest(test_name, true, "");
 }
 
+static void Test_RadioButtonValues(void) {
+    const char* test_name = "Control_RadioButtonValues";
+    Rect bounds = { 20, 20, 120, 100 };
+    WindowPtr window = NewWindow(NULL, &bounds, (ConstStr255Param)"\x05Radio",
+                                 false, 0, (WindowPtr)-1, false, 0);
+    if (!window) {
+        RecordTest(test_name, false, "NewWindow failed");
+        return;
+    }
+
+    Rect firstBounds = { 10, 10, 30, 70 };
+    Rect secondBounds = { 35, 10, 55, 70 };
+    ControlHandle first = NewControl(window, &firstBounds,
+                                     (ConstStr255Param)"\0", false,
+                                     0, 0, 1, radioButProc, 0);
+    ControlHandle second = NewControl(window, &secondBounds,
+                                      (ConstStr255Param)"\0", false,
+                                      0, 0, 1, radioButProc, 0);
+    if (first && second) {
+        SetControlValue(first, 1);
+        SetControlValue(second, 1);
+    }
+    Boolean independentValues = first && second &&
+                                GetControlValue(first) == 1 &&
+                                GetControlValue(second) == 1;
+    if (first) DisposeControl(first);
+    if (second) DisposeControl(second);
+    DisposeWindow(window);
+
+    CHECK(independentValues,
+          "the radio-button definition changed peer controls without application action");
+    RecordTest(test_name, true, "");
+}
+
 static void Test_Chooser_InitializeLayout(void) {
     const char* test_name = "Chooser_InitializeLayout";
     Chooser chooser;
@@ -2830,6 +2864,9 @@ void IntegrationTests_Run(void) {
 
     IT_LOG_INFO("--- Gestalt ---");
     Test_GestaltFPUType();
+
+    IT_LOG_INFO("--- Control Manager ---");
+    Test_RadioButtonValues();
 
     IT_LOG_INFO("--- Math ---");
     Test_Math_Accuracy();

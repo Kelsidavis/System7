@@ -29,7 +29,6 @@
  */
 
 #include "SystemTypes.h"
-#include "ControlManager/StandardControls.h"
 #include "ControlManager/ControlManager.h"
 #include "ControlManager/ControlInternal.h"
 /* ControlDrawing.h not needed */
@@ -93,9 +92,6 @@ typedef struct ButtonData {
 
 /* Checkbox/Radio data structure */
 typedef struct CheckboxData {
-    Boolean isRadio;            /* Radio button vs checkbox */
-    Boolean isMixed;            /* Mixed state (for checkboxes) */
-    SInt16 groupID;         /* Radio button group ID */
     Rect boxRect;            /* Checkbox/radio box rectangle */
     Rect textRect;           /* Text area rectangle */
 } CheckboxData;
@@ -108,7 +104,6 @@ static void DrawCheckboxMark(ControlHandle checkbox);
 static void DrawRadioMark(ControlHandle radio);
 static void CalculateButtonRects(ControlHandle button);
 static void CalculateCheckboxRects(ControlHandle checkbox);
-static void HandleRadioGroup(ControlHandle radio);
 static SInt16 TestButtonPart(ControlHandle button, Point pt);
 static SInt16 TestCheckboxPart(ControlHandle checkbox, Point pt);
 static void DrawTextInRect(ConstStr255Param text, const Rect *rect, SInt16 alignment);
@@ -252,9 +247,6 @@ SInt32 CheckboxCDEF(SInt16 varCode, ControlHandle theControl,
         (*theControl)->contrlData = NewHandleClear(sizeof(CheckboxData));
         if ((*theControl)->contrlData) {
             checkData = CONTROL_DATA_AS(CheckboxData, (*theControl)->contrlData);
-            checkData->isRadio = false;
-            checkData->isMixed = false;
-            checkData->groupID = 0;
 
             /* Calculate checkbox rectangles */
             CalculateCheckboxRects(theControl);
@@ -345,6 +337,7 @@ SInt32 RadioButtonCDEF(SInt16 varCode, ControlHandle theControl,
     if (!theControl) {
         return 0;
     }
+    (void)varCode;
 
     switch (message) {
     case initCntl:
@@ -352,9 +345,6 @@ SInt32 RadioButtonCDEF(SInt16 varCode, ControlHandle theControl,
         (*theControl)->contrlData = NewHandleClear(sizeof(CheckboxData));
         if ((*theControl)->contrlData) {
             radioData = CONTROL_DATA_AS(CheckboxData, (*theControl)->contrlData);
-            radioData->isRadio = true;
-            radioData->isMixed = false;
-            radioData->groupID = varCode; /* Use variant as group ID */
 
             /* Calculate radio button rectangles */
             CalculateCheckboxRects(theControl);
@@ -422,13 +412,6 @@ SInt32 RadioButtonCDEF(SInt16 varCode, ControlHandle theControl,
         CalculateCheckboxRects(theControl);
         break;
 
-    case posCntl:
-        /* Handle radio button value changes */
-        if ((*theControl)->contrlValue) {
-            /* When radio button is selected, deselect others in group */
-            HandleRadioGroup(theControl);
-        }
-        break;
     }
 
     return 0;
@@ -531,20 +514,11 @@ static void DrawCheckboxMark(ControlHandle checkbox) {
     checkData = CONTROL_DATA_AS(CheckboxData, (*checkbox)->contrlData);
     markRect = checkData->boxRect;
 
-    if (checkData->isMixed) {
-        /* Draw dash for mixed state */
-        MoveTo(markRect.left + 3, (markRect.top + markRect.bottom) / 2);
-        LineTo(markRect.right - 3, (markRect.top + markRect.bottom) / 2);
-        LineTo(markRect.right - 3, (markRect.top + markRect.bottom) / 2 + 1);
-        LineTo(markRect.left + 3, (markRect.top + markRect.bottom) / 2 + 1);
-    } else {
-        /* Draw checkmark */
-        PenSize(2, 2);
-        MoveTo(markRect.left + 2, markRect.top + 6);
-        LineTo(markRect.left + 5, markRect.bottom - 3);
-        LineTo(markRect.right - 2, markRect.top + 3);
-        PenSize(1, 1);
-    }
+    PenSize(2, 2);
+    MoveTo(markRect.left + 2, markRect.top + 6);
+    LineTo(markRect.left + 5, markRect.bottom - 3);
+    LineTo(markRect.right - 2, markRect.top + 3);
+    PenSize(1, 1);
 }
 
 /**
@@ -657,44 +631,6 @@ static SInt16 TestCheckboxPart(ControlHandle checkbox, Point pt) {
     return 0;
 }
 
-/**
- * Handle radio button group logic
- */
-static void HandleRadioGroup(ControlHandle radio) {
-    CheckboxData *radioData;
-    WindowPtr window;
-    ControlHandle control;
-    CheckboxData *otherData;
-
-    if (!radio || !(*radio)->contrlData) {
-        return;
-    }
-
-    radioData = CONTROL_DATA_AS(CheckboxData, (*radio)->contrlData);
-    window = (*radio)->contrlOwner;
-
-    if (!window || !radioData->isRadio) {
-        return;
-    }
-
-    /* Iterate through all controls in the window */
-    control = _GetFirstControl(window);
-    while (control) {
-        /* Skip self */
-        if (control != radio && (*control)->contrlData) {
-            /* Check if it's a radio button in the same group */
-            if (IsRadioControl(control)) {
-                otherData = CONTROL_DATA_AS(CheckboxData, (*control)->contrlData);
-                if (otherData->groupID == radioData->groupID) {
-                    /* Deselect other radio button in group */
-                    SetControlValue(control, 0);
-                }
-            }
-        }
-        control = (*control)->nextControl;
-    }
-}
-
 /* Control Type Checking Functions
  *
  * These masked GetControlVariant - already just the low four bits - with
@@ -735,69 +671,6 @@ Boolean IsRadioControl(ControlHandle control) {
     }
 
     return GetControlDefFunction(control) == RadioButtonCDEF;
-}
-
-/**
- * Set checkbox mixed state
- */
-void SetCheckboxMixed(ControlHandle checkbox, Boolean mixed) {
-    CheckboxData *checkData;
-
-    if (!checkbox || !IsCheckboxControl(checkbox) || !(*checkbox)->contrlData) {
-        return;
-    }
-
-    checkData = CONTROL_DATA_AS(CheckboxData, (*checkbox)->contrlData);
-    if (checkData->isMixed != mixed) {
-        checkData->isMixed = mixed;
-
-        /* Redraw if visible */
-        if ((*checkbox)->contrlVis) {
-            Draw1Control(checkbox);
-        }
-    }
-}
-
-/**
- * Get checkbox mixed state
- */
-Boolean GetCheckboxMixed(ControlHandle checkbox) {
-    CheckboxData *checkData;
-
-    if (!checkbox || !IsCheckboxControl(checkbox) || !(*checkbox)->contrlData) {
-        return false;
-    }
-
-    checkData = CONTROL_DATA_AS(CheckboxData, (*checkbox)->contrlData);
-    return checkData->isMixed;
-}
-
-/**
- * Set radio button group
- */
-void SetRadioGroup(ControlHandle radio, SInt16 groupID) {
-    CheckboxData *radioData;
-
-    if (!radio || !IsRadioControl(radio) || !(*radio)->contrlData) {
-        return;
-    }
-
-    radioData = CONTROL_DATA_AS(CheckboxData, (*radio)->contrlData);
-    radioData->groupID = groupID;
-}
-
-/**
- * Get radio button group
- */
-SInt16 GetRadioGroup(ControlHandle radio) {
-    CheckboxData *radioData;
-
-    if (!radio || !IsRadioControl(radio) || !(*radio)->contrlData) {
-        return 0;
-    }
-
-    radioData = CONTROL_DATA_AS(CheckboxData, (*radio)->contrlData);
-    return radioData->groupID;
 }
 
 /**

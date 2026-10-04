@@ -590,7 +590,7 @@ Boolean DM_HandleSpaceKey(WindowPtr dialog, ControlHandle focusedControl) {
 
     /* Handle radio button selection */
     if (IsRadioControl(focused)) {
-        SetControlValue(focused, 1); /* This triggers HandleRadioGroup */
+        SetControlValue(focused, 1);
         DM_LOG_DEBUG("DM_HandleSpaceKey: Selected radio button\n");
 
         /* Call action if present */

@@ -14,7 +14,7 @@
 #include "QuickDrawConstants.h"
 #include "FontManager/FontManager.h"
 #include "WindowManager/WindowManager.h"
-#include "ControlManager/StandardControls.h"
+#include "ControlManager/ControlInternal.h"
 #include "MemoryMgr/MemoryManager.h"
 #include "DialogManager/DialogManager.h"
 #include "DialogManager/DialogTypes.h"

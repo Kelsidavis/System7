@@ -29,7 +29,7 @@ not complete System 7 keyboard behavior.
 
 ### Space Key Activation
 - Space toggles the currently focused checkbox or radio, or activates a focused push button.
-- Checkbox toggles call `contrlAction` so hooks still fire; radio buttons leverage `HandleRadioGroup()` to maintain exclusivity.
+- Checkbox toggles call `contrlAction` so hooks still fire; selecting a radio button changes only that control, and the owning application updates any peers.
 
 ### Debounce Guard
 - `DM_DebounceAction()` suppresses a mouse action immediately following a keyboard action, or vice versa, when they occur within six ticks (about 100 ms). Repeated actions of the same kind are allowed.
