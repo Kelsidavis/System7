@@ -38,56 +38,12 @@
 OSErr Proc_PostEventWithModifiers(EventMask what, UInt32 message, UInt16 modifiers);
 OSErr PostEventWithModifiers(EventMask what, UInt32 message, UInt16 modifiers);
 
-/* Forward declarations */
-
 #include "EventManager/EventTypes.h"
 #include "EventManager/EventStructs.h"
 
 #ifdef __cplusplus
 extern "C" {
 #endif
-
-/* Forward declarations */
-
-/* Handle is defined in MacTypes.h */
-/* Ptr is defined in MacTypes.h */
-/* Ptr is defined in MacTypes.h */
-
-/* Point structure for mouse coordinates */
-/* Point type defined in MacTypes.h */
-
-/* Event types defined in EventTypes.h */
-
-/* Event masks defined in EventTypes.h */
-
-/* Event message masks defined in EventTypes.h */
-
-/* OS event message codes defined in EventTypes.h */
-
-/* Modifier key flags defined in EventTypes.h */
-
-/* Obsolete event types defined in EventTypes.h */
-
-/* EventRecord - the fundamental event structure */
-
-/* Event queue element */
-//
-
-/* KeyMap type defined in EventStructs.h */
-
-/* Error codes */
-/* Error codes defined elsewhere */;
-
-/* Double-click detection */
-//
-
-/* Mouse tracking state */
-//
-
-/* Keyboard state and auto-repeat */
-//
-
-/* System globals (would normally be at low memory addresses) */
 
 /*---------------------------------------------------------------------------
  * Core Event Manager API
@@ -167,43 +123,6 @@ void FlushEvents(EventMask whichMask, EventMask stopMask);
  */
 SInt32 DragTheRgn(Point startPt, const struct Rect* limitRect,
                    const struct Rect* slopRect, SInt16 axis);
-
-/*---------------------------------------------------------------------------
- * Keyboard Event API
- *---------------------------------------------------------------------------*/
-
-/**
- * Translate key code using KCHR resource
- * @param transData Pointer to KCHR resource data
- * @param keycode Key code and modifier flags
- * @param state Pointer to translation state
- * @return Character code or function key code
- */
-/**
- * Compatibility name for KeyTranslate
- */
-#define KeyTrans KeyTranslate
-
-/*---------------------------------------------------------------------------
- * Timing API
- *---------------------------------------------------------------------------*/
-
-/**
- * Get system tick count
- * @return Ticks since system startup
- */
-
-/**
- * Get double-click time threshold
- * @return Ticks for double-click timing
- */
-
-
-/*---------------------------------------------------------------------------
- * Event Manager Extended API
- *---------------------------------------------------------------------------*/
-
-
 
 /*---------------------------------------------------------------------------
  * Modern Input Integration API

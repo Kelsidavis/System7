@@ -118,6 +118,9 @@ Boolean IsModifierDown(UInt16 modifier);
  */
 SInt32 KeyTranslate(const void* transData, UInt16 keyCode, UInt32* state);
 
+/* Legacy spelling retained for source compatibility. */
+#define KeyTrans KeyTranslate
+
 /**
  * Translate scan code to character using current layout
  * @param scanCode Hardware scan code
