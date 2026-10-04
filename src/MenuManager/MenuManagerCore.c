@@ -2,7 +2,9 @@
 #include <string.h>
 #include "MenuManager/menu_private.h"
 #include "System71StdLib.h"
+#if defined(__i386__) || defined(__x86_64__)
 #include "Platform/x86/rtc.h"
+#endif
 
 /* Core Menu Manager implementation. */
 
