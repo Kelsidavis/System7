@@ -6,9 +6,6 @@
 #include "Platform/platform_info_internal.h"
 #include "System71StdLib.h"
 
-/* Memory detection - expects g_total_memory_kb from multiboot */
-extern uint32_t g_total_memory_kb;
-
 static platform_info_t g_platform_info = {
     .type = PLATFORM_X86,
     .platform_name = "Macintosh x86",

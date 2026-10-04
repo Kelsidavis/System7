@@ -23,6 +23,7 @@
 #include "MemoryMgr/MemoryLogging.h"
 #include "CPU/M68KInterp.h"
 #include "CPU/LowMemGlobals.h"
+#include "Platform/platform_info.h"
 #include "System71StdLib.h"
 
 /* Serial debug output */
@@ -1711,7 +1712,6 @@ void InitMemoryManager(void) {
     serial_puts("MM: Current zone set to App Zone\n");
 
     /* Report detected memory (comes from multiboot2) */
-    extern uint32_t g_total_memory_kb;
     /* g_total_memory_kb is uint32_t: %u would pass a 4-byte int
        where the printf expects a long. */
     MEMORY_LOG_DEBUG("MM: Total memory: %lu KB (%lu MB)\n",

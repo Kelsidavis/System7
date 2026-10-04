@@ -20,14 +20,7 @@
 #include "ehci.h"
 #include "uhci.h"
 
-extern uint8_t fb_bpp;
-extern uint8_t fb_red_pos;
-extern uint8_t fb_red_size;
-extern uint8_t fb_green_pos;
-extern uint8_t fb_green_size;
-extern uint8_t fb_blue_pos;
-extern uint8_t fb_blue_size;
-extern uint32_t g_total_memory_kb;
+#include "Platform/platform_info.h"
 
 static volatile uint32_t g_irq0_ticks = 0;
 

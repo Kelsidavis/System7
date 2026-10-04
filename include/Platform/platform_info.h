@@ -10,6 +10,8 @@
 #include <stddef.h>
 #include <stdint.h>
 
+extern uint32_t g_total_memory_kb;
+
 /* Platform types */
 typedef enum {
     PLATFORM_UNKNOWN = 0,

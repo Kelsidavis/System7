@@ -40,6 +40,7 @@
 #include "Platform/include/boot.h"
 #include "Platform/include/storage.h"
 #include "Platform/Framebuffer.h"
+#include "Platform/platform_info.h"
 
 #include "../include/Gestalt/Gestalt.h"
 #include "../include/Resources/system7_resources.h"
