@@ -17,6 +17,8 @@
 #include "Finder/FinderLogging.h"
 #include "DialogManager/DITLBuilder.h"
 #include "FS/hfs_types.h"
+#include "FS/vfs.h"
+#include "FS/vfs_ops.h"
 
 
 /* Trash Folder Constants */
@@ -360,10 +362,6 @@ static OSErr CountTrashItems(UInt32 *itemCount, UInt32 *totalSize)
 static OSErr DeleteTrashItem(FSSpec *item)
 {
     /* Convert FSSpec name to C string for VFS lookup */
-    extern bool VFS_Lookup(VRefNum vref, DirID dir, const char* name, CatEntry* entry);
-    extern bool VFS_Delete(VRefNum vref, FileID id);
-    extern bool VFS_DeleteTree(VRefNum vref, DirID parent, FileID id);
-
     char cName[32];
     unsigned char len = item->name[0];
     if (len > 31) len = 31;

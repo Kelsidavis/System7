@@ -18,6 +18,8 @@
 #include "ResourceManager.h"
 #include "PatternMgr/pattern_manager.h"
 #include "FS/vfs.h"
+#include "FS/vfs_ops.h"
+#include "FS/trash.h"
 #include "chicago_font.h"  /* For ChicagoCharInfo */
 #include "Finder/Icon/icon_types.h"
 #include "Finder/Icon/icon_label.h"
@@ -1127,7 +1129,6 @@ static void TrackIconDragSync(short iconIndex, Point startPt)
         /* DROP TARGET: Trash - always move to trash folder with name conflict resolution */
         FINDER_LOG_DEBUG("TrackIconDragSync: Dropped on trash! Moving to trash folder\n");
 
-        extern bool Trash_MoveNode(VRefNum vref, DirID parent, FileID id);
         if (item->iconID != 0xFFFFFFFF) {
             VRefNum vref = VFS_GetBootVRef();
             if (Trash_MoveNode(vref, HFS_ROOT_DIR_ID, item->iconID)) {
@@ -1152,10 +1153,6 @@ static void TrackIconDragSync(short iconIndex, Point startPt)
         invalidDrop = true;
     } else {
         /* DROP TARGET: Desktop or folder window */
-        extern VRefNum VFS_GetVRefByID(FileID id);
-        extern bool VFS_GetParentDir(VRefNum vref, FileID id, DirID* parentDir);
-        extern bool VFS_Copy(VRefNum vref, DirID fromDir, FileID id, DirID toDir, const char* newName, FileID* newID);
-
         WindowPtr hitWindow = NULL;
         short partCode = FindWindow(dropPoint, &hitWindow);
 
@@ -1221,7 +1218,6 @@ static void TrackIconDragSync(short iconIndex, Point startPt)
             FINDER_LOG_DEBUG("TrackIconDragSync: Copying file (cmd=%d, crossVol=%d)\n", cmdKeyDown, crossVolume);
 
             char copyName[32];
-            extern bool VFS_GenerateUniqueName(VRefNum vref, DirID dir, const char* base, char* out);
             VFS_GenerateUniqueName(vref, targetDir, item->name, copyName);
 
             FileID newID = 0;
@@ -1235,7 +1231,6 @@ static void TrackIconDragSync(short iconIndex, Point startPt)
             /* No modifiers: default behavior (move on same volume or reposition desktop icon) */
             if (droppedOnFolder) {
                 /* Move to folder */
-                extern bool VFS_Move(VRefNum vref, DirID fromDir, FileID id, DirID toDir, const char* newName);
                 if (VFS_Move(vref, sourceDir, item->iconID, targetDir, NULL)) {
                     FINDER_LOG_DEBUG("TrackIconDragSync: Moved to folder\n");
                     /* Remove from desktop */

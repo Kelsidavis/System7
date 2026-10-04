@@ -30,6 +30,7 @@
 #include "Platform/Framebuffer.h"
 #include "Finder/finder.h"
 #include "FS/vfs.h"
+#include "FS/vfs_ops.h"
 #include "FS/trash.h"
 #include "FS/hfs_types.h"
 #include "OSUtils/OSUtils.h"
@@ -2765,9 +2766,6 @@ void FolderWindow_DuplicateSelected(WindowPtr w) {
 
     /* Show watch cursor during duplication */
     SetWatchCursor();
-
-    extern bool VFS_GenerateUniqueName(VRefNum vref, DirID dir, const char* base, char* out);
-    extern bool VFS_Copy(VRefNum vref, DirID fromDir, FileID id, DirID toDir, const char* newName, FileID* newID);
 
     FINDER_LOG_DEBUG("FolderWindow_DuplicateSelected: itemCount=%d\n", state->itemCount);
 

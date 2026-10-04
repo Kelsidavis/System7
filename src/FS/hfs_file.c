@@ -1,6 +1,7 @@
 /* HFS File Operations Implementation */
 #include "../../include/FS/hfs_file.h"
 #include "../../include/FS/hfs_endian.h"
+#include "../../include/FS/vfs.h"
 #include "../../include/FS/hfs_btree.h"
 #include "../../include/MemoryMgr/MemoryManager.h"
 #include <string.h>
@@ -240,7 +241,6 @@ HFSFile* HFS_FileOpenByPath(HFS_Catalog* cat, const char* path, bool resourceFor
     if (!cat || !path) return NULL;
 
     /* Get volume info to find root directory */
-    extern bool VFS_Lookup(VRefNum vref, DirID dir, const char* name, CatEntry* entry);
     VRefNum vref = (VRefNum)(size_t)cat->vol;  /* Simplified - assumes vol pointer can be cast */
     DirID currentDir = 2;  /* HFS root directory is typically CNID 2 */
 
