@@ -251,7 +251,7 @@ void InitDialogEditTextFocus(DialogPtr theDialog) {
     }
 
     /* Find first edit-text item */
-    itemCount = 32; /* Conservative maximum */
+    itemCount = CountDITL(theDialog);
     for (i = 1; i <= itemCount; i++) {
         GetDialogItem(theDialog, i, &itemType, &itemHandle, &itemBox);
         if ((itemType & 0x7F) == editText) {

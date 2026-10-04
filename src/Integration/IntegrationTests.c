@@ -24,6 +24,7 @@
 #include "Platform/Framebuffer.h"
 #include "QuickDrawConstants.h"
 #include "DialogManager/DialogManager.h"
+#include "DialogManager/DialogEditText.h"
 #include "DialogManager/AlertDialogs.h"
 #include "DialogManager/DITLBuilder.h"
 #include "OSUtils/OSUtils.h"
@@ -804,6 +805,34 @@ static void Test_Dialog_IconItem(void) {
 
     CHECK(black > 100, "the icon was not drawn");
     CHECK(diagonal < 30, "a placeholder X was drawn instead of the icon");
+    RecordTest(test_name, true, "");
+}
+
+static void Test_Dialog_EditTextFocusBeyond32Items(void) {
+    const char* test_name = "Dialog_EditTextFocusBeyond32Items";
+    DITLBuilder b;
+    CHECK(DITL_Begin(&b, 4096), "DITL_Begin failed");
+    for (int i = 0; i < 32; i++) {
+        DITL_AddText(&b, 0, 0, 10, 40, "label");
+    }
+    DITL_AddEditText(&b, 12, 0, 22, 40, "first");
+    DITL_AddEditText(&b, 24, 0, 34, 40, "second");
+    Handle items = DITL_Finish(&b);
+    CHECK(items, "DITL_Finish failed");
+
+    Rect bounds = { 100, 100, 160, 180 };
+    DialogPtr d = NewDialog(NULL, &bounds, (ConstStr255Param)"", false,
+                            dBoxProc, (WindowPtr)-1, false, 0, items);
+    CHECK(d, "NewDialog failed");
+    CHECK(GetDialogEditTextFocus(d) == 33,
+          "dialog initialization did not focus edit item 33");
+    AdvanceDialogEditTextFocus(d, false);
+    CHECK(GetDialogEditTextFocus(d) == 34,
+          "forward focus traversal did not reach edit item 34");
+    AdvanceDialogEditTextFocus(d, true);
+    CHECK(GetDialogEditTextFocus(d) == 33,
+          "backward focus traversal did not return to edit item 33");
+    DisposeDialog(d);
     RecordTest(test_name, true, "");
 }
 
@@ -1736,6 +1765,7 @@ void IntegrationTests_Run(void) {
     Test_M68K_Heap();
     Test_Dialog_AlertLayout();
     Test_Dialog_IconItem();
+    Test_Dialog_EditTextFocusBeyond32Items();
     Test_Window_ReorderAndHide();
     Test_Window_MoveAndZoom();
     Test_File_ReadThroughExtentsOverflow();
