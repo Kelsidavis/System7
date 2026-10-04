@@ -21,22 +21,22 @@ extern "C" {
 #define kAlertResourceType      FOURCC('A', 'L', 'R', 'T') /* Alert template resource */
 
 /* Load a 'DLOG' into a new template the caller disposes. */
-OSErr LoadDialogTemplate(SInt16 dialogID, DialogTemplate** template);
+OSErr LoadDialogTemplate(SInt16 dialogID, DialogTemplate** outTemplate);
 
 /* Copy a 'DITL' into a handle of the caller's own - a dialog keeps its item
  * list and edits it, which a resource handle must not be subjected to. */
 OSErr LoadDialogItemList(SInt16 itemListID, Handle* itemList);
 
 /* Load an 'ALRT' into a new template the caller disposes. */
-OSErr LoadAlertTemplate(SInt16 alertID, AlertTemplate** template);
+OSErr LoadAlertTemplate(SInt16 alertID, AlertTemplate** outTemplate);
 
-void DisposeDialogTemplate(DialogTemplate* template);
+void DisposeDialogTemplate(DialogTemplate* dialogTemplate);
 void DisposeDialogItemList(Handle itemList);
-void DisposeAlertTemplate(AlertTemplate* template);
+void DisposeAlertTemplate(AlertTemplate* alertTemplate);
 
 /* The parsers the loaders use, on resource data already in hand. */
-OSErr ParseDLOGResource(Handle resourceData, DialogTemplate** template);
-OSErr ParseALRTResource(Handle resourceData, AlertTemplate** template);
+OSErr ParseDLOGResource(Handle resourceData, DialogTemplate** outTemplate);
+OSErr ParseALRTResource(Handle resourceData, AlertTemplate** outTemplate);
 
 #ifdef __cplusplus
 }

@@ -19,19 +19,21 @@ extern "C" {
 
 /* Window Manager-specific types */
 typedef void (*DragGrayRgnProcPtr)(void);
-typedef struct WCTab** WCTabHandle;
+typedef struct WinCTab WinCTab;
+typedef WinCTab** WCTabHandle;
 typedef struct WindowManagerState WindowManagerState;
 
 /* ============================================================================
  * Window Data Structures
  * ============================================================================ */
 
-typedef struct WinCTab {
+struct WinCTab {
     SInt32 ctSeed;                      /* Color table seed */
     short wCReserved;                   /* Reserved field */
     short ctSize;                       /* Number of entries (usually 4) */
     ColorSpec ctTable[5];               /* Color specifications */
-} WinCTab, WCTab;
+};
+typedef WinCTab WCTab;
 /* Type checking macros */
 #define IsWindowPtr(w) ((w) != NULL)
 #define IsColorWindow(w) (sizeof(*(w)) == sizeof(CWindowRecord))
