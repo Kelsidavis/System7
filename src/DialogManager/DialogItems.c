@@ -63,19 +63,8 @@ void InitDialogItems(void)
 
     memset(&gDialogItemState, 0, sizeof(gDialogItemState));
     gDialogItemState.initialized = true;
-    gDialogItemState.cacheCount = 0;
     gDialogItemState.defaultFont = 0; /* System font */
     gDialogItemState.defaultSize = 12;
-
-    /* Initialize cache entries */
-    for (int i = 0; i < DIALOG_ITEM_CACHE_CAPACITY; i++) {
-        gDialogItemState.cache[i].dialog = NULL;
-        gDialogItemState.cache[i].itemCount = 0;
-        gDialogItemState.cache[i].items = NULL;
-        gDialogItemState.cache[i].needsUpdate = false;
-        gDialogItemState.cache[i].lastUpdateTime = 0;
-    }
-
 }
 
 /*
