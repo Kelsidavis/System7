@@ -24,6 +24,9 @@
 #include "DialogManager/DialogManagerStateExt.h"   /* For extended state with focus tracking */
 #include "DialogManager/DialogLogging.h"
 #include "DialogManager/AlertDialogs.h"  /* For SubstituteAlertParameters */
+#include "Resources/ResourceData.h"
+#include "Toolbox/IconUtilities.h"
+#include "QuickDraw/ColorQuickDraw.h"
 
 /* Draw push button or default button */
 void DrawDialogButton(DialogPtr theDialog, const Rect* bounds, const unsigned char* title,
@@ -381,12 +384,9 @@ void DrawDialogIcon(const Rect* bounds, SInt16 iconID, Boolean isEnabled) {
         return;
     }
 
-    extern Handle GetIcon(short iconID);
-    extern void PlotIcon(const Rect* theRect, Handle theIcon);
     Handle icon = GetIcon(iconID);
     if (!icon && iconID >= 0 && iconID <= 2) {
         /* The system's alert icons, from the built-in bitmaps */
-        extern const unsigned char* Alert_IconBitmap(SInt16 kind);
         const unsigned char* bits = Alert_IconBitmap((SInt16)(iconID + 1));
         if (bits) {
             Handle h = NewHandle(128);

@@ -30,5 +30,7 @@ Boolean GetResourceDataInitialized(void);
 /* Draw an embedded icon at the given location. */
 void DrawResourceIcon(UInt16 iconID, short x, short y);
 
+const unsigned char* Alert_IconBitmap(SInt16 kind);
+
 
 #endif /* RESOURCE_DATA_H */

@@ -19,8 +19,8 @@
 #include "ResourceManager.h"
 #include "MemoryMgr/MemoryManager.h"
 #include "System71StdLib.h"
+#include "Toolbox/IconUtilities.h"
 
-extern void PlotIcon(const Rect* theRect, Handle theIcon);
 extern void DrawChar(short ch);
 
 static GrafPtr gQDPort;

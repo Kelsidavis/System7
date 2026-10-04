@@ -26,6 +26,7 @@
 #include "ControlManager/ControlTypes.h"
 #include "DialogManager/DialogLogging.h"
 #include "TimeManager/TimeBase.h"
+#include "Resources/ResourceData.h"
 
 /* External dependencies */
 extern void SysBeep(SInt16 duration);
@@ -427,7 +428,6 @@ static OSErr BuildFallbackDITL(SInt16 pseudoId, SInt16 iconKind, Handle* outDITL
  * drew as an empty square. */
 static pascal void Alert_DrawIconWell(DialogPtr d, SInt16 itemNo)
 {
-    extern const unsigned char* Alert_IconBitmap(SInt16 kind);
     SInt16 type;
     Handle h;
     Rect r;

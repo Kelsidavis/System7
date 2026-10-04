@@ -19,49 +19,7 @@
 #include "QuickDrawConstants.h"
 #include "ResourceManager.h"
 #include "MemoryMgr/MemoryManager.h"
-
-/* Icon alignment types */
-typedef enum {
-    kAlignNone          = 0x00,
-    kAlignVerticalCenter = 0x01,
-    kAlignTop           = 0x02,
-    kAlignBottom        = 0x03,
-    kAlignHorizontalCenter = 0x04,
-    kAlignAbsoluteCenter = kAlignVerticalCenter | kAlignHorizontalCenter,
-    kAlignLeft          = 0x08,
-    kAlignRight         = 0x0C
-} IconAlignment;
-
-/* Icon transform types */
-typedef enum {
-    kTransformNone      = 0x00,
-    kTransformDisabled  = 0x01,
-    kTransformOffline   = 0x02,
-    kTransformOpen      = 0x03,
-    kTransformLabel1    = 0x0100,
-    kTransformLabel2    = 0x0200,
-    kTransformLabel3    = 0x0300,
-    kTransformLabel4    = 0x0400,
-    kTransformLabel5    = 0x0500,
-    kTransformLabel6    = 0x0600,
-    kTransformLabel7    = 0x0700,
-    kTransformSelected  = 0x4000,
-    kTransformSelectedDisabled = kTransformSelected | kTransformDisabled
-} IconTransform;
-
-/* Type aliases for compatibility */
-typedef IconAlignment IconAlignmentType;
-typedef IconTransform IconTransformType;
-typedef unsigned short IconSelectorValue;
-
-/* Forward declarations */
-void PlotIcon(const Rect* theRect, Handle theIcon);
-void PlotIconID(const Rect* theRect, IconAlignmentType align, IconTransformType transform, short theResID);
-Handle GetIcon(short iconID);
-void PlotIconHandle(const Rect* theRect, IconAlignmentType align, IconTransformType transform, Handle theIcon);
-OSErr GetIconSuite(Handle* theIconSuite, short theResID, IconSelectorValue selector);
-OSErr PlotIconSuite(const Rect* theRect, IconAlignmentType align, IconTransformType transform, Handle theIconSuite);
-OSErr DisposeIconSuite(Handle theIconSuite, Boolean disposeData);
+#include "Toolbox/IconUtilities.h"
 
 /* Debug logging */
 #define ICON_UTILS_DEBUG 0
