@@ -75,8 +75,10 @@ ifeq ($(PLATFORM),arm)
     endif
 
     # ARM cross-compiler configuration
-    ARM_TARGET ?= arm-linux-gnueabihf
-    CROSS_COMPILE ?= arm-linux-gnueabihf-
+    CROSS_COMPILE ?= $(shell \
+        if command -v arm-linux-gnueabihf-gcc >/dev/null 2>&1; then echo arm-linux-gnueabihf-; \
+        elif command -v arm-none-eabi-gcc >/dev/null 2>&1; then echo arm-none-eabi-; \
+        else echo arm-linux-gnueabihf-; fi)
     CC = $(CROSS_COMPILE)gcc
     AS = $(CROSS_COMPILE)as
     LD = $(CROSS_COMPILE)ld
