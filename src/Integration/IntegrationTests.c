@@ -783,11 +783,11 @@ static void Test_Dialog_NestedModalWindowState(void) {
     Rect backBounds = { 150, 520, 300, 700 };
     Rect firstBounds = { 180, 540, 330, 720 };
     Rect nestedBounds = { 210, 560, 360, 740 };
-    WindowPtr back = NewWindow(NULL, &backBounds, (ConstStr255Param)"\x04Back",
+    WindowPtr back = NewWindow(NULL, &backBounds, (ConstStr255Param)"\x04" "Back",
                                true, 0, (WindowPtr)-1, false, 0);
-    WindowPtr first = NewWindow(NULL, &firstBounds, (ConstStr255Param)"\x05First",
+    WindowPtr first = NewWindow(NULL, &firstBounds, (ConstStr255Param)"\x05" "First",
                                 true, dBoxProc, (WindowPtr)-1, false, 0);
-    WindowPtr nested = NewWindow(NULL, &nestedBounds, (ConstStr255Param)"\x06Nested",
+    WindowPtr nested = NewWindow(NULL, &nestedBounds, (ConstStr255Param)"\x06" "Nested",
                                  true, dBoxProc, (WindowPtr)-1, false, 0);
     Boolean passed = back && first && nested;
     Boolean firstStarted = false;
