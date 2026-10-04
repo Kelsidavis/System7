@@ -31,7 +31,7 @@ Provides the Event Manager event-loop API and dispatch integration for System 7 
 
 ## Testing & Debugging
 
-- `make test-input` checks mouse motion during polling, click counting, modal drag suppression, keyboard modifier replay, platform stub coordinates, and C++ linkage. It also runs as part of `make check`.
+- `make test-input` checks mouse motion during polling, click counting, modal drag suppression, keyboard modifier replay, platform stub coordinates, and C++ linkage. Queue tests cover selective-read order, stop-event flushing, full-ring wraparound, and mask bounds, plus 20,000 operations checked against a linear-list model. It also runs as part of `make check`.
 - Use `make run` for interactive input checks. Enable event traces with `SysLogSetGlobalLevel(kLogLevelTrace)` and `SysLogSetModuleLevel(kLogModuleEvent, kLogLevelTrace)`.
 - `Event_DumpQueue` logs the shared event queue when diagnosing starvation; enable the Process Manager log module at debug level to see its output.
 

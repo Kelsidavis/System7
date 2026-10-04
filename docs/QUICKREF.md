@@ -50,7 +50,7 @@ make analyze         # x86 build with GCC's static analyzer
 make analyze-arm     # ARM32 build with GCC's static analyzer
 make analyze-arm64   # ARM64 build with GCC's static analyzer
 make check-arm64     # ARM64 build and segment-permission checks
-make test-input      # native input polling, platform stubs, and C++ linkage
+make test-input      # native input polling, event queue, platform stubs, and C++ linkage
 make test-integration # build the ISO, boot it in QEMU, and collect test results
 ```
 

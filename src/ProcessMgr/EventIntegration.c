@@ -43,6 +43,10 @@ static void CopyEventRecord(EventRecord* dest, const EventRecord* src) {
     dest->modifiers = src->modifiers;
 }
 
+static Boolean EventMatchesMask(const EventRecord* evt, EventMask mask) {
+    return evt->what < 32 && (((EventMask)1U << evt->what) & mask) != 0;
+}
+
 /* The event queue has no input thread; event-query calls pump hardware. */
 static void PumpInputEvents(void) {
     ProcessModernInput();
@@ -144,16 +148,14 @@ Boolean OSEventAvail(SInt16 mask, EventRecord* evt) {
     return false;
 }
 
-/* Copy, but do not remove, the first queued event matching mask. */
-static Boolean FindQueuedEvent(EventMask mask, EventRecord* evt) {
+/* Find the first matching slot without changing queue order. */
+static Boolean FindQueuedEventIndex(EventMask mask, UInt16* eventIndex) {
     UInt16 index = gQueueHead;
     UInt16 count = gQueueCount;
 
     while (count > 0) {
-        EventRecord* queuedEvent = &gEventQueue[index];
-        EventMask eventBit = (EventMask)1U << queuedEvent->what;
-        if (eventBit & mask) {
-            CopyEventRecord(evt, queuedEvent);
+        if (EventMatchesMask(&gEventQueue[index], mask)) {
+            *eventIndex = index;
             return true;
         }
 
@@ -162,6 +164,16 @@ static Boolean FindQueuedEvent(EventMask mask, EventRecord* evt) {
     }
 
     return false;
+}
+
+/* Copy, but do not remove, the first queued event matching mask. */
+static Boolean FindQueuedEvent(EventMask mask, EventRecord* evt) {
+    UInt16 index;
+    if (!FindQueuedEventIndex(mask, &index)) {
+        return false;
+    }
+    CopyEventRecord(evt, &gEventQueue[index]);
+    return true;
 }
 
 /*
@@ -214,7 +226,7 @@ OSErr Proc_PostEventWithModifiers(EventMask what, UInt32 message, UInt16 modifie
     GetMouse(&evt.where);
     evt.modifiers = modifiers;
 
-    /* Add to queue - use memcpy to avoid struct assignment on ARM64 */
+    /* Add to queue */
     CopyEventRecord(&gEventQueue[gQueueTail], &evt);
     gQueueTail = (gQueueTail + 1) % EVENT_QUEUE_SIZE;
     gQueueCount++;
@@ -247,73 +259,61 @@ static void Proc_FlushEvents(EventMask whichMask, EventMask stopMask) {
     UInt16 readIdx = gQueueHead;
     UInt16 writeIdx = gQueueHead;
     UInt16 count = gQueueCount;
+    UInt16 keptCount = 0;
+    Boolean reachedStop = false;
 
     PROCESS_LOG_DEBUG("EventMgr: Flushing events mask=0x%04lx stop=0x%04lx\n",
                   (unsigned long)whichMask, (unsigned long)stopMask);
 
     while (count > 0) {
         EventRecord* evt = &gEventQueue[readIdx];
-        EventMask evtBit = (1 << evt->what);
-
-        /* Stop if we hit stop event */
-        if (evtBit & stopMask) {
-            break;
+        if (EventMatchesMask(evt, stopMask)) {
+            reachedStop = true;
         }
 
-        /* Keep event if not in flush mask */
-        if (!(evtBit & whichMask)) {
+        /* Compact retained events, including the stop event and everything after it. */
+        if (reachedStop || !EventMatchesMask(evt, whichMask)) {
             if (writeIdx != readIdx) {
                 CopyEventRecord(&gEventQueue[writeIdx], evt);
             }
             writeIdx = (writeIdx + 1) % EVENT_QUEUE_SIZE;
-        } else {
-            gQueueCount--;  /* Removing this event */
+            keptCount++;
         }
 
         readIdx = (readIdx + 1) % EVENT_QUEUE_SIZE;
         count--;
     }
 
-    /* Update tail if we removed events */
-    if (writeIdx != readIdx) {
-        gQueueTail = writeIdx;
-    }
+    gQueueTail = writeIdx;
+    gQueueCount = keptCount;
 }
 
 /*
  * DequeueEvent - Remove matching event from queue
- * Strategy: Only pop from head - rotate non-matches to back
+ * Preserve the relative order of all events left in the queue.
  */
 static Boolean DequeueEvent(EventMask mask, EventRecord* evt) {
-    UInt16 rotations = 0;
-
-    /* Rotate queue until matching event at head or full rotation */
-    while (rotations < gQueueCount) {
-        if (gQueueCount == 0) {
-            return false;
-        }
-
-        EventRecord* headEvt = &gEventQueue[gQueueHead];
-
-        /* Check if head matches mask */
-        if ((1 << headEvt->what) & mask) {
-            /* Found match at head - dequeue it */
-            CopyEventRecord(evt, headEvt);
-            gQueueHead = (gQueueHead + 1) % EVENT_QUEUE_SIZE;
-            gQueueCount--;
-
-            PROCESS_LOG_DEBUG("EventMgr: Dequeued event %d\n", evt->what);
-            return true;
-        }
-
-        /* No match - rotate this event to back */
-        CopyEventRecord(&gEventQueue[gQueueTail], headEvt);
-        gQueueHead = (gQueueHead + 1) % EVENT_QUEUE_SIZE;
-        gQueueTail = (gQueueTail + 1) % EVENT_QUEUE_SIZE;
-        rotations++;
+    UInt16 index;
+    if (!FindQueuedEventIndex(mask, &index)) {
+        return false;
     }
 
-    return false;
+    CopyEventRecord(evt, &gEventQueue[index]);
+    if (index == gQueueHead) {
+        gQueueHead = (gQueueHead + 1) % EVENT_QUEUE_SIZE;
+    } else {
+        UInt16 next = (index + 1) % EVENT_QUEUE_SIZE;
+        while (next != gQueueTail) {
+            CopyEventRecord(&gEventQueue[index], &gEventQueue[next]);
+            index = next;
+            next = (next + 1) % EVENT_QUEUE_SIZE;
+        }
+        gQueueTail = index;
+    }
+    gQueueCount--;
+
+    PROCESS_LOG_DEBUG("EventMgr: Dequeued event %d\n", evt->what);
+    return true;
 }
 
 /* Return a dirty-window update event when the caller requests update events. */
