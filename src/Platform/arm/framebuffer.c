@@ -340,7 +340,8 @@ static int virtio_gpu_send_ok_nodata(uint32_t base, void *request, uint32_t requ
     }
 
     if (response.type != VIRTIO_GPU_RESP_OK_NODATA) {
-        Serial_Printf("[FB] virtio-gpu unexpected response 0x%x\n", response.type);
+        Serial_Printf("[FB] virtio-gpu unexpected response 0x%lx\n",
+                      (unsigned long)response.type);
         return -1;
     }
 
@@ -394,7 +395,8 @@ static int virtio_gpu_get_display_info(uint32_t base, uint32_t *width, uint32_t 
     }
 
     if (response.hdr.type != VIRTIO_GPU_RESP_OK_DISPLAY_INFO) {
-        Serial_Printf("[FB] virtio-gpu display info failed (0x%x)\n", response.hdr.type);
+        Serial_Printf("[FB] virtio-gpu display info failed (0x%lx)\n",
+                      (unsigned long)response.hdr.type);
         return -1;
     }
 
@@ -482,7 +484,8 @@ static int virtio_gpu_sync_display(uint32_t base, uint32_t width, uint32_t heigh
         return -1;
     }
     if (response.type != VIRTIO_GPU_RESP_OK_NODATA) {
-        Serial_Printf("[FB] virtio-gpu transfer unexpected resp 0x%x\n", response.type);
+        Serial_Printf("[FB] virtio-gpu transfer unexpected resp 0x%lx\n",
+                      (unsigned long)response.type);
         return -1;
     }
 
@@ -499,7 +502,8 @@ static int virtio_gpu_sync_display(uint32_t base, uint32_t width, uint32_t heigh
         return -1;
     }
     if (response.type != VIRTIO_GPU_RESP_OK_NODATA) {
-        Serial_Printf("[FB] virtio-gpu flush unexpected resp 0x%x\n", response.type);
+        Serial_Printf("[FB] virtio-gpu flush unexpected resp 0x%lx\n",
+                      (unsigned long)response.type);
         return -1;
     }
 
@@ -629,7 +633,8 @@ static int virt_framebuffer_init(void) {
     }
 
     framebuffer_ready = 1;
-    Serial_Printf("[FB] virtio-gpu framebuffer ready: %ux%u @ 32-bit\n", width, height);
+    Serial_Printf("[FB] virtio-gpu framebuffer ready: %lux%lu @ 32-bit\n",
+                  (unsigned long)width, (unsigned long)height);
     return 0;
 }
 

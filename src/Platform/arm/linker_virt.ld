@@ -13,8 +13,8 @@ SECTIONS
 
     .boot ALIGN(8) :
     {
-        KEEP(build/obj/arm/platform_boot.o(.text.boot))
-        KEEP(build/obj/arm/platform_boot.o(.text.entry))
+        KEEP(*(.text.boot))
+        KEEP(*(.text.entry))
     } > RAM
 
     .text ALIGN(4K) :
