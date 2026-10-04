@@ -17,6 +17,7 @@
 
 #include "../include/MenuManager/MenuManager.h"
 #include "../include/MenuManager/MenuTypes.h"
+#include "../include/MenuManager/MenuInternalTypes.h"
 #include "../include/MenuManager/MenuLogging.h"
 #include "../include/WindowManager/WindowManager.h"
 #include "../include/WindowManager/WindowPlatform.h"
@@ -28,13 +29,6 @@
  * Menu Manager Types and Structures
  * ============================================================================ */
 
-/* Menu list entry */
-typedef struct MenuListEntry {
-    short menuID;
-    short menuLeft;
-    short menuWidth;
-} MenuListEntry;
-
 /* Define struct Menu to match MenuHandle definition in SystemTypes.h */
 struct Menu {
     SInt16   menuID;
@@ -44,15 +38,6 @@ struct Menu {
     SInt32   enableFlags;
     Str255   menuData;
 };
-
-/* Menu bar list structure */
-typedef struct MenuBarList {
-    short numMenus;
-    short totalWidth;
-    short lastRight;
-    short mbResID;
-    MenuListEntry menus[1];  /* Variable length array */
-} MenuBarList;
 
 #define MENU_BAR_LIST(ptr) \
     ((MenuBarList*)__builtin_assume_aligned((ptr), _Alignof(MenuBarList)))
@@ -222,25 +207,6 @@ Handle GetMenuBar(void)
     return MENU_LIST_HANDLE(gMenuList);  /* Cast Ptr to Handle for API compatibility */
 }
 
-/*
- * MenuMgr_GetMenuBarList - the menu list, as what it actually is
- *
- * gMenuList is a NewPtr block, but GetMenuBar hands it back cast to Handle,
- * and every caller then dereferenced it - reading the first four bytes of the
- * MenuBarList as if they were a master pointer. FindMenuCommand did this and
- * came away with numMenus == 0, so no command-key equivalent has ever
- * resolved: Command-N, Command-O and Command-W were silently ignored while
- * the same menus tracked correctly with the mouse, because menu tracking
- * reaches the list by a different route.
- */
-/*
- * Declared here rather than in a header because this file defines its own
- * MenuBarList, distinct from the one in MenuInternalTypes.h - two structs of
- * the same name describing the same thing. Until those are reconciled a shared
- * declaration cannot name a type both sides agree on.
- */
-MenuBarList* MenuMgr_GetMenuBarList(void);
-
 MenuBarList* MenuMgr_GetMenuBarList(void)
 {
     if (!gMenuMgrInitialized) {
@@ -373,6 +339,17 @@ void ClearMenuBar(void)
 
     /* Clear menu bar display */
     InvalidateMenuBar();
+}
+
+void InitProcMenu(short resID)
+{
+    MenuBarList* menuBar = MenuMgr_GetMenuBarList();
+
+    if (menuBar == NULL) {
+        return;
+    }
+
+    menuBar->mbResID = resID;
 }
 
 /*
