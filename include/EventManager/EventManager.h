@@ -235,10 +235,11 @@ void EventPumpYield(void);
 void ShutdownModernInput(void);
 
 /**
- * Enable/disable modern input features
+ * Request optional modern input features
  * @param multiTouch Enable multi-touch support
  * @param gestures Enable gesture recognition
  * @param accessibility Enable accessibility features
+ * These options are currently unsupported and are ignored.
  */
 void ConfigureModernInput(Boolean multiTouch, Boolean gestures, Boolean accessibility);
 

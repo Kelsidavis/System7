@@ -54,34 +54,11 @@ static struct {
     UInt32 lastClickTime;
     Point lastClickPos;
     UInt16 clickCount;
-    Boolean multiTouchEnabled;
-    Boolean gesturesEnabled;
-    Boolean accessibilityEnabled;
     Boolean capsLockLatched;
-    UInt32 pollCounter;  /* PS/2 poll throttling */
 #if QEMU_JITTER_HACK
     UInt32 lastDownTick;  /* Tick of last mouseDown to coalesce jitter */
-    UInt16 coalescedPolls; /* Count of coalesced down events in same tick */
 #endif
-} g_modernInput = {
-    false,
-    NULL,
-    {0, 0},
-    0,
-    {0},
-    0,
-    {0, 0},
-    0,
-    false,
-    false,
-    false,
-    false,
-    0
-#if QEMU_JITTER_HACK
-    , 0
-    , 0
-#endif
-};
+} g_modernInput = {0};
 
 static Boolean KeyMapHasKey(const KeyMap map, UInt16 scanCode)
 {
@@ -312,13 +289,11 @@ void ProcessModernInput(void)
             if (currentTime == g_modernInput.lastDownTick &&
                 currentMousePos.h == g_modernInput.lastClickPos.h &&
                 currentMousePos.v == g_modernInput.lastClickPos.v) {
-                g_modernInput.coalescedPolls++;
                 /* Skip duplicate down event - already posted */
                 g_modernInput.lastButtonState = currentButtonState;
                 return;
             }
             g_modernInput.lastDownTick = currentTime;
-            g_modernInput.coalescedPolls = 1;
 #endif
 
             /* Check for multi-click using GetDblTime() and gDoubleClickSlop */
@@ -464,20 +439,15 @@ void ShutdownModernInput(void)
 }
 
 /**
- * Enable/disable modern input features
+ * Report unsupported modern input feature requests
  * @param multiTouch Enable multi-touch support
  * @param gestures Enable gesture recognition
  * @param accessibility Enable accessibility features
  */
 void ConfigureModernInput(Boolean multiTouch, Boolean gestures, Boolean accessibility)
 {
-    g_modernInput.multiTouchEnabled = multiTouch;
-    g_modernInput.gesturesEnabled = gestures;
-    g_modernInput.accessibilityEnabled = accessibility;
-
-    /* Configure platform-specific features */
-    if (g_modernInput.platform) {
-        EVT_LOG_INFO("ModernInput features configured MultiTouch:%d Gestures:%d Accessibility:%d\n",
+    if (multiTouch || gestures || accessibility) {
+        EVT_LOG_INFO("ModernInput options unsupported (MultiTouch:%d Gestures:%d Accessibility:%d)\n",
                      multiTouch, gestures, accessibility);
     }
 }
