@@ -20,6 +20,7 @@
 #include "QuickDraw/QuickDraw.h"
 #include "QuickDraw/QuickDrawInternal.h"
 #include "QuickDrawConstants.h"   /* blackColor / whiteColor */
+#include "FontManager/FontManager.h"
 #include "LocaleManager/LocaleManager.h"
 #include "LocaleManager/StringIDs.h"
 #include "Finder/Icon/icon_types.h"
@@ -1431,7 +1432,6 @@ static const char* GetFileKindString(const FolderItem* item) {
  * Renders column headers with the active sort column in bold.
  */
 static void FolderWindow_DrawListHeader(const Rect* portRect, short viewMode) {
-    extern void TextFace(short style);
     short y = portRect->top;
     short left = portRect->left;
 
@@ -1674,10 +1674,9 @@ static void FolderWindow_DrawListView(WindowPtr w, FolderWindowState* state) {
              * eight characters. Eight is one short of "Essential", so the
              * shortest label anyone is likely to apply lost its last letter,
              * and "In Progress" lost three. Measuring uses the same widths the
-             * drawing does, so what survives is what actually fits.
+            * drawing does, so what survives is what actually fits.
              */
             {
-                extern short CharWidth(short ch);
                 static char fitted[64];
                 const short kEllipsis = 0xC9;   /* Mac Roman ... as one glyph */
                 short avail = kListLabelColWidth - 8;
