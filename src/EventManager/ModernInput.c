@@ -191,10 +191,6 @@ SInt16 InitModernInput(const char* platform)
  */
 void EventPumpYield(void)
 {
-    static int pumpCount = 0;
-    if (++pumpCount % 200 == 0) {
-        EVT_LOG_TRACE("[MI] EventPumpYield called %d times\n", pumpCount);
-    }
     ProcessModernInput();
 }
 
@@ -204,20 +200,11 @@ void EventPumpYield(void)
  */
 void ProcessModernInput(void)
 {
-    static int entryCount = 0;
-    entryCount++;
-
-    /* ALWAYS log first 5 calls and every 60th */
-    if (entryCount <= 5 || entryCount % 60 == 0) {
-        EVT_LOG_TRACE("[MI] ProcessModernInput entry #%d\n", entryCount);
-    }
-
     Point currentMousePos;
     UInt8 currentButtonState;
     KeyMap currentKeyMap;
 
     if (!g_modernInput.initialized) {
-        EVT_LOG_TRACE("[MI] not initialized, returning early\n");
         return;
     }
 
@@ -243,28 +230,12 @@ void ProcessModernInput(void)
     currentMousePos = g_mousePos;  /* Use file-scope extern */
     currentButtonState = GetMouseButtonsLatched();
 
-    /* DEBUG: Check if g_mousePos is actually being read */
-    static int posReadCount = 0;
-    if (++posReadCount % 60 == 1) {
-        EVT_LOG_TRACE("[MI] g_mousePos read: (%d,%d)\n",
-                     (int)g_mousePos.h, (int)g_mousePos.v);
-    }
-
     /* Update global button state for Button()/StillDown() */
-    static int updateCount = 0;
     if (currentButtonState != gCurrentButtons) {
-        EVT_LOG_TRACE("[MI] gCurrentButtons: 0x%02x -> 0x%02x (update #%d)\n",
-                     gCurrentButtons, currentButtonState, ++updateCount);
+        EVT_LOG_TRACE("[MI] gCurrentButtons: 0x%02x -> 0x%02x\n",
+                     gCurrentButtons, currentButtonState);
     }
     gCurrentButtons = currentButtonState;
-
-    /* Debug: Log button states on every call */
-    static int pollCount = 0;
-    pollCount++;
-    if (pollCount % 60 == 0) {  /* Every ~1 second at 60Hz */
-        EVT_LOG_TRACE("[MI] Poll #%d: curr=%d, last=%d\n",
-                     pollCount, currentButtonState, g_modernInput.lastButtonState);
-    }
 
     /* Get keyboard state from PS/2 controller */
     if (!GetPS2KeyboardState(currentKeyMap)) {
