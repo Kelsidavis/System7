@@ -569,6 +569,27 @@ static void RunTestBoot(void)
         }
     }
 
+    {
+        CPUAddr expected = 0;
+        CPUAddr resolved = 0;
+        CPUAddr slotAddr = ctx->a5World.jtBase + ctx->a5World.jtEntrySize;
+        Boolean lazyResolvePassed = GetSegmentEntryPoint(ctx, 2, &expected) == noErr;
+        if (lazyResolvePassed) {
+            lazyResolvePassed = UnloadSegment(ctx, 2) == noErr;
+        }
+        if (lazyResolvePassed) {
+            lazyResolvePassed = ctx->cpuBackend->MakeLazyJTStub(
+                ctx->cpuAS, slotAddr, 2, 0) == noErr;
+        }
+        if (lazyResolvePassed) {
+            lazyResolvePassed = ResolveJumpIndex(ctx, 1, &resolved) == noErr &&
+                                resolved == expected;
+        }
+        if (!lazyResolvePassed) {
+            SEG_TEST_FAILED("ResolveJumpIndex failed to reload and resolve a lazy entry");
+        }
+    }
+
     /* The JSR target in segment 2 should have been relocated by its base. */
     {
         CPUAddr seg2 = 0;

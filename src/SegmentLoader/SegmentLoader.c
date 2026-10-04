@@ -241,7 +241,7 @@ OSErr LoadSegment(SegmentLoaderContext* ctx, SInt16 segID)
             segment->state = kSegmentLoaded;
             segment->purgeable = false;
             segment->refCount = 1;
-            return noErr;
+            return PatchSegmentJumpTable(ctx, segID);
         }
     }
 
