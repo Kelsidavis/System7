@@ -46,6 +46,8 @@ Only the Chicago font strike is shipped; Geneva currently falls back to it.
 Finder labels use a vertically reduced Chicago bitmap to approach the
 reference size. The generic folder has shaded color artwork, while document
 artwork remains placeholder line art and some icon resource mappings
-reference unavailable IDs. Finder icon view still lacks full classic
-scrollbars. The Help icon, grow-box artwork, and About window also require
+reference unavailable IDs. Icon view now draws classic scrollbar controls and
+supports vertical arrow, page-track, mouse-wheel, and keyboard-selection
+scrolling. The horizontal bar is decorative, and scrollbar thumb dragging is
+not implemented. The Help icon, grow-box artwork, and About window also require
 visual comparison.

@@ -170,7 +170,7 @@ static void GhostEraseIf(void);  /* Forward declaration for ghost system */
 /* How many icons fit across this window. Never less than one. */
 static short FW_GridColumns(WindowPtr w) {
     short width = w ? (w->port.portRect.right - w->port.portRect.left) : 0;
-    short cols = (short)((width - kFWLeftMargin) / kFWGridPitchH);
+    short cols = (short)((width - kFWLeftMargin - kListScrollBarWidth) / kFWGridPitchH);
     return (cols < 1) ? 1 : cols;
 }
 
@@ -879,16 +879,47 @@ static short FW_IconAtPoint(WindowPtr w, Point localPt) {
     }
 
     /* Icon view hit testing */
+    short right = w->port.portRect.right;
+    short bottom = w->port.portRect.bottom;
+    short scrollTop = w->port.portRect.top + kFWStatusHeight;
+    short scrollBottom = bottom - kListScrollBarWidth;
+    if (localPt.h >= right - kListScrollBarWidth && localPt.v >= scrollTop &&
+        localPt.v < scrollBottom) {
+        short columns = FW_GridColumns(w);
+        short totalRows = (state->itemCount + columns - 1) / columns;
+        short visibleRows = (scrollBottom - scrollTop - kFWTopMargin +
+                             kFWGridPitchV - 1) / kFWGridPitchV;
+        if (visibleRows < 1) visibleRows = 1;
+        short maxScroll = totalRows - visibleRows;
+        if (maxScroll < 0) maxScroll = 0;
+        short arrowBottom = scrollTop + kListScrollBarWidth;
+        if (localPt.v < arrowBottom) {
+            if (state->scrollOffset > 0) state->scrollOffset--;
+        } else if (localPt.v >= scrollBottom - kListScrollBarWidth) {
+            if (state->scrollOffset < maxScroll) state->scrollOffset++;
+        } else if (localPt.v < (scrollTop + scrollBottom) / 2) {
+            state->scrollOffset -= visibleRows;
+            if (state->scrollOffset < 0) state->scrollOffset = 0;
+        } else {
+            state->scrollOffset += visibleRows;
+            if (state->scrollOffset > maxScroll) state->scrollOffset = maxScroll;
+        }
+        PostEvent(updateEvt, (UInt32)(uintptr_t)w);
+        return -1;
+    }
+    if (localPt.v >= bottom - kListScrollBarWidth) return -1;
+
     for (short i = 0; i < state->itemCount; i++) {
         /* Icon rect (32x32 centered at position.h+16) */
         Rect iconRect;
         iconRect.left = state->items[i].position.h;
-        iconRect.top = state->items[i].position.v;
+        iconRect.top = state->items[i].position.v - state->scrollOffset * kFWGridPitchV;
         iconRect.right = state->items[i].position.h + 32;
-        iconRect.bottom = state->items[i].position.v + 32;
+        iconRect.bottom = iconRect.top + 32;
 
         Rect labelRect;
         FW_LabelRect(state, i, &labelRect);
+        OffsetRect(&labelRect, 0, -state->scrollOffset * kFWGridPitchV);
 
         /* Check if point is in icon or label */
         if ((localPt.h >= iconRect.left && localPt.h < iconRect.right &&
@@ -1578,6 +1609,103 @@ static void FolderWindow_DrawListScrollbar(WindowPtr w, FolderWindowState* state
     }
 }
 
+static void FolderWindow_DrawIconScrollbars(WindowPtr w, FolderWindowState* state) {
+    short left = w->port.portRect.left;
+    short top = w->port.portRect.top + kFWStatusHeight;
+    short right = w->port.portRect.right;
+    short bottom = w->port.portRect.bottom;
+    short verticalLeft = right - kListScrollBarWidth;
+    short horizontalTop = bottom - kListScrollBarWidth;
+
+    Pattern grayPat;
+    Pattern whitePat;
+    memset(&whitePat, 0, sizeof(whitePat));
+    for (int i = 0; i < 8; i++) grayPat.pat[i] = (i & 1) ? 0xAA : 0x55;
+
+    Rect track;
+    SetRect(&track, verticalLeft, top, right, horizontalTop);
+    FillRect(&track, &grayPat);
+    FrameRect(&track);
+
+    Rect up;
+    SetRect(&up, verticalLeft, top, right, top + kListScrollBarWidth);
+    FillRect(&up, &whitePat);
+    FrameRect(&up);
+    short centerX = verticalLeft + kListScrollBarWidth / 2;
+    MoveTo(centerX, top + 3);
+    LineTo(verticalLeft + 3, top + kListScrollBarWidth - 4);
+    LineTo(right - 4, top + kListScrollBarWidth - 4);
+    LineTo(centerX, top + 3);
+
+    Rect down;
+    SetRect(&down, verticalLeft, horizontalTop - kListScrollBarWidth,
+            right, horizontalTop);
+    FillRect(&down, &whitePat);
+    FrameRect(&down);
+    MoveTo(centerX, horizontalTop - 4);
+    LineTo(verticalLeft + 3, horizontalTop - kListScrollBarWidth + 3);
+    LineTo(right - 4, horizontalTop - kListScrollBarWidth + 3);
+    LineTo(centerX, horizontalTop - 4);
+
+    short columns = FW_GridColumns(w);
+    short totalRows = (state->itemCount + columns - 1) / columns;
+    short visibleRows = (horizontalTop - top - kFWTopMargin +
+                         kFWGridPitchV - 1) / kFWGridPitchV;
+    if (visibleRows < 1) visibleRows = 1;
+    short trackHeight = horizontalTop - top - 2 * kListScrollBarWidth;
+    if (trackHeight < 1) trackHeight = 1;
+    short thumbHeight = totalRows > 0 ? (visibleRows * trackHeight) / totalRows : trackHeight;
+    if (thumbHeight < 16) thumbHeight = 16;
+    if (thumbHeight > trackHeight) thumbHeight = trackHeight;
+    short maxScroll = totalRows - visibleRows;
+    if (maxScroll < 1) maxScroll = 1;
+    short thumbTop = top + kListScrollBarWidth +
+                     (state->scrollOffset * (trackHeight - thumbHeight)) / maxScroll;
+    Rect thumb;
+    SetRect(&thumb, verticalLeft + 1, thumbTop, right - 1, thumbTop + thumbHeight);
+    FillRect(&thumb, &whitePat);
+    FrameRect(&thumb);
+
+    Rect horizontal;
+    SetRect(&horizontal, left, horizontalTop, verticalLeft, bottom);
+    FillRect(&horizontal, &grayPat);
+    FrameRect(&horizontal);
+
+    Rect leftArrow;
+    SetRect(&leftArrow, left, horizontalTop, left + kListScrollBarWidth, bottom);
+    FillRect(&leftArrow, &whitePat);
+    FrameRect(&leftArrow);
+    short centerY = horizontalTop + kListScrollBarWidth / 2;
+    MoveTo(left + 3, centerY);
+    LineTo(left + kListScrollBarWidth - 4, horizontalTop + 3);
+    LineTo(left + kListScrollBarWidth - 4, bottom - 4);
+    LineTo(left + 3, centerY);
+
+    Rect rightArrow;
+    SetRect(&rightArrow, verticalLeft - kListScrollBarWidth, horizontalTop,
+            verticalLeft, bottom);
+    FillRect(&rightArrow, &whitePat);
+    FrameRect(&rightArrow);
+    MoveTo(verticalLeft - 4, centerY);
+    LineTo(verticalLeft - kListScrollBarWidth + 3, horizontalTop + 3);
+    LineTo(verticalLeft - kListScrollBarWidth + 3, bottom - 4);
+    LineTo(verticalLeft - 4, centerY);
+
+    short hTrackLeft = left + kListScrollBarWidth;
+    short hTrackRight = verticalLeft - kListScrollBarWidth;
+    short hThumbLeft = hTrackLeft + (hTrackRight - hTrackLeft) / 4;
+    short hThumbRight = hTrackLeft + (hTrackRight - hTrackLeft) * 3 / 4;
+    Rect hThumb;
+    SetRect(&hThumb, hThumbLeft, horizontalTop + 1, hThumbRight, bottom - 1);
+    FillRect(&hThumb, &whitePat);
+    FrameRect(&hThumb);
+
+    Rect corner;
+    SetRect(&corner, verticalLeft, horizontalTop, right, bottom);
+    FillRect(&corner, &grayPat);
+    FrameRect(&corner);
+}
+
 static void FolderWindow_DrawListView(WindowPtr w, FolderWindowState* state) {
     short top = w->port.portRect.top + kFWStatusHeight;
     short left = w->port.portRect.left;
@@ -1849,7 +1977,7 @@ void FolderWindow_Draw(WindowPtr w) {
             iconHandle.italicLabel = state->items[i].isAlias;
 
             int localX = state->items[i].position.h;
-            int localY = state->items[i].position.v;
+            int localY = state->items[i].position.v - state->scrollOffset * kFWGridPitchV;
 
             /* Draw icon with label using window-local coordinates */
             Icon_DrawWithLabel(&iconHandle, state->items[i].name,
@@ -1857,6 +1985,7 @@ void FolderWindow_Draw(WindowPtr w) {
                               localY,        /* top Y (local) */
                               selected);
         }
+        FolderWindow_DrawIconScrollbars(w, state);
     }
 
     /* Draw the disk summary below the title bar.
@@ -2156,7 +2285,7 @@ void FolderWindow_ArrowKey(WindowPtr w, Boolean isDown, Boolean extendSel) {
     }
     FW_SetAnchor(state, newIndex);
 
-    /* Auto-scroll in list view to keep selection visible */
+    /* Auto-scroll to keep the keyboard selection visible. */
     if (state->viewMode >= kViewByName) {
         short contentHeight = w->port.portRect.bottom - w->port.portRect.top - kListHeaderHeight - kFWStatusHeight;
         short visibleRows = contentHeight / kListRowHeight;
@@ -2167,6 +2296,23 @@ void FolderWindow_ArrowKey(WindowPtr w, Boolean isDown, Boolean extendSel) {
         } else if (newIndex >= state->scrollOffset + visibleRows) {
             state->scrollOffset = newIndex - visibleRows + 1;
         }
+    } else {
+        short columns = FW_GridColumns(w);
+        short totalRows = (state->itemCount + columns - 1) / columns;
+        short contentHeight = w->port.portRect.bottom - w->port.portRect.top -
+                              kFWStatusHeight - kListScrollBarWidth - kFWTopMargin;
+        short visibleRows = (contentHeight + kFWGridPitchV - 1) / kFWGridPitchV;
+        if (visibleRows < 1) visibleRows = 1;
+        short selectedRow = (state->items[newIndex].position.v - kFWTopMargin) /
+                            kFWGridPitchV;
+        if (selectedRow < state->scrollOffset) {
+            state->scrollOffset = selectedRow;
+        } else if (selectedRow >= state->scrollOffset + visibleRows) {
+            state->scrollOffset = selectedRow - visibleRows + 1;
+        }
+        short maxScroll = totalRows - visibleRows;
+        if (maxScroll < 0) maxScroll = 0;
+        if (state->scrollOffset > maxScroll) state->scrollOffset = maxScroll;
     }
 
     PostEvent(updateEvt, (UInt32)(uintptr_t)w);
@@ -2344,17 +2490,31 @@ void FolderWindow_ScrollWheel(int8_t delta) {
     if (!front || !IsFolderWindow(front)) return;
 
     FolderWindowState* state = GetFolderState(front);
-    if (!state || !state->items || state->viewMode < kViewByName) return;
+    if (!state || !state->items) return;
 
-    /* Each scroll notch moves 3 rows */
-    short scrollAmount = (delta > 0) ? -3 : 3;
+    short scrollAmount;
+    if (state->viewMode >= kViewByName) {
+        scrollAmount = (delta > 0) ? -3 : 3;
+    } else {
+        scrollAmount = (delta > 0) ? -1 : 1;
+    }
     state->scrollOffset += scrollAmount;
 
-    /* Clamp */
-    short contentHeight = front->port.portRect.bottom - front->port.portRect.top - kListHeaderHeight - kFWStatusHeight;
-    short visibleRows = contentHeight / kListRowHeight;
-    if (visibleRows < 1) visibleRows = 1;
-    short maxScroll = state->itemCount - visibleRows;
+    short maxScroll;
+    if (state->viewMode >= kViewByName) {
+        short contentHeight = front->port.portRect.bottom - front->port.portRect.top - kListHeaderHeight - kFWStatusHeight;
+        short visibleRows = contentHeight / kListRowHeight;
+        if (visibleRows < 1) visibleRows = 1;
+        maxScroll = state->itemCount - visibleRows;
+    } else {
+        short columns = FW_GridColumns(front);
+        short totalRows = (state->itemCount + columns - 1) / columns;
+        short contentHeight = front->port.portRect.bottom - front->port.portRect.top -
+                              kFWStatusHeight - kListScrollBarWidth - kFWTopMargin;
+        short visibleRows = (contentHeight + kFWGridPitchV - 1) / kFWGridPitchV;
+        if (visibleRows < 1) visibleRows = 1;
+        maxScroll = totalRows - visibleRows;
+    }
     if (maxScroll < 0) maxScroll = 0;
     if (state->scrollOffset > maxScroll) state->scrollOffset = maxScroll;
     if (state->scrollOffset < 0) state->scrollOffset = 0;
