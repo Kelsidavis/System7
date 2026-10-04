@@ -1000,10 +1000,19 @@ static void Test_Dialog_EditTextFocusBeyond32Items(void) {
     CHECK(d, "NewDialog failed");
     CHECK(GetDialogEditTextFocus(d) == 33,
           "dialog initialization did not focus edit item 33");
+    EventRecord tabEvent = { .what = keyDown, .message = '\t' };
+    SInt16 keyItem = 0;
+    CHECK(DM_HandleDialogKey((WindowPtr)d, &tabEvent, &keyItem) &&
+          GetDialogEditTextFocus(d) == 34,
+          "Tab did not advance focus through the modal dialog keyboard path");
+    tabEvent.modifiers = shiftKey;
+    CHECK(DM_HandleDialogKey((WindowPtr)d, &tabEvent, &keyItem) &&
+          GetDialogEditTextFocus(d) == 33,
+          "Shift-Tab did not return focus through the modal dialog keyboard path");
     CHECK(AdvanceDialogFocus(d, false) == 34 && GetDialogEditTextFocus(d) == 34,
-          "forward focus traversal did not reach edit item 34");
+          "dialog focus traversal did not return the new item number");
     CHECK(AdvanceDialogFocus(d, true) == 33 && GetDialogEditTextFocus(d) == 33,
-          "backward focus traversal did not return to edit item 33");
+          "backward dialog focus traversal did not return the new item number");
     TEHandle editText = GetOrCreateDialogTEHandle(d, 33);
     CHECK(editText, "focused edit item did not provide a TextEdit handle");
     TESetSelect(0, 5, editText);

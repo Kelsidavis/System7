@@ -11,6 +11,7 @@
 
 #include "SystemTypes.h"
 #include "DialogManager/DialogManager.h"
+#include "DialogManager/DialogEditText.h"
 #include "ControlManager/ControlManager.h"
 #include "ControlManager/ControlInternal.h"
 #include "ControlManager/ControlTypes.h"
@@ -613,7 +614,12 @@ Boolean DM_HandleTabKey(WindowPtr dialog, Boolean shiftPressed) {
     DM_LOG_TRACE("DM_HandleTabKey: %s\n",
                  shiftPressed ? "Shift-Tab" : "Tab");
 
-    DM_FocusNextControl(dialog, shiftPressed);
+    DialogPtr theDialog = (DialogPtr)dialog;
+    if (GetDialogEditTextFocus(theDialog) > 0) {
+        AdvanceDialogEditTextFocus(theDialog, shiftPressed);
+    } else {
+        DM_FocusNextControl(dialog, shiftPressed);
+    }
     return true;
 }
 

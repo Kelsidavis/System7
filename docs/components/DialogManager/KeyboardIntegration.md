@@ -2,8 +2,10 @@
 
 The Dialog Manager implements keyboard navigation and activation for standard
 dialog controls. `DM_HandleDialogKey()` handles `keyDown` and `autoKey` events
-for Return, numeric-keypad Enter, Escape, Tab, and Space. This is a partial
-implementation, not complete System 7 keyboard behavior.
+for Return, numeric-keypad Enter, Escape, Tab, and Space. Tab moves between
+editable text items when one has focus; otherwise the project's control-focus
+extension cycles through focusable controls. This is a partial implementation,
+not complete System 7 keyboard behavior.
 
 ## Feature Summary
 
@@ -21,9 +23,9 @@ implementation, not complete System 7 keyboard behavior.
 
 ### Focus Tracking & Tab Navigation
 - Lightweight focus table (up to 16 dialogs) stores the focused control per window.
-- `DM_FocusNextControl()` / `DM_SetKeyboardFocus()` handle forward and reverse traversal, wrapping when you hit the ends.
+- `DM_FocusNextControl()` / `DM_SetKeyboardFocus()` handle forward and reverse control traversal, wrapping when you hit the ends. Classic Tab traversal between editable text items is handled by `AdvanceDialogEditTextFocus()`.
 - Controls must be visible, non-zero sized, and active to receive focus; the focus ring XORs so the outline erases cleanly.
-- `Tab` selects the next focusable control, `Shift+Tab` walks backwards.
+- With an editable text field focused, `Tab` selects the next editable field and `Shift+Tab` walks backwards, wrapping at either end. With no editable field focused, the control-focus extension traverses standard controls.
 
 ### Space Key Activation
 - Space toggles the currently focused checkbox or radio, or activates a focused push button.
@@ -57,15 +59,15 @@ Modal dialogs exit automatically when default/cancel buttons activate because `i
 [CTRL] DM_ActivatePushButton: Flashing button (refCon=1)
 ```
 
-## Manual Test Checklist
-1. Build and launch with `make run`, then open a dialog containing keyboard-focusable controls.
-2. Tab through controls; watch the XOR ring move in order, skipping hidden/disabled controls.
+## Test Checklist
+1. `make check` builds the integration kernel; the guest regression sends Tab and Shift+Tab through `DM_HandleDialogKey()` and checks focus movement across edit fields.
+2. For visual verification, launch with `make run` and check that the XOR ring moves through visible, active controls when no edit field has focus.
 3. Shift+Tab walks backwards and wraps around to the bottom/top.
 4. Space toggles checkbox/radio state and prints updated refCons in the serial log.
 5. Return activates the default (OK) button, Esc activates Cancel, and the dialog closes when you honour those `itemHit` values.
 6. Drag the mouse across buttons while pressing Return to confirm debounce prevents double actions.
 
 ## Future Enhancements
-- Extend focus bookkeeping to StandardFile so embedded List Manager controls advertise focus.
+- Validate focus traversal and visual focus rings against a booted System 7.1 guest.
 - Add optional visual chrome (e.g., dotted outline vs. XOR) once we have pattern resources for classic focus rings.
 - Surface a `DM_SetInitialFocus()` helper for callers who want something other than the first control to receive focus on dialog open.

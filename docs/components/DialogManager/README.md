@@ -33,6 +33,6 @@ Provides modal and modeless dialog services, resource loading, draw/update cycle
 - Alert dialogs can be exercised through `Alert`, `StopAlert`, `NoteAlert`, or `CautionAlert`; integration tests exercise `CautionAlert`
 
 ## Future Work
-- Hook modal dialogs into StandardFile file selection once List Manager and File Manager APIs stabilise
+- Validate dialog keyboard focus and default/cancel activation in a booted System 7.1 guest; integration coverage currently tests the keyboard handler path.
 - Expand support for user item procs and custom item types
-- Add automated tab-order verification powered by scripted key sequences
+- Extend keyboard-focus handling to Standard File list controls and test the complete modal event loop.
