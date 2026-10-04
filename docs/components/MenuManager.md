@@ -13,7 +13,7 @@ Recreates the System 7 menu bar and pull-down menu experience, from resource loa
 - `src/MenuManager/menu_savebits.c` – save and restore screen bits during menu tracking
 - `src/MenuManager/MenuResourceNames.c` – resource-name menu population (`AddResMenu`, `InsertResMenu`)
 - `src/MenuManager/MenuBitsPool.c`, `MenuAppleIcon.c`, and `MenuAppIcon.c` – menu drawing support
-- `src/MenuManager/platform_stubs.c` – platform compatibility routines
+- `src/MenuManager/MenuPlatform.c` – framebuffer save/restore, input tracking, and platform compatibility fallbacks
 - `src/MenuCommands.c` – dispatch selected menu commands through `DoMenuCommand`
 
 ## Responsibilities

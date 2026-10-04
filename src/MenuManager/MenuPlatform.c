@@ -1,8 +1,8 @@
 /*
- * platform_stubs.c - Platform-specific stub functions for MenuManager
+ * MenuPlatform.c - Platform integration for the Menu Manager
  *
- * Provides minimal platform abstraction for menu rendering and interaction.
- * These functions bridge MenuManager to the host platform.
+ * Provides framebuffer save/restore, input tracking, and compatibility
+ * fallbacks for menu operations not handled directly by MenuDisplay.
  */
 
 #include "SystemTypes.h"
