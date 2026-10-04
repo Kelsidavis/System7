@@ -19,9 +19,9 @@
 #include "DialogManager/DialogManager.h"
 #include "DialogManager/DialogTypes.h"
 #include "DialogManager/DialogDrawing.h"
+#include "DialogManager/DialogEditText.h"
 #include "DialogManager/DialogInternal.h"
 #include "DialogManager/DialogManagerInternal.h"  /* For DialogItemEx */
-#include "DialogManager/DialogManagerStateExt.h"   /* For extended state with focus tracking */
 #include "DialogManager/DialogLogging.h"
 #include "DialogManager/AlertDialogs.h"  /* For SubstituteAlertParameters */
 #include "Resources/ResourceData.h"
@@ -263,7 +263,7 @@ void DrawDialogStaticText(DialogPtr theDialog, const Rect* bounds, const unsigne
 }
 
 /* Draw edit text field */
-void DrawDialogEditText(const Rect* bounds, const unsigned char* text,
+void DrawDialogEditText(DialogPtr theDialog, const Rect* bounds, const unsigned char* text,
                        Boolean isEnabled, Boolean hasFocus, SInt16 itemNo) {
     Rect frameRect = *bounds;
     Rect textRect = *bounds;
@@ -271,21 +271,15 @@ void DrawDialogEditText(const Rect* bounds, const unsigned char* text,
     SInt16 textV;
     SInt16 textWidth;
     GrafPtr savePort;
-    DialogManagerState* state;
-    DialogManagerState_Extended* extState;
     SInt16 selStart = 0, selEnd = 0;
 
     GetPort(&savePort);
-    state = GetDialogManagerState();
-    extState = GET_EXTENDED_DLG_STATE(state);
-
     /* Read the selection straight off the item's TextEdit record. Peeking at
      * the stored handle rather than calling GetOrCreateDialogTEHandle keeps
      * this a pure draw: creating a TE record as a side effect of painting
      * would give a field a selection just by becoming visible. */
-    if (extState && itemNo > 0 &&
-        itemNo < (SInt16)(sizeof(extState->teHandles) / sizeof(extState->teHandles[0]))) {
-        TEHandle hTE = (TEHandle)extState->teHandles[itemNo];
+    {
+        TEHandle hTE = DialogEditText_GetHandle(theDialog, itemNo);
         if (hTE && *hTE) {
             selStart = (**hTE).selStart;
             selEnd = (**hTE).selEnd;
@@ -342,7 +336,7 @@ void DrawDialogEditText(const Rect* bounds, const unsigned char* text,
             selRect.top = textRect.top;
             selRect.bottom = textRect.bottom;
             InvertRect(&selRect);
-        } else if (extState && state->caretVisible) {
+        } else if (DialogEditText_CaretVisible(theDialog)) {
             /* The caret marks the insertion point, which is not necessarily
              * the end of the text - it was drawn at textLeft + full width
              * regardless of where the insertion point actually was. */
@@ -477,10 +471,8 @@ void DrawDialogItemByType(DialogPtr theDialog, SInt16 itemNo,
 
         case editText:  /* Edit text */
         {
-            DialogManagerState* state = GetDialogManagerState();
-            DialogManagerState_Extended* extState = GET_EXTENDED_DLG_STATE(state);
-            Boolean hasFocus = (extState && state->focusedEditTextItem == itemNo);
-            DrawDialogEditText(&item->bounds, textData, true, hasFocus, itemNo);
+            Boolean hasFocus = (GetDialogEditTextFocus(theDialog) == itemNo);
+            DrawDialogEditText(theDialog, &item->bounds, textData, true, hasFocus, itemNo);
             break;
         }
 

@@ -59,10 +59,6 @@ typedef struct DialogManagerState {
     void* platformContext;
     DialogPtr modalStack[16];
 
-    /* Edit-text focus tracking */
-    SInt16 focusedEditTextItem;
-    UInt32 caretBlinkTime;
-    Boolean caretVisible;
 } DialogManagerState;
 
 #endif

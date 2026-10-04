@@ -32,17 +32,14 @@
 /*
  * The Dialog Manager's state, sized for the extended view of it
  * (DialogManagerStateExt.h) that the edit-text and keyboard code reach
- * through GET_EXTENDED_DLG_STATE. It used to be allocated at the base
- * size, so the extended fields - 256 TextEdit handle slots and their
- * owner - lay past its end: disposing of any dialog zeroed a kilobyte of
- * whatever followed it, the modal and alert state among it, and storing an
- * edit field wrote into them.
+ * through GET_EXTENDED_DLG_STATE. It must include the per-dialog TextEdit
+ * state registry as well as the canonical manager fields.
  */
 static DialogManagerState_Extended gDialogManagerStateStorage;
 #define gDialogManagerState (gDialogManagerStateStorage.base)
 _Static_assert(offsetof(DialogManagerState_Extended, base) == 0,
                "the extended Dialog Manager state must begin with the base state");
-_Static_assert(offsetof(DialogManagerState_Extended, teHandles) == sizeof(DialogManagerState),
+_Static_assert(offsetof(DialogManagerState_Extended, dialogStates) == sizeof(DialogManagerState),
                "TextEdit state must immediately follow the base state");
 static Boolean gDialogManagerInitialized = false;
 

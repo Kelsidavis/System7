@@ -26,6 +26,49 @@
 /* Caret blink rate in ticks (System 7 standard was ~30 ticks = 0.5 seconds) */
 #define kCaretBlinkRate 30
 
+static DialogEditTextState *FindDialogState(DialogPtr owner, Boolean create)
+{
+    DialogManagerState* state = GetDialogManagerState();
+    DialogManagerState_Extended* extended;
+    DialogEditTextState* available = NULL;
+    int i;
+    if (!state || !owner) return NULL;
+    extended = GET_EXTENDED_DLG_STATE(state);
+    for (i = 0; i < DIALOG_EDIT_TEXT_MAX_DIALOGS; i++) {
+        DialogEditTextState* candidate = &extended->dialogStates[i];
+        if (candidate->owner == owner) return candidate;
+        if (!candidate->owner && !available) available = candidate;
+    }
+    if (create && available) {
+        available->owner = owner;
+        available->caretVisible = true;
+        return available;
+    }
+    return NULL;
+}
+
+TEHandle DialogEditText_GetHandle(DialogPtr dialog, SInt16 itemNo)
+{
+    DialogEditTextState* entry;
+    if (itemNo < 1 || itemNo >= DIALOG_EDIT_TEXT_MAX_ITEMS) return NULL;
+    entry = FindDialogState(dialog, false);
+    return entry ? (TEHandle)entry->teHandles[itemNo] : NULL;
+}
+
+Boolean DialogEditText_CaretVisible(DialogPtr dialog)
+{
+    DialogEditTextState* entry = FindDialogState(dialog, false);
+    return entry ? entry->caretVisible : false;
+}
+
+void DialogEditText_SetCaretActive(DialogPtr dialog, Boolean active)
+{
+    DialogEditTextState* entry = FindDialogState(dialog, active);
+    if (!entry) return;
+    entry->caretVisible = active;
+    entry->caretBlinkTime = TickCount();
+}
+
 /*
  * SetDialogEditTextFocus - Set keyboard focus to an edit-text item
  *
@@ -34,30 +77,26 @@
  *   itemNo    - The edit-text item number to focus (0 to clear focus)
  */
 void SetDialogEditTextFocus(DialogPtr theDialog, SInt16 itemNo) {
-    DialogManagerState* state;
+    DialogEditTextState* dialogState;
     SInt16 oldFocusItem;
 
-    state = GetDialogManagerState();
-
-    if (!state || !theDialog) {
-        return;
-    }
-
-    oldFocusItem = state->focusedEditTextItem;
+    dialogState = FindDialogState(theDialog, itemNo > 0);
+    if (!dialogState) return;
+    oldFocusItem = dialogState->focusedItem;
 
     /* Clear old focus */
     if (oldFocusItem > 0 && oldFocusItem != itemNo) {
-        state->focusedEditTextItem = 0;
-        state->caretVisible = false;
+        dialogState->focusedItem = 0;
+        dialogState->caretVisible = false;
         InvalDialogItem(theDialog, oldFocusItem);
         DrawDialogItem(theDialog, oldFocusItem);
     }
 
     /* Set new focus */
     if (itemNo > 0) {
-        state->focusedEditTextItem = itemNo;
-        state->caretBlinkTime = TickCount();
-        state->caretVisible = true;
+        dialogState->focusedItem = itemNo;
+        dialogState->caretBlinkTime = TickCount();
+        dialogState->caretVisible = true;
 
         /* Materialise the TextEdit record and select the whole field before
          * redrawing. Focusing a field in System 7 selects its contents, so the
@@ -75,8 +114,8 @@ void SetDialogEditTextFocus(DialogPtr theDialog, SInt16 itemNo) {
         DrawDialogItem(theDialog, itemNo);
 
     } else {
-        state->focusedEditTextItem = 0;
-        state->caretVisible = false;
+        dialogState->focusedItem = 0;
+        dialogState->caretVisible = false;
     }
 }
 
@@ -90,15 +129,8 @@ void SetDialogEditTextFocus(DialogPtr theDialog, SInt16 itemNo) {
  *   The item number of the focused edit-text item, or 0 if none
  */
 SInt16 GetDialogEditTextFocus(DialogPtr theDialog) {
-    DialogManagerState* state;
-
-    state = GetDialogManagerState();
-
-    if (!state || !theDialog) {
-        return 0;
-    }
-
-    return state->focusedEditTextItem;
+    DialogEditTextState* dialogState = FindDialogState(theDialog, false);
+    return dialogState ? dialogState->focusedItem : 0;
 }
 
 /*
@@ -111,34 +143,32 @@ SInt16 GetDialogEditTextFocus(DialogPtr theDialog) {
  *   theDialog - The dialog to update
  */
 void UpdateDialogCaret(DialogPtr theDialog) {
-    DialogManagerState* state;
-
-    state = GetDialogManagerState();
+    DialogEditTextState* dialogState = FindDialogState(theDialog, false);
     UInt32 currentTicks;
     UInt32 elapsed;
 
-    if (!state || !theDialog || state->focusedEditTextItem == 0) {
+    if (!dialogState || !theDialog || dialogState->focusedItem == 0) {
         return;
     }
 
     currentTicks = TickCount();
 
     /* Handle tick counter wrap-around */
-    if (currentTicks < state->caretBlinkTime) {
-        state->caretBlinkTime = currentTicks;
+    if (currentTicks < dialogState->caretBlinkTime) {
+        dialogState->caretBlinkTime = currentTicks;
         return;
     }
 
-    elapsed = currentTicks - state->caretBlinkTime;
+    elapsed = currentTicks - dialogState->caretBlinkTime;
 
     /* Toggle caret visibility every kCaretBlinkRate ticks */
     if (elapsed >= kCaretBlinkRate) {
-        state->caretVisible = !state->caretVisible;
-        state->caretBlinkTime = currentTicks;
+        dialogState->caretVisible = !dialogState->caretVisible;
+        dialogState->caretBlinkTime = currentTicks;
 
         /* Redraw the focused edit-text item */
-        InvalDialogItem(theDialog, state->focusedEditTextItem);
-        DrawDialogItem(theDialog, state->focusedEditTextItem);
+        InvalDialogItem(theDialog, dialogState->focusedItem);
+        DrawDialogItem(theDialog, dialogState->focusedItem);
 
     }
 }
@@ -153,9 +183,7 @@ void UpdateDialogCaret(DialogPtr theDialog) {
  *   backward  - true to move backward (Shift-Tab), false for forward (Tab)
  */
 void AdvanceDialogEditTextFocus(DialogPtr theDialog, Boolean backward) {
-    DialogManagerState* state;
-
-    state = GetDialogManagerState();
+    DialogEditTextState* dialogState = FindDialogState(theDialog, false);
     SInt16 itemCount;
     SInt16 currentFocus;
     SInt16 nextFocus;
@@ -164,12 +192,12 @@ void AdvanceDialogEditTextFocus(DialogPtr theDialog, Boolean backward) {
     Handle itemHandle;
     Rect itemBox;
 
-    if (!state || !theDialog) {
+    if (!dialogState || !theDialog) {
         return;
     }
 
     itemCount = CountDITL(theDialog);
-    currentFocus = state->focusedEditTextItem;
+    currentFocus = dialogState->focusedItem;
     nextFocus = 0;
 
     /* Find next focusable edit-text item */
@@ -268,29 +296,17 @@ void InitDialogEditTextFocus(DialogPtr theDialog) {
 /*
  * DialogEditText_ReleaseAll - free the edit fields belonging to one dialog
  *
- * The handles hang off a single global array, so they have to be let go when
- * their dialog does; otherwise the next window to redraw finds a live-looking
- * TextEdit record for an item number it shares and draws it.
+ * Each dialog owns its TextEdit records, so release only that dialog's slots
+ * when its window is disposed.
  */
 void DialogEditText_ReleaseAll(DialogPtr owner)
 {
-    DialogManagerState* state = GetDialogManagerState();
-    DialogManagerState_Extended* extState = GET_EXTENDED_DLG_STATE(state);
+    DialogEditTextState* entry = FindDialogState(owner, false);
     int i;
-
-    if (!extState) return;
-    /* Only the owner may clear them; a stale pointer must not free another
-     * dialog's fields. */
-    if (owner && extState->teOwner && extState->teOwner != owner) return;
-
-    for (i = 0; i < 256; i++) {
-        if (extState->teHandles[i]) {
-            TEDispose((TEHandle)extState->teHandles[i]);
-            extState->teHandles[i] = NULL;
-        }
-    }
-    extState->teOwner = NULL;
-    state->focusedEditTextItem = 0;
+    if (!entry) return;
+    for (i = 0; i < DIALOG_EDIT_TEXT_MAX_ITEMS; i++)
+        if (entry->teHandles[i]) TEDispose((TEHandle)entry->teHandles[i]);
+    memset(entry, 0, sizeof(*entry));
 }
 
 /*
@@ -300,7 +316,7 @@ void DialogEditText_ReleaseAll(DialogPtr owner)
  */
 TEHandle GetOrCreateDialogTEHandle(DialogPtr theDialog, SInt16 itemNo) {
     DialogManagerState* state;
-    DialogManagerState_Extended* extState;
+    DialogEditTextState* dialogState;
     SInt16 itemType;
     Handle itemHandle;
     Rect itemBox;
@@ -308,21 +324,15 @@ TEHandle GetOrCreateDialogTEHandle(DialogPtr theDialog, SInt16 itemNo) {
     TEHandle hTE;
 
     state = GetDialogManagerState();
-    extState = GET_EXTENDED_DLG_STATE(state);
-
     if (!state || !theDialog || itemNo < 1 || itemNo >= 256) {
         return NULL;
     }
-
-    /* A different dialog's fields are still here; they are not ours to reuse
-     * and nobody else will free them. */
-    if (extState->teOwner && extState->teOwner != theDialog) {
-        DialogEditText_ReleaseAll(extState->teOwner);
-    }
+    dialogState = FindDialogState(theDialog, true);
+    if (!dialogState) return NULL;
 
     /* Check if TEHandle already exists for this item */
-    if (extState->teHandles[itemNo] != NULL) {
-        return (TEHandle)extState->teHandles[itemNo];
+    if (dialogState->teHandles[itemNo] != NULL) {
+        return (TEHandle)dialogState->teHandles[itemNo];
     }
 
     /* Get dialog item information */
@@ -364,8 +374,7 @@ TEHandle GetOrCreateDialogTEHandle(DialogPtr theDialog, SInt16 itemNo) {
     }
 
     /* Store TEHandle for future use */
-    extState->teHandles[itemNo] = (void*)hTE;
-    extState->teOwner = theDialog;
+    dialogState->teHandles[itemNo] = (void*)hTE;
 
     return hTE;
 }
@@ -498,17 +507,10 @@ void UpdateDialogTEDisplay(DialogPtr theDialog, SInt16 itemNo) {
  * HandleDialogCut - Handle cut operation in focused edit-text item
  */
 void HandleDialogCut(DialogPtr theDialog) {
-    DialogManagerState* state;
     TEHandle hTE;
     SInt16 itemNo;
-
-    state = GetDialogManagerState();
-
-    if (!state || !theDialog) {
-        return;
-    }
-
-    itemNo = state->focusedEditTextItem;
+    if (!theDialog) return;
+    itemNo = GetDialogEditTextFocus(theDialog);
     if (itemNo < 1) {
         return;
     }
@@ -524,17 +526,10 @@ void HandleDialogCut(DialogPtr theDialog) {
  * HandleDialogCopy - Handle copy operation in focused edit-text item
  */
 void HandleDialogCopy(DialogPtr theDialog) {
-    DialogManagerState* state;
     TEHandle hTE;
     SInt16 itemNo;
-
-    state = GetDialogManagerState();
-
-    if (!state || !theDialog) {
-        return;
-    }
-
-    itemNo = state->focusedEditTextItem;
+    if (!theDialog) return;
+    itemNo = GetDialogEditTextFocus(theDialog);
     if (itemNo < 1) {
         return;
     }
@@ -549,17 +544,10 @@ void HandleDialogCopy(DialogPtr theDialog) {
  * HandleDialogPaste - Handle paste operation in focused edit-text item
  */
 void HandleDialogPaste(DialogPtr theDialog) {
-    DialogManagerState* state;
     TEHandle hTE;
     SInt16 itemNo;
-
-    state = GetDialogManagerState();
-
-    if (!state || !theDialog) {
-        return;
-    }
-
-    itemNo = state->focusedEditTextItem;
+    if (!theDialog) return;
+    itemNo = GetDialogEditTextFocus(theDialog);
     if (itemNo < 1) {
         return;
     }
@@ -577,10 +565,9 @@ void DialogPaste(DialogPtr theDialog) { HandleDialogPaste(theDialog); }
 
 void DialogDelete(DialogPtr theDialog)
 {
-    DialogManagerState* state = GetDialogManagerState();
-    if (!state || !theDialog || state->focusedEditTextItem < 1) return;
-
-    SInt16 itemNo = state->focusedEditTextItem;
+    if (!theDialog) return;
+    SInt16 itemNo = GetDialogEditTextFocus(theDialog);
+    if (itemNo < 1) return;
     TEHandle hTE = GetOrCreateDialogTEHandle(theDialog, itemNo);
     if (!hTE) return;
 

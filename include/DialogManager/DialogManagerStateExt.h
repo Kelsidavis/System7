@@ -10,24 +10,19 @@
 #define GET_EXTENDED_DLG_STATE(state) ((DialogManagerState_Extended*)(state))
 
 /* TextEdit state follows the canonical manager state in the same allocation. */
+#define DIALOG_EDIT_TEXT_MAX_ITEMS 256
+#define DIALOG_EDIT_TEXT_MAX_DIALOGS 16
+typedef struct DialogEditTextState {
+    DialogPtr owner;
+    void* teHandles[DIALOG_EDIT_TEXT_MAX_ITEMS];
+    SInt16 focusedItem;
+    UInt32 caretBlinkTime;
+    Boolean caretVisible;
+} DialogEditTextState;
+
 typedef struct DialogManagerState_Extended {
     DialogManagerState base;
-
-    /*
-     * TextEdit integration for dialog items.
-     *
-     * One array, indexed by item number alone, so it can only ever describe a
-     * single dialog. Nothing said so, and nothing cleared it when a dialog
-     * went away: the entries outlived their dialog, and the next window to
-     * take an update event drew a disposed edit field into its own port -
-     * which is why cancelling SimpleText's Find box left garbage across the
-     * top of the document underneath it.
-     *
-     * teOwner names the dialog the entries belong to, so the assumption is
-     * written down and can be enforced.
-     */
-    void* teHandles[256];       /* TEHandles for dialog items (max 256 items) */
-    DialogPtr teOwner;          /* the dialog those handles belong to */
+    DialogEditTextState dialogStates[DIALOG_EDIT_TEXT_MAX_DIALOGS];
 } DialogManagerState_Extended;
 
 /* Free the edit fields belonging to one dialog, and clear their slots. */

@@ -87,6 +87,9 @@ void InitDialogEditTextFocus(DialogPtr theDialog);
  * Returns: TEHandle for the specified dialog item, or NULL on error
  */
 extern TEHandle GetOrCreateDialogTEHandle(DialogPtr theDialog, SInt16 itemNo);
+extern TEHandle DialogEditText_GetHandle(DialogPtr theDialog, SInt16 itemNo);
+extern Boolean DialogEditText_CaretVisible(DialogPtr theDialog);
+extern void DialogEditText_SetCaretActive(DialogPtr theDialog, Boolean active);
 
 /*
  * HandleDialogEditTextClick - Handle mouse clicks in edit-text items

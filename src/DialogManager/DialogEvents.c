@@ -195,11 +195,10 @@ void HandleDialogActivate(DialogPtr theDialog, const EventRecord* theEvent, Bool
     if (!state || !theDialog || !theEvent ||
         (WindowPtr)(uintptr_t)theEvent->message != (WindowPtr)theDialog) return;
 
-    state->caretVisible = activating;
-    state->caretBlinkTime = TickCount();
-    if (state->focusedEditTextItem > 0) {
-        InvalDialogItem(theDialog, state->focusedEditTextItem);
-        DrawDialogItem(theDialog, state->focusedEditTextItem);
+    DialogEditText_SetCaretActive(theDialog, activating);
+    if (GetDialogEditTextFocus(theDialog) > 0) {
+        InvalDialogItem(theDialog, GetDialogEditTextFocus(theDialog));
+        DrawDialogItem(theDialog, GetDialogEditTextFocus(theDialog));
     }
 }
 

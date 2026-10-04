@@ -1020,11 +1020,11 @@ static void Test_Dialog_EditTextFocusBeyond32Items(void) {
     CHECK(IsDialogEvent(&activateEvent),
           "IsDialogEvent rejected an activation event for a dialog window");
     CHECK(!DialogSelect(&activateEvent, &selectedDialog, &activatedItem) &&
-          selectedDialog == d && !GetDialogManagerState()->caretVisible,
+          selectedDialog == d && !DialogEditText_CaretVisible(d),
           "DialogSelect did not deactivate the dialog caret");
     activateEvent.modifiers = activeFlag;
     CHECK(!DialogSelect(&activateEvent, &selectedDialog, &activatedItem) &&
-          GetDialogManagerState()->caretVisible,
+          DialogEditText_CaretVisible(d),
           "DialogSelect did not activate the dialog caret");
     EventRecord tabEvent = { .what = keyDown, .message = '\t' };
     SInt16 keyItem = 0;
@@ -1039,10 +1039,34 @@ static void Test_Dialog_EditTextFocusBeyond32Items(void) {
           "dialog focus traversal did not return the new item number");
     CHECK(AdvanceDialogFocus(d, true) == 33 && GetDialogEditTextFocus(d) == 33,
           "backward dialog focus traversal did not return the new item number");
-    TEHandle editText = GetOrCreateDialogTEHandle(d, 33);
-    CHECK(editText, "focused edit item did not provide a TextEdit handle");
-    TESetSelect(0, 5, editText);
+    TEHandle firstEditHandle = GetOrCreateDialogTEHandle(d, 33);
+    CHECK(firstEditHandle, "focused edit item did not provide a TextEdit handle");
+    TESetSelect(0, 5, firstEditHandle);
     DialogCopy(d);
+
+    DITLBuilder secondBuilder;
+    CHECK(DITL_Begin(&secondBuilder, 256), "second DITL_Begin failed");
+    DITL_AddEditText(&secondBuilder, 12, 0, 22, 40, "other");
+    Handle secondItems = DITL_Finish(&secondBuilder);
+    CHECK(secondItems, "second DITL_Finish failed");
+    Rect secondBounds = { 170, 100, 230, 180 };
+    DialogPtr secondDialog = NewDialog(NULL, &secondBounds, (ConstStr255Param)"",
+                                       false, dBoxProc, (WindowPtr)-1, false, 0,
+                                       secondItems);
+    CHECK(secondDialog, "second NewDialog failed");
+    TEHandle otherEditText = GetOrCreateDialogTEHandle(secondDialog, 1);
+    CHECK(otherEditText && otherEditText != firstEditHandle,
+          "simultaneous dialogs shared a TextEdit handle");
+    SetDialogEditTextFocus(secondDialog, 1);
+    CHECK(GetDialogEditTextFocus(secondDialog) == 1 &&
+          GetDialogEditTextFocus(d) == 33,
+          "edit-text focus was not independent between dialogs");
+    CHECK(DialogEditText_GetHandle(d, 33) == firstEditHandle,
+          "creating a second dialog replaced the first dialog's TextEdit handle");
+    DisposeDialog(secondDialog);
+    CHECK(DialogEditText_GetHandle(d, 33) == firstEditHandle &&
+          GetDialogEditTextFocus(d) == 33,
+          "disposing a second dialog changed the first dialog's edit state");
 
     SetDialogEditTextFocus(d, 34);
     TEHandle secondEditText = GetOrCreateDialogTEHandle(d, 34);
@@ -1062,7 +1086,7 @@ static void Test_Dialog_EditTextFocusBeyond32Items(void) {
     CHECK(secondText[0] == 0, "DialogCut did not remove the selected text");
 
     SetDialogEditTextFocus(d, 33);
-    TESetSelect(0, 5, editText);
+    TESetSelect(0, 5, firstEditHandle);
     DialogDelete(d);
     Handle editTextData = NULL;
     Str255 remainingText = {0};
