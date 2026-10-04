@@ -1,29 +1,13 @@
 #!/usr/bin/env python3
-"""
-find-shadowed-defs.py - find code you can edit with no effect on the build.
+"""Find C sources and function definitions excluded from a selected build.
 
-Two categories, both of which have already cost debugging sessions:
+The report distinguishes source files that no Makefile configuration compiles
+from function definitions present in a compiled source but absent from its
+object file. Excluded definitions may be intentional feature alternatives;
+ones described as canonical, primary, or real are marked SUSPECT because those
+descriptions can mislead maintainers about which implementation is active.
 
-  DEAD FILES      .c files no Makefile configuration ever compiles.
-                  QuickDraw/Text.c defines DrawText and is never built; the
-                  DrawText that runs is in FontManager/FontManagerCore.c.
-
-  UNBUILT COPIES  A function defined in a compiled .c whose definition does not
-                  survive into that .o - excluded by `static`, `#if 0`, or a
-                  feature-flag `#ifdef` - while another file supplies the symbol
-                  that links.
-
-An unbuilt copy is usually INTENTIONAL: the tree uses mutually exclusive
-alternates chosen by feature flags. The danger is not the mechanism, it is
-being pointed at the wrong file: EventManager/event_manager.c once carried a
-GetNextEvent it called the "Canonical implementation" that a feature flag
-compiled out, so the update-event fix in 293388f was written there and never
-ran. (That copy has since been removed.)
-
-So this script flags an unbuilt copy as SUSPECT when the dead text advertises
-itself as canonical/primary/real - that combination is what misleads.
-
-Usage:
+Build the selected configuration before running the check, for example:
     make PLATFORM=x86 && python3 scripts/find-shadowed-defs.py --platform x86
 """
 
