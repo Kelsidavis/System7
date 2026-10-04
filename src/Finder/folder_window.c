@@ -137,14 +137,14 @@ static struct {
 } gFolderWindows[MAX_FOLDER_WINDOWS] = {0};
 
 /* Get or create state for a folder window */
-FolderWindowState* GetFolderState(WindowPtr w);
+static FolderWindowState* GetFolderState(WindowPtr w);
 static void InitializeFolderContentsEx(WindowPtr w, Boolean isTrash, VRefNum vref, DirID dirID);
 static void FolderWindow_OpenFileNamed(FolderWindowState* state,
                                        const char* itemName, uint32_t itemType);
 static void FolderWindow_OpenItem(WindowPtr w, FolderWindowState* state,
                                   const char* itemName, uint32_t itemType,
                                   FileID itemID, Boolean isFolder);
-void InitializeFolderContents(WindowPtr w, Boolean isTrash);
+static void InitializeFolderContents(WindowPtr w, Boolean isTrash);
 static void GhostEraseIf(void);  /* Forward declaration for ghost system */
 
 /* Helper: Find folder window state slot */
@@ -381,8 +381,8 @@ static void FW_DeselectAll(FolderWindowState* state) {
     state->anchorID = 0;
 }
 
-FolderWindowState* GetFolderState(WindowPtr w) {
-        FINDER_LOG_DEBUG("GetFolderState: ENTRY\n");
+static FolderWindowState* GetFolderState(WindowPtr w) {
+    FINDER_LOG_DEBUG("GetFolderState: ENTRY\n");
     if (!w) {
         FINDER_LOG_DEBUG("GetFolderState: w is NULL\n");
         return NULL;
@@ -431,6 +431,10 @@ FolderWindowState* GetFolderState(WindowPtr w) {
     return NULL;  /* No slots available */
 }
 
+void FolderWindow_Initialize(WindowPtr w) {
+    (void)GetFolderState(w);
+}
+
 /*
  * FW_ControlPanelsDir - the volume's Control Panels folder.
  *
@@ -450,7 +454,7 @@ static DirID FW_ControlPanelsDir(void)
 
 /* Initialize folder contents from VFS - Extended version with custom dirID */
 static void InitializeFolderContentsEx(WindowPtr w, Boolean isTrash, VRefNum vref, DirID dirID) {
-        FolderWindowState* state = NULL;
+    FolderWindowState* state = NULL;
 
     FINDER_LOG_DEBUG("InitializeFolderContentsEx: ENTRY, w=0x%08x isTrash=%d vref=%ld dirID=%ld\n",
                  (unsigned int)w, (int)isTrash, (long)vref, (long)dirID);
@@ -692,8 +696,8 @@ static void InitializeFolderContentsEx(WindowPtr w, Boolean isTrash, VRefNum vre
     }
 }
 
-/* Backward-compatible wrapper for InitializeFolderContentsEx - opens root directory */
-void InitializeFolderContents(WindowPtr w, Boolean isTrash) {
+/* Initialize desktop folders from the boot volume's root directory. */
+static void InitializeFolderContents(WindowPtr w, Boolean isTrash) {
     VRefNum vref = VFS_GetBootVRef();
     DirID rootDir = 2;  /* HFS root directory CNID is always 2 */
     InitializeFolderContentsEx(w, isTrash, vref, rootDir);

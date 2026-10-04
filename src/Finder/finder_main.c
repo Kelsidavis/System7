@@ -5,6 +5,7 @@
 #include "Finder/finder.h"
 #include "DeskManager/DeskAccessory.h"
 #include "Platform/Halt.h"
+#include "Platform/include/boot.h"
 #include "Finder/finder_types.h"
 /* Use local headers instead of system headers */
 #include "MemoryMgr/memory_manager_types.h"
@@ -464,8 +465,7 @@ static OSErr SetupMenus(void)
 
 
 /*
- * Finder_OpenDesktopItem - Bulletproof window opener with immediate paint
- * Opens a desktop item window and ensures it draws immediately
+ * Finder_OpenDesktopItem - Open a desktop folder or select its existing window
  */
 WindowPtr Finder_OpenDesktopItem(Boolean isTrash, ConstStr255Param title)
 {
@@ -533,11 +533,7 @@ WindowPtr Finder_OpenDesktopItem(Boolean isTrash, ConstStr255Param title)
     FINDER_LOG_DEBUG("[WIN_OPEN] ShowWindow returned\n");
 
     /* Initialize folder state and populate contents from VFS */
-    /* GetFolderState creates the state and calls InitializeFolderContents internally */
-    extern void* GetFolderState(WindowPtr w);  /* Returns FolderWindowState* */
-    FINDER_LOG_DEBUG("[WIN_OPEN] Calling GetFolderState to initialize contents\n");
-    (void)GetFolderState(w);
-    FINDER_LOG_DEBUG("[WIN_OPEN] GetFolderState returned\n");
+    FolderWindow_Initialize(w);
 
     FINDER_LOG_DEBUG("[WIN_OPEN] Calling SelectWindow\n");
     SelectWindow(w);
@@ -682,8 +678,6 @@ Boolean Finder_HandleKey(EventRecord* event) {
     if (event->modifiers & cmdKey) {
         /* Cmd+Shift+3 = Screenshot (classic Mac shortcut, FKEY 3) */
         if (charCode == '3' && (event->modifiers & shiftKey)) {
-            extern void hal_framebuffer_present(void);
-
             /* Flash the screen white (visual feedback for screenshot) */
             InvertRect(&qd.screenBits.bounds);
             hal_framebuffer_present();

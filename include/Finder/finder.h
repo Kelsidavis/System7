@@ -113,6 +113,7 @@ void DrawFolderWindowContents(WindowPtr window, Boolean isTrash);
  * preserves them. Five call sites reloaded directly before that existed and
  * every one of them reset the window's layout as a side effect. */
 WindowPtr FolderWindow_OpenFolder(VRefNum vref, DirID dirID, ConstStr255Param title);
+void FolderWindow_Initialize(WindowPtr w);
 Boolean HandleFolderWindowClick(WindowPtr w, EventRecord *ev, Boolean isDoubleClick);
 void FolderWindow_Draw(WindowPtr w);
 Boolean IsFolderWindow(WindowPtr w);
