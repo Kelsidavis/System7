@@ -1541,7 +1541,7 @@ void kernel_main(uint32_t magic, uint32_t* mb2_info) {
         if (err == noErr) {
             serial_puts("[Gestalt] mach = ");
             serial_print_hex(value);
-            serial_puts(" (x86 machine)\n");
+            serial_puts(" (machine type)\n");
         }
 
         /* Test processor type */
@@ -1549,7 +1549,7 @@ void kernel_main(uint32_t magic, uint32_t* mb2_info) {
         if (err == noErr) {
             serial_puts("[Gestalt] proc = ");
             serial_print_hex(value);
-            serial_puts(" (x86 processor)\n");
+            serial_puts(" (processor type)\n");
         }
 
         /* Test FPU */
