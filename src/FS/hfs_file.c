@@ -201,7 +201,6 @@ HFSFile* HFS_FileOpen(HFS_Catalog* cat, FileID id, bool resourceFork) {
     /* Find the file record */
     HFS_CatFileRec fileRec;
     if (!find_file_record(cat, id, &fileRec)) {
-        /* FS_LOG_DEBUG("HFS File: File ID %u not found\n", id); */
         return NULL;
     }
 

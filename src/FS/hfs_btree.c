@@ -22,7 +22,6 @@ static bool read_btree_data(HFS_BTree* bt, uint32_t offset, void* buffer, uint32
 
     for (int i = 0; i < bt->extentCount && bytesRead < length; i++) {
         if (bt->extents[i].blockCount == 0) {
-            /* FS_LOG_DEBUG("read_btree_data: Extent %d has 0 blocks\n", i); */
             break;
         }
         FS_LOG_DEBUG("read_btree_data: Extent %d - startBlock=%lu, blockCount=%lu\n",
@@ -113,8 +112,6 @@ static void load_catalog_overflow(HFS_BTree* bt) {
 }
 
 bool HFS_BT_Init(HFS_BTree* bt, HFS_Volume* vol, HFS_BTreeType type) {
-    /* FS_LOG_DEBUG("HFS_BT_Init: ENTER (bt=%p, vol=%p, type=%d)\n", bt, vol, type); */
-
     if (!bt || !vol || !vol->mounted) {
         FS_LOG_DEBUG("HFS_BT_Init: Invalid params (bt=%p, vol=%p, mounted=%ld)\n",
                      bt, vol, (long)(vol ? vol->mounted : 0));
@@ -130,14 +127,11 @@ bool HFS_BT_Init(HFS_BTree* bt, HFS_Volume* vol, HFS_BTreeType type) {
         bt->fileSize = vol->catFileSize;
         memcpy(bt->extents, vol->catExtents, sizeof(vol->catExtents));
         bt->extentCount = 3;
-        /* FS_LOG_DEBUG("HFS_BT_Init: Catalog tree, fileSize=%u\n", bt->fileSize); */
     } else if (type == kBTreeExtents) {
         bt->fileSize = vol->extFileSize;
         memcpy(bt->extents, vol->extExtents, sizeof(vol->extExtents));
         bt->extentCount = 3;
-        /* FS_LOG_DEBUG("HFS_BT_Init: Extents tree, fileSize=%u\n", bt->fileSize); */
     } else {
-        /* FS_LOG_DEBUG("HFS_BT_Init: Unknown tree type %d\n", type); */
         return false;
     }
 
@@ -151,12 +145,9 @@ bool HFS_BT_Init(HFS_BTree* bt, HFS_Volume* vol, HFS_BTreeType type) {
 
     /* Read header node (node 0) */
     uint8_t headerNode[512];  /* Start with minimum size */
-    /* FS_LOG_DEBUG("HFS_BT_Init: About to read header node from offset 0, size %u\n", sizeof(headerNode)); */
     if (!read_btree_data(bt, 0, headerNode, sizeof(headerNode))) {
-        /* FS_LOG_DEBUG("HFS_BT_Init: Failed to read header node\n"); */
         return false;
     }
-    /* FS_LOG_DEBUG("HFS_BT_Init: Successfully read header node\n"); */
 
     /* Parse node descriptor */
     HFS_BTNodeDesc* nodeDesc = (HFS_BTNodeDesc*)headerNode;
@@ -192,7 +183,6 @@ bool HFS_BT_Init(HFS_BTree* bt, HFS_Volume* vol, HFS_BTreeType type) {
 
     bt->nodeBuffer = NewPtr(bt->nodeSize);
     if (!bt->nodeBuffer) {
-        /* FS_LOG_DEBUG("HFS BTree: Failed to allocate node buffer\n"); */
         return false;
     }
 

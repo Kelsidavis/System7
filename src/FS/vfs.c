@@ -170,14 +170,12 @@ static VFSVolume* VFS_AllocVolume(void) {
 
 bool VFS_Init(void) {
     if (g_vfs.initialized) {
-        /* FS_LOG_DEBUG("VFS: Already initialized\n"); */
         return true;
     }
 
     memset(&g_vfs, 0, sizeof(g_vfs));
     g_vfs.nextVRef = 1;  /* Start VRefs at 1 */
 
-    /* FS_LOG_DEBUG("VFS: Initialized\n"); */
     g_vfs.initialized = true;
     return true;
 }
@@ -199,7 +197,6 @@ void VFS_Shutdown(void) {
     }
 
     g_vfs.initialized = false;
-    /* FS_LOG_DEBUG("VFS: Shutdown complete\n"); */
 }
 
 bool VFS_MountBootVolume(const char* volName) {

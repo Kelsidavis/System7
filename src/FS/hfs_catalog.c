@@ -102,7 +102,6 @@ bool HFS_ParseCatalogRecord(const HFS_CatKey* key, const void* data, uint16_t da
         return false;
 
     default:
-        /* FS_LOG_DEBUG("HFS Catalog: Unknown record type 0x%04x\n", recordType); */
         return false;
     }
 }
@@ -155,8 +154,6 @@ static bool enum_callback(void* keyPtr, uint16_t keyLen,
 }
 
 bool HFS_CatalogInit(HFS_Catalog* cat, HFS_Volume* vol) {
-    /* FS_LOG_DEBUG("HFS_CatalogInit: ENTER (cat=%p, vol=%p)\n", cat, vol); */
-
     if (!cat || !vol || !vol->mounted) {
         FS_LOG_DEBUG("HFS_CatalogInit: Invalid params (cat=%p, vol=%p, mounted=%d)\n",
                      cat, vol, vol ? vol->mounted : 0);
@@ -171,11 +168,9 @@ bool HFS_CatalogInit(HFS_Catalog* cat, HFS_Volume* vol) {
     FS_LOG_DEBUG("HFS_CatalogInit: About to initialize catalog B-tree (vol=%p, catFileSize=%lu)\n",
                  vol, (unsigned long)vol->catFileSize);
     if (!HFS_BT_Init(&cat->bt, vol, kBTreeCatalog)) {
-        /* FS_LOG_DEBUG("HFS_CatalogInit: B-tree init failed\n"); */
         return false;
     }
 
-    /* FS_LOG_DEBUG("HFS_CatalogInit: Success\n"); */
     return true;
 }
 

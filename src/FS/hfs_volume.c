@@ -94,7 +94,6 @@ bool HFS_VolumeMountMemory(HFS_Volume* vol, void* buffer, uint64_t size, VRefNum
                  (void*)vol, buffer, (long)size);
 
     if (!vol || !buffer || size < 1024 * 1024) {
-        /* FS_LOG_DEBUG("HFS: Invalid parameters for mount\n"); */
         return false;  /* Minimum 1MB */
     }
 
@@ -105,7 +104,6 @@ bool HFS_VolumeMountMemory(HFS_Volume* vol, void* buffer, uint64_t size, VRefNum
     FS_LOG_DEBUG("HFS: VolumeMountMemory: calling HFS_BD_InitMemory with vol=%p buffer=%p\n",
                  (void*)vol, buffer);
     if (!HFS_BD_InitMemory(&vol->bd, buffer, size)) {
-        /* FS_LOG_DEBUG("HFS: Failed to init block device\n"); */
         return false;
     }
     FS_LOG_DEBUG("HFS: VolumeMountMemory: After BD_InitMemory, vol->bd.data=%p\n",
@@ -121,16 +119,11 @@ bool HFS_VolumeMountMemory(HFS_Volume* vol, void* buffer, uint64_t size, VRefNum
         }
     }
 
-    /* FS_LOG_DEBUG("HFS: No valid MDB found, volume was not created properly\n"); */
     return false;
 }
 
 void HFS_VolumeUnmount(HFS_Volume* vol) {
     if (!vol) return;
-
-    if (vol->mounted) {
-        /* FS_LOG_DEBUG("HFS: Unmounting volume\n"); */
-    }
 
     HFS_BD_Close(&vol->bd);
     memset(vol, 0, sizeof(HFS_Volume));
@@ -432,7 +425,6 @@ bool HFS_CreateBlankVolume(void* buffer, uint64_t size, const char* volName) {
     be32_write(&extHeader->totalNodes, 6);      /* 3 blocks * 512 / 512 */
     be32_write(&extHeader->freeNodes, 5);       /* All but header free */
 
-    /* FS_LOG_DEBUG("HFS: Created blank volume (%u MB) with B-trees\n", (uint32_t)(size / 1024 / 1024)); */
     return true;
 }
 
