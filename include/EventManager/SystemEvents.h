@@ -15,46 +15,19 @@
 
 #include "SystemTypes.h"
 
-/* Forward declarations */
-
-
 #include "EventTypes.h"
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-/* Forward type declarations to fix compilation */
+/* Forward declaration for application state queries. */
 typedef struct AppStateInfo AppStateInfo;
 typedef void (*DiskEventCallback)(void*);
 typedef void (*SystemEventCallback)(void*);
 typedef void (*UpdateEventCallback)(void*);
 typedef void (*ActivateEventCallback)(void*);
 typedef void (*StateChangeCallback)(void*);
-
-/* System event priority levels */
-
-/* Update event types */
-
-/* Activate event types */
-
-/* Disk event types */
-
-/* OS event subtypes */
-
-/* System state flags */
-
-/* Update region tracking */
-
-/* Window activation state */
-
-/* Disk event information */
-
-/* Application state tracking */
-
-/* System event context */
-
-/* Callback function types */
 
 /*---------------------------------------------------------------------------
  * Core System Event API
@@ -320,16 +293,6 @@ SInt16 ProcessMultiFinderEvent(void* eventData);
  * @return Error code
  */
 SInt16 ProcessClipboardChangeEvent(void);
-
-/*---------------------------------------------------------------------------
- * Memory Management Events
- *---------------------------------------------------------------------------*/
-
-
-/*---------------------------------------------------------------------------
- * Power Management Events
- *---------------------------------------------------------------------------*/
-
 
 /*---------------------------------------------------------------------------
  * Event Callback Management
