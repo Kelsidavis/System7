@@ -150,6 +150,61 @@ def create_color_hd_icon():
     return pixels
 
 
+def create_color_folder_icon():
+    """Create the tilted blue folder used by the classic Finder."""
+    pixels = [0] * 1024
+
+    def inside_polygon(x, y, points):
+        inside = False
+        previous = len(points) - 1
+        for current, (x1, y1) in enumerate(points):
+            x2, y2 = points[previous]
+            if (y1 > y) != (y2 > y):
+                crossing = (x2 - x1) * (y - y1) / (y2 - y1) + x1
+                if x < crossing:
+                    inside = not inside
+            previous = current
+        return inside
+
+    shadow = [
+        (4, 8),
+        (12, 8),
+        (15, 10),
+        (28, 11),
+        (31, 14),
+        (29, 24),
+        (26, 29),
+        (9, 25),
+        (3, 19),
+    ]
+    tab = [(2, 5), (11, 5), (15, 9), (27, 10), (30, 13), (27, 18), (5, 14), (2, 11)]
+    face = [(4, 12), (28, 15), (26, 26), (23, 28), (7, 23), (2, 18)]
+
+    for y in range(32):
+        for x in range(32):
+            pixel = 0
+            if inside_polygon(x, y, shadow):
+                pixel = 0xFF343434
+            if inside_polygon(x, y, tab):
+                pixel = 0xFF8883FF if y < 11 else 0xFF534DC2
+            if inside_polygon(x, y, face):
+                pixel = 0xFFC2BFFF if y < 18 else 0xFF8883FF
+                if y == 12 or (x == 4 and y >= 15):
+                    pixel = 0xFF000000
+            if (
+                pixel
+                and any(
+                    not inside_polygon(nx, ny, face)
+                    for nx, ny in ((x - 1, y), (x + 1, y), (x, y - 1), (x, y + 1))
+                )
+                and inside_polygon(x, y, face)
+            ):
+                pixel = 0xFF000000
+            pixels[y * 32 + x] = pixel
+
+    return pixels
+
+
 def format_color_array(pixels, name):
     """Format pixel data as C uint32_t array"""
     lines = []
@@ -165,6 +220,7 @@ def format_color_array(pixels, name):
 trash_full_color = create_color_trash_full()
 trash_empty_color = create_color_trash_empty()
 hd_color = create_color_hd_icon()
+folder_color = create_color_folder_icon()
 
 # Create the C source file
 c_code = """/* Color Icon Variants for System 7.1
@@ -182,6 +238,8 @@ c_code += "/* Color trash empty icon - 32x32 ARGB */\n"
 c_code += format_color_array(trash_empty_color, "icon_TrashEmpty_color") + "\n\n"
 c_code += "/* Color hard drive icon - 32x32 ARGB */\n"
 c_code += format_color_array(hd_color, "icon_HD_color") + "\n"
+c_code += "\n/* Color folder icon - 32x32 ARGB */\n"
+c_code += format_color_array(folder_color, "icon_Folder_color") + "\n"
 
 # Save the color icons
 output_path = Path(__file__).resolve().parents[1] / "src" / "color_icons.c"

@@ -43,8 +43,9 @@ black.
 ## Implementation gaps
 
 Only the Chicago font strike is shipped; Geneva currently falls back to it.
-The shared icon-label renderer also draws Chicago directly. Generic folder
-and document artwork is placeholder line art, some icon resource mappings
-reference unavailable IDs, and Finder icon view lacks full scrollbars. These
-need correction before claiming fidelity to the references. The Help icon,
-grow-box artwork, and About window also require visual comparison.
+Finder labels use a vertically reduced Chicago bitmap to approach the
+reference size. The generic folder has shaded color artwork, while document
+artwork remains placeholder line art and some icon resource mappings
+reference unavailable IDs. Finder icon view still lacks full classic
+scrollbars. The Help icon, grow-box artwork, and About window also require
+visual comparison.
