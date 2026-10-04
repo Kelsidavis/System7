@@ -28,6 +28,7 @@
 #include "MemoryMgr/memory_manager_types.h"
 #include "MemoryMgr/MemoryManager.h"
 #include "EventManager/EventManager.h"
+#include "TimeManager/MicrosecondTimer.h"
 #include "SoundManager/SoundEffects.h"
 
 /* Classic "Welcome to Macintosh" text */
@@ -284,7 +285,6 @@ OSErr ShowWelcomeScreen(void) {
     /* Show for configured duration using TSC-based delay (not Delay() which
      * depends on timer interrupt and hangs during early boot on some platforms) */
     if (gConfig.welcomeDuration > 0) {
-        extern OSErr MicrosecondDelay(UInt32 microseconds);
         /* Convert ticks (1/60s) to microseconds. Default is 180 ticks = 3 seconds */
         UInt32 usDelay = (UInt32)gConfig.welcomeDuration * 16667;  /* ~1/60 sec per tick */
         serial_puts("[WELCOME] Showing welcome screen...\n");

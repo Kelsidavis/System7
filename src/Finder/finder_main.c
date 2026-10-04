@@ -12,6 +12,7 @@
 #include "LocaleManager/LocaleManager.h"
 #include "LocaleManager/StringIDs.h"
 #include "EventManager/EventTypes.h"
+#include "TimeManager/MicrosecondTimer.h"
 #include "MenuManager/MenuTypes.h"
 #include "MenuManager/MenuManager.h"
 #include "DialogManager/DialogTypes.h"
@@ -687,7 +688,6 @@ Boolean Finder_HandleKey(EventRecord* event) {
             hal_framebuffer_present();
 
             /* Brief pause for visual effect */
-            extern OSErr MicrosecondDelay(UInt32 microseconds);
             MicrosecondDelay(100000);  /* 100ms flash */
 
             /* Restore screen */
