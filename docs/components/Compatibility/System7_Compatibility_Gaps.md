@@ -48,7 +48,7 @@ This checklist records significant differences between the current toolbox reimp
 
 ## Text Input & Editing
 - `src/TextEdit/TextEditScroll.c` – Horizontal and vertical scroll limits are shared by `TEScroll` and `TEPinScroll`; integration coverage checks both against a long, unwrapped line and multiple hard-returned lines. Mixed-font widths and scroll-bar integration remain unvalidated.
-- `src/TextEdit/TextEditClipboard.c` – TEXT and style scrap are copied to and from the Scrap Manager, but `TEStylePaste` currently parses/logs style runs without applying them to the pasted range.
+- `src/TextEdit/TextEditClipboard.c` and `include/TextEdit/TextEdit.h` – `TEStylePaste` parses style runs without applying them, and the private `'styl'` serializer/parser does not use the classic `StScrpRec`/`ScrpSTElement` layout. `TEGetStyle`, `TESetStyle`, `TEUseStyleScrap`, and `TEStyleInsert` are declared but have no definitions. Styled TextEdit copy/paste and these public APIs need implementation against the classic style-table contract.
 
 ## Memory & Process Infrastructure
 - ~~`src/MemoryMgr/MemoryManager.c` – `SetHandleSize` faked success without reallocating; handle-based memory semantics must be honoured for legacy callers.~~ **FIXED** (2025-10-06): `SetHandleSize` now reallocates handles with data copying, respects locked handles, and maintains master pointer integrity.
