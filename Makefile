@@ -985,6 +985,11 @@ check-malloc:
 check-shadowed-defs: all
 	@python3 scripts/find-shadowed-defs.py --platform $(PLATFORM) --obj-dir $(OBJ_DIR)
 
+# Reject broken relative links in repository Markdown documentation.
+.PHONY: check-doc-links
+check-doc-links:
+	@python3 scripts/check_markdown_links.py
+
 # Differential test of the in-tree C string/memory routines against the host
 # libc, with guard bytes around every destination buffer. Needs no kernel
 # build - it extracts the pure routines from src/System71StdLib.c and compiles
@@ -1003,10 +1008,10 @@ test-integration:
 	@python3 tests/run_integration_tests.py --output build/integration-results.xml
 
 # Run the local x86 quality gate used before feature work: strict build,
-# dead-code and duplicate-definition checks, allocator policy, differential
-# libc tests, and required export checks.
+# dead-code and duplicate-definition checks, allocator policy, documentation
+# links, differential libc tests, and required export checks.
 .PHONY: check
-check: all check-x86-layout check-malloc check-shadowed-defs \
+check: all check-x86-layout check-malloc check-shadowed-defs check-doc-links \
 	test-stdlib test-integration-runner check-exports
 
 # GCC's path-sensitive static analyzer adds ownership, bounds, and null-path
@@ -1074,6 +1079,7 @@ help: ## Show this help message
 	@echo "  check-arm64      Build ARM64 and verify ELF segment permissions"
 	@echo "  check-malloc     Reject direct host allocator use in kernel code"
 	@echo "  check-shadowed-defs Run dead-code and duplicate-definition checks"
+	@echo "  check-doc-links  Reject broken relative Markdown links"
 	@echo "  check-exports    Validate exported symbol surface"
 	@echo "  test-integration Build, boot, and run guest integration tests"
 	@echo "  info             Show build statistics"
