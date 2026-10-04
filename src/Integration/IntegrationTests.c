@@ -1003,6 +1003,7 @@ static void Test_Dialog_EditTextFocusBeyond32Items(void) {
     CHECK(d, "NewDialog failed");
     CHECK(((WindowPtr)d)->windowKind == dialogKind,
           "NewDialog did not mark the window as a dialog");
+    ShowWindow((WindowPtr)d);
     CHECK(GetDialogEditTextFocus(d) == 33,
           "dialog initialization did not focus edit item 33");
     EventRecord activateEvent = {
@@ -1064,6 +1065,15 @@ static void Test_Dialog_EditTextFocusBeyond32Items(void) {
     GetDialogItemText(editTextData, remainingText);
     CHECK(remainingText[0] == 0,
           "DialogDelete did not delete the focused edit-text selection");
+    EventRecord editEvent = { .what = keyDown, .message = 'x' };
+    selectedDialog = NULL;
+    activatedItem = 0;
+    CHECK(DialogSelect(&editEvent, &selectedDialog, &activatedItem) &&
+          selectedDialog == d && activatedItem == 33,
+          "DialogSelect did not report a key event in an enabled edit item");
+    GetDialogItemText(editTextData, remainingText);
+    CHECK(remainingText[0] == 1 && remainingText[1] == 'x',
+          "DialogSelect did not apply the edit-text keystroke");
     DisposeDialog(d);
     RecordTest(test_name, true, "");
 }

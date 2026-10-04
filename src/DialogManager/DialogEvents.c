@@ -152,6 +152,10 @@ Boolean DialogSelect(const EventRecord* evt, DialogPtr* which, SInt16* itemHit)
             }
             InvalDialogItem(dlg, hit);
             DrawDialogItem(dlg, hit);
+            if (IsDialogItemEnabled(dlg, hit)) {
+                *itemHit = hit;
+                return true;
+            }
             return false;
         }
     }
@@ -170,6 +174,10 @@ Boolean DialogSelect(const EventRecord* evt, DialogPtr* which, SInt16* itemHit)
          * caret, and text remain consistent with the dialog item. */
         SInt16 focus = GetDialogEditTextFocus(dlg);
         if (focus > 0 && HandleDialogEditTextKey(dlg, focus, ch)) {
+            if (IsDialogItemEnabled(dlg, focus)) {
+                *itemHit = focus;
+                return true;
+            }
             return false;
         }
     }
