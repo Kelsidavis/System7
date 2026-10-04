@@ -51,8 +51,6 @@ typedef SInt16   ResID;
                     ((UInt32)(UInt8)(c) << 8) | (UInt32)(UInt8)(d)))
 #endif
 
-#define true  1
-#define false 0
 #define nil   NULL
 #define noErr 0
 #define qErr  -1  /* Queue error */

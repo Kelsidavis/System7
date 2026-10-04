@@ -35,6 +35,7 @@
 #include "EventManager/EventManager.h"
 #include "EventManager/EventManagerInternal.h"
 #include "EventManager/KeyboardEvents.h"
+#include "EventManager/KeyMap.h"
 #include "ExtensionManager/ResourceLoader.h"
 #include "FontManager/FontManager.h"
 #include "FontManager/CJKFont.h"
@@ -1253,14 +1254,12 @@ static void Test_KeyboardManagerTracksKeyState(void) {
 
     ProcessRawKeyboardEvent(kScanCommand, true, 0, TickCount());
     GetKeys(keys);
-    Boolean commandDown =
-        (keys[kScanCommand / 32] & (1U << (kScanCommand % 32))) != 0;
+    Boolean commandDown = KeyMapHasKey(keys, kScanCommand) && IsKeyDown(kScanCommand);
     Boolean modifierDown = (GetModifierState() & cmdKey) != 0;
 
     ProcessRawKeyboardEvent(kScanCommand, false, 0, TickCount());
     GetKeys(keys);
-    Boolean commandReleased =
-        (keys[kScanCommand / 32] & (1U << (kScanCommand % 32))) == 0;
+    Boolean commandReleased = !KeyMapHasKey(keys, kScanCommand) && !IsKeyDown(kScanCommand);
     Boolean modifierReleased = (GetModifierState() & cmdKey) == 0;
 
     CHECK(commandDown && modifierDown,

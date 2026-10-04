@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Compile every public header as an independent C and C++ translation unit."""
+"""Compile public headers independently with strict C and C++ diagnostics."""
 
 import argparse
 import os
@@ -21,10 +21,16 @@ def check_headers(root, compiler, language, standard, headers):
     failures = []
     for header in headers:
         include_name = header.relative_to(include_dir).as_posix()
-        source = f'#include "{include_name}"\n'
+        source = (
+            f'#include "{include_name}"\ntypedef int system7_header_check_anchor;\n'
+        )
         command = [
             *compiler,
             f"-std={standard}",
+            "-Wall",
+            "-Wextra",
+            "-Werror",
+            "-pedantic-errors",
             "-fsyntax-only",
             f"-I{include_dir}",
             "-x",

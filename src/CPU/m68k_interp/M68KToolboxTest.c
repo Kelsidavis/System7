@@ -726,8 +726,9 @@ Boolean M68KToolbox_RunCMPFlagsTest(const char** why)
     W(&a, 0xA9F4);                  /* _ExitToShell */
 
     OSErr runResult = WorldRun(&w, &a);
-    UInt16 overflowFlags = M68K_Read16(gM68KApp, w.data + kOverflowFlags);
-    UInt16 noOverflowFlags = M68K_Read16(gM68KApp, w.data + kNoOverflowFlags);
+    /* MOVE.L saved D2; the status bits occupy its low word. */
+    UInt16 overflowFlags = (UInt16)M68K_Read32(gM68KApp, w.data + kOverflowFlags);
+    UInt16 noOverflowFlags = (UInt16)M68K_Read32(gM68KApp, w.data + kNoOverflowFlags);
     UInt32 cmpmStack = M68K_Read32(gM68KApp, w.data + kCmpmStack);
     WorldEnd(&w);
 

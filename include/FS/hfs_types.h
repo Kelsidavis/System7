@@ -4,14 +4,13 @@
 
 #include <stdint.h>
 #include <stdbool.h>
-#include "../SystemTypes.h"  /* For DirID */
-#include "../DateTime.h"
+#include "SystemTypes.h"
+#include "StaticAssert.h"
+#include "DateTime.h"
 #include "hfs_constants.h"
 
 /* Volume and file references */
 typedef uint32_t VRefNum;
-/* Use system DirID definition from MacTypes.h */
-/* typedef uint32_t DirID; */
 typedef uint32_t FileID;
 
 /* Node types in filesystem */
@@ -191,8 +190,8 @@ typedef struct {
 } HFS_CatThreadRec;
 #pragma pack(pop)
 
-_Static_assert(sizeof(HFS_CatFileRec) == 102, "cdrFilRec is 102 bytes");
-_Static_assert(sizeof(HFS_CatFolderRec) == 70, "cdrDirRec is 70 bytes");
+SYSTEM7_STATIC_ASSERT(sizeof(HFS_CatFileRec) == 102, hfs_file_record_is_102_bytes);
+SYSTEM7_STATIC_ASSERT(sizeof(HFS_CatFolderRec) == 70, hfs_folder_record_is_70_bytes);
 
 /* Constants */
 #define HFS_SECTOR_SIZE      512
