@@ -23,6 +23,7 @@
 #include "WindowManager/WindowManager.h"
 #include "WindowManager/WindowManagerInternal.h"
 #include "QuickDraw/QuickDraw.h"
+#include "QuickDraw/QuickDrawInternal.h"
 #include "QuickDraw/ColorQuickDraw.h"
 #include "SystemInternal.h"
 #include "Platform/Framebuffer.h"
@@ -1376,6 +1377,19 @@ static void Test_Region_Hole(void) {
     Handle recovered = NULL;
     Boolean handleBacked = RecoverHandle(*a, &recovered) &&
                            recovered == (Handle)a;
+    Boolean validShape = ValidateRegion(a) && GetRegionComplexity(a) == 4;
+    HLock((Handle)a);
+    SInt16 savedRectCount;
+    SInt16 invalidRectCount = 32767;
+    memcpy(&savedRectCount, (UInt8 *)*a + kMinRegionSize, sizeof(savedRectCount));
+    memcpy((UInt8 *)*a + kMinRegionSize, &invalidRectCount,
+           sizeof(invalidRectCount));
+    HUnlock((Handle)a);
+    Boolean malformedRejected = !ValidateRegion(a) && GetRegionComplexity(a) == 0;
+    HLock((Handle)a);
+    memcpy((UInt8 *)*a + kMinRegionSize, &savedRectCount, sizeof(savedRectCount));
+    HUnlock((Handle)a);
+    Boolean validAfterRestore = ValidateRegion(a);
     Point inHole = { 30, 30 }, left = { 30, 10 }, below = { 60, 30 }, right = { 30, 60 }, above = { 10, 30 };
     Boolean ok = !PtInRgn(inHole, a) && PtInRgn(left, a) && PtInRgn(below, a) &&
                  PtInRgn(right, a) && PtInRgn(above, a);
@@ -1383,6 +1397,7 @@ static void Test_Region_Hole(void) {
     Boolean holeEmpty = !RectInRgn(&probe, a);
     CopyRgn(a, b);
     Boolean copyGrewHandle = EqualRgn(a, b) &&
+                             ValidateRegion(b) &&
                              RecoverHandle(*b, &recovered) &&
                              recovered == (Handle)b;
     DisposeRgn(a);
@@ -1391,6 +1406,8 @@ static void Test_Region_Hole(void) {
     CHECK(holeEmpty, "RectInRgn found the rectangle inside the hole");
     CHECK(handleBacked && copyGrewHandle,
           "region storage was not a valid, growable Memory Manager handle");
+    CHECK(validShape && malformedRejected && validAfterRestore,
+          "region validation accepted malformed rectangle-list data");
     RecordTest(test_name, true, "");
 }
 

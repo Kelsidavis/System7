@@ -812,30 +812,55 @@ Boolean IsComplexRegion(RgnHandle rgn) {
 Boolean ValidateRegion(RgnHandle rgn) {
     if (!rgn || !*rgn) return false;
 
-    /* CRITICAL: Lock handle before dereferencing to prevent heap compaction issues */
     HLock((Handle)rgn);
     Region *region = *rgn;
+    UInt32 allocatedSize = GetHandleSize((Handle)rgn);
+    SInt32 regionSize = region->rgnSize;
+    Boolean valid = false;
 
-    /* Check minimum size */
-    if (region->rgnSize < kMinRegionSize) {
+    if (allocatedSize < kMinRegionSize || regionSize < kMinRegionSize ||
+        regionSize > kMaxRegionSize || (UInt32)regionSize > allocatedSize ||
+        region->rgnBBox.left > region->rgnBBox.right ||
+        region->rgnBBox.top > region->rgnBBox.bottom) {
         HUnlock((Handle)rgn);
         return false;
     }
 
-    /* Check maximum size - rgnSize is SInt16, max value is 32767, so this check is unnecessary
-     * as kMaxRegionSize == 32767. Keeping for documentation but disabling the warning. */
-    /* if (region->rgnSize > kMaxRegionSize) return false; */
-
-    /* For rectangular regions, just validate bounds */
-    if (region->rgnSize == kMinRegionSize) {
-        HUnlock((Handle)rgn);
-        return true;
+    if (regionSize == kMinRegionSize) {
+        valid = true;
+    } else if (regionSize >= kMinRegionSize + (SInt32)sizeof(SInt16)) {
+        SInt16 count;
+        memcpy(&count, (UInt8 *)region + kMinRegionSize, sizeof(count));
+        SInt32 expectedSize = kMinRegionSize + (SInt32)sizeof(SInt16) +
+                              (SInt32)count * (SInt32)sizeof(Rect);
+        if (count >= 2 && count <= kMaxRegionRects && expectedSize == regionSize) {
+            Rect *rects = RgnRectList(region);
+            Rect combined = rects[0];
+            valid = !EmptyRect(&combined);
+            for (SInt16 i = 0; valid && i < count; i++) {
+                Rect rect = rects[i];
+                if (EmptyRect(&rect) || rect.left < region->rgnBBox.left ||
+                    rect.top < region->rgnBBox.top ||
+                    rect.right > region->rgnBBox.right ||
+                    rect.bottom > region->rgnBBox.bottom) {
+                    valid = false;
+                    break;
+                }
+                if (i > 0) UnionRect(&combined, &rect, &combined);
+                for (SInt16 j = 0; j < i; j++) {
+                    Rect overlap;
+                    if (SectRect(&rect, &rects[j], &overlap)) {
+                        valid = false;
+                        break;
+                    }
+                }
+            }
+            valid = valid && EqualRect(&combined, &region->rgnBBox);
+        }
     }
 
-    /* For complex regions, validate scan line data */
-    /* This would be more complex in a full implementation */
     HUnlock((Handle)rgn);
-    return true;
+    return valid;
 }
 
 void CompactRegion(RgnHandle rgn) {
@@ -846,49 +871,10 @@ void CompactRegion(RgnHandle rgn) {
 }
 
 SInt16 GetRegionComplexity(RgnHandle rgn) {
-    if (!rgn || !*rgn) return 0;
+    if (!ValidateRegion(rgn)) return 0;
 
-    /* CRITICAL: Lock handle before dereferencing to prevent heap compaction issues */
     HLock((Handle)rgn);
-    Region *region = *rgn;
-
-    if (region->rgnSize == kMinRegionSize) {
-        HUnlock((Handle)rgn);
-        return 1;
-    }
-
-    /* Count scan lines for complex regions */
-    SInt16 complexity = 0;
-    UInt8 *dataPtr = (UInt8 *)region + kMinRegionSize;
-    UInt8 *endPtr = (UInt8 *)region + region->rgnSize;
-
-    while (dataPtr < endPtr) {
-        /* Bounds check: ensure we can read y value */
-        if (dataPtr + sizeof(SInt16) > endPtr) break;
-
-        SInt16 y;
-        memcpy(&y, dataPtr, sizeof(y));
-        if (y == 0x7FFF) break;
-
-        complexity++;
-        dataPtr += sizeof(SInt16);
-
-        /* Bounds check: ensure we can read count value */
-        if (dataPtr + sizeof(SInt16) > endPtr) break;
-
-        SInt16 count;
-        memcpy(&count, dataPtr, sizeof(count));
-
-        /* Reject negative counts to prevent signed-to-unsigned overflow */
-        if (count < 0) break;
-
-        /* Bounds check: ensure count won't cause buffer overflow */
-        UInt32 advance = sizeof(SInt16) + (UInt32)count * sizeof(SInt16);
-        if (dataPtr + advance > endPtr) break;
-
-        dataPtr += advance;
-    }
-
+    SInt16 complexity = RgnRectCount(*rgn);
     HUnlock((Handle)rgn);
     return complexity;
 }
