@@ -13,11 +13,41 @@ class MarkdownReferenceTests(unittest.TestCase):
             docs.mkdir()
             (root / "README.md").write_text("# Project\n")
             (docs / "guide.md").write_text(
-                "[readme](../README.md) [heading](#intro) "
+                "# Intro\n\n[readme](../README.md) [heading](#intro) "
                 "[site](https://example.com) [mail](mailto:test@example.com)\n"
             )
 
             self.assertEqual(list(broken_links(root)), [])
+
+    def test_heading_fragments_match_github_style_slugs(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            document = root / "guide.md"
+            document.write_text(
+                "# Heading with `code` & punctuation!\n"
+                "## Repeat\n## Repeat\n"
+                "Setext heading\n-------------\n"
+                "[valid](#heading-with-code-punctuation) "
+                "[duplicate](#repeat-1) [setext](#setext-heading)\n"
+            )
+
+            self.assertEqual(list(broken_links(root)), [])
+
+    def test_missing_heading_fragments_are_reported(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            document = root / "guide.md"
+            document.write_text("# Present\n[missing](#absent)\n")
+
+            self.assertEqual(list(broken_links(root)), [(document, "#absent")])
+
+    def test_headings_in_fenced_code_are_not_fragments(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            document = root / "guide.md"
+            document.write_text("```md\n# Example\n```\n[missing](#example)\n")
+
+            self.assertEqual(list(broken_links(root)), [(document, "#example")])
 
     def test_missing_relative_link_is_reported(self):
         with tempfile.TemporaryDirectory() as directory:

@@ -2,6 +2,7 @@
 """Check Markdown links and inline repository paths for missing targets."""
 
 import argparse
+import html
 import re
 from pathlib import Path
 from urllib.parse import unquote, urlsplit
@@ -12,6 +13,9 @@ REFERENCE_LINK = re.compile(r"(?m)^\s{0,3}\[[^]\n]+\]:\s*(?:<([^>]+)>|([^\s]+))"
 REPO_PATH = re.compile(r"`((?:src|include|tests|scripts|tools|docs)/[A-Za-z0-9_./-]+)`")
 FENCED_BLOCK = re.compile(r"(?ms)^\s*(```|~~~).*?^\s*\1\s*$")
 INLINE_CODE_SPAN = re.compile(r"(?<!`)(`+)(?!`).*?(?<!`)\1(?!`)", re.DOTALL)
+ATX_HEADING = re.compile(r"^ {0,3}#{1,6}[ \t]+(.+?)\s*#*\s*$")
+SETEXT_HEADING = re.compile(r"^ {0,3}(=+|-+)\s*$")
+HTML_ANCHOR = re.compile(r"<a\s+(?:id|name)=['\"]([^'\"]+)['\"]", re.IGNORECASE)
 SKIP_DIRS = {".git", "build", "node_modules", ".venv"}
 
 
@@ -25,10 +29,52 @@ def markdown_files(root):
 
 def is_broken_relative_link(document, target):
     parsed = urlsplit(target)
-    if parsed.scheme or parsed.netloc or not parsed.path:
+    if parsed.scheme or parsed.netloc:
         return False
-    destination = (document.parent / unquote(parsed.path)).resolve()
-    return not destination.exists()
+    destination = (
+        (document.parent / unquote(parsed.path)).resolve() if parsed.path else document
+    )
+    if not destination.exists():
+        return True
+    if parsed.fragment and destination.suffix.lower() == ".md":
+        return not has_heading_fragment(destination, unquote(parsed.fragment))
+    return False
+
+
+def heading_slug(text):
+    text = html.unescape(text)
+    text = re.sub(r"!?\[([^]]+)\]\([^)]*\)", r"\1", text)
+    text = re.sub(r"`+([^`]+)`+", r"\1", text)
+    text = re.sub(r"<[^>]+>", "", text)
+    slug = "".join(char for char in text.lower() if char.isalnum() or char in " -_")
+    return re.sub(r"\s+", "-", slug).strip("-")
+
+
+def has_heading_fragment(document, fragment):
+    if fragment.lower() in {"top", "top-of-page"}:
+        return True
+    text = FENCED_BLOCK.sub("", document.read_text(errors="replace"))
+    headings = set()
+    for match in HTML_ANCHOR.finditer(text):
+        headings.add(match.group(1))
+
+    lines = text.splitlines()
+    slugs = {}
+    for index, line in enumerate(lines):
+        match = ATX_HEADING.match(line)
+        if match:
+            title = match.group(1)
+        elif index + 1 < len(lines) and SETEXT_HEADING.match(lines[index + 1]):
+            title = line.strip()
+        else:
+            continue
+
+        slug = heading_slug(title)
+        occurrence = slugs.get(slug, 0)
+        slugs[slug] = occurrence + 1
+        headings.add(slug if occurrence == 0 else f"{slug}-{occurrence}")
+
+    return fragment in headings
 
 
 def mask_inline_code(text):
