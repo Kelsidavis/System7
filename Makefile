@@ -687,6 +687,10 @@ $(shell mkdir -p $(OBJ_DIR); \
         fi)
 endif
 
+$(CFLAGS_STAMP):
+	@mkdir -p $(dir $@)
+	@printf '%s' '$(CFLAGS)' > $@
+
 # The kernel has its own maths (System71Math.c). The macOS i686-elf toolchain
 # has no libm, while native Linux builds may need it for compiler-generated
 # helpers.
