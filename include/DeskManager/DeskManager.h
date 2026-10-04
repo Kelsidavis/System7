@@ -1,12 +1,3 @@
-#ifndef DESKMANAGER_H
-#define DESKMANAGER_H
-
-#include "SystemTypes.h"
-#include "DeskManagerTypes.h"
-
-/* Forward declarations */
-
-
 /*
  * DeskManager.h - Main Desk Manager API
  *
@@ -17,14 +8,16 @@
  * Derived from ROM analysis (System 7)
  */
 
-/* Forward declarations */
+#ifndef DESKMANAGER_H
+#define DESKMANAGER_H
+
+#include "SystemTypes.h"
+#include "DeskManagerTypes.h"
 
 /* Desk Manager Constants */
 #define DESK_MGR_VERSION        0x0701      /* System 7.1 */
 #define MAX_DESK_ACCESSORIES    64          /* Maximum concurrent DAs */
 #define DA_NAME_LENGTH          255         /* Maximum DA name length */
-
-/* Desk Accessory Messages */
 
 /* Desk Accessory Types */
 #define DA_TYPE_CALCULATOR      1
@@ -38,14 +31,6 @@
 #define DA_RESID_ALARM          15
 #define DA_RESID_CHOOSER        7
 #define DA_RESID_NOTEPAD        5
-
-/* Desk Accessory States */
-
-/* Desk Accessory Control Block */
-
-/* Desk Manager State */
-
-/* Core Desk Manager Functions */
 
 /**
  * Initialize the Desk Manager
@@ -294,9 +279,8 @@ Boolean DeskManager_IsDAAvailable(const char *name);
  */
 int DeskManager_RegisterBuiltinDAs(void);
 
-/* Error Codes - most defined in DeskManagerTypes.h */
-/* DESK_ERR_NOT_FOUND, DESK_ERR_ALREADY_OPEN, DESK_ERR_SYSTEM_ERROR defined in DeskManagerTypes.h */
-#define DESK_ERR_INVALID_PARAM  -4      /* Invalid parameter (overlaps with DeskManagerTypes) */
+/* Additional error-code names and legacy spelling. */
+#define DESK_ERR_INVALID_PARAM  DESK_ERR_PARAM_ERROR
 #define DESK_ERR_DA_ERROR       -6      /* DA-specific error */
 
 #endif /* DESKMANAGER_H */
