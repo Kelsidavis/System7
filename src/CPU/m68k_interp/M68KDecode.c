@@ -80,9 +80,6 @@ UInt32 M68K_Fetch32(M68KAddressSpace* as)
     return (hi << 16) | lo;
 }
 
-/* Forward declaration from M68KBackend.c */
-extern void* M68K_GetPage(M68KAddressSpace* as, UInt32 addr, Boolean allocate);
-
 /*
  * Read8 - Read byte from address space (paged)
  */

@@ -163,9 +163,6 @@ static OSErr M68K_DestroyAddressSpace(CPUAddressSpace as)
     return noErr;
 }
 
-/* Forward declaration */
-void* M68K_GetPage(M68KAddressSpace* as, UInt32 addr, Boolean allocate);
-
 /*
  * M68K_MemCopy - Copy data to paged memory (lazy page allocation)
  */

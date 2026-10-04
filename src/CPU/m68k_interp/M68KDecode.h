@@ -8,6 +8,7 @@
 #include "CPU/M68KInterp.h"
 #include "CPU/M68KOpcodes.h"
 
+void* M68K_GetPage(M68KAddressSpace* as, UInt32 addr, Boolean allocate);
 UInt8 M68K_Read8(M68KAddressSpace* as, UInt32 addr);
 UInt16 M68K_Read16(M68KAddressSpace* as, UInt32 addr);
 UInt32 M68K_Read32(M68KAddressSpace* as, UInt32 addr);
