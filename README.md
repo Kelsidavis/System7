@@ -189,7 +189,7 @@ make
 
 # Build for specific platform
 make PLATFORM=x86
-make PLATFORM=arm        # requires ARM bare-metal GCC
+make PLATFORM=arm        # requires ARM cross GCC (defaults to arm-linux-gnueabihf)
 make PLATFORM=arm64      # requires AArch64 bare-metal GCC
 make PLATFORM=ppc        # experimental; requires PowerPC ELF toolchain
 
