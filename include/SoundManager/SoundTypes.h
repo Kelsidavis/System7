@@ -15,7 +15,17 @@
 enum {
     notEnoughHardwareErr = -201,
     siBadSoundInDevice = -221,
-    siBadDeviceName = -228
+    siInvalidCompression = -223,
+    siDeviceBusyErr = -227,
+    siBadDeviceName = -228,
+    siUnknownInfoType = -231
+};
+
+enum {
+    siReadPermission = 0,
+    siWritePermission = 1,
+    unitTypeSeconds = 0,
+    unitTypeNoSelection = 0xFFFF
 };
 
 #ifdef __cplusplus

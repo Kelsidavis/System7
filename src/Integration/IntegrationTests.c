@@ -1172,6 +1172,9 @@ static void Test_SoundInputUnavailable(void) {
     SInt16 recordingStatus = 7;
     SInt32 duration = 2000;
 
+    CHECK(siReadPermission == 0 && siWritePermission == 1 &&
+          unitTypeSeconds == 0 && unitTypeNoSelection == 0xFFFF,
+          "Sound Input Manager constants do not match the Toolbox API");
     CHECK(SPBOpenDevice(defaultDevice, 0, &inputRefNum) == notEnoughHardwareErr &&
           inputRefNum == 12345,
           "SPBOpenDevice did not report unavailable input hardware safely");
