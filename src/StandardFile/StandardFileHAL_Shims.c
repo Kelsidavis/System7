@@ -582,6 +582,11 @@ void StandardFile_HAL_RunDialog(DialogPtr dialog, short *itemHit) {
                     }
                 }
             }
+        } else {
+            EventRecord idleEvent = { .what = nullEvent };
+            if (IsDialogEvent(&idleEvent)) {
+                DialogSelect(&idleEvent, &whichDialog, &item);
+            }
         }
 
         /* Yield to system */

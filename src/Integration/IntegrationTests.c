@@ -1006,12 +1006,17 @@ static void Test_Dialog_EditTextFocusBeyond32Items(void) {
     ShowWindow((WindowPtr)d);
     CHECK(GetDialogEditTextFocus(d) == 33,
           "dialog initialization did not focus edit item 33");
+    EventRecord idleEvent = { .what = nullEvent };
+    DialogPtr selectedDialog = NULL;
+    SInt16 activatedItem = 0;
+    CHECK(IsDialogEvent(&idleEvent) &&
+          !DialogSelect(&idleEvent, &selectedDialog, &activatedItem) &&
+          selectedDialog == d,
+          "DialogSelect did not process a null event for the front dialog");
     EventRecord activateEvent = {
         .what = activateEvt,
         .message = (UInt32)(uintptr_t)d
     };
-    DialogPtr selectedDialog = NULL;
-    SInt16 activatedItem = 0;
     CHECK(IsDialogEvent(&activateEvent),
           "IsDialogEvent rejected an activation event for a dialog window");
     CHECK(!DialogSelect(&activateEvent, &selectedDialog, &activatedItem) &&
