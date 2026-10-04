@@ -13,6 +13,7 @@
 #include "WindowManager/WindowManager.h"
 #include "QuickDraw/QuickDraw.h"
 #include "Finder/Icon/icon_port.h"
+#include "Resources/icons_generated.h"
 #include "MemoryMgr/MemoryManager.h"
 #include "System71StdLib.h"
 #include "TimeManager/TimeBase.h"
@@ -347,7 +348,6 @@ void AppSwitcher_Draw(void) {
         Boolean iconRendered = false;
         if (app->iconID > 0) {
             /* Load icon on-demand (temporary, not persistent) */
-            extern bool IconGen_FindByID(int16_t id, IconFamily* out);
             IconFamily tempIcon = {0};
 
             if (IconGen_FindByID(app->iconID, &tempIcon) &&

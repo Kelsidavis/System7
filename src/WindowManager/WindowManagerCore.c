@@ -22,6 +22,7 @@
 #include "System71StdLib.h"
 
 #include "WindowManager/WindowManager.h"
+#include "Finder/finder.h"
 #include "WindowManager/WindowManagerInternal.h"
 #include "WindowManager/WindowKinds.h"
 #include "WindowManager/LayoutGuards.h"
@@ -362,8 +363,6 @@ WindowPtr GetNewCWindow(short windowID, void* wStorage, WindowPtr behind) {
  * ============================================================================ */
 
 void CloseWindow(WindowPtr theWindow) {
-    extern void CleanupFolderWindow(WindowPtr w);
-
     WM_LOG_DEBUG("CloseWindow: ENTRY, window=0x%08x\n", (unsigned int)P2UL(theWindow));
     if (theWindow == NULL) {
         WM_LOG_WARN("CloseWindow: NULL window, returning\n");

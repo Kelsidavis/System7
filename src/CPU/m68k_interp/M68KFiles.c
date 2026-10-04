@@ -22,9 +22,8 @@
 #include "FS/vfs.h"
 #include "ResourceManager.h"
 #include "StandardFile/StandardFile.h"
+#include "OSUtils/OSUtils.h"
 #include "System71StdLib.h"
-
-extern void GetDateTime(UInt32* secs);
 
 /* The File Manager's results (IM IV-180) */
 enum {

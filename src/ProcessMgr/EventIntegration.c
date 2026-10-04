@@ -7,10 +7,12 @@
  */
 
 #include "SystemTypes.h"
+#include "SystemInternal.h"
 #include "EventManager/EventTypes.h"
 #include "EventManager/EventManager.h"   /* PostEventWithModifiers */
 #include "EventManager/KeyboardEvents.h"
 #include "ProcessMgr/ProcessMgr.h"
+#include "WindowManager/WindowManager.h"
 #include "EventManager/EventManagerInternal.h"
 #include "ProcessMgr/ProcessLogging.h"
 #include "TimeManager/TimeBase.h"
@@ -81,7 +83,6 @@ Boolean Proc_GetNextEvent(EventMask mask, EventRecord* evt) {
      * main loop drew it, so inside an alert's ModalDialog loop it vanished and
      * stayed gone until the alert was dismissed. */
     {
-        extern void UpdateCursorDisplay(void);
         PumpInputEvents();
         UpdateCursorDisplay();
     }
@@ -320,7 +321,6 @@ static Boolean CheckSystemEvents(EventMask mask, EventRecord* evt) {
     /* Generate updates on demand so repeated polling cannot fill the event
      * queue with duplicate events for the same dirty window. */
     if (mask & updateMask) {
-        extern WindowPtr WM_FindWindowNeedingUpdate(void);
         WindowPtr needy = WM_FindWindowNeedingUpdate();
         if (needy) {
             evt->what = updateEvt;
