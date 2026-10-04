@@ -126,6 +126,7 @@ typedef struct FolderWindowState {
     short draggingIndex;   /* Index of item being dragged (-1 = none) */
     short viewMode;        /* Current view mode (kViewByIcon..kViewByDate) */
     short scrollOffset;    /* Scrolled rows in list or icon view */
+    short scrollOffsetH;   /* Horizontal pixels scrolled in icon view */
     char typeAheadBuf[16]; /* Type-ahead search buffer */
     short typeAheadLen;    /* Characters in type-ahead buffer */
     UInt32 typeAheadTime;  /* Tick count of last type-ahead keystroke */
@@ -418,6 +419,7 @@ static FolderWindowState* GetFolderState(WindowPtr w) {
             gFolderWindows[i].state.draggingIndex = -1;
             gFolderWindows[i].state.viewMode = kViewByIcon;
             gFolderWindows[i].state.scrollOffset = 0;
+            gFolderWindows[i].state.scrollOffsetH = 0;
             gFolderWindows[i].state.typeAheadLen = 0;
             gFolderWindows[i].state.typeAheadTime = 0;
 
@@ -789,6 +791,68 @@ static void FW_LabelRect(FolderWindowState* state, short i, Rect* out)
     out->bottom = state->items[i].position.v + 42;
 }
 
+typedef struct FWHorizontalScrollMetrics {
+    short trackLeft;
+    short trackRight;
+    short maxScroll;
+    short thumbLeft;
+    short thumbRight;
+} FWHorizontalScrollMetrics;
+
+static FWHorizontalScrollMetrics FW_IconHorizontalScrollMetrics(
+    WindowPtr w, FolderWindowState* state) {
+    FWHorizontalScrollMetrics metrics;
+    short left = w->port.portRect.left;
+    short right = w->port.portRect.right - kListScrollBarWidth;
+    short trackWidth;
+    short visibleWidth;
+    SInt32 contentRight = right;
+    SInt32 maxScroll;
+    short thumbWidth;
+
+    metrics.trackLeft = left + kListScrollBarWidth;
+    metrics.trackRight = right - kListScrollBarWidth;
+    trackWidth = metrics.trackRight - metrics.trackLeft;
+    if (trackWidth < 1) {
+        metrics.trackRight = metrics.trackLeft + 1;
+        trackWidth = 1;
+    }
+    visibleWidth = metrics.trackRight - metrics.trackLeft;
+
+    for (short i = 0; state->items && i < state->itemCount; i++) {
+        Rect labelRect;
+        FW_LabelRect(state, i, &labelRect);
+        if (labelRect.right > contentRight) contentRight = labelRect.right;
+        if (state->items[i].position.h + 32 > contentRight) {
+            contentRight = state->items[i].position.h + 32;
+        }
+    }
+
+    maxScroll = contentRight - metrics.trackRight;
+    if (maxScroll < 0) maxScroll = 0;
+    if (maxScroll > 32767) maxScroll = 32767;
+    metrics.maxScroll = (short)maxScroll;
+    if (state->scrollOffsetH < 0) state->scrollOffsetH = 0;
+    if (state->scrollOffsetH > metrics.maxScroll) {
+        state->scrollOffsetH = metrics.maxScroll;
+    }
+
+    thumbWidth = metrics.maxScroll > 0
+        ? (short)(((SInt32)visibleWidth * trackWidth) /
+                  (visibleWidth + metrics.maxScroll))
+        : trackWidth;
+    if (thumbWidth < 16 && trackWidth >= 16) thumbWidth = 16;
+    if (thumbWidth > trackWidth) thumbWidth = trackWidth;
+
+    metrics.thumbLeft = metrics.trackLeft;
+    if (metrics.maxScroll > 0 && trackWidth > thumbWidth) {
+        metrics.thumbLeft += (short)(((SInt32)state->scrollOffsetH *
+                          (trackWidth - thumbWidth)) / metrics.maxScroll);
+    }
+    metrics.thumbRight = metrics.thumbLeft + thumbWidth;
+    return metrics;
+}
+
 static short FW_IconAtPoint(WindowPtr w, Point localPt) {
     FolderWindowState* state = GetFolderState(w);
     if (!state || !state->items) return -1;
@@ -908,19 +972,45 @@ static short FW_IconAtPoint(WindowPtr w, Point localPt) {
         PostEvent(updateEvt, (UInt32)(uintptr_t)w);
         return kFolderScrollbarHit;
     }
-    if (localPt.v >= bottom - kListScrollBarWidth) return -1;
+    if (localPt.v >= bottom - kListScrollBarWidth) {
+        FWHorizontalScrollMetrics metrics =
+            FW_IconHorizontalScrollMetrics(w, state);
+        short verticalLeft = right - kListScrollBarWidth;
+        SInt32 newOffset = state->scrollOffsetH;
+        short page = metrics.trackRight - metrics.trackLeft;
+
+        if (localPt.h >= verticalLeft) {
+            return kFolderScrollbarHit;
+        } else if (localPt.h < metrics.trackLeft) {
+            newOffset -= kFWGridPitchH;
+        } else if (localPt.h >= verticalLeft - kListScrollBarWidth) {
+            newOffset += kFWGridPitchH;
+        } else if (localPt.h < metrics.thumbLeft) {
+            newOffset -= page;
+        } else if (localPt.h >= metrics.thumbRight) {
+            newOffset += page;
+        }
+        if (newOffset < 0) newOffset = 0;
+        if (newOffset > metrics.maxScroll) newOffset = metrics.maxScroll;
+        if (newOffset != state->scrollOffsetH) {
+            state->scrollOffsetH = (short)newOffset;
+            PostEvent(updateEvt, (UInt32)(uintptr_t)w);
+        }
+        return kFolderScrollbarHit;
+    }
 
     for (short i = 0; i < state->itemCount; i++) {
         /* Icon rect (32x32 centered at position.h+16) */
         Rect iconRect;
-        iconRect.left = state->items[i].position.h;
+        iconRect.left = state->items[i].position.h - state->scrollOffsetH;
         iconRect.top = state->items[i].position.v - state->scrollOffset * kFWGridPitchV;
-        iconRect.right = state->items[i].position.h + 32;
+        iconRect.right = iconRect.left + 32;
         iconRect.bottom = iconRect.top + 32;
 
         Rect labelRect;
         FW_LabelRect(state, i, &labelRect);
-        OffsetRect(&labelRect, 0, -state->scrollOffset * kFWGridPitchV);
+        OffsetRect(&labelRect, -state->scrollOffsetH,
+                   -state->scrollOffset * kFWGridPitchV);
 
         /* Check if point is in icon or label */
         if ((localPt.h >= iconRect.left && localPt.h < iconRect.right &&
@@ -990,7 +1080,7 @@ static Boolean TrackFolderItemDrag(WindowPtr w, FolderWindowState* state, short 
                          w->port.portBits.bounds.right, w->port.portBits.bounds.bottom);
 
             Rect ghost;
-            ghost.left = item->position.h;
+            ghost.left = item->position.h - state->scrollOffsetH;
             ghost.top = item->position.v;
             ghost.right = ghost.left + 32;
             ghost.bottom = ghost.top + 32;
@@ -1128,7 +1218,8 @@ static Boolean TrackFolderItemDrag(WindowPtr w, FolderWindowState* state, short 
                     /* Snap to grid for cleaner alignment */
                     const short GRID_W = kFWGridPitchH;
                     const short GRID_H = kFWGridPitchV;
-                    short gridCol = (dropLocal.h - kFWLeftMargin) / GRID_W;
+                    short gridCol = (dropLocal.h + state->scrollOffsetH -
+                                     kFWLeftMargin) / GRID_W;
                     short gridRow = (dropLocal.v - kFWTopMargin) / GRID_H;
                     if (gridCol < 0) gridCol = 0;
                     if (gridRow < 0) gridRow = 0;
@@ -1616,7 +1707,9 @@ static void FolderWindow_DrawListScrollbar(WindowPtr w, FolderWindowState* state
     }
 }
 
-static void FolderWindow_DrawIconScrollbars(WindowPtr w, FolderWindowState* state) {
+static void FolderWindow_DrawIconScrollbars(
+    WindowPtr w, FolderWindowState* state,
+    const FWHorizontalScrollMetrics* hMetrics) {
     short left = w->port.portRect.left;
     short top = w->port.portRect.top + kFWStatusHeight;
     short right = w->port.portRect.right;
@@ -1698,12 +1791,9 @@ static void FolderWindow_DrawIconScrollbars(WindowPtr w, FolderWindowState* stat
     LineTo(verticalLeft - kListScrollBarWidth + 3, bottom - 4);
     LineTo(verticalLeft - 4, centerY);
 
-    short hTrackLeft = left + kListScrollBarWidth;
-    short hTrackRight = verticalLeft - kListScrollBarWidth;
-    short hThumbLeft = hTrackLeft + (hTrackRight - hTrackLeft) / 4;
-    short hThumbRight = hTrackLeft + (hTrackRight - hTrackLeft) * 3 / 4;
     Rect hThumb;
-    SetRect(&hThumb, hThumbLeft, horizontalTop + 1, hThumbRight, bottom - 1);
+    SetRect(&hThumb, hMetrics->thumbLeft, horizontalTop + 1,
+            hMetrics->thumbRight, bottom - 1);
     FillRect(&hThumb, &whitePat);
     FrameRect(&hThumb);
 
@@ -1952,6 +2042,8 @@ void FolderWindow_Draw(WindowPtr w) {
     /* If we have state, draw icons with selection highlighting (icon view) */
     else if (state && state->items) {
         bool iconSystemReady = Icon_Init();
+        FWHorizontalScrollMetrics hMetrics =
+            FW_IconHorizontalScrollMetrics(w, state);
 
         for (short i = 0; i < state->itemCount; i++) {
             Boolean selected = state->items[i].selected;
@@ -1983,7 +2075,7 @@ void FolderWindow_Draw(WindowPtr w) {
             iconHandle.selected = selected;
             iconHandle.italicLabel = state->items[i].isAlias;
 
-            int localX = state->items[i].position.h;
+            int localX = state->items[i].position.h - state->scrollOffsetH;
             int localY = state->items[i].position.v - state->scrollOffset * kFWGridPitchV;
 
             /* Draw icon with label using window-local coordinates */
@@ -1992,7 +2084,7 @@ void FolderWindow_Draw(WindowPtr w) {
                               localY,        /* top Y (local) */
                               selected);
         }
-        FolderWindow_DrawIconScrollbars(w, state);
+        FolderWindow_DrawIconScrollbars(w, state, &hMetrics);
     }
 
     /* Draw the disk summary below the title bar.
@@ -3278,6 +3370,7 @@ void FolderWindow_SortAndArrange(WindowPtr w, short sortType) {
     /* Store the view mode and reset scroll */
     state->viewMode = sortType;
     state->scrollOffset = 0;
+    state->scrollOffsetH = 0;
 
     /* The selection needs no saving across the sort: the flag rides in
      * FolderItem and the anchor is a FileID, so both move with the files. */
@@ -3453,6 +3546,7 @@ void CleanupFolderWindow(WindowPtr w) {
             gFolderWindows[i].state.anchorID = 0;
             gFolderWindows[i].state.viewMode = kViewByIcon;
             gFolderWindows[i].state.scrollOffset = 0;
+            gFolderWindows[i].state.scrollOffsetH = 0;
             gFolderWindows[i].state.typeAheadLen = 0;
             return;
         }
