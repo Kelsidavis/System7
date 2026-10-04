@@ -1265,8 +1265,9 @@ UInt32 DateTime_Current(void)
         return DateTime_FromUnix((time_t)unix_time);
     }
 #endif
-    time_t now = time(NULL);
-    return DateTime_FromUnix(now);
+    /* No wall clock is available on this platform. Avoid time(), which uses
+     * GetDateTime() and would recurse back into this function. */
+    return 0;
 }
 
 UInt32 DateTime_FromUnix(time_t unixTime)

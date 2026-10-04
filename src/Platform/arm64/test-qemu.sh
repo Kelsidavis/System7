@@ -24,11 +24,19 @@ if [[ "$qemu_status" -ne 0 && "$qemu_status" -ne 124 ]]; then
     exit "$qemu_status"
 fi
 
-if ! grep -Fq '[VFS] HFS_CreateBlankVolume' "$log_file"; then
-    echo "ARM64 kernel did not reach boot-volume creation within 15 seconds" >&2
+for marker in \
+    '[VFS] HFS_VolumeMountMemory' \
+    'Finder initialized' \
+    'MAIN: Entering event loop'; do
+    if ! grep -Fq "$marker" "$log_file"; then
+        echo "ARM64 kernel did not reach '$marker' within 15 seconds" >&2
+        exit 1
+    fi
+done
+
+if grep -Fq 'CPU EXCEPTION' "$log_file"; then
+    echo "ARM64 kernel took a CPU exception during boot" >&2
     exit 1
 fi
 
-if [[ "$qemu_status" -eq 124 ]]; then
-    echo "ARM64 kernel reached boot-volume creation and remained running until the timeout."
-fi
+echo "ARM64 QEMU boot reached the event loop without a CPU exception."

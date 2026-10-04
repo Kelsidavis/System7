@@ -21,9 +21,9 @@ make -C src/Platform/arm64
 src/Platform/arm64/test-qemu.sh
 ```
 
-The script captures the complete serial log and succeeds only after the kernel
-reaches boot-volume creation. It is an early-boot check, not a full boot test;
-the current boot-volume stall is documented in `docs/KNOWN_ISSUES.md`.
+The script captures the serial log and succeeds only after the kernel mounts
+the boot volume, initializes Finder, and enters the event loop. QEMU remains
+running there until the test timeout terminates it.
 
 Or run the kernel interactively:
 
@@ -37,9 +37,9 @@ qemu-system-aarch64 \
   -display none
 ```
 
-The current smoke test reaches the welcome screen, then stops at
-`HFS_CreateBlankVolume` while creating the boot volume. It does not reach
-desktop setup; see `docs/KNOWN_ISSUES.md` for the current status.
+The headless QEMU configuration has no GPU, storage device, or wall clock. The
+kernel continues without the first two; without a platform RTC, date/time
+queries return the Mac epoch until `SetDateTime` is called.
 
 ## Runtime layout
 

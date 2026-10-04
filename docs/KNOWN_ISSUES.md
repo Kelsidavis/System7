@@ -8,15 +8,15 @@ This inventory retains detailed incident notes for historical context. A ✅
 heading is a resolved report, not an open task; unmarked or warning-marked
 entries describe current limitations and should be revalidated before work.
 
-### ⚠️ ARM64 boot stops while creating the boot volume
+### ✅ ARM64 boot-volume creation recursed through the clock fallback — FIXED
 
-`make PLATFORM=arm64` builds and links (CI builds it), and under QEMU's `virt`
-machine the kernel starts, sets up its zones and the desktop pattern, then
-stops in `HFS_CreateBlankVolume` and goes no further. A bounded headless QEMU
-boot with no attached virtio block or GPU device reproduced the stall; its root
-cause remains unknown.
-
-**Files**: src/FS/ (HFS volume creation), src/Platform/arm64/.
+On platforms without the x86 RTC, `DateTime_Current()` called `time()`, while
+the freestanding `time()` implementation called `GetDateTime()` and returned
+to `DateTime_Current()`. The resulting recursion exhausted the stack during
+`HFS_CreateBlankVolume`. The non-x86 fallback now reports the Mac epoch until
+`SetDateTime()` supplies a value. A headless QEMU `virt` boot now mounts the
+boot volume, initializes Finder, and reaches the event loop; the runtime smoke
+test checks those milestones.
 
 ### ⚠️ Balloon Help, alarms, and Find's reach
 
@@ -903,7 +903,7 @@ Implemented proper region-based erasing for Direct Framebuffer:
 Several features are noted as incomplete:
 
 - **Color QuickDraw**: `Platform_HasColorQuickDraw()` returns false (`src/Platform/WindowPlatform.c`)
-- **ARM64 Port**: builds and starts under QEMU `virt`, but stops while creating the boot volume (above)
+- **ARM64 clock**: targets without an RTC report the Mac epoch until `SetDateTime()` is called.
 - **Finder File > Print and Sharing**: Both handlers are no-ops; neither
   printing nor sharing settings are implemented.
 - **Graphics modes**: x86 requests a fixed VESA 800x600x32 framebuffer; no alternative modes can be selected.

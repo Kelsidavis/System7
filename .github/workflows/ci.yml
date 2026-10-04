@@ -236,6 +236,7 @@ jobs:
           sudo apt-get install -y \
             build-essential \
             gcc-aarch64-linux-gnu \
+            qemu-system-arm \
             python3 \
             vim-common
 
@@ -253,6 +254,9 @@ jobs:
 
       - name: Check shadowed definitions
         run: python3 scripts/find-shadowed-defs.py --platform arm64 --obj-dir build/obj/arm64
+
+      - name: Test headless QEMU boot
+        run: src/Platform/arm64/test-qemu.sh
 
   test-stdlib:
     name: C Library Differential Test

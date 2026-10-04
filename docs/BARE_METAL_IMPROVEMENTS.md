@@ -10,7 +10,7 @@ that device works.
 | Target | Verified here | Remaining limits |
 |--------|---------------|------------------|
 | x86 | CI builds the kernel and boots the ISO in QEMU under BIOS and UEFI. The project README records a physical UEFI ThinkPad test. | The physical test covers one machine, not a compatibility matrix; storage and peripherals vary by hardware. |
-| ARM64 | CI builds and runs static analysis. | Runtime startup stops during boot-volume creation; see [Known Issues](KNOWN_ISSUES.md). |
+| ARM64 | CI builds, runs static analysis, and checks a headless QEMU boot through the event loop. | Physical hardware boot is unverified; systems without an RTC report the Mac epoch until `SetDateTime`. |
 | 32-bit ARM | CI builds and runs static analysis. | No hardware boot is currently recorded in CI. |
 | PowerPC | An experimental Open Firmware-oriented target exists. | No current CI build or verified boot path. |
 
