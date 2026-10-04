@@ -1,8 +1,5 @@
 /*
- * ARM Input Stubs
- * Provides minimal implementations of the PS/2 input API so that
- * shared event manager code can build on platforms that rely on USB HID.
- * TODO: Plumb these through to the real USB HID stack once it is ready.
+ * Shared PS/2-compatible input stubs for ARM32 and PowerPC backends.
  */
 
 #include <stdint.h>
@@ -11,10 +8,9 @@
 #include "EventManager/EventTypes.h"
 #include "EventManager/EventGlobals.h"
 #include "Platform/PS2Input.h"
-#include "QuickDraw/QuickDraw.h"
 
-/* Shared state expected by ModernInput.c */
 Point g_mousePos = { 400, 300 };
+
 struct {
     int16_t x;
     int16_t y;
@@ -22,13 +18,13 @@ struct {
     uint8_t packet[3];
     uint8_t packet_index;
 } g_mouseState = {0};
+
 static Boolean g_input_initialized = false;
 
 int event_post_key(uint8_t keycode, uint8_t modifiers, int key_down);
 int event_post_mouse(int16_t x_delta, int16_t y_delta, uint8_t buttons);
 
 Boolean InitPS2Controller(void) {
-    /* ARM platforms use USB HID for input; return success for now. */
     g_mouseState.x = g_mousePos.h;
     g_mouseState.y = g_mousePos.v;
     g_mouseState.buttons = 0;
@@ -39,7 +35,6 @@ Boolean InitPS2Controller(void) {
 }
 
 void PollPS2Input(void) {
-    /* USB HID pipeline will update the globals directly in the future. */
 }
 
 void GetMouse(Point* mouseLoc) {
@@ -76,16 +71,16 @@ UInt8 GetMouseButtons(void) {
     return g_mouseState.buttons;
 }
 
+UInt8 GetMouseButtonsLatched(void) {
+    return g_mouseState.buttons;
+}
+
 Boolean PS2_IsInitialized(void) {
     return g_input_initialized;
 }
 
 Boolean PS2_IsIRQDriven(void) {
     return false;
-}
-
-UInt8 GetMouseButtonsLatched(void) {
-    return g_mouseState.buttons;
 }
 
 Boolean PS2_DequeueKeyTransition(UInt8* macCode, Boolean* isPressed) {
