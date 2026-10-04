@@ -53,7 +53,7 @@ make LOCALE_ALL=1
 make LOCALE_FR=1
 
 # Build, boot and collect integration-test results
-python3 tests/run_integration_tests.py
+make test-integration
 
 # Run in QEMU
 make run

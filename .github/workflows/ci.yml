@@ -397,3 +397,38 @@ jobs:
         with:
           name: boot-serial-logs
           path: "*-serial.log"
+
+  test-integration:
+    name: Kernel Integration Tests
+    runs-on: ubuntu-24.04
+    needs: cadence
+    if: needs.cadence.outputs.run_ci == 'true'
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            build-essential \
+            gcc-multilib \
+            grub-pc-bin \
+            grub-efi-amd64-bin \
+            mtools \
+            xorriso \
+            python3 \
+            qemu-system-x86 \
+            vim-common
+
+      - name: Build and run kernel integration tests
+        run: make test-integration
+
+      - name: Upload integration test report
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: kernel-integration-results
+          path: build/integration-results.xml
+          if-no-files-found: ignore

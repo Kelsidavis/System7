@@ -998,6 +998,10 @@ test-stdlib:
 test-integration-runner:
 	@PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s tests -p 'test_integration_runner.py'
 
+.PHONY: test-integration
+test-integration:
+	@python3 tests/run_integration_tests.py --output build/integration-results.xml
+
 # Run the local x86 quality gate used before feature work: strict build,
 # dead-code and duplicate-definition checks, allocator policy, differential
 # libc tests, and required export checks.
@@ -1071,6 +1075,7 @@ help: ## Show this help message
 	@echo "  check-malloc     Reject direct host allocator use in kernel code"
 	@echo "  check-shadowed-defs Run dead-code and duplicate-definition checks"
 	@echo "  check-exports    Validate exported symbol surface"
+	@echo "  test-integration Build, boot, and run guest integration tests"
 	@echo "  info             Show build statistics"
 	@echo "  help             Show this help message"
 	@echo "  import-icons ICON_DIR=...   Generate C icon resources from PNGs"

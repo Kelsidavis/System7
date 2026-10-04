@@ -17,7 +17,7 @@ make info         # Show build statistics
 qemu-system-i386 -cdrom system71.iso -m 1024 -vga std \
     -device qemu-xhci,id=xhci -device usb-tablet,bus=xhci.0 \
     -serial file:/tmp/serial.log
-make INTEGRATION_TESTS=1 iso   # integration tests run at boot
+make test-integration        # build, boot, and collect integration-test results
 ```
 
 ## Languages
