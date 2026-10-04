@@ -1004,6 +1004,13 @@ check-shadowed-defs: all
 check-doc-links:
 	@python3 scripts/check_markdown_links.py
 
+# Compile each public header alone to catch missing dependencies and C++-invalid declarations.
+.PHONY: check-headers
+HOST_CC ?= cc
+HOST_CXX ?= c++
+check-headers:
+	@HOST_CC="$(HOST_CC)" HOST_CXX="$(HOST_CXX)" python3 scripts/check_public_headers.py
+
 .PHONY: test-doc-links
 test-doc-links:
 	@PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s tests -p 'test_markdown_links.py'
@@ -1042,7 +1049,7 @@ test-integration:
 # references, differential libc tests, and required export checks.
 .PHONY: check
 check: all check-x86-layout check-malloc check-shadowed-defs check-doc-links \
-	test-doc-links check-python-style check-shell-syntax test-stdlib \
+	check-headers test-doc-links check-python-style check-shell-syntax test-stdlib \
 	test-integration-runner check-exports
 
 # GCC's path-sensitive static analyzer adds ownership, bounds, and null-path
@@ -1111,6 +1118,7 @@ help: ## Show this help message
 	@echo "  check-malloc     Reject direct host allocator use in kernel code"
 	@echo "  check-shadowed-defs Run dead-code and duplicate-definition checks"
 	@echo "  check-doc-links  Reject broken Markdown links and repository paths"
+	@echo "  check-headers    Compile public headers standalone as C and C++"
 	@echo "  test-doc-links   Test the Markdown reference checker"
 	@echo "  check-python-style Run Python lint and formatting checks"
 	@echo "  check-shell-syntax Parse shell scripts with Bash"
