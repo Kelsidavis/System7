@@ -28,6 +28,7 @@ static UInt16 GetModifiers(void);
 static Boolean DequeueEvent(EventMask mask, EventRecord* evt);
 static Boolean FindQueuedEvent(EventMask mask, EventRecord* evt);
 static void NullEventNow(EventRecord* evt);
+static void PumpInputEvents(void);
 static Boolean CheckSystemEvents(EventMask mask, EventRecord* evt);
 
 /* Copy fields directly so queue rotation remains defined when a full ring's
@@ -38,6 +39,11 @@ static void CopyEventRecord(EventRecord* dest, const EventRecord* src) {
     dest->when = src->when;
     dest->where = src->where;
     dest->modifiers = src->modifiers;
+}
+
+/* The event queue has no input thread; event-query calls pump hardware. */
+static void PumpInputEvents(void) {
+    ProcessModernInput();
 }
 
 /*
@@ -76,7 +82,7 @@ Boolean Proc_GetNextEvent(EventMask mask, EventRecord* evt) {
      * stayed gone until the alert was dismissed. */
     {
         extern void UpdateCursorDisplay(void);
-        ProcessModernInput();
+        PumpInputEvents();
         UpdateCursorDisplay();
     }
 
@@ -118,7 +124,7 @@ static void NullEventNow(EventRecord* evt) {
  */
 Boolean GetOSEvent(SInt16 mask, EventRecord* evt) {
     if (!evt) return false;
-    ProcessModernInput();
+    PumpInputEvents();
     if (DequeueEvent((EventMask)(UInt16)mask, evt)) {
         Proc_UnblockEvent(evt);
         return true;
@@ -129,6 +135,7 @@ Boolean GetOSEvent(SInt16 mask, EventRecord* evt) {
 
 Boolean OSEventAvail(SInt16 mask, EventRecord* evt) {
     if (!evt) return false;
+    PumpInputEvents();
     if (FindQueuedEvent((EventMask)(UInt16)mask, evt)) {
         return true;
     }
@@ -164,6 +171,7 @@ static Boolean FindQueuedEvent(EventMask mask, EventRecord* evt) {
  */
 Boolean Proc_EventAvail(EventMask mask, EventRecord* evt) {
     if (!evt) return false;
+    PumpInputEvents();
 
     if (FindQueuedEvent(mask, evt)) {
         return true;

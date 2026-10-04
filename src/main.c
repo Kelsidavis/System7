@@ -1675,10 +1675,6 @@ void kernel_main(uint32_t magic, uint32_t* mb2_info) {
             Proc_Yield();
         }
 
-        /* Poll USB HID devices (xHCI) - the x86 driver */
-#if defined(__i386__) || defined(__x86_64__)
-        xhci_poll_hid_x86();
-#endif
         /* Process modern input events (PS/2 keyboard and mouse) */
         ProcessModernInput();
 

@@ -259,7 +259,7 @@ void ProcessModernInput(void)
 
     /* USB HID devices too: only the main loop polled them, so with a USB
      * mouse every nested tracking loop saw the pointer and button frozen. */
-#if defined(__i386__)
+#if defined(__i386__) || defined(__x86_64__)
     {
         extern void xhci_poll_hid_x86(void);
         xhci_poll_hid_x86();
