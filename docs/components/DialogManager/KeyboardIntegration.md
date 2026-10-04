@@ -1,13 +1,23 @@
 # Keyboard Integration for Standard Controls & Dialog Manager
 
-Complete System 7-style keyboard navigation and control activation for dialogs. The Dialog Manager now tracks focus, debounces events, and routes keystrokes to controls so Return/Esc/Space/Tab behave just like the classic OS.
+The Dialog Manager implements keyboard navigation and activation for standard
+dialog controls. `DM_HandleDialogKey()` handles `keyDown` and `autoKey` events
+for Return, numeric-keypad Enter, Escape, Tab, and Space. This is a partial
+implementation, not complete System 7 keyboard behavior.
 
 ## Feature Summary
 
 ### Default / Cancel Buttons
-- **Return / Enter (`\r` or `0x03`)** locates the default push button (`varCode & 1`), flashes it via `HiliteControl()`, calls its action proc, and returns the item number to the modal loop.
-- **Escape (`0x1B`)** finds the cancel button (`varCode & 2`) and performs the same sequence.
-- `DM_FindDefaultButton()` / `DM_FindCancelButton()` live in `DialogKeyboard.c` and walk the control list intelligently (skipping hidden/disabled items).
+- **Return / Enter (`\r` or `0x03`)** locates the default push button. When
+  it finds a control, it flashes it with XOR inversion, calls its action proc,
+  and returns its dialog item number to the modal loop. If lookup only finds a
+  configured item number, that item is returned without control activation.
+- **Escape (`0x1B`)** locates the cancel button and follows the same activation
+  path, including the item-number fallback.
+- `DM_FindDefaultButton()` / `DM_FindCancelButton()` first scan controls for
+  their `ButtonData` default/cancel flags, then fall back to the corresponding
+  item number in the dialog record. This lookup does not use the focus
+  traversal filter.
 
 ### Focus Tracking & Tab Navigation
 - Lightweight focus table (up to 16 dialogs) stores the focused control per window.
@@ -20,7 +30,7 @@ Complete System 7-style keyboard navigation and control activation for dialogs. 
 - Checkbox toggles call `contrlAction` so hooks still fire; radio buttons leverage `HandleRadioGroup()` to maintain exclusivity.
 
 ### Debounce Guard
-- `DM_DebounceAction()` suppresses duplicate triggers when a mouse click and key press arrive within ~100 ms, avoiding double-activation glitches.
+- `DM_DebounceAction()` suppresses a mouse action immediately following a keyboard action, or vice versa, when they occur within six ticks (about 100 ms). Repeated actions of the same kind are allowed.
 
 ### Dialog Integration
 Pass `keyDown` / `autoKey` events to `DM_HandleDialogKey()` inside your modal loop:
@@ -35,8 +45,8 @@ if (evt.what == keyDown || evt.what == autoKey) {
 Modal dialogs exit automatically when default/cancel buttons activate because `itemHit` mirrors the clicked control.
 
 ## Control Manager Hooks
-- `IsDefaultButton()` / `IsCancelButton()` evaluate variant codes (`pushButProc | variant`)
-- Inactive controls bail out in `testCntl`, so both mouse and keyboard events pass through
+- `IsDefaultButton()` / `IsCancelButton()` read flags from the control's `ButtonData`.
+- `TestControl()` rejects invisible or inactive controls before invoking the control definition's `testCntl` method.
 
 ## Logging
 - All debug output uses `[CTRL]` / `[DM]` prefixes, already whitelisted in `System71StdLib.c`

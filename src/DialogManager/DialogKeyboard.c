@@ -51,7 +51,8 @@ Boolean DM_DebounceAction(SInt16 kind) {
         gLastActionTick = 0;
         gLastActionKind = 0;
     }
-    if (gLastActionKind && (now - gLastActionTick) < 6) {
+    if (gLastActionKind && gLastActionKind != kind &&
+        (now - gLastActionTick) < 6) {
         return true; /* ~100ms window, suppress */
     }
     gLastActionKind = kind;

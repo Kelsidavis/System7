@@ -26,6 +26,7 @@
 #include "DialogManager/DialogManager.h"
 #include "DialogManager/AlertDialogs.h"
 #include "DialogManager/DITLBuilder.h"
+#include "OSUtils/OSUtils.h"
 #include "EventManager/EventManager.h"
 #include "EventManager/EventManagerInternal.h"
 #include "FontManager/FontManager.h"
@@ -242,6 +243,20 @@ static void Test_Dialog_LoadMissingTemplate(void) {
     OSErr err = LoadDialogTemplate(32000, &t);
     CHECK(err == resNotFound, "a missing DLOG did not answer resNotFound");
     CHECK(t == NULL, "left a template behind for a missing resource");
+    RecordTest(test_name, true, "");
+}
+
+static void Test_Dialog_ActionDebounce(void) {
+    const char* test_name = "Dialog_ActionDebounce";
+    UInt32 finalTicks;
+
+    Delay(8, &finalTicks);
+    CHECK(!DM_DebounceAction(1), "first keyboard action was suppressed");
+    CHECK(!DM_DebounceAction(1), "repeated keyboard action was suppressed");
+    CHECK(DM_DebounceAction(2), "cross-kind action was not suppressed");
+
+    Delay(8, &finalTicks);
+    CHECK(!DM_DebounceAction(2), "action remained suppressed after debounce window");
     RecordTest(test_name, true, "");
 }
 
@@ -1693,6 +1708,7 @@ void IntegrationTests_Run(void) {
     Test_Dialog_ParseALRT();
     Test_Dialog_ParseDLOGTruncated();
     Test_Dialog_LoadMissingTemplate();
+    Test_Dialog_ActionDebounce();
 
     IT_LOG_INFO("--- Math ---");
     Test_Math_Accuracy();
