@@ -11,10 +11,8 @@
 
 #include "SystemTypes.h"
 #include "System71StdLib.h"
+#include "PackageManager/PackageDispatchInternal.h"
 #include "ListManager/ListManager.h"
-
-/* Forward declaration for Pack0 dispatcher */
-OSErr Pack0_Dispatch(short selector, void* params);
 
 /* Debug logging */
 #define PACK0_DEBUG 0

@@ -10,10 +10,8 @@
 
 #include "SystemTypes.h"
 #include "System71StdLib.h"
+#include "PackageManager/PackageDispatchInternal.h"
 #include "PackageManager/InternationalUtilities.h"
-
-/* Forward declaration for Pack6 dispatcher */
-OSErr Pack6_Dispatch(short selector, void* params);
 
 /* Debug logging */
 #define PACK6_DEBUG 0

@@ -18,14 +18,7 @@
 
 #include "SystemTypes.h"
 #include "System71StdLib.h"
-
-/* Forward declarations */
-OSErr Pack8_Dispatch(short selector, void* params);
-OSErr Pack10_Dispatch(short selector, void* params);
-OSErr Pack12_Dispatch(short selector, void* params);
-OSErr Pack13_Dispatch(short selector, void* params);
-OSErr Pack14_Dispatch(short selector, void* params);
-OSErr Pack15_Dispatch(short selector, void* params);
+#include "PackageManager/PackageDispatchInternal.h"
 
 /* Debug logging */
 #define PACK_STUBS_DEBUG 0

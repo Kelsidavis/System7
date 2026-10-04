@@ -10,24 +10,12 @@
 
 #include "SystemTypes.h"
 #include "System71StdLib.h"
+#include "PackageManager/PackageDispatchInternal.h"
 
 /* Forward declarations */
 OSErr InitPacks(void);
 OSErr InitAllPacks(void);
 OSErr CallPackage(short packID, short selector, void* params);
-
-/* Package dispatcher declarations */
-extern OSErr Pack0_Dispatch(short selector, void* params);  /* List Manager */
-extern OSErr Pack3_Dispatch(short selector, void* params);  /* Standard File */
-extern OSErr Pack4_Dispatch(short selector, void* params);  /* SANE (Floating Point Math) */
-extern OSErr Pack6_Dispatch(short selector, void* params);  /* International Utilities */
-extern OSErr Pack7_Dispatch(short selector, void* params);  /* Binary/Decimal Conversion */
-extern OSErr Pack8_Dispatch(short selector, void* params);  /* Apple Events (stub) */
-extern OSErr Pack10_Dispatch(short selector, void* params); /* Edition Manager (stub) */
-extern OSErr Pack12_Dispatch(short selector, void* params); /* Dictionary Manager (stub) */
-extern OSErr Pack13_Dispatch(short selector, void* params); /* PPC Toolbox (stub) */
-extern OSErr Pack14_Dispatch(short selector, void* params); /* Help Manager (stub) */
-extern OSErr Pack15_Dispatch(short selector, void* params); /* Picture Utilities (stub) */
 
 /* Debug logging */
 #define PKG_MGR_DEBUG 0

@@ -11,10 +11,8 @@
 
 #include "SystemTypes.h"
 #include "System71StdLib.h"
+#include "PackageManager/PackageDispatchInternal.h"
 #include <math.h>
-
-/* Forward declaration for Pack4 dispatcher */
-OSErr Pack4_Dispatch(short selector, void* params);
 
 /* Debug logging */
 #define PACK4_DEBUG 0

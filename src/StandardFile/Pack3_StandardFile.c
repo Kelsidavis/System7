@@ -11,10 +11,8 @@
 
 #include "SystemTypes.h"
 #include "System71StdLib.h"
+#include "PackageManager/PackageDispatchInternal.h"
 #include "StandardFile/StandardFile.h"
-
-/* Forward declaration for Pack3 dispatcher */
-OSErr Pack3_Dispatch(short selector, void* params);
 
 /* Debug logging */
 #define PACK3_DEBUG 0

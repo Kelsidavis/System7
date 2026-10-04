@@ -10,13 +10,8 @@
 
 #include "SystemTypes.h"
 #include "System71StdLib.h"
-
-/* Forward declarations for conversion functions */
-extern void NumToString(SInt32 theNum, char *theString);
-extern void StringToNum(const char *theString, SInt32 *theNum);
-
-/* Forward declaration for Pack7 dispatcher */
-OSErr Pack7_Dispatch(short selector, void* params);
+#include "PackageManager/BinaryDecimal.h"
+#include "PackageManager/PackageDispatchInternal.h"
 
 /* Debug logging */
 #define PACK7_DEBUG 0

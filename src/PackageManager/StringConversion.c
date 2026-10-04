@@ -9,11 +9,8 @@
 
 #include "SystemTypes.h"
 #include "System71StdLib.h"
+#include "PackageManager/BinaryDecimal.h"
 #include <string.h>
-
-/* Forward declarations to avoid including full StringPackage.h */
-void StringToNum(const char *theString, SInt32 *theNum);
-void NumToString(SInt32 theNum, char *theString);
 
 /* Debug logging */
 #define STR_CONV_DEBUG 0
