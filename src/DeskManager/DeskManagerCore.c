@@ -38,6 +38,7 @@ static void DA_FreeInstance(DeskAccessory *da);
 static int DA_LoadFromRegistry(DeskAccessory *da, const char *name);
 static void DA_AddToList(DeskAccessory *da);
 static void DA_RemoveFromList(DeskAccessory *da);
+static GrafPtr DA_EnterPort(DeskAccessory *da);
 
 /*
  * Initialize the Desk Manager
@@ -56,9 +57,6 @@ int DeskManager_Initialize(void)
     if (DeskManager_RegisterBuiltinDAs() != 0) {
         return DESK_ERR_SYSTEM_ERROR;
     }
-
-    /* Initialize system menu */
-    SystemMenu_Update();
 
     g_deskMgrInitialized = true;
     return DESK_ERR_NONE;
@@ -80,8 +78,6 @@ void DeskManager_Shutdown(void)
         CloseDeskAcc(da->refNum);
         da = next;
     }
-
-    SystemMenu_Shutdown();
 
     g_deskMgrInitialized = false;
 }
@@ -149,9 +145,6 @@ SInt16 OpenDeskAcc(const char *name)
     /* Set as active DA */
     DA_SetActive(da);
 
-    /* Update system menu */
-    SystemMenu_AddDA(da);
-
     return da->refNum;
 }
 
@@ -176,9 +169,6 @@ void CloseDeskAcc(SInt16 refNum)
 
     /* The close callback releases driver state; the manager owns the window. */
     DA_DestroyWindow(da);
-
-    /* Remove from system menu */
-    SystemMenu_RemoveDA(da);
 
     /* Remove from DA list */
     DA_RemoveFromList(da);
@@ -339,17 +329,11 @@ void SystemMenu(SInt32 menuResult)
         return;
     }
 
-    SInt16 menuID = (menuResult >> 16) & 0xFFFF;
-    SInt16 itemID = menuResult & 0xFFFF;
-
-    /* Check if this is a DA menu selection */
-    if (menuID == 1) { /* Apple menu */
-        /* Try to open the selected DA */
-        /* Note: In real implementation, would need to map item to DA name */
-        /* For now, just route to active DA */
-        if (g_deskMgr.activeDA && g_deskMgr.activeDA->menu) {
-            g_deskMgr.activeDA->menu(g_deskMgr.activeDA, menuID, itemID);
-        }
+    SInt16 menuID = (SInt16)((UInt32)menuResult >> 16);
+    SInt16 itemID = (SInt16)((UInt32)menuResult & 0xFFFF);
+    DeskAccessory *da = g_deskMgr.activeDA;
+    if (da && menuID != 0 && menuID == da->menuID && itemID > 0) {
+        DA_SendMessage(da, DA_MSG_MENU, (void *)(intptr_t)menuID, (void *)(intptr_t)itemID);
     }
 }
 
@@ -481,7 +465,10 @@ int DA_SendMessage(DeskAccessory *da, DAMessage message,
             if (da->menu) {
                 SInt16 menuID = (SInt16)(intptr_t)param1;
                 SInt16 itemID = (SInt16)(intptr_t)param2;
-                return da->menu(da, menuID, itemID);
+                GrafPtr save = DA_EnterPort(da);
+                int result = da->menu(da, menuID, itemID);
+                SetPort(save);
+                return result;
             }
             break;
 

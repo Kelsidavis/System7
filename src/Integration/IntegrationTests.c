@@ -45,6 +45,7 @@
 #include "DeskManager/Calculator.h"
 #include "DeskManager/Chooser.h"
 #include "DeskManager/DeskAccessory.h"
+#include "MenuManager/MenuManager.h"
 #include "ProcessMgr/ProcessMgr.h"
 #include "MacTypes.h"
 #include "math.h"
@@ -1578,6 +1579,80 @@ static void Test_M68K_Heap(void) {
     RecordTest(test_name, true, "");
 }
 
+static Boolean Test_MenuHasName(MenuHandle menu, short item, const char* expected) {
+    Str255 name;
+    GetMenuItemText(menu, item, name);
+    size_t length = strlen(expected);
+    return name[0] == length && memcmp(name + 1, expected, length) == 0;
+}
+
+static void Test_MenuResourceNames(void) {
+    const char* test_name = "Menu_ResourceNames";
+    const ResType type = FOURCC('M', 'N', 't', 's');
+    MenuHandle menu = NewMenu(-30100, PSTR("Name test"));
+    CHECK(menu, "could not allocate the menu");
+    AppendMenu(menu, PSTR("Prefix;Suffix"));
+    InsertResMenu(menu, FOURCC('D', 'R', 'V', 'R'), 1);
+    Boolean nativeOK = CountMItems(menu) == 7 && Test_MenuHasName(menu, 1, "Prefix") &&
+                       Test_MenuHasName(menu, 2, "Alarm Clock") &&
+                       Test_MenuHasName(menu, 3, "Calculator") &&
+                       Test_MenuHasName(menu, 6, "Note Pad") && Test_MenuHasName(menu, 7, "Suffix");
+    for (int i = 0; i < 5; ++i) DeleteMenuItem(menu, 2);
+
+    FSSpec specs[2];
+    SetSpec(&specs[0], "ITest Menu A");
+    SetSpec(&specs[1], "ITest Menu B");
+    SInt16 refs[2] = {0};
+    SInt16 saved = CurResFile();
+    ConstStr255Param names[2][2] = {{PSTR("Zulu"), PSTR(".hidden")},
+                                  {PSTR("Alpha"), PSTR("A;B/X")}};
+    Boolean setup = true;
+    for (int file = 0; file < 2 && setup; ++file) {
+        FSpCreateResFile(&specs[file], FOURCC('I', 'T', 's', 't'), FOURCC('r', 's', 'r', 'c'), 0);
+        if (ResError() != noErr) { setup = false; break; }
+        refs[file] = FSpOpenResFile(&specs[file], 3);
+        if (refs[file] <= 0) { setup = false; break; }
+        for (int resource = 0; resource < 2 && setup; ++resource) {
+            Handle handle = NewHandle(1);
+            if (!handle) { setup = false; break; }
+            **handle = 'x';
+            AddResource(handle, type, (ResID)(100 + file * 2 + resource), names[file][resource]);
+            if (ResError() != noErr) { DisposeHandle(handle); setup = false; }
+        }
+    }
+    Boolean inserted = false;
+    Boolean appended = false;
+    Boolean literal = false;
+    if (setup) {
+        SetResLoad(false);
+        InsertResMenu(menu, type, 1);
+        inserted = CountMItems(menu) == 5 && Test_MenuHasName(menu, 1, "Prefix") &&
+                   Test_MenuHasName(menu, 2, "A;B/X") && Test_MenuHasName(menu, 3, "Alpha") &&
+                   Test_MenuHasName(menu, 4, "Zulu") && Test_MenuHasName(menu, 5, "Suffix");
+        short command = -1;
+        Style style = bold;
+        GetItemCmd(menu, 2, &command);
+        GetItemStyle(menu, 2, &style);
+        literal = command == 0 && style == normal;
+        for (int i = 0; i < 3; ++i) DeleteMenuItem(menu, 2);
+        AddResMenu(menu, type);
+        appended = CountMItems(menu) == 5 && Test_MenuHasName(menu, 2, "Suffix") &&
+                   Test_MenuHasName(menu, 3, "A;B/X") && Test_MenuHasName(menu, 4, "Alpha") &&
+                   Test_MenuHasName(menu, 5, "Zulu");
+    }
+    DisposeMenu(menu);
+    for (int file = 1; file >= 0; --file) {
+        if (refs[file] > 0) CloseResFile(refs[file]);
+        FSDelete(specs[file].name, specs[file].vRefNum);
+    }
+    UseResFile(saved);
+    CHECK(nativeOK, "native accessories were not sorted into the requested item block");
+    CHECK(setup, "could not create the resource files");
+    CHECK(inserted && appended, "resource names did not include both open files in sorted order");
+    CHECK(literal, "a resource name was interpreted as menu-command metadata");
+    RecordTest(test_name, true, NULL);
+}
+
 static void Test_Resource_CreateAndOpenResFile(void) {
     const char* test_name = "Resource_CreateAndOpenResFile";
     FSSpec spec;
@@ -2179,6 +2254,7 @@ void IntegrationTests_Run(void) {
     IT_LOG_INFO("--- Resource Manager ---");
     Test_Resource_CreateAndOpenResFile();
     Test_Resource_WriteAndReadBack();
+    Test_MenuResourceNames();
     Test_Resource_OpenMissingResFile();
 
     IT_LOG_INFO("--- Segment Loader ---");

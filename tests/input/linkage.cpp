@@ -3,6 +3,7 @@
 #include "DeskManager/KeyCaps.h"
 #include "DeskManager/DeskAccessory.h"
 #include "DeskManager/Calculator.h"
+#include "MenuManager/menu_private.h"
 
 extern "C" {
 OSErr Proc_PostEventWithModifiers(EventMask, UInt32, UInt16);
@@ -18,4 +19,6 @@ void KeyCaps_DrawKeyboard(KeyCaps*);
 SInt16 OpenDeskAcc(const char*);
 int DA_Register(const DARegistryEntry*);
 int Calculator_Initialize(Calculator*);
+const DARegistryEntry* DA_GetFirstRegisteredDA(void);
+short Menu_InsertSortedName(MenuHandle, ConstStr255Param, short, short);
 }

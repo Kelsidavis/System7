@@ -17,6 +17,9 @@ void DA_Unregister(const char *name);
 DARegistryEntry *DA_FindRegistryEntry(const char *name);
 int DA_GetRegisteredDAs(DARegistryEntry **entries, int maxEntries);
 
+/* Borrowed registry view; do not modify registrations while traversing next. */
+const DARegistryEntry *DA_GetFirstRegisteredDA(void);
+
 #ifdef __cplusplus
 }
 #endif

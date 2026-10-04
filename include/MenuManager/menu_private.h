@@ -11,6 +11,11 @@
 extern "C" {
 #endif
 
+/* Insert a literal name into the sorted [first,last] item block using bytewise
+ * Mac Roman ordering. An empty block has last == first - 1. Returns the new
+ * item index, or zero for invalid arguments or a full menu. */
+short Menu_InsertSortedName(MenuHandle menu, ConstStr255Param name, short first, short last);
+
 #define _NewMenu            0xA931
 #define _AppendMenu         0xA933
 #define _MenuSelect         0xA93D

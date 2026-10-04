@@ -417,7 +417,6 @@ C_SOURCES = src/main.c \
             src/DeskManager/DeskManagerCore.c \
             src/DeskManager/BuiltinDAs.c \
             src/DeskManager/DeskAccessory.c \
-            src/DeskManager/SystemMenu.c \
             src/DeskManager/KeyCaps.c \
             src/DeskManager/Notepad.c \
             src/DeskManager/Calculator.c \
@@ -1090,6 +1089,15 @@ test-desk:
 			-o "$$desk_test_dir/desk-manager"; \
 		"$$desk_test_dir/desk-manager"
 
+.PHONY: test-menu-names
+test-menu-names:
+	@set -eu; \
+		menu_test_dir=$$(mktemp -d); \
+		trap 'rm -f "$$menu_test_dir/resource-names"; rmdir "$$menu_test_dir"' EXIT HUP INT TERM; \
+		$(HOST_CC) $(NATIVE_TEST_FLAGS) tests/menu/resource_names.c \
+			src/MenuManager/MenuResourceNames.c -o "$$menu_test_dir/resource-names"; \
+		"$$menu_test_dir/resource-names"
+
 .PHONY: test-integration-runner
 test-integration-runner:
 	@PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s tests -p 'test_integration_runner.py'
@@ -1104,7 +1112,7 @@ test-integration:
 .PHONY: check
 check: all check-x86-layout check-malloc check-shadowed-defs check-doc-links \
 	check-headers test-headers test-doc-links check-python-style check-shell-syntax test-stdlib \
-	test-input test-desk test-integration-runner check-exports
+	test-input test-desk test-menu-names test-integration-runner check-exports
 
 # GCC's path-sensitive static analyzer adds ownership, bounds, and null-path
 # diagnostics to the standard strict builds.
@@ -1177,6 +1185,7 @@ help: ## Show this help message
 	@echo "  test-doc-links   Test the Markdown reference checker"
 	@echo "  test-input       Run native input, event-queue, and platform stub regressions"
 	@echo "  test-desk        Test desk accessory lifecycle and registry ownership"
+	@echo "  test-menu-names  Test literal resource menu insertion and ordering"
 	@echo "  check-python-style Run Python lint and formatting checks"
 	@echo "  check-shell-syntax Parse shell scripts with Bash"
 	@echo "  check-exports    Validate exported symbol surface"

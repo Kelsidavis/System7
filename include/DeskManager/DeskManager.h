@@ -108,7 +108,7 @@ Boolean SystemUpdate(WindowRecord *window, const EventRecord *event);
 void SystemTask(void);
 
 /**
- * Handle system menu selections
+ * Route a selection from the active accessory's registered menu
  * @param menuResult Menu selection result
  */
 void SystemMenu(SInt32 menuResult);
@@ -195,57 +195,6 @@ int DA_SavePreferences(const char *daName);
  */
 int DA_LoadPreferences(const char *daName);
 
-/* System Integration Functions */
-
-/**
- * Add DA to system menu (Apple menu)
- * @param da Pointer to DA
- * @return 0 on success, negative on error
- */
-int SystemMenu_AddDA(DeskAccessory *da);
-
-/**
- * Remove DA from system menu
- * @param da Pointer to DA
- */
-void SystemMenu_RemoveDA(DeskAccessory *da);
-
-/**
- * Update system menu
- */
-void SystemMenu_Update(void);
-
-/**
- * Initialize system menu
- * @return 0 on success, negative on error
- */
-int SystemMenu_Initialize(void);
-
-/**
- * Shutdown system menu
- */
-void SystemMenu_Shutdown(void);
-
-/**
- * Handle system menu selection
- * @param itemID Menu item ID
- * @return 0 on success, negative on error
- */
-int SystemMenu_HandleSelection(SInt16 itemID);
-
-/**
- * Enable or disable a system menu item
- * @param itemIndex Item index
- * @param enabled true to enable, false to disable
- */
-void SystemMenu_SetItemEnabled(short itemIndex, Boolean enabled);
-
-/**
- * Set checked state of a system menu item
- * @param itemIndex Item index
- * @param checked true to check, false to uncheck
- */
-void SystemMenu_SetItemChecked(short itemIndex, Boolean checked);
 
 
 /* Utility Functions */

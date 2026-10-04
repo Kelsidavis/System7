@@ -208,74 +208,13 @@ static OSErr SetupMenus(void)
     AppendMenu(gAppleMenu, menuStr);
     AppendMenu(gAppleMenu, PSTR("(-"));
 
-    /* Everything below the divider is the Apple Menu Items folder, which
-     * System 7 lists alphabetically - Control Panels included, rather than
-     * pinned above the desk accessories. There used to be a hardcoded "Notepad"
-     * item here too, duplicating the "Note Pad" desk accessory registered in
-     * BuiltinDAs.c, so the menu showed both. Dispatch in MenuCommands.c is by
-     * item name rather than index, so the ordering is free to change and
-     * "Note Pad" resolves through OpenDeskAcc. */
-    {
-        /* static: 20x64 plus scratch is over 1.3K, too much for the kernel
-         * stack this runs on - taking it as locals wiped the rest of the menu. */
-        static char names[20][64];
-        static char cpName[64];
-        short count = 0;
-
-        /* Control Panels: the localized strings carry a trailing '>' as a
-         * stand-in for the hierarchical triangle, which showed up literally on
-         * screen ("Control Panels>"). Strip it here rather than in 38
-         * translation files; the triangle is drawn from the submenu link set
-         * below. */
-        GetLocalizedString(menuStr, kSTRListFinderAppleMenu, kStrControlPanelsSubmenu);
-        {
-            short len = menuStr[0];
-            if (len > 0 && menuStr[len] == '>') len--;
-            if (len > 63) len = 63;
-            for (short c = 0; c < len; c++) names[count][c] = (char)menuStr[c + 1];
-            names[count][len] = '\0';
-            strncpy(cpName, names[count], 64);
-            count++;
-        }
-
-        {
-            DARegistryEntry* daEntries[16];
-            int daCount = DA_GetRegisteredDAs(daEntries, 16);
-            for (int d = 0; d < daCount && count < 20; d++) {
-                if (daEntries[d] && daEntries[d]->name[0]) {
-                    strncpy(names[count], daEntries[d]->name, 63);
-                    names[count][63] = '\0';
-                    count++;
-                }
-            }
-        }
-
-        /* Insertion sort by name */
-        for (short a = 1; a < count; a++) {
-            char key[64];
-            short b = a - 1;
-            strncpy(key, names[a], 64);
-            while (b >= 0 && strcmp(names[b], key) > 0) {
-                strncpy(names[b + 1], names[b], 64);
-                b--;
-            }
-            strncpy(names[b + 1], key, 64);
-        }
-
-        for (short n = 0; n < count; n++) {
-            unsigned char pName[64];
-            int len = 0;
-            while (names[n][len] && len < 63) { pName[len + 1] = names[n][len]; len++; }
-            pName[0] = (unsigned char)len;
-            AppendMenu(gAppleMenu, pName);
-
-            /* Link the Control Panels item to its submenu wherever it sorted.
-             * Matched against the localized string, not an English literal. */
-            if (strcmp(names[n], cpName) == 0) {
-                SetItemSubmenu(gAppleMenu, CountMenuItems(gAppleMenu), 134);
-            }
-        }
-    }
+    /* Native accessory names use the same literal insertion as application
+     * Apple menus. Control Panels sorts into that block and owns submenu 134. */
+    AddResMenu(gAppleMenu, FOURCC('D', 'R', 'V', 'R'));
+    GetLocalizedString(menuStr, kSTRListFinderAppleMenu, kStrControlPanelsSubmenu);
+    if (menuStr[0] && menuStr[menuStr[0]] == '>') --menuStr[0];
+    short controlItem = Menu_InsertSortedName(gAppleMenu, menuStr, 3, CountMItems(gAppleMenu));
+    if (controlItem) SetItemSubmenu(gAppleMenu, controlItem, 134);
 
     /* Control Panels submenu - ID 134 */
     GetLocalizedString(menuStr, kSTRListFinderMenuTitles, kStrMenuControlPanels);

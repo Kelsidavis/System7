@@ -22,8 +22,9 @@ static unsigned closes;
 static unsigned windowDisposals;
 static unsigned activations;
 static unsigned deactivations;
-static unsigned menuItems;
-static unsigned menuShutdowns;
+static unsigned menuCalls;
+static SInt16 receivedMenu;
+static SInt16 receivedItem;
 static int openMode;
 static GrafPort callerPort;
 static GrafPtr currentPort = &callerPort;
@@ -53,10 +54,6 @@ void SetPort(GrafPtr port) { currentPort = port; }
 void ShowWindow(WindowPtr window) { (void)window; }
 void SelectWindow(WindowPtr window) { (void)window; }
 void MenuBar_UpdateClock(void) {}
-void SystemMenu_Update(void) {}
-void SystemMenu_Shutdown(void) { ++menuShutdowns; menuItems = 0; }
-int SystemMenu_AddDA(DeskAccessory* da) { (void)da; ++menuItems; return 0; }
-void SystemMenu_RemoveDA(DeskAccessory* da) { (void)da; CHECK(menuItems > 0); --menuItems; }
 int DeskManager_RegisterBuiltinDAs(void) { return 0; }
 
 WindowPtr NewWindow(void* storage, const Rect* bounds, ConstStr255Param title,
@@ -132,8 +129,17 @@ static int Event(DeskAccessory* da, const DAEventInfo* event)
     return 0;
 }
 
+static int Menu(DeskAccessory* da, const DAMenuInfo* menu)
+{
+    CHECK(currentPort == (GrafPtr)da->window);
+    ++menuCalls;
+    receivedMenu = menu->menuID;
+    receivedItem = menu->itemID;
+    return 0;
+}
+
 static DAInterface interface = {.initialize = Initialize, .terminate = Terminate,
-                               .activate = Activate, .processEvent = Event};
+                               .activate = Activate, .processEvent = Event, .handleMenu = Menu};
 
 static void Register(const char* name)
 {
@@ -153,7 +159,7 @@ static void TestFailedOpens(void)
         CHECK(result == (openMode == 3 ? DESK_ERR_NO_MEMORY : -123));
         CHECK(allocations == baseline && closes == beforeCloses + 1);
         CHECK(DeskManager_GetDACount() == 0 && DA_GetActive() == NULL);
-        CHECK(currentPort == &callerPort && menuItems == 0);
+        CHECK(currentPort == &callerPort);
     }
     openMode = 0;
     failAllocation = allocationAttempts + 1;
@@ -177,6 +183,16 @@ static void TestLifecycle(void)
     CHECK(SystemEvent(&event));
     CHECK(lastLocalPoint.h == 10 && lastLocalPoint.v == 20 && lastEventTime == 0xffffffff);
     CHECK(currentPort == &callerPort);
+    unsigned beforeMenu = menuCalls;
+    SystemMenu((123L << 16) | 3);
+    CHECK(menuCalls == beforeMenu + 1 && receivedMenu == 123 && receivedItem == 3);
+    CHECK(currentPort == &callerPort);
+    SystemMenu((1L << 16) | 3);
+    SystemMenu((123L << 16));
+    SystemMenu((123L << 16) | 0xffff);
+    CHECK(menuCalls == beforeMenu + 1);
+    CHECK(DA_SendMessage(da, DA_MSG_MENU, (void*)(intptr_t)123, (void*)(intptr_t)4) == 0);
+    CHECK(menuCalls == beforeMenu + 2 && receivedItem == 4 && currentPort == &callerPort);
     SInt16 second = OpenDeskAcc("Other");
     CHECK(second > 0 && DA_GetActive()->refNum == second);
     unsigned beforeActivation = activations;
@@ -187,7 +203,7 @@ static void TestLifecycle(void)
     CloseDeskAcc(first);
     CloseDeskAcc(first);
     CHECK(windowDisposals == beforeDispose + 1 && allocations == baseline);
-    CHECK(DA_GetActive() == NULL && DeskManager_GetDACount() == 0 && menuItems == 0);
+    CHECK(DA_GetActive() == NULL && DeskManager_GetDACount() == 0);
 }
 
 static void TestReferenceRolloverAndLimits(void)
@@ -233,7 +249,7 @@ int main(void)
     CHECK(OpenDeskAcc("Test") > 0);
     CHECK(OpenDeskAcc("Other") > 0);
     DeskManager_Shutdown();
-    CHECK(menuShutdowns == 1 && DeskManager_GetDACount() == 0 && allocations == 2);
+    CHECK(DeskManager_GetDACount() == 0 && allocations == 2);
     CHECK(DeskManager_Initialize() == 0);
     CHECK(OpenDeskAcc("Test") > 0);
     DeskManager_Shutdown();

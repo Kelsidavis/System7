@@ -1,113 +1,79 @@
-/*
- * Menu resource-name menu routines
- *
- * NOTE: Most Menu Manager functions have real implementations in:
- * - MenuManagerCore.c: Menu creation, disposal, menu bar, hiliting
- * - MenuItems.c: Item manipulation, properties, counting, sizing
- * - MenuSelection.c: MenuSelect, MenuKey, MenuChoice
- *
- * This file implements AddResMenu and InsertResMenu.
- */
-#include "MenuManager/MenuManager.h"
-#include "SystemTypes.h"
+/* Resource and native accessory names share literal, sorted menu insertion. */
+#include "MenuManager/menu_private.h"
 #include "DeskManager/DeskAccessory.h"
 #include "ResourceManager.h"
 #include <string.h>
 
-/* Standard menu commands */
+static int CompareNames(ConstStr255Param left, ConstStr255Param right)
+{
+    size_t length = left[0] < right[0] ? left[0] : right[0];
+    int order = memcmp(left + 1, right + 1, length);
+    return order ? order : (int)left[0] - (int)right[0];
+}
 
-/*
- * AddResMenu - Add resource names to menu
- *
- * Enumerates resources of the specified type and adds each resource name
- * as a menu item. Commonly used for:
- * - Font menus (type 'FONT')
- * - Desk Accessory menus (type 'DRVR')
- * - Sound menus (type 'snd ')
- */
-void AddResMenu(MenuHandle theMenu, ResType theType) {
-    if (!theMenu) return;
+short Menu_InsertSortedName(MenuHandle menu, ConstStr255Param name, short first, short last)
+{
+    if (!menu || !name || !name[0]) return 0;
+    short count = CountMItems(menu);
+    if (count == INT16_MAX || first < 1 || last < first - 1 || last > count) return 0;
+    short after = (short)(first - 1);
+    Str255 existing;
+    while (after < last) {
+        GetMenuItemText(menu, (short)(after + 1), existing);
+        if (CompareNames(name, existing) < 0) break;
+        ++after;
+    }
+    /* The placeholder prevents names from being interpreted as menu commands. */
+    InsertMenuItem(menu, (ConstStr255Param)"\001x", after);
+    if (CountMItems(menu) != count + 1) return 0;
+    short inserted = (short)(after + 1);
+    SetMenuItemText(menu, inserted, name);
+    return inserted;
+}
 
-    /* Desk accessories: the ones the Desk Manager has, by name. They are
-     * built in rather than DRVR resources, so a program's Apple menu - built
-     * with AddResMenu(appleMenu, 'DRVR') like every program's - had none. */
-    if (theType == FOURCC('D','R','V','R')) {
-        DARegistryEntry* entries[32];
-        int n = DA_GetRegisteredDAs(entries, 32);
-        for (int a = 1; a < n; a++) {
-            DARegistryEntry* key = entries[a];
-            int b = a - 1;
-            while (b >= 0 && strcmp(entries[b]->name, key->name) > 0) {
-                entries[b + 1] = entries[b];
-                b--;
-            }
-            entries[b + 1] = key;
-        }
-        for (int i = 0; i < n; i++) {
-            if (!entries[i] || !entries[i]->name[0]) continue;
+static Boolean IsResourceMenuName(ConstStr255Param name)
+{
+    return name[0] && name[1] != '.' && name[1] != '%';
+}
+
+void InsertResMenu(MenuHandle menu, ResType type, short afterItem)
+{
+    if (!menu) return;
+    SetResLoad(true);
+    short count = CountMItems(menu);
+    if (count == INT16_MAX) return;
+    if (afterItem < 0 || afterItem > count) afterItem = count;
+    short first = (short)(afterItem + 1);
+    short last = afterItem;
+
+    if (type == FOURCC('D', 'R', 'V', 'R')) {
+        for (const DARegistryEntry *entry = DA_GetFirstRegisteredDA(); entry; entry = entry->next) {
             Str255 name;
-            size_t len = strlen(entries[i]->name);
-            if (len > 255) len = 255;
-            name[0] = (unsigned char)len;
-            memcpy(&name[1], entries[i]->name, len);
-            /* Appended under a placeholder and then named, so nothing in a
-             * name is read as an AppendMenu command */
-            AppendMenu(theMenu, (ConstStr255Param)"\001x");
-            SetMenuItemText(theMenu, CountMItems(theMenu), name);
+            size_t length = strlen(entry->name);
+            name[0] = (UInt8)length;
+            memcpy(name + 1, entry->name, length);
+            if (!IsResourceMenuName(name)) continue;
+            if (!Menu_InsertSortedName(menu, name, first, last)) break;
+            ++last;
         }
         return;
     }
 
-    /* Every open resource file's, not only the current one's; names that
-     * begin with a period or a percent sign are left out (IM I-353) */
-    SInt16 count = CountResources(theType);
-    for (SInt16 i = 1; i <= count; i++) {
-        Handle resHandle = GetIndResource(theType, i);
-        if (!resHandle) continue;
-        ResID resID;
-        ResType resType;
-        unsigned char name[256];
-        name[0] = 0;
-        GetResInfo(resHandle, &resID, &resType, (char*)name);
-        if (name[0] > 0 && name[1] != '.' && name[1] != '%') {
-            AppendMenu(theMenu, (ConstStr255Param)"\001x");
-            SetMenuItemText(theMenu, CountMItems(theMenu), name);
-        }
+    SInt16 resources = CountResources(type);
+    for (int index = 1; index <= resources; ++index) {
+        Handle resource = GetIndResource(type, (SInt16)index);
+        if (!resource) continue;
+        ResID id;
+        ResType resourceType;
+        Str255 name = {0};
+        GetResInfo(resource, &id, &resourceType, (char*)name);
+        if (!IsResourceMenuName(name)) continue;
+        if (!Menu_InsertSortedName(menu, name, first, last)) break;
+        ++last;
     }
 }
 
-/*
- * InsertResMenu - Insert resource names into menu
- *
- * Similar to AddResMenu but inserts resources after a specific menu item.
- * Allows building menus with resources placed at specific positions.
- */
-void InsertResMenu(MenuHandle theMenu, ResType theType, short afterItem) {
-    if (!theMenu) return;
-
-    /* Count resources of specified type */
-    SInt16 count = Count1Resources(theType);
-    if (count <= 0) {
-        return; /* No resources of this type */
-    }
-
-    /* Insert each resource name after the specified item */
-    short insertAfter = afterItem;
-    for (SInt16 i = 1; i <= count; i++) {
-        Handle resHandle = Get1IndResource(theType, i);
-        if (resHandle) {
-            ResID resID;
-            ResType resType;
-            unsigned char name[256];
-
-            /* Get resource name */
-            GetResInfo(resHandle, &resID, &resType, (char*)name);
-
-            /* Only insert if resource has a name */
-            if (name[0] > 0) {
-                InsertMenuItem(theMenu, name, insertAfter);
-                insertAfter++; /* Next item goes after this one */
-            }
-        }
-    }
+void AddResMenu(MenuHandle menu, ResType type)
+{
+    if (menu) InsertResMenu(menu, type, CountMItems(menu));
 }

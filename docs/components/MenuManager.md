@@ -33,6 +33,7 @@ Recreates the System 7 menu bar and pull-down menu experience, from resource loa
 - Use `make run` and interact with the Finder or SimpleText to exercise menu tracking; verify highlights and Command-key shortcuts
 - Menu logs use the `[MENU]` tag; include `System71StdLib.h` and call `SysLogSetModuleLevel(kLogModuleMenu, kLogLevelDebug)` to enable debug-level output
 - `make check-exports` confirms exported menu traps remain aligned with `docs/symbols_allowlist.txt`
+- `make test-menu-names` checks literal names, sorted insertion blocks, prefix filtering, full-menu handling, and native DA lists beyond 32 entries. Finder and application resource menus share this insertion path; the guest suite checks names from two simultaneously open resource files. Ordering is bytewise Mac Roman, not international script collation. Both routines search all open resource files, as specified by Apple's [AppendResMenu](https://dev.os9.ca/techpubs/mac/Toolbox/Toolbox-147.html) and [InsertResMenu](https://dev.os9.ca/techpubs/mac/Toolbox/Toolbox-148.html) references.
 - Edge cases: nested hierarchical menus, disabled items mid-track, SaveBits/RestoreBits correctness when overlapping windows
 
 ## Future Work

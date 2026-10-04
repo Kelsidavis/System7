@@ -52,6 +52,7 @@ make analyze-arm64   # ARM64 build with GCC's static analyzer
 make check-arm64     # ARM64 build and segment-permission checks
 make test-input      # native input polling, event queue, platform stubs, and C++ linkage
 make test-desk       # native DA registry, failed opens, window ownership, and reference rollover
+make test-menu-names # literal resource menu insertion, ordering, and capacity handling
 make test-headers    # strict public-header checker and portable layout assertion regressions
 make test-integration # build the ISO, boot it in QEMU, and collect test results
 ```

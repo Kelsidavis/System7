@@ -28,7 +28,6 @@
 #include "ControlPanels/Keyboard.h"
 #include "ControlPanels/ControlStrip.h"
 #include "Datetime/datetime_cdev.h"
-#include "DeskManager/Notepad.h"
 #include "DeskManager/DeskManager.h"
 #include "DialogManager/DialogManager.h"
 #include "LocaleManager/LocaleManager.h"
@@ -54,10 +53,6 @@ static void perform_power_off(void);
 #define kLabelMenuID    132
 #define kSpecialMenuID  133
 #define kHelpMenuIDLocal ((short)0xBF96)  /* Help menu "?" = -16490 */
-
-/* Apple Menu Items */
-#define kAboutItem      1
-#define kDeskAccItem    2  /* Desk accessories start here */
 
 /* File Menu Items - Finder specific (System 7.1) */
 #define kNewFolderItem  1
@@ -421,20 +416,11 @@ static void HandleAppleMenu(short item)
         return;
     }
 
-    if (strcmp(itemName, "Notepad") == 0) {
-        MENU_LOG_DEBUG("Apple Menu > Notepad\n");
-        WindowPtr notepadWin;
-        Notepad_Open(&notepadWin);
-        return;
-    }
-
     if (strcmp(itemName, "-") == 0) {
         return;
     }
 
-    /* Try to open as a desk accessory via OpenDeskAcc.
-     * This handles Calculator, Key Caps, Alarm Clock, and any
-    * other DAs registered with the Desk Manager. */
+    /* Desk accessories resolve through the native registry by item name. */
     {
         SInt16 refNum = OpenDeskAcc(itemName);
         if (refNum >= 0) {

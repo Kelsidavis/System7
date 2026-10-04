@@ -174,6 +174,11 @@ int DA_GetRegisteredDAs(DARegistryEntry **entries, int maxEntries)
     return count;
 }
 
+const DARegistryEntry *DA_GetFirstRegisteredDA(void)
+{
+    return g_daRegistry;
+}
+
 /* Internal Functions */
 
 /*
