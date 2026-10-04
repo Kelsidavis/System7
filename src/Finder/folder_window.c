@@ -31,6 +31,7 @@
 #include "FS/vfs.h"
 #include "FS/trash.h"
 #include "FS/hfs_types.h"
+#include "OSUtils/OSUtils.h"
 #include "System71StdLib.h"
 #include "Finder/FinderLogging.h"
 #include "DialogManager/DITLBuilder.h"
@@ -1380,30 +1381,9 @@ static void FormatMacDateShort(uint32_t macTime, char* out, int outSize) {
         return;
     }
 
-    uint32_t totalDays = macTime / 86400;
-
-    /* Calculate year from days since 1904-01-01 */
-    short year = 1904;
-    while (1) {
-        short diy = 365;
-        if ((year % 4 == 0 && year % 100 != 0) || year % 400 == 0) diy = 366;
-        if (totalDays < (uint32_t)diy) break;
-        totalDays -= diy;
-        year++;
-    }
-
-    static const short dim[] = {31,28,31,30,31,30,31,31,30,31,30,31};
-    short month = 0;
-    for (month = 0; month < 12; month++) {
-        short d = dim[month];
-        if (month == 1 && ((year % 4 == 0 && year % 100 != 0) || year % 400 == 0))
-            d = 29;
-        if (totalDays < (uint32_t)d) break;
-        totalDays -= d;
-    }
-    short day = (short)totalDays + 1;
-
-    snprintf(out, outSize, "%d/%d/%02d", month + 1, day, year % 100);
+    DateTimeRec date;
+    Secs2Date(macTime, &date);
+    snprintf(out, outSize, "%d/%d/%02d", date.month, date.day, date.year % 100);
 }
 
 /*

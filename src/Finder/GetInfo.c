@@ -16,6 +16,7 @@
 #include "FS/hfs_types.h"
 #include "Finder/FinderLogging.h"
 #include "Finder/GetInfo.h"
+#include "OSUtils/OSUtils.h"
 #include "EventManager/EventManager.h"
 #include "LocaleManager/StringIDs.h"
 
@@ -41,7 +42,7 @@ static void FormatFileSize(uint32_t bytes, char* out, size_t outSize) {
 
 /*
  * FormatMacDate - Format a Mac OS date (seconds since Jan 1, 1904) as a
- * human-readable string matching classic Finder style: "Mon, Jan 1, 1904, 12:00 AM"
+ * human-readable string matching classic Finder style: "Jan 1, 1904, 12:00 AM"
  */
 static void FormatMacDate(uint32_t macTime, char* out, size_t outSize) {
     if (macTime == 0) {
@@ -49,47 +50,21 @@ static void FormatMacDate(uint32_t macTime, char* out, size_t outSize) {
         return;
     }
 
-    /* Mac epoch is Jan 1, 1904. Convert to year/month/day manually. */
-    uint32_t secs = macTime;
-
-    /* Extract time of day */
-    uint32_t secsInDay = secs % 86400;
-    uint32_t totalDays = secs / 86400;
-    short hour = secsInDay / 3600;
-    short minute = (secsInDay % 3600) / 60;
+    DateTimeRec date;
+    Secs2Date(macTime, &date);
 
     /* AM/PM */
-    const char* ampm = (hour < 12) ? "AM" : "PM";
-    short hour12 = hour % 12;
+    const char* ampm = (date.hour < 12) ? "AM" : "PM";
+    short hour12 = date.hour % 12;
     if (hour12 == 0) hour12 = 12;
 
-    /* Calculate year/month/day from days since 1904-01-01 */
-    short year = 1904;
-    while (1) {
-        short daysInYear = 365;
-        if ((year % 4 == 0 && year % 100 != 0) || year % 400 == 0)
-            daysInYear = 366;
-        if (totalDays < (uint32_t)daysInYear) break;
-        totalDays -= daysInYear;
-        year++;
-    }
-
-    static const short daysInMonth[] = {31,28,31,30,31,30,31,31,30,31,30,31};
     static const char* monthNames[] = {
         "Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"
     };
-    short month = 0;
-    for (month = 0; month < 12; month++) {
-        short dim = daysInMonth[month];
-        if (month == 1 && ((year % 4 == 0 && year % 100 != 0) || year % 400 == 0))
-            dim = 29;
-        if (totalDays < (uint32_t)dim) break;
-        totalDays -= dim;
-    }
-    short day = totalDays + 1;
 
     snprintf(out, outSize, "%s %d, %d, %d:%02d %s",
-             monthNames[month], day, year, hour12, minute, ampm);
+             monthNames[date.month - 1], date.day, date.year, hour12,
+             date.minute, ampm);
 }
 
 /*
