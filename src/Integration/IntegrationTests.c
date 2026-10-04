@@ -1874,6 +1874,29 @@ static void Test_TextEditGetStyle(void) {
                        pastedFirst.tsFace == bold && pastedLast.tsFace == italic;
         TEDispose(pasted);
     }
+
+    TEHandle edited = TEStyleNew(&rect, &rect);
+    Boolean editRunsOK = false;
+    if (edited) {
+        TESetText(text, 4, edited);
+        TextStyle editedStyle = {0};
+        editedStyle.tsFace = bold;
+        TESetSelect(1, 2, edited);
+        TESetStyle(doFace, &editedStyle, false, edited);
+        TESetSelect(2, 2, edited);
+        TEInsert("X", 1, edited);
+        TextStyle runStyles[5] = {{0}};
+        for (SInt32 i = 0; i < 5; i++) {
+            TEGetStyle(i, &runStyles[i], NULL, NULL, edited);
+        }
+        editRunsOK = (**edited).teLength == 5 &&
+                     runStyles[0].tsFace == normal &&
+                     runStyles[1].tsFace == bold &&
+                     runStyles[2].tsFace == bold &&
+                     runStyles[3].tsFace == normal &&
+                     runStyles[4].tsFace == normal;
+        TEDispose(edited);
+    }
     DisposeHandle((Handle)scrap);
     TEDispose(hTE);
 
@@ -1891,6 +1914,8 @@ static void Test_TextEditGetStyle(void) {
           "TEStyleInsert did not preserve pasted run style or caret");
     CHECK(stylePasteOK,
           "TEStylePaste did not round-trip classic styled scrap");
+    CHECK(editRunsOK,
+          "Text insertion did not preserve and shift adjacent style runs");
     RecordTest(test_name, true, "");
 }
 

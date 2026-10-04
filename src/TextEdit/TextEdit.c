@@ -797,6 +797,140 @@ void TEDelete(TEHandle hTE) {
     TEReplaceSel("", 0, hTE);
 }
 
+static Boolean TE_PrepareStyleRunsForReplace(TEExtPtr pTE, SInt32 start,
+                                             SInt32 end, SInt32 insertLength,
+                                             Handle *newRunsOut,
+                                             SInt16 *newRunCountOut) {
+    STRec *styleRec;
+    TERunArray *oldRuns;
+    TEStyleTable *styleTable;
+    Handle oldRunHandle;
+    Handle newRunHandle;
+    SInt16 oldRunCount;
+    SInt16 insertedStyle = 0;
+    SInt16 newRunCount = 0;
+    SInt32 delta = insertLength - (end - start);
+
+    *newRunsOut = NULL;
+    *newRunCountOut = 0;
+    if (!pTE->hStyles) return true;
+
+    HLock(pTE->hStyles);
+    styleRec = (STRec *)HandleDataAligned(pTE->hStyles);
+    if (!styleRec || !styleRec->runArray || !styleRec->styleTab ||
+        styleRec->nRuns <= 0) {
+        HUnlock(pTE->hStyles);
+        return false;
+    }
+    oldRunHandle = styleRec->runArray;
+    oldRunCount = styleRec->nRuns;
+    HLock(oldRunHandle);
+    HLock(styleRec->styleTab);
+    oldRuns = (TERunArray *)HandleDataAligned(oldRunHandle);
+    styleTable = (TEStyleTable *)HandleDataAligned(styleRec->styleTab);
+    if (!oldRuns || !styleTable || oldRuns->nRuns != oldRunCount ||
+        styleTable->nStyles <= 0 || oldRuns->runs[0].startChar != 0 ||
+        GetHandleSize(oldRunHandle) <
+            sizeof(SInt16) + (u32)oldRunCount * sizeof(StyleRun) ||
+        GetHandleSize(styleRec->styleTab) <
+            sizeof(SInt16) + (u32)styleTable->nStyles * sizeof(TextStyle)) {
+        HUnlock(styleRec->styleTab);
+        HUnlock(oldRunHandle);
+        HUnlock(pTE->hStyles);
+        return false;
+    }
+
+    for (SInt16 i = 0; i < oldRunCount; i++) {
+        SInt32 runStart = oldRuns->runs[i].startChar;
+        SInt16 styleIndex = oldRuns->runs[i].styleIndex;
+        if (styleIndex < 0 || styleIndex >= styleTable->nStyles) {
+            HUnlock(styleRec->styleTab);
+            HUnlock(oldRunHandle);
+            HUnlock(pTE->hStyles);
+            return false;
+        }
+        if ((start < end && runStart <= start) ||
+            (start == end && runStart < start) || (start == 0 && i == 0)) {
+            insertedStyle = styleIndex;
+        }
+    }
+
+    newRunHandle = NewHandleClear(sizeof(SInt16) +
+                                  (u32)(oldRunCount + 1) * sizeof(StyleRun));
+    if (!newRunHandle) {
+        HUnlock(styleRec->styleTab);
+        HUnlock(oldRunHandle);
+        HUnlock(pTE->hStyles);
+        return false;
+    }
+    HLock(newRunHandle);
+    TERunArray *newRuns = (TERunArray *)HandleDataAligned(newRunHandle);
+    if (!newRuns) {
+        HUnlock(newRunHandle);
+        DisposeHandle(newRunHandle);
+        HUnlock(styleRec->styleTab);
+        HUnlock(oldRunHandle);
+        HUnlock(pTE->hStyles);
+        return false;
+    }
+
+    for (SInt16 i = 0; i < oldRunCount; i++) {
+        StyleRun run = oldRuns->runs[i];
+        if (run.startChar >= start) break;
+        if (newRunCount == 0 ||
+            newRuns->runs[newRunCount - 1].styleIndex != run.styleIndex) {
+            newRuns->runs[newRunCount++] = run;
+        }
+    }
+    if (insertLength > 0 &&
+        (newRunCount == 0 ||
+         newRuns->runs[newRunCount - 1].styleIndex != insertedStyle)) {
+        newRuns->runs[newRunCount].startChar = (SInt16)start;
+        newRuns->runs[newRunCount++].styleIndex = insertedStyle;
+    }
+    for (SInt16 i = 0; i < oldRunCount; i++) {
+        StyleRun run = oldRuns->runs[i];
+        if (run.startChar < end || (start == end && run.startChar < end)) continue;
+        run.startChar = (SInt16)(run.startChar + delta);
+        if (newRunCount == 0 ||
+            newRuns->runs[newRunCount - 1].styleIndex != run.styleIndex) {
+            newRuns->runs[newRunCount++] = run;
+        }
+    }
+    if (newRunCount == 0) {
+        newRuns->runs[0].startChar = 0;
+        newRuns->runs[0].styleIndex = insertedStyle;
+        newRunCount = 1;
+    } else if (newRuns->runs[0].startChar != 0) {
+        newRuns->runs[0].startChar = 0;
+    }
+    newRuns->nRuns = newRunCount;
+    HUnlock(newRunHandle);
+    HUnlock(styleRec->styleTab);
+    HUnlock(oldRunHandle);
+    HUnlock(pTE->hStyles);
+    *newRunsOut = newRunHandle;
+    *newRunCountOut = newRunCount;
+    return true;
+}
+
+static void TE_CommitStyleRuns(TEExtPtr pTE, Handle newRunHandle,
+                               SInt16 newRunCount) {
+    if (!newRunHandle || !pTE->hStyles) return;
+    HLock(pTE->hStyles);
+    STRec *styleRec = (STRec *)HandleDataAligned(pTE->hStyles);
+    if (styleRec) {
+        Handle oldRunHandle = styleRec->runArray;
+        styleRec->runArray = newRunHandle;
+        styleRec->nRuns = newRunCount;
+        HUnlock(pTE->hStyles);
+        DisposeHandle(oldRunHandle);
+        return;
+    }
+    HUnlock(pTE->hStyles);
+    DisposeHandle(newRunHandle);
+}
+
 /*
  * TEReplaceSel - Replace selection with text
  */
@@ -804,6 +938,9 @@ void TEReplaceSel(const void *text, SInt32 length, TEHandle hTE) {
     TEExtPtr pTE;
     char *pText;
     SInt32 selLen, newLen, moveLen;
+    SInt32 selectionStart, selectionEnd;
+    Handle newRunHandle = NULL;
+    SInt16 newRunCount = 0;
 
     if (!hTE || length < 0) return;
 
@@ -825,6 +962,8 @@ void TEReplaceSel(const void *text, SInt32 length, TEHandle hTE) {
 
     /* Calculate sizes */
     selLen = pTE->base.selEnd - pTE->base.selStart;
+    selectionStart = pTE->base.selStart;
+    selectionEnd = pTE->base.selEnd;
     newLen = pTE->base.teLength - selLen + length;
 
     /* Check limit */
@@ -839,6 +978,12 @@ void TEReplaceSel(const void *text, SInt32 length, TEHandle hTE) {
             HUnlock((Handle)hTE);
             return;
         }
+    }
+
+    if (!TE_PrepareStyleRunsForReplace(pTE, selectionStart, selectionEnd,
+                                       length, &newRunHandle, &newRunCount)) {
+        HUnlock((Handle)hTE);
+        return;
     }
 
     /* Perform replacement */
@@ -865,6 +1010,7 @@ void TEReplaceSel(const void *text, SInt32 length, TEHandle hTE) {
     pTE->base.selStart = pTE->base.selStart + length;
     pTE->base.selEnd = pTE->base.selStart;
     pTE->dirty = TRUE;
+    TE_CommitStyleRuns(pTE, newRunHandle, newRunCount);
 
     /* Recalculate lines */
     TE_RecalcLines(hTE);
