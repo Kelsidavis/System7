@@ -1790,12 +1790,21 @@ char serial_getchar(void) {
 #endif
 }
 
-void serial_print_hex(uint32_t value) {
+void u32_to_hex_string(uint32_t value,
+                       char output[U32_HEX_STRING_SIZE]) {
     const char* hex = "0123456789ABCDEF";
-    serial_puts("0x");
-    for (int i = 7; i >= 0; i--) {
-        serial_putchar(hex[(value >> (i * 4)) & 0xF]);
+    output[0] = '0';
+    output[1] = 'x';
+    for (int i = 0; i < 8; i++) {
+        output[i + 2] = hex[(value >> ((7 - i) * 4)) & 0xF];
     }
+    output[10] = '\0';
+}
+
+void serial_print_hex(uint32_t value) {
+    char output[U32_HEX_STRING_SIZE];
+    u32_to_hex_string(value, output);
+    serial_puts(output);
 }
 
 /* Standard I/O wrappers for serial console */

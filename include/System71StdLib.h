@@ -107,6 +107,8 @@ unsigned char* CopyCStringToPascal(const char* src, unsigned char* dst);
 /* Conversion functions */
 double atof(const char* str);
 unsigned long strtoul(const char* str, char** endptr, int base);
+#define U32_HEX_STRING_SIZE 11
+void u32_to_hex_string(uint32_t value, char output[U32_HEX_STRING_SIZE]);
 
 /* Environment and utility functions */
 int atexit(void (*func)(void));

@@ -69,11 +69,13 @@ WANTED = [
     "fmt_double",
     # 64-bit division - the freestanding build has no libgcc __udivdi3
     "udiv64",
+    "u32_to_hex_string",
 ]
 
 # Types the extracted formatter needs that live in the kernel headers.
 PREAMBLE_EXTRA = """
 #include <stdarg.h>
+#define U32_HEX_STRING_SIZE 11
 typedef struct {
     char*  buf;
     size_t size;
@@ -233,6 +235,27 @@ static const char *SAMPLES[] = {
 int main(void) {
     Guarded g1, g2;
     char detail[160];
+
+    {
+        static const struct {
+            uint32_t value;
+            const char *expected;
+        } cases[] = {
+            {0, "0x00000000"},
+            {0x00ABCDEF, "0x00ABCDEF"},
+            {UINT32_MAX, "0xFFFFFFFF"},
+        };
+        char output[U32_HEX_STRING_SIZE];
+        for (size_t i = 0; i < sizeof cases / sizeof cases[0]; i++) {
+            s7_u32_to_hex_string(cases[i].value, output);
+            checks++;
+            if (strcmp(output, cases[i].expected) != 0) {
+                printf("FAIL u32_to_hex_string got %s want %s\n",
+                       output, cases[i].expected);
+                failures++;
+            }
+        }
+    }
 
     /* C-to-Pascal conversion must honor smaller destinations such as HFS
        volume-name fields, not just the 255-byte Pascal string maximum. */

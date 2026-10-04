@@ -65,7 +65,7 @@ static void process_serial_command(void);
 static void console_putchar(char c);
 static void console_puts(const char* str);
 static void console_clear(void);
-static void print_hex(uint32_t value);
+static void console_print_hex(uint32_t value);
 static void parse_multiboot2(uint32_t magic, uint32_t* mb2_info);
 static void init_system71(void);
 #if DEBUG_PERFORMANCE_TESTS
@@ -152,8 +152,8 @@ static void process_serial_command(void) {
                 OSErr err = Gestalt(sel, &value);
 
                 if (err == noErr) {
-                    serial_puts("Result: 0x");
-                    print_hex(value);
+                    serial_puts("Result: ");
+                    serial_print_hex(value);
                     serial_puts("\n");
                 } else if (err == gestaltUnknownErr) {
                     serial_puts("Selector not found\n");
@@ -369,13 +369,10 @@ static void log_ppc_memory_map(void) {
 }
 #endif
 
-/* Helper to print hex values */
-static void print_hex(uint32_t value) {
-    const char* hex = "0123456789ABCDEF";
-    serial_puts("0x");
-    for (int i = 7; i >= 0; i--) {
-        serial_putchar(hex[(value >> (i * 4)) & 0xF]);
-    }
+static void console_print_hex(uint32_t value) {
+    char output[U32_HEX_STRING_SIZE];
+    u32_to_hex_string(value, output);
+    console_puts(output);
 }
 
 /* Parse Multiboot2 info */
@@ -383,7 +380,7 @@ __attribute__((unused))
 static void parse_multiboot2(uint32_t magic, uint32_t* mb2_info) {
     if (magic != MULTIBOOT2_BOOTLOADER_MAGIC) {
         console_puts("Error: Invalid Multiboot2 magic! Got: ");
-        print_hex(magic);
+        console_print_hex(magic);
         console_puts("\n");
         serial_puts("Error: Invalid Multiboot2 magic! Got: ");
         serial_print_hex(magic);
@@ -397,7 +394,7 @@ static void parse_multiboot2(uint32_t magic, uint32_t* mb2_info) {
     /* Get total size */
     uint32_t total_size = *mb2_info;
     console_puts("Multiboot2 info size: ");
-    print_hex(total_size);
+    console_print_hex(total_size);
     console_puts("\n");
     serial_puts("Multiboot2 info size: ");
     serial_print_hex(total_size);
@@ -409,9 +406,9 @@ static void parse_multiboot2(uint32_t magic, uint32_t* mb2_info) {
 
     while (tag->type != MULTIBOOT_TAG_TYPE_END) {
         console_puts("Tag type: ");
-        print_hex(tag->type);
+        console_print_hex(tag->type);
         console_puts(" size: ");
-        print_hex(tag->size);
+        console_print_hex(tag->size);
         console_puts("\n");
 
         serial_puts("Tag type: ");
@@ -485,17 +482,17 @@ static void parse_multiboot2(uint32_t magic, uint32_t* mb2_info) {
 
                     console_puts("Framebuffer found!\n");
                     console_puts("  Address: ");
-                    print_hex((uint32_t)(uintptr_t)framebuffer);
+                    console_print_hex((uint32_t)(uintptr_t)framebuffer);
                     console_puts("\n  Width: ");
-                    print_hex(fb_width);
+                    console_print_hex(fb_width);
                     console_puts("\n  Height: ");
-                    print_hex(fb_height);
+                    console_print_hex(fb_height);
                     console_puts("\n  Pitch: ");
-                    print_hex(fb_pitch);
+                    console_print_hex(fb_pitch);
                     console_puts("\n  BPP: ");
-                    print_hex(fb_tag->framebuffer_bpp);
+                    console_print_hex(fb_tag->framebuffer_bpp);
                     console_puts("\n  Type: ");
-                    print_hex(fb_tag->framebuffer_type);
+                    console_print_hex(fb_tag->framebuffer_type);
                     console_puts("\n");
 
                     serial_puts("Framebuffer found!\n");
@@ -516,17 +513,17 @@ static void parse_multiboot2(uint32_t magic, uint32_t* mb2_info) {
                     if (fb_tag->framebuffer_type == MULTIBOOT_FRAMEBUFFER_TYPE_RGB) {
                         console_puts("  RGB mode:\n");
                         console_puts("    Red pos: ");
-                        print_hex(fb_tag->framebuffer_red_field_position);
+                        console_print_hex(fb_tag->framebuffer_red_field_position);
                         console_puts(" size: ");
-                        print_hex(fb_tag->framebuffer_red_mask_size);
+                        console_print_hex(fb_tag->framebuffer_red_mask_size);
                         console_puts("\n    Green pos: ");
-                        print_hex(fb_tag->framebuffer_green_field_position);
+                        console_print_hex(fb_tag->framebuffer_green_field_position);
                         console_puts(" size: ");
-                        print_hex(fb_tag->framebuffer_green_mask_size);
+                        console_print_hex(fb_tag->framebuffer_green_mask_size);
                         console_puts("\n    Blue pos: ");
-                        print_hex(fb_tag->framebuffer_blue_field_position);
+                        console_print_hex(fb_tag->framebuffer_blue_field_position);
                         console_puts(" size: ");
-                        print_hex(fb_tag->framebuffer_blue_mask_size);
+                        console_print_hex(fb_tag->framebuffer_blue_mask_size);
                         console_puts("\n");
 
                         serial_puts("  RGB mode:\n");
@@ -1175,9 +1172,9 @@ static void bench_getresource(void) {
     uint64_t warm_per = udiv64(warm_us, N);
 
     serial_puts("[RM PERF] ");
-    print_hex((uint32_t)cold_per);
+    serial_print_hex((uint32_t)cold_per);
     serial_puts(" us/cold, ");
-    print_hex((uint32_t)warm_per);
+    serial_print_hex((uint32_t)warm_per);
     serial_puts(" us/warm\n");
 }
 
@@ -1512,8 +1509,8 @@ void kernel_main(uint32_t magic, uint32_t* mb2_info) {
         /* Test system version */
         err = Gestalt(FOURCC('s','y','s','v'), &value);
         if (err == noErr) {
-            serial_puts("[Gestalt] sysv = 0x");
-            print_hex(value);
+            serial_puts("[Gestalt] sysv = ");
+            serial_print_hex(value);
             serial_puts(" (System 7.1)\n");
         } else {
             serial_puts("[Gestalt] sysv query failed\n");
@@ -1522,8 +1519,8 @@ void kernel_main(uint32_t magic, uint32_t* mb2_info) {
         /* Test Time Manager version */
         err = Gestalt(FOURCC('q','t','i','m'), &value);
         if (err == noErr) {
-            serial_puts("[Gestalt] qtim = 0x");
-            print_hex(value);
+            serial_puts("[Gestalt] qtim = ");
+            serial_print_hex(value);
             if (value > 0) {
                 serial_puts(" (Time Manager present)\n");
             } else {
@@ -1534,24 +1531,24 @@ void kernel_main(uint32_t magic, uint32_t* mb2_info) {
         /* Test Resource Manager */
         if (Gestalt_Has(FOURCC('r','s','r','c'))) {
             Gestalt(FOURCC('r','s','r','c'), &value);
-            serial_puts("[Gestalt] rsrc = 0x");
-            print_hex(value);
+            serial_puts("[Gestalt] rsrc = ");
+            serial_print_hex(value);
             serial_puts(" (Resource Manager present)\n");
         }
 
         /* Test machine type */
         err = Gestalt(FOURCC('m','a','c','h'), &value);
         if (err == noErr) {
-            serial_puts("[Gestalt] mach = 0x");
-            print_hex(value);
+            serial_puts("[Gestalt] mach = ");
+            serial_print_hex(value);
             serial_puts(" (x86 machine)\n");
         }
 
         /* Test processor type */
         err = Gestalt(FOURCC('p','r','o','c'), &value);
         if (err == noErr) {
-            serial_puts("[Gestalt] proc = 0x");
-            print_hex(value);
+            serial_puts("[Gestalt] proc = ");
+            serial_print_hex(value);
             serial_puts(" (x86 processor)\n");
         }
 
@@ -1559,15 +1556,15 @@ void kernel_main(uint32_t magic, uint32_t* mb2_info) {
         err = Gestalt(FOURCC('f','p','u',' '), &value);
         if (err == noErr) {
             serial_puts("[Gestalt] fpu  = ");
-            print_hex(value);
+            serial_print_hex(value);
             serial_puts(value ? " (FPU present)\n" : " (No FPU)\n");
         }
 
         /* Test init bits */
         err = Gestalt(FOURCC('i','n','i','t'), &value);
         if (err == noErr) {
-            serial_puts("[Gestalt] init = 0x");
-            print_hex(value);
+            serial_puts("[Gestalt] init = ");
+            serial_print_hex(value);
             serial_puts(" (subsystem init bits)\n");
         }
 
@@ -1582,13 +1579,13 @@ void kernel_main(uint32_t magic, uint32_t* mb2_info) {
         err = GetSysEnv(1, &env);
         if (err == noErr) {
             serial_puts("[Gestalt] GetSysEnv: machine=");
-            print_hex(env.machineType);
-            serial_puts(" sysVers=0x");
-            print_hex(env.systemVersion);
+            serial_print_hex(env.machineType);
+            serial_puts(" sysVers=");
+            serial_print_hex(env.systemVersion);
             serial_puts(" FPU=");
-            print_hex(env.hasFPU);
+            serial_print_hex(env.hasFPU);
             serial_puts(" MMU=");
-            print_hex(env.hasMMU);
+            serial_print_hex(env.hasMMU);
             serial_puts("\n");
         }
 
