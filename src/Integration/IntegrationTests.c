@@ -49,6 +49,7 @@
 #include "DeskManager/DeskAccessory.h"
 #include "MenuManager/MenuManager.h"
 #include "MenuManager/MenuDisplay.h"
+#include "MenuManager/MenuInternalTypes.h"
 #include "Platform/PS2Input.h"
 #include "ProcessMgr/ProcessMgr.h"
 #include "MacTypes.h"
@@ -1818,6 +1819,21 @@ static void Test_MenuResourceNames(void) {
     RecordTest(test_name, true, NULL);
 }
 
+static void Test_Menu_InitProcMenu(void) {
+    const char* test_name = "Menu_InitProcMenu";
+    MenuBarList* menuBar = (MenuBarList*)GetMenuBar();
+    CHECK(menuBar, "the current menu list is unavailable");
+
+    short previousResourceID = menuBar->mbResID;
+    const short resourceID = 32123;
+    InitProcMenu(resourceID);
+    Boolean updated = menuBar->mbResID == resourceID;
+    InitProcMenu(previousResourceID);
+
+    CHECK(updated, "the procedural menu resource ID was not stored in the menu list");
+    RecordTest(test_name, true, NULL);
+}
+
 static void Test_Menu_PopUpNullMenu(void) {
     const char* test_name = "Menu_PopUpNullMenu";
     CHECK(PopUpMenuSelect(NULL, 0, 0, 0) == 0,
@@ -2462,6 +2478,7 @@ void IntegrationTests_Run(void) {
     Test_Resource_CreateAndOpenResFile();
     Test_Resource_WriteAndReadBack();
     Test_MenuResourceNames();
+    Test_Menu_InitProcMenu();
     Test_Menu_PopUpNullMenu();
     Test_Menu_PopUpSelection();
     Test_Resource_OpenMissingResFile();
