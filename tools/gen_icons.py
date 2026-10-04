@@ -37,9 +37,17 @@ ICON_H = """
 
 typedef struct { int16_t id; const char* name; const IconFamily* fam; } IconGenEntry;
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 bool IconGen_FindByID(int16_t id, IconFamily* out);
 extern const IconGenEntry gIconGenTable[];
 extern const int gIconGenCount;
+
+#ifdef __cplusplus
+}
+#endif
 """.strip()
 
 TEMPLATE_C_PREFIX = """
@@ -185,7 +193,7 @@ def main():
         gen_table.append((rid if rid is not None else -1, name, base + "_def"))
 
     # Write header
-    (out_inc / "icons_generated.h").write_text(ICON_H)
+    (out_inc / "icons_generated.h").write_text(ICON_H + "\n")
 
     # Write C
     c = [TEMPLATE_C_PREFIX]
@@ -198,12 +206,10 @@ def main():
     c.append(f"const int gIconGenCount = {len(gen_table)};\n")
     c.append("\n")
     c.append("bool IconGen_FindByID(int16_t id, IconFamily* out) {\n")
-    c.append("    extern void* memcpy(void*, const void*, unsigned long);\n")
-    c.append("\n")
-    c.append("    for (int i=0;i<gIconGenCount;i++){\n")
-    c.append("        if (gIconGenTable[i].id==id){\n")
+    c.append("    for (int i = 0; i < gIconGenCount; i++) {\n")
+    c.append("        if (gIconGenTable[i].id == id) {\n")
     c.append("            if (out) {\n")
-    c.append("                memcpy(out, gIconGenTable[i].fam, sizeof(IconFamily));\n")
+    c.append("                *out = *gIconGenTable[i].fam;\n")
     c.append("            }\n")
     c.append("            return true;\n")
     c.append("        }\n")

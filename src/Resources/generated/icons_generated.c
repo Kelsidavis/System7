@@ -11578,12 +11578,10 @@ const int gIconGenCount = 155;
 
 
 bool IconGen_FindByID(int16_t id, IconFamily* out) {
-    extern void* memcpy(void*, const void*, unsigned long);
-
-    for (int i=0;i<gIconGenCount;i++){
-        if (gIconGenTable[i].id==id){
+    for (int i = 0; i < gIconGenCount; i++) {
+        if (gIconGenTable[i].id == id) {
             if (out) {
-                memcpy(out, gIconGenTable[i].fam, sizeof(IconFamily));
+                *out = *gIconGenTable[i].fam;
             }
             return true;
         }
