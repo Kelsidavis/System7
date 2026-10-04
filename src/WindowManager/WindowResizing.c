@@ -31,7 +31,6 @@
 #include <math.h>
 
 typedef struct WindowStateData WindowStateData;
-WindowStateData* WM_GetWindowStateData(WindowPtr window);
 static void WM_CalculateStandardState(WindowPtr window, Rect* stdState);
 static void WM_UpdateWindowUserState(WindowPtr window);
 static void Local_UpdateStateChecksum(WindowStateData* stateData);

@@ -7,6 +7,7 @@
 #include "QuickDraw/QuickDrawInternal.h"
 #include "QuickDraw/ColorQuickDraw.h"
 #include "WindowManager/WindowManager.h"
+#include "WindowManager/WindowManagerInternal.h"
 #include "MemoryMgr/MemoryManager.h"
 #include "System71StdLib.h"
 #include <string.h>
@@ -179,7 +180,6 @@ bool PM_ApplyDesktopPref(const DesktopPref *p) {
  */
 void PM_RedrawDesktop(void)
 {
-    extern void (*g_deskHook)(RgnHandle);
     if (!g_deskHook) return;
     RgnHandle all = NewRgn();
     if (!all) return;

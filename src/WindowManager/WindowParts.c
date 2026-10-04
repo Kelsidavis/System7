@@ -661,8 +661,7 @@ Boolean WM_WindowIsZoomed(WindowPtr window) {
     if (window == NULL) return false;
 
     /* Get window state data from WindowResizing module */
-    extern void* WM_GetWindowStateData(WindowPtr window);
-    void* statePtr = WM_GetWindowStateData(window);
+    struct WindowStateData* statePtr = WM_GetWindowStateData(window);
     if (statePtr == NULL) {
         return false;
     }
