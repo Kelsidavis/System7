@@ -22,10 +22,6 @@
 
 /* DialogGlobals and DialogManagerState are now defined in DialogManagerInternal.h */
 
-/* External dependencies */
-extern Boolean StillDown(void);
-extern void GetMouse(Point* mouseLoc);
-
 /* Global to track which edit field has focus */
 static DialogPtr gFocusDialog = NULL;
 static SInt16 gFocusItemNo = 0;

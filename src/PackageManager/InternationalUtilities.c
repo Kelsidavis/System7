@@ -11,13 +11,8 @@
 #include "SystemTypes.h"
 #include "System71StdLib.h"
 #include "MemoryMgr/MemoryManager.h"
+#include "PackageManager/InternationalUtilities.h"
 #include <string.h>
-
-/* Forward declarations */
-Handle IUGetIntl(SInt16 theID);
-void IUSetIntl(SInt16 refNum, SInt16 theID, const void* intlParam);
-Boolean IUMetric(void);
-void IUClearCache(void);
 
 /* Debug logging */
 #define INTL_UTIL_DEBUG 0

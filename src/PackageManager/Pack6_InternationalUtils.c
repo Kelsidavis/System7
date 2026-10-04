@@ -10,12 +10,7 @@
 
 #include "SystemTypes.h"
 #include "System71StdLib.h"
-
-/* Forward declarations for international utility functions */
-extern Handle IUGetIntl(SInt16 theID);
-extern void IUSetIntl(SInt16 refNum, SInt16 theID, const void* intlParam);
-extern Boolean IUMetric(void);
-extern void IUClearCache(void);
+#include "PackageManager/InternationalUtilities.h"
 
 /* Forward declaration for Pack6 dispatcher */
 OSErr Pack6_Dispatch(short selector, void* params);
