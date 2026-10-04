@@ -22,6 +22,7 @@
 #include "System71StdLib.h"
 #include "WindowManager/WMLogging.h"
 #include "QuickDraw/QuickDraw.h"
+#include "QuickDraw/QuickDrawPlatform.h"
 #include "MemoryMgr/MemoryManager.h"
 
 #include "WindowManager/WindowManagerInternal.h"
@@ -195,9 +196,6 @@ void DragWindow(WindowPtr theWindow, Point startPt, const Rect* boundsRect) {
     /* XOR outline state */
     Rect dragOutline = frameG;
     Boolean outlineDrawn = false;
-
-    /* QuickDraw functions for XOR outline */
-    extern void QDPlatform_FlushScreen(void);
 
     /* Set graphics port to Window Manager port for XOR drawing */
     GrafPtr wmPort;

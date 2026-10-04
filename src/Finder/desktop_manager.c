@@ -23,6 +23,7 @@
 #include "Finder/Icon/icon_label.h"
 #include "Finder/Icon/icon_system.h"
 #include "QuickDraw/QuickDraw.h"
+#include "QuickDraw/QuickDrawPlatform.h"
 #include "QuickDraw/DisplayBezel.h"
 #include "QuickDrawConstants.h"
 #include "System71StdLib.h"
@@ -941,7 +942,6 @@ static void GhostXOR(const Rect* r)
     }
 
     /* Force immediate display update */
-    extern void QDPlatform_UpdateScreen(SInt32 left, SInt32 top, SInt32 right, SInt32 bottom);
     QDPlatform_UpdateScreen(left, top, right, bottom);
 
     FINDER_LOG_DEBUG("GhostXOR: Drew XOR rect (%d,%d,%d,%d)\n", left, top, right, bottom);
