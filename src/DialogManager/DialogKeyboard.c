@@ -22,6 +22,7 @@
 #include "OSUtils/OSUtils.h"
 #include "System71StdLib.h"
 #include "DialogManager/DialogLogging.h"
+#include "MemoryMgr/MemoryManager.h"
 #include "TimeManager/TimeBase.h"
 
 /* Logging helpers */
@@ -29,12 +30,29 @@
 #define DM_LOG_TRACE(fmt, ...) serial_logf(kLogModuleDialog, kLogLevelTrace, "[DM] " fmt, ##__VA_ARGS__)
 #define DM_LOG_WARN(fmt, ...)  serial_logf(kLogModuleDialog, kLogLevelWarn,  "[DM] " fmt, ##__VA_ARGS__)
 
-/* Focus tracking - simple per-window storage */
-#define MAX_DIALOGS 16
-static struct {
+typedef struct DialogControlFocus {
+    struct DialogControlFocus* next;
     WindowPtr window;
     ControlHandle focusedControl;
-} gFocusTable[MAX_DIALOGS];
+} DialogControlFocus;
+
+static DialogControlFocus* gFocusList;
+
+static DialogControlFocus* FindDialogControlFocus(WindowPtr window)
+{
+    DialogControlFocus* entry;
+    for (entry = gFocusList; entry; entry = entry->next)
+        if (entry->window == window) return entry;
+    return NULL;
+}
+
+static void RemoveDialogControlFocus(DialogControlFocus** link)
+{
+    DialogControlFocus* entry = *link;
+    if (!entry) return;
+    *link = entry->next;
+    DisposePtr(entry);
+}
 
 /* Double-fire guard - prevent mouse+key overlap */
 static UInt32 gLastActionTick = 0;
@@ -65,13 +83,8 @@ Boolean DM_DebounceAction(SInt16 kind) {
  * Get focused control for window
  */
 ControlHandle DM_GetKeyboardFocus(WindowPtr window) {
-    int i;
-    for (i = 0; i < MAX_DIALOGS; i++) {
-        if (gFocusTable[i].window == window) {
-            return gFocusTable[i].focusedControl;
-        }
-    }
-    return NULL;
+    DialogControlFocus* entry = FindDialogControlFocus(window);
+    return entry ? entry->focusedControl : NULL;
 }
 
 /**
@@ -141,37 +154,30 @@ void ToggleFocusRing(ControlHandle c) {
  * Clear focus for a window being disposed
  */
 void DM_ClearFocusForWindow(WindowPtr w) {
-    int i;
+    DialogControlFocus** link;
     if (!w) {
         return;
     }
-    for (i = 0; i < MAX_DIALOGS; i++) {
-        if (gFocusTable[i].window == w) {
-            if (gFocusTable[i].focusedControl) {
-                ToggleFocusRing(gFocusTable[i].focusedControl); /* erase */
-            }
-            gFocusTable[i].window = NULL;
-            gFocusTable[i].focusedControl = NULL;
-            return;
-        }
-    }
+    link = &gFocusList;
+    while (*link && (*link)->window != w) link = &(*link)->next;
+    if (!*link) return;
+    if ((*link)->focusedControl) ToggleFocusRing((*link)->focusedControl);
+    RemoveDialogControlFocus(link);
 }
 
 /**
  * Handle control disposal (clear focus if this control had it)
  */
 void DM_OnDisposeControl(ControlHandle c) {
-    int i;
+    DialogControlFocus** link;
     if (!c) {
         return;
     }
-    for (i = 0; i < MAX_DIALOGS; i++) {
-        if (gFocusTable[i].focusedControl == c) {
-            ToggleFocusRing(c); /* erase ring before disposal */
-            gFocusTable[i].focusedControl = NULL;
-            break;
-        }
-    }
+    link = &gFocusList;
+    while (*link && (*link)->focusedControl != c) link = &(*link)->next;
+    if (!*link) return;
+    ToggleFocusRing(c);
+    RemoveDialogControlFocus(link);
 }
 
 /**
@@ -179,30 +185,25 @@ void DM_OnDisposeControl(ControlHandle c) {
  */
 void DM_SetKeyboardFocus(WindowPtr window, ControlHandle newFocus) {
     ControlHandle oldFocus;
-    int i, emptySlot;
+    DialogControlFocus** link;
+    DialogControlFocus* entry;
 
     if (!window) {
         return;
     }
 
-    /* Find window in focus table */
-    emptySlot = -1;
-    oldFocus = NULL;
-    for (i = 0; i < MAX_DIALOGS; i++) {
-        if (gFocusTable[i].window == window) {
-            oldFocus = gFocusTable[i].focusedControl;
-            gFocusTable[i].focusedControl = newFocus;
-            break;
-        } else if (gFocusTable[i].window == NULL && emptySlot < 0) {
-            emptySlot = i;
-        }
+    link = &gFocusList;
+    while (*link && (*link)->window != window) link = &(*link)->next;
+    entry = *link;
+    oldFocus = entry ? entry->focusedControl : NULL;
+    if (!entry && newFocus) {
+        entry = (DialogControlFocus*)NewPtrClear(sizeof(*entry));
+        if (!entry) return;
+        entry->window = window;
+        entry->next = gFocusList;
+        gFocusList = entry;
     }
-
-    /* If window not in table, add it */
-    if (i >= MAX_DIALOGS && emptySlot >= 0) {
-        gFocusTable[emptySlot].window = window;
-        gFocusTable[emptySlot].focusedControl = newFocus;
-    }
+    if (entry) entry->focusedControl = newFocus;
 
     /* Log focus change */
     if (oldFocus != newFocus) {
@@ -219,6 +220,12 @@ void DM_SetKeyboardFocus(WindowPtr window, ControlHandle newFocus) {
 
     if (newFocus && newFocus != oldFocus) {
         ToggleFocusRing(newFocus); /* Draw */
+    }
+
+    if (!newFocus && entry) {
+        link = &gFocusList;
+        while (*link && *link != entry) link = &(*link)->next;
+        RemoveDialogControlFocus(link);
     }
 
     DM_LOG_DEBUG("DM_SetKeyboardFocus: window=0x%08x old=0x%08x new=0x%08x\n",

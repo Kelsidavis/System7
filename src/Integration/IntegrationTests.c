@@ -37,6 +37,8 @@
 #include "DialogManager/DialogEditText.h"
 #include "DialogManager/AlertDialogs.h"
 #include "DialogManager/DITLBuilder.h"
+#include "ControlManager/ControlManager.h"
+#include "ControlManager/ControlTypes.h"
 #include "OSUtils/OSUtils.h"
 #include "EventManager/EventManager.h"
 #include "EventManager/EventManagerInternal.h"
@@ -1068,7 +1070,17 @@ static void Test_Dialog_EditTextFocusBeyond32Items(void) {
           GetDialogEditTextFocus(d) == 33,
           "disposing a second dialog changed the first dialog's edit state");
 
+    Rect primaryControlBounds = { 40, 10, 60, 50 };
+    ControlHandle primaryControl = NewControl((WindowPtr)d, &primaryControlBounds,
+                                               (ConstStr255Param)"", false,
+                                               0, 0, 1, pushButProc, 0);
+    CHECK(primaryControl, "primary dialog control creation failed");
+    DM_SetKeyboardFocus((WindowPtr)d, primaryControl);
+    CHECK(DM_GetKeyboardFocus((WindowPtr)d) == primaryControl,
+          "primary dialog keyboard focus could not be stored");
+
     DialogPtr additionalDialogs[16] = {0};
+    ControlHandle additionalControls[16] = {0};
     for (int i = 0; i < 16; i++) {
         DITLBuilder extraBuilder;
         CHECK(DITL_Begin(&extraBuilder, 256), "additional DITL_Begin failed");
@@ -1083,10 +1095,21 @@ static void Test_Dialog_EditTextFocusBeyond32Items(void) {
         SetDialogEditTextFocus(additionalDialogs[i], 1);
         CHECK(GetOrCreateDialogTEHandle(additionalDialogs[i], 1),
               "additional dialog could not allocate edit state");
+        Rect controlBounds = { 40, 10, 60, 50 };
+        additionalControls[i] = NewControl((WindowPtr)additionalDialogs[i],
+                                           &controlBounds, (ConstStr255Param)"",
+                                           false, 0, 0, 1, pushButProc, 0);
+        CHECK(additionalControls[i], "additional dialog control creation failed");
+        DM_SetKeyboardFocus((WindowPtr)additionalDialogs[i], additionalControls[i]);
+        CHECK(DM_GetKeyboardFocus((WindowPtr)additionalDialogs[i]) ==
+                  additionalControls[i],
+              "keyboard focus was not stored for the additional dialog");
     }
     CHECK(GetDialogEditTextFocus(d) == 33 &&
           DialogEditText_GetHandle(d, 33) == firstEditHandle,
           "more than sixteen live dialogs replaced existing edit state");
+    CHECK(DM_GetKeyboardFocus((WindowPtr)d) == primaryControl,
+          "more than sixteen live dialogs replaced existing control focus");
     for (int i = 15; i >= 0; i--) DisposeDialog(additionalDialogs[i]);
 
     SetDialogEditTextFocus(d, 34);
