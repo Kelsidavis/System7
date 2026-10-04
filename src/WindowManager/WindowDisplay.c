@@ -7,12 +7,14 @@
 #include "WindowManager/WindowManager.h"
 #include "WindowManager/WindowManagerInternal.h"
 #include "WindowManager/WindowRegions.h"
+#include "MenuManager/MenuManager.h"
 #include "QuickDraw/QuickDraw.h"
 #include "FontManager/FontManager.h"
 #include "ControlManager/ControlTypes.h"
 #include "SystemTheme.h"
 #include "WindowManager/WMLogging.h"
 #include "EventManager/EventManager.h"
+#include "EventManager/AppSwitcher.h"
 #include "MemoryMgr/MemoryManager.h"
 #include "Platform/Framebuffer.h"
 
@@ -1783,12 +1785,9 @@ void WM_Update(void) {
 
     /* Draw menu bar LAST to ensure clean pen position */
     MoveTo(0, 0);  /* Reset pen position before drawing menu bar */
-    extern void DrawMenuBar(void);
     DrawMenuBar();  /* Menu Manager draws the menu bar */
 
     /* Draw application switcher overlay if active */
-    extern Boolean AppSwitcher_IsActive(void);
-    extern void AppSwitcher_Draw(void);
     if (AppSwitcher_IsActive()) {
         AppSwitcher_Draw();
     }
