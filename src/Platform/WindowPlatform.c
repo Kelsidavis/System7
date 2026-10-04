@@ -8,6 +8,7 @@
 #include "WindowManager/WindowManager.h"
 #include "WindowManager/WindowManagerInternal.h"
 #include "WindowManager/WindowPlatform.h"
+#include "EventManager/EventManager.h"
 #include "QuickDraw/QuickDraw.h"
 #include "System71StdLib.h"
 #include "Platform/PlatformLogging.h"
@@ -278,7 +279,6 @@ void Platform_EndWindowDraw(WindowPtr window) {
 
 void Platform_PostWindowEvent(WindowPtr window, short eventType, long eventData) {
     if (!window) return;
-    extern OSErr PostEvent(short eventNum, long eventMsg);
     PostEvent(eventType, eventData);
 }
 
@@ -339,12 +339,10 @@ void Platform_BringNativeWindowToFront(WindowPtr window) {
 
 /* Mouse and window tracking functions */
 Boolean Platform_IsMouseDown(void) {
-    extern Boolean Button(void);
     return Button();
 }
 
 void Platform_GetMousePosition(Point* pt) {
-    extern void GetMouse(Point* mouseLoc);
     if (pt) {
         GetMouse(pt);
     }
@@ -578,8 +576,6 @@ void Platform_HighlightWindowPart(WindowPtr window, short partCode, Boolean high
 
 /* Wait functions */
 void Platform_WaitTicks(short ticks) {
-    extern void ProcessModernInput(void);  /* Poll PS/2 controller for button updates */
-
     if (ticks <= 0) return;
 
     /* The iteration ceiling exists only to break out if TickCount() has stopped
