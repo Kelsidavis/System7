@@ -35,6 +35,14 @@
 /* Global storage for current date/time (if we need to track set time) */
 static UInt32 gSystemDateTime = 0;
 static Boolean gSystemDateTimeOverride = false;
+static const SInt16 kDaysInMonth[12] = {
+    31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31
+};
+
+static Boolean is_leap_year(SInt16 year)
+{
+    return (year % 4 == 0 && year % 100 != 0) || year % 400 == 0;
+}
 
 UInt32 DateTime_Current(void)
 {
@@ -198,8 +206,7 @@ void Secs2Date(UInt32 secs, DateTimeRec* d) {
     /* Calculate year from days since 1904-01-01 */
     SInt16 year = 1904;
     for (;;) {
-        SInt16 diy = 365;
-        if ((year % 4 == 0 && year % 100 != 0) || year % 400 == 0) diy = 366;
+        SInt16 diy = is_leap_year(year) ? 366 : 365;
         if (totalDays < (UInt32)diy) break;
         totalDays -= (UInt32)diy;
         year++;
@@ -207,12 +214,10 @@ void Secs2Date(UInt32 secs, DateTimeRec* d) {
     d->year = year;
 
     /* Calculate month and day */
-    static const SInt16 daysInMonth[] = {31,28,31,30,31,30,31,31,30,31,30,31};
     SInt16 month;
     for (month = 0; month < 12; month++) {
-        SInt16 dim = daysInMonth[month];
-        if (month == 1 && ((year % 4 == 0 && year % 100 != 0) || year % 400 == 0))
-            dim = 29;
+        SInt16 dim = kDaysInMonth[month];
+        if (month == 1 && is_leap_year(year)) dim = 29;
         if (totalDays < (UInt32)dim) break;
         totalDays -= (UInt32)dim;
     }
@@ -232,21 +237,17 @@ void SecondsToDate(UInt32 secs, DateTimeRec* d) {
 void Date2Secs(const DateTimeRec* d, UInt32* secs) {
     if (!d || !secs) return;
 
-    static const SInt16 daysInMonth[] = {31,28,31,30,31,30,31,31,30,31,30,31};
-
     UInt32 totalDays = 0;
 
     /* Count days from 1904 to target year */
     for (SInt16 y = 1904; y < d->year; y++) {
-        totalDays += 365;
-        if ((y % 4 == 0 && y % 100 != 0) || y % 400 == 0) totalDays++;
+        totalDays += is_leap_year(y) ? 366 : 365;
     }
 
     /* Add days for months in target year */
     for (SInt16 m = 0; m < d->month - 1 && m < 12; m++) {
-        totalDays += daysInMonth[m];
-        if (m == 1 && ((d->year % 4 == 0 && d->year % 100 != 0) || d->year % 400 == 0))
-            totalDays++;
+        totalDays += kDaysInMonth[m];
+        if (m == 1 && is_leap_year(d->year)) totalDays++;
     }
 
     /* Add days within month */
