@@ -1433,30 +1433,19 @@ bool SetHandleSize(Handle h, u32 newSize) {
 /* ======================== Compaction ======================== */
 
 u32 CompactMem(u32 cbNeeded) {
-    /* LOGGING DISABLED - CAUSES FREEZE */
-    // MEMORY_LOG_DEBUG("[CompactMem] ENTER: cbNeeded=%u\n", cbNeeded);
-
     ZoneInfo* z = gCurrentZone;
     if (!z) {
-        // MEMORY_LOG_DEBUG("[CompactMem] FAIL: no current zone\n");
         return 0;
     }
 
-    // MEMORY_LOG_DEBUG("[CompactMem] Zone state before: bytesUsed=%u bytesFree=%u\n", z->bytesUsed, z->bytesFree);
-
     /* First, try purging */
-    // MEMORY_LOG_DEBUG("[CompactMem] Calling PurgeMem...\n");
     PurgeMem(cbNeeded);
-    // MEMORY_LOG_DEBUG("[CompactMem] PurgeMem complete\n");
 
     /* Then compact: move unlocked handles together */
     u8* scan = z->base;
     u8* dest = z->base;
     /* Track size of the last block that ends at 'dest' to maintain prevSize */
     u32 last_block_size = 0;
-
-    // MEMORY_LOG_DEBUG("[CompactMem] Starting heap walk from %p to %p\n", scan, z->limit);
-    int block_count = 0;
 
     /* Set when the walk gives up partway. Everything from that point to the
      * zone limit is then of unknown shape, and in particular is not known to
@@ -1465,16 +1454,9 @@ u32 CompactMem(u32 cbNeeded) {
 
     while (scan < z->limit) {
         BlockHeader* b = block_header_at(scan);
-        block_count++;
-
-        if (block_count % 100 == 0) {
-            // MEMORY_LOG_DEBUG("[CompactMem] Processed %d blocks, scan=%p\n", block_count, scan);
-        }
 
         /* Safety check: detect corrupted block size */
         if (b->size == 0 || b->size > (u32)(z->limit - scan)) {
-            // MEMORY_LOG_DEBUG("[CompactMem] ERROR: corrupted block at %p: size=%u (remaining=%u)\n",
-            //              b, b->size, (u32)(z->limit - scan));
             walk_aborted = true;
             break;
         }
@@ -1571,9 +1553,7 @@ u32 CompactMem(u32 cbNeeded) {
         }
     }
 
-    // MEMORY_LOG_DEBUG("[CompactMem] Heap walk complete: processed %d blocks\n", block_count);
     u32 max_free = MaxMem();
-    // MEMORY_LOG_DEBUG("[CompactMem] SUCCESS: MaxMem=%u\n", max_free);
     return max_free;
 }
 
