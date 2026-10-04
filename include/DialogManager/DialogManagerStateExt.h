@@ -2,19 +2,8 @@
 #define DIALOGMANAGERSTATEEXT_H
 
 #include "DialogManagerInternal.h"
-#include "DialogManager.h"
 
 /* DialogRecord is already defined in SystemTypes.h */
-
-/* DialogItemInternal for DialogItems.h */
-typedef struct DialogItemInternal {
-    Handle itemHandle;
-    Rect itemRect;
-    UInt8 itemType;
-    UInt8 itemLength;
-    SInt16 controlItem;
-    void* itemData;
-} DialogItemInternal;
 
 /* Helper to access extended DialogManagerState fields
    Cast basic DialogManagerState* to extended version */

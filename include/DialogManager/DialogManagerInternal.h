@@ -65,7 +65,4 @@ typedef struct DialogManagerState {
     Boolean caretVisible;
 } DialogManagerState;
 
-
-extern DialogManagerState gDialogState;
-
 #endif
