@@ -19,6 +19,7 @@
 #include "WindowManager/WindowManager.h"
 #include "FileManager.h"
 #include "TextEdit/TELogging.h"
+#include "TextEdit/TextEditInternal.h"
 #include "ToolboxCompat.h"
 #include "TimeManager/TimeBase.h"
 
@@ -42,26 +43,6 @@
 /* Constants */
 #define TE_INITIAL_BUFFER   256     /* Initial text buffer size */
 #define TE_CARET_BLINK      30      /* Caret blink interval (ticks) */
-
-/* Extended TERec with additional fields */
-typedef struct TEExtRec {
-    TERec       base;           /* Standard TERec */
-    Handle      hLines;         /* Line starts array */
-    SInt16      nLines;         /* Number of lines */
-    Handle      hStyles;        /* Style record handle */
-    Boolean     dirty;          /* Needs recalc */
-    Boolean     readOnly;       /* Read-only flag */
-    Boolean     wordWrap;       /* Word wrap flag */
-    SInt16      dragAnchor;     /* Drag selection anchor */
-    Boolean     inDragSel;      /* In drag selection */
-    UInt32      lastClickTime;  /* For double/triple click */
-    SInt16      clickCount;     /* Click count */
-    SInt16      viewDH;         /* Horizontal scroll */
-    SInt16      viewDV;         /* Vertical scroll */
-    Boolean     autoViewEnabled;/* Auto-scroll flag */
-} TEExtRec;
-
-typedef TEExtRec *TEExtPtr, **TEExtHandle;
 
 /* Globals */
 static Boolean g_teInitialized = FALSE;

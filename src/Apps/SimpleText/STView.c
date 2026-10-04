@@ -11,27 +11,8 @@
 #include "MemoryMgr/MemoryManager.h"
 #include "FontManager/FontManager.h"
 #include "QuickDraw/QuickDrawPlatform.h"
+#include "TextEdit/TextEditInternal.h"
 
-
-/* Internal TextEdit record extension (mirrors TextEdit modules) */
-typedef struct TEExtRec {
-    TERec       base;           /* Standard TERec */
-    Handle      hLines;         /* Line starts array */
-    SInt16      nLines;         /* Number of lines */
-    Handle      hStyles;        /* Style record handle */
-    Boolean     dirty;          /* Needs recalc */
-    Boolean     readOnly;       /* Read-only flag */
-    Boolean     wordWrap;       /* Word wrap flag */
-    SInt16      dragAnchor;     /* Drag selection anchor */
-    Boolean     inDragSel;      /* In drag selection */
-    UInt32      lastClickTime;  /* For double/triple click */
-    SInt16      clickCount;     /* Click count */
-    SInt16      viewDH;         /* Horizontal scroll */
-    SInt16      viewDV;         /* Vertical scroll */
-    Boolean     autoViewEnabled;/* Auto-scroll flag */
-} TEExtRec;
-
-typedef TEExtRec *TEExtPtr;
 
 /* Layout helpers */
 static void STView_ComputeLayout(STDocument* doc, Rect* textRect, Rect* scrollRect);

@@ -12,6 +12,7 @@
 #include "WindowManager/WindowManager.h"
 #include <string.h>
 #include "TextEdit/TELogging.h"
+#include "TextEdit/TextEditInternal.h"
 #include "TimeManager/TimeBase.h"
 
 /* Boolean constants */
@@ -21,26 +22,6 @@
 #ifndef FALSE
 #define FALSE 0
 #endif
-
-/* Extended TERec with additional fields - must match TextEdit.c */
-typedef struct TEExtRec {
-    TERec       base;           /* Standard TERec */
-    Handle      hLines;         /* Line starts array */
-    SInt16      nLines;         /* Number of lines */
-    Handle      hStyles;        /* Style record handle */
-    Boolean     dirty;          /* Needs recalc */
-    Boolean     readOnly;       /* Read-only flag */
-    Boolean     wordWrap;       /* Word wrap flag */
-    SInt16      dragAnchor;     /* Drag selection anchor */
-    Boolean     inDragSel;      /* In drag selection */
-    UInt32      lastClickTime;  /* For double/triple click */
-    SInt16      clickCount;     /* Click count */
-    SInt16      viewDH;         /* Horizontal scroll */
-    SInt16      viewDV;         /* Vertical scroll */
-    Boolean     autoViewEnabled;/* Auto-scroll flag */
-} TEExtRec;
-
-typedef TEExtRec *TEExtPtr, **TEExtHandle;
 
 /* Debug logging */
 #define TED_DEBUG 1
