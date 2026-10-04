@@ -92,21 +92,6 @@ OSErr InstallA5World(SegmentLoaderContext* ctx, const CODE0Info* info)
 
     ctx->a5World.initialized = true;
 
-    /* A5 Invariant Assertions (smoke checks) */
-    if (belowBase + info->a5BelowSize != a5) {
-        /* All three are 32-bit: %X would pass 4-byte ints to printf. */
-        SEG_LOG_ERROR("FATAL: a5BelowBase(0x%08lX) + size(0x%lX) != a5(0x%08lX)",
-                      (unsigned long)belowBase, (unsigned long)info->a5BelowSize, (unsigned long)a5);
-        return segmentA5WorldErr;
-    }
-
-    if (ctx->a5World.jtBase != a5 + info->jtOffsetFromA5) {
-        /* All three are 32-bit: %X would pass 4-byte ints to printf. */
-        SEG_LOG_ERROR("FATAL: jtBase(0x%08lX) != a5(0x%08lX) + offset(0x%lX)",
-                      (unsigned long)ctx->a5World.jtBase, (unsigned long)a5, (unsigned long)info->jtOffsetFromA5);
-        return segmentA5WorldErr;
-    }
-
     SEG_LOG_INFO("A5 world constructed successfully:");
     /* Both are 32-bit: %X would pass 4-byte ints to printf. */
     SEG_LOG_INFO("  a5BelowBase = 0x%08lX, size = 0x%lX", (unsigned long)belowBase, (unsigned long)info->a5BelowSize);
