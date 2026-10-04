@@ -10,11 +10,10 @@
 #define GET_EXTENDED_DLG_STATE(state) ((DialogManagerState_Extended*)(state))
 
 /* TextEdit state follows the canonical manager state in the same allocation. */
-#define DIALOG_EDIT_TEXT_MAX_ITEMS 256
-#define DIALOG_EDIT_TEXT_MAX_DIALOGS 16
 typedef struct DialogEditTextState {
+    struct DialogEditTextState* next;
     DialogPtr owner;
-    void* teHandles[DIALOG_EDIT_TEXT_MAX_ITEMS];
+    void* teHandles[256];
     SInt16 focusedItem;
     UInt32 caretBlinkTime;
     Boolean caretVisible;
@@ -22,7 +21,7 @@ typedef struct DialogEditTextState {
 
 typedef struct DialogManagerState_Extended {
     DialogManagerState base;
-    DialogEditTextState dialogStates[DIALOG_EDIT_TEXT_MAX_DIALOGS];
+    DialogEditTextState* dialogStates;
 } DialogManagerState_Extended;
 
 /* Free the edit fields belonging to one dialog, and clear their slots. */

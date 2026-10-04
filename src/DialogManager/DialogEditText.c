@@ -30,27 +30,26 @@ static DialogEditTextState *FindDialogState(DialogPtr owner, Boolean create)
 {
     DialogManagerState* state = GetDialogManagerState();
     DialogManagerState_Extended* extended;
-    DialogEditTextState* available = NULL;
-    int i;
+    DialogEditTextState* entry;
     if (!state || !owner) return NULL;
     extended = GET_EXTENDED_DLG_STATE(state);
-    for (i = 0; i < DIALOG_EDIT_TEXT_MAX_DIALOGS; i++) {
-        DialogEditTextState* candidate = &extended->dialogStates[i];
-        if (candidate->owner == owner) return candidate;
-        if (!candidate->owner && !available) available = candidate;
+    for (entry = extended->dialogStates; entry; entry = entry->next)
+        if (entry->owner == owner) return entry;
+    if (!create) return NULL;
+    entry = (DialogEditTextState*)NewPtrClear(sizeof(*entry));
+    if (entry) {
+        entry->owner = owner;
+        entry->caretVisible = true;
+        entry->next = extended->dialogStates;
+        extended->dialogStates = entry;
     }
-    if (create && available) {
-        available->owner = owner;
-        available->caretVisible = true;
-        return available;
-    }
-    return NULL;
+    return entry;
 }
 
 TEHandle DialogEditText_GetHandle(DialogPtr dialog, SInt16 itemNo)
 {
     DialogEditTextState* entry;
-    if (itemNo < 1 || itemNo >= DIALOG_EDIT_TEXT_MAX_ITEMS) return NULL;
+    if (itemNo < 1 || itemNo >= 256) return NULL;
     entry = FindDialogState(dialog, false);
     return entry ? (TEHandle)entry->teHandles[itemNo] : NULL;
 }
@@ -301,12 +300,21 @@ void InitDialogEditTextFocus(DialogPtr theDialog) {
  */
 void DialogEditText_ReleaseAll(DialogPtr owner)
 {
-    DialogEditTextState* entry = FindDialogState(owner, false);
+    DialogManagerState* state = GetDialogManagerState();
+    DialogManagerState_Extended* extended;
+    DialogEditTextState** link;
+    DialogEditTextState* entry;
     int i;
+    if (!state || !owner) return;
+    extended = GET_EXTENDED_DLG_STATE(state);
+    link = &extended->dialogStates;
+    while (*link && (*link)->owner != owner) link = &(*link)->next;
+    entry = *link;
     if (!entry) return;
-    for (i = 0; i < DIALOG_EDIT_TEXT_MAX_ITEMS; i++)
+    for (i = 0; i < 256; i++)
         if (entry->teHandles[i]) TEDispose((TEHandle)entry->teHandles[i]);
-    memset(entry, 0, sizeof(*entry));
+    *link = entry->next;
+    DisposePtr(entry);
 }
 
 /*

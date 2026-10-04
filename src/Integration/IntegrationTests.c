@@ -1068,6 +1068,27 @@ static void Test_Dialog_EditTextFocusBeyond32Items(void) {
           GetDialogEditTextFocus(d) == 33,
           "disposing a second dialog changed the first dialog's edit state");
 
+    DialogPtr additionalDialogs[16] = {0};
+    for (int i = 0; i < 16; i++) {
+        DITLBuilder extraBuilder;
+        CHECK(DITL_Begin(&extraBuilder, 256), "additional DITL_Begin failed");
+        DITL_AddEditText(&extraBuilder, 12, 0, 22, 40, "extra");
+        Handle extraItems = DITL_Finish(&extraBuilder);
+        CHECK(extraItems, "additional DITL_Finish failed");
+        Rect extraBounds = { 240, 100, 300, 180 };
+        additionalDialogs[i] = NewDialog(NULL, &extraBounds,
+                                         (ConstStr255Param)"", false, dBoxProc,
+                                         (WindowPtr)-1, false, 0, extraItems);
+        CHECK(additionalDialogs[i], "additional NewDialog failed");
+        SetDialogEditTextFocus(additionalDialogs[i], 1);
+        CHECK(GetOrCreateDialogTEHandle(additionalDialogs[i], 1),
+              "additional dialog could not allocate edit state");
+    }
+    CHECK(GetDialogEditTextFocus(d) == 33 &&
+          DialogEditText_GetHandle(d, 33) == firstEditHandle,
+          "more than sixteen live dialogs replaced existing edit state");
+    for (int i = 15; i >= 0; i--) DisposeDialog(additionalDialogs[i]);
+
     SetDialogEditTextFocus(d, 34);
     TEHandle secondEditText = GetOrCreateDialogTEHandle(d, 34);
     CHECK(secondEditText, "second edit item did not provide a TextEdit handle");
