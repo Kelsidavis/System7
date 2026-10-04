@@ -13,6 +13,7 @@
 #include "SANENumbers.h"
 #include "ScrapManager/ScrapManager.h"
 #include "MemoryMgr/MemoryManager.h"
+#include "OSUtils/OSUtils.h"
 #include "System71StdLib.h"
 #include "TimeManager/TimeBase.h"
 
@@ -82,34 +83,6 @@ TRAP(Trap_Pack7) {
  * Dates and times
  * ------------------------------------------------------------------------ */
 
-static void SecondsToFields(UInt32 secs, int* year, int* month, int* day,
-                            int* hour, int* minute, int* second, int* weekday) {
-    *second = (int)(secs % 60);
-    *minute = (int)(secs / 60 % 60);
-    *hour = (int)(secs / 3600 % 24);
-    UInt32 days = secs / 86400;
-    *weekday = (int)((days + 5) % 7) + 1;           /* 1 Jan 1904 was a Friday */
-    int y = 1904;
-    for (;;) {
-        int len = (y % 4 == 0 && (y % 100 != 0 || y % 400 == 0)) ? 366 : 365;
-        if (days < (UInt32)len) break;
-        days -= (UInt32)len;
-        y++;
-    }
-    static const int kMonth[12] = { 31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31 };
-    Boolean leap = (y % 4 == 0 && (y % 100 != 0 || y % 400 == 0));
-    int m = 0;
-    while (m < 12) {
-        int len = kMonth[m] + (m == 1 && leap);
-        if (days < (UInt32)len) break;
-        days -= (UInt32)len;
-        m++;
-    }
-    *year = y;
-    *month = m + 1;
-    *day = (int)days + 1;
-}
-
 /* ReadDateTime (OS): the clock into the long at A0 */
 TRAP(Trap_ReadDateTime) {
     UNUSED;
@@ -124,11 +97,12 @@ TRAP(Trap_ReadDateTime) {
  * hour, minute, second, dayOfWeek, each a word */
 TRAP(Trap_Secs2Date) {
     UNUSED;
-    int y, mo, d, h, mi, s, wd;
-    SecondsToFields(D(0), &y, &mo, &d, &h, &mi, &s, &wd);
+    DateTimeRec date;
+    Secs2Date(D(0), &date);
     UInt32 r = A(0);
-    W16(r, y); W16(r + 2, mo); W16(r + 4, d);
-    W16(r + 6, h); W16(r + 8, mi); W16(r + 10, s); W16(r + 12, wd);
+    W16(r, date.year); W16(r + 2, date.month); W16(r + 4, date.day);
+    W16(r + 6, date.hour); W16(r + 8, date.minute);
+    W16(r + 10, date.second); W16(r + 12, date.dayOfWeek);
     return noErr;
 }
 
@@ -136,15 +110,13 @@ TRAP(Trap_Secs2Date) {
 TRAP(Trap_Date2Secs) {
     UNUSED;
     UInt32 r = A(0);
-    int y = (SInt16)R16(r), mo = (SInt16)R16(r + 2), d = (SInt16)R16(r + 4);
-    int h = (SInt16)R16(r + 6), mi = (SInt16)R16(r + 8), s = (SInt16)R16(r + 10);
-    static const int kBefore[12] = { 0, 31, 59, 90, 120, 151, 181, 212, 243, 273, 304, 334 };
-    UInt32 days = 0;
-    for (int yy = 1904; yy < y; yy++) days += (yy % 4 == 0 && (yy % 100 != 0 || yy % 400 == 0)) ? 366 : 365;
-    if (mo >= 1 && mo <= 12) days += (UInt32)kBefore[mo - 1];
-    if (mo > 2 && (y % 4 == 0 && (y % 100 != 0 || y % 400 == 0))) days++;
-    days += (UInt32)(d - 1);
-    D(0) = days * 86400u + (UInt32)(h * 3600 + mi * 60 + s);
+    DateTimeRec date = {
+        .year = (SInt16)R16(r), .month = (SInt16)R16(r + 2),
+        .day = (SInt16)R16(r + 4), .hour = (SInt16)R16(r + 6),
+        .minute = (SInt16)R16(r + 8), .second = (SInt16)R16(r + 10),
+        .dayOfWeek = (SInt16)R16(r + 12)
+    };
+    Date2Secs(&date, &D(0));
     return noErr;
 }
 
@@ -165,17 +137,17 @@ TRAP(Trap_Pack6) {
         result = Pop32();
         UInt16 arg = Pop16();
         UInt32 secs = Pop32();
-        int y, mo, d, h, mi, s, wd;
-        SecondsToFields(secs, &y, &mo, &d, &h, &mi, &s, &wd);
+        DateTimeRec date;
+        Secs2Date(secs, &date);
         if (selector == 0) {
             UInt8 form = (UInt8)(arg >> 8);
-            if (form == 0) snprintf(buf, sizeof(buf), "%d/%d/%02d", mo, d, y % 100);
-            else if (form == 1) snprintf(buf, sizeof(buf), "%s, %s %d, %d", kDays[wd - 1], kMonths[mo - 1], d, y);
-            else snprintf(buf, sizeof(buf), "%.3s, %.3s %d, %d", kDays[wd - 1], kMonths[mo - 1], d, y);
+            if (form == 0) snprintf(buf, sizeof(buf), "%d/%d/%02d", date.month, date.day, date.year % 100);
+            else if (form == 1) snprintf(buf, sizeof(buf), "%s, %s %d, %d", kDays[date.dayOfWeek - 1], kMonths[date.month - 1], date.day, date.year);
+            else snprintf(buf, sizeof(buf), "%.3s, %.3s %d, %d", kDays[date.dayOfWeek - 1], kMonths[date.month - 1], date.day, date.year);
         } else {
-            int h12 = h % 12 ? h % 12 : 12;
-            if (arg & 0xFF00) snprintf(buf, sizeof(buf), "%d:%02d:%02d %s", h12, mi, s, h < 12 ? "AM" : "PM");
-            else snprintf(buf, sizeof(buf), "%d:%02d %s", h12, mi, h < 12 ? "AM" : "PM");
+            int h12 = date.hour % 12 ? date.hour % 12 : 12;
+            if (arg & 0xFF00) snprintf(buf, sizeof(buf), "%d:%02d:%02d %s", h12, date.minute, date.second, date.hour < 12 ? "AM" : "PM");
+            else snprintf(buf, sizeof(buf), "%d:%02d %s", h12, date.minute, date.hour < 12 ? "AM" : "PM");
         }
         Str255 p;
         c2pstrcpy(p, buf);
