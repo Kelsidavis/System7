@@ -22,6 +22,8 @@
 
 #include "SystemTypes.h"
 #include "System71StdLib.h"
+#include "SystemInternal.h"
+#include "EventManager/EventManager.h"
 
 #include "WindowManager/WindowManagerInternal.h"
 #include "QuickDraw/QuickDraw.h"
@@ -348,11 +350,6 @@ long GrowWindow(WindowPtr theWindow, Point startPt, const Rect* bBox) {
         minW = bBox->left;  minH = bBox->top;
         maxW = bBox->right; maxH = bBox->bottom;
     }
-
-    extern void EventPumpYield(void);
-    extern void GetMouse(Point* mouseLoc);
-    extern Boolean StillDown(void);
-    extern void UpdateCursorDisplay(void);
 
     short newW = contentW, newH = contentH;
     Rect box = frame;
