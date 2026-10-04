@@ -13,12 +13,12 @@
 
 #include "SystemTypes.h"
 #include "System71StdLib.h"
+#include "OSUtils/OSUtils.h"
 
 #include "DeskManager/Chooser.h"
 #include "DeskManager/DeskManager.h"
 
 static SInt32 Chooser_GetTime(void) {
-    extern void GetDateTime(UInt32* secs);
     UInt32 now;
     GetDateTime(&now);
     return (SInt32)now;

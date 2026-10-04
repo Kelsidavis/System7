@@ -17,8 +17,6 @@
 #include "System71StdLib.h"
 #include "TimeManager/TimeBase.h"
 
-extern void GetDateTime(UInt32* secs);
-
 /* ------------------------------------------------------------------------
  * Pack 7: NumToString and StringToNum - the selector on the stack, the
  * number in D0 and the string at A0

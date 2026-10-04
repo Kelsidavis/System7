@@ -6,6 +6,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include "FS/FSLogging.h"
+#include "OSUtils/OSUtils.h"
 #include "System71StdLib.h"
 
 /* Serial debug output */
@@ -296,7 +297,6 @@ bool HFS_CreateBlankVolume(void* buffer, uint64_t size, const char* volName) {
      * that draws it correctly declines to invent one. A synthesized volume
      * still comes into existence at a moment in time, and that is the honest
      * answer: the moment it was built. */
-    extern void GetDateTime(uint32_t* secs);
     uint32_t buildTime = 0;
     GetDateTime(&buildTime);
 
