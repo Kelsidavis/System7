@@ -13,11 +13,11 @@
 
 #include "SystemTypes.h"
 #include "MacTypes.h"
+#include "ScriptManager/ScriptManager.h"
 
 /* HFS root directory ID, used by File Manager clients. */
 #define HFS_ROOT_DIR_ID 2
 #define fsRtDirID       2
-#define smSystemScript  0
 #define ioDirMask       0x10
 
 #ifdef __cplusplus

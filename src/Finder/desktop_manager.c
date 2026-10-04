@@ -563,7 +563,7 @@ OSErr RebuildDesktopFile(short vRefNum)
     err = FSMakeFSSpec(vRefNum, fsRtDirID, kDesktopDatabaseName, &databaseSpec);
     if (err == fnfErr) {
         /* Database doesn't exist, create it */
-        err = FSpCreate(&databaseSpec, FOURCC('D','M','G','R'), FOURCC('D','T','B','S'), smSystemScript);
+        err = FSpCreate(&databaseSpec, FOURCC('D','M','G','R'), FOURCC('D','T','B','S'), smRoman);
         if (err != noErr && err != dupFNErr) {
             return err;
         }
@@ -1320,7 +1320,7 @@ static OSErr SaveDesktopDatabase(short vRefNum)
     err = FSMakeFSSpec(vRefNum, fsRtDirID, kDesktopDatabaseName, &databaseSpec);
     if (err == fnfErr) {
         /* Create database file */
-        err = FSpCreate(&databaseSpec, FOURCC('D','M','G','R'), FOURCC('D','T','B','S'), smSystemScript);
+        err = FSpCreate(&databaseSpec, FOURCC('D','M','G','R'), FOURCC('D','T','B','S'), smRoman);
         if (err != noErr && err != dupFNErr) {
             return err;
         }

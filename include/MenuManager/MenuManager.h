@@ -4,6 +4,7 @@
 #define __MENU_MANAGER_H__
 
 #include "SystemTypes.h"
+#include "ScriptManager/ScriptManager.h"
 
 
 #ifdef __cplusplus
@@ -525,27 +526,28 @@ void InsertResMenu(MenuHandle theMenu, ResType theType, short afterItem);
 /*
  * InsertFontResMenu - Insert font resources into menu
  *
- * Inserts font-family and font-resource names in sorted order. The legacy
- * scriptFilter parameter is accepted but is not currently applied.
+ * Inserts font-family and font-resource names in sorted order, filtered by
+ * script when requested.
  *
  * Parameters:
  *   theMenu      - Handle to menu to modify
  *   afterItem    - Item number to insert after
- *   scriptFilter - Legacy script filter; currently ignored
+ *   scriptFilter - Script code, smSystemScript (-1), smCurrentScript (-2), or
+ *                  smAllScripts (-3)
  */
 void InsertFontResMenu(MenuHandle theMenu, short afterItem, short scriptFilter);
 
 /*
  * InsertIntlResMenu - Insert international resources into menu
  *
- * Inserts resources of the specified type with international
- * script filtering support.
+ * Inserts resource names of the specified type, filtered by script.
  *
  * Parameters:
  *   theMenu      - Handle to menu to modify
  *   theType      - Resource type to add
  *   afterItem    - Item number to insert after
- *   scriptFilter - Script filter
+ *   scriptFilter - Script code, smSystemScript (-1), smCurrentScript (-2), or
+ *                  smAllScripts (-3)
  */
 void InsertIntlResMenu(MenuHandle theMenu, ResType theType, short afterItem, short scriptFilter);
 

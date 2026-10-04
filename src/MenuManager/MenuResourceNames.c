@@ -2,7 +2,13 @@
 #include "MenuManager/menu_private.h"
 #include "DeskManager/DeskAccessory.h"
 #include "ResourceManager.h"
+#include "QuickDraw/QuickDraw.h"
+#include "TextEncoding/TextEncodingUtils.h"
 #include <string.h>
+
+#define MENU_SCRIPT_SYSTEM smSystemScript
+#define MENU_SCRIPT_CURRENT smCurrentScript
+#define MENU_SCRIPT_ALL smAllScripts
 
 static int CompareNames(ConstStr255Param left, ConstStr255Param right)
 {
@@ -36,7 +42,44 @@ static Boolean IsResourceMenuName(ConstStr255Param name)
     return name[0] && name[1] != '.' && name[1] != '%';
 }
 
-static void InsertNamedResources(MenuHandle menu, ResType type, short first, short *last)
+static ScriptCode ScriptCodeForResourceID(ResID id)
+{
+    if (id >= 0) {
+        if (id < 0x4000) return 0;
+        return (ScriptCode)(((UInt16)id - 0x4000) / 512 + 1);
+    }
+
+    if (id < -16384) {
+        return (ScriptCode)(((SInt32)id + 32768) / 512 + 33);
+    }
+
+    return (ScriptCode)-32768;
+}
+
+static Boolean ResolveScriptFilter(short filter, ScriptCode *script)
+{
+    if (filter >= 0 && filter <= 64) {
+        *script = (ScriptCode)filter;
+        return true;
+    }
+
+    if (filter == MENU_SCRIPT_SYSTEM) {
+        *script = GetStringPackageScript();
+        return true;
+    }
+
+    if (filter == MENU_SCRIPT_CURRENT) {
+        GrafPtr port = NULL;
+        GetPort(&port);
+        *script = port ? ScriptCodeForResourceID(port->txFont) : 0;
+        return true;
+    }
+
+    return filter == MENU_SCRIPT_ALL;
+}
+
+static Boolean InsertNamedResources(MenuHandle menu, ResType type, short first, short *last,
+                                    Boolean filterByScript, ScriptCode script)
 {
     SInt16 resourceCount = CountResources(type);
     for (int index = 1; index <= resourceCount; ++index) {
@@ -46,23 +89,45 @@ static void InsertNamedResources(MenuHandle menu, ResType type, short first, sho
         ResType resourceType;
         Str255 name = {0};
         GetResInfo(resource, &id, &resourceType, (char*)name);
+        if (filterByScript && ScriptCodeForResourceID(id) != script) continue;
         if (!IsResourceMenuName(name)) continue;
-        if (!Menu_InsertSortedName(menu, name, first, *last)) return;
+        if (!Menu_InsertSortedName(menu, name, first, *last)) return false;
         ++*last;
+    }
+    return true;
+}
+
+static void InsertResourceTypes(MenuHandle menu, const ResType *types, short typeCount,
+                                short afterItem, short scriptFilter)
+{
+    if (!menu) return;
+    SetResLoad(true);
+
+    ScriptCode script = 0;
+    Boolean filterByScript = scriptFilter != MENU_SCRIPT_ALL;
+    if (filterByScript && !ResolveScriptFilter(scriptFilter, &script)) return;
+
+    short count = CountMItems(menu);
+    if (count == INT16_MAX) return;
+    if (afterItem < 0 || afterItem > count) afterItem = count;
+    short first = (short)(afterItem + 1);
+    short last = afterItem;
+    for (short i = 0; i < typeCount; ++i) {
+        if (!InsertNamedResources(menu, types[i], first, &last, filterByScript, script)) return;
     }
 }
 
 void InsertResMenu(MenuHandle menu, ResType type, short afterItem)
 {
     if (!menu) return;
-    SetResLoad(true);
-    short count = CountMItems(menu);
-    if (count == INT16_MAX) return;
-    if (afterItem < 0 || afterItem > count) afterItem = count;
-    short first = (short)(afterItem + 1);
-    short last = afterItem;
 
     if (type == FOURCC('D', 'R', 'V', 'R')) {
+        SetResLoad(true);
+        short count = CountMItems(menu);
+        if (count == INT16_MAX) return;
+        if (afterItem < 0 || afterItem > count) afterItem = count;
+        short first = (short)(afterItem + 1);
+        short last = afterItem;
         for (const DARegistryEntry *entry = DA_GetFirstRegisteredDA(); entry; entry = entry->next) {
             Str255 name;
             size_t length = strlen(entry->name);
@@ -76,11 +141,22 @@ void InsertResMenu(MenuHandle menu, ResType type, short afterItem)
     }
 
     if (type == FOURCC('F', 'O', 'N', 'T') || type == FOURCC('F', 'O', 'N', 'D')) {
-        InsertNamedResources(menu, FOURCC('F', 'O', 'N', 'D'), first, &last);
-        InsertNamedResources(menu, FOURCC('F', 'O', 'N', 'T'), first, &last);
+        const ResType fontTypes[] = {FOURCC('F', 'O', 'N', 'D'), FOURCC('F', 'O', 'N', 'T')};
+        InsertResourceTypes(menu, fontTypes, 2, afterItem, MENU_SCRIPT_ALL);
     } else {
-        InsertNamedResources(menu, type, first, &last);
+        InsertResourceTypes(menu, &type, 1, afterItem, MENU_SCRIPT_ALL);
     }
+}
+
+void InsertIntlResMenu(MenuHandle menu, ResType type, short afterItem, short scriptFilter)
+{
+    InsertResourceTypes(menu, &type, 1, afterItem, scriptFilter);
+}
+
+void InsertFontResMenu(MenuHandle menu, short afterItem, short scriptFilter)
+{
+    const ResType fontTypes[] = {FOURCC('F', 'O', 'N', 'D'), FOURCC('F', 'O', 'N', 'T')};
+    InsertResourceTypes(menu, fontTypes, 2, afterItem, scriptFilter);
 }
 
 void AddResMenu(MenuHandle menu, ResType type)

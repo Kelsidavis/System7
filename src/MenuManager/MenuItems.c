@@ -844,12 +844,6 @@ void CalcMenuSize(MenuHandle theMenu) {
                  menu->menuID, maxWidth, totalHeight, itemCount);
 }
 
-/* InsertFontResMenu shares the resource-name ordering and FONT/FOND handling. */
-void InsertFontResMenu(MenuHandle theMenu, short afterItem, short scriptFilter) {
-    (void)scriptFilter;
-    InsertResMenu(theMenu, FOURCC('F', 'O', 'N', 'T'), afterItem);
-}
-
 /* ============================================================================
  * Cleanup Functions
  * ============================================================================ */

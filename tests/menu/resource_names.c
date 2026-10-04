@@ -1,4 +1,6 @@
 #include "MenuManager/menu_private.h"
+#include "QuickDraw/QuickDraw.h"
+#include "TextEncoding/TextEncodingUtils.h"
 #include "DeskManager/DeskAccessory.h"
 #include "ResourceManager.h"
 #include <string.h>
@@ -24,6 +26,8 @@ static DARegistryEntry entries[70];
 static const DARegistryEntry* firstEntry;
 static const char* resourceNames[] = {"Zulu", ".hidden", "%private", "", "A;B/X", "Alpha"};
 static char* resourceData[6];
+static const char* intlResourceNames[] = {"Roman Item", "Japanese Item"};
+static char* intlResourceData[2];
 
 static void Pascal(Str255 text, const char* name)
 {
@@ -76,15 +80,19 @@ const DARegistryEntry* DA_GetFirstRegisteredDA(void) { return firstEntry; }
 void SetResLoad(Boolean load) { resourcesLoaded = load; }
 SInt16 CountResources(ResType type)
 {
-    CHECK(type == FOURCC('T', 'E', 'S', 'T'));
+    CHECK(type == FOURCC('T', 'E', 'S', 'T') || type == FOURCC('I', 'N', 't', 'l'));
     ++resourceQueries;
-    return 6;
+    return type == FOURCC('T', 'E', 'S', 'T') ? 6 : 2;
 }
 Handle GetIndResource(ResType type, SInt16 index)
 {
-    CHECK(type == FOURCC('T', 'E', 'S', 'T') && index >= 1 && index <= 6);
     CHECK(resourcesLoaded);
-    return &resourceData[index - 1];
+    if (type == FOURCC('T', 'E', 'S', 'T')) {
+        CHECK(index >= 1 && index <= 6);
+        return &resourceData[index - 1];
+    }
+    CHECK(type == FOURCC('I', 'N', 't', 'l') && index >= 1 && index <= 2);
+    return &intlResourceData[index - 1];
 }
 void GetResInfo(Handle resource, ResID* id, ResType* type, char* name)
 {
@@ -96,8 +104,19 @@ void GetResInfo(Handle resource, ResID* id, ResType* type, char* name)
             return;
         }
     }
+    for (unsigned i = 0; i < sizeof(intlResourceData) / sizeof(intlResourceData[0]); ++i) {
+        if (resource == &intlResourceData[i]) {
+            *id = i == 0 ? 10 : 0x4000;
+            *type = FOURCC('I', 'N', 't', 'l');
+            Pascal((UInt8*)name, intlResourceNames[i]);
+            return;
+        }
+    }
     CHECK(false);
 }
+
+void GetPort(GrafPtr* port) { *port = NULL; }
+ScriptCode GetStringPackageScript(void) { return smRoman; }
 
 static void TestLiteralSorting(void)
 {
@@ -150,6 +169,27 @@ static void TestResourceNames(void)
     CHECK(itemCount == 0 && resourceQueries == 0);
 }
 
+static void TestInternationalResourceNames(void)
+{
+    Reset();
+    Pascal(items[itemCount++], "Prefix");
+    Pascal(items[itemCount++], "Suffix");
+    InsertIntlResMenu(menu, FOURCC('I', 'N', 't', 'l'), 1, smJapanese);
+    CHECK(itemCount == 3 && IsItem(2, "Japanese Item"));
+
+    Reset();
+    Pascal(items[itemCount++], "Prefix");
+    Pascal(items[itemCount++], "Suffix");
+    InsertIntlResMenu(menu, FOURCC('I', 'N', 't', 'l'), 1, smRoman);
+    CHECK(itemCount == 3 && IsItem(2, "Roman Item"));
+
+    Reset();
+    Pascal(items[itemCount++], "Prefix");
+    Pascal(items[itemCount++], "Suffix");
+    InsertIntlResMenu(menu, FOURCC('I', 'N', 't', 'l'), 1, smAllScripts);
+    CHECK(itemCount == 4 && IsItem(2, "Japanese Item") && IsItem(3, "Roman Item"));
+}
+
 static void TestNativeAccessories(void)
 {
     Reset();
@@ -186,6 +226,7 @@ int main(void)
 {
     TestLiteralSorting();
     TestResourceNames();
+    TestInternationalResourceNames();
     TestNativeAccessories();
     puts("Resource menu name regressions passed.");
     return 0;

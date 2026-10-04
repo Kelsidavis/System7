@@ -164,7 +164,7 @@ OSErr CreateAlias(FSSpec *target, FSSpec *aliasFile)
     }
 
     /* Create the alias file */
-    err = FSpCreate(aliasFile, FOURCC('M','A','C','S'), FOURCC('a','l','i','s'), smSystemScript);
+    err = FSpCreate(aliasFile, FOURCC('M','A','C','S'), FOURCC('a','l','i','s'), smRoman);
     if (err != noErr && err != dupFNErr) {
         DisposeHandle((Handle)aliasHandle);
         return err;
@@ -286,7 +286,7 @@ static OSErr CreateAliasResource(FSSpec *target, FSSpec *aliasFile)
     }
 
     /* Create resource file */
-    FSpCreateResFile(aliasFile, FOURCC('M','A','C','S'), FOURCC('a','l','i','s'), smSystemScript);
+    FSpCreateResFile(aliasFile, FOURCC('M','A','C','S'), FOURCC('a','l','i','s'), smRoman);
     err = ResError();
     if (err != noErr) {
         DisposeHandle((Handle)aliasHandle);
