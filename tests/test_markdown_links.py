@@ -2,10 +2,10 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from scripts.check_markdown_links import broken_links
+from scripts.check_markdown_links import broken_links, broken_repo_paths
 
 
-class MarkdownLinkTests(unittest.TestCase):
+class MarkdownReferenceTests(unittest.TestCase):
     def test_existing_relative_and_nonlocal_links_are_accepted(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
@@ -42,6 +42,32 @@ class MarkdownLinkTests(unittest.TestCase):
             (root / "guide.md").write_text("[image](image%20file.png)\n")
 
             self.assertEqual(list(broken_links(root)), [])
+
+    def test_existing_inline_repository_path_is_accepted(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / "src").mkdir()
+            (root / "src" / "module.c").touch()
+            (root / "guide.md").write_text("See `src/module.c` for details.\n")
+
+            self.assertEqual(list(broken_repo_paths(root)), [])
+
+    def test_missing_inline_repository_path_is_reported(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            document = root / "guide.md"
+            document.write_text("The implementation is in `src/missing.c`.\n")
+
+            self.assertEqual(
+                list(broken_repo_paths(root)), [(document, "src/missing.c")]
+            )
+
+    def test_repository_paths_in_fenced_code_are_ignored(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / "guide.md").write_text("```text\n`src/example.c`\n```\n")
+
+            self.assertEqual(list(broken_repo_paths(root)), [])
 
 
 if __name__ == "__main__":

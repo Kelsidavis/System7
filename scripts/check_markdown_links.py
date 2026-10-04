@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Check that relative inline links in Markdown files point to existing paths."""
+"""Check Markdown links and inline repository paths for missing targets."""
 
 import argparse
 import re
@@ -8,6 +8,7 @@ from urllib.parse import unquote, urlsplit
 
 
 LINK = re.compile(r"\]\(\s*(?:<([^>]+)>|([^\s)]+))")
+REPO_PATH = re.compile(r"`((?:src|include|tests|scripts|tools|docs)/[A-Za-z0-9_./-]+)`")
 FENCED_BLOCK = re.compile(r"(?ms)^\s*(```|~~~).*?^\s*\1\s*$")
 SKIP_DIRS = {".git", "build", "node_modules", ".venv"}
 
@@ -33,6 +34,15 @@ def broken_links(root):
                 yield document, target
 
 
+def broken_repo_paths(root):
+    for document in markdown_files(root):
+        text = FENCED_BLOCK.sub("", document.read_text(errors="replace"))
+        for match in REPO_PATH.finditer(text):
+            target = match.group(1)
+            if not (root / target).exists():
+                yield document, target
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
@@ -43,11 +53,16 @@ def main():
     )
     root = parser.parse_args().root.resolve()
     failures = list(broken_links(root))
+    path_failures = list(broken_repo_paths(root))
     if failures:
         for document, target in failures:
             print(f"{document.relative_to(root)}: broken relative link: {target}")
+    if path_failures:
+        for document, target in path_failures:
+            print(f"{document.relative_to(root)}: missing repository path: {target}")
+    if failures or path_failures:
         return 1
-    print(f"Checked relative Markdown links under {root}")
+    print(f"Checked Markdown links and repository paths under {root}")
     return 0
 
 

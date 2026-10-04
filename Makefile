@@ -995,7 +995,7 @@ check-malloc:
 check-shadowed-defs: all
 	@python3 scripts/find-shadowed-defs.py --platform $(PLATFORM) --obj-dir $(OBJ_DIR)
 
-# Reject broken relative links in repository Markdown documentation.
+# Reject broken relative Markdown links and missing inline repository paths.
 .PHONY: check-doc-links
 check-doc-links:
 	@python3 scripts/check_markdown_links.py
@@ -1023,7 +1023,7 @@ test-integration:
 
 # Run the local x86 quality gate used before feature work: strict build,
 # dead-code and duplicate-definition checks, allocator policy, documentation
-# links, differential libc tests, and required export checks.
+# references, differential libc tests, and required export checks.
 .PHONY: check
 check: all check-x86-layout check-malloc check-shadowed-defs check-doc-links \
 	test-doc-links test-stdlib test-integration-runner check-exports
@@ -1093,8 +1093,8 @@ help: ## Show this help message
 	@echo "  check-arm64      Build ARM64 and verify ELF segment permissions"
 	@echo "  check-malloc     Reject direct host allocator use in kernel code"
 	@echo "  check-shadowed-defs Run dead-code and duplicate-definition checks"
-	@echo "  check-doc-links  Reject broken relative Markdown links"
-	@echo "  test-doc-links   Test the Markdown link checker"
+	@echo "  check-doc-links  Reject broken Markdown links and repository paths"
+	@echo "  test-doc-links   Test the Markdown reference checker"
 	@echo "  check-exports    Validate exported symbol surface"
 	@echo "  test-integration Build, boot, and run guest integration tests"
 	@echo "  info             Show build statistics"
