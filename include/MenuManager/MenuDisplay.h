@@ -12,6 +12,7 @@
 #define __MENU_DISPLAY_H__
 
 #include "SystemTypes.h"
+#include "QuickDraw/QDRegions.h"
 
 #include "MenuManager.h"
 #include "MenuTypes.h"
@@ -20,25 +21,6 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
-
-/* ============================================================================
- * Menu Display Constants
- * ============================================================================ */
-
-/* Menu drawing flags */
-/* (Defined in MenuTypes.h) */
-
-/* Menu item drawing flags */
-/* (Defined in MenuTypes.h) */
-
-/* Menu bar drawing modes */
-/* (Defined in MenuTypes.h) */
-
-/* ============================================================================
- * Menu Display Data Structures
- * ============================================================================ */
-
-/* MenuDrawInfo, MenuItemDrawInfo, MenuBarDrawInfo defined in MenuInternalTypes.h */
 
 /* ============================================================================
  * Menu Bar Display Functions
@@ -438,30 +420,8 @@ void GetMenuColors(short menuID, short itemID, short componentID,
 void SetMenuDrawingMode(Boolean useColor, Boolean antiAlias, Boolean usePatterns);
 
 /* ============================================================================
- * Platform Integration for Display
- * ============================================================================ */
-
-/*
- * Platform display functions that must be implemented:
- *
- * void Platform_DrawMenuBar(const MenuBarDrawInfo* drawInfo);
- * void Platform_DrawMenu(const MenuDrawInfo* drawInfo);
- * void Platform_DrawMenuItem(const MenuItemDrawInfo* drawInfo);
- * void Platform_HiliteMenuItem(MenuHandle theMenu, short item, Boolean hilite);
- * void Platform_FlashMenuBar(short menuID);
- * Handle Platform_SaveScreenBits(const Rect* rect);
- * void Platform_RestoreScreenBits(Handle savedBits, const Rect* rect);
- * void Platform_DisposeScreenBits(Handle savedBits);
- */
-
-/* ============================================================================
  * Display Utility Macros
  * ============================================================================ */
-
-/* Check if point is in rectangle */
-#define PtInRect(pt, rect) \
-    ((pt).h >= (rect)->left && (pt).h < (rect)->right && \
-     (pt).v >= (rect)->top && (pt).v < (rect)->bottom)
 
 /* Calculate rectangle width and height */
 #define RectWidth(rect)     ((rect)->right - (rect)->left)
@@ -472,24 +432,6 @@ void SetMenuDrawingMode(Boolean useColor, Boolean antiAlias, Boolean usePatterns
     do { \
         (pt).h = (rect)->left + RectWidth(rect) / 2; \
         (pt).v = (rect)->top + RectHeight(rect) / 2; \
-    } while (0)
-
-/* Offset rectangle */
-#define OffsetRect(rect, dh, dv) \
-    do { \
-        (rect)->left += (dh); \
-        (rect)->right += (dh); \
-        (rect)->top += (dv); \
-        (rect)->bottom += (dv); \
-    } while (0)
-
-/* Inset rectangle */
-#define InsetRect(rect, dh, dv) \
-    do { \
-        (rect)->left += (dh); \
-        (rect)->right -= (dh); \
-        (rect)->top += (dv); \
-        (rect)->bottom -= (dv); \
     } while (0)
 
 #ifdef __cplusplus
