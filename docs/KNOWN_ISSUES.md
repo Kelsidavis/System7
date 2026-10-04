@@ -395,20 +395,13 @@ Real QuickDraw does not have this problem because `BeginUpdate` clips to
 `visRgn`, which excludes whatever is stacked above. Ours is a bounding box
 (REGION-001) and cannot express that.
 
-`HandleUpdate` now calls `WM_DeferUpdateIfObscured` first: if a window in front
-overlaps, the damage is re-recorded in the window's update region and the repaint
-is skipped. `WM_FindWindowNeedingUpdate` already defers covered windows, so
-nothing repaints until the cover moves — and then it does, automatically.
-Verified self-healing: opening About over the Finder window leaves it blank while
-covered, and closing About restores it in full (3767 content pixels).
-
-**Superseded.** The deferral above was a stand-in for real regions and has since
-been removed, along with the duplicate copy of its test in
-`WM_FindWindowNeedingUpdate`. With REGION-001 fixed, `EndUpdate` copies a
-window's offscreen buffer to the screen band by band through its visible region,
-so a stale update event can only ever put back pixels the window actually owns —
-it cannot paint over the window in front of it, and a partially covered window
-repaints its exposed part immediately instead of sitting blank.
+An initial workaround deferred updates while a window was covered, retaining
+the damage until the covering window moved. That prevented an obscured repaint
+from overwriting the front window, but left even partially covered windows
+blank until then. The workaround was removed after REGION-001: `EndUpdate`
+copies a window's offscreen buffer through its visible region, so a stale update
+can restore only pixels the window owns, and exposed portions repaint without
+waiting for the covering window to move.
 
 ⚠️ **Corrected diagnosis.** An earlier revision of this entry blamed
 `FrontWindow()` and `wmState->windowList` disagreeing about the frontmost window.
@@ -683,15 +676,14 @@ public `GetNextEvent` definition routes to `Proc_GetNextEvent` in
 `ProcessMgr/EventIntegration.c`. The same trap still exists for `DrawText` (see
 the Font Manager entry) and `PaintOne`-adjacent code.
 
-**REGION-001 fallout.** Invalidating covered windows made them repaint over the
-window on top — opening About This Macintosh drew the Finder's icons across the
-About box — because a rectangle `visRgn` cannot express "content minus the
-window above me", so `BeginUpdate` cannot clip the repaint. Deciding this at
-*invalidate* time was not enough: the Finder is invalidated while the menu is
-open, and About appears before the update is serviced. So
-`WM_FindWindowNeedingUpdate` now defers any window whose update region
-intersects a window in front of it. The damage stays recorded and repaints once
-the cover goes away.
+**REGION-001 fallout.** Before regions could represent disjoint rectangles,
+invalidating a covered window could let it repaint over the window on top —
+opening About This Macintosh drew the Finder's icons across the About box. The
+interim overlap deferral described above was removed once region-aware clipping
+was implemented. `WM_FindWindowNeedingUpdate` now selects dirty visible windows
+without checking overlap; `CalcVis` and `EndUpdate` restrict painting to each
+window's visible region, allowing exposed portions to repaint while covered
+portions remain untouched.
 
 **Verified in QEMU** on: PS/2 boot with no input (18 → 3767 content pixels),
 stability over 55 s (3 draws total, no repaint storm), USB tablet boot
