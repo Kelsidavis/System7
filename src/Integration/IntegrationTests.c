@@ -1708,6 +1708,7 @@ static void Test_MacBinary_UnpackFile(void) {
 /* Enqueue, Dequeue, GetAppParms, UnloadSeg, the package calls, OSEventAvail
  * and SysError, called by a 68K program (M68KToolboxTest.c) */
 extern Boolean M68KToolbox_RunTrapTest(const char** why);
+extern Boolean M68KToolbox_RunCMPFlagsTest(const char** why);
 
 extern Boolean M68KToolbox_RunSANETest(const char** why);
 
@@ -1775,6 +1776,13 @@ static void Test_M68K_Traps(void) {
     const char* test_name = "M68K_Traps";
     const char* why = "";
     CHECK(M68KToolbox_RunTrapTest(&why), why);
+    RecordTest(test_name, true, "");
+}
+
+static void Test_M68K_CMPFlags(void) {
+    const char* test_name = "M68K_CMPFlags";
+    const char* why = "";
+    CHECK(M68KToolbox_RunCMPFlagsTest(&why), why);
     RecordTest(test_name, true, "");
 }
 
@@ -1945,6 +1953,7 @@ void IntegrationTests_Run(void) {
     Test_MacBinary_UnpackFile();
 
     IT_LOG_INFO("--- 68K traps ---");
+    Test_M68K_CMPFlags();
     Test_M68K_Traps();
     Test_M68K_SANE();
     Test_M68K_Lists();

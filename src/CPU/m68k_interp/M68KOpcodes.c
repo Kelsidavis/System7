@@ -142,6 +142,32 @@ static void M68K_SetNZ(M68KAddressSpace* as, UInt32 value, M68KSize size)
     }
 }
 
+static void M68K_SetSubFlags(M68KAddressSpace* as, UInt32 src, UInt32 dst,
+                             UInt32 result, M68KSize size,
+                             Boolean updateExtend)
+{
+    UInt32 signBit = SIZE_SIGN_BIT(size);
+    Boolean borrow = src > dst;
+    Boolean srcNeg = (src & signBit) != 0;
+    Boolean dstNeg = (dst & signBit) != 0;
+    Boolean resultNeg = (result & signBit) != 0;
+
+    M68K_SetNZ(as, result, size);
+    if (borrow) {
+        M68K_SetFlag(as, CCR_C);
+        if (updateExtend) M68K_SetFlag(as, CCR_X);
+    } else {
+        M68K_ClearFlag(as, CCR_C);
+        if (updateExtend) M68K_ClearFlag(as, CCR_X);
+    }
+
+    if (srcNeg != dstNeg && resultNeg != dstNeg) {
+        M68K_SetFlag(as, CCR_V);
+    } else {
+        M68K_ClearFlag(as, CCR_V);
+    }
+}
+
 /*
  * Condition Code Testing
  */
@@ -416,29 +442,7 @@ void M68K_Op_SUB(M68KAddressSpace* as, UInt16 opcode)
         M68K_EA_WriteRMW(as, ea_mode, ea_reg, size, result);
     }
 
-    /* Set flags */
-    M68K_SetNZ(as, result, size);
-
-    /* Set C and X if borrow occurred */
-    if (src > dst) {
-        M68K_SetFlag(as, CCR_C | CCR_X);
-    } else {
-        M68K_ClearFlag(as, CCR_C | CCR_X);
-    }
-
-    /* Set V if signed overflow occurred (src and dst different sign, result different from dst) */
-    {
-        UInt32 sign_bit = SIZE_SIGN_BIT(size);
-        Boolean src_neg = (src & sign_bit) != 0;
-        Boolean dst_neg = (dst & sign_bit) != 0;
-        Boolean res_neg = (result & sign_bit) != 0;
-
-        if (src_neg != dst_neg && res_neg != dst_neg) {
-            M68K_SetFlag(as, CCR_V);
-        } else {
-            M68K_ClearFlag(as, CCR_V);
-        }
-    }
+    M68K_SetSubFlags(as, src, dst, result, size, true);
 }
 
 /*
@@ -458,18 +462,7 @@ void M68K_Op_CMP(M68KAddressSpace* as, UInt16 opcode)
     src = M68K_EA_Read(as, ea_mode, ea_reg, size);
     result = (dst - src) & mask;
 
-    /* Set flags (don't write result) */
-    M68K_SetNZ(as, result, size);
-
-    /* Set C if borrow occurred */
-    if (src > dst) {
-        M68K_SetFlag(as, CCR_C);
-    } else {
-        M68K_ClearFlag(as, CCR_C);
-    }
-
-    /* Clear V for MVP */
-    M68K_ClearFlag(as, CCR_V);
+    M68K_SetSubFlags(as, src, dst, result, size, false);
 }
 
 /*

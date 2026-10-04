@@ -14,12 +14,14 @@
 #include <string.h>
 #include "CPU/M68KToolbox.h"
 #include "CPU/M68KInterp.h"
+#include "CPU/M68KOpcodes.h"
 #include "M68KToolboxInternal.h"
 #include "ResourceManager.h"
 #include "System71StdLib.h"
 
 /* Called by IntegrationTests.c */
 Boolean M68KToolbox_RunTrapTest(const char** why);
+Boolean M68KToolbox_RunCMPFlagsTest(const char** why);
 Boolean M68KToolbox_RunSANETest(const char** why);
 Boolean M68KToolbox_RunListTest(const char** why);
 Boolean M68KToolbox_RunWindowTest(const char** why);
@@ -691,6 +693,53 @@ static void StoreSR(Asm* a, UInt32 d, int slot) {            /* MOVE SR,D7; MOVE
 }
 static void MoveqTo(Asm* a, int dn, SInt8 v) { W(a, (UInt16)(0x7000 | (dn << 9) | (UInt8)v)); }
 static void MoveL(Asm* a, int dn, UInt32 v) { W(a, (UInt16)(0x203C | (dn << 9))); L(a, v); }
+
+Boolean M68KToolbox_RunCMPFlagsTest(const char** why)
+{
+    enum { kOverflowFlags = 0x200, kNoOverflowFlags = 0x204 };
+    World w;
+    if (!WorldBegin(&w, why)) return false;
+
+    Asm a;
+    a.n = 0;
+    MoveqTo(&a, 0, -128);
+    MoveqTo(&a, 1, 127);
+    W(&a, 0x9200);                  /* SUB.B D0,D1 sets X on the unsigned borrow */
+    MoveqTo(&a, 0, -128);
+    MoveqTo(&a, 1, 127);
+    W(&a, 0xB200);                  /* CMP.B D0,D1: 127 - (-128) overflows */
+    W(&a, 0x40C2);                  /* MOVE SR,D2 */
+    W(&a, 0x23C2); L(&a, w.data + kOverflowFlags);
+    MoveqTo(&a, 0, 2);
+    MoveqTo(&a, 1, 1);
+    W(&a, 0xB200);                  /* CMP.B D0,D1: 1 - 2 does not overflow */
+    W(&a, 0x40C2);
+    W(&a, 0x23C2); L(&a, w.data + kNoOverflowFlags);
+    W(&a, 0xA9F4);                  /* _ExitToShell */
+
+    OSErr runResult = WorldRun(&w, &a);
+    UInt16 overflowFlags = M68K_Read16(gM68KApp, w.data + kOverflowFlags);
+    UInt16 noOverflowFlags = M68K_Read16(gM68KApp, w.data + kNoOverflowFlags);
+    WorldEnd(&w);
+
+    if (runResult != noErr) {
+        *why = "the comparison program stopped with a fault";
+        return false;
+    }
+    if ((overflowFlags & (CCR_X | CCR_N | CCR_Z | CCR_V | CCR_C)) !=
+        (CCR_X | CCR_N | CCR_V | CCR_C)) {
+        *why = "CMP did not set N, V, and C or preserve X for signed overflow";
+        return false;
+    }
+    if ((noOverflowFlags & (CCR_X | CCR_N | CCR_Z | CCR_V | CCR_C)) !=
+        (CCR_X | CCR_N | CCR_C)) {
+        *why = "CMP did not clear V or preserve X for a non-overflowing subtraction";
+        return false;
+    }
+
+    *why = "";
+    return true;
+}
 
 Boolean M68KToolbox_Run68020Test(const char** why)
 {
