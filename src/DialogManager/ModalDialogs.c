@@ -26,6 +26,7 @@
 #include "DeskManager/DeskManager.h"
 #include "OSUtils/OSUtils.h"
 #include "WindowManager/WindowManager.h"
+#include "WindowManager/WindowManagerInternal.h"
 
 /* Event constants - matching Mac System 7.1 */
 #define kDialogEvent_Null         0
@@ -291,9 +292,13 @@ void EndModalDialog(DialogPtr theDialog)
             (state)->globals.frontModal = (DialogPtr)gModalState.modalStack[gModalState.modalLevel - 1];
         } else {
             (state)->globals.frontModal = NULL;
-            /* Re-enable non-modal windows */
-            EnableNonModalWindows();
         }
+    }
+
+    if (gModalState.modalLevel > 0) {
+        DisableNonModalWindows();
+    } else {
+        EnableNonModalWindows();
     }
 
 }
@@ -439,8 +444,10 @@ void BringModalToFront(DialogPtr theDialog)
  */
 void DisableNonModalWindows(void)
 {
-    /* In a full implementation, this would iterate through all windows
-       and disable those that are not modal dialogs */
+    DialogPtr modalDialog = GetFrontModalDialog();
+    if (modalDialog) {
+        WM_SetModalWindow((WindowPtr)modalDialog);
+    }
 }
 
 /*
@@ -448,7 +455,7 @@ void DisableNonModalWindows(void)
  */
 void EnableNonModalWindows(void)
 {
-    /* In a full implementation, this would re-enable previously disabled windows */
+    WM_ClearModalWindow();
 }
 
 /*

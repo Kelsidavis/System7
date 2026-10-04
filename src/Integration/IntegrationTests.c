@@ -778,6 +778,49 @@ static void Test_Window_ReorderAndHide(void) {
     RecordTest(test_name, true, "");
 }
 
+static void Test_Dialog_NestedModalWindowState(void) {
+    const char* test_name = "Dialog_NestedModalWindowState";
+    Rect backBounds = { 150, 520, 300, 700 };
+    Rect firstBounds = { 180, 540, 330, 720 };
+    Rect nestedBounds = { 210, 560, 360, 740 };
+    WindowPtr back = NewWindow(NULL, &backBounds, (ConstStr255Param)"\x04Back",
+                               true, 0, (WindowPtr)-1, false, 0);
+    WindowPtr first = NewWindow(NULL, &firstBounds, (ConstStr255Param)"\x05First",
+                                true, dBoxProc, (WindowPtr)-1, false, 0);
+    WindowPtr nested = NewWindow(NULL, &nestedBounds, (ConstStr255Param)"\x06Nested",
+                                 true, dBoxProc, (WindowPtr)-1, false, 0);
+    Boolean passed = back && first && nested;
+    Boolean firstStarted = false;
+    Boolean nestedStarted = false;
+
+    if (passed) {
+        firstStarted = BeginModalDialog((DialogPtr)first) == noErr;
+        passed = firstStarted &&
+                 !back->hilited && GetFrontModalDialog() == (DialogPtr)first;
+    }
+    if (passed) {
+        nestedStarted = BeginModalDialog((DialogPtr)nested) == noErr;
+        passed = nestedStarted &&
+                 !first->hilited && !back->hilited &&
+                 GetFrontModalDialog() == (DialogPtr)nested;
+    }
+    if (nestedStarted) EndModalDialog((DialogPtr)nested);
+    if (passed) {
+        passed = first->hilited && !back->hilited &&
+                 GetFrontModalDialog() == (DialogPtr)first;
+    }
+    if (firstStarted) EndModalDialog((DialogPtr)first);
+    if (passed) {
+        passed = back->hilited && GetFrontModalDialog() == NULL;
+    }
+
+    if (nested) DisposeWindow(nested);
+    if (first) DisposeWindow(first);
+    if (back) DisposeWindow(back);
+    RecordTest(test_name, passed,
+               "modal windows were not disabled, restored, or cleared in stack order");
+}
+
 /* MoveWindow places the content's corner, for any kind of window; zooming
  * in and back out restores the window. */
 static void Test_Window_MoveAndZoom(void) {
@@ -1888,6 +1931,7 @@ void IntegrationTests_Run(void) {
     Test_Dialog_EditTextFocusBeyond32Items();
     Test_Chooser_InitializeLayout();
     Test_Window_ReorderAndHide();
+    Test_Dialog_NestedModalWindowState();
     Test_Window_MoveAndZoom();
     Test_File_ReadThroughExtentsOverflow();
 
