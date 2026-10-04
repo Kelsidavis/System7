@@ -1,1 +1,2 @@
+# Resource fragments execute in mkapp.py's namespace and preserve binary-layout alignment.
 extend-exclude = ["**/*.r.py", "build/"]

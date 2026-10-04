@@ -1009,6 +1009,7 @@ test-doc-links:
 check-python-style:
 	@ruff check .
 	@ruff format --check .
+	@ruff check --config 'extend-exclude = []' --ignore F821 tests/m68k/*.r.py
 
 # Parse the maintenance and build shell scripts with Bash without executing them.
 .PHONY: check-shell-syntax
