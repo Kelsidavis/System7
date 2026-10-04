@@ -48,6 +48,8 @@
 #include "DeskManager/Chooser.h"
 #include "DeskManager/DeskAccessory.h"
 #include "MenuManager/MenuManager.h"
+#include "MenuManager/MenuDisplay.h"
+#include "Platform/PS2Input.h"
 #include "ProcessMgr/ProcessMgr.h"
 #include "MacTypes.h"
 #include "math.h"
@@ -1823,6 +1825,37 @@ static void Test_Menu_PopUpNullMenu(void) {
     RecordTest(test_name, true, "");
 }
 
+static void Test_Menu_PopUpSelection(void) {
+    const char* test_name = "Menu_PopUpSelection";
+    MenuHandle menu = NewMenu(222, (ConstStr255Param)"\x06Popup");
+    CHECK(menu, "NewMenu failed");
+    AppendMenu(menu, PSTR("First;Second"));
+    if (CountMItems(menu) != 2) {
+        DisposeMenu(menu);
+        RecordTest(test_name, false, "menu items were not appended");
+        return;
+    }
+
+    short itemHeight = GetMenuItemHeight(menu, 1);
+
+    Point oldMouse;
+    GetMouse(&oldMouse);
+    UInt8 oldButtons = GetMouseButtons();
+    const short left = 100;
+    const short closedTop = 120;
+    SetMousePosition(left + 10,
+                     closedTop + itemHeight / 2);
+    SetMouseButtons(0);
+    long choice = PopUpMenuSelect(menu, closedTop, left, 0);
+    SetMousePosition(oldMouse.h, oldMouse.v);
+    SetMouseButtons(oldButtons);
+    DisposeMenu(menu);
+
+    CHECK(choice == (((long)222 << 16) | 1),
+          "popup tracking did not return the selected menu ID and item");
+    RecordTest(test_name, true, "");
+}
+
 static void Test_Resource_CreateAndOpenResFile(void) {
     const char* test_name = "Resource_CreateAndOpenResFile";
     FSSpec spec;
@@ -2430,6 +2463,7 @@ void IntegrationTests_Run(void) {
     Test_Resource_WriteAndReadBack();
     Test_MenuResourceNames();
     Test_Menu_PopUpNullMenu();
+    Test_Menu_PopUpSelection();
     Test_Resource_OpenMissingResFile();
 
     IT_LOG_INFO("--- Segment Loader ---");

@@ -151,6 +151,14 @@ void UpdateMouseStateAbsolute(SInt16 x, SInt16 y, UInt8 buttons) {
     publish_mouse_state(buttons);
 }
 
+void SetMousePosition(SInt16 x, SInt16 y) {
+    UpdateMouseStateAbsolute(x, y, g_mouseState.buttons);
+}
+
+void SetMouseButtons(UInt8 buttons) {
+    publish_mouse_state(buttons);
+}
+
 /* Keyboard state */
 typedef struct {
     KeyMap keyMap;
