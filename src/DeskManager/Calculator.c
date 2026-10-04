@@ -1,13 +1,8 @@
-#include "MemoryMgr/MemoryManager.h"
-#include <string.h>
 /*
  * Calculator.c - Calculator Desk Accessory Implementation
  *
- * Provides a complete calculator with basic arithmetic, scientific functions,
- * and programmer operations. Matches the functionality of the Mac OS Calculator
- * desk accessory with modern enhancements.
- *
- * Derived from ROM analysis (System 7)
+ * Arithmetic, decimal entry, memory, and bounded calculation history for the
+ * native desk accessory.
  */
 
 #include "SystemTypes.h"
@@ -15,54 +10,15 @@
 
 #include "DeskManager/Calculator.h"
 #include <math.h>
-
-/* Simple atof implementation for bare-metal kernel */
-static double simple_atof(const char* str) {
-    double result = 0.0;
-    double fraction = 0.0;
-    int divisor = 1;
-    int sign = 1;
-    Boolean inFraction = false;
-
-    if (!str) return 0.0;
-
-    /* Handle sign */
-    if (*str == '-') {
-        sign = -1;
-        str++;
-    } else if (*str == '+') {
-        str++;
-    }
-
-    /* Parse integer and fraction parts */
-    while (*str) {
-        if (*str >= '0' && *str <= '9') {
-            if (inFraction) {
-                fraction = fraction * 10.0 + (*str - '0');
-                divisor *= 10;
-            } else {
-                result = result * 10.0 + (*str - '0');
-            }
-        } else if (*str == '.' && !inFraction) {
-            inFraction = true;
-        } else {
-            break;  /* Stop at first invalid character */
-        }
-        str++;
-    }
-
-    result = result + fraction / divisor;
-    return sign * result;
-}
-
-#define atof simple_atof
+#include <string.h>
 
 /* Internal Function Prototypes */
 static void Calculator_SetError(Calculator *calc, int errorCode, const char *message);
 static double Calculator_PerformArithmetic(double op1, double op2, CalcOperation operation);
 static double Calculator_PerformScientific(double operand, CalcOperation operation);
-static void Calculator_ConvertToBase(Calculator *calc, CalcBase newBase);
 static Boolean Calculator_IsValidDigitForBase(int digit, CalcBase base);
+static void Calculator_BeginEntry(Calculator *calc);
+static int Calculator_CheckResult(Calculator *calc, double result);
 
 /*
  * Initialize calculator
@@ -81,35 +37,10 @@ int Calculator_Initialize(Calculator *calc)
     calc->base = CALC_BASE_DECIMAL;
     calc->newNumber = true;
     calc->angleRadians = false;
-    calc->precision = 10;
-
-    /* Initialize display */
-    (calc)->value = 0.0;
-    (calc)->base = CALC_BASE_DECIMAL;
-    (calc)->isInteger = false;
-    strncpy((calc)->display, "0", sizeof((calc)->display) - 1);
-    (calc)->display[sizeof((calc)->display) - 1] = '\0';
-
-    /* Initialize window bounds */
-    (calc)->left = 100;
-    (calc)->top = 100;
-    (calc)->right = 300;
-    (calc)->bottom = 400;
+    strcpy(calc->entry, "0");
 
     Calculator_UpdateDisplay(calc);
     return CALC_ERR_NONE;
-}
-
-/*
- * Shutdown calculator
- */
-void Calculator_Shutdown(Calculator *calc)
-{
-    if (calc) {
-        /* Clean up any allocated resources */
-        DisposePtr((Ptr)calc->buttonRects);
-        calc->buttonRects = NULL;
-    }
 }
 
 /*
@@ -121,9 +52,12 @@ void Calculator_Reset(Calculator *calc)
 
     calc->state = CALC_STATE_ENTRY;
     calc->value = 0.0;
+    calc->accumulator = 0.0;
+    calc->accumulatorIntValue = 0;
+    calc->intValue = 0;
     calc->pendingOp = CALC_OP_NONE;
     calc->newNumber = true;
-    calc->decimalEntered = false;
+    strcpy(calc->entry, "0");
     calc->errorCode = CALC_ERR_NONE;
     calc->errorMessage[0] = '\0';
 
@@ -173,6 +107,10 @@ int Calculator_PressButton(Calculator *calc, CalcButtonID buttonID)
             return Calculator_PerformOperation(calc, CALC_OP_DIVIDE);
         case CALC_BTN_EQUALS:
             return Calculator_PerformOperation(calc, CALC_OP_EQUALS);
+        case CALC_BTN_PERCENT:
+            return Calculator_PerformOperation(calc, CALC_OP_PERCENT);
+        case CALC_BTN_NEGATE:
+            return Calculator_PerformOperation(calc, CALC_OP_CHANGE_SIGN);
 
         /* Clear operations */
         case CALC_BTN_CLEAR:
@@ -280,52 +218,38 @@ int Calculator_PerformOperation(Calculator *calc, CalcOperation operation)
         case CALC_OP_SUBTRACT:
         case CALC_OP_MULTIPLY:
         case CALC_OP_DIVIDE:
-            /* Binary operations. The first operand is kept in the
-             * accumulator; both operands used to be the number on display, so
-             * 7 + 8 = came to 16. A number entered since the last operator
-             * completes the pending operation first (7 + 8 * gives 15 * ...);
-             * a second operator in a row just replaces the first. */
-            if (calc->pendingOp != CALC_OP_NONE && calc->state == CALC_STATE_ENTRY) {
+            /* Complete the pending operation before accepting a new operator;
+             * consecutive operators replace it without consuming an operand. */
+            if (calc->pendingOp != CALC_OP_NONE && calc->state != CALC_STATE_OPERATION) {
                 result = Calculator_PerformArithmetic(calc->accumulator,
-                                                    (calc)->value,
+                                                    calc->value,
                                                     calc->pendingOp);
-                if (result == HUGE_VAL || result == -HUGE_VAL) {
-                    Calculator_SetError(calc, CALC_ERR_OVERFLOW, "Overflow");
-                    return CALC_ERR_OVERFLOW;
-                }
-                if (isnan(result)) {
-                    Calculator_SetError(calc, CALC_ERR_DOMAIN, "Invalid Operation");
-                    return CALC_ERR_DOMAIN;
-                }
-
-                (calc)->value = result;
-                Calculator_UpdateDisplay(calc);
+                errorCode = Calculator_CheckResult(calc, result);
+                if (errorCode) return errorCode;
+                if (calc->isInteger) calc->intValue = (SInt64)result;
+                calc->value = result;
             }
 
             calc->accumulator = calc->value;
+            calc->accumulatorIntValue = calc->intValue;
             calc->pendingOp = operation;
             calc->state = CALC_STATE_OPERATION;
             calc->newNumber = true;
+            Calculator_UpdateDisplay(calc);
             break;
 
         case CALC_OP_EQUALS:
             if (calc->pendingOp != CALC_OP_NONE) {
                 result = Calculator_PerformArithmetic(calc->accumulator,
-                                                    (calc)->value,
+                                                    calc->value,
                                                     calc->pendingOp);
-                if (result == HUGE_VAL || result == -HUGE_VAL) {
-                    Calculator_SetError(calc, CALC_ERR_OVERFLOW, "Overflow");
-                    return CALC_ERR_OVERFLOW;
-                }
-                if (isnan(result)) {
-                    Calculator_SetError(calc, CALC_ERR_DOMAIN, "Invalid Operation");
-                    return CALC_ERR_DOMAIN;
-                }
+                errorCode = Calculator_CheckResult(calc, result);
+                if (errorCode) return errorCode;
 
                 /* Create CalcNumber structures for history */
                 CalcNumber op1, op2, resultNum;
                 op1.value = calc->accumulator;
-                op1.intValue = (SInt64)calc->accumulator;
+                op1.intValue = calc->accumulatorIntValue;
                 op1.base = calc->base;
                 op1.isInteger = calc->isInteger;
 
@@ -335,7 +259,7 @@ int Calculator_PerformOperation(Calculator *calc, CalcOperation operation)
                 op2.isInteger = calc->isInteger;
 
                 resultNum.value = result;
-                resultNum.intValue = (SInt64)result;
+                resultNum.intValue = calc->isInteger ? (SInt64)result : 0;
                 resultNum.base = calc->base;
                 resultNum.isInteger = calc->isInteger;
 
@@ -344,6 +268,7 @@ int Calculator_PerformOperation(Calculator *calc, CalcOperation operation)
                                       calc->pendingOp, &resultNum);
 
                 calc->value = result;
+                calc->intValue = resultNum.intValue;
                 calc->pendingOp = CALC_OP_NONE;
                 calc->state = CALC_STATE_RESULT;
                 calc->newNumber = true;
@@ -360,32 +285,50 @@ int Calculator_PerformOperation(Calculator *calc, CalcOperation operation)
             if (calc->mode != CALC_MODE_SCIENTIFIC) {
                 return CALC_ERR_INVALID_OP;
             }
-            result = Calculator_PerformScientific((calc)->value, operation);
-            if (result == HUGE_VAL || result == -HUGE_VAL) {
-                Calculator_SetError(calc, CALC_ERR_OVERFLOW, "Overflow");
-                return CALC_ERR_OVERFLOW;
-            }
-            if (isnan(result)) {
-                Calculator_SetError(calc, CALC_ERR_DOMAIN, "Domain Error");
-                return CALC_ERR_DOMAIN;
-            }
-            (calc)->value = result;
+            result = Calculator_PerformScientific(calc->value, operation);
+            errorCode = Calculator_CheckResult(calc, result);
+            if (errorCode) return errorCode;
+            calc->value = result;
             calc->state = CALC_STATE_RESULT;
             calc->newNumber = true;
             Calculator_UpdateDisplay(calc);
             break;
 
         /* Special operations */
+        case CALC_OP_NEGATE:
         case CALC_OP_CHANGE_SIGN:
-            (calc)->value = -(calc)->value;
+            if (calc->state == CALC_STATE_ENTRY) Calculator_BeginEntry(calc);
+            if (calc->base == CALC_BASE_DECIMAL &&
+                calc->state == CALC_STATE_ENTRY && !calc->newNumber) {
+                size_t length = strlen(calc->entry);
+                if (calc->entry[0] == '-') {
+                    memmove(calc->entry, calc->entry + 1, length);
+                } else {
+                    memmove(calc->entry + 1, calc->entry, length + 1);
+                    calc->entry[0] = '-';
+                }
+            }
+            if (calc->isInteger) {
+                calc->intValue = (SInt64)(0ULL - (UInt64)calc->intValue);
+                calc->value = (double)calc->intValue;
+            } else {
+                calc->value = -calc->value;
+            }
             Calculator_UpdateDisplay(calc);
             break;
 
         case CALC_OP_PERCENT:
-            if (calc->pendingOp != CALC_OP_NONE) {
-                (calc)->value = (calc->accumulator * (calc)->value) / 100.0;
-                Calculator_UpdateDisplay(calc);
+            result = calc->value / 100.0;
+            if (calc->pendingOp == CALC_OP_ADD || calc->pendingOp == CALC_OP_SUBTRACT) {
+                result *= calc->accumulator;
             }
+            errorCode = Calculator_CheckResult(calc, result);
+            if (errorCode) return errorCode;
+            calc->value = result;
+            if (calc->isInteger) calc->intValue = (SInt64)result;
+            calc->state = CALC_STATE_RESULT;
+            calc->newNumber = true;
+            Calculator_UpdateDisplay(calc);
             break;
 
         default:
@@ -408,35 +351,24 @@ int Calculator_EnterDigit(Calculator *calc, int digit)
         return CALC_ERR_INVALID_OP;
     }
 
-    if (calc->newNumber) {
-        (calc)->value = 0.0;
-        calc->newNumber = false;
-        calc->decimalEntered = false;
-        calc->state = CALC_STATE_ENTRY;
-    }
+    Calculator_BeginEntry(calc);
 
     /* Handle different number bases */
     if (calc->base == CALC_BASE_DECIMAL) {
-        if (calc->decimalEntered) {
-            /* Add digit after decimal point */
-            char temp[32];
-            snprintf(temp, sizeof(temp), "%.10f", (calc)->value);
-
-            /* Find decimal point and add digit */
-            char *decimal = strchr(temp, '.');
-            if (decimal && strlen(decimal) < 12) {
-                char newStr[32];
-                snprintf(newStr, sizeof(newStr), "%s%d", temp, digit);
-                (calc)->value = atof(newStr);
-            }
-        } else {
-            /* Add digit before decimal point */
-            (calc)->value = (calc)->value * 10.0 + digit;
+        size_t length = strlen(calc->entry);
+        size_t start = calc->entry[0] == '-' ? 1 : 0;
+        if (length == start + 1 && calc->entry[start] == '0') {
+            calc->entry[start] = (char)('0' + digit);
+        } else if (length < CALC_DISPLAY_DIGITS - (start == 0)) {
+            /* Leave one byte available for a later sign change. */
+            calc->entry[length] = (char)('0' + digit);
+            calc->entry[length + 1] = '\0';
         }
+        calc->value = atof(calc->entry);
     } else {
         /* Integer bases (hex, octal, binary) */
-        (calc)->intValue = (calc)->intValue * calc->base + digit;
-        (calc)->value = (double)(calc)->intValue;
+        calc->intValue = (SInt64)((UInt64)calc->intValue * (unsigned)calc->base + (unsigned)digit);
+        calc->value = (double)calc->intValue;
     }
 
     Calculator_UpdateDisplay(calc);
@@ -456,14 +388,13 @@ int Calculator_EnterDecimal(Calculator *calc)
         return CALC_ERR_INVALID_OP;
     }
 
-    if (calc->newNumber) {
-        (calc)->value = 0.0;
-        calc->newNumber = false;
-        calc->state = CALC_STATE_ENTRY;
-    }
+    Calculator_BeginEntry(calc);
 
-    if (!calc->decimalEntered) {
-        calc->decimalEntered = true;
+    size_t length = strlen(calc->entry);
+    if (!strchr(calc->entry, '.') &&
+        length < CALC_DISPLAY_DIGITS - (calc->entry[0] != '-')) {
+        calc->entry[length] = '.';
+        calc->entry[length + 1] = '\0';
         Calculator_UpdateDisplay(calc);
     }
 
@@ -477,9 +408,10 @@ void Calculator_Clear(Calculator *calc)
 {
     if (!calc) return;
 
-    (calc)->value = 0.0;
+    calc->value = 0.0;
+    calc->intValue = 0;
     calc->newNumber = true;
-    calc->decimalEntered = false;
+    strcpy(calc->entry, "0");
     calc->state = CALC_STATE_ENTRY;
     calc->errorCode = CALC_ERR_NONE;
     calc->errorMessage[0] = '\0';
@@ -502,30 +434,20 @@ void Calculator_ClearAll(Calculator *calc)
  */
 void Calculator_Backspace(Calculator *calc)
 {
-    if (!calc || calc->state != CALC_STATE_ENTRY) {
+    if (!calc || calc->state != CALC_STATE_ENTRY || calc->newNumber) {
         return;
     }
 
     if (calc->base == CALC_BASE_DECIMAL) {
-        if (calc->decimalEntered) {
-            /* Remove decimal digits */
-            char temp[32];
-            snprintf(temp, sizeof(temp), "%.10f", (calc)->value);
-            char *decimal = strchr(temp, '.');
-            if (decimal && strlen(decimal) > 1) {
-                decimal[strlen(decimal) - 1] = '\0';
-                (calc)->value = atof(temp);
-            } else {
-                calc->decimalEntered = false;
-            }
-        } else {
-            /* Remove integer digits */
-            (calc)->value = floor((calc)->value / 10.0);
-        }
+        size_t length = strlen(calc->entry);
+        size_t start = calc->entry[0] == '-' ? 1 : 0;
+        if (length > start + 1) calc->entry[length - 1] = '\0';
+        else calc->entry[start] = '0';
+        calc->value = atof(calc->entry);
     } else {
         /* Integer bases */
-        (calc)->intValue /= calc->base;
-        (calc)->value = (double)(calc)->intValue;
+        calc->intValue /= calc->base;
+        calc->value = (double)calc->intValue;
     }
 
     Calculator_UpdateDisplay(calc);
@@ -536,25 +458,27 @@ void Calculator_Backspace(Calculator *calc)
  */
 int Calculator_SetMode(Calculator *calc, CalcMode mode)
 {
-    if (!calc) {
+    if (!calc || (mode != CALC_MODE_BASIC && mode != CALC_MODE_SCIENTIFIC &&
+                  mode != CALC_MODE_PROGRAMMER)) {
         return CALC_ERR_INVALID_OP;
     }
 
     calc->mode = mode;
 
     /* Set appropriate base for mode */
+    int result = CALC_ERR_NONE;
     switch (mode) {
         case CALC_MODE_BASIC:
         case CALC_MODE_SCIENTIFIC:
-            Calculator_SetBase(calc, CALC_BASE_DECIMAL);
+            result = Calculator_SetBase(calc, CALC_BASE_DECIMAL);
             break;
         case CALC_MODE_PROGRAMMER:
-            Calculator_SetBase(calc, CALC_BASE_HEX);
+            result = Calculator_SetBase(calc, CALC_BASE_HEX);
             break;
     }
 
-    Calculator_UpdateDisplay(calc);
-    return CALC_ERR_NONE;
+    if (!result) Calculator_UpdateDisplay(calc);
+    return result;
 }
 
 /*
@@ -566,6 +490,11 @@ int Calculator_SetBase(Calculator *calc, CalcBase base)
         return CALC_ERR_INVALID_OP;
     }
 
+    if (base != CALC_BASE_DECIMAL && base != CALC_BASE_BINARY &&
+        base != CALC_BASE_OCTAL && base != CALC_BASE_HEX) {
+        return CALC_ERR_INVALID_BASE;
+    }
+
     if (calc->mode != CALC_MODE_PROGRAMMER && base != CALC_BASE_DECIMAL) {
         return CALC_ERR_INVALID_BASE;
     }
@@ -575,7 +504,15 @@ int Calculator_SetBase(Calculator *calc, CalcBase base)
 
     /* Convert current value to new base */
     if (oldBase != base) {
-        Calculator_ConvertToBase(calc, base);
+        calc->isInteger = base != CALC_BASE_DECIMAL;
+        if (calc->isInteger && oldBase == CALC_BASE_DECIMAL) {
+            int result = Calculator_CheckResult(calc, calc->value);
+            if (result) return result;
+            calc->intValue = (SInt64)calc->value;
+        }
+        calc->value = (double)calc->intValue;
+        calc->state = CALC_STATE_RESULT;
+        calc->newNumber = true;
         Calculator_UpdateDisplay(calc);
     }
 
@@ -621,7 +558,11 @@ int Calculator_MemoryRecall(Calculator *calc, int slot)
         return CALC_ERR_MEMORY_EMPTY;
     }
 
-    calc->value = calc->memory[slot];
+    double value = calc->memory[slot];
+    int result = Calculator_CheckResult(calc, value);
+    if (result) return result;
+    calc->value = value;
+    calc->intValue = calc->isInteger ? (SInt64)value : 0;
     calc->newNumber = true;
     calc->state = CALC_STATE_RESULT;
     Calculator_UpdateDisplay(calc);
@@ -674,14 +615,17 @@ void Calculator_AddToHistory(Calculator *calc, const CalcNumber *op1,
     switch (operation) {
         case CALC_OP_ADD: opStr = " + "; break;
         case CALC_OP_SUBTRACT: opStr = " - "; break;
-        case CALC_OP_MULTIPLY: opStr = " × "; break;
-        case CALC_OP_DIVIDE: opStr = " ÷ "; break;
+        case CALC_OP_MULTIPLY: opStr = " * "; break;
+        case CALC_OP_DIVIDE: opStr = " / "; break;
         default: opStr = " ? "; break;
     }
 
-    snprintf(entry->expression, sizeof(entry->expression),
-             "%.10g%s%.10g = %.10g",
-             op1->value, opStr, op2->value, result->value);
+    char operands[3][CALC_DISPLAY_DIGITS + 1];
+    Calculator_FormatNumber(op1, operands[0], sizeof(operands[0]));
+    Calculator_FormatNumber(op2, operands[1], sizeof(operands[1]));
+    Calculator_FormatNumber(result, operands[2], sizeof(operands[2]));
+    snprintf(entry->expression, sizeof(entry->expression), "%s%s%s = %s",
+             operands[0], opStr, operands[1], operands[2]);
 }
 
 /*
@@ -715,7 +659,7 @@ const char *Calculator_GetDisplay(Calculator *calc)
         return "0";
     }
 
-    return (calc)->display;
+    return calc->display;
 }
 
 /*
@@ -724,6 +668,11 @@ const char *Calculator_GetDisplay(Calculator *calc)
 void Calculator_UpdateDisplay(Calculator *calc)
 {
     if (!calc) return;
+
+    if (calc->base == CALC_BASE_DECIMAL && calc->state == CALC_STATE_ENTRY) {
+        strcpy(calc->display, calc->entry);
+        return;
+    }
 
     /* Create a CalcNumber from the current calculator state */
     CalcNumber number;
@@ -766,7 +715,7 @@ void Calculator_FormatNumber(const CalcNumber *number, char *buffer, int bufferS
 
         case CALC_BASE_BINARY:
             {
-                int64_t val = number->intValue;
+                UInt64 val = (UInt64)number->intValue;
                 char temp[65];
                 int i = 0;
 
@@ -804,6 +753,31 @@ void Calculator_FormatNumber(const CalcNumber *number, char *buffer, int bufferS
 
 /* Internal Functions */
 
+static void Calculator_BeginEntry(Calculator *calc)
+{
+    if (calc->newNumber) {
+        calc->value = 0.0;
+        calc->intValue = 0;
+        strcpy(calc->entry, "0");
+        calc->newNumber = false;
+        calc->state = CALC_STATE_ENTRY;
+    }
+}
+
+static int Calculator_CheckResult(Calculator *calc, double result)
+{
+    if (isnan(result)) {
+        Calculator_SetError(calc, CALC_ERR_DOMAIN, "Invalid Operation");
+        return CALC_ERR_DOMAIN;
+    }
+    if (result == HUGE_VAL || result == -HUGE_VAL ||
+        (calc->isInteger && (result < -0x1p63 || result >= 0x1p63))) {
+        Calculator_SetError(calc, CALC_ERR_OVERFLOW, "Overflow");
+        return CALC_ERR_OVERFLOW;
+    }
+    return CALC_ERR_NONE;
+}
+
 /*
  * Set error state
  */
@@ -816,8 +790,8 @@ static void Calculator_SetError(Calculator *calc, int errorCode, const char *mes
     strncpy(calc->errorMessage, message ? message : "Error",
             sizeof(calc->errorMessage) - 1);
     calc->errorMessage[sizeof(calc->errorMessage) - 1] = '\0';
-    strncpy((calc)->display, "Error", sizeof((calc)->display) - 1);
-    (calc)->display[sizeof((calc)->display) - 1] = '\0';
+    strncpy(calc->display, "Error", sizeof(calc->display) - 1);
+    calc->display[sizeof(calc->display) - 1] = '\0';
 }
 
 /*
@@ -885,22 +859,6 @@ static double Calculator_PerformScientific(double operand, CalcOperation operati
             }
         default:
             return NAN;
-    }
-}
-
-/*
- * Convert to different base
- */
-static void Calculator_ConvertToBase(Calculator *calc, CalcBase newBase)
-{
-    if (!calc) return;
-
-    (calc)->base = newBase;
-    if (newBase == CALC_BASE_DECIMAL) {
-        (calc)->isInteger = false;
-    } else {
-        (calc)->isInteger = true;
-        (calc)->intValue = (int64_t)(calc)->value;
     }
 }
 

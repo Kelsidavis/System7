@@ -333,7 +333,6 @@ static int Calculator_DATerminate(DeskAccessory *da)
     }
 
     Calculator *calc = (Calculator *)da->driverData;
-    Calculator_Shutdown(calc);
     DisposePtr((Ptr)calc);
     da->driverData = NULL;
 

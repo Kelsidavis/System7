@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """
-Differential test for the in-tree C string/memory routines.
+Differential test for the pure in-tree C library routines.
 
 src/System71StdLib.c cannot be compiled on the host - it pulls in MacTypes.h and
-the rest of the kernel headers. But the string and memory routines in it are
+the rest of the kernel headers. But the routines tested here are
 pure: no kernel state, no I/O. This extracts those functions by brace matching,
 renames them with an s7_ prefix, compiles them natively, and compares every one
 against the host libc over a spread of inputs.
@@ -21,6 +21,7 @@ Exit status is non-zero if any case differs from libc or touches a guard byte.
 
 import os
 import re
+import shlex
 import subprocess
 import sys
 import tempfile
@@ -70,6 +71,7 @@ WANTED = [
     # 64-bit division - the freestanding build has no libgcc __udivdi3
     "udiv64",
     "u32_to_hex_string",
+    "atof",
 ]
 
 # Types the extracted formatter needs that live in the kernel headers.
@@ -160,6 +162,7 @@ HARNESS = r"""
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
+#include <math.h>
 
 #define GUARD 0xA5
 #define BUF   64
@@ -438,10 +441,11 @@ int main(void) {
             }
         }
 
+        static const char reference[BUF] = "abc";
         for (size_t n = 0; n <= slen; n++) {
             snprintf(detail, sizeof detail, "\"%s\" n=%zu", src, n);
             cmp_int("memcmp", detail,
-                    s7_memcmp(src, "abc", n), memcmp(src, "abc", n));
+                    s7_memcmp(src, reference, n), memcmp(src, reference, n));
         }
     }
 
@@ -604,6 +608,27 @@ int main(void) {
         #undef XS
     }
 
+    {
+        /* Decimal strings within the calculator's bounded entry buffer. */
+        static const char *inputs[] = {
+            "0", "-0", "12.50", "-12.50", ".5", "0.00000000001",
+            "1.2345678901234567890123456789", "9999999999999999999999999999999",
+            "-0.00000000000000000000000000001", "123.", "1e10", "1e-10",
+            " +12.25", "12.25suffix"
+        };
+        for (size_t i = 0; i < sizeof(inputs) / sizeof(inputs[0]); ++i) {
+            double actual = s7_atof(inputs[i]);
+            double expected = atof(inputs[i]);
+            double tolerance = fabs(expected) * 1e-14;
+            ++checks;
+            if (!isfinite(actual) || fabs(actual - expected) > tolerance ||
+                (actual == 0 && expected == 0 && signbit(actual) != signbit(expected))) {
+                printf("FAIL atof       %s: %.17g want %.17g\n", inputs[i], actual, expected);
+                ++failures;
+            }
+        }
+    }
+
     printf("\n%d checks, %d failures\n", checks, failures);
     return failures ? 1 : 0;
 }
@@ -626,7 +651,8 @@ def main():
             fh.write(HARNESS)
 
         cc = subprocess.run(
-            ["gcc", "-O1", "-fno-builtin", "-Wall", "-Werror", "-o", binf, cfile],
+            shlex.split(os.environ.get("HOST_CC", "gcc"))
+            + ["-O1", "-fno-builtin", "-Wall", "-Werror", "-o", binf, cfile, "-lm"],
             capture_output=True,
             text=True,
         )

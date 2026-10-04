@@ -1410,7 +1410,46 @@ static void Test_Calculator_Arithmetic(void) {
     CHECK(CalcRun(&calc, "9-4=") == 5.0, "9-4= is not 5");
     CHECK(CalcRun(&calc, "6/3=") == 2.0, "6/3= is not 2");
     CHECK(CalcRun(&calc, "5+*3=") == 15.0, "a second operator did not replace the first");
-    Calculator_Shutdown(&calc);
+    RecordTest(test_name, true, "");
+}
+
+static void Test_Calculator_EntryAndHistory(void) {
+    const char* test_name = "Calculator_EntryAndHistory";
+    static struct {
+        UInt32 before;
+        Calculator calc;
+        UInt32 after;
+    } guarded;
+    guarded.before = 0x12345678;
+    guarded.after = 0x87654321;
+    Calculator* calc = &guarded.calc;
+    CHECK(Calculator_Initialize(calc) == 0, "Calculator_Initialize failed");
+    CHECK(CalcRun(calc, "12.50") == 12.5 && !strcmp(calc->display, "12.50"),
+          "decimal entry did not preserve value and trailing zero");
+    Calculator_Backspace(calc);
+    CHECK(calc->value == 12.5 && !strcmp(calc->display, "12.5"), "fraction backspace failed");
+    Calculator_Backspace(calc);
+    CHECK(calc->value == 12.0 && !strcmp(calc->display, "12."), "decimal point was not preserved");
+    Calculator_Backspace(calc);
+    CHECK(!strcmp(calc->display, "12"), "decimal point backspace failed");
+    CHECK(Calculator_PressButton(calc, CALC_BTN_NEGATE) == 0, "sign button failed");
+    Calculator_Backspace(calc);
+    CHECK(calc->value == -1.0 && !strcmp(calc->display, "-1"), "negative backspace failed");
+    double small = CalcRun(calc, ".00000000001");
+    CHECK(fabs(small - 1e-11) < 1e-25 && !strcmp(calc->display, "0.00000000001"),
+          "long fraction entry failed");
+    CHECK(CalcRun(calc, "12.5+0.25=") == 12.75 && !strcmp(calc->display, "12.75"),
+          "fractional arithmetic or result formatting failed");
+    const CalcHistoryEntry* entry = Calculator_GetHistoryEntry(calc, 0);
+    CHECK(entry && entry->operand1.value == 12.5 && entry->operand2.value == 0.25 &&
+          entry->result.value == 12.75, "calculation history did not retain operands");
+    Calculator_ClearHistory(calc);
+    for (int i = 0; i < CALC_HISTORY_SIZE + 5; ++i) {
+        CalcRun(calc, "1+2=");
+    }
+    CHECK(calc->historyCount == CALC_HISTORY_SIZE && Calculator_GetHistoryEntry(calc, 0) &&
+          !Calculator_GetHistoryEntry(calc, CALC_HISTORY_SIZE), "history bounds failed");
+    CHECK(guarded.before == 0x12345678 && guarded.after == 0x87654321, "history damaged adjacent storage");
     RecordTest(test_name, true, "");
 }
 
@@ -2235,6 +2274,7 @@ void IntegrationTests_Run(void) {
     Test_CJKFontFallback();
     Test_TextEditScrollBounds();
     Test_Calculator_Arithmetic();
+    Test_Calculator_EntryAndHistory();
     Test_DARegistrationRollback();
     Test_Resource_ReleaseThenGet();
     Test_Draw_PolygonRecording();

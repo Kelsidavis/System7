@@ -36,6 +36,17 @@ The Edit menu provides single-level Undo, but there is no Redo command or
 redo-state storage. Undo also does not restore the selection that was active
 before the undone edit.
 
+### Calculator advanced-mode limitations
+
+The native window exposes basic arithmetic only. The backend has scientific
+and programmer-mode APIs, but bitwise operations are not implemented and the
+angle-mode flag does not change trigonometric calculations. Programmer-mode
+arithmetic uses double precision, so values beyond its exact integer range
+can lose precision. The shared formatter currently emits fixed notation for
+`%g`, rather than switching to scientific notation for very small or large
+results. Decimal entry preserves the typed text separately from result
+formatting; it accepts up to 31 characters plus an optional minus sign.
+
 ### ✅ Desk accessories open but were not driven — FIXED
 
 Clicks in an accessory's window were reported as `inSysWindow` and passed to

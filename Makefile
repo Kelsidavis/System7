@@ -1033,7 +1033,7 @@ check-python-style:
 check-shell-syntax:
 	@git ls-files -z -- '*.sh' | xargs -0 -n 1 bash -n
 
-# Differential test of the in-tree C string/memory routines against the host
+# Differential test of pure in-tree C library routines against the host
 # libc, with guard bytes around every destination buffer. Needs no kernel
 # build - it extracts the pure routines from src/System71StdLib.c and compiles
 # them natively. Catches the class of bug where strncpy wrote one byte past
@@ -1098,6 +1098,15 @@ test-menu-names:
 			src/MenuManager/MenuResourceNames.c -o "$$menu_test_dir/resource-names"; \
 		"$$menu_test_dir/resource-names"
 
+.PHONY: test-calculator
+test-calculator:
+	@set -eu; \
+		calculator_test_dir=$$(mktemp -d); \
+		trap 'rm -f "$$calculator_test_dir/calculator"; rmdir "$$calculator_test_dir"' EXIT HUP INT TERM; \
+		$(HOST_CC) $(NATIVE_TEST_FLAGS) tests/desk/calculator.c \
+			src/DeskManager/Calculator.c -lm -o "$$calculator_test_dir/calculator"; \
+		"$$calculator_test_dir/calculator"
+
 .PHONY: test-integration-runner
 test-integration-runner:
 	@PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s tests -p 'test_integration_runner.py'
@@ -1112,7 +1121,7 @@ test-integration:
 .PHONY: check
 check: all check-x86-layout check-malloc check-shadowed-defs check-doc-links \
 	check-headers test-headers test-doc-links check-python-style check-shell-syntax test-stdlib \
-	test-input test-desk test-menu-names test-integration-runner check-exports
+	test-input test-desk test-menu-names test-calculator test-integration-runner check-exports
 
 # GCC's path-sensitive static analyzer adds ownership, bounds, and null-path
 # diagnostics to the standard strict builds.
@@ -1186,6 +1195,7 @@ help: ## Show this help message
 	@echo "  test-input       Run native input, event-queue, and platform stub regressions"
 	@echo "  test-desk        Test desk accessory lifecycle and registry ownership"
 	@echo "  test-menu-names  Test literal resource menu insertion and ordering"
+	@echo "  test-calculator Test calculator entry, arithmetic, history, and bases"
 	@echo "  check-python-style Run Python lint and formatting checks"
 	@echo "  check-shell-syntax Parse shell scripts with Bash"
 	@echo "  check-exports    Validate exported symbol surface"

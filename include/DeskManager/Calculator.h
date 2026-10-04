@@ -6,11 +6,8 @@
 /*
  * Calculator.h - Calculator Desk Accessory
  *
- * Provides a complete calculator implementation with basic arithmetic,
- * scientific functions, and programmer operations. This matches the
- * functionality of the Mac OS Calculator desk accessory.
- *
- * Derived from ROM analysis (System 7)
+ * Arithmetic and entry state for the native desk accessory. The window and
+ * button layout are owned by BuiltinDAs.c.
  */
 
 #ifdef __cplusplus
@@ -22,6 +19,7 @@ extern "C" {
 #define CALC_DISPLAY_DIGITS     32          /* Maximum display digits */
 #define CALC_MEMORY_SLOTS       10          /* Number of memory slots */
 #define CALC_HISTORY_SIZE       20          /* Calculation history size */
+#define CALC_HISTORY_EXPRESSION_SIZE (3 * CALC_DISPLAY_DIGITS + 7)
 
 
 /* Calculator Modes */
@@ -139,33 +137,31 @@ typedef struct {
     CalcNumber operand2;
     CalcOperation operation;
     CalcNumber result;
-    char expression[CALC_DISPLAY_DIGITS + 1];
+    char expression[CALC_HISTORY_EXPRESSION_SIZE];
 } CalcHistoryEntry;
 
 /* Calculator State */
 typedef struct {
     double value;
     double accumulator;
+    SInt64 accumulatorIntValue;
     SInt64 intValue;
     CalcBase base;
     Boolean isInteger;
     double memory[CALC_MEMORY_SLOTS];
     int memoryUsed[CALC_MEMORY_SLOTS];
     char display[CALC_DISPLAY_DIGITS + 1];
-    int left, top, right, bottom;
-    CalcHistoryEntry *history;
+    /* Preserve entered decimal places, including trailing zeros. */
+    char entry[CALC_DISPLAY_DIGITS + 1];
+    CalcHistoryEntry history[CALC_HISTORY_SIZE];
     int historyCount;
     CalcMode mode;
     CalcState state;
     CalcOperation pendingOp;
     Boolean newNumber;
-    Boolean decimalEntered;
     Boolean angleRadians;
-    int precision;
     int errorCode;
     char errorMessage[256];
-    void *buttonRects;
-    SInt16 iconID;
 } Calculator;
 
 /* Calculator Functions */
@@ -176,12 +172,6 @@ typedef struct {
  * @return 0 on success, negative on error
  */
 int Calculator_Initialize(Calculator *calc);
-
-/**
- * Shutdown calculator
- * @param calc Pointer to calculator structure
- */
-void Calculator_Shutdown(Calculator *calc);
 
 /**
  * Reset calculator to initial state
