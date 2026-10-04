@@ -1,6 +1,8 @@
 #include "EventManager/EventManager.h"
 #include "EventManager/EventManagerInternal.h"
+#include "EventManager/KeyboardEvents.h"
 #include "Platform/PS2Input.h"
+#include "Platform/x86/xhci.h"
 #include "System71StdLib.h"
 #include "check.h"
 
@@ -8,6 +10,7 @@ static Point backendPosition = {.h = 400, .v = 300};
 static UInt8 buttons;
 static UInt32 ticks = 100;
 static unsigned polls;
+static unsigned repeatChecks;
 static Boolean injectMotion;
 static EventMask postedTypes[8];
 static UInt32 postedMessages[8];
@@ -34,6 +37,7 @@ void PollPS2Input(void) { ++polls; }
 void xhci_poll_hid_x86(void) {}
 SInt16 InitKeyboardEvents(void) { return noErr; }
 void ShutdownKeyboardEvents(void) {}
+void ProcessAutoRepeat(void) { ++repeatChecks; }
 UInt32 TickCount(void) { return ticks; }
 UInt16 GetModifierState(void) { return 0; }
 
@@ -71,25 +75,12 @@ SInt16 ProcessRawKeyboardEvent(UInt16 code, Boolean pressed, UInt16 modifiers, U
     return 1;
 }
 
-UInt32 GetKeyCharacter(UInt16 code, UInt16 modifiers)
-{
-    (void)code;
-    (void)modifiers;
-    return 0;
-}
-
 OSErr PostEvent(EventMask what, UInt32 message)
 {
     postedTypes[postedCount] = what;
     postedMessages[postedCount] = message;
     GetMouse(&postedPositions[postedCount++]);
     return noErr;
-}
-
-OSErr PostEventWithModifiers(EventMask what, UInt32 message, UInt16 modifiers)
-{
-    (void)modifiers;
-    return PostEvent(what, message);
 }
 
 int main(void)
@@ -134,11 +125,14 @@ int main(void)
     ProcessModernInput();
     CHECK(postedCount == 4, 13);
 
+    /* A duplicate mouse press must not prevent the keyboard queue from draining. */
+    buttons = 1;
     transitionCount = 4;
     ProcessModernInput();
     CHECK(keyCount == 4, 14);
     CHECK((keyModifiers[1] & cmdKey) && (keyModifiers[2] & cmdKey), 15);
     CHECK(!(keyModifiers[3] & cmdKey), 16);
+    CHECK(repeatChecks == polls, 18);
     ShutdownModernInput();
     ProcessModernInput();
     CHECK(!IsModernInputInitialized(), 17);

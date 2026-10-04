@@ -12,6 +12,9 @@
 static UInt16 producerIndex;
 static EventRecord posted[8];
 static unsigned postedCount;
+static UInt32 ticks = 100;
+static unsigned switcherCycles;
+static Boolean switcherActive;
 
 uint32_t display_get_width(void) { return 640; }
 uint32_t display_get_height(void) { return 480; }
@@ -21,11 +24,11 @@ void serial_puts(const char* text) { (void)text; }
 void xhci_poll_hid_x86(void) {}
 void dcache_invalidate_range(void* start, size_t length) { (void)start; (void)length; }
 void DisposePtr(void* pointer) { (void)pointer; }
-void AppSwitcher_CycleForward(void) {}
-void AppSwitcher_CycleBackward(void) {}
-void AppSwitcher_HandleKeyUp(void) {}
-Boolean AppSwitcher_IsActive(void) { return false; }
-UInt32 TickCount(void) { return 100; }
+void AppSwitcher_CycleForward(void) { ++switcherCycles; switcherActive = true; }
+void AppSwitcher_CycleBackward(void) { ++switcherCycles; switcherActive = true; }
+void AppSwitcher_HandleKeyUp(void) { switcherActive = false; }
+Boolean AppSwitcher_IsActive(void) { return switcherActive; }
+UInt32 TickCount(void) { return ticks; }
 
 bool virtio_pci_find_device_from(uint16_t id, virtio_pci_device_t* device, uint8_t start)
 {
@@ -214,6 +217,101 @@ static int TestCapsLockAndWrap(void)
     return 0;
 }
 
+static int TestAutoRepeat(void)
+{
+    SetAutoRepeat(10, 3);
+    ticks = 200;
+    postedCount = 0;
+    InjectKey(KEY_N, 1);
+    ProcessModernInput();
+    CHECK(postedCount == 1 && posted[0].what == keyDown, 1);
+    CHECK(posted[0].message == (0x2d00 | 'n'), 2);
+    InjectKey(KEY_N, 2);
+    ticks = 209;
+    ProcessModernInput();
+    CHECK(postedCount == 1, 3);
+    ticks = 210;
+    ProcessModernInput();
+    CHECK(postedCount == 2 && posted[1].what == autoKey, 4);
+    CHECK(posted[1].message == posted[0].message, 5);
+    ticks = 212;
+    InjectKey(KEY_RIGHTCTRL, 1);
+    ProcessModernInput();
+    CHECK(postedCount == 2, 6);
+    ticks = 213;
+    ProcessModernInput();
+    CHECK(postedCount == 3 && posted[2].modifiers == (controlKey | rightControlKey), 7);
+    ProcessModernInput();
+    CHECK(postedCount == 3, 8);
+    ticks = 230;
+    ProcessModernInput();
+    CHECK(postedCount == 4, 9); /* A stalled loop emits one repeat, not a burst. */
+    InjectKey(KEY_N, 0);
+    ProcessModernInput();
+    CHECK(postedCount == 5 && posted[4].what == keyUp, 10);
+    ticks += 100;
+    InjectKey(KEY_RIGHTCTRL, 0);
+    ProcessModernInput();
+    CHECK(postedCount == 5, 11);
+
+    /* Initial delay and repeat intervals must survive TickCount wraparound. */
+    ticks = UINT32_MAX - 5;
+    postedCount = 0;
+    InjectKey(KEY_N, 1);
+    ProcessModernInput();
+    CHECK(postedCount == 1, 12);
+    ticks = 3;
+    ProcessModernInput();
+    CHECK(postedCount == 1, 13);
+    ticks = 4;
+    ProcessModernInput();
+    CHECK(postedCount == 2 && posted[1].what == autoKey, 14);
+    ticks = 7;
+    ProcessModernInput();
+    CHECK(postedCount == 3 && posted[2].what == autoKey, 15);
+    InjectKey(KEY_N, 0);
+    ProcessModernInput();
+    CHECK(postedCount == 4, 16);
+
+    SetAutoRepeatEnabled(false);
+    postedCount = 0;
+    InjectKey(KEY_N, 1);
+    ProcessModernInput();
+    ticks += 100;
+    ProcessModernInput();
+    CHECK(postedCount == 1, 17);
+    SetAutoRepeatEnabled(true);
+    ProcessModernInput();
+    CHECK(postedCount == 1, 18);
+    InjectKey(KEY_N, 0);
+    ProcessModernInput();
+    CHECK(postedCount == 2, 19);
+
+    postedCount = 0;
+    InjectKey(KEY_N, 1);
+    ProcessModernInput();
+    ResetKeyboardState();
+    ticks += 100;
+    ProcessModernInput();
+    CHECK(postedCount == 1 && !GetAutoRepeatState()->active, 20);
+    InjectKey(KEY_N, 0);
+    ProcessModernInput();
+    return 0;
+}
+
+static int TestConsumedShortcut(void)
+{
+    postedCount = 0;
+    InjectKey(KEY_LEFTMETA, 1);
+    InjectKey(KEY_TAB, 1);
+    InjectKey(KEY_TAB, 0);
+    InjectKey(KEY_LEFTMETA, 0);
+    ProcessModernInput();
+    CHECK(switcherCycles == 1 && !switcherActive, 1);
+    CHECK(postedCount == 0, 2); /* No fallback Tab events after the switcher consumes them. */
+    return 0;
+}
+
 int main(void)
 {
     int result = TestKeyMaps();
@@ -225,6 +323,15 @@ int main(void)
     result = TestChord();
     result |= TestModifiers();
     result |= TestCapsLockAndWrap();
+    result |= TestAutoRepeat();
+    result |= TestConsumedShortcut();
+    postedCount = 0;
+    InjectKey(KEY_N, 1);
+    ProcessModernInput();
     ShutdownModernInput();
+    ticks += 100;
+    ProcessAutoRepeat();
+    ProcessModernInput();
+    CHECK(postedCount == 1 && !GetAutoRepeatState()->active, 3);
     return result;
 }

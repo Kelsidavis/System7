@@ -56,8 +56,6 @@ static KeyTransState g_globalTransState = {0};
 /* Abort detection */
 static Boolean g_abortPressed = false;
 
-/* PostEvent declared in EventManager.h */
-
 /*---------------------------------------------------------------------------
  * Key Translation Tables
  *---------------------------------------------------------------------------*/
@@ -253,17 +251,21 @@ static void UpdateModifierState(UInt16 scanCode, Boolean isPressed)
  */
 static void CheckForAutoRepeat(void)
 {
-    if (!g_autoRepeatState.active || !g_autoRepeatState.enabled) {
+    if (!g_keyboardInitialized || !g_autoRepeatState.active || !g_autoRepeatState.enabled) {
         return;
     }
 
     UInt32 currentTime = TickCount();
     UInt32 elapsed = currentTime - g_autoRepeatState.lastRepeatTime;
+    UInt32 delay = g_autoRepeatState.repeating
+        ? g_autoRepeatState.repeatRate : g_autoRepeatState.initialDelay;
 
-    if (elapsed >= g_autoRepeatState.repeatRate) {
-        /* Generate auto-repeat event */
-        PostEvent(autoKey, g_autoRepeatState.charCode);
+    if (elapsed >= delay) {
+        UInt32 message = (g_autoRepeatState.charCode & 0xFFU) |
+            ((UInt32)(g_autoRepeatState.keyCode & 0xFFU) << 8);
+        PostEvent(autoKey, message);
         g_autoRepeatState.lastRepeatTime = currentTime;
+        g_autoRepeatState.repeating = true;
     }
 }
 
@@ -279,7 +281,8 @@ static void StartAutoRepeatForKey(UInt16 scanCode, UInt32 charCode)
     g_autoRepeatState.keyCode = scanCode;
     g_autoRepeatState.charCode = charCode;
     g_autoRepeatState.startTime = TickCount();
-    g_autoRepeatState.lastRepeatTime = g_autoRepeatState.startTime + g_autoRepeatState.initialDelay;
+    g_autoRepeatState.lastRepeatTime = g_autoRepeatState.startTime;
+    g_autoRepeatState.repeating = false;
     g_autoRepeatState.active = true;
 }
 
@@ -289,6 +292,7 @@ static void StartAutoRepeatForKey(UInt16 scanCode, UInt32 charCode)
 static void StopCurrentAutoRepeat(void)
 {
     g_autoRepeatState.active = false;
+    g_autoRepeatState.repeating = false;
     g_autoRepeatState.keyCode = 0;
     g_autoRepeatState.charCode = 0;
 }
@@ -385,6 +389,7 @@ void ShutdownKeyboardEvents(void)
     g_keyboardLayouts = NULL;
     g_activeLayout = NULL;
 
+    StopCurrentAutoRepeat();
     g_keyboardInitialized = false;
 }
 
@@ -394,7 +399,7 @@ void ShutdownKeyboardEvents(void)
 SInt16 ProcessRawKeyboardEvent(UInt16 scanCode, Boolean isKeyDown,
                                UInt16 modifiers, UInt32 timestamp)
 {
-    if (!g_keyboardInitialized) {
+    if (!g_keyboardInitialized || scanCode >= 128) {
         return 0;
     }
 
@@ -452,8 +457,8 @@ SInt16 ProcessRawKeyboardEvent(UInt16 scanCode, Boolean isKeyDown,
         }
 
         /* Generate key down event */
-        SInt32 message = charCode | (scanCode << 8);
-        PostEvent(keyDown, message);
+        UInt32 message = (charCode & 0xFFU) | ((UInt32)scanCode << 8);
+        PostEventWithModifiers(keyDown, message, modifiers);
         eventsGenerated++;
 
         /* Start auto-repeat */
@@ -483,8 +488,8 @@ SInt16 ProcessRawKeyboardEvent(UInt16 scanCode, Boolean isKeyDown,
 
         /* Generate key up event */
         UInt32 charCode = TranslateKeyToASCII(scanCode, modifiers);
-        SInt32 message = charCode | (scanCode << 8);
-        PostEvent(keyUp, message);
+        UInt32 message = (charCode & 0xFFU) | ((UInt32)scanCode << 8);
+        PostEventWithModifiers(keyUp, message, modifiers);
         eventsGenerated++;
 
         /* Clear abort if Command or Period released */

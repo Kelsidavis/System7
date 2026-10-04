@@ -1,5 +1,5 @@
 /*
- * PS2Controller.c - PS/2 Keyboard and Mouse Driver
+ * ps2.c - PS/2 Keyboard and Mouse Driver
  *
  * Provides input support for QEMU's emulated PS/2 devices
  * Integrates with the Mac OS System 7.1 Event Manager
@@ -9,20 +9,17 @@
 #include "System71StdLib.h"
 #include "EventManager/EventTypes.h"
 #include "EventManager/EventManager.h"
+#include "EventManager/KeyMap.h"
+#include "Finder/finder.h"
 #include "Platform/PS2Input.h"
 #include "PS2Controller.h"
 #include "Platform/include/input.h"
+#include "Platform/include/io.h"
 #include <stdint.h>
 #include "Platform/PlatformLogging.h"
 #include "TimeManager/TimeBase.h"
 #include "Platform/Framebuffer.h"
 #include <string.h>
-
-/* Event modifier key constants */
-#define shiftKey    0x0200
-#define alphaLock   0x0400
-#define optionKey   0x0800
-#define controlKey  0x1000
 
 /* PS/2 Controller ports */
 #define PS2_DATA_PORT    0x60
@@ -74,12 +71,6 @@
 /* Keyboard scan code sets */
 #define SCAN_CODE_SET_1         1
 #define SCAN_CODE_SET_2         2
-
-/* External functions */
-/* GetNextEvent and PostEvent declared in EventManager.h */
-/* External framebuffer dimensions from main.c */
-/* I/O port functions */
-#include "Platform/include/io.h"
 
 #define inb(port) hal_inb(port)
 #define outb(port, value) hal_outb(port, value)
@@ -162,36 +153,13 @@ void UpdateMouseStateAbsolute(SInt16 x, SInt16 y, UInt8 buttons) {
 
 /* Keyboard state */
 typedef struct {
-    UInt32 keyMap[4];
+    KeyMap keyMap;
     Boolean e0Prefix;
-    Boolean e1Prefix;
     UInt8 e1BytesRemaining;
-    Boolean leftShift;
-    Boolean rightShift;
-    Boolean leftOption;
-    Boolean rightOption;
-    Boolean leftControl;
-    Boolean rightControl;
-    Boolean leftCommand;
-    Boolean rightCommand;
     Boolean capsLockLatched;
 } Ps2KeyboardState;
 
-static Ps2KeyboardState g_keyboardState = {
-    {0, 0, 0, 0},
-    false,
-    false,
-    0,
-    false,
-    false,
-    false,
-    false,
-    false,
-    false,
-    false,
-    false,
-    false
-};
+static Ps2KeyboardState g_keyboardState = {0};
 
 /*
  * Key transition ring, written by the scancode handler and drained by
@@ -219,7 +187,7 @@ static void PushKeyTransition(UInt8 macCode, Boolean isPressed)
     UInt8 head = g_keyRingHead;
     UInt8 next = (UInt8)((head + 1) % kKeyRingSize);
     if (next == g_keyRingTail) {
-        return; /* full - drop the oldest-but-one rather than corrupt the ring */
+        return; /* Full: discard the incoming transition without moving the consumer. */
     }
     g_keyRing[head] = (UInt8)((macCode & 0x7F) | (isPressed ? 0x80 : 0x00));
     g_keyRingHead = next;
@@ -227,13 +195,14 @@ static void PushKeyTransition(UInt8 macCode, Boolean isPressed)
 
 Boolean PS2_DequeueKeyTransition(UInt8* macCode, Boolean* isPressed)
 {
+    if (!macCode || !isPressed) return false;
     UInt8 tail = g_keyRingTail;
     if (tail == g_keyRingHead) {
         return false;
     }
     UInt8 v = g_keyRing[tail];
-    if (macCode) *macCode = (UInt8)(v & 0x7F);
-    if (isPressed) *isPressed = (v & 0x80) != 0;
+    *macCode = (UInt8)(v & 0x7F);
+    *isPressed = (v & 0x80) != 0;
     g_keyRingTail = (UInt8)((tail + 1) % kKeyRingSize);
     return true;
 }
@@ -373,12 +342,12 @@ static const ScanMapEntry g_set1BaseMap[] = {
 };
 
 static const ScanMapEntry g_set1ExtendedMap[] = {
-    {0x11, kScanRightOption}, {0x14, kScanRightControl}, {0x1C, 0x4C},
+    {0x1C, 0x4C}, {0x1D, kScanRightControl},
     {0x35, 0x4B}, {0x37, 0x69}, {0x38, kScanRightOption}, {0x47, 0x73},
     {0x48, kScanUpArrow}, {0x49, 0x74}, {0x4B, kScanLeftArrow},
     {0x4D, kScanRightArrow}, {0x4F, 0x77}, {0x50, kScanDownArrow},
-    {0x51, 0x79}, {0x52, 0x72}, {0x53, 0x75}, {0x5B, 0x37},
-    {0x5C, 0x36}, {0x5D, 0x6E}, {0x5E, 0x6D}, {0x5F, 0x6F},
+    {0x51, 0x79}, {0x52, 0x72}, {0x53, 0x75}, {0x5B, kScanCommand},
+    {0x5C, kScanRightCommand}, {0x5D, 0x6E}, {0x5E, 0x6D}, {0x5F, 0x6F},
     {0xFF, kUnmappedKey}
 };
 
@@ -397,45 +366,23 @@ static UInt8 map_set1_scancode_to_mac(uint8_t scanCode, Boolean extended)
     return kUnmappedKey;
 }
 
-static void UpdateKeyMapState(uint8_t macCode, Boolean isPressed)
-{
-    if (macCode >= 128) {
-        return;
-    }
-
-    UInt16 arrayIndex = macCode / 32;
-    UInt16 bitIndex = macCode % 32;
-    UInt32 mask = (1U << bitIndex);
-
-    if (isPressed) {
-        g_keyboardState.keyMap[arrayIndex] |= mask;
-    } else {
-        g_keyboardState.keyMap[arrayIndex] &= ~mask;
-    }
-}
-
-
 /* Process keyboard scancode */
 static void process_keyboard_scancode(uint8_t scancode)
 {
+    /* Consume Pause's payload before interpreting its embedded prefix byte. */
+    if (g_keyboardState.e1BytesRemaining > 0) {
+        g_keyboardState.e1BytesRemaining--;
+        return;
+    }
+
     if (scancode == 0xE0) {
         g_keyboardState.e0Prefix = true;
         return;
     }
 
     if (scancode == 0xE1) {
-        g_keyboardState.e1Prefix = true;
+        g_keyboardState.e0Prefix = false;
         g_keyboardState.e1BytesRemaining = 5; /* Pause key sequence */
-        return;
-    }
-
-    if (g_keyboardState.e1Prefix) {
-        if (g_keyboardState.e1BytesRemaining > 0) {
-            g_keyboardState.e1BytesRemaining--;
-        }
-        if (g_keyboardState.e1BytesRemaining == 0) {
-            g_keyboardState.e1Prefix = false;
-        }
         return;
     }
 
@@ -451,41 +398,13 @@ static void process_keyboard_scancode(uint8_t scancode)
     }
 
     Boolean isPressed = !isRelease;
-    UpdateKeyMapState(macCode, isPressed);
+    /* Hardware typematic repeats are handled by KeyboardEvents, not this edge queue. */
+    if (KeyMapHasKey(g_keyboardState.keyMap, macCode) == isPressed) return;
+    KeyMapSetKey(g_keyboardState.keyMap, macCode, isPressed);
     PushKeyTransition(macCode, isPressed);
 
-    switch (macCode) {
-        case kScanShift:
-            g_keyboardState.leftShift = isPressed;
-            break;
-        case kScanRightShift:
-            g_keyboardState.rightShift = isPressed;
-            break;
-        case kScanOption:
-            g_keyboardState.leftOption = isPressed;
-            break;
-        case kScanRightOption:
-            g_keyboardState.rightOption = isPressed;
-            break;
-        case kScanControl:
-            g_keyboardState.leftControl = isPressed;
-            break;
-        case kScanRightControl:
-            g_keyboardState.rightControl = isPressed;
-            break;
-        case kScanCommand:
-            g_keyboardState.leftCommand = isPressed;
-            break;
-        case 0x36: /* Right Command */
-            g_keyboardState.rightCommand = isPressed;
-            break;
-        case kScanCapsLock:
-            if (isPressed) {
-                g_keyboardState.capsLockLatched = !g_keyboardState.capsLockLatched;
-            }
-            break;
-        default:
-            break;
+    if (macCode == kScanCapsLock && isPressed) {
+        g_keyboardState.capsLockLatched = !g_keyboardState.capsLockLatched;
     }
 }
 
@@ -519,9 +438,7 @@ static void process_mouse_packet(void) {
         int8_t dz = (int8_t)g_mouseState.packet[3];
         g_mouseState.scrollDelta = dz;
         if (dz != 0) {
-            /* Post scroll as key events: up arrow for scroll-up, down for scroll-down */
-            /* This integrates with the existing folder window arrow key handler */
-            extern void FolderWindow_ScrollWheel(int8_t delta);
+            /* Scroll the active folder window directly. */
             FolderWindow_ScrollWheel(dz);
         }
     }
@@ -824,29 +741,7 @@ void GetMouse(Point* mouseLoc) {
 /* Get current keyboard modifiers as Event Manager modifier flags */
 UInt16 GetPS2Modifiers(void)
 {
-    UInt16 modifiers = 0;
-
-    if (g_keyboardState.leftCommand || g_keyboardState.rightCommand) {
-        modifiers |= cmdKey;
-    }
-    if (g_keyboardState.leftShift || g_keyboardState.rightShift) {
-        modifiers |= shiftKey;
-    }
-    if (g_keyboardState.rightShift) {
-        modifiers |= rightShiftKey;
-    }
-    if (g_keyboardState.leftOption || g_keyboardState.rightOption) {
-        modifiers |= optionKey;
-    }
-    if (g_keyboardState.rightOption) {
-        modifiers |= rightOptionKey;
-    }
-    if (g_keyboardState.leftControl || g_keyboardState.rightControl) {
-        modifiers |= controlKey;
-    }
-    if (g_keyboardState.rightControl) {
-        modifiers |= rightControlKey;
-    }
+    UInt16 modifiers = KeyMapModifiers(g_keyboardState.keyMap) & ~alphaLock;
     if (g_keyboardState.capsLockLatched) {
         modifiers |= alphaLock;
     }

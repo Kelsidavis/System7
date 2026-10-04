@@ -148,19 +148,19 @@ void ProcessModernInput(void)
     /* Check for mouse button changes */
     if (currentButtonState != g_modernInput.lastButtonState) {
         UInt32 currentTime = TickCount();
+        Boolean newPress = (currentButtonState & 1) && !(g_modernInput.lastButtonState & 1);
+        Boolean duplicateDown = false;
 
-        if ((currentButtonState & 1) && !(g_modernInput.lastButtonState & 1)) {
+#if QEMU_JITTER_HACK
+        /* Coalesce mouse jitter without skipping keyboard transitions or repeat timing. */
+        duplicateDown = newPress && currentTime == g_modernInput.lastDownTick &&
+            currentMousePos.h == g_modernInput.lastClickPos.h &&
+            currentMousePos.v == g_modernInput.lastClickPos.v;
+#endif
+        if (newPress && !duplicateDown) {
             /* Mouse button pressed - down transition */
 
 #if QEMU_JITTER_HACK
-            /* QEMU PS/2 jitter: coalesce rapid downs in same tick AND same position */
-            if (currentTime == g_modernInput.lastDownTick &&
-                currentMousePos.h == g_modernInput.lastClickPos.h &&
-                currentMousePos.v == g_modernInput.lastClickPos.v) {
-                /* Skip duplicate down event - already posted */
-                g_modernInput.lastButtonState = currentButtonState;
-                return;
-            }
             g_modernInput.lastDownTick = currentTime;
 #endif
 
@@ -246,21 +246,10 @@ void ProcessModernInput(void)
             UInt16 modifiers = ComputeModifiersFromKeyMap(running, currentButtonState);
             UInt32 timestamp = TickCount();
 
-            SInt16 eventsGenerated = ProcessRawKeyboardEvent(keyCode, isPressed, modifiers, timestamp);
-
-            if (eventsGenerated == 0) {
-                UInt32 charCode = GetKeyCharacter(keyCode, modifiers);
-                if (charCode != 0 || keyCode == kScanReturn || keyCode == kScanSpace ||
-                    keyCode == kScanTab || keyCode == kScanDelete) {
-                    /* Event message layout: charCode in the low byte, key code
-                     * in the next. Masking the char to 16 bits let it bleed
-                     * into the key-code byte. */
-                    SInt32 message = (SInt32)(charCode & 0xFF) | ((SInt32)(keyCode & 0xFF) << 8);
-                    PostEventWithModifiers(isPressed ? keyDown : keyUp, message, modifiers);
-                }
-            }
+            ProcessRawKeyboardEvent(keyCode, isPressed, modifiers, timestamp);
         }
     }
+    ProcessAutoRepeat();
 }
 
 /**

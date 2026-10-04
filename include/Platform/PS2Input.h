@@ -33,6 +33,7 @@ UInt8 GetMouseButtons(void);
 UInt8 GetMouseButtonsLatched(void);
 Boolean PS2_IsInitialized(void);
 Boolean PS2_IsIRQDriven(void);
+/* Dequeue one edge; null outputs fail without consuming the queue. */
 Boolean PS2_DequeueKeyTransition(UInt8* macCode, Boolean* isPressed);
 
 /* Keyboard Functions */
