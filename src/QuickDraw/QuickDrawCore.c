@@ -1,5 +1,6 @@
 #include "QuickDraw/QuickDrawInternal.h"
 #include "QuickDrawConstants.h"
+#include "FontManager/FontInternal.h"
 #include <string.h>
 /*
  * QuickDrawCore.c - Core QuickDraw Graphics Implementation
@@ -637,6 +638,10 @@ void ForeColor(SInt32 color) {
 void ColorBit(SInt16 whichBit) {
     assert(g_currentPort != NULL);
     g_currentPort->colrBit = whichBit;
+}
+
+void QD_DrawChar(short ch) {
+    DrawChar(ch);
 }
 
 /* ================================================================

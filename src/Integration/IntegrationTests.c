@@ -644,6 +644,32 @@ static void Test_Draw_ClippedToVisibleRegion(void) {
     RecordTest(test_name, true, "");
 }
 
+static void Test_Draw_QDCharAdvancesPen(void) {
+    const char* test_name = "Draw_QDCharAdvancesPen";
+    Rect wr = { 150, 520, 300, 700 };
+    WindowPtr w = NewWindow(NULL, &wr, (ConstStr255Param)"\x08ITDrawCh", true,
+                            0, (WindowPtr)-1, false, 0);
+    CHECK(w, "NewWindow failed");
+
+    GrafPtr save;
+    GetPort(&save);
+    SetPort((GrafPtr)w);
+    MoveTo(10, 30);
+    Point before;
+    Point after;
+    GetPen(&before);
+    short advance = CharWidth('A');
+    QD_DrawChar('A');
+    GetPen(&after);
+    SetPort(save);
+    DisposeWindow(w);
+
+    CHECK(advance > 0, "font metrics returned no advance for a printable character");
+    CHECK(after.h == before.h + advance && after.v == before.v,
+          "QD_DrawChar did not draw at and advance the current QuickDraw pen");
+    RecordTest(test_name, true, "");
+}
+
 /* Transfer modes (Inside Macintosh: Imaging With QuickDraw, 3-8), read
  * back from the screen. */
 static void Test_Draw_PenModes(void) {
@@ -2308,6 +2334,7 @@ void IntegrationTests_Run(void) {
     Test_VFS_ApplicationsCatalog();
     Test_File_InFolder();
     Test_Draw_ClippedToVisibleRegion();
+    Test_Draw_QDCharAdvancesPen();
     Test_Draw_PenModes();
     Test_Draw_SetOrigin();
     Test_Draw_ScrollRect();

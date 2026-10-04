@@ -4,7 +4,7 @@ This checklist records significant differences between the current toolbox reimp
 
 ## QuickDraw & Graphics Pipeline
 - ~~`src/QuickDraw/Bitmaps.c` – `CopyBits` still needs full mask handling, colour depth conversion, and transfer-mode coverage to match the System 7 trap.~~ **FIXED** (2025-10-07): CopyBits now clips and aligns rectangles, supports scaling, region masking, and pattern modes, and performs depth conversion for 1/8/16/32-bit sources and destinations.
-- `include/QuickDraw/QuickDraw.h` declares `QD_DrawChar`, but no implementation is present in `src/`. The 68K `Trap_DrawChar` currently routes through `DoText`; add and test the native QuickDraw entry point before claiming full trap coverage.
+- ~~`include/QuickDraw/QuickDraw.h` declares `QD_DrawChar`, but no implementation is present in `src/`.~~ **FIXED** (2026-10-04): `QD_DrawChar()` now delegates to the Font Manager's character renderer; the guest integration test verifies that it advances the current QuickDraw pen by the active font's character width. The 68K trap retains its independent guest-memory rendering path.
 - `src/QuickDraw/Regions.c` – `FrameRgn()` is a no-op; implement region outline drawing and add coverage for complex region boundaries.
 - ~~`src/QuickDraw/QuickDrawCore.c` – patterned fills (`FillRect`, `FillOval`, `FillRgn`, etc.) did not rasterize geometry.~~ **VERIFIED** (2025-10-06): QuickDraw rasterizes patterned fills through `DrawPrimitive()` in `QuickDrawCore.c`; desktop wallpaper pattern selection is handled separately in `src/PatternMgr/`.
 - `src/QuickDraw/quickdraw_pictures.c` (`DrawPicture`) – the player handles core v1/v2
