@@ -29,8 +29,6 @@
 
 #define PANEL_WIDTH   320
 #define PANEL_HEIGHT  180
-#define MAC_EPOCH_OFFSET 2082844800UL
-
 typedef struct DateTimePanelState {
     Boolean    isOpen;
     Boolean    showSeconds;

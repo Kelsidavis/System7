@@ -36,9 +36,6 @@ void IUTimeString(UInt32 dateTime, Boolean wantSeconds, char *result);
 #define DTFMT_LOG(...)
 #endif
 
-/* Mac epoch offset: difference between Mac epoch (1904) and Unix epoch (1970) */
-#define MAC_EPOCH_OFFSET 2082844800UL
-
 /* Month names for date formatting */
 static const char* kMonthNamesShort[] = {
     "Jan", "Feb", "Mar", "Apr", "May", "Jun",

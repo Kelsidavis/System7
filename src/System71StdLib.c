@@ -1,6 +1,7 @@
 /* System 7.1 Standard Library Implementation */
 
 #include "System71StdLib.h"
+#include "DateTime.h"
 #include "MacTypes.h"
 #include "SystemInternal.h"
 #include "MemoryMgr/MemoryManager.h"
@@ -2711,13 +2712,11 @@ double hypot(double x, double y) {
  * shifted from the Mac epoch of 1904 to the Unix epoch of 1970.
  */
 time_t time(time_t* t) {
-    const UInt32 kMacToUnixEpoch = 2082844800UL;  /* 1904 -> 1970 */
-
     UInt32 macSecs = 0;
     GetDateTime(&macSecs);
 
-    time_t now = (macSecs >= kMacToUnixEpoch)
-                     ? (time_t)(macSecs - kMacToUnixEpoch)
+    time_t now = (macSecs >= MAC_UNIX_EPOCH_OFFSET)
+                     ? (time_t)(macSecs - MAC_UNIX_EPOCH_OFFSET)
                      : (time_t)0;
 
     if (t) *t = now;

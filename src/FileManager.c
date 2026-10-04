@@ -11,6 +11,7 @@
 
 #include "SystemTypes.h"
 #include "MacTypes.h"
+#include "DateTime.h"
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
@@ -42,9 +43,6 @@ PlatformHooks g_PlatformHooks = {0};
  * documents the intentional const-cast.
  */
 #define CONST_CAST_STRINGPTR(s) ((StringPtr)(uintptr_t)(s))
-
-/* Convert between Mac and Unix timestamps */
-#define MAC_EPOCH_OFFSET 2082844800UL  /* Seconds between 1904 and 1970 */
 
 /* ============================================================================
  * Initialization and Shutdown
@@ -1273,16 +1271,16 @@ UInt32 DateTime_Current(void)
 UInt32 DateTime_FromUnix(time_t unixTime)
 {
     /* Convert Unix time to Mac time (seconds since 1904) */
-    return (UInt32)(unixTime + MAC_EPOCH_OFFSET);
+    return (UInt32)(unixTime + MAC_UNIX_EPOCH_OFFSET);
 }
 
 time_t DateTime_ToUnix(UInt32 macTime)
 {
     /* Convert Mac time to Unix time */
-    if (macTime < MAC_EPOCH_OFFSET) {
+    if (macTime < MAC_UNIX_EPOCH_OFFSET) {
         return 0;  /* Before Unix epoch */
     }
-    return (time_t)(macTime - MAC_EPOCH_OFFSET);
+    return (time_t)(macTime - MAC_UNIX_EPOCH_OFFSET);
 }
 
 /* ============================================================================

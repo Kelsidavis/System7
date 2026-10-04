@@ -5,6 +5,7 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include "../SystemTypes.h"  /* For DirID */
+#include "../DateTime.h"
 #include "hfs_constants.h"
 
 /* Volume and file references */
@@ -235,6 +236,5 @@ enum {
 #define HFS_ROOT_CNID        1
 #define HFS_ROOT_PARENT_CNID 1
 #define HFS_FIRST_CNID       16
-#define MAC_EPOCH_DELTA      2082844800u /* Seconds between 1904 and 1970 */
-
+#define MAC_EPOCH_DELTA      MAC_UNIX_EPOCH_OFFSET
 #endif /* HFS_TYPES_H */

@@ -31,9 +31,6 @@
 #define DT_LOG(...)
 #endif
 
-/* Mac epoch offset: difference between Mac epoch (1904) and Unix epoch (1970) */
-#define MAC_EPOCH_OFFSET 2082844800UL
-
 /* Forward declarations of helper functions from FileManager */
 extern UInt32 DateTime_Current(void);
 extern UInt32 DateTime_FromUnix(time_t unixTime);
