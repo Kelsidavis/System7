@@ -411,7 +411,7 @@ static void Finder_DeskHook(RgnHandle invalidRgn)
     BackPat(&desktopPat);
 
     /* Draw desktop pattern using the desktop background pattern */
-        /* Exclude every visible window so the desktop erase preserves its content. */
+    /* Exclude every visible window so the desktop erase preserves its content. */
     RgnHandle paintRgn = NewRgn();
     if (paintRgn) {
         if (invalidRgn) {
