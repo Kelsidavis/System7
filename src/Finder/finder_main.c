@@ -26,7 +26,9 @@
 #include "System71StdLib.h"
 #include "ToolboxCompat.h"
 #include "Finder/AboutThisMac.h"
+#include "Finder/GetInfo.h"
 #include "Finder/FinderLogging.h"
+#include "MenuManager/menu_private.h"
 
 /* Global Variables */
 static Boolean gFinderInitialized = false;
@@ -213,7 +215,6 @@ static OSErr SetupMenus(void)
      * item name rather than index, so the ordering is free to change and
      * "Note Pad" resolves through OpenDeskAcc. */
     {
-        extern SInt16 CountMenuItems(MenuHandle theMenu);
         /* static: 20x64 plus scratch is over 1.3K, too much for the kernel
          * stack this runs on - taking it as locals wiped the rest of the menu. */
         static char names[20][64];
@@ -866,8 +867,6 @@ OSErr CloseFinderWindow(WindowPtr window) {
     }
 
     /* Try to close special windows first */
-    extern Boolean GetInfo_CloseIf(WindowPtr w);
-
     /* Each of these disposes the window itself when it owns it, so the first
      * one that claims it ends the sequence - falling through to the dispose
      * below would free the window a second time. */
@@ -904,8 +903,6 @@ OSErr CloseFinderWindow(WindowPtr window) {
  */
 Boolean Finder_DrawWindowContents(WindowPtr window) {
     if (!window) return false;
-
-    extern Boolean GetInfo_HandleUpdate(WindowPtr w);
 
     if (AboutWindow_HandleUpdate(window)) return true;
     if (GetInfo_HandleUpdate(window))     return true;
