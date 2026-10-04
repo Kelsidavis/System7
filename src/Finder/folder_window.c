@@ -29,6 +29,7 @@
 #include "Finder/Icon/icon_system.h"
 #include "Platform/Framebuffer.h"
 #include "Finder/finder.h"
+#include "Apps/MacPaint.h"
 #include "FS/vfs.h"
 #include "FS/vfs_ops.h"
 #include "FS/trash.h"
@@ -2580,7 +2581,6 @@ static void FolderWindow_OpenFileNamed(FolderWindowState* state,
         FINDER_LOG_DEBUG("FW: Opened file '%s' in SimpleText\n", name);
     } else if (itemType == FOURCC('P','N','T','G')) {
         /* A painting: MacPaint opens it from where it is */
-        extern void MacPaint_OpenDocument(VRefNum vref, DirID dir, const char* name);
         MacPaint_OpenDocument(state->vref, state->currentDir, name);
     } else if (itemType == FOURCC('A','P','P','L')) {
         /* Application file */
@@ -2592,7 +2592,6 @@ static void FolderWindow_OpenFileNamed(FolderWindowState* state,
             SimpleText_Launch();
         } else if (strcmp(name, "MacPaint") == 0) {
             FINDER_LOG_DEBUG("FW: Launching MacPaint application\n");
-            extern void MacPaint_Launch(void);
             MacPaint_Launch();
         } else if (strcmp(name, "Desktop Patterns") == 0) {
             FINDER_LOG_DEBUG("FW: Opening Desktop Patterns control panel\n");

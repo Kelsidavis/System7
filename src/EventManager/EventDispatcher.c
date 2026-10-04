@@ -16,6 +16,8 @@
 #include "EventManager/EventTypes.h"  /* Include EventTypes.h first to define activeFlag */
 #include "EventManager/EventManager.h"
 #include "Finder/finder.h"
+#include "DeskManager/DeskManager.h"
+#include "DeskManager/Notepad.h"
 #include "WindowManager/WindowManager.h"
 #include "MenuManager/MenuManager.h"
 #include "MenuManager/menu_private.h"
@@ -142,9 +144,6 @@ Boolean DispatchEvent(EventRecord* event)
 
     /* Notepad event handling - selective interception */
     /* IMPORTANT: Allow menu bar clicks to bypass Notepad interception */
-    extern void Notepad_HandleEvent(EventRecord *event);
-    extern WindowPtr Notepad_GetWindow(void);
-
     if (Notepad_GetWindow() != NULL) {
         /* For mouseDown events, check if click is on menu bar */
         if (event->what == mouseDown) {
@@ -328,7 +327,6 @@ Boolean HandleMouseDown(EventRecord* event)
              * returned unhandled and nothing passed the click on, so no
              * accessory could be clicked - the Calculator's keys did nothing
              * and its window could not be closed or dragged. */
-            extern void SystemClick(const EventRecord *event, WindowRecord *window);
             if (whichWindow) SystemClick(event, (WindowRecord*)whichWindow);
             return true;
         }
@@ -542,7 +540,6 @@ Boolean HandleKeyDownEvent(EventRecord* event)
     if (!cmdKeyDown) {
         WindowPtr front = FrontWindow();
         if (front && front->windowKind < 0) {
-            extern Boolean SystemEvent(const EventRecord *event);
             SystemEvent(event);
             return true;
         }
@@ -686,7 +683,6 @@ Boolean HandleUpdate(EventRecord* event)
          * draw it. Without this the erase below wipes the window it was just
          * given - the same way About This Macintosh used to be wiped - and the
          * accessory shows an empty frame. */
-        extern Boolean SystemUpdate(WindowRecord *window, const EventRecord *event);
         if (SystemUpdate((WindowRecord *)updateWindow, event)) {
             EVT_LOG_DEBUG("HandleUpdate: desk accessory redrew itself\n");
         } else if (!Finder_DrawWindowContents(updateWindow)) {
