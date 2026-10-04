@@ -43,7 +43,13 @@
 #include "../include/Resources/system7_resources.h"
 #include "../include/TimeManager/TimeManager.h"
 #include "../include/ExtensionManager/DefLoader.h"
+#include "../include/ExtensionManager/ExtensionManager.h"
+#include "../include/ExtensionManager/CDEFLoader.h"
+#include "../include/ExtensionManager/ControlPanelManager.h"
+#include "../include/ExtensionManager/DRVRLoader.h"
+#include "../include/ExtensionManager/FKEYLoader.h"
 #include "../include/ProcessMgr/ProcessTypes.h"
+#include "../include/LocaleManager/LocaleManager.h"
 #include "../include/Finder/finder.h"
 #include "../include/DeskManager/DeskManager.h"
 #include "../include/TimeManager/TimeBase.h"
@@ -627,7 +633,6 @@ static void init_system71(void) {
 
     /* Locale Manager - internationalization support */
     {
-        extern OSErr InitLocaleManager(void);
         OSErr locErr = InitLocaleManager();
         if (locErr == noErr) {
             serial_puts("  Locale Manager initialized\n");
@@ -642,14 +647,6 @@ static void init_system71(void) {
     /* Extension Manager - loads INIT resources and system extensions */
 #ifdef ENABLE_EXTENSIONS
     {
-        extern OSErr ExtensionManager_Initialize(void);
-        extern SInt16 ExtensionManager_ScanForExtensions(Boolean rescan);
-        extern OSErr ExtensionManager_LoadAllExtensions(void);
-        extern OSErr CDEFLoader_Initialize(void);
-        extern SInt16 CDEFLoader_LoadAllCDEFs(void);
-        extern OSErr ControlPanelManager_Initialize(void);
-        extern SInt16 ControlPanelManager_ScanForControlPanels(Boolean rescan);
-
         OSErr extErr = ExtensionManager_Initialize();
         if (extErr == noErr) {
             serial_puts("  Extension Manager initialized\n");
@@ -662,7 +659,6 @@ static void init_system71(void) {
                 /* Load all discovered extensions in priority order */
                 extErr = ExtensionManager_LoadAllExtensions();
                 if (extErr == noErr) {
-                    extern SInt16 ExtensionManager_GetActiveCount(void);
                     SInt16 active = ExtensionManager_GetActiveCount();
                     serial_printf("  Loaded %d active extensions\n", active);
                 } else {
@@ -708,8 +704,6 @@ static void init_system71(void) {
         }
 
         /* DRVR Loader - loads device driver resources */
-        extern OSErr DRVRLoader_Initialize(void);
-        extern SInt16 DRVRLoader_LoadAllDrivers(void);
         extErr = DRVRLoader_Initialize();
         if (extErr == noErr) {
             serial_puts("  DRVR Loader initialized\n");
@@ -726,8 +720,6 @@ static void init_system71(void) {
         }
 
         /* FKEY Loader - loads function key resources */
-        extern OSErr FKEYLoader_Initialize(void);
-        extern SInt16 FKEYLoader_LoadAllFKEYs(void);
         extErr = FKEYLoader_Initialize();
         if (extErr == noErr) {
             serial_puts("  FKEY Loader initialized\n");
