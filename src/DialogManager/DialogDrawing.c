@@ -339,7 +339,7 @@ void DrawDialogEditText(const Rect* bounds, const unsigned char* text,
             selRect.top = textRect.top;
             selRect.bottom = textRect.bottom;
             InvertRect(&selRect);
-        } else if (extState && extState->caretVisible) {
+        } else if (extState && state->caretVisible) {
             /* The caret marks the insertion point, which is not necessarily
              * the end of the text - it was drawn at textLeft + full width
              * regardless of where the insertion point actually was. */
@@ -482,7 +482,7 @@ void DrawDialogItemByType(DialogPtr theDialog, SInt16 itemNo,
         {
             DialogManagerState* state = GetDialogManagerState();
             DialogManagerState_Extended* extState = GET_EXTENDED_DLG_STATE(state);
-            Boolean hasFocus = (extState && extState->focusedEditTextItem == itemNo);
+            Boolean hasFocus = (extState && state->focusedEditTextItem == itemNo);
             DrawDialogEditText(&item->bounds, textData, true, hasFocus, itemNo);
             break;
         }

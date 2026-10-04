@@ -35,31 +35,29 @@
  */
 void SetDialogEditTextFocus(DialogPtr theDialog, SInt16 itemNo) {
     DialogManagerState* state;
-    DialogManagerState_Extended* extState;
     SInt16 oldFocusItem;
 
     state = GetDialogManagerState();
-    extState = GET_EXTENDED_DLG_STATE(state);
 
     if (!state || !theDialog) {
         return;
     }
 
-    oldFocusItem = extState->focusedEditTextItem;
+    oldFocusItem = state->focusedEditTextItem;
 
     /* Clear old focus */
     if (oldFocusItem > 0 && oldFocusItem != itemNo) {
-        extState->focusedEditTextItem = 0;
-        extState->caretVisible = false;
+        state->focusedEditTextItem = 0;
+        state->caretVisible = false;
         InvalDialogItem(theDialog, oldFocusItem);
         DrawDialogItem(theDialog, oldFocusItem);
     }
 
     /* Set new focus */
     if (itemNo > 0) {
-        extState->focusedEditTextItem = itemNo;
-        extState->caretBlinkTime = TickCount();
-        extState->caretVisible = true;
+        state->focusedEditTextItem = itemNo;
+        state->caretBlinkTime = TickCount();
+        state->caretVisible = true;
 
         /* Materialise the TextEdit record and select the whole field before
          * redrawing. Focusing a field in System 7 selects its contents, so the
@@ -77,8 +75,8 @@ void SetDialogEditTextFocus(DialogPtr theDialog, SInt16 itemNo) {
         DrawDialogItem(theDialog, itemNo);
 
     } else {
-        extState->focusedEditTextItem = 0;
-        extState->caretVisible = false;
+        state->focusedEditTextItem = 0;
+        state->caretVisible = false;
     }
 }
 
@@ -93,16 +91,14 @@ void SetDialogEditTextFocus(DialogPtr theDialog, SInt16 itemNo) {
  */
 SInt16 GetDialogEditTextFocus(DialogPtr theDialog) {
     DialogManagerState* state;
-    DialogManagerState_Extended* extState;
 
     state = GetDialogManagerState();
-    extState = GET_EXTENDED_DLG_STATE(state);
 
     if (!state || !theDialog) {
         return 0;
     }
 
-    return extState->focusedEditTextItem;
+    return state->focusedEditTextItem;
 }
 
 /*
@@ -116,35 +112,33 @@ SInt16 GetDialogEditTextFocus(DialogPtr theDialog) {
  */
 void UpdateDialogCaret(DialogPtr theDialog) {
     DialogManagerState* state;
-    DialogManagerState_Extended* extState;
 
     state = GetDialogManagerState();
-    extState = GET_EXTENDED_DLG_STATE(state);
     UInt32 currentTicks;
     UInt32 elapsed;
 
-    if (!state || !theDialog || extState->focusedEditTextItem == 0) {
+    if (!state || !theDialog || state->focusedEditTextItem == 0) {
         return;
     }
 
     currentTicks = TickCount();
 
     /* Handle tick counter wrap-around */
-    if (currentTicks < extState->caretBlinkTime) {
-        extState->caretBlinkTime = currentTicks;
+    if (currentTicks < state->caretBlinkTime) {
+        state->caretBlinkTime = currentTicks;
         return;
     }
 
-    elapsed = currentTicks - extState->caretBlinkTime;
+    elapsed = currentTicks - state->caretBlinkTime;
 
     /* Toggle caret visibility every kCaretBlinkRate ticks */
     if (elapsed >= kCaretBlinkRate) {
-        extState->caretVisible = !extState->caretVisible;
-        extState->caretBlinkTime = currentTicks;
+        state->caretVisible = !state->caretVisible;
+        state->caretBlinkTime = currentTicks;
 
         /* Redraw the focused edit-text item */
-        InvalDialogItem(theDialog, extState->focusedEditTextItem);
-        DrawDialogItem(theDialog, extState->focusedEditTextItem);
+        InvalDialogItem(theDialog, state->focusedEditTextItem);
+        DrawDialogItem(theDialog, state->focusedEditTextItem);
 
     }
 }
@@ -160,10 +154,8 @@ void UpdateDialogCaret(DialogPtr theDialog) {
  */
 void AdvanceDialogEditTextFocus(DialogPtr theDialog, Boolean backward) {
     DialogManagerState* state;
-    DialogManagerState_Extended* extState;
 
     state = GetDialogManagerState();
-    extState = GET_EXTENDED_DLG_STATE(state);
     SInt16 itemCount;
     SInt16 currentFocus;
     SInt16 nextFocus;
@@ -179,7 +171,7 @@ void AdvanceDialogEditTextFocus(DialogPtr theDialog, Boolean backward) {
     /* Get item count - this is a placeholder, real implementation would
        query the dialog's item list */
     itemCount = 32; /* Conservative maximum */
-    currentFocus = extState->focusedEditTextItem;
+    currentFocus = state->focusedEditTextItem;
     nextFocus = 0;
 
     /* Find next focusable edit-text item */
@@ -300,7 +292,7 @@ void DialogEditText_ReleaseAll(DialogPtr owner)
         }
     }
     extState->teOwner = NULL;
-    extState->focusedEditTextItem = 0;
+    state->focusedEditTextItem = 0;
 }
 
 /*
@@ -528,18 +520,16 @@ void UpdateDialogTEDisplay(DialogPtr theDialog, SInt16 itemNo) {
  */
 void HandleDialogCut(DialogPtr theDialog) {
     DialogManagerState* state;
-    DialogManagerState_Extended* extState;
     TEHandle hTE;
     SInt16 itemNo;
 
     state = GetDialogManagerState();
-    extState = GET_EXTENDED_DLG_STATE(state);
 
     if (!state || !theDialog) {
         return;
     }
 
-    itemNo = extState->focusedEditTextItem;
+    itemNo = state->focusedEditTextItem;
     if (itemNo < 1) {
         return;
     }
@@ -555,18 +545,16 @@ void HandleDialogCut(DialogPtr theDialog) {
  */
 void HandleDialogCopy(DialogPtr theDialog) {
     DialogManagerState* state;
-    DialogManagerState_Extended* extState;
     TEHandle hTE;
     SInt16 itemNo;
 
     state = GetDialogManagerState();
-    extState = GET_EXTENDED_DLG_STATE(state);
 
     if (!state || !theDialog) {
         return;
     }
 
-    itemNo = extState->focusedEditTextItem;
+    itemNo = state->focusedEditTextItem;
     if (itemNo < 1) {
         return;
     }
@@ -582,18 +570,16 @@ void HandleDialogCopy(DialogPtr theDialog) {
  */
 void HandleDialogPaste(DialogPtr theDialog) {
     DialogManagerState* state;
-    DialogManagerState_Extended* extState;
     TEHandle hTE;
     SInt16 itemNo;
 
     state = GetDialogManagerState();
-    extState = GET_EXTENDED_DLG_STATE(state);
 
     if (!state || !theDialog) {
         return;
     }
 
-    itemNo = extState->focusedEditTextItem;
+    itemNo = state->focusedEditTextItem;
     if (itemNo < 1) {
         return;
     }

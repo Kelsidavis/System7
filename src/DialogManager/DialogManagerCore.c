@@ -37,13 +37,12 @@
  * whatever followed it, the modal and alert state among it, and storing an
  * edit field wrote into them.
  */
-static union {
-    DialogManagerState          base;
-    DialogManagerState_Extended ext;
-} gDialogManagerStateStorage;
+static DialogManagerState_Extended gDialogManagerStateStorage;
 #define gDialogManagerState (gDialogManagerStateStorage.base)
-_Static_assert(sizeof(DialogManagerState) <= offsetof(DialogManagerState_Extended, teHandles),
-               "the extended Dialog Manager state must extend the base one");
+_Static_assert(offsetof(DialogManagerState_Extended, base) == 0,
+               "the extended Dialog Manager state must begin with the base state");
+_Static_assert(offsetof(DialogManagerState_Extended, teHandles) == sizeof(DialogManagerState),
+               "TextEdit state must immediately follow the base state");
 static Boolean gDialogManagerInitialized = false;
 
 /* Private function prototypes */
