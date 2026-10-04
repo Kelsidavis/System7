@@ -5,10 +5,11 @@
  */
 
 #include "EventManager/EventGlobals.h"
+#include "EventManager/EventTypes.h"
 #include "EventManager/EventLogging.h"
 
 /* Double-click timing: ~500ms at 60 Hz (Classic Mac OS standard) */
-UInt32 gDoubleTimeTicks = 30;
+UInt32 gDoubleTimeTicks = kDefaultDoubleClickTime;
 
 /* Double-click pixel slop: 6 pixels max distance */
 UInt16 gDoubleClickSlop = 6;

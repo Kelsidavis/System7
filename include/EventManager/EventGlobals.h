@@ -13,7 +13,7 @@
 extern "C" {
 #endif
 
-/* Double-click timing in ticks (default ~600ms at 60Hz) */
+/* Double-click timing in ticks (default ~500ms at 60Hz) */
 extern UInt32 gDoubleTimeTicks;
 
 /* Double-click pixel slop (max distance between clicks) */
