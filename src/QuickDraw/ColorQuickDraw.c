@@ -844,7 +844,7 @@ void HiliteColor(const RGBColor *color) {
     }
 }
 
-/* Resource management and cursor operations (stubs) */
+/* Color cursor loading, selection, and allocation are not implemented. */
 
 CCrsrHandle GetCCursor(SInt16 crsrID) {
     (void)crsrID;
