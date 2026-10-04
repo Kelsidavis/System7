@@ -1975,7 +1975,6 @@ static bool SysLogParseBracketTag(const char* fmt, SystemLogModule* module, Syst
     return false;
 }
 
-/* Deprecated: serial_printf() classifier - only parses bracket tags, defaults to General */
 static void SysLogClassifyMessage(const char* fmt, SystemLogModule* outModule, SystemLogLevel* outLevel) {
     SystemLogModule module = kLogModuleGeneral;
     SystemLogLevel level = kLogLevelDebug;
@@ -2010,20 +2009,6 @@ static bool SysLogShouldEmit(SystemLogModule module, SystemLogLevel level) {
     return true;
 }
 
-/*
- * SysLogFormatAndSend - render a log line and put it on the wire.
- *
- * This used to hand-roll its own formatter which recognised a fixed handful
- * of specifier spellings - %02x, %04x and a few more - and copied anything
- * else out literally. %08X was not among them, so every diagnostic in the
- * system that printed an address printed the characters "0x%08X" instead,
- * and the argument it should have consumed was left to misalign whatever
- * came after it. That is how a 68K fault came to report its reason as an
- * empty string at address "%08X".
- *
- * There is a formatter in this file that handles the whole grammar. Using it
- * means log output cannot disagree with snprintf about what a format means.
- */
 static void SysLogFormatAndSend(const char* fmt, va_list args) {
     char buffer[256];
 
