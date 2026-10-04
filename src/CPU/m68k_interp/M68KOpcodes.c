@@ -7,28 +7,11 @@
 
 #include "CPU/M68KInterp.h"
 #include "CPU/M68KOpcodes.h"
+#include "M68KDecode.h"
+#include "M68KToolboxInternal.h"
 #include "System71StdLib.h"
 #include "CPU/CPULogging.h"
 #include <string.h>
-
-/*
- * External declarations from M68KDecode.c
- */
-extern UInt16 M68K_Fetch16(M68KAddressSpace* as);
-extern UInt32 M68K_Fetch32(M68KAddressSpace* as);
-extern UInt8 M68K_Read8(M68KAddressSpace* as, UInt32 addr);
-extern UInt16 M68K_Read16(M68KAddressSpace* as, UInt32 addr);
-extern UInt32 M68K_Read32(M68KAddressSpace* as, UInt32 addr);
-extern void M68KTB_TrapEnter(UInt16 trap);
-extern void M68KTB_TrapLeave(UInt16 trap);
-extern UInt32 M68K_EA_ReadRMW(M68KAddressSpace* as, UInt8 mode, UInt8 reg, M68KSize size);
-extern void M68K_EA_WriteRMW(M68KAddressSpace* as, UInt8 mode, UInt8 reg, M68KSize size, UInt32 value);
-extern void M68K_Write8(M68KAddressSpace* as, UInt32 addr, UInt8 value);
-extern void M68K_Write16(M68KAddressSpace* as, UInt32 addr, UInt16 value);
-extern void M68K_Write32(M68KAddressSpace* as, UInt32 addr, UInt32 value);
-extern UInt32 M68K_EA_ComputeAddress(M68KAddressSpace* as, UInt8 mode, UInt8 reg, M68KSize size);
-extern UInt32 M68K_EA_Read(M68KAddressSpace* as, UInt8 mode, UInt8 reg, M68KSize size);
-extern void M68K_EA_Write(M68KAddressSpace* as, UInt8 mode, UInt8 reg, M68KSize size, UInt32 value);
 
 /*
  * Exception Handler - Raise 68K exception

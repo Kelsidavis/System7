@@ -16,20 +16,8 @@
 
 #include "CPU/M68KInterp.h"
 #include "CPU/M68KOpcodes.h"
+#include "M68KDecode.h"
 #include "System71StdLib.h"
-
-extern UInt16 M68K_Fetch16(M68KAddressSpace* as);
-extern UInt32 M68K_Fetch32(M68KAddressSpace* as);
-extern UInt8 M68K_Read8(M68KAddressSpace* as, UInt32 addr);
-extern UInt16 M68K_Read16(M68KAddressSpace* as, UInt32 addr);
-extern UInt32 M68K_Read32(M68KAddressSpace* as, UInt32 addr);
-extern void M68K_Write8(M68KAddressSpace* as, UInt32 addr, UInt8 value);
-extern void M68K_Write16(M68KAddressSpace* as, UInt32 addr, UInt16 value);
-extern void M68K_Write32(M68KAddressSpace* as, UInt32 addr, UInt32 value);
-extern UInt32 M68K_EA_ComputeAddress(M68KAddressSpace* as, UInt8 mode, UInt8 reg, M68KSize size);
-extern UInt32 M68K_EA_Read(M68KAddressSpace* as, UInt8 mode, UInt8 reg, M68KSize size);
-extern UInt32 M68K_EA_ReadRMW(M68KAddressSpace* as, UInt8 mode, UInt8 reg, M68KSize size);
-extern void M68K_EA_WriteRMW(M68KAddressSpace* as, UInt8 mode, UInt8 reg, M68KSize size, UInt32 value);
 
 /* ------------------------------------------------------------------------
  * Condition codes

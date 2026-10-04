@@ -13,16 +13,10 @@
 #include "CPU/CPUBackend.h"
 #include "CPU/M68KInterp.h"
 #include "CPU/M68KHeap.h"
+#include "M68KDecode.h"
 #include "FS/hfs_types.h"
 
 extern M68KAddressSpace* gM68KApp;     /* the application being answered */
-
-extern UInt8 M68K_Read8(M68KAddressSpace* as, UInt32 addr);
-extern UInt16 M68K_Read16(M68KAddressSpace* as, UInt32 addr);
-extern UInt32 M68K_Read32(M68KAddressSpace* as, UInt32 addr);
-extern void M68K_Write8(M68KAddressSpace* as, UInt32 addr, UInt8 value);
-extern void M68K_Write16(M68KAddressSpace* as, UInt32 addr, UInt16 value);
-extern void M68K_Write32(M68KAddressSpace* as, UInt32 addr, UInt32 value);
 
 #define R8(a)       M68K_Read8(gM68KApp, (a))
 #define R16(a)      M68K_Read16(gM68KApp, (a))

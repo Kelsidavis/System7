@@ -21,11 +21,7 @@
 
 #include "CPU/M68KHeap.h"
 #include "CPU/M68KInterp.h"
-
-extern UInt8 M68K_Read8(M68KAddressSpace* as, UInt32 addr);
-extern UInt32 M68K_Read32(M68KAddressSpace* as, UInt32 addr);
-extern void M68K_Write8(M68KAddressSpace* as, UInt32 addr, UInt8 value);
-extern void M68K_Write32(M68KAddressSpace* as, UInt32 addr, UInt32 value);
+#include "M68KDecode.h"
 
 enum {
     kHeader = 8,

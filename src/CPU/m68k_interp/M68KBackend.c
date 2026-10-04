@@ -10,6 +10,7 @@
 
 #include "CPU/M68KInterp.h"
 #include "CPU/M68KOpcodes.h"
+#include "M68KDecode.h"
 #include "CPU/CPUBackend.h"
 #include "CPU/LowMemGlobals.h"
 #include "SegmentLoader/SegmentLoader.h"
@@ -18,12 +19,6 @@
 #include "TimeManager/TimeBase.h"
 #include "CPU/CPULogging.h"
 #include <string.h>
-
-/* Guest memory accessors, implemented in M68KDecode.c. */
-UInt16 M68K_Fetch16(M68KAddressSpace* as);
-void M68K_Write8(M68KAddressSpace* as, UInt32 addr, UInt8 value);
-void M68K_Write16(M68KAddressSpace* as, UInt32 addr, UInt16 value);
-void M68K_Write32(M68KAddressSpace* as, UInt32 addr, UInt32 value);
 
 static OSErr M68K_CreateAddressSpace(void* processHandle, CPUAddressSpace* out);
 static OSErr M68K_DestroyAddressSpace(CPUAddressSpace as);
@@ -760,7 +755,9 @@ static OSErr M68K_ReadMemory(CPUAddressSpace as, CPUAddr addr,
         return paramErr;
     }
 
-    { extern UInt8 M68K_Read8(M68KAddressSpace* as, UInt32 addr); for (Size i = 0; i < len; i++) { ((UInt8*)data)[i] = M68K_Read8(mas, addr + i); } }
+    for (Size i = 0; i < len; i++) {
+        ((UInt8*)data)[i] = M68K_Read8(mas, addr + i);
+    }
     return noErr;
 }
 
