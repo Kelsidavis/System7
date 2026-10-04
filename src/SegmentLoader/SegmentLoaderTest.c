@@ -557,6 +557,18 @@ static void RunTestBoot(void)
         SEG_TEST_FAILED("the loaded segment never executed");
     }
 
+    for (SInt16 segID = 1; segID <= 2; segID++) {
+        CPUAddr expected = 0;
+        CPUAddr resolved = 0;
+        SInt16 jtIndex = segID - 1;
+        if (GetSegmentEntryPoint(ctx, segID, &expected) != noErr ||
+            ResolveJumpIndex(ctx, jtIndex, &resolved) != noErr ||
+            resolved != expected) {
+            SEG_TEST_FAILED("ResolveJumpIndex returned the wrong loaded target");
+            break;
+        }
+    }
+
     /* The JSR target in segment 2 should have been relocated by its base. */
     {
         CPUAddr seg2 = 0;

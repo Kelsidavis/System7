@@ -492,14 +492,14 @@ OSErr ResolveJumpIndex(SegmentLoaderContext* ctx, SInt16 jtIndex,
         return err;
     }
 
-    /* Parse jump instruction */
-    UInt16 opcode = BE_Read16(slotData + 0);
+    /* In both 68K forms, the executable instruction begins at +2. */
+    UInt16 opcode = BE_Read16(slotData + 2);
     if (opcode == 0x4EF9) {
         /* JMP absolute.L - target is already resolved */
-        *outAddr = BE_Read32(slotData + 2);
+        *outAddr = BE_Read32(slotData + 4);
     } else if (opcode == 0x3F3C) {
         /* Lazy stub - need to load segment first */
-        UInt16 segID = BE_Read16(slotData + 2);
+        UInt16 segID = BE_Read16(slotData + 4);
         err = LoadSegment(ctx, segID);
         if (err != noErr) {
             return err;
@@ -511,7 +511,10 @@ OSErr ResolveJumpIndex(SegmentLoaderContext* ctx, SInt16 jtIndex,
             return err;
         }
 
-        *outAddr = BE_Read32(slotData + 2);
+        if (BE_Read16(slotData + 2) != 0x4EF9) {
+            return segmentJTErr;
+        }
+        *outAddr = BE_Read32(slotData + 4);
     } else {
         return segmentJTErr;
     }
