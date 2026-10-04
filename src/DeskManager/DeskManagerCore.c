@@ -14,10 +14,12 @@
 #include "SystemTypes.h"
 #include "System71StdLib.h"
 #include "QuickDraw/QuickDraw.h"
+#include "QuickDraw/QuickDrawInternal.h"
 
 #include "DeskManager/DeskManager.h"
 #include "DeskManager/DeskAccessory.h"
 #include "MenuManager/MenuManager.h"
+#include "WindowManager/WindowPlatform.h"
 
 
 /* Global Desk Manager State */
@@ -229,8 +231,6 @@ void SystemClick(const EventRecord *event, WindowRecord *window)
      * through to the accessory as content, and its window could never be
      * moved or closed.
      */
-    extern short Platform_WindowHitTest(WindowPtr window, Point pt);
-
     short part = Platform_WindowHitTest(window, event->where);
 
     switch (part) {
@@ -662,7 +662,6 @@ static int DA_EventViaInterface(DeskAccessory *da, const EventRecord *event)
 
     Point local = event->where;
     if (da->window) {
-        extern void GlobalToLocalWindow(WindowPtr window, Point *pt);
         GlobalToLocalWindow(da->window, &local);
     }
 
