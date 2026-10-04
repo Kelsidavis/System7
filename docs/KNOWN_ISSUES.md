@@ -981,14 +981,10 @@ Implemented dirty rectangle intersection when available:
 
 3. **Implementation Details**:
    - Uses `SectRgn()` to compute intersection of clobbered and content regions
-   - Employs `AutoRgnHandle` for automatic cleanup on all code paths
+   - Explicitly disposes the temporary `AutoRgnHandle` after use
    - Guards against NULL/empty region handles
 
-**Performance Impact**:
-- Small incremental updates: 30-50% reduction in framebuffer writes
-- Window dragging: ~40% improvement in fill operations
-- Full window updates: No performance change (fallback to full fill)
-- Typical desktop scenario: ~35% framebuffer write reduction
+**Performance impact**: When a dirty region is available and allocation succeeds, filling is limited to its non-empty intersection with the window content. When no dirty region is provided or temporary-region allocation fails, the implementation fills the full content region. No benchmark results are recorded here.
 
 **Files Modified**:
 - `src/WindowManager/WindowDisplay.c`: Added dirty rectangle intersection logic
