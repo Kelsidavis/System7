@@ -22,6 +22,7 @@
 #include "ResourceManager.h"
 #include "WindowManager/WindowManager.h"
 #include "WindowManager/WindowManagerInternal.h"
+#include "WindowManager/WindowWDEF.h"
 #include "QuickDraw/QuickDraw.h"
 #include "QuickDraw/QuickDrawInternal.h"
 #include "QuickDraw/ColorQuickDraw.h"
@@ -954,6 +955,33 @@ static void Test_Window_StandardProcCapabilities(void) {
     CHECK(!WM_WindowHasCloseBox(&window),
           "close box was exposed when goAwayFlag was false");
     CHECK(!WM_WindowHasCloseBox(NULL), "null window exposed a close box");
+
+    Rect bounds = {100, 100, 160, 220};
+    WindowPtr fixedDialog = NewWindow(NULL, &bounds, PSTR("Fixed"), false,
+                                      dBoxProc, (WindowPtr)-1, true, 0);
+    WindowPtr movableDialog = NewWindow(NULL, &bounds, PSTR("Movable"), false,
+                                        movableDBoxProc, (WindowPtr)-1, true, 0);
+    if (!fixedDialog || !movableDialog) {
+        if (fixedDialog) DisposeWindow(fixedDialog);
+        if (movableDialog) DisposeWindow(movableDialog);
+        RecordTest(test_name, false, "could not create standard dialog windows");
+        return;
+    }
+
+    Rect frameRect;
+    Platform_GetWindowFrameRect(fixedDialog, &frameRect);
+    Point titlePoint = {(SInt16)(frameRect.top + 10),
+                        (SInt16)(frameRect.left + 30)};
+    UInt32 packedPoint = ((UInt32)(UInt16)titlePoint.h << 16) |
+                         (UInt16)titlePoint.v;
+    short fixedPart = (short)WM_DialogWindowDefProc(
+        dBoxProc, fixedDialog, wHit, packedPoint);
+    short movablePart = (short)WM_DialogWindowDefProc(
+        movableDBoxProc, movableDialog, wHit, packedPoint);
+    DisposeWindow(movableDialog);
+    DisposeWindow(fixedDialog);
+    CHECK(fixedPart == wInContent && movablePart == wInDrag,
+          "dialog WDEF hit testing ignored title-bar capability");
     RecordTest(test_name, true, "");
 }
 

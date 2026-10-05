@@ -658,10 +658,10 @@ static short WM_DialogWindowHitTest(WindowPtr window, Point pt) {
         }
     }
 
-    /* Check title bar for movable dialogs */
+    /* A dialog WDEF can represent both fixed and movable dialog types. */
     Handle wdef = window->windowDefProc;
-    if (wdef == (Handle)WM_DialogWindowDefProc) {
-        /* Assume movable if it has a close box or based on other criteria */
+    if (WM_WindowHasTitleBar(window) &&
+        wdef == (Handle)WM_DialogWindowDefProc) {
         Rect titleRect;
         Platform_GetWindowTitleBarRect(window, &titleRect);
         if (WM_PtInRect(pt, &titleRect)) {
