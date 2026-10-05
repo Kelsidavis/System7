@@ -915,6 +915,48 @@ static void Test_Window_ZoomState(void) {
     RecordTest(test_name, true, "");
 }
 
+static void Test_Window_StandardProcCapabilities(void) {
+    const char* test_name = "Window_StandardProcCapabilities";
+    static const struct {
+        SInt16 procID;
+        Boolean titleBar;
+        Boolean closeBox;
+        Boolean zoomBox;
+        Boolean growBox;
+    } cases[] = {
+        {documentProc, true, true, false, true},
+        {dBoxProc, false, false, false, false},
+        {plainDBox, false, false, false, false},
+        {altDBoxProc, false, false, false, false},
+        {noGrowDocProc, true, true, false, false},
+        {movableDBoxProc, true, false, false, false},
+        {zoomDocProc, true, true, true, true},
+        {zoomNoGrow, true, true, true, false},
+        {rDocProc, true, true, false, false},
+    };
+    WindowRecord window = {0};
+
+    window.goAwayFlag = true;
+    for (size_t i = 0; i < sizeof cases / sizeof cases[0]; ++i) {
+        window.windowProcID = cases[i].procID;
+        if (WM_WindowHasTitleBar(&window) != cases[i].titleBar ||
+            WM_WindowHasCloseBox(&window) != cases[i].closeBox ||
+            WM_WindowHasZoomBox(&window) != cases[i].zoomBox ||
+            WM_WindowHasGrowBox(&window) != cases[i].growBox) {
+            RecordTest(test_name, false,
+                       "standard window type exposed unsupported chrome");
+            return;
+        }
+    }
+
+    window.windowProcID = documentProc;
+    window.goAwayFlag = false;
+    CHECK(!WM_WindowHasCloseBox(&window),
+          "close box was exposed when goAwayFlag was false");
+    CHECK(!WM_WindowHasCloseBox(NULL), "null window exposed a close box");
+    RecordTest(test_name, true, "");
+}
+
 /* MoveWindow places the content's corner, for any kind of window; zooming
  * in and back out restores the window. */
 static void Test_Window_MoveAndZoom(void) {
@@ -3121,6 +3163,7 @@ void IntegrationTests_Run(void) {
     Test_Window_ReorderAndHide();
     Test_Dialog_NestedModalWindowState();
     Test_Window_ZoomState();
+    Test_Window_StandardProcCapabilities();
     Test_Window_MoveAndZoom();
     Test_File_ReadThroughExtentsOverflow();
 

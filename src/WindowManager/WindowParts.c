@@ -181,7 +181,7 @@ void WM_DrawStandardWindowFrame(WindowPtr window, short varCode) {
     WM_DrawWindowTitleBar(window);
 
     /* Draw close box if present */
-    if (window->goAwayFlag) {
+    if (WM_WindowHasCloseBox(window)) {
         WM_DrawWindowCloseBox(window, kPartStateNormal);
     }
 
@@ -217,7 +217,7 @@ void WM_DrawDialogWindowFrame(WindowPtr window, short varCode) {
         WM_DrawWindowTitleBar(window);
 
         /* Draw close box if present */
-        if (window->goAwayFlag) {
+        if (WM_WindowHasCloseBox(window)) {
             WM_DrawWindowCloseBox(window, kPartStateNormal);
         }
     }
@@ -383,7 +383,7 @@ void WM_DrawWindowTitle(WindowPtr window, const Rect* titleRect) {
 }
 
 void WM_DrawWindowCloseBox(WindowPtr window, WindowPartState state) {
-    if (window == NULL || !window->goAwayFlag) return;
+    if (!WM_WindowHasCloseBox(window)) return;
 
     WM_DEBUG("WM_DrawWindowCloseBox: Drawing close box, state = %d", state);
 
@@ -635,7 +635,9 @@ Boolean WM_WindowHasGrowBox(WindowPtr window) {
 }
 
 Boolean WM_WindowHasCloseBox(WindowPtr window) {
-    return window && window->goAwayFlag && WM_WindowHasTitleBar(window);
+    return window && window->goAwayFlag &&
+           window->windowProcID != movableDBoxProc &&
+           WM_WindowHasTitleBar(window);
 }
 
 /* ============================================================================
@@ -648,8 +650,7 @@ static short WM_DialogWindowHitTest(WindowPtr window, Point pt) {
 
     WM_DEBUG("WM_DialogWindowHitTest: Testing point in dialog window");
 
-    /* Check close box for movable dialogs */
-    if (window->goAwayFlag) {
+    if (WM_WindowHasCloseBox(window)) {
         Rect closeRect;
         Platform_GetWindowCloseBoxRect(window, &closeRect);
         if (WM_PtInRect(pt, &closeRect)) {

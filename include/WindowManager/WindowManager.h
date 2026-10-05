@@ -73,7 +73,7 @@ void GetCWMgrPort(CGrafPtr* wMgrCPort);
  *   visible     - TRUE to make window visible immediately
  *   theProc     - Window definition procedure ID
  *   behind      - Window to place new window behind (NULL for front)
- *   goAwayFlag  - TRUE to include close box
+ *   goAwayFlag  - TRUE to request a close box when supported by the window type
  *   refCon      - Application reference constant
  *
  * Returns: Pointer to new window, or NULL if creation failed
@@ -100,6 +100,7 @@ WindowPtr GetNewWindow(short windowID, void* wStorage, WindowPtr behind);
  *
  * Similar to NewWindow but creates a color window with CGrafPort.
  * Automatically creates auxiliary window record for color information.
+ * goAwayFlag requests a close box only for window types that support one.
  */
 WindowPtr NewCWindow(void* wStorage, const Rect* boundsRect,
                     ConstStr255Param title, Boolean visible,

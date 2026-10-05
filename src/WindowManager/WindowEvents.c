@@ -149,7 +149,7 @@ Boolean TrackBox(WindowPtr theWindow, Point thePt, short partCode) {
 
     switch (partCode) {
         case inGoAway:
-            if (theWindow->goAwayFlag) {
+            if (WM_WindowHasCloseBox(theWindow)) {
                 Platform_GetWindowCloseBoxRect(theWindow, &partRect);
                 validPart = true;
             }
@@ -270,7 +270,7 @@ Boolean TrackBox(WindowPtr theWindow, Point thePt, short partCode) {
 }
 
 Boolean TrackGoAway(WindowPtr theWindow, Point thePt) {
-    if (theWindow == NULL || !theWindow->goAwayFlag) return false;
+    if (!WM_WindowHasCloseBox(theWindow)) return false;
 
     WM_DEBUG("TrackGoAway: Tracking close box");
     return TrackBox(theWindow, thePt, inGoAway);

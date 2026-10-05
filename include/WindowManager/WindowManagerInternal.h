@@ -283,7 +283,6 @@ struct WindowManagerState {
 /* Window property checks */
 #define WM_WINDOW_IS_VISIBLE(w) (WM_VALID_WINDOW(w) && (w)->visible)
 #define WM_WINDOW_IS_ACTIVE(w) (WM_VALID_WINDOW(w) && (w)->hilited)
-#define WM_WINDOW_HAS_CLOSE_BOX(w) (WM_VALID_WINDOW(w) && (w)->goAwayFlag)
 
 /* The desktop's redraw hook, and redrawing what has been invalidated. */
 typedef void (*DeskHookProc)(RgnHandle invalidRgn);
