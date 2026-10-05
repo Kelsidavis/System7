@@ -16,6 +16,8 @@ extern "C" {
  * item index, or zero for invalid arguments or a full menu. */
 short Menu_InsertSortedName(MenuHandle menu, ConstStr255Param name, short first, short last);
 
+Boolean Platform_GetKeyModifiers(unsigned long* modifiers);
+
 #define _NewMenu            0xA931
 #define _AppendMenu         0xA933
 #define _MenuSelect         0xA93D

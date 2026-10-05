@@ -27,16 +27,6 @@ extern "C" {
  * ============================================================================ */
 
 /*
- * DrawMenuBarEx - Extended menu bar drawing
- *
- * Draws the menu bar with extended options for appearance and style.
- *
- * Parameters:
- *   drawInfo - Menu bar drawing information
- */
-void DrawMenuBarEx(const MenuBarDrawInfo* drawInfo);
-
-/*
  * EraseMenuBar - Erase menu bar area
  *
  * Erases the menu bar rectangle with the background pattern.

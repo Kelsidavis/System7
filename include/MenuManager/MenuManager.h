@@ -706,27 +706,6 @@ MenuManagerState* GetMenuManagerState(void);
 #define GetMBarHeight() (GetMenuManagerState()->menuBarHeight)
 
 /* ============================================================================
- * Platform Integration Hooks
- * ============================================================================ */
-
-/* Platform-specific screen bit manipulation functions */
-void Platform_RestoreScreenBits(Handle bits, const Rect* rect);
-void Platform_DisposeScreenBits(Handle bits);
-Handle Platform_SaveScreenBits(const Rect* rect);
-
-/* Platform-specific drawing functions */
-void Platform_DrawMenuBar(const void* drawInfo);
-void Platform_DrawMenu(const void* drawInfo);
-void Platform_DrawMenuItem(const void* drawInfo);
-
-/* Platform-specific tracking and input functions */
-Boolean Platform_TrackMouse(Point* mousePt, Boolean* isMouseDown);
-Boolean Platform_GetKeyModifiers(unsigned long* modifiers);
-void Platform_SetMenuCursor(short cursorType);
-Boolean Platform_IsMenuVisible(void* theMenu);
-void Platform_MenuFeedback(short feedbackType, short menuID, short item);
-
-/* ============================================================================
  * Error Codes
  * ============================================================================ */
 

@@ -114,23 +114,6 @@ static short GetMenuItemTextWidth(ConstStr255Param text, Style textStyle);
  * ============================================================================ */
 
 /*
- * DrawMenuBarEx - Extended menu bar drawing
- */
-void DrawMenuBarEx(const MenuBarDrawInfo* drawInfo)
-{
-    if (drawInfo == NULL) {
-        return;
-    }
-
-    /* Set up drawing context */
-    InitializeDrawingContext(&gDrawingContext);
-
-    /* Use platform-specific drawing if available */
-    Platform_DrawMenuBar(drawInfo);
-
-}
-
-/*
  * EraseMenuBar - Erase menu bar area
  */
 void EraseMenuBar(const Rect* menuBarRect)
@@ -843,7 +826,7 @@ short GetMenuTitleWidth(MenuHandle theMenu)
  *
  * Provides visual feedback by briefly flashing a menu item. The item is
  * redrawn with highlighting toggled on/off. This works by directly redrawing
- * the menu item rather than relying on Platform_HiliteMenuItem stub.
+ * the same menu-item highlighting path used during pointer tracking.
  *
  * Only works if the menu is currently shown (gCurrentlyShownMenu).
  */
@@ -858,14 +841,11 @@ void FlashMenuItem(MenuHandle theMenu, short item, short flashes)
         return;
     }
 
-    Rect itemRect = {0};
-    CalcMenuItemRect(theMenu, item, &gCurrentMenuRect, &itemRect);
-
     /* Flash multiple times by redrawing item with highlight toggled */
 
     for (short i = 0; i < flashes; i++) {
         /* Draw highlighted */
-        DrawMenuItemAtRect(theMenu, item, &itemRect, true);
+        HiliteMenuItem(theMenu, item, true);
 
         /* Brief delay ~5 ticks (83ms at 60Hz) */
         UInt32 startTick = TickCount();
@@ -874,7 +854,7 @@ void FlashMenuItem(MenuHandle theMenu, short item, short flashes)
         }
 
         /* Draw normal */
-        DrawMenuItemAtRect(theMenu, item, &itemRect, false);
+        HiliteMenuItem(theMenu, item, false);
 
         /* Brief delay between flashes */
         if (i < flashes - 1) {

@@ -419,20 +419,6 @@ Boolean WaitForMouseMove(unsigned long timeout);
 void ConvertMenuPoint(Point* pt, Boolean fromGlobal);
 
 /* ============================================================================
- * Platform Integration for Selection
- * ============================================================================ */
-
-/*
- * Platform selection functions that must be implemented:
- *
- * Boolean Platform_TrackMouse(Point* mousePt, Boolean* mouseDown);
- * Boolean Platform_GetKeyModifiers(unsigned long* modifiers);
- * void Platform_SetMenuCursor(short cursorType);
- * Boolean Platform_IsMenuVisible(MenuHandle theMenu);
- * void Platform_MenuFeedback(short feedbackType, short menuID, short item);
- */
-
-/* ============================================================================
  * Selection State Macros
  * ============================================================================ */
 

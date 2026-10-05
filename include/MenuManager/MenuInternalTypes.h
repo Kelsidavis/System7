@@ -70,16 +70,6 @@ typedef struct {
  * than gMenuList. Declared here, next to the type it returns. */
 MenuBarList* MenuMgr_GetMenuBarList(void);
 
-/* Menu bar drawing information */
-typedef struct {
-    Rect menuBarRect;
-    short drawMode;
-    short hiliteMenu;
-    Boolean useColor;
-    Boolean antiAlias;
-    void* context;
-} MenuBarDrawInfo;
-
 /* Menu drawing information */
 typedef struct {
     MenuHandle menu;
