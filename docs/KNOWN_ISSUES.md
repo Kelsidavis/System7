@@ -691,8 +691,10 @@ implementation and its stale comments have since been removed.
 The event path previously had duplicate definitions, so checking the linked
 symbol was necessary during that fix. That warning is historical; the current
 public `GetNextEvent` definition routes to `Proc_GetNextEvent` in
-`ProcessMgr/EventIntegration.c`. The same trap still exists for `DrawText` (see
-the Font Manager entry) and `PaintOne`-adjacent code.
+`ProcessMgr/EventIntegration.c`. The 68K `_DrawText` trap in
+`M68KQuickDraw.c` is a separate guest-to-native bridge to the single native
+`DrawText` implementation in `FontManagerCore.c`; it is not a duplicate
+definition. `PaintOne` has one implementation in `WindowDisplay.c`.
 
 **REGION-001 fallout.** Before regions could represent disjoint rectangles,
 invalidating a covered window could let it repaint over the window on top —
