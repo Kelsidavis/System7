@@ -3138,6 +3138,15 @@ static void Test_M68K_WindowCalls(void) {
     RecordTest(test_name, true, "");
 }
 
+extern Boolean M68KToolbox_RunMenuTest(const char** why);
+
+static void Test_M68K_MenuCalls(void) {
+    const char* test_name = "M68K_MenuCalls";
+    const char* why = "";
+    CHECK(M68KToolbox_RunMenuTest(&why), why);
+    RecordTest(test_name, true, "");
+}
+
 extern Boolean M68KToolbox_RunTimerTest(const char** why);
 
 /* A VBL task and a Time Manager task, run while a 68K program waits */
@@ -3386,6 +3395,7 @@ void IntegrationTests_Run(void) {
     Test_M68K_SANE();
     Test_M68K_Lists();
     Test_M68K_WindowCalls();
+    Test_M68K_MenuCalls();
     Test_M68K_Timers();
     Test_M68K_Icons();
     Test_M68K_Launch();

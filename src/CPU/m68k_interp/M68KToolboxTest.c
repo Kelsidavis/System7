@@ -15,6 +15,7 @@
 #include "CPU/M68KToolbox.h"
 #include "CPU/M68KInterp.h"
 #include "CPU/M68KOpcodes.h"
+#include "CPU/LowMemGlobals.h"
 #include "M68KToolboxInternal.h"
 #include "ResourceManager.h"
 #include "System71StdLib.h"
@@ -25,6 +26,7 @@ Boolean M68KToolbox_RunCMPFlagsTest(const char** why);
 Boolean M68KToolbox_RunSANETest(const char** why);
 Boolean M68KToolbox_RunListTest(const char** why);
 Boolean M68KToolbox_RunWindowTest(const char** why);
+Boolean M68KToolbox_RunMenuTest(const char** why);
 Boolean M68KToolbox_RunTimerTest(const char** why);
 Boolean M68KToolbox_RunIconTest(const char** why);
 Boolean M68KToolbox_Run68020Test(const char** why);
@@ -486,6 +488,48 @@ Boolean M68KToolbox_RunWindowTest(const char** why)
     if (!keys) { *why = "KeyTrans did not translate through the KCHR"; return false; }
     if (!pic)  { *why = "GetWindowPic did not answer what SetWindowPic set"; return false; }
     if (!drag) { *why = "DragGrayRgn pinned to its start did not answer no movement"; return false; }
+    *why = "";
+    return true;
+}
+
+Boolean M68KToolbox_RunMenuTest(const char** why)
+{
+    World w;
+    if (!WorldBegin(&w, why)) return false;
+    UInt32 d = w.data;
+    enum { kTitle = 0x100, kMenu = 0x120, kBefore = 0x124,
+           kKeyResult = 0x128, kAfter = 0x12C, kClear = 0x130 };
+    M68K_Write8(gM68KApp, d + kTitle, 4);
+    PutBytes(d + kTitle + 1, "Test", 4);
+
+    Asm a;
+    a.n = 0;
+    /* NewMenu(128, title), then set and read TheMenu through the traps. */
+    W(&a, 0x42A7);
+    PushW(&a, 128); PushAddr(&a, d + kTitle); W(&a, 0xA931);
+    PopL(&a, d + kMenu);
+    PushW(&a, 128); W(&a, 0xA938);
+    W(&a, 0x3039); L(&a, LMG_TheMenu); W(&a, 0x33C0); L(&a, d + kBefore);
+    /* A key with no matching menu command must not clear current menu state. */
+    W(&a, 0x42A7); PushW(&a, 0x00FE); W(&a, 0xA93E); PopL(&a, d + kKeyResult);
+    W(&a, 0x3039); L(&a, LMG_TheMenu); W(&a, 0x33C0); L(&a, d + kAfter);
+    PushW(&a, 0); W(&a, 0xA938);
+    W(&a, 0x3039); L(&a, LMG_TheMenu); W(&a, 0x33C0); L(&a, d + kClear);
+    W(&a, 0xA9F4);
+
+    OSErr ran = WorldRun(&w, &a);
+    Boolean menuCreated = M68K_Read32(gM68KApp, d + kMenu) != 0;
+    UInt16 before = M68K_Read16(gM68KApp, d + kBefore);
+    UInt32 keyResult = M68K_Read32(gM68KApp, d + kKeyResult);
+    UInt16 after = M68K_Read16(gM68KApp, d + kAfter);
+    UInt16 clear = M68K_Read16(gM68KApp, d + kClear);
+    WorldEnd(&w);
+
+    if (ran != noErr) { *why = "the menu trap program stopped with a fault"; return false; }
+    if (!menuCreated) { *why = "NewMenu did not return an application menu handle"; return false; }
+    if (before != 128) { *why = "HiliteMenu did not set TheMenu to the application menu ID"; return false; }
+    if (keyResult != 0 || after != before) { *why = "an unmatched MenuKey changed TheMenu"; return false; }
+    if (clear != 0) { *why = "HiliteMenu(0) did not clear TheMenu"; return false; }
     *why = "";
     return true;
 }

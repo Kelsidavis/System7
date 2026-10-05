@@ -227,7 +227,9 @@ TRAP(Trap_MenuKey) {
     UNUSED;
     UInt8 ch = (UInt8)Pop16();
     UInt32 result = Translate(MenuKey(ch));
-    LMSetWord(LMG_TheMenu, (UInt16)(result >> 16));
+    if (result != 0) {
+        LMSetWord(LMG_TheMenu, (UInt16)(result >> 16));
+    }
     Result32(result);
     return noErr;
 }
