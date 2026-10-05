@@ -855,6 +855,49 @@ static FWVerticalScrollMetrics FW_IconVerticalScrollMetrics(
     return metrics;
 }
 
+static FWVerticalScrollMetrics FW_ListVerticalScrollMetrics(
+    WindowPtr w, FolderWindowState* state) {
+    FWVerticalScrollMetrics metrics;
+    short trackHeight;
+    short thumbHeight;
+
+    metrics.scrollTop = w->port.portRect.top + kFWStatusHeight +
+                        kListHeaderHeight;
+    metrics.scrollBottom = w->port.portRect.bottom;
+    metrics.trackTop = metrics.scrollTop + kListScrollBarWidth;
+    metrics.trackBottom = metrics.scrollBottom - kListScrollBarWidth;
+    trackHeight = metrics.trackBottom - metrics.trackTop;
+    if (trackHeight < 1) {
+        metrics.trackBottom = metrics.trackTop + 1;
+        trackHeight = 1;
+    }
+
+    short contentHeight = metrics.scrollBottom - metrics.scrollTop;
+    metrics.visibleRows = contentHeight / kListRowHeight;
+    if (metrics.visibleRows < 1) metrics.visibleRows = 1;
+    metrics.maxScroll = state->itemCount - metrics.visibleRows;
+    if (metrics.maxScroll < 0) metrics.maxScroll = 0;
+    if (state->scrollOffset < 0) state->scrollOffset = 0;
+    if (state->scrollOffset > metrics.maxScroll) {
+        state->scrollOffset = metrics.maxScroll;
+    }
+
+    thumbHeight = state->itemCount > 0
+        ? (short)(((SInt32)metrics.visibleRows * trackHeight) / state->itemCount)
+        : trackHeight;
+    if (thumbHeight < 1) thumbHeight = 1;
+    if (thumbHeight < 16 && trackHeight >= 16) thumbHeight = 16;
+    if (thumbHeight > trackHeight) thumbHeight = trackHeight;
+
+    metrics.thumbTop = metrics.trackTop;
+    if (metrics.maxScroll > 0 && trackHeight > thumbHeight) {
+        metrics.thumbTop += (short)(((SInt32)state->scrollOffset *
+                          (trackHeight - thumbHeight)) / metrics.maxScroll);
+    }
+    metrics.thumbBottom = metrics.thumbTop + thumbHeight;
+    return metrics;
+}
+
 static FWHorizontalScrollMetrics FW_IconHorizontalScrollMetrics(
     WindowPtr w, FolderWindowState* state) {
     FWHorizontalScrollMetrics metrics;
@@ -961,44 +1004,34 @@ static short FW_IconAtPoint(WindowPtr w, Point localPt) {
     if (state->viewMode >= kViewByName) {
         short top = w->port.portRect.top + kFWStatusHeight;
         short right = w->port.portRect.right;
-        short bottom = w->port.portRect.bottom;
-        short contentHeight = bottom - top - kListHeaderHeight;
-        short visibleRows = contentHeight / kListRowHeight;
-        if (visibleRows < 1) visibleRows = 1;
+        FWVerticalScrollMetrics metrics =
+            FW_ListVerticalScrollMetrics(w, state);
 
         /* Check if click is in scrollbar area */
-        if (localPt.h >= right - kListScrollBarWidth && state->itemCount > visibleRows) {
-            short sbTop = top + kListHeaderHeight;
-            /* Up arrow click */
-            if (localPt.v >= sbTop && localPt.v < sbTop + kListScrollBarWidth) {
-                if (state->scrollOffset > 0) {
-                    state->scrollOffset--;
-                    PostEvent(updateEvt, (UInt32)(uintptr_t)w);
-                }
+        if (localPt.h >= right - kListScrollBarWidth &&
+            localPt.v >= metrics.scrollTop &&
+            localPt.v < metrics.scrollBottom && metrics.maxScroll > 0) {
+            SInt32 newOffset = state->scrollOffset;
+            if (localPt.v < metrics.trackTop) {
+                newOffset--;
+            } else if (localPt.v >= metrics.trackBottom) {
+                newOffset++;
+            } else if (localPt.v >= metrics.thumbTop &&
+                       localPt.v < metrics.thumbBottom) {
+                FW_TrackIconThumb(w, state, false,
+                                  metrics.trackTop, metrics.trackBottom,
+                                  metrics.thumbTop, metrics.thumbBottom,
+                                  metrics.maxScroll, localPt);
+                return kFolderScrollbarHit;
+            } else if (localPt.v < metrics.thumbTop) {
+                newOffset -= metrics.visibleRows;
+            } else {
+                newOffset += metrics.visibleRows;
             }
-            /* Down arrow click */
-            else if (localPt.v >= bottom - kListScrollBarWidth && localPt.v < bottom) {
-                short maxScroll = state->itemCount - visibleRows;
-                if (state->scrollOffset < maxScroll) {
-                    state->scrollOffset++;
-                    PostEvent(updateEvt, (UInt32)(uintptr_t)w);
-                }
-            }
-            /* Page up/down in track area */
-            else {
-                short trackTop = sbTop + kListScrollBarWidth;
-                short trackBottom = bottom - kListScrollBarWidth;
-                short trackMid = (trackTop + trackBottom) / 2;
-                short maxScroll = state->itemCount - visibleRows;
-                if (localPt.v < trackMid) {
-                    /* Page up */
-                    state->scrollOffset -= visibleRows;
-                    if (state->scrollOffset < 0) state->scrollOffset = 0;
-                } else {
-                    /* Page down */
-                    state->scrollOffset += visibleRows;
-                    if (state->scrollOffset > maxScroll) state->scrollOffset = maxScroll;
-                }
+            if (newOffset < 0) newOffset = 0;
+            if (newOffset > metrics.maxScroll) newOffset = metrics.maxScroll;
+            if (newOffset != state->scrollOffset) {
+                state->scrollOffset = (short)newOffset;
                 PostEvent(updateEvt, (UInt32)(uintptr_t)w);
             }
             return kFolderScrollbarHit;
@@ -1747,11 +1780,11 @@ static void FolderWindow_DrawListHeader(const Rect* portRect, short viewMode) {
  * Renders a classic System 7 style scrollbar with up/down arrows and
  * a proportional thumb indicating scroll position.
  */
-static void FolderWindow_DrawListScrollbar(WindowPtr w, FolderWindowState* state,
-                                            short visibleRows) {
+static void FolderWindow_DrawListScrollbar(
+    WindowPtr w, const FWVerticalScrollMetrics* metrics) {
     short right = w->port.portRect.right;
-    short top = w->port.portRect.top + kFWStatusHeight + kListHeaderHeight;
-    short bottom = w->port.portRect.bottom;
+    short top = metrics->scrollTop;
+    short bottom = metrics->scrollBottom;
     short sbLeft = right - kListScrollBarWidth;
 
     /* Scrollbar track background */
@@ -1788,17 +1821,9 @@ static void FolderWindow_DrawListScrollbar(WindowPtr w, FolderWindowState* state
     LineTo(midX, bottom - 4);
 
     /* Thumb (proportional) */
-    if (state->itemCount > visibleRows && visibleRows > 0) {
-        short trackHeight = bottom - top - 2 * kListScrollBarWidth;
-        short thumbHeight = (visibleRows * trackHeight) / state->itemCount;
-        if (thumbHeight < 16) thumbHeight = 16;
-        if (thumbHeight > trackHeight) thumbHeight = trackHeight;
-
-        short maxScroll = state->itemCount - visibleRows;
-        if (maxScroll < 1) maxScroll = 1;
-        short thumbTop = top + kListScrollBarWidth +
-                         (state->scrollOffset * (trackHeight - thumbHeight)) / maxScroll;
-
+    if (metrics->maxScroll > 0) {
+        short thumbTop = metrics->thumbTop;
+        short thumbHeight = metrics->thumbBottom - metrics->thumbTop;
         Rect thumbRect;
         SetRect(&thumbRect, sbLeft + 1, thumbTop, right - 1, thumbTop + thumbHeight);
         FillRect(&thumbRect, &whitePat);
@@ -1903,17 +1928,9 @@ static void FolderWindow_DrawListView(WindowPtr w, FolderWindowState* state) {
     short top = w->port.portRect.top + kFWStatusHeight;
     short left = w->port.portRect.left;
     short contentRight = w->port.portRect.right - kListScrollBarWidth;
-    short contentHeight = w->port.portRect.bottom - top - kListHeaderHeight;
-
-    /* Calculate visible rows */
-    short visibleRows = contentHeight / kListRowHeight;
-    if (visibleRows < 1) visibleRows = 1;
-
-    /* Clamp scroll offset */
-    short maxScroll = state->itemCount - visibleRows;
-    if (maxScroll < 0) maxScroll = 0;
-    if (state->scrollOffset > maxScroll) state->scrollOffset = maxScroll;
-    if (state->scrollOffset < 0) state->scrollOffset = 0;
+    FWVerticalScrollMetrics scrollMetrics =
+        FW_ListVerticalScrollMetrics(w, state);
+    short visibleRows = scrollMetrics.visibleRows;
 
     /* Draw column headers (adjusted for scrollbar) */
     Rect headerPortRect = w->port.portRect;
@@ -2079,8 +2096,8 @@ static void FolderWindow_DrawListView(WindowPtr w, FolderWindowState* state) {
     }
 
     /* Draw vertical scrollbar if content exceeds visible area */
-    if (state->itemCount > visibleRows) {
-        FolderWindow_DrawListScrollbar(w, state, visibleRows);
+    if (scrollMetrics.maxScroll > 0) {
+        FolderWindow_DrawListScrollbar(w, &scrollMetrics);
     }
 }
 
