@@ -558,9 +558,11 @@ that — the DITL parser dropped the Pascal length byte, it never matched contro
 item types at all (a button is `ctrlItem|btnCtrl` = 4, not `btnCtrl` = 0), and
 `DrawDialogStaticText` drew one unwrapped line.
 
-**Still cosmetic, not fixed:** the window is created with `procID = 1`
-(`dBoxProc`), a plain modal box with no title bar in System 7, but the frame
-code gives it one anyway, leaving an unpainted strip above the content.
+**Title-bar mismatch resolved in the Window Manager:** `dBoxProc` now has no
+title bar in frame painting, content geometry, or WDEF hit testing. Its top
+pixels belong to the dialog content; `movableDBoxProc` retains a draggable
+title bar. The integration test covers both WDEF hit-test results. Guest
+visual verification remains outstanding.
 
 ⚠️ **DITL items must start on even offsets.** `ParseDITL` skips a byte to
 realign after odd-length data, but the list `ConfirmEmptyTrash` builds by hand
