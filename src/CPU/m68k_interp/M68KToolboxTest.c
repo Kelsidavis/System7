@@ -16,6 +16,7 @@
 #include "CPU/M68KInterp.h"
 #include "CPU/M68KOpcodes.h"
 #include "CPU/LowMemGlobals.h"
+#include "EventManager/EventTypes.h"
 #include "M68KToolboxInternal.h"
 #include "ResourceManager.h"
 #include "OSUtils/OSUtils.h"
@@ -412,6 +413,7 @@ enum {
     kMWindow = 0x00, kMBounds = 0x04, kMTitle = 0x0C, kMRgn = 0x10, kMLimit = 0x14,
     kMSlop = 0x1C, kMState = 0x24, kMPic = 0x28, kMDrag = 0x2C,
     kMKeys = 0x30,                              /* five LONGINT answers */
+    kMGuestWindow = 0x50, kMEvent = 0xE0, kMCheckUpdate = 0xF0,
     kMKCHR = 0x100                              /* 526 bytes */
 };
 
@@ -455,6 +457,8 @@ Boolean M68KToolbox_RunWindowTest(const char** why)
     WriteRect(d + kMSlop, &slop);
     M68K_Write8(gM68KApp, d + kMTitle, 0);
     M68K_Write32(gM68KApp, d + kMState, 0);
+    M68K_Write16(gM68KApp, d + kMEvent, updateEvt);
+    M68K_Write32(gM68KApp, d + kMEvent + 2, d + kMGuestWindow);
     BuildKCHR(d + kMKCHR);
 
     Asm a;
@@ -467,10 +471,11 @@ Boolean M68KToolbox_RunWindowTest(const char** why)
     KeyTransCall(&a, d, 0x0000, 4);                             /* ...then a */
     /* window := NewWindow(...); SetWindowPic(window, $00ABCDE0); pic := GetWindowPic */
     W(&a, 0x42A7);
-    PushL(&a, 0); PushAddr(&a, d + kMBounds); PushAddr(&a, d + kMTitle);
+    PushAddr(&a, d + kMGuestWindow); PushAddr(&a, d + kMBounds); PushAddr(&a, d + kMTitle);
     PushW(&a, 0x0100); PushW(&a, 0); PushL(&a, 0xFFFFFFFF); PushW(&a, 0); PushL(&a, 0);
     W(&a, 0xA913);
     PopL(&a, d + kMWindow);
+    W(&a, 0x42A7); PushAddr(&a, d + kMEvent); W(&a, 0xA911); PopW(&a, d + kMCheckUpdate);
     PushVar(&a, d + kMWindow); W(&a, 0xA909);                   /* CalcVis */
     PushVar(&a, d + kMWindow); PushL(&a, 0); W(&a, 0xA90A);    /* CalcVBehind */
     PushVar(&a, d + kMWindow); W(&a, 0xA90B);                   /* ClipAbove */
@@ -502,6 +507,7 @@ Boolean M68KToolbox_RunWindowTest(const char** why)
     Boolean drag = M68K_Read32(as, d + kMDrag) == 0;
     UInt32 windowRecord = M68K_Read32(as, d + kMWindow);
     Boolean visibility = M68K_Read32(as, windowRecord + 24) != 0;
+    Boolean update = M68K_Read16(as, d + kMCheckUpdate) == 0xFFFF;
     WorldEnd(&w);
 
     if (ran != noErr) { *why = "the program stopped with a fault"; return false; }
@@ -509,6 +515,7 @@ Boolean M68KToolbox_RunWindowTest(const char** why)
     if (!pic)  { *why = "GetWindowPic did not answer what SetWindowPic set"; return false; }
     if (!drag) { *why = "DragGrayRgn pinned to its start did not answer no movement"; return false; }
     if (!visibility) { *why = "CalcVis did not synchronize the visible region"; return false; }
+    if (!update) { *why = "CheckUpDate did not recognize the window's update event"; return false; }
     *why = "";
     return true;
 }

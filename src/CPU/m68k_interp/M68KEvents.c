@@ -203,6 +203,15 @@ TRAP(Trap_SystemEvent) {
 
 TRAP(Trap_SystemTask) { UNUSED; SystemTask(); return noErr; }
 
+TRAP(Trap_CheckUpdate) {
+    UNUSED;
+    UInt32 eventAddress = Pop32();
+    EventRecord event;
+    M68KTB_ReadEvent(eventAddress, &event);
+    ResultBool(CheckUpdate(&event));
+    return noErr;
+}
+
 TRAP(Trap_SystemEdit) {
     UNUSED;
     SInt16 cmd = (SInt16)Pop16();
@@ -332,7 +341,8 @@ const M68KTrapEntry kM68KEventTraps[] = {
     { 0xA970, Trap_GetNextEvent },  { 0xA860, Trap_WaitNextEvent }, { 0xA971, Trap_EventAvail },
     { 0xA972, Trap_GetMouse },      { 0xA974, Trap_Button },        { 0xA973, Trap_StillDown },
     { 0xA977, Trap_WaitMouseUp },   { 0xA976, Trap_GetKeys },       { 0xA9B3, Trap_SystemClick },
-    { 0xA9B2, Trap_SystemEvent },   { 0xA9B4, Trap_SystemTask },    { 0xA9C2, Trap_SystemEdit },
+    { 0xA9B2, Trap_SystemEvent },   { 0xA9B4, Trap_SystemTask },    { 0xA911, Trap_CheckUpdate },
+    { 0xA9C2, Trap_SystemEdit },
     { 0xA9B6, Trap_OpenDeskAcc },   { 0xA9B7, Trap_CloseDeskAcc },  { 0xA02F, Trap_PostEvent },
     { 0xA03B, Trap_Delay },         { 0xA9C3, Trap_KeyTrans },         { 0xA031, Trap_GetOSEvent },    { 0xA030, Trap_OSEventAvail },
 };
