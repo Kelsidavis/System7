@@ -61,6 +61,8 @@
 #include "MenuManager/MenuManager.h"
 #include "MenuManager/MenuDisplay.h"
 #include "MenuManager/MenuInternalTypes.h"
+#include "MenuManager/MenuSelection.h"
+#include "MenuManager/menu_private.h"
 #include "Platform/PS2Input.h"
 #include "ProcessMgr/ProcessMgr.h"
 #include "MacTypes.h"
@@ -2712,6 +2714,41 @@ static void Test_Menu_ItemHiliteDraws(void) {
     RecordTest(test_name, true, "");
 }
 
+static void Test_MenuKey_LeavesTitleHighlighted(void) {
+    const char* test_name = "MenuKey_LeavesTitleHighlighted";
+    const short menuID = 224;
+    MenuHandle menu = NewMenu(menuID, (ConstStr255Param)"\x09Key Test");
+    CHECK(menu, "NewMenu failed");
+    AppendMenu(menu, PSTR("Run"));
+    SetItemCmd(menu, 1, 'k');
+    InsertMenu(menu, 0);
+    DrawMenuBar();
+
+    Rect titleRect;
+    Boolean gotTitle = GetMenuTitleRectByID(menuID, &titleRect);
+    UInt32 normalPixel = gotTitle ? ScreenPixel(titleRect.left + 1,
+                                                titleRect.top + 1) : 0;
+    long choice = MenuKeyEx('k', cmdKey, NULL);
+    UInt32 highlightedPixel = gotTitle ? ScreenPixel(titleRect.left + 1,
+                                                      titleRect.top + 1) : 0;
+    HiliteMenu(0);
+    UInt32 restoredPixel = gotTitle ? ScreenPixel(titleRect.left + 1,
+                                                  titleRect.top + 1) : 0;
+
+    DeleteMenu(menuID);
+    DisposeMenu(menu);
+    DrawMenuBar();
+
+    CHECK(gotTitle, "the inserted menu title has no display rectangle");
+    CHECK(choice == (((long)menuID << 16) | 1),
+          "MenuKeyEx did not return the matching menu and item");
+    CHECK(highlightedPixel != normalPixel,
+          "MenuKeyEx did not leave its menu title highlighted");
+    CHECK(restoredPixel == normalPixel,
+          "HiliteMenu(0) did not restore the normal title appearance");
+    RecordTest(test_name, true, "");
+}
+
 static void Test_Resource_CreateAndOpenResFile(void) {
     const char* test_name = "Resource_CreateAndOpenResFile";
     FSSpec spec;
@@ -3335,6 +3372,7 @@ void IntegrationTests_Run(void) {
     Test_Menu_PopUpNullMenu();
     Test_Menu_PopUpSelection();
     Test_Menu_ItemHiliteDraws();
+    Test_MenuKey_LeavesTitleHighlighted();
     Test_Resource_OpenMissingResFile();
 
     IT_LOG_INFO("--- Segment Loader ---");
