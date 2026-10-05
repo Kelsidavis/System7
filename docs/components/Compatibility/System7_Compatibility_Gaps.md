@@ -58,6 +58,9 @@ This checklist records significant differences between the current toolbox reimp
 ## System Information
 - ~~`Gestalt('fpu ')` reported a Boolean host-CPU FPU probe as a Motorola coprocessor type.~~ **FIXED** (2026-10-04): the selector reports `gestaltNoFPU`; the 68K interpreter does not emulate 68881/68882 instructions. The separate `_FP68K` and `_Elems68K` SANE package traps are implemented. Classic type constants and guest-level regression coverage are defined.
 
+## 68K Interpreter
+- `src/CPU/m68k_interp/M68KOpcodes.c` – CPU exceptions do not enter guest handlers: `M68K_RaiseException()` records the fault and halts even when the vector table contains a valid handler. `RTE` also halts instead of restoring SR and PC, and `SetStacks()` initializes A7 from the user stack without switching it to the supervisor stack when SR.S changes. Exception frames, stack banking, and guest-level exception return need implementation and regression coverage together.
+
 ## Fonts & Typography
 - `docs/components/FontManager/README.md` & `src/FontManager/FontManagerCore.c` – Only the Chicago 12 strike ships in-tree; Geneva/Monaco fall back to Chicago unless matching strikes are available as resources.
 - `src/FontManager/FontResourceLoader.c` – NFNT/FOND parsing and strike construction are implemented, and `FontManagerCore.c` looks up FOND/NFNT through `GetResource`. Validate loading against real resource forks and non-Chicago strikes before claiming broad font coverage.
