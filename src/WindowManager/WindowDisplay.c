@@ -11,7 +11,6 @@
 #include "QuickDraw/QuickDraw.h"
 #include "QuickDrawConstants.h"
 #include "FontManager/FontManager.h"
-#include "ControlManager/ControlManager.h"
 #include "WindowManager/WMLogging.h"
 #include "EventManager/EventManager.h"
 #include "EventManager/AppSwitcher.h"
@@ -718,8 +717,6 @@ static void DrawWindowControls_Unclipped(WindowPtr window) {
     if (WM_WindowHasGrowBox(window)) {
         WM_DrawGrowIcon(window);
     }
-
-    DrawControls(window);
 
     /* Restore previous port */
     SetPort(savePort);
