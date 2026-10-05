@@ -91,6 +91,15 @@ TRAP(Trap_ReadDateTime) {
     return noErr;
 }
 
+/* SetDateTime (OS): D0.L seconds since 1904; D0.W receives the result */
+TRAP(Trap_SetDateTime) {
+    UNUSED;
+    UInt32 secs = D(0);
+    SetDateTime(secs);
+    D(0) = (D(0) & 0xFFFF0000) | (UInt16)noErr;
+    return noErr;
+}
+
 /* Secs2Date: D0 seconds into the DateTimeRec at A0 - year, month, day,
  * hour, minute, second, dayOfWeek, each a word */
 TRAP(Trap_Secs2Date) {
@@ -527,6 +536,7 @@ TRAP(Trap_DebugStr) { UNUSED; (void)Pop32(); return noErr; }
 
 const M68KTrapEntry kM68KUtilityTraps[] = {
     { 0xA9EE, Trap_Pack7 },         { 0xA9ED, Trap_Pack6 },         { 0xA039, Trap_ReadDateTime },
+    { 0xA03A, Trap_SetDateTime },
     { 0xA9C6, Trap_Secs2Date },     { 0xA9C7, Trap_Date2Secs },
     { 0xA9FC, Trap_ZeroScrap },     { 0xA9FE, Trap_PutScrap },      { 0xA9FD, Trap_GetScrap },
     { 0xA9FB, Trap_LoadScrap },     { 0xA9FA, Trap_UnloadScrap },   { 0xA9F9, Trap_InfoScrap },

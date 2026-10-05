@@ -18,6 +18,7 @@
 #include "CPU/LowMemGlobals.h"
 #include "M68KToolboxInternal.h"
 #include "ResourceManager.h"
+#include "OSUtils/OSUtils.h"
 #include "System71StdLib.h"
 
 /* Called by IntegrationTests.c */
@@ -48,7 +49,7 @@ enum {
     kSPBefore = 0x48, kSPAfter = 0x4C,
     kName = 0x50,       /* Str255 */
     kRefNum = 0x150, kParam = 0x154,
-    kEvent = 0x160,
+    kEvent = 0x160, kDateTime = 0x180, kSetDateTimeResult = 0x184,
     kDataSize = 0x400
 };
 
@@ -106,6 +107,8 @@ Boolean M68KToolbox_RunTrapTest(const char** why)
     if (!WorldBegin(&w, why)) return false;
     CPUAddr code = w.code, data = w.data;
     SInt16 refNum = w.refNum;
+    UInt32 originalDateTime = 0;
+    GetDateTime(&originalDateTime);
 
     Asm a;
     a.n = 0;
@@ -137,6 +140,10 @@ Boolean M68KToolbox_RunTrapTest(const char** why)
     W(&a, 0x7000);                                      /* MOVEQ #0,D0 */
     W(&a, 0x207C); L(&a, data + kEvent); W(&a, 0xA030);
     W(&a, 0x33C0); L(&a, data + kOSAvail);
+    /* SetDateTime takes seconds in D0.L and returns its result in D0.W. */
+    W(&a, 0x203C); L(&a, 0x12345678); W(&a, 0xA03A);
+    W(&a, 0x33C0); L(&a, data + kSetDateTimeResult);
+    W(&a, 0x207C); L(&a, data + kDateTime); W(&a, 0xA039);
     /* And stop the way a program in trouble does */
     W(&a, 0x303C); W(&a, 28); W(&a, 0xA9C9);            /* MOVE.W #28,D0; _SysError */
     W(&a, 0xA9F4);                                      /* _ExitToShell, if it did not */
@@ -160,9 +167,12 @@ Boolean M68KToolbox_RunTrapTest(const char** why)
                       M68K_Read32(as, M68KHeap_Deref(parms)) == 0;   /* appOpen, no files */
     Boolean stackOK = M68K_Read32(as, data + kSPBefore) == M68K_Read32(as, data + kSPAfter);
     Boolean nullOK = M68K_Read16(as, data + kOSAvail) == 0xFFFF;
+    Boolean dateTimeOK = M68K_Read16(as, data + kSetDateTimeResult) == noErr &&
+                         M68K_Read32(as, data + kDateTime) == 0x12345678;
     Boolean sysErr = ran != noErr && fault && strcmp(fault, "system error 28") == 0;
 
     WorldEnd(&w);
+    SetDateTime(originalDateTime);
 
     if (!queued)   { *why = "Enqueue did not link the elements in order"; return false; }
     if (!dequeued) { *why = "Dequeue did not answer noErr then qErr"; return false; }
@@ -170,6 +180,7 @@ Boolean M68KToolbox_RunTrapTest(const char** why)
     if (!parmsOK)  { *why = "AppParmHandle not an empty appOpen message"; return false; }
     if (!stackOK)  { *why = "a trap did not take its arguments off the stack"; return false; }
     if (!nullOK)   { *why = "OSEventAvail with no mask did not answer -1"; return false; }
+    if (!dateTimeOK) { *why = "SetDateTime and ReadDateTime did not round-trip the clock value"; return false; }
     if (!sysErr)   { *why = "SysError did not stop the program with its number"; return false; }
     *why = "";
     return true;
