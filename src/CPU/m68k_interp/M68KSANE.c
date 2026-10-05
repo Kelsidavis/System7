@@ -15,8 +15,9 @@
  * the exceptions it raises come back from the x87's status word. The
  * conversions and the decimal work are SANENumbers.c's, in integers.
  *
- * Halts are not taken: a program can enable them and set a halt vector,
- * and they are kept and given back, but an exception does not call it.
+ * Enabled exceptions are delivered to the program's halt vector after the
+ * operation has stored its result. The vector receives the opcode, operand
+ * addresses, and a MISC record with the pending condition codes and D0.
  *
  * Off x86 the arithmetic is the host's long double, with round-to-nearest
  * and no exception flags.
@@ -45,11 +46,74 @@ typedef double xf;
 
 static UInt16 gEnv;                     /* the environment word */
 static UInt32 gHaltVector;
+static int gOperationExceptions;
 
-void M68KSANE_Reset(void) { gEnv = 0; gHaltVector = 0; }
+void M68KSANE_Reset(void) { gEnv = 0; gHaltVector = 0; gOperationExceptions = 0; }
 
 static int Rounding(void) { return (gEnv >> 13) & 3; }
-static void Raise(int exceptions) { gEnv |= (UInt16)(exceptions & 0x1F00); }
+
+enum {
+    kFOAdd = 0x00, kFOSub = 0x02, kFOMul = 0x04, kFODiv = 0x06, kFOCmp = 0x08,
+    kFOCpx = 0x0A, kFORem = 0x0C, kFOZ2X = 0x0E, kFOX2Z = 0x10, kFOSqrt = 0x12,
+    kFORti = 0x14, kFOTti = 0x16, kFOScalb = 0x18, kFOLogb = 0x1A, kFOClass = 0x1C,
+    kFOSetEnv = 0x01, kFOGetEnv = 0x03, kFOSetHV = 0x05, kFOGetHV = 0x07,
+    kFOD2B = 0x09, kFOB2D = 0x0B, kFONeg = 0x0D, kFOAbs = 0x0F, kFOCpySgn = 0x11,
+    kFONext = 0x13, kFOSetXcp = 0x15, kFOProcEntry = 0x17, kFOProcExit = 0x19,
+    kFOTestXcp = 0x1B
+};
+
+static void Raise(int exceptions) {
+    int flags = exceptions & 0x1F00;
+    gEnv |= (UInt16)flags;
+    gOperationExceptions |= flags;
+}
+
+static int FP68KOperandCount(int code) {
+    switch (code) {
+    case kFOAdd: case kFOSub: case kFOMul: case kFODiv: case kFOCmp: case kFOCpx:
+    case kFORem: case kFOZ2X: case kFOX2Z: case kFOScalb: case kFOClass: case kFOCpySgn:
+    case kFONext: case kFOD2B:
+        return 2;
+    case kFOB2D:
+        return 3;
+    default:
+        return 1;
+    }
+}
+
+static void HaltOnException(UInt16 op, UInt32 expectedSP, UInt32 dst, UInt32 src,
+                            UInt32 src2, int exceptions) {
+    UInt16 halts = (UInt16)((gEnv & 0x001F) & ((exceptions >> 8) & 0x001F));
+    if (!halts || !gHaltVector) return;
+
+    UInt32 misc = M68KHeap_NewPtr(8, false);
+    if (!misc) {
+        gM68KApp->halted = true;
+        gM68KApp->faultReason = "could not allocate SANE halt record";
+        gM68KApp->faultPC = gM68KApp->instrPC;
+        return;
+    }
+    W16(misc, halts);
+    W16(misc + 2, gM68KApp->regs.sr & 0x001F);
+    W32(misc + 4, D(0));
+
+    A(7) -= 4; W32(A(7), misc);
+    A(7) -= 4; W32(A(7), src2);
+    A(7) -= 4; W32(A(7), src);
+    A(7) -= 4; W32(A(7), dst);
+    A(7) -= 2; W16(A(7), op);
+    OSErr err = CallProgram(gHaltVector);
+    if (err == noErr) {
+        D(0) = R32(misc + 4);
+        gM68KApp->regs.sr = (UInt16)((gM68KApp->regs.sr & ~0x001F) | (R16(misc + 2) & 0x001F));
+    }
+    if (err == noErr && A(7) != expectedSP) {
+        gM68KApp->halted = true;
+        gM68KApp->faultReason = "SANE halt handler did not remove its argument frame";
+        gM68KApp->faultPC = gM68KApp->instrPC;
+    }
+    M68KHeap_DisposePtr(misc);
+}
 
 /* ------------------------------------------------------------------------
  * Operands in the program's memory
@@ -236,16 +300,6 @@ static SANEExt Result(xf r, Boolean invalid, int nanCode) {
  * _FP68K
  * ------------------------------------------------------------------------ */
 
-enum {
-    kFOAdd = 0x00, kFOSub = 0x02, kFOMul = 0x04, kFODiv = 0x06, kFOCmp = 0x08,
-    kFOCpx = 0x0A, kFORem = 0x0C, kFOZ2X = 0x0E, kFOX2Z = 0x10, kFOSqrt = 0x12,
-    kFORti = 0x14, kFOTti = 0x16, kFOScalb = 0x18, kFOLogb = 0x1A, kFOClass = 0x1C,
-    kFOSetEnv = 0x01, kFOGetEnv = 0x03, kFOSetHV = 0x05, kFOGetHV = 0x07,
-    kFOD2B = 0x09, kFOB2D = 0x0B, kFONeg = 0x0D, kFOAbs = 0x0F, kFOCpySgn = 0x11,
-    kFONext = 0x13, kFOSetXcp = 0x15, kFOProcEntry = 0x17, kFOProcExit = 0x19,
-    kFOTestXcp = 0x1B
-};
-
 /* Decimal records: sgn a byte (then a spare one), exp a word, sig a
  * string[20]. DecForm: style a byte (then a spare), digits a word. */
 void M68KSANE_ReadDecimal(UInt32 a, SANEDecimal* d) {
@@ -291,6 +345,8 @@ static OSErr UnknownOperation(UInt16 op) {
 
 TRAP(Trap_FP68K) {
     UNUSED;
+    UInt32 args = A(7);
+    gOperationExceptions = 0;
     UInt16 op = Pop16();
     int format = (op >> 11) & 7;
     int code = op & 0x1F;
@@ -436,6 +492,7 @@ TRAP(Trap_FP68K) {
         /* The saved environment back, with the exceptions raised since */
         UInt16 raised = gEnv & 0x1F00;
         gEnv = R16(Pop32()) | raised;
+        Raise(raised);
         break;
     }
     case kFOSetXcp: case kFOTestXcp: {
@@ -452,6 +509,11 @@ TRAP(Trap_FP68K) {
     default:
         return UnknownOperation(op);
     }
+    int operands = FP68KOperandCount(code);
+    UInt32 dst = R32(args + 2);
+    UInt32 src = operands > 1 ? R32(args + 6) : 0;
+    UInt32 src2 = operands > 2 ? R32(args + 10) : 0;
+    HaltOnException(op, args + 2 + 4 * operands, dst, src, src2, gOperationExceptions);
     return noErr;
 }
 
@@ -515,6 +577,8 @@ static xf Pow(xf x, xf y) {
 
 TRAP(Trap_Elems68K) {
     UNUSED;
+    UInt32 args = A(7);
+    gOperationExceptions = 0;
     UInt16 op = Pop16();
     int code = op & 0xFF;
     UInt32 dst = Pop32();
@@ -564,6 +628,11 @@ TRAP(Trap_Elems68K) {
     }
     Boolean invalid = FPEnd();
     StoreExt(dst, Result(r, invalid, nanCode));
+    UInt32 frameDst = R32(args + 2);
+    UInt32 frameSrc = (op & 0x8000) ? R32(args + 6) : 0;
+    UInt32 frameSrc2 = (op & 0x4000) ? R32(args + 10) : 0;
+    int operands = 1 + ((op & 0x8000) != 0) + ((op & 0x4000) != 0);
+    HaltOnException(op, args + 2 + 4 * operands, frameDst, frameSrc, frameSrc2, gOperationExceptions);
     return noErr;
 }
 

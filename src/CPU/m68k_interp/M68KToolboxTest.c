@@ -197,7 +197,11 @@ enum {
     kForm = 0x38,                               /* decform: floating, 10 digits */
     kDec = 0x40,                                /* decimal record */
     kText = 0x60,                               /* DecStr */
-    kCCR = 0xB8
+    kCCR = 0xB8, kHaltEnv = 0xC0, kHaltVector = 0xC4,
+    kHaltCalls = 0xD0, kHaltErrors = 0xD4, kHaltOpcode = 0xD6,
+    kHaltDst = 0xD8, kHaltSrc = 0xDC, kHaltSrc2 = 0xE0,
+    kHaltZero = 0xF0, kHaltValue = 0x100,
+    kHaltSPBefore = 0x110, kHaltSPAfter = 0x114
 };
 
 static void PutExt(UInt32 a, UInt16 se, UInt32 hi, UInt32 lo) {
@@ -221,6 +225,10 @@ Boolean M68KToolbox_RunSANETest(const char** why)
     PutExt(data + kTwo, 0x4000, 0x80000000, 0);
     M68K_Write16(gM68KApp, data + kForm, 0);            /* FLOATDECIMAL */
     M68K_Write16(gM68KApp, data + kForm + 2, 10);
+    M68K_Write16(gM68KApp, data + kHaltEnv, 0x0008);
+    M68K_Write32(gM68KApp, data + kHaltVector, w.code + 0x300);
+    PutExt(data + kHaltZero, 0, 0, 0);
+    PutExt(data + kHaltValue, 0x3FFF, 0x80000000, 0);
 
     Asm a;
     a.n = 0;
@@ -251,7 +259,25 @@ Boolean M68KToolbox_RunSANETest(const char** why)
     W(&a, 0x4879); L(&a, data + kDec);
     W(&a, 0x4879); L(&a, data + kText);
     W(&a, 0x3F3C); W(&a, 3); W(&a, 0xA9EE);
+    W(&a, 0x4879); L(&a, data + kHaltEnv);
+    W(&a, 0x3F3C); W(&a, 0x0001); W(&a, 0xA9EB);     /* SetEnvironment */
+    W(&a, 0x4879); L(&a, data + kHaltVector);
+    W(&a, 0x3F3C); W(&a, 0x0005); W(&a, 0xA9EB);     /* SetHaltVector */
+    W(&a, 0x23CF); L(&a, data + kHaltSPBefore);
+    W(&a, 0x4879); L(&a, data + kHaltZero);
+    W(&a, 0x4879); L(&a, data + kHaltValue);
+    W(&a, 0x3F3C); W(&a, 0x0006); W(&a, 0xA9EB);     /* FDIVX: one / zero */
+    W(&a, 0x23CF); L(&a, data + kHaltSPAfter);
     W(&a, 0xA9F4);
+    while (a.n < 0x180) W(&a, 0x4E71);
+    W(&a, 0x206F); W(&a, 0x0012);                    /* MOVEA.L 18(SP),A0 */
+    W(&a, 0x3010); W(&a, 0x33C0); L(&a, data + kHaltErrors);
+    W(&a, 0x302F); W(&a, 0x0004); W(&a, 0x33C0); L(&a, data + kHaltOpcode);
+    W(&a, 0x202F); W(&a, 0x0006); W(&a, 0x23C0); L(&a, data + kHaltDst);
+    W(&a, 0x202F); W(&a, 0x000A); W(&a, 0x23C0); L(&a, data + kHaltSrc);
+    W(&a, 0x202F); W(&a, 0x000E); W(&a, 0x23C0); L(&a, data + kHaltSrc2);
+    W(&a, 0x23FC); L(&a, 1); L(&a, data + kHaltCalls);
+    W(&a, 0xDEFC); W(&a, 18); W(&a, 0x4E75);        /* discard frame; return */
 
     OSErr ran = WorldRun(&w, &a);
     M68KAddressSpace* as = gM68KApp;
@@ -264,6 +290,14 @@ Boolean M68KToolbox_RunSANETest(const char** why)
     Boolean text = M68K_Read8(as, data + kText) == sizeof(kWant) - 1;
     for (UInt32 i = 0; text && i < sizeof(kWant) - 1; i++)
         text = M68K_Read8(as, data + kText + 1 + i) == (UInt8)kWant[i];
+    Boolean halt = M68K_Read32(as, data + kHaltCalls) == 1 &&
+                   M68K_Read16(as, data + kHaltErrors) == 8 &&
+                   M68K_Read16(as, data + kHaltOpcode) == 0x0006 &&
+                   M68K_Read32(as, data + kHaltDst) == data + kHaltValue &&
+                   M68K_Read32(as, data + kHaltSrc) == data + kHaltZero &&
+                   M68K_Read32(as, data + kHaltSrc2) == 0 &&
+                   M68K_Read32(as, data + kHaltSPBefore) == M68K_Read32(as, data + kHaltSPAfter) &&
+                   ExtIs(data + kHaltValue, 0x7FFF, 0x80000000, 0);
     WorldEnd(&w);
 
     if (ran != noErr) { *why = "the program stopped with a fault"; return false; }
@@ -272,6 +306,7 @@ Boolean M68KToolbox_RunSANETest(const char** why)
     if (!greater) { *why = "comparing 1/3 with its double did not say greater"; return false; }
     if (!root)    { *why = "sqrt(2) in extended is not 3FFF B504F333F9DE6484"; return false; }
     if (!text)    { *why = "Dec2Str of 1/3 to 10 digits is not ' 3.333333333e-1'"; return false; }
+    if (!halt)    { *why = "FP68K did not deliver the divide-by-zero halt frame"; return false; }
     *why = "";
     return true;
 }
