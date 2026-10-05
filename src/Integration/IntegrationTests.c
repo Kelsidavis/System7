@@ -2678,6 +2678,40 @@ static void Test_Menu_PopUpSelection(void) {
     RecordTest(test_name, true, "");
 }
 
+static void Test_Menu_ItemHiliteDraws(void) {
+    const char* test_name = "Menu_ItemHiliteDraws";
+    MenuHandle menu = NewMenu(223, (ConstStr255Param)"\x09Hilite UI");
+    CHECK(menu, "NewMenu failed");
+    AppendMenu(menu, PSTR("First;Second"));
+
+    GrafPtr savedPort;
+    GetPort(&savedPort);
+    QD_SetScreenPort();
+    Point location = { 100, 120 };
+    ShowMenu(menu, location, NULL);
+
+    Rect menuRect, itemRect;
+    CalcMenuRect(menu, location, &menuRect);
+    CalcMenuItemRect(menu, 1, &menuRect, &itemRect);
+    int sampleX = itemRect.left + 1;
+    int sampleY = itemRect.top + (itemRect.bottom - itemRect.top) / 2;
+    UInt32 normalPixel = ScreenPixel(sampleX, sampleY);
+    HiliteMenuItem(menu, 1, true);
+    UInt32 highlightedPixel = ScreenPixel(sampleX, sampleY);
+    HiliteMenuItem(menu, 1, false);
+    UInt32 restoredPixel = ScreenPixel(sampleX, sampleY);
+
+    HideMenu();
+    SetPort(savedPort);
+    DisposeMenu(menu);
+
+    CHECK(normalPixel != highlightedPixel,
+          "HiliteMenuItem did not repaint the selected menu row");
+    CHECK(restoredPixel == normalPixel,
+          "unhighlighting did not restore the menu row's normal appearance");
+    RecordTest(test_name, true, "");
+}
+
 static void Test_Resource_CreateAndOpenResFile(void) {
     const char* test_name = "Resource_CreateAndOpenResFile";
     FSSpec spec;
@@ -3300,6 +3334,7 @@ void IntegrationTests_Run(void) {
     Test_Menu_InitProcMenu();
     Test_Menu_PopUpNullMenu();
     Test_Menu_PopUpSelection();
+    Test_Menu_ItemHiliteDraws();
     Test_Resource_OpenMissingResFile();
 
     IT_LOG_INFO("--- Segment Loader ---");

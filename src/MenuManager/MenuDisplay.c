@@ -661,13 +661,19 @@ void DrawMenuSeparator(const Rect* itemRect, short menuID)
  */
 void HiliteMenuItem(MenuHandle theMenu, short item, Boolean hilite)
 {
-    if (theMenu == NULL || item < 0) {
+    if (theMenu == NULL || theMenu != gCurrentlyShownMenu || item < 0 ||
+        item > CountMItems(theMenu)) {
         return;
     }
 
-    /* Use platform-specific highlighting if available */
-    Platform_HiliteMenuItem(theMenu, item, hilite);
+    if (item == 0) {
+        DrawMenu(theMenu, &gCurrentMenuRect, 0);
+        return;
+    }
 
+    Rect itemRect;
+    CalcMenuItemRect(theMenu, item, &gCurrentMenuRect, &itemRect);
+    DrawMenuItemAtRect(theMenu, item, &itemRect, hilite);
 }
 
 /* ============================================================================

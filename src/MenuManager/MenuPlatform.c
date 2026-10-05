@@ -124,20 +124,6 @@ void Platform_MenuFeedback(short feedbackType, short menuID, short item)
     /* Could flash menu bar or provide other visual feedback */
 }
 
-/*
- * Platform_HiliteMenuItem
- * Highlights or unhighlights a menu item visually
- */
-void Platform_HiliteMenuItem(void* theMenu, short item, Boolean hilite)
-{
-    (void)theMenu;
-    (void)item;
-    (void)hilite;
-    /* MenuItem highlighting delegated to MenuDisplay */
-    /* hilite=true: draw item highlighted */
-    /* hilite=false: draw item normal */
-}
-
 Handle Platform_SaveScreenBits(const Rect* rect)
 {
     return SaveMenuBits(rect);

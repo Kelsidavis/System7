@@ -725,7 +725,6 @@ Boolean Platform_GetKeyModifiers(unsigned long* modifiers);
 void Platform_SetMenuCursor(short cursorType);
 Boolean Platform_IsMenuVisible(void* theMenu);
 void Platform_MenuFeedback(short feedbackType, short menuID, short item);
-void Platform_HiliteMenuItem(void* theMenu, short item, Boolean hilite);
 
 /* ============================================================================
  * Error Codes
