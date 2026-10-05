@@ -2078,12 +2078,27 @@ static void Test_Window_ClassicChrome(void) {
                         (pixels[(closeBox.top + 1) * stride + closeBox.left + 1] & 0xFFFFFF) == 0xFFFFFF;
     Boolean geometry = closeBox.right - closeBox.left == 11 && closeBox.bottom - closeBox.top == 11 &&
                        zoomBox.right - zoomBox.left == 11 && closeBox.left == windowFrame.left + 6;
+    GrafPtr savedPort;
+    GetPort(&savedPort);
+    SetPort((GrafPtr)window);
+    Point hatchPixel = {window->port.portRect.bottom - 1,
+                        window->port.portRect.right - 8};
+    Point clearPixel = {window->port.portRect.bottom - 1,
+                        window->port.portRect.right - 4};
+    LocalToGlobal(&hatchPixel);
+    LocalToGlobal(&clearPixel);
+    DrawGrowIcon(window);
+    Boolean growIconPattern =
+        (ScreenPixel(hatchPixel.h, hatchPixel.v) & 0xFFFFFF) == 0 &&
+        (ScreenPixel(clearPixel.h, clearPixel.v) & 0xFFFFFF) == 0xFFFFFF;
+    SetPort(savedPort);
     HiliteWindow(window, false);
     Boolean inactiveBlank = (pixels[(windowFrame.top + 4) * stride + x] & 0xFFFFFF) == 0xFFFFFF &&
                             (pixels[closeBox.top * stride + closeBox.left] & 0xFFFFFF) == 0xFFFFFF;
     DisposeWindow(window);
     CHECK(activeRules && closeDrawn, "active title rules or close box pixels are incorrect");
     CHECK(geometry, "window control geometry is incorrect");
+    CHECK(growIconPattern, "DrawGrowIcon did not draw the standard diagonal grow box");
     CHECK(inactiveBlank, "inactive title bar retained rules or controls");
     RecordTest(test_name, true, "");
 }

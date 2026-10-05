@@ -487,29 +487,12 @@ void WM_DrawGrowIcon(WindowPtr window) {
     /* Clear area */
     EraseRect(&growBox);
 
-    /* Draw the classic System 7 grow box: a small raised square with
-     * a second offset square, creating the iconic double-box pattern */
-    /* Outer box (larger) */
-    Rect outerBox;
-    outerBox.left = right - 13;
-    outerBox.top = bottom - 13;
-    outerBox.right = right - 2;
-    outerBox.bottom = bottom - 2;
-    FrameRect(&outerBox);
-
-    /* Inner box (smaller, offset to top-left) */
-    Rect innerBox;
-    innerBox.left = right - 13;
-    innerBox.top = bottom - 13;
-    innerBox.right = right - 7;
-    innerBox.bottom = bottom - 7;
-    FrameRect(&innerBox);
-
-    /* Separator lines between the two boxes */
-    MoveTo(right - 7, bottom - 13);
-    LineTo(right - 7, bottom - 7);
-    MoveTo(right - 13, bottom - 7);
-    LineTo(right - 7, bottom - 7);
+    MoveTo(growBox.left, growBox.bottom - 1);
+    LineTo(growBox.right - 1, growBox.top);
+    MoveTo(growBox.left + 4, growBox.bottom - 1);
+    LineTo(growBox.right - 1, growBox.top + 4);
+    MoveTo(growBox.left + 8, growBox.bottom - 1);
+    LineTo(growBox.right - 1, growBox.top + 8);
 
     SetPort(savePort);
 

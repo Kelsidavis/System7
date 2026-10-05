@@ -702,24 +702,6 @@ static void DrawWindowControls_Unclipped(WindowPtr window) {
     PenPat(&blackPat);
     PenSize(1, 1);
 
-    /* CRITICAL: Use global coordinates from strucRgn, not local portRect */
-    /* Use explicit field copy to avoid struct assignment on ARM64 */
-    Rect windowFrame;
-    if (window->strucRgn && *window->strucRgn) {
-        Rect* srcRect = &((*window->strucRgn)->rgnBBox);
-        windowFrame.top = srcRect->top;
-        windowFrame.left = srcRect->left;
-        windowFrame.bottom = srcRect->bottom;
-        windowFrame.right = srcRect->right;
-    } else {
-        /* Fallback to portRect if strucRgn not set */
-        windowFrame.top = window->port.portRect.top;
-        windowFrame.left = window->port.portRect.left;
-        windowFrame.bottom = window->port.portRect.bottom;
-        windowFrame.right = window->port.portRect.right;
-    }
-    /* Close box is drawn in DrawWindowFrame, not here */
-
     /* Draw zoom box: only on a window that has one, and only while active */
     if (window->spareFlag && window->hilited) {
         Rect zoomBox;
@@ -733,45 +715,8 @@ static void DrawWindowControls_Unclipped(WindowPtr window) {
         WM_ChromeOutline(&innerBox);
     }
 
-    /* Draw grow box: only on a kind of window that has one. This went by
-     * windowKind >= 0, which includes every dialog. */
     if (WM_WindowHasGrowBox(window)) {
-        /* Grow box in bottom-right corner */
-        Rect growBox;
-        SetRect(&growBox, windowFrame.right - 16, windowFrame.bottom - 16,
-                windowFrame.right, windowFrame.bottom);
-
-        if (framebuffer) {
-            uint32_t black = 0xFF000000;
-
-            /* Draw three diagonal lines from bottom-left to top-right */
-            /* Line 1: Full diagonal */
-            for (int i = 0; i < 16; i++) {
-                int x = growBox.left + i;
-                int y = growBox.bottom - 1 - i;
-                if (x >= 0 && x < (int)fb_width && y >= 0 && y < (int)fb_height) {
-                    WM_ChromePixel(x, y, black);
-                }
-            }
-
-            /* Line 2: Offset by 4 pixels */
-            for (int i = 0; i < 12; i++) {
-                int x = growBox.left + 4 + i;
-                int y = growBox.bottom - 1 - i;
-                if (x >= 0 && x < (int)fb_width && y >= 0 && y < (int)fb_height) {
-                    WM_ChromePixel(x, y, black);
-                }
-            }
-
-            /* Line 3: Offset by 8 pixels */
-            for (int i = 0; i < 8; i++) {
-                int x = growBox.left + 8 + i;
-                int y = growBox.bottom - 1 - i;
-                if (x >= 0 && x < (int)fb_width && y >= 0 && y < (int)fb_height) {
-                    WM_ChromePixel(x, y, black);
-                }
-            }
-        }
+        WM_DrawGrowIcon(window);
     }
 
     /* Draw scroll bars if present */
@@ -831,36 +776,7 @@ void DrawWindow(WindowPtr window) {
 }
 
 void DrawGrowIcon(WindowPtr window) {
-    if (!window || !window->visible || window->windowKind < 0) return;
-
-    WM_DEBUG("DrawGrowIcon: Drawing grow icon");
-
-    GrafPtr savePort;
-    GetPort(&savePort);
-    SetPort((GrafPtr)window);
-
-    /* Draw grow icon in bottom-right corner - use explicit field copy to avoid struct assignment on ARM64 */
-    Rect windowFrame;
-    windowFrame.top = window->port.portRect.top;
-    windowFrame.left = window->port.portRect.left;
-    windowFrame.bottom = window->port.portRect.bottom;
-    windowFrame.right = window->port.portRect.right;
-    Rect growBox;
-    SetRect(&growBox, windowFrame.right - 16, windowFrame.bottom - 16,
-            windowFrame.right, windowFrame.bottom);
-
-    /* Clear the grow box area first */
-    EraseRect(&growBox);
-
-    /* Draw the grow lines */
-    MoveTo(growBox.left, growBox.bottom - 1);
-    LineTo(growBox.right - 1, growBox.top);
-    MoveTo(growBox.left + 4, growBox.bottom - 1);
-    LineTo(growBox.right - 1, growBox.top + 4);
-    MoveTo(growBox.left + 8, growBox.bottom - 1);
-    LineTo(growBox.right - 1, growBox.top + 8);
-
-    SetPort(savePort);
+    WM_DrawGrowIcon(window);
 }
 
 /*-----------------------------------------------------------------------*/
