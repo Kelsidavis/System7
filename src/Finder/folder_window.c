@@ -29,6 +29,7 @@
 #include "Finder/Icon/icon_system.h"
 #include "Platform/Framebuffer.h"
 #include "Finder/finder.h"
+#include "Finder/folder_window_private.h"
 #include "Apps/MacPaint.h"
 #include "FS/vfs.h"
 #include "FS/vfs_ops.h"
@@ -150,24 +151,38 @@ static void FolderWindow_OpenItem(WindowPtr w, FolderWindowState* state,
 static void InitializeFolderContents(WindowPtr w, Boolean isTrash);
 static void GhostEraseIf(void);  /* Forward declaration for ghost system */
 
-/* Helper: Find folder window state slot */
-/* ============================================================================
- * Icon grid
- *
- * One definition of where icons sit. The pitch and margins were written out
- * separately at six sites - the four content loaders, the duplicate path and
- * the clean-up - so "the grid" was six agreeing copies that nothing kept in
- * agreement. Anything that places an icon goes through here.
- * ============================================================================ */
+#define kFWDefaultWindowWidth  232
+#define kFWDefaultWindowHeight 276
+#define kFWDefaultWindowLeft   20
+#define kFWDefaultWindowTop    90
 
-#define kFWIconWidth    80   /* icon plus its label */
-#define kFWIconHeight   64
+/* Icon-grid geometry is in window-local content coordinates. */
+#define kFWGridPitchH   64
+#define kFWGridPitchV   52
 #define kFWLeftMargin   20
-#define kFWTopMargin    40   /* below the title bar */
-#define kFWSpacingH     10
-#define kFWSpacingV     10
-#define kFWGridPitchH   (kFWIconWidth + kFWSpacingH)
-#define kFWGridPitchV   (kFWIconHeight + kFWSpacingV)
+#define kFWTopMargin    24
+
+void FolderWindow_DefaultBounds(Rect* bounds, short cascadeOffset) {
+    if (bounds == NULL) return;
+
+    long screenWidth = fb_width ? fb_width : 640;
+    long screenHeight = fb_height ? fb_height : 480;
+    short width = (short)((screenWidth < kFWDefaultWindowWidth) ?
+                          screenWidth : kFWDefaultWindowWidth);
+    short height = (short)((screenHeight < kFWDefaultWindowHeight) ?
+                           screenHeight : kFWDefaultWindowHeight);
+    short maxLeft = (short)(screenWidth - width);
+    short maxTop = (short)(screenHeight - height);
+
+    bounds->left = (short)(kFWDefaultWindowLeft + cascadeOffset);
+    if (bounds->left > maxLeft) bounds->left = maxLeft;
+    if (bounds->left < 0) bounds->left = 0;
+    bounds->top = (short)(kFWDefaultWindowTop + cascadeOffset);
+    if (bounds->top > maxTop) bounds->top = maxTop;
+    if (bounds->top < 0) bounds->top = 0;
+    bounds->right = (short)(bounds->left + width);
+    bounds->bottom = (short)(bounds->top + height);
+}
 
 /* How many icons fit across this window. Never less than one. */
 static short FW_GridColumns(WindowPtr w) {
@@ -384,6 +399,7 @@ static void FW_DeselectAll(FolderWindowState* state) {
     state->anchorID = 0;
 }
 
+/* Find or allocate the state slot for a folder window. */
 static FolderWindowState* GetFolderState(WindowPtr w) {
     FINDER_LOG_DEBUG("GetFolderState: ENTRY\n");
     if (!w) {
@@ -665,9 +681,7 @@ static void InitializeFolderContentsEx(WindowPtr w, Boolean isTrash, VRefNum vre
 
         state->itemCount = totalItems;
 
-        /* Convert CatEntry to FolderItem and lay out in grid
-         * Grid: 3 columns, spacing 100px horizontal, 90px vertical
-         * Start at (80, 30) for margins */
+        /* Convert CatEntry metadata before positioning items on the shared grid. */
         for (int i = 0; i < count; i++) {
             /* Copy name (ensure null termination) */
             size_t nameLen = strlen(entries[i].name);
@@ -728,14 +742,11 @@ WindowPtr FolderWindow_OpenFolder(VRefNum vref, DirID dirID, ConstStr255Param ti
      * don't stack directly on top of each other (classic System 7 behavior) */
     static short sCascadeOffset = 0;
     static Rect r;
-    r.left = 10 + sCascadeOffset;
-    r.top = 80 + sCascadeOffset;
-    r.right = 490 + sCascadeOffset;
-    r.bottom = 420 + sCascadeOffset;
+    FolderWindow_DefaultBounds(&r, sCascadeOffset);
 
     /* Advance cascade, wrap before windows go off screen */
     sCascadeOffset += 20;
-    if (r.bottom > (short)fb_height - 40 || r.right > (short)fb_width - 40) {
+    if (r.bottom >= (short)fb_height || r.right >= (short)fb_width) {
         sCascadeOffset = 0;
     }
 

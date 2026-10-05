@@ -31,6 +31,8 @@
 #include "WindowManager/WindowPlatform.h"
 #include "WindowManager/WindowKinds.h"
 #include "Finder/Icon/icon_label.h"
+#include "Finder/finder.h"
+#include "Finder/folder_window_private.h"
 #include "PatternMgr/pattern_manager.h"
 #include "QuickDrawConstants.h"
 #include "DialogManager/DialogManager.h"
@@ -1564,6 +1566,22 @@ static void Test_IconLabel_MacRomanMetrics(void) {
     CHECK(italicWidth == accentedWidth + 3 && italicHeight == accentedHeight,
           "italic label metrics do not include the rendered shear");
     CHECK(accentedInk > baseInk, "Mac Roman e-acute did not render its accent");
+    RecordTest(test_name, true, "");
+}
+
+static void Test_Finder_DefaultFolderBounds(void) {
+    const char* test_name = "Finder_DefaultFolderBounds";
+    Rect bounds;
+    FolderWindow_DefaultBounds(&bounds, 0);
+    CHECK(bounds.left >= 0 && bounds.top >= 0,
+          "the default folder window starts outside the screen");
+    CHECK(bounds.right <= (short)fb_width && bounds.bottom <= (short)fb_height,
+          "the default folder window extends past the screen edge");
+    if (fb_width >= 252 && fb_height >= 366) {
+        CHECK(bounds.left == 20 && bounds.top == 90 &&
+              bounds.right == 252 && bounds.bottom == 366,
+              "the default folder window differs from the System 7.1 reference bounds");
+    }
     RecordTest(test_name, true, "");
 }
 
@@ -3342,6 +3360,7 @@ void IntegrationTests_Run(void) {
     Test_Draw_ScrollRect();
     Test_Window_SaveOldDrawNew();
     Test_IconLabel_MacRomanMetrics();
+    Test_Finder_DefaultFolderBounds();
     Test_Region_Hole();
     Test_Region_FrameBoundary();
     Test_Region_SetOperations();

@@ -3,6 +3,7 @@
 #include "SystemTypes.h"
 
 #include "Finder/finder.h"
+#include "Finder/folder_window_private.h"
 #include "DeskManager/DeskAccessory.h"
 #include "Platform/Halt.h"
 #include "Platform/include/boot.h"
@@ -409,10 +410,7 @@ static OSErr SetupMenus(void)
 WindowPtr Finder_OpenDesktopItem(Boolean isTrash, ConstStr255Param title)
 {
     static Rect r;
-    r.left = 10;
-    r.top = 80;
-    r.right = 490;
-    r.bottom = 420;
+    FolderWindow_DefaultBounds(&r, 0);
 
     FINDER_LOG_DEBUG("[WIN_OPEN] Starting, isTrash=%d\n", isTrash);
 
