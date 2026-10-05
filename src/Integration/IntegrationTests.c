@@ -2082,7 +2082,7 @@ static void Test_Window_ClassicChrome(void) {
     GetPort(&savedPort);
     SetPort((GrafPtr)window);
     Point hatchPixel = {window->port.portRect.bottom - 1,
-                        window->port.portRect.right - 8};
+                        window->port.portRect.right - 7};
     Point clearPixel = {window->port.portRect.bottom - 1,
                         window->port.portRect.right - 4};
     LocalToGlobal(&hatchPixel);
