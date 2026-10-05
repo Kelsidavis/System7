@@ -799,6 +799,62 @@ typedef struct FWHorizontalScrollMetrics {
     short thumbRight;
 } FWHorizontalScrollMetrics;
 
+typedef struct FWVerticalScrollMetrics {
+    short scrollTop;
+    short scrollBottom;
+    short trackTop;
+    short trackBottom;
+    short maxScroll;
+    short thumbTop;
+    short thumbBottom;
+    short visibleRows;
+} FWVerticalScrollMetrics;
+
+static FWVerticalScrollMetrics FW_IconVerticalScrollMetrics(
+    WindowPtr w, FolderWindowState* state) {
+    FWVerticalScrollMetrics metrics;
+    short totalRows;
+    short trackHeight;
+    short thumbHeight;
+
+    metrics.scrollTop = w->port.portRect.top + kFWStatusHeight;
+    metrics.scrollBottom = w->port.portRect.bottom - kListScrollBarWidth;
+    metrics.trackTop = metrics.scrollTop + kListScrollBarWidth;
+    metrics.trackBottom = metrics.scrollBottom - kListScrollBarWidth;
+    trackHeight = metrics.trackBottom - metrics.trackTop;
+    if (trackHeight < 1) {
+        metrics.trackBottom = metrics.trackTop + 1;
+        trackHeight = 1;
+    }
+
+    short columns = FW_GridColumns(w);
+    totalRows = (state->itemCount + columns - 1) / columns;
+    short contentHeight = metrics.scrollBottom - metrics.scrollTop - kFWTopMargin;
+    metrics.visibleRows = (contentHeight + kFWGridPitchV - 1) / kFWGridPitchV;
+    if (metrics.visibleRows < 1) metrics.visibleRows = 1;
+    metrics.maxScroll = totalRows - metrics.visibleRows;
+    if (metrics.maxScroll < 0) metrics.maxScroll = 0;
+    if (state->scrollOffset < 0) state->scrollOffset = 0;
+    if (state->scrollOffset > metrics.maxScroll) {
+        state->scrollOffset = metrics.maxScroll;
+    }
+
+    thumbHeight = totalRows > 0
+        ? (short)(((SInt32)metrics.visibleRows * trackHeight) / totalRows)
+        : trackHeight;
+    if (thumbHeight < 1) thumbHeight = 1;
+    if (thumbHeight < 16 && trackHeight >= 16) thumbHeight = 16;
+    if (thumbHeight > trackHeight) thumbHeight = trackHeight;
+
+    metrics.thumbTop = metrics.trackTop;
+    if (metrics.maxScroll > 0 && trackHeight > thumbHeight) {
+        metrics.thumbTop += (short)(((SInt32)state->scrollOffset *
+                          (trackHeight - thumbHeight)) / metrics.maxScroll);
+    }
+    metrics.thumbBottom = metrics.thumbTop + thumbHeight;
+    return metrics;
+}
+
 static FWHorizontalScrollMetrics FW_IconHorizontalScrollMetrics(
     WindowPtr w, FolderWindowState* state) {
     FWHorizontalScrollMetrics metrics;
@@ -852,6 +908,46 @@ static FWHorizontalScrollMetrics FW_IconHorizontalScrollMetrics(
     }
     metrics.thumbRight = metrics.thumbLeft + thumbWidth;
     return metrics;
+}
+
+static void FW_TrackIconThumb(
+    WindowPtr w, FolderWindowState* state, Boolean horizontal,
+    short trackStart, short trackEnd, short thumbStart, short thumbEnd,
+    short maxScroll, Point startPoint) {
+    const UInt32 maxIterations = 100000;
+    UInt32 iterations = 0;
+    short pointerStart = horizontal ? startPoint.h : startPoint.v;
+    short grabOffset = pointerStart - thumbStart;
+    short thumbSize = thumbEnd - thumbStart;
+    short trackTravel = trackEnd - trackStart - thumbSize;
+    short* scrollOffset = horizontal ? &state->scrollOffsetH : &state->scrollOffset;
+    short initialOffset = *scrollOffset;
+
+    if (trackTravel <= 0 || maxScroll <= 0) return;
+
+    while (StillDown() && iterations < maxIterations) {
+        Point mousePoint;
+        GetMouseLocal(&mousePoint);
+        iterations++;
+
+        short pointer = horizontal ? mousePoint.h : mousePoint.v;
+        SInt32 thumbPosition = pointer - grabOffset;
+        if (thumbPosition < trackStart) thumbPosition = trackStart;
+        if (thumbPosition > trackStart + trackTravel) {
+            thumbPosition = trackStart + trackTravel;
+        }
+
+        short newOffset = (short)(((thumbPosition - trackStart) *
+                                   maxScroll + trackTravel / 2) / trackTravel);
+        if (newOffset != *scrollOffset) {
+            *scrollOffset = newOffset;
+            FolderWindow_Draw(w);
+        }
+    }
+
+    if (*scrollOffset != initialOffset) {
+        PostEvent(updateEvt, (UInt32)(uintptr_t)w);
+    }
 }
 
 static short FW_IconAtPoint(WindowPtr w, Point localPt) {
@@ -947,30 +1043,34 @@ static short FW_IconAtPoint(WindowPtr w, Point localPt) {
     /* Icon view hit testing */
     short right = w->port.portRect.right;
     short bottom = w->port.portRect.bottom;
-    short scrollTop = w->port.portRect.top + kFWStatusHeight;
-    short scrollBottom = bottom - kListScrollBarWidth;
-    if (localPt.h >= right - kListScrollBarWidth && localPt.v >= scrollTop &&
-        localPt.v < scrollBottom) {
-        short columns = FW_GridColumns(w);
-        short totalRows = (state->itemCount + columns - 1) / columns;
-        short visibleRows = (scrollBottom - scrollTop - kFWTopMargin +
-                             kFWGridPitchV - 1) / kFWGridPitchV;
-        if (visibleRows < 1) visibleRows = 1;
-        short maxScroll = totalRows - visibleRows;
-        if (maxScroll < 0) maxScroll = 0;
-        short arrowBottom = scrollTop + kListScrollBarWidth;
-        if (localPt.v < arrowBottom) {
-            if (state->scrollOffset > 0) state->scrollOffset--;
-        } else if (localPt.v >= scrollBottom - kListScrollBarWidth) {
-            if (state->scrollOffset < maxScroll) state->scrollOffset++;
-        } else if (localPt.v < (scrollTop + scrollBottom) / 2) {
-            state->scrollOffset -= visibleRows;
-            if (state->scrollOffset < 0) state->scrollOffset = 0;
+    FWVerticalScrollMetrics vMetrics =
+        FW_IconVerticalScrollMetrics(w, state);
+    if (localPt.h >= right - kListScrollBarWidth &&
+        localPt.v >= vMetrics.scrollTop &&
+        localPt.v < vMetrics.scrollBottom) {
+        SInt32 newOffset = state->scrollOffset;
+        if (localPt.v < vMetrics.trackTop) {
+            newOffset--;
+        } else if (localPt.v >= vMetrics.trackBottom) {
+            newOffset++;
+        } else if (localPt.v >= vMetrics.thumbTop &&
+                   localPt.v < vMetrics.thumbBottom) {
+            FW_TrackIconThumb(w, state, false,
+                              vMetrics.trackTop, vMetrics.trackBottom,
+                              vMetrics.thumbTop, vMetrics.thumbBottom,
+                              vMetrics.maxScroll, localPt);
+            return kFolderScrollbarHit;
+        } else if (localPt.v < vMetrics.thumbTop) {
+            newOffset -= vMetrics.visibleRows;
         } else {
-            state->scrollOffset += visibleRows;
-            if (state->scrollOffset > maxScroll) state->scrollOffset = maxScroll;
+            newOffset += vMetrics.visibleRows;
         }
-        PostEvent(updateEvt, (UInt32)(uintptr_t)w);
+        if (newOffset < 0) newOffset = 0;
+        if (newOffset > vMetrics.maxScroll) newOffset = vMetrics.maxScroll;
+        if (newOffset != state->scrollOffset) {
+            state->scrollOffset = (short)newOffset;
+            PostEvent(updateEvt, (UInt32)(uintptr_t)w);
+        }
         return kFolderScrollbarHit;
     }
     if (localPt.v >= bottom - kListScrollBarWidth) {
@@ -986,6 +1086,13 @@ static short FW_IconAtPoint(WindowPtr w, Point localPt) {
             newOffset -= kFWGridPitchH;
         } else if (localPt.h >= verticalLeft - kListScrollBarWidth) {
             newOffset += kFWGridPitchH;
+        } else if (localPt.h >= metrics.thumbLeft &&
+                   localPt.h < metrics.thumbRight) {
+            FW_TrackIconThumb(w, state, true,
+                              metrics.trackLeft, metrics.trackRight,
+                              metrics.thumbLeft, metrics.thumbRight,
+                              metrics.maxScroll, localPt);
+            return kFolderScrollbarHit;
         } else if (localPt.h < metrics.thumbLeft) {
             newOffset -= page;
         } else if (localPt.h >= metrics.thumbRight) {
@@ -1709,7 +1816,8 @@ static void FolderWindow_DrawListScrollbar(WindowPtr w, FolderWindowState* state
 }
 
 static void FolderWindow_DrawIconScrollbars(
-    WindowPtr w, FolderWindowState* state,
+    WindowPtr w,
+    const FWVerticalScrollMetrics* vMetrics,
     const FWHorizontalScrollMetrics* hMetrics) {
     short left = w->port.portRect.left;
     short top = w->port.portRect.top + kFWStatusHeight;
@@ -1748,22 +1856,9 @@ static void FolderWindow_DrawIconScrollbars(
     LineTo(right - 4, horizontalTop - kListScrollBarWidth + 3);
     LineTo(centerX, horizontalTop - 4);
 
-    short columns = FW_GridColumns(w);
-    short totalRows = (state->itemCount + columns - 1) / columns;
-    short visibleRows = (horizontalTop - top - kFWTopMargin +
-                         kFWGridPitchV - 1) / kFWGridPitchV;
-    if (visibleRows < 1) visibleRows = 1;
-    short trackHeight = horizontalTop - top - 2 * kListScrollBarWidth;
-    if (trackHeight < 1) trackHeight = 1;
-    short thumbHeight = totalRows > 0 ? (visibleRows * trackHeight) / totalRows : trackHeight;
-    if (thumbHeight < 16) thumbHeight = 16;
-    if (thumbHeight > trackHeight) thumbHeight = trackHeight;
-    short maxScroll = totalRows - visibleRows;
-    if (maxScroll < 1) maxScroll = 1;
-    short thumbTop = top + kListScrollBarWidth +
-                     (state->scrollOffset * (trackHeight - thumbHeight)) / maxScroll;
     Rect thumb;
-    SetRect(&thumb, verticalLeft + 1, thumbTop, right - 1, thumbTop + thumbHeight);
+    SetRect(&thumb, verticalLeft + 1, vMetrics->thumbTop,
+            right - 1, vMetrics->thumbBottom);
     FillRect(&thumb, &whitePat);
     FrameRect(&thumb);
 
@@ -2043,6 +2138,8 @@ void FolderWindow_Draw(WindowPtr w) {
     /* If we have state, draw icons with selection highlighting (icon view) */
     else if (state && state->items) {
         bool iconSystemReady = Icon_Init();
+        FWVerticalScrollMetrics vMetrics =
+            FW_IconVerticalScrollMetrics(w, state);
         FWHorizontalScrollMetrics hMetrics =
             FW_IconHorizontalScrollMetrics(w, state);
 
@@ -2085,7 +2182,7 @@ void FolderWindow_Draw(WindowPtr w) {
                               localY,        /* top Y (local) */
                               selected);
         }
-        FolderWindow_DrawIconScrollbars(w, state, &hMetrics);
+        FolderWindow_DrawIconScrollbars(w, &vMetrics, &hMetrics);
     }
 
     /* Draw the disk summary below the title bar.

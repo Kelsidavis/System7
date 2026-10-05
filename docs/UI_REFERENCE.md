@@ -49,5 +49,6 @@ artwork remains placeholder line art and some icon resource mappings point to
 unavailable IDs. Icon view draws classic scrollbar controls. Its
 vertical bar supports arrow, page-track, mouse-wheel, and keyboard-selection
 scrolling. The horizontal bar now reflects content width and supports arrow
-and page-track scrolling; thumb dragging remains unimplemented. The Help icon,
-grow-box artwork, and About window also require visual comparison.
+and page-track scrolling plus thumb dragging. Icon-view vertical thumb dragging
+is also supported; list-view thumb dragging remains unimplemented. The Help
+icon, grow-box artwork, and About window also require visual comparison.
