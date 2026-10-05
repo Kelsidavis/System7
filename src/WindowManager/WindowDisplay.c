@@ -23,6 +23,10 @@
 /* Forward declarations */
 static void DumpWindowList(const char* context);
 
+static RgnHandle gSavedOldStructure;
+static RgnHandle gSavedOldContent;
+static WindowPtr gSavedOldWindow;
+
 /*-----------------------------------------------------------------------*/
 /* Window Display Functions                                             */
 /*-----------------------------------------------------------------------*/
@@ -497,45 +501,66 @@ void ClipAbove(WindowPtr window) {
 }
 
 void SaveOld(WindowPtr window) {
-    if (!window) return;
+    if (!window || !window->strucRgn || !*window->strucRgn ||
+        !window->contRgn || !*window->contRgn) return;
 
-    WM_DEBUG("SaveOld: Saving window bits");
+    if (!gSavedOldStructure) gSavedOldStructure = NewRgn();
+    if (!gSavedOldContent) gSavedOldContent = NewRgn();
+    if (!gSavedOldStructure || !gSavedOldContent) return;
 
-    /* Save the bits behind the window */
-    /* This would typically copy screen bits to an offscreen buffer */
-    /* For now, simplified implementation */
+    CopyRgn(window->strucRgn, gSavedOldStructure);
+    CopyRgn(window->contRgn, gSavedOldContent);
+    gSavedOldWindow = window;
 }
 
 void DrawNew(WindowPtr window, Boolean update) {
-    if (!window) return;
-    WM_LOG_TRACE("DrawNew: ENTRY, window=%p\n", window);
+    if (!window || window != gSavedOldWindow || !window->strucRgn ||
+        !*window->strucRgn || !window->contRgn || !*window->contRgn ||
+        !gSavedOldStructure || !gSavedOldContent) return;
 
-    WM_DEBUG("DrawNew: Drawing window");
+    AutoRgnHandle changed = WM_NewAutoRgn();
+    AutoRgnHandle part = WM_NewAutoRgn();
+    if (!changed.rgn || !part.rgn) {
+        WM_DisposeAutoRgn(&changed);
+        WM_DisposeAutoRgn(&part);
+        return;
+    }
 
-    /* Save current port */
+    DiffRgn(gSavedOldStructure, window->strucRgn, changed.rgn);
+    DiffRgn(window->strucRgn, gSavedOldStructure, part.rgn);
+    UnionRgn(changed.rgn, part.rgn, changed.rgn);
+    DiffRgn(gSavedOldContent, window->contRgn, part.rgn);
+    UnionRgn(changed.rgn, part.rgn, changed.rgn);
+    DiffRgn(window->contRgn, gSavedOldContent, part.rgn);
+    UnionRgn(changed.rgn, part.rgn, changed.rgn);
+
     GrafPtr savePort, wmgrPort;
     GetPort(&savePort);
     GetWMgrPort(&wmgrPort);
+    if (wmgrPort) {
+        RgnHandle savedClip = NewRgn();
+        if (savedClip) {
+            SetPort(wmgrPort);
+            GetClip(savedClip);
+            ClipAbove(window);
+            EraseRgn(changed.rgn);
+            SetClip(savedClip);
+            DisposeRgn(savedClip);
+        }
+    }
+    SetPort(savePort);
 
-    /* Draw chrome in WMgr port */
-    SetPort(wmgrPort);
-    WM_LOG_TRACE("DrawNew: Drawing frame\n");
-    DrawWindowFrame(window);
-    DrawWindowControls(window);
-
-    /* Switch to window port for content */
-    SetPort((GrafPtr)window);
-
-    if (update && window->updateRgn) {
-        /* Only draw the update region */
-        SetClip(window->updateRgn);
+    if (update && !EmptyRgn(changed.rgn)) {
+        if (!window->updateRgn) window->updateRgn = NewRgn();
+        if (window->updateRgn) {
+            UnionRgn(window->updateRgn, changed.rgn, window->updateRgn);
+        }
+        WM_InvalidateScreenRegion(changed.rgn);
     }
 
-    /* Content backfill is handled by application (Finder) draw code, not here */
-    WM_LOG_TRACE("DrawNew: Content backfill handled by application draw code\n");
-
-    SetPort(savePort);
-    WM_LOG_TRACE("DrawNew: EXIT\n");
+    gSavedOldWindow = NULL;
+    WM_DisposeAutoRgn(&changed);
+    WM_DisposeAutoRgn(&part);
 }
 
 static void DrawWindowFrame_Unclipped(WindowPtr window);

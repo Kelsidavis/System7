@@ -240,9 +240,10 @@ void DrawGrowIcon(WindowPtr theWindow);
 void DrawWindow(WindowPtr theWindow);
 
 /*
- * DrawNew - Draw a newly created window
+ * DrawNew - Erase changed window regions after a region change
  *
- * Internal function to draw a window that has just been created or shown.
+ * Uses the structure and content regions saved by SaveOld. If update is true,
+ * the changed screen region is added to the affected windows' update regions.
  */
 void DrawNew(WindowPeek window, Boolean update);
 
@@ -285,9 +286,9 @@ void CalcVisBehind(WindowPeek startWindow, RgnHandle clobberedRgn);
 void ClipAbove(WindowPeek window);
 
 /*
- * SaveOld - Save old visible region before window changes
+ * SaveOld - Save old structure and content regions before a window change
  *
- * Internal function to save the old visible region before making changes.
+ * Must be balanced by DrawNew for the same window. Calls are not nestable.
  */
 void SaveOld(WindowPeek window);
 

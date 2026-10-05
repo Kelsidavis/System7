@@ -1469,6 +1469,53 @@ static void Test_Draw_ScrollRect(void) {
     RecordTest(test_name, true, "");
 }
 
+static void Test_Window_SaveOldDrawNew(void) {
+    const char* test_name = "Window_SaveOldDrawNew";
+    Rect bounds = { 180, 520, 300, 680 };
+    WindowPtr window = NewWindow(NULL, &bounds, (ConstStr255Param)"\x06ITOld", true,
+                                 0, (WindowPtr)-1, false, 0);
+    CHECK(window, "NewWindow failed");
+
+    RgnHandle oldStructure = NewRgn(), oldContent = NewRgn();
+    RgnHandle expected = NewRgn(), part = NewRgn();
+    CHECK(oldStructure && oldContent && expected && part, "region allocation failed");
+    CopyRgn(window->strucRgn, oldStructure);
+    CopyRgn(window->contRgn, oldContent);
+    SetEmptyRgn(window->updateRgn);
+
+    SaveOld(window);
+    OffsetRgn(window->strucRgn, 9, 6);
+    OffsetRgn(window->contRgn, 9, 6);
+
+    DiffRgn(oldStructure, window->strucRgn, expected);
+    DiffRgn(window->strucRgn, oldStructure, part);
+    UnionRgn(expected, part, expected);
+    DiffRgn(oldContent, window->contRgn, part);
+    UnionRgn(expected, part, expected);
+    DiffRgn(window->contRgn, oldContent, part);
+    UnionRgn(expected, part, expected);
+
+    DrawNew(window, true);
+    Boolean queuedExactDelta = EqualRgn(window->updateRgn, expected);
+
+    SetEmptyRgn(window->updateRgn);
+    SaveOld(window);
+    OffsetRgn(window->strucRgn, 5, 4);
+    OffsetRgn(window->contRgn, 5, 4);
+    DrawNew(window, false);
+    Boolean updateFlagRespected = EmptyRgn(window->updateRgn);
+
+    DisposeRgn(oldStructure);
+    DisposeRgn(oldContent);
+    DisposeRgn(expected);
+    DisposeRgn(part);
+    DisposeWindow(window);
+
+    CHECK(queuedExactDelta, "DrawNew(true) did not queue the structure/content region delta");
+    CHECK(updateFlagRespected, "DrawNew(false) changed the update region");
+    RecordTest(test_name, true, "");
+}
+
 /* A region with a hole: a rectangle less one inside it. */
 static void Test_Region_Hole(void) {
     const char* test_name = "Region_Hole";
@@ -3164,6 +3211,7 @@ void IntegrationTests_Run(void) {
     Test_Draw_PenModes();
     Test_Draw_SetOrigin();
     Test_Draw_ScrollRect();
+    Test_Window_SaveOldDrawNew();
     Test_Region_Hole();
     Test_Region_FrameBoundary();
     Test_Region_SetOperations();
