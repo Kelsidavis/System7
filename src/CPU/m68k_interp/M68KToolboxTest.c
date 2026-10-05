@@ -715,6 +715,8 @@ Boolean M68KToolbox_RunIconTest(const char** why)
     PushAddr(&a, d + kIPort); W(&a, 0xA86F);            /* OpenPort */
     PlotIconHandleCall(&a, d, kIBitMap1, 0, kIErr1);            /* plain, onto black */
     PlotIconHandleCall(&a, d, kIBitMap2, 0x4000, kIErr2);       /* selected, onto white */
+    PushAddr(&a, d + kIRect); PushW(&a, 0); PushW(&a, 0); PushW(&a, 30000);
+    W(&a, 0xA831);                                             /* PlotIconID for a missing resource */
     PushAddr(&a, d + kIPort); W(&a, 0xA87D);            /* ClosePort */
     W(&a, 0xA9F4);
 

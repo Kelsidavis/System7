@@ -1372,6 +1372,23 @@ static void DrawIcon(const IconImage* ic, const Rect* r, SInt16 align, SInt16 tr
     End();
 }
 
+static Boolean DrawIconByID(SInt16 id, const Rect* r, SInt16 align, SInt16 transform) {
+    IconImage ic;
+    if (!IconByID(id, r, &ic)) return false;
+    DrawIcon(&ic, r, align, transform);
+    return true;
+}
+
+TRAP(Trap_PlotIconID) {
+    UNUSED;
+    SInt16 id = (SInt16)Pop16();
+    SInt16 transform = (SInt16)Pop16();
+    SInt16 align = (SInt16)Pop16();
+    Rect r = PopRect();
+    DrawIconByID(id, &r, align, transform);
+    return noErr;
+}
+
 enum {
     kSelPlotIconID = 0x0500, kSelGetIconSuite = 0x0501, kSelDisposeIconSuite = 0x0302,
     kSelPlotIconSuite = 0x0603, kSelPlotIconHandle = 0x061D, kSelPlotSICNHandle = 0x061E
@@ -1388,8 +1405,7 @@ TRAP(Trap_IconDispatch) {
     case kSelPlotIconID: {
         SInt16 id = (SInt16)Pop16(), transform = (SInt16)Pop16(), align = (SInt16)Pop16();
         Rect r = PopRect();
-        if (IconByID(id, &r, &ic)) DrawIcon(&ic, &r, align, transform);
-        else err = resNotFound;
+        if (!DrawIconByID(id, &r, align, transform)) err = resNotFound;
         break;
     }
     case kSelGetIconSuite: {
@@ -1506,6 +1522,7 @@ const M68KTrapEntry kM68KQuickDrawTraps[] = {
     { 0xAA1A, Trap_GetBackColor },
     { 0xA900, Trap_GetFNum },       { 0xA8FF, Trap_GetFontName },   { 0xA902, Trap_RealFont },
     { 0xA903, Trap_SetFontLock },
+    { 0xA831, Trap_PlotIconID },
     { 0xA882, Trap_StdText },       { 0xA890, Trap_StdLine },       { 0xA8A0, Trap_StdRect },
     { 0xA8AF, Trap_StdRRect },      { 0xA8B6, Trap_StdOval },       { 0xA8BD, Trap_StdArc },
     { 0xA8C5, Trap_StdPoly },       { 0xA8D1, Trap_StdRgn },        { 0xA8EB, Trap_StdBits },
