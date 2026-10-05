@@ -16,6 +16,7 @@
 #include <string.h>
 
 #include "M68KToolboxInternal.h"
+#include "CPU/LowMemGlobals.h"
 #include "MenuManager/MenuManager.h"
 #include "ResourceManager.h"
 #include "System71StdLib.h"
@@ -201,6 +202,7 @@ TRAP(Trap_HiliteMenu) {
     SInt16 id = (SInt16)Pop16();
     MenuMap* m = id ? ByAppID(id) : NULL;
     HiliteMenu(m ? MI(m->native)->menuID : 0);
+    LMSetWord(LMG_TheMenu, m ? (UInt16)id : 0);
     return noErr;
 }
 
@@ -215,14 +217,18 @@ TRAP(Trap_FlashMenuBar) {
 TRAP(Trap_MenuSelect) {
     UNUSED;
     Point p = PopPoint();
-    Result32(Translate(MenuSelect(p)));
+    UInt32 result = Translate(MenuSelect(p));
+    LMSetWord(LMG_TheMenu, (UInt16)(result >> 16));
+    Result32(result);
     return noErr;
 }
 
 TRAP(Trap_MenuKey) {
     UNUSED;
     UInt8 ch = (UInt8)Pop16();
-    Result32(Translate(MenuKey(ch)));
+    UInt32 result = Translate(MenuKey(ch));
+    LMSetWord(LMG_TheMenu, (UInt16)(result >> 16));
+    Result32(result);
     return noErr;
 }
 
