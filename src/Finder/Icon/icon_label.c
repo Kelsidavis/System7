@@ -11,6 +11,7 @@
 #include "icon_logging.h"
 
 #include "chicago_font.h"
+#include "chicago_font_extended.h"
 
 /* Draw rectangle */
 static void FillRectLocal(int left, int top, int right, int bottom, uint32_t color) {
@@ -49,23 +50,21 @@ void IconLabel_SetItalic(bool slanted) {
     gItalicLabel = slanted;
 }
 
-static void DrawCharBitmap(char ch, int x, int y, uint32_t color) {
-    if (ch < 32 || ch > 126) return;
-
-    ChicagoCharInfo info = chicago_ascii[ch - 32];
-
+static void DrawReducedGlyph(const ChicagoCharInfo* info, const uint8_t* strike,
+                             int rowBytes, int x, int y, uint32_t color) {
+    if (!info || !strike) return;
     for (int row = 0; row < kIconLabelGlyphHeight; row++) {
         int firstSourceRow = row * 15 / kIconLabelGlyphHeight;
         int afterLastSourceRow = (row + 1) * 15 / kIconLabelGlyphHeight;
 
-        for (int col = 0; col < info.bit_width; col++) {
-            int bit_position = info.bit_start + col;
+        for (int col = 0; col < info->bit_width; col++) {
+            int bit_position = info->bit_start + col;
             int byte_index = bit_position >> 3;
             int bit_offset = 7 - (bit_position & 7);
 
             bool set = false;
             for (int sourceRow = firstSourceRow; sourceRow < afterLastSourceRow; sourceRow++) {
-                const uint8_t* strike_row = chicago_bitmap + sourceRow * 140;
+                const uint8_t* strike_row = strike + sourceRow * rowBytes;
                 if (strike_row[byte_index] & (1 << bit_offset)) {
                     set = true;
                     break;
@@ -79,18 +78,63 @@ static void DrawCharBitmap(char ch, int x, int y, uint32_t color) {
     }
 }
 
+static int IconLabel_CharWidth(unsigned char ch) {
+    unsigned char symbol = Chicago_DrawnSymbol(ch);
+    if (symbol != kNoAccent) {
+        return chicago_accents[symbol].bit_width + 1;
+    }
+
+    ChicagoComposition composition = Chicago_Compose(ch);
+    const ChicagoCharInfo* info;
+    if (composition.base != 0) {
+        info = &chicago_ascii[composition.base - 32];
+    } else {
+        info = Chicago_Glyph(ch, NULL, NULL);
+    }
+    if (!info) return 0;
+
+    int width = info->bit_width + 1;
+    if (ch == ' ') width += 3;
+    return width;
+}
+
+static void DrawLabelChar(unsigned char ch, int x, int y, uint32_t color) {
+    unsigned char symbol = Chicago_DrawnSymbol(ch);
+    if (symbol != kNoAccent) {
+        DrawReducedGlyph(&chicago_accents[symbol], chicago_accent_bitmap,
+                         CHICAGO_ACCENT_ROW_BYTES, x, y, color);
+        return;
+    }
+
+    ChicagoComposition composition = Chicago_Compose(ch);
+    if (composition.base != 0) {
+        const ChicagoCharInfo* base = &chicago_ascii[composition.base - 32];
+        DrawReducedGlyph(base, chicago_bitmap, CHICAGO_ROW_BYTES, x, y, color);
+        if (composition.accent != kNoAccent) {
+            const ChicagoCharInfo* mark = &chicago_accents[composition.accent];
+            int markX = x + (base->bit_width - mark->bit_width) / 2;
+            DrawReducedGlyph(mark, chicago_accent_bitmap, CHICAGO_ACCENT_ROW_BYTES,
+                             markX, y, color);
+        }
+        return;
+    }
+
+    const uint8_t* strike = NULL;
+    int rowBytes = 0;
+    const ChicagoCharInfo* info = Chicago_Glyph(ch, &strike, &rowBytes);
+    if (info) {
+        DrawReducedGlyph(info, strike, rowBytes, x, y, color);
+    }
+}
+
 /* Measure text using exact character bit widths */
 void IconLabel_Measure(const char* name, int* outWidth, int* outHeight) {
+    if (!name || !outWidth || !outHeight) return;
     int width = 0;
     int len = strlen(name);
 
     for (int i = 0; i < len; i++) {
-        char ch = name[i];
-        if (ch >= 32 && ch <= 126) {
-            ChicagoCharInfo info = chicago_ascii[ch - 32];
-            width += info.bit_width + 1;  /* bit width + 1 for spacing */
-            if (ch == ' ') width += 3;  /* Extra space width (perfected value) */
-        }
+        width += IconLabel_CharWidth((unsigned char)name[i]);
     }
 
     if (gItalicLabel) width += kIconLabelItalicLean;
@@ -116,12 +160,9 @@ void IconLabel_Measure(const char* name, int* outWidth, int* outHeight) {
 static int MeasureRun(const char* s, int len) {
     int width = 0;
     for (int i = 0; i < len; i++) {
-        char ch = s[i];
-        if (ch >= 32 && ch <= 126) {
-            width += chicago_ascii[ch - 32].bit_width + 1;
-            if (ch == ' ') width += 3;
-        }
+        width += IconLabel_CharWidth((unsigned char)s[i]);
     }
+    if (gItalicLabel) width += kIconLabelItalicLean;
     return width;
 }
 
@@ -169,13 +210,9 @@ static void DrawLabelLine(const char* s, int len, int cx, int topY, bool selecte
     int currentX = textX;
 
     for (int i = 0; i < len; i++) {
-        char ch = s[i];
-        if (ch >= 32 && ch <= 126) {
-            const ChicagoCharInfo* infoPtr = &chicago_ascii[ch - 32];
-            DrawCharBitmap(ch, currentX, topY - textHeight + 3, fgColor);
-            currentX += infoPtr->bit_width + 1;
-            if (ch == ' ') currentX += 3;  /* Extra space between words */
-        }
+        unsigned char ch = (unsigned char)s[i];
+        DrawLabelChar(ch, currentX, topY - textHeight + 3, fgColor);
+        currentX += IconLabel_CharWidth(ch);
     }
 }
 

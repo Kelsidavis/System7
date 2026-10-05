@@ -30,6 +30,7 @@
 #include "Platform/Framebuffer.h"
 #include "WindowManager/WindowPlatform.h"
 #include "WindowManager/WindowKinds.h"
+#include "Finder/Icon/icon_label.h"
 #include "PatternMgr/pattern_manager.h"
 #include "QuickDrawConstants.h"
 #include "DialogManager/DialogManager.h"
@@ -1513,6 +1514,54 @@ static void Test_Window_SaveOldDrawNew(void) {
 
     CHECK(queuedExactDelta, "DrawNew(true) did not queue the structure/content region delta");
     CHECK(updateFlagRespected, "DrawNew(false) changed the update region");
+    RecordTest(test_name, true, "");
+}
+
+static void Test_IconLabel_MacRomanMetrics(void) {
+    const char* test_name = "IconLabel_MacRomanMetrics";
+    int accentedWidth, baseWidth, accentedHeight, baseHeight;
+    IconLabel_SetItalic(false);
+    IconLabel_Measure("\x8E", &accentedWidth, &accentedHeight);
+    IconLabel_Measure("e", &baseWidth, &baseHeight);
+    Boolean composedMetrics = accentedWidth == baseWidth && accentedHeight == baseHeight;
+
+    IconLabel_SetItalic(true);
+    int italicWidth, italicHeight;
+    IconLabel_Measure("\x8E", &italicWidth, &italicHeight);
+    IconLabel_SetItalic(false);
+
+    Rect bounds = { 150, 200, 260, 320 };
+    WindowPtr window = NewWindow(NULL, &bounds, (ConstStr255Param)"\x06ITFont", true,
+                                 0, (WindowPtr)-1, false, 0);
+    CHECK(window, "NewWindow failed");
+    GrafPtr savedPort;
+    GetPort(&savedPort);
+    SetPort((GrafPtr)window);
+    int globalLeft = (*window->contRgn)->rgnBBox.left;
+    int globalTop = (*window->contRgn)->rgnBBox.top;
+
+    IconLabel_Draw("e", 40, 40, false);
+    int baseInk = 0;
+    for (int y = globalTop + 32; y < globalTop + 45; y++) {
+        for (int x = globalLeft + 30; x < globalLeft + 51; x++) {
+            if ((ScreenPixel(x, y) & 0x00FFFFFF) == 0) baseInk++;
+        }
+    }
+
+    IconLabel_Draw("\x8E", 40, 40, false);
+    int accentedInk = 0;
+    for (int y = globalTop + 32; y < globalTop + 45; y++) {
+        for (int x = globalLeft + 30; x < globalLeft + 51; x++) {
+            if ((ScreenPixel(x, y) & 0x00FFFFFF) == 0) accentedInk++;
+        }
+    }
+    SetPort(savedPort);
+    DisposeWindow(window);
+
+    CHECK(composedMetrics, "Mac Roman e-acute did not use the base glyph metrics");
+    CHECK(italicWidth == accentedWidth + 3 && italicHeight == accentedHeight,
+          "italic label metrics do not include the rendered shear");
+    CHECK(accentedInk > baseInk, "Mac Roman e-acute did not render its accent");
     RecordTest(test_name, true, "");
 }
 
@@ -3212,6 +3261,7 @@ void IntegrationTests_Run(void) {
     Test_Draw_SetOrigin();
     Test_Draw_ScrollRect();
     Test_Window_SaveOldDrawNew();
+    Test_IconLabel_MacRomanMetrics();
     Test_Region_Hole();
     Test_Region_FrameBoundary();
     Test_Region_SetOperations();
