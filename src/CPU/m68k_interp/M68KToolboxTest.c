@@ -413,8 +413,8 @@ enum {
     kMWindow = 0x00, kMBounds = 0x04, kMTitle = 0x0C, kMRgn = 0x10, kMLimit = 0x14,
     kMSlop = 0x1C, kMState = 0x24, kMPic = 0x28, kMDrag = 0x2C,
     kMKeys = 0x30,                              /* five LONGINT answers */
-    kMGuestWindow = 0x50, kMEvent = 0xE0, kMCheckUpdate = 0xF0,
-    kMKCHR = 0x100                              /* 526 bytes */
+    kMGuestWindow = 0x50, kMKCHR = 0x100,                 /* KCHR: 526 bytes */
+    kMEvent = 0x320, kMCheckUpdate = 0x330
 };
 
 /* A two-table KCHR: shift picks table 1; 'u' (key $22) is dead, and with
@@ -507,7 +507,7 @@ Boolean M68KToolbox_RunWindowTest(const char** why)
     Boolean drag = M68K_Read32(as, d + kMDrag) == 0;
     UInt32 windowRecord = M68K_Read32(as, d + kMWindow);
     Boolean visibility = M68K_Read32(as, windowRecord + 24) != 0;
-    Boolean update = M68K_Read16(as, d + kMCheckUpdate) == 0xFFFF;
+    Boolean update = M68K_Read16(as, d + kMCheckUpdate) == 0x0100;
     WorldEnd(&w);
 
     if (ran != noErr) { *why = "the program stopped with a fault"; return false; }
