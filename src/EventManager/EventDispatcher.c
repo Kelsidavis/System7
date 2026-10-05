@@ -691,13 +691,7 @@ Boolean HandleUpdate(EventRecord* event)
             EraseRect(&r);
         }
 
-        /* Draw grow icon if window has grow box */
-        EVT_LOG_DEBUG("HandleUpdate: checking for grow icon...\n");
-        if (updateWindow->windowKind >= 0) {
-            EVT_LOG_DEBUG("HandleUpdate: drawing grow icon...\n");
-            DrawGrowIcon(updateWindow);
-            EVT_LOG_DEBUG("HandleUpdate: DrawGrowIcon returned\n");
-        }
+        DrawGrowIcon(updateWindow);
 
         /* End update to restore clipping */
         EVT_LOG_DEBUG("HandleUpdate: calling EndUpdate...\n");
