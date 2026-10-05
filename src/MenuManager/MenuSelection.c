@@ -202,8 +202,11 @@ long MenuSelect(Point startPt)
             MENU_LOG_TRACE("MenuSelect: User cancelled menu selection\n");
         }
 
-        /* Unhighlight the menu title */
-        HiliteMenu(0);
+        /* Keep the selected title highlighted until the application handles
+         * the command and calls HiliteMenu(0). Cancellation clears it now. */
+        if (result == 0) {
+            HiliteMenu(0);
+        }
 
         gLastMenuChoice = result;
         MENU_LOG_TRACE("MenuSelect: Returning 0x%08lX\n", result);
@@ -403,6 +406,7 @@ long MenuKeyEx(short keyChar, unsigned long modifiers, MenuCmdSearch* search)
 
             /* Provide feedback */
             FlashMenuFeedback(search->foundMenuID, search->foundItem);
+            HiliteMenu(search->foundMenuID);
 
             MENU_LOG_TRACE("Command key '%c' found: menu %d, item %d\n",
                    keyChar, search->foundMenuID, search->foundItem);
