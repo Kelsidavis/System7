@@ -471,6 +471,8 @@ Boolean M68KToolbox_RunWindowTest(const char** why)
     PushW(&a, 0x0100); PushW(&a, 0); PushL(&a, 0xFFFFFFFF); PushW(&a, 0); PushL(&a, 0);
     W(&a, 0xA913);
     PopL(&a, d + kMWindow);
+    PushVar(&a, d + kMWindow); W(&a, 0xA909);                   /* CalcVis */
+    PushVar(&a, d + kMWindow); PushL(&a, 0); W(&a, 0xA90A);    /* CalcVBehind */
     PushVar(&a, d + kMWindow); PushL(&a, 0x00ABCDE0); W(&a, 0xA92E);
     W(&a, 0x42A7); PushVar(&a, d + kMWindow); W(&a, 0xA92F); PopL(&a, d + kMPic);
     PushVar(&a, d + kMWindow); PushL(&a, 0); W(&a, 0xA92E);   /* no picture again */
@@ -493,12 +495,15 @@ Boolean M68KToolbox_RunWindowTest(const char** why)
                    k[4] == (((UInt32)'\'' << 16) | 'a') && M68K_Read32(as, d + kMState) == 0;
     Boolean pic = M68K_Read32(as, d + kMPic) == 0x00ABCDE0;
     Boolean drag = M68K_Read32(as, d + kMDrag) == 0;
+    UInt32 windowRecord = M68K_Read32(as, d + kMWindow);
+    Boolean visibility = M68K_Read32(as, windowRecord + 24) != 0;
     WorldEnd(&w);
 
     if (ran != noErr) { *why = "the program stopped with a fault"; return false; }
     if (!keys) { *why = "KeyTrans did not translate through the KCHR"; return false; }
     if (!pic)  { *why = "GetWindowPic did not answer what SetWindowPic set"; return false; }
     if (!drag) { *why = "DragGrayRgn pinned to its start did not answer no movement"; return false; }
+    if (!visibility) { *why = "CalcVis did not synchronize the visible region"; return false; }
     *why = "";
     return true;
 }

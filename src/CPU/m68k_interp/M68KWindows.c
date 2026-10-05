@@ -129,6 +129,23 @@ WINDOW_VERB(Trap_SelectWindow, SelectWindow)
 WINDOW_VERB(Trap_BringToFront, BringToFront)
 WINDOW_VERB(Trap_DrawGrowIcon, DrawGrowIcon)
 
+TRAP(Trap_CalcVis) {
+    UNUSED;
+    WindowPtr w = PopWindow();
+    if (w) CalcVis(w);
+    Obj_SyncWindows();
+    return noErr;
+}
+
+TRAP(Trap_CalcVBehind) {
+    UNUSED;
+    RgnHandle clobberedRgn = Obj_Rgn(Pop32());
+    WindowPtr startWindow = PopWindow();
+    CalcVisBehind(startWindow, clobberedRgn);
+    Obj_SyncWindows();
+    return noErr;
+}
+
 /* PROCEDURE SetWindowPic(theWindow: WindowPtr; pic: PicHandle). The picture
  * is kept in the program's record, where GetWindowPic and the program find
  * it; the update that follows draws it rather than reaching the program
@@ -450,6 +467,7 @@ const M68KTrapEntry kM68KWindowTraps[] = {
     { 0xA92E, Trap_SetWindowPic },  { 0xA92F, Trap_GetWindowPic },
     { 0xA915, Trap_ShowWindow },    { 0xA916, Trap_HideWindow },    { 0xA91F, Trap_SelectWindow },
     { 0xA920, Trap_BringToFront },  { 0xA904, Trap_DrawGrowIcon },  { 0xA91C, Trap_HiliteWindow },
+    { 0xA909, Trap_CalcVis },       { 0xA90A, Trap_CalcVBehind },
     { 0xA921, Trap_SendBehind },    { 0xA924, Trap_FrontWindow },   { 0xA92C, Trap_FindWindow },
     { 0xA925, Trap_DragWindow },    { 0xA91E, Trap_TrackGoAway },   { 0xA83B, Trap_TrackBox },
     { 0xA83A, Trap_ZoomWindow },    { 0xA92B, Trap_GrowWindow },    { 0xA91D, Trap_SizeWindow },
