@@ -810,15 +810,15 @@ typedef struct FWVerticalScrollMetrics {
     short visibleRows;
 } FWVerticalScrollMetrics;
 
-static FWVerticalScrollMetrics FW_IconVerticalScrollMetrics(
-    WindowPtr w, FolderWindowState* state) {
+static FWVerticalScrollMetrics FW_VerticalScrollMetrics(
+    short scrollTop, short scrollBottom, short totalRows, short visibleRows,
+    FolderWindowState* state) {
     FWVerticalScrollMetrics metrics;
-    short totalRows;
     short trackHeight;
     short thumbHeight;
 
-    metrics.scrollTop = w->port.portRect.top + kFWStatusHeight;
-    metrics.scrollBottom = w->port.portRect.bottom - kListScrollBarWidth;
+    metrics.scrollTop = scrollTop;
+    metrics.scrollBottom = scrollBottom;
     metrics.trackTop = metrics.scrollTop + kListScrollBarWidth;
     metrics.trackBottom = metrics.scrollBottom - kListScrollBarWidth;
     trackHeight = metrics.trackBottom - metrics.trackTop;
@@ -827,10 +827,7 @@ static FWVerticalScrollMetrics FW_IconVerticalScrollMetrics(
         trackHeight = 1;
     }
 
-    short columns = FW_GridColumns(w);
-    totalRows = (state->itemCount + columns - 1) / columns;
-    short contentHeight = metrics.scrollBottom - metrics.scrollTop - kFWTopMargin;
-    metrics.visibleRows = (contentHeight + kFWGridPitchV - 1) / kFWGridPitchV;
+    metrics.visibleRows = visibleRows;
     if (metrics.visibleRows < 1) metrics.visibleRows = 1;
     metrics.maxScroll = totalRows - metrics.visibleRows;
     if (metrics.maxScroll < 0) metrics.maxScroll = 0;
@@ -855,47 +852,29 @@ static FWVerticalScrollMetrics FW_IconVerticalScrollMetrics(
     return metrics;
 }
 
+static FWVerticalScrollMetrics FW_IconVerticalScrollMetrics(
+    WindowPtr w, FolderWindowState* state) {
+    short scrollTop = w->port.portRect.top + kFWStatusHeight;
+    short scrollBottom = w->port.portRect.bottom - kListScrollBarWidth;
+    short columns = FW_GridColumns(w);
+    short totalRows = (state->itemCount + columns - 1) / columns;
+    short contentHeight = scrollBottom - scrollTop - kFWTopMargin;
+    short visibleRows = (contentHeight + kFWGridPitchV - 1) / kFWGridPitchV;
+
+    return FW_VerticalScrollMetrics(scrollTop, scrollBottom, totalRows,
+                                    visibleRows, state);
+}
+
 static FWVerticalScrollMetrics FW_ListVerticalScrollMetrics(
     WindowPtr w, FolderWindowState* state) {
-    FWVerticalScrollMetrics metrics;
-    short trackHeight;
-    short thumbHeight;
+    short scrollTop = w->port.portRect.top + kFWStatusHeight +
+                      kListHeaderHeight;
+    short scrollBottom = w->port.portRect.bottom;
+    short contentHeight = scrollBottom - scrollTop;
+    short visibleRows = contentHeight / kListRowHeight;
 
-    metrics.scrollTop = w->port.portRect.top + kFWStatusHeight +
-                        kListHeaderHeight;
-    metrics.scrollBottom = w->port.portRect.bottom;
-    metrics.trackTop = metrics.scrollTop + kListScrollBarWidth;
-    metrics.trackBottom = metrics.scrollBottom - kListScrollBarWidth;
-    trackHeight = metrics.trackBottom - metrics.trackTop;
-    if (trackHeight < 1) {
-        metrics.trackBottom = metrics.trackTop + 1;
-        trackHeight = 1;
-    }
-
-    short contentHeight = metrics.scrollBottom - metrics.scrollTop;
-    metrics.visibleRows = contentHeight / kListRowHeight;
-    if (metrics.visibleRows < 1) metrics.visibleRows = 1;
-    metrics.maxScroll = state->itemCount - metrics.visibleRows;
-    if (metrics.maxScroll < 0) metrics.maxScroll = 0;
-    if (state->scrollOffset < 0) state->scrollOffset = 0;
-    if (state->scrollOffset > metrics.maxScroll) {
-        state->scrollOffset = metrics.maxScroll;
-    }
-
-    thumbHeight = state->itemCount > 0
-        ? (short)(((SInt32)metrics.visibleRows * trackHeight) / state->itemCount)
-        : trackHeight;
-    if (thumbHeight < 1) thumbHeight = 1;
-    if (thumbHeight < 16 && trackHeight >= 16) thumbHeight = 16;
-    if (thumbHeight > trackHeight) thumbHeight = trackHeight;
-
-    metrics.thumbTop = metrics.trackTop;
-    if (metrics.maxScroll > 0 && trackHeight > thumbHeight) {
-        metrics.thumbTop += (short)(((SInt32)state->scrollOffset *
-                          (trackHeight - thumbHeight)) / metrics.maxScroll);
-    }
-    metrics.thumbBottom = metrics.thumbTop + thumbHeight;
-    return metrics;
+    return FW_VerticalScrollMetrics(scrollTop, scrollBottom, state->itemCount,
+                                    visibleRows, state);
 }
 
 static FWHorizontalScrollMetrics FW_IconHorizontalScrollMetrics(
