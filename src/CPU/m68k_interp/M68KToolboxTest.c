@@ -473,6 +473,11 @@ Boolean M68KToolbox_RunWindowTest(const char** why)
     PopL(&a, d + kMWindow);
     PushVar(&a, d + kMWindow); W(&a, 0xA909);                   /* CalcVis */
     PushVar(&a, d + kMWindow); PushL(&a, 0); W(&a, 0xA90A);    /* CalcVBehind */
+    PushVar(&a, d + kMWindow); W(&a, 0xA90B);                   /* ClipAbove */
+    PushVar(&a, d + kMWindow); PushL(&a, 0); W(&a, 0xA90C);    /* PaintOne */
+    PushVar(&a, d + kMWindow); PushL(&a, 0); W(&a, 0xA90D);    /* PaintBehind */
+    PushVar(&a, d + kMWindow); W(&a, 0xA90E);                   /* SaveOld */
+    PushVar(&a, d + kMWindow); PushW(&a, 0); W(&a, 0xA90F);    /* DrawNew(false) */
     PushVar(&a, d + kMWindow); PushL(&a, 0x00ABCDE0); W(&a, 0xA92E);
     W(&a, 0x42A7); PushVar(&a, d + kMWindow); W(&a, 0xA92F); PopL(&a, d + kMPic);
     PushVar(&a, d + kMWindow); PushL(&a, 0); W(&a, 0xA92E);   /* no picture again */

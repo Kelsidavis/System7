@@ -146,6 +146,48 @@ TRAP(Trap_CalcVBehind) {
     return noErr;
 }
 
+TRAP(Trap_ClipAbove) {
+    UNUSED;
+    WindowPtr w = PopWindow();
+    if (w) ClipAbove(w);
+    Obj_SyncWindows();
+    return noErr;
+}
+
+TRAP(Trap_PaintOne) {
+    UNUSED;
+    RgnHandle clobberedRgn = Obj_Rgn(Pop32());
+    WindowPtr w = PopWindow();
+    if (w) PaintOne(w, clobberedRgn);
+    Obj_SyncWindows();
+    return noErr;
+}
+
+TRAP(Trap_PaintBehind) {
+    UNUSED;
+    RgnHandle clobberedRgn = Obj_Rgn(Pop32());
+    WindowPtr startWindow = PopWindow();
+    PaintBehind(startWindow, clobberedRgn);
+    Obj_SyncWindows();
+    return noErr;
+}
+
+TRAP(Trap_SaveOld) {
+    UNUSED;
+    WindowPtr w = PopWindow();
+    if (w) SaveOld(w);
+    return noErr;
+}
+
+TRAP(Trap_DrawNew) {
+    UNUSED;
+    Boolean update = PopBool();
+    WindowPtr w = PopWindow();
+    if (w) DrawNew(w, update);
+    Obj_SyncWindows();
+    return noErr;
+}
+
 /* PROCEDURE SetWindowPic(theWindow: WindowPtr; pic: PicHandle). The picture
  * is kept in the program's record, where GetWindowPic and the program find
  * it; the update that follows draws it rather than reaching the program
@@ -467,7 +509,9 @@ const M68KTrapEntry kM68KWindowTraps[] = {
     { 0xA92E, Trap_SetWindowPic },  { 0xA92F, Trap_GetWindowPic },
     { 0xA915, Trap_ShowWindow },    { 0xA916, Trap_HideWindow },    { 0xA91F, Trap_SelectWindow },
     { 0xA920, Trap_BringToFront },  { 0xA904, Trap_DrawGrowIcon },  { 0xA91C, Trap_HiliteWindow },
-    { 0xA909, Trap_CalcVis },       { 0xA90A, Trap_CalcVBehind },
+    { 0xA909, Trap_CalcVis },       { 0xA90A, Trap_CalcVBehind },  { 0xA90B, Trap_ClipAbove },
+    { 0xA90C, Trap_PaintOne },      { 0xA90D, Trap_PaintBehind },  { 0xA90E, Trap_SaveOld },
+    { 0xA90F, Trap_DrawNew },
     { 0xA921, Trap_SendBehind },    { 0xA924, Trap_FrontWindow },   { 0xA92C, Trap_FindWindow },
     { 0xA925, Trap_DragWindow },    { 0xA91E, Trap_TrackGoAway },   { 0xA83B, Trap_TrackBox },
     { 0xA83A, Trap_ZoomWindow },    { 0xA92B, Trap_GrowWindow },    { 0xA91D, Trap_SizeWindow },
