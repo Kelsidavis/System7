@@ -824,6 +824,8 @@ static void split_block(ZoneInfo* z, BlockHeader* b, u32 need) {
         log_suspect_block("split_post_sub", b, need, remain);
     }
 
+    b->lockCount = 0;
+
     /* A free tail must fit both its header and free-list node. */
     if (remain >= MIN_BLOCK_SIZE) {
         /* Keep the tail block aligned. */

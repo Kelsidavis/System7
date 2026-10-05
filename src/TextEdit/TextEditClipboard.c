@@ -428,6 +428,7 @@ void TEStylePaste(TEHandle hTE) {
 OSErr TEFromScrap(void) {
     long scrapSize;
     long bytesRead;
+    long scrapOffset;
     OSErr err;
 
     TEC_LOG("TEFromScrap: loading from system scrap\n");
@@ -443,20 +444,21 @@ OSErr TEFromScrap(void) {
     }
 
     /* Get TEXT from scrap */
-    bytesRead = GetScrap(NULL, kScrapFlavorTypeText, &scrapSize);
-    if (bytesRead >= 0 && scrapSize > 0) {
+    scrapSize = GetScrap(NULL, kScrapFlavorTypeText, NULL);
+    if (scrapSize > 0) {
         /* Allocate handle for text */
         g_TEScrap = NewHandle(scrapSize);
         if (g_TEScrap) {
             /* Get the text */
-            bytesRead = GetScrap(g_TEScrap, kScrapFlavorTypeText, &scrapSize);
-            if (bytesRead < 0) {
+            scrapOffset = 0;
+            bytesRead = GetScrap(g_TEScrap, kScrapFlavorTypeText, &scrapOffset);
+            if (bytesRead <= 0) {
                 DisposeHandle(g_TEScrap);
                 g_TEScrap = NULL;
                 err = noTypeErr;
             } else {
                 /* Resize to actual size */
-                SetHandleSize(g_TEScrap, scrapSize);
+                SetHandleSize(g_TEScrap, bytesRead);
                 err = MemError();
                 if (err == noErr) {
                     TEC_LOG("TEFromScrap: loaded %ld bytes\n", bytesRead);
@@ -475,13 +477,17 @@ OSErr TEFromScrap(void) {
     /* Get style scrap if present */
     {
         long styleScrapSize;
-        OSErr styleErr = GetScrap(NULL, kScrapFlavorTypeStyle, &styleScrapSize);
-        if (styleErr == noErr && styleScrapSize > 0) {
+        OSErr styleErr;
+        styleScrapSize = GetScrap(NULL, kScrapFlavorTypeStyle, NULL);
+        if (styleScrapSize > 0) {
             g_TEStyleScrap = NewHandle(styleScrapSize);
             if (g_TEStyleScrap) {
-                styleErr = GetScrap(g_TEStyleScrap, kScrapFlavorTypeStyle, &styleScrapSize);
-                if (styleErr == noErr) {
-                    SetHandleSize(g_TEStyleScrap, styleScrapSize);
+                long styleBytesRead;
+                long styleOffset = 0;
+                styleBytesRead = GetScrap(g_TEStyleScrap, kScrapFlavorTypeStyle,
+                                          &styleOffset);
+                if (styleBytesRead > 0) {
+                    SetHandleSize(g_TEStyleScrap, styleBytesRead);
                     styleErr = MemError();
                     if (styleErr == noErr) {
                         Handle decoded = TE_DecodeStyleScrap(g_TEStyleScrap);
@@ -489,7 +495,7 @@ OSErr TEFromScrap(void) {
                         g_TEStyleScrap = decoded;
                         if (decoded) {
                             TEC_LOG("TEFromScrap: loaded %ld bytes of style scrap\n",
-                                    styleScrapSize);
+                                    styleBytesRead);
                         }
                     } else {
                         DisposeHandle(g_TEStyleScrap);

@@ -2108,6 +2108,7 @@ static void Test_TextEditGetStyle(void) {
             TESetStyle(doFace, &editedStyle, false, edited);
             TESetSelect(2, 2, edited);
             TEInsert("X", 1, edited);
+            TESetSelect(0, 1, edited);
             TextStyle runStyles[5] = {{0}};
             for (SInt32 i = 0; i < 5; i++) {
                 TEGetStyle(i, &runStyles[i], NULL, NULL, edited);
