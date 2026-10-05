@@ -11,7 +11,7 @@
 #include "QuickDraw/QuickDraw.h"
 #include "QuickDrawConstants.h"
 #include "FontManager/FontManager.h"
-#include "ControlManager/ControlTypes.h"
+#include "ControlManager/ControlManager.h"
 #include "WindowManager/WMLogging.h"
 #include "EventManager/EventManager.h"
 #include "EventManager/AppSwitcher.h"
@@ -719,15 +719,7 @@ static void DrawWindowControls_Unclipped(WindowPtr window) {
         WM_DrawGrowIcon(window);
     }
 
-    /* Draw scroll bars if present */
-    ControlHandle control = window->controlList;
-    while (control) {
-        if ((*control)->contrlVis) {
-            /* Would call Draw1Control(control) */
-            /* For now, simplified implementation */
-        }
-        control = (*control)->nextControl;
-    }
+    DrawControls(window);
 
     /* Restore previous port */
     SetPort(savePort);
