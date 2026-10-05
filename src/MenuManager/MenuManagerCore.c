@@ -772,6 +772,14 @@ void HiliteMenu(short menuID)
     }
 }
 
+short MenuMgr_GetHilitedMenuID(void)
+{
+    if (!gMenuMgrInitialized || gMenuMgrState == NULL) {
+        return 0;
+    }
+    return gMenuMgrState->hiliteMenu;
+}
+
 /* GetMBarHeight is defined as a macro in MenuManager.h */
 
 /* ============================================================================

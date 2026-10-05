@@ -18,6 +18,7 @@
 #include "M68KToolboxInternal.h"
 #include "CPU/LowMemGlobals.h"
 #include "MenuManager/MenuManager.h"
+#include "MenuManager/menu_private.h"
 #include "ResourceManager.h"
 #include "System71StdLib.h"
 
@@ -218,7 +219,9 @@ TRAP(Trap_MenuSelect) {
     UNUSED;
     Point p = PopPoint();
     UInt32 result = Translate(MenuSelect(p));
-    LMSetWord(LMG_TheMenu, (UInt16)(result >> 16));
+    short hilitedMenu = MenuMgr_GetHilitedMenuID();
+    MenuMap* mappedMenu = hilitedMenu ? ByNativeID(hilitedMenu) : NULL;
+    LMSetWord(LMG_TheMenu, mappedMenu ? (UInt16)mappedMenu->appID : (UInt16)hilitedMenu);
     Result32(result);
     return noErr;
 }

@@ -31,7 +31,6 @@ Boolean Platform_GetKeyModifiers(unsigned long* modifiers);
 
 #define MENULIST_ADDR           0x0A1C
 #define SYSTEM_MENULIST_ADDR    0x0286
-#define THE_MENU_ADDR           0x0A26
 #define MENU_FLASH_ADDR         0x0A24
 #define MBAR_HEIGHT_ADDR        0x0BAA
 
@@ -108,6 +107,7 @@ void CleanupMenuExtData(void);  /* Free all menu extended data - must be called 
 void InitMenuTitleTracking(void);
 void AddMenuTitle(short menuID, short left, short width, const char* title);
 void HiliteMenuTitle(short menuID, Boolean hilite);
+short MenuMgr_GetHilitedMenuID(void);
 void ClearMenuTitles(void);
 
 Boolean MenuTitleAt(Point pt, SInt16* outMenuID);

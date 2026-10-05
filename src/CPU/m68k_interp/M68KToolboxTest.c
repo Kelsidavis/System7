@@ -498,7 +498,8 @@ Boolean M68KToolbox_RunMenuTest(const char** why)
     if (!WorldBegin(&w, why)) return false;
     UInt32 d = w.data;
     enum { kTitle = 0x100, kMenu = 0x120, kBefore = 0x124,
-           kKeyResult = 0x128, kAfter = 0x12C, kClear = 0x130 };
+           kKeyResult = 0x128, kAfterKey = 0x12C, kSelectResult = 0x130,
+           kAfterSelect = 0x134, kClear = 0x138 };
     M68K_Write8(gM68KApp, d + kTitle, 4);
     PutBytes(d + kTitle + 1, "Test", 4);
 
@@ -512,7 +513,10 @@ Boolean M68KToolbox_RunMenuTest(const char** why)
     W(&a, 0x3039); L(&a, LMG_TheMenu); W(&a, 0x33C0); L(&a, d + kBefore);
     /* A key with no matching menu command must not clear current menu state. */
     W(&a, 0x42A7); PushW(&a, 0x00FE); W(&a, 0xA93E); PopL(&a, d + kKeyResult);
-    W(&a, 0x3039); L(&a, LMG_TheMenu); W(&a, 0x33C0); L(&a, d + kAfter);
+    W(&a, 0x3039); L(&a, LMG_TheMenu); W(&a, 0x33C0); L(&a, d + kAfterKey);
+    /* An out-of-bar MenuSelect has no choice and leaves the active title alone. */
+    W(&a, 0x42A7); PushL(&a, CellArg(-1, 0)); W(&a, 0xA93D); PopL(&a, d + kSelectResult);
+    W(&a, 0x3039); L(&a, LMG_TheMenu); W(&a, 0x33C0); L(&a, d + kAfterSelect);
     PushW(&a, 0); W(&a, 0xA938);
     W(&a, 0x3039); L(&a, LMG_TheMenu); W(&a, 0x33C0); L(&a, d + kClear);
     W(&a, 0xA9F4);
@@ -521,14 +525,20 @@ Boolean M68KToolbox_RunMenuTest(const char** why)
     Boolean menuCreated = M68K_Read32(gM68KApp, d + kMenu) != 0;
     UInt16 before = M68K_Read16(gM68KApp, d + kBefore);
     UInt32 keyResult = M68K_Read32(gM68KApp, d + kKeyResult);
-    UInt16 after = M68K_Read16(gM68KApp, d + kAfter);
+    UInt16 afterKey = M68K_Read16(gM68KApp, d + kAfterKey);
+    UInt32 selectResult = M68K_Read32(gM68KApp, d + kSelectResult);
+    UInt16 afterSelect = M68K_Read16(gM68KApp, d + kAfterSelect);
     UInt16 clear = M68K_Read16(gM68KApp, d + kClear);
     WorldEnd(&w);
 
     if (ran != noErr) { *why = "the menu trap program stopped with a fault"; return false; }
     if (!menuCreated) { *why = "NewMenu did not return an application menu handle"; return false; }
     if (before != 128) { *why = "HiliteMenu did not set TheMenu to the application menu ID"; return false; }
-    if (keyResult != 0 || after != before) { *why = "an unmatched MenuKey changed TheMenu"; return false; }
+    if (keyResult != 0 || afterKey != before) { *why = "an unmatched MenuKey changed TheMenu"; return false; }
+    if (selectResult != 0 || afterSelect != before) {
+        *why = "an empty MenuSelect desynchronized TheMenu";
+        return false;
+    }
     if (clear != 0) { *why = "HiliteMenu(0) did not clear TheMenu"; return false; }
     *why = "";
     return true;
