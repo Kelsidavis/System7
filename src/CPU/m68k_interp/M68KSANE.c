@@ -19,8 +19,8 @@
  * operation has stored its result. The vector receives the opcode, operand
  * addresses, and a MISC record with the pending condition codes and D0.
  *
- * Off x86 the arithmetic is the host's long double, with round-to-nearest
- * and no exception flags.
+ * AArch64 uses binary128 arithmetic and rounds back to SANE precision in
+ * software. Other hosts use binary64 arithmetic without exception flags.
  */
 
 #include <string.h>
@@ -39,6 +39,8 @@
 /* The x87's own extended. Elsewhere long double may be a software quad
  * (aarch64), done by libgcc, which not every build links: double there. */
 #if SANE_X87
+typedef long double xf;
+#elif defined(__aarch64__) && __LDBL_MANT_DIG__ == 113
 typedef long double xf;
 #else
 typedef double xf;
@@ -86,13 +88,8 @@ static void HaltOnException(UInt16 op, UInt32 expectedSP, UInt32 dst, UInt32 src
     UInt16 halts = (UInt16)((gEnv & 0x001F) & ((exceptions >> 8) & 0x001F));
     if (!halts || !gHaltVector) return;
 
-    UInt32 misc = M68KHeap_NewPtr(8, false);
-    if (!misc) {
-        gM68KApp->halted = true;
-        gM68KApp->faultReason = "could not allocate SANE halt record";
-        gM68KApp->faultPC = gM68KApp->instrPC;
-        return;
-    }
+    UInt32 misc = expectedSP - 8;
+    A(7) = misc;
     W16(misc, halts);
     W16(misc + 2, gM68KApp->regs.sr & 0x001F);
     W32(misc + 4, D(0));
@@ -107,12 +104,12 @@ static void HaltOnException(UInt16 op, UInt32 expectedSP, UInt32 dst, UInt32 src
         D(0) = R32(misc + 4);
         gM68KApp->regs.sr = (UInt16)((gM68KApp->regs.sr & ~0x001F) | (R16(misc + 2) & 0x001F));
     }
-    if (err == noErr && A(7) != expectedSP) {
+    if (err == noErr && A(7) != misc) {
         gM68KApp->halted = true;
         gM68KApp->faultReason = "SANE halt handler did not remove its argument frame";
         gM68KApp->faultPC = gM68KApp->instrPC;
     }
-    M68KHeap_DisposePtr(misc);
+    A(7) = expectedSP;
 }
 
 /* ------------------------------------------------------------------------
@@ -244,6 +241,15 @@ static xf X87Tan(xf x) { xf one, r; __asm__("fptan" : "=t"(one), "=u"(r) : "0"(X
 #else  /* !SANE_X87 */
 
 static xf ToX(SANEExt e) {
+#if defined(__aarch64__) && __LDBL_MANT_DIG__ == 113
+    UInt64 bits[2];
+    UInt64 fraction = e.mant & 0x7FFFFFFFFFFFFFFFULL;
+    bits[0] = fraction << 49;
+    bits[1] = ((UInt64)e.sign << 63) | ((UInt64)e.exp << 48) | (fraction >> 15);
+    xf v;
+    memcpy(&v, bits, sizeof(v));
+    return v;
+#else
     uint8_t b[8];
     SANE_FromExtended(e, kSANEDouble, kSANEToNearest, b);
     UInt64 u = 0;
@@ -251,19 +257,101 @@ static xf ToX(SANEExt e) {
     double d;
     memcpy(&d, &u, 8);
     return d;
+#endif
 }
 static SANEExt FromX(xf v) {
+#if defined(__aarch64__) && __LDBL_MANT_DIG__ == 113
+    UInt64 bits[2];
+    memcpy(bits, &v, sizeof(v));
+    UInt64 hi = bits[1];
+    UInt64 lo = bits[0];
+    int sign = (int)(hi >> 63);
+    UInt16 exp = (UInt16)((hi >> 48) & 0x7FFF);
+    UInt64 fraction = ((hi & 0x0000FFFFFFFFFFFFULL) << 15) | (lo >> 49);
+    UInt64 discarded = lo & 0x0001FFFFFFFFFFFFULL;
+    if (exp == 0x7FFF) {
+        if (!fraction) return (SANEExt){ sign, 0x7FFF, 0x8000000000000000ULL };
+        return SANE_NaN(0);
+    }
+    if (!exp && !fraction) return (SANEExt){ sign, 0, 0 };
+
+    UInt64 mant = exp ? (0x8000000000000000ULL | fraction) : fraction;
+    Boolean inexact = discarded != 0;
+    Boolean increment = false;
+    switch (Rounding()) {
+    case kSANEToNearest:
+        increment = discarded > 0x0001000000000000ULL ||
+                    (discarded == 0x0001000000000000ULL && (mant & 1));
+        break;
+    case kSANEUpward: increment = !sign && inexact; break;
+    case kSANEDownward: increment = sign && inexact; break;
+    default: break;
+    }
+    if (increment && ++mant == 0) {
+        mant = 0x8000000000000000ULL;
+        if (exp) exp++;
+        else exp = 1;
+    } else if (!exp && mant >= 0x8000000000000000ULL) {
+        exp = 1;
+    }
+    if (exp >= 0x7FFF) {
+        Raise(kSANEOverflow | kSANEInexact);
+        return (SANEExt){ sign, 0x7FFF, 0x8000000000000000ULL };
+    }
+    if (inexact) Raise(kSANEInexact | (!exp ? kSANEUnderflow : 0));
+    return (SANEExt){ sign, exp, mant };
+#else
     double d = (double)v;
     UInt64 u;
     memcpy(&u, &d, 8);
     uint8_t b[8];
     for (int i = 7; i >= 0; i--) { b[i] = (uint8_t)u; u >>= 8; }
     return SANE_ToExtended(kSANEDouble, b);
+#endif
 }
+#if defined(__aarch64__)
+static UInt64 gSavedFPCR;
+static UInt64 gSavedFPSR;
+
+static void FPBegin(void) {
+    static const UInt64 kRC[4] = { 0, 1, 2, 3 };
+    UInt64 fpcr;
+    __asm__ volatile("mrs %0, fpcr" : "=r"(gSavedFPCR));
+    __asm__ volatile("mrs %0, fpsr" : "=r"(gSavedFPSR));
+    fpcr = gSavedFPCR & ~((UInt64)(0x1F << 8) | (1ULL << 24) | (1ULL << 25) | (3ULL << 22));
+    fpcr |= kRC[Rounding()] << 22;
+    __asm__ volatile("msr fpsr, xzr\n\tmsr fpcr, %0" : : "r"(fpcr) : "memory");
+}
+
+static Boolean FPEnd(void) {
+    UInt64 fpsr;
+    int exceptions = 0;
+    __asm__ volatile("mrs %0, fpsr" : "=r"(fpsr));
+    __asm__ volatile("msr fpcr, %0\n\tmsr fpsr, %1" : : "r"(gSavedFPCR), "r"(gSavedFPSR) : "memory");
+    if (fpsr & (1ULL << 0)) exceptions |= kSANEInvalid;
+    if (fpsr & (1ULL << 3)) exceptions |= kSANEUnderflow;
+    if (fpsr & (1ULL << 2)) exceptions |= kSANEOverflow;
+    if (fpsr & (1ULL << 1)) exceptions |= kSANEDivByZero;
+    if (fpsr & (1ULL << 4)) exceptions |= kSANEInexact;
+    Raise(exceptions);
+    return (fpsr & (1ULL << 0)) != 0;
+}
+#else
 static void FPBegin(void) {}
 static Boolean FPEnd(void) { return false; }
+#endif
 #include "math.h"
-static xf X87Sqrt(xf x)  { return sqrt((double)x); }
+#if defined(__aarch64__) && __LDBL_MANT_DIG__ == 113
+static xf X87Sqrt(xf x) {
+    if (x < 0) return __builtin_nanl("");
+    if (x == 0) return x;
+    xf r = (xf)sqrt((double)x);
+    for (int i = 0; i < 7; i++) r = (r + x / r) * 0.5L;
+    return r;
+}
+#else
+static xf X87Sqrt(xf x) { return sqrt((double)x); }
+#endif
 static xf X87Rint(xf x)  { double f = floor((double)x); double d = (double)x - f;
                            Boolean odd = f / 2 != floor(f / 2);
                            return d > 0.5 || (d == 0.5 && odd) ? f + 1 : f; }
@@ -290,10 +378,23 @@ static xf X87Tan(xf x) { return tan((double)x); }
 
 /* An invalid operation's NaN carries the code of what made it, as SANE's
  * do; the x87 makes the same one for everything */
+static SANEExt ApplyEnvironmentPrecision(SANEExt x) {
+#if !SANE_X87
+    int format = (gEnv & 0x0040) ? kSANESingle :
+                 (gEnv & 0x0020) ? kSANEDouble : kSANEExtended;
+    if (format != kSANEExtended) {
+        uint8_t bytes[8];
+        Raise(SANE_FromExtended(x, format, Rounding(), bytes));
+        x = SANE_ToExtended(format, bytes);
+    }
+#endif
+    return x;
+}
+
 static SANEExt Result(xf r, Boolean invalid, int nanCode) {
     SANEExt e = FromX(r);
     if (invalid && IsNaN(e) && e.mant == 0xC000000000000000ULL) e = SANE_NaN(nanCode);
-    return e;
+    return ApplyEnvironmentPrecision(e);
 }
 
 /* ------------------------------------------------------------------------
@@ -358,6 +459,9 @@ TRAP(Trap_FP68K) {
         static const int kNaN[4] = { kNaNAdd, kNaNAdd, kNaNMul, kNaNDiv };
         FPBegin();
         xf a = ToX(LoadExt(dst)), b = ToX(LoadAs(src, format));
+#if defined(__aarch64__) && __LDBL_MANT_DIG__ == 113
+        if (code == kFODiv && b == 0 && a != 0 && a == a) Raise(kSANEDivByZero);
+#endif
         volatile xf r;
         if (code == kFOAdd) r = a + b;
         else if (code == kFOSub) r = a - b;
@@ -424,7 +528,7 @@ TRAP(Trap_FP68K) {
         FPBegin();
         volatile xf r = X87Scale(ToX(LoadExt(dst)), (xf)n);
         FPEnd();
-        StoreExt(dst, FromX(r));
+        StoreExt(dst, ApplyEnvironmentPrecision(FromX(r)));
         break;
     }
     case kFOClass: {
@@ -485,7 +589,7 @@ TRAP(Trap_FP68K) {
     }
     case kFOSetEnv:    gEnv = R16(Pop32()); break;
     case kFOGetEnv:    W16(Pop32(), gEnv); break;
-    case kFOSetHV:     gHaltVector = R32(Pop32()); break;
+    case kFOSetHV:     gHaltVector = Pop32(); break;
     case kFOGetHV:     W32(Pop32(), gHaltVector); break;
     case kFOProcEntry: { UInt32 dst = Pop32(); W16(dst, gEnv); gEnv = 0; break; }
     case kFOProcExit: {

@@ -3342,6 +3342,9 @@ void IntegrationTests_Run(void) {
     IT_LOG_INFO("--- Gestalt ---");
     Test_GestaltFPUType();
 
+    IT_LOG_INFO("--- 68K SANE ---");
+    Test_M68K_SANE();
+
     IT_LOG_INFO("--- Control Manager ---");
     Test_RadioButtonValues();
 
@@ -3412,7 +3415,6 @@ void IntegrationTests_Run(void) {
     IT_LOG_INFO("--- 68K traps ---");
     Test_M68K_CMPFlags();
     Test_M68K_Traps();
-    Test_M68K_SANE();
     Test_M68K_Lists();
     Test_M68K_WindowCalls();
     Test_M68K_MenuCalls();

@@ -720,7 +720,7 @@ FORCE:
 $(KERNEL): FORCE $(OBJECTS) | $(BUILD_DIR)
 	@echo "LD $(KERNEL)"
 	@if [ "$(PLATFORM)" = "arm64" ]; then \
-        $(CC) $(LDFLAGS) -Wl,-T,$(LINKER_SCRIPT) -nostdlib -static -o $(KERNEL) $(OBJECTS); \
+        $(CC) $(LDFLAGS) -Wl,-T,$(LINKER_SCRIPT) -nostdlib -static -o $(KERNEL) $(OBJECTS) -lgcc; \
     elif [ "$(PLATFORM)" = "arm" ]; then \
         $(CC) $(CFLAGS_PI) $(LDFLAGS) -Wl,-z,noexecstack -Wl,-T,$(LINKER_SCRIPT) -nostdlib -static -o $(KERNEL) $(OBJECTS) $(LIBM) -lgcc; \
     else \

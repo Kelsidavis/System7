@@ -200,7 +200,7 @@ enum {
     kCCR = 0xB8, kHaltEnv = 0xC0, kHaltVector = 0xC4,
     kHaltCalls = 0xD0, kHaltErrors = 0xD4, kHaltOpcode = 0xD6,
     kHaltDst = 0xD8, kHaltSrc = 0xDC, kHaltSrc2 = 0xE0,
-    kHaltZero = 0xF0, kHaltValue = 0x100,
+    kHaltVectorOut = 0xE4, kHaltZero = 0xF0, kHaltValue = 0x100,
     kHaltSPBefore = 0x110, kHaltSPAfter = 0x114
 };
 
@@ -261,8 +261,10 @@ Boolean M68KToolbox_RunSANETest(const char** why)
     W(&a, 0x3F3C); W(&a, 3); W(&a, 0xA9EE);
     W(&a, 0x4879); L(&a, data + kHaltEnv);
     W(&a, 0x3F3C); W(&a, 0x0001); W(&a, 0xA9EB);     /* SetEnvironment */
-    W(&a, 0x4879); L(&a, data + kHaltVector);
+    W(&a, 0x2F3C); L(&a, w.code + 0x300);
     W(&a, 0x3F3C); W(&a, 0x0005); W(&a, 0xA9EB);     /* SetHaltVector */
+    W(&a, 0x4879); L(&a, data + kHaltVectorOut);
+    W(&a, 0x3F3C); W(&a, 0x0007); W(&a, 0xA9EB);     /* GetHaltVector */
     W(&a, 0x23CF); L(&a, data + kHaltSPBefore);
     W(&a, 0x4879); L(&a, data + kHaltZero);
     W(&a, 0x4879); L(&a, data + kHaltValue);
@@ -277,10 +279,20 @@ Boolean M68KToolbox_RunSANETest(const char** why)
     W(&a, 0x202F); W(&a, 0x000A); W(&a, 0x23C0); L(&a, data + kHaltSrc);
     W(&a, 0x202F); W(&a, 0x000E); W(&a, 0x23C0); L(&a, data + kHaltSrc2);
     W(&a, 0x23FC); L(&a, 1); L(&a, data + kHaltCalls);
-    W(&a, 0xDEFC); W(&a, 18); W(&a, 0x4E75);        /* discard frame; return */
+    W(&a, 0x225F);                                    /* MOVEA.L (SP)+,A1 */
+    W(&a, 0xDEFC); W(&a, 18); W(&a, 0x4ED1);        /* discard args; return */
 
     OSErr ran = WorldRun(&w, &a);
     M68KAddressSpace* as = gM68KApp;
+    static char fault[160];
+    if (ran != noErr) {
+        snprintf(fault, sizeof(fault), "guest fault at $%08lX: %s (code $%08lX, halt $%08lX, get $%08lX)",
+                 (unsigned long)as->faultPC,
+                 as->faultReason ? as->faultReason : "unknown fault",
+                 (unsigned long)w.code,
+                 (unsigned long)M68K_Read32(as, data + kHaltVector),
+                 (unsigned long)M68K_Read32(as, data + kHaltVectorOut));
+    }
     Boolean third = ExtIs(data + kOne, 0x3FFD, 0xAAAAAAAA, 0xAAAAAAAB);
     Boolean dbl = M68K_Read32(as, data + kAsDouble) == 0x3FD55555 &&
                   M68K_Read32(as, data + kAsDouble + 4) == 0x55555555;
@@ -298,15 +310,17 @@ Boolean M68KToolbox_RunSANETest(const char** why)
                    M68K_Read32(as, data + kHaltSrc2) == 0 &&
                    M68K_Read32(as, data + kHaltSPBefore) == M68K_Read32(as, data + kHaltSPAfter) &&
                    ExtIs(data + kHaltValue, 0x7FFF, 0x80000000, 0);
+    Boolean haltVector = M68K_Read32(as, data + kHaltVectorOut) == w.code + 0x300;
     WorldEnd(&w);
 
-    if (ran != noErr) { *why = "the program stopped with a fault"; return false; }
+    if (ran != noErr) { *why = fault; return false; }
+    if (!haltVector) { *why = "SetHaltVector did not retain its longword operand"; return false; }
+    if (!halt)    { *why = "FP68K did not deliver the divide-by-zero halt frame"; return false; }
     if (!third)   { *why = "1/3 in extended is not 3FFD AAAAAAAAAAAAAAAB"; return false; }
     if (!dbl)     { *why = "1/3 to double is not 3FD5555555555555"; return false; }
     if (!greater) { *why = "comparing 1/3 with its double did not say greater"; return false; }
     if (!root)    { *why = "sqrt(2) in extended is not 3FFF B504F333F9DE6484"; return false; }
     if (!text)    { *why = "Dec2Str of 1/3 to 10 digits is not ' 3.333333333e-1'"; return false; }
-    if (!halt)    { *why = "FP68K did not deliver the divide-by-zero halt frame"; return false; }
     *why = "";
     return true;
 }
