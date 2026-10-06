@@ -16,8 +16,13 @@ framebuffer_tag_start:
     .short 5                         /* Type: framebuffer */
     .short 0                         /* Flags: not optional */
     .long framebuffer_tag_end - framebuffer_tag_start
+    .ifdef INTEGRATION_TESTS
+    .long 1024                       /* Width */
+    .long 768                        /* Height */
+    .else
     .long 800                        /* Width */
     .long 600                        /* Height */
+    .endif
     .long 32                         /* Depth (bits per pixel) */
 framebuffer_tag_end:
 

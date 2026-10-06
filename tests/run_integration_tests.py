@@ -204,6 +204,9 @@ class TestRunner:
                 "Integration test summary is missing; the suite may not have completed",
                 "FAIL",
             )
+            if self.qemu_output.strip():
+                self.log("QEMU output (last 12000 characters):", "DEBUG")
+                print(self.qemu_output[-12000:])
             return False
 
         total, passed, failed = map(int, summary_match.groups())

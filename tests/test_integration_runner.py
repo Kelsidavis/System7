@@ -1,4 +1,6 @@
 import importlib.util
+import shutil
+import struct
 import subprocess
 import tempfile
 import unittest
@@ -15,6 +17,52 @@ SPEC.loader.exec_module(integration_runner)
 
 
 class IntegrationRunnerTests(unittest.TestCase):
+    @unittest.skipUnless(
+        shutil.which("as") and shutil.which("objcopy"),
+        "GNU assembler and objcopy are required",
+    )
+    def test_x86_framebuffer_request_matches_build_mode(self):
+        version = subprocess.run(
+            ["as", "--version"], capture_output=True, text=True, check=True
+        )
+        if "GNU assembler" not in version.stdout:
+            self.skipTest("GNU assembler is required")
+
+        with tempfile.TemporaryDirectory() as directory:
+            obj = str(Path(directory) / "boot.o")
+            header = Path(directory) / "header.bin"
+            for flags, expected in (
+                ([], (800, 600, 32)),
+                (["--defsym", "INTEGRATION_TESTS=1"], (1024, 768, 32)),
+            ):
+                with self.subTest(expected=expected):
+                    subprocess.run(
+                        [
+                            "as",
+                            "--32",
+                            *flags,
+                            str(ROOT / "src/Platform/x86/platform_boot.S"),
+                            "-o",
+                            obj,
+                        ],
+                        check=True,
+                    )
+                    subprocess.run(
+                        [
+                            "objcopy",
+                            "-O",
+                            "binary",
+                            "-j",
+                            ".multiboot2",
+                            obj,
+                            str(header),
+                        ],
+                        check=True,
+                    )
+                    data = header.read_bytes()
+                    self.assertEqual(sum(struct.unpack_from("<4I", data)) % 2**32, 0)
+                    self.assertEqual(struct.unpack_from("<3I", data, 24), expected)
+
     def test_build_cleans_and_builds_in_separate_make_processes(self):
         runner = integration_runner.TestRunner(str(ROOT))
         results = [
@@ -85,6 +133,17 @@ Total tests: 2
 Passed:      2
 Failed:      0"""
         self.assertFalse(runner.parse_test_results())
+
+    def test_missing_summary_includes_bounded_boot_diagnostics(self):
+        runner = integration_runner.TestRunner(str(ROOT))
+        runner.qemu_output = "x" * 13000 + "framebuffer too small"
+
+        with patch("builtins.print") as output:
+            self.assertFalse(runner.parse_test_results())
+
+        printed = [call.args[0] for call in output.call_args_list]
+        self.assertIn(runner.qemu_output[-12000:], printed)
+        self.assertNotIn(runner.qemu_output, printed)
 
     def test_timeout_preserves_and_parses_partial_output(self):
         with tempfile.TemporaryDirectory() as directory:

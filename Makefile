@@ -536,6 +536,9 @@ ifeq ($(INTEGRATION_TESTS),1)
 C_SOURCES += src/Integration/IntegrationTests.c
 C_SOURCES += src/CPU/m68k_interp/M68KToolboxTest.c
 CFLAGS += -DINTEGRATION_TESTS=1
+ifeq ($(PLATFORM),x86)
+ASFLAGS += --defsym INTEGRATION_TESTS=1
+endif
 endif
 
 
