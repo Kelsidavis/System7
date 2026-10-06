@@ -29,8 +29,14 @@
 #define VIRTIO_GPU_FORMAT_B8G8R8X8_UNORM        2
 
 /* Framebuffer configuration */
+#ifdef INTEGRATION_TESTS
+/* The screen-readback fixtures use a 1024 by 768 desktop. */
+#define FB_WIDTH    1024
+#define FB_HEIGHT   768
+#else
 #define FB_WIDTH    640
 #define FB_HEIGHT   480
+#endif
 #define QUEUE_SIZE  32
 
 /* VirtIO GPU structures */
@@ -114,6 +120,9 @@ struct gpu_virtqueue {
     struct gpu_virtq_used used;
 } __attribute__((aligned(4096)));
 
+_Static_assert(offsetof(struct gpu_virtqueue, used) == 4096,
+               "Legacy VirtIO used ring must start on the next page");
+
 /* Driver state */
 static bool use_pci = false;
 static virtio_pci_device_t pci_dev;
@@ -186,14 +195,13 @@ static bool virtio_gpu_send_cmd(void *cmd, size_t cmd_len, void *resp, size_t re
     notify_queue(0);
 
     /* Wait for completion - read used.idx with volatile semantics */
-    int timeout = 100000;
-    while (*(volatile uint16_t *)((uintptr_t)&controlq.used + offsetof(struct gpu_virtq_used, idx)) == used_idx && --timeout > 0) {
+    uint64_t start, frequency, now;
+    __asm__ volatile("mrs %0, cntpct_el0" : "=r"(start));
+    __asm__ volatile("mrs %0, cntfrq_el0" : "=r"(frequency));
+    while (*(volatile uint16_t *)((uintptr_t)&controlq.used + offsetof(struct gpu_virtq_used, idx)) == used_idx) {
         __asm__ volatile("dsb sy" ::: "memory");
-    }
-
-    if (timeout <= 0) {
-        /* Timeout is common during heavy rendering - suppress spam */
-        return false;
+        __asm__ volatile("mrs %0, cntpct_el0" : "=r"(now));
+        if (now - start >= frequency) return false;
     }
 
     /* Invalidate cache to see DMA-written response from GPU */
@@ -274,6 +282,8 @@ static bool init_mmio_transport(void) {
 
         uint32_t device_id = mmio_read32(VIRTIO_MMIO_DEVICE_ID);
         if (device_id == VIRTIO_DEV_GPU) {
+            uint32_t version = mmio_read32(VIRTIO_MMIO_VERSION);
+            if (version != 1 && version != 2) continue;
             uart_puts("[VIRTIO-GPU] Found MMIO GPU at slot ");
             uart_putc('0' + (slot / 10));
             uart_putc('0' + (slot % 10));
@@ -286,11 +296,24 @@ static bool init_mmio_transport(void) {
             mmio_write32(VIRTIO_MMIO_STATUS, VIRTIO_STATUS_ACKNOWLEDGE);
             mmio_write32(VIRTIO_MMIO_STATUS, VIRTIO_STATUS_ACKNOWLEDGE | VIRTIO_STATUS_DRIVER);
 
-            /* Features */
-            mmio_read32(VIRTIO_MMIO_DEVICE_FEATURES);
-            mmio_write32(VIRTIO_MMIO_DRIVER_FEATURES, 0);
-            mmio_write32(VIRTIO_MMIO_STATUS,
-                        VIRTIO_STATUS_ACKNOWLEDGE | VIRTIO_STATUS_DRIVER | VIRTIO_STATUS_FEATURES_OK);
+            /* The modern transport requires VIRTIO_F_VERSION_1 (bit 32). */
+            mmio_write32(VIRTIO_MMIO_DEVICE_FEATURES_SEL, 0);
+            uint32_t features = mmio_read32(VIRTIO_MMIO_DEVICE_FEATURES);
+            mmio_write32(VIRTIO_MMIO_DRIVER_FEATURES_SEL, 0);
+            /* Legacy devices require accepting ANY_LAYOUT when offered. */
+            mmio_write32(VIRTIO_MMIO_DRIVER_FEATURES, version == 1 ? features & (1u << 27) : 0);
+            uint32_t status = VIRTIO_STATUS_ACKNOWLEDGE | VIRTIO_STATUS_DRIVER;
+            if (version == 2) {
+                mmio_write32(VIRTIO_MMIO_DEVICE_FEATURES_SEL, 1);
+                if (!(mmio_read32(VIRTIO_MMIO_DEVICE_FEATURES) & 1)) continue;
+                mmio_write32(VIRTIO_MMIO_DRIVER_FEATURES_SEL, 1);
+                mmio_write32(VIRTIO_MMIO_DRIVER_FEATURES, 1);
+                status |= VIRTIO_STATUS_FEATURES_OK;
+                mmio_write32(VIRTIO_MMIO_STATUS, status);
+                if (!(mmio_read32(VIRTIO_MMIO_STATUS) & VIRTIO_STATUS_FEATURES_OK)) continue;
+            } else {
+                mmio_write32(VIRTIO_MMIO_GUEST_PAGE_SIZE, 4096);
+            }
 
             /* Setup queue */
             mmio_write32(VIRTIO_MMIO_QUEUE_SEL, 0);
@@ -306,19 +329,22 @@ static bool init_mmio_transport(void) {
             uint64_t avail_addr = (uint64_t)(uintptr_t)&controlq.avail;
             uint64_t used_addr = (uint64_t)(uintptr_t)&controlq.used;
 
-            mmio_write32(VIRTIO_MMIO_QUEUE_DESC_LOW, desc_addr & 0xFFFFFFFF);
-            mmio_write32(VIRTIO_MMIO_QUEUE_DESC_HIGH, desc_addr >> 32);
-            mmio_write32(VIRTIO_MMIO_QUEUE_AVAIL_LOW, avail_addr & 0xFFFFFFFF);
-            mmio_write32(VIRTIO_MMIO_QUEUE_AVAIL_HIGH, avail_addr >> 32);
-            mmio_write32(VIRTIO_MMIO_QUEUE_USED_LOW, used_addr & 0xFFFFFFFF);
-            mmio_write32(VIRTIO_MMIO_QUEUE_USED_HIGH, used_addr >> 32);
+            if (version == 1) {
+                mmio_write32(VIRTIO_MMIO_QUEUE_ALIGN, 4096);
+                mmio_write32(VIRTIO_MMIO_QUEUE_PFN, desc_addr >> 12);
+            } else {
+                mmio_write32(VIRTIO_MMIO_QUEUE_DESC_LOW, desc_addr & 0xFFFFFFFF);
+                mmio_write32(VIRTIO_MMIO_QUEUE_DESC_HIGH, desc_addr >> 32);
+                mmio_write32(VIRTIO_MMIO_QUEUE_AVAIL_LOW, avail_addr & 0xFFFFFFFF);
+                mmio_write32(VIRTIO_MMIO_QUEUE_AVAIL_HIGH, avail_addr >> 32);
+                mmio_write32(VIRTIO_MMIO_QUEUE_USED_LOW, used_addr & 0xFFFFFFFF);
+                mmio_write32(VIRTIO_MMIO_QUEUE_USED_HIGH, used_addr >> 32);
 
-            mmio_write32(VIRTIO_MMIO_QUEUE_READY, 1);
+                mmio_write32(VIRTIO_MMIO_QUEUE_READY, 1);
+            }
 
             /* Driver OK */
-            mmio_write32(VIRTIO_MMIO_STATUS,
-                        VIRTIO_STATUS_ACKNOWLEDGE | VIRTIO_STATUS_DRIVER |
-                        VIRTIO_STATUS_FEATURES_OK | VIRTIO_STATUS_DRIVER_OK);
+            mmio_write32(VIRTIO_MMIO_STATUS, status | VIRTIO_STATUS_DRIVER_OK);
 
             use_pci = false;
             return true;

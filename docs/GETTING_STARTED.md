@@ -78,6 +78,21 @@ make INTEGRATION_TESTS=1     # with the integration tests, which run at boot
                              # and report PASS/FAIL on the serial port
 ```
 
+The integration suite reads pixels from a 1024x768 or larger 32-bit framebuffer.
+For ARM64 graphics and integration tests, attach a VirtIO GPU:
+
+```bash
+make PLATFORM=arm64 INTEGRATION_TESTS=1
+qemu-system-aarch64 -M virt -cpu cortex-a57 -m 1024 \
+  -device virtio-gpu-device -display none -serial stdio \
+  -kernel kernel.elf -no-reboot
+```
+
+ARM64 integration builds use a 1024x768 desktop; normal builds retain 640x480.
+Without a suitable framebuffer, the integration suite reports its missing
+prerequisite instead of attempting screen readback. Passing the build checks
+does not establish a passing integration suite; inspect its final test summary.
+
 ## What Works
 
 ✅ **Desktop & GUI**

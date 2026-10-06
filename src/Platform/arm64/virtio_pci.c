@@ -466,7 +466,13 @@ bool virtio_pci_init_device(virtio_pci_device_t *dev, uint64_t supported_feature
     uint32_t features_hi = cfg->device_feature;
 
     uint64_t device_features = ((uint64_t)features_hi << 32) | features_lo;
-    uint64_t negotiated = device_features & supported_features;
+    /* Modern PCI devices require the transport's version feature. */
+    const uint64_t version_feature = (uint64_t)1 << 32;
+    if (!(device_features & version_feature)) {
+        cfg->device_status = VIRTIO_STATUS_FAILED;
+        return false;
+    }
+    uint64_t negotiated = device_features & (supported_features | version_feature);
 
     cfg->driver_feature_select = 0;
     cfg->driver_feature = (uint32_t)negotiated;

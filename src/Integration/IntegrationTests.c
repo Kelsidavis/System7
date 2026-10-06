@@ -3530,6 +3530,11 @@ void IntegrationTests_Run(void) {
 
 OSErr IntegrationTests_Initialize(void) {
     IT_LOG_INFO("Initializing Integration Tests...");
+    if (!framebuffer || fb_width < 1024 || fb_height < 768 || fb_bpp != 32 ||
+        fb_pitch < fb_width * sizeof(UInt32)) {
+        IT_LOG_INFO("Integration tests require a 1024x768 or larger 32-bit framebuffer");
+        return paramErr;
+    }
     test_count = 0;
     test_pass = 0;
     test_fail = 0;
