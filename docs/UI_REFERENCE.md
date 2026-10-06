@@ -46,8 +46,11 @@ Only the Chicago font strike is shipped; Geneva currently falls back to it.
 Finder labels use a vertically reduced Chicago bitmap to approach the
 reference size. Label drawing and measurement share metrics for ASCII,
 composed Mac Roman accents, supported symbols, and punctuation fallbacks;
-other Mac Roman glyphs without artwork remain unavailable. The generic folder
-has shaded color artwork, while document artwork remains placeholder line art
+other Mac Roman glyphs without artwork remain unavailable. Folder-window
+labels fit a 60-pixel text area within the 64-pixel icon grid; desktop labels
+retain an 80-pixel limit. Wrapped and truncated names use one shared layout for
+drawing and measurement, and the label hit bounds include both lines. The generic
+folder has shaded color artwork, while document artwork remains placeholder line art
 and some icon resource mappings point to unavailable IDs. Icon view draws
 classic scrollbar controls. Its vertical bar supports arrow, page-track,
 mouse-wheel, keyboard-selection scrolling, and thumb dragging. The horizontal

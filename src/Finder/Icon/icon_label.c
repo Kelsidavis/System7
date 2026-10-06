@@ -1,6 +1,4 @@
-/* Shared Label Renderer
- * Reuses perfected text rendering from HD icon
- */
+/* Shared Finder icon-label layout and bitmap rendering. */
 
 #include "Finder/Icon/icon_label.h"
 #include "Finder/Icon/icon_types.h"
@@ -22,7 +20,6 @@ static void FillRectLocal(int left, int top, int right, int bottom, uint32_t col
     }
 }
 
-/* Draw character using direct bitmap rendering (perfected from HD icon) */
 /*
  * Italic labels.
  *
@@ -127,32 +124,6 @@ static void DrawLabelChar(unsigned char ch, int x, int y, uint32_t color) {
     }
 }
 
-/* Measure text using exact character bit widths */
-void IconLabel_Measure(const char* name, int* outWidth, int* outHeight) {
-    if (!name || !outWidth || !outHeight) return;
-    int width = 0;
-    int len = strlen(name);
-
-    for (int i = 0; i < len; i++) {
-        width += IconLabel_CharWidth((unsigned char)name[i]);
-    }
-
-    if (gItalicLabel) width += kIconLabelItalicLean;
-
-    *outWidth = width;
-    *outHeight = kIconLabelGlyphHeight;
-}
-
-/*
- * The widest a label may be before it wraps.
- *
- * The folder icon grid uses an 80px cell with a 10px gutter (IW/SH in
- * folder_window.c), so a label wider than the cell runs into its neighbour -
- * "Apple Menu Items" and "PrintMonitor Documents" in the System Folder ran
- * straight through the names either side of them. System 7 wraps an icon name
- * onto a second line rather than letting it collide.
- */
-#define kIconLabelMaxWidth 80
 #define kIconLabelLineStep 10
 
 /* Width of the first `len` characters, using the same metrics as
@@ -202,7 +173,7 @@ static void DrawLabelLine(const char* s, int len, int cx, int topY, bool selecte
     uint32_t bgColor = selected ? 0xFF000000 : 0xFFFFFFFF;  /* Black if selected, white otherwise */
     uint32_t fgColor = selected ? 0xFFFFFFFF : 0xFF000000;  /* White text if selected, black otherwise */
 
-    /* Adjusted background rectangle (perfected from HD icon) */
+    /* Background for this line's glyphs. */
     FillRectLocal(textX - padding, topY - textHeight + 3,
                   textX + textWidth + 1, topY + 2, bgColor);  /* Reduced height by 2px */
 
@@ -224,71 +195,83 @@ static void DrawLabelLine(const char* s, int len, int cx, int topY, bool selecte
  * line is cut and given a trailing ellipsis, which is what the Finder does for
  * a single long word.
  */
-static void IconLabel_Draw_Body(const char* name, int cx, int topY, bool selected) {
-    if (!name) {
-        return;
-    }
+typedef struct IconLabelLayout {
+    char lines[2][256];
+    int lengths[2];
+    int count;
+    int width;
+} IconLabelLayout;
 
-    int len = strlen(name);
-    if (MeasureRun(name, len) <= kIconLabelMaxWidth) {
-        DrawLabelLine(name, len, cx, topY, selected);
-        return;
+static void LayoutLabel(const char* name, int maxWidth, IconLabelLayout* layout) {
+    memset(layout, 0, sizeof(*layout));
+    if (!name || maxWidth <= 0) return;
+    int len = (int)strlen(name);
+    int split = -1;
+    if (MeasureRun(name, len) > maxWidth) {
+        for (int i = 1; i < len; i++) {
+            if (MeasureRun(name, i) > maxWidth) break;
+            if (name[i] == ' ') split = i;
+        }
     }
-
-    /* Break at the last space that still fits on the first line - ordinary
-     * greedy wrapping, so "Apple Menu Items" becomes "Apple Menu" / "Items"
-     * rather than being balanced across the two lines. */
-    int best = -1;
-    for (int i = 1; i < len; i++) {
-        if (name[i] != ' ') continue;
-        if (MeasureRun(name, i) > kIconLabelMaxWidth) break;
-        best = i;
-    }
-
-    if (best < 0) {
-        /* One long word: cut it and mark the cut with an ellipsis. */
-        char cut[64];
+    layout->count = split < 0 ? 1 : 2;
+    for (int line = 0; line < layout->count; line++) {
+        const char* text = line == 0 ? name : name + split + 1;
+        int length = split >= 0 && line == 0 ? split : (int)strlen(text);
+        bool truncated = MeasureRun(text, length) > maxWidth;
+        int dots = truncated ? 3 : 0;
+        while (dots && MeasureRun("...", dots) > maxWidth) dots--;
+        int limit = maxWidth - (dots ? MeasureRun("...", dots) : 0);
         int n = 0;
-        while (n < len && n < (int)sizeof(cut) - 4 &&
-               MeasureRun(name, n + 1) <= kIconLabelMaxWidth - 12) {
-            cut[n] = name[n];
+        while (n < length && n < (int)sizeof(layout->lines[line]) - 4 &&
+               MeasureRun(text, n + 1) <= limit) {
+            layout->lines[line][n] = text[n];
             n++;
         }
-        cut[n++] = '.'; cut[n++] = '.'; cut[n++] = '.';
-        DrawLabelLine(cut, n, cx, topY, selected);
-        return;
-    }
-
-    /* Second line may still be too long for one line; cut it the same way. */
-    const char* second = name + best + 1;
-    int secondLen = len - best - 1;
-    if (MeasureRun(second, secondLen) > kIconLabelMaxWidth) {
-        char cut[64];
-        int n = 0;
-        while (n < secondLen && n < (int)sizeof(cut) - 4 &&
-               MeasureRun(second, n + 1) <= kIconLabelMaxWidth - 12) {
-            cut[n] = second[n];
-            n++;
+        if (dots) {
+            memcpy(layout->lines[line] + n, "...", dots);
+            n += dots;
         }
-        cut[n++] = '.'; cut[n++] = '.'; cut[n++] = '.';
-        DrawLabelLine(name, best, cx, topY, selected);
-        DrawLabelLine(cut, n, cx, topY + kIconLabelLineStep, selected);
-        return;
+        layout->lengths[line] = n;
+        int width = MeasureRun(layout->lines[line], n);
+        if (width > layout->width) layout->width = width;
     }
+}
 
-    DrawLabelLine(name, best, cx, topY, selected);
-    DrawLabelLine(second, secondLen, cx, topY + kIconLabelLineStep, selected);
+void IconLabel_Measure(const char* name, int* outWidth, int* outHeight) {
+    IconLabel_MeasureWithWidth(name, kIconLabelMaxWidth, outWidth, outHeight);
+}
+
+void IconLabel_MeasureWithWidth(const char* name, int maxWidth, int* outWidth, int* outHeight) {
+    if (!name || !outWidth || !outHeight) return;
+    IconLabelLayout layout;
+    LayoutLabel(name, maxWidth, &layout);
+    *outWidth = layout.width;
+    *outHeight = layout.count ? kIconLabelGlyphHeight + (layout.count - 1) * kIconLabelLineStep : 0;
+}
+
+static void IconLabel_Draw_Body(const char* name, int cx, int topY, bool selected, int maxWidth) {
+    IconLabelLayout layout;
+    LayoutLabel(name, maxWidth, &layout);
+    for (int line = 0; line < layout.count; line++) {
+        DrawLabelLine(layout.lines[line], layout.lengths[line], cx,
+                      topY + line * kIconLabelLineStep, selected);
+    }
 }
 
 void IconLabel_Draw(const char* name, int cx, int topY, bool selected) {
     QD_ClipBegin(g_currentPort);
-    IconLabel_Draw_Body(name, cx, topY, selected);
+    IconLabel_Draw_Body(name, cx, topY, selected, kIconLabelMaxWidth);
     QD_ClipEnd();
 }
 
 /* Draw icon with label - main entry point for icon+label rendering */
 IconRect Icon_DrawWithLabel(const IconHandle* h, const char* name,
                             int centerX, int iconTopY, bool selected) {
+    return Icon_DrawWithLabelWidth(h, name, centerX, iconTopY, selected, kIconLabelMaxWidth);
+}
+
+IconRect Icon_DrawWithLabelWidth(const IconHandle* h, const char* name,
+                                 int centerX, int iconTopY, bool selected, int maxWidth) {
     FINDER_ICON_LOG_DEBUG("Icon_DrawWithLabel: centerX=%d iconTopY=%d name='%s'\n", centerX, iconTopY, name ? name : "NULL");
 
     /* Draw icon centered at centerX */
@@ -298,18 +281,20 @@ IconRect Icon_DrawWithLabel(const IconHandle* h, const char* name,
 
     int labelTop = iconTopY + 34;
     IconLabel_SetItalic(h && h->italicLabel);
-    IconLabel_Draw(name, centerX, labelTop, selected);
-    IconLabel_SetItalic(false);
+    QD_ClipBegin(g_currentPort);
+    IconLabel_Draw_Body(name, centerX, labelTop, selected, maxWidth);
+    QD_ClipEnd();
 
     /* Return combined bounds for hit testing */
     int textWidth, textHeight;
-    IconLabel_Measure(name, &textWidth, &textHeight);
+    IconLabel_MeasureWithWidth(name, maxWidth, &textWidth, &textHeight);
+    IconLabel_SetItalic(false);
 
     IconRect bounds;
     bounds.left = iconLeft;
     bounds.top = iconTopY;
     bounds.right = iconLeft + 32;
-    bounds.bottom = labelTop + 5;  /* Include label area with adjusted position */
+    bounds.bottom = labelTop + 3 + textHeight - kIconLabelGlyphHeight;
 
     /* Expand to include label width */
     int labelLeft = centerX - (textWidth / 2) - 2;
@@ -339,7 +324,7 @@ IconRect Icon_DrawWithLabelOffset(const IconHandle* h, const char* name,
     bounds.left = iconLeft;
     bounds.top = iconTopY;
     bounds.right = iconLeft + 32;
-    bounds.bottom = labelTop + 5;  /* Include label area with adjusted position */
+    bounds.bottom = labelTop + 3 + textHeight - kIconLabelGlyphHeight;
 
     /* Expand to include label width */
     int labelLeft = centerX - (textWidth / 2) - 2;

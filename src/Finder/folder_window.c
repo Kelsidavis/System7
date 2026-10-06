@@ -157,7 +157,7 @@ static void GhostEraseIf(void);  /* Forward declaration for ghost system */
 #define kFWDefaultWindowTop    90
 
 /* Icon-grid geometry is in window-local content coordinates. */
-#define kFWGridPitchH   64
+#define kFWGridPitchH   (kFolderIconLabelMaxWidth + 4)
 #define kFWGridPitchV   52
 #define kFWLeftMargin   20
 #define kFWTopMargin    24
@@ -787,19 +787,22 @@ WindowPtr FolderWindow_OpenFolder(VRefNum vref, DirID dirID, ConstStr255Param ti
  *
  * The hit test needs this to know an item was clicked, and the rename gate
  * needs it to know the *name* was clicked rather than the icon, so it is
- * worked out once. The baseline is at iconTop + 40 and the background runs
- * from twelve above it to two below.
+ * worked out once. The label begins 28 pixels below the icon's top, and its
+ * height follows the wrapped text layout.
  */
 static void FW_LabelRect(FolderWindowState* state, short i, Rect* out)
 {
     int textWidth, textHeight;
-    IconLabel_Measure(state->items[i].name, &textWidth, &textHeight);
+    IconLabel_SetItalic(state->items[i].isAlias);
+    IconLabel_MeasureWithWidth(state->items[i].name, kFolderIconLabelMaxWidth,
+                               &textWidth, &textHeight);
+    IconLabel_SetItalic(false);
 
     int centerX = state->items[i].position.h + 16;
     out->left   = centerX - (textWidth / 2) - 2;
     out->top    = state->items[i].position.v + 28;
     out->right  = centerX + (textWidth / 2) + 2;
-    out->bottom = state->items[i].position.v + 42;
+    out->bottom = out->top + textHeight + 2;
 }
 
 typedef struct FWHorizontalScrollMetrics {
@@ -2184,10 +2187,10 @@ void FolderWindow_Draw(WindowPtr w) {
             int localY = state->items[i].position.v - state->scrollOffset * kFWGridPitchV;
 
             /* Draw icon with label using window-local coordinates */
-            Icon_DrawWithLabel(&iconHandle, state->items[i].name,
+            Icon_DrawWithLabelWidth(&iconHandle, state->items[i].name,
                               localX + 16,   /* center X (local) */
                               localY,        /* top Y (local) */
-                              selected);
+                              selected, kFolderIconLabelMaxWidth);
         }
         FolderWindow_DrawIconScrollbars(w, &vMetrics, &hMetrics);
     }

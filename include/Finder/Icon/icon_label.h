@@ -6,8 +6,12 @@
 #include <stdbool.h>
 #include "icon_types.h"
 
+#define kIconLabelMaxWidth 80
+#define kFolderIconLabelMaxWidth 60
+
 /* Measure text for label */
 void IconLabel_Measure(const char* name, int* outWidth, int* outHeight);
+void IconLabel_MeasureWithWidth(const char* name, int maxWidth, int* outWidth, int* outHeight);
 
 /* Draw label with optional selection */
 void IconLabel_Draw(const char* name, int cx, int topY, bool selected);
@@ -16,6 +20,8 @@ void IconLabel_SetItalic(bool slanted);
 
 /* Complete icon+label drawing helper */
 IconRect Icon_DrawWithLabel(const IconHandle* h, const char* name, int centerX, int iconTopY, bool selected);
+IconRect Icon_DrawWithLabelWidth(const IconHandle* h, const char* name, int centerX,
+                                 int iconTopY, bool selected, int maxWidth);
 
 /* Draw icon with label at custom offset - for special icons like Trash */
 IconRect Icon_DrawWithLabelOffset(const IconHandle* h, const char* name, int centerX, int iconTopY, int labelOffset, bool selected);

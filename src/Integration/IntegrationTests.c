@@ -922,6 +922,28 @@ static void Test_Window_ZoomState(void) {
     RecordTest(test_name, true, "");
 }
 
+static void Test_IconLabel_WrappedMetrics(void) {
+    const char* test_name = "IconLabel_WrappedMetrics";
+    const char* names[] = {"ReadMe", "System Folder", "Documents", "Apple Menu Items"};
+    const int heights[] = {9, 19, 9, 19};
+    for (unsigned i = 0; i < sizeof(names) / sizeof(names[0]); i++) {
+        int width = 0, height = 0;
+        IconLabel_MeasureWithWidth(names[i], kFolderIconLabelMaxWidth, &width, &height);
+        CHECK(width > 0 && width <= kFolderIconLabelMaxWidth && height == heights[i],
+              "label metrics do not match the wrapped or truncated name");
+    }
+    IconLabel_SetItalic(true);
+    int width = 0, height = 0;
+    IconLabel_MeasureWithWidth("System Folder", kFolderIconLabelMaxWidth, &width, &height);
+    IconLabel_SetItalic(false);
+    CHECK(width <= kFolderIconLabelMaxWidth && height == 19, "italic wrapping exceeded the cell");
+    for (int limit = 0; limit < kFolderIconLabelMaxWidth; limit++) {
+        IconLabel_MeasureWithWidth("LongUnbrokenFileName", limit, &width, &height);
+        CHECK(width <= limit, "truncation exceeded the requested label width");
+    }
+    RecordTest(test_name, true, "");
+}
+
 static void Test_Window_QueuedEventLifetime(void) {
     const char* test_name = "Window_QueuedEventLifetime";
     Rect bounds = {100, 100, 180, 260};
@@ -3489,6 +3511,7 @@ void IntegrationTests_Run(void) {
     Test_Draw_ScrollRect();
     Test_Window_SaveOldDrawNew();
     Test_IconLabel_MacRomanMetrics();
+    Test_IconLabel_WrappedMetrics();
     Test_Finder_DefaultFolderBounds();
     Test_Region_Hole();
     Test_Region_FrameBoundary();
