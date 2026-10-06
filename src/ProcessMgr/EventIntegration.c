@@ -255,7 +255,8 @@ OSErr Proc_PostEvent(EventMask what, UInt32 message) {
 /*
  * Proc_FlushEvents - Remove events from queue (process-aware version)
  */
-static void Proc_FlushEvents(EventMask whichMask, EventMask stopMask) {
+static void FilterQueuedEvents(EventMask whichMask, EventMask stopMask,
+                               Boolean matchMessage, UInt32 message) {
     UInt16 readIdx = gQueueHead;
     UInt16 writeIdx = gQueueHead;
     UInt16 count = gQueueCount;
@@ -272,7 +273,9 @@ static void Proc_FlushEvents(EventMask whichMask, EventMask stopMask) {
         }
 
         /* Compact retained events, including the stop event and everything after it. */
-        if (reachedStop || !EventMatchesMask(evt, whichMask)) {
+        Boolean remove = EventMatchesMask(evt, whichMask) &&
+                         (!matchMessage || (UInt32)evt->message == message);
+        if (reachedStop || !remove) {
             if (writeIdx != readIdx) {
                 CopyEventRecord(&gEventQueue[writeIdx], evt);
             }
@@ -286,6 +289,17 @@ static void Proc_FlushEvents(EventMask whichMask, EventMask stopMask) {
 
     gQueueTail = writeIdx;
     gQueueCount = keptCount;
+}
+
+static void Proc_FlushEvents(EventMask whichMask, EventMask stopMask) {
+    FilterQueuedEvents(whichMask, stopMask, false, 0);
+}
+
+/* Queued window pointers must not outlive their window records. */
+void Event_RemoveWindowEvents(WindowPtr window) {
+    if (window) {
+        FilterQueuedEvents(updateMask | activMask, 0, true, (UInt32)(uintptr_t)window);
+    }
 }
 
 /*

@@ -922,6 +922,23 @@ static void Test_Window_ZoomState(void) {
     RecordTest(test_name, true, "");
 }
 
+static void Test_Window_QueuedEventLifetime(void) {
+    const char* test_name = "Window_QueuedEventLifetime";
+    Rect bounds = {100, 100, 180, 260};
+    WindowPtr window = NewWindow(NULL, &bounds, PSTR("Event lifetime"), false,
+                                 documentProc, NULL, false, 0);
+    CHECK(window, "could not create a window");
+    UInt16 before = Event_QueueCount();
+    UInt32 message = (UInt32)(uintptr_t)window;
+    Boolean posted = PostEventWithModifiers(activateEvt, message, activeFlag) == noErr &&
+                     PostEvent(updateEvt, message) == noErr;
+    Boolean queued = Event_QueueCount() == before + 2;
+    DisposeWindow(window);
+    CHECK(posted && queued, "could not queue window events");
+    CHECK(Event_QueueCount() == before, "closing a window retained its queued events");
+    RecordTest(test_name, true, "");
+}
+
 static void Test_Window_StandardProcCapabilities(void) {
     const char* test_name = "Window_StandardProcCapabilities";
     static const struct {
@@ -3501,6 +3518,7 @@ void IntegrationTests_Run(void) {
     Test_Dialog_NestedModalWindowState();
     Test_Window_ZoomState();
     Test_Window_StandardProcCapabilities();
+    Test_Window_QueuedEventLifetime();
     Test_Window_MoveAndZoom();
     Test_File_ReadThroughExtentsOverflow();
 

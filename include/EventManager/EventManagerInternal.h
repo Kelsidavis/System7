@@ -29,6 +29,7 @@ Boolean Proc_EventAvail(EventMask eventMask, EventRecord* theEvent);
 void Event_InitQueue(void);
 UInt16 Event_QueueCount(void);
 void Event_DumpQueue(void);
+void Event_RemoveWindowEvents(WindowPtr window);
 /* GetNextEvent, EventAvail, PostEvent, FlushEvents declared in EventManager.h */
 
 #ifdef __cplusplus

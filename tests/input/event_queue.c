@@ -203,6 +203,40 @@ static int TestQueueModel(void)
     return 0;
 }
 
+static int TestRemoveWindowEvents(void)
+{
+    EventRecord event;
+    WindowPtr closed = (WindowPtr)(uintptr_t)0x1234;
+    const UInt32 other = 0x5678;
+    const EventMask types[] = {activateEvt, updateEvt, keyDown, diskEvt};
+    Event_InitQueue();
+    for (UInt32 i = 0; i < 61; ++i) {
+        PostEvent(diskEvt, i);
+        CHECK(GetOSEvent(diskMask, &event), 1);
+    }
+    for (UInt32 i = 0; i < 64; ++i) {
+        UInt32 message = (i / 4) % 2 ? other : (UInt32)(uintptr_t)closed;
+        CHECK(PostEventWithModifiers(types[i % 4], message, (UInt16)i) == noErr, 2);
+    }
+    Event_RemoveWindowEvents(NULL);
+    CHECK(Event_QueueCount() == 64, 3);
+    Event_RemoveWindowEvents(closed);
+    CHECK(Event_QueueCount() == 48, 4);
+    CHECK(PostEvent(mouseDown, 0x9ABC) == noErr, 5);
+    for (UInt32 i = 0; i < 64; ++i) {
+        UInt32 message = (i / 4) % 2 ? other : (UInt32)(uintptr_t)closed;
+        if (message == (UInt32)(uintptr_t)closed && i % 4 < 2) continue;
+        CHECK(GetOSEvent((SInt16)everyEvent, &event), 6);
+        CHECK(event.what == types[i % 4] && (UInt32)event.message == message &&
+              event.modifiers == (UInt16)i, 7);
+    }
+    CHECK(GetOSEvent((SInt16)everyEvent, &event) && event.what == mouseDown &&
+          event.message == 0x9ABC, 8);
+    Event_RemoveWindowEvents(closed);
+    CHECK(Event_QueueCount() == 0, 9);
+    return 0;
+}
+
 int main(void)
 {
     int result = TestSelectiveRead();
@@ -210,5 +244,6 @@ int main(void)
     result |= TestFullQueue();
     result |= TestMaskBounds();
     result |= TestQueueModel();
+    result |= TestRemoveWindowEvents();
     return result;
 }

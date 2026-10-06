@@ -31,6 +31,7 @@ Provides the Event Manager event-loop API and dispatch integration for System 7 
 - The ARM64 VirtIO backend supplies ordered keyboard transitions. The Raspberry Pi USB HID branch currently exposes snapshots but has no keyboard transition queue.
 - **Window Manager** receives activate/deactivate, update, and mouse events through `EventDispatcher`
 - **Dialog Manager** hooks into `DialogSelect` using `WaitNextEvent` output when in modal loops
+- **Window Manager** removes queued update and activation events when a window closes, before its record can be freed or reused. Other events and their ordering are retained.
 - **Time Manager** supplies ticks for sleep intervals and double-click windows
 
 ## Testing & Debugging
@@ -39,6 +40,7 @@ Provides the Event Manager event-loop API and dispatch integration for System 7 
 - Use `make run` for interactive input checks. Enable event traces with `SysLogSetGlobalLevel(kLogLevelTrace)` and `SysLogSetModuleLevel(kLogModuleEvent, kLogLevelTrace)`.
 - The native keyboard fixture checks modifier packing, isolated translation streams, accent composition and fallback, keyboard-event message fields, one-byte name buffers, Mac Roman printability, and Command-Period state.
 - `Event_DumpQueue` logs the shared event queue when diagnosing starvation; enable the Process Manager log module at debug level to see its output.
+- Queue regressions also remove only a closed window's events from a full, wrapped ring. The kernel's `Window_QueuedEventLifetime` regression verifies that closing a window invokes this cleanup.
 
 ## Future Work
 

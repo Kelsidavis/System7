@@ -31,6 +31,7 @@
 #include "QuickDraw/ColorQuickDraw.h"
 #include "FontManager/FontManager.h"
 #include "DialogManager/DialogManager.h"
+#include "EventManager/EventManagerInternal.h"
 #include "WindowManager/WMLogging.h"
 #include "MemoryMgr/MemoryManager.h"
 
@@ -393,6 +394,7 @@ void CloseWindow(WindowPtr theWindow) {
     /* Remove from window list */
     WM_LOG_DEBUG("CloseWindow: About to call RemoveWindowFromList(0x%08x)\n", (unsigned int)P2UL(theWindow));
     RemoveWindowFromList(theWindow);
+    Event_RemoveWindowEvents(theWindow);
     WM_LOG_DEBUG("CloseWindow: RemoveWindowFromList returned\n");
 
     /* Dispose of auxiliary window record if it exists */
