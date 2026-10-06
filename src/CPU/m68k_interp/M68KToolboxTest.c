@@ -26,6 +26,7 @@
 Boolean M68KToolbox_RunTrapTest(const char** why);
 Boolean M68KToolbox_RunCMPFlagsTest(const char** why);
 Boolean M68KToolbox_RunSANETest(const char** why);
+Boolean M68KToolbox_RunRTETest(const char** why);
 Boolean M68KToolbox_RunListTest(const char** why);
 Boolean M68KToolbox_RunWindowTest(const char** why);
 Boolean M68KToolbox_RunMenuTest(const char** why);
@@ -321,6 +322,87 @@ Boolean M68KToolbox_RunSANETest(const char** why)
     if (!greater) { *why = "comparing 1/3 with its double did not say greater"; return false; }
     if (!root)    { *why = "sqrt(2) in extended is not 3FFF B504F333F9DE6484"; return false; }
     if (!text)    { *why = "Dec2Str of 1/3 to 10 digits is not ' 3.333333333e-1'"; return false; }
+    *why = "";
+    return true;
+}
+
+Boolean M68KToolbox_RunRTETest(const char** why)
+{
+    enum { kCapturedSP = 0x120, kCapturedSR = 0x124 };
+    World w;
+    Asm a;
+    OSErr ran;
+    for (UInt16 format = 0; format <= 2; format += 2) {
+        if (!WorldBegin(&w, why)) return false;
+
+        UInt32 frame = w.stack + 0x200;
+        UInt32 userSP = w.stack + kStack - 0x20;
+        UInt32 resumePC = w.code + 0x40;
+        UInt32 supervisorSP = w.stack + kStack / 2;
+        M68K_Write16(gM68KApp, frame, 0x0015);
+        M68K_Write32(gM68KApp, frame + 2, resumePC);
+        M68K_Write16(gM68KApp, frame + 6, (UInt16)(format << 12));
+        if (format == 2) M68K_Write32(gM68KApp, frame + 8, w.code);
+        M68K_Write32(gM68KApp, userSP, kM68KReturnSentinel);
+        OSErr stackResult = w.be->SetStacks(w.cas, userSP, supervisorSP);
+        Boolean supervisorStackSelected = stackResult == noErr &&
+                                          gM68KApp->regs.a[7] == supervisorSP;
+
+        a.n = 0;
+        W(&a, 0x2E7C); L(&a, frame);                 /* MOVEA.L #frame,A7 */
+        W(&a, 0x4E73);                               /* RTE */
+        while (a.n < 0x40 / 2) W(&a, 0x4E71);       /* resumePC */
+        W(&a, 0x40C7);                               /* MOVE.W SR,D7 */
+        W(&a, 0x23CF); L(&a, w.data + kCapturedSP); /* MOVE.L A7,capturedSP */
+        W(&a, 0x33C7); L(&a, w.data + kCapturedSR); /* MOVE.W D7,capturedSR */
+        W(&a, 0x4E75);                               /* RTS */
+
+        ran = WorldRun(&w, &a);
+        M68KAddressSpace* as = gM68KApp;
+        Boolean restored = ran == noErr &&
+                           supervisorStackSelected &&
+                           M68K_Read32(as, w.data + kCapturedSP) == userSP &&
+                           M68K_Read16(as, w.data + kCapturedSR) == 0x0015 &&
+                           as->regs.ssp == frame + (format == 0 ? 8 : 12) &&
+                           as->regs.a[7] == userSP + 4 &&
+                           !(as->regs.sr & SR_S);
+        WorldEnd(&w);
+        if (!restored) {
+            *why = "RTE did not restore SR, PC, and the banked user stack";
+            return false;
+        }
+    }
+
+    if (!WorldBegin(&w, why)) return false;
+    gM68KApp->regs.sr = 0;
+    gM68KApp->regs.a[7] = w.stack + kStack;
+    a.n = 0;
+    W(&a, 0x4E73);
+    ran = WorldRun(&w, &a);
+    Boolean privileged = ran != noErr && gM68KApp->lastException == M68K_VEC_PRIVILEGE;
+    WorldEnd(&w);
+    if (!privileged) {
+        *why = "RTE in user mode did not raise a privilege violation";
+        return false;
+    }
+
+    if (!WorldBegin(&w, why)) return false;
+    UInt32 badFrame = w.stack + 0x200;
+    M68K_Write16(gM68KApp, badFrame, 0x0015);
+    M68K_Write32(gM68KApp, badFrame + 2, w.code + 0x40);
+    M68K_Write16(gM68KApp, badFrame + 6, 0x3000);
+    a.n = 0;
+    W(&a, 0x2E7C); L(&a, badFrame);
+    W(&a, 0x4E73);
+    ran = WorldRun(&w, &a);
+    Boolean rejected = ran != noErr && gM68KApp->lastException == M68K_VEC_FORMAT &&
+                       gM68KApp->regs.a[7] == badFrame && (gM68KApp->regs.sr & SR_S);
+    WorldEnd(&w);
+    if (!rejected) {
+        *why = "RTE consumed an unsupported exception frame";
+        return false;
+    }
+
     *why = "";
     return true;
 }

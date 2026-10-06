@@ -59,7 +59,9 @@ This checklist records significant differences between the current toolbox reimp
 - ~~`Gestalt('fpu ')` reported a Boolean host-CPU FPU probe as a Motorola coprocessor type.~~ **FIXED** (2026-10-04): the selector reports `gestaltNoFPU`; the 68K interpreter does not emulate 68881/68882 instructions. The separate `_FP68K` and `_Elems68K` SANE package traps are implemented. Classic type constants and guest-level regression coverage are defined.
 
 ## 68K Interpreter
-- `src/CPU/m68k_interp/M68KOpcodes.c` – CPU exceptions do not enter guest handlers: `M68K_RaiseException()` records the fault and halts even when the vector table contains a valid handler. `RTE` also halts instead of restoring SR and PC, and `SetStacks()` initializes A7 from the user stack without switching it to the supervisor stack when SR.S changes. Exception frames, stack banking, and guest-level exception return need implementation and regression coverage together.
+
+- `src/CPU/m68k_interp/M68KOpcodes.c` – CPU exceptions do not enter guest handlers: `M68K_RaiseException()` records the fault and halts even when the vector table contains a valid handler.
+- `RTE` restores 68020 format-0 and format-2 SR/PC frames, following the [Motorola programmer's reference manual](https://www.nxp.com/docs/en/reference-manual/M68000PRM.pdf), and switches between user and supervisor stacks when SR.S changes. Integration coverage verifies both formats, privilege checking, and rejection of unsupported formats without consuming the frame. Other frame formats and the 68020's separate master/interrupt supervisor stacks remain incomplete.
 
 ## Fonts & Typography
 - `docs/components/FontManager/README.md` & `src/FontManager/FontManagerCore.c` – Only the Chicago 12 strike ships in-tree; Geneva/Monaco fall back to Chicago unless matching strikes are available as resources.

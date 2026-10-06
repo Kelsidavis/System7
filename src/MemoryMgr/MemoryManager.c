@@ -1750,7 +1750,9 @@ OSErr MemoryManager_MapToM68K(struct M68KAddressSpace* as)
     for (size_t offset = 0; offset < sysSize; offset += M68K_PAGE_SIZE) {
         UInt32 addr = kSysBase + (UInt32)offset;
         UInt32 page = addr >> M68K_PAGE_SHIFT;
+        if (as->pageOwned[page]) DisposePtr((Ptr)as->pageTable[page]);
         as->pageTable[page] = gSystemZone.base + offset;
+        as->pageOwned[page] = false;
     }
 
     /* A 68K program addresses 16 MB, so it sees the part of the zone that
@@ -1763,7 +1765,9 @@ OSErr MemoryManager_MapToM68K(struct M68KAddressSpace* as)
     for (size_t offset = 0; offset < appSize; offset += M68K_PAGE_SIZE) {
         UInt32 addr = kAppBase + (UInt32)offset;
         UInt32 page = addr >> M68K_PAGE_SHIFT;
+        if (as->pageOwned[page]) DisposePtr((Ptr)as->pageTable[page]);
         as->pageTable[page] = gAppZone.base + offset;
+        as->pageOwned[page] = false;
     }
 
     gSystemZone.m68kBase = kSysBase;

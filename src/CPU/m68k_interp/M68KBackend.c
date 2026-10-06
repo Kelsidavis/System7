@@ -121,6 +121,7 @@ static OSErr M68K_CreateAddressSpace(void* processHandle, CPUAddressSpace* out)
             return memFullErr;
         }
         memset(as->pageTable[i], 0, M68K_PAGE_SIZE);
+        as->pageOwned[i] = true;
     }
 
     M68K_LOG_INFO("CreateAddressSpace: low memory allocated, sparse 16MB virtual space ready\n");
@@ -152,10 +153,11 @@ static OSErr M68K_DestroyAddressSpace(CPUAddressSpace as)
     /* Free all allocated pages */
     for (int i = 0; i < M68K_NUM_PAGES; i++) {
         if (mas->pageTable[i]) {
-            if (!MemoryManager_IsHeapPointer(mas->pageTable[i])) {
+            if (mas->pageOwned[i]) {
                 DisposePtr((Ptr)mas->pageTable[i]);
             }
             mas->pageTable[i] = NULL;
+            mas->pageOwned[i] = false;
         }
     }
 
@@ -204,6 +206,7 @@ void* M68K_GetPage(M68KAddressSpace* as, UInt32 addr, Boolean allocate)
         if (page) {
             memset(page, 0, M68K_PAGE_SIZE);
             as->pageTable[pageNum] = page;
+            as->pageOwned[pageNum] = true;
             /* pageNum/addr are UInt32: %u/%X would pass 4-byte ints
      * where the printf expects longs. */
             M68K_LOG_DEBUG("Allocated page %lu for addr 0x%08lX\n", (unsigned long)pageNum, (unsigned long)addr);
@@ -336,7 +339,7 @@ static OSErr M68K_SetStacks(CPUAddressSpace as, CPUAddr usp, CPUAddr ssp)
 
     mas->regs.usp = usp;
     mas->regs.ssp = ssp;
-    mas->regs.a[7] = usp; /* A7 = USP initially */
+    mas->regs.a[7] = (mas->regs.sr & SR_S) && ssp ? ssp : usp;
 
     return noErr;
 }

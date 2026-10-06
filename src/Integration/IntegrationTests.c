@@ -2413,6 +2413,34 @@ static void Test_Cursor_VisibilityAndObscure(void) {
     RecordTest(test_name, true, "");
 }
 
+static void Test_M68K_PageOwnership(void) {
+    const char* test_name = "M68K_PageOwnership";
+    const ICPUBackend* be = CPUBackend_Get("m68k_interp");
+    CHECK(be, "no 68K backend");
+    UInt32 before = FreeMem();
+    Ptr borrowed = NewPtr(M68K_PAGE_SIZE);
+    CHECK(borrowed, "could not allocate borrowed page");
+    UInt32 withBorrowed = FreeMem();
+    CPUAddressSpace cas = NULL;
+    OSErr created = be->CreateAddressSpace(NULL, &cas);
+    OSErr allocated = memFullErr;
+    if (created == noErr) {
+        CPUAddr base;
+        allocated = be->AllocateMemory(cas, 3 * M68K_PAGE_SIZE, kCPUMapA5World, &base);
+        M68KAddressSpace* as = (M68KAddressSpace*)cas;
+        as->pageTable[M68K_NUM_PAGES - 1] = borrowed;
+        as->pageOwned[M68K_NUM_PAGES - 1] = false;
+        be->DestroyAddressSpace(cas);
+    }
+    Boolean ownedReleased = FreeMem() == withBorrowed;
+    DisposePtr(borrowed);
+    Boolean allReleased = FreeMem() == before;
+    CHECK(created == noErr && allocated == noErr, "could not allocate guest pages");
+    CHECK(ownedReleased, "teardown leaked owned pages or freed a borrowed page");
+    CHECK(allReleased, "guest address-space lifecycle changed free memory");
+    RecordTest(test_name, true, "");
+}
+
 /* A 68K application's heap: handles follow their blocks when they grow,
  * RecoverHandle finds the master pointer, flags live in its top byte. */
 static void Test_M68K_Heap(void) {
@@ -3126,6 +3154,7 @@ extern Boolean M68KToolbox_RunTrapTest(const char** why);
 extern Boolean M68KToolbox_RunCMPFlagsTest(const char** why);
 
 extern Boolean M68KToolbox_RunSANETest(const char** why);
+extern Boolean M68KToolbox_RunRTETest(const char** why);
 
 /* Arithmetic, conversion, comparison and formatting through _FP68K and
  * _Pack7, by a 68K program */
@@ -3133,6 +3162,13 @@ static void Test_M68K_SANE(void) {
     const char* test_name = "M68K_SANE";
     const char* why = "";
     CHECK(M68KToolbox_RunSANETest(&why), why);
+    RecordTest(test_name, true, "");
+}
+
+static void Test_M68K_RTE(void) {
+    const char* test_name = "M68K_RTE";
+    const char* why = "";
+    CHECK(M68KToolbox_RunRTETest(&why), why);
     RecordTest(test_name, true, "");
 }
 
@@ -3344,6 +3380,10 @@ void IntegrationTests_Run(void) {
 
     IT_LOG_INFO("--- 68K SANE ---");
     Test_M68K_SANE();
+
+    IT_LOG_INFO("--- 68K exceptions ---");
+    Test_M68K_PageOwnership();
+    Test_M68K_RTE();
 
     IT_LOG_INFO("--- Control Manager ---");
     Test_RadioButtonValues();

@@ -39,6 +39,7 @@ static void M68K_RaiseException(M68KAddressSpace* as, UInt16 vector, const char*
         case M68K_VEC_TRACE:          vecName = "TRACE"; break;
         case M68K_VEC_LINE_A:         vecName = "LINE_A"; break;
         case M68K_VEC_LINE_F:         vecName = "LINE_F"; break;
+        case M68K_VEC_FORMAT:         vecName = "FORMAT"; break;
         default:                      vecName = "UNKNOWN"; break;
     }
 
@@ -63,7 +64,7 @@ static void M68K_RaiseException(M68KAddressSpace* as, UInt16 vector, const char*
             M68K_LOG_ERROR("Exception handler NULL or invalid (0x%08lX), halting\n", (unsigned long)handlerPC);
             as->halted = true;
         } else {
-            /* For now, just log and halt (RTE stub not yet implemented) */
+            /* Exception entry requires a guest stack frame before dispatch. */
             /* handlerPC is 32-bit: %X would pass a 4-byte int to printf. */
             M68K_LOG_WARN("Exception handler at 0x%08lX (not invoking yet, halting)\n", (unsigned long)handlerPC);
             as->halted = true;
@@ -84,6 +85,8 @@ void M68K_Fault(M68KAddressSpace* as, const char* reason)
         M68K_RaiseException(as, M68K_VEC_ADDRESS_ERROR, reason);
     } else if (strstr(reason, "out of bounds") || strstr(reason, "unmapped")) {
         M68K_RaiseException(as, M68K_VEC_BUS_ERROR, reason);
+    } else if (strstr(reason, "privilege violation")) {
+        M68K_RaiseException(as, M68K_VEC_PRIVILEGE, reason);
     } else {
         /* Illegal instruction or generic fault */
         M68K_RaiseException(as, M68K_VEC_ILLEGAL, reason);
@@ -106,6 +109,21 @@ static inline void M68K_ClearFlag(M68KAddressSpace* as, UInt16 flag)
 static inline Boolean M68K_TestFlag(M68KAddressSpace* as, UInt16 flag)
 {
     return (as->regs.sr & flag) != 0;
+}
+
+static void M68K_LoadSR(M68KAddressSpace* as, UInt16 sr)
+{
+    UInt16 oldSR = as->regs.sr;
+    if ((oldSR ^ sr) & SR_S) {
+        if (oldSR & SR_S) {
+            as->regs.ssp = as->regs.a[7];
+            as->regs.a[7] = as->regs.usp;
+        } else {
+            as->regs.usp = as->regs.a[7];
+            as->regs.a[7] = as->regs.ssp;
+        }
+    }
+    as->regs.sr = sr;
 }
 
 static void M68K_SetNZ(M68KAddressSpace* as, UInt32 value, M68KSize size)
@@ -612,20 +630,33 @@ void M68K_Op_RTS(M68KAddressSpace* as, UInt16 opcode)
 }
 
 /*
- * RTE - Return from exception (stub)
+ * RTE - Return from exception
  * Encoding: 0100 1110 0111 0011 (0x4E73)
  */
 void M68K_Op_RTE(M68KAddressSpace* as, UInt16 opcode)
 {
     (void)opcode;
+    if (!(as->regs.sr & SR_S)) {
+        M68K_Fault(as, "RTE in user mode (privilege violation)");
+        return;
+    }
 
-    /* as->regs.pc is CPUAddr (uint32_t): %X would pass a
-     * 4-byte int where the printf expects a long. */
-    serial_printf("[M68K] RTE (stub) at PC=0x%08lX - halting\n", (unsigned long)(as->regs.pc - 2));
-
-    /* For now, RTE is a stub that just halts */
-    /* Full implementation would pop SR and PC from supervisor stack */
-    as->halted = true;
+    UInt32 sp = as->regs.a[7];
+    UInt16 sr = M68K_Read16(as, sp);
+    UInt32 pc = M68K_Read32(as, sp + 2);
+    UInt16 format = M68K_Read16(as, sp + 6) >> 12;
+    if (as->halted) return;
+    UInt32 frameSize;
+    switch (format) {
+        case 0: frameSize = 8; break;
+        case 2: frameSize = 12; break;
+        default:
+            M68K_RaiseException(as, M68K_VEC_FORMAT, "unsupported exception frame format");
+            return;
+    }
+    as->regs.a[7] = sp + frameSize;
+    M68K_LoadSR(as, sr);
+    as->regs.pc = pc;
 }
 
 /*
@@ -3064,7 +3095,7 @@ void M68K_Op_ANDI_SR(M68KAddressSpace* as, UInt16 opcode)
     immediate = M68K_Fetch16(as);
 
     /* AND with entire SR */
-    as->regs.sr &= immediate;
+    M68K_LoadSR(as, as->regs.sr & immediate);
 }
 
 /*
@@ -3104,7 +3135,7 @@ void M68K_Op_ORI_SR(M68KAddressSpace* as, UInt16 opcode)
     immediate = M68K_Fetch16(as);
 
     /* OR with entire SR */
-    as->regs.sr |= immediate;
+    M68K_LoadSR(as, as->regs.sr | immediate);
 }
 
 /*
@@ -3144,7 +3175,7 @@ void M68K_Op_EORI_SR(M68KAddressSpace* as, UInt16 opcode)
     immediate = M68K_Fetch16(as);
 
     /* EOR with entire SR */
-    as->regs.sr ^= immediate;
+    M68K_LoadSR(as, as->regs.sr ^ immediate);
 }
 
 /*
@@ -3184,7 +3215,7 @@ void M68K_Op_MOVE_SR(M68KAddressSpace* as, UInt16 opcode)
     value = M68K_EA_Read(as, mode, reg, SIZE_WORD);
 
     /* Move to SR */
-    as->regs.sr = value;
+    M68K_LoadSR(as, value);
 }
 
 /*
@@ -3318,16 +3349,6 @@ void M68K_CheckAddressAlignment(M68KAddressSpace* as, UInt32 addr, M68KSize size
  * This is longer than most instructions. Some software may use RESET as a delay.
  *
  * In our emulator, we treat it as a no-op with no delay.
- */
-
-/*
- * Privilege Violation Stack Frame
- *
- * UNDOCUMENTED DETAIL: When a privilege violation occurs, the 68000 pushes:
- * 1. SR (with S bit still set to 0 - the value that caused the violation)
- * 2. PC (pointing to the instruction AFTER the privileged instruction)
- *
- * Our fault handler should ideally save state for exception handling.
  */
 
 /*

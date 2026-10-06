@@ -51,6 +51,7 @@ typedef struct M68KRegs {
 #define M68K_VEC_TRACE          9   /* Trace */
 #define M68K_VEC_LINE_A         10  /* Line 1010 emulator */
 #define M68K_VEC_LINE_F         11  /* Line 1111 emulator */
+#define M68K_VEC_FORMAT         14  /* Invalid exception stack format */
 
 /*
  * Paged Memory Constants
@@ -99,6 +100,7 @@ static inline int M68K_TrapSlot(UInt16 trapWord)
  */
 typedef struct M68KAddressSpace {
     void* pageTable[M68K_NUM_PAGES];  /* Sparse page table (NULL = not allocated) */
+    Boolean pageOwned[M68K_NUM_PAGES]; /* Allocated pages, as opposed to borrowed heap mappings */
     UInt32 baseAddr;          /* Base address (typically 0) */
 
     M68KRegs regs;            /* CPU registers */
