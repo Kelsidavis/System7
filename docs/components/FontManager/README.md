@@ -38,7 +38,8 @@ System 7.1-compatible Font Manager providing bitmap font support with the Chicag
 - `FontStyleMetrics.c` calculates style-adjusted character/string widths and extra bounds; it does not draw styled glyphs
 - `FontManagerCore.c` draws bold glyphs with a one-pixel offset and draws underline after a string. Italic offset is only applied by the Chicago fallback path when no font strike is available; the strike-rendering path does not currently shear glyphs
 - Shadow, outline, and condense/extend drawing are not implemented
-- `FontScaling.c` contains nearest-neighbour upsizing for larger point sizes, sharing the Chicago strike as a base
+- The Chicago fallback samples its bitmap at the requested point size, using shared size-aware advances and metrics. `FontScaling.c` delegates glyph synthesis and text drawing to this renderer rather than approximating larger sizes with repeated glyphs. Mac Roman compositions and symbols use the same scaling path as ASCII.
+- `Draw_FontSizeScaling` checks 9-, 12-, and 24-point ink bounds, pen advances, shared metrics, and accented-character widths in the kernel integration suite.
 
 ### Caching Strategy (current vs. future)
 - **Current**: single built-in 12-pt strike kept hot in `g_fmState`

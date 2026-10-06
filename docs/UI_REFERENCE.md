@@ -43,6 +43,8 @@ black.
 ## Implementation gaps
 
 Only the Chicago font strike is shipped; Geneva currently falls back to it.
+QuickDraw text honors the requested size by scaling that bitmap; the Finder
+summary uses 9-point text and distributes its fields by their measured widths.
 Finder labels use a vertically reduced Chicago bitmap to approach the
 reference size. Label drawing and measurement share metrics for ASCII,
 composed Mac Roman accents, supported symbols, and punctuation fallbacks;

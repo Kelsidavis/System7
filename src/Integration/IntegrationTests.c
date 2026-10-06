@@ -52,6 +52,7 @@
 #include "EventManager/KeyMap.h"
 #include "ExtensionManager/ResourceLoader.h"
 #include "FontManager/FontManager.h"
+#include "FontManager/FontScaling.h"
 #include "FontManager/CJKFont.h"
 #include "TextEncoding/CJKEncoding.h"
 #include "TextEdit/TextEdit.h"
@@ -660,6 +661,58 @@ static void Test_Draw_ClippedToVisibleRegion(void) {
     CHECK((before & 0x00FFFFFF) == 0x00FFFFFF, "the front window's content did not erase to white");
     CHECK(covered == before, "the back window drew over the front one");
     CHECK((uncovered & 0x00FFFFFF) == 0, "the back window's own uncovered part was not painted");
+    RecordTest(test_name, true, "");
+}
+
+static void Test_Draw_FontSizeScaling(void) {
+    const char* test_name = "Draw_FontSizeScaling";
+    Rect bounds = {100, 400, 300, 620};
+    WindowPtr w = NewWindow(NULL, &bounds, PSTR("Font sizes"), true,
+                            documentProc, (WindowPtr)-1, false, 0);
+    CHECK(w, "could not create font test window");
+    GrafPtr saved;
+    GetPort(&saved);
+    SetPort((GrafPtr)w);
+    ForeColor(blackColor);
+    BackColor(whiteColor);
+    TextFont(0);
+    TextFace(normal);
+    EraseRect(&w->port.portRect);
+    const short sizes[] = {9, 12, 24};
+    int widths[3], inkHeights[3];
+    Boolean advances = true, metricsMatch = true;
+    for (unsigned i = 0; i < 3; i++) {
+        short baseline = 40 + 55 * i;
+        TextSize(sizes[i]);
+        widths[i] = CharWidth('M');
+        FMetricRec metrics, scaled;
+        GetFontMetrics(&metrics);
+        FM_GetScaledMetrics(sizes[i], &scaled);
+        metricsMatch = metricsMatch && metrics.ascent == scaled.ascent &&
+                       metrics.descent == scaled.descent &&
+                       widths[i] == FM_GetScaledCharWidth(0, sizes[i], 'M') &&
+                       CharWidth(0x8E) == FM_GetScaledCharWidth(0, sizes[i], 0x8E);
+        MoveTo(20, baseline);
+        QD_DrawChar('M');
+        advances = advances && w->port.pnLoc.h == 20 + widths[i];
+        int first = 200, last = -1;
+        for (int y = baseline - metrics.ascent; y < baseline + metrics.descent; y++) {
+            for (int x = 20; x < 20 + widths[i]; x++) {
+                if ((ScreenPixel(w->port.portBits.bounds.left + x,
+                                 w->port.portBits.bounds.top + y) & 0x00FFFFFF) == 0) {
+                    if (y < first) first = y;
+                    if (y > last) last = y;
+                }
+            }
+        }
+        inkHeights[i] = last >= first ? last - first + 1 : 0;
+    }
+    SetPort(saved);
+    DisposeWindow(w);
+    CHECK(advances && metricsMatch, "scaled widths, metrics, and pen advances disagree");
+    CHECK(widths[0] < widths[1] && widths[2] == 2 * widths[1] &&
+          inkHeights[0] > 0 && inkHeights[0] < inkHeights[1] &&
+          inkHeights[2] == 2 * inkHeights[1], "bitmap glyphs did not scale in both dimensions");
     RecordTest(test_name, true, "");
 }
 
@@ -3506,6 +3559,7 @@ void IntegrationTests_Run(void) {
     Test_File_InFolder();
     Test_Draw_ClippedToVisibleRegion();
     Test_Draw_QDCharAdvancesPen();
+    Test_Draw_FontSizeScaling();
     Test_Draw_PenModes();
     Test_Draw_SetOrigin();
     Test_Draw_ScrollRect();

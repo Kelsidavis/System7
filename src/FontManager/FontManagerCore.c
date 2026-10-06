@@ -73,10 +73,19 @@ static inline uint8_t get_bit(const uint8_t *row, int bitOff) {
 /* Draw one glyph's bits. Split out so that a letter and the accent mark over
  * it go through the same clipping and the same destination arithmetic - when
  * the mark had its own copy of that, it was the copy that drifted. */
+static int ChicagoScale(int value, short size) {
+    if (size <= 0) size = 12;
+    return value < 0 ? -((-value * size + 6) / 12) : (value * size + 6) / 12;
+}
+
 static void FM_BlitGlyph(short x, short y, const ChicagoCharInfo* info,
-                         const uint8_t* strike, int strikeRowBytes, uint32_t color);
+                         const uint8_t* strike, int strikeRowBytes, short size, uint32_t color);
 
 void FM_DrawChicagoCharInternal(short x, short y, unsigned char ch, uint32_t color) {
+    FM_DrawChicagoCharAtSize(x, y, ch, 12, color);
+}
+
+void FM_DrawChicagoCharAtSize(short x, short y, unsigned char ch, short size, uint32_t color) {
     /*
      * An accented letter is Chicago's own letter with a mark over it, so it is
      * drawn as those two things rather than looked up as one glyph.
@@ -85,23 +94,23 @@ void FM_DrawChicagoCharInternal(short x, short y, unsigned char ch, uint32_t col
     if (sym != kNoAccent) {
         const ChicagoCharInfo* mark = &chicago_accents[sym];
         FM_BlitGlyph(x, y, mark, chicago_accent_bitmap,
-                     CHICAGO_ACCENT_ROW_BYTES, color);
+                     CHICAGO_ACCENT_ROW_BYTES, size, color);
         return;
     }
 
     ChicagoComposition comp = Chicago_Compose(ch);
     if (comp.base != 0) {
         const ChicagoCharInfo* baseInfo = &chicago_ascii[comp.base - 32];
-        short baseX = x + baseInfo->left_offset;
+        short baseX = x + ChicagoScale(baseInfo->left_offset, size);
 
-        FM_BlitGlyph(baseX, y, baseInfo, chicago_bitmap, CHICAGO_ROW_BYTES, color);
+        FM_BlitGlyph(baseX, y, baseInfo, chicago_bitmap, CHICAGO_ROW_BYTES, size, color);
 
         if (comp.accent != kNoAccent) {
             const ChicagoCharInfo* mark = &chicago_accents[comp.accent];
             /* Centre the mark over the letter it belongs to. */
-            short markX = baseX + (baseInfo->bit_width - mark->bit_width) / 2;
+            short markX = baseX + ChicagoScale((baseInfo->bit_width - mark->bit_width) / 2, size);
             FM_BlitGlyph(markX, y, mark, chicago_accent_bitmap,
-                         CHICAGO_ACCENT_ROW_BYTES, color);
+                         CHICAGO_ACCENT_ROW_BYTES, size, color);
         }
         return;
     }
@@ -113,11 +122,11 @@ void FM_DrawChicagoCharInternal(short x, short y, unsigned char ch, uint32_t col
     const ChicagoCharInfo* info = Chicago_Glyph(ch, &strike, &strikeRowBytes);
     if (!info) return;
 
-    FM_BlitGlyph(x + info->left_offset, y, info, strike, strikeRowBytes, color);
+    FM_BlitGlyph(x + ChicagoScale(info->left_offset, size), y, info, strike, strikeRowBytes, size, color);
 }
 
 static void FM_BlitGlyph(short x, short y, const ChicagoCharInfo* info,
-                         const uint8_t* strike, int strikeRowBytes, uint32_t color) {
+                         const uint8_t* strike, int strikeRowBytes, short size, uint32_t color) {
 
     /* Callers hand us coordinates that QD_LocalToPixel has already mapped out of
      * local space (local - portRect origin + portBits.bounds origin), so (x, y)
@@ -195,20 +204,22 @@ static void FM_BlitGlyph(short x, short y, const ChicagoCharInfo* info,
      * only to portBits.bounds, so a window behind wrote its text over the
      * ones in front. */
     QD_ClipBegin(g_currentPort);
-    for (int row = 0; row < CHICAGO_HEIGHT; row++) {
+    int height = ChicagoScale(CHICAGO_HEIGHT, size);
+    int width = ChicagoScale(info->bit_width, size);
+    for (int row = 0; row < height; row++) {
         int destY = y + row;
         if (destY < clipTop || destY >= clipBottom) {
             continue;
         }
 
-        const uint8_t *strike_row = strike + (row * strikeRowBytes);
+        const uint8_t *strike_row = strike + ((row * CHICAGO_HEIGHT / height) * strikeRowBytes);
 
-        for (int col = 0; col < info->bit_width; col++) {
+        for (int col = 0; col < width; col++) {
             int destX = x + col;
             if (destX < clipLeft || destX >= clipRight) {
                 continue;
             }
-            int bit_position = info->bit_start + col;
+            int bit_position = info->bit_start + col * info->bit_width / width;
             if (get_bit(strike_row, bit_position) &&
                 (destBase != (Ptr)framebuffer || QD_ClipHas(destX, destY))) {
                 uint8_t* dstRow = (uint8_t*)destBase +
@@ -737,6 +748,9 @@ void GetFontMetrics(FMetricRec *theMetrics) {
     theMetrics->descent = strike->descent;
     theMetrics->widMax = strike->widMax;
     theMetrics->leading = strike->leading;
+    if (strike == &g_chicagoStrike12 && g_currentPort) {
+        FM_GetChicagoMetricsAtSize(g_currentPort->txSize, theMetrics);
+    }
     theMetrics->wTabHandle = NULL;  /* Width table handle */
 
     FM_LOG("GetFontMetrics: ascent=%d descent=%d widMax=%d leading=%d\n",
@@ -762,38 +776,40 @@ void GetFontMetrics(FMetricRec *theMetrics) {
  * Both CharWidth and FM_GetStyledCharWidth take their base width from here, so
  * neither has to call the other.
  */
+void FM_GetChicagoMetricsAtSize(short size, FMetricRec* metrics) {
+    if (!metrics) return;
+    metrics->ascent = ChicagoScale(CHICAGO_ASCENT, size);
+    metrics->descent = ChicagoScale(CHICAGO_DESCENT, size);
+    metrics->widMax = ChicagoScale(16, size);
+    metrics->leading = ChicagoScale(CHICAGO_LEADING, size);
+    metrics->wTabHandle = NULL;
+}
+
 short FM_GetPlainCharWidth(short ch) {
     if (g_fmState.currentStrike == &g_chicagoStrike12) {
-        /* Every size is drawn from the 12-point strike, so every size is
-         * measured by it too. Other sizes were measured as if scaled - nothing
-         * draws them scaled - so the pen advanced by a 9- or 10-point width
-         * after a 12-point glyph and the letters overlapped. */
+        return FM_GetChicagoCharWidthAtSize((unsigned char)ch,
+                                            g_currentPort ? g_currentPort->txSize : 12);
+    }
+    return 8;
+}
 
-        /* Widths come from the same lookup the drawing does. When they came
-         * from different places, a character the renderer could draw but the
-         * measurer did not know about advanced by a default eight pixels and
-         * left a gap. */
-        unsigned char sym = Chicago_DrawnSymbol((unsigned char)ch);
-        if (sym != kNoAccent) {
-            return chicago_accents[sym].bit_width + 2;
-        }
-
-        /* A composed letter is exactly as wide as the letter under the mark. */
-        ChicagoComposition comp = Chicago_Compose((unsigned char)ch);
-        if (comp.base != 0) {
-            return chicago_ascii[comp.base - 32].bit_width + 2;
-        }
-
-        const ChicagoCharInfo* info = Chicago_Glyph((unsigned char)ch, NULL, NULL);
+short FM_GetChicagoCharWidthAtSize(unsigned char ch, short size) {
+    int width = 8;
+    unsigned char sym = Chicago_DrawnSymbol(ch);
+    ChicagoComposition comp = Chicago_Compose(ch);
+    if (sym != kNoAccent) {
+        width = chicago_accents[sym].bit_width + 2;
+    } else if (comp.base != 0) {
+        width = chicago_ascii[comp.base - 32].bit_width + 2;
+    } else {
+        const ChicagoCharInfo* info = Chicago_Glyph(ch, NULL, NULL);
         if (info) {
-            short width = info->bit_width + 2;  /* Corrected spacing */
-            if (ch == ' ') width += 3;  /* Extra space width */
-            return width;
+            width = info->bit_width + 2;
+            if (ch == ' ') width += 3;
         }
     }
-
-    /* Default width for unknown chars */
-    return 8;
+    int scaled = ChicagoScale(width, size);
+    return scaled > 32767 ? 32767 : scaled;
 }
 
 short CharWidth(short ch) {
@@ -914,21 +930,22 @@ void DrawChar(short ch) {
         pen.h = g_currentPort->pnLoc.h;
         pen.v = g_currentPort->pnLoc.v;
         short px, py;
-        QD_LocalToPixel(pen.h, pen.v - CHICAGO_ASCENT, &px, &py);
+        short size = g_currentPort->txSize;
+        QD_LocalToPixel(pen.h, pen.v - ChicagoScale(CHICAGO_ASCENT, size), &px, &py);
         UInt32 color = QDPlatform_MapQDColor(g_currentPort->fgColor);
 
         /* Draw character with style synthesis */
         if (hasBold) {
             /* Bold: draw twice with 1 pixel offset */
-            FM_DrawChicagoCharInternal(px, py, (unsigned char)ch, color);
-            FM_DrawChicagoCharInternal(px + 1, py, (unsigned char)ch, color);
+            FM_DrawChicagoCharAtSize(px, py, (unsigned char)ch, size, color);
+            FM_DrawChicagoCharAtSize(px + 1, py, (unsigned char)ch, size, color);
         } else {
-            FM_DrawChicagoCharInternal(px, py, (unsigned char)ch, color);
+            FM_DrawChicagoCharAtSize(px, py, (unsigned char)ch, size, color);
         }
 
         if (hasItalic) {
             /* Italic: draw with slight right offset for shear effect */
-            FM_DrawChicagoCharInternal(px + 1, py, (unsigned char)ch, color);
+            FM_DrawChicagoCharAtSize(px + 1, py, (unsigned char)ch, size, color);
         }
 
         g_currentPort->pnLoc.h += CharWidth(ch);

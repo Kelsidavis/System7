@@ -11,8 +11,6 @@
 #include "FontManager/FontScaling.h"
 #include "QuickDraw/QuickDraw.h"
 #include "SystemTypes.h"
-#include "chicago_font.h"
-#include <string.h>
 #include "FontManager/FontLogging.h"
 
 /* Ensure boolean constants */
@@ -23,13 +21,7 @@
 #define FALSE 0
 #endif
 
-/* Debug logging.
- *
- * Off by default, and it has to stay that way: FSC_LOG sits inside
- * FM_GetScaledCharWidth and FM_ScaleChar, which run once per character of
- * every string the system measures or draws. With it on, a few seconds of
- * clicking around the Finder put 380KB on the serial port - more than a
- * character of trace for every character on screen. */
+/* Keep per-character diagnostics disabled during normal rendering. */
 #define FSC_DEBUG 0
 
 #if FSC_DEBUG
@@ -38,28 +30,9 @@
 #define FSC_LOG(...)
 #endif
 
-/* External dependencies */
-
 /* Standard Mac font sizes (in points) */
 static const short g_standardSizes[] = {9, 10, 12, 14, 18, 24};
 #define NUM_STANDARD_SIZES 6
-
-/* ============================================================================
- * Scaling Factor Calculation
- * ============================================================================ */
-
-/*
- * FM_CalculateScaleFactor - Determine scale factor between sizes
- * Returns scale factor as fixed-point integer (multiplied by 256)
- * For example: scale of 1.0 returns 256, scale of 2.0 returns 512
- */
-static short FM_CalculateScaleFactor(short fromSize, short toSize) {
-    if (fromSize <= 0) fromSize = 12;  /* Default to Chicago 12 */
-    if (toSize <= 0) toSize = 12;
-
-    /* Calculate scale as (toSize / fromSize) * 256 using integer math */
-    return (short)((toSize * 256) / fromSize);
-}
 
 /*
  * FM_FindNearestStandardSize - Find closest available font size
@@ -86,45 +59,6 @@ short FM_FindNearestStandardSize(short requestedSize) {
 }
 
 /* ============================================================================
- * Bitmap Scaling Algorithms
- * ============================================================================ */
-
-/*
- * FM_ScaleCharNearestNeighbor - Scale character using nearest-neighbor
- * This maintains pixel-perfect appearance at integer scale factors
- */
-static void FM_ScaleCharNearestNeighbor(short srcX, short srcY, unsigned char ch,
-                                        short scale, uint32_t color) {
-    if (ch < 32 || ch > 126) return;
-
-    ChicagoCharInfo info = chicago_ascii[ch - 32];
-    short srcWidth = info.bit_width;
-    short srcHeight = CHICAGO_HEIGHT;
-
-    /* Calculate scaled dimensions using fixed-point scale (scale/256) */
-    short dstWidth = (short)((srcWidth * scale + 128) / 256);
-    short dstHeight = (short)((srcHeight * scale + 128) / 256);
-    (void)dstWidth; (void)dstHeight;   /* only read by FSC_LOG */
-
-    FSC_LOG("ScaleChar '%c': %dx%d -> %dx%d (scale=%d/256)\n",
-            ch, srcWidth, srcHeight, dstWidth, dstHeight, scale);
-
-    /* For now, use simple scaling approximation */
-    /* Real implementation would sample bitmap pixels */
-
-    if (scale > 256) {
-        /* Scaling up - draw multiple pixels for each source pixel */
-        int scaleInt = (scale + 128) / 256;
-        for (int rep = 0; rep < scaleInt; rep++) {
-            FM_DrawChicagoCharInternal(srcX + rep, srcY, ch, color);
-        }
-    } else {
-        /* scale <= 256: scaling down or no scaling - draw once */
-        FM_DrawChicagoCharInternal(srcX, srcY, ch, color);
-    }
-}
-
-/* ============================================================================
  * Scaled Width Calculation
  * ============================================================================ */
 
@@ -135,21 +69,7 @@ short FM_GetScaledCharWidth(SInt16 fontNum, SInt16 fontSize, UInt8 ch) {
     /* Currently only supports Chicago (fontNum is ignored) */
     (void)fontNum;
 
-    if (ch < 32 || ch > 126) return 0;
-
-    ChicagoCharInfo info = chicago_ascii[ch - 32];
-    short baseWidth = info.bit_width + 2;  /* Include spacing */
-    if (ch == ' ') baseWidth += 3;  /* Extra space width */
-
-    /* Calculate scaling from Chicago 12 using fixed-point math */
-    short scale = FM_CalculateScaleFactor(12, fontSize);
-    /* Apply scale (divide by 256 to convert from fixed-point, add 128 for rounding) */
-    short scaledWidth = (short)((baseWidth * scale + 128) / 256);
-
-    FSC_LOG("GetScaledCharWidth '%c': base=%d, scale=%d, scaled=%d\n",
-            ch, baseWidth, scale, scaledWidth);
-
-    return scaledWidth;
+    return FM_GetChicagoCharWidthAtSize(ch, fontSize);
 }
 
 /*
@@ -177,49 +97,18 @@ short FM_GetScaledStringWidth(ConstStr255Param s, short targetSize) {
  * FM_SynthesizeSize - Create font at specific size
  */
 void FM_SynthesizeSize(short x, short y, unsigned char ch, short targetSize, uint32_t color) {
-    /* Find best available size */
-    short baseSize = FM_FindNearestStandardSize(targetSize);
-
-    /* Calculate scale factor */
-    short scale = FM_CalculateScaleFactor(baseSize, targetSize);
-
-    FSC_LOG("SynthesizeSize '%c': target=%dpt, base=%dpt, scale=%d/256\n",
-            ch, targetSize, baseSize, scale);
-
-    /* Apply scaling */
-    if (baseSize == 12 && targetSize == 12) {
-        /* No scaling needed for Chicago 12 */
-        FM_DrawChicagoCharInternal(x, y, ch, color);
-    } else {
-        /* Scale from base size */
-        FM_ScaleCharNearestNeighbor(x, y, ch, scale, color);
-    }
+    FM_DrawChicagoCharAtSize(x, y, ch, targetSize, color);
 }
 
 /*
  * FM_DrawScaledString - Draw string at specific size
  */
 void FM_DrawScaledString(ConstStr255Param s, short targetSize) {
-    if (!s || s[0] == 0) return;
-
-    Point pen = g_currentPort->pnLoc;
-    uint32_t color = 0xFF000000; /* Black */
-
-    FSC_LOG("DrawScaledString: \"%.*s\" at %dpt\n", s[0], &s[1], targetSize);
-
-    /* Draw each character scaled */
-    for (int i = 1; i <= s[0]; i++) {
-        unsigned char ch = s[i];
-
-        /* Draw scaled character */
-        FM_SynthesizeSize(pen.h, pen.v, ch, targetSize, color);
-
-        /* Advance pen by scaled width */
-        pen.h += FM_GetScaledCharWidth(0, targetSize, ch);
-    }
-
-    /* Update pen location */
-    g_currentPort->pnLoc = pen;
+    if (!s || !g_currentPort) return;
+    short savedSize = g_currentPort->txSize;
+    TextSize(targetSize);
+    DrawString(s);
+    TextSize(savedSize);
 }
 
 /* ============================================================================
@@ -230,26 +119,7 @@ void FM_DrawScaledString(ConstStr255Param s, short targetSize) {
  * FM_GetScaledMetrics - Calculate font metrics for scaled size
  */
 void FM_GetScaledMetrics(short targetSize, FMetricRec* metrics) {
-    if (!metrics) return;
-
-    /* Base Chicago 12 metrics */
-    short baseAscent = CHICAGO_ASCENT;
-    short baseDescent = CHICAGO_DESCENT;
-    short baseLeading = CHICAGO_LEADING;
-    short baseWidMax = 16;
-
-    /* Calculate scale factor */
-    short scale = FM_CalculateScaleFactor(12, targetSize);
-
-    /* Scale metrics using fixed-point math */
-    metrics->ascent = (SInt32)((baseAscent * scale + 128) / 256);
-    metrics->descent = (SInt32)((baseDescent * scale + 128) / 256);
-    metrics->leading = (SInt32)((baseLeading * scale + 128) / 256);
-    metrics->widMax = (SInt32)((baseWidMax * scale + 128) / 256);
-
-    FSC_LOG("GetScaledMetrics %dpt: ascent=%d, descent=%d, leading=%d, widMax=%d\n",
-            targetSize, metrics->ascent, metrics->descent,
-            metrics->leading, metrics->widMax);
+    FM_GetChicagoMetricsAtSize(targetSize, metrics);
 }
 
 /* ============================================================================
@@ -327,25 +197,9 @@ short FM_SelectBestSize(short fontID, short requestedSize, Boolean allowScaling)
  */
 void FM_DrawTextAtSize(const void* textBuf, short firstByte, short byteCount,
                        short targetSize) {
-    if (!textBuf || byteCount <= 0) return;
-
-    const char* text = (const char*)textBuf;
-    Point pen = g_currentPort->pnLoc;
-    uint32_t color = 0xFF000000;
-
-    FSC_LOG("DrawTextAtSize: %d bytes at %dpt\n", byteCount, targetSize);
-
-    /* Draw each character at target size */
-    for (short i = 0; i < byteCount; i++) {
-        unsigned char ch = text[firstByte + i];
-
-        /* Draw scaled character */
-        FM_SynthesizeSize(pen.h, pen.v, ch, targetSize, color);
-
-        /* Advance pen */
-        pen.h += FM_GetScaledCharWidth(0, targetSize, ch);
-    }
-
-    /* Update pen location */
-    g_currentPort->pnLoc = pen;
+    if (!textBuf || byteCount <= 0 || !g_currentPort) return;
+    short savedSize = g_currentPort->txSize;
+    TextSize(targetSize);
+    DrawText(textBuf, firstByte, byteCount);
+    TextSize(savedSize);
 }

@@ -2246,6 +2246,7 @@ void FolderWindow_Draw(WindowPtr w) {
         char statusBuf[128];
         int pos = 0;
         int rem = (int)sizeof(statusBuf);
+        int firstBreak = 0, secondBreak = 0;
 
 #define STATUS_APPEND(...) do { \
     int n = snprintf(&statusBuf[pos], rem, __VA_ARGS__); \
@@ -2261,7 +2262,7 @@ void FolderWindow_Draw(WindowPtr w) {
             }
 
             /* Show total size of selected items */
-            STATUS_APPEND("     ");
+            firstBreak = pos;
             if (selectedSize < 1024) {
                 STATUS_APPEND("%u bytes", (unsigned)selectedSize);
             } else if (selectedSize < 1048576) {
@@ -2279,7 +2280,7 @@ void FolderWindow_Draw(WindowPtr w) {
             }
 
             /* Disk used */
-            STATUS_APPEND("     ");
+            firstBreak = pos;
             if (diskUsed < 1048576) {
                 STATUS_APPEND("%uK in disk", (unsigned)(diskUsed / 1024));
             } else {
@@ -2288,7 +2289,7 @@ void FolderWindow_Draw(WindowPtr w) {
             }
 
             /* Disk free */
-            STATUS_APPEND("     ");
+            secondBreak = pos;
             if (diskFree < 1048576) {
                 STATUS_APPEND("%uK available", (unsigned)(diskFree / 1024));
             } else {
@@ -2304,8 +2305,24 @@ void FolderWindow_Draw(WindowPtr w) {
         TextFont(3);
         TextSize(9);
         TextFace(0);
-        MoveTo(left + 8, top + 12);
-        DrawText(statusBuf, 0, pos);
+        int ends[] = {firstBreak, secondBreak ? secondBreak : pos, pos};
+        int fields = secondBreak ? 3 : 2;
+        int widths[3], totalWidth = 0, start = 0;
+        for (int i = 0; i < fields; i++) {
+            widths[i] = TextWidth(statusBuf, start, ends[i] - start);
+            totalWidth += widths[i];
+            start = ends[i];
+        }
+        int gap = (right - left - 16 - totalWidth) / (fields - 1);
+        if (gap < 0) gap = 0;
+        int x = left + 8;
+        start = 0;
+        for (int i = 0; i < fields; i++) {
+            MoveTo(x, top + 12);
+            DrawText(statusBuf, start, ends[i] - start);
+            x += widths[i] + gap;
+            start = ends[i];
+        }
         TextFont(savedFont);
         TextSize(savedSize);
         TextFace(savedFace);
