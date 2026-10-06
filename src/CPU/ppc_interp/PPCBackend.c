@@ -15,6 +15,7 @@
 #include "SegmentLoader/SegmentLoader.h"
 #include "MemoryMgr/MemoryManager.h"
 #include "System71StdLib.h"
+#include "../CPUBackendMemory.h"
 #include <string.h>
 
 /* Forward declarations of ICPUBackend methods */
@@ -90,6 +91,7 @@ static OSErr PPC_CreateAddressSpace(void* processHandle, CPUAddressSpace* out)
 
     memset(as, 0, sizeof(PPCAddressSpace));
     as->baseAddr = 0;
+    as->nextAlloc = PPC_ALLOC_BASE;
 
     /* Initialize page table (all NULL = not allocated) */
     memset(as->pageTable, 0, sizeof(as->pageTable));
@@ -124,9 +126,7 @@ static OSErr PPC_DestroyAddressSpace(CPUAddressSpace as)
     /* Free all allocated pages */
     for (int i = 0; i < PPC_NUM_PAGES; i++) {
         if (pas->pageTable[i]) {
-            if (!MemoryManager_IsHeapPointer(pas->pageTable[i])) {
-                DisposePtr((Ptr)pas->pageTable[i]);
-            }
+            DisposePtr((Ptr)pas->pageTable[i]);
             pas->pageTable[i] = NULL;
         }
     }
@@ -138,22 +138,15 @@ static OSErr PPC_DestroyAddressSpace(CPUAddressSpace as)
 /* Forward declaration */
 void* PPC_GetPage(PPCAddressSpace* as, UInt32 addr, Boolean allocate);
 
-/*
- * PPC_MemCopy - Copy data to paged memory (lazy page allocation)
- */
+static void* PPC_AllocatePage(void* context, UInt32 addr)
+{
+    return PPC_GetPage((PPCAddressSpace*)context, addr, true);
+}
+
+/* Copy data to paged memory, allocating pages as needed. */
 static OSErr PPC_MemCopy(PPCAddressSpace* as, UInt32 addr, const void* src, Size len)
 {
-    const UInt8* srcBytes = (const UInt8*)src;
-
-    for (Size i = 0; i < len; i++) {
-        void* page = PPC_GetPage(as, addr + i, true);
-        if (!page) {
-            return memFullErr;
-        }
-        UInt32 offset = (addr + i) & (PPC_PAGE_SIZE - 1);
-        ((UInt8*)page)[offset] = srcBytes[i];
-    }
-    return noErr;
+    return CPU_WritePages(as, PPC_AllocatePage, PPC_PAGE_SIZE, addr, src, len);
 }
 
 /*
@@ -214,20 +207,8 @@ static OSErr PPC_MapExecutable(CPUAddressSpace as, const void* image, Size len,
         return memFullErr;
     }
 
-    /* Find free address space (simple bump allocator) */
-    addr = 0x1000; /* Start at 4K to avoid null pointers */
-    for (int i = 0; i < pas->numCodeSegs; i++) {
-        UInt32 end = pas->codeSegBases[i] + pas->codeSegSizes[i];
-        if (end > addr) {
-            addr = end;
-        }
-    }
-
-    /* Align to 16-byte boundary */
-    addr = (addr + 15) & ~15;
-
-    /* Check bounds */
-    if (addr + len > PPC_MAX_ADDR) {
+    addr = CPU_ReserveAddress(&pas->nextAlloc, len, PPC_MAX_ADDR);
+    if (!addr) {
         DisposePtr((Ptr)handle);
         return memFullErr;
     }
@@ -626,27 +607,13 @@ static OSErr PPC_AllocateMemory(CPUAddressSpace as, Size size,
         return paramErr;
     }
 
-    /* Find free space (simple bump allocator) */
-    addr = 0x10000; /* Start at 64K */
-    for (int i = 0; i < pas->numCodeSegs; i++) {
-        UInt32 end = pas->codeSegBases[i] + pas->codeSegSizes[i];
-        if (end > addr) {
-            addr = end;
-        }
-    }
-
-    /* Align to 16-byte boundary */
-    addr = (addr + 15) & ~15;
-
-    /* Check bounds */
-    if (addr + size > PPC_MAX_ADDR) {
+    addr = CPU_ReserveAddress(&pas->nextAlloc, size, PPC_MAX_ADDR);
+    if (!addr) {
         return memFullErr;
     }
 
-    /* Zero memory */
-    for (Size i = 0; i < size; i++) {
-        PPC_Write8(pas, addr + i, 0);
-    }
+    OSErr cleared = CPU_WritePages(pas, PPC_AllocatePage, PPC_PAGE_SIZE, addr, NULL, size);
+    if (cleared != noErr) return cleared;
 
     *outAddr = addr;
 
@@ -663,7 +630,7 @@ static OSErr PPC_WriteMemory(CPUAddressSpace as, CPUAddr addr,
 {
     PPCAddressSpace* pas = (PPCAddressSpace*)as;
 
-    if (!pas || !data || addr + len > PPC_MAX_ADDR) {
+    if (!pas || !data || !CPU_AddressRangeValid(addr, len, PPC_MAX_ADDR)) {
         return paramErr;
     }
 
@@ -678,7 +645,7 @@ static OSErr PPC_ReadMemory(CPUAddressSpace as, CPUAddr addr,
 {
     PPCAddressSpace* pas = (PPCAddressSpace*)as;
 
-    if (!pas || !data || addr + len > PPC_MAX_ADDR) {
+    if (!pas || !data || !CPU_AddressRangeValid(addr, len, PPC_MAX_ADDR)) {
         return paramErr;
     }
 

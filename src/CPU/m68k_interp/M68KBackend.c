@@ -19,6 +19,7 @@
 #include "TimeManager/TimeBase.h"
 #include "CPU/CPULogging.h"
 #include "M68KToolboxInternal.h"
+#include "../CPUBackendMemory.h"
 #include <string.h>
 
 static OSErr M68K_CreateAddressSpace(void* processHandle, CPUAddressSpace* out);
@@ -165,22 +166,15 @@ static OSErr M68K_DestroyAddressSpace(CPUAddressSpace as)
     return noErr;
 }
 
-/*
- * M68K_MemCopy - Copy data to paged memory (lazy page allocation)
- */
+static void* M68K_AllocatePage(void* context, UInt32 addr)
+{
+    return M68K_GetPage((M68KAddressSpace*)context, addr, true);
+}
+
+/* Copy data to paged memory, allocating pages as needed. */
 static OSErr M68K_MemCopy(M68KAddressSpace* as, UInt32 addr, const void* src, Size len)
 {
-    const UInt8* srcBytes = (const UInt8*)src;
-
-    for (Size i = 0; i < len; i++) {
-        void* page = M68K_GetPage(as, addr + i, true);
-        if (!page) {
-            return memFullErr;
-        }
-        UInt32 offset = (addr + i) & (M68K_PAGE_SIZE - 1);
-        ((UInt8*)page)[offset] = srcBytes[i];
-    }
-    return noErr;
+    return CPU_WritePages(as, M68K_AllocatePage, M68K_PAGE_SIZE, addr, src, len);
 }
 
 /*
@@ -220,20 +214,6 @@ void* M68K_GetPage(M68KAddressSpace* as, UInt32 addr, Boolean allocate)
 }
 
 /*
- * M68K_Reserve - set aside len bytes of the address space, 16-byte aligned;
- * 0 if they do not fit. Everything allocated in the space comes from here.
- */
-static UInt32 M68K_Reserve(M68KAddressSpace* as, Size len)
-{
-    UInt32 addr = (as->nextAlloc + 15) & ~15u;
-    if (len < 0 || addr + (UInt32)len > M68K_MAX_ADDR || addr + (UInt32)len < addr) {
-        return 0;
-    }
-    as->nextAlloc = addr + (UInt32)len;
-    return addr;
-}
-
-/*
  * MapExecutable - Map code into address space
  */
 static OSErr M68K_MapExecutable(CPUAddressSpace as, const void* image, Size len,
@@ -255,7 +235,7 @@ static OSErr M68K_MapExecutable(CPUAddressSpace as, const void* image, Size len,
         return memFullErr;
     }
 
-    addr = M68K_Reserve(mas, len);
+    addr = CPU_ReserveAddress(&mas->nextAlloc, len, M68K_MAX_ADDR);
     if (!addr) {
         DisposePtr((Ptr)handle);
         return memFullErr;
@@ -711,15 +691,13 @@ static OSErr M68K_AllocateMemory(CPUAddressSpace as, Size size,
         return paramErr;
     }
 
-    addr = M68K_Reserve(mas, size);
+    addr = CPU_ReserveAddress(&mas->nextAlloc, size, M68K_MAX_ADDR);
     if (!addr) {
         return memFullErr;
     }
 
-    /* Zero memory */
-    for (Size i = 0; i < size; i++) {
-        M68K_Write8(mas, addr + i, 0);
-    }
+    OSErr cleared = CPU_WritePages(mas, M68K_AllocatePage, M68K_PAGE_SIZE, addr, NULL, size);
+    if (cleared != noErr) return cleared;
 
     *outAddr = addr;
 
@@ -736,7 +714,7 @@ static OSErr M68K_WriteMemory(CPUAddressSpace as, CPUAddr addr,
 {
     M68KAddressSpace* mas = (M68KAddressSpace*)as;
 
-    if (!mas || !data || addr + len > M68K_MAX_ADDR) {
+    if (!mas || !data || !CPU_AddressRangeValid(addr, len, M68K_MAX_ADDR)) {
         return paramErr;
     }
 
@@ -751,7 +729,7 @@ static OSErr M68K_ReadMemory(CPUAddressSpace as, CPUAddr addr,
 {
     M68KAddressSpace* mas = (M68KAddressSpace*)as;
 
-    if (!mas || !data || addr + len > M68K_MAX_ADDR) {
+    if (!mas || !data || !CPU_AddressRangeValid(addr, len, M68K_MAX_ADDR)) {
         return paramErr;
     }
 

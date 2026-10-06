@@ -1724,12 +1724,6 @@ void InitMemoryManager(void) {
 
 /* ======================== M68K Mapping ======================== */
 
-static bool pointer_in_range(const void* ptr, const void* start, size_t len) {
-    const u8* p = (const u8*)ptr;
-    const u8* s = (const u8*)start;
-    return p >= s && p < (s + len);
-}
-
 OSErr MemoryManager_MapToM68K(struct M68KAddressSpace* as)
 {
     const UInt32 kSysBase = 0x0010000;  /* 0x10000 */
@@ -1812,14 +1806,6 @@ void MemoryManager_SyncLowMemGlobals(void)
     serial_puts(" ApplZone=0x");
     mm_print_hex(LMGetApplZone());
     serial_puts("\n");
-}
-
-bool MemoryManager_IsHeapPointer(const void* p)
-{
-    if (!p) return false;
-    if (pointer_in_range(p, gSystemHeap, sizeof(gSystemHeap))) return true;
-    if (pointer_in_range(p, gAppZone.base, (u32)(gAppZone.limit - gAppZone.base))) return true;
-    return false;
 }
 
 /* ======================== Debug Support ======================== */

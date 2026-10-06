@@ -16,6 +16,7 @@
 #include "FileManager.h"
 #include "FileManager_Internal.h"
 #include "System71StdLib.h"
+#include "CPU/PPCInterp.h"
 #include "MemoryMgr/MemoryManager.h"
 #include "DialogManager/DialogResources.h"
 #include "DialogManager/DialogResourceParser.h"
@@ -2441,6 +2442,66 @@ static void Test_M68K_PageOwnership(void) {
     RecordTest(test_name, true, "");
 }
 
+static void Test_CPU_MemoryLifecycle(void) {
+    const char* test_name = "CPU_MemoryLifecycle";
+    if (!CPUBackend_Get("ppc_interp")) {
+        CHECK(PPCBackend_Initialize() == noErr, "could not register PPC backend");
+    }
+    static const char* names[] = { "m68k_interp", "ppc_interp" };
+    static const UInt8 code[] = { 0x60, 0, 0, 0, 0x4E, 0x80, 0, 0x20 };
+    for (unsigned i = 0; i < sizeof(names) / sizeof(names[0]); i++) {
+        const ICPUBackend* be = CPUBackend_Get(names[i]);
+        CHECK(be, "CPU backend unavailable");
+        UInt32 before = FreeMem();
+        CPUAddressSpace cas = NULL;
+        CHECK(be->CreateAddressSpace(NULL, &cas) == noErr, "could not create address space");
+        CPUAddr first = 0, second = 0, mapped = 0, third = 0;
+        CPUCodeHandle handle = NULL;
+        OSErr firstErr = be->AllocateMemory(cas, M68K_PAGE_SIZE + 17, kCPUMapA5World, &first);
+        OSErr secondErr = be->AllocateMemory(cas, 17, kCPUMapA5World, &second);
+        OSErr mapErr = be->MapExecutable(cas, code, sizeof(code), kCPUMapExecutable, &handle, &mapped);
+        OSErr thirdErr = be->AllocateMemory(cas, 17, kCPUMapA5World, &third);
+        Boolean allocated = firstErr == noErr && secondErr == noErr && mapErr == noErr && thirdErr == noErr;
+        Boolean disjoint = allocated && second >= first + M68K_PAGE_SIZE + 17 &&
+                           mapped >= second + 17 && third >= mapped + sizeof(code) &&
+                           ((first | second | mapped | third) & 15) == 0;
+        UInt8 byte = 0xFF;
+        Boolean zeroed = allocated &&
+                         be->ReadMemory(cas, first + M68K_PAGE_SIZE + 16, &byte, 1) == noErr && byte == 0;
+        UInt8 marker = 0xA5;
+        Boolean stored = allocated && be->WriteMemory(cas, first, &marker, 1) == noErr &&
+                         be->ReadMemory(cas, first, &byte, 1) == noErr && byte == marker;
+        UInt8 copy[sizeof(code)];
+        Boolean codeKept = allocated && be->ReadMemory(cas, mapped, copy, sizeof(copy)) == noErr &&
+                           memcmp(copy, code, sizeof(code)) == 0 &&
+                           be->WriteMemory(cas, first + M68K_PAGE_SIZE - 3, code, sizeof(code)) == noErr &&
+                           be->ReadMemory(cas, first + M68K_PAGE_SIZE - 3, copy, sizeof(copy)) == noErr &&
+                           memcmp(copy, code, sizeof(code)) == 0;
+        UInt8 rangeBuffer[32] = { 0 };
+        CPUAddr unchanged = 0xDEADBEEF;
+        Boolean rejected = be->AllocateMemory(cas, -1, kCPUMapA5World, &unchanged) == memFullErr &&
+                           be->AllocateMemory(cas, M68K_MAX_ADDR + 1, kCPUMapA5World, &unchanged) == memFullErr &&
+                           unchanged == 0xDEADBEEF &&
+                           be->WriteMemory(cas, first, &marker, -1) == paramErr &&
+                           be->ReadMemory(cas, first, &byte, -1) == paramErr &&
+                           be->WriteMemory(cas, 0xFFFFFFF0, rangeBuffer, sizeof(rangeBuffer)) == paramErr &&
+                           be->ReadMemory(cas, 0xFFFFFFF0, rangeBuffer, sizeof(rangeBuffer)) == paramErr;
+        if (sizeof(Size) > sizeof(UInt32)) {
+            rejected = rejected &&
+                       be->AllocateMemory(cas, (Size)0x100000001ULL, kCPUMapA5World, &unchanged) == memFullErr &&
+                       unchanged == 0xDEADBEEF;
+        }
+        Boolean unmapped = !handle || be->UnmapExecutable(cas, handle) == noErr;
+        be->DestroyAddressSpace(cas);
+        Boolean reclaimed = FreeMem() == before;
+        CHECK(allocated && disjoint, "code and data allocations overlap or fail");
+        CHECK(zeroed && stored && codeKept, "allocated memory is unavailable or corrupted");
+        CHECK(rejected, "memory API accepted an invalid or oversized range");
+        CHECK(unmapped && reclaimed, "address-space teardown leaked memory");
+    }
+    RecordTest(test_name, true, "");
+}
+
 /* A 68K application's heap: handles follow their blocks when they grow,
  * RecoverHandle finds the master pointer, flags live in its top byte. */
 static void Test_M68K_Heap(void) {
@@ -3383,6 +3444,7 @@ void IntegrationTests_Run(void) {
 
     IT_LOG_INFO("--- 68K exceptions ---");
     Test_M68K_PageOwnership();
+    Test_CPU_MemoryLifecycle();
     Test_M68K_RTE();
 
     IT_LOG_INFO("--- Control Manager ---");

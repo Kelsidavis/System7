@@ -3,7 +3,7 @@
  *
  * This interface abstracts all ISA-specific operations, allowing the
  * segment loader to remain completely portable across different CPU
- * architectures (68K interpreter, PPC JIT, native modules, etc.)
+ * architectures (68K interpreter, PPC interpreter, native modules, etc.)
  *
  * Design principles:
  * - NO host ISA assumptions leak upward
@@ -93,7 +93,7 @@ typedef OSErr (*CPUTrapHandler)(void* context, CPUAddr* pc, CPUAddr* registers);
 /*
  * ICPUBackend - CPU Backend Interface
  *
- * Each CPU backend (m68k_interp, ppc_jit, native_abi) implements this interface.
+ * Each CPU backend (m68k_interp, ppc_interp, native_abi) implements this interface.
  */
 typedef struct ICPUBackend {
     /*

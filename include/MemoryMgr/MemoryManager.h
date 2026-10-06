@@ -133,9 +133,6 @@ OSErr   MemoryManager_MapToM68K(struct M68KAddressSpace* as);
 /* Synchronize key low-memory globals with current zone state */
 void    MemoryManager_SyncLowMemGlobals(void);
 
-/* Utility to detect if a pointer belongs to a managed heap */
-bool    MemoryManager_IsHeapPointer(const void* p);
-
 /* Debugging */
 void    CheckHeap(ZoneInfo* zone);
 void    DumpHeap(ZoneInfo* zone);

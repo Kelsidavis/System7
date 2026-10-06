@@ -107,6 +107,7 @@ typedef struct PPCRegs {
 #define PPC_PAGE_SHIFT     12          /* log2(4096) */
 #define PPC_MAX_ADDR       0x1000000   /* 16MB virtual address space (for now) */
 #define PPC_NUM_PAGES      4096        /* 16MB / 4KB */
+#define PPC_ALLOC_BASE     0x1000      /* Keep the null page unmapped */
 
 /*
  * PowerPC Address Space Implementation
@@ -114,6 +115,7 @@ typedef struct PPCRegs {
 typedef struct PPCAddressSpace {
     void* pageTable[PPC_NUM_PAGES];  /* Sparse page table (NULL = not allocated) */
     UInt32 baseAddr;          /* Base address (typically 0) */
+    UInt32 nextAlloc;         /* Next address for code or data reservations */
 
     PPCRegs regs;             /* CPU registers */
 

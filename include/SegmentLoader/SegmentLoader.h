@@ -151,7 +151,7 @@ typedef struct SegmentLoaderContext {
  * SegmentLoader_Initialize - Initialize segment loader for process
  *
  * @param pcb               Process control block
- * @param cpuBackendName    Name of CPU backend ("m68k_interp", "ppc_jit", etc.)
+ * @param cpuBackendName    Name of CPU backend ("m68k_interp", "ppc_interp", etc.)
  * @param ctx               Output loader context
  * @return                  OSErr (noErr on success)
  */
