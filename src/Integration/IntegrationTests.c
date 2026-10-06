@@ -2737,12 +2737,12 @@ static void Test_MenuResourceNames(void) {
 
 static void Test_Menu_InitProcMenu(void) {
     const char* test_name = "Menu_InitProcMenu";
-    MenuBarList* menuBar = (MenuBarList*)GetMenuBar();
-    CHECK(menuBar, "the current menu list is unavailable");
-
-    short previousResourceID = menuBar->mbResID;
+    MenuBarList* menuBar = MenuMgr_GetMenuBarList();
+    short previousResourceID = menuBar ? menuBar->mbResID : 0;
     const short resourceID = 32123;
     InitProcMenu(resourceID);
+    menuBar = MenuMgr_GetMenuBarList();
+    CHECK(menuBar, "InitProcMenu did not create a menu list");
     Boolean updated = menuBar->mbResID == resourceID;
     InitProcMenu(previousResourceID);
 
@@ -2834,14 +2834,18 @@ static void Test_MenuKey_LeavesTitleHighlighted(void) {
 
     Rect titleRect;
     Boolean gotTitle = GetMenuTitleRectByID(menuID, &titleRect);
-    UInt32 normalPixel = gotTitle ? ScreenPixel(titleRect.left + 1,
+    UInt32 normalPixel = gotTitle ? ScreenPixel(titleRect.right - 2,
                                                 titleRect.top + 1) : 0;
+    UInt32 normalCorner = gotTitle ? ScreenPixel(titleRect.left + 1,
+                                                 titleRect.top + 1) : 0;
     long choice = MenuKeyEx('k', cmdKey, NULL);
-    UInt32 highlightedPixel = gotTitle ? ScreenPixel(titleRect.left + 1,
+    UInt32 highlightedPixel = gotTitle ? ScreenPixel(titleRect.right - 2,
                                                       titleRect.top + 1) : 0;
     HiliteMenu(0);
-    UInt32 restoredPixel = gotTitle ? ScreenPixel(titleRect.left + 1,
+    UInt32 restoredPixel = gotTitle ? ScreenPixel(titleRect.right - 2,
                                                   titleRect.top + 1) : 0;
+    UInt32 restoredCorner = gotTitle ? ScreenPixel(titleRect.left + 1,
+                                                   titleRect.top + 1) : 0;
 
     DeleteMenu(menuID);
     DisposeMenu(menu);
@@ -2850,10 +2854,12 @@ static void Test_MenuKey_LeavesTitleHighlighted(void) {
     CHECK(gotTitle, "the inserted menu title has no display rectangle");
     CHECK(choice == (((long)menuID << 16) | 1),
           "MenuKeyEx did not return the matching menu and item");
-    CHECK(highlightedPixel != normalPixel,
+    CHECK((highlightedPixel & 0x00FFFFFF) != (normalPixel & 0x00FFFFFF),
           "MenuKeyEx did not leave its menu title highlighted");
-    CHECK(restoredPixel == normalPixel,
+    CHECK((restoredPixel & 0x00FFFFFF) == (normalPixel & 0x00FFFFFF),
           "HiliteMenu(0) did not restore the normal title appearance");
+    CHECK((restoredCorner & 0x00FFFFFF) == (normalCorner & 0x00FFFFFF),
+          "title repainting did not preserve the screen corner");
     RecordTest(test_name, true, "");
 }
 

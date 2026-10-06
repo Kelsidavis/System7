@@ -19,6 +19,7 @@
 #include "System71StdLib.h"
 #include "QuickDraw.h"
 #include "QuickDraw/ColorQuickDraw.h"
+#include "QuickDraw/DisplayBezel.h"
 #include "QuickDrawConstants.h"
 
 #include "MenuManager/MenuManager.h"
@@ -255,6 +256,9 @@ void DrawMenuTitle(short menuID, const Rect* titleRect, Boolean hilited)
     } else {
         DrawMenuItemTextInternal(&textRect, titleText, normal, true, hilited, true);  /* true = isMenuTitle */
     }
+
+    /* Keep rounded screen corners intact when an edge title is repainted. */
+    QD_DrawCRTBezel();
 
     /* Restore the clip we narrowed to the menu bar, then the original port */
     if (saveClip) {

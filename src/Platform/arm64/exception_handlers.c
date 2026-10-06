@@ -36,16 +36,21 @@ static void print_hex(uint64_t value) {
  * Synchronous exception handler
  */
 void handle_sync_exception(exception_context_t *ctx) {
-    uint64_t esr;
+    uint64_t esr, far;
 
     /* Read exception syndrome register */
     __asm__ volatile("mrs %0, esr_el1" : "=r"(esr));
+    __asm__ volatile("mrs %0, far_el1" : "=r"(far));
 
     uart_puts("\n*** SYNC EXCEPTION ***\n");
     uart_puts("ESR: ");
     print_hex(esr);
     uart_puts("\nELR: ");
     print_hex(ctx->elr);
+    uart_puts("\nFAR: ");
+    print_hex(far);
+    uart_puts("\nLR: ");
+    print_hex(ctx->x[30]);
     uart_puts("\n");
 
     /* Hang forever */
