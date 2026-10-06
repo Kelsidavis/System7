@@ -53,6 +53,7 @@
 #include "ExtensionManager/ResourceLoader.h"
 #include "FontManager/FontManager.h"
 #include "FontManager/FontScaling.h"
+#include "FontManager/FontResources.h"
 #include "FontManager/CJKFont.h"
 #include "TextEncoding/CJKEncoding.h"
 #include "TextEdit/TextEdit.h"
@@ -661,6 +662,103 @@ static void Test_Draw_ClippedToVisibleRegion(void) {
     CHECK((before & 0x00FFFFFF) == 0x00FFFFFF, "the front window's content did not erase to white");
     CHECK(covered == before, "the back window drew over the front one");
     CHECK((uncovered & 0x00FFFFFF) == 0, "the back window's own uncovered part was not painted");
+    RecordTest(test_name, true, "");
+}
+
+static void PutBE16(UInt8* p, UInt16 v);
+static void PutBE32(UInt8* p, UInt32 v);
+
+static void Test_Font_FONDResourceParsing(void) {
+    const char* test_name = "Font_FONDResourceParsing";
+    UInt8 bytes[74] = {0};
+    PutBE16(bytes + 2, 321);
+    PutBE16(bytes + 6, 255);
+    PutBE16(bytes + 8, 0x0800);
+    PutBE32(bytes + 16, 72);
+    PutBE16(bytes + 28, 0xFF00);
+    PutBE16(bytes + 50, 3);
+    PutBE16(bytes + 52, 2);
+    PutBE16(bytes + 54, 9);
+    PutBE16(bytes + 58, 1001);
+    PutBE16(bytes + 60, 18);
+    PutBE16(bytes + 62, bold);
+    PutBE16(bytes + 64, 1002);
+    PutBE16(bytes + 66, 24);
+    PutBE16(bytes + 70, 1003);
+    bytes[72] = 0xA5;
+    bytes[73] = 0x5A;
+
+    Handle handle = NewHandle(sizeof(bytes));
+    CHECK(handle, "could not allocate FOND fixture");
+    memcpy(*handle, bytes, sizeof(bytes));
+    HLock(handle);
+    UInt8 state = HGetState(handle);
+    Boolean valid = FM_IsValidFOND(handle);
+    FONDResource* fond = NULL;
+    OSErr error = FM_LoadFONDResource(handle, &fond);
+    Boolean decoded = error == noErr && fond && fond->ffFamID == 321 &&
+                      fond->ffNumEntries == 3 && fond->ffAscent == 0x0800 &&
+                      fond->ffProperty[0] == -256 && fond->ffVersion == 3 &&
+                      fond->ffWTabOff == 72 && ((UInt8*)fond)[72] == 0xA5 &&
+                      ((UInt8*)fond)[73] == 0x5A;
+    Boolean associations = false;
+    if (fond) {
+        const FontAssocEntry* entry = NULL;
+        associations = FM_GetFontAssociation(fond, 2, &entry) == noErr && entry &&
+                       entry->fontSize == 24 && entry->fontID == 1003 &&
+                       FM_FindBestMatch(fond, 9, normal) == 1001 &&
+                       FM_FindBestMatch(fond, 24, normal) == 1003 &&
+                       FM_FindBestMatch(fond, 18, bold) == 1002 &&
+                       FM_FindBestMatch(fond, -32768, normal) == 1001 &&
+                       FM_GetFontAssociation(fond, 3, &entry) == paramErr;
+    }
+    Boolean statePreserved = HGetState(handle) == state;
+    FM_DisposeFOND(fond);
+    DisposeHandle(handle);
+    CHECK(valid && decoded, "FOND header or count was not decoded from big-endian data");
+    CHECK(associations, "association data was lost or size matching overflowed");
+    CHECK(statePreserved, "FOND parsing changed the caller's handle state");
+
+    Boolean truncatedRejected = true;
+    for (UInt32 length = 0; length < sizeof(bytes); length++) {
+        handle = NewHandle(length);
+        CHECK(handle, "could not allocate truncated FOND fixture");
+        if (length) memcpy(*handle, bytes, length);
+        fond = NULL;
+        if (FM_IsValidFOND(handle) || FM_LoadFONDResource(handle, &fond) == noErr || fond) {
+            truncatedRejected = false;
+        }
+        FM_DisposeFOND(fond);
+        DisposeHandle(handle);
+    }
+    CHECK(truncatedRejected, "truncated FOND association data was accepted");
+
+    handle = NewHandle(sizeof(bytes));
+    CHECK(handle, "could not allocate malformed FOND fixture");
+    memcpy(*handle, bytes, sizeof(bytes));
+    PutBE32((UInt8*)*handle + 16, 54);
+    fond = NULL;
+    Boolean overlapRejected = !FM_IsValidFOND(handle) &&
+                              FM_LoadFONDResource(handle, &fond) != noErr && !fond;
+    DisposeHandle(handle);
+    CHECK(overlapRejected, "an optional table overlapping associations was accepted");
+
+    handle = NewHandle(54 + 257 * 6);
+    CHECK(handle, "could not allocate large FOND fixture");
+    memset(*handle, 0, 54 + 257 * 6);
+    UInt8* large = (UInt8*)*handle;
+    PutBE16(large + 52, 256);
+    for (short i = 0; i < 257; i++) {
+        PutBE16(large + 54 + i * 6, (UInt16)(i + 1));
+        PutBE16(large + 58 + i * 6, (UInt16)(1000 + i));
+    }
+    fond = NULL;
+    Boolean largeParsed = FM_LoadFONDResource(handle, &fond) == noErr && fond &&
+                          fond->ffNumEntries == 257 &&
+                          FM_FindBestMatch(fond, 257, normal) == 1256;
+    FM_DisposeFOND(fond);
+    DisposeHandle(handle);
+    CHECK(largeParsed, "valid association tables larger than 256 entries were rejected");
     RecordTest(test_name, true, "");
 }
 
@@ -3560,6 +3658,7 @@ void IntegrationTests_Run(void) {
     Test_Draw_ClippedToVisibleRegion();
     Test_Draw_QDCharAdvancesPen();
     Test_Draw_FontSizeScaling();
+    Test_Font_FONDResourceParsing();
     Test_Draw_PenModes();
     Test_Draw_SetOrigin();
     Test_Draw_ScrollRect();

@@ -43,6 +43,7 @@ typedef struct OWTEntry {
 } OWTEntry;
 
 /* FOND (Font Family) Resource Structure */
+#pragma pack(push, 2)
 typedef struct FONDResource {
     /* Header */
     SInt16  ffFlags;        /* Family flags */
@@ -65,7 +66,7 @@ typedef struct FONDResource {
 
     /* Font association table */
     SInt16  ffVersion;      /* Version number */
-    SInt16  ffNumEntries;   /* Number of font association entries */
+    SInt16  ffNumEntries;   /* Decoded count; stored on disk as count minus one */
 
     /* Variable length data follows:
      * - Font association table entries
@@ -74,6 +75,7 @@ typedef struct FONDResource {
      * - Optional: Style mapping table
      */
 } FONDResource;
+#pragma pack(pop)
 
 /* Font Association Table Entry */
 typedef struct FontAssocEntry {

@@ -25,6 +25,33 @@ static int fm_abs(int x) {
     return x < 0 ? -x : x;
 }
 
+_Static_assert(sizeof(FONDResource) == 54, "FOND header includes its association count");
+_Static_assert(sizeof(FontAssocEntry) == 6, "FOND association entries contain three words");
+
+static UInt16 FontReadBE16(const UInt8* bytes) {
+    return ((UInt16)bytes[0] << 8) | bytes[1];
+}
+
+static UInt32 FontReadBE32(const UInt8* bytes) {
+    return ((UInt32)FontReadBE16(bytes) << 16) | FontReadBE16(bytes + 2);
+}
+
+static Boolean ValidateFONDData(const UInt8* bytes, size_t length, short* countOut) {
+    if (!bytes || length < sizeof(FONDResource)) return FALSE;
+    UInt16 storedCount = FontReadBE16(bytes + 52);
+    int count = storedCount == 0xFFFF ? 0 : (int)storedCount + 1;
+    if (count > 32767 || (size_t)count > (length - sizeof(FONDResource)) / sizeof(FontAssocEntry)) {
+        return FALSE;
+    }
+    size_t tableEnd = sizeof(FONDResource) + (size_t)count * sizeof(FontAssocEntry);
+    for (size_t at = 16; at <= 24; at += 4) {
+        UInt32 offset = FontReadBE32(bytes + at);
+        if (offset && ((offset & 1) || offset < tableEnd || offset > length - 2)) return FALSE;
+    }
+    if (countOut) *countOut = (short)count;
+    return TRUE;
+}
+
 /* Debug logging */
 #define FRL_DEBUG 1
 
@@ -213,6 +240,7 @@ OSErr FM_LoadFONDResource(Handle fondHandle, FONDResource **fondOut) {
     if (!fondHandle || !fondOut) {
         return paramErr;
     }
+    *fondOut = NULL;
 
     Size handleSize = GetHandleSize(fondHandle);
     if (handleSize < 0 || (size_t)handleSize < sizeof(FONDResource)) {
@@ -220,29 +248,50 @@ OSErr FM_LoadFONDResource(Handle fondHandle, FONDResource **fondOut) {
         return resNotFound;
     }
 
+    UInt8 state = HGetState(fondHandle);
     HLock(fondHandle);
-    FONDResource *fond = (FONDResource*)HandleDataAligned(fondHandle);
-    if (!fond) {
-        HUnlock(fondHandle);
+    const UInt8* bytes = (const UInt8*)*fondHandle;
+    if (!bytes) {
+        HSetState(fondHandle, state);
         return memPurgedErr;
     }
-
-    /* Allocate our own copy of header */
-    FONDResource *copy = (FONDResource*)__builtin_assume_aligned(
-        NewPtr(sizeof(FONDResource)), _Alignof(FONDResource));
-    if (!copy) {
-        HUnlock(fondHandle);
-        return memFullErr;
+    short count;
+    if (!ValidateFONDData(bytes, (size_t)handleSize, &count)) {
+        HSetState(fondHandle, state);
+        return resNotFound;
     }
 
-    /* Copy header */
-    *copy = *fond;
+    /* Retain associations and optional tables alongside the decoded header. */
+    FONDResource *copy = (FONDResource*)__builtin_assume_aligned(
+        NewPtr(handleSize), _Alignof(FONDResource));
+    if (!copy) {
+        HSetState(fondHandle, state);
+        return memFullErr;
+    }
+    memcpy(copy, bytes, (size_t)handleSize);
+    UInt8* decoded = (UInt8*)copy;
+    for (size_t at = 0; at < sizeof(FONDResource); at += 2) {
+        UInt16 word = FontReadBE16(bytes + at);
+        memcpy(decoded + at, &word, sizeof(word));
+    }
+    copy->ffWTabOff = FontReadBE32(bytes + 16);
+    copy->ffKernOff = FontReadBE32(bytes + 20);
+    copy->ffStylOff = FontReadBE32(bytes + 24);
+    copy->ffNumEntries = count;
+    FontAssocEntry* entries = (FontAssocEntry*)__builtin_assume_aligned(
+        decoded + sizeof(FONDResource), _Alignof(FontAssocEntry));
+    for (short i = 0; i < count; i++) {
+        const UInt8* entry = bytes + sizeof(FONDResource) + (size_t)i * sizeof(FontAssocEntry);
+        entries[i].fontSize = (SInt16)FontReadBE16(entry);
+        entries[i].fontStyle = (SInt16)FontReadBE16(entry + 2);
+        entries[i].fontID = (SInt16)FontReadBE16(entry + 4);
+    }
 
     FRL_LOG("Loaded FOND: family=%d, chars %d-%d, %d associations\n",
             copy->ffFamID, copy->ffFirstChar, copy->ffLastChar,
             copy->ffNumEntries);
 
-    HUnlock(fondHandle);
+    HSetState(fondHandle, state);
     *fondOut = copy;
     return noErr;
 }
@@ -257,16 +306,14 @@ SInt16 FM_FindBestMatch(const FONDResource *fond, SInt16 size, Style face) {
     }
 
     /* Validate entry count from resource data */
-    if (fond->ffNumEntries <= 0 || fond->ffNumEntries > 256) {
-        return -1;  /* Unreasonable count from malformed FOND resource */
-    }
+    if (fond->ffNumEntries <= 0) return -1;
 
     /* Get pointer to font association table */
     const FontAssocEntry *entries = (const FontAssocEntry*)__builtin_assume_aligned(
         (const UInt8*)fond + sizeof(FONDResource), _Alignof(FontAssocEntry));
 
     SInt16 bestID = -1;
-    SInt16 bestSizeDiff = 32767;
+    int bestSizeDiff = 65536;
 
     /* Search for exact or closest match */
     for (SInt16 i = 0; i < fond->ffNumEntries; i++) {
@@ -274,7 +321,7 @@ SInt16 FM_FindBestMatch(const FONDResource *fond, SInt16 size, Style face) {
 
         /* Check style match */
         if ((entry->fontStyle & face) == face) {
-            SInt16 sizeDiff = fm_abs(entry->fontSize - size);
+            int sizeDiff = fm_abs((int)entry->fontSize - size);
 
             /* Exact match? */
             if (sizeDiff == 0) {
@@ -320,20 +367,10 @@ Boolean FM_IsValidFOND(Handle fondHandle) {
     Size size = GetHandleSize(fondHandle);
     if (size < 0 || (size_t)size < sizeof(FONDResource)) return FALSE;
 
+    UInt8 state = HGetState(fondHandle);
     HLock(fondHandle);
-    FONDResource *fond = (FONDResource*)HandleDataAligned(fondHandle);
-    if (!fond) {
-        HUnlock(fondHandle);
-        return FALSE;
-    }
-
-    /* Basic sanity checks */
-    Boolean valid = (fond->ffFirstChar >= 0 &&
-                    fond->ffLastChar <= 255 &&
-                    fond->ffFirstChar <= fond->ffLastChar &&
-                    fond->ffNumEntries >= 0);
-
-    HUnlock(fondHandle);
+    Boolean valid = ValidateFONDData((const UInt8*)*fondHandle, (size_t)size, NULL);
+    HSetState(fondHandle, state);
     return valid;
 }
 
